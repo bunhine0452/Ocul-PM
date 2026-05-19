@@ -11,9 +11,10 @@ use tauri::Manager;
 use tauri_specta::{collect_commands, Builder};
 
 use crate::commands::{
-    chat, chat_stream, clear_project_index, create_project, db_health, index_project,
-    list_projects, project_stats, search_chunks, secret_delete, secret_has, secret_set,
-    select_project_folder, settings_get, settings_set,
+    chat, chat_stream, clear_project_index, create_project, dashboard_stats, db_health,
+    goal_create, goal_delete, goal_get, goal_list, goal_update, index_project, list_projects,
+    project_stats, search_chunks, secret_delete, secret_has, secret_set, select_project_folder,
+    settings_get, settings_set, subtask_create, subtask_delete, subtask_list, subtask_toggle,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -43,6 +44,17 @@ pub fn run() {
         index_project,
         search_chunks,
         clear_project_index,
+        // M4 — Planner
+        goal_create,
+        goal_list,
+        goal_get,
+        goal_update,
+        goal_delete,
+        dashboard_stats,
+        subtask_create,
+        subtask_list,
+        subtask_toggle,
+        subtask_delete,
     ]);
 
     #[cfg(debug_assertions)]
