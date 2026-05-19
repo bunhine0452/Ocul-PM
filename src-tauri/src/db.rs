@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Once;
 
+use rusqlite::OptionalExtension;
 use tokio_rusqlite::Connection;
 use tracing::info;
 
@@ -68,6 +69,39 @@ impl Db {
             })
             .await?;
         Ok(())
+    }
+
+    pub async fn settings_set(&self, key: String, value: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO settings (key, value, updated_at)
+                     VALUES (?1, ?2, unixepoch())
+                     ON CONFLICT(key) DO UPDATE SET
+                       value = excluded.value,
+                       updated_at = excluded.updated_at",
+                    (key, value),
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn settings_get(&self, key: String) -> Result<Option<String>> {
+        let value = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT value FROM settings WHERE key = ?1",
+                    [key],
+                    |r| r.get::<_, String>(0),
+                )
+                .optional()
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(value)
     }
 
     pub async fn health(&self) -> Result<DbHealth> {

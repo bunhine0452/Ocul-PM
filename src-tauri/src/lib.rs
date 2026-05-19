@@ -1,12 +1,15 @@
 mod commands;
 mod db;
 mod error;
+mod secrets;
 
 use specta_typescript::Typescript;
 use tauri::Manager;
 use tauri_specta::{collect_commands, Builder};
 
-use crate::commands::{db_health, greet};
+use crate::commands::{
+    db_health, greet, secret_delete, secret_has, secret_set, settings_get, settings_set,
+};
 use crate::db::Db;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,8 +21,15 @@ pub fn run() {
         )
         .try_init();
 
-    let builder =
-        Builder::<tauri::Wry>::new().commands(collect_commands![greet, db_health]);
+    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+        greet,
+        db_health,
+        settings_set,
+        settings_get,
+        secret_set,
+        secret_has,
+        secret_delete,
+    ]);
 
     #[cfg(debug_assertions)]
     builder

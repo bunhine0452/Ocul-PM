@@ -57,9 +57,13 @@
 - [x] tracing 로그 설정 (`RUST_LOG=info`)
 - [ ] `chunks` + `chunk_embeddings` 테이블 (M3에서 임베딩 모델 확정 후 추가)
 
-#### M1-2. 설정 관리
-- [ ] API 키 안전 저장 (Tauri Stronghold 또는 OS keychain)
-- [ ] 사용자 설정 UI (모델 선택, 언어, 임베딩 모델 등)
+#### M1-2. 설정 관리 ✅
+- [x] API 키 안전 저장 — `keyring` v3.6 (macOS Keychain / Windows Credential Manager / Linux Secret Service)
+- [x] `secrets.rs` 모듈 — set/get/has/delete (get은 백엔드 전용)
+- [x] DB `settings_set`/`settings_get` 메서드 (비밀이 아닌 설정용)
+- [x] 커맨드 노출: `secretSet`, `secretHas`, `secretDelete`, `settingsSet`, `settingsGet`
+  - **보안 결정**: `secretGet`은 IPC에 노출하지 않음. UI는 `secretHas`로 존재 여부만 확인하고, 실제 값은 Rust가 LLM 호출 시 직접 사용.
+- [x] `SettingsPanel` UI — 프로바이더별 API 키 설정 + 기본 모델 저장
 
 #### M1-3. IPC 명령 골격
 - [ ] Tauri `#[tauri::command]` 모듈 분리 구조
