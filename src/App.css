@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "highlight.js/styles/github.css";
+
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 

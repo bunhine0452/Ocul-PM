@@ -65,32 +65,37 @@
   - **보안 결정**: `secretGet`은 IPC에 노출하지 않음. UI는 `secretHas`로 존재 여부만 확인하고, 실제 값은 Rust가 LLM 호출 시 직접 사용.
 - [x] `SettingsPanel` UI — 프로바이더별 API 키 설정 + 기본 모델 저장
 
-#### M1-3. IPC 명령 골격
-- [ ] Tauri `#[tauri::command]` 모듈 분리 구조
-- [ ] 에러 타입 통일 (`thiserror` + 직렬화 가능 에러)
-- [ ] tauri-specta로 타입 생성 파이프라인
+#### M1-3. IPC 명령 골격 ✅
+- [x] Tauri 커맨드 모듈 분리: `commands/{mod,diagnostics,config}.rs`
+- [x] `Error` 타입 통일 (`thiserror` 기반, `From` 변환 체인)
+- [x] 모든 커맨드가 `Result<T, String>` 패턴으로 통일 (specta-typescript 호환)
+- [x] tauri-specta로 타입 생성 파이프라인 — dev 빌드마다 `bindings.ts` 자동 갱신
+- [x] `greet` smoke test 제거 (UI 미사용)
 
-**완료 기준**: 프론트에서 Rust 명령을 타입 안전하게 호출하고, DB에 read/write 가능.
+**완료 기준**: 프론트에서 Rust 명령을 타입 안전하게 호출하고, DB에 read/write 가능. ✅
 
 ---
 
 ### M2. 기능 ① — 맞춤형 프롬프트 & LLM 통신
 **목표**: 한국어 입력 → (선택적) 영어 번역 → LLM 호출 → 응답 표시.
 
-#### M2-1. LLM 추상화 레이어
-- [ ] `LlmProvider` trait 정의
-  ```rust
-  trait LlmProvider {
-      async fn chat(&self, msgs: Vec<Message>, opts: ChatOptions) -> Result<ChatResponse>;
-      async fn chat_stream(...) -> Result<impl Stream<Item = ChatChunk>>;
-  }
-  ```
-- [ ] 구현체:
-  - `OpenAiProvider`
-  - `AnthropicProvider`
-  - `GeminiProvider`
-  - (Stretch) `OllamaProvider` (로컬 LLM)
-- [ ] 스트리밍 응답 → Tauri Event로 프론트 전달
+#### M2-1. LLM 추상화 레이어 (진행 중)
+- [x] `LlmProvider` trait 정의 (`async-trait`, non-streaming `chat`)
+- [x] 공통 타입: `Message`, `Role`, `ChatOptions`, `ChatResponse`, `LlmError`
+- [x] `llm::create(name, api_key)` 팩토리
+- [x] reqwest 직접 호출 방식 (option B 채택)
+- [x] **GeminiProvider** — `v1beta/models/{model}:generateContent`
+- [x] **AnthropicProvider** — `v1/messages` (anthropic-version: 2023-06-01)
+- [x] **OpenAiProvider** — `v1/chat/completions`
+- [x] `chat` 커맨드 (provider, messages, options → ChatResponse)
+- [x] `ChatPanel` UI — 3개 프로바이더 선택, 멀티턴 대화 (메모리상)
+- [x] **스트리밍** (`tauri::ipc::Channel<ChatEvent>`)
+  - `chat_stream` 커맨드 + `ChatEvent::Delta/Done/Error`
+  - 공용 SSE 라인 파서 `forward_sse_lines`
+  - 프로바이더별 SSE 파싱 (Gemini `streamGenerateContent?alt=sse`, Anthropic `content_block_delta`, OpenAI `data: [DONE]` 종료)
+  - 프론트: `Channel<ChatEvent>`로 청크 수신 → 마지막 어시스턴트 메시지에 append
+- [x] **마크다운 렌더링** — `react-markdown` + GFM + highlight.js (assistant 메시지만)
+- [ ] 대화 히스토리 SQLite 저장 (M2-3 UI iteration)
 
 #### M2-2. 번역 모듈 (옵션)
 - [ ] 자동 한→영 번역 toggle 설정
@@ -110,31 +115,33 @@
 ### M3. 기능 ② — 로컬 코드 분석 + RAG (핵심)
 **목표**: 프로젝트를 인덱싱하고, 질문에 가장 관련된 코드만 LLM에 전달.
 
-#### M3-1. 프로젝트 인덱싱 파이프라인
-- [ ] 폴더 선택 다이얼로그 (Tauri dialog API)
-- [ ] 파일 워커 — `.gitignore` 존중, 바이너리/대용량 파일 제외
-- [ ] 파일 해시 기반 증분 인덱싱 (변경된 파일만 재처리)
-- [ ] 진행률 이벤트 → 프론트 표시
+#### M3-1. 프로젝트 인덱싱 파이프라인 ✅ (Phase A)
+- [x] 폴더 선택 다이얼로그 (`tauri-plugin-dialog`)
+- [x] 파일 워커 (`ignore` crate) — `.gitignore` 존중, 바이너리/500KB 초과 제외
+- [x] 파일 해시(blake3) 기반 증분 인덱싱 — 변경 안 된 파일은 건너뜀
+- [x] 진행률 이벤트 (`Channel<IndexProgress>`) → 프로그레스 바
+- [x] 마이그레이션 002 (chunks + chunk_embeddings vec0 + 삭제 트리거)
 
-#### M3-2. 정적 분석 (tree-sitter)
+#### M3-2. 정적 분석 (tree-sitter) — Phase B (다음)
 - [ ] 언어별 파서 등록 (TS/JS/Python/Rust/Go 우선)
 - [ ] AST 추출 → `import/export`, 함수 정의/호출 그래프
+- [ ] 함수/클래스 단위 청킹으로 교체 (현재는 line-window)
 - [ ] 의존성 그래프를 DB에 저장 (`edges` 테이블)
 - [ ] React Flow로 의존성 시각화 (사이드 패널)
 
-#### M3-3. 임베딩 + 벡터 저장
-- [ ] fastembed-rs 초기화 (모델: `bge-small-en-v1.5` 또는 다국어 모델)
-- [ ] 청킹 전략:
-  - 함수/클래스 단위 (tree-sitter로 경계 추출)
-  - 토큰 제한 시 슬라이딩 윈도우 분할
-- [ ] sqlite-vec에 벡터 저장
-- [ ] 임베딩 모델 변경 시 재인덱싱 플로우
+#### M3-3. 임베딩 + 벡터 저장 ✅ (Phase A)
+- [x] fastembed-rs 초기화 (모델: **MultilingualE5Small**, 384 dim — 한국어 포함 다국어 지원)
+- [x] 청킹: **30줄 윈도우 + 4줄 오버랩** (Phase B에서 AST 단위로 교체 예정)
+- [x] sqlite-vec에 임베딩 저장 (little-endian f32 바이트)
+- [x] 배치 임베딩 (32개씩) — 처리량 최적화
+- [x] 모델 lazy 로드 (첫 인덱싱 시 ~120MB 다운로드)
+- [ ] 임베딩 모델 변경 시 재인덱싱 플로우 (현재는 schema 고정)
 
 #### M3-4. RAG 질의
-- [ ] 사용자 질문 → 임베딩 → top-K 청크 검색
-- [ ] (Optional) 의존성 그래프로 관련 청크 확장
-- [ ] 컨텍스트 조립 후 LLM 호출
-- [ ] 응답에 출처 청크 표시 (citation)
+- [x] **검색 단독 동작** (Phase A): 자연어 → 임베딩 → top-K 청크 (`searchChunks` 커맨드 + UI)
+- [ ] (Optional) 의존성 그래프로 관련 청크 확장 — Phase B
+- [ ] 컨텍스트 조립 후 LLM 호출 — Phase B
+- [ ] 응답에 출처 청크 표시 (citation) — Phase B
 
 **완료 기준**: 임의의 프로젝트 폴더를 선택해 인덱싱한 뒤, "이 함수 어디서 호출돼?" 같은 질문에 출처와 함께 답한다. 평균 토큰 사용량이 전체 코드 전달 대비 90% 이상 감소.
 

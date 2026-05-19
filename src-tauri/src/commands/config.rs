@@ -1,23 +1,15 @@
+//! Commands for app configuration.
+//!
+//! Two backing stores:
+//! - **secrets**: OS keychain (API keys; values never leave the backend).
+//! - **settings**: SQLite (non-secret user prefs like default model).
+
 use tauri::State;
 
-use crate::db::{Db, DbHealth};
+use crate::db::Db;
 use crate::secrets;
 
-#[tauri::command]
-#[specta::specta]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-// ---------- DB ----------
-
-#[tauri::command]
-#[specta::specta]
-pub async fn db_health(db: State<'_, Db>) -> Result<DbHealth, String> {
-    db.health().await.map_err(|e| e.to_string())
-}
-
-// ---------- Settings (non-secret, stored in SQLite) ----------
+// ---------- Settings (SQLite) ----------
 
 #[tauri::command]
 #[specta::specta]
@@ -39,8 +31,6 @@ pub async fn settings_get(
 }
 
 // ---------- Secrets (OS keychain) ----------
-// Note: secret values are never returned to the frontend. The UI can only
-// set, check existence, and delete. The backend reads them when needed.
 
 #[tauri::command]
 #[specta::specta]

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands, type DbHealth } from "@/lib/bindings";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
+import { ChatPanel } from "@/features/chat/ChatPanel";
+import { ProjectsPanel } from "@/features/projects/ProjectsPanel";
 import "./App.css";
 
 function App() {
@@ -27,6 +29,10 @@ function App() {
       </div>
 
       <SettingsPanel />
+
+      <ProjectsPanel />
+
+      <ChatPanel />
 
       <section className="w-full max-w-md rounded-lg border bg-card p-6 space-y-3">
         <h2 className="text-lg font-semibold">Diagnostics</h2>
