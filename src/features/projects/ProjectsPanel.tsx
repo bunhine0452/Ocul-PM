@@ -57,10 +57,19 @@ export function ProjectsPanel() {
     }
   }
 
-  async function startIndex(id: number) {
+  async function startIndex(id: number, reset = false) {
     setIndexingId(id);
     setProgress(null);
     setError(null);
+
+    if (reset) {
+      const cleared = await commands.clearProjectIndex(id);
+      if (cleared.status === "error") {
+        setError(cleared.error);
+        setIndexingId(null);
+        return;
+      }
+    }
 
     const channel = new Channel<IndexProgress>();
     channel.onmessage = (p) => setProgress(p);
@@ -153,12 +162,22 @@ export function ProjectsPanel() {
                 </Button>
                 <Button
                   size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => startIndex(p.id, true)}
+                  disabled={indexingId != null || !s || s.chunks === 0}
+                  title="Clear all chunks and re-index from scratch"
+                >
+                  Reindex
+                </Button>
+                <Button
+                  size="sm"
                   variant={isSelected ? "default" : "outline"}
                   className="flex-1"
                   onClick={() => setSelectedId(isSelected ? null : p.id)}
                   disabled={indexingId != null}
                 >
-                  {isSelected ? "Selected" : "Select"}
+                  {isSelected ? "✓" : "Select"}
                 </Button>
               </div>
             </li>
