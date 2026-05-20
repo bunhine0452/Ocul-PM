@@ -167,9 +167,17 @@
   * {
     @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
-    }
+  /* Tauri runs with decorations:false + transparent:true so macOS does NOT
+     draw its own rounded chrome — we have to clip the document ourselves and
+     let the desktop show through the corners. */
+  html, body, #root {
+    background: transparent !important;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+  }
   html {
     @apply font-sans;
     }

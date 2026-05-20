@@ -67,6 +67,34 @@ function extractPlannerAction(text: string): { cleanText: string; action: Planne
   }
 }
 
+async function buildGitSystemContext(projectId: number | null, limit = 15): Promise<string> {
+  if (projectId == null) return "";
+  const statusRes = await commands.gitStatus(projectId);
+  if (statusRes.status !== "ok" || !statusRes.data.is_git_repo) return "";
+
+  const status = statusRes.data;
+  let markdown = "### Project git context\n";
+  if (status.head_branch) {
+    markdown += `- Current branch: \`${status.head_branch}\`\n`;
+  }
+  const gh = status.remotes.find((r) => r.host === "github.com" && r.owner && r.repo);
+  if (gh) {
+    markdown += `- GitHub: \`${gh.owner}/${gh.repo}\`\n`;
+  } else if (status.remotes.length > 0) {
+    markdown += `- Remote: \`${status.remotes[0].url}\`\n`;
+  }
+
+  const logRes = await commands.gitLog(projectId, limit);
+  if (logRes.status === "ok" && logRes.data.length > 0) {
+    markdown += `\nRecent commits (newest first):\n`;
+    for (const c of logRes.data) {
+      const when = new Date(c.timestamp * 1000).toISOString().slice(0, 10);
+      markdown += `- \`${c.short_sha}\` ${when} (${c.author_name}) — ${c.subject}\n`;
+    }
+  }
+  return markdown;
+}
+
 async function buildPlannerSystemContext(projectId: number | null): Promise<string> {
   const res = await commands.goalList(projectId, null);
   if (res.status === "error" || !res.data.length) {
@@ -411,6 +439,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
   const [projects, setProjects] = useState<Project[]>([]);
   const [contextProjectId, setContextProjectId] = useState<number | null>(activeProjectId);
   const [includePlanner, setIncludePlanner] = useState(true);
+  const [includeGit, setIncludeGit] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
 
   useEffect(() => {
@@ -643,6 +672,13 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
         systemPromptContent += plannerContext + "\n\n";
       }
       systemPromptContent += buildActionInstruction() + "\n\n";
+    }
+
+    if (includeGit) {
+      const gitContext = await buildGitSystemContext(contextProjectId);
+      if (gitContext) {
+        systemPromptContent += gitContext + "\n\n";
+      }
     }
 
     let llmHistory = baseHistory;
@@ -1022,6 +1058,27 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
               />
               <Label htmlFor="include-planner-checkbox" className="text-xs text-muted-foreground cursor-pointer select-none">
                 목표 및 일정 포함 (Include goals)
+              </Label>
+            </div>
+
+            <Label className="text-xs uppercase text-muted-foreground tracking-wider">
+              Git
+            </Label>
+            <div className="flex items-center gap-2 h-9">
+              <input
+                id="include-git-checkbox"
+                type="checkbox"
+                checked={includeGit}
+                onChange={(e) => setIncludeGit(e.currentTarget.checked)}
+                disabled={pending || contextProjectId == null}
+                className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-primary focus:ring-offset-2 disabled:opacity-40"
+              />
+              <Label
+                htmlFor="include-git-checkbox"
+                className="text-xs text-muted-foreground cursor-pointer select-none"
+                title="Prepend branch + recent commits to the system prompt"
+              >
+                최근 커밋 포함 (Include git log)
               </Label>
             </div>
           </div>

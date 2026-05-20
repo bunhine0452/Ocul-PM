@@ -1092,6 +1092,25 @@ impl Db {
     ) -> Result<()> {
         self.conn
             .call(move |c| {
+                // Check if the most recent change for this file has the exact same attributes
+                let latest: Option<(String, Option<String>, Option<String>)> = c
+                    .query_row(
+                        "SELECT change_type, old_hash, new_hash 
+                         FROM file_changes 
+                         WHERE project_id = ?1 AND file_path = ?2 
+                         ORDER BY detected_at DESC, id DESC 
+                         LIMIT 1",
+                        params![project_id as i64, &file_path],
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    )
+                    .optional()?;
+
+                if let Some((latest_change, latest_old, latest_new)) = latest {
+                    if latest_change == change_type && latest_old == old_hash && latest_new == new_hash {
+                        return Ok(());
+                    }
+                }
+
                 c.execute(
                     "INSERT INTO file_changes (project_id, file_path, change_type, old_hash, new_hash)
                      VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -1135,6 +1154,24 @@ impl Db {
             })
             .await?;
         Ok(changes)
+    }
+
+    pub async fn clean_duplicate_file_changes(&self) -> Result<()> {
+        self.conn
+            .call(|c| {
+                c.execute(
+                    "DELETE FROM file_changes
+                     WHERE id NOT IN (
+                         SELECT MIN(id)
+                         FROM file_changes
+                         GROUP BY project_id, file_path, change_type, old_hash, new_hash
+                     )",
+                    [],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
     }
 
     /// Returns the stored hash for a file by project_id and path.

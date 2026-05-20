@@ -22,11 +22,12 @@ use crate::commands::{
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
     get_dependency_graph, get_file_symbols,
-    minimize_window, toggle_maximize_window, close_window, open_devtools,
+    minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
     list_project_files, read_project_file, write_project_file,
     detect_file_changes, list_file_changes, generate_edit_prompt,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
     git_log, git_remotes, git_status, github_verify,
+    git_tags, git_log_range, read_changelog, github_releases,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -89,6 +90,7 @@ pub fn run() {
         toggle_maximize_window,
         close_window,
         open_devtools,
+        open_terminal_window,
         list_project_files,
         read_project_file,
         write_project_file,
@@ -106,6 +108,10 @@ pub fn run() {
         git_remotes,
         git_status,
         github_verify,
+        git_tags,
+        git_log_range,
+        read_changelog,
+        github_releases,
     ]);
 
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { commands } from "../lib/bindings";
 import { ChevronLeft, Maximize2, Minimize2, X, Sun, Moon, Monitor } from "./Icons";
 import { useTheme } from "../lib/theme";
@@ -18,6 +19,17 @@ export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
     if (theme === "light") setTheme("dark");
     else if (theme === "dark") setTheme("system");
     else setTheme("light");
+  };
+
+  const handleMouseDown = async (e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Only drag with left click
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a") || target.closest("input")) return;
+    try {
+      await getCurrentWindow().startDragging();
+    } catch (err) {
+      console.error("Failed to start dragging window:", err);
+    }
   };
 
   const handleMinimize = async (e: React.MouseEvent) => {
@@ -60,9 +72,8 @@ export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
 
   return (
     <div
-      className="h-11 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-4 select-none fixed top-0 left-0 right-0 z-50"
-      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      data-tauri-drag-region
+      className="h-11 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-4 select-none z-50 cursor-default"
+      onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
     >
       {/* Left Area: macOS Traffic Light Window Controls */}

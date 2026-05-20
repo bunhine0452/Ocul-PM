@@ -77,6 +77,9 @@ function App() {
   const [activeFile, setActiveFile] = useState<string | null>(() => {
     return localStorage.getItem("activeFile");
   });
+  const [isTerminalPip, setIsTerminalPip] = useState<boolean>(() => {
+    return localStorage.getItem("isTerminalPip") === "true";
+  });
   const [initialScrollLine, setInitialScrollLine] = useState<number | null>(null);
 
   // Handle opening file and jumping to specific line
@@ -118,6 +121,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem("activeTab", activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem("isTerminalPip", String(isTerminalPip));
+  }, [isTerminalPip]);
 
   useEffect(() => {
     if (activeFile !== null) {
@@ -294,8 +301,24 @@ function App() {
     }
   }, [activeTab]);
 
+  const isDetachedTerminalWindow = window.location.search.includes("window=terminal");
+
+  if (isDetachedTerminalWindow) {
+    return (
+      <div className="w-screen h-screen bg-stone-950 flex flex-col overflow-hidden select-text text-stone-100">
+        <TerminalPanel
+          projectRoot={selectedProjectRoot}
+          isPip={false}
+          onTogglePip={() => {}}
+          activeTab="terminal"
+          isDetachedWindow={true}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen bg-background text-foreground flex flex-col pt-11 selection:bg-primary/20 selection:text-primary overflow-hidden">
+    <div className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden rounded-xl border border-border">
       {/* OS Frameless Custom TitleBar */}
       <TitleBar projectName={selectedProjectName} onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined} />
 
@@ -684,11 +707,7 @@ function App() {
               </div>
             )}
 
-            {activeTab === "terminal" && (
-              <div className="flex-1 h-full overflow-hidden">
-                <TerminalPanel projectRoot={selectedProjectRoot} />
-              </div>
-            )}
+            {/* Terminal Panel is now persistently rendered below as a sibling to other panels to keep the shell and scrollback active */}
 
             {activeTab === "git" && selectedProjectId !== null && (
               <div className="flex-1 h-full overflow-hidden">
@@ -756,6 +775,13 @@ function App() {
                 </div>
               </div>
             )}
+            {/* Persistent Terminal Container */}
+            <TerminalPanel
+              projectRoot={selectedProjectRoot}
+              isPip={isTerminalPip}
+              onTogglePip={() => setIsTerminalPip(!isTerminalPip)}
+              activeTab={activeTab}
+            />
           </main>
         </div>
       )}

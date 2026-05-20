@@ -379,6 +379,7 @@ pub async fn detect_file_changes(
     db: State<'_, Db>,
     project_id: u32,
 ) -> Result<Vec<FileChange>, String> {
+    db.clean_duplicate_file_changes().await.map_err(|e| e.to_string())?;
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
 
