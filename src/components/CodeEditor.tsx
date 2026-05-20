@@ -1,24 +1,40 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { commands } from "../lib/bindings";
-import { Save, Edit3, Eye, Check, Loader2, X } from "lucide-react";
+import { Save, Check, Loader2, X } from "./Icons";
+
 import hljs from "highlight.js";
 
 interface CodeEditorProps {
   projectId: number;
   filePath: string;
+  initialScrollLine?: number | null;
   onClose: () => void;
 }
 
-export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
+export function CodeEditor({ projectId, filePath, initialScrollLine, onClose }: CodeEditorProps) {
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gutterRef = useRef<HTMLPreElement>(null);
+  const highlightPreRef = useRef<HTMLPreElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    const scrollLeft = e.currentTarget.scrollLeft;
+
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = scrollTop;
+    }
+    if (highlightPreRef.current) {
+      highlightPreRef.current.scrollTop = scrollTop;
+      highlightPreRef.current.scrollLeft = scrollLeft;
+    }
+  };
 
   // Fetch file content on load or path change
   useEffect(() => {
@@ -49,28 +65,31 @@ export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
     };
   }, [projectId, filePath]);
 
-  // Highlight code for View Mode
+  // Highlight code on the fly for Edit Mode (real-time overlay)
   const highlightedCode = useMemo(() => {
-    if (!content) return "";
+    if (!editContent) return "";
     const ext = filePath.split(".").pop() || "";
     const validLanguages = ["js", "jsx", "ts", "tsx", "rs", "json", "md", "html", "css", "py", "go", "sql", "sh", "yaml", "yml"];
     const lang = validLanguages.includes(ext) ? ext : undefined;
 
     try {
       if (lang) {
-        return hljs.highlight(content, { language: lang }).value;
+        return hljs.highlight(editContent, { language: lang }).value;
       }
-      return hljs.highlightAuto(content).value;
+      return hljs.highlightAuto(editContent).value;
     } catch (e) {
-      return content;
+      // Fallback: escape basic HTML characters
+      return editContent
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
     }
-  }, [content, filePath]);
+  }, [editContent, filePath]);
 
   // Compute line numbers
   const lineCount = useMemo(() => {
-    const text = isEditing ? editContent : content;
-    return text.split("\n").length;
-  }, [isEditing, editContent, content]);
+    return editContent.split("\n").length;
+  }, [editContent]);
 
   const lineNumbers = useMemo(() => {
     return Array.from({ length: lineCount }, (_, i) => i + 1).join("\n");
@@ -101,18 +120,17 @@ export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
   // Bind Ctrl+S / Cmd+S
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (isEditing) {
-          handleSave();
-        }
+        e.stopPropagation();
+        handleSave();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEditing, editContent, isSaving]);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, [editContent, isSaving]);
 
-  // Handle Tab key in Textarea
+  // Handle Tab key in Textarea (insert 2 spaces instead of shifting focus)
   const handleTabPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Tab") {
       e.preventDefault();
@@ -133,6 +151,26 @@ export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
       }, 0);
     }
   };
+
+  // Scroll to initial line once loading is finished
+  useEffect(() => {
+    if (!isLoading && initialScrollLine !== undefined && initialScrollLine !== null && textareaRef.current) {
+      const lineIndex = Math.max(0, initialScrollLine - 1);
+      const targetScrollTop = lineIndex * 22; // 22px precise line height
+
+      const timer = setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.scrollTop = targetScrollTop;
+          if (highlightPreRef.current && gutterRef.current) {
+            highlightPreRef.current.scrollTop = targetScrollTop;
+            gutterRef.current.scrollTop = targetScrollTop;
+          }
+        }
+      }, 50);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, initialScrollLine, filePath]);
 
   if (isLoading) {
     return (
@@ -157,47 +195,19 @@ export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* View / Edit Toggle */}
-          <div className="flex bg-secondary/80 rounded-lg p-0.5 border border-border">
-            <button
-              onClick={() => setIsEditing(false)}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                !isEditing
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>View</span>
-            </button>
-            <button
-              onClick={() => setIsEditing(true)}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                isEditing
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          </div>
-
           {/* Save Button */}
-          {isEditing && (
-            <button
-              onClick={handleSave}
-              disabled={isSaving || content === editContent}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground disabled:opacity-50 transition-all hover:brightness-105 active:brightness-95 cursor-pointer shadow-sm"
-            >
-              {isSaving ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-              <span>Save</span>
-            </button>
-          )}
+          <button
+            onClick={handleSave}
+            disabled={isSaving || content === editContent}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground disabled:opacity-50 transition-all hover:brightness-105 active:brightness-95 cursor-pointer shadow-sm"
+          >
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
+            <span>Save</span>
+          </button>
 
           {/* Close File button */}
           <button
@@ -218,30 +228,93 @@ export function CodeEditor({ projectId, filePath, onClose }: CodeEditorProps) {
       )}
 
       {/* Workspace Text Editor */}
-      <div className="flex-1 flex overflow-hidden font-mono text-sm leading-relaxed">
+      <div 
+        className="flex-1 flex overflow-hidden relative bg-[#faf9f5] dark:bg-[#181715]" 
+        style={{
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        }}
+      >
         {/* Line Numbers gutter */}
-        <pre className="select-none text-right px-3 py-4 bg-secondary/20 text-muted-foreground/40 border-r border-border/50 text-[11px] leading-[1.62] min-w-10 overflow-hidden">
+        <pre
+          ref={gutterRef}
+          className="select-none text-right bg-transparent text-muted-foreground/30 border-r border-border/40 overflow-hidden"
+          style={{
+            fontSize: "11px",
+            lineHeight: "22px",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            paddingTop: "16px",
+            paddingBottom: "16px",
+            paddingLeft: "12px",
+            paddingRight: "8px",
+            margin: 0,
+            borderTop: 0,
+            borderBottom: 0,
+            borderLeft: 0,
+            boxSizing: "border-box",
+            height: "100%",
+            minWidth: "40px",
+          }}
+        >
           {lineNumbers}
         </pre>
 
-        {isEditing ? (
+        {/* Textarea & Code Overlay area */}
+        <div className="flex-1 relative overflow-hidden h-full">
+          {/* Underlay: Syntax Highlighted representation */}
+          <pre
+            ref={highlightPreRef}
+            className="absolute inset-0 pointer-events-none overflow-hidden whitespace-pre bg-transparent"
+            style={{
+              fontSize: "13px",
+              lineHeight: "22px",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              padding: "16px",
+              margin: 0,
+              border: 0,
+              boxSizing: "border-box",
+              width: "100%",
+              height: "100%",
+              background: "transparent",
+            }}
+          >
+            <code
+              className="hljs block whitespace-pre bg-transparent"
+              style={{
+                fontSize: "13px",
+                lineHeight: "22px",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                padding: 0,
+                margin: 0,
+                border: 0,
+                background: "transparent",
+              }}
+              dangerouslySetInnerHTML={{ __html: highlightedCode }}
+            />
+          </pre>
+
+          {/* Overlay: Actual editable textarea */}
           <textarea
             ref={textareaRef}
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             onKeyDown={handleTabPress}
-            className="flex-1 resize-none p-4 bg-transparent text-foreground border-none outline-none font-mono text-xs focus:ring-0 leading-[1.62] overflow-y-auto"
+            onScroll={handleScroll}
+            className="absolute inset-0 bg-transparent focus:ring-0 overflow-auto resize-none outline-none whitespace-pre code-editor-textarea text-transparent selection:bg-primary/25 border-0"
+            style={{
+              fontSize: "13px",
+              lineHeight: "22px",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              padding: "16px",
+              margin: 0,
+              boxSizing: "border-box",
+              width: "100%",
+              height: "100%",
+              background: "transparent",
+            }}
             placeholder="Type code here..."
             spellCheck={false}
           />
-        ) : (
-          <pre className="flex-1 p-4 overflow-y-auto leading-[1.62] text-xs">
-            <code
-              className="hljs block whitespace-pre bg-transparent p-0"
-              dangerouslySetInnerHTML={{ __html: highlightedCode }}
-            />
-          </pre>
-        )}
+        </div>
       </div>
 
       {/* Save Success Toast overlay */}

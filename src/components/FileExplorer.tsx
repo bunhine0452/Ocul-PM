@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "./Icons";
+
 
 interface FileExplorerProps {
   files: Array<[number, string]>;

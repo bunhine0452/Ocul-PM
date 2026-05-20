@@ -111,117 +111,332 @@ pub fn clean_path(path: &Path) -> PathBuf {
     out
 }
 
+/// A single tsconfig-style path alias mapping (e.g. `"@/*": ["./src/*"]`).
+#[derive(Debug, Clone, Default)]
+pub struct PathAliases {
+    /// (alias_prefix_without_star, list_of_replacement_prefixes_without_star)
+    pub entries: Vec<(String, Vec<String>)>,
+}
+
+impl PathAliases {
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+/// Best-effort tsconfig.json paths loader. Scans `tsconfig.json` and
+/// `tsconfig.app.json` at the project root for a `compilerOptions.paths` map.
+/// Strips leading `./` from replacements and normalizes trailing `*`.
+pub fn load_path_aliases(project_root: &Path) -> PathAliases {
+    let mut aliases = PathAliases::default();
+    for fname in ["tsconfig.json", "tsconfig.app.json", "jsconfig.json"] {
+        let p = project_root.join(fname);
+        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        // Strip // and /* */ comments — tsconfig allows them
+        let cleaned = strip_jsonc_comments(&text);
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) else { continue };
+        let Some(paths) = json
+            .get("compilerOptions")
+            .and_then(|c| c.get("paths"))
+            .and_then(|p| p.as_object())
+        else {
+            continue;
+        };
+        for (pattern, replacements) in paths {
+            let Some(arr) = replacements.as_array() else { continue };
+            // Strip trailing /* or *
+            let alias_prefix = pattern
+                .trim_end_matches('*')
+                .trim_end_matches('/')
+                .to_string();
+            let alias_prefix = if alias_prefix.is_empty() {
+                pattern.clone()
+            } else {
+                format!("{}/", alias_prefix)
+            };
+            let repl_prefixes: Vec<String> = arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| {
+                    let s = s.trim_end_matches('*').trim_end_matches('/');
+                    let s = s.trim_start_matches("./");
+                    if s.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{}/", s)
+                    }
+                })
+                .collect();
+            if !repl_prefixes.is_empty() {
+                aliases.entries.push((alias_prefix, repl_prefixes));
+            }
+        }
+        // First config that exists wins to avoid duplicates
+        if !aliases.is_empty() {
+            break;
+        }
+    }
+    aliases
+}
+
+/// Strip `//` line comments and `/* ... */` block comments from JSON-with-comments.
+fn strip_jsonc_comments(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    let mut in_str = false;
+    let mut esc = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_str {
+            out.push(b as char);
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'"' {
+            in_str = true;
+            out.push('"');
+            i += 1;
+            continue;
+        }
+        if b == b'/' && i + 1 < bytes.len() {
+            if bytes[i + 1] == b'/' {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+        }
+        out.push(b as char);
+        i += 1;
+    }
+    out
+}
+
+/// File-extension candidates to try when resolving a relative import. Driven by
+/// the *source* file's extension since that determines the import semantics.
+fn candidate_extensions(source_ext: &str) -> &'static [&'static str] {
+    match source_ext {
+        "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => &[
+            "", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+            "/index.ts", "/index.tsx", "/index.js", "/index.jsx",
+        ],
+        "py" => &["", ".py", "/__init__.py"],
+        "rb" => &["", ".rb"],
+        "php" => &["", ".php"],
+        "c" | "h" | "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" => &["", ".h", ".hpp", ".hxx"],
+        "rs" => &["", ".rs", "/mod.rs"],
+        "go" => &["", ".go"],
+        _ => &[
+            "", ".ts", ".tsx", ".js", ".jsx",
+            "/index.ts", "/index.tsx", "/index.js", "/index.jsx",
+        ],
+    }
+}
+
+fn try_candidates(
+    target_rel_str: &str,
+    source_ext: &str,
+    project_files: &std::collections::HashMap<String, u32>,
+) -> Option<u32> {
+    for suffix in candidate_extensions(source_ext) {
+        let candidate = format!("{}{}", target_rel_str, suffix);
+        if let Some(&file_id) = project_files.get(&candidate) {
+            return Some(file_id);
+        }
+    }
+    None
+}
+
 /// Resolves an import path to a target file ID in the project files map.
 pub fn resolve_import(
     project_root: &Path,
     source_rel_path: &str,
     import_str: &str,
     project_files: &std::collections::HashMap<String, u32>,
+    path_aliases: &PathAliases,
 ) -> Option<u32> {
     let source_abs_path = project_root.join(source_rel_path);
     let parent_dir = source_abs_path.parent()?;
+    let source_ext = Path::new(source_rel_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
 
-    // Case 1: Relative Import (e.g. ./utils, ../components)
-    if import_str.starts_with('.') {
-        let target_abs_path = clean_path(&parent_dir.join(import_str));
-        if let Ok(target_rel_path) = target_abs_path.strip_prefix(project_root) {
-            let target_rel_str = target_rel_path.to_string_lossy().to_string();
-
-            // Try direct, then extensions
-            let candidates = vec![
-                target_rel_str.clone(),
-                format!("{}.ts", target_rel_str),
-                format!("{}.tsx", target_rel_str),
-                format!("{}.js", target_rel_str),
-                format!("{}.jsx", target_rel_str),
-                format!("{}/index.ts", target_rel_str),
-                format!("{}/index.tsx", target_rel_str),
-                format!("{}/index.js", target_rel_str),
-                format!("{}/index.jsx", target_rel_str),
-            ];
-
-            for candidate in candidates {
-                if let Some(&file_id) = project_files.get(&candidate) {
-                    return Some(file_id);
+    // Case 0: tsconfig path aliases (e.g. "@/foo" → "src/foo")
+    for (alias_prefix, repls) in &path_aliases.entries {
+        if let Some(suffix) = import_str.strip_prefix(alias_prefix) {
+            for repl in repls {
+                let mapped = format!("{}{}", repl, suffix);
+                let target_abs = clean_path(&project_root.join(&mapped));
+                if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
+                    let target_rel_str = target_rel.to_string_lossy().to_string();
+                    if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
+                        return Some(id);
+                    }
                 }
             }
         }
     }
 
-    // Case 2: Rust import logic (starts with crate::, super::, self::, or contains ::)
-    if import_str.contains("::") || source_rel_path.ends_with(".rs") {
+    // Case 1a: Python-style relative import — leading dots without a slash.
+    //   from .utils import x         → leading_dots=1, rest="utils"
+    //   from ..pkg.subpkg import y   → leading_dots=2, rest="pkg.subpkg"
+    //   from . import x              → leading_dots=1, rest=""
+    if source_ext == "py" && import_str.starts_with('.') && !import_str.contains('/') {
+        let leading_dots = import_str.chars().take_while(|c| *c == '.').count();
+        let rest = &import_str[leading_dots..];
+
+        // First leading dot = current package; each additional dot moves up one.
+        let mut base_dir = parent_dir.to_path_buf();
+        for _ in 1..leading_dots {
+            if let Some(p) = base_dir.parent() {
+                base_dir = p.to_path_buf();
+            }
+        }
+
+        let target_abs = if rest.is_empty() {
+            base_dir.clone()
+        } else {
+            base_dir.join(rest.replace('.', "/"))
+        };
+        if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
+            let target_rel_str = target_rel.to_string_lossy().to_string();
+            if let Some(id) = try_candidates(&target_rel_str, "py", project_files) {
+                return Some(id);
+            }
+        }
+    }
+
+    // Case 1b: Unix-style relative path (./foo, ../foo) for TS/JS/C/Ruby/etc.
+    if import_str.starts_with('.') && (import_str.contains('/') || import_str.contains('\\')) {
+        let target_abs = clean_path(&parent_dir.join(import_str));
+        if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
+            let target_rel_str = target_rel.to_string_lossy().to_string();
+            if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
+                return Some(id);
+            }
+        }
+    }
+
+    // Case 1c: Pure "./" or "." path (current dir)
+    if (import_str == "." || import_str == "./") && source_ext != "py" {
+        if let Ok(target_rel) = parent_dir.strip_prefix(project_root) {
+            let target_rel_str = target_rel.to_string_lossy().to_string();
+            if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
+                return Some(id);
+            }
+        }
+    }
+
+    // Case 2: Rust :: paths (crate::, super::, self::, or anything containing ::)
+    if import_str.contains("::") || source_ext == "rs" {
         let segments: Vec<&str> = import_str.split("::").filter(|s| !s.is_empty()).collect();
         if !segments.is_empty() {
-            // Find base search directory relative to crate root or current dir
-            let mut crate_root = None;
+            // Walk up to nearest Cargo.toml to find crate src/
+            let mut crate_root: Option<PathBuf> = None;
             let mut current = source_abs_path.parent();
             while let Some(dir) = current {
                 if dir.join("Cargo.toml").exists() {
                     crate_root = Some(dir.join("src"));
                     break;
                 }
+                if dir == project_root {
+                    break;
+                }
                 current = dir.parent();
             }
-            let crate_root_dir = crate_root.unwrap_or_else(|| project_root.join("src-tauri").join("src"));
 
-            let start_idx = if segments[0] == "crate" {
-                1
-            } else if segments[0] == "super" || segments[0] == "self" {
-                1
-            } else {
-                0
+            let start_idx = match segments[0] {
+                "crate" | "super" | "self" => 1,
+                _ => 0,
             };
 
             let base_dir = if segments[0] == "crate" {
-                crate_root_dir.clone()
+                // If no Cargo.toml found, skip this case
+                let Some(root) = crate_root.clone() else {
+                    return None;
+                };
+                root
             } else if segments[0] == "super" {
                 parent_dir.parent().unwrap_or(parent_dir).to_path_buf()
             } else {
                 parent_dir.to_path_buf()
             };
 
-            // Try resolving matching prefixes of segments
-            for len in (1..=segments.len() - start_idx).rev() {
+            // Try decreasing matching prefix lengths
+            let remaining = segments.len().saturating_sub(start_idx);
+            for len in (1..=remaining).rev() {
                 let sub_segs = &segments[start_idx..(start_idx + len)];
                 let sub_path = sub_segs.join("/");
-                let full_target_path = base_dir.join(&sub_path);
+                let full_target = base_dir.join(&sub_path);
 
-                if let Ok(rel_path) = full_target_path.strip_prefix(project_root) {
+                if let Ok(rel_path) = full_target.strip_prefix(project_root) {
                     let rel_str = rel_path.to_string_lossy().to_string();
-                    let candidates = vec![
-                        format!("{}.rs", rel_str),
-                        format!("{}/mod.rs", rel_str),
-                    ];
-                    for candidate in candidates {
-                        if let Some(&file_id) = project_files.get(&candidate) {
-                            return Some(file_id);
-                        }
+                    if let Some(id) = try_candidates(&rel_str, "rs", project_files) {
+                        return Some(id);
                     }
                 }
             }
         }
     }
 
-    // Case 3: Fallback general module segment suffix matching (for Go / custom import paths)
-    let import_normalized = import_str.replace("::", "/");
-    let segments: Vec<&str> = import_normalized.split('/').filter(|s| !s.is_empty()).collect();
+    // Case 3: Suffix-segment match for absolute module paths
+    // (Python `import pkg.mod`, Go `github.com/x/y`, Java `com.foo.Bar`, etc.)
+    let mut import_normalized = import_str.replace("::", "/").replace('\\', "/");
+    if !import_str.starts_with('.') {
+        import_normalized = import_normalized.replace('.', "/");
+    }
+    let segments: Vec<&str> = import_normalized
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect();
     if !segments.is_empty() {
+        // Special-cased file stems that act as "package init" / "barrel" files
+        const WILDCARD_STEMS: &[&str] = &["mod", "index", "__init__", "package", "lib", "main"];
+
+        // Iterate files; for each, compare the suffix of the file path against
+        // the suffix of the import. This makes nested project layouts resolve
+        // correctly (e.g. src/app/models/user.py for `app.models.user`).
         for (file_path, &file_id) in project_files {
             let file_normalized = file_path.replace('\\', "/");
             let file_parts: Vec<&str> = file_normalized.split('/').collect();
-            
-            // Check if the import path matches a suffix of the project file path (ignoring extension of last part)
-            if file_parts.len() >= segments.len() {
-                let suffix_start = file_parts.len() - segments.len();
+            if file_parts.is_empty() {
+                continue;
+            }
+
+            for seg_len in (1..=segments.len()).rev() {
+                if file_parts.len() < seg_len {
+                    continue;
+                }
+                let import_suffix = &segments[segments.len() - seg_len..];
+                let file_suffix_start = file_parts.len() - seg_len;
+
                 let mut matches = true;
-                for i in 0..segments.len() {
-                    let mut file_part = file_parts[suffix_start + i];
-                    if i == segments.len() - 1 {
-                        if let Some(pos) = file_part.find('.') {
-                            file_part = &file_part[..pos];
-                        }
-                    }
-                    if file_part != segments[i] && file_part != "mod" {
+                for i in 0..seg_len {
+                    let raw = file_parts[file_suffix_start + i];
+                    // Strip extension on the final filename
+                    let stem = if file_suffix_start + i == file_parts.len() - 1 {
+                        raw.rsplit_once('.').map(|p| p.0).unwrap_or(raw)
+                    } else {
+                        raw
+                    };
+                    if stem != import_suffix[i] && !WILDCARD_STEMS.contains(&stem) {
                         matches = false;
                         break;
                     }

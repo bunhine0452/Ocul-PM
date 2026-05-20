@@ -1,20 +1,5 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
-import {
-  ReactFlow,
-  ReactFlowProvider,
-  useReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  Position,
-  MarkerType,
-  Node,
-  Edge,
-  Handle,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import hljs from "highlight.js";
 import {
   commands,
   type DependencyGraph,
@@ -29,309 +14,264 @@ import {
   FileCode,
   ChevronRight,
   GitBranch,
-} from "lucide-react";
+} from "@/components/Icons";
 
-// Custom node data structure
-interface CustomNodeData {
-  file_path: string;
-  language: string | null;
-  isSelected?: boolean;
+// Warm depth palette tuned to the app's coral/cream theme
+const DEPTH_PALETTE = [
+  { name: "Roots",   color: "#cc785c" }, // coral (primary)
+  { name: "Layer 1", color: "#c19353" }, // amber
+  { name: "Layer 2", color: "#7a8b5a" }, // sage
+  { name: "Layer 3", color: "#5d8a8a" }, // muted teal
+  { name: "Layer 4", color: "#a86b8a" }, // plum
+];
+
+const depthMeta = (layer: number) => {
+  const entry = DEPTH_PALETTE[layer] ?? DEPTH_PALETTE[DEPTH_PALETTE.length - 1];
+  return {
+    color: entry.color,
+    label: layer === 0 ? "Roots" : `Layer ${layer}`,
+  };
+};
+
+// Language badge config keyed by extension
+const LANG_BADGES: Record<string, { label: string; fg: string; bg: string; border: string }> = {
+  rs:  { label: "Rust",   fg: "#b75d3d", bg: "#cc785c14", border: "#cc785c33" },
+  ts:  { label: "TS",     fg: "#3b6ea8", bg: "#3b6ea814", border: "#3b6ea833" },
+  tsx: { label: "TSX",    fg: "#3b6ea8", bg: "#3b6ea814", border: "#3b6ea833" },
+  js:  { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
+  jsx: { label: "JSX",    fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
+  mjs: { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
+  cjs: { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
+  py:  { label: "Python", fg: "#577a4a", bg: "#577a4a14", border: "#577a4a33" },
+  go:  { label: "Go",     fg: "#3d8a93", bg: "#3d8a9314", border: "#3d8a9333" },
+};
+
+function langBadgeFor(ext: string) {
+  return (
+    LANG_BADGES[ext] ?? {
+      label: ext.toUpperCase() || "FILE",
+      fg: "var(--muted-foreground)",
+      bg: "color-mix(in srgb, var(--muted-foreground) 8%, transparent)",
+      border: "color-mix(in srgb, var(--muted-foreground) 25%, transparent)",
+    }
+  );
 }
 
-// Custom Node Component
-const CustomNode = ({ data }: { data: CustomNodeData }) => {
-  const ext = data.file_path.split(".").pop() || "";
-  const isRust = ext === "rs";
-  const isTS = ["ts", "tsx"].includes(ext);
-  const isJS = ["js", "jsx", "mjs", "cjs"].includes(ext);
-  const isPython = ext === "py";
-  const isGo = ext === "go";
-
-  let badgeColor = "bg-zinc-800 text-zinc-400 border border-zinc-700";
-  let badgeLabel = ext.toUpperCase();
-
-  if (isRust) {
-    badgeColor = "bg-amber-950/60 text-amber-300 border border-amber-800/40";
-    badgeLabel = "Rust";
-  } else if (isTS) {
-    badgeColor = "bg-blue-950/60 text-blue-300 border border-blue-800/40";
-    badgeLabel = "TS";
-  } else if (isJS) {
-    badgeColor = "bg-yellow-950/60 text-yellow-300 border border-yellow-800/40";
-    badgeLabel = "JS";
-  } else if (isPython) {
-    badgeColor = "bg-emerald-950/60 text-emerald-300 border border-emerald-800/40";
-    badgeLabel = "Python";
-  } else if (isGo) {
-    badgeColor = "bg-cyan-950/60 text-cyan-300 border border-cyan-800/40";
-    badgeLabel = "Go";
-  }
-
-  const parts = data.file_path.split("/");
-  const fileName = parts.pop() || "";
-  const dirPath = parts.join("/");
-
-  return (
-    <div
-      className={`px-4 py-3 rounded-xl border bg-zinc-900/90 backdrop-blur-md transition-all duration-300 text-zinc-100 min-w-[220px] hover:scale-105 hover:border-zinc-500 ${
-        data.isSelected
-          ? "border-violet-500 shadow-lg shadow-violet-950/30 ring-2 ring-violet-500/20"
-          : "border-zinc-800 shadow-md"
-      }`}
-    >
-      <Handle type="target" position={Position.Left} className="w-2.5 h-2.5 bg-zinc-700 border border-zinc-800" />
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] text-zinc-400 font-mono truncate max-w-[180px]" title={dirPath}>
-          {dirPath ? `./${dirPath}` : "./"}
-        </span>
-        <span className="text-sm font-semibold truncate max-w-[180px]" title={fileName}>
-          {fileName}
-        </span>
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/40">
-          <span className={`text-[9px] px-2 py-0.5 rounded font-bold font-mono tracking-wider uppercase ${badgeColor}`}>
-            {badgeLabel}
-          </span>
-        </div>
-      </div>
-      <Handle type="source" position={Position.Right} className="w-2.5 h-2.5 bg-zinc-700 border border-zinc-800" />
-    </div>
-  );
-};
-
-const nodeTypes = {
-  custom: CustomNode,
-};
-
-function DependencyGraphInner({ projectId }: { projectId: number }) {
-  const { setCenter } = useReactFlow();
+function DependencyGraphInner({
+  projectId,
+  onOpenFile,
+}: {
+  projectId: number;
+  onOpenFile?: (filePath: string, startLine?: number) => void;
+}) {
   const [rawGraph, setRawGraph] = useState<DependencyGraph | null>(null);
   const [symbolsMap, setSymbolsMap] = useState<Record<string, SymbolDef[]>>({});
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Search state
+  const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Selection Inspector state
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 
-  const fetchSymbolsForFile = useCallback(async (fileId: number, filePath: string) => {
-    if (symbolsMap[filePath]) return;
-    try {
-      const res = await commands.getFileSymbols(fileId);
-      if (res.status === "ok") {
-        setSymbolsMap((prev) => ({
-          ...prev,
-          [filePath]: res.data,
-        }));
+  const [previewSymbol, setPreviewSymbol] = useState<{
+    symbolName: string;
+    filePath: string;
+    kind: string;
+    startLine: number;
+    endLine: number;
+    codeSnippet: string;
+    lang: string;
+  } | null>(null);
+
+  const fetchSymbolsForFile = useCallback(
+    async (fileId: number, filePath: string) => {
+      if (symbolsMap[filePath]) return;
+      try {
+        const res = await commands.getFileSymbols(fileId);
+        if (res.status === "ok") {
+          setSymbolsMap((prev) => ({ ...prev, [filePath]: res.data }));
+        }
+      } catch (err) {
+        console.error("Failed to load symbols for file:", filePath, err);
       }
-    } catch (err) {
-      console.error("Failed to load symbols for file:", filePath, err);
-    }
-  }, [symbolsMap]);
+    },
+    [symbolsMap]
+  );
 
   const fetchGraphAndSymbols = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch Dependency Graph
       const graphRes = await commands.getDependencyGraph(projectId);
-      if (graphRes.status === "error") {
-        throw new Error(graphRes.error);
-      }
+      if (graphRes.status === "error") throw new Error(graphRes.error);
       setRawGraph(graphRes.data);
-
-      // 2. Compute left-to-right layer layout
-      const dbNodes = graphRes.data.nodes;
-      const dbEdges = graphRes.data.edges;
-
-      // Calculate Degrees
-      const inDegree: Record<string, number> = {};
-      dbNodes.forEach((n) => {
-        inDegree[String(n.file_id)] = 0;
-      });
-      dbEdges.forEach((e) => {
-        inDegree[String(e.target_file_id)] = (inDegree[String(e.target_file_id)] || 0) + 1;
-      });
-
-      // Layer assignment logic (topological ordering simulation)
-      const layers: Record<string, number> = {};
-      let currentNodes = dbNodes.map((n) => String(n.file_id));
-      let currentLayer = 0;
-
-      while (currentNodes.length > 0) {
-        const nextNodes: string[] = [];
-        currentNodes.forEach((id) => {
-          const hasIncomingFromRemaining = dbEdges.some(
-            (e) => String(e.target_file_id) === id && currentNodes.includes(String(e.source_file_id))
-          );
-          if (!hasIncomingFromRemaining) {
-            layers[id] = currentLayer;
-          } else {
-            nextNodes.push(id);
-          }
-        });
-
-        // Loop breaker for cycles
-        if (nextNodes.length === currentNodes.length) {
-          currentNodes.forEach((id) => {
-            layers[id] = currentLayer;
-          });
-          break;
-        }
-        currentNodes = nextNodes;
-        currentLayer++;
-      }
-
-      // Group nodes by layer for y-position layout
-      const nodesByLayer: Record<number, string[]> = {};
-      Object.entries(layers).forEach(([id, l]) => {
-        if (!nodesByLayer[l]) {
-          nodesByLayer[l] = [];
-        }
-        nodesByLayer[l].push(id);
-      });
-
-      // Map DB Nodes to ReactFlow Nodes
-      const rfNodes: Node[] = dbNodes.map((node) => {
-        const nodeIdStr = String(node.file_id);
-        const layer = layers[nodeIdStr] || 0;
-        const indexInLayer = nodesByLayer[layer].indexOf(nodeIdStr);
-        
-        // Dynamic positioning coordinates
-        const x = layer * 320 + 50;
-        const y = indexInLayer * 160 + 50;
-
-        return {
-          id: nodeIdStr,
-          type: "custom",
-          data: {
-            file_path: node.path,
-            language: node.language,
-            isSelected: false,
-          },
-          position: { x, y },
-        };
-      });
-
-      // Map DB Edges to ReactFlow Edges
-      const rfEdges: Edge[] = dbEdges.map((edge, index) => ({
-        id: `e-${index}`,
-        source: String(edge.source_file_id),
-        target: String(edge.target_file_id),
-        type: "smoothstep",
-        animated: true,
-        style: { stroke: "#6366f1", strokeWidth: 1.5, opacity: 0.6 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: "#6366f1",
-        },
-      }));
-
-      setNodes(rfNodes);
-      setEdges(rfEdges);
-
-      // Auto center the view if elements exist
-      if (rfNodes.length > 0) {
-        setTimeout(() => {
-          setCenter(150, 150, { zoom: 0.8, duration: 400 });
-        }, 100);
-      }
     } catch (e: any) {
       console.error(e);
       setError(e.message || "Failed to load dependency graph.");
     } finally {
       setLoading(false);
     }
-  }, [projectId, setCenter, setNodes, setEdges]);
+  }, [projectId]);
 
   useEffect(() => {
     fetchGraphAndSymbols();
   }, [fetchGraphAndSymbols]);
 
-  // Handle Node selection
-  const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      const path = (node.data as unknown as CustomNodeData).file_path;
-      setSelectedFilePath(path);
-      fetchSymbolsForFile(Number(node.id), path);
+  useEffect(() => {
+    if (!previewSymbol) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewSymbol(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewSymbol]);
 
-      // Highlight selected node
-      setNodes((prevNodes: Node[]) =>
-        prevNodes.map((n) => ({
-          ...n,
-          data: {
-            ...(n.data as unknown as CustomNodeData),
-            isSelected: n.id === node.id,
-          },
-        }))
-      );
-    },
-    [setNodes, fetchSymbolsForFile]
-  );
+  const groupedNodesByLayer = useMemo(() => {
+    if (!rawGraph) return [];
 
-  // Search highlight
-  const executeSearch = () => {
-    if (!searchQuery.trim()) return;
-    const matchedNode = nodes.find((n) =>
-      ((n.data as unknown as CustomNodeData).file_path).toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const dbNodes = rawGraph.nodes;
+    const dbEdges = rawGraph.edges;
 
-    if (matchedNode) {
-      const path = (matchedNode.data as unknown as CustomNodeData).file_path;
-      setSelectedFilePath(path);
-      fetchSymbolsForFile(Number(matchedNode.id), path);
-      
-      // Update selected state in flow
-      setNodes((prevNodes: Node[]) =>
-        prevNodes.map((n) => ({
-          ...n,
-          data: {
-            ...(n.data as unknown as CustomNodeData),
-            isSelected: n.id === matchedNode.id,
-          },
-        }))
-      );
+    const connectedNodeIds = new Set<number>();
+    dbEdges.forEach((e) => {
+      connectedNodeIds.add(e.source_file_id);
+      connectedNodeIds.add(e.target_file_id);
+    });
 
-      // Recenter camera
-      setCenter(matchedNode.position.x + 110, matchedNode.position.y + 40, {
-        zoom: 1.1,
-        duration: 700,
+    const filteredNodes =
+      !showIsolatedNodes && connectedNodeIds.size > 0
+        ? dbNodes.filter((n) => connectedNodeIds.has(n.file_id))
+        : dbNodes;
+
+    const filteredFileIds = new Set(filteredNodes.map((n) => n.file_id));
+
+    const layers: Record<string, number> = {};
+    let currentNodes = filteredNodes.map((n) => String(n.file_id));
+    let currentLayer = 0;
+
+    while (currentNodes.length > 0) {
+      const nextNodes: string[] = [];
+      currentNodes.forEach((id) => {
+        const hasIncomingFromRemaining = dbEdges.some(
+          (e) =>
+            String(e.target_file_id) === id &&
+            filteredFileIds.has(e.source_file_id) &&
+            currentNodes.includes(String(e.source_file_id))
+        );
+        if (!hasIncomingFromRemaining) {
+          layers[id] = currentLayer;
+        } else {
+          nextNodes.push(id);
+        }
       });
+
+      if (nextNodes.length === currentNodes.length) {
+        currentNodes.forEach((id) => {
+          layers[id] = currentLayer;
+        });
+        break;
+      }
+      currentNodes = nextNodes;
+      currentLayer++;
+    }
+
+    const maxLayer = Math.max(...Object.values(layers), -1);
+    const groups: Array<{ layer: number; nodes: typeof filteredNodes }> = [];
+    for (let l = 0; l <= maxLayer; l++) {
+      groups.push({ layer: l, nodes: [] });
+    }
+
+    filteredNodes.forEach((node) => {
+      const l = layers[String(node.file_id)] ?? 0;
+      if (groups[l]) groups[l].nodes.push(node);
+    });
+
+    groups.forEach((g) => {
+      g.nodes.sort((a, b) => a.path.localeCompare(b.path));
+    });
+
+    return groups.filter((g) => g.nodes.length > 0);
+  }, [rawGraph, showIsolatedNodes]);
+
+  const connectedNodeIds = useMemo(() => {
+    const activeId = hoveredNodeId
+      ? Number(hoveredNodeId)
+      : selectedFilePath && rawGraph
+      ? rawGraph.nodes.find((n) => n.path === selectedFilePath)?.file_id
+      : null;
+
+    if (!activeId || !rawGraph) return new Set<number>();
+
+    const ids = new Set<number>([activeId]);
+    rawGraph.edges.forEach((e) => {
+      if (e.source_file_id === activeId) ids.add(e.target_file_id);
+      if (e.target_file_id === activeId) ids.add(e.source_file_id);
+    });
+    return ids;
+  }, [hoveredNodeId, selectedFilePath, rawGraph]);
+
+  const executeSearch = () => {
+    if (!searchQuery.trim() || !rawGraph) return;
+    const matchedNode = rawGraph.nodes.find((n) =>
+      n.path.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    if (matchedNode) {
+      setSelectedFilePath(matchedNode.path);
+      fetchSymbolsForFile(matchedNode.file_id, matchedNode.path);
     }
   };
 
-  // Select a file from links (incoming/outgoing list)
-  const selectFileByPath = useCallback((path: string) => {
-    const matchedNode = nodes.find((n) => (n.data as unknown as CustomNodeData).file_path === path);
-    if (matchedNode) {
-      setSelectedFilePath(path);
-      fetchSymbolsForFile(Number(matchedNode.id), path);
-      setNodes((prevNodes: Node[]) =>
-        prevNodes.map((n) => ({
-          ...n,
-          data: {
-            ...(n.data as unknown as CustomNodeData),
-            isSelected: n.id === matchedNode.id,
-          },
-        }))
-      );
-      setCenter(matchedNode.position.x + 110, matchedNode.position.y + 40, {
-        zoom: 1.1,
-        duration: 700,
-      });
-    }
-  }, [nodes, setNodes, setCenter, fetchSymbolsForFile]);
+  const selectFileByPath = useCallback(
+    (path: string) => {
+      if (!rawGraph) return;
+      const matchedNode = rawGraph.nodes.find((n) => n.path === path);
+      if (matchedNode) {
+        setSelectedFilePath(path);
+        fetchSymbolsForFile(matchedNode.file_id, path);
+      }
+    },
+    [rawGraph, fetchSymbolsForFile]
+  );
 
-  // Inspector dependencies calculation
+  const handleSymbolClick = async (sym: SymbolDef, filePath: string) => {
+    try {
+      const res = await commands.readProjectFile(projectId, filePath);
+      if (res.status === "ok") {
+        const lines = res.data.split("\n");
+        const start = Math.max(1, sym.start_line);
+        const end = Math.min(lines.length, sym.end_line);
+        const slicedLines = lines.slice(start - 1, end);
+        const codeSnippet = slicedLines.join("\n");
+
+        const ext = filePath.split(".").pop() || "";
+        let lang = "javascript";
+        if (ext === "rs") lang = "rust";
+        else if (ext === "py") lang = "python";
+        else if (ext === "go") lang = "go";
+        else if (["ts", "tsx"].includes(ext)) lang = "typescript";
+
+        setPreviewSymbol({
+          symbolName: sym.name,
+          filePath,
+          kind: sym.kind,
+          startLine: start,
+          endLine: end,
+          codeSnippet,
+          lang,
+        });
+      } else {
+        console.error("Failed to read file for preview:", res.error);
+      }
+    } catch (err) {
+      console.error("Error reading file for preview:", err);
+    }
+  };
+
   const inspectorDeps = useMemo(() => {
     if (!selectedFilePath || !rawGraph) return { incoming: [], outgoing: [] };
 
-    const selectedNode = rawGraph.nodes.find(n => n.path === selectedFilePath);
+    const selectedNode = rawGraph.nodes.find((n) => n.path === selectedFilePath);
     if (!selectedNode) return { incoming: [], outgoing: [] };
 
     const selectedFileId = selectedNode.file_id;
@@ -360,200 +300,505 @@ function DependencyGraphInner({ projectId }: { projectId: number }) {
     return symbolsMap[selectedFilePath] || [];
   }, [selectedFilePath, symbolsMap]);
 
+  const previewHighlightedCode = useMemo(() => {
+    if (!previewSymbol) return "";
+    try {
+      return hljs.highlight(previewSymbol.codeSnippet, { language: previewSymbol.lang }).value;
+    } catch (e) {
+      return hljs.highlightAuto(previewSymbol.codeSnippet).value;
+    }
+  }, [previewSymbol]);
+
+  const previewLineNumbers = useMemo(() => {
+    if (!previewSymbol) return "";
+    const nums = [];
+    for (let i = previewSymbol.startLine; i <= previewSymbol.endLine; i++) {
+      nums.push(i);
+    }
+    return nums.join("\n");
+  }, [previewSymbol]);
+
   return (
-    <div className="flex h-[calc(100vh-160px)] relative overflow-hidden bg-zinc-950/40 rounded-xl border border-zinc-800/80">
-      {/* Left side: Canvas and Search */}
-      <div className="flex-1 flex flex-col relative h-full">
+    <div className="flex h-full w-full relative overflow-hidden bg-background">
+      {/* Left side: Pipeline board */}
+      <div className="flex-1 min-w-0 flex flex-col relative h-full">
         {/* Controls Header */}
-        <div className="absolute top-4 left-4 z-10 flex gap-2 max-w-lg bg-zinc-950/80 p-2 rounded-xl border border-zinc-800/60 backdrop-blur-md">
-          <div className="relative">
+        <div className="absolute top-4 left-4 right-4 z-10 flex gap-2 items-center bg-card/80 backdrop-blur-md border border-border rounded-xl p-2 shadow-sm">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder="Search file path..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-              className="w-64 h-9 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus-visible:ring-violet-500"
+              className="h-9 pl-9 bg-background border-border text-foreground placeholder-muted-foreground focus-visible:ring-primary"
             />
-            <Search className="absolute right-3 top-2.5 w-4 h-4 text-zinc-500" />
           </div>
           <Button
             size="sm"
             onClick={executeSearch}
-            className="bg-violet-600 hover:bg-violet-700 text-zinc-100 h-9"
+            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Find
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowIsolatedNodes((prev) => !prev)}
+            className={`h-9 text-xs transition-all border-border ${
+              !showIsolatedNodes
+                ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {!showIsolatedNodes ? "Show All Files" : "Show Connected Only"}
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={fetchGraphAndSymbols}
             disabled={loading}
-            className="border-zinc-800 hover:bg-zinc-800 text-zinc-400 h-9 w-9"
+            className="h-9 w-9 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
+
+          <div className="ml-auto flex items-center gap-3 pr-2 text-[11px] text-muted-foreground">
+            {groupedNodesByLayer.length > 0 && (
+              <>
+                <span className="font-mono">
+                  {rawGraph?.nodes.length ?? 0} files
+                </span>
+                <span className="opacity-30">·</span>
+                <span className="font-mono">
+                  {groupedNodesByLayer.length} layers
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {error && (
-          <div className="absolute top-20 left-4 z-10 bg-red-950/80 border border-red-800/40 text-red-300 px-4 py-2.5 rounded-lg max-w-md text-xs backdrop-blur-sm">
+          <div className="absolute top-20 left-4 z-10 bg-destructive/10 border border-destructive/30 text-destructive px-4 py-2.5 rounded-lg max-w-md text-xs backdrop-blur-sm">
             {error}
           </div>
         )}
 
-        {/* Canvas */}
-        <div className="w-full h-full">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            onNodeClick={handleNodeClick}
-            minZoom={0.2}
-            maxZoom={2.5}
-            fitViewOptions={{ padding: 0.15 }}
-          >
-            <Background color="#27272a" gap={24} size={1} />
-            <Controls className="bg-zinc-900 border-zinc-800 text-zinc-400 rounded-lg overflow-hidden [&_button]:border-zinc-800 [&_button]:hover:bg-zinc-800 [&_path]:fill-zinc-400" />
-            <MiniMap
-              nodeColor="#1e1b4b"
-              maskColor="rgba(9, 9, 11, 0.7)"
-              className="bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden"
-              style={{ height: 120, width: 170 }}
-            />
-          </ReactFlow>
+        {/* Board Container */}
+        <div className="flex-1 overflow-x-auto flex gap-5 p-5 pt-20 h-full items-stretch scrollbar-thin select-none">
+          {groupedNodesByLayer.length > 0 ? (
+            groupedNodesByLayer.map((group) => {
+              const meta = depthMeta(group.layer);
+              return (
+                <div
+                  key={group.layer}
+                  className="flex-shrink-0 w-72 flex flex-col max-h-full rounded-2xl border border-border bg-card/60 overflow-hidden shadow-sm"
+                >
+                  {/* Column Header */}
+                  <div
+                    className="px-4 py-3 border-b border-border bg-card/80 flex items-center justify-between"
+                    style={{
+                      backgroundImage: `linear-gradient(to right, ${meta.color}24 0%, transparent 60%)`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: meta.color }}
+                      />
+                      <span className="text-sm font-semibold text-foreground tracking-tight">
+                        {meta.label}
+                      </span>
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold uppercase tracking-wider"
+                        style={{
+                          color: meta.color,
+                          backgroundColor: `${meta.color}14`,
+                          border: `1px solid ${meta.color}33`,
+                        }}
+                      >
+                        D{group.layer}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      {group.nodes.length} {group.nodes.length === 1 ? "file" : "files"}
+                    </span>
+                  </div>
+
+                  {/* Column Cards */}
+                  <div className="flex-1 min-h-0 overflow-y-auto p-2.5 flex flex-col gap-2 scrollbar-thin">
+                    {group.nodes.map((node) => {
+                      const idNum = node.file_id;
+                      const idStr = String(idNum);
+                      const isSelf = idStr === hoveredNodeId || node.path === selectedFilePath;
+                      const isRelated = connectedNodeIds.has(idNum) && !isSelf;
+                      const hasActiveSelection = hoveredNodeId !== null || selectedFilePath !== null;
+                      const isDimmed = hasActiveSelection && !isSelf && !isRelated;
+                      const active = node.path === selectedFilePath;
+
+                      let incoming = 0;
+                      let outgoing = 0;
+                      if (rawGraph) {
+                        incoming = rawGraph.edges.filter((e) => e.target_file_id === idNum).length;
+                        outgoing = rawGraph.edges.filter((e) => e.source_file_id === idNum).length;
+                      }
+
+                      const fileName = node.path.split("/").pop() || "";
+                      const dirPath = node.path.split("/").slice(0, -1).join("/");
+                      const ext = fileName.split(".").pop() || "";
+                      const badge = langBadgeFor(ext);
+
+                      const cardStyle: React.CSSProperties = {
+                        backgroundImage: `linear-gradient(to right, ${meta.color}1c 0%, transparent 40%)`,
+                      };
+                      if (active) {
+                        cardStyle.boxShadow = `0 0 0 2px ${meta.color}55, 0 1px 2px rgba(0,0,0,0.04)`;
+                      } else if (isRelated) {
+                        cardStyle.boxShadow = `0 0 0 1px ${meta.color}55`;
+                      }
+
+                      return (
+                        <div
+                          key={idNum}
+                          onMouseEnter={() => setHoveredNodeId(idStr)}
+                          onMouseLeave={() => setHoveredNodeId(null)}
+                          onClick={() => {
+                            setSelectedFilePath(node.path);
+                            fetchSymbolsForFile(idNum, node.path);
+                          }}
+                          style={cardStyle}
+                          className={`group relative rounded-lg border border-border bg-background hover:bg-card transition-all duration-200 cursor-pointer overflow-hidden ${
+                            isDimmed ? "opacity-30" : ""
+                          } ${active ? "bg-card" : ""}`}
+                        >
+                          <div className="px-3 py-2.5">
+                            <div
+                              className="text-[10px] font-mono truncate mb-0.5 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors"
+                              title={dirPath ? `./${dirPath}/` : "./"}
+                            >
+                              {dirPath ? `./${dirPath}/` : "./"}
+                            </div>
+
+                            <div
+                              className="text-sm font-semibold text-foreground group-hover:text-foreground truncate"
+                              title={fileName}
+                            >
+                              {fileName}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-border/60">
+                              <span
+                                className="text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold tracking-wider uppercase"
+                                style={{
+                                  color: badge.fg,
+                                  backgroundColor: badge.bg,
+                                  border: `1px solid ${badge.border}`,
+                                }}
+                              >
+                                {badge.label}
+                              </span>
+
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                                <span
+                                  title="Incoming dependencies"
+                                  className="flex items-center gap-0.5"
+                                >
+                                  <span className="opacity-60">←</span>
+                                  {incoming}
+                                </span>
+                                <span className="opacity-30">·</span>
+                                <span
+                                  title="Outgoing dependencies"
+                                  className="flex items-center gap-0.5"
+                                >
+                                  <span className="opacity-60">→</span>
+                                  {outgoing}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="w-full flex flex-col items-center justify-center py-20 text-center">
+              {loading ? (
+                <div className="flex flex-col items-center gap-3">
+                  <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+                  <span className="text-sm text-muted-foreground font-medium">
+                    Loading dependency board...
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <GitBranch className="w-8 h-8 text-muted-foreground/60" />
+                  <span className="text-sm text-muted-foreground">
+                    No project files found or indexed yet.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right side: Slide-over symbols and dependencies inspector */}
+      {/* Right side: Inspector */}
       {selectedFilePath && (
-        <div className="w-96 border-l border-zinc-800 bg-zinc-950/95 backdrop-blur-xl h-full flex flex-col z-20 shadow-2xl animate-in slide-in-from-right duration-300">
-          {/* Side panel Header */}
-          <div className="p-4 border-b border-zinc-800 flex justify-between items-start gap-4">
-            <div className="overflow-hidden">
-              <span className="text-[10px] text-zinc-500 font-mono block truncate">
+        <div className="w-96 border-l border-border bg-card/95 backdrop-blur-xl h-full flex flex-col z-20 shadow-xl animate-in slide-in-from-right duration-300">
+          <div className="p-4 border-b border-border flex justify-between items-start gap-4">
+            <div className="overflow-hidden flex-1">
+              <span className="text-[10px] text-muted-foreground font-mono block truncate">
                 {selectedFilePath.split("/").slice(0, -1).join("/") || "./"}
               </span>
-              <h3 className="text-sm font-bold text-zinc-100 truncate" title={selectedFilePath.split("/").pop() || ""}>
-                {selectedFilePath.split("/").pop()}
-              </h3>
+              <div className="flex items-center gap-2 mt-1">
+                <h3
+                  className="text-sm font-bold text-foreground truncate"
+                  title={selectedFilePath.split("/").pop() || ""}
+                >
+                  {selectedFilePath.split("/").pop()}
+                </h3>
+                {onOpenFile && (
+                  <button
+                    onClick={() => onOpenFile(selectedFilePath)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Open in Editor"
+                  >
+                    <FileCode className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                setSelectedFilePath(null);
-                setNodes((ns: Node[]) => ns.map((n) => ({
-                  ...n,
-                  data: {
-                    ...(n.data as unknown as CustomNodeData),
-                    isSelected: false,
-                  },
-                })));
-              }}
-              className="text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"
+              onClick={() => setSelectedFilePath(null)}
+              className="text-muted-foreground hover:text-foreground hover:bg-muted"
             >
               <X className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Side Panel Tabs/Content */}
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 scrollbar-thin">
-            {/* Connections Section */}
             <div>
-              <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <GitBranch className="w-3.5 h-3.5 text-indigo-400" /> Connections
+              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <GitBranch className="w-3.5 h-3.5 text-primary" /> Connections
               </h4>
               <div className="flex flex-col gap-4">
-                {/* Incoming imports */}
                 <div>
-                  <span className="text-[10px] text-zinc-500 block mb-1">Imported by ({inspectorDeps.incoming.length}):</span>
+                  <span className="text-[10px] text-muted-foreground block mb-1.5">
+                    Imported by ({inspectorDeps.incoming.length})
+                  </span>
                   {inspectorDeps.incoming.length > 0 ? (
-                    <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-1">
+                    <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
                       {inspectorDeps.incoming.map((path) => (
                         <button
                           key={path}
                           onClick={() => selectFileByPath(path)}
-                          className="flex items-center justify-between text-left text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1.5 rounded border border-zinc-800/80 transition-colors w-full group"
+                          className="flex items-center justify-between text-left text-xs bg-background hover:bg-muted text-foreground px-2.5 py-1.5 rounded border border-border transition-colors w-full group cursor-pointer"
                         >
                           <span className="truncate flex-1 font-mono text-[11px]">
                             {path.split("/").pop()}
                           </span>
-                          <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-zinc-300 ml-1.5 flex-shrink-0" />
+                          <ChevronRight className="w-3 h-3 text-muted-foreground/60 group-hover:text-foreground ml-1.5 flex-shrink-0" />
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-zinc-600 block italic pl-2">No incoming imports.</span>
+                    <span className="text-xs text-muted-foreground/70 block italic pl-2">
+                      No incoming imports.
+                    </span>
                   )}
                 </div>
 
-                {/* Outgoing imports */}
                 <div>
-                  <span className="text-[10px] text-zinc-500 block mb-1">Imports ({inspectorDeps.outgoing.length}):</span>
+                  <span className="text-[10px] text-muted-foreground block mb-1.5">
+                    Imports ({inspectorDeps.outgoing.length})
+                  </span>
                   {inspectorDeps.outgoing.length > 0 ? (
-                    <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-1">
+                    <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
                       {inspectorDeps.outgoing.map((path) => (
                         <button
                           key={path}
                           onClick={() => selectFileByPath(path)}
-                          className="flex items-center justify-between text-left text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1.5 rounded border border-zinc-800/80 transition-colors w-full group"
+                          className="flex items-center justify-between text-left text-xs bg-background hover:bg-muted text-foreground px-2.5 py-1.5 rounded border border-border transition-colors w-full group cursor-pointer"
                         >
                           <span className="truncate flex-1 font-mono text-[11px]">
                             {path.split("/").pop()}
                           </span>
-                          <ChevronRight className="w-3 h-3 text-zinc-600 group-hover:text-zinc-300 ml-1.5 flex-shrink-0" />
+                          <ChevronRight className="w-3 h-3 text-muted-foreground/60 group-hover:text-foreground ml-1.5 flex-shrink-0" />
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-zinc-600 block italic pl-2">No outgoing imports.</span>
+                    <span className="text-xs text-muted-foreground/70 block italic pl-2">
+                      No outgoing imports.
+                    </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* AST Symbol Definitions Section */}
             <div>
-              <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <FileCode className="w-3.5 h-3.5 text-emerald-400" /> Symbols ({selectedFileSymbols.length})
+              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <FileCode className="w-3.5 h-3.5 text-primary" /> Symbols ({selectedFileSymbols.length})
               </h4>
               {selectedFileSymbols.length > 0 ? (
-                <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1 scrollbar-thin">
                   {selectedFileSymbols.map((sym, i) => {
-                    let typeBadge = "bg-zinc-900 text-zinc-500 border-zinc-800";
+                    let typeFg = "var(--muted-foreground)";
+                    let typeBg = "color-mix(in srgb, var(--muted-foreground) 10%, transparent)";
+                    let typeBorder = "color-mix(in srgb, var(--muted-foreground) 25%, transparent)";
                     if (["function", "method"].includes(sym.kind)) {
-                      typeBadge = "bg-teal-950/40 text-teal-300 border border-teal-900/55";
+                      typeFg = "#5d8a8a";
+                      typeBg = "#5d8a8a14";
+                      typeBorder = "#5d8a8a33";
                     } else if (["struct", "class", "interface"].includes(sym.kind)) {
-                      typeBadge = "bg-violet-950/40 text-violet-300 border border-violet-900/55";
+                      typeFg = "#cc785c";
+                      typeBg = "#cc785c14";
+                      typeBorder = "#cc785c33";
                     } else if (["enum", "trait", "type"].includes(sym.kind)) {
-                      typeBadge = "bg-amber-950/40 text-amber-300 border border-amber-900/55";
+                      typeFg = "#c19353";
+                      typeBg = "#c1935314";
+                      typeBorder = "#c1935333";
                     }
 
                     return (
-                      <div
+                      <button
                         key={`${sym.name}-${i}`}
-                        className="flex items-center justify-between text-xs bg-zinc-900/40 px-3 py-2 rounded-lg border border-zinc-900/80 hover:border-zinc-800 transition-colors"
+                        onClick={() => handleSymbolClick(sym, selectedFilePath)}
+                        className="w-full flex items-center justify-between text-left text-xs bg-background hover:bg-muted px-3 py-2 rounded-lg border border-border hover:border-primary/40 transition-all group/sym cursor-pointer"
                       >
-                        <div className="overflow-hidden mr-2">
-                          <span className="font-semibold text-zinc-200 font-mono truncate block" title={sym.name}>
+                        <div className="overflow-hidden mr-2 flex-1">
+                          <span
+                            className="font-semibold text-foreground group-hover/sym:text-primary font-mono truncate block"
+                            title={sym.name}
+                          >
                             {sym.name}
                           </span>
-                          <span className="text-[10px] text-zinc-500">
-                            Lines {sym.start_line} - {sym.end_line}
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Lines {sym.start_line} – {sym.end_line}
                           </span>
                         </div>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold font-mono tracking-wider ${typeBadge}`}>
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded font-bold font-mono tracking-wider flex-shrink-0 uppercase"
+                          style={{ color: typeFg, backgroundColor: typeBg, border: `1px solid ${typeBorder}` }}
+                        >
                           {sym.kind}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               ) : (
-                <span className="text-xs text-zinc-600 block italic pl-2">No symbols indexed in this file.</span>
+                <span className="text-xs text-muted-foreground/70 block italic pl-2">
+                  No symbols indexed in this file.
+                </span>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Code Snippet Preview Modal */}
+      {previewSymbol && (
+        <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-center justify-center p-6 transition-all duration-300">
+          <div className="bg-card border border-border w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-border bg-card/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded font-mono font-bold tracking-wider uppercase"
+                  style={{
+                    color: "#cc785c",
+                    backgroundColor: "#cc785c14",
+                    border: "1px solid #cc785c33",
+                  }}
+                >
+                  {previewSymbol.kind}
+                </span>
+                <div className="overflow-hidden">
+                  <h3 className="text-sm font-semibold text-foreground font-mono truncate max-w-md">
+                    {previewSymbol.symbolName}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-lg">
+                    {previewSymbol.filePath} • Lines {previewSymbol.startLine} – {previewSymbol.endLine}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(previewSymbol.codeSnippet)}
+                  className="px-2.5 py-1.5 rounded-lg bg-background hover:bg-muted border border-border text-[10px] font-medium text-foreground transition-all cursor-pointer"
+                >
+                  Copy Code
+                </button>
+                <button
+                  onClick={() => setPreviewSymbol(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer border border-transparent hover:border-border"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-background flex relative min-h-0 select-text p-4">
+              <pre
+                className="select-none text-right bg-transparent text-muted-foreground/40 border-r border-border overflow-hidden pr-3 mr-3"
+                style={{
+                  fontSize: "13px",
+                  lineHeight: "22px",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  margin: 0,
+                  padding: 0,
+                  boxSizing: "border-box",
+                  minWidth: "40px",
+                }}
+              >
+                {previewLineNumbers}
+              </pre>
+
+              <pre
+                className="flex-1 whitespace-pre overflow-auto bg-transparent m-0 p-0"
+                style={{
+                  fontSize: "13px",
+                  lineHeight: "22px",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  margin: 0,
+                  padding: 0,
+                }}
+              >
+                <code
+                  className="hljs block whitespace-pre bg-transparent border-0"
+                  style={{
+                    fontSize: "13px",
+                    lineHeight: "22px",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    padding: 0,
+                    margin: 0,
+                    background: "transparent",
+                  }}
+                  dangerouslySetInnerHTML={{ __html: previewHighlightedCode }}
+                />
+              </pre>
+            </div>
+
+            <div className="p-3 bg-card/80 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>Press Escape or click close button to return to dependency pipeline.</span>
+              <button
+                onClick={() => {
+                  const filePath = previewSymbol.filePath;
+                  const startLine = previewSymbol.startLine;
+                  setPreviewSymbol(null);
+                  if (onOpenFile) onOpenFile(filePath, startLine);
+                }}
+                className="text-primary hover:underline font-semibold cursor-pointer"
+              >
+                Open full file in Editor →
+              </button>
             </div>
           </div>
         </div>
@@ -562,10 +807,12 @@ function DependencyGraphInner({ projectId }: { projectId: number }) {
   );
 }
 
-export function DependencyGraphView({ projectId }: { projectId: number }) {
-  return (
-    <ReactFlowProvider>
-      <DependencyGraphInner projectId={projectId} />
-    </ReactFlowProvider>
-  );
+export function DependencyGraphView({
+  projectId,
+  onOpenFile,
+}: {
+  projectId: number;
+  onOpenFile?: (filePath: string, startLine?: number) => void;
+}) {
+  return <DependencyGraphInner projectId={projectId} onOpenFile={onOpenFile} />;
 }

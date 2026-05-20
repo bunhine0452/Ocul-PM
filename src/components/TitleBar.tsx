@@ -1,6 +1,7 @@
 import React from "react";
 import { commands } from "../lib/bindings";
-import { ChevronLeft, Maximize2, Minimize2, X } from "lucide-react";
+import { ChevronLeft, Maximize2, Minimize2, X } from "./Icons";
+
 
 interface TitleBarProps {
   projectName?: string | null;

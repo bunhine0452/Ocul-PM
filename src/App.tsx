@@ -13,7 +13,6 @@ import { ChatPanel } from "@/features/chat/ChatPanel";
 import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
 
-// Icons
 import {
   FolderCode,
   MessageSquare,
@@ -26,8 +25,9 @@ import {
   Code2,
   KeyRound,
   LayoutDashboard
-} from "lucide-react";
+} from "./components/Icons";
 import "./App.css";
+
 
 type StatsMap = Record<number, ProjectStats>;
 
@@ -45,12 +45,80 @@ function App() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   // Active Workspace States
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
-  const [selectedProjectRoot, setSelectedProjectRoot] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"files" | "chat" | "graph" | "planner" | "settings" | "diagnostics">("files");
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => {
+    const saved = localStorage.getItem("selectedProjectId");
+    return saved ? Number(saved) : null;
+  });
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(() => {
+    return localStorage.getItem("selectedProjectName");
+  });
+  const [selectedProjectRoot, setSelectedProjectRoot] = useState<string | null>(() => {
+    return localStorage.getItem("selectedProjectRoot");
+  });
+  const [activeTab, setActiveTab] = useState<"files" | "chat" | "graph" | "planner" | "settings" | "diagnostics">((() => {
+    const saved = localStorage.getItem("activeTab");
+    return (saved as any) || "files";
+  }));
   const [projectFiles, setProjectFiles] = useState<Array<[number, string]>>([]);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState<string | null>(() => {
+    return localStorage.getItem("activeFile");
+  });
+  const [initialScrollLine, setInitialScrollLine] = useState<number | null>(null);
+
+  // Handle opening file and jumping to specific line
+  const handleOpenFile = (path: string, startLine?: number) => {
+    setActiveTab("files");
+    setActiveFile(path);
+    if (startLine !== undefined) {
+      setInitialScrollLine(startLine);
+    } else {
+      setInitialScrollLine(null);
+    }
+  };
+
+  // Sync workspace states to localStorage
+  useEffect(() => {
+    if (selectedProjectId !== null) {
+      localStorage.setItem("selectedProjectId", String(selectedProjectId));
+    } else {
+      localStorage.removeItem("selectedProjectId");
+    }
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProjectName !== null) {
+      localStorage.setItem("selectedProjectName", selectedProjectName);
+    } else {
+      localStorage.removeItem("selectedProjectName");
+    }
+  }, [selectedProjectName]);
+
+  useEffect(() => {
+    if (selectedProjectRoot !== null) {
+      localStorage.setItem("selectedProjectRoot", selectedProjectRoot);
+    } else {
+      localStorage.removeItem("selectedProjectRoot");
+    }
+  }, [selectedProjectRoot]);
+
+  useEffect(() => {
+    localStorage.setItem("activeTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeFile !== null) {
+      localStorage.setItem("activeFile", activeFile);
+    } else {
+      localStorage.removeItem("activeFile");
+    }
+  }, [activeFile]);
+
+  // Restore project files list on load or ID change
+  useEffect(() => {
+    if (selectedProjectId !== null) {
+      loadProjectFiles(selectedProjectId);
+    }
+  }, [selectedProjectId]);
 
   // Refresh project lists
   async function refreshProjects() {
@@ -174,7 +242,7 @@ function App() {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col pt-11 selection:bg-primary/20 selection:text-primary overflow-hidden">
+    <div className="h-screen bg-background text-foreground flex flex-col pt-11 selection:bg-primary/20 selection:text-primary overflow-hidden">
       {/* OS Frameless Custom TitleBar */}
       <TitleBar projectName={selectedProjectName} onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined} />
 
@@ -405,7 +473,10 @@ function App() {
                 <FileExplorer
                   files={projectFiles}
                   activeFile={activeFile}
-                  onSelectFile={(path) => setActiveFile(path)}
+                  onSelectFile={(path) => {
+                    setActiveFile(path);
+                    setInitialScrollLine(null);
+                  }}
                 />
               </div>
 
@@ -451,6 +522,7 @@ function App() {
                   <CodeEditor
                     projectId={selectedProjectId}
                     filePath={activeFile}
+                    initialScrollLine={initialScrollLine}
                     onClose={() => setActiveFile(null)}
                   />
                 ) : (
@@ -481,25 +553,26 @@ function App() {
 
             {activeTab === "chat" && (
               <div className="flex-1 h-full overflow-hidden">
-                <ChatPanel isWorkspaceMode={true} activeProjectId={selectedProjectId} />
+                <ChatPanel isWorkspaceMode={true} activeProjectId={selectedProjectId} activeFile={activeFile} />
               </div>
             )}
 
+
             {activeTab === "graph" && (
-              <div className="flex-1 h-full p-4 overflow-hidden">
-                <div className="h-full border border-border bg-card rounded-2xl overflow-hidden relative">
-                  <DependencyGraphView projectId={selectedProjectId} />
-                </div>
+              <div className="flex-1 h-full overflow-hidden">
+                <DependencyGraphView 
+                  projectId={selectedProjectId} 
+                  onOpenFile={handleOpenFile}
+                />
               </div>
             )}
 
             {activeTab === "planner" && (
-              <div className="flex-1 h-full overflow-y-auto p-6 scrollbar-thin">
-                <div className="max-w-4xl mx-auto">
-                  <PlannerPanel activeProjectId={selectedProjectId} />
-                </div>
+              <div className="flex-1 h-full overflow-hidden">
+                <PlannerPanel activeProjectId={selectedProjectId} />
               </div>
             )}
+
 
             {activeTab === "settings" && (
               <div className="flex-1 h-full overflow-y-auto p-6 scrollbar-thin">

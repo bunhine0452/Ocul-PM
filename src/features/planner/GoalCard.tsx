@@ -4,6 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { commands, type Goal, type Project } from "@/lib/bindings";
 import { SubtaskList } from "./SubtaskList";
+import {
+  Play,
+  Check,
+  Undo,
+  Pencil,
+  Trash2,
+  Folder,
+  Calendar,
+  ChevronDown,
+  ChevronUpIcon,
+  ArrowUp,
+  Flame
+} from "@/components/Icons";
 
 const STATUS_META: Record<
   string,
@@ -13,12 +26,6 @@ const STATUS_META: Record<
   in_progress: { label: "진행 중", variant: "default" },
   done: { label: "완료", variant: "secondary" },
   cancelled: { label: "취소", variant: "destructive" },
-};
-
-const PRIORITY_LABEL: Record<number, string> = {
-  0: "",
-  1: "🔺 높음",
-  2: "🔥 긴급",
 };
 
 function formatDate(ts: number | null): string {
@@ -91,22 +98,31 @@ export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
             <Badge variant={meta.variant} className="text-[10px] h-5">
               {meta.label}
             </Badge>
-            {PRIORITY_LABEL[goal.priority] && (
-              <span className="text-[11px]">
-                {PRIORITY_LABEL[goal.priority]}
+            {goal.priority === 1 && (
+              <span className="flex items-center gap-0.5 text-[10px] h-5 font-medium text-orange-600 bg-orange-50 dark:bg-orange-950/30 px-1.5 py-0.5 rounded border border-orange-200/50 dark:border-orange-900/30">
+                <ArrowUp className="w-2.5 h-2.5 text-orange-500" strokeWidth={2.5} />
+                <span>높음</span>
+              </span>
+            )}
+            {goal.priority === 2 && (
+              <span className="flex items-center gap-0.5 text-[10px] h-5 font-medium text-destructive bg-destructive/5 dark:bg-destructive/10 px-1.5 py-0.5 rounded border border-destructive/15">
+                <Flame className="w-2.5 h-2.5 text-destructive animate-pulse" strokeWidth={2.5} />
+                <span>긴급</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
             {project && (
-              <span className="font-mono truncate max-w-32">
-                📁 {project.name}
+              <span className="flex items-center gap-1 font-mono truncate max-w-32">
+                <Folder className="w-3 h-3 text-muted-foreground/75" />
+                {project.name}
               </span>
             )}
             {goal.due_date && (
-              <span className={overdue ? "text-destructive font-medium" : ""}>
-                📅 {formatDate(goal.due_date)}
+              <span className={`flex items-center gap-1 ${overdue ? "text-destructive font-medium" : ""}`}>
+                <Calendar className="w-3 h-3 text-muted-foreground/75" />
+                {formatDate(goal.due_date)}
                 {overdue && " (지남)"}
               </span>
             )}
@@ -117,11 +133,11 @@ export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0 text-muted-foreground"
+            className="h-7 w-7 p-0 text-muted-foreground hover:bg-muted"
             onClick={() => setExpanded(!expanded)}
             title={expanded ? "접기" : "펼치기"}
           >
-            {expanded ? "▲" : "▼"}
+            {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
         </div>
       </div>
@@ -156,47 +172,52 @@ export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs flex items-center gap-1 px-2.5"
                 onClick={() => quickStatus("in_progress")}
               >
-                ▶ 시작
+                <Play className="w-3 h-3 text-muted-foreground" />
+                <span>시작</span>
               </Button>
             )}
             {goal.status !== "done" && (
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs flex items-center gap-1 px-2.5"
                 onClick={() => quickStatus("done")}
               >
-                ✓ 완료
+                <Check className="w-3 h-3 text-emerald-500" />
+                <span>완료</span>
               </Button>
             )}
             {goal.status === "done" && (
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs flex items-center gap-1 px-2.5"
                 onClick={() => quickStatus("open")}
               >
-                ↩ 재개
+                <Undo className="w-3 h-3 text-blue-500" />
+                <span>재개</span>
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs flex items-center gap-1 px-2"
               onClick={() => onEdit(goal)}
             >
-              ✏️ 수정
+              <Pencil className="w-3 h-3 text-muted-foreground" />
+              <span>수정</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-destructive hover:text-destructive"
+              className="h-7 text-xs text-destructive hover:text-destructive flex items-center gap-1 px-2"
               onClick={handleDelete}
             >
-              🗑 삭제
+              <Trash2 className="w-3 h-3 text-destructive" />
+              <span>삭제</span>
             </Button>
           </div>
         </div>

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/Icons";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Markdown } from "@/components/Markdown";
@@ -165,10 +166,11 @@ function buildActionInstruction(): string {
 interface ActionProposalCardProps {
   action: PlannerAction;
   actionKey: string | null;
+  projectId?: number | null;
   onApplied: () => void;
 }
 
-export function ActionProposalCard({ action, actionKey, onApplied }: ActionProposalCardProps) {
+export function ActionProposalCard({ action, actionKey, projectId = null, onApplied }: ActionProposalCardProps) {
   const [status, setStatus] = useState<"idle" | "applying" | "applied" | "error">(() => {
     if (!actionKey) return "idle";
     return localStorage.getItem(actionKey) === "applied" ? "applied" : "idle";
@@ -186,13 +188,14 @@ export function ActionProposalCard({ action, actionKey, onApplied }: ActionPropo
           ? Math.floor(new Date(action.due_date + "T00:00:00").getTime() / 1000)
           : null;
         const res = await commands.goalCreate(
-          null,
+          projectId ?? null,
           action.title ?? "New Goal",
           action.description ?? null,
           priorityVal,
           dueTs
         );
         if (res.status === "error") throw new Error(res.error);
+
 
         if (action.subtasks && action.subtasks.length > 0) {
           const goalId = res.data.id;
@@ -396,9 +399,11 @@ function deriveTitle(text: string): string {
 interface ChatPanelProps {
   isWorkspaceMode?: boolean;
   activeProjectId?: number | null;
+  activeFile?: string | null;
 }
 
-export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null }: ChatPanelProps) {
+export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, activeFile = null }: ChatPanelProps) {
+
   const [provider, setProvider] = useState<Provider>("gemini");
   const [model, setModel] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -604,6 +609,18 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null }: C
 
     let systemPromptContent = "";
     let chunks: ChunkSearchResult[] = [];
+
+    if (contextProjectId != null && activeFile) {
+      try {
+        const fileRes = await commands.readProjectFile(contextProjectId, activeFile);
+        if (fileRes.status === "ok") {
+          systemPromptContent += `### Currently Open File in Editor: \`${activeFile}\`\n\`\`\`\n${fileRes.data}\n\`\`\`\n\n`;
+        }
+      } catch (err) {
+        console.error("Failed to read active file context:", err);
+      }
+    }
+
     if (contextProjectId != null) {
       const res = await commands.searchChunks(contextProjectId, text, CONTEXT_TOP_K);
       if (res.status === "ok" && res.data.length > 0) {
@@ -613,6 +630,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null }: C
         setError(`Context search failed: ${res.error}`);
       }
     }
+
 
     if (includePlanner) {
       const plannerContext = await buildPlannerSystemContext(contextProjectId);
@@ -796,9 +814,11 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null }: C
                                 <ActionProposalCard
                                   action={action}
                                   actionKey={actionKey}
+                                  projectId={contextProjectId}
                                   onApplied={() => window.dispatchEvent(new CustomEvent("refresh-planner"))}
                                 />
                               )}
+
                             </div>
                           );
                         })()
@@ -1030,9 +1050,11 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null }: C
                               <ActionProposalCard
                                 action={action}
                                 actionKey={actionKey}
+                                projectId={contextProjectId}
                                 onApplied={() => window.dispatchEvent(new CustomEvent("refresh-planner"))}
                               />
                             )}
+
                           </div>
                         );
                       })()

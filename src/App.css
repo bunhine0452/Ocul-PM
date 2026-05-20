@@ -212,3 +212,12 @@
 .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Code Editor Real-time Syntax Highlight Overlay */
+.code-editor-textarea {
+  -webkit-text-fill-color: transparent !important;
+  caret-color: #6366f1 !important;
+}
+.dark .code-editor-textarea {
+  caret-color: #a78bfa !important;
+}

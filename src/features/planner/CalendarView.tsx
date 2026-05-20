@@ -16,6 +16,7 @@ import { ko } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { commands, type Goal } from "@/lib/bindings";
+import { ChevronLeft, ChevronRight } from "@/components/Icons";
 
 interface CalendarViewProps {
   projectId: number | null;
@@ -90,7 +91,7 @@ export function CalendarView({ projectId }: CalendarViewProps) {
           size="sm"
           onClick={() => setCurrent(subMonths(current, 1))}
         >
-          ◀
+          <ChevronLeft className="w-4 h-4" />
         </Button>
         <h3 className="text-sm font-semibold">
           {format(current, "yyyy년 M월", { locale: ko })}
@@ -100,7 +101,7 @@ export function CalendarView({ projectId }: CalendarViewProps) {
           size="sm"
           onClick={() => setCurrent(addMonths(current, 1))}
         >
-          ▶
+          <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 

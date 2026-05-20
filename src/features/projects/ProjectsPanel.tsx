@@ -10,7 +10,8 @@ import {
   type Project,
   type ProjectStats,
 } from "@/lib/bindings";
-import { Folder, FolderOpen, RefreshCw, Play, Trash2, Search } from "lucide-react";
+import { Folder, FolderOpen, RefreshCw, Play, Trash2, Search } from "@/components/Icons";
+
 
 type StatsMap = Record<number, ProjectStats>;
 

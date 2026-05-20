@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { commands, type DashboardStats } from "@/lib/bindings";
+import { Clipboard } from "@/components/Icons";
 import {
   PieChart,
   Pie,
@@ -11,6 +12,7 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+
 
 const STATUS_COLORS: Record<string, string> = {
   open: "hsl(220, 9%, 60%)",
@@ -60,7 +62,7 @@ export function Dashboard({ projectId }: DashboardProps) {
   if (stats.total === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-sm text-muted-foreground gap-2">
-        <span className="text-3xl">📋</span>
+        <Clipboard className="w-12 h-12 text-muted-foreground/45" strokeWidth={1.5} />
         <span>아직 목표가 없습니다. 새 목표를 추가해 보세요!</span>
       </div>
     );

@@ -3,6 +3,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { commands, type Subtask } from "@/lib/bindings";
+import { X, Plus } from "@/components/Icons";
+
 
 interface SubtaskListProps {
   goalId: number;
@@ -103,11 +105,11 @@ export function SubtaskList({ goalId, onProgressChange }: SubtaskListProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
               onClick={() => remove(st.id)}
               title="삭제"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </Button>
           </li>
         ))}
@@ -133,9 +135,9 @@ export function SubtaskList({ goalId, onProgressChange }: SubtaskListProps) {
           size="sm"
           variant="secondary"
           disabled={!newTitle.trim() || adding}
-          className="h-8 px-3"
+          className="h-8 w-8 p-0 flex items-center justify-center"
         >
-          +
+          <Plus className="w-4 h-4" />
         </Button>
       </form>
     </div>

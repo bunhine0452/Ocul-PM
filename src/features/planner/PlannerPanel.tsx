@@ -14,6 +14,7 @@ import { GoalForm } from "./GoalForm";
 import { Dashboard } from "./Dashboard";
 import { CalendarView } from "./CalendarView";
 import { useGoals } from "./hooks";
+import { Clipboard, Target } from "@/components/Icons";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "전체" },
@@ -73,25 +74,28 @@ export function PlannerPanel({ activeProjectId = null }: PlannerPanelProps) {
   }
 
   return (
-    <section className="w-full max-w-3xl rounded-xl border bg-card p-6 space-y-6 shadow-sm">
-      <div className="flex items-center justify-between border-b border-border/50 pb-4">
-        <h2 className="text-xl font-heading font-semibold">📋 목표 관리</h2>
+    <section className="w-full h-full flex flex-col min-h-0 space-y-6 p-6">
+      <div className="flex items-center justify-between border-b border-border/50 pb-4 shrink-0">
+        <h2 className="text-xl font-heading font-semibold flex items-center gap-2">
+          <Clipboard className="w-5 h-5 text-primary" strokeWidth={2.2} />
+          <span>목표 관리</span>
+        </h2>
         <Button size="sm" onClick={handleNew} className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md">
           + 새 목표
         </Button>
       </div>
 
-      <Tabs defaultValue="goals" className="w-full">
-        <TabsList className="w-full grid grid-cols-3">
+      <Tabs defaultValue="goals" className="w-full flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full grid grid-cols-3 shrink-0">
           <TabsTrigger value="goals">목표 목록</TabsTrigger>
           <TabsTrigger value="dashboard">대시보드</TabsTrigger>
           <TabsTrigger value="calendar">캘린더</TabsTrigger>
         </TabsList>
 
         {/* ===== Goals list tab ===== */}
-        <TabsContent value="goals" className="space-y-4 mt-4">
+        <TabsContent value="goals" className="flex-1 flex flex-col min-h-0 mt-4 space-y-4 overflow-hidden">
           {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <Select
               value={filterStatus}
               onValueChange={setFilterStatus}
@@ -130,16 +134,16 @@ export function PlannerPanel({ activeProjectId = null }: PlannerPanelProps) {
 
           {/* Goal cards */}
           {loading ? (
-            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               로딩 중…
             </div>
           ) : goals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2">
-              <span className="text-2xl">🎯</span>
+            <div className="flex-1 flex flex-col items-center justify-center text-sm text-muted-foreground gap-2">
+              <Target className="w-10 h-10 text-muted-foreground/45" strokeWidth={1.5} />
               <span>목표가 없습니다. 새 목표를 추가해 보세요!</span>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin space-y-3 min-h-0">
               {goals.map((goal) => (
                 <GoalCard
                   key={goal.id}
@@ -154,15 +158,16 @@ export function PlannerPanel({ activeProjectId = null }: PlannerPanelProps) {
         </TabsContent>
 
         {/* ===== Dashboard tab ===== */}
-        <TabsContent value="dashboard" className="mt-4">
+        <TabsContent value="dashboard" className="flex-1 overflow-y-auto pr-1 scrollbar-thin mt-4 min-h-0">
           <Dashboard projectId={projectId} />
         </TabsContent>
 
         {/* ===== Calendar tab ===== */}
-        <TabsContent value="calendar" className="mt-4">
+        <TabsContent value="calendar" className="flex-1 overflow-y-auto pr-1 scrollbar-thin mt-4 min-h-0">
           <CalendarView projectId={projectId} />
         </TabsContent>
       </Tabs>
+
 
       {/* Goal form dialog */}
       <GoalForm
