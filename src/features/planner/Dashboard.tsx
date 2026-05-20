@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { commands, type DashboardStats } from "@/lib/bindings";
 import {
   PieChart,
@@ -33,12 +33,21 @@ interface DashboardProps {
 export function Dashboard({ projectId }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const res = await commands.dashboardStats(projectId ?? null);
-      if (res.status === "ok") setStats(res.data);
-    })();
+  const fetchStats = useCallback(async () => {
+    const res = await commands.dashboardStats(projectId ?? null);
+    if (res.status === "ok") setStats(res.data);
   }, [projectId]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  useEffect(() => {
+    window.addEventListener("refresh-planner", fetchStats);
+    return () => {
+      window.removeEventListener("refresh-planner", fetchStats);
+    };
+  }, [fetchStats]);
 
   if (!stats) {
     return (
@@ -128,7 +137,8 @@ export function Dashboard({ projectId }: DashboardProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number, _: string, props: { payload: { label: string } }) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(value: any, _: any, props: any) =>
                   [`${value}개`, props.payload.label]
                 }
                 contentStyle={{
@@ -205,13 +215,13 @@ export function Dashboard({ projectId }: DashboardProps) {
             활성 목표 평균 진행률
           </h4>
           <span className="text-sm font-semibold tabular-nums">
-            {(stats.avg_progress * 100).toFixed(0)}%
+            {((stats.avg_progress ?? 0) * 100).toFixed(0)}%
           </span>
         </div>
         <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
-            style={{ width: `${stats.avg_progress * 100}%` }}
+            style={{ width: `${(stats.avg_progress ?? 0) * 100}%` }}
           />
         </div>
       </div>

@@ -90,9 +90,215 @@ pub struct Chunk {
     pub content: String,
 }
 
-/// Split file content into overlapping line-window chunks.
-/// Tree-sitter-driven chunking will replace this in M3 Phase B.
-pub fn chunk_lines(content: &str) -> Vec<Chunk> {
+/// Normalizes a path, removing redundant '.' and '..' components.
+pub fn clean_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::Normal(c) => {
+                out.push(c);
+            }
+            Component::CurDir => {}
+            _ => {
+                out.push(component.as_os_str());
+            }
+        }
+    }
+    out
+}
+
+/// Resolves an import path to a target file ID in the project files map.
+pub fn resolve_import(
+    project_root: &Path,
+    source_rel_path: &str,
+    import_str: &str,
+    project_files: &std::collections::HashMap<String, u32>,
+) -> Option<u32> {
+    let source_abs_path = project_root.join(source_rel_path);
+    let parent_dir = source_abs_path.parent()?;
+
+    // Case 1: Relative Import (e.g. ./utils, ../components)
+    if import_str.starts_with('.') {
+        let target_abs_path = clean_path(&parent_dir.join(import_str));
+        if let Ok(target_rel_path) = target_abs_path.strip_prefix(project_root) {
+            let target_rel_str = target_rel_path.to_string_lossy().to_string();
+
+            // Try direct, then extensions
+            let candidates = vec![
+                target_rel_str.clone(),
+                format!("{}.ts", target_rel_str),
+                format!("{}.tsx", target_rel_str),
+                format!("{}.js", target_rel_str),
+                format!("{}.jsx", target_rel_str),
+                format!("{}/index.ts", target_rel_str),
+                format!("{}/index.tsx", target_rel_str),
+                format!("{}/index.js", target_rel_str),
+                format!("{}/index.jsx", target_rel_str),
+            ];
+
+            for candidate in candidates {
+                if let Some(&file_id) = project_files.get(&candidate) {
+                    return Some(file_id);
+                }
+            }
+        }
+    }
+
+    // Case 2: Rust import logic (starts with crate::, super::, self::, or contains ::)
+    if import_str.contains("::") || source_rel_path.ends_with(".rs") {
+        let segments: Vec<&str> = import_str.split("::").filter(|s| !s.is_empty()).collect();
+        if !segments.is_empty() {
+            // Find base search directory relative to crate root or current dir
+            let mut crate_root = None;
+            let mut current = source_abs_path.parent();
+            while let Some(dir) = current {
+                if dir.join("Cargo.toml").exists() {
+                    crate_root = Some(dir.join("src"));
+                    break;
+                }
+                current = dir.parent();
+            }
+            let crate_root_dir = crate_root.unwrap_or_else(|| project_root.join("src-tauri").join("src"));
+
+            let start_idx = if segments[0] == "crate" {
+                1
+            } else if segments[0] == "super" || segments[0] == "self" {
+                1
+            } else {
+                0
+            };
+
+            let base_dir = if segments[0] == "crate" {
+                crate_root_dir.clone()
+            } else if segments[0] == "super" {
+                parent_dir.parent().unwrap_or(parent_dir).to_path_buf()
+            } else {
+                parent_dir.to_path_buf()
+            };
+
+            // Try resolving matching prefixes of segments
+            for len in (1..=segments.len() - start_idx).rev() {
+                let sub_segs = &segments[start_idx..(start_idx + len)];
+                let sub_path = sub_segs.join("/");
+                let full_target_path = base_dir.join(&sub_path);
+
+                if let Ok(rel_path) = full_target_path.strip_prefix(project_root) {
+                    let rel_str = rel_path.to_string_lossy().to_string();
+                    let candidates = vec![
+                        format!("{}.rs", rel_str),
+                        format!("{}/mod.rs", rel_str),
+                    ];
+                    for candidate in candidates {
+                        if let Some(&file_id) = project_files.get(&candidate) {
+                            return Some(file_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Case 3: Fallback general module segment suffix matching (for Go / custom import paths)
+    let import_normalized = import_str.replace("::", "/");
+    let segments: Vec<&str> = import_normalized.split('/').filter(|s| !s.is_empty()).collect();
+    if !segments.is_empty() {
+        for (file_path, &file_id) in project_files {
+            let file_normalized = file_path.replace('\\', "/");
+            let file_parts: Vec<&str> = file_normalized.split('/').collect();
+            
+            // Check if the import path matches a suffix of the project file path (ignoring extension of last part)
+            if file_parts.len() >= segments.len() {
+                let suffix_start = file_parts.len() - segments.len();
+                let mut matches = true;
+                for i in 0..segments.len() {
+                    let mut file_part = file_parts[suffix_start + i];
+                    if i == segments.len() - 1 {
+                        if let Some(pos) = file_part.find('.') {
+                            file_part = &file_part[..pos];
+                        }
+                    }
+                    if file_part != segments[i] && file_part != "mod" {
+                        matches = false;
+                        break;
+                    }
+                }
+                if matches {
+                    return Some(file_id);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Split file content into chunks using AST nodes (symbols) if available, with line-based fallback.
+pub fn chunk_file(path: &Path, content: &str) -> (Vec<Chunk>, Option<crate::ast::AstAnalysis>) {
+    let analysis = crate::ast::analyze_file(path, content);
+    let mut chunks = Vec::new();
+    
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return (chunks, analysis);
+    }
+
+    if let Some(ref ana) = analysis {
+        if !ana.symbols.is_empty() {
+            // Sort symbols by start line to process sequentially
+            let mut symbols = ana.symbols.clone();
+            symbols.sort_by_key(|s| s.start_line);
+
+            let mut last_covered_line = 0usize; // 0-indexed line index
+
+            for sym in symbols {
+                let start_idx = (sym.start_line as usize).saturating_sub(1);
+                let end_idx = (sym.end_line as usize).min(lines.len());
+
+                // Uncovered block before this symbol: chunk with fallback line windowing
+                if start_idx > last_covered_line {
+                    let uncovered_content = lines[last_covered_line..start_idx].join("\n");
+                    let sub_chunks = chunk_lines_with_offset(&uncovered_content, last_covered_line + 1);
+                    chunks.extend(sub_chunks);
+                }
+
+                // AST Chunk
+                if start_idx < end_idx {
+                    let body = lines[start_idx..end_idx].join("\n");
+                    if !body.trim().is_empty() {
+                        chunks.push(Chunk {
+                            kind: "ast",
+                            start_line: sym.start_line,
+                            end_line: sym.end_line,
+                            content: format!("// AST Symbol: {} ({})\n{}", sym.name, sym.kind, body),
+                        });
+                    }
+                }
+
+                last_covered_line = end_idx;
+            }
+
+            // Uncovered block at the end of the file
+            if last_covered_line < lines.len() {
+                let uncovered_content = lines[last_covered_line..].join("\n");
+                let sub_chunks = chunk_lines_with_offset(&uncovered_content, last_covered_line + 1);
+                chunks.extend(sub_chunks);
+            }
+
+            return (chunks, analysis);
+        }
+    }
+
+    // Default Fallback
+    let sub_chunks = chunk_lines_with_offset(content, 1);
+    (sub_chunks, None)
+}
+
+/// Fallback helper to split a text range into sliding line windows.
+pub fn chunk_lines_with_offset(content: &str, line_offset: usize) -> Vec<Chunk> {
     let lines: Vec<&str> = content.lines().collect();
     if lines.is_empty() {
         return Vec::new();
@@ -108,8 +314,8 @@ pub fn chunk_lines(content: &str) -> Vec<Chunk> {
         if !body.trim().is_empty() {
             chunks.push(Chunk {
                 kind: "lines",
-                start_line: (start + 1) as u32,
-                end_line: end as u32,
+                start_line: (start + line_offset) as u32,
+                end_line: (end + line_offset - 1) as u32,
                 content: body,
             });
         }

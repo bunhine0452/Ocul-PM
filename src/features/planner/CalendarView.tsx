@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   format,
   startOfMonth,
@@ -33,12 +33,21 @@ export function CalendarView({ projectId }: CalendarViewProps) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const res = await commands.goalList(projectId ?? null, null);
-      if (res.status === "ok") setGoals(res.data);
-    })();
+  const fetchGoals = useCallback(async () => {
+    const res = await commands.goalList(projectId ?? null, null);
+    if (res.status === "ok") setGoals(res.data);
   }, [projectId]);
+
+  useEffect(() => {
+    fetchGoals();
+  }, [fetchGoals]);
+
+  useEffect(() => {
+    window.addEventListener("refresh-planner", fetchGoals);
+    return () => {
+      window.removeEventListener("refresh-planner", fetchGoals);
+    };
+  }, [fetchGoals]);
 
   const monthStart = startOfMonth(current);
   const monthEnd = endOfMonth(current);

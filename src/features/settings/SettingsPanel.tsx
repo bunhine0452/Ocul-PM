@@ -82,8 +82,8 @@ export function SettingsPanel() {
   }
 
   return (
-    <section className="w-full max-w-md rounded-lg border bg-card p-6 space-y-6">
-      <h2 className="text-lg font-semibold">Settings</h2>
+    <section className="w-full max-w-3xl rounded-xl border bg-card p-6 space-y-6 shadow-sm">
+      <h2 className="text-xl font-heading font-semibold border-b border-border/50 pb-4">Settings</h2>
 
       {/* API Key (keychain) */}
       <div className="space-y-3">
@@ -120,7 +120,7 @@ export function SettingsPanel() {
         />
 
         <div className="flex gap-2">
-          <Button onClick={saveKey} disabled={!apiKey} className="flex-1">
+          <Button onClick={saveKey} disabled={!apiKey} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
             Save
           </Button>
           <Button
@@ -153,7 +153,7 @@ export function SettingsPanel() {
           onChange={(e) => setDefaultModel(e.currentTarget.value)}
         />
 
-        <Button onClick={saveModel} disabled={!defaultModel} className="w-full">
+        <Button onClick={saveModel} disabled={!defaultModel} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
           Save Model
         </Button>
       </div>

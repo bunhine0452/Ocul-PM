@@ -45,7 +45,7 @@ interface GoalCardProps {
 
 export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [progress, setProgress] = useState(goal.progress);
+  const [progress, setProgress] = useState(goal.progress ?? 0);
   const meta = STATUS_META[goal.status] ?? STATUS_META.open;
   const project = projects.find((p) => p.id === goal.project_id);
   const overdue = isOverdue(goal);
@@ -65,7 +65,7 @@ export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
   function handleSubtaskProgress(done: number, total: number) {
     if (total === 0) return;
     const p = done / total;
-    if (Math.abs(p - progress) > 0.01) {
+    if (Math.abs(p - (progress ?? 0)) > 0.01) {
       setProgress(p);
       commands.goalUpdate(goal.id, null, null, null, null, null, p);
     }
@@ -127,7 +127,7 @@ export function GoalCard({ goal, projects, onEdit, onRefresh }: GoalCardProps) {
       </div>
 
       {/* Progress bar */}
-      <Progress value={progress * 100} className="h-1.5" />
+      <Progress value={(progress ?? 0) * 100} className="h-1.5" />
 
       {/* Description */}
       {goal.description && !expanded && (

@@ -14,7 +14,7 @@ pub async fn goal_create(
     title: String,
     description: Option<String>,
     priority: i32,
-    due_date: Option<i64>,
+    due_date: Option<i32>,
 ) -> Result<Goal, String> {
     db.create_goal(project_id, title, description, priority, due_date)
         .await
@@ -48,7 +48,7 @@ pub async fn goal_update(
     description: Option<Option<String>>,
     status: Option<String>,
     priority: Option<i32>,
-    due_date: Option<Option<i64>>,
+    due_date: Option<Option<i32>>,
     progress: Option<f64>,
 ) -> Result<Goal, String> {
     db.update_goal(goal_id, title, description, status, priority, due_date, progress)

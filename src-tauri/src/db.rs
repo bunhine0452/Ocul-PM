@@ -12,6 +12,8 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/001_initial.sql")),
     (2, include_str!("../migrations/002_chunks.sql")),
     (3, include_str!("../migrations/003_subtasks.sql")),
+    (4, include_str!("../migrations/004_conversations.sql")),
+    (5, include_str!("../migrations/005_ast_dependencies.sql")),
 ];
 
 pub struct Db {
@@ -149,6 +151,27 @@ impl Db {
         Ok(projects)
     }
 
+    pub async fn get_project(&self, project_id: u32) -> Result<Project> {
+        let project = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, name, root_path, created_at FROM projects WHERE id = ?",
+                )?;
+                let proj = stmt.query_row([project_id as i64], |r| {
+                    Ok(Project {
+                        id: r.get::<_, i64>(0)? as u32,
+                        name: r.get(1)?,
+                        root_path: r.get(2)?,
+                        created_at: r.get::<_, i64>(3)? as u32,
+                    })
+                })?;
+                Ok(proj)
+            })
+            .await?;
+        Ok(project)
+    }
+
     // ---------- Files ----------
 
     /// Insert or update a file. Returns `(file_id, changed)` where `changed`
@@ -184,6 +207,8 @@ impl Db {
                         params![&hash, size, mtime, &language, id],
                     )?;
                     c.execute("DELETE FROM chunks WHERE file_id = ?", [id])?;
+                    c.execute("DELETE FROM symbol_definitions WHERE file_id = ?", [id])?;
+                    c.execute("DELETE FROM file_dependencies WHERE source_file_id = ?", [id])?;
                     Ok((id as u32, true))
                 } else {
                     c.execute(
@@ -318,28 +343,6 @@ impl Db {
         Ok(count as u32)
     }
 
-    pub async fn health(&self) -> Result<DbHealth> {
-        let path = self.path.display().to_string();
-        let (sqlite_version, vec_version, schema_version) = self
-            .conn
-            .call(|c| {
-                let sqlite_version: String =
-                    c.query_row("SELECT sqlite_version()", [], |r| r.get(0))?;
-                let vec_version: String =
-                    c.query_row("SELECT vec_version()", [], |r| r.get(0))?;
-                let schema_version: u32 =
-                    c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-                Ok((sqlite_version, vec_version, schema_version))
-            })
-            .await?;
-        Ok(DbHealth {
-            sqlite_version,
-            vec_version,
-            schema_version,
-            path,
-        })
-    }
-
     // ---------- Goals ----------
 
     pub async fn create_goal(
@@ -348,7 +351,7 @@ impl Db {
         title: String,
         description: Option<String>,
         priority: i32,
-        due_date: Option<i64>,
+        due_date: Option<i32>,
     ) -> Result<Goal> {
         let goal = self
             .conn
@@ -439,7 +442,7 @@ impl Db {
         description: Option<Option<String>>,
         status: Option<String>,
         priority: Option<i32>,
-        due_date: Option<Option<i64>>,
+        due_date: Option<Option<i32>>,
         progress: Option<f64>,
     ) -> Result<Goal> {
         let goal = self
@@ -556,7 +559,7 @@ impl Db {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_secs() as i64;
+                    .as_secs() as i32;
                 let overdue: u32 = c.query_row(
                     &format!(
                         "SELECT COUNT(*) FROM goals {filter} {} due_date IS NOT NULL AND due_date < ? AND status NOT IN ('done','cancelled')",
@@ -685,6 +688,172 @@ impl Db {
         Ok(())
     }
 
+    // ---------- Conversations (chat history) ----------
+
+    pub async fn conversation_create(
+        &self,
+        title: String,
+        provider: Option<String>,
+        model: Option<String>,
+        project_id: Option<u32>,
+    ) -> Result<Conversation> {
+        let conv = self
+            .conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO conversations (title, provider, model, project_id)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        &title,
+                        &provider,
+                        &model,
+                        project_id.map(|id| id as i64),
+                    ],
+                )?;
+                let id = c.last_insert_rowid();
+                c.query_row(
+                    "SELECT id, title, provider, model, project_id,
+                            created_at, updated_at, last_message_at
+                     FROM conversations WHERE id = ?1",
+                    [id],
+                    conversation_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(conv)
+    }
+
+    pub async fn conversation_list(&self) -> Result<Vec<Conversation>> {
+        let convs = self
+            .conn
+            .call(|c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, title, provider, model, project_id,
+                            created_at, updated_at, last_message_at
+                     FROM conversations
+                     ORDER BY COALESCE(last_message_at, updated_at) DESC, id DESC",
+                )?;
+                let rows = stmt
+                    .query_map([], conversation_from_row)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(convs)
+    }
+
+    pub async fn conversation_rename(&self, id: u32, title: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE conversations SET title = ?, updated_at = unixepoch()
+                     WHERE id = ?",
+                    params![&title, id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn conversation_set_context(
+        &self,
+        id: u32,
+        provider: Option<String>,
+        model: Option<String>,
+        project_id: Option<u32>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE conversations
+                     SET provider = ?, model = ?, project_id = ?, updated_at = unixepoch()
+                     WHERE id = ?",
+                    params![
+                        &provider,
+                        &model,
+                        project_id.map(|v| v as i64),
+                        id as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn conversation_delete(&self, id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute("DELETE FROM conversations WHERE id = ?", [id as i64])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn chat_message_append(
+        &self,
+        conversation_id: u32,
+        role: String,
+        content: String,
+        provider: Option<String>,
+        model: Option<String>,
+    ) -> Result<ChatMessage> {
+        let msg = self
+            .conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                tx.execute(
+                    "INSERT INTO chat_messages
+                       (conversation_id, role, content, provider, model)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        conversation_id as i64,
+                        &role,
+                        &content,
+                        &provider,
+                        &model,
+                    ],
+                )?;
+                let id = tx.last_insert_rowid();
+                tx.execute(
+                    "UPDATE conversations
+                     SET last_message_at = unixepoch(), updated_at = unixepoch()
+                     WHERE id = ?",
+                    [conversation_id as i64],
+                )?;
+                let row = tx.query_row(
+                    "SELECT id, conversation_id, role, content, provider, model, created_at
+                     FROM chat_messages WHERE id = ?1",
+                    [id],
+                    chat_message_from_row,
+                )?;
+                tx.commit()?;
+                Ok(row)
+            })
+            .await?;
+        Ok(msg)
+    }
+
+    pub async fn chat_message_list(&self, conversation_id: u32) -> Result<Vec<ChatMessage>> {
+        let msgs = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, conversation_id, role, content, provider, model, created_at
+                     FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC",
+                )?;
+                let rows = stmt
+                    .query_map([conversation_id as i64], chat_message_from_row)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(msgs)
+    }
+
     pub async fn health(&self) -> Result<DbHealth> {
         let path = self.path.display().to_string();
         let (sqlite_version, vec_version, schema_version) = self
@@ -706,6 +875,147 @@ impl Db {
             path,
         })
     }
+
+    // ---------- AST & Code Analysis ----------
+
+    pub async fn insert_symbol_definition(
+        &self,
+        file_id: u32,
+        symbol: crate::ast::SymbolDef,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO symbol_definitions (file_id, name, kind, start_line, end_line, start_byte, end_byte)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    params![
+                        file_id as i64,
+                        &symbol.name,
+                        &symbol.kind,
+                        symbol.start_line as i64,
+                        symbol.end_line as i64,
+                        symbol.start_byte as i64,
+                        symbol.end_byte as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn insert_file_dependency(
+        &self,
+        project_id: u32,
+        source_file_id: u32,
+        target_file_id: u32,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT OR IGNORE INTO file_dependencies (project_id, source_file_id, target_file_id)
+                     VALUES (?, ?, ?)",
+                    params![project_id as i64, source_file_id as i64, target_file_id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_dependency_graph(&self, project_id: u32) -> Result<DependencyGraph> {
+        let graph = self
+            .conn
+            .call(move |c| {
+                // Get nodes (files in project)
+                let mut stmt = c.prepare(
+                    "SELECT id, path, language, size FROM files WHERE project_id = ?"
+                )?;
+                let nodes = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok(DependencyNode {
+                            file_id: r.get::<_, i64>(0)? as u32,
+                            path: r.get(1)?,
+                            language: r.get(2)?,
+                            size: r.get::<_, i64>(3)? as u32,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+
+                // Get edges
+                let mut stmt = c.prepare(
+                    "SELECT source_file_id, target_file_id FROM file_dependencies WHERE project_id = ?"
+                )?;
+                let edges = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok(DependencyEdge {
+                            source_file_id: r.get::<_, i64>(0)? as u32,
+                            target_file_id: r.get::<_, i64>(1)? as u32,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+
+                Ok(DependencyGraph { nodes, edges })
+            })
+            .await?;
+        Ok(graph)
+    }
+
+    pub async fn get_file_symbols(&self, file_id: u32) -> Result<Vec<crate::ast::SymbolDef>> {
+        let symbols = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT name, kind, start_line, end_line, start_byte, end_byte
+                     FROM symbol_definitions
+                     WHERE file_id = ?
+                     ORDER BY start_line ASC"
+                )?;
+                let rows = stmt
+                    .query_map([file_id as i64], |r| {
+                        Ok(crate::ast::SymbolDef {
+                            name: r.get(0)?,
+                            kind: r.get(1)?,
+                            start_line: r.get::<_, i64>(2)? as u32,
+                            end_line: r.get::<_, i64>(3)? as u32,
+                            start_byte: r.get::<_, i64>(4)? as u32,
+                            end_byte: r.get::<_, i64>(5)? as u32,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(symbols)
+    }
+
+    pub async fn list_project_files(&self, project_id: u32) -> Result<Vec<(u32, String)>> {
+        let files = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, path FROM files WHERE project_id = ?"
+                )?;
+                let rows = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(files)
+    }
+
+    pub async fn clear_project_dependencies(&self, project_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute("DELETE FROM file_dependencies WHERE project_id = ?", [project_id as i64])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
 }
 
 // ---------- Row mapper ----------
@@ -722,6 +1032,31 @@ fn goal_from_row(r: &rusqlite::Row) -> rusqlite::Result<Goal> {
         progress: r.get(7)?,
         created_at: r.get::<_, i64>(8)? as u32,
         updated_at: r.get::<_, i64>(9)? as u32,
+    })
+}
+
+fn conversation_from_row(r: &rusqlite::Row) -> rusqlite::Result<Conversation> {
+    Ok(Conversation {
+        id: r.get::<_, i64>(0)? as u32,
+        title: r.get(1)?,
+        provider: r.get(2)?,
+        model: r.get(3)?,
+        project_id: r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
+        created_at: r.get::<_, i64>(5)? as u32,
+        updated_at: r.get::<_, i64>(6)? as u32,
+        last_message_at: r.get::<_, Option<i64>>(7)?.map(|v| v as u32),
+    })
+}
+
+fn chat_message_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChatMessage> {
+    Ok(ChatMessage {
+        id: r.get::<_, i64>(0)? as u32,
+        conversation_id: r.get::<_, i64>(1)? as u32,
+        role: r.get(2)?,
+        content: r.get(3)?,
+        provider: r.get(4)?,
+        model: r.get(5)?,
+        created_at: r.get::<_, i64>(6)? as u32,
     })
 }
 
@@ -761,7 +1096,7 @@ pub struct Goal {
     pub description: Option<String>,
     pub status: String,
     pub priority: i32,
-    pub due_date: Option<i64>,
+    pub due_date: Option<i32>,
     pub progress: f64,
     pub created_at: u32,
     pub updated_at: u32,
@@ -777,6 +1112,29 @@ pub struct Subtask {
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct Conversation {
+    pub id: u32,
+    pub title: String,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub project_id: Option<u32>,
+    pub created_at: u32,
+    pub updated_at: u32,
+    pub last_message_at: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ChatMessage {
+    pub id: u32,
+    pub conversation_id: u32,
+    pub role: String,
+    pub content: String,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub created_at: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct DashboardStats {
     pub total: u32,
     pub open: u32,
@@ -788,3 +1146,22 @@ pub struct DashboardStats {
     pub avg_progress: f64,
 }
 
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DependencyNode {
+    pub file_id: u32,
+    pub path: String,
+    pub language: Option<String>,
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DependencyEdge {
+    pub source_file_id: u32,
+    pub target_file_id: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DependencyGraph {
+    pub nodes: Vec<DependencyNode>,
+    pub edges: Vec<DependencyEdge>,
+}
