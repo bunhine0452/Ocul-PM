@@ -14,6 +14,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (3, include_str!("../migrations/003_subtasks.sql")),
     (4, include_str!("../migrations/004_conversations.sql")),
     (5, include_str!("../migrations/005_ast_dependencies.sql")),
+    (6, include_str!("../migrations/006_file_changes.sql")),
 ];
 
 pub struct Db {
@@ -110,6 +111,30 @@ impl Db {
         Ok(value)
     }
 
+    pub async fn settings_get_all(&self) -> Result<Vec<(String, String)>> {
+        let rows = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare("SELECT key, value FROM settings")?;
+                let items: Vec<(String, String)> = stmt
+                    .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
+                Ok(items)
+            })
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn settings_clear(&self) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute("DELETE FROM settings", [])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     // ---------- Projects ----------
 
     pub async fn create_project(&self, name: String, root_path: String) -> Result<u32> {
@@ -171,6 +196,30 @@ impl Db {
             .await?;
         Ok(project)
     }
+
+    pub async fn delete_project(&self, id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute("DELETE FROM projects WHERE id = ?", [id as i64])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn rename_project(&self, id: u32, name: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE projects SET name = ?, updated_at = unixepoch() WHERE id = ?",
+                    params![&name, id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
 
     // ---------- Files ----------
 
@@ -724,20 +773,34 @@ impl Db {
         Ok(conv)
     }
 
-    pub async fn conversation_list(&self) -> Result<Vec<Conversation>> {
+    pub async fn conversation_list(&self, project_id: Option<u32>) -> Result<Vec<Conversation>> {
         let convs = self
             .conn
-            .call(|c| {
-                let mut stmt = c.prepare(
-                    "SELECT id, title, provider, model, project_id,
-                            created_at, updated_at, last_message_at
-                     FROM conversations
-                     ORDER BY COALESCE(last_message_at, updated_at) DESC, id DESC",
-                )?;
-                let rows = stmt
-                    .query_map([], conversation_from_row)?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                Ok(rows)
+            .call(move |c| {
+                if let Some(pid) = project_id {
+                    let mut stmt = c.prepare(
+                        "SELECT id, title, provider, model, project_id,
+                                created_at, updated_at, last_message_at
+                         FROM conversations
+                         WHERE project_id = ?1
+                         ORDER BY COALESCE(last_message_at, updated_at) DESC, id DESC",
+                    )?;
+                    let rows = stmt
+                        .query_map([pid as i64], conversation_from_row)?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    Ok(rows)
+                } else {
+                    let mut stmt = c.prepare(
+                        "SELECT id, title, provider, model, project_id,
+                                created_at, updated_at, last_message_at
+                         FROM conversations
+                         ORDER BY COALESCE(last_message_at, updated_at) DESC, id DESC",
+                    )?;
+                    let rows = stmt
+                        .query_map([], conversation_from_row)?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    Ok(rows)
+                }
             })
             .await?;
         Ok(convs)
@@ -1016,6 +1079,80 @@ impl Db {
             .await?;
         Ok(())
     }
+
+    // ---------- File Changes ----------
+
+    pub async fn insert_file_change(
+        &self,
+        project_id: u32,
+        file_path: String,
+        change_type: String,
+        old_hash: Option<String>,
+        new_hash: Option<String>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO file_changes (project_id, file_path, change_type, old_hash, new_hash)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![project_id as i64, &file_path, &change_type, &old_hash, &new_hash],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn list_file_changes(
+        &self,
+        project_id: u32,
+        since: i64,
+    ) -> Result<Vec<FileChange>> {
+        let changes = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, project_id, file_path, change_type, old_hash, new_hash, detected_at, summary
+                     FROM file_changes
+                     WHERE project_id = ?1 AND detected_at >= ?2
+                     ORDER BY detected_at DESC",
+                )?;
+                let rows = stmt
+                    .query_map(params![project_id as i64, since], |r| {
+                        Ok(FileChange {
+                            id: r.get::<_, i64>(0)? as u32,
+                            project_id: r.get::<_, i64>(1)? as u32,
+                            file_path: r.get(2)?,
+                            change_type: r.get(3)?,
+                            old_hash: r.get(4)?,
+                            new_hash: r.get(5)?,
+                            detected_at: r.get::<_, i64>(6)? as u32,
+                            summary: r.get(7)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(changes)
+    }
+
+    /// Returns the stored hash for a file by project_id and path.
+    pub async fn get_file_hash(&self, project_id: u32, path: String) -> Result<Option<(u32, String)>> {
+        let result = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT id, hash FROM files WHERE project_id = ?1 AND path = ?2",
+                    params![project_id as i64, &path],
+                    |r| Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?)),
+                )
+                .optional()
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(result)
+    }
 }
 
 // ---------- Row mapper ----------
@@ -1164,4 +1301,23 @@ pub struct DependencyEdge {
 pub struct DependencyGraph {
     pub nodes: Vec<DependencyNode>,
     pub edges: Vec<DependencyEdge>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct FileChange {
+    pub id: u32,
+    pub project_id: u32,
+    pub file_path: String,
+    pub change_type: String,
+    pub old_hash: Option<String>,
+    pub new_hash: Option<String>,
+    pub detected_at: u32,
+    pub summary: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct EditPromptResult {
+    pub english_prompt: String,
+    pub korean_summary: String,
+    pub related_files: Vec<String>,
 }

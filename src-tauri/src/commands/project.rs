@@ -8,9 +8,11 @@ use tauri::State;
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tracing::info;
 
-use crate::db::{ChunkSearchResult, Db, Project};
+use crate::db::{ChunkSearchResult, Db, EditPromptResult, FileChange, Project};
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
+use crate::llm;
+
 
 const EMBED_BATCH: usize = 32;
 
@@ -73,6 +75,27 @@ pub async fn create_project(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn delete_project(db: State<'_, Db>, project_id: u32) -> Result<(), String> {
+    db.delete_project(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_project(
+    db: State<'_, Db>,
+    project_id: u32,
+    name: String,
+) -> Result<(), String> {
+    db.rename_project(project_id, name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+
+#[tauri::command]
+#[specta::specta]
 pub async fn project_stats(
     db: State<'_, Db>,
     project_id: u32,
@@ -112,7 +135,18 @@ pub async fn index_project(
         .ok_or_else(|| format!("project {project_id} not found"))?;
 
     let root = PathBuf::from(&project.root_path);
-    let files = indexer::walk_text_files(&root);
+
+    // Load indexing knobs (chunk size, overlap, max file size, exclude globs)
+    // from the settings table — missing/invalid values fall back to safe defaults.
+    let settings_map: std::collections::HashMap<String, String> = db
+        .settings_get_all()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .collect();
+    let index_config = indexer::config_from_settings(|k| settings_map.get(k).cloned());
+
+    let files = indexer::walk_text_files(&root, &index_config);
     let total = files.len() as u32;
     info!(project = %project.name, files = total, "indexing start");
 
@@ -158,7 +192,7 @@ pub async fn index_project(
         }
         files_changed += 1;
 
-        let (chunks, analysis) = indexer::chunk_file(file_path, &content);
+        let (chunks, analysis) = indexer::chunk_file(file_path, &content, &index_config);
         if let Some(ref ana) = analysis {
             for sym in &ana.symbols {
                 db.insert_symbol_definition(file_id, sym.clone())
@@ -202,6 +236,8 @@ pub async fn index_project(
             .map(|(id, path)| (path, id))
             .collect();
 
+        let path_aliases = indexer::load_path_aliases(&root);
+
         for (source_file_id, source_rel_path, imports) in import_resolver_queue {
             for import_str in imports {
                 if let Some(target_file_id) = indexer::resolve_import(
@@ -209,6 +245,7 @@ pub async fn index_project(
                     &source_rel_path,
                     &import_str,
                     &project_files,
+                    &path_aliases,
                 ) {
                     db.insert_file_dependency(project_id, source_file_id, target_file_id)
                         .await
@@ -332,4 +369,225 @@ pub async fn write_project_file(
         .await
         .map_err(|e| format!("Failed to write file: {e}"))?;
     Ok(())
+}
+
+// ---------- File Change Detection ----------
+
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_file_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<FileChange>, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = PathBuf::from(&project.root_path);
+
+    // Get all currently indexed files
+    let indexed_files = db.list_project_files(project_id).await.map_err(|e| e.to_string())?;
+    let indexed_map: std::collections::HashMap<String, u32> = indexed_files
+        .iter()
+        .map(|(id, path)| (path.clone(), *id))
+        .collect();
+
+    // Walk current filesystem (use same settings-driven config as indexing)
+    let settings_map: std::collections::HashMap<String, String> = db
+        .settings_get_all()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .collect();
+    let index_config = indexer::config_from_settings(|k| settings_map.get(k).cloned());
+    let current_files = indexer::walk_text_files(&root, &index_config);
+    let mut current_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for file_path in &current_files {
+        let rel = file_path.strip_prefix(&root).unwrap_or(file_path);
+        let rel_str = rel.to_string_lossy().to_string();
+        current_paths.insert(rel_str.clone());
+
+        let Ok(content) = fs::read_to_string(file_path) else { continue };
+        let new_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+
+        if let Some(existing) = db.get_file_hash(project_id, rel_str.clone()).await.map_err(|e| e.to_string())? {
+            let (_file_id, old_hash) = existing;
+            if old_hash != new_hash {
+                // Modified
+                db.insert_file_change(
+                    project_id,
+                    rel_str.clone(),
+                    "modified".to_string(),
+                    Some(old_hash),
+                    Some(new_hash),
+                ).await.map_err(|e| e.to_string())?;
+            }
+        } else {
+            // Created (new file not in index)
+            db.insert_file_change(
+                project_id,
+                rel_str.clone(),
+                "created".to_string(),
+                None,
+                Some(new_hash),
+            ).await.map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Check for deleted files
+    for (path, _id) in &indexed_map {
+        if !current_paths.contains(path) {
+            let old_hash = db.get_file_hash(project_id, path.clone())
+                .await
+                .map_err(|e| e.to_string())?
+                .map(|(_, h)| h);
+            db.insert_file_change(
+                project_id,
+                path.clone(),
+                "deleted".to_string(),
+                old_hash,
+                None,
+            ).await.map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Return today's changes
+    let today_start = {
+        let now = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        // Align to start of day (UTC)
+        now - (now % 86400)
+    };
+
+    let changes = db.list_file_changes(project_id, today_start)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(changes)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_file_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+    since: i32,
+) -> Result<Vec<FileChange>, String> {
+    db.list_file_changes(project_id, since as i64)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn generate_edit_prompt(
+    db: State<'_, Db>,
+    embedder: State<'_, Embedder>,
+    project_id: u32,
+    user_request: String,
+    provider: String,
+    model: String,
+) -> Result<EditPromptResult, String> {
+    // 1. Vector search for relevant code chunks
+    let embeddings = embedder.embed(vec![user_request.clone()]).await?;
+    let query_emb = embeddings
+        .into_iter()
+        .next()
+        .ok_or_else(|| "embed returned no result".to_string())?;
+
+    let chunks = db
+        .search_chunks(project_id, vec_to_bytes(&query_emb), 8)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Build code context
+    let mut code_context = String::new();
+    let mut related_files: Vec<String> = Vec::new();
+    for chunk in &chunks {
+        if !related_files.contains(&chunk.file_path) {
+            related_files.push(chunk.file_path.clone());
+        }
+        code_context.push_str(&format!(
+            "### `{}` (lines {}-{})\n```\n{}\n```\n\n",
+            chunk.file_path, chunk.start_line, chunk.end_line, chunk.content
+        ));
+    }
+
+    // 2. Generate English prompt + Korean summary via LLM
+    let api_key = {
+        let secret_name = format!("{provider}_api_key");
+        crate::secrets::get(&secret_name)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("API key for {provider} is not set"))?
+    };
+
+    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+
+    let system_prompt = format!(
+        r#"You are an expert software engineering assistant that generates precise, actionable prompts for AI code editors (like Claude Code, Cursor, etc.).
+
+Given the user's request (which may be in Korean or any language) and the relevant code context from their codebase, you must output a JSON object with exactly two fields:
+
+1. "english_prompt": A detailed, well-structured English prompt that an AI coding assistant can directly use to implement the requested changes. This should include:
+   - Clear description of what needs to be changed
+   - Which files are involved
+   - Specific implementation details and constraints
+   - The relevant code context embedded naturally
+
+2. "korean_summary": A concise Korean summary (3-5 sentences) of what the prompt asks the AI to do, so the user can verify the intent is correct.
+
+Relevant code from the project:
+{code_context}
+
+Output ONLY valid JSON, no markdown fences, no explanation outside the JSON."#
+    );
+
+    let response = client
+        .chat(
+            vec![
+                llm::Message { role: llm::Role::System, content: system_prompt },
+                llm::Message { role: llm::Role::User, content: format!("사용자 요청: {}", user_request) },
+            ],
+            llm::ChatOptions {
+                model,
+                temperature: Some(0.3),
+                max_tokens: Some(2000),
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Parse the JSON response
+    let content = response.content.trim();
+    // Try to extract JSON from possible markdown fences
+    let json_str = if content.starts_with("```") {
+        content
+            .trim_start_matches("```json")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+    } else {
+        content
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(json_str)
+        .map_err(|e| format!("Failed to parse LLM response as JSON: {e}\nRaw: {content}"))?;
+
+    let english_prompt = parsed
+        .get("english_prompt")
+        .and_then(|v| v.as_str())
+        .unwrap_or(content)
+        .to_string();
+
+    let korean_summary = parsed
+        .get("korean_summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("요약을 생성하지 못했습니다.")
+        .to_string();
+
+    Ok(EditPromptResult {
+        english_prompt,
+        korean_summary,
+        related_files,
+    })
 }

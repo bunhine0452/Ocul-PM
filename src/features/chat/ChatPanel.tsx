@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
+import { useSettings } from "@/contexts/SettingsContext";
+import { providerModel } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "@/components/Icons";
@@ -20,13 +22,6 @@ import {
 const PROVIDERS = ["anthropic", "gemini", "openai"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
-const FALLBACK_MODEL: Record<Provider, string> = {
-  anthropic: "claude-sonnet-4-6",
-  gemini: "gemini-2.5-flash",
-  openai: "gpt-4o-mini",
-};
-
-const CONTEXT_TOP_K = 5;
 const CONTEXT_DEBOUNCE_MS = 400;
 const TITLE_MAX = 40;
 
@@ -403,8 +398,9 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, activeFile = null }: ChatPanelProps) {
+  const { settings } = useSettings();
 
-  const [provider, setProvider] = useState<Provider>("gemini");
+  const [provider, setProvider] = useState<Provider>(settings.defaultProvider as Provider);
   const [model, setModel] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -437,11 +433,15 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
 
       const ps = await commands.listProjects();
       if (ps.status === "ok") setProjects(ps.data);
-
-      const cs = await commands.conversationList();
-      if (cs.status === "ok") setConversations(cs.data);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      const cs = await commands.conversationList(contextProjectId);
+      if (cs.status === "ok") setConversations(cs.data);
+    })();
+  }, [contextProjectId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -522,7 +522,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
     setOptimizing(true);
     setError(null);
     try {
-      const effectiveModel = model || FALLBACK_MODEL[provider];
+      const effectiveModel = model || providerModel(settings, provider);
       
       const optimizeSystemPrompt = `You are a professional software engineering prompt optimizer. Your task is to translate the user's request into English if it is in Korean (or vice-versa, or optimize it for code RAG tasks) to generate a highly detailed and clear prompt for software engineering tasks. Keep the core meaning exactly the same, but structure it for optimal LLM completion. Output ONLY the optimized prompt content, nothing else. No introductions, no explanations, no markdown code block fences unless the user requested code blocks in the output.`;
 
@@ -568,7 +568,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
     // 1. Ensure a conversation row exists.
     let convId = currentConvId;
     if (convId == null) {
-      const effectiveModel = model || FALLBACK_MODEL[provider];
+      const effectiveModel = model || providerModel(settings, provider);
       const created = await commands.conversationCreate(
         deriveTitle(text),
         provider,
@@ -621,14 +621,19 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
       }
     }
 
-    if (contextProjectId != null) {
-      const res = await commands.searchChunks(contextProjectId, text, CONTEXT_TOP_K);
+    if (contextProjectId != null && settings.ragTopK > 0) {
+      const res = await commands.searchChunks(contextProjectId, text, settings.ragTopK);
       if (res.status === "ok" && res.data.length > 0) {
         chunks = res.data;
         systemPromptContent += buildContextSystem(chunks) + "\n\n";
       } else if (res.status === "error") {
         setError(`Context search failed: ${res.error}`);
       }
+    }
+
+    // Prepend the user's custom system prompt, if set.
+    if (settings.systemPrompt.trim()) {
+      systemPromptContent = settings.systemPrompt.trim() + "\n\n" + systemPromptContent;
     }
 
 
@@ -667,17 +672,33 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
       }
     };
 
-    const effectiveModel = model || FALLBACK_MODEL[provider];
-    const res = await commands.chatStream(
-      provider,
-      llmHistory,
-      {
-        model: effectiveModel,
-        temperature: null,
-        max_tokens: null,
-      },
-      channel,
-    );
+    const effectiveModel = model || providerModel(settings, provider);
+    const chatOptions = {
+      model: effectiveModel,
+      temperature: settings.temperature,
+      max_tokens: settings.maxTokens,
+    };
+
+    let res;
+    if (settings.streamResponses) {
+      res = await commands.chatStream(provider, llmHistory, chatOptions, channel);
+    } else {
+      const r = await commands.chat(provider, llmHistory, chatOptions);
+      if (r.status === "ok") {
+        finalContent = r.data.content;
+        setMessages((prev) => {
+          const next = prev.slice();
+          const last = next[next.length - 1];
+          if (last && last.role === "assistant") {
+            next[next.length - 1] = { ...last, content: finalContent };
+          }
+          return next;
+        });
+        res = { status: "ok" as const, data: null };
+      } else {
+        res = { status: "error" as const, error: r.error };
+      }
+    }
 
     if (res.status === "error") {
       setError(res.error);
@@ -961,7 +982,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
             <input
               value={model}
               onChange={(e) => setModel(e.currentTarget.value)}
-              placeholder={FALLBACK_MODEL[provider]}
+              placeholder={providerModel(settings, provider)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm font-mono"
               disabled={pending}
             />
@@ -1007,7 +1028,7 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
 
           {contextProject && (
             <p className="text-[11px] text-muted-foreground">
-              Each message will fetch top-{CONTEXT_TOP_K} relevant chunks from{" "}
+              Each message will fetch top-{settings.ragTopK} relevant chunks from{" "}
               <span className="font-mono">{contextProject.name}</span> and prepend
               them as a system prompt.
             </p>

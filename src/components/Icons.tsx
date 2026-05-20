@@ -296,3 +296,87 @@ export const Flame = (props: IconProps) => (
     <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
   </IconWrapper>
 );
+
+export const OculIcon = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="9" strokeWidth="1" strokeDasharray="3 3" className="opacity-60" />
+    <path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6-10-6-10-6Z" />
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="13" cy="11" r="0.5" fill="currentColor" />
+  </IconWrapper>
+);
+
+export const Sparkles = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    <path d="M5 3v4" />
+    <path d="M19 17v4" />
+    <path d="M3 5h4" />
+    <path d="M17 19h4" />
+  </IconWrapper>
+);
+
+export const Copy = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </IconWrapper>
+);
+
+export const ScanSearch = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.32 8.38a.75.75 0 0 1 1.01-1.12l2.2 1.98 3.44-4.27z" />
+    <path d="M2 8V6a2 2 0 0 1 2-2h2" />
+    <path d="M20 8V6a2 2 0 0 0-2-2h-2" />
+    <path d="M2 16v2a2 2 0 0 0 2 2h2" />
+    <path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+    <circle cx="14.5" cy="14.5" r="2.5" />
+    <path d="M16.5 16.5 20 20" />
+  </IconWrapper>
+);
+
+export const FileDiff = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+    <path d="M12 18v-6" />
+    <path d="M9 15h6" />
+  </IconWrapper>
+);
+
+export const Sun = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="m4.93 4.93 1.41 1.41" />
+    <path d="m17.66 17.66 1.41 1.41" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="m6.34 17.66-1.41 1.41" />
+    <path d="m19.07 4.93-1.41 1.41" />
+  </IconWrapper>
+);
+
+export const Moon = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  </IconWrapper>
+);
+
+export const Monitor = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+  </IconWrapper>
+);
+
+export const Terminal = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <polyline points="4 17 10 11 4 5" />
+    <line x1="12" y1="19" x2="20" y2="19" />
+  </IconWrapper>
+);
+
+

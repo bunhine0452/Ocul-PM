@@ -12,6 +12,9 @@ import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { ChatPanel } from "@/features/chat/ChatPanel";
 import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
+import { AssistPanel } from "@/features/assist/AssistPanel";
+import { TerminalPanel } from "@/features/terminal/TerminalPanel";
+import { GitPanel } from "@/features/git/GitPanel";
 
 import {
   FolderCode,
@@ -23,8 +26,13 @@ import {
   Plus,
   RefreshCw,
   Code2,
-  KeyRound,
-  LayoutDashboard
+  LayoutDashboard,
+  Pencil,
+  Trash2,
+  OculIcon,
+  Sparkles,
+  Terminal,
+  GitBranch
 } from "./components/Icons";
 import "./App.css";
 
@@ -39,10 +47,16 @@ function App() {
   const [progress, setProgress] = useState<IndexProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Renaming and Deleting states
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [newName, setNewName] = useState("");
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+
   // Diagnostics
   const [health, setHealth] = useState<DbHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Active Workspace States
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(() => {
@@ -55,7 +69,7 @@ function App() {
   const [selectedProjectRoot, setSelectedProjectRoot] = useState<string | null>(() => {
     return localStorage.getItem("selectedProjectRoot");
   });
-  const [activeTab, setActiveTab] = useState<"files" | "chat" | "graph" | "planner" | "settings" | "diagnostics">((() => {
+  const [activeTab, setActiveTab] = useState<"files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git">((() => {
     const saved = localStorage.getItem("activeTab");
     return (saved as any) || "files";
   }));
@@ -203,6 +217,45 @@ function App() {
     }
   }
 
+  const startRenameProject = (p: Project) => {
+    setRenamingProject(p);
+    setNewName(p.name);
+  };
+
+  const handleRenameProject = async () => {
+    if (!renamingProject || !newName.trim()) return;
+    setError(null);
+    const res = await commands.renameProject(renamingProject.id, newName.trim());
+    if (res.status === "ok") {
+      setRenamingProject(null);
+      setNewName("");
+      await refreshProjects();
+    } else {
+      setError(res.error);
+    }
+  };
+
+  const confirmDeleteProject = (p: Project) => {
+    setDeletingProject(p);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!deletingProject) return;
+    setError(null);
+    const res = await commands.deleteProject(deletingProject.id);
+    if (res.status === "ok") {
+      setDeletingProject(null);
+      // If deleted project was selected, reset workspace
+      if (selectedProjectId === deletingProject.id) {
+        handleBackToDashboard();
+      } else {
+        await refreshProjects();
+      }
+    } else {
+      setError(res.error);
+    }
+  };
+
   // Handle select project
   const handleSelectProject = async (p: Project) => {
     setSelectedProjectId(p.id);
@@ -253,8 +306,9 @@ function App() {
         <main className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full space-y-10 scrollbar-thin">
           {/* Header */}
           <div className="flex flex-col items-center text-center space-y-3 mt-4">
-            <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading">
-              <span className="text-primary mr-2">❋</span>AI-PM Workspace
+            <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
+              <OculIcon className="w-9 h-9 text-primary mr-3" strokeWidth={1.5} />
+              <span>Ocul-PM</span>
             </h1>
             <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
               Manage and index code repositories with semantic search
@@ -265,7 +319,16 @@ function App() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground tracking-tight">Your Projects</h2>
-              <span className="text-xs text-muted-foreground font-medium">{projects.length} Total</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-xs text-muted-foreground font-medium">{projects.length} Total</span>
+                <button
+                  onClick={() => setShowSettingsModal(true)}
+                  className="p-1.5 rounded-lg border border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-all duration-200 flex items-center space-x-1.5 text-xs font-semibold cursor-pointer"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Settings</span>
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -287,12 +350,30 @@ function App() {
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <FolderCode className="w-10 h-10 text-primary/80 group-hover:text-primary transition-colors" strokeWidth={1.5} />
-                        {isIndexing && (
-                          <span className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
-                            <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                            <span>Indexing</span>
-                          </span>
-                        )}
+                        <div className="flex items-center space-x-1">
+                          {isIndexing && (
+                            <span className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold mr-2">
+                              <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                              <span>Indexing</span>
+                            </span>
+                          )}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => startRenameProject(p)}
+                              className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              title="Rename Project"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => confirmDeleteProject(p)}
+                              className="p-1.5 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Delete Project"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       <h3 className="font-bold text-base truncate text-foreground group-hover:text-primary transition-colors">
                         {p.name}
@@ -323,18 +404,6 @@ function App() {
                 <span className="text-xs font-bold">Add Project Folder</span>
               </button>
             </div>
-          </section>
-
-          {/* Quick Settings & API Configuration card */}
-          <section className="bg-card/50 rounded-2xl border border-border/80 p-5 space-y-4">
-            <div className="flex items-center space-x-2">
-              <KeyRound className="w-5 h-5 text-primary/80" />
-              <h3 className="font-bold text-sm">LLM API Key Settings</h3>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Configure active providers (Gemini, Anthropic, OpenAI) to perform smart prompt optimizations and context-aware chat.
-            </p>
-            <SettingsPanel />
           </section>
 
           {/* Diagnostics Section */}
@@ -405,6 +474,18 @@ function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab("assist")}
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                  activeTab === "assist"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                }`}
+                title="AI 코드 어시스턴트"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+
+              <button
                 onClick={() => setActiveTab("graph")}
                 className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   activeTab === "graph"
@@ -426,6 +507,30 @@ function App() {
                 title="Project Planner"
               >
                 <Calendar className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => setActiveTab("terminal")}
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                  activeTab === "terminal"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                }`}
+                title="로컬 터미널"
+              >
+                <Terminal className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => setActiveTab("git")}
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                  activeTab === "git"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                }`}
+                title="Git Log & Remotes"
+              >
+                <GitBranch className="w-5 h-5" />
               </button>
             </div>
 
@@ -567,20 +672,38 @@ function App() {
               </div>
             )}
 
+            {activeTab === "assist" && (
+              <div className="flex-1 h-full overflow-hidden">
+                <AssistPanel activeProjectId={selectedProjectId} />
+              </div>
+            )}
+
             {activeTab === "planner" && (
               <div className="flex-1 h-full overflow-hidden">
                 <PlannerPanel activeProjectId={selectedProjectId} />
               </div>
             )}
 
+            {activeTab === "terminal" && (
+              <div className="flex-1 h-full overflow-hidden">
+                <TerminalPanel projectRoot={selectedProjectRoot} />
+              </div>
+            )}
+
+            {activeTab === "git" && selectedProjectId !== null && (
+              <div className="flex-1 h-full overflow-hidden">
+                <GitPanel projectId={selectedProjectId} />
+              </div>
+            )}
+
 
             {activeTab === "settings" && (
               <div className="flex-1 h-full overflow-y-auto p-6 scrollbar-thin">
-                <div className="max-w-3xl mx-auto space-y-6">
-                  <div className="border-b pb-3 mb-2 flex items-center justify-between">
-                    <h2 className="text-lg font-bold">LLM Integrations</h2>
+                <div className="max-w-5xl mx-auto space-y-4">
+                  <div className="border-b pb-3 flex items-center justify-between">
+                    <h2 className="text-lg font-bold">Settings</h2>
                   </div>
-                  <SettingsPanel />
+                  <SettingsPanel embedded />
                 </div>
               </div>
             )}
@@ -634,6 +757,93 @@ function App() {
               </div>
             )}
           </main>
+        </div>
+      )}
+
+      {/* Rename Dialog */}
+      {renamingProject && (
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/80 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-foreground">Rename Project</h3>
+            <p className="text-xs text-muted-foreground">
+              Enter a new name for the project workspace. The actual directory will not be renamed.
+            </p>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-xl bg-background text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
+              placeholder="Project name"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameProject();
+                if (e.key === "Escape") setRenamingProject(null);
+              }}
+            />
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setRenamingProject(null)}
+                className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameProject}
+                disabled={!newName.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Dialog */}
+      {deletingProject && (
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/80 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-destructive">Remove Project</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to remove <span className="font-bold text-foreground font-mono">{deletingProject.name}</span> from the Ocul-PM workspace?
+              <br />
+              <span className="text-destructive font-semibold">Note:</span> This will remove the index and goals from the app database, but will NOT delete the project folder from your computer.
+            </p>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setDeletingProject(null)}
+                className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                className="px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl text-xs font-semibold transition-colors"
+              >
+                Remove Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Dialog Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-xl w-full animate-in fade-in zoom-in-95 duration-200 relative max-h-[85vh] flex flex-col">
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors z-10 cursor-pointer"
+              title="Close Settings"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="overflow-y-auto">
+              <SettingsPanel />
+            </div>
+          </div>
         </div>
       )}
     </div>

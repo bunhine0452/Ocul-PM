@@ -1,6 +1,8 @@
 import React from "react";
 import { commands } from "../lib/bindings";
-import { ChevronLeft, Maximize2, Minimize2, X } from "./Icons";
+import { ChevronLeft, Maximize2, Minimize2, X, Sun, Moon, Monitor } from "./Icons";
+import { useTheme } from "../lib/theme";
+
 
 
 interface TitleBarProps {
@@ -9,6 +11,15 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
+  const { theme, setTheme } = useTheme();
+
+  const toggleTheme = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (theme === "light") setTheme("dark");
+    else if (theme === "dark") setTheme("system");
+    else setTheme("light");
+  };
+
   const handleMinimize = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -99,13 +110,23 @@ export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
           </div>
         ) : (
           <span className="text-foreground/90 font-heading text-sm tracking-wide">
-            AI-PM Dashboard
+            Ocul-PM Dashboard
           </span>
         )}
       </div>
 
-      {/* Right Area: Empty spacer to balance layout */}
-      <div className="w-16 flex items-center justify-end" />
+      {/* Right Area: Theme Toggle */}
+      <div className="w-16 flex items-center justify-end pr-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+        <button
+          onClick={toggleTheme}
+          className="p-1.5 rounded-lg border border-transparent hover:border-border hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer flex items-center justify-center"
+          title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
+        >
+          {theme === "light" && <Sun className="w-4 h-4" />}
+          {theme === "dark" && <Moon className="w-4 h-4" />}
+          {theme === "system" && <Monitor className="w-4 h-4" />}
+        </button>
+      </div>
     </div>
   );
 }

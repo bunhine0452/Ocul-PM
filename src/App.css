@@ -48,6 +48,15 @@
     font-style: normal;
 }
 
+/* D2Coding — Korean-friendly monospace for the code editor */
+@font-face {
+    font-family: 'D2Coding';
+    src: url('./assets/fonts/D2Coding.ttc') format('collection');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -216,8 +225,187 @@
 /* Code Editor Real-time Syntax Highlight Overlay */
 .code-editor-textarea {
   -webkit-text-fill-color: transparent !important;
-  caret-color: #6366f1 !important;
+  caret-color: var(--primary) !important;
+  tab-size: 2;
 }
 .dark .code-editor-textarea {
-  caret-color: #a78bfa !important;
+  caret-color: var(--primary) !important;
+}
+
+/* --- Code editor look & feel --------------------------------------- */
+:root {
+  --editor-font: 'D2Coding', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  --editor-bg: #fbfaf6;
+  --editor-gutter-bg: #f5f1e8;
+  --editor-gutter-fg: #b0a99d;
+  --editor-gutter-active-fg: #6c6a64;
+  --editor-active-line: rgba(204, 120, 92, 0.06);
+  --editor-rule: rgba(20, 20, 19, 0.06);
+  --editor-indent-guide: rgba(20, 20, 19, 0.08);
+  --editor-statusbar-bg: #efe9de;
+  --editor-statusbar-fg: #6c6a64;
+  --editor-statusbar-accent: #cc785c;
+}
+.dark {
+  --editor-bg: #1d1c1a;
+  --editor-gutter-bg: #1a1917;
+  --editor-gutter-fg: #595650;
+  --editor-gutter-active-fg: #c9c5bb;
+  --editor-active-line: rgba(204, 120, 92, 0.08);
+  --editor-rule: rgba(255, 255, 255, 0.06);
+  --editor-indent-guide: rgba(255, 255, 255, 0.08);
+  --editor-statusbar-bg: #1f1e1b;
+  --editor-statusbar-fg: #8e8b82;
+  --editor-statusbar-accent: #cc785c;
+}
+
+.editor-surface {
+  background: var(--editor-bg);
+  font-family: var(--editor-font);
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-variant-ligatures: none;
+}
+
+.editor-gutter {
+  background: var(--editor-gutter-bg);
+  color: var(--editor-gutter-fg);
+  font-family: var(--editor-font);
+  border-right: 1px solid var(--editor-rule);
+}
+
+.editor-active-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--editor-active-line);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.editor-statusbar {
+  background: var(--editor-statusbar-bg);
+  color: var(--editor-statusbar-fg);
+  border-top: 1px solid var(--editor-rule);
+}
+
+.editor-tab-bar {
+  background: var(--editor-gutter-bg);
+  border-bottom: 1px solid var(--editor-rule);
+}
+
+/* Editor uses a thinner, more refined scrollbar */
+.editor-surface ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.editor-surface ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-surface ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  border: 3px solid var(--editor-bg);
+}
+.dark .editor-surface ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+.editor-surface ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}
+.dark .editor-surface ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* --- highlight.js Github Dark Theme Overrides --- */
+.dark .hljs {
+  color: #c9d1d9;
+  background: transparent; /* overlay on top of editor surface */
+}
+
+.dark .hljs-doctag,
+.dark .hljs-keyword,
+.dark .hljs-meta .hljs-keyword,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable,
+.dark .hljs-type,
+.dark .hljs-variable.language_ {
+  color: #ff7b72;
+}
+
+.dark .hljs-title,
+.dark .hljs-title.class_,
+.dark .hljs-title.class_.inherited__,
+.dark .hljs-title.function_ {
+  color: #d2a8ff;
+}
+
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-literal,
+.dark .hljs-meta,
+.dark .hljs-number,
+.dark .hljs-operator,
+.dark .hljs-variable,
+.dark .hljs-selector-attr,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id {
+  color: #79c0ff;
+}
+
+.dark .hljs-regexp,
+.dark .hljs-string,
+.dark .hljs-meta .hljs-string {
+  color: #a5d6ff;
+}
+
+.dark .hljs-built_in,
+.dark .hljs-symbol {
+  color: #ffa657;
+}
+
+.dark .hljs-comment,
+.dark .hljs-code,
+.dark .hljs-formula {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.dark .hljs-name,
+.dark .hljs-quote,
+.dark .hljs-selector-tag,
+.dark .hljs-selector-pseudo {
+  color: #7ee787;
+}
+
+.dark .hljs-subst {
+  color: #c9d1d9;
+}
+
+.dark .hljs-section {
+  color: #1f6feb;
+  font-weight: bold;
+}
+
+.dark .hljs-bullet {
+  color: #f2cc60;
+}
+
+.dark .hljs-emphasis {
+  color: #c9d1d9;
+  font-style: italic;
+}
+
+.dark .hljs-strong {
+  color: #c9d1d9;
+  font-weight: bold;
+}
+
+.dark .hljs-addition {
+  color: #aff5b4;
+  background-color: #033a16;
+}
+
+.dark .hljs-deletion {
+  color: #ffdcd7;
+  background-color: #67060c;
 }

@@ -20,8 +20,13 @@ pub async fn conversation_create(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_list(db: State<'_, Db>) -> Result<Vec<Conversation>, String> {
-    db.conversation_list().await.map_err(|e| e.to_string())
+pub async fn conversation_list(
+    db: State<'_, Db>,
+    project_id: Option<u32>,
+) -> Result<Vec<Conversation>, String> {
+    db.conversation_list(project_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

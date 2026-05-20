@@ -1,15 +1,19 @@
 pub mod config;
 pub mod conversation;
 pub mod diagnostics;
+pub mod git;
 pub mod llm;
 pub mod planner;
 pub mod project;
 pub mod window;
+pub mod terminal;
 
 pub use config::*;
 pub use conversation::*;
 pub use diagnostics::*;
+pub use git::*;
 pub use llm::*;
 pub use planner::*;
 pub use project::*;
 pub use window::*;
+pub use terminal::*;
