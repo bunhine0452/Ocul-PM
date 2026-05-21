@@ -136,6 +136,7 @@ export function ModelSelector({
                   key={p}
                   onClick={() => {
                     onProviderChange(p);
+                    onModelChange(KNOWN_MODELS[p][0]);
                     setProviderOpen(false);
                   }}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px] transition-colors cursor-pointer ${

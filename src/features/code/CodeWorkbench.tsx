@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type IndexProgress } from "@/lib/bindings";
 import { FileExplorer } from "@/components/FileExplorer";
@@ -64,25 +64,46 @@ export function CodeWorkbench({
     setState((p) => ({ ...p, activeFile: path, codeSubTab: "files" }));
   }
 
-  return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* C-1: Tree */}
-        <FileTree
-          files={projectFiles}
-          activeFile={activeFile}
-          onSelectFile={(p) => setActiveFile(p)}
-          indexing={indexingProjectId === projectId}
-          progress={indexProgress}
-          onReindex={async () => {
-            await runIndex(projectId, () => setState((p) => ({ ...p, indexingProjectId: projectId })));
-            await reloadProjectFiles();
-            setState((p) => ({ ...p, indexingProjectId: null, indexProgress: null }));
-          }}
-          onProgress={(prog) => setState((p) => ({ ...p, indexProgress: prog }))}
-        />
+  const [aiWidth, setAiWidth] = useState(380);
 
-        {/* C-2: Primary content (Editor or Graph) */}
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = aiWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = startWidth - (moveEvent.clientX - startX);
+      setAiWidth(Math.max(300, Math.min(newWidth, 1200)));
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  return (
+    <div className="h-full flex overflow-hidden">
+      {/* C-1: Tree */}
+      <FileTree
+        files={projectFiles}
+        activeFile={activeFile}
+        onSelectFile={(p) => setActiveFile(p)}
+        indexing={indexingProjectId === projectId}
+        progress={indexProgress}
+        onReindex={async () => {
+          await runIndex(projectId, () => setState((p) => ({ ...p, indexingProjectId: projectId })));
+          await reloadProjectFiles();
+          setState((p) => ({ ...p, indexingProjectId: null, indexProgress: null }));
+        }}
+        onProgress={(prog) => setState((p) => ({ ...p, indexProgress: prog }))}
+      />
+
+      {/* C-2 & C-4: Primary content + Bottom drawer in a middle column */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <main className="flex-1 flex overflow-hidden bg-background relative min-w-0">
           {showGraph ? (
             <DependencyGraphView projectId={projectId} onOpenFile={openFile} />
@@ -97,17 +118,23 @@ export function CodeWorkbench({
             <EditorPlaceholder />
           )}
         </main>
-
-        {/* C-3: AI Workbench (right) — toggle with ⌘\\ */}
-        {aiWorkbenchOpen && (
-          <div className="w-[380px] shrink-0 min-w-0">
-            <AiWorkbench activeProjectId={projectId} activeFile={activeFile} />
-          </div>
-        )}
+        
+        {/* Bottom drawer (Terminal / Git / Problems) — toggle with ⌘J */}
+        <BottomDrawer activeProjectId={projectId} projectRoot={projectRoot} />
       </div>
 
-      {/* C-4: Bottom drawer (Terminal / Git / Problems) — toggle with ⌘J */}
-      <BottomDrawer activeProjectId={projectId} projectRoot={projectRoot} />
+      {/* C-3: AI Workbench (right) — toggle with ⌘\\ */}
+      {aiWorkbenchOpen && (
+        <>
+          <div
+            onMouseDown={startResize}
+            className="w-1 cursor-col-resize bg-transparent hover:bg-primary/50 active:bg-primary z-10 transition-colors shrink-0"
+          />
+          <div style={{ width: aiWidth }} className="shrink-0 min-w-0 border-l border-border bg-background">
+            <AiWorkbench activeProjectId={projectId} activeFile={activeFile} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

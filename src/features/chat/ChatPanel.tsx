@@ -578,6 +578,7 @@ export function ChatPanel({
   // Load a conversation's messages + restore its provider/model/context.
   useEffect(() => {
     if (currentConvId == null) return;
+    if (pending) return;
     const conv = conversations.find((c) => c.id === currentConvId);
     if (!conv) return;
 

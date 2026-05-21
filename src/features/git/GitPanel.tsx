@@ -63,6 +63,8 @@ function colorFromString(seed: string): string {
 export function GitPanel({ projectId }: GitPanelProps) {
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [view, setView] = useState<GitView>("commits");
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     const statusRes = await commands.gitStatus(projectId);
@@ -72,7 +74,7 @@ export function GitPanel({ projectId }: GitPanelProps) {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const githubRemote = useMemo(
     () => status?.remotes.find((r) => r.host === "github.com" && r.owner && r.repo),
@@ -101,7 +103,7 @@ export function GitPanel({ projectId }: GitPanelProps) {
           This project folder is not a git repository.
         </div>
         <button
-          onClick={load}
+          onClick={() => setRefreshKey(k => k + 1)}
           className="text-xs text-primary hover:underline cursor-pointer"
         >
           Refresh
@@ -131,6 +133,27 @@ export function GitPanel({ projectId }: GitPanelProps) {
                 GitHub
               </a>
             )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.currentTarget.value))}
+              className="h-7 text-xs rounded-md border border-border bg-background px-2"
+            >
+              {[20, 50, 100, 250].map((n) => (
+                <option key={n} value={n}>
+                  Last {n}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setRefreshKey(k => k + 1)}
+              className="h-7 px-2.5 rounded-md text-xs flex items-center gap-1.5 border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Refresh
+            </button>
           </div>
         </div>
 
@@ -167,13 +190,13 @@ export function GitPanel({ projectId }: GitPanelProps) {
       {/* Body */}
       <div className="flex-1 overflow-hidden">
         {view === "commits" && (
-          <CommitsView projectId={projectId} githubRepoUrl={githubRepoUrl} />
+          <CommitsView projectId={projectId} githubRepoUrl={githubRepoUrl} limit={limit} refreshKey={refreshKey} />
         )}
         {view === "tags" && (
-          <TagsView projectId={projectId} githubRepoUrl={githubRepoUrl} />
+          <TagsView projectId={projectId} githubRepoUrl={githubRepoUrl} refreshKey={refreshKey} />
         )}
         {view === "releases" && githubRemote && (
-          <ReleasesView owner={githubRemote.owner!} repo={githubRemote.repo!} />
+          <ReleasesView owner={githubRemote.owner!} repo={githubRemote.repo!} refreshKey={refreshKey} />
         )}
       </div>
     </div>
@@ -185,12 +208,15 @@ export function GitPanel({ projectId }: GitPanelProps) {
 function CommitsView({
   projectId,
   githubRepoUrl,
+  limit,
+  refreshKey,
 }: {
   projectId: number;
   githubRepoUrl: string | null;
+  limit: number;
+  refreshKey: number;
 }) {
   const [commits, setCommits] = useState<GitCommit[]>([]);
-  const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -207,7 +233,7 @@ function CommitsView({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -217,27 +243,6 @@ function CommitsView({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-end gap-2 px-5 py-2 border-b border-border/40">
-        <select
-          value={limit}
-          onChange={(e) => setLimit(Number(e.currentTarget.value))}
-          className="h-7 text-xs rounded-md border border-border bg-background px-2"
-        >
-          {[20, 50, 100, 250].map((n) => (
-            <option key={n} value={n}>
-              Last {n}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="h-7 px-2.5 rounded-md text-xs flex items-center gap-1.5 border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
-      </div>
 
       {error && (
         <div className="text-[11px] text-destructive bg-destructive/10 border-b border-destructive/20 px-5 py-2">
@@ -337,9 +342,11 @@ function CommitsView({
 function TagsView({
   projectId,
   githubRepoUrl,
+  refreshKey,
 }: {
   projectId: number;
   githubRepoUrl: string | null;
+  refreshKey: number;
 }) {
   const [tags, setTags] = useState<GitTag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -359,7 +366,7 @@ function TagsView({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const toggle = async (tag: GitTag, prev: GitTag | undefined) => {
     const key = tag.name;
@@ -493,7 +500,15 @@ function TagsView({
 // ChangelogView 는 W4 의 ChangelogScreen (전용 화면) 으로 승격되었음.
 // 본 GitPanel 에서 CHANGELOG 파일 표시 기능은 제거.
 
-function ReleasesView({ owner, repo }: { owner: string; repo: string }) {
+function ReleasesView({
+  owner,
+  repo,
+  refreshKey,
+}: {
+  owner: string;
+  repo: string;
+  refreshKey: number;
+}) {
   const [releases, setReleases] = useState<GithubRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -509,7 +524,7 @@ function ReleasesView({ owner, repo }: { owner: string; repo: string }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   if (loading) return <Loading label={`Fetching releases for ${owner}/${repo}…`} />;
   if (error) return <ErrorBox text={error} />;

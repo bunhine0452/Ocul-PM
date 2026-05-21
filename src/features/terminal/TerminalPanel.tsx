@@ -146,92 +146,13 @@ export function TerminalPanel({ projectRoot, activeTab, isDetachedWindow = false
     <div
       className={
         isVisible
-          ? "flex-1 h-full flex flex-col overflow-hidden bg-stone-950 font-sans"
+          ? "flex-1 h-full flex overflow-hidden bg-stone-950 font-sans"
           : "hidden"
       }
       style={{ width: "100%", height: "100%" }}
     >
-      {/* Header bar */}
-      <div
-        className="h-12 border-b border-stone-900 flex items-center justify-between px-3 bg-stone-900/60 shrink-0 select-none cursor-default"
-      >
-        <div className="flex items-center space-x-2 overflow-hidden flex-1 mr-4">
-          <TerminalIcon className="w-4 h-4 text-stone-400 shrink-0" />
-          
-          {/* Tab bar list */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto max-w-[85%] scrollbar-none py-1">
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => setActiveSessionId(session.id)}
-                className={`terminal-tab flex items-center px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors max-w-[110px] shrink-0 ${
-                  session.id === activeSessionId
-                    ? "bg-stone-800 text-stone-100 border border-stone-700"
-                    : "text-stone-400 hover:text-stone-200 hover:bg-stone-800/40"
-                }`}
-              >
-                <span className="truncate">{session.name}</span>
-                {sessions.length > 1 && (
-                  <button
-                    onClick={(e) => handleCloseSession(e, session.id)}
-                    className="ml-2 hover:bg-stone-700 rounded-full p-0.5 text-stone-400 hover:text-stone-200 transition-colors"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Add session plus button */}
-          <button
-            onClick={handleAddSession}
-            className="p-1 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center shrink-0 transition-colors"
-            title="새 터미널 추가"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Right side controls */}
-        <div className="flex items-center space-x-2 shrink-0">
-          <div className="flex items-center space-x-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                activeStatus === "connected"
-                  ? "bg-emerald-500 animate-pulse"
-                  : activeStatus === "connecting"
-                  ? "bg-amber-500 animate-pulse"
-                  : activeStatus === "disconnected"
-                  ? "bg-stone-500"
-                  : "bg-red-500"
-              }`}
-            />
-            <span className="text-[11px] text-stone-400 font-medium select-none mr-2">
-              {activeStatus === "connected"
-                ? "연결됨"
-                : activeStatus === "connecting"
-                ? "연결 중..."
-                : activeStatus === "disconnected"
-                ? "종료됨"
-                : "오류"}
-            </span>
-          </div>
-
-          {!isDetachedWindow && (
-            <button
-              onClick={handleDetachWindow}
-              className="p-1.5 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center transition-colors"
-              title="새 창으로 분리"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Sessions Container */}
-      <div className="flex-1 min-h-0 relative bg-stone-950">
+      {/* Left side: Sessions Container */}
+      <div className="flex-1 min-w-0 relative bg-stone-950">
         {sessions.map(session => (
           <div
             key={session.id}
@@ -247,6 +168,84 @@ export function TerminalPanel({ projectRoot, activeTab, isDetachedWindow = false
             />
           </div>
         ))}
+      </div>
+
+      {/* Right side: Tabs & Controls (VSCode style) */}
+      <div className="w-48 border-l border-stone-900 bg-stone-900/60 flex flex-col shrink-0">
+        {/* Controls Header */}
+        <div className="h-9 border-b border-stone-900 flex items-center justify-between px-2 shrink-0 select-none">
+          <div className="flex items-center space-x-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                activeStatus === "connected"
+                  ? "bg-emerald-500 animate-pulse"
+                  : activeStatus === "connecting"
+                  ? "bg-amber-500 animate-pulse"
+                  : activeStatus === "disconnected"
+                  ? "bg-stone-500"
+                  : "bg-red-500"
+              }`}
+            />
+            <span className="text-[10px] text-stone-400 font-medium truncate max-w-[80px]">
+              {activeStatus === "connected"
+                ? "Connected"
+                : activeStatus === "connecting"
+                ? "Connecting..."
+                : activeStatus === "disconnected"
+                ? "Disconnected"
+                : "Error"}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={handleAddSession}
+              className="p-1 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center transition-colors"
+              title="새 터미널 추가"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            {!isDetachedWindow && (
+              <button
+                onClick={handleDetachWindow}
+                className="p-1 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center transition-colors"
+                title="새 창으로 분리"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab list */}
+        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin">
+          {sessions.map(session => (
+            <div
+              key={session.id}
+              onClick={() => setActiveSessionId(session.id)}
+              className={`group flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                session.id === activeSessionId
+                  ? "bg-stone-800 text-stone-100"
+                  : "text-stone-400 hover:text-stone-200 hover:bg-stone-800/40"
+              }`}
+            >
+              <div className="flex items-center space-x-2 overflow-hidden">
+                <TerminalIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                <span className="truncate font-mono text-[11px]">{session.name}</span>
+              </div>
+              {sessions.length > 1 && (
+                <button
+                  onClick={(e) => handleCloseSession(e, session.id)}
+                  className={`p-0.5 rounded-sm hover:bg-stone-700 transition-colors ${
+                    session.id === activeSessionId ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  }`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
