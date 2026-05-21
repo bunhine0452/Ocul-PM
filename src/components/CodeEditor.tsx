@@ -20,6 +20,7 @@ const LANGUAGE_LABELS: Record<string, string> = {
   tsx: "TSX",
   js: "JavaScript",
   jsx: "JSX",
+  astro: "Astro",
   mjs: "JavaScript",
   cjs: "JavaScript",
   py: "Python",
@@ -56,7 +57,7 @@ const LANGUAGE_LABELS: Record<string, string> = {
 const VALID_HLJS_LANGS = new Set([
   "js", "jsx", "ts", "tsx", "rs", "json", "md", "html", "css",
   "py", "go", "sql", "sh", "yaml", "yml", "java", "kotlin", "swift",
-  "ruby", "php", "csharp", "c", "cpp", "bash",
+  "ruby", "php", "csharp", "c", "cpp", "bash", "xml"
 ]);
 
 const HLJS_ALIASES: Record<string, string> = {
@@ -70,6 +71,7 @@ const HLJS_ALIASES: Record<string, string> = {
   cxx: "cpp",
   mjs: "js",
   cjs: "js",
+  astro: "xml",
 };
 
 export function CodeEditor({ projectId, filePath, initialScrollLine, onClose }: CodeEditorProps) {

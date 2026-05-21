@@ -15,6 +15,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (4, include_str!("../migrations/004_conversations.sql")),
     (5, include_str!("../migrations/005_ast_dependencies.sql")),
     (6, include_str!("../migrations/006_file_changes.sql")),
+    (7, include_str!("../migrations/007_changelog.sql")),
 ];
 
 pub struct Db {
@@ -1190,6 +1191,259 @@ impl Db {
             .await?;
         Ok(result)
     }
+
+    // ---------- G1: Changelog (MASTER-GUIDE §4.1) ----------
+
+    pub async fn insert_changelog_entry(
+        &self,
+        project_id: u32,
+        user_intent: Option<String>,
+        prompt_text: Option<String>,
+        ai_summary: String,
+        title: Option<String>,
+        category: Option<String>,
+        external_tool: Option<String>,
+        files_changed: u32,
+        lines_added: u32,
+        lines_removed: u32,
+    ) -> Result<ChangelogEntry> {
+        let entry = self
+            .conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO changelog_entries
+                     (project_id, user_intent, prompt_text, ai_summary, title, category,
+                      external_tool, files_changed, lines_added, lines_removed)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        project_id as i64,
+                        &user_intent,
+                        &prompt_text,
+                        &ai_summary,
+                        &title,
+                        &category,
+                        &external_tool,
+                        files_changed as i64,
+                        lines_added as i64,
+                        lines_removed as i64,
+                    ],
+                )?;
+                let id = c.last_insert_rowid();
+                c.query_row(
+                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                            category, external_tool, files_changed, lines_added, lines_removed,
+                            created_at, pinned
+                     FROM changelog_entries WHERE id = ?1",
+                    [id],
+                    changelog_entry_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(entry)
+    }
+
+    pub async fn insert_changelog_file(
+        &self,
+        entry_id: u32,
+        file_path: String,
+        change_type: String,
+        lines_added: u32,
+        lines_removed: u32,
+        diff_patch: Option<String>,
+        per_file_summary: Option<String>,
+        old_hash: Option<String>,
+        new_hash: Option<String>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO changelog_files
+                     (entry_id, file_path, change_type, lines_added, lines_removed,
+                      diff_patch, per_file_summary, old_hash, new_hash)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    params![
+                        entry_id as i64,
+                        &file_path,
+                        &change_type,
+                        lines_added as i64,
+                        lines_removed as i64,
+                        &diff_patch,
+                        &per_file_summary,
+                        &old_hash,
+                        &new_hash,
+                    ],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn list_changelog_entries(
+        &self,
+        project_id: u32,
+        since: Option<i64>,
+        limit: u32,
+    ) -> Result<Vec<ChangelogEntry>> {
+        let entries = self
+            .conn
+            .call(move |c| {
+                let mut sql = String::from(
+                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                            category, external_tool, files_changed, lines_added, lines_removed,
+                            created_at, pinned
+                     FROM changelog_entries
+                     WHERE project_id = ?1",
+                );
+                if since.is_some() {
+                    sql.push_str(" AND created_at >= ?2");
+                }
+                sql.push_str(" ORDER BY pinned DESC, created_at DESC LIMIT ?3");
+
+                let mut stmt = c.prepare(&sql)?;
+                let rows = if let Some(s) = since {
+                    stmt.query_map(params![project_id as i64, s, limit as i64], changelog_entry_from_row)?
+                        .collect::<rusqlite::Result<Vec<_>>>()?
+                } else {
+                    stmt.query_map(params![project_id as i64, limit as i64], |r| {
+                        // When since is None, ?2 = limit
+                        changelog_entry_from_row(r)
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                Ok(rows)
+            })
+            .await?;
+        Ok(entries)
+    }
+
+    pub async fn get_changelog_entry(&self, entry_id: u32) -> Result<ChangelogEntry> {
+        let entry = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                            category, external_tool, files_changed, lines_added, lines_removed,
+                            created_at, pinned
+                     FROM changelog_entries WHERE id = ?1",
+                    [entry_id as i64],
+                    changelog_entry_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(entry)
+    }
+
+    pub async fn list_changelog_files(&self, entry_id: u32) -> Result<Vec<ChangelogFileEntry>> {
+        let files = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, entry_id, file_path, change_type, lines_added, lines_removed,
+                            per_file_summary, diff_patch
+                     FROM changelog_files
+                     WHERE entry_id = ?1
+                     ORDER BY file_path ASC",
+                )?;
+                let rows = stmt
+                    .query_map([entry_id as i64], |r| {
+                        Ok(ChangelogFileEntry {
+                            id: r.get::<_, i64>(0)? as u32,
+                            entry_id: r.get::<_, i64>(1)? as u32,
+                            file_path: r.get(2)?,
+                            change_type: r.get(3)?,
+                            lines_added: r.get::<_, i64>(4)? as u32,
+                            lines_removed: r.get::<_, i64>(5)? as u32,
+                            per_file_summary: r.get(6)?,
+                            diff_patch: r.get(7)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(files)
+    }
+
+    pub async fn update_changelog_entry(
+        &self,
+        entry_id: u32,
+        title: Option<String>,
+        category: Option<String>,
+        ai_summary: Option<String>,
+    ) -> Result<ChangelogEntry> {
+        let entry = self
+            .conn
+            .call(move |c| {
+                if let Some(ref v) = title {
+                    c.execute(
+                        "UPDATE changelog_entries SET title = ?1 WHERE id = ?2",
+                        params![v, entry_id as i64],
+                    )?;
+                }
+                if let Some(ref v) = category {
+                    c.execute(
+                        "UPDATE changelog_entries SET category = ?1 WHERE id = ?2",
+                        params![v, entry_id as i64],
+                    )?;
+                }
+                if let Some(ref v) = ai_summary {
+                    c.execute(
+                        "UPDATE changelog_entries SET ai_summary = ?1 WHERE id = ?2",
+                        params![v, entry_id as i64],
+                    )?;
+                }
+                c.query_row(
+                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                            category, external_tool, files_changed, lines_added, lines_removed,
+                            created_at, pinned
+                     FROM changelog_entries WHERE id = ?1",
+                    [entry_id as i64],
+                    changelog_entry_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(entry)
+    }
+
+    pub async fn delete_changelog_entry(&self, entry_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "DELETE FROM changelog_entries WHERE id = ?",
+                    [entry_id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn pin_changelog_entry(&self, entry_id: u32) -> Result<ChangelogEntry> {
+        let entry = self
+            .conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE changelog_entries SET pinned = CASE WHEN pinned = 0 THEN 1 ELSE 0 END
+                     WHERE id = ?",
+                    [entry_id as i64],
+                )?;
+                c.query_row(
+                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                            category, external_tool, files_changed, lines_added, lines_removed,
+                            created_at, pinned
+                     FROM changelog_entries WHERE id = ?1",
+                    [entry_id as i64],
+                    changelog_entry_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(entry)
+    }
 }
 
 // ---------- Row mapper ----------
@@ -1231,6 +1485,24 @@ fn chat_message_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChatMessage> {
         provider: r.get(4)?,
         model: r.get(5)?,
         created_at: r.get::<_, i64>(6)? as u32,
+    })
+}
+
+fn changelog_entry_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChangelogEntry> {
+    Ok(ChangelogEntry {
+        id: r.get::<_, i64>(0)? as u32,
+        project_id: r.get::<_, i64>(1)? as u32,
+        user_intent: r.get(2)?,
+        prompt_text: r.get(3)?,
+        ai_summary: r.get(4)?,
+        title: r.get(5)?,
+        category: r.get(6)?,
+        external_tool: r.get(7)?,
+        files_changed: r.get::<_, i64>(8)? as u32,
+        lines_added: r.get::<_, i64>(9)? as u32,
+        lines_removed: r.get::<_, i64>(10)? as u32,
+        created_at: r.get::<_, i64>(11)? as u32,
+        pinned: r.get::<_, i32>(12)? != 0,
     })
 }
 
@@ -1357,4 +1629,44 @@ pub struct EditPromptResult {
     pub english_prompt: String,
     pub korean_summary: String,
     pub related_files: Vec<String>,
+}
+
+// ---------- G1: Changelog types (MASTER-GUIDE §4.1) ----------
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ChangelogEntry {
+    pub id: u32,
+    pub project_id: u32,
+    pub user_intent: Option<String>,
+    pub prompt_text: Option<String>,
+    pub ai_summary: String,
+    pub title: Option<String>,
+    pub category: Option<String>,
+    pub external_tool: Option<String>,
+    pub files_changed: u32,
+    pub lines_added: u32,
+    pub lines_removed: u32,
+    pub created_at: u32,
+    pub pinned: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ChangelogFileEntry {
+    pub id: u32,
+    pub entry_id: u32,
+    pub file_path: String,
+    pub change_type: String,
+    pub lines_added: u32,
+    pub lines_removed: u32,
+    pub per_file_summary: Option<String>,
+    pub diff_patch: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DailyChangelogBucket {
+    pub date: String, // ISO yyyy-mm-dd (local timezone)
+    pub entries: Vec<ChangelogEntry>,
+    pub total_files: u32,
+    pub total_lines_added: u32,
+    pub total_lines_removed: u32,
 }

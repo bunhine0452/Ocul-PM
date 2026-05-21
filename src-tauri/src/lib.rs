@@ -28,6 +28,9 @@ use crate::commands::{
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
     git_log, git_remotes, git_status, github_verify,
     git_tags, git_log_range, read_changelog, github_releases,
+    // G1 — Changelog
+    commit_changelog_entry, list_changelog, get_changelog_detail,
+    update_changelog, delete_changelog, pin_changelog,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -112,6 +115,13 @@ pub fn run() {
         git_log_range,
         read_changelog,
         github_releases,
+        // G1 — Changelog
+        commit_changelog_entry,
+        list_changelog,
+        get_changelog_detail,
+        update_changelog,
+        delete_changelog,
+        pin_changelog,
     ]);
 
 
@@ -123,9 +133,19 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
+
+            // --- macOS: titleBarStyle Overlay + hidden title (MASTER-GUIDE §6.2) ---
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::TitleBarStyle;
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
+                }
+            }
 
             let app_data = app.path().app_data_dir()?;
             let db_path = app_data.join("ai-pm.db");
@@ -140,3 +160,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

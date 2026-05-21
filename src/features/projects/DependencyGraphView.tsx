@@ -41,6 +41,7 @@ const LANG_BADGES: Record<string, { label: string; fg: string; bg: string; borde
   tsx:   { label: "TSX",    fg: "#3b6ea8", bg: "#3b6ea814", border: "#3b6ea833" },
   js:    { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
   jsx:   { label: "JSX",    fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
+  astro: { label: "Astro",  fg: "#ff5a03", bg: "#ff5a0314", border: "#ff5a0333" },
   mjs:   { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
   cjs:   { label: "JS",     fg: "#a08234", bg: "#a0823414", border: "#a0823433" },
   py:    { label: "Python", fg: "#577a4a", bg: "#577a4a14", border: "#577a4a33" },
@@ -337,6 +338,7 @@ function DependencyGraphInner({
         else if (ext === "py") lang = "python";
         else if (ext === "go") lang = "go";
         else if (["ts", "tsx"].includes(ext)) lang = "typescript";
+        else if (ext === "astro") lang = "xml"; // Astro doesn't have a default lang in highlight.js, using xml as base
 
         setPreviewSymbol({
           symbolName: sym.name,

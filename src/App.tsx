@@ -318,7 +318,9 @@ function App() {
   }
 
   return (
-    <div className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden rounded-xl border border-border">
+    <div 
+      className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden"
+    >
       {/* OS Frameless Custom TitleBar */}
       <TitleBar projectName={selectedProjectName} onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined} />
 

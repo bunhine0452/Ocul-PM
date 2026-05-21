@@ -374,3 +374,226 @@ fn non_empty(s: String) -> Option<String> {
         Some(s)
     }
 }
+
+// ---------- G1: Diff utilities (MASTER-GUIDE §4.1) ----------
+
+/// Per-file diff statistics returned by `diff_stat`.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct DiffFileStat {
+    pub file_path: String,
+    pub change_type: String, // "A" added, "M" modified, "D" deleted, "R" renamed
+    pub lines_added: u32,
+    pub lines_removed: u32,
+    /// For renames: the old path.
+    pub old_path: Option<String>,
+}
+
+/// Get per-file diff stats. Compares working tree vs HEAD if `from`/`to` are None.
+/// Alternatively compares `from..to` (two commit-ish refs).
+pub fn diff_stat(
+    root: &Path,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> Result<Vec<DiffFileStat>, String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+
+    let mut args = vec!["diff", "--numstat", "--diff-filter=AMDRT", "-z"];
+    match (from, to) {
+        (Some(f), Some(t)) => {
+            args.push(f);
+            args.push(t);
+        }
+        (Some(f), None) => {
+            args.push(f);
+        }
+        _ => {
+            // Working tree vs HEAD
+            args.push("HEAD");
+        }
+    }
+
+    let text = run_git(root, &args)?;
+    let mut results = Vec::new();
+
+    // --numstat -z output: "added\tremoved\0old_path\0new_path\0" for renames,
+    // "added\tremoved\0path\0" for normal changes.
+    // We parse by splitting on NUL.
+    let parts: Vec<&str> = text.split('\0').collect();
+    let mut i = 0;
+    while i < parts.len() {
+        let stat_line = parts[i].trim();
+        if stat_line.is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // stat_line = "10\t5" or "-\t-" (binary)
+        let mut cols = stat_line.split('\t');
+        let added_str = cols.next().unwrap_or("0");
+        let removed_str = cols.next().unwrap_or("0");
+
+        let lines_added = added_str.parse::<u32>().unwrap_or(0);
+        let lines_removed = removed_str.parse::<u32>().unwrap_or(0);
+
+        i += 1;
+        if i >= parts.len() {
+            break;
+        }
+        let file_path = parts[i].to_string();
+        i += 1;
+
+        // Detect change type via a separate call would be expensive;
+        // infer from context: if lines_added>0 && lines_removed==0 for new files, etc.
+        // For better accuracy, we'll use --name-status separately.
+        results.push(DiffFileStat {
+            file_path,
+            change_type: "M".to_string(), // Will be refined below
+            lines_added,
+            lines_removed,
+            old_path: None,
+        });
+    }
+
+    // Refine change types using --name-status
+    let mut status_args = vec!["diff", "--name-status", "--diff-filter=AMDRT", "-z"];
+    match (from, to) {
+        (Some(f), Some(t)) => {
+            status_args.push(f);
+            status_args.push(t);
+        }
+        (Some(f), None) => {
+            status_args.push(f);
+        }
+        _ => {
+            status_args.push("HEAD");
+        }
+    }
+
+    if let Ok(status_text) = run_git(root, &status_args) {
+        let status_parts: Vec<&str> = status_text.split('\0').collect();
+        let mut si = 0;
+        let mut status_map: std::collections::HashMap<String, (String, Option<String>)> =
+            std::collections::HashMap::new();
+
+        while si < status_parts.len() {
+            let status = status_parts[si].trim();
+            if status.is_empty() {
+                si += 1;
+                continue;
+            }
+
+            let change_type = status.chars().next().unwrap_or('M').to_string();
+            si += 1;
+
+            if change_type.starts_with('R') || change_type.starts_with('C') {
+                // Rename/Copy: two paths follow
+                if si + 1 < status_parts.len() {
+                    let old_path = status_parts[si].to_string();
+                    let new_path = status_parts[si + 1].to_string();
+                    status_map.insert(new_path, ("R".to_string(), Some(old_path)));
+                    si += 2;
+                } else {
+                    si += 1;
+                }
+            } else if si < status_parts.len() {
+                let path = status_parts[si].to_string();
+                status_map.insert(path, (change_type, None));
+                si += 1;
+            }
+        }
+
+        for entry in &mut results {
+            if let Some((ct, old)) = status_map.get(&entry.file_path) {
+                entry.change_type = ct.clone();
+                entry.old_path = old.clone();
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+/// Get unified diff patch for a specific file. Returns the diff text.
+/// `max_bytes` caps the output to prevent huge diffs from blowing up memory.
+pub fn diff_patch(
+    root: &Path,
+    file_path: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    max_bytes: usize,
+) -> Result<String, String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+
+    let mut args = vec!["diff", "--unified=3"];
+    match (from, to) {
+        (Some(f), Some(t)) => {
+            args.push(f);
+            args.push(t);
+        }
+        (Some(f), None) => {
+            args.push(f);
+        }
+        _ => {
+            args.push("HEAD");
+        }
+    }
+    args.push("--");
+    args.push(file_path);
+
+    let text = run_git(root, &args)?;
+
+    if text.len() > max_bytes {
+        let truncated: String = text.chars().take(max_bytes).collect();
+        Ok(format!("{}\n\n... (truncated, {} bytes total)", truncated, text.len()))
+    } else {
+        Ok(text)
+    }
+}
+
+/// Get overall diff summary (total files, lines added, lines removed).
+pub fn diff_shortstat(
+    root: &Path,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> Result<(u32, u32, u32), String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+
+    let mut args = vec!["diff", "--shortstat"];
+    match (from, to) {
+        (Some(f), Some(t)) => {
+            args.push(f);
+            args.push(t);
+        }
+        (Some(f), None) => {
+            args.push(f);
+        }
+        _ => {
+            args.push("HEAD");
+        }
+    }
+
+    let text = run_git(root, &args)?;
+    // Parse "3 files changed, 10 insertions(+), 5 deletions(-)"
+    let mut files = 0u32;
+    let mut added = 0u32;
+    let mut removed = 0u32;
+
+    for part in text.split(',') {
+        let part = part.trim();
+        if part.contains("file") {
+            files = part.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0);
+        } else if part.contains("insertion") {
+            added = part.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0);
+        } else if part.contains("deletion") {
+            removed = part.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0);
+        }
+    }
+
+    Ok((files, added, removed))
+}

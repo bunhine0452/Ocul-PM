@@ -15,8 +15,10 @@
         "title": "ai-pm",
         "width": 1150,
         "height": 780,
-        "decorations": false,
-        "transparent": true
+        "minWidth": 960,
+        "minHeight": 640,
+        "decorations": true,
+        "transparent": false
       }
     ],
     "security": {

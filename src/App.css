@@ -146,7 +146,7 @@
     --secondary: #1f1e1b; /* surface-dark-soft */
     --secondary-foreground: #faf9f5;
     --muted: #1f1e1b;
-    --muted-foreground: #8e8b82; /* muted-soft */
+    --muted-foreground: #a8a59c; /* muted-soft — WCAG AA compliant */
     --accent: #252320;
     --accent-foreground: #faf9f5;
     --destructive: #c64545;
@@ -167,20 +167,25 @@
   * {
     @apply border-border outline-ring/50;
     }
-  /* Tauri runs with decorations:false + transparent:true so macOS does NOT
-     draw its own rounded chrome — we have to clip the document ourselves and
-     let the desktop show through the corners. */
+  /* OS-native decorations handle chrome — no manual clipping needed. */
   html, body, #root {
-    background: transparent !important;
     margin: 0;
     padding: 0;
     height: 100%;
-    border-radius: 12px;
-    overflow: hidden;
   }
   html {
     @apply font-sans;
     }
+
+  /* Changelog category color tokens (MASTER-GUIDE §6.4) */
+  :root {
+    --cat-feature:  #5b8def;  /* blue */
+    --cat-fix:      #e7785b;  /* coral */
+    --cat-refactor: #8e7ae6;  /* purple */
+    --cat-docs:     #4caf81;  /* green */
+    --cat-test:     #d4a843;  /* amber */
+    --cat-chore:    #888880;  /* gray */
+  }
 }
 
 /* Glassmorphism styling utilities */
