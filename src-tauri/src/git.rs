@@ -515,6 +515,28 @@ pub fn diff_stat(
     Ok(results)
 }
 
+/// List paths that exist in the working tree but are neither tracked nor
+/// ignored. `git diff HEAD` skips these entirely, which means a newly-created
+/// file would otherwise never make it into a changelog entry. We respect the
+/// repo's gitignore rules so generated artefacts don't sneak in.
+pub fn list_untracked(root: &Path) -> Result<Vec<String>, String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+    // `--others`: untracked. `--exclude-standard`: honour .gitignore /
+    // info/exclude / core.excludesFile. `-z`: NUL-separated to survive
+    // spaces and unicode.
+    let text = run_git(
+        root,
+        &["ls-files", "--others", "--exclude-standard", "-z"],
+    )?;
+    Ok(text
+        .split('\0')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect())
+}
+
 /// Get unified diff patch for a specific file. Returns the diff text.
 /// `max_bytes` caps the output to prevent huge diffs from blowing up memory.
 pub fn diff_patch(

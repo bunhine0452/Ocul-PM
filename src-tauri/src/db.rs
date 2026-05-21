@@ -1159,6 +1159,60 @@ impl Db {
         Ok(changes)
     }
 
+    /// Delete `file_changes` audit rows for the given project + paths.
+    /// Used by `commit_changelog_entry` so the "오늘 변경사항" panel does not
+    /// keep surfacing files that have already been recorded into a changelog
+    /// entry. We delete (rather than soft-mark) because the rows are otherwise
+    /// recoverable from the changelog itself.
+    pub async fn delete_file_changes_for_paths(
+        &self,
+        project_id: u32,
+        paths: Vec<String>,
+    ) -> Result<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+        self.conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                {
+                    let mut stmt = tx.prepare(
+                        "DELETE FROM file_changes WHERE project_id = ?1 AND file_path = ?2",
+                    )?;
+                    for p in &paths {
+                        stmt.execute(params![project_id as i64, p])?;
+                    }
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// Refresh the indexed hash for a single file (project_id, path → hash).
+    /// Called after a changelog commit so `detect_file_changes` does not pick
+    /// the same file up again on the next scan. No-op if the file row does not
+    /// yet exist in `files` — the next full reindex will pick it up.
+    pub async fn refresh_file_hash(
+        &self,
+        project_id: u32,
+        path: String,
+        new_hash: String,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE files SET hash = ?1, indexed_at = unixepoch()
+                     WHERE project_id = ?2 AND path = ?3",
+                    params![&new_hash, project_id as i64, &path],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     pub async fn clean_duplicate_file_changes(&self) -> Result<()> {
         self.conn
             .call(|c| {
@@ -1291,28 +1345,42 @@ impl Db {
         let entries = self
             .conn
             .call(move |c| {
-                let mut sql = String::from(
-                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
-                            category, external_tool, files_changed, lines_added, lines_removed,
-                            created_at, pinned
-                     FROM changelog_entries
-                     WHERE project_id = ?1",
-                );
-                if since.is_some() {
-                    sql.push_str(" AND created_at >= ?2");
-                }
-                sql.push_str(" ORDER BY pinned DESC, created_at DESC LIMIT ?3");
-
-                let mut stmt = c.prepare(&sql)?;
-                let rows = if let Some(s) = since {
-                    stmt.query_map(params![project_id as i64, s, limit as i64], changelog_entry_from_row)?
-                        .collect::<rusqlite::Result<Vec<_>>>()?
+                // Build SQL with placeholder count matching the actual bound params.
+                // Previously the LIMIT clause always used `?3`, but when `since` is
+                // None we only bind 2 params → sqlite raises
+                // "Wrong number of parameters passed to query. Got 2, needed 3".
+                let rows: Vec<ChangelogEntry> = if let Some(s) = since {
+                    let mut stmt = c.prepare(
+                        "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                                category, external_tool, files_changed, lines_added, lines_removed,
+                                created_at, pinned
+                         FROM changelog_entries
+                         WHERE project_id = ?1 AND created_at >= ?2
+                         ORDER BY pinned DESC, created_at DESC LIMIT ?3",
+                    )?;
+                    let collected: rusqlite::Result<Vec<ChangelogEntry>> = stmt
+                        .query_map(
+                            params![project_id as i64, s, limit as i64],
+                            changelog_entry_from_row,
+                        )?
+                        .collect();
+                    collected?
                 } else {
-                    stmt.query_map(params![project_id as i64, limit as i64], |r| {
-                        // When since is None, ?2 = limit
-                        changelog_entry_from_row(r)
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()?
+                    let mut stmt = c.prepare(
+                        "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
+                                category, external_tool, files_changed, lines_added, lines_removed,
+                                created_at, pinned
+                         FROM changelog_entries
+                         WHERE project_id = ?1
+                         ORDER BY pinned DESC, created_at DESC LIMIT ?2",
+                    )?;
+                    let collected: rusqlite::Result<Vec<ChangelogEntry>> = stmt
+                        .query_map(
+                            params![project_id as i64, limit as i64],
+                            changelog_entry_from_row,
+                        )?
+                        .collect();
+                    collected?
                 };
                 Ok(rows)
             })

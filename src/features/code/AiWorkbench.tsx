@@ -248,8 +248,16 @@ function QuickEdit({
       provider,
       effectiveModel,
     );
-    if (res.status === "ok") setSavedEntryId(res.data.id);
-    else setError((res as any).error ?? "Changelog 저장 실패");
+    if (res.status === "ok") {
+      setSavedEntryId(res.data.id);
+      // The backend just consumed these paths (deleted matching file_changes
+      // rows and refreshed file hashes), so the "오늘 변경사항" list belongs
+      // to the previous diff snapshot — clear it so the panel reflects what
+      // a fresh Scan would now return.
+      setFileChanges([]);
+    } else {
+      setError((res as any).error ?? "Changelog 저장 실패");
+    }
     setSavingChangelog(false);
   }
 

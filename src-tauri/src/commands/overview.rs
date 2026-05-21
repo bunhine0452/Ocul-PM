@@ -452,11 +452,15 @@ pub async fn daily_brief(
     // for arithmetic and DB queries.
     date_unix: Option<i32>,
 ) -> Result<DailyBrief, String> {
+    // The frontend computes "today midnight" using the user's LOCAL timezone
+    // (`new Date().setHours(0,0,0,0)`) and passes that as `date_unix`. We must
+    // honor that value verbatim — re-snapping it to a UTC day boundary here
+    // shifted the window by the user's UTC offset, so morning-of-today entries
+    // (created after local midnight but before UTC midnight) silently fell
+    // outside the bucket. Only the `None` fallback snaps, since no client-side
+    // anchor is available then.
     let day_start: i64 = match date_unix {
-        Some(ts) => {
-            let ts = ts as i64;
-            ts - ts.rem_euclid(86400)
-        }
+        Some(ts) => ts as i64,
         None => {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)

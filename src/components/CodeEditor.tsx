@@ -545,44 +545,58 @@ export function CodeEditor({ projectId, filePath, initialScrollLine, onClose }: 
 
       {/* Status bar */}
       <div
-        className="editor-statusbar h-6 flex items-center justify-between text-[11px] select-none px-3 gap-4"
+        className="editor-statusbar h-6 flex items-center justify-between text-[11px] select-none px-3 gap-2 sm:gap-4 overflow-hidden w-full"
         style={{ fontFamily: editorFontStack }}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* File path/name */}
+          <span className="flex items-center gap-1.5 min-w-0 flex-shrink" title={filePath}>
+            <FileCode className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <span className="font-medium truncate hidden md:inline">{filePath}</span>
+            <span className="font-medium truncate md:hidden">{fileName}</span>
+          </span>
+
+          <span className="opacity-30 flex-shrink-0 hidden sm:inline">·</span>
+
+          {/* Language Mode */}
+          <span className="flex items-center gap-1.5 flex-shrink-0 hidden sm:flex">
             <span
               className="w-1.5 h-1.5 rounded-full"
               style={{ background: "var(--editor-statusbar-accent)" }}
             />
             <span className="font-medium">{languageLabel}</span>
           </span>
-          <span className="opacity-30">·</span>
-          <span>UTF-8</span>
-          <span className="opacity-30">·</span>
-          <span>LF</span>
-          <span className="opacity-30">·</span>
-          <span className="tabular-nums">{lineCount.toLocaleString()} lines</span>
+          
+          <span className="opacity-30 flex-shrink-0 hidden lg:inline">·</span>
+          <span className="flex-shrink-0 hidden lg:inline">UTF-8</span>
+          
+          <span className="opacity-30 flex-shrink-0 hidden lg:inline">·</span>
+          <span className="flex-shrink-0 hidden lg:inline">LF</span>
+          
+          <span className="opacity-30 flex-shrink-0 hidden xl:inline">·</span>
+          <span className="tabular-nums flex-shrink-0 hidden xl:inline">{lineCount.toLocaleString()} lines</span>
+          
           {byteSize > 0 && (
             <>
-              <span className="opacity-30">·</span>
-              <span className="tabular-nums">{formatBytes(byteSize)}</span>
+              <span className="opacity-30 flex-shrink-0 hidden xl:inline">·</span>
+              <span className="tabular-nums flex-shrink-0 hidden xl:inline">{formatBytes(byteSize)}</span>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {isDirty && (
             <>
               <span className="text-[color:var(--editor-statusbar-accent)] font-medium">● Modified</span>
-              <span className="opacity-30">·</span>
+              <span className="opacity-30 hidden sm:inline">·</span>
             </>
           )}
-          <span className="tabular-nums">
+          <span className="tabular-nums whitespace-nowrap">
             Ln <span className="font-semibold text-foreground">{cursorLine}</span>, Col{" "}
             <span className="font-semibold text-foreground">{cursorCol}</span>
           </span>
-          <span className="opacity-30">·</span>
-          <span>Spaces: 2</span>
+          <span className="opacity-30 hidden sm:inline">·</span>
+          <span className="hidden sm:inline whitespace-nowrap">Spaces: 2</span>
         </div>
       </div>
 

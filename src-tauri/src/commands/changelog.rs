@@ -38,11 +38,7 @@ pub async fn commit_changelog_entry(
     let file_stats = git::diff_stat(&root, None, None)
         .unwrap_or_default();
 
-    if file_stats.is_empty() {
-        return Err("No uncommitted changes detected. Nothing to log.".to_string());
-    }
-
-    let (total_files, total_added, total_removed) =
+    let (mut total_files, mut total_added, mut total_removed) =
         git::diff_shortstat(&root, None, None).unwrap_or((0, 0, 0));
 
     // 2. Collect diff patches for each file (capped per file)
@@ -63,6 +59,54 @@ pub async fn commit_changelog_entry(
             stat.lines_added,
             stat.lines_removed,
         ));
+    }
+
+    // 2b. `git diff HEAD` ignores untracked files, so a freshly created file
+    // would silently drop out of the changelog — leaving the user with an
+    // entry whose DiffModal renders "diff 본문이 비어있습니다". Pull untracked
+    // paths via `git status --porcelain -z` and synthesise an additions-only
+    // unified diff from their on-disk contents so they survive into the entry.
+    if let Ok(untracked) = git::list_untracked(&root) {
+        let already: std::collections::HashSet<&str> =
+            file_diffs.iter().map(|(p, _, _, _, _)| p.as_str()).collect();
+        let mut extras: Vec<(String, String, String, u32, u32)> = Vec::new();
+        for path in &untracked {
+            if already.contains(path.as_str()) {
+                continue;
+            }
+            let abs = root.join(path);
+            let Ok(content) = std::fs::read_to_string(&abs) else { continue };
+            let lines_added = content.lines().count() as u32;
+            // Cap synthesised patch at MAX_DIFF_BYTES like git::diff_patch does.
+            let mut patch = String::with_capacity(content.len() + 128);
+            patch.push_str(&format!("--- /dev/null\n+++ b/{}\n", path));
+            patch.push_str(&format!("@@ -0,0 +1,{} @@\n", lines_added));
+            for line in content.lines() {
+                patch.push('+');
+                patch.push_str(line);
+                patch.push('\n');
+            }
+            if patch.len() > MAX_DIFF_BYTES {
+                patch.truncate(MAX_DIFF_BYTES);
+                patch.push_str("\n\n... (truncated)");
+            }
+            extras.push((
+                path.clone(),
+                "created".to_string(),
+                patch,
+                lines_added,
+                0,
+            ));
+        }
+        for e in &extras {
+            total_files += 1;
+            total_added += e.3;
+        }
+        file_diffs.extend(extras);
+    }
+
+    if file_diffs.is_empty() {
+        return Err("No uncommitted changes detected. Nothing to log.".to_string());
     }
 
     // 3. Build LLM prompt for summarisation
@@ -169,6 +213,8 @@ Output ONLY valid JSON, no markdown fences."#;
     ).await.map_err(|e| e.to_string())?;
 
     // 6. Insert per-file records
+    let committed_paths: Vec<String> =
+        file_diffs.iter().map(|(p, _, _, _, _)| p.clone()).collect();
     for (path, ct, patch, added, removed) in file_diffs {
         let summary = per_file_map.get(&path).cloned();
         db.insert_changelog_file(
@@ -182,6 +228,26 @@ Output ONLY valid JSON, no markdown fences."#;
             None,
             None,
         ).await.map_err(|e| e.to_string())?;
+    }
+
+    // 7. Consume the committed paths so they don't keep haunting the
+    // AiWorkbench "오늘 변경사항" panel forever (MASTER-GUIDE §5.6):
+    //   - delete matching `file_changes` audit rows for this project
+    //   - refresh the indexed hash in `files` so the next `detect_file_changes`
+    //     scan treats the current on-disk content as the new baseline.
+    if !committed_paths.is_empty() {
+        let _ = db
+            .delete_file_changes_for_paths(project_id, committed_paths.clone())
+            .await;
+        for path in &committed_paths {
+            let abs = root.join(path);
+            if let Ok(content) = std::fs::read(&abs) {
+                let new_hash = blake3::hash(&content).to_hex().to_string();
+                let _ = db
+                    .refresh_file_hash(project_id, path.clone(), new_hash)
+                    .await;
+            }
+        }
     }
 
     Ok(entry)
