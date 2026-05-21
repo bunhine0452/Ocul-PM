@@ -20,7 +20,7 @@ export type BottomDrawerTab = "terminal" | "git" | "problems";
  * drawer). Until then we keep them as named sub-tabs so the IA-5 sidebar
  * change can ship without that bigger refactor.
  */
-export type CodeSubTab = "files" | "chat" | "assist" | "graph" | "terminal" | "git";
+export type CodeSubTab = "files" | "ai" | "graph" | "terminal" | "git";
 
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
@@ -88,8 +88,8 @@ function mapLegacyTab(tab: LegacyTab): { view: ActiveView; sub: CodeSubTab } {
     case "today":    return { view: "today",    sub: "files" };
     case "planner":  return { view: "plan",     sub: "files" };
     case "files":    return { view: "code",     sub: "files" };
-    case "chat":     return { view: "code",     sub: "chat" };
-    case "assist":   return { view: "code",     sub: "assist" };
+    case "chat":     return { view: "code",     sub: "ai" };
+    case "assist":   return { view: "code",     sub: "ai" };
     case "graph":    return { view: "code",     sub: "graph" };
     case "terminal": return { view: "code",     sub: "terminal" };
     case "git":      return { view: "code",     sub: "git" };
@@ -155,6 +155,10 @@ function loadFromStorage(): WorkspaceState {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
+      // Migrate legacy codeSubTab values ("chat" | "assist" → "ai")
+      if (parsed.codeSubTab === "chat" || parsed.codeSubTab === "assist") {
+        parsed.codeSubTab = "ai";
+      }
       // Merge with defaults to handle new fields added in future versions
       return {
         ...DEFAULT_STATE,

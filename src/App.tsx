@@ -20,7 +20,6 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 import {
   FolderCode,
-  MessageSquare,
   Network,
   Calendar,
   Settings,
@@ -465,8 +464,7 @@ const PRIMARY_NAV = [
 
 const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "files",    label: "Files",    icon: FolderCode },
-  { id: "chat",     label: "Chat",     icon: MessageSquare },
-  { id: "assist",   label: "Assist",   icon: Sparkles },
+  { id: "ai",       label: "AI",       icon: Sparkles },
   { id: "graph",    label: "Graph",    icon: Network },
   { id: "terminal", label: "Terminal", icon: Terminal },
   { id: "git",      label: "Git",      icon: GitBranch },

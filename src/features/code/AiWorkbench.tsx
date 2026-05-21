@@ -20,27 +20,16 @@ import {
   type FileChange,
 } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { ChatPanel } from "@/features/chat/ChatPanel";
 import { ClarifyDialog } from "./ClarifyDialog";
+import { ModelSelector } from "@/components/ModelSelector";
+import { providerModel, type Provider } from "@/lib/settings";
 
 // MASTER-GUIDE §5.6 — Code 워크벤치의 오른쪽 패널.
-// 두 모드 토글:
-//   - quick-edit : 사용자가 의도를 적으면 ① 모호도 평가 → ② 필요 시 Clarify
-//                  → ③ 영어 프롬프트 + 한국어 요약 생성. 골든 패스를 위한
-//                  "오늘 변경사항 → Changelog 저장" CTA 도 함께.
-//   - chat       : 기존 ChatPanel 을 그대로 임베드 (RAG 다중 턴).
-//
-// AssistPanel.tsx 는 본 컴포넌트가 모든 기능을 흡수하므로 W5 에서 삭제 예정.
-
-const PROVIDERS = ["anthropic", "gemini", "openai", "nim"] as const;
-type Provider = (typeof PROVIDERS)[number];
-
-const FALLBACK_MODEL: Record<Provider, string> = {
-  anthropic: "claude-sonnet-4-6",
-  gemini: "gemini-2.5-flash",
-  openai: "gpt-4o-mini",
-  nim: "meta/llama-3.3-70b-instruct",
-};
+// Chat과 QuickEdit이 통합된 단일 AI 패널.
+// 상단: Chat / QuickEdit 모드 토글 + Cursor 스타일 ModelSelector
+// 하단: 모드에 따라 전환
 
 interface AiWorkbenchProps {
   activeProjectId: number | null;
@@ -49,24 +38,57 @@ interface AiWorkbenchProps {
 
 export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
   const { state, setState, setActiveView } = useWorkspace();
+  const { settings } = useSettings();
   const mode = state.aiWorkbenchMode;
+
+  // Shared provider/model state — used by both Chat and QuickEdit.
+  const [provider, setProvider] = useState<Provider>(settings.defaultProvider);
+  const [model, setModel] = useState("");
+
+  // Load saved default model on mount.
+  useEffect(() => {
+    (async () => {
+      const saved = await commands.settingsGet("default_model");
+      if (saved.status === "ok" && saved.data) setModel(saved.data);
+    })();
+  }, []);
 
   function setMode(m: "quick-edit" | "chat") {
     setState((prev) => ({ ...prev, aiWorkbenchMode: m }));
   }
 
+  const effectiveModel = model || providerModel(settings, provider);
+
   return (
     <div className="h-full flex flex-col overflow-hidden border-l border-border">
-      <header className="h-10 border-b border-border bg-secondary/20 flex items-center px-3 shrink-0">
-        <div className="flex items-center gap-1 bg-secondary/40 rounded-md p-0.5">
-          <ModeButton
-            active={mode === "quick-edit"}
-            onClick={() => setMode("quick-edit")}
-            label="Quick Edit"
-          />
-          <ModeButton active={mode === "chat"} onClick={() => setMode("chat")} label="Chat" />
+      {/* Row 1: Mode toggle + shortcut hint */}
+      <header className="border-b border-border bg-secondary/20 flex flex-col shrink-0">
+        <div className="h-10 flex items-center px-3">
+          <div className="flex items-center gap-1 bg-secondary/40 rounded-md p-0.5">
+            <ModeButton
+              active={mode === "chat"}
+              onClick={() => setMode("chat")}
+              label="Chat"
+            />
+            <ModeButton
+              active={mode === "quick-edit"}
+              onClick={() => setMode("quick-edit")}
+              label="Quick Edit"
+            />
+          </div>
+          <kbd className="ml-auto text-[10px] text-muted-foreground/70 font-mono">⌘\</kbd>
         </div>
-        <kbd className="ml-auto text-[10px] text-muted-foreground/70 font-mono">⌘\\</kbd>
+
+        {/* Row 2: ModelSelector */}
+        <div className="h-9 flex items-center px-3 border-t border-border/50 bg-secondary/10">
+          <ModelSelector
+            provider={provider}
+            model={model}
+            onProviderChange={setProvider}
+            onModelChange={setModel}
+            placeholder={providerModel(settings, provider)}
+          />
+        </div>
       </header>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -74,6 +96,8 @@ export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
           <QuickEdit
             activeProjectId={activeProjectId}
             onGoChangelog={() => setActiveView("changelog")}
+            provider={provider}
+            model={effectiveModel}
           />
         ) : (
           <ChatPanel
@@ -81,6 +105,8 @@ export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
             compactSidebar
             activeProjectId={activeProjectId}
             activeFile={activeFile}
+            externalProvider={provider}
+            externalModel={model}
           />
         )}
       </div>
@@ -108,14 +134,16 @@ function ModeButton({ active, onClick, label }: { active: boolean; onClick: () =
 function QuickEdit({
   activeProjectId,
   onGoChangelog,
+  provider,
+  model,
 }: {
   activeProjectId: number | null;
   onGoChangelog: () => void;
+  provider: Provider;
+  model: string;
 }) {
   // Inputs
   const [userRequest, setUserRequest] = useState("");
-  const [provider, setProvider] = useState<Provider>("gemini");
-  const [model, setModel] = useState("");
 
   // Pipeline state
   const [phase, setPhase] = useState<"idle" | "clarifying" | "generating">("idle");
@@ -136,14 +164,6 @@ function QuickEdit({
   const [scanning, setScanning] = useState(false);
   const [savingChangelog, setSavingChangelog] = useState(false);
   const [savedEntryId, setSavedEntryId] = useState<number | null>(null);
-
-  // Restore preferred model + reset volatile state on project change.
-  useEffect(() => {
-    (async () => {
-      const saved = await commands.settingsGet("default_model");
-      if (saved.status === "ok" && saved.data) setModel(saved.data);
-    })();
-  }, []);
 
   useEffect(() => {
     setSavedEntryId(null);
@@ -168,7 +188,7 @@ function QuickEdit({
     setError(null);
     setResult(null);
     setPhase("clarifying");
-    const effectiveModel = model || FALLBACK_MODEL[provider];
+    const effectiveModel = model;
 
     // ① Ambiguity check
     const c = await commands.clarifyEditIntent(
@@ -201,7 +221,7 @@ function QuickEdit({
     if (activeProjectId == null) return;
     setPhase("generating");
     setError(null);
-    const effectiveModel = model || FALLBACK_MODEL[provider];
+    const effectiveModel = model;
     const res = await commands.generateEditPromptWithAnswers(
       activeProjectId,
       userRequest,
@@ -240,7 +260,7 @@ function QuickEdit({
     setSavingChangelog(true);
     setError(null);
     setSavedEntryId(null);
-    const effectiveModel = model || FALLBACK_MODEL[provider];
+    const effectiveModel = model;
     const res = await commands.commitChangelogEntry(
       activeProjectId,
       userRequest.trim() || null,
@@ -272,26 +292,6 @@ function QuickEdit({
   return (
     <>
       <div className="h-full flex flex-col overflow-hidden">
-        {/* Provider/model bar */}
-        <div className="h-9 border-b border-border bg-secondary/15 flex items-center gap-2 px-3 shrink-0">
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.currentTarget.value as Provider)}
-            className="h-6 rounded-md border border-border bg-background px-2 text-[10px] font-medium"
-            disabled={phase !== "idle"}
-          >
-            {PROVIDERS.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <input
-            value={model}
-            onChange={(e) => setModel(e.currentTarget.value)}
-            placeholder={FALLBACK_MODEL[provider]}
-            className="h-6 flex-1 rounded-md border border-border bg-background px-2 text-[10px] font-mono"
-            disabled={phase !== "idle"}
-          />
-        </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
           {/* Input */}

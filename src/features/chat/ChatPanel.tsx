@@ -459,6 +459,10 @@ interface ChatPanelProps {
    * 좁은 폭에서 함께 뭉개지는 버그.
    */
   compactSidebar?: boolean;
+  /** When provided from AiWorkbench, overrides the internal provider state. */
+  externalProvider?: Provider;
+  /** When provided from AiWorkbench, overrides the internal model state. */
+  externalModel?: string;
 }
 
 /**
@@ -501,6 +505,8 @@ export function ChatPanel({
   activeProjectId = null,
   activeFile = null,
   compactSidebar = false,
+  externalProvider,
+  externalModel,
 }: ChatPanelProps) {
   const { settings } = useSettings();
   // Popover open-state for the compact conversation switcher.
@@ -512,8 +518,14 @@ export function ChatPanel({
     void migrateLegacyActionKeys();
   }, []);
 
-  const [provider, setProvider] = useState<Provider>(settings.defaultProvider as Provider);
-  const [model, setModel] = useState("");
+  const [internalProvider, setInternalProvider] = useState<Provider>(settings.defaultProvider as Provider);
+  const [internalModel, setInternalModel] = useState("");
+
+  // When external provider/model is given (from AiWorkbench), use it.
+  const provider = externalProvider ?? internalProvider;
+  const setProvider = externalProvider ? () => {} : setInternalProvider;
+  const model = externalModel ?? internalModel;
+  const setModel = externalModel !== undefined ? () => {} : setInternalModel;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);

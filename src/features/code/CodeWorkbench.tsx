@@ -44,13 +44,11 @@ export function CodeWorkbench({
   // codeSubTab is still useful inside CodeWorkbench:
   //   - "files" → Tree + Editor (default)
   //   - "graph" → DependencyGraphView replaces the Editor pane
-  //   - "chat" / "assist" → switch AiWorkbench mode (handled below)
+  //   - "ai"    → open AiWorkbench (mode toggled inside the panel)
   //   - "terminal" / "git" → open the BottomDrawer at that tab
   useEffect(() => {
-    if (codeSubTab === "chat") {
-      setState((p) => ({ ...p, aiWorkbenchMode: "chat", aiWorkbenchOpen: true }));
-    } else if (codeSubTab === "assist") {
-      setState((p) => ({ ...p, aiWorkbenchMode: "quick-edit", aiWorkbenchOpen: true }));
+    if (codeSubTab === "ai") {
+      setState((p) => ({ ...p, aiWorkbenchOpen: true }));
     } else if (codeSubTab === "terminal") {
       setState((p) => ({ ...p, bottomDrawerOpen: true, bottomDrawerTab: "terminal" }));
     } else if (codeSubTab === "git") {
