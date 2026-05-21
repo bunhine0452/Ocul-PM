@@ -6,6 +6,7 @@
 
 pub mod anthropic;
 pub mod gemini;
+pub mod nim;
 pub mod openai;
 
 use async_trait::async_trait;
@@ -128,6 +129,7 @@ pub fn create(name: &str, api_key: String) -> Result<Box<dyn LlmProvider>, LlmEr
         "anthropic" => Ok(Box::new(anthropic::Anthropic::new(api_key))),
         "gemini" => Ok(Box::new(gemini::Gemini::new(api_key))),
         "openai" => Ok(Box::new(openai::OpenAi::new(api_key))),
+        "nim" => Ok(Box::new(nim::Nim::new(api_key))),
         other => Err(LlmError::UnknownProvider(other.to_string())),
     }
 }

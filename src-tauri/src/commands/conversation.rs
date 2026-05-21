@@ -2,7 +2,7 @@
 
 use tauri::State;
 
-use crate::db::{ChatMessage, Conversation, Db};
+use crate::db::{ChatMessage, Conversation, ConversationAction, Db};
 
 #[tauri::command]
 #[specta::specta]
@@ -88,6 +88,37 @@ pub async fn chat_message_list(
     conversation_id: u32,
 ) -> Result<Vec<ChatMessage>, String> {
     db.chat_message_list(conversation_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ---------- Action proposal apply-state (W5 / UI-5) ----------
+
+/// Persist that the user applied the ActionProposalCard at `message_index`
+/// inside `conversation_id`. Idempotent — re-recording just refreshes
+/// `applied_at`. Replaces the old `localStorage[action_{conv}_{i}]="applied"`
+/// pattern in `ChatPanel`.
+#[tauri::command]
+#[specta::specta]
+pub async fn record_conversation_action(
+    db: State<'_, Db>,
+    conversation_id: u32,
+    message_index: u32,
+    status: Option<String>,
+) -> Result<ConversationAction, String> {
+    let s = status.unwrap_or_else(|| "applied".to_string());
+    db.record_conversation_action(conversation_id, message_index, s)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_conversation_actions(
+    db: State<'_, Db>,
+    conversation_id: u32,
+) -> Result<Vec<ConversationAction>, String> {
+    db.list_conversation_actions(conversation_id)
         .await
         .map_err(|e| e.to_string())
 }

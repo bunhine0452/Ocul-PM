@@ -19,7 +19,7 @@ import {
   type Role,
 } from "@/lib/bindings";
 
-const PROVIDERS = ["anthropic", "gemini", "openai"] as const;
+const PROVIDERS = ["anthropic", "gemini", "openai", "nim"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
 const CONTEXT_DEBOUNCE_MS = 400;
@@ -188,20 +188,44 @@ function buildActionInstruction(): string {
 
 interface ActionProposalCardProps {
   action: PlannerAction;
-  actionKey: string | null;
+  conversationId: number | null;
+  messageIndex: number;
   projectId?: number | null;
   onApplied: () => void;
 }
 
-export function ActionProposalCard({ action, actionKey, projectId = null, onApplied }: ActionProposalCardProps) {
-  const [status, setStatus] = useState<"idle" | "applying" | "applied" | "error">(() => {
-    if (!actionKey) return "idle";
-    return localStorage.getItem(actionKey) === "applied" ? "applied" : "idle";
-  });
+export function ActionProposalCard({
+  action,
+  conversationId,
+  messageIndex,
+  projectId = null,
+  onApplied,
+}: ActionProposalCardProps) {
+  // Apply-state lives in the SQLite `conversation_actions` table (W5).
+  // We start in "idle" and quietly upgrade to "applied" if a matching row
+  // shows up — this avoids a render flicker for unmatched messages.
+  const [status, setStatus] = useState<"idle" | "applying" | "applied" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (conversationId == null) return;
+    (async () => {
+      const res = await commands.listConversationActions(conversationId);
+      if (cancelled) return;
+      if (res.status !== "ok") return;
+      const match = res.data.find(
+        (r) => r.message_index === messageIndex && r.status === "applied",
+      );
+      if (match) setStatus("applied");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, messageIndex]);
+
   async function handleApply() {
-    if (!actionKey) return;
+    if (conversationId == null) return;
     setStatus("applying");
     setErrorMsg(null);
     try {
@@ -262,7 +286,12 @@ export function ActionProposalCard({ action, actionKey, projectId = null, onAppl
         if (res.status === "error") throw new Error(res.error);
       }
 
-      localStorage.setItem(actionKey, "applied");
+      const rec = await commands.recordConversationAction(
+        conversationId,
+        messageIndex,
+        "applied",
+      );
+      if (rec.status === "error") throw new Error(rec.error);
       setStatus("applied");
       onApplied();
     } catch (err: any) {
@@ -423,10 +452,65 @@ interface ChatPanelProps {
   isWorkspaceMode?: boolean;
   activeProjectId?: number | null;
   activeFile?: string | null;
+  /**
+   * When true (e.g. embedded inside AiWorkbench's narrow 380px panel), the
+   * inline conversation list is replaced by a popover trigger so the chat
+   * thread itself gets the full width. Avoids the "사이드바 + 본문" 두 컬럼이
+   * 좁은 폭에서 함께 뭉개지는 버그.
+   */
+  compactSidebar?: boolean;
 }
 
-export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, activeFile = null }: ChatPanelProps) {
+/**
+ * One-time migration: scan localStorage for legacy `action_${convId}_${i}` keys
+ * (where the value is the literal "applied"), forward each to the SQLite
+ * `conversation_actions` table via `record_conversation_action`, then delete
+ * the keys. Guard with a sentinel so the scan runs at most once per install.
+ *
+ * Kept inside ChatPanel because that's the only place those keys were ever
+ * written; after this migration ships, the file should be removable from the
+ * eslint allowlist in `scripts/check-no-localstorage.mjs`.
+ */
+const MIGRATION_SENTINEL = "aipm:conv_actions_migrated:v1";
+async function migrateLegacyActionKeys() {
+  if (localStorage.getItem(MIGRATION_SENTINEL) === "done") return;
+  const toRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("action_")) continue;
+    if (localStorage.getItem(key) !== "applied") continue;
+    const parts = key.split("_");
+    // action_${convId}_${i}
+    if (parts.length !== 3) continue;
+    const convId = Number(parts[1]);
+    const msgIdx = Number(parts[2]);
+    if (Number.isNaN(convId) || Number.isNaN(msgIdx)) continue;
+    try {
+      await commands.recordConversationAction(convId, msgIdx, "applied");
+      toRemove.push(key);
+    } catch (e) {
+      console.warn("conv-action migration: failed for", key, e);
+    }
+  }
+  toRemove.forEach((k) => localStorage.removeItem(k));
+  localStorage.setItem(MIGRATION_SENTINEL, "done");
+}
+
+export function ChatPanel({
+  isWorkspaceMode = false,
+  activeProjectId = null,
+  activeFile = null,
+  compactSidebar = false,
+}: ChatPanelProps) {
   const { settings } = useSettings();
+  // Popover open-state for the compact conversation switcher.
+  const [convPopoverOpen, setConvPopoverOpen] = useState(false);
+
+  // Fire the legacy localStorage → SQLite migration once on mount. Async +
+  // await-less because we don't want to block the chat UI on it.
+  useEffect(() => {
+    void migrateLegacyActionKeys();
+  }, []);
 
   const [provider, setProvider] = useState<Provider>(settings.defaultProvider as Provider);
   const [model, setModel] = useState("");
@@ -796,39 +880,85 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
     return (
       <div className="w-full h-full flex flex-col bg-background overflow-hidden">
         {/* Workspace-aligned Chat Header */}
-        <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-secondary/20 shrink-0">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-bold text-foreground">AI Code Chat</span>
-            <span className="text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded font-medium">
-              Context: {contextProject?.name ?? "No Project selected"}
+        <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-secondary/20 shrink-0 gap-2 min-w-0">
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
+            {!compactSidebar && (
+              <span className="text-sm font-bold text-foreground shrink-0">AI Code Chat</span>
+            )}
+            <span className="text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded font-medium truncate">
+              {compactSidebar ? contextProject?.name ?? "No Project" : `Context: ${contextProject?.name ?? "No Project selected"}`}
             </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={startNewChat}
-            disabled={pending || (currentConvId == null && messages.length === 0)}
-            className="text-xs h-8 rounded-lg cursor-pointer"
-          >
-            + New Chat
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {compactSidebar && (
+              // Replaces the inline 224px conversations sidebar with a popover.
+              // The chat thread itself reclaims the full container width.
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConvPopoverOpen((o) => !o)}
+                  className="text-xs h-8 rounded-lg cursor-pointer"
+                  title="대화 목록"
+                >
+                  💬 {conversations.length}
+                </Button>
+                {convPopoverOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setConvPopoverOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 w-64 max-h-80 overflow-y-auto bg-card border border-border rounded-lg shadow-lg p-2">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider mb-1 px-1">
+                        Conversations
+                      </div>
+                      <ConversationSidebar
+                        conversations={conversations}
+                        currentConvId={currentConvId}
+                        onSelect={(id) => {
+                          if (!pending) {
+                            setCurrentConvId(id);
+                            setConvPopoverOpen(false);
+                          }
+                        }}
+                        onRename={renameConversation}
+                        onDelete={deleteConversation}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={startNewChat}
+              disabled={pending || (currentConvId == null && messages.length === 0)}
+              className="text-xs h-8 rounded-lg cursor-pointer"
+            >
+              + New
+            </Button>
+          </div>
         </div>
 
         {/* Workspace Chat Grid Layout */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Conversational History sidebar inside the panel */}
-          <div className="w-56 border-r border-border p-3 flex flex-col bg-sidebar select-none shrink-0 overflow-y-auto">
-            <div className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider mb-2 px-1">
-              Conversations
+          {/* Conversation list — inline sidebar in full layout, popover in compact. */}
+          {!compactSidebar && (
+            <div className="w-56 border-r border-border p-3 flex flex-col bg-sidebar select-none shrink-0 overflow-y-auto">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider mb-2 px-1">
+                Conversations
+              </div>
+              <ConversationSidebar
+                conversations={conversations}
+                currentConvId={currentConvId}
+                onSelect={(id) => !pending && setCurrentConvId(id)}
+                onRename={renameConversation}
+                onDelete={deleteConversation}
+              />
             </div>
-            <ConversationSidebar
-              conversations={conversations}
-              currentConvId={currentConvId}
-              onSelect={(id) => !pending && setCurrentConvId(id)}
-              onRename={renameConversation}
-              onDelete={deleteConversation}
-            />
-          </div>
+          )}
 
           {/* Active Chat message area */}
           <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -861,7 +991,9 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
                         (() => {
                           const { cleanText, action } = extractPlannerAction(m.content);
                           const isStreaming = pending && i === messages.length - 1;
-                          const actionKey = currentConvId != null ? `action_${currentConvId}_${i}` : null;
+                          // W5 — apply-state moved from localStorage["action_${convId}_${i}"]
+                          // to SQLite `conversation_actions`. We pass the raw
+                          // (conversationId, messageIndex) instead of a composed key.
                           return (
                             <div className="space-y-1 max-w-none">
                               <div className="prose prose-sm dark:prose-invert text-xs leading-relaxed">
@@ -870,7 +1002,8 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
                               {action && !isStreaming && (
                                 <ActionProposalCard
                                   action={action}
-                                  actionKey={actionKey}
+                                  conversationId={currentConvId}
+                                  messageIndex={i}
                                   projectId={contextProjectId}
                                   onApplied={() => window.dispatchEvent(new CustomEvent("refresh-planner"))}
                                 />
@@ -1118,7 +1251,6 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
                       (() => {
                         const { cleanText, action } = extractPlannerAction(m.content);
                         const isStreaming = pending && i === messages.length - 1;
-                        const actionKey = currentConvId != null ? `action_${currentConvId}_${i}` : null;
                         return (
                           <div className="space-y-1 max-w-none">
                             <div className="prose prose-sm dark:prose-invert">
@@ -1127,7 +1259,8 @@ export function ChatPanel({ isWorkspaceMode = false, activeProjectId = null, act
                             {action && !isStreaming && (
                               <ActionProposalCard
                                 action={action}
-                                actionKey={actionKey}
+                                conversationId={currentConvId}
+                                messageIndex={i}
                                 projectId={contextProjectId}
                                 onApplied={() => window.dispatchEvent(new CustomEvent("refresh-planner"))}
                               />

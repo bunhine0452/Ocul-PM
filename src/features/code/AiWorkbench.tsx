@@ -1,0 +1,436 @@
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Loader2,
+  Sparkles,
+  Copy,
+  Check,
+  Save,
+  ScanSearch,
+  FileDiff,
+  X,
+} from "@/components/Icons";
+import { Markdown } from "@/components/Markdown";
+import {
+  commands,
+  type ClarifyQuestion,
+  type ClarifyAnswer,
+  type EditPromptResult,
+  type FileChange,
+} from "@/lib/bindings";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { ChatPanel } from "@/features/chat/ChatPanel";
+import { ClarifyDialog } from "./ClarifyDialog";
+
+// MASTER-GUIDE §5.6 — Code 워크벤치의 오른쪽 패널.
+// 두 모드 토글:
+//   - quick-edit : 사용자가 의도를 적으면 ① 모호도 평가 → ② 필요 시 Clarify
+//                  → ③ 영어 프롬프트 + 한국어 요약 생성. 골든 패스를 위한
+//                  "오늘 변경사항 → Changelog 저장" CTA 도 함께.
+//   - chat       : 기존 ChatPanel 을 그대로 임베드 (RAG 다중 턴).
+//
+// AssistPanel.tsx 는 본 컴포넌트가 모든 기능을 흡수하므로 W5 에서 삭제 예정.
+
+const PROVIDERS = ["anthropic", "gemini", "openai", "nim"] as const;
+type Provider = (typeof PROVIDERS)[number];
+
+const FALLBACK_MODEL: Record<Provider, string> = {
+  anthropic: "claude-sonnet-4-6",
+  gemini: "gemini-2.5-flash",
+  openai: "gpt-4o-mini",
+  nim: "meta/llama-3.3-70b-instruct",
+};
+
+interface AiWorkbenchProps {
+  activeProjectId: number | null;
+  activeFile: string | null;
+}
+
+export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
+  const { state, setState, setActiveView } = useWorkspace();
+  const mode = state.aiWorkbenchMode;
+
+  function setMode(m: "quick-edit" | "chat") {
+    setState((prev) => ({ ...prev, aiWorkbenchMode: m }));
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden border-l border-border">
+      <header className="h-10 border-b border-border bg-secondary/20 flex items-center px-3 shrink-0">
+        <div className="flex items-center gap-1 bg-secondary/40 rounded-md p-0.5">
+          <ModeButton
+            active={mode === "quick-edit"}
+            onClick={() => setMode("quick-edit")}
+            label="Quick Edit"
+          />
+          <ModeButton active={mode === "chat"} onClick={() => setMode("chat")} label="Chat" />
+        </div>
+        <kbd className="ml-auto text-[10px] text-muted-foreground/70 font-mono">⌘\\</kbd>
+      </header>
+
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {mode === "quick-edit" ? (
+          <QuickEdit
+            activeProjectId={activeProjectId}
+            onGoChangelog={() => setActiveView("changelog")}
+          />
+        ) : (
+          <ChatPanel
+            isWorkspaceMode
+            compactSidebar
+            activeProjectId={activeProjectId}
+            activeFile={activeFile}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModeButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 text-[11px] font-bold rounded transition-colors cursor-pointer ${
+        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Quick Edit mode
+// ───────────────────────────────────────────────────────────────────────
+
+function QuickEdit({
+  activeProjectId,
+  onGoChangelog,
+}: {
+  activeProjectId: number | null;
+  onGoChangelog: () => void;
+}) {
+  // Inputs
+  const [userRequest, setUserRequest] = useState("");
+  const [provider, setProvider] = useState<Provider>("gemini");
+  const [model, setModel] = useState("");
+
+  // Pipeline state
+  const [phase, setPhase] = useState<"idle" | "clarifying" | "generating">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  // Clarify dialog state
+  const [clarifyOpen, setClarifyOpen] = useState(false);
+  const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
+  const [ambiguity, setAmbiguity] = useState(0);
+
+  // Result
+  const [result, setResult] = useState<EditPromptResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Today changes — same role as the old AssistPanel "scan + save" block,
+  // preserved so the W4 golden path keeps working.
+  const [fileChanges, setFileChanges] = useState<FileChange[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [savingChangelog, setSavingChangelog] = useState(false);
+  const [savedEntryId, setSavedEntryId] = useState<number | null>(null);
+
+  // Restore preferred model + reset volatile state on project change.
+  useEffect(() => {
+    (async () => {
+      const saved = await commands.settingsGet("default_model");
+      if (saved.status === "ok" && saved.data) setModel(saved.data);
+    })();
+  }, []);
+
+  useEffect(() => {
+    setSavedEntryId(null);
+    setResult(null);
+    if (activeProjectId != null) {
+      void loadTodayChanges();
+    } else {
+      setFileChanges([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId]);
+
+  async function loadTodayChanges() {
+    if (activeProjectId == null) return;
+    const todayStart = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
+    const res = await commands.listFileChanges(activeProjectId, todayStart);
+    if (res.status === "ok") setFileChanges(res.data);
+  }
+
+  async function startGeneration() {
+    if (!userRequest.trim() || activeProjectId == null) return;
+    setError(null);
+    setResult(null);
+    setPhase("clarifying");
+    const effectiveModel = model || FALLBACK_MODEL[provider];
+
+    // ① Ambiguity check
+    const c = await commands.clarifyEditIntent(
+      activeProjectId,
+      userRequest,
+      provider,
+      effectiveModel,
+    );
+    if (c.status !== "ok") {
+      setError((c as any).error ?? "명확화 단계 실패");
+      setPhase("idle");
+      return;
+    }
+
+    if (c.data.auto_proceed || c.data.questions.length === 0) {
+      // Skip dialog — go straight to generation with no answers.
+      await runGeneration([]);
+      return;
+    }
+
+    // Specta exports f32 as `number | null` defensively; coerce to 0 when
+    // the LLM omits it so the dialog header still renders something.
+    setAmbiguity(c.data.ambiguity_score ?? 0);
+    setQuestions(c.data.questions);
+    setClarifyOpen(true);
+    setPhase("idle"); // Resume "generating" when user submits the dialog.
+  }
+
+  async function runGeneration(answers: ClarifyAnswer[]) {
+    if (activeProjectId == null) return;
+    setPhase("generating");
+    setError(null);
+    const effectiveModel = model || FALLBACK_MODEL[provider];
+    const res = await commands.generateEditPromptWithAnswers(
+      activeProjectId,
+      userRequest,
+      answers,
+      provider,
+      effectiveModel,
+    );
+    if (res.status === "ok") {
+      setResult(res.data);
+      setClarifyOpen(false);
+    } else {
+      setError((res as any).error ?? "프롬프트 생성 실패");
+    }
+    setPhase("idle");
+  }
+
+  async function handleCopy() {
+    if (!result) return;
+    await navigator.clipboard.writeText(result.english_prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleScan() {
+    if (activeProjectId == null) return;
+    setScanning(true);
+    setError(null);
+    const res = await commands.detectFileChanges(activeProjectId);
+    if (res.status === "ok") setFileChanges(res.data);
+    else setError((res as any).error ?? "스캔 실패");
+    setScanning(false);
+  }
+
+  async function handleSaveToChangelog() {
+    if (activeProjectId == null) return;
+    setSavingChangelog(true);
+    setError(null);
+    setSavedEntryId(null);
+    const effectiveModel = model || FALLBACK_MODEL[provider];
+    const res = await commands.commitChangelogEntry(
+      activeProjectId,
+      userRequest.trim() || null,
+      null,
+      provider,
+      effectiveModel,
+    );
+    if (res.status === "ok") setSavedEntryId(res.data.id);
+    else setError((res as any).error ?? "Changelog 저장 실패");
+    setSavingChangelog(false);
+  }
+
+  if (activeProjectId == null) {
+    return (
+      <div className="h-full flex items-center justify-center p-6 text-xs text-muted-foreground text-center">
+        프로젝트를 선택한 뒤 사용해주세요.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="h-full flex flex-col overflow-hidden">
+        {/* Provider/model bar */}
+        <div className="h-9 border-b border-border bg-secondary/15 flex items-center gap-2 px-3 shrink-0">
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.currentTarget.value as Provider)}
+            className="h-6 rounded-md border border-border bg-background px-2 text-[10px] font-medium"
+            disabled={phase !== "idle"}
+          >
+            {PROVIDERS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <input
+            value={model}
+            onChange={(e) => setModel(e.currentTarget.value)}
+            placeholder={FALLBACK_MODEL[provider]}
+            className="h-6 flex-1 rounded-md border border-border bg-background px-2 text-[10px] font-mono"
+            disabled={phase !== "idle"}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
+          {/* Input */}
+          <section className="space-y-2">
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+              수정 의도
+            </label>
+            <Textarea
+              value={userRequest}
+              onChange={(e) => setUserRequest(e.target.value)}
+              placeholder='예) "로그인 페이지에 소셜 로그인 버튼 추가"'
+              className="min-h-[100px] text-sm"
+              disabled={phase !== "idle"}
+            />
+            <Button
+              onClick={startGeneration}
+              disabled={phase !== "idle" || !userRequest.trim()}
+              className="w-full h-9"
+            >
+              {phase === "clarifying" ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> 모호도 분석…</>
+              ) : phase === "generating" ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> 프롬프트 생성…</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> 영어 프롬프트 생성</>
+              )}
+            </Button>
+          </section>
+
+          {error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-xs flex items-start gap-2">
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError(null)} className="hover:text-foreground">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+                  영어 프롬프트
+                </label>
+                <Button variant="outline" size="sm" onClick={handleCopy}>
+                  {copied ? <Check className="w-3 h-3 mr-1.5" /> : <Copy className="w-3 h-3 mr-1.5" />}
+                  {copied ? "복사됨" : "복사"}
+                </Button>
+              </div>
+              <pre className="p-3 rounded-lg border border-border bg-card text-[11px] whitespace-pre-wrap font-mono leading-relaxed max-h-72 overflow-y-auto scrollbar-thin">
+                {result.english_prompt}
+              </pre>
+
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                  한국어 요약 보기
+                </summary>
+                <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/30">
+                  <Markdown>{result.korean_summary}</Markdown>
+                </div>
+              </details>
+
+              {result.related_files.length > 0 && (
+                <div className="text-[11px] text-muted-foreground">
+                  관련 파일: {result.related_files.map((f) => (
+                    <code key={f} className="font-mono mx-1">{f}</code>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Today changes / save-to-changelog (golden path) */}
+          <section className="space-y-2 pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                <FileDiff className="w-3 h-3" />
+                오늘 변경사항 ({fileChanges.length})
+              </label>
+              <Button variant="outline" size="sm" onClick={handleScan} disabled={scanning}>
+                {scanning ? (
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                ) : (
+                  <ScanSearch className="w-3 h-3 mr-1.5" />
+                )}
+                스캔
+              </Button>
+            </div>
+
+            {fileChanges.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground/70 py-2">
+                감지된 변경사항이 없습니다.
+              </p>
+            ) : (
+              <>
+                <ul className="space-y-0.5 max-h-32 overflow-y-auto scrollbar-thin text-[11px] font-mono">
+                  {fileChanges.slice(0, 20).map((c) => (
+                    <li key={c.id} className="flex items-center gap-2 text-foreground/80">
+                      <span className="w-3 text-center text-muted-foreground">
+                        {c.change_type === "created" ? "+" : c.change_type === "deleted" ? "−" : "~"}
+                      </span>
+                      <span className="truncate flex-1">{c.file_path}</span>
+                    </li>
+                  ))}
+                  {fileChanges.length > 20 && (
+                    <li className="text-muted-foreground italic">+{fileChanges.length - 20} more…</li>
+                  )}
+                </ul>
+
+                {savedEntryId == null ? (
+                  <Button
+                    onClick={handleSaveToChangelog}
+                    disabled={savingChangelog}
+                    className="w-full h-8"
+                  >
+                    {savingChangelog ? (
+                      <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> 저장 중…</>
+                    ) : (
+                      <><Save className="w-3 h-3 mr-1.5" /> Changelog 에 저장</>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5">
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-semibold">
+                      <Check className="w-3 h-3" />
+                      저장됨 (#{savedEntryId})
+                    </span>
+                    <Button onClick={onGoChangelog} size="sm" variant="outline" className="h-6">
+                      타임라인 보기
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <ClarifyDialog
+        open={clarifyOpen}
+        ambiguityScore={ambiguity}
+        questions={questions}
+        busy={phase === "generating"}
+        onCancel={() => setClarifyOpen(false)}
+        onSubmit={(answers) => runGeneration(answers)}
+      />
+    </>
+  );
+}

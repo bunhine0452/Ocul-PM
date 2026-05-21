@@ -1,4 +1,4 @@
-# AI-PM UI/UX 전면 재설계 (UI-UX REDESIGN)
+# ai-pm UI/UX 전면 재설계 (UI-UX REDESIGN)
 
 > **이 문서의 목표**
 > `docs/GAP-PLAN.md` 가 정의한 4개 갭(G1 Changelog · G2 Overview · G3 Clarify · G4 Greenfield)을 UI/UX 차원에서 실제 사용자가 *PM 서비스를 받는다고 느끼도록* 화면·인터랙션·정보 구조 전반에서 어떻게 바꿔야 하는지 구체적으로 정의한다.
@@ -137,7 +137,7 @@ isTerminalPip, initialScrollLine
 
 ```
 "Manage and index code repositories with semantic search" (App.tsx:340)
-"Ocul-PM" (App.tsx:337) — 동시에 "AI-PM"이 README/ROADMAP에는 사용됨 → 이름조차 일관성 없음
+"Ocul-PM" (App.tsx:337) — 동시에 "ai-pm"이 README/ROADMAP에는 사용됨 → 이름조차 일관성 없음
 "Files Explorer" / "Dependency Map" / "Project Planner" — 모두 도구 이름
 ```
 

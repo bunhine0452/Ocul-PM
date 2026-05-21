@@ -3,10 +3,10 @@
 
 export type Theme = "light" | "dark" | "system";
 export type UiDensity = "compact" | "comfortable";
-export type Provider = "anthropic" | "openai" | "gemini";
+export type Provider = "anthropic" | "openai" | "gemini" | "nim";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 
-export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini"];
+export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim"];
 
 /// Every setting we recognize. Keys are the exact column values in the
 /// `settings` SQLite table; values are stringified.
@@ -28,6 +28,7 @@ export const KEYS = {
   modelAnthropic: "model_anthropic",
   modelOpenai: "model_openai",
   modelGemini: "model_gemini",
+  modelNim: "model_nim",
   temperature: "temperature",
   maxTokens: "max_tokens",
   systemPrompt: "system_prompt",
@@ -67,6 +68,7 @@ export interface Settings {
   modelAnthropic: string;
   modelOpenai: string;
   modelGemini: string;
+  modelNim: string;
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
@@ -101,6 +103,9 @@ export const DEFAULTS: Settings = {
   modelAnthropic: "claude-sonnet-4-6",
   modelOpenai: "gpt-4o-mini",
   modelGemini: "gemini-2.5-flash",
+  // NVIDIA NIM default — generally-available, competitive open-weights model.
+  // Users override per-project in Settings → LLM.
+  modelNim: "meta/llama-3.3-70b-instruct",
   temperature: 0.7,
   maxTokens: 4096,
   systemPrompt: "",
@@ -133,6 +138,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.modelAnthropic]: "modelAnthropic",
   [KEYS.modelOpenai]: "modelOpenai",
   [KEYS.modelGemini]: "modelGemini",
+  [KEYS.modelNim]: "modelNim",
   [KEYS.temperature]: "temperature",
   [KEYS.maxTokens]: "maxTokens",
   [KEYS.systemPrompt]: "systemPrompt",
@@ -202,5 +208,7 @@ export function providerModel(settings: Settings, provider: Provider): string {
       return settings.modelOpenai || settings.defaultModel || DEFAULTS.modelOpenai;
     case "gemini":
       return settings.modelGemini || settings.defaultModel || DEFAULTS.modelGemini;
+    case "nim":
+      return settings.modelNim || settings.defaultModel || DEFAULTS.modelNim;
   }
 }

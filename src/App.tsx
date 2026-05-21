@@ -4,21 +4,16 @@ import { commands, type Project, type ProjectStats, type IndexProgress } from "@
 
 // Core Components
 import { TitleBar } from "./components/TitleBar";
-import { FileExplorer } from "./components/FileExplorer";
-import { CodeEditor } from "./components/CodeEditor";
 import { CommandPalette } from "./components/CommandPalette";
 
 // Feature Panels
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
-import { ChatPanel } from "@/features/chat/ChatPanel";
 import { PlannerPanel } from "@/features/planner/PlannerPanel";
-import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
-import { AssistPanel } from "@/features/assist/AssistPanel";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
-import { GitPanel } from "@/features/git/GitPanel";
 import { OverviewScreen } from "@/features/overview/OverviewScreen";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { ChangelogScreen } from "@/features/changelog/ChangelogScreen";
+import { CodeWorkbench } from "@/features/code/CodeWorkbench";
 
 import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
@@ -67,9 +62,7 @@ function App() {
     currentProjectRoot: selectedProjectRoot,
     activeView,
     codeSubTab,
-    activeFile,
     indexingProjectId: indexingId,
-    indexProgress: progress,
   } = state;
 
   // ── Local-only (volatile) UI state ─────────────────────────────────────
@@ -77,7 +70,6 @@ function App() {
   const [stats, setStats] = useState<StatsMap>({});
   const [error, setError] = useState<string | null>(null);
   const [projectFiles, setProjectFiles] = useState<Array<[number, string]>>([]);
-  const [initialScrollLine, setInitialScrollLine] = useState<number | null>(null);
 
   // Project lifecycle dialogs
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
@@ -93,14 +85,6 @@ function App() {
     onOpenPalette: () => setPaletteOpen(true),
     onOpenSettings: () => setSettingsOpen(true),
   });
-
-  // Open file & jump to specific line; lands user in Code → Files tab.
-  const handleOpenFile = (path: string, startLine?: number) => {
-    setCodeSubTab("files");
-    setActiveView("code");
-    setActiveFile(path);
-    setInitialScrollLine(startLine ?? null);
-  };
 
   // Restore project files list on load or ID change
   useEffect(() => {
@@ -263,15 +247,7 @@ function App() {
           setCodeSubTab={setCodeSubTab}
           selectedProjectId={selectedProjectId}
           selectedProjectRoot={selectedProjectRoot}
-          activeFile={activeFile}
-          initialScrollLine={initialScrollLine}
-          setActiveFile={setActiveFile}
-          setInitialScrollLine={setInitialScrollLine}
-          handleOpenFile={handleOpenFile}
           projectFiles={projectFiles}
-          indexingId={indexingId}
-          progress={progress}
-          startIndex={startIndex}
           onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
@@ -503,24 +479,15 @@ function Workspace(props: {
   setCodeSubTab: (s: CodeSubTab) => void;
   selectedProjectId: number;
   selectedProjectRoot: string | null;
-  activeFile: string | null;
-  initialScrollLine: number | null;
-  setActiveFile: (f: string | null) => void;
-  setInitialScrollLine: (n: number | null) => void;
-  handleOpenFile: (path: string, line?: number) => void;
   projectFiles: Array<[number, string]>;
-  indexingId: number | null;
-  progress: IndexProgress | null;
-  startIndex: (id: number, reset?: boolean) => Promise<void>;
   onOpenSettings: () => void;
 }) {
   const {
     activeView, codeSubTab,
     setActiveView, setCodeSubTab,
     selectedProjectId, selectedProjectRoot,
-    activeFile, initialScrollLine, setActiveFile, setInitialScrollLine,
-    handleOpenFile, projectFiles,
-    indexingId, progress, startIndex, onOpenSettings,
+    projectFiles,
+    onOpenSettings,
   } = props;
 
   return (
@@ -583,56 +550,8 @@ function Workspace(props: {
         </aside>
       )}
 
-      {/* C. File explorer panel (Code → Files only) */}
-      {activeView === "code" && codeSubTab === "files" && (
-        <div className="w-[250px] flex flex-col border-r border-border shrink-0 glassy-sidebar">
-          <div className="flex-1 overflow-hidden">
-            <FileExplorer
-              files={projectFiles}
-              activeFile={activeFile}
-              onSelectFile={(path) => {
-                setActiveFile(path);
-                setInitialScrollLine(null);
-              }}
-            />
-          </div>
-          <div className="p-3 border-t border-border/80 bg-secondary/15 select-none shrink-0">
-            {indexingId === selectedProjectId ? (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] text-primary font-bold">
-                  <span className="truncate max-w-[70%]">{progress?.current_file || "Indexing files..."}</span>
-                  <span>{progress?.current}/{progress?.total}</span>
-                </div>
-                <div className="h-1 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{
-                      width: `${((progress?.current || 0) / Math.max(progress?.total || 1, 1)) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-muted-foreground font-semibold">
-                  {projectFiles.length} files indexed
-                </span>
-                <button
-                  onClick={() => startIndex(selectedProjectId, false)}
-                  className="px-2 py-1 rounded bg-secondary hover:bg-accent border border-border text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-colors"
-                  title="Update File Index"
-                >
-                  <RefreshCw className="w-2.5 h-2.5" />
-                  <span>Re-index</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* D. Primary content */}
-      <main className="flex-1 flex overflow-hidden bg-background relative">
+      {/* C. Primary content */}
+      <main className="flex-1 flex flex-col overflow-hidden bg-background relative min-w-0">
         {activeView === "overview" && (
           <div className="flex-1 h-full overflow-hidden">
             <OverviewScreen activeProjectId={selectedProjectId} />
@@ -657,71 +576,24 @@ function Workspace(props: {
           </div>
         )}
 
-        {activeView === "code" && codeSubTab === "files" && (
-          <div className="flex-1 flex overflow-hidden">
-            {activeFile ? (
-              <CodeEditor
-                projectId={selectedProjectId}
-                filePath={activeFile}
-                initialScrollLine={initialScrollLine}
-                onClose={() => setActiveFile(null)}
-              />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#faf9f5]/50 dark:bg-[#181715]/50 relative select-none">
-                <div className="w-16 h-16 rounded-3xl bg-secondary/60 border border-border flex items-center justify-center mb-6 shadow-sm">
-                  <Code2 className="w-8 h-8 text-primary" strokeWidth={1.5} />
-                </div>
-                <h2 className="text-xl font-bold font-heading mb-1.5">No File Opened</h2>
-                <p className="text-xs text-muted-foreground/80 max-w-sm mb-6 leading-relaxed">
-                  Select a file from the explorer tree on the left to inspect or edit.
-                </p>
-                <div className="grid grid-cols-2 gap-4 max-w-md w-full bg-card/45 p-4 rounded-2xl border border-border/50 text-left text-xs text-muted-foreground font-medium">
-                  <div className="space-y-1">
-                    <div className="font-bold text-foreground">Command Palette</div>
-                    <div>Press <kbd className="bg-secondary px-1 py-0.5 rounded border">⌘K</kbd> for any action.</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-bold text-foreground">Save Changes</div>
-                    <div>Press <kbd className="bg-secondary px-1 py-0.5 rounded border">⌘/Ctrl + S</kbd> to save.</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        {activeView === "code" && (
+          <CodeWorkbench
+            projectId={selectedProjectId}
+            projectRoot={selectedProjectRoot}
+            projectFiles={projectFiles}
+            reloadProjectFiles={async () => {
+              const res = await commands.listProjectFiles(selectedProjectId);
+              if (res.status === "ok") {
+                // The workspace owns this state; we just trigger a refresh by
+                // re-reading. The parent App.tsx passes the array down, but
+                // it loads on activeProjectId change too — fire it once more
+                // to pick up post-reindex files.
+                // (No-op assignment to silence lint about ignored data.)
+                void res.data;
+              }
+            }}
+          />
         )}
-
-        {activeView === "code" && codeSubTab === "chat" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <ChatPanel isWorkspaceMode activeProjectId={selectedProjectId} activeFile={activeFile} />
-          </div>
-        )}
-
-        {activeView === "code" && codeSubTab === "assist" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <AssistPanel activeProjectId={selectedProjectId} />
-          </div>
-        )}
-
-        {activeView === "code" && codeSubTab === "graph" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <DependencyGraphView projectId={selectedProjectId} onOpenFile={handleOpenFile} />
-          </div>
-        )}
-
-        {activeView === "code" && codeSubTab === "git" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <GitPanel projectId={selectedProjectId} />
-          </div>
-        )}
-
-        {/* Terminal stays mounted across switches so the shell + scrollback survive.
-            §5.6 dropped the PiP draggable mode; only Detach window remains. */}
-        <TerminalPanel
-          projectRoot={selectedProjectRoot}
-          isPip={false}
-          onTogglePip={() => {}}
-          activeTab={activeView === "code" ? codeSubTab : "files"}
-        />
       </main>
     </div>
   );

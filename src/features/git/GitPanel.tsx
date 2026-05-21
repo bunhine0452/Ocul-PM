@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   commands,
-  type ChangelogFile,
   type GitCommit,
   type GitRepoStatus,
   type GitTag,
@@ -20,7 +19,9 @@ interface GitPanelProps {
   projectId: number;
 }
 
-type GitView = "commits" | "tags" | "changelog" | "releases";
+// MASTER-GUIDE §5.6 — "changelog" 탭은 W4 에서 전용 Changelog 화면으로 승격됨.
+// 이 GitPanel 은 git/GitHub 메타데이터만 다룬다.
+type GitView = "commits" | "tags" | "releases";
 
 const DEFAULT_LIMIT = 50;
 
@@ -138,7 +139,6 @@ export function GitPanel({ projectId }: GitPanelProps) {
           {([
             { id: "commits", label: "Commits" },
             { id: "tags", label: "Tags" },
-            { id: "changelog", label: "CHANGELOG" },
             { id: "releases", label: "Releases" },
           ] as Array<{ id: GitView; label: string }>).map((t) => {
             const active = view === t.id;
@@ -172,7 +172,6 @@ export function GitPanel({ projectId }: GitPanelProps) {
         {view === "tags" && (
           <TagsView projectId={projectId} githubRepoUrl={githubRepoUrl} />
         )}
-        {view === "changelog" && <ChangelogView projectId={projectId} />}
         {view === "releases" && githubRemote && (
           <ReleasesView owner={githubRemote.owner!} repo={githubRemote.repo!} />
         )}
@@ -491,53 +490,8 @@ function TagsView({
   );
 }
 
-function ChangelogView({ projectId }: { projectId: number }) {
-  const [file, setFile] = useState<ChangelogFile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await commands.readChangelog(projectId);
-    if (res.status === "ok") setFile(res.data);
-    else setError(res.error);
-    setLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (loading) return <Loading label="Looking for CHANGELOG…" />;
-  if (error) return <ErrorBox text={error} />;
-  if (!file) {
-    return (
-      <Empty
-        label="No CHANGELOG file found."
-        hint="Tried: CHANGELOG.md, CHANGES.md, HISTORY.md, RELEASES.md, NEWS.md (and uppercase variants)."
-      />
-    );
-  }
-
-  return (
-    <div className="h-full overflow-y-auto scrollbar-thin">
-      <div className="px-5 py-3 border-b border-border/40 flex items-center justify-between">
-        <code className="text-[11px] font-mono text-muted-foreground">{file.path}</code>
-        <button
-          onClick={load}
-          className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1"
-        >
-          <RefreshCw className="w-3 h-3" />
-          Refresh
-        </button>
-      </div>
-      <div className="px-5 py-4 prose prose-sm dark:prose-invert max-w-none">
-        <Markdown>{file.content}</Markdown>
-      </div>
-    </div>
-  );
-}
+// ChangelogView 는 W4 의 ChangelogScreen (전용 화면) 으로 승격되었음.
+// 본 GitPanel 에서 CHANGELOG 파일 표시 기능은 제거.
 
 function ReleasesView({ owner, repo }: { owner: string; repo: string }) {
   const [releases, setReleases] = useState<GithubRelease[]>([]);

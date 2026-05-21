@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Loader2,
   RefreshCw,
-  FileDiff,
   Flame,
+  Search,
+  Save,
+  ChevronDown,
 } from "@/components/Icons";
-import { Markdown } from "@/components/Markdown";
 import {
   commands,
   type ChangelogEntry,
   type ChangelogFileEntry,
   type DailyChangelogBucket,
 } from "@/lib/bindings";
+import { EntryDetail } from "./EntryDetail";
+import { CategoryChip, truncate } from "./util";
 
-// MASTER-GUIDE §5.5 — Changelog 화면 (최소 버전).
-// 좌측: 날짜 버킷 / 우측: 선택된 entry 의 디테일.
-// W4 에서 풀 diff modal + 검색 + Export 가 추가될 예정.
+// MASTER-GUIDE §5.5 — Changelog 화면 (W4 정식 버전).
+//   좌측: 날짜 버킷 / 우측: EntryDetail (모달 diff 포함)
+//   상단: 카테고리 chip · 기간 · 검색 · Export 메뉴
+//   📌 고정은 Today 화면과 직접 연동 (TodayScreen 이 pinned_entries 를 fetch).
 
 const CATEGORIES = ["all", "feature", "fix", "refactor", "docs", "test", "chore"] as const;
 type CategoryFilter = (typeof CATEGORIES)[number];
@@ -42,17 +47,18 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [windowDays, setWindowDays] = useState<number>(30);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     if (activeProjectId == null) return;
     setLoading(true);
     setError(null);
     const res = await commands.listChangelogByDay(activeProjectId, windowDays);
-    if (res.status === "ok") {
-      setBuckets(res.data);
-    } else {
-      setError((res as any).error ?? "불러오기 실패");
-    }
+    if (res.status === "ok") setBuckets(res.data);
+    else setError((res as any).error ?? "불러오기 실패");
     setLoading(false);
   }, [activeProjectId, windowDays]);
 
@@ -78,25 +84,88 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
     });
   }, [selectedEntryId]);
 
+  /** Filter pipeline: category → text search. Search hits title / ai_summary /
+   *  user_intent / category, case-insensitive. Empty buckets are dropped. */
   const filteredBuckets = useMemo(() => {
-    if (categoryFilter === "all") return buckets;
+    const q = searchQuery.trim().toLowerCase();
     return buckets
-      .map((b) => ({ ...b, entries: b.entries.filter((e) => e.category === categoryFilter) }))
+      .map((b) => {
+        let entries = b.entries;
+        if (categoryFilter !== "all") {
+          entries = entries.filter((e) => e.category === categoryFilter);
+        }
+        if (q.length > 0) {
+          entries = entries.filter((e) => {
+            const hay = [
+              e.title ?? "",
+              e.ai_summary ?? "",
+              e.user_intent ?? "",
+              e.category ?? "",
+            ]
+              .join(" ")
+              .toLowerCase();
+            return hay.includes(q);
+          });
+        }
+        return { ...b, entries };
+      })
       .filter((b) => b.entries.length > 0);
-  }, [buckets, categoryFilter]);
+  }, [buckets, categoryFilter, searchQuery]);
 
-  async function togglePin() {
-    if (!detail) return;
-    const res = await commands.pinChangelog(detail.entry.id);
-    if (res.status === "ok") {
-      setDetail({ entry: res.data, files: detail.files });
-      // also reflect in the bucket list so the row updates
-      setBuckets((prev) =>
-        prev.map((b) => ({
-          ...b,
-          entries: b.entries.map((e) => (e.id === res.data.id ? res.data : e)),
-        })),
-      );
+  function applyEntryUpdate(updated: ChangelogEntry) {
+    if (detail?.entry.id === updated.id) {
+      setDetail({ entry: updated, files: detail.files });
+    }
+    setBuckets((prev) =>
+      prev.map((b) => ({
+        ...b,
+        entries: b.entries.map((e) => (e.id === updated.id ? updated : e)),
+      })),
+    );
+  }
+
+  async function doExport(kind: "md" | "json") {
+    if (activeProjectId == null) return;
+    setExporting(true);
+    setExportOpen(false);
+
+    try {
+      let content: string;
+      let filename: string;
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      if (kind === "md") {
+        const res = await commands.exportChangelogMarkdown(activeProjectId, null, null);
+        if (res.status !== "ok") {
+          setError((res as any).error ?? "Export 실패");
+          return;
+        }
+        content = res.data;
+        filename = `changelog-${stamp}.md`;
+      } else {
+        // JSON: re-use the in-memory buckets so we don't round-trip to the backend
+        // just to serialise. Source of truth is the same list_changelog_by_day
+        // payload the screen already has.
+        content = JSON.stringify({ exported_at: new Date().toISOString(), buckets }, null, 2);
+        filename = `changelog-${stamp}.json`;
+      }
+
+      // Trigger a browser-style download. Works inside Tauri's webview and
+      // avoids adding the @tauri-apps/plugin-fs/dialog JS dependency just
+      // for this one action.
+      const blob = new Blob([content], {
+        type: kind === "md" ? "text/markdown" : "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -111,8 +180,9 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header / Filters */}
-      <header className="border-b border-border px-5 py-3 flex items-center gap-3 shrink-0">
+      <header className="border-b border-border px-5 py-3 flex flex-wrap items-center gap-3 shrink-0">
         <h1 className="text-base font-bold tracking-tight">Changelog</h1>
+
         <div className="flex items-center gap-1.5">
           {CATEGORIES.map((c) => (
             <button
@@ -128,6 +198,17 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
             </button>
           ))}
         </div>
+
+        <div className="relative flex-1 min-w-[160px] max-w-md ml-2">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="제목 · 요약 · 의도 검색"
+            className="pl-7 h-7 text-xs"
+          />
+        </div>
+
         <div className="ml-auto flex items-center gap-1.5">
           {WINDOWS.map((w) => (
             <button
@@ -142,6 +223,14 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
               {w.label}
             </button>
           ))}
+
+          <ExportMenu
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            onExport={doExport}
+            disabled={exporting}
+          />
+
           <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
             {loading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -160,11 +249,12 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: day buckets */}
-        <div className="w-[320px] border-r border-border overflow-y-auto scrollbar-thin">
+        <div className="w-[320px] border-r border-border overflow-y-auto scrollbar-thin shrink-0">
           {filteredBuckets.length === 0 && !loading && (
             <div className="p-6 text-xs text-muted-foreground">
-              해당 기간에 기록된 변경이 없습니다. Code 화면에서 변경사항을 changelog 로
-              저장하면 여기에 누적됩니다.
+              {searchQuery.trim() || categoryFilter !== "all"
+                ? "필터에 맞는 entry 가 없습니다."
+                : "해당 기간에 기록된 변경이 없습니다. Code 화면에서 변경사항을 changelog 로 저장하면 여기에 누적됩니다."}
             </div>
           )}
           {filteredBuckets.map((bucket) => (
@@ -223,72 +313,11 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
             </div>
           )}
           {detail && (
-            <article className="p-6 max-w-3xl mx-auto space-y-5">
-              <header className="border-b border-border pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  {detail.entry.category && <CategoryChip category={detail.entry.category} />}
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {new Date(detail.entry.created_at * 1000).toLocaleString("ko-KR")}
-                  </span>
-                  <Button
-                    onClick={togglePin}
-                    size="sm"
-                    variant={detail.entry.pinned ? "default" : "outline"}
-                    className="ml-auto"
-                  >
-                    <Flame className="w-3.5 h-3.5 mr-1.5" />
-                    {detail.entry.pinned ? "고정 해제" : "고정"}
-                  </Button>
-                </div>
-                <h2 className="text-xl font-bold leading-tight">
-                  {detail.entry.title ?? truncate(detail.entry.ai_summary, 80)}
-                </h2>
-                {detail.entry.user_intent && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    <span className="font-semibold">의도:</span> {detail.entry.user_intent}
-                  </p>
-                )}
-              </header>
-
-              <section>
-                <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                  AI 요약
-                </h3>
-                <Markdown>{detail.entry.ai_summary}</Markdown>
-              </section>
-
-              <section>
-                <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                  파일별 변경 ({detail.files.length})
-                </h3>
-                <ul className="space-y-1.5">
-                  {detail.files.map((f) => (
-                    <li
-                      key={f.id}
-                      className="rounded-lg border border-border bg-card p-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileDiff className="w-3.5 h-3.5 text-muted-foreground" />
-                        <code className="font-mono text-[11px] flex-1 truncate">
-                          {f.file_path}
-                        </code>
-                        <span className="tabular-nums text-muted-foreground">
-                          +{f.lines_added} / -{f.lines_removed}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {f.change_type}
-                        </span>
-                      </div>
-                      {f.per_file_summary && (
-                        <p className="text-muted-foreground mt-1.5 leading-snug">
-                          {f.per_file_summary}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </article>
+            <EntryDetail
+              entry={detail.entry}
+              files={detail.files}
+              onChange={applyEntryUpdate}
+            />
           )}
         </div>
       </div>
@@ -296,24 +325,53 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
   );
 }
 
-function CategoryChip({ category }: { category: string }) {
-  const colorMap: Record<string, string> = {
-    feature: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-    fix: "bg-red-500/15 text-red-700 dark:text-red-300",
-    refactor: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
-    docs: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-    test: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-    chore: "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300",
-  };
-  const cls = colorMap[category] ?? "bg-muted text-muted-foreground";
-  return (
-    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${cls}`}>
-      {category}
-    </span>
-  );
-}
+// ─── Export dropdown ──────────────────────────────────────────────────
 
-function truncate(s: string, n: number): string {
-  if (s.length <= n) return s;
-  return s.slice(0, n).trimEnd() + "…";
+function ExportMenu({
+  open,
+  onOpenChange,
+  onExport,
+  disabled,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onExport: (kind: "md" | "json") => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onOpenChange(!open)}
+        disabled={disabled}
+        className="h-7"
+      >
+        <Save className="w-3.5 h-3.5 mr-1.5" />
+        Export
+        <ChevronDown className="w-3 h-3 ml-1" />
+      </Button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => onOpenChange(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+            <button
+              onClick={() => onExport("md")}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-accent/50 transition-colors flex items-center gap-2"
+            >
+              <span className="font-mono text-muted-foreground">.md</span>
+              Markdown (Keep-a-Changelog)
+            </button>
+            <button
+              onClick={() => onExport("json")}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-accent/50 transition-colors flex items-center gap-2"
+            >
+              <span className="font-mono text-muted-foreground">.json</span>
+              JSON (raw 버킷)
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

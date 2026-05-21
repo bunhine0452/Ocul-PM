@@ -8,7 +8,10 @@ use tauri::State;
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tracing::info;
 
-use crate::db::{ChunkSearchResult, Db, EditPromptResult, FileChange, Project};
+use crate::db::{
+    ChunkSearchResult, ClarifyAnswer, ClarifyQuestion, ClarifyResult, Db, EditPromptResult,
+    FileChange, Project,
+};
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
 use crate::llm;
@@ -513,6 +516,13 @@ pub async fn list_file_changes(
         .map_err(|e| e.to_string())
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// G3: Edit prompt generation (with optional clarify step)
+//
+// Legacy `generate_edit_prompt` is kept as a thin shim that calls the
+// `_with_answers` variant with an empty answer list — that way any caller
+// still on the old contract keeps working until W6 / UI-7 cleanup.
+
 #[tauri::command]
 #[specta::specta]
 pub async fn generate_edit_prompt(
@@ -523,8 +533,162 @@ pub async fn generate_edit_prompt(
     provider: String,
     model: String,
 ) -> Result<EditPromptResult, String> {
-    // 1. Vector search for relevant code chunks
-    let embeddings = embedder.embed(vec![user_request.clone()]).await?;
+    generate_with_answers_inner(&db, &embedder, project_id, &user_request, &[], &provider, &model)
+        .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn generate_edit_prompt_with_answers(
+    db: State<'_, Db>,
+    embedder: State<'_, Embedder>,
+    project_id: u32,
+    user_request: String,
+    answers: Vec<ClarifyAnswer>,
+    provider: String,
+    model: String,
+) -> Result<EditPromptResult, String> {
+    generate_with_answers_inner(
+        &db, &embedder, project_id, &user_request, &answers, &provider, &model,
+    )
+    .await
+}
+
+/// Evaluate how ambiguous the user's request is. Returns 1~3 clarifying
+/// questions plus an `auto_proceed` flag — the frontend skips the dialog when
+/// `auto_proceed` is true or when no questions are produced.
+///
+/// We deliberately do NOT embed code context here — the goal is a cheap
+/// ambiguity check (≤500 input / ≤300 output tokens per §4.3), so the LLM
+/// only sees the user's prompt and a short list of file paths from the
+/// project to ground its questions.
+#[tauri::command]
+#[specta::specta]
+pub async fn clarify_edit_intent(
+    db: State<'_, Db>,
+    project_id: u32,
+    user_request: String,
+    provider: String,
+    model: String,
+) -> Result<ClarifyResult, String> {
+    let files = db
+        .list_project_files(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    // Just send up to 30 names so the LLM has a rough sense of the surface
+    // area without paying for full content tokens.
+    let file_sample: Vec<String> = files.into_iter().take(30).map(|(_, p)| p).collect();
+
+    let api_key = {
+        let secret_name = format!("{provider}_api_key");
+        crate::secrets::get(&secret_name)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("API key for {provider} is not set"))?
+    };
+    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+
+    let system_prompt = r#"You judge how ambiguous a Korean developer's edit request is, BEFORE we generate the actual English prompt for a downstream coding agent.
+
+Return ONLY valid JSON (no fences, no prose) shaped exactly like:
+{
+  "ambiguity_score": <float 0.0–1.0>,
+  "questions": [
+    { "id": "q1", "kind": "choice" | "text",
+      "text": "<짧은 한국어 질문>",
+      "options": ["옵션1","옵션2", ...]  // "choice" 일 때만, "text" 면 [] 로
+    }
+  ],
+  "auto_proceed": <bool>
+}
+
+Rules:
+- score 0.0–0.3 = 명확. auto_proceed=true, questions=[].
+- score 0.4–1.0 = 모호. 1~3개 질문 생성. auto_proceed=false.
+- Questions must reduce real ambiguity (대상 페이지/영향 범위/원하는 톤 등). Don't ask trivia.
+- Korean tone, ≤40자, one question = one decision.
+- 최대 3 questions.
+"#;
+
+    let user_msg = format!(
+        "사용자 요청: {req}\n\n프로젝트 파일 샘플 ({n}개):\n{files}",
+        req = user_request,
+        n = file_sample.len(),
+        files = file_sample.join("\n"),
+    );
+
+    let response = client
+        .chat(
+            vec![
+                llm::Message { role: llm::Role::System, content: system_prompt.to_string() },
+                llm::Message { role: llm::Role::User, content: user_msg },
+            ],
+            llm::ChatOptions {
+                model,
+                temperature: Some(0.2),
+                max_tokens: Some(400),
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let content = response.content.trim();
+    let json_str = if content.starts_with("```") {
+        content
+            .trim_start_matches("```json")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+    } else {
+        content
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(json_str)
+        .map_err(|e| format!("Failed to parse clarify LLM response: {e}\nRaw: {content}"))?;
+
+    let ambiguity_score = parsed
+        .get("ambiguity_score")
+        .and_then(|v| v.as_f64())
+        .map(|v| v as f32)
+        .unwrap_or(0.0);
+
+    let auto_proceed = parsed
+        .get("auto_proceed")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(ambiguity_score < 0.4);
+
+    let questions_value = parsed.get("questions").cloned().unwrap_or_default();
+    let mut questions: Vec<ClarifyQuestion> = serde_json::from_value(questions_value)
+        .unwrap_or_default();
+    // Belt-and-suspenders: even if the LLM hands us 10 questions, hard-cap
+    // at 3 — the master guide is explicit about this number.
+    questions.truncate(3);
+
+    Ok(ClarifyResult {
+        ambiguity_score,
+        questions,
+        auto_proceed,
+    })
+}
+
+// ─── shared core ───────────────────────────────────────────────────────
+
+async fn generate_with_answers_inner(
+    db: &Db,
+    embedder: &Embedder,
+    project_id: u32,
+    user_request: &str,
+    answers: &[ClarifyAnswer],
+    provider: &str,
+    model: &str,
+) -> Result<EditPromptResult, String> {
+    // 1. Vector search for relevant code chunks. We seed the embedding with
+    // user_request + answers (joined) so refined intent steers retrieval.
+    let mut query = user_request.to_string();
+    for a in answers {
+        query.push('\n');
+        query.push_str(&a.answer);
+    }
+    let embeddings = embedder.embed(vec![query]).await?;
     let query_emb = embeddings
         .into_iter()
         .next()
@@ -535,7 +699,6 @@ pub async fn generate_edit_prompt(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Build code context
     let mut code_context = String::new();
     let mut related_files: Vec<String> = Vec::new();
     for chunk in &chunks {
@@ -548,20 +711,18 @@ pub async fn generate_edit_prompt(
         ));
     }
 
-    // 2. Generate English prompt + Korean summary via LLM
     let api_key = {
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("API key for {provider} is not set"))?
     };
-
-    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+    let client = llm::create(provider, api_key).map_err(|e| e.to_string())?;
 
     let system_prompt = format!(
         r#"You are an expert software engineering assistant that generates precise, actionable prompts for AI code editors (like Claude Code, Cursor, etc.).
 
-Given the user's request (which may be in Korean or any language) and the relevant code context from their codebase, you must output a JSON object with exactly two fields:
+Given the user's request (which may be in Korean or any language), optionally the user's clarifying answers, and the relevant code context from their codebase, you must output a JSON object with exactly two fields:
 
 1. "english_prompt": A detailed, well-structured English prompt that an AI coding assistant can directly use to implement the requested changes. This should include:
    - Clear description of what needs to be changed
@@ -577,14 +738,22 @@ Relevant code from the project:
 Output ONLY valid JSON, no markdown fences, no explanation outside the JSON."#
     );
 
+    let mut user_msg = format!("사용자 요청: {}", user_request);
+    if !answers.is_empty() {
+        user_msg.push_str("\n\n사용자가 제공한 명확화 답변:\n");
+        for a in answers {
+            user_msg.push_str(&format!("- {}: {}\n", a.id, a.answer));
+        }
+    }
+
     let response = client
         .chat(
             vec![
                 llm::Message { role: llm::Role::System, content: system_prompt },
-                llm::Message { role: llm::Role::User, content: format!("사용자 요청: {}", user_request) },
+                llm::Message { role: llm::Role::User, content: user_msg },
             ],
             llm::ChatOptions {
-                model,
+                model: model.to_string(),
                 temperature: Some(0.3),
                 max_tokens: Some(2000),
             },
@@ -592,9 +761,7 @@ Output ONLY valid JSON, no markdown fences, no explanation outside the JSON."#
         .await
         .map_err(|e| e.to_string())?;
 
-    // Parse the JSON response
     let content = response.content.trim();
-    // Try to extract JSON from possible markdown fences
     let json_str = if content.starts_with("```") {
         content
             .trim_start_matches("```json")

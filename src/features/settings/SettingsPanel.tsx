@@ -235,6 +235,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
     anthropic: null,
     openai: null,
     gemini: null,
+    nim: null,
   });
   const [verifying, setVerifying] = useState(false);
 
@@ -358,7 +359,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
       </Section>
 
       <Section title="Default Provider" description="Which provider chat and assist will use by default.">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {PROVIDERS.map((p) => {
             const isActive = settings.defaultProvider === p;
             return (
@@ -398,6 +399,13 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             placeholder="gemini-2.5-flash"
             value={settings.modelGemini}
             onChange={(e) => set("modelGemini", e.currentTarget.value)}
+          />
+        </Field>
+        <Field label="NVIDIA NIM" hint="OpenAI-compatible endpoint at integrate.api.nvidia.com.">
+          <Input
+            placeholder="meta/llama-3.3-70b-instruct"
+            value={settings.modelNim}
+            onChange={(e) => set("modelNim", e.currentTarget.value)}
           />
         </Field>
         <Field label="Fallback default model">

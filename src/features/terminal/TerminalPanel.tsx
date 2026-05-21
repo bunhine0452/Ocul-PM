@@ -4,8 +4,13 @@ import { commands } from "@/lib/bindings";
 import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
-import { Terminal as TerminalIcon, Loader2, Play, Plus, X, Maximize2, Minimize2, ExternalLink } from "@/components/Icons";
+import { Terminal as TerminalIcon, Loader2, Play, Plus, X, ExternalLink } from "@/components/Icons";
 import { Button } from "@/components/ui/button";
+
+// MASTER-GUIDE §5.6 — PiP draggable mode 는 W5 에서 제거되었음.
+// Detach 윈도우 (별도 OS 윈도우로 분리) 만 유지.
+// 본 컴포넌트는 BottomDrawer 내부에서 정상 도킹 모드로만 렌더링되며,
+// `?window=terminal` URL 파라미터일 때만 isDetachedWindow=true.
 
 interface TerminalSessionData {
   id: string;
@@ -15,13 +20,15 @@ interface TerminalSessionData {
 
 interface TerminalPanelProps {
   projectRoot: string | null;
-  isPip: boolean;
-  onTogglePip: () => void;
+  // Legacy props kept for callers that haven't migrated; ignored by the
+  // implementation. Will be removed once all call sites are updated.
+  isPip?: boolean;
+  onTogglePip?: () => void;
   activeTab: string;
   isDetachedWindow?: boolean;
 }
 
-export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDetachedWindow = false }: TerminalPanelProps) {
+export function TerminalPanel({ projectRoot, activeTab, isDetachedWindow = false }: TerminalPanelProps) {
   // 1. Sessions State Management
   const [sessions, setSessions] = useState<TerminalSessionData[]>(() => {
     const saved = localStorage.getItem("terminalSessions");
@@ -76,62 +83,7 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
     }
   }, [projectRoot]);
 
-  // 3. Floating Overlay Drag Management
-  const [position, setPosition] = useState(() => {
-    const savedX = localStorage.getItem("terminalPipX");
-    const savedY = localStorage.getItem("terminalPipY");
-    return {
-      x: savedX ? parseInt(savedX, 10) : 24,
-      y: savedY ? parseInt(savedY, 10) : 24,
-    };
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const posStart = useRef({ x: 0, y: 0 });
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isPip) return;
-    const target = e.target as HTMLElement;
-    // Don't drag if clicking buttons or tabs
-    if (target.closest("button") || target.closest(".terminal-tab")) return;
-
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    posStart.current = { ...position };
-    e.preventDefault();
-  };
-
-  useEffect(() => {
-    if (!isDragging || !isPip) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragStart.current.x;
-      const dy = e.clientY - dragStart.current.y;
-      
-      const newX = Math.max(10, posStart.current.x - dx);
-      const newY = Math.max(10, posStart.current.y - dy);
-      setPosition({ x: newX, y: newY });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, isPip]);
-
-  // Save float position
-  useEffect(() => {
-    localStorage.setItem("terminalPipX", String(position.x));
-    localStorage.setItem("terminalPipY", String(position.y));
-  }, [position]);
-
-  // 4. Session Action Handlers
+  // 3. Session Action Handlers
   const handleAddSession = () => {
     const newId = Math.random().toString(36).substring(2, 10);
     const numbers = sessions.map(s => {
@@ -178,14 +130,12 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
     // If no sessions remain, the empty sessions useEffect will spawn a new one
   };
 
-  const isVisible = isDetachedWindow || isPip || activeTab === "terminal";
+  // Visible when explicitly opened (detached window or BottomDrawer terminal tab).
+  const isVisible = isDetachedWindow || activeTab === "terminal";
   const activeStatus = statusMap[activeSessionId] || "connecting";
 
   const handleDetachWindow = async () => {
     try {
-      if (isPip) {
-        onTogglePip();
-      }
       await commands.openTerminalWindow();
     } catch (e) {
       console.error("Failed to open terminal window:", e);
@@ -195,22 +145,15 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
   return (
     <div
       className={
-        isDetachedWindow
-          ? "flex-1 h-full flex flex-col overflow-hidden bg-stone-950 font-sans"
-          : isPip
-          ? "absolute z-50 rounded-xl border border-stone-800 shadow-2xl bg-stone-950 flex flex-col overflow-hidden resize min-w-[380px] min-h-[220px] w-[600px] h-[360px] select-none text-stone-100 border-border"
-          : isVisible
+        isVisible
           ? "flex-1 h-full flex flex-col overflow-hidden bg-stone-950 font-sans"
           : "hidden"
       }
-      style={isPip && !isDetachedWindow ? { bottom: `${position.y}px`, right: `${position.x}px` } : { width: "100%", height: "100%" }}
+      style={{ width: "100%", height: "100%" }}
     >
       {/* Header bar */}
       <div
-        onMouseDown={handleMouseDown}
-        className={`h-12 border-b border-stone-900 flex items-center justify-between px-3 bg-stone-900/60 shrink-0 select-none ${
-          isPip && !isDetachedWindow ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-        }`}
+        className="h-12 border-b border-stone-900 flex items-center justify-between px-3 bg-stone-900/60 shrink-0 select-none cursor-default"
       >
         <div className="flex items-center space-x-2 overflow-hidden flex-1 mr-4">
           <TerminalIcon className="w-4 h-4 text-stone-400 shrink-0" />
@@ -264,36 +207,24 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
                   : "bg-red-500"
               }`}
             />
-            {(!isPip || isDetachedWindow) && (
-              <span className="text-[11px] text-stone-400 font-medium select-none mr-2">
-                {activeStatus === "connected"
-                  ? "연결됨"
-                  : activeStatus === "connecting"
-                  ? "연결 중..."
-                  : activeStatus === "disconnected"
-                  ? "종료됨"
-                  : "오류"}
-              </span>
-            )}
+            <span className="text-[11px] text-stone-400 font-medium select-none mr-2">
+              {activeStatus === "connected"
+                ? "연결됨"
+                : activeStatus === "connecting"
+                ? "연결 중..."
+                : activeStatus === "disconnected"
+                ? "종료됨"
+                : "오류"}
+            </span>
           </div>
 
           {!isDetachedWindow && (
             <button
               onClick={handleDetachWindow}
               className="p-1.5 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center transition-colors"
-              title="새 창으로 분리 (창 밖으로 이동)"
+              title="새 창으로 분리"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {!isDetachedWindow && (
-            <button
-              onClick={onTogglePip}
-              className="p-1.5 hover:bg-stone-800 rounded-md text-stone-400 hover:text-stone-200 cursor-pointer flex items-center justify-center transition-colors"
-              title={isPip ? "도킹 모드" : "PiP 모드 (화면 분할)"}
-            >
-              {isPip ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
           )}
         </div>
@@ -309,7 +240,6 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
             <TerminalInstance
               sessionId={session.id}
               projectRoot={session.projectRoot}
-              isPip={isPip}
               visible={session.id === activeSessionId && isVisible}
               onStatusChange={(status) => {
                 setStatusMap(prev => ({ ...prev, [session.id]: status }));
@@ -322,16 +252,15 @@ export function TerminalPanel({ projectRoot, isPip, onTogglePip, activeTab, isDe
   );
 }
 
-// 5. Terminal Instance Child Component
+// 4. Terminal Instance Child Component
 interface TerminalInstanceProps {
   sessionId: string;
   projectRoot: string;
   visible: boolean;
-  isPip: boolean;
   onStatusChange: (status: "connecting" | "connected" | "disconnected" | "error") => void;
 }
 
-function TerminalInstance({ sessionId, projectRoot, visible, isPip, onStatusChange }: TerminalInstanceProps) {
+function TerminalInstance({ sessionId, projectRoot, visible, onStatusChange }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -474,7 +403,7 @@ function TerminalInstance({ sessionId, projectRoot, visible, isPip, onStatusChan
     };
   }, [projectRoot, restartKey, sessionId]);
 
-  // Fit terminal when visibility or isPip changes
+  // Fit terminal when visibility changes (e.g. BottomDrawer opening).
   useEffect(() => {
     if (visible && fitAddonRef.current && termRef.current) {
       setTimeout(() => {
@@ -488,7 +417,7 @@ function TerminalInstance({ sessionId, projectRoot, visible, isPip, onStatusChan
         }
       }, 100);
     }
-  }, [visible, isPip]);
+  }, [visible, sessionId]);
 
   return (
     <div className="w-full h-full relative p-3 bg-stone-950 flex flex-col min-h-0 select-text">

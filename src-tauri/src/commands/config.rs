@@ -157,7 +157,7 @@ pub async fn clear_all_data(db: State<'_, Db>) -> Result<(), String> {
     }
     // Clear settings and known per-provider secrets
     db.settings_clear().await.map_err(|e| e.to_string())?;
-    for provider in &["openai", "anthropic", "gemini"] {
+    for provider in &["openai", "anthropic", "gemini", "nim"] {
         let _ = secrets::delete(&format!("{}_api_key", provider));
     }
     Ok(())

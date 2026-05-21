@@ -308,6 +308,116 @@ pub async fn list_changelog_by_day(
     Ok(result)
 }
 
+/// Export the project's changelog as a Markdown document loosely following
+/// Keep-a-Changelog (https://keepachangelog.com/). Entries are grouped by
+/// day with category sub-headings. The frontend writes the returned string
+/// to disk via a save-as dialog (no FS writes from the backend).
+///
+/// MASTER-GUIDE §4.1 commands table — `export_changelog_markdown`.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_changelog_markdown(
+    db: State<'_, Db>,
+    project_id: u32,
+    // `from` / `to`: unix seconds. i32 (not i64) for the same reason as elsewhere
+    // — fits until 2038 and clears Specta's BigInt restriction.
+    from: Option<i32>,
+    to: Option<i32>,
+) -> Result<String, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let entries = db
+        .list_changelog_entries(project_id, from.map(|v| v as i64), 5000)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let to_secs = to.map(|v| v as i64);
+    let filtered: Vec<&ChangelogEntry> = entries
+        .iter()
+        .filter(|e| to_secs.map_or(true, |t| (e.created_at as i64) < t))
+        .collect();
+
+    let mut out = String::new();
+    out.push_str(&format!("# {} — Changelog\n\n", project.name));
+    out.push_str(
+        "All notable changes to this project, summarised by the AI-PM\n\
+         and grouped by day. Format inspired by Keep-a-Changelog.\n\n",
+    );
+
+    if filtered.is_empty() {
+        out.push_str("_(no entries in the selected range)_\n");
+        return Ok(out);
+    }
+
+    // Group by day-start, newest first.
+    let mut buckets: Vec<(i64, Vec<&ChangelogEntry>)> = Vec::new();
+    for entry in &filtered {
+        let day = (entry.created_at as i64).div_euclid(86400) * 86400;
+        match buckets.last_mut() {
+            Some((d, list)) if *d == day => list.push(entry),
+            _ => buckets.push((day, vec![entry])),
+        }
+    }
+
+    for (day, day_entries) in buckets {
+        out.push_str(&format!("## {}\n\n", format_iso_date(day)));
+
+        // Group within a day by category — matches Keep-a-Changelog's Added /
+        // Changed / Fixed sections. We map our internal categories to the
+        // closest KaC heading.
+        let mut by_cat: std::collections::BTreeMap<&str, Vec<&ChangelogEntry>> =
+            std::collections::BTreeMap::new();
+        for e in day_entries {
+            let cat = e.category.as_deref().unwrap_or("misc");
+            let heading = kac_section(cat);
+            by_cat.entry(heading).or_default().push(e);
+        }
+        for (heading, list) in by_cat {
+            out.push_str(&format!("### {}\n\n", heading));
+            for e in list {
+                let title = e.title.as_deref().unwrap_or_else(|| {
+                    // Fallback: first non-empty line of the ai_summary.
+                    e.ai_summary.lines().find(|l| !l.trim().is_empty()).unwrap_or("(untitled)")
+                });
+                let pin = if e.pinned { " 📌" } else { "" };
+                out.push_str(&format!("- **{}**{}\n", title.trim(), pin));
+                if let Some(intent) = e.user_intent.as_deref() {
+                    if !intent.trim().is_empty() {
+                        out.push_str(&format!("  - _의도_: {}\n", intent.trim()));
+                    }
+                }
+                // Stats line
+                out.push_str(&format!(
+                    "  - _{} files · +{} / -{}_\n",
+                    e.files_changed, e.lines_added, e.lines_removed
+                ));
+                // Indented ai_summary block.
+                for line in e.ai_summary.lines() {
+                    if line.trim().is_empty() {
+                        out.push('\n');
+                    } else {
+                        out.push_str(&format!("  {}\n", line));
+                    }
+                }
+                out.push('\n');
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+fn kac_section(category: &str) -> &'static str {
+    match category {
+        "feature" => "Added",
+        "fix" => "Fixed",
+        "refactor" => "Changed",
+        "docs" => "Documentation",
+        "test" => "Tests",
+        "chore" => "Chores",
+        _ => "Other",
+    }
+}
+
 fn format_iso_date(unix_seconds: i64) -> String {
     // Minimal Gregorian conversion — avoid pulling in chrono just for this.
     // Algorithm: Howard Hinnant's days_from_civil inverse.

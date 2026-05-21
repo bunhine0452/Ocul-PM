@@ -17,6 +17,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (6, include_str!("../migrations/006_file_changes.sql")),
     (7, include_str!("../migrations/007_changelog.sql")),
     (8, include_str!("../migrations/008_project_overview.sql")),
+    (9, include_str!("../migrations/009_conversation_actions.sql")),
 ];
 
 pub struct Db {
@@ -1446,6 +1447,79 @@ impl Db {
         Ok(entry)
     }
 
+    // ---------- Conversation Actions (UI-5 / W5) ----------
+
+    /// Idempotent insert (UPSERT on (conversation_id, message_index)).
+    /// Returns the resulting row so the frontend can update its UI without a
+    /// follow-up list call.
+    pub async fn record_conversation_action(
+        &self,
+        conversation_id: u32,
+        message_index: u32,
+        status: String,
+    ) -> Result<ConversationAction> {
+        let row = self
+            .conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO conversation_actions (conversation_id, message_index, status)
+                     VALUES (?1, ?2, ?3)
+                     ON CONFLICT(conversation_id, message_index) DO UPDATE SET
+                       status = excluded.status,
+                       applied_at = unixepoch()",
+                    params![conversation_id as i64, message_index as i64, status],
+                )?;
+                c.query_row(
+                    "SELECT id, conversation_id, message_index, status, applied_at
+                     FROM conversation_actions
+                     WHERE conversation_id = ?1 AND message_index = ?2",
+                    params![conversation_id as i64, message_index as i64],
+                    |r| {
+                        Ok(ConversationAction {
+                            id: r.get::<_, i64>(0)? as u32,
+                            conversation_id: r.get::<_, i64>(1)? as u32,
+                            message_index: r.get::<_, i64>(2)? as u32,
+                            status: r.get(3)?,
+                            applied_at: r.get::<_, i64>(4)? as u32,
+                        })
+                    },
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(row)
+    }
+
+    pub async fn list_conversation_actions(
+        &self,
+        conversation_id: u32,
+    ) -> Result<Vec<ConversationAction>> {
+        let rows = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, conversation_id, message_index, status, applied_at
+                     FROM conversation_actions
+                     WHERE conversation_id = ?1
+                     ORDER BY message_index ASC",
+                )?;
+                let rows = stmt
+                    .query_map([conversation_id as i64], |r| {
+                        Ok(ConversationAction {
+                            id: r.get::<_, i64>(0)? as u32,
+                            conversation_id: r.get::<_, i64>(1)? as u32,
+                            message_index: r.get::<_, i64>(2)? as u32,
+                            status: r.get(3)?,
+                            applied_at: r.get::<_, i64>(4)? as u32,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(rows)
+    }
+
     // ---------- Project Overview (G2) ----------
 
     /// Fetches the stored overview for a project. Returns `None` when the row
@@ -1711,6 +1785,47 @@ pub struct EditPromptResult {
     pub english_prompt: String,
     pub korean_summary: String,
     pub related_files: Vec<String>,
+}
+
+// ---------- G3: Clarify types (MASTER-GUIDE §4.3) ----------
+
+/// A single clarifying question shown to the user before we let the LLM
+/// produce the final English prompt. `kind` is either `"choice"` (radio
+/// buttons with `options`) or `"text"` (free-form input, `options` empty).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct ClarifyQuestion {
+    pub id: String,
+    pub kind: String,
+    pub text: String,
+    #[serde(default)]
+    pub options: Vec<String>,
+}
+
+/// Backend response for the ambiguity-check pass. When `auto_proceed` is true
+/// the caller may skip the clarify dialog entirely and go straight to
+/// `generate_edit_prompt_with_answers` with no answers.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ClarifyResult {
+    pub ambiguity_score: f32,
+    pub questions: Vec<ClarifyQuestion>,
+    pub auto_proceed: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct ClarifyAnswer {
+    pub id: String,
+    pub answer: String,
+}
+
+// ---------- UI-5: ConversationAction (W5) ----------
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ConversationAction {
+    pub id: u32,
+    pub conversation_id: u32,
+    pub message_index: u32,
+    pub status: String,
+    pub applied_at: u32,
 }
 
 // ---------- G1: Changelog types (MASTER-GUIDE §4.1) ----------

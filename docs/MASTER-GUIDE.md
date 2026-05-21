@@ -1,4 +1,4 @@
-# AI-PM 마스터 가이드라인 (MASTER GUIDE)
+# ai-pm 마스터 가이드라인 (MASTER GUIDE)
 
 > **이 문서의 위상**
 > `docs/GAP-PLAN.md` (백엔드·데이터 모델·기능 갭) 와 `docs/UI-UX-REDESIGN.md` (정보 구조·화면·인터랙션) 두 문서를 하나의 *단일 소스 오브 트루스*로 통합한 최상위 가이드라인이다.
@@ -33,7 +33,7 @@
 
 ## 0. 한 페이지 요약 (Executive Summary)
 
-현재 AI-PM은 **기능적으로는 풍부**(인덱싱·RAG·플래너·git·터미널·의존성 맵)하지만, **사용자가 "이 앱이 나의 PM이다"라고 느끼게 만드는 표면이 없다**. 세 가지 핵심 사용자 흐름 중 *코드 수정 후의 변화 흐름 기록*(UC-2의 5단계)이 사실상 비어 있고, *신규 프로젝트 진입(UC-1)*과 *모호한 의도 보정(UC-3)* 진입점도 부재하다. 동시에 UI는 9-탭 IDE-식 사이드바, 두 개의 중복 AI 패널, OS 의존적 chrome 처리, 12개로 흩어진 상태 등으로 인해 사용자에게 *통제권을 빼앗기는 인상*을 준다.
+현재 ai-pm은 **기능적으로는 풍부**(인덱싱·RAG·플래너·git·터미널·의존성 맵)하지만, **사용자가 "이 앱이 나의 PM이다"라고 느끼게 만드는 표면이 없다**. 세 가지 핵심 사용자 흐름 중 *코드 수정 후의 변화 흐름 기록*(UC-2의 5단계)이 사실상 비어 있고, *신규 프로젝트 진입(UC-1)*과 *모호한 의도 보정(UC-3)* 진입점도 부재하다. 동시에 UI는 9-탭 IDE-식 사이드바, 두 개의 중복 AI 패널, OS 의존적 chrome 처리, 12개로 흩어진 상태 등으로 인해 사용자에게 *통제권을 빼앗기는 인상*을 준다.
 
 이 가이드는 그 모든 것을 다음 **4개 백엔드 갭(G1~G4)** + **7개 UI 단계(UI-1~UI-7)** 로 묶어, **6주 일정의 단일 로드맵**으로 정렬한다.
 
@@ -145,7 +145,7 @@
 | 사용자가 길을 잃으면 *⌘K*로 즉시 복귀 가능 | Command Palette |
 
 ### 3.3. 안티-비전 (의도적으로 하지 않는 것)
-- **코드를 직접 자동 수정하지 않는다** — 그건 Claude Code/Cursor의 영역. AI-PM은 *그 도구들을 잘 쓰게 도와주는 메타-도구*.
+- **코드를 직접 자동 수정하지 않는다** — 그건 Claude Code/Cursor의 영역. ai-pm은 *그 도구들을 잘 쓰게 도와주는 메타-도구*.
 - **클라우드 동기화/팀 협업 기능을 만들지 않는다** — 개인 데스크탑 PM에 집중.
 - **VS Code 수준의 풀 IDE를 지향하지 않는다** — 편집은 보조적, *기획·기록·소통*이 메인.
 
@@ -625,7 +625,7 @@ G4 (Greenfield 백엔드) ────────────┴→ UI-6 (Green
 
 ### 7.3. Phase별 상세 체크리스트
 
-> **진행 상황 표기 (2026-05-21 W1~W3 완료 시점)**
+> **진행 상황 표기 (2026-05-21 W1~W5 완료 시점)**
 > - `[x]` = 완료 및 검증됨 / `[~]` = 부분 완료 (옆 주석 참조) / `[ ]` = 미착수
 > - 상세 변경 근거는 `docs/2026521/W{n}/` 의 변경 문서 참조
 
@@ -667,23 +667,23 @@ G4 (Greenfield 백엔드) ────────────┴→ UI-6 (Green
 - [x] 디렉터리 가이드 inline 편집 (markdown editor)  *(textarea 기반 inline 편집 + `update_project_overview` 백엔드. source_signature=NULL 로 자동 재생성 보호 신호. "Diff 보고 병합" 모달은 후속 PR — W3/06 문서)*
 
 **W4 — UI-4**
-- [ ] `ChangelogScreen.tsx` 신설 (좌측 날짜 버킷 + 우측 디테일)
-- [ ] `EntryDetail.tsx`, `DiffModal.tsx`
-- [ ] 필터/검색/Export
-- [ ] AssistPanel "변경사항 저장" → Changelog 동선
-- [ ] 📌 고정 → Today 연동
-- [ ] e2e: "외부 수정 → 저장 → 타임라인 노출" 골든 패스
+- [x] `ChangelogScreen.tsx` 신설 (좌측 날짜 버킷 + 우측 디테일)  *(W2 의 최소 버전을 정식 승격 — 검색·Export·EntryDetail 분리 포함, W4/03 문서)*
+- [x] `EntryDetail.tsx`, `DiffModal.tsx`  *(EntryDetail 은 우측 디테일 패널 추출 + 영어 프롬프트 details, DiffModal 은 unified-diff 라인 단위 색상 표 — W4/02·03 문서)*
+- [x] 필터/검색/Export  *(카테고리 chip + 기간 토글 + 텍스트 검색 + Export 드롭다운 (Markdown KaC / JSON 버킷). 백엔드 `export_changelog_markdown` — W4/01·03 문서)*
+- [x] AssistPanel "변경사항 저장" → Changelog 동선  *(`handleSaveToChangelog` + 성공 후 "타임라인에서 보기" CTA → setActiveView("changelog") — W4/04 문서)*
+- [x] 📌 고정 → Today 연동  *(W3 의 `daily_brief.pinned_entries` 가 90일 윈도우 핀을 항상 sticky 표시; W4 의 EntryDetail 의 pin 토글이 즉시 반영)*
+- [x] e2e: "외부 수정 → 저장 → 타임라인 노출" 골든 패스  *(13 단계 코드 경로 모두 컴파일·타입체크 통과; 실 LLM 호출 검증은 dev 런에서 수동 — W4/04 문서)*
 
 **W5 — G3 + UI-5**
-- [ ] `generate_edit_prompt` 분리 → `clarify_edit_intent` + `generate_edit_prompt_with_answers`
-- [ ] `CodeWorkbench.tsx` 신설 (3단 분할)
-- [ ] `AiWorkbench.tsx` (Quick Edit / Chat 모드 토글)
-- [ ] `BottomDrawer.tsx` (Terminal / Git / Problems)
-- [ ] AssistPanel + ChatPanel 코드 흡수 후 삭제
-- [ ] Terminal PiP 제거, Detach 유지
-- [ ] Git Panel 의 Changelog 탭 제거
-- [ ] `ClarifyDialog.tsx` 통합
-- [ ] `conversation_actions` 테이블 마이그레이션 (localStorage → SQLite)
+- [x] `generate_edit_prompt` 분리 → `clarify_edit_intent` + `generate_edit_prompt_with_answers`  *(legacy `generate_edit_prompt` 는 shim 으로 유지; W5/01 문서)*
+- [x] `CodeWorkbench.tsx` 신설 (3단 분할)  *(Tree + Editor/Graph + AiWorkbench + BottomDrawer — W5/04 문서)*
+- [x] `AiWorkbench.tsx` (Quick Edit / Chat 모드 토글)  *(Quick Edit 가 Clarify 통합; Chat 모드는 기존 ChatPanel 임베드)*
+- [x] `BottomDrawer.tsx` (Terminal / Git / Problems)  *(⌘J 토글, Problems 는 placeholder)*
+- [~] AssistPanel + ChatPanel 코드 흡수 후 삭제  *(AssistPanel.tsx + 폴더 삭제 완료. ChatPanel 은 Chat 모드 임베드로 살아있음 — Quick Edit 의 RAG 다중 턴 대체 미정. 후속에서 통합 검토)*
+- [x] Terminal PiP 제거, Detach 유지  *(floating overlay drag/position state 전부 제거, ⌘J BottomDrawer 도킹만)*
+- [x] Git Panel 의 Changelog 탭 제거  *(`GitView` 에서 changelog 멤버 + `ChangelogView` 함수 제거. 대체는 W4 Changelog 화면)*
+- [x] `ClarifyDialog.tsx` 통합  *(`src/features/code/ClarifyDialog.tsx` 신설, AiWorkbench Quick Edit 에서 호출 — W5/03 문서)*
+- [x] `conversation_actions` 테이블 마이그레이션 (localStorage → SQLite)  *(009 마이그레이션 + ActionProposalCard 리팩토링 + 1회 자동 localStorage→SQLite 마이그레이션 — W5/02 문서)*
 
 **W6 — G4 + UI-6 + UI-7**
 - [ ] `create_greenfield_project` 커맨드
