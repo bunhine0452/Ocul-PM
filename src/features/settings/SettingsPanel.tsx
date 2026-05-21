@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { commands, type GithubVerifyResult } from "@/lib/bindings";
+import { commands, type DbHealth, type GithubVerifyResult } from "@/lib/bindings";
 import {
   Sun,
   Moon,
@@ -21,7 +21,7 @@ import {
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, type Provider } from "@/lib/settings";
 
-type TabId = "appearance" | "llm" | "github" | "indexing" | "graph" | "data";
+type TabId = "appearance" | "llm" | "github" | "indexing" | "graph" | "data" | "diagnostics";
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", label: "Appearance", icon: Sun },
@@ -30,6 +30,8 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ classN
   { id: "indexing", label: "Indexing & RAG", icon: FileCode },
   { id: "graph", label: "Graph", icon: GitBranch },
   { id: "data", label: "Data", icon: Database },
+  // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
+  { id: "diagnostics", label: "Diagnostics", icon: SettingsIcon },
 ];
 
 const GITHUB_SECRET = "github_api_key";
@@ -835,6 +837,61 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   );
 }
 
+// ---------- Diagnostics ----------
+
+function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) {
+  const [health, setHealth] = useState<DbHealth | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function check() {
+    setLoading(true);
+    onError(null);
+    const res = await commands.dbHealth();
+    if (res.status === "ok") {
+      setHealth(res.data);
+    } else {
+      onError(res.error);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <Section
+        title="Database Health"
+        description="SQLite + sqlite-vec 상태와 스키마 버전을 확인합니다."
+      >
+        <div className="grid grid-cols-3 gap-2">
+          <Stat label="SQLite" value={health?.sqlite_version} />
+          <Stat label="sqlite-vec" value={health?.vec_version} />
+          <Stat label="Schema" value={health ? `v${health.schema_version}` : undefined} />
+        </div>
+        <div className="text-[11px] font-mono break-all text-muted-foreground">
+          {health?.path ?? "Not queried"}
+        </div>
+        <Button onClick={check} disabled={loading} variant="outline" size="sm">
+          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+          Refresh Health
+        </Button>
+      </Section>
+    </>
+  );
+}
+
+function Stat({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="p-3 bg-secondary/40 rounded-xl">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-sm font-bold mt-0.5">{value ?? "—"}</div>
+    </div>
+  );
+}
+
 // ---------- Root ----------
 
 interface SettingsPanelProps {
@@ -863,6 +920,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <GraphTab />;
       case "data":
         return <DataTab onError={setError} />;
+      case "diagnostics":
+        return <DiagnosticsTab onError={setError} />;
     }
   }, [tab]);
 

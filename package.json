@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lint:storage": "node scripts/check-no-localstorage.mjs",
+    "lint": "pnpm lint:storage"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
@@ -19,6 +21,7 @@
     "@xyflow/react": "^12.10.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "date-fns": "^4.2.1",
     "highlight.js": "^11.11.1",
     "lucide-react": "^1.16.0",

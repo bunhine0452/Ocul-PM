@@ -1,5 +1,4 @@
 import React from "react";
-import { commands } from "../lib/bindings";
 import { ChevronLeft, Sun, Moon, Monitor } from "./Icons";
 import { useTheme } from "../lib/theme";
 

@@ -14,8 +14,16 @@ export type ActiveView = "overview" | "today" | "plan" | "changelog" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
 export type BottomDrawerTab = "terminal" | "git" | "problems";
 
+/**
+ * Transitional secondary tab inside the "code" view. UI-5 (W5) will absorb
+ * these into the unified Code workbench (editor + AI workbench + bottom
+ * drawer). Until then we keep them as named sub-tabs so the IA-5 sidebar
+ * change can ship without that bigger refactor.
+ */
+export type CodeSubTab = "files" | "chat" | "assist" | "graph" | "terminal" | "git";
+
 // Legacy tab names for migration
-type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git";
+type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
 export interface WorkspaceState {
   // Project
@@ -23,8 +31,10 @@ export interface WorkspaceState {
   currentProjectName: string | null;
   currentProjectRoot: string | null;
 
-  // Navigation (currently uses legacy tabs, will migrate to PM-narrative IA)
+  // PM-narrative IA (5 top-level views)
   activeView: ActiveView;
+  /** Sub-tab inside the "code" view (W5 will absorb most of these) */
+  codeSubTab: CodeSubTab;
 
   // Code sub-state
   openFiles: string[];
@@ -54,7 +64,8 @@ const DEFAULT_STATE: WorkspaceState = {
   currentProjectId: null,
   currentProjectName: null,
   currentProjectRoot: null,
-  activeView: "code",
+  activeView: "overview",
+  codeSubTab: "files",
   openFiles: [],
   activeFile: null,
   aiWorkbenchMode: "quick-edit",
@@ -70,23 +81,25 @@ const STORAGE_KEY = "aipm:workspace:v1";
 
 // ---------- Legacy Migration ----------
 
-/** Map legacy activeTab values to new activeView */
-function mapLegacyTab(tab: LegacyTab): ActiveView {
+/** Map legacy activeTab values to the new (activeView, codeSubTab) pair. */
+function mapLegacyTab(tab: LegacyTab): { view: ActiveView; sub: CodeSubTab } {
   switch (tab) {
-    case "files":
-    case "chat":
-    case "assist":
-    case "graph":
-    case "terminal":
-    case "git":
-      return "code";
-    case "planner":
-      return "plan";
+    case "overview": return { view: "overview", sub: "files" };
+    case "today":    return { view: "today",    sub: "files" };
+    case "planner":  return { view: "plan",     sub: "files" };
+    case "files":    return { view: "code",     sub: "files" };
+    case "chat":     return { view: "code",     sub: "chat" };
+    case "assist":   return { view: "code",     sub: "assist" };
+    case "graph":    return { view: "code",     sub: "graph" };
+    case "terminal": return { view: "code",     sub: "terminal" };
+    case "git":      return { view: "code",     sub: "git" };
+    // Settings/diagnostics are not view-level any more (⌘, opens a screen);
+    // default landing for these legacy values is the Overview.
     case "settings":
     case "diagnostics":
-      return "code"; // Settings will be accessed via ⌘, later
+      return { view: "overview", sub: "files" };
     default:
-      return "code";
+      return { view: "overview", sub: "files" };
   }
 }
 
@@ -110,15 +123,17 @@ function migrateV0(): WorkspaceState | null {
   const projectId = localStorage.getItem("selectedProjectId");
   const projectName = localStorage.getItem("selectedProjectName");
   const projectRoot = localStorage.getItem("selectedProjectRoot");
-  const activeTab = (localStorage.getItem("activeTab") as LegacyTab) || "files";
+  const activeTab = (localStorage.getItem("activeTab") as LegacyTab) || "overview";
   const activeFile = localStorage.getItem("activeFile");
 
+  const mapped = mapLegacyTab(activeTab);
   const migrated: WorkspaceState = {
     ...DEFAULT_STATE,
     currentProjectId: projectId ? Number(projectId) : null,
     currentProjectName: projectName,
     currentProjectRoot: projectRoot,
-    activeView: mapLegacyTab(activeTab),
+    activeView: mapped.view,
+    codeSubTab: mapped.sub,
     activeFile,
   };
 
@@ -174,10 +189,13 @@ function persistToStorage(state: WorkspaceState) {
 interface WorkspaceContextValue {
   state: WorkspaceState;
   setState: React.Dispatch<React.SetStateAction<WorkspaceState>>;
-  
+
   // Convenience actions
   setProject: (id: number | null, name?: string | null, root?: string | null) => void;
   setActiveView: (view: ActiveView) => void;
+  setCodeSubTab: (sub: CodeSubTab) => void;
+  /** Jump directly to a code-view sub-tab (also sets activeView="code"). */
+  openInCode: (sub: CodeSubTab) => void;
   setActiveFile: (file: string | null) => void;
   setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
   resetWorkspace: () => void;
@@ -208,6 +226,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setActiveView = useCallback((view: ActiveView) => {
     setState((prev) => ({ ...prev, activeView: view }));
+  }, []);
+
+  const setCodeSubTab = useCallback((sub: CodeSubTab) => {
+    setState((prev) => ({ ...prev, codeSubTab: sub }));
+  }, []);
+
+  const openInCode = useCallback((sub: CodeSubTab) => {
+    setState((prev) => ({ ...prev, activeView: "code", codeSubTab: sub }));
   }, []);
 
   const setActiveFile = useCallback((file: string | null) => {
@@ -241,6 +267,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setState,
         setProject,
         setActiveView,
+        setCodeSubTab,
+        openInCode,
         setActiveFile,
         setIndexing,
         resetWorkspace,

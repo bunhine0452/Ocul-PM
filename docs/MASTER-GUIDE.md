@@ -625,42 +625,46 @@ G4 (Greenfield 백엔드) ────────────┴→ UI-6 (Green
 
 ### 7.3. Phase별 상세 체크리스트
 
+> **진행 상황 표기 (2026-05-21 W1~W3 완료 시점)**
+> - `[x]` = 완료 및 검증됨 / `[~]` = 부분 완료 (옆 주석 참조) / `[ ]` = 미착수
+> - 상세 변경 근거는 `docs/2026521/W{n}/` 의 변경 문서 참조
+
 **W1 — UI-1**
-- [ ] `tauri-plugin-window-state` 통합 + min size
-- [ ] OS별 decorations 분기 (`lib.rs` setup)
-- [ ] `App.css` border-radius/WebkitMaskImage 제거
-- [ ] `App.tsx` 인라인 mask 제거
-- [ ] `TitleBar.tsx` 재작성 (data-tauri-drag-region, OS 분기)
-- [ ] `WorkspaceContext` 신설 + 12 useState 흡수
-- [ ] localStorage 단일 키 + 마이그레이션 함수
-- [ ] eslint rule: 직접 localStorage 접근 금지
+- [x] `tauri-plugin-window-state` 통합 + min size  *(Cargo.toml plugin, tauri.conf minWidth=960/minHeight=640)*
+- [x] OS별 decorations 분기 (`lib.rs` setup)  *(macOS `TitleBarStyle::Overlay` 분기 적용)*
+- [x] `App.css` border-radius/WebkitMaskImage 제거  *(chrome 관련 mask/12px 모두 제거됨; 잔존 999px 는 chip)*
+- [x] `App.tsx` 인라인 mask 제거
+- [x] `TitleBar.tsx` 재작성 (data-tauri-drag-region, OS 분기)  *(JS startDragging 제거됨)*
+- [x] `WorkspaceContext` 신설 + 12 useState 흡수  *(main.tsx 에 Provider mount, App.tsx 전면 refactor — W1/06 문서)*
+- [x] localStorage 단일 키 + 마이그레이션 함수  *(`aipm:workspace:v1` 단일 키, `migrateV0` 가 12+ 레거시 키 1 회 흡수 + 삭제 — W1/07 문서)*
+- [x] eslint rule: 직접 localStorage 접근 금지  *(zero-dep node 스크립트 `scripts/check-no-localstorage.mjs` + `pnpm lint` — W1/08 문서)*
 
 **W1 병행 — G1 데이터 모델**
-- [ ] `007_changelog.sql` 작성 + 검증
-- [ ] `db.rs` 에 `ChangelogEntry`, `ChangelogFileEntry`, `DailyChangelogBucket` 구조체
+- [x] `007_changelog.sql` 작성 + 검증
+- [x] `db.rs` 에 `ChangelogEntry`, `ChangelogFileEntry`, `DailyChangelogBucket` 구조체  *(3 종 모두 활성: bucket 은 `list_changelog_by_day` 가 사용)*
 
 **W2 — UI-2**
-- [ ] 사이드바 9 → 5 메뉴
-- [ ] Settings 모달 삭제, ⌘, 단축키만
-- [ ] Diagnostics → Settings 마지막 탭
-- [ ] `cmdk` 기반 Command Palette
-- [ ] 단축키 매핑 (⌘1~⌘5, ⌘\, ⌘J, ⌘K, ⌘N)
+- [x] 사이드바 9 → 5 메뉴  *(Overview/Today/Plan/Changelog/Code. Code 는 secondary sidebar 로 sub-tab 6개 노출 — W2/05 문서)*
+- [x] Settings 모달 삭제, ⌘, 단축키만  *(기존 modal 폐기, `SettingsOverlay` 풀 오버레이로 승격 + ⌘, 키 진입)*
+- [x] Diagnostics → Settings 마지막 탭  *(SettingsPanel 에 `DiagnosticsTab` 추가)*
+- [x] `cmdk` 기반 Command Palette  *(cmdk@^1.1.1 설치 + `components/CommandPalette.tsx` — 한/영 fuzzy 매칭)*
+- [x] 단축키 매핑 (⌘1~⌘5, ⌘\, ⌘J, ⌘K, ⌘,)  *(`hooks/useGlobalShortcuts.ts`. ⌘N 은 Plan 화면 위임 — 후속)*
 
 **W2 병행 — G1 커맨드**
-- [ ] `commands/changelog.rs` 신설
-- [ ] `commit_changelog_entry` 구현 (변경 감지 → git diff → LLM 요약 → 트랜잭션 삽입)
-- [ ] `list_changelog_by_day`, `get_changelog_entry`
-- [ ] LLM 프롬프트 템플릿 (per-file, entry-level)
-- [ ] git diff 추출 유틸 (`git.rs` 확장)
+- [x] `commands/changelog.rs` 신설
+- [x] `commit_changelog_entry` 구현 (변경 감지 → git diff → LLM 요약 → 트랜잭션 삽입)
+- [x] `list_changelog_by_day`, `get_changelog_entry`  *(둘 다 구현 완료. day-bucket 은 `format_iso_date` 가 chrono 없이 일자 변환 — W2/04 문서)*
+- [~] LLM 프롬프트 템플릿 (per-file, entry-level)  *(inline string 으로 둘 다 구현; `src-tauri/src/llm/prompts/*.md` 분리 파일은 미생성 — i18n 분리 시 함께 추출)*
+- [x] git diff 추출 유틸 (`git.rs` 확장)  *(`diff_stat` / `diff_shortstat` / `diff_patch` 3 함수)*
 
 **W3 — G2 + UI-3**
-- [ ] `008_project_overview.sql`
-- [ ] `commands/project.rs` overview 3종 커맨드
-- [ ] 인덱싱 완료 훅에 `refresh_project_overview_if_stale` 연결
-- [ ] `OverviewScreen.tsx` 신설 (정체성/스택/디렉터리 가이드/진입점/통계)
-- [ ] `TodayScreen.tsx` 신설 (포커스/완료/활동/AI 추천)
-- [ ] `daily_brief` 커맨드 (Planner + Changelog 데이터 결합)
-- [ ] 디렉터리 가이드 inline 편집 (markdown editor)
+- [x] `008_project_overview.sql`
+- [x] `commands/project.rs` overview 3종 커맨드  *(파일은 `commands/overview.rs` 로 분리 — 가이드와 위치 다름, 기능 동일: get/generate/refresh_if_stale + `update_project_overview` 추가)*
+- [x] 인덱싱 완료 훅에 `refresh_project_overview_if_stale` 연결  *(`index_project` 종료 부에서 default provider/model 설정 시 `tokio::spawn` fire-and-forget)*
+- [x] `OverviewScreen.tsx` 신설 (정체성/스택/디렉터리 가이드/진입점/통계)
+- [x] `TodayScreen.tsx` 신설 (포커스/완료/활동/AI 추천)  *(AI 추천은 §12 #3 해소 전 정적 휴리스틱)*
+- [x] `daily_brief` 커맨드 (Planner + Changelog 데이터 결합)
+- [x] 디렉터리 가이드 inline 편집 (markdown editor)  *(textarea 기반 inline 편집 + `update_project_overview` 백엔드. source_signature=NULL 로 자동 재생성 보호 신호. "Diff 보고 병합" 모달은 후속 PR — W3/06 문서)*
 
 **W4 — UI-4**
 - [ ] `ChangelogScreen.tsx` 신설 (좌측 날짜 버킷 + 우측 디테일)

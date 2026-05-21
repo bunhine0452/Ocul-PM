@@ -121,11 +121,14 @@ pub async fn clear_project_index(
 #[tauri::command]
 #[specta::specta]
 pub async fn index_project(
+    app: tauri::AppHandle,
     db: State<'_, Db>,
     embedder: State<'_, Embedder>,
     project_id: u32,
     on_progress: Channel<IndexProgress>,
 ) -> Result<IndexResult, String> {
+    use tauri::Manager;
+    let _ = &app; // silence unused-var if hook is later disabled
     let project = db
         .list_projects()
         .await
@@ -257,6 +260,37 @@ pub async fn index_project(
 
     let took_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
     info!(files_processed, files_changed, chunks_created, took_ms, "indexing done");
+
+    // G2 hook: refresh the project overview in the background. We resolve the
+    // default provider/model from settings; if neither is configured (fresh
+    // install) we silently skip — the Overview screen still has a manual
+    // "다시 생성" button.
+    let default_provider = settings_map.get("default_provider").cloned();
+    let model_for_provider = default_provider.as_ref().and_then(|p| {
+        settings_map
+            .get(&format!("model_{}", p))
+            .cloned()
+            .or_else(|| settings_map.get("default_model").cloned())
+    });
+    if let (Some(provider), Some(model)) = (default_provider, model_for_provider) {
+        let app_handle = app.clone();
+        tokio::spawn(async move {
+            let db_state = app_handle.state::<Db>();
+            match crate::commands::overview::run_generation(
+                &db_state,
+                project_id,
+                &provider,
+                &model,
+                /*force=*/ false,
+            )
+            .await
+            {
+                Ok(Some(_)) => info!(project_id, "overview refreshed after indexing"),
+                Ok(None) => info!(project_id, "overview signature unchanged; skipped"),
+                Err(e) => tracing::warn!(project_id, error = %e, "overview refresh failed"),
+            }
+        });
+    }
 
     Ok(IndexResult {
         files_processed,

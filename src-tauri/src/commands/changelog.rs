@@ -8,10 +8,11 @@
 //! 5. Frontend can list/update/delete/pin entries
 
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::State;
 
-use crate::db::{ChangelogEntry, ChangelogFileEntry, Db};
+use crate::db::{ChangelogEntry, ChangelogFileEntry, DailyChangelogBucket, Db};
 use crate::git;
 use crate::llm;
 
@@ -193,10 +194,12 @@ Output ONLY valid JSON, no markdown fences."#;
 pub async fn list_changelog(
     db: State<'_, Db>,
     project_id: u32,
-    since: Option<i64>,
+    // i32 (not i64) so Specta can export the binding — TypeScript number can't
+    // safely round-trip i64. See docs/errors/2026-05-21-specta-bigint-export.md
+    since: Option<i32>,
     limit: Option<u32>,
 ) -> Result<Vec<ChangelogEntry>, String> {
-    db.list_changelog_entries(project_id, since, limit.unwrap_or(100))
+    db.list_changelog_entries(project_id, since.map(|v| v as i64), limit.unwrap_or(100))
         .await
         .map_err(|e| e.to_string())
 }
@@ -246,4 +249,79 @@ pub async fn pin_changelog(
     db.pin_changelog_entry(entry_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Group changelog entries into per-day buckets for the timeline UI
+/// (MASTER-GUIDE §5.5). Buckets are sorted newest-day first; within a bucket,
+/// entries follow the same DESC order as `list_changelog_entries`. We bucket
+/// in Rust rather than SQL so the local-day boundary (UTC seconds rounded down
+/// to 86400) stays consistent with what the frontend renders.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_changelog_by_day(
+    db: State<'_, Db>,
+    project_id: u32,
+    days: Option<u32>,
+) -> Result<Vec<DailyChangelogBucket>, String> {
+    let days = days.unwrap_or(30).max(1) as i64;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let since = now - (days * 86400);
+
+    let entries = db
+        .list_changelog_entries(project_id, Some(since), 1000)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Group by day-start (UTC). Using a Vec<(day, Vec<Entry>)> rather than a
+    // BTreeMap so newest-first ordering survives the grouping.
+    let mut buckets: Vec<(i64, Vec<ChangelogEntry>)> = Vec::new();
+    for entry in entries {
+        let day = (entry.created_at as i64).div_euclid(86400) * 86400;
+        match buckets.last_mut() {
+            Some((d, list)) if *d == day => list.push(entry),
+            _ => buckets.push((day, vec![entry])),
+        }
+    }
+
+    let result = buckets
+        .into_iter()
+        .map(|(day, entries)| {
+            let total_files: u32 = entries.iter().map(|e| e.files_changed).sum();
+            let total_added: u32 = entries.iter().map(|e| e.lines_added).sum();
+            let total_removed: u32 = entries.iter().map(|e| e.lines_removed).sum();
+            // ISO yyyy-mm-dd derived from unix seconds (UTC). Frontend formats
+            // for the user's locale; this string is stable for keying.
+            let date = format_iso_date(day);
+            DailyChangelogBucket {
+                date,
+                entries,
+                total_files,
+                total_lines_added: total_added,
+                total_lines_removed: total_removed,
+            }
+        })
+        .collect();
+
+    Ok(result)
+}
+
+fn format_iso_date(unix_seconds: i64) -> String {
+    // Minimal Gregorian conversion — avoid pulling in chrono just for this.
+    // Algorithm: Howard Hinnant's days_from_civil inverse.
+    let days = unix_seconds.div_euclid(86400);
+    // Shift to civil-from-days reference (1970-01-01 = day 0 → era epoch 0000-03-01).
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
 }

@@ -16,6 +16,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (5, include_str!("../migrations/005_ast_dependencies.sql")),
     (6, include_str!("../migrations/006_file_changes.sql")),
     (7, include_str!("../migrations/007_changelog.sql")),
+    (8, include_str!("../migrations/008_project_overview.sql")),
 ];
 
 pub struct Db {
@@ -1444,6 +1445,75 @@ impl Db {
             .await?;
         Ok(entry)
     }
+
+    // ---------- Project Overview (G2) ----------
+
+    /// Fetches the stored overview for a project. Returns `None` when the row
+    /// does not exist yet; callers can then decide whether to trigger
+    /// `generate_project_overview`.
+    pub async fn get_project_overview(
+        &self,
+        project_id: u32,
+    ) -> Result<Option<ProjectOverview>> {
+        let overview = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT project_id, identity, stack_json, overview_md,
+                            source_signature, generated_at, generated_by_model
+                     FROM project_overviews WHERE project_id = ?1",
+                    params![project_id as i64],
+                    project_overview_from_row,
+                )
+                .optional()
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(overview)
+    }
+
+    /// Inserts or updates a project overview row. Used by both LLM-driven
+    /// generation and manual user edits (in the manual case, pass
+    /// `source_signature=None` to disable auto-regeneration).
+    pub async fn upsert_project_overview(
+        &self,
+        project_id: u32,
+        identity: Option<String>,
+        stack_json: Option<String>,
+        overview_md: Option<String>,
+        source_signature: Option<String>,
+        generated_at: Option<u32>,
+        generated_by_model: Option<String>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO project_overviews (
+                        project_id, identity, stack_json, overview_md,
+                        source_signature, generated_at, generated_by_model
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                     ON CONFLICT(project_id) DO UPDATE SET
+                        identity = excluded.identity,
+                        stack_json = excluded.stack_json,
+                        overview_md = excluded.overview_md,
+                        source_signature = excluded.source_signature,
+                        generated_at = excluded.generated_at,
+                        generated_by_model = excluded.generated_by_model",
+                    params![
+                        project_id as i64,
+                        identity,
+                        stack_json,
+                        overview_md,
+                        source_signature,
+                        generated_at.map(|v| v as i64),
+                        generated_by_model,
+                    ],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
 }
 
 // ---------- Row mapper ----------
@@ -1503,6 +1573,18 @@ fn changelog_entry_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChangelogEntr
         lines_removed: r.get::<_, i64>(10)? as u32,
         created_at: r.get::<_, i64>(11)? as u32,
         pinned: r.get::<_, i32>(12)? != 0,
+    })
+}
+
+fn project_overview_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectOverview> {
+    Ok(ProjectOverview {
+        project_id: r.get::<_, i64>(0)? as u32,
+        identity: r.get(1)?,
+        stack_json: r.get(2)?,
+        overview_md: r.get(3)?,
+        source_signature: r.get(4)?,
+        generated_at: r.get::<_, Option<i64>>(5)?.map(|v| v as u32),
+        generated_by_model: r.get(6)?,
     })
 }
 
@@ -1669,4 +1751,17 @@ pub struct DailyChangelogBucket {
     pub total_files: u32,
     pub total_lines_added: u32,
     pub total_lines_removed: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct ProjectOverview {
+    pub project_id: u32,
+    pub identity: Option<String>,
+    /// JSON-encoded stack metadata. Stored as TEXT for forward compatibility
+    /// (the LLM is free to add new keys without a migration).
+    pub stack_json: Option<String>,
+    pub overview_md: Option<String>,
+    pub source_signature: Option<String>,
+    pub generated_at: Option<u32>,
+    pub generated_by_model: Option<String>,
 }

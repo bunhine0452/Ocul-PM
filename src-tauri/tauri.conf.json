@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "ai-pm",
+        "hiddenTitle": true,
         "width": 1150,
         "height": 780,
         "minWidth": 960,

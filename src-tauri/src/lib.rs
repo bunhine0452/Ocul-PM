@@ -29,8 +29,11 @@ use crate::commands::{
     git_log, git_remotes, git_status, github_verify,
     git_tags, git_log_range, read_changelog, github_releases,
     // G1 — Changelog
-    commit_changelog_entry, list_changelog, get_changelog_detail,
+    commit_changelog_entry, list_changelog, list_changelog_by_day, get_changelog_detail,
     update_changelog, delete_changelog, pin_changelog,
+    // G2 — Project Overview + Daily Brief
+    get_project_overview, generate_project_overview, refresh_project_overview_if_stale,
+    update_project_overview, daily_brief,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -118,10 +121,17 @@ pub fn run() {
         // G1 — Changelog
         commit_changelog_entry,
         list_changelog,
+        list_changelog_by_day,
         get_changelog_detail,
         update_changelog,
         delete_changelog,
         pin_changelog,
+        // G2 — Project Overview + Daily Brief
+        get_project_overview,
+        generate_project_overview,
+        refresh_project_overview_if_stale,
+        update_project_overview,
+        daily_brief,
     ]);
 
 
