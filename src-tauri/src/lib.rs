@@ -12,7 +12,7 @@ mod secrets;
 
 use specta_typescript::Typescript;
 use tauri::Manager;
-use tauri_specta::{collect_commands, Builder};
+use tauri_specta::{collect_commands, collect_events, Builder};
 
 use crate::commands::{
     chat, chat_message_append, chat_message_list, chat_stream, clear_project_index,
@@ -154,6 +154,18 @@ pub fn run() {
         check_cli_available,
         create_greenfield_project,
         generate_seed_goals,
+    ])
+    .events(collect_events![
+        // .oculpm/ subsystem (W1-PR2)
+        crate::oculpm::spec::OculpmSessionStarted,
+        crate::oculpm::spec::OculpmSessionEnded,
+        crate::oculpm::spec::OculpmFileChanged,
+        crate::oculpm::spec::OculpmJournalAdded,
+        crate::oculpm::spec::OculpmJournalUpdated,
+        crate::oculpm::spec::OculpmIntegrityWarning,
+        crate::oculpm::spec::OculpmAgentDrift,
+        crate::oculpm::spec::OculpmAgentsTemplateChanged,
+        crate::oculpm::spec::OculpmJournalPathChanged,
     ]);
 
 

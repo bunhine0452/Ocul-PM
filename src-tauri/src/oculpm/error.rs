@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-#[allow(dead_code)] // Variants are consumed by sibling modules landing in W1-PR3..PR8.
+#[allow(dead_code)] // Variants are consumed by sibling modules landing in W1-PR4..PR8.
 #[derive(Debug, Error)]
 pub enum OculpmError {
     #[error("io error at {path}: {source}")]
@@ -16,7 +16,14 @@ pub enum OculpmError {
         source: std::io::Error,
     },
 
-    /// Placeholder used by stub modules. Real variants land in W1-PR3..PR8.
+    // W1-PR3 — WorkdayResolver
+    #[error("invalid timezone: {0}")]
+    InvalidTimezone(String),
+
+    #[error("invalid HH:MM '{0}' (expected 00:00 - 23:59)")]
+    InvalidHHMM(String),
+
+    /// Placeholder used by stub modules. Real variants land in W1-PR4..PR8.
     #[error("not yet implemented")]
     NotImplemented,
 }

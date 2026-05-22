@@ -10,8 +10,8 @@
 | PR | 제목 | 상태 | 워킹 도큐먼트 |
 |---|---|---|---|
 | W1-PR1 | Cargo 의존성 + 모듈 스켈레톤 | ✅ 완료 | [`PR1-cargo-deps-skeleton.md`](./PR1-cargo-deps-skeleton.md) |
-| W1-PR2 | `spec.rs` 핵심 타입 + specta 노출 | ⬜ | [`PR2-spec-types.md`](./PR2-spec-types.md) |
-| W1-PR3 | `paths.rs` (`WorkdayResolver`) + 단위 테스트 | ⬜ | [`PR3-workday-resolver.md`](./PR3-workday-resolver.md) |
+| W1-PR2 | `spec.rs` 핵심 타입 + specta 노출 | ✅ 완료 | [`PR2-spec-types.md`](./PR2-spec-types.md) |
+| W1-PR3 | `paths.rs` (`WorkdayResolver`) + 단위 테스트 | ✅ 완료 | [`PR3-workday-resolver.md`](./PR3-workday-resolver.md) |
 | W1-PR4 | `config.rs` 기본값 + 검증 | ⬜ | [`PR4-config.md`](./PR4-config.md) |
 | W1-PR5 | `atomic_io.rs` + `lock.rs` + 단위 테스트 | ⬜ | [`PR5-atomic-io-lock.md`](./PR5-atomic-io-lock.md) |
 | W1-PR6 | 4개 커맨드: init / get_status / get_config / set_config | ⬜ | [`PR6-init-commands.md`](./PR6-init-commands.md) |
