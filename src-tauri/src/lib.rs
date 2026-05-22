@@ -7,6 +7,7 @@ mod git;
 mod github;
 mod indexer;
 mod llm;
+mod oculpm;
 mod secrets;
 
 use specta_typescript::Typescript;

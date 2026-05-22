@@ -3,7 +3,7 @@ import { X, Terminal as TerminalIcon, GitBranch, Database } from "@/components/I
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
 import { GitPanel } from "@/features/git/GitPanel";
 import { useWorkspace, type BottomDrawerTab } from "@/contexts/WorkspaceContext";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
 // MASTER-GUIDE §5.6 — Code 화면 하단의 통합 드로워.
 //   - Terminal: 기존 TerminalPanel (PiP 제거됨, Detach window 만 유지)

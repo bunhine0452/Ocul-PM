@@ -51,6 +51,19 @@ tree-sitter-go = "0.23"
 portable-pty = "0.8"
 tauri-plugin-window-state = "2"
 
+# .oculpm/ subsystem (W1-PR1)
+notify = "6.1"
+notify-debouncer-full = "0.3"
+serde_yaml = "0.9"
+gray_matter = { version = "0.2", default-features = false, features = ["yaml"] }
+pulldown-cmark = { version = "0.10", default-features = false }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.8"
+slug = "0.1"
+fs2 = "0.4"
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }
+
 
 
 
