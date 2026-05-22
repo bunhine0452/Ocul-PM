@@ -686,14 +686,14 @@ G4 (Greenfield 백엔드) ────────────┴→ UI-6 (Green
 - [x] `conversation_actions` 테이블 마이그레이션 (localStorage → SQLite)  *(009 마이그레이션 + ActionProposalCard 리팩토링 + 1회 자동 localStorage→SQLite 마이그레이션 — W5/02 문서)*
 
 **W6 — G4 + UI-6 + UI-7**
-- [ ] `create_greenfield_project` 커맨드
-- [ ] `project_blueprints` 테이블 (선택)
-- [ ] 외부 CLI 위임 (`pnpm create vite`, `cargo new`) + OS 별 PATH 검증
-- [ ] `StartScreen.tsx`, `GreenfieldWizard.tsx`
-- [ ] 초안 저장/복원
-- [ ] Planner 시드 goal 자동 생성
-- [ ] **Polish**: 디자인 토큰 정리, A11y 라벨, 카피 한국어 통일, `src/locales/ko.json` 추출
-- [ ] 마이크로 인터랙션 (project card hover, indexing ETA, chat 빈 상태, markdown 복사 버튼 등)
+- [x] `create_greenfield_project` 커맨드  *(greenfield.rs 신설 — 7종 커맨드: blueprint CRUD 4종 + check_cli_available + create_greenfield_project + generate_seed_goals — W6/01 문서)*
+- [x] `project_blueprints` 테이블 (선택)  *(011_project_blueprints.sql + db.rs ProjectBlueprint struct + CRUD 4종 + blueprint_from_row 헬퍼)*
+- [x] 외부 CLI 위임 (`pnpm create vite`, `cargo new`) + OS 별 PATH 검증  *(check_cli_available: which/where → fallback 공통 경로 탐색. run_scaffold_cli: std::process::Command + spawn_blocking + 60초 타임아웃)*
+- [x] `StartScreen.tsx`, `GreenfieldWizard.tsx`  *(StartScreen: 기존 Dashboard 대체, 2 CTA + blueprint 복원/삭제 + 프로젝트 카드 그리드. GreenfieldWizard: 5단계 위저드 — 아이디어→사용자→스택→위치→목표)*
+- [x] 초안 저장/복원  *(debounce 2초 자동 save_blueprint, X 닫기 시에도 저장, StartScreen에서 복원 버튼으로 재개)*
+- [x] Planner 시드 goal 자동 생성  *(generate_seed_goals 커맨드 — LLM → 3~5개 goal JSON 파싱. 위저드 Step 4에서 기본 3개 fallback goal 제공)*
+- [x] **Polish**: 디자인 토큰 정리, A11y 라벨, 카피 한국어 통일, `src/locales/ko.json` 추출  *(App.css 토큰 5종: --radius-card/button/chip, --motion-fast/normal. A11y: aside→nav role="navigation", aria-label/aria-current 전수 적용. 카피: App.tsx/TitleBar/CodeWorkbench/PRIMARY_NAV 전체 한국어화. ko.json 98개 키)*
+- [~] 마이크로 인터랙션 (project card hover, indexing ETA, chat 빈 상태, markdown 복사 버튼 등)  *(.project-card hover translateY(-3px)+shadow 구현. Markdown.tsx CodeBlockWrapper 복사 버튼+"복사됨" 피드백. indexing ETA · chat 빈 상태는 후속 작업)*
 
 ### 7.4. Feature Flag 전략
 
@@ -734,7 +734,7 @@ projects ─┬─< project_overviews          (G2, 1:1)
 | 008 | `008_project_overview.sql` | W3 | project_overviews |
 | 009 | `009_conversation_actions.sql` | W5 | conversation_actions (localStorage 이전) |
 | 010 | `010_file_snapshots.sql` | W2 (조건) | 비-git 프로젝트 diff 폴백용 |
-| 011 | `011_project_blueprints.sql` | W6 (선택) | Greenfield 초안 저장 |
+| 011 | `011_project_blueprints.sql` | W6 ✅ | Greenfield 초안 저장 |
 
 전부 **비파괴적 변경** (CREATE TABLE / ADD COLUMN 만).
 

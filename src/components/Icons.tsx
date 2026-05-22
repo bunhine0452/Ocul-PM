@@ -387,4 +387,54 @@ export const ExternalLink = (props: IconProps) => (
   </IconWrapper>
 );
 
+export const ArrowRight = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <line x1="5" y1="12" x2="19" y2="12" />
+    <polyline points="12 5 19 12 12 19" />
+  </IconWrapper>
+);
 
+export const ArrowLeft = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </IconWrapper>
+);
+
+export const AlertTriangle = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </IconWrapper>
+);
+
+export const Rocket = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z" />
+    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2Z" />
+    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+  </IconWrapper>
+);
+
+export const Clock = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </IconWrapper>
+);
+
+export const MessageCircle = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
+  </IconWrapper>
+);
+
+export const ClipboardCheck = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="m9 14 2 2 4-4" />
+  </IconWrapper>
+);

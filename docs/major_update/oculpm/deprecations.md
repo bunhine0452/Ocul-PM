@@ -147,6 +147,10 @@
 | **Git / GitHub** | `git.rs`, `github.rs`, `commands/git.rs`, `features/git/GitPanel.tsx` | 별개. |
 | **CommandPalette, ModelSelector, FileExplorer, CodeEditor, Markdown, TitleBar** | `src/components/*` | UI 공통. 단지 새 명령/타입 추가로 확장. |
 | **Diagnostics** | `commands/diagnostics.rs` (9줄, `db_health` 하나) | 유지. |
+| **Greenfield 위저드** | `commands/greenfield.rs`, `features/onboarding/GreenfieldWizard.tsx`, `migrations/011_project_blueprints.sql` | 신규 프로젝트 생성 흐름. `.oculpm/` 와 직교. **W3-PR10** 에서 Step 4 에 "ocul-pm 추적" 체크박스 (디폴트 ON) + `create_greenfield_project` 가 백엔드에서 `OculpmManager::init_project` 까지 호출 — [refactor-integration §3.1](./refactor-integration.md). |
+| **StartScreen** | `features/onboarding/StartScreen.tsx` | Dashboard 대체. 프로젝트 카드 그리드 + blueprint 복원. `.oculpm/` 와 직교. |
+| **project_blueprints 테이블** | `migrations/011_project_blueprints.sql`, `db::{ProjectBlueprint, save_blueprint, ...}` | 위저드 임시 저장용. 마이그레이션 대상 아님. |
+| **locales/ko.json** | `src/locales/ko.json` | 향후 i18n 통합용 placeholder. 1.0 까지는 사용 안 함. |
 
 ---
 

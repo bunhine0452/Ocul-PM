@@ -148,13 +148,20 @@ type WorkspaceContextValue = {
 
 ## 4. `App.tsx` — 사이드바 / 라우팅 변경
 
-| 기존 순서 | 새 순서 |
-|---|---|
-| Overview → Today → Code → Chat → ... | **Today → Overview** → Code → Chat → ... |
+main 의 현재 `PRIMARY_NAV` (5 항목 한국어, refactor W6 에서 정착됨) 의 **1·2번을 swap** + shortcut 도 같이 swap. 자세한 표는 [`phases/W3-journal-today-ui.md` W3-PR4](./phases/W3-journal-today-ui.md) 참조.
 
-- 프로젝트 진입 시 디폴트 라우트 `/p/:id/today` (또는 현재의 탭 컨벤션에 맞춤).
-- Today 아이콘은 좀 더 눈에 띄게 (배지로 미확인 verify 카운트 표시).
-- Overview 아이콘은 그래프 류로 교체 (재포지셔닝 명확화).
+| 순서 | 한국어 | ID | shortcut |
+|---|---|---|---|
+| 1 | **오늘** | `today` | **⌘1** |
+| 2 | **개요** | `overview` | **⌘2** |
+| 3 | 계획 | `plan` | ⌘3 |
+| 4 | 변경 기록 | `changelog` | ⌘4 (W5-PR8 부터 read-only) |
+| 5 | 코드 | `code` | ⌘5 |
+
+- 프로젝트 진입 시 `activeView` 의 디폴트가 `today`.
+- Today 아이콘 옆에 unread verified 카운트 배지 (W4 미구현, 자리만).
+- Overview 아이콘은 W5-PR5 의 재포지셔닝 후 집계 뷰 (그래프 류).
+- "변경 기록" 탭은 1.1 에서 nav 에서 제거 ([deprecations §2.1](./deprecations.md)).
 
 키보드 단축키 (CommandPalette + 글로벌):
 - `g t` → Today
@@ -435,10 +442,22 @@ useEffect(() => {
 ## 13. 디자인 시스템 / 접근성 / 다크모드
 
 - shadcn 컴포넌트 + Tailwind v4 (기존과 동일).
-- 색상 토큰: 기존 사용 중인 토큰 재사용. 새 entry type 색은 `colors.bug`, `colors.feature` 식으로 토큰화.
-- 모든 인터랙티브 요소에 `aria-label`, focus ring.
-- mismatch 배지 같은 경고는 색 + 아이콘 + 텍스트 3중. 색맹 안전.
-- Reduce motion: timeline animation `prefers-reduced-motion` 존중.
+- **디자인 토큰** (`src/App.css`, refactor W6 / UI-7 에서 도입 — [refactor-integration §I-3](./refactor-integration.md)):
+  - `--radius-card: 16px` → SessionCard, JournalEntryCard, ProjectMetaHeader, 모달들
+  - `--radius-button: 8px` → 토글, 액션 버튼
+  - `--radius-chip: 999px` → CategoryFilterBar chip
+  - `--motion-fast: 150ms` → hover, 토글
+  - `--motion-normal: 200ms` → 모달 enter/leave, panel slide
+- type 색상 토큰: Tailwind 클래스 (Tailwind v4 의 `@theme` 안에서 별도 토큰화 검토 — W6 정리 작업으로 backlog).
+- **A11y 패턴** (refactor W6 / UI-7 에서 사이드바·StartScreen 에 정착, 우리도 동일하게):
+  - 모든 인터랙티브 요소에 `aria-label`.
+  - 네비게이션 컨테이너에 `<nav role="navigation" aria-label="...">`.
+  - 현재 활성 항목에 `aria-current="page"`.
+  - 리스트류 컨테이너에 `role="list"`, 항목에 `role="listitem"`.
+  - mismatch 배지 같은 경고는 색 + 아이콘 + 텍스트 3중 (색맹 안전).
+  - Focus ring 명시.
+- Reduce motion: `prefers-reduced-motion` 존중 (timeline animation, 모달 transition).
+- **재사용**: 마크다운 본문은 `src/components/Markdown.tsx` (CodeBlockWrapper 포함) 를 그대로 사용 — 별도 구현 X.
 
 ---
 

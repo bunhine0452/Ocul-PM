@@ -1,0 +1,111 @@
+{
+  "app": {
+    "title": "Ocul-PM",
+    "tagline": "오늘 무엇을 만들 건가요?"
+  },
+  "nav": {
+    "overview": "개요",
+    "today": "오늘",
+    "plan": "계획",
+    "changelog": "변경 기록",
+    "code": "코드"
+  },
+  "codeSubNav": {
+    "files": "파일",
+    "ai": "AI",
+    "graph": "그래프",
+    "terminal": "터미널",
+    "git": "Git"
+  },
+  "dashboard": {
+    "yourProjects": "내 프로젝트",
+    "addProject": "프로젝트 폴더 추가",
+    "newProject": "새 프로젝트 시작하기",
+    "existingFolder": "기존 폴더 불러오기",
+    "settings": "설정",
+    "total": "전체",
+    "files": "파일",
+    "chunks": "청크",
+    "indexing": "인덱싱"
+  },
+  "dialog": {
+    "rename": "이름 변경",
+    "delete": "삭제",
+    "remove": "제거",
+    "cancel": "취소",
+    "confirm": "확인",
+    "close": "닫기",
+    "save": "저장"
+  },
+  "project": {
+    "renameTitle": "이름 변경",
+    "renameDesc": "프로젝트 워크스페이스의 새 이름을 입력하세요. 실제 디렉토리 이름은 변경되지 않습니다.",
+    "removeTitle": "프로젝트 제거",
+    "removeConfirm": "을(를) Ocul-PM 워크스페이스에서 제거하시겠습니까?",
+    "removeNote": "앱 데이터베이스에서 인덱스와 목표가 삭제되지만, 실제 프로젝트 폴더는 삭제되지 않습니다."
+  },
+  "greenfield": {
+    "title": "새 프로젝트",
+    "step0": "어떤 앱을 만들까요?",
+    "step1": "누가 사용하나요?",
+    "step2": "기술 스택 선택",
+    "step3": "프로젝트 위치",
+    "step4": "초기 목표 확인",
+    "ideaPlaceholder": "예: 팀 내부에서 사용할 프로젝트 관리 대시보드",
+    "targetUsersPlaceholder": "예: 사내 개발팀 5명, 비개발자도 포함",
+    "projectName": "프로젝트 이름",
+    "savePath": "저장 위치",
+    "selectFolder": "선택",
+    "next": "다음",
+    "prev": "이전",
+    "create": "프로젝트 시작하기",
+    "creating": "생성 중...",
+    "draftSaved": "임시 저장됨",
+    "resume": "복원",
+    "deleteDraft": "초안 삭제",
+    "generateGoals": "AI로 목표 생성하기",
+    "generatingGoals": "목표를 생성하고 있어요..."
+  },
+  "chat": {
+    "emptyTitle": "무엇이든 물어보세요",
+    "emptySubtitle": "예시를 클릭하면 바로 시작돼요",
+    "example1": "이 프로젝트 구조 설명해줘",
+    "example2": "로그인 기능 어떻게 구현돼?",
+    "example3": "TODO 찾아줘"
+  },
+  "code": {
+    "noFileOpened": "열린 파일이 없습니다",
+    "quickEdit": "빠른 편집",
+    "chat": "대화",
+    "copied": "복사됨"
+  },
+  "overview": {
+    "projectIdentity": "프로젝트 정체성",
+    "techStack": "기술 스택",
+    "description": "프로젝트 설명"
+  },
+  "planner": {
+    "goals": "목표",
+    "newGoal": "새 목표",
+    "subtasks": "하위 작업",
+    "progress": "진행률",
+    "priority": "우선순위",
+    "dueDate": "마감일",
+    "status": {
+      "open": "대기",
+      "inProgress": "진행 중",
+      "done": "완료",
+      "cancelled": "취소됨"
+    }
+  },
+  "a11y": {
+    "mainNav": "메인 내비게이션",
+    "backToDashboard": "대시보드로 돌아가기",
+    "minimize": "최소화",
+    "maximize": "최대화",
+    "close": "닫기",
+    "commandPalette": "명령 팔레트",
+    "searchCommands": "명령 검색",
+    "openSettings": "설정 열기"
+  }
+}

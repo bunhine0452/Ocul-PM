@@ -172,10 +172,20 @@ pub struct ManualEntryDraft {
 - 기존 사용자 storage 의 `workspace.schema_version` 확인.
 - 1 → 2: `defaultTab` 을 "today" 로 강제 (단, `defaultTabUserOverride: true` 면 기존값 유지).
 
-**`App.tsx`** 변경:
-- 사이드바 순서: Today (1st), Overview (2nd), Code, Chat, Git, Planner, Settings, ...
-- Today 아이콘 옆에 unread verified 카운트 배지 (W4 까지는 미구현, 자리만).
-- 프로젝트 진입 시 `navigate("/p/:id/today")` 로 자동 redirect.
+**`App.tsx`** 변경 — 현재 `PRIMARY_NAV` 의 1·2번 항목 swap + shortcut 도 같이 swap:
+
+| 순서 | 한국어 | ID | shortcut | 변경 |
+|---|---|---|---|---|
+| 1 | **오늘** | `today` | **⌘1** | 디폴트 탭 (배지: unread verified — W4 미구현, 자리만) |
+| 2 | **개요** | `overview` | **⌘2** | W5-PR5 에서 집계 뷰 |
+| 3 | 계획 | `plan` | ⌘3 | 변동 없음 |
+| 4 | 변경 기록 | `changelog` | ⌘4 | W5-PR8 부터 read-only 배너. **1.1 에서 nav 에서도 제거** |
+| 5 | 코드 | `code` | ⌘5 | 변동 없음 |
+
+- 신규 프로젝트 select 시 `navigate("today")` 로 자동 redirect.
+- shortcut 충돌 점검: 글로벌 단축키 (`⌘+Shift+J` 수동 entry 등) 는 `⌘1`~`⌘5` 와 겹치지 않는다.
+
+배경: main 의 `PRIMARY_NAV` 는 리팩토링 W6 (`docs/refactor/W6/01-greenfield-wizard.md`) 에서 5 항목 한국어로 통일되었다 — [refactor-integration §I-2](../refactor-integration.md).
 
 **DoD**:
 - [ ] 새 프로젝트 진입 시 디폴트 Today.
@@ -280,7 +290,9 @@ type Props = {
   - [원본 파일 열기] — `tauri-plugin-opener` 로 OS file manager / 에디터 열기.
   - [Compare with index] — DiffVsNarrative 토글 (W3 에서는 자리만, W4 에서 동작).
 
-**마크다운 렌더러 선택**: 기존 코드에 `react-markdown` 류가 이미 있는지 확인. 있으면 재사용. 없으면 `react-markdown` + `remark-gfm` 추가.
+**마크다운 렌더러**: `src/components/Markdown.tsx` 를 그대로 재사용. 별도 컴포넌트 만들지 말 것.
+- 이 모듈은 `CodeBlockWrapper` 를 통해 코드블록 hover 시 📋 복사 버튼 + "복사됨" 피드백 1.5초를 이미 제공한다 (refactor W6 / UI-7 에서 도입됨 — [refactor-integration §I-4](../refactor-integration.md)).
+- 만약 `Markdown.tsx` 의 prop 시그니처가 부족하다면 (예: 상대경로 이미지 base 해석), 그 모듈에 prop 을 추가하는 별도 PR 로 처리하고 본 PR 은 그것을 import 만.
 
 **body_markdown 안의 상대경로 이미지** (`./_attachments/...`):
 - `.oculpm/journal/<workday>/_attachments/...` 를 base 로 해석.
@@ -313,6 +325,104 @@ type CategoryFilter = {
 - [ ] 5개 type 필터 토글 동작.
 - [ ] 검색 디바운스 동작 (input 매 키스트로크에 fetch 하지 않음).
 - [ ] 새로고침 후 필터 상태 복원.
+
+### W3-PR10 — Greenfield 위저드 ↔ oculpm 통합
+
+> [refactor-integration §3.1](../refactor-integration.md) 옵션 A 의 구현. 신규 프로젝트가 위저드에서 `.oculpm/` 까지 한 번에 초기화되어 사용자가 onboarding 모달을 두 번 보지 않도록.
+
+**Files** (Update):
+- `src-tauri/src/commands/greenfield.rs` — `create_greenfield_project` 시그니처에 `init_oculpm: bool` 추가
+- `src/features/onboarding/GreenfieldWizard.tsx` — Step 4 에 체크박스 1개 + state 추가
+- `src/features/projects/OculpmOnboardingModal.tsx` — `.oculpm/` 이미 존재하면 즉시 dismiss (이미 init 된 프로젝트)
+
+**백엔드 변경 — `create_greenfield_project`**:
+
+```rust
+pub async fn create_greenfield_project(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    name: String,
+    root_path: String,
+    scaffold_cmd: Option<String>,
+    scaffold_args: Option<Vec<String>>,
+    blueprint_id: Option<u32>,
+    init_oculpm: bool,                  // NEW — 디폴트 true (프론트가 보냄)
+) -> Result<GreenfieldResult, String> {
+    // ... 기존 1~3단계 (폴더, 스캐폴드, create_project) ...
+
+    // 3b. ocul-pm 초기화 (옵션 A)
+    if init_oculpm {
+        let root = PathBuf::from(&root_path);
+        if let Err(e) = manager.init_project(project_id, &root).await {
+            // Non-fatal: 프로젝트는 만들어졌고, 사용자는 EmptyToday V1 에서 재시도 가능
+            tracing::warn!(project_id, error = %e, "oculpm init during greenfield failed");
+        } else {
+            // 어댑터 sync (config 의 active 가 디폴트로 활성화된 것들만)
+            if let Err(e) = manager.sync_agents(project_id).await {
+                tracing::warn!(project_id, error = %e, "agent sync during greenfield failed");
+            }
+        }
+    }
+
+    // 4. blueprint cleanup ...
+}
+```
+
+**프론트 변경 — GreenfieldWizard Step 4**:
+
+```tsx
+// Step 4 "초기 목표 확인" 의 하단 (생성 버튼 위) 에 1줄
+<label className="flex items-center gap-2 text-sm">
+  <Checkbox
+    checked={initOculpm}
+    onCheckedChange={setInitOculpm}
+    aria-label="ocul-pm 으로 이 프로젝트 추적"
+  />
+  <span>
+    ocul-pm 으로 이 프로젝트 추적 <span className="text-muted-foreground">(권장)</span>
+  </span>
+  <button
+    type="button"
+    onClick={openOculpmExplainer}
+    className="text-xs text-muted-foreground underline"
+    aria-label="ocul-pm 이 무엇인지 보기"
+  >
+    이게 뭔가요?
+  </button>
+</label>
+```
+
+- `initOculpm` state 디폴트 `true`.
+- "이게 뭔가요?" 클릭 → 작은 popover 로 1줄 설명 + 자세히 보기 링크.
+- `commands.createGreenfieldProject` 호출 시 `init_oculpm: initOculpm` 전달.
+
+**프론트 변경 — OculpmOnboardingModal 의 자동 dismiss**:
+
+```tsx
+// 모달이 mount 될 때 status 확인
+useEffect(() => {
+  if (!projectId) return;
+  (async () => {
+    const status = await oculpmApi.getStatus(projectId);
+    if (status.initialized) {
+      // 이미 init 됨 (Greenfield 흐름 통해서). 모달 안 띄움.
+      onClose?.({ reason: "already_initialized" });
+    }
+  })();
+}, [projectId]);
+```
+
+**테스트** (수동 + Vitest):
+- ✅ 위저드 디폴트 (체크박스 ON) → 신규 프로젝트 진입 시 `.oculpm/` 존재 + onboarding 모달 미노출 + Today 정상.
+- ✅ 위저드 체크박스 OFF → `.oculpm/` 부재 + EmptyToday V1 카드 노출 + "활성화" 클릭 가능.
+- ✅ 백엔드: `manager.init_project` 가 실패해도 `create_project` 는 성공 (graceful degrade).
+- ✅ 통합 테스트: tempdir 위에서 greenfield 흐름 끝-to-끝, `.oculpm/config.toml` 존재 검증.
+
+**DoD**:
+- [ ] 위 4개 테스트 통과.
+- [ ] 위저드 Step 4 체크박스 a11y (focus, aria-label) OK.
+- [ ] specta 가 `init_oculpm: boolean` 을 `commands.createGreenfieldProject` 시그니처에 자동 추가.
+- [ ] `_dogfooding-w3.md` 에 "Greenfield 흐름 → Today 진입" 동선 1회 수동 검증 기록.
 
 ### W3-PR9 — 수동 dogfooding 부트스트랩
 
@@ -433,10 +543,21 @@ journal entry 가 하루 100개 넘는 경우는 드물 것 (개인 1인). 가�
 | `esc` | DetailPane 닫기 |
 | 우측 [⚖ index 비교] | DiffVsNarrative (W4 까지 disabled, hover tooltip "다음 페이즈") |
 
-### 3.4 디자인 토큰 (Tailwind 임시)
+### 3.4 디자인 토큰
+
+리팩토링 W6 (UI-7) 에서 도입된 토큰을 그대로 사용 ([refactor-integration §I-3](../refactor-integration.md)). `src/App.css` 에서 export:
 
 ```
-type badge:
+radius:
+  SessionCard, JournalEntryCard, ProjectMetaHeader → var(--radius-card)   // 16px
+  Verify 토글, 액션 버튼들                        → var(--radius-button) // 8px
+  CategoryFilterBar chip 들                        → var(--radius-chip)   // 999px
+
+motion:
+  카드 hover, 토글 transition                     → var(--motion-fast)   // 150ms
+  모달 enter/leave, panel slide                   → var(--motion-normal) // 200ms
+
+type badge (Tailwind 클래스 — 토큰 영역 밖):
   bug      → bg-red-100   text-red-800     dark:bg-red-950/40   dark:text-red-300
   feature  → bg-green-100 text-green-800   dark:bg-green-950/40 dark:text-green-300
   error    → bg-amber-100 text-amber-800   dark:bg-amber-950/40 dark:text-amber-300
@@ -451,18 +572,21 @@ difficulty (농도):
   verylow   → opacity-40
 
 status:
-  done        → 체크박스 [x] 채워짐
+  done        → 체크박스 [x] 채워짐 (ClipboardCheck 아이콘)
   in_progress → 점 회전 애니메이션
   planned     → 빈 체크박스
   abandoned   → 취소선 + opacity 50%
 
 warning:
   미검증     → 우상단 회색 dot
-  mismatch  → 노란 ⚠ 아이콘
-  parse error → 빨간 ⚠ 아이콘
-```
+  mismatch  → 노란 ⚠ (AlertTriangle 아이콘 — refactor W6 추가)
+  parse error → 빨간 ⚠ (AlertTriangle 아이콘)
 
-(W4 에서 디자인 시스템 토큰화 정리 — 우선 인라인 클래스로 구현, 이후 토큰화.)
+기타 아이콘 (refactor W6 추가 — Icons.tsx):
+  세션 소요시간       → Clock
+  타임라인 prev/next  → ArrowLeft / ArrowRight
+  agent badge         → MessageCircle (선택)
+```
 
 ---
 

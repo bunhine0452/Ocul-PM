@@ -18,6 +18,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (7, include_str!("../migrations/007_changelog.sql")),
     (8, include_str!("../migrations/008_project_overview.sql")),
     (9, include_str!("../migrations/009_conversation_actions.sql")),
+    (10, include_str!("../migrations/011_project_blueprints.sql")),
 ];
 
 pub struct Db {
@@ -1656,9 +1657,154 @@ impl Db {
             .await?;
         Ok(())
     }
+
+    // ---------- Blueprints (W6 / G4) ----------
+
+    pub async fn save_blueprint(
+        &self,
+        id: Option<u32>,
+        name: String,
+        idea_text: Option<String>,
+        target_users: Option<String>,
+        stack_choice: Option<String>,
+        folder_name: Option<String>,
+        folder_path: Option<String>,
+        seed_goals_json: Option<String>,
+        wizard_step: u32,
+    ) -> Result<ProjectBlueprint> {
+        let bp = self
+            .conn
+            .call(move |c| {
+                if let Some(existing_id) = id {
+                    c.execute(
+                        "UPDATE project_blueprints SET
+                           name = ?1, idea_text = ?2, target_users = ?3,
+                           stack_choice = ?4, folder_name = ?5, folder_path = ?6,
+                           seed_goals_json = ?7, wizard_step = ?8,
+                           updated_at = unixepoch()
+                         WHERE id = ?9",
+                        params![
+                            &name,
+                            &idea_text,
+                            &target_users,
+                            &stack_choice,
+                            &folder_name,
+                            &folder_path,
+                            &seed_goals_json,
+                            wizard_step as i64,
+                            existing_id as i64,
+                        ],
+                    )?;
+                    c.query_row(
+                        "SELECT id, name, idea_text, target_users, stack_choice,
+                                folder_name, folder_path, seed_goals_json,
+                                wizard_step, created_at, updated_at
+                         FROM project_blueprints WHERE id = ?1",
+                        [existing_id as i64],
+                        blueprint_from_row,
+                    )
+                    .map_err(Into::into)
+                } else {
+                    c.execute(
+                        "INSERT INTO project_blueprints
+                           (name, idea_text, target_users, stack_choice,
+                            folder_name, folder_path, seed_goals_json, wizard_step)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                        params![
+                            &name,
+                            &idea_text,
+                            &target_users,
+                            &stack_choice,
+                            &folder_name,
+                            &folder_path,
+                            &seed_goals_json,
+                            wizard_step as i64,
+                        ],
+                    )?;
+                    let row_id = c.last_insert_rowid();
+                    c.query_row(
+                        "SELECT id, name, idea_text, target_users, stack_choice,
+                                folder_name, folder_path, seed_goals_json,
+                                wizard_step, created_at, updated_at
+                         FROM project_blueprints WHERE id = ?1",
+                        [row_id],
+                        blueprint_from_row,
+                    )
+                    .map_err(Into::into)
+                }
+            })
+            .await?;
+        Ok(bp)
+    }
+
+    pub async fn get_blueprint(&self, blueprint_id: u32) -> Result<ProjectBlueprint> {
+        let bp = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT id, name, idea_text, target_users, stack_choice,
+                            folder_name, folder_path, seed_goals_json,
+                            wizard_step, created_at, updated_at
+                     FROM project_blueprints WHERE id = ?1",
+                    [blueprint_id as i64],
+                    blueprint_from_row,
+                )
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(bp)
+    }
+
+    pub async fn list_blueprints(&self) -> Result<Vec<ProjectBlueprint>> {
+        let bps = self
+            .conn
+            .call(|c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, name, idea_text, target_users, stack_choice,
+                            folder_name, folder_path, seed_goals_json,
+                            wizard_step, created_at, updated_at
+                     FROM project_blueprints ORDER BY updated_at DESC",
+                )?;
+                let rows = stmt
+                    .query_map([], blueprint_from_row)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(bps)
+    }
+
+    pub async fn delete_blueprint(&self, blueprint_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "DELETE FROM project_blueprints WHERE id = ?",
+                    [blueprint_id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
 }
 
 // ---------- Row mapper ----------
+
+fn blueprint_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectBlueprint> {
+    Ok(ProjectBlueprint {
+        id: r.get::<_, i64>(0)? as u32,
+        name: r.get(1)?,
+        idea_text: r.get(2)?,
+        target_users: r.get(3)?,
+        stack_choice: r.get(4)?,
+        folder_name: r.get(5)?,
+        folder_path: r.get(6)?,
+        seed_goals_json: r.get(7)?,
+        wizard_step: r.get::<_, i64>(8)? as u32,
+        created_at: r.get::<_, i64>(9)? as u32,
+        updated_at: r.get::<_, i64>(10)? as u32,
+    })
+}
 
 fn goal_from_row(r: &rusqlite::Row) -> rusqlite::Result<Goal> {
     Ok(Goal {
@@ -1947,4 +2093,21 @@ pub struct ProjectOverview {
     pub source_signature: Option<String>,
     pub generated_at: Option<u32>,
     pub generated_by_model: Option<String>,
+}
+
+// ---------- G4: Greenfield Blueprint (W6) ----------
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct ProjectBlueprint {
+    pub id: u32,
+    pub name: String,
+    pub idea_text: Option<String>,
+    pub target_users: Option<String>,
+    pub stack_choice: Option<String>,
+    pub folder_name: Option<String>,
+    pub folder_path: Option<String>,
+    pub seed_goals_json: Option<String>,
+    pub wizard_step: u32,
+    pub created_at: u32,
+    pub updated_at: u32,
 }

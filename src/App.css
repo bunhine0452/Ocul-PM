@@ -185,7 +185,33 @@
     --cat-docs:     #4caf81;  /* green */
     --cat-test:     #d4a843;  /* amber */
     --cat-chore:    #888880;  /* gray */
+
+    /* W6 Polish: unified design tokens (MASTER-GUIDE §6.4) */
+    --radius-card:   16px;    /* 카드/모달 */
+    --radius-button: 8px;     /* 버튼/입력 */
+    --radius-chip:   999px;   /* chip/badge */
+    --motion-fast:   150ms;   /* 마이크로 인터랙션 */
+    --motion-normal: 200ms;   /* 화면 전환 */
   }
+}
+
+/* Project card micro-interaction (W6 UI-6) */
+.project-card {
+  transition:
+    transform var(--motion-fast, 150ms) ease,
+    box-shadow var(--motion-fast, 150ms) ease,
+    border-color var(--motion-fast, 150ms) ease;
+}
+.project-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 25px -5px rgba(0, 0, 0, 0.08),
+    0 2px 8px -2px rgba(204, 120, 92, 0.08);
+}
+.dark .project-card:hover {
+  box-shadow:
+    0 8px 25px -5px rgba(0, 0, 0, 0.4),
+    0 2px 8px -2px rgba(204, 120, 92, 0.12);
 }
 
 /* Glassmorphism styling utilities */

@@ -215,7 +215,7 @@ function EditorPlaceholder() {
       <div className="w-16 h-16 rounded-3xl bg-secondary/60 border border-border flex items-center justify-center mb-6 shadow-sm">
         <Code2 className="w-8 h-8 text-primary" strokeWidth={1.5} />
       </div>
-      <h2 className="text-xl font-bold font-heading mb-1.5">No File Opened</h2>
+      <h2 className="text-xl font-bold font-heading mb-1.5">열린 파일이 없습니다</h2>
       <p className="text-xs text-muted-foreground/80 max-w-sm mb-6 leading-relaxed">
         왼쪽 트리에서 파일을 선택하거나 ⌘K 로 Command Palette 를 여세요.
       </p>

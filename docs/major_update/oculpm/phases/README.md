@@ -4,6 +4,8 @@
 
 각 파일은 **그 주에 무엇을, 어떤 PR 단위로, 어떻게 검증하며 완성하는가** 만 다룬다. 데이터 스펙·타입·UI 구조 같은 변하지 않는 약속은 위 4문서가 SSOT 이고, 페이즈 가이드는 시간 축으로 그것들을 어떻게 배달하는지를 다룬다.
 
+> ⚠ **이름 충돌 주의**: 본 폴더의 `W1`~`W6` 는 **oculpm** 페이즈다. 별개로 `docs/refactor/W1`~`W6` 가 이미 존재하는데 그건 **UI 리팩토링** (Chrome decorations, Workspace context, Greenfield wizard 등) 의 페이즈 기록이다. 둘은 무관하며 시간상 UI 리팩토링이 먼저 완료된 상태다. UI 리팩토링이 main 에 가져온 변경 중 oculpm 페이즈에 영향을 미치는 부분은 [`../refactor-integration.md`](../refactor-integration.md) 에 정리되어 있다.
+
 ---
 
 ## 0. 위임받은 3개 결정 (확정)

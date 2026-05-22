@@ -38,6 +38,9 @@ use crate::commands::{
     // G2 — Project Overview + Daily Brief
     get_project_overview, generate_project_overview, refresh_project_overview_if_stale,
     update_project_overview, daily_brief,
+    // G4 — Greenfield (W6)
+    save_blueprint, get_blueprint, list_blueprints, delete_blueprint,
+    check_cli_available, create_greenfield_project, generate_seed_goals,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -142,6 +145,14 @@ pub fn run() {
         refresh_project_overview_if_stale,
         update_project_overview,
         daily_brief,
+        // G4 — Greenfield (W6)
+        save_blueprint,
+        get_blueprint,
+        list_blueprints,
+        delete_blueprint,
+        check_cli_available,
+        create_greenfield_project,
+        generate_seed_goals,
     ]);
 
 

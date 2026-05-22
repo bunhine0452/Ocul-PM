@@ -48,7 +48,7 @@ export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
                 aria-label="대시보드로 돌아가기"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="text-xs font-semibold">Dashboard</span>
+                <span className="text-xs font-semibold">대시보드</span>
               </button>
             )}
             <span className="text-border text-xs">/</span>

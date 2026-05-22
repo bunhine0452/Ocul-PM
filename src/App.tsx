@@ -14,6 +14,8 @@ import { OverviewScreen } from "@/features/overview/OverviewScreen";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { ChangelogScreen } from "@/features/changelog/ChangelogScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
+import { StartScreen } from "@/features/onboarding/StartScreen";
+import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
 import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
@@ -23,13 +25,8 @@ import {
   Network,
   Calendar,
   Settings,
-  Plus,
-  RefreshCw,
   Code2,
   LayoutDashboard,
-  Pencil,
-  Trash2,
-  OculIcon,
   Sparkles,
   Terminal,
   GitBranch,
@@ -78,6 +75,7 @@ function App() {
   // Global overlays
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [greenfieldOpen, setGreenfieldOpen] = useState(false);
 
   // ── Keyboard shortcuts (⌘1~5, ⌘K, ⌘,, ⌘\, ⌘J) ─────────────────────────
   useGlobalShortcuts({
@@ -227,7 +225,7 @@ function App() {
       />
 
       {selectedProjectId === null ? (
-        <Dashboard
+        <StartScreen
           projects={projects}
           stats={stats}
           indexingId={indexingId}
@@ -237,6 +235,7 @@ function App() {
           onRenameProject={startRenameProject}
           onDeleteProject={confirmDeleteProject}
           onOpenSettings={() => setSettingsOpen(true)}
+          onStartGreenfield={() => setGreenfieldOpen(true)}
         />
       ) : (
         <Workspace
@@ -265,11 +264,26 @@ function App() {
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />
       )}
 
+      {greenfieldOpen && (
+        <GreenfieldWizard
+          onClose={() => setGreenfieldOpen(false)}
+          onComplete={async (projectId) => {
+            setGreenfieldOpen(false);
+            await refreshProjects();
+            const res = await commands.listProjects();
+            if (res.status === "ok") {
+              const created = res.data.find((p) => p.id === projectId);
+              if (created) handleSelectProject(created);
+            }
+          }}
+        />
+      )}
+
       {/* Rename / Delete dialogs */}
       {renamingProject && (
-        <Dialog title="Rename Project" onClose={() => setRenamingProject(null)}>
+        <Dialog title="이름 변경" onClose={() => setRenamingProject(null)}>
           <p className="text-xs text-muted-foreground">
-            Enter a new name for the project workspace. The actual directory will not be renamed.
+            프로젝트 워크스페이스의 새 이름을 입력하세요. 실제 디렉토리 이름은 변경되지 않습니다.
           </p>
           <input
             type="text"
@@ -288,41 +302,40 @@ function App() {
               onClick={() => setRenamingProject(null)}
               className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
             >
-              Cancel
+              취소
             </button>
             <button
               onClick={handleRenameProject}
               disabled={!newName.trim()}
               className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
             >
-              Rename
+              이름 변경
             </button>
           </div>
         </Dialog>
       )}
 
       {deletingProject && (
-        <Dialog title="Remove Project" titleClass="text-destructive" onClose={() => setDeletingProject(null)}>
+        <Dialog title="프로젝트 제거" titleClass="text-destructive" onClose={() => setDeletingProject(null)}>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Are you sure you want to remove{" "}
-            <span className="font-bold text-foreground font-mono">{deletingProject.name}</span> from the
-            Ocul-PM workspace?
+            <span className="font-bold text-foreground font-mono">{deletingProject.name}</span>을(를)
+            Ocul-PM 워크스페이스에서 제거하시겠습니까?
             <br />
-            <span className="text-destructive font-semibold">Note:</span> This will remove the index
-            and goals from the app database, but will NOT delete the project folder from your computer.
+            <span className="text-destructive font-semibold">참고:</span> 앱 데이터베이스에서 인덱스와
+            목표가 삭제되지만, 실제 프로젝트 폴더는 삭제되지 않습니다.
           </p>
           <div className="flex justify-end space-x-2 pt-2">
             <button
               onClick={() => setDeletingProject(null)}
               className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
             >
-              Cancel
+              취소
             </button>
             <button
               onClick={handleDeleteProject}
               className="px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl text-xs font-semibold transition-colors"
             >
-              Remove Project
+              프로젝트 제거
             </button>
           </div>
         </Dialog>
@@ -331,135 +344,18 @@ function App() {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Dashboard view (no project selected)
-// ────────────────────────────────────────────────────────────────────────
-
-function Dashboard(props: {
-  projects: Project[];
-  stats: StatsMap;
-  indexingId: number | null;
-  error: string | null;
-  onSelectProject: (p: Project) => void;
-  onAddProject: () => void;
-  onRenameProject: (p: Project) => void;
-  onDeleteProject: (p: Project) => void;
-  onOpenSettings: () => void;
-}) {
-  const { projects, stats, indexingId, error, onSelectProject, onAddProject, onRenameProject, onDeleteProject, onOpenSettings } = props;
-  return (
-    <main className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full space-y-10 scrollbar-thin">
-      <div className="flex flex-col items-center text-center space-y-3 mt-4">
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
-          <OculIcon className="w-9 h-9 text-primary mr-3" strokeWidth={1.5} />
-          <span>Ocul-PM</span>
-        </h1>
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-          오늘 무엇을 만들 건가요?
-        </p>
-      </div>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground tracking-tight">Your Projects</h2>
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-muted-foreground font-medium">{projects.length} Total</span>
-            <button
-              onClick={onOpenSettings}
-              className="p-1.5 rounded-lg border border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-all duration-200 flex items-center space-x-1.5 text-xs font-semibold cursor-pointer"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>Settings</span>
-              <kbd className="text-[9px] text-muted-foreground/70 font-mono ml-1">⌘,</kbd>
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="p-3.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold rounded-xl">
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {projects.map((p) => {
-            const s = stats[p.id];
-            const isIndexing = indexingId === p.id;
-            return (
-              <div
-                key={p.id}
-                onClick={() => onSelectProject(p)}
-                className="group bg-card hover:bg-accent/40 border border-border/80 hover:border-primary/40 rounded-2xl p-5 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 flex flex-col justify-between min-h-[150px] relative overflow-hidden"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <FolderCode className="w-10 h-10 text-primary/80 group-hover:text-primary transition-colors" strokeWidth={1.5} />
-                    <div className="flex items-center space-x-1">
-                      {isIndexing && (
-                        <span className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold mr-2">
-                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          <span>Indexing</span>
-                        </span>
-                      )}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => onRenameProject(p)}
-                          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                          title="Rename Project"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteProject(p)}
-                          className="p-1.5 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors"
-                          title="Delete Project"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-base truncate text-foreground group-hover:text-primary transition-colors">
-                    {p.name}
-                  </h3>
-                  <p className="text-[10px] text-muted-foreground/80 font-mono truncate mt-1">{p.root_path}</p>
-                </div>
-
-                <div className="flex items-center justify-between mt-4 border-t border-border/40 pt-3">
-                  <span className="text-[11px] text-muted-foreground font-semibold">
-                    {s ? `${s.files} files` : "—"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/60 font-medium">
-                    {s ? `${s.chunks} chunks` : ""}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          <button
-            onClick={onAddProject}
-            className="group border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[150px] transition-all duration-300 cursor-pointer text-muted-foreground hover:text-primary"
-          >
-            <Plus className="w-8 h-8 mb-2 stroke-[1.5] group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xs font-bold">Add Project Folder</span>
-          </button>
-        </div>
-      </section>
-    </main>
-  );
-}
+// Old Dashboard function removed — replaced by StartScreen (W6 UI-6).
 
 // ────────────────────────────────────────────────────────────────────────
 // Workspace view (5-IA + Code sub-tabs)
 // ────────────────────────────────────────────────────────────────────────
 
 const PRIMARY_NAV = [
-  { id: "overview" as const,  label: "Overview",  icon: LayoutDashboard, shortcut: "⌘1" },
-  { id: "today" as const,     label: "Today",     icon: Flame,           shortcut: "⌘2" },
-  { id: "plan" as const,      label: "Plan",      icon: Calendar,        shortcut: "⌘3" },
-  { id: "changelog" as const, label: "Changelog", icon: FileCode,        shortcut: "⌘4" },
-  { id: "code" as const,      label: "Code",      icon: Code2,           shortcut: "⌘5" },
+  { id: "overview" as const,  label: "개요",      icon: LayoutDashboard, shortcut: "⌘1" },
+  { id: "today" as const,     label: "오늘",      icon: Flame,           shortcut: "⌘2" },
+  { id: "plan" as const,      label: "계획",      icon: Calendar,        shortcut: "⌘3" },
+  { id: "changelog" as const, label: "변경 기록", icon: FileCode,        shortcut: "⌘4" },
+  { id: "code" as const,      label: "코드",      icon: Code2,           shortcut: "⌘5" },
 ];
 
 const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -491,8 +387,8 @@ function Workspace(props: {
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* A. Primary IA strip (5 views) */}
-      <aside className="w-14 bg-secondary/35 border-r border-border flex flex-col justify-between items-center py-4 select-none shrink-0 glassy-sidebar">
-        <div className="flex flex-col space-y-3 w-full px-2">
+      <nav className="w-14 bg-secondary/35 border-r border-border flex flex-col justify-between items-center py-4 select-none shrink-0 glassy-sidebar" role="navigation" aria-label="메인 내비게이션">
+        <div className="flex flex-col space-y-3 w-full px-2" role="list">
           {PRIMARY_NAV.map((nav) => {
             const Icon = nav.icon;
             const isActive = activeView === nav.id;
@@ -506,6 +402,9 @@ function Workspace(props: {
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
                 }`}
                 title={`${nav.label} (${nav.shortcut})`}
+                aria-label={`${nav.label} (${nav.shortcut})`}
+                aria-current={isActive ? "page" : undefined}
+                role="listitem"
               >
                 <Icon className="w-5 h-5" />
               </button>
@@ -522,7 +421,7 @@ function Workspace(props: {
             <Settings className="w-5 h-5" />
           </button>
         </div>
-      </aside>
+      </nav>
 
       {/* B. Code sub-nav (only inside Code view) — UI-5 will absorb this */}
       {activeView === "code" && (

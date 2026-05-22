@@ -201,6 +201,8 @@ W1 (foundation)
 | **R-10** | LLM 이 `.oculpm/index/` 에 쓰려고 시도 | 무한 루프, 손상 | 중 | 워처가 `.oculpm/index/` 자기 자신 무시. 어댑터 규칙 본문에 "index/ 절대 금지" 명시. CI 에서 발견 시 자동 quarantine. |
 | **R-11** | schema 변경으로 구 데이터 못 읽음 | 사용자 이탈 | 낮 | `schema_version` + forward-only migration + 백업. |
 | **R-12** | Tauri/notify 가 일부 macOS 버전에서 fsevents 이슈 | 워처 누락 | 낮 | fallback 폴링 모드. 통합 테스트에 시뮬레이션. |
+| **R-13** | Greenfield 위저드 직후 OculpmOnboardingModal 가 다시 떠서 사용자가 onboarding 을 두 번 보는 UX 마찰 | 중 | 중 | **W3-PR10** 에서 위저드 Step 4 에 "ocul-pm 추적" 체크박스 (디폴트 ON) + 백엔드가 위저드 흐름에서 `OculpmManager::init_project` 까지 호출. 모달은 `.oculpm/` 존재 감지 시 self-dismiss. ([refactor-integration §3.1](./refactor-integration.md), [phases/W3-journal-today-ui.md W3-PR10](./phases/W3-journal-today-ui.md)) |
+| **R-14** | `manager.init_project` 가 Greenfield 흐름 중간에 실패 → 프로젝트는 만들어졌지만 `.oculpm/` 부재 | 낮 | 낮 | non-fatal 처리. `tracing::warn`. 사용자는 EmptyToday V1 의 "활성화" 카드로 재시도 가능. |
 
 ---
 

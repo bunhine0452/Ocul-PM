@@ -31,6 +31,8 @@
 - `src-tauri/src/commands/mod.rs` (update — `pub mod oculpm; pub use oculpm::*;`)
 - `src-tauri/src/lib.rs` (update — `pub mod oculpm;`)
 
+**마이그레이션 번호**: 본 PR 자체는 마이그레이션 SQL 을 만들지 않지만, 후속 PR (`cache.rs` 의 SQLite 캐시 테이블 — W3-PR2) 에서 추가될 마이그레이션 번호는 **`012` 부터** 시작한다. main 현재 `011_project_blueprints.sql` 까지 사용 중 ([refactor-integration §1 I-1](../refactor-integration.md)).
+
 **Cargo.toml `[dependencies]` 에 추가**:
 
 ```toml
