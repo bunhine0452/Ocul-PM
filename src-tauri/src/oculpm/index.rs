@@ -255,6 +255,24 @@ impl IndexWriter {
         })
     }
 
+    /// Read a previously-captured snapshot from disk. Returns `None` if the
+    /// snapshot file does not exist for the given workday+kind.
+    pub async fn read_snapshot(
+        &self,
+        workday: &str,
+        kind: SnapshotKind,
+    ) -> Result<Option<Snapshot>, OculpmError> {
+        let path = self.snapshot_path(workday, kind);
+        let bytes = match std::fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(source) => return Err(OculpmError::Io { path, source }),
+        };
+        let snapshot: Snapshot =
+            serde_json::from_slice(&bytes).map_err(OculpmError::JsonDeserialize)?;
+        Ok(Some(snapshot))
+    }
+
     /// Capture a full snapshot (git + tree merkle) and persist it as
     /// `snapshot_open.json` or `snapshot_close.json`. Git collection is
     /// best-effort — non-git roots get empty git fields. Always emits a

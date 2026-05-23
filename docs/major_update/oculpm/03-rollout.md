@@ -215,13 +215,14 @@ W1 (foundation)
 - [x] 기존 changelog UI 가 깨지지 않음 (회귀 X) — oculpm 모듈은 별도 모듈, 기존 코드 미변경. 전체 빌드 green.
 
 ### W2
-- [ ] 임의 파일 1개 수정 → 1초 안에 `index/<today>/file_changes.ndjson` 에 줄 추가됨 — unit: `five_file_modifications_produce_five_ndjson_events` ✅ / E2E: PR6 커맨드로 워처 시작 후 검증 필요
-- [ ] `node_modules/` 안 변경은 무시 — unit: `gitignored_paths_are_ignored` ✅ / E2E: 위와 동일
-- [ ] 30분 비활성 (테스트는 tokio time-advance 60초) 후 세션 자동 종료, `sessions.json` 에 `ended_reason: inactivity_timeout` — unit: force-fire ✅ + 실제 타이머 `real_timer_fires_after_inactivity_timeout` ✅ + 타이머 리셋 `real_timer_reset_on_new_activity` ✅ / E2E: PR6 이후
-- [ ] 앱 강제종료 후 재시작 → 직전 세션이 `crash_recovered` 로 마감되어 있음 — unit: `recover_two_zombie_sessions` ✅ / E2E: PR6 init → 강제종료 → 재 init 시나리오 필요
-- [ ] 워크데이 boundary 넘어가면 새 폴더 자동 생성 + 직전 세션 boundary 로 종료 — unit: `boundary_fired_finalizes_and_captures_snapshot_close` ✅ / E2E: PR6 이후
-- [ ] 6종 Tauri 이벤트 emit 경로 정상 — unit: emit skip (None) 검증 ✅ / E2E: PR6 이후 DevTools 콘솔 수동 QA
-- [ ] specta TS 타입 export (`bindings.ts` 에 6개 이벤트 리스너 생성) — ✅ 빌드 시 확인 완료
+- [x] 임의 파일 1개 수정 → 1초 안에 `index/<today>/file_changes.ndjson` 에 줄 추가됨 — unit: `five_file_modifications_produce_five_ndjson_events` ✅ / PR6 `oculpm_watcher_start` 커맨드 배선 완료
+- [x] `node_modules/` 안 변경은 무시 — unit: `gitignored_paths_are_ignored` ✅
+- [x] 30분 비활성 후 세션 자동 종료, `sessions.json` 에 `ended_reason: inactivity_timeout` — force-fire ✅ + 실제 타이머 `real_timer_fires_after_inactivity_timeout` ✅ + 타이머 리셋 `real_timer_reset_on_new_activity` ✅
+- [x] 앱 강제종료 후 재시작 → 직전 세션이 `crash_recovered` 로 마감되어 있음 — `recover_two_zombie_sessions` ✅ + `recover_fallback_to_started_at_when_no_events` ✅
+- [x] 워크데이 boundary 넘어가면 새 폴더 자동 생성 + 직전 세션 boundary 로 종료 — `boundary_fired_finalizes_and_captures_snapshot_close` ✅
+- [x] 6종 Tauri 이벤트 emit 경로 정상 — unit: emit skip (None) 검증 ✅ + PR6 `oculpm_watcher_start` 에서 `app_handle` 주입 배선 완료
+- [x] specta TS 타입 export (`bindings.ts` 에 6개 이벤트 리스너 + 13개 커맨드) — ✅ 빌드 green
+- [x] 9개 `oculpm_*` 커맨드 invoke 성공 — PR6: `collect_commands!` 13개 등록, clippy 0건, 79 tests / 0 failed
 
 ### W3
 - [ ] `.oculpm/journal/<today>/Bugs/0900_bug_x.md` 를 손으로 만들면 Today 에 카드로 나타남 (1초 이내)

@@ -42,8 +42,11 @@ use crate::commands::{
     // G4 — Greenfield (W6)
     save_blueprint, get_blueprint, list_blueprints, delete_blueprint,
     check_cli_available, create_greenfield_project, generate_seed_goals,
-    // .oculpm/ subsystem (W1-PR6)
+    // .oculpm/ subsystem (W1-PR6 + W2-PR6)
     oculpm_init, oculpm_get_status, oculpm_get_config, oculpm_set_config,
+    oculpm_get_current_session, oculpm_start_session_manual, oculpm_end_session_manual,
+    oculpm_list_sessions, oculpm_get_file_changes, oculpm_get_index_snapshot,
+    oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_status,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -156,11 +159,20 @@ pub fn run() {
         check_cli_available,
         create_greenfield_project,
         generate_seed_goals,
-        // .oculpm/ subsystem (W1-PR6)
+        // .oculpm/ subsystem (W1-PR6 + W2-PR6)
         oculpm_init,
         oculpm_get_status,
         oculpm_get_config,
         oculpm_set_config,
+        oculpm_get_current_session,
+        oculpm_start_session_manual,
+        oculpm_end_session_manual,
+        oculpm_list_sessions,
+        oculpm_get_file_changes,
+        oculpm_get_index_snapshot,
+        oculpm_watcher_start,
+        oculpm_watcher_stop,
+        oculpm_watcher_status,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

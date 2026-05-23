@@ -55,6 +55,9 @@ pub enum OculpmError {
     #[error("json serialize error: {0}")]
     JsonSerialize(serde_json::Error),
 
+    #[error("json deserialize error: {0}")]
+    JsonDeserialize(serde_json::Error),
+
     // W1-PR6 — OculpmManager
     #[error("project {0} is not initialized; call oculpm_init first")]
     NotInitialized(u32),

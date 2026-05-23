@@ -1,12 +1,12 @@
-//! Tauri commands for the `.oculpm/` subsystem (W1-PR6).
+//! Tauri commands for the `.oculpm/` subsystem.
 //!
 //! The thin layer here only:
 //! - resolves project root via the existing `Db::get_project`,
 //! - delegates to `OculpmManager`, and
 //! - flattens any `OculpmError` into a `String` for the wire boundary.
 //!
-//! Later phases (W2 onwards) add watcher / session / journal / migration
-//! commands alongside these four.
+//! W1 provides 4 commands (init / get_status / get_config / set_config).
+//! W2-PR6 adds 9 more (session / file_change / snapshot / watcher).
 
 use std::path::PathBuf;
 
@@ -14,7 +14,12 @@ use tauri::State;
 
 use crate::db::Db;
 use crate::oculpm::manager::OculpmManager;
-use crate::oculpm::spec::{OculpmConfig, OculpmInitReport, OculpmStatus};
+use crate::oculpm::spec::{
+    FileChangeEvent, OculpmConfig, OculpmInitReport, OculpmStatus, Session, Snapshot, SnapshotKind,
+    WatcherStatus,
+};
+
+// ─── W1 commands ────────────────────────────────────────────────────────────
 
 /// Idempotent project initialisation — creates `.oculpm/`, writes default
 /// config, acquires the lock, and patches `.gitignore`. Returns a report of
@@ -73,4 +78,128 @@ pub async fn oculpm_set_config(
         .set_config(project_id, new_config)
         .await
         .map_err(|e| e.to_string())
+}
+
+// ─── W2-PR6 commands ────────────────────────────────────────────────────────
+
+/// Get the current active session. Returns `None` if idle or no watcher.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_current_session(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Option<Session>, String> {
+    manager
+        .get_current_session(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Manually start a session. Idempotent — returns existing if already active.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_start_session_manual(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Option<Session>, String> {
+    manager
+        .start_session_manual(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Manually end a session. `session_id` must match the active session.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_end_session_manual(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    session_id: String,
+) -> Result<(), String> {
+    manager
+        .end_session_manual(project_id, session_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// List sessions for a workday. `workday = None` → today.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_list_sessions(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workday: Option<String>,
+) -> Result<Vec<Session>, String> {
+    manager
+        .list_sessions(project_id, workday)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get file change events for a workday, optionally filtered by session_id.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_file_changes(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workday: String,
+    session_id: Option<String>,
+) -> Result<Vec<FileChangeEvent>, String> {
+    manager
+        .get_file_changes(project_id, workday, session_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Read a snapshot (open or close) for a workday.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_index_snapshot(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workday: String,
+    kind: SnapshotKind,
+) -> Result<Snapshot, String> {
+    manager
+        .get_index_snapshot(project_id, workday, kind)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Start the filesystem watcher. Idempotent. Requires lock ownership.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_watcher_start(
+    app_handle: tauri::AppHandle,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<(), String> {
+    manager
+        .watcher_start(project_id, Some(app_handle))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Stop the filesystem watcher. Idempotent.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_watcher_stop(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<(), String> {
+    manager
+        .watcher_stop(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Watcher status. Safe to call anytime — returns Stopped + zero counters if
+/// the project is not initialized or the watcher hasn't started.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_watcher_status(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<WatcherStatus, String> {
+    Ok(manager.watcher_status(project_id).await)
 }

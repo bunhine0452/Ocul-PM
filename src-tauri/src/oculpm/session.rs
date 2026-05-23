@@ -52,6 +52,8 @@ pub enum SessionCmd {
     InactivityFired,
     BoundaryFired,
     Shutdown(oneshot::Sender<()>),
+    /// Query: returns the current session if Active, else None.
+    GetCurrentSession(oneshot::Sender<Option<Session>>),
 }
 
 /// Handle to a running `SessionActor`. Cheap to clone via the inner sender —
@@ -126,6 +128,15 @@ impl SessionActor {
             .send(SessionCmd::BoundaryFired)
             .map_err(|_| OculpmError::ActorClosed)
     }
+
+    /// Query the current session snapshot. Returns `None` if Idle or Closing.
+    pub async fn get_current_session(&self) -> Result<Option<Session>, OculpmError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(SessionCmd::GetCurrentSession(tx))
+            .map_err(|_| OculpmError::ActorClosed)?;
+        rx.await.map_err(|_| OculpmError::ActorClosed)
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,7 +186,14 @@ impl ActorInner {
                             break;
                         }
                         Some(c) => {
-                            if matches!(self.state, SessionState::Closing) { continue; }
+                            if matches!(self.state, SessionState::Closing) {
+                                // Still respond to queries during Closing to
+                                // avoid oneshot deadlocks.
+                                if let SessionCmd::GetCurrentSession(tx) = c {
+                                    let _ = tx.send(None);
+                                }
+                                continue;
+                            }
                             self.handle(c).await;
                         }
                         None => break, // all senders dropped
@@ -206,6 +224,13 @@ impl ActorInner {
             SessionCmd::InactivityFired => self.on_inactivity_fired().await,
             SessionCmd::BoundaryFired => self.on_boundary_fired().await,
             SessionCmd::Shutdown(_) => unreachable!("Shutdown handled in run loop"),
+            SessionCmd::GetCurrentSession(tx) => {
+                let session = match &self.state {
+                    SessionState::Active(active) => Some(active.session.clone()),
+                    _ => None,
+                };
+                let _ = tx.send(session);
+            }
         }
     }
 

@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
@@ -25,10 +26,12 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::paths::WorkdayResolver;
+use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    CommentStyle, EndedReason, LockStateView, OculpmConfig, OculpmInitReport, OculpmStatus,
-    SessionEnd, WatcherStateView,
+    CommentStyle, EndedReason, FileChangeEvent, LockStateView, OculpmConfig, OculpmInitReport,
+    OculpmStatus, Session, SessionEnd, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
 };
+use crate::oculpm::watcher::ProjectWatcher;
 
 /// `.gitignore` managed-block body. Matches `00-spec.md` §1.2.
 const GITIGNORE_BLOCK_BODY: &str = "\
@@ -59,6 +62,10 @@ struct ProjectEntry {
     config: OculpmConfig,
     resolver: WorkdayResolver,
     lock: Option<LockGuard>,
+    // W2-PR6: watcher/session lifecycle
+    index_writer: Arc<IndexWriter>,
+    session: Option<SessionActor>,
+    watcher: Option<ProjectWatcher>,
 }
 
 impl OculpmManager {
@@ -153,8 +160,8 @@ impl OculpmManager {
         //     `crash_recovered`. Runs *before* the watcher boots so there is
         //     no race with new events being appended.
         //     Only runs when we hold the lock (Acquired or Recovered).
+        let index_writer = Arc::new(IndexWriter::new(root.to_path_buf(), resolver.clone()));
         if guard.is_some() {
-            let index_writer = IndexWriter::new(root.to_path_buf(), resolver.clone());
             if let Err(e) = Self::recover_zombie_sessions(&index_writer, RECOVERY_WORKDAYS).await {
                 tracing::warn!(
                     target: "oculpm::manager",
@@ -197,6 +204,9 @@ impl OculpmManager {
             config,
             resolver,
             lock: guard,
+            index_writer,
+            session: None,
+            watcher: None,
         };
         self.projects.write().await.insert(project_id, entry);
 
@@ -373,6 +383,211 @@ impl OculpmManager {
         }
 
         Ok(recovered_count)
+    }
+
+    // ─── W2-PR6: watcher / session / index commands ─────────────────────────
+
+    /// Start the filesystem watcher + session actor for the given project.
+    /// Idempotent — if already running, returns Ok.
+    pub async fn watcher_start(
+        &self,
+        project_id: u32,
+        app_handle: Option<tauri::AppHandle>,
+    ) -> Result<(), OculpmError> {
+        let mut projects = self.projects.write().await;
+        let entry = projects
+            .get_mut(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+
+        if entry.lock.is_none() {
+            return Err(OculpmError::InvalidConfig(
+                "read-only mode: lock held by another instance".to_string(),
+            ));
+        }
+
+        // Idempotent: already running.
+        if entry.watcher.is_some() {
+            return Ok(());
+        }
+
+        // Spawn session actor first — watcher needs it.
+        let session = SessionActor::spawn(
+            project_id,
+            entry.resolver.clone(),
+            entry.index_writer.clone(),
+            entry.config.session.clone(),
+            app_handle.clone(),
+        );
+        let watcher = ProjectWatcher::start(
+            project_id,
+            entry.root.clone(),
+            session.clone(),
+            entry.index_writer.clone(),
+            entry.config.clone(),
+            app_handle,
+        )
+        .await?;
+
+        entry.session = Some(session);
+        entry.watcher = Some(watcher);
+        Ok(())
+    }
+
+    /// Stop the watcher + gracefully shutdown the session actor.
+    /// Idempotent — if already stopped, returns Ok.
+    pub async fn watcher_stop(&self, project_id: u32) -> Result<(), OculpmError> {
+        let mut projects = self.projects.write().await;
+        let entry = projects
+            .get_mut(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+
+        if let Some(watcher) = entry.watcher.take() {
+            watcher.stop().await?;
+        }
+        if let Some(session) = entry.session.take() {
+            session.shutdown().await?;
+        }
+        Ok(())
+    }
+
+    /// Watcher status. Safe to call before init — returns Stopped + 0 counters.
+    pub async fn watcher_status(&self, project_id: u32) -> WatcherStatus {
+        let projects = self.projects.read().await;
+        match projects.get(&project_id) {
+            Some(entry) => match &entry.watcher {
+                Some(w) => w.status(),
+                None => WatcherStatus {
+                    state: WatcherStateView::Stopped,
+                    events_seen_total: 0,
+                    events_ignored_total: 0,
+                    last_event_at: None,
+                    debounce_ms: entry.config.watcher.debounce_ms,
+                },
+            },
+            None => WatcherStatus {
+                state: WatcherStateView::Stopped,
+                events_seen_total: 0,
+                events_ignored_total: 0,
+                last_event_at: None,
+                debounce_ms: 0,
+            },
+        }
+    }
+
+    /// Get the current active session (if any). Returns None if idle/closing
+    /// or if the project hasn't started a watcher yet.
+    pub async fn get_current_session(
+        &self,
+        project_id: u32,
+    ) -> Result<Option<Session>, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        match &entry.session {
+            Some(actor) => actor.get_current_session().await,
+            None => Ok(None),
+        }
+    }
+
+    /// Manually start a session. Idempotent — if already active, returns the
+    /// existing session. If no watcher is running, starts one first.
+    pub async fn start_session_manual(
+        &self,
+        project_id: u32,
+    ) -> Result<Option<Session>, OculpmError> {
+        {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            if let Some(actor) = &entry.session {
+                actor.manual_start()?;
+                // Give the actor a moment to process.
+                tokio::task::yield_now().await;
+                return actor.get_current_session().await;
+            }
+        }
+        // No session actor → need to start watcher first.
+        self.watcher_start(project_id, None).await?;
+        let projects = self.projects.read().await;
+        let entry = projects.get(&project_id).ok_or(OculpmError::NotInitialized(project_id))?;
+        if let Some(actor) = &entry.session {
+            actor.manual_start()?;
+            tokio::task::yield_now().await;
+            return actor.get_current_session().await;
+        }
+        Ok(None)
+    }
+
+    /// Manually end a session. The session_id must match the active session.
+    pub async fn end_session_manual(
+        &self,
+        project_id: u32,
+        session_id: String,
+    ) -> Result<(), OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        match &entry.session {
+            Some(actor) => actor.manual_end(session_id),
+            None => Err(OculpmError::InvalidConfig(
+                "no active session actor".to_string(),
+            )),
+        }
+    }
+
+    /// List sessions for a given workday (or today if None).
+    pub async fn list_sessions(
+        &self,
+        project_id: u32,
+        workday: Option<String>,
+    ) -> Result<Vec<Session>, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        let wd = workday.unwrap_or_else(|| entry.resolver.workday_of(chrono::Utc::now()));
+        entry.index_writer.list_sessions(&wd).await
+    }
+
+    /// Get file changes for a workday, optionally filtered by session_id.
+    pub async fn get_file_changes(
+        &self,
+        project_id: u32,
+        workday: String,
+        session_id: Option<String>,
+    ) -> Result<Vec<FileChangeEvent>, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        let events = entry.index_writer.read_file_changes(&workday, None).await?;
+        Ok(match session_id {
+            Some(sid) => events.into_iter().filter(|e| e.session_id == sid).collect(),
+            None => events,
+        })
+    }
+
+    /// Read a snapshot (open or close) for a given workday.
+    pub async fn get_index_snapshot(
+        &self,
+        project_id: u32,
+        workday: String,
+        kind: SnapshotKind,
+    ) -> Result<Snapshot, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        entry
+            .index_writer
+            .read_snapshot(&workday, kind)
+            .await?
+            .ok_or_else(|| OculpmError::InvalidConfig(format!(
+                "snapshot not captured for workday={workday}, kind={kind:?}"
+            )))
     }
 }
 
