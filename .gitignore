@@ -66,3 +66,11 @@ Desktop.ini
 
 # ---------- Claude Code workspace ----------
 .claude/
+
+# oculpm:begin v1
+.oculpm/index/
+.oculpm/.lock
+.oculpm/.schema-version
+.oculpm/oculpm.log
+.oculpm.backup-*/
+# oculpm:end

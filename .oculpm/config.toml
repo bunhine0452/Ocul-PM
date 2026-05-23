@@ -1,0 +1,73 @@
+schema_version = 1
+
+[workday]
+timezone = "Asia/Seoul"
+day_starts_at = "00:00"
+
+[session]
+inactivity_timeout_minutes = 30
+auto_close_on_workday_boundary = true
+auto_close_on_app_quit = true
+crash_recovery_grace_minutes = 5
+
+[git]
+journal_committed = true
+forbid_journal_for_paths = [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*secret*",
+    "**/*credential*",
+    "**/*password*",
+    "**/*token*",
+    "**/*apikey*",
+    "**/*api_key*",
+    "**/*private_key*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/*.crt",
+    "**/*.cer",
+    "**/id_rsa",
+    "**/id_ed25519",
+    "**/.ssh/**",
+    "**/.gnupg/**",
+    "**/.aws/credentials",
+    "**/.aws/config",
+    "**/.netrc",
+    "**/.npmrc",
+    "**/.pypirc",
+    "**/.docker/config.json",
+    "**/Keychain*",
+    "**/keychain*",
+]
+auto_redact_patterns = [
+    "AKIA[0-9A-Z]{16}",
+    "sk-[A-Za-z0-9_-]{20,}",
+    "ghp_[A-Za-z0-9]{36}",
+    "xox[baprs]-[A-Za-z0-9-]+",
+]
+
+[watcher]
+ignore = [
+    ".oculpm/index/",
+    ".oculpm/.lock",
+    ".git/",
+    "node_modules/",
+    "target/",
+    "dist/",
+    ".next/",
+    "build/",
+    "*.log",
+    ".DS_Store",
+]
+respect_gitignore = true
+debounce_ms = 500
+batch_max_events = 200
+
+[agents]
+active = []
+auto_detect_on_open = true
+auto_sync_adapters = true

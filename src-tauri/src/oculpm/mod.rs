@@ -17,6 +17,7 @@ pub mod manager;
 pub mod paths;
 pub mod session;
 pub mod spec;
+pub mod watcher;
 
 #[allow(unused_imports)] // Re-exported for sibling modules landing in W1-PR3..PR8.
 pub use error::{OculpmError, OculpmResult};

@@ -215,15 +215,27 @@ impl ActorInner {
         match &mut self.state {
             SessionState::Idle => {
                 // Idle → Active. Start a new session triggered by file activity.
-                if let Err(e) = self.start_session(Some(&ev)).await {
+                if let Err(e) = self.start_session(Some(ev)).await {
                     tracing::error!(target: "oculpm::session", error = ?e, "failed to start session on activity");
                 }
             }
             SessionState::Active(active) => {
+                // Stamp the event with the active session's id + a fresh ts,
+                // then append to ndjson. The watcher leaves these fields as
+                // placeholders since it doesn't know the live session id.
+                let mut stamped = ev;
+                stamped.session_id = active.session.id.clone();
+                stamped.ts = Utc::now()
+                    .with_timezone(&self.resolver.tz)
+                    .to_rfc3339_opts(SecondsFormat::Secs, false);
+                if let Err(e) = self.index_writer.append_file_change(&stamped).await {
+                    tracing::warn!(target: "oculpm::session", error = ?e, "ndjson append failed");
+                }
+
                 active.last_activity = Utc::now();
                 active.session.file_event_count =
                     active.session.file_event_count.saturating_add(1);
-                active.files_unique.insert(ev.path.clone());
+                active.files_unique.insert(stamped.path.clone());
                 active.session.files_unique = active.files_unique.len() as u32;
                 active.dirty = true;
 
@@ -339,7 +351,7 @@ impl ActorInner {
 
     async fn start_session(
         &mut self,
-        first_event: Option<&FileChangeEvent>,
+        first_event: Option<FileChangeEvent>,
     ) -> Result<(), OculpmError> {
         let now = Utc::now();
         let workday = self.resolver.workday_of(now);
@@ -360,14 +372,14 @@ impl ActorInner {
             .to_rfc3339_opts(SecondsFormat::Secs, false);
         let mut files_unique: HashSet<String> = HashSet::new();
         let mut file_event_count: u32 = 0;
-        if let Some(ev) = first_event {
+        if let Some(ref ev) = first_event {
             files_unique.insert(ev.path.clone());
             file_event_count = 1;
         }
 
         let session = Session {
-            id,
-            started_at,
+            id: id.clone(),
+            started_at: started_at.clone(),
             ended_at: None,
             ended_reason: None,
             active_window_ms: 0,
@@ -380,6 +392,17 @@ impl ActorInner {
         };
 
         self.index_writer.upsert_session(&session).await?;
+
+        // Append the activity that triggered Idle→Active to ndjson. ManualStart
+        // (no first_event) leaves ndjson empty until the next NoteActivity.
+        if let Some(mut ev) = first_event {
+            ev.session_id = id;
+            ev.ts = started_at;
+            if let Err(e) = self.index_writer.append_file_change(&ev).await {
+                tracing::warn!(target: "oculpm::session", error = ?e, "first ndjson append failed");
+            }
+        }
+
         self.emit_started(&session);
 
         let inactivity = spawn_inactivity_timer(
