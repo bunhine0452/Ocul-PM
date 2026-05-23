@@ -33,6 +33,8 @@ const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm.backup-*/
 ";
 
+/// Process-wide orchestrator: holds one `ProjectEntry` per open project,
+/// owns the lock guards + future watcher/session actors. Tauri `State`-managed.
 #[derive(Default)]
 pub struct OculpmManager {
     projects: RwLock<HashMap<u32, ProjectEntry>>,
@@ -49,6 +51,7 @@ struct ProjectEntry {
 }
 
 impl OculpmManager {
+    /// Empty manager. Project entries are added by `init_project` on first open.
     pub fn new() -> Self {
         Self::default()
     }
@@ -172,6 +175,8 @@ impl OculpmManager {
         Ok(report)
     }
 
+    /// Snapshot of the project's current `.oculpm/` state. Safe to call for an
+    /// uninitialised project — returns a default `Uninitialized` status.
     pub async fn get_status(&self, project_id: u32) -> OculpmStatus {
         let projects = self.projects.read().await;
         match projects.get(&project_id) {
@@ -195,6 +200,8 @@ impl OculpmManager {
         }
     }
 
+    /// Read the in-memory `OculpmConfig` for an initialised project. Errors
+    /// with `NotInitialized` if `init_project` hasn't been called.
     pub async fn get_config(&self, project_id: u32) -> Result<OculpmConfig, OculpmError> {
         let projects = self.projects.read().await;
         projects

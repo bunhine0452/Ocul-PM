@@ -248,7 +248,10 @@ LLM 프롬프트(`agents/_template.md`)가 다음 헤더를 작성하도록 지�
 {"ts":"2026-05-22T20:55:09.003+09:00","session_id":"20260522-001","op":"delete","path":"src/legacy/Foo.tsx","hash_before":"a9b8...","hash_after":null,"bytes":0}
 ```
 
-**불변식**: 이 파일은 append-only. 수정/삭제 금지. 잘못된 이벤트는 다음 줄에 `op: "correct"` 로 보정.
+**불변식**:
+- 이 파일은 append-only. 수정/삭제 금지. 잘못된 이벤트는 다음 줄에 `op: "correct"` 로 보정.
+- **한 라인 ≤ 4096 바이트 (trailing `\n` 제외)** — POSIX `write()` 의 PIPE_BUF 단위 atomicity 보장에 기댄다. 초과 시 `path` 를 `…<short_blake3>` 로 단축 + `tags: ["path-truncated"]` 추가. 단축 후에도 초과면 reject + `oculpm:integrity_warning` emit. 코드 상수는 `oculpm::atomic_io::NDJSON_LINE_CAP`.
+- 손상 라인 감지 시 `<filename>.corrupted-tail-<ts>` 로 백업 후 손상 지점부터 truncate (§9 의 손상 처리 표 참조).
 
 ### 4.4 `snapshot_open.json` / `snapshot_close.json`
 

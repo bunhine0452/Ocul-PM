@@ -16,6 +16,9 @@ use crate::db::Db;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{OculpmConfig, OculpmInitReport, OculpmStatus};
 
+/// Idempotent project initialisation — creates `.oculpm/`, writes default
+/// config, acquires the lock, and patches `.gitignore`. Returns a report of
+/// what changed so the UI can surface "added 5 lines to .gitignore" etc.
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_init(
@@ -31,6 +34,8 @@ pub async fn oculpm_init(
         .map_err(|e| e.to_string())
 }
 
+/// Current `.oculpm/` status (initialised, lock, current workday, watcher).
+/// Safe to call before init — returns a default uninitialised view.
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_get_status(
@@ -40,6 +45,8 @@ pub async fn oculpm_get_status(
     Ok(manager.get_status(project_id).await)
 }
 
+/// Read the validated in-memory `OculpmConfig`. Errors if `oculpm_init` has
+/// not been called for this project.
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_get_config(
@@ -52,6 +59,9 @@ pub async fn oculpm_get_config(
         .map_err(|e| e.to_string())
 }
 
+/// Validate + persist a new `OculpmConfig` (atomic write) and refresh the
+/// in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
+/// disk.
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_set_config(

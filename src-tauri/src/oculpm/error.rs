@@ -6,6 +6,8 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+/// Unified error type for every `.oculpm/` subsystem operation. Flat by
+/// design — `thiserror` provides `Display` + `std::error::Error`.
 #[allow(dead_code)] // Variants are consumed by sibling modules landing in W1-PR4..PR8.
 #[derive(Debug, Error)]
 pub enum OculpmError {
@@ -57,7 +59,21 @@ pub enum OculpmError {
     #[error("project {0} is not initialized; call oculpm_init first")]
     NotInitialized(u32),
 
-    /// Placeholder used by stub modules. Real variants land in W1-PR7..PR8.
+    // W2-PR1 — IndexWriter
+    #[error("invalid session_id '{0}' (expected YYYYMMDD-NNN)")]
+    InvalidSessionId(String),
+
+    #[error("session '{session_id}' not found in workday '{workday}'")]
+    SessionNotFound {
+        session_id: String,
+        workday: String,
+    },
+
+    // W2-PR2 — SessionActor
+    #[error("session actor channel closed")]
+    ActorClosed,
+
+    /// Placeholder used by stub modules. Real variants land in later phases.
     #[error("not yet implemented")]
     NotImplemented,
 }

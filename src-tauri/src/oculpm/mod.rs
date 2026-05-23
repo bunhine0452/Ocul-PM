@@ -11,9 +11,11 @@
 pub mod atomic_io;
 pub mod config;
 pub mod error;
+pub mod index;
 pub mod lock;
 pub mod manager;
 pub mod paths;
+pub mod session;
 pub mod spec;
 
 #[allow(unused_imports)] // Re-exported for sibling modules landing in W1-PR3..PR8.

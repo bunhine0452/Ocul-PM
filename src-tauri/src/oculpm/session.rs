@@ -1,0 +1,848 @@
+//! Session state machine actor — W2-PR2.
+//!
+//! Owns a single mpsc-driven tokio task per project that tracks the current
+//! session lifecycle. Driven by file activity from the watcher (W2-PR3),
+//! inactivity / workday-boundary timers, and Manual / Shutdown commands.
+//!
+//! Effects (`oculpm:session_started/ended` emit, `snapshot_{open,close}`
+//! capture, `sessions.json` upsert) are routed through `IndexWriter` and the
+//! optional `tauri::AppHandle`. The handle is `Option` so unit tests can
+//! construct the actor without a Tauri runtime.
+//!
+//! Crash recovery is **not** here — it lives in W2-PR4 (`OculpmManager`)
+//! which scans `sessions.json` for `ended_at == null` before this actor boots.
+//!
+//! See `docs/major_update/oculpm/W2/PR2-session-actor.md` for the full state
+//! transition table.
+
+#![allow(dead_code)] // Consumed by W2-PR3 (Watcher) + W2-PR6 (commands) + W2-PR7 (manager bootstrap).
+
+use std::collections::HashSet;
+use std::sync::Arc;
+use std::time::Duration;
+
+use chrono::{DateTime, SecondsFormat, Utc};
+use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
+
+use crate::oculpm::error::OculpmError;
+use crate::oculpm::index::IndexWriter;
+use crate::oculpm::paths::WorkdayResolver;
+use crate::oculpm::spec::{
+    EndedReason, FileChangeEvent, OculpmSessionEnded, OculpmSessionStarted, Session, SessionConfig,
+    SessionEnd, SnapshotKind,
+};
+
+/// Min interval between two `sessions.json` rewrites for live activity. Other
+/// transitions (start / end / boundary) always flush synchronously.
+const UPSERT_DEBOUNCE: Duration = Duration::from_secs(5);
+
+/// How often the actor wakes itself to perform debounced upserts.
+const FLUSH_TICK: Duration = Duration::from_millis(250);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public command surface
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub enum SessionCmd {
+    NoteActivity(FileChangeEvent),
+    ManualStart,
+    ManualEnd(String /* session_id */),
+    InactivityFired,
+    BoundaryFired,
+    Shutdown(oneshot::Sender<()>),
+}
+
+/// Handle to a running `SessionActor`. Cheap to clone via the inner sender —
+/// `SessionCmd` is delivered via an unbounded mpsc so the watcher never blocks.
+#[derive(Clone)]
+pub struct SessionActor {
+    cmd_tx: mpsc::UnboundedSender<SessionCmd>,
+    project_id: u32,
+}
+
+impl SessionActor {
+    /// Spawn the actor task. The actor stays alive until `shutdown` is called
+    /// or every `SessionActor` clone is dropped.
+    pub fn spawn(
+        project_id: u32,
+        resolver: WorkdayResolver,
+        index_writer: Arc<IndexWriter>,
+        config: SessionConfig,
+        app_handle: Option<tauri::AppHandle>,
+    ) -> Self {
+        let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
+        let inner = ActorInner {
+            project_id,
+            resolver,
+            index_writer,
+            config,
+            app_handle,
+            cmd_tx: cmd_tx.clone(),
+            state: SessionState::Idle,
+        };
+        tokio::spawn(inner.run(cmd_rx));
+        Self { cmd_tx, project_id }
+    }
+
+    pub fn project_id(&self) -> u32 {
+        self.project_id
+    }
+
+    pub fn note_activity(&self, ev: FileChangeEvent) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::NoteActivity(ev))
+            .map_err(|_| OculpmError::ActorClosed)
+    }
+
+    pub fn manual_start(&self) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::ManualStart)
+            .map_err(|_| OculpmError::ActorClosed)
+    }
+
+    pub fn manual_end(&self, session_id: String) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::ManualEnd(session_id))
+            .map_err(|_| OculpmError::ActorClosed)
+    }
+
+    /// Drive the actor to finalize any open session and exit. Resolves once
+    /// the actor has processed every queued command before this call.
+    pub async fn shutdown(&self) -> Result<(), OculpmError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(SessionCmd::Shutdown(tx))
+            .map_err(|_| OculpmError::ActorClosed)?;
+        rx.await.map_err(|_| OculpmError::ActorClosed)
+    }
+
+    /// Force-fires the workday boundary handler. Exposed for W2-PR4 crash
+    /// recovery and unit tests that exercise boundary-time effects without
+    /// waiting for the wall clock.
+    pub fn force_boundary_fired(&self) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::BoundaryFired)
+            .map_err(|_| OculpmError::ActorClosed)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal state
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct ActiveSession {
+    session: Session,
+    active_start: DateTime<Utc>,
+    last_activity: DateTime<Utc>,
+    last_upsert: DateTime<Utc>,
+    files_unique: HashSet<String>,
+    inactivity_handle: JoinHandle<()>,
+    boundary_handle: JoinHandle<()>,
+    dirty: bool,
+}
+
+enum SessionState {
+    Idle,
+    /// Boxed so the enum size stays balanced — `Active` carries ~300 bytes
+    /// of timer/state data while `Idle`/`Closing` carry none.
+    Active(Box<ActiveSession>),
+    Closing,
+}
+
+struct ActorInner {
+    project_id: u32,
+    resolver: WorkdayResolver,
+    index_writer: Arc<IndexWriter>,
+    config: SessionConfig,
+    app_handle: Option<tauri::AppHandle>,
+    cmd_tx: mpsc::UnboundedSender<SessionCmd>,
+    state: SessionState,
+}
+
+impl ActorInner {
+    async fn run(mut self, mut cmd_rx: mpsc::UnboundedReceiver<SessionCmd>) {
+        let mut tick = tokio::time::interval(FLUSH_TICK);
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                cmd = cmd_rx.recv() => {
+                    match cmd {
+                        Some(SessionCmd::Shutdown(tx)) => {
+                            self.handle_shutdown().await;
+                            let _ = tx.send(());
+                            break;
+                        }
+                        Some(c) => {
+                            if matches!(self.state, SessionState::Closing) { continue; }
+                            self.handle(c).await;
+                        }
+                        None => break, // all senders dropped
+                    }
+                }
+                _ = tick.tick() => {
+                    if !matches!(self.state, SessionState::Closing) {
+                        self.maybe_flush().await;
+                    }
+                }
+            }
+        }
+        // Belt-and-suspenders: abort any live timer tasks so they don't
+        // outlive the actor. Drop(JoinHandle) detaches, it does NOT abort.
+        if let SessionState::Active(active) =
+            std::mem::replace(&mut self.state, SessionState::Closing)
+        {
+            active.inactivity_handle.abort();
+            active.boundary_handle.abort();
+        }
+    }
+
+    async fn handle(&mut self, cmd: SessionCmd) {
+        match cmd {
+            SessionCmd::NoteActivity(ev) => self.on_activity(ev).await,
+            SessionCmd::ManualStart => self.on_manual_start().await,
+            SessionCmd::ManualEnd(id) => self.on_manual_end(id).await,
+            SessionCmd::InactivityFired => self.on_inactivity_fired().await,
+            SessionCmd::BoundaryFired => self.on_boundary_fired().await,
+            SessionCmd::Shutdown(_) => unreachable!("Shutdown handled in run loop"),
+        }
+    }
+
+    // ─── Command handlers ───────────────────────────────────────────────────
+
+    async fn on_activity(&mut self, ev: FileChangeEvent) {
+        match &mut self.state {
+            SessionState::Idle => {
+                // Idle → Active. Start a new session triggered by file activity.
+                if let Err(e) = self.start_session(Some(&ev)).await {
+                    tracing::error!(target: "oculpm::session", error = ?e, "failed to start session on activity");
+                }
+            }
+            SessionState::Active(active) => {
+                active.last_activity = Utc::now();
+                active.session.file_event_count =
+                    active.session.file_event_count.saturating_add(1);
+                active.files_unique.insert(ev.path.clone());
+                active.session.files_unique = active.files_unique.len() as u32;
+                active.dirty = true;
+
+                // Reset the inactivity timer: abort current, spawn new.
+                let timeout = inactivity_timeout(&self.config);
+                let new_handle = spawn_inactivity_timer(self.cmd_tx.clone(), timeout);
+                let old = std::mem::replace(&mut active.inactivity_handle, new_handle);
+                old.abort();
+
+                // Debounced upsert: only persist if the last write is older
+                // than UPSERT_DEBOUNCE. Other paths flush eagerly.
+                if active
+                    .last_upsert
+                    .signed_duration_since(active.last_activity)
+                    .num_milliseconds()
+                    .abs()
+                    >= UPSERT_DEBOUNCE.as_millis() as i64
+                {
+                    let to_save = active.session.clone();
+                    active.last_upsert = active.last_activity;
+                    active.dirty = false;
+                    let writer = self.index_writer.clone();
+                    if let Err(e) = writer.upsert_session(&to_save).await {
+                        tracing::warn!(target: "oculpm::session", error = ?e, "debounced upsert failed");
+                    }
+                }
+            }
+            SessionState::Closing => {}
+        }
+    }
+
+    async fn on_manual_start(&mut self) {
+        if matches!(self.state, SessionState::Idle) {
+            if let Err(e) = self.start_session(None).await {
+                tracing::error!(target: "oculpm::session", error = ?e, "manual start failed");
+            }
+        }
+    }
+
+    async fn on_manual_end(&mut self, session_id: String) {
+        if let SessionState::Active(active) = &self.state {
+            if active.session.id != session_id {
+                tracing::warn!(
+                    target: "oculpm::session",
+                    requested = %session_id,
+                    active = %active.session.id,
+                    "manual_end called with mismatched session_id — ignoring"
+                );
+                return;
+            }
+            self.finalize_active(EndedReason::Manual, EndedAt::Now).await;
+        }
+    }
+
+    async fn on_inactivity_fired(&mut self) {
+        if matches!(self.state, SessionState::Active(_)) {
+            // ended_at is the moment of last activity, not the firing time.
+            self.finalize_active(EndedReason::InactivityTimeout, EndedAt::LastActivity)
+                .await;
+        }
+    }
+
+    async fn on_boundary_fired(&mut self) {
+        let old_workday = match &self.state {
+            SessionState::Active(active) => workday_from_id(&active.session.id),
+            _ => None,
+        };
+        if matches!(self.state, SessionState::Active(_)) {
+            self.finalize_active(EndedReason::WorkdayBoundary, EndedAt::Now)
+                .await;
+        }
+        // Capture snapshot_close for the workday that just ended (only if
+        // there was an active session — otherwise boundary firing is a no-op).
+        if let Some(old_wd) = old_workday {
+            if !self.index_writer.snapshot_exists(&old_wd, SnapshotKind::Close) {
+                if let Err(e) = self
+                    .index_writer
+                    .capture_snapshot(&old_wd, SnapshotKind::Close)
+                    .await
+                {
+                    tracing::warn!(target: "oculpm::session", error = ?e, "snapshot_close failed");
+                }
+            }
+        }
+        // Prepare today's workday directory + snapshot_open. The next
+        // NoteActivity will start a new session under the new workday.
+        let new_workday = self.resolver.workday_of(Utc::now());
+        if let Err(e) = self.index_writer.ensure_workday_dirs(&new_workday).await {
+            tracing::warn!(target: "oculpm::session", error = ?e, "ensure_workday_dirs failed");
+        }
+        if !self
+            .index_writer
+            .snapshot_exists(&new_workday, SnapshotKind::Open)
+        {
+            if let Err(e) = self
+                .index_writer
+                .capture_snapshot(&new_workday, SnapshotKind::Open)
+                .await
+            {
+                tracing::warn!(target: "oculpm::session", error = ?e, "snapshot_open failed");
+            }
+        }
+    }
+
+    async fn handle_shutdown(&mut self) {
+        if matches!(self.state, SessionState::Active(_)) {
+            self.finalize_active(EndedReason::AppQuit, EndedAt::Now).await;
+        }
+        self.state = SessionState::Closing;
+    }
+
+    // ─── Session lifecycle ──────────────────────────────────────────────────
+
+    async fn start_session(
+        &mut self,
+        first_event: Option<&FileChangeEvent>,
+    ) -> Result<(), OculpmError> {
+        let now = Utc::now();
+        let workday = self.resolver.workday_of(now);
+
+        self.index_writer.ensure_workday_dirs(&workday).await?;
+        if !self
+            .index_writer
+            .snapshot_exists(&workday, SnapshotKind::Open)
+        {
+            self.index_writer
+                .capture_snapshot(&workday, SnapshotKind::Open)
+                .await?;
+        }
+
+        let id = self.next_session_id(&workday).await?;
+        let started_at = now
+            .with_timezone(&self.resolver.tz)
+            .to_rfc3339_opts(SecondsFormat::Secs, false);
+        let mut files_unique: HashSet<String> = HashSet::new();
+        let mut file_event_count: u32 = 0;
+        if let Some(ev) = first_event {
+            files_unique.insert(ev.path.clone());
+            file_event_count = 1;
+        }
+
+        let session = Session {
+            id,
+            started_at,
+            ended_at: None,
+            ended_reason: None,
+            active_window_ms: 0,
+            file_event_count,
+            files_unique: files_unique.len() as u32,
+            git_head_at_start: self.index_writer.current_git_head(),
+            git_head_at_end: None,
+            agent_label_guess: None,
+            linked_journal_entries: Vec::new(),
+        };
+
+        self.index_writer.upsert_session(&session).await?;
+        self.emit_started(&session);
+
+        let inactivity = spawn_inactivity_timer(
+            self.cmd_tx.clone(),
+            inactivity_timeout(&self.config),
+        );
+        let boundary_at = self.resolver.next_boundary(now);
+        let boundary = spawn_boundary_timer(self.cmd_tx.clone(), boundary_at);
+
+        self.state = SessionState::Active(Box::new(ActiveSession {
+            session,
+            active_start: now,
+            last_activity: now,
+            last_upsert: now,
+            files_unique,
+            inactivity_handle: inactivity,
+            boundary_handle: boundary,
+            dirty: false,
+        }));
+        Ok(())
+    }
+
+    async fn finalize_active(&mut self, reason: EndedReason, ended_at: EndedAt) {
+        // Take ownership of the Active state so we can move its fields out.
+        let prev = std::mem::replace(&mut self.state, SessionState::Idle);
+        let active = match prev {
+            SessionState::Active(a) => *a,
+            other => {
+                self.state = other;
+                return;
+            }
+        };
+        active.inactivity_handle.abort();
+        active.boundary_handle.abort();
+        let mut session = active.session;
+        let active_start = active.active_start;
+        let last_activity = active.last_activity;
+
+        let end_instant = match ended_at {
+            EndedAt::Now => Utc::now(),
+            EndedAt::LastActivity => last_activity,
+        };
+        let end_str = end_instant
+            .with_timezone(&self.resolver.tz)
+            .to_rfc3339_opts(SecondsFormat::Secs, false);
+
+        // Active window: simple wall-clock span. Refining to exclude idle
+        // gaps lives in a later perf pass (see PR2 doc §6 #2).
+        let window_ms = (end_instant - active_start)
+            .num_milliseconds()
+            .max(0)
+            .min(u32::MAX as i64) as u32;
+        session.active_window_ms = window_ms;
+        session.git_head_at_end = self.index_writer.current_git_head();
+
+        // Persist final state, then call finalize_session for the
+        // ended_at/ended_reason fields (which finalize_session writes back).
+        if let Err(e) = self.index_writer.upsert_session(&session).await {
+            tracing::warn!(target: "oculpm::session", error = ?e, "pre-finalize upsert failed");
+        }
+        let finalized = match self
+            .index_writer
+            .finalize_session(
+                &session.id,
+                SessionEnd {
+                    ended_at: end_str,
+                    ended_reason: reason,
+                },
+            )
+            .await
+        {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!(target: "oculpm::session", error = ?e, "finalize_session failed");
+                session
+            }
+        };
+        self.emit_ended(&finalized);
+    }
+
+    async fn maybe_flush(&mut self) {
+        if let SessionState::Active(active) = &mut self.state {
+            if !active.dirty {
+                return;
+            }
+            let now = Utc::now();
+            if now.signed_duration_since(active.last_upsert).to_std().unwrap_or(Duration::ZERO)
+                < UPSERT_DEBOUNCE
+            {
+                return;
+            }
+            let to_save = active.session.clone();
+            active.last_upsert = active.last_activity;
+            active.dirty = false;
+            let writer = self.index_writer.clone();
+            if let Err(e) = writer.upsert_session(&to_save).await {
+                tracing::warn!(target: "oculpm::session", error = ?e, "tick flush failed");
+            }
+        }
+    }
+
+    async fn next_session_id(&self, workday: &str) -> Result<String, OculpmError> {
+        let existing = self.index_writer.list_sessions(workday).await?;
+        let max_nnn = existing
+            .iter()
+            .filter_map(|s| s.id.split('-').nth(1).and_then(|n| n.parse::<u32>().ok()))
+            .max()
+            .unwrap_or(0);
+        Ok(format!("{}-{:03}", workday, max_nnn + 1))
+    }
+
+    fn emit_started(&self, session: &Session) {
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = OculpmSessionStarted {
+                project_id: self.project_id,
+                session: session.clone(),
+            }
+            .emit(handle);
+        }
+    }
+
+    fn emit_ended(&self, session: &Session) {
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = OculpmSessionEnded {
+                project_id: self.project_id,
+                session: session.clone(),
+            }
+            .emit(handle);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EndedAt {
+    Now,
+    LastActivity,
+}
+
+fn inactivity_timeout(cfg: &SessionConfig) -> Duration {
+    Duration::from_secs(u64::from(cfg.inactivity_timeout_minutes).saturating_mul(60))
+}
+
+fn spawn_inactivity_timer(
+    cmd_tx: mpsc::UnboundedSender<SessionCmd>,
+    timeout: Duration,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        tokio::time::sleep(timeout).await;
+        let _ = cmd_tx.send(SessionCmd::InactivityFired);
+    })
+}
+
+fn spawn_boundary_timer(
+    cmd_tx: mpsc::UnboundedSender<SessionCmd>,
+    fires_at: DateTime<Utc>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        // Wall-clock-jump safe: recompute and re-sleep if the clock moved
+        // backwards or the boundary slid forward (DST / NTP adjustment).
+        loop {
+            let now = Utc::now();
+            if now >= fires_at {
+                break;
+            }
+            let delta = (fires_at - now).to_std().unwrap_or(Duration::ZERO);
+            if delta.is_zero() {
+                break;
+            }
+            tokio::time::sleep(delta).await;
+        }
+        let _ = cmd_tx.send(SessionCmd::BoundaryFired);
+    })
+}
+
+fn workday_from_id(session_id: &str) -> Option<String> {
+    if session_id.len() >= 8
+        && session_id.as_bytes()[..8].iter().all(|b| b.is_ascii_digit())
+    {
+        Some(session_id[..8].to_string())
+    } else {
+        None
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests — see `docs/major_update/oculpm/W2/PR2-session-actor.md` §5.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::oculpm::spec::{
+        AgentsConfig, FileOp, GitConfig, OculpmConfig, SessionConfig, WatcherConfig, WorkdayConfig,
+    };
+    use tempfile::tempdir;
+
+    fn fast_config() -> SessionConfig {
+        SessionConfig {
+            inactivity_timeout_minutes: 1, // 60s — but tests use force-fire / very short waits
+            auto_close_on_workday_boundary: true,
+            auto_close_on_app_quit: true,
+            crash_recovery_grace_minutes: 5,
+        }
+    }
+
+    fn build_writer(root: &std::path::Path) -> Arc<IndexWriter> {
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        Arc::new(IndexWriter::new(root.to_path_buf(), resolver))
+    }
+
+    fn make_event(path: &str) -> FileChangeEvent {
+        FileChangeEvent {
+            ts: Utc::now().to_rfc3339(),
+            session_id: "ignored-by-actor".into(),
+            op: FileOp::Update,
+            path: path.into(),
+            hash_before: None,
+            hash_after: None,
+            bytes: 100,
+        }
+    }
+
+    /// Helper: read the only session in today's workday.
+    async fn read_only_session(writer: &IndexWriter, workday: &str) -> Session {
+        let sessions = writer.list_sessions(workday).await.unwrap();
+        assert_eq!(sessions.len(), 1, "expected one session, got {:?}", sessions);
+        sessions.into_iter().next().unwrap()
+    }
+
+    fn today_workday() -> String {
+        WorkdayResolver::new("UTC", "00:00")
+            .unwrap()
+            .workday_of(Utc::now())
+    }
+
+    /// Case 1 — Idle → Active on first activity. session_id format,
+    /// snapshot_open captured, file_event_count = 1, files_unique = 1.
+    #[tokio::test]
+    async fn idle_to_active_on_first_activity() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        // Round-trip through Shutdown so the activity command is processed.
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let session = read_only_session(&writer, &workday).await;
+        assert!(session.id.starts_with(&workday));
+        assert!(session.id.ends_with("-001"));
+        assert_eq!(session.file_event_count, 1);
+        assert_eq!(session.files_unique, 1);
+        assert!(writer.snapshot_exists(&workday, SnapshotKind::Open));
+        // Shutdown finalized with app_quit.
+        assert_eq!(session.ended_reason.unwrap() as u8, EndedReason::AppQuit as u8);
+    }
+
+    /// Case 2 — inactivity timer fires → Idle, ended_reason = InactivityTimeout.
+    /// Uses InactivityFired direct injection to keep the test fast and
+    /// deterministic (real timer uses 60s minimum from SessionConfig).
+    #[tokio::test]
+    async fn inactivity_fired_finalizes_with_timeout_reason() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        // Inject InactivityFired directly to bypass the wall clock.
+        actor
+            .cmd_tx
+            .send(SessionCmd::InactivityFired)
+            .map_err(|_| OculpmError::ActorClosed)
+            .unwrap();
+        actor.shutdown().await.unwrap();
+
+        let session = read_only_session(&writer, &today_workday()).await;
+        assert!(matches!(
+            session.ended_reason,
+            Some(EndedReason::InactivityTimeout)
+        ));
+        assert!(session.ended_at.is_some(), "ended_at must be set");
+    }
+
+    /// Case 3 — activity AFTER InactivityFired starts a brand-new session.
+    /// Verifies the Active→Idle→Active round trip + monotonic session IDs.
+    #[tokio::test]
+    async fn second_activity_after_idle_starts_new_session() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor
+            .cmd_tx
+            .send(SessionCmd::InactivityFired)
+            .map_err(|_| OculpmError::ActorClosed)
+            .unwrap();
+        actor.note_activity(make_event("src/b.rs")).unwrap();
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let sessions = writer.list_sessions(&workday).await.unwrap();
+        assert_eq!(sessions.len(), 2);
+        assert!(sessions[0].id.ends_with("-001"));
+        assert!(sessions[1].id.ends_with("-002"));
+        // First session finalized via InactivityTimeout, second via AppQuit.
+        assert!(matches!(
+            sessions[0].ended_reason,
+            Some(EndedReason::InactivityTimeout)
+        ));
+        assert!(matches!(
+            sessions[1].ended_reason,
+            Some(EndedReason::AppQuit)
+        ));
+    }
+
+    /// Case 4 — workday boundary effects: finalize with workday_boundary,
+    /// snapshot_close for today's workday written, snapshot_open ensured.
+    /// (We can't easily simulate "boundary moves us to tomorrow" without a
+    /// clock mock, so we verify the effects that DON'T require advancing the
+    /// resolver: finalize reason + snapshot_close existence.)
+    #[tokio::test]
+    async fn boundary_fired_finalizes_and_captures_snapshot_close() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor.force_boundary_fired().unwrap();
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let session = read_only_session(&writer, &workday).await;
+        assert!(matches!(
+            session.ended_reason,
+            Some(EndedReason::WorkdayBoundary)
+        ));
+        assert!(
+            writer.snapshot_exists(&workday, SnapshotKind::Close),
+            "snapshot_close must be captured on boundary"
+        );
+        // snapshot_open was captured at session start; still exists.
+        assert!(writer.snapshot_exists(&workday, SnapshotKind::Open));
+    }
+
+    /// Case 5 — Shutdown on Active finalizes with `app_quit` and resolves
+    /// the oneshot. Idle Shutdown is a no-op apart from closing the actor.
+    #[tokio::test]
+    async fn shutdown_finalizes_with_app_quit() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor.shutdown().await.unwrap();
+
+        let session = read_only_session(&writer, &today_workday()).await;
+        assert!(matches!(session.ended_reason, Some(EndedReason::AppQuit)));
+
+        // Subsequent commands return ActorClosed.
+        let res = actor.note_activity(make_event("late.rs"));
+        assert!(matches!(res, Err(OculpmError::ActorClosed)));
+    }
+
+    /// Case 6 — ManualEnd with matching session_id finalizes; mismatched
+    /// session_id is ignored without state change.
+    #[tokio::test]
+    async fn manual_end_matches_session_id_strictly() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+
+        // First read the in-flight session id from disk (the actor has
+        // upserted it during start_session).
+        // We force the actor to flush by sending a Shutdown later, but here
+        // the upsert happens synchronously during start_session.
+        let workday = today_workday();
+        // Wait briefly for the activity command to process.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let active_id = {
+            let sessions = writer.list_sessions(&workday).await.unwrap();
+            sessions
+                .into_iter()
+                .find(|s| s.ended_at.is_none())
+                .expect("an open session must exist")
+                .id
+        };
+
+        // Mismatch → ignored.
+        actor.manual_end("WRONG-ID".into()).unwrap();
+        // Match → finalize.
+        actor.manual_end(active_id.clone()).unwrap();
+        actor.shutdown().await.unwrap();
+
+        let sessions = writer.list_sessions(&workday).await.unwrap();
+        let our = sessions.iter().find(|s| s.id == active_id).unwrap();
+        assert!(matches!(our.ended_reason, Some(EndedReason::Manual)));
+    }
+
+    /// Bonus — a fresh actor whose Shutdown arrives on Idle state leaves no
+    /// session on disk and resolves cleanly.
+    #[tokio::test]
+    async fn shutdown_on_idle_is_clean_noop() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.shutdown().await.unwrap();
+        let sessions = writer.list_sessions(&today_workday()).await.unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    // Helper accessor for tests that need to inject internal commands. Keeps
+    // the `cmd_tx` field private from the public API while letting unit tests
+    // simulate InactivityFired without 60-second waits.
+    impl SessionActor {
+        fn cmd_tx_clone(&self) -> mpsc::UnboundedSender<SessionCmd> {
+            self.cmd_tx.clone()
+        }
+    }
+
+    // Silence unused-config warning when running tests — these structs are
+    // referenced by the doc comments and serve as future test scaffolding.
+    #[allow(dead_code)]
+    fn _full_config_sample() -> OculpmConfig {
+        OculpmConfig {
+            schema_version: 1,
+            workday: WorkdayConfig {
+                timezone: "UTC".into(),
+                day_starts_at: "00:00".into(),
+            },
+            session: fast_config(),
+            git: GitConfig {
+                journal_committed: false,
+                forbid_journal_for_paths: vec![],
+                auto_redact_patterns: vec![],
+            },
+            watcher: WatcherConfig {
+                ignore: vec![],
+                respect_gitignore: true,
+                debounce_ms: 500,
+                batch_max_events: 200,
+            },
+            agents: AgentsConfig {
+                active: vec![],
+                auto_detect_on_open: true,
+                auto_sync_adapters: true,
+            },
+        }
+    }
+}

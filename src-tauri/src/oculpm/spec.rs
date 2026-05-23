@@ -1,9 +1,14 @@
 //! Type definitions for the `.oculpm/` subsystem.
 //!
-//! Every type here is part of the specta-exported public surface — changing
-//! a field is a breaking change for the TypeScript bindings. See
-//! `docs/major_update/oculpm/00-spec.md` §3 (frontmatter), §4 (sessions/ndjson),
-//! and `01-backend.md` §4.
+//! **Per-type doc comments are intentionally omitted.** Each public type here
+//! is a direct port of a section in `docs/major_update/oculpm/00-spec.md` (§3
+//! frontmatter, §4 sessions/ndjson/snapshot, §5 config, §7 reports) and
+//! `01-backend.md` §4. Adding `///` paraphrases would duplicate the spec and
+//! drift out of sync — the spec is the SSOT for semantics; this file is the
+//! SSOT for wire shape (specta TS export).
+//!
+//! Every type is part of the specta-exported public surface — changing a
+//! field is a breaking change for the TypeScript bindings.
 //!
 //! Naming: top-level types stay unprefixed (`Session`, `JournalEntry`, ...)
 //! since they're within the oculpm namespace conceptually. The TypeScript side

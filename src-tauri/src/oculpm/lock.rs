@@ -32,6 +32,8 @@ struct LockFile {
     heartbeat_at: String,
 }
 
+/// Diagnostics about a stale lock that we just took over — surfaced through
+/// `LockAcquisition::Recovered` so callers can emit an integrity_warning.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ZombieInfo {
@@ -39,6 +41,7 @@ pub struct ZombieInfo {
     pub heartbeat_age_seconds: i64,
 }
 
+/// Outcome of `LockGuard::acquire`. Maps to `LockStateView` for the UI.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum LockAcquisition {

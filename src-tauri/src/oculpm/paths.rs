@@ -26,6 +26,9 @@ use chrono_tz::Tz;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::spec::EntryType;
 
+/// Timezone-aware workday + path resolver. One per `ProjectEntry` — owns the
+/// project's tz / `day_starts_at` config plus the `.oculpm/` path layout
+/// helpers, so the rest of the subsystem never hard-codes either.
 #[allow(dead_code)] // Consumed by config.rs (W1-PR4) and OculpmManager (W1-PR7).
 #[derive(Debug, Clone)]
 pub struct WorkdayResolver {
@@ -115,17 +118,22 @@ impl WorkdayResolver {
     }
 
     // ─── Path helpers ───────────────────────────────────────────────────────
+    // SSOT for the `.oculpm/` on-disk layout. Every other module routes
+    // through these instead of joining strings directly.
 
+    /// `<project_root>/.oculpm`.
     pub fn project_oculpm_dir(&self, project_root: &Path) -> PathBuf {
         project_root.join(".oculpm")
     }
 
+    /// `<project_root>/.oculpm/index/<workday>`.
     pub fn index_dir(&self, project_root: &Path, workday: &str) -> PathBuf {
         self.project_oculpm_dir(project_root)
             .join("index")
             .join(workday)
     }
 
+    /// `<project_root>/.oculpm/journal/<workday>/<Category>`.
     pub fn journal_dir(&self, project_root: &Path, workday: &str, kind: EntryType) -> PathBuf {
         let category = match kind {
             EntryType::Bug => "Bugs",
@@ -140,14 +148,17 @@ impl WorkdayResolver {
             .join(category)
     }
 
+    /// `<project_root>/.oculpm/.lock`.
     pub fn lock_path(&self, project_root: &Path) -> PathBuf {
         self.project_oculpm_dir(project_root).join(".lock")
     }
 
+    /// `<project_root>/.oculpm/.schema-version`.
     pub fn schema_version_path(&self, project_root: &Path) -> PathBuf {
         self.project_oculpm_dir(project_root).join(".schema-version")
     }
 
+    /// `<project_root>/.oculpm/config.toml`.
     pub fn config_path(&self, project_root: &Path) -> PathBuf {
         self.project_oculpm_dir(project_root).join("config.toml")
     }

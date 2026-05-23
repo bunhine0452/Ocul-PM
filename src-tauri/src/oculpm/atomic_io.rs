@@ -117,6 +117,16 @@ pub fn append_ndjson(path: &Path, line: &str) -> Result<(), OculpmError> {
         }
     }
 
+    // Build the full payload (`line + \n`) before writing so the kernel sees
+    // a single `write(2)` syscall. Under O_APPEND, writes ≤ PIPE_BUF (4 KB on
+    // Linux/macOS) are atomic with respect to other appenders, which is what
+    // makes concurrent producers safe. Splitting into two write_all calls
+    // (line, then '\n') breaks that guarantee — discovered in W2-PR1's
+    // `concurrent_append_does_not_lose_lines` test.
+    let mut buf = Vec::with_capacity(line.len() + 1);
+    buf.extend_from_slice(line.as_bytes());
+    buf.push(b'\n');
+
     use std::io::Write;
     let mut f = std::fs::OpenOptions::new()
         .append(true)
@@ -126,11 +136,7 @@ pub fn append_ndjson(path: &Path, line: &str) -> Result<(), OculpmError> {
             path: path.to_path_buf(),
             source,
         })?;
-    f.write_all(line.as_bytes()).map_err(|source| OculpmError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    f.write_all(b"\n").map_err(|source| OculpmError::Io {
+    f.write_all(&buf).map_err(|source| OculpmError::Io {
         path: path.to_path_buf(),
         source,
     })?;
@@ -156,6 +162,8 @@ pub struct ManagedBlock {
     pub content: String,
 }
 
+/// Outcome of `write_managed_block` — lets callers (e.g. `init_project`)
+/// decide whether to surface "we touched the file" to the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum ManagedBlockResult {
@@ -167,6 +175,9 @@ pub enum ManagedBlockResult {
     Unchanged,
 }
 
+/// Locate the `<begin v1> ... <end>` block for `block_id` in `path`. Returns
+/// `Ok(None)` if no block is present, `Err(ManagedBlockMismatch)` if only one
+/// marker is found, otherwise the inner content joined by `\n`.
 #[allow(dead_code)] // Consumed by gitignore (W1-PR8) and agents (W4).
 pub fn read_managed_block(
     path: &Path,
@@ -217,6 +228,10 @@ pub fn read_managed_block(
     }
 }
 
+/// Insert/update/no-op the `<begin v1> ... <end>` block for `block_id` in
+/// `path` with `new_content`. EOL convention (LF / CRLF) is detected from
+/// existing content and preserved. Creates `path` if missing. Returns
+/// `Err(ManagedBlockMismatch)` if only one marker is present in the file.
 #[allow(dead_code)] // Consumed by gitignore (W1-PR8) and agents (W4).
 pub fn write_managed_block(
     path: &Path,
@@ -269,6 +284,8 @@ pub fn write_managed_block(
     }
 }
 
+/// Remove the `<begin v1> ... <end>` block for `block_id` from `path`,
+/// preserving surrounding user content. No-op if no block or no file.
 #[allow(dead_code)] // Consumed by agents (W4) when deactivating an adapter.
 pub fn remove_managed_block(
     path: &Path,
