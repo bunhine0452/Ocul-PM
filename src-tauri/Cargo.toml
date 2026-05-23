@@ -64,6 +64,10 @@ fs2 = "0.4"
 toml = "0.8"
 uuid = { version = "1", features = ["v4"] }
 
+[dev-dependencies]
+# Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).
+tempfile = "3.10"
+
 
 
 

@@ -42,6 +42,8 @@ use crate::commands::{
     // G4 — Greenfield (W6)
     save_blueprint, get_blueprint, list_blueprints, delete_blueprint,
     check_cli_available, create_greenfield_project, generate_seed_goals,
+    // .oculpm/ subsystem (W1-PR6)
+    oculpm_init, oculpm_get_status, oculpm_get_config, oculpm_set_config,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -154,6 +156,11 @@ pub fn run() {
         check_cli_available,
         create_greenfield_project,
         generate_seed_goals,
+        // .oculpm/ subsystem (W1-PR6)
+        oculpm_init,
+        oculpm_get_status,
+        oculpm_get_config,
+        oculpm_set_config,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
@@ -174,7 +181,7 @@ pub fn run() {
         .export(Typescript::default(), "../src/lib/bindings.ts")
         .expect("Failed to export typescript bindings");
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -198,10 +205,25 @@ pub fn run() {
             app.manage(db);
             app.manage(Embedder::new());
             app.manage(crate::commands::terminal::PtyState::default());
+            // .oculpm/ subsystem (W1-PR6)
+            app.manage(crate::oculpm::manager::OculpmManager::new());
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    // .oculpm/ subsystem (W1-PR7): release every project's lock on graceful
+    // shutdown. RAII via `LockGuard::drop` is the safety net if the
+    // best-effort sync drain here loses a race.
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            if let Some(manager) = app_handle
+                .try_state::<crate::oculpm::manager::OculpmManager>()
+            {
+                manager.shutdown_all_blocking();
+            }
+        }
+    });
 }
 

@@ -12,11 +12,11 @@
 | W1-PR1 | Cargo 의존성 + 모듈 스켈레톤 | ✅ 완료 | [`PR1-cargo-deps-skeleton.md`](./PR1-cargo-deps-skeleton.md) |
 | W1-PR2 | `spec.rs` 핵심 타입 + specta 노출 | ✅ 완료 | [`PR2-spec-types.md`](./PR2-spec-types.md) |
 | W1-PR3 | `paths.rs` (`WorkdayResolver`) + 단위 테스트 | ✅ 완료 | [`PR3-workday-resolver.md`](./PR3-workday-resolver.md) |
-| W1-PR4 | `config.rs` 기본값 + 검증 | ⬜ | [`PR4-config.md`](./PR4-config.md) |
-| W1-PR5 | `atomic_io.rs` + `lock.rs` + 단위 테스트 | ⬜ | [`PR5-atomic-io-lock.md`](./PR5-atomic-io-lock.md) |
-| W1-PR6 | 4개 커맨드: init / get_status / get_config / set_config | ⬜ | [`PR6-init-commands.md`](./PR6-init-commands.md) |
-| W1-PR7 | `OculpmManager` + lib.rs 부트스트랩 | ⬜ | [`PR7-manager-bootstrap.md`](./PR7-manager-bootstrap.md) |
-| W1-PR8 | `.gitignore` 관리 블록 자동 작성 | ⬜ | [`PR8-gitignore-managed-block.md`](./PR8-gitignore-managed-block.md) |
+| W1-PR4 | `config.rs` 기본값 + 검증 | ✅ 완료 | [`PR4-config.md`](./PR4-config.md) |
+| W1-PR5 | `atomic_io.rs` + `lock.rs` + 단위 테스트 | ✅ 완료 | [`PR5-atomic-io-lock.md`](./PR5-atomic-io-lock.md) |
+| W1-PR6 | 4개 커맨드: init / get_status / get_config / set_config | ✅ 완료 | [`PR6-init-commands.md`](./PR6-init-commands.md) |
+| W1-PR7 | `OculpmManager` + lib.rs 부트스트랩 | ✅ 완료 | [`PR7-manager-bootstrap.md`](./PR7-manager-bootstrap.md) |
+| W1-PR8 | `.gitignore` 관리 블록 자동 작성 | ✅ 완료 | [`PR8-gitignore-managed-block.md`](./PR8-gitignore-managed-block.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.
 

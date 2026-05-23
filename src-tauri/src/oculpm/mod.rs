@@ -12,6 +12,7 @@ pub mod atomic_io;
 pub mod config;
 pub mod error;
 pub mod lock;
+pub mod manager;
 pub mod paths;
 pub mod spec;
 

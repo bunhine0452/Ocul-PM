@@ -90,6 +90,18 @@ function App() {
     }
   }, [selectedProjectId]);
 
+  // .oculpm/ auto-init on project selection (W1-PR7).
+  // Idempotent server-side, so safe to call on every selection. Non-fatal:
+  // a project remains usable even if ocul-pm fails to initialise here.
+  useEffect(() => {
+    if (selectedProjectId == null) return;
+    void commands.oculpmInit(selectedProjectId).then((res) => {
+      if (res.status === "error") {
+        console.warn("[oculpm] init failed:", res.error);
+      }
+    });
+  }, [selectedProjectId]);
+
   // Refresh project lists
   async function refreshProjects() {
     setError(null);

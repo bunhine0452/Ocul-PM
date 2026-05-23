@@ -23,7 +23,41 @@ pub enum OculpmError {
     #[error("invalid HH:MM '{0}' (expected 00:00 - 23:59)")]
     InvalidHHMM(String),
 
-    /// Placeholder used by stub modules. Real variants land in W1-PR4..PR8.
+    // W1-PR4 — OculpmConfig
+    #[error("config parse error: {0}")]
+    ConfigParse(#[from] toml::de::Error),
+
+    #[error("config serialize error: {0}")]
+    ConfigSerialize(#[from] toml::ser::Error),
+
+    #[error("invalid config: {0}")]
+    InvalidConfig(String),
+
+    // W1-PR5 — atomic_io + lock
+    #[error("managed block mismatch in {path}: only one of begin/end markers present")]
+    ManagedBlockMismatch { path: PathBuf },
+
+    #[error("ndjson line is {0} bytes (cap is {1})")]
+    NdjsonLineTooLarge(usize, usize),
+
+    #[error("ndjson line must not contain a newline character")]
+    NdjsonLineHasNewline,
+
+    #[error("json parse error in {path}: {source}")]
+    JsonParse {
+        path: PathBuf,
+        #[source]
+        source: serde_json::Error,
+    },
+
+    #[error("json serialize error: {0}")]
+    JsonSerialize(serde_json::Error),
+
+    // W1-PR6 — OculpmManager
+    #[error("project {0} is not initialized; call oculpm_init first")]
+    NotInitialized(u32),
+
+    /// Placeholder used by stub modules. Real variants land in W1-PR7..PR8.
     #[error("not yet implemented")]
     NotImplemented,
 }
