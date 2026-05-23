@@ -12,8 +12,8 @@
 | W2-PR1 | `index.rs` (writer/reader) — sessions/ndjson/snapshot | ✅ 완료 | [`PR1-index-writer.md`](./PR1-index-writer.md) |
 | W2-PR2 | `session.rs` 상태 머신 (Idle/Active/Closing) | ✅ 완료 | [`PR2-session-actor.md`](./PR2-session-actor.md) |
 | W2-PR3 | `watcher.rs` notify 통합 + should_track/classify | ✅ 완료 | [`PR3-watcher-notify.md`](./PR3-watcher-notify.md) |
-| W2-PR4 | Crash recovery 통합 (zombie sessions) | ⬜ | [`PR4-crash-recovery.md`](./PR4-crash-recovery.md) |
-| W2-PR5 | Tauri 이벤트 emit + 프론트 listener 스모크 | ⬜ | [`PR5-tauri-events.md`](./PR5-tauri-events.md) |
+| W2-PR4 | Crash recovery 통합 (zombie sessions) | ✅ 완료 | [`PR4-crash-recovery.md`](./PR4-crash-recovery.md) |
+| W2-PR5 | Tauri 이벤트 emit + 프론트 listener 스모크 | ✅ 완료 | [`PR5-tauri-events.md`](./PR5-tauri-events.md) |
 | W2-PR6 | `oculpm_*` 커맨드 9개 확장 | ⬜ | [`PR6-watcher-commands.md`](./PR6-watcher-commands.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.

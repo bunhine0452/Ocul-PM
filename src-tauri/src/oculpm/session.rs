@@ -868,4 +868,82 @@ mod tests {
             },
         }
     }
+
+    // ─── W2-PR5 — real-timer inactivity tests ──────────────────────────────
+    // Uses `tokio::time::pause()` + `advance()` to test the actual
+    // `spawn_inactivity_timer` without waiting 60 real seconds.
+
+    /// PR5 real-timer test 1 — after activity, advancing time past the
+    /// inactivity timeout causes the timer to fire and finalize the session.
+    #[tokio::test(start_paused = true)]
+    async fn real_timer_fires_after_inactivity_timeout() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        // Trigger Idle→Active transition.
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        // Let the actor process the command.
+        tokio::task::yield_now().await;
+
+        // fast_config has inactivity_timeout_minutes = 1 → 60s.
+        // Advance past the timeout.
+        tokio::time::advance(Duration::from_secs(61)).await;
+        // Yield to let the timer task fire and the actor process InactivityFired.
+        tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
+
+        actor.shutdown().await.unwrap();
+
+        let session = read_only_session(&writer, &today_workday()).await;
+        assert!(
+            matches!(session.ended_reason, Some(EndedReason::InactivityTimeout)),
+            "session must be ended by real timer, got: {:?}",
+            session.ended_reason
+        );
+    }
+
+    /// PR5 real-timer test 2 — activity resets the inactivity timer.
+    /// After first activity, advance 50s (< 60s), send another activity,
+    /// then advance 50s again (total 100s from first, but only 50s from last
+    /// activity). Session must still be active.
+    #[tokio::test(start_paused = true)]
+    async fn real_timer_reset_on_new_activity() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        // First activity → starts session + spawns inactivity timer.
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        tokio::task::yield_now().await;
+
+        // Advance 50s — within the 60s window.
+        tokio::time::advance(Duration::from_secs(50)).await;
+        tokio::task::yield_now().await;
+
+        // Second activity → must reset the timer.
+        actor.note_activity(make_event("src/b.rs")).unwrap();
+        tokio::task::yield_now().await;
+
+        // Advance another 50s (100s total, but only 50s since last activity).
+        tokio::time::advance(Duration::from_secs(50)).await;
+        tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
+
+        // Session should still be alive — shutdown and check.
+        actor.shutdown().await.unwrap();
+
+        let session = read_only_session(&writer, &today_workday()).await;
+        assert!(
+            matches!(session.ended_reason, Some(EndedReason::AppQuit)),
+            "session must still be active (ended by shutdown, not timer), got: {:?}",
+            session.ended_reason
+        );
+        assert_eq!(
+            session.file_event_count, 2,
+            "both activities must be recorded"
+        );
+    }
 }

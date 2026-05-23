@@ -27,17 +27,33 @@ use crate::oculpm::atomic_io::{append_ndjson, write_atomic, NDJSON_LINE_CAP};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::spec::{
-    FileChangeEvent, Session, SessionEnd, Snapshot, SnapshotGit, SnapshotKind, SnapshotTree,
+    FileChangeEvent, IntegrityWarning, OculpmIntegrityWarning, Session, SessionEnd, Snapshot,
+    SnapshotGit, SnapshotKind, SnapshotTree,
 };
 
 const SCHEMA_VERSION: u32 = 1;
 
 /// Per-project writer/reader for the `.oculpm/index/` tree. Cheap to clone —
-/// holds only the project root + resolver.
-#[derive(Debug, Clone)]
+/// holds only the project root + resolver + optional emit context.
+#[derive(Clone)]
 pub struct IndexWriter {
     root: PathBuf,
     resolver: WorkdayResolver,
+    /// (project_id, AppHandle) — when set, integrity warnings (ndjson corruption,
+    /// etc.) are emitted as `oculpm:integrity_warning` Tauri events. `None` in
+    /// unit tests and pre-init callers.
+    emit_ctx: Option<(u32, tauri::AppHandle)>,
+}
+
+// Manual Debug because `tauri::AppHandle` doesn't implement Debug.
+impl std::fmt::Debug for IndexWriter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexWriter")
+            .field("root", &self.root)
+            .field("resolver", &self.resolver)
+            .field("emit_ctx", &self.emit_ctx.as_ref().map(|(id, _)| id))
+            .finish()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,7 +66,18 @@ impl IndexWriter {
     /// Build a writer bound to a project root + resolver. The root is not
     /// validated here — `ensure_workday_dirs` creates directories on demand.
     pub fn new(root: PathBuf, resolver: WorkdayResolver) -> Self {
-        Self { root, resolver }
+        Self {
+            root,
+            resolver,
+            emit_ctx: None,
+        }
+    }
+
+    /// Attach an emit context so integrity warnings are emitted as Tauri events.
+    /// Returns `self` for builder chaining.
+    pub fn with_emit_ctx(mut self, project_id: u32, app_handle: tauri::AppHandle) -> Self {
+        self.emit_ctx = Some((project_id, app_handle));
+        self
     }
 
     /// `.oculpm/index/<workday>/` mkdir (idempotent).
@@ -208,6 +235,15 @@ impl IndexWriter {
                 backup = %backup.display(),
                 "truncated corrupted ndjson tail"
             );
+            // W2-PR5: emit integrity_warning to frontend.
+            self.emit_integrity_warning(IntegrityWarning {
+                kind: "ndjson_corrupted_tail".to_string(),
+                path: path.display().to_string(),
+                message: format!(
+                    "Corrupted ndjson at line {idx}; tail backed up to {}",
+                    backup.display()
+                ),
+            });
         }
 
         Ok(match since {
@@ -247,6 +283,86 @@ impl IndexWriter {
         let bytes = serde_json::to_vec_pretty(&snapshot).map_err(OculpmError::JsonSerialize)?;
         write_atomic(&path, &bytes)?;
         Ok(snapshot)
+    }
+
+    /// Timestamp of the last `FileChangeEvent` for `session_id` in `workday`.
+    /// Reverse-scans the ndjson file so the cost is proportional to the
+    /// distance from the end rather than the file size. Returns `None` if no
+    /// matching event is found (e.g. zero-event session).
+    pub async fn last_event_ts(
+        &self,
+        workday: &str,
+        session_id: &str,
+    ) -> Result<Option<String>, OculpmError> {
+        let path = self.file_changes_path(workday);
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(source) => return Err(OculpmError::Io { path, source }),
+        };
+
+        // Reverse iterate lines for the first match.
+        for raw_line in text.lines().rev() {
+            let line = raw_line.trim_end_matches('\r');
+            if line.is_empty() {
+                continue;
+            }
+            if let Ok(ev) = serde_json::from_str::<FileChangeEvent>(line) {
+                if ev.session_id == session_id {
+                    return Ok(Some(ev.ts));
+                }
+            }
+            // Skip corrupted lines silently — `read_file_changes` handles
+            // backup/truncation; this method is read-only.
+        }
+        Ok(None)
+    }
+
+    /// All `YYYYMMDD` workday directory names under `.oculpm/index/`, sorted
+    /// in descending order (most recent first). Used by crash recovery to
+    /// enumerate recent workdays without knowing today's date a priori.
+    pub async fn list_workdays(&self) -> Result<Vec<String>, OculpmError> {
+        let index_root = self.resolver.project_oculpm_dir(&self.root).join("index");
+        let entries = match std::fs::read_dir(&index_root) {
+            Ok(e) => e,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(source) => {
+                return Err(OculpmError::Io {
+                    path: index_root,
+                    source,
+                })
+            }
+        };
+
+        let mut workdays: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map_or(false, |ft| ft.is_dir()))
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                // Validate YYYYMMDD format: exactly 8 ASCII digits.
+                if name.len() == 8 && name.bytes().all(|b| b.is_ascii_digit()) {
+                    Some(name)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        workdays.sort_unstable_by(|a, b| b.cmp(a)); // descending
+        Ok(workdays)
+    }
+
+    // ─── emit helpers ───────────────────────────────────────────────────────
+
+    fn emit_integrity_warning(&self, warning: IntegrityWarning) {
+        if let Some((project_id, handle)) = &self.emit_ctx {
+            use tauri_specta::Event;
+            let _ = OculpmIntegrityWarning {
+                project_id: *project_id,
+                warning,
+            }
+            .emit(handle);
+        }
     }
 
     // ─── path helpers ───────────────────────────────────────────────────────
@@ -695,5 +811,51 @@ mod tests {
         assert!(matches!(err, OculpmError::InvalidSessionId(_)));
         // No directory created.
         assert!(!dir.path().join(".oculpm/index").exists());
+    }
+
+    // ─── W2-PR5 — integrity_warning emit path ──────────────────────────────
+
+    /// PR5 test — corrupted ndjson triggers the integrity_warning emit path
+    /// without panic when `emit_ctx` is `None`. The `emit_integrity_warning`
+    /// helper is called but safely no-ops.
+    #[tokio::test]
+    async fn integrity_warning_emit_path_safe_without_app_handle() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path()); // emit_ctx = None
+        let sid = "20260522-001";
+
+        writer
+            .append_file_change(&make_event(sid, 0, "ok.rs"))
+            .await
+            .unwrap();
+
+        // Inject a corrupted line.
+        let path = writer.file_changes_path("20260522");
+        {
+            use std::io::Write;
+            let mut f = std::fs::OpenOptions::new()
+                .append(true)
+                .open(&path)
+                .unwrap();
+            f.write_all(b"NOT-JSON\n").unwrap();
+        }
+
+        // This must not panic even though emit_integrity_warning is called.
+        let events = writer.read_file_changes("20260522", None).await.unwrap();
+        assert_eq!(events.len(), 1, "only valid event survives");
+        assert_eq!(events[0].path, "ok.rs");
+
+        // Backup file created as evidence of corruption recovery.
+        let dir_path = path.parent().unwrap();
+        let backups: Vec<_> = std::fs::read_dir(dir_path)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .contains(".corrupted-tail-")
+            })
+            .collect();
+        assert_eq!(backups.len(), 1, "corruption backup must exist");
     }
 }

@@ -743,4 +743,65 @@ mod tests {
         s.watcher.stop().await.unwrap();
         s.actor.shutdown().await.unwrap();
     }
+
+    // ─── W2-PR5 — Tauri event emit paths ───────────────────────────────────
+
+    /// PR5 test 1 — `.oculpm/agents/_template.md` change triggers the
+    /// agents_template_changed emit path (no panic with `app_handle: None`,
+    /// not routed to session ndjson).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn agents_template_change_emits_without_panic() {
+        let s = setup().await;
+        std::fs::create_dir_all(s.dir.path().join(".oculpm/agents")).unwrap();
+        std::fs::write(
+            s.dir.path().join(".oculpm/agents/_template.md"),
+            "# template\n",
+        )
+        .unwrap();
+        settle().await;
+        s.watcher.stop().await.unwrap();
+        s.actor.shutdown().await.unwrap();
+
+        // agents/ changes must NOT appear in ndjson.
+        let events = s
+            .writer
+            .read_file_changes(&today_workday(&s.resolver), None)
+            .await
+            .unwrap();
+        let agents_events: Vec<_> = events
+            .iter()
+            .filter(|e| e.path.contains("agents"))
+            .collect();
+        assert!(
+            agents_events.is_empty(),
+            "agents/ events must be emit-only, not in ndjson: {agents_events:?}"
+        );
+    }
+
+    /// PR5 test 2 — `.oculpm/journal/<workday>/Bugs/foo.md` change triggers
+    /// the journal_path_changed emit path (no panic, not routed to ndjson).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn journal_change_emits_without_panic() {
+        let s = setup().await;
+        let journal_dir = s.dir.path().join(".oculpm/journal/20260523/Bugs");
+        std::fs::create_dir_all(&journal_dir).unwrap();
+        std::fs::write(journal_dir.join("foo.md"), "# Bug report\n").unwrap();
+        settle().await;
+        s.watcher.stop().await.unwrap();
+        s.actor.shutdown().await.unwrap();
+
+        let events = s
+            .writer
+            .read_file_changes(&today_workday(&s.resolver), None)
+            .await
+            .unwrap();
+        let journal_events: Vec<_> = events
+            .iter()
+            .filter(|e| e.path.contains("journal"))
+            .collect();
+        assert!(
+            journal_events.is_empty(),
+            "journal/ events must be emit-only, not in ndjson: {journal_events:?}"
+        );
+    }
 }

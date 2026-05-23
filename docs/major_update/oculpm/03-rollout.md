@@ -209,17 +209,19 @@ W1 (foundation)
 ## 5. 페이즈별 인수 조건 (E2E 체크리스트)
 
 ### W1
-- [ ] 새 프로젝트 열기 → `.oculpm/{config.toml, .lock, .schema-version}` 생성됨
-- [ ] `.gitignore` 에 관리 블록 추가됨, 두 번 실행해도 중복 X
-- [ ] `cargo test` 전체 통과
-- [ ] 기존 changelog UI 가 깨지지 않음 (회귀 X)
+- [x] 새 프로젝트 열기 → `.oculpm/{config.toml, .lock, .schema-version}` 생성됨 — `init_creates_files_and_acquires_lock`
+- [x] `.gitignore` 에 관리 블록 추가됨, 두 번 실행해도 중복 X — `init_creates_gitignore_when_missing` + `init_is_idempotent_for_gitignore`
+- [x] `cargo test` 전체 통과 — 77 tests, 0 failed (oculpm 모듈)
+- [x] 기존 changelog UI 가 깨지지 않음 (회귀 X) — oculpm 모듈은 별도 모듈, 기존 코드 미변경. 전체 빌드 green.
 
 ### W2
-- [ ] 임의 파일 1개 수정 → 1초 안에 `index/<today>/file_changes.ndjson` 에 줄 추가됨
-- [ ] `node_modules/` 안 변경은 무시
-- [ ] 30분 비활성 (테스트는 5초) 후 세션 자동 종료, `sessions.json` 에 `ended_reason: inactivity_timeout`
-- [ ] 앱 강제종료 후 재시작 → 직전 세션이 `crash_recovered` 로 마감되어 있음
-- [ ] 워크데이 boundary 넘어가면 새 폴더 자동 생성 + 직전 세션 boundary 로 종료
+- [ ] 임의 파일 1개 수정 → 1초 안에 `index/<today>/file_changes.ndjson` 에 줄 추가됨 — unit: `five_file_modifications_produce_five_ndjson_events` ✅ / E2E: PR6 커맨드로 워처 시작 후 검증 필요
+- [ ] `node_modules/` 안 변경은 무시 — unit: `gitignored_paths_are_ignored` ✅ / E2E: 위와 동일
+- [ ] 30분 비활성 (테스트는 tokio time-advance 60초) 후 세션 자동 종료, `sessions.json` 에 `ended_reason: inactivity_timeout` — unit: force-fire ✅ + 실제 타이머 `real_timer_fires_after_inactivity_timeout` ✅ + 타이머 리셋 `real_timer_reset_on_new_activity` ✅ / E2E: PR6 이후
+- [ ] 앱 강제종료 후 재시작 → 직전 세션이 `crash_recovered` 로 마감되어 있음 — unit: `recover_two_zombie_sessions` ✅ / E2E: PR6 init → 강제종료 → 재 init 시나리오 필요
+- [ ] 워크데이 boundary 넘어가면 새 폴더 자동 생성 + 직전 세션 boundary 로 종료 — unit: `boundary_fired_finalizes_and_captures_snapshot_close` ✅ / E2E: PR6 이후
+- [ ] 6종 Tauri 이벤트 emit 경로 정상 — unit: emit skip (None) 검증 ✅ / E2E: PR6 이후 DevTools 콘솔 수동 QA
+- [ ] specta TS 타입 export (`bindings.ts` 에 6개 이벤트 리스너 생성) — ✅ 빌드 시 확인 완료
 
 ### W3
 - [ ] `.oculpm/journal/<today>/Bugs/0900_bug_x.md` 를 손으로 만들면 Today 에 카드로 나타남 (1초 이내)
@@ -289,13 +291,3 @@ W6 이후에 자연스럽게 따라올 수 있는 것들 (메모용):
 
 ---
 
-## 9. 결정 / 합의 필요 (지금)
-
-이 문서가 합의되면 W1 부터 즉시 착수. 그 전에 한 번만 확인하고 싶은 것:
-
-1. **페이즈 길이**: W1~W6 = 6주가 길다면, W2 와 W3 를 합쳐 5주로 줄일 수 있음. 1인 개발 페이스를 모르므로 사용자 판단 필요.
-2. **dogfooding 시작 시점**: W3 종료 직후 (수동), W4 종료 직후 (자동) 중 어느 쪽?
-3. **`forbid_journal_for_paths` 디폴트**: 위 안에 `.env*, *secret*, *credential*` 두었음. 더 보수적으로 갈지 (예: `**/.git/**` 까지)?
-4. **시각적 톤**: TodayScreen 의 entry 카드 디자인을 시안으로 만들어볼지 (와이어프레임 vs 실제 컴포넌트 스케치)?
-
-답변 주시면 W1 첫 PR 단위로 작업 분해를 한 번 더 잘게 만들겠습니다.

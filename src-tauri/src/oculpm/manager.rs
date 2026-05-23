@@ -5,6 +5,10 @@
 //! actor, and `on_project_opened` / `on_project_closed` hooks land in W2 and
 //! W1-PR7 respectively.
 //!
+//! W2-PR4 added `recover_zombie_sessions` — runs after lock acquisition but
+//! before the watcher boots, finalising any `ended_at == null` sessions from
+//! the most recent workdays as `crash_recovered`.
+//!
 //! AppHandle is intentionally *not* stored here yet. We'll thread it in once
 //! W2 needs to emit Tauri events — keeping it out for now means tests can
 //! construct a real `OculpmManager` without a Wry runtime.
@@ -18,10 +22,12 @@ use tokio::sync::RwLock;
 
 use crate::oculpm::atomic_io::{write_atomic, write_managed_block, ManagedBlockResult};
 use crate::oculpm::error::OculpmError;
+use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::spec::{
-    CommentStyle, LockStateView, OculpmConfig, OculpmInitReport, OculpmStatus, WatcherStateView,
+    CommentStyle, EndedReason, LockStateView, OculpmConfig, OculpmInitReport, OculpmStatus,
+    SessionEnd, WatcherStateView,
 };
 
 /// `.gitignore` managed-block body. Matches `00-spec.md` §1.2.
@@ -32,6 +38,11 @@ const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm/oculpm.log
 .oculpm.backup-*/
 ";
+
+/// Number of most-recent workdays to scan for zombie sessions on startup.
+/// Kept as a named constant so W4's "full check" command can reference the
+/// same default. See `docs/major_update/oculpm/W2/PR4-crash-recovery.md` §2.
+pub const RECOVERY_WORKDAYS: usize = 3;
 
 /// Process-wide orchestrator: holds one `ProjectEntry` per open project,
 /// owns the lock guards + future watcher/session actors. Tauri `State`-managed.
@@ -136,6 +147,23 @@ impl OculpmManager {
             LockAcquisition::Held { .. } => (None, LockStateView::HeldByOther),
         };
         report.lock_state = lock_state;
+
+        // 5.5 (W2-PR4) Crash recovery — scan recent workdays for zombie
+        //     sessions (ended_at == null) and finalize them as
+        //     `crash_recovered`. Runs *before* the watcher boots so there is
+        //     no race with new events being appended.
+        //     Only runs when we hold the lock (Acquired or Recovered).
+        if guard.is_some() {
+            let index_writer = IndexWriter::new(root.to_path_buf(), resolver.clone());
+            if let Err(e) = Self::recover_zombie_sessions(&index_writer, RECOVERY_WORKDAYS).await {
+                tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id,
+                    error = %e,
+                    "crash recovery failed (non-fatal) — continuing init"
+                );
+            }
+        }
 
         // 6. `.gitignore` managed block. Idempotent: only flips `wrote_gitignore`
         //    when we actually inserted or updated. An orphan begin/end marker
@@ -282,6 +310,69 @@ impl OculpmManager {
             target: "oculpm::manager",
             "shutdown_all_blocking: projects map locked after 10 retries — relying on Drop"
         );
+    }
+
+    // ─── W2-PR4: crash recovery ─────────────────────────────────────────────
+
+    /// Scan the most recent `max_workdays` workday directories for zombie
+    /// sessions (`ended_at == null`) and finalize each as `crash_recovered`.
+    ///
+    /// `ended_at` is set to the timestamp of the last `FileChangeEvent` for
+    /// that session (reverse ndjson scan), falling back to `started_at` if the
+    /// session has zero recorded events.
+    ///
+    /// This is a static method on `OculpmManager` rather than an instance
+    /// method so it can be called during `init_project` before the
+    /// `ProjectEntry` is inserted into the projects map.
+    pub(crate) async fn recover_zombie_sessions(
+        index_writer: &IndexWriter,
+        max_workdays: usize,
+    ) -> Result<u32, OculpmError> {
+        let all_workdays = index_writer.list_workdays().await?;
+        let recent: Vec<&str> = all_workdays
+            .iter()
+            .take(max_workdays)
+            .map(|s| s.as_str())
+            .collect();
+
+        let mut recovered_count: u32 = 0;
+
+        for workday in &recent {
+            let sessions = index_writer.list_sessions(workday).await?;
+            for s in sessions.iter().filter(|s| s.ended_at.is_none()) {
+                let last_ts = index_writer.last_event_ts(workday, &s.id).await?;
+                let ended_at = last_ts.unwrap_or_else(|| s.started_at.clone());
+
+                index_writer
+                    .finalize_session(
+                        &s.id,
+                        SessionEnd {
+                            ended_at,
+                            ended_reason: EndedReason::CrashRecovered,
+                        },
+                    )
+                    .await?;
+
+                recovered_count += 1;
+                tracing::info!(
+                    target: "oculpm::manager",
+                    session_id = %s.id,
+                    workday,
+                    "recovered zombie session"
+                );
+            }
+        }
+
+        if recovered_count > 0 {
+            tracing::info!(
+                target: "oculpm::manager",
+                recovered_count,
+                workdays_scanned = recent.len(),
+                "crash recovery complete"
+            );
+        }
+
+        Ok(recovered_count)
     }
 }
 
@@ -547,5 +638,276 @@ mod tests {
         // Disk untouched.
         let disk2 = OculpmConfig::load(&dir.path().join(".oculpm/config.toml")).unwrap();
         assert_eq!(disk2.workday.day_starts_at, "03:00");
+    }
+
+    // ─── W2-PR4 — Crash recovery ───────────────────────────────────────────
+
+    use crate::oculpm::spec::{EndedReason, FileChangeEvent, FileOp, Session, SessionEnd};
+
+    fn make_writer(root: &Path) -> IndexWriter {
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        IndexWriter::new(root.to_path_buf(), resolver)
+    }
+
+    fn make_zombie_session(id: &str, started_at: &str) -> Session {
+        Session {
+            id: id.to_string(),
+            started_at: started_at.to_string(),
+            ended_at: None,
+            ended_reason: None,
+            active_window_ms: 0,
+            file_event_count: 0,
+            files_unique: 0,
+            git_head_at_start: None,
+            git_head_at_end: None,
+            agent_label_guess: None,
+            linked_journal_entries: Vec::new(),
+        }
+    }
+
+    fn make_event(session_id: &str, ts: &str, path: &str) -> FileChangeEvent {
+        FileChangeEvent {
+            ts: ts.to_string(),
+            session_id: session_id.to_string(),
+            op: FileOp::Update,
+            path: path.to_string(),
+            hash_before: None,
+            hash_after: Some("blake3:abc".into()),
+            bytes: 100,
+        }
+    }
+
+    /// PR4 test 1 — two zombie sessions (yesterday + today), both recovered.
+    #[tokio::test]
+    async fn recover_two_zombie_sessions() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        // Yesterday
+        writer
+            .upsert_session(&make_zombie_session(
+                "20260522-001",
+                "2026-05-22T09:00:00Z",
+            ))
+            .await
+            .unwrap();
+        writer
+            .append_file_change(&make_event(
+                "20260522-001",
+                "2026-05-22T10:30:00Z",
+                "src/a.rs",
+            ))
+            .await
+            .unwrap();
+
+        // Today
+        writer
+            .upsert_session(&make_zombie_session(
+                "20260523-001",
+                "2026-05-23T14:00:00Z",
+            ))
+            .await
+            .unwrap();
+        writer
+            .append_file_change(&make_event(
+                "20260523-001",
+                "2026-05-23T15:45:00Z",
+                "src/b.rs",
+            ))
+            .await
+            .unwrap();
+
+        let count = OculpmManager::recover_zombie_sessions(&writer, 3)
+            .await
+            .unwrap();
+        assert_eq!(count, 2, "both zombie sessions must be recovered");
+
+        // Verify yesterday's session.
+        let sessions_y = writer.list_sessions("20260522").await.unwrap();
+        let s1 = &sessions_y[0];
+        assert_eq!(s1.ended_at.as_deref(), Some("2026-05-22T10:30:00Z"));
+        assert!(matches!(
+            s1.ended_reason,
+            Some(EndedReason::CrashRecovered)
+        ));
+
+        // Verify today's session.
+        let sessions_t = writer.list_sessions("20260523").await.unwrap();
+        let s2 = &sessions_t[0];
+        assert_eq!(s2.ended_at.as_deref(), Some("2026-05-23T15:45:00Z"));
+        assert!(matches!(
+            s2.ended_reason,
+            Some(EndedReason::CrashRecovered)
+        ));
+    }
+
+    /// PR4 test 2 — 3-day limit: zombie in a 4-day-old workday is NOT recovered.
+    #[tokio::test]
+    async fn recover_respects_three_day_limit() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        // 4 workdays: 20260520, 21, 22, 23.
+        for (wd, sid) in &[
+            ("20260520", "20260520-001"),
+            ("20260521", "20260521-001"),
+            ("20260522", "20260522-001"),
+            ("20260523", "20260523-001"),
+        ] {
+            writer
+                .upsert_session(&make_zombie_session(
+                    sid,
+                    &format!("{}-{}T09:00:00Z", &wd[..4], &wd[4..6]),
+                ))
+                .await
+                .unwrap();
+        }
+
+        let count = OculpmManager::recover_zombie_sessions(&writer, 3)
+            .await
+            .unwrap();
+        // Only 3 most recent: 20260523, 20260522, 20260521.
+        assert_eq!(count, 3, "only the 3 most recent workdays are scanned");
+
+        // The 4th-oldest (20260520) should still be a zombie.
+        let old = writer.list_sessions("20260520").await.unwrap();
+        assert!(
+            old[0].ended_at.is_none(),
+            "4-day-old zombie must NOT be recovered"
+        );
+    }
+
+    /// PR4 test 3 — last_event_ts fallback: session with zero events gets
+    /// `ended_at = started_at`.
+    #[tokio::test]
+    async fn recover_fallback_to_started_at_when_no_events() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        writer
+            .upsert_session(&make_zombie_session(
+                "20260523-001",
+                "2026-05-23T14:00:00Z",
+            ))
+            .await
+            .unwrap();
+        // No events appended.
+
+        let count = OculpmManager::recover_zombie_sessions(&writer, 3)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+
+        let sessions = writer.list_sessions("20260523").await.unwrap();
+        assert_eq!(
+            sessions[0].ended_at.as_deref(),
+            Some("2026-05-23T14:00:00Z"),
+            "ended_at must fall back to started_at"
+        );
+        assert!(matches!(
+            sessions[0].ended_reason,
+            Some(EndedReason::CrashRecovered)
+        ));
+    }
+
+    /// PR4 test 4 — finalize then list: after recovery, list_sessions returns
+    /// the updated ended_reason.
+    #[tokio::test]
+    async fn recover_then_list_shows_updated_reason() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        writer
+            .upsert_session(&make_zombie_session(
+                "20260523-001",
+                "2026-05-23T09:00:00Z",
+            ))
+            .await
+            .unwrap();
+        // Also add a normal (already ended) session to confirm it's untouched.
+        let mut ended = make_zombie_session("20260523-002", "2026-05-23T12:00:00Z");
+        ended.ended_at = Some("2026-05-23T13:00:00Z".into());
+        ended.ended_reason = Some(EndedReason::InactivityTimeout);
+        writer.upsert_session(&ended).await.unwrap();
+
+        OculpmManager::recover_zombie_sessions(&writer, 3)
+            .await
+            .unwrap();
+
+        let sessions = writer.list_sessions("20260523").await.unwrap();
+        // Session 001 should be crash_recovered.
+        assert!(matches!(
+            sessions[0].ended_reason,
+            Some(EndedReason::CrashRecovered)
+        ));
+        // Session 002 should be untouched (InactivityTimeout).
+        assert!(matches!(
+            sessions[1].ended_reason,
+            Some(EndedReason::InactivityTimeout)
+        ));
+        assert_eq!(
+            sessions[1].ended_at.as_deref(),
+            Some("2026-05-23T13:00:00Z"),
+            "already-ended session must not be modified"
+        );
+    }
+
+    /// PR4 test 5 — race-free: recovery function is a standalone await-able
+    /// call that completes before returning, so no concurrent watcher can
+    /// interleave. We verify this by asserting the return type is a plain
+    /// Result (not a JoinHandle) and that the sessions.json is fully flushed.
+    #[tokio::test]
+    async fn recover_is_synchronous_and_flushed() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        writer
+            .upsert_session(&make_zombie_session(
+                "20260523-001",
+                "2026-05-23T14:00:00Z",
+            ))
+            .await
+            .unwrap();
+
+        // `recover_zombie_sessions` is .await-ed directly — when it returns,
+        // all disk I/O must be complete.
+        let count = OculpmManager::recover_zombie_sessions(&writer, 3)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+
+        // Verify disk flush: read the raw sessions.json and confirm ended_at
+        // is populated — no deferred write.
+        let sessions_path = dir
+            .path()
+            .join(".oculpm/index/20260523/sessions.json");
+        let raw = std::fs::read_to_string(&sessions_path).unwrap();
+        assert!(raw.contains("crash_recovered"));
+        assert!(raw.contains("2026-05-23T14:00:00Z"));
+    }
+
+    /// PR4 test 6 — list_workdays returns dirs in descending order and ignores
+    /// non-YYYYMMDD directory names.
+    #[tokio::test]
+    async fn list_workdays_order_and_filtering() {
+        let dir = tempdir().unwrap();
+        let writer = make_writer(dir.path());
+
+        // Create workday dirs + a non-workday dir.
+        for wd in &["20260521", "20260523", "20260520", "20260522"] {
+            writer.ensure_workday_dirs(wd).await.unwrap();
+        }
+        // Create a non-YYYYMMDD dir that should be ignored.
+        std::fs::create_dir_all(
+            dir.path().join(".oculpm/index/not-a-workday"),
+        )
+        .unwrap();
+
+        let workdays = writer.list_workdays().await.unwrap();
+        assert_eq!(
+            workdays,
+            vec!["20260523", "20260522", "20260521", "20260520"],
+            "must be sorted descending, non-YYYYMMDD excluded"
+        );
     }
 }
