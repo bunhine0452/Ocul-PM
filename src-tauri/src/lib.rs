@@ -48,7 +48,7 @@ use crate::commands::{
     oculpm_list_sessions, oculpm_get_file_changes, oculpm_get_index_snapshot,
     oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_status,
     oculpm_list_journal_entries, oculpm_get_journal_entry, oculpm_set_journal_verified,
-    oculpm_reindex_cache, oculpm_create_manual_entry,
+    oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -180,6 +180,7 @@ pub fn run() {
         oculpm_set_journal_verified,
         oculpm_reindex_cache,
         oculpm_create_manual_entry,
+        oculpm_update_entry_meta,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

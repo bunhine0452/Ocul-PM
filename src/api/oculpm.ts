@@ -16,7 +16,9 @@
 
 import { commands } from "@/lib/bindings";
 import type {
+  Difficulty,
   EntryFilters,
+  EntryStatus,
   JournalEntry,
   JournalEntrySummary,
   ManualEntryDraft,
@@ -152,6 +154,45 @@ export const oculpmApi = {
       "oculpm_create_manual_entry",
       commands.oculpmCreateManualEntry(projectId, draft)
     ),
+
+  // ─── W3 follow-up — inline edit for difficulty / status ────────────────
+
+  /**
+   * Inline-edit `difficulty` and/or `status` on an existing entry. Pass
+   * `null` for a parameter to leave it unchanged.
+   *
+   * `difficulty` semantics — three values:
+   *   - `null` / omitted: don't touch the field
+   *   - `{ kind: "clear" }`: write `difficulty: null` to the frontmatter
+   *   - `{ kind: "set", value: "high" }`: set to that level
+   *
+   * The backend returns the hydrated entry so the caller can update its
+   * optimistic state without a second `getJournalEntry` round-trip.
+   */
+  updateEntryMeta: (
+    projectId: number,
+    relativePath: string,
+    opts: {
+      difficulty?: { kind: "clear" } | { kind: "set"; value: Difficulty } | null;
+      status?: EntryStatus | null;
+    },
+  ) => {
+    const difficultyChange =
+      opts.difficulty == null
+        ? null
+        : opts.difficulty.kind === "clear"
+          ? { value: null }
+          : { value: opts.difficulty.value };
+    return unwrap<JournalEntry>(
+      "oculpm_update_entry_meta",
+      commands.oculpmUpdateEntryMeta(
+        projectId,
+        relativePath,
+        difficultyChange,
+        opts.status ?? null,
+      ),
+    );
+  },
 } as const;
 
 export type OculpmApi = typeof oculpmApi;

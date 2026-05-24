@@ -16,8 +16,9 @@ use crate::db::Db;
 use crate::oculpm::cache::EntryFilters;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    FileChangeEvent, JournalEntry, JournalEntrySummary, ManualEntryDraft, OculpmConfig,
-    OculpmInitReport, OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind, WatcherStatus,
+    Difficulty, EntryStatus, FileChangeEvent, JournalEntry, JournalEntrySummary, ManualEntryDraft,
+    OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind,
+    WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -275,6 +276,47 @@ pub async fn oculpm_reindex_cache(
         .reindex_journal_cache(&db, project_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Inline-edit one or both of `difficulty` / `status` on an existing entry.
+/// Same write-through semantics as `oculpm_set_journal_verified` — atomic
+/// file write then cache upsert — and returns the hydrated entry so the
+/// frontend's optimistic UI can resync to truth without a second fetch.
+///
+/// Argument shape: send `null` for a field to leave it unchanged. To clear
+/// `difficulty`, send `Some(None)` (encoded over the wire as the JSON
+/// `null` *inside* a present object key); the frontend wrapper handles
+/// this distinction.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_update_entry_meta(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+    difficulty_change: Option<DifficultyChange>,
+    status: Option<EntryStatus>,
+) -> Result<JournalEntry, String> {
+    manager
+        .update_journal_entry_meta(
+            &db,
+            project_id,
+            relative_path,
+            difficulty_change.map(|c| c.value),
+            status,
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Wire wrapper so the frontend can express "set difficulty to None" vs
+/// "leave difficulty alone". Two-step Option unfolds to:
+///   - omitted / null → `None` (leave alone)
+///   - `{ value: null }` → `Some(None)` (clear)
+///   - `{ value: "high" }` → `Some(Some(High))` (set)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct DifficultyChange {
+    pub value: Option<Difficulty>,
 }
 
 /// Write a manual journal entry from the user-authored draft. Validates

@@ -439,26 +439,41 @@ impl WatcherInner {
             return;
         }
         use tauri::Manager;
-        let kind = match op {
-            FileOp::Create => PathChangeKind::Created,
-            FileOp::Delete => PathChangeKind::Removed,
-            _ => PathChangeKind::Modified,
-        };
+
+        // Resolve PathChangeKind from FS reality, not from the event op alone.
+        // See `resolve_path_change_kind` for the rationale + macOS quirks.
         let journal_root = self.root.join(".oculpm").join("journal");
+        let abs = journal_root.join(entry_rel);
+        let exists = abs.is_file();
+        let kind = resolve_path_change_kind(op, exists);
+
         let db_state: tauri::State<'_, Db> = handle.state::<Db>();
         let cache = JournalCache::new(&db_state);
-        if let Err(e) = cache
+        match cache
             .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
             .await
         {
-            tracing::warn!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %entry_rel,
-                ?kind,
-                error = %e,
-                "journal cache invalidation failed (event still emitted)"
-            );
+            Ok(()) => {
+                tracing::debug!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    ?kind,
+                    raw_op = ?op,
+                    "journal cache invalidated"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    ?kind,
+                    raw_op = ?op,
+                    error = %e,
+                    "journal cache invalidation failed (event still emitted)"
+                );
+            }
         }
     }
 }
@@ -473,6 +488,30 @@ fn is_self_suppressed(rel_str: &str) -> bool {
         || rel_str == ".oculpm/.lock"
         || rel_str == ".oculpm/oculpm.log"
         || rel_str.ends_with(".tmp")
+}
+
+/// Map a notify [`FileOp`] + disk-existence into a [`PathChangeKind`] that
+/// the cache layer can act on. We trust the filesystem over the event:
+///
+/// - **macOS FSEvents** frequently collapses removes into `EventKind::Modify(Any)`
+///   (especially when the deleted file's parent dir mutates in the same
+///   debounce window). Trusting `op` alone leaves stale cache rows when the
+///   user deletes a journal file from Finder.
+/// - A race where Create fires for a path that was immediately deleted
+///   (`exists == false`) also resolves to `Removed` — the cache delete is
+///   idempotent so a no-op is the worst case.
+///
+/// When the file does exist, `Create` keeps its semantics and everything
+/// else (Update / Delete-but-still-there / Rename / Correct) becomes
+/// `Modified` so the cache re-reads the new content.
+fn resolve_path_change_kind(op: FileOp, exists: bool) -> PathChangeKind {
+    if !exists {
+        return PathChangeKind::Removed;
+    }
+    match op {
+        FileOp::Create => PathChangeKind::Created,
+        _ => PathChangeKind::Modified,
+    }
 }
 
 /// True when `entry_rel` (relative to `.oculpm/journal/`) names a real
@@ -870,7 +909,40 @@ mod tests {
         );
     }
 
-    // ─── F-2 fix — is_journal_entry_path matches cache::walk_journal ───────
+    // ─── F-2 fix — kind resolution + path filtering ────────────────────────
+
+    #[test]
+    fn resolve_path_change_kind_uses_filesystem_truth() {
+        // The macOS FSEvents quirk: a Modify(Any) on a deleted file must
+        // still drop the cache row. Same for Create races and explicit Delete.
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Delete, false),
+            PathChangeKind::Removed
+        );
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Update, false),
+            PathChangeKind::Removed,
+        );
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Create, false),
+            PathChangeKind::Removed,
+        );
+        // File exists → Create stays Created, everything else collapses to
+        // Modified so the cache re-reads. A "Delete but the file still
+        // exists" event (rare race) re-syncs as Modified, which is safe.
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Create, true),
+            PathChangeKind::Created
+        );
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Update, true),
+            PathChangeKind::Modified
+        );
+        assert_eq!(
+            resolve_path_change_kind(FileOp::Delete, true),
+            PathChangeKind::Modified,
+        );
+    }
 
     #[test]
     fn is_journal_entry_path_matches_walk_journal_skip_rules() {

@@ -700,6 +700,77 @@ impl OculpmManager {
         Ok(())
     }
 
+    /// Update one or both of `difficulty` / `status` on an existing entry.
+    /// Mirrors [`set_journal_verified`] — read → parse → mutate frontmatter →
+    /// atomic-write → cache upsert — but operates on the W3 inline-edit
+    /// fields. `None` for a field means "leave unchanged", so callers can
+    /// edit either independently or both in one round-trip.
+    ///
+    /// Returns the freshly-upserted `JournalEntry` so the frontend can render
+    /// the updated detail pane without a second `get_journal_entry` call.
+    pub async fn update_journal_entry_meta(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+        difficulty: Option<Option<crate::oculpm::spec::Difficulty>>,
+        status: Option<crate::oculpm::spec::EntryStatus>,
+    ) -> Result<JournalEntry, OculpmError> {
+        if difficulty.is_none() && status.is_none() {
+            return Err(OculpmError::InvalidConfig(
+                "update_journal_entry_meta called with no fields to change".to_string(),
+            ));
+        }
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = journal_root.join(&relative_path);
+        let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+            path: abs.clone(),
+            source,
+        })?;
+        let (mut parsed, body) = parse_frontmatter_and_body(&text);
+        let Some(mut fm) = parsed.parsed.take() else {
+            return Err(OculpmError::InvalidConfig(
+                "cannot edit entry with broken frontmatter".to_string(),
+            ));
+        };
+        if let Some(new_diff) = difficulty {
+            fm.difficulty = new_diff;
+        }
+        if let Some(new_status) = status {
+            fm.status = new_status;
+        }
+        let new_text = write_frontmatter_and_body(&fm, &body);
+        write_atomic(&abs, new_text.as_bytes())?;
+
+        let (parsed2, body2) = parse_frontmatter_and_body(&new_text);
+        let body_parsed = parse_body(&body2);
+        let mtime = std::fs::metadata(&abs)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_else(|| chrono::Utc::now().timestamp());
+        let cache = JournalCache::new(db);
+        cache
+            .upsert_entry(
+                project_id,
+                &relative_path,
+                &parsed2,
+                &body_parsed,
+                mtime,
+                &new_text,
+            )
+            .await?;
+        // Return the hydrated entry so the UI can update without a second
+        // fetch — keeps optimistic UI in sync with cache truth.
+        cache
+            .get_entry(project_id, &relative_path)
+            .await?
+            .ok_or_else(|| OculpmError::InvalidConfig(
+                format!("entry vanished after upsert: {relative_path}")
+            ))
+    }
+
     /// Rebuild the cache from `.oculpm/journal/` ground truth. Drops every
     /// row for the project and re-walks. Returns the user-facing report
     /// shape from `spec::ReindexReport` (project_id + completed_at included).

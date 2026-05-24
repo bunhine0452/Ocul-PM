@@ -58,13 +58,32 @@ interface JournalEntryDetailProps {
   summary: JournalEntrySummary | null;
   /** Delegate to TimelineView so optimistic state stays in one place. */
   onToggleVerified: (relativePath: string) => void;
+  /** Optional — when wired, the header's difficulty/status badges become
+   *  Select dropdowns that call this with the updated entry. TimelineView
+   *  swaps the row in its `entries` state so the list card re-renders. */
+  onMetaUpdated?: (entry: JournalEntry) => void;
 }
+
+const DIFFICULTY_OPTIONS: Difficulty[] = [
+  "verylow",
+  "low",
+  "medium",
+  "high",
+  "superhigh",
+];
+const STATUS_OPTIONS: EntryStatus[] = [
+  "planned",
+  "in_progress",
+  "done",
+  "abandoned",
+];
 
 export function JournalEntryDetail({
   projectId,
   projectRoot,
   summary,
   onToggleVerified,
+  onMetaUpdated,
 }: JournalEntryDetailProps) {
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(false);
@@ -174,6 +193,73 @@ export function JournalEntryDetail({
     onToggleVerified(path);
   }, [path, onToggleVerified]);
 
+  // ── inline-edit handlers (W3 follow-up — difficulty / status) ─────────
+  const handleDifficultyChange = useCallback(
+    async (value: Difficulty | "_none") => {
+      if (!path || !entry) return;
+      const previous = entry;
+      // Optimistic local update so the dropdown's "selected" state lands
+      // immediately even before the round-trip completes.
+      setEntry({
+        ...entry,
+        frontmatter: {
+          ...entry.frontmatter,
+          difficulty: value === "_none" ? null : value,
+        },
+      });
+      setActionError(null);
+      try {
+        const hydrated = await oculpmApi.updateEntryMeta(projectId, path, {
+          difficulty:
+            value === "_none"
+              ? { kind: "clear" }
+              : { kind: "set", value },
+        });
+        setEntry(hydrated);
+        onMetaUpdated?.(hydrated);
+      } catch (e) {
+        setEntry(previous);
+        const msg =
+          e instanceof OculpmApiError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        setActionError(`difficulty 변경 실패: ${msg}`);
+      }
+    },
+    [path, entry, projectId, onMetaUpdated],
+  );
+
+  const handleStatusChange = useCallback(
+    async (value: EntryStatus) => {
+      if (!path || !entry) return;
+      const previous = entry;
+      setEntry({
+        ...entry,
+        frontmatter: { ...entry.frontmatter, status: value },
+      });
+      setActionError(null);
+      try {
+        const hydrated = await oculpmApi.updateEntryMeta(projectId, path, {
+          status: value,
+        });
+        setEntry(hydrated);
+        onMetaUpdated?.(hydrated);
+      } catch (e) {
+        setEntry(previous);
+        const msg =
+          e instanceof OculpmApiError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        setActionError(`status 변경 실패: ${msg}`);
+      }
+    },
+    [path, entry, projectId, onMetaUpdated],
+  );
+
   // ── render ────────────────────────────────────────────────────────────
 
   if (!summary) {
@@ -187,9 +273,17 @@ export function JournalEntryDetail({
 
   const verified = summary.verified_by_user;
 
+  const canEditMeta = entry != null;
+
   return (
     <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-auto rounded-2xl border border-border bg-card">
-      <DetailHeader summary={summary} entry={entry} />
+      <DetailHeader
+        summary={summary}
+        entry={entry}
+        canEdit={canEditMeta}
+        onDifficultyChange={handleDifficultyChange}
+        onStatusChange={handleStatusChange}
+      />
 
       <div className="px-5 pb-3">
         {loading && entry == null && !fetchError && (
@@ -243,9 +337,15 @@ export function JournalEntryDetail({
 function DetailHeader({
   summary,
   entry,
+  canEdit,
+  onDifficultyChange,
+  onStatusChange,
 }: {
   summary: JournalEntrySummary;
   entry: JournalEntry | null;
+  canEdit: boolean;
+  onDifficultyChange: (value: Difficulty | "_none") => void;
+  onStatusChange: (value: EntryStatus) => void;
 }) {
   // Prefer the live entry (fresh from disk) but fall back to the summary so
   // the header renders even while loading or after a parse failure.
@@ -264,8 +364,16 @@ function DetailHeader({
     <header className="px-5 pt-5 pb-3 border-b border-border space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
         <TypeBadge type={type} />
-        <StatusBadge status={status} />
-        {difficulty && <DifficultyBadge difficulty={difficulty} />}
+        <StatusSelect
+          value={status}
+          disabled={!canEdit}
+          onChange={onStatusChange}
+        />
+        <DifficultySelect
+          value={difficulty ?? null}
+          disabled={!canEdit}
+          onChange={onDifficultyChange}
+        />
         <AgentBadge agentId={agentId} />
         {language && <LanguageBadge language={language} />}
         <VerifiedBadge verified={verified} />
@@ -418,46 +526,75 @@ function TypeBadge({ type }: { type: EntryType }) {
   );
 }
 
-function StatusBadge({ status }: { status: EntryStatus }) {
-  if (status === "done") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium text-[10px]">
-        <Check className="w-2.5 h-2.5" /> done
-      </span>
-    );
-  }
-  if (status === "in_progress") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-medium text-[10px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-        in_progress
-      </span>
-    );
-  }
-  if (status === "abandoned") {
-    return (
-      <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-muted text-muted-foreground line-through font-medium text-[10px]">
-        abandoned
-      </span>
-    );
-  }
+function StatusSelect({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: EntryStatus;
+  disabled: boolean;
+  onChange: (next: EntryStatus) => void;
+}) {
   return (
-    <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-muted text-muted-foreground font-medium text-[10px]">
-      planned
-    </span>
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as EntryStatus)}
+      title={
+        disabled
+          ? "frontmatter 가 깨져 있어 변경할 수 없습니다"
+          : "status 변경 — 저장 시 .md 파일의 frontmatter 가 갱신됩니다"
+      }
+      className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[10px] border bg-transparent outline-none disabled:cursor-not-allowed disabled:opacity-50 ${STATUS_SELECT_TONE[value]}`}
+    >
+      {STATUS_OPTIONS.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
   );
 }
 
-function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
+function DifficultySelect({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: Difficulty | null;
+  disabled: boolean;
+  onChange: (next: Difficulty | "_none") => void;
+}) {
   return (
-    <span
-      className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium uppercase tracking-wider text-[10px] bg-foreground/10 text-foreground ${DIFFICULTY_OPACITY[difficulty]}`}
-      title={`difficulty: ${difficulty}`}
+    <select
+      value={value ?? "_none"}
+      disabled={disabled}
+      onChange={(e) =>
+        onChange(e.target.value as Difficulty | "_none")
+      }
+      title={
+        disabled
+          ? "frontmatter 가 깨져 있어 변경할 수 없습니다"
+          : "difficulty 변경 — 저장 시 .md 파일의 frontmatter 가 갱신됩니다"
+      }
+      className="inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[10px] border border-border bg-transparent text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {difficulty}
-    </span>
+      <option value="_none">— 없음</option>
+      {DIFFICULTY_OPTIONS.map((d) => (
+        <option key={d} value={d}>
+          {d}
+        </option>
+      ))}
+    </select>
   );
 }
+
+const STATUS_SELECT_TONE: Record<EntryStatus, string> = {
+  planned: "border-border text-muted-foreground",
+  in_progress: "border-blue-500/40 text-blue-700 dark:text-blue-300",
+  done: "border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
+  abandoned: "border-border text-muted-foreground line-through",
+};
 
 function AgentBadge({ agentId }: { agentId: string }) {
   return (
@@ -505,14 +642,6 @@ const TYPE_COLOR: Record<EntryType, string> = {
   error: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   refactor: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
   chore: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-300",
-};
-
-const DIFFICULTY_OPACITY: Record<Difficulty, string> = {
-  superhigh: "opacity-100",
-  high: "opacity-90",
-  medium: "opacity-80",
-  low: "opacity-60",
-  verylow: "opacity-40",
 };
 
 // ─── helpers ──────────────────────────────────────────────────────────────

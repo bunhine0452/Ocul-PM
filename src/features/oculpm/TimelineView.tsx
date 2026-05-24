@@ -23,6 +23,7 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import {
   events,
   type EntryFilters,
+  type JournalEntry,
   type JournalEntrySummary,
   type Session,
 } from "@/lib/bindings";
@@ -176,6 +177,25 @@ export function TimelineView({
     [groups]
   );
 
+  // ── meta update (difficulty/status from DetailHeader) ──────────────────
+  // Detail does the round-trip + cache upsert; we just splice the hydrated
+  // summary into the list so cards re-render without a refetch.
+  const handleMetaUpdated = useCallback((hydrated: JournalEntry) => {
+    setEntries((prev) => {
+      if (prev == null) return prev;
+      return prev.map((e) =>
+        e.relative_path === hydrated.relative_path
+          ? {
+              ...e,
+              status: hydrated.frontmatter.status,
+              difficulty: hydrated.frontmatter.difficulty,
+              updated_at: hydrated.frontmatter.updated_at,
+            }
+          : e,
+      );
+    });
+  }, []);
+
   // ── verify toggle (optimistic) ─────────────────────────────────────────
   const handleToggleVerified = useCallback(
     async (relativePath: string) => {
@@ -306,6 +326,7 @@ export function TimelineView({
           projectRoot={projectRoot}
           summary={selectedEntry}
           onToggleVerified={handleToggleVerified}
+          onMetaUpdated={handleMetaUpdated}
         />
       </aside>
     </div>

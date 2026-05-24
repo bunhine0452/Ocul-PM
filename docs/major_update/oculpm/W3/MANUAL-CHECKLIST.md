@@ -177,9 +177,10 @@ W4 진입 직전 확인. 4개는 위 §1 항목과 겹치며, 마지막은 PR9 �
 | 발견 | 영향 | 어디 보고? |
 |---|---|---|
 | 예) PR7 검증 토글 클릭 직후 카드의 미검증 ⚠ 가 한 박자 늦게 사라짐 | UX 마찰 (저) | W6 cleanup 후보로 적어두기 |
-| | | |
-| | | |
-| | | |
+| **F-2** Journal `.md` 삭제/생성/수정이 SQLite cache 에 미반영 → §1.1 #1~#3 모두 실패 | DoD 위반 (고) | **2026-05-24 해결 (commit cdc909e + 후속 강건성 fix)** — watcher 에 `apply_journal_cache_invalidation` 추가, `resolve_path_change_kind` 가 disk-existence 로 kind 결정 (macOS FSEvents Modify(Any) on delete 대응). App.tsx 의 `watcherStart` 자동 시작 같이 fix. cargo test 132/132 그린. |
+| **F-1** 워처 자동 시작 wire-up 누락 (App.tsx 가 init 만 부르고 start 안 부름) | EmptyTodayV3 검증 불가 (중) | **2026-05-24 해결** — F-2 와 같이 fix. |
+| **F-3** JournalEntryDetail 에서 `difficulty`/`status` inline edit 불가 | UX 마찰 (중) | **2026-05-24 해결** — 새 백엔드 커맨드 `oculpm_update_entry_meta` 추가 (set_journal_verified 패턴) + DetailHeader 의 badge 자리를 `<select>` dropdown 으로 교체. 옵티미스틱 업데이트 + 에러시 rollback. TimelineView 가 `onMetaUpdated` 로 list row 동기화. |
+| **F-4** 신규 프로젝트 선택만으로 `.oculpm/` 자동 생성 → EmptyTodayV1 dead path | 설계 정합성 (중) | **정책 결정 (2026-05-24)**: 의도된 동작으로 유지. d4d631d (Greenfield 통합) 와 정합. EmptyTodayV1 은 (a) 사용자가 V1 의 "[나중에]" 로 dismiss 후 재진입 (b) `oculpmInit` 자체가 실패하는 권한 문제 시의 fallback 으로 살려둠. `_dogfooding-w3.md §3.1` 에 정책 명시. |
 
 ---
 

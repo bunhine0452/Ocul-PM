@@ -134,7 +134,10 @@
 
 ### 3.1 코드 변경 후보
 
-- **워처 자동 시작 wire-up** — F-1 의 후속. W4 진입 직후 PR0 격으로 처리 권장. App.tsx 또는 WorkspaceContext 에 `oculpmInit` 성공 후 `watcherStart` 한 줄 + 프로젝트 전환 시 cleanup. **PR 명세는 별도 작성 필요** (현재 W4/ 의 PR 9개에 포함되어 있지 않음).
+- ~~**워처 자동 시작 wire-up** — F-1 의 후속.~~ **2026-05-24 해결 (F-2 §대응 #3)**: `App.tsx` useEffect 가 `oculpmInit` 성공 후 `oculpmWatcherStart` 자동 호출 + 프로젝트 전환 시 cleanup.
+- ~~**Journal cache 인발리데이션** — F-2 의 후속.~~ **2026-05-24 해결 (F-2 §대응 #1,#2,#4)**: watcher 가 journal 변경 감지 시 `JournalCache::apply_path_change` 호출하도록 wire-up.
+- ~~**Detail/Card 에서 frontmatter inline edit**~~ **2026-05-24 해결**: `oculpm_update_entry_meta` 커맨드 추가 (manager.rs::update_journal_entry_meta — `set_journal_verified` 패턴 재사용) + `JournalEntryDetail` 의 status/difficulty badge 자리를 `<select>` dropdown 으로 교체. 옵티미스틱 업데이트 + 에러 rollback. TimelineView 의 list row 도 `onMetaUpdated` 콜백으로 동기화.
+- **정책 확정 — `.oculpm/` 자동 생성 vs EmptyTodayV1 dead path**: **(a) 의도된 동작으로 유지**. d4d631d (Greenfield 통합) 와 정합. EmptyTodayV1 은 (1) 사용자가 "[나중에]" 로 dismiss 후 status bar 의 인라인 링크로 재진입, (2) `oculpmInit` 자체가 실패 (디스크 권한 / 이미 잠긴 디렉토리 등) 시의 fallback 으로 살려둠. **(b) opt-in 화 안 함** — 이유: 활성 ocul-pm 이 ai-pm 의 정체성이고 (PR9 자동 dogfooding 의 전제), V1 을 거치게 하면 매 신규 프로젝트마다 마찰. W3 종료 시점에서 받아들이는 trade-off.
 
 ### 3.2 W4-PR1 어댑터 템플릿 강화 항목 (= §2.1 의 top 3 가 인용됨)
 

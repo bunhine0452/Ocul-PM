@@ -3,7 +3,7 @@
 > **목표**: 마스터 템플릿 1개 + 4 어댑터별 변형 5개 마크다운 파일을 작성. 이후 PR2 의 렌더러 + sync 가 이 파일들을 in-binary string 으로 임베드해 init 시 복사한다.
 > **선행**: W3 전체 ✅ 특히 [`../W3/PR9-dogfooding-bootstrap.md`](../W3/PR9-dogfooding-bootstrap.md) 의 회고 (`_dogfooding-w3.md`) — 본 PR 의 마스터 템플릿이 그 회고를 직접 인용.
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR1, [`../00-spec.md`](../00-spec.md) §3 (frontmatter), §6 (어댑터 마커 4종).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-24)
 
 ---
 
@@ -70,10 +70,10 @@
 
 ## 6. DoD
 
-- [ ] 4 어댑터 템플릿 파일 + 1 마스터 = 5개 파일이 `src-tauri/src/oculpm/agents/templates/` 에 존재.
-- [ ] PR 본문이 `_dogfooding-w3.md` 의 어느 항목을 어떻게 반영했는지 **최소 1건** 명시.
-- [ ] 마스터가 1500 토큰 이하 (대략 1줄 ≈ 25 토큰 가정 시 60줄).
-- [ ] `.tpl` 파일들이 UTF-8 + LF 통일.
+- [x] 4 어댑터 템플릿 파일 + 1 마스터 = 5개 파일이 `src-tauri/src/oculpm/agents/templates/` 에 존재. (master_ko.md.tpl / cursor.mdc.tpl / claude_code.md.tpl / antigravity.md.tpl / gemini.md.tpl)
+- [x] `_dogfooding-w3.md` 의 F-1/F-2 (워처 wire-up + cache invalidation) 를 마스터의 §3 frontmatter 강조 (특히 `created_at` tz offset, `agent` mapping 강제, `files_touched[].op` enum 의 "dogfooding 마찰 top 3") 에 반영.
+- [~] 마스터 1500 토큰 이하 — **87줄로 트림됨**. 한국어 텍스트는 영어보다 토큰 효율이 떨어져 실제 토큰 수는 ~1800 추정. 60줄 목표는 frontmatter 풀 스키마 + 5 trigger + 본문 헤더 표 + 금지 사항을 다 담기엔 빡빡함. PR9 자동 dogfooding 의 작성률 ≥ 60% 가 안 나오면 본 PR 로 돌아와 추가 트림.
+- [x] `.tpl` 파일들이 UTF-8 + LF (`Write` 도구가 기본 LF, 한국어는 UTF-8).
 
 ---
 
