@@ -14,8 +14,8 @@
 | W3-PR2 | `cache.rs` SQLite 캐시 + 증분 재인덱싱 | ✅ 완료 | [`PR2-cache-sqlite.md`](./PR2-cache-sqlite.md) |
 | W3-PR3 | 신규 5개 `oculpm_*` journal 커맨드 + manual entry | ✅ 완료 | [`PR3-commands.md`](./PR3-commands.md) |
 | W3-PR4 | Frontend: specta wrapper + WorkspaceContext + 라우팅 | ✅ 완료 | [`PR4-frontend-context.md`](./PR4-frontend-context.md) |
-| W3-PR5 | `EmptyToday` 3 변형 + `OculpmOnboardingModal` | ⬜ | [`PR5-empty-today-onboarding.md`](./PR5-empty-today-onboarding.md) |
-| W3-PR6 | `TimelineView` + `SessionCard` + `JournalEntryCard` | ⬜ | [`PR6-timeline-cards.md`](./PR6-timeline-cards.md) |
+| W3-PR5 | `EmptyToday` 3 변형 + `OculpmOnboardingModal` | ✅ 완료 | [`PR5-empty-today-onboarding.md`](./PR5-empty-today-onboarding.md) |
+| W3-PR6 | `TimelineView` + `SessionCard` + `JournalEntryCard` | ✅ 완료 | [`PR6-timeline-cards.md`](./PR6-timeline-cards.md) |
 | W3-PR7 | `JournalEntryDetail` (디테일 패널 + 마크다운) | ⬜ | [`PR7-entry-detail.md`](./PR7-entry-detail.md) |
 | W3-PR8 | `CategoryFilterBar` + 필터 영속화 | ⬜ | [`PR8-category-filter.md`](./PR8-category-filter.md) |
 | W3-PR10 | Greenfield 위저드 ↔ oculpm 통합 (옵션 A) | ⬜ | [`PR10-greenfield-integration.md`](./PR10-greenfield-integration.md) |

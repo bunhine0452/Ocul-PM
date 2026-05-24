@@ -8,6 +8,7 @@ import {
   Flame,
   Sparkles,
   Calendar,
+  OculIcon,
 } from "@/components/Icons";
 import {
   commands,
@@ -15,6 +16,16 @@ import {
   type ChangelogEntry,
   type Goal,
 } from "@/lib/bindings";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import {
+  EmptyTodayV1,
+  EmptyTodayV2,
+  EmptyTodayV3,
+} from "@/features/oculpm/EmptyToday";
+import { OculpmOnboardingModal } from "@/features/oculpm/OculpmOnboardingModal";
+import { TimelineView } from "@/features/oculpm/TimelineView";
+import { ManualEntryModal } from "@/features/oculpm/ManualEntryModal";
 
 // MASTER-GUIDE §5.3 — Today 화면, PM 정체성의 심장.
 // 오늘의 포커스 / 어제의 완료 / 오늘의 활동 / AI 추천 4 영역.
@@ -26,10 +37,23 @@ interface TodayScreenProps {
 }
 
 export function TodayScreen({ activeProjectId }: TodayScreenProps) {
+  const { state, setOculpmStatus } = useWorkspace();
+  const oculpmStatus = state.oculpmStatus;
+  const workdayKey = state.workdayKey;
+
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [dayOffset, setDayOffset] = useState(0); // 0 = today, -1 = yesterday
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // W3-PR5 ocul-pm branching state
+  const [journalCount, setJournalCount] = useState<number | null>(null);
+  const [fileChangeCount, setFileChangeCount] = useState<number | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  // Bumped after a manual entry is created so the journal-count probe re-runs
+  // (and TimelineView re-renders via its own event subscription).
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const dateUnix = useMemo(() => {
     const now = new Date();
@@ -56,6 +80,44 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     void load();
   }, [load]);
 
+  // ── Probe journal/file-change counts when ocul-pm is active ─────────────
+  // Drives the EmptyTodayV2 vs V3 branching. Today (dayOffset === 0) only —
+  // historical days fall through to the legacy DailyBrief view.
+  useEffect(() => {
+    if (activeProjectId == null) return;
+    if (!oculpmStatus?.initialized || dayOffset !== 0) {
+      setJournalCount(null);
+      setFileChangeCount(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [entries, fileChanges] = await Promise.all([
+          oculpmApi.listJournalEntries(activeProjectId),
+          oculpmApi.getFileChanges(
+            activeProjectId,
+            oculpmStatus.current_workday
+          ),
+        ]);
+        if (cancelled) return;
+        setJournalCount(entries.length);
+        setFileChangeCount(fileChanges.length);
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof OculpmApiError) {
+          console.warn("[TodayScreen] ocul-pm probe failed:", e.message);
+        }
+        // Treat probe failure as "no data" so the legacy view still renders.
+        setJournalCount(null);
+        setFileChangeCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProjectId, oculpmStatus, dayOffset, refreshTick]);
+
   if (activeProjectId == null) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
@@ -63,6 +125,47 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
       </div>
     );
   }
+
+  // ── ocul-pm branching: V1 / V2 / V3 / fall-through ─────────────────────
+  // dayOffset !== 0 → user is browsing history → keep the legacy view.
+  // dismissed users still see V1 (the "활성화" CTA there is their re-entry
+  // path; the status-bar link below also reopens the modal).
+  const dismissed = readDismissed(activeProjectId);
+  const showOculpmEmpty =
+    dayOffset === 0 &&
+    (oculpmStatus == null ||
+      !oculpmStatus.initialized ||
+      journalCount === 0);
+
+  // W3-PR6: opens the real ManualEntryModal. Requires ocul-pm to be active
+  // (the V1 onboarding screen is the path otherwise).
+  const handleManualEntry = () => {
+    if (!oculpmStatus?.initialized) {
+      setOnboardingOpen(true);
+      return;
+    }
+    setManualEntryOpen(true);
+  };
+
+  // Global ⌘+Shift+J — open the manual entry modal regardless of which tab
+  // the user is on (works because TodayScreen is mounted as part of the
+  // active workspace; if Today isn't the active view, the shortcut wins).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.shiftKey && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        if (activeProjectId == null) return;
+        handleManualEntry();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // handleManualEntry is recreated each render but the deps it closes over
+    // are listed explicitly; the cleanup runs on every render so no stale
+    // closure leaks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId, oculpmStatus?.initialized]);
 
   const dateLabel = new Date(dateUnix * 1000).toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -125,40 +228,144 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
           </div>
         )}
 
+        {/* W3-PR5 status bar: dismissed users still need a re-entry point */}
+        {oculpmStatus != null && !oculpmStatus.initialized && dismissed && (
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <OculIcon className="w-3.5 h-3.5" />
+              ocul-pm 비활성화 — 워처/세션이 동작하지 않습니다
+            </span>
+            <button
+              onClick={() => setOnboardingOpen(true)}
+              className="text-primary hover:underline font-medium"
+            >
+              활성화
+            </button>
+          </div>
+        )}
+
+        {/* W3-PR5 ocul-pm empty variants (today only) */}
+        {showOculpmEmpty && (
+          <div className="pt-4">
+            {(oculpmStatus == null || !oculpmStatus.initialized) ? (
+              <EmptyTodayV1
+                onActivate={() => setOnboardingOpen(true)}
+                onDismiss={() => {
+                  try {
+                    localStorage.setItem(
+                      `oculpm_dismissed_${activeProjectId}`,
+                      "1"
+                    );
+                  } catch {
+                    /* non-fatal */
+                  }
+                  // Re-trigger a render so the dismiss bar appears immediately.
+                  setBrief((b) => b);
+                }}
+              />
+            ) : (fileChangeCount ?? 0) > 0 ? (
+              <EmptyTodayV3
+                fileChangeCount={fileChangeCount ?? 0}
+                onCreateManual={handleManualEntry}
+              />
+            ) : (
+              <EmptyTodayV2
+                workdayKey={workdayKey}
+                onCreateManual={handleManualEntry}
+              />
+            )}
+          </div>
+        )}
+
         {!brief && loading && (
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> 불러오는 중…
           </div>
         )}
 
-        {brief && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FocusCard goals={brief.focus_goals} />
-              <CompletedCard
-                goals={brief.completed_today}
-                files={brief.files_touched}
-                added={brief.lines_added}
-                removed={brief.lines_removed}
-                entryCount={brief.today_entries.length}
+        {/* W3-PR6: TimelineView when ocul-pm has journal entries on today.
+            Legacy DailyBrief is preserved for historical days and projects
+            without ocul-pm so users don't lose existing functionality. */}
+        {!showOculpmEmpty &&
+          dayOffset === 0 &&
+          oculpmStatus?.initialized &&
+          (journalCount ?? 0) > 0 ? (
+          <TimelineView
+            projectId={activeProjectId}
+            workday={oculpmStatus.current_workday}
+          />
+        ) : (
+          !showOculpmEmpty && brief && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FocusCard goals={brief.focus_goals} />
+                <CompletedCard
+                  goals={brief.completed_today}
+                  files={brief.files_touched}
+                  added={brief.lines_added}
+                  removed={brief.lines_removed}
+                  entryCount={brief.today_entries.length}
+                />
+              </div>
+
+              <ActivityCard entries={brief.today_entries} />
+
+              {brief.pinned_entries.length > 0 && (
+                <PinnedCard entries={brief.pinned_entries} />
+              )}
+
+              <RecommendationCard
+                activeProjectId={activeProjectId}
+                brief={brief}
               />
-            </div>
-
-            <ActivityCard entries={brief.today_entries} />
-
-            {brief.pinned_entries.length > 0 && (
-              <PinnedCard entries={brief.pinned_entries} />
-            )}
-
-            <RecommendationCard
-              activeProjectId={activeProjectId}
-              brief={brief}
-            />
-          </>
+            </>
+          )
         )}
       </div>
+
+      {onboardingOpen && activeProjectId != null && (
+        <OculpmOnboardingModal
+          projectId={activeProjectId}
+          onClose={async (reason) => {
+            setOnboardingOpen(false);
+            if (reason === "completed") {
+              // Refresh probe counters so V1 transitions to V2/V3.
+              try {
+                const status = await oculpmApi.getStatus(activeProjectId);
+                setOculpmStatus(status);
+              } catch {
+                /* non-fatal */
+              }
+            }
+          }}
+        />
+      )}
+
+      {manualEntryOpen &&
+        activeProjectId != null &&
+        oculpmStatus?.initialized && (
+          <ManualEntryModal
+            projectId={activeProjectId}
+            workday={oculpmStatus.current_workday}
+            onCreated={() => {
+              // Bump the refresh tick so the probe re-runs (which transitions
+              // V2/V3 → TimelineView once journalCount becomes > 0).
+              setRefreshTick((n) => n + 1);
+            }}
+            onClose={() => setManualEntryOpen(false)}
+          />
+        )}
     </div>
   );
+}
+
+/** Read the per-project dismiss flag. Safe in private mode / SSR. */
+function readDismissed(projectId: number): boolean {
+  try {
+    return localStorage.getItem(`oculpm_dismissed_${projectId}`) === "1";
+  } catch {
+    return false;
+  }
 }
 
 // ─── Focus ────────────────────────────────────────────────────────────────
