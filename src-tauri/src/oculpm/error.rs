@@ -80,6 +80,13 @@ pub enum OculpmError {
     #[error("sqlite cache error: {0}")]
     Sqlite(String),
 
+    // W4-PR3 — redact / forbid_journal_for_paths
+    #[error(
+        "refusing to write journal entry: files_touched contains forbidden paths: {}",
+        .paths.join(", ")
+    )]
+    ForbiddenJournalPath { paths: Vec<String> },
+
     /// Placeholder used by stub modules. Real variants land in later phases.
     #[error("not yet implemented")]
     NotImplemented,

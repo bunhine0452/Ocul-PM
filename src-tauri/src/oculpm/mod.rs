@@ -19,6 +19,7 @@ pub mod lock;
 pub mod manager;
 pub mod markdown;
 pub mod paths;
+pub mod redact;
 pub mod session;
 pub mod spec;
 pub mod watcher;

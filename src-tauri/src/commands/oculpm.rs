@@ -10,16 +10,18 @@
 
 use std::path::PathBuf;
 
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_specta::Event;
 
 use crate::db::Db;
 use crate::oculpm::agents::AgentDetection;
 use crate::oculpm::cache::EntryFilters;
+use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, JournalEntry, JournalEntrySummary,
-    ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session,
-    Snapshot, SnapshotKind, WatcherStatus,
+    AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
+    JournalEntrySummary, ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmIntegrityWarning,
+    OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind, WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -328,15 +330,40 @@ pub struct DifficultyChange {
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_create_manual_entry(
+    app: AppHandle,
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
     draft: ManualEntryDraft,
 ) -> Result<JournalEntry, String> {
-    manager
+    match manager
         .create_manual_journal_entry(&db, project_id, draft)
         .await
-        .map_err(|e| e.to_string())
+    {
+        Ok(entry) => Ok(entry),
+        // W4-PR3 — surface forbidden-path rejection to the UI as an
+        // IntegrityWarning event AND a regular error. The toast lives long
+        // enough for the user to read which files tripped the matcher;
+        // returning the error keeps the modal in the "still editing" state.
+        Err(OculpmError::ForbiddenJournalPath { paths }) => {
+            let message = format!(
+                "{} 개 경로가 forbid_journal_for_paths 와 매치되어 작성이 거부됨: {}",
+                paths.len(),
+                paths.join(", ")
+            );
+            let _ = OculpmIntegrityWarning {
+                project_id,
+                warning: IntegrityWarning {
+                    kind: "forbidden_journal_path".to_string(),
+                    path: paths.first().cloned().unwrap_or_default(),
+                    message: message.clone(),
+                },
+            }
+            .emit(&app);
+            Err(message)
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 // ─── W4-PR2 commands — agent adapter sync + detect ──────────────────────────

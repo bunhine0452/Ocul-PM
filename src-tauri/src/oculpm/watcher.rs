@@ -37,6 +37,7 @@ use crate::oculpm::cache::{JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
+use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
     FileChangeEvent, FileOp, OculpmAgentsTemplateChanged, OculpmConfig, OculpmFileChanged,
@@ -91,7 +92,10 @@ impl ProjectWatcher {
         } else {
             None
         };
-        let forbidden = build_gitignore_from_lines(&root, &config.git.forbid_journal_for_paths);
+        // Forbidden-path matcher delegated to `oculpm::redact` (W4-PR3) so the
+        // watcher and `manager::create_manual_journal_entry` see the same
+        // glob semantics — see `oculpm::redact::is_forbidden_path`.
+        let forbidden = build_forbidden_matcher(&root, &config.git.forbid_journal_for_paths);
 
         let stats = Arc::new(RwLock::new(WatcherStatsInner::default()));
         let inner = WatcherInner {
@@ -322,9 +326,7 @@ impl WatcherInner {
     }
 
     fn is_forbidden(&self, abs_path: &Path) -> bool {
-        self.forbidden
-            .matched_path_or_any_parents(abs_path, false)
-            .is_ignore()
+        redact::is_forbidden_path(&self.forbidden, &abs_path.to_string_lossy())
     }
 
     async fn classify(&self, abs_path: &Path, kind: &EventKind) -> Option<FileChangeEvent> {

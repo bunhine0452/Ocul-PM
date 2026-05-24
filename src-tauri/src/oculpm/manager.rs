@@ -31,6 +31,7 @@ use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
+use crate::oculpm::redact::{build_forbidden_matcher, is_forbidden_path};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
@@ -830,7 +831,7 @@ impl OculpmManager {
 
         // Snapshot the per-project state we need without holding the lock
         // across disk IO.
-        let (root, resolver, language) = {
+        let (root, resolver, language, forbid_patterns) = {
             let projects = self.projects.read().await;
             let entry = projects
                 .get(&project_id)
@@ -839,8 +840,27 @@ impl OculpmManager {
                 entry.root.clone(),
                 entry.resolver.clone(),
                 "ko".to_string(), // No top-level language field yet; default per spec.
+                entry.config.git.forbid_journal_for_paths.clone(),
             )
         };
+
+        // W4-PR3 — reject the whole entry if any declared file_touched path is
+        // in `git.forbid_journal_for_paths`. We check before any disk write so
+        // a forbidden draft never produces a partial entry on disk; the
+        // command layer is expected to translate this into an
+        // `OculpmIntegrityWarning` toast for the user.
+        if !forbid_patterns.is_empty() && !draft.files_touched.is_empty() {
+            let matcher = build_forbidden_matcher(&root, &forbid_patterns);
+            let hits: Vec<String> = draft
+                .files_touched
+                .iter()
+                .filter(|ft| is_forbidden_path(&matcher, &ft.path))
+                .map(|ft| ft.path.clone())
+                .collect();
+            if !hits.is_empty() {
+                return Err(OculpmError::ForbiddenJournalPath { paths: hits });
+            }
+        }
         let now_utc = chrono::Utc::now();
         let workday = resolver.workday_of(now_utc);
         let local_now = now_utc.with_timezone(&chrono_tz_from(&resolver));
@@ -1843,6 +1863,61 @@ mod tests {
             // Body starts with "[ ] Manual entry title"
             assert!(raw.contains("[ ] Manual entry title"), "raw: {raw}");
             assert_eq!(entry.checkbox, Some(false));
+        }
+
+        // ─── W4-PR3 — forbidden files_touched reject ──────────────────────
+
+        #[tokio::test]
+        async fn create_manual_entry_rejects_forbidden_files_touched() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let mut draft = minimal_draft("with-secret");
+            draft.files_touched = vec![
+                crate::oculpm::spec::FileTouched {
+                    path: "src/a.rs".to_string(),
+                    op: crate::oculpm::spec::FileOp::Update,
+                    bytes_added: None,
+                    bytes_removed: None,
+                    rename_from: None,
+                },
+                // `.env.local` is in default `forbid_journal_for_paths`
+                // (`.env.*` + `**/.env.*`).
+                crate::oculpm::spec::FileTouched {
+                    path: "src/.env.local".to_string(),
+                    op: crate::oculpm::spec::FileOp::Update,
+                    bytes_added: None,
+                    bytes_removed: None,
+                    rename_from: None,
+                },
+            ];
+            let res = manager.create_manual_journal_entry(&db, 7, draft).await;
+            match res {
+                Err(OculpmError::ForbiddenJournalPath { paths }) => {
+                    assert_eq!(paths, vec!["src/.env.local".to_string()]);
+                }
+                other => panic!("expected ForbiddenJournalPath, got {other:?}"),
+            }
+
+            // No journal file should have been written.
+            let journal_root = project_root.join(".oculpm/journal");
+            if journal_root.exists() {
+                let any_md = walkdir::WalkDir::new(&journal_root)
+                    .into_iter()
+                    .flatten()
+                    .any(|e| e.path().extension().is_some_and(|ext| ext == "md"));
+                assert!(!any_md, "no .md should have been written on rejection");
+            }
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_accepts_when_no_forbidden_paths() {
+            let (manager, db, _dir, _root) = fresh_manager_and_db().await;
+            // Sanity: a regular draft still succeeds (guards against false
+            // positives in the new forbid check).
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("clean-path"))
+                .await
+                .expect("clean draft must succeed");
+            assert_eq!(entry.frontmatter.slug, "clean-path");
         }
     }
 }
