@@ -91,29 +91,50 @@ function App() {
     }
   }, [selectedProjectId]);
 
-  // .oculpm/ auto-init on project selection (W1-PR7).
+  // .oculpm/ auto-init + watcher start on project selection (W1-PR7 + F-1 fix).
   // Idempotent server-side, so safe to call on every selection. Non-fatal:
   // a project remains usable even if ocul-pm fails to initialise here.
-  // W3-PR4: after init, hydrate WorkspaceContext.oculpmStatus so EmptyToday
-  // / TodayScreen can branch without a separate fetch.
+  //
+  // W3-PR4: after init, hydrate WorkspaceContext.oculpmStatus so EmptyToday /
+  // TodayScreen can branch without a separate fetch.
+  //
+  // F-1 fix (dogfooding _w3 §3.1): also start the filesystem watcher so
+  // file_changes are captured AND journal cache stays in sync with disk
+  // (deletes/creates/edits appear in Today within the debounce window).
+  // Cleanup stops the previous project's watcher when the user switches.
   useEffect(() => {
     if (selectedProjectId == null) {
       setOculpmStatus(null);
       return;
     }
-    void commands.oculpmInit(selectedProjectId).then(async (res) => {
-      if (res.status === "error") {
-        console.warn("[oculpm] init failed:", res.error);
+    const projectId = selectedProjectId;
+    let cancelled = false;
+    void (async () => {
+      const initRes = await commands.oculpmInit(projectId);
+      if (cancelled) return;
+      if (initRes.status === "error") {
+        console.warn("[oculpm] init failed:", initRes.error);
         setOculpmStatus(null);
         return;
       }
-      const statusRes = await commands.oculpmGetStatus(selectedProjectId);
+      const statusRes = await commands.oculpmGetStatus(projectId);
+      if (cancelled) return;
       if (statusRes.status === "ok") {
         setOculpmStatus(statusRes.data);
       } else {
         setOculpmStatus(null);
       }
-    });
+      const wsRes = await commands.oculpmWatcherStart(projectId);
+      if (cancelled) return;
+      if (wsRes.status === "error") {
+        console.warn("[oculpm] watcherStart failed:", wsRes.error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      // Fire-and-forget — stop is idempotent and tolerates uninit projects.
+      void commands.oculpmWatcherStop(projectId).catch(() => {});
+    };
   }, [selectedProjectId, setOculpmStatus]);
 
   // Refresh project lists

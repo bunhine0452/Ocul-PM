@@ -17,6 +17,12 @@
 - [ ] `cd src-tauri && cargo check` — 0 errors.
 - [ ] `cd src-tauri && cargo test --lib oculpm` — 130+ test green (PR2 이후 baseline).
 - [ ] `pnpm tauri dev` 띄우고 빈 화면이 정상 진입하는지 확인.
+- [ ] **워처 수동 시작 (W3 한정 우회)** — 프로젝트 선택 후 devtools 콘솔 (⌥⌘I) 에서 1회 실행:
+  ```js
+  await window.__TAURI__.core.invoke("oculpm_watcher_start", { projectId: <확인한 projectId> })
+  ```
+  → `ls .oculpm/index/<오늘>/` 에 `file_changes.ndjson` 이 생기면 정상.
+  > **왜 수동인가**: W3 시점에 frontend 가 프로젝트 open 시 `oculpmInit` 만 자동 호출하고 `watcherStart` 는 호출 안 함 (실제 dogfooding 으로 발견된 누락). 별 PR 분량이라 W3 안에서는 수동 우회. 본 checklist §1.6 #11 / §3 #2 / §1.10 모두 이 단계가 선행되어야 검증 가능.
 
 ### 검증용 프로젝트 두 개
 
@@ -66,6 +72,7 @@
 - [ ] **#9 — V1** `.oculpm/` 없는 새 프로젝트 진입 → "활성화" CTA 가 primary tone (border-primary/30). `[활성화]` 와 `[나중에]` 버튼.
 - [ ] **#10 — V2** init 했는데 오늘 0개, file_changes 도 0개 → neutral tone (border-border bg-card). `[수동 entry 작성]` + `[어떻게 동작하나요?]` popover.
 - [ ] **#11 — V3** init 했고 오늘 file_changes 있지만 journal 0개 → amber tone (border-amber-500/40). `[수동 entry 작성]` + `[⚖ index 비교 보기]` (disabled, tooltip "W4 페이즈").
+  > **선행 조건**: §0 의 "워처 수동 시작" 을 했어야 file_changes 가 캡처됨. 안 했으면 file_changes=0 → V3 대신 V2 가 뜨는 게 정상 — 버그 아님. V3 강제 트리거: 워처 시작 후 코드 파일 1개 수정 → 새로고침.
 
 ### 1.7 Onboarding 흐름 (PR5)
 
@@ -80,6 +87,19 @@
 ### 1.9 보너스 (PR3)
 
 - [ ] **#보너스** Manual entry modal 로 entry 작성 → 파일이 `.oculpm/journal/<오늘>/<TypeFolder>/<HHMM>_<type>_<slug>.md` 로 생성 + frontmatter 의 `agent.id == "manual"` 확인.
+
+### 1.10 외부 에이전트 자동 narrative — **의도적 누락 (W4 검증)**
+
+> Cursor / Claude Code / Antigravity / Gemini CLI 같은 외부 LLM 이 작업 후 자동으로 `.oculpm/journal/<오늘>/.../*.md` 를 생성하는 시나리오는 **W3 에서는 동작 안 함**. 이유 = 어댑터 규칙 파일 (`.agent/rules/ocul-pm.md` 등) 을 설치하는 W4-PR1/PR2 가 아직 안 들어옴.
+>
+> **W3 에서 확인 가능한 것**:
+> - [ ] §0 의 워처 수동 시작 후 외부 에이전트 (예: Antigravity) 로 코드 파일 1개 수정 → `cat .oculpm/index/<오늘>/file_changes.ndjson` 에 줄 추가됨 (= 워처가 변경 캡처하는지).
+> - [ ] 단, 그 변경은 Today UI 의 카드로는 보이지 않음 (카드는 journal entry 단위, file_changes 는 내부 데이터).
+>
+> **W3 에서 확인 불가 (W4 게이트)**:
+> - 외부 LLM 이 자동 narrative `.md` 작성 → W4-PR9 의 게이트.
+> - DiffVsNarrative 모달 (index ↔ journal 비교) → W4-PR5/PR6.
+> - drift 토스트 → W4-PR4/PR8.
 
 ---
 
@@ -121,8 +141,8 @@ W4 진입 직전 확인. 4개는 위 §1 항목과 겹치며, 마지막은 PR9 �
 | # | type | 추천 주제 | 파일 | 작성 시간 | 비고 |
 |---|---|---|---|---|---|
 | 1 | feature | **(의무)** "Greenfield 위저드 → Today 자동 진입 흐름" | `.oculpm/journal/<오늘>/Features_to_add/...` | __분 | PR10 흐름 1회 수동 검증 + 그 경험 기록 |
-| 2 | bug | (자유 — W3 작업 중 실제 발견한 버그 1건) | | __분 | |
-| 3 | bug | (자유) | | __분 | |
+| 2 | bug | **(권장)** "워처 자동 시작 wire-up 누락 — 외부 에이전트 파일 변경 미캡처" | `.oculpm/journal/<오늘>/Bugs/...` | __분 | 2026-05-24 실제 dogfooding 으로 발견 (본 checklist §0 참조). status 는 `planned` (W4 시작 직후 수정 예정). |
+| 3 | bug | (자유 — W3 작업 중 실제 발견한 버그 1건) | | __분 | |
 | 4 | feature | (자유 — W3 작업 중 본인이 추가한 기능) | | __분 | |
 | 5 | refactor | (자유 — W3 작업 중 본인이 정리한 것) | | __분 | |
 

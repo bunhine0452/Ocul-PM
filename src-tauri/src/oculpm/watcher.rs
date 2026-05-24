@@ -32,6 +32,8 @@ use notify_debouncer_full::{
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::db::Db;
+use crate::oculpm::cache::{JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::session::SessionActor;
@@ -234,10 +236,15 @@ impl WatcherInner {
             return;
         }
 
-        // 3. .oculpm/journal/** — emit-only.
+        // 3. .oculpm/journal/** — emit Tauri event AND invalidate the SQLite
+        //    cache so list/get queries see the change without waiting for a
+        //    manual reindex. Before this wire-up, the watcher only emitted
+        //    the event and the frontend's refetch hit a stale cache (file
+        //    deletes never disappeared from Today UI). See dogfooding F-2.
         if rel_str.starts_with(".oculpm/journal/") {
             let op = classify_journal_op(&ev.event.kind);
             self.emit_journal_path_changed(&rel_str, op);
+            self.apply_journal_cache_invalidation(&rel_str, op).await;
             return;
         }
 
@@ -416,6 +423,44 @@ impl WatcherInner {
             .emit(handle);
         }
     }
+
+    /// Mirror a `.oculpm/journal/**` change into the SQLite cache so the next
+    /// `oculpm_list_journal_entries` reflects it. Gated on `app_handle` (the
+    /// only path to the process-wide `Db` state) so unit tests that pass
+    /// `app_handle: None` stay self-contained — see `setup_with_config`.
+    ///
+    /// `full_rel_str` is relative to the project root and starts with
+    /// `.oculpm/journal/`; we strip that prefix to get the cache-key form
+    /// (`<workday>/<Category>/<file>.md`).
+    async fn apply_journal_cache_invalidation(&self, full_rel_str: &str, op: FileOp) {
+        let Some(handle) = &self.app_handle else { return };
+        let Some(entry_rel) = full_rel_str.strip_prefix(".oculpm/journal/") else { return };
+        if !is_journal_entry_path(entry_rel) {
+            return;
+        }
+        use tauri::Manager;
+        let kind = match op {
+            FileOp::Create => PathChangeKind::Created,
+            FileOp::Delete => PathChangeKind::Removed,
+            _ => PathChangeKind::Modified,
+        };
+        let journal_root = self.root.join(".oculpm").join("journal");
+        let db_state: tauri::State<'_, Db> = handle.state::<Db>();
+        let cache = JournalCache::new(&db_state);
+        if let Err(e) = cache
+            .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
+            .await
+        {
+            tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                ?kind,
+                error = %e,
+                "journal cache invalidation failed (event still emitted)"
+            );
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,6 +473,26 @@ fn is_self_suppressed(rel_str: &str) -> bool {
         || rel_str == ".oculpm/.lock"
         || rel_str == ".oculpm/oculpm.log"
         || rel_str.ends_with(".tmp")
+}
+
+/// True when `entry_rel` (relative to `.oculpm/journal/`) names a real
+/// journal entry — matches the skip rules in `cache::walk_journal` so the
+/// watcher never tries to insert `_template.md`, `_attachments/`, or hidden
+/// files into the SQLite cache.
+fn is_journal_entry_path(entry_rel: &str) -> bool {
+    if !entry_rel.ends_with(".md") {
+        return false;
+    }
+    if entry_rel.starts_with('_') {
+        return false;
+    }
+    if entry_rel.contains("/_attachments/") {
+        return false;
+    }
+    if entry_rel.split('/').any(|seg| seg.starts_with('.')) {
+        return false;
+    }
+    true
 }
 
 fn classify_journal_op(kind: &EventKind) -> FileOp {
@@ -803,5 +868,21 @@ mod tests {
             journal_events.is_empty(),
             "journal/ events must be emit-only, not in ndjson: {journal_events:?}"
         );
+    }
+
+    // ─── F-2 fix — is_journal_entry_path matches cache::walk_journal ───────
+
+    #[test]
+    fn is_journal_entry_path_matches_walk_journal_skip_rules() {
+        // Real entries — must pass.
+        assert!(is_journal_entry_path("20260524/Bugs/0925_bug_a.md"));
+        assert!(is_journal_entry_path("20260524/Features_to_add/1000_feature.md"));
+
+        // Skipped by cache::walk_journal — must fail.
+        assert!(!is_journal_entry_path("_template.md"));
+        assert!(!is_journal_entry_path("20260524/_attachments/note.md"));
+        assert!(!is_journal_entry_path("20260524/Bugs/.draft.md"));
+        assert!(!is_journal_entry_path("20260524/Bugs/0925_bug_a.txt"));
+        assert!(!is_journal_entry_path("20260524/Bugs/"));
     }
 }
