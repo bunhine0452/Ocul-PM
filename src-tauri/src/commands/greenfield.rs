@@ -14,6 +14,7 @@ use tauri::State;
 
 use crate::db::{Db, Goal, ProjectBlueprint};
 use crate::llm;
+use crate::oculpm::manager::OculpmManager;
 
 // ─── Blueprint CRUD ───────────────────────────────────────────────────
 
@@ -202,17 +203,23 @@ pub struct GreenfieldResult {
 /// 1. Creates the folder (if it doesn't exist)
 /// 2. Optionally runs a scaffold CLI (e.g. `pnpm create vite`)
 /// 3. Registers the project in the database via `create_project`
+/// 3b. (W3-PR10) Optionally initialises `.oculpm/` for the new project so
+///     the user does not see the onboarding modal on first Today open.
+///     Failure is **non-fatal**: the project row is already committed and
+///     EmptyToday V1 provides a "활성화" recovery path.
 /// 4. Cleans up the blueprint (if any)
 /// 5. Returns the new project ID
 #[tauri::command]
 #[specta::specta]
 pub async fn create_greenfield_project(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     name: String,
     root_path: String,
     scaffold_cmd: Option<String>,
     scaffold_args: Option<Vec<String>>,
     blueprint_id: Option<u32>,
+    init_oculpm: bool,
 ) -> Result<GreenfieldResult, String> {
     let target = PathBuf::from(&root_path);
 
@@ -244,6 +251,21 @@ pub async fn create_greenfield_project(
         .create_project(name, root_path)
         .await
         .map_err(|e| e.to_string())?;
+
+    // 3b. (W3-PR10) ocul-pm init — opt-in from the wizard (default ON).
+    //     Failure path keeps the project alive: the user lands on
+    //     EmptyToday V1 and can hit "활성화" to retry. W4 will add an
+    //     `manager.sync_agents(project_id)` call here once the adapter
+    //     templates exist; the wire-point is intentionally placed.
+    if init_oculpm {
+        if let Err(e) = manager.init_project(project_id, &target).await {
+            tracing::warn!(
+                project_id,
+                error = %e,
+                "oculpm init during greenfield failed — user can retry via EmptyToday V1"
+            );
+        }
+    }
 
     // 4. Clean up blueprint
     if let Some(bp_id) = blueprint_id {

@@ -18,7 +18,7 @@
 | W3-PR6 | `TimelineView` + `SessionCard` + `JournalEntryCard` | ✅ 완료 | [`PR6-timeline-cards.md`](./PR6-timeline-cards.md) |
 | W3-PR7 | `JournalEntryDetail` (디테일 패널 + 마크다운) | ✅ 완료 | [`PR7-entry-detail.md`](./PR7-entry-detail.md) |
 | W3-PR8 | `CategoryFilterBar` + 필터 영속화 | ✅ 완료 | [`PR8-category-filter.md`](./PR8-category-filter.md) |
-| W3-PR10 | Greenfield 위저드 ↔ oculpm 통합 (옵션 A) | ⬜ | [`PR10-greenfield-integration.md`](./PR10-greenfield-integration.md) |
+| W3-PR10 | Greenfield 위저드 ↔ oculpm 통합 (옵션 A) | ✅ 완료 | [`PR10-greenfield-integration.md`](./PR10-greenfield-integration.md) |
 | W3-PR9 | 수동 dogfooding 부트스트랩 (5+ 시드 entry) | ⬜ | [`PR9-dogfooding-bootstrap.md`](./PR9-dogfooding-bootstrap.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.

@@ -21,7 +21,9 @@ import {
   Folder,
   AlertTriangle,
   Rocket,
+  OculIcon,
 } from "../../components/Icons";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface GreenfieldWizardProps {
   onClose: () => void;
@@ -122,6 +124,12 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
   const [isCreating, setIsCreating] = useState(false);
   const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // W3-PR10 — Greenfield ↔ ocul-pm 통합 (옵션 A). Default ON per
+  // refactor-integration §3.1; user can opt out for ad-hoc projects.
+  // Persistence is intentionally absent: this is a per-project decision,
+  // not a global preference, and the blueprint already captures it
+  // implicitly by being recreated on each wizard run.
+  const [initOculpm, setInitOculpm] = useState(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-save blueprint (debounced 2s)
@@ -272,6 +280,7 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
         wizState.scaffoldCmd,
         finalArgs.length > 0 ? finalArgs : null,
         blueprintId,
+        initOculpm,
       );
 
       if (res.status === "ok") {
@@ -595,6 +604,33 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
                   )}
                 </div>
               )}
+
+              {/* W3-PR10 — ocul-pm 통합 (옵션 A). Default ON. */}
+              <div className="rounded-xl border border-border bg-card/40 p-3.5">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <Checkbox
+                    checked={initOculpm}
+                    onCheckedChange={(v) => setInitOculpm(v === true)}
+                    aria-label="ocul-pm 으로 이 프로젝트 추적"
+                    className="mt-0.5"
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      <OculIcon className="w-3.5 h-3.5 text-primary" />
+                      ocul-pm 으로 이 프로젝트 추적
+                      <span className="text-[10px] text-primary/80 font-semibold uppercase tracking-wider">
+                        권장
+                      </span>
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                      파일 변경과 작업 narrative 를 자동 기록합니다.
+                      <code className="font-mono mx-1 text-[10.5px] bg-muted px-1 rounded">.oculpm/</code>
+                      디렉토리가 생기고, 외부 LLM (Claude Code, Cursor 등) 의 작업이 Today 탭에 정리됩니다.
+                      나중에 EmptyToday 의 활성화 카드로도 켤 수 있습니다.
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               {createError && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold rounded-xl flex items-start gap-2">
