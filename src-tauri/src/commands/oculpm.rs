@@ -13,10 +13,11 @@ use std::path::PathBuf;
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::cache::EntryFilters;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    FileChangeEvent, OculpmConfig, OculpmInitReport, OculpmStatus, Session, Snapshot, SnapshotKind,
-    WatcherStatus,
+    FileChangeEvent, JournalEntry, JournalEntrySummary, ManualEntryDraft, OculpmConfig,
+    OculpmInitReport, OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind, WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -202,4 +203,95 @@ pub async fn oculpm_watcher_status(
     project_id: u32,
 ) -> Result<WatcherStatus, String> {
     Ok(manager.watcher_status(project_id).await)
+}
+
+// ─── W3-PR3 commands ────────────────────────────────────────────────────────
+
+/// List cached journal entries for a workday (or today if None) with filters.
+/// Returns `[]` for uninitialised projects so the UI can render EmptyToday
+/// without a special-case error path.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_list_journal_entries(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workday: Option<String>,
+    filters: Option<EntryFilters>,
+) -> Result<Vec<JournalEntrySummary>, String> {
+    let filters = filters.unwrap_or_default();
+    manager
+        .list_journal_entries(&db, project_id, workday, filters)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get a single journal entry by relative path. Falls back to on-demand
+/// disk read + cache upsert if the row is missing. Returns `None` only
+/// when the file does not exist on disk either.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_journal_entry(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+) -> Result<Option<JournalEntry>, String> {
+    manager
+        .get_journal_entry(&db, project_id, relative_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Toggle `verified_by_user` on a journal entry's frontmatter. Atomic
+/// write-through: file is rewritten first, then the cache is upserted in
+/// the same call so the UI sees the change immediately.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_set_journal_verified(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+    verified: bool,
+) -> Result<(), String> {
+    manager
+        .set_journal_verified(&db, project_id, relative_path, verified)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Rebuild the journal cache from disk. Drops every cached row for the
+/// project and re-walks `.oculpm/journal/`. Use after manual sqlite
+/// tampering or schema migration.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_reindex_cache(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<ReindexReport, String> {
+    manager
+        .reindex_journal_cache(&db, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Write a manual journal entry from the user-authored draft. Validates
+/// the slug (kebab-case ASCII, 1..=60 chars), resolves the session_id
+/// (active session / draft override / sentinel), writes the file with
+/// the spec's `<HHMM>_<type>_<slug>.md` naming, and returns the hydrated
+/// `JournalEntry`. On filename collision the writer suffixes `__2`/`__3`.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_create_manual_entry(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    draft: ManualEntryDraft,
+) -> Result<JournalEntry, String> {
+    manager
+        .create_manual_journal_entry(&db, project_id, draft)
+        .await
+        .map_err(|e| e.to_string())
 }

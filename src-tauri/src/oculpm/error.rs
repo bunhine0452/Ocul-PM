@@ -76,6 +76,10 @@ pub enum OculpmError {
     #[error("session actor channel closed")]
     ActorClosed,
 
+    // W3-PR2 — JournalCache (SQLite cache layer)
+    #[error("sqlite cache error: {0}")]
+    Sqlite(String),
+
     /// Placeholder used by stub modules. Real variants land in later phases.
     #[error("not yet implemented")]
     NotImplemented,

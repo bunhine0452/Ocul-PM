@@ -422,8 +422,13 @@ pub struct ManualEntryDraft {
     pub title: String,
     pub difficulty: Option<Difficulty>,
     pub body_markdown: String,
+    /// `None` → use the active session if any, else fall back to a
+    /// `manual-<workday>-<HHMMSS>` sentinel id.
     pub session_id: Option<String>,
     pub files_touched: Vec<FileTouched>,
+    /// `None` → defaults to `planned`. Spec §3.1.
+    pub status: Option<EntryStatus>,
+    pub tags: Vec<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -133,6 +133,12 @@ impl WorkdayResolver {
             .join(workday)
     }
 
+    /// `<project_root>/.oculpm/journal`. Root of the LLM-authored markdown
+    /// tree — input to `JournalCache::reindex_*`.
+    pub fn journal_root(&self, project_root: &Path) -> PathBuf {
+        self.project_oculpm_dir(project_root).join("journal")
+    }
+
     /// `<project_root>/.oculpm/journal/<workday>/<Category>`.
     pub fn journal_dir(&self, project_root: &Path, workday: &str, kind: EntryType) -> PathBuf {
         let category = match kind {

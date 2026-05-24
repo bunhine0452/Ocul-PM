@@ -19,6 +19,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("../migrations/008_project_overview.sql")),
     (9, include_str!("../migrations/009_conversation_actions.sql")),
     (10, include_str!("../migrations/011_project_blueprints.sql")),
+    (12, include_str!("../migrations/012_oculpm_journal.sql")),
 ];
 
 pub struct Db {
@@ -49,6 +50,13 @@ impl Db {
         db.migrate().await?;
         info!(path = %db.path.display(), "database ready");
         Ok(db)
+    }
+
+    /// Borrow the underlying async sqlite connection. Used by sibling
+    /// subsystems (e.g. `oculpm::cache`) that need to share the same db
+    /// connection without duplicating the migration/open machinery.
+    pub(crate) fn conn(&self) -> &Connection {
+        &self.conn
     }
 
     /// Register sqlite-vec as a SQLite auto-extension exactly once per process.

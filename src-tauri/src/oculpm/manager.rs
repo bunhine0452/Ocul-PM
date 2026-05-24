@@ -21,15 +21,21 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
+use crate::db::Db;
 use crate::oculpm::atomic_io::{write_atomic, write_managed_block, ManagedBlockResult};
+use crate::oculpm::cache::{CacheReindexReport, EntryFilters, JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
+use crate::oculpm::frontmatter::{parse_frontmatter_and_body, write_frontmatter_and_body};
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
+use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    CommentStyle, EndedReason, FileChangeEvent, LockStateView, OculpmConfig, OculpmInitReport,
-    OculpmStatus, Session, SessionEnd, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
+    AgentRef, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent, JournalEntry,
+    JournalEntrySummary, JournalFrontmatter, LockStateView, ManualEntryDraft, OculpmConfig,
+    OculpmInitReport, OculpmStatus, ReindexReport, Session, SessionEnd, Snapshot, SnapshotKind,
+    WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -589,6 +595,335 @@ impl OculpmManager {
                 "snapshot not captured for workday={workday}, kind={kind:?}"
             )))
     }
+
+    // ─── W3-PR3: journal cache + manual entry coordination ──────────────────
+
+    /// Resolve a project's `.oculpm/journal/` absolute root. Used by the
+    /// journal commands to drive `JournalCache` calls.
+    pub async fn journal_root(&self, project_id: u32) -> Result<PathBuf, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        Ok(entry.resolver.journal_root(&entry.root))
+    }
+
+    /// List cached journal entries for `(project_id, workday?)` with
+    /// arbitrary filters. Thin wrapper over [`JournalCache::list_entries`].
+    pub async fn list_journal_entries(
+        &self,
+        db: &Db,
+        project_id: u32,
+        workday: Option<String>,
+        filters: EntryFilters,
+    ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
+        JournalCache::new(db)
+            .list_entries(project_id, workday.as_deref(), &filters)
+            .await
+    }
+
+    /// Get a single cached entry. Falls back to an on-demand disk read +
+    /// upsert if the row is missing but the file exists.
+    pub async fn get_journal_entry(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+    ) -> Result<Option<JournalEntry>, OculpmError> {
+        let cache = JournalCache::new(db);
+        if let Some(entry) = cache.get_entry(project_id, &relative_path).await? {
+            return Ok(Some(entry));
+        }
+        // Cache miss — check disk.
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = journal_root.join(&relative_path);
+        if !abs.exists() {
+            return Ok(None);
+        }
+        cache
+            .apply_path_change(
+                project_id,
+                &journal_root,
+                &relative_path,
+                PathChangeKind::Created,
+            )
+            .await?;
+        cache.get_entry(project_id, &relative_path).await
+    }
+
+    /// Toggle `verified_by_user` on a journal entry. Reads the disk file,
+    /// mutates the frontmatter only, atomic-writes it back, then upserts the
+    /// cache so the UI sees the change before the next watcher event lands.
+    pub async fn set_journal_verified(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+        verified: bool,
+    ) -> Result<(), OculpmError> {
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = journal_root.join(&relative_path);
+        let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+            path: abs.clone(),
+            source,
+        })?;
+        let (mut parsed, body) = parse_frontmatter_and_body(&text);
+        let Some(mut fm) = parsed.parsed.take() else {
+            return Err(OculpmError::InvalidConfig(
+                "cannot verify entry with broken frontmatter".to_string(),
+            ));
+        };
+        fm.verified_by_user = verified;
+        let new_text = write_frontmatter_and_body(&fm, &body);
+        write_atomic(&abs, new_text.as_bytes())?;
+
+        // Write-through: parse new text + upsert. The new mtime is whatever
+        // the OS just wrote — re-stat for accuracy.
+        let (parsed2, body2) = parse_frontmatter_and_body(&new_text);
+        let body_parsed = parse_body(&body2);
+        let mtime = std::fs::metadata(&abs)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_else(|| chrono::Utc::now().timestamp());
+        JournalCache::new(db)
+            .upsert_entry(
+                project_id,
+                &relative_path,
+                &parsed2,
+                &body_parsed,
+                mtime,
+                &new_text,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Rebuild the cache from `.oculpm/journal/` ground truth. Drops every
+    /// row for the project and re-walks. Returns the user-facing report
+    /// shape from `spec::ReindexReport` (project_id + completed_at included).
+    pub async fn reindex_journal_cache(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<ReindexReport, OculpmError> {
+        let journal_root = self.journal_root(project_id).await?;
+        let report = JournalCache::new(db)
+            .reindex_full(project_id, &journal_root)
+            .await?;
+        Ok(reindex_report_to_spec(project_id, report))
+    }
+
+    /// Write a manual journal entry the user authored via the modal. Resolves
+    /// session_id (existing active session → draft override → sentinel),
+    /// constructs frontmatter, writes the file atomically with the spec's
+    /// `<HHMM>_<type>_<slug>.md` naming, and upserts the cache.
+    pub async fn create_manual_journal_entry(
+        &self,
+        db: &Db,
+        project_id: u32,
+        draft: ManualEntryDraft,
+    ) -> Result<JournalEntry, OculpmError> {
+        validate_slug(&draft.slug)?;
+
+        // Snapshot the per-project state we need without holding the lock
+        // across disk IO.
+        let (root, resolver, language) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            (
+                entry.root.clone(),
+                entry.resolver.clone(),
+                "ko".to_string(), // No top-level language field yet; default per spec.
+            )
+        };
+        let now_utc = chrono::Utc::now();
+        let workday = resolver.workday_of(now_utc);
+        let local_now = now_utc.with_timezone(&chrono_tz_from(&resolver));
+        let hhmm = format!("{:02}{:02}", local_now.hour(), local_now.minute());
+
+        // Resolve session_id: explicit → active → sentinel.
+        let session_id = if let Some(sid) = draft.session_id.clone() {
+            sid
+        } else if let Ok(Some(sess)) = self.get_current_session(project_id).await {
+            sess.id
+        } else {
+            format!(
+                "manual-{workday}-{}{:02}{:02}",
+                local_now.hour(),
+                local_now.minute(),
+                local_now.second()
+            )
+        };
+
+        // Build the frontmatter.
+        let fm = JournalFrontmatter {
+            schema_version: 1,
+            entry_type: draft.entry_type,
+            slug: draft.slug.clone(),
+            status: draft.status.unwrap_or(EntryStatus::Planned),
+            difficulty: draft.difficulty,
+            created_at: local_now.to_rfc3339(),
+            updated_at: None,
+            session_id,
+            agent: AgentRef {
+                id: "manual".to_string(),
+                version: None,
+            },
+            language,
+            verified_by_user: true,
+            files_touched: draft.files_touched.clone(),
+            related: Vec::new(),
+            tags: draft.tags.clone(),
+        };
+
+        // Compose body: first-line title with [ ] / [x] marker derived from
+        // status (done → [x], else [ ]).
+        let marker = if matches!(fm.status, EntryStatus::Done) {
+            "[x]"
+        } else {
+            "[ ]"
+        };
+        let body = if draft.body_markdown.is_empty() {
+            format!("{marker} {}\n", draft.title)
+        } else {
+            format!("{marker} {}\n\n{}", draft.title, draft.body_markdown)
+        };
+        let text = write_frontmatter_and_body(&fm, &body);
+
+        // Resolve target path + write atomically. On filename collision we
+        // suffix `__2`, `__3`, … per spec §2.1.
+        let category_dir = resolver.journal_dir(&root, &workday, draft.entry_type);
+        std::fs::create_dir_all(&category_dir).map_err(|source| OculpmError::Io {
+            path: category_dir.clone(),
+            source,
+        })?;
+        let type_str = entry_type_filename_token(draft.entry_type);
+        let base_name = format!("{hhmm}_{type_str}_{}", draft.slug);
+        let (abs, file_name) = pick_nonconflicting_path(&category_dir, &base_name);
+        write_atomic(&abs, text.as_bytes())?;
+
+        // Upsert into the cache so the caller can re-read immediately.
+        let relative_path = format!(
+            "{workday}/{}/{file_name}",
+            category_subdir(draft.entry_type)
+        );
+        let mtime = std::fs::metadata(&abs)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_else(|| now_utc.timestamp());
+        let (parsed, body_text) = parse_frontmatter_and_body(&text);
+        let body_parsed = parse_body(&body_text);
+        let cache = JournalCache::new(db);
+        cache
+            .upsert_entry(
+                project_id,
+                &relative_path,
+                &parsed,
+                &body_parsed,
+                mtime,
+                &text,
+            )
+            .await?;
+        cache
+            .get_entry(project_id, &relative_path)
+            .await?
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(
+                    "manual entry was written but cache hydration failed".to_string(),
+                )
+            })
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// W3-PR3 helpers (file-private)
+// ─────────────────────────────────────────────────────────────────────────────
+
+use chrono::Timelike;
+
+/// Spec §2.1 — kebab-case ASCII, 1..=60 chars.
+fn validate_slug(slug: &str) -> Result<(), OculpmError> {
+    if slug.is_empty() || slug.len() > 60 {
+        return Err(OculpmError::InvalidConfig(format!(
+            "slug must be 1..=60 characters (got {})",
+            slug.len()
+        )));
+    }
+    if !slug
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
+        return Err(OculpmError::InvalidConfig(
+            "slug must match [a-z0-9-] (kebab-case, ASCII)".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn entry_type_filename_token(t: EntryType) -> &'static str {
+    match t {
+        EntryType::Bug => "bug",
+        EntryType::Feature => "feature",
+        EntryType::Error => "error",
+        EntryType::Refactor => "refactor",
+        EntryType::Chore => "chore",
+    }
+}
+
+fn category_subdir(t: EntryType) -> &'static str {
+    match t {
+        EntryType::Bug => "Bugs",
+        EntryType::Feature => "Features_to_add",
+        EntryType::Error => "Errors",
+        EntryType::Refactor => "Refactors",
+        EntryType::Chore => "Chores",
+    }
+}
+
+/// Resolve a non-conflicting file path: `base.md` first, then `base__2.md`,
+/// `base__3.md`, …. Returns the absolute path and the chosen file name.
+fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, String) {
+    let initial = format!("{base}.md");
+    let first = dir.join(&initial);
+    if !first.exists() {
+        return (first, initial);
+    }
+    for n in 2..=999 {
+        let name = format!("{base}__{n}.md");
+        let p = dir.join(&name);
+        if !p.exists() {
+            return (p, name);
+        }
+    }
+    // Theoretical fallback — collisions beyond 999 are absurd. Use timestamp.
+    let name = format!("{base}__{}.md", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+    let p = dir.join(&name);
+    (p, name)
+}
+
+/// Extract the project tz from a `WorkdayResolver` for local-time
+/// formatting. `WorkdayResolver` exposes `tz` as a public field.
+fn chrono_tz_from(resolver: &WorkdayResolver) -> chrono_tz::Tz {
+    resolver.tz
+}
+
+fn reindex_report_to_spec(project_id: u32, r: CacheReindexReport) -> ReindexReport {
+    let _ = r.elapsed_ms; // captured in tracing log; not part of spec shape
+    let _ = r.parse_errors; // surfaced via integrity events, not the public report
+    ReindexReport {
+        project_id,
+        inserted: r.inserted,
+        updated: r.updated,
+        deleted: r.deleted,
+        skipped: r.skipped_unchanged,
+        completed_at: chrono::Utc::now().to_rfc3339(),
+    }
 }
 
 fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
@@ -1124,5 +1459,289 @@ mod tests {
             vec!["20260523", "20260522", "20260521", "20260520"],
             "must be sorted descending, non-YYYYMMDD excluded"
         );
+    }
+
+    // ─── W3-PR3: journal/manual-entry/verified/reindex ──────────────────
+
+    mod journal_w3_pr3 {
+        use super::*;
+        use crate::db::Db;
+        use crate::oculpm::spec::{Difficulty, EntryStatus, EntryType, FileTouched, ManualEntryDraft};
+
+        async fn fresh_manager_and_db() -> (
+            OculpmManager,
+            Db,
+            tempfile::TempDir, // project root + db dir
+            std::path::PathBuf,
+        ) {
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = Db::open(db_path).await.expect("open db");
+            let manager = OculpmManager::new();
+            let project_root = dir.path().join("project");
+            std::fs::create_dir_all(&project_root).unwrap();
+            manager.init_project(7, &project_root).await.unwrap();
+            (manager, db, dir, project_root)
+        }
+
+        fn minimal_draft(slug: &str) -> ManualEntryDraft {
+            ManualEntryDraft {
+                entry_type: EntryType::Bug,
+                slug: slug.to_string(),
+                title: "Manual entry title".to_string(),
+                difficulty: Some(Difficulty::Medium),
+                body_markdown: "Body text\n".to_string(),
+                session_id: None,
+                files_touched: vec![FileTouched {
+                    path: "src/a.rs".to_string(),
+                    op: crate::oculpm::spec::FileOp::Update,
+                    bytes_added: None,
+                    bytes_removed: None,
+                    rename_from: None,
+                }],
+                status: Some(EntryStatus::Done),
+                tags: vec!["alpha".into()],
+            }
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_writes_file_and_caches_with_agent_manual() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("my-slug"))
+                .await
+                .expect("created");
+
+            assert_eq!(entry.frontmatter.agent.id, "manual");
+            assert_eq!(entry.frontmatter.entry_type, EntryType::Bug);
+            assert_eq!(entry.frontmatter.slug, "my-slug");
+            assert_eq!(entry.frontmatter.tags, vec!["alpha".to_string()]);
+            assert!(entry.frontmatter.verified_by_user);
+            assert_eq!(entry.frontmatter.files_touched.len(), 1);
+
+            // File exists on disk under journal/<workday>/Bugs/.
+            let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+            assert!(abs.exists(), "file written to {}", abs.display());
+
+            // Listed via cache too.
+            let rows = manager
+                .list_journal_entries(&db, 7, None, EntryFilters::default())
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].slug, "my-slug");
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_rejects_invalid_slug() {
+            let (manager, db, _dir, _root) = fresh_manager_and_db().await;
+            // Uppercase + space → fails kebab-case ASCII rule.
+            let res = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("Bad Slug!"))
+                .await;
+            assert!(res.is_err());
+            let res2 = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft(""))
+                .await;
+            assert!(res2.is_err());
+            let too_long = "a".repeat(61);
+            let res3 = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft(&too_long))
+                .await;
+            assert!(res3.is_err());
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_handles_filename_collision_with_suffix() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let a = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("collide"))
+                .await
+                .expect("first");
+            let b = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("collide"))
+                .await
+                .expect("second");
+
+            assert_ne!(a.relative_path, b.relative_path, "must not overwrite");
+            assert!(
+                b.relative_path.contains("__2"),
+                "second write should suffix __2: {}",
+                b.relative_path
+            );
+            // Both files on disk.
+            let r = project_root.join(".oculpm/journal");
+            assert!(r.join(&a.relative_path).exists());
+            assert!(r.join(&b.relative_path).exists());
+        }
+
+        #[tokio::test]
+        async fn set_journal_verified_flips_frontmatter_and_cache() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            // verified=true by default for manual drafts → flip to false.
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("verify-me"))
+                .await
+                .unwrap();
+            assert!(entry.frontmatter.verified_by_user);
+
+            manager
+                .set_journal_verified(&db, 7, entry.relative_path.clone(), false)
+                .await
+                .unwrap();
+            let raw =
+                std::fs::read_to_string(project_root.join(".oculpm/journal").join(&entry.relative_path))
+                    .unwrap();
+            assert!(raw.contains("verified_by_user: false"));
+
+            let fresh = manager
+                .get_journal_entry(&db, 7, entry.relative_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(!fresh.frontmatter.verified_by_user, "cache reflects new flag");
+
+            // Round-trip back to true.
+            manager
+                .set_journal_verified(&db, 7, entry.relative_path.clone(), true)
+                .await
+                .unwrap();
+            let fresh2 = manager
+                .get_journal_entry(&db, 7, entry.relative_path)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(fresh2.frontmatter.verified_by_user);
+        }
+
+        #[tokio::test]
+        async fn set_journal_verified_rejects_broken_frontmatter() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            // Write a deliberately broken entry directly to disk.
+            let rel = "20260524/Bugs/0000_bug_broken.md";
+            let abs = project_root.join(".oculpm/journal").join(rel);
+            std::fs::create_dir_all(abs.parent().unwrap()).unwrap();
+            std::fs::write(
+                &abs,
+                "---\nschema_version: 1\ntype: bug\n  bad: [unclosed\n---\n[x] body\n",
+            )
+            .unwrap();
+            // Get the entry through the manager so the on-demand cache path
+            // runs (parse_ok=0 → row exists as chore).
+            manager
+                .get_journal_entry(&db, 7, rel.to_string())
+                .await
+                .unwrap();
+
+            let res = manager
+                .set_journal_verified(&db, 7, rel.to_string(), true)
+                .await;
+            assert!(res.is_err());
+            let msg = res.unwrap_err().to_string();
+            assert!(msg.contains("broken frontmatter"), "got: {msg}");
+        }
+
+        #[tokio::test]
+        async fn reindex_journal_cache_returns_spec_report_shape() {
+            let (manager, db, _dir, _root) = fresh_manager_and_db().await;
+            manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("a"))
+                .await
+                .unwrap();
+            manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("b"))
+                .await
+                .unwrap();
+            // Wipe cache, then ask manager to reindex.
+            db.conn()
+                .call(|c| -> rusqlite::Result<()> {
+                    c.execute("DELETE FROM oculpm_journal WHERE project_id = 7", [])?;
+                    Ok(())
+                })
+                .await
+                .unwrap();
+            let report = manager.reindex_journal_cache(&db, 7).await.unwrap();
+            assert_eq!(report.project_id, 7);
+            assert_eq!(report.inserted, 2);
+            assert!(!report.completed_at.is_empty());
+            // Sanity: list works after reindex.
+            let rows = manager
+                .list_journal_entries(&db, 7, None, EntryFilters::default())
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 2);
+        }
+
+        #[tokio::test]
+        async fn get_journal_entry_falls_back_to_disk_on_cache_miss() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            // Hand-write an entry to disk that the cache hasn't seen.
+            let rel = "20260524/Bugs/0900_bug_handwritten.md";
+            let abs = project_root.join(".oculpm/journal").join(rel);
+            std::fs::create_dir_all(abs.parent().unwrap()).unwrap();
+            let fm = "schema_version: 1\ntype: bug\nslug: handwritten\nstatus: planned\ncreated_at: \"2026-05-24T09:00:00+09:00\"\nsession_id: \"20260524-001\"\nagent: { id: claude-code }\nlanguage: ko";
+            std::fs::write(&abs, format!("---\n{fm}\n---\n[ ] Hand title\n")).unwrap();
+
+            // Cache is empty; manager must on-demand parse + upsert.
+            let entry = manager
+                .get_journal_entry(&db, 7, rel.to_string())
+                .await
+                .unwrap()
+                .expect("fall-back path");
+            assert_eq!(entry.frontmatter.slug, "handwritten");
+            // Second call now hits the cache.
+            let entry2 = manager
+                .get_journal_entry(&db, 7, rel.to_string())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(entry2.title, entry.title);
+        }
+
+        #[tokio::test]
+        async fn list_journal_entries_returns_empty_for_uninitialised_project() {
+            // No init for project_id=99 — manager has no entry, so cache
+            // returns empty Vec (NotInitialized would break Today UX).
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = Db::open(db_path).await.unwrap();
+            let manager = OculpmManager::new();
+            // list_journal_entries doesn't touch manager state (only cache),
+            // so it shouldn't error for an unknown project.
+            let rows = manager
+                .list_journal_entries(&db, 99, None, EntryFilters::default())
+                .await
+                .unwrap();
+            assert!(rows.is_empty());
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_with_explicit_session_id_keeps_it() {
+            let (manager, db, _dir, _root) = fresh_manager_and_db().await;
+            let mut draft = minimal_draft("explicit-sid");
+            draft.session_id = Some("20260524-042".to_string());
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, draft)
+                .await
+                .unwrap();
+            assert_eq!(entry.frontmatter.session_id, "20260524-042");
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_planned_status_uses_unchecked_marker() {
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let mut draft = minimal_draft("planned-x");
+            draft.status = Some(EntryStatus::Planned);
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, draft)
+                .await
+                .unwrap();
+            let raw =
+                std::fs::read_to_string(project_root.join(".oculpm/journal").join(&entry.relative_path))
+                    .unwrap();
+            // Body starts with "[ ] Manual entry title"
+            assert!(raw.contains("[ ] Manual entry title"), "raw: {raw}");
+            assert_eq!(entry.checkbox, Some(false));
+        }
     }
 }

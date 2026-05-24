@@ -9,11 +9,14 @@
 //! `schema_version`.
 
 pub mod atomic_io;
+pub mod cache;
 pub mod config;
 pub mod error;
+pub mod frontmatter;
 pub mod index;
 pub mod lock;
 pub mod manager;
+pub mod markdown;
 pub mod paths;
 pub mod session;
 pub mod spec;
