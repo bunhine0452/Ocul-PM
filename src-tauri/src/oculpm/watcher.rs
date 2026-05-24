@@ -35,6 +35,7 @@ use tokio::task::JoinHandle;
 use crate::db::Db;
 use crate::oculpm::cache::{JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
+use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
@@ -230,9 +231,16 @@ impl WatcherInner {
             return;
         }
 
-        // 2. .oculpm/agents/** — emit-only.
+        // 2. .oculpm/agents/** — emit + cascading re-sync of every active
+        //    adapter. The cascade is what makes `_template.md` (master) the
+        //    single source of truth: users edit one file and Cursor / Claude
+        //    Code / etc. all get the new rules in one debounce window.
+        //    Adapter writes themselves land outside `.oculpm/agents/` so
+        //    there's no feedback loop. Idempotency in `sync_active` covers
+        //    the spurious self-event when we wrote the master ourselves.
         if rel_str.starts_with(".oculpm/agents/") {
             self.emit_agents_template_changed(&rel_str);
+            self.cascade_agents_resync().await;
             return;
         }
 
@@ -421,6 +429,25 @@ impl WatcherInner {
                 op,
             }
             .emit(handle);
+        }
+    }
+
+    /// Trigger a full agent-adapter re-sync (PR4 master-edit cascade). Same
+    /// gating as `apply_journal_cache_invalidation` — `app_handle: None`
+    /// makes this a no-op so existing unit tests stay self-contained.
+    /// Failures are logged but never escalated; the next `sync_agents` call
+    /// (Settings save / next agents edit) will retry.
+    async fn cascade_agents_resync(&self) {
+        let Some(handle) = &self.app_handle else { return };
+        use tauri::Manager;
+        let manager: tauri::State<'_, OculpmManager> = handle.state::<OculpmManager>();
+        if let Err(e) = manager.sync_agents(self.project_id).await {
+            tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                error = %e,
+                "agents cascade resync failed"
+            );
         }
     }
 

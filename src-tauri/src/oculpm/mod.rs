@@ -8,6 +8,7 @@
 //! all specified in `00-spec.md` and must not be changed without bumping the
 //! `schema_version`.
 
+pub mod agents;
 pub mod atomic_io;
 pub mod cache;
 pub mod config;

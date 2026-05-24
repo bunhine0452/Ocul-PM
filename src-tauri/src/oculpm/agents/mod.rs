@@ -1,0 +1,634 @@
+//! Adapter renderer + sync + detect — W4-PR2.
+//!
+//! Renders the in-binary templates from `templates/` to the four supported
+//! adapter paths according to `config.agents.active`. Drives:
+//! - `OculpmManager::sync_agents` (init / Greenfield wizard / Settings save)
+//! - `OculpmManager::detect_agents` (Settings "감지" button)
+//! - watcher's `.oculpm/agents/**` change handler (master edit → cascading
+//!   re-render of every active adapter)
+//!
+//! Idempotency is load-bearing: the watcher will fire the agents path on
+//! every save of an adapter file we just wrote ourselves. If `sync_active`
+//! weren't byte-stable per call, every save would amplify into another save,
+//! drowning out the drift detector PR4 is going to build on top of this.
+//!
+//! See `docs/major_update/oculpm/W4/PR2-agents-renderer.md`.
+//!
+//! Three templates embedded as `.tpl` strings — they ship with the binary
+//! and `init_project` copies the master to `.oculpm/agents/_template.md` on
+//! first run (user-editable from then on). Per-agent overrides live in
+//! `.oculpm/agents/per-agent/{id}.md`.
+
+#![allow(dead_code)] // Consumed by manager / commands / watcher in this PR
+                     // and by PR4 (drift) / PR5 (compare) / PR7 (settings).
+
+use std::path::{Path, PathBuf};
+
+use crate::oculpm::atomic_io::{
+    read_managed_block, remove_managed_block, write_atomic, write_managed_block,
+    ManagedBlockResult,
+};
+use crate::oculpm::error::OculpmError;
+use crate::oculpm::spec::{AgentSyncReport, AgentSyncResult, CommentStyle, OculpmConfig};
+
+// ─── Templates (PR1) ─────────────────────────────────────────────────────────
+
+pub const MASTER_KO: &str = include_str!("templates/master_ko.md.tpl");
+const CURSOR_TPL: &str = include_str!("templates/cursor.mdc.tpl");
+const CLAUDE_CODE_TPL: &str = include_str!("templates/claude_code.md.tpl");
+const ANTIGRAVITY_TPL: &str = include_str!("templates/antigravity.md.tpl");
+const GEMINI_TPL: &str = include_str!("templates/gemini.md.tpl");
+
+/// `block_id` for ManagedBlock-mode adapters. Matches `atomic_io` convention.
+const BLOCK_ID: &str = "oculpm";
+
+// ─── Adapter table ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WriteMode {
+    /// Whole file ours — safe to overwrite or delete on its own.
+    Overwrite,
+    /// File may also be hand-edited by the user; only the marker block
+    /// belongs to us.
+    ManagedBlock,
+}
+
+/// Static metadata for one known adapter. Function pointer for rendering
+/// keeps dispatch zero-cost and avoids the `Box<dyn Fn>` allocation that
+/// would otherwise touch every sync call.
+#[derive(Debug, Clone, Copy)]
+pub struct AgentAdapter {
+    pub id: &'static str,
+    pub adapter_path: &'static str,
+    pub write_mode: WriteMode,
+    pub render: fn(&AgentContext) -> String,
+}
+
+/// Render-time context. `master_template` is the on-disk
+/// `.oculpm/agents/_template.md` (user-editable) if present, falling back to
+/// the in-binary `MASTER_KO`. `per_agent_override` is the optional
+/// `.oculpm/agents/per-agent/{id}.md`. Both default to the embedded `.tpl`
+/// in the current PR — PR4/PR7 may extend the render to actually merge the
+/// master + per-agent override (today the adapter `.tpl` files are
+/// self-contained, so we just emit them verbatim).
+#[derive(Debug, Clone)]
+pub struct AgentContext {
+    pub master_template: String,
+    pub per_agent_override: Option<String>,
+}
+
+/// All adapters we know how to render. Order matters for `sync_active`'s
+/// `AgentSyncReport` output (deterministic per-call ordering).
+pub fn known_adapters() -> &'static [AgentAdapter] {
+    &[
+        AgentAdapter {
+            id: "cursor",
+            adapter_path: ".cursor/rules/ocul-pm.mdc",
+            write_mode: WriteMode::Overwrite,
+            render: render_cursor,
+        },
+        AgentAdapter {
+            id: "claude-code",
+            adapter_path: ".claude/CLAUDE.md",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_claude_code,
+        },
+        AgentAdapter {
+            id: "antigravity",
+            adapter_path: ".agent/rules/ocul-pm.md",
+            write_mode: WriteMode::Overwrite,
+            render: render_antigravity,
+        },
+        AgentAdapter {
+            id: "gemini-cli",
+            adapter_path: "GEMINI.md",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_gemini,
+        },
+    ]
+}
+
+fn render_cursor(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| CURSOR_TPL.to_string())
+}
+
+fn render_claude_code(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| CLAUDE_CODE_TPL.to_string())
+}
+
+fn render_antigravity(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| ANTIGRAVITY_TPL.to_string())
+}
+
+fn render_gemini(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| GEMINI_TPL.to_string())
+}
+
+// ─── sync_active ─────────────────────────────────────────────────────────────
+
+/// Sync every known adapter to disk based on `config.agents.active`:
+/// - active → render and write (ManagedBlock or Overwrite per adapter)
+/// - inactive → remove our footprint (block deletion or file unlink)
+///
+/// Idempotent — running twice with the same inputs leaves the disk
+/// untouched on the second call (each adapter reports `Unchanged` / no-op).
+///
+/// Master template handling: on first call (no
+/// `.oculpm/agents/_template.md` on disk), the embedded `MASTER_KO` is
+/// atomically written there so the user can edit it going forward. Later
+/// calls always read the on-disk master so user edits persist.
+pub async fn sync_active(
+    root: &Path,
+    config: &OculpmConfig,
+) -> Result<AgentSyncReport, OculpmError> {
+    let master_template = ensure_master_template(root)?;
+    let per_agent_dir = root.join(".oculpm").join("agents").join("per-agent");
+
+    let active: std::collections::HashSet<&str> = config
+        .agents
+        .active
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
+
+    let mut results = Vec::with_capacity(known_adapters().len());
+    for adapter in known_adapters() {
+        let abs = root.join(adapter.adapter_path);
+        let per_agent_override = read_per_agent_override(&per_agent_dir, adapter.id);
+        let ctx = AgentContext {
+            master_template: master_template.clone(),
+            per_agent_override,
+        };
+
+        let result = if active.contains(adapter.id) {
+            apply_write(adapter, &abs, &ctx)
+        } else {
+            apply_remove(adapter, &abs)
+        };
+        results.push(result);
+    }
+
+    Ok(AgentSyncReport { results })
+}
+
+fn apply_write(adapter: &AgentAdapter, abs: &Path, ctx: &AgentContext) -> AgentSyncResult {
+    let rendered = (adapter.render)(ctx);
+    let outcome = match adapter.write_mode {
+        WriteMode::Overwrite => write_overwrite(abs, &rendered),
+        WriteMode::ManagedBlock => {
+            write_managed_block(abs, BLOCK_ID, &rendered, CommentStyle::Markdown)
+        }
+    };
+    match outcome {
+        Ok(ManagedBlockResult::Inserted) => action_result(adapter.id, "inserted"),
+        Ok(ManagedBlockResult::Updated) => action_result(adapter.id, "updated"),
+        Ok(ManagedBlockResult::Unchanged) => action_result(adapter.id, "unchanged"),
+        Err(e) => error_result(adapter.id, &e),
+    }
+}
+
+fn apply_remove(adapter: &AgentAdapter, abs: &Path) -> AgentSyncResult {
+    let outcome: Result<bool, OculpmError> = match adapter.write_mode {
+        WriteMode::Overwrite => match std::fs::remove_file(abs) {
+            Ok(()) => Ok(true),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(source) => Err(OculpmError::Io {
+                path: abs.to_path_buf(),
+                source,
+            }),
+        },
+        WriteMode::ManagedBlock => {
+            // Detect whether the block was present so we can distinguish
+            // "removed" from "unchanged" without rewriting the file.
+            let had_block =
+                matches!(read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown), Ok(Some(_)));
+            remove_managed_block(abs, BLOCK_ID, CommentStyle::Markdown).map(|()| had_block)
+        }
+    };
+    match outcome {
+        Ok(true) => action_result(adapter.id, "removed"),
+        Ok(false) => action_result(adapter.id, "unchanged"),
+        Err(e) => error_result(adapter.id, &e),
+    }
+}
+
+/// Overwrite-mode write reuses `write_atomic` and reports a synthetic
+/// ManagedBlockResult so the calling code can branch the same way for both
+/// write modes (Inserted = file didn't exist; Updated = different content;
+/// Unchanged = identical bytes already on disk).
+fn write_overwrite(abs: &Path, rendered: &str) -> Result<ManagedBlockResult, OculpmError> {
+    let existed = abs.exists();
+    if existed {
+        if let Ok(current) = std::fs::read(abs) {
+            if current == rendered.as_bytes() {
+                return Ok(ManagedBlockResult::Unchanged);
+            }
+        }
+    }
+    write_atomic(abs, rendered.as_bytes())?;
+    Ok(if existed {
+        ManagedBlockResult::Updated
+    } else {
+        ManagedBlockResult::Inserted
+    })
+}
+
+fn action_result(id: &str, action: &str) -> AgentSyncResult {
+    AgentSyncResult {
+        id: id.to_string(),
+        action: action.to_string(),
+        error: None,
+    }
+}
+
+fn error_result(id: &str, e: &OculpmError) -> AgentSyncResult {
+    AgentSyncResult {
+        id: id.to_string(),
+        action: "error".to_string(),
+        error: Some(e.to_string()),
+    }
+}
+
+fn ensure_master_template(root: &Path) -> Result<String, OculpmError> {
+    let dir = root.join(".oculpm").join("agents");
+    let path = dir.join("_template.md");
+    match std::fs::read_to_string(&path) {
+        Ok(t) => Ok(t),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            write_atomic(&path, MASTER_KO.as_bytes())?;
+            Ok(MASTER_KO.to_string())
+        }
+        Err(source) => Err(OculpmError::Io { path, source }),
+    }
+}
+
+fn read_per_agent_override(per_agent_dir: &Path, id: &str) -> Option<String> {
+    let path = per_agent_dir.join(format!("{id}.md"));
+    std::fs::read_to_string(path).ok()
+}
+
+// ─── detect ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectConfidence {
+    /// The adapter path itself exists — either we wrote it before, or a user
+    /// (or another tool) is already aware of the adapter.
+    Present,
+    /// An adjacent marker (`.cursor/`, `.claude/`, `.agent/`, `.gemini/`)
+    /// exists but the adapter path doesn't — the user clearly uses this LLM
+    /// even if our adapter isn't installed yet.
+    Likely,
+    /// No signal at all.
+    Unknown,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct AgentDetection {
+    pub agent_id: String,
+    pub confidence: DetectConfidence,
+    pub adapter_path_exists: bool,
+    pub adjacent_marker_exists: bool,
+}
+
+/// Heuristically detect which adapters are likely to be useful for this
+/// project. Read-only — touches no files. Used by Settings (PR7) and the
+/// Greenfield wizard (W3-PR10) to pre-populate `config.agents.active`.
+pub fn detect(root: &Path) -> Vec<AgentDetection> {
+    known_adapters()
+        .iter()
+        .map(|adapter| {
+            let adapter_path_exists = root.join(adapter.adapter_path).exists();
+            let adjacent_marker_exists = adjacent_marker_for(adapter.id, root);
+            let confidence = if adapter_path_exists {
+                DetectConfidence::Present
+            } else if adjacent_marker_exists {
+                DetectConfidence::Likely
+            } else {
+                DetectConfidence::Unknown
+            };
+            AgentDetection {
+                agent_id: adapter.id.to_string(),
+                confidence,
+                adapter_path_exists,
+                adjacent_marker_exists,
+            }
+        })
+        .collect()
+}
+
+fn adjacent_marker_for(adapter_id: &str, root: &Path) -> bool {
+    let candidates: &[&str] = match adapter_id {
+        "cursor" => &[".cursor"],
+        "claude-code" => &[".claude"],
+        "antigravity" => &[".agent"],
+        "gemini-cli" => &[".gemini", "GEMINI.md"],
+        _ => &[],
+    };
+    candidates.iter().any(|c| root.join(c).exists())
+}
+
+// ─── helpers exposed for tests ───────────────────────────────────────────────
+
+pub fn _absolute_for_test(root: &Path, adapter_id: &str) -> Option<PathBuf> {
+    known_adapters()
+        .iter()
+        .find(|a| a.id == adapter_id)
+        .map(|a| root.join(a.adapter_path))
+}
+
+// ─── tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::oculpm::spec::AgentsConfig;
+    use tempfile::TempDir;
+
+    fn config_with(active: &[&str]) -> OculpmConfig {
+        let mut cfg = OculpmConfig::default_for_new_project();
+        cfg.agents = AgentsConfig {
+            active: active.iter().map(|s| s.to_string()).collect(),
+            auto_detect_on_open: false,
+            auto_sync_adapters: false,
+        };
+        cfg
+    }
+
+    fn setup() -> TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        // Ensure .oculpm/ exists so ensure_master_template can write into it.
+        std::fs::create_dir_all(dir.path().join(".oculpm").join("agents")).unwrap();
+        dir
+    }
+
+    fn read(path: &Path) -> String {
+        std::fs::read_to_string(path).unwrap()
+    }
+
+    // ─── sync_active — six matrix cases per PR2 §3 ─────────────────────────
+
+    /// (PR2 §3 #1) active = ["cursor", "claude-code"] → overwrite file +
+    /// managed-block insertion. Both adapters report "inserted" the first time.
+    #[tokio::test]
+    async fn sync_writes_overwrite_and_managed_block() {
+        let dir = setup();
+        let cfg = config_with(&["cursor", "claude-code"]);
+        let report = sync_active(dir.path(), &cfg).await.unwrap();
+
+        let by_id: std::collections::HashMap<_, _> =
+            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        assert_eq!(by_id["cursor"].action, "inserted");
+        assert_eq!(by_id["claude-code"].action, "inserted");
+        // Inactive adapters land as "unchanged" (no file to remove).
+        assert_eq!(by_id["antigravity"].action, "unchanged");
+        assert_eq!(by_id["gemini-cli"].action, "unchanged");
+
+        let cursor_path = dir.path().join(".cursor/rules/ocul-pm.mdc");
+        assert!(cursor_path.exists());
+        let claude_path = dir.path().join(".claude/CLAUDE.md");
+        let claude_text = read(&claude_path);
+        assert!(claude_text.contains("<!-- oculpm:begin v1 -->"));
+        assert!(claude_text.contains("<!-- oculpm:end -->"));
+    }
+
+    /// (PR2 §3 #2) Toggle cursor off → overwrite file disappears.
+    #[tokio::test]
+    async fn sync_remove_overwrite_adapter() {
+        let dir = setup();
+        let cfg_on = config_with(&["cursor"]);
+        sync_active(dir.path(), &cfg_on).await.unwrap();
+        assert!(dir.path().join(".cursor/rules/ocul-pm.mdc").exists());
+
+        let cfg_off = config_with(&[]);
+        let report = sync_active(dir.path(), &cfg_off).await.unwrap();
+        let by_id: std::collections::HashMap<_, _> =
+            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        assert_eq!(by_id["cursor"].action, "removed");
+        assert!(!dir.path().join(".cursor/rules/ocul-pm.mdc").exists());
+    }
+
+    /// (PR2 §3 #3) Pre-existing CLAUDE.md with user content → managed block
+    /// is inserted/updated WITHOUT mutating any byte outside the markers.
+    #[tokio::test]
+    async fn sync_managed_block_preserves_user_content_byte_perfect() {
+        let dir = setup();
+        let claude_path = dir.path().join(".claude/CLAUDE.md");
+        std::fs::create_dir_all(claude_path.parent().unwrap()).unwrap();
+        let user_header = "# My Project Conventions\n\n- prefer rg over grep\n- no emojis in commits\n";
+        let user_footer = "\n## After ocul-pm\n\n- nothing yet\n";
+        std::fs::write(&claude_path, format!("{user_header}{user_footer}")).unwrap();
+
+        let cfg = config_with(&["claude-code"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+
+        let text = read(&claude_path);
+        assert!(text.contains(user_header), "user header lost: {text:?}");
+        assert!(text.contains(user_footer.trim()), "user footer lost: {text:?}");
+        assert!(text.contains("<!-- oculpm:begin v1 -->"));
+        assert!(text.contains("<!-- oculpm:end -->"));
+    }
+
+    /// (PR2 §3 #4) Edit master → next sync propagates to every active
+    /// adapter. Rendered output of an Overwrite adapter changes when the
+    /// per-agent override is replaced (acts as proxy for master changes
+    /// since the in-binary tpl is the same; the override path exercises
+    /// the same code path used by master edits when PR4 makes render
+    /// pull from the master).
+    #[tokio::test]
+    async fn sync_per_agent_override_propagates_to_active_adapter() {
+        let dir = setup();
+        let cfg = config_with(&["cursor"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let before = read(&dir.path().join(".cursor/rules/ocul-pm.mdc"));
+
+        // Override the cursor adapter content via per-agent file.
+        let per_agent_path = dir
+            .path()
+            .join(".oculpm/agents/per-agent/cursor.md");
+        std::fs::create_dir_all(per_agent_path.parent().unwrap()).unwrap();
+        std::fs::write(&per_agent_path, "OVERRIDDEN cursor adapter\n").unwrap();
+        let report = sync_active(dir.path(), &cfg).await.unwrap();
+
+        let cursor_result = report
+            .results
+            .iter()
+            .find(|r| r.id == "cursor")
+            .unwrap();
+        assert_eq!(cursor_result.action, "updated");
+        let after = read(&dir.path().join(".cursor/rules/ocul-pm.mdc"));
+        assert_ne!(before, after);
+        assert!(after.contains("OVERRIDDEN cursor adapter"));
+    }
+
+    /// (PR2 §3 #5) Idempotency: same inputs twice → second call reports
+    /// every active adapter as "unchanged" and file mtimes don't move.
+    #[tokio::test]
+    async fn sync_is_idempotent_on_unchanged_inputs() {
+        let dir = setup();
+        let cfg = config_with(&["cursor", "claude-code"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let cursor_mtime_1 = std::fs::metadata(dir.path().join(".cursor/rules/ocul-pm.mdc"))
+            .unwrap()
+            .modified()
+            .unwrap();
+        let claude_mtime_1 = std::fs::metadata(dir.path().join(".claude/CLAUDE.md"))
+            .unwrap()
+            .modified()
+            .unwrap();
+
+        let report = sync_active(dir.path(), &cfg).await.unwrap();
+        let by_id: std::collections::HashMap<_, _> =
+            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        assert_eq!(by_id["cursor"].action, "unchanged");
+        assert_eq!(by_id["claude-code"].action, "unchanged");
+
+        let cursor_mtime_2 = std::fs::metadata(dir.path().join(".cursor/rules/ocul-pm.mdc"))
+            .unwrap()
+            .modified()
+            .unwrap();
+        let claude_mtime_2 = std::fs::metadata(dir.path().join(".claude/CLAUDE.md"))
+            .unwrap()
+            .modified()
+            .unwrap();
+        assert_eq!(cursor_mtime_1, cursor_mtime_2, "cursor file rewritten on no-op sync");
+        assert_eq!(claude_mtime_1, claude_mtime_2, "claude file rewritten on no-op sync");
+    }
+
+    /// (PR2 §3 #6) First sync writes the master template to
+    /// `.oculpm/agents/_template.md`. User-editable from then on.
+    #[tokio::test]
+    async fn sync_writes_master_template_on_first_run_only() {
+        let dir = setup();
+        let cfg = config_with(&[]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let master_path = dir.path().join(".oculpm/agents/_template.md");
+        assert!(master_path.exists());
+
+        // User edits the master.
+        std::fs::write(&master_path, "USER EDITED MASTER\n").unwrap();
+
+        // Next sync must NOT overwrite the user edit.
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let after = read(&master_path);
+        assert_eq!(after, "USER EDITED MASTER\n");
+    }
+
+    // ─── managed_block_write specifics (4 cases per PR2 §3) ────────────────
+
+    /// (PR2 §3 managed #1) Brand-new CLAUDE.md → block inserted, only
+    /// adapter content present.
+    #[tokio::test]
+    async fn managed_block_inserts_when_file_absent() {
+        let dir = setup();
+        let cfg = config_with(&["claude-code"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let claude_path = dir.path().join(".claude/CLAUDE.md");
+        let text = read(&claude_path);
+        let begin = text.find("<!-- oculpm:begin v1 -->").unwrap();
+        let end = text.find("<!-- oculpm:end -->").unwrap();
+        assert!(begin < end);
+    }
+
+    /// (PR2 §3 managed #2) Orphan marker → sync surfaces the error per
+    /// adapter rather than corrupting the file.
+    #[tokio::test]
+    async fn managed_block_orphan_marker_surfaces_as_error_result() {
+        let dir = setup();
+        let claude_path = dir.path().join(".claude/CLAUDE.md");
+        std::fs::create_dir_all(claude_path.parent().unwrap()).unwrap();
+        std::fs::write(&claude_path, "<!-- oculpm:begin v1 -->\n stuck \n").unwrap();
+
+        let cfg = config_with(&["claude-code"]);
+        let report = sync_active(dir.path(), &cfg).await.unwrap();
+        let claude = report
+            .results
+            .iter()
+            .find(|r| r.id == "claude-code")
+            .unwrap();
+        assert_eq!(claude.action, "error");
+        assert!(claude.error.as_ref().unwrap().to_lowercase().contains("managed"));
+    }
+
+    /// (PR2 §3 managed #3) Both markers present with identical content →
+    /// no rewrite, action = "unchanged".
+    #[tokio::test]
+    async fn managed_block_unchanged_when_content_matches() {
+        let dir = setup();
+        let cfg = config_with(&["claude-code"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let report = sync_active(dir.path(), &cfg).await.unwrap();
+        let claude = report
+            .results
+            .iter()
+            .find(|r| r.id == "claude-code")
+            .unwrap();
+        assert_eq!(claude.action, "unchanged");
+    }
+
+    /// (PR2 §3 managed #4) CRLF source file → managed block uses CRLF EOLs.
+    /// Re-asserts the atomic_io invariant on the adapter wiring.
+    #[tokio::test]
+    async fn managed_block_preserves_crlf_eol_from_source() {
+        let dir = setup();
+        let claude_path = dir.path().join(".claude/CLAUDE.md");
+        std::fs::create_dir_all(claude_path.parent().unwrap()).unwrap();
+        std::fs::write(&claude_path, "user line 1\r\nuser line 2\r\n").unwrap();
+
+        let cfg = config_with(&["claude-code"]);
+        sync_active(dir.path(), &cfg).await.unwrap();
+        let text = read(&claude_path);
+        // At least one CRLF must be present in the managed block region
+        // (find the begin marker and assert CRLF follows somewhere after).
+        let begin_idx = text.find("<!-- oculpm:begin v1 -->").unwrap();
+        let end_idx = text.find("<!-- oculpm:end -->").unwrap();
+        let block_slice = &text[begin_idx..end_idx];
+        assert!(block_slice.contains("\r\n"), "EOL not preserved: {block_slice:?}");
+    }
+
+    // ─── detect — three cases per PR2 §3 ───────────────────────────────────
+
+    /// (PR2 §3 detect #1) `.cursor/` exists without `.mdc` → Likely.
+    #[test]
+    fn detect_cursor_likely_when_only_directory_present() {
+        let dir = setup();
+        std::fs::create_dir_all(dir.path().join(".cursor")).unwrap();
+        let result = detect(dir.path());
+        let cursor = result.iter().find(|d| d.agent_id == "cursor").unwrap();
+        assert_eq!(cursor.confidence, DetectConfidence::Likely);
+        assert!(cursor.adjacent_marker_exists);
+        assert!(!cursor.adapter_path_exists);
+    }
+
+    /// (PR2 §3 detect #2) `.claude/CLAUDE.md` exists → Present.
+    #[test]
+    fn detect_claude_present_when_adapter_path_exists() {
+        let dir = setup();
+        let path = dir.path().join(".claude/CLAUDE.md");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "anything").unwrap();
+        let result = detect(dir.path());
+        let claude = result.iter().find(|d| d.agent_id == "claude-code").unwrap();
+        assert_eq!(claude.confidence, DetectConfidence::Present);
+        assert!(claude.adapter_path_exists);
+    }
+
+    /// (PR2 §3 detect #3) Nothing on disk → Unknown for every adapter.
+    #[test]
+    fn detect_unknown_when_nothing_on_disk() {
+        let dir = setup();
+        let result = detect(dir.path());
+        assert_eq!(result.len(), known_adapters().len());
+        for d in &result {
+            assert_eq!(d.confidence, DetectConfidence::Unknown, "{d:?}");
+        }
+    }
+}

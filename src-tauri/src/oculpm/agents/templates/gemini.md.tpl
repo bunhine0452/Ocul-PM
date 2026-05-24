@@ -1,8 +1,6 @@
-<!-- ocul-pm:managed-block-begin v1 -->
-<!-- 이 블록은 ocul-pm 이 자동 관리합니다. 블록 밖의 사용자 콘텐츠는 보존됩니다.
-     마스터를 편집하려면 `.oculpm/agents/_template.md` 를 수정한 뒤 ocul-pm 이 다시 동기화하도록 두세요. -->
-
 # ocul-pm 작업 기록 규칙 (v1)
+
+> 이 섹션은 ocul-pm 이 자동 관리하는 블록 안에 있습니다 (`<!-- oculpm:begin v1 -->` … `<!-- oculpm:end -->`). 블록 밖의 사용자 콘텐츠는 보존됩니다. 마스터를 편집하려면 `.oculpm/agents/_template.md` 를 수정한 뒤 ocul-pm 이 다시 동기화하도록 두세요.
 
 당신 (Gemini CLI) 은 ocul-pm 으로 추적되는 프로젝트에서 작업하고 있습니다. **하나의 논리적 작업 단위** (버그 수정 / 기능 추가 / 리팩토링 / 에러 해결 / 잡일) 를 끝낼 때마다, 그 작업에 관한 markdown 파일을 정해진 위치에 한 개 작성하세요. 사용자에게 묻지 마세요 — 작업의 끝을 인식하면 즉시 기록합니다.
 
@@ -62,5 +60,3 @@ tags: ["watcher", "cache"]
 - 한 파일에 두 작업 묶기 금지.
 
 기존 entry 예시는 `.oculpm/journal/` 의 최근 1~2개 파일을 직접 읽어 참고하세요.
-
-<!-- ocul-pm:managed-block-end -->

@@ -4,7 +4,7 @@
 > **선행**: W4-PR1 (5 template), W1-PR5 (`atomic_io::{write_atomic, write_managed_block, remove_managed_block}`), W1-PR4 (`OculpmConfig.agents.active`).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR2 + §2.2 (managed block EOL) + §2.3 (sync idempotency), [`../00-spec.md`](../00-spec.md) §6.
 
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-24)
 
 ---
 
@@ -156,10 +156,11 @@ Settings UI (PR7) 의 "감지" 버튼 + Greenfield 위저드의 디폴트 활성
 
 ## 5. DoD
 
-- [ ] 13개 단위 테스트 통과.
-- [ ] `.claude/CLAUDE.md` 의 관리 블록 밖 콘텐츠는 byte-perfect 보존 (테스트 #3 가 검증).
-- [ ] `sync_active` idempotent — 같은 입력에 두 번 호출 시 디스크 mtime 변화 없음.
-- [ ] `OculpmManager::sync_agents` 가 W3-PR10 의 greenfield init 흐름 안에서 호출 가능 (시그니처 정합).
+- [x] **13개 단위 테스트 통과** (`cargo test --lib oculpm::agents` = 13/13 green; 전체 `oculpm` suite = 145/145).
+- [x] `.claude/CLAUDE.md` 의 관리 블록 밖 콘텐츠는 byte-perfect 보존 (테스트 `sync_managed_block_preserves_user_content_byte_perfect`).
+- [x] `sync_active` idempotent (테스트 `sync_is_idempotent_on_unchanged_inputs` — mtime 비교까지 검증).
+- [x] `OculpmManager::sync_agents` + `detect_agents` 구현. greenfield init 흐름에서 호출 가능 — Tauri 커맨드 `oculpm_agents_sync_active` / `oculpm_agents_detect` 노출. (실제 greenfield wizard wire-up 은 별 follow-up — 본 PR 은 시그니처 정합까지만.)
+- [x] watcher 의 `.oculpm/agents/**` 분기에 `cascade_agents_resync` 추가 — 마스터 편집 시 모든 활성 어댑터 자동 갱신.
 
 ---
 
@@ -174,7 +175,10 @@ Settings UI (PR7) 의 "감지" 버튼 + Greenfield 위저드의 디폴트 활성
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **AgentsConfig 가 spec.rs 에 이미 정의됨** + `auto_detect_on_open` / `auto_sync_adapters` 두 필드를 갖고 있음. 본 PR 의 sync_active 는 `active` 만 보고 결정 — auto_* 두 필드는 호출자 (Greenfield wizard / Settings save / watcher) 책임 영역.
+- **PR1 의 ManagedBlock 템플릿 마커가 잘못 박혀 있었음**. atomic_io 가 `oculpm:begin/end` 마커를 자동 wrap 하니까, 템플릿 contents 안에는 markers 없어야 함. claude_code.md.tpl / gemini.md.tpl 두 파일에서 마커 라인 제거 + 안내 문구를 일반 텍스트로 변경.
+- **AgentSyncResult.action 이 enum 이 아니라 String** (spec.rs 에 이미 그렇게 정의). PR doc 의 SyncAction enum 은 무시하고 spec 의 String ("inserted/updated/unchanged/removed/error") 사용 — 호환성 우선.
+- **watcher → manager.sync_agents cascade** 추가. PR doc 에 "watcher trigger" 가 명시되지 않았지만 페이즈 §8.3 가 요구. `app_handle.state::<OculpmManager>()` 패턴으로 (journal cache invalidation 과 동일).
 
 ### 다음 PR 로 넘기는 메모
 

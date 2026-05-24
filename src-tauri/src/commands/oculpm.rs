@@ -13,12 +13,13 @@ use std::path::PathBuf;
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::agents::AgentDetection;
 use crate::oculpm::cache::EntryFilters;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    Difficulty, EntryStatus, FileChangeEvent, JournalEntry, JournalEntrySummary, ManualEntryDraft,
-    OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind,
-    WatcherStatus,
+    AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, JournalEntry, JournalEntrySummary,
+    ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session,
+    Snapshot, SnapshotKind, WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -334,6 +335,40 @@ pub async fn oculpm_create_manual_entry(
 ) -> Result<JournalEntry, String> {
     manager
         .create_manual_journal_entry(&db, project_id, draft)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ─── W4-PR2 commands — agent adapter sync + detect ──────────────────────────
+
+/// Re-render every adapter according to `config.agents.active`. Idempotent —
+/// when nothing's changed since the last sync, every result is `unchanged`
+/// and disk mtimes don't move. Called by:
+///   - the Greenfield wizard right after init (W3-PR10)
+///   - the OculpmSettings save (W4-PR7)
+///   - the watcher's `.oculpm/agents/**` handler (master template edits)
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_sync_active(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<AgentSyncReport, String> {
+    manager
+        .sync_agents(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Read-only adapter heuristic. Used by Settings "감지" button + Greenfield
+/// default active set.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_detect(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Vec<AgentDetection>, String> {
+    manager
+        .detect_agents(project_id)
         .await
         .map_err(|e| e.to_string())
 }

@@ -22,6 +22,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::db::Db;
+use crate::oculpm::agents::{self, AgentDetection};
 use crate::oculpm::atomic_io::{write_atomic, write_managed_block, ManagedBlockResult};
 use crate::oculpm::cache::{CacheReindexReport, EntryFilters, JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
@@ -32,10 +33,10 @@ use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    AgentRef, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent, JournalEntry,
-    JournalEntrySummary, JournalFrontmatter, LockStateView, ManualEntryDraft, OculpmConfig,
-    OculpmInitReport, OculpmStatus, ReindexReport, Session, SessionEnd, Snapshot, SnapshotKind,
-    WatcherStateView, WatcherStatus,
+    AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
+    JournalEntry, JournalEntrySummary, JournalFrontmatter, LockStateView, ManualEntryDraft,
+    OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session, SessionEnd, Snapshot,
+    SnapshotKind, WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -769,6 +770,35 @@ impl OculpmManager {
             .ok_or_else(|| OculpmError::InvalidConfig(
                 format!("entry vanished after upsert: {relative_path}")
             ))
+    }
+
+    // ─── W4-PR2: agent adapter sync + detect ────────────────────────────────
+
+    /// Sync every known adapter to disk based on the current
+    /// `config.agents.active`. Idempotent; safe to call from init, Settings
+    /// save, and watcher-driven master-template change notifications.
+    pub async fn sync_agents(&self, project_id: u32) -> Result<AgentSyncReport, OculpmError> {
+        let (root, config) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            (entry.root.clone(), entry.config.clone())
+        };
+        agents::sync_active(&root, &config).await
+    }
+
+    /// Read-only adapter heuristic — backs the Settings "감지" button + the
+    /// Greenfield wizard's default active set.
+    pub async fn detect_agents(&self, project_id: u32) -> Result<Vec<AgentDetection>, OculpmError> {
+        let root = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.root.clone()
+        };
+        Ok(agents::detect(&root))
     }
 
     /// Rebuild the cache from `.oculpm/journal/` ground truth. Drops every
