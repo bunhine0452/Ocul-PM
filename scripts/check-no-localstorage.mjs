@@ -26,6 +26,17 @@ const ALLOWLIST = new Set([
   // MASTER-GUIDE §7.3 "W5 — G3 + UI-5". Remove when migrated.
   "features/chat/ChatPanel.tsx",
   "features/terminal/TerminalPanel.tsx",
+  // The four below are W3-scope ocul-pm UI state. Per-project keys
+  // (`oculpm_dismissed_${id}`, `oculpm.session.expanded.…`, `oculpm.filter.${id}`)
+  // are intentionally outside the WorkspaceContext envelope: they're
+  // ephemeral, project-scoped, and would force a context schema bump per
+  // PR otherwise. Tracked in docs/major_update/oculpm/W3 PR5/PR6/PR8.
+  // Migration to a project-scoped persistence layer is a W6 stabilize
+  // candidate; until then these direct calls are sanctioned.
+  "features/oculpm/OculpmOnboardingModal.tsx", // PR5 dismiss flag
+  "features/oculpm/SessionCard.tsx",            // PR6 expand state
+  "features/oculpm/filters.ts",                 // PR8 category filter
+  "features/today/TodayScreen.tsx",             // PR5 dismiss-bar read
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

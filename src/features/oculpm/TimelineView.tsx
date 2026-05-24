@@ -20,7 +20,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { events, type JournalEntrySummary, type Session } from "@/lib/bindings";
+import {
+  events,
+  type EntryFilters,
+  type JournalEntrySummary,
+  type Session,
+} from "@/lib/bindings";
 import { Loader2, AlertTriangle } from "@/components/Icons";
 import { SessionCard, type SessionWithSynthetic } from "./SessionCard";
 import { JournalEntryDetail } from "./JournalEntryDetail";
@@ -29,16 +34,33 @@ interface TimelineViewProps {
   projectId: number;
   projectRoot: string | null;
   workday: string;
+  /** W3-PR8: backend `EntryFilters` DTO. Defaults to no constraint when
+   *  omitted (legacy callers / first render). The parent (TodayScreen) owns
+   *  the UI-level `CategoryFilter` state and persistence. */
+  filters?: EntryFilters | null;
 }
 
 const SYNTHETIC_MANUAL_ID = "__synthetic_manual__";
 
-export function TimelineView({ projectId, projectRoot, workday }: TimelineViewProps) {
+export function TimelineView({
+  projectId,
+  projectRoot,
+  workday,
+  filters,
+}: TimelineViewProps) {
   const [entries, setEntries] = useState<JournalEntrySummary[] | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedEntryPath, setSelectedEntryPath] = useState<string | null>(null);
+
+  // Serialise filters so the useCallback identity only changes when the
+  // backend-meaningful content actually changes (the parent may rebuild the
+  // object on unrelated state updates).
+  const filtersKey = useMemo(
+    () => (filters ? JSON.stringify(filters) : ""),
+    [filters],
+  );
 
   // ── fetch ──────────────────────────────────────────────────────────────
   const refetch = useCallback(async () => {
@@ -46,7 +68,7 @@ export function TimelineView({ projectId, projectRoot, workday }: TimelineViewPr
     setError(null);
     try {
       const [es, ss] = await Promise.all([
-        oculpmApi.listJournalEntries(projectId, workday),
+        oculpmApi.listJournalEntries(projectId, workday, filters ?? undefined),
         oculpmApi.listSessions(projectId, workday),
       ]);
       setEntries(es);
@@ -62,7 +84,11 @@ export function TimelineView({ projectId, projectRoot, workday }: TimelineViewPr
     } finally {
       setLoading(false);
     }
-  }, [projectId, workday]);
+    // `filters` itself is intentionally excluded — `filtersKey` is the
+    // stable identity. Including the object would re-create `refetch` on
+    // every parent render even when filters are deeply equal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, workday, filtersKey]);
 
   useEffect(() => {
     void refetch();

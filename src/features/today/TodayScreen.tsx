@@ -26,6 +26,14 @@ import {
 import { OculpmOnboardingModal } from "@/features/oculpm/OculpmOnboardingModal";
 import { TimelineView } from "@/features/oculpm/TimelineView";
 import { ManualEntryModal } from "@/features/oculpm/ManualEntryModal";
+import { CategoryFilterBar } from "@/features/oculpm/CategoryFilterBar";
+import {
+  DEFAULT_FILTER,
+  loadFilter,
+  saveFilter,
+  toEntryFilters,
+  type CategoryFilter,
+} from "@/features/oculpm/filters";
 
 // MASTER-GUIDE §5.3 — Today 화면, PM 정체성의 심장.
 // 오늘의 포커스 / 어제의 완료 / 오늘의 활동 / AI 추천 4 영역.
@@ -55,6 +63,28 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   // Bumped after a manual entry is created so the journal-count probe re-runs
   // (and TimelineView re-renders via its own event subscription).
   const [refreshTick, setRefreshTick] = useState(0);
+
+  // W3-PR8 category filter — per-project state owner. We start from DEFAULT
+  // and re-hydrate from localStorage in a `useEffect` so the SSR-safe
+  // pattern survives if this screen ever runs outside the browser.
+  const [filter, setFilter] = useState<CategoryFilter>(DEFAULT_FILTER);
+  useEffect(() => {
+    if (activeProjectId == null) {
+      setFilter(DEFAULT_FILTER);
+      return;
+    }
+    setFilter(loadFilter(activeProjectId));
+  }, [activeProjectId]);
+  const handleFilterChange = useCallback(
+    (next: CategoryFilter) => {
+      setFilter(next);
+      if (activeProjectId != null) saveFilter(activeProjectId, next);
+    },
+    [activeProjectId],
+  );
+  // Memoised wire DTO — TimelineView treats this as the fetch identity, so a
+  // stable reference avoids needless refetches on unrelated re-renders.
+  const entryFilters = useMemo(() => toEntryFilters(filter), [filter]);
 
   const dateUnix = useMemo(() => {
     const now = new Date();
@@ -285,17 +315,22 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
         )}
 
         {/* W3-PR6: TimelineView when ocul-pm has journal entries on today.
+            W3-PR8: CategoryFilterBar above it owns the per-project filter.
             Legacy DailyBrief is preserved for historical days and projects
             without ocul-pm so users don't lose existing functionality. */}
         {!showOculpmEmpty &&
           dayOffset === 0 &&
           oculpmStatus?.initialized &&
           (journalCount ?? 0) > 0 ? (
-          <TimelineView
-            projectId={activeProjectId}
-            projectRoot={projectRoot}
-            workday={oculpmStatus.current_workday}
-          />
+          <div className="space-y-3">
+            <CategoryFilterBar filter={filter} onChange={handleFilterChange} />
+            <TimelineView
+              projectId={activeProjectId}
+              projectRoot={projectRoot}
+              workday={oculpmStatus.current_workday}
+              filters={entryFilters}
+            />
+          </div>
         ) : (
           !showOculpmEmpty && brief && (
             <>
