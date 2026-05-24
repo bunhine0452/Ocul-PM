@@ -14,24 +14,26 @@
  *   5. Track `selectedEntryPath` and handle j/k/space/enter keys —
  *      navigation skips collapsed sessions implicitly because we render a
  *      flat list of visible entries.
- *   6. Render a minimal DetailPane stub on the right; PR7 replaces it
- *      with `JournalEntryDetail`.
+ *   6. Render `JournalEntryDetail` on the right (lg+ only) for the
+ *      currently selected entry.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { events, type JournalEntrySummary, type Session } from "@/lib/bindings";
-import { Loader2, AlertTriangle, FileCode } from "@/components/Icons";
+import { Loader2, AlertTriangle } from "@/components/Icons";
 import { SessionCard, type SessionWithSynthetic } from "./SessionCard";
+import { JournalEntryDetail } from "./JournalEntryDetail";
 
 interface TimelineViewProps {
   projectId: number;
+  projectRoot: string | null;
   workday: string;
 }
 
 const SYNTHETIC_MANUAL_ID = "__synthetic_manual__";
 
-export function TimelineView({ projectId, workday }: TimelineViewProps) {
+export function TimelineView({ projectId, projectRoot, workday }: TimelineViewProps) {
   const [entries, setEntries] = useState<JournalEntrySummary[] | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
@@ -271,57 +273,15 @@ export function TimelineView({ projectId, workday }: TimelineViewProps) {
           ))}
       </div>
 
-      {/* Right: DetailPane stub (PR7 replaces) */}
+      {/* Right: JournalEntryDetail (W3-PR7) */}
       <aside className="hidden lg:block">
-        <DetailPaneStub entry={selectedEntry} />
+        <JournalEntryDetail
+          projectId={projectId}
+          projectRoot={projectRoot}
+          summary={selectedEntry}
+          onToggleVerified={handleToggleVerified}
+        />
       </aside>
-    </div>
-  );
-}
-
-// ─── DetailPane stub (PR7 replaces) ─────────────────────────────────────
-
-function DetailPaneStub({ entry }: { entry: JournalEntrySummary | null }) {
-  if (!entry) {
-    return (
-      <div className="sticky top-4 rounded-2xl border border-dashed border-border bg-card/30 p-6 text-center text-xs text-muted-foreground">
-        <FileCode className="w-5 h-5 mx-auto mb-2 opacity-60" />
-        entry 를 선택하면 디테일이 여기에 표시됩니다.
-        <div className="mt-2 text-[10px] opacity-70">PR7 에서 마크다운 렌더 도입</div>
-      </div>
-    );
-  }
-  return (
-    <div className="sticky top-4 rounded-2xl border border-border bg-card p-5 space-y-3">
-      <header>
-        <h3 className="text-base font-semibold leading-snug">
-          {entry.title || entry.slug}
-        </h3>
-        <p className="text-[11px] text-muted-foreground font-mono mt-1 break-all">
-          {entry.relative_path}
-        </p>
-      </header>
-      <dl className="text-xs text-muted-foreground space-y-1">
-        <Row label="type" value={entry.type} />
-        <Row label="status" value={entry.status} />
-        <Row label="agent" value={entry.agent_id} />
-        <Row label="session" value={entry.session_id} />
-        <Row label="files_count" value={String(entry.files_count)} />
-        <Row label="verified" value={entry.verified_by_user ? "true" : "false"} />
-      </dl>
-      <div className="text-[10px] text-muted-foreground border-t border-border pt-3">
-        디테일 렌더 (frontmatter 배지 + 마크다운 본문 + 액션) 는 W3-PR7
-        에서 도입됩니다. 지금은 요약만 표시합니다.
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <dt className="text-muted-foreground/80">{label}</dt>
-      <dd className="font-mono text-foreground truncate">{value}</dd>
     </div>
   );
 }

@@ -40,6 +40,7 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   const { state, setOculpmStatus } = useWorkspace();
   const oculpmStatus = state.oculpmStatus;
   const workdayKey = state.workdayKey;
+  const projectRoot = state.currentProjectRoot;
 
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [dayOffset, setDayOffset] = useState(0); // 0 = today, -1 = yesterday
@@ -292,6 +293,7 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
           (journalCount ?? 0) > 0 ? (
           <TimelineView
             projectId={activeProjectId}
+            projectRoot={projectRoot}
             workday={oculpmStatus.current_workday}
           />
         ) : (
