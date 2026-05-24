@@ -50,6 +50,7 @@ function App() {
     setActiveFile,
     setIndexing,
     resetWorkspace,
+    setOculpmStatus,
   } = useWorkspace();
 
   const {
@@ -93,14 +94,27 @@ function App() {
   // .oculpm/ auto-init on project selection (W1-PR7).
   // Idempotent server-side, so safe to call on every selection. Non-fatal:
   // a project remains usable even if ocul-pm fails to initialise here.
+  // W3-PR4: after init, hydrate WorkspaceContext.oculpmStatus so EmptyToday
+  // / TodayScreen can branch without a separate fetch.
   useEffect(() => {
-    if (selectedProjectId == null) return;
-    void commands.oculpmInit(selectedProjectId).then((res) => {
+    if (selectedProjectId == null) {
+      setOculpmStatus(null);
+      return;
+    }
+    void commands.oculpmInit(selectedProjectId).then(async (res) => {
       if (res.status === "error") {
         console.warn("[oculpm] init failed:", res.error);
+        setOculpmStatus(null);
+        return;
+      }
+      const statusRes = await commands.oculpmGetStatus(selectedProjectId);
+      if (statusRes.status === "ok") {
+        setOculpmStatus(statusRes.data);
+      } else {
+        setOculpmStatus(null);
       }
     });
-  }, [selectedProjectId]);
+  }, [selectedProjectId, setOculpmStatus]);
 
   // Refresh project lists
   async function refreshProjects() {
@@ -203,8 +217,11 @@ function App() {
 
   const handleSelectProject = async (p: Project) => {
     setProject(p.id, p.name, p.root_path);
-    setActiveView("overview");
     setActiveFile(null);
+    // W3-PR4: don't force a view — DEFAULT_STATE.activeView is "today" and
+    // returning users keep their last pick (preserved by WorkspaceContext's
+    // persisted state). Calling setActiveView here would flip the override
+    // flag and trample on user preference.
     await loadProjectFiles(p.id);
   };
 
@@ -362,9 +379,11 @@ function App() {
 // Workspace view (5-IA + Code sub-tabs)
 // ────────────────────────────────────────────────────────────────────────
 
+// W3-PR4: Today promoted to first (⌘1). Overview becomes #2 (⌘2).
+// `useGlobalShortcuts` mirrors this order — keep the two in lock-step.
 const PRIMARY_NAV = [
-  { id: "overview" as const,  label: "개요",      icon: LayoutDashboard, shortcut: "⌘1" },
-  { id: "today" as const,     label: "오늘",      icon: Flame,           shortcut: "⌘2" },
+  { id: "today" as const,     label: "오늘",      icon: Flame,           shortcut: "⌘1" },
+  { id: "overview" as const,  label: "개요",      icon: LayoutDashboard, shortcut: "⌘2" },
   { id: "plan" as const,      label: "계획",      icon: Calendar,        shortcut: "⌘3" },
   { id: "changelog" as const, label: "변경 기록", icon: FileCode,        shortcut: "⌘4" },
   { id: "code" as const,      label: "코드",      icon: Code2,           shortcut: "⌘5" },

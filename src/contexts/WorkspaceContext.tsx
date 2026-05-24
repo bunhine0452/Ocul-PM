@@ -8,6 +8,8 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
+import { events, type OculpmStatus, type Session } from "@/lib/bindings";
+
 // ---------- State Shape ----------
 
 export type ActiveView = "overview" | "today" | "plan" | "changelog" | "code";
@@ -47,9 +49,26 @@ export interface WorkspaceState {
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
 
+  // Persistence schema (1: pre-W3; 2: defaultTab promoted to today).
+  schemaVersion: number;
+  /**
+   * If true the user has explicitly chosen a tab via the IA strip — we
+   * leave their choice alone during the v1→v2 migration. Set by
+   * `setActiveView` after the user picks a tab.
+   */
+  defaultTabUserOverride: boolean;
+
   // Volatile (not persisted)
   indexingProjectId: number | null;
   indexProgress: IndexProgress | null;
+
+  // .oculpm/ — populated by event listeners + on-demand fetches (W3-PR4).
+  // Volatile: re-derived on project switch.
+  oculpmEnabled: boolean;
+  oculpmStatus: OculpmStatus | null;
+  currentSession: Session | null;
+  /** `YYYYMMDD` per project workday tz. Updated on `workday_boundary`. */
+  workdayKey: string | null;
 }
 
 export interface IndexProgress {
@@ -60,11 +79,24 @@ export interface IndexProgress {
 
 // ---------- Defaults ----------
 
+/**
+ * Workspace persistence schema. Bump on **breaking** field semantic changes
+ * — additive fields don't need a bump because `loadFromStorage` already
+ * merges with `DEFAULT_STATE`.
+ *
+ * History:
+ *  - 1 — original (W1..W2). Default tab: "overview".
+ *  - 2 — W3-PR4. Default tab promoted to "today" unless the user has
+ *        explicitly switched tabs at least once (`defaultTabUserOverride`).
+ */
+export const WORKSPACE_SCHEMA_VERSION = 2;
+
 const DEFAULT_STATE: WorkspaceState = {
   currentProjectId: null,
   currentProjectName: null,
   currentProjectRoot: null,
-  activeView: "overview",
+  // W3-PR4: Today is the default landing tab.
+  activeView: "today",
   codeSubTab: "files",
   openFiles: [],
   activeFile: null,
@@ -73,8 +105,14 @@ const DEFAULT_STATE: WorkspaceState = {
   bottomDrawerOpen: false,
   bottomDrawerTab: "terminal",
   fileExplorerExpanded: {},
+  schemaVersion: WORKSPACE_SCHEMA_VERSION,
+  defaultTabUserOverride: false,
   indexingProjectId: null,
   indexProgress: null,
+  oculpmEnabled: false,
+  oculpmStatus: null,
+  currentSession: null,
+  workdayKey: null,
 };
 
 const STORAGE_KEY = "aipm:workspace:v1";
@@ -149,6 +187,22 @@ function migrateV0(): WorkspaceState | null {
 
 // ---------- Persistence ----------
 
+/**
+ * Schema v1 → v2 (W3-PR4). Promote `activeView: "overview"` → `"today"`
+ * unless the user has explicitly chosen a tab (`defaultTabUserOverride`
+ * field). Idempotent: re-running on a v2 record returns it unchanged.
+ */
+function migrateV1ToV2(state: WorkspaceState & { schemaVersion?: number; defaultTabUserOverride?: boolean }): WorkspaceState {
+  if ((state.schemaVersion ?? 1) >= 2) return { ...state, schemaVersion: state.schemaVersion ?? 2 };
+  const userOverride = state.defaultTabUserOverride === true;
+  return {
+    ...state,
+    activeView: userOverride ? state.activeView : "today",
+    defaultTabUserOverride: userOverride,
+    schemaVersion: 2,
+  };
+}
+
 function loadFromStorage(): WorkspaceState {
   // Try new format first
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -160,13 +214,17 @@ function loadFromStorage(): WorkspaceState {
         parsed.codeSubTab = "ai";
       }
       // Merge with defaults to handle new fields added in future versions
-      return {
+      const merged = {
         ...DEFAULT_STATE,
         ...parsed,
         // Always reset volatile state
         indexingProjectId: null,
         indexProgress: null,
+        oculpmStatus: null,
+        currentSession: null,
+        workdayKey: null,
       };
+      return migrateV1ToV2(merged);
     } catch {
       // Corrupted data, start fresh
     }
@@ -175,8 +233,9 @@ function loadFromStorage(): WorkspaceState {
   // Try legacy migration
   const migrated = migrateV0();
   if (migrated) {
-    persistToStorage(migrated);
-    return migrated;
+    const upgraded = migrateV1ToV2(migrated);
+    persistToStorage(upgraded);
+    return upgraded;
   }
 
   return DEFAULT_STATE;
@@ -184,7 +243,14 @@ function loadFromStorage(): WorkspaceState {
 
 function persistToStorage(state: WorkspaceState) {
   // Only persist non-volatile fields
-  const { indexingProjectId: _, indexProgress: __, ...persistable } = state;
+  const {
+    indexingProjectId: _ip,
+    indexProgress: _ipr,
+    oculpmStatus: _os,
+    currentSession: _cs,
+    workdayKey: _wk,
+    ...persistable
+  } = state;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
 }
 
@@ -203,6 +269,12 @@ interface WorkspaceContextValue {
   setActiveFile: (file: string | null) => void;
   setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
   resetWorkspace: () => void;
+
+  // .oculpm/ helpers (W3-PR4). Listeners in WorkspaceProvider keep these in
+  // sync; screens call them directly when they need to refresh on demand.
+  setOculpmStatus: (status: OculpmStatus | null) => void;
+  setCurrentSession: (session: Session | null) => void;
+  setWorkdayKey: (workday: string | null) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -229,7 +301,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const setActiveView = useCallback((view: ActiveView) => {
-    setState((prev) => ({ ...prev, activeView: view }));
+    setState((prev) => ({
+      ...prev,
+      activeView: view,
+      // First user pick locks in their preference — the v1→v2 migration
+      // (and any future default-tab change) will respect this flag.
+      defaultTabUserOverride: true,
+    }));
   }, []);
 
   const setCodeSubTab = useCallback((sub: CodeSubTab) => {
@@ -261,8 +339,78 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // Preserve non-project settings
       aiWorkbenchMode: prev.aiWorkbenchMode,
       bottomDrawerTab: prev.bottomDrawerTab,
+      // Carry forward the override flag — switching projects shouldn't
+      // re-trigger the "default tab" demotion next launch.
+      defaultTabUserOverride: prev.defaultTabUserOverride,
     }));
   }, []);
+
+  // ── .oculpm/ helpers ────────────────────────────────────────────────────
+
+  const setOculpmStatus = useCallback((status: OculpmStatus | null) => {
+    setState((prev) => ({
+      ...prev,
+      oculpmStatus: status,
+      oculpmEnabled: status?.initialized ?? false,
+      workdayKey: status?.current_workday ?? prev.workdayKey,
+    }));
+  }, []);
+
+  const setCurrentSession = useCallback((session: Session | null) => {
+    setState((prev) => ({ ...prev, currentSession: session }));
+  }, []);
+
+  const setWorkdayKey = useCallback((workday: string | null) => {
+    setState((prev) => ({ ...prev, workdayKey: workday }));
+  }, []);
+
+  // ── Tauri event listeners ───────────────────────────────────────────────
+  // Mount once. Each handler filters by `project_id === currentProjectId`
+  // so multi-project setups (future) won't cross-contaminate.
+  useEffect(() => {
+    const currentProjectId = () => stateRef.current?.currentProjectId ?? null;
+    const offFns: Array<() => void> = [];
+
+    void events.oculpmSessionStarted.listen((evt) => {
+      if (evt.payload.project_id === currentProjectId()) {
+        setCurrentSession(evt.payload.session);
+      }
+    }).then((off) => offFns.push(off));
+
+    void events.oculpmSessionEnded.listen((evt) => {
+      if (evt.payload.project_id === currentProjectId()) {
+        // Surface the just-ended session for one render so consumers can
+        // animate it out, then clear.
+        setCurrentSession(null);
+      }
+    }).then((off) => offFns.push(off));
+
+    void events.oculpmIntegrityWarning.listen((evt) => {
+      if (evt.payload.project_id === currentProjectId()) {
+        // W4 will route this to the toast layer; PR4 just logs.
+        console.warn("[oculpm] integrity warning:", evt.payload.warning);
+      }
+    }).then((off) => offFns.push(off));
+
+    // The watcher emits these on every journal file write — TodayScreen
+    // listens directly for invalidation (the context only forwards them
+    // so multiple screens can subscribe through the same channel).
+    // Stored as a no-op here; PR6 wires the actual cache invalidation.
+    void events.oculpmJournalPathChanged.listen(() => {}).then((off) => offFns.push(off));
+    void events.oculpmJournalAdded.listen(() => {}).then((off) => offFns.push(off));
+    void events.oculpmJournalUpdated.listen(() => {}).then((off) => offFns.push(off));
+
+    return () => {
+      offFns.forEach((off) => off());
+    };
+  }, [setCurrentSession]);
+
+  // Keep a ref to the latest state so the listener effect above doesn't
+  // need to re-subscribe on every project switch.
+  const stateRef = React.useRef<WorkspaceState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   return (
     <WorkspaceContext.Provider
@@ -276,6 +424,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setActiveFile,
         setIndexing,
         resetWorkspace,
+        setOculpmStatus,
+        setCurrentSession,
+        setWorkdayKey,
       }}
     >
       {children}
