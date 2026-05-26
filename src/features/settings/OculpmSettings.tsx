@@ -26,18 +26,18 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import type {
-  AgentDetection,
-  OculpmConfig,
-} from "@/lib/bindings";
+import { commands, type AgentDetection, type OculpmConfig } from "@/lib/bindings";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AlertTriangle,
   Check,
+  ExternalLink,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -462,7 +462,85 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           }
         />
       </Section>
+
+      <LogsSection />
     </div>
+  );
+}
+
+// W4 dogfooding follow-up (2026-05-26) — Logs section. Shows the daily-rotated
+// log dir path + a button to reveal it in Finder/Explorer. The user can then
+// attach the latest `oculpm.log.YYYY-MM-DD` to a bug report. Uses the now-
+// scope-permitted `opener:allow-reveal-item-in-dir` capability (발견 7).
+function LogsSection() {
+  const [logDir, setLogDir] = useState<string | null>(null);
+  const [revealing, setRevealing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void commands.oculpmGetLogDir().then((res) => {
+      if (cancelled) return;
+      if (res.status === "ok") setLogDir(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const reveal = useCallback(async () => {
+    if (!logDir) return;
+    setRevealing(true);
+    try {
+      await revealItemInDir(logDir);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      try {
+        await navigator.clipboard.writeText(logDir);
+        toast.warning(
+          `Finder 를 열 수 없어 경로를 클립보드에 복사했습니다.\n${msg}`,
+          { title: "로그 폴더 열기 실패" },
+        );
+      } catch {
+        toast.destructive(`로그 폴더 열기 실패: ${msg}`);
+      }
+    } finally {
+      setRevealing(false);
+    }
+  }, [logDir]);
+
+  return (
+    <Section
+      title="로그"
+      description="흐름 단계별 [FLOW] 로그가 일별로 저장됩니다. 문제가 생겼을 때 가장 최근 파일을 첨부해주세요."
+    >
+      <div className="space-y-2">
+        <div className="text-xs text-muted-foreground">
+          위치:{" "}
+          <span className="font-mono break-all text-foreground/80">
+            {logDir ?? "(로그 파일 비활성)"}
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={reveal}
+          disabled={!logDir || revealing}
+        >
+          {revealing ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ExternalLink className="mr-1 h-3.5 w-3.5" />
+          )}
+          로그 폴더 열기
+        </Button>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          파일명 형식:{" "}
+          <code className="font-mono">oculpm.log.YYYY-MM-DD</code> — backend(rust)
+          + frontend(console) 양쪽 로그가 한 파일에 모입니다. <code>[FLOW]</code>{" "}
+          태그로 grep 하면 "프로젝트 로드 → 외부 LLM 작성 → UI 갱신" 흐름의 각 단계가 보입니다.
+        </p>
+      </div>
+    </Section>
   );
 }
 

@@ -16,9 +16,15 @@
  * (60s TTL, key `oculpm.compare.${projectId}.${sessionId}`) absorbs the dup
  * loads when the user reopens the same panel in quick succession.
  *
- * Actions:
- *  - [어댑터 규칙 다시 보내기] → `oculpmApi.syncAgents` and toast result. Panel
- *    stays open so the user can verify their next entries.
+ * Actions (W4 dogfooding follow-up 2026-05-26 — split file-sync from prompt-copy):
+ *  - [AGENTS.md 재동기화] → `oculpmApi.syncAgents`. Idempotent file write that
+ *    re-renders the managed block. Does NOT push anything into a running LLM
+ *    session — that's a different concern handled by the next button.
+ *  - [프롬프트 복사] → fetch the master template via `oculpmApi.getMasterTemplate`
+ *    and write it to the clipboard so the user can paste it once into a live
+ *    chat. Warns "여러 번 붙이면 LLM 컨텍스트가 부풀어요" to discourage repeat
+ *    pastes — the previous single-button design ("규칙 다시 보내기") read as
+ *    "send again" and invited duplicate prompt context in the agent's window.
  *  - [수동 narrative 작성 (N 누락 prefill)] → `onActionManualEntry` callback to
  *    the parent (TodayScreen), which opens `ManualEntryModal` with the
  *    `only_in_index` paths pre-selected.
@@ -31,11 +37,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { toast } from "@/lib/toast";
 import type { LayerComparison, Severity } from "@/lib/bindings";
 import { Button } from "@/components/ui/button";
 import {
   AlertTriangle,
   Check,
+  Clipboard,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -98,6 +106,9 @@ export function DiffVsNarrative({
   const [syncStatus, setSyncStatus] = useState<
     null | { kind: "pending" } | { kind: "ok"; updated: number } | { kind: "error"; message: string }
   >(null);
+  const [copyStatus, setCopyStatus] = useState<
+    null | { kind: "pending" } | { kind: "ok" } | { kind: "error"; message: string }
+  >(null);
   const [showSnippets, setShowSnippets] = useState(false);
 
   const load = useCallback(
@@ -144,6 +155,27 @@ export function DiffVsNarrative({
     }
   }, [projectId]);
 
+  const handleCopyPrompt = useCallback(async () => {
+    setCopyStatus({ kind: "pending" });
+    try {
+      const text = await oculpmApi.getMasterTemplate(projectId);
+      await navigator.clipboard.writeText(text);
+      setCopyStatus({ kind: "ok" });
+      toast.warning(
+        "프롬프트가 클립보드에 복사됐어요. 한 번만 붙여넣으세요 — 여러 번 붙이면 LLM 컨텍스트가 부풀어 같은 규칙이 중복 적용될 수 있어요.",
+        { title: "프롬프트 복사 완료" },
+      );
+    } catch (e) {
+      const msg =
+        e instanceof OculpmApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setCopyStatus({ kind: "error", message: msg });
+    }
+  }, [projectId]);
+
   const handleManualEntry = useCallback(() => {
     if (!comparison || !onActionManualEntry) return;
     onActionManualEntry({
@@ -164,15 +196,24 @@ export function DiffVsNarrative({
       className={panelClasses}
       aria-label={`Session ${sessionId} index ↔ journal 비교`}
     >
-      <header className={`flex items-center justify-between border-b border-border ${isCompact ? "px-3 py-2" : "px-5 py-3"}`}>
-        <div className="flex items-center gap-2">
-          <span className={isCompact ? "text-sm" : "text-lg"}>⚖</span>
-          <h3 className={`${isCompact ? "text-xs" : "text-sm"} font-semibold`}>
-            index ↔ journal 비교 <span className="font-mono text-muted-foreground"> · {sessionId}</span>
+      {/* W4 dogfooding follow-up (2026-05-26) — header now wraps onto a second
+        * row in narrow containers (JournalEntryDetail right column). The title
+        * row truncates the session_id and the controls row keeps the snippet
+        * toggle on one line via whitespace-nowrap + shrink-0. Previously the
+        * "코드 스니펫" label rendered glyph-per-glyph vertically because the
+        * single-row flex was over-constrained. */}
+      <header className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border ${isCompact ? "px-3 py-2" : "px-5 py-3"}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className={`shrink-0 ${isCompact ? "text-sm" : "text-lg"}`}>⚖</span>
+          <h3 className={`min-w-0 ${isCompact ? "text-xs" : "text-sm"} font-semibold flex items-baseline gap-1.5`}>
+            <span className="shrink-0">index ↔ journal 비교</span>
+            <span className="min-w-0 truncate font-mono text-muted-foreground" title={sessionId}>
+              · {sessionId}
+            </span>
           </h3>
         </div>
-        <div className="flex items-center gap-1">
-          <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer select-none">
+        <div className="flex shrink-0 items-center gap-1">
+          <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showSnippets}
@@ -219,6 +260,8 @@ export function DiffVsNarrative({
             comparison={comparison}
             onActionResync={handleResync}
             syncStatus={syncStatus}
+            onActionCopyPrompt={handleCopyPrompt}
+            copyStatus={copyStatus}
             onActionManualEntry={onActionManualEntry ? handleManualEntry : undefined}
             showSnippets={showSnippets}
           />
@@ -236,6 +279,12 @@ interface ComparisonBodyProps {
     | { kind: "pending" }
     | { kind: "ok"; updated: number }
     | { kind: "error"; message: string };
+  onActionCopyPrompt: () => void;
+  copyStatus:
+    | null
+    | { kind: "pending" }
+    | { kind: "ok" }
+    | { kind: "error"; message: string };
   onActionManualEntry?: () => void;
   showSnippets: boolean;
 }
@@ -244,6 +293,8 @@ function ComparisonBody({
   comparison,
   onActionResync,
   syncStatus,
+  onActionCopyPrompt,
+  copyStatus,
   onActionManualEntry,
   showSnippets,
 }: ComparisonBodyProps) {
@@ -287,13 +338,33 @@ function ComparisonBody({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={onActionResync} disabled={syncStatus?.kind === "pending"}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onActionResync}
+          disabled={syncStatus?.kind === "pending"}
+          title="프로젝트의 AGENTS.md (와 활성화된 어댑터 파일) 의 관리 블록을 다시 렌더링합니다. 파일 쓰기만 하며, 실행 중인 LLM 세션엔 영향이 없습니다."
+        >
           {syncStatus?.kind === "pending" ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
           ) : (
             <RefreshCw className="mr-1 h-3.5 w-3.5" />
           )}
-          어댑터 규칙 다시 보내기
+          AGENTS.md 재동기화
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onActionCopyPrompt}
+          disabled={copyStatus?.kind === "pending"}
+          title="실행 중인 LLM 채팅창에 한 번만 붙여넣을 용도로 마스터 프롬프트를 클립보드에 복사합니다. 여러 번 붙이면 컨텍스트가 부풀어 규칙이 중복 적용될 수 있어요."
+        >
+          {copyStatus?.kind === "pending" ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Clipboard className="mr-1 h-3.5 w-3.5" />
+          )}
+          프롬프트 복사
         </Button>
         {onActionManualEntry && comparison.only_in_index.length > 0 && (
           <Button size="sm" onClick={onActionManualEntry}>
@@ -308,6 +379,9 @@ function ComparisonBody({
         )}
         {syncStatus?.kind === "error" && (
           <span className="text-xs text-red-600 dark:text-red-400">동기화 실패: {syncStatus.message}</span>
+        )}
+        {copyStatus?.kind === "error" && (
+          <span className="text-xs text-red-600 dark:text-red-400">복사 실패: {copyStatus.message}</span>
         )}
       </div>
     </>

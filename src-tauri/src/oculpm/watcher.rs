@@ -34,15 +34,16 @@ use tokio::task::JoinHandle;
 
 use crate::db::Db;
 use crate::oculpm::agents;
-use crate::oculpm::cache::{JournalCache, PathChangeKind};
+use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    FileChangeEvent, FileOp, OculpmAgentDrift, OculpmAgentsTemplateChanged, OculpmConfig,
-    OculpmFileChanged, OculpmJournalPathChanged, WatcherStateView, WatcherStatus,
+    FileChangeEvent, FileOp, JournalEntrySummary, OculpmAgentDrift, OculpmAgentsTemplateChanged,
+    OculpmConfig, OculpmFileChanged, OculpmJournalAdded, OculpmJournalPathChanged,
+    OculpmJournalUpdated, WatcherStateView, WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -145,11 +146,21 @@ impl ProjectWatcher {
                         }
                     }
                     Err(errs) => {
-                        tracing::warn!(target: "oculpm::watcher", ?errs, "debouncer reported errors");
+                        tracing::warn!(target: "oculpm::watcher", ?errs, "[FLOW] debouncer reported errors");
                     }
                 }
             }
+            tracing::info!(target: "oculpm::watcher", "[FLOW] watcher receive loop exited (stop() called)");
         });
+
+        tracing::info!(
+            target: "oculpm::watcher",
+            project_id,
+            root = %root.display(),
+            debounce_ms,
+            respect_gitignore = config.watcher.respect_gitignore,
+            "[FLOW] watcher armed — listening for fs events"
+        );
 
         Ok(Self {
             project_id,
@@ -256,6 +267,13 @@ impl WatcherInner {
         //    deletes never disappeared from Today UI). See dogfooding F-2.
         if rel_str.starts_with(".oculpm/journal/") {
             let op = classify_journal_op(&ev.event.kind);
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %rel_str,
+                ?op,
+                "[FLOW] journal fs event detected"
+            );
             self.emit_journal_path_changed(&rel_str, op);
             self.apply_journal_cache_invalidation(&rel_str, op).await;
             return;
@@ -556,15 +574,24 @@ impl WatcherInner {
             .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
             .await
         {
-            Ok(()) => {
-                tracing::debug!(
+            Ok(outcome) => {
+                tracing::info!(
                     target: "oculpm::watcher",
                     project_id = self.project_id,
                     path = %entry_rel,
                     ?kind,
                     raw_op = ?op,
-                    "journal cache invalidated"
+                    outcome = ?outcome,
+                    "[FLOW] journal cache invalidated"
                 );
+                // W4 dogfooding follow-up (2026-05-26) — emit the high-level
+                // OculpmJournalAdded / OculpmJournalUpdated events so the
+                // frontend's toast + optimistic UI add (TimelineView,
+                // WorkspaceContext) actually fire when an external LLM writes
+                // a journal entry. Previously only the low-level
+                // OculpmJournalPathChanged event was emitted, so the user
+                // never saw "새 기록" toasts.
+                self.emit_journal_outcome(&cache, entry_rel, outcome).await;
             }
             Err(e) => {
                 tracing::warn!(
@@ -574,9 +601,89 @@ impl WatcherInner {
                     ?kind,
                     raw_op = ?op,
                     error = %e,
-                    "journal cache invalidation failed (event still emitted)"
+                    "[FLOW] journal cache invalidation failed (event still emitted)"
                 );
             }
+        }
+    }
+
+    /// Map a cache outcome to the matching high-level Tauri event. Inserted
+    /// → JournalAdded (toast + optimistic add). Updated → JournalUpdated
+    /// (silent re-render). MtimeOnly / SkippedUnchanged → no emit (the
+    /// low-level JournalPathChanged already fired). Removed → handled by
+    /// `apply_path_change` returning `None` (the path-changed event is
+    /// enough to drop the row from UI).
+    async fn emit_journal_outcome(
+        &self,
+        cache: &JournalCache<'_>,
+        entry_rel: &str,
+        outcome: Option<UpsertOutcome>,
+    ) {
+        let Some(handle) = &self.app_handle else { return };
+        let Some(outcome) = outcome else { return };
+        let should_emit_added = matches!(outcome, UpsertOutcome::Inserted);
+        let should_emit_updated = matches!(outcome, UpsertOutcome::Updated);
+        if !should_emit_added && !should_emit_updated {
+            tracing::debug!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                outcome = ?outcome,
+                "outcome not emit-worthy (mtime-only / unchanged)"
+            );
+            return;
+        }
+
+        let summary = match cache.get_summary_by_path(self.project_id, entry_rel).await {
+            Ok(Some(s)) => s,
+            Ok(None) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    "summary lookup returned None despite Inserted/Updated outcome — race?"
+                );
+                return;
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "summary lookup failed; skipping journal-added/updated emit"
+                );
+                return;
+            }
+        };
+
+        use tauri_specta::Event;
+        if should_emit_added {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                title = %summary.title,
+                "[FLOW] emitting OculpmJournalAdded"
+            );
+            let _ = OculpmJournalAdded {
+                project_id: self.project_id,
+                summary,
+            }
+            .emit(handle);
+        } else {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                title = %summary.title,
+                "[FLOW] emitting OculpmJournalUpdated"
+            );
+            let _ = OculpmJournalUpdated {
+                project_id: self.project_id,
+                summary,
+            }
+            .emit(handle);
         }
     }
 }

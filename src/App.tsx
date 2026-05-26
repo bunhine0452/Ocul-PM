@@ -19,6 +19,7 @@ import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
 import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 
 import {
   FolderCode,
@@ -102,6 +103,13 @@ function App() {
   // file_changes are captured AND journal cache stays in sync with disk
   // (deletes/creates/edits appear in Today within the debounce window).
   // Cleanup stops the previous project's watcher when the user switches.
+  // W4 dogfooding follow-up (2026-05-26) — install the console bridge ONCE so
+  // any uncaught warning lands in `oculpm.log`. Idempotent (`installed` guard).
+  useEffect(() => {
+    installConsoleBridge();
+    oculpmLog.flow("App mounted — console bridge installed");
+  }, []);
+
   useEffect(() => {
     if (selectedProjectId == null) {
       setOculpmStatus(null);
@@ -109,14 +117,16 @@ function App() {
     }
     const projectId = selectedProjectId;
     let cancelled = false;
+    oculpmLog.flow("step 0 — project selected", { projectId });
     void (async () => {
       const initRes = await commands.oculpmInit(projectId);
       if (cancelled) return;
       if (initRes.status === "error") {
-        console.warn("[oculpm] init failed:", initRes.error);
+        oculpmLog.error("init", `oculpmInit failed: ${initRes.error}`, { projectId });
         setOculpmStatus(null);
         return;
       }
+      oculpmLog.flow("step 1+2 OK — init + sync_agents returned to frontend", { projectId });
       const statusRes = await commands.oculpmGetStatus(projectId);
       if (cancelled) return;
       if (statusRes.status === "ok") {
@@ -127,7 +137,9 @@ function App() {
       const wsRes = await commands.oculpmWatcherStart(projectId);
       if (cancelled) return;
       if (wsRes.status === "error") {
-        console.warn("[oculpm] watcherStart failed:", wsRes.error);
+        oculpmLog.error("watcher", `watcherStart failed: ${wsRes.error}`, { projectId });
+      } else {
+        oculpmLog.flow("step 3 OK — watcher running", { projectId });
       }
     })();
     return () => {

@@ -39,10 +39,97 @@ pub async fn oculpm_init(
 ) -> Result<OculpmInitReport, String> {
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
-    manager
+    tracing::info!(
+        target: "oculpm::commands",
+        project_id,
+        root = %root.display(),
+        "[FLOW] step 1 — oculpm_init invoked"
+    );
+    let report = manager
         .init_project(project_id, &root)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| {
+            tracing::error!(
+                target: "oculpm::commands",
+                project_id,
+                root = %root.display(),
+                error = %e,
+                "[FLOW] step 1 FAILED — init_project errored"
+            );
+            e.to_string()
+        })?;
+    tracing::info!(
+        target: "oculpm::commands",
+        project_id,
+        wrote_config = report.wrote_config,
+        wrote_gitignore = report.wrote_gitignore,
+        created_dirs = ?report.created_dirs,
+        "[FLOW] step 1 OK — init_project returned"
+    );
+
+    // W4 dogfooding follow-up (2026-05-26) — auto-render every active adapter
+    // file (notably `AGENTS.md`) on project load. `sync_agents` is idempotent:
+    // existing files with matching content stay byte-for-byte, so this is a
+    // no-op after the first open. Catches the case where a project was inited
+    // in a prior session (`.oculpm/config.toml` already present → init_project
+    // returns the fast path) but the adapter files have never materialized on
+    // disk (e.g. user deleted `AGENTS.md` manually, or pulled a fresh clone
+    // that omits it). Errors are logged but never escalated — the init itself
+    // succeeded and the next manual "지금 동기화" can retry.
+    match manager.sync_agents(&db, project_id).await {
+        Ok(report) => {
+            let summary: Vec<String> = report
+                .results
+                .iter()
+                .map(|r| format!("{}={}", r.id, r.action))
+                .collect();
+            tracing::info!(
+                target: "oculpm::commands",
+                project_id,
+                results = %summary.join(", "),
+                "[FLOW] step 2 OK — sync_agents finished (AGENTS.md guaranteed if active)"
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "oculpm::commands",
+                project_id,
+                error = %e,
+                "[FLOW] step 2 FAILED — sync_agents errored (non-fatal); AGENTS.md may be missing"
+            );
+        }
+    }
+
+    // W4 dogfooding follow-up (2026-05-26) — incremental reindex on every
+    // open. Catches journal entries an external LLM wrote while the watcher
+    // wasn't running (app closed, or project not yet selected when the LLM
+    // ran). Without this, files on disk stay invisible in TodayScreen until
+    // the user manually clicks "재인덱스" — the user-visible symptom of
+    // "AI made files but I don't see them" reported in the W4 thread.
+    //
+    // Incremental is cheap (mtime check skips parse for unchanged rows) and
+    // it deletes cache rows whose files no longer exist on disk, so we run
+    // it unconditionally. Errors are warn-only; the watcher will still
+    // capture *future* edits even if this initial reindex fails.
+    match manager.reindex_journal_cache_incremental(&db, project_id).await {
+        Ok(r) => tracing::info!(
+            target: "oculpm::commands",
+            project_id,
+            inserted = r.inserted,
+            updated = r.updated,
+            deleted = r.deleted,
+            skipped = r.skipped,
+            completed_at = %r.completed_at,
+            "[FLOW] step 2.5 OK — incremental reindex picked up pre-existing journal entries"
+        ),
+        Err(e) => tracing::warn!(
+            target: "oculpm::commands",
+            project_id,
+            error = %e,
+            "[FLOW] step 2.5 FAILED — reindex errored (non-fatal); on-disk entries may not appear until next watcher event"
+        ),
+    }
+    Ok(report)
 }
 
 /// Current `.oculpm/` status (initialised, lock, current workday, watcher).
@@ -180,10 +267,30 @@ pub async fn oculpm_watcher_start(
     manager: State<'_, OculpmManager>,
     project_id: u32,
 ) -> Result<(), String> {
-    manager
-        .watcher_start(project_id, Some(app_handle))
-        .await
-        .map_err(|e| e.to_string())
+    tracing::info!(
+        target: "oculpm::commands",
+        project_id,
+        "[FLOW] step 3 — watcher_start invoked"
+    );
+    match manager.watcher_start(project_id, Some(app_handle)).await {
+        Ok(()) => {
+            tracing::info!(
+                target: "oculpm::commands",
+                project_id,
+                "[FLOW] step 3 OK — watcher running (.oculpm/journal/** changes will be captured)"
+            );
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!(
+                target: "oculpm::commands",
+                project_id,
+                error = %e,
+                "[FLOW] step 3 FAILED — watcher_start errored; external LLM writes won't be detected"
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 /// Stop the filesystem watcher. Idempotent.
@@ -418,4 +525,51 @@ pub async fn oculpm_agents_detect(
         .detect_agents(project_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// W4 dogfooding follow-up (2026-05-26) — return the project's master template
+/// text so the UI's "프롬프트 복사" action can paste it into a chat. Read-only;
+/// does not touch any adapter files. Separates the *file sync* concern (which
+/// `oculpm_agents_sync_active` already handles) from the *one-shot prompt
+/// delivery* concern that the user actually wants when clicking "복사".
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_get_master_template(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<String, String> {
+    manager
+        .read_master_template(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
+/// directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
+/// uses this for the "로그 폴더 열기" button (delegates to opener plugin).
+/// Returns `None` if the process started with file logging disabled (test
+/// runs / unsupported platform).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_log_dir() -> Result<Option<String>, String> {
+    Ok(crate::log_dir().map(|p| p.display().to_string()))
+}
+
+/// W4 dogfooding follow-up (2026-05-26) — bridge `console.*` calls from the
+/// webview into the backend's `tracing` layers so the user only has to grab
+/// **one** file when something breaks. The frontend wraps console.log/warn/
+/// error in `setupOculpmLogBridge()` (App.tsx) and forwards every call here.
+///
+/// We intentionally don't echo back to the webview; the webview already
+/// printed the original line in DevTools. We just want it in `oculpm.log`.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_log(level: String, target: String, message: String) {
+    let target_str = format!("oculpm::frontend::{target}");
+    match level.as_str() {
+        "error" => tracing::error!(target: "oculpm::frontend", source = %target_str, "{message}"),
+        "warn" => tracing::warn!(target: "oculpm::frontend", source = %target_str, "{message}"),
+        "info" => tracing::info!(target: "oculpm::frontend", source = %target_str, "{message}"),
+        _ => tracing::debug!(target: "oculpm::frontend", source = %target_str, "{message}"),
+    }
 }

@@ -626,16 +626,23 @@ impl<'a> JournalCache<'a> {
     /// Handle a single path-level change event from the watcher (W2-PR5).
     /// Created/Modified are coalesced — the cache always reads the latest
     /// on-disk state rather than trusting the event payload.
+    ///
+    /// Returns the upsert outcome so the caller (watcher) can decide whether
+    /// to emit `OculpmJournalAdded` (new row → toast + optimistic UI add) vs
+    /// `OculpmJournalUpdated` (row mutated → silent refresh) vs nothing
+    /// (mtime-only / unchanged hash). For `Removed`, returns `None` and the
+    /// watcher emits via `oculpm-journal-path-changed` only.
     pub async fn apply_path_change(
         &self,
         project_id: u32,
         journal_root: &Path,
         relative_path: &str,
         kind: PathChangeKind,
-    ) -> Result<(), OculpmError> {
+    ) -> Result<Option<UpsertOutcome>, OculpmError> {
         match kind {
             PathChangeKind::Removed => {
                 self.delete_entry(project_id, relative_path).await?;
+                Ok(None)
             }
             PathChangeKind::Created | PathChangeKind::Modified => {
                 let abs = journal_root.join(relative_path);
@@ -655,11 +662,86 @@ impl<'a> JournalCache<'a> {
                 })?;
                 let (parsed, body_text) = parse_frontmatter_and_body(&text);
                 let body = parse_body(&body_text);
-                self.upsert_entry(project_id, relative_path, &parsed, &body, mtime, &text)
+                let outcome = self
+                    .upsert_entry(project_id, relative_path, &parsed, &body, mtime, &text)
                     .await?;
+                Ok(Some(outcome))
             }
         }
-        Ok(())
+    }
+
+    /// W4 dogfooding follow-up (2026-05-26) — fetch a single entry's summary
+    /// by `(project_id, relative_path)`. Used by the watcher right after
+    /// `apply_path_change` to attach the hydrated row to `OculpmJournalAdded`/
+    /// `OculpmJournalUpdated` events without round-tripping through
+    /// `list_entries` (which scans + batch-aggregates the whole workday).
+    ///
+    /// Tags / `files_count` are filled with a single follow-up query each so
+    /// the toast can render badges. Returns `None` if no row matches — e.g.
+    /// the path was deleted between the upsert and this read.
+    pub async fn get_summary_by_path(
+        &self,
+        project_id: u32,
+        relative_path: &str,
+    ) -> Result<Option<JournalEntrySummary>, OculpmError> {
+        let pid = project_id as i64;
+        let rp = relative_path.to_string();
+        let summary = self
+            .db
+            .conn()
+            .call(move |c| {
+                let row: rusqlite::Result<Option<JournalEntrySummary>> = c
+                    .query_row(
+                        "SELECT relative_path, workday, type, slug, status, difficulty,
+                                title, checkbox, session_id, agent_id, verified_by_user,
+                                created_at, updated_at
+                         FROM oculpm_journal
+                         WHERE project_id = ?1 AND relative_path = ?2",
+                        params![pid, &rp],
+                        summary_from_row,
+                    )
+                    .optional();
+                row
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        let Some(mut summary) = summary else {
+            return Ok(None);
+        };
+
+        // Hydrate tags + files_count with two single-path queries (cheap).
+        let pid2 = project_id as i64;
+        let rp2 = relative_path.to_string();
+        let (tags, files_count) = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut tag_stmt = c.prepare(
+                    "SELECT tag FROM oculpm_journal_tags
+                     WHERE project_id = ?1 AND relative_path = ?2",
+                )?;
+                let tags: rusqlite::Result<Vec<String>> = tag_stmt
+                    .query_map(params![pid2, &rp2], |r| r.get::<_, String>(0))?
+                    .collect();
+                let tags = tags?;
+
+                let file_count: i64 = c
+                    .query_row(
+                        "SELECT COUNT(*) FROM oculpm_journal_files
+                         WHERE project_id = ?1 AND relative_path = ?2",
+                        params![pid2, &rp2],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
+                Ok((tags, file_count as u32))
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        summary.tags = tags;
+        summary.files_count = files_count;
+        Ok(Some(summary))
     }
 
     async fn load_known_mtimes(

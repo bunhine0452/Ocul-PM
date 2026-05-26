@@ -10,9 +10,90 @@ mod llm;
 mod oculpm;
 mod secrets;
 
+use std::path::PathBuf;
+use std::sync::OnceLock;
+
 use specta_typescript::Typescript;
 use tauri::Manager;
 use tauri_specta::{collect_commands, collect_events, Builder};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+
+/// W4 dogfooding follow-up (2026-05-26) — `oculpm_get_log_dir` returns this so
+/// the Settings UI can reveal it in Finder. Set once during `setup_logging`
+/// before any project-level code runs. `OnceLock` keeps the read lock-free on
+/// the hot path (every "로그 폴더 열기" click).
+static LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Path to the directory containing rotating `oculpm.log.YYYY-MM-DD` files.
+/// Returns `None` if logging was initialised stdout-only (test runs).
+pub fn log_dir() -> Option<&'static PathBuf> {
+    LOG_DIR.get()
+}
+
+/// Initialise dual-output tracing: stdout (for `tauri dev`) + daily-rotated
+/// file under `<data_dir>/logs/`. Falls back to stdout-only when the data dir
+/// can't be created. Idempotent — calling twice silently keeps the first init.
+///
+/// We init this before `tauri::Builder` so any boot-time errors (db open,
+/// plugin registration) also land in the file. Path is captured in `LOG_DIR`
+/// so the `oculpm_get_log_dir` command can return it without re-deriving.
+fn setup_logging() {
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
+
+    // Resolve `<app_data>/logs` via the same `directories` crate Tauri uses
+    // underneath app_data_dir(). On macOS this is
+    // `~/Library/Application Support/com.kimhyunbin.ai-pm/logs/`.
+    let log_dir = directories::ProjectDirs::from("com", "kimhyunbin", "ai-pm")
+        .map(|p| p.data_dir().join("logs"));
+
+    let stdout_layer = fmt::layer().with_target(true).with_thread_ids(false);
+
+    match log_dir.as_ref().and_then(|d| {
+        std::fs::create_dir_all(d).ok()?;
+        Some(d.clone())
+    }) {
+        Some(dir) => {
+            // Daily rotation so the file stays grep-friendly. Non-blocking
+            // writer keeps the watcher's hot path off disk-flush latency.
+            let appender = tracing_appender::rolling::daily(&dir, "oculpm.log");
+            // Leak the guard intentionally — we want the writer to live for
+            // the whole process lifetime. Dropping it would flush + close the
+            // file, silently dropping later logs.
+            let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+            Box::leak(Box::new(guard));
+
+            let file_layer = fmt::layer()
+                .with_target(true)
+                .with_ansi(false)
+                .with_writer(non_blocking);
+
+            let _ = tracing_subscriber::registry()
+                .with(env_filter)
+                .with(stdout_layer)
+                .with(file_layer)
+                .try_init();
+            let _ = LOG_DIR.set(dir.clone());
+            tracing::info!(
+                target: "oculpm::boot",
+                log_dir = %dir.display(),
+                "[FLOW] tracing initialised — stdout + daily-rotated file"
+            );
+        }
+        None => {
+            let _ = tracing_subscriber::registry()
+                .with(env_filter)
+                .with(stdout_layer)
+                .try_init();
+            tracing::warn!(
+                target: "oculpm::boot",
+                "[FLOW] tracing file appender unavailable — stdout only"
+            );
+        }
+    }
+}
 
 use crate::commands::{
     chat, chat_message_append, chat_message_list, chat_stream, clear_project_index,
@@ -49,19 +130,15 @@ use crate::commands::{
     oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_status,
     oculpm_list_journal_entries, oculpm_get_journal_entry, oculpm_set_journal_verified,
     oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
-    oculpm_agents_sync_active, oculpm_agents_detect, oculpm_compare_layers,
+    oculpm_agents_sync_active, oculpm_agents_detect, oculpm_agents_get_master_template,
+    oculpm_compare_layers, oculpm_get_log_dir, oculpm_log,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
-        )
-        .try_init();
+    setup_logging();
 
     let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
         db_health,
@@ -184,7 +261,10 @@ pub fn run() {
         oculpm_update_entry_meta,
         oculpm_agents_sync_active,
         oculpm_agents_detect,
+        oculpm_agents_get_master_template,
         oculpm_compare_layers,
+        oculpm_get_log_dir,
+        oculpm_log,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

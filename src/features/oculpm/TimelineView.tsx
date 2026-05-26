@@ -106,11 +106,24 @@ export function TimelineView({
     }).then((off) => offs.push(off));
 
     void events.oculpmJournalAdded.listen((e) => {
-      if (isOurs(e.payload.project_id)) debouncedRefetch();
+      if (!isOurs(e.payload.project_id)) return;
+      void import("@/lib/oculpmLog").then(({ oculpmLog }) =>
+        oculpmLog.flow("step 4 — TimelineView received JournalAdded; refetch scheduled", {
+          path: e.payload.summary.relative_path,
+          title: e.payload.summary.title,
+        }),
+      );
+      debouncedRefetch();
     }).then((off) => offs.push(off));
 
     void events.oculpmJournalUpdated.listen((e) => {
-      if (isOurs(e.payload.project_id)) debouncedRefetch();
+      if (!isOurs(e.payload.project_id)) return;
+      void import("@/lib/oculpmLog").then(({ oculpmLog }) =>
+        oculpmLog.flow("step 4 — TimelineView received JournalUpdated; refetch scheduled", {
+          path: e.payload.summary.relative_path,
+        }),
+      );
+      debouncedRefetch();
     }).then((off) => offs.push(off));
 
     return () => {

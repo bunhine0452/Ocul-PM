@@ -397,6 +397,13 @@ impl OculpmManager {
 
     /// Start the filesystem watcher + session actor for the given project.
     /// Idempotent — if already running, returns Ok.
+    ///
+    /// W4 dogfooding follow-up (2026-05-26) — reuses an existing
+    /// `entry.session` if one is alive. Together with `watcher_stop` no
+    /// longer shutting down the session actor, this means rapidly toggling
+    /// between the Start screen and a project view keeps the *same*
+    /// session_id across cycles, instead of multiplying sessions per
+    /// toggle (the user-visible repro of W4 §발견 2 bis).
     pub async fn watcher_start(
         &self,
         project_id: u32,
@@ -415,17 +422,30 @@ impl OculpmManager {
 
         // Idempotent: already running.
         if entry.watcher.is_some() {
+            tracing::debug!(
+                target: "oculpm::manager",
+                project_id,
+                "watcher_start: already running, no-op"
+            );
             return Ok(());
         }
 
-        // Spawn session actor first — watcher needs it.
-        let session = SessionActor::spawn(
-            project_id,
-            entry.resolver.clone(),
-            entry.index_writer.clone(),
-            entry.config.session.clone(),
-            app_handle.clone(),
-        );
+        // Reuse the existing session actor if one survived a prior
+        // watcher_stop. This is the bug fix for "navigate-out-and-back
+        // multiplies sessions": before, every cycle spawned a fresh
+        // SessionActor and lost the resume baseline.
+        let reused_session = entry.session.is_some();
+        let session = if let Some(s) = entry.session.as_ref() {
+            s.clone()
+        } else {
+            SessionActor::spawn(
+                project_id,
+                entry.resolver.clone(),
+                entry.index_writer.clone(),
+                entry.config.session.clone(),
+                app_handle.clone(),
+            )
+        };
         let watcher = ProjectWatcher::start(
             project_id,
             entry.root.clone(),
@@ -438,23 +458,59 @@ impl OculpmManager {
 
         entry.session = Some(session);
         entry.watcher = Some(watcher);
+        tracing::info!(
+            target: "oculpm::manager",
+            project_id,
+            reused_session,
+            "[FLOW] watcher_start: watcher + session attached (reused_session={reused_session})"
+        );
         Ok(())
     }
 
-    /// Stop the watcher + gracefully shutdown the session actor.
-    /// Idempotent — if already stopped, returns Ok.
+    /// Stop the watcher. **Does not shut down the session actor** — see
+    /// the note below.
+    ///
+    /// Why: `watcher_stop` is called by the frontend whenever the UI
+    /// unmounts the project view (e.g. user navigates back to the Start
+    /// screen and forward again). Previously this also called
+    /// `session.shutdown()` which finalised the active session with
+    /// `AppQuit`. The resume mechanism (see `try_resume_session`) only
+    /// rescues sessions closed with `InactivityTimeout`, so every
+    /// navigation cycle produced a fresh session id — the exact bug from
+    /// W4 dogfooding §발견 2 reappeared in a different shape (2026-05-26).
+    ///
+    /// Now: stop the fs watcher (so we're not paying for OS-watch threads
+    /// while the user is off the project view) but keep the session actor
+    /// alive. The session's own inactivity timer governs end-of-session:
+    /// if the user comes back fast, the same session continues; if they
+    /// stay away past `inactivity_timeout_minutes`, the session naturally
+    /// ends with `InactivityTimeout` and the next activity within
+    /// `session_resume_grace_minutes` rescues it via the existing path.
+    ///
+    /// Real app shutdown still finalises sessions:
+    /// - `on_project_closed` calls `session.shutdown()` explicitly.
+    /// - Process exit drops every `ProjectEntry`; the session actor's
+    ///   sender drops, the receive loop ends, and `recover_zombie_sessions`
+    ///   on next launch finalises anything stuck in Active.
+    ///
+    /// Idempotent — calling twice is a no-op the second time.
     pub async fn watcher_stop(&self, project_id: u32) -> Result<(), OculpmError> {
         let mut projects = self.projects.write().await;
         let entry = projects
             .get_mut(&project_id)
             .ok_or(OculpmError::NotInitialized(project_id))?;
 
+        let had_watcher = entry.watcher.is_some();
         if let Some(watcher) = entry.watcher.take() {
             watcher.stop().await?;
         }
-        if let Some(session) = entry.session.take() {
-            session.shutdown().await?;
-        }
+        tracing::info!(
+            target: "oculpm::manager",
+            project_id,
+            had_watcher,
+            session_alive = entry.session.is_some(),
+            "[FLOW] watcher_stop: watcher halted, session actor kept alive (will end via inactivity timer if user doesn't return)"
+        );
         Ok(())
     }
 
@@ -953,6 +1009,31 @@ impl OculpmManager {
         Ok(agents::detect(&root))
     }
 
+    /// Return the on-disk master template (`.oculpm/agents/_template.md`).
+    /// Falls back to the embedded `MASTER_KO` if the file is missing — this
+    /// lets the UI's "프롬프트 복사" action work even before the first sync
+    /// has written the template to disk.
+    pub async fn read_master_template(
+        &self,
+        project_id: u32,
+    ) -> Result<String, OculpmError> {
+        let root = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.root.clone()
+        };
+        let path = root.join(".oculpm").join("agents").join("_template.md");
+        match tokio::fs::read_to_string(&path).await {
+            Ok(text) => Ok(text),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Ok(agents::MASTER_KO.to_string())
+            }
+            Err(source) => Err(OculpmError::Io { path, source }),
+        }
+    }
+
     /// Rebuild the cache from `.oculpm/journal/` ground truth. Drops every
     /// row for the project and re-walks. Returns the user-facing report
     /// shape from `spec::ReindexReport` (project_id + completed_at included).
@@ -964,6 +1045,27 @@ impl OculpmManager {
         let journal_root = self.journal_root(project_id).await?;
         let report = JournalCache::new(db)
             .reindex_full(project_id, &journal_root)
+            .await?;
+        Ok(reindex_report_to_spec(project_id, report))
+    }
+
+    /// W4 dogfooding follow-up (2026-05-26) — mtime-keyed incremental reindex.
+    /// Cheap to call on every project open: files whose mtime matches the
+    /// cached row are skipped (no parse, no upsert). Surfaces files that were
+    /// created on disk while the app was closed (external LLM ran without the
+    /// watcher running) so they appear in TodayScreen without the user having
+    /// to click "재인덱스".
+    ///
+    /// Returns the report shape so the caller can decide whether to surface
+    /// a "X entries imported" toast or log only.
+    pub async fn reindex_journal_cache_incremental(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<ReindexReport, OculpmError> {
+        let journal_root = self.journal_root(project_id).await?;
+        let report = JournalCache::new(db)
+            .reindex_incremental(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))
     }

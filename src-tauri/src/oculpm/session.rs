@@ -674,6 +674,13 @@ impl ActorInner {
     }
 
     fn emit_started(&self, session: &Session) {
+        tracing::info!(
+            target: "oculpm::session",
+            project_id = self.project_id,
+            session_id = %session.id,
+            started_at = %session.started_at,
+            "[FLOW] session started (emit OculpmSessionStarted)"
+        );
         if let Some(handle) = &self.app_handle {
             use tauri_specta::Event;
             let _ = OculpmSessionStarted {
@@ -685,6 +692,13 @@ impl ActorInner {
     }
 
     fn emit_ended(&self, session: &Session) {
+        tracing::info!(
+            target: "oculpm::session",
+            project_id = self.project_id,
+            session_id = %session.id,
+            ended_reason = ?session.ended_reason,
+            "[FLOW] session ended (emit OculpmSessionEnded)"
+        );
         if let Some(handle) = &self.app_handle {
             use tauri_specta::Event;
             let _ = OculpmSessionEnded {

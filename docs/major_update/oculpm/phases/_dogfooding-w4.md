@@ -234,3 +234,144 @@ pnpm tsc --noEmit
 #   4. inactivity_timeout 후 새 activity → resume_within_grace 동작 확인
 ```
 
+---
+
+## 2026-05-26 — 사용자 직접 dogfooding 2차 발견 + 같은 날 조치
+
+> 1차 (위) 조치 후 같은 외부 프로젝트 (`black-corp-tycoon`) 에서 시나리오 재실행. 3건 잔존/신규.
+
+### 발견 5 — "어댑터 규칙 다시 보내기" 라벨 = LLM 으로 prompt 재주입 의도로 오인
+
+- **현상**: `DiffVsNarrative` 의 [어댑터 규칙 다시 보내기] 버튼이 사실은 `syncAgents`
+  (AGENTS.md/CLAUDE.md 관리 블록 idempotent 재기록) 만 호출함. 사용자는 라벨의 "보내기"
+  를 "실행 중인 LLM 채팅창에 규칙을 다시 주입" 이라 해석해서 반복 클릭했고, 워크플로 상
+  실제로 "프롬프트를 LLM 에 여러 번 붙여넣는" 시나리오가 됐을 때 컨텍스트 중복이 우려된다고 보고.
+- **조치 (라벨 + 동작 분리)**:
+  1. 기존 버튼 라벨 변경: `어댑터 규칙 다시 보내기` → **`AGENTS.md 재동기화`**.
+     동작은 동일 (`syncAgents`), tooltip 에 "파일 쓰기만, 실행 중인 LLM 세션엔 영향 없음" 명시.
+  2. 신규 버튼 추가: **`프롬프트 복사`** — `oculpmApi.getMasterTemplate(projectId)` 로
+     `.oculpm/agents/_template.md` 텍스트를 받아 `navigator.clipboard.writeText` →
+     warning 토스트 `프롬프트 복사 완료 / 한 번만 붙여넣으세요 — 여러 번 붙이면 LLM 컨텍스트가
+     부풀어 같은 규칙이 중복 적용될 수 있어요.`
+  3. 백엔드: `OculpmManager::read_master_template` + `oculpm_agents_get_master_template`
+     커맨드 신설 (read-only, 어댑터 파일 미터치). 파일 없으면 임베디드 `MASTER_KO` fallback.
+
+### 발견 6 — DiffVsNarrative 헤더가 좁은 폭에서 "코드 스니펫" 글자별 세로 줄바꿈
+
+- **현상**: `JournalEntryDetail` 우측 컬럼 (sticky, 좁음) 안에 인라인 패널로 마운트될 때,
+  헤더의 단일 row flex 가 과제약 → 타이틀의 `manual-20260526-225000` sessionId 가 줄을
+  대부분 차지하고 우측의 `코드 스니펫` 라벨이 글자 단위로 세로 줄바꿈됨 (스크린샷 첨부).
+- **원인**: `header` 가 `flex items-center justify-between` 한 줄, 자식 div 에 min-width
+  지정 없음 → 우측 control 영역이 0폭에 가깝게 짜부라들면서 label 텍스트가 vertical wrap.
+- **조치**:
+  - `header` 에 `flex-wrap gap-x-3 gap-y-1` 추가 → 좁으면 컨트롤이 다음 줄로 떨어짐.
+  - 좌측 타이틀 컨테이너 `min-w-0 flex-1`, sessionId 부분 `min-w-0 truncate` + `title={sessionId}` 로 호버 시 전체 노출.
+  - 우측 컨트롤 영역 `shrink-0`, 체크박스 라벨 `whitespace-nowrap` 강제 → 세로 wrap 차단.
+  - icon 들에 `shrink-0` 일관 적용.
+
+### 발견 7 — `opener.open_path` 권한이 capability 에 있는데도 여전히 거부됨
+
+- **현상**: 1차에서 `opener:allow-open-path` 권한 identifier 만 추가 → 그래도
+  `ForbiddenPath /Users/.../black-corp-tycoon/.oculpm/journal/.../2250_feature_...md` 발생.
+- **원인 (소스 추적)**: `tauri-plugin-opener` 2.5.4 의 `commands::open_path` 는
+  `Scope::is_path_allowed` 를 거치는데, 이 함수는 (a) fs scope glob 매칭 **AND** (b) 최소 한
+  개 이상의 allow entry 가 program 매칭 (Application::Default vs `with: None`) 을 요구함.
+  단순 identifier 만 추가하면 allow 배열이 비어 (b) 가 무조건 false → `ForbiddenPath`.
+- **조치**: `src-tauri/capabilities/default.json` 의 두 permission 을 **객체 형식 + `allow: [{ "path": "**" }]`** 로 승격:
+  ```json
+  { "identifier": "opener:allow-open-path", "allow": [{ "path": "**" }] },
+  { "identifier": "opener:allow-reveal-item-in-dir", "allow": [{ "path": "**" }] }
+  ```
+  `**` 글로브 = 모든 절대경로 허용. external project 의 `.oculpm/journal/**` 도 통과.
+- **검증** (수동, 재빌드 후):
+  - JournalEntryDetail "원본 열기" → OS 기본 에디터 (cmd-K → Cursor / VSCode / Typora 중 default) 로 .md 열림.
+  - "코드 스니펫" 토글 켜고 path row hover → 향후 PR 에서 reveal-item 도 같은 scope 로 동작 예정.
+
+### 검증 명령 (2차 조치)
+
+```bash
+cargo check --manifest-path src-tauri/Cargo.toml        # warnings only
+cargo test --manifest-path src-tauri/Cargo.toml --lib oculpm::agents  # 13/13 PASS
+pnpm tsc --noEmit                                       # clean
+# 재빌드 필요한 항목 (런타임 검증):
+#   - capability JSON 변경 → tauri dev 재시작 필요
+#   - 새 커맨드 oculpm_agents_get_master_template → bindings.ts 한 줄 수동 추가 (다음 dev 빌드가 덮어씀)
+```
+
+### 발견 9 — start ↔ 프로젝트 뷰 반복 토글이 세션 N개 양산 (1차 발견 2 의 변종)
+
+- **현상**: 사용자가 프로젝트 → 시작화면 → 프로젝트 를 빠르게 반복하면 매 진입마다 새 session_id 가 생성. 1차 발견 2 의 resume 메커니즘 (`session_resume_grace_minutes=15`) 이 작동 안 함.
+- **원인 (코드 추적)**:
+  1. `App.tsx` 의 useEffect 가 `selectedProjectId` 변화마다 cleanup 으로 `oculpm_watcher_stop` 호출.
+  2. `OculpmManager::watcher_stop` 이 **세션 actor 까지** shutdown → `finalize_active(EndedReason::AppQuit, ...)`.
+  3. resume 의 `try_resume_session` 은 prior session 의 `ended_reason == InactivityTimeout` 만 인정. `AppQuit` 은 `NoCandidate` → 새 세션 시작.
+- **조치**:
+  - `OculpmManager::watcher_stop` 가 더 이상 `session.shutdown()` 을 호출하지 않음. fs watcher 만 정지, SessionActor 는 메모리에 살려둠. 뷰 토글 사이엔 같은 세션 유지.
+  - 사용자가 오래 떠나 있어 inactivity timeout 이 자연 발생하면 session 이 `InactivityTimeout` 으로 종료되고, 다시 돌아와도 grace (기본 15min) 안이면 resume 이 픽업.
+  - `OculpmManager::watcher_start` 가 `entry.session.is_some()` 이면 기존 actor 를 재사용 (clone). 처음 진입에서만 spawn.
+  - app 실제 종료 (`shutdown_all_blocking`) / `on_project_closed` 에선 ProjectEntry 드롭으로 SessionActor 가 자연 종료되고, 다음 launch 의 `recover_zombie_sessions` 가 `crash_recovered` 로 finalize → 데이터 손실 없음.
+- **로그 단서**: 토글 사이에 `[FLOW] watcher_stop: ... session_alive=true` 가 보이면 정상. 새 진입에서 `[FLOW] watcher_start: ... reused_session=true` 면 같은 세션 유지됨.
+
+### 발견 10 — 흐름 전체 가시성 부재 → 로그 인프라 + [FLOW] 태그
+
+- **요청**: 사용자가 "프로젝트 로드 → 외부 LLM 작성 → UI 갱신" 흐름이 끊겼을 때 원인을 찾을 수 있게 로그를 남기고 싶다.
+- **조치**:
+  1. **파일 로그**: `tracing-appender` 추가, `setup_logging()` 이 `<app_data>/logs/oculpm.log.YYYY-MM-DD` 로 daily rotation. stdout + 파일 dual output.
+  2. **`[FLOW]` 태그 INFO 로그**: 7개 핵심 지점에 삽입:
+     - step 0 (frontend): 프로젝트 선택
+     - step 1: `oculpm_init` 시작/완료
+     - step 2: `sync_agents` 결과 요약 (활성 어댑터별 action)
+     - step 3: `watcher_start` 시작/완료, `ProjectWatcher::start` armed
+     - watcher fs event: journal 경로 진입
+     - cache invalidation: outcome (Inserted/Updated/MtimeOnly/SkippedUnchanged)
+     - emit: `OculpmJournalAdded` / `OculpmJournalUpdated`
+     - step 4 (frontend): TimelineView 가 이벤트 수신, refetch 스케줄
+     - session lifecycle: `[FLOW] session started/ended` 로 중복 세션 감지 가능
+  3. **신규 커맨드**:
+     - `oculpm_get_log_dir`: 로그 디렉터리 절대경로
+     - `oculpm_log(level, target, message)`: frontend → backend tracing 브리지
+  4. **frontend 모듈** `src/lib/oculpmLog.ts`: `oculpmLog.flow/info/warn/error` API + `installConsoleBridge()` 가 `console.warn/error` 를 자동 forward.
+  5. **Settings UI**: "로그" 섹션 신설 — 경로 표시 + "로그 폴더 열기" 버튼 (opener 의 `revealItemInDir`). 사용자가 가장 최근 `oculpm.log.YYYY-MM-DD` 를 첨부할 수 있음.
+- **사용**: 흐름 추적할 때 `grep '\[FLOW\]' oculpm.log.YYYY-MM-DD` 로 happy path 모두 확인.
+
+### 발견 12 — AI 가 만든 파일이 안 보이는 진짜 원인: init 시 reindex 누락
+
+- **사용자 신고**: `~/Desktop/pi/storygame/.oculpm/journal/20260526/Features_to_add/{2318,2327,2335}_*.md` 3건이 antigravity 가 작성한 정상 frontmatter 파일인데 TodayScreen 에 안 보임.
+- **원인 (코드 추적)**: `OculpmManager::init_project` 는 lock + watcher 기반 인프라만 셋업, **SQLite 캐시 reindex 가 빠져 있었음.** 사용자 시나리오:
+  1. ai-pm 앱이 꺼져 있는 상태에서 antigravity 가 `.oculpm/journal/.../*.md` 생성.
+  2. 사용자가 ai-pm 앱 켜고 storygame 프로젝트 select → `oculpm_init` + `sync_agents` + `watcher_start` 실행.
+  3. **watcher 는 시작 이후의 fs event 만 감지**. 이미 디스크에 있는 파일들은 event 없음 → 캐시도 비어 있음 → `oculpm_list_journal_entries` 가 0건 반환 → UI 빈 화면.
+- **조치**:
+  - `OculpmManager::reindex_journal_cache_incremental` 신설 — mtime-keyed, idempotent, 변하지 않은 행은 parse 스킵 (가벼움).
+  - `oculpm_init` 명령의 sync_agents 직후에 호출. 디스크에만 있던 entries 가 한 번에 캐시로 들어감.
+  - 결과를 `[FLOW] step 2.5 OK — incremental reindex picked up pre-existing journal entries inserted=N updated=N deleted=N skipped=N` 로 로깅 → 사용자가 로그만 봐도 "이번 init 에서 N개 잡아왔다" 확인 가능.
+- **부수 효과**:
+  - `reindex_incremental` 은 디스크에 없는 캐시 row 도 청소 (`deleted`). 사용자가 외부에서 파일 지운 경우 다음 open 에서 정리됨.
+  - 큰 journal 트리도 mtime 매치 비율이 높아 거의 무비용.
+
+### 발견 11 — `OculpmJournalAdded` 이벤트가 한 번도 emit 되지 않던 dead-end
+
+- **현상**: 프론트 `WorkspaceContext` / `TimelineView` 가 `oculpmJournalAdded` 를 listen 만 함. 백엔드에서 emit 되는 곳이 0 — "새 기록: ..." 토스트가 외부 LLM 작성 시 절대 발생 안 함.
+- **원인**: watcher 가 `OculpmJournalPathChanged` (저수준, 경로만) 만 emit, `JournalAdded`/`JournalUpdated` (고수준, summary 포함) 는 enum 으로만 존재.
+- **조치**:
+  - `JournalCache::apply_path_change` 가 `Option<UpsertOutcome>` 반환 (Removed=None, 나머지=Some).
+  - 신규 `JournalCache::get_summary_by_path(project_id, rel)` → 단일 path 의 hydrated summary (tags + files_count 포함).
+  - `WatcherInner::emit_journal_outcome` 가 Inserted → `OculpmJournalAdded`, Updated → `OculpmJournalUpdated` 로 분기 emit. MtimeOnly / SkippedUnchanged 는 emit 안 함.
+  - 전 과정에 `[FLOW]` 로그 — `outcome = ?outcome` 으로 어떤 emit 이 일어났는지 추적 가능.
+
+### 발견 8 — 프로젝트 초기 로드 시 AGENTS.md 자동 생성 누락
+
+- **현상**: 신규 프로젝트는 Greenfield 위저드가 sync 를 호출해서 `AGENTS.md` 가 생기지만,
+  **기존 프로젝트 / 다른 머신에서 clone 한 직후 / 사용자가 수동으로 `AGENTS.md` 삭제한 뒤**
+  에 프로젝트를 다시 열 때, `oculpm_init` 은 `.oculpm/config.toml` 만 보고 fast-path 로
+  반환해서 어댑터 파일을 만들지 않음. 결과: 외부 LLM 이 root `AGENTS.md` 를 못 보고 1차 발견 1
+  의 "외부 LLM 이 `.oculpm/agents/_template.md` 를 자발적으로 안 읽음" 문제가 재현됨.
+- **조치**:
+  - `src-tauri/src/commands/oculpm.rs::oculpm_init` 의 성공 분기 끝에 **`manager.sync_agents(&db, project_id)`** 1회 호출 추가.
+  - `sync_active` 는 idempotent — 이미 존재하면서 내용 일치하면 no-op (mtime 도 안 움직임).
+  - 실패해도 init 자체는 성공 처리 (warn 로그만). 다음 "지금 동기화" 로 사용자가 직접 retry 가능.
+- **부수 효과 검토**:
+  - 모든 프로젝트 open 시점에 sync 가 돌아도, default config 의 `agents.active = ["agents-md"]` 만 해당 → 기존 `.cursor/rules/`, `.claude/CLAUDE.md` 등은 user opt-in 어댑터라 자동 생성 안 됨.
+  - drift 감지 영향 없음 (sync 후 우리가 방금 쓴 hash 가 agent_state 에 기록 → 다음 watcher event 와 일치).
+- **검증**: `cargo test --lib oculpm::manager` → 39/39 PASS (기존 통합 테스트가 init→sync_agents 시퀀스를 이미 일부 사용 중).
+

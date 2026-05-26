@@ -212,6 +212,19 @@ export const oculpmApi = {
     ),
 
   /**
+   * W4 dogfooding follow-up (2026-05-26) — return the project's master template
+   * text. Backs the DiffVsNarrative "프롬프트 복사" action, which is intentionally
+   * separated from `syncAgents` so the user can distinguish between
+   * "re-render AGENTS.md" (file write, idempotent) and "copy the rules so I
+   * can paste them into a running chat" (one-shot, easy to over-do).
+   */
+  getMasterTemplate: (projectId: number) =>
+    unwrap<string>(
+      "oculpm_agents_get_master_template",
+      commands.oculpmAgentsGetMasterTemplate(projectId),
+    ),
+
+  /**
    * W4-PR5 — diff a session's index ndjson against the union of journal
    * `files_touched` paths. Backend strips forbidden + redacted entries from
    * both sides so callers can render `matched / only_in_index / only_in_journal`
