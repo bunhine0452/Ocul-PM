@@ -26,6 +26,8 @@ import {
 import { OculpmOnboardingModal } from "@/features/oculpm/OculpmOnboardingModal";
 import { TimelineView } from "@/features/oculpm/TimelineView";
 import { ManualEntryModal } from "@/features/oculpm/ManualEntryModal";
+import { DiffVsNarrative } from "@/features/oculpm/DiffVsNarrative";
+import { OCULPM_BUS } from "@/components/CommandPalette";
 import { CategoryFilterBar } from "@/features/oculpm/CategoryFilterBar";
 import {
   DEFAULT_FILTER,
@@ -60,6 +62,26 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   const [fileChangeCount, setFileChangeCount] = useState<number | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  // W4-PR6 — latest session for the EmptyTodayV3 "compare" entry point, plus
+  // the active modal target (null = closed).
+  const [latestSessionId, setLatestSessionId] = useState<string | null>(null);
+  const [compareSessionId, setCompareSessionId] = useState<string | null>(null);
+
+  // W4-PR8 — CommandPalette bus listeners (manual entry / compare latest).
+  useEffect(() => {
+    const onManual = () => {
+      if (oculpmStatus?.initialized) setManualEntryOpen(true);
+    };
+    const onCompare = () => {
+      if (latestSessionId) setCompareSessionId(latestSessionId);
+    };
+    window.addEventListener(OCULPM_BUS.manualEntry, onManual);
+    window.addEventListener(OCULPM_BUS.compareLatest, onCompare);
+    return () => {
+      window.removeEventListener(OCULPM_BUS.manualEntry, onManual);
+      window.removeEventListener(OCULPM_BUS.compareLatest, onCompare);
+    };
+  }, [oculpmStatus?.initialized, latestSessionId]);
   // Bumped after a manual entry is created so the journal-count probe re-runs
   // (and TimelineView re-renders via its own event subscription).
   const [refreshTick, setRefreshTick] = useState(0);
@@ -124,16 +146,20 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     let cancelled = false;
     (async () => {
       try {
-        const [entries, fileChanges] = await Promise.all([
+        const [entries, fileChanges, sessions] = await Promise.all([
           oculpmApi.listJournalEntries(activeProjectId),
           oculpmApi.getFileChanges(
             activeProjectId,
             oculpmStatus.current_workday
           ),
+          oculpmApi.listSessions(activeProjectId, oculpmStatus.current_workday),
         ]);
         if (cancelled) return;
         setJournalCount(entries.length);
         setFileChangeCount(fileChanges.length);
+        // Latest = greatest session_id lexicographically (YYYYMMDD-NNN).
+        const sortedIds = sessions.map((s) => s.id).sort();
+        setLatestSessionId(sortedIds.length ? sortedIds[sortedIds.length - 1] : null);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof OculpmApiError) {
@@ -298,6 +324,11 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
               <EmptyTodayV3
                 fileChangeCount={fileChangeCount ?? 0}
                 onCreateManual={handleManualEntry}
+                onCompareLayers={
+                  latestSessionId
+                    ? () => setCompareSessionId(latestSessionId)
+                    : null
+                }
               />
             ) : (
               <EmptyTodayV2
@@ -306,6 +337,17 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
               />
             )}
           </div>
+        )}
+
+        {/* W4 dogfooding finding (2026-05-25) — was a top-level modal; relocated
+            inline above the timeline so users can keep scrolling through their
+            sessions while the comparison stays visible. */}
+        {compareSessionId && activeProjectId != null && (
+          <DiffVsNarrative
+            projectId={activeProjectId}
+            sessionId={compareSessionId}
+            onClose={() => setCompareSessionId(null)}
+          />
         )}
 
         {!brief && loading && (
@@ -392,6 +434,7 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
             onClose={() => setManualEntryOpen(false)}
           />
         )}
+
     </div>
   );
 }

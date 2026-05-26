@@ -3,7 +3,7 @@
 > **목표**: 백엔드의 6 이벤트를 사용자가 보는 토스트로 변환하고, CommandPalette 에 ocul-pm 명령 8개를 추가. 본 PR 으로 비로소 사용자가 "왜 자동 갱신이 안 됐지?" 같은 의문을 안 가지게 됨.
 > **선행**: W4-PR4 (drift 이벤트), W4-PR2 (sync 명령), W4-PR5 (compare_layers), W4-PR6 (DiffVsNarrative), W4-PR7 (Settings).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR8, [`../02-frontend.md`](../02-frontend.md) §12 (CommandPalette 명령 목록).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-25 — 자체 toast store + 4 핵심 이벤트 wire + CommandPalette 6 ocul-pm 명령)
 
 ---
 
@@ -107,7 +107,12 @@ useEffect(() => {
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **P-1 (sonner 미도입)**: 새 dep 부담 회피 — `src/lib/toast.ts` 에 module-scoped store + `useSyncExternalStore` 직접 구현. portal 은 `Toaster.tsx` 가 fixed bottom-right 에 mount.
+- **P-2 (이벤트 listener 위치)**: WorkspaceContext 가 이미 oculpm listener 보유 → toast 라우팅을 추가. `agent_drift` 도 새 listener.
+- **P-3 (drift 쿨다운)**: `DriftCooldown` (sessionStorage `oculpm.drift.dismissed.${agent_id}`) 5분 TTL. dismiss 후 동일 agent drift 토스트 5분간 차단. [동기화] 성공 시 `clear()` 호출.
+- **P-4 (dedup)**: integrity_warning 은 `kind:path` 키로 30초, journal_added 는 `relative_path` 키로 30초, drift 는 `agent:agent_id` 키로 60초.
+- **P-5 (CommandPalette 6 명령)**: 페이즈 doc 의 8 중 "Today 이동" + "Plan 이동" 은 기존 CommandPalette 에 이미 있음. 새로 6 추가 (세션 시작/종료, 수동 entry, 동기화, 비교, 설정). 수동 entry / 비교는 modal 이 TodayScreen 소유 → `OCULPM_BUS` window CustomEvent 로 decouple. TodayScreen 의 useEffect 가 listen + modal open.
+- **P-6 (session_started/ended 토스트 미연결)**: 페이즈 권장이 "디폴트 off". 본 PR 은 emit 만 받고 토스트 호출 안 함. Settings 토글 (PR7 extension) 에서 사용자가 켤 수 있게 v2.
 
 ### 다음 PR 로 넘기는 메모
 

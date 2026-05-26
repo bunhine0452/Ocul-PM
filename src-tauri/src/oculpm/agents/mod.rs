@@ -81,6 +81,17 @@ pub struct AgentContext {
 /// `AgentSyncReport` output (deterministic per-call ordering).
 pub fn known_adapters() -> &'static [AgentAdapter] {
     &[
+        // W4 dogfooding finding (2026-05-25) — 외부 LLM 들이 `.oculpm/agents/_template.md`
+        // 를 자발적으로 읽지 않음. 루트 `AGENTS.md` 를 1차 surface 로 삼아 마스터 콘텐츠를
+        // 그대로 배포하고, 어댑터별 파일은 `@AGENTS.md` 위임 stub 으로 축소했음.
+        // ManagedBlock 모드: 사용자가 AGENTS.md 에 다른 규칙도 적어둘 수 있어 블록 밖
+        // 콘텐츠는 보존.
+        AgentAdapter {
+            id: "agents-md",
+            adapter_path: "AGENTS.md",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_agents_md,
+        },
         AgentAdapter {
             id: "cursor",
             adapter_path: ".cursor/rules/ocul-pm.mdc",
@@ -106,6 +117,23 @@ pub fn known_adapters() -> &'static [AgentAdapter] {
             render: render_gemini,
         },
     ]
+}
+
+fn render_agents_md(ctx: &AgentContext) -> String {
+    // AGENTS.md is the canonical content surface. Precedence:
+    //   1. per-agent override (`.oculpm/agents/per-agent/agents-md.md`)
+    //   2. on-disk master template (`.oculpm/agents/_template.md`, populated
+    //      from MASTER_KO on first init) — so user edits to the master flow
+    //      into AGENTS.md verbatim.
+    if let Some(override_text) = &ctx.per_agent_override {
+        return override_text.clone();
+    }
+    if ctx.master_template.is_empty() {
+        // Defensive: ensure_master_template should always populate this, but if
+        // a future caller forgets, fall back to the embedded master.
+        return MASTER_KO.to_string();
+    }
+    ctx.master_template.clone()
 }
 
 fn render_cursor(ctx: &AgentContext) -> String {
@@ -188,9 +216,15 @@ fn apply_write(adapter: &AgentAdapter, abs: &Path, ctx: &AgentContext) -> AgentS
         }
     };
     match outcome {
-        Ok(ManagedBlockResult::Inserted) => action_result(adapter.id, "inserted"),
-        Ok(ManagedBlockResult::Updated) => action_result(adapter.id, "updated"),
-        Ok(ManagedBlockResult::Unchanged) => action_result(adapter.id, "unchanged"),
+        Ok(ManagedBlockResult::Inserted) => {
+            action_result(adapter.id, "inserted", post_write_hash(adapter, abs))
+        }
+        Ok(ManagedBlockResult::Updated) => {
+            action_result(adapter.id, "updated", post_write_hash(adapter, abs))
+        }
+        Ok(ManagedBlockResult::Unchanged) => {
+            action_result(adapter.id, "unchanged", post_write_hash(adapter, abs))
+        }
         Err(e) => error_result(adapter.id, &e),
     }
 }
@@ -214,10 +248,47 @@ fn apply_remove(adapter: &AgentAdapter, abs: &Path) -> AgentSyncResult {
         }
     };
     match outcome {
-        Ok(true) => action_result(adapter.id, "removed"),
-        Ok(false) => action_result(adapter.id, "unchanged"),
+        Ok(true) => action_result(adapter.id, "removed", None),
+        Ok(false) => action_result(adapter.id, "unchanged", None),
         Err(e) => error_result(adapter.id, &e),
     }
+}
+
+/// Read the bytes we own on `abs` right after a successful write and return
+/// their blake3 hex. For Overwrite adapters that's the whole file; for
+/// ManagedBlock adapters it's the inner content the next `read_managed_block`
+/// will return. Hashing post-write (rather than hashing `rendered` directly)
+/// keeps the comparator honest about any normalisation `atomic_io` did —
+/// notably CRLF preservation in managed-block writes.
+fn post_write_hash(adapter: &AgentAdapter, abs: &Path) -> Option<String> {
+    match adapter.write_mode {
+        WriteMode::Overwrite => match std::fs::read(abs) {
+            Ok(bytes) => Some(blake3::hash(&bytes).to_hex().to_string()),
+            Err(_) => None,
+        },
+        WriteMode::ManagedBlock => match read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown) {
+            Ok(Some(inner)) => Some(blake3::hash(inner.content.as_bytes()).to_hex().to_string()),
+            _ => None,
+        },
+    }
+}
+
+/// Recompute the same hash `post_write_hash` recorded — used by the watcher
+/// drift check so the comparator sees identical normalisation.
+pub fn current_disk_hash(adapter: &AgentAdapter, abs: &Path) -> Option<String> {
+    post_write_hash(adapter, abs)
+}
+
+/// Look up an adapter by its `agent_id`. Returns `None` for unknown ids so
+/// the watcher can fall back to "treat as user file" rather than panic.
+pub fn lookup_adapter(agent_id: &str) -> Option<&'static AgentAdapter> {
+    known_adapters().iter().find(|a| a.id == agent_id)
+}
+
+/// Inverse of `lookup_adapter` — given a project-relative path that the
+/// watcher saw change, return the matching adapter if it's one of our four.
+pub fn lookup_adapter_by_path(relative_path: &str) -> Option<&'static AgentAdapter> {
+    known_adapters().iter().find(|a| a.adapter_path == relative_path)
 }
 
 /// Overwrite-mode write reuses `write_atomic` and reports a synthetic
@@ -241,11 +312,12 @@ fn write_overwrite(abs: &Path, rendered: &str) -> Result<ManagedBlockResult, Ocu
     })
 }
 
-fn action_result(id: &str, action: &str) -> AgentSyncResult {
+fn action_result(id: &str, action: &str, last_hash: Option<String>) -> AgentSyncResult {
     AgentSyncResult {
         id: id.to_string(),
         action: action.to_string(),
         error: None,
+        last_hash,
     }
 }
 
@@ -254,6 +326,7 @@ fn error_result(id: &str, e: &OculpmError) -> AgentSyncResult {
         id: id.to_string(),
         action: "error".to_string(),
         error: Some(e.to_string()),
+        last_hash: None,
     }
 }
 
@@ -327,6 +400,10 @@ pub fn detect(root: &Path) -> Vec<AgentDetection> {
 
 fn adjacent_marker_for(adapter_id: &str, root: &Path) -> bool {
     let candidates: &[&str] = match adapter_id {
+        // agents-md is universal — any AI-tool footprint counts as a hint that
+        // the project would benefit from it. AGENTS.md itself isn't here because
+        // adapter_path_exists handles it directly.
+        "agents-md" => &[".claude", ".cursor", ".agent", ".gemini", "GEMINI.md", "CLAUDE.md"],
         "cursor" => &[".cursor"],
         "claude-code" => &[".claude"],
         "antigravity" => &[".agent"],

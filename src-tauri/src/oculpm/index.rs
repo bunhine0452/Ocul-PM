@@ -138,6 +138,40 @@ impl IndexWriter {
         Ok(updated)
     }
 
+    /// Clear `ended_at` / `ended_reason` / `git_head_at_end` so a session that
+    /// finalize_session previously closed becomes Active again. Used by the
+    /// session actor's **resume-within-grace** path (W4 dogfooding fix —
+    /// external-agent re-entry was splitting one logical work unit into N
+    /// sessions because InactivityFired closed the session every time the
+    /// agent paused). Idempotent: calling on an already-active session is a
+    /// no-op that returns the current record.
+    pub async fn unfinalize_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Session, OculpmError> {
+        let workday = workday_from_id(session_id)?;
+        let path = self.sessions_path(workday);
+        let mut file = self.read_sessions_file(&path)?;
+        let session = file
+            .sessions
+            .iter_mut()
+            .find(|s| s.id == session_id)
+            .ok_or_else(|| OculpmError::SessionNotFound {
+                session_id: session_id.to_string(),
+                workday: workday.to_string(),
+            })?;
+
+        if session.ended_at.is_none() {
+            return Ok(session.clone());
+        }
+        session.ended_at = None;
+        session.ended_reason = None;
+        session.git_head_at_end = None;
+        let updated = session.clone();
+        self.write_sessions_file(&path, &file)?;
+        Ok(updated)
+    }
+
     /// All sessions for `workday`, sorted by `started_at` ASC. Missing file
     /// is treated as an empty array.
     pub async fn list_sessions(&self, workday: &str) -> Result<Vec<Session>, OculpmError> {

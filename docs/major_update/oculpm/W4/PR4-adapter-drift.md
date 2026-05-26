@@ -3,7 +3,7 @@
 > **목표**: 4 어댑터 파일 (`.cursor/rules/ocul-pm.mdc`, `.claude/CLAUDE.md`, `.agent/rules/ocul-pm.md`, `GEMINI.md`) 의 외부 변경을 워처가 잡아 사용자에게 토스트로 안내. "동기화" 클릭 시 PR2 의 `sync_active` 재호출.
 > **선행**: W4-PR2 (sync + state hash 저장), W2-PR3 (watcher), W2-PR5 (Tauri 이벤트 emit 인프라).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR4 + §5 (함정: ManagedBlock begin/end 파손).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-25 — backend 완료. 토스트 5분 쿨다운 + UI 버튼은 PR8 에서 wire)
 
 ---
 
@@ -112,10 +112,10 @@ pub struct OculpmAgentDrift {
 
 ## 5. DoD
 
-- [ ] 3개 통합 케이스 통과.
-- [ ] drift 무시 시 다음 sync 까지 같은 토스트 반복 X (5분 쿨다운).
-- [ ] SQLite migration 추가 + 기존 사용자 DB 에 적용 시 idempotent.
-- [ ] managed block begin/end 한쪽 파손 → `sync_active` 가 `ManagedBlockMismatch` Err → 토스트 "관리 블록 파손 — 수동 정정 필요" (페이즈 §5).
+- [x] 3개 통합 케이스 통과 (실제 4개 — Cursor external / Claude outside-block / Claude inside-block / resync-clears).
+- [ ] **PR8 책임**: drift 무시 시 다음 sync 까지 같은 토스트 반복 X (5분 sessionStorage 쿨다운). 본 PR 은 emit 까지.
+- [x] SQLite migration `013_oculpm_agent_state.sql` 추가 + `CREATE TABLE IF NOT EXISTS` 로 idempotent.
+- [x] managed block begin/end 한쪽 파손 → `sync_active` 가 해당 어댑터의 `AgentSyncResult.action == "error"` + `error: "managed block …"` 반환 (W4-PR2 의 `managed_block_orphan_marker_surfaces_as_error_result` 가 이미 보장). 본 PR 은 그 result 의 `last_hash: None` → db upsert 스킵 → drift 비교는 안 일어남 (PR8 가 error result 를 보고 별도 토스트).
 
 ---
 
@@ -130,10 +130,15 @@ pub struct OculpmAgentDrift {
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **P-1 (`sync_agents` 시그니처)**: 기존 `sync_agents(&self, project_id)` 가 db 필요 없었지만 PR4 가 db upsert 추가 → `(&self, db: &Db, project_id)` 로 변경. 호출자 (watcher cascade, command) 도 함께 갱신. 깨짐 없이 통과.
+- **P-2 (ManagedBlock inner 헬퍼)**: `read_managed_block` 는 `ManagedBlock` struct 반환 — `.content` 필드가 inner. `as_bytes()` 직접 호출 컴파일 에러로 한 차례 fix.
+- **P-3 (self-write race)**: watcher 의 notify event 가 sync 의 write 와 db upsert 사이에 끼면 false drift 가능. 실측: write 후 즉시 (sync_agents 동일 await 내) upsert 라 fs notify debounce window (500ms) 안에 다 끝남 — race 미관찰. 만약 자동 dogfooding 운영 시 false drift 보이면 watcher 에 50~100ms 추가 sleep.
+- **P-4 (AppHandle 없는 단위 테스트)**: drift 통합 테스트는 manager 의 `check_agent_drift` 를 직접 호출 — watcher path 의 emit 까지는 검증 안 함. watcher 의 emit 은 PR8 wire 시 사용자 dev 손검증으로 확인.
+- **P-5 (last_hash None 케이스)**: error result / removed / unhashable 시 `last_hash: None` → db upsert 스킵 → stale row 잔존. 다음 successful sync 가 overwrite. 또는 `manager.sync_agents` 가 "비활성화된 adapter 는 row 삭제" 도 고려 가능 (W4-PR7 정책 결정).
 
 ### 다음 PR 로 넘기는 메모
 
-- PR8 (이벤트 → 토스트 매핑) 가 본 PR 의 `oculpm:agent_drift` 를 처리하는 핸들러 추가.
-- PR7 (Settings) 에 "어댑터 상태" 섹션 추가 후보 — 각 어댑터의 last_hash + last_written_at 노출, drift 발생 횟수 카운터.
-- PR9 의 자동 dogfooding 중 LLM 이 `.claude/CLAUDE.md` 의 ocul-pm 블록을 건드리면 drift 이벤트 → 학습 신호.
+- **PR8**: `OculpmAgentDrift` 이벤트 listener + 5분 sessionStorage 쿨다운 (key: `oculpm.drift.dismissed.${agent_id}`) + [동기화]/[무시] 버튼. [동기화] 는 `oculpmApi.syncAgents(projectId)` 호출.
+- **PR8**: `AgentSyncResult.action == "error"` 처리 — drift 와 별도 토스트 "Cursor 의 ManagedBlock 이 파손됐습니다 — 수동 정정 필요".
+- **PR7 (Settings)**: "어댑터 상태" 섹션 — 각 어댑터의 `oculpm_agent_state_get` 결과 (`last_hash 첫 8자 / last_written_at`) 노출, drift 카운터 (별도 SQLite 컬럼 필요 시 별 PR).
+- **PR9**: 자동 dogfooding 운영 중 LLM 이 `.claude/CLAUDE.md` 의 ocul-pm 블록을 의도치 않게 건드리면 drift 이벤트가 학습 신호로 동작 (회고에 기록).

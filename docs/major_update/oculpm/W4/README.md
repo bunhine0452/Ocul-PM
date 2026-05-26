@@ -13,12 +13,12 @@
 | W4-PR1 | `.oculpm/agents/_template.md` + 4 어댑터 템플릿 | ✅ | [`PR1-agent-templates.md`](./PR1-agent-templates.md) |
 | W4-PR2 | `agents.rs` 렌더러 + `sync_active` + `detect` | ✅ | [`PR2-agents-renderer.md`](./PR2-agents-renderer.md) |
 | W4-PR3 | `redact.rs` + `forbid_journal_for_paths` 강제 | ✅ | [`PR3-redact-forbid.md`](./PR3-redact-forbid.md) |
-| W4-PR4 | Adapter drift 감지 + 토스트 흐름 | ⬜ | [`PR4-adapter-drift.md`](./PR4-adapter-drift.md) |
-| W4-PR5 | `compare_layers` 커맨드 + LayerComparison | ⬜ | [`PR5-compare-layers.md`](./PR5-compare-layers.md) |
-| W4-PR6 | Frontend `DiffVsNarrative` 모달 + 4 trigger | ⬜ | [`PR6-diff-vs-narrative.md`](./PR6-diff-vs-narrative.md) |
-| W4-PR7 | Frontend `OculpmSettings` 5 섹션 폼 | ⬜ | [`PR7-oculpm-settings.md`](./PR7-oculpm-settings.md) |
-| W4-PR8 | 이벤트 → 토스트 매핑 + CommandPalette 8 명령 | ⬜ | [`PR8-events-toasts.md`](./PR8-events-toasts.md) |
-| W4-PR9 | 자동 dogfooding 전환 + 3일치 회고 | ⬜ | [`PR9-auto-dogfooding.md`](./PR9-auto-dogfooding.md) |
+| W4-PR4 | Adapter drift 감지 + 토스트 흐름 | ✅ (BE) | [`PR4-adapter-drift.md`](./PR4-adapter-drift.md) |
+| W4-PR5 | `compare_layers` 커맨드 + LayerComparison | ✅ | [`PR5-compare-layers.md`](./PR5-compare-layers.md) |
+| W4-PR6 | Frontend `DiffVsNarrative` 모달 + 4 trigger | ✅ | [`PR6-diff-vs-narrative.md`](./PR6-diff-vs-narrative.md) |
+| W4-PR7 | Frontend `OculpmSettings` 5 섹션 폼 | ✅ | [`PR7-oculpm-settings.md`](./PR7-oculpm-settings.md) |
+| W4-PR8 | 이벤트 → 토스트 매핑 + CommandPalette 8 명령 | ✅ | [`PR8-events-toasts.md`](./PR8-events-toasts.md) |
+| W4-PR9 | 자동 dogfooding 전환 + 3일치 회고 | 🟡 | [`PR9-auto-dogfooding.md`](./PR9-auto-dogfooding.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.
 

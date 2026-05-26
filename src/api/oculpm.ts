@@ -16,11 +16,14 @@
 
 import { commands } from "@/lib/bindings";
 import type {
+  AgentDetection,
+  AgentSyncReport,
   Difficulty,
   EntryFilters,
   EntryStatus,
   JournalEntry,
   JournalEntrySummary,
+  LayerComparison,
   ManualEntryDraft,
   OculpmConfig,
   OculpmInitReport,
@@ -193,6 +196,32 @@ export const oculpmApi = {
       ),
     );
   },
+
+  // ─── W4 — agent adapter sync + detect + drift / layer comparison ───────
+
+  syncAgents: (projectId: number) =>
+    unwrap<AgentSyncReport>(
+      "oculpm_agents_sync_active",
+      commands.oculpmAgentsSyncActive(projectId),
+    ),
+
+  detectAgents: (projectId: number) =>
+    unwrap<AgentDetection[]>(
+      "oculpm_agents_detect",
+      commands.oculpmAgentsDetect(projectId),
+    ),
+
+  /**
+   * W4-PR5 — diff a session's index ndjson against the union of journal
+   * `files_touched` paths. Backend strips forbidden + redacted entries from
+   * both sides so callers can render `matched / only_in_index / only_in_journal`
+   * directly. See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
+   */
+  compareLayers: (projectId: number, sessionId: string) =>
+    unwrap<LayerComparison>(
+      "oculpm_compare_layers",
+      commands.oculpmCompareLayers(projectId, sessionId),
+    ),
 } as const;
 
 export type OculpmApi = typeof oculpmApi;

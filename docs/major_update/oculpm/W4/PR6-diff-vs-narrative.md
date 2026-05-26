@@ -3,7 +3,9 @@
 > **목표**: PR5 의 `LayerComparison` 를 좌/우 컬럼으로 시각화. SessionCard, EmptyToday V3, JournalEntryDetail 의 disabled 버튼들을 본 PR 의 모달로 활성화.
 > **선행**: W4-PR5 (`compare_layers` 커맨드), W3-PR6 (SessionCard), W3-PR5 (EmptyToday V3 의 disabled `[⚖ index 비교 보기]`), W3-PR7 (JournalEntryDetail 의 disabled `[⚖ index 비교]`).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR6, [`../02-frontend.md`](../02-frontend.md) §7.
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-25 — 3 trigger 직접 활성화 + EmptyTodayV3 TodayScreen 통해 활성화. Vitest 4 는 W6) · 🔧 **PostFix 2026-05-25**: 모달 chrome 제거 → 인라인 패널. `variant: "panel" | "compact"` prop 추가, "코드 스니펫" 토글 헤더 추가.
+
+> 📌 **Post-dogfooding addendum (2026-05-25)** — 자세한 동기는 [`../phases/_dogfooding-w4.md`](../phases/_dogfooding-w4.md) §2026-05-25 발견 4 / 조치 완료 4 참조. 요지: 모달 안에서 3-way mismatch 비교가 어려움 → `fixed inset-0` 오버레이 제거하고 인라인 panel 로 변경. SessionCard 는 `variant="compact"` 로 entries 리스트 아래에 인라인 expand, TodayScreen / EmptyTodayV3 / JournalEntryDetail 은 기본 `variant="panel"` 로 호출 지점 인라인 렌더. 헤더에 "코드 스니펫" 체크박스 추가 (기본 off, 켜면 row 아래 "미구현 — git diff 로 확인하세요" 힌트). 향후 ndjson before/after bytes 와 narrative join 으로 실제 스니펫 렌더 가능 (다음 dogfooding 회차에서 토글 사용 빈도 측정).
 
 ---
 
@@ -119,7 +121,11 @@ interface DiffVsNarrativeProps {
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **P-1 (bindings stale)**: `oculpmApi` 가 PR2 시점에 W4 함수 (`syncAgents`, `detectAgents`, `compareLayers`) wrapper 미포함. 본 PR 에서 함께 추가.
+- **P-2 (4 trigger 의 modal 소유자)**: SessionCard / JournalEntryDetail 는 자기 컴포넌트가 `useState<boolean>` 로 modal mount (단일 카드/디테일 안에서 닫힘). EmptyTodayV3 는 `onCompareLayers` callback → TodayScreen 이 `compareSessionId: string | null` state 로 own. callback 패턴 통일하지 않은 이유: TodayScreen 의 EmptyTodayV3 는 "최근 session 찾아서 비교" 라 인자 결정 책임이 부모에 있음.
+- **P-3 (TodayScreen 의 latestSessionId)**: probe 와 함께 `oculpmApi.listSessions(workday)` 호출 → 가장 큰 session_id (YYYYMMDD-NNN 사전순). `at(-1)` 은 TS lib 의 es2022 필요해서 `arr[arr.length-1]` 로 대체 (이 프로젝트 TS target 호환성 차원).
+- **P-4 (sessionStorage 캐시 60초)**: DiffVsNarrative 가 자체 캐시. modal 반복 open 시 fetch 부담 흡수. `oculpm.compare.{projectId}.{sessionId}` key. quota exceeded 는 silently degrade.
+- **P-5 (onActionManualEntry 미wire)**: prefill 인자로 ManualEntryModal 띄우려면 SessionCard/JournalEntryDetail → TodayScreen 까지 callback chain 필요 (모두 modal 을 TodayScreen 이 own 하게). 부담 크고 PR doc DoD 직접 요구 없음. **PR8 의 CommandPalette 와 함께 한꺼번에 wire 권장** — 메모 § 다음 PR 로.
 
 ### 다음 PR 로 넘기는 메모
 

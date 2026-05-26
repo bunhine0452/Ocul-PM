@@ -13,9 +13,16 @@ use crate::oculpm::spec::{
     AgentsConfig, GitConfig, OculpmConfig, SessionConfig, WatcherConfig, WorkdayConfig,
 };
 
-/// Agent ids accepted in `agents.active`. Aligned with the 1차 지원 4종
-/// chosen in `00-spec.md` §8.
-pub const KNOWN_AGENT_IDS: &[&str] = &["claude-code", "cursor", "antigravity", "gemini-cli"];
+/// Agent ids accepted in `agents.active`. Aligned with `00-spec.md` §8 plus
+/// W4 dogfooding finding (2026-05-25): `agents-md` is the universal AGENTS.md
+/// surface that the other adapters delegate to via `@AGENTS.md` stubs.
+pub const KNOWN_AGENT_IDS: &[&str] = &[
+    "agents-md",
+    "claude-code",
+    "cursor",
+    "antigravity",
+    "gemini-cli",
+];
 
 #[allow(dead_code)] // Consumed by OculpmManager (W1-PR6) and Settings UI (W4).
 impl OculpmConfig {
@@ -29,10 +36,16 @@ impl OculpmConfig {
                 day_starts_at: "00:00".into(),
             },
             session: SessionConfig {
-                inactivity_timeout_minutes: 30,
+                // W4 dogfooding fix (2026-05-25) — external agents (Claude
+                // Code / antigravity / etc.) have natural pauses while waiting
+                // on LLM responses or user prompts. 30 min split single
+                // logical sessions into many. 60 min covers most agent gaps;
+                // session_resume_grace handles the remaining tail.
+                inactivity_timeout_minutes: 60,
                 auto_close_on_workday_boundary: true,
                 auto_close_on_app_quit: true,
                 crash_recovery_grace_minutes: 5,
+                session_resume_grace_minutes: 15,
             },
             git: GitConfig {
                 journal_committed: true,
@@ -46,8 +59,11 @@ impl OculpmConfig {
                 batch_max_events: 200,
             },
             agents: AgentsConfig {
-                // Empty by default — user picks at onboarding or in Settings.
-                active: Vec::new(),
+                // `agents-md` is the universal surface — always on by default
+                // so the root AGENTS.md gets the master content even before
+                // the user toggles individual adapters. Per-adapter ids stay
+                // empty until detection or Settings picks them.
+                active: vec!["agents-md".into()],
                 auto_detect_on_open: true,
                 auto_sync_adapters: true,
             },

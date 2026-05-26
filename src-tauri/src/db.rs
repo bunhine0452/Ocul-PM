@@ -20,6 +20,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (9, include_str!("../migrations/009_conversation_actions.sql")),
     (10, include_str!("../migrations/011_project_blueprints.sql")),
     (12, include_str!("../migrations/012_oculpm_journal.sql")),
+    (13, include_str!("../migrations/013_oculpm_agent_state.sql")),
 ];
 
 pub struct Db {
@@ -141,6 +142,70 @@ impl Db {
         self.conn
             .call(move |c| {
                 c.execute("DELETE FROM settings", [])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    // ---------- Oculpm agent state (W4-PR4) ----------
+    //
+    // Per-adapter hash of the bytes we last wrote — drives the watcher's
+    // drift comparator. Schema in migrations/013_oculpm_agent_state.sql.
+    // Stored as `String` on the wire (blake3 hex) so a missing row is
+    // unambiguously "we never synced this adapter."
+
+    pub async fn oculpm_agent_state_upsert(
+        &self,
+        project_id: u32,
+        agent_id: String,
+        last_hash: String,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO oculpm_agent_state
+                       (project_id, agent_id, last_hash, last_written_at)
+                     VALUES (?1, ?2, ?3, unixepoch())
+                     ON CONFLICT(project_id, agent_id) DO UPDATE SET
+                       last_hash = excluded.last_hash,
+                       last_written_at = excluded.last_written_at",
+                    params![project_id as i64, agent_id, last_hash],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn oculpm_agent_state_get(
+        &self,
+        project_id: u32,
+        agent_id: String,
+    ) -> Result<Option<(String, i64)>> {
+        let row = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT last_hash, last_written_at FROM oculpm_agent_state
+                     WHERE project_id = ?1 AND agent_id = ?2",
+                    params![project_id as i64, agent_id],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+                )
+                .optional()
+                .map_err(Into::into)
+            })
+            .await?;
+        Ok(row)
+    }
+
+    pub async fn oculpm_agent_state_clear_project(&self, project_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "DELETE FROM oculpm_agent_state WHERE project_id = ?1",
+                    params![project_id as i64],
+                )?;
                 Ok(())
             })
             .await?;

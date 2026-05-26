@@ -3,7 +3,7 @@
 > **목표**: 한 세션의 index (ground truth: 워처가 본 파일들) ↔ journal (LLM 이 narrative 로 기록한 것) 을 비교해 누락 / 환각 / severity 를 반환. 이중 레이어 UI (PR6) 의 백엔드.
 > **선행**: W4-PR3 (redact + forbidden 제외 규칙), W2-PR1 (`file_changes.ndjson` reader), W3-PR2 (journal cache reader).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR5 + §2.4 (캐시 비용).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-25 — 6 통합 테스트 green)
 
 ---
 
@@ -108,7 +108,10 @@ pub enum MismatchSeverity { Ok, Warning, Critical }
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **P-1 (중복 type 정의)**: `LayerComparison` placeholder 가 spec.rs 에 이미 있었음 (W1 stub). 새로 추가하지 않고 기존 struct 확장 (`workday`, `matched`, `jaccard_index` 필드 추가). Severity enum 도 기존 `Severity` (Ok/Warning/Critical) 재사용. PR doc 의 `MismatchSeverity` 는 작명 충돌 회피용일 뿐 — `Severity` 가 SSOT.
+- **P-2 (cache 쿼리의 workday)**: 초안은 `files_for_session(project_id, workday, session_id)` 시그니처였으나 `ManualEntryDraft.session_id` 가 호출자 override 가능 → frontmatter.workday 와 session_id prefix 가 다를 수 있음. cache 쿼리에서 workday 조건 빼고 session_id 만으로 (idx_oculpm_journal_session) 매치 — 단순 + 정확.
+- **P-3 (forbidden 양쪽 strip)**: index 는 watcher 가 이미 `**redacted/sensitive**:*` 로 마스킹. journal 은 PR3 가 forbidden path reject. 두 시점이 달라 한 쪽에만 마스킹이 남을 수 있음 → compare_layers 가 양쪽 set 에서 forbidden + redacted prefix 모두 strip 후 비교. 테스트 `forbidden_paths_are_excluded_from_both_sides` 가 보장.
+- **P-4 (severity 임계)**: `0.5`/`0.8` 임계는 직관 기반. PR9 자동 dogfooding 데이터로 분포 측정 후 조정 가능 (현재 상수 `severity_from_jaccard`).
 
 ### 다음 PR 로 넘기는 메모
 

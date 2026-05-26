@@ -3,9 +3,12 @@
 > **목표**: PR1~PR8 의 모든 코드 작업이 끝난 뒤, **실제 LLM (Claude Code 등) 이 본 프로젝트 (ai-pm) 안에서 자동으로 journal 을 작성하기 시작**. 작성률 / 정확도 / mismatch 분포를 매일 회고. W3-PR9 와 마찬가지로 **코드 PR 이 아닌 운영 전환**.
 > **선행**: W4-PR1~PR8 모두 ✅. W3 의 dogfooding 회고 (`_dogfooding-w3.md`).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR9 + §0 ("자동 dogfooding 시작").
-> **상태**: ⬜
+> **상태**: 🟡 (2026-05-25 — 운영 전환 준비 완료, 사용자 손작업으로 시작 대기) · 🔧 **PostFix 2026-05-25**: 직접 dogfooding 1차에서 4건 일괄 수정.
 
 > **인간 작업**: Claude Code 가 본인의 작업을 어댑터 규칙에 따라 자동으로 `.oculpm/journal/` 에 쓰는지 매일 확인 + 부족하면 마스터 템플릿 강화.
+> 회고는 [`../phases/_dogfooding-w4.md`](../phases/_dogfooding-w4.md) 에 작성.
+
+> 📌 **Post-dogfooding addendum (2026-05-25)** — 사용자 직접 dogfooding 1차에서 4건 발견 (AGENTS.md 누락, 세션 중복 생성, opener 권한, LayerComparison 모달 UX) → 같은 날 일괄 수정 + 문서화. 발견·조치 상세는 [`../phases/_dogfooding-w4.md`](../phases/_dogfooding-w4.md) §2026-05-25 두 섹션 참조. 영향 PR: PR2 (agents-md 어댑터 추가), PR6 (인라인 패널), PR7 (resume grace 슬라이더), 백엔드 SessionConfig (resume 메커니즘).
 
 ---
 

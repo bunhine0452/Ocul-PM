@@ -20,8 +20,9 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
-    JournalEntrySummary, ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmIntegrityWarning,
-    OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind, WatcherStatus,
+    JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig, OculpmInitReport,
+    OculpmIntegrityWarning, OculpmStatus, ReindexReport, Session, Snapshot, SnapshotKind,
+    WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -377,11 +378,30 @@ pub async fn oculpm_create_manual_entry(
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_agents_sync_active(
+    db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
 ) -> Result<AgentSyncReport, String> {
     manager
-        .sync_agents(project_id)
+        .sync_agents(&db, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// W4-PR5 — compare a session's index ndjson against the union of journal
+/// `files_touched` paths. Returns matched / missing / hallucinated sets +
+/// jaccard severity for the DiffVsNarrative modal (PR6). Cheap on the
+/// backend; PR8 may add a frontend sessionStorage cache.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_compare_layers(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    session_id: String,
+) -> Result<LayerComparison, String> {
+    manager
+        .compare_layers(&db, project_id, &session_id)
         .await
         .map_err(|e| e.to_string())
 }

@@ -43,6 +43,7 @@ import {
   MessageCircle,
 } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { DiffVsNarrative } from "./DiffVsNarrative";
 import type {
   Difficulty,
   EntryStatus,
@@ -327,6 +328,8 @@ export function JournalEntryDetail({
         onVerifyToggle={handleVerifyToggle}
         onOpenOriginal={handleOpenOriginal}
         onCopyMarkdown={handleCopyMarkdown}
+        projectId={projectId}
+        sessionId={entry?.frontmatter.session_id ?? null}
       />
     </div>
   );
@@ -428,6 +431,8 @@ function DetailActions({
   onVerifyToggle,
   onOpenOriginal,
   onCopyMarkdown,
+  projectId,
+  sessionId,
 }: {
   verified: boolean;
   canVerify: boolean;
@@ -437,7 +442,11 @@ function DetailActions({
   onVerifyToggle: () => void;
   onOpenOriginal: () => void;
   onCopyMarkdown: () => void;
+  projectId: number;
+  sessionId: string | null;
 }) {
+  const [compareOpen, setCompareOpen] = useState(false);
+  const canCompare = !!sessionId;
   return (
     <div className="px-5 pt-3 pb-5 border-t border-border space-y-2">
       <div className="flex flex-wrap gap-2">
@@ -495,9 +504,10 @@ function DetailActions({
 
         <button
           type="button"
-          disabled
-          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-background opacity-50 cursor-not-allowed"
-          title="W4 (DiffVsNarrative) 페이즈에서 활성화됩니다"
+          onClick={() => setCompareOpen(true)}
+          disabled={!canCompare}
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={canCompare ? "이 entry 의 session ↔ index 비교" : "session_id 가 없어 비교할 수 없습니다"}
         >
           <FileDiff className="w-3.5 h-3.5" />
           ⚖ index 비교
@@ -509,6 +519,14 @@ function DetailActions({
           <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
           <span>{actionError}</span>
         </div>
+      )}
+
+      {compareOpen && sessionId && (
+        <DiffVsNarrative
+          projectId={projectId}
+          sessionId={sessionId}
+          onClose={() => setCompareOpen(false)}
+        />
       )}
     </div>
   );

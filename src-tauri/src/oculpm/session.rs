@@ -239,9 +239,17 @@ impl ActorInner {
     async fn on_activity(&mut self, ev: FileChangeEvent) {
         match &mut self.state {
             SessionState::Idle => {
-                // Idle → Active. Start a new session triggered by file activity.
-                if let Err(e) = self.start_session(Some(ev)).await {
-                    tracing::error!(target: "oculpm::session", error = ?e, "failed to start session on activity");
+                // Idle → Active. Try to RESUME a recently-finalized session
+                // first (W4 dogfooding fix — external agent re-entry was
+                // splitting one logical work unit into N sessions). Falls
+                // through to start_session on no candidate.
+                match self.try_resume_session(ev.clone()).await {
+                    ResumeOutcome::Resumed => {}
+                    ResumeOutcome::NoCandidate => {
+                        if let Err(e) = self.start_session(Some(ev)).await {
+                            tracing::error!(target: "oculpm::session", error = ?e, "failed to start session on activity");
+                        }
+                    }
                 }
             }
             SessionState::Active(active) => {
@@ -373,6 +381,132 @@ impl ActorInner {
     }
 
     // ─── Session lifecycle ──────────────────────────────────────────────────
+
+    /// Look at today's workday sessions and decide whether the new activity
+    /// should reopen the most-recent InactivityTimeout-closed session instead
+    /// of starting a fresh one. Caller is responsible for the Idle precondition
+    /// — we don't double-check `self.state`.
+    ///
+    /// Conditions for resume:
+    ///  - `config.session_resume_grace_minutes > 0`
+    ///  - There's a session in today's workday with `ended_at = Some(_)` and
+    ///    `ended_reason == InactivityTimeout`
+    ///  - That session's `ended_at` is within `grace_minutes` of "now"
+    ///  - That session is the chronologically last session in the workday
+    ///    (we never reach back past a more recent session, even if that
+    ///    newer one ended for a different reason)
+    async fn try_resume_session(&mut self, ev: FileChangeEvent) -> ResumeOutcome {
+        if self.config.session_resume_grace_minutes == 0 {
+            return ResumeOutcome::NoCandidate;
+        }
+        let now = Utc::now();
+        let workday = self.resolver.workday_of(now);
+
+        let sessions = match self.index_writer.list_sessions(&workday).await {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(target: "oculpm::session", error = ?e, "list_sessions failed in resume check");
+                return ResumeOutcome::NoCandidate;
+            }
+        };
+        let last = match sessions.into_iter().last() {
+            Some(s) => s,
+            None => return ResumeOutcome::NoCandidate,
+        };
+        let ended_at_str = match &last.ended_at {
+            Some(s) => s.clone(),
+            None => return ResumeOutcome::NoCandidate, // still-open session shouldn't happen in Idle
+        };
+        if !matches!(last.ended_reason, Some(EndedReason::InactivityTimeout)) {
+            return ResumeOutcome::NoCandidate;
+        }
+        let ended_at = match DateTime::parse_from_rfc3339(&ended_at_str) {
+            Ok(t) => t.with_timezone(&Utc),
+            Err(_) => return ResumeOutcome::NoCandidate,
+        };
+        let grace =
+            chrono::Duration::minutes(i64::from(self.config.session_resume_grace_minutes));
+        if (now - ended_at) > grace {
+            return ResumeOutcome::NoCandidate;
+        }
+
+        // Unfinalize on disk so list_sessions / TodayScreen pick it back up as
+        // "ongoing" within this same call cycle.
+        let resumed = match self.index_writer.unfinalize_session(&last.id).await {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(target: "oculpm::session", error = ?e, "unfinalize_session failed");
+                return ResumeOutcome::NoCandidate;
+            }
+        };
+
+        // Append the triggering event under the resumed session id.
+        let stamped = FileChangeEvent {
+            ts: now
+                .with_timezone(&self.resolver.tz)
+                .to_rfc3339_opts(SecondsFormat::Secs, false),
+            session_id: resumed.id.clone(),
+            ..ev
+        };
+        if let Err(e) = self.index_writer.append_file_change(&stamped).await {
+            tracing::warn!(target: "oculpm::session", error = ?e, "resume ndjson append failed");
+        }
+
+        // Rebuild the unique-files set from existing ndjson so files_unique
+        // stays consistent across resume. Cheap (one pass on this workday's
+        // file_changes.ndjson). Errors fall back to seeding with just the
+        // new event — the counter will be approximate but the session won't
+        // be split.
+        let mut files_unique: HashSet<String> = HashSet::new();
+        match self
+            .index_writer
+            .read_file_changes(&workday, Some(&resumed.id))
+            .await
+        {
+            Ok(events) => {
+                for e in events {
+                    files_unique.insert(e.path);
+                }
+            }
+            Err(e) => {
+                tracing::warn!(target: "oculpm::session", error = ?e, "read_file_changes failed during resume");
+            }
+        }
+        files_unique.insert(stamped.path.clone());
+
+        let mut session = resumed;
+        session.file_event_count = session.file_event_count.saturating_add(1);
+        session.files_unique = files_unique.len() as u32;
+        // git_head_at_start kept; end stays None until next finalize.
+        if let Err(e) = self.index_writer.upsert_session(&session).await {
+            tracing::warn!(target: "oculpm::session", error = ?e, "resume upsert failed");
+        }
+
+        // Emit started so the UI re-renders the session as ongoing. We
+        // intentionally reuse OculpmSessionStarted rather than introducing a
+        // new "resumed" event — TodayScreen / SessionCard already debounce
+        // identical session_ids and resume looks identical from their POV.
+        self.emit_started(&session);
+
+        let inactivity = spawn_inactivity_timer(
+            self.cmd_tx.clone(),
+            inactivity_timeout(&self.config),
+        );
+        let boundary_at = self.resolver.next_boundary(now);
+        let boundary = spawn_boundary_timer(self.cmd_tx.clone(), boundary_at);
+
+        self.state = SessionState::Active(Box::new(ActiveSession {
+            session,
+            active_start: ended_at, // preserve the original window start; next finalize re-measures
+            last_activity: now,
+            last_upsert: now,
+            files_unique,
+            inactivity_handle: inactivity,
+            boundary_handle: boundary,
+            dirty: false,
+        }));
+        ResumeOutcome::Resumed
+    }
 
     async fn start_session(
         &mut self,
@@ -571,6 +705,11 @@ enum EndedAt {
     LastActivity,
 }
 
+enum ResumeOutcome {
+    Resumed,
+    NoCandidate,
+}
+
 fn inactivity_timeout(cfg: &SessionConfig) -> Duration {
     Duration::from_secs(u64::from(cfg.inactivity_timeout_minutes).saturating_mul(60))
 }
@@ -635,6 +774,11 @@ mod tests {
             auto_close_on_workday_boundary: true,
             auto_close_on_app_quit: true,
             crash_recovery_grace_minutes: 5,
+            // Disable resume so the existing case-3 test (which asserts
+            // sessions[0] and sessions[1] are distinct after InactivityFired)
+            // keeps its semantics. Resume behavior is exercised by the
+            // dedicated tests below.
+            session_resume_grace_minutes: 0,
         }
     }
 
@@ -927,6 +1071,69 @@ mod tests {
             "session must be ended by real timer, got: {:?}",
             session.ended_reason
         );
+    }
+
+    /// W4 dogfooding fix — activity AFTER InactivityFired within the resume
+    /// grace window REOPENS the previous session instead of creating a new
+    /// one. The opposite-direction test (`second_activity_after_idle_starts_new_session`)
+    /// passes `session_resume_grace_minutes = 0` via `fast_config`.
+    #[tokio::test]
+    async fn resume_within_grace_reopens_prior_session() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let mut cfg = fast_config();
+        cfg.session_resume_grace_minutes = 15;
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), cfg, None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor
+            .cmd_tx
+            .send(SessionCmd::InactivityFired)
+            .map_err(|_| OculpmError::ActorClosed)
+            .unwrap();
+        // Yield so InactivityFired is processed before the next activity.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        actor.note_activity(make_event("src/b.rs")).unwrap();
+        actor.shutdown().await.unwrap();
+
+        let sessions = writer.list_sessions(&today_workday()).await.unwrap();
+        assert_eq!(
+            sessions.len(),
+            1,
+            "expected resume to keep a single session, got {sessions:?}"
+        );
+        let s = &sessions[0];
+        assert_eq!(s.file_event_count, 2, "both activities must be on the same session");
+        // Final close came from shutdown.
+        assert!(matches!(s.ended_reason, Some(EndedReason::AppQuit)));
+    }
+
+    /// W4 dogfooding fix — grace=0 must keep the old "second activity starts
+    /// new session" behavior so existing case 3 doesn't regress. Belt-and-
+    /// suspenders re-assertion of `second_activity_after_idle_starts_new_session`
+    /// from the resume-config angle.
+    #[tokio::test]
+    async fn resume_disabled_when_grace_zero() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let mut cfg = fast_config();
+        cfg.session_resume_grace_minutes = 0;
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), cfg, None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor
+            .cmd_tx
+            .send(SessionCmd::InactivityFired)
+            .map_err(|_| OculpmError::ActorClosed)
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        actor.note_activity(make_event("src/b.rs")).unwrap();
+        actor.shutdown().await.unwrap();
+
+        let sessions = writer.list_sessions(&today_workday()).await.unwrap();
+        assert_eq!(sessions.len(), 2);
     }
 
     /// PR5 real-timer test 2 — activity resets the inactivity timer.

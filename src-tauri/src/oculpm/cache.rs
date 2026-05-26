@@ -360,6 +360,47 @@ impl<'a> JournalCache<'a> {
         Ok(hydrated)
     }
 
+    /// W4-PR5 — distinct `files_touched[].path` union across every journal
+    /// entry that names `session_id`. Drives `LayerComparison` without
+    /// hydrating the full entries. Uses `idx_oculpm_journal_session` for the
+    /// session lookup; the join into `oculpm_journal_files` is bounded by the
+    /// per-entry primary key so cost stays O(entries-in-session).
+    ///
+    /// Intentionally workday-free: a `session_id` is globally unique
+    /// (`YYYYMMDD-NNN`) so the session index alone is enough, and not
+    /// requiring callers to know the *cache row's* workday avoids subtle
+    /// drift when the frontmatter workday and the session_id prefix
+    /// disagree (e.g., manual `session_id` overrides in `ManualEntryDraft`).
+    pub async fn files_for_session(
+        &self,
+        project_id: u32,
+        session_id: &str,
+    ) -> Result<Vec<String>, OculpmError> {
+        let pid = project_id as i64;
+        let session_id = session_id.to_string();
+        let rows = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT DISTINCT f.file_path
+                     FROM oculpm_journal_files f
+                     JOIN oculpm_journal j
+                       ON j.project_id = f.project_id
+                      AND j.relative_path = f.relative_path
+                     WHERE j.project_id = ?1
+                       AND j.session_id = ?2",
+                )?;
+                let collected: rusqlite::Result<Vec<String>> = stmt
+                    .query_map(params![pid, &session_id], |r| r.get::<_, String>(0))?
+                    .collect();
+                collected
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(rows)
+    }
+
     pub async fn get_entry(
         &self,
         project_id: u32,

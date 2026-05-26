@@ -19,6 +19,7 @@ import { useCallback, useState } from "react";
 import type { JournalEntrySummary, Session } from "@/lib/bindings";
 import { ChevronDown, ChevronRight, GitBranch, MessageCircle } from "@/components/Icons";
 import { JournalEntryCard } from "./JournalEntryCard";
+import { DiffVsNarrative } from "./DiffVsNarrative";
 
 interface SessionCardProps {
   projectId: number;
@@ -76,6 +77,12 @@ export function SessionCard({
       ? session.session.agent_label_guess ?? guessAgentFromEntries(entries)
       : "manual";
 
+  // W4 dogfooding finding (2026-05-25) — DiffVsNarrative was a modal; replaced
+  // with an inline expandable panel docked at the bottom of this card. The
+  // header ⚖ button and the empty-entries placeholder share one open state.
+  const [compareOpen, setCompareOpen] = useState(false);
+  const toggleCompare = useCallback(() => setCompareOpen((v) => !v), []);
+
   return (
     <section
       className="rounded-2xl border border-border bg-card overflow-hidden"
@@ -86,13 +93,18 @@ export function SessionCard({
         agentGuess={agentGuess}
         entryCount={entries.length}
         expanded={expanded}
+        compareOpen={compareOpen}
         onToggle={toggleExpanded}
+        onCompareLayers={toggleCompare}
       />
 
       {expanded && (
         <div className="border-t border-border p-3 space-y-2">
           {entries.length === 0 ? (
-            <EmptyEntriesPlaceholder ongoing={isOngoing(session)} />
+            <EmptyEntriesPlaceholder
+              ongoing={isOngoing(session)}
+              onCompareLayers={toggleCompare}
+            />
           ) : (
             entries.map((entry) => (
               <JournalEntryCard
@@ -103,6 +115,16 @@ export function SessionCard({
                 onToggleVerified={() => onToggleVerified(entry.relative_path)}
               />
             ))
+          )}
+          {compareOpen && (
+            <div className="pt-2">
+              <DiffVsNarrative
+                projectId={projectId}
+                sessionId={id}
+                onClose={() => setCompareOpen(false)}
+                variant="compact"
+              />
+            </div>
           )}
         </div>
       )}
@@ -117,34 +139,40 @@ function SessionHeader({
   agentGuess,
   entryCount,
   expanded,
+  compareOpen,
   onToggle,
+  onCompareLayers,
 }: {
   session: SessionWithSynthetic;
   agentGuess: string | null;
   entryCount: number;
   expanded: boolean;
+  compareOpen: boolean;
   onToggle: () => void;
+  onCompareLayers: () => void;
 }) {
   if (session.kind === "synthetic") {
     return (
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-        aria-expanded={expanded}
-        aria-label={`${session.label} 세션, ${entryCount} entries`}
-      >
-        <ChevronIcon expanded={expanded} />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold">{session.label}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            세션 없이 작성된 entries · {entryCount}개
+      <div className="w-full flex items-center gap-3 hover:bg-muted/30 transition-colors">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 text-left px-4 py-3 flex items-center gap-3 cursor-pointer"
+          aria-expanded={expanded}
+          aria-label={`${session.label} 세션, ${entryCount} entries`}
+        >
+          <ChevronIcon expanded={expanded} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">{session.label}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              세션 없이 작성된 entries · {entryCount}개
+            </div>
           </div>
-        </div>
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-          manual
-        </span>
-      </button>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            manual
+          </span>
+        </button>
+      </div>
     );
   }
 
@@ -154,44 +182,60 @@ function SessionHeader({
   const ongoing = s.ended_at == null;
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full text-left px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-      aria-expanded={expanded}
-      aria-label={`Session ${s.id}, ${entryCount} entries`}
-    >
-      <ChevronIcon expanded={expanded} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span className="font-mono text-xs text-muted-foreground">
-            Session {s.id}
-          </span>
-          {ongoing && <OngoingDot />}
+    <div className="w-full flex items-stretch hover:bg-muted/30 transition-colors">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex-1 text-left px-4 py-3 flex items-center gap-3 cursor-pointer"
+        aria-expanded={expanded}
+        aria-label={`Session ${s.id}, ${entryCount} entries`}
+      >
+        <ChevronIcon expanded={expanded} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <span className="font-mono text-xs text-muted-foreground">
+              Session {s.id}
+            </span>
+            {ongoing && <OngoingDot />}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="tabular-nums">
+              {start} {end ? `→ ${end}` : "→ 진행 중"}
+            </span>
+            <span>·</span>
+            <span className="tabular-nums">{s.file_event_count} files</span>
+            <span>·</span>
+            <span className="tabular-nums">{s.files_unique} unique</span>
+            {agentGuess && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <MessageCircle className="w-3 h-3" />
+                  {agentGuess}
+                </span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="text-[11px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="tabular-nums">
-            {start} {end ? `→ ${end}` : "→ 진행 중"}
-          </span>
-          <span>·</span>
-          <span className="tabular-nums">{s.file_event_count} files</span>
-          <span>·</span>
-          <span className="tabular-nums">{s.files_unique} unique</span>
-          {agentGuess && (
-            <>
-              <span>·</span>
-              <span className="inline-flex items-center gap-1">
-                <MessageCircle className="w-3 h-3" />
-                {agentGuess}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-        {entryCount} entries
-      </span>
-    </button>
+        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          {entryCount} entries
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onCompareLayers}
+        title="index ↔ journal 비교 (W4-PR6, 인라인 패널)"
+        aria-label={`Session ${s.id} index 비교 ${compareOpen ? "닫기" : "열기"}`}
+        aria-pressed={compareOpen}
+        className={`px-3 transition-colors ${
+          compareOpen
+            ? "text-foreground bg-muted/60"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+        }`}
+      >
+        <GitBranch className="w-3.5 h-3.5" />
+      </button>
+    </div>
   );
 }
 
@@ -218,7 +262,13 @@ function OngoingDot() {
   );
 }
 
-function EmptyEntriesPlaceholder({ ongoing }: { ongoing: boolean }) {
+function EmptyEntriesPlaceholder({
+  ongoing,
+  onCompareLayers,
+}: {
+  ongoing: boolean;
+  onCompareLayers: () => void;
+}) {
   return (
     <div className="text-xs text-muted-foreground px-3 py-3 rounded-lg border border-dashed border-border flex items-center justify-between gap-3">
       <span>
@@ -228,9 +278,9 @@ function EmptyEntriesPlaceholder({ ongoing }: { ongoing: boolean }) {
       </span>
       <button
         type="button"
-        disabled
-        title="다음 페이즈 (W4) 에서 활성화됩니다"
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border text-muted-foreground/70 cursor-not-allowed"
+        onClick={onCompareLayers}
+        title="index ↔ journal 비교"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border hover:bg-muted/40"
       >
         <GitBranch className="w-3 h-3" />
         ⚖ index 비교

@@ -4,7 +4,9 @@
 > **선행**: W4-PR1 (5 template), W1-PR5 (`atomic_io::{write_atomic, write_managed_block, remove_managed_block}`), W1-PR4 (`OculpmConfig.agents.active`).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR2 + §2.2 (managed block EOL) + §2.3 (sync idempotency), [`../00-spec.md`](../00-spec.md) §6.
 
-> **상태**: ✅ (2026-05-24)
+> **상태**: ✅ (2026-05-24) · 🔧 **PostFix 2026-05-25**: dogfooding 발견 → `agents-md` 어댑터 추가 + 4종 어댑터 템플릿을 위임 stub 으로 단축.
+
+> 📌 **Post-dogfooding addendum (2026-05-25)** — 자세한 동기와 변경 위치는 [`../phases/_dogfooding-w4.md`](../phases/_dogfooding-w4.md) §2026-05-25 발견 1 / 조치 완료 1 참조. 요지: 외부 LLM 들이 `.oculpm/agents/_template.md` 를 자발적으로 안 읽음 → 프로젝트 루트 `AGENTS.md` 를 1차 surface 로 삼고 `known_adapters()` 맨 앞에 `agents-md` (path: `AGENTS.md`, ManagedBlock) 등록. 기존 4종 어댑터 (`.claude/CLAUDE.md`, `.cursor/rules/ocul-pm.mdc`, `.agent/rules/ocul-pm.md`, `GEMINI.md`) 의 in-binary `.tpl` 은 풀 콘텐츠가 아니라 `@AGENTS.md` 위임 stub 으로 교체됨. `default_for_new_project()` 의 기본 active 가 `[]` → `["agents-md"]` 로 변경. `KNOWN_AGENT_IDS` 에 `"agents-md"` 추가.
 
 ---
 

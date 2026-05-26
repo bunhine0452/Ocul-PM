@@ -9,6 +9,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
 import { events, type OculpmStatus, type Session } from "@/lib/bindings";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { toast, DriftCooldown } from "@/lib/toast";
 
 // ---------- State Shape ----------
 
@@ -386,18 +388,68 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }).then((off) => offFns.push(off));
 
     void events.oculpmIntegrityWarning.listen((evt) => {
-      if (evt.payload.project_id === currentProjectId()) {
-        // W4 will route this to the toast layer; PR4 just logs.
-        console.warn("[oculpm] integrity warning:", evt.payload.warning);
-      }
+      if (evt.payload.project_id !== currentProjectId()) return;
+      const w = evt.payload.warning;
+      // W4-PR8: surface as warning toast. Dedup per (kind, path) within 30s so
+      // a single bad file doesn't spam repeated re-saves.
+      toast.warning(w.message, {
+        title: `[${w.kind}] ${w.path}`,
+        dedupKey: `integrity:${w.kind}:${w.path}`,
+      });
+      console.warn("[oculpm] integrity warning:", w);
+    }).then((off) => offFns.push(off));
+
+    void events.oculpmAgentDrift.listen((evt) => {
+      const pid = currentProjectId();
+      if (evt.payload.project_id !== pid || pid == null) return;
+      const { agent_id: agentId } = evt.payload;
+      if (DriftCooldown.isDismissed(agentId)) return;
+      toast.warning(
+        `${agentId} 규칙 파일이 외부에서 수정되었습니다.`,
+        {
+          title: "어댑터 drift 감지",
+          dedupKey: `drift:${agentId}`,
+          dedupWindowMs: 60_000,
+          durationMs: 0, // sticky until user acts
+          actions: [
+            {
+              label: "동기화",
+              onClick: () => {
+                if (pid == null) return;
+                oculpmApi
+                  .syncAgents(pid)
+                  .then((report) => {
+                    const updated = report.results.filter(
+                      (r) => r.action === "inserted" || r.action === "updated",
+                    ).length;
+                    DriftCooldown.clear(agentId);
+                    toast.info(`동기화 완료 (${updated} 어댑터 갱신)`);
+                  })
+                  .catch((e) => {
+                    const msg = e instanceof OculpmApiError ? e.message : String(e);
+                    toast.destructive(`동기화 실패: ${msg}`);
+                  });
+              },
+            },
+            {
+              label: "무시 (5분)",
+              onClick: () => DriftCooldown.dismiss(agentId),
+            },
+          ],
+        },
+      );
     }).then((off) => offFns.push(off));
 
     // The watcher emits these on every journal file write — TodayScreen
     // listens directly for invalidation (the context only forwards them
     // so multiple screens can subscribe through the same channel).
-    // Stored as a no-op here; PR6 wires the actual cache invalidation.
     void events.oculpmJournalPathChanged.listen(() => {}).then((off) => offFns.push(off));
-    void events.oculpmJournalAdded.listen(() => {}).then((off) => offFns.push(off));
+    void events.oculpmJournalAdded.listen((evt) => {
+      if (evt.payload.project_id !== currentProjectId()) return;
+      toast.info(`새 기록: ${evt.payload.summary.title}`, {
+        dedupKey: `journal_added:${evt.payload.summary.relative_path}`,
+      });
+    }).then((off) => offFns.push(off));
     void events.oculpmJournalUpdated.listen(() => {}).then((off) => offFns.push(off));
 
     return () => {

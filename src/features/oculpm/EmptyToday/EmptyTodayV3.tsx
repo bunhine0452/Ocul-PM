@@ -18,11 +18,15 @@ import { AlertTriangle, Plus, GitBranch } from "@/components/Icons";
 interface EmptyTodayV3Props {
   fileChangeCount: number;
   onCreateManual: () => void;
+  /** W4-PR6 — open DiffVsNarrative for the most recent session, if any.
+   *  `null` disables the button (no session to compare against). */
+  onCompareLayers: (() => void) | null;
 }
 
 export function EmptyTodayV3({
   fileChangeCount,
   onCreateManual,
+  onCompareLayers,
 }: EmptyTodayV3Props) {
   return (
     <section
@@ -45,16 +49,6 @@ export function EmptyTodayV3({
             LLM 이 어댑터 규칙을 따르지 않았을 가능성이 큽니다.
           </p>
 
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-background/50 p-3 text-xs space-y-1.5">
-            <p className="font-medium">
-              W3 한정: 어댑터 자동 점검은 W4 부터 동작합니다.
-            </p>
-            <p className="text-muted-foreground leading-relaxed">
-              지금은 수동 entry 로 흐름을 이어가거나, 다음 페이즈에서 활성화
-              될 <code className="px-1 py-0.5 rounded bg-muted">index ↔ journal 비교 보기</code> 를 기다려주세요.
-            </p>
-          </div>
-
           <div className="mt-5 flex items-center gap-2">
             <Button onClick={onCreateManual} size="sm">
               <Plus className="w-3.5 h-3.5" />
@@ -63,9 +57,10 @@ export function EmptyTodayV3({
             <Button
               size="sm"
               variant="outline"
-              disabled
-              title="다음 페이즈 (W4) 에서 활성화됩니다"
-              aria-label="index 비교 보기 (W4 에서 활성화)"
+              onClick={onCompareLayers ?? undefined}
+              disabled={onCompareLayers == null}
+              title={onCompareLayers ? "가장 최근 세션을 index 와 비교합니다" : "비교 대상 세션이 없습니다"}
+              aria-label="index 비교 보기"
             >
               <GitBranch className="w-3.5 h-3.5" />⚖ index 비교 보기
             </Button>

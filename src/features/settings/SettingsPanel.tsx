@@ -20,8 +20,17 @@ import {
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, type Provider } from "@/lib/settings";
+import { OculpmSettings } from "./OculpmSettings";
 
-type TabId = "appearance" | "llm" | "github" | "indexing" | "graph" | "data" | "diagnostics";
+type TabId =
+  | "appearance"
+  | "llm"
+  | "github"
+  | "indexing"
+  | "graph"
+  | "data"
+  | "oculpm"
+  | "diagnostics";
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", label: "Appearance", icon: Sun },
@@ -30,6 +39,7 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ classN
   { id: "indexing", label: "Indexing & RAG", icon: FileCode },
   { id: "graph", label: "Graph", icon: GitBranch },
   { id: "data", label: "Data", icon: Database },
+  { id: "oculpm", label: "ocul-pm", icon: FileCode },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
   { id: "diagnostics", label: "Diagnostics", icon: SettingsIcon },
 ];
@@ -928,6 +938,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <GraphTab />;
       case "data":
         return <DataTab onError={setError} />;
+      case "oculpm":
+        return <OculpmSettings />;
       case "diagnostics":
         return <DiagnosticsTab onError={setError} />;
     }

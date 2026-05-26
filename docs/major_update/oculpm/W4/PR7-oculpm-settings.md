@@ -3,7 +3,9 @@
 > **목표**: `OculpmConfig` 의 모든 키를 사용자가 GUI 로 편집 가능하게. 변경은 500ms 디바운스 후 `oculpm_set_config` 호출. 검증 실패 시 인라인 에러.
 > **선행**: W3-PR4 (oculpmApi.{getConfig, setConfig}), W4-PR2 (detect, sync_active), W4-PR3 (redact 패턴 검증).
 > **참조**: [`../phases/W4-agents-dual-layer.md`](../phases/W4-agents-dual-layer.md) §W4-PR7, [`../00-spec.md`](../00-spec.md) §5 (config 스키마).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-25 — 5 섹션 + auto-save 디바운스 + detect/sync 동작. 컨펌 모달은 v2 로 deferred) · 🔧 **PostFix 2026-05-25**: Session 섹션에 "Resume grace" 슬라이더 추가, Agents 칩에 `agents-md` 추가, inactivity 슬라이더 max 120 → 240 분.
+
+> 📌 **Post-dogfooding addendum (2026-05-25)** — 동기는 [`../phases/_dogfooding-w4.md`](../phases/_dogfooding-w4.md) §2026-05-25 발견 1·2 / 조치 완료 1·2 참조. 변경: (1) `KNOWN_AGENTS` 배열 맨 앞에 `{ id: "agents-md", label: "AGENTS.md (권장)" }` 노출. (2) Session 섹션에 `session_resume_grace_minutes` 슬라이더 (0~60 min, step 5) 추가 — 0 은 "(비활성)" 라벨. (3) `inactivity_timeout_minutes` 슬라이더의 max 를 120 → 240 분으로 확장 (외부 에이전트 긴 대기 케이스 지원). 백엔드 `SessionConfig` 가 새 필드를 가지므로 `src/lib/bindings.ts` 의 `SessionConfig` 타입도 동기 업데이트됨.
 
 ---
 
@@ -136,7 +138,11 @@
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **P-1 (WorkspaceState 필드명)**: 처음 `state.activeProjectId` 라 가정 → 실제는 `state.currentProjectId`. 단번에 tsc 에서 잡힘.
+- **P-2 (auto-save validation tolerance)**: backend `validate()` 가 timezone/HH:MM 형식 검증을 throw → frontend 가 매 입력 시 setConfig 호출하면 noisy 에러. inline validation (정규식 / HH:MM) 으로 무효 입력 시 시각적 경고만 띄우고, save 는 시도 (backend 가 reject 하면 saveError state 에 표시). 사용자가 즉시 알 수 있음.
+- **P-3 (구조적 copy)**: `setConfig(prev => mut(structuredClone(prev)))` 패턴 — nested object 수정 시 immutable 보장. JSON.stringify 비교로 same-value re-save 방지.
+- **P-4 (PatternList 컴포넌트)**: forbid/redact/ignore 3 군데 공통 UI 추출. 항목 추가/삭제/inline 검증. 정규식 검증은 `new RegExp(p)` try/catch 로 frontend 자체 수행.
+- **P-5 (컨펌 모달 deferred)**: agents.active toggle 시 PR doc 의 컨펌 모달은 미구현. 현재는 chip 클릭이 즉시 config 변경 + debounce save + sync. 안전성 위해 v2 에서 도입 권장 (메모).
 
 ### 다음 PR 로 넘기는 메모
 

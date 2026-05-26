@@ -35,9 +35,9 @@ use crate::oculpm::redact::{build_forbidden_matcher, is_forbidden_path};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
-    JournalEntry, JournalEntrySummary, JournalFrontmatter, LockStateView, ManualEntryDraft,
-    OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session, SessionEnd, Snapshot,
-    SnapshotKind, WatcherStateView, WatcherStatus,
+    JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LockStateView,
+    ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session,
+    SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -778,7 +778,19 @@ impl OculpmManager {
     /// Sync every known adapter to disk based on the current
     /// `config.agents.active`. Idempotent; safe to call from init, Settings
     /// save, and watcher-driven master-template change notifications.
-    pub async fn sync_agents(&self, project_id: u32) -> Result<AgentSyncReport, OculpmError> {
+    ///
+    /// W4-PR4: after each adapter write the per-adapter blake3 hash is
+    /// upserted into `oculpm_agent_state` so the watcher's drift detector
+    /// can tell "we just wrote this" (no drift) from "user/tool wrote this"
+    /// (emit). Hashes are best-effort: a None `last_hash` (removed / error
+    /// / unhashable) leaves the previous row in place — the watcher will
+    /// either find no row (no drift comparison possible) or the stale row,
+    /// which the next successful sync overwrites.
+    pub async fn sync_agents(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<AgentSyncReport, OculpmError> {
         let (root, config) = {
             let projects = self.projects.read().await;
             let entry = projects
@@ -786,7 +798,146 @@ impl OculpmManager {
                 .ok_or(OculpmError::NotInitialized(project_id))?;
             (entry.root.clone(), entry.config.clone())
         };
-        agents::sync_active(&root, &config).await
+        let report = agents::sync_active(&root, &config).await?;
+        for r in &report.results {
+            if let Some(hash) = r.last_hash.clone() {
+                if let Err(e) = db
+                    .oculpm_agent_state_upsert(project_id, r.id.clone(), hash)
+                    .await
+                {
+                    tracing::warn!(
+                        target: "oculpm::manager",
+                        project_id,
+                        agent_id = %r.id,
+                        error = %e,
+                        "oculpm_agent_state upsert failed (drift detection may emit a false positive)"
+                    );
+                }
+            }
+        }
+        Ok(report)
+    }
+
+    /// Compare the on-disk adapter file at `relative_path` against the last
+    /// hash we recorded for the matching agent. Returns
+    /// `Some((agent_id, expected, actual))` when they differ — the watcher
+    /// then emits `OculpmAgentDrift`. Returns `None` when the path isn't an
+    /// adapter we know about, when there's no prior hash to compare, or
+    /// when current and stored hashes match. See `W4-PR4` docs.
+    pub async fn check_agent_drift(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: &str,
+    ) -> Result<Option<(String, String, String)>, OculpmError> {
+        let Some(adapter) = agents::lookup_adapter_by_path(relative_path) else {
+            return Ok(None);
+        };
+        let root = {
+            let projects = self.projects.read().await;
+            let Some(entry) = projects.get(&project_id) else {
+                return Ok(None);
+            };
+            entry.root.clone()
+        };
+        let abs = root.join(adapter.adapter_path);
+        let Some(actual) = agents::current_disk_hash(adapter, &abs) else {
+            return Ok(None);
+        };
+        let Some((expected, _ts)) = db
+            .oculpm_agent_state_get(project_id, adapter.id.to_string())
+            .await
+            .map_err(|e| OculpmError::Sqlite(e.to_string()))?
+        else {
+            return Ok(None);
+        };
+        if actual == expected {
+            Ok(None)
+        } else {
+            Ok(Some((adapter.id.to_string(), expected, actual)))
+        }
+    }
+
+    // ─── W4-PR5: compare_layers ─────────────────────────────────────────────
+
+    /// Diff a session's `file_changes.ndjson` (ground truth) against the
+    /// union of `files_touched[].path` from every journal entry stamped with
+    /// that `session_id`. Drives the DiffVsNarrative modal (PR6) and the
+    /// `mismatch_only` filter (later PR).
+    ///
+    /// Forbidden + already-redacted paths are stripped from BOTH sides before
+    /// the comparison so they never count as mismatches (a `.env` change is
+    /// excluded from the index per W4-PR3 and can't appear in a journal
+    /// either; symmetry keeps jaccard from artificially tanking).
+    pub async fn compare_layers(
+        &self,
+        db: &Db,
+        project_id: u32,
+        session_id: &str,
+    ) -> Result<LayerComparison, OculpmError> {
+        // workday = session_id 의 첫 8자 ("20260524-001" → "20260524").
+        // 끝의 - 가 없거나 형식이 다를 경우 session_id 전체를 workday 로 사용
+        // → cache 쿼리가 빈 결과 반환하면 호출자에게 자연스러운 신호.
+        let workday = session_id
+            .split_once('-')
+            .map(|(w, _)| w.to_string())
+            .unwrap_or_else(|| session_id.to_string());
+
+        let (writer, forbid_patterns, root) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            (
+                entry.index_writer.clone(),
+                entry.config.git.forbid_journal_for_paths.clone(),
+                entry.root.clone(),
+            )
+        };
+
+        let forbidden = build_forbidden_matcher(&root, &forbid_patterns);
+        let is_excluded = |p: &str| -> bool {
+            p.starts_with("**redacted/sensitive**:") || is_forbidden_path(&forbidden, p)
+        };
+
+        let file_changes = writer.read_file_changes(&workday, None).await?;
+        let index_set: std::collections::BTreeSet<String> = file_changes
+            .into_iter()
+            .filter(|ev| ev.session_id == session_id)
+            .map(|ev| ev.path)
+            .filter(|p| !is_excluded(p))
+            .collect();
+
+        let cache = JournalCache::new(db);
+        let journal_paths = cache.files_for_session(project_id, session_id).await?;
+        let journal_set: std::collections::BTreeSet<String> = journal_paths
+            .into_iter()
+            .filter(|p| !is_excluded(p))
+            .collect();
+
+        let matched: Vec<String> = index_set.intersection(&journal_set).cloned().collect();
+        let only_in_index: Vec<String> = index_set.difference(&journal_set).cloned().collect();
+        let only_in_journal: Vec<String> = journal_set.difference(&index_set).cloned().collect();
+
+        let union_count = index_set.union(&journal_set).count();
+        let jaccard = if union_count == 0 {
+            1.0
+        } else {
+            matched.len() as f32 / union_count as f32
+        };
+        let severity = severity_from_jaccard(jaccard, union_count);
+
+        Ok(LayerComparison {
+            session_id: session_id.to_string(),
+            workday,
+            index_files: index_set.into_iter().collect(),
+            journal_files: journal_set.into_iter().collect(),
+            matched,
+            only_in_index,
+            only_in_journal,
+            mismatch_severity: severity,
+            jaccard_index: jaccard,
+        })
     }
 
     /// Read-only adapter heuristic — backs the Settings "감지" button + the
@@ -967,6 +1118,23 @@ impl OculpmManager {
 // ─────────────────────────────────────────────────────────────────────────────
 
 use chrono::Timelike;
+
+/// W4-PR5 — bucket jaccard into the three-level severity. `union_count == 0`
+/// (no activity at all on either side) collapses to `Ok` regardless of the
+/// `1.0` jaccard we synthesised, so the UI doesn't trumpet a useless "in
+/// sync" alert for sessions where nothing happened.
+fn severity_from_jaccard(jaccard: f32, union_count: usize) -> Severity {
+    if union_count == 0 {
+        return Severity::Ok;
+    }
+    if jaccard >= 0.8 {
+        Severity::Ok
+    } else if jaccard >= 0.5 {
+        Severity::Warning
+    } else {
+        Severity::Critical
+    }
+}
 
 /// Spec §2.1 — kebab-case ASCII, 1..=60 chars.
 fn validate_slug(slug: &str) -> Result<(), OculpmError> {
@@ -1918,6 +2086,346 @@ mod tests {
                 .await
                 .expect("clean draft must succeed");
             assert_eq!(entry.frontmatter.slug, "clean-path");
+        }
+    }
+
+    // ─── W4-PR4 — agent drift detection ────────────────────────────────────
+
+    mod agent_drift_w4_pr4 {
+        use super::*;
+
+        /// Switch the active agent set on the in-memory project entry without
+        /// running through `set_config` (which would validate + persist to
+        /// disk). Tests only need the in-memory mutation.
+        async fn activate(manager: &OculpmManager, project_id: u32, ids: &[&str]) {
+            let mut projects = manager.projects.write().await;
+            let entry = projects.get_mut(&project_id).unwrap();
+            entry.config.agents.active = ids.iter().map(|s| s.to_string()).collect();
+        }
+
+        async fn fresh_with_active(active: &[&str]) -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = Db::open(db_path).await.expect("open db");
+            let manager = OculpmManager::new();
+            let project_root = dir.path().join("project");
+            std::fs::create_dir_all(&project_root).unwrap();
+            manager.init_project(7, &project_root).await.unwrap();
+            activate(&manager, 7, active).await;
+            (manager, db, dir, project_root)
+        }
+
+        /// (1) External edit of an Overwrite-mode adapter (`cursor`) ⇒
+        /// `check_agent_drift` reports drift.
+        #[tokio::test]
+        async fn cursor_external_edit_is_detected_as_drift() {
+            let (manager, db, _dir, root) = fresh_with_active(&["cursor"]).await;
+            let report = manager.sync_agents(&db, 7).await.unwrap();
+            // Sanity: cursor was actually written + baseline hash recorded.
+            let cursor = report.results.iter().find(|r| r.id == "cursor").unwrap();
+            assert!(cursor.last_hash.is_some());
+
+            // User / external tool edits the file.
+            let cursor_path = root.join(".cursor/rules/ocul-pm.mdc");
+            let mut content = std::fs::read_to_string(&cursor_path).unwrap();
+            content.push_str("\n# manual edit by user\n");
+            std::fs::write(&cursor_path, &content).unwrap();
+
+            let drift = manager
+                .check_agent_drift(&db, 7, ".cursor/rules/ocul-pm.mdc")
+                .await
+                .unwrap();
+            let (agent_id, expected, actual) = drift.expect("expected drift after external edit");
+            assert_eq!(agent_id, "cursor");
+            assert_ne!(expected, actual);
+            assert_eq!(expected, cursor.last_hash.clone().unwrap());
+        }
+
+        /// (2) Edits OUTSIDE the managed block (Claude Code adapter) ⇒
+        /// `check_agent_drift` reports no drift (block hash unchanged).
+        #[tokio::test]
+        async fn claude_code_outside_block_edit_is_not_drift() {
+            let (manager, db, _dir, root) = fresh_with_active(&["claude-code"]).await;
+            // Pre-seed user content so the file has both pre/post-block regions.
+            let path = root.join(".claude/CLAUDE.md");
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, "# user header\n\n").unwrap();
+            manager.sync_agents(&db, 7).await.unwrap();
+
+            // Append user text AFTER the end marker — the block hash must stay.
+            let mut text = std::fs::read_to_string(&path).unwrap();
+            text.push_str("\n## My personal notes (outside block)\n");
+            std::fs::write(&path, &text).unwrap();
+
+            let drift = manager
+                .check_agent_drift(&db, 7, ".claude/CLAUDE.md")
+                .await
+                .unwrap();
+            assert!(drift.is_none(), "outside-block edit must not be drift, got {drift:?}");
+        }
+
+        /// (3) Edit INSIDE the managed block ⇒ drift detected.
+        #[tokio::test]
+        async fn claude_code_inside_block_edit_is_drift() {
+            let (manager, db, _dir, root) = fresh_with_active(&["claude-code"]).await;
+            manager.sync_agents(&db, 7).await.unwrap();
+
+            // Insert one extra line between the begin/end markers.
+            let path = root.join(".claude/CLAUDE.md");
+            let text = std::fs::read_to_string(&path).unwrap();
+            let begin = text.find("<!-- oculpm:begin v1 -->").unwrap();
+            let end = text.find("<!-- oculpm:end -->").unwrap();
+            // Inject a line right after the begin marker line.
+            let begin_line_end = text[begin..].find('\n').map(|n| begin + n + 1).unwrap();
+            assert!(begin_line_end < end);
+            let mutated = format!(
+                "{}# adversarial edit inside block\n{}",
+                &text[..begin_line_end],
+                &text[begin_line_end..]
+            );
+            std::fs::write(&path, mutated).unwrap();
+
+            let drift = manager
+                .check_agent_drift(&db, 7, ".claude/CLAUDE.md")
+                .await
+                .unwrap();
+            let (agent_id, expected, actual) = drift.expect("inside-block edit must be drift");
+            assert_eq!(agent_id, "claude-code");
+            assert_ne!(expected, actual);
+        }
+
+        /// Re-syncing after drift writes a fresh baseline → next check passes.
+        #[tokio::test]
+        async fn resync_after_drift_clears_the_alert() {
+            let (manager, db, _dir, root) = fresh_with_active(&["cursor"]).await;
+            manager.sync_agents(&db, 7).await.unwrap();
+
+            // Drift the file.
+            let cursor_path = root.join(".cursor/rules/ocul-pm.mdc");
+            std::fs::write(&cursor_path, "drifted\n").unwrap();
+            assert!(manager
+                .check_agent_drift(&db, 7, ".cursor/rules/ocul-pm.mdc")
+                .await
+                .unwrap()
+                .is_some());
+
+            // User clicks 동기화 → sync_agents rewrites + reseeds the hash.
+            manager.sync_agents(&db, 7).await.unwrap();
+            let drift = manager
+                .check_agent_drift(&db, 7, ".cursor/rules/ocul-pm.mdc")
+                .await
+                .unwrap();
+            assert!(drift.is_none(), "after resync no drift expected, got {drift:?}");
+        }
+    }
+
+    // ─── W4-PR5 — compare_layers (index vs journal) ────────────────────────
+
+    mod compare_layers_w4_pr5 {
+        use super::*;
+        use crate::oculpm::spec::{
+            Difficulty, EntryStatus, EntryType, FileChangeEvent, FileOp, FileTouched,
+            ManualEntryDraft, Severity,
+        };
+
+        const SESSION_ID: &str = "20260524-001";
+        const WORKDAY: &str = "20260524";
+
+        async fn fresh() -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = Db::open(db_path).await.expect("open db");
+            let manager = OculpmManager::new();
+            let project_root = dir.path().join("project");
+            std::fs::create_dir_all(&project_root).unwrap();
+            manager.init_project(7, &project_root).await.unwrap();
+            (manager, db, dir, project_root)
+        }
+
+        async fn writer(manager: &OculpmManager) -> std::sync::Arc<IndexWriter> {
+            manager.projects.read().await.get(&7).unwrap().index_writer.clone()
+        }
+
+        async fn append_index_events(manager: &OculpmManager, paths: &[&str]) {
+            let writer = writer(manager).await;
+            for p in paths {
+                let ev = FileChangeEvent {
+                    ts: "2026-05-24T10:00:00+00:00".to_string(),
+                    session_id: SESSION_ID.to_string(),
+                    op: FileOp::Update,
+                    path: (*p).to_string(),
+                    hash_before: None,
+                    hash_after: None,
+                    bytes: 10,
+                };
+                writer.append_file_change(&ev).await.expect("append");
+            }
+        }
+
+        fn draft_with_files(slug: &str, paths: &[&str]) -> ManualEntryDraft {
+            ManualEntryDraft {
+                entry_type: EntryType::Bug,
+                slug: slug.to_string(),
+                title: "compare-layers seed".to_string(),
+                difficulty: Some(Difficulty::Medium),
+                body_markdown: String::new(),
+                session_id: Some(SESSION_ID.to_string()),
+                files_touched: paths
+                    .iter()
+                    .map(|p| FileTouched {
+                        path: (*p).to_string(),
+                        op: FileOp::Update,
+                        bytes_added: None,
+                        bytes_removed: None,
+                        rename_from: None,
+                    })
+                    .collect(),
+                status: Some(EntryStatus::Done),
+                tags: Vec::new(),
+            }
+        }
+
+        async fn seed_journal(manager: &OculpmManager, db: &Db, slug: &str, paths: &[&str]) {
+            manager
+                .create_manual_journal_entry(db, 7, draft_with_files(slug, paths))
+                .await
+                .expect("seed journal");
+        }
+
+        /// Both empty → trivially `Ok` with jaccard 1.0 (treated as "no
+        /// activity nothing to disagree on" by the severity bucketer).
+        #[tokio::test]
+        async fn empty_session_is_ok() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(cmp.session_id, SESSION_ID);
+            assert_eq!(cmp.workday, WORKDAY);
+            assert!(cmp.index_files.is_empty());
+            assert!(cmp.journal_files.is_empty());
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
+            assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
+        }
+
+        /// 10 / 10 perfect overlap → `Ok`, jaccard 1.0.
+        #[tokio::test]
+        async fn perfect_overlap_is_ok() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let files: Vec<String> = (0..10).map(|i| format!("src/file_{i}.rs")).collect();
+            let refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+            append_index_events(&manager, &refs).await;
+            seed_journal(&manager, &db, "perfect", &refs).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(cmp.matched.len(), 10);
+            assert!(cmp.only_in_index.is_empty());
+            assert!(cmp.only_in_journal.is_empty());
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
+            assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
+        }
+
+        /// 10 / 9 (9 matched, 1 missing narrative) → jaccard 9/10 = 0.9 → `Ok`.
+        #[tokio::test]
+        async fn near_perfect_is_ok() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let index: Vec<String> = (0..10).map(|i| format!("src/file_{i}.rs")).collect();
+            let index_refs: Vec<&str> = index.iter().map(|s| s.as_str()).collect();
+            append_index_events(&manager, &index_refs).await;
+            // Journal records 9 of the 10 — file_9 missing.
+            let journal_refs: Vec<&str> = index_refs[..9].to_vec();
+            seed_journal(&manager, &db, "near", &journal_refs).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(cmp.matched.len(), 9);
+            assert_eq!(cmp.only_in_index, vec!["src/file_9.rs".to_string()]);
+            assert!(cmp.only_in_journal.is_empty());
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
+            assert!((cmp.jaccard_index - 0.9).abs() < 0.01);
+        }
+
+        /// 8 / 8 with 6 matched + 2 hallucinated → jaccard 6 / (8 + 8 - 6) = 0.6
+        /// → `Warning`.
+        #[tokio::test]
+        async fn moderate_mismatch_is_warning() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let index: Vec<String> = (0..8).map(|i| format!("src/file_{i}.rs")).collect();
+            let index_refs: Vec<&str> = index.iter().map(|s| s.as_str()).collect();
+            append_index_events(&manager, &index_refs).await;
+            // Journal: 6 matching + 2 hallucinated.
+            let journal: Vec<String> = (0..6)
+                .map(|i| format!("src/file_{i}.rs"))
+                .chain(["src/hallucinated_a.rs".to_string(), "src/hallucinated_b.rs".to_string()])
+                .collect();
+            let journal_refs: Vec<&str> = journal.iter().map(|s| s.as_str()).collect();
+            seed_journal(&manager, &db, "moderate", &journal_refs).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(cmp.matched.len(), 6);
+            assert_eq!(cmp.only_in_index.len(), 2);
+            assert_eq!(cmp.only_in_journal.len(), 2);
+            assert_eq!(cmp.mismatch_severity, Severity::Warning);
+            assert!(
+                (cmp.jaccard_index - 0.6).abs() < 0.05,
+                "jaccard {} not near 0.6",
+                cmp.jaccard_index
+            );
+        }
+
+        /// 10 / 5 with 4 matched + 1 hallucinated → jaccard 4/11 ≈ 0.36 →
+        /// `Critical`.
+        #[tokio::test]
+        async fn heavy_mismatch_is_critical() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let index: Vec<String> = (0..10).map(|i| format!("src/file_{i}.rs")).collect();
+            let index_refs: Vec<&str> = index.iter().map(|s| s.as_str()).collect();
+            append_index_events(&manager, &index_refs).await;
+            // Journal: 4 matched + 1 hallucinated.
+            let journal: Vec<String> = (0..4)
+                .map(|i| format!("src/file_{i}.rs"))
+                .chain(["src/hallucinated.rs".to_string()])
+                .collect();
+            let journal_refs: Vec<&str> = journal.iter().map(|s| s.as_str()).collect();
+            seed_journal(&manager, &db, "heavy", &journal_refs).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(cmp.matched.len(), 4);
+            assert_eq!(cmp.only_in_index.len(), 6);
+            assert_eq!(cmp.only_in_journal, vec!["src/hallucinated.rs".to_string()]);
+            assert_eq!(cmp.mismatch_severity, Severity::Critical);
+        }
+
+        /// Forbidden paths in EITHER set must be stripped before the
+        /// comparison so they don't tank the jaccard. Without this, the index
+        /// (which already masks forbidden paths via watcher) and the journal
+        /// (which lists them verbatim) would always disagree.
+        #[tokio::test]
+        async fn forbidden_paths_are_excluded_from_both_sides() {
+            let (manager, db, _dir, _root) = fresh().await;
+            // Index has 3 real paths + 1 masked redacted entry (the watcher
+            // would produce these for `.env` writes).
+            let writer = writer(&manager).await;
+            for p in &["src/a.rs", "src/b.rs", "src/c.rs", "**redacted/sensitive**:abcd1234"] {
+                let ev = FileChangeEvent {
+                    ts: "2026-05-24T10:00:00+00:00".to_string(),
+                    session_id: SESSION_ID.to_string(),
+                    op: FileOp::Update,
+                    path: (*p).to_string(),
+                    hash_before: None,
+                    hash_after: None,
+                    bytes: 10,
+                };
+                writer.append_file_change(&ev).await.unwrap();
+            }
+            // Journal: same 3 real paths only (no forbidden — they'd be
+            // reject by create_manual_journal_entry per W4-PR3 anyway).
+            seed_journal(&manager, &db, "stripped", &["src/a.rs", "src/b.rs", "src/c.rs"]).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            // Redacted path is stripped from index_files → exact match.
+            assert_eq!(cmp.index_files.len(), 3);
+            assert_eq!(cmp.matched.len(), 3);
+            assert!(cmp.only_in_index.is_empty());
+            assert!(cmp.only_in_journal.is_empty());
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
         }
     }
 }

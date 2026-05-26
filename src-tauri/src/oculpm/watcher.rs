@@ -33,6 +33,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::db::Db;
+use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
@@ -40,8 +41,8 @@ use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    FileChangeEvent, FileOp, OculpmAgentsTemplateChanged, OculpmConfig, OculpmFileChanged,
-    OculpmJournalPathChanged, WatcherStateView, WatcherStatus,
+    FileChangeEvent, FileOp, OculpmAgentDrift, OculpmAgentsTemplateChanged, OculpmConfig,
+    OculpmFileChanged, OculpmJournalPathChanged, WatcherStateView, WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -269,6 +270,19 @@ impl WatcherInner {
             return;
         }
 
+        // 4.5 (W4-PR4) — adapter marker files: a change is either ours (last
+        // sync) or someone-else's (drift). We route to the manager which
+        // compares the disk hash against the row in `oculpm_agent_state`;
+        // self-writes match and produce no emit, external writes don't and
+        // produce `OculpmAgentDrift`. Adapter files never enter the ndjson
+        // pipeline (they're our infrastructure, not user code), so we return
+        // before the ignore filter — even a user who gitignores `.cursor/`
+        // still gets drift notifications.
+        if agents::lookup_adapter_by_path(&rel_str).is_some() {
+            self.check_and_emit_agent_drift(&rel_str).await;
+            return;
+        }
+
         // 5. Skip directories — we only track files.
         if path.is_dir() {
             self.bump_ignored();
@@ -443,13 +457,73 @@ impl WatcherInner {
         let Some(handle) = &self.app_handle else { return };
         use tauri::Manager;
         let manager: tauri::State<'_, OculpmManager> = handle.state::<OculpmManager>();
-        if let Err(e) = manager.sync_agents(self.project_id).await {
+        let db: tauri::State<'_, Db> = handle.state::<Db>();
+        if let Err(e) = manager.sync_agents(&db, self.project_id).await {
             tracing::warn!(
                 target: "oculpm::watcher",
                 project_id = self.project_id,
                 error = %e,
                 "agents cascade resync failed"
             );
+        }
+    }
+
+    /// W4-PR4 — compare the current adapter file hash to `oculpm_agent_state`
+    /// and emit `OculpmAgentDrift` on mismatch. Gated on `app_handle: None`
+    /// so the unit tests that build a self-contained watcher (no DB / event
+    /// bus) skip the check — see `setup_with_config`. Errors are logged but
+    /// never escalated; the next sync will recompute the row.
+    async fn check_and_emit_agent_drift(&self, relative_path: &str) {
+        let Some(handle) = &self.app_handle else { return };
+        use tauri::Manager;
+        let manager: tauri::State<'_, OculpmManager> = handle.state::<OculpmManager>();
+        let db: tauri::State<'_, Db> = handle.state::<Db>();
+        match manager
+            .check_agent_drift(&db, self.project_id, relative_path)
+            .await
+        {
+            Ok(Some((agent_id, expected_hash, actual_hash))) => {
+                self.emit_agent_drift(&agent_id, &expected_hash, &actual_hash);
+                tracing::info!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    agent_id = %agent_id,
+                    "agent adapter drift detected"
+                );
+            }
+            Ok(None) => {
+                // Matched our last write (or no prior baseline yet) — nothing
+                // to notify. Logged at trace so high-frequency saves don't
+                // flood the log.
+                tracing::trace!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %relative_path,
+                    "adapter change matched expected hash; no drift"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %relative_path,
+                    error = %e,
+                    "drift check failed"
+                );
+            }
+        }
+    }
+
+    fn emit_agent_drift(&self, agent_id: &str, expected_hash: &str, actual_hash: &str) {
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = OculpmAgentDrift {
+                project_id: self.project_id,
+                agent_id: agent_id.to_string(),
+                expected_hash: expected_hash.to_string(),
+                actual_hash: actual_hash.to_string(),
+            }
+            .emit(handle);
         }
     }
 

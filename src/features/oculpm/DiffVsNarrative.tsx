@@ -1,0 +1,392 @@
+/**
+ * DiffVsNarrative — side-by-side comparison of a session's index ndjson
+ * (ground truth, watcher-captured) vs the union of `files_touched` paths in
+ * the journal entries that name the same `session_id`. Backs the four W4-PR6
+ * triggers (SessionCard / EmptyTodayV3 / JournalEntryDetail / CommandPalette).
+ *
+ * W4 dogfooding finding (2026-05-25) — modal form made 3-way comparison hard:
+ * users had to mentally diff index ↔ journal across a small modal viewport.
+ * The component now renders as an **inline panel** (no overlay, no fixed
+ * positioning). Each caller chooses where to mount it — SessionCard puts it
+ * below the entries list, TodayScreen / EmptyTodayV3 mount it as a top-level
+ * panel, JournalEntryDetail keeps it in the detail pane.
+ *
+ * Caching: `oculpmApi.compareLayers` is cheap (read-only joins) but the panel
+ * can re-mount on every trigger click. A per-session sessionStorage cache
+ * (60s TTL, key `oculpm.compare.${projectId}.${sessionId}`) absorbs the dup
+ * loads when the user reopens the same panel in quick succession.
+ *
+ * Actions:
+ *  - [어댑터 규칙 다시 보내기] → `oculpmApi.syncAgents` and toast result. Panel
+ *    stays open so the user can verify their next entries.
+ *  - [수동 narrative 작성 (N 누락 prefill)] → `onActionManualEntry` callback to
+ *    the parent (TodayScreen), which opens `ManualEntryModal` with the
+ *    `only_in_index` paths pre-selected.
+ *  - [코드 스니펫] toggle — placeholder for future snippet rendering once we
+ *    can join ndjson bytes_before/after with the journal narrative. Default
+ *    off; turning it on currently shows a "TODO" hint per row.
+ *
+ * See `docs/major_update/oculpm/W4/PR6-diff-vs-narrative.md`.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import type { LayerComparison, Severity } from "@/lib/bindings";
+import { Button } from "@/components/ui/button";
+import {
+  AlertTriangle,
+  Check,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "@/components/Icons";
+
+interface DiffVsNarrativeProps {
+  projectId: number;
+  sessionId: string;
+  onClose: () => void;
+  /** Fire when the user clicks "수동 narrative 작성"; parent opens the modal. */
+  onActionManualEntry?: (prefill: { sessionId: string; files: string[] }) => void;
+  /** Visual presentation. `compact` shrinks paddings + drops the close button
+   *  for callers (SessionCard) where the surrounding card already provides
+   *  collapse affordance. Default `panel` shows the standalone panel chrome. */
+  variant?: "panel" | "compact";
+}
+
+const CACHE_TTL_MS = 60_000;
+
+function cacheKey(projectId: number, sessionId: string) {
+  return `oculpm.compare.${projectId}.${sessionId}`;
+}
+
+function readCache(projectId: number, sessionId: string): LayerComparison | null {
+  try {
+    const raw = sessionStorage.getItem(cacheKey(projectId, sessionId));
+    if (!raw) return null;
+    const { at, data } = JSON.parse(raw) as { at: number; data: LayerComparison };
+    if (Date.now() - at > CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(projectId: number, sessionId: string, data: LayerComparison) {
+  try {
+    sessionStorage.setItem(
+      cacheKey(projectId, sessionId),
+      JSON.stringify({ at: Date.now(), data }),
+    );
+  } catch {
+    // sessionStorage quota / private mode — silently degrade.
+  }
+}
+
+export function DiffVsNarrative({
+  projectId,
+  sessionId,
+  onClose,
+  onActionManualEntry,
+  variant = "panel",
+}: DiffVsNarrativeProps) {
+  const [comparison, setComparison] = useState<LayerComparison | null>(() =>
+    readCache(projectId, sessionId),
+  );
+  const [loading, setLoading] = useState(comparison == null);
+  const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<
+    null | { kind: "pending" } | { kind: "ok"; updated: number } | { kind: "error"; message: string }
+  >(null);
+  const [showSnippets, setShowSnippets] = useState(false);
+
+  const load = useCallback(
+    async (skipCache = false) => {
+      if (!skipCache) {
+        const cached = readCache(projectId, sessionId);
+        if (cached) {
+          setComparison(cached);
+          setLoading(false);
+          return;
+        }
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await oculpmApi.compareLayers(projectId, sessionId);
+        writeCache(projectId, sessionId, data);
+        setComparison(data);
+      } catch (e) {
+        const msg = e instanceof OculpmApiError ? e.message : String(e);
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [projectId, sessionId],
+  );
+
+  useEffect(() => {
+    if (comparison == null) void load();
+  }, [comparison, load]);
+
+  const handleResync = useCallback(async () => {
+    setSyncStatus({ kind: "pending" });
+    try {
+      const report = await oculpmApi.syncAgents(projectId);
+      const updated = report.results.filter(
+        (r) => r.action === "inserted" || r.action === "updated",
+      ).length;
+      setSyncStatus({ kind: "ok", updated });
+    } catch (e) {
+      const msg = e instanceof OculpmApiError ? e.message : String(e);
+      setSyncStatus({ kind: "error", message: msg });
+    }
+  }, [projectId]);
+
+  const handleManualEntry = useCallback(() => {
+    if (!comparison || !onActionManualEntry) return;
+    onActionManualEntry({
+      sessionId: comparison.session_id,
+      files: comparison.only_in_index,
+    });
+    onClose();
+  }, [comparison, onActionManualEntry, onClose]);
+
+  const isCompact = variant === "compact";
+  const panelClasses = isCompact
+    ? "rounded-lg border border-border bg-muted/30 text-foreground"
+    : "rounded-lg border border-border bg-card text-foreground shadow-sm";
+  const padding = isCompact ? "px-3 py-2" : "px-5 py-4";
+
+  return (
+    <section
+      className={panelClasses}
+      aria-label={`Session ${sessionId} index ↔ journal 비교`}
+    >
+      <header className={`flex items-center justify-between border-b border-border ${isCompact ? "px-3 py-2" : "px-5 py-3"}`}>
+        <div className="flex items-center gap-2">
+          <span className={isCompact ? "text-sm" : "text-lg"}>⚖</span>
+          <h3 className={`${isCompact ? "text-xs" : "text-sm"} font-semibold`}>
+            index ↔ journal 비교 <span className="font-mono text-muted-foreground"> · {sessionId}</span>
+          </h3>
+        </div>
+        <div className="flex items-center gap-1">
+          <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showSnippets}
+              onChange={(e) => setShowSnippets(e.currentTarget.checked)}
+              className="h-3 w-3"
+            />
+            코드 스니펫
+          </label>
+          {!isCompact && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className={padding}>
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            비교 중…
+          </div>
+        )}
+        {error && (
+          <div className="rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
+            비교 실패: {error}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void load(true)}
+              className="ml-3"
+            >
+              다시 시도
+            </Button>
+          </div>
+        )}
+        {comparison && !loading && !error && (
+          <ComparisonBody
+            comparison={comparison}
+            onActionResync={handleResync}
+            syncStatus={syncStatus}
+            onActionManualEntry={onActionManualEntry ? handleManualEntry : undefined}
+            showSnippets={showSnippets}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+interface ComparisonBodyProps {
+  comparison: LayerComparison;
+  onActionResync: () => void;
+  syncStatus:
+    | null
+    | { kind: "pending" }
+    | { kind: "ok"; updated: number }
+    | { kind: "error"; message: string };
+  onActionManualEntry?: () => void;
+  showSnippets: boolean;
+}
+
+function ComparisonBody({
+  comparison,
+  onActionResync,
+  syncStatus,
+  onActionManualEntry,
+  showSnippets,
+}: ComparisonBodyProps) {
+  const matched = new Set(comparison.matched);
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <Column
+          title={`index — 워처가 본 파일 ${comparison.index_files.length}`}
+          paths={comparison.index_files}
+          render={(p) =>
+            matched.has(p) ? (
+              <PathRow icon="match" label={p} showSnippets={showSnippets} />
+            ) : (
+              <PathRow icon="missing" label={p} hint="journal 누락" showSnippets={showSnippets} />
+            )
+          }
+        />
+        <Column
+          title={`journal — LLM 이 기록 ${comparison.journal_files.length}`}
+          paths={comparison.journal_files}
+          render={(p) =>
+            matched.has(p) ? (
+              <PathRow icon="match" label={p} showSnippets={showSnippets} />
+            ) : (
+              <PathRow icon="hallucinated" label={p} hint="index 외" showSnippets={showSnippets} />
+            )
+          }
+        />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+        <span>
+          index <strong className="text-foreground">{comparison.index_files.length}</strong>
+          {" · "}journal <strong className="text-foreground">{comparison.journal_files.length}</strong>
+          {" · "}일치 <strong className="text-foreground">{comparison.matched.length}</strong>
+          {" · "}누락 <strong className="text-foreground">{comparison.only_in_index.length}</strong>
+          {" · "}환각 <strong className="text-foreground">{comparison.only_in_journal.length}</strong>
+        </span>
+        <SeverityBadge severity={comparison.mismatch_severity} jaccard={comparison.jaccard_index} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" onClick={onActionResync} disabled={syncStatus?.kind === "pending"}>
+          {syncStatus?.kind === "pending" ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-1 h-3.5 w-3.5" />
+          )}
+          어댑터 규칙 다시 보내기
+        </Button>
+        {onActionManualEntry && comparison.only_in_index.length > 0 && (
+          <Button size="sm" onClick={onActionManualEntry}>
+            <Sparkles className="mr-1 h-3.5 w-3.5" />
+            수동 narrative 작성 ({comparison.only_in_index.length} 누락 prefill)
+          </Button>
+        )}
+        {syncStatus?.kind === "ok" && (
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">
+            동기화 완료 ({syncStatus.updated} 어댑터 갱신)
+          </span>
+        )}
+        {syncStatus?.kind === "error" && (
+          <span className="text-xs text-red-600 dark:text-red-400">동기화 실패: {syncStatus.message}</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface ColumnProps {
+  title: string;
+  paths: string[];
+  render: (path: string) => React.ReactNode;
+}
+
+function Column({ title, paths, render }: ColumnProps) {
+  return (
+    <div className="rounded border border-border bg-background/50">
+      <div className="border-b border-border px-3 py-2 text-xs font-medium text-foreground/80">{title}</div>
+      <ul className="max-h-72 overflow-y-auto p-1 text-xs">
+        {paths.length === 0 && (
+          <li className="px-2 py-3 text-center text-muted-foreground">(빈 목록)</li>
+        )}
+        {paths.map((p) => (
+          <li key={p}>{render(p)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+type RowIcon = "match" | "missing" | "hallucinated";
+
+function PathRow({
+  icon,
+  label,
+  hint,
+  showSnippets,
+}: {
+  icon: RowIcon;
+  label: string;
+  hint?: string;
+  showSnippets: boolean;
+}) {
+  const tone =
+    icon === "match"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : icon === "missing"
+        ? "text-red-600 dark:text-red-400"
+        : "text-amber-600 dark:text-amber-400";
+  const Icon = icon === "match" ? Check : AlertTriangle;
+  return (
+    <div className="rounded px-2 py-1 hover:bg-muted/40">
+      <div className="flex items-center gap-2">
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
+        <span className="truncate font-mono">{label}</span>
+        {hint && <span className={`ml-auto shrink-0 text-[10px] ${tone}`}>{hint}</span>}
+      </div>
+      {showSnippets && (
+        <div className="ml-5 mt-0.5 text-[10px] text-muted-foreground italic">
+          {/* Snippet rendering is a future enhancement (needs ndjson before/after bytes joined with diff). */}
+          코드 스니펫 미구현 — git diff 로 확인하세요
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SeverityBadge({ severity, jaccard }: { severity: Severity; jaccard: number | null }) {
+  const tone =
+    severity === "ok"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : severity === "warning"
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
+  const label = severity === "ok" ? "Ok" : severity === "warning" ? "Warning" : "Critical";
+  const jaccardLabel =
+    typeof jaccard === "number" ? `jaccard ${(jaccard * 100).toFixed(0)}%` : "";
+  return (
+    <span className={`ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] ${tone}`}>
+      severity: {label}
+      {jaccardLabel && <span className="opacity-70">· {jaccardLabel}</span>}
+    </span>
+  );
+}

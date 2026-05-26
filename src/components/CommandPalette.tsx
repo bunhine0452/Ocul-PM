@@ -12,12 +12,15 @@ import {
   Network,
   GitBranch,
   Terminal as TerminalIcon,
+  Plus,
 } from "@/components/Icons";
 import {
   useWorkspace,
   type ActiveView,
   type CodeSubTab,
 } from "@/contexts/WorkspaceContext";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { toast } from "@/lib/toast";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
 //
@@ -41,11 +44,24 @@ type CommandItem = {
   label: string;
   // Korean alias for fuzzy matching ("체인지로그" → Changelog)
   alias?: string;
-  group: "이동" | "액션" | "Code 화면";
+  group: "이동" | "액션" | "Code 화면" | "ocul-pm";
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
 };
+
+/**
+ * W4-PR8 — global event channel for CommandPalette ocul-pm actions that
+ * need to mount UI in another component tree (ManualEntryModal owned by
+ * TodayScreen, DiffVsNarrative target session unknown to the palette).
+ *
+ * Listeners live in TodayScreen and the app shell. Keeps the palette decoupled
+ * from `useState` chains that would otherwise need to thread through `App`.
+ */
+export const OCULPM_BUS = {
+  manualEntry: "oculpm:request-manual-entry",
+  compareLatest: "oculpm:request-compare-latest",
+} as const;
 
 export function CommandPalette({
   open,
@@ -109,8 +125,115 @@ export function CommandPalette({
         ? [{ id: "regen-overview", label: "Overview 다시 생성", alias: "개요 재생성",
             group: "액션" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
         : []),
+
+      // ── ocul-pm — W4-PR8
+      ...(state.currentProjectId !== null
+        ? [
+            {
+              id: "oculpm-session-start",
+              label: "세션 수동 시작",
+              alias: "ocul-pm session start 세션 시작",
+              group: "ocul-pm" as const,
+              icon: Flame,
+              onSelect: () => {
+                const pid = state.currentProjectId!;
+                onOpenChange(false);
+                oculpmApi
+                  .startSessionManual(pid)
+                  .then((s) => toast.info(`세션 시작: ${s?.id ?? "(no id)"}`))
+                  .catch((e) =>
+                    toast.destructive(
+                      e instanceof OculpmApiError ? e.message : String(e),
+                    ),
+                  );
+              },
+            },
+            {
+              id: "oculpm-session-end",
+              label: "세션 수동 종료",
+              alias: "ocul-pm session end 세션 종료",
+              group: "ocul-pm" as const,
+              icon: Flame,
+              onSelect: () => {
+                const pid = state.currentProjectId!;
+                onOpenChange(false);
+                const sid = state.currentSession?.id;
+                if (!sid) {
+                  toast.warning("종료할 활성 세션이 없습니다.");
+                  return;
+                }
+                oculpmApi
+                  .endSessionManual(pid, sid)
+                  .then(() => toast.info(`세션 종료: ${sid}`))
+                  .catch((e) =>
+                    toast.destructive(
+                      e instanceof OculpmApiError ? e.message : String(e),
+                    ),
+                  );
+              },
+            },
+            {
+              id: "oculpm-manual-entry",
+              label: "수동 작업 기록 작성",
+              alias: "ocul-pm manual entry journal 수동 기록",
+              group: "ocul-pm" as const,
+              icon: Plus,
+              shortcut: "⌘⇧J",
+              onSelect: () => {
+                onOpenChange(false);
+                window.dispatchEvent(new CustomEvent(OCULPM_BUS.manualEntry));
+              },
+            },
+            {
+              id: "oculpm-sync-agents",
+              label: "어댑터 규칙 다시 보내기",
+              alias: "ocul-pm sync agents 동기화 어댑터",
+              group: "ocul-pm" as const,
+              icon: RefreshCw,
+              onSelect: () => {
+                const pid = state.currentProjectId!;
+                onOpenChange(false);
+                oculpmApi
+                  .syncAgents(pid)
+                  .then((report) => {
+                    const updated = report.results.filter(
+                      (r) => r.action === "inserted" || r.action === "updated",
+                    ).length;
+                    toast.info(`동기화 완료 (${updated} 어댑터 갱신)`);
+                  })
+                  .catch((e) =>
+                    toast.destructive(
+                      e instanceof OculpmApiError ? e.message : String(e),
+                    ),
+                  );
+              },
+            },
+            {
+              id: "oculpm-compare-latest",
+              label: "이중 레이어 비교 (오늘 마지막 세션)",
+              alias: "ocul-pm compare layers diff narrative 비교",
+              group: "ocul-pm" as const,
+              icon: GitBranch,
+              onSelect: () => {
+                onOpenChange(false);
+                window.dispatchEvent(new CustomEvent(OCULPM_BUS.compareLatest));
+              },
+            },
+            {
+              id: "oculpm-settings",
+              label: "ocul-pm 설정",
+              alias: "ocul-pm settings 설정",
+              group: "ocul-pm" as const,
+              icon: SettingsIcon,
+              onSelect: () => {
+                onOpenSettings();
+                onOpenChange(false);
+              },
+            },
+          ]
+        : []),
     ],
-    [onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, state.currentProjectId],
+    [onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, state.currentProjectId, state.currentSession],
   );
 
   // Group items by `group` field, preserving the original order so the

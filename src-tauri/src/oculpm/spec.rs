@@ -288,14 +288,28 @@ pub struct Snapshot {
     pub tree_summary: SnapshotTree,
 }
 
+/// W4-PR5 — diff between the watcher's ndjson (index, ground truth) and
+/// the union of `files_touched[].path` from journal entries that name a
+/// given `session_id`. See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct LayerComparison {
     pub session_id: String,
+    pub workday: String,
+    /// Distinct project-relative paths from `file_changes.ndjson` for this
+    /// session, after stripping forbidden + `**redacted/sensitive**:*` paths.
     pub index_files: Vec<String>,
+    /// Union of `files_touched[].path` across every journal entry that names
+    /// this session, after the same forbidden / redacted strip.
     pub journal_files: Vec<String>,
+    pub matched: Vec<String>,
+    /// In the index but not the journal — likely *missing narrative*.
     pub only_in_index: Vec<String>,
+    /// In the journal but not the index — likely *hallucinated path*.
     pub only_in_journal: Vec<String>,
     pub mismatch_severity: Severity,
+    /// `|matched| / |union|`. `1.0` when both sets are empty (treated as
+    /// trivially in sync — no activity, nothing to disagree on).
+    pub jaccard_index: f32,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,6 +330,17 @@ pub struct SessionConfig {
     pub auto_close_on_workday_boundary: bool,
     pub auto_close_on_app_quit: bool,
     pub crash_recovery_grace_minutes: u32,
+    /// W4 dogfooding fix — minutes within which new activity after an
+    /// InactivityTimeout finalize will REOPEN the most recent
+    /// inactivity-closed session instead of starting a new one. Bounded by
+    /// today's workday (we never resurrect sessions across the workday
+    /// boundary). `0` disables resume entirely. Defaults to 15 minutes.
+    #[serde(default = "default_session_resume_grace_minutes")]
+    pub session_resume_grace_minutes: u32,
+}
+
+fn default_session_resume_grace_minutes() -> u32 {
+    15
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -399,6 +424,12 @@ pub struct AgentSyncResult {
     /// One of `inserted`, `updated`, `unchanged`, `removed`, `error`.
     pub action: String,
     pub error: Option<String>,
+    /// blake3 hex of the bytes we own on disk after this sync. For
+    /// `Overwrite` adapters it's the file hash; for `ManagedBlock` adapters
+    /// it's the hash of the inner block content (between the markers). Used
+    /// by W4-PR4 to seed the drift comparator. `None` when the adapter was
+    /// removed / errored / left untouched without a file present.
+    pub last_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
