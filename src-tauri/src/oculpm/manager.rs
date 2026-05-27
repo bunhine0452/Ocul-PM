@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 
 use crate::db::Db;
 use crate::oculpm::agents::{self, AgentDetection};
@@ -33,11 +33,13 @@ use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::redact::{build_forbidden_matcher, is_forbidden_path};
 use crate::oculpm::session::SessionActor;
+use crate::oculpm::migrate_from_sqlite::{self, MigrationFailureWithRollback};
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
     JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LockStateView,
-    ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus, ReindexReport, Session,
-    SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
+    ManualEntryDraft, MigrationPlan, MigrationProgress, MigrationReport, OculpmConfig,
+    OculpmInitReport, OculpmStatus, ReindexReport, RollbackReport, Session, SessionEnd, Severity,
+    Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -60,6 +62,14 @@ pub const RECOVERY_WORKDAYS: usize = 3;
 #[derive(Default)]
 pub struct OculpmManager {
     projects: RwLock<HashMap<u32, ProjectEntry>>,
+}
+
+/// Cloned view of a project's lazy-loaded state. Used by migration which
+/// needs to do IO outside the manager's RwLock read guard.
+struct ProjectSnapshot {
+    root: PathBuf,
+    resolver: WorkdayResolver,
+    config: OculpmConfig,
 }
 
 /// Per-project in-memory state. The `LockGuard` is the live ownership token —
@@ -1138,6 +1148,139 @@ impl OculpmManager {
             .reindex_incremental(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))
+    }
+
+    // ─── W5-PR3: migration from SQLite ────────────────────────────────────
+
+    /// Plan a migration without touching disk. Safe to call from the modal
+    /// every time the user opens step 1.
+    pub async fn migration_dry_run(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<MigrationPlan, OculpmError> {
+        let snapshot = self.project_snapshot(project_id).await?;
+        migrate_from_sqlite::dry_run(
+            db,
+            project_id,
+            &snapshot.root,
+            &snapshot.resolver,
+            &snapshot.config,
+        )
+        .await
+    }
+
+    /// Execute the plan. Pauses the watcher beforehand to avoid event
+    /// floods during the bulk write + drift races with our own reindex.
+    /// Resumes the watcher at the end **only if** it was running before so
+    /// we don't violate a user's explicit stop.
+    pub async fn migration_execute(
+        &self,
+        db: &Db,
+        project_id: u32,
+        plan: MigrationPlan,
+        progress: Option<mpsc::Sender<MigrationProgress>>,
+        app_handle: Option<tauri::AppHandle>,
+    ) -> Result<MigrationReport, MigrationFailureWithRollback> {
+        let snapshot = match self.project_snapshot(project_id).await {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(MigrationFailureWithRollback {
+                    execute_error: e,
+                    rollback: Err(OculpmError::NotInitialized(project_id)),
+                });
+            }
+        };
+
+        let was_running = matches!(
+            self.watcher_status(project_id).await.state,
+            WatcherStateView::Running
+        );
+        // Pause regardless — stop is idempotent. The flag above only governs
+        // whether we restart at the end.
+        let _ = self.watcher_stop(project_id).await;
+
+        let result = migrate_from_sqlite::execute_with_rollback(
+            db,
+            project_id,
+            &snapshot.root,
+            &snapshot.resolver,
+            &snapshot.config,
+            plan,
+            progress,
+        )
+        .await;
+
+        if was_running {
+            if let Err(e) = self.watcher_start(project_id, app_handle).await {
+                tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id,
+                    error = %e,
+                    "watcher failed to restart after migration; user can retry manually"
+                );
+            }
+        }
+
+        result
+    }
+
+    /// Roll back a prior migration using the JSONL manifest in `backup_dir`.
+    /// `backup_dir_basename` is the directory name only (no `..` or `/`) —
+    /// the manager joins it under the project root so callers can't ask for
+    /// arbitrary paths.
+    pub async fn migration_rollback(
+        &self,
+        db: &Db,
+        project_id: u32,
+        backup_dir_basename: &str,
+    ) -> Result<RollbackReport, OculpmError> {
+        // Reject directory traversal — the basename must be a single segment.
+        if backup_dir_basename.contains('/')
+            || backup_dir_basename.contains('\\')
+            || backup_dir_basename.contains("..")
+        {
+            return Err(OculpmError::InvalidConfig(format!(
+                "backup_dir basename '{backup_dir_basename}' must be a single path segment"
+            )));
+        }
+        let snapshot = self.project_snapshot(project_id).await?;
+
+        let was_running = matches!(
+            self.watcher_status(project_id).await.state,
+            WatcherStateView::Running
+        );
+        let _ = self.watcher_stop(project_id).await;
+
+        let report = migrate_from_sqlite::rollback(
+            db,
+            project_id,
+            &snapshot.root,
+            backup_dir_basename,
+            &snapshot.resolver,
+        )
+        .await;
+
+        if was_running {
+            // Best-effort — rollback already succeeded/failed by this point.
+            let _ = self.watcher_start(project_id, None).await;
+        }
+
+        report
+    }
+
+    /// Snapshot of a project's lazy-loaded state (root + resolver + config).
+    /// Cloned so the caller can drop the read lock before doing IO.
+    async fn project_snapshot(&self, project_id: u32) -> Result<ProjectSnapshot, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        Ok(ProjectSnapshot {
+            root: entry.root.clone(),
+            resolver: entry.resolver.clone(),
+            config: entry.config.clone(),
+        })
     }
 
     /// Write a manual journal entry the user authored via the modal. Resolves

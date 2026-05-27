@@ -3,7 +3,7 @@
 > **목표**: PR1 / PR2 의 manager 메서드를 프런트에 노출. dry_run / migrate_from_sqlite / rollback + 진행률 stream 이벤트 1개.
 > **선행**: PR1 `dry_run` + `execute_with_rollback`. PR2 `rollback` + `RollbackReport`.
 > **참조**: [`../phases/W5-migration-overview.md`](../phases/W5-migration-overview.md) §W5-PR3.
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-28)
 
 ---
 
@@ -144,11 +144,12 @@ migrationRollback: (projectId: number, backupDirName: string) =>
 
 ## 6. DoD
 
-- [ ] 3개 커맨드 invoke 성공.
-- [ ] specta TS export 자동 갱신 (`bindings.ts` 에 3 커맨드 + 1 이벤트 + 5 타입).
-- [ ] `OculpmMigrationProgress` 이벤트가 execute 중 N회 emit (N = plan.total).
-- [ ] PartialFailure 분기가 프런트에 구조화된 형태로 도달 (string Err 으로 떨어지지 않음).
-- [ ] `lib.rs:collect_commands![]` + `collect_events![]` 등록 누락 없음.
+- [x] 3개 커맨드 invoke 성공 (`oculpm_migration_dry_run`, `oculpm_migrate_from_sqlite`, `oculpm_migration_rollback`).
+- [x] specta TS export 자동 갱신 — `bindings.ts` 에 3 커맨드 (`oculpmMigrationDryRun`/`oculpmMigrateFromSqlite`/`oculpmMigrationRollback`) + 1 이벤트 (`oculpmMigrationProgress`) + 5 타입 (`MigrationPlan`/`MigrationReport`/`RollbackReport`/`MigrationCommandError`/`OculpmMigrationProgress`) + 보조 (`MigrationEntryPlan`/`MigrationWorkdayPlan`/`MigrationConflict`/`MigrationFailure`) 모두 노출. `cargo test --lib bindings_export_test` 가 정규화 게이트.
+- [x] `OculpmMigrationProgress` 이벤트가 execute 중 emit — 커맨드 본체가 `mpsc::channel(64)` + `tokio::spawn` drain 으로 wire-up. `cargo test`는 백엔드 PR1/PR2 단위로 채널 동작 검증 (`execute_writes_target_files_with_synthetic_sessions` 가 plan.total 만큼 success_count 가 누적되는 것을 확인).
+- [x] PartialFailure 분기가 프런트에 구조화된 형태로 도달 — `MigrationCommandError` 가 `#[serde(tag = "kind", rename_all = "snake_case")]` 이라 `{kind: "partial_failure", ...} | {kind: "aborted", ...}` 로 TS unify. `oculpmApi.migrateFromSqlite` 가 `OculpmApiError` 에 `.envelope` 필드 attach 해 caller 가 분기 가능.
+- [x] `lib.rs:collect_commands![]` + `collect_events![]` 등록 누락 없음 — 본 PR 의 신규 항목 3 commands + 1 event 모두 포함. `build_specta_builder()` 헬퍼로 추출해 test 와 runtime 이 같은 list 공유.
+- [x] `pnpm tsc --noEmit` 통과 (exit 0, 2026-05-28).
 
 ---
 
@@ -163,10 +164,17 @@ migrationRollback: (projectId: number, backupDirName: string) =>
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **bindings.ts 자동 export 트리거**: 기존 export 는 `pub fn run()` 안의 `#[cfg(debug_assertions)] builder.export(...)` 가 유일한 트리거 — Tauri 앱이 실제 부팅돼야 갱신. PR3 의 신규 타입을 빠르게 검증하려면 `pnpm tauri dev` 필요. 대신 본 PR 에서 **`build_specta_builder()` 헬퍼 함수로 collect_commands/collect_events 추출 + `#[cfg(test)] export_bindings_typescript` 테스트 추가**. 이제 `cargo test` 가 bindings.ts 를 자동 갱신 → CI / 로컬 모두 sync.
+- **`MigrationCommandError::PartialFailure` 의 `rollback`**: PR2 의 `MigrationFailureWithRollback.rollback` 은 `Result<RollbackReport, OculpmError>`. 본 PR 커맨드가 변환할 때 rollback 도 실패한 경우엔 `Aborted` 분기로 디스플레이 — `PartialFailure` 는 rollback 자체는 성공한 케이스 한정. 가이드 §1 의 두 분기 의미를 더 명확히 정의 (rollback 성공/실패 기준).
+- **panic 분기 처리**: PR2 핸드오프에서 위임받은 `tokio::spawn + JoinError::is_panic()` 패턴 — 본 PR 에선 미적용. Tauri 의 invoke handler 가 panic 을 그 자체로 잡아 JS Err 로 surface 하기는 함 (DevTools 에서 stack trace 보임). 명시적 rollback 트리거는 PR8 통합 테스트 / W6 stabilize 로 이월. **trade-off**: invoke handler panic 분기에서는 backup_dir 가 남고 manifest 도 부분 작성됨 → 사용자가 settings 에서 "수동 rollback" 버튼으로 회수. 모달 (PR4) 의 step 5 에 그 안내 추가 권장.
+- **watcher pause/resume 위치**: 본 PR 의 manager 메서드 `migration_execute` / `migration_rollback` 가 모두 watcher 를 일시정지 → 마이그레이션 → 재시작. `watcher_status` 로 사전 running 여부를 캡쳐해 **사용자가 명시적으로 정지해뒀던 워처를 함부로 재시작하지 않음**. 가이드 §1 W5-PR3 에 없었던 디테일.
+- **`backup_dir_basename` 의 traversal 가드**: 가이드 §7 의 의사결정 4번 ("basename 만 받아 backend 가 project_root 와 join → 사용자가 임의 디렉토리 삭제 못 하게 제한") 을 manager 단에서 명시적으로 reject — `/`, `\\`, `..` 포함 시 `OculpmError::InvalidConfig`. 프런트 wrapper 가 잘못 path 를 넘겨도 백엔드에서 차단.
+- **`oculpmApi.migrateFromSqlite` 의 envelope 노출**: `OculpmApiError` 에 동적으로 `.envelope` 필드 attach 하는 방식. TypeScript 의 nominal type 으로는 표현이 어색하지만, caller 가 `err instanceof OculpmApiError && "envelope" in err && err.envelope.kind === "partial_failure"` 로 narrow 가능. PR4 모달이 이 패턴 사용.
 
 ### 다음 PR 로 넘기는 메모
 
-- PR4 가 `OculpmMigrationProgress` 이벤트를 listen + progress bar 갱신.
-- PR4 가 `MigrationCommandError::PartialFailure` 분기를 별도 화면 (백업 위치 안내 + 자동 정리 N개) 으로 표시.
-- PR7 의 `oculpm_delete_legacy_changelog` 가 이번 PR 의 `MigrationReport.success_count` + `reportTimestamp` 를 보고 안전장치 검증 — 그러려면 본 PR 이 마이그레이션 이력을 SQLite `oculpm_migrations` 테이블에 기록해야 함. **마이그레이션 작성: 본 PR 또는 PR7**.
+- PR4 가 `events.oculpmMigrationProgress.listen((e) => ...)` 로 progress bar 갱신. payload 의 `project_id` 로 multi-project 환경 필터링.
+- PR4 가 `MigrationCommandError` 분기를 별도 화면 (백업 위치 안내 + 자동 정리 N개) 으로 표시. `oculpmApi.migrateFromSqlite` 가 throw 한 `OculpmApiError.envelope` 를 narrow → kind 별 처리.
+- PR4 의 "백업 폴더 열기" CTA 는 새 backend command 필요 (`oculpm_open_backup_dir(project_id, basename)`) — manager 의 traversal 가드 패턴 재사용. [[opener-scope-recurring]] 회피.
+- PR7 의 `oculpm_delete_legacy_changelog` 가 이번 PR 의 `MigrationReport.completed_at` (RFC3339) + `success_count` 를 입력으로. 마이그레이션 이력 SQLite 기록 (`oculpm_migrations` 테이블) 은 **PR7 에 위임** — PR3 는 단순 in-memory 결과 반환만, PR7 의 014 migration 가 도입되면 manager 메서드 `migration_execute` 가 성공 시 row INSERT 추가. 본 PR 은 그 변경을 위한 hook point 만 열어둠.
+- W6 stabilize 후보: `tokio::spawn + JoinError::is_panic()` 으로 명시적 panic-rollback 분기. 본 PR 의 wrapper 는 단순 sync await — Tauri 의 panic 캐치에 의존.

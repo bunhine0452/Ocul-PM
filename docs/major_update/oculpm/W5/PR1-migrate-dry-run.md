@@ -3,7 +3,7 @@
 > **목표**: SQLite `changelog_entries` + `changelog_files` 를 `.oculpm/journal/` 의 markdown 파일로 무손실 변환하는 알고리즘 (read-only `dry_run` + 실제 `execute`) 작성.
 > **선행**: W4 전체 ✅ — 특히 `OculpmManager::sync_agents`, `JournalCache::upsert_entry`, `paths::WorkdayResolver`. W3 의 `frontmatter::write_frontmatter_and_body` + `atomic_io::write_atomic` 재사용.
 > **참조**: [`../phases/W5-migration-overview.md`](../phases/W5-migration-overview.md) §W5-PR1, [`../00-spec.md`](../00-spec.md) §3 (frontmatter), §6 (journal path).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-28)
 
 ---
 
@@ -235,11 +235,11 @@ fn infer_type(category: Option<&str>, user_intent: &str) -> EntryType;
 
 ## 8. DoD
 
-- [ ] 15개 단위 테스트 통과 (`cargo test --lib oculpm::migrate_from_sqlite`).
-- [ ] `dry_run` 이 plan 만 만들고 디스크 변경 X (`dry_run_does_not_touch_disk` 보장).
-- [ ] `execute` 가 backup_dir + manifest.json 을 먼저 만든 후에만 write (PR2 rollback 의 SSOT).
-- [ ] cache 자동 reindex 가 마지막 단계에 호출되어 Today 가 새 entries 즉시 표시.
-- [ ] `MigrationPlan` / `MigrationReport` 가 specta export — bindings.ts 에 노출.
+- [x] 15개 단위 테스트 통과 (`cargo test --lib oculpm::migrate_from_sqlite` — 15/15 PASS, 2026-05-28).
+- [x] `dry_run` 이 plan 만 만들고 디스크 변경 X (`dry_run_does_not_touch_disk` 보장).
+- [x] `execute` 가 backup_dir + manifest.json 을 먼저 만든 후에만 write (PR2 rollback 의 SSOT).
+- [x] cache 자동 reindex 가 마지막 단계에 호출되어 Today 가 새 entries 즉시 표시.
+- [x] `MigrationPlan` / `MigrationReport` 가 specta export — bindings.ts 노출은 PR3 의 Tauri 커맨드 등록 시점에 발생 (이 PR 의 spec.rs 변경으로 타입 자체는 이미 export 가능 상태).
 
 ---
 
@@ -255,11 +255,17 @@ fn infer_type(category: Option<&str>, user_intent: &str) -> EntryType;
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **session_id 포맷**: `IndexWriter` 의 `workday_from_id` 검증이 "첫 8자가 ASCII 숫자" 를 강제 — 가이드 §1 의 `migrated-{workday}-{NNN}` 그대로 쓰면 거부됨. **결정**: `<workday>-m<NN>` (예: `20260522-m01`) 로 변경. 첫 8자가 workday 숫자이고 그 뒤 `-m01` 은 시각적으로 마이그레이션 출처를 표시. spec §4.2 의 형식 호환 유지.
+- **`sessions.json` vs `sessions.ndjson`**: IndexWriter 는 `sessions.json` (JSON 단일 파일) 에 upsert 함. 가이드 §4 의 "sessions.ndjson append" 는 부정확 — 본 PR 은 `upsert_session(&Session)` 호출로 변경. rollback (PR2) 도 `sessions.json` 파일에서 `session_id` 매치 라인 제거 방식이 아니라, JSON 배열에서 element 제거 방식으로 구현 필요.
+- **forbidden 파일의 body 누락**: `files_touched` 만 frontmatter 에서 필터링하면 body 의 "## 파일 변경" 섹션에 그대로 남음. 같은 forbidden set 으로 body 빌더도 필터링 추가 (테스트 `execute_skips_forbidden_entries_unless_user_overrides` 가 회귀 방지).
+- **`MigrationReport.written_paths` 부재**: spec.rs 에 이미 정의된 `MigrationReport` 는 `failures` 만 들고 `written_paths` 가 없음. PR2 의 rollback 은 `backup_dir/manifest.json` (JSONL) 을 SSOT 로 — 본 PR 의 `ManifestEntry` 가 정확히 그 역할. `MigrationReport` 에 `written_paths` 추가는 보류 (PR2 가 manifest 만 의존).
+- **`MigrationPlan.backup_dir`**: spec.rs 의 정의는 `String` (basename 만) 이며 가이드 §2 의 `PathBuf` 와 다름. PR3 가 backup_dir 입력으로 basename 만 받게 만들어 임의 디렉토리 삭제 방지 — basename String 으로 통일.
+- **`EndedReason::SyntheticMigrated`**: spec §4 의 `EndedReason` enum 에 새 variant 추가 (W4 의 `CrashRecovered` 다음). 기존 5 variant 와 자체 `serde rename_all = snake_case` 컨벤션 맞춤.
 
 ### 다음 PR 로 넘기는 메모
 
-- PR2 의 rollback 은 본 PR 의 `manifest.json` + `backup_dir` 구조 그대로 사용.
-- PR3 의 커맨드는 본 PR 의 `dry_run` / `execute` 시그니처 그대로 호출 + 진행률 channel wire-up.
-- PR4 의 MigrationModal 은 `MigrationPlan.by_workday[].entries[].will_skip` 토글 + `forbidden_files` 강조.
-- PR7 의 안전장치 (`MigrationReport.success_count > 0` + `reportTimestamp` db 저장) 의 저장 위치는 PR3 의 커맨드 응답 또는 `oculpm_migrations` SQLite 테이블 신설 — 본 PR 에선 결정 보류.
+- PR2 의 rollback 은 본 PR 의 `manifest.json` (JSONL — 한 줄당 `ManifestEntry`) + `backup_dir/changelog_*.json` dump 그대로 사용. `ManifestEntry { source_entry_id, target_relative_path, session_id, workday, written_at }`.
+- PR2 의 synthetic session cleanup: `sessions.json` 의 JSON 배열에서 `id` 가 `<workday>-m*` 인 element 만 제거 (라인 필터 X). IndexWriter 가 sessions.json 단일 JSON 파일 형식.
+- PR3 의 커맨드는 본 PR 의 `dry_run` / `execute` 시그니처 그대로 호출. `execute` 는 워처 pause/resume 을 받지 않으니 PR3 가 wrapper 에서 `manager.watcher_stop` / `watcher_start` 를 둘러쌈. 진행률 `mpsc::channel(64)` 도 PR3 에서 생성 + emit task spawn.
+- PR4 의 MigrationModal 은 `MigrationPlan.by_workday[].entries[].will_skip` 토글 + `forbidden_files` 강조. 토글한 entry 의 forbidden 파일은 frontmatter + body 양쪽에서 자동 제거 (본 PR 가 이미 처리).
+- PR7 의 안전장치 (`MigrationReport.success_count > 0` + `reportTimestamp` db 저장) 의 저장 위치는 PR3 의 커맨드 응답 + 신규 `oculpm_migrations` SQLite 테이블 (PR7 의 014 마이그레이션) — 본 PR 의 `MigrationReport.completed_at` 을 `report_timestamp` 으로 변환.

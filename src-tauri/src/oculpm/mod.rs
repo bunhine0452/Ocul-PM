@@ -17,6 +17,7 @@ pub mod frontmatter;
 pub mod index;
 pub mod lock;
 pub mod manager;
+pub mod migrate_from_sqlite;
 pub mod markdown;
 pub mod paths;
 pub mod redact;

@@ -25,10 +25,14 @@ import type {
   JournalEntrySummary,
   LayerComparison,
   ManualEntryDraft,
+  MigrationCommandError,
+  MigrationPlan,
+  MigrationReport,
   OculpmConfig,
   OculpmInitReport,
   OculpmStatus,
   ReindexReport,
+  RollbackReport,
   Session,
   FileChangeEvent,
   Snapshot,
@@ -261,6 +265,59 @@ export const oculpmApi = {
     unwrap<null>(
       "oculpm_open_entry_in_editor",
       commands.oculpmOpenEntryInEditor(projectId, relativePath),
+    ),
+
+  // ─── W5-PR3 — Migration from legacy SQLite changelog ─────────────────
+
+  /**
+   * Plan a migration. Disk is never touched — safe to call from any modal
+   * step. Returns `{ source_entry_count: 0, ... }` if there's nothing to
+   * migrate; the modal should self-dismiss on that signal.
+   */
+  migrationDryRun: (projectId: number) =>
+    unwrap<MigrationPlan>(
+      "oculpm_migration_dry_run",
+      commands.oculpmMigrationDryRun(projectId),
+    ),
+
+  /**
+   * Execute a previously-computed plan. The error envelope is a tagged
+   * `MigrationCommandError` (`partial_failure` | `aborted`), not a string —
+   * unwrap directly via `commands.*` and switch on `.kind` for the structured
+   * branch. The wrapper here would lose that structure, so we call the
+   * specta-generated command directly.
+   *
+   * Emits one `OculpmMigrationProgress` event per successful entry write —
+   * subscribe via `events.oculpmMigrationProgress.listen(...)`.
+   */
+  migrateFromSqlite: async (
+    projectId: number,
+    plan: MigrationPlan,
+  ): Promise<MigrationReport> => {
+    const res = await commands.oculpmMigrateFromSqlite(projectId, plan);
+    if (res.status === "ok") return res.data;
+    // `error` is the structured envelope — re-throw so the caller can switch
+    // on `err.envelope.kind`. We attach the envelope to the Error so the
+    // call site can introspect it without parsing a string.
+    const envelope = res.error as MigrationCommandError;
+    const summary =
+      envelope.kind === "partial_failure"
+        ? envelope.error
+        : envelope.error;
+    const e = new OculpmApiError("oculpm_migrate_from_sqlite", summary);
+    (e as OculpmApiError & { envelope?: MigrationCommandError }).envelope =
+      envelope;
+    throw e;
+  },
+
+  /**
+   * Manually rollback a prior migration. `backupDirBasename` must be a
+   * single segment (no `..`/`/`/`\\`) — backend rejects traversal attempts.
+   */
+  migrationRollback: (projectId: number, backupDirBasename: string) =>
+    unwrap<RollbackReport>(
+      "oculpm_migration_rollback",
+      commands.oculpmMigrationRollback(projectId, backupDirBasename),
     ),
 } as const;
 

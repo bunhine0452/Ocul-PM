@@ -95,6 +95,8 @@ pub enum EndedReason {
     WorkdayBoundary,
     Manual,
     CrashRecovered,
+    /// W5 — session synthesized from migrated SQLite changelog entries.
+    SyntheticMigrated,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -520,10 +522,50 @@ pub struct MigrationReport {
     pub failures: Vec<MigrationFailure>,
 }
 
+/// Streaming progress emitted by `migrate_from_sqlite::execute` via an
+/// `mpsc::Sender`. PR3 (Tauri command) re-emits these as a tauri-specta event.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MigrationProgress {
+    pub project_id: u32,
+    pub processed: u32,
+    pub total: u32,
+    pub current_entry: String,
+}
+
+/// Wire-friendly envelope for `oculpm_migrate_from_sqlite` failures.
+///
+/// - `PartialFailure` — `execute` returned `Err`; the wrapper auto-rolled-back
+///   and the cleanup itself succeeded. UI can show the rollback summary.
+/// - `Aborted` — either the rollback also failed, or we never got far enough
+///   to run one. UI must direct the user to the backup directory manually.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MigrationCommandError {
+    PartialFailure { error: String, rollback: RollbackReport },
+    Aborted { error: String },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct RollbackReport {
     pub project_id: u32,
+    /// Basename of `.oculpm.backup-pre-migration-...` — same shape as
+    /// `MigrationPlan.backup_dir`. Always preserved on disk (never deleted)
+    /// so the user can recover from a misfired rollback.
+    pub backup_dir: String,
+    /// Project-relative paths under `.oculpm/journal/` that were actually
+    /// removed by this rollback. Subset of `manifest_entries_total`.
     pub removed_paths: Vec<String>,
+    pub deleted_cache_rows: u32,
+    pub manifest_entries_total: u32,
+    /// Entries listed in manifest.json whose target file was already
+    /// missing on disk (e.g. user manually deleted before rolling back).
+    /// Idempotent re-rollbacks see this == total.
+    pub manifest_entries_missing_on_disk: u32,
+    /// Synthetic `<workday>-mNN` sessions stripped from sessions.json.
+    pub stripped_session_count: u32,
+    /// Always `true` — backup_dir is never auto-deleted. Field exists so
+    /// callers can assert the invariant without an off-by-one check.
+    pub backup_dir_preserved: bool,
     pub completed_at: String,
 }
 
@@ -597,4 +639,15 @@ pub struct OculpmJournalPathChanged {
     pub project_id: u32,
     pub relative_path: String,
     pub op: FileOp,
+}
+
+/// W5-PR3 — re-emitted by `oculpm_migrate_from_sqlite` for each entry
+/// `execute` finishes writing. Mirrors `MigrationProgress` but carries the
+/// `Event` derive so the frontend can `listen` via tauri-specta bindings.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct OculpmMigrationProgress {
+    pub project_id: u32,
+    pub processed: u32,
+    pub total: u32,
+    pub current_entry: String,
 }

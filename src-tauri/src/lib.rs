@@ -133,15 +133,18 @@ use crate::commands::{
     oculpm_agents_sync_active, oculpm_agents_detect, oculpm_agents_get_master_template,
     oculpm_compare_layers, oculpm_get_log_dir, oculpm_log,
     oculpm_update_entry_body, oculpm_open_entry_in_editor,
+    // W5-PR3 — Migration from legacy SQLite changelog
+    oculpm_migration_dry_run, oculpm_migrate_from_sqlite, oculpm_migration_rollback,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    setup_logging();
-
-    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+/// Build the specta Builder with every command + event registered. Extracted
+/// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
+/// without spawning the full Tauri runtime. Each call returns a fresh Builder
+/// (the `.export(...)` consumes `self`).
+fn build_specta_builder() -> Builder<tauri::Wry> {
+    Builder::<tauri::Wry>::new().commands(collect_commands![
         db_health,
         settings_set,
         settings_get,
@@ -268,6 +271,10 @@ pub fn run() {
         oculpm_log,
         oculpm_update_entry_body,
         oculpm_open_entry_in_editor,
+        // W5-PR3 — Migration
+        oculpm_migration_dry_run,
+        oculpm_migrate_from_sqlite,
+        oculpm_migration_rollback,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
@@ -280,8 +287,16 @@ pub fn run() {
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
-    ]);
+        // W5-PR3 — Migration progress stream
+        crate::oculpm::spec::OculpmMigrationProgress,
+    ])
+}
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    setup_logging();
+
+    let builder = build_specta_builder();
 
     #[cfg(debug_assertions)]
     builder
@@ -332,5 +347,27 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod bindings_export_test {
+    use super::*;
+
+    /// Regenerate `src/lib/bindings.ts` whenever `cargo test` runs.
+    ///
+    /// The normal path goes through `pub fn run()` which we can't trigger
+    /// from a unit test (it spins up the Tauri runtime). Keeping this as a
+    /// test means bindings stay in sync without a hand-managed `pnpm
+    /// bindings:gen` script — the CI / dev loop already runs `cargo test`.
+    #[test]
+    fn export_bindings_typescript() {
+        let builder = build_specta_builder();
+        builder
+            .export(
+                specta_typescript::Typescript::default(),
+                "../src/lib/bindings.ts",
+            )
+            .expect("export bindings");
+    }
 }
 
