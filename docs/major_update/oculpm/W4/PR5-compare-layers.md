@@ -73,27 +73,30 @@ pub enum MismatchSeverity { Ok, Warning, Critical }
 
 ---
 
-## 3. 테스트 (계획)
+## 3. 테스트 (실제)
 
-페이즈 §3: `compare_layers` 5 케이스.
+페이즈 §3 계획 5 + forbidden 1 = 6 케이스. 실제로 W4 dogfooding (2026-05-27 finding 14) 에서 발견된 tmp/agent-state false-positive 제거 1건이 더 추가되어 7 케이스. 모두 `oculpm::manager::tests::compare_layers_w4_pr5` 모듈에 있음.
 
-- [ ] session 에 10 파일 변경, journal 10 파일 정확히 일치 → severity `Ok`, jaccard 1.0.
-- [ ] index 10, journal 5 (4 일치 + 1 환각) → severity `Critical` (jaccard 4/11 ≈ 0.36).
-- [ ] index 10, journal 9 (9 일치) → severity `Ok` (jaccard 9/10 = 0.9).
-- [ ] index 10, journal 6 (5 일치) → severity `Warning` (jaccard 5/11 ≈ 0.45 → wait actually Critical — 임계 재검토).
-- [ ] 둘 다 0 → severity `Ok`.
-- [ ] forbidden path 가 한쪽에만 있어도 비교에서 제외 (severity 가 잘못 Critical 안 됨).
+> 검증: `cargo test --lib oculpm::manager::tests::compare_layers_w4_pr5` → 7/7 PASS.
 
-**임계 보정 메모**: severity 임계 (0.5 / 0.8) 가 실제 dogfooding 데이터에서 어떤 분포를 보이는지 PR9 회고에서 측정 후 조정 가능.
+- [x] 완전 일치 (10/10) → `Ok`, jaccard 1.0 — `perfect_overlap_is_ok`.
+- [x] 심각한 mismatch → `Critical` — `heavy_mismatch_is_critical`.
+- [x] 거의 완전 (9/10) → `Ok` — `near_perfect_is_ok`.
+- [x] 중간 mismatch → `Warning` — `moderate_mismatch_is_warning`.
+- [x] 둘 다 0 → `Ok` — `empty_session_is_ok`.
+- [x] forbidden path 양쪽에서 제외 — `forbidden_paths_are_excluded_from_both_sides`.
+- [x] **추가** (W4 dogfooding finding 14): tmp/agent-state peer 파일이 index 측 false-positive 누락으로 잡히지 않음 — `noise_paths_are_excluded_from_index_side`.
+
+**임계 보정 메모**: severity 임계 (0.5 / 0.8) 는 finding 14 노이즈 필터 후 dogfooding 데이터로 다시 측정 필요. W5/W6 회고에서 분포 확인 후 조정.
 
 ---
 
 ## 4. DoD
 
-- [ ] 5개 시나리오 통과.
-- [ ] severity 가 일관된 임계로 계산 (테이블화).
-- [ ] forbidden 적용이 양쪽에서 동일 (한쪽만 적용 시 항상 mismatch 버그 방지).
-- [ ] `OculpmManager` 가 본 커맨드를 export — `lib.rs:collect_commands![]` 에 추가.
+- [x] 7개 시나리오 통과 (계획 5 + forbidden 1 + noise 1).
+- [x] severity 임계 테이블화 — `severity_from_jaccard` 헬퍼가 상수로 0.5 / 0.8 컷.
+- [x] forbidden 적용이 양쪽 set 에서 동일 (`forbidden_paths_are_excluded_from_both_sides` 보장).
+- [x] `OculpmManager::compare_layers` + `oculpm_compare_layers` 커맨드 `lib.rs:collect_commands![]` 에 등록 (src-tauri/src/lib.rs:265).
 
 ---
 

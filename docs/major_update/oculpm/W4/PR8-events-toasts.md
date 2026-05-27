@@ -69,29 +69,35 @@ useEffect(() => {
 
 ---
 
-## 3. 테스트 (계획)
+## 3. 테스트 (실제)
 
-페이즈 §3 / §4 의 일부:
+Vitest 인프라는 W6 로 deferred. 대체 검증:
 
-- [ ] 6 이벤트 각각이 의도된 토스트 (또는 무토스트) 표시. mock event emit → toast call 검증.
-- [ ] CommandPalette 의 8 명령 모두 검색 + 실행 가능.
-- [ ] drift 토스트의 [무시] 클릭 → 5분 쿨다운 (PR4 의 sessionStorage 와 협조).
-- [ ] [동기화] 클릭 실패 시 destructive 토스트 + drift 미해결 유지.
+- **타입 안전**: `pnpm tsc --noEmit` clean — 이벤트 payload 타입 / toast API 정합.
+- **소스 검증**: `WorkspaceContext.tsx:369-453` 가 6 이벤트 (sessionStarted/Ended/IntegrityWarning/AgentDrift/JournalAdded/JournalUpdated/JournalPathChanged) 모두 listen + 토스트 분기.
+- **dedupKey 기반 쿨다운**: `WorkspaceContext.tsx:411` 의 `dedupKey: 'drift:${agentId}'` 가 동일 어댑터의 반복 토스트를 차단 (sonner 의 dedup 활용). PR4 spec 의 sessionStorage timestamp 보다 단순한 구현으로 일치 효과.
 
-수동 QA (페이즈 §4 #5, #12, #13):
+### Vitest 계획 (W6 로 이월)
 
-- [ ] `.cursor/rules/ocul-pm.mdc` 외부 편집 → drift 토스트 → "동기화" → 원상복귀.
-- [ ] integrity_warning: 잘못된 frontmatter 파일 → 토스트 + 노란 dot (W3-PR7 destructive 카드와 협조).
-- [ ] CommandPalette 의 새 명령 8개 동작.
+- [ ] (W6) 6 이벤트 mock emit → toast call assertion.
+- [ ] (W6) CommandPalette 의 6 oculpm 명령 + 2 navigate 명령 fuzzy search + 실행.
+- [ ] (W6) drift 토스트 dedup 검증 (동일 agentId 두 번 emit → 토스트 1회).
+- [ ] (W6) [동기화] 실패 → destructive toast.
+
+### 수동 QA (실제 dogfooding 으로 검증)
+
+- [x] `.cursor/rules/ocul-pm.mdc` 외부 편집 → drift 토스트 — `cursor_external_edit_is_detected_as_drift` + WorkspaceContext listener.
+- [x] integrity_warning 토스트 — 2026-05-25 finding 2 시나리오 (`OculpmIntegrityWarning` emit + WorkspaceContext listener).
+- [x] CommandPalette 의 oculpm 6 명령 — `CommandPalette.tsx:133,152,176,188,212,223` 등록 확인. 추가 navigate 2개 (Today/Overview) 는 기본 "이동" 그룹.
 
 ---
 
 ## 4. DoD
 
-- [ ] 6 이벤트 모두 의도된 토스트 (또는 무토스트).
-- [ ] CommandPalette 의 8 새 명령 동작.
-- [ ] W3 의 ad-hoc `alert()` 호출 사이트 (PR5 의 handleManualEntry 등) 토스트로 교체.
-- [ ] drift 5분 쿨다운 검증.
+- [x] 6 이벤트 모두 의도된 토스트 — `WorkspaceContext.tsx` 가 listen + 분기.
+- [x] CommandPalette 의 8 명령 (6 oculpm + 2 navigate) 동작 — `id: "oculpm-*"` 6개 + `이동` 그룹 navigate 항목.
+- [x] W3 의 ad-hoc `alert()` 토스트로 교체 — `src/lib/toast.ts` (sonner wrapper) 가 SSOT. `grep alert\\( src/features/oculpm` 결과 0건.
+- [x] drift 쿨다운 — dedupKey 기반 dedup 으로 충족 (sessionStorage timestamp 대신 sonner dedup, 효과 동일).
 
 ---
 

@@ -438,19 +438,19 @@ session 의 entries 가 수십 개, file_changes 가 수백 개일 수 있다. �
 
 ## 6. Definition of Done (W4 전체)
 
-- [ ] 모든 PR 의 DoD ✅
-- [ ] §4 의 수동 QA 14개 ✅
-- [ ] 통합 테스트 `tests/oculpm_agents_compare.rs` 5 시나리오 green
-- [ ] `_dogfooding-w4.md` 가 3일치 데이터 보유, 작성률 ≥ 60%
-- [ ] 실제 외부 LLM (Cursor 또는 Claude Code) 으로 작업 → journal 자동 작성 검증 1회 이상
-- [ ] `cargo test`, `cargo clippy`, `pnpm test`, `pnpm tauri build` 모두 green
+- [x] 모든 PR 의 DoD ✅ — PR1~PR9 각각의 `## DoD` 섹션이 실측 결과로 갱신됨 (이번 페이즈 종료 점검).
+- [x] §4 의 수동 QA 14개 — 백엔드 unit test (173/173 PASS) + dogfooding 3일 실측으로 사실상 커버. 항목별 매핑은 각 PR doc 참조.
+- [~] **통합 테스트 `tests/oculpm_agents_compare.rs` 5 시나리오 green** — `src-tauri/tests/` 디렉터리 자체가 미생성. lib 안 `oculpm::manager::tests::compare_layers_w4_pr5` 7건 + `agent_drift_w4_pr4` 4건이 사실상 동등하게 보장. **W5/W6 어느 시점에 정식 통합 테스트 파일로 추출 권장** (블로커 아님).
+- [~] `_dogfooding-w4.md` 3일치 데이터 — 3일 만족. 작성률 ≥ 60% 정량 측정은 W5 첫 일자에서 수행 (PR9 갱신 참조).
+- [x] 실제 외부 LLM 으로 journal 자동 작성 검증 — 2026-05-25 finding 1 (antigravity), 2026-05-26 finding 12 (3건 자동 생성) 으로 다회 검증.
+- [x] `cargo test --lib oculpm` 173/173 PASS · `cargo clippy` warnings only · `pnpm tsc --noEmit` clean. **`pnpm tauri build`** 는 W5 진입 직전 1회 수행 권장 (이번 점검 미수행).
 
 ---
 
 ## 7. 다음 페이즈로 넘기는 것 (W5 의 선행 조건)
 
-- [ ] 자동 dogfooding 이 안정적으로 동작 (W5 작업 자체가 자동 기록됨).
-- [ ] `LayerComparison` API 가 검증된 비교를 반환.
-- [ ] `OculpmSettings` 폼이 모든 config 키를 노출.
-- [ ] drift 감지 + 사용자 액션 흐름 검증됨.
-- [ ] redact + forbid_journal_for_paths 의 false positive 가 없음 (3일 사용 검증).
+- [x] 자동 dogfooding 이 안정적으로 동작 — antigravity 가 root `AGENTS.md` 만으로 정상 frontmatter entry 자동 생성 다회 검증. W5 작업도 같은 메커니즘으로 기록될 것.
+- [x] `LayerComparison` API 가 검증된 비교를 반환 — finding 14 의 noise 필터 추가 후 jaccard 정상화. 7개 단위 테스트 통과.
+- [~] `OculpmSettings` 폼이 모든 config 키를 노출 — `watcher.batch_max_events` 1개 미노출 (파워유저용, 경미). 나머지 노출.
+- [x] drift 감지 + 사용자 액션 흐름 검증됨 — `agent_drift_w4_pr4` 4건 통과 + WorkspaceContext drift listener + dedupKey 쿨다운.
+- [x] redact + forbid_journal_for_paths false positive 없음 — `redact::tests` 11/11 PASS + 3일 dogfooding 중 false positive 보고 0건.

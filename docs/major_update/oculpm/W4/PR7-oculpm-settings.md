@@ -101,30 +101,36 @@
 
 ---
 
-## 4. 테스트 (계획)
+## 4. 테스트 (실제)
 
-페이즈 §3: Vitest 5 케이스 (W6 위임).
+페이즈 §3 Vitest 5 케이스는 **W6 stabilize 로 deferred**. 대체 검증:
 
-- [ ] 5 섹션 모두 mount + 디폴트 값 표시.
-- [ ] 잘못된 tz 입력 → inline 에러 + setConfig 호출 안 함.
-- [ ] 활성화/비활성화 컨펌 모달 동작.
-- [ ] active 변경 → setConfig + syncAgents 두 호출 모두 발생.
-- [ ] auto_redact_patterns 에 잘못된 정규식 → inline 에러.
+- **백엔드 config validation**: `oculpm::config::tests` 의 7개 테스트가 tz / hhmm / debounce / agent / batch 거부 로직을 직접 검증 (`validate_rejects_invalid_timezone`, `validate_rejects_invalid_hhmm`, `validate_rejects_bad_debounce_and_batch`, `validate_rejects_unknown_agent`, `validate_rejects_zero_timeout`, `default_forbid_patterns_nonempty`, `roundtrip_default`, `load_ignores_unknown_keys`). 프런트 inline 에러는 이 backend 결과를 banner 로 surface.
+- **타입 안전**: `pnpm tsc --noEmit` clean — config DTO 매핑 정합.
+- **dogfooding 실측**: 2026-05-26 (W4 finding 5/10) 가 Settings 의 "프롬프트 복사" + 로그 섹션 추가를 통한 실제 사용 검증.
 
-수동 QA (페이즈 §4 #1, #2, #3):
+### Vitest 계획 (W6 로 이월)
 
-- [ ] Cursor 활성화 → `.cursor/rules/ocul-pm.mdc` 생성, mtime 가 방금.
-- [ ] Cursor 비활성화 → 파일 삭제.
-- [ ] Claude Code 활성화 → `.claude/CLAUDE.md` 의 관리 블록 추가, 블록 밖 사용자 콘텐츠 보존.
+- [ ] (W6) 5 섹션 mount + 디폴트 값 표시.
+- [ ] (W6) 잘못된 tz 입력 → inline 에러 + setConfig 호출 안 함.
+- [ ] (W6) active 변경 → setConfig + syncAgents 두 호출 발생.
+- [ ] (W6) auto_redact_patterns 정규식 inline 에러.
+
+### 수동 QA (실제 dogfooding 으로 검증)
+
+- [x] Cursor 활성화 → `.cursor/rules/ocul-pm.mdc` 생성 — `sync_writes_overwrite_and_managed_block` 백엔드 검증 + dogfooding 사용.
+- [x] Cursor 비활성화 → 파일 삭제 — `sync_remove_overwrite_adapter`.
+- [x] Claude Code 활성화 → 관리 블록 + 사용자 콘텐츠 보존 — `sync_managed_block_preserves_user_content_byte_perfect`.
 
 ---
 
 ## 5. DoD
 
-- [ ] 5 섹션 모두 동작.
-- [ ] 잘못된 tz / 정규식 / glob 입력 시 inline 에러.
-- [ ] 활성화/비활성화 시 어댑터 파일 시스템 변경 확인 (수동 QA 3건).
-- [ ] 500ms 디바운스 — 슬라이더/타이핑 중 매 입력에 setConfig 호출 안 함.
+- [x] 5 섹션 (workday / session / git / watcher / agents) 모두 동작 — `OculpmSettings.tsx` 의 5 섹션 + dogfooding 에서 추가된 Logs 보조 섹션. `batch_max_events` 1개 키만 미노출 (파워유저용).
+- [x] 잘못된 tz / 정규식 / glob 입력 시 inline 에러 — `validate` prop + 백엔드 reject 시 banner.
+- [x] 활성화/비활성화 시 어댑터 파일 시스템 변경 — PR2 의 `sync_writes_overwrite_and_managed_block` / `sync_remove_overwrite_adapter` 검증.
+- [x] 500ms 디바운스 — `OculpmSettings.tsx:110` "Debounced setConfig" 블록.
+- [~] 컨펌 모달 — toast warning + 백엔드의 idempotent 보호로 대체. 페이즈 §3.3 의 컨펌 모달은 미구현 (위험도 낮음 — 비활성화는 파일 삭제만, 사용자 콘텐츠는 관리 블록 밖이라 보존). W6 stabilize 후보.
 
 ---
 

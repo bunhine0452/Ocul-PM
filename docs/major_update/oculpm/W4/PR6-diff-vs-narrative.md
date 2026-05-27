@@ -84,29 +84,38 @@ interface DiffVsNarrativeProps {
 
 ---
 
-## 4. 테스트 (계획)
+## 4. 테스트 (실제)
 
-페이즈 §3: Vitest 4 케이스 (W6 의 Vitest 인프라 도입 후 작성).
+페이즈 §3 의 Vitest 4 케이스는 **W6 stabilize 로 deferred** (W4 시점엔 Vitest 인프라 미도입). 대체 검증:
 
-- [ ] SessionCard 의 ⚖ 클릭 → DiffVsNarrative 모달 mount + projectId/sessionId prop 정확.
-- [ ] only_in_index 5, only_in_journal 1 인 모킹 응답 → 좌/우 컬럼 카운트 5+1 표시.
-- [ ] "수동 narrative 작성" 클릭 → onActionManualEntry 가 prefill 인자로 호출됨 (parent 가 ManualEntryModal 에 전달하는지는 별 테스트).
-- [ ] severity Critical → footer badge 가 red bg.
+- **타입 안전**: `pnpm tsc --noEmit` clean — 컴포넌트 prop 시그니처 + bindings 정합.
+- **백엔드 측 비교 정확도**: PR5 의 7개 unit test 가 `LayerComparison` 정확성 보장. 프런트는 그 결과를 렌더만.
+- **dogfooding 실측**: 2026-05-27 finding 14 (`noise_paths_are_excluded_from_index_side`) 가 실제 사용자 시나리오에서 5+1 컬럼 카운트 + Critical badge 동작을 발견 + 수정 — 사실상 통합 검증.
 
-수동 QA (페이즈 §4 #8, #9, #10):
+### Vitest 계획 (W6 로 이월)
 
-- [ ] 일부러 entries 부족한 세션 → only_in_index 4개 표시.
-- [ ] 일부러 가짜 path 적은 entry → only_in_journal 1개 표시 (환각 검출).
-- [ ] "수동 narrative 작성" → ManualEntryModal 의 files_touched 가 only_in_index 로 prefill.
+- [ ] (W6) SessionCard ⚖ 클릭 → DiffVsNarrative mount + projectId/sessionId prop 정확.
+- [ ] (W6) only_in_index 5, only_in_journal 1 모킹 → 좌/우 카운트 5+1.
+- [ ] (W6) "수동 narrative 작성" 클릭 → onActionManualEntry prefill 호출.
+- [ ] (W6) severity Critical → footer badge red bg.
+
+### 수동 QA (실제 dogfooding 으로 검증)
+
+- [x] entries 부족 세션 → only_in_index 표시 — finding 14 시드 세션이 18 vs 3 시나리오 검증.
+- [x] 환각 path 검출 — finding 14 의 `only_in_journal` 컬럼 동작 확인.
+- [~] "수동 narrative 작성" prefill — UI 버튼은 mount 되어 있으나 `onActionManualEntry` callback chain 이 SessionCard/JournalEntryDetail 에서 부모까지 wire 되지 않음 (실행 노트 P-5). **W6 stabilize 후보**.
 
 ---
 
 ## 5. DoD
 
-- [ ] Vitest 4 (deferred to W6, 대체: tsc + build).
-- [ ] DiffVsNarrative 가 한 세션에 대해 정확한 비교를 보여줌 (수동 QA 3건).
-- [ ] W3 의 disabled 버튼 3곳 (SessionCard / EmptyToday V3 / JournalEntryDetail) 모두 활성화.
-- [ ] sessionStorage 60초 캐시 동작 (페이즈 §2.4).
+- [~] Vitest 4 — W6 로 deferred. 대체 검증 (tsc clean + 백엔드 unit test + dogfooding finding 14) 통과.
+- [x] DiffVsNarrative 가 한 세션에 대해 정확한 비교를 보여줌 — dogfooding 실측.
+- [x] W3 의 disabled 버튼 3곳 활성화:
+  - SessionCard 헤더 ⚖ 버튼 — `SessionCard.tsx:224` (toggleCompare).
+  - EmptyTodayV3 의 onCompareLayers — `EmptyToday/EmptyTodayV3.tsx` 가 TodayScreen 의 `setCompareSessionId` 와 연결.
+  - JournalEntryDetail "index 비교" 탭 — `JournalEntryDetail.tsx:457` (DetailTabs).
+- [x] sessionStorage 60초 캐시 — `DiffVsNarrative.tsx:65` (`CACHE_TTL_MS = 60_000`) + `readCache` / `writeCache` 헬퍼.
 
 ---
 

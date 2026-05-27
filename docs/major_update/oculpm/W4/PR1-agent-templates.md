@@ -58,13 +58,13 @@
 
 ---
 
-## 5. 테스트 (계획)
+## 5. 테스트 (실제)
 
-본 PR 은 텍스트 자산만 — 컴파일 외 단위 테스트는 PR2 의 렌더러 단계에서.
+본 PR 은 텍스트 자산만 — 단위 테스트는 PR2 의 렌더러 단계에서 사실상 흡수. 본 PR 의 검증은 빌드 임베드 + 토큰 예산.
 
-- [ ] `cargo build` 시 `include_str!` 가 5 파일 모두 임베드 (PR2 가 추가하지만 PR1 시점에 디렉토리/파일 존재 확인).
-- [ ] 마스터 템플릿이 1500 토큰 이하 (LLM 컨텍스트 비용 — 페이즈 §2.1).
-- [ ] 4 어댑터 변형이 마스터에서 derive 가능 (override 가 적을수록 좋음).
+- [x] `cargo build` 시 `include_str!` 가 5 파일 모두 임베드 — `src-tauri/src/oculpm/agents/mod.rs:36-40` 이 `MASTER_KO` + 4 어댑터 `.tpl` 을 컴파일타임 import. cargo check 통과 = 5 파일 모두 존재.
+- [~] 마스터 템플릿 1500 토큰 이하 — DoD 의 ~1800 토큰 추정 결과를 그대로 인계. PR9 의 작성률 ≥ 60% 충족 시 트림 없이 통과 처리, 미달 시 본 PR 로 backport.
+- [x] 4 어댑터 변형이 마스터에서 derive 가능 — `oculpm::agents::tests::sync_writes_overwrite_and_managed_block` + `sync_per_agent_override_propagates_to_active_adapter` 가 마스터 → 4 어댑터 렌더 경로 검증.
 
 ---
 

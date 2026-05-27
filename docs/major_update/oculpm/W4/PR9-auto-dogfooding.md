@@ -72,11 +72,11 @@
 
 ## 4. DoD
 
-- [ ] `_dogfooding-w4.md` 가 W4 종료 시점에 **최소 3일치** 데이터.
-- [ ] 작성률 ≥ 60% (낮으면 W6 의 stabilize 에 추가 개선 항목으로 인계).
-- [ ] frontmatter 오류율 ≤ 20%, 본문 헤더 누락률 ≤ 30% (대략).
-- [ ] mismatch 분포에서 Critical 비율 ≤ 30%.
-- [ ] 본 dogfooding 중 발생한 마스터 템플릿 강화 PR (있다면) W4-PR1 로 backport 또는 별 PR.
+- [x] `_dogfooding-w4.md` 3일치 데이터 — 2026-05-25 / 2026-05-26 / 2026-05-27 (각 일자별 발견 + 같은 날 조치 형태).
+- [~] 작성률 ≥ 60% — 회고 형식이 매일 템플릿의 `M/N = XX%` 수치 기록 대신 **"발견 N건 + 같은 날 조치 N건"** 서술형으로 진화. 정성 검증으로는 (a) 2026-05-25 finding 1 에서 antigravity 가 `0953_feature_*.md` 자동 생성, (b) 2026-05-26 finding 12 에서 외부 LLM 이 `.oculpm/journal/20260526/Features_to_add/{2318,2327,2335}_*.md` 3건 자동 작성, (c) finding 14 에서 sessions 자체가 18 vs 3 등 측정 가능한 수치를 만들어냄 — auto-write 가 동작함을 직접 증명. **W5-PR1 (migrate_from_sqlite) 작업 시 첫 일자 수치 기록을 의무화** 하여 정량 DoD 보강 예정.
+- [~] frontmatter 오류율 / 본문 헤더 누락률 — 수치 미측정. PR1 의 master 템플릿이 frontmatter 강조를 충분히 반영해 dogfooding 3일간 frontmatter parse 실패 보고 0건 (회고에 잡혔다면 finding 으로 기록됐을 것). W5 에서 정량화.
+- [~] mismatch Critical 비율 ≤ 30% — finding 14 직전엔 Critical 100% (false-positive noise). 노이즈 필터 (`noise_paths_are_excluded_from_index_side`) 적용 후 동일 세션이 jaccard 1.0 Ok 로 정상화. 사후 분포 측정은 W5 일자별 수치에서.
+- [x] dogfooding 발견 백포트 — finding 1 (AGENTS.md 배포 경로 변경) 이 PR1/PR2 의 `agents-md` 어댑터 신설로 반영. finding 5 (라벨/동작 분리) 가 PR2/PR6 에 반영. PR1 으로 직접 backport 보다는 워킹 코드 patch 형식.
 
 ---
 

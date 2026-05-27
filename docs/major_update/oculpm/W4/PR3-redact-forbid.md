@@ -72,26 +72,28 @@ auto_redact_patterns = [
 
 ---
 
-## 3. 테스트 (계획)
+## 3. 테스트 (실제)
 
-페이즈 §3: `redact_text` 5 + `is_forbidden_path` 6 = 11개.
+페이즈 §3 매트릭스 11개 (redact 5 + forbidden 6) 모두 `oculpm::redact::tests` 에 작성됨. 워처 측 통합은 `oculpm::watcher::tests::forbidden_paths_are_masked` 가 검증.
 
-### `redact_text`
+> 검증: `cargo test --lib oculpm::redact` → 11/11 PASS.
 
-- [ ] `AKIA1234567890ABCDEF` → `[REDACTED]`.
-- [ ] `ghp_` 토큰 매치.
-- [ ] 한국어 본문 안에 영문 키 → UTF-8 경계 안전 매치 (정규식 byte index 가 char 경계가 아니어서 panic 가능 — `regex` crate 는 안전하지만 substring 슬라이싱 시 주의).
-- [ ] 변수명 `sk_initialize_module_v1_token` 은 false positive → 정확한 정규식이 변수명에 매치되지 않아야 함 (`sk-` vs `sk_` 구분).
-- [ ] 다중 매치 → 모든 위치가 `RedactHit` 에 기록.
+### `redact_text` (`oculpm::redact::tests`)
 
-### `is_forbidden_path`
+- [x] AWS access key 패턴 → `[REDACTED]` — `redact_aws_access_key`.
+- [x] GitHub PAT (`ghp_…`) 매치 — `redact_github_pat`.
+- [x] 한국어 본문 안 영문 키 UTF-8 안전 — `redact_inside_korean_text_is_utf8_safe`.
+- [x] 변수명 `sk_initialize_module_v1_token` false positive 없음 — `redact_does_not_match_variable_names_with_underscore`.
+- [x] 다중 매치 시 모든 hit 기록 — `redact_records_all_hits_for_multiple_matches`.
 
-- [ ] `src/.env.local` 가 `**/.env*` 매치.
-- [ ] `secrets/aws.json` 가 `**/secrets/**` 매치.
-- [ ] `./.aws/credentials` 가 `**/.aws/**` 매치 (선행 `./` 정규화).
-- [ ] `not_secrets/foo.txt` 는 매치 X.
-- [ ] 절대 경로 `/Users/x/repo/.env` 도 매치.
-- [ ] Windows-style `src\\.env.local` 도 매치 (glob crate 의 separator 옵션).
+### `is_forbidden_path` (`oculpm::redact::tests`)
+
+- [x] 상대 경로 `.env*` 매치 — `forbidden_env_file_relative`.
+- [x] secrets 디렉터리 (json 등) 매치 — `forbidden_secret_filenames`.
+- [x] `.aws/credentials` 매치 — `forbidden_aws_credentials_file`.
+- [x] 비매치 경로 통과 — `not_secrets_paths_pass_through`.
+- [x] 절대 경로 매치 — `forbidden_absolute_path_matches`.
+- [x] Windows-style 경로 매치 — `forbidden_windows_path_matches`.
 
 ---
 

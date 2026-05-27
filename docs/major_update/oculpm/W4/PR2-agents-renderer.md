@@ -128,31 +128,33 @@ Settings UI (PR7) 의 "감지" 버튼 + Greenfield 위저드의 디폴트 활성
 
 ---
 
-## 4. 테스트 (계획)
+## 4. 테스트 (실제)
 
-페이즈 §3 의 매트릭스: `sync_active` 6 + `managed_block_write` 4 + `detect` 3 = 13개 단위.
+페이즈 §3 매트릭스 13개 (sync_active 6 + managed_block_write 4 + detect 3) 모두 `oculpm::agents::tests` 에 작성됨. 일부 시나리오는 `atomic_io::tests` 에서 저수준으로 한 번 더 검증됨 (중복 아님: 경로 특화 vs 도구 정확성).
 
-### sync_active (tempdir)
+> 검증: `cargo test --lib oculpm::agents` → 13/13 PASS. 전체 oculpm suite 173/173.
 
-- [ ] active = ["cursor", "claude-code"] → `.cursor/rules/ocul-pm.mdc` 생성 + `.claude/CLAUDE.md` 에 관리 블록 추가.
-- [ ] active 에서 cursor 제거 → `.cursor/rules/ocul-pm.mdc` 삭제.
-- [ ] `.claude/CLAUDE.md` 가 이미 있고 관리 블록 밖에 사용자 콘텐츠 → 블록 추가/갱신 후 사용자 콘텐츠 byte-perfect 보존.
-- [ ] 마스터 템플릿 수정 → sync 1회 호출 → 모든 활성 어댑터에 반영 + rendered_hash 비교로 변경 감지.
-- [ ] 동일 내용 sync 재호출 → 모든 어댑터 `SyncAction::Skipped` (drift 잡음 방지).
-- [ ] per_agent_override 가 있는 어댑터 → render context 에 그 내용이 들어가는지.
+### sync_active (`oculpm::agents::tests`)
 
-### managed_block_write (어댑터 경로 특화)
+- [x] active 다중 어댑터 → 어댑터 파일 각각 생성 + 관리 블록 작성 — `sync_writes_overwrite_and_managed_block`.
+- [x] active 에서 어댑터 제거 → 어댑터 파일 삭제 — `sync_remove_overwrite_adapter`.
+- [x] 사용자 콘텐츠 보존 — `sync_managed_block_preserves_user_content_byte_perfect`.
+- [x] 마스터 수정 후 sync → 모든 활성 어댑터 반영 (cascade 는 watcher 가, sync 1회 호출 = `sync_writes_master_template_on_first_run_only` + PR4 drift 테스트가 외부 편집 시 hash 비교 검증).
+- [x] 동일 내용 sync 재호출 → `Skipped` — `sync_is_idempotent_on_unchanged_inputs` (mtime 까지 보존).
+- [x] per_agent_override 가 활성 어댑터 콘텐츠로 propagate — `sync_per_agent_override_propagates_to_active_adapter`.
 
-- [ ] BEGIN/END 마커 양쪽 다 없음 → 새로 삽입.
-- [ ] 마커 한쪽만 있음 → `ManagedBlockMismatch` 에러 (사용자 정정 필요).
-- [ ] 마커 양쪽 다 있음 + 내용 동일 → no-op.
-- [ ] CRLF 파일에 LF rendered 쓰기 → 파일의 EOL 보존 (CRLF 로 변환).
+### managed_block_write (`oculpm::agents::tests` + `atomic_io::tests` 미러)
 
-### detect
+- [x] 마커 부재 → 삽입 — `managed_block_inserts_when_file_absent`, `atomic_io::managed_block_insert_paths`.
+- [x] 마커 한쪽만 → `ManagedBlockMismatch` 에러 — `managed_block_orphan_marker_surfaces_as_error_result`, `atomic_io::managed_block_mismatch_orphan_marker`.
+- [x] 마커 양쪽 + 내용 동일 → no-op — `managed_block_unchanged_when_content_matches`, `atomic_io::managed_block_update_and_unchanged`.
+- [x] CRLF 파일 EOL 보존 — `managed_block_preserves_crlf_eol_from_source`, `atomic_io::managed_block_read_remove_and_crlf`.
 
-- [ ] `.cursor/` 디렉토리만 있고 `.mdc` 없음 → Cursor confidence = `Likely`.
-- [ ] `.claude/CLAUDE.md` 가 있음 → Claude Code confidence = `Present`.
-- [ ] 인접 마커 + adapter path 모두 없음 → `Unknown`.
+### detect (`oculpm::agents::tests`)
+
+- [x] `.cursor/` 디렉토리만 → `Likely` — `detect_cursor_likely_when_only_directory_present`.
+- [x] `.claude/CLAUDE.md` 존재 → `Present` — `detect_claude_present_when_adapter_path_exists`.
+- [x] 어댑터 흔적 전무 → `Unknown` — `detect_unknown_when_nothing_on_disk`.
 
 ---
 

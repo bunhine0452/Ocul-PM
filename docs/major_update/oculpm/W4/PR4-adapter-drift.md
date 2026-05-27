@@ -92,21 +92,26 @@ pub struct OculpmAgentDrift {
 
 ---
 
-## 4. 테스트 (계획)
+## 4. 테스트 (실제)
 
-페이즈 §1 W4-PR4: 3 케이스.
+페이즈 §1 W4-PR4 계획 3 케이스 → manager 통합 테스트 4건으로 확장 작성됨 (resync-clears 1건 추가). 5분 쿨다운은 PR8 책임으로 분리.
 
-### tempdir 통합
+> 검증: `cargo test --lib oculpm::manager::tests::agent_drift_w4_pr4` → 4/4 PASS.
 
-- [ ] 직접 `.cursor/rules/ocul-pm.mdc` 편집 (echo 로 1글자 추가) → 1초 안에 `oculpm:agent_drift` emit + `agent_id == "cursor"`.
-- [ ] 블록 밖 사용자 콘텐츠만 편집 (Claude Code `.claude/CLAUDE.md` 의 관리 블록 밖에 문장 추가) → drift emit 없음.
-- [ ] 블록 안 편집 (ManagedBlock 안 1글자 수정) → drift emit + `agent_id == "claude-code"`.
+### tempdir 통합 (`oculpm::manager::tests::agent_drift_w4_pr4`)
 
-### 5분 쿨다운 (Vitest, 프론트 PR8 의 토스트 로직)
+- [x] Cursor 외부 편집 → drift detect (`cursor` 라벨) — `cursor_external_edit_is_detected_as_drift`.
+- [x] Claude Code 관리 블록 밖 편집 → drift 없음 — `claude_code_outside_block_edit_is_not_drift`.
+- [x] Claude Code 관리 블록 안 편집 → drift detect (`claude-code` 라벨) — `claude_code_inside_block_edit_is_drift`.
+- [x] **추가**: drift 후 resync 호출 → 다음 비교 통과 — `resync_after_drift_clears_the_alert`.
 
-- [ ] drift 1회 → 토스트 표시 → [무시] → sessionStorage 에 timestamp 기록.
-- [ ] 같은 어댑터의 drift 5분 안 → 토스트 안 뜸.
-- [ ] 5분 후 drift → 다시 토스트.
+### 5분 쿨다운 (Vitest)
+
+- [ ] drift 1회 → 토스트 표시 → [무시] → sessionStorage 에 timestamp 기록 — **PR8 책임 (Vitest 일괄)**.
+- [ ] 같은 어댑터 drift 5분 안 → 토스트 안 뜸 — **PR8 책임**.
+- [ ] 5분 후 drift → 다시 토스트 — **PR8 책임**.
+
+> 프런트 Vitest 가 W6 stabilize 까지 deferred. 토스트 코드 자체는 `src/features/oculpm/...` + `WorkspaceContext` 에 구현됨. PR8 §3 참고.
 
 ---
 
