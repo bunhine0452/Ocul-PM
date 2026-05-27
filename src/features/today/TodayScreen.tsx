@@ -260,7 +260,7 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
 
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
-      <div className="max-w-4xl mx-auto p-6 space-y-5">
+      <div className="max-w-6xl mx-auto p-6 space-y-5">
         <header className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div>
             <h1 className="text-xl font-bold tracking-tight">Today</h1>

@@ -829,6 +829,70 @@ impl OculpmManager {
             ))
     }
 
+    /// Replace the body markdown of an existing entry, keeping the YAML
+    /// frontmatter intact. Same atomic-write + cache-upsert pattern as
+    /// `update_journal_entry_meta`.
+    pub async fn update_journal_entry_body(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+        new_body: String,
+    ) -> Result<JournalEntry, OculpmError> {
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = journal_root.join(&relative_path);
+        let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+            path: abs.clone(),
+            source,
+        })?;
+        let (mut parsed, _body) = parse_frontmatter_and_body(&text);
+        let Some(fm) = parsed.parsed.take() else {
+            return Err(OculpmError::InvalidConfig(
+                "cannot edit body of entry with broken frontmatter".to_string(),
+            ));
+        };
+        let new_text = write_frontmatter_and_body(&fm, &new_body);
+        write_atomic(&abs, new_text.as_bytes())?;
+
+        let (parsed2, body2) = parse_frontmatter_and_body(&new_text);
+        let body_parsed = parse_body(&body2);
+        let mtime = std::fs::metadata(&abs)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_else(|| chrono::Utc::now().timestamp());
+        let cache = JournalCache::new(db);
+        cache
+            .upsert_entry(
+                project_id,
+                &relative_path,
+                &parsed2,
+                &body_parsed,
+                mtime,
+                &new_text,
+            )
+            .await?;
+        cache
+            .get_entry(project_id, &relative_path)
+            .await?
+            .ok_or_else(|| OculpmError::InvalidConfig(
+                format!("entry vanished after upsert: {relative_path}")
+            ))
+    }
+
+    /// Resolve a journal-relative path to its absolute on-disk location so
+    /// the commands layer can open it natively (sidestepping the opener
+    /// plugin's scope check that has bitten dogfooding twice).
+    pub async fn resolve_journal_absolute(
+        &self,
+        project_id: u32,
+        relative_path: &str,
+    ) -> Result<PathBuf, OculpmError> {
+        let journal_root = self.journal_root(project_id).await?;
+        Ok(journal_root.join(relative_path))
+    }
+
     // ─── W4-PR2: agent adapter sync + detect ────────────────────────────────
 
     /// Sync every known adapter to disk based on the current

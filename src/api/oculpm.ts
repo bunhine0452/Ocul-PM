@@ -235,6 +235,33 @@ export const oculpmApi = {
       "oculpm_compare_layers",
       commands.oculpmCompareLayers(projectId, sessionId),
     ),
+
+  /**
+   * W4 dogfooding (2026-05-27) — overwrite the body markdown of an entry.
+   * Frontmatter survives untouched; the backend re-parses + cache-upserts
+   * and returns the hydrated entry so the detail pane can resync.
+   */
+  updateEntryBody: (
+    projectId: number,
+    relativePath: string,
+    bodyMarkdown: string,
+  ) =>
+    unwrap<JournalEntry>(
+      "oculpm_update_entry_body",
+      commands.oculpmUpdateEntryBody(projectId, relativePath, bodyMarkdown),
+    ),
+
+  /**
+   * W4 dogfooding (2026-05-27) — open a journal entry .md in the OS default
+   * editor, bypassing the opener plugin's glob scope (which has regressed
+   * three times during dogfooding). Backend resolves the absolute path and
+   * shells out directly.
+   */
+  openEntryInEditor: (projectId: number, relativePath: string) =>
+    unwrap<null>(
+      "oculpm_open_entry_in_editor",
+      commands.oculpmOpenEntryInEditor(projectId, relativePath),
+    ),
 } as const;
 
 export type OculpmApi = typeof oculpmApi;

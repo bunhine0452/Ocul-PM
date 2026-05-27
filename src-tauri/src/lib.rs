@@ -132,6 +132,7 @@ use crate::commands::{
     oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
     oculpm_agents_sync_active, oculpm_agents_detect, oculpm_agents_get_master_template,
     oculpm_compare_layers, oculpm_get_log_dir, oculpm_log,
+    oculpm_update_entry_body, oculpm_open_entry_in_editor,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -265,6 +266,8 @@ pub fn run() {
         oculpm_compare_layers,
         oculpm_get_log_dir,
         oculpm_log,
+        oculpm_update_entry_body,
+        oculpm_open_entry_in_editor,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

@@ -189,7 +189,7 @@ export function DiffVsNarrative({
   const panelClasses = isCompact
     ? "rounded-lg border border-border bg-muted/30 text-foreground"
     : "rounded-lg border border-border bg-card text-foreground shadow-sm";
-  const padding = isCompact ? "px-3 py-2" : "px-5 py-4";
+  const padding = isCompact ? "p-2.5" : "px-5 py-4";
 
   return (
     <section
@@ -264,6 +264,7 @@ export function DiffVsNarrative({
             copyStatus={copyStatus}
             onActionManualEntry={onActionManualEntry ? handleManualEntry : undefined}
             showSnippets={showSnippets}
+            compact={isCompact}
           />
         )}
       </div>
@@ -297,67 +298,75 @@ function ComparisonBody({
   copyStatus,
   onActionManualEntry,
   showSnippets,
-}: ComparisonBodyProps) {
+  compact,
+}: ComparisonBodyProps & { compact: boolean }) {
   const matched = new Set(comparison.matched);
+  // Narrow callers (the JournalEntryDetail tab, ~22rem wide) get a single
+  // column with a tight list height. Wide callers keep the side-by-side
+  // ground-truth ↔ narrative columns.
+  const gridClass = compact
+    ? "grid grid-cols-1 gap-2"
+    : "grid grid-cols-1 gap-3 md:grid-cols-2";
+  const listMaxH = compact ? "max-h-40" : "max-h-72";
   return (
     <>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className={gridClass}>
         <Column
-          title={`index — 워처가 본 파일 ${comparison.index_files.length}`}
+          title={`index · ${comparison.index_files.length}`}
           paths={comparison.index_files}
+          maxHClass={listMaxH}
           render={(p) =>
             matched.has(p) ? (
               <PathRow icon="match" label={p} showSnippets={showSnippets} />
             ) : (
-              <PathRow icon="missing" label={p} hint="journal 누락" showSnippets={showSnippets} />
+              <PathRow icon="missing" label={p} hint="누락" showSnippets={showSnippets} />
             )
           }
         />
         <Column
-          title={`journal — LLM 이 기록 ${comparison.journal_files.length}`}
+          title={`journal · ${comparison.journal_files.length}`}
           paths={comparison.journal_files}
+          maxHClass={listMaxH}
           render={(p) =>
             matched.has(p) ? (
               <PathRow icon="match" label={p} showSnippets={showSnippets} />
             ) : (
-              <PathRow icon="hallucinated" label={p} hint="index 외" showSnippets={showSnippets} />
+              <PathRow icon="hallucinated" label={p} hint="환각" showSnippets={showSnippets} />
             )
           }
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-        <span>
-          index <strong className="text-foreground">{comparison.index_files.length}</strong>
-          {" · "}journal <strong className="text-foreground">{comparison.journal_files.length}</strong>
-          {" · "}일치 <strong className="text-foreground">{comparison.matched.length}</strong>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">
+          일치 <strong className="text-foreground">{comparison.matched.length}</strong>
           {" · "}누락 <strong className="text-foreground">{comparison.only_in_index.length}</strong>
           {" · "}환각 <strong className="text-foreground">{comparison.only_in_journal.length}</strong>
         </span>
         <SeverityBadge severity={comparison.mismatch_severity} jaccard={comparison.jaccard_index} />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Button
           size="sm"
           variant="outline"
           onClick={onActionResync}
           disabled={syncStatus?.kind === "pending"}
-          title="프로젝트의 AGENTS.md (와 활성화된 어댑터 파일) 의 관리 블록을 다시 렌더링합니다. 파일 쓰기만 하며, 실행 중인 LLM 세션엔 영향이 없습니다."
+          title="AGENTS.md + 활성화된 어댑터 파일의 관리 블록을 다시 렌더링합니다."
         >
           {syncStatus?.kind === "pending" ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
           ) : (
             <RefreshCw className="mr-1 h-3.5 w-3.5" />
           )}
-          AGENTS.md 재동기화
+          {compact ? "재동기화" : "AGENTS.md 재동기화"}
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={onActionCopyPrompt}
           disabled={copyStatus?.kind === "pending"}
-          title="실행 중인 LLM 채팅창에 한 번만 붙여넣을 용도로 마스터 프롬프트를 클립보드에 복사합니다. 여러 번 붙이면 컨텍스트가 부풀어 규칙이 중복 적용될 수 있어요."
+          title="마스터 프롬프트를 클립보드에 복사 (1회용)."
         >
           {copyStatus?.kind === "pending" ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -369,19 +378,19 @@ function ComparisonBody({
         {onActionManualEntry && comparison.only_in_index.length > 0 && (
           <Button size="sm" onClick={onActionManualEntry}>
             <Sparkles className="mr-1 h-3.5 w-3.5" />
-            수동 narrative 작성 ({comparison.only_in_index.length} 누락 prefill)
+            narrative 작성 ({comparison.only_in_index.length})
           </Button>
         )}
         {syncStatus?.kind === "ok" && (
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">
-            동기화 완료 ({syncStatus.updated} 어댑터 갱신)
+          <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+            동기화 완료 ({syncStatus.updated})
           </span>
         )}
         {syncStatus?.kind === "error" && (
-          <span className="text-xs text-red-600 dark:text-red-400">동기화 실패: {syncStatus.message}</span>
+          <span className="text-[11px] text-red-600 dark:text-red-400">실패: {syncStatus.message}</span>
         )}
         {copyStatus?.kind === "error" && (
-          <span className="text-xs text-red-600 dark:text-red-400">복사 실패: {copyStatus.message}</span>
+          <span className="text-[11px] text-red-600 dark:text-red-400">복사 실패: {copyStatus.message}</span>
         )}
       </div>
     </>
@@ -392,13 +401,14 @@ interface ColumnProps {
   title: string;
   paths: string[];
   render: (path: string) => React.ReactNode;
+  maxHClass?: string;
 }
 
-function Column({ title, paths, render }: ColumnProps) {
+function Column({ title, paths, render, maxHClass = "max-h-72" }: ColumnProps) {
   return (
     <div className="rounded border border-border bg-background/50">
-      <div className="border-b border-border px-3 py-2 text-xs font-medium text-foreground/80">{title}</div>
-      <ul className="max-h-72 overflow-y-auto p-1 text-xs">
+      <div className="border-b border-border px-2 py-1.5 text-[11px] font-medium text-foreground/80">{title}</div>
+      <ul className={`${maxHClass} overflow-y-auto scrollbar-thin p-1 text-[11px]`}>
         {paths.length === 0 && (
           <li className="px-2 py-3 text-center text-muted-foreground">(빈 목록)</li>
         )}

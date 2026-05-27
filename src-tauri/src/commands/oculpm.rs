@@ -555,6 +555,82 @@ pub async fn oculpm_get_log_dir() -> Result<Option<String>, String> {
     Ok(crate::log_dir().map(|p| p.display().to_string()))
 }
 
+/// W4 dogfooding (2026-05-27) — overwrite the body markdown of an existing
+/// journal entry. Frontmatter is preserved verbatim. Returns the hydrated
+/// entry so the UI can resync without a second fetch.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_update_entry_body(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+    body_markdown: String,
+) -> Result<JournalEntry, String> {
+    manager
+        .update_journal_entry_body(&db, project_id, relative_path, body_markdown)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// W4 dogfooding (2026-05-27) — open a journal entry's `.md` file with the
+/// OS default app. The opener plugin's path-glob scope keeps rejecting
+/// project-local paths (3 dogfooding regressions); this command resolves the
+/// absolute path inside the backend and invokes `open` / `xdg-open` /
+/// `cmd /c start` directly, sidestepping the scope check entirely.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_open_entry_in_editor(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+) -> Result<(), String> {
+    let abs = manager
+        .resolve_journal_absolute(project_id, &relative_path)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !abs.exists() {
+        return Err(format!("file not found: {}", abs.display()));
+    }
+    open_native(&abs).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn open_native(path: &std::path::Path) -> std::io::Result<()> {
+    std::process::Command::new("open").arg(path).status().and_then(|s| {
+        if s.success() {
+            Ok(())
+        } else {
+            Err(std::io::Error::other(format!("open exited with {s}")))
+        }
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn open_native(path: &std::path::Path) -> std::io::Result<()> {
+    std::process::Command::new("xdg-open").arg(path).status().and_then(|s| {
+        if s.success() {
+            Ok(())
+        } else {
+            Err(std::io::Error::other(format!("xdg-open exited with {s}")))
+        }
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn open_native(path: &std::path::Path) -> std::io::Result<()> {
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &path.display().to_string()])
+        .status()
+        .and_then(|s| {
+            if s.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!("start exited with {s}")))
+            }
+        })
+}
+
 /// W4 dogfooding follow-up (2026-05-26) — bridge `console.*` calls from the
 /// webview into the backend's `tracing` layers so the user only has to grab
 /// **one** file when something breaks. The frontend wraps console.log/warn/

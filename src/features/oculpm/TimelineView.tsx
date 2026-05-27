@@ -300,7 +300,7 @@ export function TimelineView({
       : null;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_26rem] gap-4 items-start">
       {/* Left: timeline */}
       <div className="space-y-3">
         {loading && entries == null && (
