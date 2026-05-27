@@ -301,6 +301,17 @@ impl WatcherInner {
             return;
         }
 
+        // 4.6 W4 dogfooding (2026-05-27) — agent internal state files
+        // (`.claude/settings.json`, `.cursor/history/*`, …) leaked into ndjson
+        // and polluted `compare_layers` with dozens of fake "누락" rows. The
+        // adapter file itself was already routed at step 4.5, so anything
+        // *still* under a known agent dir at this point is the agent's own
+        // bookkeeping — not user code, never journaled, never compared.
+        if is_agent_state_path(&rel_str) {
+            self.bump_ignored();
+            return;
+        }
+
         // 5. Skip directories — we only track files.
         if path.is_dir() {
             self.bump_ignored();
@@ -692,12 +703,59 @@ impl WatcherInner {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Paths the watcher must never report to avoid amplifying its own writes.
+/// Paths the watcher must never report — either our own writes that would
+/// boomerang, or universal editor/OS noise that no journal will ever record.
+///
+/// W4 dogfooding (2026-05-27) — pre-fix, `LayerComparison` flagged things
+/// like `game.js.tmp.5C0aH-rJ` (npm `write-file-atomic` random-suffix tmp)
+/// and `.DS_Store` as `journal 누락`, tanking jaccard. Real-world atomic
+/// writes use `<dest>.tmp.<rand>` or `<dest>.<rand>.tmp`, so an exact
+/// `.tmp` ending isn't enough — we also catch `.tmp.` infix.
 fn is_self_suppressed(rel_str: &str) -> bool {
-    rel_str.starts_with(".oculpm/index/")
+    if rel_str.starts_with(".oculpm/index/")
         || rel_str == ".oculpm/.lock"
         || rel_str == ".oculpm/oculpm.log"
-        || rel_str.ends_with(".tmp")
+    {
+        return true;
+    }
+    // Atomic-write temp files.
+    if rel_str.ends_with(".tmp") || rel_str.contains(".tmp.") {
+        return true;
+    }
+    // Vim swap / backup.
+    if rel_str.ends_with(".swp") || rel_str.ends_with(".swo") || rel_str.ends_with('~') {
+        return true;
+    }
+    // macOS / Windows metadata.
+    let basename = rel_str.rsplit('/').next().unwrap_or(rel_str);
+    if basename == ".DS_Store" || basename == "Thumbs.db" || basename.starts_with("._") {
+        return true;
+    }
+    false
+}
+
+/// True when `rel_str` lives inside a known LLM-agent state directory but is
+/// NOT the adapter file itself (those return earlier via
+/// `agents::lookup_adapter_by_path`). The agent dir list is intentionally
+/// hard-coded rather than derived from `known_adapters()` because adapters
+/// also write peer files outside their declared adapter_path
+/// (`.claude/settings.json`, `.cursor/history/*`, `.agent/sessions.json`)
+/// — those are agent internal state, not user code.
+fn is_agent_state_path(rel_str: &str) -> bool {
+    const AGENT_STATE_DIRS: &[&str] = &[
+        ".claude/",
+        ".cursor/",
+        ".gemini/",
+        ".codeium/",
+        ".aider/",
+        ".windsurf/",
+        ".copilot/",
+        ".continue/",
+        ".agent/",
+        ".qodo/",
+        ".antigravity/",
+    ];
+    AGENT_STATE_DIRS.iter().any(|d| rel_str.starts_with(d))
 }
 
 /// Map a notify [`FileOp`] + disk-existence into a [`PathChangeKind`] that
@@ -1152,6 +1210,68 @@ mod tests {
             resolve_path_change_kind(FileOp::Delete, true),
             PathChangeKind::Modified,
         );
+    }
+
+    /// W4 dogfooding (2026-05-27) — atomic write tmp filenames and editor
+    /// noise must never reach the ndjson, regardless of project config. This
+    /// is what was tanking jaccard from ~3/3 to 3/18 in the LayerComparison
+    /// modal — `game.js.tmp.5C0aH-rJ` and `.DS_Store` were rotting the index.
+    #[test]
+    fn is_self_suppressed_catches_atomic_write_tmps_and_editor_noise() {
+        // Originals (already covered).
+        assert!(is_self_suppressed(".oculpm/index/foo.ndjson"));
+        assert!(is_self_suppressed(".oculpm/.lock"));
+        assert!(is_self_suppressed(".oculpm/oculpm.log"));
+        assert!(is_self_suppressed("scratch.tmp"));
+
+        // npm `write-file-atomic` / similar — `<dest>.tmp.<rand>`.
+        assert!(is_self_suppressed("game.js.tmp.5C0aH-rJ"));
+        assert!(is_self_suppressed("src/lib.rs.tmp.abc123"));
+        assert!(is_self_suppressed("nested/dir/game.js.tmp.xyz"));
+
+        // Vim swap + backup.
+        assert!(is_self_suppressed("src/main.rs.swp"));
+        assert!(is_self_suppressed("src/main.rs.swo"));
+        assert!(is_self_suppressed("README.md~"));
+
+        // OS metadata.
+        assert!(is_self_suppressed(".DS_Store"));
+        assert!(is_self_suppressed("nested/.DS_Store"));
+        assert!(is_self_suppressed("Thumbs.db"));
+        assert!(is_self_suppressed("nested/._foo.txt"));
+
+        // Legit files must still pass through.
+        assert!(!is_self_suppressed("game.js"));
+        assert!(!is_self_suppressed("src/lib.rs"));
+        assert!(!is_self_suppressed("docs/architecture.md"));
+        // Adapter files live under agent dirs but pass self-suppress (the
+        // agent-state filter is a separate gate, applied after the
+        // adapter-lookup return).
+        assert!(!is_self_suppressed(".claude/CLAUDE.md"));
+    }
+
+    /// W4 dogfooding (2026-05-27) — `.claude/settings.json` and friends
+    /// were polluting the index because step 4.5 only matched the *exact*
+    /// adapter path (`.claude/CLAUDE.md`) and let peer files through.
+    #[test]
+    fn is_agent_state_path_catches_peer_files_not_adapter_files() {
+        // Claude Code peers.
+        assert!(is_agent_state_path(".claude/settings.json"));
+        assert!(is_agent_state_path(".claude/settings.local.json"));
+        assert!(is_agent_state_path(".claude/projects/some-snapshot.json"));
+        // Cursor / Gemini / Antigravity peers.
+        assert!(is_agent_state_path(".cursor/history.json"));
+        assert!(is_agent_state_path(".gemini/cache/foo"));
+        assert!(is_agent_state_path(".agent/sessions/abc.json"));
+        // The adapter file itself technically matches this prefix, but the
+        // watcher returns earlier via `lookup_adapter_by_path` so we never
+        // reach this filter for `.claude/CLAUDE.md` — matching it here is
+        // safe but unused. Document the prefix match explicitly.
+        assert!(is_agent_state_path(".claude/CLAUDE.md"));
+        // User code untouched.
+        assert!(!is_agent_state_path("src/main.rs"));
+        assert!(!is_agent_state_path("game.js"));
+        assert!(!is_agent_state_path("AGENTS.md")); // root adapter, not a state dir
     }
 
     #[test]

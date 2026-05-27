@@ -114,6 +114,30 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     return Math.floor(now.getTime() / 1000) + dayOffset * 86400;
   }, [dayOffset]);
 
+  // W4 dogfooding (2026-05-27) — derive the YYYYMMDD workday for *this* page
+  // so TimelineView can render past days too. Previously the screen only
+  // mounted TimelineView for `dayOffset === 0` and fell through to the
+  // legacy DailyBrief for history, which felt like a UI regression.
+  //
+  // We anchor on the backend's `current_workday` (which already respects
+  // timezone + day_starts_at) and shift by `dayOffset` calendar days. This
+  // matches the default `day_starts_at = "00:00"` exactly; non-default
+  // boundaries skew at most ±1 day for the slice straddling midnight, which
+  // is acceptable for history browsing.
+  const targetWorkday = useMemo<string | null>(() => {
+    const anchor = workdayKey ?? oculpmStatus?.current_workday ?? null;
+    if (!anchor || !/^\d{8}$/.test(anchor)) return null;
+    const y = Number(anchor.slice(0, 4));
+    const m = Number(anchor.slice(4, 6)) - 1;
+    const d = Number(anchor.slice(6, 8));
+    const dt = new Date(y, m, d);
+    dt.setDate(dt.getDate() + dayOffset);
+    const yy = dt.getFullYear().toString().padStart(4, "0");
+    const mm = (dt.getMonth() + 1).toString().padStart(2, "0");
+    const dd = dt.getDate().toString().padStart(2, "0");
+    return `${yy}${mm}${dd}`;
+  }, [workdayKey, oculpmStatus, dayOffset]);
+
   const load = useCallback(async () => {
     if (activeProjectId == null) return;
     setLoading(true);
@@ -134,25 +158,25 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   }, [load]);
 
   // ── Probe journal/file-change counts when ocul-pm is active ─────────────
-  // Drives the EmptyTodayV2 vs V3 branching. Today (dayOffset === 0) only —
-  // historical days fall through to the legacy DailyBrief view.
+  // Drives the EmptyTodayV2 vs V3 branching for *today* and the legacy-vs-
+  // TimelineView branching for past days. The probe now runs for any
+  // `dayOffset` so historical days can show the same TimelineView UI instead
+  // of falling back to the older DailyBrief layout (W4 dogfooding 2026-05-27).
   useEffect(() => {
     if (activeProjectId == null) return;
-    if (!oculpmStatus?.initialized || dayOffset !== 0) {
+    if (!oculpmStatus?.initialized || targetWorkday == null) {
       setJournalCount(null);
       setFileChangeCount(null);
+      setLatestSessionId(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
         const [entries, fileChanges, sessions] = await Promise.all([
-          oculpmApi.listJournalEntries(activeProjectId),
-          oculpmApi.getFileChanges(
-            activeProjectId,
-            oculpmStatus.current_workday
-          ),
-          oculpmApi.listSessions(activeProjectId, oculpmStatus.current_workday),
+          oculpmApi.listJournalEntries(activeProjectId, targetWorkday),
+          oculpmApi.getFileChanges(activeProjectId, targetWorkday),
+          oculpmApi.listSessions(activeProjectId, targetWorkday),
         ]);
         if (cancelled) return;
         setJournalCount(entries.length);
@@ -173,7 +197,7 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeProjectId, oculpmStatus, dayOffset, refreshTick]);
+  }, [activeProjectId, oculpmStatus, targetWorkday, refreshTick]);
 
   if (activeProjectId == null) {
     return (
@@ -184,7 +208,10 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   }
 
   // ── ocul-pm branching: V1 / V2 / V3 / fall-through ─────────────────────
-  // dayOffset !== 0 → user is browsing history → keep the legacy view.
+  // Today (`dayOffset === 0`) keeps the full V1/V2/V3 onboarding empty
+  // states. Past days never need onboarding, so an empty past day skips
+  // straight to the TimelineView branch (it'll render a "no entries" hint
+  // when journalCount === 0).
   // dismissed users still see V1 (the "활성화" CTA there is their re-entry
   // path; the status-bar link below also reopens the modal).
   const dismissed = readDismissed(activeProjectId);
@@ -358,20 +385,30 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
 
         {/* W3-PR6: TimelineView when ocul-pm has journal entries on today.
             W3-PR8: CategoryFilterBar above it owns the per-project filter.
-            Legacy DailyBrief is preserved for historical days and projects
-            without ocul-pm so users don't lose existing functionality. */}
+            W4 dogfooding (2026-05-27): TimelineView also renders for past
+            days using `targetWorkday`, so navigating to yesterday no longer
+            falls back to the older DailyBrief layout.
+            Legacy DailyBrief is preserved for projects without ocul-pm so
+            users don't lose existing functionality. */}
         {!showOculpmEmpty &&
-          dayOffset === 0 &&
           oculpmStatus?.initialized &&
+          targetWorkday != null &&
           (journalCount ?? 0) > 0 ? (
           <div className="space-y-3">
             <CategoryFilterBar filter={filter} onChange={handleFilterChange} />
             <TimelineView
               projectId={activeProjectId}
               projectRoot={projectRoot}
-              workday={oculpmStatus.current_workday}
+              workday={targetWorkday}
               filters={entryFilters}
             />
+          </div>
+        ) : !showOculpmEmpty &&
+          oculpmStatus?.initialized &&
+          dayOffset !== 0 &&
+          (journalCount ?? 0) === 0 ? (
+          <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg px-4 py-8 text-center">
+            이 날에 기록된 entries 가 없습니다.
           </div>
         ) : (
           !showOculpmEmpty && brief && (

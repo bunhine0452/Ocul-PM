@@ -953,7 +953,13 @@ impl OculpmManager {
 
         let forbidden = build_forbidden_matcher(&root, &forbid_patterns);
         let is_excluded = |p: &str| -> bool {
-            p.starts_with("**redacted/sensitive**:") || is_forbidden_path(&forbidden, p)
+            p.starts_with("**redacted/sensitive**:")
+                || is_forbidden_path(&forbidden, p)
+                // W4 dogfooding (2026-05-27) — the watcher now drops these at
+                // capture time, but historical ndjson written before the
+                // suppression fix still contains them. Filtering here keeps
+                // `LayerComparison` honest across the upgrade boundary.
+                || is_noise_path(p)
         };
 
         let file_changes = writer.read_file_changes(&workday, None).await?;
@@ -1220,6 +1226,42 @@ impl OculpmManager {
 // ─────────────────────────────────────────────────────────────────────────────
 
 use chrono::Timelike;
+
+/// W4 dogfooding (2026-05-27) — mirror of `watcher::is_self_suppressed` +
+/// `watcher::is_agent_state_path`, applied retroactively in `compare_layers`
+/// so ndjson entries captured before the watcher fix don't keep showing up
+/// as `journal 누락`. Keep this list in sync with the watcher's two helpers.
+fn is_noise_path(p: &str) -> bool {
+    if p.ends_with(".tmp") || p.contains(".tmp.") {
+        return true;
+    }
+    if p.ends_with(".swp") || p.ends_with(".swo") || p.ends_with('~') {
+        return true;
+    }
+    let basename = p.rsplit('/').next().unwrap_or(p);
+    if basename == ".DS_Store" || basename == "Thumbs.db" || basename.starts_with("._") {
+        return true;
+    }
+    const AGENT_STATE_DIRS: &[&str] = &[
+        ".claude/",
+        ".cursor/",
+        ".gemini/",
+        ".codeium/",
+        ".aider/",
+        ".windsurf/",
+        ".copilot/",
+        ".continue/",
+        ".agent/",
+        ".qodo/",
+        ".antigravity/",
+    ];
+    // An adapter file itself (e.g., `.claude/CLAUDE.md`) lives in one of these
+    // dirs — but adapters never enter the ndjson pipeline (watcher returns at
+    // step 4.5), so any path that DID reach the index from inside `.claude/`
+    // is by definition not the adapter file. Filtering the whole prefix is
+    // safe and intentionally symmetric with the watcher.
+    AGENT_STATE_DIRS.iter().any(|d| p.starts_with(d))
+}
 
 /// W4-PR5 — bucket jaccard into the three-level severity. `union_count == 0`
 /// (no activity at all on either side) collapses to `Ok` regardless of the
@@ -2528,6 +2570,47 @@ mod tests {
             assert!(cmp.only_in_index.is_empty());
             assert!(cmp.only_in_journal.is_empty());
             assert_eq!(cmp.mismatch_severity, Severity::Ok);
+        }
+
+        /// W4 dogfooding (2026-05-27) — atomic-write tmps, editor noise, and
+        /// agent-state peers must be stripped from the index side of the
+        /// comparison so they don't manufacture fake `journal 누락` rows.
+        /// Without this, the user's storygame session showed 18/3 with
+        /// jaccard 17% even though all 3 real files were correctly journaled.
+        #[tokio::test]
+        async fn noise_paths_are_excluded_from_index_side() {
+            let (manager, db, _dir, _root) = fresh().await;
+            // Simulate a session that wrote one real file via 4 atomic-write
+            // bursts (one rename target + 3 random-suffix tmp files), plus a
+            // few `.claude/` state writes the agent did in the background.
+            append_index_events(
+                &manager,
+                &[
+                    "game.js",
+                    "game.js.tmp.5C0aH-rJ",
+                    "game.js.tmp.iy3-fa9",
+                    "game.js.tmp.AbcDef1",
+                    ".claude/settings.json",
+                    ".claude/settings.local.json",
+                    "src/main.rs.swp",
+                    ".DS_Store",
+                ],
+            )
+            .await;
+            // Journal: the LLM correctly logs only the real file.
+            seed_journal(&manager, &db, "noise", &["game.js"]).await;
+
+            let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
+            assert_eq!(
+                cmp.index_files,
+                vec!["game.js".to_string()],
+                "noise must be stripped from the index side",
+            );
+            assert_eq!(cmp.matched.len(), 1);
+            assert!(cmp.only_in_index.is_empty(), "{:?}", cmp.only_in_index);
+            assert!(cmp.only_in_journal.is_empty());
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
+            assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
         }
     }
 }

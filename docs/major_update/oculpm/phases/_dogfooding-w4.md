@@ -375,3 +375,53 @@ pnpm tsc --noEmit                                       # clean
   - drift 감지 영향 없음 (sync 후 우리가 방금 쓴 hash 가 agent_state 에 기록 → 다음 watcher event 와 일치).
 - **검증**: `cargo test --lib oculpm::manager` → 39/39 PASS (기존 통합 테스트가 init→sync_agents 시퀀스를 이미 일부 사용 중).
 
+---
+
+## 2026-05-27 — 사용자 직접 dogfooding 3차 발견 + 같은 날 조치
+
+### 발견 13 — 과거 날짜로 이동하면 옛 UI(DailyBrief)로 회귀
+
+- **현상**: `TodayScreen` 의 ◀ 버튼으로 어제/그 이전으로 이동하면 W3-PR6 의 `TimelineView` (SessionCard / DiffVsNarrative 인라인 패널 포함) 가 사라지고, W2 이전의 레거시 `FocusCard / CompletedCard / ActivityCard / PinnedCard / RecommendationCard` 4-카드 레이아웃이 보임.
+- **원인 (코드 추적)**:
+  - `src/features/today/TodayScreen.tsx` 가 `dayOffset === 0` 일 때만 ocul-pm 분기를 탐. probe useEffect (`journalCount` / `fileChangeCount` / `latestSessionId`) 가 `dayOffset !== 0` 이면 일찍 return → 모두 null → 렌더 분기가 항상 legacy 로 fallback.
+  - 의도된 동작이었으나 (legacy 보존), 일관성이 떨어지고 사용자는 "어제 작업을 SessionCard 로 보고 싶다" 는 자연스러운 기대.
+- **조치**:
+  - `targetWorkday` useMemo 신설 — `workdayKey` (백엔드의 `current_workday`) 를 anchor 로 `dayOffset` calendar-day 만큼 shift. YYYYMMDD 포맷 그대로 유지.
+  - probe useEffect 의 `dayOffset !== 0` early-return 제거. `targetWorkday` 가 비어있지 않으면 모든 날짜에 대해 probe 실행.
+  - 메인 렌더 분기에서 `dayOffset === 0` 게이트 제거. 대신 `oculpmStatus?.initialized && targetWorkday != null && (journalCount ?? 0) > 0` 가 truthy 면 `TimelineView` 가 `workday={targetWorkday}` 로 렌더.
+  - 과거 날짜 + entries 0건 케이스: 새로운 "이 날에 기록된 entries 가 없습니다" muted 카드. legacy DailyBrief 는 ocul-pm 미설정 프로젝트에만 잔존.
+- **부수 효과**: 오늘 (`dayOffset === 0`) 의 V1/V2/V3 onboarding 상태는 그대로 유지 (`showOculpmEmpty` 게이트가 여전히 `dayOffset === 0` 조건 포함).
+
+### 발견 14 — LayerComparison 의 거짓 누락: 원자적-쓰기 tmp + 에이전트 내부 파일
+
+- **현상** (스크린샷): storygame 의 `20260527-001` 세션 비교에서 index 18 / journal 3 / 일치 3 / 누락 15 / 환각 0, jaccard 17% Critical. 누락 15건은 모두 `.claude/sett...` (4건) + `game.js.tmp.<rand>` (10+건) 등 사용자가 의도하지 않은 파일.
+- **원인 (코드 추적)**:
+  1. `src-tauri/src/oculpm/watcher.rs::is_self_suppressed` 가 `*.tmp` 정확한 끝맺음만 제외. npm `write-file-atomic` / Cursor / `fsync(2)` 안전 쓰기 라이브러리는 `<dest>.tmp.<RAND>` 패턴 → suppress 망사 통과 → ndjson 에 N개 별도 path 로 누적.
+  2. `lookup_adapter_by_path` (step 4.5) 는 **어댑터 파일 그 자체** (`.claude/CLAUDE.md` 등) 만 가로채고, 어댑터의 peer 파일 (`.claude/settings.json`, `.claude/settings.local.json`, `.cursor/history/*`, `.agent/sessions.json` …) 은 그대로 통과 → 사용자 코드처럼 ndjson 에 기록.
+  3. `manager::compare_layers` 의 `is_excluded` 는 `**redacted/sensitive**:` + `is_forbidden_path` 만 검사 → 이미 ndjson 에 들어간 tmp/peer 파일을 retroactively 거르지 못함.
+- **조치 (3-pronged)**:
+  - **watcher.rs**:
+    - `is_self_suppressed` 확장: `rel_str.ends_with(".tmp") || rel_str.contains(".tmp.")`, `.swp` / `.swo` / `~` 끝, `.DS_Store` / `Thumbs.db` / `._*` basename — 보편적 에디터·OS 노이즈 일괄 차단.
+    - **신규 step 4.6** (`is_agent_state_path`): step 4.5 의 어댑터 매치 직후, `.claude/ .cursor/ .gemini/ .codeium/ .aider/ .windsurf/ .copilot/ .continue/ .agent/ .qodo/ .antigravity/` prefix 인 경로를 ignore. 어댑터 파일은 이미 step 4.5 에서 처리되므로 이 단계에 도달한 동일 prefix 는 정의상 peer state 파일.
+  - **manager.rs::compare_layers**:
+    - 동일 규칙을 `is_excluded` 에 미러링한 `is_noise_path(p)` 헬퍼 추가. 신규 watcher fix 이전에 이미 ndjson 에 쌓인 데이터에도 비교 시점에 거름망이 적용됨 → 사용자가 앱을 업그레이드만 해도 기존 세션의 jaccard 가 즉시 정상화.
+  - **테스트 3건 신설**:
+    - `oculpm::watcher::tests::is_self_suppressed_catches_atomic_write_tmps_and_editor_noise` — 9 positive + 4 negative.
+    - `oculpm::watcher::tests::is_agent_state_path_catches_peer_files_not_adapter_files` — 8 positive + 3 negative.
+    - `oculpm::manager::tests::compare_layers_w4_pr5::noise_paths_are_excluded_from_index_side` — 스크린샷 시나리오 직접 재현 (index 8개 시드 → 1개로 정규화 → matched=1, jaccard=1.0).
+- **검증**: `cargo test --lib oculpm` → 173/173 PASS. 사용자의 storygame `20260527-001` 세션은 앱 재시작만 해도 비교 결과가 `index 1 / journal 1 / matched 1 / jaccard 1.0 Ok` 로 회복.
+
+### 발견 15 — "SESSION 끝났는지 어떻게 아냐" (질문에 대한 정리)
+
+- **사용자 질문**: 외부 AI 와 통신하는 채널이 없는데 세션 종료를 어떻게 탐지?
+- **현재 동작 (`src-tauri/src/oculpm/session.rs`)** — 종료 트리거 4가지:
+  1. **InactivityTimeout** — 마지막 fs event 후 `session.inactivity_timeout_minutes` (기본 60분) 경과 → tokio sleep 타이머가 firing → `finalize_active(InactivityTimeout, EndedAt::LastActivity)`. `ended_at` 은 firing 시점이 아니라 **마지막 활동 시각**.
+  2. **WorkdayBoundary** — workday 경계 (`workday.day_starts_at`, 기본 00:00) 를 시계가 넘으면 → `finalize_active(WorkdayBoundary, Now)` + 이전 workday `snapshot_close` + 다음 workday `snapshot_open`.
+  3. **Manual** — 사용자가 UI 에서 명시적으로 종료.
+  4. **AppQuit** — `OculpmManager::shutdown_all_blocking` (앱 종료) 호출 시 모든 active session 을 `AppQuit` 으로 finalize.
+  - `watcher_stop` 은 더 이상 session 을 종료하지 않음 (W4 finding 9). view toggling 사이엔 session 유지.
+- **결론**: "외부 LLM 이 끝났다" 를 직접 알 방법은 없으므로, **fs 활동의 idle 기간 = session 경계** 가 사실상 유일한 신호. resume grace (`session_resume_grace_minutes`, 기본 15분) 가 짧은 idle 을 흡수해 N-split 을 방지. inactivity timeout 자체는 Settings 의 슬라이더로 조정 가능.
+- **추가 개선 후보** (다음 dogfooding 회차에서 측정 후 결정):
+  - journal entry write 자체를 "한 단위 작업 종료" 시그널로 사용 → entry 작성 후 짧은 grace (예: 2분) 안에 새 fs event 없으면 finalize. 단, 한 세션에서 여러 entries 를 쓰는 사용자에겐 너무 공격적.
+  - 외부 에이전트 프로세스 종료를 OS 신호로 잡기 (pid-tracking) — 무거움 + adapter 별 식별 필요. 현재로선 over-engineering.
+
