@@ -106,12 +106,14 @@
 
 ### PR1 — Feature flag 정리
 
+> **결론 (2026-05-29): no-op + 회귀 lock.** SSOT 문서가 가정한 5개 flag (`feature_changelog_v2`, `feature_overview_v2`, `feature_clarify`, `feature_greenfield_wizard`, `feature_new_ia`) 가 *코드베이스 / migration / oculpm config 어디에도 존재하지 않음* 을 확인 (`git log -S` 결과 Lite-update 문서 commit `a83060a` 외 0건). master-prompt §5.3 참조.
+
 | 체크 | 항목 |
 |---|---|
-| ☐ | `settings` 테이블의 `feature_*` 키 4개 (changelog 외) cleanup 마이그레이션 012 |
-| ☐ | 코드 분기에서 `feature_*` reference grep 결과 0 (4개) |
-| ☐ | `feature_changelog_v2` 만 OFF 강제 (PR4 까지 보존) |
-| ☐ | 회귀: feature flag OFF 상태로 진입 시 default 동작 변화 없음 |
+| ☑ | `settings` 테이블의 `feature_*` 키 cleanup 마이그레이션 — *불요* (애초에 seed 된 row 0건). |
+| ☑ | 코드 분기에서 `feature_*` reference grep 결과 0 (4개) — `src/__tests__/no_feature_flags.test.ts` 로 lock. |
+| ☑ | `feature_changelog_v2` — 존재한 적 없음. PR4 의 changelog 시스템 삭제 시 자연스럽게 정리. |
+| ☑ | 회귀: vitest 가 `KEYS` / `DEFAULTS` 에 `feature*` prefix 등장 시 fail. 향후 누구든 신설 시 즉시 적발. |
 
 ---
 

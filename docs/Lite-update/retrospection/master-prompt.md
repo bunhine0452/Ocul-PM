@@ -136,13 +136,13 @@
 
 ### 5.1 현재 위치 (2026-05-29)
 
-- **Phase A**: ✅ PR0 완료 / ☐ PR1 미진입
+- **Phase A**: ✅ PR0 완료 / ✅ PR1 완료 (no-op + 회귀 lock — §5.3 참조)
 - **Phase B**: ☐ PR2~PR5 미진입
 - **Phase C**: ☐ PR6~PR9 미진입
 - **Phase D**: ☐ PR10~PR12 미진입
 - **추가**: ✅ PR-0c 완료 (clippy 48 errors → 0). `cargo clippy --all-targets -- -D warnings` 가 이제부터 진짜 lock.
 
-진행 중 작업: *없음*. 다음 작업: **PR1 (Feature flag 정리)**.
+진행 중 작업: *없음*. 다음 작업: **PR2 (Problems 탭 삭제)** — Phase B 진입.
 
 ### 5.2 머지 로그
 
@@ -150,6 +150,7 @@
 |---|---|---|---|
 | 2026-05-29 | PR0 | `a494d7a` | 회귀 보호망 — 5 commits: retrospection 인계 묶음 (`28e96bb`) + AGENTS 템플릿 5 강화 (`fc65daf`) + vitest infra (`b0d2d8a`) + Rust 7 invariant safety net (`aa4e99a`) + vitest 3 시나리오 stub (`c0132e1`) + lint ALLOWLIST 보정 (`a494d7a`). `pre-cut-PR0` annotated tag 부여. |
 | 2026-05-29 | PR-0c | `71ad3b1` | clippy 48 errors → 0. 14 files 변경 / -58 net lines. 핵심 변경: ① `cargo clippy --fix` 로 28건 (useless_conversion 17 / needless_question_mark / unnecessary_map_or / unnecessary_cast / unnecessary_parens / for_kv_map / needless_borrow / 미사용 import 4 / unused mut 등) 자동 정리, ② `std::mem::transmute` 에 명시 타입 부여 (`db.rs:71`), ③ dead test helper `insert_session` (sync) + `_suppress_unused` 삭제 (`cache.rs`, await 누락 의심은 실제로 dead code 였음 — 호출자 0), ④ `let...else → ?` 1건 (`indexer.rs:412`), ⑤ `LlmError::MissingApiKey` 삭제 (구성·매치 모두 0), ⑥ `EMBEDDING_DIM` / `LlmProvider::name()` 에 `#[allow(dead_code)]` (의미 있는 API surface, 보존), ⑦ `#[allow(clippy::too_many_arguments)]` 12개 (refactor 가 PR-0c 범위 밖, `tauri::command` signature 는 IPC 계약이라 변경 불가). 5종 green 모두 통과. |
+| 2026-05-29 | PR1 | _pending_ | no-op + 회귀 lock. SSOT 문서가 가정한 5개 flag 가 *코드베이스에 한 번도 구현된 적 없음* 확인 (`git log -S` 결과 Lite-update 문서 commit `a83060a` 외 0건). `src/__tests__/no_feature_flags.test.ts` 신설 — `KEYS` / `DEFAULTS` 에 `feature*` prefix 등장 시 fail. 07-checklist PR1 4 항목 ☑ 완료. 코드 변경 0건 / 신규 테스트 1개 (2 assertions). | clippy 48 errors → 0. 14 files 변경 / -58 net lines. 핵심 변경: ① `cargo clippy --fix` 로 28건 (useless_conversion 17 / needless_question_mark / unnecessary_map_or / unnecessary_cast / unnecessary_parens / for_kv_map / needless_borrow / 미사용 import 4 / unused mut 등) 자동 정리, ② `std::mem::transmute` 에 명시 타입 부여 (`db.rs:71`), ③ dead test helper `insert_session` (sync) + `_suppress_unused` 삭제 (`cache.rs`, await 누락 의심은 실제로 dead code 였음 — 호출자 0), ④ `let...else → ?` 1건 (`indexer.rs:412`), ⑤ `LlmError::MissingApiKey` 삭제 (구성·매치 모두 0), ⑥ `EMBEDDING_DIM` / `LlmProvider::name()` 에 `#[allow(dead_code)]` (의미 있는 API surface, 보존), ⑦ `#[allow(clippy::too_many_arguments)]` 12개 (refactor 가 PR-0c 범위 밖, `tauri::command` signature 는 IPC 계약이라 변경 불가). 5종 green 모두 통과. |
 
 ### 5.3 새 발견 / 결정 변경
 
@@ -159,6 +160,7 @@
 | 2026-05-29 | **`pnpm lint` (`lint:storage`) pre-existing fail** — MigrationModal / ChangelogScreen / ProjectMetaHeader 3 파일이 ALLOWLIST 누락. | PR0 안에서 ALLOWLIST 3개 추가 (`a494d7a`). ChangelogScreen 라인은 PR4 cut 시 자동 제거. | — |
 | 2026-05-29 | **`cargo clippy --all-targets -- -D warnings` pre-existing 48 errors** — `unnecessary_cast`, `unused_must_use` (cache.rs:2018 의 `.call(...)` 의 await 누락 가능성 있음), `unnecessary_map_or` 등 *style-only*. lib 컴파일이 fail 해서 `cargo clippy --test lite_w6_safety_net` 도 함께 fail. 내 PR0 코드 자체는 위반 0. | **PR-0c 로 분리** — 1.0 출시 전 별 PR 로 일괄 fix. PR0 의 DoD 중 `cargo clippy -- -D warnings` 는 PR-0c 종료 후 재검증. PR1~PR12 진행 중에는 `cargo clippy` 의 *내 새 코드* 만 확인 (lib 가 fail 해도 진행). | §7 (clippy 권장 명령 문구 추가 권장), 07-checklist (PR0 의 clippy 항목 ⚠ → PR-0c 의존), 본 §5.1 (PR-0c 추가) |
 | 2026-05-29 | **`@vitejs/plugin-react` 가 이미 devDeps 에 있음** (^4.6.0). vitest infra 도입 시 추가 의존성 절약. | 그대로 재사용. | — |
+| 2026-05-29 | **PR1 의 5개 feature flag 미존재** — `feature_changelog_v2` / `feature_overview_v2` / `feature_clarify` / `feature_greenfield_wizard` / `feature_new_ia` 가 `src/`, `src-tauri/src/`, `src-tauri/migrations/`, `.oculpm/config.toml` 어디에도 없음. `git log -S` 결과 Lite-update planning commit `a83060a` 외 0건. 즉 SSOT 가 *가정한* 구현이 존재하지 않음. 또한 PR1 spec 의 "마이그레이션 012" 는 이미 `012_oculpm_journal.sql` 로 점유됨 (W3-PR2). | PR1 → **no-op + 회귀 lock**. 코드/마이그레이션 변경 0. vitest 회귀 테스트 1개 (`src/__tests__/no_feature_flags.test.ts`) 로 `settings.ts KEYS` / `DEFAULTS` 의 `feature*` prefix 0 을 잠금. 향후 누구든 flag 신설 시 즉시 fail. | §5.1 (PR1 ☑), 07-checklist PR1 4 항목 모두 ☑ 으로 업데이트 |
 | 2026-05-29 | **AGENTS.md 대상 파일은 `.oculpm/agents/_template.md`** — 본 프로젝트는 dogfood 대상이 아니므로 root `AGENTS.md` 가 없음 (의도). 강화 5 항목은 `_template.md` 에 작성. | 동의. | — |
 | 2026-05-29 | **frontmatter parser 의 closing fence 인식** — `---` 가 column 0 이 아니면 인식 안 됨. invariant_03 test case D 작성 시 발견 (raw string 으로 수정). | invariant_03 test 가 lock. *외부 LLM 이 frontmatter 작성 시 `---` 의 leading whitespace 금지* — `_template.md` 에 별도 명시 권장 (1.0 backlog). | — |
 
