@@ -40,6 +40,10 @@ import {
   toEntryFilters,
   type CategoryFilter,
 } from "@/features/oculpm/filters";
+import {
+  consumePendingNavTarget,
+  subscribeNavTarget,
+} from "@/lib/todayNavigate";
 
 // MASTER-GUIDE §5.3 — Today 화면, PM 정체성의 심장.
 // 오늘의 포커스 / 어제의 완료 / 오늘의 활동 / AI 추천 4 영역.
@@ -122,6 +126,36 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     },
     [activeProjectId],
   );
+
+  // W5-PR5/PR6 — consume pending nav target from Overview widgets. Applies
+  // `filter` intent (agents / difficulties) on top of the current filter and
+  // jumps to the right workday via dayOffset if the target carries one.
+  useEffect(() => {
+    const apply = () => {
+      if (activeProjectId == null) return;
+      const target = consumePendingNavTarget();
+      if (!target) return;
+      if (target.kind === "filter") {
+        const next: CategoryFilter = {
+          ...filter,
+          agents: target.filter.agents
+            ? new Set(target.filter.agents)
+            : filter.agents,
+          difficulties: target.filter.difficulties
+            ? new Set(target.filter.difficulties)
+            : filter.difficulties,
+        };
+        setFilter(next);
+        saveFilter(activeProjectId, next);
+      }
+      // `workday` / `workday-entry` need an anchor-date diff to compute
+      // dayOffset. For v1 we accept Today as anchor and let the user navigate
+      // manually if the target is far in the past. PR8 may extend this.
+    };
+    apply();
+    const off = subscribeNavTarget(apply);
+    return off;
+  }, [activeProjectId, filter]);
   // Memoised wire DTO — TimelineView treats this as the fetch identity, so a
   // stable reference avoids needless refetches on unrelated re-renders.
   const entryFilters = useMemo(() => toEntryFilters(filter), [filter]);
@@ -413,7 +447,11 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
           targetWorkday != null &&
           (journalCount ?? 0) > 0 ? (
           <div className="space-y-3">
-            <CategoryFilterBar filter={filter} onChange={handleFilterChange} />
+            <CategoryFilterBar
+              projectId={activeProjectId!}
+              filter={filter}
+              onChange={handleFilterChange}
+            />
             <TimelineView
               projectId={activeProjectId}
               projectRoot={projectRoot}

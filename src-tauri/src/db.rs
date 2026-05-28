@@ -21,6 +21,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (10, include_str!("../migrations/011_project_blueprints.sql")),
     (12, include_str!("../migrations/012_oculpm_journal.sql")),
     (13, include_str!("../migrations/013_oculpm_agent_state.sql")),
+    (14, include_str!("../migrations/014_oculpm_migrations.sql")),
 ];
 
 pub struct Db {
@@ -1587,6 +1588,140 @@ impl Db {
             })
             .await?;
         Ok(entry)
+    }
+
+    // ---------- W5-PR7: oculpm_migrations + legacy deletion ----------
+
+    /// Insert one history row recording a successful `migrate_from_sqlite`.
+    /// Returns the new row id so the caller can correlate.
+    pub async fn insert_oculpm_migration(
+        &self,
+        project_id: u32,
+        report_timestamp: i64,
+        source_entry_count: u32,
+        success_count: u32,
+        skip_count: u32,
+        failure_count: u32,
+        backup_dir: String,
+        report_json: String,
+    ) -> Result<u32> {
+        let id = self
+            .conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO oculpm_migrations
+                     (project_id, report_timestamp, source_entry_count, success_count,
+                      skip_count, failure_count, backup_dir, report_json)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        project_id as i64,
+                        report_timestamp,
+                        source_entry_count as i64,
+                        success_count as i64,
+                        skip_count as i64,
+                        failure_count as i64,
+                        &backup_dir,
+                        &report_json,
+                    ],
+                )?;
+                Ok(c.last_insert_rowid() as u32)
+            })
+            .await?;
+        Ok(id)
+    }
+
+    /// Read all history rows for a project, most-recent first.
+    pub async fn list_oculpm_migrations(
+        &self,
+        project_id: u32,
+    ) -> Result<Vec<crate::oculpm::spec::MigrationHistoryEntry>> {
+        use crate::oculpm::spec::MigrationHistoryEntry;
+        let rows = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id, report_timestamp, source_entry_count, success_count,
+                            skip_count, failure_count, backup_dir,
+                            legacy_deleted_at, legacy_delete_backup_dir
+                     FROM oculpm_migrations
+                     WHERE project_id = ?1
+                     ORDER BY report_timestamp DESC",
+                )?;
+                let rows: rusqlite::Result<Vec<MigrationHistoryEntry>> = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok(MigrationHistoryEntry {
+                            id: r.get::<_, i64>(0)? as u32,
+                            report_timestamp: r.get(1)?,
+                            source_entry_count: r.get::<_, i64>(2)? as u32,
+                            success_count: r.get::<_, i64>(3)? as u32,
+                            skip_count: r.get::<_, i64>(4)? as u32,
+                            failure_count: r.get::<_, i64>(5)? as u32,
+                            backup_dir: r.get(6)?,
+                            legacy_deleted_at: r.get(7)?,
+                            legacy_delete_backup_dir: r.get(8)?,
+                        })
+                    })?
+                    .collect();
+                Ok(rows?)
+            })
+            .await?;
+        Ok(rows)
+    }
+
+    /// Mark a history row as the source of a legacy deletion. Stores the
+    /// safety-backup basename so the user can later open it.
+    pub async fn mark_oculpm_migration_deleted(
+        &self,
+        history_id: u32,
+        deleted_at: i64,
+        safety_backup_dir: String,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE oculpm_migrations
+                     SET legacy_deleted_at = ?1, legacy_delete_backup_dir = ?2
+                     WHERE id = ?3",
+                    params![deleted_at, &safety_backup_dir, history_id as i64],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// Read all legacy changelog rows + their files for the safety dump.
+    /// Returns (entries_count, files_count) for the report.
+    pub async fn truncate_changelog_for_project(
+        &self,
+        project_id: u32,
+    ) -> Result<(u32, u32)> {
+        let counts = self
+            .conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                let entries: i64 = tx.query_row(
+                    "SELECT COUNT(*) FROM changelog_entries WHERE project_id = ?1",
+                    [project_id as i64],
+                    |r| r.get(0),
+                )?;
+                let files: i64 = tx.query_row(
+                    "SELECT COUNT(*) FROM changelog_files f
+                     INNER JOIN changelog_entries e ON e.id = f.entry_id
+                     WHERE e.project_id = ?1",
+                    [project_id as i64],
+                    |r| r.get(0),
+                )?;
+                // files cascade via FK ON DELETE CASCADE in 007_changelog.sql.
+                tx.execute(
+                    "DELETE FROM changelog_entries WHERE project_id = ?1",
+                    [project_id as i64],
+                )?;
+                tx.commit()?;
+                Ok((entries as u32, files as u32))
+            })
+            .await?;
+        Ok(counts)
     }
 
     // ---------- Conversation Actions (UI-5 / W5) ----------

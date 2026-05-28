@@ -36,10 +36,11 @@ use crate::oculpm::session::SessionActor;
 use crate::oculpm::migrate_from_sqlite::{self, MigrationFailureWithRollback};
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
-    JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LockStateView,
-    ManualEntryDraft, MigrationPlan, MigrationProgress, MigrationReport, OculpmConfig,
-    OculpmInitReport, OculpmOverviewStats, OculpmStatus, ReindexReport, RollbackReport, Session,
-    SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
+    JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LegacyDeletionReport,
+    LockStateView, ManualEntryDraft, MigrationHistoryEntry, MigrationPlan, MigrationProgress,
+    MigrationReport, OculpmConfig, OculpmInitReport, OculpmOverviewStats, OculpmStatus,
+    ReindexReport, RollbackReport, Session, SessionEnd, Severity, Snapshot, SnapshotKind,
+    WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -1222,6 +1223,37 @@ impl OculpmManager {
             }
         }
 
+        // W5-PR7 — persist migration history on success so the legacy-delete
+        // command can verify the confirm_token later. Failures here are
+        // non-fatal: the user still has the journal markdown + backup_dir,
+        // and they can manually delete via SQL if needed.
+        if let Ok(ref report) = result {
+            let timestamp = chrono::DateTime::parse_from_rfc3339(&report.completed_at)
+                .map(|d| d.timestamp())
+                .unwrap_or_else(|_| chrono::Utc::now().timestamp());
+            let report_json = serde_json::to_string(report).unwrap_or_else(|_| "{}".to_string());
+            if let Err(e) = db
+                .insert_oculpm_migration(
+                    project_id,
+                    timestamp,
+                    report.success_count + report.skip_count + report.failure_count,
+                    report.success_count,
+                    report.skip_count,
+                    report.failure_count,
+                    report.backup_dir.clone(),
+                    report_json,
+                )
+                .await
+            {
+                tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id,
+                    error = %e,
+                    "failed to record migration history — legacy delete will be blocked until next successful migration"
+                );
+            }
+        }
+
         result
     }
 
@@ -1269,6 +1301,19 @@ impl OculpmManager {
         report
     }
 
+    // ─── W5-PR6: Observed agent ids ─────────────────────────────────────────
+
+    /// Distinct agents that have actually written an entry. Drives the
+    /// agent dropdown in `CategoryFilterBar`. Tolerant of uninitialized
+    /// projects — returns `Ok(vec![])`.
+    pub async fn observed_agent_ids(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<Vec<String>, OculpmError> {
+        JournalCache::new(db).observed_agent_ids(project_id).await
+    }
+
     // ─── W5-PR5: Overview stats ─────────────────────────────────────────────
 
     /// Single-shot Overview widgets fetch. `window_days` clamps to 1..=365 —
@@ -1286,6 +1331,95 @@ impl OculpmManager {
         JournalCache::new(db)
             .overview_stats(project_id, window, &current_workday)
             .await
+    }
+
+    // ─── W5-PR7: Migration history + legacy delete ──────────────────────────
+
+    /// Read history rows for a project, most-recent first. Empty when no
+    /// successful migration has occurred — Settings should hide the
+    /// "구 데이터 삭제하기" CTA in that case.
+    pub async fn get_migration_history(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<Vec<MigrationHistoryEntry>, OculpmError> {
+        db.list_oculpm_migrations(project_id)
+            .await
+            .map_err(|e| OculpmError::Sqlite(e.to_string()))
+    }
+
+    /// Truncate `changelog_entries` + `changelog_files` for the project after
+    /// validating the `confirm_token` against the on-disk migration history.
+    /// Writes a JSON dump to `.oculpm.backup-legacy-deletion-<iso>` first so
+    /// the user can recover.
+    ///
+    /// `confirm_token` format: `migrated:<report_timestamp>:<source_entry_count>`.
+    pub async fn delete_legacy_changelog(
+        &self,
+        db: &Db,
+        project_id: u32,
+        confirm_token: &str,
+    ) -> Result<LegacyDeletionReport, OculpmError> {
+        let history = self.get_migration_history(db, project_id).await?;
+        let matched = validate_confirm_token(confirm_token, &history)?;
+        let history_id = matched.id;
+
+        // Safety backup — dump current SQLite changelog rows before truncating.
+        let snapshot = self.project_snapshot(project_id).await?;
+        let backup_basename = format!(
+            ".oculpm.backup-legacy-deletion-{}",
+            chrono::Utc::now().format("%Y%m%dT%H%M%SZ")
+        );
+        let backup_dir = snapshot.root.join(&backup_basename);
+        std::fs::create_dir_all(&backup_dir).map_err(|source| OculpmError::Io {
+            path: backup_dir.clone(),
+            source,
+        })?;
+
+        // Read everything first so the dump is faithful.
+        let entries = db
+            .list_changelog_entries(project_id, None, 100_000)
+            .await
+            .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
+        let mut all_files = Vec::new();
+        for e in &entries {
+            let files = db
+                .list_changelog_files(e.id)
+                .await
+                .map_err(|err| OculpmError::Sqlite(err.to_string()))?;
+            all_files.extend(files);
+        }
+        let entries_json =
+            serde_json::to_vec_pretty(&entries).map_err(OculpmError::JsonSerialize)?;
+        let files_json =
+            serde_json::to_vec_pretty(&all_files).map_err(OculpmError::JsonSerialize)?;
+        crate::oculpm::atomic_io::write_atomic(
+            &backup_dir.join("changelog_entries.json"),
+            &entries_json,
+        )?;
+        crate::oculpm::atomic_io::write_atomic(
+            &backup_dir.join("changelog_files.json"),
+            &files_json,
+        )?;
+
+        // Truncate.
+        let (deleted_entries, deleted_files) = db
+            .truncate_changelog_for_project(project_id)
+            .await
+            .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
+
+        let deleted_at = chrono::Utc::now().timestamp();
+        db.mark_oculpm_migration_deleted(history_id, deleted_at, backup_basename.clone())
+            .await
+            .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
+
+        Ok(LegacyDeletionReport {
+            project_id,
+            deleted_entries,
+            deleted_files,
+            safety_backup_dir: backup_basename,
+            deleted_at,
+        })
     }
 
     /// Resolve `<root>/<backup_dir_basename>` to an absolute path after

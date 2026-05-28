@@ -49,6 +49,14 @@ pub struct EntryFilters {
     /// `checkbox == Some(false)` OR `status != "done"`.
     pub unfinished_only: bool,
     pub search: Option<String>,
+    /// W5-PR6 — agent_id filter. Empty = no constraint (all agents).
+    #[serde(default)]
+    pub agents: Vec<String>,
+    /// W5-PR6 — difficulty filter. Empty = no constraint. Note the cache
+    /// column is nullable ("미지정"); difficulty filter therefore *cannot*
+    /// match the null bucket — that's a separate W6 toggle.
+    #[serde(default)]
+    pub difficulties: Vec<Difficulty>,
 }
 
 /// Result of a reindex pass. All counters are `u32` to stay specta-safe
@@ -772,6 +780,36 @@ impl<'a> JournalCache<'a> {
         Ok(map)
     }
 
+    // ───────── W5-PR6: Observed agent ids ─────────
+
+    /// Distinct `agent_id` values across this project's cache rows, sorted
+    /// ASC. Drives `CategoryFilterBar` 's agent dropdown so users can filter
+    /// by any agent that has actually written an entry — not just the known
+    /// 6 (`claude-code`, `cursor`, ...).
+    pub async fn observed_agent_ids(
+        &self,
+        project_id: u32,
+    ) -> Result<Vec<String>, OculpmError> {
+        let pid = project_id as i64;
+        let rows = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT DISTINCT agent_id FROM oculpm_journal
+                     WHERE project_id = ?1 AND parse_ok = 1
+                     ORDER BY agent_id ASC",
+                )?;
+                let rows: rusqlite::Result<Vec<String>> = stmt
+                    .query_map(params![pid], |r| r.get::<_, String>(0))?
+                    .collect();
+                rows
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(rows)
+    }
+
     // ───────── W5-PR5: Overview aggregates ─────────
 
     /// Single-shot fetch of every overview widget. Each sub-query is
@@ -961,11 +999,8 @@ impl<'a> JournalCache<'a> {
         // Unfinished — reuse list_entries pipeline but cap at 50 most recent.
         let unfinished_entries: Vec<JournalEntrySummary> = {
             let filters = EntryFilters {
-                types: Vec::new(),
-                verified_only: false,
-                mismatch_only: false,
                 unfinished_only: true,
-                search: None,
+                ..Default::default()
             };
             let mut all = self.list_entries(project_id, None, &filters).await?;
             all.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -1320,6 +1355,31 @@ fn build_list_sql(
     }
     if filters.unfinished_only {
         sql.push_str(" AND (status != 'done' OR checkbox = 0)");
+    }
+    if !filters.agents.is_empty() {
+        let placeholders: Vec<String> = filters
+            .agents
+            .iter()
+            .map(|a| {
+                bound.push(Box::new(a.clone()));
+                format!("?{}", bound.len())
+            })
+            .collect();
+        sql.push_str(&format!(" AND agent_id IN ({})", placeholders.join(",")));
+    }
+    if !filters.difficulties.is_empty() {
+        let placeholders: Vec<String> = filters
+            .difficulties
+            .iter()
+            .map(|d| {
+                bound.push(Box::new(difficulty_as_str(*d).to_string()));
+                format!("?{}", bound.len())
+            })
+            .collect();
+        sql.push_str(&format!(
+            " AND difficulty IN ({})",
+            placeholders.join(",")
+        ));
     }
     if let Some(q) = filters.search.as_ref().filter(|q| !q.trim().is_empty()) {
         let needle = format!("%{}%", q.trim());
@@ -2131,6 +2191,97 @@ mod tests {
                 pair[1].created_at
             );
         }
+    }
+
+    // ───────── W5-PR6: agent filter + observed_agent_ids ──────────
+
+    #[tokio::test]
+    async fn list_entries_filter_by_agent_includes_only_matching() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "manual", "2026-05-22T09:20:00+09:00", false);
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let rows = cache
+            .list_entries(
+                1,
+                None,
+                &EntryFilters {
+                    agents: vec!["cursor".into()],
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].agent_id, "cursor");
+    }
+
+    #[tokio::test]
+    async fn list_entries_filter_by_agent_empty_set_shows_all() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "manual", "2026-05-22T09:20:00+09:00", false);
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let rows = cache
+            .list_entries(1, None, &EntryFilters::default())
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 3, "empty agents = no constraint");
+    }
+
+    #[tokio::test]
+    async fn list_entries_filter_combines_type_and_agent() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        // bug + claude-code, bug + cursor, feature + cursor.
+        write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
+        // Switch the third row to a feature by overwriting frontmatter type.
+        let feat_fm = "schema_version: 1\ntype: feature\nslug: x\nstatus: done\ncreated_at: \"2026-05-22T09:20:00+09:00\"\nsession_id: \"20260520-001\"\nagent: { id: cursor }\nlanguage: ko";
+        write_entry(
+            &journal_root,
+            "20260522/Features_to_add/0920_c.md",
+            feat_fm,
+            "[x] feat\n",
+        );
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let rows = cache
+            .list_entries(
+                1,
+                None,
+                &EntryFilters {
+                    types: vec![EntryType::Bug],
+                    agents: vec!["cursor".into()],
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1, "intersection of bug + cursor = 1");
+        assert_eq!(rows[0].agent_id, "cursor");
+        assert_eq!(rows[0].entry_type, EntryType::Bug);
+    }
+
+    #[tokio::test]
+    async fn observed_agent_ids_returns_distinct_sorted() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        // Insert in non-alphabetical order, with duplicates.
+        write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "manual", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "claude-code", "2026-05-22T09:10:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "claude-code", "2026-05-22T09:20:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0930_d.md", None, "cursor", "2026-05-22T09:30:00+09:00", false);
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let agents = cache.observed_agent_ids(1).await.unwrap();
+        assert_eq!(agents, vec!["claude-code", "cursor", "manual"]);
     }
 
     #[tokio::test]

@@ -3,7 +3,7 @@
 > **목표**: W3-PR8 의 `CategoryFilterBar` + W3-PR8 의 `CategoryFilter` 에 `agents: Set<string>` 추가. UI 에서 멀티 선택, 백엔드 `EntryFilters` 도 agent 필터 추가, OverviewScreen 의 AgentBreakdown 클릭 wire 완성.
 > **선행**: W3-PR8 의 `filters.ts` + `CategoryFilterBar.tsx`. PR5 의 AgentBreakdown 가 클릭 callback 만 wire 한 상태.
 > **참조**: [`../phases/W5-migration-overview.md`](../phases/W5-migration-overview.md) §W5-PR6.
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-28)
 
 ---
 
@@ -135,11 +135,11 @@ SELECT DISTINCT agent_id FROM oculpm_journal
 
 ## 6. DoD
 
-- [ ] agent 필터 토글 동작 + 다른 필터와 AND 결합.
-- [ ] Overview 의 AgentBreakdown 클릭 → Today 의 agent 필터 1개로 navigate.
-- [ ] localStorage 의 기존 (agents 필드 없는) 저장값이 무중단으로 default `[]` 흡수.
-- [ ] backend 4 신규 테스트 PASS.
-- [ ] `pnpm tsc --noEmit` clean.
+- [x] agent 필터 토글 동작 + 다른 필터와 AND 결합 — `EntryFilters.agents IN (...)` SQL + `list_entries_filter_combines_type_and_agent` 테스트.
+- [x] Overview 의 AgentBreakdown 클릭 → Today 의 agent 필터 1개로 navigate — `AgentBreakdown` 의 onclick `navigateToToday({ filter: { agents: [id] } })` 가 bus 에 push, TodayScreen `useEffect` 가 `consumePendingNavTarget` 으로 흡수 + filter merge + saveFilter.
+- [x] localStorage 의 기존 (agents 필드 없는) 저장값이 무중단으로 default `[]` 흡수 — `SerializedFilter.agents?: string[]` + `loadFilter` 가 `Array.isArray(p.agents) ? ... : []` 처리.
+- [x] backend 4 신규 테스트 PASS — `list_entries_filter_by_agent_includes_only_matching` / `_empty_set_shows_all` / `list_entries_filter_combines_type_and_agent` / `observed_agent_ids_returns_distinct_sorted`. 누적 cache tests 23/23 PASS (2026-05-28).
+- [x] `pnpm tsc --noEmit` clean (exit 0, 2026-05-28).
 
 ---
 
@@ -154,9 +154,19 @@ SELECT DISTINCT agent_id FROM oculpm_journal
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **PR5의 `difficulties` 필드도 함께 추가**: PR5 doc은 "PR6에선 agent만" 이라 적었지만 PR5 의 DifficultyMix 클릭이 `navigateToToday({ filter: { difficulties: [...] } })` 를 호출하는데 consume + filter 가 둘 다 미구현이었음. 본 PR 에서 `CategoryFilter.difficulties: Set<Difficulty>` + `EntryFilters.difficulties: Vec<Difficulty>` + SQL `WHERE difficulty IN (...)` 동시 추가. UI 칩 그룹은 추가하지 않음 — DifficultyMix 클릭으로만 적용되고, "초기화" 버튼은 W6 stabilize 후보. 적용된 필터는 Today 의 entries 수 차이로만 시각 표시.
+- **`EntryFilters` 에 `#[derive(Default)]`**: 기존 코드가 `EntryFilters { types: vec![], ... }` 같은 명시 초기화 + 일부 위치에서 `..Default::default()`. PR6 가 두 필드 추가하면서 모든 명시 초기화 위치 (manager의 `overview_stats` 내 unfinished 필터 등) 를 `Default::default()` 패턴으로 통일. `serde(default)` 도 같이 — 기존 wire payload 가 두 필드 없이 오면 자동 채워짐 (PR1 의 dry_run 도 PR6 이전 시점이라 호환성 필요).
+- **`oculpm_observed_agent_ids` 의 빈 응답**: 프로젝트가 초기화는 됐지만 entries 가 0인 시점에 호출 → 빈 array 반환. dropdown 은 `KNOWN_AGENT_IDS` (6개) 만 보임 + "observed" 배지는 누구에게도 안 붙음. 의도된 UX.
+- **dropdown 의 click-outside 닫기**: `mousedown` 리스너 + `agentMenuRef.current.contains(target)` 체크. Esc 닫기는 W6 polish.
+- **`navigateToToday({ kind: "workday" / "workday-entry" })` consume**: 가이드 §3 의 "dayOffset 계산 후 적용" 은 anchor date 기준 차이가 필요한데 본 PR 에선 명시 미구현 (filter만 consume). 사용자가 timeline 의 날짜 navigation 버튼으로 직접 이동. PR8 통합 라운드의 polish 후보.
+- **`KNOWN_AGENT_IDS` 정렬 + 중복 제거**: dropdown 리스트는 `new Set(KNOWN_AGENT_IDS + observed)` 의 array 화 — 알려진 6 agent + observed extras 합집합. "observed" 배지는 실측 agent 만 표시 — 사용자가 어느 게 더미인지 식별 가능.
 
 ### 다음 PR 로 넘기는 메모
 
-- PR8 의 회귀 점검: 기존 사용자 (agents 필드 없는 localStorage) → 마이그레이션 코드 없이 default `[]` 가 잘 흡수되는지 1회 확인.
+- PR8 의 회귀 점검: 기존 사용자 (agents/difficulties 필드 없는 localStorage) → 마이그레이션 코드 없이 default `[]` 가 잘 흡수되는지 1회 확인.
+- PR8 의 시각 검증: AgentBreakdown 클릭 + DifficultyMix 슬라이스 클릭이 Today 에서 실제 entries 가 줄어드는지 확인 (수동 QA §4 항목 12, 13).
 - 본 PR 의 `oculpm_observed_agent_ids` 가 W6 의 Settings UI ("에이전트 분포 사이드바") 로 재사용 가능 — 인터페이스 stable 유지.
+- W6 stabilize 후보:
+  - difficulty 칩 그룹 (현재는 DifficultyMix 클릭으로만 set)
+  - 필터 dropdown Esc 닫기
+  - `navigateToToday({ kind: "workday" })` 의 anchor-date 기반 dayOffset 자동 점프

@@ -138,6 +138,8 @@ use crate::commands::{
     oculpm_open_backup_dir,
     // W5-PR5 — Overview stats
     oculpm_overview_stats,
+    // W5-PR6 — Agent filter
+    oculpm_observed_agent_ids,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -282,6 +284,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_open_backup_dir,
         // W5-PR5 — Overview stats
         oculpm_overview_stats,
+        // W5-PR6 — Agent filter
+        oculpm_observed_agent_ids,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

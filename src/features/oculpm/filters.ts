@@ -20,7 +20,7 @@
  * See `docs/major_update/oculpm/W3/PR8-category-filter.md`.
  */
 
-import type { EntryFilters, EntryType } from "@/lib/bindings";
+import type { Difficulty, EntryFilters, EntryType } from "@/lib/bindings";
 
 export const ALL_ENTRY_TYPES: ReadonlyArray<EntryType> = [
   "bug",
@@ -28,6 +28,25 @@ export const ALL_ENTRY_TYPES: ReadonlyArray<EntryType> = [
   "error",
   "refactor",
   "chore",
+];
+
+/** Known agent ids — pre-populated in the agent dropdown even when no entry
+ *  has been written yet. Kept in lock-step with backend `KNOWN_AGENT_IDS`. */
+export const KNOWN_AGENT_IDS: ReadonlyArray<string> = [
+  "claude-code",
+  "cursor",
+  "antigravity",
+  "gemini-cli",
+  "agents-md",
+  "manual",
+];
+
+export const ALL_DIFFICULTIES: ReadonlyArray<Difficulty> = [
+  "superhigh",
+  "high",
+  "medium",
+  "low",
+  "verylow",
 ];
 
 export interface CategoryFilter {
@@ -41,6 +60,11 @@ export interface CategoryFilter {
   unfinishedOnly: boolean;
   /** Trimmed before sending to backend. Empty → `null` filter. */
   search: string;
+  /** W5-PR6 — empty set = no constraint (every agent). */
+  agents: Set<string>;
+  /** W5-PR6 — empty set = no constraint. Note: difficulty=null entries
+   *  ("미지정") are never matched once this set is non-empty. */
+  difficulties: Set<Difficulty>;
 }
 
 export const DEFAULT_FILTER: CategoryFilter = Object.freeze({
@@ -49,6 +73,8 @@ export const DEFAULT_FILTER: CategoryFilter = Object.freeze({
   mismatchOnly: false,
   unfinishedOnly: false,
   search: "",
+  agents: new Set<string>(),
+  difficulties: new Set<Difficulty>(),
 });
 
 /** True if the filter would return every entry (i.e., no active constraint). */
@@ -58,7 +84,9 @@ export function isFilterEmpty(filter: CategoryFilter): boolean {
     !filter.verifiedOnly &&
     !filter.mismatchOnly &&
     !filter.unfinishedOnly &&
-    filter.search.trim().length === 0
+    filter.search.trim().length === 0 &&
+    filter.agents.size === 0 &&
+    filter.difficulties.size === 0
   );
 }
 
@@ -71,6 +99,8 @@ export function toEntryFilters(filter: CategoryFilter): EntryFilters {
     mismatch_only: filter.mismatchOnly,
     unfinished_only: filter.unfinishedOnly,
     search: trimmed.length > 0 ? trimmed : null,
+    agents: [...filter.agents].sort(),
+    difficulties: [...filter.difficulties].sort(),
   };
 }
 
@@ -86,12 +116,22 @@ interface SerializedFilter {
   mismatchOnly: boolean;
   unfinishedOnly: boolean;
   search: string;
+  /** W5-PR6 — optional for backward compatibility with pre-W5-PR6 storage. */
+  agents?: string[];
+  difficulties?: Difficulty[];
 }
 
 function isValidEntryType(s: unknown): s is EntryType {
   return (
     typeof s === "string" &&
     (ALL_ENTRY_TYPES as readonly string[]).includes(s)
+  );
+}
+
+function isValidDifficulty(s: unknown): s is Difficulty {
+  return (
+    typeof s === "string" &&
+    (ALL_DIFFICULTIES as readonly string[]).includes(s)
   );
 }
 
@@ -109,6 +149,16 @@ export function loadFilter(projectId: number): CategoryFilter {
     const types = new Set<EntryType>(
       Array.isArray(p.types) ? p.types.filter(isValidEntryType) : [],
     );
+    const agents = new Set<string>(
+      Array.isArray(p.agents)
+        ? p.agents.filter((a): a is string => typeof a === "string")
+        : [],
+    );
+    const difficulties = new Set<Difficulty>(
+      Array.isArray(p.difficulties)
+        ? p.difficulties.filter(isValidDifficulty)
+        : [],
+    );
     return {
       types,
       verifiedOnly: typeof p.verifiedOnly === "boolean" ? p.verifiedOnly : false,
@@ -116,6 +166,8 @@ export function loadFilter(projectId: number): CategoryFilter {
       unfinishedOnly:
         typeof p.unfinishedOnly === "boolean" ? p.unfinishedOnly : false,
       search: typeof p.search === "string" ? p.search : "",
+      agents,
+      difficulties,
     };
   } catch (err) {
     console.warn(
@@ -139,6 +191,8 @@ export function saveFilter(projectId: number, filter: CategoryFilter): void {
       mismatchOnly: filter.mismatchOnly,
       unfinishedOnly: filter.unfinishedOnly,
       search: filter.search,
+      agents: [...filter.agents].sort(),
+      difficulties: [...filter.difficulties].sort(),
     };
     localStorage.setItem(storageKey(projectId), JSON.stringify(payload));
   } catch (err) {
@@ -154,5 +208,7 @@ function cloneDefault(): CategoryFilter {
     mismatchOnly: false,
     unfinishedOnly: false,
     search: "",
+    agents: new Set<string>(),
+    difficulties: new Set<Difficulty>(),
   };
 }

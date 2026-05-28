@@ -19,18 +19,20 @@
  * is in the filter shape so the wire-up is one boolean flip later.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Search, X } from "@/components/Icons";
-import type { EntryType } from "@/lib/bindings";
+import { ChevronDown, Search, X } from "@/components/Icons";
+import { commands, type EntryType } from "@/lib/bindings";
 import {
   ALL_ENTRY_TYPES,
+  KNOWN_AGENT_IDS,
   type CategoryFilter,
   isFilterEmpty,
 } from "./filters";
 
 interface CategoryFilterBarProps {
+  projectId: number;
   filter: CategoryFilter;
   onChange: (next: CategoryFilter) => void;
   /** Optional: shown as a tiny stat next to "전체" so users can see if the
@@ -39,14 +41,69 @@ interface CategoryFilterBarProps {
   totalCount?: number;
 }
 
+const AGENT_LABELS: Record<string, string> = {
+  "claude-code": "Claude Code",
+  cursor: "Cursor",
+  antigravity: "Antigravity",
+  "gemini-cli": "Gemini CLI",
+  "agents-md": "AGENTS.md",
+  manual: "수동",
+  migrated: "마이그레이션",
+};
+function agentLabel(id: string): string {
+  return AGENT_LABELS[id] ?? id;
+}
+
 const SEARCH_DEBOUNCE_MS = 200;
 
 export function CategoryFilterBar({
+  projectId,
   filter,
   onChange,
   matchedCount,
   totalCount,
 }: CategoryFilterBarProps) {
+  // W5-PR6 — observed agent ids for the dropdown (fetched once per project).
+  const [observedAgents, setObservedAgents] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void commands.oculpmObservedAgentIds(projectId).then((res) => {
+      if (cancelled) return;
+      if (res.status === "ok") setObservedAgents(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+  const allAgentOptions = useMemo(() => {
+    const set = new Set<string>(KNOWN_AGENT_IDS);
+    for (const a of observedAgents) set.add(a);
+    return Array.from(set);
+  }, [observedAgents]);
+
+  const [agentMenuOpen, setAgentMenuOpen] = useState(false);
+  const agentMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!agentMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!agentMenuRef.current) return;
+      if (!agentMenuRef.current.contains(e.target as Node))
+        setAgentMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [agentMenuOpen]);
+
+  const toggleAgent = (id: string) => {
+    const next = new Set(filter.agents);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange({ ...filter, agents: next });
+  };
+  const clearAgents = () =>
+    onChange({ ...filter, agents: new Set<string>() });
+  const selectAllAgents = () =>
+    onChange({ ...filter, agents: new Set<string>(allAgentOptions) });
   // ── Search input: local-immediate, debounced-to-parent ──────────────────
   const [searchInput, setSearchInput] = useState(filter.search);
   const lastEmittedSearch = useRef(filter.search);
@@ -120,7 +177,7 @@ export function CategoryFilterBar({
         )}
       </div>
 
-      {/* Row 2: boolean toggles + search */}
+      {/* Row 2: boolean toggles + agent dropdown + search */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <ToggleField
           label="검증됨만"
@@ -139,6 +196,62 @@ export function CategoryFilterBar({
           checked={filter.unfinishedOnly}
           onChange={setUnfinishedOnly}
         />
+
+        {/* W5-PR6 — agent dropdown */}
+        <div className="relative" ref={agentMenuRef}>
+          <button
+            type="button"
+            onClick={() => setAgentMenuOpen((v) => !v)}
+            aria-expanded={agentMenuOpen}
+            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-muted transition-colors cursor-pointer ${filter.agents.size > 0 ? "bg-primary/10 text-primary border-primary/40" : ""}`}
+            title="에이전트별 필터"
+          >
+            에이전트
+            {filter.agents.size > 0 && (
+              <span className="tabular-nums opacity-80">({filter.agents.size})</span>
+            )}
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {agentMenuOpen && (
+            <div className="absolute z-50 mt-1 left-0 min-w-[220px] bg-card border border-border rounded-lg shadow-lg p-2 space-y-1">
+              <ul className="max-h-60 overflow-y-auto scrollbar-thin">
+                {allAgentOptions.map((id) => (
+                  <li key={id}>
+                    <label className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted rounded cursor-pointer">
+                      <Checkbox
+                        checked={filter.agents.has(id)}
+                        onCheckedChange={() => toggleAgent(id)}
+                      />
+                      <span>{agentLabel(id)}</span>
+                      {observedAgents.includes(id) && (
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          observed
+                        </span>
+                      )}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-1 border-t border-border pt-1 mt-1">
+                <button
+                  type="button"
+                  onClick={selectAllAgents}
+                  className="text-[11px] px-1.5 py-0.5 rounded hover:bg-muted"
+                >
+                  전부 선택
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAgents}
+                  disabled={filter.agents.size === 0}
+                  className="text-[11px] px-1.5 py-0.5 rounded hover:bg-muted disabled:opacity-40"
+                >
+                  초기화
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="ml-auto relative w-full sm:w-64 shrink-0">
           <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />

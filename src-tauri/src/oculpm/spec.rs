@@ -628,6 +628,32 @@ pub struct OculpmOverviewStats {
     pub recent_sessions: Vec<SessionDailyAgg>,
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Migration history + legacy deletion (W5-PR7)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MigrationHistoryEntry {
+    pub id: u32,
+    pub report_timestamp: i64,
+    pub source_entry_count: u32,
+    pub success_count: u32,
+    pub skip_count: u32,
+    pub failure_count: u32,
+    pub backup_dir: String,
+    pub legacy_deleted_at: Option<i64>,
+    pub legacy_delete_backup_dir: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LegacyDeletionReport {
+    pub project_id: u32,
+    pub deleted_entries: u32,
+    pub deleted_files: u32,
+    pub safety_backup_dir: String,
+    pub deleted_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ReindexReport {
     pub project_id: u32,

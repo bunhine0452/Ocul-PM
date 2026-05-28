@@ -651,6 +651,24 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
     }
 }
 
+// ─── W5-PR6 — Observed agent ids ────────────────────────────────────────────
+
+/// Distinct agent_id list (sorted ASC) for the project. Used by the agent
+/// filter dropdown so users can include agents that wrote entries but
+/// aren't in the spec's hard-coded "known" list.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_observed_agent_ids(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Vec<String>, String> {
+    manager
+        .observed_agent_ids(&db, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 // ─── W5-PR5 — Overview stats ────────────────────────────────────────────────
 
 /// Single-shot fetch of every Overview widget. `window_days` clamps to
