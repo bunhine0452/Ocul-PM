@@ -1230,7 +1230,8 @@ impl OculpmManager {
         if let Ok(ref report) = result {
             let timestamp = chrono::DateTime::parse_from_rfc3339(&report.completed_at)
                 .map(|d| d.timestamp())
-                .unwrap_or_else(|_| chrono::Utc::now().timestamp());
+                .unwrap_or_else(|_| chrono::Utc::now().timestamp())
+                .max(0) as u32;
             let report_json = serde_json::to_string(report).unwrap_or_else(|_| "{}".to_string());
             if let Err(e) = db
                 .insert_oculpm_migration(
@@ -1408,7 +1409,7 @@ impl OculpmManager {
             .await
             .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
 
-        let deleted_at = chrono::Utc::now().timestamp();
+        let deleted_at = (chrono::Utc::now().timestamp().max(0) as u32);
         db.mark_oculpm_migration_deleted(history_id, deleted_at, backup_basename.clone())
             .await
             .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
@@ -1600,6 +1601,53 @@ impl OculpmManager {
                 )
             })
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// W5-PR7 confirm_token validation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Parse `migrated:<report_timestamp>:<source_entry_count>` and return the
+/// matching history entry. Rejects on shape error, missing match, repeated
+/// deletion, or zero-success migrations.
+fn validate_confirm_token<'a>(
+    token: &str,
+    history: &'a [MigrationHistoryEntry],
+) -> Result<&'a MigrationHistoryEntry, OculpmError> {
+    let parts: Vec<&str> = token.splitn(3, ':').collect();
+    if parts.len() != 3 || parts[0] != "migrated" {
+        return Err(OculpmError::InvalidConfig(
+            "confirm_token must be 'migrated:<timestamp>:<entry_count>'".into(),
+        ));
+    }
+    let timestamp: u32 = parts[1].parse().map_err(|_| {
+        OculpmError::InvalidConfig(format!("confirm_token timestamp '{}' is not u32", parts[1]))
+    })?;
+    let entry_count: u32 = parts[2].parse().map_err(|_| {
+        OculpmError::InvalidConfig(format!(
+            "confirm_token entry_count '{}' is not u32",
+            parts[2]
+        ))
+    })?;
+    let matched = history
+        .iter()
+        .find(|h| h.report_timestamp == timestamp && h.source_entry_count == entry_count)
+        .ok_or_else(|| {
+            OculpmError::InvalidConfig(
+                "no migration history row matches confirm_token".into(),
+            )
+        })?;
+    if matched.legacy_deleted_at.is_some() {
+        return Err(OculpmError::InvalidConfig(
+            "this migration's legacy data was already deleted".into(),
+        ));
+    }
+    if matched.success_count == 0 {
+        return Err(OculpmError::InvalidConfig(
+            "refusing to delete legacy data: migration had 0 successes".into(),
+        ));
+    }
+    Ok(matched)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2992,6 +3040,201 @@ mod tests {
             assert!(cmp.only_in_journal.is_empty());
             assert_eq!(cmp.mismatch_severity, Severity::Ok);
             assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
+        }
+    }
+
+    // ─── W5-PR7: legacy delete + confirm_token validation ─────────────────
+
+    mod legacy_delete_w5_pr7 {
+        use super::*;
+
+        async fn fresh_with_history(success_count: u32) -> (
+            OculpmManager,
+            crate::db::Db,
+            tempfile::TempDir,
+            std::path::PathBuf,
+            u32,
+            u32,
+        ) {
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = crate::db::Db::open(db_path).await.expect("open db");
+            // Create projects(id=1) for FK.
+            let project_id = db
+                .create_project("legacy-test".into(), dir.path().to_string_lossy().into())
+                .await
+                .expect("create project");
+            let manager = OculpmManager::new();
+            let project_root = dir.path().join("project");
+            std::fs::create_dir_all(&project_root).unwrap();
+            manager
+                .init_project(project_id, &project_root)
+                .await
+                .unwrap();
+            // Insert a few changelog rows so truncate has something to count.
+            for i in 0..3 {
+                let entry = db
+                    .insert_changelog_entry(
+                        project_id,
+                        Some(format!("intent {i}")),
+                        None,
+                        format!("summary {i}"),
+                        Some(format!("title {i}")),
+                        Some("feature".into()),
+                        None,
+                        1,
+                        0,
+                        0,
+                    )
+                    .await
+                    .unwrap();
+                db.insert_changelog_file(
+                    entry.id,
+                    format!("src/f{i}.rs"),
+                    "modified".into(),
+                    1,
+                    1,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .unwrap();
+            }
+            // Seed a successful migration history row.
+            let ts = chrono::Utc::now().timestamp().max(0) as u32;
+            let source_entry_count = 3u32;
+            db.insert_oculpm_migration(
+                project_id,
+                ts,
+                source_entry_count,
+                success_count,
+                0,
+                0,
+                ".oculpm.backup-pre-migration-test".into(),
+                "{}".into(),
+            )
+            .await
+            .unwrap();
+            (manager, db, dir, project_root, ts, project_id)
+        }
+
+        #[tokio::test]
+        async fn delete_rejects_when_no_migration_history() {
+            let dir = tempfile::tempdir().unwrap();
+            let db_path = dir.path().join("ai-pm.db");
+            let db = crate::db::Db::open(db_path).await.expect("open db");
+            let project_id = db
+                .create_project("p".into(), dir.path().to_string_lossy().into())
+                .await
+                .unwrap();
+            let manager = OculpmManager::new();
+            let project_root = dir.path().join("project");
+            std::fs::create_dir_all(&project_root).unwrap();
+            manager
+                .init_project(project_id, &project_root)
+                .await
+                .unwrap();
+
+            let err = manager
+                .delete_legacy_changelog(&db, project_id, "migrated:0:0")
+                .await
+                .unwrap_err();
+            assert!(matches!(err, OculpmError::InvalidConfig(_)), "got {err:?}");
+        }
+
+        #[tokio::test]
+        async fn delete_rejects_on_invalid_confirm_token() {
+            let (manager, db, _dir, _root, _ts, pid) = fresh_with_history(3).await;
+            for bad in [
+                "wrong-prefix:0:0",
+                "migrated:nope:3",
+                "migrated:0:not-a-number",
+                "migrated:0",
+                "",
+            ] {
+                let err = manager
+                    .delete_legacy_changelog(&db, pid, bad)
+                    .await
+                    .unwrap_err();
+                assert!(matches!(err, OculpmError::InvalidConfig(_)), "token {bad} got {err:?}");
+            }
+        }
+
+        #[tokio::test]
+        async fn delete_rejects_after_already_deleted() {
+            let (manager, db, _dir, _root, ts, pid) = fresh_with_history(3).await;
+            let token = format!("migrated:{ts}:3");
+            // First call succeeds.
+            let r = manager
+                .delete_legacy_changelog(&db, pid, &token)
+                .await
+                .unwrap();
+            assert_eq!(r.deleted_entries, 3);
+            // Second call must reject.
+            let err = manager
+                .delete_legacy_changelog(&db, pid, &token)
+                .await
+                .unwrap_err();
+            assert!(matches!(err, OculpmError::InvalidConfig(_)));
+        }
+
+        #[tokio::test]
+        async fn delete_truncates_changelog_tables_and_records_history_row() {
+            let (manager, db, _dir, _root, ts, pid) = fresh_with_history(3).await;
+            let token = format!("migrated:{ts}:3");
+            let r = manager
+                .delete_legacy_changelog(&db, pid, &token)
+                .await
+                .unwrap();
+            assert_eq!(r.deleted_entries, 3);
+            assert_eq!(r.deleted_files, 3);
+            // Tables are empty.
+            let remaining = db
+                .list_changelog_entries(pid, None, 100)
+                .await
+                .unwrap();
+            assert!(remaining.is_empty());
+            // History row's legacy_deleted_at is set.
+            let history = manager
+                .get_migration_history(&db, pid)
+                .await
+                .unwrap();
+            assert_eq!(history.len(), 1);
+            assert!(history[0].legacy_deleted_at.is_some());
+            assert!(history[0].legacy_delete_backup_dir.is_some());
+        }
+
+        #[tokio::test]
+        async fn delete_creates_safety_backup_with_json_dump() {
+            let (manager, db, _dir, root, ts, pid) = fresh_with_history(3).await;
+            let token = format!("migrated:{ts}:3");
+            let r = manager
+                .delete_legacy_changelog(&db, pid, &token)
+                .await
+                .unwrap();
+            let bd = root.join(&r.safety_backup_dir);
+            assert!(bd.exists(), "safety backup dir created");
+            let entries_json =
+                std::fs::read_to_string(bd.join("changelog_entries.json")).unwrap();
+            let arr: serde_json::Value = serde_json::from_str(&entries_json).unwrap();
+            assert_eq!(arr.as_array().unwrap().len(), 3);
+            let files_json =
+                std::fs::read_to_string(bd.join("changelog_files.json")).unwrap();
+            let arr2: serde_json::Value = serde_json::from_str(&files_json).unwrap();
+            assert_eq!(arr2.as_array().unwrap().len(), 3);
+        }
+
+        #[tokio::test]
+        async fn delete_rejects_when_migration_had_zero_successes() {
+            let (manager, db, _dir, _root, ts, pid) = fresh_with_history(0).await;
+            let token = format!("migrated:{ts}:3");
+            let err = manager
+                .delete_legacy_changelog(&db, pid, &token)
+                .await
+                .unwrap_err();
+            assert!(matches!(err, OculpmError::InvalidConfig(_)));
         }
     }
 }

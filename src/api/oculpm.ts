@@ -24,8 +24,10 @@ import type {
   JournalEntry,
   JournalEntrySummary,
   LayerComparison,
+  LegacyDeletionReport,
   ManualEntryDraft,
   MigrationCommandError,
+  MigrationHistoryEntry,
   MigrationPlan,
   MigrationReport,
   OculpmConfig,
@@ -318,6 +320,30 @@ export const oculpmApi = {
     unwrap<RollbackReport>(
       "oculpm_migration_rollback",
       commands.oculpmMigrationRollback(projectId, backupDirBasename),
+    ),
+
+  /**
+   * W5-PR7 — Migration history rows for a project. Used by `LegacyDeleteModal`
+   * to render the confirm screen + construct the `confirm_token`. Empty array
+   * means "no successful migration ever" — the legacy-delete CTA should
+   * stay hidden in that case.
+   */
+  getMigrationHistory: (projectId: number) =>
+    unwrap<MigrationHistoryEntry[]>(
+      "oculpm_get_migration_history",
+      commands.oculpmGetMigrationHistory(projectId),
+    ),
+
+  /**
+   * W5-PR7 — Destructive truncate of `changelog_entries` + `changelog_files`.
+   * Caller must pass `migrated:<report_timestamp>:<source_entry_count>` from
+   * a history row — backend validates against on-disk history and rejects
+   * tampered or replayed tokens.
+   */
+  deleteLegacyChangelog: (projectId: number, confirmToken: string) =>
+    unwrap<LegacyDeletionReport>(
+      "oculpm_delete_legacy_changelog",
+      commands.oculpmDeleteLegacyChangelog(projectId, confirmToken),
     ),
 } as const;
 

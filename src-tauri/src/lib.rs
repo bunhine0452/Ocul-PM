@@ -140,6 +140,8 @@ use crate::commands::{
     oculpm_overview_stats,
     // W5-PR6 — Agent filter
     oculpm_observed_agent_ids,
+    // W5-PR7 — Migration history + legacy delete
+    oculpm_get_migration_history, oculpm_delete_legacy_changelog,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -286,6 +288,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_overview_stats,
         // W5-PR6 — Agent filter
         oculpm_observed_agent_ids,
+        // W5-PR7 — Migration history + legacy delete
+        oculpm_get_migration_history,
+        oculpm_delete_legacy_changelog,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

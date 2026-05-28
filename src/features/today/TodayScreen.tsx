@@ -30,6 +30,8 @@ import {
   MigrationModal,
   useShouldOfferMigration,
 } from "@/features/projects/MigrationModal";
+import { LegacyDeleteModal } from "@/features/projects/LegacyDeleteModal";
+import type { MigrationReport } from "@/lib/bindings";
 import { DiffVsNarrative } from "@/features/oculpm/DiffVsNarrative";
 import { OCULPM_BUS } from "@/components/CommandPalette";
 import { CategoryFilterBar } from "@/features/oculpm/CategoryFilterBar";
@@ -78,6 +80,9 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     activeProjectId,
     !migrationOpen && oculpmStatus?.initialized === true,
   );
+  // W5-PR7 — legacy delete modal. Triggered from MigrationModal's step 5 CTA.
+  const [legacyDeleteOpen, setLegacyDeleteOpen] = useState(false);
+  const [legacyDeleteSource, setLegacyDeleteSource] = useState<MigrationReport | null>(null);
 
   useEffect(() => {
     if (migrationOffer === "yes" && !migrationOpen) {
@@ -533,9 +538,27 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
       {migrationOpen && activeProjectId != null && (
         <MigrationModal
           projectId={activeProjectId}
+          onOpenLegacyDelete={(report) => {
+            setLegacyDeleteSource(report);
+            setLegacyDeleteOpen(true);
+            setMigrationOpen(false);
+          }}
           onClose={() => {
             setMigrationOpen(false);
             // Trigger a refetch so Today picks up the newly-migrated entries.
+            setRefreshTick((n) => n + 1);
+          }}
+        />
+      )}
+
+      {/* W5-PR7 — Legacy SQLite changelog delete confirmation. */}
+      {legacyDeleteOpen && activeProjectId != null && (
+        <LegacyDeleteModal
+          projectId={activeProjectId}
+          lastReport={legacyDeleteSource}
+          onClose={() => {
+            setLegacyDeleteOpen(false);
+            setLegacyDeleteSource(null);
             setRefreshTick((n) => n + 1);
           }}
         />

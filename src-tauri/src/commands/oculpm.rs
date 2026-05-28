@@ -20,10 +20,10 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
-    JournalEntrySummary, LayerComparison, ManualEntryDraft, MigrationCommandError, MigrationPlan,
-    MigrationReport, OculpmConfig, OculpmInitReport, OculpmIntegrityWarning,
-    OculpmMigrationProgress, OculpmOverviewStats, OculpmStatus, ReindexReport, RollbackReport,
-    Session, Snapshot, SnapshotKind, WatcherStatus,
+    JournalEntrySummary, LayerComparison, LegacyDeletionReport, ManualEntryDraft,
+    MigrationCommandError, MigrationHistoryEntry, MigrationPlan, MigrationReport, OculpmConfig,
+    OculpmInitReport, OculpmIntegrityWarning, OculpmMigrationProgress, OculpmOverviewStats,
+    OculpmStatus, ReindexReport, RollbackReport, Session, Snapshot, SnapshotKind, WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -649,6 +649,41 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
         "info" => tracing::info!(target: "oculpm::frontend", source = %target_str, "{message}"),
         _ => tracing::debug!(target: "oculpm::frontend", source = %target_str, "{message}"),
     }
+}
+
+// ─── W5-PR7 — Migration history + legacy delete ────────────────────────────
+
+/// All successful migration history rows for a project, most-recent first.
+/// Returns `[]` for projects that never ran a migration.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_migration_history(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Vec<MigrationHistoryEntry>, String> {
+    manager
+        .get_migration_history(&db, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Truncate legacy `changelog_entries` + `changelog_files` rows for a
+/// project. The `confirm_token` must match `migrated:<ts>:<entry_count>` for
+/// an existing un-deleted history row, otherwise this errors. Writes a
+/// JSON safety dump to `.oculpm.backup-legacy-deletion-<ISO>` first.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_delete_legacy_changelog(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    confirm_token: String,
+) -> Result<LegacyDeletionReport, String> {
+    manager
+        .delete_legacy_changelog(&db, project_id, &confirm_token)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ─── W5-PR6 — Observed agent ids ────────────────────────────────────────────

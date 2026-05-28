@@ -16,7 +16,7 @@
 | W5-PR4 | Frontend `MigrationModal` 5-step 흐름 | ✅ | [`PR4-migration-modal.md`](./PR4-migration-modal.md) |
 | W5-PR5 | Frontend `OverviewScreen` 재포지셔닝 + 4 위젯 | ✅ | [`PR5-overview-widgets.md`](./PR5-overview-widgets.md) |
 | W5-PR6 | Today 의 agent 필터 확장 (W4 보완) | ✅ | [`PR6-today-agent-filter.md`](./PR6-today-agent-filter.md) |
-| W5-PR7 | "구 SQLite changelog 데이터 삭제" 안전 액션 | ⬜ | [`PR7-legacy-delete.md`](./PR7-legacy-delete.md) |
+| W5-PR7 | "구 SQLite changelog 데이터 삭제" 안전 액션 | ✅ | [`PR7-legacy-delete.md`](./PR7-legacy-delete.md) |
 | W5-PR8 | 통합 + 회귀 점검 + ChangelogScreen deprecated 배너 | ⬜ | [`PR8-integration-regression.md`](./PR8-integration-regression.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.
@@ -82,9 +82,9 @@ PR1 (dry_run + execute) ──► PR2 (rollback + partial failure)
 | 12 | DifficultyMix 도넛 슬라이스 클릭 → Today 의 difficulty 필터 | 🟡 PR5 push ✅ + PR6 consume ✅ + 백엔드 SQL ✅ / 수동 검증 PR8 | PR5 + W3 filter |
 | 13 | AgentBreakdown 막대 클릭 → Today 의 agent 필터 | 🟡 PR5 push ✅ + PR6 consume ✅ + 백엔드 SQL ✅ / 수동 검증 PR8 | PR5 + PR6 |
 | 14 | UnfinishedChecklist 50개 표시 + 클릭 → Today 의 entry 선택 | 🟡 PR5 구현 ✅ / 수동 검증 PR8 | PR5 |
-| 15 | 구 데이터 삭제: 슬러그 타이핑 미입력 → 버튼 disabled | ⬜ | PR7 |
-| 16 | 구 데이터 삭제: 마이그레이션 이력 없으면 메뉴 자체 hidden | ⬜ | PR7 |
-| 17 | 구 데이터 삭제 성공 → ChangelogScreen 빈 상태 | ⬜ | PR7 + PR8 |
+| 15 | 구 데이터 삭제: 슬러그 타이핑 미입력 → 버튼 disabled | 🟡 PR7 구현 ✅ (slugInput === REQUIRED_SLUG) / 시각 검증 PR8 | PR7 |
+| 16 | 구 데이터 삭제: 마이그레이션 이력 없으면 메뉴 자체 hidden | 🟡 PR7 구현 ✅ (target == null 분기) / 시각 검증 PR8 | PR7 |
+| 17 | 구 데이터 삭제 성공 → ChangelogScreen 빈 상태 | ⬜ ChangelogScreen 변경은 PR8 | PR7 + PR8 |
 | 18 | 회귀: 기존 화면들 모두 정상 | ⬜ | PR8 |
 
 ---

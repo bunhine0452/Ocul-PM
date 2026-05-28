@@ -635,13 +635,15 @@ pub struct OculpmOverviewStats {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct MigrationHistoryEntry {
     pub id: u32,
-    pub report_timestamp: i64,
+    /// Unix epoch seconds. u32 caps at 2106-02-07; we only store recent
+    /// migrations, never historical / future dates beyond that.
+    pub report_timestamp: u32,
     pub source_entry_count: u32,
     pub success_count: u32,
     pub skip_count: u32,
     pub failure_count: u32,
     pub backup_dir: String,
-    pub legacy_deleted_at: Option<i64>,
+    pub legacy_deleted_at: Option<u32>,
     pub legacy_delete_backup_dir: Option<String>,
 }
 
@@ -651,7 +653,7 @@ pub struct LegacyDeletionReport {
     pub deleted_entries: u32,
     pub deleted_files: u32,
     pub safety_backup_dir: String,
-    pub deleted_at: i64,
+    pub deleted_at: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

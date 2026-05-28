@@ -1597,7 +1597,7 @@ impl Db {
     pub async fn insert_oculpm_migration(
         &self,
         project_id: u32,
-        report_timestamp: i64,
+        report_timestamp: u32,
         source_entry_count: u32,
         success_count: u32,
         skip_count: u32,
@@ -1615,7 +1615,7 @@ impl Db {
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                     params![
                         project_id as i64,
-                        report_timestamp,
+                        report_timestamp as i64,
                         source_entry_count as i64,
                         success_count as i64,
                         skip_count as i64,
@@ -1651,13 +1651,15 @@ impl Db {
                     .query_map([project_id as i64], |r| {
                         Ok(MigrationHistoryEntry {
                             id: r.get::<_, i64>(0)? as u32,
-                            report_timestamp: r.get(1)?,
+                            report_timestamp: r.get::<_, i64>(1)? as u32,
                             source_entry_count: r.get::<_, i64>(2)? as u32,
                             success_count: r.get::<_, i64>(3)? as u32,
                             skip_count: r.get::<_, i64>(4)? as u32,
                             failure_count: r.get::<_, i64>(5)? as u32,
                             backup_dir: r.get(6)?,
-                            legacy_deleted_at: r.get(7)?,
+                            legacy_deleted_at: r
+                                .get::<_, Option<i64>>(7)?
+                                .map(|v| v as u32),
                             legacy_delete_backup_dir: r.get(8)?,
                         })
                     })?
@@ -1673,7 +1675,7 @@ impl Db {
     pub async fn mark_oculpm_migration_deleted(
         &self,
         history_id: u32,
-        deleted_at: i64,
+        deleted_at: u32,
         safety_backup_dir: String,
     ) -> Result<()> {
         self.conn
@@ -1682,7 +1684,7 @@ impl Db {
                     "UPDATE oculpm_migrations
                      SET legacy_deleted_at = ?1, legacy_delete_backup_dir = ?2
                      WHERE id = ?3",
-                    params![deleted_at, &safety_backup_dir, history_id as i64],
+                    params![deleted_at as i64, &safety_backup_dir, history_id as i64],
                 )?;
                 Ok::<(), rusqlite::Error>(())
             })
