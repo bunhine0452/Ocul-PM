@@ -4,7 +4,6 @@ import { commands, type IndexProgress } from "@/lib/bindings";
 import { FileExplorer } from "@/components/FileExplorer";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
 import { AiWorkbench } from "./AiWorkbench";
-import { BottomDrawer } from "./BottomDrawer";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Code2, Network, RefreshCw, Loader2, FolderCode, ExternalLink } from "@/components/Icons";
@@ -14,15 +13,14 @@ import { Code2, Network, RefreshCw, Loader2, FolderCode, ExternalLink } from "@/
 //   ┌────────┬───────────────────────┬────────────┐
 //   │  Tree  │  Viewer / Graph       │ AiWorkbench│
 //   │ (Files)│  (primary content)    │ (right)    │
-//   ├────────┴───────────────────────┴────────────┤
-//   │  BottomDrawer (Terminal)                   │
-//   └────────────────────────────────────────────┘
+//   └────────┴───────────────────────┴────────────┘
 //
 // Lite-W6 PR5: the built-in CodeEditor moved to src/legacy/ — the main pane
 // now offers "외부 에디터로 열기" (full surface comes in PR8). GitPanel also
-// retired to src/legacy/; the BottomDrawer collapses to a single Terminal
-// tab. PR7 reintroduces a TitleBar mini git chip backed by the new
-// `git_head_status_brief` command.
+// retired to src/legacy/.
+// Lite-W6 PR7 Part 2: Terminal moved out of CodeWorkbench's BottomDrawer
+// into the Workspace-level TerminalDock (App.tsx). ⌘J / ⌘⇧J operate on
+// `layoutMode` regardless of activeView.
 
 interface CodeWorkbenchProps {
   projectId: number;
@@ -44,12 +42,13 @@ export function CodeWorkbench({
   //   - "files" → Tree + viewer placeholder (default)
   //   - "graph" → DependencyGraphView replaces the viewer pane
   //   - "ai"    → open AiWorkbench (mode toggled inside the panel)
-  //   - "terminal" → open the BottomDrawer
+  //   - "terminal" → open the Workspace-level TerminalDock in split mode
+  //     (Lite-W6 PR7 Part 2 retired the Code-only BottomDrawer).
   useEffect(() => {
     if (codeSubTab === "ai") {
       setState((p) => ({ ...p, aiWorkbenchOpen: true }));
     } else if (codeSubTab === "terminal") {
-      setState((p) => ({ ...p, bottomDrawerOpen: true, bottomDrawerTab: "terminal" }));
+      setState((p) => ({ ...p, layoutMode: "split" }));
     }
     // We intentionally don't depend on setState — it's a stable callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,9 +113,8 @@ export function CodeWorkbench({
             <EditorPlaceholder />
           )}
         </main>
-        
-        {/* Bottom drawer (Terminal / Git) — toggle with ⌘J */}
-        <BottomDrawer activeProjectId={projectId} projectRoot={projectRoot} />
+        {/* Lite-W6 PR7 Part 2 retired the local BottomDrawer — Terminal now
+            docks at the Workspace level via TerminalDock (App.tsx). */}
       </div>
 
       {/* C-3: AI Workbench (right) — toggle with ⌘\\ */}

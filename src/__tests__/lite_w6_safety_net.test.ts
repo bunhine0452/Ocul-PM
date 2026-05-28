@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 
 import {
   migrateActiveView,
-  migrateBottomDrawerTab,
+  migrateLayoutMode,
+  migrateSplitRatio,
 } from "@/contexts/WorkspaceContext";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
@@ -17,40 +18,11 @@ describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () =>
     "SC1: empty SQLite + seeded journal renders Today (enable in PR4 — journal-only path)",
   );
 
-  // SC2 enabled by PR2.
-  describe("SC2: workspace migration drops BottomDrawerTab 'problems' → 'terminal'", () => {
-    const STORAGE_KEY = "aipm:workspace:v1";
-
-    beforeEach(() => {
-      localStorage.clear();
-    });
-
-    afterEach(() => {
-      localStorage.clear();
-    });
-
-    it("rewrites persisted 'problems' to 'terminal' on read path", () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ schemaVersion: 2, bottomDrawerTab: "problems" }),
-      );
-      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-      expect(migrateBottomDrawerTab(raw.bottomDrawerTab)).toBe("terminal");
-    });
-
-    it("preserves the only valid value ('terminal')", () => {
-      // PR5 collapsed the union to a single member.
-      expect(migrateBottomDrawerTab("terminal")).toBe("terminal");
-    });
-
-    it("defaults all other values to 'terminal'", () => {
-      // PR5 retired "git" along with GitPanel.
-      expect(migrateBottomDrawerTab("git")).toBe("terminal");
-      expect(migrateBottomDrawerTab(undefined)).toBe("terminal");
-      expect(migrateBottomDrawerTab(null)).toBe("terminal");
-      expect(migrateBottomDrawerTab("changelog")).toBe("terminal");
-    });
-  });
+  // SC2 was enabled by PR2 (BottomDrawerTab "problems" → "terminal") and
+  // again by PR5 (single-member union). PR7 Part 2 retired the
+  // BottomDrawer entirely and migrated state to `layoutMode` /
+  // `splitRatio`; the assertions move to the new helpers below.
+  it.todo("SC2: retired in PR7 Part 2 (BottomDrawer fully replaced)");
 
   it.todo(
     "SC3: Watcher event lights FileTree change-dot (enable in PR8 — FileTree redesign)",
@@ -76,6 +48,36 @@ describe("Lite-W6 PR7 Part 1 — ActiveView migration", () => {
     expect(migrateActiveView(undefined)).toBe("today");
     expect(migrateActiveView(null)).toBe("today");
     expect(migrateActiveView("settings")).toBe("today");
+  });
+});
+
+describe("Lite-W6 PR7 Part 2 — layoutMode + splitRatio migration", () => {
+  it("maps legacy bottomDrawerOpen=true to 'split'", () => {
+    expect(migrateLayoutMode(undefined, true)).toBe("split");
+  });
+
+  it("maps legacy bottomDrawerOpen=false to 'main-only'", () => {
+    expect(migrateLayoutMode(undefined, false)).toBe("main-only");
+  });
+
+  it("preserves current layoutMode values", () => {
+    expect(migrateLayoutMode("main-only", true)).toBe("main-only");
+    expect(migrateLayoutMode("split", false)).toBe("split");
+    expect(migrateLayoutMode("terminal-only", undefined)).toBe("terminal-only");
+  });
+
+  it("defaults unknown layoutMode + missing legacy to 'main-only'", () => {
+    expect(migrateLayoutMode("bottom-drawer-open", undefined)).toBe("main-only");
+    expect(migrateLayoutMode(null, null)).toBe("main-only");
+  });
+
+  it("clamps splitRatio into [0.1, 0.9]", () => {
+    expect(migrateSplitRatio(0.6)).toBe(0.6);
+    expect(migrateSplitRatio(0.05)).toBe(0.1);
+    expect(migrateSplitRatio(0.95)).toBe(0.9);
+    expect(migrateSplitRatio(undefined)).toBe(0.6);
+    expect(migrateSplitRatio(NaN)).toBe(0.6);
+    expect(migrateSplitRatio("0.8")).toBe(0.6); // non-number → default
   });
 });
 

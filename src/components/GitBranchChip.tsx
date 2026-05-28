@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { commands, type GitHeadStatusBrief } from "@/lib/bindings";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { GitBranch } from "./Icons";
 
 /**
  * GitBranchChip — TitleBar mini indicator for the current git branch +
- * uncommitted line count. Lite-W6 PR7 Part 1 mounts this here against the
- * backend `git_head_status_brief` wrapper added in PR5. The richer "click →
- * split mode + git status" behaviour is part of the full PR7 (terminal dock
- * + layoutMode); for now the chip is informational + refreshable.
+ * uncommitted line count. Lite-W6 PR7 Part 1 mounted this here against the
+ * backend `git_head_status_brief` wrapper added in PR5. Part 2 adds the
+ * "click → open Terminal in split mode" behaviour so the user can run
+ * `git status` (or anything else) directly without leaving the activeView.
  *
  * Rendered states:
  *   - `null` projectId → nothing (no project selected)
- *   - non-git project → muted "(no git)" badge
+ *   - non-git project → muted "(no git)" badge (still clickable so the user
+ *     can drop into Terminal anyway)
  *   - git project → branch name + amber +N if uncommitted > 0
  *   - loading / error → the previous successful read stays visible so the
  *     chip doesn't flicker; errors collapse to a muted "(git error)".
  */
 export function GitBranchChip({ projectId }: { projectId: number | null }) {
+  const { setState: setWorkspaceState } = useWorkspace();
   const [state, setState] = useState<GitHeadStatusBrief | null>(null);
   const [errored, setErrored] = useState(false);
 
@@ -52,9 +55,19 @@ export function GitBranchChip({ projectId }: { projectId: number | null }) {
 
   if (projectId == null) return null;
 
+  // PR7 Part 2: clicking the chip surfaces the Terminal in split mode and
+  // refreshes the brief so the badge resyncs after the user runs a command.
+  const openTerminalSplit = () => {
+    setWorkspaceState((p) => ({ ...p, layoutMode: "split" }));
+    void refresh();
+  };
+
   if (errored) {
     return (
-      <ChipShell title="git_head_status_brief 호출 실패">
+      <ChipShell
+        title="git_head_status_brief 호출 실패 — 클릭으로 Terminal 열기"
+        onClick={openTerminalSplit}
+      >
         <GitBranch className="w-3 h-3" />
         <span className="text-muted-foreground">(git error)</span>
       </ChipShell>
@@ -71,7 +84,10 @@ export function GitBranchChip({ projectId }: { projectId: number | null }) {
 
   if (!state.is_git_repo) {
     return (
-      <ChipShell title="git 저장소가 아님">
+      <ChipShell
+        title="git 저장소가 아님 — 클릭으로 Terminal 열기"
+        onClick={openTerminalSplit}
+      >
         <GitBranch className="w-3 h-3 opacity-60" />
         <span className="text-muted-foreground">(no git)</span>
       </ChipShell>
@@ -85,10 +101,10 @@ export function GitBranchChip({ projectId }: { projectId: number | null }) {
     <ChipShell
       title={
         uncommitted > 0
-          ? `${branchLabel} · ${uncommitted}개 미커밋`
-          : `${branchLabel} · 클린`
+          ? `${branchLabel} · ${uncommitted}개 미커밋 — 클릭으로 Terminal 열기`
+          : `${branchLabel} · 클린 — 클릭으로 Terminal 열기`
       }
-      onClick={() => void refresh()}
+      onClick={openTerminalSplit}
     >
       <GitBranch className="w-3 h-3" />
       <span className="font-mono">{branchLabel}</span>

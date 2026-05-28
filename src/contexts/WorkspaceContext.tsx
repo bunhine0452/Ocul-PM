@@ -23,13 +23,20 @@ import { toast, DriftCooldown } from "@/lib/toast";
  */
 export type ActiveView = "today" | "plan" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
+
 /**
- * Lite-W6 PR5 collapses the BottomDrawer to a single Terminal tab. The
- * union is retained as a single-string type so the WorkspaceState field
- * shape doesn't need to change; a future PR can re-expand it once new
- * dock surfaces land.
+ * Lite-W6 PR7 Part 2 introduces a Workspace-level layout mode. The Terminal
+ * is no longer trapped inside Code's BottomDrawer — it docks at the bottom
+ * of the workspace for every view and the mode controls how much of the
+ * vertical real estate it claims.
+ *
+ *  - "main-only"      : 100% activeView, terminal hidden (still mounted to
+ *                       preserve PTY sessions; CSS-hidden).
+ *  - "split"          : activeView on top, Terminal on bottom. Ratio
+ *                       persisted in `splitRatio` (activeView portion).
+ *  - "terminal-only"  : full-height Terminal; activeView hidden.
  */
-export type BottomDrawerTab = "terminal";
+export type LayoutMode = "main-only" | "split" | "terminal-only";
 
 /**
  * Transitional secondary tab inside the "code" view. PR5 retired the "git"
@@ -56,8 +63,12 @@ export interface WorkspaceState {
   activeFile: string | null;
   aiWorkbenchMode: AiWorkbenchMode;
   aiWorkbenchOpen: boolean;
-  bottomDrawerOpen: boolean;
-  bottomDrawerTab: BottomDrawerTab;
+
+  // Workspace-level dock layout (Lite-W6 PR7 Part 2)
+  layoutMode: LayoutMode;
+  /** Portion (0.1..0.9) of the vertical space the activeView gets in
+   *  "split" mode. Ignored for main-only / terminal-only. */
+  splitRatio: number;
 
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
@@ -115,8 +126,8 @@ const DEFAULT_STATE: WorkspaceState = {
   activeFile: null,
   aiWorkbenchMode: "quick-edit",
   aiWorkbenchOpen: true,
-  bottomDrawerOpen: false,
-  bottomDrawerTab: "terminal",
+  layoutMode: "main-only",
+  splitRatio: 0.6,
   fileExplorerExpanded: {},
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
@@ -221,22 +232,44 @@ function migrateV1ToV2(state: WorkspaceState & { schemaVersion?: number; default
 }
 
 /**
- * Lite-W6 PR2 dropped the "problems" tab; PR5 dropped "git" too. Any
- * persisted value that is not a member of the current `BottomDrawerTab`
- * union (now: just "terminal") falls back to "terminal". Exported so the
- * migration is unit-testable independently of localStorage.
- */
-export function migrateBottomDrawerTab(raw: unknown): BottomDrawerTab {
-  return raw === "terminal" ? raw : "terminal";
-}
-
-/**
  * Lite-W6 PR7 Part 1: "overview" + "changelog" left the ActiveView
  * union. Anything that isn't a current member falls back to "today"
  * (the default landing tab). Exported for unit testing.
  */
 export function migrateActiveView(raw: unknown): ActiveView {
   return raw === "today" || raw === "plan" || raw === "code" ? raw : "today";
+}
+
+/**
+ * Lite-W6 PR7 Part 2: the workspace layout is now controlled by a
+ * tri-state mode instead of the old `bottomDrawerOpen` boolean. The
+ * legacy field maps as `true → "split"`, `false → "main-only"`.
+ * Anything else (including missing values) lands on "main-only".
+ * Exported so the migration is unit-testable.
+ */
+export function migrateLayoutMode(
+  rawLayoutMode: unknown,
+  rawLegacyBottomDrawerOpen: unknown,
+): LayoutMode {
+  if (
+    rawLayoutMode === "main-only" ||
+    rawLayoutMode === "split" ||
+    rawLayoutMode === "terminal-only"
+  ) {
+    return rawLayoutMode;
+  }
+  if (rawLegacyBottomDrawerOpen === true) return "split";
+  return "main-only";
+}
+
+/**
+ * Lite-W6 PR7 Part 2: clamp `splitRatio` to a usable range so a
+ * corrupted persisted value can't render the activeView or terminal
+ * pane invisibly thin. The default mirrors `DEFAULT_STATE.splitRatio`.
+ */
+export function migrateSplitRatio(raw: unknown): number {
+  const n = typeof raw === "number" && Number.isFinite(raw) ? raw : 0.6;
+  return Math.min(0.9, Math.max(0.1, n));
 }
 
 function loadFromStorage(): WorkspaceState {
@@ -254,7 +287,15 @@ function loadFromStorage(): WorkspaceState {
         parsed.codeSubTab = "files";
       }
       parsed.activeView = migrateActiveView(parsed.activeView);
-      parsed.bottomDrawerTab = migrateBottomDrawerTab(parsed.bottomDrawerTab);
+      // Lite-W6 PR7 Part 2 retired bottomDrawerOpen / bottomDrawerTab in
+      // favour of layoutMode + splitRatio.
+      parsed.layoutMode = migrateLayoutMode(
+        parsed.layoutMode,
+        parsed.bottomDrawerOpen,
+      );
+      parsed.splitRatio = migrateSplitRatio(parsed.splitRatio);
+      delete parsed.bottomDrawerOpen;
+      delete parsed.bottomDrawerTab;
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -380,7 +421,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ...DEFAULT_STATE,
       // Preserve non-project settings
       aiWorkbenchMode: prev.aiWorkbenchMode,
-      bottomDrawerTab: prev.bottomDrawerTab,
+      layoutMode: prev.layoutMode,
+      splitRatio: prev.splitRatio,
       // Carry forward the override flag — switching projects shouldn't
       // re-trigger the "default tab" demotion next launch.
       defaultTabUserOverride: prev.defaultTabUserOverride,

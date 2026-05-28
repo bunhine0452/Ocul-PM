@@ -8,7 +8,10 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 //   ⌘K     : Command Palette 열기
 //   ⌘,     : Settings 열기
 //   ⌘\     : AI Workbench 토글  (Code 화면 한정 — W5 정식 도입 전까지 토글만)
-//   ⌘J     : Bottom Drawer 토글 (Code 화면 한정)
+//   ⌘J     : Terminal dock 토글 (main-only ↔ split). Lite-W6 PR7 Part 2
+//             promoted Terminal to a Workspace-level dock so this works
+//             from every activeView.
+//   ⌘⇧J   : Terminal-only 풀스크린 (terminal-only ↔ main-only).
 //   ⌘N     : (Plan 화면에서) 새 목표 — Plan 화면이 자체 처리하면 됨; 여기선 이벤트만.
 //
 // Mac 의 ⌘ 와 Win/Linux 의 Ctrl 을 동일하게 처리. 텍스트 입력 중에는 ⌘K/⌘,/숫자
@@ -59,10 +62,26 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
         setState((prev) => ({ ...prev, aiWorkbenchOpen: !prev.aiWorkbenchOpen }));
         return;
       }
-      // ⌘J — Bottom Drawer 토글
+      // ⌘J / ⌘⇧J — Terminal dock layout (Lite-W6 PR7 Part 2)
       if (e.key.toLowerCase() === "j") {
         e.preventDefault();
-        setState((prev) => ({ ...prev, bottomDrawerOpen: !prev.bottomDrawerOpen }));
+        const shift = e.shiftKey;
+        setState((prev) => {
+          const mode = prev.layoutMode;
+          if (shift) {
+            return {
+              ...prev,
+              layoutMode: mode === "terminal-only" ? "main-only" : "terminal-only",
+            };
+          }
+          return {
+            ...prev,
+            // Toggle between hidden and split; from terminal-only land on
+            // split (less surprising than going main-only and losing the
+            // current command output).
+            layoutMode: mode === "split" ? "main-only" : "split",
+          };
+        });
         return;
       }
     }

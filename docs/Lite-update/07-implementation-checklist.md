@@ -213,12 +213,12 @@
 | ☑ | (Part 1) `useGlobalShortcuts` 갱신 — ⌘1=Today / ⌘2=Plan / ⌘3=Code / ⌘4·⌘5 retire. CommandPalette view-overview 제거 + Code 단축키 ⌘3 으로 re-pack. App.tsx 의 LayoutDashboard / FileCode unused import 정리. |
 | ☑ | (Part 1) TitleBar 의 `GitBranchChip` 마운트 — PR5 의 `git_head_status_brief` 백엔드 활용. branch + uncommitted +N badge + (no git) / (git error) 상태 표시 + visibilitychange 리프레시 + 클릭 수동 refresh. |
 | ☑ | (Part 1) 회귀 테스트 — `migrateActiveView` 4 케이스 (overview→today, changelog→today, 현 union member 보존, unknown→today). vitest 4 신규 assertions. |
-| ☐ | (Part 2) `layoutMode: "main-only" \| "split" \| "terminal-only"` 신설 |
-| ☐ | (Part 2) `splitRatio` 영속화 + horizontal resize handle |
-| ☐ | (Part 2) ⌘J split 토글, ⌘⇧J terminal-only 토글 |
-| ☐ | (Part 2) `TerminalDock.tsx` wrapper 신설 — Code 화면 의존 끊김 |
-| ☐ | (Part 2) Git chip 클릭 → split 모드 + `git status` 자동 실행 |
-| ☐ | (Part 2) 회귀: 사용자 시나리오 — `claude-code "..."` split 모드에서 정상 동작 |
+| ☑ | (Part 2) `layoutMode: "main-only" \| "split" \| "terminal-only"` 신설 — `WorkspaceState` 에 추가, `DEFAULT_STATE.layoutMode = "main-only"`. `bottomDrawerOpen` / `bottomDrawerTab` 필드 제거. |
+| ☑ | (Part 2) `splitRatio: number` 영속화 (default 0.6, `migrateSplitRatio` 가 [0.1, 0.9] 로 클램프) + TerminalDock 의 horizontal resize handle (top edge drag, mousemove → setSplitRatio) |
+| ☑ | (Part 2) ⌘J = main-only ↔ split 사이클 / ⌘⇧J = main-only ↔ terminal-only 토글. 매핑 헤더 코멘트 갱신. |
+| ☑ | (Part 2) `src/components/TerminalDock.tsx` wrapper 신설 — TerminalPanel 을 항상 mount 한 채 CSS visibility 로 토글 (PTY 세션 보존). 헤더에 풀스크린/복원/닫기 버튼. App.tsx 의 Workspace `<main>` 안에 mount. CodeWorkbench 의 local BottomDrawer 제거 → `src/features/code/BottomDrawer.tsx` 삭제. |
+| ☑ | (Part 2) Git chip 클릭 → `setLayoutMode("split")` + `git status` 는 사용자가 Terminal 안에서 직접 실행 (자동 실행은 PTY 세션 1 개씩 다르므로 보류). title tooltip 에 "클릭으로 Terminal 열기" 추가. |
+| — | (Part 2) 회귀: 사용자 시나리오 (`claude-code "..."` split 에서 정상 동작) 는 dogfood 환경 검증 영역. 본 라운드는 unit/typecheck/lint 통과 + xterm 세션 재사용 (TerminalDock 의 CSS hide) 로 안전망 확보. |
 
 ### PR8 — FileTree 재설계
 

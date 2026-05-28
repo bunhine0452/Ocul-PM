@@ -12,6 +12,7 @@ import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
+import { TerminalDock } from "@/components/TerminalDock";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
@@ -443,6 +444,15 @@ function Workspace(props: {
     projectFiles,
     onOpenSettings,
   } = props;
+  // Lite-W6 PR7 Part 2 — workspace-level dock layout.
+  const { state: workspaceState } = useWorkspace();
+  const { layoutMode, splitRatio } = workspaceState;
+  const mainPaneStyle: React.CSSProperties =
+    layoutMode === "terminal-only"
+      ? { display: "none" }
+      : layoutMode === "split"
+        ? { flexBasis: `${splitRatio * 100}%`, minHeight: 0 }
+        : { flexBasis: "100%", minHeight: 0 };
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -507,38 +517,44 @@ function Workspace(props: {
         </aside>
       )}
 
-      {/* C. Primary content */}
+      {/* C. Primary content + Workspace-level Terminal dock (PR7 Part 2).
+          The activeView pane and the TerminalDock share the column; the
+          dock's own `display:none` keeps PTY sessions alive when
+          layoutMode is "main-only". */}
       <main className="flex-1 flex flex-col overflow-hidden bg-background relative min-w-0">
-        {activeView === "today" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <TodayScreen activeProjectId={selectedProjectId} />
-          </div>
-        )}
+        <div style={mainPaneStyle} className="flex flex-col overflow-hidden">
+          {activeView === "today" && (
+            <div className="flex-1 h-full overflow-hidden">
+              <TodayScreen activeProjectId={selectedProjectId} />
+            </div>
+          )}
 
-        {activeView === "plan" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <PlannerPanel activeProjectId={selectedProjectId} />
-          </div>
-        )}
+          {activeView === "plan" && (
+            <div className="flex-1 h-full overflow-hidden">
+              <PlannerPanel activeProjectId={selectedProjectId} />
+            </div>
+          )}
 
-        {activeView === "code" && (
-          <CodeWorkbench
-            projectId={selectedProjectId}
-            projectRoot={selectedProjectRoot}
-            projectFiles={projectFiles}
-            reloadProjectFiles={async () => {
-              const res = await commands.listProjectFiles(selectedProjectId);
-              if (res.status === "ok") {
-                // The workspace owns this state; we just trigger a refresh by
-                // re-reading. The parent App.tsx passes the array down, but
-                // it loads on activeProjectId change too — fire it once more
-                // to pick up post-reindex files.
-                // (No-op assignment to silence lint about ignored data.)
-                void res.data;
-              }
-            }}
-          />
-        )}
+          {activeView === "code" && (
+            <CodeWorkbench
+              projectId={selectedProjectId}
+              projectRoot={selectedProjectRoot}
+              projectFiles={projectFiles}
+              reloadProjectFiles={async () => {
+                const res = await commands.listProjectFiles(selectedProjectId);
+                if (res.status === "ok") {
+                  // The workspace owns this state; we just trigger a refresh by
+                  // re-reading. The parent App.tsx passes the array down, but
+                  // it loads on activeProjectId change too — fire it once more
+                  // to pick up post-reindex files.
+                  // (No-op assignment to silence lint about ignored data.)
+                  void res.data;
+                }
+              }}
+            />
+          )}
+        </div>
+        <TerminalDock projectRoot={selectedProjectRoot} />
       </main>
     </div>
   );
