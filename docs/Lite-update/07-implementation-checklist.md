@@ -174,17 +174,18 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/components/CodeEditor.tsx` → `src/legacy/CodeEditor.tsx` |
-| ☐ | `src/features/git/GitPanel.tsx` → `src/legacy/git/GitPanel.tsx` |
-| ☐ | `tsconfig.json` 의 `exclude: ["src/legacy/**"]` 추가 |
-| ☐ | `vite.config.ts` 의 alias `@/legacy/*` 추가 (있다면 비활성) |
-| ☐ | `CodeWorkbench` 의 EditorPane 제거, "외부 에디터로 열기" 버튼 placeholder (PR8 에서 정식화) |
-| ☐ | `BottomDrawer` 의 git 탭 제거 → Terminal 단일 탭 |
-| ☐ | `WorkspaceContext.BottomDrawerTab` union 의 `"git"` 제거 → 타입 alias 단순화 |
-| ☐ | `CommandPalette` 의 `code-git` item 제거 |
-| ☐ | `commands::git::head_status_summary` 신설 (TitleBar mini chip 용) |
-| ☐ | `pnpm tauri build` 산출물 크기 측정 — Editor 제외분만큼 감소 |
-| ☐ | 메인 UI 의 *코드 편집* 진입점 grep 0 |
+| ☑ | `src/components/CodeEditor.tsx` → `src/legacy/CodeEditor.tsx` |
+| ☑ | `src/features/git/GitPanel.tsx` → `src/legacy/git/GitPanel.tsx` + 빈 `src/features/git/` 디렉토리 제거 |
+| ☑ | `tsconfig.json` 의 `exclude: ["src/legacy/**"]` 추가 + `vitest.config.ts` 의 `exclude` 에도 동일 패턴 추가 |
+| ☑ | `vite.config.ts` 의 alias 는 `@/*` 가 `src/*` 전체를 가리키므로 별도 등록 불필요 (legacy 파일이 import 되지 않으면 번들 X) |
+| ☑ | `CodeWorkbench` 의 EditorPane 제거 + `OpenInExternalEditor` placeholder 신설 ("외부 에디터에서 열기" 버튼은 PR8 까지 disabled, 파일 경로 표시만) |
+| ☑ | `BottomDrawer` 의 git 탭 제거 → Terminal 단일 탭. GitPanel import + Placeholder helper 제거. |
+| ☑ | `WorkspaceContext.BottomDrawerTab` union 을 `"terminal"` single-member 로 축소 + `CodeSubTab` 에서 `"git"` 제거 + `loadFromStorage` 가 persisted `codeSubTab: "git"` → `"files"` 로 fallback + `mapLegacyTab("git")` 가 `code/files` 로 매핑 |
+| ☑ | `lite_w6_safety_net.test.ts` SC2 가 새 단일 union 을 반영 — `"git"` 도 `"terminal"` 로 fallback 검증 |
+| ☑ | `CommandPalette` 의 `code-git` item 제거 + `GitBranch` icon import 정리 (App.tsx 도 동일) |
+| ☑ | `commands::git::git_head_status_brief` 신설 (TitleBar mini chip 용 — UI consumer 는 PR7. `GitHeadStatusBrief` DTO + `head_status_brief` helper + tauri command + `lib.rs` invoke_handler 등록). |
+| ☑ | 메인 UI 의 *코드 편집* 진입점 grep 0 — `CodeEditor`/`GitPanel`/`features/git` 참조는 src/legacy/ + 코멘트/bindings 외 0건 |
+| ⊘ | `pnpm tauri build` 산출물 크기 측정 — 로컬 환경에서는 build 가 길어 skip. CI / 1.0 출시 직전 측정. |
 
 ---
 

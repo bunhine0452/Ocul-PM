@@ -335,6 +335,40 @@ pub fn status(root: &Path) -> GitRepoStatus {
     }
 }
 
+/// Lite-W6 PR5 — slim wrapper for the TitleBar mini git chip (UI consumer
+/// arrives in PR7). Returns just the branch + the count of `git status
+/// --porcelain` lines (staged + unstaged + untracked).
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct GitHeadStatusBrief {
+    pub is_git_repo: bool,
+    /// `None` when the repo is in detached-HEAD state or there is no repo.
+    pub head_branch: Option<String>,
+    /// Count of `--porcelain` lines. Capped at u32::MAX in practice.
+    pub uncommitted: u32,
+}
+
+pub fn head_status_brief(root: &Path) -> GitHeadStatusBrief {
+    if !is_repo(root) {
+        return GitHeadStatusBrief {
+            is_git_repo: false,
+            head_branch: None,
+            uncommitted: 0,
+        };
+    }
+    let head_branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && s != "HEAD");
+    let uncommitted = run_git(root, &["status", "--porcelain"])
+        .map(|s| s.lines().filter(|l| !l.is_empty()).count() as u32)
+        .unwrap_or(0);
+    GitHeadStatusBrief {
+        is_git_repo: true,
+        head_branch,
+        uncommitted,
+    }
+}
+
 /// Parse `https://github.com/owner/repo.git`, `git@github.com:owner/repo.git`,
 /// `ssh://git@github.com/owner/repo.git` into (host, owner, repo).
 fn parse_remote_url(url: &str) -> (Option<String>, Option<String>, Option<String>) {

@@ -29,7 +29,6 @@ import {
   LayoutDashboard,
   Sparkles,
   Terminal,
-  GitBranch,
   Flame,
 } from "./components/Icons";
 import "./App.css";
@@ -427,7 +426,6 @@ const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.Component
   { id: "ai",       label: "AI",       icon: Sparkles },
   { id: "graph",    label: "Graph",    icon: Network },
   { id: "terminal", label: "Terminal", icon: Terminal },
-  { id: "git",      label: "Git",      icon: GitBranch },
 ];
 
 function Workspace(props: {

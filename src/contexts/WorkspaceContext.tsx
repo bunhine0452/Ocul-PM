@@ -16,15 +16,19 @@ import { toast, DriftCooldown } from "@/lib/toast";
 
 export type ActiveView = "overview" | "today" | "plan" | "changelog" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
-export type BottomDrawerTab = "terminal" | "git";
+/**
+ * Lite-W6 PR5 collapses the BottomDrawer to a single Terminal tab. The
+ * union is retained as a single-string type so the WorkspaceState field
+ * shape doesn't need to change; a future PR can re-expand it once new
+ * dock surfaces land.
+ */
+export type BottomDrawerTab = "terminal";
 
 /**
- * Transitional secondary tab inside the "code" view. UI-5 (W5) will absorb
- * these into the unified Code workbench (editor + AI workbench + bottom
- * drawer). Until then we keep them as named sub-tabs so the IA-5 sidebar
- * change can ship without that bigger refactor.
+ * Transitional secondary tab inside the "code" view. PR5 retired the "git"
+ * sub-tab along with GitPanel.
  */
-export type CodeSubTab = "files" | "ai" | "graph" | "terminal" | "git";
+export type CodeSubTab = "files" | "ai" | "graph" | "terminal";
 
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
@@ -132,7 +136,8 @@ function mapLegacyTab(tab: LegacyTab): { view: ActiveView; sub: CodeSubTab } {
     case "assist":   return { view: "code",     sub: "ai" };
     case "graph":    return { view: "code",     sub: "graph" };
     case "terminal": return { view: "code",     sub: "terminal" };
-    case "git":      return { view: "code",     sub: "git" };
+    // Lite-W6 PR5: "git" CodeSubTab was removed; legacy values land on files.
+    case "git":      return { view: "code",     sub: "files" };
     // Settings/diagnostics are not view-level any more (⌘, opens a screen);
     // default landing for these legacy values is the Overview.
     case "settings":
@@ -206,12 +211,13 @@ function migrateV1ToV2(state: WorkspaceState & { schemaVersion?: number; default
 }
 
 /**
- * Lite-W6 PR2: the "problems" tab was removed. Any persisted value that is
- * no longer a member of the `BottomDrawerTab` union falls back to "terminal".
- * Exported so the migration is unit-testable independently of localStorage.
+ * Lite-W6 PR2 dropped the "problems" tab; PR5 dropped "git" too. Any
+ * persisted value that is not a member of the current `BottomDrawerTab`
+ * union (now: just "terminal") falls back to "terminal". Exported so the
+ * migration is unit-testable independently of localStorage.
  */
 export function migrateBottomDrawerTab(raw: unknown): BottomDrawerTab {
-  return raw === "terminal" || raw === "git" ? raw : "terminal";
+  return raw === "terminal" ? raw : "terminal";
 }
 
 function loadFromStorage(): WorkspaceState {
@@ -223,6 +229,10 @@ function loadFromStorage(): WorkspaceState {
       // Migrate legacy codeSubTab values ("chat" | "assist" → "ai")
       if (parsed.codeSubTab === "chat" || parsed.codeSubTab === "assist") {
         parsed.codeSubTab = "ai";
+      }
+      // Lite-W6 PR5: the "git" CodeSubTab was removed along with GitPanel.
+      if (parsed.codeSubTab === "git") {
+        parsed.codeSubTab = "files";
       }
       parsed.bottomDrawerTab = migrateBottomDrawerTab(parsed.bottomDrawerTab);
       // Merge with defaults to handle new fields added in future versions

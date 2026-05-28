@@ -45,6 +45,18 @@ pub async fn git_status(
     Ok(git::status(&root))
 }
 
+/// Lite-W6 PR5 — slim head + dirty-count wrapper for the TitleBar mini git
+/// chip. The richer `git_status` is preserved for the legacy GitPanel.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_head_status_brief(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<git::GitHeadStatusBrief, String> {
+    let root = project_root(&db, project_id).await?;
+    Ok(git::head_status_brief(&root))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn github_verify() -> Result<github::GithubVerifyResult, String> {

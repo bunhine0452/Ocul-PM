@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { X, Terminal as TerminalIcon, GitBranch } from "@/components/Icons";
+import { X, Terminal as TerminalIcon } from "@/components/Icons";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
-import { GitPanel } from "@/features/git/GitPanel";
 import { useWorkspace, type BottomDrawerTab } from "@/contexts/WorkspaceContext";
 import { useState, useRef } from "react";
 
-// MASTER-GUIDE §5.6 — Code 화면 하단의 통합 드로워.
+// MASTER-GUIDE §5.6 — Code 화면 하단의 드로워.
 //   - Terminal: 기존 TerminalPanel (PiP 제거됨, Detach window 만 유지)
-//   - Git: 기존 GitPanel (Changelog 탭 W4 에서 별도 화면으로 승격됨)
+//
+// Lite-W6 PR5: GitPanel retired (moved to src/legacy/). The drawer now
+// renders a single Terminal pane; the tab bar is kept for symmetry with
+// the future MASTER-GUIDE §5.6 (Terminal + secondary docks) but only one
+// tab is wired up.
 //
 // `bottomDrawerOpen` / `bottomDrawerTab` 은 WorkspaceContext 가 보유.
 // ⌘J 단축키로 열기/닫기 — `useGlobalShortcuts` 가 처리.
@@ -19,10 +22,9 @@ interface BottomDrawerProps {
 
 const TABS: Array<{ id: BottomDrawerTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "terminal", label: "Terminal", icon: TerminalIcon },
-  { id: "git", label: "Git", icon: GitBranch },
 ];
 
-export function BottomDrawer({ activeProjectId, projectRoot }: BottomDrawerProps) {
+export function BottomDrawer({ activeProjectId: _activeProjectId, projectRoot }: BottomDrawerProps) {
   const { state, setState } = useWorkspace();
   const { bottomDrawerOpen: open, bottomDrawerTab: tab } = state;
 
@@ -123,22 +125,8 @@ export function BottomDrawer({ activeProjectId, projectRoot }: BottomDrawerProps
               activeTab="terminal"
             />
           )}
-          {tab === "git" && activeProjectId !== null && (
-            <GitPanel projectId={activeProjectId} />
-          )}
-          {tab === "git" && activeProjectId === null && (
-            <Placeholder text="프로젝트를 선택해주세요." />
-          )}
         </div>
       )}
-    </div>
-  );
-}
-
-function Placeholder({ text }: { text: string }) {
-  return (
-    <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-      {text}
     </div>
   );
 }

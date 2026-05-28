@@ -2,28 +2,27 @@ import { useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type IndexProgress } from "@/lib/bindings";
 import { FileExplorer } from "@/components/FileExplorer";
-import { CodeEditor } from "@/components/CodeEditor";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
 import { AiWorkbench } from "./AiWorkbench";
 import { BottomDrawer } from "./BottomDrawer";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
-import { Code2, Network, RefreshCw, Loader2, FolderCode } from "@/components/Icons";
+import { Code2, Network, RefreshCw, Loader2, FolderCode, ExternalLink } from "@/components/Icons";
 
 // MASTER-GUIDE §5.6 — Code 워크벤치
 //
 //   ┌────────┬───────────────────────┬────────────┐
-//   │  Tree  │  Editor / Graph       │ AiWorkbench│
+//   │  Tree  │  Viewer / Graph       │ AiWorkbench│
 //   │ (Files)│  (primary content)    │ (right)    │
 //   ├────────┴───────────────────────┴────────────┤
-//   │  BottomDrawer (Terminal / Git)             │
+//   │  BottomDrawer (Terminal)                   │
 //   └────────────────────────────────────────────┘
 //
-// Tree 좌측, Editor 가운데, AiWorkbench 우측 (⌘\ 토글), Bottom Drawer
-// 아래 (⌘J 토글). 사이드바의 Code sub-tab 6 종은 이 한 화면 안에 흡수됨:
-//   - files/graph: 가운데 primary content 토글
-//   - chat/assist: AiWorkbench 모드 토글
-//   - terminal/git: BottomDrawer 의 탭으로 흡수
+// Lite-W6 PR5: the built-in CodeEditor moved to src/legacy/ — the main pane
+// now offers "외부 에디터로 열기" (full surface comes in PR8). GitPanel also
+// retired to src/legacy/; the BottomDrawer collapses to a single Terminal
+// tab. PR7 reintroduces a TitleBar mini git chip backed by the new
+// `git_head_status_brief` command.
 
 interface CodeWorkbenchProps {
   projectId: number;
@@ -42,17 +41,15 @@ export function CodeWorkbench({
   const { activeFile, aiWorkbenchOpen, codeSubTab, indexingProjectId, indexProgress } = state;
 
   // codeSubTab is still useful inside CodeWorkbench:
-  //   - "files" → Tree + Editor (default)
-  //   - "graph" → DependencyGraphView replaces the Editor pane
+  //   - "files" → Tree + viewer placeholder (default)
+  //   - "graph" → DependencyGraphView replaces the viewer pane
   //   - "ai"    → open AiWorkbench (mode toggled inside the panel)
-  //   - "terminal" / "git" → open the BottomDrawer at that tab
+  //   - "terminal" → open the BottomDrawer
   useEffect(() => {
     if (codeSubTab === "ai") {
       setState((p) => ({ ...p, aiWorkbenchOpen: true }));
     } else if (codeSubTab === "terminal") {
       setState((p) => ({ ...p, bottomDrawerOpen: true, bottomDrawerTab: "terminal" }));
-    } else if (codeSubTab === "git") {
-      setState((p) => ({ ...p, bottomDrawerOpen: true, bottomDrawerTab: "git" }));
     }
     // We intentionally don't depend on setState — it's a stable callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,10 +105,9 @@ export function CodeWorkbench({
           {showGraph ? (
             <DependencyGraphView projectId={projectId} onOpenFile={openFile} />
           ) : activeFile ? (
-            <CodeEditor
-              projectId={projectId}
+            <OpenInExternalEditor
+              projectRoot={projectRoot}
               filePath={activeFile}
-              initialScrollLine={null}
               onClose={() => setActiveFile(null)}
             />
           ) : (
@@ -227,6 +223,44 @@ function EditorPlaceholder() {
         <Button variant="outline" size="sm" onClick={() => setCodeSubTab("files")}>
           <FolderCode className="w-3.5 h-3.5 mr-1.5" />
           Files
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Lite-W6 PR5 placeholder. The built-in CodeEditor is retired (src/legacy/),
+// the proper external-editor launch lands in PR8. Until then we show the
+// selected file's path so the user knows what they picked and can copy it.
+function OpenInExternalEditor({
+  projectRoot,
+  filePath,
+  onClose,
+}: {
+  projectRoot: string | null;
+  filePath: string;
+  onClose: () => void;
+}) {
+  const absolutePath = projectRoot ? `${projectRoot}/${filePath}` : filePath;
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#faf9f5]/50 dark:bg-[#181715]/50 relative select-none">
+      <div className="w-16 h-16 rounded-3xl bg-secondary/60 border border-border flex items-center justify-center mb-6 shadow-sm">
+        <ExternalLink className="w-8 h-8 text-primary" strokeWidth={1.5} />
+      </div>
+      <h2 className="text-xl font-bold font-heading mb-1.5">선택된 파일</h2>
+      <code className="text-xs font-mono text-muted-foreground/90 max-w-lg break-all mb-1">
+        {filePath}
+      </code>
+      <p className="text-[10px] text-muted-foreground/60 max-w-lg break-all mb-6 font-mono">
+        {absolutePath}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" disabled title="PR8 에서 정식 구현">
+          <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+          외부 에디터에서 열기 (PR8)
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          닫기
         </Button>
       </div>
     </div>

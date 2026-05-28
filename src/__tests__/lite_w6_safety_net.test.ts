@@ -35,12 +35,14 @@ describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () =>
       expect(migrateBottomDrawerTab(raw.bottomDrawerTab)).toBe("terminal");
     });
 
-    it("preserves valid values ('terminal', 'git')", () => {
+    it("preserves the only valid value ('terminal')", () => {
+      // PR5 collapsed the union to a single member.
       expect(migrateBottomDrawerTab("terminal")).toBe("terminal");
-      expect(migrateBottomDrawerTab("git")).toBe("git");
     });
 
-    it("defaults unknown / missing values to 'terminal'", () => {
+    it("defaults all other values to 'terminal'", () => {
+      // PR5 retired "git" along with GitPanel.
+      expect(migrateBottomDrawerTab("git")).toBe("terminal");
       expect(migrateBottomDrawerTab(undefined)).toBe("terminal");
       expect(migrateBottomDrawerTab(null)).toBe("terminal");
       expect(migrateBottomDrawerTab("changelog")).toBe("terminal");

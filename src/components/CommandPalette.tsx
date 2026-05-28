@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Sparkles,
   Network,
-  GitBranch,
   Terminal as TerminalIcon,
   Plus,
 } from "@/components/Icons";
@@ -106,8 +105,6 @@ export function CommandPalette({
         group: "Code 화면", icon: Network,         onSelect: goCode("graph") },
       { id: "code-terminal", label: "Code — Terminal", alias: "터미널",
         group: "Code 화면", icon: TerminalIcon,    onSelect: goCode("terminal") },
-      { id: "code-git",      label: "Code — Git", alias: "깃 로그",
-        group: "Code 화면", icon: GitBranch,       onSelect: goCode("git") },
 
       // ── Actions
       { id: "settings", label: "Settings 열기", alias: "설정",
