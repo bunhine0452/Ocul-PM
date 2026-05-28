@@ -222,18 +222,20 @@
 
 ### PR8 — FileTree 재설계
 
+**진행 분할**: PR8 Part 1 (backend command + TreeNode 전환 + recentChanges 영속화) ✅ / PR8 Part 2 (⌘B 사이드 패널 + open_in_editor + Settings prefs) ☐ / PR8 Part 3 (a11y + 비우기 액션 + 성능) ☐. PR7 의 Part 분할 패턴을 답습 — dogfood 회귀를 작게 유지.
+
 | 체크 | 항목 |
 |---|---|
-| ☐ | `commands::list_project_tree(project_id, opts)` 신설 |
-| ☐ | `FileExplorer` props 변경 — TreeNode 기반 |
-| ☐ | 변경 하이라이트 dot + op 배지 |
-| ☐ | `recentChanges` 영속화 (max 1000 cap) |
-| ☐ | `fileExplorerExpanded` 영속화 |
-| ☐ | ⌘B 토글 — 좌측 사이드 패널 (FileTree + Diff) |
-| ☐ | 50k 파일 데모에서 마운트 < 500ms |
-| ☐ | a11y — 트리 키보드 navigation (↑↓←→) |
-| ☐ | 사용자 명시 "비우기" 액션 |
-| ☐ | "외부 에디터로 열기" 동작 — `open_in_editor` 커맨드 + Settings 의 명령 prefs |
+| ☑ | (Part 1) `commands::list_project_tree(project_id, opts)` 신설 — `ProjectTreeNode { name, relative_path, is_dir, children }` + `opts.max_depth`. `ignore::WalkBuilder` 가 `.gitignore` respect, override 가 `.git/` / `.oculpm/` 강제 exclude. dirs-before-files alphabetical sort. size/mtime 은 specta BigInt 금지로 후속 PR (master-prompt §5.3). 5 unit tests. |
+| ☑ | (Part 1) `FileExplorer` props 변경 — TreeNode 기반. `tree: ProjectTreeNode \| null` + controlled `expanded` + `onToggleExpand` + optional `recentChanges` + `onSelectFile`. 검색 시 ancestor 자동 펼침 (transient set). |
+| ☑ | (Part 1) 변경 하이라이트 dot + op 배지. 파일 dot + 우측 `A/M/D` 배지 + ancestor 디렉토리 soft dot. `opColor` 가 light/dark 양쪽에서 4.5:1 contrast. (Part 3 의 axe-core 풀-스윕은 별도) |
+| ☑ | (Part 1) `recentChanges` 영속화 (max 1000 cap) — `WorkspaceContext.recentChanges: RecentChange[]` + `pushRecentChange` (dedupe by path / FIFO trim to `RECENT_CHANGES_CAP = 1000`) + `mapFileOpToChangeOp` + `events.oculpmFileChanged` 리스너. `setProject` switched 시 reset, `loadFromStorage` 가 corrupted shape drop. |
+| ☑ | (Part 1) `fileExplorerExpanded` 영속화 — 기존 `WorkspaceState` 필드 였음, `setProject` switched 시 reset 만 추가. |
+| ☐ | (Part 2) ⌘B 토글 — 좌측 사이드 패널 (FileTree + Diff) |
+| ☐ | (Part 3) 50k 파일 데모에서 마운트 < 500ms |
+| ☐ | (Part 3) a11y — 트리 키보드 navigation (↑↓←→) |
+| ☐ | (Part 3) 사용자 명시 "비우기" 액션 |
+| ☐ | (Part 2) "외부 에디터로 열기" 동작 — `open_in_editor` 커맨드 + Settings 의 명령 prefs |
 
 ### PR9 — AI 패널 재배치
 
