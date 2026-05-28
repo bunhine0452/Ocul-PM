@@ -123,11 +123,12 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/code/BottomDrawer.tsx` 의 `problems` 탭 제거 |
-| ☐ | `WorkspaceContext.BottomDrawerTab` union 에서 `"problems"` 제거 |
-| ☐ | localStorage `bottomDrawerTab: "problems"` → `"terminal"` fallback 마이그레이션 |
-| ☐ | grep "Problems" 결과 0 (코멘트 / CSS 클래스 제외) |
-| ☐ | 회귀: ⌘J 후 BottomDrawer 가 *Terminal | Git* 2 탭 정상 동작 (PR5 전이므로 git 잔존) |
+| ☑ | `src/features/code/BottomDrawer.tsx` 의 `problems` 탭 제거 (TABS entry / render block / `Database` icon import / 주석) |
+| ☑ | `WorkspaceContext.BottomDrawerTab` union 에서 `"problems"` 제거 |
+| ☑ | localStorage `bottomDrawerTab: "problems"` → `"terminal"` fallback 마이그레이션 (`migrateBottomDrawerTab` 신설, `loadFromStorage` 에서 호출) |
+| ☑ | grep "Problems" 결과 0 (frontend + backend 코드) |
+| ☑ | SC2 활성화 — `lite_w6_safety_net.test.ts` 의 todo 가 3 assertion 으로 승격 (3 pass) |
+| ☑ | 회귀: typecheck/lint/test 모두 green. ⌘J 후 BottomDrawer 의 TABS 가 *Terminal | Git* 2개 만 (PR5 전이므로 git 잔존). |
 
 ### PR3 — Session 추정 UI 제거
 

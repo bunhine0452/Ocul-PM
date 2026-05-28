@@ -49,6 +49,9 @@ const ALLOWLIST = new Set([
   // pattern as the oculpm UI state above; not worth a WorkspaceContext
   // schema bump.
   "features/overview/ProjectMetaHeader.tsx",
+  // Lite-W6 PR2 — vitest scenario seeds localStorage to verify the
+  // BottomDrawerTab "problems" → "terminal" migration. Test-only.
+  "__tests__/lite_w6_safety_net.test.ts",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

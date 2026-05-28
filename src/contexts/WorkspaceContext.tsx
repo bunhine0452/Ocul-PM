@@ -16,7 +16,7 @@ import { toast, DriftCooldown } from "@/lib/toast";
 
 export type ActiveView = "overview" | "today" | "plan" | "changelog" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
-export type BottomDrawerTab = "terminal" | "git" | "problems";
+export type BottomDrawerTab = "terminal" | "git";
 
 /**
  * Transitional secondary tab inside the "code" view. UI-5 (W5) will absorb
@@ -205,6 +205,15 @@ function migrateV1ToV2(state: WorkspaceState & { schemaVersion?: number; default
   };
 }
 
+/**
+ * Lite-W6 PR2: the "problems" tab was removed. Any persisted value that is
+ * no longer a member of the `BottomDrawerTab` union falls back to "terminal".
+ * Exported so the migration is unit-testable independently of localStorage.
+ */
+export function migrateBottomDrawerTab(raw: unknown): BottomDrawerTab {
+  return raw === "terminal" || raw === "git" ? raw : "terminal";
+}
+
 function loadFromStorage(): WorkspaceState {
   // Try new format first
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -215,6 +224,7 @@ function loadFromStorage(): WorkspaceState {
       if (parsed.codeSubTab === "chat" || parsed.codeSubTab === "assist") {
         parsed.codeSubTab = "ai";
       }
+      parsed.bottomDrawerTab = migrateBottomDrawerTab(parsed.bottomDrawerTab);
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,

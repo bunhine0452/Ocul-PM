@@ -16,7 +16,7 @@ import { Code2, Network, RefreshCw, Loader2, FolderCode } from "@/components/Ico
 //   │  Tree  │  Editor / Graph       │ AiWorkbench│
 //   │ (Files)│  (primary content)    │ (right)    │
 //   ├────────┴───────────────────────┴────────────┤
-//   │  BottomDrawer (Terminal / Git / Problems)  │
+//   │  BottomDrawer (Terminal / Git)             │
 //   └────────────────────────────────────────────┘
 //
 // Tree 좌측, Editor 가운데, AiWorkbench 우측 (⌘\ 토글), Bottom Drawer
@@ -119,7 +119,7 @@ export function CodeWorkbench({
           )}
         </main>
         
-        {/* Bottom drawer (Terminal / Git / Problems) — toggle with ⌘J */}
+        {/* Bottom drawer (Terminal / Git) — toggle with ⌘J */}
         <BottomDrawer activeProjectId={projectId} projectRoot={projectRoot} />
       </div>
 

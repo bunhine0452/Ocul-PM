@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { X, Terminal as TerminalIcon, GitBranch, Database } from "@/components/Icons";
+import { X, Terminal as TerminalIcon, GitBranch } from "@/components/Icons";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
 import { GitPanel } from "@/features/git/GitPanel";
 import { useWorkspace, type BottomDrawerTab } from "@/contexts/WorkspaceContext";
@@ -8,7 +8,6 @@ import { useState, useRef } from "react";
 // MASTER-GUIDE §5.6 — Code 화면 하단의 통합 드로워.
 //   - Terminal: 기존 TerminalPanel (PiP 제거됨, Detach window 만 유지)
 //   - Git: 기존 GitPanel (Changelog 탭 W4 에서 별도 화면으로 승격됨)
-//   - Problems: LSP diagnostics — 후속 구현. 현 placeholder.
 //
 // `bottomDrawerOpen` / `bottomDrawerTab` 은 WorkspaceContext 가 보유.
 // ⌘J 단축키로 열기/닫기 — `useGlobalShortcuts` 가 처리.
@@ -21,7 +20,6 @@ interface BottomDrawerProps {
 const TABS: Array<{ id: BottomDrawerTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "terminal", label: "Terminal", icon: TerminalIcon },
   { id: "git", label: "Git", icon: GitBranch },
-  { id: "problems", label: "Problems", icon: Database },
 ];
 
 export function BottomDrawer({ activeProjectId, projectRoot }: BottomDrawerProps) {
@@ -130,9 +128,6 @@ export function BottomDrawer({ activeProjectId, projectRoot }: BottomDrawerProps
           )}
           {tab === "git" && activeProjectId === null && (
             <Placeholder text="프로젝트를 선택해주세요." />
-          )}
-          {tab === "problems" && (
-            <Placeholder text="Problems — LSP 진단 통합은 후속 PR 입니다." />
           )}
         </div>
       )}

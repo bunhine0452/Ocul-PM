@@ -1,4 +1,6 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
+
+import { migrateBottomDrawerTab } from "@/contexts/WorkspaceContext";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
 //
@@ -12,9 +14,38 @@ describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () =>
     "SC1: empty SQLite + seeded journal renders Today (enable in PR4 — journal-only path)",
   );
 
-  it.todo(
-    "SC2: workspace migration drops BottomDrawerTab 'problems' → 'terminal' (enable in PR2 — fallback writer)",
-  );
+  // SC2 enabled by PR2.
+  describe("SC2: workspace migration drops BottomDrawerTab 'problems' → 'terminal'", () => {
+    const STORAGE_KEY = "aipm:workspace:v1";
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    it("rewrites persisted 'problems' to 'terminal' on read path", () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ schemaVersion: 2, bottomDrawerTab: "problems" }),
+      );
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+      expect(migrateBottomDrawerTab(raw.bottomDrawerTab)).toBe("terminal");
+    });
+
+    it("preserves valid values ('terminal', 'git')", () => {
+      expect(migrateBottomDrawerTab("terminal")).toBe("terminal");
+      expect(migrateBottomDrawerTab("git")).toBe("git");
+    });
+
+    it("defaults unknown / missing values to 'terminal'", () => {
+      expect(migrateBottomDrawerTab(undefined)).toBe("terminal");
+      expect(migrateBottomDrawerTab(null)).toBe("terminal");
+      expect(migrateBottomDrawerTab("changelog")).toBe("terminal");
+    });
+  });
 
   it.todo(
     "SC3: Watcher event lights FileTree change-dot (enable in PR8 — FileTree redesign)",
