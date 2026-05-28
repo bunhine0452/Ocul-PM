@@ -37,6 +37,18 @@ const ALLOWLIST = new Set([
   "features/oculpm/SessionCard.tsx",            // PR6 expand state
   "features/oculpm/filters.ts",                 // PR8 category filter
   "features/today/TodayScreen.tsx",             // PR5 dismiss-bar read
+  // W5 MigrationModal owns its auto-trigger dismiss flag per project
+  // (`aipm:migration:dismissed:<projectId>`). Per-project key, ephemeral,
+  // intentionally outside the WorkspaceContext envelope to avoid a schema
+  // bump per project. Removed when MigrationModal retires post-1.0.
+  "features/projects/MigrationModal.tsx",
+  // W5-PR8 deprecation banner dismiss flag — the entire ChangelogScreen
+  // is scheduled for deletion in Lite-W6 PR4, this key disappears with it.
+  "features/changelog/ChangelogScreen.tsx",
+  // Per-project overview-card expanded flag. Same per-project ephemeral
+  // pattern as the oculpm UI state above; not worth a WorkspaceContext
+  // schema bump.
+  "features/overview/ProjectMetaHeader.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);
