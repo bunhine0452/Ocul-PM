@@ -1052,7 +1052,7 @@ impl<'a> JournalCache<'a> {
                             })
                         })?
                         .collect();
-                    Ok(rows?)
+                    rows
                 }
             })
             .await
@@ -2000,36 +2000,7 @@ mod tests {
         write_entry(root, relative_path, &fm, body);
     }
 
-    fn insert_session<'a>(
-        cache: &'a JournalCache<'a>,
-        project_id: u32,
-        session_id: &str,
-        workday: &str,
-        started_at: &str,
-        ended_at: &str,
-        file_event_count: u32,
-        files_unique: u32,
-    ) {
-        let pid = project_id as i64;
-        let sid = session_id.to_string();
-        let wd = workday.to_string();
-        let s = started_at.to_string();
-        let e = ended_at.to_string();
-        cache
-            .db
-            .conn()
-            .call(move |c| {
-                c.execute(
-                    "INSERT INTO oculpm_sessions_cache (project_id, session_id, workday, started_at, ended_at, ended_reason, file_event_count, files_unique, agent_label_guess)
-                     VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, NULL)",
-                    params![pid, &sid, &wd, &s, &e, file_event_count as i64, files_unique as i64],
-                )?;
-                Ok::<(), rusqlite::Error>(())
-            });
-    }
-
-    /// Use the async helper without `.await` by `block_on` style — we can't
-    /// from sync tests. So the actual tests below are `#[tokio::test]`.
+    #[allow(clippy::too_many_arguments)]
     async fn insert_session_async<'a>(
         cache: &'a JournalCache<'a>,
         project_id: u32,
@@ -2059,13 +2030,6 @@ mod tests {
             .await
             .unwrap();
     }
-    // Silence: insert_session sync wrapper is kept for symmetry but tests use
-    // the `_async` variant. `cargo test` would warn otherwise.
-    #[allow(dead_code)]
-    fn _suppress_unused() {
-        let _ = insert_session;
-    }
-
     async fn fresh_cache_with_project() -> (Db, tempfile::TempDir, PathBuf) {
         let (db, dir) = fresh_db().await;
         // Project row for FK constraints elsewhere.
@@ -2286,7 +2250,7 @@ mod tests {
 
     #[tokio::test]
     async fn overview_stats_recent_sessions_narrative_rate_handles_zero_sessions() {
-        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let (db, _dir, _journal_root) = fresh_cache_with_project().await;
         let cache = JournalCache::new(&db);
         // No sessions, no entries — narrative_rate must be 0 (not NaN) for
         // every day in the window. recent_sessions itself is empty.

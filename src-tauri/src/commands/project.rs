@@ -471,7 +471,7 @@ pub async fn detect_file_changes(
     }
 
     // Check for deleted files
-    for (path, _id) in &indexed_map {
+    for path in indexed_map.keys() {
         if !current_paths.contains(path) {
             let old_hash = db.get_file_hash(project_id, path.clone())
                 .await

@@ -41,6 +41,7 @@ pub async fn goal_get(db: State<'_, Db>, goal_id: u32) -> Result<Goal, String> {
 
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub async fn goal_update(
     db: State<'_, Db>,
     goal_id: u32,

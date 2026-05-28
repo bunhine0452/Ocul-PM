@@ -101,7 +101,7 @@
 | ☑ | `pnpm lint` green (ALLOWLIST 3 pre-existing 보정 — `a494d7a`) |
 | ☑ | `pnpm test` green — 1 pass + 3 todo (4 tests) |
 | ☑ | `cargo test` green — 230 tests (lib 210 + agents 7 + migration 6 + lite_w6_safety_net 7) |
-| ⚠ | `cargo clippy --all-targets -- -D warnings` — **PR-0c 로 분리** (pre-existing 48 errors, master-prompt §5.3 참조). 내 PR0 코드 자체는 위반 0. |
+| ☑ | `cargo clippy --all-targets -- -D warnings` green — pre-existing 48 errors 는 PR-0c (2026-05-29) 에서 일괄 fix 완료. 이제부터 PR DoD 의 진짜 lock. |
 | ☑ | `pre-cut-PR0` annotated git tag |
 
 ### PR1 — Feature flag 정리

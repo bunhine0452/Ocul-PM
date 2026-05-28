@@ -1108,6 +1108,7 @@ mod tests {
     }
 
     /// Insert one entry at `base_ts + offset_secs`. Returns the new id.
+    #[allow(clippy::too_many_arguments)]
     async fn seed(
         db: &Db,
         project_id: u32,
@@ -1138,7 +1139,7 @@ mod tests {
         db.conn()
             .call({
                 let id = entry.id as i64;
-                let ts = (base_ts + offset_secs) as i64;
+                let ts = base_ts + offset_secs;
                 move |c| {
                     c.execute(
                         "UPDATE changelog_entries SET created_at = ?1 WHERE id = ?2",
@@ -1636,7 +1637,7 @@ mod tests {
         db.conn()
             .call({
                 let id = entry.id as i64;
-                let ts = (base + 3600) as i64;
+                let ts = base + 3600;
                 move |c| {
                     c.execute(
                         "UPDATE changelog_entries SET created_at = ?1 WHERE id = ?2",

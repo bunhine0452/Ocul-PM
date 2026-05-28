@@ -1409,7 +1409,7 @@ impl OculpmManager {
             .await
             .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
 
-        let deleted_at = (chrono::Utc::now().timestamp().max(0) as u32);
+        let deleted_at = chrono::Utc::now().timestamp().max(0) as u32;
         db.mark_oculpm_migration_deleted(history_id, deleted_at, backup_basename.clone())
             .await
             .map_err(|e| OculpmError::Sqlite(e.to_string()))?;
@@ -2054,7 +2054,7 @@ mod tests {
 
     // ─── W2-PR4 — Crash recovery ───────────────────────────────────────────
 
-    use crate::oculpm::spec::{EndedReason, FileChangeEvent, FileOp, Session, SessionEnd};
+    use crate::oculpm::spec::{EndedReason, FileChangeEvent, FileOp, Session};
 
     fn make_writer(root: &Path) -> IndexWriter {
         let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();

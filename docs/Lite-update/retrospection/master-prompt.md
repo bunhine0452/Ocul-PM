@@ -140,15 +140,16 @@
 - **Phase B**: ☐ PR2~PR5 미진입
 - **Phase C**: ☐ PR6~PR9 미진입
 - **Phase D**: ☐ PR10~PR12 미진입
-- **추가**: ☐ PR-0c (pre-existing clippy 48 errors 일괄 fix) — 1.0 출시 전 처리 필요
+- **추가**: ✅ PR-0c 완료 (clippy 48 errors → 0). `cargo clippy --all-targets -- -D warnings` 가 이제부터 진짜 lock.
 
-진행 중 작업: *없음*. 다음 작업: **PR1 (Feature flag 정리)** 또는 **PR-0c (clippy fix)** 중 사용자 선택.
+진행 중 작업: *없음*. 다음 작업: **PR1 (Feature flag 정리)**.
 
 ### 5.2 머지 로그
 
 | 일자 | PR | 머지 커밋 | 비고 |
 |---|---|---|---|
 | 2026-05-29 | PR0 | `a494d7a` | 회귀 보호망 — 5 commits: retrospection 인계 묶음 (`28e96bb`) + AGENTS 템플릿 5 강화 (`fc65daf`) + vitest infra (`b0d2d8a`) + Rust 7 invariant safety net (`aa4e99a`) + vitest 3 시나리오 stub (`c0132e1`) + lint ALLOWLIST 보정 (`a494d7a`). `pre-cut-PR0` annotated tag 부여. |
+| 2026-05-29 | PR-0c | _pending_ | clippy 48 errors → 0. 14 files 변경 / -58 net lines. 핵심 변경: ① `cargo clippy --fix` 로 28건 (useless_conversion 17 / needless_question_mark / unnecessary_map_or / unnecessary_cast / unnecessary_parens / for_kv_map / needless_borrow / 미사용 import 4 / unused mut 등) 자동 정리, ② `std::mem::transmute` 에 명시 타입 부여 (`db.rs:71`), ③ dead test helper `insert_session` (sync) + `_suppress_unused` 삭제 (`cache.rs`, await 누락 의심은 실제로 dead code 였음 — 호출자 0), ④ `let...else → ?` 1건 (`indexer.rs:412`), ⑤ `LlmError::MissingApiKey` 삭제 (구성·매치 모두 0), ⑥ `EMBEDDING_DIM` / `LlmProvider::name()` 에 `#[allow(dead_code)]` (의미 있는 API surface, 보존), ⑦ `#[allow(clippy::too_many_arguments)]` 12개 (refactor 가 PR-0c 범위 밖, `tauri::command` signature 는 IPC 계약이라 변경 불가). 5종 green 모두 통과. |
 
 ### 5.3 새 발견 / 결정 변경
 

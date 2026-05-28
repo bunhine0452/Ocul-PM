@@ -41,7 +41,7 @@ use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    FileChangeEvent, FileOp, JournalEntrySummary, OculpmAgentDrift, OculpmAgentsTemplateChanged,
+    FileChangeEvent, FileOp, OculpmAgentDrift, OculpmAgentsTemplateChanged,
     OculpmConfig, OculpmFileChanged, OculpmJournalAdded, OculpmJournalPathChanged,
     OculpmJournalUpdated, WatcherStateView, WatcherStatus,
 };

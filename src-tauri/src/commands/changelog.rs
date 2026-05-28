@@ -38,7 +38,7 @@ pub async fn commit_changelog_entry(
     let file_stats = git::diff_stat(&root, None, None)
         .unwrap_or_default();
 
-    let (mut total_files, mut total_added, mut total_removed) =
+    let (mut total_files, mut total_added, total_removed) =
         git::diff_shortstat(&root, None, None).unwrap_or((0, 0, 0));
 
     // 2. Collect diff patches for each file (capped per file)
@@ -399,7 +399,7 @@ pub async fn export_changelog_markdown(
     let to_secs = to.map(|v| v as i64);
     let filtered: Vec<&ChangelogEntry> = entries
         .iter()
-        .filter(|e| to_secs.map_or(true, |t| (e.created_at as i64) < t))
+        .filter(|e| to_secs.is_none_or(|t| (e.created_at as i64) < t))
         .collect();
 
     let mut out = String::new();

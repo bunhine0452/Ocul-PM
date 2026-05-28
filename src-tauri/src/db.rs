@@ -68,8 +68,15 @@ impl Db {
     fn register_sqlite_vec() {
         static INIT: Once = Once::new();
         INIT.call_once(|| unsafe {
-            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
-                sqlite_vec::sqlite3_vec_init as *const (),
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute::<
+                *const (),
+                unsafe extern "C" fn(
+                    *mut rusqlite::ffi::sqlite3,
+                    *mut *mut i8,
+                    *const rusqlite::ffi::sqlite3_api_routines,
+                ) -> i32,
+            >(
+                sqlite_vec::sqlite3_vec_init as *const ()
             )));
         });
     }
@@ -120,9 +127,7 @@ impl Db {
                     [key],
                     |r| r.get::<_, String>(0),
                 )
-                .optional()
-                .map_err(Into::into)
-            })
+                .optional()})
             .await?;
         Ok(value)
     }
@@ -195,9 +200,7 @@ impl Db {
                     params![project_id as i64, agent_id],
                     |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
                 )
-                .optional()
-                .map_err(Into::into)
-            })
+                .optional()})
             .await?;
         Ok(row)
     }
@@ -503,9 +506,7 @@ impl Db {
                      FROM goals WHERE id = ?1",
                     [id],
                     goal_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(goal)
     }
@@ -557,13 +558,12 @@ impl Db {
                      FROM goals WHERE id = ?1",
                     [goal_id as i64],
                     goal_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(goal)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_goal(
         &self,
         goal_id: u32,
@@ -620,9 +620,7 @@ impl Db {
                      FROM goals WHERE id = ?1",
                     [goal_id as i64],
                     goal_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(goal)
     }
@@ -800,9 +798,7 @@ impl Db {
                             sort_order: r.get::<_, i64>(4)? as u32,
                         })
                     },
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(subtask)
     }
@@ -846,9 +842,7 @@ impl Db {
                      FROM conversations WHERE id = ?1",
                     [id],
                     conversation_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(conv)
     }
@@ -1318,15 +1312,14 @@ impl Db {
                     params![project_id as i64, &path],
                     |r| Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?)),
                 )
-                .optional()
-                .map_err(Into::into)
-            })
+                .optional()})
             .await?;
         Ok(result)
     }
 
     // ---------- G1: Changelog (MASTER-GUIDE §4.1) ----------
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_changelog_entry(
         &self,
         project_id: u32,
@@ -1369,13 +1362,12 @@ impl Db {
                      FROM changelog_entries WHERE id = ?1",
                     [id],
                     changelog_entry_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(entry)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_changelog_file(
         &self,
         entry_id: u32,
@@ -1476,9 +1468,7 @@ impl Db {
                      FROM changelog_entries WHERE id = ?1",
                     [entry_id as i64],
                     changelog_entry_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(entry)
     }
@@ -1549,9 +1539,7 @@ impl Db {
                      FROM changelog_entries WHERE id = ?1",
                     [entry_id as i64],
                     changelog_entry_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(entry)
     }
@@ -1585,9 +1573,7 @@ impl Db {
                      FROM changelog_entries WHERE id = ?1",
                     [entry_id as i64],
                     changelog_entry_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(entry)
     }
@@ -1596,6 +1582,7 @@ impl Db {
 
     /// Insert one history row recording a successful `migrate_from_sqlite`.
     /// Returns the new row id so the caller can correlate.
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_oculpm_migration(
         &self,
         project_id: u32,
@@ -1666,7 +1653,7 @@ impl Db {
                         })
                     })?
                     .collect();
-                Ok(rows?)
+                rows
             })
             .await?;
         Ok(rows)
@@ -1764,9 +1751,7 @@ impl Db {
                             applied_at: r.get::<_, i64>(4)? as u32,
                         })
                     },
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(row)
     }
@@ -1820,9 +1805,7 @@ impl Db {
                     params![project_id as i64],
                     project_overview_from_row,
                 )
-                .optional()
-                .map_err(Into::into)
-            })
+                .optional()})
             .await?;
         Ok(overview)
     }
@@ -1830,6 +1813,7 @@ impl Db {
     /// Inserts or updates a project overview row. Used by both LLM-driven
     /// generation and manual user edits (in the manual case, pass
     /// `source_signature=None` to disable auto-regeneration).
+    #[allow(clippy::too_many_arguments)]
     pub async fn upsert_project_overview(
         &self,
         project_id: u32,
@@ -1872,6 +1856,7 @@ impl Db {
 
     // ---------- Blueprints (W6 / G4) ----------
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn save_blueprint(
         &self,
         id: Option<u32>,
@@ -1914,9 +1899,7 @@ impl Db {
                          FROM project_blueprints WHERE id = ?1",
                         [existing_id as i64],
                         blueprint_from_row,
-                    )
-                    .map_err(Into::into)
-                } else {
+                    )} else {
                     c.execute(
                         "INSERT INTO project_blueprints
                            (name, idea_text, target_users, stack_choice,
@@ -1941,9 +1924,7 @@ impl Db {
                          FROM project_blueprints WHERE id = ?1",
                         [row_id],
                         blueprint_from_row,
-                    )
-                    .map_err(Into::into)
-                }
+                    )}
             })
             .await?;
         Ok(bp)
@@ -1960,9 +1941,7 @@ impl Db {
                      FROM project_blueprints WHERE id = ?1",
                     [blueprint_id as i64],
                     blueprint_from_row,
-                )
-                .map_err(Into::into)
-            })
+                )})
             .await?;
         Ok(bp)
     }

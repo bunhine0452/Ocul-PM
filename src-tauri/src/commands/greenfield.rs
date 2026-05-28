@@ -20,6 +20,7 @@ use crate::oculpm::manager::OculpmManager;
 
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_blueprint(
     db: State<'_, Db>,
     id: Option<u32>,
@@ -211,6 +212,7 @@ pub struct GreenfieldResult {
 /// 5. Returns the new project ID
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_greenfield_project(
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,

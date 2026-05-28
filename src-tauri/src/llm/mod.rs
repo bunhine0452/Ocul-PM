@@ -53,9 +53,6 @@ pub enum ChatEvent {
 
 #[derive(Debug, Error)]
 pub enum LlmError {
-    #[error("missing api key for provider: {0}")]
-    MissingApiKey(String),
-
     #[error("unknown provider: {0}")]
     UnknownProvider(String),
 
@@ -71,6 +68,7 @@ pub enum LlmError {
 
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
+    #[allow(dead_code)]
     fn name(&self) -> &'static str;
 
     async fn chat(

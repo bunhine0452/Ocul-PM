@@ -408,11 +408,7 @@ pub fn resolve_import(
             };
 
             let base_dir = if segments[0] == "crate" {
-                // If no Cargo.toml found, skip this case
-                let Some(root) = crate_root.clone() else {
-                    return None;
-                };
-                root
+                crate_root.clone()?
             } else if segments[0] == "super" {
                 parent_dir.parent().unwrap_or(parent_dir).to_path_buf()
             } else {

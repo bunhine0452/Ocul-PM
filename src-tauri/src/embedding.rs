@@ -10,6 +10,7 @@ use tracing::info;
 /// Active embedding model. Stays fixed for the lifetime of the DB schema —
 /// changing it requires recreating the `chunk_embeddings` virtual table.
 const MODEL: EmbeddingModel = EmbeddingModel::MultilingualE5Small;
+#[allow(dead_code)]
 pub const EMBEDDING_DIM: usize = 384;
 
 type SharedModel = Arc<std::sync::Mutex<TextEmbedding>>;

@@ -136,7 +136,7 @@ pub fn analyze_file(path: &Path, content: &str) -> Option<AstAnalysis> {
         let mut import_val = None;
 
         for capture in m.captures {
-            let capture_name: &str = &query.capture_names()[capture.index as usize];
+            let capture_name: &str = query.capture_names()[capture.index as usize];
             let captured_node = capture.node;
 
             match capture_name {

@@ -388,7 +388,7 @@ impl IndexWriter {
 
         let mut workdays: Vec<String> = entries
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().map_or(false, |ft| ft.is_dir()))
+            .filter(|e| e.file_type().is_ok_and(|ft| ft.is_dir()))
             .filter_map(|e| {
                 let name = e.file_name().to_string_lossy().to_string();
                 // Validate YYYYMMDD format: exactly 8 ASCII digits.
