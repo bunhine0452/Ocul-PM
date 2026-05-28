@@ -134,33 +134,32 @@
 
 > 이 §은 *Lite-W6 진행 중 매 PR 머지 시점에* 갱신. 어떤 PR 이 어디까지 갔는지를 기록.
 
-### 5.1 현재 위치 (2026-05-28)
+### 5.1 현재 위치 (2026-05-29)
 
-- **Phase A**: ☐ PR0 (회귀 보호망) 미진입
-- **Phase B**: ☐ PR1~PR5 미진입
+- **Phase A**: ✅ PR0 완료 / ☐ PR1 미진입
+- **Phase B**: ☐ PR2~PR5 미진입
 - **Phase C**: ☐ PR6~PR9 미진입
 - **Phase D**: ☐ PR10~PR12 미진입
+- **추가**: ☐ PR-0c (pre-existing clippy 48 errors 일괄 fix) — 1.0 출시 전 처리 필요
 
-진행 중 작업: *없음*. 다음 작업: **PR0 의 회귀 보호 테스트 작성**.
+진행 중 작업: *없음*. 다음 작업: **PR1 (Feature flag 정리)** 또는 **PR-0c (clippy fix)** 중 사용자 선택.
 
 ### 5.2 머지 로그
 
-(PR 머지 시마다 한 줄씩 누적)
-
-```
-| 일자       | PR  | 머지 커밋  | 비고                                  |
-|------------|-----|-----------|---------------------------------------|
-| (예) 2026- | PR0 | sha       | 회귀 보호 7 invariant 통합 테스트 추가  |
-```
+| 일자 | PR | 머지 커밋 | 비고 |
+|---|---|---|---|
+| 2026-05-29 | PR0 | `a494d7a` | 회귀 보호망 — 5 commits: retrospection 인계 묶음 (`28e96bb`) + AGENTS 템플릿 5 강화 (`fc65daf`) + vitest infra (`b0d2d8a`) + Rust 7 invariant safety net (`aa4e99a`) + vitest 3 시나리오 stub (`c0132e1`) + lint ALLOWLIST 보정 (`a494d7a`). `pre-cut-PR0` annotated tag 부여. |
 
 ### 5.3 새 발견 / 결정 변경
 
-(작업 중 새 결정이 필요할 때 사용자에게 묻고 *여기에 기록*)
-
-```
-| 일자 | 발견/변경 | 결정 | 영향 받은 §  |
-|------|----------|------|--------------|
-```
+| 일자 | 발견/변경 | 결정 | 영향 받은 § |
+|---|---|---|---|
+| 2026-05-29 | **vitest 미설치** 발견 (PR0 정찰) — `package.json` 에 test script + devDeps 모두 부재. master-prompt §7 가 `pnpm test` 를 green 5종에 포함했으나 인프라 자체 부재. | PR0 안에 vitest 4 + @testing-library/react 16 + jest-dom 6 + jsdom 29 도입 + `pnpm typecheck` / `pnpm test` / `pnpm test:watch` scripts 신설. | §7 (명령) 동기화 완료 |
+| 2026-05-29 | **`pnpm lint` (`lint:storage`) pre-existing fail** — MigrationModal / ChangelogScreen / ProjectMetaHeader 3 파일이 ALLOWLIST 누락. | PR0 안에서 ALLOWLIST 3개 추가 (`a494d7a`). ChangelogScreen 라인은 PR4 cut 시 자동 제거. | — |
+| 2026-05-29 | **`cargo clippy --all-targets -- -D warnings` pre-existing 48 errors** — `unnecessary_cast`, `unused_must_use` (cache.rs:2018 의 `.call(...)` 의 await 누락 가능성 있음), `unnecessary_map_or` 등 *style-only*. lib 컴파일이 fail 해서 `cargo clippy --test lite_w6_safety_net` 도 함께 fail. 내 PR0 코드 자체는 위반 0. | **PR-0c 로 분리** — 1.0 출시 전 별 PR 로 일괄 fix. PR0 의 DoD 중 `cargo clippy -- -D warnings` 는 PR-0c 종료 후 재검증. PR1~PR12 진행 중에는 `cargo clippy` 의 *내 새 코드* 만 확인 (lib 가 fail 해도 진행). | §7 (clippy 권장 명령 문구 추가 권장), 07-checklist (PR0 의 clippy 항목 ⚠ → PR-0c 의존), 본 §5.1 (PR-0c 추가) |
+| 2026-05-29 | **`@vitejs/plugin-react` 가 이미 devDeps 에 있음** (^4.6.0). vitest infra 도입 시 추가 의존성 절약. | 그대로 재사용. | — |
+| 2026-05-29 | **AGENTS.md 대상 파일은 `.oculpm/agents/_template.md`** — 본 프로젝트는 dogfood 대상이 아니므로 root `AGENTS.md` 가 없음 (의도). 강화 5 항목은 `_template.md` 에 작성. | 동의. | — |
+| 2026-05-29 | **frontmatter parser 의 closing fence 인식** — `---` 가 column 0 이 아니면 인식 안 됨. invariant_03 test case D 작성 시 발견 (raw string 으로 수정). | invariant_03 test 가 lock. *외부 LLM 이 frontmatter 작성 시 `---` 의 leading whitespace 금지* — `_template.md` 에 별도 명시 권장 (1.0 backlog). | — |
 
 ---
 

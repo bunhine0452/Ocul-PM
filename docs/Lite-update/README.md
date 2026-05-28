@@ -71,11 +71,13 @@ W1~W5(refactor 트랙) + W1~W5(major_update/oculpm 트랙) 가 모두 ✅ 인 �
 
 ---
 
-## 4. 진행 상태 (2026-05-28)
+## 4. 진행 상태 (2026-05-29)
 
 - [x] **모든 사전 결정 잠금 완료** — [`07-implementation-checklist.md`](./07-implementation-checklist.md) §0 참조.
-- [ ] Phase A 직전 *dogfooding 회고* (`_dogfooding-retrospective.md`) 작성
-- [ ] **Phase A PR0 (회귀 보호망)** ← 다음 액션
+- [x] Phase A 직전 *dogfooding 회고* — [`retrospection/_dogfooding-retrospective.md`](./retrospection/_dogfooding-retrospective.md)
+- [x] **Phase A PR0 (회귀 보호망)** — `pre-cut-PR0` 태그 머지 완료
+- [ ] Phase A PR1 (Feature flag 정리) ← 다음 액션 후보
+- [ ] **PR-0c (pre-existing clippy 48 errors 일괄 fix)** ← 1.0 출시 전 처리 필요 (master-prompt §5.3)
 - [ ] Phase B (PR2~PR5) — 병렬 가능
 - [ ] Phase C (PR6~PR9)
 - [ ] Phase D (PR10~PR12) — 1.0 출시

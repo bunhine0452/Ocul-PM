@@ -87,16 +87,22 @@
 
 ## 1. Phase A — Safety Net (1 주)
 
-### PR0 — 회귀 보호망
+### PR0 — 회귀 보호망 ✅ (2026-05-29, head `a494d7a`)
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src-tauri/tests/lite_w6_safety_net.rs` 작성 — 7 invariant 통합 테스트 |
-| ☐ | vitest 시나리오 1: empty SQLite + seeded journal → Today 렌더 |
-| ☐ | vitest 시나리오 2: workspace migration 으로 problems → terminal fallback |
-| ☐ | vitest 시나리오 3: Watcher 이벤트 후 FileTree 의 dot 표시 (after PR8 활성) |
-| ☐ | `pnpm typecheck` / `pnpm test` / `cargo test` / `cargo clippy` 모두 green |
-| ☐ | `pre-cut-PR0` git tag |
+| ☑ | `src-tauri/tests/lite_w6_safety_net.rs` 작성 — 7 invariant 통합 테스트 (`aa4e99a`) |
+| ☑ | vitest infra 도입 (vitest 4 + RTL 16 + jest-dom 6 + jsdom 29) + `pnpm typecheck` / `pnpm test` scripts 신설 (`b0d2d8a`) |
+| ☑ | vitest 시나리오 1: empty SQLite + seeded journal → Today 렌더 — `it.todo` (PR4 활성) (`c0132e1`) |
+| ☑ | vitest 시나리오 2: workspace migration 으로 problems → terminal fallback — `it.todo` (PR2 활성) |
+| ☑ | vitest 시나리오 3: Watcher 이벤트 후 FileTree 의 dot 표시 — `it.todo` (PR8 활성) |
+| ☑ | AGENTS.md 5 강화 (회고 §10) — `.oculpm/agents/_template.md` (`fc65daf`) |
+| ☑ | `pnpm typecheck` green |
+| ☑ | `pnpm lint` green (ALLOWLIST 3 pre-existing 보정 — `a494d7a`) |
+| ☑ | `pnpm test` green — 1 pass + 3 todo (4 tests) |
+| ☑ | `cargo test` green — 230 tests (lib 210 + agents 7 + migration 6 + lite_w6_safety_net 7) |
+| ⚠ | `cargo clippy --all-targets -- -D warnings` — **PR-0c 로 분리** (pre-existing 48 errors, master-prompt §5.3 참조). 내 PR0 코드 자체는 위반 0. |
+| ☑ | `pre-cut-PR0` annotated git tag |
 
 ### PR1 — Feature flag 정리
 
