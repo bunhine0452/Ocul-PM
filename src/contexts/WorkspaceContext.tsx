@@ -14,7 +14,14 @@ import { toast, DriftCooldown } from "@/lib/toast";
 
 // ---------- State Shape ----------
 
-export type ActiveView = "overview" | "today" | "plan" | "changelog" | "code";
+/**
+ * Lite-W6 PR7 (Part 1) narrows the IA: "overview" (absorbed into Today
+ * per 04-ui-ux §2) and "changelog" (PR4 retired the route) both leave
+ * the union. "code" stays accessible until PR8/PR9 absorb its FileTree
+ * and AI parts. Persisted values for the removed routes fall back to
+ * "today" inside `loadFromStorage` + `mapLegacyTab`.
+ */
+export type ActiveView = "today" | "plan" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
 /**
  * Lite-W6 PR5 collapses the BottomDrawer to a single Terminal tab. The
@@ -128,23 +135,26 @@ const STORAGE_KEY = "aipm:workspace:v1";
 /** Map legacy activeTab values to the new (activeView, codeSubTab) pair. */
 function mapLegacyTab(tab: LegacyTab): { view: ActiveView; sub: CodeSubTab } {
   switch (tab) {
-    case "overview": return { view: "overview", sub: "files" };
-    case "today":    return { view: "today",    sub: "files" };
-    case "planner":  return { view: "plan",     sub: "files" };
-    case "files":    return { view: "code",     sub: "files" };
-    case "chat":     return { view: "code",     sub: "ai" };
-    case "assist":   return { view: "code",     sub: "ai" };
-    case "graph":    return { view: "code",     sub: "graph" };
-    case "terminal": return { view: "code",     sub: "terminal" };
+    // Lite-W6 PR7 Part 1: "overview" left the ActiveView union; legacy
+    // values land on Today (Overview's widgets become Today's cards in
+    // PR8/PR9 per 04-ui-ux §2).
+    case "overview": return { view: "today", sub: "files" };
+    case "today":    return { view: "today", sub: "files" };
+    case "planner":  return { view: "plan",  sub: "files" };
+    case "files":    return { view: "code",  sub: "files" };
+    case "chat":     return { view: "code",  sub: "ai" };
+    case "assist":   return { view: "code",  sub: "ai" };
+    case "graph":    return { view: "code",  sub: "graph" };
+    case "terminal": return { view: "code",  sub: "terminal" };
     // Lite-W6 PR5: "git" CodeSubTab was removed; legacy values land on files.
-    case "git":      return { view: "code",     sub: "files" };
+    case "git":      return { view: "code",  sub: "files" };
     // Settings/diagnostics are not view-level any more (⌘, opens a screen);
-    // default landing for these legacy values is the Overview.
+    // default landing for these legacy values is Today.
     case "settings":
     case "diagnostics":
-      return { view: "overview", sub: "files" };
+      return { view: "today", sub: "files" };
     default:
-      return { view: "overview", sub: "files" };
+      return { view: "today", sub: "files" };
   }
 }
 
@@ -220,6 +230,15 @@ export function migrateBottomDrawerTab(raw: unknown): BottomDrawerTab {
   return raw === "terminal" ? raw : "terminal";
 }
 
+/**
+ * Lite-W6 PR7 Part 1: "overview" + "changelog" left the ActiveView
+ * union. Anything that isn't a current member falls back to "today"
+ * (the default landing tab). Exported for unit testing.
+ */
+export function migrateActiveView(raw: unknown): ActiveView {
+  return raw === "today" || raw === "plan" || raw === "code" ? raw : "today";
+}
+
 function loadFromStorage(): WorkspaceState {
   // Try new format first
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -234,6 +253,7 @@ function loadFromStorage(): WorkspaceState {
       if (parsed.codeSubTab === "git") {
         parsed.codeSubTab = "files";
       }
+      parsed.activeView = migrateActiveView(parsed.activeView);
       parsed.bottomDrawerTab = migrateBottomDrawerTab(parsed.bottomDrawerTab);
       // Merge with defaults to handle new fields added in future versions
       const merged = {

@@ -204,18 +204,21 @@
 
 ### PR7 — 3-IA + 유연한 도크
 
+**진행 분할**: PR7 Part 1 (IA collapse + GitBranchChip) ✅ / PR7 Part 2 (layoutMode + TerminalDock + Git chip 클릭 동작) ☐. dogfood 회귀 최소화를 위해 Code 화면은 PR7 Part 1 단계에서 **보존** — Files/AI/Terminal 진입을 PR8/PR9 가 흡수할 때까지 access 유지.
+
 | 체크 | 항목 |
 |---|---|
-| ☐ | `PRIMARY_NAV` 3 슬롯 (Today / Plan / Settings) — 사이드바 폭 56px |
-| ☐ | `WorkspaceContext.activeView` union: `"today" | "plan"` 단순화 |
-| ☐ | `useGlobalShortcuts` 갱신 — ⌘1 Today, ⌘2 Plan, ⌘, Settings, ⌘3~5 폐기 |
-| ☐ | `layoutMode: "main-only" | "split" | "terminal-only"` 신설 |
-| ☐ | `splitRatio` 영속화 + horizontal resize handle |
-| ☐ | ⌘J split 토글, ⌘⇧J terminal-only 토글 |
-| ☐ | `TerminalDock.tsx` wrapper 신설 — Code 화면 의존 끊김 |
-| ☐ | TitleBar 의 `GitBranchChip` 마운트 |
-| ☐ | Git chip 클릭 → split 모드 + `git status` 자동 실행 |
-| ☐ | 회귀: 사용자 시나리오 — `claude-code "..."` split 모드에서 정상 동작 |
+| ☑ | (Part 1) `PRIMARY_NAV` 3 슬롯 — Today / Plan / Code (Settings 는 separately bottom icon + ⌘,). Overview 가 사이드바에서 제거됨. |
+| ☑ | (Part 1) `WorkspaceContext.activeView` union: `"today" \| "plan" \| "code"` 로 narrowing — overview / changelog 제거. `migrateActiveView` 신설 + `loadFromStorage` 호출 + `mapLegacyTab("overview" \| "settings" \| "diagnostics") → today`. |
+| ☑ | (Part 1) `useGlobalShortcuts` 갱신 — ⌘1=Today / ⌘2=Plan / ⌘3=Code / ⌘4·⌘5 retire. CommandPalette view-overview 제거 + Code 단축키 ⌘3 으로 re-pack. App.tsx 의 LayoutDashboard / FileCode unused import 정리. |
+| ☑ | (Part 1) TitleBar 의 `GitBranchChip` 마운트 — PR5 의 `git_head_status_brief` 백엔드 활용. branch + uncommitted +N badge + (no git) / (git error) 상태 표시 + visibilitychange 리프레시 + 클릭 수동 refresh. |
+| ☑ | (Part 1) 회귀 테스트 — `migrateActiveView` 4 케이스 (overview→today, changelog→today, 현 union member 보존, unknown→today). vitest 4 신규 assertions. |
+| ☐ | (Part 2) `layoutMode: "main-only" \| "split" \| "terminal-only"` 신설 |
+| ☐ | (Part 2) `splitRatio` 영속화 + horizontal resize handle |
+| ☐ | (Part 2) ⌘J split 토글, ⌘⇧J terminal-only 토글 |
+| ☐ | (Part 2) `TerminalDock.tsx` wrapper 신설 — Code 화면 의존 끊김 |
+| ☐ | (Part 2) Git chip 클릭 → split 모드 + `git status` 자동 실행 |
+| ☐ | (Part 2) 회귀: 사용자 시나리오 — `claude-code "..."` split 모드에서 정상 동작 |
 
 ### PR8 — FileTree 재설계
 

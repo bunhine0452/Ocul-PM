@@ -1,9 +1,11 @@
 import React from "react";
 import { ChevronLeft, Sun, Moon, Monitor } from "./Icons";
 import { useTheme } from "../lib/theme";
+import { GitBranchChip } from "./GitBranchChip";
 
 interface TitleBarProps {
   projectName?: string | null;
+  projectId?: number | null;
   onBackToDashboard?: () => void;
 }
 
@@ -17,7 +19,7 @@ interface TitleBarProps {
  * - JS startDragging 제거 → data-tauri-drag-region 표준 사용
  * - focus:outline-none 제거 → 접근성 유지
  */
-export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
+export function TitleBar({ projectName, projectId, onBackToDashboard }: TitleBarProps) {
   const { theme, setTheme } = useTheme();
   const isMac = navigator.platform.toUpperCase().includes("MAC");
 
@@ -55,6 +57,7 @@ export function TitleBar({ projectName, onBackToDashboard }: TitleBarProps) {
             <span className="text-foreground font-bold text-xs tracking-tight bg-secondary/80 px-2 py-0.5 rounded border border-border">
               {projectName}
             </span>
+            {projectId != null && <GitBranchChip projectId={projectId} />}
           </div>
         ) : (
           <span className="text-foreground/90 font-heading text-sm tracking-wide">

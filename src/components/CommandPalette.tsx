@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Command } from "cmdk";
 import {
-  LayoutDashboard,
   Flame,
   Calendar,
   FileCode,
@@ -86,15 +85,13 @@ export function CommandPalette({
 
   const items: CommandItem[] = useMemo(
     () => [
-      // ── Top-level navigation
-      { id: "view-overview",  label: "Overview", alias: "개요 정체성",
-        group: "이동", icon: LayoutDashboard, shortcut: "⌘1", onSelect: go("overview") },
-      { id: "view-today",     label: "Today", alias: "오늘 일정 포커스",
-        group: "이동", icon: Flame,           shortcut: "⌘2", onSelect: go("today") },
+      // ── Top-level navigation (Lite-W6 PR7 Part 1: 3-IA)
+      { id: "view-today",     label: "Today", alias: "오늘 일정 포커스 개요",
+        group: "이동", icon: Flame,    shortcut: "⌘1", onSelect: go("today") },
       { id: "view-plan",      label: "Plan", alias: "플래너 목표 goal",
-        group: "이동", icon: Calendar,         shortcut: "⌘3", onSelect: go("plan") },
+        group: "이동", icon: Calendar, shortcut: "⌘2", onSelect: go("plan") },
       { id: "view-code",      label: "Code", alias: "코드 워크벤치",
-        group: "이동", icon: Code2,            shortcut: "⌘5", onSelect: go("code") },
+        group: "이동", icon: Code2,    shortcut: "⌘3", onSelect: go("code") },
 
       // ── Code sub-tabs (transitional — UI-5 absorbs these later)
       { id: "code-files",    label: "Code — Files", alias: "파일 탐색기",

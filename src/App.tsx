@@ -10,7 +10,6 @@ import { CommandPalette } from "./components/CommandPalette";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
-import { OverviewScreen } from "@/features/overview/OverviewScreen";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
 import { StartScreen } from "@/features/onboarding/StartScreen";
@@ -26,7 +25,6 @@ import {
   Calendar,
   Settings,
   Code2,
-  LayoutDashboard,
   Sparkles,
   Terminal,
   Flame,
@@ -280,6 +278,7 @@ function App() {
     <div className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden">
       <TitleBar
         projectName={selectedProjectName}
+        projectId={selectedProjectId}
         onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined}
       />
 
@@ -411,14 +410,13 @@ function App() {
 
 // W3-PR4: Today promoted to first (⌘1). Overview becomes #2 (⌘2).
 // `useGlobalShortcuts` mirrors this order — keep the two in lock-step.
-// Lite-W6 PR4: "변경 기록" (changelog) was removed; the ⌘4 slot is now
-// intentionally vacant. PR7 will collapse the IA to 3 buttons + re-pack
-// shortcuts. Keeping "code" on ⌘5 avoids muscle-memory churn in the interim.
+// Lite-W6 PR7 Part 1: IA collapsed from 4 (Today/Overview/Plan/Code) to
+// 3 (Today/Plan/Code). Overview was absorbed into Today per 04-ui-ux §2.
+// Shortcuts re-pack to ⌘1~⌘3; ⌘4/⌘5 retire.
 const PRIMARY_NAV = [
-  { id: "today" as const,     label: "오늘",      icon: Flame,           shortcut: "⌘1" },
-  { id: "overview" as const,  label: "개요",      icon: LayoutDashboard, shortcut: "⌘2" },
-  { id: "plan" as const,      label: "계획",      icon: Calendar,        shortcut: "⌘3" },
-  { id: "code" as const,      label: "코드",      icon: Code2,           shortcut: "⌘5" },
+  { id: "today" as const, label: "오늘", icon: Flame,           shortcut: "⌘1" },
+  { id: "plan" as const,  label: "계획", icon: Calendar,        shortcut: "⌘2" },
+  { id: "code" as const,  label: "코드", icon: Code2,           shortcut: "⌘3" },
 ];
 
 const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -429,9 +427,9 @@ const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.Component
 ];
 
 function Workspace(props: {
-  activeView: "overview" | "today" | "plan" | "changelog" | "code";
+  activeView: "today" | "plan" | "code";
   codeSubTab: CodeSubTab;
-  setActiveView: (v: "overview" | "today" | "plan" | "changelog" | "code") => void;
+  setActiveView: (v: "today" | "plan" | "code") => void;
   setCodeSubTab: (s: CodeSubTab) => void;
   selectedProjectId: number;
   selectedProjectRoot: string | null;
@@ -511,12 +509,6 @@ function Workspace(props: {
 
       {/* C. Primary content */}
       <main className="flex-1 flex flex-col overflow-hidden bg-background relative min-w-0">
-        {activeView === "overview" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <OverviewScreen activeProjectId={selectedProjectId} />
-          </div>
-        )}
-
         {activeView === "today" && (
           <div className="flex-1 h-full overflow-hidden">
             <TodayScreen activeProjectId={selectedProjectId} />

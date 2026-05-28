@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 
-import { migrateBottomDrawerTab } from "@/contexts/WorkspaceContext";
+import {
+  migrateActiveView,
+  migrateBottomDrawerTab,
+} from "@/contexts/WorkspaceContext";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
 //
@@ -52,6 +55,28 @@ describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () =>
   it.todo(
     "SC3: Watcher event lights FileTree change-dot (enable in PR8 — FileTree redesign)",
   );
+});
+
+describe("Lite-W6 PR7 Part 1 — ActiveView migration", () => {
+  it("rewrites persisted 'overview' to 'today' (3-IA collapse)", () => {
+    expect(migrateActiveView("overview")).toBe("today");
+  });
+
+  it("rewrites the long-dead 'changelog' to 'today'", () => {
+    expect(migrateActiveView("changelog")).toBe("today");
+  });
+
+  it("preserves current union members", () => {
+    expect(migrateActiveView("today")).toBe("today");
+    expect(migrateActiveView("plan")).toBe("plan");
+    expect(migrateActiveView("code")).toBe("code");
+  });
+
+  it("defaults unknown / missing values to 'today'", () => {
+    expect(migrateActiveView(undefined)).toBe("today");
+    expect(migrateActiveView(null)).toBe("today");
+    expect(migrateActiveView("settings")).toBe("today");
+  });
 });
 
 // ─── infra smoke ─────────────────────────────────────────────────────────
