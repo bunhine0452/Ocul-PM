@@ -20,7 +20,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 use tauri::State;
 
-use crate::db::{ChangelogEntry, Db, Goal, ProjectOverview};
+use crate::db::{Db, Goal, ProjectOverview};
 use crate::indexer;
 use crate::llm;
 
@@ -422,6 +422,11 @@ single JSON object with exactly these keys:
 ///
 /// `date_unix` is the local-day start (00:00) for which the brief was built.
 /// Callers can request any day, defaulting to "today" by passing `None`.
+///
+/// Lite-W6 PR4: the changelog-derived fields were retired. The DTO shape
+/// is kept (with empty/zero placeholders) until the legacy DailyBrief
+/// view in TodayScreen is removed in a later PR; today's authoritative
+/// activity source is the journal entries rendered by TimelineView.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct DailyBrief {
     // i32 (not i64) so Specta can export this binding; unix seconds fit in i32
@@ -432,15 +437,6 @@ pub struct DailyBrief {
     /// Goals whose `updated_at` falls inside the requested day AND that are
     /// marked completed. The "what did I finish" column.
     pub completed_today: Vec<Goal>,
-    /// Changelog entries written during the requested day, newest first.
-    pub today_entries: Vec<ChangelogEntry>,
-    /// Aggregate stats for the day.
-    pub files_touched: u32,
-    pub lines_added: u32,
-    pub lines_removed: u32,
-    /// Pinned entries surface here regardless of date so the Today screen can
-    /// keep them sticky (MASTER-GUIDE §5.5 "📌 고정은 Today 에도 영구 노출").
-    pub pinned_entries: Vec<ChangelogEntry>,
 }
 
 #[tauri::command]
@@ -493,38 +489,9 @@ pub async fn daily_brief(
         .cloned()
         .collect();
 
-    // Entries: list with `since = day_start`, then filter out anything after
-    // the day. list_changelog_entries returns newest first.
-    let raw_entries = db
-        .list_changelog_entries(project_id, Some(day_start), 200)
-        .await
-        .map_err(|e| e.to_string())?;
-    let today_entries: Vec<ChangelogEntry> = raw_entries
-        .into_iter()
-        .filter(|e| (e.created_at as i64) < day_end)
-        .collect();
-
-    let files_touched: u32 = today_entries.iter().map(|e| e.files_changed).sum();
-    let lines_added: u32 = today_entries.iter().map(|e| e.lines_added).sum();
-    let lines_removed: u32 = today_entries.iter().map(|e| e.lines_removed).sum();
-
-    // Pinned: scan a generous window (last 90 days) and keep only pinned ones.
-    // Cheaper than a dedicated query and pinned counts are tiny in practice.
-    let recent = db
-        .list_changelog_entries(project_id, Some(day_start - 86400 * 90), 500)
-        .await
-        .map_err(|e| e.to_string())?;
-    let pinned_entries: Vec<ChangelogEntry> =
-        recent.into_iter().filter(|e| e.pinned).collect();
-
     Ok(DailyBrief {
         date_unix: day_start as i32,
         focus_goals,
         completed_today,
-        today_entries,
-        files_touched,
-        lines_added,
-        lines_removed,
-        pinned_entries,
     })
 }

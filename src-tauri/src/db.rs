@@ -1317,7 +1317,26 @@ impl Db {
         Ok(result)
     }
 
-    // ---------- G1: Changelog (MASTER-GUIDE §4.1) ----------
+    // ---------- G1: Changelog (legacy, read-only) ----------
+    //
+    // Lite-W6 PR4: the user-facing changelog UI and the write/update/delete
+    // commands have been retired. The read methods + truncate-for-project
+    // helper below stay because:
+    //   - `migrate_from_sqlite` still drains legacy tables into journal/
+    //   - `delete_legacy_changelog` (manager.rs) backs up and truncates after
+    //     a confirmed migration
+    //   - `delete_project` cascade still needs to clear changelog rows for
+    //     projects created on v0.x
+    // The 007 schema migration is left in place so upgrading users can still
+    // be migrated; a separate `DROP TABLE` migration is deferred to 1.1.
+    //
+    // `insert_changelog_entry` and `insert_changelog_file` are kept only as
+    // test seeding helpers (the only production writers — `commit_changelog
+    // _entry` and the related commands — were deleted in PR4) so that
+    // `migrate_from_sqlite`, `delete_legacy_changelog`, and the integration
+    // tests under `tests/` can build legacy fixtures inline. They survive
+    // here as plain `pub` methods because integration tests link the lib
+    // as an external crate and would not see `#[cfg(test)]` items.
 
     #[allow(clippy::too_many_arguments)]
     pub async fn insert_changelog_entry(
@@ -1502,80 +1521,6 @@ impl Db {
             })
             .await?;
         Ok(files)
-    }
-
-    pub async fn update_changelog_entry(
-        &self,
-        entry_id: u32,
-        title: Option<String>,
-        category: Option<String>,
-        ai_summary: Option<String>,
-    ) -> Result<ChangelogEntry> {
-        let entry = self
-            .conn
-            .call(move |c| {
-                if let Some(ref v) = title {
-                    c.execute(
-                        "UPDATE changelog_entries SET title = ?1 WHERE id = ?2",
-                        params![v, entry_id as i64],
-                    )?;
-                }
-                if let Some(ref v) = category {
-                    c.execute(
-                        "UPDATE changelog_entries SET category = ?1 WHERE id = ?2",
-                        params![v, entry_id as i64],
-                    )?;
-                }
-                if let Some(ref v) = ai_summary {
-                    c.execute(
-                        "UPDATE changelog_entries SET ai_summary = ?1 WHERE id = ?2",
-                        params![v, entry_id as i64],
-                    )?;
-                }
-                c.query_row(
-                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
-                            category, external_tool, files_changed, lines_added, lines_removed,
-                            created_at, pinned
-                     FROM changelog_entries WHERE id = ?1",
-                    [entry_id as i64],
-                    changelog_entry_from_row,
-                )})
-            .await?;
-        Ok(entry)
-    }
-
-    pub async fn delete_changelog_entry(&self, entry_id: u32) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "DELETE FROM changelog_entries WHERE id = ?",
-                    [entry_id as i64],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn pin_changelog_entry(&self, entry_id: u32) -> Result<ChangelogEntry> {
-        let entry = self
-            .conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE changelog_entries SET pinned = CASE WHEN pinned = 0 THEN 1 ELSE 0 END
-                     WHERE id = ?",
-                    [entry_id as i64],
-                )?;
-                c.query_row(
-                    "SELECT id, project_id, user_intent, prompt_text, ai_summary, title,
-                            category, external_tool, files_changed, lines_added, lines_removed,
-                            created_at, pinned
-                     FROM changelog_entries WHERE id = ?1",
-                    [entry_id as i64],
-                    changelog_entry_from_row,
-                )})
-            .await?;
-        Ok(entry)
     }
 
     // ---------- W5-PR7: oculpm_migrations + legacy deletion ----------
@@ -2262,15 +2207,6 @@ pub struct ChangelogFileEntry {
     pub lines_removed: u32,
     pub per_file_summary: Option<String>,
     pub diff_patch: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct DailyChangelogBucket {
-    pub date: String, // ISO yyyy-mm-dd (local timezone)
-    pub entries: Vec<ChangelogEntry>,
-    pub total_files: u32,
-    pub total_lines_added: u32,
-    pub total_lines_removed: u32,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]

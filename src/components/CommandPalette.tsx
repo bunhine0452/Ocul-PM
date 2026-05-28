@@ -94,8 +94,6 @@ export function CommandPalette({
         group: "이동", icon: Flame,           shortcut: "⌘2", onSelect: go("today") },
       { id: "view-plan",      label: "Plan", alias: "플래너 목표 goal",
         group: "이동", icon: Calendar,         shortcut: "⌘3", onSelect: go("plan") },
-      { id: "view-changelog", label: "Changelog", alias: "체인지로그 변경 기록",
-        group: "이동", icon: FileCode,         shortcut: "⌘4", onSelect: go("changelog") },
       { id: "view-code",      label: "Code", alias: "코드 워크벤치",
         group: "이동", icon: Code2,            shortcut: "⌘5", onSelect: go("code") },
 

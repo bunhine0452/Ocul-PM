@@ -6,9 +6,6 @@ import {
   Sparkles,
   Copy,
   Check,
-  Save,
-  ScanSearch,
-  FileDiff,
   X,
 } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
@@ -17,7 +14,6 @@ import {
   type ClarifyQuestion,
   type ClarifyAnswer,
   type EditPromptResult,
-  type FileChange,
 } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -37,7 +33,7 @@ interface AiWorkbenchProps {
 }
 
 export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
-  const { state, setState, setActiveView } = useWorkspace();
+  const { state, setState } = useWorkspace();
   const { settings } = useSettings();
   const mode = state.aiWorkbenchMode;
 
@@ -95,7 +91,6 @@ export function AiWorkbench({ activeProjectId, activeFile }: AiWorkbenchProps) {
         {mode === "quick-edit" ? (
           <QuickEdit
             activeProjectId={activeProjectId}
-            onGoChangelog={() => setActiveView("changelog")}
             provider={provider}
             model={effectiveModel}
           />
@@ -133,12 +128,10 @@ function ModeButton({ active, onClick, label }: { active: boolean; onClick: () =
 
 function QuickEdit({
   activeProjectId,
-  onGoChangelog,
   provider,
   model,
 }: {
   activeProjectId: number | null;
-  onGoChangelog: () => void;
   provider: Provider;
   model: string;
 }) {
@@ -158,30 +151,10 @@ function QuickEdit({
   const [result, setResult] = useState<EditPromptResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Today changes — same role as the old AssistPanel "scan + save" block,
-  // preserved so the W4 golden path keeps working.
-  const [fileChanges, setFileChanges] = useState<FileChange[]>([]);
-  const [scanning, setScanning] = useState(false);
-  const [savingChangelog, setSavingChangelog] = useState(false);
-  const [savedEntryId, setSavedEntryId] = useState<number | null>(null);
-
+  // Clear stale prompt result when the active project changes.
   useEffect(() => {
-    setSavedEntryId(null);
     setResult(null);
-    if (activeProjectId != null) {
-      void loadTodayChanges();
-    } else {
-      setFileChanges([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjectId]);
-
-  async function loadTodayChanges() {
-    if (activeProjectId == null) return;
-    const todayStart = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
-    const res = await commands.listFileChanges(activeProjectId, todayStart);
-    if (res.status === "ok") setFileChanges(res.data);
-  }
 
   async function startGeneration() {
     if (!userRequest.trim() || activeProjectId == null) return;
@@ -243,42 +216,6 @@ function QuickEdit({
     await navigator.clipboard.writeText(result.english_prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function handleScan() {
-    if (activeProjectId == null) return;
-    setScanning(true);
-    setError(null);
-    const res = await commands.detectFileChanges(activeProjectId);
-    if (res.status === "ok") setFileChanges(res.data);
-    else setError((res as any).error ?? "스캔 실패");
-    setScanning(false);
-  }
-
-  async function handleSaveToChangelog() {
-    if (activeProjectId == null) return;
-    setSavingChangelog(true);
-    setError(null);
-    setSavedEntryId(null);
-    const effectiveModel = model;
-    const res = await commands.commitChangelogEntry(
-      activeProjectId,
-      userRequest.trim() || null,
-      null,
-      provider,
-      effectiveModel,
-    );
-    if (res.status === "ok") {
-      setSavedEntryId(res.data.id);
-      // The backend just consumed these paths (deleted matching file_changes
-      // rows and refreshed file hashes), so the "오늘 변경사항" list belongs
-      // to the previous diff snapshot — clear it so the panel reflects what
-      // a fresh Scan would now return.
-      setFileChanges([]);
-    } else {
-      setError((res as any).error ?? "Changelog 저장 실패");
-    }
-    setSavingChangelog(false);
   }
 
   if (activeProjectId == null) {
@@ -365,69 +302,6 @@ function QuickEdit({
             </section>
           )}
 
-          {/* Today changes / save-to-changelog (golden path) */}
-          <section className="space-y-2 pt-2 border-t border-border/50">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-                <FileDiff className="w-3 h-3" />
-                오늘 변경사항 ({fileChanges.length})
-              </label>
-              <Button variant="outline" size="sm" onClick={handleScan} disabled={scanning}>
-                {scanning ? (
-                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                ) : (
-                  <ScanSearch className="w-3 h-3 mr-1.5" />
-                )}
-                스캔
-              </Button>
-            </div>
-
-            {fileChanges.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground/70 py-2">
-                감지된 변경사항이 없습니다.
-              </p>
-            ) : (
-              <>
-                <ul className="space-y-0.5 max-h-32 overflow-y-auto scrollbar-thin text-[11px] font-mono">
-                  {fileChanges.slice(0, 20).map((c) => (
-                    <li key={c.id} className="flex items-center gap-2 text-foreground/80">
-                      <span className="w-3 text-center text-muted-foreground">
-                        {c.change_type === "created" ? "+" : c.change_type === "deleted" ? "−" : "~"}
-                      </span>
-                      <span className="truncate flex-1">{c.file_path}</span>
-                    </li>
-                  ))}
-                  {fileChanges.length > 20 && (
-                    <li className="text-muted-foreground italic">+{fileChanges.length - 20} more…</li>
-                  )}
-                </ul>
-
-                {savedEntryId == null ? (
-                  <Button
-                    onClick={handleSaveToChangelog}
-                    disabled={savingChangelog}
-                    className="w-full h-8"
-                  >
-                    {savingChangelog ? (
-                      <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> 저장 중…</>
-                    ) : (
-                      <><Save className="w-3 h-3 mr-1.5" /> Changelog 에 저장</>
-                    )}
-                  </Button>
-                ) : (
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5">
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-semibold">
-                      <Check className="w-3 h-3" />
-                      저장됨 (#{savedEntryId})
-                    </span>
-                    <Button onClick={onGoChangelog} size="sm" variant="outline" className="h-6">
-                      타임라인 보기
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
         </div>
       </div>
 

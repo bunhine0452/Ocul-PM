@@ -12,7 +12,6 @@ import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { TerminalPanel } from "@/features/terminal/TerminalPanel";
 import { OverviewScreen } from "@/features/overview/OverviewScreen";
 import { TodayScreen } from "@/features/today/TodayScreen";
-import { ChangelogScreen } from "@/features/changelog/ChangelogScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
@@ -32,7 +31,6 @@ import {
   Terminal,
   GitBranch,
   Flame,
-  FileCode,
 } from "./components/Icons";
 import "./App.css";
 
@@ -414,11 +412,13 @@ function App() {
 
 // W3-PR4: Today promoted to first (⌘1). Overview becomes #2 (⌘2).
 // `useGlobalShortcuts` mirrors this order — keep the two in lock-step.
+// Lite-W6 PR4: "변경 기록" (changelog) was removed; the ⌘4 slot is now
+// intentionally vacant. PR7 will collapse the IA to 3 buttons + re-pack
+// shortcuts. Keeping "code" on ⌘5 avoids muscle-memory churn in the interim.
 const PRIMARY_NAV = [
   { id: "today" as const,     label: "오늘",      icon: Flame,           shortcut: "⌘1" },
   { id: "overview" as const,  label: "개요",      icon: LayoutDashboard, shortcut: "⌘2" },
   { id: "plan" as const,      label: "계획",      icon: Calendar,        shortcut: "⌘3" },
-  { id: "changelog" as const, label: "변경 기록", icon: FileCode,        shortcut: "⌘4" },
   { id: "code" as const,      label: "코드",      icon: Code2,           shortcut: "⌘5" },
 ];
 
@@ -528,12 +528,6 @@ function Workspace(props: {
         {activeView === "plan" && (
           <div className="flex-1 h-full overflow-hidden">
             <PlannerPanel activeProjectId={selectedProjectId} />
-          </div>
-        )}
-
-        {activeView === "changelog" && (
-          <div className="flex-1 h-full overflow-hidden">
-            <ChangelogScreen activeProjectId={selectedProjectId} />
           </div>
         )}
 

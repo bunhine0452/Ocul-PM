@@ -1,4 +1,3 @@
-pub mod changelog;
 pub mod config;
 pub mod conversation;
 pub mod diagnostics;
@@ -12,7 +11,6 @@ pub mod project;
 pub mod window;
 pub mod terminal;
 
-pub use changelog::*;
 pub use config::*;
 pub use conversation::*;
 pub use diagnostics::*;

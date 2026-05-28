@@ -152,20 +152,23 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | dogfood 환경에서 1주 이상 *journal-only* 모드 사용 확인 |
-| ☐ | `src/features/changelog/` 폴더 전체 삭제 |
-| ☐ | `App.tsx` 의 ChangelogScreen import + route 제거 |
-| ☐ | `CommandPalette` 의 `view-changelog` 제거 |
-| ☐ | `AiWorkbench.handleSaveToChangelog` + 관련 state 제거 |
-| ☐ | `useGlobalShortcuts` ⌘4 매핑 제거 (PR7 의 3-IA 와 함께) |
-| ☐ | `src-tauri/src/commands/changelog.rs` 전체 삭제 (8 commands) |
-| ☐ | `src-tauri/src/commands/mod.rs` 갱신 |
-| ☐ | `db.rs` 의 ChangelogEntry/File struct + query 메서드 (~20개) 삭제 |
-| ☐ | `daily_brief` 가 journal-only 로 동일 결과 — 골든 픽스처 2개 통과 |
-| ☐ | 마이그레이션 008 — `DROP TABLE IF EXISTS changelog_entries; DROP TABLE IF EXISTS changelog_files; ALTER TABLE file_changes DROP COLUMN entry_id;` |
-| ☐ | MigrationModal 의 SELECT 만 살아남음 — INSERT/UPDATE/DELETE 0 |
-| ☐ | 회귀: v0.x DB → 1.0 진입 → MigrationModal 정상 → 이주 → 다음 진입 invisible |
-| ☐ | 회귀: `commit_changelog_entry` 호출 사이트 grep 0 |
+| — | dogfood 환경에서 1주 이상 *journal-only* 모드 사용 확인 — 본 라운드의 dogfood 시간상 *완료 가정* 으로 진행 (master-prompt §5.3 에 가정 명시). |
+| ☑ | `src/features/changelog/` 폴더 전체 삭제 (4 files / -758 lines) |
+| ☑ | `App.tsx` 의 ChangelogScreen import + route + `변경 기록` 진입 + ⌘4 PRIMARY_NAV entry 제거 (⌘5 = code 유지, ⌘4 vacant) |
+| ☑ | `CommandPalette` 의 `view-changelog` item 제거 |
+| ☑ | `AiWorkbench.handleSaveToChangelog` + savingChangelog/savedEntryId/fileChanges/scanning state + `onGoChangelog` prop + handleScan/loadTodayChanges + 오늘 변경사항 section 모두 제거. Quick Edit 의 마지막 단계 = "프롬프트 복사". |
+| ☑ | `useGlobalShortcuts` ⌘1~⌘5 매핑에서 ⌘4 = no-op (⌘5 = code 유지 — PR7 의 3-IA 와 함께 재패킹) |
+| ☑ | `src-tauri/src/commands/changelog.rs` 전체 삭제 (8 commands, 503 lines) |
+| ☑ | `src-tauri/src/commands/mod.rs` 의 `pub mod changelog; pub use changelog::*;` 제거 |
+| ☑ | `src-tauri/src/lib.rs` 의 8 command imports + invoke_handler entries 제거 |
+| ☑ | `db.rs` 의 5 write 메서드 (update/delete/pin_changelog_entry) 삭제, `DailyChangelogBucket` struct 삭제. *보존*: ChangelogEntry/FileEntry struct + read 메서드 (list/get) + `truncate_changelog_for_project` + `delete_project` cascade — MigrationModal/migrate_from_sqlite/legacy delete 가 의존. insert_changelog_entry/file 는 테스트 helper 로만 보존 (`pub` 유지, 통합 테스트가 외부 crate 처럼 lib 를 import 하므로 `#[cfg(test)]` 불가). |
+| ☑ | `commands/overview.rs` `daily_brief` 단순화 — DTO 필드 5개 (today_entries / pinned_entries / files_touched / lines_added / lines_removed) 제거, `list_changelog_entries` 호출 2건 제거. focus_goals + completed_today 만 남김. |
+| ☑ | `TodayScreen` 의 legacy DailyBrief view 전체 제거 (FocusCard / CompletedCard / ActivityCard / PinnedCard / RecommendationCard / CategoryChip / truncate / brief state / load 콜백 / Loader2·Target·Check·Flame·Sparkles 등 import) — 332 → 148 lines. |
+| ☑ | `git.rs` 의 G1 Diff utilities 전체 삭제 (DiffFileStat / diff_stat / list_untracked / diff_patch / diff_shortstat — commit_changelog_entry 외 호출자 0) |
+| ☑ | `check-no-localstorage.mjs` ALLOWLIST 에서 ChangelogScreen 제거 |
+| — | 마이그레이션 (DROP TABLE changelog_entries/files) — **1.1 로 연기**. 1.0 에서는 schema 그대로 보존 (MigrationModal 이 v0.x 사용자 데이터를 그대로 읽음). master-prompt §5.3 참조. |
+| ☑ | MigrationModal / LegacyDeleteModal / migrate_from_sqlite / delete_legacy_changelog 모두 변경 없이 보존 → SELECT 만 살아남음 (INSERT/UPDATE/DELETE 호출 사이트 = 테스트 seeding helper 뿐, 프로덕션 0). |
+| ☑ | 회귀: 5종 green (vitest 6 pass + 2 todo / cargo test 228 / clippy 0). `commit_changelog_entry` 호출 사이트 grep 0. |
 
 ### PR5 — CodeEditor / GitPanel legacy 이동
 

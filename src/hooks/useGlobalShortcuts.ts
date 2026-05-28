@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // MASTER-GUIDE §5.9 / §부록 A — 단축키 매핑
-//   ⌘1~⌘5  : 5-IA 화면 전환 (Today / Overview / Plan / Changelog / Code).
-//             W3-PR4: Today promoted to ⌘1. App.tsx PRIMARY_NAV mirrors this.
+//   ⌘1~⌘5  : 4-IA 화면 전환 (Today / Overview / Plan / · / Code). ⌘4 is
+//             intentionally vacant after Lite-W6 PR4 (Changelog retired).
+//             PR7 will collapse to 3-IA and re-pack the shortcuts.
 //   ⌘K     : Command Palette 열기
 //   ⌘,     : Settings 열기
 //   ⌘\     : AI Workbench 토글  (Code 화면 한정 — W5 정식 도입 전까지 토글만)
@@ -39,11 +40,16 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
         onOpenSettings();
         return;
       }
-      // ⌘1~⌘5 — IA 화면 전환 (W3-PR4: Today/Overview swap)
-      if (["1", "2", "3", "4", "5"].includes(e.key)) {
+      // ⌘1~⌘5 — IA 화면 전환. ⌘4 is no-op (Changelog slot retired).
+      if (["1", "2", "3", "5"].includes(e.key)) {
         e.preventDefault();
+        const idx = Number(e.key) - 1;
         const map = ["today", "overview", "plan", "changelog", "code"] as const;
-        setActiveView(map[Number(e.key) - 1]);
+        setActiveView(map[idx]);
+        return;
+      }
+      if (e.key === "4") {
+        e.preventDefault();
         return;
       }
       // ⌘\ — AI Workbench 토글 (W5 정식 도입 전까지 state 만 토글)
