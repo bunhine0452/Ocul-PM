@@ -11,6 +11,10 @@
 4. **error cycle** — 빌드/런타임 에러를 진단·수정 사이클을 1회 끝냈을 때 (성공 여부 무관 — 실패도 기록).
 5. **chore** — config/문서/스크립트 같은 비기능 변경이 끝났을 때.
 
+> **단일 파일 1줄 수정도 기록 대상.** trivial 해 보여도 skip 하지 마세요 — trivial 여부는 사용자가 판단합니다. 작은 entry 가 누적될수록 dogfooding 신호가 정확해집니다.
+>
+> **수동 entry 단축키**: 앱에서 `⌘+Shift+J` 로 `ManualEntryModal` 즉시 열림. LLM 이 못 잡은 작업을 사용자가 직접 채울 때 사용.
+
 ## 2. 어디에 쓰는가
 
 경로:
@@ -40,7 +44,7 @@ status: done                                 # planned | in_progress | done | ab
 difficulty: medium                           # verylow | low | medium | high | superhigh (선택)
 created_at: "2026-05-24T22:30:13+09:00"      # ⚠ timezone offset 필수. +09:00 누락 시 UTC 로 해석됨
 updated_at: "2026-05-24T22:52:00+09:00"      # 선택
-session_id: "20260524-001"                   # 활성 세션 id, 없으면 "manual-<workday>-HHMMSS"
+session_id: "20260524-001"                   # 형식: <workday>-NNN (자동) 또는 <workday>-mNN (수동). 첫 8자가 workday 숫자임을 IndexWriter 가 강제. 활성 세션 없으면 "manual-<workday>-HHMMSS" 도 허용.
 agent:
   id: claude-code                            # claude-code | cursor | antigravity | gemini-cli | manual
   version: "4.7"                             # 선택
@@ -61,6 +65,44 @@ tags: ["watcher", "cache", "dogfooding-finding"]
 1. `created_at` 의 tz offset — 반드시 `+09:00` 형태. `+0900` 안 됨. `Z` 만 쓰면 UTC.
 2. `agent` 는 **mapping** (id/version 키 가진 객체) — 문자열로 쓰면 안 됨.
 3. `files_touched[].op` 는 enum — 위 5개만 허용. `"modify"` 는 `update` 의 alias 로 받지만 정식은 `update`.
+
+## 3.1 여러 파일 묶음 작업
+
+하나의 논리적 작업이 여러 파일을 건드릴 때는 **entry 1건 + `files_touched` 다수** — 별 entry 로 쪼개지 마세요.
+
+```yaml
+files_touched:
+  - path: src/oculpm/watcher.rs
+    op: update
+    bytes_added: 83
+    bytes_removed: 12
+  - path: src/oculpm/journal.rs
+    op: update
+    bytes_added: 24
+    bytes_removed: 6
+  - path: src-tauri/tests/oculpm_watcher.rs
+    op: create
+    bytes_added: 142
+    bytes_removed: 0
+```
+
+같은 의도 (예: "watcher 의 lock 누락 fix") 의 변경은 *언제나* 한 entry. 의도가 다르면 (예: "watcher fix" + "journal 포맷 변경") entry 둘.
+
+## 3.2 enum 필드의 영문 / 한글 병기
+
+`gemini-cli` 등 영문 응답 비율이 높은 어댑터에서 한글 frontmatter 작성이 실패하는 경우 방지용 — **enum 필드는 모두 영문 잠금**. 본문 / `tags` / `language` 만 ko/en 자유.
+
+| 필드 | 영문 (잠금) | 한글 허용 여부 |
+|---|---|---|
+| `type` | `bug` / `feature` / `error` / `refactor` / `chore` | ❌ 영문만 |
+| `status` | `planned` / `in_progress` / `done` / `abandoned` | ❌ 영문만 |
+| `difficulty` | `verylow` / `low` / `medium` / `high` / `superhigh` | ❌ 영문만 |
+| `agent.id` | `claude-code` / `cursor` / `antigravity` / `gemini-cli` / `manual` | ❌ 영문만 |
+| `files_touched[].op` | `create` / `update` / `delete` / `rename` / `correct` | ❌ 영문만 |
+| `language` | `en` | ✅ `ko` 가능 |
+| `slug` | `journal-delete-not-reflected` | ❌ ASCII kebab-case 만 |
+| `tags` | `["watcher", "cache"]` | ✅ `["워처", "캐시"]` 도 OK |
+| 본문 (`##` 헤더 + 단락) | (영문 자유) | ✅ 자유 |
 
 ## 4. 본문 구조 (타입별 강제 헤더)
 
