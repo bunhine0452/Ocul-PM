@@ -498,8 +498,8 @@ pub async fn oculpm_agents_sync_active(
 
 /// W4-PR5 — compare a session's index ndjson against the union of journal
 /// `files_touched` paths. Returns matched / missing / hallucinated sets +
-/// jaccard severity for the DiffVsNarrative modal (PR6). Cheap on the
-/// backend; PR8 may add a frontend sessionStorage cache.
+/// jaccard severity. (Lite-W6 PR3 retired the DiffVsNarrative UI; the
+/// command is kept for backend introspection + potential future surfaces.)
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_compare_layers(

@@ -21,7 +21,6 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   EmptyTodayV1,
   EmptyTodayV2,
-  EmptyTodayV3,
 } from "@/features/oculpm/EmptyToday";
 import { OculpmOnboardingModal } from "@/features/oculpm/OculpmOnboardingModal";
 import { TimelineView } from "@/features/oculpm/TimelineView";
@@ -32,7 +31,6 @@ import {
 } from "@/features/projects/MigrationModal";
 import { LegacyDeleteModal } from "@/features/projects/LegacyDeleteModal";
 import type { MigrationReport } from "@/lib/bindings";
-import { DiffVsNarrative } from "@/features/oculpm/DiffVsNarrative";
 import { OCULPM_BUS } from "@/components/CommandPalette";
 import { CategoryFilterBar } from "@/features/oculpm/CategoryFilterBar";
 import {
@@ -69,7 +67,6 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
 
   // W3-PR5 ocul-pm branching state
   const [journalCount, setJournalCount] = useState<number | null>(null);
-  const [fileChangeCount, setFileChangeCount] = useState<number | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   // W5-PR4 — migration modal. Opens automatically after onboarding completes
@@ -89,26 +86,17 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
       setMigrationOpen(true);
     }
   }, [migrationOffer, migrationOpen]);
-  // W4-PR6 — latest session for the EmptyTodayV3 "compare" entry point, plus
-  // the active modal target (null = closed).
-  const [latestSessionId, setLatestSessionId] = useState<string | null>(null);
-  const [compareSessionId, setCompareSessionId] = useState<string | null>(null);
-
-  // W4-PR8 — CommandPalette bus listeners (manual entry / compare latest).
+  // CommandPalette bus listener — manual entry only (Lite-W6 PR3 retired
+  // the compare-latest action along with the session-comparison UI).
   useEffect(() => {
     const onManual = () => {
       if (oculpmStatus?.initialized) setManualEntryOpen(true);
     };
-    const onCompare = () => {
-      if (latestSessionId) setCompareSessionId(latestSessionId);
-    };
     window.addEventListener(OCULPM_BUS.manualEntry, onManual);
-    window.addEventListener(OCULPM_BUS.compareLatest, onCompare);
     return () => {
       window.removeEventListener(OCULPM_BUS.manualEntry, onManual);
-      window.removeEventListener(OCULPM_BUS.compareLatest, onCompare);
     };
-  }, [oculpmStatus?.initialized, latestSessionId]);
+  }, [oculpmStatus?.initialized]);
   // Bumped after a manual entry is created so the journal-count probe re-runs
   // (and TimelineView re-renders via its own event subscription).
   const [refreshTick, setRefreshTick] = useState(0);
@@ -214,33 +202,26 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
     void load();
   }, [load]);
 
-  // ── Probe journal/file-change counts when ocul-pm is active ─────────────
-  // Drives the EmptyTodayV2 vs V3 branching for *today* and the legacy-vs-
-  // TimelineView branching for past days. The probe now runs for any
+  // ── Probe journal entry count when ocul-pm is active ───────────────────
+  // Drives EmptyTodayV1/V2 branching for *today* and the legacy-vs-
+  // TimelineView branching for past days. The probe runs for any
   // `dayOffset` so historical days can show the same TimelineView UI instead
   // of falling back to the older DailyBrief layout (W4 dogfooding 2026-05-27).
   useEffect(() => {
     if (activeProjectId == null) return;
     if (!oculpmStatus?.initialized || targetWorkday == null) {
       setJournalCount(null);
-      setFileChangeCount(null);
-      setLatestSessionId(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [entries, fileChanges, sessions] = await Promise.all([
-          oculpmApi.listJournalEntries(activeProjectId, targetWorkday),
-          oculpmApi.getFileChanges(activeProjectId, targetWorkday),
-          oculpmApi.listSessions(activeProjectId, targetWorkday),
-        ]);
+        const entries = await oculpmApi.listJournalEntries(
+          activeProjectId,
+          targetWorkday,
+        );
         if (cancelled) return;
         setJournalCount(entries.length);
-        setFileChangeCount(fileChanges.length);
-        // Latest = greatest session_id lexicographically (YYYYMMDD-NNN).
-        const sortedIds = sessions.map((s) => s.id).sort();
-        setLatestSessionId(sortedIds.length ? sortedIds[sortedIds.length - 1] : null);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof OculpmApiError) {
@@ -248,7 +229,6 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
         }
         // Treat probe failure as "no data" so the legacy view still renders.
         setJournalCount(null);
-        setFileChangeCount(null);
       }
     })();
     return () => {
@@ -404,16 +384,6 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
                   setBrief((b) => b);
                 }}
               />
-            ) : (fileChangeCount ?? 0) > 0 ? (
-              <EmptyTodayV3
-                fileChangeCount={fileChangeCount ?? 0}
-                onCreateManual={handleManualEntry}
-                onCompareLayers={
-                  latestSessionId
-                    ? () => setCompareSessionId(latestSessionId)
-                    : null
-                }
-              />
             ) : (
               <EmptyTodayV2
                 workdayKey={workdayKey}
@@ -421,17 +391,6 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
               />
             )}
           </div>
-        )}
-
-        {/* W4 dogfooding finding (2026-05-25) — was a top-level modal; relocated
-            inline above the timeline so users can keep scrolling through their
-            sessions while the comparison stays visible. */}
-        {compareSessionId && activeProjectId != null && (
-          <DiffVsNarrative
-            projectId={activeProjectId}
-            sessionId={compareSessionId}
-            onClose={() => setCompareSessionId(null)}
-          />
         )}
 
         {!brief && loading && (

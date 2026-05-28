@@ -51,16 +51,14 @@ type CommandItem = {
 };
 
 /**
- * W4-PR8 — global event channel for CommandPalette ocul-pm actions that
- * need to mount UI in another component tree (ManualEntryModal owned by
- * TodayScreen, DiffVsNarrative target session unknown to the palette).
+ * Global event channel for CommandPalette ocul-pm actions that need to mount
+ * UI in another component tree (ManualEntryModal owned by TodayScreen).
  *
  * Listeners live in TodayScreen and the app shell. Keeps the palette decoupled
  * from `useState` chains that would otherwise need to thread through `App`.
  */
 export const OCULPM_BUS = {
   manualEntry: "oculpm:request-manual-entry",
-  compareLatest: "oculpm:request-compare-latest",
 } as const;
 
 export function CommandPalette({
@@ -206,17 +204,6 @@ export function CommandPalette({
                       e instanceof OculpmApiError ? e.message : String(e),
                     ),
                   );
-              },
-            },
-            {
-              id: "oculpm-compare-latest",
-              label: "이중 레이어 비교 (오늘 마지막 세션)",
-              alias: "ocul-pm compare layers diff narrative 비교",
-              group: "ocul-pm" as const,
-              icon: GitBranch,
-              onSelect: () => {
-                onOpenChange(false);
-                window.dispatchEvent(new CustomEvent(OCULPM_BUS.compareLatest));
               },
             },
             {

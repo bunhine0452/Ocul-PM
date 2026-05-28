@@ -1,20 +1,20 @@
 /**
  * TimelineView — the main Today body when ocul-pm has journal entries.
  *
+ * Lite-W6 PR3: the "session" abstraction was retired from the UI. This view
+ * now renders a flat reverse-chronological list of journal entries for the
+ * requested workday. Session boundary inference moved out of the app — the
+ * external LLM is trusted (per AGENTS.md prompts) to file entries directly.
+ *
  * Responsibilities:
- *   1. Fetch `listJournalEntries(workday)` + `listSessions(workday)` on
- *      mount and re-fetch when workday or projectId changes.
- *   2. Group entries by `session_id`, joined with the session list.
- *      Orphan entries (no matching session) land in a synthetic "Manual"
- *      bucket so manual entries always render.
- *   3. Subscribe to `events.oculpmJournalPathChanged` /
+ *   1. Fetch `listJournalEntries(workday)` on mount and re-fetch when
+ *      workday or projectId changes.
+ *   2. Subscribe to `events.oculpmJournalPathChanged` /
  *      `events.oculpmJournalAdded` / `oculpmJournalUpdated` and invalidate
  *      the entry list (cheap: re-fetch the whole list).
- *   4. Refetch on document visibility change ("focus back" path).
- *   5. Track `selectedEntryPath` and handle j/k/space/enter keys —
- *      navigation skips collapsed sessions implicitly because we render a
- *      flat list of visible entries.
- *   6. Render `JournalEntryDetail` on the right (lg+ only) for the
+ *   3. Refetch on document visibility change ("focus back" path).
+ *   4. Track `selectedEntryPath` and handle j/k/space/enter keys.
+ *   5. Render `JournalEntryDetail` on the right (lg+ only) for the
  *      currently selected entry.
  */
 
@@ -25,10 +25,9 @@ import {
   type EntryFilters,
   type JournalEntry,
   type JournalEntrySummary,
-  type Session,
 } from "@/lib/bindings";
 import { Loader2, AlertTriangle } from "@/components/Icons";
-import { SessionCard, type SessionWithSynthetic } from "./SessionCard";
+import { JournalEntryCard } from "./JournalEntryCard";
 import { JournalEntryDetail } from "./JournalEntryDetail";
 
 interface TimelineViewProps {
@@ -41,8 +40,6 @@ interface TimelineViewProps {
   filters?: EntryFilters | null;
 }
 
-const SYNTHETIC_MANUAL_ID = "__synthetic_manual__";
-
 export function TimelineView({
   projectId,
   projectRoot,
@@ -50,7 +47,6 @@ export function TimelineView({
   filters,
 }: TimelineViewProps) {
   const [entries, setEntries] = useState<JournalEntrySummary[] | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedEntryPath, setSelectedEntryPath] = useState<string | null>(null);
@@ -68,12 +64,12 @@ export function TimelineView({
     setLoading(true);
     setError(null);
     try {
-      const [es, ss] = await Promise.all([
-        oculpmApi.listJournalEntries(projectId, workday, filters ?? undefined),
-        oculpmApi.listSessions(projectId, workday),
-      ]);
+      const es = await oculpmApi.listJournalEntries(
+        projectId,
+        workday,
+        filters ?? undefined,
+      );
       setEntries(es);
-      setSessions(ss);
     } catch (e) {
       const msg =
         e instanceof OculpmApiError
@@ -141,53 +137,10 @@ export function TimelineView({
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [refetch]);
 
-  // ── grouped sessions (real + synthetic Manual bucket) ──────────────────
-  const groups = useMemo<
-    Array<{ session: SessionWithSynthetic; entries: JournalEntrySummary[] }>
-  >(() => {
-    if (entries == null) return [];
-    const bySessionId = new Map<string, JournalEntrySummary[]>();
-    for (const e of entries) {
-      const arr = bySessionId.get(e.session_id) ?? [];
-      arr.push(e);
-      bySessionId.set(e.session_id, arr);
-    }
-
-    const sessionIds = new Set(sessions.map((s) => s.id));
-    const out: Array<{
-      session: SessionWithSynthetic;
-      entries: JournalEntrySummary[];
-    }> = [...sessions]
-      // newest session first
-      .sort((a, b) => b.started_at.localeCompare(a.started_at))
-      .map((s) => ({
-        session: { kind: "real" as const, session: s },
-        entries: (bySessionId.get(s.id) ?? []).slice().sort(byCreatedAtDesc),
-      }));
-
-    // Orphan entries — any entry whose session_id isn't in `sessions`
-    const orphans: JournalEntrySummary[] = [];
-    for (const [sid, es] of bySessionId) {
-      if (!sessionIds.has(sid)) orphans.push(...es);
-    }
-    orphans.sort(byCreatedAtDesc);
-    if (orphans.length > 0) {
-      out.push({
-        session: {
-          kind: "synthetic",
-          id: SYNTHETIC_MANUAL_ID,
-          label: "Manual",
-        },
-        entries: orphans,
-      });
-    }
-    return out;
-  }, [entries, sessions]);
-
-  // Flat visible-order list for j/k navigation.
+  // Reverse-chronological flat list.
   const flatEntries = useMemo(
-    () => groups.flatMap((g) => g.entries),
-    [groups]
+    () => (entries ?? []).slice().sort(byCreatedAtDesc),
+    [entries],
   );
 
   // ── meta update (difficulty/status from DetailHeader) ──────────────────
@@ -272,8 +225,6 @@ export function TimelineView({
         e.preventDefault();
         setSelectedEntryPath(null);
       }
-      // Enter → "focus DetailPane" — DetailPane is a stub in PR6, so
-      // selecting is enough. PR7 will move focus into the markdown viewer.
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -301,8 +252,8 @@ export function TimelineView({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_26rem] gap-4 items-start">
-      {/* Left: timeline */}
-      <div className="space-y-3">
+      {/* Left: flat entry list */}
+      <div className="space-y-2">
         {loading && entries == null && (
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> 불러오는 중…
@@ -315,21 +266,15 @@ export function TimelineView({
           </div>
         )}
 
-        {groups.length > 0 &&
-          groups.map((g, i) => (
-            <SessionCard
-              key={
-                g.session.kind === "real" ? g.session.session.id : g.session.id
-              }
-              projectId={projectId}
-              session={g.session}
-              entries={g.entries}
-              defaultExpanded={i === 0}
-              selectedEntryPath={selectedEntryPath}
-              onSelectEntry={setSelectedEntryPath}
-              onToggleVerified={handleToggleVerified}
-            />
-          ))}
+        {flatEntries.map((entry) => (
+          <JournalEntryCard
+            key={entry.relative_path}
+            entry={entry}
+            selected={selectedEntryPath === entry.relative_path}
+            onSelect={() => setSelectedEntryPath(entry.relative_path)}
+            onToggleVerified={() => void handleToggleVerified(entry.relative_path)}
+          />
+        ))}
       </div>
 
       {/* Right: JournalEntryDetail (W3-PR7) */}

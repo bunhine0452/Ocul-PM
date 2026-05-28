@@ -1,5 +1,5 @@
 /**
- * JournalEntryCard — a single journal entry row inside a SessionCard.
+ * JournalEntryCard — a single journal entry row in TimelineView.
  *
  * Visual model:
  *   ┌──────────────────────────────────────────────────────────────────┐
@@ -13,12 +13,10 @@
  *  - hover → reveal verify toggle (the toggle stays visible when selected)
  *  - verify toggle click → onToggleVerified (optimistic UI in parent)
  *
- * Keyboard nav (j/k/space) lives in TimelineView so it can move focus
- * across sessions; this card only renders the visual `selected` state.
+ * Keyboard nav (j/k/space) lives in TimelineView so it operates on the
+ * flat entry list; this card only renders the visual `selected` state.
  *
  * Tokens: phase §3.4 (type colors, difficulty opacity, status icon).
- * Parse-error indicator: PR2 cache stores `parse_ok=0` rows with type="chore"
- * but no signal field is forwarded to the UI yet — surfaced as TODO for PR7.
  */
 
 import type { Difficulty, EntryStatus, EntryType, JournalEntrySummary } from "@/lib/bindings";

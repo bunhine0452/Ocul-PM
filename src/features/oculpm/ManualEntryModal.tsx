@@ -2,7 +2,7 @@
  * ManualEntryModal — write a new journal entry by hand.
  *
  * Driven by:
- *   - the [수동 entry 작성] button in EmptyTodayV2 / V3 / SessionCard
+ *   - the [수동 entry 작성] button in EmptyTodayV2
  *   - the global ⌘+Shift+J shortcut (App.tsx wires it)
  *
  * Fields (PR3's `ManualEntryDraft` shape, all client-validated):

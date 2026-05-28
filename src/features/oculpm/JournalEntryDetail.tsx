@@ -12,8 +12,9 @@
  *  - "원본 열기" now goes through `oculpmApi.openEntryInEditor` which shells
  *    out from the backend, bypassing the opener plugin's path-glob scope
  *    that has regressed three times during dogfooding.
- *  - "index 비교" is a tab in the middle region instead of a panel that
- *    stacks below the actions, so it never grows the card past viewport.
+ *
+ * Lite-W6 PR3: the "index 비교" tab was removed along with DiffVsNarrative.
+ * Session-boundary inference is no longer attempted in the UI.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,7 +27,6 @@ import {
   ClipboardCheck,
   ExternalLink,
   FileCode,
-  FileDiff,
   Loader2,
   MessageCircle,
   Pencil,
@@ -34,7 +34,6 @@ import {
   X,
 } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { DiffVsNarrative } from "./DiffVsNarrative";
 import type {
   Difficulty,
   EntryStatus,
@@ -69,8 +68,6 @@ const STATUS_OPTIONS: EntryStatus[] = [
   "abandoned",
 ];
 
-type DetailTab = "body" | "compare";
-
 export function JournalEntryDetail({
   projectId,
   projectRoot: _projectRoot,
@@ -83,7 +80,6 @@ export function JournalEntryDetail({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [tab, setTab] = useState<DetailTab>("body");
   const [editing, setEditing] = useState(false);
   const [draftBody, setDraftBody] = useState("");
   const [savingBody, setSavingBody] = useState(false);
@@ -92,9 +88,8 @@ export function JournalEntryDetail({
   const path = summary?.relative_path ?? null;
   const updatedAt = summary?.updated_at ?? null;
 
-  // Reset the active tab + editing mode when navigating to a different entry.
+  // Reset editing mode when navigating to a different entry.
   useEffect(() => {
-    setTab("body");
     setEditing(false);
     setActionError(null);
   }, [path]);
@@ -187,7 +182,6 @@ export function JournalEntryDetail({
     if (!entry) return;
     setDraftBody(entry.body_markdown);
     setEditing(true);
-    setTab("body");
     setActionError(null);
   }, [entry]);
 
@@ -301,7 +295,6 @@ export function JournalEntryDetail({
 
   const verified = summary.verified_by_user;
   const canEditMeta = entry != null;
-  const sessionId = entry?.frontmatter.session_id ?? summary.session_id;
 
   return (
     <div className="sticky top-4 flex flex-col max-h-[calc(100vh-2rem)] rounded-2xl border border-border bg-card overflow-hidden">
@@ -313,30 +306,26 @@ export function JournalEntryDetail({
         onStatusChange={handleStatusChange}
       />
 
-      <DetailTabs
-        tab={tab}
-        onChange={setTab}
-        canCompare={!!sessionId}
-        compactPathLabel={summary.relative_path}
-      />
+      <div
+        className="shrink-0 border-b border-border bg-muted/30 px-3 py-1.5 text-[10px] text-muted-foreground font-mono truncate"
+        title={summary.relative_path}
+      >
+        {summary.relative_path}
+      </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {tab === "body" ? (
-          <BodyRegion
-            loading={loading}
-            entry={entry}
-            fetchError={fetchError}
-            relativePath={summary.relative_path}
-            editing={editing}
-            draftBody={draftBody}
-            saving={savingBody}
-            onDraftChange={setDraftBody}
-            onSave={handleSaveBody}
-            onCancel={handleCancelEdit}
-          />
-        ) : (
-          <CompareRegion projectId={projectId} sessionId={sessionId} />
-        )}
+        <BodyRegion
+          loading={loading}
+          entry={entry}
+          fetchError={fetchError}
+          relativePath={summary.relative_path}
+          editing={editing}
+          draftBody={draftBody}
+          saving={savingBody}
+          onDraftChange={setDraftBody}
+          onSave={handleSaveBody}
+          onCancel={handleCancelEdit}
+        />
       </div>
 
       <DetailActions
@@ -436,73 +425,6 @@ function DetailHeader({
   );
 }
 
-// ─── DetailTabs ───────────────────────────────────────────────────────────
-
-function DetailTabs({
-  tab,
-  onChange,
-  canCompare,
-  compactPathLabel,
-}: {
-  tab: DetailTab;
-  onChange: (next: DetailTab) => void;
-  canCompare: boolean;
-  compactPathLabel: string;
-}) {
-  return (
-    <div className="shrink-0 flex items-center border-b border-border bg-muted/30">
-      <TabButton active={tab === "body"} onClick={() => onChange("body")}>
-        본문
-      </TabButton>
-      <TabButton
-        active={tab === "compare"}
-        onClick={() => onChange("compare")}
-        disabled={!canCompare}
-        title={canCompare ? "index ↔ journal 비교" : "session_id 없음"}
-      >
-        <FileDiff className="w-3 h-3 mr-1" />
-        index 비교
-      </TabButton>
-      <span
-        className="ml-auto pr-3 text-[10px] text-muted-foreground font-mono truncate max-w-[55%]"
-        title={compactPathLabel}
-      >
-        {compactPathLabel}
-      </span>
-    </div>
-  );
-}
-
-function TabButton({
-  active,
-  disabled,
-  onClick,
-  title,
-  children,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  title?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`inline-flex items-center px-3 py-2 text-xs font-medium border-b-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40
-        ${active
-          ? "border-primary text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
-        }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 // ─── BodyRegion (view + edit) ─────────────────────────────────────────────
 
 function BodyRegion({
@@ -598,27 +520,6 @@ function BodyRegion({
           본문 비어 있음. 프론트매터만 있는 entry 입니다.
         </p>
       )}
-    </div>
-  );
-}
-
-// ─── CompareRegion ────────────────────────────────────────────────────────
-
-function CompareRegion({
-  projectId,
-  sessionId,
-}: {
-  projectId: number;
-  sessionId: string;
-}) {
-  return (
-    <div className="p-3">
-      <DiffVsNarrative
-        projectId={projectId}
-        sessionId={sessionId}
-        onClose={() => { /* tab switch handles close */ }}
-        variant="compact"
-      />
     </div>
   );
 }

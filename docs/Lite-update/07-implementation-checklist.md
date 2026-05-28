@@ -134,14 +134,16 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/oculpm/SessionCard.tsx` 삭제 + 호출 사이트 정리 |
-| ☐ | `src/features/oculpm/DiffVsNarrative.tsx` 삭제 |
-| ☐ | `src/features/oculpm/EmptyToday/EmptyTodayV3.tsx` 삭제 |
-| ☐ | `TimelineView` 가 *flat journal entry list* 로 재작성 |
-| ☐ | `JournalEntryDetail` 의 "Compare with Index" 액션 제거 |
-| ☐ | `CommandPalette` 의 `OCULPM_BUS.compareLatest` + 관련 item 제거 |
-| ☐ | `TodayScreen` 의 `compareSessionId`, `latestSessionId` state 제거 |
-| ☐ | `oculpmApi.compareLayers`, `listSessions` 의 *호출 사이트* 0 (모듈 자체는 보존) |
+| ☑ | `src/features/oculpm/SessionCard.tsx` 삭제 |
+| ☑ | `src/features/oculpm/DiffVsNarrative.tsx` 삭제 |
+| ☑ | `src/features/oculpm/EmptyToday/EmptyTodayV3.tsx` 삭제 + `EmptyToday/index.ts` 의 export 정리 |
+| ☑ | `TimelineView` 가 *flat journal entry list* 로 재작성 (-100 lines, session grouping + `SessionWithSynthetic` + `listSessions` 호출 제거) |
+| ☑ | `JournalEntryDetail` 의 `index 비교` 탭 + `DetailTabs` + `CompareRegion` + `TabButton` 제거. 본문 위에 path label strip 만 남김. |
+| ☑ | `CommandPalette` 의 `OCULPM_BUS.compareLatest` + `이중 레이어 비교` item 제거 |
+| ☑ | `TodayScreen` 의 `compareSessionId`, `latestSessionId`, `fileChangeCount` state + `DiffVsNarrative` mount + `EmptyTodayV3` branch 제거. probe 가 `listJournalEntries` 만 호출. |
+| ☑ | `oculpmApi.compareLayers`, `listSessions` 호출 사이트 0. `api/oculpm.ts` 모듈 자체는 보존 (백엔드 introspection + 향후 surface 가능성). |
+| ☑ | `CategoryFilterBar` 의 disabled `mismatch 만` toggle 제거 (DiffVsNarrative 페이즈 dead reference) — `filters.mismatchOnly` DTO 필드는 backend 호환 위해 보존 |
+| ☑ | 백엔드 doc comment 의 `DiffVsNarrative modal (PR6)` → "(Lite-W6 PR3 retired the DiffVsNarrative UI; …)" 로 갱신 + `bindings.ts` 재생성 |
 | ☐ | UI 텍스트 grep — "세션", "Session" 0 |
 | ☐ | 회귀: Watcher → ndjson 작성 테스트 통과 |
 | ☐ | 회귀: Today 화면이 200개 entry 로 < 200ms 마운트 |

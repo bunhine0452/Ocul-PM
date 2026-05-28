@@ -185,13 +185,6 @@ export function CategoryFilterBar({
           onChange={setVerifiedOnly}
         />
         <ToggleField
-          label="mismatch 만"
-          checked={filter.mismatchOnly}
-          onChange={() => {}}
-          disabled
-          tooltip="W4 (DiffVsNarrative) 페이즈에서 활성화됩니다"
-        />
-        <ToggleField
           label="미완료만"
           checked={filter.unfinishedOnly}
           onChange={setUnfinishedOnly}

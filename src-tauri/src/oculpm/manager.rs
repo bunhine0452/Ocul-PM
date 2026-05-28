@@ -993,8 +993,8 @@ impl OculpmManager {
 
     /// Diff a session's `file_changes.ndjson` (ground truth) against the
     /// union of `files_touched[].path` from every journal entry stamped with
-    /// that `session_id`. Drives the DiffVsNarrative modal (PR6) and the
-    /// `mismatch_only` filter (later PR).
+    /// that `session_id`. (Lite-W6 PR3 retired the DiffVsNarrative UI; the
+    /// data is still produced for backend introspection.)
     ///
     /// Forbidden + already-redacted paths are stripped from BOTH sides before
     /// the comparison so they never count as mismatches (a `.env` change is

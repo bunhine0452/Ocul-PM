@@ -219,10 +219,9 @@ export const oculpmApi = {
 
   /**
    * W4 dogfooding follow-up (2026-05-26) — return the project's master template
-   * text. Backs the DiffVsNarrative "프롬프트 복사" action, which is intentionally
-   * separated from `syncAgents` so the user can distinguish between
-   * "re-render AGENTS.md" (file write, idempotent) and "copy the rules so I
-   * can paste them into a running chat" (one-shot, easy to over-do).
+   * text. Intentionally separate from `syncAgents` so the user can distinguish
+   * between "re-render AGENTS.md" (file write, idempotent) and "copy the rules
+   * so I can paste them into a running chat" (one-shot, easy to over-do).
    */
   getMasterTemplate: (projectId: number) =>
     unwrap<string>(
