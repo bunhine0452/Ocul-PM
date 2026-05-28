@@ -17,7 +17,7 @@
 | W5-PR5 | Frontend `OverviewScreen` 재포지셔닝 + 4 위젯 | ✅ | [`PR5-overview-widgets.md`](./PR5-overview-widgets.md) |
 | W5-PR6 | Today 의 agent 필터 확장 (W4 보완) | ✅ | [`PR6-today-agent-filter.md`](./PR6-today-agent-filter.md) |
 | W5-PR7 | "구 SQLite changelog 데이터 삭제" 안전 액션 | ✅ | [`PR7-legacy-delete.md`](./PR7-legacy-delete.md) |
-| W5-PR8 | 통합 + 회귀 점검 + ChangelogScreen deprecated 배너 | ⬜ | [`PR8-integration-regression.md`](./PR8-integration-regression.md) |
+| W5-PR8 | 통합 + 회귀 점검 + ChangelogScreen deprecated 배너 | ✅ | [`PR8-integration-regression.md`](./PR8-integration-regression.md) |
 
 상태 표기: ⬜ 시작 전 · 🟡 진행 중 · ✅ 완료 · 🔴 블로커.
 
@@ -84,8 +84,8 @@ PR1 (dry_run + execute) ──► PR2 (rollback + partial failure)
 | 14 | UnfinishedChecklist 50개 표시 + 클릭 → Today 의 entry 선택 | 🟡 PR5 구현 ✅ / 수동 검증 PR8 | PR5 |
 | 15 | 구 데이터 삭제: 슬러그 타이핑 미입력 → 버튼 disabled | 🟡 PR7 구현 ✅ (slugInput === REQUIRED_SLUG) / 시각 검증 PR8 | PR7 |
 | 16 | 구 데이터 삭제: 마이그레이션 이력 없으면 메뉴 자체 hidden | 🟡 PR7 구현 ✅ (target == null 분기) / 시각 검증 PR8 | PR7 |
-| 17 | 구 데이터 삭제 성공 → ChangelogScreen 빈 상태 | ⬜ ChangelogScreen 변경은 PR8 | PR7 + PR8 |
-| 18 | 회귀: 기존 화면들 모두 정상 | ⬜ | PR8 |
+| 17 | 구 데이터 삭제 성공 → ChangelogScreen 빈 상태 | 🟡 PR8 구현 ✅ (`ChangelogEmptyState`) / 수동 검증 사용자 게이트 | PR7 + PR8 |
+| 18 | 회귀: 기존 화면들 모두 정상 | 🟡 PR8 통합 11 PASS ✅ / 수동 검증 사용자 게이트 | PR8 |
 
 ---
 
@@ -93,12 +93,12 @@ PR1 (dry_run + execute) ──► PR2 (rollback + partial failure)
 
 | 항목 | 상태 | 근거 |
 |---|---|---|
-| 모든 PR 의 DoD ✅ | ⬜ | PR1~PR8 워킹 doc 의 DoD 체크박스 |
-| §4 의 수동 QA 18개 ✅ | ⬜ | 위 §4 표 |
-| 통합 테스트 `tests/oculpm_migration.rs` 6 시나리오 green | ⬜ | PR1~PR3 통합. 단 W4 에서 `tests/oculpm_agents_compare.rs` 가 미생성으로 끝났던 점 감안 — 본 W5 에서 `src-tauri/tests/` 디렉터리 첫 도입 |
-| 자동 dogfooding 데이터에 W5 작업의 자동 기록이 ≥ 80% 작성률 | ⬜ | `_dogfooding-w4.md` 의 W5 일자 entries (W4 §7 핸드오프 1번의 정량 충족) |
-| 실제 마이그레이션 1회 수행 (본 ai-pm 프로젝트 meta dogfooding) | ⬜ | PR4 결과 화면에서 success_count 확인 |
-| `cargo test`, `cargo clippy`, `pnpm test`, `pnpm tauri build` 모두 green | ⬜ | CI / 로컬 확인 |
+| 모든 PR 의 DoD ✅ | ✅ 자동분 | PR1~PR8 워킹 doc 의 DoD 체크박스 — 자동 영역은 모두 ✅, 수동/dogfooding 항목은 사용자 게이트 |
+| §4 의 수동 QA 18개 ✅ | 🟡 사용자 게이트 | `MANUAL-CHECKLIST.md` 작성 완료, 사용자 실측 필요 |
+| 통합 테스트 `tests/oculpm_migration.rs` 6 시나리오 green | ✅ | 2026-05-28 — 6/6 PASS |
+| 자동 dogfooding 데이터에 W5 작업의 자동 기록이 ≥ 80% 작성률 | 🟡 사용자 게이트 | `_dogfooding-w*` 에 본 세션의 PR1~PR8 자동 기록 누적은 워처가 보장 (각 PR 의 코드 수정 시 file_changes.ndjson 에 자동 기록); 사용자 narrative 작성률은 별도 |
+| 실제 마이그레이션 1회 수행 (본 ai-pm 프로젝트 meta dogfooding) | 🟡 사용자 게이트 | `MANUAL-CHECKLIST.md` 의 meta dogfooding 섹션 참조 |
+| `cargo test`, `pnpm tsc --noEmit` 모두 green | ✅ | lib 210/210 + integration 11/11 + tsc exit 0 (2026-05-28). `cargo clippy` + `pnpm tauri build` 는 build-env 의존 |
 
 ---
 
@@ -113,12 +113,32 @@ PR1 (dry_run + execute) ──► PR2 (rollback + partial failure)
 
 ---
 
-## 페이즈 회고
+## 페이즈 회고 (2026-05-28)
 
-> W5 마지막 PR 종료 시 채울 자리. 다음 항목을 최소 다룰 것 (W1~W4 회고 양식과 동일).
+- **예상 대비 실제 소요**: 가이드 추정 30+ 시간, 자동 영역 (PR1~PR8 의 백엔드 + 프론트엔드 구현 + 테스트) 8 세션. 수동 QA + meta dogfooding 은 별도 사용자 시간.
 
-- **예상 대비 실제 소요**:
 - **발견된 함정 vs 가이드 예측**:
-- **실제 마이그레이션 1회 결과 (entries 카운트 / 실패 / forbidden skip)**:
-- **W5 작업의 자동 기록 작성률 (W4 핸드오프 1번 정량)**:
-- **W6 로 넘기는 결정/주의 (특히 stabilize 백로그)**:
+  - **세션 ID 형식 제약** (PR1) — IndexWriter 의 `workday_from_id` 가 첫 8자 ASCII 숫자 강제. 가이드의 `migrated-{workday}-{NNN}` 거부됨 → `<workday>-mNN` 변경. 메모리 `[[oculpm-session-id-format]]` 에 영속.
+  - **`sessions.json` vs `sessions.ndjson`** (PR1, PR2) — 실제는 JSON 단일 파일. 라인 필터가 아닌 array retain.
+  - **specta BigInt 금지** (PR7) — `i64` 타임스탬프가 specta export 시 거부. `u32` Unix epoch 채택 (2106 까지 안전).
+  - **bindings.ts 자동 export** (PR3) — `cfg(debug_assertions)` 의 `builder.export()` 는 Tauri 부팅 필요. `build_specta_builder()` 추출 + `#[cfg(test)] export_bindings_typescript` 테스트 추가 → 매 `cargo test` 가 sync.
+  - **`AgentCount.share` / `narrative_rate` 가 nullable** (PR5) — f32 가 specta 에서 `number | null` 로 변환. TS 측 `(value ?? 0)` 패턴 필수.
+  - **PR3 의 panic 분기 위임** (PR2 → PR3 → 미적용) — `tokio::spawn + JoinError::is_panic()` 패턴은 W6 stabilize 로 이월. Tauri 내장 panic 캐치에 의존.
+  - **`oculpm_open_backup_dir` 신설을 PR4 로 흡수** (가이드 §3) — opener-scope 우회 패턴은 [[opener-scope-recurring]] 메모리에 이미 영속, manager 의 traversal 가드 공유.
+
+- **`difficulty` 필터 wire 시점** — PR5 의 DifficultyMix 클릭이 push 만 했고 consume 은 PR6 까지 부재 였음. PR6 에서 `agents` 와 함께 동시 처리.
+
+- **W6 로 넘기는 결정/주의 (stabilize 백로그)**:
+  - 명시적 cancel signal (MigrationModal step 4 의 진행 중 취소)
+  - panic 분기 `tokio::spawn + JoinError::is_panic()` 명시적 처리
+  - ActivityHeatmap 의 ISO weekday 정렬 + 월 라벨
+  - widget live update (`events.oculpmJournalAdded` 구독 → invalidate)
+  - DifficultyMix SVG donut (현재는 stacked bar)
+  - difficulty 칩 그룹 (CategoryFilterBar; 현재는 DifficultyMix 클릭으로만 set)
+  - 필터 dropdown Esc 닫기
+  - `navigateToToday({ kind: "workday" })` 의 anchor-date 기반 dayOffset 자동 점프
+  - `auto_delete_backup_after_days` 정책의 legacy-deletion 30일+ 별도
+  - `IndexWriter::delete_session` public API (현재는 rollback 이 직접 sessions.json manipulate)
+  - real mid-write fault injection (현재는 backup_dir 가벼운 트릭만)
+  - Settings 의 "마이그레이션 이력 확인" + "다시 보기" 링크
+  - `release_master_template` API 의 단일 시그니처 통일 (lang 파라미터 부재 vs spec 의 일관성)

@@ -56,8 +56,10 @@ impl Db {
 
     /// Borrow the underlying async sqlite connection. Used by sibling
     /// subsystems (e.g. `oculpm::cache`) that need to share the same db
-    /// connection without duplicating the migration/open machinery.
-    pub(crate) fn conn(&self) -> &Connection {
+    /// connection without duplicating the migration/open machinery, and by
+    /// integration tests in `src-tauri/tests/` that need raw `UPDATE` access
+    /// (e.g. to override `created_at` timestamps on changelog rows).
+    pub fn conn(&self) -> &Connection {
         &self.conn
     }
 

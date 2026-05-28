@@ -8,6 +8,9 @@ import {
   Search,
   Save,
   ChevronDown,
+  AlertTriangle,
+  FileCode,
+  X,
 } from "@/components/Icons";
 import {
   commands,
@@ -177,8 +180,19 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
     );
   }
 
+  // W5-PR8 — when no buckets exist AND no filter is active, treat this as the
+  // post-legacy-delete state and show a "go to Today" empty state instead of
+  // the filter-bar UI.
+  const filtersActive =
+    searchQuery.trim().length > 0 || categoryFilter !== "all";
+  const showEmptyState =
+    !loading && buckets.length === 0 && !filtersActive && !error;
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {/* W5-PR8 — Deprecation banner (dismissable per-user via localStorage). */}
+      <DeprecationBanner />
+
       {/* Header / Filters */}
       <header className="border-b border-border px-5 py-3 flex flex-wrap items-center gap-3 shrink-0">
         <h1 className="text-base font-bold tracking-tight">Changelog</h1>
@@ -247,6 +261,9 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
         </div>
       )}
 
+      {showEmptyState ? (
+        <ChangelogEmptyState />
+      ) : (
       <div className="flex-1 flex overflow-hidden">
         {/* Left: day buckets */}
         <div className="w-[320px] border-r border-border overflow-y-auto scrollbar-thin shrink-0">
@@ -319,6 +336,65 @@ export function ChangelogScreen({ activeProjectId }: ChangelogScreenProps) {
               onChange={applyEntryUpdate}
             />
           )}
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Deprecation banner + empty state (W5-PR8) ──────────────────────────
+
+const DEPRECATION_DISMISS_KEY = "changelog.deprecated_dismissed";
+
+function DeprecationBanner() {
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(DEPRECATION_DISMISS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (dismissed) return null;
+  const dismiss = () => {
+    try {
+      localStorage.setItem(DEPRECATION_DISMISS_KEY, "1");
+    } catch {
+      /* non-fatal */
+    }
+    setDismissed(true);
+  };
+  return (
+    <div className="px-5 py-2 border-b border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2 shrink-0">
+      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+      <div className="flex-1">
+        이 화면은 <strong>1.0 부터 read-only</strong> 가 됩니다. 새 기록은
+        Today 화면을 사용하세요.
+      </div>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="p-0.5 rounded hover:bg-amber-500/20 transition-colors shrink-0"
+        aria-label="배너 닫기"
+        title="배너 닫기"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function ChangelogEmptyState() {
+  return (
+    <div className="flex-1 flex items-center justify-center p-12 text-center">
+      <div className="space-y-3 max-w-md">
+        <FileCode className="w-8 h-8 mx-auto opacity-60 text-muted-foreground" />
+        <div className="text-sm text-muted-foreground">
+          이 프로젝트에는 구 changelog 데이터가 없습니다.
+        </div>
+        <div className="text-xs text-muted-foreground">
+          새로운 작업 기록은 Today 화면에서 자동으로 누적됩니다 — 마이그레이션
+          후 또는 신규 프로젝트의 자연스러운 상태입니다.
         </div>
       </div>
     </div>

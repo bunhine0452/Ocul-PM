@@ -1,13 +1,16 @@
 mod ast;
 mod commands;
-mod db;
+// W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
+// integration tests can drive the manager directly with a temp DB. None
+// of the other modules are needed at the integration layer.
+pub mod db;
 mod embedding;
 mod error;
 mod git;
 mod github;
 mod indexer;
 mod llm;
-mod oculpm;
+pub mod oculpm;
 mod secrets;
 
 use std::path::PathBuf;
