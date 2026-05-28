@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -15,24 +15,23 @@ import {
 import { Markdown } from "@/components/Markdown";
 import {
   commands,
+  type OculpmOverviewStats,
   type ProjectOverview,
   type ProjectStats,
 } from "@/lib/bindings";
+import { fetchOverviewStats } from "./api";
+import { ProjectMetaHeader } from "./ProjectMetaHeader";
+import { ActivityHeatmap } from "./widgets/ActivityHeatmap";
+import { AgentBreakdown } from "./widgets/AgentBreakdown";
+import { DifficultyMix } from "./widgets/DifficultyMix";
+import { RecentSessions } from "./widgets/RecentSessions";
+import { UnfinishedChecklist } from "./widgets/UnfinishedChecklist";
 
 // MASTER-GUIDE §5.2 — Overview 화면. 인덱싱 후 자동 생성된 자연어 요약을
 // 보여주고, 사용자가 "다시 생성" 으로 강제 재생성할 수 있다.
 
 interface OverviewScreenProps {
   activeProjectId: number | null;
-}
-
-interface Stack {
-  framework?: string;
-  languages?: string[];
-  package_manager?: string;
-  ui?: string;
-  data?: string;
-  notes?: string;
 }
 
 export function OverviewScreen({ activeProjectId }: OverviewScreenProps) {
@@ -42,6 +41,28 @@ export function OverviewScreen({ activeProjectId }: OverviewScreenProps) {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // W5-PR5 — Overview widgets (heatmap / difficulty / agent / unfinished / sessions).
+  const [overviewStats, setOverviewStats] = useState<OculpmOverviewStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const loadOverviewStats = useCallback(async () => {
+    if (activeProjectId == null) return;
+    setStatsLoading(true);
+    try {
+      const s = await fetchOverviewStats(activeProjectId, 90);
+      setOverviewStats(s);
+    } catch {
+      // Non-fatal — Overview falls back to the legacy meta-only view.
+      setOverviewStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    void loadOverviewStats();
+  }, [loadOverviewStats]);
 
   // Inline-editing state for overview_md (MASTER-GUIDE §5.2 디렉터리 가이드
   // inline 편집). Identity/stack remain LLM-managed for now.
@@ -138,15 +159,9 @@ export function OverviewScreen({ activeProjectId }: OverviewScreenProps) {
     }
   }
 
-  const stack = useMemo<Stack | null>(() => {
-    if (!overview?.stack_json) return null;
-    try {
-      return JSON.parse(overview.stack_json) as Stack;
-    } catch {
-      return null;
-    }
-  }, [overview?.stack_json]);
-
+  // `stack` parsing was moved into ProjectMetaHeader. The legacy
+  // IdentityCard / StackCard are intentionally unused — kept as exported
+  // names below in case Settings reuses them.
   if (activeProjectId == null) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
@@ -196,6 +211,29 @@ export function OverviewScreen({ activeProjectId }: OverviewScreenProps) {
           </div>
         )}
 
+        {/* W5-PR5 — Activity widgets above the fold. */}
+        {overviewStats && (
+          <section className="space-y-5">
+            <ActivityHeatmap cells={overviewStats.heatmap_cells} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <DifficultyMix mix={overviewStats.difficulty_mix} />
+              <AgentBreakdown agents={overviewStats.agent_breakdown} />
+            </div>
+            <UnfinishedChecklist entries={overviewStats.unfinished_entries} />
+            <RecentSessions sessions={overviewStats.recent_sessions} />
+          </section>
+        )}
+        {statsLoading && !overviewStats && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> 활동 위젯 로딩 중…
+          </div>
+        )}
+
+        {/* Compact meta header — replaces the legacy IdentityCard + StackCard. */}
+        {activeProjectId != null && (
+          <ProjectMetaHeader projectId={activeProjectId} overview={overview} />
+        )}
+
         {loading && !overview ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> 불러오는 중…
@@ -204,8 +242,6 @@ export function OverviewScreen({ activeProjectId }: OverviewScreenProps) {
           <EmptyState onGenerate={regenerate} disabled={generating || !provider || !model} />
         ) : (
           <>
-            <IdentityCard identity={overview.identity} />
-            {stack && <StackCard stack={stack} />}
             <StatsRow stats={stats} overview={overview} />
             <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -298,50 +334,6 @@ function EmptyState({
         </p>
       )}
     </div>
-  );
-}
-
-function IdentityCard({ identity }: { identity: string | null }) {
-  if (!identity) return null;
-  return (
-    <section className="rounded-2xl border border-border bg-secondary/40 p-5">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">
-        정체성
-      </div>
-      <p className="text-base font-medium leading-relaxed">{identity}</p>
-    </section>
-  );
-}
-
-function StackCard({ stack }: { stack: Stack }) {
-  const chips: string[] = [];
-  if (stack.framework) chips.push(stack.framework);
-  (stack.languages ?? []).forEach((l) => chips.push(l));
-  if (stack.ui) chips.push(stack.ui);
-  if (stack.data) chips.push(stack.data);
-  if (stack.package_manager) chips.push(stack.package_manager);
-
-  if (chips.length === 0 && !stack.notes) return null;
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-        스택
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {chips.map((c) => (
-          <span
-            key={c}
-            className="text-xs px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground border border-border"
-          >
-            {c}
-          </span>
-        ))}
-      </div>
-      {stack.notes && (
-        <p className="text-xs text-muted-foreground mt-3">{stack.notes}</p>
-      )}
-    </section>
   );
 }
 

@@ -13,8 +13,8 @@
 | W5-PR1 | `migrate_from_sqlite.rs` 핵심 알고리즘 + dry-run | ✅ | [`PR1-migrate-dry-run.md`](./PR1-migrate-dry-run.md) |
 | W5-PR2 | 마이그레이션 롤백 + 부분 실패 처리 | ✅ | [`PR2-migrate-rollback.md`](./PR2-migrate-rollback.md) |
 | W5-PR3 | 마이그레이션 Tauri 커맨드 3개 | ✅ | [`PR3-migrate-commands.md`](./PR3-migrate-commands.md) |
-| W5-PR4 | Frontend `MigrationModal` 5-step 흐름 | ⬜ | [`PR4-migration-modal.md`](./PR4-migration-modal.md) |
-| W5-PR5 | Frontend `OverviewScreen` 재포지셔닝 + 4 위젯 | ⬜ | [`PR5-overview-widgets.md`](./PR5-overview-widgets.md) |
+| W5-PR4 | Frontend `MigrationModal` 5-step 흐름 | ✅ | [`PR4-migration-modal.md`](./PR4-migration-modal.md) |
+| W5-PR5 | Frontend `OverviewScreen` 재포지셔닝 + 4 위젯 | ✅ | [`PR5-overview-widgets.md`](./PR5-overview-widgets.md) |
 | W5-PR6 | Today 의 agent 필터 확장 (W4 보완) | ⬜ | [`PR6-today-agent-filter.md`](./PR6-today-agent-filter.md) |
 | W5-PR7 | "구 SQLite changelog 데이터 삭제" 안전 액션 | ⬜ | [`PR7-legacy-delete.md`](./PR7-legacy-delete.md) |
 | W5-PR8 | 통합 + 회귀 점검 + ChangelogScreen deprecated 배너 | ⬜ | [`PR8-integration-regression.md`](./PR8-integration-regression.md) |
@@ -68,20 +68,20 @@ PR1 (dry_run + execute) ──► PR2 (rollback + partial failure)
 
 | # | 항목 | 상태 | 비고 |
 |---|---|---|---|
-| 1 | 신규 프로젝트 (SQLite changelog 0개) → 마이그레이션 모달 안 뜸 | ⬜ | PR4 |
-| 2 | 기존 프로젝트 (SQLite changelog 10+ 개) → onboarding 후 마이그레이션 모달 | ⬜ | PR4 |
-| 3 | dry_run 결과 카운트 = SQLite 카운트 | 🟡 PR1 백엔드 unit ✅ / 모달 검증 PR4 | PR1 + PR4 |
-| 4 | 충돌 케이스 (의도적 시드) → suffix 자동 추가 표시 | 🟡 PR1 unit ✅ / 모달 검증 PR4 | PR1 |
-| 5 | forbidden 매치 entries 자동 unchecked | 🟡 PR1 unit ✅ / 모달 검증 PR4 | PR1 + PR4 |
-| 6 | 마이그레이션 실행 → 진행률 표시 → 완료 → 결과 화면 | ⬜ | PR4 |
+| 1 | 신규 프로젝트 (SQLite changelog 0개) → 마이그레이션 모달 안 뜸 | 🟡 PR4 구현 ✅ (`useShouldOfferMigration` → `"no"`) / 수동 검증 PR8 | PR4 |
+| 2 | 기존 프로젝트 (SQLite changelog 10+ 개) → onboarding 후 마이그레이션 모달 | 🟡 PR4 구현 ✅ / 수동 검증 PR8 | PR4 |
+| 3 | dry_run 결과 카운트 = SQLite 카운트 | 🟡 PR1 unit ✅ + PR4 wire ✅ / 시각 검증 PR8 | PR1 + PR4 |
+| 4 | 충돌 케이스 (의도적 시드) → suffix 자동 추가 표시 | 🟡 PR1 unit ✅ + PR4 surface ✅ / 시각 검증 PR8 | PR1 |
+| 5 | forbidden 매치 entries 자동 unchecked | 🟡 PR1 unit ✅ + PR4 ☑ unchecked ✅ / 시각 검증 PR8 | PR1 + PR4 |
+| 6 | 마이그레이션 실행 → 진행률 표시 → 완료 → 결과 화면 | 🟡 PR4 step 4/5 구현 ✅ / 실데이터 검증 PR8 | PR4 |
 | 7 | journal 디스크에 변환된 .md 파일 카운트 = success_count | 🟡 PR1 unit ✅ / 수동 검증 PR8 | PR1 |
 | 8 | cache 가 자동 reindex 되어 Today 에 모든 entries 표시 | 🟡 PR1 unit ✅ / 수동 검증 PR8 | PR1 → W3 cache |
 | 9 | 백업 폴더 (`.oculpm.backup-pre-migration-...`) 존재 확인 | 🟡 PR1 unit ✅ / 수동 검증 PR8 | PR1 |
 | 10 | 마이그레이션 중간에 강제 종료 → 재시작 → rollback 자동 + 토스트 | 🟡 PR2 unit ✅ / 토스트 PR3+PR4 / 강제종료 시나리오 PR8 | PR2 |
-| 11 | Overview 의 ActivityHeatmap 90일 셀 표시 | ⬜ | PR5 |
-| 12 | DifficultyMix 도넛 슬라이스 클릭 → Today 의 difficulty 필터 | ⬜ | PR5 + W3 filter |
-| 13 | AgentBreakdown 막대 클릭 → Today 의 agent 필터 | ⬜ | PR5 + PR6 |
-| 14 | UnfinishedChecklist 50개 표시 + 클릭 → Today 의 entry 선택 | ⬜ | PR5 |
+| 11 | Overview 의 ActivityHeatmap 90일 셀 표시 | 🟡 PR5 구현 ✅ / 수동 검증 PR8 | PR5 |
+| 12 | DifficultyMix 도넛 슬라이스 클릭 → Today 의 difficulty 필터 | 🟡 PR5 intent push ✅ / consume PR6 / 수동 검증 PR8 | PR5 + W3 filter |
+| 13 | AgentBreakdown 막대 클릭 → Today 의 agent 필터 | 🟡 PR5 intent push ✅ / consume PR6 / 수동 검증 PR8 | PR5 + PR6 |
+| 14 | UnfinishedChecklist 50개 표시 + 클릭 → Today 의 entry 선택 | 🟡 PR5 구현 ✅ / 수동 검증 PR8 | PR5 |
 | 15 | 구 데이터 삭제: 슬러그 타이핑 미입력 → 버튼 disabled | ⬜ | PR7 |
 | 16 | 구 데이터 삭제: 마이그레이션 이력 없으면 메뉴 자체 hidden | ⬜ | PR7 |
 | 17 | 구 데이터 삭제 성공 → ChangelogScreen 빈 상태 | ⬜ | PR7 + PR8 |

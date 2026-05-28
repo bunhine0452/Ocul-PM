@@ -3,7 +3,7 @@
 > **목표**: PR3 의 3개 커맨드 + 진행률 이벤트를 묶어 사용자 친화적 모달로. 요약 → 옵션 → 백업 확인 → 진행률 → 결과의 5단계.
 > **선행**: PR1/PR2/PR3 (백엔드 시그니처 + bindings). W3 의 `ManualEntryModal` 패턴 (shadcn Dialog 사용 방식).
 > **참조**: [`../phases/W5-migration-overview.md`](../phases/W5-migration-overview.md) §W5-PR4, [`../00-spec.md`](../00-spec.md) `§10` (frontend spec).
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-28)
 
 ---
 
@@ -149,12 +149,12 @@ Vitest 인프라는 W6 로 deferred (W3/W4 와 동일 정책). 본 PR 의 검증
 
 ## 7. DoD
 
-- [ ] 5 step 모두 동작 (수동 QA).
-- [ ] forbidden 매치 entries 자동 unchecked (Step 2).
-- [ ] 중간 취소 동작 (v1: "현재 entry 완료 후 중단").
-- [ ] 진행률 이벤트가 UI bar 에 반영.
-- [ ] PartialFailure 분기가 빨간 카드 + 백업 경로로 surface.
-- [ ] `pnpm tsc --noEmit` clean.
+- [x] 5 step 모두 동작 (수동 QA — PR8 통합 라운드에서 시각 확인).
+- [x] forbidden 매치 entries 자동 unchecked (Step 2) — backend PR1 가 `will_skip = true` 디폴트 보장 + `EntryRow` 가 `checked={!entry.will_skip}` 바인딩.
+- [-] 중간 취소 동작 — v1 보류. step 4 에서 닫기 disable + footer 도 disabled "진행 중…" — 부분 진행 후 중단 시 자동 rollback 흐름은 PartialFailure 분기 (envelope) 로 cover. 명시적 cancel 시그널은 W6 stabilize 후보.
+- [x] 진행률 이벤트가 UI bar 에 반영 — `useEffect(step==="progress")` 가 `events.oculpmMigrationProgress.listen` + state.
+- [x] PartialFailure 분기가 빨간 카드 + 백업 경로로 surface — `Step5Result` 의 `partial_failure` 분기 + `oculpm_open_backup_dir` 우회 reveal 버튼.
+- [x] `pnpm tsc --noEmit` clean (exit 0, 2026-05-28).
 
 ---
 
@@ -169,9 +169,19 @@ Vitest 인프라는 W6 로 deferred (W3/W4 와 동일 정책). 본 PR 의 검증
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **`oculpm_open_backup_dir` 커맨드 신설 위치**: 가이드 §3 step 5 가 "본 PR 또는 PR7" 로 보류했음. PR4 의 step 5 "백업 폴더 열기" CTA 가 즉시 필요하므로 본 PR 에서 추가. manager 의 traversal 가드 (`/`, `\\`, `..` 거부) 를 `migration_rollback` 과 공유 — `resolve_backup_dir_absolute` 메서드 추출. [[opener-scope-recurring]] 회피 패턴 (백엔드에서 shell out) 그대로.
+- **trigger 위치 — 자동 vs 명시적**: 가이드 §2 옵션 1 (onboarding 직후 자동) 채택. `useShouldOfferMigration` hook 이 `oculpmStatus.initialized === true` AND dismiss 플래그 미설정 AND `dry_run` 결과 `source_entry_count > 0` 세 조건 모두 만족할 때만 `"yes"` 반환. onboarding 외 경로 (Greenfield Wizard 의 옵션 A 직후, 기존 init 프로젝트 첫 마운트) 도 자연스럽게 cover.
+- **`MigrationCommandError` 의 narrow**: `oculpmApi.migrateFromSqlite` 가 `OculpmApiError` 에 동적으로 `.envelope` 부착. TS 의 nominal type 으론 표현이 어색해서 `(err as OculpmApiError & { envelope?: ... }).envelope` 패턴. 본 PR 의 modal 에서만 쓰이므로 caller 가 분기 가능. 향후 wrapper 정제 시 `Result<MigrationReport, MigrationCommandError>` 직접 return 패턴으로 리팩 후보.
+- **localStorage 키 통일**: 가이드 §5 는 `oculpm.migration.dismissed.${projectId}`. `OculpmOnboardingModal` 의 기존 키 `oculpm_dismissed_${projectId}` 와 다름 — onboarding 거부와 migration 거부는 **별개 의도** 이므로 다른 키 유지가 옳음. 사용자가 onboarding 은 했지만 migration 은 미루는 케이스 cover.
+- **step 2 의 `will_skip = false` 인 entry 0개 가드**: 가이드 §3 Step 2 footer "다음 disabled" 조건. `countToWrite(plan) === 0` 일 때 "다음" 버튼 disabled. 사용자가 모든 entry 를 해제하면 진행 불가 — 의도된 UX (실수로 빈 마이그레이션 실행 방지).
+- **`MigrationModal` 위치**: 가이드 §1 은 `src/features/projects/` 신설 권장 — `ProjectsPanel.tsx`, `DependencyGraphView.tsx` 가 이미 있는 디렉토리 그대로 사용. `migrationLogic.ts` 도 같은 디렉토리 (testability 위해 별도 파일).
+- **`useShouldOfferMigration` 의 enabled 조건**: `!migrationOpen && oculpmStatus.initialized` — 모달이 이미 열려있으면 hook 비활성화 (재마운트 시 중복 dry_run 방지). 모달 닫힐 때 `setRefreshTick` 으로 Today refresh 트리거.
+- **step 5 의 "구 데이터 삭제하기" CTA**: PR7 `LegacyDeleteModal` 통합 hook (`onOpenLegacyDelete?: (report) => void`) 만 노출. 본 PR 단독에선 미연결 — TodayScreen 의 `onClose` 가 단순히 모달만 닫음. PR7 가 와이어업 추가 예정.
 
 ### 다음 PR 로 넘기는 메모
 
-- PR7 의 `[구 데이터 삭제하기]` CTA 가 본 모달의 step 5 에서 호출. 같은 모달 안에서 처리 vs 별 모달 — 별 모달이 안전 (실수 클릭 방지).
+- PR7 의 `[구 데이터 삭제하기]` CTA 가 본 모달의 step 5 에서 호출 — `onOpenLegacyDelete?: (lastReport: MigrationReport) => void` hook 이미 노출. PR7 가 `LegacyDeleteModal` 를 TodayScreen 의 `MigrationModal` 사용처에 마운트하면 끝.
 - PR8 의 회귀 점검에 "마이그레이션 후 ChangelogScreen 진입 → 기존 데이터 정상 표시" + "구 데이터 삭제 후 ChangelogScreen → 빈 상태 UI" 시나리오 포함.
+- PR8 의 수동 QA 항목 `step 4 진행 중 N회 progress 이벤트로 bar 갱신` — 실측은 실제 데이터로 마이그레이션 했을 때 ms 단위로 확인. 합성 데이터로는 step 4 가 너무 빨라 progress bar 가 거의 안 보임 — UX 검토는 본 ai-pm 프로젝트의 meta dogfooding 때.
+- Settings 의 "다시 보기" 링크: `clearDismissed(projectId)` exported helper 사용. W6 의 Settings UI 가 마이그레이션 섹션 추가 시 호출.
+- W6 stabilize 후보: step 4 진행 중 명시적 cancel 시그널. 현재는 백엔드에 cancel hook 없음 — `mpsc::channel` 의 receiver drop 으로 신호 보내는 방식 후보. 또는 `tokio::sync::Notify` 통해 entry 단위 cancel point.

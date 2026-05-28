@@ -38,8 +38,8 @@ use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
     JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LockStateView,
     ManualEntryDraft, MigrationPlan, MigrationProgress, MigrationReport, OculpmConfig,
-    OculpmInitReport, OculpmStatus, ReindexReport, RollbackReport, Session, SessionEnd, Severity,
-    Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
+    OculpmInitReport, OculpmOverviewStats, OculpmStatus, ReindexReport, RollbackReport, Session,
+    SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -1267,6 +1267,46 @@ impl OculpmManager {
         }
 
         report
+    }
+
+    // ─── W5-PR5: Overview stats ─────────────────────────────────────────────
+
+    /// Single-shot Overview widgets fetch. `window_days` clamps to 1..=365 —
+    /// the heatmap caps at ~90, but we allow 365 so a future "1년 보기" toggle
+    /// works without a backend change.
+    pub async fn overview_stats(
+        &self,
+        db: &Db,
+        project_id: u32,
+        window_days: u32,
+    ) -> Result<OculpmOverviewStats, OculpmError> {
+        let snapshot = self.project_snapshot(project_id).await?;
+        let current_workday = snapshot.resolver.workday_of(chrono::Utc::now());
+        let window = window_days.clamp(1, 365);
+        JournalCache::new(db)
+            .overview_stats(project_id, window, &current_workday)
+            .await
+    }
+
+    /// Resolve `<root>/<backup_dir_basename>` to an absolute path after
+    /// asserting the basename is a single segment (matches the traversal
+    /// guard in `migration_rollback`). Returns an error if the basename
+    /// contains `/`, `\\`, or `..`. Does NOT check existence — caller does.
+    pub async fn resolve_backup_dir_absolute(
+        &self,
+        project_id: u32,
+        backup_dir_basename: &str,
+    ) -> Result<PathBuf, OculpmError> {
+        if backup_dir_basename.contains('/')
+            || backup_dir_basename.contains('\\')
+            || backup_dir_basename.contains("..")
+        {
+            return Err(OculpmError::InvalidConfig(format!(
+                "backup_dir basename '{backup_dir_basename}' must be a single path segment"
+            )));
+        }
+        let snapshot = self.project_snapshot(project_id).await?;
+        Ok(snapshot.root.join(backup_dir_basename))
     }
 
     /// Snapshot of a project's lazy-loaded state (root + resolver + config).

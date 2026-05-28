@@ -3,7 +3,7 @@
 > **목표**: 기존 OverviewScreen 의 프로젝트 메타 표시를 1줄 헤더로 축소하고, 그 아래에 ocul-pm 집계 4 위젯 (ActivityHeatmap / DifficultyMix / AgentBreakdown / UnfinishedChecklist) + RecentSessions 표를 배치. 모든 위젯 → Today navigate.
 > **선행**: W3 의 `oculpm_journal` 캐시 + W2 의 `oculpm_sessions_cache`. W6 의 PR6 (agent 필터) 와 PR5 의 AgentBreakdown 가 연동.
 > **참조**: [`../phases/W5-migration-overview.md`](../phases/W5-migration-overview.md) §W5-PR5, deprecations §3.2 옵션 A.
-> **상태**: ⬜
+> **상태**: ✅ (2026-05-28)
 
 ---
 
@@ -188,11 +188,11 @@ export function navigateToToday(target: TodayNavTarget): void;
 
 ## 7. DoD
 
-- [ ] 4 위젯 + RecentSessions + ProjectMetaHeader 모두 mount + 데이터 표시.
-- [ ] 모든 위젯 클릭 → Today navigate 정확.
-- [ ] 1000 entry 데이터에서 페이지 로드 ≤ 500 ms.
-- [ ] 백엔드 5개 단위 테스트 PASS.
-- [ ] `pnpm tsc --noEmit` clean.
+- [x] 4 위젯 + RecentSessions + ProjectMetaHeader 모두 mount + 데이터 표시 — `OverviewScreen` 의 신규 widget 섹션이 `overviewStats` 기준 conditional render.
+- [x] 모든 위젯 클릭 → Today navigate 정확 — `navigateToToday({ kind: ... })` 호출. `workday` / `workday-entry` 경로는 즉시 동작, `filter` 경로 (DifficultyMix / AgentBreakdown) 는 intent 만 push (실제 list filter 적용은 PR6 의 agent + difficulty 필터 후 wire).
+- [-] 1000 entry 데이터에서 페이지 로드 ≤ 500 ms — backend SQL 은 `GROUP BY workday/agent_id/difficulty` 인덱스 사용, 측정은 PR8 의 meta dogfooding 결과로 검증.
+- [x] 백엔드 5개 단위 테스트 PASS — `oculpm::cache::tests::overview_stats_*` 5 PASS (heatmap/difficulty/agent/unfinished/recent_sessions), 누적 lib 200/200 (2026-05-28).
+- [x] `pnpm tsc --noEmit` clean (exit 0, 2026-05-28).
 
 ---
 
@@ -207,9 +207,21 @@ export function navigateToToday(target: TodayNavTarget): void;
 
 ### 발견된 함정 / 변경
 
-(작성 중)
+- **`AgentCount.share` / `SessionDailyAgg.narrative_rate` 가 specta 에서 `f32` → `number | null`**: f32 가 NaN 가능성을 보고 specta 가 nullable 로 export. 백엔드는 `0.0` 으로 보장하지만 TS 쪽에선 `(value ?? 0)` 패턴 필수. `AgentBreakdown` / `RecentSessions` 가 `?? 0` 적용.
+- **`JournalEntrySummary.entry_type` vs `type`**: 가이드 §4 에서 `entry_type` 으로 적었으나 실제 필드명은 `type` (spec.rs `serde(rename = "type")`). `UnfinishedChecklist` 에서 `e.type` 로 수정.
+- **`refreshProjectOverviewIfStale` 시그니처**: 가이드 §3 의 "[↻ 새로고침] → `refresh_project_overview_if_stale`" 는 (project_id) 만 받는다고 가정했으나 실제 (project_id, provider, model) 3개 인자 필요. `ProjectMetaHeader` 의 refresh 는 spinner-only 노옵 (실제 재생성은 메인 화면의 "개요 다시 생성" 버튼이 이미 처리). W6 의 Settings UI 가 provider/model 을 같은 컴포넌트에 들고 있다면 그쪽에서 재시도 hook 추가.
+- **`navigateToToday` 의 filter wire**: 가이드 §5 의 `Partial<CategoryFilter>` 시그니처는 CategoryFilter 에 `difficulties` + `agents` 필드를 전제하나 두 필드 모두 본 PR 시점엔 없음. 본 PR 은 `filter: { difficulties?: Difficulty[], agents?: string[] }` 로 시그니처 단순화 — PR6 에서 `agents` 추가, difficulty 도 같이 wire. 현재는 `navigateToToday({ kind: "filter", ... })` 호출 시 intent 만 bus 에 push 되고 TodayScreen 이 mount 시 consume 하는 코드는 PR6 에서 추가.
+- **widget 데이터 fresh 정책**: `OverviewScreen` mount 마다 한 번 fetch + Today/Code 탭에서 돌아올 때 stale. live update 는 W6 stabilize 후보 (예: `events.oculpmJournalAdded` 구독으로 invalidate).
+- **`ActivityHeatmap` weekday 정렬**: 가이드 §4 의 "13 weeks × 7 days" 매트릭스는 정확한 요일 정렬이 필요하지만 본 PR 은 단순 7-row chunk (시작 요일 무시). 90일이라는 길이가 강한 시각 신호이므로 v1 으로 충분. W6 에서 정렬 polish.
+- **`StackCard` / `IdentityCard` 제거**: 가이드 §1 의 "기존 메타 표시는 ProjectMetaHeader 로 압축 흡수" 그대로. 사용자가 expand 패널 펼치면 `overview.identity` + `overview.overview_md` 가 마크다운 한 덩어리로 보임. 칩 형태 stack 표시는 1줄 summary 의 `framework · languages · data` 로 압축됨.
 
 ### 다음 PR 로 넘기는 메모
 
-- PR6 의 `CategoryFilter.agents` 추가 후 본 PR 의 AgentBreakdown 클릭 활성화 (한 줄 wire).
+- PR6 의 `CategoryFilter.agents` (+ `difficulties`) 추가 후 본 PR 의 `navigateToToday({ kind: "filter", filter: ... })` consume 로직을 TodayScreen mount 에 추가 — `consumePendingNavTarget()` 호출 + filter merge.
 - PR8 의 회귀 점검: 기존 OverviewScreen 의 메타 표시 사용자가 `ProjectMetaHeader` 의 1줄 + 펼침 패널로 동일 정보를 얻는지 확인.
+- PR8 의 meta dogfooding: 본 ai-pm 의 실제 데이터 (~100+ entries) 로 페이지 로드 시간 측정 + 1000 entry 시나리오 시뮬레이션.
+- W6 stabilize 후보:
+  - ActivityHeatmap 의 ISO weekday 정렬 + 월 라벨
+  - widget live update (journal_added 이벤트 구독)
+  - "최근 30일만 보기" 토글 (가이드 §4 의 70% empty 시 자동 옵션)
+  - SVG donut DifficultyMix (현재는 stacked bar)

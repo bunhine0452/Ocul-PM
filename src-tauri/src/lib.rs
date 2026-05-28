@@ -135,6 +135,9 @@ use crate::commands::{
     oculpm_update_entry_body, oculpm_open_entry_in_editor,
     // W5-PR3 — Migration from legacy SQLite changelog
     oculpm_migration_dry_run, oculpm_migrate_from_sqlite, oculpm_migration_rollback,
+    oculpm_open_backup_dir,
+    // W5-PR5 — Overview stats
+    oculpm_overview_stats,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -275,6 +278,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_migration_dry_run,
         oculpm_migrate_from_sqlite,
         oculpm_migration_rollback,
+        // W5-PR4 — Migration modal helpers
+        oculpm_open_backup_dir,
+        // W5-PR5 — Overview stats
+        oculpm_overview_stats,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

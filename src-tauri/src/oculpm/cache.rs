@@ -771,6 +771,288 @@ impl<'a> JournalCache<'a> {
             .map_err(map_sqlite_err)?;
         Ok(map)
     }
+
+    // ───────── W5-PR5: Overview aggregates ─────────
+
+    /// Single-shot fetch of every overview widget. Each sub-query is
+    /// `GROUP BY` against an existing index (workday / agent_id / difficulty),
+    /// so the worst-case cost is ~O(rows) per project. The window is filled
+    /// with empty cells for every day even when no entries exist — the
+    /// heatmap UI relies on a dense array.
+    pub async fn overview_stats(
+        &self,
+        project_id: u32,
+        window_days: u32,
+        current_workday: &str,
+    ) -> Result<crate::oculpm::spec::OculpmOverviewStats, OculpmError> {
+        use crate::oculpm::spec::{
+            AgentCount, DifficultyMix, HeatmapCell, JournalEntrySummary, OculpmOverviewStats,
+            SessionDailyAgg,
+        };
+
+        let pid = project_id as i64;
+        let window = window_days.max(1);
+
+        // Date range — generate every workday in [start, end].
+        let end = parse_workday(current_workday).unwrap_or_else(today_fallback);
+        let start = end - chrono::Duration::days(window as i64 - 1);
+        let workday_list: Vec<String> = (0..window as i64)
+            .map(|i| format_workday(start + chrono::Duration::days(i)))
+            .collect();
+        let start_key = workday_list.first().cloned().unwrap_or_default();
+
+        let start_for_query = start_key.clone();
+
+        // Per-workday journal entry counts.
+        let entry_counts: std::collections::HashMap<String, u32> = self
+            .db
+            .conn()
+            .call({
+                let start_key = start_for_query.clone();
+                move |c| {
+                    let mut stmt = c.prepare(
+                        "SELECT workday, COUNT(*) AS n FROM oculpm_journal
+                         WHERE project_id = ?1 AND workday >= ?2
+                         GROUP BY workday",
+                    )?;
+                    let rows: rusqlite::Result<Vec<(String, i64)>> = stmt
+                        .query_map(params![pid, &start_key], |r| {
+                            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                        })?
+                        .collect();
+                    Ok(rows?
+                        .into_iter()
+                        .map(|(w, n)| (w, n as u32))
+                        .collect::<std::collections::HashMap<_, _>>())
+                }
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        // Per-workday file event counts (sum across the workday's sessions).
+        let file_event_counts: std::collections::HashMap<String, u32> = self
+            .db
+            .conn()
+            .call({
+                let start_key = start_for_query.clone();
+                move |c| {
+                    let mut stmt = c.prepare(
+                        "SELECT workday, COALESCE(SUM(file_event_count), 0)
+                         FROM oculpm_sessions_cache
+                         WHERE project_id = ?1 AND workday >= ?2
+                         GROUP BY workday",
+                    )?;
+                    let rows: rusqlite::Result<Vec<(String, i64)>> = stmt
+                        .query_map(params![pid, &start_key], |r| {
+                            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                        })?
+                        .collect();
+                    Ok(rows?
+                        .into_iter()
+                        .map(|(w, n)| (w, n.max(0) as u32))
+                        .collect::<std::collections::HashMap<_, _>>())
+                }
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        let heatmap_cells: Vec<HeatmapCell> = workday_list
+            .iter()
+            .map(|w| {
+                let entry_count = *entry_counts.get(w).unwrap_or(&0);
+                let file_event_count = *file_event_counts.get(w).unwrap_or(&0);
+                let score = entry_count
+                    .saturating_mul(5)
+                    .saturating_add(file_event_count);
+                HeatmapCell {
+                    workday: w.clone(),
+                    entry_count,
+                    file_event_count,
+                    score,
+                }
+            })
+            .collect();
+
+        // Difficulty mix — exclude rows where parse_ok = 0 so the null bucket
+        // reflects "intentionally unset", not "frontmatter broken".
+        let difficulty_mix: DifficultyMix = self
+            .db
+            .conn()
+            .call({
+                let start_key = start_for_query.clone();
+                move |c| {
+                    let mut stmt = c.prepare(
+                        "SELECT COALESCE(difficulty, '__null__') AS d, COUNT(*)
+                         FROM oculpm_journal
+                         WHERE project_id = ?1 AND workday >= ?2 AND parse_ok = 1
+                         GROUP BY d",
+                    )?;
+                    let rows: rusqlite::Result<Vec<(String, i64)>> = stmt
+                        .query_map(params![pid, &start_key], |r| {
+                            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                        })?
+                        .collect();
+                    let mut mix = DifficultyMix {
+                        verylow: 0,
+                        low: 0,
+                        medium: 0,
+                        high: 0,
+                        superhigh: 0,
+                        null_count: 0,
+                    };
+                    for (k, n) in rows? {
+                        let n = n.max(0) as u32;
+                        match k.as_str() {
+                            "verylow" => mix.verylow = n,
+                            "low" => mix.low = n,
+                            "medium" => mix.medium = n,
+                            "high" => mix.high = n,
+                            "superhigh" => mix.superhigh = n,
+                            _ => mix.null_count = n,
+                        }
+                    }
+                    Ok(mix)
+                }
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        // Agent breakdown — already-cached agent_id column.
+        let agent_rows: Vec<(String, u32)> = self
+            .db
+            .conn()
+            .call({
+                let start_key = start_for_query.clone();
+                move |c| {
+                    let mut stmt = c.prepare(
+                        "SELECT agent_id, COUNT(*) FROM oculpm_journal
+                         WHERE project_id = ?1 AND workday >= ?2
+                         GROUP BY agent_id
+                         ORDER BY COUNT(*) DESC",
+                    )?;
+                    let rows: rusqlite::Result<Vec<(String, i64)>> = stmt
+                        .query_map(params![pid, &start_key], |r| {
+                            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                        })?
+                        .collect();
+                    Ok(rows?
+                        .into_iter()
+                        .map(|(id, n)| (id, n.max(0) as u32))
+                        .collect())
+                }
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        let total_entries: u32 = agent_rows.iter().map(|(_, n)| n).sum();
+        let agent_breakdown: Vec<AgentCount> = agent_rows
+            .into_iter()
+            .map(|(agent_id, n)| AgentCount {
+                agent_id,
+                entry_count: n,
+                share: if total_entries > 0 {
+                    n as f32 / total_entries as f32
+                } else {
+                    0.0
+                },
+            })
+            .collect();
+
+        // Unfinished — reuse list_entries pipeline but cap at 50 most recent.
+        let unfinished_entries: Vec<JournalEntrySummary> = {
+            let filters = EntryFilters {
+                types: Vec::new(),
+                verified_only: false,
+                mismatch_only: false,
+                unfinished_only: true,
+                search: None,
+            };
+            let mut all = self.list_entries(project_id, None, &filters).await?;
+            all.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+            all.into_iter().take(50).collect()
+        };
+
+        // Recent sessions — last 30 days, most recent first.
+        let recent_sessions: Vec<SessionDailyAgg> = self
+            .db
+            .conn()
+            .call({
+                let start_key_30 = format_workday(
+                    end - chrono::Duration::days(29),
+                );
+                move |c| {
+                    let mut stmt = c.prepare(
+                        "SELECT s.workday,
+                                COUNT(*),
+                                COALESCE(SUM(CAST((julianday(s.ended_at) - julianday(s.started_at)) * 86400 AS INTEGER)), 0),
+                                COALESCE(SUM(files_unique), 0),
+                                (SELECT COUNT(*) FROM oculpm_journal j
+                                  WHERE j.project_id = s.project_id AND j.workday = s.workday) AS journal_count,
+                                SUM(CASE WHEN file_event_count > 0 THEN 1 ELSE 0 END) AS with_events
+                         FROM oculpm_sessions_cache s
+                         WHERE project_id = ?1 AND workday >= ?2
+                         GROUP BY s.workday
+                         ORDER BY s.workday DESC",
+                    )?;
+                    let rows: rusqlite::Result<Vec<SessionDailyAgg>> = stmt
+                        .query_map(params![pid, &start_key_30], |r| {
+                            let workday: String = r.get(0)?;
+                            let session_count: i64 = r.get(1)?;
+                            let active_seconds: i64 = r.get(2)?;
+                            let files_unique: i64 = r.get(3)?;
+                            let journal_entry_count: i64 = r.get(4)?;
+                            let with_events: i64 = r.get(5)?;
+                            let narrative_rate = if with_events > 0 {
+                                journal_entry_count as f32 / with_events as f32
+                            } else {
+                                0.0
+                            };
+                            Ok(SessionDailyAgg {
+                                workday,
+                                session_count: session_count.max(0) as u32,
+                                total_active_seconds: active_seconds.max(0) as u32,
+                                files_unique: files_unique.max(0) as u32,
+                                journal_entry_count: journal_entry_count.max(0) as u32,
+                                narrative_rate,
+                            })
+                        })?
+                        .collect();
+                    Ok(rows?)
+                }
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        Ok(OculpmOverviewStats {
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            window_days: window,
+            heatmap_cells,
+            difficulty_mix,
+            agent_breakdown,
+            unfinished_entries,
+            recent_sessions,
+        })
+    }
+}
+
+/// Parse "YYYYMMDD" → NaiveDate.
+fn parse_workday(s: &str) -> Option<chrono::NaiveDate> {
+    if s.len() != 8 || !s.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let year = s[0..4].parse::<i32>().ok()?;
+    let month = s[4..6].parse::<u32>().ok()?;
+    let day = s[6..8].parse::<u32>().ok()?;
+    chrono::NaiveDate::from_ymd_opt(year, month, day)
+}
+
+fn format_workday(d: chrono::NaiveDate) -> String {
+    use chrono::Datelike;
+    format!("{:04}{:02}{:02}", d.year(), d.month(), d.day())
+}
+
+fn today_fallback() -> chrono::NaiveDate {
+    chrono::Utc::now().date_naive()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1626,5 +1908,258 @@ mod tests {
                 .unwrap(),
             UpsertOutcome::Updated
         );
+    }
+
+    // ───────── W5-PR5: overview_stats ──────────
+
+    /// Insert one journal row directly into the cache via reindex_full of a
+    /// hand-written .md file. Helper for the overview tests below.
+    fn write_journal(
+        root: &Path,
+        relative_path: &str,
+        difficulty: Option<&str>,
+        agent_id: &str,
+        created_at: &str,
+        unfinished: bool,
+    ) {
+        let mut fm = format!(
+            "schema_version: 1\ntype: bug\nslug: x\nstatus: {status}\n",
+            status = if unfinished { "in_progress" } else { "done" },
+        );
+        if let Some(d) = difficulty {
+            fm.push_str(&format!("difficulty: {d}\n"));
+        }
+        fm.push_str(&format!(
+            "created_at: \"{created_at}\"\nsession_id: \"20260520-001\"\nagent: {{ id: {agent_id} }}\nlanguage: ko",
+        ));
+        let body = if unfinished {
+            "[ ] Title X\n\n## body\n"
+        } else {
+            "[x] Title X\n\n## body\n"
+        };
+        write_entry(root, relative_path, &fm, body);
+    }
+
+    fn insert_session<'a>(
+        cache: &'a JournalCache<'a>,
+        project_id: u32,
+        session_id: &str,
+        workday: &str,
+        started_at: &str,
+        ended_at: &str,
+        file_event_count: u32,
+        files_unique: u32,
+    ) {
+        let pid = project_id as i64;
+        let sid = session_id.to_string();
+        let wd = workday.to_string();
+        let s = started_at.to_string();
+        let e = ended_at.to_string();
+        cache
+            .db
+            .conn()
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO oculpm_sessions_cache (project_id, session_id, workday, started_at, ended_at, ended_reason, file_event_count, files_unique, agent_label_guess)
+                     VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, NULL)",
+                    params![pid, &sid, &wd, &s, &e, file_event_count as i64, files_unique as i64],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            });
+    }
+
+    /// Use the async helper without `.await` by `block_on` style — we can't
+    /// from sync tests. So the actual tests below are `#[tokio::test]`.
+    async fn insert_session_async<'a>(
+        cache: &'a JournalCache<'a>,
+        project_id: u32,
+        session_id: &str,
+        workday: &str,
+        started_at: &str,
+        ended_at: &str,
+        file_event_count: u32,
+        files_unique: u32,
+    ) {
+        let pid = project_id as i64;
+        let sid = session_id.to_string();
+        let wd = workday.to_string();
+        let s = started_at.to_string();
+        let e = ended_at.to_string();
+        cache
+            .db
+            .conn()
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO oculpm_sessions_cache (project_id, session_id, workday, started_at, ended_at, ended_reason, file_event_count, files_unique, agent_label_guess)
+                     VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, NULL)",
+                    params![pid, &sid, &wd, &s, &e, file_event_count as i64, files_unique as i64],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            })
+            .await
+            .unwrap();
+    }
+    // Silence: insert_session sync wrapper is kept for symmetry but tests use
+    // the `_async` variant. `cargo test` would warn otherwise.
+    #[allow(dead_code)]
+    fn _suppress_unused() {
+        let _ = insert_session;
+    }
+
+    async fn fresh_cache_with_project() -> (Db, tempfile::TempDir, PathBuf) {
+        let (db, dir) = fresh_db().await;
+        // Project row for FK constraints elsewhere.
+        let _ = db
+            .create_project("ov".into(), dir.path().to_string_lossy().into())
+            .await
+            .unwrap();
+        let journal_root = dir.path().join("journal");
+        std::fs::create_dir_all(&journal_root).unwrap();
+        (db, dir, journal_root)
+    }
+
+    #[tokio::test]
+    async fn overview_stats_aggregates_heatmap_cells_for_window() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        // 3 entries on 20260522.
+        write_journal(
+            &journal_root,
+            "20260522/Bugs/0900_bug_a.md",
+            Some("medium"),
+            "claude-code",
+            "2026-05-22T09:00:00+09:00",
+            false,
+        );
+        write_journal(
+            &journal_root,
+            "20260522/Bugs/1000_bug_b.md",
+            Some("low"),
+            "cursor",
+            "2026-05-22T10:00:00+09:00",
+            false,
+        );
+        write_journal(
+            &journal_root,
+            "20260522/Bugs/1100_bug_c.md",
+            None,
+            "claude-code",
+            "2026-05-22T11:00:00+09:00",
+            false,
+        );
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        assert_eq!(stats.window_days, 7);
+        assert_eq!(stats.heatmap_cells.len(), 7);
+        // Most cells are empty; the 20260522 one has 3 entries.
+        let last = stats.heatmap_cells.last().unwrap();
+        assert_eq!(last.workday, "20260522");
+        assert_eq!(last.entry_count, 3);
+        assert_eq!(last.score, 15); // 3 * 5 + 0 file events
+        let prior = stats.heatmap_cells.first().unwrap();
+        assert_eq!(prior.entry_count, 0);
+    }
+
+    #[tokio::test]
+    async fn overview_stats_groups_difficulty_mix_with_null_count() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        write_journal(&journal_root, "20260522/Bugs/0900_bug_a.md", Some("medium"), "x", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_bug_b.md", Some("medium"), "x", "2026-05-22T09:10:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0920_bug_c.md", Some("high"), "x", "2026-05-22T09:20:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0930_bug_d.md", None, "x", "2026-05-22T09:30:00+09:00", false);
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        assert_eq!(stats.difficulty_mix.medium, 2);
+        assert_eq!(stats.difficulty_mix.high, 1);
+        assert_eq!(stats.difficulty_mix.null_count, 1);
+        assert_eq!(stats.difficulty_mix.low, 0);
+    }
+
+    #[tokio::test]
+    async fn overview_stats_agent_breakdown_share_sums_to_one() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "claude-code", "2026-05-22T09:10:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "cursor", "2026-05-22T09:20:00+09:00", false);
+        write_journal(&journal_root, "20260522/Bugs/0930_d.md", None, "manual", "2026-05-22T09:30:00+09:00", false);
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        let total_share: f32 = stats.agent_breakdown.iter().map(|a| a.share).sum();
+        assert!(
+            (total_share - 1.0).abs() < 1e-5,
+            "agent shares should sum to 1.0, got {total_share}"
+        );
+        let claude = stats
+            .agent_breakdown
+            .iter()
+            .find(|a| a.agent_id == "claude-code")
+            .expect("claude-code present");
+        assert_eq!(claude.entry_count, 2);
+    }
+
+    #[tokio::test]
+    async fn overview_stats_unfinished_caps_at_fifty() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        for i in 0..60 {
+            let h = i / 60;
+            let m = i % 60;
+            write_journal(
+                &journal_root,
+                &format!("20260522/Bugs/{:02}{:02}_bug_{}.md", h, m, i),
+                None,
+                "x",
+                &format!("2026-05-22T{:02}:{:02}:00+09:00", h, m),
+                true, // unfinished
+            );
+        }
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        assert_eq!(stats.unfinished_entries.len(), 50);
+        // Most-recent first — first entry's created_at >= second's.
+        for pair in stats.unfinished_entries.windows(2) {
+            assert!(
+                pair[0].created_at >= pair[1].created_at,
+                "expected DESC ordering by created_at; got {} then {}",
+                pair[0].created_at,
+                pair[1].created_at
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn overview_stats_recent_sessions_narrative_rate_handles_zero_sessions() {
+        let (db, _dir, journal_root) = fresh_cache_with_project().await;
+        let cache = JournalCache::new(&db);
+        // No sessions, no entries — narrative_rate must be 0 (not NaN) for
+        // every day in the window. recent_sessions itself is empty.
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        assert!(stats.recent_sessions.is_empty());
+
+        // Now insert a session with file_event_count=0 — narrative_rate must
+        // still be 0.0 (no with_events sessions).
+        insert_session_async(
+            &cache,
+            1,
+            "20260522-001",
+            "20260522",
+            "2026-05-22T09:00:00+09:00",
+            "2026-05-22T10:00:00+09:00",
+            0,
+            0,
+        )
+        .await;
+        let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
+        assert_eq!(stats.recent_sessions.len(), 1);
+        let row = &stats.recent_sessions[0];
+        assert_eq!(row.session_count, 1);
+        assert!(row.narrative_rate.is_finite());
+        assert_eq!(row.narrative_rate, 0.0);
     }
 }

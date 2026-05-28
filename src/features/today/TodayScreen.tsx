@@ -26,6 +26,10 @@ import {
 import { OculpmOnboardingModal } from "@/features/oculpm/OculpmOnboardingModal";
 import { TimelineView } from "@/features/oculpm/TimelineView";
 import { ManualEntryModal } from "@/features/oculpm/ManualEntryModal";
+import {
+  MigrationModal,
+  useShouldOfferMigration,
+} from "@/features/projects/MigrationModal";
 import { DiffVsNarrative } from "@/features/oculpm/DiffVsNarrative";
 import { OCULPM_BUS } from "@/components/CommandPalette";
 import { CategoryFilterBar } from "@/features/oculpm/CategoryFilterBar";
@@ -62,6 +66,20 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
   const [fileChangeCount, setFileChangeCount] = useState<number | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  // W5-PR4 — migration modal. Opens automatically after onboarding completes
+  // (or on first mount if init was done in a prior session and the user hasn't
+  // dismissed) when the legacy SQLite changelog has at least one entry.
+  const [migrationOpen, setMigrationOpen] = useState(false);
+  const migrationOffer = useShouldOfferMigration(
+    activeProjectId,
+    !migrationOpen && oculpmStatus?.initialized === true,
+  );
+
+  useEffect(() => {
+    if (migrationOffer === "yes" && !migrationOpen) {
+      setMigrationOpen(true);
+    }
+  }, [migrationOffer, migrationOpen]);
   // W4-PR6 — latest session for the EmptyTodayV3 "compare" entry point, plus
   // the active modal target (null = closed).
   const [latestSessionId, setLatestSessionId] = useState<string | null>(null);
@@ -471,6 +489,19 @@ export function TodayScreen({ activeProjectId }: TodayScreenProps) {
             onClose={() => setManualEntryOpen(false)}
           />
         )}
+
+      {/* W5-PR4 — Migration modal. Mounts automatically when the project has
+          legacy SQLite changelog rows and the user hasn't dismissed it. */}
+      {migrationOpen && activeProjectId != null && (
+        <MigrationModal
+          projectId={activeProjectId}
+          onClose={() => {
+            setMigrationOpen(false);
+            // Trigger a refetch so Today picks up the newly-migrated entries.
+            setRefreshTick((n) => n + 1);
+          }}
+        />
+      )}
 
     </div>
   );

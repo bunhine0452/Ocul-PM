@@ -569,6 +569,65 @@ pub struct RollbackReport {
     pub completed_at: String,
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Overview stats (W5-PR5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One day's worth of activity data for the heatmap. `score` is a UI-friendly
+/// derived value (entries weighted higher than file events).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HeatmapCell {
+    pub workday: String,
+    pub entry_count: u32,
+    pub file_event_count: u32,
+    pub score: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct DifficultyMix {
+    pub verylow: u32,
+    pub low: u32,
+    pub medium: u32,
+    pub high: u32,
+    pub superhigh: u32,
+    /// Entries that didn't specify a difficulty in frontmatter.
+    pub null_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AgentCount {
+    pub agent_id: String,
+    pub entry_count: u32,
+    /// `entry_count / total_entries`. `0.0` when no entries.
+    pub share: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SessionDailyAgg {
+    pub workday: String,
+    pub session_count: u32,
+    pub total_active_seconds: u32,
+    pub files_unique: u32,
+    pub journal_entry_count: u32,
+    /// `journal_entry_count / sessions_with_file_events`. `0.0` when no
+    /// sessions have file events (avoids NaN). UI shows as percentage.
+    pub narrative_rate: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct OculpmOverviewStats {
+    pub generated_at: String,
+    pub window_days: u32,
+    /// Every workday in the window (entries=0 days included as empty cells).
+    pub heatmap_cells: Vec<HeatmapCell>,
+    pub difficulty_mix: DifficultyMix,
+    pub agent_breakdown: Vec<AgentCount>,
+    /// Up to 50 unfinished entries, most recent first.
+    pub unfinished_entries: Vec<JournalEntrySummary>,
+    /// Up to 30 days of session aggregates, most recent first.
+    pub recent_sessions: Vec<SessionDailyAgg>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ReindexReport {
     pub project_id: u32,

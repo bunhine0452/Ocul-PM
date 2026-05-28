@@ -22,8 +22,8 @@ use crate::oculpm::spec::{
     AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
     JournalEntrySummary, LayerComparison, ManualEntryDraft, MigrationCommandError, MigrationPlan,
     MigrationReport, OculpmConfig, OculpmInitReport, OculpmIntegrityWarning,
-    OculpmMigrationProgress, OculpmStatus, ReindexReport, RollbackReport, Session, Snapshot,
-    SnapshotKind, WatcherStatus,
+    OculpmMigrationProgress, OculpmOverviewStats, OculpmStatus, ReindexReport, RollbackReport,
+    Session, Snapshot, SnapshotKind, WatcherStatus,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -651,6 +651,24 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
     }
 }
 
+// ─── W5-PR5 — Overview stats ────────────────────────────────────────────────
+
+/// Single-shot fetch of every Overview widget. `window_days` clamps to
+/// 1..=365 inside the manager — the modal-facing default is 90 (heatmap).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_overview_stats(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    window_days: u32,
+) -> Result<OculpmOverviewStats, String> {
+    manager
+        .overview_stats(&db, project_id, window_days)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 // ─── W5-PR3 — Migration commands ────────────────────────────────────────────
 
 /// Build a [`MigrationPlan`] without touching disk. Returns an empty plan
@@ -726,6 +744,27 @@ pub async fn oculpm_migrate_from_sqlite(
             }),
         },
     }
+}
+
+/// Reveal a migration backup directory in the OS file manager. Same
+/// opener-plugin-scope workaround as `oculpm_open_entry_in_editor` — resolves
+/// the absolute path inside the backend and shells out directly. Rejects
+/// path traversal attempts via the manager guard.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_open_backup_dir(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    backup_dir_basename: String,
+) -> Result<(), String> {
+    let abs = manager
+        .resolve_backup_dir_absolute(project_id, &backup_dir_basename)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !abs.exists() {
+        return Err(format!("backup dir not found: {}", abs.display()));
+    }
+    open_native(&abs).map_err(|e| e.to_string())
 }
 
 /// Manually roll back a prior migration. `backup_dir_basename` must be the
