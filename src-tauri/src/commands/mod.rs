@@ -1,6 +1,7 @@
 pub mod config;
 pub mod conversation;
 pub mod diagnostics;
+pub mod diff;
 pub mod git;
 pub mod greenfield;
 pub mod llm;
@@ -14,6 +15,7 @@ pub mod terminal;
 pub use config::*;
 pub use conversation::*;
 pub use diagnostics::*;
+pub use diff::*;
 pub use git::*;
 pub use greenfield::*;
 pub use llm::*;

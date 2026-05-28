@@ -369,6 +369,53 @@ pub fn head_status_brief(root: &Path) -> GitHeadStatusBrief {
     }
 }
 
+/// Unified-diff for a single tracked path. `from`/`to` are commit-ish refs;
+/// defaulting both to `None` returns the working tree vs `HEAD` diff. Output
+/// is truncated (suffix marker appended) once it exceeds `max_bytes`.
+///
+/// Lite-W6 PR4 retired this helper alongside the changelog commands. PR6
+/// resurrects it for LocalDiffView (the *git path* of `compute_diff`).
+pub fn diff_patch(
+    root: &Path,
+    file_path: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    max_bytes: usize,
+) -> Result<String, String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+
+    let mut args = vec!["diff", "--unified=3"];
+    match (from, to) {
+        (Some(f), Some(t)) => {
+            args.push(f);
+            args.push(t);
+        }
+        (Some(f), None) => {
+            args.push(f);
+        }
+        _ => {
+            args.push("HEAD");
+        }
+    }
+    args.push("--");
+    args.push(file_path);
+
+    let text = run_git(root, &args)?;
+
+    if text.len() > max_bytes {
+        let truncated: String = text.chars().take(max_bytes).collect();
+        Ok(format!(
+            "{}\n\n... (truncated, {} bytes total)",
+            truncated,
+            text.len()
+        ))
+    } else {
+        Ok(text)
+    }
+}
+
 /// Parse `https://github.com/owner/repo.git`, `git@github.com:owner/repo.git`,
 /// `ssh://git@github.com/owner/repo.git` into (host, owner, repo).
 fn parse_remote_url(url: &str) -> (Option<String>, Option<String>, Option<String>) {
