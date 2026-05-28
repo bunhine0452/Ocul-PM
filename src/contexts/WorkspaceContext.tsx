@@ -8,7 +8,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
-import { events, type OculpmStatus, type Session } from "@/lib/bindings";
+import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
 
@@ -44,6 +44,21 @@ export type LayoutMode = "main-only" | "split" | "terminal-only";
  */
 export type CodeSubTab = "files" | "ai" | "graph" | "terminal";
 
+/**
+ * Lite-W6 PR8 Part 1: FileTree change-highlight marker. The watcher's
+ * `FileOp` collapses into three categories the explorer renders as dot +
+ * badge. See `mapFileOpToChangeOp` for the projection.
+ */
+export type ChangeOp = "A" | "M" | "D";
+
+export interface RecentChange {
+  /** Project-relative forward-slash path (matches `ProjectTreeNode.relative_path`). */
+  path: string;
+  op: ChangeOp;
+  /** Unix milliseconds when we ingested the event. Used only for ordering. */
+  ts: number;
+}
+
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
@@ -72,6 +87,13 @@ export interface WorkspaceState {
 
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
+
+  /**
+   * Lite-W6 PR8 Part 1: FIFO buffer of watcher-observed changes for the
+   * current project. Capped at `RECENT_CHANGES_CAP` (1000) to bound memory
+   * growth during long sessions. Cleared on project switch.
+   */
+  recentChanges: RecentChange[];
 
   // Persistence schema (1: pre-W3; 2: defaultTab promoted to today).
   schemaVersion: number;
@@ -129,6 +151,7 @@ const DEFAULT_STATE: WorkspaceState = {
   layoutMode: "main-only",
   splitRatio: 0.6,
   fileExplorerExpanded: {},
+  recentChanges: [],
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
   indexingProjectId: null,
@@ -140,6 +163,50 @@ const DEFAULT_STATE: WorkspaceState = {
 };
 
 const STORAGE_KEY = "aipm:workspace:v1";
+
+/**
+ * Lite-W6 PR8 Part 1: cap on `recentChanges` so a runaway watcher (or a
+ * long-running dogfood session) can't grow the persisted blob unbounded.
+ * 1000 entries × ~80 bytes each ≈ 80 KB on disk — well below the 5 MB
+ * localStorage budget but enough to cover a busy day.
+ */
+export const RECENT_CHANGES_CAP = 1000;
+
+/**
+ * Append a change to the FIFO buffer. If the same path already has an entry
+ * we drop the earlier one so the latest op wins (e.g. create→update collapses
+ * to update). Trims to `RECENT_CHANGES_CAP` from the *front* so the newest
+ * 1000 are kept. Exported for unit testing.
+ */
+export function pushRecentChange(
+  prev: RecentChange[],
+  next: RecentChange,
+): RecentChange[] {
+  const filtered = prev.filter((c) => c.path !== next.path);
+  filtered.push(next);
+  if (filtered.length > RECENT_CHANGES_CAP) {
+    return filtered.slice(filtered.length - RECENT_CHANGES_CAP);
+  }
+  return filtered;
+}
+
+/**
+ * Project the watcher's 5-way op into the explorer's 3-way badge. `rename`
+ * and `correct` both collapse to `M` for now — the FileTree doesn't have a
+ * rename badge in 1.0. Exported for unit testing.
+ */
+export function mapFileOpToChangeOp(op: FileOp): ChangeOp {
+  switch (op) {
+    case "create":
+      return "A";
+    case "delete":
+      return "D";
+    case "update":
+    case "rename":
+    case "correct":
+      return "M";
+  }
+}
 
 // ---------- Legacy Migration ----------
 
@@ -296,6 +363,32 @@ function loadFromStorage(): WorkspaceState {
       parsed.splitRatio = migrateSplitRatio(parsed.splitRatio);
       delete parsed.bottomDrawerOpen;
       delete parsed.bottomDrawerTab;
+      // Lite-W6 PR8 Part 1: sanitise the persisted recentChanges buffer.
+      // Anything that isn't a well-shaped {path, op, ts} entry is dropped so a
+      // corrupted record can't crash the FileExplorer on next boot.
+      if (Array.isArray(parsed.recentChanges)) {
+        const safe: RecentChange[] = [];
+        for (const raw of parsed.recentChanges) {
+          if (
+            raw &&
+            typeof raw === "object" &&
+            typeof raw.path === "string" &&
+            (raw.op === "A" || raw.op === "M" || raw.op === "D") &&
+            typeof raw.ts === "number"
+          ) {
+            safe.push({ path: raw.path, op: raw.op, ts: raw.ts });
+          }
+        }
+        parsed.recentChanges =
+          safe.length > RECENT_CHANGES_CAP
+            ? safe.slice(safe.length - RECENT_CHANGES_CAP)
+            : safe;
+      } else {
+        parsed.recentChanges = [];
+      }
+      if (!parsed.fileExplorerExpanded || typeof parsed.fileExplorerExpanded !== "object") {
+        parsed.fileExplorerExpanded = {};
+      }
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -372,13 +465,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setProject = useCallback(
     (id: number | null, name?: string | null, root?: string | null) => {
-      setState((prev) => ({
-        ...prev,
-        currentProjectId: id,
-        currentProjectName: name ?? null,
-        currentProjectRoot: root ?? null,
-        activeFile: id !== prev.currentProjectId ? null : prev.activeFile,
-      }));
+      setState((prev) => {
+        const switched = id !== prev.currentProjectId;
+        return {
+          ...prev,
+          currentProjectId: id,
+          currentProjectName: name ?? null,
+          currentProjectRoot: root ?? null,
+          activeFile: switched ? null : prev.activeFile,
+          // Lite-W6 PR8 Part 1: changes from project A would be meaningless
+          // (and confusing) when viewing project B's tree.
+          recentChanges: switched ? [] : prev.recentChanges,
+          fileExplorerExpanded: switched ? {} : prev.fileExplorerExpanded,
+        };
+      });
     },
     []
   );
@@ -526,6 +626,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // listens directly for invalidation (the context only forwards them
     // so multiple screens can subscribe through the same channel).
     void events.oculpmJournalPathChanged.listen(() => {}).then((off) => offFns.push(off));
+
+    // Lite-W6 PR8 Part 1: feed the FileTree's change-highlight buffer.
+    void events.oculpmFileChanged.listen((evt) => {
+      if (evt.payload.project_id !== currentProjectId()) return;
+      const op = mapFileOpToChangeOp(evt.payload.event.op);
+      const path = evt.payload.event.path;
+      setState((prev) => ({
+        ...prev,
+        recentChanges: pushRecentChange(prev.recentChanges, {
+          path,
+          op,
+          ts: Date.now(),
+        }),
+      }));
+    }).then((off) => offFns.push(off));
+
     void events.oculpmJournalAdded.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       toast.info(`새 기록: ${evt.payload.summary.title}`, {

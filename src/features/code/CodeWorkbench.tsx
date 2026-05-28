@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
-import { commands, type IndexProgress } from "@/lib/bindings";
-import { FileExplorer } from "@/components/FileExplorer";
+import { commands, type IndexProgress, type ProjectTreeNode } from "@/lib/bindings";
+import { FileExplorer, type ChangeOp } from "@/components/FileExplorer";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
 import { AiWorkbench } from "./AiWorkbench";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -36,7 +36,72 @@ export function CodeWorkbench({
   reloadProjectFiles,
 }: CodeWorkbenchProps) {
   const { state, setState, setActiveFile } = useWorkspace();
-  const { activeFile, aiWorkbenchOpen, codeSubTab, indexingProjectId, indexProgress } = state;
+  const {
+    activeFile,
+    aiWorkbenchOpen,
+    codeSubTab,
+    indexingProjectId,
+    indexProgress,
+    fileExplorerExpanded,
+    recentChanges,
+  } = state;
+
+  // Project the FIFO array into the O(1) lookup record the FileExplorer
+  // expects. A few dozen entries per project is the dogfood norm so this
+  // re-derives cheaply on each event.
+  const recentChangesMap = useMemo<Record<string, ChangeOp>>(() => {
+    const map: Record<string, ChangeOp> = {};
+    for (const c of recentChanges) map[c.path] = c.op;
+    return map;
+  }, [recentChanges]);
+
+  // Lite-W6 PR8 Part 1: load the on-disk project tree alongside the indexed
+  // file count. The two data sources stay separate — the tree drives the
+  // explorer view (all files, .gitignore-respected), the indexed list drives
+  // the "N files indexed" footer gauge.
+  const [tree, setTree] = useState<ProjectTreeNode | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setTree(null);
+    commands
+      .listProjectTree(projectId, null)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === "ok") {
+          setTree(res.data);
+        } else {
+          console.error("[FileExplorer] listProjectTree failed:", res.error);
+          setTree({ name: "", relative_path: "", is_dir: true, children: [] });
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          console.error("[FileExplorer] listProjectTree threw:", e);
+          setTree({ name: "", relative_path: "", is_dir: true, children: [] });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const reloadTree = useCallback(async () => {
+    const res = await commands.listProjectTree(projectId, null);
+    if (res.status === "ok") setTree(res.data);
+  }, [projectId]);
+
+  const toggleExpand = useCallback(
+    (relPath: string) => {
+      setState((p) => ({
+        ...p,
+        fileExplorerExpanded: {
+          ...p.fileExplorerExpanded,
+          [relPath]: !p.fileExplorerExpanded[relPath],
+        },
+      }));
+    },
+    [setState],
+  );
 
   // codeSubTab is still useful inside CodeWorkbench:
   //   - "files" → Tree + viewer placeholder (default)
@@ -85,14 +150,19 @@ export function CodeWorkbench({
     <div className="h-full flex overflow-hidden">
       {/* C-1: Tree */}
       <FileTree
-        files={projectFiles}
+        tree={tree}
+        indexedCount={projectFiles.length}
         activeFile={activeFile}
         onSelectFile={(p) => setActiveFile(p)}
+        expanded={fileExplorerExpanded}
+        onToggleExpand={toggleExpand}
+        recentChanges={recentChangesMap}
         indexing={indexingProjectId === projectId}
         progress={indexProgress}
         onReindex={async () => {
           await runIndex(projectId, () => setState((p) => ({ ...p, indexingProjectId: projectId })));
           await reloadProjectFiles();
+          await reloadTree();
           setState((p) => ({ ...p, indexingProjectId: null, indexProgress: null }));
         }}
         onProgress={(prog) => setState((p) => ({ ...p, indexProgress: prog }))}
@@ -138,17 +208,25 @@ export function CodeWorkbench({
 // ───────────────────────────────────────────────────────────────────────
 
 function FileTree({
-  files,
+  tree,
+  indexedCount,
   activeFile,
   onSelectFile,
+  expanded,
+  onToggleExpand,
+  recentChanges,
   indexing,
   progress,
   onReindex,
   onProgress,
 }: {
-  files: Array<[number, string]>;
+  tree: ProjectTreeNode | null;
+  indexedCount: number;
   activeFile: string | null;
   onSelectFile: (path: string) => void;
+  expanded: Record<string, boolean>;
+  onToggleExpand: (relPath: string) => void;
+  recentChanges: Record<string, ChangeOp>;
   indexing: boolean;
   progress: IndexProgress | null;
   onReindex: () => Promise<void>;
@@ -162,7 +240,14 @@ function FileTree({
   return (
     <aside className="w-[240px] flex flex-col border-r border-border shrink-0 glassy-sidebar">
       <div className="flex-1 overflow-hidden">
-        <FileExplorer files={files} activeFile={activeFile} onSelectFile={onSelectFile} />
+        <FileExplorer
+          tree={tree}
+          activeFile={activeFile}
+          onSelectFile={onSelectFile}
+          expanded={expanded}
+          onToggleExpand={onToggleExpand}
+          recentChanges={recentChanges}
+        />
       </div>
       <div className="p-3 border-t border-border/80 bg-secondary/15 select-none shrink-0">
         {indexing ? (
@@ -183,7 +268,7 @@ function FileTree({
         ) : (
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] text-muted-foreground font-semibold">
-              {files.length} files indexed
+              {indexedCount} files indexed
             </span>
             <Button
               variant="outline"

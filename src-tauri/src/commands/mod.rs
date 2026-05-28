@@ -9,6 +9,7 @@ pub mod oculpm;
 pub mod overview;
 pub mod planner;
 pub mod project;
+pub mod project_tree;
 pub mod window;
 pub mod terminal;
 
@@ -24,5 +25,6 @@ pub use oculpm::*;
 pub use overview::*;
 pub use planner::*;
 pub use project::*;
+pub use project_tree::*;
 pub use window::*;
 pub use terminal::*;

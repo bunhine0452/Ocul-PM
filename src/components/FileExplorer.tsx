@@ -1,81 +1,97 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import type { ProjectTreeNode } from "@/lib/bindings";
 import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "./Icons";
 
+export type ChangeOp = "A" | "M" | "D";
 
 interface FileExplorerProps {
-  files: Array<[number, string]>;
+  /** Directory tree from `commands.listProjectTree`. `null` while loading. */
+  tree: ProjectTreeNode | null;
   activeFile: string | null;
   onSelectFile: (path: string) => void;
+  /**
+   * Per-path change badge — keyed by the same `relative_path` the backend
+   * emits. Files in the map render a dot marker + op badge; directories that
+   * contain any changed descendant render a softer dot.
+   */
+  recentChanges?: Record<string, ChangeOp>;
+  /** Controlled expanded map. Keys are `relative_path` for folder nodes. */
+  expanded: Record<string, boolean>;
+  onToggleExpand: (relPath: string) => void;
+  /**
+   * Optional: when set, the footer is wired by the parent. We don't render
+   * a footer ourselves so the CodeWorkbench / sidebar gutter can compose
+   * around us.
+   */
 }
 
-interface TreeNode {
-  name: string;
-  path: string; // Empty for folders
-  isFolder: boolean;
-  children: TreeNode[];
-}
-
-export function FileExplorer({ files, activeFile, onSelectFile }: FileExplorerProps) {
+export function FileExplorer({
+  tree,
+  activeFile,
+  onSelectFile,
+  recentChanges,
+  expanded,
+  onToggleExpand,
+}: FileExplorerProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    root: true,
-  });
 
-  // Toggle folder expansion
-  const toggleFolder = (folderKey: string) => {
-    setExpandedFolders((prev) => ({
-      ...prev,
-      [folderKey]: !prev[folderKey],
-    }));
-  };
-
-  // Build the hierarchical tree from the files list
-  const fileTree = useMemo(() => {
-    const root: TreeNode = { name: "Root", path: "", isFolder: true, children: [] };
-    
-    // Filter files based on search query
-    const filteredFiles = files.filter(([_, path]) =>
-      path.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    for (const [_, relPath] of filteredFiles) {
-      const parts = relPath.split("/");
-      let current = root;
-      
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const isLast = i === parts.length - 1;
-        
-        let found = current.children.find((c) => c.name === part);
-        if (!found) {
-          found = {
-            name: part,
-            path: isLast ? relPath : "",
-            isFolder: !isLast,
-            children: [],
-          };
-          current.children.push(found);
-        }
-        current = found;
+  // Precompute the set of directory paths that contain any descendant change,
+  // so we can render an aggregate dot on collapsed folders. Memoised across
+  // recentChanges identity changes.
+  const dirChangeSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!recentChanges) return set;
+    for (const path of Object.keys(recentChanges)) {
+      const parts = path.split("/");
+      let acc = "";
+      for (let i = 0; i < parts.length - 1; i++) {
+        acc = acc ? `${acc}/${parts[i]}` : parts[i];
+        set.add(acc);
       }
     }
+    return set;
+  }, [recentChanges]);
 
-    // Sort folders first, then files alphabetically
-    const sortNode = (node: TreeNode) => {
-      node.children.sort((a, b) => {
-        if (a.isFolder && !b.isFolder) return -1;
-        if (!a.isFolder && b.isFolder) return 1;
-        return a.name.localeCompare(b.name);
-      });
-      for (const child of node.children) {
-        if (child.isFolder) sortNode(child);
+  // Search filter — when the query is non-empty we expand every ancestor of
+  // each match so the user sees hits without clicking. We don't *mutate* the
+  // controlled `expanded` map; instead we union it with a transient set.
+  const transientExpand = useMemo(() => {
+    if (!searchQuery || !tree) return new Set<string>();
+    const q = searchQuery.toLowerCase();
+    const set = new Set<string>();
+    const visit = (node: ProjectTreeNode) => {
+      for (const c of node.children) {
+        if (c.is_dir) {
+          visit(c);
+          // expand parents-of-matches: if any descendant of c matches, expand
+          // c. We compute this by re-walking — fine because trees are bounded
+          // by the user's project size and search is rare.
+        }
       }
     };
-    sortNode(root);
-    return root;
-  }, [files, searchQuery]);
+    visit(tree);
+    // Second pass: mark every directory whose subtree contains a hit.
+    const matches = (node: ProjectTreeNode): boolean => {
+      if (!node.is_dir && node.name.toLowerCase().includes(q)) return true;
+      let any = false;
+      for (const c of node.children) {
+        if (matches(c)) {
+          if (c.is_dir) set.add(c.relative_path);
+          any = true;
+        }
+      }
+      return any;
+    };
+    matches(tree);
+    return set;
+  }, [searchQuery, tree]);
 
-  // Determine file icon and color
+  const isExpanded = useCallback(
+    (relPath: string) => transientExpand.has(relPath) || !!expanded[relPath],
+    [transientExpand, expanded],
+  );
+
+  // Determine file icon and accent. Lifted out so render functions stay slim.
   const getFileIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
     switch (ext) {
@@ -98,50 +114,53 @@ export function FileExplorer({ files, activeFile, onSelectFile }: FileExplorerPr
     }
   };
 
-  // Render tree node recursively
-  const renderNode = (node: TreeNode, depth: number = 0, parentKey: string = "root") => {
-    if (node === fileTree) {
-      return (
-        <div className="space-y-0.5">
-          {node.children.map((child, idx) =>
-            renderNode(child, depth, `${parentKey}-${idx}`)
-          )}
-        </div>
-      );
-    }
+  // Search-filtered recursive render. We hide nodes whose subtree matches
+  // nothing once a query is active; otherwise the entire tree shows.
+  const matchesQuery = useCallback(
+    (node: ProjectTreeNode): boolean => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      if (node.name.toLowerCase().includes(q)) return true;
+      return node.children.some((c) => matchesQuery(c));
+    },
+    [searchQuery],
+  );
 
-    const currentKey = `${parentKey}-${node.name}`;
-    const isExpanded = !!expandedFolders[currentKey];
+  const renderNode = (node: ProjectTreeNode, depth: number) => {
+    if (!matchesQuery(node)) return null;
 
-    if (node.isFolder) {
+    if (node.is_dir) {
+      const open = isExpanded(node.relative_path);
+      const hasChange = dirChangeSet.has(node.relative_path);
       return (
-        <div key={currentKey} className="select-none">
+        <div key={node.relative_path || "__root_dir"} className="select-none">
           <div
-            onClick={() => toggleFolder(currentKey)}
+            onClick={() => onToggleExpand(node.relative_path)}
             className="flex items-center py-1 px-2 rounded-md hover:bg-accent/40 text-sm text-foreground/85 cursor-pointer transition-colors duration-150"
             style={{ paddingLeft: `${depth * 10 + 8}px` }}
           >
             <span className="mr-1 text-muted-foreground/60">
-              {isExpanded ? (
+              {open ? (
                 <ChevronDown className="w-3.5 h-3.5" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5" />
               )}
             </span>
+            {hasChange && (
+              <span
+                aria-hidden
+                className="mr-1.5 inline-block w-1.5 h-1.5 rounded-full bg-primary/50"
+                title="이 폴더 안에 변경된 파일 있음"
+              />
+            )}
             <span className="mr-2 text-primary/80">
-              {isExpanded ? (
-                <FolderOpen className="w-4 h-4" />
-              ) : (
-                <Folder className="w-4 h-4" />
-              )}
+              {open ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
             </span>
             <span className="truncate font-medium text-xs">{node.name}</span>
           </div>
-          {isExpanded && (
+          {open && (
             <div className="overflow-hidden">
-              {node.children.map((child, idx) =>
-                renderNode(child, depth + 1, `${currentKey}-${idx}`)
-              )}
+              {node.children.map((child) => renderNode(child, depth + 1))}
             </div>
           )}
         </div>
@@ -149,13 +168,14 @@ export function FileExplorer({ files, activeFile, onSelectFile }: FileExplorerPr
     }
 
     // File node
-    const isActive = activeFile === node.path;
+    const isActive = activeFile === node.relative_path;
+    const op = recentChanges?.[node.relative_path];
     const { icon, color } = getFileIcon(node.name);
 
     return (
       <div
-        key={currentKey}
-        onClick={() => onSelectFile(node.path)}
+        key={node.relative_path}
+        onClick={() => onSelectFile(node.relative_path)}
         className={`flex items-center py-1 px-2 rounded-md text-xs cursor-pointer select-none transition-all duration-150 ${
           isActive
             ? "bg-primary text-primary-foreground font-semibold shadow-sm"
@@ -163,13 +183,43 @@ export function FileExplorer({ files, activeFile, onSelectFile }: FileExplorerPr
         }`}
         style={{ paddingLeft: `${depth * 10 + 26}px` }}
       >
+        {op ? (
+          <span
+            aria-label={`변경: ${op}`}
+            className={`mr-1.5 inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
+              isActive ? "bg-primary-foreground" : "bg-primary"
+            }`}
+          />
+        ) : (
+          <span aria-hidden className="mr-1.5 inline-block w-1.5 h-1.5 shrink-0" />
+        )}
         <span className={`mr-2 shrink-0 ${isActive ? "text-primary-foreground" : color}`}>
           {icon}
         </span>
         <span className="truncate">{node.name}</span>
+        {op && (
+          <span
+            className={`ml-auto text-[10px] font-bold tracking-wider shrink-0 ${
+              isActive ? "text-primary-foreground" : opColor(op)
+            }`}
+            aria-hidden
+          >
+            {op}
+          </span>
+        )}
       </div>
     );
   };
+
+  // Auto-expand the root on first render so the user sees something.
+  useEffect(() => {
+    if (tree && expanded[""] === undefined) {
+      onToggleExpand("");
+    }
+    // We only want this to fire on the *initial* tree load — once the user
+    // collapses the root we mustn't re-open it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree === null]);
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-border glassy-sidebar">
@@ -189,14 +239,29 @@ export function FileExplorer({ files, activeFile, onSelectFile }: FileExplorerPr
 
       {/* Directory Tree */}
       <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-        {fileTree.children.length > 0 ? (
-          renderNode(fileTree)
-        ) : (
+        {!tree ? (
+          <div className="text-center text-muted-foreground/60 py-8 text-xs">Loading…</div>
+        ) : tree.children.length === 0 ? (
           <div className="text-center text-muted-foreground/60 py-8 text-xs">
             No files found
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {tree.children.map((child) => renderNode(child, 0))}
           </div>
         )}
       </div>
     </div>
   );
+}
+
+function opColor(op: ChangeOp): string {
+  switch (op) {
+    case "A":
+      return "text-emerald-600 dark:text-emerald-400";
+    case "M":
+      return "text-amber-600 dark:text-amber-400";
+    case "D":
+      return "text-destructive";
+  }
 }
