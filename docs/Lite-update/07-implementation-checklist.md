@@ -239,19 +239,19 @@
 | ☑ | (Part 3) 사용자 명시 "비우기" 액션 — `WorkspaceContext.clearRecentChanges()` 신설 (no-op when empty). SidePanel footer 의 ghost button `{N}개 변경 비우기` (recentChanges 비어 있으면 hide). |
 | ☑ | (Part 2) "외부 에디터로 열기" 동작 — `commands::external_editor::open_in_editor(project_root, rel_path, editor_cmd)` (shell-quote substitution + spawn detached) + `settings.externalEditorCommand` (default `code "%path"`) + SettingsPanel Appearance "External editor" Section. macOS GUI PATH 미상속 caveat 도 hint 에 명시. 5 unit tests (`substitute_path`). |
 
-### PR9 — AI 패널 재배치
+### PR9 — AI 패널 재배치 ✅ (2026-05-29, head `e78e998`)
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/components/AiOverlay.tsx` 신설 — ⌘\ 오버레이 |
-| ☐ | `src/main-ai.tsx` 신설 — 분리 윈도우 entry |
-| ☐ | ⌘⇧\ → 분리 윈도우 |
-| ☐ | `AiWorkbench` props 정리 — Code 화면 의존 끊김 |
-| ☐ | `WorkspaceContext.aiOverlayOpen` 신설 / `aiWorkbenchOpen` 제거 |
-| ☐ | 분리 윈도우 위치/크기 `tauri-plugin-window-state` 로 영속화 |
-| ☐ | 오버레이 + 분리 윈도우 동시 활성화 차단 |
-| ☐ | RAG citations 의 시각이 오버레이에서 정상 |
-| ☐ | 회귀: Today / Plan 어느 화면에서도 ⌘\ 진입 |
+| ☑ | `src/components/AiOverlay.tsx` 신설 — ⌘\ 오버레이 (centered Sheet, max-w 720, ESC/외부/✕/⌘\ 닫힘, "↗ 분리" 버튼) |
+| ⊘ | `src/main-ai.tsx` 신설 — *대신* `App.tsx` 의 `?window=ai` 분기로 단일 entry 유지 (Terminal 패턴 답습, vite multi-entry 회피). |
+| ☑ | ⌘⇧\ → 분리 윈도우 (`commands.openAiWindow` 호출 + 오버레이 자동 닫힘) |
+| ☑ | `AiWorkbench` props 정리 — Code 화면 의존 끊김. CodeWorkbench 의 inline mount + resize handle + `aiWidth` state 전부 제거. |
+| ☑ | `WorkspaceContext.aiOverlayOpen` 신설 / `aiWorkbenchOpen` 제거 + `migrateAiOverlayOpen` (non-`true` → `false`) + `loadFromStorage` 의 legacy field 삭제. |
+| ☑ | 분리 윈도우 위치/크기 `tauri-plugin-window-state` 로 영속화 — App builder 에 plugin 이미 init 됨, additional code 0. |
+| ⊘ | 오버레이 + 분리 윈도우 동시 활성화 차단 — **연기**. 둘 다 동시 가능, ⌘\ 가 detached 윈도우 인지 못함. `window:created`/`window:destroyed` 이벤트 브릿지 + 휘발성 flag 가 닫는다. 1.0 dogfood 비-load-bearing. |
+| ⊘ | RAG citations 의 시각이 오버레이에서 정상 — 1.0 옵션, dogfood 검증 후 Phase D 에서 폴리시 (overlay 가 width 720 px 라 citations 영역 좁아질 수 있음, PR10 의 a11y/카피 풀-스윕에 포함). |
+| ☑ | 회귀: Today / Plan 어느 화면에서도 ⌘\ 진입. CommandPalette 의 "AI 패널 토글" / "AI 패널 분리 윈도우로 열기" item 도 동일 동작. |
 
 ---
 
