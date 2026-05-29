@@ -109,11 +109,13 @@ export function GitBranchChip({ projectId }: { projectId: number | null }) {
       <GitBranch className="w-3 h-3" />
       <span className="font-mono">{branchLabel}</span>
       {uncommitted > 0 && (
-        // The "+N" badge re-uses the destructive accent so the chip can be
-        // scanned at a glance without expanding the meaning of the
-        // foreground colour token.
+        // Lite-W6 PR10 — uncommitted is a notice ("you have N pending
+        // changes"), not an error, so the badge no longer steals the
+        // destructive accent. The amber `--accent-uncommitted` token has
+        // dedicated dark-mode chroma in App.css.
         <span
-          className="ml-0.5 text-[10px] font-bold text-destructive"
+          className="ml-0.5 text-[10px] font-bold"
+          style={{ color: "var(--accent-uncommitted)" }}
           aria-label={`${uncommitted}개 미커밋`}
         >
           +{uncommitted}

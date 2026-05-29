@@ -326,7 +326,8 @@ export function FileExplorer({
             {hasChange && (
               <span
                 aria-hidden
-                className="mr-1.5 inline-block w-1.5 h-1.5 rounded-full bg-primary/50"
+                className="mr-1.5 inline-block w-1.5 h-1.5 rounded-full opacity-60"
+                style={{ backgroundColor: "var(--accent-recent-change)" }}
                 title="이 폴더 안에 변경된 파일 있음"
               />
             )}
@@ -379,9 +380,12 @@ export function FileExplorer({
         {op ? (
           <span
             aria-label={`변경: ${op}`}
-            className={`mr-1.5 inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-              isActive ? "bg-primary-foreground" : "bg-primary"
-            }`}
+            className="mr-1.5 inline-block w-1.5 h-1.5 rounded-full shrink-0"
+            style={{
+              backgroundColor: isActive
+                ? "currentColor"
+                : "var(--accent-recent-change)",
+            }}
           />
         ) : (
           <span aria-hidden className="mr-1.5 inline-block w-1.5 h-1.5 shrink-0" />

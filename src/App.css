@@ -192,6 +192,37 @@
     --radius-chip:   999px;   /* chip/badge */
     --motion-fast:   150ms;   /* 마이크로 인터랙션 */
     --motion-normal: 200ms;   /* 화면 전환 */
+
+    /* Lite-W6 PR10 — semantic accents for "attention, not error" notices.
+       Both are amber-leaning so they read as a notice rather than alarm
+       (destructive stays reserved for actual error states). Pick distinct
+       shades so a FileTree dot and a GitChip badge in the same titlebar
+       don't visually collapse into one tone. */
+    --accent-recent-change:   #d4a843;  /* amber — Watcher A/M/D dot */
+    --accent-uncommitted:     #c4922f;  /* deeper amber — git +N badge */
+  }
+  .dark {
+    /* Dark-mode variants: lift the chroma so the accents stay legible
+       against the #181715 canvas. */
+    --accent-recent-change:   #e6c570;
+    --accent-uncommitted:     #dba94b;
+  }
+
+  /* Lite-W6 PR10 — WCAG SC 2.3.3 (Animation from Interactions). Anyone
+     who has opted in to "reduce motion" in their OS sees the chrome
+     without animations. We collapse durations to 1 ms rather than
+     `animation: none` so framework-driven keyframes (tw-animate-css,
+     shadcn dialogs) still complete their lifecycle and don't get stuck
+     mid-fade. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
