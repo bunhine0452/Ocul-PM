@@ -259,17 +259,19 @@
 
 ### PR10 — a11y / 다크모드 / 카피
 
+**진행 분할**: PR10 Part 1 (토큰 + reduced-motion + 의미 색 보정) ✅ 2026-05-29 `b4f9377` / PR10 Part 2 (axe-core + 키 nav 감사) ☐ / PR10 Part 3 (한국어 카피 통일) ☐. PR7/PR8 의 Part 분할 패턴 답습.
+
 | 체크 | 항목 |
 |---|---|
-| ☐ | axe-core report critical 0 |
-| ☐ | 모든 인터랙티브 요소 keyboard navigable |
-| ☐ | 색상 대비 ≥ 4.5:1 |
-| ☐ | mismatch 배지 = 색 + 아이콘 + 텍스트 3중 |
-| ☐ | 다크모드 — Lite 후 잔존 모든 화면 정상 |
-| ☐ | 새 토큰 (`--accent-recent-change`, `--accent-uncommitted`) 의 다크 변형 |
-| ☐ | `prefers-reduced-motion` 존중 |
-| ☐ | 카피 한국어 통일 (영문 단축키 / 기술명만 영문) |
-| ☐ | `src/locales/ko.json` 갱신 |
+| ☐ | (Part 2) axe-core report critical 0 — 외부 dep 추가 (`@axe-core/react`) 사용자 confirm 필요 (§6 rule 6). |
+| ☐ | (Part 2) 모든 인터랙티브 요소 keyboard navigable — FileExplorer ↑↓→←/Enter/Space 는 PR8 Part 3 에서 완료. AiOverlay ESC 닫기는 PR9 완료. CommandPalette ⌘K 는 W5 완료. 나머지 모달/사이드패널 ESC + Tab 순서 감사 필요. |
+| ☐ | (Part 2) 색상 대비 ≥ 4.5:1 — `--muted-foreground` 가 이미 WCAG AA 수준이지만 신규 토큰 (`--accent-recent-change` 등) 의 contrast 도 검증 필요. |
+| ⊘ | mismatch 배지 = 색 + 아이콘 + 텍스트 3중 — session-mismatch UI 가 PR3 에서 retire. 가장 가까운 surface = FileTree A/M/D 배지 (이미 color + text 충족, 아이콘 추가는 1.1). |
+| ☐ | (Part 2) 다크모드 — Lite 후 잔존 모든 화면 정상. dogfood 검증 영역. |
+| ☑ | (Part 1) 새 토큰 (`--accent-recent-change`, `--accent-uncommitted`) 의 다크 변형 — App.css `@layer base` 의 `:root` + `.dark` 양쪽 정의 (light amber → dark amber chroma-shifted). GitBranchChip 의 uncommitted 배지 (`text-destructive` → token), FileExplorer 의 dot (per-file + ancestor + active-row override) 가 신규 토큰 사용. |
+| ☑ | (Part 1) `prefers-reduced-motion` 존중 — App.css 의 `@media (prefers-reduced-motion: reduce)` 글로벌 룰. `*::before`/`*::after` 포함 animation/transition duration 1ms collapse + scroll-behavior auto. `animation: none` 회피로 keyframe lifecycle 보존. |
+| ☐ | (Part 3) 카피 한국어 통일 (영문 단축키 / 기술명만 영문) — grep 기반 100+ 문자열 변경 예상. |
+| ☐ | (Part 3) `src/locales/ko.json` 갱신 — 기존 ko.json 존재 (`src/locales/ko.json` 확인), 신규 surface 추가분 동기화 필요. |
 
 ### PR11 — 성능 + 통합 테스트
 
