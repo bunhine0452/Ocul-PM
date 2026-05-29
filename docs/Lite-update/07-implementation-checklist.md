@@ -222,7 +222,7 @@
 
 ### PR8 — FileTree 재설계
 
-**진행 분할**: PR8 Part 1 (backend command + TreeNode 전환 + recentChanges 영속화) ✅ / PR8 Part 2 (⌘B 사이드 패널 + open_in_editor + Settings prefs) ☐ / PR8 Part 3 (a11y + 비우기 액션 + 성능) ☐. PR7 의 Part 분할 패턴을 답습 — dogfood 회귀를 작게 유지.
+**진행 분할**: PR8 Part 1 (backend command + TreeNode 전환 + recentChanges 영속화) ✅ / PR8 Part 2 (⌘B 사이드 패널 + open_in_editor + Settings prefs) ✅ / PR8 Part 3 (a11y + 비우기 액션 + 성능) ☐. PR7 의 Part 분할 패턴을 답습 — dogfood 회귀를 작게 유지.
 
 | 체크 | 항목 |
 |---|---|
@@ -231,11 +231,11 @@
 | ☑ | (Part 1) 변경 하이라이트 dot + op 배지. 파일 dot + 우측 `A/M/D` 배지 + ancestor 디렉토리 soft dot. `opColor` 가 light/dark 양쪽에서 4.5:1 contrast. (Part 3 의 axe-core 풀-스윕은 별도) |
 | ☑ | (Part 1) `recentChanges` 영속화 (max 1000 cap) — `WorkspaceContext.recentChanges: RecentChange[]` + `pushRecentChange` (dedupe by path / FIFO trim to `RECENT_CHANGES_CAP = 1000`) + `mapFileOpToChangeOp` + `events.oculpmFileChanged` 리스너. `setProject` switched 시 reset, `loadFromStorage` 가 corrupted shape drop. |
 | ☑ | (Part 1) `fileExplorerExpanded` 영속화 — 기존 `WorkspaceState` 필드 였음, `setProject` switched 시 reset 만 추가. |
-| ☐ | (Part 2) ⌘B 토글 — 좌측 사이드 패널 (FileTree + Diff) |
+| ☑ | (Part 2) ⌘B 토글 — 좌측 사이드 패널 (FileTree). `sidePanelOpen` + `sidePanelWidth` 영속화 (clamp 200~500 + `migrateSidePanelWidth`), `useGlobalShortcuts` ⌘B, CommandPalette 액션 item, `App.tsx` 가 IA strip ↔ activeView 사이에 conditional mount. **Diff dock 은 PR6.3 (LocalDiffView UI) 으로 분리** — 1.0 안에서는 SidePanel 이 FileTree 만 호스트. |
 | ☐ | (Part 3) 50k 파일 데모에서 마운트 < 500ms |
 | ☐ | (Part 3) a11y — 트리 키보드 navigation (↑↓←→) |
 | ☐ | (Part 3) 사용자 명시 "비우기" 액션 |
-| ☐ | (Part 2) "외부 에디터로 열기" 동작 — `open_in_editor` 커맨드 + Settings 의 명령 prefs |
+| ☑ | (Part 2) "외부 에디터로 열기" 동작 — `commands::external_editor::open_in_editor(project_root, rel_path, editor_cmd)` (shell-quote substitution + spawn detached) + `settings.externalEditorCommand` (default `code "%path"`) + SettingsPanel Appearance "External editor" Section. macOS GUI PATH 미상속 caveat 도 hint 에 명시. 5 unit tests (`substitute_path`). |
 
 ### PR9 — AI 패널 재배치
 
