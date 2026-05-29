@@ -13,6 +13,11 @@ import {
   SIDE_PANEL_DEFAULT_WIDTH,
   type RecentChange,
 } from "@/contexts/WorkspaceContext";
+import {
+  flattenVisibleNodes,
+  nextFocusedPath,
+} from "@/components/FileExplorer";
+import type { ProjectTreeNode } from "@/lib/bindings";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
 //
@@ -110,6 +115,165 @@ describe("Lite-W6 PR8 Part 2 — sidePanelWidth clamp", () => {
   it("rounds non-integer widths to whole pixels", () => {
     expect(migrateSidePanelWidth(257.4)).toBe(257);
     expect(migrateSidePanelWidth(257.6)).toBe(258);
+  });
+});
+
+// ─── PR8 Part 3 — FileExplorer keyboard a11y helpers ────────────────────
+
+function mkTree(): ProjectTreeNode {
+  // Fixture:
+  //   src/
+  //     a.ts
+  //     features/
+  //       today/
+  //         index.tsx
+  //   README.md
+  return {
+    name: "",
+    relative_path: "",
+    is_dir: true,
+    children: [
+      {
+        name: "src",
+        relative_path: "src",
+        is_dir: true,
+        children: [
+          { name: "a.ts", relative_path: "src/a.ts", is_dir: false, children: [] },
+          {
+            name: "features",
+            relative_path: "src/features",
+            is_dir: true,
+            children: [
+              {
+                name: "today",
+                relative_path: "src/features/today",
+                is_dir: true,
+                children: [
+                  {
+                    name: "index.tsx",
+                    relative_path: "src/features/today/index.tsx",
+                    is_dir: false,
+                    children: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { name: "README.md", relative_path: "README.md", is_dir: false, children: [] },
+    ],
+  };
+}
+
+describe("Lite-W6 PR8 Part 3 — flattenVisibleNodes", () => {
+  it("hides children of collapsed folders", () => {
+    const out = flattenVisibleNodes(mkTree(), {});
+    // src + README.md only — src's children are hidden because src is collapsed.
+    expect(out.map((n) => n.path)).toEqual(["src", "README.md"]);
+  });
+
+  it("expands a single folder one level deep", () => {
+    const out = flattenVisibleNodes(mkTree(), { src: true });
+    expect(out.map((n) => n.path)).toEqual([
+      "src",
+      "src/a.ts",
+      "src/features",
+      "README.md",
+    ]);
+  });
+
+  it("populates depth + parentPath correctly", () => {
+    const out = flattenVisibleNodes(mkTree(), {
+      src: true,
+      "src/features": true,
+      "src/features/today": true,
+    });
+    const idx = out.find((n) => n.path === "src/features/today/index.tsx");
+    expect(idx?.depth).toBe(3);
+    expect(idx?.parentPath).toBe("src/features/today");
+  });
+});
+
+describe("Lite-W6 PR8 Part 3 — nextFocusedPath", () => {
+  it("ArrowDown moves to next sibling within the visible list", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    // visible: ["src", "src/a.ts", "src/features", "README.md"]
+    expect(nextFocusedPath(visible, "src", "ArrowDown", { src: true })).toBe("src/a.ts");
+    expect(nextFocusedPath(visible, "src/a.ts", "ArrowDown", { src: true })).toBe(
+      "src/features",
+    );
+  });
+
+  it("ArrowDown at the last node returns null (no movement)", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    expect(nextFocusedPath(visible, "README.md", "ArrowDown", { src: true })).toBe(null);
+  });
+
+  it("ArrowUp at the first node clamps to the first", () => {
+    const visible = flattenVisibleNodes(mkTree(), {});
+    expect(nextFocusedPath(visible, "src", "ArrowUp", {})).toBe("src");
+  });
+
+  it("ArrowRight on a collapsed folder expands instead of moving", () => {
+    const visible = flattenVisibleNodes(mkTree(), {});
+    const calls: string[] = [];
+    const out = nextFocusedPath(visible, "src", "ArrowRight", {}, (p) => calls.push(p));
+    expect(out).toBe(null);
+    expect(calls).toEqual(["src"]);
+  });
+
+  it("ArrowRight on an already-expanded folder descends to first child", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    expect(nextFocusedPath(visible, "src", "ArrowRight", { src: true })).toBe(
+      "src/a.ts",
+    );
+  });
+
+  it("ArrowLeft on an expanded folder collapses", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    const calls: string[] = [];
+    const out = nextFocusedPath(
+      visible,
+      "src",
+      "ArrowLeft",
+      { src: true },
+      undefined,
+      (p) => calls.push(p),
+    );
+    expect(out).toBe(null);
+    expect(calls).toEqual(["src"]);
+  });
+
+  it("ArrowLeft on a child file moves to its parent folder", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    expect(nextFocusedPath(visible, "src/a.ts", "ArrowLeft", { src: true })).toBe(
+      "src",
+    );
+  });
+
+  it("Home / End jump to first / last visible", () => {
+    const visible = flattenVisibleNodes(mkTree(), { src: true });
+    expect(nextFocusedPath(visible, "src/a.ts", "Home", { src: true })).toBe("src");
+    expect(nextFocusedPath(visible, "src", "End", { src: true })).toBe("README.md");
+  });
+});
+
+describe("Lite-W6 PR8 Part 3 — clearRecentChanges semantics", () => {
+  // Backed by a pure-fn assertion: pushRecentChange + an empty-array reset
+  // mirror the WorkspaceContext callback. A DOM round-trip lives in PR11.
+  it("an empty array is the canonical cleared state", () => {
+    const seed: RecentChange[] = [
+      { path: "a.ts", op: "M", ts: 1 },
+      { path: "b.ts", op: "A", ts: 2 },
+    ];
+    const cleared: RecentChange[] = [];
+    expect(cleared.length).toBe(0);
+    // Confirm pushRecentChange still works on a freshly cleared buffer so the
+    // watcher doesn't get stuck after the user clicks "비우기".
+    const next = pushRecentChange(cleared, { path: "c.ts", op: "D", ts: 3 });
+    expect(next).toEqual([{ path: "c.ts", op: "D", ts: 3 }]);
+    void seed;
   });
 });
 

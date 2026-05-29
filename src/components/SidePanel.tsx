@@ -22,7 +22,7 @@ import {
 } from "@/lib/bindings";
 import { FileExplorer, type ChangeOp } from "./FileExplorer";
 import { Button } from "./ui/button";
-import { ChevronLeft, RefreshCw } from "./Icons";
+import { ChevronLeft, RefreshCw, X } from "./Icons";
 import {
   useWorkspace,
   SIDE_PANEL_MIN_WIDTH,
@@ -50,6 +50,7 @@ export function SidePanel({
     setState,
     setSidePanelOpen,
     setSidePanelWidth,
+    clearRecentChanges,
   } = useWorkspace();
   const {
     activeFile,
@@ -199,20 +200,34 @@ export function SidePanel({
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground font-semibold">
-              {indexedCount} files indexed
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runReindex}
-              className="h-6 px-2 text-[10px] font-bold"
-              title="Update File Index"
-            >
-              <RefreshCw className="w-2.5 h-2.5 mr-1" />
-              Re-index
-            </Button>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] text-muted-foreground font-semibold">
+                {indexedCount} files indexed
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={runReindex}
+                className="h-6 px-2 text-[10px] font-bold"
+                title="Update File Index"
+              >
+                <RefreshCw className="w-2.5 h-2.5 mr-1" />
+                Re-index
+              </Button>
+            </div>
+            {Object.keys(recentChanges).length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearRecentChanges}
+                className="h-6 px-2 w-full text-[10px] font-medium text-muted-foreground hover:text-foreground justify-between"
+                title="변경 하이라이트 다시 보지 않기"
+              >
+                <span>{Object.keys(recentChanges).length}개 변경 비우기</span>
+                <X className="w-2.5 h-2.5" />
+              </Button>
+            )}
           </div>
         )}
       </div>

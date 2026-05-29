@@ -256,6 +256,52 @@ mod tests {
         assert!(!leaf.is_dir);
     }
 
+    /// Lite-W6 PR8 Part 3 perf check — the FileTree must mount under 500ms
+    /// on a 50k-file project. We measure the backend half (walk + tree
+    /// assembly) in isolation; the frontend render is exercised by the
+    /// React tree (only visible nodes mount).
+    ///
+    /// Ignored by default because creating 50k tempfiles is slow (~3–5s on
+    /// a modern SSD) and not what the regular test loop should pay for.
+    /// Run with: `cargo test --manifest-path src-tauri/Cargo.toml --release
+    /// project_tree::tests::perf_bench_50k_files -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "perf bench — see comment; run with --release --ignored"]
+    fn perf_bench_50k_files() {
+        const TARGET_FILES: usize = 50_000;
+        // Spread 50k files across ~100 dirs so the walker exercises both
+        // directory traversal and per-file metadata calls.
+        const FILES_PER_DIR: usize = 500;
+        let tmp = TempDir::new().unwrap();
+        for d in 0..(TARGET_FILES / FILES_PER_DIR) {
+            for f in 0..FILES_PER_DIR {
+                write(tmp.path(), &format!("dir-{d:03}/file-{f:05}.ts"), "");
+            }
+        }
+
+        let start = std::time::Instant::now();
+        let tree = build_project_tree(tmp.path(), None);
+        let elapsed = start.elapsed();
+        let total: usize = tree
+            .children
+            .iter()
+            .filter(|c| c.is_dir)
+            .map(|d| d.children.len())
+            .sum();
+        eprintln!(
+            "perf_bench_50k_files: {} files walked in {:?} ({} ms)",
+            total,
+            elapsed,
+            elapsed.as_millis()
+        );
+        assert!(
+            elapsed.as_millis() < 500,
+            "build_project_tree on 50k files exceeded the 500ms SLO ({:?})",
+            elapsed
+        );
+        assert_eq!(total, TARGET_FILES);
+    }
+
     #[test]
     fn respects_max_depth() {
         let tmp = TempDir::new().unwrap();

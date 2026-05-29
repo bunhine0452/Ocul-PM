@@ -484,6 +484,9 @@ interface WorkspaceContextValue {
   toggleSidePanel: () => void;
   setSidePanelOpen: (open: boolean) => void;
   setSidePanelWidth: (width: number) => void;
+
+  // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
+  clearRecentChanges: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -591,6 +594,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setSidePanelWidth = useCallback((width: number) => {
     setState((prev) => ({ ...prev, sidePanelWidth: migrateSidePanelWidth(width) }));
+  }, []);
+
+  const clearRecentChanges = useCallback(() => {
+    setState((prev) =>
+      prev.recentChanges.length === 0 ? prev : { ...prev, recentChanges: [] },
+    );
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -725,6 +734,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         toggleSidePanel,
         setSidePanelOpen,
         setSidePanelWidth,
+        clearRecentChanges,
       }}
     >
       {children}

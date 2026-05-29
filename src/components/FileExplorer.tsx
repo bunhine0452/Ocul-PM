@@ -1,8 +1,25 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import type { ProjectTreeNode } from "@/lib/bindings";
 import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "./Icons";
 
 export type ChangeOp = "A" | "M" | "D";
+
+/**
+ * Flattened DFS order of every *visible* node in the tree — i.e. respecting
+ * the controlled `expanded` map. Exported (with `flattenVisibleNodes`) so the
+ * a11y keyboard navigation logic can be unit-tested in isolation from the
+ * DOM. Lite-W6 PR8 Part 3.
+ */
+export interface FlatNode {
+  /** `""` for the synthetic root we don't render directly. */
+  path: string;
+  name: string;
+  isDir: boolean;
+  /** 0 for top-level children of the project root, 1 for `src/x`, etc. */
+  depth: number;
+  /** Parent's `relative_path`; `""` when the parent is the root. */
+  parentPath: string;
+}
 
 interface FileExplorerProps {
   /** Directory tree from `commands.listProjectTree`. `null` while loading. */
@@ -18,11 +35,95 @@ interface FileExplorerProps {
   /** Controlled expanded map. Keys are `relative_path` for folder nodes. */
   expanded: Record<string, boolean>;
   onToggleExpand: (relPath: string) => void;
-  /**
-   * Optional: when set, the footer is wired by the parent. We don't render
-   * a footer ourselves so the CodeWorkbench / sidebar gutter can compose
-   * around us.
-   */
+}
+
+/**
+ * Walk `tree` in DFS order, respecting `expanded`, and emit one entry per
+ * visible node. Public for unit testing of the keyboard nav logic.
+ */
+export function flattenVisibleNodes(
+  tree: ProjectTreeNode | null,
+  expanded: Record<string, boolean>,
+): FlatNode[] {
+  if (!tree) return [];
+  const out: FlatNode[] = [];
+  const visit = (node: ProjectTreeNode, depth: number, parentPath: string) => {
+    out.push({
+      path: node.relative_path,
+      name: node.name,
+      isDir: node.is_dir,
+      depth,
+      parentPath,
+    });
+    if (node.is_dir && expanded[node.relative_path]) {
+      for (const c of node.children) {
+        visit(c, depth + 1, node.relative_path);
+      }
+    }
+  };
+  for (const top of tree.children) {
+    visit(top, 0, "");
+  }
+  return out;
+}
+
+/**
+ * Compute the next focused path for an arrow-key event against the flat
+ * list. Returns `null` if focus shouldn't move (e.g. ↑ at the top item).
+ * Folder expand/collapse side-effects are reported via the optional
+ * `onExpand` / `onCollapse` callbacks rather than mutating state here so
+ * the function stays pure for tests.
+ */
+export function nextFocusedPath(
+  visible: FlatNode[],
+  current: string | null,
+  key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End",
+  expanded: Record<string, boolean>,
+  onExpand?: (path: string) => void,
+  onCollapse?: (path: string) => void,
+): string | null {
+  if (visible.length === 0) return null;
+  const idx = current ? visible.findIndex((n) => n.path === current) : -1;
+  switch (key) {
+    case "Home":
+      return visible[0]?.path ?? null;
+    case "End":
+      return visible[visible.length - 1]?.path ?? null;
+    case "ArrowUp": {
+      if (idx <= 0) return visible[0]?.path ?? null;
+      return visible[idx - 1]?.path ?? null;
+    }
+    case "ArrowDown": {
+      if (idx < 0) return visible[0]?.path ?? null;
+      if (idx >= visible.length - 1) return null;
+      return visible[idx + 1]?.path ?? null;
+    }
+    case "ArrowRight": {
+      if (idx < 0) return visible[0]?.path ?? null;
+      const node = visible[idx];
+      if (node.isDir) {
+        if (!expanded[node.path]) {
+          onExpand?.(node.path);
+          return null;
+        }
+        // Already expanded — descend into first child if present.
+        const next = visible[idx + 1];
+        if (next && next.parentPath === node.path) return next.path;
+      }
+      return null;
+    }
+    case "ArrowLeft": {
+      if (idx < 0) return visible[0]?.path ?? null;
+      const node = visible[idx];
+      if (node.isDir && expanded[node.path]) {
+        onCollapse?.(node.path);
+        return null;
+      }
+      // Move to parent.
+      if (node.parentPath) return node.parentPath;
+      return null;
+    }
+  }
 }
 
 export function FileExplorer({
@@ -34,10 +135,12 @@ export function FileExplorer({
   onToggleExpand,
 }: FileExplorerProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Precompute the set of directory paths that contain any descendant change,
-  // so we can render an aggregate dot on collapsed folders. Memoised across
-  // recentChanges identity changes.
+  // so we can render an aggregate dot on collapsed folders.
   const dirChangeSet = useMemo(() => {
     const set = new Set<string>();
     if (!recentChanges) return set;
@@ -52,25 +155,12 @@ export function FileExplorer({
     return set;
   }, [recentChanges]);
 
-  // Search filter — when the query is non-empty we expand every ancestor of
-  // each match so the user sees hits without clicking. We don't *mutate* the
-  // controlled `expanded` map; instead we union it with a transient set.
+  // Search filter — when the query is non-empty we transiently mark every
+  // ancestor of each match as expanded so hits aren't hidden.
   const transientExpand = useMemo(() => {
     if (!searchQuery || !tree) return new Set<string>();
     const q = searchQuery.toLowerCase();
     const set = new Set<string>();
-    const visit = (node: ProjectTreeNode) => {
-      for (const c of node.children) {
-        if (c.is_dir) {
-          visit(c);
-          // expand parents-of-matches: if any descendant of c matches, expand
-          // c. We compute this by re-walking — fine because trees are bounded
-          // by the user's project size and search is rare.
-        }
-      }
-    };
-    visit(tree);
-    // Second pass: mark every directory whose subtree contains a hit.
     const matches = (node: ProjectTreeNode): boolean => {
       if (!node.is_dir && node.name.toLowerCase().includes(q)) return true;
       let any = false;
@@ -86,12 +176,34 @@ export function FileExplorer({
     return set;
   }, [searchQuery, tree]);
 
+  const effectiveExpanded = useMemo(() => {
+    if (transientExpand.size === 0) return expanded;
+    const merged: Record<string, boolean> = { ...expanded };
+    for (const p of transientExpand) merged[p] = true;
+    return merged;
+  }, [expanded, transientExpand]);
+
+  const flatVisible = useMemo(
+    () => flattenVisibleNodes(tree, effectiveExpanded),
+    [tree, effectiveExpanded],
+  );
+
   const isExpanded = useCallback(
     (relPath: string) => transientExpand.has(relPath) || !!expanded[relPath],
     [transientExpand, expanded],
   );
 
-  // Determine file icon and accent. Lifted out so render functions stay slim.
+  // Keep the focused element in view + DOM-focused when state changes.
+  useEffect(() => {
+    if (!focusedPath) return;
+    const el = itemRefs.current.get(focusedPath);
+    if (el) {
+      el.focus({ preventScroll: false });
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [focusedPath]);
+
+  // Determine file icon and accent.
   const getFileIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
     switch (ext) {
@@ -114,8 +226,6 @@ export function FileExplorer({
     }
   };
 
-  // Search-filtered recursive render. We hide nodes whose subtree matches
-  // nothing once a query is active; otherwise the entire tree shows.
   const matchesQuery = useCallback(
     (node: ProjectTreeNode): boolean => {
       if (!searchQuery) return true;
@@ -126,8 +236,51 @@ export function FileExplorer({
     [searchQuery],
   );
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (
+      e.key !== "ArrowUp" &&
+      e.key !== "ArrowDown" &&
+      e.key !== "ArrowLeft" &&
+      e.key !== "ArrowRight" &&
+      e.key !== "Home" &&
+      e.key !== "End" &&
+      e.key !== "Enter" &&
+      e.key !== " "
+    ) {
+      return;
+    }
+    e.preventDefault();
+    if (e.key === "Enter" || e.key === " ") {
+      const target = focusedPath ?? flatVisible[0]?.path;
+      if (!target) return;
+      const node = flatVisible.find((n) => n.path === target);
+      if (!node) return;
+      if (node.isDir) {
+        onToggleExpand(node.path);
+      } else {
+        onSelectFile(node.path);
+      }
+      return;
+    }
+    const next = nextFocusedPath(
+      flatVisible,
+      focusedPath,
+      e.key as "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End",
+      effectiveExpanded,
+      (p) => onToggleExpand(p),
+      (p) => onToggleExpand(p),
+    );
+    if (next !== null) setFocusedPath(next);
+  };
+
   const renderNode = (node: ProjectTreeNode, depth: number) => {
     if (!matchesQuery(node)) return null;
+
+    const isFocused = focusedPath === node.relative_path;
+    const setItemRef = (el: HTMLDivElement | null) => {
+      if (el) itemRefs.current.set(node.relative_path, el);
+      else itemRefs.current.delete(node.relative_path);
+    };
 
     if (node.is_dir) {
       const open = isExpanded(node.relative_path);
@@ -135,8 +288,21 @@ export function FileExplorer({
       return (
         <div key={node.relative_path || "__root_dir"} className="select-none">
           <div
-            onClick={() => onToggleExpand(node.relative_path)}
-            className="flex items-center py-1 px-2 rounded-md hover:bg-accent/40 text-sm text-foreground/85 cursor-pointer transition-colors duration-150"
+            ref={setItemRef}
+            role="treeitem"
+            aria-expanded={open}
+            aria-level={depth + 1}
+            tabIndex={isFocused ? 0 : -1}
+            onClick={() => {
+              setFocusedPath(node.relative_path);
+              onToggleExpand(node.relative_path);
+            }}
+            onFocus={() => setFocusedPath(node.relative_path)}
+            className={`flex items-center py-1 px-2 rounded-md text-sm text-foreground/85 cursor-pointer transition-colors duration-150 outline-none ${
+              isFocused
+                ? "bg-accent ring-1 ring-primary/40"
+                : "hover:bg-accent/40"
+            }`}
             style={{ paddingLeft: `${depth * 10 + 8}px` }}
           >
             <span className="mr-1 text-muted-foreground/60">
@@ -159,7 +325,7 @@ export function FileExplorer({
             <span className="truncate font-medium text-xs">{node.name}</span>
           </div>
           {open && (
-            <div className="overflow-hidden">
+            <div role="group">
               {node.children.map((child) => renderNode(child, depth + 1))}
             </div>
           )}
@@ -175,11 +341,22 @@ export function FileExplorer({
     return (
       <div
         key={node.relative_path}
-        onClick={() => onSelectFile(node.relative_path)}
-        className={`flex items-center py-1 px-2 rounded-md text-xs cursor-pointer select-none transition-all duration-150 ${
+        ref={setItemRef}
+        role="treeitem"
+        aria-selected={isActive}
+        aria-level={depth + 1}
+        tabIndex={isFocused ? 0 : -1}
+        onClick={() => {
+          setFocusedPath(node.relative_path);
+          onSelectFile(node.relative_path);
+        }}
+        onFocus={() => setFocusedPath(node.relative_path)}
+        className={`flex items-center py-1 px-2 rounded-md text-xs cursor-pointer select-none transition-all duration-150 outline-none ${
           isActive
             ? "bg-primary text-primary-foreground font-semibold shadow-sm"
-            : "hover:bg-accent/40 text-foreground/80"
+            : isFocused
+              ? "bg-accent ring-1 ring-primary/40 text-foreground/80"
+              : "hover:bg-accent/40 text-foreground/80"
         }`}
         style={{ paddingLeft: `${depth * 10 + 26}px` }}
       >
@@ -211,15 +388,20 @@ export function FileExplorer({
     );
   };
 
-  // Auto-expand the root on first render so the user sees something.
+  // Auto-expand the root + seed focus on the first visible node on initial
+  // tree load. Once the user collapses or moves focus, we don't second-guess.
   useEffect(() => {
     if (tree && expanded[""] === undefined) {
       onToggleExpand("");
     }
-    // We only want this to fire on the *initial* tree load — once the user
-    // collapses the root we mustn't re-open it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tree === null]);
+
+  useEffect(() => {
+    if (focusedPath === null && flatVisible.length > 0) {
+      setFocusedPath(flatVisible[0].path);
+    }
+  }, [flatVisible, focusedPath]);
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-border glassy-sidebar">
@@ -238,7 +420,14 @@ export function FileExplorer({
       </div>
 
       {/* Directory Tree */}
-      <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+      <div
+        ref={treeRef}
+        role="tree"
+        aria-label="프로젝트 파일 트리"
+        onKeyDown={handleKeyDown}
+        className="flex-1 overflow-y-auto p-2 scrollbar-thin focus:outline-none"
+        tabIndex={focusedPath ? -1 : 0}
+      >
         {!tree ? (
           <div className="text-center text-muted-foreground/60 py-8 text-xs">Loading…</div>
         ) : tree.children.length === 0 ? (
