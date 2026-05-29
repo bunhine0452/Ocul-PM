@@ -1,30 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Channel } from "@tauri-apps/api/core";
-import { commands, type IndexProgress, type ProjectTreeNode } from "@/lib/bindings";
-import { FileExplorer, type ChangeOp } from "@/components/FileExplorer";
+import { useEffect, useState } from "react";
+import { commands } from "@/lib/bindings";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
 import { AiWorkbench } from "./AiWorkbench";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
-import { Code2, Network, RefreshCw, Loader2, FolderCode, ExternalLink } from "@/components/Icons";
+import { Code2, Network, FolderCode, ExternalLink, Loader2 } from "@/components/Icons";
+import { toast } from "@/lib/toast";
 
 // MASTER-GUIDE §5.6 — Code 워크벤치
 //
-//   ┌────────┬───────────────────────┬────────────┐
-//   │  Tree  │  Viewer / Graph       │ AiWorkbench│
-//   │ (Files)│  (primary content)    │ (right)    │
-//   └────────┴───────────────────────┴────────────┘
+//   ┌───────────────────────┬────────────┐
+//   │  Viewer / Graph       │ AiWorkbench│
+//   │  (primary content)    │ (right)    │
+//   └───────────────────────┴────────────┘
 //
 // Lite-W6 PR5: the built-in CodeEditor moved to src/legacy/ — the main pane
-// now offers "외부 에디터로 열기" (full surface comes in PR8). GitPanel also
-// retired to src/legacy/.
+// offers "외부 에디터로 열기" via `commands.openInEditor` (Lite-W6 PR8 Part 2).
+// GitPanel also retired to src/legacy/.
 // Lite-W6 PR7 Part 2: Terminal moved out of CodeWorkbench's BottomDrawer
 // into the Workspace-level TerminalDock (App.tsx). ⌘J / ⌘⇧J operate on
 // `layoutMode` regardless of activeView.
+// Lite-W6 PR8 Part 2: the local FileTree moved out into the Workspace-
+// level SidePanel (⌘B). CodeWorkbench no longer owns file browsing —
+// every activeView reaches files through ⌘B.
 
 interface CodeWorkbenchProps {
   projectId: number;
   projectRoot: string | null;
+  /** Indexed file count — still surfaced via Today/Stats; kept on the prop
+   *  shape so the App.tsx wiring stays unchanged across PR8 parts. */
   projectFiles: Array<[number, string]>;
   reloadProjectFiles: () => Promise<void>;
 }
@@ -32,79 +37,17 @@ interface CodeWorkbenchProps {
 export function CodeWorkbench({
   projectId,
   projectRoot,
-  projectFiles,
-  reloadProjectFiles,
 }: CodeWorkbenchProps) {
-  const { state, setState, setActiveFile } = useWorkspace();
+  const { state, setState, setActiveFile, setSidePanelOpen } = useWorkspace();
   const {
     activeFile,
     aiWorkbenchOpen,
     codeSubTab,
-    indexingProjectId,
-    indexProgress,
-    fileExplorerExpanded,
-    recentChanges,
+    sidePanelOpen,
   } = state;
 
-  // Project the FIFO array into the O(1) lookup record the FileExplorer
-  // expects. A few dozen entries per project is the dogfood norm so this
-  // re-derives cheaply on each event.
-  const recentChangesMap = useMemo<Record<string, ChangeOp>>(() => {
-    const map: Record<string, ChangeOp> = {};
-    for (const c of recentChanges) map[c.path] = c.op;
-    return map;
-  }, [recentChanges]);
-
-  // Lite-W6 PR8 Part 1: load the on-disk project tree alongside the indexed
-  // file count. The two data sources stay separate — the tree drives the
-  // explorer view (all files, .gitignore-respected), the indexed list drives
-  // the "N files indexed" footer gauge.
-  const [tree, setTree] = useState<ProjectTreeNode | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    setTree(null);
-    commands
-      .listProjectTree(projectId, null)
-      .then((res) => {
-        if (cancelled) return;
-        if (res.status === "ok") {
-          setTree(res.data);
-        } else {
-          console.error("[FileExplorer] listProjectTree failed:", res.error);
-          setTree({ name: "", relative_path: "", is_dir: true, children: [] });
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          console.error("[FileExplorer] listProjectTree threw:", e);
-          setTree({ name: "", relative_path: "", is_dir: true, children: [] });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
-
-  const reloadTree = useCallback(async () => {
-    const res = await commands.listProjectTree(projectId, null);
-    if (res.status === "ok") setTree(res.data);
-  }, [projectId]);
-
-  const toggleExpand = useCallback(
-    (relPath: string) => {
-      setState((p) => ({
-        ...p,
-        fileExplorerExpanded: {
-          ...p.fileExplorerExpanded,
-          [relPath]: !p.fileExplorerExpanded[relPath],
-        },
-      }));
-    },
-    [setState],
-  );
-
-  // codeSubTab is still useful inside CodeWorkbench:
-  //   - "files" → Tree + viewer placeholder (default)
+  // codeSubTab still drives the Code-view secondary UI:
+  //   - "files" → viewer placeholder + auto-open ⌘B if user hasn't already
   //   - "graph" → DependencyGraphView replaces the viewer pane
   //   - "ai"    → open AiWorkbench (mode toggled inside the panel)
   //   - "terminal" → open the Workspace-level TerminalDock in split mode
@@ -114,8 +57,13 @@ export function CodeWorkbench({
       setState((p) => ({ ...p, aiWorkbenchOpen: true }));
     } else if (codeSubTab === "terminal") {
       setState((p) => ({ ...p, layoutMode: "split" }));
+    } else if (codeSubTab === "files" && !sidePanelOpen) {
+      // Open ⌘B automatically when the user navigates to Files — landing in
+      // an empty Code view with no file tree is more surprising than the
+      // alternative. They can dismiss with ⌘B.
+      setSidePanelOpen(true);
     }
-    // We intentionally don't depend on setState — it's a stable callback.
+    // setState/setSidePanelOpen are stable; intentionally narrow the deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeSubTab]);
 
@@ -148,27 +96,7 @@ export function CodeWorkbench({
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* C-1: Tree */}
-      <FileTree
-        tree={tree}
-        indexedCount={projectFiles.length}
-        activeFile={activeFile}
-        onSelectFile={(p) => setActiveFile(p)}
-        expanded={fileExplorerExpanded}
-        onToggleExpand={toggleExpand}
-        recentChanges={recentChangesMap}
-        indexing={indexingProjectId === projectId}
-        progress={indexProgress}
-        onReindex={async () => {
-          await runIndex(projectId, () => setState((p) => ({ ...p, indexingProjectId: projectId })));
-          await reloadProjectFiles();
-          await reloadTree();
-          setState((p) => ({ ...p, indexingProjectId: null, indexProgress: null }));
-        }}
-        onProgress={(prog) => setState((p) => ({ ...p, indexProgress: prog }))}
-      />
-
-      {/* C-2 & C-4: Primary content + Bottom drawer in a middle column */}
+      {/* C-2: Primary content. The FileTree is now Workspace-level (⌘B). */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <main className="flex-1 flex overflow-hidden bg-background relative min-w-0">
           {showGraph ? (
@@ -183,8 +111,6 @@ export function CodeWorkbench({
             <EditorPlaceholder />
           )}
         </main>
-        {/* Lite-W6 PR7 Part 2 retired the local BottomDrawer — Terminal now
-            docks at the Workspace level via TerminalDock (App.tsx). */}
       </div>
 
       {/* C-3: AI Workbench (right) — toggle with ⌘\\ */}
@@ -203,92 +129,8 @@ export function CodeWorkbench({
   );
 }
 
-// ───────────────────────────────────────────────────────────────────────
-// FileTree wrapper — same tree as before, with the indexing gutter
-// ───────────────────────────────────────────────────────────────────────
-
-function FileTree({
-  tree,
-  indexedCount,
-  activeFile,
-  onSelectFile,
-  expanded,
-  onToggleExpand,
-  recentChanges,
-  indexing,
-  progress,
-  onReindex,
-  onProgress,
-}: {
-  tree: ProjectTreeNode | null;
-  indexedCount: number;
-  activeFile: string | null;
-  onSelectFile: (path: string) => void;
-  expanded: Record<string, boolean>;
-  onToggleExpand: (relPath: string) => void;
-  recentChanges: Record<string, ChangeOp>;
-  indexing: boolean;
-  progress: IndexProgress | null;
-  onReindex: () => Promise<void>;
-  onProgress: (p: IndexProgress) => void;
-}) {
-  // `onProgress` is wired so the Channel below can stream into context state.
-  // We keep it as a separate prop instead of building the channel here so the
-  // caller controls lifecycle.
-  void onProgress;
-
-  return (
-    <aside className="w-[240px] flex flex-col border-r border-border shrink-0 glassy-sidebar">
-      <div className="flex-1 overflow-hidden">
-        <FileExplorer
-          tree={tree}
-          activeFile={activeFile}
-          onSelectFile={onSelectFile}
-          expanded={expanded}
-          onToggleExpand={onToggleExpand}
-          recentChanges={recentChanges}
-        />
-      </div>
-      <div className="p-3 border-t border-border/80 bg-secondary/15 select-none shrink-0">
-        {indexing ? (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] text-primary font-bold">
-              <span className="truncate max-w-[70%]">{progress?.current_file || "Indexing files..."}</span>
-              <span>{progress?.current}/{progress?.total}</span>
-            </div>
-            <div className="h-1 rounded-full bg-secondary overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{
-                  width: `${((progress?.current || 0) / Math.max(progress?.total || 1, 1)) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground font-semibold">
-              {indexedCount} files indexed
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReindex}
-              className="h-6 px-2 text-[10px] font-bold"
-              title="Update File Index"
-            >
-              <RefreshCw className="w-2.5 h-2.5 mr-1" />
-              Re-index
-            </Button>
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-}
-
 function EditorPlaceholder() {
-  const { setCodeSubTab } = useWorkspace();
+  const { setCodeSubTab, toggleSidePanel } = useWorkspace();
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#faf9f5]/50 dark:bg-[#181715]/50 relative select-none">
       <div className="w-16 h-16 rounded-3xl bg-secondary/60 border border-border flex items-center justify-center mb-6 shadow-sm">
@@ -296,25 +138,29 @@ function EditorPlaceholder() {
       </div>
       <h2 className="text-xl font-bold font-heading mb-1.5">열린 파일이 없습니다</h2>
       <p className="text-xs text-muted-foreground/80 max-w-sm mb-6 leading-relaxed">
-        왼쪽 트리에서 파일을 선택하거나 ⌘K 로 Command Palette 를 여세요.
+        <kbd className="font-mono px-1.5 py-0.5 rounded bg-secondary border border-border text-[10px]">⌘B</kbd>{" "}
+        로 파일 탐색기를 열거나 <kbd className="font-mono px-1.5 py-0.5 rounded bg-secondary border border-border text-[10px]">⌘K</kbd>{" "}
+        로 Command Palette 를 여세요.
       </p>
       <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={toggleSidePanel}>
+          <FolderCode className="w-3.5 h-3.5 mr-1.5" />
+          파일 탐색기 (⌘B)
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setCodeSubTab("graph")}>
           <Network className="w-3.5 h-3.5 mr-1.5" />
           Dependency Graph
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setCodeSubTab("files")}>
-          <FolderCode className="w-3.5 h-3.5 mr-1.5" />
-          Files
         </Button>
       </div>
     </div>
   );
 }
 
-// Lite-W6 PR5 placeholder. The built-in CodeEditor is retired (src/legacy/),
-// the proper external-editor launch lands in PR8. Until then we show the
-// selected file's path so the user knows what they picked and can copy it.
+/**
+ * Lite-W6 PR8 Part 2: launch the user's preferred external editor via
+ * `commands.openInEditor`. The command template comes from
+ * `settings.externalEditorCommand` (default `code "%path"`).
+ */
 function OpenInExternalEditor({
   projectRoot,
   filePath,
@@ -324,7 +170,33 @@ function OpenInExternalEditor({
   filePath: string;
   onClose: () => void;
 }) {
+  const { settings } = useSettings();
+  const editorCmd = settings.externalEditorCommand;
   const absolutePath = projectRoot ? `${projectRoot}/${filePath}` : filePath;
+  const [launching, setLaunching] = useState(false);
+
+  const launch = async () => {
+    if (!projectRoot) {
+      toast.warning("프로젝트 루트를 찾을 수 없습니다.");
+      return;
+    }
+    if (!editorCmd.trim()) {
+      toast.warning("외부 에디터 명령이 비어 있습니다. Settings → ocul-pm 에서 설정해 주세요.", {
+        durationMs: 6000,
+      });
+      return;
+    }
+    setLaunching(true);
+    try {
+      const res = await commands.openInEditor(projectRoot, filePath, editorCmd);
+      if (res.status === "error") {
+        toast.destructive(`외부 에디터 실행 실패: ${res.error}`);
+      }
+    } finally {
+      setLaunching(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#faf9f5]/50 dark:bg-[#181715]/50 relative select-none">
       <div className="w-16 h-16 rounded-3xl bg-secondary/60 border border-border flex items-center justify-center mb-6 shadow-sm">
@@ -334,13 +206,21 @@ function OpenInExternalEditor({
       <code className="text-xs font-mono text-muted-foreground/90 max-w-lg break-all mb-1">
         {filePath}
       </code>
-      <p className="text-[10px] text-muted-foreground/60 max-w-lg break-all mb-6 font-mono">
+      <p className="text-[10px] text-muted-foreground/60 max-w-lg break-all mb-2 font-mono">
         {absolutePath}
       </p>
+      <p className="text-[10px] text-muted-foreground/60 max-w-lg mb-6 font-mono">
+        에디터 명령:{" "}
+        <span className="text-foreground/80">{editorCmd || "(설정되지 않음)"}</span>
+      </p>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled title="PR8 에서 정식 구현">
-          <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-          외부 에디터에서 열기 (PR8)
+        <Button variant="outline" size="sm" onClick={launch} disabled={launching || !editorCmd.trim()}>
+          {launching ? (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+          )}
+          외부 에디터에서 열기
         </Button>
         <Button variant="ghost" size="sm" onClick={onClose}>
           닫기
@@ -349,21 +229,3 @@ function OpenInExternalEditor({
     </div>
   );
 }
-
-// ───────────────────────────────────────────────────────────────────────
-// Indexing helper — wraps the Channel boilerplate. Kept local to CodeWorkbench
-// because no other view starts indexing today.
-// ───────────────────────────────────────────────────────────────────────
-
-async function runIndex(projectId: number, _onStart?: () => void): Promise<void> {
-  const channel = new Channel<IndexProgress>();
-  // Progress events are dropped here intentionally — the Workspace currently
-  // owns the progress UI via WorkspaceContext, and CodeWorkbench drives the
-  // re-index from a contained button. A richer event hook can be added when
-  // a future caller (e.g. command palette) needs streaming feedback.
-  channel.onmessage = () => {};
-  await commands.indexProject(projectId, channel);
-}
-
-// Loader2 is referenced from JSX — keep the import alive even if collapsed.
-void Loader2;

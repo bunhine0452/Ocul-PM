@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type Project, type ProjectStats, type IndexProgress } from "@/lib/bindings";
 
@@ -13,6 +13,8 @@ import { TerminalPanel } from "@/features/terminal/TerminalPanel";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
 import { TerminalDock } from "@/components/TerminalDock";
+import { SidePanel } from "@/components/SidePanel";
+import type { ChangeOp } from "@/components/FileExplorer";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
@@ -305,6 +307,7 @@ function App() {
           selectedProjectId={selectedProjectId}
           selectedProjectRoot={selectedProjectRoot}
           projectFiles={projectFiles}
+          reloadProjectFiles={() => loadProjectFiles(selectedProjectId)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
@@ -435,6 +438,7 @@ function Workspace(props: {
   selectedProjectId: number;
   selectedProjectRoot: string | null;
   projectFiles: Array<[number, string]>;
+  reloadProjectFiles: () => Promise<void>;
   onOpenSettings: () => void;
 }) {
   const {
@@ -442,11 +446,18 @@ function Workspace(props: {
     setActiveView, setCodeSubTab,
     selectedProjectId, selectedProjectRoot,
     projectFiles,
+    reloadProjectFiles,
     onOpenSettings,
   } = props;
   // Lite-W6 PR7 Part 2 — workspace-level dock layout.
+  // Lite-W6 PR8 Part 2 — ⌘B side panel + recentChanges → lookup map.
   const { state: workspaceState } = useWorkspace();
-  const { layoutMode, splitRatio } = workspaceState;
+  const { layoutMode, splitRatio, sidePanelOpen, recentChanges } = workspaceState;
+  const recentChangesMap = useMemo<Record<string, ChangeOp>>(() => {
+    const map: Record<string, ChangeOp> = {};
+    for (const c of recentChanges) map[c.path] = c.op;
+    return map;
+  }, [recentChanges]);
   const mainPaneStyle: React.CSSProperties =
     layoutMode === "terminal-only"
       ? { display: "none" }
@@ -492,6 +503,16 @@ function Workspace(props: {
           </button>
         </div>
       </nav>
+
+      {/* A.5: Workspace-level FileTree side panel — ⌘B toggle (Lite-W6 PR8 Part 2). */}
+      {sidePanelOpen && (
+        <SidePanel
+          projectId={selectedProjectId}
+          indexedCount={projectFiles.length}
+          recentChanges={recentChangesMap}
+          onReindexed={reloadProjectFiles}
+        />
+      )}
 
       {/* B. Code sub-nav (only inside Code view) — UI-5 will absorb this */}
       {activeView === "code" && (
@@ -540,17 +561,7 @@ function Workspace(props: {
               projectId={selectedProjectId}
               projectRoot={selectedProjectRoot}
               projectFiles={projectFiles}
-              reloadProjectFiles={async () => {
-                const res = await commands.listProjectFiles(selectedProjectId);
-                if (res.status === "ok") {
-                  // The workspace owns this state; we just trigger a refresh by
-                  // re-reading. The parent App.tsx passes the array down, but
-                  // it loads on activeProjectId change too — fire it once more
-                  // to pick up post-reindex files.
-                  // (No-op assignment to silence lint about ignored data.)
-                  void res.data;
-                }
-              }}
+              reloadProjectFiles={reloadProjectFiles}
             />
           )}
         </div>

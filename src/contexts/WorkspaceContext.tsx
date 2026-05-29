@@ -95,6 +95,15 @@ export interface WorkspaceState {
    */
   recentChanges: RecentChange[];
 
+  /**
+   * Lite-W6 PR8 Part 2: Workspace-level left side panel (FileTree, and later
+   * LocalDiffView). Toggled with ⌘B. Width is persisted independently so the
+   * user's resize survives session restarts.
+   */
+  sidePanelOpen: boolean;
+  /** Pixel width. Clamped to [`SIDE_PANEL_MIN_WIDTH`, `SIDE_PANEL_MAX_WIDTH`]. */
+  sidePanelWidth: number;
+
   // Persistence schema (1: pre-W3; 2: defaultTab promoted to today).
   schemaVersion: number;
   /**
@@ -152,6 +161,8 @@ const DEFAULT_STATE: WorkspaceState = {
   splitRatio: 0.6,
   fileExplorerExpanded: {},
   recentChanges: [],
+  sidePanelOpen: false,
+  sidePanelWidth: 260,
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
   indexingProjectId: null,
@@ -188,6 +199,20 @@ export function pushRecentChange(
     return filtered.slice(filtered.length - RECENT_CHANGES_CAP);
   }
   return filtered;
+}
+
+/**
+ * Lite-W6 PR8 Part 2: clamp the persisted side-panel width into a usable
+ * range so a corrupted value can't render the panel invisibly thin or push
+ * the main pane off-screen. Defaults to the same value as `DEFAULT_STATE`.
+ */
+export const SIDE_PANEL_MIN_WIDTH = 200;
+export const SIDE_PANEL_MAX_WIDTH = 500;
+export const SIDE_PANEL_DEFAULT_WIDTH = 260;
+
+export function migrateSidePanelWidth(raw: unknown): number {
+  const n = typeof raw === "number" && Number.isFinite(raw) ? raw : SIDE_PANEL_DEFAULT_WIDTH;
+  return Math.min(SIDE_PANEL_MAX_WIDTH, Math.max(SIDE_PANEL_MIN_WIDTH, Math.round(n)));
 }
 
 /**
@@ -389,6 +414,9 @@ function loadFromStorage(): WorkspaceState {
       if (!parsed.fileExplorerExpanded || typeof parsed.fileExplorerExpanded !== "object") {
         parsed.fileExplorerExpanded = {};
       }
+      // Lite-W6 PR8 Part 2: side-panel persistence.
+      parsed.sidePanelOpen = parsed.sidePanelOpen === true;
+      parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -451,6 +479,11 @@ interface WorkspaceContextValue {
   setOculpmStatus: (status: OculpmStatus | null) => void;
   setCurrentSession: (session: Session | null) => void;
   setWorkdayKey: (workday: string | null) => void;
+
+  // Lite-W6 PR8 Part 2 — left side panel (⌘B).
+  toggleSidePanel: () => void;
+  setSidePanelOpen: (open: boolean) => void;
+  setSidePanelWidth: (width: number) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -546,6 +579,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setWorkdayKey = useCallback((workday: string | null) => {
     setState((prev) => ({ ...prev, workdayKey: workday }));
+  }, []);
+
+  const toggleSidePanel = useCallback(() => {
+    setState((prev) => ({ ...prev, sidePanelOpen: !prev.sidePanelOpen }));
+  }, []);
+
+  const setSidePanelOpen = useCallback((open: boolean) => {
+    setState((prev) => ({ ...prev, sidePanelOpen: open }));
+  }, []);
+
+  const setSidePanelWidth = useCallback((width: number) => {
+    setState((prev) => ({ ...prev, sidePanelWidth: migrateSidePanelWidth(width) }));
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -677,6 +722,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setOculpmStatus,
         setCurrentSession,
         setWorkdayKey,
+        toggleSidePanel,
+        setSidePanelOpen,
+        setSidePanelWidth,
       }}
     >
       {children}

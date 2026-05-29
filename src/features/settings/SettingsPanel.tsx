@@ -161,6 +161,23 @@ function AppearanceTab() {
   const { settings, set } = useSettings();
   return (
     <>
+      <Section
+        title="External editor"
+        description="외부 에디터로 열기 (⌘B → 파일 선택 → 외부 에디터). %path 는 절대 파일 경로로 치환됩니다."
+      >
+        <Field
+          label="명령 템플릿"
+          hint='기본값: code "%path". Cursor 는 cursor "%path", Sublime 은 subl "%path". macOS GUI 앱은 셸 PATH 를 상속받지 않으므로 PATH 에 없으면 절대 경로를 적어 주세요 (예: /usr/local/bin/code "%path").'
+        >
+          <Input
+            value={settings.externalEditorCommand}
+            onChange={(e) => set("externalEditorCommand", e.currentTarget.value)}
+            placeholder='code "%path"'
+            className="font-mono"
+          />
+        </Field>
+      </Section>
+
       <Section title="Theme" description="Light, dark, or follow your OS preference.">
         <div className="grid grid-cols-3 gap-3">
           {(["light", "dark", "system"] as const).map((t) => {

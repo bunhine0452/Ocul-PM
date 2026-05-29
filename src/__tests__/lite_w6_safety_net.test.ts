@@ -4,9 +4,13 @@ import {
   migrateActiveView,
   migrateLayoutMode,
   migrateSplitRatio,
+  migrateSidePanelWidth,
   pushRecentChange,
   mapFileOpToChangeOp,
   RECENT_CHANGES_CAP,
+  SIDE_PANEL_MIN_WIDTH,
+  SIDE_PANEL_MAX_WIDTH,
+  SIDE_PANEL_DEFAULT_WIDTH,
   type RecentChange,
 } from "@/contexts/WorkspaceContext";
 
@@ -76,6 +80,36 @@ describe("Lite-W6 PR8 Part 1 — recentChanges buffer", () => {
     expect(mapFileOpToChangeOp("update")).toBe("M");
     expect(mapFileOpToChangeOp("rename")).toBe("M");
     expect(mapFileOpToChangeOp("correct")).toBe("M");
+  });
+});
+
+describe("Lite-W6 PR8 Part 2 — sidePanelWidth clamp", () => {
+  it("preserves in-range integer widths", () => {
+    expect(migrateSidePanelWidth(220)).toBe(220);
+    expect(migrateSidePanelWidth(400)).toBe(400);
+  });
+
+  it("clamps below MIN to MIN", () => {
+    expect(migrateSidePanelWidth(SIDE_PANEL_MIN_WIDTH - 50)).toBe(SIDE_PANEL_MIN_WIDTH);
+    expect(migrateSidePanelWidth(0)).toBe(SIDE_PANEL_MIN_WIDTH);
+    expect(migrateSidePanelWidth(-100)).toBe(SIDE_PANEL_MIN_WIDTH);
+  });
+
+  it("clamps above MAX to MAX", () => {
+    expect(migrateSidePanelWidth(SIDE_PANEL_MAX_WIDTH + 50)).toBe(SIDE_PANEL_MAX_WIDTH);
+    expect(migrateSidePanelWidth(99999)).toBe(SIDE_PANEL_MAX_WIDTH);
+  });
+
+  it("falls back to DEFAULT for non-finite / non-number", () => {
+    expect(migrateSidePanelWidth(undefined)).toBe(SIDE_PANEL_DEFAULT_WIDTH);
+    expect(migrateSidePanelWidth(null)).toBe(SIDE_PANEL_DEFAULT_WIDTH);
+    expect(migrateSidePanelWidth(NaN)).toBe(SIDE_PANEL_DEFAULT_WIDTH);
+    expect(migrateSidePanelWidth("260")).toBe(SIDE_PANEL_DEFAULT_WIDTH);
+  });
+
+  it("rounds non-integer widths to whole pixels", () => {
+    expect(migrateSidePanelWidth(257.4)).toBe(257);
+    expect(migrateSidePanelWidth(257.6)).toBe(258);
   });
 });
 

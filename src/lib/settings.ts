@@ -45,6 +45,9 @@ export const KEYS = {
   graphShowIsolated: "graph_show_isolated",
   graphGroupThreshold: "graph_group_threshold",
 
+  // --- External editor (Lite-W6 PR8 Part 2) ---
+  externalEditorCommand: "external_editor_command",
+
   // --- Diagnostics ---
   logLevel: "log_level",
 } as const;
@@ -83,6 +86,13 @@ export interface Settings {
   graphShowIsolated: boolean;
   graphGroupThreshold: number;
 
+  /**
+   * Shell command template launched by `commands.openInEditor`. `%path` is
+   * substituted with the absolute file path (shell-quoted). Default is the
+   * VS Code CLI; users on Cursor / Sublime / etc. override here.
+   */
+  externalEditorCommand: string;
+
   logLevel: LogLevel;
 }
 
@@ -120,6 +130,8 @@ export const DEFAULTS: Settings = {
   graphShowIsolated: false,
   graphGroupThreshold: 3,
 
+  externalEditorCommand: 'code "%path"',
+
   logLevel: "info",
 };
 
@@ -150,6 +162,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.excludePatterns]: "excludePatterns",
   [KEYS.graphShowIsolated]: "graphShowIsolated",
   [KEYS.graphGroupThreshold]: "graphGroupThreshold",
+  [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.logLevel]: "logLevel",
 };
 
