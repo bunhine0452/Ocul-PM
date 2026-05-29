@@ -66,7 +66,14 @@ export function CommandPalette({
   onReindex,
   onRegenerateOverview,
 }: CommandPaletteProps) {
-  const { setActiveView, openInCode, state, toggleSidePanel } = useWorkspace();
+  const {
+    setActiveView,
+    openInCode,
+    state,
+    toggleSidePanel,
+    setSidePanelOpen,
+    setSidePanelMode,
+  } = useWorkspace();
   const [search, setSearch] = useState("");
 
   // Reset query when palette closes — feels less surprising on next open.
@@ -107,6 +114,13 @@ export function CommandPalette({
       { id: "toggle-side-panel", label: "파일 탐색기 토글", alias: "side panel files file tree ⌘B",
         group: "액션", icon: FileCode, shortcut: "⌘B",
         onSelect: () => { toggleSidePanel(); onOpenChange(false); } },
+      { id: "view-diff", label: "변경된 파일 diff 보기", alias: "local diff watcher changes 변경 diff",
+        group: "액션", icon: FileCode,
+        onSelect: () => {
+          setSidePanelMode("diff");
+          setSidePanelOpen(true);
+          onOpenChange(false);
+        } },
       { id: "settings", label: "Settings 열기", alias: "설정",
         group: "액션", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },

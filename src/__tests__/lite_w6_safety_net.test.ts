@@ -5,6 +5,7 @@ import {
   migrateLayoutMode,
   migrateSplitRatio,
   migrateSidePanelWidth,
+  migrateSidePanelMode,
   pushRecentChange,
   mapFileOpToChangeOp,
   RECENT_CHANGES_CAP,
@@ -17,6 +18,7 @@ import {
   flattenVisibleNodes,
   nextFocusedPath,
 } from "@/components/FileExplorer";
+import { classifyDiffLines } from "@/features/diff/LocalDiffView";
 import type { ProjectTreeNode } from "@/lib/bindings";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
@@ -256,6 +258,57 @@ describe("Lite-W6 PR8 Part 3 — nextFocusedPath", () => {
     const visible = flattenVisibleNodes(mkTree(), { src: true });
     expect(nextFocusedPath(visible, "src/a.ts", "Home", { src: true })).toBe("src");
     expect(nextFocusedPath(visible, "src", "End", { src: true })).toBe("README.md");
+  });
+});
+
+describe("Lite-W6 PR6.3 — sidePanelMode migration", () => {
+  it("preserves known members", () => {
+    expect(migrateSidePanelMode("files")).toBe("files");
+    expect(migrateSidePanelMode("diff")).toBe("diff");
+  });
+
+  it("falls back to 'files' for unknown / missing / wrong-type values", () => {
+    expect(migrateSidePanelMode(undefined)).toBe("files");
+    expect(migrateSidePanelMode(null)).toBe("files");
+    expect(migrateSidePanelMode("xyz")).toBe("files");
+    expect(migrateSidePanelMode(42)).toBe("files");
+  });
+});
+
+describe("Lite-W6 PR6.3 — classifyDiffLines", () => {
+  it("classifies a typical git unified diff", () => {
+    const patch = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "index abcd..efgh 100644",
+      "--- a/src/a.ts",
+      "+++ b/src/a.ts",
+      "@@ -1,3 +1,3 @@",
+      " context line",
+      "-old line",
+      "+new line",
+    ].join("\n");
+    const out = classifyDiffLines(patch);
+    expect(out.map((l) => l.kind)).toEqual([
+      "header",
+      "header",
+      "header",
+      "header",
+      "hunk",
+      "context",
+      "deletion",
+      "addition",
+    ]);
+  });
+
+  it("classifies an empty patch as a single empty context line", () => {
+    expect(classifyDiffLines("")).toEqual([{ kind: "context", text: "" }]);
+  });
+
+  it("treats lines starting with neither + nor - nor @ as context", () => {
+    expect(classifyDiffLines(" unchanged\n no-prefix")).toEqual([
+      { kind: "context", text: " unchanged" },
+      { kind: "context", text: " no-prefix" },
+    ]);
   });
 });
 

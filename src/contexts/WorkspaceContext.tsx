@@ -51,6 +51,8 @@ export type CodeSubTab = "files" | "ai" | "graph" | "terminal";
  */
 export type ChangeOp = "A" | "M" | "D";
 
+export type SidePanelMode = "files" | "diff";
+
 export interface RecentChange {
   /** Project-relative forward-slash path (matches `ProjectTreeNode.relative_path`). */
   path: string;
@@ -103,6 +105,13 @@ export interface WorkspaceState {
   sidePanelOpen: boolean;
   /** Pixel width. Clamped to [`SIDE_PANEL_MIN_WIDTH`, `SIDE_PANEL_MAX_WIDTH`]. */
   sidePanelWidth: number;
+  /**
+   * Lite-W6 PR6.3: which surface the side panel shows.
+   *  - `"files"` — FileExplorer (default).
+   *  - `"diff"`  — LocalDiffView (recentChanges + computeDiff).
+   * Persisted so the user keeps their last context when they re-open ⌘B.
+   */
+  sidePanelMode: SidePanelMode;
 
   // Persistence schema (1: pre-W3; 2: defaultTab promoted to today).
   schemaVersion: number;
@@ -163,6 +172,7 @@ const DEFAULT_STATE: WorkspaceState = {
   recentChanges: [],
   sidePanelOpen: false,
   sidePanelWidth: 260,
+  sidePanelMode: "files",
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
   indexingProjectId: null,
@@ -213,6 +223,15 @@ export const SIDE_PANEL_DEFAULT_WIDTH = 260;
 export function migrateSidePanelWidth(raw: unknown): number {
   const n = typeof raw === "number" && Number.isFinite(raw) ? raw : SIDE_PANEL_DEFAULT_WIDTH;
   return Math.min(SIDE_PANEL_MAX_WIDTH, Math.max(SIDE_PANEL_MIN_WIDTH, Math.round(n)));
+}
+
+/**
+ * Lite-W6 PR6.3: fall back any non-member value to the default surface
+ * (Files) so a corrupted persisted record doesn't blank the side panel.
+ * Exported for unit testing.
+ */
+export function migrateSidePanelMode(raw: unknown): SidePanelMode {
+  return raw === "diff" ? "diff" : "files";
 }
 
 /**
@@ -414,9 +433,10 @@ function loadFromStorage(): WorkspaceState {
       if (!parsed.fileExplorerExpanded || typeof parsed.fileExplorerExpanded !== "object") {
         parsed.fileExplorerExpanded = {};
       }
-      // Lite-W6 PR8 Part 2: side-panel persistence.
+      // Lite-W6 PR8 Part 2 + PR6.3: side-panel persistence.
       parsed.sidePanelOpen = parsed.sidePanelOpen === true;
       parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
+      parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -484,6 +504,8 @@ interface WorkspaceContextValue {
   toggleSidePanel: () => void;
   setSidePanelOpen: (open: boolean) => void;
   setSidePanelWidth: (width: number) => void;
+  // Lite-W6 PR6.3 — side panel surface switcher.
+  setSidePanelMode: (mode: SidePanelMode) => void;
 
   // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
   clearRecentChanges: () => void;
@@ -594,6 +616,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setSidePanelWidth = useCallback((width: number) => {
     setState((prev) => ({ ...prev, sidePanelWidth: migrateSidePanelWidth(width) }));
+  }, []);
+
+  const setSidePanelMode = useCallback((mode: SidePanelMode) => {
+    setState((prev) => ({ ...prev, sidePanelMode: migrateSidePanelMode(mode) }));
   }, []);
 
   const clearRecentChanges = useCallback(() => {
@@ -734,6 +760,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         toggleSidePanel,
         setSidePanelOpen,
         setSidePanelWidth,
+        setSidePanelMode,
         clearRecentChanges,
       }}
     >

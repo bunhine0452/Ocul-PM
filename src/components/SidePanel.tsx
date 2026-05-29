@@ -21,6 +21,7 @@ import {
   type ProjectTreeNode,
 } from "@/lib/bindings";
 import { FileExplorer, type ChangeOp } from "./FileExplorer";
+import { LocalDiffView } from "@/features/diff/LocalDiffView";
 import { Button } from "./ui/button";
 import { ChevronLeft, RefreshCw, X } from "./Icons";
 import {
@@ -50,6 +51,7 @@ export function SidePanel({
     setState,
     setSidePanelOpen,
     setSidePanelWidth,
+    setSidePanelMode,
     clearRecentChanges,
   } = useWorkspace();
   const {
@@ -58,7 +60,9 @@ export function SidePanel({
     indexingProjectId,
     indexProgress,
     sidePanelWidth,
+    sidePanelMode,
   } = state;
+  const showDiff = sidePanelMode === "diff";
 
   // ── Tree loader ────────────────────────────────────────────────────────
   const [tree, setTree] = useState<ProjectTreeNode | null>(null);
@@ -147,11 +151,38 @@ export function SidePanel({
       style={{ width: sidePanelWidth }}
       aria-label="파일 탐색기 사이드 패널"
     >
-      {/* Header: title + close (⌘B) */}
+      {/* Header: Files / Diff toggle + close (⌘B) */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/80 shrink-0">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Files
-        </span>
+        <div
+          role="tablist"
+          aria-label="사이드 패널 모드"
+          className="inline-flex items-center rounded-md border border-border/80 bg-secondary/40 p-0.5 text-[11px] font-semibold uppercase tracking-wider"
+        >
+          <button
+            role="tab"
+            aria-selected={!showDiff}
+            onClick={() => setSidePanelMode("files")}
+            className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+              !showDiff
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Files
+          </button>
+          <button
+            role="tab"
+            aria-selected={showDiff}
+            onClick={() => setSidePanelMode("diff")}
+            className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+              showDiff
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Diff
+          </button>
+        </div>
         <button
           onClick={() => setSidePanelOpen(false)}
           className="p-1 rounded hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -162,20 +193,27 @@ export function SidePanel({
         </button>
       </div>
 
-      {/* Tree */}
+      {/* Body — FileExplorer or LocalDiffView depending on mode */}
       <div className="flex-1 overflow-hidden">
-        <FileExplorer
-          tree={tree}
-          activeFile={activeFile}
-          onSelectFile={setActiveFile}
-          expanded={fileExplorerExpanded}
-          onToggleExpand={toggleExpand}
-          recentChanges={recentChanges}
-        />
+        {showDiff ? (
+          <LocalDiffView projectId={projectId} />
+        ) : (
+          <FileExplorer
+            tree={tree}
+            activeFile={activeFile}
+            onSelectFile={setActiveFile}
+            expanded={fileExplorerExpanded}
+            onToggleExpand={toggleExpand}
+            recentChanges={recentChanges}
+          />
+        )}
       </div>
 
-      {/* Indexing gauge / Re-index */}
-      <div className="p-3 border-t border-border/80 bg-secondary/15 select-none shrink-0">
+      {/* Indexing gauge / Re-index — hidden in Diff mode (LocalDiffView has its own header) */}
+      <div
+        className="p-3 border-t border-border/80 bg-secondary/15 select-none shrink-0"
+        style={{ display: showDiff ? "none" : undefined }}
+      >
         {indexing ? (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] text-primary font-bold">
