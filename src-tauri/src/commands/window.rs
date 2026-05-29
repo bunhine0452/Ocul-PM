@@ -1,4 +1,4 @@
-use tauri::{Window, AppHandle, WebviewWindowBuilder, WebviewUrl};
+use tauri::{Window, AppHandle, Manager, WebviewWindowBuilder, WebviewUrl};
 
 #[tauri::command]
 #[specta::specta]
@@ -50,6 +50,34 @@ pub async fn open_terminal_window(app: AppHandle) -> Result<(), String> {
     )
     .title("Ocul-PM Terminal")
     .inner_size(800.0, 500.0)
+    .decorations(true)
+    .resizable(true)
+    .build()
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Lite-W6 PR9 — open the AI workbench in a standalone window so the user
+/// can park it on a second monitor next to Today / Plan. Idempotent: if the
+/// window already exists, we focus + unminimise instead of erroring.
+/// `tauri-plugin-window-state` restores the position + size automatically.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_ai_window(app: AppHandle) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window("ai_detached") {
+        let _ = existing.unminimize();
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        &app,
+        "ai_detached",
+        WebviewUrl::App("/?window=ai".into()),
+    )
+    .title("Ocul-PM · AI")
+    .inner_size(720.0, 640.0)
+    .min_inner_size(420.0, 360.0)
     .decorations(true)
     .resizable(true)
     .build()

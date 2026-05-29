@@ -6,6 +6,7 @@ import {
   migrateSplitRatio,
   migrateSidePanelWidth,
   migrateSidePanelMode,
+  migrateAiOverlayOpen,
   pushRecentChange,
   mapFileOpToChangeOp,
   RECENT_CHANGES_CAP,
@@ -309,6 +310,20 @@ describe("Lite-W6 PR6.3 — classifyDiffLines", () => {
       { kind: "context", text: " unchanged" },
       { kind: "context", text: " no-prefix" },
     ]);
+  });
+});
+
+describe("Lite-W6 PR9 — aiOverlayOpen migration", () => {
+  it("only `true` survives — legacy persisted shapes drop", () => {
+    expect(migrateAiOverlayOpen(true)).toBe(true);
+    expect(migrateAiOverlayOpen(false)).toBe(false);
+  });
+
+  it("defaults non-booleans to false so the overlay never auto-opens", () => {
+    expect(migrateAiOverlayOpen(undefined)).toBe(false);
+    expect(migrateAiOverlayOpen(null)).toBe(false);
+    expect(migrateAiOverlayOpen("true")).toBe(false);
+    expect(migrateAiOverlayOpen(1)).toBe(false);
   });
 });
 

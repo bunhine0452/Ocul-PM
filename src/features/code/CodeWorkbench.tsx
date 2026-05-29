@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
 import { DependencyGraphView } from "@/features/projects/DependencyGraphView";
-import { AiWorkbench } from "./AiWorkbench";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,9 @@ import { toast } from "@/lib/toast";
 // Lite-W6 PR8 Part 2: the local FileTree moved out into the Workspace-
 // level SidePanel (⌘B). CodeWorkbench no longer owns file browsing —
 // every activeView reaches files through ⌘B.
+// Lite-W6 PR9: the right-side AiWorkbench retired from CodeWorkbench. The
+// AI panel now mounts as a Workspace-level overlay (⌘\) at App.tsx root
+// so Today / Plan / Code share a single home.
 
 interface CodeWorkbenchProps {
   projectId: number;
@@ -38,10 +40,10 @@ export function CodeWorkbench({
   projectId,
   projectRoot,
 }: CodeWorkbenchProps) {
-  const { state, setState, setActiveFile, setSidePanelOpen } = useWorkspace();
+  const { state, setState, setActiveFile, setSidePanelOpen, setAiOverlayOpen } =
+    useWorkspace();
   const {
     activeFile,
-    aiWorkbenchOpen,
     codeSubTab,
     sidePanelOpen,
   } = state;
@@ -49,12 +51,12 @@ export function CodeWorkbench({
   // codeSubTab still drives the Code-view secondary UI:
   //   - "files" → viewer placeholder + auto-open ⌘B if user hasn't already
   //   - "graph" → DependencyGraphView replaces the viewer pane
-  //   - "ai"    → open AiWorkbench (mode toggled inside the panel)
+  //   - "ai"    → open the Workspace-level AI overlay (Lite-W6 PR9)
   //   - "terminal" → open the Workspace-level TerminalDock in split mode
   //     (Lite-W6 PR7 Part 2 retired the Code-only BottomDrawer).
   useEffect(() => {
     if (codeSubTab === "ai") {
-      setState((p) => ({ ...p, aiWorkbenchOpen: true }));
+      setAiOverlayOpen(true);
     } else if (codeSubTab === "terminal") {
       setState((p) => ({ ...p, layoutMode: "split" }));
     } else if (codeSubTab === "files" && !sidePanelOpen) {
@@ -63,7 +65,8 @@ export function CodeWorkbench({
       // alternative. They can dismiss with ⌘B.
       setSidePanelOpen(true);
     }
-    // setState/setSidePanelOpen are stable; intentionally narrow the deps.
+    // setState/setSidePanelOpen/setAiOverlayOpen are stable; intentionally
+    // narrow the deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeSubTab]);
 
@@ -73,30 +76,11 @@ export function CodeWorkbench({
     setState((p) => ({ ...p, activeFile: path, codeSubTab: "files" }));
   }
 
-  const [aiWidth, setAiWidth] = useState(380);
-
-  const startResize = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = aiWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = startWidth - (moveEvent.clientX - startX);
-      setAiWidth(Math.max(300, Math.min(newWidth, 1200)));
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  };
-
   return (
     <div className="h-full flex overflow-hidden">
-      {/* C-2: Primary content. The FileTree is now Workspace-level (⌘B). */}
+      {/* C-2: Primary content. The FileTree is now Workspace-level (⌘B) and
+          the AI panel is a Workspace-level overlay (⌘\) — CodeWorkbench
+          shrinks to the main pane. */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <main className="flex-1 flex overflow-hidden bg-background relative min-w-0">
           {showGraph ? (
@@ -112,19 +96,6 @@ export function CodeWorkbench({
           )}
         </main>
       </div>
-
-      {/* C-3: AI Workbench (right) — toggle with ⌘\\ */}
-      {aiWorkbenchOpen && (
-        <>
-          <div
-            onMouseDown={startResize}
-            className="w-1 cursor-col-resize bg-transparent hover:bg-primary/50 active:bg-primary z-10 transition-colors shrink-0"
-          />
-          <div style={{ width: aiWidth }} className="shrink-0 min-w-0 border-l border-border bg-background">
-            <AiWorkbench activeProjectId={projectId} activeFile={activeFile} />
-          </div>
-        </>
-      )}
     </div>
   );
 }

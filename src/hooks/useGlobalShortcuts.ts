@@ -9,7 +9,8 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 //             Workspace-level so every activeView can browse files.
 //   ⌘K     : Command Palette 열기
 //   ⌘,     : Settings 열기
-//   ⌘\     : AI Workbench 토글  (Code 화면 한정 — W5 정식 도입 전까지 토글만)
+//   ⌘\     : AI 오버레이 토글 (Lite-W6 PR9: Today/Plan/Code 모두에서 호출).
+//   ⌘⇧\   : AI 를 분리 윈도우로 detach (Lite-W6 PR9).
 //   ⌘J     : Terminal dock 토글 (main-only ↔ split). Lite-W6 PR7 Part 2
 //             promoted Terminal to a Workspace-level dock so this works
 //             from every activeView.
@@ -26,7 +27,8 @@ interface Options {
 }
 
 export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
-  const { setActiveView, setState, toggleSidePanel } = useWorkspace();
+  const { setActiveView, setState, toggleSidePanel, toggleAiOverlay, setAiOverlayOpen } =
+    useWorkspace();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -58,10 +60,24 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
         e.preventDefault();
         return;
       }
-      // ⌘\ — AI Workbench 토글 (W5 정식 도입 전까지 state 만 토글)
+      // ⌘\ / ⌘⇧\ — AI overlay / detached window (Lite-W6 PR9)
       if (e.key === "\\") {
         e.preventDefault();
-        setState((prev) => ({ ...prev, aiWorkbenchOpen: !prev.aiWorkbenchOpen }));
+        if (e.shiftKey) {
+          // Detach into the standalone AI window. The backend is idempotent
+          // (focus + unminimise on re-invocation) so repeated ⌘⇧\ just
+          // raises the existing window.
+          setAiOverlayOpen(false);
+          void import("@/lib/bindings").then(({ commands }) =>
+            commands.openAiWindow().then((res) => {
+              if (res.status === "error") {
+                console.error("[ai] openAiWindow:", res.error);
+              }
+            }),
+          );
+          return;
+        }
+        toggleAiOverlay();
         return;
       }
       // ⌘B — Side panel 토글 (Lite-W6 PR8 Part 2)
@@ -95,5 +111,13 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, onOpenSettings, setActiveView, setState, toggleSidePanel]);
+  }, [
+    onOpenPalette,
+    onOpenSettings,
+    setActiveView,
+    setState,
+    toggleSidePanel,
+    toggleAiOverlay,
+    setAiOverlayOpen,
+  ]);
 }

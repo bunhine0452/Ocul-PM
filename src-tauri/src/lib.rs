@@ -110,6 +110,7 @@ use crate::commands::{
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
     get_dependency_graph, get_file_symbols,
     minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
+    open_ai_window,
     list_project_files, list_project_tree, read_project_file, write_project_file,
     detect_file_changes, list_file_changes, generate_edit_prompt,
     // G3 — Clarify (W5)
@@ -204,6 +205,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         close_window,
         open_devtools,
         open_terminal_window,
+        open_ai_window,
         list_project_files,
         list_project_tree,
         read_project_file,

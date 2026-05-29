@@ -14,6 +14,8 @@ import { TodayScreen } from "@/features/today/TodayScreen";
 import { CodeWorkbench } from "@/features/code/CodeWorkbench";
 import { TerminalDock } from "@/components/TerminalDock";
 import { SidePanel } from "@/components/SidePanel";
+import { AiOverlay } from "@/components/AiOverlay";
+import { AiWorkbench } from "@/features/code/AiWorkbench";
 import type { ChangeOp } from "@/components/FileExplorer";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
@@ -277,6 +279,22 @@ function App() {
     );
   }
 
+  // Lite-W6 PR9 — `?window=ai` mounts only AiWorkbench, no overlay chrome.
+  // Project context follows the main window's last selection via
+  // WorkspaceContext persistence so the detached window has somewhere to
+  // operate even without an in-window project picker.
+  const isDetachedAiWindow = window.location.search.includes("window=ai");
+  if (isDetachedAiWindow) {
+    return (
+      <div className="w-screen h-screen bg-background flex flex-col overflow-hidden">
+        <AiWorkbench
+          activeProjectId={selectedProjectId}
+          activeFile={state.activeFile}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden">
       <TitleBar
@@ -313,6 +331,10 @@ function App() {
       )}
 
       {/* Global overlays */}
+      <AiOverlay
+        activeProjectId={selectedProjectId}
+        activeFile={state.activeFile}
+      />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}

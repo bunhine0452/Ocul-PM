@@ -79,7 +79,13 @@ export interface WorkspaceState {
   openFiles: string[];
   activeFile: string | null;
   aiWorkbenchMode: AiWorkbenchMode;
-  aiWorkbenchOpen: boolean;
+  /**
+   * Lite-W6 PR9: AI panel as a Workspace-level overlay (⌘\). Replaces the
+   * old `aiWorkbenchOpen` field which only controlled the Code view's right
+   * sidebar — the new flag governs the cross-view overlay. Legacy persisted
+   * values for `aiWorkbenchOpen` are dropped during load.
+   */
+  aiOverlayOpen: boolean;
 
   // Workspace-level dock layout (Lite-W6 PR7 Part 2)
   layoutMode: LayoutMode;
@@ -165,7 +171,7 @@ const DEFAULT_STATE: WorkspaceState = {
   openFiles: [],
   activeFile: null,
   aiWorkbenchMode: "quick-edit",
-  aiWorkbenchOpen: true,
+  aiOverlayOpen: false,
   layoutMode: "main-only",
   splitRatio: 0.6,
   fileExplorerExpanded: {},
@@ -209,6 +215,15 @@ export function pushRecentChange(
     return filtered.slice(filtered.length - RECENT_CHANGES_CAP);
   }
   return filtered;
+}
+
+/**
+ * Lite-W6 PR9: the AI overlay was migrated from `aiWorkbenchOpen`. We
+ * intentionally drop the legacy true so the overlay never auto-opens on
+ * launch — discovery happens through ⌘\, not surprise.
+ */
+export function migrateAiOverlayOpen(rawOverlay: unknown): boolean {
+  return rawOverlay === true;
 }
 
 /**
@@ -437,6 +452,11 @@ function loadFromStorage(): WorkspaceState {
       parsed.sidePanelOpen = parsed.sidePanelOpen === true;
       parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
       parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
+      // Lite-W6 PR9: aiWorkbenchOpen retired in favour of aiOverlayOpen.
+      // Auto-opening the overlay on launch would be jarring; default to
+      // closed regardless of the legacy persisted value.
+      parsed.aiOverlayOpen = parsed.aiOverlayOpen === true;
+      delete parsed.aiWorkbenchOpen;
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -509,6 +529,10 @@ interface WorkspaceContextValue {
 
   // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
   clearRecentChanges: () => void;
+
+  // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
+  toggleAiOverlay: () => void;
+  setAiOverlayOpen: (open: boolean) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -626,6 +650,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setState((prev) =>
       prev.recentChanges.length === 0 ? prev : { ...prev, recentChanges: [] },
     );
+  }, []);
+
+  const toggleAiOverlay = useCallback(() => {
+    setState((prev) => ({ ...prev, aiOverlayOpen: !prev.aiOverlayOpen }));
+  }, []);
+
+  const setAiOverlayOpen = useCallback((open: boolean) => {
+    setState((prev) => ({ ...prev, aiOverlayOpen: open }));
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -762,6 +794,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSidePanelWidth,
         setSidePanelMode,
         clearRecentChanges,
+        toggleAiOverlay,
+        setAiOverlayOpen,
       }}
     >
       {children}

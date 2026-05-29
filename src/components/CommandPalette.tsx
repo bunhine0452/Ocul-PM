@@ -18,6 +18,7 @@ import {
   type CodeSubTab,
 } from "@/contexts/WorkspaceContext";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
@@ -73,6 +74,7 @@ export function CommandPalette({
     toggleSidePanel,
     setSidePanelOpen,
     setSidePanelMode,
+    toggleAiOverlay,
   } = useWorkspace();
   const [search, setSearch] = useState("");
 
@@ -120,6 +122,19 @@ export function CommandPalette({
           setSidePanelMode("diff");
           setSidePanelOpen(true);
           onOpenChange(false);
+        } },
+      { id: "toggle-ai-overlay", label: "AI 패널 토글", alias: "ai overlay chat quick edit ⌘\\",
+        group: "액션", icon: Sparkles, shortcut: "⌘\\",
+        onSelect: () => { toggleAiOverlay(); onOpenChange(false); } },
+      { id: "detach-ai-window", label: "AI 패널 분리 윈도우로 열기", alias: "ai detach window ⌘⇧\\",
+        group: "액션", icon: Sparkles, shortcut: "⌘⇧\\",
+        onSelect: () => {
+          onOpenChange(false);
+          void commands.openAiWindow().then((res) => {
+            if (res.status === "error") {
+              toast.destructive(`AI 윈도우 열기 실패: ${res.error}`);
+            }
+          });
         } },
       { id: "settings", label: "Settings 열기", alias: "설정",
         group: "액션", icon: SettingsIcon, shortcut: "⌘,",
