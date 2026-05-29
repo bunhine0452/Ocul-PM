@@ -197,7 +197,9 @@
 |---|---|
 | ⊘ | PR6.1 (마이그레이션 010 `file_snapshots` + Watcher snapshot 작성) — **1.1 로 연기**. 이유: ① 신규 `zstd` cargo dep 가 master-prompt §6 rule 6 (외부 의존성 사전 confirm) 필요, ② Watcher snapshot 작성은 watcher invariant 회귀 위험. 1.0 은 git-only diff 로 출시; 비-git 사용자에게는 `compute_diff` 가 `SnapshotsUnavailable` 명시 에러를 돌려줘 UI 가 "(snapshots arrive in 1.1)" 안내 가능. |
 | ☑ | PR6.2 — `commands::diff::reindex_paths` (`LocalDiffReindexReport` DTO + skip reasons) + `commands::diff::compute_diff` (`DiffResult` + `DiffSource::Git/SnapshotsUnavailable`) + `git::diff_patch` 헬퍼 복원 (PR4 에서 삭제됐던 함수, 비-git 시 `"Not a git repository."` 에러로 `compute_diff` 가 fallback 분기) |
-| ⊘ | PR6.3~PR6.5 (LocalDiffView UI + entry wire-up + UX 디테일) — 후속 PR. PR6.4 는 spec 상 PR8 의 FileTree 재설계 의존. |
+| ☑ | PR6.3 — `src/features/diff/LocalDiffView.tsx` 신설 + SidePanel Files/Diff segmented toggle + `WorkspaceContext.sidePanelMode` 영속화 + `CommandPalette` 진입 item + `classifyDiffLines` pure-fn 색상 분기. 외부 dep 0. CommandPalette 진입 항목 등록. |
+| ⊘ | PR6.4 (FileTree dot click → diff mode handoff + Today 카드 "변경된 파일" → SidePanel) — 후속 PR. |
+| ⊘ | PR6.5 (side-by-side ≥1024px + collapse long diffs + 읽음/안읽음 + "AI 에게 설명") — 후속 PR. |
 | ⊘ | `feature_local_diff_v1` 플래그 — **신설 안 함** (master-prompt §8 anti-pattern "feature flag 신설 금지" 적용). 후속 PR 의 entry wire-up 으로 자연 gate. |
 | ☐ | 성능 SLO 측정 — UI 구현 시 dogfood 환경에서 측정 예정 |
 | ☐ | a11y: 색 + dot + 배지 3중 표시 — UI 구현 시 |
