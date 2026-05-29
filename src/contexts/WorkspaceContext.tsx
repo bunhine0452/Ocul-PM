@@ -132,6 +132,14 @@ export interface WorkspaceState {
   indexingProjectId: number | null;
   indexProgress: IndexProgress | null;
 
+  /**
+   * Lite-W6 PR6.4: one-shot handoff target for the FileTree → Diff jump.
+   * Set when a user clicks a changed-file dot in FileExplorer; LocalDiffView
+   * reads it on mount + clears so we don't snap back to it on every render.
+   * Not persisted — handoff is a single event, not a sticky state.
+   */
+  diffTarget: string | null;
+
   // .oculpm/ — populated by event listeners + on-demand fetches (W3-PR4).
   // Volatile: re-derived on project switch.
   oculpmEnabled: boolean;
@@ -183,6 +191,7 @@ const DEFAULT_STATE: WorkspaceState = {
   defaultTabUserOverride: false,
   indexingProjectId: null,
   indexProgress: null,
+  diffTarget: null,
   oculpmEnabled: false,
   oculpmStatus: null,
   currentSession: null,
@@ -464,6 +473,7 @@ function loadFromStorage(): WorkspaceState {
         // Always reset volatile state
         indexingProjectId: null,
         indexProgress: null,
+        diffTarget: null,
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
@@ -490,6 +500,7 @@ function persistToStorage(state: WorkspaceState) {
   const {
     indexingProjectId: _ip,
     indexProgress: _ipr,
+    diffTarget: _dt,
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
@@ -533,6 +544,10 @@ interface WorkspaceContextValue {
   // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
   toggleAiOverlay: () => void;
   setAiOverlayOpen: (open: boolean) => void;
+
+  // Lite-W6 PR6.4 — one-shot FileTree → Diff handoff.
+  openDiffFor: (path: string) => void;
+  consumeDiffTarget: () => string | null;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -658,6 +673,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setAiOverlayOpen = useCallback((open: boolean) => {
     setState((prev) => ({ ...prev, aiOverlayOpen: open }));
+  }, []);
+
+  /**
+   * Lite-W6 PR6.4: invoked by the FileExplorer when a user clicks a file
+   * that has a recentChanges entry. Atomically jumps the side panel to Diff
+   * mode, ensures the panel is open, and stashes the target path so
+   * LocalDiffView can pre-select it. The clear half lives in `consumeDiffTarget`.
+   */
+  const openDiffFor = useCallback((path: string) => {
+    setState((prev) => ({
+      ...prev,
+      sidePanelOpen: true,
+      sidePanelMode: "diff",
+      diffTarget: path,
+    }));
+  }, []);
+
+  /**
+   * Lite-W6 PR6.4: LocalDiffView calls this on mount + after each effect
+   * that observes diffTarget; it returns the pending target and clears it
+   * in the same setState so we don't snap back to it on every selection
+   * change. Single-shot semantics.
+   */
+  const consumeDiffTarget = useCallback((): string | null => {
+    const current = stateRef.current?.diffTarget ?? null;
+    if (current !== null) {
+      setState((prev) =>
+        prev.diffTarget === null ? prev : { ...prev, diffTarget: null },
+      );
+    }
+    return current;
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -796,6 +842,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         clearRecentChanges,
         toggleAiOverlay,
         setAiOverlayOpen,
+        openDiffFor,
+        consumeDiffTarget,
       }}
     >
       {children}

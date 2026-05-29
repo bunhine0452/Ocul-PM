@@ -20,6 +20,8 @@ import {
   nextFocusedPath,
 } from "@/components/FileExplorer";
 import { classifyDiffLines } from "@/features/diff/LocalDiffView";
+import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
+import { renderHook, act } from "@testing-library/react";
 import type { ProjectTreeNode } from "@/lib/bindings";
 
 // ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
@@ -324,6 +326,53 @@ describe("Lite-W6 PR9 — aiOverlayOpen migration", () => {
     expect(migrateAiOverlayOpen(null)).toBe(false);
     expect(migrateAiOverlayOpen("true")).toBe(false);
     expect(migrateAiOverlayOpen(1)).toBe(false);
+  });
+});
+
+describe("Lite-W6 PR6.4 — diffTarget single-shot handoff", () => {
+  // openDiffFor + consumeDiffTarget live inside the React context, so we
+  // drive them through renderHook. Single-shot semantics: the first consume
+  // returns the path and clears; the second returns null.
+
+  it("openDiffFor sets diffTarget + opens panel in diff mode", () => {
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    });
+    expect(result.current.state.diffTarget).toBe(null);
+    act(() => result.current.openDiffFor("src/a.ts"));
+    expect(result.current.state.diffTarget).toBe("src/a.ts");
+    expect(result.current.state.sidePanelOpen).toBe(true);
+    expect(result.current.state.sidePanelMode).toBe("diff");
+  });
+
+  it("consumeDiffTarget returns + clears on first call, null thereafter", () => {
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    });
+    act(() => result.current.openDiffFor("src/b.ts"));
+    let first: string | null = "<unset>";
+    act(() => {
+      first = result.current.consumeDiffTarget();
+    });
+    expect(first).toBe("src/b.ts");
+    expect(result.current.state.diffTarget).toBe(null);
+    let second: string | null = "<unset>";
+    act(() => {
+      second = result.current.consumeDiffTarget();
+    });
+    expect(second).toBe(null);
+  });
+
+  it("consumeDiffTarget when no target was set returns null without setState churn", () => {
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    });
+    let out: string | null = "<unset>";
+    act(() => {
+      out = result.current.consumeDiffTarget();
+    });
+    expect(out).toBe(null);
+    expect(result.current.state.diffTarget).toBe(null);
   });
 });
 

@@ -53,6 +53,7 @@ export function SidePanel({
     setSidePanelWidth,
     setSidePanelMode,
     clearRecentChanges,
+    openDiffFor,
   } = useWorkspace();
   const {
     activeFile,
@@ -205,6 +206,7 @@ export function SidePanel({
             expanded={fileExplorerExpanded}
             onToggleExpand={toggleExpand}
             recentChanges={recentChanges}
+            onChangedFileClick={openDiffFor}
           />
         )}
       </div>

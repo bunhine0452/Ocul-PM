@@ -55,7 +55,7 @@ interface LocalDiffViewProps {
 }
 
 export function LocalDiffView({ projectId }: LocalDiffViewProps) {
-  const { state, clearRecentChanges } = useWorkspace();
+  const { state, clearRecentChanges, consumeDiffTarget } = useWorkspace();
   const { recentChanges } = state;
 
   // Pin the picked path locally — when the user clears the buffer or the
@@ -67,6 +67,16 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
   const [diffError, setDiffError] = useState<string | null>(null);
 
   const [reindexing, setReindexing] = useState(false);
+
+  // Lite-W6 PR6.4: a pending handoff from FileExplorer always wins, even
+  // over the user's previous selection. We consume it once so a subsequent
+  // pick in the file list doesn't snap back to the handoff target.
+  useEffect(() => {
+    const handoff = consumeDiffTarget();
+    if (handoff) {
+      setSelected(handoff);
+    }
+  }, [consumeDiffTarget]);
 
   // Default the picked file to the most recent change. We reverse iterate so
   // the user lands on what they were just doing.

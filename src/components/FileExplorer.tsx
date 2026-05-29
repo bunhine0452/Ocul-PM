@@ -35,6 +35,14 @@ interface FileExplorerProps {
   /** Controlled expanded map. Keys are `relative_path` for folder nodes. */
   expanded: Record<string, boolean>;
   onToggleExpand: (relPath: string) => void;
+  /**
+   * Lite-W6 PR6.4: invoked when the user clicks a file *that has a
+   * recentChanges entry*. The parent uses this to jump the side panel to
+   * Diff mode and pre-select the path. When omitted, changed files fall
+   * back to the normal `onSelectFile` path so the FileTree works in
+   * contexts where there's no LocalDiffView host (tests, embeds).
+   */
+  onChangedFileClick?: (path: string) => void;
 }
 
 /**
@@ -133,6 +141,7 @@ export function FileExplorer({
   recentChanges,
   expanded,
   onToggleExpand,
+  onChangedFileClick,
 }: FileExplorerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
@@ -257,6 +266,8 @@ export function FileExplorer({
       if (!node) return;
       if (node.isDir) {
         onToggleExpand(node.path);
+      } else if (onChangedFileClick && recentChanges?.[node.path]) {
+        onChangedFileClick(node.path);
       } else {
         onSelectFile(node.path);
       }
@@ -337,6 +348,14 @@ export function FileExplorer({
     const isActive = activeFile === node.relative_path;
     const op = recentChanges?.[node.relative_path];
     const { icon, color } = getFileIcon(node.name);
+    const handleFileClick = () => {
+      setFocusedPath(node.relative_path);
+      if (op && onChangedFileClick) {
+        onChangedFileClick(node.relative_path);
+      } else {
+        onSelectFile(node.relative_path);
+      }
+    };
 
     return (
       <div
@@ -346,10 +365,7 @@ export function FileExplorer({
         aria-selected={isActive}
         aria-level={depth + 1}
         tabIndex={isFocused ? 0 : -1}
-        onClick={() => {
-          setFocusedPath(node.relative_path);
-          onSelectFile(node.relative_path);
-        }}
+        onClick={handleFileClick}
         onFocus={() => setFocusedPath(node.relative_path)}
         className={`flex items-center py-1 px-2 rounded-md text-xs cursor-pointer select-none transition-all duration-150 outline-none ${
           isActive
