@@ -6,7 +6,8 @@ mod commands;
 pub mod db;
 mod embedding;
 mod error;
-mod git;
+// `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
+pub mod git;
 mod github;
 mod indexer;
 mod llm;
