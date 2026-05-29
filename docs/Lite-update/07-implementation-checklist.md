@@ -273,19 +273,19 @@
 | ☐ | (Part 3) 카피 한국어 통일 (영문 단축키 / 기술명만 영문) — grep 기반 100+ 문자열 변경 예상. |
 | ☐ | (Part 3) `src/locales/ko.json` 갱신 — 기존 ko.json 존재 (`src/locales/ko.json` 확인), 신규 surface 추가분 동기화 필요. |
 
-### PR11 — 성능 + 통합 테스트
+### PR11 — 성능 + 통합 테스트 ✅ (2026-05-29, head `3286573`)
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `scripts/oculpm-perf.sh` 실행 + 결과 `docs/Lite-update/_perf-1.0.md` |
-| ☐ | SLO 1: idle CPU < 2% |
-| ☐ | SLO 2: idle 메모리 < 50 MB |
-| ☐ | SLO 3: 단일 파일 변경 ndjson append p95 < 500ms |
-| ☐ | SLO 4: 100 파일 일괄 변경 < 5초 |
-| ☐ | SLO 5: 마이그레이션 100 entries < 10초 |
-| ☐ | SLO 6: Overview 페이지 로드 < 500ms (Overview 가 Today 흡수된 후 → "Today 카드 4개 로드 < 500ms" 로 재정의) |
-| ☐ | `cargo test --test oculpm_integration_*` 25 시나리오 green (PR3, PR4 의 삭제 반영) |
-| ☐ | 새 시나리오: LocalDiffView 의 reindex_paths + diff_patch + snapshot fallback |
+| ☑ | `_perf-1.0.md` 작성 — 자동 측정 (§1) + dogfood SLO (§2) + PR12 직전 회귀 체크리스트 (§3) + 1.1 이월 (§4). **`scripts/oculpm-perf.sh` 는 신설 안 함** — 자동 SLO 는 `cargo test` 5개 binary 가 커버하므로 별도 shell script 불필요. |
+| ⊘ | SLO 1: idle CPU < 2% — dogfood 영역, _perf-1.0.md §2 SLO-D1 로 이월. |
+| ⊘ | SLO 2: idle 메모리 < 50 MB — dogfood 영역, SLO-D2. |
+| ⊘ | SLO 3: 단일 파일 변경 ndjson append p95 < 500ms — dogfood 영역, SLO-D3. |
+| ⊘ | SLO 4: 100 파일 일괄 변경 < 5초 — dogfood 영역, SLO-D4. |
+| ⊘ | SLO 5: 마이그레이션 100 entries < 10초 — dogfood 영역, SLO-D5. |
+| ⊘ | SLO 6: Today 카드 4개 로드 < 500 ms — dogfood 영역, SLO-D6. |
+| ☑ | `cargo test` 5 binary green — lib (220) + oculpm_agents_compare (7) + lite_w6_safety_net (5) + oculpm_migration (6) + **local_diff (4 신규)** = 242 pass + 1 ignored (50k perf bench). `oculpm_integration_*` 25 시나리오 원안은 W5 spec 으로, Lite-W6 의 PR3/PR4 cut 으로 재정의됨. |
+| ☑ | 새 시나리오: `tests/local_diff.rs` 4 케이스 — modified file unified diff / unmodified empty patch / `max_bytes=4096` truncation + budget 검증 / non-git `"Not a git repository."` sentinel. `git::diff_patch` 가 `compute_diff` 의 git 경로 + `SnapshotsUnavailable` fallback 양쪽을 cover. `mod git` → `pub mod git` 승격 (lite_w6 PR0 패턴 답습). |
 
 ### PR12 — 빌드 / 서명 / 릴리스
 
