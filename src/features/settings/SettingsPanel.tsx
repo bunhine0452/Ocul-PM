@@ -33,15 +33,15 @@ type TabId =
   | "diagnostics";
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "appearance", label: "Appearance", icon: Sun },
+  { id: "appearance", label: "모양", icon: Sun },
   { id: "llm", label: "LLM", icon: Sparkles },
   { id: "github", label: "GitHub", icon: GitBranch },
-  { id: "indexing", label: "Indexing & RAG", icon: FileCode },
-  { id: "graph", label: "Graph", icon: GitBranch },
-  { id: "data", label: "Data", icon: Database },
+  { id: "indexing", label: "인덱싱 & RAG", icon: FileCode },
+  { id: "graph", label: "그래프", icon: GitBranch },
+  { id: "data", label: "데이터", icon: Database },
   { id: "oculpm", label: "ocul-pm", icon: FileCode },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
-  { id: "diagnostics", label: "Diagnostics", icon: SettingsIcon },
+  { id: "diagnostics", label: "진단", icon: SettingsIcon },
 ];
 
 const GITHUB_SECRET = "github_api_key";
@@ -162,7 +162,7 @@ function AppearanceTab() {
   return (
     <>
       <Section
-        title="External editor"
+        title="외부 에디터"
         description="외부 에디터로 열기 (⌘B → 파일 선택 → 외부 에디터). %path 는 절대 파일 경로로 치환됩니다."
       >
         <Field
@@ -178,7 +178,7 @@ function AppearanceTab() {
         </Field>
       </Section>
 
-      <Section title="Theme" description="Light, dark, or follow your OS preference.">
+      <Section title="테마" description="밝게 / 어둡게, 또는 OS 설정을 따릅니다.">
         <div className="grid grid-cols-3 gap-3">
           {(["light", "dark", "system"] as const).map((t) => {
             const isActive = settings.theme === t;
@@ -202,8 +202,8 @@ function AppearanceTab() {
         </div>
       </Section>
 
-      <Section title="Code Editor" description="Font and layout for the in-app code editor.">
-        <Field label="Font family" hint="Falls back to system monospace if the named font isn't found.">
+      <Section title="코드 에디터" description="앱 내 코드 에디터의 글꼴과 레이아웃 (※ Lite-W6 PR5 에서 코드 에디터는 legacy 로 이동 — 이 설정은 1.1 까지 보존).">
+        <Field label="글꼴" hint="지정한 글꼴이 없으면 시스템 모노스페이스로 대체됩니다.">
           <Input
             value={settings.editorFontFamily}
             onChange={(e) => set("editorFontFamily", e.currentTarget.value)}
@@ -211,7 +211,7 @@ function AppearanceTab() {
           />
         </Field>
 
-        <Field label={`Font size — ${settings.editorFontSize}px`}>
+        <Field label={`글꼴 크기 — ${settings.editorFontSize}px`}>
           <NumberSlider
             value={settings.editorFontSize}
             min={10}
@@ -220,7 +220,7 @@ function AppearanceTab() {
           />
         </Field>
 
-        <Field label={`Tab width — ${settings.editorTabWidth} spaces`}>
+        <Field label={`탭 너비 — ${settings.editorTabWidth} spaces`}>
           <NumberSlider
             value={settings.editorTabWidth}
             min={1}
@@ -232,22 +232,22 @@ function AppearanceTab() {
         <Toggle
           checked={settings.editorShowLineNumbers}
           onChange={(v) => set("editorShowLineNumbers", v)}
-          label="Show line numbers"
+          label="줄 번호 표시"
         />
         <Toggle
           checked={settings.editorActiveLineHighlight}
           onChange={(v) => set("editorActiveLineHighlight", v)}
-          label="Highlight active line"
+          label="활성 줄 강조"
         />
         <Toggle
           checked={settings.editorIndentGuides}
           onChange={(v) => set("editorIndentGuides", v)}
-          label="Show indent guides"
+          label="들여쓰기 가이드 표시"
         />
         <Toggle
           checked={settings.editorWordWrap}
           onChange={(v) => set("editorWordWrap", v)}
-          label="Word wrap"
+          label="줄 바꿈"
         />
       </Section>
     </>
@@ -321,7 +321,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
 
   return (
     <>
-      <Section title="API Keys" description="Stored securely in your OS keychain.">
+      <Section title="API 키" description="OS 키체인에 안전하게 저장됩니다.">
         <select
           value={provider}
           onChange={(e) => setProvider(e.currentTarget.value as Provider)}
@@ -329,7 +329,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         >
           {PROVIDERS.map((p) => (
             <option key={p} value={p}>
-              {p} {hasKey[p] === true ? "  ✓ key saved" : hasKey[p] === false ? "  ✗ not set" : ""}
+              {p} {hasKey[p] === true ? "  ✓ 저장됨" : hasKey[p] === false ? "  ✗ 미설정" : ""}
             </option>
           ))}
         </select>
@@ -338,16 +338,16 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           <KeyRound className="w-3.5 h-3.5" />
           <span>
             {hasKey[provider] === null
-              ? "Checking…"
+              ? "확인 중…"
               : hasKey[provider]
-              ? "Saved in keychain"
-              : "No key set for this provider"}
+              ? "키체인에 저장됨"
+              : "이 프로바이더에 키 없음"}
           </span>
         </div>
 
         <Input
           type="password"
-          placeholder="Paste API key…"
+          placeholder="API 키 붙여넣기…"
           value={apiKey}
           onChange={(e) => setApiKey(e.currentTarget.value)}
         />
@@ -358,7 +358,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             disabled={!apiKey}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Save
+            저장
           </Button>
           <Button
             onClick={clearKey}
@@ -366,26 +366,26 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             variant="outline"
             className="flex-1"
           >
-            Clear
+            삭제
           </Button>
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-1 text-[11px] text-muted-foreground">
           <span>
-            Status is cached locally — opening this panel does not prompt your keychain.
+            상태는 로컬에 캐시됩니다 — 이 패널을 열어도 키체인 프롬프트가 뜨지 않습니다.
           </span>
           <button
             onClick={verifyAll}
             disabled={verifying}
             className="shrink-0 text-primary hover:underline disabled:opacity-50 cursor-pointer"
-            title="Re-check the OS keychain (will prompt you)"
+            title="OS 키체인 재확인 (프롬프트가 뜹니다)"
           >
-            {verifying ? "Verifying…" : "Verify against keychain"}
+            {verifying ? "확인 중…" : "키체인 대조 확인"}
           </button>
         </div>
       </Section>
 
-      <Section title="Default Provider" description="Which provider chat and assist will use by default.">
+      <Section title="기본 프로바이더" description="채팅과 지원에 기본으로 사용할 프로바이더.">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {PROVIDERS.map((p) => {
             const isActive = settings.defaultProvider === p;
@@ -406,7 +406,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </div>
       </Section>
 
-      <Section title="Models" description="Per-provider model overrides. Leave blank to use the built-in default.">
+      <Section title="모델" description="프로바이더별 모델 오버라이드. 비우면 내장 기본값을 사용합니다.">
         <Field label="Anthropic">
           <Input
             placeholder="claude-sonnet-4-6"
@@ -428,14 +428,14 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => set("modelGemini", e.currentTarget.value)}
           />
         </Field>
-        <Field label="NVIDIA NIM" hint="OpenAI-compatible endpoint at integrate.api.nvidia.com.">
+        <Field label="NVIDIA NIM" hint="integrate.api.nvidia.com 의 OpenAI 호환 엔드포인트.">
           <Input
             placeholder="meta/llama-3.3-70b-instruct"
             value={settings.modelNim}
             onChange={(e) => set("modelNim", e.currentTarget.value)}
           />
         </Field>
-        <Field label="Fallback default model">
+        <Field label="폴백 기본 모델">
           <Input
             placeholder="claude-opus-4-7"
             value={settings.defaultModel}
@@ -444,8 +444,8 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </Field>
       </Section>
 
-      <Section title="Generation" description="How the model responds.">
-        <Field label={`Temperature — ${settings.temperature.toFixed(2)}`} hint="Lower is more focused, higher more creative.">
+      <Section title="생성" description="모델 응답 방식.">
+        <Field label={`Temperature — ${settings.temperature.toFixed(2)}`} hint="낮을수록 집중, 높을수록 창의적.">
           <NumberSlider
             value={settings.temperature}
             min={0}
@@ -454,7 +454,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(v) => set("temperature", v)}
           />
         </Field>
-        <Field label={`Max output tokens — ${settings.maxTokens}`}>
+        <Field label={`최대 출력 토큰 — ${settings.maxTokens}`}>
           <NumberSlider
             value={settings.maxTokens}
             min={256}
@@ -463,11 +463,11 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(v) => set("maxTokens", v)}
           />
         </Field>
-        <Field label="System prompt" hint="Prepended to every chat. Leave blank for the app default.">
+        <Field label="시스템 프롬프트" hint="모든 채팅 앞에 추가됩니다. 비우면 앱 기본값을 사용합니다.">
           <textarea
             value={settings.systemPrompt}
             onChange={(e) => set("systemPrompt", e.currentTarget.value)}
-            placeholder="You are a helpful coding assistant…"
+            placeholder="당신은 도움이 되는 코딩 어시스턴트입니다…"
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
           />
@@ -475,7 +475,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         <Toggle
           checked={settings.streamResponses}
           onChange={(v) => set("streamResponses", v)}
-          label="Stream responses"
+          label="응답 스트리밍"
         />
       </Section>
     </>
@@ -537,23 +537,23 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
   return (
     <>
       <Section
-        title="Personal Access Token"
-        description="Used to read repo metadata, PRs, issues, etc. Stored in your OS keychain."
+        title="개인 액세스 토큰 (Personal Access Token)"
+        description="저장소 메타데이터 · PR · 이슈 등을 읽는 데 사용됩니다. OS 키체인에 저장됩니다."
       >
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <KeyRound className="w-3.5 h-3.5" />
           <span>
             {hasToken === null
-              ? "Checking…"
+              ? "확인 중…"
               : hasToken
-              ? "Token saved in keychain"
-              : "No token saved"}
+              ? "토큰이 키체인에 저장됨"
+              : "저장된 토큰 없음"}
           </span>
         </div>
 
         <Input
           type="password"
-          placeholder="ghp_… or github_pat_…"
+          placeholder="ghp_… 또는 github_pat_…"
           value={token}
           onChange={(e) => setToken(e.currentTarget.value)}
         />
@@ -564,7 +564,7 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
             disabled={!token}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Save
+            저장
           </Button>
           <Button
             onClick={clear}
@@ -572,21 +572,21 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
             variant="outline"
             className="flex-1"
           >
-            Clear
+            삭제
           </Button>
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-1 text-[11px] text-muted-foreground">
           <span>
-            Recommended scopes: <code className="font-mono">read:user</code>,{" "}
-            <code className="font-mono">repo</code> (for private repos).{" "}
+            권장 scope: <code className="font-mono">read:user</code>,{" "}
+            <code className="font-mono">repo</code> (private 저장소 시).{" "}
             <a
               href="https://github.com/settings/tokens?type=beta"
               target="_blank"
               rel="noreferrer"
               className="text-primary hover:underline"
             >
-              Create one →
+              토큰 만들기 →
             </a>
           </span>
           <button
@@ -594,13 +594,13 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
             disabled={!hasToken || verifying}
             className="shrink-0 text-primary hover:underline disabled:opacity-50 cursor-pointer"
           >
-            {verifying ? "Verifying…" : "Verify token"}
+            {verifying ? "확인 중…" : "토큰 확인"}
           </button>
         </div>
       </Section>
 
       {verified && (
-        <Section title="Connected as">
+        <Section title="연결된 계정">
           <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
             {verified.user.avatar_url && (
               <img
@@ -626,19 +626,19 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
               <div>
                 {verified.rate_limit.remaining}/{verified.rate_limit.limit}
               </div>
-              <div>API calls left</div>
+              <div>남은 API 호출</div>
             </div>
           </div>
         </Section>
       )}
 
       <Section
-        title="Local git"
-        description="Git log and remotes are read from the project folder using the local git CLI — no token required."
+        title="로컬 git"
+        description="로컬 git CLI 로 프로젝트 폴더의 git 로그와 remote 를 읽습니다 — 토큰 불필요."
       >
         <p className="text-[11px] text-muted-foreground/80">
-          A token is only needed when you want to fetch GitHub-specific data
-          (PRs, issues, GraphQL queries, write actions).
+          토큰은 GitHub 전용 데이터 (PR, 이슈, GraphQL 쿼리, write action) 를
+          가져올 때만 필요합니다.
         </p>
       </Section>
     </>
@@ -650,10 +650,10 @@ function IndexingTab() {
   return (
     <>
       <Section
-        title="Chunking"
-        description="Larger chunks preserve more context per snippet; smaller chunks improve search precision."
+        title="청킹"
+        description="청크가 클수록 스니펫당 컨텍스트가 풍부하고, 작을수록 검색 정밀도가 높아집니다."
       >
-        <Field label={`Chunk size — ${settings.chunkSize} lines`}>
+        <Field label={`청크 크기 — ${settings.chunkSize} 줄`}>
           <NumberSlider
             value={settings.chunkSize}
             min={5}
@@ -661,7 +661,7 @@ function IndexingTab() {
             onChange={(v) => set("chunkSize", v)}
           />
         </Field>
-        <Field label={`Chunk overlap — ${settings.chunkOverlap} lines`} hint="How much consecutive chunks share. Must be less than chunk size.">
+        <Field label={`청크 오버랩 — ${settings.chunkOverlap} 줄`} hint="연속된 청크가 공유하는 양. 청크 크기보다 작아야 합니다.">
           <NumberSlider
             value={settings.chunkOverlap}
             min={0}
@@ -671,8 +671,8 @@ function IndexingTab() {
         </Field>
       </Section>
 
-      <Section title="Retrieval" description="How many chunks to feed the model as context for each chat message.">
-        <Field label={`RAG context — top ${settings.ragTopK} chunks`}>
+      <Section title="검색 (Retrieval)" description="채팅 메시지마다 모델에 컨텍스트로 전달할 청크 수.">
+        <Field label={`RAG 컨텍스트 — 상위 ${settings.ragTopK} 청크`}>
           <NumberSlider
             value={settings.ragTopK}
             min={0}
@@ -682,8 +682,8 @@ function IndexingTab() {
         </Field>
       </Section>
 
-      <Section title="File scanning" description="Controls which files are walked and indexed.">
-        <Field label={`Max file size — ${settings.maxFileSizeKb} KB`} hint="Files larger than this are skipped entirely.">
+      <Section title="파일 스캔" description="어떤 파일을 탐색·인덱싱할지 제어합니다.">
+        <Field label={`최대 파일 크기 — ${settings.maxFileSizeKb} KB`} hint="이보다 큰 파일은 전체가 스킵됩니다.">
           <NumberSlider
             value={settings.maxFileSizeKb}
             min={50}
@@ -693,8 +693,8 @@ function IndexingTab() {
           />
         </Field>
         <Field
-          label="Additional exclude patterns"
-          hint="One gitignore-style pattern per line. Applied on top of .gitignore. Example: dist/**, *.snap"
+          label="추가 제외 패턴"
+          hint="한 줄에 하나의 gitignore 스타일 패턴. .gitignore 위에 적용됩니다. 예: dist/**, *.snap"
         >
           <textarea
             value={settings.excludePatterns}
@@ -705,7 +705,7 @@ function IndexingTab() {
           />
         </Field>
         <p className="text-[11px] text-muted-foreground/80 italic">
-          Changes apply the next time you re-index a project.
+          변경 사항은 다음 번 프로젝트 재인덱싱 때 적용됩니다.
         </p>
       </Section>
     </>
@@ -715,15 +715,15 @@ function IndexingTab() {
 function GraphTab() {
   const { settings, set } = useSettings();
   return (
-    <Section title="Dependency graph defaults">
+    <Section title="의존성 그래프 기본값">
       <Toggle
         checked={settings.graphShowIsolated}
         onChange={(v) => set("graphShowIsolated", v)}
-        label="Show isolated files by default"
+        label="기본으로 고립된 파일 표시"
       />
       <Field
-        label={`Auto-group threshold — ${settings.graphGroupThreshold} files`}
-        hint="Directories with at least this many files become collapsible groups inside a column."
+        label={`자동 그룹 임계값 — ${settings.graphGroupThreshold} 파일`}
+        hint="이 개수 이상의 파일을 가진 디렉토리는 컬럼 안에서 접을 수 있는 그룹이 됩니다."
       >
         <NumberSlider
           value={settings.graphGroupThreshold}
@@ -776,15 +776,15 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
 
   return (
     <>
-      <Section title="Storage" description="Where this app stores its data.">
+      <Section title="저장소" description="이 앱이 데이터를 저장하는 위치.">
         {info ? (
           <div className="space-y-2 text-xs font-mono">
             {(
               [
-                ["Database", info.db_path],
-                ["App data", info.app_data_dir],
-                ["Secrets", info.secrets_store],
-                ["Version", info.version],
+                ["데이터베이스", info.db_path],
+                ["앱 데이터", info.app_data_dir],
+                ["비밀 데이터", info.secrets_store],
+                ["버전", info.version],
               ] as Array<[string, string]>
             ).map(([k, v]) => (
               <div
@@ -802,7 +802,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 <button
                   onClick={() => copy(v, k)}
                   className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 cursor-pointer"
-                  title={copied === k ? "Copied!" : "Copy"}
+                  title={copied === k ? "복사됨!" : "복사"}
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </button>
@@ -814,25 +814,25 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
         )}
       </Section>
 
-      <Section title="Diagnostics">
+      <Section title="진단">
         <Button variant="outline" onClick={openDevtools} className="w-full">
-          Open DevTools
+          DevTools 열기
         </Button>
       </Section>
 
       <Section
-        title="Reset"
-        description="Restore every setting to its default value. API keys and indexed projects are kept."
+        title="초기화"
+        description="모든 설정을 기본값으로 복원합니다. API 키와 인덱싱된 프로젝트는 유지됩니다."
       >
         <Button variant="outline" onClick={resetSettings} className="w-full">
           <RefreshCw className="w-3.5 h-3.5 mr-2" />
-          Reset settings to defaults
+          설정 기본값으로 초기화
         </Button>
       </Section>
 
       <Section
-        title="Danger zone"
-        description="Deletes every project, index, conversation, setting, and saved API key on this machine."
+        title="위험 구역"
+        description="이 컴퓨터의 모든 프로젝트 · 인덱스 · 대화 · 설정 · 저장된 API 키를 삭제합니다."
       >
         {!confirmingClear ? (
           <Button
@@ -841,12 +841,12 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
             className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="w-3.5 h-3.5 mr-2" />
-            Clear all data
+            모든 데이터 삭제
           </Button>
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-destructive font-medium">
-              This cannot be undone. Are you absolutely sure?
+              이 작업은 되돌릴 수 없습니다. 정말로 삭제하시겠습니까?
             </p>
             <div className="flex gap-2">
               <Button
@@ -854,7 +854,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 disabled={busy}
                 className="flex-1 bg-destructive text-white hover:bg-destructive/90"
               >
-                {busy ? "Clearing…" : "Yes, delete everything"}
+                {busy ? "삭제 중…" : "예, 모두 삭제"}
               </Button>
               <Button
                 onClick={() => setConfirmingClear(false)}
@@ -862,7 +862,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 disabled={busy}
                 className="flex-1"
               >
-                Cancel
+                취소
               </Button>
             </div>
           </div>
@@ -898,20 +898,20 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
   return (
     <>
       <Section
-        title="Database Health"
+        title="데이터베이스 상태"
         description="SQLite + sqlite-vec 상태와 스키마 버전을 확인합니다."
       >
         <div className="grid grid-cols-3 gap-2">
           <Stat label="SQLite" value={health?.sqlite_version} />
           <Stat label="sqlite-vec" value={health?.vec_version} />
-          <Stat label="Schema" value={health ? `v${health.schema_version}` : undefined} />
+          <Stat label="스키마" value={health ? `v${health.schema_version}` : undefined} />
         </div>
         <div className="text-[11px] font-mono break-all text-muted-foreground">
-          {health?.path ?? "Not queried"}
+          {health?.path ?? "조회되지 않음"}
         </div>
         <Button onClick={check} disabled={loading} variant="outline" size="sm">
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh Health
+          상태 새로고침
         </Button>
       </Section>
     </>

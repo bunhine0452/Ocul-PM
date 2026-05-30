@@ -259,7 +259,7 @@
 
 ### PR10 — a11y / 다크모드 / 카피
 
-**진행 분할**: PR10 Part 1 (토큰 + reduced-motion + 의미 색 보정) ✅ 2026-05-29 `b4f9377` / PR10 Part 2 (axe-core + 키 nav 감사) ✅ 2026-05-30 / PR10 Part 3 (한국어 카피 통일) ☐. PR7/PR8 의 Part 분할 패턴 답습.
+**진행 분할**: PR10 Part 1 (토큰 + reduced-motion + 의미 색 보정) ✅ 2026-05-29 `b4f9377` / PR10 Part 2 (axe-core + 키 nav 감사) ✅ 2026-05-30 / PR10 Part 3 (한국어 카피 통일) ✅ 2026-05-30. PR7/PR8 의 Part 분할 패턴 답습.
 
 | 체크 | 항목 |
 |---|---|
@@ -271,8 +271,8 @@
 | ☐ | (Part 2) 다크모드 — Lite 후 잔존 모든 화면 정상. dogfood 검증 영역. |
 | ☑ | (Part 1) 새 토큰 (`--accent-recent-change`, `--accent-uncommitted`) 의 다크 변형 — App.css `@layer base` 의 `:root` + `.dark` 양쪽 정의 (light amber → dark amber chroma-shifted). GitBranchChip 의 uncommitted 배지 (`text-destructive` → token), FileExplorer 의 dot (per-file + ancestor + active-row override) 가 신규 토큰 사용. |
 | ☑ | (Part 1) `prefers-reduced-motion` 존중 — App.css 의 `@media (prefers-reduced-motion: reduce)` 글로벌 룰. `*::before`/`*::after` 포함 animation/transition duration 1ms collapse + scroll-behavior auto. `animation: none` 회피로 keyframe lifecycle 보존. |
-| ☐ | (Part 3) 카피 한국어 통일 (영문 단축키 / 기술명만 영문) — grep 기반 100+ 문자열 변경 예상. |
-| ☐ | (Part 3) `src/locales/ko.json` 갱신 — 기존 ko.json 존재 (`src/locales/ko.json` 확인), 신규 surface 추가분 동기화 필요. |
+| ☑ | (Part 3) 카피 한국어 통일 (영문 단축키 / 기술명만 영문) — SettingsPanel 8 탭의 Section/Field/Toast/Button 카피 + CommandPalette 의 view-* / code-* / settings / regen-overview / "Code 화면" group + aria-label 한국어화. 기술명 보존 (API / LLM / RAG / GitHub / Anthropic / OpenAI / Gemini / NVIDIA / SQLite / sqlite-vec / Temperature / Personal Access Token 병기 / JSON / KB / gitignore / D2Coding). 단축키 (⌘1·2·3·B·\\·,·J) 영문 유지. |
+| ⊘ | (Part 3) `src/locales/ko.json` 갱신 — i18n 시스템이 코드베이스에 *wire 되어 있지 않음* 확인 (`grep useTranslation\|i18n\|t\(\"` 결과 0). ko.json 은 stale legacy 파일. 1.1 에 i18n hook 도입 + 영문 잔재 sweep 시 참조. master-prompt §5.3 참조. |
 
 ### PR11 — 성능 + 통합 테스트 ✅ (2026-05-29, head `3286573`)
 

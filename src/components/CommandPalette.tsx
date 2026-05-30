@@ -43,7 +43,7 @@ type CommandItem = {
   label: string;
   // Korean alias for fuzzy matching ("체인지로그" → Changelog)
   alias?: string;
-  group: "이동" | "액션" | "Code 화면" | "ocul-pm";
+  group: "이동" | "액션" | "코드 화면" | "ocul-pm";
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
@@ -95,22 +95,22 @@ export function CommandPalette({
   const items: CommandItem[] = useMemo(
     () => [
       // ── Top-level navigation (Lite-W6 PR7 Part 1: 3-IA)
-      { id: "view-today",     label: "Today", alias: "오늘 일정 포커스 개요",
+      { id: "view-today",     label: "오늘 (Today)", alias: "today 오늘 일정 포커스 개요",
         group: "이동", icon: Flame,    shortcut: "⌘1", onSelect: go("today") },
-      { id: "view-plan",      label: "Plan", alias: "플래너 목표 goal",
+      { id: "view-plan",      label: "계획 (Plan)", alias: "plan 플래너 목표 goal",
         group: "이동", icon: Calendar, shortcut: "⌘2", onSelect: go("plan") },
-      { id: "view-code",      label: "Code", alias: "코드 워크벤치",
+      { id: "view-code",      label: "코드 (Code)", alias: "code 코드 워크벤치",
         group: "이동", icon: Code2,    shortcut: "⌘3", onSelect: go("code") },
 
       // ── Code sub-tabs (transitional — UI-5 absorbs these later)
-      { id: "code-files",    label: "Code — Files", alias: "파일 탐색기",
-        group: "Code 화면", icon: FileCode,        onSelect: goCode("files") },
-      { id: "code-ai",      label: "Code — AI", alias: "채팅 어시스트 quick edit",
-        group: "Code 화면", icon: Sparkles,        onSelect: goCode("ai") },
-      { id: "code-graph",    label: "Code — Graph", alias: "의존성 그래프",
-        group: "Code 화면", icon: Network,         onSelect: goCode("graph") },
-      { id: "code-terminal", label: "Code — Terminal", alias: "터미널",
-        group: "Code 화면", icon: TerminalIcon,    onSelect: goCode("terminal") },
+      { id: "code-files",    label: "코드 — 파일", alias: "code files 파일 탐색기",
+        group: "코드 화면", icon: FileCode,        onSelect: goCode("files") },
+      { id: "code-ai",      label: "코드 — AI", alias: "code ai 채팅 어시스트 quick edit",
+        group: "코드 화면", icon: Sparkles,        onSelect: goCode("ai") },
+      { id: "code-graph",    label: "코드 — 그래프", alias: "code graph 의존성 그래프",
+        group: "코드 화면", icon: Network,         onSelect: goCode("graph") },
+      { id: "code-terminal", label: "코드 — 터미널", alias: "code terminal 터미널",
+        group: "코드 화면", icon: TerminalIcon,    onSelect: goCode("terminal") },
 
       // ── Actions
       { id: "toggle-side-panel", label: "파일 탐색기 토글", alias: "side panel files file tree ⌘B",
@@ -136,7 +136,7 @@ export function CommandPalette({
             }
           });
         } },
-      { id: "settings", label: "Settings 열기", alias: "설정",
+      { id: "settings", label: "설정 열기", alias: "settings 설정",
         group: "액션", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
       ...(onReindex && state.currentProjectId !== null
@@ -144,7 +144,7 @@ export function CommandPalette({
             group: "액션" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]
         : []),
       ...(onRegenerateOverview && state.currentProjectId !== null
-        ? [{ id: "regen-overview", label: "Overview 다시 생성", alias: "개요 재생성",
+        ? [{ id: "regen-overview", label: "개요 다시 생성", alias: "overview 개요 재생성",
             group: "액션" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
         : []),
 
@@ -248,7 +248,7 @@ export function CommandPalette({
   );
 
   // Group items by `group` field, preserving the original order so the
-  // "이동" group always renders before "Code 화면" / "액션".
+  // "이동" group always renders before "코드 화면" / "액션".
   const grouped = useMemo(() => {
     const groups: Record<string, CommandItem[]> = {};
     items.forEach((it) => {
@@ -267,7 +267,7 @@ export function CommandPalette({
       }}
     >
       <Command
-        label="Command Palette"
+        label="명령 팔레트"
         className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
         // cmdk uses a custom fuzzy match. Provide alias as searchable text so
         // Korean queries hit English labels and vice versa.
