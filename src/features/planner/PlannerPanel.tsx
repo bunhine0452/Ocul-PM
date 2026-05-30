@@ -100,7 +100,7 @@ export function PlannerPanel({ activeProjectId = null }: PlannerPanelProps) {
               value={filterStatus}
               onValueChange={setFilterStatus}
             >
-              <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectTrigger aria-label="상태 필터" className="w-[120px] h-8 text-xs">
                 <SelectValue placeholder="상태" />
               </SelectTrigger>
               <SelectContent>
@@ -117,7 +117,7 @@ export function PlannerPanel({ activeProjectId = null }: PlannerPanelProps) {
                 value={filterProject}
                 onValueChange={setFilterProject}
               >
-                <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectTrigger aria-label="프로젝트 필터" className="w-[140px] h-8 text-xs">
                   <SelectValue placeholder="프로젝트" />
                 </SelectTrigger>
                 <SelectContent>

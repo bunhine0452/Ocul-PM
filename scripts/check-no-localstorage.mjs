@@ -49,6 +49,10 @@ const ALLOWLIST = new Set([
   // Lite-W6 PR2 — vitest scenario seeds localStorage to verify the
   // BottomDrawerTab "problems" → "terminal" migration. Test-only.
   "__tests__/lite_w6_safety_net.test.ts",
+  // Lite-W6 PR10 Part 2 — axe-core a11y suite clears localStorage between
+  // mounts so each screen renders from the default WorkspaceContext state.
+  // Test-only.
+  "__tests__/a11y_screens.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

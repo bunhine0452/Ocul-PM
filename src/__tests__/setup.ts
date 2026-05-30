@@ -1,6 +1,22 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 // Lite-W6 PR6.4: components that render `<WorkspaceProvider>` register
 // `events.oculpm*.listen(...)` handlers on mount. Outside the Tauri runtime
 // (jsdom) those calls dereference an undefined `__TAURI_INTERNALS__` and

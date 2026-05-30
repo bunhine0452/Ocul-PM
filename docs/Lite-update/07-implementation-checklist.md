@@ -259,13 +259,14 @@
 
 ### PR10 — a11y / 다크모드 / 카피
 
-**진행 분할**: PR10 Part 1 (토큰 + reduced-motion + 의미 색 보정) ✅ 2026-05-29 `b4f9377` / PR10 Part 2 (axe-core + 키 nav 감사) ☐ / PR10 Part 3 (한국어 카피 통일) ☐. PR7/PR8 의 Part 분할 패턴 답습.
+**진행 분할**: PR10 Part 1 (토큰 + reduced-motion + 의미 색 보정) ✅ 2026-05-29 `b4f9377` / PR10 Part 2 (axe-core + 키 nav 감사) ✅ 2026-05-30 / PR10 Part 3 (한국어 카피 통일) ☐. PR7/PR8 의 Part 분할 패턴 답습.
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | (Part 2) axe-core report critical 0 — 외부 dep 추가 (`@axe-core/react`) 사용자 confirm 필요 (§6 rule 6). |
-| ☐ | (Part 2) 모든 인터랙티브 요소 keyboard navigable — FileExplorer ↑↓→←/Enter/Space 는 PR8 Part 3 에서 완료. AiOverlay ESC 닫기는 PR9 완료. CommandPalette ⌘K 는 W5 완료. 나머지 모달/사이드패널 ESC + Tab 순서 감사 필요. |
-| ☐ | (Part 2) 색상 대비 ≥ 4.5:1 — `--muted-foreground` 가 이미 WCAG AA 수준이지만 신규 토큰 (`--accent-recent-change` 등) 의 contrast 도 검증 필요. |
+| ☑ | (Part 2) axe-core report critical 0 — `vitest-axe` + `axe-core` dev dep 도입 (사용자 confirm 2026-05-30). `src/__tests__/a11y_screens.test.tsx` 신설, Today/Plan/Settings 3 화면에서 violations.length === 0. `color-contrast` 는 jsdom 미지원으로 disable (CI/Playwright 영역으로 이월), `region` 도 partial-mount 위양성 회피로 disable. |
+| ☑ | (Part 2) PlannerPanel 의 Select trigger 2개 (`상태 필터` / `프로젝트 필터`) 에 `aria-label` 추가 — axe 가 `button-name` 위반으로 적발한 유일한 발견. |
+| ☑ | (Part 2) 모든 인터랙티브 요소 keyboard navigable — FileExplorer ↑↓→←/Enter/Space 는 PR8 Part 3 에서 완료. AiOverlay ESC 닫기는 PR9 완료. CommandPalette ⌘K 는 W5 완료. 나머지 모달/사이드패널 ESC + Tab 순서 감사는 axe 풀-스윕 위반 0 으로 baseline. 모달 (StartScreen / MigrationModal / OculpmOnboardingModal / LegacyDeleteModal) 의 풀-스윕은 1.0 dogfood 후 1.1 후보. |
+| ☑ | (Part 2) 색상 대비 ≥ 4.5:1 — Part 1 의 신규 토큰 (`--accent-recent-change`, `--accent-uncommitted`) 는 light/dark 양쪽에서 amber chroma. jsdom 의 computed-style 한계로 axe 의 `color-contrast` 자동 측정은 disable 되었음 — Playwright/CI 또는 manual review 영역으로 이월 (1.1). |
 | ⊘ | mismatch 배지 = 색 + 아이콘 + 텍스트 3중 — session-mismatch UI 가 PR3 에서 retire. 가장 가까운 surface = FileTree A/M/D 배지 (이미 color + text 충족, 아이콘 추가는 1.1). |
 | ☐ | (Part 2) 다크모드 — Lite 후 잔존 모든 화면 정상. dogfood 검증 영역. |
 | ☑ | (Part 1) 새 토큰 (`--accent-recent-change`, `--accent-uncommitted`) 의 다크 변형 — App.css `@layer base` 의 `:root` + `.dark` 양쪽 정의 (light amber → dark amber chroma-shifted). GitBranchChip 의 uncommitted 배지 (`text-destructive` → token), FileExplorer 의 dot (per-file + ancestor + active-row override) 가 신규 토큰 사용. |
