@@ -199,7 +199,7 @@
 | ☑ | PR6.2 — `commands::diff::reindex_paths` (`LocalDiffReindexReport` DTO + skip reasons) + `commands::diff::compute_diff` (`DiffResult` + `DiffSource::Git/SnapshotsUnavailable`) + `git::diff_patch` 헬퍼 복원 (PR4 에서 삭제됐던 함수, 비-git 시 `"Not a git repository."` 에러로 `compute_diff` 가 fallback 분기) |
 | ☑ | PR6.3 — `src/features/diff/LocalDiffView.tsx` 신설 + SidePanel Files/Diff segmented toggle + `WorkspaceContext.sidePanelMode` 영속화 + `CommandPalette` 진입 item + `classifyDiffLines` pure-fn 색상 분기. 외부 dep 0. CommandPalette 진입 항목 등록. |
 | ☑ | PR6.4 — FileTree dot click → Diff handoff. `WorkspaceContext.diffTarget` 휘발성 (영속화 X) + `openDiffFor` / `consumeDiffTarget` single-shot. `FileExplorer.onChangedFileClick` prop + `SidePanel` plumb + `LocalDiffView` mount-time consume. 3 신규 vitest (`renderHook` 기반). Today 카드 "변경된 파일" → SidePanel 진입은 TodayScreen 카드 디자인이 spec 미정 — **PR6.5 또는 1.1 로 분리**. |
-| ⊘ | PR6.5 (side-by-side ≥1024px + collapse long diffs + 읽음/안읽음 + "AI 에게 설명") — 후속 PR. |
+| ☑ | PR6.5 ✅ (2026-05-30) — 4 sub-feature 모두 완료: ① side-by-side ≥1024px (SidePanel max 1100 in diff mode + ResizeObserver breakpoint), ② collapse long diff hunks (>=20 lines auto-fold + "더 보기" 토글), ③ 읽음/안읽음 (RecentChange.read schema 확장 + auto-mark on diff body render + unread emphasis in FileRow), ④ "AI 에게 설명" 액션 (LocalDiffView 헤더 버튼 → `ai-overlay:prefill` window event → ChatPanel setInput + AiOverlay 자동 open). 신규 dep 0. |
 | ⊘ | `feature_local_diff_v1` 플래그 — **신설 안 함** (master-prompt §8 anti-pattern "feature flag 신설 금지" 적용). 후속 PR 의 entry wire-up 으로 자연 gate. |
 | ☐ | 성능 SLO 측정 — UI 구현 시 dogfood 환경에서 측정 예정 |
 | ☐ | a11y: 색 + dot + 배지 3중 표시 — UI 구현 시 |

@@ -27,7 +27,7 @@ import { ChevronLeft, RefreshCw, X } from "./Icons";
 import {
   useWorkspace,
   SIDE_PANEL_MIN_WIDTH,
-  SIDE_PANEL_MAX_WIDTH,
+  effectiveSidePanelMaxWidth,
 } from "@/contexts/WorkspaceContext";
 
 interface SidePanelProps {
@@ -124,15 +124,20 @@ export function SidePanel({
   };
 
   // ── Resize handle ──────────────────────────────────────────────────────
+  // Mode-aware cap: files mode stays at the existing 500 px cap, diff mode
+  // expands up to 1100 px so LocalDiffView can flip to side-by-side at
+  // ≥1024 px container width (Lite-W6 PR6.5).
+  const maxWidth = effectiveSidePanelMaxWidth(sidePanelMode);
+  const renderedWidth = Math.min(sidePanelWidth, maxWidth);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
-    dragRef.current = { startX: e.clientX, startWidth: sidePanelWidth };
+    dragRef.current = { startX: e.clientX, startWidth: renderedWidth };
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const dx = ev.clientX - dragRef.current.startX;
       const next = Math.min(
-        SIDE_PANEL_MAX_WIDTH,
+        maxWidth,
         Math.max(SIDE_PANEL_MIN_WIDTH, dragRef.current.startWidth + dx),
       );
       setSidePanelWidth(next);
@@ -149,7 +154,7 @@ export function SidePanel({
   return (
     <aside
       className="relative flex flex-col border-r border-border shrink-0 glassy-sidebar"
-      style={{ width: sidePanelWidth }}
+      style={{ width: renderedWidth }}
       aria-label="파일 탐색기 사이드 패널"
     >
       {/* Header: Files / Diff toggle + close (⌘B) */}

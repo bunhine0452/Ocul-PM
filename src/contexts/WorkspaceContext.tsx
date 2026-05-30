@@ -59,6 +59,15 @@ export interface RecentChange {
   op: ChangeOp;
   /** Unix milliseconds when we ingested the event. Used only for ordering. */
   ts: number;
+  /**
+   * Lite-W6 PR6.5: read/unread flag for the LocalDiffView. New watcher events
+   * start as `false`; viewing the diff body in LocalDiffView flips it to
+   * `true` (one-way per change — re-running the watcher event resets to
+   * unread). Legacy persisted entries (pre-PR6.5) without this field are
+   * read as `true` during `loadFromStorage` so old changes don't suddenly
+   * scream for attention.
+   */
+  read: boolean;
 }
 
 // Legacy tab names for migration
@@ -242,11 +251,25 @@ export function migrateAiOverlayOpen(rawOverlay: unknown): boolean {
  */
 export const SIDE_PANEL_MIN_WIDTH = 200;
 export const SIDE_PANEL_MAX_WIDTH = 500;
+/**
+ * Lite-W6 PR6.5: Diff mode lets the panel grow wider so the LocalDiffView
+ * can switch to side-by-side at ≥1024px. We persist a single
+ * `sidePanelWidth`, but the SidePanel render and resize handle apply this
+ * higher cap when `sidePanelMode === "diff"`.
+ */
+export const SIDE_PANEL_MAX_WIDTH_DIFF = 1100;
 export const SIDE_PANEL_DEFAULT_WIDTH = 260;
+
+export function effectiveSidePanelMaxWidth(mode: SidePanelMode): number {
+  return mode === "diff" ? SIDE_PANEL_MAX_WIDTH_DIFF : SIDE_PANEL_MAX_WIDTH;
+}
 
 export function migrateSidePanelWidth(raw: unknown): number {
   const n = typeof raw === "number" && Number.isFinite(raw) ? raw : SIDE_PANEL_DEFAULT_WIDTH;
-  return Math.min(SIDE_PANEL_MAX_WIDTH, Math.max(SIDE_PANEL_MIN_WIDTH, Math.round(n)));
+  // Clamp to the absolute upper bound (diff mode); per-mode clamping happens
+  // at render time so a value persisted from diff mode survives a trip
+  // through files mode without being silently truncated.
+  return Math.min(SIDE_PANEL_MAX_WIDTH_DIFF, Math.max(SIDE_PANEL_MIN_WIDTH, Math.round(n)));
 }
 
 /**
@@ -444,7 +467,11 @@ function loadFromStorage(): WorkspaceState {
             (raw.op === "A" || raw.op === "M" || raw.op === "D") &&
             typeof raw.ts === "number"
           ) {
-            safe.push({ path: raw.path, op: raw.op, ts: raw.ts });
+            // Lite-W6 PR6.5: read/unread flag. Legacy entries (pre-PR6.5)
+            // are read as "read" so the user isn't ambushed by a buffer
+            // full of "unread" markers after upgrade.
+            const read = typeof raw.read === "boolean" ? raw.read : true;
+            safe.push({ path: raw.path, op: raw.op, ts: raw.ts, read });
           }
         }
         parsed.recentChanges =
@@ -540,6 +567,12 @@ interface WorkspaceContextValue {
 
   // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
   clearRecentChanges: () => void;
+  /**
+   * Lite-W6 PR6.5: flip one recentChanges entry's `read` flag to true. Used
+   * by LocalDiffView when a diff body for that path is shown, so the file
+   * list and FileExplorer can drop the "unread" emphasis.
+   */
+  markRecentChangeRead: (path: string) => void;
 
   // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
   toggleAiOverlay: () => void;
@@ -665,6 +698,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setState((prev) =>
       prev.recentChanges.length === 0 ? prev : { ...prev, recentChanges: [] },
     );
+  }, []);
+
+  /**
+   * Lite-W6 PR6.5: flip a single change to read=true. Called by LocalDiffView
+   * when the diff body for that path has been rendered (the user has "seen"
+   * the change). No-op when the path isn't in the buffer or is already read,
+   * so we don't churn setState on every body re-render.
+   */
+  const markRecentChangeRead = useCallback((path: string) => {
+    setState((prev) => {
+      const entry = prev.recentChanges.find((c) => c.path === path);
+      if (!entry || entry.read) return prev;
+      return {
+        ...prev,
+        recentChanges: prev.recentChanges.map((c) =>
+          c.path === path ? { ...c, read: true } : c,
+        ),
+      };
+    });
   }, []);
 
   const toggleAiOverlay = useCallback(() => {
@@ -796,6 +848,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           path,
           op,
           ts: Date.now(),
+          // Lite-W6 PR6.5: every fresh watcher event starts unread so the
+          // LocalDiffView can surface "new since you last looked".
+          read: false,
         }),
       }));
     }).then((off) => offFns.push(off));
@@ -840,6 +895,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSidePanelWidth,
         setSidePanelMode,
         clearRecentChanges,
+        markRecentChangeRead,
         toggleAiOverlay,
         setAiOverlayOpen,
         openDiffFor,

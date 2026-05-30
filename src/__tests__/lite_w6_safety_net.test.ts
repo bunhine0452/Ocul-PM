@@ -12,6 +12,7 @@ import {
   RECENT_CHANGES_CAP,
   SIDE_PANEL_MIN_WIDTH,
   SIDE_PANEL_MAX_WIDTH,
+  SIDE_PANEL_MAX_WIDTH_DIFF,
   SIDE_PANEL_DEFAULT_WIDTH,
   type RecentChange,
 } from "@/contexts/WorkspaceContext";
@@ -19,7 +20,13 @@ import {
   flattenVisibleNodes,
   nextFocusedPath,
 } from "@/components/FileExplorer";
-import { classifyDiffLines } from "@/features/diff/LocalDiffView";
+import {
+  classifyDiffLines,
+  groupIntoHunks,
+  pairDiffLines,
+  type DiffLine,
+} from "@/features/diff/LocalDiffView";
+import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { renderHook, act } from "@testing-library/react";
 import type { ProjectTreeNode } from "@/lib/bindings";
@@ -52,19 +59,19 @@ describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () =>
 
 describe("Lite-W6 PR8 Part 1 — recentChanges buffer", () => {
   it("appends to an empty buffer", () => {
-    const out = pushRecentChange([], { path: "src/a.ts", op: "M", ts: 1 });
-    expect(out).toEqual([{ path: "src/a.ts", op: "M", ts: 1 }]);
+    const out = pushRecentChange([], { path: "src/a.ts", op: "M", ts: 1, read: false });
+    expect(out).toEqual([{ path: "src/a.ts", op: "M", ts: 1, read: false }]);
   });
 
   it("dedupes by path — latest op wins, ordering keeps the new entry last", () => {
     const seed: RecentChange[] = [
-      { path: "src/a.ts", op: "A", ts: 1 },
-      { path: "src/b.ts", op: "M", ts: 2 },
+      { path: "src/a.ts", op: "A", ts: 1, read: false },
+      { path: "src/b.ts", op: "M", ts: 2, read: false },
     ];
-    const out = pushRecentChange(seed, { path: "src/a.ts", op: "M", ts: 3 });
+    const out = pushRecentChange(seed, { path: "src/a.ts", op: "M", ts: 3, read: false });
     expect(out).toEqual([
-      { path: "src/b.ts", op: "M", ts: 2 },
-      { path: "src/a.ts", op: "M", ts: 3 },
+      { path: "src/b.ts", op: "M", ts: 2, read: false },
+      { path: "src/a.ts", op: "M", ts: 3, read: false },
     ]);
   });
 
@@ -73,11 +80,13 @@ describe("Lite-W6 PR8 Part 1 — recentChanges buffer", () => {
       path: `src/file-${i}.ts`,
       op: "M" as const,
       ts: i,
+      read: false,
     }));
     const out = pushRecentChange(seed, {
       path: "src/new.ts",
       op: "A",
       ts: RECENT_CHANGES_CAP,
+      read: false,
     });
     expect(out.length).toBe(RECENT_CHANGES_CAP);
     expect(out[0]?.path).toBe("src/file-1.ts"); // oldest dropped
@@ -105,9 +114,14 @@ describe("Lite-W6 PR8 Part 2 — sidePanelWidth clamp", () => {
     expect(migrateSidePanelWidth(-100)).toBe(SIDE_PANEL_MIN_WIDTH);
   });
 
-  it("clamps above MAX to MAX", () => {
-    expect(migrateSidePanelWidth(SIDE_PANEL_MAX_WIDTH + 50)).toBe(SIDE_PANEL_MAX_WIDTH);
-    expect(migrateSidePanelWidth(99999)).toBe(SIDE_PANEL_MAX_WIDTH);
+  it("clamps above the absolute MAX (diff mode cap) to that cap; per-mode trimming happens at render time", () => {
+    // Lite-W6 PR6.5: migration now caps at SIDE_PANEL_MAX_WIDTH_DIFF (1100) so
+    // values written while diff mode was active survive a trip through files
+    // mode without being silently truncated. SidePanel applies the files-mode
+    // 500 px cap at render time via effectiveSidePanelMaxWidth.
+    expect(migrateSidePanelWidth(SIDE_PANEL_MAX_WIDTH + 50)).toBe(SIDE_PANEL_MAX_WIDTH + 50);
+    expect(migrateSidePanelWidth(SIDE_PANEL_MAX_WIDTH_DIFF + 50)).toBe(SIDE_PANEL_MAX_WIDTH_DIFF);
+    expect(migrateSidePanelWidth(99999)).toBe(SIDE_PANEL_MAX_WIDTH_DIFF);
   });
 
   it("falls back to DEFAULT for non-finite / non-number", () => {
@@ -315,6 +329,60 @@ describe("Lite-W6 PR6.3 — classifyDiffLines", () => {
   });
 });
 
+describe("Lite-W6 PR6.5 — DiffBody hunk grouping + side-by-side pairing", () => {
+  it("groupIntoHunks splits on @@ markers and keeps a preamble for the file header", () => {
+    const patch = [
+      "diff --git a/x.ts b/x.ts",
+      "--- a/x.ts",
+      "+++ b/x.ts",
+      "@@ -1,2 +1,2 @@",
+      " line one",
+      "-old",
+      "+new",
+      "@@ -10,1 +10,1 @@",
+      " untouched",
+    ].join("\n");
+    const hunks = groupIntoHunks(classifyDiffLines(patch));
+    expect(hunks.length).toBe(3);
+    expect(hunks[0].header).toBeNull(); // file-header preamble
+    expect(hunks[1].header?.text).toMatch(/^@@ -1,2/);
+    expect(hunks[2].header?.text).toMatch(/^@@ -10,1/);
+  });
+
+  it("pairDiffLines zips contiguous deletion/addition blocks", () => {
+    const lines: DiffLine[] = [
+      { kind: "context", text: " ctx" },
+      { kind: "deletion", text: "-a" },
+      { kind: "deletion", text: "-b" },
+      { kind: "addition", text: "+A" },
+      { kind: "context", text: " mid" },
+    ];
+    const rows = pairDiffLines(lines);
+    expect(rows.map((r) => [r.left?.text ?? null, r.right?.text ?? null])).toEqual([
+      [" ctx", " ctx"],
+      ["-a", "+A"],
+      ["-b", null],
+      [" mid", " mid"],
+    ]);
+  });
+
+  it("pairDiffLines emits unpaired additions on the right column only", () => {
+    const lines: DiffLine[] = [
+      { kind: "addition", text: "+only-add" },
+      { kind: "context", text: " ctx" },
+    ];
+    expect(pairDiffLines(lines)).toEqual([
+      { left: null, right: { kind: "addition", text: "+only-add" } },
+      { left: { kind: "context", text: " ctx" }, right: { kind: "context", text: " ctx" } },
+    ]);
+  });
+
+  it("effectiveSidePanelMaxWidth flips diff to 1100, keeps files at 500", () => {
+    expect(effectiveSidePanelMaxWidth("files")).toBe(500);
+    expect(effectiveSidePanelMaxWidth("diff")).toBe(1100);
+  });
+});
+
 describe("Lite-W6 PR9 — aiOverlayOpen migration", () => {
   it("only `true` survives — legacy persisted shapes drop", () => {
     expect(migrateAiOverlayOpen(true)).toBe(true);
@@ -381,15 +449,15 @@ describe("Lite-W6 PR8 Part 3 — clearRecentChanges semantics", () => {
   // mirror the WorkspaceContext callback. A DOM round-trip lives in PR11.
   it("an empty array is the canonical cleared state", () => {
     const seed: RecentChange[] = [
-      { path: "a.ts", op: "M", ts: 1 },
-      { path: "b.ts", op: "A", ts: 2 },
+      { path: "a.ts", op: "M", ts: 1, read: false },
+      { path: "b.ts", op: "A", ts: 2, read: false },
     ];
     const cleared: RecentChange[] = [];
     expect(cleared.length).toBe(0);
     // Confirm pushRecentChange still works on a freshly cleared buffer so the
     // watcher doesn't get stuck after the user clicks "비우기".
-    const next = pushRecentChange(cleared, { path: "c.ts", op: "D", ts: 3 });
-    expect(next).toEqual([{ path: "c.ts", op: "D", ts: 3 }]);
+    const next = pushRecentChange(cleared, { path: "c.ts", op: "D", ts: 3, read: false });
+    expect(next).toEqual([{ path: "c.ts", op: "D", ts: 3, read: false }]);
     void seed;
   });
 });

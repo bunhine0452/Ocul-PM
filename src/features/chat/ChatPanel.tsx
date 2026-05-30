@@ -543,6 +543,21 @@ export function ChatPanel({
       setContextProjectId(activeProjectId);
     }
   }, [activeProjectId]);
+
+  // Lite-W6 PR6.5: LocalDiffView's "AI 에게 설명" button fires this event
+  // with a prompt prefilled from the active diff. We replace the current
+  // input so the user can edit before sending; if the field already has
+  // user text we prepend the diff prompt as a separate block.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ prompt: string }>;
+      const prompt = ce.detail?.prompt;
+      if (typeof prompt !== "string" || !prompt) return;
+      setInput((prev) => (prev.trim() ? `${prompt}\n\n${prev}` : prompt));
+    };
+    window.addEventListener("ai-overlay:prefill", handler);
+    return () => window.removeEventListener("ai-overlay:prefill", handler);
+  }, []);
   const [chunksByTurn, setChunksByTurn] = useState<Record<number, ChunkSearchResult[]>>(
     {},
   );

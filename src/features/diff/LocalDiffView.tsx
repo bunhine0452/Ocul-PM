@@ -33,7 +33,7 @@
  *   - "AI 에게 이 변경 설명" — PR6.5.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   commands,
   type DiffResult,
@@ -46,16 +46,46 @@ import {
 } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "@/components/Icons";
+import { Loader2, RefreshCw, Sparkles } from "@/components/Icons";
 
 const DIFF_MAX_BYTES = 64 * 1024;
+
+/**
+ * Lite-W6 PR6.5: when the LocalDiffView container is at least this wide we
+ * switch to side-by-side rendering. Picked to match a typical 13" laptop
+ * splitting roughly into "side panel + tree fragment + diff" with enough
+ * room for two columns at ~480px each.
+ */
+const SIDE_BY_SIDE_BREAKPOINT_PX = 1024;
+
+/**
+ * Lite-W6 PR6.5: hunks longer than this fold under a "+N 줄 더 보기" toggle.
+ * 20 is a sweet spot — typical Anthropic / OpenAI patch hunks stay under it,
+ * but a full-file refactor (often hundreds of lines) won't dominate the
+ * viewport.
+ */
+const HUNK_FOLD_THRESHOLD = 20;
+
+/**
+ * Lite-W6 PR6.5: window event used to prefill the AiOverlay's ChatPanel
+ * input with a "다음 diff 를 설명해줘" message. ChatPanel listens; the
+ * overlay open call happens in tandem so the user sees the populated field
+ * immediately.
+ */
+export const AI_PROMPT_PREFILL_EVENT = "ai-overlay:prefill";
 
 interface LocalDiffViewProps {
   projectId: number;
 }
 
 export function LocalDiffView({ projectId }: LocalDiffViewProps) {
-  const { state, clearRecentChanges, consumeDiffTarget } = useWorkspace();
+  const {
+    state,
+    clearRecentChanges,
+    consumeDiffTarget,
+    markRecentChangeRead,
+    setAiOverlayOpen,
+  } = useWorkspace();
   const { recentChanges } = state;
 
   // Pin the picked path locally — when the user clears the buffer or the
@@ -67,6 +97,23 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
   const [diffError, setDiffError] = useState<string | null>(null);
 
   const [reindexing, setReindexing] = useState(false);
+
+  // Lite-W6 PR6.5: container width observer for side-by-side breakpoint.
+  // ResizeObserver fires on the actual painted width so the layout flips
+  // both on SidePanel drag and on viewport resize.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setContainerWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const sideBySide = containerWidth >= SIDE_BY_SIDE_BREAKPOINT_PX;
 
   // Lite-W6 PR6.4: a pending handoff from FileExplorer always wins, even
   // over the user's previous selection. We consume it once so a subsequent
@@ -128,6 +175,37 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
     };
   }, [projectId, selected]);
 
+  // Lite-W6 PR6.5: once the diff body for a path has rendered (no error,
+  // not still loading) we flip that entry to read=true. Subtle dependency:
+  // we wait for `diff` to be non-null so the body actually painted; flipping
+  // on `selected` alone would mark files read before the user could see
+  // anything.
+  useEffect(() => {
+    if (!selected || diffLoading || diffError || !diff) return;
+    markRecentChangeRead(selected);
+  }, [selected, diff, diffLoading, diffError, markRecentChangeRead]);
+
+  // Lite-W6 PR6.5: "AI 에게 설명" — build a prompt from the active diff and
+  // hand it to the AiOverlay through a window event. We avoid coupling
+  // LocalDiffView directly to ChatPanel's internals; the listener in
+  // ChatPanel picks up the prefill payload and calls setInput.
+  const explainAvailable =
+    !!selected && !!diff && diff.source.source === "git" && !diffError && !diffLoading;
+  const onExplainAi = useCallback(() => {
+    if (!explainAvailable || !selected || !diff || diff.source.source !== "git") {
+      return;
+    }
+    const patch = diff.source.patch.trim();
+    const fence = "```";
+    const prompt = patch
+      ? `다음 diff 변경에 대해 설명해 주세요. (파일: ${selected})\n\n${fence}diff\n${patch}\n${fence}`
+      : `${selected} 의 변경 사항을 설명해 주세요. (HEAD 와 동일한 상태)`;
+    window.dispatchEvent(
+      new CustomEvent(AI_PROMPT_PREFILL_EVENT, { detail: { prompt } }),
+    );
+    setAiOverlayOpen(true);
+  }, [explainAvailable, selected, diff, setAiOverlayOpen]);
+
   const onReindex = useCallback(async () => {
     if (recentChanges.length === 0) return;
     setReindexing(true);
@@ -158,14 +236,32 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
     );
   }
 
+  const unreadCount = recentChanges.reduce((n, c) => (c.read ? n : n + 1), 0);
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header — context label + reindex + clear */}
+    <div ref={containerRef} className="flex flex-col h-full">
+      {/* Header — context label + reindex + clear + AI 설명 */}
       <div className="px-3 py-2 border-b border-border/80 shrink-0 space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             변경된 파일 — {recentChanges.length}개
+            {unreadCount > 0 && (
+              <span className="ml-1 text-[10px] font-bold text-primary normal-case tracking-normal">
+                · 안읽음 {unreadCount}
+              </span>
+            )}
           </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onExplainAi}
+            disabled={!explainAvailable}
+            className="h-6 px-2 text-[10px] font-bold"
+            title="선택한 파일의 diff 를 AI 패널에 전달 (⌘\\)"
+          >
+            <Sparkles className="w-2.5 h-2.5 mr-1" />
+            AI 에게 설명
+          </Button>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -226,7 +322,7 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
             {diffError}
           </div>
         ) : diff ? (
-          <DiffBody result={diff} />
+          <DiffBody result={diff} sideBySide={sideBySide} />
         ) : selected ? (
           <div className="p-3 text-xs text-muted-foreground">
             파일을 선택했지만 결과가 없습니다.
@@ -250,10 +346,12 @@ function FileRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const unread = !change.read;
   return (
     <li>
       <button
         onClick={onClick}
+        aria-label={`${change.path}${unread ? " (안읽음)" : ""}`}
         className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left cursor-pointer ${
           active
             ? "bg-primary/15 text-foreground font-medium"
@@ -263,10 +361,14 @@ function FileRow({
         <span
           aria-hidden
           className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-            active ? "bg-primary" : "bg-primary/60"
+            unread ? "bg-primary" : active ? "bg-primary/60" : "bg-muted-foreground/40"
           }`}
         />
-        <span className="truncate font-mono text-[11px]">{change.path}</span>
+        <span
+          className={`truncate font-mono text-[11px] ${unread ? "font-semibold text-foreground" : ""}`}
+        >
+          {change.path}
+        </span>
         <span
           className={`ml-auto text-[10px] font-bold tracking-wider shrink-0 ${badgeColor(
             change.op,
@@ -290,7 +392,7 @@ function badgeColor(op: ChangeOp): string {
   }
 }
 
-function DiffBody({ result }: { result: DiffResult }) {
+function DiffBody({ result, sideBySide }: { result: DiffResult; sideBySide: boolean }) {
   if (result.source.source === "snapshots_unavailable") {
     return (
       <div className="p-3 text-xs text-muted-foreground space-y-1">
@@ -312,17 +414,113 @@ function DiffBody({ result }: { result: DiffResult }) {
     );
   }
   const lines = classifyDiffLines(patch);
+  const hunks = groupIntoHunks(lines);
+
   return (
-    <pre className="p-3 text-[11px] font-mono leading-relaxed whitespace-pre-wrap">
-      {lines.map((line, i) => (
-        <span
-          key={i}
-          className={`block px-1 ${diffLineClass(line.kind)}`}
+    <div className="p-3 text-[11px] font-mono leading-relaxed">
+      {hunks.map((h, i) => (
+        <Hunk key={i} hunk={h} sideBySide={sideBySide} />
+      ))}
+    </div>
+  );
+}
+
+function Hunk({ hunk, sideBySide }: { hunk: DiffHunk; sideBySide: boolean }) {
+  const long = hunk.lines.length >= HUNK_FOLD_THRESHOLD;
+  const [expanded, setExpanded] = useState(!long);
+  if (!expanded) {
+    return (
+      <div className="my-1">
+        <button
+          onClick={() => setExpanded(true)}
+          className="w-full text-left px-2 py-1 rounded text-[11px] text-primary hover:bg-primary/10 cursor-pointer border border-dashed border-primary/40"
+          aria-expanded={false}
         >
+          {hunk.header?.text ?? "(헤더 없음)"} — {hunk.lines.length}줄 더 보기
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="my-1">
+      {sideBySide ? (
+        <SideBySideHunk hunk={hunk} onCollapse={long ? () => setExpanded(false) : undefined} />
+      ) : (
+        <UnifiedHunk hunk={hunk} onCollapse={long ? () => setExpanded(false) : undefined} />
+      )}
+    </div>
+  );
+}
+
+function UnifiedHunk({
+  hunk,
+  onCollapse,
+}: {
+  hunk: DiffHunk;
+  onCollapse?: () => void;
+}) {
+  return (
+    <pre className="whitespace-pre-wrap">
+      {hunk.lines.map((line, i) => (
+        <span key={i} className={`block px-1 ${diffLineClass(line.kind)}`}>
           {line.text || " "}
         </span>
       ))}
+      {onCollapse && (
+        <button
+          onClick={onCollapse}
+          className="mt-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer underline"
+          aria-expanded={true}
+        >
+          접기
+        </button>
+      )}
     </pre>
+  );
+}
+
+function SideBySideHunk({
+  hunk,
+  onCollapse,
+}: {
+  hunk: DiffHunk;
+  onCollapse?: () => void;
+}) {
+  const rows = pairDiffLines(hunk.lines);
+  return (
+    <div>
+      <div role="table" aria-label="side-by-side diff" className="grid grid-cols-2 gap-px bg-border/40">
+        {rows.map((row, i) => (
+          <div role="row" key={i} className="contents">
+            <div
+              role="cell"
+              className={`px-2 whitespace-pre-wrap break-words ${
+                row.left ? diffLineClass(row.left.kind) : "bg-muted/20"
+              }`}
+            >
+              {row.left ? row.left.text || " " : ""}
+            </div>
+            <div
+              role="cell"
+              className={`px-2 whitespace-pre-wrap break-words ${
+                row.right ? diffLineClass(row.right.kind) : "bg-muted/20"
+              }`}
+            >
+              {row.right ? row.right.text || " " : ""}
+            </div>
+          </div>
+        ))}
+      </div>
+      {onCollapse && (
+        <button
+          onClick={onCollapse}
+          className="mt-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer underline"
+          aria-expanded={true}
+        >
+          접기
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -357,6 +555,73 @@ export function classifyDiffLines(patch: string): DiffLine[] {
     if (text.startsWith("-")) return { kind: "deletion", text };
     return { kind: "context", text };
   });
+}
+
+/**
+ * Lite-W6 PR6.5: split a classified line stream into hunks. Each `@@` line
+ * starts a new hunk; lines before the first `@@` (file header) flow into a
+ * sentinel "preamble" hunk with no header so the renderer can show them
+ * once at the top. Exported for unit testing.
+ */
+export interface DiffHunk {
+  header: DiffLine | null;
+  lines: DiffLine[];
+}
+
+export function groupIntoHunks(lines: DiffLine[]): DiffHunk[] {
+  const hunks: DiffHunk[] = [];
+  let current: DiffHunk = { header: null, lines: [] };
+  for (const line of lines) {
+    if (line.kind === "hunk") {
+      if (current.lines.length > 0 || current.header) hunks.push(current);
+      current = { header: line, lines: [line] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current.lines.length > 0) hunks.push(current);
+  return hunks;
+}
+
+/**
+ * Lite-W6 PR6.5: pair `-`/`+` lines into rows for side-by-side rendering.
+ * Consecutive deletions and the immediately following consecutive additions
+ * are zipped index-by-index; longer side fills its remaining rows with
+ * `null` on the opposite side. Context / header / hunk lines render
+ * identically on both sides (truth-y on both). Exported for unit testing.
+ */
+export function pairDiffLines(
+  lines: DiffLine[],
+): Array<{ left: DiffLine | null; right: DiffLine | null }> {
+  const rows: Array<{ left: DiffLine | null; right: DiffLine | null }> = [];
+  let i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (l.kind === "deletion") {
+      const dels: DiffLine[] = [];
+      while (i < lines.length && lines[i].kind === "deletion") {
+        dels.push(lines[i]);
+        i++;
+      }
+      const adds: DiffLine[] = [];
+      while (i < lines.length && lines[i].kind === "addition") {
+        adds.push(lines[i]);
+        i++;
+      }
+      const max = Math.max(dels.length, adds.length);
+      for (let k = 0; k < max; k++) {
+        rows.push({ left: dels[k] ?? null, right: adds[k] ?? null });
+      }
+    } else if (l.kind === "addition") {
+      rows.push({ left: null, right: l });
+      i++;
+    } else {
+      // header / hunk / context — same on both sides
+      rows.push({ left: l, right: l });
+      i++;
+    }
+  }
+  return rows;
 }
 
 function diffLineClass(kind: DiffLineKind): string {
