@@ -152,29 +152,34 @@ pub struct ReindexReport {
 - 64KB 초과 시 head/tail truncation. (W1 PR3 에서 이미 구현)
 - 바이너리: "(binary, no preview)".
 
-### 4.2 비-git 저장소
+### 4.2 비-git 저장소 / HEAD-less git
 
-- 새 테이블 `file_snapshots`:
+> 2026-05-31 갱신 — PR6.6 으로 1.0 내 구현. 원안 (zstd + LRU 50) 대비 *축소* 형태로 도입. 변경 사유: master-prompt §5.3 의 dogfood 발견 (HEAD-less fresh repo 회귀) + 1.0 dogfood 가 단일 baseline UX 라 LRU 가 잉여.
+
+- 새 테이블 `file_snapshots` (마이그레이션 015 — 파일/버전 번호 010 → 015 로 조정, db.rs:21 의 기존 (10, 011_project_blueprints) 매핑과 충돌 회피):
   ```sql
   CREATE TABLE file_snapshots (
     id INTEGER PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     path TEXT NOT NULL,
-    content_zstd BLOB NOT NULL,
+    content BLOB NOT NULL,             -- raw bytes (1.0). zstd 압축은 1.1.
+    hash TEXT NOT NULL,
     captured_at INTEGER NOT NULL,
-    hash TEXT NOT NULL
+    UNIQUE(project_id, path)            -- per-path 단일 row (1.0). LRU 50 은 1.1 재검토.
   );
-  CREATE INDEX idx_file_snapshots_path ON file_snapshots(project_id, path, captured_at);
+  CREATE INDEX idx_file_snapshots_project ON file_snapshots(project_id);
   ```
-- 워처가 변경 감지 직전 *수정 전 본문* 을 snapshot 으로 저장.
-- diff 본문 = `last_snapshot.content` vs `현재 디스크` (line diff).
+- 작성 시점: **indexer** (`index_project` / `reindex_paths`) 가 chunk insert 직후 동일 본문으로 `INSERT ... ON CONFLICT(project_id, path) DO UPDATE`. 워처는 변경하지 않음 (invariant 보호).
+- diff 본문 = `snapshot.content` vs `현재 디스크` 의 unified-diff (`similar` crate 사용).
+- "비우기" (LocalDiffView 헤더) = 신규 커맨드 `resnapshot_paths(paths)` 호출 → baseline 재설정.
 
 비용:
-- 100KB 파일 1000 개 = 100MB. zstd 압축 후 ~30MB. 1.0 안엔 *최근 50 snapshot per path* 만 유지 (LRU).
+- 100KB 파일 1000 개 = 100MB raw (1.0). 단일 dogfood PM 기준 부담 없음.
+- 1.1 후보: zstd 압축 (~30MB) + LRU 50/path + watcher 자체 snapshot.
 
-### 4.3 마이그레이션 010
+### 4.3 마이그레이션 015 (원안 010, 충돌로 재번호화)
 
-이미 [`docs/refactor/MASTER-GUIDE.md`](../refactor/MASTER-GUIDE.md) 의 §8.2 에 `010_file_snapshots.sql` 가 *조건부* 로 예약되어 있었음. **Lite 1.0 에서 정식 도입**.
+이미 [`docs/refactor/MASTER-GUIDE.md`](../refactor/MASTER-GUIDE.md) 의 §8.2 에 `010_file_snapshots.sql` 가 *조건부* 로 예약되어 있었음. PR6.6 진입 시 `db.rs:21` 가 이미 `(version 10, file 011_project_blueprints.sql)` 로 매핑되어 있어 충돌 발견 → 다음 sequential 버전 **15** + 파일 `015_file_snapshots.sql` 로 조정. **Lite 1.0 에서 정식 도입**.
 
 ---
 

@@ -130,7 +130,7 @@ pub async fn reindex_paths(
         let language = indexer::language_for(&abs_path).map(String::from);
 
         let (file_id, _changed) = match db
-            .upsert_file(project_id, rel_str.clone(), hash, size, mtime, language)
+            .upsert_file(project_id, rel_str.clone(), hash.clone(), size, mtime, language)
             .await
         {
             Ok(v) => v,
@@ -144,6 +144,28 @@ pub async fn reindex_paths(
                 continue;
             }
         };
+
+        // PR6.6 — refresh the diff baseline. Unlike `index_project` we
+        // re-snapshot even when `changed == false` because callers explicitly
+        // asked for these paths (the LocalDiffView "부분 reindex" button
+        // doubles as "비우기 by re-indexing").
+        if let Err(e) = db
+            .upsert_file_snapshot(
+                project_id,
+                rel_str.clone(),
+                content.as_bytes().to_vec(),
+                hash.clone(),
+            )
+            .await
+        {
+            skipped.push(ReindexSkip {
+                path: rel_str,
+                reason: ReindexSkipReason::UpsertFailed {
+                    error: e.to_string(),
+                },
+            });
+            continue;
+        }
 
         // We re-index unconditionally even when `changed=false` — callers
         // explicitly asked for these paths, so honouring the request is more
@@ -206,8 +228,12 @@ pub async fn reindex_paths(
 pub enum DiffSource {
     /// `git diff HEAD -- <path>` output. Empty `patch` = no diff.
     Git { patch: String },
-    /// Project is not a git repo. PR6 ships git-only; `file_snapshots`
-    /// fallback (D5 §4.2) lands in 1.1.
+    /// PR6.6 — snapshot vs disk unified-diff. Used when the git path can't
+    /// serve a baseline: fresh repo (HEAD-less), non-git project, or git
+    /// returned an empty patch but the file changed on disk after indexing.
+    Snapshot { patch: String },
+    /// The file has neither a git baseline nor a captured snapshot. UI prompts
+    /// the user to run a partial reindex first.
     SnapshotsUnavailable,
 }
 
@@ -217,10 +243,9 @@ pub struct DiffResult {
     pub source: DiffSource,
 }
 
-/// Lite-W6 PR6 — compute the diff for a single path. Git path uses
-/// `git::diff_patch`; non-git projects return `SnapshotsUnavailable` so the
-/// frontend can render a "(snapshots arrive in 1.1)" placeholder instead of
-/// failing.
+/// Hybrid diff: tries git first, falls back to the captured snapshot when git
+/// can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
+/// — never bubbles `fatal: bad revision 'HEAD'` to the UI.
 #[tauri::command]
 #[specta::specta]
 pub async fn compute_diff(
@@ -241,14 +266,177 @@ pub async fn compute_diff(
     let max_bytes = max_bytes as usize;
 
     match git::diff_patch(&root, &path, None, None, max_bytes) {
-        Ok(patch) => Ok(DiffResult {
+        Ok(patch) if !patch.trim().is_empty() => Ok(DiffResult {
             path,
             source: DiffSource::Git { patch },
         }),
-        Err(e) if e == "Not a git repository." => Ok(DiffResult {
+        // git succeeded but produced an empty patch — for tracked files
+        // that's the truth (HEAD == disk); for untracked files git silently
+        // returns empty. Try the snapshot to disambiguate.
+        Ok(_) => snapshot_diff(&db, project_id, &root, path, max_bytes).await,
+        Err(e) if is_recoverable_git_failure(&e) => {
+            snapshot_diff(&db, project_id, &root, path, max_bytes).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// PR6.6 — re-capture snapshots for the supplied paths from disk content.
+/// Powers the LocalDiffView "비우기" action: after the user acknowledges a
+/// batch of changes, the diff baselines are advanced so subsequent edits
+/// show against the just-cleared state instead of the original index.
+#[tauri::command]
+#[specta::specta]
+pub async fn resnapshot_paths(
+    db: State<'_, Db>,
+    project_id: u32,
+    paths: Vec<String>,
+) -> Result<u32, String> {
+    let project = db
+        .list_projects()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.id == project_id)
+        .ok_or_else(|| format!("project {project_id} not found"))?;
+    let root = PathBuf::from(&project.root_path);
+
+    let mut updated: u32 = 0;
+    for rel in paths {
+        let abs = root.join(&rel);
+        let Ok(bytes) = fs::read(&abs) else { continue };
+        let hash = blake3::hash(&bytes).to_hex().to_string();
+        db.upsert_file_snapshot(project_id, rel, bytes, hash)
+            .await
+            .map_err(|e| e.to_string())?;
+        updated += 1;
+    }
+    Ok(updated)
+}
+
+fn is_recoverable_git_failure(err: &str) -> bool {
+    err == "Not a git repository."
+        || err.contains("bad revision 'HEAD'")
+        || err.contains("unknown revision")
+        || err.contains("ambiguous argument 'HEAD'")
+}
+
+async fn snapshot_diff(
+    db: &Db,
+    project_id: u32,
+    root: &std::path::Path,
+    path: String,
+    max_bytes: usize,
+) -> Result<DiffResult, String> {
+    let Some(snapshot) = db
+        .get_file_snapshot(project_id, path.clone())
+        .await
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(DiffResult {
             path,
             source: DiffSource::SnapshotsUnavailable,
-        }),
-        Err(e) => Err(e),
+        });
+    };
+
+    let abs = root.join(&path);
+    let disk_content = fs::read(&abs).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+
+    if disk_content == snapshot.content {
+        return Ok(DiffResult {
+            path,
+            source: DiffSource::Snapshot {
+                patch: String::new(),
+            },
+        });
+    }
+
+    let prev_text = String::from_utf8_lossy(&snapshot.content);
+    let next_text = String::from_utf8_lossy(&disk_content);
+    let patch = render_unified_diff(&path, &prev_text, &next_text, max_bytes);
+
+    Ok(DiffResult {
+        path,
+        source: DiffSource::Snapshot { patch },
+    })
+}
+
+/// Format a unified-diff so the frontend's `classifyDiffLines` (which already
+/// understands `git diff` output) can render snapshot diffs without changes.
+/// The header mirrors `git diff --no-prefix` style with `a/` `b/` prefixes
+/// to keep line classification consistent.
+fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
+    use similar::TextDiff;
+
+    let diff = TextDiff::from_lines(prev, next);
+    let body = diff
+        .unified_diff()
+        .context_radius(3)
+        .header(&format!("a/{path}"), &format!("b/{path}"))
+        .to_string();
+
+    let header = format!("diff --git a/{path} b/{path}\n");
+    let text = format!("{header}{body}");
+
+    if text.len() > max_bytes {
+        let truncated: String = text.chars().take(max_bytes).collect();
+        format!(
+            "{truncated}\n\n... (truncated, {} bytes total)",
+            text.len()
+        )
+    } else {
+        text
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recoverable_git_failures_cover_fresh_repo_and_non_git() {
+        assert!(is_recoverable_git_failure("Not a git repository."));
+        assert!(is_recoverable_git_failure(
+            "fatal: bad revision 'HEAD'"
+        ));
+        assert!(is_recoverable_git_failure(
+            "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree."
+        ));
+        assert!(is_recoverable_git_failure(
+            "fatal: unknown revision 'main'"
+        ));
+        // Real git errors that should bubble up to the user untouched.
+        assert!(!is_recoverable_git_failure(
+            "fatal: pathspec 'foo' did not match any files"
+        ));
+        assert!(!is_recoverable_git_failure("Permission denied"));
+    }
+
+    #[test]
+    fn render_unified_diff_produces_git_compatible_headers() {
+        let prev = "line a\nline b\nline c\n";
+        let next = "line a\nline B\nline c\n";
+        let out = render_unified_diff("src/sample.txt", prev, next, 65_536);
+        assert!(
+            out.starts_with("diff --git a/src/sample.txt b/src/sample.txt\n"),
+            "missing diff header: {out}"
+        );
+        assert!(out.contains("--- a/src/sample.txt"), "missing --- header: {out}");
+        assert!(out.contains("+++ b/src/sample.txt"), "missing +++ header: {out}");
+        assert!(out.contains("-line b"), "missing - line: {out}");
+        assert!(out.contains("+line B"), "missing + line: {out}");
+    }
+
+    #[test]
+    fn render_unified_diff_truncates_oversized_output() {
+        let mut prev = String::new();
+        let mut next = String::new();
+        for i in 0..2_000 {
+            prev.push_str(&format!("prev line {i}\n"));
+            next.push_str(&format!("next line {i}\n"));
+        }
+        let out = render_unified_diff("big.txt", &prev, &next, 1_024);
+        assert!(out.contains("... (truncated,"), "missing truncation marker");
+        assert!(out.len() < 1_024 + 512, "truncation budget overshot: {}", out.len());
     }
 }

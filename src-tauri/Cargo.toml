@@ -43,6 +43,10 @@ ignore = "0.4.25"
 walkdir = "2.5.0"
 blake3 = "1.8.5"
 regex = "1.11"
+# PR6.6 — unified-diff generator for LocalDiffView's snapshot fallback path.
+# MIT/Apache-2.0. Compact (~70KB compiled). Used only by commands::diff for
+# the non-git / HEAD-less branch; the git path still shells out to `git diff`.
+similar = "2.6"
 tauri-plugin-dialog = "2.7.1"
 tree-sitter = "0.23"
 tree-sitter-rust = "0.23"

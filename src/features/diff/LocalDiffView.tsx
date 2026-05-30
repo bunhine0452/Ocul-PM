@@ -190,16 +190,26 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
   // LocalDiffView directly to ChatPanel's internals; the listener in
   // ChatPanel picks up the prefill payload and calls setInput.
   const explainAvailable =
-    !!selected && !!diff && diff.source.source === "git" && !diffError && !diffLoading;
+    !!selected &&
+    !!diff &&
+    (diff.source.source === "git" || diff.source.source === "snapshot") &&
+    !diffError &&
+    !diffLoading;
   const onExplainAi = useCallback(() => {
-    if (!explainAvailable || !selected || !diff || diff.source.source !== "git") {
+    if (
+      !explainAvailable ||
+      !selected ||
+      !diff ||
+      (diff.source.source !== "git" && diff.source.source !== "snapshot")
+    ) {
       return;
     }
     const patch = diff.source.patch.trim();
     const fence = "```";
+    const baseline = diff.source.source === "git" ? "HEAD" : "마지막 인덱스 시점";
     const prompt = patch
       ? `다음 diff 변경에 대해 설명해 주세요. (파일: ${selected})\n\n${fence}diff\n${patch}\n${fence}`
-      : `${selected} 의 변경 사항을 설명해 주세요. (HEAD 와 동일한 상태)`;
+      : `${selected} 의 변경 사항을 설명해 주세요. (${baseline} 과 동일한 상태)`;
     window.dispatchEvent(
       new CustomEvent(AI_PROMPT_PREFILL_EVENT, { detail: { prompt } }),
     );
@@ -224,6 +234,25 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
       setReindexing(false);
     }
   }, [projectId, recentChanges]);
+
+  // PR6.6 — "비우기" advances the snapshot baseline so the snapshot fallback
+  // path of compute_diff produces an empty diff after the user acknowledges
+  // the current batch. UI clears regardless of backend outcome (best-effort
+  // baseline reset; a snapshot write failure shouldn't trap the user in a
+  // stale change list).
+  const onClear = useCallback(async () => {
+    if (recentChanges.length === 0) {
+      clearRecentChanges();
+      return;
+    }
+    const paths = Array.from(new Set(recentChanges.map((c) => c.path)));
+    try {
+      await commands.resnapshotPaths(projectId, paths);
+    } catch {
+      // ignored — see comment above
+    }
+    clearRecentChanges();
+  }, [projectId, recentChanges, clearRecentChanges]);
 
   if (recentChanges.length === 0) {
     return (
@@ -282,9 +311,9 @@ export function LocalDiffView({ projectId }: LocalDiffViewProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={clearRecentChanges}
+            onClick={onClear}
             className="h-6 px-2 text-[10px]"
-            title="변경 목록 비우기 (baseline reset)"
+            title="변경 목록 비우기 + 스냅샷 baseline 재설정"
           >
             비우기
           </Button>
@@ -396,10 +425,11 @@ function DiffBody({ result, sideBySide }: { result: DiffResult; sideBySide: bool
   if (result.source.source === "snapshots_unavailable") {
     return (
       <div className="p-3 text-xs text-muted-foreground space-y-1">
-        <p className="font-medium text-foreground/80">git 저장소가 아닙니다.</p>
+        <p className="font-medium text-foreground/80">아직 baseline 이 없습니다.</p>
         <p>
-          비-git 프로젝트의 diff 는 1.1 에서 도입되는 file_snapshots fallback
-          으로 지원됩니다. 1.0 은 git 저장소에 한해 diff 를 제공합니다.
+          이 파일은 인덱싱된 적이 없어 비교 대상을 만들 수 없습니다. 상단의
+          <b> 부분 reindex </b> 를 한 번 누른 뒤 다시 보면 이후 변경부터
+          정상적으로 diff 가 표시됩니다.
         </p>
       </div>
     );
@@ -409,7 +439,7 @@ function DiffBody({ result, sideBySide }: { result: DiffResult; sideBySide: bool
   if (!patch.trim()) {
     return (
       <div className="p-3 text-xs text-muted-foreground">
-        변경 사항 없음 (HEAD 와 동일).
+        변경 사항 없음 ({result.source.source === "git" ? "HEAD" : "스냅샷"} 과 동일).
       </div>
     );
   }
@@ -418,6 +448,12 @@ function DiffBody({ result, sideBySide }: { result: DiffResult; sideBySide: bool
 
   return (
     <div className="p-3 text-[11px] font-mono leading-relaxed">
+      {result.source.source === "snapshot" && (
+        <div className="mb-2 px-2 py-1 text-[10px] text-muted-foreground bg-muted/40 rounded border border-border/60">
+          로컬 스냅샷 기반 diff — 마지막 인덱스 이후 디스크 변경분.
+          git 의 rename 감지 등은 포함되지 않습니다.
+        </div>
+      )}
       {hunks.map((h, i) => (
         <Hunk key={i} hunk={h} sideBySide={sideBySide} />
       ))}

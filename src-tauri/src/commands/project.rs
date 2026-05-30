@@ -188,7 +188,7 @@ pub async fn index_project(
         let language = indexer::language_for(file_path).map(String::from);
 
         let (file_id, changed) = db
-            .upsert_file(project_id, rel_str.clone(), hash, size, mtime, language)
+            .upsert_file(project_id, rel_str.clone(), hash.clone(), size, mtime, language)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -197,6 +197,18 @@ pub async fn index_project(
             continue;
         }
         files_changed += 1;
+
+        // PR6.6 — capture the just-indexed content as the diff baseline so
+        // LocalDiffView can fall back to a snapshot diff when git can't
+        // serve `HEAD` (fresh repo) or the project isn't a git repo.
+        db.upsert_file_snapshot(
+            project_id,
+            rel_str.clone(),
+            content.as_bytes().to_vec(),
+            hash.clone(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
         let (chunks, analysis) = indexer::chunk_file(file_path, &content, &index_config);
         if let Some(ref ana) = analysis {

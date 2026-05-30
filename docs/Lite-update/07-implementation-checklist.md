@@ -50,7 +50,7 @@
 
 ### 0.6 [`05-index-comparison.md`](./05-index-comparison.md) §10
 
-- [x] **`file_snapshots` 보관** → **최근 50개 per path** (LRU)
+- [x] **`file_snapshots` 보관** → **per-path 단일 row** (UNIQUE(project_id, path)) — 2026-05-31 갱신: 원안 "최근 50 LRU" 가 1.0 dogfood UX (baseline 1개) 와 불일치. master-prompt §5.3 참조. 1.1 에 LRU 50 재검토.
 - [x] **diff 기본 모드** → **폭 ≥ 1024px side-by-side, 외 unified** (사용자 토글은 영속화)
 - [x] **읽음/안읽음 체크** → **1.0 포함**
 - [x] **다중 파일 동시 diff** → **1.1 로 미룸**
@@ -75,7 +75,7 @@
 | Today 카드 기본 접힘 | Overview 만 접힘, 나머지 펴짐 |
 | 사이드바 폭 | 56px |
 | TitleBar 우측 | Git chip · AI (⌘\) · 설정 (⌘,) |
-| file_snapshots | per-path 최근 50, LRU |
+| file_snapshots | per-path 단일 row (2026-05-31 갱신 — 1.1 LRU 재검토) |
 | diff 기본 모드 | ≥1024px side-by-side, 외 unified |
 | 읽음/안읽음 | 1.0 포함 |
 | 다중 파일 동시 diff | 1.1 |

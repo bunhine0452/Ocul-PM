@@ -119,7 +119,7 @@ use crate::commands::{
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
     git_log, git_remotes, git_status, git_head_status_brief, github_verify,
     git_tags, git_log_range, read_changelog, github_releases,
-    reindex_paths, compute_diff, open_in_editor,
+    reindex_paths, compute_diff, resnapshot_paths, open_in_editor,
     // G2 — Project Overview + Daily Brief
     get_project_overview, generate_project_overview, refresh_project_overview_if_stale,
     update_project_overview, daily_brief,
@@ -236,6 +236,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // Lite-W6 PR6 — LocalDiffView backend
         reindex_paths,
         compute_diff,
+        resnapshot_paths,
         open_in_editor,
         // G2 — Project Overview + Daily Brief
         get_project_overview,

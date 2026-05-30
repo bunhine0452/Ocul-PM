@@ -22,6 +22,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (12, include_str!("../migrations/012_oculpm_journal.sql")),
     (13, include_str!("../migrations/013_oculpm_agent_state.sql")),
     (14, include_str!("../migrations/014_oculpm_migrations.sql")),
+    (15, include_str!("../migrations/015_file_snapshots.sql")),
 ];
 
 pub struct Db {
@@ -1799,6 +1800,70 @@ impl Db {
         Ok(())
     }
 
+    // ---------- File snapshots (PR6.6 / Lite-W6) ----------
+
+    /// Upsert the snapshot row for a single path. Used by the indexer at the
+    /// end of a per-file index pass and by the `resnapshot_paths` command
+    /// behind the LocalDiffView "비우기" action.
+    pub async fn upsert_file_snapshot(
+        &self,
+        project_id: u32,
+        path: String,
+        content: Vec<u8>,
+        hash: String,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO file_snapshots (project_id, path, content, hash, captured_at)
+                     VALUES (?1, ?2, ?3, ?4, unixepoch())
+                     ON CONFLICT(project_id, path) DO UPDATE SET
+                       content = excluded.content,
+                       hash = excluded.hash,
+                       captured_at = excluded.captured_at",
+                    params![project_id as i64, &path, &content, &hash],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// Fetch the snapshot row for a path. Returns `None` when no snapshot has
+    /// been captured yet — `compute_diff` surfaces this as
+    /// `DiffSource::SnapshotsUnavailable` so the UI can ask the user to run a
+    /// partial reindex first.
+    pub async fn get_file_snapshot(
+        &self,
+        project_id: u32,
+        path: String,
+    ) -> Result<Option<FileSnapshot>> {
+        let snapshot = self
+            .conn
+            .call(move |c| {
+                let row = c
+                    .query_row(
+                        "SELECT id, project_id, path, content, hash, captured_at
+                         FROM file_snapshots WHERE project_id = ?1 AND path = ?2",
+                        params![project_id as i64, &path],
+                        |r| {
+                            Ok(FileSnapshot {
+                                id: r.get::<_, i64>(0)? as u32,
+                                project_id: r.get::<_, i64>(1)? as u32,
+                                path: r.get(2)?,
+                                content: r.get(3)?,
+                                hash: r.get(4)?,
+                                captured_at: r.get::<_, i64>(5)? as u32,
+                            })
+                        },
+                    )
+                    .optional()?;
+                Ok(row)
+            })
+            .await?;
+        Ok(snapshot)
+    }
+
     // ---------- Blueprints (W6 / G4) ----------
 
     #[allow(clippy::too_many_arguments)]
@@ -2116,6 +2181,20 @@ pub struct DependencyEdge {
 pub struct DependencyGraph {
     pub nodes: Vec<DependencyNode>,
     pub edges: Vec<DependencyEdge>,
+}
+
+/// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships
+/// uncompressed; zstd is a 1.1 candidate). Not exported via specta because no
+/// Tauri command returns it directly — `compute_diff` only consumes it
+/// internally to produce a unified-diff string.
+#[derive(Debug, Clone)]
+pub struct FileSnapshot {
+    pub id: u32,
+    pub project_id: u32,
+    pub path: String,
+    pub content: Vec<u8>,
+    pub hash: String,
+    pub captured_at: u32,
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
