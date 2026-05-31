@@ -23,10 +23,10 @@
 
 ### 0.2 [`02-screen-specs.md`](./02-screen-specs.md) §9 (WorkspaceContext 키)
 
-- [x] schema v2 → v3 마이그레이션 *deletion-only* + neutral defaults
-- [x] `activeView: "code"` → `"diff"` 자동 매핑
-- [x] 신규 키 12 종 ([`02-screen-specs.md`](./02-screen-specs.md) §9 표) 전부 *영속*
-- [x] `themeMode` 와 `localStorage["oculpm-theme"]` *동기화 양방향*
+- [x] schema v2 → v3 마이그레이션 *deletion-only* + neutral defaults *(write/deletion 은 PR-UI 7 — PR-UI 0 은 read-compat default 만)*
+- [x] `activeView: "code"` → `"diff"` 자동 매핑 *(PR-UI 7 의 write 마이그레이션에서)*
+- [x] 신규 키 **11 종** WorkspaceContext 영속 (12 종 중 `themeMode` 제외 — Decision A 로 SettingsContext 소유). read-compat default 는 PR-UI 0 에서 추가됨
+- [x] **테마 = SettingsContext SSOT (Decision A, 2026-05-31)** — `themeMode` / `localStorage["oculpm-theme"]` 별도 store *없음*. SettingsContext 가 `.dark` class + `data-theme` 속성을 *동시* 적용. 영속은 SQLite (localStorage 미사용 → lint 무관)
 
 ### 0.3 [`03-design-system.md`](./03-design-system.md) §11
 
@@ -59,16 +59,24 @@
 | 단축키 폐기 | ⌘B / ⌘J / ⌘⇧J / ⌘⇧\ |
 | AiOverlay | ⌘\ 유지 (보조) |
 | 시각 토큰 시스템 | `--*` CSS variable (Tailwind colors 제거) |
-| 다크 모드 토글 | `data-theme="dark"` 속성 + `localStorage["oculpm-theme"]` |
-| 시스템 다크 감지 | 첫 마운트 1 회 |
+| 다크 모드 토글 | `data-theme="dark"` 속성 (+ 레거시 `.dark` class 병행). 테마 SSOT = **SettingsContext (SQLite)**, `localStorage["oculpm-theme"]` *미사용* — Decision A |
+| 시스템 다크 감지 | 첫 마운트 1 회 (SettingsContext `theme: "system"`) |
 | 아이콘 | Lucide 단일, strokeWidth 1.75 기본 |
 | Code Workbench | `src/legacy/` 영구 이동 (PR-UI 7) |
-| WorkspaceContext schema | v2 → v3 *deletion-only* 마이그레이션 |
-| `ui_v2` feature flag | PR-UI 0 도입, PR-UI 7 영구 ON + 제거 |
+| WorkspaceContext schema | v2 → v3 *deletion-only* 마이그레이션 (write 는 PR-UI 7) |
+| `ui_v2` feature flag | `src/lib/uiFlags.ts` (settings KEYS 레지스트리 *밖* — Decision B). PR-UI 0 도입(기본 OFF), PR-UI 7 영구 ON + 제거 |
 | 시각 회귀 잠금 | 8 화면 × 2 테마 = 16 스냅샷 (PR-UI 0 베이스라인) |
 | 카피 용어 사전 | [`UI-MASTER-PROMPT.md`](./UI-MASTER-PROMPT.md) §6 |
 
 위 모든 결정이 잠겼으므로 **PR-UI 0** 진입 가능.
+
+### 0.6 PR-UI 0 진행 중 추가 결정 (2026-05-31 잠금)
+
+> §5 운영 흐름에 따라 PR-UI 0 작업 중 확정된 결정. 본 §0 + §0.5 표에 이미 반영됨.
+
+- **Decision A — 테마 SSOT 는 SettingsContext.** 문서 초안의 *신규 `ThemeContext.tsx` + `localStorage["oculpm-theme"]`* 안을 *reversal*. 현 코드의 테마 상태(`light`/`dark`/`system`)는 이미 `SettingsContext` 가 SQLite 로 소유·적용 중이었음. 별도 store 신설은 *이중 상태 + lint allowlist 추가* 비용만 발생. 대신 `SettingsContext` 의 테마 적용 effect 가 레거시 `.dark` class 와 신 `data-theme` 속성을 *동시* 토글하도록 확장 (한 줄). `tokens.css` 는 `[data-theme="dark"]` 를 키로 사용하므로 그대로 호환. 영향: §9 의 `themeMode` 키는 WorkspaceContext 에 *추가하지 않음* (12 → 11 종).
+- **Decision B — `ui_v2` flag 는 settings 레지스트리 밖.** `no_feature_flags.test.ts` 가 `src/lib/settings.ts` 의 `feature_*` 행을 금지하므로, flag 를 `src/lib/uiFlags.ts` 의 모듈 const (`isUiV2Enabled()`) 로 구현. settings KEYS / WorkspaceContext 어느 영속 레지스트리에도 들어가지 않아 기존 테스트 green 유지. PR-UI 7 에서 모듈째 삭제.
+- **토큰 격리 방식.** 신 `--accent`(녹색)가 레거시 `src/App.css` 의 `--accent`(크림)와 *이름 충돌*. 전역 `:root` import 시 flag-off UI 가 변색됨. 따라서 PR-UI 0 은 `src/styles/*.css` 를 *생성만* 하고 전역 import 는 PR-UI 1 (ui_v2 shell 스코프)로 미룸. `src/styles/index.css` 가 5 파일 번들 진입점.
 
 ---
 
@@ -78,18 +86,18 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/styles/tokens.css` — :root + [data-theme="dark"] 정의 ([`03-design-system.md`](./03-design-system.md) §1~§3 그대로) |
-| ☐ | `src/styles/base.css`, `shell.css`, `primitives.css`, `screens.css` 파일 생성 (빈 + import only) |
-| ☐ | `src/contexts/ThemeContext.tsx` 신규 — `data-theme` 속성 토글 |
-| ☐ | `src/__tests__/theme_toggle.test.ts` — round-trip + 시스템 감지 |
-| ☐ | `src/__tests__/ui_v2_flag.test.ts` — flag-on/off 분기가 *각각 현 코드와 동일* 렌더 |
-| ☐ | `src/App.tsx` 의 `ui_v2` flag 분기 (flag-off 100% 무변경 보장) |
-| ☐ | `WorkspaceContext` schema v3 의 *읽기 호환만* (default 추가, write 변화 없음) |
-| ☐ | `pnpm typecheck` green |
-| ☐ | `pnpm test` green |
-| ☐ | `pnpm lint` green |
-| ☐ | `cargo test` green |
-| ☐ | `pre-cut-PR-UI0` annotated git tag |
+| ☑ | `src/styles/tokens.css` — :root + [data-theme="dark"] 정의 ([`03-design-system.md`](./03-design-system.md) §1~§3 그대로) |
+| ☑ | `src/styles/base.css`, `shell.css`, `primitives.css`, `screens.css` 파일 생성 (빈 + import only) + `index.css` 번들 진입점 |
+| ☑ | ~~`src/contexts/ThemeContext.tsx` 신규~~ → **Decision A**: SettingsContext 가 `data-theme` 속성 토글 (신규 context 미신설, §0.6) |
+| ☑ | `src/__tests__/theme_toggle.test.ts` — `data-theme` round-trip + 시스템 감지 |
+| ☑ | `src/__tests__/ui_v2_flag.test.ts` — flag-on/off 분기가 *각각 현 코드와 동일* 렌더 |
+| ☑ | `src/App.tsx` 의 `ui_v2` flag 분기 (`WorkspaceShell` seam, flag-off 100% 무변경 보장) |
+| ☑ | `WorkspaceContext` schema 의 *읽기 호환만* (신규 키 11 종 default 추가, write 변화 없음) |
+| ☑ | `pnpm typecheck` green |
+| ☑ | `pnpm test` green (56 passed \| 3 todo) |
+| ☑ | `pnpm lint` green |
+| ☑ | `cargo test` green (0 failed) |
+| ☐ | `pre-cut-PR-UI0` annotated git tag *(커밋 시)* |
 
 **선행 조건**: Lite-W6 PR0~PR10 ✅, PR12 미진입.
 
@@ -258,7 +266,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 
 | PR-UI | 상태 | 머지 해시 |
 |---|---|---|
-| 0 — Foundation | ⬜ pending | — |
+| 0 — Foundation | 🟡 코드 완료 (커밋 대기) | — |
 | 1 — Sidebar/Shell/Theme | ⬜ pending | — |
 | 2 — Today | ⬜ pending | — |
 | 3 — 작업 일지 | ⬜ pending | — |

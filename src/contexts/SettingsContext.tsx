@@ -61,7 +61,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     await commands.settingsSetMany(entries);
   }, []);
 
-  // --- Theme application: write `.dark` class on <html> based on theme setting
+  // --- Theme application: write BOTH the legacy `.dark` class (old shadcn UI)
+  // and the `data-theme` attribute (Final UI Update token system,
+  // src/styles/tokens.css) on <html> based on the theme setting.
+  // Decision A (2026-05-31): SettingsContext stays the single source of truth
+  // for theme — no parallel ThemeContext / localStorage["oculpm-theme"] store.
+  // Keeping both selectors in sync lets the ui_v2 transition (legacy `.dark`
+  // ↔ new `[data-theme]`) run without a second theme store.
   useEffect(() => {
     if (!loaded) return;
     const root = document.documentElement;
@@ -71,6 +77,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           ? window.matchMedia("(prefers-color-scheme: dark)").matches
           : settings.theme === "dark";
       root.classList.toggle("dark", desired);
+      root.setAttribute("data-theme", desired ? "dark" : "light");
     };
     apply();
     if (settings.theme === "system") {

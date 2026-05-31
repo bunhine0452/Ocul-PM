@@ -1,0 +1,103 @@
+/* ============================================================
+   Ocul-PM 1.0 — design tokens (Final UI Update round)
+   Source of truth: docs/Lite-update/Fianl_UI_update_before1.0/Ocul-PM1.0/styles.css
+   + 03-design-system.md §1~§3. Values match the mockup character-for-character.
+
+   PR-UI 0 (token isolation): this file is authored but NOT imported globally
+   yet. The new `--accent` (green) collides by name with the legacy shadcn
+   `--accent` (cream) in src/App.css, so importing this at :root now would
+   repaint the flag-off UI. PR-UI 1 wires it in scoped to the ui_v2 shell.
+   ============================================================ */
+
+:root {
+  /* surfaces (light) */
+  --bg-window: #ffffff;
+  --bg-sidebar: #ebebed;
+  --bg-content: #f6f6f7;
+  --bg-card: #ffffff;
+  --bg-inset: #f0f0f2;
+  --bg-hover: rgba(0,0,0,0.045);
+  --bg-active: rgba(0,0,0,0.07);
+
+  /* text */
+  --text: #1d1d1f;
+  --text-2: #66666b;
+  --text-3: #97979d;
+  --text-on-accent: #ffffff;
+
+  /* lines */
+  --sep: rgba(0,0,0,0.085);
+  --sep-strong: rgba(0,0,0,0.14);
+  --border-card: rgba(0,0,0,0.07);
+
+  /* accent — green */
+  --accent: #12a06b;
+  --accent-strong: #0c9061;
+  --accent-text: #0a7b53;
+  --accent-soft: #e4f5ee;
+  --accent-ring: rgba(18,160,107,0.35);
+
+  /* trigger hues */
+  --t-bug: #e0524b;       --t-bug-soft: #fbe9e8;
+  --t-feature: #12a06b;   --t-feature-soft: #e4f5ee;
+  --t-refactor: #7c5cdb;  --t-refactor-soft: #efeafb;
+  --t-error: #d9881f;     --t-error-soft: #fbf0db;
+  --t-chore: #5a7a95;     --t-chore-soft: #e9eff4;
+
+  /* diff */
+  --diff-add-bg: #e6f6ec;   --diff-add-line: #1f9d57;  --diff-add-text: #0e6b39;
+  --diff-del-bg: #fbe9e9;   --diff-del-line: #d6443c;  --diff-del-text: #9b2820;
+  --diff-gutter: #f3f3f4;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.03);
+  --shadow-pop: 0 8px 28px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.06);
+
+  --radius-s: 6px;
+  --radius-m: 9px;
+  --radius-l: 13px;
+  --radius-xl: 18px;
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          "Helvetica Neue", "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
+}
+
+[data-theme="dark"] {
+  --bg-window: #1d1d1f;
+  --bg-sidebar: #1a1a1c;
+  --bg-content: #232325;
+  --bg-card: #2b2b2e;
+  --bg-inset: #2f2f33;
+  --bg-hover: rgba(255,255,255,0.06);
+  --bg-active: rgba(255,255,255,0.1);
+
+  --text: #f4f4f6;
+  --text-2: #a3a3aa;
+  --text-3: #6f6f77;
+  --text-on-accent: #ffffff;
+
+  --sep: rgba(255,255,255,0.09);
+  --sep-strong: rgba(255,255,255,0.16);
+  --border-card: rgba(255,255,255,0.08);
+
+  --accent: #2bc488;
+  --accent-strong: #25b87e;
+  --accent-text: #4fdca0;
+  --accent-soft: rgba(43,196,136,0.16);
+  --accent-ring: rgba(43,196,136,0.4);
+
+  --t-bug: #f1685f;       --t-bug-soft: rgba(241,104,95,0.16);
+  --t-feature: #2bc488;   --t-feature-soft: rgba(43,196,136,0.16);
+  --t-refactor: #a78bfa;  --t-refactor-soft: rgba(167,139,250,0.16);
+  --t-error: #eaa23f;     --t-error-soft: rgba(234,162,63,0.16);
+  --t-chore: #87a6c0;     --t-chore-soft: rgba(135,166,192,0.16);
+
+  --diff-add-bg: rgba(46,160,87,0.16);  --diff-add-line: #3fb950;  --diff-add-text: #6cd584;
+  --diff-del-bg: rgba(214,68,60,0.16);  --diff-del-line: #f1685f;  --diff-del-text: #f7918a;
+  --diff-gutter: #29292c;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-pop: 0 10px 34px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.4);
+}

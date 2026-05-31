@@ -1,0 +1,15 @@
+/* ============================================================
+   index.css — single entry for the Final UI Update (ui_v2) stylesheet.
+   Bundles the 5 token/layer files (03-design-system.md §10).
+
+   NOT imported globally in PR-UI 0 (token isolation): the new `--accent`
+   collides by name with the legacy shadcn `--accent` in src/App.css, so a
+   global :root import would repaint the flag-off UI. PR-UI 1 imports this
+   scoped to the ui_v2 shell once the new sidebar/toolbar mount behind the flag.
+   ============================================================ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./shell.css";
+@import "./primitives.css";
+@import "./screens.css";

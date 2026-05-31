@@ -53,6 +53,29 @@ export type ChangeOp = "A" | "M" | "D";
 
 export type SidePanelMode = "files" | "diff";
 
+// ─── Final UI Update (ui_v2) — read-compat scaffolding (PR-UI 0) ──────────
+// These additive types/fields let PR-UI 1+ screens round-trip their state
+// immediately. They are persisted as additive fields (no schema bump — see the
+// WORKSPACE_SCHEMA_VERSION note below), and NO key deletion / write-migration
+// happens yet (that lands in PR-UI 7). Theme is intentionally absent here:
+// SettingsContext remains the single source of truth for theme (Final UI
+// Update decision A, 2026-05-31).
+export type JournalFilter =
+  | "all"
+  | "feature"
+  | "bugfix"
+  | "refactor"
+  | "error"
+  | "chore";
+export type DiffMode = "unified" | "split";
+export type SearchScope = "semantic" | "symbol" | "text";
+export interface TerminalTab {
+  id: string;
+  label: string;
+  shell: string;
+  cwd: string;
+}
+
 export interface RecentChange {
   /** Project-relative forward-slash path (matches `ProjectTreeNode.relative_path`). */
   path: string;
@@ -156,6 +179,30 @@ export interface WorkspaceState {
   currentSession: Session | null;
   /** `YYYYMMDD` per project workday tz. Updated on `workday_boundary`. */
   workdayKey: string | null;
+
+  // ─── Final UI Update (ui_v2) read-compat fields (PR-UI 0) ───────────────
+  /** 작업 일지 화면의 trigger 필터. */
+  journalFilter: JournalFilter;
+  /** 변경 diff 화면에서 마지막으로 본 파일 경로. */
+  diffActivePath: string | null;
+  /** "검토 완료" 표시된 파일 경로들. */
+  diffReadPaths: string[];
+  /** 변경 diff 통합/분할 보기 모드. */
+  diffMode: DiffMode;
+  /** Planner goal 카드 펼침 상태 (goalId → open). */
+  plannerOpen: Record<string, boolean>;
+  /** 코드 검색 scope. */
+  searchScope: SearchScope;
+  /** 최근 검색어 (최대 10개). */
+  searchRecent: string[];
+  /** 터미널 탭 목록 (PTY 핸들은 휘발성 — 여기엔 메타만). */
+  terminalTabs: TerminalTab[];
+  /** 활성 터미널 탭 id. */
+  terminalActiveId: string | null;
+  /** AI 패널 활성 모델 id. */
+  aiActiveModel: string | null;
+  /** AI 패널 + 오버레이가 공유하는 thread id. */
+  aiThreadId: string | null;
 }
 
 export interface IndexProgress {
@@ -205,6 +252,19 @@ const DEFAULT_STATE: WorkspaceState = {
   oculpmStatus: null,
   currentSession: null,
   workdayKey: null,
+
+  // Final UI Update (ui_v2) read-compat defaults (PR-UI 0).
+  journalFilter: "all",
+  diffActivePath: null,
+  diffReadPaths: [],
+  diffMode: "unified",
+  plannerOpen: {},
+  searchScope: "semantic",
+  searchRecent: [],
+  terminalTabs: [],
+  terminalActiveId: null,
+  aiActiveModel: null,
+  aiThreadId: null,
 };
 
 const STORAGE_KEY = "aipm:workspace:v1";

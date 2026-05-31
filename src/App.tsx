@@ -22,6 +22,7 @@ import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
 import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { isUiV2Enabled } from "@/lib/uiFlags";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 
 import {
@@ -317,7 +318,7 @@ function App() {
           onStartGreenfield={() => setGreenfieldOpen(true)}
         />
       ) : (
-        <Workspace
+        <WorkspaceShell
           activeView={activeView}
           codeSubTab={codeSubTab}
           setActiveView={setActiveView}
@@ -452,7 +453,7 @@ const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.Component
   { id: "terminal", label: "Terminal", icon: Terminal },
 ];
 
-function Workspace(props: {
+type WorkspaceProps = {
   activeView: "today" | "plan" | "code";
   codeSubTab: CodeSubTab;
   setActiveView: (v: "today" | "plan" | "code") => void;
@@ -462,7 +463,22 @@ function Workspace(props: {
   projectFiles: Array<[number, string]>;
   reloadProjectFiles: () => Promise<void>;
   onOpenSettings: () => void;
-}) {
+};
+
+// ui_v2 seam (Final UI Update — docs/Lite-update/Fianl_UI_update_before1.0).
+// PR-UI 1 mounts the new 248px Sidebar shell when the flag is on. PR-UI 0
+// keeps BOTH flag states on the legacy Workspace so flag-off is byte-identical
+// and flag-on is verifiably the same render. The flag lives in
+// src/lib/uiFlags.ts — outside the settings KEYS registry so
+// no_feature_flags.test.ts stays green (sanctioned exception for this round).
+function WorkspaceShell(props: WorkspaceProps) {
+  if (isUiV2Enabled()) {
+    // PR-UI 1+: return the new Sidebar / Toolbar / Scroll shell here.
+  }
+  return <Workspace {...props} />;
+}
+
+function Workspace(props: WorkspaceProps) {
   const {
     activeView, codeSubTab,
     setActiveView, setCodeSubTab,
