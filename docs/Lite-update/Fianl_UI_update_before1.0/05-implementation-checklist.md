@@ -97,7 +97,7 @@
 | ☑ | `pnpm test` green (56 passed \| 3 todo) |
 | ☑ | `pnpm lint` green |
 | ☑ | `cargo test` green (0 failed) |
-| ☐ | `pre-cut-PR-UI0` annotated git tag *(커밋 시)* |
+| ☑ | `pre-cut-PR-UI0` annotated git tag (commit `5bb1bff`) |
 
 **선행 조건**: Lite-W6 PR0~PR10 ✅, PR12 미진입.
 
@@ -266,7 +266,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 
 | PR-UI | 상태 | 머지 해시 |
 |---|---|---|
-| 0 — Foundation | 🟡 코드 완료 (커밋 대기) | — |
+| 0 — Foundation | ✅ done | `5bb1bff` |
 | 1 — Sidebar/Shell/Theme | ⬜ pending | — |
 | 2 — Today | ⬜ pending | — |
 | 3 — 작업 일지 | ⬜ pending | — |
