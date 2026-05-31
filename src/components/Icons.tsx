@@ -481,4 +481,10 @@ export {
   ExternalLink as ExternalLinkIcon,
   GitBranch as GitBranchIcon,
   Check as CheckMark,
+  // PR-UI 5 (도구 4 화면) — search scope / terminal watch / planner filter / ai compose.
+  Activity,
+  Paperclip,
+  Filter,
+  Variable,
+  CaseSensitive,
 } from "lucide-react";

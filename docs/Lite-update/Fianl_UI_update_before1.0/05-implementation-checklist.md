@@ -109,6 +109,14 @@
 - **외부 에디터 = `commands.openInEditor(projectRoot, relPath, editorCmd)`.** Settings 의 `externalEditorCommand`(`useSettings`)를 editorCmd 로 전달. journal 의 `oculpmApi.openEntryInEditor`(plugin-opener 우회)와 달리 diff 는 임의 코드 파일이므로 표준 openInEditor 사용.
 - **테스트 타이밍.** `diff_v2.test.tsx` 의 body-렌더 단언은 jsdom 콜드 스타트로 첫 몇 개가 1000ms findByText 기본값을 넘겨 body 대기에 `{timeout:3000}` 적용 (로직 버그 아님). `diff_v2` 는 `check-no-localstorage` allowlist 에 등록 (영속 엔벨로프 시드 — test-only).
 
+### 0.11 PR-UI 5 진행 중 추가 결정 (2026-06-01 잠금)
+
+- **4화면 V2 신규 + 로직 추출 (레거시 무변경).** Planner/Search/Terminal/AI 모두 ui_v2 전용 V2 컴포넌트로 신규. 레거시 `PlannerPanel`/`ChatPanel`(1566줄)/`TerminalPanel`(463줄)/`AiOverlay` 는 **0 diff lines** (flag-off 보존). 터미널 PTY 와이어링(listen `pty-data-${id}` → startPtySession → onData → writeToPty + resize/kill)과 AI 스트리밍 루프(`Channel<ChatEvent>` delta 누적 → chatStream → chatMessageAppend)는 레거시에서 *추출 재구현*. 백엔드 무변경 (Decision F).
+- **검색 단일 모드.** 백엔드는 시맨틱 chunk 검색(`searchChunks`)만 제공. 목업의 scope-chip 3종(의미/심볼/정확) 중 **의미 검색만 실연동**, 심볼/정확은 `disabled` + "1.1 지원 예정" title. searchScope 영속은 유지하되 semantic 만 동작.
+- **AI thread 공유 = `aiThreadId`(conversation id 문자열) + `aiActiveModel`(provider id).** AiPanelScreenV2 가 mount 시 conversation 을 resolve/create 하고 id 를 `aiThreadId` 에 park → AiOverlay 가 같은 conversation 을 읽음. 모델 칩은 provider(anthropic/openai/gemini/nim) 단위, 색은 데이터 기반(VENDOR map, §3.1 허용).
+- **터미널 탭 = `terminalTabs`/`terminalActiveId` 영속.** PTY 핸들은 휘발성(탭 id = PTY session id, mount 시 spawn). 탭 전환 시 xterm 은 전부 mount 유지 + CSS display 토글로 PTY 보존. ⌘T 새 탭 / ⌘W 닫기(화면 내, stopPropagation).
+- **터미널/AI 단위 테스트 한계.** xterm(canvas)·PTY·스트리밍 Channel 은 jsdom 에서 실행 불가 → 단위 테스트는 Planner/Search 만(`tools_v2.test.tsx` 9개). 터미널/AI 는 dogfood 런타임 검증. axe 0 은 Planner/Search 로 커버.
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -212,15 +220,15 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/search/SearchScreen.tsx` 신규 — semantic/symbol/text scope |
-| ☐ | `src/features/terminal/TerminalScreen.tsx` 신규 — 탭 시스템 |
-| ☐ | `src/features/chat/AiPanelScreen.tsx` 신규 — 모델 칩 + thread |
-| ☐ | `src/features/planner/PlannerScreen.tsx` 시각 갱신 (구조 보존) |
-| ☐ | AiOverlay ↔ AiPanelScreen *thread state 공유* 확인 |
-| ☐ | 터미널 탭 추가/닫기/전환 |
-| ☐ | flag-on 시 `TerminalDock.tsx`, `SidePanel.tsx` 마운트 *안 함* |
-| ☐ | ⌘B/⌘J/⌘⇧J 단축키 flag-on 시 비활성 |
-| ☐ | axe-core 0 violations (각 화면) |
+| ☑ | `src/features/search/SearchScreenV2.tsx` 신규 — semantic 실연동(searchChunks). symbol/text scope-chip 은 비활성(백엔드 단일모드, 1.1 안내) (§0.11) |
+| ☑ | `src/features/terminal/TerminalScreenV2.tsx` 신규 — 탭 시스템 + PTY 로직 추출(레거시 TerminalPanel 무변경) |
+| ☑ | `src/features/chat/AiPanelScreenV2.tsx` 신규 — 모델 칩(provider) + chatStream 추출 + thread |
+| ☑ | `src/features/planner/PlannerScreenV2.tsx` 신규 (목업 톤, 레거시 PlannerPanel 무변경) — goalList/subtaskList/subtaskToggle 실연동 |
+| ☑ | AiOverlay ↔ AiPanelScreenV2 *thread 공유* — `WorkspaceContext.aiThreadId`(conversation id) + `aiActiveModel`(provider) |
+| ☑ | 터미널 탭 추가/닫기/전환 (`terminalTabs`/`terminalActiveId` 영속) + ⌘T/⌘W |
+| ☑ | flag-on 시 `TerminalDock.tsx`/`SidePanel.tsx` 마운트 안 함 (ShellV2 가 레거시 Workspace 자체를 대체 — PR-UI 1) |
+| ☑ | ⌘B/⌘J/⌘⇧J flag-on 시 비활성 (flag-on 은 ShellV2 마운트, useGlobalShortcuts 의 uiV2Nav 분기가 ⌘1~⌘7/⌘,만; ⌘B/⌘J 핸들러는 레거시 Workspace 한정 — PR-UI 7 에서 영구 제거) |
+| ☑ | axe-core 0 violations (Planner/Search `tools_v2.test.tsx`; 터미널/AI 는 xterm/스트리밍이라 런타임 검증 — dogfood) |
 
 ### PR-UI 6 — Settings 재구성
 
@@ -302,7 +310,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 2 — Today | ✅ done | `8dce0e8` |
 | 3 — 작업 일지 | ✅ done | `c2e26a7` |
 | 4 — 변경 diff | ✅ done | `bbdb6ae` |
-| 5 — 도구 4 + Planner | ⬜ pending | — |
+| 5 — 도구 4 + Planner | 🟡 코드 완료 (커밋 대기) | — |
 | 6 — Settings | ⬜ pending | — |
 | 7 — Cleanup + Flag off | ⬜ pending | — |
 

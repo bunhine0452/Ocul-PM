@@ -61,6 +61,10 @@ const ALLOWLIST = new Set([
   // WorkspaceContext envelope (recentChanges / diffActivePath) so the diff
   // file list mounts populated. Test-only.
   "__tests__/diff_v2.test.tsx",
+  // Final UI Update PR-UI 5 — Planner/Search tests clear the persisted
+  // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
+  // Test-only.
+  "__tests__/tools_v2.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

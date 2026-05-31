@@ -6,6 +6,10 @@ import { useTheme } from "@/lib/theme";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
+import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
+import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
+import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
+import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -23,14 +27,7 @@ import "@/styles/index.css";
 // §7.4), so the shell only owns the sidebar + the screen router. Screens not
 // yet built (PR-UI 4~6) fall through to a labelled placeholder.
 
-const PLACEHOLDER_META: Record<
-  "planner" | "search" | "terminal" | "ai" | "settings",
-  { title: string; sub?: string; pr: string }
-> = {
-  planner: { title: "Planner", pr: "PR-UI 5" },
-  search: { title: "시맨틱 코드 검색", pr: "PR-UI 5" },
-  terminal: { title: "터미널", pr: "PR-UI 5" },
-  ai: { title: "AI 패널", pr: "PR-UI 5" },
+const PLACEHOLDER_META: Record<"settings", { title: string; sub?: string; pr: string }> = {
   settings: { title: "설정", pr: "PR-UI 6" },
 };
 
@@ -143,6 +140,14 @@ export default function ShellV2({
           />
         ) : view === "diff" ? (
           <DiffScreenV2 projectId={projectId} projectRoot={projectRoot} branch={null} />
+        ) : view === "planner" ? (
+          <PlannerScreenV2 projectId={projectId} onNavigate={setUiV2View} />
+        ) : view === "search" ? (
+          <SearchScreenV2 projectId={projectId} />
+        ) : view === "terminal" ? (
+          <TerminalScreenV2 projectRoot={projectRoot} />
+        ) : view === "ai" ? (
+          <AiPanelScreenV2 projectId={projectId} />
         ) : (
           <Placeholder view={view} />
         )}
