@@ -101,6 +101,14 @@
 - **⌘N ManualEntry 보류.** ManualEntryModal 은 레거시 shadcn 모달이라 ui_v2 토큰 셸에 바로 못 끼움. ui_v2 모달 패턴은 PR-UI 5/6(Settings 키 입력 모달 등)에서 정립 후 Journal ⌘N 도 연결. DoD 1 항목 보류.
 - **journal card → 변경 diff 핸드오프.** 카드 클릭 시 `WorkspaceContext.diffActivePath` 에 entry path 를 park 하고 diff 화면으로 이동. PR-UI 4 의 DiffScreen 이 이 값을 pre-select 에 소비.
 
+### 0.10 PR-UI 4 진행 중 추가 결정 (2026-06-01 잠금)
+
+- **diff 파서 재사용 (무변경).** 설계문서 "LocalDiffView 내부 로직 무변경" 을, `DiffScreenV2` 가 `LocalDiffView.tsx` 의 *export 된 순수 함수* `classifyDiffLines`/`groupIntoHunks`/`pairDiffLines` 를 **그대로 import** 하는 방식으로 구현. LocalDiffView 컴포넌트 자체(flag-off)도 무변경(0 diff lines). → Lite-W6 PR6.x safety-net 테스트가 그 함수들을 계속 커버. 데이터 소스도 기존 `commands.computeDiff` + `recentChanges` 그대로 (백엔드 무변경, Decision F).
+- **단일 파일 컴포넌트.** 설계문서의 `DiffFileList.tsx`/`DiffMain.tsx` 분리 대신 `DiffScreenV2.tsx` 한 파일에 파일목록 + DiffBody/Hunk/UnifiedRows/SplitRows 내부 컴포넌트로 구성. 화면이 작아 분리 이득이 적음.
+- **diffActivePath one-shot pre-select.** PR-UI 3 이 park 한 `diffActivePath` 를 mount 시 1회 소비 후 `null` 로 clear (diffTarget 의미론과 동일). 이후 수동 선택이 되돌려지지 않음.
+- **외부 에디터 = `commands.openInEditor(projectRoot, relPath, editorCmd)`.** Settings 의 `externalEditorCommand`(`useSettings`)를 editorCmd 로 전달. journal 의 `oculpmApi.openEntryInEditor`(plugin-opener 우회)와 달리 diff 는 임의 코드 파일이므로 표준 openInEditor 사용.
+- **테스트 타이밍.** `diff_v2.test.tsx` 의 body-렌더 단언은 jsdom 콜드 스타트로 첫 몇 개가 1000ms findByText 기본값을 넘겨 body 대기에 `{timeout:3000}` 적용 (로직 버그 아님). `diff_v2` 는 `check-no-localstorage` allowlist 에 등록 (영속 엔벨로프 시드 — test-only).
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -293,7 +301,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 1 — Sidebar/Shell/Theme | ✅ done | `6b5ad48` |
 | 2 — Today | ✅ done | `8dce0e8` |
 | 3 — 작업 일지 | ✅ done | `c2e26a7` |
-| 4 — 변경 diff | ✅ done | `7ad1424` |
+| 4 — 변경 diff | ✅ done | `bbdb6ae` |
 | 5 — 도구 4 + Planner | ⬜ pending | — |
 | 6 — Settings | ⬜ pending | — |
 | 7 — Cleanup + Flag off | ⬜ pending | — |
