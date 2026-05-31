@@ -57,6 +57,10 @@ const ALLOWLIST = new Set([
   // mounts so the persisted journalFilter (aipm:workspace:v1 envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.
   "__tests__/journal_v2.test.tsx",
+  // Final UI Update PR-UI 4 — DiffScreenV2 tests seed the persisted
+  // WorkspaceContext envelope (recentChanges / diffActivePath) so the diff
+  // file list mounts populated. Test-only.
+  "__tests__/diff_v2.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

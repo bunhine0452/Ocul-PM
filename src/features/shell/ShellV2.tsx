@@ -5,6 +5,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useTheme } from "@/lib/theme";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
+import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -23,10 +24,9 @@ import "@/styles/index.css";
 // yet built (PR-UI 4~6) fall through to a labelled placeholder.
 
 const PLACEHOLDER_META: Record<
-  "diff" | "planner" | "search" | "terminal" | "ai" | "settings",
+  "planner" | "search" | "terminal" | "ai" | "settings",
   { title: string; sub?: string; pr: string }
 > = {
-  diff: { title: "변경 diff", pr: "PR-UI 4" },
   planner: { title: "Planner", pr: "PR-UI 5" },
   search: { title: "시맨틱 코드 검색", pr: "PR-UI 5" },
   terminal: { title: "터미널", pr: "PR-UI 5" },
@@ -141,6 +141,8 @@ export default function ShellV2({
             focusPath={journalFocus}
             onFocusConsumed={() => setJournalFocus(null)}
           />
+        ) : view === "diff" ? (
+          <DiffScreenV2 projectId={projectId} projectRoot={projectRoot} branch={null} />
         ) : (
           <Placeholder view={view} />
         )}

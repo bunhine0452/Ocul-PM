@@ -187,14 +187,14 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/diff/DiffScreen.tsx` 신규 wrapper |
-| ☐ | `DiffFileList.tsx`, `DiffMain.tsx` 신규 |
-| ☐ | 기존 `LocalDiffView.tsx` 내부 로직 *무변경* (git/snapshot 분기) |
-| ☐ | 통합/분할 토글 + 영속화 (`WorkspaceContext.diffMode`) |
-| ☐ | 외부 에디터 열기 (Settings 의 명령) 동작 |
-| ☐ | "검토 완료" → diffReadPaths 갱신 |
-| ☐ | 기존 회귀 테스트 모두 green |
-| ☐ | axe-core 0 violations |
+| ☑ | `src/features/diff/DiffScreenV2.tsx` 신규 (2-pane shell; flag-off LocalDiffView 무변경) |
+| ☑ | ~~`DiffFileList.tsx`/`DiffMain.tsx` 분리~~ → 단일 `DiffScreenV2` 내부 컴포넌트(파일목록 + DiffBody/Hunk/Rows) (§0.10) |
+| ☑ | 기존 `LocalDiffView.tsx` 의 순수 파서(`classifyDiffLines`/`groupIntoHunks`/`pairDiffLines`) *그대로 import* — 컴포넌트 무변경(0 diff lines), 회귀 테스트 계속 커버 |
+| ☑ | 통합/분할 토글 + 영속화 (`WorkspaceContext.diffMode`) |
+| ☑ | 외부 에디터 열기 (`commands.openInEditor` + Settings `externalEditorCommand`) 동작 |
+| ☑ | "검토 완료" → `diffReadPaths` 갱신 (파일 목록 체크마크) |
+| ☑ | 기존 회귀 테스트 모두 green (`lite_w6_safety_net` diff 파서 테스트 유지) |
+| ☑ | axe-core 0 violations (`diff_v2.test.tsx`, with diff loaded) |
 
 ---
 
@@ -293,7 +293,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 1 — Sidebar/Shell/Theme | ✅ done | `6b5ad48` |
 | 2 — Today | ✅ done | `8dce0e8` |
 | 3 — 작업 일지 | ✅ done | `c2e26a7` |
-| 4 — 변경 diff | ⬜ pending | — |
+| 4 — 변경 diff | 🟡 코드 완료 (커밋 대기) | — |
 | 5 — 도구 4 + Planner | ⬜ pending | — |
 | 6 — Settings | ⬜ pending | — |
 | 7 — Cleanup + Flag off | ⬜ pending | — |

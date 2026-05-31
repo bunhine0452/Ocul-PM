@@ -477,4 +477,8 @@ export {
   Loader,
   // PR-UI 3 (작업 일지) — cycle-retry flag.
   RotateCcw,
+  // PR-UI 4 (변경 diff) — diff toolbar + footer.
+  ExternalLink as ExternalLinkIcon,
+  GitBranch as GitBranchIcon,
+  Check as CheckMark,
 } from "lucide-react";
