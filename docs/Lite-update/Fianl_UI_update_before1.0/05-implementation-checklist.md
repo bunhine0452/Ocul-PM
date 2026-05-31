@@ -276,7 +276,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | PR-UI | 상태 | 머지 해시 |
 |---|---|---|
 | 0 — Foundation | ✅ done | `5bb1bff` |
-| 1 — Sidebar/Shell/Theme | 🟡 코드 완료 (커밋 대기) | — |
+| 1 — Sidebar/Shell/Theme | ✅ done | `6b5ad48` |
 | 2 — Today | ⬜ pending | — |
 | 3 — 작업 일지 | ⬜ pending | — |
 | 4 — 변경 diff | ⬜ pending | — |
