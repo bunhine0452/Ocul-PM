@@ -9,15 +9,17 @@
 // persisted registry. PR-UI 7 flips the default ON permanently, then deletes
 // this module along with every `isUiV2Enabled()` call site.
 //
-// Default OFF in PR-UI 0: flag-off renders the legacy shell unchanged, and
-// flag-on also renders the legacy shell (the new Sidebar shell arrives in
-// PR-UI 1), so the two states are byte-identical at this checkpoint.
+// Default OFF: flag-off renders the legacy shell unchanged. Enable for a
+// dogfood session with `VITE_UI_V2=true pnpm dev` (or `tauri dev`) — no
+// recompile of source needed, just the env var. PR-UI 7 flips the default ON
+// permanently and deletes this module.
 
 let testOverride: boolean | null = null;
 
 export function isUiV2Enabled(): boolean {
   if (testOverride !== null) return testOverride;
-  return false;
+  // Vite inlines import.meta.env at build/dev; undefined in plain test runs.
+  return import.meta.env?.VITE_UI_V2 === "true";
 }
 
 /**

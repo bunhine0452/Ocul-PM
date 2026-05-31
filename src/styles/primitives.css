@@ -1,6 +1,95 @@
 /* ============================================================
    primitives.css — .btn / .iconbtn / .card / .chip / .kbd /
-   .search-box / .tbadge / .tag / .section-title
-   Final UI Update round. Empty placeholder (PR-UI 0).
-   PR-UI 1 fills this from the mockup styles.css primitives section.
+   .search-box / .tbadge / .tag / .section-title / .fade-in / .divider
+   Ported from the mockup (Ocul-PM1.0/styles.css PRIMITIVES section).
+   Class names are unique (legacy uses Tailwind utilities + shadcn, not these),
+   and the file is loaded only with the ui_v2 shell.
    ============================================================ */
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--border-card);
+  background: var(--bg-card); color: var(--text);
+  font-size: 12.5px; font-weight: 550; font-family: var(--font);
+  cursor: pointer; white-space: nowrap;
+  box-shadow: var(--shadow-card);
+}
+.btn:hover { background: var(--bg-hover); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 1px 2px var(--accent-ring); }
+.btn.primary:hover { background: var(--accent-strong); }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+.btn.ghost:hover { background: var(--bg-hover); }
+.btn.icon { width: 30px; padding: 0; justify-content: center; }
+.btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+
+.iconbtn {
+  width: 30px; height: 30px; border-radius: var(--radius-s);
+  display: grid; place-items: center; cursor: pointer;
+  color: var(--text-2); border: none; background: transparent;
+}
+.iconbtn:hover { background: var(--bg-hover); color: var(--text); }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-card);
+}
+.card-pad { padding: 18px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px; border-radius: 7px;
+  font-size: 11.5px; font-weight: 600;
+  background: var(--bg-inset); color: var(--text-2);
+}
+.kbd {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  background: var(--bg-inset); border: 1px solid var(--sep);
+  border-radius: 5px; padding: 1px 6px; color: var(--text-2);
+  box-shadow: 0 1px 0 var(--sep);
+}
+.mono { font-family: var(--mono); }
+
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 10px;
+  background: var(--bg-inset); border: 1px solid transparent;
+  border-radius: var(--radius-s); color: var(--text-2);
+  min-width: 220px;
+}
+.search-box input {
+  border: none; background: transparent; outline: none;
+  font-family: var(--font); font-size: 13px; color: var(--text);
+  flex: 1; min-width: 0;
+}
+.search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+/* trigger badge */
+.tbadge {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 21px; padding: 0 8px 0 6px; border-radius: 6px;
+  font-size: 11px; font-weight: 650; letter-spacing: 0.01em;
+}
+.tbadge .dot { width: 6px; height: 6px; border-radius: 50%; }
+.t-bugfix { background: var(--t-bug-soft); color: var(--t-bug); }
+.t-feature { background: var(--t-feature-soft); color: var(--accent-text); }
+.t-refactor { background: var(--t-refactor-soft); color: var(--t-refactor); }
+.t-error { background: var(--t-error-soft); color: var(--t-error); }
+.t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
+
+.section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); }
+
+.fade-in { animation: fadeIn 0.24s ease both; }
+@keyframes fadeIn { from { transform: translateY(5px); } to { transform: none; } }
+
+.divider { height: 1px; background: var(--sep); border: none; margin: 0; }
+
+/* file path pill */
+.fpath { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); }
+.fpath b { color: var(--text); font-weight: 600; }
+
+/* empty-state hint (shared by placeholder + future screens) */
+.empty-hint { color: var(--text-3); font-size: 12px; text-align: center; padding: 60px 30px; }

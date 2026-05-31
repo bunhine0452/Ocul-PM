@@ -1,5 +1,111 @@
 /* ============================================================
    shell.css — .app / .sidebar / .content / .toolbar / .scroll / .page
-   Final UI Update round. Empty placeholder (PR-UI 0).
-   PR-UI 1 fills this from the mockup styles.css shell section.
+   Ported from the mockup (Ocul-PM1.0/styles.css SHELL + CONTENT sections).
+   `.nav-item` / `.proj-switch` carry a <button> reset because the React
+   shell renders them as buttons (a11y) where the mockup used <div onClick>.
    ============================================================ */
+
+.app {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100vh;
+  background: var(--bg-content);
+  overflow: hidden;
+}
+
+.sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--sep);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 12px;
+  gap: 4px;
+  user-select: none;
+}
+
+.side-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px 14px;
+}
+.brand-mark {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--accent);
+  display: grid; place-items: center;
+  color: #fff; flex: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.15);
+}
+.brand-name { font-weight: 650; font-size: 14px; letter-spacing: -0.01em; }
+.brand-sub { font-size: 10.5px; color: var(--text-3); margin-top: -1px; }
+
+/* project switcher */
+.proj-switch {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 9px; margin: 0 2px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  /* button reset */
+  appearance: none; -webkit-appearance: none;
+  font-family: var(--font); text-align: left; color: var(--text);
+}
+.proj-switch:hover { background: var(--bg-card); filter: brightness(0.99); }
+.proj-icon {
+  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  background: linear-gradient(150deg, #2bb486, #0c9061);
+  display: grid; place-items: center; color: #fff;
+}
+.proj-meta { flex: 1; min-width: 0; }
+.proj-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-path { font-size: 10.5px; color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.nav-section-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text-3); text-transform: uppercase;
+  padding: 12px 10px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: var(--radius-s);
+  color: var(--text); cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  position: relative;
+  /* button reset (nav-item is a <button> for a11y) */
+  appearance: none; -webkit-appearance: none;
+  border: none; background: transparent;
+  font-family: var(--font); text-align: left; width: 100%;
+}
+.nav-item .nav-ico { color: var(--text-2); flex: none; display: grid; place-items: center; }
+.nav-item:hover { background: var(--bg-hover); }
+.nav-item.active { background: var(--accent); color: #fff; font-weight: 560; }
+.nav-item.active .nav-ico { color: #fff; }
+.nav-badge {
+  margin-left: auto; font-size: 11px; font-weight: 600;
+  background: var(--bg-active); color: var(--text-2);
+  padding: 1px 7px; border-radius: 9px; min-width: 20px; text-align: center;
+}
+.nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: #fff; }
+
+.side-spacer { flex: 1; }
+.side-foot { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid var(--sep); }
+
+/* ============================================================ CONTENT */
+.content {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+  background: var(--bg-content);
+}
+.toolbar {
+  height: 52px; flex: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--sep);
+  background: color-mix(in srgb, var(--bg-window) 72%, transparent);
+  backdrop-filter: saturate(1.4) blur(18px);
+}
+.toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.toolbar-sub { font-size: 12px; color: var(--text-3); }
+.toolbar-spacer { flex: 1; }
+.scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; }
+.page { padding: 24px 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%; }

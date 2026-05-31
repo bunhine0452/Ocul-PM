@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type Project, type ProjectStats, type IndexProgress } from "@/lib/bindings";
 
@@ -23,6 +23,12 @@ import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { isUiV2Enabled } from "@/lib/uiFlags";
+
+// Lazy so Vite emits ShellV2 (+ its token/layer CSS) as a separate chunk that
+// loads only when the ui_v2 flag is on — this IS the token-isolation mechanism
+// (PR-UI 0 §0.6). flag-off never fetches the chunk, so the new green --accent
+// never reaches the legacy cream UI.
+const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 
 import {
@@ -48,12 +54,17 @@ function App() {
     state,
     setProject,
     setActiveView,
+    setUiV2View,
     setCodeSubTab,
     setActiveFile,
     setIndexing,
     resetWorkspace,
     setOculpmStatus,
   } = useWorkspace();
+
+  // Final UI Update (ui_v2) — session-fixed flag (src/lib/uiFlags.ts). Computed
+  // once per render; flag-off keeps every legacy branch byte-identical.
+  const uiV2 = isUiV2Enabled();
 
   const {
     currentProjectId: selectedProjectId,
@@ -84,6 +95,8 @@ function App() {
   useGlobalShortcuts({
     onOpenPalette: () => setPaletteOpen(true),
     onOpenSettings: () => setSettingsOpen(true),
+    // flag-on: ⌘1~⌘7 + ⌘, drive the ui_v2 screens (01-ia-and-shell §3).
+    uiV2Nav: uiV2 ? setUiV2View : undefined,
   });
 
   // Restore project files list on load or ID change
@@ -297,14 +310,35 @@ function App() {
   }
 
   return (
-    <div className="h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden">
-      <TitleBar
-        projectName={selectedProjectName}
-        projectId={selectedProjectId}
-        onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined}
-      />
+    <div
+      className={
+        uiV2
+          ? "h-screen overflow-hidden"
+          : "h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden"
+      }
+    >
+      {/* Final UI Update (ui_v2): the new shell is full-screen and provides its
+          own chrome, so the legacy TitleBar is dropped when the flag is on. */}
+      {!uiV2 && (
+        <TitleBar
+          projectName={selectedProjectName}
+          projectId={selectedProjectId}
+          onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined}
+        />
+      )}
 
-      {selectedProjectId === null ? (
+      {uiV2 && selectedProjectId !== null ? (
+        // ui_v2 shell seam. Project picking still flows through the legacy
+        // StartScreen (onboarding is out of scope — 00-master-plan §10), so the
+        // project switcher routes back to the dashboard for now (PR-UI 1).
+        <Suspense fallback={null}>
+          <ShellV2
+            projectName={selectedProjectName}
+            projectRoot={selectedProjectRoot}
+            onOpenProjectSwitcher={handleBackToDashboard}
+          />
+        </Suspense>
+      ) : selectedProjectId === null ? (
         <StartScreen
           projects={projects}
           stats={stats}
@@ -465,16 +499,11 @@ type WorkspaceProps = {
   onOpenSettings: () => void;
 };
 
-// ui_v2 seam (Final UI Update — docs/Lite-update/Fianl_UI_update_before1.0).
-// PR-UI 1 mounts the new 248px Sidebar shell when the flag is on. PR-UI 0
-// keeps BOTH flag states on the legacy Workspace so flag-off is byte-identical
-// and flag-on is verifiably the same render. The flag lives in
-// src/lib/uiFlags.ts — outside the settings KEYS registry so
-// no_feature_flags.test.ts stays green (sanctioned exception for this round).
+// Legacy (flag-off) workspace path. The ui_v2 seam moved up to App's return
+// in PR-UI 1 — when isUiV2Enabled() the App mounts <ShellV2> full-screen
+// instead of TitleBar + this Workspace. This thin alias is kept so the
+// flag-off render tree is unchanged from PR-UI 0.
 function WorkspaceShell(props: WorkspaceProps) {
-  if (isUiV2Enabled()) {
-    // PR-UI 1+: return the new Sidebar / Toolbar / Scroll shell here.
-  }
   return <Workspace {...props} />;
 }
 

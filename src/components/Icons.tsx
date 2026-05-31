@@ -438,3 +438,29 @@ export const ClipboardCheck = (props: IconProps) => (
     <path d="m9 14 2 2 4-4" />
   </IconWrapper>
 );
+
+// ─── Final UI Update (ui_v2) icons — lucide-react re-export ────────────────
+//
+// 03-design-system.md §8 directs new icons to flow through this single file as
+// a lucide-react re-export (no hand-rolled SVG paths — UI-MASTER-PROMPT §3.3).
+// The hand-rolled components above predate that rule and back 36 legacy call
+// sites; converting them is a PR-UI 7 cleanup. New ui_v2 sidebar/toolbar icons
+// use the lucide source of truth from here. lucide-react accepts size /
+// strokeWidth / color props directly; the mockup's default stroke is 1.75, so
+// ui_v2 call sites pass strokeWidth={1.75} (active rows bump to 2). Names that
+// collide with a hand-rolled export above are aliased (…Icon suffix).
+export {
+  Sunrise,
+  NotebookText,
+  GitCompareArrows,
+  Target as TargetIcon,
+  SquareTerminal,
+  Sparkles as SparklesIcon,
+  Search as SearchIcon,
+  Moon as MoonIcon,
+  Sun as SunIcon,
+  Settings as SettingsIcon,
+  Eye,
+  FolderGit2,
+  ChevronsUpDown,
+} from "lucide-react";

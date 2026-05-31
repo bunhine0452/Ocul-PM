@@ -60,6 +60,21 @@ export type SidePanelMode = "files" | "diff";
 // happens yet (that lands in PR-UI 7). Theme is intentionally absent here:
 // SettingsContext remains the single source of truth for theme (Final UI
 // Update decision A, 2026-05-31).
+/**
+ * The 8 ui_v2 screens (01-ia-and-shell.md §1.2). Tracked in a SEPARATE field
+ * from the legacy `activeView` ("today" | "plan" | "code") so the legacy union
+ * and its write-migration stay untouched until PR-UI 7. flag-off never reads
+ * this field.
+ */
+export type UiV2View =
+  | "today"
+  | "journal"
+  | "diff"
+  | "planner"
+  | "search"
+  | "terminal"
+  | "ai"
+  | "settings";
 export type JournalFilter =
   | "all"
   | "feature"
@@ -181,6 +196,8 @@ export interface WorkspaceState {
   workdayKey: string | null;
 
   // ─── Final UI Update (ui_v2) read-compat fields (PR-UI 0) ───────────────
+  /** 활성 ui_v2 화면 (사이드바 9 슬롯 중 화면 8개). flag-off 는 읽지 않음. */
+  uiV2View: UiV2View;
   /** 작업 일지 화면의 trigger 필터. */
   journalFilter: JournalFilter;
   /** 변경 diff 화면에서 마지막으로 본 파일 경로. */
@@ -254,6 +271,7 @@ const DEFAULT_STATE: WorkspaceState = {
   workdayKey: null,
 
   // Final UI Update (ui_v2) read-compat defaults (PR-UI 0).
+  uiV2View: "today",
   journalFilter: "all",
   diffActivePath: null,
   diffReadPaths: [],
@@ -605,6 +623,8 @@ interface WorkspaceContextValue {
   // Convenience actions
   setProject: (id: number | null, name?: string | null, root?: string | null) => void;
   setActiveView: (view: ActiveView) => void;
+  /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
+  setUiV2View: (view: UiV2View) => void;
   setCodeSubTab: (sub: CodeSubTab) => void;
   /** Jump directly to a code-view sub-tab (also sets activeView="code"). */
   openInCode: (sub: CodeSubTab) => void;
@@ -685,6 +705,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setCodeSubTab = useCallback((sub: CodeSubTab) => {
     setState((prev) => ({ ...prev, codeSubTab: sub }));
+  }, []);
+
+  const setUiV2View = useCallback((view: UiV2View) => {
+    setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
   }, []);
 
   const openInCode = useCallback((sub: CodeSubTab) => {
@@ -942,6 +966,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setState,
         setProject,
         setActiveView,
+        setUiV2View,
         setCodeSubTab,
         openInCode,
         setActiveFile,

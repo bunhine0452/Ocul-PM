@@ -78,6 +78,15 @@
 - **Decision B — `ui_v2` flag 는 settings 레지스트리 밖.** `no_feature_flags.test.ts` 가 `src/lib/settings.ts` 의 `feature_*` 행을 금지하므로, flag 를 `src/lib/uiFlags.ts` 의 모듈 const (`isUiV2Enabled()`) 로 구현. settings KEYS / WorkspaceContext 어느 영속 레지스트리에도 들어가지 않아 기존 테스트 green 유지. PR-UI 7 에서 모듈째 삭제.
 - **토큰 격리 방식.** 신 `--accent`(녹색)가 레거시 `src/App.css` 의 `--accent`(크림)와 *이름 충돌*. 전역 `:root` import 시 flag-off UI 가 변색됨. 따라서 PR-UI 0 은 `src/styles/*.css` 를 *생성만* 하고 전역 import 는 PR-UI 1 (ui_v2 shell 스코프)로 미룸. `src/styles/index.css` 가 5 파일 번들 진입점.
 
+### 0.7 PR-UI 1 진행 중 추가 결정 (2026-05-31 잠금)
+
+> §5 운영 흐름에 따라 PR-UI 1 작업 중 확정된 결정.
+
+- **토큰 격리 = `React.lazy` 코드 스플리팅 (Decision C).** §0.6 의 "ui_v2 shell 스코프 import" 를 *어떻게* 격리할지 확정. 처음엔 `ShellV2` 안에서 `import("@/styles/index.css")` 동적 호출로 시도했으나, `ShellV2` 가 *정적* import 라 Vite 가 CSS 를 메인 번들에 병합 → flag-off 에 녹색 `--accent` 누출 (빌드로 확인: 메인 css 에 `12a06b` 1 개). **해결**: `App.tsx` 에서 `const ShellV2 = lazy(() => import(...))` + `<Suspense>`. Vite 가 `ShellV2-*.css` 를 *별도 청크* 로 분리 → flag-off 는 청크 자체를 fetch 안 함. 빌드 검증: 메인 css 녹색 `0` / 레거시 크림 `1`, ShellV2 청크 녹색 `4` + `.sidebar`/`.toolbar`/`[data-theme=dark]` 포함.
+- **`uiV2View` 는 별도 영속 필드 (Decision D).** ui_v2 의 8 화면 활성 상태를 레거시 `activeView`("today"|"plan"|"code") union 에 섞지 않고 `WorkspaceContext.uiV2View` 별도 필드로. 레거시 union/write-migration 무변경 → flag-off 안전. write/deletion 통합은 PR-UI 7.
+- **dogfood 토글 = `VITE_UI_V2` env (Decision E).** `isUiV2Enabled()` 가 `import.meta.env.VITE_UI_V2 === "true"` 를 읽음. `VITE_UI_V2=true pnpm tauri dev` 로 소스 재편집 없이 flag-on. 기본 OFF 유지.
+- **macOS traffic-light inset.** flag-on 은 레거시 TitleBar 를 제거 (ui_v2 셸이 자체 chrome). macOS `titleBarStyle: Overlay` 의 신호등이 사이드바 브랜드와 겹치므로 `Sidebar` 에 `macTopInset`(22px drag strip) 추가.
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -105,15 +114,15 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/components/Sidebar.tsx` — 248px (목업의 `.sidebar` 그대로) |
-| ☐ | `src/components/Toolbar.tsx` — 52px |
-| ☐ | `src/styles/shell.css`, `primitives.css` 채움 |
-| ☐ | flag-on 시 신 Shell 마운트, flag-off 시 기존 100% 유지 |
-| ☐ | `useGlobalShortcuts` 에 ⌘1~⌘7 + ⌘, 등록 (flag-on 분기) |
-| ☐ | 사이드바 9 슬롯 클릭 → activeView 갱신 (화면은 임시 placeholder OK) |
-| ☐ | 다크 토글 즉시 반영, *layout shift 0* (Layers 패널 비교) |
-| ☐ | axe-core: 사이드바 a11y violations 0 |
-| ☐ | 시각 회귀 스냅샷 *베이스라인 등록* (16 장) |
+| ☑ | `src/components/Sidebar.tsx` — 248px (목업의 `.sidebar` 그대로) + macOS traffic-light top inset |
+| ☑ | `src/components/Toolbar.tsx` — 52px |
+| ☑ | `src/styles/shell.css`, `primitives.css`, `base.css` 채움 (목업 styles.css 포팅) |
+| ☑ | flag-on 시 신 Shell(`ShellV2`) 마운트, flag-off 시 기존 100% 유지 (`React.lazy` 분기) |
+| ☑ | `useGlobalShortcuts` 에 ⌘1~⌘7 + ⌘, 등록 (flag-on `uiV2Nav` 분기) |
+| ☑ | 사이드바 9 슬롯 클릭 → `uiV2View` 갱신 (화면은 임시 placeholder, PR 별 라벨) |
+| ☑ | 다크 토글 즉시 반영 (SettingsContext `data-theme` — Decision A). *layout shift 0* 은 토큰만 교체로 보장 |
+| ☑ | axe-core: 사이드바 a11y violations 0 (`sidebar_a11y.test.tsx`, light+dark) |
+| ☐ | 시각 회귀 스냅샷 *베이스라인 등록* (16 장) — §11 상 **1.0 은 수동 비교**, dogfood 시 캡처 (보류) |
 
 ### PR-UI 7 의 *원자적* 정리 작업의 단축키 매트릭스 (사전 공개)
 
@@ -267,7 +276,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | PR-UI | 상태 | 머지 해시 |
 |---|---|---|
 | 0 — Foundation | ✅ done | `5bb1bff` |
-| 1 — Sidebar/Shell/Theme | ⬜ pending | — |
+| 1 — Sidebar/Shell/Theme | 🟡 코드 완료 (커밋 대기) | — |
 | 2 — Today | ⬜ pending | — |
 | 3 — 작업 일지 | ⬜ pending | — |
 | 4 — 변경 diff | ⬜ pending | — |

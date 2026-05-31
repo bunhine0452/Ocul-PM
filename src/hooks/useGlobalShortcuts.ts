@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 
 // MASTER-GUIDE §5.9 / §부록 A — 단축키 매핑
 //   ⌘1~⌘3  : 3-IA 화면 전환 (Today / Plan / Code). Lite-W6 PR7 Part 1
@@ -24,9 +24,27 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 interface Options {
   onOpenPalette: () => void;
   onOpenSettings: () => void;
+  /**
+   * Final UI Update (ui_v2) — when provided (flag-on), ⌘1~⌘7 navigate the
+   * 7 main+tool screens and ⌘, navigates to the Settings screen, instead of
+   * the legacy ⌘1~⌘3 (Today/Plan/Code) + ⌘, overlay. Omitted when flag-off so
+   * the legacy mapping is unchanged. (01-ia-and-shell.md §3.)
+   */
+  uiV2Nav?: (view: UiV2View) => void;
 }
 
-export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
+// ui_v2 ⌘1~⌘7 order (01-ia-and-shell.md §3 — main 4 then tools 3).
+const UI_V2_NUMBER_VIEWS: UiV2View[] = [
+  "today",    // ⌘1
+  "journal",  // ⌘2
+  "diff",     // ⌘3
+  "planner",  // ⌘4
+  "search",   // ⌘5
+  "terminal", // ⌘6
+  "ai",       // ⌘7
+];
+
+export function useGlobalShortcuts({ onOpenPalette, onOpenSettings, uiV2Nav }: Options) {
   const { setActiveView, setState, toggleSidePanel, toggleAiOverlay, setAiOverlayOpen } =
     useWorkspace();
 
@@ -44,10 +62,21 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
       // ⌘, — Settings
       if (e.key === ",") {
         e.preventDefault();
-        onOpenSettings();
+        if (uiV2Nav) {
+          uiV2Nav("settings");
+        } else {
+          onOpenSettings();
+        }
         return;
       }
-      // ⌘1~⌘3 — IA 화면 전환 (Today / Plan / Code).
+      // Final UI Update (ui_v2): ⌘1~⌘7 → 7 main/tool screens.
+      if (uiV2Nav && ["1", "2", "3", "4", "5", "6", "7"].includes(e.key)) {
+        e.preventDefault();
+        const view = UI_V2_NUMBER_VIEWS[Number(e.key) - 1];
+        if (view) uiV2Nav(view);
+        return;
+      }
+      // ⌘1~⌘3 — legacy IA 화면 전환 (Today / Plan / Code).
       if (["1", "2", "3"].includes(e.key)) {
         e.preventDefault();
         const idx = Number(e.key) - 1;
@@ -114,6 +143,7 @@ export function useGlobalShortcuts({ onOpenPalette, onOpenSettings }: Options) {
   }, [
     onOpenPalette,
     onOpenSettings,
+    uiV2Nav,
     setActiveView,
     setState,
     toggleSidePanel,

@@ -1,6 +1,30 @@
 /* ============================================================
    base.css — reset / body / scrollbar / ::selection
-   Final UI Update round. Empty placeholder (PR-UI 0).
-   PR-UI 1 fills this from the mockup styles.css top section
-   (docs/Lite-update/Fianl_UI_update_before1.0/Ocul-PM1.0/styles.css L98~L120).
+   Ported verbatim from the mockup (Ocul-PM1.0/styles.css top section).
+   Loaded ONLY when the ui_v2 shell mounts (dynamic import in ShellV2) so
+   flag-off legacy UI is never touched.
    ============================================================ */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg-window);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow: hidden;
+}
+#root { height: 100vh; }
+::selection { background: var(--accent-ring); }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(120,120,128,0.34); border-radius: 8px;
+  border: 3px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(120,120,128,0.55); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
