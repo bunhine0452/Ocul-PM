@@ -87,6 +87,13 @@
 - **dogfood 토글 = `VITE_UI_V2` env (Decision E).** `isUiV2Enabled()` 가 `import.meta.env.VITE_UI_V2 === "true"` 를 읽음. `VITE_UI_V2=true pnpm tauri dev` 로 소스 재편집 없이 flag-on. 기본 OFF 유지.
 - **macOS traffic-light inset.** flag-on 은 레거시 TitleBar 를 제거 (ui_v2 셸이 자체 chrome). macOS `titleBarStyle: Overlay` 의 신호등이 사이드바 브랜드와 겹치므로 `Sidebar` 에 `macTopInset`(22px drag strip) 추가.
 
+### 0.8 PR-UI 2 진행 중 추가 결정 (2026-05-31 잠금)
+
+- **Decision F — Today brief 는 프론트 집계, 백엔드 무변경.** 설계문서 §1 의 신규 command `get_today_brief`/`get_today_highlights` 를 *추가하지 않음*. 기존 `oculpm_list_journal_entries` 의 `JournalEntrySummary` 가 4 stat (작업 수 / 파일 수 / 에러 사이클 / 에이전트 수) + 주간 차트 + 하이라이트 데이터를 이미 보유. `useTodayBrief` 훅이 7 워크데이를 list 호출 후 프론트에서 집계. **이유**: 마스터 플랜 §10 "백엔드 무변경" 정신 + tauri-specta 재생성/Rust 빌드 회피 (시각 라운드에서 데이터 흐름 변경은 scope creep). **단, 라인 수(+/-)** 는 Summary 에 없어 오늘 entry 만 `getJournalEntry` 로 hydrate 하여 `files_touched[].bytes_added/removed` 합산 (하루 수십 건이라 가벼움). stat sub 는 "+N −N 바이트" 로 표기 (목업의 "라인" → 정확히는 byte delta).
+- **`uiV2View` 직접 라우팅.** ShellV2 가 화면 라우터 — 각 화면이 *자체 Toolbar* 를 렌더 (UI-MASTER-PROMPT §7.4). Today 만 V2 구현, 나머지(PR-UI 3~6)는 라벨 placeholder.
+- **'다음 할 일' 블록 = 빈 상태 + Planner 링크.** Planner subtask 의 깔끔한 프론트 바인딩이 PR-UI 5 전엔 없으므로, NextTasks 는 empty-hint + ⌘4 Planner 링크. 구조(.panel-head/.panel-body)는 목업과 동일해 PR-UI 5 에서 실데이터만 끼우면 됨.
+- **trigger 명명.** 백엔드 `EntryType` 은 `bug`(not `bugfix`). 목업 CSS 클래스는 `.t-bugfix`. `triggerMeta.tsx` 가 `type → {icon,label,cls,cssVar}` 매핑으로 흡수 (bug → cls `t-bugfix`).
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -147,15 +154,15 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/today/TodayScreen.tsx` flag-on 분기 구현 |
-| ☐ | `StatCard.tsx`, `MiniEntry.tsx`, `WeekChart.tsx`, `AgentBreakdown.tsx`, `NextTasks.tsx` 신규 |
-| ☐ | `src-tauri/src/commands/oculpm.rs` 에 `get_today_brief`, `get_today_highlights` 추가 |
-| ☐ | `tauri-specta` 바인딩 재생성 |
-| ☐ | vitest: 4 stat 값 = backend 응답 |
-| ☐ | vitest: 빈 journal → empty hint + AGENTS.md 안내 |
-| ☐ | MiniEntry 클릭 → 작업 일지 focus highlight |
-| ☐ | "오늘 변경 검토" primary → 변경 diff 화면 |
-| ☐ | axe-core 0 violations |
+| ☑ | `src/features/today/TodayScreenV2.tsx` 신규 (flag-off `TodayScreen.tsx` 무변경, ShellV2 라우터가 flag-on 시 V2 마운트) |
+| ☑ | `StatCard.tsx`, `MiniEntry.tsx`, `WeekChart.tsx`, `AgentBreakdown.tsx`, `NextTasks.tsx` 신규 + `useTodayBrief.ts` / `agentColor.ts` / `triggerMeta.tsx` |
+| ☑ | ~~`get_today_brief`/`get_today_highlights` 백엔드 추가~~ → **Decision F**: 백엔드 무변경, 프론트 집계 (§0.8) |
+| ☑ | ~~`tauri-specta` 바인딩 재생성~~ → 불필요 (백엔드 무변경) |
+| ☑ | vitest: 4 stat 값 = 집계된 backend 응답 (`today_v2.test.tsx`) |
+| ☑ | vitest: 빈 journal → empty hint |
+| ☑ | MiniEntry 클릭 → 작업 일지 화면 이동 (focus highlight 는 PR-UI 3 의 JournalScreen 에서) |
+| ☑ | "오늘 변경 검토" primary → 변경 diff 화면 |
+| ☑ | axe-core 0 violations (`today_v2.test.tsx`, with data) |
 
 ### PR-UI 3 — 작업 일지 timeline
 
@@ -277,7 +284,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 |---|---|---|
 | 0 — Foundation | ✅ done | `5bb1bff` |
 | 1 — Sidebar/Shell/Theme | ✅ done | `6b5ad48` |
-| 2 — Today | ⬜ pending | — |
+| 2 — Today | ✅ done | `2d7f0d9` |
 | 3 — 작업 일지 | ⬜ pending | — |
 | 4 — 변경 diff | ⬜ pending | — |
 | 5 — 도구 4 + Planner | ⬜ pending | — |

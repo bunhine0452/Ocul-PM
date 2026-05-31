@@ -463,4 +463,16 @@ export {
   Eye,
   FolderGit2,
   ChevronsUpDown,
+  // PR-UI 2 (Today) — trigger badges + stat / panel icons.
+  Bug,
+  Wrench,
+  TriangleAlert,
+  GitCommitVertical,
+  FileCode2,
+  Bot,
+  TrendingUp,
+  Star,
+  History,
+  ListTodo,
+  Loader,
 } from "lucide-react";
