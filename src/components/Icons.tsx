@@ -475,4 +475,6 @@ export {
   History,
   ListTodo,
   Loader,
+  // PR-UI 3 (작업 일지) — cycle-retry flag.
+  RotateCcw,
 } from "lucide-react";

@@ -89,3 +89,45 @@
   transform: translateX(-100%); animation: skelShimmer 1.3s infinite;
 }
 @keyframes skelShimmer { to { transform: translateX(100%); } }
+
+/* --- Journal (PR-UI 3) --- */
+.day-label {
+  display: flex; align-items: center; gap: 10px; margin: 8px 2px 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3);
+}
+.day-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
+.tl { position: relative; padding-left: 30px; }
+.tl::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--sep); }
+.tl-node { position: relative; margin-bottom: 14px; }
+.tl-dot {
+  position: absolute; left: -29px; top: 16px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--bg-content); border: 2px solid var(--sep-strong);
+  display: grid; place-items: center; z-index: 1;
+}
+.jcard {
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-l); box-shadow: var(--shadow-card);
+  cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; overflow: hidden;
+  /* button reset (jcard is a <button> for a11y) */
+  appearance: none; -webkit-appearance: none;
+  font-family: var(--font); text-align: left; width: 100%; color: var(--text);
+  display: block;
+}
+.jcard:hover { border-color: var(--sep-strong); box-shadow: var(--shadow-pop); }
+.jcard-top { display: flex; align-items: center; gap: 9px; padding: 13px 16px 0; }
+.jcard-time { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-family: var(--mono); }
+.jcard-agent { font-size: 11.5px; color: var(--text-2); display: flex; align-items: center; gap: 5px; font-weight: 550; }
+.jcard-title { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; padding: 9px 16px 0; }
+.jcard-summary { color: var(--text-2); padding: 5px 16px 0; line-height: 1.5; }
+.jcard-foot {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px 13px; margin-top: 12px;
+  flex-wrap: wrap;
+}
+.file-pill {
+  display: inline-flex; align-items: center; gap: 7px; height: 25px; padding: 0 9px;
+  background: var(--bg-inset); border-radius: 7px; font-family: var(--mono); font-size: 11.5px; color: var(--text-2);
+}
+.file-pill b { color: var(--text); font-weight: 600; }
+.cycle-flag { display: inline-flex; align-items: center; gap: 5px; color: var(--t-error); font-size: 11.5px; font-weight: 600; }
+.tag { font-size: 11px; color: var(--text-3); }
+.tag::before { content: "#"; opacity: 0.6; }

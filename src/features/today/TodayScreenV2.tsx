@@ -11,7 +11,7 @@ import {
   History,
   ArrowRight,
 } from "@/components/Icons";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { type UiV2View } from "@/contexts/WorkspaceContext";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { StatCard } from "./StatCard";
 import { MiniEntry } from "./MiniEntry";
@@ -34,6 +34,11 @@ interface TodayScreenV2Props {
   onNavigate: (view: UiV2View) => void;
   dateLabel: string;
   tz: string;
+  /**
+   * Open the 작업 일지 화면 with this entry ring-highlighted. Provided by
+   * ShellV2 (PR-UI 3 focus handoff). When omitted, falls back to a plain nav.
+   */
+  onOpenEntry?: (entry: JournalEntrySummary) => void;
 }
 
 export function TodayScreenV2({
@@ -43,22 +48,20 @@ export function TodayScreenV2({
   onNavigate,
   dateLabel,
   tz,
+  onOpenEntry,
 }: TodayScreenV2Props) {
-  const { setState } = useWorkspace();
   const { brief, loading, error, refresh } = useTodayBrief(
     projectId,
     workday,
     oculpmReady,
   );
 
-  // Clicking a highlight / yesterday row jumps to the Journal screen and parks
-  // the focused entry path so PR-UI 3 can ring-highlight it. We stash it on the
-  // workspace state (journalFocus is read by JournalScreen in PR-UI 3); for now
-  // the nav alone is the contract.
+  // Clicking a highlight / yesterday row jumps to the Journal screen with the
+  // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
+  // handoff prop (e.g. in unit tests) we just navigate.
   const openEntry = (entry: JournalEntrySummary) => {
-    setState((prev) => ({ ...prev, uiV2View: "journal" }));
-    void entry; // focus highlight wired in PR-UI 3
-    onNavigate("journal");
+    if (onOpenEntry) onOpenEntry(entry);
+    else onNavigate("journal");
   };
 
   const empty = oculpmReady && !loading && brief != null && brief.changedToday === 0;

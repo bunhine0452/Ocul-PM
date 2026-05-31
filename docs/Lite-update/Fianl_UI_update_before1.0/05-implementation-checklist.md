@@ -94,6 +94,13 @@
 - **'다음 할 일' 블록 = 빈 상태 + Planner 링크.** Planner subtask 의 깔끔한 프론트 바인딩이 PR-UI 5 전엔 없으므로, NextTasks 는 empty-hint + ⌘4 Planner 링크. 구조(.panel-head/.panel-body)는 목업과 동일해 PR-UI 5 에서 실데이터만 끼우면 됨.
 - **trigger 명명.** 백엔드 `EntryType` 은 `bug`(not `bugfix`). 목업 CSS 클래스는 `.t-bugfix`. `triggerMeta.tsx` 가 `type → {icon,label,cls,cssVar}` 매핑으로 흡수 (bug → cls `t-bugfix`).
 
+### 0.9 PR-UI 3 진행 중 추가 결정 (2026-05-31 잠금)
+
+- **레거시 컴포넌트 재사용 대신 V2 신규.** 설계문서는 "`JournalEntryCard.tsx` 의 시각만 갱신 (구조 보존)" 이라 했으나, 그 카드는 *flag-off TimelineView* 가 쓰는 레거시 shadcn/Tailwind 컴포넌트라 시각만 바꾸면 flag-off 가 깨짐. 대신 `JournalCardV2.tsx` / `JournalScreenV2.tsx` 를 *신규* 로 만들고 레거시는 무변경 (PR-UI 7 에서 레거시 정리). Decision F 패턴 일관.
+- **focus 핸드오프 = ShellV2 로컬 state.** Today MiniEntry → 작업 일지 ring-highlight 의 one-shot focus path 를 WorkspaceContext 가 아닌 `ShellV2` 의 `useState` 로. focus 는 영속 대상이 아니고(휘발성, diffTarget 과 동일 의미론) 핸드오프가 shell 내부에 국한되므로 context 를 안 건드림. `TodayScreenV2` 는 optional `onOpenEntry` prop 으로 받음 (없으면 단순 nav — 단위 테스트 호환).
+- **⌘N ManualEntry 보류.** ManualEntryModal 은 레거시 shadcn 모달이라 ui_v2 토큰 셸에 바로 못 끼움. ui_v2 모달 패턴은 PR-UI 5/6(Settings 키 입력 모달 등)에서 정립 후 Journal ⌘N 도 연결. DoD 1 항목 보류.
+- **journal card → 변경 diff 핸드오프.** 카드 클릭 시 `WorkspaceContext.diffActivePath` 에 entry path 를 park 하고 diff 화면으로 이동. PR-UI 4 의 DiffScreen 이 이 값을 pre-select 에 소비.
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -168,13 +175,13 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | `src/features/oculpm/JournalScreen.tsx` 신규 |
-| ☐ | `JournalEntryCard.tsx` 의 시각만 `.jcard` 톤으로 갱신 (구조 보존) |
-| ☐ | scope-chip 6 종 + filter 영속화 (`WorkspaceContext.journalFilter`) |
-| ☐ | route.params.focus 시 ring-highlight 1.6s |
-| ☐ | ⌘F in-page 검색 (title + summary substring) |
-| ☐ | ⌘N → ManualEntry 모달 동작 (Lite-W6 의 기존 컴포넌트 재사용) |
-| ☐ | axe-core 0 violations |
+| ☑ | `src/features/oculpm/JournalScreenV2.tsx` 신규 (flag-off TimelineView/JournalEntryCard 무변경) + `useJournalDays.ts` (프론트 집계, Decision F) |
+| ☑ | `JournalCardV2.tsx` 신규 — 목업 `.jcard` 톤 (레거시 `JournalEntryCard.tsx` 는 건드리지 않고 별도 V2 카드) |
+| ☑ | scope-chip 6 종 + filter 영속화 (`WorkspaceContext.journalFilter`) |
+| ☑ | focusPath 시 ring-highlight 1.6s + scrollIntoView (Today MiniEntry → ShellV2 one-shot 핸드오프) |
+| ☑ | ⌘F in-page 검색 (title + slug + tags substring) — 화면 내 stopPropagation |
+| ☐ | ~~⌘N → ManualEntry 모달~~ → **보류**: ManualEntryModal 은 레거시 shadcn 컴포넌트라 ui_v2 토큰 셸에 바로 못 끼움. PR-UI 5/6 에서 ui_v2 모달 패턴 정립 후 연결 (§0.9) |
+| ☑ | axe-core 0 violations (`journal_v2.test.tsx`, with data) |
 
 ### PR-UI 4 — 변경 diff 전용 화면
 
@@ -285,7 +292,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 0 — Foundation | ✅ done | `5bb1bff` |
 | 1 — Sidebar/Shell/Theme | ✅ done | `6b5ad48` |
 | 2 — Today | ✅ done | `8dce0e8` |
-| 3 — 작업 일지 | ⬜ pending | — |
+| 3 — 작업 일지 | ✅ done | `af340ce` |
 | 4 — 변경 diff | ⬜ pending | — |
 | 5 — 도구 4 + Planner | ⬜ pending | — |
 | 6 — Settings | ⬜ pending | — |

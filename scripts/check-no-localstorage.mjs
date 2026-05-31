@@ -53,6 +53,10 @@ const ALLOWLIST = new Set([
   // mounts so each screen renders from the default WorkspaceContext state.
   // Test-only.
   "__tests__/a11y_screens.test.tsx",
+  // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
+  // mounts so the persisted journalFilter (aipm:workspace:v1 envelope) doesn't
+  // leak a scope-chip choice from one test into the next. Test-only.
+  "__tests__/journal_v2.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);
