@@ -281,7 +281,7 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | 2 일 dogfood 종료 + *치명적 회귀 0 건* 사인-오프 (머지 게이트 — 미실시) |
+| ☑ | dogfood 종료 + 사용자 사인-오프 (2026-06-03). 발견·수정: 터미널 빈 화면(xterm open 지연 `43cf60f`) / 터미널 `[프로세스 종료됨]`(StrictMode isMounted 가드 `c08df84`) / AiOverlay "분리" 버튼 회귀(`f8202a3`) / AI 패널 마크다운·per-message 모델·NIM 키·키 가드(`c56c20d`) / AI 패널 타자기 효과(`5bf62e9`). 치명적 회귀 0. |
 | ☑ | `src/legacy/` 로 이동: `CodeWorkbench`/`TerminalDock`/`SidePanel`/`FileExplorer`/`ProjectsPanel`/`DependencyGraphView`(→`code/Graph/`) |
 | ☑ | ~~`AiWorkbench.tsx` 이동~~ → **Decision I (§0.13)**: 유지 (AiOverlay 가 쓰는 공유 AI 엔진 — 이동 시 AiOverlay 재작성, 라운드 원칙 위반). DoD 이동·grep 대상에서 제외 |
 | ☑ | `FileExplorer.tsx` 이동 — pure helper(`flattenVisibleNodes`/`nextFocusedPath`)는 `@/legacy/FileExplorer` 경로로 safety-net 커버 유지 (실코드상 DiffScreen 은 LocalDiffView 순수파서만 사용, FileExplorer 분리 불필요) |
@@ -298,8 +298,8 @@
 | ☐→이월 | grep `classList.toggle("dark")` → **0** : **Decision J** — Decision A 의 `.dark` 병행 적용이 유지된 레거시 shadcn UI(대시보드/오버레이)의 다크모드에 필수. 레거시 UI 은퇴 effort 까지 유지 |
 | ☑ | `pnpm typecheck` / `pnpm test`(90 pass) / `pnpm lint` green |
 | ☑ | `cargo test` — 백엔드 무변경 (N/A) |
-| ☐ | 시각 회귀 스냅샷 16 장 검수 (dogfood 수동) |
-| ☐ | `pre-cut-PR-UI7` annotated git tag (머지 시점 — rollback 보존) |
+| ☑ | 시각 회귀 — dogfood 수동 검수 (16 장 자동 스냅샷은 §11 상 1.0 보류) |
+| ☑ | `pre-cut-PR-UI7` annotated git tag → `5bf62e9` (rollback 보존) |
 
 이 PR 머지 후 **Lite-W6 PR12 (배포 번들링) 진입** 가능. (PR-UI 8 은 출시와 병행/후행 가능 — ui_v2 셸이 token-pure 이므로 차단 요소 아님.)
 
@@ -354,6 +354,6 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 4 — 변경 diff | ✅ done | `bbdb6ae` |
 | 5 — 도구 4 + Planner | ✅ done | `b97b430` |
 | 6 — Settings | ✅ done | `b748c44` |
-| 7 — Cleanup + Flag off | ⬜ pending | — |
+| 7 — Cleanup + Flag off | ✅ done | `5bf62e9` (feat `ebbf5ce` + dogfood fixes) |
 
 각 PR 머지 시 본 표의 상태 (`⬜` → `✅`) + 해시를 갱신.
