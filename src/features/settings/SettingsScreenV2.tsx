@@ -50,6 +50,7 @@ const PROVIDER_META: { id: Provider; label: string; env: string }[] = [
   { id: "anthropic", label: "Anthropic", env: "ANTHROPIC_API_KEY" },
   { id: "openai", label: "OpenAI", env: "OPENAI_API_KEY" },
   { id: "gemini", label: "Google AI", env: "GEMINI_API_KEY" },
+  { id: "nim", label: "NVIDIA NIM", env: "NVIDIA_API_KEY" },
 ];
 
 function secretName(p: Provider): string {

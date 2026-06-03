@@ -129,9 +129,10 @@ describe("PR-UI 6 — Settings", () => {
     const { findAllByText, getByRole, queryByRole } = render(
       wrap(<SettingsScreenV2 projectId={1} projectRoot="/proj" />),
     );
-    // No stored keys → every provider row shows 미설정 + an 추가 button.
+    // No stored keys → every provider row shows 미설정 + an 추가 button
+    // (anthropic / openai / gemini / nim — dogfood 발견 3 added NVIDIA NIM).
     const add = await findAllByText("추가");
-    expect(add).toHaveLength(3);
+    expect(add).toHaveLength(4);
     expect(queryByRole("dialog")).toBeNull();
     fireEvent.click(add[0]);
     const dialog = getByRole("dialog");

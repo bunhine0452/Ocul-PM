@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { Toolbar } from "@/components/Toolbar";
 import { SparklesIcon, Paperclip, ArrowUp, History, TriangleAlert } from "@/components/Icons";
+import { Markdown } from "@/components/Markdown";
 import {
   commands,
   type ChatEvent,
@@ -27,22 +28,38 @@ const VENDOR: Record<Provider, { name: string; vendor: string; color: string }> 
   nim: { name: "NIM", vendor: "NVIDIA", color: "#76b900" },
 };
 
+// Display message — tracks the provider that produced each assistant turn so
+// switching the active model doesn't re-skin past answers (dogfood 발견 2).
+type ChatMsg = { role: Role; content: string; provider?: Provider };
+
+function secretName(p: Provider): string {
+  return `${p}_api_key`;
+}
+
 interface AiPanelScreenV2Props {
   projectId: number;
 }
 
 export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
-  const { state, setState } = useWorkspace();
+  const { state, setState, setUiV2View } = useWorkspace();
   const { settings } = useSettings();
 
   const initialProvider = (state.aiActiveModel as Provider | null) ?? settings.defaultProvider;
   const [provider, setProvider] = useState<Provider>(
     PROVIDERS.includes(initialProvider) ? initialProvider : "anthropic",
   );
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Keyring presence per provider (null = checking). Models without a key are
+  // disabled (dogfood 발견 4).
+  const [hasKey, setHasKey] = useState<Record<Provider, boolean | null>>({
+    anthropic: null,
+    openai: null,
+    gemini: null,
+    nim: null,
+  });
   const threadRef = useRef<number | null>(
     state.aiThreadId != null ? Number(state.aiThreadId) : null,
   );
@@ -72,7 +89,13 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         const msgs = await commands.chatMessageList(id);
         if (cancelled) return;
         if (msgs.status === "ok") {
-          setMessages(msgs.data.map((m) => ({ role: m.role as Role, content: m.content })));
+          setMessages(
+            msgs.data.map((m) => ({
+              role: m.role as Role,
+              content: m.content,
+              provider: (m.provider as Provider | null) ?? undefined,
+            })),
+          );
         }
       }
     })();
@@ -89,6 +112,31 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     );
   }, [provider, setState]);
 
+  // Keyring presence per provider (cached check — does NOT unlock the keychain).
+  useEffect(() => {
+    let cancelled = false;
+    PROVIDERS.forEach(async (p) => {
+      const res = await commands.secretHas(secretName(p));
+      if (!cancelled && res.status === "ok") {
+        setHasKey((prev) => ({ ...prev, [p]: res.data }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // If the active provider has no key, fall back to the first one that does.
+  useEffect(() => {
+    if (hasKey[provider] === false) {
+      const firstWithKey = PROVIDERS.find((p) => hasKey[p] === true);
+      if (firstWithKey) setProvider(firstWithKey);
+    }
+  }, [hasKey, provider]);
+
+  const anyKey = PROVIDERS.some((p) => hasKey[p] === true);
+  const keysResolved = PROVIDERS.every((p) => hasKey[p] !== null);
+
   // Auto-scroll the thread on new content.
   useEffect(() => {
     const el = threadInnerRef.current?.parentElement;
@@ -98,16 +146,28 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   const send = useCallback(async () => {
     const trimmed = draft.trim();
     if (!trimmed || streaming) return;
+    if (hasKey[provider] === false) {
+      setError(`${VENDOR[provider].name} 의 API 키가 없습니다. 설정에서 추가하세요.`);
+      return;
+    }
     setError(null);
 
     const model = providerModel(settings, provider);
     const baseHistory = messages;
-    const userMessage: Message = { role: "user" as Role, content: trimmed };
-    setMessages([...baseHistory, userMessage, { role: "assistant" as Role, content: "" }]);
+    const userMessage: ChatMsg = { role: "user" as Role, content: trimmed };
+    setMessages([
+      ...baseHistory,
+      userMessage,
+      { role: "assistant" as Role, content: "", provider },
+    ]);
     setDraft("");
     setStreaming(true);
 
-    const llmHistory: Message[] = [...baseHistory, userMessage];
+    // chatStream wants plain {role, content} — strip the display-only provider.
+    const llmHistory: Message[] = [...baseHistory, userMessage].map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     if (settings.systemPrompt.trim()) {
       llmHistory.unshift({ role: "system" as Role, content: settings.systemPrompt });
     }
@@ -124,7 +184,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         acc += event.text;
         setMessages((prev) => {
           const next = [...prev];
-          next[next.length - 1] = { role: "assistant" as Role, content: acc };
+          next[next.length - 1] = { role: "assistant" as Role, content: acc, provider };
           return next;
         });
       } else if (event.kind === "error") {
@@ -155,7 +215,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       void commands.chatMessageAppend(id, "user", trimmed, provider, model);
       void commands.chatMessageAppend(id, "assistant", acc, provider, model);
     }
-  }, [draft, streaming, messages, provider, settings]);
+  }, [draft, streaming, messages, provider, settings, hasKey]);
 
   return (
     <>
@@ -170,16 +230,21 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
           <span className="section-title" style={{ marginRight: 4 }}>모델</span>
           {PROVIDERS.map((p) => {
             const v = VENDOR[p];
+            const disabled = hasKey[p] === false;
             return (
               <button
                 key={p}
                 type="button"
                 className={"model-chip" + (provider === p ? " active" : "")}
-                onClick={() => setProvider(p)}
+                onClick={() => {
+                  if (!disabled) setProvider(p);
+                }}
+                disabled={disabled}
+                title={disabled ? "설정(⌘,)에서 API 키를 추가하세요" : undefined}
               >
                 <span className="model-dot" style={{ background: v.color }} />
                 {v.name}
-                <span className="model-vendor">{v.vendor}</span>
+                <span className="model-vendor">{disabled ? "키 없음" : v.vendor}</span>
               </button>
             );
           })}
@@ -188,37 +253,62 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         <div className="ai-thread">
           <div className="ai-thread-inner" ref={threadInnerRef}>
             {messages.length === 0 ? (
-              <div className="empty-hint">코드베이스에 대해 무엇이든 물어보세요.</div>
-            ) : (
-              messages.map((m, i) => (
-                <div className={"msg " + m.role} key={i}>
-                  <div
-                    className="msg-av"
-                    style={
-                      m.role === "assistant"
-                        ? { background: VENDOR[provider].color }
-                        : undefined
-                    }
+              keysResolved && !anyKey ? (
+                <div className="empty-hint">
+                  사용할 수 있는 API 키가 없어요.{" "}
+                  <button
+                    type="button"
+                    className="set-link"
+                    onClick={() => setUiV2View("settings")}
                   >
-                    {m.role === "user" ? "나" : <SparklesIcon size={15} />}
-                  </div>
-                  <div className="msg-body">
-                    <div className="msg-name">
-                      {m.role === "user" ? (
-                        "나"
-                      ) : (
-                        <>
-                          {VENDOR[provider].name}
-                          <span className="vendor">로컬 컨텍스트 첨부됨</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="msg-text">
-                      {m.content || (streaming && i === messages.length - 1 ? "…" : "")}
-                    </div>
-                  </div>
+                    설정에서 키 추가 →
+                  </button>
                 </div>
-              ))
+              ) : (
+                <div className="empty-hint">코드베이스에 대해 무엇이든 물어보세요.</div>
+              )
+            ) : (
+              messages.map((m, i) => {
+                // Per-message provider so changing the active model doesn't
+                // re-skin past answers (dogfood 발견 2).
+                const mp = m.provider ?? provider;
+                const isLast = i === messages.length - 1;
+                return (
+                  <div className={"msg " + m.role} key={i}>
+                    <div
+                      className="msg-av"
+                      style={m.role === "assistant" ? { background: VENDOR[mp].color } : undefined}
+                    >
+                      {m.role === "user" ? "나" : <SparklesIcon size={15} />}
+                    </div>
+                    <div className="msg-body">
+                      <div className="msg-name">
+                        {m.role === "user" ? (
+                          "나"
+                        ) : (
+                          <>
+                            {VENDOR[mp].name}
+                            <span className="vendor">로컬 컨텍스트 첨부됨</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="msg-text">
+                        {m.role === "assistant" ? (
+                          m.content ? (
+                            <Markdown>{m.content}</Markdown>
+                          ) : streaming && isLast ? (
+                            "…"
+                          ) : (
+                            ""
+                          )
+                        ) : (
+                          m.content
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
             {error ? (
               <div className="msg assistant">
