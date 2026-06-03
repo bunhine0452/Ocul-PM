@@ -324,7 +324,7 @@ PR-UI 7 머지 후 24h 안에 치명적 회귀 발생 시 *역 마이그레이�
 | 3 — 작업 일지 | ✅ done | `c2e26a7` |
 | 4 — 변경 diff | ✅ done | `bbdb6ae` |
 | 5 — 도구 4 + Planner | ✅ done | `b97b430` |
-| 6 — Settings | ⬜ pending | — |
+| 6 — Settings | ✅ done | `b748c44` |
 | 7 — Cleanup + Flag off | ⬜ pending | — |
 
 각 PR 머지 시 본 표의 상태 (`⬜` → `✅`) + 해시를 갱신.
