@@ -231,17 +231,27 @@ function TerminalInstanceV2({ sessionId, cwd, visible }: TerminalInstanceV2Props
     });
     if (container) ro.observe(container);
 
+    // isMounted guard (mirrors the legacy TerminalInstance). React 18
+    // StrictMode mounts → unmounts → remounts every effect in dev; without this
+    // the first mount's async would still spawn a PTY *after* its cleanup,
+    // leaving an orphaned session whose death leaks a spurious "[프로세스
+    // 종료됨]" into the second mount's terminal (same session-id event). The
+    // guard aborts the first run before it ever spawns.
+    let isMounted = true;
     let unlistenData: (() => void) | null = null;
     let unlistenExit: (() => void) | null = null;
     void (async () => {
       try {
         unlistenData = await listen<string>(`pty-data-${sessionId}`, (e) => {
-          term.write(e.payload);
+          if (isMounted) term.write(e.payload);
         });
+        if (!isMounted) return;
         unlistenExit = await listen<void>(`pty-exit-${sessionId}`, () => {
-          term.write("\r\n\x1b[1;31m[프로세스 종료됨]\x1b[0m\r\n");
+          if (isMounted) term.write("\r\n\x1b[1;31m[프로세스 종료됨]\x1b[0m\r\n");
         });
+        if (!isMounted) return;
         const res = await commands.startPtySession(sessionId, cwdRef.current, term.rows, term.cols);
+        if (!isMounted) return;
         if (res.status === "error") {
           term.write(`\r\n\x1b[1;31m[PTY 시작 실패: ${res.error}]\x1b[0m\r\n`);
           return;
@@ -258,6 +268,7 @@ function TerminalInstanceV2({ sessionId, cwd, visible }: TerminalInstanceV2Props
     })();
 
     return () => {
+      isMounted = false;
       ro.disconnect();
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
