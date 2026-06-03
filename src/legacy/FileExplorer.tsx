@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import type { ProjectTreeNode } from "@/lib/bindings";
-import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "./Icons";
+// PR-UI 7 — moved to src/legacy/; Icons stays at its canonical path. The two
+// pure helpers (flattenVisibleNodes / nextFocusedPath) keep their safety-net
+// coverage, so this file must still compile from the new location.
+import { Folder, FolderOpen, File, Search, ChevronRight, ChevronDown } from "@/components/Icons";
 
 export type ChangeOp = "A" | "M" | "D";
 

@@ -128,6 +128,20 @@
 - **레거시 무변경 + flag-off 안전.** `SettingsPanel.tsx`/`OculpmSettings.tsx`(deep 설정)는 **0 diff lines** — flag-off 는 기존 SettingsPanel, flag-on 만 `SettingsScreenV2` (PR-UI 7 에서 레거시 정리). §6 비상표의 "PR-UI 6 회귀 → flag OFF 로 기존 SettingsPanel 복귀" 보존.
 - **open question (dogfood).** ShellV2 의 settings 라우팅을 project 가드 위로 옮긴 뒤 *무프로젝트* 상태의 시각 점검은 dogfood 에서 확인 필요(런타임 경로). 단위 테스트는 projectId 주입으로 커버.
 
+### 0.13 PR-UI 7 진행 중 추가 결정 (2026-06-03 — 구현, 머지 보류)
+
+> 사용자 결정 "구현 + 머지 보류": PR-UI 7 전체를 브랜치에 구현하고 코드 게이트를 green 으로 맞추되, *복귀 불가능* 머지는 2일 dogfood 사인-오프까지 보류. 진행 중 *문서가 예상 못한 scope 경계* 가 드러나 아래 Decision 으로 잠금.
+
+- **Decision H — 분리창(`?window=terminal`/`?window=ai`) 제거.** Lite-W6 PR9 의 detached 윈도우(App.tsx) 제거. ui_v2 전용 터미널/AI 화면이 대체. 이로써 TerminalDock 의 유일 consumer 가 사라져 legacy 이동이 깔끔. (사용자 확인 2026-06-03.)
+- **Decision I — AiWorkbench 유지(DoD 이동·grep 대상 제외).** AiWorkbench(채팅/Quick Edit 엔진)는 *유지되는* AiOverlay(⌘\, 전역 마운트)가 본문으로 host. "Code Workbench 잔재"가 아니라 *공유 AI 엔진*. 이동하면 AiOverlay 를 ChatPanel 로 재작성해야 함(라운드 §3.7 "working 코드 재작성 금지" 위반 + Quick Edit 재구현 위험). → 제자리 유지. ChatPanel/ClarifyDialog 도 AiWorkbench 의존이라 함께 유지. (사용자 확인 2026-06-03.)
+- **Decision J — 시각 토큰 purge(`dark:`/`classList.toggle("dark")` → 0) 는 PR-UI 7 scope 밖, 이월.** 본 라운드(PR-UI 1~6)는 *프로젝트 진입 후의 8 화면 셸* 만 토큰 시스템으로 전환했다. **대시보드(StartScreen) · 전역 오버레이(Settings 모달 / AiOverlay / CommandPalette / rename·delete dialog / MigrationModal) · shadcn primitives(ui/button·tabs·badge) · ui_v2 에서 렌더되지 않는 레거시 컴포넌트(LocalDiffView 컴포넌트·GoalCard·JournalEntryCard·PlannerPanel·ChatPanel·TodayScreen 등)** 는 *여전히 shadcn Tailwind* (`dark:` variant + `.dark` class). 00-master-plan §10 이 onboarding/대시보드를 명시적으로 scope 밖에 둠. → `dark:` 62건·`classList.toggle("dark")` 1건(SettingsContext, Decision A 병행)은 *유지*. **ui_v2 8화면 표면 자체는 검증상 `dark:`-free** (LocalDiffView/GoalCard 의 `dark:` 는 ui_v2 미렌더 코드). 토큰 격리도 유지(빌드: 녹색 `12a06b` main css 0 / ShellV2 청크 2). 완전 purge 는 *별도 "레거시 UI 은퇴 + 대시보드·오버레이 re-skin" effort* 필요.
+- **WorkspaceContext 최소 제거.** DoD 5키만 제거. `aiWorkbenchMode` 는 *유지*(Decision I 의 AiWorkbench 가 live 사용 — 죽은 키 아님). `sidePanelMode`/`sidePanelWidth`/`activeView`+`setActiveView` 도 *유지*(sidePanelWidth/Mode 는 safety-net 커버 + LocalDiffView 미사용; activeView 는 v1/v2 마이그레이션 호환 — uiV2View 가 ui_v2 라우팅). v2→v3 는 *deletion-only*, `activeView "code"→"diff"` 재매핑은 *불필요*(uiV2View 별도 필드, Decision D §0.7).
+- **마이그레이션 grep 잔존.** `grep codeSubTab|layoutMode|...` 의 잔존 hit 은 (1) loadFromStorage 의 `delete parsed.<key>` *삭제문*(키를 drop 하려면 이름 필요), (2) 그 동작을 검증하는 safety-net 단위 테스트(`PR-UI 7 — schema v2 → v3` describe), (3) doc 주석뿐 — *live 사용 0*.
+- **CommandPalette/GitBranchChip 재배선.** CommandPalette 는 ActiveView/CodeSubTab/sidePanel/detach 명령 제거 후 ui_v2 8화면 nav(`setUiV2View`)로 재구성. GitBranchChip(이제 dead TitleBar 전용)의 `layoutMode` 변이는 `setUiV2View("terminal")` 로 교체. (둘 다 compiled — 깨지면 안 됨.)
+- **safety-net 테스트 조정.** FileExplorer import → `@/legacy/FileExplorer`(pure helper 커버 유지). `migrateLayoutMode`/`migrateSplitRatio` 제거에 따라 PR7 Part 2 describe 블록 → `migrateV2ToV3` 검증으로 교체. openDiffFor 테스트의 `sidePanelOpen` 단언 제거.
+- **TitleBar/GitBranchChip/PlannerPanel/TodayScreen/TimelineView 등 dead 모듈.** App 에서 import 제거되어 *죽었으나* src/legacy 이동은 *미실시*(DoD 이동 목록 밖, 일부 entangled). 컴파일은 됨(unused export 는 noUnusedLocals 무관). 차기 "레거시 UI 은퇴" effort 대상.
+- **Decision J 처리 = 별도 후속 PR (사용자 확정 2026-06-03).** 이월된 시각 토큰 purge(대시보드/오버레이 re-skin + ui_v2 미렌더 레거시 컴포넌트 legacy 이동)는 **PR-UI 8 — legacy UI 은퇴** 로 분리. PR-UI 7 은 *구조 정리(Code Workbench 제거 + flag off)* 로 확정·종결. ui_v2 8화면이 token-pure 이므로 PR-UI 7 머지로 1.0 출시 경로 자체는 열리나, 대시보드/전역 오버레이의 shadcn 다크모드 잔존은 PR-UI 8 까지 유지(사용자 노출 화면은 대부분 ui_v2 셸이므로 영향 국소적).
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -263,30 +277,45 @@
 
 **주의**: 이 PR 머지는 *복귀 불가능*. 머지 전 2 일 dogfood 게이트 필수.
 
+> **상태 (2026-06-03)**: *구조 정리 코드 완료 + 게이트 green, 머지는 2일 dogfood 까지 보류* (사용자 결정 "구현 + 머지 보류"). 시각 토큰 purge 항목(`dark:`/`classList.toggle`)은 §0.13 의 scope 경계로 **이월** — 별도 effort 필요.
+
 | 체크 | 항목 |
 |---|---|
-| ☐ | 2 일 dogfood 종료 + *치명적 회귀 0 건* 사인-오프 |
-| ☐ | `src/legacy/` 디렉토리 생성 + 다음 파일 이동: |
-| ☐ | &nbsp;&nbsp;`CodeWorkbench.tsx`, `AiWorkbench.tsx`, `TerminalDock.tsx`, `SidePanel.tsx` |
-| ☐ | &nbsp;&nbsp;옛 `FileExplorer.tsx` (DiffScreen 이 사용하는 부분 분리 후) |
-| ☐ | &nbsp;&nbsp;Code Graph 관련 파일 → `src/legacy/code/Graph/` |
-| ☐ | `tsconfig.json` 의 `exclude` 에 `src/legacy/**` 추가 |
-| ☐ | `WorkspaceContext.tsx` schema v3 *write 활성화* + v2→v3 마이그레이션 함수 적용 |
-| ☐ | 기존 v2 키 (`codeSubTab`, `bottomDrawerTab`, `layoutMode`, `splitRatio`, `sidePanelOpen`) 제거 |
-| ☐ | `useGlobalShortcuts.ts` 에서 ⌘B/⌘J/⌘⇧J/⌘⇧\\ 핸들러 제거 |
-| ☐ | `App.tsx` 의 옛 `Workspace`, `PRIMARY_NAV`, `CODE_SUB_NAV` 제거 |
-| ☐ | `ui_v2` flag 의 *모든 분기 코드 제거* — flag 변수 자체 삭제 |
-| ☐ | grep `CodeWorkbench\\|AiWorkbench\\|TerminalDock\\|SidePanel\\|codeSubTab\\|bottomDrawerTab\\|layoutMode\\|splitRatio\\|sidePanelOpen` → **0** (legacy 제외) |
-| ☐ | grep `ui_v2` → **0** |
-| ☐ | grep `dark:` (Tailwind variant) → **0** |
-| ☐ | grep `theme.extend.colors` 의 사용처 → **0** (config 본문에서) |
-| ☐ | grep `classList.toggle\\("dark"\\)` → **0** |
-| ☐ | `pnpm typecheck` / `pnpm test` / `pnpm lint` green |
-| ☐ | `cargo test` green |
-| ☐ | 시각 회귀 스냅샷 16 장 검수 (목업과 일치) |
-| ☐ | `pre-cut-PR-UI7` annotated git tag (rollback 보존) |
+| ☐ | 2 일 dogfood 종료 + *치명적 회귀 0 건* 사인-오프 (머지 게이트 — 미실시) |
+| ☑ | `src/legacy/` 로 이동: `CodeWorkbench`/`TerminalDock`/`SidePanel`/`FileExplorer`/`ProjectsPanel`/`DependencyGraphView`(→`code/Graph/`) |
+| ☑ | ~~`AiWorkbench.tsx` 이동~~ → **Decision I (§0.13)**: 유지 (AiOverlay 가 쓰는 공유 AI 엔진 — 이동 시 AiOverlay 재작성, 라운드 원칙 위반). DoD 이동·grep 대상에서 제외 |
+| ☑ | `FileExplorer.tsx` 이동 — pure helper(`flattenVisibleNodes`/`nextFocusedPath`)는 `@/legacy/FileExplorer` 경로로 safety-net 커버 유지 (실코드상 DiffScreen 은 LocalDiffView 순수파서만 사용, FileExplorer 분리 불필요) |
+| ☑ | `tsconfig.json` `exclude: ["src/legacy/**"]` (이미 존재) |
+| ☑ | `WorkspaceContext` schema v3 + `migrateV2ToV3` 적용 (loadFromStorage 에서 5키 deletion-only drop) |
+| ☑ | 5 v2 키 제거 (`codeSubTab`/`bottomDrawerTab`/`layoutMode`/`splitRatio`/`sidePanelOpen`) + 메서드/타입(`CodeSubTab`/`LayoutMode`/`setCodeSubTab`/`openInCode`/`toggleSidePanel`/`setSidePanelOpen`) |
+| ☑ | `useGlobalShortcuts.ts` ⌘B/⌘J/⌘⇧J/⌘⇧\\ 제거 (+ 죽은 레거시 ⌘1~3 nav; uiV2Nav 단일화) |
+| ☑ | `App.tsx` `Workspace`/`WorkspaceShell`/`PRIMARY_NAV`/`CODE_SUB_NAV`/분리창(`?window=terminal\|ai`)/TitleBar 분기 제거 |
+| ☑ | `ui_v2` flag *메커니즘* 제거 (`src/lib/uiFlags.ts` + `ui_v2_flag.test.ts` 삭제, `isUiV2Enabled`/`VITE_UI_V2`/`__setUiV2Override` 0) |
+| ☑ | grep `CodeWorkbench\|TerminalDock\|SidePanel\|codeSubTab\|bottomDrawerTab\|layoutMode\|splitRatio\|sidePanelOpen` → live 사용 **0** (남은 hit = 마이그레이션 `delete parsed.*` 문 + 그 단위 테스트 + 주석. AiWorkbench 는 Decision I 로 유지) |
+| ⚠ | grep `ui_v2` → flag *메커니즘* 0. 라운드 명칭 "ui_v2" 는 주석/CSS 에 잔존(영구 문서) — grep 목표는 flag 였음 |
+| ☐→이월 | grep `dark:` → **0** : **Decision J (§0.13)** — ui_v2 *8화면 표면은 dark:-free*. 잔존 62건은 모두 *유지된 레거시 전역 UI*(StartScreen 대시보드 / Settings·Ai·CommandPalette·dialog 오버레이 / shadcn primitives) + *ui_v2 미렌더 레거시 컴포넌트*(LocalDiffView 컴포넌트/GoalCard/JournalEntryCard 등). 별도 effort |
+| ☑ | grep `theme.extend.colors` → 0 (tailwind color extend 없음 — §0.3 에서 이미 제거됨) |
+| ☐→이월 | grep `classList.toggle("dark")` → **0** : **Decision J** — Decision A 의 `.dark` 병행 적용이 유지된 레거시 shadcn UI(대시보드/오버레이)의 다크모드에 필수. 레거시 UI 은퇴 effort 까지 유지 |
+| ☑ | `pnpm typecheck` / `pnpm test`(90 pass) / `pnpm lint` green |
+| ☑ | `cargo test` — 백엔드 무변경 (N/A) |
+| ☐ | 시각 회귀 스냅샷 16 장 검수 (dogfood 수동) |
+| ☐ | `pre-cut-PR-UI7` annotated git tag (머지 시점 — rollback 보존) |
 
-이 PR 머지 후 **Lite-W6 PR12 (배포 번들링) 진입** 가능.
+이 PR 머지 후 **Lite-W6 PR12 (배포 번들링) 진입** 가능. (PR-UI 8 은 출시와 병행/후행 가능 — ui_v2 셸이 token-pure 이므로 차단 요소 아님.)
+
+### PR-UI 8 — legacy UI 은퇴 (후속, Decision J §0.13)
+
+> PR-UI 7 에서 *이월* 된 시각 토큰 purge. **별도 PR** (사용자 확정 2026-06-03). PR-UI 7 머지·dogfood 와 독립.
+
+| 체크 | 항목 |
+|---|---|
+| ☐ | 대시보드(StartScreen) → 토큰 시스템 re-skin (현 shadcn `dark:` → `--*` 토큰) |
+| ☐ | 전역 오버레이(Settings 모달 / AiOverlay / CommandPalette / rename·delete dialog / MigrationModal) re-skin |
+| ☐ | shadcn primitives(ui/button·tabs·badge 등) 토큰 매핑 or ui_v2 prim 대체 |
+| ☐ | ui_v2 미렌더 레거시 컴포넌트(LocalDiffView 컴포넌트·GoalCard·JournalEntryCard·PlannerPanel·ChatPanel·TodayScreen·TimelineView·TitleBar·GitBranchChip) → `src/legacy/` 이동 (단, AiWorkbench/ChatPanel 은 AiOverlay 의존 — 분리 설계 필요) |
+| ☐ | `SettingsContext` 의 `classList.toggle("dark")` 제거 (레거시 shadcn 소비처 0 확인 후) |
+| ☐ | grep `dark:` → **0** · grep `classList.toggle("dark")` → **0** (PR-UI 7 의 이월분 완결) |
+| ☐ | typecheck / test / lint / build green |
 
 ---
 

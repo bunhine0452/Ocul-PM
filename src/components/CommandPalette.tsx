@@ -8,17 +8,12 @@ import {
   Settings as SettingsIcon,
   RefreshCw,
   Sparkles,
-  Network,
   Terminal as TerminalIcon,
+  Search,
   Plus,
 } from "@/components/Icons";
-import {
-  useWorkspace,
-  type ActiveView,
-  type CodeSubTab,
-} from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
@@ -43,7 +38,7 @@ type CommandItem = {
   label: string;
   // Korean alias for fuzzy matching ("체인지로그" → Changelog)
   alias?: string;
-  group: "이동" | "액션" | "코드 화면" | "ocul-pm";
+  group: "이동" | "액션" | "ocul-pm";
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
@@ -67,15 +62,7 @@ export function CommandPalette({
   onReindex,
   onRegenerateOverview,
 }: CommandPaletteProps) {
-  const {
-    setActiveView,
-    openInCode,
-    state,
-    toggleSidePanel,
-    setSidePanelOpen,
-    setSidePanelMode,
-    toggleAiOverlay,
-  } = useWorkspace();
+  const { setUiV2View, state, toggleAiOverlay } = useWorkspace();
   const [search, setSearch] = useState("");
 
   // Reset query when palette closes — feels less surprising on next open.
@@ -83,59 +70,33 @@ export function CommandPalette({
     if (!open) setSearch("");
   }, [open]);
 
-  const go = (view: ActiveView) => () => {
-    setActiveView(view);
-    onOpenChange(false);
-  };
-  const goCode = (sub: CodeSubTab) => () => {
-    openInCode(sub);
+  const go = (view: UiV2View) => () => {
+    setUiV2View(view);
     onOpenChange(false);
   };
 
   const items: CommandItem[] = useMemo(
     () => [
-      // ── Top-level navigation (Lite-W6 PR7 Part 1: 3-IA)
-      { id: "view-today",     label: "오늘 (Today)", alias: "today 오늘 일정 포커스 개요",
-        group: "이동", icon: Flame,    shortcut: "⌘1", onSelect: go("today") },
-      { id: "view-plan",      label: "계획 (Plan)", alias: "plan 플래너 목표 goal",
-        group: "이동", icon: Calendar, shortcut: "⌘2", onSelect: go("plan") },
-      { id: "view-code",      label: "코드 (Code)", alias: "code 코드 워크벤치",
-        group: "이동", icon: Code2,    shortcut: "⌘3", onSelect: go("code") },
+      // ── 이동 (ui_v2 — main 4 + tools 3, 01-ia-and-shell §3)
+      { id: "view-today",    label: "오늘 (Today)", alias: "today 오늘 대시보드 포커스",
+        group: "이동", icon: Flame,        shortcut: "⌘1", onSelect: go("today") },
+      { id: "view-journal",  label: "작업 일지", alias: "journal 일지 timeline 기록 변경 로그",
+        group: "이동", icon: FileCode,     shortcut: "⌘2", onSelect: go("journal") },
+      { id: "view-diff",     label: "변경 diff", alias: "diff 변경 로컬 파일 검토",
+        group: "이동", icon: Code2,        shortcut: "⌘3", onSelect: go("diff") },
+      { id: "view-planner",  label: "Planner", alias: "planner 플래너 목표 goal 계획",
+        group: "이동", icon: Calendar,     shortcut: "⌘4", onSelect: go("planner") },
+      { id: "view-search",   label: "코드 검색", alias: "search 코드 검색 시맨틱 semantic",
+        group: "이동", icon: Search,       shortcut: "⌘5", onSelect: go("search") },
+      { id: "view-terminal", label: "터미널", alias: "terminal 터미널 셸 shell",
+        group: "이동", icon: TerminalIcon, shortcut: "⌘6", onSelect: go("terminal") },
+      { id: "view-ai",       label: "AI 패널", alias: "ai 패널 채팅 chat llm",
+        group: "이동", icon: Sparkles,     shortcut: "⌘7", onSelect: go("ai") },
 
-      // ── Code sub-tabs (transitional — UI-5 absorbs these later)
-      { id: "code-files",    label: "코드 — 파일", alias: "code files 파일 탐색기",
-        group: "코드 화면", icon: FileCode,        onSelect: goCode("files") },
-      { id: "code-ai",      label: "코드 — AI", alias: "code ai 채팅 어시스트 quick edit",
-        group: "코드 화면", icon: Sparkles,        onSelect: goCode("ai") },
-      { id: "code-graph",    label: "코드 — 그래프", alias: "code graph 의존성 그래프",
-        group: "코드 화면", icon: Network,         onSelect: goCode("graph") },
-      { id: "code-terminal", label: "코드 — 터미널", alias: "code terminal 터미널",
-        group: "코드 화면", icon: TerminalIcon,    onSelect: goCode("terminal") },
-
-      // ── Actions
-      { id: "toggle-side-panel", label: "파일 탐색기 토글", alias: "side panel files file tree ⌘B",
-        group: "액션", icon: FileCode, shortcut: "⌘B",
-        onSelect: () => { toggleSidePanel(); onOpenChange(false); } },
-      { id: "view-diff", label: "변경된 파일 diff 보기", alias: "local diff watcher changes 변경 diff",
-        group: "액션", icon: FileCode,
-        onSelect: () => {
-          setSidePanelMode("diff");
-          setSidePanelOpen(true);
-          onOpenChange(false);
-        } },
-      { id: "toggle-ai-overlay", label: "AI 패널 토글", alias: "ai overlay chat quick edit ⌘\\",
+      // ── 액션
+      { id: "toggle-ai-overlay", label: "AI 오버레이 토글", alias: "ai overlay chat ⌘\\",
         group: "액션", icon: Sparkles, shortcut: "⌘\\",
         onSelect: () => { toggleAiOverlay(); onOpenChange(false); } },
-      { id: "detach-ai-window", label: "AI 패널 분리 윈도우로 열기", alias: "ai detach window ⌘⇧\\",
-        group: "액션", icon: Sparkles, shortcut: "⌘⇧\\",
-        onSelect: () => {
-          onOpenChange(false);
-          void commands.openAiWindow().then((res) => {
-            if (res.status === "error") {
-              toast.destructive(`AI 윈도우 열기 실패: ${res.error}`);
-            }
-          });
-        } },
       { id: "settings", label: "설정 열기", alias: "settings 설정",
         group: "액션", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
@@ -200,7 +161,6 @@ export function CommandPalette({
               alias: "ocul-pm manual entry journal 수동 기록",
               group: "ocul-pm" as const,
               icon: Plus,
-              shortcut: "⌘⇧J",
               onSelect: () => {
                 onOpenChange(false);
                 window.dispatchEvent(new CustomEvent(OCULPM_BUS.manualEntry));

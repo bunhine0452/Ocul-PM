@@ -2,8 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 
 import {
   migrateActiveView,
-  migrateLayoutMode,
-  migrateSplitRatio,
+  migrateV2ToV3,
   migrateSidePanelWidth,
   migrateSidePanelMode,
   migrateAiOverlayOpen,
@@ -19,7 +18,9 @@ import {
 import {
   flattenVisibleNodes,
   nextFocusedPath,
-} from "@/components/FileExplorer";
+  // PR-UI 7 — FileExplorer moved to src/legacy/; these two pure helpers keep
+  // their safety-net coverage from the new path.
+} from "@/legacy/FileExplorer";
 import {
   classifyDiffLines,
   groupIntoHunks,
@@ -402,14 +403,13 @@ describe("Lite-W6 PR6.4 — diffTarget single-shot handoff", () => {
   // drive them through renderHook. Single-shot semantics: the first consume
   // returns the path and clears; the second returns null.
 
-  it("openDiffFor sets diffTarget + opens panel in diff mode", () => {
+  it("openDiffFor sets diffTarget + diff mode", () => {
     const { result } = renderHook(() => useWorkspace(), {
       wrapper: WorkspaceProvider,
     });
     expect(result.current.state.diffTarget).toBe(null);
     act(() => result.current.openDiffFor("src/a.ts"));
     expect(result.current.state.diffTarget).toBe("src/a.ts");
-    expect(result.current.state.sidePanelOpen).toBe(true);
     expect(result.current.state.sidePanelMode).toBe("diff");
   });
 
@@ -484,33 +484,43 @@ describe("Lite-W6 PR7 Part 1 — ActiveView migration", () => {
   });
 });
 
-describe("Lite-W6 PR7 Part 2 — layoutMode + splitRatio migration", () => {
-  it("maps legacy bottomDrawerOpen=true to 'split'", () => {
-    expect(migrateLayoutMode(undefined, true)).toBe("split");
+describe("PR-UI 7 — schema v2 → v3 (Code Workbench keys dropped)", () => {
+  it("loadFromStorage drops the five legacy keys + bumps schema to 3", () => {
+    localStorage.clear();
+    localStorage.setItem(
+      "aipm:workspace:v1",
+      JSON.stringify({
+        schemaVersion: 2,
+        activeView: "code",
+        codeSubTab: "graph",
+        layoutMode: "split",
+        splitRatio: 0.7,
+        sidePanelOpen: true,
+        bottomDrawerTab: "terminal",
+        defaultTabUserOverride: true,
+      }),
+    );
+    const { result } = renderHook(() => useWorkspace(), {
+      wrapper: WorkspaceProvider,
+    });
+    const s = result.current.state as unknown as Record<string, unknown>;
+    expect(s.schemaVersion).toBe(3);
+    expect(s.codeSubTab).toBeUndefined();
+    expect(s.layoutMode).toBeUndefined();
+    expect(s.splitRatio).toBeUndefined();
+    expect(s.sidePanelOpen).toBeUndefined();
+    expect(s.bottomDrawerTab).toBeUndefined();
+    // activeView is retained (legacy field, kept for compat) — "code" is valid.
+    expect(s.activeView).toBe("code");
   });
 
-  it("maps legacy bottomDrawerOpen=false to 'main-only'", () => {
-    expect(migrateLayoutMode(undefined, false)).toBe("main-only");
-  });
-
-  it("preserves current layoutMode values", () => {
-    expect(migrateLayoutMode("main-only", true)).toBe("main-only");
-    expect(migrateLayoutMode("split", false)).toBe("split");
-    expect(migrateLayoutMode("terminal-only", undefined)).toBe("terminal-only");
-  });
-
-  it("defaults unknown layoutMode + missing legacy to 'main-only'", () => {
-    expect(migrateLayoutMode("bottom-drawer-open", undefined)).toBe("main-only");
-    expect(migrateLayoutMode(null, null)).toBe("main-only");
-  });
-
-  it("clamps splitRatio into [0.1, 0.9]", () => {
-    expect(migrateSplitRatio(0.6)).toBe(0.6);
-    expect(migrateSplitRatio(0.05)).toBe(0.1);
-    expect(migrateSplitRatio(0.95)).toBe(0.9);
-    expect(migrateSplitRatio(undefined)).toBe(0.6);
-    expect(migrateSplitRatio(NaN)).toBe(0.6);
-    expect(migrateSplitRatio("0.8")).toBe(0.6); // non-number → default
+  it("migrateV2ToV3 only stamps the version (idempotent on v3)", () => {
+    const base = { schemaVersion: 2, activeView: "today" } as unknown as Parameters<
+      typeof migrateV2ToV3
+    >[0];
+    expect(migrateV2ToV3(base).schemaVersion).toBe(3);
+    const v3 = { ...base, schemaVersion: 3 };
+    expect(migrateV2ToV3(v3)).toBe(v3); // returns same ref, no churn
   });
 });
 

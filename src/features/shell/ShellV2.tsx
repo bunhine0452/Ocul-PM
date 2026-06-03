@@ -22,11 +22,10 @@ import type { JournalEntrySummary } from "@/lib/bindings";
 // legacy tokens.)
 import "@/styles/index.css";
 
-// Final UI Update (ui_v2) — the new 248px-sidebar shell. Mounted by App ONLY
-// when isUiV2Enabled() is true. No ui_v2 class name collides with legacy
-// (verified PR-UI 1). Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT
-// §7.4), so the shell only owns the sidebar + the screen router. All 8 ui_v2
-// screens are now built (PR-UI 2~6).
+// Final UI Update — the 248px-sidebar shell. PR-UI 7 made this the only shell
+// (the feature flag is gone); App mounts it full-screen whenever a project is
+// selected. Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT §7.4), so
+// the shell only owns the sidebar + the screen router. All 8 screens are built.
 
 interface ShellV2Props {
   projectName: string | null;

@@ -25,26 +25,6 @@ export type ActiveView = "today" | "plan" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
 
 /**
- * Lite-W6 PR7 Part 2 introduces a Workspace-level layout mode. The Terminal
- * is no longer trapped inside Code's BottomDrawer — it docks at the bottom
- * of the workspace for every view and the mode controls how much of the
- * vertical real estate it claims.
- *
- *  - "main-only"      : 100% activeView, terminal hidden (still mounted to
- *                       preserve PTY sessions; CSS-hidden).
- *  - "split"          : activeView on top, Terminal on bottom. Ratio
- *                       persisted in `splitRatio` (activeView portion).
- *  - "terminal-only"  : full-height Terminal; activeView hidden.
- */
-export type LayoutMode = "main-only" | "split" | "terminal-only";
-
-/**
- * Transitional secondary tab inside the "code" view. PR5 retired the "git"
- * sub-tab along with GitPanel.
- */
-export type CodeSubTab = "files" | "ai" | "graph" | "terminal";
-
-/**
  * Lite-W6 PR8 Part 1: FileTree change-highlight marker. The watcher's
  * `FileOp` collapses into three categories the explorer renders as dot +
  * badge. See `mapFileOpToChangeOp` for the projection.
@@ -117,10 +97,9 @@ export interface WorkspaceState {
   currentProjectName: string | null;
   currentProjectRoot: string | null;
 
-  // PM-narrative IA (5 top-level views)
+  // Legacy IA view ("today" | "plan" | "code") — retained for v1/v2 migration
+  // compatibility; ui_v2 routes screens via `uiV2View` (PR-UI 7).
   activeView: ActiveView;
-  /** Sub-tab inside the "code" view (W5 will absorb most of these) */
-  codeSubTab: CodeSubTab;
 
   // Code sub-state
   openFiles: string[];
@@ -134,12 +113,6 @@ export interface WorkspaceState {
    */
   aiOverlayOpen: boolean;
 
-  // Workspace-level dock layout (Lite-W6 PR7 Part 2)
-  layoutMode: LayoutMode;
-  /** Portion (0.1..0.9) of the vertical space the activeView gets in
-   *  "split" mode. Ignored for main-only / terminal-only. */
-  splitRatio: number;
-
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
 
@@ -150,12 +123,6 @@ export interface WorkspaceState {
    */
   recentChanges: RecentChange[];
 
-  /**
-   * Lite-W6 PR8 Part 2: Workspace-level left side panel (FileTree, and later
-   * LocalDiffView). Toggled with ⌘B. Width is persisted independently so the
-   * user's resize survives session restarts.
-   */
-  sidePanelOpen: boolean;
   /** Pixel width. Clamped to [`SIDE_PANEL_MIN_WIDTH`, `SIDE_PANEL_MAX_WIDTH`]. */
   sidePanelWidth: number;
   /**
@@ -239,8 +206,11 @@ export interface IndexProgress {
  *  - 1 — original (W1..W2). Default tab: "overview".
  *  - 2 — W3-PR4. Default tab promoted to "today" unless the user has
  *        explicitly switched tabs at least once (`defaultTabUserOverride`).
+ *  - 3 — PR-UI 7. Code Workbench shell removed; the five legacy keys
+ *        (codeSubTab / bottomDrawerTab / layoutMode / splitRatio /
+ *        sidePanelOpen) are dropped (deletion-only, one-way — §04 §3/§6).
  */
-export const WORKSPACE_SCHEMA_VERSION = 2;
+export const WORKSPACE_SCHEMA_VERSION = 3;
 
 const DEFAULT_STATE: WorkspaceState = {
   currentProjectId: null,
@@ -248,16 +218,12 @@ const DEFAULT_STATE: WorkspaceState = {
   currentProjectRoot: null,
   // W3-PR4: Today is the default landing tab.
   activeView: "today",
-  codeSubTab: "files",
   openFiles: [],
   activeFile: null,
   aiWorkbenchMode: "quick-edit",
   aiOverlayOpen: false,
-  layoutMode: "main-only",
-  splitRatio: 0.6,
   fileExplorerExpanded: {},
   recentChanges: [],
-  sidePanelOpen: false,
   sidePanelWidth: 260,
   sidePanelMode: "files",
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
@@ -379,29 +345,23 @@ export function mapFileOpToChangeOp(op: FileOp): ChangeOp {
 
 // ---------- Legacy Migration ----------
 
-/** Map legacy activeTab values to the new (activeView, codeSubTab) pair. */
-function mapLegacyTab(tab: LegacyTab): { view: ActiveView; sub: CodeSubTab } {
+/** Map legacy activeTab values to the current ActiveView union. */
+function mapLegacyTab(tab: LegacyTab): ActiveView {
   switch (tab) {
-    // Lite-W6 PR7 Part 1: "overview" left the ActiveView union; legacy
-    // values land on Today (Overview's widgets become Today's cards in
-    // PR8/PR9 per 04-ui-ux §2).
-    case "overview": return { view: "today", sub: "files" };
-    case "today":    return { view: "today", sub: "files" };
-    case "planner":  return { view: "plan",  sub: "files" };
-    case "files":    return { view: "code",  sub: "files" };
-    case "chat":     return { view: "code",  sub: "ai" };
-    case "assist":   return { view: "code",  sub: "ai" };
-    case "graph":    return { view: "code",  sub: "graph" };
-    case "terminal": return { view: "code",  sub: "terminal" };
-    // Lite-W6 PR5: "git" CodeSubTab was removed; legacy values land on files.
-    case "git":      return { view: "code",  sub: "files" };
-    // Settings/diagnostics are not view-level any more (⌘, opens a screen);
-    // default landing for these legacy values is Today.
-    case "settings":
-    case "diagnostics":
-      return { view: "today", sub: "files" };
+    case "planner":
+      return "plan";
+    // The old Code sub-tabs (files/chat/assist/graph/terminal/git) all lived
+    // under the "code" view (PR-UI 7 retired the sub-tab system).
+    case "files":
+    case "chat":
+    case "assist":
+    case "graph":
+    case "terminal":
+    case "git":
+      return "code";
+    // overview / today / settings / diagnostics → Today (default landing).
     default:
-      return { view: "today", sub: "files" };
+      return "today";
   }
 }
 
@@ -428,14 +388,12 @@ function migrateV0(): WorkspaceState | null {
   const activeTab = (localStorage.getItem("activeTab") as LegacyTab) || "overview";
   const activeFile = localStorage.getItem("activeFile");
 
-  const mapped = mapLegacyTab(activeTab);
   const migrated: WorkspaceState = {
     ...DEFAULT_STATE,
     currentProjectId: projectId ? Number(projectId) : null,
     currentProjectName: projectName,
     currentProjectRoot: projectRoot,
-    activeView: mapped.view,
-    codeSubTab: mapped.sub,
+    activeView: mapLegacyTab(activeTab),
     activeFile,
   };
 
@@ -477,35 +435,14 @@ export function migrateActiveView(raw: unknown): ActiveView {
 }
 
 /**
- * Lite-W6 PR7 Part 2: the workspace layout is now controlled by a
- * tri-state mode instead of the old `bottomDrawerOpen` boolean. The
- * legacy field maps as `true → "split"`, `false → "main-only"`.
- * Anything else (including missing values) lands on "main-only".
- * Exported so the migration is unit-testable.
+ * PR-UI 7 — schema v2 → v3. The Code Workbench shell is gone, so its five
+ * persisted keys are dropped at parse time (see `loadFromStorage`); this
+ * stamps the new schema version. One-way: there is no v3 → v2 reverse
+ * (04-removal-and-migration §3, §6). Exported for unit testing.
  */
-export function migrateLayoutMode(
-  rawLayoutMode: unknown,
-  rawLegacyBottomDrawerOpen: unknown,
-): LayoutMode {
-  if (
-    rawLayoutMode === "main-only" ||
-    rawLayoutMode === "split" ||
-    rawLayoutMode === "terminal-only"
-  ) {
-    return rawLayoutMode;
-  }
-  if (rawLegacyBottomDrawerOpen === true) return "split";
-  return "main-only";
-}
-
-/**
- * Lite-W6 PR7 Part 2: clamp `splitRatio` to a usable range so a
- * corrupted persisted value can't render the activeView or terminal
- * pane invisibly thin. The default mirrors `DEFAULT_STATE.splitRatio`.
- */
-export function migrateSplitRatio(raw: unknown): number {
-  const n = typeof raw === "number" && Number.isFinite(raw) ? raw : 0.6;
-  return Math.min(0.9, Math.max(0.1, n));
+export function migrateV2ToV3(state: WorkspaceState): WorkspaceState {
+  if (state.schemaVersion >= 3) return state;
+  return { ...state, schemaVersion: 3 };
 }
 
 function loadFromStorage(): WorkspaceState {
@@ -514,22 +451,14 @@ function loadFromStorage(): WorkspaceState {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      // Migrate legacy codeSubTab values ("chat" | "assist" → "ai")
-      if (parsed.codeSubTab === "chat" || parsed.codeSubTab === "assist") {
-        parsed.codeSubTab = "ai";
-      }
-      // Lite-W6 PR5: the "git" CodeSubTab was removed along with GitPanel.
-      if (parsed.codeSubTab === "git") {
-        parsed.codeSubTab = "files";
-      }
       parsed.activeView = migrateActiveView(parsed.activeView);
-      // Lite-W6 PR7 Part 2 retired bottomDrawerOpen / bottomDrawerTab in
-      // favour of layoutMode + splitRatio.
-      parsed.layoutMode = migrateLayoutMode(
-        parsed.layoutMode,
-        parsed.bottomDrawerOpen,
-      );
-      parsed.splitRatio = migrateSplitRatio(parsed.splitRatio);
+      // PR-UI 7 (schema v3): the Code Workbench shell is gone — drop its five
+      // persisted keys (deletion-only). bottomDrawerOpen is the even older
+      // PR7-Part-2 legacy key that fed layoutMode.
+      delete parsed.codeSubTab;
+      delete parsed.layoutMode;
+      delete parsed.splitRatio;
+      delete parsed.sidePanelOpen;
       delete parsed.bottomDrawerOpen;
       delete parsed.bottomDrawerTab;
       // Lite-W6 PR8 Part 1: sanitise the persisted recentChanges buffer.
@@ -562,8 +491,8 @@ function loadFromStorage(): WorkspaceState {
       if (!parsed.fileExplorerExpanded || typeof parsed.fileExplorerExpanded !== "object") {
         parsed.fileExplorerExpanded = {};
       }
-      // Lite-W6 PR8 Part 2 + PR6.3: side-panel persistence.
-      parsed.sidePanelOpen = parsed.sidePanelOpen === true;
+      // Lite-W6 PR6.3 + PR8 Part 2: side-panel width/mode persistence.
+      // (sidePanelOpen was dropped above — PR-UI 7.)
       parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
       parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
       // Lite-W6 PR9: aiWorkbenchOpen retired in favour of aiOverlayOpen.
@@ -583,7 +512,7 @@ function loadFromStorage(): WorkspaceState {
         currentSession: null,
         workdayKey: null,
       };
-      return migrateV1ToV2(merged);
+      return migrateV2ToV3(migrateV1ToV2(merged));
     } catch {
       // Corrupted data, start fresh
     }
@@ -592,7 +521,7 @@ function loadFromStorage(): WorkspaceState {
   // Try legacy migration
   const migrated = migrateV0();
   if (migrated) {
-    const upgraded = migrateV1ToV2(migrated);
+    const upgraded = migrateV2ToV3(migrateV1ToV2(migrated));
     persistToStorage(upgraded);
     return upgraded;
   }
@@ -625,9 +554,6 @@ interface WorkspaceContextValue {
   setActiveView: (view: ActiveView) => void;
   /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
   setUiV2View: (view: UiV2View) => void;
-  setCodeSubTab: (sub: CodeSubTab) => void;
-  /** Jump directly to a code-view sub-tab (also sets activeView="code"). */
-  openInCode: (sub: CodeSubTab) => void;
   setActiveFile: (file: string | null) => void;
   setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
   resetWorkspace: () => void;
@@ -638,11 +564,9 @@ interface WorkspaceContextValue {
   setCurrentSession: (session: Session | null) => void;
   setWorkdayKey: (workday: string | null) => void;
 
-  // Lite-W6 PR8 Part 2 — left side panel (⌘B).
-  toggleSidePanel: () => void;
-  setSidePanelOpen: (open: boolean) => void;
+  // Lite-W6 PR6.3 / PR8 Part 2 — side panel width + surface switcher.
+  // (sidePanelOpen / ⌘B toggle removed in PR-UI 7.)
   setSidePanelWidth: (width: number) => void;
-  // Lite-W6 PR6.3 — side panel surface switcher.
   setSidePanelMode: (mode: SidePanelMode) => void;
 
   // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
@@ -703,16 +627,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setCodeSubTab = useCallback((sub: CodeSubTab) => {
-    setState((prev) => ({ ...prev, codeSubTab: sub }));
-  }, []);
-
   const setUiV2View = useCallback((view: UiV2View) => {
     setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
-  }, []);
-
-  const openInCode = useCallback((sub: CodeSubTab) => {
-    setState((prev) => ({ ...prev, activeView: "code", codeSubTab: sub }));
   }, []);
 
   const setActiveFile = useCallback((file: string | null) => {
@@ -735,8 +651,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       ...DEFAULT_STATE,
       // Preserve non-project settings
       aiWorkbenchMode: prev.aiWorkbenchMode,
-      layoutMode: prev.layoutMode,
-      splitRatio: prev.splitRatio,
       // Carry forward the override flag — switching projects shouldn't
       // re-trigger the "default tab" demotion next launch.
       defaultTabUserOverride: prev.defaultTabUserOverride,
@@ -760,14 +674,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setWorkdayKey = useCallback((workday: string | null) => {
     setState((prev) => ({ ...prev, workdayKey: workday }));
-  }, []);
-
-  const toggleSidePanel = useCallback(() => {
-    setState((prev) => ({ ...prev, sidePanelOpen: !prev.sidePanelOpen }));
-  }, []);
-
-  const setSidePanelOpen = useCallback((open: boolean) => {
-    setState((prev) => ({ ...prev, sidePanelOpen: open }));
   }, []);
 
   const setSidePanelWidth = useCallback((width: number) => {
@@ -820,7 +726,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const openDiffFor = useCallback((path: string) => {
     setState((prev) => ({
       ...prev,
-      sidePanelOpen: true,
       sidePanelMode: "diff",
       diffTarget: path,
     }));
@@ -967,16 +872,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setProject,
         setActiveView,
         setUiV2View,
-        setCodeSubTab,
-        openInCode,
         setActiveFile,
         setIndexing,
         resetWorkspace,
         setOculpmStatus,
         setCurrentSession,
         setWorkdayKey,
-        toggleSidePanel,
-        setSidePanelOpen,
         setSidePanelWidth,
         setSidePanelMode,
         clearRecentChanges,

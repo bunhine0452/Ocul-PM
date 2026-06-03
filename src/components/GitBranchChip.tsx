@@ -20,7 +20,7 @@ import { GitBranch } from "./Icons";
  *     chip doesn't flicker; errors collapse to a muted "(git error)".
  */
 export function GitBranchChip({ projectId }: { projectId: number | null }) {
-  const { setState: setWorkspaceState } = useWorkspace();
+  const { setUiV2View } = useWorkspace();
   const [state, setState] = useState<GitHeadStatusBrief | null>(null);
   const [errored, setErrored] = useState(false);
 
@@ -55,10 +55,10 @@ export function GitBranchChip({ projectId }: { projectId: number | null }) {
 
   if (projectId == null) return null;
 
-  // PR7 Part 2: clicking the chip surfaces the Terminal in split mode and
-  // refreshes the brief so the badge resyncs after the user runs a command.
+  // PR-UI 7: clicking the chip opens the Terminal screen and refreshes the
+  // brief so the badge resyncs after the user runs a command.
   const openTerminalSplit = () => {
-    setWorkspaceState((p) => ({ ...p, layoutMode: "split" }));
+    setUiV2View("terminal");
     void refresh();
   };
 

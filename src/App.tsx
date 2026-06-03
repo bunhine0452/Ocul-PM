@@ -1,46 +1,25 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type Project, type ProjectStats, type IndexProgress } from "@/lib/bindings";
 
 // Core Components
-import { TitleBar } from "./components/TitleBar";
 import { CommandPalette } from "./components/CommandPalette";
 
 // Feature Panels
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
-import { PlannerPanel } from "@/features/planner/PlannerPanel";
-import { TerminalPanel } from "@/features/terminal/TerminalPanel";
-import { TodayScreen } from "@/features/today/TodayScreen";
-import { CodeWorkbench } from "@/features/code/CodeWorkbench";
-import { TerminalDock } from "@/components/TerminalDock";
-import { SidePanel } from "@/components/SidePanel";
 import { AiOverlay } from "@/components/AiOverlay";
-import { AiWorkbench } from "@/features/code/AiWorkbench";
-import type { ChangeOp } from "@/components/FileExplorer";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
-import { useWorkspace, type CodeSubTab } from "@/contexts/WorkspaceContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
-import { isUiV2Enabled } from "@/lib/uiFlags";
 
-// Lazy so Vite emits ShellV2 (+ its token/layer CSS) as a separate chunk that
-// loads only when the ui_v2 flag is on — this IS the token-isolation mechanism
-// (PR-UI 0 §0.6). flag-off never fetches the chunk, so the new green --accent
-// never reaches the legacy cream UI.
+// PR-UI 7 — ui_v2 is now the ONLY shell (flag removed). ShellV2 stays lazy so
+// it (plus its token/layer CSS chunk) loads only once a project is open; the
+// project picker (StartScreen) renders without pulling the shell chunk.
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 
-import {
-  FolderCode,
-  Network,
-  Calendar,
-  Settings,
-  Code2,
-  Sparkles,
-  Terminal,
-  Flame,
-} from "./components/Icons";
 import "./App.css";
 
 
@@ -53,25 +32,17 @@ function App() {
   const {
     state,
     setProject,
-    setActiveView,
     setUiV2View,
-    setCodeSubTab,
     setActiveFile,
     setIndexing,
     resetWorkspace,
     setOculpmStatus,
   } = useWorkspace();
 
-  // Final UI Update (ui_v2) — session-fixed flag (src/lib/uiFlags.ts). Computed
-  // once per render; flag-off keeps every legacy branch byte-identical.
-  const uiV2 = isUiV2Enabled();
-
   const {
     currentProjectId: selectedProjectId,
     currentProjectName: selectedProjectName,
     currentProjectRoot: selectedProjectRoot,
-    activeView,
-    codeSubTab,
     indexingProjectId: indexingId,
   } = state;
 
@@ -79,7 +50,6 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<StatsMap>({});
   const [error, setError] = useState<string | null>(null);
-  const [projectFiles, setProjectFiles] = useState<Array<[number, string]>>([]);
 
   // Project lifecycle dialogs
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
@@ -91,20 +61,12 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [greenfieldOpen, setGreenfieldOpen] = useState(false);
 
-  // ── Keyboard shortcuts (⌘1~5, ⌘K, ⌘,, ⌘\, ⌘J) ─────────────────────────
+  // ── Keyboard shortcuts (⌘1~⌘7, ⌘K, ⌘,, ⌘\) ────────────────────────────
   useGlobalShortcuts({
     onOpenPalette: () => setPaletteOpen(true),
-    onOpenSettings: () => setSettingsOpen(true),
-    // flag-on: ⌘1~⌘7 + ⌘, drive the ui_v2 screens (01-ia-and-shell §3).
-    uiV2Nav: uiV2 ? setUiV2View : undefined,
+    // ⌘1~⌘7 + ⌘, drive the ui_v2 screens (01-ia-and-shell §3).
+    uiV2Nav: setUiV2View,
   });
-
-  // Restore project files list on load or ID change
-  useEffect(() => {
-    if (selectedProjectId !== null) {
-      loadProjectFiles(selectedProjectId);
-    }
-  }, [selectedProjectId]);
 
   // .oculpm/ auto-init + watcher start on project selection (W1-PR7 + F-1 fix).
   // Idempotent server-side, so safe to call on every selection. Non-fatal:
@@ -180,16 +142,6 @@ function App() {
     }
   }
 
-  async function loadProjectFiles(projectId: number) {
-    try {
-      const res = await commands.listProjectFiles(projectId);
-      if (res.status === "ok") setProjectFiles(res.data);
-      else console.error("Failed to load project files:", res.error);
-    } catch (err) {
-      console.error("Error loading project files:", err);
-    }
-  }
-
   useEffect(() => {
     refreshProjects();
   }, []);
@@ -226,7 +178,6 @@ function App() {
     setIndexing(null);
 
     await refreshProjects();
-    if (selectedProjectId === id) await loadProjectFiles(id);
   }
 
   const startRenameProject = (p: Project) => {
@@ -262,14 +213,11 @@ function App() {
     }
   };
 
-  const handleSelectProject = async (p: Project) => {
+  const handleSelectProject = (p: Project) => {
     setProject(p.id, p.name, p.root_path);
     setActiveFile(null);
-    // W3-PR4: don't force a view — DEFAULT_STATE.activeView is "today" and
-    // returning users keep their last pick (preserved by WorkspaceContext's
-    // persisted state). Calling setActiveView here would flip the override
-    // flag and trample on user preference.
-    await loadProjectFiles(p.id);
+    // Don't force a view — returning users keep their last ui_v2 screen
+    // (WorkspaceContext.uiV2View persists it).
   };
 
   const handleBackToDashboard = () => {
@@ -278,59 +226,11 @@ function App() {
     refreshProjects();
   };
 
-  const isDetachedTerminalWindow = window.location.search.includes("window=terminal");
-  if (isDetachedTerminalWindow) {
-    return (
-      <div className="w-screen h-screen bg-stone-950 flex flex-col overflow-hidden select-text text-stone-100">
-        <TerminalPanel
-          projectRoot={selectedProjectRoot}
-          isPip={false}
-          onTogglePip={() => {}}
-          activeTab="terminal"
-          isDetachedWindow={true}
-        />
-      </div>
-    );
-  }
-
-  // Lite-W6 PR9 — `?window=ai` mounts only AiWorkbench, no overlay chrome.
-  // Project context follows the main window's last selection via
-  // WorkspaceContext persistence so the detached window has somewhere to
-  // operate even without an in-window project picker.
-  const isDetachedAiWindow = window.location.search.includes("window=ai");
-  if (isDetachedAiWindow) {
-    return (
-      <div className="w-screen h-screen bg-background flex flex-col overflow-hidden">
-        <AiWorkbench
-          activeProjectId={selectedProjectId}
-          activeFile={state.activeFile}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div
-      className={
-        uiV2
-          ? "h-screen overflow-hidden"
-          : "h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary overflow-hidden"
-      }
-    >
-      {/* Final UI Update (ui_v2): the new shell is full-screen and provides its
-          own chrome, so the legacy TitleBar is dropped when the flag is on. */}
-      {!uiV2 && (
-        <TitleBar
-          projectName={selectedProjectName}
-          projectId={selectedProjectId}
-          onBackToDashboard={selectedProjectId ? handleBackToDashboard : undefined}
-        />
-      )}
-
-      {uiV2 && selectedProjectId !== null ? (
-        // ui_v2 shell seam. Project picking still flows through the legacy
-        // StartScreen (onboarding is out of scope — 00-master-plan §10), so the
-        // project switcher routes back to the dashboard for now (PR-UI 1).
+    <div className="h-screen overflow-hidden">
+      {/* PR-UI 7 — ui_v2 is the only shell. A selected project mounts the
+          full-screen ShellV2 (its own chrome); no project shows the picker. */}
+      {selectedProjectId !== null ? (
         <Suspense fallback={null}>
           <ShellV2
             projectName={selectedProjectName}
@@ -338,7 +238,7 @@ function App() {
             onOpenProjectSwitcher={handleBackToDashboard}
           />
         </Suspense>
-      ) : selectedProjectId === null ? (
+      ) : (
         <StartScreen
           projects={projects}
           stats={stats}
@@ -350,18 +250,6 @@ function App() {
           onDeleteProject={confirmDeleteProject}
           onOpenSettings={() => setSettingsOpen(true)}
           onStartGreenfield={() => setGreenfieldOpen(true)}
-        />
-      ) : (
-        <WorkspaceShell
-          activeView={activeView}
-          codeSubTab={codeSubTab}
-          setActiveView={setActiveView}
-          setCodeSubTab={setCodeSubTab}
-          selectedProjectId={selectedProjectId}
-          selectedProjectRoot={selectedProjectRoot}
-          projectFiles={projectFiles}
-          reloadProjectFiles={() => loadProjectFiles(selectedProjectId)}
-          onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
 
@@ -459,181 +347,6 @@ function App() {
           </div>
         </Dialog>
       )}
-    </div>
-  );
-}
-
-// Old Dashboard function removed — replaced by StartScreen (W6 UI-6).
-
-// ────────────────────────────────────────────────────────────────────────
-// Workspace view (5-IA + Code sub-tabs)
-// ────────────────────────────────────────────────────────────────────────
-
-// W3-PR4: Today promoted to first (⌘1). Overview becomes #2 (⌘2).
-// `useGlobalShortcuts` mirrors this order — keep the two in lock-step.
-// Lite-W6 PR7 Part 1: IA collapsed from 4 (Today/Overview/Plan/Code) to
-// 3 (Today/Plan/Code). Overview was absorbed into Today per 04-ui-ux §2.
-// Shortcuts re-pack to ⌘1~⌘3; ⌘4/⌘5 retire.
-const PRIMARY_NAV = [
-  { id: "today" as const, label: "오늘", icon: Flame,           shortcut: "⌘1" },
-  { id: "plan" as const,  label: "계획", icon: Calendar,        shortcut: "⌘2" },
-  { id: "code" as const,  label: "코드", icon: Code2,           shortcut: "⌘3" },
-];
-
-const CODE_SUB_NAV: Array<{ id: CodeSubTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "files",    label: "Files",    icon: FolderCode },
-  { id: "ai",       label: "AI",       icon: Sparkles },
-  { id: "graph",    label: "Graph",    icon: Network },
-  { id: "terminal", label: "Terminal", icon: Terminal },
-];
-
-type WorkspaceProps = {
-  activeView: "today" | "plan" | "code";
-  codeSubTab: CodeSubTab;
-  setActiveView: (v: "today" | "plan" | "code") => void;
-  setCodeSubTab: (s: CodeSubTab) => void;
-  selectedProjectId: number;
-  selectedProjectRoot: string | null;
-  projectFiles: Array<[number, string]>;
-  reloadProjectFiles: () => Promise<void>;
-  onOpenSettings: () => void;
-};
-
-// Legacy (flag-off) workspace path. The ui_v2 seam moved up to App's return
-// in PR-UI 1 — when isUiV2Enabled() the App mounts <ShellV2> full-screen
-// instead of TitleBar + this Workspace. This thin alias is kept so the
-// flag-off render tree is unchanged from PR-UI 0.
-function WorkspaceShell(props: WorkspaceProps) {
-  return <Workspace {...props} />;
-}
-
-function Workspace(props: WorkspaceProps) {
-  const {
-    activeView, codeSubTab,
-    setActiveView, setCodeSubTab,
-    selectedProjectId, selectedProjectRoot,
-    projectFiles,
-    reloadProjectFiles,
-    onOpenSettings,
-  } = props;
-  // Lite-W6 PR7 Part 2 — workspace-level dock layout.
-  // Lite-W6 PR8 Part 2 — ⌘B side panel + recentChanges → lookup map.
-  const { state: workspaceState } = useWorkspace();
-  const { layoutMode, splitRatio, sidePanelOpen, recentChanges } = workspaceState;
-  const recentChangesMap = useMemo<Record<string, ChangeOp>>(() => {
-    const map: Record<string, ChangeOp> = {};
-    for (const c of recentChanges) map[c.path] = c.op;
-    return map;
-  }, [recentChanges]);
-  const mainPaneStyle: React.CSSProperties =
-    layoutMode === "terminal-only"
-      ? { display: "none" }
-      : layoutMode === "split"
-        ? { flexBasis: `${splitRatio * 100}%`, minHeight: 0 }
-        : { flexBasis: "100%", minHeight: 0 };
-
-  return (
-    <div className="flex-1 flex overflow-hidden">
-      {/* A. Primary IA strip (5 views) */}
-      <nav className="w-14 bg-secondary/35 border-r border-border flex flex-col justify-between items-center py-4 select-none shrink-0 glassy-sidebar" role="navigation" aria-label="메인 내비게이션">
-        <div className="flex flex-col space-y-3 w-full px-2" role="list">
-          {PRIMARY_NAV.map((nav) => {
-            const Icon = nav.icon;
-            const isActive = activeView === nav.id;
-            return (
-              <button
-                key={nav.id}
-                onClick={() => setActiveView(nav.id)}
-                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-                }`}
-                title={`${nav.label} (${nav.shortcut})`}
-                aria-label={`${nav.label} (${nav.shortcut})`}
-                aria-current={isActive ? "page" : undefined}
-                role="listitem"
-              >
-                <Icon className="w-5 h-5" />
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-col space-y-3 w-full px-2">
-          <button
-            onClick={onOpenSettings}
-            className="p-2.5 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all cursor-pointer"
-            title="Settings (⌘,)"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        </div>
-      </nav>
-
-      {/* A.5: Workspace-level FileTree side panel — ⌘B toggle (Lite-W6 PR8 Part 2). */}
-      {sidePanelOpen && (
-        <SidePanel
-          projectId={selectedProjectId}
-          indexedCount={projectFiles.length}
-          recentChanges={recentChangesMap}
-          onReindexed={reloadProjectFiles}
-        />
-      )}
-
-      {/* B. Code sub-nav (only inside Code view) — UI-5 will absorb this */}
-      {activeView === "code" && (
-        <aside className="w-12 border-r border-border flex flex-col items-center py-3 space-y-2 shrink-0 bg-secondary/15">
-          {CODE_SUB_NAV.map((sub) => {
-            const Icon = sub.icon;
-            const isActive = codeSubTab === sub.id;
-            return (
-              <button
-                key={sub.id}
-                onClick={() => setCodeSubTab(sub.id)}
-                className={`p-2 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-                }`}
-                title={sub.label}
-              >
-                <Icon className="w-4 h-4" />
-              </button>
-            );
-          })}
-        </aside>
-      )}
-
-      {/* C. Primary content + Workspace-level Terminal dock (PR7 Part 2).
-          The activeView pane and the TerminalDock share the column; the
-          dock's own `display:none` keeps PTY sessions alive when
-          layoutMode is "main-only". */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-background relative min-w-0">
-        <div style={mainPaneStyle} className="flex flex-col overflow-hidden">
-          {activeView === "today" && (
-            <div className="flex-1 h-full overflow-hidden">
-              <TodayScreen activeProjectId={selectedProjectId} />
-            </div>
-          )}
-
-          {activeView === "plan" && (
-            <div className="flex-1 h-full overflow-hidden">
-              <PlannerPanel activeProjectId={selectedProjectId} />
-            </div>
-          )}
-
-          {activeView === "code" && (
-            <CodeWorkbench
-              projectId={selectedProjectId}
-              projectRoot={selectedProjectRoot}
-              projectFiles={projectFiles}
-              reloadProjectFiles={reloadProjectFiles}
-            />
-          )}
-        </div>
-        <TerminalDock projectRoot={selectedProjectRoot} />
-      </main>
     </div>
   );
 }
