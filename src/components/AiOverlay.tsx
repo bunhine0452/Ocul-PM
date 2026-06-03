@@ -11,22 +11,16 @@
  *   - Centered on viewport with a 32 px margin all around. Width caps at
  *     720 px so large monitors keep the chrome readable.
  *   - Closes on ESC, on outside click, on ✕, or on a second ⌘\.
- *   - Header has a "↗ 분리" button that fires `commands.openAiWindow` and
- *     closes the overlay. The detached window is idempotent server-side
- *     (focus + unminimise the existing instance), so repeated clicks just
- *     bring the window to the front.
  *
- * The detached `?window=ai` entry mounts `AiWorkbench` directly — no
- * overlay chrome — so users can resize/move the system window freely.
+ * PR-UI 7 (Decision H) removed the detached `?window=ai` window, so the old
+ * "↗ 분리" header button + ⌘⇧\ were dropped — ⌘7 (AI 패널 화면) is the full-size
+ * home; this overlay stays the quick ⌘\ companion.
  */
 
-import { useEffect, useState } from "react";
-import { commands } from "@/lib/bindings";
+import { useEffect } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AiWorkbench } from "@/features/code/AiWorkbench";
-import { Button } from "@/components/ui/button";
-import { X, ExternalLink, Sparkles } from "@/components/Icons";
-import { toast } from "@/lib/toast";
+import { X, Sparkles } from "@/components/Icons";
 
 interface AiOverlayProps {
   activeProjectId: number | null;
@@ -36,7 +30,6 @@ interface AiOverlayProps {
 export function AiOverlay({ activeProjectId, activeFile }: AiOverlayProps) {
   const { state, setAiOverlayOpen } = useWorkspace();
   const { aiOverlayOpen } = state;
-  const [detaching, setDetaching] = useState(false);
 
   // ESC closes the overlay. We register the listener while open so the
   // global ⌘\ handler stays the canonical toggle path.
@@ -53,20 +46,6 @@ export function AiOverlay({ activeProjectId, activeFile }: AiOverlayProps) {
   }, [aiOverlayOpen, setAiOverlayOpen]);
 
   if (!aiOverlayOpen) return null;
-
-  const onDetach = async () => {
-    setDetaching(true);
-    try {
-      const res = await commands.openAiWindow();
-      if (res.status === "error") {
-        toast.destructive(`AI 윈도우 열기 실패: ${res.error}`);
-      } else {
-        setAiOverlayOpen(false);
-      }
-    } finally {
-      setDetaching(false);
-    }
-  };
 
   return (
     <div
@@ -89,27 +68,14 @@ export function AiOverlay({ activeProjectId, activeFile }: AiOverlayProps) {
             <h2 className="text-sm font-semibold font-heading">AI 패널</h2>
             <span className="text-[10px] text-muted-foreground font-mono">⌘\</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDetach}
-              disabled={detaching}
-              className="h-7 px-2 text-[11px] font-medium"
-              title="분리 윈도우로 열기 (⌘⇧\)"
-            >
-              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-              분리
-            </Button>
-            <button
-              onClick={() => setAiOverlayOpen(false)}
-              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="닫기 (Esc · ⌘\)"
-              aria-label="AI 패널 닫기"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={() => setAiOverlayOpen(false)}
+            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title="닫기 (Esc · ⌘\)"
+            aria-label="AI 패널 닫기"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </header>
 
         {/* Body — hosts the existing AiWorkbench so we don't rewrite Chat / Quick Edit. */}
