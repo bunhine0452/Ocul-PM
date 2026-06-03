@@ -143,6 +143,16 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // Typewriter animation handle — cancel on unmount so a mid-stream nav-away
+  // doesn't setState on an unmounted component.
+  const rafRef = useRef(0);
+  useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
+
   const send = useCallback(async () => {
     const trimmed = draft.trim();
     if (!trimmed || streaming) return;
@@ -177,16 +187,41 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       max_tokens: settings.maxTokens ?? null,
     };
 
-    let acc = "";
+    // Typewriter: deltas fill `target`; a rAF loop reveals characters fast so
+    // even chunky backend deltas look like smooth typing (dogfood 요청).
+    let target = "";
+    let shown = 0;
+    let receiving = true;
+
+    const renderShown = () => {
+      const text = target.slice(0, shown);
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { role: "assistant" as Role, content: text, provider };
+        return next;
+      });
+    };
+
+    const tick = () => {
+      if (shown < target.length) {
+        // Reveal a chunk scaled to the backlog (min 2/frame) — fast catch-up on
+        // big dumps, smooth char-by-char on the tail.
+        shown = Math.min(target.length, shown + Math.max(2, Math.ceil((target.length - shown) / 6)));
+        renderShown();
+        rafRef.current = requestAnimationFrame(tick);
+      } else if (receiving) {
+        rafRef.current = requestAnimationFrame(tick); // caught up — await more deltas
+      } else {
+        rafRef.current = 0;
+        setStreaming(false); // fully revealed + stream closed
+      }
+    };
+
     const channel = new Channel<ChatEvent>();
     channel.onmessage = (event) => {
       if (event.kind === "delta") {
-        acc += event.text;
-        setMessages((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = { role: "assistant" as Role, content: acc, provider };
-          return next;
-        });
+        target += event.text;
+        if (!rafRef.current) rafRef.current = requestAnimationFrame(tick);
       } else if (event.kind === "error") {
         setError(event.message);
       }
@@ -196,24 +231,40 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     try {
       res = await commands.chatStream(provider, llmHistory, chatOptions, channel);
     } catch (err) {
+      receiving = false;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
       setError(String(err));
       setStreaming(false);
       setMessages((prev) => prev.slice(0, -1));
       return;
     }
+    receiving = false; // backend done sending — let the typewriter drain the rest
     if (res.status === "error") {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
       setError(res.error);
       setMessages((prev) => prev.slice(0, -1));
       setStreaming(false);
       return;
     }
-    setStreaming(false);
+    if (!rafRef.current) {
+      // No deltas arrived (or already drained) — finalize immediately.
+      shown = target.length;
+      renderShown();
+      setStreaming(false);
+    }
+    // else: the running tick loop reveals the remainder and clears `streaming`.
 
-    // Best-effort persistence to the shared thread.
+    // Persist the FULL text (not the partially-revealed display).
     const id = threadRef.current;
-    if (id != null && acc) {
+    if (id != null && target) {
       void commands.chatMessageAppend(id, "user", trimmed, provider, model);
-      void commands.chatMessageAppend(id, "assistant", acc, provider, model);
+      void commands.chatMessageAppend(id, "assistant", target, provider, model);
     }
   }, [draft, streaming, messages, provider, settings, hasKey]);
 
@@ -293,16 +344,20 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                         )}
                       </div>
                       <div className="msg-text">
-                        {m.role === "assistant" ? (
-                          m.content ? (
-                            <Markdown>{m.content}</Markdown>
-                          ) : streaming && isLast ? (
-                            "…"
-                          ) : (
-                            ""
-                          )
-                        ) : (
+                        {m.role === "user" ? (
                           m.content
+                        ) : streaming && isLast ? (
+                          // While typing: plain text + caret (markdown is parsed
+                          // once the turn completes, below) for a smooth, cheap
+                          // typewriter without re-parsing markdown every frame.
+                          <>
+                            {m.content}
+                            <span className="ai-caret" aria-hidden="true" />
+                          </>
+                        ) : m.content ? (
+                          <Markdown>{m.content}</Markdown>
+                        ) : (
+                          ""
                         )}
                       </div>
                     </div>
