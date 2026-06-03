@@ -280,3 +280,62 @@
 .compose-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .compose-box textarea { flex: 1; border: none; outline: none; resize: none; background: transparent; font-family: var(--font); font-size: 13.5px; color: var(--text); line-height: 1.5; max-height: 120px; }
 .compose-ctx { max-width: 780px; margin: 0 auto 10px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-3); }
+
+/* --- Settings (PR-UI 6) — ported from Ocul-PM1.0/screens.css `.set-*` --- */
+.set-section { margin-bottom: 22px; }
+.set-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--sep); }
+.set-row:last-child { border-bottom: none; }
+.set-label { font-weight: 560; font-size: 13px; }
+.set-desc { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.set-desc.mono { font-family: var(--mono); }
+.set-ctl { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.set-input {
+  height: 30px; padding: 0 10px; border-radius: var(--radius-s); border: 1px solid var(--border-card);
+  background: var(--bg-inset); font-family: var(--mono); font-size: 12px; color: var(--text); min-width: 220px;
+  outline: none;
+}
+.set-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.set-input:disabled { opacity: 0.55; }
+
+/* Toggle rendered as a <button> for keyboard a11y (mockup used a div). */
+.toggle {
+  width: 40px; height: 23px; border-radius: 12px; background: var(--bg-active); position: relative;
+  cursor: pointer; transition: background 0.15s; flex: none;
+  appearance: none; -webkit-appearance: none; border: none; padding: 0;
+}
+.toggle.on { background: var(--accent); }
+.toggle > i { position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.3); transition: transform 0.15s; }
+.toggle.on > i { transform: translateX(17px); }
+.toggle:focus-visible { box-shadow: 0 0 0 3px var(--accent-ring); }
+
+/* Inline "config.toml 에서 관리 →" link button (token-based, no raw color). */
+.set-link {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 550;
+  color: var(--accent-text); background: transparent; border: none; cursor: pointer; padding: 0;
+  font-family: var(--font);
+}
+.set-link:hover { text-decoration: underline; }
+.set-link:disabled { color: var(--text-3); cursor: default; text-decoration: none; }
+
+/* Destructive button (WorkspaceContext reset / key delete) — uses the bug
+   trigger token, never a raw red (UI-MASTER-PROMPT §3.1). */
+.btn.danger { color: var(--t-bug); border-color: var(--t-bug-soft); }
+.btn.danger:hover { background: var(--t-bug-soft); }
+
+/* First ui_v2 modal pattern (PR-UI 6) — the API-key input dialog. */
+.set-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center;
+  z-index: 60; padding: 24px;
+}
+.set-modal {
+  width: 100%; max-width: 420px; background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-pop); padding: 22px;
+}
+.set-modal-title { font-size: 15px; font-weight: 650; margin-bottom: 4px; }
+.set-modal-desc { font-size: 12px; color: var(--text-3); margin-bottom: 16px; }
+.set-modal-input {
+  width: 100%; height: 38px; padding: 0 12px; border-radius: var(--radius-m); border: 1px solid var(--border-card);
+  background: var(--bg-inset); font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+}
+.set-modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.set-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }

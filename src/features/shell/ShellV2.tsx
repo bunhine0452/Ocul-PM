@@ -10,6 +10,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
+import { SettingsScreenV2 } from "@/features/settings/SettingsScreenV2";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -24,28 +25,8 @@ import "@/styles/index.css";
 // Final UI Update (ui_v2) — the new 248px-sidebar shell. Mounted by App ONLY
 // when isUiV2Enabled() is true. No ui_v2 class name collides with legacy
 // (verified PR-UI 1). Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT
-// §7.4), so the shell only owns the sidebar + the screen router. Screens not
-// yet built (PR-UI 4~6) fall through to a labelled placeholder.
-
-const PLACEHOLDER_META: Record<"settings", { title: string; sub?: string; pr: string }> = {
-  settings: { title: "설정", pr: "PR-UI 6" },
-};
-
-function Placeholder({ view }: { view: keyof typeof PLACEHOLDER_META }) {
-  const meta = PLACEHOLDER_META[view];
-  return (
-    <>
-      <Toolbar title={meta.title} sub={meta.sub} />
-      <div className="scroll">
-        <div className="page fade-in">
-          <div className="empty-hint">
-            '{meta.title}' 화면은 {meta.pr} 에서 채워집니다.
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
+// §7.4), so the shell only owns the sidebar + the screen router. All 8 ui_v2
+// screens are now built (PR-UI 2~6).
 
 interface ShellV2Props {
   projectName: string | null;
@@ -110,7 +91,11 @@ export default function ShellV2({
         macTopInset={isMac ? 22 : 0}
       />
       <main className="content">
-        {projectId == null ? (
+        {view === "settings" ? (
+          // Settings is global (⌘,) — reachable even before a project is
+          // selected; its per-project rows self-disable when projectId is null.
+          <SettingsScreenV2 projectId={projectId} projectRoot={projectRoot} />
+        ) : projectId == null ? (
           <>
             <Toolbar title={view === "today" ? "Today" : "작업 일지"} />
             <div className="scroll">
@@ -148,9 +133,7 @@ export default function ShellV2({
           <TerminalScreenV2 projectRoot={projectRoot} />
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
-        ) : (
-          <Placeholder view={view} />
-        )}
+        ) : null}
       </main>
     </div>
   );

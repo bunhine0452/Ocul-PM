@@ -487,4 +487,8 @@ export {
   Filter,
   Variable,
   CaseSensitive,
+  // PR-UI 6 (Settings) — keyring status chips + advanced / about.
+  ShieldCheck,
+  ShieldAlert,
+  Info,
 } from "lucide-react";

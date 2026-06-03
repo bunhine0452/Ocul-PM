@@ -117,6 +117,17 @@
 - **터미널 탭 = `terminalTabs`/`terminalActiveId` 영속.** PTY 핸들은 휘발성(탭 id = PTY session id, mount 시 spawn). 탭 전환 시 xterm 은 전부 mount 유지 + CSS display 토글로 PTY 보존. ⌘T 새 탭 / ⌘W 닫기(화면 내, stopPropagation).
 - **터미널/AI 단위 테스트 한계.** xterm(canvas)·PTY·스트리밍 Channel 은 jsdom 에서 실행 불가 → 단위 테스트는 Planner/Search 만(`tools_v2.test.tsx` 9개). 터미널/AI 는 dogfood 런타임 검증. axe 0 은 Planner/Search 로 커버.
 
+### 0.12 PR-UI 6 진행 중 추가 결정 (2026-06-03 잠금)
+
+- **Decision G — 기록 & 보안 섹션은 정직-최소 (Option A).** 목업의 3 토글(자동 일지 작성 / 시크릿 자동 마스킹 / 익명 통계)은 깔끔한 단일-boolean 백엔드가 없음 — 자동일지=watcher 제어, 마스킹=`git.auto_redact_patterns` *리스트*, 텔레메트리=백엔드 부재. 토글로 묶으면 `.oculpm/` 파이프라인을 건드리거나(UI-MASTER-PROMPT §1) 사용자 패턴을 파괴함. → **읽기 전용 상태 칩**(마스킹: 활성 패턴 수, 자동일지: `oculpmWatcherStatus.state`)으로 표시 + **"config.toml 에서 관리 →" 링크**(`openInEditor(projectRoot, ".oculpm/config.toml", externalEditorCommand)`)로 위임. 익명 통계는 *제거*(local-first 제품은 텔레메트리 없음 — 죽은 토글은 부정직). 사용자 확인 완료(2026-06-03).
+- **백엔드 무변경 (Decision F 계열).** 모든 컨트롤이 *기존* command 사용: 테마(`SettingsContext`/`useTheme`, Decision A), 외부 에디터(`settings.externalEditorCommand`), 워크데이/롤오버(per-project `oculpmGetConfig`/`oculpmSetConfig`, 400ms 디바운스 — 레거시 OculpmSettings 패턴), keyring(`secretHas`/`secretSet`/`secretDelete`), 폴더 열기(`revealItemInDir(appInfo.app_data_dir)` + 클립보드 fallback), 인덱스 재구축(`indexProject` + `Channel<IndexProgress>`), 초기화(`useWorkspace().resetWorkspace`). 신규 command·migration·specta 재생성 없음.
+- **ui_v2 모달 패턴 정립 (PR-UI 3/5 미룬 항목).** API 키 입력 모달 = `.set-modal-backdrop`/`.set-modal` (token-only, `--shadow-pop`). `role="dialog"`+`aria-modal`+`aria-labelledby`, Esc/백드롭 닫기, 키는 write-only(저장값 미표시). 이 패턴이 향후 Journal ⌘N 등의 ui_v2 모달 기준. 레거시 shadcn `ManualEntryModal` 은 PR-UI 7 정리 대상으로 유지.
+- **Settings 는 전역 — project 가드보다 먼저 라우팅.** ShellV2 가 `view === "settings"` 를 `projectId == null` 체크보다 *위* 에서 라우팅 → 프로젝트 미선택 상태(⌘,)에서도 진입 가능. per-project 행(워크데이/롤오버/마스킹·자동일지 상태/재구축/config.toml 링크)은 `projectId`/`projectRoot` null 시 self-disable.
+- **빌드 해시 = `__BUILD_HASH__` vite define.** About(정보) 섹션의 "버전 · 해시" 용으로 `git rev-parse --short HEAD` 를 `vite.config.ts` 의 `define` 에 주입(부재 시 `"dev"`). vitest 에는 define 이 없으므로 호출부는 `typeof __BUILD_HASH__ !== "undefined"` 가드. `src/vite-env.d.ts` 에 전역 선언.
+- **아이콘 추가.** `Icons.tsx` 의 lucide re-export 블록에 `ShieldCheck`/`ShieldAlert`(keyring 칩)/`Info` 추가 (§4.2 단일 출구, 자체 SVG 0).
+- **레거시 무변경 + flag-off 안전.** `SettingsPanel.tsx`/`OculpmSettings.tsx`(deep 설정)는 **0 diff lines** — flag-off 는 기존 SettingsPanel, flag-on 만 `SettingsScreenV2` (PR-UI 7 에서 레거시 정리). §6 비상표의 "PR-UI 6 회귀 → flag OFF 로 기존 SettingsPanel 복귀" 보존.
+- **open question (dogfood).** ShellV2 의 settings 라우팅을 project 가드 위로 옮긴 뒤 *무프로젝트* 상태의 시각 점검은 dogfood 에서 확인 필요(런타임 경로). 단위 테스트는 projectId 주입으로 커버.
+
 ---
 
 ## 1. Phase A — Foundation (3~4 일)
@@ -234,13 +245,15 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | Toolbar + section-title + `.card.set-section` 시각 정렬 |
-| ☐ | 외부 에디터 명령 input 신설 (디폴트 `code "%path"`) |
-| ☐ | 다크/라이트 scope-chip 동작 (ThemeContext 와 동기화) |
-| ☐ | API 키 row 의 keyring 상태 chip |
-| ☐ | 데이터 폴더 열기 / 인덱스 재구축 / WorkspaceContext 초기화 액션 |
-| ☐ | About 섹션 (버전 / 빌드 해시) |
-| ☐ | axe-core 0 violations |
+| ☑ | `src/features/settings/SettingsScreenV2.tsx` 신규 (flag-off `SettingsPanel`/`OculpmSettings` 무변경) — Toolbar + section-title + `.card.set-section` 시각 정렬 (`.set-*`/`.toggle` 목업 포팅) |
+| ☑ | 외부 에디터 명령 input 신설 (디폴트 `code "%path"`, `settings.externalEditorCommand`) |
+| ☑ | 다크/라이트 scope-chip 동작 (`useTheme`/SettingsContext 동기화 — Decision A) |
+| ☑ | API 키 row 의 keyring 상태 chip (`secretHas`) + 변경/추가 → ui_v2 키 입력 모달 (`secretSet`/`secretDelete`, §0.12) |
+| ☑ | 데이터 폴더 열기 (`revealItemInDir`) / 인덱스 재구축 (`indexProject`) / WorkspaceContext 초기화 (`resetWorkspace`, 2-step confirm) |
+| ☑ | About(정보) 섹션 — 버전(`appInfo.version`) / 빌드 해시(`__BUILD_HASH__` vite define) |
+| ☑ | ~~기록 & 보안 토글 (자동일지/마스킹/통계)~~ → **Decision G (§0.12)**: 읽기 전용 상태 칩 + config.toml 위임 링크, 통계 제거 (깔끔한 토글 백엔드 부재) |
+| ☑ | 워크데이 시작 시각 / 자정 자동 롤오버 — per-project `oculpmGetConfig`/`oculpmSetConfig` (400ms 디바운스) |
+| ☑ | axe-core 0 violations (`settings_v2.test.tsx` 6개 — 섹션/테마칩/keyring/모달/마스킹칩/axe) |
 
 ---
 

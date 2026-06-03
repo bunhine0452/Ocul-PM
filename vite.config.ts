@@ -1,14 +1,31 @@
 import { defineConfig } from "vite";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+// Short git SHA for the Settings → 정보 (About) build-hash row (PR-UI 6).
+// Falls back to "dev" when git is unavailable (e.g. a tarball build).
+const buildHash = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
+  }
+})();
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
+
+  define: {
+    __BUILD_HASH__: JSON.stringify(buildHash),
+  },
 
   resolve: {
     alias: {
