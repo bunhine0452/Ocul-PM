@@ -47,6 +47,17 @@ vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     listJournalEntries: (_pid: number, workday: string) =>
       Promise.resolve(fixtures.byWorkday[workday] ?? []),
+    // JournalCardV2 hydrates per-file chips via getJournalEntry.
+    getJournalEntry: (_pid: number, relativePath: string) =>
+      Promise.resolve({
+        relative_path: relativePath,
+        frontmatter: {
+          files_touched: [
+            { path: "src/lib/workday.ts", op: "update", bytes_added: 120, bytes_removed: 8, rename_from: null },
+            { path: "src/lib/useToday.ts", op: "update", bytes_added: 22, bytes_removed: 5, rename_from: null },
+          ],
+        },
+      }),
   },
 }));
 
@@ -90,11 +101,15 @@ describe("PR-UI 3 — Journal timeline", () => {
       summary({ relative_path: "a", title: "기능 작업", type: "feature" }),
       summary({ relative_path: "b", title: "버그 작업", type: "bug" }),
     ];
-    const { findByText, getByText } = renderJournal();
+    const { findByText, getByText, findAllByText } = renderJournal();
     expect(await findByText("기능 작업")).toBeInTheDocument();
     expect(getByText("버그 작업")).toBeInTheDocument();
     // day-label shows 오늘 prefix for todayKey.
     expect(getByText(/오늘 · 2026-05-31/)).toBeInTheDocument();
+    // Per-file chips hydrate from getJournalEntry (basename + bytes ±), not just
+    // a count — one card per entry, so the chip appears once per card.
+    expect((await findAllByText("workday.ts")).length).toBeGreaterThan(0);
+    expect((await findAllByText("+120")).length).toBeGreaterThan(0);
   });
 
   it("scope-chip filters by trigger type (버그 → only bug entries)", async () => {

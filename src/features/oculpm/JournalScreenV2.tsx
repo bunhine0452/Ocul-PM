@@ -180,6 +180,7 @@ export function JournalScreenV2({
                         <TriggerMeticon type={e.type} />
                       </span>
                       <JournalCardV2
+                        projectId={projectId}
                         entry={e}
                         focused={focusPath === e.relative_path}
                         onOpenDiff={onOpenDiff}
