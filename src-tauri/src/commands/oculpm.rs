@@ -16,6 +16,7 @@ use tauri_specta::Event;
 use crate::db::Db;
 use crate::oculpm::agents::AgentDetection;
 use crate::oculpm::cache::EntryFilters;
+use crate::oculpm::entry_diffs::EntryFileDiff;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
@@ -354,6 +355,25 @@ pub async fn oculpm_get_journal_entry(
         .get_journal_entry(&db, project_id, relative_path)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Read the per-file diffs recorded for a journal entry at the moment it was
+/// first indexed (see `oculpm::entry_diffs`). Returns `[]` when nothing was
+/// captured — the entry predates the feature, the project isn't a git repo, or
+/// it was written after committing — and the UI renders "기록된 변경 없음".
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_get_entry_diffs(
+    db: State<'_, Db>,
+    project_id: u32,
+    relative_path: String,
+) -> Result<Vec<EntryFileDiff>, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = PathBuf::from(&project.root_path);
+    Ok(crate::oculpm::entry_diffs::read_entry_diffs(
+        &root,
+        &relative_path,
+    ))
 }
 
 /// Toggle `verified_by_user` on a journal entry's frontmatter. Atomic

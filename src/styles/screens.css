@@ -107,13 +107,18 @@
 .jcard {
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-l); box-shadow: var(--shadow-card);
-  cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; overflow: hidden;
-  /* button reset (jcard is a <button> for a11y) */
-  appearance: none; -webkit-appearance: none;
-  font-family: var(--font); text-align: left; width: 100%; color: var(--text);
-  display: block;
+  cursor: default; transition: border-color 0.12s, box-shadow 0.12s; overflow: hidden;
+  font-family: var(--font); color: var(--text); display: block;
 }
 .jcard:hover { border-color: var(--sep-strong); box-shadow: var(--shadow-pop); }
+/* The "open 변경 diff" target — top + title. A real <button> so it's the
+   primary control; the file chips below are sibling buttons (no nested
+   interactive, keeping axe happy). */
+.jcard-main {
+  appearance: none; -webkit-appearance: none; border: none; background: none;
+  font-family: var(--font); text-align: left; width: 100%; color: var(--text);
+  display: block; cursor: pointer; padding: 0;
+}
 .jcard-top { display: flex; align-items: center; gap: 9px; padding: 13px 16px 0; }
 .jcard-time { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-family: var(--mono); }
 .jcard-agent { font-size: 11.5px; color: var(--text-2); display: flex; align-items: center; gap: 5px; font-weight: 550; }
@@ -128,6 +133,10 @@
   background: var(--bg-inset); border-radius: 7px; font-family: var(--mono); font-size: 11.5px; color: var(--text-2);
 }
 .file-pill b { color: var(--text); font-weight: 600; }
+/* Clickable file chip → opens the recorded-diff modal (EntryDiffModal). Button
+   reset over the .file-pill base; an accent ring on hover signals it opens. */
+.file-pill--btn { appearance: none; -webkit-appearance: none; border: none; cursor: pointer; }
+.file-pill--btn:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
 .cycle-flag { display: inline-flex; align-items: center; gap: 5px; color: var(--t-error); font-size: 11.5px; font-weight: 600; }
 .tag { font-size: 11px; color: var(--text-3); }
 .tag::before { content: "#"; opacity: 0.6; }

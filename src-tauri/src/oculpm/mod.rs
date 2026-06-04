@@ -12,6 +12,7 @@ pub mod agents;
 pub mod atomic_io;
 pub mod cache;
 pub mod config;
+pub mod entry_diffs;
 pub mod error;
 pub mod frontmatter;
 pub mod index;

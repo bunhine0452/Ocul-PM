@@ -602,7 +602,15 @@ impl WatcherInner {
                 // a journal entry. Previously only the low-level
                 // OculpmJournalPathChanged event was emitted, so the user
                 // never saw "새 기록" toasts.
+                let inserted = matches!(outcome, Some(UpsertOutcome::Inserted));
                 self.emit_journal_outcome(&cache, entry_rel, outcome).await;
+                // Persist per-file diffs for a brand-new entry so the 작업 일지
+                // can re-open "그 시점의 변경" at any later time, even after the
+                // file is committed (see oculpm::entry_diffs). Capture only on
+                // first insert; best-effort, never blocks the cache path.
+                if inserted {
+                    self.capture_entry_diffs(&cache, entry_rel).await;
+                }
             }
             Err(e) => {
                 tracing::warn!(
@@ -615,6 +623,54 @@ impl WatcherInner {
                     "[FLOW] journal cache invalidation failed (event still emitted)"
                 );
             }
+        }
+    }
+
+    /// Capture + persist per-file diffs for a freshly-inserted entry. Loads the
+    /// entry's `files_touched` from the cache, then offloads the (blocking) git
+    /// diff + sidecar write to a blocking thread. Best-effort: any failure is
+    /// logged, never propagated — a missing diff just renders as "기록된 변경
+    /// 없음" in the UI. See `oculpm::entry_diffs`.
+    async fn capture_entry_diffs(&self, cache: &JournalCache<'_>, entry_rel: &str) {
+        let touched = match cache.get_entry(self.project_id, entry_rel).await {
+            Ok(Some(entry)) => entry.frontmatter.files_touched,
+            Ok(None) => return,
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "entry-diff capture: get_entry failed"
+                );
+                return;
+            }
+        };
+        if touched.is_empty() {
+            return;
+        }
+        let root = self.root.clone();
+        let entry_rel_owned = entry_rel.to_string();
+        let res = tokio::task::spawn_blocking(move || {
+            crate::oculpm::entry_diffs::capture_entry_diffs(&root, &entry_rel_owned, &touched)
+        })
+        .await;
+        match res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "entry-diff capture: sidecar write failed"
+            ),
+            Err(e) => tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "entry-diff capture: blocking task panicked"
+            ),
         }
     }
 
