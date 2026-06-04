@@ -26,7 +26,7 @@ import {
   groupIntoHunks,
   pairDiffLines,
   type DiffLine,
-} from "@/features/diff/LocalDiffView";
+} from "@/features/diff/diffParse";
 import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { renderHook, act } from "@testing-library/react";

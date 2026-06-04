@@ -469,8 +469,8 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
                               cliCheck === undefined
                                 ? "text-muted-foreground bg-muted"
                                 : cliAvailable
-                                  ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30"
-                                  : "text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30"
+                                  ? "text-primary bg-primary/10"
+                                  : "text-[var(--accent-uncommitted)] bg-muted"
                             }`}
                           >
                             {cliCheck === undefined

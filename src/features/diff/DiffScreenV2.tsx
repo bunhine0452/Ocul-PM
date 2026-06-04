@@ -17,7 +17,7 @@ import {
   groupIntoHunks,
   pairDiffLines,
   type DiffLine,
-} from "./LocalDiffView";
+} from "./diffParse";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = WorkspaceContext.recentChanges (Watcher

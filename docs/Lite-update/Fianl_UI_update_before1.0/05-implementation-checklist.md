@@ -316,18 +316,21 @@
 | ☑ | `check-no-localstorage.mjs` legacy walk-제외 + 이동 파일 allowlist 정리 |
 | ☑ | `dark:` **62 → 27** (35 제거). 토큰 격리 유지(녹색 main css 0). typecheck/test(88)/lint/build green |
 
-**8b — live shadcn 표면 re-skin (보류 — 디자인 방향 필요, mockup 없음)**
+**8b — live shadcn 표면 re-skin (2026-06-04, 완료 — Option 2 변수 remap)**
+
+> 사용자 결정 **Option 2 (변수 remap)**: shadcn CSS 변수 *값* 을 ui_v2 토큰 팔레트로 교체 → 대시보드/오버레이가 ui_v2 녹색/macOS 톤을 입음(레이아웃은 shadcn 유지). mockup 없음 — 시각은 dogfood 로 튜닝.
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | 대시보드(StartScreen) → 토큰 시스템 re-skin |
-| ☐ | 전역 오버레이(SettingsOverlay/SettingsPanel · AiOverlay→ChatPanel · CommandPalette · rename·delete dialog · GreenfieldWizard) re-skin |
-| ☐ | shadcn primitives(ui/button·tabs·badge·input·select·textarea·checkbox = 14 `dark:`) 토큰 기반 재작성 or 대체 |
-| ☐ | `LocalDiffView` 컴포넌트(4 `dark:`, dead-in-kept-file) → 순수 파서 추출 후 컴포넌트 legacy 이동 |
-| ☐ | `Markdown`(2 `dark:` prose) 토큰화 |
-| ☐ | `SettingsContext` 의 `classList.toggle("dark")` 제거 (위 소비처 0 확인 후) |
-| ☐ | grep `dark:` → **0** · grep `classList.toggle("dark")` → **0** |
-| ☐ | typecheck / test / lint / build green |
+| ☑ | `App.css` shadcn 변수 remap: `--primary`→녹색(#12a06b/#2bc488) · `--background/card/muted/secondary`→ui_v2 surface · `--destructive`→`--t-bug` · `--ring`→accent. `:root`+`[data-theme=dark]` 양쪽 |
+| ☑ | `.dark` 셀렉터 전부 → `[data-theme="dark"]` (var 블록 + glassy/hljs/code-editor 규칙 45곳) + `@custom-variant dark` → `[data-theme]` |
+| ☑ | `classList.toggle("dark")` 제거 (SettingsContext, data-theme 속성만) — Decision A 의 `.dark` 병행 종료 |
+| ☑ | shadcn primitives(button·tabs·badge·input·select·textarea·checkbox) `dark:` 14개 strip (base 가 var 로 테마) |
+| ☑ | ChatPanel(5: 우선순위 배지→`--t-*` var 클래스, prose-invert 래퍼 제거) · GreenfieldWizard(2: CLI 배지→`--primary`/`--accent-uncommitted`) · Markdown(2: prose-invert 를 useTheme 조건부, 복사버튼→토큰) |
+| ☑ | `LocalDiffView` 순수 파서 → `diffParse.ts` 추출(DiffScreenV2+safety-net import 갱신), 컴포넌트(4 `dark:`)는 `src/legacy/diff/` 이동 |
+| ☑ | theme_toggle 테스트의 `.dark` class 단언 4개 제거 (data-theme 단언 유지) |
+| ☑ | **grep `dark:` → 0** · **grep `classList.toggle("dark")` → 0** · typecheck/test(88)/lint/build green |
+| ⚠ | 시각 튜닝: shadcn `--accent`(hover) 는 dashboard=gray / in-project 오버레이=green(ui_v2 `--accent` 전역 충돌). 대비·미스매치는 dogfood 후 조정 |
 
 ---
 

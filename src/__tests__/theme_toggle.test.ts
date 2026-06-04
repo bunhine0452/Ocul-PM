@@ -63,9 +63,7 @@ describe("PR-UI 0 — data-theme attribute toggle", () => {
     await waitFor(() => expect(result.current.loaded).toBe(true));
     await waitFor(() =>
       expect(document.documentElement.getAttribute("data-theme")).toBe("light"),
-    );
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
-  });
+    );  });
 
   it("setting theme='dark' sets data-theme + .dark, and round-trips to light", async () => {
     const { result } = mountSettings();
@@ -77,16 +75,12 @@ describe("PR-UI 0 — data-theme attribute toggle", () => {
     await waitFor(() =>
       expect(document.documentElement.getAttribute("data-theme")).toBe("dark"),
     );
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-
     await act(async () => {
       await result.current.set("theme", "light");
     });
     await waitFor(() =>
       expect(document.documentElement.getAttribute("data-theme")).toBe("light"),
-    );
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
-  });
+    );  });
 
   it("theme='system' follows the OS dark preference", async () => {
     setMatchMedia(true);
@@ -98,7 +92,5 @@ describe("PR-UI 0 — data-theme attribute toggle", () => {
     });
     await waitFor(() =>
       expect(document.documentElement.getAttribute("data-theme")).toBe("dark"),
-    );
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-  });
+    );  });
 });

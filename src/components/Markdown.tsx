@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { useState, useCallback, type ReactNode } from "react";
 import { Copy, Check } from "./Icons";
+import { useTheme } from "@/lib/theme";
 
 /** Code block wrapper with a copy button overlay */
 function CodeBlockWrapper({ children, className }: { children: ReactNode; className?: string }) {
@@ -37,7 +38,7 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
         )}
       </button>
       {copied && (
-        <span className="absolute top-2 right-9 text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded-md border border-green-200 dark:border-green-800 opacity-0 group-hover/code:opacity-100 transition-opacity">
+        <span className="absolute top-2 right-9 text-[10px] font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
           복사됨
         </span>
       )}
@@ -46,18 +47,22 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
 }
 
 export function Markdown({ children }: { children: string }) {
+  // PR-UI 8b — Tailwind Typography's dark inversion applied via the theme
+  // (no Tailwind dark-variant): add `prose-invert` only when the resolved
+  // theme is dark. data-theme drives `resolvedTheme`.
+  const { resolvedTheme } = useTheme();
   return (
     <div
-      className="
+      className={`
         prose prose-sm prose-neutral max-w-none
-        dark:prose-invert
+        ${resolvedTheme === "dark" ? "prose-invert" : ""}
         prose-pre:bg-muted prose-pre:text-foreground prose-pre:rounded-md
         prose-code:before:hidden prose-code:after:hidden
         prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5
         prose-pre:p-3 prose-pre:my-2
         prose-p:my-2 prose-headings:my-3
         prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
-      "
+      `}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}

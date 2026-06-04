@@ -311,10 +311,11 @@ export function ActionProposalCard({
   };
 
   const priorityLabels = ["보통", "높음", "긴급"];
+  // PR-UI 8b — ui_v2 trigger-token vars (theme via [data-theme] attribute).
   const priorityColors = [
-    "bg-gray-100 text-gray-800 dark:bg-gray-800/80 dark:text-gray-200",
-    "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    "bg-[var(--t-chore-soft)] text-[var(--t-chore)]",
+    "bg-[var(--t-error-soft)] text-[var(--t-error)]",
+    "bg-[var(--t-bug-soft)] text-[var(--t-bug)]",
   ];
 
   return (
@@ -1024,7 +1025,7 @@ export function ChatPanel({
                           // (conversationId, messageIndex) instead of a composed key.
                           return (
                             <div className="space-y-1 max-w-none">
-                              <div className="prose prose-sm dark:prose-invert text-xs leading-relaxed">
+                              <div className="prose prose-sm text-xs leading-relaxed">
                                 <Markdown>{cleanText}</Markdown>
                               </div>
                               {action && !isStreaming && (
@@ -1281,7 +1282,7 @@ export function ChatPanel({
                         const isStreaming = pending && i === messages.length - 1;
                         return (
                           <div className="space-y-1 max-w-none">
-                            <div className="prose prose-sm dark:prose-invert">
+                            <div className="prose prose-sm">
                               <Markdown>{cleanText}</Markdown>
                             </div>
                             {action && !isStreaming && (
