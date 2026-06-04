@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
+import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
 //
@@ -99,6 +100,10 @@ export function useTodayBrief(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+
+  // Live refresh when the watcher indexes a journal change for this project
+  // (PR-UI 8b follow-up — Today reflects new entries without a remount).
+  useJournalEvents(projectId, enabled, refresh);
 
   // The 7 workday keys we chart, oldest → newest.
   const weekKeys = useMemo(() => {

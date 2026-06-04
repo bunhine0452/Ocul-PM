@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import type { JournalEntrySummary } from "@/lib/bindings";
+import { useJournalEvents } from "./useJournalEvents";
 
 // Final UI Update (ui_v2) — fetch journal entries for the last N workdays and
 // group them by day for the timeline. Frontend aggregation over the existing
@@ -59,6 +60,9 @@ export function useJournalDays(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+
+  // Live refresh when the watcher indexes a journal change for this project.
+  useJournalEvents(projectId, enabled, refresh);
 
   const keys = useMemo(() => {
     if (!todayKey) return [];

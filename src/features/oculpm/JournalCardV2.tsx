@@ -24,6 +24,14 @@ function timeLabel(createdAt: string): string {
   return m ? m[1] : "";
 }
 
+/** Compact byte delta for the file chips (frontmatter stores byte counts, not
+ *  lines): 8200 → "8.2k", 42000 → "42k", 64 → "64". */
+function fmtBytes(n: number): string {
+  if (n >= 10000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
 interface JournalCardV2Props {
   projectId: number;
   entry: JournalEntrySummary;
@@ -86,9 +94,9 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
               <span className="file-pill" key={f.path}>
                 <FileCode2 size={12} color="var(--text-3)" />
                 <b>{f.path.split("/").pop()}</b>
-                <span className="diff-add">+{f.bytes_added ?? 0}</span>
+                <span className="diff-add">+{fmtBytes(f.bytes_added ?? 0)}</span>
                 {f.bytes_removed && f.bytes_removed > 0 ? (
-                  <span className="diff-del">−{f.bytes_removed}</span>
+                  <span className="diff-del">−{fmtBytes(f.bytes_removed)}</span>
                 ) : null}
               </span>
             ))}
