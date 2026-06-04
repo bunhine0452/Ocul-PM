@@ -54,6 +54,7 @@ vi.mock("@/lib/bindings", () => {
               );
           if (prop === "openInEditor") return () => ok(null);
           if (prop === "settingsGetAll") return () => ok([] as Array<[string, string]>);
+          if (prop === "readProjectFile") return () => ok("새 파일 첫 줄\n새 파일 둘째 줄");
           return () => ok(null);
         },
       },
@@ -150,14 +151,17 @@ describe("PR-UI 4 — Diff screen", () => {
     await waitFor(() => expect(getByText("검토함")).toBeInTheDocument());
   });
 
-  it("snapshots_unavailable shows the baseline hint", async () => {
+  it("no baseline → renders the whole file as additions (immediate diff)", async () => {
     seedRecentChanges([{ path: "src/c.ts", op: "A" }]);
     diffByPath["src/c.ts"] = {
       path: "src/c.ts",
       source: { source: "snapshots_unavailable" },
     };
     const { findByText } = renderDiff();
-    expect(await findByText(/아직 baseline 이 없어요/)).toBeInTheDocument();
+    // readProjectFile content shows as additions + the new-file footer, instead
+    // of the old "no baseline" dead-end prompt (dogfood fix).
+    expect(await findByText(/아직 baseline 이 없는 새 파일/)).toBeInTheDocument();
+    expect(await findByText(/새 파일 첫 줄/)).toBeInTheDocument();
   });
 
   it("pre-selects the diffActivePath handoff from the journal card", async () => {

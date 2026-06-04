@@ -48,6 +48,10 @@ export function DiffScreenV2({ projectId, projectRoot, branch }: DiffScreenV2Pro
   // parked by PR-UI 3), else the most recent change.
   const [selected, setSelected] = useState<string | null>(diffActivePath);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  // For a file with no git/snapshot baseline (untracked/new), the whole file
+  // content rendered as an all-additions patch — so changes show immediately
+  // instead of the "no baseline" prompt.
+  const [newFilePatch, setNewFilePatch] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const consumedHandoff = useRef(false);
@@ -79,20 +83,35 @@ export function DiffScreenV2({ projectId, projectRoot, branch }: DiffScreenV2Pro
   useEffect(() => {
     if (!selected) {
       setDiff(null);
+      setNewFilePatch(null);
       setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setNewFilePatch(null);
     commands
       .computeDiff(projectId, selected, DIFF_MAX_BYTES)
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
-        if (res.status === "ok") setDiff(res.data);
-        else {
+        if (res.status !== "ok") {
           setDiff(null);
           setError(res.error);
+          return;
+        }
+        setDiff(res.data);
+        // No git/snapshot baseline (untracked or never-indexed file). Read the
+        // file and show its whole content as additions, so the change is
+        // visible right away instead of the "no baseline" prompt.
+        if (res.data.source.source === "snapshots_unavailable") {
+          const fileRes = await commands.readProjectFile(projectId, selected);
+          if (cancelled) return;
+          setNewFilePatch(
+            fileRes.status === "ok"
+              ? fileRes.data.split("\n").map((l) => "+" + l).join("\n")
+              : null,
+          );
         }
       })
       .catch((e) => {
@@ -252,7 +271,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch }: DiffScreenV2Pro
                   <TriangleAlert size={14} /> {error}
                 </div>
               ) : diff ? (
-                <DiffBody result={diff} mode={diffMode} />
+                <DiffBody result={diff} mode={diffMode} newFilePatch={newFilePatch} />
               ) : (
                 <div className="empty-hint">왼쪽에서 파일을 선택하세요.</div>
               )}
@@ -266,12 +285,36 @@ export function DiffScreenV2({ projectId, projectRoot, branch }: DiffScreenV2Pro
 
 // ── diff body — reuses LocalDiffView's pure parsers, renders mockup .dl rows ──
 
-function DiffBody({ result, mode }: { result: DiffResult; mode: DiffMode }) {
+function DiffBody({
+  result,
+  mode,
+  newFilePatch,
+}: {
+  result: DiffResult;
+  mode: DiffMode;
+  newFilePatch: string | null;
+}) {
   if (result.source.source === "snapshots_unavailable") {
+    // No baseline yet — render the file's whole content as additions so the
+    // user sees the change immediately (untracked / never-indexed file).
+    if (newFilePatch == null) {
+      return (
+        <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+          파일을 읽는 중…
+        </div>
+      );
+    }
+    const newHunks = groupIntoHunks(classifyDiffLines(newFilePatch));
     return (
-      <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-        아직 baseline 이 없어요. 이 파일은 인덱싱된 적이 없어 비교 대상을 만들 수
-        없습니다. 부분 reindex 후 이후 변경부터 diff 가 표시됩니다.
+      <div>
+        {newHunks.map((h, hi) => (
+          <Hunk key={hi} header={h.header?.text ?? null} lines={h.lines} mode={mode} />
+        ))}
+        <div className="diff-foot">
+          <GitBranchIcon size={13} />
+          아직 baseline 이 없는 새 파일이라 전체 내용을 표시합니다. (git 커밋 또는
+          인덱싱 후엔 변경분만 표시)
+        </div>
       </div>
     );
   }
