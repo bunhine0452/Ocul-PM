@@ -305,16 +305,28 @@
 
 ### PR-UI 8 — legacy UI 은퇴 (후속, Decision J §0.13)
 
-> PR-UI 7 에서 *이월* 된 시각 토큰 purge. **별도 PR** (사용자 확정 2026-06-03). PR-UI 7 머지·dogfood 와 독립.
+> PR-UI 7 에서 *이월* 된 시각 토큰 purge. **별도 PR** (사용자 확정 2026-06-03). 사용자 결정으로 **8a(dead 이동, 기계적) → 8b(live re-skin, 디자인) 분리** 진행.
+
+**8a — dead 레거시 클러스터 → `src/legacy/` 이동 (2026-06-04, 완료)**
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | 대시보드(StartScreen) → 토큰 시스템 re-skin (현 shadcn `dark:` → `--*` 토큰) |
-| ☐ | 전역 오버레이(Settings 모달 / AiOverlay / CommandPalette / rename·delete dialog / MigrationModal) re-skin |
-| ☐ | shadcn primitives(ui/button·tabs·badge 등) 토큰 매핑 or ui_v2 prim 대체 |
-| ☐ | ui_v2 미렌더 레거시 컴포넌트(LocalDiffView 컴포넌트·GoalCard·JournalEntryCard·PlannerPanel·ChatPanel·TodayScreen·TimelineView·TitleBar·GitBranchChip) → `src/legacy/` 이동 (단, AiWorkbench/ChatPanel 은 AiOverlay 의존 — 분리 설계 필요) |
-| ☐ | `SettingsContext` 의 `classList.toggle("dark")` 제거 (레거시 shadcn 소비처 0 확인 후) |
-| ☐ | grep `dark:` → **0** · grep `classList.toggle("dark")` → **0** (PR-UI 7 의 이월분 완결) |
+| ☑ | dead 레거시 화면 클러스터 이동: TodayScreen · overview/**(OverviewScreen·ProjectMetaHeader·widgets) · oculpm(TimelineView·JournalEntryCard·JournalEntryDetail·CategoryFilterBar·OculpmOnboardingModal·ManualEntryModal·EmptyToday·filters) · planner(PlannerPanel·GoalCard·SubtaskList·GoalForm·CalendarView·Dashboard) · projects(MigrationModal·LegacyDeleteModal·migrationLogic) |
+| ☑ | live production 코드는 이동 파일을 *하나도* import 안 함 확인(typecheck 에러 2건 = a11y 테스트뿐 → V2 커버리지로 대체). 모든 live→dead 참조는 주석/이벤트였음 |
+| ☑ | `check-no-localstorage.mjs` legacy walk-제외 + 이동 파일 allowlist 정리 |
+| ☑ | `dark:` **62 → 27** (35 제거). 토큰 격리 유지(녹색 main css 0). typecheck/test(88)/lint/build green |
+
+**8b — live shadcn 표면 re-skin (보류 — 디자인 방향 필요, mockup 없음)**
+
+| 체크 | 항목 |
+|---|---|
+| ☐ | 대시보드(StartScreen) → 토큰 시스템 re-skin |
+| ☐ | 전역 오버레이(SettingsOverlay/SettingsPanel · AiOverlay→ChatPanel · CommandPalette · rename·delete dialog · GreenfieldWizard) re-skin |
+| ☐ | shadcn primitives(ui/button·tabs·badge·input·select·textarea·checkbox = 14 `dark:`) 토큰 기반 재작성 or 대체 |
+| ☐ | `LocalDiffView` 컴포넌트(4 `dark:`, dead-in-kept-file) → 순수 파서 추출 후 컴포넌트 legacy 이동 |
+| ☐ | `Markdown`(2 `dark:` prose) 토큰화 |
+| ☐ | `SettingsContext` 의 `classList.toggle("dark")` 제거 (위 소비처 0 확인 후) |
+| ☐ | grep `dark:` → **0** · grep `classList.toggle("dark")` → **0** |
 | ☐ | typecheck / test / lint / build green |
 
 ---

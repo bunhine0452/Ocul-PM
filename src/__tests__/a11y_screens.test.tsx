@@ -37,9 +37,10 @@ vi.mock("@/api/oculpm", () => ({
 
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { TodayScreen } from "@/features/today/TodayScreen";
-import { PlannerPanel } from "@/features/planner/PlannerPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
+// PR-UI 8a — TodayScreen/PlannerPanel moved to src/legacy/ (dead in ui_v2).
+// Their a11y is now covered by the V2 equivalents (today_v2 / tools_v2). The
+// still-live SettingsPanel (dashboard SettingsOverlay) keeps its check here.
 
 const AXE_OPTIONS = {
   rules: {
@@ -68,25 +69,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("a11y — Lite-W6 3-IA screens (PR10 Part 2)", () => {
-  it("TodayScreen has no axe violations", async () => {
-    const { container } = render(
-      <Wrap>
-        <TodayScreen activeProjectId={null} />
-      </Wrap>,
-    );
-    expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
-  });
-
-  it("PlannerPanel has no axe violations", async () => {
-    const { container } = render(
-      <Wrap>
-        <PlannerPanel activeProjectId={null} />
-      </Wrap>,
-    );
-    expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
-  });
-
+describe("a11y — live legacy SettingsPanel (dashboard overlay)", () => {
   it("SettingsPanel has no axe violations", async () => {
     const { container } = render(
       <Wrap>
