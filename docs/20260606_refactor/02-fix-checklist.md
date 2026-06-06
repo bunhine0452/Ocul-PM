@@ -17,7 +17,7 @@
 | R1 — 죽은 컨트롤은 연결 or 제거 (비활성 유지 금지) | ✅ 잠금 | 사용자 결정(2026-06-06): **셋 다 실제로 동작하게 구현** (제거 아님). A4=수동일지 모달 ✅ / A2=심볼·정확 검색 실연동 / A3=AI 대화 기록 실연동 |
 | R2 — Today "다음 할 일" 은 연결 | ✅ 잠금 | 상위 5개 미완료 subtask, in_progress goal 우선 (`useNextTasks`) — A1 구현 완료 |
 | R3 — ~~코드 검색 심볼/정확 칩 제거~~ → **실연동** (reversal) | ✅ 완료 | 신규 백엔드 `search_text`/`search_symbols` + SearchScreenV2 3-scope. 심볼=AST 인덱스, 정확=chunk content LIKE (의미검색과 동일 커버리지) |
-| R4 — 온보딩 = StartScreen 인라인 가이드 | ⬜ 제안 | — |
+| R4 — 온보딩 = StartScreen 인라인 가이드 | ✅ 완료 | 별도 풀스크린 마법사 아님. 프로젝트 0개일 때 "이렇게 동작해요" 3단계 카드 (StartScreen) + Today 빈 상태 터미널 CTA |
 | R5 — entry-diff PR-R3 머지 + fallback/안내 | ⬜ 제안 | — |
 | R6 — 시각 마감 = PR-UI 8b 변수 remap 패턴 계승 | ⬜ 제안 | — |
 
@@ -57,12 +57,12 @@
 
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
-| ☐ | StartScreen 핵심 루프 3 단계 가이드 카드 (프로젝트 추가 → AGENTS.md 규칙 주입 → 평소처럼 에이전트 코딩 → 일지 자동 기록) | C1 |
-| ☐ | "프롬프트 복사" / "AGENTS.md 재동기화" 의미 툴팁 (동작 차이 명시) | C1 |
-| ☐ | 첫 일지 0 건 시 Today 빈 상태 CTA (터미널 ⌘6 / 프롬프트 복사 유도) | C2 |
-| ☐ | AI 패널 첫 진입 시 키 미설정 CTA / 외부 에디터 실패 토스트 | C3 |
-| ☐ | 시각: 추가 UI 가 ui_v2 토큰 사용 (StartScreen 은 §PR-R4 와 조율) |
-| ☐ | `pnpm typecheck` / `pnpm test` / `pnpm lint` green |
+| ☑ | StartScreen 핵심 루프 3 단계 가이드 카드 (폴더 추가 → AGENTS.md 규칙 주입 → 평소처럼 에이전트 코딩 → 자동 기록). *프로젝트 0개일 때만* 표시 — 신규 유저 정조준. "직접 기록 안 해도 된다" 수동 모델 명시 | C1 |
+| ☐→이연 | "프롬프트 복사" / "AGENTS.md 재동기화" 툴팁 — 해당 버튼은 legacy OculpmSettings(shadcn deep) 표면. PR-R4(레거시 re-skin) 와 함께 | C1 |
+| ☑ | 첫 일지 0 건 시 Today 빈 상태 CTA — "터미널에서 에이전트 실행" → ⌘6 terminal nav | C2 |
+| 🔵 | AI 패널 키 미설정 CTA = *기존에 이미 구현됨*(`keysResolved && !anyKey` → "설정에서 키 추가 →"). 외부 에디터 실패 토스트는 P2 이연 | C3 |
+| ☑ | 시각: StartScreen 가이드는 shadcn 시맨틱 토큰 양식(일관) · Today CTA 는 ui_v2 토큰. `dark:`/arbitrary 색 0 | |
+| ☑ | `pnpm typecheck` / `pnpm test`(104 pass) / `pnpm lint` / `pnpm build` green |
 
 ---
 
@@ -134,7 +134,7 @@
 |---|---|---|
 | R0 — Foundation (보호망+태그) | ✅ done | `pre-refactor` 태그 (2990b19) |
 | R1 — 죽은/미완성 UI 정리 | ✅ done | A1·A4·A3·A2 전부 실연동 (비활성 컨트롤 0) |
-| R2 — 첫 실행/온보딩 | ⬜ todo | — |
+| R2 — 첫 실행/온보딩 | ✅ done (C1·C2 / C3 P2 이연) | — |
 | R3 — 데이터 루프 견고성 | ⬜ todo | — |
 | R4 — 시각 일관성 마감 | ⬜ todo | — |
 | R5 — 배포 위생 + 1.0 | ⬜ todo | — |
@@ -181,3 +181,4 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 - 2026-06-06 · 결정 · 사용자: A2(검색 심볼/정확)·A3(AI 대화기록)을 **제거 대신 실연동**. R3 reversal. A2 는 신규 백엔드 필요 → PR-R1b.
 - 2026-06-06 · PR-R1 · A3: AI 패널 "대화 기록" 실연동 (`ConversationHistoryModal` — 목록/전환/새 대화/삭제, 기존 conversation_* backend, ai_history 테스트 6건) (A3)
 - 2026-06-06 · PR-R1b · A2: 코드 검색 심볼/정확 실연동 — 신규 backend `search_text`/`search_symbols` + `SymbolSearchResult`(db.rs/project.rs/lib.rs, specta 재생성, cargo test green) + SearchScreenV2 3-scope + tools_v2 테스트 2건 (A2). **PR-R1 완결 — 비활성 컨트롤 0**
+- 2026-06-06 · PR-R2 · C1: StartScreen 온보딩 가이드(프로젝트 0개 시 "이렇게 동작해요" 3단계 + 수동모델 명시) + start_screen 테스트 4건. C2: Today 빈 상태 "터미널에서 에이전트 실행" CTA + today_v2 테스트. (C3 AI키 CTA 는 기존 구현, 외부에디터 토스트 P2 이연)

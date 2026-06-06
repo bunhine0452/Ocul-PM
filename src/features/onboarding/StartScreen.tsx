@@ -21,6 +21,8 @@ import {
   Settings,
   Clock,
   ArrowRight,
+  Bot,
+  NotebookText,
 } from "../../components/Icons";
 
 type StatsMap = Record<number, ProjectStats>;
@@ -104,6 +106,71 @@ export function StartScreen(props: StartScreenProps) {
           오늘 무엇을 만들 건가요?
         </p>
       </div>
+
+      {/* ── How it works (PR-R2 C1) — 첫 사용자(프로젝트 0개)에게 핵심 가치
+          루프와 *수동 기록이 아니라는* 멘탈 모델을 설명한다. ───────────── */}
+      {projects.length === 0 && (
+        <section
+          className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-5"
+          aria-label="Ocul-PM 사용 안내"
+        >
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-foreground tracking-tight">
+              Ocul-PM 은 이렇게 동작해요
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              직접 기록하지 않아도 됩니다. 평소처럼 코딩 에이전트로 작업하면, Ocul-PM 이
+              변경·작업 일지·통계를 <span className="text-foreground font-semibold">자동으로</span> 모아줍니다.
+            </p>
+          </div>
+
+          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              {
+                n: 1,
+                Icon: FolderOpen,
+                title: "프로젝트 폴더 추가",
+                body: "폴더를 불러오면 Ocul-PM 이 코딩 에이전트용 규칙(AGENTS.md)을 자동으로 심어요.",
+              },
+              {
+                n: 2,
+                Icon: Bot,
+                title: "평소처럼 에이전트로 코딩",
+                body: "Claude Code·Cursor·Gemini 등 쓰던 에이전트로 작업하면, 그 규칙에 따라 에이전트가 작업 일지를 남겨요.",
+              },
+              {
+                n: 3,
+                Icon: NotebookText,
+                title: "자동으로 기록·정리",
+                body: "남겨진 작업 일지·변경 diff·통계를 Today 화면에 모아 보여줍니다.",
+              },
+            ].map(({ n, Icon, title, body }) => (
+              <li
+                key={n}
+                className="rounded-xl border border-border/70 bg-background/40 p-4 space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/12 text-primary text-xs font-bold shrink-0">
+                    {n}
+                  </span>
+                  <Icon className="w-4 h-4 text-primary" strokeWidth={1.75} />
+                  <h3 className="text-sm font-bold text-foreground">{title}</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+              </li>
+            ))}
+          </ol>
+
+          <button
+            onClick={() => setAddExpanded(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors cursor-pointer"
+            aria-label="프로젝트 추가하고 시작하기"
+          >
+            <Plus className="w-4 h-4" />
+            프로젝트 추가하고 시작하기
+          </button>
+        </section>
+      )}
 
       {/* ── Saved Blueprints ───────────────────────── */}
       {blueprints.length > 0 && (

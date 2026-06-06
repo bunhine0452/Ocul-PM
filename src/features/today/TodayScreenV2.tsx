@@ -10,6 +10,7 @@ import {
   Star,
   History,
   ArrowRight,
+  Terminal,
 } from "@/components/Icons";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import type { JournalEntrySummary } from "@/lib/bindings";
@@ -167,8 +168,16 @@ export function TodayScreenV2({
 
           {empty ? (
             <div className="card card-pad">
-              <div className="empty-hint" style={{ padding: "40px 20px" }}>
-                오늘 아직 기록이 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 일지를 작성합니다.
+              <div
+                className="empty-hint"
+                style={{ padding: "40px 20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}
+              >
+                <div>
+                  오늘 아직 기록이 없어요. 평소처럼 코딩 에이전트로 작업하면 Ocul-PM이 자동으로 일지를 작성합니다.
+                </div>
+                <button className="btn primary" onClick={() => onNavigate("terminal")}>
+                  <Terminal size={15} /> 터미널에서 에이전트 실행
+                </button>
               </div>
             </div>
           ) : (

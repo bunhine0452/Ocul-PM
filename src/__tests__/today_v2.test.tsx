@@ -152,10 +152,12 @@ describe("PR-UI 2 — Today stat aggregation", () => {
     expect(statValue(container, "참여 에이전트")).toBe("2개"); // claude-code, cursor
   });
 
-  it("empty day shows the no-records hint", async () => {
+  it("empty day shows the no-records hint + 터미널 CTA (PR-R2 C2)", async () => {
     fixtures.byWorkday["20260531"] = [];
-    const { findByText } = renderToday();
+    const { findByText, getByText, onNavigate } = renderToday();
     expect(await findByText(/오늘 아직 기록이 없어요/)).toBeInTheDocument();
+    fireEvent.click(getByText("터미널에서 에이전트 실행"));
+    expect(onNavigate).toHaveBeenCalledWith("terminal");
   });
 });
 
