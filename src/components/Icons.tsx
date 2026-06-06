@@ -491,4 +491,6 @@ export {
   ShieldCheck,
   ShieldAlert,
   Info,
+  // PR-R5/release — update notifier banner.
+  Download,
 } from "lucide-react";

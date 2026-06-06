@@ -94,18 +94,33 @@ Ocul-PM 은 **네이티브 데스크톱 앱** 입니다. Electron 이 아닙니�
 
 ---
 
-## 지원 플랫폼
+## 설치 / 다운로드
 
-- macOS (Apple Silicon · Intel) — dmg
-- Windows 10/11 — msi
+최신 빌드는 **[GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases)** 에서 받습니다.
 
-자동 업데이트는 v1.1 이후. 1.0 은 GitHub Releases 에서 직접 다운로드 방식입니다.
+- **macOS** (Apple Silicon · Intel) — `.dmg` 다운로드 → 열어서 `Applications` 로 드래그.
+  - 코드서명되지 않은 빌드라 첫 실행 시 Gatekeeper 경고가 뜨면: 앱을 **우클릭 → 열기**, 또는 `시스템 설정 → 개인정보 보호 및 보안` 에서 "확인 없이 열기".
+- **Windows** 10/11 — `.msi` (후속 릴리즈 제공 예정).
+
+### 업데이트 알림
+
+앱을 켜면 GitHub Releases 의 최신 버전을 확인해, **새 버전이 있으면 우측 하단에 알림** 을 띄우고 다운로드 페이지로 안내합니다. 네트워크가 없거나 새 버전이 없으면 조용히 넘어갑니다. (앱 내 자동 다운로드·설치는 v1.1 로드맵.)
+
+### 소스에서 빌드
+
+```bash
+pnpm install
+pnpm tauri dev      # 개발 실행
+pnpm tauri build    # 배포 번들 (.dmg / .app)
+```
+
+요구사항: Node 18+ · pnpm · Rust (stable) · (macOS) Xcode Command Line Tools.
 
 ---
 
 ## 라이선스 / 상태
 
-현재 **1.0 출시 준비 중** (Lite-W6 phase). 개인 도구 성격이 강하며, 안정성과 단순함을 우선합니다. 이슈와 PR 환영합니다.
+**1.0 출시.** 개인 도구 성격이 강하며, 안정성과 단순함을 우선합니다. 이슈와 PR 환영합니다.
 
 ---
 
