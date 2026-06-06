@@ -14,19 +14,25 @@
 //! it is NOT rebuilt from the markdown, so the recorded diffs survive a cache
 //! rebuild.
 //!
-//! ## Capture model + limits (MVP)
-//! Capture is the working-tree `git diff HEAD -- <path>` at index time. For the
-//! dogfooding flow (agent edits files, then writes the journal, usually before
-//! committing) that is exactly the entry's diff. Known limits, accepted for the
-//! MVP and surfaced to the user as "기록된 변경 없음" when they bite:
+//! ## Capture model (PR-R3 — snapshot fallback)
+//! Capture tries, per `files_touched[].path`, in order:
+//!   1. working-tree `git diff HEAD -- <path>` (the dogfooding flow: agent edits
+//!      then writes the journal before committing → exactly the entry's diff);
+//!   2. when (1) is empty or git is unavailable (non-git project / committed /
+//!      HEAD-less repo) — a **snapshot fallback**: diff the last-indexed content
+//!      (`file_snapshots`, the same baseline `compute_diff` uses) against the
+//!      current disk content. The caller (watcher) pre-fetches snapshots via
+//!      `Db` and passes them in, so this fn stays blocking/pure.
+//!
+//! Remaining limits, surfaced as "기록된 변경 없음" when they bite:
 //!   - going-forward only (no backfill — past content is unrecoverable);
-//!   - non-git projects, or entries written *after* committing, yield an empty
-//!     git patch and are simply skipped (no snapshot fallback here — that path
-//!     needs `Db` and is left for a follow-up);
-//!   - multiple same-file entries with uncommitted cumulative edits all capture
-//!     the same working-tree diff (no per-entry isolation without advancing a
-//!     snapshot).
+//!   - if neither git nor a snapshot baseline differs from disk, nothing is
+//!     recorded (truly nothing changed at index time);
+//!   - the shared `file_snapshots` baseline is *not advanced* here (that would
+//!     disturb the live 변경 diff screen), so multiple same-file entries between
+//!     two reindexes share the same fallback diff.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -86,6 +92,7 @@ pub fn capture_entry_diffs(
     root: &Path,
     entry_rel: &str,
     touched: &[FileTouched],
+    snapshots: &HashMap<String, Vec<u8>>,
 ) -> std::io::Result<()> {
     let Some(out) = sidecar_path(root, entry_rel) else {
         return Ok(());
@@ -103,13 +110,44 @@ pub fn capture_entry_diffs(
                     patch,
                 });
             }
-            // Empty patch (committed / unchanged) or a recoverable git error
-            // (non-git project) → nothing to record for this file.
-            _ => {}
+            // Empty git patch (committed / unchanged) or a recoverable git error
+            // (non-git project) → try the snapshot fallback: diff the last-indexed
+            // baseline against current disk (PR-R3).
+            _ => {
+                if let Some(patch) = snapshot_patch(root, &f.path, snapshots) {
+                    files.push(EntryFileDiff {
+                        path: f.path.clone(),
+                        patch,
+                    });
+                }
+            }
         }
     }
 
     persist(&out, entry_rel, files)
+}
+
+/// Snapshot fallback for a single file: render a unified diff of the supplied
+/// last-indexed baseline vs current disk content. Returns `None` when there's no
+/// baseline, the file can't be read, or content is unchanged.
+fn snapshot_patch(
+    root: &Path,
+    rel_path: &str,
+    snapshots: &HashMap<String, Vec<u8>>,
+) -> Option<String> {
+    let baseline = snapshots.get(rel_path)?;
+    let disk = std::fs::read(root.join(rel_path)).ok()?;
+    if disk == *baseline {
+        return None;
+    }
+    let prev = String::from_utf8_lossy(baseline);
+    let next = String::from_utf8_lossy(&disk);
+    let patch = crate::commands::diff::render_unified_diff(rel_path, &prev, &next, MAX_PATCH_BYTES);
+    if patch.trim().is_empty() {
+        None
+    } else {
+        Some(patch)
+    }
 }
 
 /// Write the sidecar (or skip when there's nothing to record). Split out so the
@@ -211,8 +249,64 @@ mod tests {
             bytes_removed: Some(2),
             rename_from: None,
         }];
-        capture_entry_diffs(&tmp, entry, &touched).unwrap();
-        // No git repo → git::diff_patch errs → nothing recorded.
+        // No git repo + no snapshot baseline → nothing recorded.
+        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new()).unwrap();
+        assert!(read_entry_diffs(&tmp, entry).is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn snapshot_fallback_records_diff_on_non_git_root() {
+        // PR-R3: non-git project (or committed file) → git patch empty, but a
+        // last-indexed snapshot baseline that differs from disk yields a diff.
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-snap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260604/Bugs/0930_bug_b.md";
+        let rel = "src/a.ts";
+        // Current disk content (post-edit).
+        std::fs::write(tmp.join(rel), "const neo = 2;\n").unwrap();
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: crate::oculpm::spec::FileOp::Update,
+            bytes_added: Some(10),
+            bytes_removed: Some(2),
+            rename_from: None,
+        }];
+        // Baseline (pre-edit) snapshot the indexer would have captured.
+        let mut snapshots = HashMap::new();
+        snapshots.insert(rel.to_string(), b"const old = 1;\n".to_vec());
+
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
+
+        let got = read_entry_diffs(&tmp, entry);
+        assert_eq!(got.len(), 1, "snapshot fallback should record one file");
+        assert_eq!(got[0].path, rel);
+        assert!(got[0].patch.contains("const neo = 2;"));
+        assert!(got[0].patch.contains("const old = 1;"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn snapshot_fallback_skips_when_unchanged() {
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-snapsame-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260604/Bugs/0931_bug_c.md";
+        let rel = "src/a.ts";
+        std::fs::write(tmp.join(rel), "same\n").unwrap();
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: crate::oculpm::spec::FileOp::Update,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        }];
+        let mut snapshots = HashMap::new();
+        snapshots.insert(rel.to_string(), b"same\n".to_vec()); // identical → no diff
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
         assert!(read_entry_diffs(&tmp, entry).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
     }

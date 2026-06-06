@@ -649,10 +649,32 @@ impl WatcherInner {
         if touched.is_empty() {
             return;
         }
+        // PR-R3 snapshot fallback: pre-fetch last-indexed baselines so the
+        // blocking capture can diff snapshot↔disk when `git diff` is empty
+        // (committed / non-git). `app_handle: None` (unit tests) → no Db, empty
+        // map → git-only behaviour (unchanged).
+        let mut snapshots: std::collections::HashMap<String, Vec<u8>> =
+            std::collections::HashMap::new();
+        if let Some(handle) = &self.app_handle {
+            use tauri::Manager;
+            let db: tauri::State<'_, Db> = handle.state::<Db>();
+            for f in &touched {
+                if let Ok(Some(snap)) =
+                    db.get_file_snapshot(self.project_id, f.path.clone()).await
+                {
+                    snapshots.insert(f.path.clone(), snap.content);
+                }
+            }
+        }
         let root = self.root.clone();
         let entry_rel_owned = entry_rel.to_string();
         let res = tokio::task::spawn_blocking(move || {
-            crate::oculpm::entry_diffs::capture_entry_diffs(&root, &entry_rel_owned, &touched)
+            crate::oculpm::entry_diffs::capture_entry_diffs(
+                &root,
+                &entry_rel_owned,
+                &touched,
+                &snapshots,
+            )
         })
         .await;
         match res {

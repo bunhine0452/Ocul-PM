@@ -365,7 +365,7 @@ async fn snapshot_diff(
 /// understands `git diff` output) can render snapshot diffs without changes.
 /// The header mirrors `git diff --no-prefix` style with `a/` `b/` prefixes
 /// to keep line classification consistent.
-fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
+pub(crate) fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
     use similar::TextDiff;
 
     let diff = TextDiff::from_lines(prev, next);

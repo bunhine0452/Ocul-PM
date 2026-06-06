@@ -18,7 +18,7 @@
 | R2 — Today "다음 할 일" 은 연결 | ✅ 잠금 | 상위 5개 미완료 subtask, in_progress goal 우선 (`useNextTasks`) — A1 구현 완료 |
 | R3 — ~~코드 검색 심볼/정확 칩 제거~~ → **실연동** (reversal) | ✅ 완료 | 신규 백엔드 `search_text`/`search_symbols` + SearchScreenV2 3-scope. 심볼=AST 인덱스, 정확=chunk content LIKE (의미검색과 동일 커버리지) |
 | R4 — 온보딩 = StartScreen 인라인 가이드 | ✅ 완료 | 별도 풀스크린 마법사 아님. 프로젝트 0개일 때 "이렇게 동작해요" 3단계 카드 (StartScreen) + Today 빈 상태 터미널 CTA |
-| R5 — entry-diff PR-R3 머지 + fallback/안내 | ⬜ 제안 | — |
+| R5 — entry-diff PR-R3 머지 + fallback/안내 | ✅ 완료 | 사용자 결정: **snapshot fallback 구현**(안내만 아님). git 빈 → file_snapshots baseline↔disk diff. 라이브 diff baseline 은 미advance(읽기전용) |
 | R6 — 시각 마감 = PR-UI 8b 변수 remap 패턴 계승 | ⬜ 제안 | — |
 
 ### 0.x (진행 중 추가될 결정 — 작성 슬롯)
@@ -72,13 +72,13 @@
 
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
-| ☐ | `feat/entry-diff-history` (`5d6cd90`) main 머지 | B1 |
-| ☐ | entry-diff 빈 patch 처리: snapshot fallback 구현 **또는** 카드에 "diff 미캡처(커밋후/비-git)" 명시 안내 | B1 |
-| ☐ | opener scope 점검: `capabilities/default.json` 가 임의 경로 커버 (`allow:[{path:"**"}]`) + opener 직접 호출 grep | B4 |
-| ☐ | (백엔드 변경 시) `tauri-specta` 바인딩 재생성 + `cargo test` green |
-| ☐ | watcher `is_self_suppressed` / journal cache 무효화 경로 무변경 또는 테스트 보호 |
-| ☐ | `WorkspaceContext` schema 변경 시 additive/deletion-only + migrate 단위 테스트 |
-| ☐ | `pnpm typecheck` / `pnpm test` / `cargo test` / `pnpm build` green |
+| ☑ | `feat/entry-diff-history` 머지 (라운드 브랜치로 `d765fd0` — main 은 라운드 머지 시. 충돌 1: journal_v2 mock 양쪽 유지) | B1 |
+| ☑ | entry-diff 빈 patch 처리 = **snapshot fallback 구현** (사용자 결정). git diff 빈/비-git → `file_snapshots` baseline↔disk 를 `render_unified_diff` 로 캡처. watcher 가 async 로 스냅샷 prefetch→blocking capture 전달. entry_diffs 테스트 +2 | B1 |
+| ☑ | opener scope 점검 = `capabilities/default.json` 이미 `opener:allow-open-path`/`allow-reveal-item-in-dir` 둘 다 `allow:[{path:"**"}]` (정상). journal 열기는 백엔드 우회 유지 | B4 |
+| ☑ | `tauri-specta` 바인딩 재생성 (search + entry-diff 통합) + `cargo test`(229 lib pass) green |
+| ☑ | watcher `is_self_suppressed`/journal cache 경로 무변경 (스냅샷 prefetch 만 추가, `file_snapshots` 는 *읽기 전용* — baseline advance 안 함 → 라이브 diff 무영향) |
+| 🔵 | `WorkspaceContext` schema 무변경 (해당 없음) |
+| ☑ | `pnpm typecheck` / `pnpm test`(105) / `cargo test`(229) / `pnpm build` green |
 
 ---
 
@@ -135,7 +135,7 @@
 | R0 — Foundation (보호망+태그) | ✅ done | `pre-refactor` 태그 (2990b19) |
 | R1 — 죽은/미완성 UI 정리 | ✅ done | A1·A4·A3·A2 전부 실연동 (비활성 컨트롤 0) |
 | R2 — 첫 실행/온보딩 | ✅ done (C1·C2 / C3 P2 이연) | — |
-| R3 — 데이터 루프 견고성 | ⬜ todo | — |
+| R3 — 데이터 루프 견고성 | ✅ done | entry-diff 머지 `d765fd0` + snapshot fallback + opener 검증 |
 | R4 — 시각 일관성 마감 | ⬜ todo | — |
 | R5 — 배포 위생 + 1.0 | ⬜ todo | — |
 
@@ -182,3 +182,4 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 - 2026-06-06 · PR-R1 · A3: AI 패널 "대화 기록" 실연동 (`ConversationHistoryModal` — 목록/전환/새 대화/삭제, 기존 conversation_* backend, ai_history 테스트 6건) (A3)
 - 2026-06-06 · PR-R1b · A2: 코드 검색 심볼/정확 실연동 — 신규 backend `search_text`/`search_symbols` + `SymbolSearchResult`(db.rs/project.rs/lib.rs, specta 재생성, cargo test green) + SearchScreenV2 3-scope + tools_v2 테스트 2건 (A2). **PR-R1 완결 — 비활성 컨트롤 0**
 - 2026-06-06 · PR-R2 · C1: StartScreen 온보딩 가이드(프로젝트 0개 시 "이렇게 동작해요" 3단계 + 수동모델 명시) + start_screen 테스트 4건. C2: Today 빈 상태 "터미널에서 에이전트 실행" CTA + today_v2 테스트. (C3 AI키 CTA 는 기존 구현, 외부에디터 토스트 P2 이연)
+- 2026-06-06 · PR-R3 · entry-diff 머지(`d765fd0`) + **snapshot fallback**(B1, 사용자 결정): git diff 빈/비-git 시 `file_snapshots` baseline↔disk 를 `render_unified_diff`(pub(crate))로 캡처. watcher async 스냅샷 prefetch→blocking capture. entry_diffs 테스트 +2, cargo 229 pass. opener scope(B4) 검증 OK(변경 불필요)
