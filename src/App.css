@@ -48,10 +48,14 @@
     font-style: normal;
 }
 
-/* D2Coding — Korean-friendly monospace for the code editor */
+/* D2Coding — Korean-friendly monospace fallback (terminal / editor).
+   PR-R5 (E1): subset to Latin + Hangul + box-drawing + CJK punctuation and
+   re-encoded as woff2 — 8.4 MB .ttc → ~440 KB. Full .ttc removed from the
+   bundle (it was only ever a rarely-active fallback; ui_v2's --mono leads with
+   SF Mono / system mono). */
 @font-face {
     font-family: 'D2Coding';
-    src: url('./assets/fonts/D2Coding.ttc') format('collection');
+    src: url('./assets/fonts/D2Coding-subset.woff2') format('woff2');
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;

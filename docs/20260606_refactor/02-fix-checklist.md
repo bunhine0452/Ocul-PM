@@ -98,12 +98,12 @@
 
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
-| ☐ | D2Coding 폰트 subset/woff2 또는 manualChunks 분할 (번들 측정 전후 기록) | E1 |
-| ☐ | ESLint(typescript-eslint + react-hooks) 추가 → `pnpm lint` 합류 **또는** 문서 정정 | E2 |
-| ☐ | 2 일 dogfood — 새 유저 시나리오(설치→프로젝트→에이전트 1회→첫 일지) 무막힘 확인 |
-| ☐ | [`00-refactor-master-plan.md`](./00-refactor-master-plan.md) §6 성공 기준 6 항목 전부 ☑ |
-| ☐ | 치명 회귀 0 확인 후 `v1.0.0-rc` (또는 합의된) annotated tag |
-| ☐ | 게이트 전부 green |
+| ☑ | D2Coding 폰트 subset+woff2 — **8.4 MB .ttc → 440 KB woff2** (Latin+한글+박스드로잉+CJK구두점 유지, pyftsubset). dist/assets 12.7M→4.3M. .ttc 번들 제거 | E1 |
+| ☐→보류 | ESLint 추가 = **의식적 보류**. 출시 직전 전면 lint 도입은 레거시 포함 대량 위반 노출 → 회귀 위험. 현 `lint=check-no-localstorage` 가 의도된 상태이며 REFACTOR-MASTER-PROMPT §8 에 정확히 기술됨. ESLint 는 1.1 | E2 |
+| ☐→사용자 | 2 일 dogfood — 새 유저 시나리오(설치→프로젝트→에이전트 1회→첫 일지) 무막힘 확인 |
+| 🔄 | [`00-refactor-master-plan.md`](./00-refactor-master-plan.md) §6 성공 기준 — 코드 항목 ☑, dogfood/태그 사용자 |
+| ☐→사용자 | 치명 회귀 0 확인 후 `v1.0.0-rc` (또는 합의된) annotated tag |
+| ☑ | 게이트 전부 green (typecheck/test 105/lint/build, cargo 229) |
 
 ---
 
@@ -136,8 +136,8 @@
 | R1 — 죽은/미완성 UI 정리 | ✅ done | A1·A4·A3·A2 전부 실연동 (비활성 컨트롤 0) |
 | R2 — 첫 실행/온보딩 | ✅ done (C1·C2 / C3 P2 이연) | — |
 | R3 — 데이터 루프 견고성 | ✅ done | entry-diff 머지 `d765fd0` + snapshot fallback + opener 검증 |
-| R4 — 시각 일관성 마감 | ⬜ todo | — |
-| R5 — 배포 위생 + 1.0 | ⬜ todo | — |
+| R4 — 시각 일관성 마감 | ⏸ 보류 | D1: App.css `--accent`(중립) ↔ ui_v2 `--accent`(녹색) *이름 충돌* 이 근본 — 변수 rename 리팩터 또는 실행화면 튜닝 필요. 블라인드 CSS 변경 회귀 위험으로 보류 |
+| R5 — 배포 위생 + 1.0 | 🔄 E1 ✅ (폰트 8.4MB→440KB) · E2 보류(ESLint 1.1) · dogfood+1.0 태그 = 사용자 | — |
 
 각 PR 머지 시 상태(`⬜`→`✅`) + 해시 갱신.
 
@@ -183,3 +183,4 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 - 2026-06-06 · PR-R1b · A2: 코드 검색 심볼/정확 실연동 — 신규 backend `search_text`/`search_symbols` + `SymbolSearchResult`(db.rs/project.rs/lib.rs, specta 재생성, cargo test green) + SearchScreenV2 3-scope + tools_v2 테스트 2건 (A2). **PR-R1 완결 — 비활성 컨트롤 0**
 - 2026-06-06 · PR-R2 · C1: StartScreen 온보딩 가이드(프로젝트 0개 시 "이렇게 동작해요" 3단계 + 수동모델 명시) + start_screen 테스트 4건. C2: Today 빈 상태 "터미널에서 에이전트 실행" CTA + today_v2 테스트. (C3 AI키 CTA 는 기존 구현, 외부에디터 토스트 P2 이연)
 - 2026-06-06 · PR-R3 · entry-diff 머지(`d765fd0`) + **snapshot fallback**(B1, 사용자 결정): git diff 빈/비-git 시 `file_snapshots` baseline↔disk 를 `render_unified_diff`(pub(crate))로 캡처. watcher async 스냅샷 prefetch→blocking capture. entry_diffs 테스트 +2, cargo 229 pass. opener scope(B4) 검증 OK(변경 불필요)
+- 2026-06-06 · PR-R5 · E1: D2Coding 폰트 8.4MB .ttc → 440KB woff2 서브셋(한글+박스드로잉 유지). dist/assets 12.7M→4.3M. E2(ESLint)·dogfood·1.0 태그 보류/사용자. R4(시각 톤)는 `--accent` 이름충돌 근본이라 보류
