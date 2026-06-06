@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent, within } from "@testing-library/react";
+import { cleanup, render, fireEvent, within, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -64,6 +64,42 @@ vi.mock("@/api/oculpm", () => ({
   },
 }));
 
+// PR-R1 (A1) — NextTasks pulls Planner subtasks via @/lib/bindings commands.
+// Mirrors the `fixtures` pattern above so each test can stage its own goals.
+const nextFx: { goals: unknown[]; subtasks: Record<number, unknown[]> } = {
+  goals: [],
+  subtasks: {},
+};
+
+vi.mock("@/lib/bindings", () => ({
+  commands: {
+    goalList: () => Promise.resolve({ status: "ok", data: nextFx.goals }),
+    subtaskList: (goalId: number) =>
+      Promise.resolve({ status: "ok", data: nextFx.subtasks[goalId] ?? [] }),
+  },
+  // WorkspaceProvider registers events.oculpm*.listen on mount; stub no-ops.
+  events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
+}));
+
+function goal(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 1,
+    project_id: 1,
+    title: "로그인 리팩터",
+    description: null,
+    status: "in_progress",
+    priority: 0,
+    due_date: null,
+    progress: null,
+    created_at: 0,
+    updated_at: 0,
+    ...over,
+  };
+}
+function subtask(over: Partial<Record<string, unknown>> = {}) {
+  return { id: 11, goal_id: 1, title: "할 일", done: false, sort_order: 0, ...over };
+}
+
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
@@ -92,7 +128,11 @@ function statValue(container: HTMLElement, label: string): string {
   return card?.querySelector(".stat-val")?.textContent ?? "";
 }
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  nextFx.goals = [];
+  nextFx.subtasks = {};
+});
 
 describe("PR-UI 2 — Today stat aggregation", () => {
   it("4 stat values reflect the aggregated backend response", async () => {
@@ -157,5 +197,42 @@ describe("PR-UI 2 — Today a11y", () => {
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
     // sanity: `within` import is exercised so lint doesn't flag it unused.
     expect(within(container).queryByText("Today")).toBeTruthy();
+  });
+});
+
+describe("PR-R1 (A1) — Today 다음 할 일", () => {
+  it("renders incomplete Planner subtasks (done excluded, in-progress pill)", async () => {
+    // Non-empty day so the grid (incl. NextTasks) renders.
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
+    nextFx.goals = [goal({ id: 1, title: "로그인 리팩터", status: "in_progress" })];
+    nextFx.subtasks = {
+      1: [
+        subtask({ id: 11, title: "토큰 갱신 처리", done: false, sort_order: 0 }),
+        subtask({ id: 12, title: "끝난 일", done: true, sort_order: 1 }),
+      ],
+    };
+    const { container } = renderToday();
+
+    const title = await waitFor(() => {
+      const el = container.querySelector(".next-title");
+      expect(el).toBeTruthy();
+      return el as HTMLElement;
+    });
+    expect(title.textContent).toBe("토큰 갱신 처리");
+    expect(container.textContent).toContain("로그인 리팩터"); // goal context
+    expect(container.textContent).not.toContain("끝난 일"); // done excluded
+    expect(container.querySelector(".sub-active-pill")).toBeTruthy(); // in_progress
+    // a11y holds with the wired next-item buttons present.
+    expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+
+  it("falls back to the empty hint when no open subtasks", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
+    nextFx.goals = []; // no goals → nothing to do
+    const { container, findByText } = renderToday();
+    await findByText(/1건/);
+    expect(
+      within(container).getByText("Planner에서 목표와 다음 할 일을 관리하세요."),
+    ).toBeTruthy();
   });
 });

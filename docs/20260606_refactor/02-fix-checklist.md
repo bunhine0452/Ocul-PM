@@ -15,7 +15,7 @@
 | 결정 | 상태 | 잠금값 |
 |---|---|---|
 | R1 — 죽은 컨트롤은 연결 or 제거 (비활성 유지 금지) | ⬜ 제안 | — |
-| R2 — Today "다음 할 일" 은 연결 | ⬜ 제안 | — |
+| R2 — Today "다음 할 일" 은 연결 | ✅ 잠금 | 상위 5개 미완료 subtask, in_progress goal 우선 (`useNextTasks`) — A1 구현 완료 |
 | R3 — 코드 검색 심볼/정확 칩 제거 | ⬜ 제안 | — |
 | R4 — 온보딩 = StartScreen 인라인 가이드 | ⬜ 제안 | — |
 | R5 — entry-diff PR-R3 머지 + fallback/안내 | ⬜ 제안 | — |
@@ -33,10 +33,10 @@
 
 | 체크 | 항목 |
 |---|---|
-| ☐ | 현 게이트 green 재확인: `pnpm typecheck` / `pnpm test` / `pnpm lint` / `cargo test` / `pnpm build` |
-| ☐ | 시각 잠금 invariant 재확인 (grep): `dark:` 0 · `classList.toggle("dark")` 0 · `from "lucide-react"`(Icons 제외) 0 · 토큰 격리(메인 css `12a06b` 0) |
-| ☐ | `pre-refactor` annotated git tag (현재 main HEAD) — 롤백 보존 |
-| ☐ | [`01-problems-inventory.md`](./01-problems-inventory.md) 의 P0/P1 항목을 사용자와 확인 → §0 결정 잠금 |
+| ☑ | 현 게이트 green 재확인: `pnpm typecheck` / `pnpm test`(90 pass) / `pnpm lint` / `pnpm build` |
+| ☑ | 시각 잠금 invariant 재확인 (grep): `dark:` 0 · `classList.toggle("dark")` 0 · `from "lucide-react"`(Icons 제외) 0 · 토큰 격리(ShellV2 청크 분리) |
+| ☑ | `pre-refactor` annotated git tag (`2990b19`) — 롤백 보존 |
+| 🔄 | [`01-problems-inventory.md`](./01-problems-inventory.md) 의 P0/P1 항목을 사용자와 확인 → §0 결정 잠금 (R2 잠금, R1/R3/R5 대기) |
 
 ---
 
@@ -46,7 +46,7 @@
 
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
-| ☐ | Today "다음 할 일" → Planner 미완료 subtask 상위 N 개 연결 (빈 상태만 힌트) | A1 |
+| ☑ | Today "다음 할 일" → Planner 미완료 subtask 상위 N 개 연결 (빈 상태만 힌트) — `useNextTasks` + `.next-item` 버튼, +2 test | A1 |
 | ☐ | 작업 일지 ⌘N → ui_v2 수동 일지 모달 신규 연결 (PR-UI 6 `.set-modal` 패턴) **또는** 단축키표에서 ⌘N 삭제 | A4 |
 | ☐ | 코드 검색 심볼/정확 칩 제거 (단일 의미 검색) — `searchScope` 처리 결정 | A2 |
 | ☐ | AI 패널 "대화 기록" 버튼 제거 또는 연결 | A3 |
@@ -132,8 +132,8 @@
 
 | PR-R | 상태 | 머지 해시 |
 |---|---|---|
-| R0 — Foundation (보호망+태그) | ⬜ todo | — |
-| R1 — 죽은/미완성 UI 정리 | ⬜ todo | — |
+| R0 — Foundation (보호망+태그) | ✅ done | `pre-refactor` 태그 (2990b19) |
+| R1 — 죽은/미완성 UI 정리 | 🔄 진행중 (A1 ✅ · A2/A3/A4 결정 대기) | — |
 | R2 — 첫 실행/온보딩 | ⬜ todo | — |
 | R3 — 데이터 루프 견고성 | ⬜ todo | — |
 | R4 — 시각 일관성 마감 | ⬜ todo | — |
@@ -175,4 +175,5 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 > 형식: `- YYYY-MM-DD · PR-Rn · <해시> · <한 줄 요약> (문제 ID 들)`
 
 <!-- 여기에 fix 가 머지될 때마다 한 줄씩 추가 -->
-- _(아직 없음 — PR-R0 머지 시 첫 줄 기록)_
+- 2026-06-06 · PR-R0 · `2990b19`(tag `pre-refactor`) · 베이스라인 태그 + 게이트/시각잠금 재확인
+- 2026-06-06 · PR-R1 · A1: Today "다음 할 일" → Planner 미완료 subtask 연결 (`useNextTasks` + `.next-item` 버튼 리셋 + today_v2 테스트 2건) (A1)

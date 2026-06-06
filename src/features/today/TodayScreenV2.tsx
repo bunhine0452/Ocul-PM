@@ -19,6 +19,7 @@ import { WeekChart } from "./WeekChart";
 import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
 import { useTodayBrief } from "./useTodayBrief";
+import { useNextTasks } from "./useNextTasks";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
 // Pure presenter over useTodayBrief (frontend aggregation, no new backend
@@ -55,6 +56,7 @@ export function TodayScreenV2({
     workday,
     oculpmReady,
   );
+  const { tasks: nextTasks } = useNextTasks(projectId);
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -219,7 +221,7 @@ export function TodayScreenV2({
               <div>
                 {brief ? <WeekChart week={brief.week} /> : null}
                 {brief ? <AgentBreakdown agents={brief.agents} /> : null}
-                <NextTasks onOpenPlanner={() => onNavigate("planner")} />
+                <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
               </div>
             </div>
           )}

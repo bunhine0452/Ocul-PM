@@ -74,7 +74,8 @@
 .agent-bar > i { display: block; height: 100%; border-radius: 4px; }
 .agent-count { font-size: 12px; color: var(--text-2); font-weight: 600; font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
 
-.next-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: var(--radius-m); cursor: pointer; }
+.next-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: var(--radius-m); cursor: pointer;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font); text-align: left; width: 100%; color: var(--text); }
 .next-item:hover { background: var(--bg-hover); }
 .next-check { width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--sep-strong); flex: none; display: grid; place-items: center; }
 .next-check.active { border-color: var(--accent); }
