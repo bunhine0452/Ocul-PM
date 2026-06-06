@@ -14,9 +14,9 @@
 
 | 결정 | 상태 | 잠금값 |
 |---|---|---|
-| R1 — 죽은 컨트롤은 연결 or 제거 (비활성 유지 금지) | ⬜ 제안 | — |
+| R1 — 죽은 컨트롤은 연결 or 제거 (비활성 유지 금지) | ✅ 잠금 | 사용자 결정(2026-06-06): **셋 다 실제로 동작하게 구현** (제거 아님). A4=수동일지 모달 ✅ / A2=심볼·정확 검색 실연동 / A3=AI 대화 기록 실연동 |
 | R2 — Today "다음 할 일" 은 연결 | ✅ 잠금 | 상위 5개 미완료 subtask, in_progress goal 우선 (`useNextTasks`) — A1 구현 완료 |
-| R3 — 코드 검색 심볼/정확 칩 제거 | ⬜ 제안 | — |
+| R3 — ~~코드 검색 심볼/정확 칩 제거~~ → **실연동** (reversal) | ✅ 잠금 | 사용자 결정: 칩 제거 대신 심볼/정확 검색을 실제 구현. 심볼/정확 검색 command 가 없어 **신규 백엔드 필요** (§3.5 허용). 별도 PR-R1b 로 분리 검토 |
 | R4 — 온보딩 = StartScreen 인라인 가이드 | ⬜ 제안 | — |
 | R5 — entry-diff PR-R3 머지 + fallback/안내 | ⬜ 제안 | — |
 | R6 — 시각 마감 = PR-UI 8b 변수 remap 패턴 계승 | ⬜ 제안 | — |
@@ -47,11 +47,11 @@
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
 | ☑ | Today "다음 할 일" → Planner 미완료 subtask 상위 N 개 연결 (빈 상태만 힌트) — `useNextTasks` + `.next-item` 버튼, +2 test | A1 |
-| ☐ | 작업 일지 ⌘N → ui_v2 수동 일지 모달 신규 연결 (PR-UI 6 `.set-modal` 패턴) **또는** 단축키표에서 ⌘N 삭제 | A4 |
-| ☐ | 코드 검색 심볼/정확 칩 제거 (단일 의미 검색) — `searchScope` 처리 결정 | A2 |
-| ☐ | AI 패널 "대화 기록" 버튼 제거 또는 연결 | A3 |
-| ☐ | 시각 잠금 유지 (grep 게이트 §8) |
-| ☐ | `pnpm typecheck` / `pnpm test` / `pnpm lint` green (+ 백엔드 변경 시 `cargo test`) |
+| ☑ | 작업 일지 ⌘N → ui_v2 수동 일지 모달 신규 (`ManualEntryModalV2`, `.set-modal--wide`) + Toolbar "새 일지" 버튼, `oculpmCreateManualEntry`(기존 backend), +3 test | A4 |
+| ☐ | 코드 검색 심볼/정확 검색 **실연동** (reversal — 제거 아님). 신규 백엔드 command 필요 → PR-R1b 분리 검토 | A2 |
+| ☐ | AI 패널 "대화 기록" **실연동** (기존 `conversationList`/`chatMessageList`/`conversationDelete`) | A3 |
+| ☑ | 시각 잠금 유지 (grep 게이트 §8) — A1/A4 변경 줄 `dark:`/lucide직접/localStorage 0 |
+| ☑ | `pnpm typecheck` / `pnpm test`(93 pass) / `pnpm lint` / `pnpm build` green (A1/A4 백엔드 무변경) |
 
 ### PR-R2 — 첫 실행 / 온보딩 / 빈 상태
 
@@ -133,7 +133,7 @@
 | PR-R | 상태 | 머지 해시 |
 |---|---|---|
 | R0 — Foundation (보호망+태그) | ✅ done | `pre-refactor` 태그 (2990b19) |
-| R1 — 죽은/미완성 UI 정리 | 🔄 진행중 (A1 ✅ · A2/A3/A4 결정 대기) | — |
+| R1 — 죽은/미완성 UI 정리 | 🔄 진행중 (A1 ✅ A4 ✅ · A3 다음 · A2→PR-R1b) | — |
 | R2 — 첫 실행/온보딩 | ⬜ todo | — |
 | R3 — 데이터 루프 견고성 | ⬜ todo | — |
 | R4 — 시각 일관성 마감 | ⬜ todo | — |
@@ -177,3 +177,5 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 <!-- 여기에 fix 가 머지될 때마다 한 줄씩 추가 -->
 - 2026-06-06 · PR-R0 · `2990b19`(tag `pre-refactor`) · 베이스라인 태그 + 게이트/시각잠금 재확인
 - 2026-06-06 · PR-R1 · A1: Today "다음 할 일" → Planner 미완료 subtask 연결 (`useNextTasks` + `.next-item` 버튼 리셋 + today_v2 테스트 2건) (A1)
+- 2026-06-06 · PR-R1 · A4: 작업 일지 ⌘N 수동 일지 모달 (`ManualEntryModalV2` ui_v2 토큰 + `.set-modal--wide` + "새 일지" 버튼, 기존 `oculpmCreateManualEntry`, journal_v2 테스트 3건) (A4)
+- 2026-06-06 · 결정 · 사용자: A2(검색 심볼/정확)·A3(AI 대화기록)을 **제거 대신 실연동**. R3 reversal. A2 는 신규 백엔드 필요 → PR-R1b.

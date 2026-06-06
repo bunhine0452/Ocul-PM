@@ -348,3 +348,22 @@
 }
 .set-modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .set-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* --- Manual entry modal (PR-R1 A4) — wide variant + form fields --- */
+.set-modal--wide { max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; }
+.entry-form { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin-top: 4px; padding-right: 2px; }
+.entry-field { display: flex; flex-direction: column; gap: 6px; }
+.entry-label { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.entry-label .req { color: var(--t-bug); margin-left: 2px; }
+.entry-hint { font-size: 10.5px; color: var(--text-3); font-weight: 400; margin-left: 6px; }
+.entry-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.entry-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.entry-err { font-size: 11px; color: var(--t-bug); }
+.entry-files { display: flex; flex-wrap: wrap; gap: 6px; max-height: 108px; overflow-y: auto;
+  border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-inset); padding: 8px; }
+.entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: 9px 12px; border-radius: var(--radius-m);
+  border: 1px solid var(--border-card); background: var(--bg-inset); font-family: var(--mono); font-size: 12.5px; color: var(--text); outline: none; }
+.entry-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.entry-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-family: var(--mono);
+  background: var(--bg-inset); border: 1px solid var(--border-card); border-radius: 999px; padding: 2px 8px; cursor: pointer; color: var(--text-2);
+  appearance: none; -webkit-appearance: none; }
