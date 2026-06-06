@@ -106,6 +106,7 @@ export default function ShellV2({
         ) : view === "today" ? (
           <TodayScreenV2
             projectId={projectId}
+            projectRoot={projectRoot}
             workday={workday}
             oculpmReady={oculpmReady}
             onNavigate={setUiV2View}

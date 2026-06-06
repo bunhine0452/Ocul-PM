@@ -108,6 +108,7 @@ function renderToday(onNavigate = vi.fn()) {
     <WorkspaceProvider>
       <TodayScreenV2
         projectId={1}
+        projectRoot="/tmp/proj"
         workday="20260531"
         oculpmReady
         onNavigate={onNavigate}
@@ -152,11 +153,14 @@ describe("PR-UI 2 — Today stat aggregation", () => {
     expect(statValue(container, "참여 에이전트")).toBe("2개"); // claude-code, cursor
   });
 
-  it("empty day shows the no-records hint + 터미널 CTA (PR-R2 C2)", async () => {
+  it("empty day shows the no-records hint + 빠른 터미널 카드 (PR-R2 C2 / icon round)", async () => {
     fixtures.byWorkday["20260531"] = [];
     const { findByText, getByText, onNavigate } = renderToday();
     expect(await findByText(/오늘 아직 기록이 없어요/)).toBeInTheDocument();
-    fireEvent.click(getByText("터미널에서 에이전트 실행"));
+    // "여기서 에이전트 실행" 은 인라인 터미널을 열고(런타임 필요 — 여기선 미클릭),
+    // "전체 터미널" 은 터미널 화면으로 핸드오프.
+    expect(getByText("여기서 에이전트 실행")).toBeInTheDocument();
+    fireEvent.click(getByText(/전체 터미널/));
     expect(onNavigate).toHaveBeenCalledWith("terminal");
   });
 });

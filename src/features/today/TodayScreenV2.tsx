@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   SearchIcon,
@@ -20,6 +21,7 @@ import { WeekChart } from "./WeekChart";
 import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
+import { TodayTerminal } from "./TodayTerminal";
 import { useTodayBrief } from "./useTodayBrief";
 import { useNextTasks } from "./useNextTasks";
 
@@ -30,6 +32,8 @@ import { useNextTasks } from "./useNextTasks";
 
 interface TodayScreenV2Props {
   projectId: number;
+  /** Project root — cwd for the embedded 빠른 터미널. */
+  projectRoot: string | null;
   /** YYYYMMDD current workday (from OculpmStatus / workdayKey). */
   workday: string | null;
   /** ocul-pm active? When false we show the activation hint. */
@@ -46,6 +50,7 @@ interface TodayScreenV2Props {
 
 export function TodayScreenV2({
   projectId,
+  projectRoot,
   workday,
   oculpmReady,
   onNavigate,
@@ -59,6 +64,7 @@ export function TodayScreenV2({
     oculpmReady,
   );
   const { tasks: nextTasks } = useNextTasks(projectId);
+  const [termOpen, setTermOpen] = useState(false);
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -172,6 +178,14 @@ export function TodayScreenV2({
             />
           </div>
 
+          {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
+          <TodayTerminal
+            projectRoot={projectRoot}
+            open={termOpen}
+            onOpenChange={setTermOpen}
+            onFull={() => onNavigate("terminal")}
+          />
+
           {empty ? (
             <div className="card card-pad">
               <div
@@ -181,8 +195,8 @@ export function TodayScreenV2({
                 <div>
                   오늘 아직 기록이 없어요. 평소처럼 코딩 에이전트로 작업하면 Ocul-PM이 자동으로 일지를 작성합니다.
                 </div>
-                <button className="btn primary" onClick={() => onNavigate("terminal")}>
-                  <Terminal size={15} /> 터미널에서 에이전트 실행
+                <button className="btn primary" onClick={() => setTermOpen(true)}>
+                  <Terminal size={15} /> 여기서 에이전트 실행
                 </button>
               </div>
             </div>

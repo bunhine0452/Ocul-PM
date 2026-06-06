@@ -1,12 +1,9 @@
-import { useEffect, useRef } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { Terminal } from "xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import "xterm/css/xterm.css";
+import { useEffect } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { SquareTerminal, Bot, Activity, Plus, X } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
+import { TerminalInstance } from "./TerminalInstance";
 
 // Final UI Update (ui_v2) — 터미널 화면 (02-screen-specs §6). Mockup
 // .term-wrap/.term-tabs/.term-screen visuals + the PTY wiring extracted from
@@ -158,7 +155,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
         {/* Keep every tab's xterm mounted; CSS-hide inactive so PTY survives. */}
         {terminalTabs.map((t) => (
-          <TerminalInstanceV2
+          <TerminalInstance
             key={t.id}
             sessionId={t.id}
             cwd={t.cwd || projectRoot || ""}
@@ -167,149 +164,5 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
         ))}
       </div>
     </>
-  );
-}
-
-interface TerminalInstanceV2Props {
-  sessionId: string;
-  cwd: string;
-  visible: boolean;
-}
-
-// Extracted from the legacy TerminalPanel's TerminalInstance — same PTY
-// lifecycle (listen pty-data/exit → startPtySession → onData → write), inside
-// the ui_v2 .term-screen shell.
-//
-// CRITICAL (dogfood fix, 2026-06-03): xterm measures the font cell on
-// `term.open()`. If the container is `display:none` or 0×0 at that moment,
-// `dimensions.css.cell.width` stays 0 — the renderer paints nothing (blank,
-// no cursor) and FitAddon.fit() early-returns forever (it bails when
-// css.cell.width === 0), so the terminal never recovers. The original opened
-// on mount regardless of visibility, so an inactive-at-open tab stayed blank.
-// Fix: defer `term.open()` until the container is actually visible + sized,
-// and refit via a ResizeObserver. PTY output written before open is buffered
-// by xterm and flushed on open, so no output is lost.
-function TerminalInstanceV2({ sessionId, cwd, visible }: TerminalInstanceV2Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const openedRef = useRef(false);
-  const cwdRef = useRef(cwd);
-  useEffect(() => {
-    cwdRef.current = cwd;
-  }, [cwd]);
-
-  // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
-  // buffers in xterm until the first open() once the tab is visible.
-  useEffect(() => {
-    const term = new Terminal({
-      cursorBlink: true,
-      allowProposedApi: true,
-      fontFamily: '"SF Mono", "D2Coding", Menlo, monospace',
-      fontSize: 12.5,
-      theme: { background: "#1b1b1f", foreground: "#e8e8ea" },
-      cols: 80,
-      rows: 24,
-    });
-    termRef.current = term;
-    const fit = new FitAddon();
-    fitRef.current = fit;
-    term.loadAddon(fit);
-
-    // Refit whenever the container changes size — including the 0→N jump when
-    // the tab goes display:none → block. No-op until opened + sized.
-    const container = containerRef.current;
-    const ro = new ResizeObserver(() => {
-      if (!openedRef.current || !container) return;
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
-      try {
-        fit.fit();
-        void commands.resizePty(sessionId, term.rows, term.cols);
-      } catch {
-        /* renderer not ready — ignore */
-      }
-    });
-    if (container) ro.observe(container);
-
-    // isMounted guard (mirrors the legacy TerminalInstance). React 18
-    // StrictMode mounts → unmounts → remounts every effect in dev; without this
-    // the first mount's async would still spawn a PTY *after* its cleanup,
-    // leaving an orphaned session whose death leaks a spurious "[프로세스
-    // 종료됨]" into the second mount's terminal (same session-id event). The
-    // guard aborts the first run before it ever spawns.
-    let isMounted = true;
-    let unlistenData: (() => void) | null = null;
-    let unlistenExit: (() => void) | null = null;
-    void (async () => {
-      try {
-        unlistenData = await listen<string>(`pty-data-${sessionId}`, (e) => {
-          if (isMounted) term.write(e.payload);
-        });
-        if (!isMounted) return;
-        unlistenExit = await listen<void>(`pty-exit-${sessionId}`, () => {
-          if (isMounted) term.write("\r\n\x1b[1;31m[프로세스 종료됨]\x1b[0m\r\n");
-        });
-        if (!isMounted) return;
-        const res = await commands.startPtySession(sessionId, cwdRef.current, term.rows, term.cols);
-        if (!isMounted) return;
-        if (res.status === "error") {
-          term.write(`\r\n\x1b[1;31m[PTY 시작 실패: ${res.error}]\x1b[0m\r\n`);
-          return;
-        }
-        term.onData((data) => {
-          void commands.writeToPty(sessionId, data);
-        });
-        // The visible-effect fit() and this spawn race within a few ms — sync
-        // the PTY to xterm's (possibly already-fitted) size once started.
-        void commands.resizePty(sessionId, term.rows, term.cols);
-      } catch (err) {
-        console.error("[TerminalScreenV2] setup failed:", err);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-      ro.disconnect();
-      if (unlistenData) unlistenData();
-      if (unlistenExit) unlistenExit();
-      void commands.killPtySession(sessionId);
-      term.dispose();
-      termRef.current = null;
-      openedRef.current = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
-  // Open (once) + fit + focus when this tab becomes visible. Opening here — not
-  // on mount — guarantees the container is painted with real dimensions so
-  // xterm measures the font and actually renders.
-  useEffect(() => {
-    if (!visible) return;
-    const id = window.setTimeout(() => {
-      const container = containerRef.current;
-      const term = termRef.current;
-      if (!container || !term) return;
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
-      if (!openedRef.current) {
-        term.open(container);
-        openedRef.current = true;
-      }
-      try {
-        fitRef.current?.fit();
-        void commands.resizePty(sessionId, term.rows, term.cols);
-      } catch {
-        /* ignore */
-      }
-      term.focus();
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [visible, sessionId]);
-
-  return (
-    <div
-      className="term-screen"
-      style={{ display: visible ? "block" : "none" }}
-      ref={containerRef}
-    />
   );
 }
