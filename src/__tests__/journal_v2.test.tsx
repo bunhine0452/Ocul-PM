@@ -71,6 +71,14 @@ vi.mock("@/api/oculpm", () => ({
       manualMock.lastDraft = draft;
       return Promise.resolve({ relative_path: "20260531/x/2000_manual.md", title: draft.title });
     },
+    // EntryDiffModal loads the recorded per-file patches.
+    getEntryDiffs: (_pid: number, _relativePath: string) =>
+      Promise.resolve([
+        {
+          path: "src/lib/workday.ts",
+          patch: "@@ -1,2 +1,2 @@\n-const old = 1;\n+const neo = 2;\n",
+        },
+      ]),
   },
 }));
 
@@ -157,6 +165,21 @@ describe("PR-UI 3 — Journal timeline", () => {
     fireEvent.click(await findByText("검토 대상"));
     expect(onOpenDiff).toHaveBeenCalledTimes(1);
     expect(onOpenDiff.mock.calls[0][0].relative_path).toBe("a");
+  });
+
+  it("clicking a file chip opens the recorded-diff modal (not the live screen)", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findAllByText, findByRole, findByText, onOpenDiff } = renderJournal();
+    // Chips hydrate from getJournalEntry; click the workday.ts chip button.
+    const chip = (await findAllByText("workday.ts"))[0].closest("button");
+    expect(chip).not.toBeNull();
+    fireEvent.click(chip!);
+    // Modal (dialog) opens and renders the recorded patch — NOT the live diff.
+    expect(await findByRole("dialog")).toBeInTheDocument();
+    expect(await findByText(/변경 기록/)).toBeInTheDocument();
+    expect(await findByText(/const neo = 2;/)).toBeInTheDocument();
+    // The chip must not also fire the card's open-live-diff handler.
+    expect(onOpenDiff).not.toHaveBeenCalled();
   });
 
   it("empty journal shows the no-entries hint", async () => {

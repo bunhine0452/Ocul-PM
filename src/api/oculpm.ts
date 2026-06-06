@@ -19,6 +19,7 @@ import type {
   AgentDetection,
   AgentSyncReport,
   Difficulty,
+  EntryFileDiff,
   EntryFilters,
   EntryStatus,
   JournalEntry,
@@ -143,6 +144,15 @@ export const oculpmApi = {
     unwrap<JournalEntry | null>(
       "oculpm_get_journal_entry",
       commands.oculpmGetJournalEntry(projectId, relativePath)
+    ),
+
+  /** Per-file diffs recorded when this entry was first indexed. `[]` when none
+   *  were captured (entry predates the feature, non-git project, or written
+   *  after committing). */
+  getEntryDiffs: (projectId: number, relativePath: string) =>
+    unwrap<EntryFileDiff[]>(
+      "oculpm_get_entry_diffs",
+      commands.oculpmGetEntryDiffs(projectId, relativePath)
     ),
 
   setJournalVerified: (
