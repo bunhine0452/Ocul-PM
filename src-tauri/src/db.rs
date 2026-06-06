@@ -431,6 +431,84 @@ impl Db {
         Ok(results)
     }
 
+    /// PR-R1b (A2) — exact substring search over indexed chunk text. Same
+    /// coverage as semantic search (the chunk index); `distance` is a sentinel
+    /// 0.0 — callers should not show a similarity score for text matches.
+    pub async fn search_text(
+        &self,
+        project_id: u32,
+        query: String,
+        limit: u32,
+    ) -> Result<Vec<ChunkSearchResult>> {
+        let pattern = format!("%{}%", escape_like(&query));
+        let lim = limit.max(1) as i64;
+        let results = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT c.id, f.path, c.start_line, c.end_line, c.content
+                     FROM chunks c
+                     JOIN files f ON f.id = c.file_id
+                     WHERE f.project_id = ?1 AND c.content LIKE ?2 ESCAPE '\\'
+                     ORDER BY f.path ASC, c.start_line ASC
+                     LIMIT ?3",
+                )?;
+                let rows = stmt
+                    .query_map(params![project_id as i64, pattern, lim], |r| {
+                        Ok(ChunkSearchResult {
+                            chunk_id: r.get::<_, i64>(0)? as u32,
+                            file_path: r.get(1)?,
+                            start_line: r.get::<_, i64>(2)? as u32,
+                            end_line: r.get::<_, i64>(3)? as u32,
+                            content: r.get(4)?,
+                            distance: 0.0,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(results)
+    }
+
+    /// PR-R1b (A2) — symbol-name search over the AST symbol index. Exact-name
+    /// matches rank first, then shorter names, then path.
+    pub async fn search_symbols(
+        &self,
+        project_id: u32,
+        query: String,
+        limit: u32,
+    ) -> Result<Vec<SymbolSearchResult>> {
+        let pattern = format!("%{}%", escape_like(&query));
+        let lim = limit.max(1) as i64;
+        let results = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT s.name, s.kind, f.path, s.start_line, s.end_line
+                     FROM symbol_definitions s
+                     JOIN files f ON f.id = s.file_id
+                     WHERE f.project_id = ?1 AND s.name LIKE ?2 ESCAPE '\\'
+                     ORDER BY (s.name = ?3) DESC, length(s.name) ASC, f.path ASC, s.start_line ASC
+                     LIMIT ?4",
+                )?;
+                let rows = stmt
+                    .query_map(params![project_id as i64, pattern, query, lim], |r| {
+                        Ok(SymbolSearchResult {
+                            name: r.get(0)?,
+                            kind: r.get(1)?,
+                            file_path: r.get(2)?,
+                            start_line: r.get::<_, i64>(3)? as u32,
+                            end_line: r.get::<_, i64>(4)? as u32,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(results)
+    }
+
     pub async fn count_chunks(&self, project_id: u32) -> Result<u32> {
         let count = self
             .conn
@@ -2103,6 +2181,24 @@ pub struct ChunkSearchResult {
     pub end_line: u32,
     pub content: String,
     pub distance: f32,
+}
+
+/// PR-R1b (A2) — a symbol hit from `search_symbols` (name LIKE over the AST
+/// symbol index). Unlike `SymbolDef` it carries the owning file path.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct SymbolSearchResult {
+    pub name: String,
+    pub kind: String,
+    pub file_path: String,
+    pub start_line: u32,
+    pub end_line: u32,
+}
+
+/// Escape LIKE wildcards so a user query is matched literally (paired with
+/// `ESCAPE '\'` in the SQL). Without this, `%`/`_` in a query would act as
+/// wildcards and `\` would corrupt the pattern.
+fn escape_like(q: &str) -> String {
+    q.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]

@@ -22,6 +22,7 @@ const fx = {
   goals: [] as unknown[],
   subtasks: {} as Record<number, unknown[]>,
   chunks: [] as unknown[],
+  symbols: [] as unknown[],
   conversations: [] as unknown[],
 };
 
@@ -41,6 +42,10 @@ vi.mock("@/lib/bindings", () => {
               return (id: number) => ok({ id, goal_id: 1, title: "t", done: true, sort_order: 0 });
             case "searchChunks":
               return () => ok(fx.chunks);
+            case "searchText":
+              return () => ok(fx.chunks);
+            case "searchSymbols":
+              return () => ok(fx.symbols);
             case "conversationList":
               return () => ok(fx.conversations);
             case "conversationCreate":
@@ -115,6 +120,7 @@ beforeEach(() => {
   fx.goals = [];
   fx.subtasks = {};
   fx.chunks = [];
+  fx.symbols = [];
   fx.conversations = [];
 });
 afterEach(() => cleanup());
@@ -155,11 +161,33 @@ describe("PR-UI 5 — Search", () => {
     expect(await findByText("src/lib/workday.ts")).toBeInTheDocument();
   });
 
-  it("symbol / text scope-chips are disabled (only semantic ships)", () => {
-    const { getByText } = render(wrap(<SearchScreenV2 projectId={1} />));
-    expect(getByText("심볼").closest("button")).toBeDisabled();
-    expect(getByText("정확히 일치").closest("button")).toBeDisabled();
-    expect(getByText("의미 검색").closest("button")).not.toBeDisabled();
+  it("심볼 scope — 칩 활성 + searchSymbols 결과 렌더 (PR-R1b A2)", async () => {
+    fx.symbols = [
+      { name: "rolloverAt", kind: "function", file_path: "src/lib/workday.ts", start_line: 42, end_line: 58 },
+    ];
+    const { getByText, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} />));
+    expect(getByText("심볼").closest("button")).not.toBeDisabled();
+    expect(getByText("정확히 일치").closest("button")).not.toBeDisabled();
+    fireEvent.click(getByText("심볼"));
+    const input = getByLabelText("코드 검색");
+    fireEvent.change(input, { target: { value: "rollover" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await findByText("rolloverAt")).toBeInTheDocument();
+    expect(await findByText(/1개 심볼/)).toBeInTheDocument();
+  });
+
+  it("정확히 일치 scope — searchText 결과 (점수 막대 없음) (PR-R1b A2)", async () => {
+    fx.chunks = [chunk({ file_path: "src/lib/exact.ts" })];
+    const { getByText, getByLabelText, findByText, container } = render(
+      wrap(<SearchScreenV2 projectId={1} />),
+    );
+    fireEvent.click(getByText("정확히 일치"));
+    const input = getByLabelText("코드 검색");
+    fireEvent.change(input, { target: { value: "rolloverAt" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await findByText("src/lib/exact.ts")).toBeInTheDocument();
+    expect(await findByText(/개 결과 · 정확히 일치/)).toBeInTheDocument();
+    expect(container.querySelector(".score")).toBeNull(); // text mode = no similarity score
   });
 
   it("empty query shows the hint; no results shows the retry hint", async () => {

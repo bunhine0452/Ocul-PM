@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent } from "@testing-library/react";
+import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -42,6 +42,12 @@ const fixtures: { byWorkday: Record<string, ReturnType<typeof summary>[]> } = {
   byWorkday: {},
 };
 
+// PR-R1 (A4) — records the manual-entry create call so the test can assert it.
+const manualMock: { calls: number; lastDraft: Record<string, unknown> | null } = {
+  calls: 0,
+  lastDraft: null,
+};
+
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: {
@@ -58,6 +64,21 @@ vi.mock("@/api/oculpm", () => ({
           ],
         },
       }),
+    // ManualEntryModalV2 pre-fills candidates from today's file changes.
+    getFileChanges: () => Promise.resolve([]),
+    createManualEntry: (_pid: number, draft: Record<string, unknown>) => {
+      manualMock.calls += 1;
+      manualMock.lastDraft = draft;
+      return Promise.resolve({ relative_path: "20260531/x/2000_manual.md", title: draft.title });
+    },
+    // EntryDiffModal loads the recorded per-file patches.
+    getEntryDiffs: (_pid: number, _relativePath: string) =>
+      Promise.resolve([
+        {
+          path: "src/lib/workday.ts",
+          patch: "@@ -1,2 +1,2 @@\n-const old = 1;\n+const neo = 2;\n",
+        },
+      ]),
   },
 }));
 
@@ -92,6 +113,8 @@ beforeEach(() => {
   // scripts/check-no-localstorage.mjs — test-only, same as a11y_screens.)
   localStorage.clear();
   fixtures.byWorkday = {};
+  manualMock.calls = 0;
+  manualMock.lastDraft = null;
 });
 afterEach(() => cleanup());
 
@@ -144,10 +167,67 @@ describe("PR-UI 3 — Journal timeline", () => {
     expect(onOpenDiff.mock.calls[0][0].relative_path).toBe("a");
   });
 
+  it("clicking a file chip opens the recorded-diff modal (not the live screen)", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findAllByText, findByRole, findByText, onOpenDiff } = renderJournal();
+    // Chips hydrate from getJournalEntry; click the workday.ts chip button.
+    const chip = (await findAllByText("workday.ts"))[0].closest("button");
+    expect(chip).not.toBeNull();
+    fireEvent.click(chip!);
+    // Modal (dialog) opens and renders the recorded patch — NOT the live diff.
+    expect(await findByRole("dialog")).toBeInTheDocument();
+    expect(await findByText(/변경 기록/)).toBeInTheDocument();
+    expect(await findByText(/const neo = 2;/)).toBeInTheDocument();
+    // The chip must not also fire the card's open-live-diff handler.
+    expect(onOpenDiff).not.toHaveBeenCalled();
+  });
+
   it("empty journal shows the no-entries hint", async () => {
     fixtures.byWorkday["20260531"] = [];
     const { findByText } = renderJournal();
     expect(await findByText(/아직 일지가 없어요/)).toBeInTheDocument();
+  });
+});
+
+describe("PR-R1 (A4) — Journal 수동 일지", () => {
+  it("'새 일지' → 모달 작성 → createManualEntry 호출 + 모달 닫힘", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
+    const { findByText, getByText, getByLabelText, queryByText } = renderJournal();
+    await findByText("기존 작업");
+
+    fireEvent.click(getByText("새 일지"));
+    expect(getByText("수동 일지 작성")).toBeInTheDocument();
+
+    fireEvent.change(getByLabelText(/제목/), { target: { value: "수동으로 적은 일" } });
+    fireEvent.change(getByLabelText(/slug/), { target: { value: "manual-note" } });
+    fireEvent.click(getByText("작성"));
+
+    await waitFor(() => expect(manualMock.calls).toBe(1));
+    expect(manualMock.lastDraft?.title).toBe("수동으로 적은 일");
+    expect(manualMock.lastDraft?.slug).toBe("manual-note");
+    // modal closes after a successful create.
+    await waitFor(() => expect(queryByText("수동 일지 작성")).toBeNull());
+  });
+
+  it("잘못된 slug 는 인라인 에러 + 작성 비활성", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
+    const { findByText, getByText, getByLabelText } = renderJournal();
+    await findByText("기존 작업");
+    fireEvent.click(getByText("새 일지"));
+    fireEvent.change(getByLabelText(/제목/), { target: { value: "제목 있음" } });
+    fireEvent.change(getByLabelText(/slug/), { target: { value: "Bad Slug!" } });
+    expect(await findByText(/소문자\/숫자\/하이픈만/)).toBeInTheDocument();
+    expect((getByText("작성") as HTMLButtonElement).disabled).toBe(true);
+    expect(manualMock.calls).toBe(0);
+  });
+
+  it("모달이 열린 상태에서 axe 위반 0", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
+    const { container, findByText, getByText } = renderJournal();
+    await findByText("기존 작업");
+    fireEvent.click(getByText("새 일지"));
+    expect(getByText("수동 일지 작성")).toBeInTheDocument();
+    expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 });
 

@@ -48,10 +48,14 @@
     font-style: normal;
 }
 
-/* D2Coding — Korean-friendly monospace for the code editor */
+/* D2Coding — Korean-friendly monospace fallback (terminal / editor).
+   PR-R5 (E1): subset to Latin + Hangul + box-drawing + CJK punctuation and
+   re-encoded as woff2 — 8.4 MB .ttc → ~440 KB. Full .ttc removed from the
+   bundle (it was only ever a rarely-active fallback; ui_v2's --mono leads with
+   SF Mono / system mono). */
 @font-face {
     font-family: 'D2Coding';
-    src: url('./assets/fonts/D2Coding.ttc') format('collection');
+    src: url('./assets/fonts/D2Coding-subset.woff2') format('woff2');
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;
@@ -85,7 +89,11 @@
     --color-border: var(--border);
     --color-destructive: var(--destructive);
     --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
+    /* PR-R4 (D1): map the `accent` utility to `--accent-surface` (renamed below)
+       so it no longer collides with ui_v2's green `--accent` (tokens.css :root).
+       In-project overlays now get the same neutral hover as the dashboard and
+       as ui_v2's own surfaces, instead of an accidental green tint. */
+    --color-accent: var(--accent-surface);
     --color-muted-foreground: var(--muted-foreground);
     --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -124,7 +132,7 @@
     --secondary-foreground: #1d1d1f;
     --muted: #f0f0f2;
     --muted-foreground: #66666b;
-    --accent: #eef0f1; /* subtle hover/selected surface */
+    --accent-surface: #eef0f1; /* subtle hover/selected surface (shadcn `accent`) */
     --accent-foreground: #1d1d1f;
     --destructive: #e0524b; /* ui_v2 --t-bug */
     --border: #e6e6e8;
@@ -154,7 +162,7 @@
     --secondary-foreground: #f4f4f6;
     --muted: #2f2f33;
     --muted-foreground: #a3a3aa;
-    --accent: #313135; /* subtle hover/selected surface */
+    --accent-surface: #313135; /* subtle hover/selected surface (shadcn `accent`) */
     --accent-foreground: #f4f4f6;
     --destructive: #f1685f; /* ui_v2 --t-bug (dark) */
     --border: rgba(255, 255, 255, 0.1);
@@ -486,3 +494,58 @@
   color: #ffdcd7;
   background-color: #67060c;
 }
+/* ── Update notifier banner (1.0 release) ──────────────────────────────────
+   Rendered globally from App.tsx (above both the shadcn StartScreen and the
+   ui_v2 ShellV2). Styled with the always-loaded shadcn tokens so it looks
+   correct on either surface — ui_v2 tokens.css isn't loaded on the dashboard. */
+.update-banner {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 11px 12px 11px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  animation: updateBannerIn 0.18s ease-out;
+}
+@keyframes updateBannerIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.update-banner > svg { color: var(--primary); flex: none; }
+.update-banner-text { flex: 1; min-width: 0; }
+.update-banner-text b { font-weight: 700; }
+.update-banner-cta {
+  flex: none;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.update-banner-cta:hover { opacity: 0.9; }
+.update-banner-x {
+  flex: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  padding: 4px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+.update-banner-x:hover { background: var(--accent-surface); color: var(--foreground); }

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, TriangleAlert, X } from "@/components/Icons";
+import { SearchIcon, TriangleAlert, X, Plus } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { useJournalDays } from "./useJournalDays";
 import { JournalCardV2 } from "./JournalCardV2";
+import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
+import { toast } from "@/lib/toast";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -58,18 +60,26 @@ export function JournalScreenV2({
 
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const setFilter = (next: JournalFilter) =>
     setState((prev) => ({ ...prev, journalFilter: next }));
 
-  // ⌘F → focus the in-page search box (screen-local, stop propagation so the
-  // global handler doesn't also act). j/k handled by the OS for now.
+  // Screen-local shortcuts (stop propagation so the global handler doesn't also
+  // act). ⌘F → focus in-page search. ⌘N → 수동 일지 모달 (단축키 매트릭스 §1.2 —
+  // 작업 일지 = ⌘N). j/k handled by the OS for now.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "f") {
         e.preventDefault();
         e.stopPropagation();
         searchRef.current?.focus();
+      } else if (k === "n") {
+        e.preventDefault();
+        e.stopPropagation();
+        setManualOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -149,6 +159,15 @@ export function JournalScreenV2({
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => setManualOpen(true)}
+          disabled={!todayKey}
+          title={todayKey ? "수동 일지 작성 (⌘N)" : "ocul-pm 활성화 후 사용 가능"}
+        >
+          <Plus size={15} /> 새 일지
+        </button>
       </Toolbar>
 
       <div className="scroll">
@@ -203,6 +222,18 @@ export function JournalScreenV2({
           )}
         </div>
       </div>
+
+      {manualOpen && todayKey ? (
+        <ManualEntryModalV2
+          projectId={projectId}
+          workday={todayKey}
+          onCreated={(entry) => {
+            void refresh();
+            toast.info(`일지를 작성했어요: ${entry.title}`);
+          }}
+          onClose={() => setManualOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
