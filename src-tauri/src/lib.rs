@@ -106,7 +106,7 @@ use crate::commands::{
     // W5 — action proposal apply-state
     record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, dashboard_stats, db_health, goal_create,
     goal_delete, goal_get, goal_list, goal_update, index_project, list_projects, project_stats,
-    search_chunks, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
+    search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
     get_dependency_graph, get_file_symbols,
@@ -176,6 +176,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         project_stats,
         index_project,
         search_chunks,
+        search_text,
+        search_symbols,
         get_dependency_graph,
         get_file_symbols,
         clear_project_index,

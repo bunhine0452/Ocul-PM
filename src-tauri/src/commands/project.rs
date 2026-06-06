@@ -10,7 +10,7 @@ use tracing::info;
 
 use crate::db::{
     ChunkSearchResult, ClarifyAnswer, ClarifyQuestion, ClarifyResult, Db, EditPromptResult,
-    FileChange, Project,
+    FileChange, Project, SymbolSearchResult,
 };
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
@@ -358,6 +358,40 @@ pub async fn search_chunks(
         .ok_or_else(|| "embed returned no result".to_string())?;
 
     db.search_chunks(project_id, vec_to_bytes(&query_emb), limit.max(1))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// PR-R1b (A2) — exact substring search over indexed chunk text (no embedding).
+#[tauri::command]
+#[specta::specta]
+pub async fn search_text(
+    db: State<'_, Db>,
+    project_id: u32,
+    query: String,
+    limit: u32,
+) -> Result<Vec<ChunkSearchResult>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    db.search_text(project_id, query, limit.max(1))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// PR-R1b (A2) — symbol-name search over the AST symbol index.
+#[tauri::command]
+#[specta::specta]
+pub async fn search_symbols(
+    db: State<'_, Db>,
+    project_id: u32,
+    query: String,
+    limit: u32,
+) -> Result<Vec<SymbolSearchResult>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    db.search_symbols(project_id, query, limit.max(1))
         .await
         .map_err(|e| e.to_string())
 }
