@@ -49,7 +49,7 @@
 | ☑ | Today "다음 할 일" → Planner 미완료 subtask 상위 N 개 연결 (빈 상태만 힌트) — `useNextTasks` + `.next-item` 버튼, +2 test | A1 |
 | ☑ | 작업 일지 ⌘N → ui_v2 수동 일지 모달 신규 (`ManualEntryModalV2`, `.set-modal--wide`) + Toolbar "새 일지" 버튼, `oculpmCreateManualEntry`(기존 backend), +3 test | A4 |
 | ☐ | 코드 검색 심볼/정확 검색 **실연동** (reversal — 제거 아님). 신규 백엔드 command 필요 → PR-R1b 분리 검토 | A2 |
-| ☐ | AI 패널 "대화 기록" **실연동** (기존 `conversationList`/`chatMessageList`/`conversationDelete`) | A3 |
+| ☑ | AI 패널 "대화 기록" **실연동** — `ConversationHistoryModal`(목록/전환/새 대화/삭제), 기존 `conversationList`/`chatMessageList`/`conversationCreate`/`conversationDelete`, +6 test | A3 |
 | ☑ | 시각 잠금 유지 (grep 게이트 §8) — A1/A4 변경 줄 `dark:`/lucide직접/localStorage 0 |
 | ☑ | `pnpm typecheck` / `pnpm test`(93 pass) / `pnpm lint` / `pnpm build` green (A1/A4 백엔드 무변경) |
 
@@ -133,7 +133,7 @@
 | PR-R | 상태 | 머지 해시 |
 |---|---|---|
 | R0 — Foundation (보호망+태그) | ✅ done | `pre-refactor` 태그 (2990b19) |
-| R1 — 죽은/미완성 UI 정리 | 🔄 진행중 (A1 ✅ A4 ✅ · A3 다음 · A2→PR-R1b) | — |
+| R1 — 죽은/미완성 UI 정리 | 🔄 진행중 (A1 ✅ A4 ✅ A3 ✅ · A2→PR-R1b 백엔드) | — |
 | R2 — 첫 실행/온보딩 | ⬜ todo | — |
 | R3 — 데이터 루프 견고성 | ⬜ todo | — |
 | R4 — 시각 일관성 마감 | ⬜ todo | — |
@@ -179,3 +179,4 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 - 2026-06-06 · PR-R1 · A1: Today "다음 할 일" → Planner 미완료 subtask 연결 (`useNextTasks` + `.next-item` 버튼 리셋 + today_v2 테스트 2건) (A1)
 - 2026-06-06 · PR-R1 · A4: 작업 일지 ⌘N 수동 일지 모달 (`ManualEntryModalV2` ui_v2 토큰 + `.set-modal--wide` + "새 일지" 버튼, 기존 `oculpmCreateManualEntry`, journal_v2 테스트 3건) (A4)
 - 2026-06-06 · 결정 · 사용자: A2(검색 심볼/정확)·A3(AI 대화기록)을 **제거 대신 실연동**. R3 reversal. A2 는 신규 백엔드 필요 → PR-R1b.
+- 2026-06-06 · PR-R1 · A3: AI 패널 "대화 기록" 실연동 (`ConversationHistoryModal` — 목록/전환/새 대화/삭제, 기존 conversation_* backend, ai_history 테스트 6건) (A3)

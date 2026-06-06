@@ -367,3 +367,14 @@
 .entry-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-family: var(--mono);
   background: var(--bg-inset); border: 1px solid var(--border-card); border-radius: 999px; padding: 2px 8px; cursor: pointer; color: var(--text-2);
   appearance: none; -webkit-appearance: none; }
+
+/* --- Conversation history modal (PR-R1 A3) --- */
+.conv-list { display: flex; flex-direction: column; gap: 2px; max-height: 56vh; overflow-y: auto; margin-top: 8px; }
+.conv-row { display: flex; align-items: center; gap: 6px; border-radius: var(--radius-m); }
+.conv-row:hover { background: var(--bg-hover); }
+.conv-row.active { background: var(--accent-soft); }
+.conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 9px 11px;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font); text-align: left; color: var(--text); cursor: pointer; }
+.conv-title { font-size: 13px; font-weight: 520; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-meta { font-size: 10.5px; color: var(--text-3); }
+.conv-del { flex: none; margin-right: 6px; }

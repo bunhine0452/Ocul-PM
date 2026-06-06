@@ -13,6 +13,7 @@ import {
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, providerModel, type Provider } from "@/lib/settings";
+import { ConversationHistoryModal } from "./ConversationHistoryModal";
 
 // Final UI Update (ui_v2) — AI 패널 화면 (02-screen-specs §7). Mockup
 // .ai-wrap/.ai-models/.ai-thread/.ai-compose visuals + the chatStream
@@ -52,6 +53,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Keyring presence per provider (null = checking). Models without a key are
   // disabled (dogfood 발견 4).
   const [hasKey, setHasKey] = useState<Record<Provider, boolean | null>>({
@@ -268,10 +270,65 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     }
   }, [draft, streaming, messages, provider, settings, hasKey]);
 
+  // ── 대화 기록 (A3) — switch / new / reconcile-after-delete ──────────────
+  // Load a thread's messages into view + share the id with the overlay.
+  const loadThread = useCallback(
+    async (id: number) => {
+      threadRef.current = id;
+      setState((prev) => ({ ...prev, aiThreadId: String(id) }));
+      setError(null);
+      const msgs = await commands.chatMessageList(id);
+      setMessages(
+        msgs.status === "ok"
+          ? msgs.data.map((m) => ({
+              role: m.role as Role,
+              content: m.content,
+              provider: (m.provider as Provider | null) ?? undefined,
+            }))
+          : [],
+      );
+    },
+    [setState],
+  );
+
+  const handleSelectThread = useCallback(
+    async (id: number) => {
+      await loadThread(id);
+      setHistoryOpen(false);
+    },
+    [loadThread],
+  );
+
+  const handleNewThread = useCallback(async () => {
+    const res = await commands.conversationCreate("새 대화", provider, null, projectId);
+    if (res.status === "ok") await loadThread(res.data.id);
+    setHistoryOpen(false);
+  }, [provider, projectId, loadThread]);
+
+  // The active conversation was deleted — fall back to the most recent or a new one.
+  const handleActiveDeleted = useCallback(async () => {
+    const listRes = await commands.conversationList(projectId);
+    const convs = listRes.status === "ok" ? listRes.data : [];
+    let id = convs[0]?.id ?? null;
+    if (id == null) {
+      const created = await commands.conversationCreate("AI 패널", provider, null, projectId);
+      if (created.status === "ok") id = created.data.id;
+    }
+    if (id != null) await loadThread(id);
+    else {
+      threadRef.current = null;
+      setMessages([]);
+    }
+  }, [projectId, provider, loadThread]);
+
   return (
     <>
       <Toolbar title="AI 패널" sub="여러 LLM에 같은 컨텍스트로 질문">
-        <button className="btn" disabled title="대화 기록 (1.1)">
+        <button
+          className="btn"
+          onClick={() => setHistoryOpen(true)}
+          title="대화 기록"
+        >
           <History size={15} /> 대화 기록
         </button>
       </Toolbar>
@@ -411,6 +468,17 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
           </div>
         </div>
       </div>
+
+      {historyOpen ? (
+        <ConversationHistoryModal
+          projectId={projectId}
+          activeId={threadRef.current}
+          onSelect={(id) => void handleSelectThread(id)}
+          onNew={() => void handleNewThread()}
+          onActiveDeleted={() => void handleActiveDeleted()}
+          onClose={() => setHistoryOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
