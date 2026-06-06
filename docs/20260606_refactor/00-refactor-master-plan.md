@@ -157,11 +157,12 @@
 
 ## 6. 성공 기준 (이 라운드가 끝났다고 말할 수 있는 조건)
 
-- [ ] 새 유저 시나리오: *앱 설치 → 프로젝트 추가 → 안내 따라 외부 에이전트 1 회 실행 → Today 에 첫 일지 표시* 가 **막힘 없이** 동작 (dogfood 영상/스샷).
-- [ ] 화면에 보이는 모든 컨트롤이 동작 (비활성 "1.1 예정" 칩 0, 또는 명확한 사유 표기).
-- [ ] entry-diff 가 비-git/커밋후 케이스에서 *조용히 미기록* 하지 않음 (기록하거나 사용자에게 사유 표시).
-- [ ] 시각: ui_v2 잠금 invariant 전부 유지 (§2.1) + StartScreen/오버레이가 ui_v2 톤과 일관.
-- [ ] 게이트: `pnpm typecheck` / `pnpm test` / `pnpm lint` / `cargo test` / `pnpm build` 전부 green.
-- [ ] 2 일 dogfood 후 치명 회귀 0.
+- [x] 새 유저 시나리오 안내: StartScreen 온보딩(PR-R2 C1) + Today 빈상태 CTA(C2). *실제 무막힘 동작*은 dogfood 로 최종 확인.
+- [x] 화면에 보이는 모든 컨트롤이 동작 — 비활성 "1.1" 칩/버튼 0 (PR-R1: 다음할일·수동일지·AI대화기록·심볼/정확검색 전부 실연동).
+- [x] entry-diff 가 비-git/커밋후 케이스에서 *조용히 미기록* 안 함 — snapshot fallback (PR-R3).
+- [x] 시각: ui_v2 잠금 invariant 전부 유지 (§2.1, grep 0) + StartScreen/오버레이 톤 일관(PR-R4 `--accent` 충돌 제거).
+- [x] 게이트: `typecheck` / `test`(105) / `lint` / `cargo test`(229) / `build` 전부 green.
+- [ ] 2 일 dogfood 후 치명 회귀 0. ← **사용자 영역 (남은 단 1 항목)**
 
-이 6 항목이 모두 ☑ 이면 **Lite-W6 PR12 (출시 번들링) 진입** + 1.0 태그.
+코드 기준 5/6 ☑. **dogfood 1 항목만 사용자 확인**하면 → Lite-W6 PR12 진입 + 1.0 태그.
+(E2 ESLint 는 1.1 로 의식적 이연 — 출시 직전 전면 lint 회귀 위험.)

@@ -89,7 +89,11 @@
     --color-border: var(--border);
     --color-destructive: var(--destructive);
     --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
+    /* PR-R4 (D1): map the `accent` utility to `--accent-surface` (renamed below)
+       so it no longer collides with ui_v2's green `--accent` (tokens.css :root).
+       In-project overlays now get the same neutral hover as the dashboard and
+       as ui_v2's own surfaces, instead of an accidental green tint. */
+    --color-accent: var(--accent-surface);
     --color-muted-foreground: var(--muted-foreground);
     --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -128,7 +132,7 @@
     --secondary-foreground: #1d1d1f;
     --muted: #f0f0f2;
     --muted-foreground: #66666b;
-    --accent: #eef0f1; /* subtle hover/selected surface */
+    --accent-surface: #eef0f1; /* subtle hover/selected surface (shadcn `accent`) */
     --accent-foreground: #1d1d1f;
     --destructive: #e0524b; /* ui_v2 --t-bug */
     --border: #e6e6e8;
@@ -158,7 +162,7 @@
     --secondary-foreground: #f4f4f6;
     --muted: #2f2f33;
     --muted-foreground: #a3a3aa;
-    --accent: #313135; /* subtle hover/selected surface */
+    --accent-surface: #313135; /* subtle hover/selected surface (shadcn `accent`) */
     --accent-foreground: #f4f4f6;
     --destructive: #f1685f; /* ui_v2 --t-bug (dark) */
     --border: rgba(255, 255, 255, 0.1);

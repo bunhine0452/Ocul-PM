@@ -19,7 +19,7 @@
 | R3 — ~~코드 검색 심볼/정확 칩 제거~~ → **실연동** (reversal) | ✅ 완료 | 신규 백엔드 `search_text`/`search_symbols` + SearchScreenV2 3-scope. 심볼=AST 인덱스, 정확=chunk content LIKE (의미검색과 동일 커버리지) |
 | R4 — 온보딩 = StartScreen 인라인 가이드 | ✅ 완료 | 별도 풀스크린 마법사 아님. 프로젝트 0개일 때 "이렇게 동작해요" 3단계 카드 (StartScreen) + Today 빈 상태 터미널 CTA |
 | R5 — entry-diff PR-R3 머지 + fallback/안내 | ✅ 완료 | 사용자 결정: **snapshot fallback 구현**(안내만 아님). git 빈 → file_snapshots baseline↔disk diff. 라이브 diff baseline 은 미advance(읽기전용) |
-| R6 — 시각 마감 = PR-UI 8b 변수 remap 패턴 계승 | ⬜ 제안 | — |
+| R6 — 시각 마감 = ~~remap~~ → **변수 rename 으로 근본 해소** | ✅ 완료 | 8b 가 미룬 `--accent` 이름충돌을 raw shadcn 변수 개명(`--accent-surface`)으로 제거. remap 보다 깔끔 — in-project 오버레이가 ui_v2 와 동일 중립 hover |
 
 ### 0.x (진행 중 추가될 결정 — 작성 슬롯)
 
@@ -88,11 +88,11 @@
 
 | 체크 | 항목 | 문제 ID |
 |---|---|---|
-| ☐ | StartScreen accent/hover 미스매치 튜닝 (대시보드=gray vs in-project=green) — PR-UI 8b Option 2 변수 remap 계승 | D1 |
-| ☐ | 전역 오버레이(CommandPalette/dialog/MigrationModal) 톤 일관성 점검 | D1 |
-| ☐ | grep `dark:` 0 · `classList.toggle("dark")` 0 유지 |
-| ☐ | 라이트+다크 양쪽 dogfood 시각 비교 (mockup 없음 → 톤 정렬) |
-| ☐ | `pnpm typecheck` / `pnpm test` / `pnpm lint` / `pnpm build` green |
+| ☑ | StartScreen accent/hover 미스매치 = **근본 해소(rename)**. App.css 의 raw shadcn `--accent`(중립) → `--accent-surface`, `--color-accent` 매핑만 repoint. ui_v2 의 녹색 `--accent`(tokens.css :root)와 *이름 충돌 제거* — 8b ⚠ 의 "dashboard=gray/in-project=green" 미스매치가 구조적으로 사라짐 | D1 |
+| ☑ | 전역 오버레이(CommandPalette/dialog/MigrationModal/Select 등) — 모두 `bg-accent`→`--color-accent`→`--accent-surface`(중립) 경유라 일괄 일관. ui_v2 자체 hover(`--bg-hover`)와도 일치 | D1 |
+| ☑ | grep `dark:` 0 · `classList.toggle("dark")` 0 유지. tokens.css↔App.css 충돌 변수 = `--accent` 단 1개였음(확인), 그 외 충돌 0 |
+| 🔄→사용자 | 라이트+다크 dogfood 시각 비교 — 일관성은 CSS 아키텍처로 보장(픽셀 무관). 최종 눈 확인은 dogfood |
+| ☑ | `pnpm typecheck` / `pnpm test`(105) / `pnpm lint` / `pnpm build` green |
 
 ### PR-R5 — 배포 위생 + 최종 dogfood + 1.0 태그
 
@@ -136,7 +136,7 @@
 | R1 — 죽은/미완성 UI 정리 | ✅ done | A1·A4·A3·A2 전부 실연동 (비활성 컨트롤 0) |
 | R2 — 첫 실행/온보딩 | ✅ done (C1·C2 / C3 P2 이연) | — |
 | R3 — 데이터 루프 견고성 | ✅ done | entry-diff 머지 `d765fd0` + snapshot fallback + opener 검증 |
-| R4 — 시각 일관성 마감 | ⏸ 보류 | D1: App.css `--accent`(중립) ↔ ui_v2 `--accent`(녹색) *이름 충돌* 이 근본 — 변수 rename 리팩터 또는 실행화면 튜닝 필요. 블라인드 CSS 변경 회귀 위험으로 보류 |
+| R4 — 시각 일관성 마감 | ✅ done | D1 근본 해소: shadcn raw `--accent`→`--accent-surface` 개명으로 ui_v2 녹색 `--accent` 와 충돌 제거. 최종 눈 확인은 dogfood |
 | R5 — 배포 위생 + 1.0 | 🔄 E1 ✅ (폰트 8.4MB→440KB) · E2 보류(ESLint 1.1) · dogfood+1.0 태그 = 사용자 | — |
 
 각 PR 머지 시 상태(`⬜`→`✅`) + 해시 갱신.
@@ -183,4 +183,5 @@ grep -rn 'from "lucide-react"' src/ | grep -v "Icons.tsx" | grep -v "/legacy/"  
 - 2026-06-06 · PR-R1b · A2: 코드 검색 심볼/정확 실연동 — 신규 backend `search_text`/`search_symbols` + `SymbolSearchResult`(db.rs/project.rs/lib.rs, specta 재생성, cargo test green) + SearchScreenV2 3-scope + tools_v2 테스트 2건 (A2). **PR-R1 완결 — 비활성 컨트롤 0**
 - 2026-06-06 · PR-R2 · C1: StartScreen 온보딩 가이드(프로젝트 0개 시 "이렇게 동작해요" 3단계 + 수동모델 명시) + start_screen 테스트 4건. C2: Today 빈 상태 "터미널에서 에이전트 실행" CTA + today_v2 테스트. (C3 AI키 CTA 는 기존 구현, 외부에디터 토스트 P2 이연)
 - 2026-06-06 · PR-R3 · entry-diff 머지(`d765fd0`) + **snapshot fallback**(B1, 사용자 결정): git diff 빈/비-git 시 `file_snapshots` baseline↔disk 를 `render_unified_diff`(pub(crate))로 캡처. watcher async 스냅샷 prefetch→blocking capture. entry_diffs 테스트 +2, cargo 229 pass. opener scope(B4) 검증 OK(변경 불필요)
-- 2026-06-06 · PR-R5 · E1: D2Coding 폰트 8.4MB .ttc → 440KB woff2 서브셋(한글+박스드로잉 유지). dist/assets 12.7M→4.3M. E2(ESLint)·dogfood·1.0 태그 보류/사용자. R4(시각 톤)는 `--accent` 이름충돌 근본이라 보류
+- 2026-06-06 · PR-R5 · E1: D2Coding 폰트 8.4MB .ttc → 440KB woff2 서브셋(한글+박스드로잉 유지). dist/assets 12.7M→4.3M. E2(ESLint) 1.1 보류.
+- 2026-06-06 · PR-R4 · D1: App.css 의 shadcn raw `--accent`(중립) → `--accent-surface` 개명 + `--color-accent` repoint. ui_v2 녹색 `--accent`(tokens.css :root)와의 *이름 충돌* 근본 제거(8b ⚠ 해소) — in-project 오버레이가 대시보드·ui_v2 와 동일 중립 hover. 충돌 변수는 `--accent` 단 1개였음(검증). gates green, 시각잠금 0. **남은 것: dogfood + 1.0 태그(사용자), E2 ESLint(1.1)**
