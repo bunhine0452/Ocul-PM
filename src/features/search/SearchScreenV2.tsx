@@ -12,6 +12,7 @@ import {
 } from "@/components/Icons";
 import { commands, type ChunkSearchResult, type SymbolSearchResult } from "@/lib/bindings";
 import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
+import { OculSpinner } from "@/components/OculSpinner";
 
 // Final UI Update (ui_v2) — 코드 검색 화면 (02-screen-specs §5). PR-R1b (A2):
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
@@ -182,7 +183,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
               <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
             </div>
           ) : loading ? (
-            <div className="empty-hint">검색 중…</div>
+            <OculSpinner label="검색 중…" />
           ) : show && resultCount(results!) === 0 ? (
             <div className="empty-hint">결과가 없어요. 다른 키워드로 시도해보세요.</div>
           ) : show && results!.kind === "symbol" ? (

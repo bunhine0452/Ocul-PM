@@ -389,3 +389,23 @@
 .conv-title { font-size: 13px; font-weight: 520; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv-meta { font-size: 10.5px; color: var(--text-3); }
 .conv-del { flex: none; margin-right: 6px; }
+
+/* --- Today activity ring (브랜드 모티프 라이브 UI, icon round) --- */
+.today-ring { position: relative; display: grid; place-items: center; flex: none; }
+.today-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.today-ring .tra { transform-box: fill-box; transform-origin: center;
+  animation: oculSpinCW 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.today-ring .tra.m { animation-name: oculSpinCCW; animation-duration: 1.05s; }
+.today-ring .tra.i { animation-duration: 0.75s; }
+.today-ring-count { position: relative; font-size: 23px; font-weight: 760; letter-spacing: -0.02em;
+  color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.today-ring-ripple { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent);
+  animation: todayRipple 0.95s ease-out forwards; pointer-events: none; }
+@keyframes todayRipple {
+  0% { transform: scale(0.72); opacity: 0.55; }
+  100% { transform: scale(1.42); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-ring .tra { animation: none; }
+  .today-ring-ripple { display: none; }
+}

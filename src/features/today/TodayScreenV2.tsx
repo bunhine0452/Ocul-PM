@@ -19,6 +19,7 @@ import { MiniEntry } from "./MiniEntry";
 import { WeekChart } from "./WeekChart";
 import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
+import { TodayActivityRing } from "./TodayActivityRing";
 import { useTodayBrief } from "./useTodayBrief";
 import { useNextTasks } from "./useNextTasks";
 
@@ -92,21 +93,26 @@ export function TodayScreenV2({
         <div className="page fade-in">
           {/* Hero */}
           <div className="today-hero">
-            <div>
-              <div className="today-greet">
-                {oculpmReady && brief ? (
-                  <>
-                    오늘 <span className="accent">{brief.changedToday}건</span>의 작업이
-                    기록됐어요
-                  </>
-                ) : oculpmReady ? (
-                  "오늘의 기록을 불러오는 중…"
-                ) : (
-                  "ocul-pm이 아직 활성화되지 않았어요"
-                )}
-              </div>
-              <div className="today-date">
-                AI 에이전트가 코드를 쓰는 동안 Ocul-PM이 자동으로 일지를 작성합니다 · {tz}
+            <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
+              {oculpmReady && brief ? (
+                <TodayActivityRing count={brief.changedToday} />
+              ) : null}
+              <div style={{ minWidth: 0 }}>
+                <div className="today-greet">
+                  {oculpmReady && brief ? (
+                    <>
+                      오늘 <span className="accent">{brief.changedToday}건</span>의 작업이
+                      기록됐어요
+                    </>
+                  ) : oculpmReady ? (
+                    "오늘의 기록을 불러오는 중…"
+                  ) : (
+                    "ocul-pm이 아직 활성화되지 않았어요"
+                  )}
+                </div>
+                <div className="today-date">
+                  AI 에이전트가 코드를 쓰는 동안 Ocul-PM이 자동으로 일지를 작성합니다 · {tz}
+                </div>
               </div>
             </div>
             <button className="btn primary" onClick={() => onNavigate("diff")}>

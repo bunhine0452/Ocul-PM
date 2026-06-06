@@ -9,10 +9,10 @@ import {
   MoonIcon,
   SunIcon,
   SettingsIcon,
-  Eye,
   FolderGit2,
   ChevronsUpDown,
 } from "@/components/Icons";
+import { BrandMark } from "@/components/BrandMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 
 // Final UI Update (ui_v2) — 248px fixed sidebar (01-ia-and-shell.md §5,
@@ -105,9 +105,7 @@ export function Sidebar({
         <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
       ) : null}
       <div className="side-brand" data-tauri-drag-region>
-        <div className="brand-mark">
-          <Eye size={17} strokeWidth={2.2} />
-        </div>
+        <BrandMark size={28} />
         <div>
           <div className="brand-name">Ocul-PM</div>
           <div className="brand-sub">로컬-우선 · v1.0</div>

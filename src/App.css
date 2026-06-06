@@ -549,3 +549,25 @@
   place-items: center;
 }
 .update-banner-x:hover { background: var(--accent-surface); color: var(--foreground); }
+
+/* ── Brand motif animations (icon round) ───────────────────────────────────
+   Concentric-arc spinner (OculSpinner) + Today activity-ring sweep. `--primary`
+   resolves on both surfaces (App.css :root). Shared spin keyframes; the Today
+   ring's ripple lives in screens.css (ui_v2). */
+@keyframes oculSpinCW { to { transform: rotate(360deg); } }
+@keyframes oculSpinCCW { to { transform: rotate(-360deg); } }
+
+.ocul-spin-arc { transform-box: fill-box; transform-origin: center; }
+.ocul-spin-arc.a1 { animation: oculSpinCW 2.4s linear infinite; }
+.ocul-spin-arc.a2 { animation: oculSpinCCW 1.6s linear infinite; }
+.ocul-spin-arc.a3 { animation: oculSpinCW 1s linear infinite; }
+
+.ocul-loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 28px 16px; color: var(--muted-foreground);
+}
+.ocul-loading-label { font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ocul-spin-arc { animation: none; }
+}

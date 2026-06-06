@@ -14,6 +14,7 @@ import {
 import { commands, type Goal, type Subtask } from "@/lib/bindings";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
+import { OculSpinner } from "@/components/OculSpinner";
 
 // Final UI Update (ui_v2) — Planner 화면 (02-screen-specs §4). Real data via the
 // existing goalList / subtaskList / subtaskToggle commands (Decision F — no new
@@ -124,7 +125,7 @@ export function PlannerScreenV2({ projectId, onNavigate }: PlannerScreenV2Props)
           ) : null}
 
           {goals == null ? (
-            <div className="empty-hint">불러오는 중…</div>
+            <OculSpinner label="불러오는 중…" />
           ) : visibleGoals.length === 0 ? (
             <div className="empty-hint">
               {activeOnly ? "진행중인 목표가 없어요." : "첫 목표를 만들어보세요."}

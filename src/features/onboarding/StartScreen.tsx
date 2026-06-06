@@ -15,7 +15,6 @@ import {
   RefreshCw,
   Pencil,
   Trash2,
-  OculIcon,
   Sparkles,
   Plus,
   Settings,
@@ -24,6 +23,7 @@ import {
   Bot,
   NotebookText,
 } from "../../components/Icons";
+import { BrandMark } from "../../components/BrandMark";
 
 type StatsMap = Record<number, ProjectStats>;
 
@@ -99,7 +99,7 @@ export function StartScreen(props: StartScreenProps) {
       {/* ── Hero ────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center space-y-3 mt-4">
         <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
-          <OculIcon className="w-9 h-9 text-primary mr-3" strokeWidth={1.5} />
+          <BrandMark size={40} className="mr-3" />
           <span>Ocul-PM</span>
         </h1>
         <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">

@@ -21,8 +21,8 @@ import {
   Folder,
   AlertTriangle,
   Rocket,
-  OculIcon,
 } from "../../components/Icons";
+import { BrandMark } from "../../components/BrandMark";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface GreenfieldWizardProps {
@@ -616,7 +616,7 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
                   />
                   <span className="flex-1 min-w-0">
                     <span className="flex items-center gap-1.5 text-sm font-medium">
-                      <OculIcon className="w-3.5 h-3.5 text-primary" />
+                      <BrandMark size={16} />
                       ocul-pm 으로 이 프로젝트 추적
                       <span className="text-[10px] text-primary/80 font-semibold uppercase tracking-wider">
                         권장
