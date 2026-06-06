@@ -61,7 +61,7 @@ export function TitleBar({ projectName, projectId, onBackToDashboard }: TitleBar
           </div>
         ) : (
           <span className="text-foreground/90 font-heading text-sm tracking-wide">
-            ai-pm
+            Ocul-PM
           </span>
         )}
       </div>

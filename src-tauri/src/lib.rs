@@ -50,7 +50,7 @@ fn setup_logging() {
     // Resolve `<app_data>/logs` via the same `directories` crate Tauri uses
     // underneath app_data_dir(). On macOS this is
     // `~/Library/Application Support/com.kimhyunbin.ai-pm/logs/`.
-    let log_dir = directories::ProjectDirs::from("com", "kimhyunbin", "ai-pm")
+    let log_dir = directories::ProjectDirs::from("com", "kimhyunbin", "ocul-pm")
         .map(|p| p.data_dir().join("logs"));
 
     let stdout_layer = fmt::layer().with_target(true).with_thread_ids(false);
@@ -343,7 +343,7 @@ pub fn run() {
             }
 
             let app_data = app.path().app_data_dir()?;
-            let db_path = app_data.join("ai-pm.db");
+            let db_path = app_data.join("ocul-pm.db");
             let db = tauri::async_runtime::block_on(Db::open(db_path))
                 .expect("failed to open database");
             app.manage(db);

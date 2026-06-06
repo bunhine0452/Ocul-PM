@@ -8,9 +8,9 @@
 //! at the integration boundary. None of them try to re-test the
 //! parser/diff semantics — that's the unit suite's job.
 
-use ai_pm_lib::db::Db;
-use ai_pm_lib::oculpm::manager::OculpmManager;
-use ai_pm_lib::oculpm::spec::Severity;
+use ocul_pm_lib::db::Db;
+use ocul_pm_lib::oculpm::manager::OculpmManager;
+use ocul_pm_lib::oculpm::spec::Severity;
 
 async fn fresh_with_active_agents(active: &[&str]) -> (
     Db,
@@ -20,7 +20,7 @@ async fn fresh_with_active_agents(active: &[&str]) -> (
     u32,
 ) {
     let dir = tempfile::tempdir().unwrap();
-    let db_path = dir.path().join("ai-pm.db");
+    let db_path = dir.path().join("ocul-pm.db");
     let db = Db::open(db_path).await.expect("open db");
     let project_id = db
         .create_project("integ-agents".into(), dir.path().to_string_lossy().into())

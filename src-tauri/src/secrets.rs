@@ -3,7 +3,7 @@
 
 use keyring::Entry;
 
-const SERVICE: &str = "com.kimhyunbin.ai-pm";
+const SERVICE: &str = "com.kimhyunbin.ocul-pm";
 
 fn entry(name: &str) -> Result<Entry, keyring::Error> {
     Entry::new(SERVICE, name)

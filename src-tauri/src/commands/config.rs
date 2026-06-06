@@ -129,7 +129,7 @@ pub struct AppInfo {
 #[specta::specta]
 pub async fn app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let db_path = app_data.join("ai-pm.db");
+    let db_path = app_data.join("ocul-pm.db");
 
     let store = if cfg!(target_os = "macos") {
         "macOS Keychain"

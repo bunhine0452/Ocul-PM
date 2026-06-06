@@ -2337,7 +2337,7 @@ mod tests {
             std::path::PathBuf,
         ) {
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = Db::open(db_path).await.expect("open db");
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
@@ -2565,7 +2565,7 @@ mod tests {
             // No init for project_id=99 — manager has no entry, so cache
             // returns empty Vec (NotInitialized would break Today UX).
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = Db::open(db_path).await.unwrap();
             let manager = OculpmManager::new();
             // list_journal_entries doesn't touch manager state (only cache),
@@ -2678,7 +2678,7 @@ mod tests {
 
         async fn fresh_with_active(active: &[&str]) -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = Db::open(db_path).await.expect("open db");
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
@@ -2806,7 +2806,7 @@ mod tests {
 
         async fn fresh() -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = Db::open(db_path).await.expect("open db");
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
@@ -3057,7 +3057,7 @@ mod tests {
             u32,
         ) {
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = crate::db::Db::open(db_path).await.expect("open db");
             // Create projects(id=1) for FK.
             let project_id = db
@@ -3123,7 +3123,7 @@ mod tests {
         #[tokio::test]
         async fn delete_rejects_when_no_migration_history() {
             let dir = tempfile::tempdir().unwrap();
-            let db_path = dir.path().join("ai-pm.db");
+            let db_path = dir.path().join("ocul-pm.db");
             let db = crate::db::Db::open(db_path).await.expect("open db");
             let project_id = db
                 .create_project("p".into(), dir.path().to_string_lossy().into())

@@ -12,8 +12,8 @@
 use std::path::Path;
 use std::process::Command;
 
-use ai_pm_lib::db::Db;
-use ai_pm_lib::git;
+use ocul_pm_lib::db::Db;
+use ocul_pm_lib::git;
 
 fn run_git_in(root: &Path, args: &[&str]) {
     let status = Command::new("git")
@@ -140,7 +140,7 @@ fn diff_patch_signals_headless_repo_with_bad_revision_head() {
 #[tokio::test]
 async fn file_snapshot_upsert_is_idempotent_per_path() {
     let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ai-pm.db"))
+    let db = Db::open(dir.path().join("ocul-pm.db"))
         .await
         .expect("open db");
     let project_id = db
@@ -192,7 +192,7 @@ async fn file_snapshot_upsert_is_idempotent_per_path() {
 #[tokio::test]
 async fn get_file_snapshot_returns_none_for_unindexed_path() {
     let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ai-pm.db"))
+    let db = Db::open(dir.path().join("ocul-pm.db"))
         .await
         .expect("open db");
     let project_id = db

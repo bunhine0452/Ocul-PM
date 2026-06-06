@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ai-pm",
+  "productName": "Ocul-PM",
   "version": "1.0.0",
-  "identifier": "com.kimhyunbin.ai-pm",
+  "identifier": "com.kimhyunbin.ocul-pm",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ai-pm",
+        "title": "Ocul-PM",
         "hiddenTitle": true,
         "width": 1150,
         "height": 780,

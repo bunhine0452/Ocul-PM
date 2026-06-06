@@ -22,13 +22,13 @@
 
 use chrono::{SecondsFormat, Utc};
 
-use ai_pm_lib::db::Db;
-use ai_pm_lib::oculpm::frontmatter::parse_frontmatter_and_body;
-use ai_pm_lib::oculpm::index::IndexWriter;
-use ai_pm_lib::oculpm::lock::{LockAcquisition, LockGuard};
-use ai_pm_lib::oculpm::manager::OculpmManager;
-use ai_pm_lib::oculpm::paths::WorkdayResolver;
-use ai_pm_lib::oculpm::spec::{
+use ocul_pm_lib::db::Db;
+use ocul_pm_lib::oculpm::frontmatter::parse_frontmatter_and_body;
+use ocul_pm_lib::oculpm::index::IndexWriter;
+use ocul_pm_lib::oculpm::lock::{LockAcquisition, LockGuard};
+use ocul_pm_lib::oculpm::manager::OculpmManager;
+use ocul_pm_lib::oculpm::paths::WorkdayResolver;
+use ocul_pm_lib::oculpm::spec::{
     FileChangeEvent, FileOp, IntegrityWarning, OculpmIntegrityWarning,
 };
 
@@ -50,7 +50,7 @@ async fn fresh_project() -> (
     u32,
 ) {
     let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ai-pm.db"))
+    let db = Db::open(dir.path().join("ocul-pm.db"))
         .await
         .expect("Db::open");
     let root = dir.path().join("project");
@@ -226,7 +226,7 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
 #[tokio::test]
 async fn invariant_06_planner_goal_crud_roundtrip() {
     let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ai-pm.db")).await.unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
     let project_id = db
         .create_project(
             "planner".into(),
@@ -268,7 +268,7 @@ async fn invariant_06_planner_goal_crud_roundtrip() {
 #[tokio::test]
 async fn invariant_07_project_lifecycle_complete() {
     let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ai-pm.db")).await.unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
 
     let pid = db
         .create_project("orig".into(), "/tmp/p".into())

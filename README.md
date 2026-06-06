@@ -98,8 +98,12 @@ Ocul-PM 은 **네이티브 데스크톱 앱** 입니다. Electron 이 아닙니�
 
 최신 빌드는 **[GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases)** 에서 받습니다.
 
-- **macOS** (Apple Silicon · Intel) — `.dmg` 다운로드 → 열어서 `Applications` 로 드래그.
-  - 코드서명되지 않은 빌드라 첫 실행 시 Gatekeeper 경고가 뜨면: 앱을 **우클릭 → 열기**, 또는 `시스템 설정 → 개인정보 보호 및 보안` 에서 "확인 없이 열기".
+- **macOS** (Apple Silicon) — `Ocul-PM_1.0.0_aarch64.dmg` 다운로드 → 열어서 **Ocul-PM** 을 `Applications` 로 드래그.
+  - 처음 열 때 **"손상되었기 때문에 열 수 없습니다"** 가 뜨면 (공증 안 된 오픈소스 빌드라 macOS 가 격리 표시를 붙인 것 — 실제 손상 아님), 아래 한 줄로 격리만 제거하세요:
+
+    ```bash
+    xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
+    ```
 - **Windows** 10/11 — `.msi` (후속 릴리즈 제공 예정).
 
 ### 업데이트 알림

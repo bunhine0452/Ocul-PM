@@ -5,7 +5,7 @@ use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 
 const API_BASE: &str = "https://api.github.com";
-const USER_AGENT: &str = concat!("ai-pm/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("ocul-pm/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct GithubUser {

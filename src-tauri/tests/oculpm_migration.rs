@@ -10,12 +10,12 @@
 
 use std::path::Path;
 
-use ai_pm_lib::db::Db;
-use ai_pm_lib::oculpm::manager::OculpmManager;
+use ocul_pm_lib::db::Db;
+use ocul_pm_lib::oculpm::manager::OculpmManager;
 
 async fn fresh_setup() -> (Db, OculpmManager, tempfile::TempDir, std::path::PathBuf, u32) {
     let dir = tempfile::tempdir().unwrap();
-    let db_path = dir.path().join("ai-pm.db");
+    let db_path = dir.path().join("ocul-pm.db");
     let db = Db::open(db_path).await.expect("open db");
     let project_id = db
         .create_project("integ-mig".into(), dir.path().to_string_lossy().into())
