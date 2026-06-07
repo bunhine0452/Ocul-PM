@@ -16,8 +16,11 @@ import type { DiffMode } from "@/contexts/WorkspaceContext";
  *  single-gutter unified view vs the side-by-side split. */
 export function PatchView({ patch, mode }: { patch: string; mode: DiffMode }) {
   const hunks = groupIntoHunks(classifyDiffLines(patch));
+  // `diff-content` sizes to the widest line (min-width: max-content) so long
+  // lines render on ONE line and `.diff-code` scrolls horizontally instead of
+  // wrapping — and so every row's highlight spans the full scroll width.
   return (
-    <div>
+    <div className="diff-content">
       {hunks.map((h, hi) => (
         <Hunk key={hi} header={h.header?.text ?? null} lines={h.lines} mode={mode} />
       ))}

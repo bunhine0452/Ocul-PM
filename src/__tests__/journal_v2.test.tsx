@@ -53,10 +53,11 @@ vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     listJournalEntries: (_pid: number, workday: string) =>
       Promise.resolve(fixtures.byWorkday[workday] ?? []),
-    // JournalCardV2 hydrates per-file chips via getJournalEntry.
+    // EntryDiffModal's narrative pane loads body_markdown + files_touched.
     getJournalEntry: (_pid: number, relativePath: string) =>
       Promise.resolve({
         relative_path: relativePath,
+        body_markdown: "## 동작 흐름\n- 무언가를 변경했다\n",
         frontmatter: {
           files_touched: [
             { path: "src/lib/workday.ts", op: "update", bytes_added: 120, bytes_removed: 8, rename_from: null },
@@ -80,6 +81,14 @@ vi.mock("@/api/oculpm", () => ({
         },
       ]),
   },
+}));
+
+// EntryDiffModal's narrative pane renders <Markdown>, which depends on
+// useTheme→useSettings (SettingsProvider). This suite only wraps in
+// WorkspaceProvider, so stub Markdown to plain text — the modal assertions
+// target the recorded diff + header, not the rendered markdown.
+vi.mock("@/components/Markdown", () => ({
+  Markdown: ({ children }: { children: string }) => children,
 }));
 
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -124,15 +133,11 @@ describe("PR-UI 3 — Journal timeline", () => {
       summary({ relative_path: "a", title: "기능 작업", type: "feature" }),
       summary({ relative_path: "b", title: "버그 작업", type: "bug" }),
     ];
-    const { findByText, getByText, findAllByText } = renderJournal();
+    const { findByText, getByText } = renderJournal();
     expect(await findByText("기능 작업")).toBeInTheDocument();
     expect(getByText("버그 작업")).toBeInTheDocument();
     // day-label shows 오늘 prefix for todayKey.
     expect(getByText(/오늘 · 2026-05-31/)).toBeInTheDocument();
-    // Per-file chips hydrate from getJournalEntry (basename + bytes ±), not just
-    // a count — one card per entry, so the chip appears once per card.
-    expect((await findAllByText("workday.ts")).length).toBeGreaterThan(0);
-    expect((await findAllByText("+120")).length).toBeGreaterThan(0);
   });
 
   it("scope-chip filters by trigger type (버그 → only bug entries)", async () => {
@@ -159,27 +164,25 @@ describe("PR-UI 3 — Journal timeline", () => {
     expect(queryByText("롤오버 구현")).toBeNull();
   });
 
-  it("clicking a card opens the 변경 diff with that entry", async () => {
+  it("clicking a card opens the recorded-diff modal (not the live screen)", async () => {
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
-    const { findByText, onOpenDiff } = renderJournal();
+    const { findByText, findByRole, onOpenDiff } = renderJournal();
     fireEvent.click(await findByText("검토 대상"));
-    expect(onOpenDiff).toHaveBeenCalledTimes(1);
-    expect(onOpenDiff.mock.calls[0][0].relative_path).toBe("a");
-  });
-
-  it("clicking a file chip opens the recorded-diff modal (not the live screen)", async () => {
-    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
-    const { findAllByText, findByRole, findByText, onOpenDiff } = renderJournal();
-    // Chips hydrate from getJournalEntry; click the workday.ts chip button.
-    const chip = (await findAllByText("workday.ts"))[0].closest("button");
-    expect(chip).not.toBeNull();
-    fireEvent.click(chip!);
     // Modal (dialog) opens and renders the recorded patch — NOT the live diff.
     expect(await findByRole("dialog")).toBeInTheDocument();
     expect(await findByText(/변경 기록/)).toBeInTheDocument();
     expect(await findByText(/const neo = 2;/)).toBeInTheDocument();
-    // The chip must not also fire the card's open-live-diff handler.
+    // Card click opens the modal; it must not fire the live-diff handler.
     expect(onOpenDiff).not.toHaveBeenCalled();
+  });
+
+  it("the '변경 diff 화면' foot button jumps to the live diff", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findByText, getByText, onOpenDiff } = renderJournal();
+    await findByText("검토 대상");
+    fireEvent.click(getByText("변경 diff 화면"));
+    expect(onOpenDiff).toHaveBeenCalledTimes(1);
+    expect(onOpenDiff.mock.calls[0][0].relative_path).toBe("a");
   });
 
   it("empty journal shows the no-entries hint", async () => {

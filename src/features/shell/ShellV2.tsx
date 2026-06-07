@@ -44,6 +44,16 @@ export default function ShellV2({
   const view = state.uiV2View;
   const isDark = resolvedTheme === "dark";
 
+  // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
+  // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
+  // cleared when the cursor leaves the floating sidebar.
+  const collapsed = state.sidebarCollapsed;
+  const [hovering, setHovering] = useState(false);
+  const toggleSidebar = () => {
+    setHovering(false);
+    setState((prev) => ({ ...prev, sidebarCollapsed: !prev.sidebarCollapsed }));
+  };
+
   // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
   // as shell-local ephemeral state (focus is not persisted; it's a single
   // event, mirroring WorkspaceContext.diffTarget's one-shot semantics).
@@ -77,8 +87,22 @@ export default function ShellV2({
     setUiV2View("diff");
   };
 
+  const appClass =
+    "app" +
+    (collapsed ? " sidebar-collapsed" : "") +
+    (collapsed && hovering ? " sidebar-hover" : "");
+
   return (
-    <div className="app" style={{ height: "100%" }}>
+    <div className={appClass} style={{ height: "100%" }}>
+      {collapsed ? (
+        // Left-edge hover zone — only present when collapsed; entering it floats
+        // the sidebar in as an overlay. Cleared on the sidebar's mouseleave.
+        <div
+          className="side-hover-zone"
+          onMouseEnter={() => setHovering(true)}
+          aria-hidden="true"
+        />
+      ) : null}
       <Sidebar
         view={view}
         onNavigate={setUiV2View}
@@ -88,6 +112,9 @@ export default function ShellV2({
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
         macTopInset={isMac ? 22 : 0}
+        onToggleCollapse={toggleSidebar}
+        collapsed={collapsed}
+        onMouseLeave={collapsed ? () => setHovering(false) : undefined}
       />
       <main className="content">
         {view === "settings" ? (
@@ -124,7 +151,15 @@ export default function ShellV2({
             onFocusConsumed={() => setJournalFocus(null)}
           />
         ) : view === "diff" ? (
-          <DiffScreenV2 projectId={projectId} projectRoot={projectRoot} branch={null} />
+          <DiffScreenV2
+            projectId={projectId}
+            projectRoot={projectRoot}
+            branch={null}
+            onOpenEntry={(path) => {
+              setJournalFocus(path);
+              setUiV2View("journal");
+            }}
+          />
         ) : view === "planner" ? (
           <PlannerScreenV2
             projectId={projectId}

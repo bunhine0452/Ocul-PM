@@ -11,6 +11,7 @@
   height: 100vh;
   background: var(--bg-content);
   overflow: hidden;
+  position: relative; /* anchor for the collapsed sidebar overlay */
 }
 
 .sidebar {
@@ -21,6 +22,57 @@
   padding: 14px 12px 12px;
   gap: 4px;
   user-select: none;
+}
+
+/* ── Sidebar collapse + hover-reveal (Dogfooding 2026-06-07) ── */
+/* Collapsed: content takes the full width; the sidebar floats out of flow and
+   slides off-screen, returning as an overlay when the left edge is hovered. */
+.app.sidebar-collapsed {
+  grid-template-columns: 1fr;
+}
+.app.sidebar-collapsed .sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 248px;
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+  z-index: 50;
+  box-shadow: var(--shadow-pop);
+}
+.app.sidebar-collapsed.sidebar-hover .sidebar {
+  transform: translateX(0);
+}
+/* Thin left-edge catch zone that triggers the reveal. */
+.side-hover-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 40;
+}
+
+/* Collapse toggle button in the brand row. */
+.side-collapse-btn {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  color: var(--text-3);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  flex: none;
+}
+.side-collapse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .side-brand {

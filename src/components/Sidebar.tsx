@@ -11,14 +11,16 @@ import {
   SettingsIcon,
   FolderGit2,
   ChevronsUpDown,
+  PanelLeft,
 } from "@/components/Icons";
 import { BrandMark } from "@/components/BrandMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 
-// Final UI Update (ui_v2) — 248px fixed sidebar (01-ia-and-shell.md §5,
+// Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). 9 slots: 4 main + 3 tools + 2 footer
 // (dark toggle / settings). Rendered as <nav> + <button>s for a11y; the
-// mockup used <div onClick>. Not collapsible (00-master-plan §6).
+// mockup used <div onClick>. Dogfooding 2026-06-07: now collapsible — a
+// brand-row button toggles `sidebarCollapsed`; ShellV2 owns the hover-reveal.
 
 type IconComp = React.ComponentType<{
   size?: number | string;
@@ -61,6 +63,12 @@ interface SidebarProps {
    * top inset so the brand clears the lights; the strip is a drag region.
    */
   macTopInset?: number;
+  /** Collapse the sidebar off-screen (hover-to-reveal). Dogfooding 2026-06-07. */
+  onToggleCollapse?: () => void;
+  /** True when the sidebar is currently collapsed (button shown in the overlay). */
+  collapsed?: boolean;
+  /** Hide the floating overlay when the cursor leaves it (collapsed mode). */
+  onMouseLeave?: () => void;
 }
 
 function NavRow({
@@ -98,9 +106,12 @@ export function Sidebar({
   isDark,
   onToggleTheme,
   macTopInset = 0,
+  onToggleCollapse,
+  collapsed = false,
+  onMouseLeave,
 }: SidebarProps) {
   return (
-    <nav className="sidebar" aria-label="메인 내비게이션">
+    <nav className="sidebar" aria-label="메인 내비게이션" onMouseLeave={onMouseLeave}>
       {macTopInset > 0 ? (
         <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
       ) : null}
@@ -110,6 +121,17 @@ export function Sidebar({
           <div className="brand-name">Ocul-PM</div>
           <div className="brand-sub">로컬-우선 · v1.0</div>
         </div>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="side-collapse-btn"
+            onClick={onToggleCollapse}
+            title={collapsed ? "사이드바 고정" : "사이드바 접기"}
+            aria-label={collapsed ? "사이드바 고정" : "사이드바 접기"}
+          >
+            <PanelLeft size={16} />
+          </button>
+        ) : null}
       </div>
 
       <button

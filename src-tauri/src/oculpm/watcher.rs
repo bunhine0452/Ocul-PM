@@ -819,9 +819,17 @@ fn is_self_suppressed(rel_str: &str) -> bool {
     if rel_str.ends_with(".swp") || rel_str.ends_with(".swo") || rel_str.ends_with('~') {
         return true;
     }
-    // macOS / Windows metadata.
     let basename = rel_str.rsplit('/').next().unwrap_or(rel_str);
+    // macOS / Windows metadata.
     if basename == ".DS_Store" || basename == "Thumbs.db" || basename.starts_with("._") {
+        return true;
+    }
+    // Dogfooding (2026-06-07) — transient tool/cache files leaked into the 변경
+    // diff list. Tools write scratch files whose basename carries a `!`
+    // (lockfile/backup conventions, JetBrains `___…`, etc.); these blink in and
+    // out and are never journaled. A real source file almost never has `!` in
+    // its name, so suppress any basename containing one.
+    if basename.contains('!') {
         return true;
     }
     false
@@ -1332,6 +1340,11 @@ mod tests {
         assert!(is_self_suppressed("nested/.DS_Store"));
         assert!(is_self_suppressed("Thumbs.db"));
         assert!(is_self_suppressed("nested/._foo.txt"));
+
+        // Dogfooding (2026-06-07) — `!`-bearing transient/cache files.
+        assert!(is_self_suppressed("!scratch"));
+        assert!(is_self_suppressed("cache/data!cadb26c2"));
+        assert!(is_self_suppressed("nested/dir/foo.bak!"));
 
         // Legit files must still pass through.
         assert!(!is_self_suppressed("game.js"));

@@ -202,6 +202,23 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     }
   };
 
+  // Dogfooding 2026-06-07 (Planner #1) — 완료·잠금: mark the plan done (read-only).
+  // Locked plans reject in-app edits + AI refresh (backend guard) and AGENTS.md
+  // tells external agents the same, so finished plans freeze and work moves on.
+  const setPlanLock = async (lock: boolean) => {
+    if (selectedId == null || busy) return;
+    setBusy(true);
+    const res = await commands.planSetStatus(projectId, selectedId, lock ? "done" : "active");
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+      toast.info(lock ? "계획을 완료·잠금했어요 — 새 계획에서 이어가세요" : "잠금을 해제했어요");
+    } else {
+      toast.destructive(res.error);
+    }
+  };
+
   // PR-PLN 5 — in-app AI updates item statuses from recent journal activity.
   const aiRefresh = async () => {
     if (selectedId == null || busy) return;
@@ -281,6 +298,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     [detail],
   );
 
+  // A plan whose frontmatter status isn't "active" is locked (done/archived):
+  // edits + AI refresh are disabled in the UI (and refused by the backend).
+  const locked = (detail?.plan.status ?? "active") !== "active";
+
   return (
     <>
       <Toolbar title="Planner" sub="AI 가 갱신하는 계획 — 항목별 진척·귀속">
@@ -288,8 +309,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           className="scope-chip"
           style={{ height: 30 }}
           onClick={() => void aiRefresh()}
-          disabled={selectedId == null || busy}
-          title="최근 작업 일지를 근거로 AI 가 항목 상태를 갱신"
+          disabled={selectedId == null || busy || locked}
+          title={locked ? "완료·잠금된 계획은 갱신할 수 없어요" : "최근 작업 일지를 근거로 AI 가 항목 상태를 갱신"}
         >
           <Sparkles size={13} /> AI 갱신
         </button>
@@ -297,8 +318,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           className="scope-chip"
           style={{ height: 30 }}
           onClick={() => setComposer((c) => (c ? null : { phase: existingPhases[0] ?? "할 일", title: "" }))}
-          disabled={selectedId == null || busy}
-          title="새 항목"
+          disabled={selectedId == null || busy || locked}
+          title={locked ? "완료·잠금된 계획에는 항목을 추가할 수 없어요" : "새 항목"}
         >
           <Plus size={13} /> 항목
         </button>
@@ -341,18 +362,24 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           {/* Plan selector */}
           {plans && plans.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-              {plans.map((p) => (
-                <button
-                  key={p.plan_id}
-                  className={"scope-chip" + (p.plan_id === selectedId ? " on" : "")}
-                  onClick={() => setSelectedId(p.plan_id)}
-                  title={`${p.done_count}/${p.item_count} · ${Math.round((p.progress ?? 0) * 100)}%`}
-                >
-                  {p.title}
-                  <span className="dotsep">·</span>
-                  {Math.round((p.progress ?? 0) * 100)}%
-                </button>
-              ))}
+              {[...plans]
+                .sort((a, b) => Number(a.status !== "active") - Number(b.status !== "active"))
+                .map((p) => {
+                  const pLocked = p.status !== "active";
+                  return (
+                    <button
+                      key={p.plan_id}
+                      className={"scope-chip" + (p.plan_id === selectedId ? " on" : "")}
+                      onClick={() => setSelectedId(p.plan_id)}
+                      title={`${pLocked ? "완료·잠금 · " : ""}${p.done_count}/${p.item_count} · ${Math.round((p.progress ?? 0) * 100)}%`}
+                    >
+                      {pLocked ? "🔒 " : ""}
+                      {p.title}
+                      <span className="dotsep">·</span>
+                      {Math.round((p.progress ?? 0) * 100)}%
+                    </button>
+                  );
+                })}
             </div>
           ) : null}
 
@@ -378,6 +405,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               setCollapsed={setCollapsed}
               onSetStatus={applyStatus}
               busy={busy}
+              locked={locked}
+              onToggleLock={setPlanLock}
               historyFor={historyFor}
               history={history}
               onToggleHistory={toggleHistory}
@@ -429,6 +458,8 @@ interface PlanBodyProps {
   setCollapsed: Dispatch<SetStateAction<Record<string, boolean>>>;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   busy: boolean;
+  locked: boolean;
+  onToggleLock: (lock: boolean) => void;
   historyFor: string | null;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
@@ -437,7 +468,7 @@ interface PlanBodyProps {
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef } = props;
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
@@ -449,15 +480,28 @@ function PlanBody(props: PlanBodyProps) {
           <div style={{ flex: 1 }}>
             <div className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</div>
             <div className="goal-due" style={{ marginTop: 4 }}>
-              <span className={"goal-status " + (detail.plan.status === "active" ? "active" : "planned")}>
-                {detail.plan.status === "active" ? "진행중" : detail.plan.status}
+              <span className={"goal-status " + (locked ? "planned" : "active")}>
+                {locked ? "🔒 완료·잠금" : "진행중"}
               </span>
               <span className="dotsep">·</span>
               {detail.plan.done_count}/{detail.plan.item_count} 완료
             </div>
           </div>
+          <button
+            className="btn sm"
+            onClick={() => onToggleLock(!locked)}
+            disabled={busy}
+            title={locked ? "잠금 해제하고 다시 편집" : "이 계획을 완료·잠금 (읽기전용)"}
+          >
+            {locked ? "잠금 해제" : "완료·잠금"}
+          </button>
           <button className="btn sm" onClick={onRefresh} title="새로고침"><RefreshCw size={13} /></button>
         </div>
+        {locked ? (
+          <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
+            완료·잠금된 계획입니다 — 인앱 편집·AI 갱신·외부 에이전트 수정이 비활성화돼요. 새 계획에서 이어가세요.
+          </div>
+        ) : null}
 
         <div className="goal-prog-wrap" style={{ marginTop: 12 }}>
           <div className="prog-track" style={{ flex: 1 }}><i style={{ width: `${pct}%` }} /></div>
@@ -526,6 +570,7 @@ function PlanBody(props: PlanBodyProps) {
                     key={it.item_id}
                     item={it}
                     busy={busy}
+                    locked={locked}
                     onSetStatus={onSetStatus}
                     historyOpen={historyFor === it.item_id}
                     history={historyFor === it.item_id ? history : null}
@@ -563,6 +608,7 @@ function PlanBody(props: PlanBodyProps) {
 interface PlanItemRowProps {
   item: PlanItemDto;
   busy: boolean;
+  locked: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   historyOpen: boolean;
   history: PlanItemUpdateDto[] | null;
@@ -570,22 +616,24 @@ interface PlanItemRowProps {
   onOpenJournalRef: (ref: string) => void;
 }
 
-function PlanItemRow({ item, busy, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
   const linked = item.journal_refs ?? [];
   // Suggestion (never auto-applied): journal work is logged against this item
-  // but it isn't closed out yet → offer a one-click "완료?".
-  const suggestDone = linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
+  // but it isn't closed out yet → offer a one-click "완료?". Suppressed on a
+  // locked plan (no edits allowed).
+  const suggestDone =
+    !locked && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
   return (
     <div className="subtask" style={{ alignItems: "flex-start", paddingLeft: 14 + indent, cursor: "default" }}>
       <button
         type="button"
         onClick={() => onSetStatus(item, NEXT_STATUS[item.status] ?? "in_progress")}
-        disabled={busy}
-        title={`${meta.label} — 클릭하여 진행`}
+        disabled={busy || locked}
+        title={locked ? `${meta.label} (완료·잠금)` : `${meta.label} — 클릭하여 진행`}
         style={{
-          background: "none", border: "none", cursor: busy ? "default" : "pointer",
+          background: "none", border: "none", cursor: busy || locked ? "default" : "pointer",
           color: meta.color, fontSize: 16, lineHeight: "20px", padding: 0, width: 22, flexShrink: 0,
         }}
       >

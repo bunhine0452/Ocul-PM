@@ -15,7 +15,7 @@ use tauri_specta::Event;
 
 use crate::db::Db;
 use crate::oculpm::agents::{AgentDetection, MasterUpgrade};
-use crate::oculpm::cache::EntryFilters;
+use crate::oculpm::cache::{ChangeGroup, EntryFilters, JournalCache};
 use crate::oculpm::entry_diffs::EntryFileDiff;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
@@ -374,6 +374,22 @@ pub async fn oculpm_get_entry_diffs(
         &root,
         &relative_path,
     ))
+}
+
+/// Group the watcher's changed file paths by the journal entry that recorded
+/// each, with the plan items linked to that entry (Dogfooding #3). Files no
+/// entry recorded land in a trailing `entry_path: None` bucket.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_group_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+    paths: Vec<String>,
+) -> Result<Vec<ChangeGroup>, String> {
+    JournalCache::new(&db)
+        .group_changes(project_id, paths)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Toggle `verified_by_user` on a journal entry's frontmatter. Atomic

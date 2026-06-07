@@ -187,6 +187,11 @@ export interface WorkspaceState {
   aiActiveModel: string | null;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
+  /**
+   * 사이드바 접힘 상태 (Dogfooding 2026-06-07). true 면 사이드바가 화면에서
+   * 사라지고, 좌측 가장자리 호버 시에만 오버레이로 떠오름. 영속.
+   */
+  sidebarCollapsed: boolean;
 }
 
 export interface IndexProgress {
@@ -249,6 +254,7 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalActiveId: null,
   aiActiveModel: null,
   aiThreadId: null,
+  sidebarCollapsed: false,
 };
 
 const STORAGE_KEY = "aipm:workspace:v1";
@@ -831,6 +837,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (evt.payload.project_id !== currentProjectId()) return;
       const op = mapFileOpToChangeOp(evt.payload.event.op);
       const path = evt.payload.event.path;
+      // Dogfooding (2026-06-07) — forbidden-path matches arrive pre-masked as
+      // `**redacted/sensitive**:<hash>`. They can't be opened (computeDiff has
+      // no real path) and are pure noise in the 변경 diff list, so drop them
+      // here. The ndjson/journal masking on the backend is untouched.
+      if (path.startsWith("**redacted/sensitive**")) return;
       setState((prev) => ({
         ...prev,
         recentChanges: pushRecentChange(prev.recentChanges, {

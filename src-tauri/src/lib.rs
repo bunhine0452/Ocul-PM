@@ -111,7 +111,7 @@ use crate::commands::{
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
-    plan_ai_refresh, plan_migrate_goals, plan_recent_updates,
+    plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
     get_dependency_graph, get_file_symbols,
     minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
     open_ai_window,
@@ -135,7 +135,7 @@ use crate::commands::{
     oculpm_list_sessions, oculpm_get_file_changes, oculpm_get_index_snapshot,
     oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_status,
     oculpm_list_journal_entries, oculpm_get_journal_entry, oculpm_get_entry_diffs,
-    oculpm_set_journal_verified,
+    oculpm_group_changes, oculpm_set_journal_verified,
     oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
     oculpm_agents_sync_active, oculpm_agents_detect, oculpm_agents_get_master_template,
     oculpm_agents_check_master_upgrade, oculpm_agents_apply_master_upgrade,
@@ -206,6 +206,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         plan_ai_refresh,
         plan_migrate_goals,
         plan_recent_updates,
+        plan_set_status,
         // M2-3 — Chat history
         conversation_create,
         conversation_list,
@@ -285,6 +286,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_list_journal_entries,
         oculpm_get_journal_entry,
         oculpm_get_entry_diffs,
+        oculpm_group_changes,
         oculpm_set_journal_verified,
         oculpm_reindex_cache,
         oculpm_create_manual_entry,

@@ -18,7 +18,7 @@ use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMP
 use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
-    add_item, append_log_row, create_plan_skeleton, set_item_status, LogRow,
+    add_item, append_log_row, create_plan_skeleton, set_item_status, set_plan_status, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -99,6 +99,16 @@ pub enum PlanEditOp {
     },
 }
 
+/// True when a plan is locked (frontmatter `status` is anything other than
+/// `active` — i.e. `done`/`archived`). Locked plans reject in-app edits + AI
+/// refresh; AGENTS.md tells external agents the same (Planner #1).
+fn is_plan_locked(md: &str, plan_id: &str) -> bool {
+    parse_plan(md, plan_id).frontmatter.status.as_str() != "active"
+}
+
+const LOCKED_MSG: &str =
+    "이 계획은 완료·잠금 상태입니다. 새 계획을 만들어 진행하세요.";
+
 fn free_plan_path(root: &Path, base: &str) -> (String, PathBuf) {
     let mut id = base.to_string();
     let mut n = 2;
@@ -153,6 +163,9 @@ pub async fn plan_apply_edit(
     let path =
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    if is_plan_locked(&md, &plan_id) {
+        return Err(LOCKED_MSG.to_string());
+    }
     let ts = chrono::Utc::now().to_rfc3339();
 
     let new_md = match op {
@@ -203,6 +216,32 @@ pub async fn plan_apply_edit(
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }
 
+/// Set a plan's lifecycle status (`active` / `done` / `archived`). `done` and
+/// `archived` LOCK the plan: `plan_apply_edit` / `plan_ai_refresh` refuse to
+/// touch it and AGENTS.md tells external agents the same — so finished plans
+/// stay frozen and work moves to a new plan (Planner #1). Returns refreshed
+/// detail.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_set_status(
+    db: State<'_, Db>,
+    project_id: u32,
+    plan_id: String,
+    status: String,
+) -> Result<Option<PlanDetail>, String> {
+    if !matches!(status.as_str(), "active" | "done" | "archived") {
+        return Err(format!("unknown plan status '{status}'"));
+    }
+    let root = planner_root_of(&db, project_id).await?;
+    let path =
+        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
+    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let new_md = set_plan_status(&md, &status, &date);
+    write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+    PlanCache::new(&db).get(project_id, &root, &plan_id).await
+}
+
 // ─── in-app AI refresh + migration (PR-PLN 5) ────────────────────────────────
 
 /// Ask the configured in-app LLM to update item statuses from recent journal
@@ -227,6 +266,9 @@ pub async fn plan_ai_refresh(
         .unwrap_or("plan")
         .to_string();
     let parsed = parse_plan(&md, &stem);
+    if parsed.frontmatter.status.as_str() != "active" {
+        return Err(LOCKED_MSG.to_string());
+    }
 
     let items_block = parsed
         .items

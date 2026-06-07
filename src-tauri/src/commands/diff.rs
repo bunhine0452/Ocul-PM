@@ -340,7 +340,15 @@ async fn snapshot_diff(
     };
 
     let abs = root.join(&path);
-    let disk_content = fs::read(&abs).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+    // A deleted file (no longer on disk) is not an error: render it as an
+    // all-deletions diff against the snapshot baseline so the 변경 diff 화면 /
+    // EntryDiffModal show "삭제됨" instead of surfacing
+    // `No such file or directory (os error 2)`. Other IO errors still propagate.
+    let disk_content = match fs::read(&abs) {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => return Err(format!("Failed to read {}: {}", path, e)),
+    };
 
     if disk_content == snapshot.content {
         return Ok(DiffResult {

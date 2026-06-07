@@ -143,4 +143,5 @@ owner: claude-code             # 네 agent.id
 - 새 항목을 추가하면 안정적인 영어 kebab id 를 직접 부여 (예 `{#search-scopes}`). 같은 phase (`## …`) 아래에 둔다.
 - 큰 결정이 생기면 `## 결정` 섹션에 `### Decision X — 제목 {#id}` 블록으로 잠근다 (`- 잠금 <날짜> · <agent.id>` + 근거 + `영향: #항목id`).
 - **일지 내용을 Planner 에 복붙하지 말 것.** Planner 항목은 일지를 *참조* (`일지` 열) 만 한다 — 같은 내용을 두 곳에 쓰지 않는다.
+- **완료·잠금된 plan 은 절대 수정하지 말 것.** frontmatter `status:` 가 `active` 가 아니면(`done`/`archived`) 그 plan 은 사용자가 잠근 것이다 — 항목 글리프·plan-log·본문을 건드리지 말라. 새 작업은 `status: active` 인 다른 plan 에서 진행하고, 그런 plan 이 없으면 **새 plan 파일을 만들어** 거기서 계획하라.
 - 항목의 *현재 상태* 는 본문 글리프가 정답, 로그는 *이력* 이다 (제자리 갱신 — 일지처럼 append-only 가 아니다).

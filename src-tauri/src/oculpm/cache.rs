@@ -83,6 +83,28 @@ pub enum PathChangeKind {
 // JournalCache
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// One plan item linked (via the plan-log `journal_ref`) to a changed-file
+/// group's journal entry. Dogfooding #3 — surfaces "어떤 plan 에서" in the diff.
+#[derive(Debug, Clone, Serialize, Type)]
+pub struct ChangePlanRef {
+    pub plan_id: String,
+    pub plan_title: String,
+    pub item_title: String,
+}
+
+/// A group of changed files attributed to one journal entry (Dogfooding #3).
+/// `entry_path == None` is the trailing "미기록 변경" bucket for files no
+/// journal entry recorded.
+#[derive(Debug, Clone, Serialize, Type)]
+pub struct ChangeGroup {
+    pub entry_path: Option<String>,
+    pub entry_title: Option<String>,
+    pub entry_type: Option<String>,
+    pub created_at: Option<String>,
+    pub plan_refs: Vec<ChangePlanRef>,
+    pub files: Vec<String>,
+}
+
 /// Thin facade over the `oculpm_journal*` tables. Holds a shared reference
 /// to the process-wide [`Db`] connection — no extra connection pooling.
 pub struct JournalCache<'a> {
@@ -407,6 +429,108 @@ impl<'a> JournalCache<'a> {
             .await
             .map_err(map_sqlite_err)?;
         Ok(rows)
+    }
+
+    /// Group changed file paths by the journal entry that most recently touched
+    /// each (Dogfooding #3). Each entry group carries the plan items linked to
+    /// it (via the plan-log `journal_ref`). Paths no entry recorded fall into a
+    /// trailing `entry_path: None` bucket. Entry groups are newest-first.
+    pub async fn group_changes(
+        &self,
+        project_id: u32,
+        paths: Vec<String>,
+    ) -> Result<Vec<ChangeGroup>, OculpmError> {
+        let pid = project_id as i64;
+        let groups = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut find = c.prepare(
+                    "SELECT j.relative_path, j.title, j.type, j.created_at
+                     FROM oculpm_journal_files f
+                     JOIN oculpm_journal j
+                       ON j.project_id = f.project_id AND j.relative_path = f.relative_path
+                     WHERE f.project_id = ?1 AND f.file_path = ?2
+                     ORDER BY j.created_at DESC
+                     LIMIT 1",
+                )?;
+                let mut plan_stmt = c.prepare(
+                    "SELECT DISTINCT p.plan_id, p.title, pi.title
+                     FROM oculpm_plan_item_updates u
+                     JOIN oculpm_plans p
+                       ON p.project_id = u.project_id AND p.plan_id = u.plan_id
+                     JOIN oculpm_plan_items pi
+                       ON pi.project_id = u.project_id AND pi.plan_id = u.plan_id
+                      AND pi.item_id = u.item_id
+                     WHERE u.project_id = ?1 AND u.journal_ref LIKE '%' || ?2",
+                )?;
+
+                let mut order: Vec<String> = Vec::new();
+                let mut by_entry: HashMap<String, (String, String, String, Vec<String>)> =
+                    HashMap::new();
+                let mut untracked: Vec<String> = Vec::new();
+
+                for path in &paths {
+                    let hit = find
+                        .query_row(params![pid, path], |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, String>(2)?,
+                                r.get::<_, String>(3)?,
+                            ))
+                        })
+                        .optional()?;
+                    match hit {
+                        Some((rp, title, ty, created)) => {
+                            let e = by_entry.entry(rp.clone()).or_insert_with(|| {
+                                order.push(rp.clone());
+                                (title, ty, created, Vec::new())
+                            });
+                            e.3.push(path.clone());
+                        }
+                        None => untracked.push(path.clone()),
+                    }
+                }
+
+                let mut out: Vec<ChangeGroup> = Vec::new();
+                for rp in &order {
+                    let (title, ty, created, files) = by_entry.remove(rp).unwrap();
+                    let refs: Vec<ChangePlanRef> = plan_stmt
+                        .query_map(params![pid, rp], |r| {
+                            Ok(ChangePlanRef {
+                                plan_id: r.get(0)?,
+                                plan_title: r.get(1)?,
+                                item_title: r.get(2)?,
+                            })
+                        })?
+                        .filter_map(|x| x.ok())
+                        .collect();
+                    out.push(ChangeGroup {
+                        entry_path: Some(rp.clone()),
+                        entry_title: Some(title),
+                        entry_type: Some(ty),
+                        created_at: Some(created),
+                        plan_refs: refs,
+                        files,
+                    });
+                }
+                out.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                if !untracked.is_empty() {
+                    out.push(ChangeGroup {
+                        entry_path: None,
+                        entry_title: None,
+                        entry_type: None,
+                        created_at: None,
+                        plan_refs: Vec::new(),
+                        files: untracked,
+                    });
+                }
+                Ok(out)
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(groups)
     }
 
     pub async fn get_entry(

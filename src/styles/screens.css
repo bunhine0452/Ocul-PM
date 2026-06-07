@@ -158,6 +158,21 @@
 .dfile.active .dfile-name { color: var(--accent-text); font-weight: 600; }
 .dfile-stat { font-family: var(--mono); font-size: 10.5px; font-weight: 600; display: flex; gap: 5px; }
 .dfile-read { margin-left: 4px; color: var(--accent-text); display: grid; place-items: center; flex: none; }
+/* Change groups (Dogfooding #3) — files bucketed under their journal entry. */
+.diff-group { margin-bottom: 10px; }
+.diff-group-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; }
+.diff-group-title {
+  flex: 1; min-width: 0; text-align: left; font-size: 11.5px; font-weight: 650;
+  color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  font-family: var(--font); padding: 0; cursor: pointer;
+}
+.diff-group-title:hover:not(:disabled) { color: var(--accent-text); text-decoration: underline; }
+.diff-group-title:disabled { cursor: default; }
+.diff-group-title.muted { color: var(--text-3); font-weight: 600; }
+.diff-group-time { font-size: 10.5px; color: var(--text-3); flex: none; font-family: var(--mono); }
+.diff-group-plans { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; }
+.diff-group-plans .tag { display: inline-flex; align-items: center; gap: 3px; }
 .dstatus { width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; font-weight: 800; flex: none; color: #fff; }
 .dstatus.M { background: var(--t-error); }
 .dstatus.A { background: var(--accent); }
@@ -168,10 +183,15 @@
 .diff-bar .fname { font-family: var(--mono); font-size: 12.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .diff-code { overflow: auto; flex: 1; min-height: 0; font-family: var(--mono); font-size: 12px; line-height: 1.65; }
 .hunk-head { background: var(--bg-inset); color: var(--text-3); padding: 3px 14px; font-family: var(--mono); font-size: 11px; border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep); }
-.dl { display: grid; grid-template-columns: 44px 1fr; align-items: stretch; }
-.dl.split { grid-template-columns: 44px 1fr 44px 1fr; }
+/* Single-line code rows: `diff-content` grows to the widest line so `.diff-code`
+   scrolls horizontally; rows are `min-width: 100%` so highlights span the full
+   width, and the second track is `minmax(max-content, 1fr)` so it both drives
+   that intrinsic width and fills the row. (Dogfooding 2026-06-07 — was pre-wrap.) */
+.diff-content { min-width: max-content; }
+.dl { display: grid; grid-template-columns: 44px minmax(max-content, 1fr); align-items: stretch; min-width: 100%; }
+.dl.split { grid-template-columns: 44px minmax(max-content, 1fr) 44px minmax(max-content, 1fr); }
 .dl-gut { text-align: right; padding: 0 8px; color: var(--text-3); background: var(--diff-gutter); user-select: none; font-size: 11px; }
-.dl-x { padding: 0 14px; white-space: pre-wrap; word-break: break-word; }
+.dl-x { padding: 0 14px; white-space: pre; }
 .dl.add .dl-x { background: var(--diff-add-bg); color: var(--diff-add-text); }
 .dl.add .dl-gut { background: color-mix(in srgb, var(--diff-add-bg) 80%, transparent); color: var(--diff-add-line); }
 .dl.del .dl-x { background: var(--diff-del-bg); color: var(--diff-del-text); }
@@ -416,3 +436,20 @@
   height: 300px; display: flex; flex-direction: column;
   background: #16161c; border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
 }
+
+/* EntryDiffModal narrative pane (Dogfooding 2026-06-07) — keep Markdown body
+   contained in the narrow left column. */
+.entry-narrative { color: var(--text-2); word-break: break-word; }
+.entry-narrative > :first-child { margin-top: 0; }
+.entry-narrative h1, .entry-narrative h2, .entry-narrative h3, .entry-narrative h4 {
+  font-size: 13px; font-weight: 700; color: var(--text); margin: 12px 0 4px;
+}
+.entry-narrative p { margin: 6px 0; }
+.entry-narrative ul, .entry-narrative ol { margin: 6px 0; padding-left: 18px; }
+.entry-narrative li { margin: 2px 0; }
+.entry-narrative pre {
+  overflow-x: auto; background: var(--bg-inset);
+  padding: 8px 10px; border-radius: 8px; font-size: 11.5px; margin: 6px 0;
+}
+.entry-narrative code { font-family: var(--mono); font-size: 12px; }
+.entry-narrative a { color: var(--accent); }

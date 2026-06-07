@@ -139,6 +139,14 @@ export const ChevronLeft = (props: IconProps) => (
   </IconWrapper>
 );
 
+// Sidebar collapse toggle (lucide `panel-left`): a panel with a left rail.
+export const PanelLeft = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+  </IconWrapper>
+);
+
 export const Maximize2 = (props: IconProps) => (
   <IconWrapper {...props}>
     <polyline points="15 3 21 3 21 9" />

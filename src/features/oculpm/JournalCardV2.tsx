@@ -1,26 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, FileCode2, RotateCcw } from "@/components/Icons";
+import { Bot, RotateCcw, GitCompareArrows } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
 import { EntryDiffModal } from "./EntryDiffModal";
 import { agentLabel } from "@/features/today/agentColor";
-import { oculpmApi } from "@/api/oculpm";
-import type { FileTouched, JournalEntrySummary } from "@/lib/bindings";
+import type { JournalEntrySummary } from "@/lib/bindings";
 
 // Final UI Update (ui_v2) — journal timeline card. Mirrors
-// Ocul-PM1.0/src/journal-diff.jsx `JournalCard`. The card body (top + title) is
-// a button that opens the LIVE 변경 diff 화면; each file chip is a sibling button
-// that opens EntryDiffModal — the diff RECORDED for that file when the entry was
-// indexed (openable anytime, even post-commit). Sibling buttons (not nested) keep
-// axe's nested-interactive rule satisfied. When `focused`, the card gets a 1.6s
-// accent ring (route.params.focus handoff from Today's MiniEntry — §2).
+// Ocul-PM1.0/src/journal-diff.jsx `JournalCard`.
 //
-// The list summary only carries `files_count`; the per-file +/- chips (like the
-// mockup) need the entry's frontmatter.files_touched, so we hydrate it with
-// oculpmGetJournalEntry on mount (same pattern as Today's brief — §0.8). While
-// that's in flight we show the bare count as a fallback.
-//
-// NOTE: the legacy JournalEntryCard.tsx is a different (flag-off) component and
-// stays untouched. This V2 card uses the mockup .jcard tokens.
+// Dogfooding 2026-06-07: the per-file +/- chips were removed — the byte deltas
+// were almost always "+0" (agents rarely fill frontmatter byte counts) and
+// added noise. The whole card body now opens EntryDiffModal, which carries the
+// changed-file list (with op badges + path disambiguation), the recorded diffs,
+// AND the entry's narrative. A small foot button still jumps to the LIVE 변경
+// diff 화면 for the entry. When `focused`, the card gets a 1.6s accent ring
+// (route.params.focus handoff from Today's MiniEntry — §2).
 
 /** Extract HH:MM from an ISO 8601 created_at string. */
 function timeLabel(createdAt: string): string {
@@ -28,42 +22,17 @@ function timeLabel(createdAt: string): string {
   return m ? m[1] : "";
 }
 
-/** Compact byte delta for the file chips (frontmatter stores byte counts, not
- *  lines): 8200 → "8.2k", 42000 → "42k", 64 → "64". */
-function fmtBytes(n: number): string {
-  if (n >= 10000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
 interface JournalCardV2Props {
   projectId: number;
   entry: JournalEntrySummary;
   focused: boolean;
+  /** Jump to the LIVE 변경 diff 화면, pre-selected to this entry's file. */
   onOpenDiff: (entry: JournalEntrySummary) => void;
 }
 
 export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: JournalCardV2Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [files, setFiles] = useState<FileTouched[] | null>(null);
-  // Non-null = the recorded-diff modal is open, pre-selected to this file path.
-  const [modalFile, setModalFile] = useState<string | null>(null);
-
-  // Hydrate the per-file list (path + bytes ±) for the file chips.
-  useEffect(() => {
-    let cancelled = false;
-    oculpmApi
-      .getJournalEntry(projectId, entry.relative_path)
-      .then((data) => {
-        if (!cancelled && data) setFiles(data.frontmatter.files_touched);
-      })
-      .catch(() => {
-        /* keep the bare-count fallback on error */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, entry.relative_path]);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (focused && ref.current) {
@@ -83,8 +52,8 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
         <button
           type="button"
           className="jcard-main"
-          onClick={() => onOpenDiff(entry)}
-          aria-label={`${entry.title} — ${entry.type} · 변경 diff 열기`}
+          onClick={() => setModalOpen(true)}
+          aria-label={`${entry.title} — ${entry.type} · 변경 기록 열기`}
         >
           <div className="jcard-top">
             <TriggerBadge type={entry.type} />
@@ -96,37 +65,15 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
           <div className="jcard-title">{entry.title || entry.slug}</div>
         </button>
         <div className="jcard-foot">
-          {files && files.length > 0 ? (
-            <>
-              {files.slice(0, 3).map((f) => (
-                <button
-                  type="button"
-                  className="file-pill file-pill--btn"
-                  key={f.path}
-                  onClick={() => setModalFile(f.path)}
-                  title={`${f.path} — 기록된 변경 보기`}
-                >
-                  <FileCode2 size={12} color="var(--text-3)" />
-                  <b>{f.path.split("/").pop()}</b>
-                  <span className="diff-add">+{fmtBytes(f.bytes_added ?? 0)}</span>
-                  {f.bytes_removed && f.bytes_removed > 0 ? (
-                    <span className="diff-del">−{fmtBytes(f.bytes_removed)}</span>
-                  ) : null}
-                </button>
-              ))}
-              {files.length > 3 ? (
-                <span className="tag" style={{ alignSelf: "center" }}>
-                  +{files.length - 3} more
-                </span>
-              ) : null}
-            </>
-          ) : (
-            // Fallback while the per-file list hydrates (or has no files).
-            <span className="file-pill">
-              <FileCode2 size={12} color="var(--text-3)" />
-              <b>{entry.files_count}</b>개 파일
-            </span>
-          )}
+          <button
+            type="button"
+            className="file-pill file-pill--btn"
+            onClick={() => onOpenDiff(entry)}
+            title="변경 diff 화면에서 열기"
+          >
+            <GitCompareArrows size={12} color="var(--text-3)" />
+            변경 diff 화면
+          </button>
           {entry.status !== "done" ? (
             <span className="cycle-flag">
               <RotateCcw size={13} /> {entry.status === "in_progress" ? "진행중" : entry.status}
@@ -140,12 +87,12 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
           ))}
         </div>
       </div>
-      {modalFile != null ? (
+      {modalOpen ? (
         <EntryDiffModal
           projectId={projectId}
           entry={entry}
-          initialFile={modalFile}
-          onClose={() => setModalFile(null)}
+          initialFile={null}
+          onClose={() => setModalOpen(false)}
         />
       ) : null}
     </>
