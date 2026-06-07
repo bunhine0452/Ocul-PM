@@ -119,10 +119,10 @@
 
 | 체크 | 항목 |
 |---|---|
-| ⬜ | "AI에게 갱신 요청" — 인앱 LLM(anthropic/openai/gemini/nim)이 plan 컨텍스트+최근 일지로 `plan_apply_edit` 수행, agent_id=`inapp:<provider>` |
-| ⬜ | 기존 goals/subtasks → `_imported.md` 1회 변환(progress 보존, agent_id=user), 사용자 확인 |
-| ⬜ | 구 `goal_*`/`subtask_*` 커맨드 읽기 폴백 유지(차후 제거 검토) |
-| ⬜ | typecheck/test/lint/build green ([[commit-gate-discipline]]) |
+| ✅ | `plan_ai_refresh` — 항목 + 최근 일지(JournalCache) 컨텍스트 → LLM(anthropic/openai/gemini/nim) JSON 편집 → set_status + plan-log, agent_id=`inapp:<provider>`. `ai.rs` `parse_ai_edits` 순수 테스트 3건. UI "AI 갱신" 버튼(기본 provider/model 설정에서 해결) |
+| ✅ | `plan_migrate_goals` → `_imported.md` 1회(goal=Phase·subtask=item, progress→status, agent=user). `migrate.rs` `build_imported_md` round-trip 테스트 2건. UI 빈상태 "기존 목표 가져오기" |
+| ✅ | 구 `goal_*`/`subtask_*` 커맨드 **무변경 유지**(레거시 PlannerPanel 호환) |
+| ✅ | cargo test --lib 251 + 프론트 typecheck/test(113)/lint green. (DMG 빌드는 라운드 종료 후) |
 
 ---
 
@@ -155,6 +155,6 @@
 | 2 — AGENTS.md + 템플릿 | ✅ done (master §7 + 5종 템플릿 + 가드 테스트. dogfood 런타임 검증 대기) | — |
 | 3 — PlannerScreenV2 | ✅ done (문서형 체크리스트+귀속 칩+편집+결정. 라이브-push 만 폴리시 이월) | — |
 | 4 — 일지 상호참조 + 제안 | ✅ done (journal_refs 투영 + 📓 focus + "완료?" 제안 배지) | — |
-| 5 — 인앱 AI + 마이그레이션 | ⬜ 설계 | — |
+| 5 — 인앱 AI + 마이그레이션 | ✅ done (plan_ai_refresh + plan_migrate_goals + UI 버튼) | — |
 
 각 PR 머지 시 본 표 (`⬜` → `✅`) + 해시 갱신. (참고: `rev-parse` 로 확인, 추측 금지 — [[commit-gate-discipline]].)

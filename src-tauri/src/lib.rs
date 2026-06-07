@@ -109,8 +109,9 @@ use crate::commands::{
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
-    // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
+    // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
+    plan_ai_refresh, plan_migrate_goals,
     get_dependency_graph, get_file_symbols,
     minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
     open_ai_window,
@@ -201,6 +202,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         plan_item_history,
         plan_create,
         plan_apply_edit,
+        plan_ai_refresh,
+        plan_migrate_goals,
         // M2-3 — Chat history
         conversation_create,
         conversation_list,

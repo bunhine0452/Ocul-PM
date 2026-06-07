@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock,
   RefreshCw,
+  Sparkles,
 } from "@/components/Icons";
 import {
   commands,
@@ -201,6 +202,52 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     }
   };
 
+  // PR-PLN 5 — in-app AI updates item statuses from recent journal activity.
+  const aiRefresh = async () => {
+    if (selectedId == null || busy) return;
+    const provR = await commands.settingsGet("default_provider");
+    const provider = provR.status === "ok" ? provR.data : null;
+    if (!provider) {
+      toast.warning("설정에서 기본 AI 제공자/모델을 먼저 지정하세요.");
+      return;
+    }
+    const mR = await commands.settingsGet(`model_${provider}`);
+    let model = mR.status === "ok" ? mR.data : null;
+    if (!model) {
+      const dm = await commands.settingsGet("default_model");
+      model = dm.status === "ok" ? dm.data : null;
+    }
+    if (!model) {
+      toast.warning("설정에서 기본 모델을 먼저 지정하세요.");
+      return;
+    }
+    setBusy(true);
+    const res = await commands.planAiRefresh(projectId, selectedId, provider, model);
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+      toast.info("AI 갱신 완료");
+    } else {
+      toast.destructive(`AI 갱신 실패: ${res.error}`);
+    }
+  };
+
+  // PR-PLN 5 — one-time import of legacy goals/subtasks into _imported.md.
+  const importGoals = async () => {
+    if (busy) return;
+    setBusy(true);
+    const res = await commands.planMigrateGoals(projectId);
+    setBusy(false);
+    if (res.status === "ok") {
+      setSelectedId(res.data.plan_id);
+      void refreshPlans();
+      toast.info("기존 목표를 가져왔어요");
+    } else {
+      toast.destructive(res.error);
+    }
+  };
+
   const toggleHistory = async (itemId: string) => {
     if (historyFor === itemId) {
       setHistoryFor(null);
@@ -237,6 +284,15 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   return (
     <>
       <Toolbar title="Planner" sub="AI 가 갱신하는 계획 — 항목별 진척·귀속">
+        <button
+          className="scope-chip"
+          style={{ height: 30 }}
+          onClick={() => void aiRefresh()}
+          disabled={selectedId == null || busy}
+          title="최근 작업 일지를 근거로 AI 가 항목 상태를 갱신"
+        >
+          <Sparkles size={13} /> AI 갱신
+        </button>
         <button
           className="scope-chip"
           style={{ height: 30 }}
@@ -305,6 +361,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           ) : plans.length === 0 ? (
             <div className="empty-hint">
               아직 계획이 없어요. 새 계획을 만들면, 이후 AI(외부 에이전트·인앱)가 작업하며 항목을 스스로 갱신합니다.
+              <div style={{ marginTop: 12 }}>
+                <button className="btn sm" onClick={() => void importGoals()} disabled={busy}>
+                  기존 목표 가져오기
+                </button>
+              </div>
             </div>
           ) : detail == null ? (
             loadingDetail ? <OculSpinner label="불러오는 중…" /> : null
