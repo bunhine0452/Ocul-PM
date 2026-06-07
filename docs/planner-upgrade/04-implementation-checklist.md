@@ -94,13 +94,13 @@
 
 | 체크 | 항목 |
 |---|---|
-| ⬜ | `PlanHeader`/`PhaseSection`/`PlanItemRow`/`AttributionChip`/`ItemHistoryPopover`/`DecisionCard`/`PlanStatusTable` 신규(ui_v2 토큰) ([`03`](./03-ui-screen-spec.md) §3) |
-| ⬜ | `plan_list`/`plan_get` 실연동 + 진척 가중 롤업 + phase 파생 |
-| ⬜ | AttributionChip = `agentColor.ts` 재사용(일지와 색 일관) |
-| ⬜ | Icons.tsx 에 CircleDot/Ban/ArrowRightToLine 추가(자체 SVG 0) |
-| ⬜ | watcher 라이브 반영(외부 편집 → 화면 즉시 갱신) |
-| ⬜ | 레거시 `PlannerPanel`/`GoalCard` **0 diff** + flag-off 안전 |
-| ⬜ | `planner_v2.test.tsx` — 글리프/롤업/귀속/빈상태/axe 0(light+dark) |
+| ✅ | `PlannerScreenV2.tsx` 전면 재작성(단일 파일 + 내부 PlanBody/PlanItemRow): plan 선택 pill · 헤더(진척바·상태 카운트) · phase 접힘 · 항목 행 · 결정 카드 · 경고 배너. ItemHistoryPopover→인라인 이력 |
+| ✅ | `plan_list`/`plan_get` 실연동 + 진척 가중 롤업 + phase 파생 + **편집**(`plan_apply_edit` 상태순환·항목추가, `plan_create`) |
+| ✅ | AttributionChip = `agentColor.ts`/`agentLabel` 재사용(일지 AgentBreakdown 색·라벨 일관). 항목 이력 = `plan_item_history` 인라인 |
+| ✅ | 상태 글리프는 **텍스트**(☐▣☑⚠→✗) 렌더 → Icons.tsx 신규 아이콘 불필요(자체 SVG 0 유지) |
+| ⬜→폴리시 | watcher 라이브-push(외부 편집 즉시 반영) — 현재 reproject-on-read + 수동 새로고침 버튼. emit+구독은 후속 폴리시 |
+| ✅ | 레거시 `src/legacy/planner/**` **0 diff** (PlannerScreenV2.tsx 만 교체) |
+| ✅ | `tools_v2.test.tsx` Planner 3건 신규 구조로 갱신(plan+items 렌더 / 빈상태 / **axe 0**). 롤업·글리프 단위는 백엔드 progress 테스트로 커버. typecheck/test(113)/lint green |
 
 ---
 
@@ -153,7 +153,7 @@
 | 0 — 스키마/파서/watcher | ✅ done (스키마·paths·파서·투영·커맨드·바인딩. redact·라이브push 만 이월) | — |
 | 1 — .md 쓰기 + 갱신로그 | ✅ done (plan_edit + plan_create/plan_apply_edit + redact. 락은 manager 프로세스락+write_atomic) | — |
 | 2 — AGENTS.md + 템플릿 | ✅ done (master §7 + 5종 템플릿 + 가드 테스트. dogfood 런타임 검증 대기) | — |
-| 3 — PlannerScreenV2 | ⬜ 설계 | — |
+| 3 — PlannerScreenV2 | ✅ done (문서형 체크리스트+귀속 칩+편집+결정. 라이브-push 만 폴리시 이월) | — |
 | 4 — 일지 상호참조 + 제안 | ⬜ 설계 | — |
 | 5 — 인앱 AI + 마이그레이션 | ⬜ 설계 | — |
 

@@ -19,8 +19,8 @@ const AXE_OPTIONS = {
 
 // Mutable fixtures.
 const fx = {
-  goals: [] as unknown[],
-  subtasks: {} as Record<number, unknown[]>,
+  plans: [] as unknown[],
+  planDetail: null as unknown,
   chunks: [] as unknown[],
   symbols: [] as unknown[],
   conversations: [] as unknown[],
@@ -34,12 +34,16 @@ vi.mock("@/lib/bindings", () => {
       {
         get: (_t, prop) => {
           switch (prop) {
-            case "goalList":
-              return () => ok(fx.goals);
-            case "subtaskList":
-              return (goalId: number) => ok(fx.subtasks[goalId] ?? []);
-            case "subtaskToggle":
-              return (id: number) => ok({ id, goal_id: 1, title: "t", done: true, sort_order: 0 });
+            case "planList":
+              return () => ok(fx.plans);
+            case "planGet":
+              return () => ok(fx.planDetail);
+            case "planApplyEdit":
+              return () => ok(fx.planDetail);
+            case "planItemHistory":
+              return () => ok([]);
+            case "planCreate":
+              return () => ok(fx.plans[0] ?? planSummary());
             case "searchChunks":
               return () => ok(fx.chunks);
             case "searchText":
@@ -87,18 +91,39 @@ function wrap(node: React.ReactNode) {
   );
 }
 
-function goal(over: Record<string, unknown> = {}) {
+function planSummary(over: Record<string, unknown> = {}) {
   return {
-    id: 1,
-    project_id: 1,
+    plan_id: "rollover",
     title: "롤오버 안정화",
-    description: null,
-    status: "open",
-    priority: 0,
-    due_date: null,
+    status: "active",
+    owner_agent: "user",
     progress: 0.5,
-    created_at: 0,
-    updated_at: 0,
+    file_path: ".oculpm/planner/rollover.md",
+    updated_at: "2026-06-07",
+    item_count: 2,
+    done_count: 1,
+    ...over,
+  };
+}
+
+function planDetail(over: Record<string, unknown> = {}) {
+  return {
+    plan: planSummary(),
+    items: [
+      {
+        item_id: "tz",
+        phase: "Phase A — 기반",
+        title: "타임존 계산",
+        status: "todo",
+        order_idx: 0,
+        parent_item: null,
+        note: null,
+        last_agent: "claude-code",
+        last_update: "2026-06-07T10:00:00+09:00",
+      },
+    ],
+    decisions: [],
+    warnings: [],
     ...over,
   };
 }
@@ -117,36 +142,39 @@ function chunk(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   localStorage.clear();
-  fx.goals = [];
-  fx.subtasks = {};
+  fx.plans = [];
+  fx.planDetail = null;
   fx.chunks = [];
   fx.symbols = [];
   fx.conversations = [];
 });
 afterEach(() => cleanup());
 
-describe("PR-UI 5 — Planner", () => {
-  it("renders goals + subtasks from the backend", async () => {
-    fx.goals = [goal({ id: 1, title: "롤오버 안정화" })];
-    fx.subtasks = { 1: [{ id: 11, goal_id: 1, title: "타임존 계산", done: false, sort_order: 0 }] };
-    const { findByText } = render(wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />));
-    expect(await findByText("롤오버 안정화")).toBeInTheDocument();
+describe("PR-PLN 3 — Planner", () => {
+  it("renders plan + items from the backend", async () => {
+    fx.plans = [planSummary()];
+    fx.planDetail = planDetail();
+    const { findByText, findAllByText } = render(
+      wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    // title appears in both the plan pill and the header.
+    expect((await findAllByText(/롤오버 안정화/)).length).toBeGreaterThanOrEqual(1);
     expect(await findByText("타임존 계산")).toBeInTheDocument();
   });
 
-  it("empty goals shows the first-goal hint", async () => {
-    fx.goals = [];
+  it("empty plans shows the create hint", async () => {
+    fx.plans = [];
     const { findByText } = render(wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />));
-    expect(await findByText("첫 목표를 만들어보세요.")).toBeInTheDocument();
+    expect(await findByText(/아직 계획이 없어요/)).toBeInTheDocument();
   });
 
   it("has no axe violations with data", async () => {
-    fx.goals = [goal()];
-    fx.subtasks = { 1: [{ id: 11, goal_id: 1, title: "서브", done: false, sort_order: 0 }] };
+    fx.plans = [planSummary()];
+    fx.planDetail = planDetail();
     const { container, findByText } = render(
       wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
     );
-    await findByText("롤오버 안정화");
+    await findByText("타임존 계산");
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 });
