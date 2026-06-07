@@ -33,6 +33,10 @@
   - **#2b 제목 중복**: 일지 본문 첫 줄이 곧 제목(`[x] …`)이라 헤더와 중복 → `stripLeadingTitle(body, title)` 로 제거.
   - 헬퍼 `disambiguateLabels(paths)`: 같은 basename 이 둘 이상이면 마지막 2 세그먼트, 그래도 충돌 시 전체 경로.
   - CSS: `src/styles/screens.css` `.entry-detail*` + `.entry-narrative`.
+- **후속 (3차 — 가독성)**:
+  - **구문 강조**: diff 각 줄을 marker(+/-/space)와 코드로 분리, `highlight.js/lib/common` 으로 코드만 하이라이트(`langFromPath` 로 언어 감지). 토큰 색은 `.hljs-*` 규칙(라이트/다크, `screens.css`)로 정의 — diff 와 Markdown 코드블록 공용. (그동안 `rehype-highlight` 가 클래스만 달고 테마 CSS 가 없어 무색이었음.) `PatchView` 에 `lang` prop, `DiffScreenV2`·`EntryDetailView` 가 전달.
+  - **파일명 바**: 우 pane 의 파일경로를 스크롤되는 `.hunk-head` 대신 **고정 바 `.entry-detail-fname`**(shrink-0)로 분리 → 가로 스크롤 시 헤더가 짧게 잘리던 문제 해소.
+  - **Markdown 가독성**: `.entry-narrative` 강화 — heading 위계/여백, 불릿 커스텀(accent dot), inline `code` 칩, blockquote/hr/table, 줄간격 1.72, 링크 등.
 - **#3 단일행 diff** (`PR-FIX B4`, diff 화면과 공유) — `src/styles/screens.css`: `.dl-x{white-space:pre}`, `.diff-content{min-width:max-content}`, `.dl{grid-template-columns:44px minmax(max-content,1fr); min-width:100%}`. `src/features/diff/PatchView.tsx` 가 hunks 를 `.diff-content` 래퍼로 감쌈 → `.diff-code` 가로 스크롤.
 - **#4** — 코드 변경 없음(00 §4 참조).
 

@@ -15,6 +15,28 @@ export interface DiffLine {
   text: string;
 }
 
+/** Map a file path's extension to a highlight.js language id (or null). */
+export function langFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const base = path.split("/").pop() ?? path;
+  const ext = base.includes(".") ? base.split(".").pop()!.toLowerCase() : "";
+  const byExt: Record<string, string> = {
+    ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
+    js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+    py: "python", rs: "rust", go: "go", java: "java", kt: "kotlin",
+    rb: "ruby", php: "php", swift: "swift", c: "c", h: "c", cpp: "cpp",
+    cc: "cpp", hpp: "cpp", cs: "csharp", scala: "scala", lua: "lua",
+    json: "json", jsonc: "json", yml: "yaml", yaml: "yaml", toml: "ini",
+    ini: "ini", md: "markdown", markdown: "markdown", css: "css",
+    scss: "scss", less: "less", html: "xml", xml: "xml", vue: "xml",
+    svelte: "xml", sh: "bash", bash: "bash", zsh: "bash", sql: "sql",
+    graphql: "graphql", gql: "graphql", dockerfile: "dockerfile",
+  };
+  if (ext && byExt[ext]) return byExt[ext];
+  if (base.toLowerCase() === "dockerfile") return "dockerfile";
+  return null;
+}
+
 /**
  * Classify each line of a git unified diff. Exported (pure) for unit
  * testing of the renderer's coloring rules.

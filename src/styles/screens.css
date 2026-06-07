@@ -442,19 +442,92 @@
   background: #16161c; border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
 }
 
-/* EntryDetailView narrative pane (Dogfooding 2026-06-07) — keep Markdown body
-   contained in the narrow left column. */
-.entry-narrative { color: var(--text-2); word-break: break-word; }
+/* EntryDetailView narrative pane (Dogfooding 2026-06-07) — readable Markdown
+   reader, contained in the narrow left column. */
+.entry-narrative { color: var(--text-2); font-size: 13px; line-height: 1.72; word-break: break-word; }
 .entry-narrative > :first-child { margin-top: 0; }
-.entry-narrative h1, .entry-narrative h2, .entry-narrative h3, .entry-narrative h4 {
-  font-size: 13px; font-weight: 700; color: var(--text); margin: 12px 0 4px;
+.entry-narrative h1 { font-size: 16px; }
+.entry-narrative h2 { font-size: 14.5px; padding-bottom: 4px; border-bottom: 1px solid var(--sep); }
+.entry-narrative h3 { font-size: 13.5px; }
+.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 { font-size: 12.5px; }
+.entry-narrative h1, .entry-narrative h2, .entry-narrative h3,
+.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 {
+  font-weight: 700; color: var(--text); margin: 20px 0 8px; letter-spacing: -0.01em; line-height: 1.35;
 }
-.entry-narrative p { margin: 6px 0; }
-.entry-narrative ul, .entry-narrative ol { margin: 6px 0; padding-left: 18px; }
-.entry-narrative li { margin: 2px 0; }
+.entry-narrative p { margin: 8px 0; }
+.entry-narrative ul, .entry-narrative ol { margin: 8px 0; padding-left: 20px; }
+.entry-narrative ul { list-style: none; padding-left: 6px; }
+.entry-narrative ul > li { position: relative; padding-left: 16px; }
+.entry-narrative ul > li::before {
+  content: ""; position: absolute; left: 2px; top: 0.62em;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+}
+.entry-narrative ol { list-style: decimal; }
+.entry-narrative li { margin: 4px 0; }
+.entry-narrative li > ul, .entry-narrative li > ol { margin: 4px 0; }
+.entry-narrative strong { font-weight: 700; color: var(--text); }
+.entry-narrative em { font-style: italic; }
+.entry-narrative a { color: var(--accent); text-decoration: none; }
+.entry-narrative a:hover { text-decoration: underline; }
+.entry-narrative blockquote {
+  margin: 10px 0; padding: 4px 12px; border-left: 3px solid var(--accent-soft);
+  color: var(--text-3); background: var(--bg-inset); border-radius: 0 6px 6px 0;
+}
+.entry-narrative hr { border: none; border-top: 1px solid var(--sep); margin: 16px 0; }
+/* Inline code → chip. */
+.entry-narrative :not(pre) > code {
+  font-family: var(--mono); font-size: 11.5px;
+  background: var(--bg-inset); color: var(--text);
+  padding: 1.5px 5px; border-radius: 5px; border: 1px solid var(--sep);
+  white-space: break-spaces; word-break: break-all;
+}
 .entry-narrative pre {
-  overflow-x: auto; background: var(--bg-inset);
-  padding: 8px 10px; border-radius: 8px; font-size: 11.5px; margin: 6px 0;
+  overflow-x: auto; background: var(--bg-inset); border: 1px solid var(--sep);
+  padding: 10px 12px; border-radius: 8px; font-size: 11.5px; line-height: 1.55; margin: 10px 0;
 }
-.entry-narrative code { font-family: var(--mono); font-size: 12px; }
-.entry-narrative a { color: var(--accent); }
+.entry-narrative pre code { font-family: var(--mono); background: none; border: none; padding: 0; }
+.entry-narrative table { border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+.entry-narrative th, .entry-narrative td { border: 1px solid var(--sep); padding: 4px 8px; text-align: left; }
+.entry-narrative th { background: var(--bg-inset); font-weight: 600; }
+
+/* 작업 일지 항목 디테일 — 고정 파일경로 바 (가로 스크롤해도 안 짤림). */
+.entry-detail-fname {
+  flex: none; padding: 7px 16px; font-family: var(--mono); font-size: 12px;
+  color: var(--text-2); background: var(--bg-inset); border-bottom: 1px solid var(--sep);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* diff 행 — marker(+/-/space) 고정 칸 + 하이라이트된 코드. */
+.dl-mark { display: inline-block; width: 1ch; user-select: none; opacity: 0.65; }
+.dl-code { white-space: pre; }
+
+/* ── 코드 구문 강조 (highlight.js 토큰) — diff + Markdown 공용. 라이트 기준,
+   다크는 [data-theme="dark"] 에서 재정의. 배경은 diff add/del 가 담당하므로
+   토큰엔 색만 준다. (hljs v11 은 `title.function` 을 `hljs-title function_`
+   두 클래스로 내므로 복합 선택자 `.hljs-title.function_` 사용.) ── */
+.hljs-comment, .hljs-quote, .hljs-doctag { color: #6a737d; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-meta .hljs-keyword, .hljs-template-tag { color: #d73a49; }
+.hljs-string, .hljs-regexp, .hljs-meta .hljs-string, .hljs-addition { color: #032f62; }
+.hljs-number, .hljs-literal, .hljs-variable.constant_ { color: #005cc5; }
+.hljs-title, .hljs-title.function_, .hljs-section { color: #6f42c1; }
+.hljs-title.class_, .hljs-type, .hljs-built_in { color: #e36209; }
+.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable, .hljs-property,
+.hljs-selector-attr, .hljs-selector-class, .hljs-selector-id { color: #005cc5; }
+.hljs-name, .hljs-tag, .hljs-selector-pseudo { color: #22863a; }
+.hljs-symbol, .hljs-bullet, .hljs-link { color: #e36209; }
+.hljs-meta { color: #6a737d; }
+.hljs-deletion { color: #b31d28; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+[data-theme="dark"] .hljs-comment, [data-theme="dark"] .hljs-quote, [data-theme="dark"] .hljs-doctag { color: #8b949e; }
+[data-theme="dark"] .hljs-keyword, [data-theme="dark"] .hljs-selector-tag, [data-theme="dark"] .hljs-meta .hljs-keyword, [data-theme="dark"] .hljs-template-tag { color: #ff7b72; }
+[data-theme="dark"] .hljs-string, [data-theme="dark"] .hljs-regexp, [data-theme="dark"] .hljs-meta .hljs-string, [data-theme="dark"] .hljs-addition { color: #a5d6ff; }
+[data-theme="dark"] .hljs-number, [data-theme="dark"] .hljs-literal, [data-theme="dark"] .hljs-variable.constant_ { color: #79c0ff; }
+[data-theme="dark"] .hljs-title, [data-theme="dark"] .hljs-title.function_, [data-theme="dark"] .hljs-section { color: #d2a8ff; }
+[data-theme="dark"] .hljs-title.class_, [data-theme="dark"] .hljs-type, [data-theme="dark"] .hljs-built_in { color: #ffa657; }
+[data-theme="dark"] .hljs-attr, [data-theme="dark"] .hljs-attribute, [data-theme="dark"] .hljs-variable, [data-theme="dark"] .hljs-template-variable, [data-theme="dark"] .hljs-property, [data-theme="dark"] .hljs-selector-attr, [data-theme="dark"] .hljs-selector-class, [data-theme="dark"] .hljs-selector-id { color: #79c0ff; }
+[data-theme="dark"] .hljs-name, [data-theme="dark"] .hljs-tag, [data-theme="dark"] .hljs-selector-pseudo { color: #7ee787; }
+[data-theme="dark"] .hljs-symbol, [data-theme="dark"] .hljs-bullet, [data-theme="dark"] .hljs-link { color: #ffa657; }
+[data-theme="dark"] .hljs-meta { color: #8b949e; }
+[data-theme="dark"] .hljs-deletion { color: #ffa198; }

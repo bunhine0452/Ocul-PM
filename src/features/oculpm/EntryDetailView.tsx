@@ -4,6 +4,7 @@ import { ArrowLeft, Bot, Clock, GitCompareArrows } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
+import { langFromPath } from "@/features/diff/diffParse";
 import { Markdown } from "@/components/Markdown";
 import { TriggerBadge } from "./triggerMeta";
 import { agentLabel } from "@/features/today/agentColor";
@@ -262,6 +263,11 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
             </div>
           ) : null}
 
+          {active ? (
+            <div className="entry-detail-fname" title={active.path}>
+              {active.path}
+            </div>
+          ) : null}
           <div className="diff-code">
             {error ? (
               <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
@@ -281,10 +287,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                 </span>
               </div>
             ) : active ? (
-              <div>
-                <div className="hunk-head">{active.path}</div>
-                <PatchView patch={active.patch} mode={diffMode} />
-              </div>
+              <PatchView patch={active.patch} mode={diffMode} lang={langFromPath(active.path)} />
             ) : null}
           </div>
         </section>

@@ -166,11 +166,12 @@ describe("PR-UI 3 — Journal timeline", () => {
 
   it("clicking a card opens the full-screen 변경 기록 detail view (not the live screen)", async () => {
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
-    const { findByText, findByLabelText, onOpenDiff } = renderJournal();
+    const { container, findByText, findByLabelText, onOpenDiff } = renderJournal();
     fireEvent.click(await findByText("검토 대상"));
-    // Detail view renders the recorded patch + a back affordance — not a dialog.
-    expect(await findByText(/const neo = 2;/)).toBeInTheDocument();
+    // Detail view renders a back affordance + the recorded patch — not a dialog.
     expect(await findByLabelText("목록으로")).toBeInTheDocument();
+    // The patch is syntax-highlighted (text split across spans) → check textContent.
+    await waitFor(() => expect(container.textContent).toContain("const neo = 2;"));
     // Card click opens the detail view; it must not fire the live-diff handler.
     expect(onOpenDiff).not.toHaveBeenCalled();
   });

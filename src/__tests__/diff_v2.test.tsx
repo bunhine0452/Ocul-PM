@@ -94,6 +94,13 @@ function renderDiff() {
   );
 }
 
+// The diff body now syntax-highlights each line, so a line's text is split
+// across marker + highlight.js token spans (e.g. `new` is a TS keyword). Assert
+// against the container's textContent instead of a single text node.
+async function waitForBody(container: HTMLElement) {
+  await waitFor(() => expect(container.textContent).toContain("new line"), BODY_WAIT);
+}
+
 beforeEach(() => {
   localStorage.clear();
   for (const k of Object.keys(diffByPath)) delete diffByPath[k];
@@ -120,10 +127,15 @@ describe("PR-UI 4 — Diff screen", () => {
 
   it("parses + renders the git diff body for the selected file", async () => {
     seedRecentChanges([{ path: "src/a.ts", op: "M" }]);
-    const { findByText } = renderDiff();
-    // The +/- lines from GIT_PATCH render as .dl rows.
-    expect(await findByText("+new line", undefined, BODY_WAIT)).toBeInTheDocument();
-    expect(await findByText("-old line", undefined, BODY_WAIT)).toBeInTheDocument();
+    const { container } = renderDiff();
+    // The +/- lines from GIT_PATCH render as .dl rows (syntax-highlighted, so
+    // text is split across spans → assert via container.textContent).
+    await waitFor(() => {
+      expect(container.textContent).toContain("new line");
+      expect(container.textContent).toContain("old line");
+    }, BODY_WAIT);
+    expect(container.querySelector(".dl.add")).not.toBeNull();
+    expect(container.querySelector(".dl.del")).not.toBeNull();
   });
 
   it("empty recentChanges shows the no-change hint", async () => {
@@ -134,8 +146,8 @@ describe("PR-UI 4 — Diff screen", () => {
 
   it("통합/분할 toggle switches the body layout", async () => {
     seedRecentChanges([{ path: "src/a.ts", op: "M" }]);
-    const { findByText, getByText, container } = renderDiff();
-    await findByText("+new line", undefined, BODY_WAIT);
+    const { getByText, container } = renderDiff();
+    await waitForBody(container);
     // Unified by default: rows have 2-col grid (no .split).
     expect(container.querySelector(".dl.split")).toBeNull();
     fireEvent.click(getByText("분할"));
@@ -144,8 +156,8 @@ describe("PR-UI 4 — Diff screen", () => {
 
   it("'검토 완료' marks the file reviewed (checkmark + disabled)", async () => {
     seedRecentChanges([{ path: "src/a.ts", op: "M" }]);
-    const { findByText, getByText } = renderDiff();
-    await findByText("+new line", undefined, BODY_WAIT);
+    const { getByText, container } = renderDiff();
+    await waitForBody(container);
     const btn = getByText("검토 완료").closest("button")!;
     fireEvent.click(btn);
     await waitFor(() => expect(getByText("검토함")).toBeInTheDocument());
@@ -172,8 +184,8 @@ describe("PR-UI 4 — Diff screen", () => {
       ],
       { diffActivePath: "src/b.ts" },
     );
-    const { findByText, container } = renderDiff();
-    await findByText("+new line", undefined, BODY_WAIT);
+    const { container } = renderDiff();
+    await waitForBody(container);
     // The active file row is src/b.ts (handoff wins over most-recent default).
     const active = container.querySelector(".dfile.active .dfile-name");
     expect(active?.textContent).toBe("src/b.ts");
@@ -183,8 +195,8 @@ describe("PR-UI 4 — Diff screen", () => {
 describe("PR-UI 4 — Diff a11y", () => {
   it("has no axe violations with a diff loaded", async () => {
     seedRecentChanges([{ path: "src/a.ts", op: "M" }]);
-    const { container, findByText } = renderDiff();
-    await findByText("+new line", undefined, BODY_WAIT);
+    const { container } = renderDiff();
+    await waitForBody(container);
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 });

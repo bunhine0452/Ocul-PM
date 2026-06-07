@@ -14,6 +14,7 @@ import { useWorkspace, type ChangeOp, type DiffMode } from "@/contexts/Workspace
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
+import { langFromPath } from "./diffParse";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = WorkspaceContext.recentChanges (Watcher
@@ -433,7 +434,7 @@ function DiffBody({
     }
     return (
       <div>
-        <PatchView patch={newFilePatch} mode={mode} />
+        <PatchView patch={newFilePatch} mode={mode} lang={langFromPath(result.path)} />
         <div className="diff-foot">
           <GitBranchIcon size={13} />
           아직 baseline 이 없는 새 파일이라 전체 내용을 표시합니다. (git 커밋 또는
@@ -453,7 +454,7 @@ function DiffBody({
   }
   return (
     <div>
-      <PatchView patch={patch} mode={mode} />
+      <PatchView patch={patch} mode={mode} lang={langFromPath(result.path)} />
       <div className="diff-foot">
         <GitBranchIcon size={13} />
         이 diff는 {isSnapshot ? "로컬 스냅샷" : "git HEAD"} 기준입니다. 커밋 전 변경분을 검증하세요.
