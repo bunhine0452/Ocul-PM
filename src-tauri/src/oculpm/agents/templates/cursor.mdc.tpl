@@ -13,3 +13,5 @@ alwaysApply: true
 전체 규칙 — frontmatter 8 필드, 본문 헤더 강제 순서, 금지 사항 — 은 프로젝트 루트의 `AGENTS.md` 를 읽어 그대로 따르세요. (이 파일은 트리거만 알려주고 상세는 AGENTS.md 가 SSOT 입니다.)
 
 Cursor 의 `@` 멘션으로 관련 파일을 가리킬 수 있다면 `files_touched` frontmatter 와 경로를 일치시켜 주세요.
+
+일지를 쓴 **직후**, 대응하는 **Planner 항목** (`.oculpm/planner/*.md`) 의 상태 글리프와 갱신 로그도 `AGENTS.md` §7 대로 갱신하세요 (사용자가 만든 plan 이 있을 때만).

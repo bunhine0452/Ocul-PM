@@ -451,6 +451,24 @@ mod tests {
         std::fs::read_to_string(path).unwrap()
     }
 
+    /// PR-PLN 2 — the Planner update protocol lives in the master so every
+    /// agent inherits it via `AGENTS.md`. Guard against accidental removal.
+    #[test]
+    fn master_template_carries_planner_rules() {
+        assert!(
+            MASTER_KO.contains("Planner 갱신"),
+            "master must keep the Planner section"
+        );
+        assert!(
+            MASTER_KO.contains("oculpm:plan-log"),
+            "master must document the plan-log managed block"
+        );
+        assert!(
+            MASTER_KO.contains(".oculpm/planner/"),
+            "master must point at the planner tree"
+        );
+    }
+
     // ─── sync_active — six matrix cases per PR2 §3 ─────────────────────────
 
     /// (PR2 §3 #1) active = ["cursor", "claude-code"] → overwrite file +

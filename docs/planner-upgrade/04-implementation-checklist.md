@@ -80,11 +80,11 @@
 
 | 체크 | 항목 |
 |---|---|
-| ⬜ | `master_ko.md.tpl` — "Planner 갱신" 절(글리프/로그 append/agent_id/결정 잠금) ([`02`](./02-agents-protocol-and-attribution.md) §1.1) |
-| ⬜ | claude_code/gemini/cursor/antigravity 템플릿 delta + agent_id 명시 |
-| ⬜ | AGENTS.md 재생성 검증(managed block 안에 포함, 기존 drift 검사 통과) |
-| ⬜ | agent_id ↔ 라벨/색 매핑 단일 출처 확인(일지·Planner 공유) |
-| ⬜ | 외부 LLM 수기 시나리오 dogfood(실제 Claude Code 가 항목 [~]→[x] + 로그 append) |
+| ✅ | `master_ko.md.tpl` §7 "Planner 갱신" — 절차(파일 열기→글리프 교체→plan-log 한 줄 append)·글리프 표·로그 6열·결정 잠금·복붙 금지 불변식 ([`02`](./02-agents-protocol-and-attribution.md) §1.1) |
+| ✅ | claude_code/gemini/cursor/antigravity 템플릿 delta — 일지 직후 Planner 갱신 안내 + agent.id 명시 (claude-code/gemini-cli/cursor/antigravity). 전부 AGENTS.md(=master) 상속 |
+| ✅ | AGENTS.md 재생성: master §7 가 같은 managed block 안 → 기존 drift 파이프라인 자동 커버(추가 동기화 0). 가드 테스트 `master_template_carries_planner_rules` + cargo test 246 pass |
+| ◐ | agent_id 값은 일지와 동일 체계(claude-code/cursor/antigravity/gemini-cli) 일치 확인. **라벨/색(agentColor.ts) 재사용은 UI 측 → PR-PLN 3** |
+| ⬜ dogfood | 외부 LLM 수기 시나리오(실제 Claude Code 가 항목 [~]→[x] + 로그 append) — 런타임 검증(앱 실행 후). 단위 테스트 불가 |
 
 ---
 
@@ -152,7 +152,7 @@
 |---|---|---|
 | 0 — 스키마/파서/watcher | ✅ done (스키마·paths·파서·투영·커맨드·바인딩. redact·라이브push 만 이월) | — |
 | 1 — .md 쓰기 + 갱신로그 | ✅ done (plan_edit + plan_create/plan_apply_edit + redact. 락은 manager 프로세스락+write_atomic) | — |
-| 2 — AGENTS.md + 템플릿 | ⬜ 설계 | — |
+| 2 — AGENTS.md + 템플릿 | ✅ done (master §7 + 5종 템플릿 + 가드 테스트. dogfood 런타임 검증 대기) | — |
 | 3 — PlannerScreenV2 | ⬜ 설계 | — |
 | 4 — 일지 상호참조 + 제안 | ⬜ 설계 | — |
 | 5 — 인앱 AI + 마이그레이션 | ⬜ 설계 | — |
