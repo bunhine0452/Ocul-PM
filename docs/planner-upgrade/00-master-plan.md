@@ -127,11 +127,12 @@ ocul-pm 의 **일지(Journal)** 는 이미 *AI 가 쓴다*: 외부 에이전트(
 
 | PR-PLN | 제목 | 상태 |
 |---|---|---|
-| 0 | 스키마 + 파일트리 + 파서 + watcher | ⬜ 설계 |
-| 1 | 마크다운 SSOT 포맷 + 수동편집 커맨드 + 갱신로그 | ⬜ 설계 |
-| 2 | AGENTS.md Planner 규칙 + 템플릿 5종 + 귀속 | ⬜ 설계 |
-| 3 | PlannerScreenV2 재설계 | ⬜ 설계 |
-| 4 | 일지 ↔ Plan 상호참조 + 진척 제안 | ⬜ 설계 |
-| 5 | 인앱 AI "계획 갱신" 커맨드 + 마이그레이션 | ⬜ 설계 |
+| 0 | 스키마 + 파일트리 + 파서 + watcher | ✅ done (`c2deb79`+`2973f04`) |
+| 1 | 마크다운 SSOT 포맷 + 수동편집 커맨드 + 갱신로그 | ✅ done (`308bb29`) |
+| 2 | AGENTS.md Planner 규칙 + 템플릿 5종 + 귀속 | ✅ done (`9d650c8`) |
+| 3 | PlannerScreenV2 재설계 | ✅ done (`08960d7`) |
+| 4 | 일지 ↔ Plan 상호참조 + 진척 제안 | ✅ done (`6dfd9d1`) |
+| 5 | 인앱 AI "계획 갱신" 커맨드 + 마이그레이션 | ✅ done (`a7be10f`) |
 
-본 문서 잠금 → PR-PLN 0 진입 가능.
+**라운드 종료 (2026-06-07).** 전 PR done · cargo test --lib 251 · 프론트 typecheck/test 113/lint green.
+이월(후속 폴리시): watcher 라이브-push(외부 편집 즉시 반영). 런타임 검증: 인앱 AI 갱신·마이그레이션 dogfood, 기존 프로젝트는 agents 재싱크로 §7 반영.
