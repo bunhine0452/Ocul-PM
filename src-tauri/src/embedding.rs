@@ -1,6 +1,11 @@
-//! Local embedding via fastembed (ONNX Runtime). Model is loaded lazily on
-//! first use and downloaded to `~/.cache/fastembed_cache` automatically.
+//! Local embedding via fastembed (ONNX Runtime). The model is loaded lazily on
+//! first use and downloaded into an absolute, writable cache dir supplied by the
+//! caller (the app data dir). fastembed's default cache is relative
+//! (`./.fastembed_cache`), which breaks the packaged .app — its CWD is `/`, so
+//! the model can't be written/read and `embed` fails with
+//! "Failed to retrieve onnx/model.onnx".
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
@@ -16,18 +21,16 @@ pub const EMBEDDING_DIM: usize = 384;
 type SharedModel = Arc<std::sync::Mutex<TextEmbedding>>;
 
 pub struct Embedder {
+    /// Absolute directory the ONNX model is downloaded to / loaded from. Must be
+    /// writable independent of the process CWD (see module docs).
+    cache_dir: PathBuf,
     inner: Arc<AsyncMutex<Option<SharedModel>>>,
 }
 
-impl Default for Embedder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Embedder {
-    pub fn new() -> Self {
+    pub fn new(cache_dir: PathBuf) -> Self {
         Self {
+            cache_dir,
             inner: Arc::new(AsyncMutex::new(None)),
         }
     }
@@ -37,9 +40,21 @@ impl Embedder {
         if let Some(model) = guard.as_ref() {
             return Ok(model.clone());
         }
-        info!("loading embedding model: {:?}", MODEL);
-        let model = tokio::task::spawn_blocking(|| {
-            TextEmbedding::try_new(InitOptions::new(MODEL).with_show_download_progress(true))
+        info!(
+            "loading embedding model: {:?} (cache: {})",
+            MODEL,
+            self.cache_dir.display()
+        );
+        let cache_dir = self.cache_dir.clone();
+        let model = tokio::task::spawn_blocking(move || {
+            // hf-hub populates this on first run; create it so the download has
+            // a writable target even on a brand-new install.
+            let _ = std::fs::create_dir_all(&cache_dir);
+            TextEmbedding::try_new(
+                InitOptions::new(MODEL)
+                    .with_cache_dir(cache_dir)
+                    .with_show_download_progress(true),
+            )
         })
         .await
         .map_err(|e| e.to_string())?

@@ -126,6 +126,30 @@ function App() {
     };
   }, [selectedProjectId, setOculpmStatus]);
 
+  // Auto-index on first open: if the opened project has no chunks yet, chunk it
+  // in the background so 코드 검색 returns results instead of an empty/errored
+  // list. Matches the "프로젝트를 불러오면 자동 청킹" expectation and also covers
+  // projects added before auto-index existed. The persisted index makes later
+  // opens skip this (chunks > 0). Manual "재구축" still refreshes on demand.
+  useEffect(() => {
+    if (selectedProjectId == null) return;
+    const pid = selectedProjectId;
+    let cancelled = false;
+    void (async () => {
+      const s = await commands.projectStats(pid);
+      if (cancelled || s.status !== "ok") return;
+      if (s.data.chunks === 0 && indexingId !== pid) {
+        void startIndex(pid);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // startIndex/indexingId are intentionally not deps — this should run once
+    // per project open, keyed on the selected project id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId]);
+
   // Refresh project lists
   async function refreshProjects() {
     setError(null);
@@ -154,8 +178,15 @@ function App() {
     const path = folder.data;
     const name = path.split("/").filter(Boolean).pop() ?? "project";
     const created = await commands.createProject(name, path);
-    if (created.status === "ok") await refreshProjects();
-    else setError(created.error);
+    if (created.status === "ok") {
+      await refreshProjects();
+      // Auto-chunk the freshly added project so 코드 검색 works without a manual
+      // "재구축" step. Progress shows on StartScreen via indexingId. Indexing is
+      // incremental (hash-gated), so later opens skip unchanged files.
+      void startIndex(created.data);
+    } else {
+      setError(created.error);
+    }
   }
 
   async function startIndex(id: number, reset = false) {

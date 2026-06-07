@@ -347,7 +347,11 @@ pub fn run() {
             let db = tauri::async_runtime::block_on(Db::open(db_path))
                 .expect("failed to open database");
             app.manage(db);
-            app.manage(Embedder::new());
+            // Pin the embedding model cache to an absolute, writable dir. The
+            // packaged .app runs with CWD `/`, so fastembed's relative default
+            // would fail to retrieve `onnx/model.onnx`.
+            let embed_cache = app_data.join("fastembed_cache");
+            app.manage(Embedder::new(embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
