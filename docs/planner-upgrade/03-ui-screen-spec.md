@@ -95,4 +95,3 @@ watcher 가 `.oculpm/planner/**` 변경 emit → 프론트가 구독(기존 ocul
 ## 7. 레거시/플래그
 - 레거시 `src/legacy/planner/PlannerPanel.tsx` **0 diff**(보존). ui_v2 만 신 화면.
 - 기존 `WorkspaceContext.plannerOpen`(goalId→bool) → itemId/phase 키로 재해석(마이그레이션 deletion-tolerant).
-</content>

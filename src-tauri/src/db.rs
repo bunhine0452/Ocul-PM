@@ -23,6 +23,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (13, include_str!("../migrations/013_oculpm_agent_state.sql")),
     (14, include_str!("../migrations/014_oculpm_migrations.sql")),
     (15, include_str!("../migrations/015_file_snapshots.sql")),
+    (16, include_str!("../migrations/016_oculpm_planner.sql")),
 ];
 
 pub struct Db {

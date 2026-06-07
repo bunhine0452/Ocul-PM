@@ -154,6 +154,18 @@ impl WorkdayResolver {
             .join(category)
     }
 
+    /// `<project_root>/.oculpm/planner`. Root of the AI-maintained Plan
+    /// markdown tree (Planner Upgrade) — input to the planner projection.
+    /// Sibling of `journal_root`; the SSOT the watcher re-parses on change.
+    pub fn planner_root(&self, project_root: &Path) -> PathBuf {
+        self.project_oculpm_dir(project_root).join("planner")
+    }
+
+    /// `<project_root>/.oculpm/planner/<slug>.md`.
+    pub fn plan_path(&self, project_root: &Path, slug: &str) -> PathBuf {
+        self.planner_root(project_root).join(format!("{slug}.md"))
+    }
+
     /// `<project_root>/.oculpm/.lock`.
     pub fn lock_path(&self, project_root: &Path) -> PathBuf {
         self.project_oculpm_dir(project_root).join(".lock")
@@ -347,6 +359,11 @@ mod tests {
         assert_eq!(
             r.journal_dir(root, "20260522", EntryType::Chore),
             PathBuf::from("/p/.oculpm/journal/20260522/Chores")
+        );
+        assert_eq!(r.planner_root(root), PathBuf::from("/p/.oculpm/planner"));
+        assert_eq!(
+            r.plan_path(root, "fastembed-stabilize"),
+            PathBuf::from("/p/.oculpm/planner/fastembed-stabilize.md")
         );
         assert_eq!(r.lock_path(root), PathBuf::from("/p/.oculpm/.lock"));
         assert_eq!(

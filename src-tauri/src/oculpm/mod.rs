@@ -21,6 +21,7 @@ pub mod manager;
 pub mod migrate_from_sqlite;
 pub mod markdown;
 pub mod paths;
+pub mod planner;
 pub mod redact;
 pub mod session;
 pub mod spec;

@@ -103,4 +103,3 @@ watcher: journal/** 와 planner/** 둘 다 감지
 - 외부 에이전트 .md 편집 + 앱 `plan_apply_edit` 동시성 → 기존 `.oculpm/.lock`(lock.rs) + atomic_io 임시파일-교체로 직렬화.
 - managed block 경계 훼손 시 파서가 ⚠ + 마지막 정상 투영 유지(침묵 손실 금지).
 - redact.rs(시크릿 마스킹)는 planner 파싱에도 적용(일지와 동일 — 계획에 키가 섞이면 마스킹).
-</content>

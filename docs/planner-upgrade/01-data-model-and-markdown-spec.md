@@ -19,7 +19,7 @@
     plans/      ← (신규) 투영 sidecar(선택) — 캐시 재구축 hint
 ```
 
-`paths.rs` 에 `project_planner_dir(root) = root/.oculpm/planner`, `plan_path(root, slug)` 추가. 일지의 `project_oculpm_dir`/`journal_*_dir` 패턴과 동형.
+`paths.rs` 에 `planner_root(root) = root/.oculpm/planner`, `plan_path(root, slug)` 추가(`WorkdayResolver` 메서드). 일지의 `journal_root`/`journal_dir` 패턴과 동형.
 
 ---
 
@@ -105,7 +105,7 @@ owner: claude-code               # 최초 작성 주체(agent_id) — 갱신 귀
 
 ## 3. SQLite 투영 스키마 (캐시)
 
-> 신규 migration `014_oculpm_planner.sql`. `oculpm_journal`(012) 캐시 패턴 그대로 — 파일이 진실, watcher 가 재투영, 언제든 재구축 가능. PK 는 `(project_id, …)` 복합.
+> 신규 migration `016_oculpm_planner.sql` (014·015 는 이미 사용 중). `oculpm_journal`(012) 캐시 패턴 그대로 — 파일이 진실, watcher 가 재투영, 언제든 재구축 가능. PK 는 `(project_id, …)` 복합.
 
 ```sql
 CREATE TABLE IF NOT EXISTS oculpm_plans (
@@ -192,4 +192,3 @@ CREATE TABLE IF NOT EXISTS oculpm_plan_decisions (
 | `plan_create(project_id, title)` | 빈 plan .md 생성 |
 
 > `plan_apply_edit` 는 *유일한 쓰기 경로*(앱/인앱AI). 외부 에이전트는 파일 직접 편집(AGENTS.md). 둘 다 watcher 가 흡수. ([`02`](./02-agents-protocol-and-attribution.md))
-</content>
