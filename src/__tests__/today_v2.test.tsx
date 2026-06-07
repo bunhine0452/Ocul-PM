@@ -76,6 +76,7 @@ vi.mock("@/lib/bindings", () => ({
     goalList: () => Promise.resolve({ status: "ok", data: nextFx.goals }),
     subtaskList: (goalId: number) =>
       Promise.resolve({ status: "ok", data: nextFx.subtasks[goalId] ?? [] }),
+    planRecentUpdates: () => Promise.resolve({ status: "ok", data: [] }),
   },
   // WorkspaceProvider registers events.oculpm*.listen on mount; stub no-ops.
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),

@@ -127,6 +127,20 @@ pub struct PlanItemUpdateDto {
     pub note: Option<String>,
 }
 
+/// Recent plan activity across all plans — drives the Today "계획 업데이트" block.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct PlanActivityDto {
+    pub plan_id: String,
+    pub plan_title: String,
+    pub item_id: String,
+    pub item_title: String,
+    pub agent_id: String,
+    pub ts: String,
+    pub from_status: Option<String>,
+    pub to_status: Option<String>,
+    pub note: Option<String>,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading
 // ─────────────────────────────────────────────────────────────────────────────
@@ -549,6 +563,55 @@ impl<'a> PlanCache<'a> {
                             to_status: r.get(4)?,
                             journal_ref: r.get(5)?,
                             note: r.get(6)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    /// Recent plan activity across all plans (for the Today dashboard).
+    /// Reprojects first, then reads the update log joined with item/plan titles.
+    pub async fn recent_activity(
+        &self,
+        project_id: u32,
+        planner_root: &Path,
+        limit: u32,
+    ) -> Result<Vec<PlanActivityDto>, String> {
+        self.reproject_all(project_id, planner_root).await?;
+        let pid = project_id as i64;
+        let lim = limit.max(1) as i64;
+        self.db
+            .conn()
+            .call(move |c| -> Result<Vec<PlanActivityDto>, tokio_rusqlite::Error> {
+                let mut stmt = c.prepare(
+                    "SELECT u.plan_id, COALESCE(p.title, u.plan_id), u.item_id,
+                            COALESCE(it.title, u.item_id), u.agent_id, u.ts,
+                            u.from_status, u.to_status, u.note
+                     FROM oculpm_plan_item_updates u
+                     LEFT JOIN oculpm_plans p
+                       ON p.project_id = u.project_id AND p.plan_id = u.plan_id
+                     LEFT JOIN oculpm_plan_items it
+                       ON it.project_id = u.project_id AND it.plan_id = u.plan_id
+                          AND it.item_id = u.item_id
+                     WHERE u.project_id = ?1
+                     ORDER BY u.ts DESC
+                     LIMIT ?2",
+                )?;
+                let rows = stmt
+                    .query_map(params![pid, lim], |r| {
+                        Ok(PlanActivityDto {
+                            plan_id: r.get(0)?,
+                            plan_title: r.get(1)?,
+                            item_id: r.get(2)?,
+                            item_title: r.get(3)?,
+                            agent_id: r.get(4)?,
+                            ts: r.get(5)?,
+                            from_status: r.get(6)?,
+                            to_status: r.get(7)?,
+                            note: r.get(8)?,
                         })
                     })?
                     .collect::<rusqlite::Result<Vec<_>>>()?;

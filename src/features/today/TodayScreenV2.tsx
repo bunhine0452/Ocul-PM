@@ -22,6 +22,7 @@ import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
+import { PlanUpdates } from "./PlanUpdates";
 import { useTodayBrief } from "./useTodayBrief";
 import { useNextTasks } from "./useNextTasks";
 
@@ -254,6 +255,8 @@ export function TodayScreenV2({
               </div>
             </div>
           )}
+
+          <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
         </div>
       </div>
     </>

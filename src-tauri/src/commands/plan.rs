@@ -21,7 +21,8 @@ use crate::oculpm::planner::plan_edit::{
     add_item, append_log_row, create_plan_skeleton, set_item_status, LogRow,
 };
 use crate::oculpm::planner::project::{
-    find_plan_path, planner_dir, slug_for, PlanCache, PlanDetail, PlanItemUpdateDto, PlanSummary,
+    find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
+    PlanItemUpdateDto, PlanSummary,
 };
 
 async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
@@ -63,6 +64,20 @@ pub async fn plan_item_history(
     let root = planner_root_of(&db, project_id).await?;
     PlanCache::new(&db)
         .item_history(project_id, &root, &plan_id, &item_id)
+        .await
+}
+
+/// Recent plan activity across all plans — Today's "계획 업데이트" block.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_recent_updates(
+    db: State<'_, Db>,
+    project_id: u32,
+    limit: u32,
+) -> Result<Vec<PlanActivityDto>, String> {
+    let root = planner_root_of(&db, project_id).await?;
+    PlanCache::new(&db)
+        .recent_activity(project_id, &root, limit)
         .await
 }
 
