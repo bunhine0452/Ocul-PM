@@ -7,8 +7,8 @@ import {
 import type { DiffMode } from "@/contexts/WorkspaceContext";
 
 // Final UI Update (ui_v2) — shared unified-diff renderer. Extracted from
-// DiffScreenV2's DiffBody so the 변경 diff 화면 AND the 작업 일지 "그 시점 변경"
-// modal (EntryDiffModal) render patches identically. The pure parsers
+// DiffScreenV2's DiffBody so the 변경 diff 화면 AND the 작업 일지 항목 디테일 뷰
+// (EntryDetailView) render patches identically. The pure parsers
 // (classifyDiffLines/groupIntoHunks/pairDiffLines) stay in diffParse so the
 // Lite-W6 safety-net tests keep covering them — this file only owns the markup.
 

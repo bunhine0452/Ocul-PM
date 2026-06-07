@@ -5,6 +5,7 @@ import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { useJournalDays } from "./useJournalDays";
 import { JournalCardV2 } from "./JournalCardV2";
+import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
 import { toast } from "@/lib/toast";
@@ -62,6 +63,9 @@ export function JournalScreenV2({
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  // Master-detail: a non-null entry shows the full-screen 변경 기록 detail view
+  // in place of the timeline (Dogfooding 2026-06-07 — replaced the modal).
+  const [detailEntry, setDetailEntry] = useState<JournalEntrySummary | null>(null);
 
   const setFilter = (next: JournalFilter) =>
     setState((prev) => ({ ...prev, journalFilter: next }));
@@ -122,6 +126,18 @@ export function JournalScreenV2({
       }))
       .filter((d) => d.entries.length > 0);
   }, [days, filter, search]);
+
+  // Detail view replaces the timeline (and its toolbar) until the user goes back.
+  if (detailEntry) {
+    return (
+      <EntryDetailView
+        projectId={projectId}
+        entry={detailEntry}
+        onBack={() => setDetailEntry(null)}
+        onOpenDiff={onOpenDiff}
+      />
+    );
+  }
 
   return (
     <>
@@ -200,9 +216,9 @@ export function JournalScreenV2({
                         <TriggerMeticon type={e.type} />
                       </span>
                       <JournalCardV2
-                        projectId={projectId}
                         entry={e}
                         focused={focusPath === e.relative_path}
+                        onOpenEntry={setDetailEntry}
                         onOpenDiff={onOpenDiff}
                       />
                     </div>

@@ -134,8 +134,8 @@
   background: var(--bg-inset); border-radius: 7px; font-family: var(--mono); font-size: 11.5px; color: var(--text-2);
 }
 .file-pill b { color: var(--text); font-weight: 600; }
-/* Clickable file chip → opens the recorded-diff modal (EntryDiffModal). Button
-   reset over the .file-pill base; an accent ring on hover signals it opens. */
+/* Clickable file chip (journal card foot → LIVE 변경 diff 화면). Button reset
+   over the .file-pill base; an accent ring on hover signals it's interactive. */
 .file-pill--btn { appearance: none; -webkit-appearance: none; border: none; cursor: pointer; }
 .file-pill--btn:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
 .cycle-flag { display: inline-flex; align-items: center; gap: 5px; color: var(--t-error); font-size: 11.5px; font-weight: 600; }
@@ -144,6 +144,11 @@
 
 /* --- Diff (PR-UI 4) --- */
 .diff-screen { display: grid; grid-template-columns: 260px 1fr; height: 100%; min-height: 0; }
+/* 작업 일지 항목 디테일 뷰 (Dogfooding 2026-06-07 — 모달 대체). */
+.entry-detail { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; height: 100%; min-height: 0; }
+.entry-detail-side { border-right: 1px solid var(--sep); background: var(--bg-window); overflow: auto; padding: 18px 18px 48px; }
+.entry-detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.entry-detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--sep); flex: none; }
 .diff-files { border-right: 1px solid var(--sep); background: var(--bg-window); overflow-y: auto; padding: 10px 8px; }
 .diff-files-head { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); padding: 6px 8px 10px; }
 .dfile {
@@ -437,7 +442,7 @@
   background: #16161c; border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
 }
 
-/* EntryDiffModal narrative pane (Dogfooding 2026-06-07) — keep Markdown body
+/* EntryDetailView narrative pane (Dogfooding 2026-06-07) — keep Markdown body
    contained in the narrow left column. */
 .entry-narrative { color: var(--text-2); word-break: break-word; }
 .entry-narrative > :first-child { margin-top: 0; }

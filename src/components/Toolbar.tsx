@@ -8,12 +8,15 @@ import React from "react";
 interface ToolbarProps {
   title: React.ReactNode;
   sub?: React.ReactNode;
+  /** Optional element rendered before the title (e.g. a back button). */
+  leading?: React.ReactNode;
   children?: React.ReactNode;
 }
 
-export function Toolbar({ title, sub, children }: ToolbarProps) {
+export function Toolbar({ title, sub, leading, children }: ToolbarProps) {
   return (
     <div className="toolbar">
+      {leading}
       <div className="toolbar-title">{title}</div>
       {sub ? <span className="toolbar-sub">{sub}</span> : null}
       <div className="toolbar-spacer" />

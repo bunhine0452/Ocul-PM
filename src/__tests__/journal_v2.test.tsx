@@ -53,7 +53,7 @@ vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     listJournalEntries: (_pid: number, workday: string) =>
       Promise.resolve(fixtures.byWorkday[workday] ?? []),
-    // EntryDiffModal's narrative pane loads body_markdown + files_touched.
+    // EntryDetailView's narrative pane loads body_markdown + files_touched.
     getJournalEntry: (_pid: number, relativePath: string) =>
       Promise.resolve({
         relative_path: relativePath,
@@ -72,7 +72,7 @@ vi.mock("@/api/oculpm", () => ({
       manualMock.lastDraft = draft;
       return Promise.resolve({ relative_path: "20260531/x/2000_manual.md", title: draft.title });
     },
-    // EntryDiffModal loads the recorded per-file patches.
+    // EntryDetailView loads the recorded per-file patches.
     getEntryDiffs: (_pid: number, _relativePath: string) =>
       Promise.resolve([
         {
@@ -83,7 +83,7 @@ vi.mock("@/api/oculpm", () => ({
   },
 }));
 
-// EntryDiffModal's narrative pane renders <Markdown>, which depends on
+// EntryDetailView's narrative pane renders <Markdown>, which depends on
 // useTheme→useSettings (SettingsProvider). This suite only wraps in
 // WorkspaceProvider, so stub Markdown to plain text — the modal assertions
 // target the recorded diff + header, not the rendered markdown.
@@ -164,15 +164,14 @@ describe("PR-UI 3 — Journal timeline", () => {
     expect(queryByText("롤오버 구현")).toBeNull();
   });
 
-  it("clicking a card opens the recorded-diff modal (not the live screen)", async () => {
+  it("clicking a card opens the full-screen 변경 기록 detail view (not the live screen)", async () => {
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
-    const { findByText, findByRole, onOpenDiff } = renderJournal();
+    const { findByText, findByLabelText, onOpenDiff } = renderJournal();
     fireEvent.click(await findByText("검토 대상"));
-    // Modal (dialog) opens and renders the recorded patch — NOT the live diff.
-    expect(await findByRole("dialog")).toBeInTheDocument();
-    expect(await findByText(/변경 기록/)).toBeInTheDocument();
+    // Detail view renders the recorded patch + a back affordance — not a dialog.
     expect(await findByText(/const neo = 2;/)).toBeInTheDocument();
-    // Card click opens the modal; it must not fire the live-diff handler.
+    expect(await findByLabelText("목록으로")).toBeInTheDocument();
+    // Card click opens the detail view; it must not fire the live-diff handler.
     expect(onOpenDiff).not.toHaveBeenCalled();
   });
 

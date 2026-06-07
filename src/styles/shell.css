@@ -53,6 +53,12 @@
   width: 10px;
   z-index: 40;
 }
+/* macOS traffic lights float over the top-left (titleBarStyle Overlay). When
+   the sidebar is collapsed the content reaches x=0, so the toolbar title would
+   sit under the lights — reserve their width. */
+.app.is-mac.sidebar-collapsed .toolbar {
+  padding-left: 84px;
+}
 
 /* Collapse toggle button in the brand row. */
 .side-collapse-btn {

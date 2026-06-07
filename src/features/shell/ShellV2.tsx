@@ -89,6 +89,7 @@ export default function ShellV2({
 
   const appClass =
     "app" +
+    (isMac ? " is-mac" : "") +
     (collapsed ? " sidebar-collapsed" : "") +
     (collapsed && hovering ? " sidebar-hover" : "");
 

@@ -14,21 +14,25 @@
 - 컴포넌트: `src/components/Sidebar.tsx` — brand row 에 `.side-collapse-btn`(`PanelLeft` 아이콘). props `onToggleCollapse`/`collapsed`/`onMouseLeave`.
 - 아이콘: `src/components/Icons.tsx` — `PanelLeft` 추가.
 - CSS: `src/styles/shell.css` — `.app{position:relative}`, `.app.sidebar-collapsed{grid-template-columns:1fr}`, `.sidebar` absolute + `translateX(-100%)` transition, `.sidebar-hover .sidebar{translateX(0)}`, `.side-hover-zone`, `.side-collapse-btn`.
+- **후속 fix (2차 — macOS traffic lights)**: 접힘 시 콘텐츠가 x=0 까지 차서 toolbar 제목이 신호등 아래로 겹침. `ShellV2` 가 `.app` 에 `is-mac` 클래스 부여, `src/styles/shell.css` `.app.is-mac.sidebar-collapsed .toolbar{padding-left:84px}` 로 신호등 폭 확보.
 
 ---
 
 ## 작업 일지 (PR-JR + PR-FIX B3/B4)
 
-**결정 D1:** 카드에서 파일 목록 제거, 카드 클릭 → 풍부한 2-pane 모달.
+**결정 D1:** 카드에서 파일 목록 제거, 카드 클릭 → 풍부한 상세 화면.
 
-- **#1 카드 정리** — `src/features/oculpm/JournalCardV2.tsx`: 파일 칩·`getJournalEntry` 하이드레이션·`fmtBytes` 제거. 카드 = trigger/agent/time/title/status/tags. 본문 클릭 → `EntryDiffModal` 열기. foot 에 "변경 diff 화면"(라이브) 버튼만 유지(`onOpenDiff`). → `+0` 버그 자연 해소.
-- **#6 서술 + #5 동일이름 + #2 잘림** — `src/features/oculpm/EntryDiffModal.tsx` 2-pane 재작성:
-  - 좌(`<aside overflow-auto>`): 메타(trigger/agent/time/tags) + **변경된 파일 목록**(`frontmatter.files_touched`, op 배지 `dstatus A/M/D`, `disambiguateLabels` 로 동일이름 구분, 삭제 파일은 "삭제됨") + **일지 서술**(`detail.body_markdown` → `Markdown`).
-  - 우(`<section flex-col>`): 기록된 파일 탭 + `.diff-code`(단일 스크롤러) + `PatchView`.
-  - **#2 해소**: 각 pane 이 독립 bounded 스크롤(`flex-1 min-h-0` + `overflow-auto`), header/탭은 `shrink-0` → 큰 파일에서 상단 안 잘림.
-  - **후속 fix (도그푸딩 재발견)**: 카드가 `.page.fade-in`(transform 애니메이션, `primitives.css`) 안에 있어 `position:fixed` 모달이 그 *containing block* 에 갇힘 → 툴바 아래로 밀리고 헤더(닫기 버튼 포함)가 잘리는 회귀. **`createPortal(…, document.body)`** 로 모달을 body 루트에 렌더해 해결. 테마는 `data-theme` 가 `<html>` 에 설정되므로 포털 후에도 유지(`SettingsContext`).
+- **#1 카드 정리** — `src/features/oculpm/JournalCardV2.tsx`: 파일 칩·`fmtBytes` 제거. 카드 = trigger/agent/time/title/status/tags. 본문 클릭 → `onOpenEntry`(상세 화면). foot 에 "변경 diff 화면"(라이브) 버튼만 유지(`onOpenDiff`). → `+0` 버그 자연 해소.
+- **#6 서술 + #5 동일이름 + #2 잘림** — 처음엔 2-pane **모달**(`EntryDiffModal`)로 구현했으나, 카드가 `.page.fade-in`(transform, `primitives.css`)의 *containing block* 에 갇혀 `position:fixed` 가 툴바 아래로 밀리고 헤더가 잘리는 문제 + 모달 UX 불만 → **전용 상세 화면 `EntryDetailView` (마스터-디테일)** 로 전환:
+  - `src/features/oculpm/EntryDetailView.tsx` — 콘텐츠 영역을 가득 채움. `Toolbar`(뒤로가기 `leading` + 제목 + 메타 + "변경 diff 화면") + 2-pane.
+  - 좌(`.entry-detail-side`): 태그 + **변경된 파일 목록**(`files_touched`, op 배지, `disambiguateLabels` 동일이름 구분, 삭제="삭제됨") + **서술**(`stripLeadingTitle` 로 본문 첫 줄(제목) 중복 제거 후 `Markdown`).
+  - 우(`.entry-detail-main`): 기록된 파일 탭 + `.diff-code`(단일 스크롤러) + `PatchView`.
+  - `src/features/oculpm/JournalScreenV2.tsx` 가 `detailEntry` 상태로 타임라인 ↔ 상세를 전환(뒤로가기로 복귀). `JournalCardV2` 는 `onOpenEntry` 로 호출. 모달(`EntryDiffModal.tsx`)·`createPortal` 경로는 **삭제**.
+  - `Toolbar` 에 `leading` prop 추가(`src/components/Toolbar.tsx`).
+  - **#2 잘림 해소**: 오버레이가 아니라 화면 자체라 containing-block 문제 자체가 사라짐. 각 pane 독립 스크롤.
+  - **#2b 제목 중복**: 일지 본문 첫 줄이 곧 제목(`[x] …`)이라 헤더와 중복 → `stripLeadingTitle(body, title)` 로 제거.
   - 헬퍼 `disambiguateLabels(paths)`: 같은 basename 이 둘 이상이면 마지막 2 세그먼트, 그래도 충돌 시 전체 경로.
-  - CSS: `src/styles/screens.css` `.entry-narrative` (좁은 좌 pane 에서 Markdown 컨테인).
+  - CSS: `src/styles/screens.css` `.entry-detail*` + `.entry-narrative`.
 - **#3 단일행 diff** (`PR-FIX B4`, diff 화면과 공유) — `src/styles/screens.css`: `.dl-x{white-space:pre}`, `.diff-content{min-width:max-content}`, `.dl{grid-template-columns:44px minmax(max-content,1fr); min-width:100%}`. `src/features/diff/PatchView.tsx` 가 hunks 를 `.diff-content` 래퍼로 감쌈 → `.diff-code` 가로 스크롤.
 - **#4** — 코드 변경 없음(00 §4 참조).
 

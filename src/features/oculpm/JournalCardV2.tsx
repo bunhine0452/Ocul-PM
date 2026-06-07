@@ -1,20 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Bot, RotateCcw, GitCompareArrows } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
-import { EntryDiffModal } from "./EntryDiffModal";
 import { agentLabel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // Final UI Update (ui_v2) — journal timeline card. Mirrors
 // Ocul-PM1.0/src/journal-diff.jsx `JournalCard`.
 //
-// Dogfooding 2026-06-07: the per-file +/- chips were removed — the byte deltas
-// were almost always "+0" (agents rarely fill frontmatter byte counts) and
-// added noise. The whole card body now opens EntryDiffModal, which carries the
-// changed-file list (with op badges + path disambiguation), the recorded diffs,
-// AND the entry's narrative. A small foot button still jumps to the LIVE 변경
-// diff 화면 for the entry. When `focused`, the card gets a 1.6s accent ring
-// (route.params.focus handoff from Today's MiniEntry — §2).
+// Dogfooding 2026-06-07: the per-file +/- chips were removed (byte deltas were
+// almost always "+0" — agents rarely fill frontmatter byte counts). The card
+// body now opens the full-screen 변경 기록 detail view (EntryDetailView via
+// onOpenEntry), which carries the changed-file list, recorded diffs, AND the
+// entry narrative. A small foot button still jumps to the LIVE 변경 diff 화면.
+// When `focused`, the card gets a 1.6s accent ring (Today MiniEntry handoff §2).
 
 /** Extract HH:MM from an ISO 8601 created_at string. */
 function timeLabel(createdAt: string): string {
@@ -23,16 +21,16 @@ function timeLabel(createdAt: string): string {
 }
 
 interface JournalCardV2Props {
-  projectId: number;
   entry: JournalEntrySummary;
   focused: boolean;
+  /** Open the full-screen 변경 기록 detail view for this entry. */
+  onOpenEntry: (entry: JournalEntrySummary) => void;
   /** Jump to the LIVE 변경 diff 화면, pre-selected to this entry's file. */
   onOpenDiff: (entry: JournalEntrySummary) => void;
 }
 
-export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: JournalCardV2Props) {
+export function JournalCardV2({ entry, focused, onOpenEntry, onOpenDiff }: JournalCardV2Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (focused && ref.current) {
@@ -47,12 +45,11 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
   }, [focused]);
 
   return (
-    <>
-      <div className="jcard" ref={ref}>
+    <div className="jcard" ref={ref}>
         <button
           type="button"
           className="jcard-main"
-          onClick={() => setModalOpen(true)}
+          onClick={() => onOpenEntry(entry)}
           aria-label={`${entry.title} — ${entry.type} · 변경 기록 열기`}
         >
           <div className="jcard-top">
@@ -86,15 +83,6 @@ export function JournalCardV2({ projectId, entry, focused, onOpenDiff }: Journal
             </span>
           ))}
         </div>
-      </div>
-      {modalOpen ? (
-        <EntryDiffModal
-          projectId={projectId}
-          entry={entry}
-          initialFile={null}
-          onClose={() => setModalOpen(false)}
-        />
-      ) : null}
-    </>
+    </div>
   );
 }
