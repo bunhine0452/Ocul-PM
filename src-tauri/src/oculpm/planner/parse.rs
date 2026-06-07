@@ -94,6 +94,12 @@ impl ItemStatus {
         if s.is_empty() {
             return None;
         }
+        // Bracketed task box, e.g. agents writing `→[ ]` in the change column.
+        if let Some(inner) = s.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+            if let Some(st) = Self::from_token(inner) {
+                return Some(st);
+            }
+        }
         if let Some(st) = Self::from_token(s) {
             return Some(st);
         }
@@ -240,7 +246,11 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
     // Reuse the journal frontmatter fence-splitter (generic). We ignore its
     // journal-shaped `parsed`/warnings and re-parse the raw YAML as a plan.
     let (pf, body) = parse_frontmatter_and_body(markdown);
-    let frontmatter = parse_plan_frontmatter(&pf.raw_yaml, fallback_id, &mut warnings);
+    // Agents often wrap a long item across lines (the `{#id}` ending up on the
+    // continuation). Fold those back into one line before parsing.
+    let body = fold_wrapped_items(&body);
+    let mut frontmatter = parse_plan_frontmatter(&pf.raw_yaml, fallback_id, &mut warnings);
+    let mut first_h1: Option<String> = None;
 
     let mut items: Vec<PlanItem> = Vec::new();
     let mut decisions: Vec<PlanDecision> = Vec::new();
@@ -278,6 +288,10 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
         // --- headings ---
         if let Some(h) = trimmed.strip_prefix("## ") {
             flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
+            // Phase headings may carry their own {#id} (agents track phases too);
+            // drop it from the display name.
+            let mut h = h.trim().to_string();
+            let _ = extract_brace_id(&mut h);
             let h = h.trim();
             if is_decisions_heading(h) {
                 section = Section::Decisions;
@@ -294,6 +308,13 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
                 flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
                 cur_decision = Some(parse_decision_header(h.trim(), &mut seen_ids, &mut warnings));
                 decision_lines.clear();
+            }
+            continue;
+        }
+        // `# H1` — a document title many agents write instead of frontmatter.
+        if let Some(h) = trimmed.strip_prefix("# ") {
+            if first_h1.is_none() {
+                first_h1 = Some(h.trim().to_string());
             }
             continue;
         }
@@ -320,6 +341,18 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
     }
     flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
 
+    // Title fallback: frontmatter title → first `# H1` → id (warn only when
+    // there's truly nothing to name the plan).
+    if frontmatter.title.is_empty() {
+        frontmatter.title = match first_h1 {
+            Some(h1) => strip_plan_prefix(&h1),
+            None => {
+                warnings.push("plan title missing; using id".into());
+                frontmatter.id.clone()
+            }
+        };
+    }
+
     ParsedPlan {
         frontmatter,
         items,
@@ -343,6 +376,54 @@ fn is_decisions_heading(h: &str) -> bool {
     lower.contains("결정") || lower.contains("decision")
 }
 
+/// Merge a wrapped item's continuation lines back into the item line, so a
+/// `{#id}` that landed on the second line is still found. A continuation is an
+/// indented, plain-text line directly under an item (not a new list item,
+/// heading, table row, comment, or blockquote).
+fn fold_wrapped_items(body: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut prev_was_item = false;
+    for line in body.split('\n') {
+        let trimmed = line.trim_start();
+        let is_item = trimmed.starts_with("- [") || trimmed.starts_with("* [");
+        let indented = line.starts_with(' ') || line.starts_with('\t');
+        let is_continuation = prev_was_item
+            && indented
+            && !trimmed.is_empty()
+            && !trimmed.starts_with("- ")
+            && !trimmed.starts_with("* ")
+            && !trimmed.starts_with('#')
+            && !trimmed.starts_with('|')
+            && !trimmed.starts_with("<!--")
+            && !trimmed.starts_with('>');
+        if is_continuation {
+            if let Some(last) = out.last_mut() {
+                last.push(' ');
+                last.push_str(trimmed);
+            }
+            // prev_was_item stays true — more continuation lines may follow.
+        } else {
+            out.push(line.to_string());
+            prev_was_item = is_item;
+        }
+    }
+    out.join("\n")
+}
+
+/// Strip a leading "Plan — " / "계획: " style prefix from an `# H1` title.
+fn strip_plan_prefix(h1: &str) -> String {
+    let t = h1.trim();
+    for p in ["Plan — ", "Plan – ", "Plan - ", "Plan: ", "계획 — ", "계획: ", "계획 - "] {
+        if let Some(rest) = t.strip_prefix(p) {
+            let rest = rest.trim();
+            if !rest.is_empty() {
+                return rest.to_string();
+            }
+        }
+    }
+    t.to_string()
+}
+
 fn parse_plan_frontmatter(
     raw_yaml: &str,
     fallback_id: &str,
@@ -356,14 +437,11 @@ fn parse_plan_frontmatter(
             .filter(|s| !s.trim().is_empty())
     };
 
-    let id = get("id").unwrap_or_else(|| {
-        warnings.push("plan frontmatter `id` missing; using filename".into());
-        fallback_id.to_string()
-    });
-    let title = get("title").unwrap_or_else(|| {
-        warnings.push("plan frontmatter `title` missing; using id".into());
-        id.clone()
-    });
+    // `id` from the filename is a fine default (plans are usually named after
+    // their id), so it's not a warning. `title` is resolved by the caller
+    // (frontmatter → first `# H1` heading → id); leave it empty if absent here.
+    let id = get("id").unwrap_or_else(|| fallback_id.to_string());
+    let title = get("title").unwrap_or_default();
     let status = match get("status") {
         Some(s) => PlanStatus::parse(&s).unwrap_or_else(|| {
             warnings.push(format!("unknown plan status '{s}'; defaulting to active"));
@@ -814,14 +892,51 @@ owner: claude-code
     }
 
     #[test]
-    fn missing_id_falls_back_to_filename_and_warns() {
+    fn missing_id_falls_back_to_filename_quietly() {
         let md = "---\noculpm_plan: v1\ntitle: \"무제\"\n---\n## P\n- [ ] 무언가\n";
         let p = parse_plan(md, "my-file");
         assert_eq!(p.frontmatter.id, "my-file");
-        assert!(p.warnings.iter().any(|w| w.contains("`id` missing")));
+        // filename id + present title → no frontmatter warnings.
+        assert!(
+            !p.warnings.iter().any(|w| w.contains("id missing") || w.contains("title missing")),
+            "{:?}",
+            p.warnings
+        );
         // Item without {#id} → generated, warned.
         assert_eq!(p.items.len(), 1);
         assert!(p.warnings.iter().any(|w| w.contains("no {#id}")));
+    }
+
+    #[test]
+    fn title_falls_back_to_h1_without_warning() {
+        // No frontmatter at all — just an H1 + phase + item (the real-world
+        // shape an external agent produced).
+        let md = "# Plan — Lean Autonomous Adelie\n\n## Phase 0 — 안전망 {#p0}\n- [ ] 분기 {#b}\n";
+        let p = parse_plan(md, "autonomy-refactor");
+        assert_eq!(p.frontmatter.id, "autonomy-refactor"); // filename
+        assert_eq!(p.frontmatter.title, "Lean Autonomous Adelie"); // H1, "Plan — " stripped
+        // phase {#id} stripped from the display name
+        assert_eq!(p.items[0].phase.as_deref(), Some("Phase 0 — 안전망"));
+        assert!(p.warnings.is_empty(), "{:?}", p.warnings);
+    }
+
+    #[test]
+    fn wrapped_item_id_on_continuation_line_is_found() {
+        let md = "# 테스트 계획\n\n## Phase 1\n- [ ] 긴 항목 설명 첫 줄\n      (둘째 줄 계속) {#wrap-id}\n";
+        let p = parse_plan(md, "x");
+        assert_eq!(p.items.len(), 1);
+        assert_eq!(p.items[0].item_id, "wrap-id");
+        assert!(p.items[0].title.contains("둘째 줄 계속"));
+        assert!(p.warnings.is_empty(), "{:?}", p.warnings);
+    }
+
+    #[test]
+    fn change_column_accepts_bracketed_glyphs() {
+        // Agents writing `→[ ]` (created as todo) in the plan-log change cell.
+        let md = "## P\n- [ ] x {#x}\n\n<!-- oculpm:plan-log begin v1 -->\n| ts | item | agent | change | journal | note |\n|---|---|---|---|---|---|\n| 2026-06-07T10:00:00+09:00 | #x | claude-code | →[ ] | | created |\n<!-- oculpm:plan-log end -->\n";
+        let p = parse_plan(md, "x");
+        assert_eq!(p.updates.len(), 1);
+        assert_eq!(p.updates[0].to_status.as_deref(), Some("todo"));
     }
 
     #[test]
