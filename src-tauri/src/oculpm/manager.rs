@@ -949,6 +949,43 @@ impl OculpmManager {
         Ok(report)
     }
 
+    /// Is a newer master template available than the one on disk? (Surfaced as
+    /// an "update agent rules" prompt for projects initialized before a
+    /// template bump.)
+    pub async fn check_master_upgrade(
+        &self,
+        project_id: u32,
+    ) -> Result<Option<agents::MasterUpgrade>, OculpmError> {
+        let root = {
+            let projects = self.projects.read().await;
+            projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?
+                .root
+                .clone()
+        };
+        Ok(agents::master_upgrade_available(&root))
+    }
+
+    /// Upgrade the on-disk master to the embedded one (backing up the old) and
+    /// re-sync all active adapters so AGENTS.md etc. pick up the new rules.
+    pub async fn apply_master_upgrade(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<AgentSyncReport, OculpmError> {
+        let root = {
+            let projects = self.projects.read().await;
+            projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?
+                .root
+                .clone()
+        };
+        agents::upgrade_master(&root)?;
+        self.sync_agents(db, project_id).await
+    }
+
     /// Compare the on-disk adapter file at `relative_path` against the last
     /// hash we recorded for the matching agent. Returns
     /// `Some((agent_id, expected, actual))` when they differ — the watcher

@@ -343,6 +343,61 @@ fn ensure_master_template(root: &Path) -> Result<String, OculpmError> {
     }
 }
 
+// ─── master template versioning (upgrade existing projects) ──────────────────
+
+/// An available master-template upgrade for a project.
+#[derive(Debug, Clone, Copy, serde::Serialize, specta::Type)]
+pub struct MasterUpgrade {
+    pub from_version: u32,
+    pub to_version: u32,
+}
+
+/// Parse `<!-- template_version: N -->`. Templates without the marker (the
+/// original v1, shipped before versioning) resolve to `1`.
+pub fn template_version(master: &str) -> u32 {
+    for line in master.lines().take(8) {
+        if let Some(rest) = line.trim().strip_prefix("<!-- template_version:") {
+            if let Some(num) = rest.trim_end_matches("-->").split_whitespace().next() {
+                if let Ok(v) = num.parse::<u32>() {
+                    return v;
+                }
+            }
+        }
+    }
+    1
+}
+
+/// Version of the master template embedded in this binary.
+pub fn embedded_template_version() -> u32 {
+    template_version(MASTER_KO)
+}
+
+/// `Some((on_disk, embedded))` when the project's on-disk master is older than
+/// the embedded one. `None` when up-to-date, or when no master exists on disk
+/// (init seeds the latest, so there's nothing to upgrade).
+pub fn master_upgrade_available(root: &Path) -> Option<MasterUpgrade> {
+    let path = root.join(".oculpm").join("agents").join("_template.md");
+    let on_disk = std::fs::read_to_string(&path).ok()?;
+    let from = template_version(&on_disk);
+    let to = embedded_template_version();
+    (from < to).then_some(MasterUpgrade {
+        from_version: from,
+        to_version: to,
+    })
+}
+
+/// Replace the on-disk master with the embedded one, backing up the previous
+/// master to `_template.md.bak` first (user customizations stay recoverable).
+/// The caller re-syncs adapters afterward so AGENTS.md etc. re-render.
+pub fn upgrade_master(root: &Path) -> Result<(), OculpmError> {
+    let dir = root.join(".oculpm").join("agents");
+    let path = dir.join("_template.md");
+    if let Ok(old) = std::fs::read_to_string(&path) {
+        let _ = write_atomic(&dir.join("_template.md.bak"), old.as_bytes());
+    }
+    write_atomic(&path, MASTER_KO.as_bytes())
+}
+
 fn read_per_agent_override(per_agent_dir: &Path, id: &str) -> Option<String> {
     let path = per_agent_dir.join(format!("{id}.md"));
     std::fs::read_to_string(path).ok()
@@ -467,6 +522,39 @@ mod tests {
             MASTER_KO.contains(".oculpm/planner/"),
             "master must point at the planner tree"
         );
+    }
+
+    #[test]
+    fn template_version_parses_marker_and_defaults_to_one() {
+        assert_eq!(template_version("<!-- template_version: 5 -->\n# x"), 5);
+        assert_eq!(template_version("# no marker here\nbody"), 1);
+        // The shipped master must be bumped past v1 (it carries the §7 + phase work).
+        assert!(embedded_template_version() >= 2);
+    }
+
+    #[tokio::test]
+    async fn master_upgrade_detected_and_applied() {
+        let dir = setup();
+        let root = dir.path();
+        let tpl = root.join(".oculpm").join("agents").join("_template.md");
+        // Seed an OLD master (no version marker → v1).
+        std::fs::write(&tpl, "<!-- schema_version: 1 -->\n# old rules\n").unwrap();
+
+        let up = master_upgrade_available(root).expect("upgrade available");
+        assert_eq!(up.from_version, 1);
+        assert_eq!(up.to_version, embedded_template_version());
+
+        upgrade_master(root).expect("upgrade");
+        // Up-to-date now + previous master backed up.
+        assert!(master_upgrade_available(root).is_none());
+        assert!(root
+            .join(".oculpm")
+            .join("agents")
+            .join("_template.md.bak")
+            .exists());
+        // The on-disk master is now the embedded one (carries the strengthened §7).
+        let now = std::fs::read_to_string(&tpl).unwrap();
+        assert!(now.contains("새 plan 을 만들 때"));
     }
 
     // ─── sync_active — six matrix cases per PR2 §3 ─────────────────────────

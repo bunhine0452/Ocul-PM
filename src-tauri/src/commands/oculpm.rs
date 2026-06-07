@@ -14,7 +14,7 @@ use tauri::{AppHandle, State};
 use tauri_specta::Event;
 
 use crate::db::Db;
-use crate::oculpm::agents::AgentDetection;
+use crate::oculpm::agents::{AgentDetection, MasterUpgrade};
 use crate::oculpm::cache::EntryFilters;
 use crate::oculpm::entry_diffs::EntryFileDiff;
 use crate::oculpm::error::OculpmError;
@@ -512,6 +512,35 @@ pub async fn oculpm_agents_sync_active(
 ) -> Result<AgentSyncReport, String> {
     manager
         .sync_agents(&db, project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Is a newer agent-rules master template available than the one on disk?
+/// `None` = up-to-date. Surfaced as an "update" prompt on project open.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_check_master_upgrade(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Option<MasterUpgrade>, String> {
+    manager
+        .check_master_upgrade(project_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Upgrade the on-disk master to the embedded one + re-sync adapters (AGENTS.md
+/// etc.). The previous master is backed up to `_template.md.bak`.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_apply_master_upgrade(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<AgentSyncReport, String> {
+    manager
+        .apply_master_upgrade(&db, project_id)
         .await
         .map_err(|e| e.to_string())
 }

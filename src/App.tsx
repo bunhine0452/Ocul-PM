@@ -20,6 +20,7 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 // project picker (StartScreen) renders without pulling the shell chunk.
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
+import { toast } from "@/lib/toast";
 
 import "./App.css";
 
@@ -117,6 +118,34 @@ function App() {
         oculpmLog.error("watcher", `watcherStart failed: ${wsRes.error}`, { projectId });
       } else {
         oculpmLog.flow("step 3 OK — watcher running", { projectId });
+      }
+
+      // Offer a master-template upgrade for projects initialized before a
+      // template bump (their on-disk AGENTS.md is stale vs the shipped rules).
+      const upRes = await commands.oculpmAgentsCheckMasterUpgrade(projectId);
+      if (cancelled) return;
+      if (upRes.status === "ok" && upRes.data) {
+        const { from_version, to_version } = upRes.data;
+        toast.warning("에이전트 규칙(AGENTS.md) 업데이트가 있어요", {
+          title: `규칙 템플릿 v${from_version} → v${to_version}`,
+          dedupKey: `master-upgrade-${projectId}`,
+          durationMs: 20000,
+          actions: [
+            {
+              label: "업데이트",
+              onClick: () => {
+                void (async () => {
+                  const r = await commands.oculpmAgentsApplyMasterUpgrade(projectId);
+                  if (r.status === "ok") {
+                    toast.info("AGENTS.md 를 최신 규칙으로 갱신했어요 (이전 master 는 _template.md.bak 백업).");
+                  } else {
+                    toast.destructive(`업데이트 실패: ${r.error}`);
+                  }
+                })();
+              },
+            },
+          ],
+        });
       }
     })();
     return () => {

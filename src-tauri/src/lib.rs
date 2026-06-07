@@ -138,6 +138,7 @@ use crate::commands::{
     oculpm_set_journal_verified,
     oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
     oculpm_agents_sync_active, oculpm_agents_detect, oculpm_agents_get_master_template,
+    oculpm_agents_check_master_upgrade, oculpm_agents_apply_master_upgrade,
     oculpm_compare_layers, oculpm_get_log_dir, oculpm_log,
     oculpm_update_entry_body, oculpm_open_entry_in_editor,
     // W5-PR3 — Migration from legacy SQLite changelog
@@ -291,6 +292,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_agents_sync_active,
         oculpm_agents_detect,
         oculpm_agents_get_master_template,
+        oculpm_agents_check_master_upgrade,
+        oculpm_agents_apply_master_upgrade,
         oculpm_compare_layers,
         oculpm_get_log_dir,
         oculpm_log,
