@@ -8,6 +8,7 @@ pub mod greenfield;
 pub mod llm;
 pub mod oculpm;
 pub mod overview;
+pub mod plan;
 pub mod planner;
 pub mod project;
 pub mod project_tree;
@@ -25,6 +26,7 @@ pub use llm::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.
 pub use oculpm::*;
 pub use overview::*;
+pub use plan::*;
 pub use planner::*;
 pub use project::*;
 pub use project_tree::*;

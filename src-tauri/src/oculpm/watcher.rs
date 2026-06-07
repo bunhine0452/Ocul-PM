@@ -279,6 +279,21 @@ impl WatcherInner {
             return;
         }
 
+        // 3.5 .oculpm/planner/** — AI-maintained Plan SSOT (Planner Upgrade).
+        //     The projection rebuilds from the file on read (plan_* commands
+        //     reproject), so we short-circuit here to keep plan edits out of
+        //     the code-change ndjson pipeline. The live-push event for the
+        //     Planner UI lands in PR-PLN 3.
+        if rel_str.starts_with(".oculpm/planner/") {
+            tracing::debug!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %rel_str,
+                "[FLOW] planner fs event (handled by projection on read)"
+            );
+            return;
+        }
+
         // 4. config.toml — restart deferred to W4.
         if rel_str == ".oculpm/config.toml" {
             tracing::info!(

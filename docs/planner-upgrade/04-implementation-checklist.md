@@ -55,10 +55,11 @@
 | ✅ | `migrations/016_oculpm_planner.sql` — plan/plan_items/plan_item_updates/plan_decisions ([`01`](./01-data-model-and-markdown-spec.md) §3) (014·015 선점) |
 | ✅ | `oculpm/paths.rs` — `planner_root`/`plan_path` + 테스트 |
 | ✅ | `oculpm/planner/parse.rs` — `.md → {Plan,Items,Decisions,Updates}` (글리프/id/managed-log/decision 파싱, 관용 폴백+⚠) |
-| ⬜ | watcher 확장 — `.oculpm/planner/**` 감지 → 재투영(upsert/append-dedup) |
-| ⬜ | `oculpm/redact.rs` 를 planner 파싱에 적용 |
-| ⬜ | DB 투영 메서드(`Db`) + tauri-specta: `plan_list`/`plan_get`/`plan_item_history` |
-| ◐ | `cargo test` green — parse 단위테스트 10건 통과(6 글리프/id 누락/dedup/no-frontmatter/progress/fuzz). 투영·watcher 테스트는 후속 |
+| ✅ | `oculpm/planner/project.rs` — `PlanCache` 투영(`oculpm_plan*` 4테이블 재구축) + DTO + on-read reproject. round-trip 테스트 |
+| ✅ | tauri-specta 커맨드: `plan_list`/`plan_get`/`plan_item_history` (commands/plan.rs) + lib.rs 등록 + bindings.ts 재생성 |
+| ◐ | watcher — `.oculpm/planner/**` 단락 처리(코드변경 ndjson 오염 방지). 재투영은 커맨드 on-read. **라이브-push 이벤트는 PR-PLN 3 이월** |
+| ⬜→PR-PLN 1 | `oculpm/redact.rs` 적용(시크릿 마스킹) — 쓰기 경로(plan_apply_edit)와 함께 PR-PLN 1 에서 |
+| ✅ | `cargo test` green — parse 10건 + 투영 round-trip(list/get/history, SQLite 재조회) 1건. 전체 lib 239 pass. 프론트 typecheck/test/lint green |
 
 ### PR-PLN 1 — 마크다운 SSOT 쓰기 경로 + 갱신 로그
 
@@ -148,7 +149,7 @@
 
 | PR-PLN | 상태 | 머지 해시 |
 |---|---|---|
-| 0 — 스키마/파서/watcher | 🔄 진행중 (스키마+paths+파서 ✅, 투영·watcher·커맨드 남음) | — |
+| 0 — 스키마/파서/watcher | ✅ done (스키마·paths·파서·투영·커맨드·바인딩. redact·라이브push 만 이월) | — |
 | 1 — .md 쓰기 + 갱신로그 | ⬜ 설계 | — |
 | 2 — AGENTS.md + 템플릿 | ⬜ 설계 | — |
 | 3 — PlannerScreenV2 | ⬜ 설계 | — |
