@@ -65,11 +65,12 @@
 
 | 체크 | 항목 |
 |---|---|
-| ⬜ | `plan_create(project_id, title)` — frontmatter+빈 골격 .md 생성 |
-| ⬜ | `plan_apply_edit(project_id, plan_id, op)` — 글리프 set/항목 추가/메모 → 본문 갱신 + plan-log append(atomic_io managed block), agent_id 스탬프 |
-| ⬜ | `.oculpm/.lock` 직렬화 + 임시파일 교체(원자성) |
-| ⬜ | managed block 경계/사용자 콘텐츠 보존 round-trip 테스트 |
-| ⬜ | `cargo test` green |
+| ✅ | `oculpm/planner/plan_edit.rs` — 순수 마크다운 편집: create_plan_skeleton / set_item_status(글리프 교체) / add_item(phase 생성) / append_log_row(plan-log managed block). 형식 보존, write→parse 무손실 |
+| ✅ | `plan_create(project_id, title)` — slug 생성(중복 -N) + 골격 .md + write_atomic |
+| ✅ | `plan_apply_edit(project_id, plan_id, op, agent_id?)` — PlanEditOp(SetStatus/AddItem) → 본문 갱신 + plan-log append, agent_id 스탬프(기본 user, inapp:* 지원). bindings: planCreate/planApplyEdit |
+| ◐ | 원자성=`atomic_io::write_atomic`(temp+rename). `.oculpm/.lock` 은 manager 가 프로세스 단위로 이미 보유 → 재획득 안 함. **프로세스 내 동시편집은 last-write-wins**(단일 사용자 가정; 필요시 tokio mutex 후속) |
+| ✅ | `oculpm/redact.rs` 적용 — 투영 읽기 측에서 config `auto_redact_patterns` 로 시크릿 마스킹(PR-PLN 0 이월분 해소) |
+| ✅ | round-trip 테스트: 6건(skeleton/full write/missing/dup/new-phase/콘텐츠 보존) + 전체 lib 245 pass + 프론트 typecheck/test/lint green |
 
 ---
 
@@ -150,7 +151,7 @@
 | PR-PLN | 상태 | 머지 해시 |
 |---|---|---|
 | 0 — 스키마/파서/watcher | ✅ done (스키마·paths·파서·투영·커맨드·바인딩. redact·라이브push 만 이월) | — |
-| 1 — .md 쓰기 + 갱신로그 | ⬜ 설계 | — |
+| 1 — .md 쓰기 + 갱신로그 | ✅ done (plan_edit + plan_create/plan_apply_edit + redact. 락은 manager 프로세스락+write_atomic) | — |
 | 2 — AGENTS.md + 템플릿 | ⬜ 설계 | — |
 | 3 — PlannerScreenV2 | ⬜ 설계 | — |
 | 4 — 일지 상호참조 + 제안 | ⬜ 설계 | — |

@@ -117,6 +117,40 @@ impl ItemStatus {
             ItemStatus::Blocked | ItemStatus::Deferred | ItemStatus::Dropped => None,
         }
     }
+
+    /// The markdown task-box token for this status (`[<token>]`).
+    pub fn token(self) -> &'static str {
+        match self {
+            ItemStatus::Todo => " ",
+            ItemStatus::InProgress => "~",
+            ItemStatus::Done => "x",
+            ItemStatus::Blocked => "!",
+            ItemStatus::Deferred => ">",
+            ItemStatus::Dropped => "-",
+        }
+    }
+
+    /// Compact symbol for the update-log change column. Todo renders as `☐`
+    /// (a bare space would be invisible in a table). Round-trips via `from_any`.
+    pub fn log_symbol(self) -> &'static str {
+        match self {
+            ItemStatus::Todo => "☐",
+            _ => self.token(),
+        }
+    }
+
+    /// Parse a canonical status string — inverse of [`Self::as_str`].
+    pub fn parse_status(s: &str) -> Option<Self> {
+        match s.trim() {
+            "todo" => Some(ItemStatus::Todo),
+            "in_progress" => Some(ItemStatus::InProgress),
+            "done" => Some(ItemStatus::Done),
+            "blocked" => Some(ItemStatus::Blocked),
+            "deferred" => Some(ItemStatus::Deferred),
+            "dropped" => Some(ItemStatus::Dropped),
+            _ => None,
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

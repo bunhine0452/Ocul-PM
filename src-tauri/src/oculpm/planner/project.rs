@@ -13,10 +13,54 @@ use serde::Serialize;
 
 use crate::db::Db;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
+use crate::oculpm::redact::{compile_redact_patterns, redact_text};
+use crate::oculpm::spec::OculpmConfig;
 
 /// `<project_root>/.oculpm/planner`.
 pub fn planner_dir(project_root: &Path) -> PathBuf {
     project_root.join(".oculpm").join("planner")
+}
+
+/// Locate the plan file whose frontmatter `id` equals `plan_id` (the filename
+/// may differ from the id). `None` if no file matches.
+pub fn find_plan_path(planner_root: &Path, plan_id: &str) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(planner_root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|x| x.to_str()) != Some("md") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
+        if parse_plan(&text, stem).frontmatter.id == plan_id {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// ASCII slug from a title; falls back to `"plan"` when nothing ASCII remains
+/// (e.g. a purely Korean title).
+pub fn slug_for(title: &str) -> String {
+    let mut out = String::new();
+    let mut dash = false;
+    for c in title.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            dash = false;
+        } else if !out.is_empty() && !dash {
+            out.push('-');
+            dash = true;
+        }
+    }
+    let s = out.trim_matches('-').to_string();
+    if s.is_empty() {
+        "plan".to_string()
+    } else {
+        s
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,6 +143,16 @@ fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
     let Ok(entries) = std::fs::read_dir(planner_root) else {
         return out;
     };
+    // Secret masking: a plan that accidentally contains a key gets redacted on
+    // the projection (read) side, so the SQLite cache, DTOs, and UI never show
+    // it. Patterns come from the project's `.oculpm/config.toml`; empty/missing
+    // config → no-op.
+    let redact_patterns = planner_root
+        .parent()
+        .map(|oculpm_dir| oculpm_dir.join("config.toml"))
+        .and_then(|p| OculpmConfig::load(&p).ok())
+        .map(|cfg| compile_redact_patterns(&cfg.git.auto_redact_patterns))
+        .unwrap_or_default();
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().and_then(|x| x.to_str()) != Some("md") {
@@ -117,6 +171,7 @@ fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
             Ok(t) => t,
             Err(_) => continue,
         };
+        let (text, _hits) = redact_text(&text, &redact_patterns);
         let parsed = parse_plan(&text, &stem);
         let updated_at = parsed
             .frontmatter
