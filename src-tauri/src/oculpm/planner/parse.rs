@@ -205,10 +205,20 @@ pub struct PlanItemUpdate {
     pub note: Option<String>,
 }
 
+/// A `## Phase` heading. Trackable when it carries its own `{#id}` (agents
+/// reference it in the plan-log); otherwise it's a pure grouping (`id = None`).
+#[derive(Debug, Clone)]
+pub struct PlanPhase {
+    pub id: Option<String>,
+    pub name: String,
+    pub order_idx: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct ParsedPlan {
     pub frontmatter: PlanFrontmatter,
     pub items: Vec<PlanItem>,
+    pub phases: Vec<PlanPhase>,
     pub decisions: Vec<PlanDecision>,
     pub updates: Vec<PlanItemUpdate>,
     pub warnings: Vec<String>,
@@ -253,6 +263,8 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
     let mut first_h1: Option<String> = None;
 
     let mut items: Vec<PlanItem> = Vec::new();
+    let mut phases: Vec<PlanPhase> = Vec::new();
+    let mut phase_order: u32 = 0;
     let mut decisions: Vec<PlanDecision> = Vec::new();
     let mut updates: Vec<PlanItemUpdate> = Vec::new();
     let mut seen_ids: HashSet<String> = HashSet::new();
@@ -288,10 +300,10 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
         // --- headings ---
         if let Some(h) = trimmed.strip_prefix("## ") {
             flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
-            // Phase headings may carry their own {#id} (agents track phases too);
-            // drop it from the display name.
+            // Phase headings may carry their own {#id} (agents track phases too).
+            // Keep the id (so plan-log refs resolve), drop it from the name.
             let mut h = h.trim().to_string();
-            let _ = extract_brace_id(&mut h);
+            let phase_id = extract_brace_id(&mut h);
             let h = h.trim();
             if is_decisions_heading(h) {
                 section = Section::Decisions;
@@ -299,6 +311,12 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
             } else {
                 section = Section::Phases;
                 cur_phase = Some(h.to_string());
+                phases.push(PlanPhase {
+                    id: phase_id,
+                    name: h.to_string(),
+                    order_idx: phase_order,
+                });
+                phase_order += 1;
             }
             last_toplevel = None;
             continue;
@@ -356,6 +374,7 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
     ParsedPlan {
         frontmatter,
         items,
+        phases,
         decisions,
         updates,
         warnings,
@@ -937,6 +956,21 @@ owner: claude-code
         let p = parse_plan(md, "x");
         assert_eq!(p.updates.len(), 1);
         assert_eq!(p.updates[0].to_status.as_deref(), Some("todo"));
+    }
+
+    #[test]
+    fn phase_ids_are_captured_for_tracking() {
+        let md = "# T\n## Phase 0 — 안전망 {#p0}\n- [x] a {#a}\n## Phase 1 {#p1}\n- [ ] b {#b}\n## Phase A\n- [ ] c {#c}\n";
+        let p = parse_plan(md, "x");
+        assert_eq!(p.phases.len(), 3);
+        assert_eq!(p.phases[0].id.as_deref(), Some("p0"));
+        assert_eq!(p.phases[0].name, "Phase 0 — 안전망");
+        assert_eq!(p.phases[1].id.as_deref(), Some("p1"));
+        // phase without {#id} → grouping only
+        assert!(p.phases[2].id.is_none());
+        assert_eq!(p.phases[2].name, "Phase A");
+        // items still group by phase name
+        assert_eq!(p.items[0].phase.as_deref(), Some("Phase 0 — 안전망"));
     }
 
     #[test]

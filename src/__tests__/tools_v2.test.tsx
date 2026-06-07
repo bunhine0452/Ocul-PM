@@ -123,6 +123,18 @@ function planDetail(over: Record<string, unknown> = {}) {
         journal_refs: ["journal/20260607/Features_to_add/1000_feature_tz.md"],
       },
     ],
+    phases: [
+      {
+        phase_id: "pa",
+        name: "Phase A — 기반",
+        status: "in_progress",
+        progress: 0.5,
+        item_count: 1,
+        done_count: 0,
+        last_agent: "claude-code",
+        last_update: "2026-06-07T10:00:00+09:00",
+      },
+    ],
     decisions: [],
     warnings: [],
     ...over,

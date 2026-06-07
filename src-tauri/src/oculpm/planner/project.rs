@@ -106,10 +106,24 @@ pub struct PlanDecisionDto {
     pub affects: Vec<String>,
 }
 
+/// A trackable phase (`## Heading {#id}`) — rollup status + who last touched it.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct PlanPhaseDto {
+    pub phase_id: Option<String>,
+    pub name: String,
+    pub status: String,
+    pub progress: f64,
+    pub item_count: u32,
+    pub done_count: u32,
+    pub last_agent: Option<String>,
+    pub last_update: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct PlanDetail {
     pub plan: PlanSummary,
     pub items: Vec<PlanItemDto>,
+    pub phases: Vec<PlanPhaseDto>,
     pub decisions: Vec<PlanDecisionDto>,
     /// Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
     /// the UI never fails silently on a malformed plan.
@@ -294,9 +308,75 @@ fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
             affects: d.affects.clone(),
         })
         .collect();
+    // Phase nodes — status is the rollup of their child items (or, for an
+    // empty phase, the latest plan-log status for the phase id). Attribution
+    // comes from plan-log entries that reference the phase {#id}.
+    let phases = p
+        .phases
+        .iter()
+        .map(|ph| {
+            let in_phase: Vec<_> = p
+                .items
+                .iter()
+                .filter(|i| i.phase.as_deref() == Some(ph.name.as_str()))
+                .collect();
+            let mut sum = 0.0;
+            let mut n = 0u32;
+            let mut done = 0u32;
+            for it in &in_phase {
+                if let Some(w) = it.status.weight() {
+                    sum += w;
+                    n += 1;
+                }
+                if it.status == ItemStatus::Done {
+                    done += 1;
+                }
+            }
+            let progress = if n == 0 { 0.0 } else { sum / n as f64 };
+            let status = if !in_phase.is_empty() {
+                if progress >= 1.0 {
+                    "done"
+                } else if progress > 0.0 {
+                    "in_progress"
+                } else {
+                    "todo"
+                }
+            } else {
+                ph.id
+                    .as_ref()
+                    .and_then(|id| {
+                        p.updates
+                            .iter()
+                            .filter(|u| &u.item_id == id)
+                            .max_by(|a, b| a.ts.cmp(&b.ts))
+                    })
+                    .and_then(|u| u.to_status.as_deref())
+                    .unwrap_or("todo")
+            }
+            .to_string();
+            let (last_update, last_agent) = ph
+                .id
+                .as_ref()
+                .and_then(|id| last.get(id))
+                .map(|(ts, a)| (Some(ts.clone()), Some(a.clone())))
+                .unwrap_or((None, None));
+            PlanPhaseDto {
+                phase_id: ph.id.clone(),
+                name: ph.name.clone(),
+                status,
+                progress,
+                item_count: in_phase.len() as u32,
+                done_count: done,
+                last_agent,
+                last_update,
+            }
+        })
+        .collect();
+
     PlanDetail {
         plan: summary_dto(loaded),
         items,
+        phases,
         decisions,
         warnings: p.warnings.clone(),
     }
@@ -580,10 +660,21 @@ impl<'a> PlanCache<'a> {
         planner_root: &Path,
         limit: u32,
     ) -> Result<Vec<PlanActivityDto>, String> {
-        self.reproject_all(project_id, planner_root).await?;
+        let loaded = self.reproject_all(project_id, planner_root).await?;
+        // (plan_id, phase_id) → phase name, to resolve plan-log refs that point
+        // at a phase heading rather than a leaf item.
+        let mut phase_names: HashMap<(String, String), String> = HashMap::new();
+        for lp in &loaded {
+            for ph in &lp.parsed.phases {
+                if let Some(id) = &ph.id {
+                    phase_names.insert((lp.plan_id.clone(), id.clone()), ph.name.clone());
+                }
+            }
+        }
         let pid = project_id as i64;
         let lim = limit.max(1) as i64;
-        self.db
+        let rows = self
+            .db
             .conn()
             .call(move |c| -> Result<Vec<PlanActivityDto>, tokio_rusqlite::Error> {
                 let mut stmt = c.prepare(
@@ -618,7 +709,22 @@ impl<'a> PlanCache<'a> {
                 Ok(rows)
             })
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+
+        // Resolve phase refs: when item_id matched no leaf item, the SQL
+        // COALESCE returned the raw id — swap in the phase name if it's a phase.
+        let resolved = rows
+            .into_iter()
+            .map(|mut r| {
+                if r.item_title == r.item_id {
+                    if let Some(name) = phase_names.get(&(r.plan_id.clone(), r.item_id.clone())) {
+                        r.item_title = name.clone();
+                    }
+                }
+                r
+            })
+            .collect();
+        Ok(resolved)
     }
 }
 
@@ -704,5 +810,43 @@ updated: 2026-06-07
         // missing plan → None
         let none = cache.get(pid, &planner_root, "nope").await.expect("get");
         assert!(none.is_none());
+    }
+
+    #[tokio::test]
+    async fn phase_tracking_resolves_in_detail_and_activity() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().to_path_buf();
+        std::fs::create_dir_all(planner_dir(&root)).unwrap();
+        // No frontmatter, # H1, a phase with {#id} referenced in the plan-log —
+        // the exact shape an external agent produced.
+        let md = "# T\n## Phase 1 — 핵심 {#p1}\n- [x] a {#a}\n- [~] b {#b}\n\n\
+                  <!-- oculpm:plan-log begin v1 -->\n\
+                  | ts | item | agent | change | journal | note |\n\
+                  |---|---|---|---|---|---|\n\
+                  | 2026-06-07T10:00:00+09:00 | #p1 | claude-code | →☐ | | phase 생성 |\n\
+                  | 2026-06-07T11:00:00+09:00 | #a | user | ~→x | | |\n\
+                  <!-- oculpm:plan-log end -->\n";
+        std::fs::write(planner_dir(&root).join("demo.md"), md).unwrap();
+        let db = Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("p".into(), root.to_string_lossy().to_string())
+            .await
+            .unwrap();
+        let cache = PlanCache::new(&db);
+        let pr = planner_dir(&root);
+
+        let detail = cache.get(pid, &pr, "demo").await.unwrap().unwrap();
+        assert_eq!(detail.phases.len(), 1);
+        let ph = &detail.phases[0];
+        assert_eq!(ph.phase_id.as_deref(), Some("p1"));
+        assert_eq!(ph.name, "Phase 1 — 핵심");
+        // a done + b in_progress → rollup in_progress
+        assert_eq!(ph.status, "in_progress");
+        assert_eq!(ph.last_agent.as_deref(), Some("claude-code"));
+
+        // recent activity resolves #p1 to the phase name (not the raw id)
+        let act = cache.recent_activity(pid, &pr, 10).await.unwrap();
+        let phase_act = act.iter().find(|a| a.item_id == "p1").unwrap();
+        assert_eq!(phase_act.item_title, "Phase 1 — 핵심");
     }
 }

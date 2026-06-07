@@ -439,6 +439,7 @@ interface PlanBodyProps {
 function PlanBody(props: PlanBodyProps) {
   const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef } = props;
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
+  const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
   return (
     <>
@@ -490,6 +491,8 @@ function PlanBody(props: PlanBodyProps) {
       {/* Phases */}
       {phases.map(([phase, items]) => {
         const isOpen = collapsed[phase] !== true;
+        const meta = phaseMeta.get(phase);
+        const phasePct = meta ? Math.round((meta.progress ?? 0) * 100) : phaseProgress(items);
         return (
           <div className="card goal-card" key={phase} style={{ marginBottom: 12 }}>
             <button
@@ -499,10 +502,22 @@ function PlanBody(props: PlanBodyProps) {
               aria-expanded={isOpen}
             >
               {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
-              <div style={{ flex: 1 }}>
-                <div className="goal-title">{phase}</div>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ color: (STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo).color, fontSize: 13, flexShrink: 0 }}>
+                  {(STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo).glyph}
+                </span>
+                <span className="goal-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{phase}</span>
+                {meta?.last_agent ? (
+                  <span
+                    title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(meta.last_agent) }} />
+                    {agentLabel(meta.last_agent)}
+                  </span>
+                ) : null}
               </div>
-              <span className="prog-pct">{phaseProgress(items)}%</span>
+              <span className="prog-pct">{phasePct}%</span>
             </button>
 
             {isOpen
