@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { FileCode2, X, Bot, Clock } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -133,7 +134,11 @@ export function EntryDiffModal({ projectId, entry, initialFile, onClose }: Entry
     return diffs.find((d) => d.path === selected) ?? diffs[0];
   }, [diffs, selected]);
 
-  return (
+  // Portal to <body>: the journal cards render inside `.page.fade-in`, whose
+  // transform animation makes it the containing block for `position: fixed`,
+  // which would trap this overlay below the toolbar with its header clipped.
+  // Rendering at the body root escapes every transformed ancestor.
+  return createPortal(
     <div
       className="fixed inset-0 z-[85] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-150"
       onClick={(e) => {
@@ -286,6 +291,7 @@ export function EntryDiffModal({ projectId, entry, initialFile, onClose }: Entry
           </section>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -26,6 +26,7 @@
   - 좌(`<aside overflow-auto>`): 메타(trigger/agent/time/tags) + **변경된 파일 목록**(`frontmatter.files_touched`, op 배지 `dstatus A/M/D`, `disambiguateLabels` 로 동일이름 구분, 삭제 파일은 "삭제됨") + **일지 서술**(`detail.body_markdown` → `Markdown`).
   - 우(`<section flex-col>`): 기록된 파일 탭 + `.diff-code`(단일 스크롤러) + `PatchView`.
   - **#2 해소**: 각 pane 이 독립 bounded 스크롤(`flex-1 min-h-0` + `overflow-auto`), header/탭은 `shrink-0` → 큰 파일에서 상단 안 잘림.
+  - **후속 fix (도그푸딩 재발견)**: 카드가 `.page.fade-in`(transform 애니메이션, `primitives.css`) 안에 있어 `position:fixed` 모달이 그 *containing block* 에 갇힘 → 툴바 아래로 밀리고 헤더(닫기 버튼 포함)가 잘리는 회귀. **`createPortal(…, document.body)`** 로 모달을 body 루트에 렌더해 해결. 테마는 `data-theme` 가 `<html>` 에 설정되므로 포털 후에도 유지(`SettingsContext`).
   - 헬퍼 `disambiguateLabels(paths)`: 같은 basename 이 둘 이상이면 마지막 2 세그먼트, 그래도 충돌 시 전체 경로.
   - CSS: `src/styles/screens.css` `.entry-narrative` (좁은 좌 pane 에서 Markdown 컨테인).
 - **#3 단일행 diff** (`PR-FIX B4`, diff 화면과 공유) — `src/styles/screens.css`: `.dl-x{white-space:pre}`, `.diff-content{min-width:max-content}`, `.dl{grid-template-columns:44px minmax(max-content,1fr); min-width:100%}`. `src/features/diff/PatchView.tsx` 가 hunks 를 `.diff-content` 래퍼로 감쌈 → `.diff-code` 가로 스크롤.
