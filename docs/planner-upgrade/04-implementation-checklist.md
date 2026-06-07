@@ -110,10 +110,10 @@
 
 | 체크 | 항목 |
 |---|---|
-| ⬜ | plan-log 의 `journal_ref` → 항목↔entry 양방향 투영 |
-| ⬜ | 항목 📓 클릭 → 연결 일지 focus(기존 핸드오프 재사용) |
-| ⬜ | 진척 *제안* 배지(연관 일지 N건 → "완료?") — 클릭 확정만, 침묵 덮어쓰기 0 |
-| ⬜ | `plan_item_history` 타임라인 UI |
+| ✅ | `PlanItemDto.journal_refs` — plan-log 의 `journal_ref` 를 항목별 distinct 로 투영(projection 테스트 검증) |
+| ✅ | 항목 📓 클릭 → 연결 일지 focus — ShellV2 `onOpenJournal`→`setJournalFocus`+navigate, `journal/` prefix strip(기존 Today 핸드오프 재사용) |
+| ✅ | 진척 *제안* 배지: 연결 일지 있고 미완료(¬done/dropped/deferred) → "완료?" **클릭 확정만**, 자동 덮어쓰기 0(불변식 §2-3 준수) |
+| ✅ | `plan_item_history` 인라인 타임라인(PR-PLN 3) — 각 행 누가/언제/from→to + 📓 클릭 |
 
 ### PR-PLN 5 — 인앱 AI "계획 갱신" + 마이그레이션
 
@@ -154,7 +154,7 @@
 | 1 — .md 쓰기 + 갱신로그 | ✅ done (plan_edit + plan_create/plan_apply_edit + redact. 락은 manager 프로세스락+write_atomic) | — |
 | 2 — AGENTS.md + 템플릿 | ✅ done (master §7 + 5종 템플릿 + 가드 테스트. dogfood 런타임 검증 대기) | — |
 | 3 — PlannerScreenV2 | ✅ done (문서형 체크리스트+귀속 칩+편집+결정. 라이브-push 만 폴리시 이월) | — |
-| 4 — 일지 상호참조 + 제안 | ⬜ 설계 | — |
+| 4 — 일지 상호참조 + 제안 | ✅ done (journal_refs 투영 + 📓 focus + "완료?" 제안 배지) | — |
 | 5 — 인앱 AI + 마이그레이션 | ⬜ 설계 | — |
 
 각 PR 머지 시 본 표 (`⬜` → `✅`) + 해시 갱신. (참고: `rev-parse` 로 확인, 추측 금지 — [[commit-gate-discipline]].)

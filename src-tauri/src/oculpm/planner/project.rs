@@ -91,6 +91,9 @@ pub struct PlanItemDto {
     pub note: Option<String>,
     pub last_agent: Option<String>,
     pub last_update: Option<String>,
+    /// Distinct journal entries linked to this item via the plan-log (the
+    /// agent's `일지` column). Drives the 📓 link + the progress suggestion.
+    pub journal_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -233,6 +236,16 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
 fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
     let p = &loaded.parsed;
     let last = last_update_map(p);
+    // item_id → distinct linked journal refs (first-seen order).
+    let mut jrefs: HashMap<String, Vec<String>> = HashMap::new();
+    for u in &p.updates {
+        if let Some(jr) = &u.journal_ref {
+            let v = jrefs.entry(u.item_id.clone()).or_default();
+            if !v.contains(jr) {
+                v.push(jr.clone());
+            }
+        }
+    }
     let items = p
         .items
         .iter()
@@ -251,6 +264,7 @@ fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
                 note: i.note.clone(),
                 last_agent,
                 last_update,
+                journal_refs: jrefs.get(&i.item_id).cloned().unwrap_or_default(),
             }
         })
         .collect();
@@ -613,6 +627,7 @@ updated: 2026-06-07
         assert_eq!(one.status, "done");
         assert_eq!(one.last_agent.as_deref(), Some("claude-code"));
         assert_eq!(one.phase.as_deref(), Some("Phase A — 기반"));
+        assert_eq!(one.journal_refs, vec!["journal/x.md"]);
 
         // history (read back from SQLite — validates projection write)
         let hist = cache

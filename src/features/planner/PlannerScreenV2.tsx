@@ -82,9 +82,11 @@ function relativeTime(iso: string | null): string {
 interface PlannerScreenV2Props {
   projectId: number;
   onNavigate: (view: UiV2View) => void;
+  /** Open a specific journal entry (path relative to the journal root). */
+  onOpenJournal?: (relativePath: string) => void;
 }
 
-export function PlannerScreenV2({ projectId, onNavigate }: PlannerScreenV2Props) {
+export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: PlannerScreenV2Props) {
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<PlanDetail | null>(null);
@@ -132,14 +134,13 @@ export function PlannerScreenV2({ projectId, onNavigate }: PlannerScreenV2Props)
     void refreshDetail();
   }, [refreshDetail]);
 
-  const cycleStatus = async (item: PlanItemDto) => {
+  const applyStatus = async (item: PlanItemDto, status: string) => {
     if (busy || selectedId == null) return;
-    const next = NEXT_STATUS[item.status] ?? "in_progress";
     setBusy(true);
     const res = await commands.planApplyEdit(
       projectId,
       selectedId,
-      { kind: "set_status", item_id: item.item_id, status: next },
+      { kind: "set_status", item_id: item.item_id, status },
       "user",
     );
     setBusy(false);
@@ -149,6 +150,15 @@ export function PlannerScreenV2({ projectId, onNavigate }: PlannerScreenV2Props)
     } else {
       toast.destructive(`상태 변경 실패: ${res.error}`);
     }
+  };
+
+  // plan-log journal refs are written relative to `.oculpm/` (e.g.
+  // "journal/2026…/Bugs/…md"); the journal screen focuses paths relative to the
+  // journal root, so strip the leading "journal/".
+  const openJournal = (ref: string) => {
+    const path = ref.replace(/^journal\//, "");
+    if (onOpenJournal) onOpenJournal(path);
+    else onNavigate("journal");
   };
 
   const submitNewItem = async () => {
@@ -305,13 +315,13 @@ export function PlannerScreenV2({ projectId, onNavigate }: PlannerScreenV2Props)
               phases={phases}
               collapsed={collapsed}
               setCollapsed={setCollapsed}
-              onCycle={cycleStatus}
+              onSetStatus={applyStatus}
               busy={busy}
               historyFor={historyFor}
               history={history}
               onToggleHistory={toggleHistory}
               onRefresh={() => void refreshDetail()}
-              onNavigate={onNavigate}
+              onOpenJournalRef={openJournal}
             />
           )}
 
@@ -356,17 +366,17 @@ interface PlanBodyProps {
   phases: [string, PlanItemDto[]][];
   collapsed: Record<string, boolean>;
   setCollapsed: Dispatch<SetStateAction<Record<string, boolean>>>;
-  onCycle: (item: PlanItemDto) => void;
+  onSetStatus: (item: PlanItemDto, status: string) => void;
   busy: boolean;
   historyFor: string | null;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
   onRefresh: () => void;
-  onNavigate: (view: UiV2View) => void;
+  onOpenJournalRef: (ref: string) => void;
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onCycle, busy, historyFor, history, onToggleHistory, onRefresh, onNavigate } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef } = props;
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
 
   return (
@@ -440,11 +450,11 @@ function PlanBody(props: PlanBodyProps) {
                     key={it.item_id}
                     item={it}
                     busy={busy}
-                    onCycle={onCycle}
+                    onSetStatus={onSetStatus}
                     historyOpen={historyFor === it.item_id}
                     history={historyFor === it.item_id ? history : null}
                     onToggleHistory={onToggleHistory}
-                    onNavigate={onNavigate}
+                    onOpenJournalRef={onOpenJournalRef}
                   />
                 ))
               : null}
@@ -477,21 +487,25 @@ function PlanBody(props: PlanBodyProps) {
 interface PlanItemRowProps {
   item: PlanItemDto;
   busy: boolean;
-  onCycle: (item: PlanItemDto) => void;
+  onSetStatus: (item: PlanItemDto, status: string) => void;
   historyOpen: boolean;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
-  onNavigate: (view: UiV2View) => void;
+  onOpenJournalRef: (ref: string) => void;
 }
 
-function PlanItemRow({ item, busy, onCycle, historyOpen, history, onToggleHistory, onNavigate }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
+  const linked = item.journal_refs ?? [];
+  // Suggestion (never auto-applied): journal work is logged against this item
+  // but it isn't closed out yet → offer a one-click "완료?".
+  const suggestDone = linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
   return (
     <div className="subtask" style={{ alignItems: "flex-start", paddingLeft: 14 + indent, cursor: "default" }}>
       <button
         type="button"
-        onClick={() => onCycle(item)}
+        onClick={() => onSetStatus(item, NEXT_STATUS[item.status] ?? "in_progress")}
         disabled={busy}
         title={`${meta.label} — 클릭하여 진행`}
         style={{
@@ -505,6 +519,26 @@ function PlanItemRow({ item, busy, onCycle, historyOpen, history, onToggleHistor
       <div style={{ flex: 1, minWidth: 0 }}>
         <span className={"sub-title" + (item.status === "done" ? " done" : "")}>{item.title}</span>
         {item.note ? <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>— {item.note}</span> : null}
+        {linked.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onOpenJournalRef(linked[0])}
+            title={`연결된 일지 ${linked.length}건 — 열기`}
+            style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: 11, padding: 0 }}
+          >
+            📓 {linked.length}
+          </button>
+        ) : null}
+        {suggestDone ? (
+          <button
+            type="button"
+            onClick={() => onSetStatus(item, "done")}
+            title="관련 일지가 있어요 — 완료로 표시할까요?"
+            style={{ marginLeft: 8, background: "var(--accent-ring)", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: 99, fontSize: 11, padding: "1px 8px", cursor: "pointer" }}
+          >
+            완료?
+          </button>
+        ) : null}
 
         {historyOpen ? (
           <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-2)" }}>
@@ -523,7 +557,7 @@ function PlanItemRow({ item, busy, onCycle, historyOpen, history, onToggleHistor
                   {u.journal_ref ? (
                     <button
                       type="button"
-                      onClick={() => onNavigate("journal")}
+                      onClick={() => onOpenJournalRef(u.journal_ref!)}
                       title={`일지로 이동: ${u.journal_ref}`}
                       style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--text-3)" }}
                     >

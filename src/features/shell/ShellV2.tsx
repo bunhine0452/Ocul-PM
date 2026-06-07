@@ -126,7 +126,14 @@ export default function ShellV2({
         ) : view === "diff" ? (
           <DiffScreenV2 projectId={projectId} projectRoot={projectRoot} branch={null} />
         ) : view === "planner" ? (
-          <PlannerScreenV2 projectId={projectId} onNavigate={setUiV2View} />
+          <PlannerScreenV2
+            projectId={projectId}
+            onNavigate={setUiV2View}
+            onOpenJournal={(path) => {
+              setJournalFocus(path);
+              setUiV2View("journal");
+            }}
+          />
         ) : view === "search" ? (
           <SearchScreenV2 projectId={projectId} />
         ) : view === "terminal" ? (

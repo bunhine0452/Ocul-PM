@@ -120,6 +120,7 @@ function planDetail(over: Record<string, unknown> = {}) {
         note: null,
         last_agent: "claude-code",
         last_update: "2026-06-07T10:00:00+09:00",
+        journal_refs: ["journal/20260607/Features_to_add/1000_feature_tz.md"],
       },
     ],
     decisions: [],
