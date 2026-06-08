@@ -4,23 +4,49 @@
 //! (`./.fastembed_cache`), which breaks the packaged .app — its CWD is `/`, so
 //! the model can't be written/read and `embed` fails with
 //! "Failed to retrieve onnx/model.onnx".
+//!
+//! The first-run download has no UI of its own (fastembed only prints a progress
+//! bar to stdout, invisible in a packaged app). We detect the cache-miss and emit
+//! `embedding-model-download` events so the frontend can show a progress banner —
+//! otherwise the first semantic index just looks frozen while ~135MB downloads.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 use tracing::info;
 
 /// Active embedding model. Stays fixed for the lifetime of the DB schema —
-/// changing it requires recreating the `chunk_embeddings` virtual table.
-const MODEL: EmbeddingModel = EmbeddingModel::MultilingualE5Small;
+/// changing it requires re-indexing (see migration 017, which clears the code
+/// index on the upgrade that introduced this model). Quantized + multilingual
+/// (paraphrase-multilingual-MiniLM-L12-v2, int8) — ~135MB vs the old fp32 e5
+/// model's ~480MB, same 384 dims.
+const MODEL: EmbeddingModel = EmbeddingModel::ParaphraseMLMiniLML12V2Q;
 #[allow(dead_code)]
 pub const EMBEDDING_DIM: usize = 384;
+
+/// Rough on-disk size of the quantized model, used only to render a progress bar
+/// before the real total is known. The bar is clamped to 99% until `done`.
+const MODEL_EST_BYTES: u64 = 135_000_000;
+const DOWNLOAD_EVENT: &str = "embedding-model-download";
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadProgress {
+    /// "start" | "progress" | "done" | "error"
+    status: &'static str,
+    downloaded: u64,
+    total: u64,
+}
 
 type SharedModel = Arc<std::sync::Mutex<TextEmbedding>>;
 
 pub struct Embedder {
+    /// Handle used to emit model-download progress to the UI.
+    app: AppHandle,
     /// Absolute directory the ONNX model is downloaded to / loaded from. Must be
     /// writable independent of the process CWD (see module docs).
     cache_dir: PathBuf,
@@ -28,8 +54,9 @@ pub struct Embedder {
 }
 
 impl Embedder {
-    pub fn new(cache_dir: PathBuf) -> Self {
+    pub fn new(app: AppHandle, cache_dir: PathBuf) -> Self {
         Self {
+            app,
             cache_dir,
             inner: Arc::new(AsyncMutex::new(None)),
         }
@@ -45,8 +72,34 @@ impl Embedder {
             MODEL,
             self.cache_dir.display()
         );
+
+        // Cache-miss → this call will download the model. Emit progress so the UI
+        // can show a "first-time download" banner instead of appearing frozen.
+        let first_download = !model_cached(&self.cache_dir);
+        let poller = if first_download {
+            let _ = self.app.emit(
+                DOWNLOAD_EVENT,
+                DownloadProgress { status: "start", downloaded: 0, total: MODEL_EST_BYTES },
+            );
+            let app = self.app.clone();
+            let dir = self.cache_dir.clone();
+            Some(tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+                    let downloaded = dir_size(&dir);
+                    let total = downloaded.max(MODEL_EST_BYTES);
+                    let _ = app.emit(
+                        DOWNLOAD_EVENT,
+                        DownloadProgress { status: "progress", downloaded, total },
+                    );
+                }
+            }))
+        } else {
+            None
+        };
+
         let cache_dir = self.cache_dir.clone();
-        let model = tokio::task::spawn_blocking(move || {
+        let loaded = tokio::task::spawn_blocking(move || {
             // hf-hub populates this on first run; create it so the download has
             // a writable target even on a brand-new install.
             let _ = std::fs::create_dir_all(&cache_dir);
@@ -56,9 +109,45 @@ impl Embedder {
                     .with_show_download_progress(true),
             )
         })
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+        .await;
+
+        if let Some(p) = poller {
+            p.abort();
+        }
+
+        let model = match loaded {
+            Ok(Ok(m)) => m,
+            Ok(Err(e)) => {
+                if first_download {
+                    let _ = self.app.emit(
+                        DOWNLOAD_EVENT,
+                        DownloadProgress { status: "error", downloaded: 0, total: 0 },
+                    );
+                }
+                return Err(e.to_string());
+            }
+            Err(e) => {
+                if first_download {
+                    let _ = self.app.emit(
+                        DOWNLOAD_EVENT,
+                        DownloadProgress { status: "error", downloaded: 0, total: 0 },
+                    );
+                }
+                return Err(e.to_string());
+            }
+        };
+
+        if first_download {
+            let _ = self.app.emit(
+                DOWNLOAD_EVENT,
+                DownloadProgress {
+                    status: "done",
+                    downloaded: MODEL_EST_BYTES,
+                    total: MODEL_EST_BYTES,
+                },
+            );
+        }
+
         let shared = Arc::new(std::sync::Mutex::new(model));
         *guard = Some(shared.clone());
         Ok(shared)
@@ -76,6 +165,43 @@ impl Embedder {
         .await
         .map_err(|e| e.to_string())?
     }
+}
+
+/// The model cache is "warm" if a reasonably-sized `.onnx` already exists under
+/// `dir` — then `try_new` loads from disk instead of downloading.
+fn model_cached(dir: &Path) -> bool {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    for entry in rd.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            if model_cached(&p) {
+                return true;
+            }
+        } else if p.extension().map(|e| e == "onnx").unwrap_or(false)
+            && entry.metadata().map(|m| m.len() > 1_000_000).unwrap_or(false)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Recursively sum file sizes under `dir` — used to estimate download progress.
+fn dir_size(dir: &Path) -> u64 {
+    let mut total = 0;
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for entry in rd.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                total += dir_size(&p);
+            } else if let Ok(m) = entry.metadata() {
+                total += m.len();
+            }
+        }
+    }
+    total
 }
 
 /// Convert an embedding vector into the little-endian byte layout sqlite-vec

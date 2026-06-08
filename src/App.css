@@ -550,6 +550,27 @@
 }
 .update-banner-x:hover { background: var(--accent-surface); color: var(--foreground); }
 
+/* Embedding-model first-run download progress (EmbeddingModelBanner). */
+.dl-progress {
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--accent-surface);
+  overflow: hidden;
+}
+.dl-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+.dl-sub {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
 /* ── Brand motif animations (icon round) ───────────────────────────────────
    Concentric-arc spinner (OculSpinner) + Today activity-ring sweep. `--primary`
    resolves on both surfaces (App.css :root). Shared spin keyframes; the Today

@@ -370,7 +370,7 @@ pub fn run() {
             // packaged .app runs with CWD `/`, so fastembed's relative default
             // would fail to retrieve `onnx/model.onnx`.
             let embed_cache = app_data.join("fastembed_cache");
-            app.manage(Embedder::new(embed_cache));
+            app.manage(Embedder::new(app.handle().clone(), embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());

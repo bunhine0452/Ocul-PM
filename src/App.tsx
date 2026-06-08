@@ -9,6 +9,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { AiOverlay } from "@/components/AiOverlay";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
@@ -316,6 +317,7 @@ function App() {
 
       {/* Global overlays */}
       <UpdateBanner />
+      <EmbeddingModelBanner />
       <AiOverlay
         activeProjectId={selectedProjectId}
         activeFile={state.activeFile}

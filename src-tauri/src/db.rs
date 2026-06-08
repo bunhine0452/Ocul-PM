@@ -24,6 +24,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (14, include_str!("../migrations/014_oculpm_migrations.sql")),
     (15, include_str!("../migrations/015_file_snapshots.sql")),
     (16, include_str!("../migrations/016_oculpm_planner.sql")),
+    (17, include_str!("../migrations/017_embedding_model_quantized.sql")),
 ];
 
 pub struct Db {
