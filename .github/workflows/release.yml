@@ -30,12 +30,12 @@ jobs:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
             rust_target: aarch64-apple-darwin
-          - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
-            rust_target: x86_64-apple-darwin
-          - platform: windows-latest
-            args: ''
-            rust_target: ''
+          # macOS Intel(x86_64) · Windows 는 추후 지원 예정.
+          # Intel 은 ort/ONNX Runtime 이 x86_64-apple-darwin prebuilt 바이너리를
+          # 제공하지 않아(소스 빌드 필요) 보류. 추가할 땐 아래 항목을 되살리세요:
+          #   - platform: windows-latest
+          #     args: ''
+          #     rust_target: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -94,8 +94,8 @@ jobs:
             | Platform | File |
             |---|---|
             | macOS (Apple Silicon) | `.dmg` (aarch64) |
-            | macOS (Intel) | `.dmg` (x64) |
-            | Windows | `.msi` / `.exe` |
+
+            > macOS Intel · Windows 는 추후 업데이트 예정입니다.
 
             ### ⚠️ macOS 첫 실행
             공증(notarization) 전 빌드라 처음 열 때 "손상되었기 때문에 열 수 없습니다"가 뜰 수 있어요.
