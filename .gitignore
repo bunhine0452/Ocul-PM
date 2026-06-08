@@ -18,8 +18,9 @@ src-tauri/gen/schemas
 **/.fastembed_cache/
 **/.cache/fastembed*/
 
-# ---------- Generated bindings (regenerated on every dev build) ----------
-src/lib/bindings.ts
+# ---------- Generated bindings ----------
+# tauri-specta regenerates src/lib/bindings.ts during the Rust build, but it is
+# COMMITTED so the CI frontend build (tsc) — which runs before cargo — has it.
 
 # ---------- TypeScript ----------
 *.tsbuildinfo
