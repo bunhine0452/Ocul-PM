@@ -415,15 +415,33 @@
 .conv-meta { font-size: 10.5px; color: var(--text-3); }
 .conv-del { flex: none; margin-right: 6px; }
 
-/* --- Today activity ring (브랜드 모티프 라이브 UI, icon round) --- */
+/* --- Today activity ring (브랜드 모티프 라이브 UI, 다중 동심원 + 호버) --- */
 .today-ring { position: relative; display: grid; place-items: center; flex: none; }
-.today-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.today-ring .tra { transform-box: fill-box; transform-origin: center;
-  animation: oculSpinCW 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.today-ring .tra.m { animation-name: oculSpinCCW; animation-duration: 1.05s; }
-.today-ring .tra.i { animation-duration: 0.75s; }
-.today-ring-count { position: relative; font-size: 23px; font-weight: 760; letter-spacing: -0.02em;
-  color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.today-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.today-ring .tr-track { stroke: var(--bg-inset); opacity: 0.7; }
+.today-ring .tr-arc {
+  transition: stroke-dasharray 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+    stroke-width 0.15s ease, filter 0.15s ease;
+}
+.today-ring .tr-arc.o { stroke: var(--accent); }
+.today-ring .tr-arc.m { stroke: var(--accent-strong); }
+.today-ring .tr-arc.i { stroke: var(--accent-text); }
+.today-ring .tr-arc.on { stroke-width: 8.5; filter: drop-shadow(0 0 4px var(--accent)); }
+.today-ring .tr-hit { stroke: transparent; cursor: pointer; }
+.today-ring-center {
+  position: relative; display: inline-flex; align-items: baseline; gap: 3px;
+  font-size: 30px; font-weight: 760; letter-spacing: -0.02em; color: var(--accent-text);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.today-ring-err { font-size: 11px; font-weight: 680; color: var(--t-bug); letter-spacing: 0; }
+.today-ring-tip {
+  position: absolute; bottom: -6px; left: 50%; transform: translate(-50%, 100%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 10px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop); white-space: nowrap; z-index: 6; pointer-events: none;
+}
+.today-ring-tip-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.today-ring-tip-value { font-size: 13px; font-weight: 640; color: var(--text); font-variant-numeric: tabular-nums; }
 .today-ring-ripple { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent);
   animation: todayRipple 0.95s ease-out forwards; pointer-events: none; }
 @keyframes todayRipple {
@@ -431,7 +449,7 @@
   100% { transform: scale(1.42); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .today-ring .tra { animation: none; }
+  .today-ring .tr-arc { transition: none; }
   .today-ring-ripple { display: none; }
 }
 

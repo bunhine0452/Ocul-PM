@@ -54,6 +54,15 @@ pub struct ChangelogFile {
     pub content: String,
 }
 
+/// A single uncommitted change from `git status`. `op` is one of `"A"` / `"M"` /
+/// `"D"` so it lines up directly with the frontend `ChangeOp` union used by the
+/// 변경 diff 화면. Renames/copies report the *new* path as an add.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct GitChange {
+    pub path: String,
+    pub op: String,
+}
+
 fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(root);
@@ -369,6 +378,63 @@ pub fn head_status_brief(root: &Path) -> GitHeadStatusBrief {
     }
 }
 
+/// All uncommitted changes (staged + unstaged + untracked) as `GitChange`
+/// rows. This is the **persistent** source for the 변경 diff 화면: unlike the
+/// live file-watcher buffer it survives app restarts and project switches, and
+/// reflects edits made while the app was closed. Non-git projects / git
+/// failures yield an empty Vec so the caller can fall back to the watcher.
+pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
+    if !is_repo(root) {
+        return Vec::new();
+    }
+    let out = match run_git(
+        root,
+        &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    ) {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut changes = Vec::new();
+    let mut tokens = out.split('\0');
+    while let Some(entry) = tokens.next() {
+        // `-z` entries are `XY<space>PATH`. A rename/copy (X in {R,C}) is
+        // followed by a separate NUL-terminated token holding the original
+        // path — consume it so it isn't parsed as its own entry.
+        if entry.len() < 4 {
+            continue;
+        }
+        let bytes = entry.as_bytes();
+        let x = bytes[0] as char;
+        let y = bytes[1] as char;
+        let path = entry[3..].to_string();
+        if x == 'R' || x == 'C' {
+            let _ = tokens.next();
+        }
+        changes.push(GitChange {
+            path,
+            op: porcelain_op(x, y).to_string(),
+        });
+    }
+    changes
+}
+
+/// Map a `git status --porcelain` XY status pair to the `"A"`/`"M"`/`"D"` op the
+/// UI understands. Untracked (`??`), additions and rename/copy targets are
+/// adds; any deletion is a delete; everything else is a modification.
+fn porcelain_op(x: char, y: char) -> &'static str {
+    if x == '?' {
+        return "A";
+    }
+    if x == 'D' || y == 'D' {
+        return "D";
+    }
+    if x == 'A' || x == 'R' || x == 'C' {
+        return "A";
+    }
+    "M"
+}
+
 /// Unified-diff for a single tracked path. `from`/`to` are commit-ish refs;
 /// defaulting both to `None` returns the working tree vs `HEAD` diff. Output
 /// is truncated (suffix marker appended) once it exceeds `max_bytes`.
@@ -453,6 +519,30 @@ fn non_empty(s: String) -> Option<String> {
         None
     } else {
         Some(s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn porcelain_op_maps_status_pairs() {
+        // Untracked file (`?? path`).
+        assert_eq!(porcelain_op('?', '?'), "A");
+        // Added to index.
+        assert_eq!(porcelain_op('A', ' '), "A");
+        // Rename / copy targets count as adds (new path).
+        assert_eq!(porcelain_op('R', ' '), "A");
+        assert_eq!(porcelain_op('C', ' '), "A");
+        // Any deletion → delete, regardless of which column.
+        assert_eq!(porcelain_op('D', ' '), "D");
+        assert_eq!(porcelain_op(' ', 'D'), "D");
+        assert_eq!(porcelain_op('M', 'D'), "D");
+        // Plain modifications (staged, unstaged, or both).
+        assert_eq!(porcelain_op('M', ' '), "M");
+        assert_eq!(porcelain_op(' ', 'M'), "M");
+        assert_eq!(porcelain_op('M', 'M'), "M");
     }
 }
 

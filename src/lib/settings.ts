@@ -41,6 +41,10 @@ export const KEYS = {
   maxFileSizeKb: "max_file_size_kb",
   excludePatterns: "exclude_patterns",
 
+  // --- AI 작업 맥락 (oculpm 기록 주입) ---
+  includeOculpmContext: "include_oculpm_context",
+  oculpmContextEntries: "oculpm_context_entries",
+
   // --- Dependency graph ---
   graphShowIsolated: "graph_show_isolated",
   graphGroupThreshold: "graph_group_threshold",
@@ -82,6 +86,15 @@ export interface Settings {
   ragTopK: number;
   maxFileSizeKb: number;
   excludePatterns: string;
+
+  /**
+   * When true the chat prepends a "프로젝트 작업 맥락" block built from the most
+   * recent oculpm journal entries + the project's AGENTS rules, so the
+   * assistant keeps the same direction across sessions / model swaps.
+   */
+  includeOculpmContext: boolean;
+  /** How many recent journal entries to summarise into that block. */
+  oculpmContextEntries: number;
 
   graphShowIsolated: boolean;
   graphGroupThreshold: number;
@@ -127,6 +140,9 @@ export const DEFAULTS: Settings = {
   maxFileSizeKb: 500,
   excludePatterns: "",
 
+  includeOculpmContext: true,
+  oculpmContextEntries: 5,
+
   graphShowIsolated: false,
   graphGroupThreshold: 3,
 
@@ -160,6 +176,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.ragTopK]: "ragTopK",
   [KEYS.maxFileSizeKb]: "maxFileSizeKb",
   [KEYS.excludePatterns]: "excludePatterns",
+  [KEYS.includeOculpmContext]: "includeOculpmContext",
+  [KEYS.oculpmContextEntries]: "oculpmContextEntries",
   [KEYS.graphShowIsolated]: "graphShowIsolated",
   [KEYS.graphGroupThreshold]: "graphGroupThreshold",
   [KEYS.externalEditorCommand]: "externalEditorCommand",

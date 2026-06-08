@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { check, type Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { Download, X } from "@/components/Icons";
+import { useUpdater } from "@/lib/updater";
 
-// Self-update (benchmarked from the uvws/PySpace setup). On launch the Tauri
-// updater plugin checks the GitHub `latest.json` endpoint and verifies the
-// build's signature against the pubkey embedded in tauri.conf.json. When a
-// newer signed build exists we show a dismissible banner that downloads,
-// installs and relaunches in place — no manual re-download. Requires the repo
-// releases to be PUBLIC (the endpoint is unauthenticated); offline / no-update /
-// private-repo all fail closed, so the banner simply doesn't appear.
+// Launch-time self-update banner. On mount it asks the updater plugin (via the
+// shared `useUpdater` hook) whether a newer signed build exists; when one does
+// we show a dismissible banner that downloads, installs and relaunches in place
+// — no manual re-download. Offline / no-update / private-repo all fail closed,
+// so the banner simply doesn't appear. The Settings → 데이터 "업데이트" section
+// reuses the same hook for a manual check. See src/lib/updater.ts.
 
 /** True if `latest` is strictly newer than `current` (semver-ish: "1.2.0" /
  *  "v1.2.0"). Kept as a tested helper; the updater plugin does its own
@@ -29,39 +27,25 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export function UpdateBanner() {
-  const [update, setUpdate] = useState<Update | null>(null);
+  const { status, check, install } = useUpdater();
   const [dismissed, setDismissed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // Once we've seen an available update we keep showing the banner through its
+  // install / failure transitions. A *check* error (offline, private repo) never
+  // flips this, so silent launch-time failures stay hidden.
+  const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const upd = await check();
-        if (!cancelled && upd) setUpdate(upd);
-      } catch {
-        // offline / no endpoint / private repo / no update — skip quietly.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void check();
+  }, [check]);
 
-  if (!update || dismissed) return null;
+  useEffect(() => {
+    if (status.kind === "available") setVersion(status.version);
+  }, [status]);
 
-  const install = async () => {
-    setBusy(true);
-    setFailed(false);
-    try {
-      await update.downloadAndInstall();
-      await relaunch();
-    } catch {
-      setFailed(true);
-      setBusy(false);
-    }
-  };
+  if (dismissed || version == null) return null;
+
+  const installing = status.kind === "installing";
+  const failed = status.kind === "error";
 
   return (
     <div className="update-banner" role="status">
@@ -71,7 +55,7 @@ export function UpdateBanner() {
           <>업데이트 실패 — 잠시 후 다시 시도해 주세요</>
         ) : (
           <>
-            새 버전 <b>v{update.version}</b> 이 나왔어요
+            새 버전 <b>v{version}</b> 이 나왔어요
           </>
         )}
       </div>
@@ -79,16 +63,16 @@ export function UpdateBanner() {
         type="button"
         className="update-banner-cta"
         onClick={() => void install()}
-        disabled={busy}
+        disabled={installing}
       >
-        {busy ? "설치 중…" : "지금 업데이트"}
+        {installing ? "설치 중…" : "지금 업데이트"}
       </button>
       <button
         type="button"
         className="update-banner-x"
         onClick={() => setDismissed(true)}
         aria-label="알림 닫기"
-        disabled={busy}
+        disabled={installing}
       >
         <X size={14} />
       </button>

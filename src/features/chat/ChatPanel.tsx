@@ -119,6 +119,62 @@ async function buildPlannerSystemContext(projectId: number | null): Promise<stri
   return markdown;
 }
 
+/** Clamp long text so a single journal body / ruleset can't blow the token
+ *  budget. Adds a visible elision marker. */
+function clampText(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max).trimEnd() + "\n… (생략됨)" : s;
+}
+
+/**
+ * Feature request 2 — build a "프로젝트 작업 맥락" block from the most recent
+ * oculpm journal entries + the project's AGENTS rules, so the assistant keeps
+ * the same direction even when the session or model changes. Every call is
+ * best-effort: any failure simply omits that part rather than breaking the
+ * send. `maxEntries` of 0 injects rules only.
+ */
+async function buildOculpmSystemContext(
+  projectId: number | null,
+  maxEntries: number,
+): Promise<string> {
+  if (projectId == null) return "";
+  const sections: string[] = [];
+
+  if (maxEntries > 0) {
+    const listRes = await commands.oculpmListJournalEntries(projectId, null, null);
+    if (listRes.status === "ok" && listRes.data.length > 0) {
+      const recent = listRes.data.slice(0, maxEntries);
+      let md =
+        "### 프로젝트 작업 맥락 (ocul-pm 작업일지, 최신순)\n" +
+        "이 프로젝트에서 최근 진행한 작업 기록입니다. 작업 방향과 결정을 이어가세요.\n\n";
+      for (const e of recent) {
+        const date = e.created_at ? e.created_at.slice(0, 10) : e.workday;
+        md += `- [${e.status}] ${e.title} _(${e.type}, ${e.agent_id}, ${e.files_count} 파일, ${date})_\n`;
+      }
+
+      // Hydrate the few most-recent entries with their body for real continuity.
+      const bodies: string[] = [];
+      for (const e of recent.slice(0, Math.min(3, recent.length))) {
+        const detRes = await commands.oculpmGetJournalEntry(projectId, e.relative_path);
+        if (detRes.status === "ok" && detRes.data) {
+          bodies.push(`#### ${detRes.data.title}\n${clampText(detRes.data.body_markdown.trim(), 1200)}`);
+        }
+      }
+      if (bodies.length > 0) md += "\n최근 기록 상세:\n\n" + bodies.join("\n\n");
+      sections.push(md);
+    }
+  }
+
+  const rulesRes = await commands.oculpmAgentsGetMasterTemplate(projectId);
+  if (rulesRes.status === "ok" && rulesRes.data.trim()) {
+    sections.push(
+      "### 작업 규칙 (AGENTS)\n이 프로젝트의 규칙입니다. 응답과 제안은 이 규칙을 따르세요.\n\n" +
+        clampText(rulesRes.data.trim(), 2500),
+    );
+  }
+
+  return sections.join("\n\n");
+}
+
 function buildActionInstruction(): string {
   return [
     "### Interactive Planner Actions:",
@@ -791,6 +847,18 @@ export function ChatPanel({
       const gitContext = await buildGitSystemContext(contextProjectId);
       if (gitContext) {
         systemPromptContent += gitContext + "\n\n";
+      }
+    }
+
+    // Feature 2 — recent journal entries + AGENTS rules, so the assistant keeps
+    // the same direction across sessions / model swaps.
+    if (settings.includeOculpmContext) {
+      const oculpmContext = await buildOculpmSystemContext(
+        contextProjectId,
+        settings.oculpmContextEntries,
+      );
+      if (oculpmContext) {
+        systemPromptContent += oculpmContext + "\n\n";
       }
     }
 

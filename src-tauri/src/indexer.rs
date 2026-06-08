@@ -9,6 +9,12 @@ pub const DEFAULT_CHUNK_LINES: usize = 30;
 pub const DEFAULT_CHUNK_OVERLAP: usize = 4;
 const MAX_BINARY_PROBE: usize = 1024;
 
+/// Bug 2 — minimum number of *meaningful* lines a gap between AST symbols must
+/// have to become its own chunk. Gaps below this (a lone `import`, a closing
+/// `}`, a blank run) are skipped instead of indexed as tiny single-line chunks
+/// that pollute search results. The symbols themselves are always chunked.
+const MIN_GAP_CHUNK_LINES: usize = 3;
+
 /// Runtime configuration loaded from the `settings` table. All knobs have
 /// sensible defaults that match the previous hardcoded values.
 #[derive(Debug, Clone)]
@@ -514,12 +520,14 @@ pub fn chunk_file(
 
                 if start_idx > last_covered_line {
                     let uncovered_content = lines[last_covered_line..start_idx].join("\n");
-                    let sub_chunks = chunk_lines_with_offset(
-                        &uncovered_content,
-                        last_covered_line + 1,
-                        config,
-                    );
-                    chunks.extend(sub_chunks);
+                    if meaningful_line_count(&uncovered_content) >= MIN_GAP_CHUNK_LINES {
+                        let sub_chunks = chunk_lines_with_offset(
+                            &uncovered_content,
+                            last_covered_line + 1,
+                            config,
+                        );
+                        chunks.extend(sub_chunks);
+                    }
                 }
 
                 if start_idx < end_idx {
@@ -539,12 +547,14 @@ pub fn chunk_file(
 
             if last_covered_line < lines.len() {
                 let uncovered_content = lines[last_covered_line..].join("\n");
-                let sub_chunks = chunk_lines_with_offset(
-                    &uncovered_content,
-                    last_covered_line + 1,
-                    config,
-                );
-                chunks.extend(sub_chunks);
+                if meaningful_line_count(&uncovered_content) >= MIN_GAP_CHUNK_LINES {
+                    let sub_chunks = chunk_lines_with_offset(
+                        &uncovered_content,
+                        last_covered_line + 1,
+                        config,
+                    );
+                    chunks.extend(sub_chunks);
+                }
             }
 
             return (chunks, analysis);
@@ -553,6 +563,17 @@ pub fn chunk_file(
 
     let sub_chunks = chunk_lines_with_offset(content, 1, config);
     (sub_chunks, None)
+}
+
+/// Count lines that carry real content — non-blank lines with at least one
+/// alphanumeric character. Pure-punctuation lines (`}`, `);`, `{`) and blanks
+/// don't count, so a between-symbol gap that is only braces (or a single
+/// `import`) is treated as noise rather than an indexable chunk (Bug 2).
+fn meaningful_line_count(content: &str) -> usize {
+    content
+        .lines()
+        .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
+        .count()
 }
 
 /// Fallback helper to split a text range into sliding line windows.
@@ -663,5 +684,29 @@ pub fn language_for(path: &Path) -> Option<&'static str> {
         "html" | "htm" => Some("html"),
         "css" | "scss" | "sass" => Some("css"),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::*;
+
+    #[test]
+    fn meaningful_line_count_ignores_blanks_and_punctuation() {
+        assert_eq!(meaningful_line_count("}"), 0);
+        assert_eq!(meaningful_line_count("}\n);\n  {"), 0);
+        assert_eq!(meaningful_line_count("\n\n  \n"), 0);
+        assert_eq!(meaningful_line_count("import x from 'y';"), 1);
+        assert_eq!(meaningful_line_count("let a = 1;\nlet b = 2;\nlet c = 3;"), 3);
+    }
+
+    #[test]
+    fn tiny_punctuation_only_range_below_threshold() {
+        // A lone closing-brace / single-import gap is below MIN_GAP_CHUNK_LINES
+        // and would be skipped at the gap sites in chunk_file.
+        assert!(meaningful_line_count("}") < MIN_GAP_CHUNK_LINES);
+        assert!(meaningful_line_count("import a from 'a';") < MIN_GAP_CHUNK_LINES);
+        // A real 3-line block clears the bar.
+        assert!(meaningful_line_count("a()\nb()\nc()") >= MIN_GAP_CHUNK_LINES);
     }
 }
