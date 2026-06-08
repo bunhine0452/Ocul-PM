@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { commands } from "@/lib/bindings";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { Download, X } from "@/components/Icons";
 
-// Release update notifier (1.0). On launch, compares the running app version
-// (app_info) against the newest published GitHub release (github_releases —
-// reused, public repo so no token). If a newer version exists, a dismissible
-// floating banner links to the release download page. No self-update / signing
-// keys — a notifier only (user installs the new build manually). Best-effort:
-// offline / rate-limited / no-releases all silently skip.
-
-const REPO_OWNER = "bunhine0452";
-const REPO_NAME = "Ocul-PM";
+// Self-update (benchmarked from the uvws/PySpace setup). On launch the Tauri
+// updater plugin checks the GitHub `latest.json` endpoint and verifies the
+// build's signature against the pubkey embedded in tauri.conf.json. When a
+// newer signed build exists we show a dismissible banner that downloads,
+// installs and relaunches in place — no manual re-download. Requires the repo
+// releases to be PUBLIC (the endpoint is unauthenticated); offline / no-update /
+// private-repo all fail closed, so the banner simply doesn't appear.
 
 /** True if `latest` is strictly newer than `current` (semver-ish: "1.2.0" /
- *  "v1.2.0"). Pre-release/odd tags that don't parse cleanly → false (no nag). */
+ *  "v1.2.0"). Kept as a tested helper; the updater plugin does its own
+ *  comparison server-side via latest.json. */
 export function isNewerVersion(latest: string, current: string): boolean {
   const parse = (v: string) =>
     v.trim().replace(/^v/i, "").split("-")[0].split(".").map((n) => Number(n));
@@ -30,24 +29,19 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export function UpdateBanner() {
-  const [update, setUpdate] = useState<{ version: string; url: string } | null>(null);
+  const [update, setUpdate] = useState<Update | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const info = await commands.appInfo();
-        if (cancelled || info.status !== "ok") return;
-        const current = info.data.version;
-        const rel = await commands.githubReleases(REPO_OWNER, REPO_NAME, 10);
-        if (cancelled || rel.status !== "ok") return;
-        const latest = rel.data.find((r) => !r.draft && !r.prerelease);
-        if (latest && isNewerVersion(latest.tag_name, current)) {
-          setUpdate({ version: latest.tag_name.replace(/^v/i, ""), url: latest.html_url });
-        }
+        const upd = await check();
+        if (!cancelled && upd) setUpdate(upd);
       } catch {
-        // offline / rate-limited / no releases — skip quietly.
+        // offline / no endpoint / private repo / no update — skip quietly.
       }
     })();
     return () => {
@@ -57,24 +51,44 @@ export function UpdateBanner() {
 
   if (!update || dismissed) return null;
 
+  const install = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await update.downloadAndInstall();
+      await relaunch();
+    } catch {
+      setFailed(true);
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="update-banner" role="status">
       <Download size={16} />
       <div className="update-banner-text">
-        새 버전 <b>v{update.version}</b> 이 나왔어요
+        {failed ? (
+          <>업데이트 실패 — 잠시 후 다시 시도해 주세요</>
+        ) : (
+          <>
+            새 버전 <b>v{update.version}</b> 이 나왔어요
+          </>
+        )}
       </div>
       <button
         type="button"
         className="update-banner-cta"
-        onClick={() => void openUrl(update.url)}
+        onClick={() => void install()}
+        disabled={busy}
       >
-        다운로드
+        {busy ? "설치 중…" : "지금 업데이트"}
       </button>
       <button
         type="button"
         className="update-banner-x"
         onClick={() => setDismissed(true)}
         aria-label="알림 닫기"
+        disabled={busy}
       >
         <X size={14} />
       </button>

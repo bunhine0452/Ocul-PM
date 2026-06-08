@@ -1,0 +1,110 @@
+name: Release
+
+# Benchmarked from the uvws/PySpace release pipeline. Pushing a `v*` tag builds
+# signed bundles for macOS (Apple Silicon + Intel) and Windows, generates the
+# updater artifacts (.sig + latest.json), and publishes a GitHub Release.
+# The in-app updater then pulls `latest.json` from releases/latest/download.
+#
+# Required repo secret:
+#   TAURI_PRIVATE_KEY  — contents of src-tauri/updater.key (the minisign private
+#                        key). Set it once: gh secret set TAURI_PRIVATE_KEY < src-tauri/updater.key
+#   (The key was generated with an empty password, so no password secret is needed.)
+#
+# NOTE: the in-app updater + the landing download links require this repo's
+# *releases* to be public.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            args: '--target x86_64-apple-darwin'
+            rust_target: x86_64-apple-darwin
+          - platform: windows-latest
+            args: ''
+            rust_target: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        shell: bash
+        run: |
+          ver="${{ github.ref_name }}"
+          body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)"
+          {
+            echo "body<<__CHANGELOG_EOF__"
+            echo "$body"
+            echo "__CHANGELOG_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Ocul-PM ${{ github.ref_name }}'
+          releaseBody: |
+            ## Ocul-PM ${{ github.ref_name }}
+
+            ### ✨ What's new
+            ${{ steps.notes.outputs.body }}
+
+            ### Downloads
+            | Platform | File |
+            |---|---|
+            | macOS (Apple Silicon) | `.dmg` (aarch64) |
+            | macOS (Intel) | `.dmg` (x64) |
+            | Windows | `.msi` / `.exe` |
+
+            ### ⚠️ macOS 첫 실행
+            공증(notarization) 전 빌드라 처음 열 때 "손상되었기 때문에 열 수 없습니다"가 뜰 수 있어요.
+            실제 손상이 아니라 격리(quarantine) 표시일 뿐입니다 — 터미널에 한 줄:
+            ```
+            xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
+            ```
+
+            이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

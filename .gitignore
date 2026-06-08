@@ -41,6 +41,9 @@ lerna-debug.log*
 *.sqlite
 *.sqlite3
 
+# ---------- Tauri updater signing key (NEVER commit — goes in a GH secret) ----------
+src-tauri/updater.key
+
 # ---------- Environment files (we use OS keychain, but be safe) ----------
 .env
 .env.*
