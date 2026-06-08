@@ -212,6 +212,13 @@ export const commands = {
 	 *  show against the just-cleared state instead of the original index.
 	 */
 	resnapshotPaths: (projectId: number, paths: string[]) => typedError<number, string>(__TAURI_INVOKE("resnapshot_paths", { projectId, paths })),
+	/**
+	 *  Persistent uncommitted-change list for the 변경 diff 화면. Backed by
+	 *  `git status` so it survives app restarts and project switches (the live
+	 *  file-watcher buffer does neither). Non-git projects return an empty Vec and
+	 *  the UI keeps using the watcher buffer + snapshot baselines.
+	 */
+	gitUncommittedChanges: (projectId: number) => typedError<GitChange[], string>(__TAURI_INVOKE("git_uncommitted_changes", { projectId })),
 	openInEditor: (projectRoot: string, relPath: string, editorCmd: string) => typedError<null, string>(__TAURI_INVOKE("open_in_editor", { projectRoot, relPath, editorCmd })),
 	getProjectOverview: (projectId: number) => typedError<{
 	project_id: number,
@@ -974,6 +981,16 @@ export type FileTouched = {
 	bytes_added: number | null,
 	bytes_removed: number | null,
 	rename_from: string | null,
+};
+
+/**
+ *  A single uncommitted change from `git status`. `op` is one of `"A"` / `"M"` /
+ *  `"D"` so it lines up directly with the frontend `ChangeOp` union used by the
+ *  변경 diff 화면. Renames/copies report the *new* path as an add.
+ */
+export type GitChange = {
+	path: string,
+	op: string,
 };
 
 export type GitCommit = {

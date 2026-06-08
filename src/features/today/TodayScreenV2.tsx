@@ -102,7 +102,13 @@ export function TodayScreenV2({
           <div className="today-hero">
             <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
               {oculpmReady && brief ? (
-                <TodayActivityRing count={brief.changedToday} />
+                <TodayActivityRing
+                  changedToday={brief.changedToday}
+                  filesTouched={brief.filesTouched}
+                  bytesAdded={brief.bytesAdded}
+                  bytesRemoved={brief.bytesRemoved}
+                  errorCycles={brief.errorCycles}
+                />
               ) : null}
               <div style={{ minWidth: 0 }}>
                 <div className="today-greet">

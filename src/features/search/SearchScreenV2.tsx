@@ -13,6 +13,7 @@ import {
 import { commands, type ChunkSearchResult, type SymbolSearchResult } from "@/lib/bindings";
 import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
 import { OculSpinner } from "@/components/OculSpinner";
+import { CodeSnippet } from "./CodeSnippet";
 
 // Final UI Update (ui_v2) — 코드 검색 화면 (02-screen-specs §5). PR-R1b (A2):
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
@@ -50,6 +51,9 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
   const [results, setResults] = useState<Results | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Feature 1 — pretty-print result code (Prettier / wasm-fmt). Defaults on;
+  // "원본" shows the indexed text verbatim for snippets that don't format well.
+  const [formatted, setFormatted] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -208,11 +212,34 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
             </div>
           ) : show ? (
             <div className="search-results">
-              <div className="section-title" style={{ marginBottom: 12 }}>
-                {results!.items.length}개 결과
-                {results!.kind === "chunk" && results!.mode === "semantic"
-                  ? " · 의미 유사도순"
-                  : " · 정확히 일치"}
+              <div
+                className="section-title"
+                style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}
+              >
+                <span>
+                  {results!.items.length}개 결과
+                  {results!.kind === "chunk" && results!.mode === "semantic"
+                    ? " · 의미 유사도순"
+                    : " · 정확히 일치"}
+                </span>
+                <span style={{ flex: 1 }} />
+                <div className="diff-mode-toggle" role="group" aria-label="코드 표시 방식">
+                  {([true, false] as const).map((on) => (
+                    <button
+                      key={String(on)}
+                      type="button"
+                      className="btn ghost sm"
+                      style={{
+                        background: formatted === on ? "var(--accent-soft)" : "transparent",
+                        color: formatted === on ? "var(--accent-text)" : "var(--text-2)",
+                      }}
+                      onClick={() => setFormatted(on)}
+                      aria-pressed={formatted === on}
+                    >
+                      {on ? "정렬" : "원본"}
+                    </button>
+                  ))}
+                </div>
               </div>
               {(results as { items: ChunkSearchResult[]; mode: string }).items.map((r) => (
                 <div className="card sresult" key={`${r.chunk_id}`}>
@@ -231,7 +258,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                       </div>
                     ) : null}
                   </div>
-                  <div className="scode">{r.content}</div>
+                  <CodeSnippet path={r.file_path} content={r.content} formatted={formatted} />
                 </div>
               ))}
             </div>

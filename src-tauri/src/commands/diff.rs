@@ -281,6 +281,27 @@ pub async fn compute_diff(
     }
 }
 
+/// Persistent uncommitted-change list for the 변경 diff 화면. Backed by
+/// `git status` so it survives app restarts and project switches (the live
+/// file-watcher buffer does neither). Non-git projects return an empty Vec and
+/// the UI keeps using the watcher buffer + snapshot baselines.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_uncommitted_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<git::GitChange>, String> {
+    let project = db
+        .list_projects()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.id == project_id)
+        .ok_or_else(|| format!("project {project_id} not found"))?;
+    let root = PathBuf::from(&project.root_path);
+    Ok(git::uncommitted_changes(&root))
+}
+
 /// PR6.6 — re-capture snapshots for the supplied paths from disk content.
 /// Powers the LocalDiffView "비우기" action: after the user acknowledges a
 /// batch of changes, the diff baselines are advanced so subsequent edits

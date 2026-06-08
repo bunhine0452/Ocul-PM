@@ -17,9 +17,11 @@ import {
   Trash2,
   Copy,
   RefreshCw,
+  Download,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, type Provider } from "@/lib/settings";
+import { useUpdater } from "@/lib/updater";
 import { OculpmSettings } from "./OculpmSettings";
 
 type TabId =
@@ -682,6 +684,30 @@ function IndexingTab() {
         </Field>
       </Section>
 
+      <Section
+        title="AI 작업 맥락 (ocul-pm)"
+        description="최근 작업일지와 AGENTS 규칙을 채팅 컨텍스트에 자동으로 넣어, 세션·모델이 바뀌어도 작업 방향을 유지합니다."
+      >
+        <Toggle
+          checked={settings.includeOculpmContext}
+          onChange={(v) => set("includeOculpmContext", v)}
+          label="작업일지 · 규칙 자동 주입"
+        />
+        {settings.includeOculpmContext && (
+          <Field
+            label={`주입할 최근 일지 — ${settings.oculpmContextEntries}개`}
+            hint="많을수록 맥락이 풍부하지만 토큰 사용량이 늘어납니다. 0이면 규칙만 주입합니다."
+          >
+            <NumberSlider
+              value={settings.oculpmContextEntries}
+              min={0}
+              max={15}
+              onChange={(v) => set("oculpmContextEntries", v)}
+            />
+          </Field>
+        )}
+      </Section>
+
       <Section title="파일 스캔" description="어떤 파일을 탐색·인덱싱할지 제어합니다.">
         <Field label={`최대 파일 크기 — ${settings.maxFileSizeKb} KB`} hint="이보다 큰 파일은 전체가 스킵됩니다.">
           <NumberSlider
@@ -738,6 +764,7 @@ function GraphTab() {
 
 function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   const { resetAll } = useSettings();
+  const { status: updater, check: checkUpdate, install: installUpdate } = useUpdater();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -811,6 +838,62 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">Loading…</span>
+        )}
+      </Section>
+
+      <Section
+        title="업데이트"
+        description="GitHub 릴리스에서 새 버전을 확인하고 앱 내에서 바로 설치합니다."
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            현재 버전{" "}
+            <span className="font-mono text-foreground">
+              v{info?.version ?? "—"}
+            </span>
+          </div>
+          {updater.kind === "available" ? (
+            <Button
+              onClick={() => void installUpdate()}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Download className="w-3.5 h-3.5 mr-2" />
+              v{updater.version} 설치 후 재시작
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => void checkUpdate()}
+              disabled={updater.kind === "checking" || updater.kind === "installing"}
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 mr-2 ${updater.kind === "checking" ? "animate-spin" : ""}`}
+              />
+              업데이트 확인
+            </Button>
+          )}
+        </div>
+        {updater.kind === "checking" && (
+          <p className="text-[11px] text-muted-foreground">새 버전을 확인하는 중…</p>
+        )}
+        {updater.kind === "uptodate" && (
+          <p className="text-[11px] text-primary">최신 버전을 사용 중입니다.</p>
+        )}
+        {updater.kind === "available" && (
+          <p className="text-[11px] text-muted-foreground">
+            새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
+            {updater.notes ? ` ${updater.notes}` : ""}
+          </p>
+        )}
+        {updater.kind === "installing" && (
+          <p className="text-[11px] text-muted-foreground">
+            다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작됩니다.
+          </p>
+        )}
+        {updater.kind === "error" && (
+          <p className="text-[11px] text-destructive">
+            업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {updater.message}
+          </p>
         )}
       </Section>
 

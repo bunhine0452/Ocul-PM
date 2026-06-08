@@ -1,49 +1,156 @@
 import { useEffect, useRef, useState } from "react";
 
-// Advanced Today UI — a live "aperture" of today's activity. The Ocul-PM
-// concentric arcs surround today's recorded-work count; **each time a new entry
-// is recorded** (the count increments via Today's real-time refresh) the ring
-// replays a sweep + a ripple ripples outward, so the brand motif visibly
-// "reacts" to the agent working. Idle: static (no distracting constant spin).
+// Advanced Today UI — a live "aperture" of today's activity. Three concentric,
+// independently-hoverable arcs each encode one of today's metrics (work
+// journals / changed files / line churn); the center shows today's recorded-work
+// count with an error-cycle badge. **Each time a new entry is recorded** (the
+// journal count increments) the ring replays a ripple so the brand motif
+// visibly "reacts" to the agent working. Idle: static (no distracting spin).
+//
+// Arc fill uses a saturating curve (value / (value + k)) rather than a strict
+// ratio — there's no reliable per-metric historical max for files/line-churn,
+// and the exact number lives in each ring's hover tooltip anyway. Busier day →
+// fuller ring, which is the read we want.
 
 interface TodayActivityRingProps {
   /** Today's recorded-work count (brief.changedToday). */
-  count: number;
+  changedToday: number;
+  /** Σ files touched across today's entries (brief.filesTouched). */
+  filesTouched: number;
+  /** Σ bytes added / removed across today's entries. */
+  bytesAdded: number;
+  bytesRemoved: number;
+  /** Count of today's error-cycle entries (brief.errorCycles). */
+  errorCycles: number;
   size?: number;
 }
 
-export function TodayActivityRing({ count, size = 76 }: TodayActivityRingProps) {
+type RingId = "journals" | "files" | "lines";
+
+/** Saturating 0→~1 mapping so bigger values read as a fuller arc without
+ *  needing a historical maximum. `k` is the value at which the ring is ~half. */
+function fillFraction(value: number, k: number): number {
+  if (value <= 0) return 0;
+  return Math.min(0.97, value / (value + k));
+}
+
+export function TodayActivityRing({
+  changedToday,
+  filesTouched,
+  bytesAdded,
+  bytesRemoved,
+  errorCycles,
+  size = 128,
+}: TodayActivityRingProps) {
   const prev = useRef<number | null>(null);
-  // Bumped on every increment → re-keys the animated layers so their one-shot
-  // CSS animations replay (a new record = a fresh sweep + ripple).
+  // Bumped on every increment → re-keys the ripple so its one-shot CSS
+  // animation replays (a new record = a fresh ripple).
   const [pulse, setPulse] = useState(0);
+  const [hover, setHover] = useState<RingId | null>(null);
 
   useEffect(() => {
-    if (prev.current !== null && count > prev.current) {
+    if (prev.current !== null && changedToday > prev.current) {
       setPulse((p) => p + 1);
     }
-    prev.current = count;
-  }, [count]);
+    prev.current = changedToday;
+  }, [changedToday]);
+
+  const lineChurn = bytesAdded + bytesRemoved;
+
+  // Outer → inner. r/sw are in the 0–100 viewBox; arcs start at 12 o'clock via
+  // the group rotate(-90).
+  const rings: {
+    id: RingId;
+    r: number;
+    cls: string;
+    fraction: number;
+    label: string;
+    value: string;
+  }[] = [
+    {
+      id: "journals",
+      r: 44,
+      cls: "o",
+      fraction: fillFraction(changedToday, 4),
+      label: "작업일지",
+      value: `${changedToday}건`,
+    },
+    {
+      id: "files",
+      r: 33,
+      cls: "m",
+      fraction: fillFraction(filesTouched, 8),
+      label: "변경된 파일",
+      value: `${filesTouched}개`,
+    },
+    {
+      id: "lines",
+      r: 22,
+      cls: "i",
+      fraction: fillFraction(lineChurn, 160),
+      label: "라인 변화",
+      value: `+${bytesAdded} / −${bytesRemoved}`,
+    },
+  ];
+
+  const active = rings.find((r) => r.id === hover) ?? null;
 
   return (
-    <div className="today-ring" style={{ width: size, height: size }}>
+    <div
+      className="today-ring"
+      style={{ width: size, height: size }}
+      aria-label={`오늘 ${changedToday}건 기록, 변경 파일 ${filesTouched}개, 라인 +${bytesAdded}/−${bytesRemoved}`}
+    >
       {pulse > 0 ? <span key={`ripple-${pulse}`} className="today-ring-ripple" /> : null}
-      <svg
-        key={`arcs-${pulse}`}
-        viewBox="0 0 76 76"
-        className="today-ring-svg"
-        fill="none"
-        aria-hidden="true"
-      >
-        <g strokeLinecap="round" strokeWidth="5" fill="none">
-          <circle className="tra o" cx="38" cy="38" r="31" pathLength={100} strokeDasharray="72 28" stroke="var(--accent)" />
-          <circle className="tra m" cx="38" cy="38" r="22" pathLength={100} strokeDasharray="60 40" stroke="var(--accent-strong)" />
-          <circle className="tra i" cx="38" cy="38" r="13" pathLength={100} strokeDasharray="46 54" stroke="var(--accent-text)" />
+      <svg viewBox="0 0 100 100" className="today-ring-svg" fill="none" aria-hidden="true">
+        <g transform="rotate(-90 50 50)" strokeLinecap="round" fill="none">
+          {rings.map((ring) => (
+            <g key={ring.id}>
+              {/* faint full-circle track */}
+              <circle className="tr-track" cx="50" cy="50" r={ring.r} strokeWidth={7} />
+              {/* value arc — dash encodes the fraction (pathLength 100) */}
+              <circle
+                className={"tr-arc " + ring.cls + (hover === ring.id ? " on" : "")}
+                cx="50"
+                cy="50"
+                r={ring.r}
+                strokeWidth={7}
+                pathLength={100}
+                strokeDasharray={`${ring.fraction * 100} 100`}
+              />
+              {/* wide transparent hit area so the whole band is hoverable. No
+                  <title> here — the custom .today-ring-tip carries hover detail
+                  and the container aria-label covers screen readers; a <title>
+                  would also duplicate the "N개/건" text into the a11y tree. */}
+              <circle
+                className="tr-hit"
+                cx="50"
+                cy="50"
+                r={ring.r}
+                strokeWidth={11}
+                onMouseEnter={() => setHover(ring.id)}
+                onMouseLeave={() => setHover((h) => (h === ring.id ? null : h))}
+              />
+            </g>
+          ))}
         </g>
       </svg>
-      <span className="today-ring-count" aria-label={`오늘 ${count}건 기록`}>
-        {count}
+
+      <span className="today-ring-center">
+        {changedToday}
+        {errorCycles > 0 ? (
+          <span className="today-ring-err" title={`에러 사이클 ${errorCycles}건`}>
+            ⚠{errorCycles}
+          </span>
+        ) : null}
       </span>
+
+      {active ? (
+        <div className="today-ring-tip" role="status">
+          <span className="today-ring-tip-label">{active.label}</span>
+          <span className="today-ring-tip-value">{active.value}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

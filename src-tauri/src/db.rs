@@ -402,6 +402,14 @@ impl Db {
         let results = self
             .conn
             .call(move |c| {
+                // Bug 2 — drop single-line chunks (no newline in `content`).
+                // These are the import/brace "gap" fragments that the AST
+                // chunker used to emit between symbols; they match weakly on
+                // almost any query and crowd out real results. Genuine symbol
+                // chunks carry an `// AST Symbol: …\n` prefix so they always
+                // contain a newline and survive this filter. The 5× over-fetch
+                // (`k`) keeps `limit` results after the filter. (Re-indexing
+                // also stops new noise at the source — see indexer::chunk_file.)
                 let mut stmt = c.prepare(
                     "SELECT c.id, f.path, c.start_line, c.end_line, c.content, ce.distance
                      FROM chunk_embeddings ce
@@ -409,6 +417,7 @@ impl Db {
                      JOIN files f ON f.id = c.file_id
                      WHERE ce.embedding MATCH ?1 AND k = ?2
                        AND f.project_id = ?3
+                       AND instr(c.content, char(10)) > 0
                      ORDER BY ce.distance ASC
                      LIMIT ?4",
                 )?;

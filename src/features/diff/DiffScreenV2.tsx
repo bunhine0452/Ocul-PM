@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   FileCode2,
@@ -10,17 +10,25 @@ import {
   TargetIcon,
 } from "@/components/Icons";
 import { commands, type DiffResult, type ChangeGroup } from "@/lib/bindings";
-import { useWorkspace, type ChangeOp, type DiffMode } from "@/contexts/WorkspaceContext";
+import {
+  useWorkspace,
+  type ChangeOp,
+  type DiffMode,
+  type RecentChange,
+} from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
 import { langFromPath } from "./diffParse";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
-// EXISTING diff pipeline: file list = WorkspaceContext.recentChanges (Watcher
-// buffer), body = commands.computeDiff, rendering = PatchView (which owns the
-// markup over diffParse's pure classifyDiffLines/groupIntoHunks/pairDiffLines, so
-// the Lite-W6 PR6.x safety-net tests keep covering the parsers). The mockup
+// EXISTING diff pipeline: file list = git uncommitted changes (persistent,
+// commands.gitUncommittedChanges) merged with WorkspaceContext.recentChanges
+// (the live Watcher buffer) — Bug 1 fix so the list survives app restarts /
+// project switches instead of depending on the session-only watcher. body =
+// commands.computeDiff, rendering = PatchView (which owns the markup over
+// diffParse's pure classifyDiffLines/groupIntoHunks/pairDiffLines, so the
+// Lite-W6 PR6.x safety-net tests keep covering the parsers). The mockup
 // .diff-screen 2-pane shell replaces the side-panel layout. flag-off
 // LocalDiffView untouched.
 
@@ -28,6 +36,18 @@ const DIFF_MAX_BYTES = 64 * 1024;
 
 function badgeLetter(op: ChangeOp): "A" | "M" | "D" {
   return op;
+}
+
+/** Merge the persistent git-uncommitted list (survives app restarts / project
+ *  switches) with the live file-watcher buffer. Deduped by path; the watcher
+ *  entry wins since it carries the freshest op + a real timestamp. git entries
+ *  (ts=0) sort first so they read as the pre-existing baseline while live edits
+ *  surface as newest. */
+function mergeChanges(git: RecentChange[], watcher: RecentChange[]): RecentChange[] {
+  const byPath = new Map<string, RecentChange>();
+  for (const c of git) byPath.set(c.path, c);
+  for (const c of watcher) byPath.set(c.path, c);
+  return [...byPath.values()].sort((a, b) => a.ts - b.ts || a.path.localeCompare(b.path));
 }
 
 /** Month/day for a change-group header (entries may span days). */
@@ -52,6 +72,42 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const { recentChanges, diffActivePath, diffReadPaths, diffMode } = state;
   const { settings } = useSettings();
 
+  // Bug 1 fix — persistent change source. The live `recentChanges` watcher
+  // buffer is wiped on project switch and never populated while the app was
+  // closed, so it loses any change not observed live in the current session.
+  // `git status` gives us the full uncommitted set regardless of uptime /
+  // active project; we seed the file list from it and merge live edits on top.
+  const [gitChanges, setGitChanges] = useState<RecentChange[]>([]);
+  const watcherPathKey = recentChanges.map((c) => c.path).join("\n");
+  useEffect(() => {
+    let cancelled = false;
+    commands
+      .gitUncommittedChanges(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setGitChanges(
+          res.status === "ok"
+            ? res.data.map((c) => ({ path: c.path, op: c.op as ChangeOp, ts: 0, read: true }))
+            : [],
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setGitChanges([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-seed on project switch and whenever the watcher reports a new edit (a
+    // commit / stage / new file changes `git status`); non-git projects yield
+    // an empty list and the watcher buffer carries the screen on its own.
+  }, [projectId, watcherPathKey]);
+
+  // The list the screen actually renders: persistent git baseline + live edits.
+  const changes = useMemo(
+    () => mergeChanges(gitChanges, recentChanges),
+    [gitChanges, recentChanges],
+  );
+
   // Selected file. Seed from diffActivePath (the journal-card → diff handoff
   // parked by PR-UI 3), else the most recent change.
   const [selected, setSelected] = useState<string | null>(diffActivePath);
@@ -63,24 +119,24 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const consumedHandoff = useRef(false);
-  // Latest recentChanges for use inside the fetch effect (which only depends on
-  // projectId/selected) — lets us know a file's op (e.g. "D" = deleted) without
-  // re-running the fetch on every watcher push.
-  const recentChangesRef = useRef(recentChanges);
-  recentChangesRef.current = recentChanges;
+  // Latest merged change list for use inside the fetch effect (which only
+  // depends on projectId/selected) — lets us know a file's op (e.g. "D" =
+  // deleted) without re-running the fetch on every watcher push.
+  const changesRef = useRef(changes);
+  changesRef.current = changes;
 
   // Dogfooding #3 — group the changed files by the journal entry (and linked
   // plan items) that recorded them. `null` until loaded / on error → the file
   // list falls back to the flat view.
   const [groups, setGroups] = useState<ChangeGroup[] | null>(null);
-  const pathKey = recentChanges.map((c) => c.path).join("\n");
+  const pathKey = changes.map((c) => c.path).join("\n");
   useEffect(() => {
-    if (recentChangesRef.current.length === 0) {
+    if (changesRef.current.length === 0) {
       setGroups(null);
       return;
     }
     let cancelled = false;
-    const paths = recentChangesRef.current.map((c) => c.path);
+    const paths = changesRef.current.map((c) => c.path);
     commands
       .oculpmGroupChanges(projectId, paths)
       .then((res) => {
@@ -107,15 +163,15 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
   // Default selection → most recent change; keep the pick if still present.
   useEffect(() => {
-    if (recentChanges.length === 0) {
+    if (changes.length === 0) {
       setSelected(null);
       return;
     }
     setSelected((prev) => {
-      if (prev && recentChanges.some((c) => c.path === prev)) return prev;
-      return recentChanges[recentChanges.length - 1].path;
+      if (prev && changes.some((c) => c.path === prev)) return prev;
+      return changes[changes.length - 1].path;
     });
-  }, [recentChanges]);
+  }, [changes]);
 
   // Fetch diff for the selected file (cancel-safe).
   useEffect(() => {
@@ -146,7 +202,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         // we don't trip "Failed to read … No such file"; DiffBody renders a
         // deleted-file notice instead.
         if (res.data.source.source === "snapshots_unavailable") {
-          const op = recentChangesRef.current.find((c) => c.path === selected)?.op;
+          const op = changesRef.current.find((c) => c.path === selected)?.op;
           if (op === "D") {
             setNewFilePatch(null);
           } else {
@@ -197,12 +253,12 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const onMarkAllReviewed = useCallback(() => {
     setState((prev) => {
       const merged = new Set(prev.diffReadPaths);
-      for (const c of prev.recentChanges) merged.add(c.path);
+      for (const c of changes) merged.add(c.path);
       return merged.size === prev.diffReadPaths.length
         ? prev
         : { ...prev, diffReadPaths: [...merged] };
     });
-  }, [setState]);
+  }, [setState, changes]);
 
   const onOpenEditor = useCallback(async () => {
     if (!selected || !projectRoot) return;
@@ -214,14 +270,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
   }, [projectRoot, selected, settings.externalEditorCommand]);
 
-  const cur = recentChanges.find((c) => c.path === selected) ?? null;
+  const cur = changes.find((c) => c.path === selected) ?? null;
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
   const allReviewed =
-    recentChanges.length > 0 && recentChanges.every((c) => diffReadPaths.includes(c.path));
+    changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
 
   // One file row in the left list (shared by the grouped + flat renders).
   const renderFile = (path: string) => {
-    const op: ChangeOp = recentChanges.find((c) => c.path === path)?.op ?? "M";
+    const op: ChangeOp = changes.find((c) => c.path === path)?.op ?? "M";
     const isReviewed = diffReadPaths.includes(path);
     return (
       <button
@@ -250,7 +306,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           <span>
             {branch ? <span className="mono">{branch}</span> : null}
             {branch ? " · " : ""}
-            {recentChanges.length}개 파일 변경
+            {changes.length}개 파일 변경
           </span>
         }
       >
@@ -273,7 +329,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         <button
           className="btn ghost"
           onClick={onMarkAllReviewed}
-          disabled={recentChanges.length === 0 || allReviewed}
+          disabled={changes.length === 0 || allReviewed}
           title="변경된 모든 파일을 검토 완료로 표시"
         >
           <CheckMark size={15} /> 모두 검토 완료
@@ -287,7 +343,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         </button>
       </Toolbar>
 
-      {recentChanges.length === 0 ? (
+      {changes.length === 0 ? (
         <div className="scroll">
           <div className="page fade-in">
             <div className="empty-hint">
@@ -339,7 +395,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                     {g.files.map((p) => renderFile(p))}
                   </div>
                 ))
-              : recentChanges
+              : changes
                   .slice()
                   .reverse()
                   .map((c) => renderFile(c.path))}
