@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bunhine0452/Ocul-PM/main/landing/og.png" alt="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저" width="680" />
+<img src="https://raw.githubusercontent.com/bunhine0452/Ocul-PM/main/landing/og.png" alt="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저" width="460" />
 
 <h1>Ocul-PM</h1>
 
