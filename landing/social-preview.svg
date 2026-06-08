@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1280" viewBox="0 0 1280 1280">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f5b43"/>
+      <stop offset="1" stop-color="#08321f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="28%" r="60%">
+      <stop offset="0" stop-color="#2bc48a" stop-opacity="0.22"/>
+      <stop offset="0.6" stop-color="#2bc48a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="1280" fill="url(#bg)"/>
+  <rect width="1280" height="1280" fill="url(#glow)"/>
+
+  <!-- content lives in the centre 640px band (rows 320–960) so a centred crop
+       to 1280×640 keeps everything. -->
+  <g transform="translate(571,351) scale(0.135)">
+    <rect x="80" y="80" width="864" height="864" rx="204" fill="#0d4a37"/>
+    <g fill="none" stroke-linecap="round">
+      <circle cx="512" cy="512" r="190" stroke="#0c9061" stroke-width="40" stroke-dasharray="970 224" transform="rotate(125 512 512)"/>
+      <circle cx="512" cy="512" r="132" stroke="#2bc88a" stroke-width="40" stroke-dasharray="640 190" transform="rotate(-40 512 512)"/>
+      <circle cx="512" cy="512" r="74" stroke="#ffffff" stroke-width="40" stroke-dasharray="330 135" transform="rotate(70 512 512)"/>
+    </g>
+    <circle cx="512" cy="512" r="22" fill="#ffffff"/>
+  </g>
+
+  <g font-family="-apple-system, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif" text-anchor="middle">
+    <text x="640" y="585" fill="#ffffff" font-size="100" font-weight="800" letter-spacing="-3">Ocul-PM</text>
+    <text x="640" y="642" fill="#7ee6b3" font-size="35" font-weight="700" letter-spacing="-1">AI PM · 코딩 에이전트용 프로젝트 매니저</text>
+
+    <text x="640" y="738" fill="#eaf6f0" font-size="48" font-weight="700" letter-spacing="-1.5">에이전트가 코드를 쓰는 동안,</text>
+    <text x="640" y="800" fill="#eaf6f0" font-size="48" font-weight="700" letter-spacing="-1.5">당신은 <tspan fill="#7ee6b3">기록·관리·검증</tspan>만 합니다</text>
+
+    <text x="640" y="892" fill="#9fe9c6" font-size="28" font-weight="600" letter-spacing="0.4">로컬-우선 · 계정 없음 · 텔레메트리 없음 · macOS</text>
+  </g>
+</svg>
