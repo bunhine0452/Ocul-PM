@@ -470,16 +470,76 @@ pub fn diff_patch(
 
     let text = run_git(root, &args)?;
 
+    Ok(truncate_patch(text, max_bytes))
+}
+
+/// Cap a unified-diff blob at `max_bytes`, appending a truncation marker. Keeps
+/// a runaway generated file from bloating callers (sidecars, IPC payloads).
+fn truncate_patch(text: String, max_bytes: usize) -> String {
     if text.len() > max_bytes {
         let truncated: String = text.chars().take(max_bytes).collect();
-        Ok(format!(
+        format!(
             "{}\n\n... (truncated, {} bytes total)",
             truncated,
             text.len()
-        ))
+        )
     } else {
-        Ok(text)
+        text
     }
+}
+
+/// Reconstruct the diff a journal entry described *after* the work was already
+/// committed — the last-resort fallback when there's no working-tree diff
+/// (`git diff HEAD` empty) and no snapshot baseline. Finds the commit that
+/// touched `file_path` nearest in time to `around_unix` (the entry's
+/// timestamp) and returns that commit's unified diff for the file.
+///
+/// Heuristic, so it can mis-attribute when a file is touched by many commits
+/// near the same time — but a best-effort "그 시점의 변경" beats "기록 없음".
+/// Among candidates ordered by time-distance it returns the first whose
+/// `git show` is non-empty (skipping merges / no-op touches), trying a few.
+/// Returns an empty string when the path has no history or nothing yields a
+/// patch.
+pub fn diff_at_nearest_commit(
+    root: &Path,
+    file_path: &str,
+    around_unix: i64,
+    max_bytes: usize,
+) -> Result<String, String> {
+    if !is_repo(root) {
+        return Err("Not a git repository.".to_string());
+    }
+
+    // "<hash> <author-unixtime>" per commit touching the path (newest first).
+    let listing = run_git(
+        root,
+        &["log", "--format=%H %at", "--max-count=200", "--", file_path],
+    )?;
+    let mut candidates: Vec<(String, i64)> = listing
+        .lines()
+        .filter_map(|l| {
+            let (h, t) = l.split_once(' ')?;
+            Some((h.to_string(), t.trim().parse().ok()?))
+        })
+        .collect();
+    if candidates.is_empty() {
+        return Ok(String::new());
+    }
+    candidates.sort_by_key(|(_, ts)| (ts - around_unix).abs());
+
+    for (hash, _) in candidates.into_iter().take(5) {
+        // `--format=` drops the commit header, leaving just the patch; `show`
+        // (unlike `diff <h>^ <h>`) also handles the root commit (full-file add).
+        let patch = run_git(
+            root,
+            &["show", "--format=", "--unified=3", &hash, "--", file_path],
+        )
+        .unwrap_or_default();
+        if !patch.trim().is_empty() {
+            return Ok(truncate_patch(patch, max_bytes));
+        }
+    }
+    Ok(String::new())
 }
 
 /// Parse `https://github.com/owner/repo.git`, `git@github.com:owner/repo.git`,

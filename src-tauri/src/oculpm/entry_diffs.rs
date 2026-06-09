@@ -14,20 +14,29 @@
 //! it is NOT rebuilt from the markdown, so the recorded diffs survive a cache
 //! rebuild.
 //!
-//! ## Capture model (PR-R3 — snapshot fallback)
+//! ## Capture model (3-tier)
 //! Capture tries, per `files_touched[].path`, in order:
 //!   1. working-tree `git diff HEAD -- <path>` (the dogfooding flow: agent edits
 //!      then writes the journal before committing → exactly the entry's diff);
 //!   2. when (1) is empty or git is unavailable (non-git project / committed /
-//!      HEAD-less repo) — a **snapshot fallback**: diff the last-indexed content
-//!      (`file_snapshots`, the same baseline `compute_diff` uses) against the
-//!      current disk content. The caller (watcher) pre-fetches snapshots via
-//!      `Db` and passes them in, so this fn stays blocking/pure.
+//!      HEAD-less repo) — a **snapshot fallback** (PR-R3): diff the last-indexed
+//!      content (`file_snapshots`, the same baseline `compute_diff` uses)
+//!      against the current disk content. The caller pre-fetches snapshots via
+//!      `Db` and passes them in, so this fn stays blocking/pure;
+//!   3. when (1) and (2) both come up empty — a **git-history fallback**: find
+//!      the commit that touched the path nearest the entry's timestamp and use
+//!      its diff. This makes the common "review *after* committing" flow work,
+//!      and lets `backfill_entry_diffs` reconstruct diffs for entries that were
+//!      written before this feature existed or imported via reindex rather than
+//!      the live watcher (`git::diff_at_nearest_commit`).
 //!
-//! Remaining limits, surfaced as "기록된 변경 없음" when they bite:
-//!   - going-forward only (no backfill — past content is unrecoverable);
-//!   - if neither git nor a snapshot baseline differs from disk, nothing is
-//!     recorded (truly nothing changed at index time);
+//! Because of (3), capture is no longer strictly going-forward: any committed
+//! entry with `files_touched` can be reconstructed. Remaining limits, surfaced
+//! as "기록된 변경 없음" when they bite:
+//!   - intermediate states never committed nor seen by the indexer are gone
+//!     (e.g. edit → journal → revert before any commit/index);
+//!   - tier 3 is a timestamp heuristic — for a file touched by many commits at
+//!     once it can attribute the wrong one;
 //!   - the shared `file_snapshots` baseline is *not advanced* here (that would
 //!     disturb the live 변경 diff screen), so multiple same-file entries between
 //!     two reindexes share the same fallback diff.
@@ -101,6 +110,7 @@ pub fn capture_entry_diffs(
         return Ok(());
     }
 
+    let entry_time = entry_unix_time(entry_rel);
     let mut files = Vec::new();
     for f in touched {
         match git::diff_patch(root, &f.path, None, None, MAX_PATCH_BYTES) {
@@ -111,10 +121,12 @@ pub fn capture_entry_diffs(
                 });
             }
             // Empty git patch (committed / unchanged) or a recoverable git error
-            // (non-git project) → try the snapshot fallback: diff the last-indexed
-            // baseline against current disk (PR-R3).
+            // (non-git project) → tier 2 snapshot fallback, then tier 3
+            // git-history fallback (see module docs).
             _ => {
-                if let Some(patch) = snapshot_patch(root, &f.path, snapshots) {
+                let patch = snapshot_patch(root, &f.path, snapshots)
+                    .or_else(|| entry_time.and_then(|t| history_patch(root, &f.path, t)));
+                if let Some(patch) = patch {
                     files.push(EntryFileDiff {
                         path: f.path.clone(),
                         patch,
@@ -125,6 +137,41 @@ pub fn capture_entry_diffs(
     }
 
     persist(&out, entry_rel, files)
+}
+
+/// Git-history fallback (tier 3) for a single file: the diff of the commit that
+/// touched `rel_path` nearest the entry's timestamp. `None` on no history /
+/// non-git / empty patch.
+fn history_patch(root: &Path, rel_path: &str, around_unix: i64) -> Option<String> {
+    match crate::git::diff_at_nearest_commit(root, rel_path, around_unix, MAX_PATCH_BYTES) {
+        Ok(p) if !p.trim().is_empty() => Some(p),
+        _ => None,
+    }
+}
+
+/// Derive an entry's wall-clock timestamp (local unix seconds) from its
+/// cache-key path `<workday=YYYYMMDD>/<Category>/<HHMM>_<slug>.md`. Used to
+/// anchor the git-history fallback. `None` if either component isn't numeric.
+fn entry_unix_time(entry_rel: &str) -> Option<i64> {
+    use chrono::TimeZone;
+    let workday = entry_rel.split('/').next()?;
+    let file = entry_rel.rsplit('/').next()?;
+    if workday.len() != 8 || !workday.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let hhmm: String = file.chars().take(4).collect();
+    if hhmm.len() != 4 || !hhmm.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let year: i32 = workday[0..4].parse().ok()?;
+    let month: u32 = workday[4..6].parse().ok()?;
+    let day: u32 = workday[6..8].parse().ok()?;
+    let hour: u32 = hhmm[0..2].parse().ok()?;
+    let min: u32 = hhmm[2..4].parse().ok()?;
+    chrono::Local
+        .with_ymd_and_hms(year, month, day, hour, min, 0)
+        .single()
+        .map(|dt| dt.timestamp())
 }
 
 /// Snapshot fallback for a single file: render a unified diff of the supplied
@@ -168,6 +215,13 @@ fn persist(out: &Path, entry_rel: &str, files: Vec<EntryFileDiff>) -> std::io::R
     let json = serde_json::to_vec_pretty(&payload)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     std::fs::write(out, json)
+}
+
+/// Whether a sidecar already exists for `entry_rel`. Lets `backfill_entry_diffs`
+/// skip already-captured entries without any git work, so the backfill is cheap
+/// to run on every project open after the first pass.
+pub fn sidecar_exists(root: &Path, entry_rel: &str) -> bool {
+    sidecar_path(root, entry_rel).map(|p| p.exists()).unwrap_or(false)
 }
 
 /// Read the recorded diffs for an entry. Returns an empty vec when there's no
@@ -308,6 +362,71 @@ mod tests {
         snapshots.insert(rel.to_string(), b"same\n".to_vec()); // identical → no diff
         capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
         assert!(read_entry_diffs(&tmp, entry).is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn entry_unix_time_parses_and_rejects() {
+        assert!(entry_unix_time("20260604/Bugs/2101_bug_x.md").is_some());
+        // non-numeric workday / HHMM → None (history fallback simply skipped).
+        assert!(entry_unix_time("notaday0/Bugs/2101_x.md").is_none());
+        assert!(entry_unix_time("20260604/Bugs/xx01_x.md").is_none());
+        assert!(entry_unix_time("2026060/Bugs/2101_x.md").is_none());
+    }
+
+    fn git(root: &Path, args: &[&str]) -> Result<(), ()> {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|_| ())
+            .ok_or(())
+    }
+
+    #[test]
+    fn history_fallback_records_committed_diff() {
+        // tier 3: the file is already committed (working tree clean → `git diff
+        // HEAD` empty) and there's no snapshot baseline, but the commit nearest
+        // the entry timestamp is found and its diff recorded.
+        let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-hist-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        // Skip cleanly if git is unavailable in the test environment.
+        if git(&tmp, &["init", "-q"]).is_err() {
+            return;
+        }
+        git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+        git(&tmp, &["config", "user.name", "t"]).unwrap();
+        let rel = "src/a.ts";
+        std::fs::write(tmp.join(rel), "const old = 1;\n").unwrap();
+        git(&tmp, &["add", "."]).unwrap();
+        git(&tmp, &["commit", "-qm", "base"]).unwrap();
+        std::fs::write(tmp.join(rel), "const neo = 2;\n").unwrap();
+        git(&tmp, &["add", "."]).unwrap();
+        git(&tmp, &["commit", "-qm", "change"]).unwrap();
+
+        // Entry dated late today → nearest (most recent) commit = the change.
+        let workday = chrono::Local::now().format("%Y%m%d").to_string();
+        let entry = format!("{workday}/Bugs/2359_bug_hist.md");
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: crate::oculpm::spec::FileOp::Update,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        }];
+
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        let got = read_entry_diffs(&tmp, &entry);
+        assert_eq!(got.len(), 1, "history fallback should record one file");
+        assert!(
+            got[0].patch.contains("const neo = 2;"),
+            "expected the change commit's diff, got: {}",
+            got[0].patch
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

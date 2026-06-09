@@ -677,6 +677,79 @@ impl OculpmManager {
         Ok(entry.resolver.journal_root(&entry.root))
     }
 
+    /// Resolve a project's repository root — the directory that holds `.oculpm/`.
+    /// Used to drive git (per-entry diff capture) against the working tree.
+    pub async fn project_root(&self, project_id: u32) -> Result<PathBuf, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        Ok(entry.root.clone())
+    }
+
+    /// Backfill per-entry diff sidecars for entries that never got one — written
+    /// before this feature shipped, or imported via reindex (app closed when the
+    /// entry was authored) rather than seen by the live watcher. Idempotent and
+    /// best-effort: entries that already have a sidecar are skipped with no git
+    /// work, so this is cheap on every project open after the first pass. The
+    /// git-history fallback in [`entry_diffs`] reconstructs diffs even for
+    /// already-committed entries. Returns how many sidecars were newly written.
+    pub async fn backfill_entry_diffs(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<u32, OculpmError> {
+        use crate::oculpm::entry_diffs;
+        let root = self.project_root(project_id).await?;
+        let journal_root = self.journal_root(project_id).await?;
+        let cache = JournalCache::new(db);
+        let mut captured = 0u32;
+        for (relative_path, _mtime) in crate::oculpm::cache::walk_journal(&journal_root) {
+            if entry_diffs::sidecar_exists(&root, &relative_path) {
+                continue;
+            }
+            let touched = match cache.get_entry(project_id, &relative_path).await {
+                Ok(Some(e)) => e.frontmatter.files_touched,
+                _ => continue,
+            };
+            if touched.is_empty() {
+                continue;
+            }
+            // Prefetch last-indexed baselines so the blocking capture can run the
+            // snapshot fallback (tier 2) without touching the async Db itself.
+            let mut snapshots: HashMap<String, Vec<u8>> = HashMap::new();
+            for f in &touched {
+                if let Ok(Some(snap)) = db.get_file_snapshot(project_id, f.path.clone()).await {
+                    snapshots.insert(f.path.clone(), snap.content);
+                }
+            }
+            let root2 = root.clone();
+            let rel2 = relative_path.clone();
+            let res = tokio::task::spawn_blocking(move || {
+                entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots)
+            })
+            .await;
+            match res {
+                Ok(Ok(())) => {
+                    if entry_diffs::sidecar_exists(&root, &relative_path) {
+                        captured += 1;
+                    }
+                }
+                Ok(Err(e)) => tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id, path = %relative_path, error = %e,
+                    "entry-diff backfill: sidecar write failed"
+                ),
+                Err(e) => tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id, path = %relative_path, error = %e,
+                    "entry-diff backfill: blocking task panicked"
+                ),
+            }
+        }
+        Ok(captured)
+    }
+
     /// List cached journal entries for `(project_id, workday?)` with
     /// arbitrary filters. Thin wrapper over [`JournalCache::list_entries`].
     pub async fn list_journal_entries(

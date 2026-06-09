@@ -1523,7 +1523,7 @@ fn build_list_sql(
     (sql, bound)
 }
 
-fn walk_journal(journal_root: &Path) -> Vec<(String, i64)> {
+pub(crate) fn walk_journal(journal_root: &Path) -> Vec<(String, i64)> {
     if !journal_root.exists() {
         return Vec::new();
     }

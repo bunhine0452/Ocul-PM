@@ -131,6 +131,29 @@ pub async fn oculpm_init(
             "[FLOW] step 2.5 FAILED — reindex errored (non-fatal); on-disk entries may not appear until next watcher event"
         ),
     }
+
+    // Backfill per-entry diff sidecars for entries the live watcher never saw
+    // (written while the app was closed → imported via reindex above, or
+    // authored before the feature shipped). Idempotent + best-effort: already
+    // captured entries are skipped with no git work, so after the first pass
+    // this is near-free. The git-history fallback reconstructs diffs even for
+    // already-committed entries, which is the dominant case for this app
+    // (journals written by an external agent, reviewed after committing).
+    match manager.backfill_entry_diffs(&db, project_id).await {
+        Ok(n) if n > 0 => tracing::info!(
+            target: "oculpm::commands",
+            project_id,
+            captured = n,
+            "[FLOW] step 2.6 OK — backfilled diff sidecars for past entries"
+        ),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(
+            target: "oculpm::commands",
+            project_id,
+            error = %e,
+            "[FLOW] step 2.6 FAILED — entry-diff backfill errored (non-fatal)"
+        ),
+    }
     Ok(report)
 }
 
