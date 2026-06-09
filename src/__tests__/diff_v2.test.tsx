@@ -63,9 +63,34 @@ vi.mock("@/lib/bindings", () => {
   };
 });
 
-import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
+import { DiffScreenV2, collapsePlanRefs } from "@/features/diff/DiffScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+
+describe("collapsePlanRefs", () => {
+  it("collapses many items of one plan into a single chip (keeps items)", () => {
+    const refs = [
+      { plan_id: "p1", plan_title: "이오름 리디자인", item_title: "마이페이지" },
+      { plan_id: "p1", plan_title: "이오름 리디자인", item_title: "쿠폰" },
+      { plan_id: "p1", plan_title: "이오름 리디자인", item_title: "PDF" },
+    ];
+    const out = collapsePlanRefs(refs);
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe("이오름 리디자인");
+    expect(out[0].items).toEqual(["마이페이지", "쿠폰", "PDF"]);
+  });
+
+  it("keeps distinct plans separate, in insertion order", () => {
+    const refs = [
+      { plan_id: "p1", plan_title: "A", item_title: "a1" },
+      { plan_id: "p2", plan_title: "B", item_title: "b1" },
+      { plan_id: "p1", plan_title: "A", item_title: "a2" },
+    ];
+    const out = collapsePlanRefs(refs);
+    expect(out.map((p) => p.planId)).toEqual(["p1", "p2"]);
+    expect(out[0].items).toEqual(["a1", "a2"]);
+  });
+});
 
 const STORAGE_KEY = "aipm:workspace:v1";
 

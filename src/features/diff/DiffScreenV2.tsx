@@ -9,7 +9,7 @@ import {
   TriangleAlert,
   TargetIcon,
 } from "@/components/Icons";
-import { commands, type DiffResult, type ChangeGroup } from "@/lib/bindings";
+import { commands, type DiffResult, type ChangeGroup, type ChangePlanRef } from "@/lib/bindings";
 import {
   useWorkspace,
   type ChangeOp,
@@ -56,6 +56,23 @@ function groupDate(iso: string): string {
   return Number.isNaN(d.getTime())
     ? ""
     : d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
+}
+
+/** Collapse plan refs to one chip per plan. The backend returns one
+ *  ChangePlanRef per advanced *item*, so an entry that moved many items of the
+ *  same plan would otherwise render the (identical) plan title once per item —
+ *  e.g. 11 look-alike rows. We keep insertion order and stash the item titles
+ *  for the chip's tooltip + a `·N` count. */
+export function collapsePlanRefs(
+  refs: ChangePlanRef[],
+): { planId: string; title: string; items: string[] }[] {
+  const byPlan = new Map<string, { planId: string; title: string; items: string[] }>();
+  for (const pr of refs) {
+    const e = byPlan.get(pr.plan_id);
+    if (e) e.items.push(pr.item_title);
+    else byPlan.set(pr.plan_id, { planId: pr.plan_id, title: pr.plan_title, items: [pr.item_title] });
+  }
+  return [...byPlan.values()];
 }
 
 interface DiffScreenV2Props {
@@ -381,13 +398,20 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                     </div>
                     {g.plan_refs.length > 0 ? (
                       <div className="diff-group-plans">
-                        {g.plan_refs.map((pr) => (
+                        {collapsePlanRefs(g.plan_refs).map((p) => (
                           <span
                             className="tag"
-                            key={pr.plan_id + "/" + pr.item_title}
-                            title={`${pr.plan_title} · ${pr.item_title}`}
+                            key={p.planId}
+                            title={
+                              p.items.length > 1
+                                ? `${p.title}\n· ${p.items.join("\n· ")}`
+                                : `${p.title} · ${p.items[0]}`
+                            }
                           >
-                            <TargetIcon size={10} /> {pr.plan_title}
+                            <TargetIcon size={10} /> {p.title}
+                            {p.items.length > 1 ? (
+                              <span style={{ opacity: 0.6 }}> ·{p.items.length}</span>
+                            ) : null}
                           </span>
                         ))}
                       </div>
