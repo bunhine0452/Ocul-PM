@@ -23,6 +23,25 @@ function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** Pull just the "✨ What's new" section out of a GitHub release body so the
+ *  in-app updater shows the changelog as markdown — not the whole release page
+ *  (the Downloads table + macOS notarization note are page boilerplate that
+ *  doesn't apply to an in-place auto-update). Returns the section between the
+ *  "What's new" heading and the next `###` heading; falls back to the full body
+ *  (sans the leading `## <title>`) when that heading isn't present. */
+export function releaseHighlights(notes: string | null | undefined): string {
+  if (!notes) return "";
+  const text = notes.replace(/\r\n/g, "\n");
+  const start = text.search(/^###\s+.*what'?s new.*$/im);
+  if (start === -1) {
+    // Unknown format — drop a leading "## <title>" line, keep the rest as-is.
+    return text.replace(/^\s*##\s+.*$/m, "").trim();
+  }
+  const afterHeading = text.slice(start).replace(/^.*\n/, ""); // drop heading line
+  const next = afterHeading.search(/^###\s/m);
+  return (next === -1 ? afterHeading : afterHeading.slice(0, next)).trim();
+}
+
 export function useUpdater() {
   const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
   const [update, setUpdate] = useState<Update | null>(null);

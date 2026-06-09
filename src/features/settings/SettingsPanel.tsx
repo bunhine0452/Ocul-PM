@@ -21,7 +21,8 @@ import {
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, type Provider } from "@/lib/settings";
-import { useUpdater } from "@/lib/updater";
+import { useUpdater, releaseHighlights } from "@/lib/updater";
+import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
 
 type TabId =
@@ -880,10 +881,16 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
           <p className="text-[11px] text-primary">최신 버전을 사용 중입니다.</p>
         )}
         {updater.kind === "available" && (
-          <p className="text-[11px] text-muted-foreground">
-            새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
-            {updater.notes ? ` ${updater.notes}` : ""}
-          </p>
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground">
+              새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
+            </p>
+            {releaseHighlights(updater.notes) ? (
+              <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">
+                <Markdown>{releaseHighlights(updater.notes)}</Markdown>
+              </div>
+            ) : null}
+          </div>
         )}
         {updater.kind === "installing" && (
           <p className="text-[11px] text-muted-foreground">
