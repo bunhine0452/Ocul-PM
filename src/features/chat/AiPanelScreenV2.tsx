@@ -14,6 +14,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, providerModel, parseFallbacks, type Provider } from "@/lib/settings";
 import { assembleAiContext } from "./aiContext";
+import { ActionProposalCard, extractPlannerAction } from "./aiActions";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 
 // Final UI Update (ui_v2) — AI 패널 화면 (02-screen-specs §7). Mockup
@@ -438,7 +439,25 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                             <span className="ai-caret" aria-hidden="true" />
                           </>
                         ) : m.content ? (
-                          <Markdown>{m.content}</Markdown>
+                          // Stage 2 — split out any json:action proposal and
+                          // surface it as an approve-card under the prose.
+                          (() => {
+                            const { cleanText, action } = extractPlannerAction(m.content);
+                            return (
+                              <>
+                                {cleanText ? <Markdown>{cleanText}</Markdown> : null}
+                                {action ? (
+                                  <ActionProposalCard
+                                    action={action}
+                                    conversationId={threadRef.current}
+                                    messageIndex={i}
+                                    projectId={projectId}
+                                    onApplied={() => {}}
+                                  />
+                                ) : null}
+                              </>
+                            );
+                          })()
                         ) : (
                           ""
                         )}

@@ -9,6 +9,7 @@
 
 import { commands, type ChunkSearchResult } from "@/lib/bindings";
 import type { Settings } from "@/lib/settings";
+import { buildActionInstruction } from "./aiActions";
 
 export function buildContextSystem(chunks: ChunkSearchResult[]): string {
   const blocks = chunks
@@ -144,6 +145,9 @@ export interface AiContextOptions {
   includePlanner?: boolean;
   includeGit?: boolean;
   includeOculpm?: boolean;
+  /** Append the json:action protocol so the assistant can propose planner
+   *  edits (approved via ActionProposalCard). Defaults to `includePlanner`. */
+  includeActions?: boolean;
 }
 
 export interface AiContextResult {
@@ -167,6 +171,7 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   const includePlanner = opts.includePlanner ?? true;
   const includeGit = opts.includeGit ?? false;
   const includeOculpm = opts.includeOculpm ?? settings.includeOculpmContext;
+  const includeActions = opts.includeActions ?? includePlanner;
 
   let system = "";
   const attached: string[] = [];
@@ -190,6 +195,11 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
       system += p + "\n\n";
       attached.push("플래너");
     }
+  }
+  // The action protocol is cheap (a static instruction) and only useful when
+  // the planner is in play, so it follows the planner block.
+  if (includeActions) {
+    system += buildActionInstruction() + "\n\n";
   }
   if (includeGit) {
     const g = await buildGitSystemContext(projectId);
