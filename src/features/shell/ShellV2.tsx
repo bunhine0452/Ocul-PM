@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -11,7 +11,7 @@ import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
 import { SettingsScreenV2 } from "@/features/settings/SettingsScreenV2";
-import type { JournalEntrySummary } from "@/lib/bindings";
+import { commands, type JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
 // mechanism (PR-UI 0 §0.6): App lazy-loads ShellV2 via React.lazy, so Vite
@@ -39,7 +39,7 @@ export default function ShellV2({
   projectRoot,
   onOpenProjectSwitcher,
 }: ShellV2Props) {
-  const { state, setUiV2View, setState } = useWorkspace();
+  const { state, setUiV2View, setState, setProject } = useWorkspace();
   const { resolvedTheme, setTheme } = useTheme();
   const view = state.uiV2View;
   const isDark = resolvedTheme === "dark";
@@ -75,6 +75,28 @@ export default function ShellV2({
   const projectId = state.currentProjectId;
   const workday = state.workdayKey ?? state.oculpmStatus?.current_workday ?? null;
   const oculpmReady = state.oculpmStatus?.initialized === true;
+
+  // Inline project quick-switch (Dogfooding 2026-06-14c): list projects for the
+  // sidebar popover so the user can jump between projects in place, without
+  // returning to the main screen. Refetched when the active project changes
+  // (so a rename/add elsewhere stays roughly fresh).
+  const [projects, setProjects] = useState<{ id: number; name: string; root_path: string }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void commands.listProjects().then((res) => {
+      if (alive && res.status === "ok") {
+        setProjects(res.data.map((p) => ({ id: p.id, name: p.name, root_path: p.root_path })));
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
+
+  const switchProject = (id: number) => {
+    const p = projects.find((x) => x.id === id);
+    if (p && p.id !== projectId) setProject(p.id, p.name, p.root_path);
+  };
   const dateLabel = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
@@ -117,6 +139,9 @@ export default function ShellV2({
         projectName={projectName}
         projectPath={projectRoot}
         onOpenProjectSwitcher={onOpenProjectSwitcher}
+        projects={projects}
+        currentProjectId={projectId}
+        onSwitchProject={switchProject}
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
         macTopInset={isMac ? 22 : 0}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import {
   Sunrise,
@@ -74,7 +74,14 @@ interface SidebarProps {
   onNavigate: (view: UiV2View) => void;
   projectName: string | null;
   projectPath: string | null;
+  /** Opens the full main screen (project manage / add / rename / delete). */
   onOpenProjectSwitcher: () => void;
+  /** Projects for the inline quick-switcher popover (Dogfooding 2026-06-14c). */
+  projects?: { id: number; name: string; root_path: string }[];
+  /** Currently-open project id — highlighted in the switcher. */
+  currentProjectId?: number | null;
+  /** Switch to another project in-place (no return to the main screen). */
+  onSwitchProject?: (id: number) => void;
   isDark: boolean;
   onToggleTheme: () => void;
   /**
@@ -123,6 +130,9 @@ export function Sidebar({
   projectName,
   projectPath,
   onOpenProjectSwitcher,
+  projects,
+  currentProjectId,
+  onSwitchProject,
   isDark,
   onToggleTheme,
   macTopInset = 0,
@@ -131,6 +141,28 @@ export function Sidebar({
   onMouseLeave,
 }: SidebarProps) {
   const appVersion = useAppVersion();
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
+
+  // Close the inline switcher on outside-click / Esc.
+  useEffect(() => {
+    if (!switcherOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setSwitcherOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [switcherOpen]);
+
   return (
     <nav className="sidebar" aria-label="메인 내비게이션" onMouseLeave={onMouseLeave}>
       {macTopInset > 0 ? (
@@ -155,21 +187,68 @@ export function Sidebar({
         ) : null}
       </div>
 
-      <button
-        type="button"
-        className="proj-switch"
-        onClick={onOpenProjectSwitcher}
-        title="프로젝트 전환 (⌘P)"
-      >
-        <div className="proj-icon">
-          <FolderGit2 size={15} strokeWidth={2} />
-        </div>
-        <div className="proj-meta">
-          <div className="proj-name">{projectName ?? "프로젝트 선택"}</div>
-          <div className="proj-path">{projectPath ?? "—"}</div>
-        </div>
-        <ChevronsUpDown size={14} color="var(--text-3)" />
-      </button>
+      <div className="proj-switch-wrap" ref={switcherRef}>
+        <button
+          type="button"
+          className="proj-switch"
+          onClick={() => setSwitcherOpen((o) => !o)}
+          title="프로젝트 전환 (⌘P)"
+          aria-haspopup="menu"
+          aria-expanded={switcherOpen}
+        >
+          <div className="proj-icon">
+            <FolderGit2 size={15} strokeWidth={2} />
+          </div>
+          <div className="proj-meta">
+            <div className="proj-name">{projectName ?? "프로젝트 선택"}</div>
+            <div className="proj-path">{projectPath ?? "—"}</div>
+          </div>
+          <ChevronsUpDown size={14} color="var(--text-3)" />
+        </button>
+
+        {switcherOpen ? (
+          <div className="proj-pop" role="menu" aria-label="프로젝트 전환">
+            {projects && projects.length > 0 ? (
+              <div className="proj-pop-list">
+                {projects.map((p) => {
+                  const isCurrent = p.id === currentProjectId;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={isCurrent}
+                      className={"proj-pop-item" + (isCurrent ? " on" : "")}
+                      onClick={() => {
+                        if (!isCurrent) onSwitchProject?.(p.id);
+                        setSwitcherOpen(false);
+                      }}
+                    >
+                      <FolderGit2 size={14} strokeWidth={2} color="var(--accent)" />
+                      <span className="proj-pop-meta">
+                        <span className="proj-pop-name">{p.name}</span>
+                        <span className="proj-pop-path">{p.root_path}</span>
+                      </span>
+                      {isCurrent ? <span className="proj-pop-cur">현재</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              className="proj-pop-manage"
+              onClick={() => {
+                setSwitcherOpen(false);
+                onOpenProjectSwitcher();
+              }}
+            >
+              <ChevronsUpDown size={13} /> 프로젝트 관리 · 추가…
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       {MAIN_NAV.map((slot) => (
         <NavRow key={slot.id} slot={slot} active={view === slot.id} onNavigate={onNavigate} />

@@ -8,7 +8,14 @@
  * 추가로 미완성 blueprint 복원/삭제 UI와 최근 프로젝트 카드를 표시.
  */
 import { useEffect, useState } from "react";
-import { commands, type Project, type ProjectStats, type ProjectBlueprint } from "@/lib/bindings";
+import {
+  commands,
+  type Project,
+  type ProjectStats,
+  type ProjectBlueprint,
+  type JournalEntrySummary,
+} from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
 import {
   FolderCode,
   FolderOpen,
@@ -26,6 +33,53 @@ import {
 import { BrandMark } from "../../components/BrandMark";
 
 type StatsMap = Record<number, ProjectStats>;
+
+// ── Cockpit home (Dogfooding 2026-06-14c #2) ────────────────────────────────
+// The main screen aggregates *cross-project* journal activity so opening the app
+// surfaces the product's core value (auto-recorded work) at a glance — not just a
+// project picker. Trigger hues are hardcoded here because the --t-* tokens live
+// in the ShellV2 chunk (tokens.css), which isn't loaded on this dashboard.
+interface FeedItem {
+  projectId: number;
+  projectName: string;
+  entry: JournalEntrySummary;
+}
+interface CockpitData {
+  feed: FeedItem[];
+  todayCount: number;
+  week: number[]; // oldest → newest (7 buckets)
+  todayByProject: Record<number, number>;
+}
+const TYPE_TONE: Record<string, { label: string; color: string }> = {
+  feature: { label: "기능", color: "#12a06b" },
+  bug: { label: "버그", color: "#e0524b" },
+  refactor: { label: "리팩토링", color: "#7c5cdb" },
+  error: { label: "에러", color: "#d9881f" },
+  chore: { label: "잡일", color: "#5a7a95" },
+};
+
+/** Calendar today as a YYYYMMDD workday key (local). */
+function calToday(): string {
+  const d = new Date();
+  return (
+    d.getFullYear().toString().padStart(4, "0") +
+    (d.getMonth() + 1).toString().padStart(2, "0") +
+    d.getDate().toString().padStart(2, "0")
+  );
+}
+function shiftDay(key: string, delta: number): string {
+  const dt = new Date(+key.slice(0, 4), +key.slice(4, 6) - 1, +key.slice(6, 8));
+  dt.setDate(dt.getDate() + delta);
+  return (
+    dt.getFullYear().toString().padStart(4, "0") +
+    (dt.getMonth() + 1).toString().padStart(2, "0") +
+    dt.getDate().toString().padStart(2, "0")
+  );
+}
+function hhmm(iso: string): string {
+  const m = /T(\d{2}:\d{2})/.exec(iso);
+  return m ? m[1] : "";
+}
 
 interface StartScreenProps {
   projects: Project[];
@@ -56,10 +110,66 @@ export function StartScreen(props: StartScreenProps) {
 
   const [blueprints, setBlueprints] = useState<ProjectBlueprint[]>([]);
   const [addExpanded, setAddExpanded] = useState(false);
+  const [cockpit, setCockpit] = useState<CockpitData | null>(null);
 
   useEffect(() => {
     loadBlueprints();
   }, []);
+
+  // Aggregate cross-project journal activity for the cockpit. One list call per
+  // project (cached SQLite read — works even when no watcher is running), bucketed
+  // client-side into the recent feed, today's count, and a 7-day sparkline.
+  useEffect(() => {
+    if (projects.length === 0) {
+      setCockpit(null);
+      return;
+    }
+    let alive = true;
+    const todayKey = calToday();
+    const week = Array.from({ length: 7 }, (_, i) => shiftDay(todayKey, -i)); // [today … -6]
+    void (async () => {
+      const results = await Promise.allSettled(
+        // Promise.resolve().then(...) so a synchronous throw (e.g. a project whose
+        // oculpm cache isn't reachable) becomes a handled rejection, not an
+        // unhandled error.
+        projects.map((p) =>
+          Promise.resolve()
+            .then(() => oculpmApi.listJournalEntries(p.id))
+            .then((list) => ({ p, list })),
+        ),
+      );
+      if (!alive) return;
+      const feed: FeedItem[] = [];
+      const weekCount: Record<string, number> = {};
+      const todayByProject: Record<number, number> = {};
+      let todayCount = 0;
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        const { p, list } = r.value;
+        for (const e of list) {
+          feed.push({ projectId: p.id, projectName: p.name, entry: e });
+          if (week.includes(e.workday)) weekCount[e.workday] = (weekCount[e.workday] ?? 0) + 1;
+          if (e.workday === todayKey) {
+            todayCount += 1;
+            todayByProject[p.id] = (todayByProject[p.id] ?? 0) + 1;
+          }
+        }
+      }
+      feed.sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at));
+      setCockpit({
+        feed: feed.slice(0, 10),
+        todayCount,
+        week: week
+          .slice()
+          .reverse()
+          .map((k) => weekCount[k] ?? 0),
+        todayByProject,
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [projects]);
 
   function handleChooseExisting() {
     setAddExpanded(false);
@@ -106,6 +216,80 @@ export function StartScreen(props: StartScreenProps) {
           오늘 무엇을 만들 건가요?
         </p>
       </div>
+
+      {/* ── Cockpit: cross-project activity (#2) ─────── */}
+      {projects.length > 0 && cockpit && cockpit.feed.length > 0 && (
+        <section
+          className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-5"
+          aria-label="오늘의 활동"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+              <NotebookText className="w-4 h-4 text-primary" strokeWidth={2} />
+              오늘의 활동
+            </h2>
+            <span className="text-xs text-muted-foreground font-medium">
+              오늘 <span className="text-foreground font-bold">{cockpit.todayCount}</span>건 · 전
+              프로젝트 {projects.length}
+            </span>
+          </div>
+
+          <ul className="space-y-0.5">
+            {cockpit.feed.map((it, i) => {
+              const tone = TYPE_TONE[it.entry.type] ?? TYPE_TONE.chore;
+              return (
+                <li key={i}>
+                  <button
+                    onClick={() => {
+                      const p = projects.find((x) => x.id === it.projectId);
+                      if (p) onSelectProject(p);
+                    }}
+                    className="group w-full flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-accent/40 transition-colors cursor-pointer text-left"
+                    aria-label={`${it.projectName} · ${it.entry.title} 열기`}
+                  >
+                    <span className="text-[11px] font-mono text-muted-foreground/70 w-10 shrink-0">
+                      {hhmm(it.entry.created_at)}
+                    </span>
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: tone.color }}
+                      title={tone.label}
+                    />
+                    <span className="text-xs font-semibold text-muted-foreground shrink-0 max-w-[110px] truncate">
+                      {it.projectName}
+                    </span>
+                    <span className="text-sm text-foreground truncate flex-1">
+                      {it.entry.title || it.entry.slug}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {cockpit.week.some((n) => n > 0) && (
+            <div className="space-y-1.5 pt-1">
+              <div className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-wider">
+                최근 7일
+              </div>
+              <div className="flex items-end gap-1.5 h-9">
+                {cockpit.week.map((n, i) => {
+                  const max = Math.max(...cockpit.week, 1);
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-sm bg-primary/60 hover:bg-primary transition-colors"
+                      style={{ height: `${Math.max(3, (n / max) * 100)}%` }}
+                      title={`${n}건`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── How it works (PR-R2 C1) — 첫 사용자(프로젝트 0개)에게 핵심 가치
           루프와 *수동 기록이 아니라는* 멘탈 모델을 설명한다. ───────────── */}
@@ -288,6 +472,11 @@ export function StartScreen(props: StartScreenProps) {
                 <div className="flex items-center justify-between mt-4 border-t border-border/40 pt-3">
                   <span className="text-[11px] text-muted-foreground font-semibold">
                     {s ? `${s.files} 파일` : "—"}
+                    {cockpit?.todayByProject[p.id] ? (
+                      <span className="ml-2 text-primary font-bold">
+                        · 오늘 {cockpit.todayByProject[p.id]}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1">
                     {s ? `${s.chunks} 청크` : ""}

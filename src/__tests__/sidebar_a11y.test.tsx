@@ -97,10 +97,13 @@ describe("PR-UI 1 — Sidebar navigation", () => {
     expect(getByText("Today").closest("button")).not.toHaveAttribute("aria-current");
   });
 
-  it("dark toggle + project switcher fire their callbacks", () => {
+  it("dark toggle fires; project button opens the inline switcher whose 관리 item fires onOpenProjectSwitcher", () => {
     const u = renderSidebar();
     fireEvent.click(u.getByText("다크 모드"));
+    // The project button now opens an inline quick-switch popover instead of
+    // jumping to the main screen; the "관리" item is the explicit escape hatch.
     fireEvent.click(u.getByText("aurora-web"));
+    fireEvent.click(u.getByText(/프로젝트 관리/));
     expect(u.getThemeToggled()).toBe(1);
     expect(u.getSwitcherOpened()).toBe(1);
   });
