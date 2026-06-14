@@ -13,6 +13,7 @@ import {
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, providerModel, parseFallbacks, type Provider } from "@/lib/settings";
+import { assembleAiContext } from "./aiContext";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 
 // Final UI Update (ui_v2) — AI 패널 화면 (02-screen-specs §7). Mockup
@@ -64,6 +65,16 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     nim: null,
     openrouter: null,
   });
+  // Group B Stage 1 — which project context to attach to each question.
+  // Defaults mirror ChatPanel: code (RAG) + 일지 + 플래너 on, git off.
+  const [ctx, setCtx] = useState({
+    rag: true,
+    oculpm: settings.includeOculpmContext,
+    planner: true,
+    git: false,
+  });
+  // What actually got attached to the most recent send (for the status line).
+  const [lastAttached, setLastAttached] = useState<string[]>([]);
   const threadRef = useRef<number | null>(
     state.aiThreadId != null ? Number(state.aiThreadId) : null,
   );
@@ -182,8 +193,21 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       role: m.role,
       content: m.content,
     }));
-    if (settings.systemPrompt.trim()) {
-      llmHistory.unshift({ role: "system" as Role, content: settings.systemPrompt });
+    // Group B Stage 1 — ground the model on real project context (RAG code,
+    // ocul-pm journal + AGENTS rules, planner goals, git) instead of sending a
+    // bare prompt. Best-effort: a failing source is simply omitted.
+    const aiCtx = await assembleAiContext({
+      projectId,
+      query: trimmed,
+      settings,
+      includeRag: ctx.rag,
+      includeOculpm: ctx.oculpm,
+      includePlanner: ctx.planner,
+      includeGit: ctx.git,
+    });
+    setLastAttached(aiCtx.attached);
+    if (aiCtx.system) {
+      llmHistory.unshift({ role: "system" as Role, content: aiCtx.system });
     }
     const chatOptions: ChatOptions = {
       model,
@@ -270,7 +294,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       void commands.chatMessageAppend(id, "user", trimmed, provider, model);
       void commands.chatMessageAppend(id, "assistant", target, provider, model);
     }
-  }, [draft, streaming, messages, provider, settings, hasKey]);
+  }, [draft, streaming, messages, provider, settings, hasKey, ctx, projectId]);
 
   // ── 대화 기록 (A3) — switch / new / reconcile-after-delete ──────────────
   // Load a thread's messages into view + share the id with the overlay.
@@ -398,7 +422,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                         ) : (
                           <>
                             {VENDOR[mp].name}
-                            <span className="vendor">로컬 컨텍스트 첨부됨</span>
+                            <span className="vendor">{VENDOR[mp].vendor}</span>
                           </>
                         )}
                       </div>
@@ -439,9 +463,33 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         </div>
 
         <div className="ai-compose">
-          <div className="compose-ctx">
+          <div
+            className="compose-ctx"
+            style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+          >
             <Paperclip size={13} />
-            <span>전체 코드베이스는 로컬에만 저장됩니다</span>
+            {(
+              [
+                { key: "rag", label: "코드" },
+                { key: "oculpm", label: "작업일지" },
+                { key: "planner", label: "플래너" },
+                { key: "git", label: "git" },
+              ] as const
+            ).map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                className={"scope-chip" + (ctx[it.key] ? " on" : "")}
+                onClick={() => setCtx((c) => ({ ...c, [it.key]: !c[it.key] }))}
+                title={`${it.label} 컨텍스트를 질문에 첨부`}
+              >
+                {it.label}
+              </button>
+            ))}
+            <span style={{ flex: 1 }} />
+            <span style={{ color: "var(--text-3)" }}>
+              {lastAttached.length > 0 ? `첨부됨: ${lastAttached.join(" · ")}` : "로컬에만 저장"}
+            </span>
           </div>
           <div className="compose-box">
             <textarea

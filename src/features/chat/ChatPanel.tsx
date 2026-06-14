@@ -19,26 +19,18 @@ import {
   type Role,
 } from "@/lib/bindings";
 
+import {
+  buildContextSystem,
+  buildGitSystemContext,
+  buildPlannerSystemContext,
+  buildOculpmSystemContext,
+} from "./aiContext";
+
 const PROVIDERS = ["anthropic", "gemini", "openai", "nim", "openrouter"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
 const CONTEXT_DEBOUNCE_MS = 400;
 const TITLE_MAX = 40;
-
-function buildContextSystem(chunks: ChunkSearchResult[]): string {
-  const blocks = chunks
-    .map(
-      (c) =>
-        `### \`${c.file_path}\` (lines ${c.start_line}–${c.end_line})\n\`\`\`\n${c.content}\n\`\`\``,
-    )
-    .join("\n\n");
-  return [
-    "You have access to the user's codebase. The most relevant snippets for the current question are below.",
-    "When you reference code, cite the file path and line range.",
-    "",
-    blocks,
-  ].join("\n");
-}
 
 interface PlannerAction {
   type: "create_goal" | "update_goal" | "delete_goal" | "create_subtasks" | "toggle_subtask" | "delete_subtask";
@@ -65,114 +57,6 @@ function extractPlannerAction(text: string): { cleanText: string; action: Planne
     console.error("Failed to parse json:action block", e);
     return { cleanText: text, action: null };
   }
-}
-
-async function buildGitSystemContext(projectId: number | null, limit = 15): Promise<string> {
-  if (projectId == null) return "";
-  const statusRes = await commands.gitStatus(projectId);
-  if (statusRes.status !== "ok" || !statusRes.data.is_git_repo) return "";
-
-  const status = statusRes.data;
-  let markdown = "### Project git context\n";
-  if (status.head_branch) {
-    markdown += `- Current branch: \`${status.head_branch}\`\n`;
-  }
-  const gh = status.remotes.find((r) => r.host === "github.com" && r.owner && r.repo);
-  if (gh) {
-    markdown += `- GitHub: \`${gh.owner}/${gh.repo}\`\n`;
-  } else if (status.remotes.length > 0) {
-    markdown += `- Remote: \`${status.remotes[0].url}\`\n`;
-  }
-
-  const logRes = await commands.gitLog(projectId, limit);
-  if (logRes.status === "ok" && logRes.data.length > 0) {
-    markdown += `\nRecent commits (newest first):\n`;
-    for (const c of logRes.data) {
-      const when = new Date(c.timestamp * 1000).toISOString().slice(0, 10);
-      markdown += `- \`${c.short_sha}\` ${when} (${c.author_name}) — ${c.subject}\n`;
-    }
-  }
-  return markdown;
-}
-
-async function buildPlannerSystemContext(projectId: number | null): Promise<string> {
-  const res = await commands.goalList(projectId, null);
-  if (res.status === "error" || !res.data.length) {
-    return "";
-  }
-  let markdown = "### Current Workspace Planner Goals:\n";
-  for (const goal of res.data) {
-    const priorityText = goal.priority === 2 ? "Urgent" : goal.priority === 1 ? "High" : "Normal";
-    const dateText = goal.due_date ? new Date(goal.due_date * 1000).toLocaleDateString() : "No deadline";
-    markdown += `- **Goal (ID: ${goal.id})**: ${goal.title} | Status: ${goal.status} | Priority: ${priorityText} | Due: ${dateText}\n`;
-    if (goal.description) {
-      markdown += `  Description: ${goal.description}\n`;
-    }
-    const subRes = await commands.subtaskList(goal.id);
-    if (subRes.status === "ok" && subRes.data.length) {
-      markdown += "  Subtasks:\n";
-      for (const sub of subRes.data) {
-        markdown += `    - [${sub.done ? "x" : " "}] (ID: ${sub.id}) ${sub.title}\n`;
-      }
-    }
-  }
-  return markdown;
-}
-
-/** Clamp long text so a single journal body / ruleset can't blow the token
- *  budget. Adds a visible elision marker. */
-function clampText(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max).trimEnd() + "\n… (생략됨)" : s;
-}
-
-/**
- * Feature request 2 — build a "프로젝트 작업 맥락" block from the most recent
- * oculpm journal entries + the project's AGENTS rules, so the assistant keeps
- * the same direction even when the session or model changes. Every call is
- * best-effort: any failure simply omits that part rather than breaking the
- * send. `maxEntries` of 0 injects rules only.
- */
-async function buildOculpmSystemContext(
-  projectId: number | null,
-  maxEntries: number,
-): Promise<string> {
-  if (projectId == null) return "";
-  const sections: string[] = [];
-
-  if (maxEntries > 0) {
-    const listRes = await commands.oculpmListJournalEntries(projectId, null, null);
-    if (listRes.status === "ok" && listRes.data.length > 0) {
-      const recent = listRes.data.slice(0, maxEntries);
-      let md =
-        "### 프로젝트 작업 맥락 (ocul-pm 작업일지, 최신순)\n" +
-        "이 프로젝트에서 최근 진행한 작업 기록입니다. 작업 방향과 결정을 이어가세요.\n\n";
-      for (const e of recent) {
-        const date = e.created_at ? e.created_at.slice(0, 10) : e.workday;
-        md += `- [${e.status}] ${e.title} _(${e.type}, ${e.agent_id}, ${e.files_count} 파일, ${date})_\n`;
-      }
-
-      // Hydrate the few most-recent entries with their body for real continuity.
-      const bodies: string[] = [];
-      for (const e of recent.slice(0, Math.min(3, recent.length))) {
-        const detRes = await commands.oculpmGetJournalEntry(projectId, e.relative_path);
-        if (detRes.status === "ok" && detRes.data) {
-          bodies.push(`#### ${detRes.data.title}\n${clampText(detRes.data.body_markdown.trim(), 1200)}`);
-        }
-      }
-      if (bodies.length > 0) md += "\n최근 기록 상세:\n\n" + bodies.join("\n\n");
-      sections.push(md);
-    }
-  }
-
-  const rulesRes = await commands.oculpmAgentsGetMasterTemplate(projectId);
-  if (rulesRes.status === "ok" && rulesRes.data.trim()) {
-    sections.push(
-      "### 작업 규칙 (AGENTS)\n이 프로젝트의 규칙입니다. 응답과 제안은 이 규칙을 따르세요.\n\n" +
-        clampText(rulesRes.data.trim(), 2500),
-    );
-  }
-
-  return sections.join("\n\n");
 }
 
 function buildActionInstruction(): string {
