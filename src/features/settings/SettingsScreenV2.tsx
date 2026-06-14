@@ -194,6 +194,46 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
 
             <div className="set-row">
               <div>
+                <div className="set-label">컬러 테마</div>
+                <div className="set-desc">강조 색(accent)을 고르세요 — 라이트·다크와 별개로 적용</div>
+              </div>
+              <div className="set-ctl" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {(
+                  [
+                    { id: "green", label: "그린", sw: "#12a06b" },
+                    { id: "blue", label: "블루", sw: "#2570e0" },
+                    { id: "purple", label: "퍼플", sw: "#7c5cdb" },
+                    { id: "orange", label: "오렌지", sw: "#e07b12" },
+                    { id: "rose", label: "로즈", sw: "#e0524b" },
+                    { id: "teal", label: "틸", sw: "#0e9aa0" },
+                  ] as const
+                ).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={"scope-chip" + (settings.colorTheme === c.id ? " on" : "")}
+                    onClick={() => void set("colorTheme", c.id)}
+                    title={c.label}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 11,
+                        height: 11,
+                        borderRadius: 99,
+                        background: c.sw,
+                        display: "inline-block",
+                        flexShrink: 0,
+                      }}
+                    />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="set-row">
+              <div>
                 <div className="set-label">워크데이 시작 시각</div>
                 <div className="set-desc">
                   이 시각을 기준으로 'Today'가 롤오버됩니다

@@ -84,6 +84,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings.theme, loaded]);
 
+  // Accent palette: `data-accent` overrides the --accent* tokens (tokens.css)
+  // over whichever light/dark mode is active. "green" is the base (no override),
+  // so any selection just swaps which `[data-accent="…"]` block wins.
+  useEffect(() => {
+    if (!loaded) return;
+    document.documentElement.setAttribute("data-accent", settings.colorTheme);
+  }, [settings.colorTheme, loaded]);
+
   const value = useMemo<SettingsContextValue>(
     () => ({ settings, loaded, set, setMany, reload, resetAll }),
     [settings, loaded, set, setMany, reload, resetAll]

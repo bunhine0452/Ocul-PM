@@ -2,6 +2,8 @@
 // Settings are persisted in the SQLite `settings` table via Tauri commands.
 
 export type Theme = "light" | "dark" | "system";
+/** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
+export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type UiDensity = "compact" | "comfortable";
 export type Provider = "anthropic" | "openai" | "gemini" | "nim";
 export type LogLevel = "error" | "warn" | "info" | "debug";
@@ -13,6 +15,7 @@ export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim"];
 export const KEYS = {
   // --- Appearance / editor ---
   theme: "theme",
+  colorTheme: "color_theme",
   uiDensity: "ui_density",
   editorFontFamily: "editor_font_family",
   editorFontSize: "editor_font_size",
@@ -60,6 +63,7 @@ export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
 
 export interface Settings {
   theme: Theme;
+  colorTheme: ColorTheme;
   uiDensity: UiDensity;
 
   editorFontFamily: string;
@@ -111,6 +115,7 @@ export interface Settings {
 
 export const DEFAULTS: Settings = {
   theme: "system",
+  colorTheme: "green",
   uiDensity: "comfortable",
 
   editorFontFamily: "D2Coding",
@@ -153,6 +158,7 @@ export const DEFAULTS: Settings = {
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
+  [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiDensity]: "uiDensity",
   [KEYS.editorFontFamily]: "editorFontFamily",
   [KEYS.editorFontSize]: "editorFontSize",

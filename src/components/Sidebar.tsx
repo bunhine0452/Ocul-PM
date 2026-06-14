@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import {
   Sunrise,
   NotebookText,
@@ -15,6 +17,24 @@ import {
 } from "@/components/Icons";
 import { BrandMark } from "@/components/BrandMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+
+/** The running app version (from tauri.conf.json via the Tauri runtime). Falls
+ *  back to null outside Tauri (tests/SSR) so the brand line just drops the tag. */
+function useAppVersion(): string | null {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getVersion()
+      .then((v) => alive && setVersion(v))
+      .catch(() => {
+        /* not running under Tauri — leave null */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return version;
+}
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). 9 slots: 4 main + 3 tools + 2 footer
@@ -110,6 +130,7 @@ export function Sidebar({
   collapsed = false,
   onMouseLeave,
 }: SidebarProps) {
+  const appVersion = useAppVersion();
   return (
     <nav className="sidebar" aria-label="메인 내비게이션" onMouseLeave={onMouseLeave}>
       {macTopInset > 0 ? (
@@ -119,7 +140,7 @@ export function Sidebar({
         <BrandMark size={28} />
         <div>
           <div className="brand-name">Ocul-PM</div>
-          <div className="brand-sub">로컬-우선 · v1.0</div>
+          <div className="brand-sub">로컬-우선{appVersion ? ` · v${appVersion}` : ""}</div>
         </div>
         {onToggleCollapse ? (
           <button

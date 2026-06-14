@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { commands } from "@/lib/bindings";
-import { Terminal } from "xterm";
+import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 import { Terminal as TerminalIcon, Loader2, Play, Plus, X, ExternalLink } from "@/components/Icons";
 import { Button } from "@/components/ui/button";
 

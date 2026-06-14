@@ -43,7 +43,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "1.0",
+  "softwareVersion": "1.3.0",
   "description": "AI 코딩 에이전트(Claude Code · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 오늘 무엇이 바뀌었는지 보여주고, 로컬 diff 로 즉시 검증합니다.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -108,7 +108,7 @@
     <a class="nav-brand" href="#top">
       <img src="icon.svg" alt="Ocul-PM" />
       <span class="nm">Ocul-PM</span>
-      <span class="v">v1.0</span>
+      <span class="v" data-version>v1.3.0</span>
     </a>
     <div class="nav-links">
       <a href="#features">기능</a>
@@ -470,7 +470,7 @@
 <section class="cta" id="download">
   <svg class="cta-arc" viewBox="0 0 760 760" aria-hidden="true"><use href="#arc-motif"/></svg>
   <div class="wrap">
-    <span class="eyebrow on-dark reveal">1.0 출시 — 지금 다운로드 · macOS (Apple Silicon)</span>
+    <span class="eyebrow on-dark reveal">최신 버전 출시 — 지금 다운로드 · macOS (Apple Silicon)</span>
     <h2 class="reveal d1">AI에게 빼앗긴 <em>"왜 이걸 만들었더라"</em>의<br/>답을 다시 손에 쥐세요.</h2>
     <p class="cta-sub reveal d2">설치하고, 프로젝트 폴더를 열고, 에이전트를 부르세요. 나머지는 Ocul-PM이 기록합니다.</p>
     <div class="cta-btns reveal d2">
@@ -535,6 +535,28 @@
     setTimeout(() => els.forEach(show), 4000);
   }
   // else: leave everything visible (no-op)
+</script>
+
+<!-- Keep the nav version badge in sync with the latest GitHub release, so it
+     never goes stale between landing edits. Falls back to the hardcoded
+     data-version text if the API is unreachable / rate-limited. -->
+<script>
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.tag_name) return;
+          var tag = String(d.tag_name).replace(/^v?/, 'v'); // normalize → "v1.3.0"
+          document.querySelectorAll('[data-version]').forEach(function (el) {
+            el.textContent = tag;
+          });
+        })
+        .catch(function () { /* keep the static fallback */ });
+    } catch (e) { /* no fetch — keep the static fallback */ }
+  })();
 </script>
 
 <!-- Vercel Web Analytics (static site). The script is served by Vercel only

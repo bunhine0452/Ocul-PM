@@ -101,3 +101,55 @@
   --shadow-pop: 0 10px 34px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
   --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.4);
 }
+
+/* ============================================================
+   Accent palettes (컬러 테마 — Dogfooding 2026-06-14b #1)
+   `data-accent` on <html> swaps the --accent* family over the
+   active light/dark mode. "green" is the base above (no block).
+   Trigger/diff hues stay semantic and are intentionally untouched.
+   ============================================================ */
+/* blue */
+[data-accent="blue"] {
+  --accent: #2570e0; --accent-strong: #1f63cc; --accent-text: #1d5fc4;
+  --accent-soft: #e7effd; --accent-ring: rgba(37,112,224,0.35);
+}
+[data-theme="dark"][data-accent="blue"] {
+  --accent: #5b9bff; --accent-strong: #4f8ff5; --accent-text: #8fc0ff;
+  --accent-soft: rgba(91,155,255,0.16); --accent-ring: rgba(91,155,255,0.4);
+}
+/* purple */
+[data-accent="purple"] {
+  --accent: #7c5cdb; --accent-strong: #6b49cf; --accent-text: #6442c4;
+  --accent-soft: #efeafb; --accent-ring: rgba(124,92,219,0.35);
+}
+[data-theme="dark"][data-accent="purple"] {
+  --accent: #a78bfa; --accent-strong: #9a7af7; --accent-text: #c4b1fd;
+  --accent-soft: rgba(167,139,250,0.16); --accent-ring: rgba(167,139,250,0.4);
+}
+/* orange */
+[data-accent="orange"] {
+  --accent: #e07b12; --accent-strong: #c96d0c; --accent-text: #b4620a;
+  --accent-soft: #fdefdb; --accent-ring: rgba(224,123,18,0.35);
+}
+[data-theme="dark"][data-accent="orange"] {
+  --accent: #eaa23f; --accent-strong: #e0942b; --accent-text: #f2c078;
+  --accent-soft: rgba(234,162,63,0.16); --accent-ring: rgba(234,162,63,0.4);
+}
+/* rose */
+[data-accent="rose"] {
+  --accent: #e0524b; --accent-strong: #d23f38; --accent-text: #c0352e;
+  --accent-soft: #fbe9e8; --accent-ring: rgba(224,82,75,0.35);
+}
+[data-theme="dark"][data-accent="rose"] {
+  --accent: #f1685f; --accent-strong: #ed564c; --accent-text: #f7918a;
+  --accent-soft: rgba(241,104,95,0.16); --accent-ring: rgba(241,104,95,0.4);
+}
+/* teal */
+[data-accent="teal"] {
+  --accent: #0e9aa0; --accent-strong: #0b8a8f; --accent-text: #097379;
+  --accent-soft: #e0f5f5; --accent-ring: rgba(14,154,160,0.35);
+}
+[data-theme="dark"][data-accent="teal"] {
+  --accent: #5fd5d0; --accent-strong: #4cccc6; --accent-text: #86e6e1;
+  --accent-soft: rgba(95,213,208,0.16); --accent-ring: rgba(95,213,208,0.4);
+}
