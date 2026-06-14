@@ -750,6 +750,53 @@ impl OculpmManager {
         Ok(captured)
     }
 
+    /// Read an entry's recorded diffs, lazily reconstructing them on a cache miss.
+    ///
+    /// `oculpm_get_entry_diffs` used to be a pure sidecar read, so an entry whose
+    /// sidecar was never written — committed *after* the journal, imported via
+    /// reindex, or authored before this feature — showed "기록된 변경 없음" until
+    /// the next project-open backfill ran. That's the case the user hits when
+    /// they open an entry having committed in between. This reconstructs on
+    /// demand with the same 3-tier capture the watcher/backfill use, so the diff
+    /// appears immediately (and the sidecar is persisted for next time). A clean
+    /// (truly empty) result still reads back as `[]` — capture writes no sidecar.
+    pub async fn read_or_reconstruct_entry_diffs(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+    ) -> Result<Vec<crate::oculpm::entry_diffs::EntryFileDiff>, OculpmError> {
+        use crate::oculpm::entry_diffs;
+        let root = self.project_root(project_id).await?;
+        let existing = entry_diffs::read_entry_diffs(&root, &relative_path);
+        if !existing.is_empty() {
+            return Ok(existing);
+        }
+        // Cache miss → reconstruct from the entry's files_touched, mirroring
+        // `backfill_entry_diffs` for a single entry.
+        let cache = JournalCache::new(db);
+        let touched = match cache.get_entry(project_id, &relative_path).await {
+            Ok(Some(e)) => e.frontmatter.files_touched,
+            _ => return Ok(Vec::new()),
+        };
+        if touched.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut snapshots: HashMap<String, Vec<u8>> = HashMap::new();
+        for f in &touched {
+            if let Ok(Some(snap)) = db.get_file_snapshot(project_id, f.path.clone()).await {
+                snapshots.insert(f.path.clone(), snap.content);
+            }
+        }
+        let root2 = root.clone();
+        let rel2 = relative_path.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots)
+        })
+        .await;
+        Ok(entry_diffs::read_entry_diffs(&root, &relative_path))
+    }
+
     /// List cached journal entries for `(project_id, workday?)` with
     /// arbitrary filters. Thin wrapper over [`JournalCache::list_entries`].
     pub async fn list_journal_entries(

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, TriangleAlert, X, Plus } from "@/components/Icons";
+import { SearchIcon, TriangleAlert, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
 import { useJournalDays } from "./useJournalDays";
 import { JournalCardV2 } from "./JournalCardV2";
 import { EntryDetailView } from "./EntryDetailView";
@@ -46,6 +47,14 @@ interface JournalScreenV2Props {
   focusPath: string | null;
   /** Called once the focus has been applied so the parent can clear it. */
   onFocusConsumed: () => void;
+  /**
+   * One-shot: relative_path of an entry to open directly in the detail view
+   * (from Planner 📓). Resolved by its workday, so it works even when the entry
+   * is older than the loaded timeline window. Distinct from focusPath.
+   */
+  openEntryPath?: string | null;
+  /** Called once the entry has been opened (or failed to resolve). */
+  onOpenEntryConsumed?: () => void;
 }
 
 export function JournalScreenV2({
@@ -55,6 +64,8 @@ export function JournalScreenV2({
   onOpenDiff,
   focusPath,
   onFocusConsumed,
+  openEntryPath,
+  onOpenEntryConsumed,
 }: JournalScreenV2Props) {
   const { state, setState } = useWorkspace();
   const filter = state.journalFilter;
@@ -66,6 +77,14 @@ export function JournalScreenV2({
   // Master-detail: a non-null entry shows the full-screen 변경 기록 detail view
   // in place of the timeline (Dogfooding 2026-06-07 — replaced the modal).
   const [detailEntry, setDetailEntry] = useState<JournalEntrySummary | null>(null);
+
+  // Timeline length control (Dogfooding 2026-06-14 #1): older days collapse to a
+  // one-line summary; a side date-rail jumps/scrubs. dayOpen holds explicit user
+  // toggles; the default keeps the 2 most-recent days open.
+  const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({});
+  const [activeWorkday, setActiveWorkday] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dayRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const setFilter = (next: JournalFilter) =>
     setState((prev) => ({ ...prev, journalFilter: next }));
@@ -127,6 +146,72 @@ export function JournalScreenV2({
       .filter((d) => d.entries.length > 0);
   }, [days, filter, search]);
 
+  // While a filter/search is active, force every day open so matches in older
+  // (default-collapsed) days are visible.
+  const searchActive = search.trim() !== "" || filter !== "all";
+
+  // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
+  // workday (parsed from the path), so a completed plan's weeks-old journal opens
+  // even though it's outside the loaded timeline window. One-shot.
+  useEffect(() => {
+    if (!openEntryPath) return;
+    let cancelled = false;
+    const workday = openEntryPath.split("/")[0];
+    void (async () => {
+      try {
+        if (!/^\d{8}$/.test(workday)) {
+          toast.warning("일지 경로를 해석하지 못했어요.");
+          return;
+        }
+        const list = await oculpmApi.listJournalEntries(projectId, workday);
+        if (cancelled) return;
+        const base = openEntryPath.split("/").pop();
+        const hit =
+          list.find((e) => e.relative_path === openEntryPath) ??
+          list.find((e) => e.relative_path.split("/").pop() === base);
+        if (hit) setDetailEntry(hit);
+        else toast.warning("연결된 일지를 찾지 못했어요.");
+      } catch {
+        if (!cancelled) toast.warning("연결된 일지를 열지 못했어요.");
+      } finally {
+        if (!cancelled) onOpenEntryConsumed?.();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openEntryPath, projectId, onOpenEntryConsumed]);
+
+  // Date-rail active highlight: mark the top-most day section currently in view.
+  useEffect(() => {
+    if (!filteredDays || filteredDays.length === 0) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const top = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        const wd = (top?.target as HTMLElement | undefined)?.dataset.workday;
+        if (wd) setActiveWorkday(wd);
+      },
+      { root: scrollRef.current, rootMargin: "0px 0px -72% 0px", threshold: 0 },
+    );
+    for (const d of filteredDays) {
+      const el = dayRefs.current[d.workday];
+      if (el) obs.observe(el);
+    }
+    return () => obs.disconnect();
+  }, [filteredDays]);
+
+  // Date-rail click: expand the target day, then scroll its section into view.
+  const jumpToDay = (workday: string) => {
+    setDayOpen((p) => ({ ...p, [workday]: true }));
+    setActiveWorkday(workday);
+    requestAnimationFrame(() => {
+      dayRefs.current[workday]?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    });
+  };
+
   // Detail view replaces the timeline (and its toolbar) until the user goes back.
   if (detailEntry) {
     return (
@@ -187,56 +272,103 @@ export function JournalScreenV2({
         </button>
       </Toolbar>
 
-      <div className="scroll">
-        <div className="page fade-in" style={{ maxWidth: 820 }}>
-          {error ? (
-            <div className="card card-pad" style={{ marginBottom: 16 }}>
-              <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> 일지를 불러오지 못했어요
-              </div>
-              <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
-              <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
-                다시 시도
-              </button>
-            </div>
-          ) : null}
-
-          {loading && days == null ? (
-            <OculSpinner label="불러오는 중…" />
-          ) : !oculpmReady ? (
-            <div className="empty-hint">ocul-pm이 활성화되면 일지가 여기에 표시됩니다.</div>
-          ) : filteredDays && filteredDays.length > 0 ? (
-            filteredDays.map((day) => (
-              <div key={day.workday}>
-                <div className="day-label">{day.label}</div>
-                <div className="tl">
-                  {day.entries.map((e) => (
-                    <div className="tl-node" key={e.relative_path}>
-                      <span className="tl-dot">
-                        <TriggerMeticon type={e.type} />
-                      </span>
-                      <JournalCardV2
-                        entry={e}
-                        focused={focusPath === e.relative_path}
-                        onOpenEntry={setDetailEntry}
-                        onOpenDiff={onOpenDiff}
-                      />
-                    </div>
-                  ))}
+      <div className="scroll" ref={scrollRef}>
+        <div className="journal-wrap">
+          <div className="journal-col fade-in">
+            {error ? (
+              <div className="card card-pad" style={{ marginBottom: 16 }}>
+                <div className="stat-top" style={{ color: "var(--t-bug)" }}>
+                  <TriangleAlert size={14} /> 일지를 불러오지 못했어요
                 </div>
+                <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
+                <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
+                  다시 시도
+                </button>
               </div>
-            ))
-          ) : total > 0 ? (
-            <div className="empty-hint">
-              {search || filter !== "all"
-                ? "조건에 맞는 일지가 없어요."
-                : "표시할 일지가 없어요."}
-            </div>
-          ) : (
-            <div className="empty-hint">
-              아직 일지가 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 기록합니다.
-            </div>
-          )}
+            ) : null}
+
+            {loading && days == null ? (
+              <OculSpinner label="불러오는 중…" />
+            ) : !oculpmReady ? (
+              <div className="empty-hint">ocul-pm이 활성화되면 일지가 여기에 표시됩니다.</div>
+            ) : filteredDays && filteredDays.length > 0 ? (
+              filteredDays.map((day, idx) => {
+                const open = searchActive ? true : (dayOpen[day.workday] ?? idx < 2);
+                return (
+                  <div
+                    key={day.workday}
+                    ref={(el) => {
+                      dayRefs.current[day.workday] = el;
+                    }}
+                    data-workday={day.workday}
+                    style={{ scrollMarginTop: 8 }}
+                  >
+                    <button
+                      type="button"
+                      className="day-head"
+                      onClick={() => setDayOpen((p) => ({ ...p, [day.workday]: !open }))}
+                      aria-expanded={open}
+                    >
+                      {open ? (
+                        <ChevronDown size={14} color="var(--text-3)" />
+                      ) : (
+                        <ChevronRight size={14} color="var(--text-3)" />
+                      )}
+                      <span className="day-head-label">{day.label}</span>
+                      <span className="day-head-line" />
+                      <span className="day-head-count">{day.entries.length}건</span>
+                    </button>
+                    {open ? (
+                      <div className="tl">
+                        {day.entries.map((e) => (
+                          <div className="tl-node" key={e.relative_path}>
+                            <span className="tl-dot">
+                              <TriggerMeticon type={e.type} />
+                            </span>
+                            <JournalCardV2
+                              entry={e}
+                              focused={focusPath === e.relative_path}
+                              onOpenEntry={setDetailEntry}
+                              onOpenDiff={onOpenDiff}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
+            ) : total > 0 ? (
+              <div className="empty-hint">
+                {search || filter !== "all"
+                  ? "조건에 맞는 일지가 없어요."
+                  : "표시할 일지가 없어요."}
+              </div>
+            ) : (
+              <div className="empty-hint">
+                아직 일지가 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 기록합니다.
+              </div>
+            )}
+          </div>
+
+          {filteredDays && filteredDays.length > 1 ? (
+            <nav className="date-rail" aria-label="날짜로 이동">
+              {filteredDays.map((day) => (
+                <button
+                  key={day.workday}
+                  type="button"
+                  className={"date-rail-item" + (activeWorkday === day.workday ? " active" : "")}
+                  onClick={() => jumpToDay(day.workday)}
+                  title={`${day.label} · ${day.entries.length}건`}
+                >
+                  <span className="date-rail-md">
+                    {day.workday.slice(4, 6)}-{day.workday.slice(6, 8)}
+                  </span>
+                  <span className="date-rail-n">{day.entries.length}</span>
+                </button>
+              ))}
+            </nav>
+          ) : null}
         </div>
       </div>
 

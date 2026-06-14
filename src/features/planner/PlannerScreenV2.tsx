@@ -103,6 +103,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const [newPlanTitle, setNewPlanTitle] = useState("");
   const [composer, setComposer] = useState<{ phase: string; title: string } | null>(null);
 
+  // Plan selector grouping (Dogfooding 2026-06-14 #3): active plans stay up top;
+  // completed/archived fold away so the header doesn't pile up as plans grow.
+  const [showDone, setShowDone] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
   const refreshPlans = useCallback(async () => {
     const res = await commands.planList(projectId);
     if (res.status === "ok") {
@@ -154,10 +159,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   };
 
   // plan-log journal refs are written relative to `.oculpm/` (e.g.
-  // "journal/2026…/Bugs/…md"); the journal screen focuses paths relative to the
-  // journal root, so strip the leading "journal/".
+  // "journal/2026…/Bugs/…md"); the journal screen resolves paths relative to the
+  // journal root, so strip a leading ".oculpm/" and/or "journal/" prefix. The
+  // journal screen then opens the entry by its workday (window-independent).
   const openJournal = (ref: string) => {
-    const path = ref.replace(/^journal\//, "");
+    const path = ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
     if (onOpenJournal) onOpenJournal(path);
     else onNavigate("journal");
   };
@@ -302,6 +308,26 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // edits + AI refresh are disabled in the UI (and refused by the backend).
   const locked = (detail?.plan.status ?? "active") !== "active";
 
+  // Plan selector buckets (#3): active up top, done/archived folded behind toggles.
+  const activePlans = useMemo(() => (plans ?? []).filter((p) => p.status === "active"), [plans]);
+  const donePlans = useMemo(() => (plans ?? []).filter((p) => p.status === "done"), [plans]);
+  const archivedPlans = useMemo(
+    () => (plans ?? []).filter((p) => p.status !== "active" && p.status !== "done"),
+    [plans],
+  );
+  const planChip = (p: PlanSummary) => (
+    <button
+      key={p.plan_id}
+      className={"scope-chip" + (p.plan_id === selectedId ? " on" : "")}
+      onClick={() => setSelectedId(p.plan_id)}
+      title={`${p.status !== "active" ? "완료·잠금 · " : ""}${p.done_count}/${p.item_count} · ${Math.round((p.progress ?? 0) * 100)}%`}
+    >
+      {p.title}
+      <span className="dotsep">·</span>
+      {Math.round((p.progress ?? 0) * 100)}%
+    </button>
+  );
+
   return (
     <>
       <Toolbar title="Planner" sub="AI 가 갱신하는 계획 — 항목별 진척·귀속">
@@ -359,27 +385,50 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
             </div>
           ) : null}
 
-          {/* Plan selector */}
+          {/* Plan selector — active up top, completed/archived folded (#3). */}
           {plans && plans.length > 0 ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-              {[...plans]
-                .sort((a, b) => Number(a.status !== "active") - Number(b.status !== "active"))
-                .map((p) => {
-                  const pLocked = p.status !== "active";
-                  return (
-                    <button
-                      key={p.plan_id}
-                      className={"scope-chip" + (p.plan_id === selectedId ? " on" : "")}
-                      onClick={() => setSelectedId(p.plan_id)}
-                      title={`${pLocked ? "완료·잠금 · " : ""}${p.done_count}/${p.item_count} · ${Math.round((p.progress ?? 0) * 100)}%`}
-                    >
-                      {pLocked ? "🔒 " : ""}
-                      {p.title}
-                      <span className="dotsep">·</span>
-                      {Math.round((p.progress ?? 0) * 100)}%
-                    </button>
-                  );
-                })}
+            <div className="plan-selector">
+              <div className="plan-chip-row">
+                {activePlans.length > 0 ? (
+                  activePlans.map(planChip)
+                ) : (
+                  <span style={{ fontSize: 12, color: "var(--text-3)", padding: "4px 0" }}>
+                    진행 중인 계획이 없어요 — 완료된 계획을 펼치거나 새 계획을 만드세요.
+                  </span>
+                )}
+              </div>
+
+              {donePlans.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="plan-group-toggle"
+                    onClick={() => setShowDone((s) => !s)}
+                    aria-expanded={showDone}
+                  >
+                    {showDone ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    ✓ 완료 {donePlans.length}
+                  </button>
+                  {showDone ? <div className="plan-chip-row">{donePlans.map(planChip)}</div> : null}
+                </>
+              ) : null}
+
+              {archivedPlans.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="plan-group-toggle"
+                    onClick={() => setShowArchived((s) => !s)}
+                    aria-expanded={showArchived}
+                  >
+                    {showArchived ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    🗄 보관 {archivedPlans.length}
+                  </button>
+                  {showArchived ? (
+                    <div className="plan-chip-row">{archivedPlans.map(planChip)}</div>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           ) : null}
 
@@ -646,11 +695,12 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
         {linked.length > 0 ? (
           <button
             type="button"
+            className="jref-btn"
+            style={{ marginLeft: 8 }}
             onClick={() => onOpenJournalRef(linked[0])}
             title={`연결된 일지 ${linked.length}건 — 열기`}
-            style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: 11, padding: 0 }}
           >
-            📓 {linked.length}
+            📓 일지{linked.length > 1 ? ` ${linked.length}` : ""}
           </button>
         ) : null}
         {suggestDone ? (
@@ -681,11 +731,11 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
                   {u.journal_ref ? (
                     <button
                       type="button"
+                      className="jref-btn"
                       onClick={() => onOpenJournalRef(u.journal_ref!)}
                       title={`일지로 이동: ${u.journal_ref}`}
-                      style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--text-3)" }}
                     >
-                      📓
+                      📓 일지
                     </button>
                   ) : null}
                 </div>

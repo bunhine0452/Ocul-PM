@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -58,6 +58,13 @@ export default function ShellV2({
   // as shell-local ephemeral state (focus is not persisted; it's a single
   // event, mirroring WorkspaceContext.diffTarget's one-shot semantics).
   const [journalFocus, setJournalFocus] = useState<string | null>(null);
+
+  // Planner 📓 → open a specific journal entry's detail view directly. Distinct
+  // from `journalFocus` (timeline ring-highlight): this resolves the entry by
+  // path even when it's older than the loaded day window, so completed plans
+  // whose work is weeks old still navigate. Cleared once the journal consumes it.
+  const [journalOpenEntry, setJournalOpenEntry] = useState<string | null>(null);
+  const clearJournalOpenEntry = useCallback(() => setJournalOpenEntry(null), []);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
@@ -150,6 +157,8 @@ export default function ShellV2({
             onOpenDiff={openDiffForEntry}
             focusPath={journalFocus}
             onFocusConsumed={() => setJournalFocus(null)}
+            openEntryPath={journalOpenEntry}
+            onOpenEntryConsumed={clearJournalOpenEntry}
           />
         ) : view === "diff" ? (
           <DiffScreenV2
@@ -166,7 +175,7 @@ export default function ShellV2({
             projectId={projectId}
             onNavigate={setUiV2View}
             onOpenJournal={(path) => {
-              setJournalFocus(path);
+              setJournalOpenEntry(path);
               setUiV2View("journal");
             }}
           />
