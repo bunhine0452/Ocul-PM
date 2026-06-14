@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Channel } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { commands, type DbHealth, type GithubVerifyResult } from "@/lib/bindings";
+import { commands, type DbHealth, type GithubVerifyResult, type IndexProgress } from "@/lib/bindings";
 import {
   Sun,
   Moon,
@@ -20,6 +21,8 @@ import {
   Download,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { toast } from "@/lib/toast";
 import { PROVIDERS, type Provider } from "@/lib/settings";
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
@@ -674,8 +677,47 @@ function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
 
 function IndexingTab() {
   const { settings, set } = useSettings();
+  const { state } = useWorkspace();
+  const projectId = state.currentProjectId;
+  const [reindexing, setReindexing] = useState(false);
+
+  const reindex = async () => {
+    if (projectId == null || reindexing) return;
+    setReindexing(true);
+    const channel = new Channel<IndexProgress>();
+    const res = await commands.indexProject(projectId, channel);
+    setReindexing(false);
+    if (res.status === "ok") toast.info("코드 검색 인덱스를 다시 만들었어요.");
+    else toast.destructive(`인덱스 재구축 실패: ${res.error}`);
+  };
+
   return (
     <>
+      <Section
+        title="자동 인덱싱 · 재구축"
+        description="파일이 바뀌면 워처가 바뀐 파일만 곧바로 인덱싱합니다(이미 인덱싱된 프로젝트). 직접 처음부터 다시 만들려면 재구축하세요."
+      >
+        <Toggle
+          checked={settings.autoIndex}
+          onChange={(v) => set("autoIndex", v)}
+          label="변경 시 자동 인덱싱"
+        />
+        <div className="flex items-center gap-3 pt-1">
+          <Button
+            onClick={reindex}
+            disabled={projectId == null || reindexing}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${reindexing ? "animate-spin" : ""}`} />
+            {reindexing ? "재구축 중…" : "인덱스 재구축"}
+          </Button>
+          {projectId == null ? (
+            <span className="text-[11px] text-muted-foreground">프로젝트를 선택하면 재구축할 수 있어요.</span>
+          ) : null}
+        </div>
+      </Section>
+
       <Section
         title="청킹"
         description="청크가 클수록 스니펫당 컨텍스트가 풍부하고, 작을수록 검색 정밀도가 높아집니다."

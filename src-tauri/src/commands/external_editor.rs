@@ -39,6 +39,40 @@ pub async fn open_in_editor(
     spawn_detached(&cmd_str).map_err(|e| format!("Failed to launch editor: {e}"))
 }
 
+/// Open an http(s) URL in the user's default browser. Used by the Today commit
+/// graph to jump to a commit on GitHub. We shell out to the OS opener
+/// (`open` / `xdg-open` / `cmd start`) rather than the opener plugin so no
+/// path/url scope config is needed (mirrors `oculpm_open_entry_in_editor`).
+/// Only http/https is allowed — never a local path or arbitrary scheme.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    if !(trimmed.starts_with("https://") || trimmed.starts_with("http://")) {
+        return Err("Only http(s) URLs can be opened.".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = Command::new("open");
+        c.arg(trimmed);
+        c
+    };
+    #[cfg(target_os = "linux")]
+    let mut cmd = {
+        let mut c = Command::new("xdg-open");
+        c.arg(trimmed);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let mut c = Command::new("cmd");
+        // empty title arg so a URL with spaces isn't treated as the window title
+        c.args(["/C", "start", "", trimmed]);
+        c
+    };
+    cmd.spawn().map(|_| ()).map_err(|e| format!("Failed to open URL: {e}"))
+}
+
 /// Replace the first occurrence of `%path` (or `"%path"`) in `template` with a
 /// shell-quoted form of `abs_path`. Public for unit testing.
 pub fn substitute_path(template: &str, abs_path: &str) -> String {

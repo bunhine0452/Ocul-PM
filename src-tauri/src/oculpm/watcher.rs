@@ -355,7 +355,7 @@ impl WatcherInner {
         // work is fire-and-forget so the embedding model never stalls the
         // watcher loop. Uses the real relative path before step-8 masking.
         if !self.is_forbidden(&path) {
-            self.schedule_incremental_index(change.path.clone(), change.op);
+            self.schedule_incremental_index(change.path.clone(), change.op, change.hash_after.clone());
         }
 
         // 8. Forbidden-path masking.
@@ -491,7 +491,7 @@ impl WatcherInner {
     ///     same per-file filter the full sweep uses,
     ///   - runs on a background task so the embedding model never stalls the
     ///     watcher's debounce loop.
-    fn schedule_incremental_index(&self, rel_path: String, op: FileOp) {
+    fn schedule_incremental_index(&self, rel_path: String, op: FileOp, hash_after: Option<String>) {
         let Some(handle) = self.app_handle.clone() else {
             return;
         };
@@ -509,6 +509,25 @@ impl WatcherInner {
             // Only keep an existing index fresh — bootstrapping stays manual.
             if !matches!(db.count_files(project_id).await, Ok(n) if n > 0) {
                 return;
+            }
+
+            // Skip when the content hasn't actually changed. The watcher already
+            // hashed the file (`hash_after`), so comparing against the indexed
+            // hash lets us avoid a redundant re-read + re-embed — which on macOS
+            // is what re-triggers the "access files from another app" permission
+            // prompt on every editor save (dogfooding 2026-06-15). Only Create/
+            // Update carry a hash; Delete always proceeds.
+            if !matches!(op, FileOp::Delete) {
+                if let Some(h) = hash_after.as_deref() {
+                    let new_hash = h.strip_prefix("blake3:").unwrap_or(h);
+                    if let Ok(Some((_, stored))) =
+                        db.get_file_hash(project_id, rel_path.clone()).await
+                    {
+                        if stored == new_hash {
+                            return;
+                        }
+                    }
+                }
             }
 
             match op {

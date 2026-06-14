@@ -84,6 +84,8 @@ vi.mock("@/lib/bindings", () => ({
       Promise.resolve({ status: "ok", data: { is_git_repo: false, head_branch: null, uncommitted: 0 } }),
     gitLog: () => Promise.resolve({ status: "ok", data: [] }),
     gitGraph: () => Promise.resolve({ status: "ok", data: [] }),
+    gitStatus: () =>
+      Promise.resolve({ status: "ok", data: { is_git_repo: false, head_branch: null, remotes: [] } }),
     dashboardStats: () =>
       Promise.resolve({
         status: "ok",

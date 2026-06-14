@@ -228,6 +228,14 @@ export const commands = {
 	 */
 	gitUncommittedChanges: (projectId: number) => typedError<GitChange[], string>(__TAURI_INVOKE("git_uncommitted_changes", { projectId })),
 	openInEditor: (projectRoot: string, relPath: string, editorCmd: string) => typedError<null, string>(__TAURI_INVOKE("open_in_editor", { projectRoot, relPath, editorCmd })),
+	/**
+	 *  Open an http(s) URL in the user's default browser. Used by the Today commit
+	 *  graph to jump to a commit on GitHub. We shell out to the OS opener
+	 *  (`open` / `xdg-open` / `cmd start`) rather than the opener plugin so no
+	 *  path/url scope config is needed (mirrors `oculpm_open_entry_in_editor`).
+	 *  Only http/https is allowed — never a local path or arbitrary scheme.
+	 */
+	openUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_url", { url })),
 	getProjectOverview: (projectId: number) => typedError<{
 	project_id: number,
 	identity: string | null,

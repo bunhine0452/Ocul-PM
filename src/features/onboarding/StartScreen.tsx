@@ -7,7 +7,7 @@
  *
  * 추가로 미완성 blueprint 복원/삭제 UI와 최근 프로젝트 카드를 표시.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   commands,
   type Project,
@@ -47,8 +47,9 @@ interface FeedItem {
 interface CockpitData {
   feed: FeedItem[];
   todayCount: number;
-  week: number[]; // oldest → newest (7 buckets)
   todayByProject: Record<number, number>;
+  /** ISO created_at of each project's most recent entry (for "마지막 활동"). */
+  lastByProject: Record<number, string>;
 }
 const TYPE_TONE: Record<string, { label: string; color: string }> = {
   feature: { label: "기능", color: "#12a06b" },
@@ -65,15 +66,6 @@ function calToday(): string {
     d.getFullYear().toString().padStart(4, "0") +
     (d.getMonth() + 1).toString().padStart(2, "0") +
     d.getDate().toString().padStart(2, "0")
-  );
-}
-function shiftDay(key: string, delta: number): string {
-  const dt = new Date(+key.slice(0, 4), +key.slice(4, 6) - 1, +key.slice(6, 8));
-  dt.setDate(dt.getDate() + delta);
-  return (
-    dt.getFullYear().toString().padStart(4, "0") +
-    (dt.getMonth() + 1).toString().padStart(2, "0") +
-    dt.getDate().toString().padStart(2, "0")
   );
 }
 function hhmm(iso: string): string {
@@ -126,7 +118,6 @@ export function StartScreen(props: StartScreenProps) {
     }
     let alive = true;
     const todayKey = calToday();
-    const week = Array.from({ length: 7 }, (_, i) => shiftDay(todayKey, -i)); // [today … -6]
     void (async () => {
       const results = await Promise.allSettled(
         // Promise.resolve().then(...) so a synchronous throw (e.g. a project whose
@@ -140,15 +131,17 @@ export function StartScreen(props: StartScreenProps) {
       );
       if (!alive) return;
       const feed: FeedItem[] = [];
-      const weekCount: Record<string, number> = {};
       const todayByProject: Record<number, number> = {};
+      const lastByProject: Record<number, string> = {};
       let todayCount = 0;
       for (const r of results) {
         if (r.status !== "fulfilled") continue;
         const { p, list } = r.value;
         for (const e of list) {
           feed.push({ projectId: p.id, projectName: p.name, entry: e });
-          if (week.includes(e.workday)) weekCount[e.workday] = (weekCount[e.workday] ?? 0) + 1;
+          if (!lastByProject[p.id] || e.created_at > lastByProject[p.id]) {
+            lastByProject[p.id] = e.created_at;
+          }
           if (e.workday === todayKey) {
             todayCount += 1;
             todayByProject[p.id] = (todayByProject[p.id] ?? 0) + 1;
@@ -156,15 +149,7 @@ export function StartScreen(props: StartScreenProps) {
         }
       }
       feed.sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at));
-      setCockpit({
-        feed: feed.slice(0, 10),
-        todayCount,
-        week: week
-          .slice()
-          .reverse()
-          .map((k) => weekCount[k] ?? 0),
-        todayByProject,
-      });
+      setCockpit({ feed: feed.slice(0, 10), todayCount, todayByProject, lastByProject });
     })();
     return () => {
       alive = false;
@@ -204,8 +189,25 @@ export function StartScreen(props: StartScreenProps) {
     return `${Math.floor(diff / 86400)}일 전`;
   }
 
+  // Surface what you're actively working on: projects with today's activity
+  // float up, then most-recently-active. Falls back to the given order.
+  const displayProjects = useMemo(() => {
+    if (!cockpit) return projects;
+    const { todayByProject, lastByProject } = cockpit;
+    return [...projects].sort((a, b) => {
+      const ta = todayByProject[a.id] ?? 0;
+      const tb = todayByProject[b.id] ?? 0;
+      if (ta !== tb) return tb - ta;
+      return (lastByProject[b.id] ?? "").localeCompare(lastByProject[a.id] ?? "");
+    });
+  }, [projects, cockpit]);
+
   return (
-    <main className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full space-y-10 scrollbar-thin">
+    // Full-height scroll container — the parent (App) is `h-screen overflow-hidden`,
+    // so the page itself must own the scroll or it clips on short windows
+    // (dogfooding 2026-06-15: main page wasn't scrollable).
+    <main className="h-full overflow-y-auto scrollbar-thin">
+      <div className="p-8 max-w-5xl mx-auto w-full space-y-10">
       {/* ── Hero ────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center space-y-3 mt-4">
         <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
@@ -267,27 +269,6 @@ export function StartScreen(props: StartScreenProps) {
               );
             })}
           </ul>
-
-          {cockpit.week.some((n) => n > 0) && (
-            <div className="space-y-1.5 pt-1">
-              <div className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-wider">
-                최근 7일
-              </div>
-              <div className="flex items-end gap-1.5 h-9">
-                {cockpit.week.map((n, i) => {
-                  const max = Math.max(...cockpit.week, 1);
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 rounded-sm bg-primary/60 hover:bg-primary transition-colors"
-                      style={{ height: `${Math.max(3, (n / max) * 100)}%` }}
-                      title={`${n}건`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </section>
       )}
 
@@ -425,9 +406,10 @@ export function StartScreen(props: StartScreenProps) {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {projects.map((p) => {
+          {displayProjects.map((p) => {
             const s = stats[p.id];
             const isIndexing = indexingId === p.id;
+            const lastIso = cockpit?.lastByProject[p.id];
             return (
               <div
                 key={p.id}
@@ -467,6 +449,12 @@ export function StartScreen(props: StartScreenProps) {
                     {p.name}
                   </h3>
                   <p className="text-[10px] text-muted-foreground/80 font-mono truncate mt-1">{p.root_path}</p>
+                  {lastIso ? (
+                    <p className="text-[10px] text-muted-foreground/70 mt-1.5 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      마지막 활동 {relativeTime(Math.floor(new Date(lastIso).getTime() / 1000))}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center justify-between mt-4 border-t border-border/40 pt-3">
@@ -535,6 +523,7 @@ export function StartScreen(props: StartScreenProps) {
           )}
         </div>
       </section>
+      </div>
     </main>
   );
 }

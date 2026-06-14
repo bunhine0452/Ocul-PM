@@ -10,7 +10,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
-import { SettingsScreenV2 } from "@/features/settings/SettingsScreenV2";
+import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -151,9 +151,18 @@ export default function ShellV2({
       />
       <main className="content">
         {view === "settings" ? (
-          // Settings is global (⌘,) — reachable even before a project is
-          // selected; its per-project rows self-disable when projectId is null.
-          <SettingsScreenV2 projectId={projectId} projectRoot={projectRoot} />
+          // Unified settings (dogfooding 2026-06-15): the in-project ⌘, screen now
+          // renders the SAME comprehensive SettingsPanel as the project-picker, so
+          // both entry points are identical. Per-project rows read the active
+          // project from WorkspaceContext and self-disable when none is selected.
+          <>
+            <Toolbar title="설정" sub="모든 데이터는 이 기기에만 저장됩니다" />
+            <div className="scroll">
+              <div className="page fade-in">
+                <SettingsPanel embedded />
+              </div>
+            </div>
+          </>
         ) : projectId == null ? (
           <>
             <Toolbar title={view === "today" ? "Today" : "작업 일지"} />

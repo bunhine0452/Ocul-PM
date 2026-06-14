@@ -1,4 +1,4 @@
-import { Clock, GitBranch, Target } from "@/components/Icons";
+import { Clock, GitBranch } from "@/components/Icons";
 import { StatCard } from "./StatCard";
 import type { TodayMonitor as TodayMonitorData } from "./useTodayMonitor";
 
@@ -63,30 +63,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
             </span>
           ) : (
             <span>git 저장소 아님</span>
-          )
-        }
-      />
-
-      {/* 목표 — avg progress + open/due/overdue */}
-      <StatCard
-        icon={Target}
-        tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
-        label="목표 진행률"
-        value={monitor && monitor.goalTotal > 0 ? monitor.goalPct : "—"}
-        unit={monitor && monitor.goalTotal > 0 ? "%" : undefined}
-        sub={
-          monitor && monitor.goalTotal > 0 ? (
-            <span>
-              진행 {monitor.goalInProgress} · 미완 {monitor.goalOpen}
-              {monitor.goalDueToday > 0 ? (
-                <span className="accent"> · 오늘 마감 {monitor.goalDueToday}</span>
-              ) : null}
-              {monitor.goalOverdue > 0 ? (
-                <span className="diff-del"> · 지연 {monitor.goalOverdue}</span>
-              ) : null}
-            </span>
-          ) : (
-            <span>등록된 목표 없음</span>
           )
         }
       />

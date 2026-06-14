@@ -269,9 +269,10 @@ export function TodayScreenV2({
             </div>
           )}
 
-          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
-
           <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
+
+          {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
+          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
         </div>
       </div>
     </>

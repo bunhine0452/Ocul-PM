@@ -578,6 +578,9 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Today 커밋 그래프 — 클릭 가능한 행 hover (GitHub 열기). */
+.git-graph-row:hover { background: var(--bg-inset); }
+
 /* diff 행 — marker(+/-/space) 고정 칸 + 하이라이트된 코드. */
 .dl-mark { display: inline-block; width: 1ch; user-select: none; opacity: 0.65; }
 /* Wrap long code lines to the pane width. The parent `.dl-x` is already
