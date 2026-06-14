@@ -122,10 +122,13 @@ pub fn capture_entry_diffs(
             }
             // Empty git patch (committed / unchanged) or a recoverable git error
             // (non-git project) → tier 2 snapshot fallback, then tier 3
-            // git-history fallback (see module docs).
+            // git-history fallback (see module docs). Tier 3 runs even when
+            // `entry_time` is None (filename has no HH:MM) — it then uses the
+            // newest commit touching the path, so externally-authored journals
+            // without the `HHMM_` prefix still recover their diff.
             _ => {
                 let patch = snapshot_patch(root, &f.path, snapshots)
-                    .or_else(|| entry_time.and_then(|t| history_patch(root, &f.path, t)));
+                    .or_else(|| history_patch(root, &f.path, entry_time));
                 if let Some(patch) = patch {
                     files.push(EntryFileDiff {
                         path: f.path.clone(),
@@ -140,9 +143,9 @@ pub fn capture_entry_diffs(
 }
 
 /// Git-history fallback (tier 3) for a single file: the diff of the commit that
-/// touched `rel_path` nearest the entry's timestamp. `None` on no history /
-/// non-git / empty patch.
-fn history_patch(root: &Path, rel_path: &str, around_unix: i64) -> Option<String> {
+/// touched `rel_path` nearest the entry's timestamp (or the newest commit when
+/// `around_unix` is `None`). `None` on no history / non-git / empty patch.
+fn history_patch(root: &Path, rel_path: &str, around_unix: Option<i64>) -> Option<String> {
     match crate::git::diff_at_nearest_commit(root, rel_path, around_unix, MAX_PATCH_BYTES) {
         Ok(p) if !p.trim().is_empty() => Some(p),
         _ => None,
@@ -425,6 +428,54 @@ mod tests {
         assert!(
             got[0].patch.contains("const neo = 2;"),
             "expected the change commit's diff, got: {}",
+            got[0].patch
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn history_fallback_records_when_filename_has_no_hhmm() {
+        // Regression (2026-06-14): an externally-authored journal whose filename
+        // has no `HHMM_` prefix → entry_unix_time() is None. Tier 3 must STILL
+        // recover the committed diff (previously it was skipped entirely, so the
+        // UI showed "기록된 변경 없음"). Falls back to the newest commit.
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-nohhmm-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        if git(&tmp, &["init", "-q"]).is_err() {
+            return;
+        }
+        git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+        git(&tmp, &["config", "user.name", "t"]).unwrap();
+        let rel = "src/page.tsx";
+        std::fs::write(tmp.join(rel), "const a = 1;\n").unwrap();
+        git(&tmp, &["add", "."]).unwrap();
+        git(&tmp, &["commit", "-qm", "base"]).unwrap();
+        std::fs::write(tmp.join(rel), "const a = 2;\n").unwrap();
+        git(&tmp, &["add", "."]).unwrap();
+        git(&tmp, &["commit", "-qm", "change"]).unwrap();
+
+        let workday = chrono::Local::now().format("%Y%m%d").to_string();
+        let entry = format!("{workday}/Bugs/intl-en-saju.md"); // no HHMM prefix
+        assert!(
+            entry_unix_time(&entry).is_none(),
+            "fixture must have an unparseable timestamp"
+        );
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: crate::oculpm::spec::FileOp::Update,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        }];
+
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        let got = read_entry_diffs(&tmp, &entry);
+        assert_eq!(got.len(), 1, "no-HHMM entry should still recover via newest commit");
+        assert!(
+            got[0].patch.contains("const a = 2;"),
+            "expected the newest commit's diff, got: {}",
             got[0].patch
         );
         let _ = std::fs::remove_dir_all(&tmp);

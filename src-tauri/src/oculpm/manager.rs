@@ -764,10 +764,14 @@ impl OculpmManager {
         &self,
         db: &Db,
         project_id: u32,
+        root: PathBuf,
         relative_path: String,
     ) -> Result<Vec<crate::oculpm::entry_diffs::EntryFileDiff>, OculpmError> {
         use crate::oculpm::entry_diffs;
-        let root = self.project_root(project_id).await?;
+        // `root` is resolved by the caller from the DB (not `self.project_root`),
+        // so reconstruction works even when the project isn't registered in the
+        // manager — the journal screen reads straight from the SQLite cache and
+        // a project can be browsed without an active watcher.
         let existing = entry_diffs::read_entry_diffs(&root, &relative_path);
         if !existing.is_empty() {
             return Ok(existing);

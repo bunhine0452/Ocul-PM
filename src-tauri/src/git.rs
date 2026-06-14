@@ -498,12 +498,14 @@ fn truncate_patch(text: String, max_bytes: usize) -> String {
 /// near the same time — but a best-effort "그 시점의 변경" beats "기록 없음".
 /// Among candidates ordered by time-distance it returns the first whose
 /// `git show` is non-empty (skipping merges / no-op touches), trying a few.
-/// Returns an empty string when the path has no history or nothing yields a
-/// patch.
+/// When `around_unix` is `None` (the entry's filename carries no parseable
+/// HH:MM, e.g. an externally-authored journal), it falls back to the newest
+/// commit that touched the path. Returns an empty string when the path has no
+/// history or nothing yields a patch.
 pub fn diff_at_nearest_commit(
     root: &Path,
     file_path: &str,
-    around_unix: i64,
+    around_unix: Option<i64>,
     max_bytes: usize,
 ) -> Result<String, String> {
     if !is_repo(root) {
@@ -525,7 +527,11 @@ pub fn diff_at_nearest_commit(
     if candidates.is_empty() {
         return Ok(String::new());
     }
-    candidates.sort_by_key(|(_, ts)| (ts - around_unix).abs());
+    // With a timestamp, pick the commit nearest the entry; without one, keep
+    // git-log order (newest first) so the most recent change wins.
+    if let Some(t) = around_unix {
+        candidates.sort_by_key(|(_, ts)| (ts - t).abs());
+    }
 
     for (hash, _) in candidates.into_iter().take(5) {
         // `--format=` drops the commit header, leaving just the patch; `show`

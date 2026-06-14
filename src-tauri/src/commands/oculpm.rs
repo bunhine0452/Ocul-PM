@@ -392,23 +392,16 @@ pub async fn oculpm_get_entry_diffs(
     project_id: u32,
     relative_path: String,
 ) -> Result<Vec<EntryFileDiff>, String> {
-    // Lazily reconstruct on a sidecar miss (committed-after-journal etc.) so the
-    // entry's diff shows immediately instead of "기록된 변경 없음". Falls back to a
-    // plain sidecar read if the manager isn't active for this project.
-    match manager
-        .read_or_reconstruct_entry_diffs(&db, project_id, relative_path.clone())
+    // Lazily reconstruct on a sidecar miss (committed-after-journal, externally
+    // authored, pre-feature) so the entry's diff shows immediately instead of
+    // "기록된 변경 없음". Root comes from the DB, so it works without an active
+    // manager (the journal screen reads from the SQLite cache).
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = PathBuf::from(&project.root_path);
+    manager
+        .read_or_reconstruct_entry_diffs(&db, project_id, root, relative_path)
         .await
-    {
-        Ok(v) => Ok(v),
-        Err(_) => {
-            let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
-            let root = PathBuf::from(&project.root_path);
-            Ok(crate::oculpm::entry_diffs::read_entry_diffs(
-                &root,
-                &relative_path,
-            ))
-        }
-    }
+        .map_err(|e| e.to_string())
 }
 
 /// Group the watcher's changed file paths by the journal entry that recorded

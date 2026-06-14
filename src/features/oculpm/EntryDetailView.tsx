@@ -282,9 +282,14 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                 이 일지에는 기록된 변경이 없어요.
                 <br />
                 <span className="text-muted-foreground" style={{ fontSize: 11 }}>
-                  (이 기능 적용 전 일지이거나, git 저장소가 아니거나, 커밋 후 작성된 경우 — 왼쪽
-                  서술로 변경 맥락을 확인하세요)
+                  (git 저장소가 아니거나, 변경한 파일 경로를 git 이력에서 찾지 못한 경우예요 —
+                  아래에서 현재 변경을 직접 확인하거나 왼쪽 서술로 맥락을 보세요)
                 </span>
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn sm" onClick={() => onOpenDiff(entry)}>
+                    <GitCompareArrows size={14} /> 변경 diff 화면에서 보기
+                  </button>
+                </div>
               </div>
             ) : active ? (
               <PatchView patch={active.patch} mode={diffMode} lang={langFromPath(active.path)} />
