@@ -1,10 +1,11 @@
 //! Lightweight wrappers around the local `git` CLI for read-only operations.
 //! Operates on any local clone — does NOT require a GitHub token or network.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct GitCommit {
@@ -89,6 +90,88 @@ fn is_repo(root: &Path) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+/// Resolve the git work-tree root that contains `path` (a file or directory).
+/// Walks up from the nearest existing ancestor via `rev-parse --show-toplevel`,
+/// so it finds the repo even when it sits *below* the Ocul-PM project root — the
+/// `.oculpm/` folder can be opened on a parent of the actual git repo. Returns
+/// `None` when `path` is not inside any repo.
+pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
+    // `git -C` needs an existing directory — climb to the nearest one.
+    let mut anchor = path;
+    let dir = loop {
+        if anchor.is_dir() {
+            break anchor;
+        }
+        if anchor.exists() {
+            // a file → use its parent
+            break anchor.parent()?;
+        }
+        anchor = anchor.parent()?;
+    };
+    let out = run_git(dir, &["rev-parse", "--show-toplevel"]).ok()?;
+    let top = out.trim();
+    if top.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(top))
+    }
+}
+
+/// The path of `abs` relative to its repo `repo`, as a git pathspec. Resilient
+/// to symlinked roots (e.g. macOS `/var` → `/private/var`, which `rev-parse
+/// --show-toplevel` canonicalizes but `root.join(path)` does not) and to deleted
+/// files (canonicalizes the parent dir, re-attaches the file name).
+fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
+    if let Ok(real) = std::fs::canonicalize(abs) {
+        if let Ok(rel) = real.strip_prefix(repo) {
+            return Some(rel.to_string_lossy().to_string());
+        }
+    }
+    if let (Some(parent), Some(name)) = (abs.parent(), abs.file_name()) {
+        if let Ok(preal) = std::fs::canonicalize(parent) {
+            if let Ok(rel) = preal.strip_prefix(repo) {
+                return Some(rel.join(name).to_string_lossy().to_string());
+            }
+        }
+    }
+    abs.strip_prefix(repo)
+        .ok()
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Find the git work-tree root(s) relevant to a project at `root`. The common
+/// case (root is, or is inside, one repo) returns a single root. When the
+/// `.oculpm/` folder sits above the actual repo(s), it discovers repo roots a
+/// few levels down — so the 변경 diff 화면 stays git-backed (persistent across
+/// restarts/updates) instead of falling back to the volatile watcher buffer.
+fn discover_repos(root: &Path) -> Vec<PathBuf> {
+    if let Some(r) = repo_root_for(root) {
+        return vec![r];
+    }
+    const SKIP: &[&str] = &[
+        ".git", "node_modules", ".oculpm", "target", "dist", "build", ".next",
+        ".venv", "venv", "__pycache__", ".turbo", ".cache",
+    ];
+    let mut repos = Vec::new();
+    for entry in WalkDir::new(root)
+        .min_depth(1)
+        .max_depth(4)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_type().is_dir() || !SKIP.contains(&e.file_name().to_string_lossy().as_ref())
+        })
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_dir() && entry.path().join(".git").exists() {
+            repos.push(entry.path().to_path_buf());
+            if repos.len() >= 25 {
+                break;
+            }
+        }
+    }
+    repos
 }
 
 /// Recent commits, newest first. Excludes merge commits by default.
@@ -384,37 +467,47 @@ pub fn head_status_brief(root: &Path) -> GitHeadStatusBrief {
 /// reflects edits made while the app was closed. Non-git projects / git
 /// failures yield an empty Vec so the caller can fall back to the watcher.
 pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
-    if !is_repo(root) {
-        return Vec::new();
-    }
-    let out = match run_git(
-        root,
-        &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-    ) {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-
+    // Discover the repo(s) for this project. Nested repos (git below the .oculpm
+    // root) are found and reported with paths relative to `root`, so the change
+    // list is git-backed (survives restarts/updates) for those layouts too.
     let mut changes = Vec::new();
-    let mut tokens = out.split('\0');
-    while let Some(entry) = tokens.next() {
-        // `-z` entries are `XY<space>PATH`. A rename/copy (X in {R,C}) is
-        // followed by a separate NUL-terminated token holding the original
-        // path — consume it so it isn't parsed as its own entry.
-        if entry.len() < 4 {
-            continue;
+    for repo in discover_repos(root) {
+        // Prefix to make each repo's paths relative to the project root.
+        let prefix = repo.strip_prefix(root).ok().map(PathBuf::from);
+        let out = match run_git(
+            &repo,
+            &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        ) {
+            Ok(o) => o,
+            Err(_) => continue,
+        };
+
+        let mut tokens = out.split('\0');
+        while let Some(entry) = tokens.next() {
+            // `-z` entries are `XY<space>PATH`. A rename/copy (X in {R,C}) is
+            // followed by a separate NUL-terminated token holding the original
+            // path — consume it so it isn't parsed as its own entry.
+            if entry.len() < 4 {
+                continue;
+            }
+            let bytes = entry.as_bytes();
+            let x = bytes[0] as char;
+            let y = bytes[1] as char;
+            let raw = &entry[3..];
+            if x == 'R' || x == 'C' {
+                let _ = tokens.next();
+            }
+            let path = match &prefix {
+                Some(p) if !p.as_os_str().is_empty() => {
+                    p.join(raw).to_string_lossy().to_string()
+                }
+                _ => raw.to_string(),
+            };
+            changes.push(GitChange {
+                path,
+                op: porcelain_op(x, y).to_string(),
+            });
         }
-        let bytes = entry.as_bytes();
-        let x = bytes[0] as char;
-        let y = bytes[1] as char;
-        let path = entry[3..].to_string();
-        if x == 'R' || x == 'C' {
-            let _ = tokens.next();
-        }
-        changes.push(GitChange {
-            path,
-            op: porcelain_op(x, y).to_string(),
-        });
     }
     changes
 }
@@ -448,9 +541,12 @@ pub fn diff_patch(
     to: Option<&str>,
     max_bytes: usize,
 ) -> Result<String, String> {
-    if !is_repo(root) {
-        return Err("Not a git repository.".to_string());
-    }
+    // Resolve the repo that actually contains the file — it may be nested below
+    // `root` (the .oculpm folder can sit above the git repo). Run git there with
+    // the path made relative to that repo.
+    let abs = root.join(file_path);
+    let repo = repo_root_for(&abs).ok_or_else(|| "Not a git repository.".to_string())?;
+    let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.to_string());
 
     let mut args = vec!["diff", "--unified=3"];
     match (from, to) {
@@ -466,9 +562,9 @@ pub fn diff_patch(
         }
     }
     args.push("--");
-    args.push(file_path);
+    args.push(&rel);
 
-    let text = run_git(root, &args)?;
+    let text = run_git(&repo, &args)?;
 
     Ok(truncate_patch(text, max_bytes))
 }
@@ -508,14 +604,17 @@ pub fn diff_at_nearest_commit(
     around_unix: Option<i64>,
     max_bytes: usize,
 ) -> Result<String, String> {
-    if !is_repo(root) {
-        return Err("Not a git repository.".to_string());
-    }
+    // Resolve the repo containing the file (may be nested below `root`).
+    let abs = root.join(file_path);
+    let Some(repo) = repo_root_for(&abs) else {
+        return Ok(String::new());
+    };
+    let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.to_string());
 
     // "<hash> <author-unixtime>" per commit touching the path (newest first).
     let listing = run_git(
-        root,
-        &["log", "--format=%H %at", "--max-count=200", "--", file_path],
+        &repo,
+        &["log", "--format=%H %at", "--max-count=200", "--", &rel],
     )?;
     let mut candidates: Vec<(String, i64)> = listing
         .lines()
@@ -537,8 +636,8 @@ pub fn diff_at_nearest_commit(
         // `--format=` drops the commit header, leaving just the patch; `show`
         // (unlike `diff <h>^ <h>`) also handles the root commit (full-file add).
         let patch = run_git(
-            root,
-            &["show", "--format=", "--unified=3", &hash, "--", file_path],
+            &repo,
+            &["show", "--format=", "--unified=3", &hash, "--", &rel],
         )
         .unwrap_or_default();
         if !patch.trim().is_empty() {
@@ -609,6 +708,63 @@ mod tests {
         assert_eq!(porcelain_op('M', ' '), "M");
         assert_eq!(porcelain_op(' ', 'M'), "M");
         assert_eq!(porcelain_op('M', 'M'), "M");
+    }
+
+    fn git(dir: &Path, args: &[&str]) -> Result<(), ()> {
+        Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|_| ())
+            .ok_or(())
+    }
+
+    /// Regression (2026-06-14): when the git repo sits *below* the project root
+    /// (the .oculpm folder is opened on a parent), the live 변경 diff 화면 used
+    /// to fall back to the volatile watcher buffer — so it reset on every app
+    /// update. The git layer must discover the nested repo and report/diff its
+    /// changes with paths relative to the project root.
+    #[test]
+    fn nested_repo_below_root_is_diffable() {
+        let root = std::env::temp_dir().join(format!("ocul-nested-git-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let repo = root.join("app");
+        std::fs::create_dir_all(repo.join("src")).unwrap();
+        // root itself is NOT a repo; `app/` is.
+        if git(&repo, &["init", "-q"]).is_err() {
+            return; // git unavailable
+        }
+        git(&repo, &["config", "user.email", "t@t.dev"]).unwrap();
+        git(&repo, &["config", "user.name", "t"]).unwrap();
+        let rel_in_repo = "src/page.tsx";
+        std::fs::write(repo.join(rel_in_repo), "const a = 1;\n").unwrap();
+        git(&repo, &["add", "."]).unwrap();
+        git(&repo, &["commit", "-qm", "base"]).unwrap();
+        // Modify (uncommitted) — should surface in the change list.
+        std::fs::write(repo.join(rel_in_repo), "const a = 2;\n").unwrap();
+
+        // root is not itself a repo, but discovery finds app/.
+        assert!(!is_repo(&root), "root must not be a repo for this fixture");
+        let changes = uncommitted_changes(&root);
+        assert!(
+            changes.iter().any(|c| c.path == "app/src/page.tsx"),
+            "expected the nested repo's change at a root-relative path, got: {changes:?}"
+        );
+
+        // Per-file diff resolves the nested repo and shows the working change.
+        let patch = diff_patch(&root, "app/src/page.tsx", None, None, 64 * 1024).unwrap();
+        assert!(patch.contains("const a = 2;"), "diff_patch: {patch}");
+
+        // Commit it, then the history fallback still recovers the diff.
+        git(&repo, &["add", "."]).unwrap();
+        git(&repo, &["commit", "-qm", "change"]).unwrap();
+        let hist = diff_at_nearest_commit(&root, "app/src/page.tsx", None, 64 * 1024).unwrap();
+        assert!(hist.contains("const a = 2;"), "history: {hist}");
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
 
