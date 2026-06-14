@@ -5,10 +5,10 @@ export type Theme = "light" | "dark" | "system";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type UiDensity = "compact" | "comfortable";
-export type Provider = "anthropic" | "openai" | "gemini" | "nim";
+export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 
-export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim"];
+export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "openrouter"];
 
 /// Every setting we recognize. Keys are the exact column values in the
 /// `settings` SQLite table; values are stringified.
@@ -32,6 +32,10 @@ export const KEYS = {
   modelOpenai: "model_openai",
   modelGemini: "model_gemini",
   modelNim: "model_nim",
+  modelOpenrouter: "model_openrouter",
+  // Failover chain — newline-separated `provider:model` lines, tried in order
+  // when the primary call fails. Parsed by `parseFallbacks`.
+  fallbackModels: "fallback_models",
   temperature: "temperature",
   maxTokens: "max_tokens",
   systemPrompt: "system_prompt",
@@ -43,6 +47,9 @@ export const KEYS = {
   ragTopK: "rag_top_k",
   maxFileSizeKb: "max_file_size_kb",
   excludePatterns: "exclude_patterns",
+  // When on, the filesystem watcher incrementally reindexes a file as soon as
+  // it changes on disk (keeps an existing index fresh without a manual rebuild).
+  autoIndex: "auto_index",
 
   // --- AI 작업 맥락 (oculpm 기록 주입) ---
   includeOculpmContext: "include_oculpm_context",
@@ -80,6 +87,9 @@ export interface Settings {
   modelOpenai: string;
   modelGemini: string;
   modelNim: string;
+  modelOpenrouter: string;
+  /** Failover chain as raw text — one `provider:model` per line. */
+  fallbackModels: string;
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
@@ -90,6 +100,8 @@ export interface Settings {
   ragTopK: number;
   maxFileSizeKb: number;
   excludePatterns: string;
+  /** Incrementally reindex changed files via the watcher (no manual rebuild). */
+  autoIndex: boolean;
 
   /**
    * When true the chat prepends a "프로젝트 작업 맥락" block built from the most
@@ -134,6 +146,8 @@ export const DEFAULTS: Settings = {
   // NVIDIA NIM default — generally-available, competitive open-weights model.
   // Users override per-project in Settings → LLM.
   modelNim: "meta/llama-3.3-70b-instruct",
+  modelOpenrouter: "openai/gpt-4o-mini",
+  fallbackModels: "",
   temperature: 0.7,
   maxTokens: 4096,
   systemPrompt: "",
@@ -144,6 +158,7 @@ export const DEFAULTS: Settings = {
   ragTopK: 5,
   maxFileSizeKb: 500,
   excludePatterns: "",
+  autoIndex: true,
 
   includeOculpmContext: true,
   oculpmContextEntries: 5,
@@ -173,6 +188,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.modelOpenai]: "modelOpenai",
   [KEYS.modelGemini]: "modelGemini",
   [KEYS.modelNim]: "modelNim",
+  [KEYS.modelOpenrouter]: "modelOpenrouter",
+  [KEYS.fallbackModels]: "fallbackModels",
   [KEYS.temperature]: "temperature",
   [KEYS.maxTokens]: "maxTokens",
   [KEYS.systemPrompt]: "systemPrompt",
@@ -182,6 +199,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.ragTopK]: "ragTopK",
   [KEYS.maxFileSizeKb]: "maxFileSizeKb",
   [KEYS.excludePatterns]: "excludePatterns",
+  [KEYS.autoIndex]: "autoIndex",
   [KEYS.includeOculpmContext]: "includeOculpmContext",
   [KEYS.oculpmContextEntries]: "oculpmContextEntries",
   [KEYS.graphShowIsolated]: "graphShowIsolated",
@@ -247,5 +265,27 @@ export function providerModel(settings: Settings, provider: Provider): string {
       return settings.modelGemini || settings.defaultModel || DEFAULTS.modelGemini;
     case "nim":
       return settings.modelNim || settings.defaultModel || DEFAULTS.modelNim;
+    case "openrouter":
+      return settings.modelOpenrouter || settings.defaultModel || DEFAULTS.modelOpenrouter;
   }
+}
+
+// Parse the failover chain (`fallbackModels` text) into ordered
+// {provider, model} entries for the chat commands. Each line is
+// `provider:model` (model ids may themselves contain `:` so we split once).
+// Unknown providers and malformed lines are dropped.
+export function parseFallbacks(settings: Settings): { provider: Provider; model: string }[] {
+  return settings.fallbackModels
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .map((line) => {
+      const idx = line.indexOf(":");
+      if (idx < 0) return null;
+      const provider = line.slice(0, idx).trim().toLowerCase();
+      const model = line.slice(idx + 1).trim();
+      if (!model || !(PROVIDERS as string[]).includes(provider)) return null;
+      return { provider: provider as Provider, model };
+    })
+    .filter((v): v is { provider: Provider; model: string } => v !== null);
 }

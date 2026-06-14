@@ -7,6 +7,8 @@ import {
   CaseSensitive,
   Database,
   FileCode2,
+  ChevronRight,
+  ChevronDown,
   X,
   TriangleAlert,
 } from "@/components/Icons";
@@ -19,6 +21,12 @@ import { CodeSnippet } from "./CodeSnippet";
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
 // AST 인덱스) / 정확(searchText, chunk content LIKE). Each persists in
 // WorkspaceContext.searchScope. (Was: only 의미; symbol/text disabled "1.1".)
+//
+// Code-search round (2026-06-15):
+//   - 의미검색 문서 제외 — semantic search hides prose files (.md/.txt/…) by
+//     default; a "문서 포함" chip opts them back in.
+//   - 심볼 펼침 — symbol hits expand to show the function/class body, fetched
+//     lazily via read_file_range.
 
 const SEARCH_LIMIT = 20;
 
@@ -54,6 +62,8 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
   // Feature 1 — pretty-print result code (Prettier / wasm-fmt). Defaults on;
   // "원본" shows the indexed text verbatim for snippets that don't format well.
   const [formatted, setFormatted] = useState(true);
+  // 의미검색 문서 제외 — off by default so code hits aren't buried by docs.
+  const [includeDocs, setIncludeDocs] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,7 +71,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
   }, []);
 
   const runSearch = useCallback(
-    async (q: string, scopeArg: SearchScope) => {
+    async (q: string, scopeArg: SearchScope, includeDocsArg: boolean) => {
       const trimmed = q.trim();
       if (!trimmed) {
         setResults(null);
@@ -80,7 +90,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
         const res =
           scopeArg === "text"
             ? await commands.searchText(projectId, trimmed, SEARCH_LIMIT)
-            : await commands.searchChunks(projectId, trimmed, SEARCH_LIMIT);
+            : await commands.searchChunks(projectId, trimmed, SEARCH_LIMIT, includeDocsArg);
         if (res.status === "ok") {
           setResults({ kind: "chunk", mode: scopeArg === "text" ? "text" : "semantic", items: res.data });
         } else {
@@ -96,7 +106,13 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
   // Switching scope re-runs the current query so results match the active mode.
   const onScope = (next: SearchScope) => {
     setState((prev) => ({ ...prev, searchScope: next }));
-    if (query.trim()) void runSearch(query, next);
+    if (query.trim()) void runSearch(query, next, includeDocs);
+  };
+
+  // Toggling "문서 포함" only affects semantic search — re-run when on it.
+  const onToggleDocs = (next: boolean) => {
+    setIncludeDocs(next);
+    if (query.trim() && scope === "semantic") void runSearch(query, scope, next);
   };
 
   // ⌘F focuses input, ⌘N clears (01-ia-and-shell §3). Screen-local; stop
@@ -122,7 +138,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void runSearch(query, scope);
+    void runSearch(query, scope, includeDocs);
   };
 
   const show = query.trim().length > 0 && results != null;
@@ -176,6 +192,17 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                   </button>
                 );
               })}
+              {scope === "semantic" ? (
+                <button
+                  type="button"
+                  className={"scope-chip" + (includeDocs ? " on" : "")}
+                  onClick={() => onToggleDocs(!includeDocs)}
+                  title="md·txt 등 문서 파일을 의미검색 결과에 포함"
+                  style={{ marginLeft: "auto" }}
+                >
+                  <FileCode2 size={13} /> 문서 포함
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -193,21 +220,14 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
           ) : show && results!.kind === "symbol" ? (
             <div className="search-results">
               <div className="section-title" style={{ marginBottom: 12 }}>
-                {results!.items.length}개 심볼
+                {results!.items.length}개 심볼 · 펼쳐서 코드 보기
               </div>
               {results!.items.map((r, i) => (
-                <div className="card sresult" key={`${r.file_path}:${r.start_line}:${r.name}:${i}`}>
-                  <div className="sresult-head">
-                    <Variable size={15} color="var(--text-2)" />
-                    <span className="sresult-path">
-                      <strong>{r.name}</strong>
-                      <span className="sym-kind">{r.kind}</span>
-                    </span>
-                    <span className="sresult-lines">
-                      {r.file_path} · L{r.start_line}–{r.end_line}
-                    </span>
-                  </div>
-                </div>
+                <SymbolResult
+                  key={`${r.file_path}:${r.start_line}:${r.name}:${i}`}
+                  projectId={projectId}
+                  r={r}
+                />
               ))}
             </div>
           ) : show ? (
@@ -268,6 +288,73 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
         </div>
       </div>
     </>
+  );
+}
+
+// A single symbol hit. The row header is a button that toggles the function /
+// class body open; the code is fetched lazily on first expand (read_file_range)
+// so a 20-symbol result list doesn't pull 20 file ranges up front.
+function SymbolResult({ projectId, r }: { projectId: number; r: SymbolSearchResult }) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && code == null && !loading) {
+      setLoading(true);
+      setErr(null);
+      const res = await commands.readFileRange(projectId, r.file_path, r.start_line, r.end_line);
+      if (res.status === "ok") setCode(res.data);
+      else setErr(res.error);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card sresult">
+      <button
+        type="button"
+        className="sresult-head"
+        onClick={() => void toggle()}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          font: "inherit",
+          color: "inherit",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        {open ? (
+          <ChevronDown size={14} color="var(--text-3)" />
+        ) : (
+          <ChevronRight size={14} color="var(--text-3)" />
+        )}
+        <Variable size={15} color="var(--text-2)" />
+        <span className="sresult-path">
+          <strong>{r.name}</strong>
+          <span className="sym-kind">{r.kind}</span>
+        </span>
+        <span className="sresult-lines">
+          {r.file_path} · L{r.start_line}–{r.end_line}
+        </span>
+      </button>
+      {open ? (
+        loading ? (
+          <div className="scode" style={{ color: "var(--text-3)" }}>불러오는 중…</div>
+        ) : err ? (
+          <div className="scode" style={{ color: "var(--t-bug)" }}>{err}</div>
+        ) : code != null ? (
+          <CodeSnippet path={r.file_path} content={code} formatted={false} />
+        ) : null
+      ) : null}
+    </div>
   );
 }
 

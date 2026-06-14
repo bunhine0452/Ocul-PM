@@ -91,7 +91,7 @@ export function ProjectsPanel() {
     setSearching(true);
     setResults(null);
     setError(null);
-    const res = await commands.searchChunks(selectedId, query, 8);
+    const res = await commands.searchChunks(selectedId, query, 8, false);
     if (res.status === "ok") {
       setResults(res.data);
     } else {

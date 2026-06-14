@@ -105,6 +105,24 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
     files
 }
 
+/// Whether a single file qualifies for indexing — the per-file half of
+/// `walk_text_files` (skip-name, size cap, binary probe), minus the directory
+/// walk + gitignore (the watcher already applies gitignore before calling).
+/// Used by the watcher's incremental reindex so a lock file or binary blob
+/// touched on disk doesn't get embedded.
+pub fn is_indexable_path(path: &Path, config: &IndexConfig) -> bool {
+    if is_skipped_name(path) {
+        return false;
+    }
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return false;
+    };
+    if metadata.len() == 0 || metadata.len() > config.max_file_bytes {
+        return false;
+    }
+    !looks_binary(path)
+}
+
 fn is_skipped_name(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;

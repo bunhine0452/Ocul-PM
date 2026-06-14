@@ -115,7 +115,7 @@ use crate::commands::{
     get_dependency_graph, get_file_symbols,
     minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
     open_ai_window,
-    list_project_files, list_project_tree, read_project_file, write_project_file,
+    list_project_files, list_project_tree, read_project_file, read_file_range, write_project_file,
     detect_file_changes, list_file_changes, generate_edit_prompt,
     // G3 — Clarify (W5)
     clarify_edit_intent, generate_edit_prompt_with_answers,
@@ -227,6 +227,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         list_project_files,
         list_project_tree,
         read_project_file,
+        read_file_range,
         write_project_file,
         // M6 — AI Assist
         detect_file_changes,

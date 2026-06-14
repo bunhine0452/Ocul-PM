@@ -266,6 +266,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
     openai: null,
     gemini: null,
     nim: null,
+    openrouter: null,
   });
   const [verifying, setVerifying] = useState(false);
 
@@ -438,11 +439,34 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => set("modelNim", e.currentTarget.value)}
           />
         </Field>
+        <Field label="OpenRouter" hint="openrouter.ai — 수백 개 모델을 OpenAI 호환으로. 모델 id 예: openai/gpt-4o.">
+          <Input
+            placeholder="openai/gpt-4o-mini"
+            value={settings.modelOpenrouter}
+            onChange={(e) => set("modelOpenrouter", e.currentTarget.value)}
+          />
+        </Field>
         <Field label="폴백 기본 모델">
           <Input
             placeholder="claude-opus-4-7"
             value={settings.defaultModel}
             onChange={(e) => set("defaultModel", e.currentTarget.value)}
+          />
+        </Field>
+      </Section>
+
+      <Section
+        title="폴백 체인"
+        description="기본 모델 호출이 실패하면 아래 모델을 위에서부터 차례로 재시도합니다. 한 줄에 하나씩 `provider:model` 형식."
+      >
+        <Field label="순서대로 재시도" hint="예) openai:gpt-4o-mini · anthropic:claude-3.5-haiku-latest · openrouter:openai/gpt-4o">
+          <textarea
+            value={settings.fallbackModels}
+            onChange={(e) => set("fallbackModels", e.currentTarget.value)}
+            placeholder={"openai:gpt-4o-mini\nanthropic:claude-3.5-haiku-latest"}
+            rows={3}
+            spellCheck={false}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
           />
         </Field>
       </Section>

@@ -33,6 +33,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::db::Db;
+use crate::embedding::Embedder;
 use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
 use crate::oculpm::error::OculpmError;
@@ -348,6 +349,15 @@ impl WatcherInner {
             }
         };
 
+        // 7.5 — Incremental auto-index (PR-5). Keep the code-search index
+        // (chunks / embeddings / symbols) current without a manual rebuild.
+        // Forbidden paths are skipped here (they're never indexed), and the
+        // work is fire-and-forget so the embedding model never stalls the
+        // watcher loop. Uses the real relative path before step-8 masking.
+        if !self.is_forbidden(&path) {
+            self.schedule_incremental_index(change.path.clone(), change.op);
+        }
+
         // 8. Forbidden-path masking.
         if self.is_forbidden(&path) {
             change.path = format!("**redacted/sensitive**:{}", short_hash_of(&change.path));
@@ -467,6 +477,80 @@ impl WatcherInner {
             }
             .emit(handle);
         }
+    }
+
+    /// PR-5 — fire-and-forget incremental reindex of one changed code file so
+    /// semantic / symbol / text search stays fresh without a manual rebuild.
+    ///
+    /// Guard rails:
+    ///   - gated behind the `auto_index` setting (default on when unset),
+    ///   - only runs for projects that *already* have an index — we keep an
+    ///     existing index current, we never trigger a first-time model
+    ///     download + full embed storm (that stays the explicit "인덱스 재구축"),
+    ///   - skips non-indexable paths (lock files, binaries, oversized) via the
+    ///     same per-file filter the full sweep uses,
+    ///   - runs on a background task so the embedding model never stalls the
+    ///     watcher's debounce loop.
+    fn schedule_incremental_index(&self, rel_path: String, op: FileOp) {
+        let Some(handle) = self.app_handle.clone() else {
+            return;
+        };
+        let project_id = self.project_id;
+        let root = self.root.clone();
+        tauri::async_runtime::spawn(async move {
+            use tauri::Manager;
+            let db = handle.state::<Db>();
+
+            // Respect the user toggle (treat unset / anything-but-off as on).
+            let auto = db.settings_get("auto_index".to_string()).await.ok().flatten();
+            if matches!(auto.as_deref(), Some("false") | Some("0")) {
+                return;
+            }
+            // Only keep an existing index fresh — bootstrapping stays manual.
+            if !matches!(db.count_files(project_id).await, Ok(n) if n > 0) {
+                return;
+            }
+
+            match op {
+                FileOp::Delete => match db.delete_file_by_path(project_id, rel_path.clone()).await {
+                    Ok(()) => tracing::debug!(
+                        target: "oculpm::watcher", project_id, path = %rel_path,
+                        "auto-index: removed deleted file"
+                    ),
+                    Err(e) => tracing::warn!(
+                        target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                        "auto-index: delete failed"
+                    ),
+                },
+                _ => {
+                    let settings_map: std::collections::HashMap<String, String> =
+                        match db.settings_get_all().await {
+                            Ok(v) => v.into_iter().collect(),
+                            Err(_) => return,
+                        };
+                    let cfg = crate::indexer::config_from_settings(|k| settings_map.get(k).cloned());
+                    let abs = root.join(&rel_path);
+                    if !crate::indexer::is_indexable_path(&abs, &cfg) {
+                        return;
+                    }
+                    let embedder = handle.state::<Embedder>();
+                    match crate::commands::diff::reindex_single_file(
+                        &db, &embedder, project_id, &root, &cfg, &rel_path,
+                    )
+                    .await
+                    {
+                        Ok((emb, _ast)) => tracing::debug!(
+                            target: "oculpm::watcher", project_id, path = %rel_path,
+                            embeddings = emb, "auto-index: reindexed"
+                        ),
+                        Err(reason) => tracing::warn!(
+                            target: "oculpm::watcher", project_id, path = %rel_path,
+                            ?reason, "auto-index: reindex skipped"
+                        ),
+                    }
+                }
+            }
+        });
     }
 
     fn emit_agents_template_changed(&self, relative_path: &str) {

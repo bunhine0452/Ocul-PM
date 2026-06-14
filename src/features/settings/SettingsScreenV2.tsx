@@ -423,6 +423,23 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
 
             <div className="set-row">
               <div>
+                <div className="set-label">자동 인덱싱</div>
+                <div className="set-desc">
+                  파일이 바뀌면 워처가 곧바로 인덱스를 갱신합니다 — 직접 재구축하지 않아도 검색에
+                  반영돼요. (이미 인덱싱된 프로젝트에만 적용)
+                </div>
+              </div>
+              <div className="set-ctl">
+                <Toggle
+                  on={settings.autoIndex}
+                  label="자동 인덱싱"
+                  onClick={() => void set("autoIndex", !settings.autoIndex)}
+                />
+              </div>
+            </div>
+
+            <div className="set-row">
+              <div>
                 <div className="set-label">인덱스 재구축</div>
                 <div className="set-desc">코드 검색 인덱스를 처음부터 다시 만듭니다</div>
               </div>

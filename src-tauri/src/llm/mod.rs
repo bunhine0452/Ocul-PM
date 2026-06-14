@@ -127,6 +127,9 @@ pub fn create(name: &str, api_key: String) -> Result<Box<dyn LlmProvider>, LlmEr
         "anthropic" => Ok(Box::new(anthropic::Anthropic::new(api_key))),
         "gemini" => Ok(Box::new(gemini::Gemini::new(api_key))),
         "openai" => Ok(Box::new(openai::OpenAi::new(api_key))),
+        // OpenRouter reuses the OpenAI-compatible client with a different base
+        // URL + attribution headers.
+        "openrouter" => Ok(Box::new(openai::OpenAi::openrouter(api_key))),
         "nim" => Ok(Box::new(nim::Nim::new(api_key))),
         other => Err(LlmError::UnknownProvider(other.to_string())),
     }

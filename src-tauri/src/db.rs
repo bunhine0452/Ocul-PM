@@ -395,6 +395,7 @@ impl Db {
         project_id: u32,
         query_embedding_bytes: Vec<u8>,
         limit: u32,
+        include_docs: bool,
     ) -> Result<Vec<ChunkSearchResult>> {
         // Over-fetch from the vector index so we still have `limit` results
         // after filtering by project_id.
@@ -410,17 +411,24 @@ impl Db {
                 // contain a newline and survive this filter. The 5× over-fetch
                 // (`k`) keeps `limit` results after the filter. (Re-indexing
                 // also stops new noise at the source — see indexer::chunk_file.)
-                let mut stmt = c.prepare(
+                //
+                // 의미검색 문서 제외 — by default semantic search hides prose
+                // files (.md/.txt/…) that match loosely and bury real code
+                // hits; `include_docs` opts them back in.
+                let mut sql = String::from(
                     "SELECT c.id, f.path, c.start_line, c.end_line, c.content, ce.distance
                      FROM chunk_embeddings ce
                      JOIN chunks c ON c.id = ce.chunk_id
                      JOIN files f ON f.id = c.file_id
                      WHERE ce.embedding MATCH ?1 AND k = ?2
                        AND f.project_id = ?3
-                       AND instr(c.content, char(10)) > 0
-                     ORDER BY ce.distance ASC
-                     LIMIT ?4",
-                )?;
+                       AND instr(c.content, char(10)) > 0",
+                );
+                if !include_docs {
+                    sql.push_str(DOC_EXCLUDE_SQL);
+                }
+                sql.push_str(" ORDER BY ce.distance ASC LIMIT ?4");
+                let mut stmt = c.prepare(&sql)?;
                 let rows = stmt
                     .query_map(
                         params![&query_embedding_bytes, k, project_id as i64, limit as i64],
@@ -544,6 +552,23 @@ impl Db {
                 c.execute(
                     "DELETE FROM files WHERE project_id = ?",
                     [project_id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// Drop a single file (and, via FK cascade + trigger, its chunks,
+    /// embeddings, and symbols) from the index. Used by the watcher's
+    /// incremental auto-index when a file is deleted on disk so search stops
+    /// returning hits from a file that no longer exists.
+    pub async fn delete_file_by_path(&self, project_id: u32, path: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "DELETE FROM files WHERE project_id = ?1 AND path = ?2",
+                    params![project_id as i64, &path],
                 )?;
                 Ok(())
             })
@@ -2204,6 +2229,20 @@ pub struct SymbolSearchResult {
     pub start_line: u32,
     pub end_line: u32,
 }
+
+/// SQL fragment that excludes prose/documentation files from a result set by
+/// path suffix (의미검색 문서 제외). Appended to `search_chunks` when the
+/// caller asks for code-only results. Lives here next to the search queries so
+/// the extension list stays in one place.
+const DOC_EXCLUDE_SQL: &str = " AND lower(f.path) NOT LIKE '%.md' \
+     AND lower(f.path) NOT LIKE '%.mdx' \
+     AND lower(f.path) NOT LIKE '%.markdown' \
+     AND lower(f.path) NOT LIKE '%.txt' \
+     AND lower(f.path) NOT LIKE '%.text' \
+     AND lower(f.path) NOT LIKE '%.rst' \
+     AND lower(f.path) NOT LIKE '%.adoc' \
+     AND lower(f.path) NOT LIKE '%.asciidoc' \
+     AND lower(f.path) NOT LIKE '%.org'";
 
 /// Escape LIKE wildcards so a user query is matched literally (paired with
 /// `ESCAPE '\'` in the SQL). Without this, `%`/`_` in a query would act as

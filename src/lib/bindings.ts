@@ -21,8 +21,8 @@ export const commands = {
 	 *  This DOES unlock the keychain.
 	 */
 	secretVerify: (name: string) => typedError<boolean, string>(__TAURI_INVOKE("secret_verify", { name })),
-	chat: (provider: string, messages: Message[], options: ChatOptions) => typedError<ChatResponse, string>(__TAURI_INVOKE("chat", { provider, messages, options })),
-	chatStream: (provider: string, messages: Message[], options: ChatOptions, onEvent: Channel<ChatEvent>) => typedError<null, string>(__TAURI_INVOKE("chat_stream", { provider, messages, options, onEvent })),
+	chat: (provider: string, messages: Message[], options: ChatOptions, fallbacks: ProviderModel[]) => typedError<ChatResponse, string>(__TAURI_INVOKE("chat", { provider, messages, options, fallbacks })),
+	chatStream: (provider: string, messages: Message[], options: ChatOptions, fallbacks: ProviderModel[], onEvent: Channel<ChatEvent>) => typedError<null, string>(__TAURI_INVOKE("chat_stream", { provider, messages, options, fallbacks, onEvent })),
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
 	listProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_projects")),
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
@@ -30,7 +30,7 @@ export const commands = {
 	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
 	indexProject: (projectId: number, onProgress: Channel<IndexProgress>) => typedError<IndexResult, string>(__TAURI_INVOKE("index_project", { projectId, onProgress })),
-	searchChunks: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit })),
+	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
 	getDependencyGraph: (projectId: number) => typedError<DependencyGraph, string>(__TAURI_INVOKE("get_dependency_graph", { projectId })),
@@ -157,6 +157,13 @@ export const commands = {
 	max_depth: number | null,
 } | null) => typedError<ProjectTreeNode, string>(__TAURI_INVOKE("list_project_tree", { projectId, opts })),
 	readProjectFile: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("read_project_file", { projectId, relPath })),
+	/**
+	 *  Read an inclusive, 1-indexed line range from a project file. Backs the
+	 *  symbol-search "펼쳐서 코드 보기" toggle — symbol hits carry only a line
+	 *  range, so the UI lazily fetches the body on expand instead of bloating
+	 *  every result with content. Out-of-range bounds clamp to the file.
+	 */
+	readFileRange: (projectId: number, relPath: string, startLine: number, endLine: number) => typedError<string, string>(__TAURI_INVOKE("read_file_range", { projectId, relPath, startLine, endLine })),
 	writeProjectFile: (projectId: number, relPath: string, content: string) => typedError<null, string>(__TAURI_INVOKE("write_project_file", { projectId, relPath, content })),
 	detectFileChanges: (projectId: number) => typedError<FileChange[], string>(__TAURI_INVOKE("detect_file_changes", { projectId })),
 	listFileChanges: (projectId: number, since: number) => typedError<FileChange[], string>(__TAURI_INVOKE("list_file_changes", { projectId, since })),
@@ -1584,6 +1591,15 @@ export type ProjectTreeNode = {
 	relative_path: string,
 	is_dir: boolean,
 	children: ProjectTreeNode[],
+};
+
+/**
+ *  One entry in the user-configured failover chain (Settings → LLM → 폴백 체인).
+ *  On a failed call the next entry is tried, in order.
+ */
+export type ProviderModel = {
+	provider: string,
+	model: string,
 };
 
 export type ReindexReport = {

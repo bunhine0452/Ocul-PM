@@ -87,120 +87,14 @@ pub async fn reindex_paths(
     let mut ast_updated: u32 = 0;
 
     for rel_str in paths {
-        let abs_path = root.join(&rel_str);
-        if !abs_path.exists() {
-            skipped.push(ReindexSkip {
-                path: rel_str,
-                reason: ReindexSkipReason::NotFound,
-            });
-            continue;
+        match reindex_single_file(&db, &embedder, project_id, &root, &index_config, &rel_str).await {
+            Ok((emb, ast)) => {
+                embeddings_updated += emb;
+                ast_updated += ast;
+                indexed.push(rel_str);
+            }
+            Err(reason) => skipped.push(ReindexSkip { path: rel_str, reason }),
         }
-        let content = match fs::read_to_string(&abs_path) {
-            Ok(c) => c,
-            Err(e) => {
-                skipped.push(ReindexSkip {
-                    path: rel_str,
-                    reason: ReindexSkipReason::ReadFailed {
-                        error: e.to_string(),
-                    },
-                });
-                continue;
-            }
-        };
-        let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-        let metadata = match fs::metadata(&abs_path) {
-            Ok(m) => m,
-            Err(e) => {
-                skipped.push(ReindexSkip {
-                    path: rel_str,
-                    reason: ReindexSkipReason::ReadFailed {
-                        error: e.to_string(),
-                    },
-                });
-                continue;
-            }
-        };
-        let size = metadata.len() as i64;
-        let mtime = metadata
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-        let language = indexer::language_for(&abs_path).map(String::from);
-
-        let (file_id, _changed) = match db
-            .upsert_file(project_id, rel_str.clone(), hash.clone(), size, mtime, language)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                skipped.push(ReindexSkip {
-                    path: rel_str,
-                    reason: ReindexSkipReason::UpsertFailed {
-                        error: e.to_string(),
-                    },
-                });
-                continue;
-            }
-        };
-
-        // PR6.6 — refresh the diff baseline. Unlike `index_project` we
-        // re-snapshot even when `changed == false` because callers explicitly
-        // asked for these paths (the LocalDiffView "부분 reindex" button
-        // doubles as "비우기 by re-indexing").
-        if let Err(e) = db
-            .upsert_file_snapshot(
-                project_id,
-                rel_str.clone(),
-                content.as_bytes().to_vec(),
-                hash.clone(),
-            )
-            .await
-        {
-            skipped.push(ReindexSkip {
-                path: rel_str,
-                reason: ReindexSkipReason::UpsertFailed {
-                    error: e.to_string(),
-                },
-            });
-            continue;
-        }
-
-        // We re-index unconditionally even when `changed=false` — callers
-        // explicitly asked for these paths, so honouring the request is more
-        // useful than the "skip unchanged" heuristic that index_project
-        // applies during a full sweep.
-        let (chunks, analysis) = indexer::chunk_file(&abs_path, &content, &index_config);
-        if let Some(ref ana) = analysis {
-            for sym in &ana.symbols {
-                db.insert_symbol_definition(file_id, sym.clone())
-                    .await
-                    .map_err(|e| e.to_string())?;
-                ast_updated += 1;
-            }
-        }
-        if !chunks.is_empty() {
-            for batch in chunks.chunks(EMBED_BATCH) {
-                let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
-                let embeddings = embedder.embed(texts).await?;
-                for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
-                    db.insert_chunk_with_embedding(
-                        file_id,
-                        chunk.kind.to_string(),
-                        chunk.start_line,
-                        chunk.end_line,
-                        chunk.content.clone(),
-                        vec_to_bytes(embedding),
-                    )
-                    .await
-                    .map_err(|e| e.to_string())?;
-                    embeddings_updated += 1;
-                }
-            }
-        }
-
-        indexed.push(rel_str);
     }
 
     let elapsed_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
@@ -221,6 +115,92 @@ pub async fn reindex_paths(
         embeddings_updated,
         ast_updated,
     })
+}
+
+/// Reindex one file: upsert + diff snapshot + AST symbols + chunk embeddings.
+/// Shared by the `reindex_paths` command and the watcher's incremental
+/// auto-index (PR-5). Returns `(embeddings_updated, ast_updated)` or a
+/// structured skip reason — unlike the old inline loop, an embed/insert
+/// failure on one file is reported as a skip instead of aborting the batch.
+/// The file is reindexed unconditionally (no hash short-circuit): callers
+/// reach here only for paths they already know changed.
+pub(crate) async fn reindex_single_file(
+    db: &Db,
+    embedder: &Embedder,
+    project_id: u32,
+    root: &std::path::Path,
+    index_config: &indexer::IndexConfig,
+    rel_str: &str,
+) -> std::result::Result<(u32, u32), ReindexSkipReason> {
+    let abs_path = root.join(rel_str);
+    if !abs_path.exists() {
+        return Err(ReindexSkipReason::NotFound);
+    }
+    let content = fs::read_to_string(&abs_path)
+        .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;
+    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+    let metadata = fs::metadata(&abs_path)
+        .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;
+    let size = metadata.len() as i64;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let language = indexer::language_for(&abs_path).map(String::from);
+
+    let (file_id, _changed) = db
+        .upsert_file(project_id, rel_str.to_string(), hash.clone(), size, mtime, language)
+        .await
+        .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+
+    // PR6.6 — refresh the diff baseline so LocalDiffView's snapshot fallback
+    // stays current.
+    db.upsert_file_snapshot(
+        project_id,
+        rel_str.to_string(),
+        content.as_bytes().to_vec(),
+        hash.clone(),
+    )
+    .await
+    .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+
+    let mut embeddings_updated: u32 = 0;
+    let mut ast_updated: u32 = 0;
+    let (chunks, analysis) = indexer::chunk_file(&abs_path, &content, index_config);
+    if let Some(ref ana) = analysis {
+        for sym in &ana.symbols {
+            db.insert_symbol_definition(file_id, sym.clone())
+                .await
+                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+            ast_updated += 1;
+        }
+    }
+    if !chunks.is_empty() {
+        for batch in chunks.chunks(EMBED_BATCH) {
+            let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
+            let embeddings = embedder
+                .embed(texts)
+                .await
+                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e })?;
+            for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
+                db.insert_chunk_with_embedding(
+                    file_id,
+                    chunk.kind.to_string(),
+                    chunk.start_line,
+                    chunk.end_line,
+                    chunk.content.clone(),
+                    vec_to_bytes(embedding),
+                )
+                .await
+                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+                embeddings_updated += 1;
+            }
+        }
+    }
+
+    Ok((embeddings_updated, ast_updated))
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]

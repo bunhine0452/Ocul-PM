@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { useSettings } from "@/contexts/SettingsContext";
-import { providerModel } from "@/lib/settings";
+import { providerModel, parseFallbacks } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "@/components/Icons";
@@ -19,7 +19,7 @@ import {
   type Role,
 } from "@/lib/bindings";
 
-const PROVIDERS = ["anthropic", "gemini", "openai", "nim"] as const;
+const PROVIDERS = ["anthropic", "gemini", "openai", "nim", "openrouter"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
 const CONTEXT_DEBOUNCE_MS = 400;
@@ -734,7 +734,8 @@ export function ChatPanel({
           model: effectiveModel,
           temperature: 0.3,
           max_tokens: 1000
-        }
+        },
+        parseFallbacks(settings),
       );
 
       if (response.status === "ok") {
@@ -820,7 +821,8 @@ export function ChatPanel({
     }
 
     if (contextProjectId != null && settings.ragTopK > 0) {
-      const res = await commands.searchChunks(contextProjectId, text, settings.ragTopK);
+      // RAG context is code, not prose — exclude docs (.md/.txt/…).
+      const res = await commands.searchChunks(contextProjectId, text, settings.ragTopK, false);
       if (res.status === "ok" && res.data.length > 0) {
         chunks = res.data;
         systemPromptContent += buildContextSystem(chunks) + "\n\n";
@@ -897,10 +899,11 @@ export function ChatPanel({
     };
 
     let res;
+    const fallbacks = parseFallbacks(settings);
     if (settings.streamResponses) {
-      res = await commands.chatStream(provider, llmHistory, chatOptions, channel);
+      res = await commands.chatStream(provider, llmHistory, chatOptions, fallbacks, channel);
     } else {
-      const r = await commands.chat(provider, llmHistory, chatOptions);
+      const r = await commands.chat(provider, llmHistory, chatOptions, fallbacks);
       if (r.status === "ok") {
         finalContent = r.data.content;
         setMessages((prev) => {

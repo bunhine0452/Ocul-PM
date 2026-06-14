@@ -347,6 +347,9 @@ pub async fn search_chunks(
     project_id: u32,
     query: String,
     limit: u32,
+    // 의미검색 문서 제외 — false (default from the UI) hides .md/.txt/… so code
+    // hits aren't buried; the search screen exposes a "문서 포함" toggle.
+    include_docs: bool,
 ) -> Result<Vec<ChunkSearchResult>, String> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
@@ -357,7 +360,7 @@ pub async fn search_chunks(
         .next()
         .ok_or_else(|| "embed returned no result".to_string())?;
 
-    db.search_chunks(project_id, vec_to_bytes(&query_emb), limit.max(1))
+    db.search_chunks(project_id, vec_to_bytes(&query_emb), limit.max(1), include_docs)
         .await
         .map_err(|e| e.to_string())
 }
@@ -436,6 +439,33 @@ pub async fn read_project_file(
     tokio::fs::read_to_string(&full_path)
         .await
         .map_err(|e| format!("Failed to read file: {e}"))
+}
+
+/// Read an inclusive, 1-indexed line range from a project file. Backs the
+/// symbol-search "펼쳐서 코드 보기" toggle — symbol hits carry only a line
+/// range, so the UI lazily fetches the body on expand instead of bloating
+/// every result with content. Out-of-range bounds clamp to the file.
+#[tauri::command]
+#[specta::specta]
+pub async fn read_file_range(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+    start_line: u32,
+    end_line: u32,
+) -> Result<String, String> {
+    let root = get_project_root(&db, project_id).await?;
+    let full_path = secure_join(&root, &rel_path)?;
+    let content = tokio::fs::read_to_string(&full_path)
+        .await
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return Ok(String::new());
+    }
+    let start = (start_line.max(1) as usize - 1).min(lines.len() - 1);
+    let end = (end_line as usize).clamp(start + 1, lines.len());
+    Ok(lines[start..end].join("\n"))
 }
 
 #[tauri::command]
@@ -741,7 +771,8 @@ async fn generate_with_answers_inner(
         .ok_or_else(|| "embed returned no result".to_string())?;
 
     let chunks = db
-        .search_chunks(project_id, vec_to_bytes(&query_emb), 8)
+        // Edit-prompt RAG wants code context, not prose — exclude docs.
+        .search_chunks(project_id, vec_to_bytes(&query_emb), 8, false)
         .await
         .map_err(|e| e.to_string())?;
 

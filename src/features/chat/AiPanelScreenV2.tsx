@@ -12,7 +12,7 @@ import {
 } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { PROVIDERS, providerModel, type Provider } from "@/lib/settings";
+import { PROVIDERS, providerModel, parseFallbacks, type Provider } from "@/lib/settings";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 
 // Final UI Update (ui_v2) — AI 패널 화면 (02-screen-specs §7). Mockup
@@ -27,6 +27,7 @@ const VENDOR: Record<Provider, { name: string; vendor: string; color: string }> 
   openai: { name: "GPT", vendor: "OpenAI", color: "#1aa37a" },
   gemini: { name: "Gemini", vendor: "Google", color: "#4a7ad9" },
   nim: { name: "NIM", vendor: "NVIDIA", color: "#76b900" },
+  openrouter: { name: "OpenRouter", vendor: "OpenRouter", color: "#6566f1" },
 };
 
 // Display message — tracks the provider that produced each assistant turn so
@@ -61,6 +62,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     openai: null,
     gemini: null,
     nim: null,
+    openrouter: null,
   });
   const threadRef = useRef<number | null>(
     state.aiThreadId != null ? Number(state.aiThreadId) : null,
@@ -231,7 +233,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
     let res;
     try {
-      res = await commands.chatStream(provider, llmHistory, chatOptions, channel);
+      res = await commands.chatStream(provider, llmHistory, chatOptions, parseFallbacks(settings), channel);
     } catch (err) {
       receiving = false;
       if (rafRef.current) {

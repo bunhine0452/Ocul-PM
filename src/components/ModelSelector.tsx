@@ -16,6 +16,12 @@ const KNOWN_MODELS: Record<Provider, string[]> = {
     "meta/llama-3.3-70b-instruct",
     "nvidia/llama-3.1-nemotron-70b-instruct",
   ],
+  openrouter: [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3.5-sonnet",
+    "google/gemini-2.0-flash-001",
+    "meta-llama/llama-3.3-70b-instruct",
+  ],
 };
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -23,6 +29,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   openai: "OpenAI",
   gemini: "Gemini",
   nim: "NIM",
+  openrouter: "OpenRouter",
 };
 
 function secretName(provider: Provider): string {
@@ -52,6 +59,7 @@ export function ModelSelector({
     openai: null,
     gemini: null,
     nim: null,
+    openrouter: null,
   });
 
   const [providerOpen, setProviderOpen] = useState(false);
