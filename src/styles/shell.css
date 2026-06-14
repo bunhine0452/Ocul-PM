@@ -111,8 +111,9 @@
 .proj-switch:hover { background: var(--bg-card); filter: brightness(0.99); }
 .proj-icon {
   width: 26px; height: 26px; border-radius: 7px; flex: none;
-  background: linear-gradient(150deg, #2bb486, #0c9061);
-  display: grid; place-items: center; color: #fff;
+  /* Follows the 컬러 테마 (accent), not a hardcoded green. */
+  background: linear-gradient(150deg, var(--accent), var(--accent-strong));
+  display: grid; place-items: center; color: var(--text-on-accent);
 }
 .proj-meta { flex: 1; min-width: 0; }
 .proj-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

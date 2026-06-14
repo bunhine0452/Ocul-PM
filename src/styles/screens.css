@@ -230,15 +230,16 @@
 .diff-bar .fname { font-family: var(--mono); font-size: 12.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .diff-code { overflow: auto; flex: 1; min-height: 0; font-family: var(--mono); font-size: 12px; line-height: 1.65; }
 .hunk-head { background: var(--bg-inset); color: var(--text-3); padding: 3px 14px; font-family: var(--mono); font-size: 11px; border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep); }
-/* Single-line code rows: `diff-content` grows to the widest line so `.diff-code`
-   scrolls horizontally; rows are `min-width: 100%` so highlights span the full
-   width, and the second track is `minmax(max-content, 1fr)` so it both drives
-   that intrinsic width and fills the row. (Dogfooding 2026-06-07 — was pre-wrap.) */
-.diff-content { min-width: max-content; }
-.dl { display: grid; grid-template-columns: 44px minmax(max-content, 1fr); align-items: stretch; min-width: 100%; }
-.dl.split { grid-template-columns: 44px minmax(max-content, 1fr) 44px minmax(max-content, 1fr); }
+/* Code rows wrap to the pane width so long lines are never clipped off-screen
+   (Dogfooding 2026-06-14d — macOS overlay scrollbars hid the horizontal scroll,
+   so lines looked cut off; wrapping adapts to the screen instead). The content
+   track is `minmax(0, 1fr)` so it can shrink below the line's intrinsic width,
+   and `.dl-x` is `pre-wrap` + `overflow-wrap: anywhere` to break long tokens. */
+.diff-content { min-width: 0; }
+.dl { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: stretch; }
+.dl.split { grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr); }
 .dl-gut { text-align: right; padding: 0 8px; color: var(--text-3); background: var(--diff-gutter); user-select: none; font-size: 11px; }
-.dl-x { padding: 0 14px; white-space: pre; }
+.dl-x { padding: 0 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dl.add .dl-x { background: var(--diff-add-bg); color: var(--diff-add-text); }
 .dl.add .dl-gut { background: color-mix(in srgb, var(--diff-add-bg) 80%, transparent); color: var(--diff-add-line); }
 .dl.del .dl-x { background: var(--diff-del-bg); color: var(--diff-del-text); }
