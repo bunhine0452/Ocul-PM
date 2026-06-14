@@ -61,6 +61,8 @@ vi.mock("@/api/oculpm", () => ({
           ],
         },
       }),
+    // code-search round — useTodayMonitor reads sessions for active-time.
+    listSessions: () => Promise.resolve([]),
   },
 }));
 
@@ -77,6 +79,18 @@ vi.mock("@/lib/bindings", () => ({
     subtaskList: (goalId: number) =>
       Promise.resolve({ status: "ok", data: nextFx.subtasks[goalId] ?? [] }),
     planRecentUpdates: () => Promise.resolve({ status: "ok", data: [] }),
+    // code-search round — useTodayMonitor reads git + goal stats.
+    gitHeadStatusBrief: () =>
+      Promise.resolve({ status: "ok", data: { is_git_repo: false, head_branch: null, uncommitted: 0 } }),
+    gitLog: () => Promise.resolve({ status: "ok", data: [] }),
+    dashboardStats: () =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          total: 0, open: 0, in_progress: 0, done: 0,
+          cancelled: 0, overdue: 0, due_today: 0, avg_progress: null,
+        },
+      }),
   },
   // WorkspaceProvider registers events.oculpm*.listen on mount; stub no-ops.
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),

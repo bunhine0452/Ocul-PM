@@ -23,7 +23,9 @@ import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { PlanUpdates } from "./PlanUpdates";
+import { TodayMonitor } from "./TodayMonitor";
 import { useTodayBrief } from "./useTodayBrief";
+import { useTodayMonitor } from "./useTodayMonitor";
 import { useNextTasks } from "./useNextTasks";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
@@ -65,6 +67,7 @@ export function TodayScreenV2({
     oculpmReady,
   );
   const { tasks: nextTasks } = useNextTasks(projectId);
+  const { monitor } = useTodayMonitor(projectId, workday, oculpmReady);
   const [termOpen, setTermOpen] = useState(false);
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
@@ -184,6 +187,9 @@ export function TodayScreenV2({
               unit="개"
             />
           </div>
+
+          {/* 모니터링 행 — 활동시간 · Git · 목표 진행률 (code-search round) */}
+          {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
 
           {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
           <TodayTerminal
