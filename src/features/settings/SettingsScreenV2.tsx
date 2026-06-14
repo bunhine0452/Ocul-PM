@@ -12,6 +12,8 @@ import {
   RefreshCw,
   RotateCcw,
   Trash2,
+  Sparkles,
+  X,
 } from "@/components/Icons";
 import {
   commands,
@@ -25,6 +27,11 @@ import { useTheme } from "@/lib/theme";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { Provider } from "@/lib/settings";
 import { toast } from "@/lib/toast";
+import { useUpdater, releaseHighlights } from "@/lib/updater";
+import { Markdown } from "@/components/Markdown";
+// The app's own changelog, bundled at build time so "체인지로그 보기" works
+// offline and independent of GitHub.
+import changelogRaw from "../../../CHANGELOG.md?raw";
 
 // Final UI Update (ui_v2) — Settings 화면 (02-screen-specs §8). The 1.0 minimal
 // settings: every control wires to an EXISTING backend (Decision F lineage — no
@@ -51,6 +58,7 @@ const PROVIDER_META: { id: Provider; label: string; env: string }[] = [
   { id: "openai", label: "OpenAI", env: "OPENAI_API_KEY" },
   { id: "gemini", label: "Google AI", env: "GEMINI_API_KEY" },
   { id: "nim", label: "NVIDIA NIM", env: "NVIDIA_API_KEY" },
+  { id: "openrouter", label: "OpenRouter", env: "OPENROUTER_API_KEY" },
 ];
 
 function secretName(p: Provider): string {
@@ -79,6 +87,8 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
   const [keyModal, setKeyModal] = useState<{ provider: Provider; label: string } | null>(null);
   const [reindexing, setReindexing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const updater = useUpdater();
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   // --- keyring presence (cached check — does NOT unlock the keychain) ---
   const refreshKey = useCallback(async (p: Provider) => {
@@ -404,6 +414,58 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
             })}
           </div>
 
+          {/* ── 모델 · 폴백 ───────────────────────────────────────── */}
+          <div className="section-title" style={{ margin: "4px 2px 10px" }}>
+            모델 · 폴백
+          </div>
+          <div className="card set-section">
+            {(
+              [
+                { key: "modelAnthropic", label: "Anthropic", ph: "claude-sonnet-4-6" },
+                { key: "modelOpenai", label: "OpenAI", ph: "gpt-4o-mini" },
+                { key: "modelGemini", label: "Gemini", ph: "gemini-2.5-flash" },
+                { key: "modelNim", label: "NVIDIA NIM", ph: "meta/llama-3.3-70b-instruct" },
+                { key: "modelOpenrouter", label: "OpenRouter", ph: "openai/gpt-4o-mini" },
+              ] as const
+            ).map((m) => (
+              <div className="set-row" key={m.key}>
+                <div>
+                  <div className="set-label">{m.label}</div>
+                  <div className="set-desc">비우면 내장 기본값 사용</div>
+                </div>
+                <div className="set-ctl">
+                  <input
+                    className="set-input"
+                    value={settings[m.key]}
+                    placeholder={m.ph}
+                    aria-label={`${m.label} 모델`}
+                    onChange={(e) => void set(m.key, e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="set-row">
+              <div>
+                <div className="set-label">폴백 체인</div>
+                <div className="set-desc">
+                  호출 실패 시 차례로 재시도할 모델. 한 줄에 하나씩{" "}
+                  <span className="mono">provider:model</span>
+                </div>
+              </div>
+              <div className="set-ctl">
+                <textarea
+                  className="set-input"
+                  style={{ minHeight: 64, resize: "vertical", fontFamily: "var(--mono)" }}
+                  value={settings.fallbackModels}
+                  placeholder={"openai:gpt-4o-mini\nanthropic:claude-3.5-haiku-latest"}
+                  aria-label="폴백 체인"
+                  spellCheck={false}
+                  onChange={(e) => void set("fallbackModels", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* ── 고급 ──────────────────────────────────────────────── */}
           <div className="section-title" style={{ margin: "4px 2px 10px" }}>
             고급
@@ -488,6 +550,91 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
             </div>
           </div>
 
+          {/* ── 업데이트 ──────────────────────────────────────────── */}
+          <div className="section-title" style={{ margin: "4px 2px 10px" }}>
+            업데이트
+          </div>
+          <div className="card set-section">
+            <div className="set-row">
+              <div>
+                <div className="set-label">버전</div>
+                <div className="set-desc">
+                  현재 v{info?.version ?? "…"} · {BUILD_HASH}
+                </div>
+              </div>
+              <div className="set-ctl">
+                {updater.status.kind === "available" ? (
+                  <button
+                    type="button"
+                    className="btn sm primary"
+                    onClick={() => void updater.install()}
+                  >
+                    <Sparkles size={13} /> v{updater.status.version} 설치 후 재시작
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() => void updater.check()}
+                    disabled={updater.status.kind === "checking" || updater.status.kind === "installing"}
+                  >
+                    <RefreshCw size={13} />{" "}
+                    {updater.status.kind === "checking" ? "확인 중…" : "업데이트 확인"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {updater.status.kind === "uptodate" ? (
+              <div className="set-row">
+                <div className="set-desc" style={{ marginTop: 0 }}>최신 버전을 사용 중입니다.</div>
+              </div>
+            ) : updater.status.kind === "installing" ? (
+              <div className="set-row">
+                <div className="set-desc" style={{ marginTop: 0 }}>다운로드 후 설치 중…</div>
+              </div>
+            ) : updater.status.kind === "error" ? (
+              <div className="set-row">
+                <div className="set-desc" style={{ marginTop: 0, color: "var(--t-bug)" }}>
+                  업데이트 확인 실패: {updater.status.message}
+                </div>
+              </div>
+            ) : null}
+
+            {updater.status.kind === "available" && releaseHighlights(updater.status.notes) ? (
+              <div className="set-row">
+                <div style={{ width: "100%" }}>
+                  <div className="set-label" style={{ marginBottom: 6 }}>새 버전 변경사항</div>
+                  <div
+                    style={{
+                      maxHeight: 180,
+                      overflowY: "auto",
+                      fontSize: 12.5,
+                      lineHeight: 1.6,
+                      background: "var(--bg-inset)",
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    <Markdown>{releaseHighlights(updater.status.notes)}</Markdown>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="set-row">
+              <div>
+                <div className="set-label">변경 로그</div>
+                <div className="set-desc">이 앱의 버전별 변경 내역을 봅니다</div>
+              </div>
+              <div className="set-ctl">
+                <button type="button" className="btn sm" onClick={() => setChangelogOpen(true)}>
+                  <Sparkles size={13} /> 체인지로그 보기
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* ── 정보 ──────────────────────────────────────────────── */}
           <div className="section-title" style={{ margin: "4px 2px 10px" }}>
             정보
@@ -522,6 +669,49 @@ export function SettingsScreenV2({ projectId, projectRoot }: SettingsScreenV2Pro
           onClose={() => setKeyModal(null)}
           onSaved={() => void refreshKey(keyModal.provider)}
         />
+      ) : null}
+
+      {changelogOpen ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+          onClick={() => setChangelogOpen(false)}
+        >
+          <div
+            className="card"
+            style={{
+              width: "min(720px, 92vw)",
+              maxHeight: "82vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="panel-head">
+              <Sparkles size={16} color="var(--accent-text)" />
+              <h3>체인지로그</h3>
+              <button
+                type="button"
+                className="btn ghost sm right"
+                onClick={() => setChangelogOpen(false)}
+                aria-label="닫기"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "14px 18px", fontSize: 13, lineHeight: 1.65 }}>
+              <Markdown>{changelogRaw}</Markdown>
+            </div>
+          </div>
+        </div>
       ) : null}
     </>
   );

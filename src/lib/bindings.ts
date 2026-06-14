@@ -185,6 +185,7 @@ export const commands = {
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
 	gitLog: (projectId: number, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log", { projectId, limit })),
+	gitGraph: (projectId: number, limit: number) => typedError<GitGraphCommit[], string>(__TAURI_INVOKE("git_graph", { projectId, limit })),
 	gitRemotes: (projectId: number) => typedError<GitRemote[], string>(__TAURI_INVOKE("git_remotes", { projectId })),
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
 	/**
@@ -1014,6 +1015,25 @@ export type GitConfig = {
 	journal_committed: boolean,
 	forbid_journal_for_paths: string[],
 	auto_redact_patterns: string[],
+};
+
+/**
+ *  One commit in the graph view (Today git graph). Carries `parents` for lane
+ *  routing and `refs` (branch/tag/HEAD decorations) so the UI can badge tips.
+ */
+export type GitGraphCommit = {
+	sha: string,
+	short_sha: string,
+	parents: string[],
+	author_name: string,
+	/**  Unix timestamp in seconds (author date). */
+	timestamp: number,
+	subject: string,
+	/**
+	 *  Ref names pointing here (e.g. `main`, `origin/main`, a tag), HEAD-/tag-
+	 *  prefixes stripped.
+	 */
+	refs: string[],
 };
 
 /**

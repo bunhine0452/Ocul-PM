@@ -27,6 +27,17 @@ pub async fn git_log(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn git_graph(
+    db: State<'_, Db>,
+    project_id: u32,
+    limit: u32,
+) -> Result<Vec<git::GitGraphCommit>, String> {
+    let root = project_root(&db, project_id).await?;
+    git::graph(&root, limit)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn git_remotes(
     db: State<'_, Db>,
     project_id: u32,

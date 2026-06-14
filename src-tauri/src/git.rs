@@ -82,6 +82,9 @@ fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
+// Now only referenced from tests — project queries go through `primary_repo`
+// (nested-aware). Kept as a focused predicate for the test fixtures.
+#[allow(dead_code)]
 fn is_repo(root: &Path) -> bool {
     Command::new("git")
         .arg("-C")
@@ -174,15 +177,95 @@ fn discover_repos(root: &Path) -> Vec<PathBuf> {
     repos
 }
 
+/// One commit in the graph view (Today git graph). Carries `parents` for lane
+/// routing and `refs` (branch/tag/HEAD decorations) so the UI can badge tips.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct GitGraphCommit {
+    pub sha: String,
+    pub short_sha: String,
+    pub parents: Vec<String>,
+    pub author_name: String,
+    /// Unix timestamp in seconds (author date).
+    pub timestamp: i32,
+    pub subject: String,
+    /// Ref names pointing here (e.g. `main`, `origin/main`, a tag), HEAD-/tag-
+    /// prefixes stripped.
+    pub refs: Vec<String>,
+}
+
+/// Commit DAG across all branches/tags (`--all`), newest first in date order,
+/// for the Today graph. Includes parents + ref decorations; lane assignment is
+/// computed on the frontend.
+pub fn graph(root: &Path, limit: u32) -> Result<Vec<GitGraphCommit>, String> {
+    let Some(repo) = primary_repo(root) else {
+        return Err("Not a git repository.".to_string());
+    };
+    let text = run_git(
+        &repo,
+        &[
+            "log",
+            "--no-color",
+            "--all",
+            "--date-order",
+            &format!("-n{}", limit.max(1)),
+            "--pretty=format:%H\x1f%P\x1f%an\x1f%at\x1f%D\x1f%s",
+        ],
+    )?;
+    let mut commits = Vec::new();
+    for line in text.lines() {
+        let parts: Vec<&str> = line.splitn(6, '\x1f').collect();
+        if parts.len() < 6 {
+            continue;
+        }
+        let sha = parts[0].to_string();
+        let short_sha: String = sha.chars().take(7).collect();
+        let parents = parts[1]
+            .split_whitespace()
+            .map(String::from)
+            .collect::<Vec<_>>();
+        // %D: "HEAD -> main, origin/main, tag: v1.0" (empty when undecorated).
+        let refs = parts[4]
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                s.trim_start_matches("HEAD -> ")
+                    .trim_start_matches("tag: ")
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        commits.push(GitGraphCommit {
+            sha,
+            short_sha,
+            parents,
+            author_name: parts[2].to_string(),
+            timestamp: parts[3].parse().unwrap_or(0),
+            subject: parts[5].to_string(),
+            refs,
+        });
+    }
+    Ok(commits)
+}
+
+/// The single git work-tree to use for project-level queries (log, status,
+/// branch, remotes, tags). Returns `root` itself when it is — or sits inside —
+/// a repo, otherwise the first repo discovered just below it. This is what lets
+/// every git-backed view work when the `.oculpm/` folder is opened on a *parent*
+/// of the actual repo (nested-repo case); previously only the diff path handled
+/// it and log/status/branch reported "not a git repo". `None` = no repo found.
+fn primary_repo(root: &Path) -> Option<PathBuf> {
+    discover_repos(root).into_iter().next()
+}
+
 /// Recent commits, newest first. Excludes merge commits by default.
 pub fn log(root: &Path, limit: u32) -> Result<Vec<GitCommit>, String> {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return Err("Not a git repository.".to_string());
-    }
+    };
 
     // Use ASCII unit separator (0x1f) to safely split fields containing pipes.
     let text = run_git(
-        root,
+        &repo,
         &[
             "log",
             "--no-color",
@@ -213,10 +296,10 @@ pub fn log(root: &Path, limit: u32) -> Result<Vec<GitCommit>, String> {
 }
 
 pub fn remotes(root: &Path) -> Result<Vec<GitRemote>, String> {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return Ok(Vec::new());
-    }
-    let text = run_git(root, &["remote", "-v"])?;
+    };
+    let text = run_git(&repo, &["remote", "-v"])?;
 
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
@@ -247,9 +330,10 @@ pub fn remotes(root: &Path) -> Result<Vec<GitRemote>, String> {
 /// List tags newest first. For each tag returns the SHA it points to and the
 /// tag/commit metadata needed to render a changelog.
 pub fn tags(root: &Path, limit: u32) -> Result<Vec<GitTag>, String> {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return Ok(Vec::new());
-    }
+    };
+    let root = repo.as_path();
     // Format fields with the unit separator so subjects/messages with `|` are safe.
     // %(taggerdate:unix) is empty for lightweight tags — we fall back to the
     // referenced commit's author date via %(*authordate:unix).
@@ -313,9 +397,10 @@ pub fn tags(root: &Path, limit: u32) -> Result<Vec<GitTag>, String> {
 /// Commits between two refs (`from..to`). Used to assemble per-tag commit
 /// lists for an auto-generated changelog.
 pub fn log_range(root: &Path, from: &str, to: &str, limit: u32) -> Result<Vec<GitCommit>, String> {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return Err("Not a git repository.".to_string());
-    }
+    };
+    let root = repo.as_path();
     let range = if from.is_empty() {
         to.to_string()
     } else {
@@ -408,13 +493,14 @@ pub fn read_changelog(root: &Path) -> Result<Option<ChangelogFile>, String> {
 }
 
 pub fn status(root: &Path) -> GitRepoStatus {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return GitRepoStatus {
             is_git_repo: false,
             head_branch: None,
             remotes: Vec::new(),
         };
-    }
+    };
+    let root = repo.as_path();
     let head_branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
         .ok()
         .map(|s| s.trim().to_string())
@@ -440,13 +526,14 @@ pub struct GitHeadStatusBrief {
 }
 
 pub fn head_status_brief(root: &Path) -> GitHeadStatusBrief {
-    if !is_repo(root) {
+    let Some(repo) = primary_repo(root) else {
         return GitHeadStatusBrief {
             is_git_repo: false,
             head_branch: None,
             uncommitted: 0,
         };
-    }
+    };
+    let root = repo.as_path();
     let head_branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
         .ok()
         .map(|s| s.trim().to_string())

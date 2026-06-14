@@ -65,9 +65,9 @@ export function PatchView({
   lang?: string | null;
 }) {
   const hunks = groupIntoHunks(classifyDiffLines(patch));
-  // `diff-content` sizes to the widest line (min-width: max-content) so long
-  // lines render on ONE line and `.diff-code` scrolls horizontally instead of
-  // wrapping — and so every row's highlight spans the full scroll width.
+  // Long lines wrap to the pane width (`.dl-x`/`.dl-code` are `pre-wrap` +
+  // `overflow-wrap: anywhere`) so nothing is clipped off-screen — macOS overlay
+  // scrollbars hid the horizontal scroll, so wrapping reads better than scroll.
   return (
     <div className="diff-content">
       {hunks.map((h, hi) => (

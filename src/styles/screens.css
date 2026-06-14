@@ -580,7 +580,11 @@
 
 /* diff 행 — marker(+/-/space) 고정 칸 + 하이라이트된 코드. */
 .dl-mark { display: inline-block; width: 1ch; user-select: none; opacity: 0.65; }
-.dl-code { white-space: pre; }
+/* Wrap long code lines to the pane width. The parent `.dl-x` is already
+   `pre-wrap`, but this inner span (which holds the highlighted code) used to
+   force `white-space: pre`, defeating the v1.4.3 wrap fix — long lines kept
+   getting clipped off-screen. Match the parent so code wraps instead. */
+.dl-code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ── 코드 구문 강조 (highlight.js 토큰) — diff + Markdown 공용. 라이트 기준,
    다크는 [data-theme="dark"] 에서 재정의. 배경은 diff add/del 가 담당하므로

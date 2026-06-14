@@ -24,6 +24,7 @@ import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { PlanUpdates } from "./PlanUpdates";
 import { TodayMonitor } from "./TodayMonitor";
+import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
 import { useNextTasks } from "./useNextTasks";
@@ -267,6 +268,8 @@ export function TodayScreenV2({
               </div>
             </div>
           )}
+
+          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
 
           <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
         </div>

@@ -120,7 +120,7 @@ use crate::commands::{
     // G3 — Clarify (W5)
     clarify_edit_intent, generate_edit_prompt_with_answers,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
-    git_log, git_remotes, git_status, git_head_status_brief, github_verify,
+    git_log, git_graph, git_remotes, git_status, git_head_status_brief, github_verify,
     git_tags, git_log_range, read_changelog, github_releases,
     reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes, open_in_editor,
     // G2 — Project Overview + Daily Brief
@@ -243,6 +243,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         kill_pty_session,
         // M7 — Git / GitHub
         git_log,
+        git_graph,
         git_remotes,
         git_status,
         git_head_status_brief,

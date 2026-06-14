@@ -130,9 +130,9 @@ describe("PR-UI 6 — Settings", () => {
       wrap(<SettingsScreenV2 projectId={1} projectRoot="/proj" />),
     );
     // No stored keys → every provider row shows 미설정 + an 추가 button
-    // (anthropic / openai / gemini / nim — dogfood 발견 3 added NVIDIA NIM).
+    // (anthropic / openai / gemini / nim / openrouter — OpenRouter added 2026-06-15).
     const add = await findAllByText("추가");
-    expect(add).toHaveLength(4);
+    expect(add).toHaveLength(5);
     expect(queryByRole("dialog")).toBeNull();
     fireEvent.click(add[0]);
     const dialog = getByRole("dialog");
