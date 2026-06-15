@@ -1,7 +1,7 @@
 // Code graph commands (PR-GR1). `get_code_graph` reads the multi-relation graph
 // built by `Db::rebuild_code_graph` after indexing. `get_dependency_graph`
 // (project.rs) stays as the backward-compatible file-level view.
-use crate::db::{CodeGraph, Db};
+use crate::db::{CodeGraph, Db, ImpactReport};
 use tauri::State;
 
 #[derive(Debug, Clone, serde::Deserialize, specta::Type)]
@@ -19,6 +19,18 @@ pub async fn get_code_graph(
     opts: GraphOpts,
 ) -> Result<CodeGraph, String> {
     db.get_code_graph(project_id, opts.symbol_level)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_change_impact(
+    db: State<'_, Db>,
+    project_id: u32,
+    changed_paths: Vec<String>,
+) -> Result<ImpactReport, String> {
+    db.get_change_impact(project_id, changed_paths)
         .await
         .map_err(|e| e.to_string())
 }

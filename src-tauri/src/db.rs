@@ -1553,6 +1553,91 @@ impl Db {
         Ok(graph)
     }
 
+    /// PR-GR4 — change-impact analysis. Given changed file paths, return the
+    /// files that (transitively) import them (reverse-dependency BFS over
+    /// file_dependencies). `depth` = hops from the nearest changed file.
+    pub async fn get_change_impact(
+        &self,
+        project_id: u32,
+        changed_paths: Vec<String>,
+    ) -> Result<ImpactReport> {
+        let report = self
+            .conn
+            .call(move |c| {
+                use std::collections::{HashMap, HashSet, VecDeque};
+                // path <-> file_id
+                let mut path_to_id: HashMap<String, i64> = HashMap::new();
+                let mut id_to_path: HashMap<i64, String> = HashMap::new();
+                {
+                    let mut s = c.prepare("SELECT id, path FROM files WHERE project_id = ?")?;
+                    let rows = s.query_map([project_id as i64], |r| {
+                        Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+                    })?;
+                    for row in rows {
+                        let (id, path) = row?;
+                        path_to_id.insert(path.clone(), id);
+                        id_to_path.insert(id, path);
+                    }
+                }
+                // reverse adjacency: target_file_id -> [source_file_id] (source imports target)
+                let mut importers: HashMap<i64, Vec<i64>> = HashMap::new();
+                {
+                    let mut s = c.prepare(
+                        "SELECT source_file_id, target_file_id FROM file_dependencies WHERE project_id = ?",
+                    )?;
+                    let rows = s.query_map([project_id as i64], |r| {
+                        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+                    })?;
+                    for row in rows {
+                        let (src, tgt) = row?;
+                        importers.entry(tgt).or_default().push(src);
+                    }
+                }
+                // seeds = changed files present in the index
+                let mut seeds: Vec<i64> = Vec::new();
+                let mut matched: Vec<String> = Vec::new();
+                for p in &changed_paths {
+                    if let Some(&id) = path_to_id.get(p) {
+                        seeds.push(id);
+                        matched.push(p.clone());
+                    }
+                }
+                let seed_set: HashSet<i64> = seeds.iter().copied().collect();
+                let mut depth: HashMap<i64, u32> = HashMap::new();
+                let mut queue: VecDeque<i64> = VecDeque::new();
+                for &s in &seeds {
+                    depth.insert(s, 0);
+                    queue.push_back(s);
+                }
+                while let Some(cur) = queue.pop_front() {
+                    let d = depth[&cur];
+                    if let Some(srcs) = importers.get(&cur) {
+                        for &src in srcs {
+                            if !depth.contains_key(&src) {
+                                depth.insert(src, d + 1);
+                                queue.push_back(src);
+                            }
+                        }
+                    }
+                }
+                let mut affected: Vec<ImpactNode> = depth
+                    .into_iter()
+                    .filter(|(id, _)| !seed_set.contains(id))
+                    .filter_map(|(id, d)| {
+                        id_to_path.get(&id).map(|p| ImpactNode {
+                            file_id: id as u32,
+                            path: p.clone(),
+                            depth: d,
+                        })
+                    })
+                    .collect();
+                affected.sort_by(|a, b| a.depth.cmp(&b.depth).then_with(|| a.path.cmp(&b.path)));
+                Ok(ImpactReport { changed: matched, affected })
+            })
+            .await?;
+        Ok(report)
+    }
+
     pub async fn list_project_files(&self, project_id: u32) -> Result<Vec<(u32, String)>> {
         let files = self
             .conn
@@ -2671,6 +2756,22 @@ pub struct GraphEdgeDto {
 pub struct CodeGraph {
     pub nodes: Vec<GraphNodeDto>,
     pub edges: Vec<GraphEdgeDto>,
+}
+
+// Change-impact (PR-GR4) — reverse-dependency BFS from a set of changed files.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ImpactNode {
+    pub file_id: u32,
+    pub path: String,
+    pub depth: u32, // hops from the nearest changed file (1 = direct importer)
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ImpactReport {
+    /// Changed paths that were found in the index (subset of the input).
+    pub changed: Vec<String>,
+    /// Files that (transitively) import a changed file, nearest first.
+    pub affected: Vec<ImpactNode>,
 }
 
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships

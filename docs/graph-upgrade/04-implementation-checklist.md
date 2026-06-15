@@ -15,7 +15,7 @@
 | GR1 | 멀티관계 스키마 + 빌더 + `get_code_graph` (imports/contains) | GR0 | ☑ | 2026-06-15 claude-code |
 | GR2 | tree-sitter 관계 추출 (calls/inherits/implements) | GR1 | ☑ | 2026-06-15 claude-code |
 | GR3 | 그래프 UX (d3-force/Louvain/필터/심볼펼침/순환/LOD) + similar_to | GR1 | ☐ | — |
-| GR4 | 의미층(LLM enrichment) + diff 영향분석 + JSON export | GR2,GR3 | ☐ | — |
+| GR4 | 의미층(LLM enrichment) + diff 영향분석 + JSON export | GR2,GR3 | ▣ | 2026-06-15 claude-code (diff 영향분석 ☑, LLM/export 이월) |
 
 > GR0 는 단독 출시 가능(가장 큰 즉시 체감). GR3 는 GR2 와 독립적으로 GR1 위에서 진행 가능.
 
@@ -90,14 +90,11 @@
 
 **목표:** 선택적 LLM 가치 + 기존 기능 연계. 로컬 우선 유지(D-F).
 
-- ☐ `enrich_graph_node` — 기존 provider 플러밍(aiContext/OpenRouter/failover) 재사용, 요약/레이어 SQLite 캐시
-- ☐ Inspector "AI 설명 생성" 버튼(키 없으면 숨김), 레이어 색 매핑
-- ☐ (선택) 가이드 투어 생성 → AI 패널/Planner 연계
-- ☐ `get_change_impact(changed_paths)` — 역엣지 BFS, ImpactReport
-- ☐ "변경 diff"/Today 에 영향 패널 + 그래프 파급 하이라이트
-- ☐ `export_code_graph` → `code-graph.json`(파생물, D-B)
+- ☑ `get_change_impact(project_id, changed_paths)` — **역방향 의존성 BFS**(file_dependencies, target→source). ImpactReport{changed, affected[{file_id,path,depth}]}. 커맨드 등록+바인딩 재생성
+- ☑ "변경 diff" 화면에 **영향 받는 파일** 접이식 섹션(depth 배지: 1홉=직접 importer 강조), 클릭→외부 에디터. 변경 파일 전체를 시드로 union BFS
+- → **이월**: `enrich_graph_node`(LLM 요약/레이어 캐시) + Inspector "AI 설명 생성" + 가이드 투어 + 그래프 파급 하이라이트 + `export_code_graph` JSON
 
-**DoD:** 키 있을 때만 enrichment 동작·캐시, 없으면 구조 그래프 무손상. diff → 영향 노드 BFS 표시. JSON 내보내기 round-trip.
+**DoD(부분 달성):** diff → 영향 파일 역BFS 표시 ☑ (cargo check ✓ / JS 게이트 ✓). LLM enrichment·JSON export 미구현.
 
 ---
 

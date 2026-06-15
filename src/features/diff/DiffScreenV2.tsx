@@ -9,7 +9,7 @@ import {
   TriangleAlert,
   TargetIcon,
 } from "@/components/Icons";
-import { commands, type DiffResult, type ChangeGroup, type ChangePlanRef } from "@/lib/bindings";
+import { commands, type DiffResult, type ChangeGroup, type ChangePlanRef, type ImpactReport } from "@/lib/bindings";
 import {
   useWorkspace,
   type ChangeOp,
@@ -287,6 +287,40 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
   }, [projectRoot, selected, settings.externalEditorCommand]);
 
+  // GR4 — change impact: files that (transitively) import a changed file, found
+  // by reverse-dependency BFS. Flags review-worthy files the diff doesn't show.
+  const [impact, setImpact] = useState<ImpactReport | null>(null);
+  const [impactOpen, setImpactOpen] = useState(true);
+  useEffect(() => {
+    if (changesRef.current.length === 0) {
+      setImpact(null);
+      return;
+    }
+    let cancelled = false;
+    const paths = changesRef.current.map((c) => c.path);
+    commands
+      .getChangeImpact(projectId, paths)
+      .then((res) => {
+        if (!cancelled) setImpact(res.status === "ok" ? res.data : null);
+      })
+      .catch(() => {
+        if (!cancelled) setImpact(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, pathKey]);
+
+  const onOpenAffected = useCallback(
+    async (path: string) => {
+      if (!projectRoot) return;
+      const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand);
+      if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+    },
+    [projectRoot, settings.externalEditorCommand],
+  );
+
   const cur = changes.find((c) => c.path === selected) ?? null;
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
   const allReviewed =
@@ -423,6 +457,68 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   .slice()
                   .reverse()
                   .map((c) => renderFile(c.path))}
+
+            {impact && impact.affected.length > 0 ? (
+              <div style={{ borderTop: "1px solid var(--sep)", marginTop: 8, paddingTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setImpactOpen((o) => !o)}
+                  title="변경된 파일을 (간접적으로) import 하는 파일들 — 함께 검토할 후보"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    width: "100%",
+                    padding: "4px 10px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text-2)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  <GitBranchIcon size={11} />
+                  영향 받는 파일
+                  <span style={{ marginLeft: "auto", color: "var(--text-3)" }}>
+                    {impact.affected.length}
+                  </span>
+                </button>
+                {impactOpen ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: "2px 6px 6px" }}>
+                    {impact.affected.slice(0, 60).map((n) => (
+                      <button
+                        key={n.file_id}
+                        type="button"
+                        className="dfile"
+                        onClick={() => onOpenAffected(n.path)}
+                        title={`${n.path} · ${n.depth}홉 거리 (외부 에디터로 열기)`}
+                      >
+                        <span
+                          className="dstatus"
+                          style={{
+                            background: "transparent",
+                            color: n.depth === 1 ? "var(--accent-uncommitted, #c4922f)" : "var(--text-3)",
+                            border: "1px solid var(--sep)",
+                            minWidth: 16,
+                            fontSize: 9,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {n.depth}
+                        </span>
+                        <span className="dfile-name">{n.path}</span>
+                      </button>
+                    ))}
+                    {impact.affected.length > 60 ? (
+                      <span style={{ padding: "3px 6px", fontSize: 11, color: "var(--text-3)" }}>
+                        … 외 {impact.affected.length - 60}개
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {/* Right: diff body */}

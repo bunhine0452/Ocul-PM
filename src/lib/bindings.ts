@@ -36,6 +36,7 @@ export const commands = {
 	getDependencyGraph: (projectId: number) => typedError<DependencyGraph, string>(__TAURI_INVOKE("get_dependency_graph", { projectId })),
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
 	getCodeGraph: (projectId: number, opts: GraphOpts) => typedError<CodeGraph, string>(__TAURI_INVOKE("get_code_graph", { projectId, opts })),
+	getChangeImpact: (projectId: number, changedPaths: string[]) => typedError<ImpactReport, string>(__TAURI_INVOKE("get_change_impact", { projectId, changedPaths })),
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
 	goalCreate: (projectId: number | null, title: string, description: string | null, priority: number, dueDate: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_create", { projectId, title, description, priority, dueDate })),
 	goalList: (projectId: number | null, statusFilter: string | null) => typedError<Goal[], string>(__TAURI_INVOKE("goal_list", { projectId, statusFilter })),
@@ -1181,6 +1182,19 @@ export type HeatmapCell = {
 	entry_count: number,
 	file_event_count: number,
 	score: number,
+};
+
+export type ImpactNode = {
+	file_id: number,
+	path: string,
+	depth: number,
+};
+
+export type ImpactReport = {
+	/**  Changed paths that were found in the index (subset of the input). */
+	changed: string[],
+	/**  Files that (transitively) import a changed file, nearest first. */
+	affected: ImpactNode[],
 };
 
 export type IndexProgress = {
