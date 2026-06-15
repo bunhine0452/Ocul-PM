@@ -127,6 +127,27 @@ export const commands = {
 	 */
 	warnings: string[],
 } | null, string>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
+	/**
+	 *  Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
+	 *  so item attribution + references keep working. Returns refreshed detail.
+	 */
+	planRename: (projectId: number, planId: string, title: string) => typedError<{
+	plan: PlanSummary,
+	items: PlanItemDto[],
+	phases: PlanPhaseDto[],
+	decisions: PlanDecisionDto[],
+	/**
+	 *  Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
+	 *  the UI never fails silently on a malformed plan.
+	 */
+	warnings: string[],
+} | null, string>(__TAURI_INVOKE("plan_rename", { projectId, planId, title })),
+	/**
+	 *  Delete a plan: remove its `.oculpm/planner/<id>.md` file and drop the cache
+	 *  rows (a full reproject from disk is the only cache writer, so listing after
+	 *  the unlink cleans up). Works regardless of lock state.
+	 */
+	planDelete: (projectId: number, planId: string) => typedError<null, string>(__TAURI_INVOKE("plan_delete", { projectId, planId })),
 	conversationCreate: (title: string, provider: string | null, model: string | null, projectId: number | null) => typedError<Conversation, string>(__TAURI_INVOKE("conversation_create", { title, provider, model, projectId })),
 	conversationList: (projectId: number | null) => typedError<Conversation[], string>(__TAURI_INVOKE("conversation_list", { projectId })),
 	conversationRename: (conversationId: number, title: string) => typedError<null, string>(__TAURI_INVOKE("conversation_rename", { conversationId, title })),
@@ -1568,7 +1589,11 @@ export type PlanEditOp =
 /**  Flip an existing item's status. */
 { kind: "set_status"; item_id: string; status: string } | 
 /**  Add a new item under a phase (created if absent). */
-{ kind: "add_item"; phase: string; title: string; item_id: string | null; status: string | null };
+{ kind: "add_item"; phase: string; title: string; item_id: string | null; status: string | null } | 
+/**  Remove an existing item. */
+{ kind: "remove_item"; item_id: string } | 
+/**  Rename an existing item's title. */
+{ kind: "rename_item"; item_id: string; title: string };
 
 export type PlanItemDto = {
 	item_id: string,

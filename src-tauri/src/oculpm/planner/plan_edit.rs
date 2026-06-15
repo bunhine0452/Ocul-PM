@@ -62,6 +62,38 @@ pub fn set_plan_status(md: &str, status: &str, date: &str) -> String {
     lines.join("\n")
 }
 
+/// Set the plan-level frontmatter `title:` (and bump `updated:`), preserving
+/// everything else (PR — plan rename). The plan `id` / filename are unchanged.
+pub fn set_plan_title(md: &str, title: &str, date: &str) -> String {
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let start = match lines.iter().position(|l| l.trim() == "---") {
+        Some(s) => s,
+        None => return md.to_string(),
+    };
+    let end = match lines[start + 1..].iter().position(|l| l.trim() == "---") {
+        Some(e) => start + 1 + e,
+        None => return md.to_string(),
+    };
+    let mut title_set = false;
+    for line in lines.iter_mut().take(end).skip(start + 1) {
+        let t = line.trim_start();
+        if t.starts_with("title:") {
+            *line = format!("title: \"{}\"", escape_yaml(title));
+            title_set = true;
+        } else if t.starts_with("updated:") {
+            *line = format!("updated: {date}");
+        }
+    }
+    if !title_set {
+        let at = ((start + 1)..end)
+            .find(|&i| lines[i].trim_start().starts_with("id:"))
+            .map(|i| i + 1)
+            .unwrap_or(start + 1);
+        lines.insert(at, format!("title: \"{}\"", escape_yaml(title)));
+    }
+    lines.join("\n")
+}
+
 #[derive(Debug)]
 pub struct SetStatusResult {
     pub md: String,
@@ -95,6 +127,36 @@ pub fn set_item_status(
         md: lines.join("\n"),
         old_status,
     })
+}
+
+/// Remove an item line (`{#item_id}`) entirely. Errors if not found. Other
+/// content (the plan-log rows referencing it) is left as historical record.
+pub fn remove_item(md: &str, item_id: &str) -> Result<String, String> {
+    let needle = format!("{{#{item_id}}}");
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let idx = lines
+        .iter()
+        .position(|l| is_item_line(l) && l.contains(&needle))
+        .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
+    lines.remove(idx);
+    Ok(lines.join("\n"))
+}
+
+/// Rename an item's title text in place, preserving its status glyph and
+/// `{#item_id}` marker. Errors if the item isn't found.
+pub fn rename_item(md: &str, item_id: &str, new_title: &str) -> Result<String, String> {
+    let needle = format!("{{#{item_id}}}");
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let idx = lines
+        .iter()
+        .position(|l| is_item_line(l) && l.contains(&needle))
+        .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
+    let line = lines[idx].clone();
+    let rb = line.find(']').ok_or("malformed item line: no ']'")?;
+    let marker = line.find("{#").ok_or("malformed item line: no marker")?;
+    // head = "<indent>- [x]", tail = "{#id}…"
+    lines[idx] = format!("{} {} {}", &line[..=rb], new_title.trim(), &line[marker..]);
+    Ok(lines.join("\n"))
 }
 
 /// Insert a new item under `phase` (creating the phase section if absent).
@@ -381,5 +443,37 @@ mod tests {
         let res = set_item_status(md, "keep", ItemStatus::Done).unwrap();
         assert!(res.md.contains("사용자 메모: 보존되어야 함"));
         assert!(res.md.contains("- [x] keep me {#keep}"));
+    }
+
+    #[test]
+    fn set_plan_title_changes_title_and_bumps_updated() {
+        let md = create_plan_skeleton("p", "옛 제목", "user", "2026-06-01");
+        let out = set_plan_title(&md, "새 제목", "2026-06-15");
+        let p = parse_plan(&out, "p");
+        assert_eq!(p.frontmatter.title, "새 제목");
+        assert_eq!(p.frontmatter.updated.as_deref(), Some("2026-06-15"));
+    }
+
+    #[test]
+    fn remove_item_drops_the_line() {
+        let md = create_plan_skeleton("p", "t", "user", "2026-06-07");
+        let md = add_item(&md, "P", "a", "a1", ItemStatus::Todo).unwrap();
+        let md = add_item(&md, "P", "b", "b1", ItemStatus::Todo).unwrap();
+        let out = remove_item(&md, "a1").unwrap();
+        let p = parse_plan(&out, "p");
+        assert_eq!(p.items.len(), 1);
+        assert_eq!(p.items[0].item_id, "b1");
+        assert!(remove_item(&out, "ghost").is_err());
+    }
+
+    #[test]
+    fn rename_item_keeps_status_and_marker() {
+        let md = create_plan_skeleton("p", "t", "user", "2026-06-07");
+        let md = add_item(&md, "P", "옛 항목", "x", ItemStatus::Done).unwrap();
+        let out = rename_item(&md, "x", "새 항목").unwrap();
+        let p = parse_plan(&out, "p");
+        let it = p.items.iter().find(|i| i.item_id == "x").unwrap();
+        assert_eq!(it.title, "새 항목");
+        assert_eq!(it.status, ItemStatus::Done);
     }
 }

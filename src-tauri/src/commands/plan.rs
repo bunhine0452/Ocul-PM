@@ -18,7 +18,8 @@ use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMP
 use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
-    add_item, append_log_row, create_plan_skeleton, set_item_status, set_plan_status, LogRow,
+    add_item, append_log_row, create_plan_skeleton, remove_item, rename_item, set_item_status,
+    set_plan_status, set_plan_title, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -97,6 +98,10 @@ pub enum PlanEditOp {
         item_id: Option<String>,
         status: Option<String>,
     },
+    /// Remove an existing item.
+    RemoveItem { item_id: String },
+    /// Rename an existing item's title.
+    RenameItem { item_id: String, title: String },
 }
 
 /// True when a plan is locked (frontmatter `status` is anything other than
@@ -210,6 +215,32 @@ pub async fn plan_apply_edit(
             };
             append_log_row(&added, &row)
         }
+        PlanEditOp::RemoveItem { item_id } => {
+            let removed = remove_item(&md, &item_id)?;
+            let row = LogRow {
+                ts,
+                item_id,
+                agent_id: agent,
+                from: None,
+                to: None,
+                journal_ref: None,
+                note: Some("삭제".to_string()),
+            };
+            append_log_row(&removed, &row)
+        }
+        PlanEditOp::RenameItem { item_id, title } => {
+            let renamed = rename_item(&md, &item_id, &title)?;
+            let row = LogRow {
+                ts,
+                item_id,
+                agent_id: agent,
+                from: None,
+                to: None,
+                journal_ref: None,
+                note: Some("이름 변경".to_string()),
+            };
+            append_log_row(&renamed, &row)
+        }
     };
 
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
@@ -240,6 +271,44 @@ pub async fn plan_set_status(
     let new_md = set_plan_status(&md, &status, &date);
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
+}
+
+/// Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
+/// so item attribution + references keep working. Returns refreshed detail.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_rename(
+    db: State<'_, Db>,
+    project_id: u32,
+    plan_id: String,
+    title: String,
+) -> Result<Option<PlanDetail>, String> {
+    let t = title.trim();
+    if t.is_empty() {
+        return Err("제목을 입력하세요.".to_string());
+    }
+    let root = planner_root_of(&db, project_id).await?;
+    let path =
+        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
+    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let new_md = set_plan_title(&md, t, &date);
+    write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+    PlanCache::new(&db).get(project_id, &root, &plan_id).await
+}
+
+/// Delete a plan: remove its `.oculpm/planner/<id>.md` file and drop the cache
+/// rows (a full reproject from disk is the only cache writer, so listing after
+/// the unlink cleans up). Works regardless of lock state.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_delete(db: State<'_, Db>, project_id: u32, plan_id: String) -> Result<(), String> {
+    let root = planner_root_of(&db, project_id).await?;
+    let path =
+        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
+    std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    PlanCache::new(&db).list(project_id, &root).await?;
+    Ok(())
 }
 
 // ─── in-app AI refresh + migration (PR-PLN 5) ────────────────────────────────

@@ -9,6 +9,8 @@ import {
   RefreshCw,
   Sparkles,
   NotebookText,
+  Pencil,
+  Trash2,
 } from "@/components/Icons";
 import {
   commands,
@@ -269,6 +271,71 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     }
   };
 
+  // Plan-level CRUD: rename (frontmatter title) + delete (.md unlink + reproject).
+  const renamePlan = async (title: string) => {
+    if (busy || selectedId == null || !title.trim()) return;
+    setBusy(true);
+    const res = await commands.planRename(projectId, selectedId, title.trim());
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+    } else {
+      toast.destructive(`이름 변경 실패: ${res.error}`);
+    }
+  };
+
+  const deletePlan = async () => {
+    if (busy || selectedId == null) return;
+    setBusy(true);
+    const res = await commands.planDelete(projectId, selectedId);
+    setBusy(false);
+    if (res.status === "ok") {
+      setSelectedId(null);
+      setDetail(null);
+      void refreshPlans();
+    } else {
+      toast.destructive(`삭제 실패: ${res.error}`);
+    }
+  };
+
+  // Item-level remove / rename (reuses plan_apply_edit; locked plans rejected).
+  const removeItem = async (item: PlanItemDto) => {
+    if (busy || selectedId == null) return;
+    setBusy(true);
+    const res = await commands.planApplyEdit(
+      projectId,
+      selectedId,
+      { kind: "remove_item", item_id: item.item_id },
+      "user",
+    );
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+    } else {
+      toast.destructive(`항목 삭제 실패: ${res.error}`);
+    }
+  };
+
+  const renameItem = async (item: PlanItemDto, title: string) => {
+    if (busy || selectedId == null || !title.trim()) return;
+    setBusy(true);
+    const res = await commands.planApplyEdit(
+      projectId,
+      selectedId,
+      { kind: "rename_item", item_id: item.item_id, title: title.trim() },
+      "user",
+    );
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+    } else {
+      toast.destructive(`이름 변경 실패: ${res.error}`);
+    }
+  };
+
   // Dogfooding 2026-06-07 (Planner #1) — 완료·잠금: mark the plan done (read-only).
   // Locked plans reject in-app edits + AI refresh (backend guard) and AGENTS.md
   // tells external agents the same, so finished plans freeze and work moves on.
@@ -517,6 +584,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               busy={busy}
               locked={locked}
               onToggleLock={setPlanLock}
+              onRename={renamePlan}
+              onDelete={deletePlan}
+              onRemoveItem={removeItem}
+              onRenameItem={renameItem}
               historyFor={historyFor}
               history={history}
               onToggleHistory={toggleHistory}
@@ -571,6 +642,10 @@ interface PlanBodyProps {
   busy: boolean;
   locked: boolean;
   onToggleLock: (lock: boolean) => void;
+  onRename: (title: string) => void;
+  onDelete: () => void;
+  onRemoveItem: (item: PlanItemDto) => void;
+  onRenameItem: (item: PlanItemDto, title: string) => void;
   historyFor: string | null;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
@@ -580,7 +655,9 @@ interface PlanBodyProps {
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const [renaming, setRenaming] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
@@ -589,8 +666,29 @@ function PlanBody(props: PlanBodyProps) {
       {/* Header */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ flex: 1 }}>
-            <div className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {renaming ? (
+              <input
+                autoFocus
+                className="set-input"
+                defaultValue={detail.plan.title}
+                style={{ fontSize: 16, fontWeight: 600, width: "100%" }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onRename((e.target as HTMLInputElement).value);
+                    setRenaming(false);
+                  }
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== detail.plan.title) onRename(v);
+                  setRenaming(false);
+                }}
+              />
+            ) : (
+              <div className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</div>
+            )}
             <div className="goal-due" style={{ marginTop: 4 }}>
               <span className={"goal-status " + (locked ? "planned" : "active")}>
                 {locked ? "🔒 완료·잠금" : "진행중"}
@@ -601,12 +699,46 @@ function PlanBody(props: PlanBodyProps) {
           </div>
           <button
             className="btn sm"
+            onClick={() => setRenaming(true)}
+            disabled={busy || renaming}
+            title="계획 이름 변경"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            className="btn sm"
             onClick={() => onToggleLock(!locked)}
             disabled={busy}
             title={locked ? "잠금 해제하고 다시 편집" : "이 계획을 완료·잠금 (읽기전용)"}
           >
             {locked ? "잠금 해제" : "완료·잠금"}
           </button>
+          {confirmDelete ? (
+            <>
+              <button
+                className="btn sm"
+                style={{ color: "var(--t-bug)", borderColor: "var(--t-bug)" }}
+                onClick={() => {
+                  setConfirmDelete(false);
+                  onDelete();
+                }}
+                disabled={busy}
+                title="이 계획을 영구 삭제"
+              >
+                삭제 확정
+              </button>
+              <button className="btn sm" onClick={() => setConfirmDelete(false)}>취소</button>
+            </>
+          ) : (
+            <button
+              className="btn sm"
+              onClick={() => setConfirmDelete(true)}
+              disabled={busy}
+              title="계획 삭제"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
           <button className="btn sm" onClick={onRefresh} title="새로고침"><RefreshCw size={13} /></button>
         </div>
         {locked ? (
@@ -684,6 +816,8 @@ function PlanBody(props: PlanBodyProps) {
                     busy={busy}
                     locked={locked}
                     onSetStatus={onSetStatus}
+                    onRemove={onRemoveItem}
+                    onRename={onRenameItem}
                     historyOpen={historyFor === it.item_id}
                     history={historyFor === it.item_id ? history : null}
                     onToggleHistory={onToggleHistory}
@@ -723,6 +857,8 @@ interface PlanItemRowProps {
   busy: boolean;
   locked: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
+  onRemove: (item: PlanItemDto) => void;
+  onRename: (item: PlanItemDto, title: string) => void;
   historyOpen: boolean;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
@@ -730,11 +866,14 @@ interface PlanItemRowProps {
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
 }
 
-function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, locked, onSetStatus, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
   const linked = item.journal_refs ?? [];
   const multiLinked = linked.length > 1;
+
+  const [editing, setEditing] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   // Multi-journal picker: one linked entry opens directly; several show a
   // date+title chooser. Metas resolve lazily on first open.
@@ -782,7 +921,28 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
       </button>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <span className={"sub-title" + (item.status === "done" ? " done" : "")}>{item.title}</span>
+        {editing ? (
+          <input
+            autoFocus
+            className="set-input"
+            defaultValue={item.title}
+            style={{ fontSize: 13, width: "100%", maxWidth: 360 }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onRename(item, (e.target as HTMLInputElement).value);
+                setEditing(false);
+              }
+              if (e.key === "Escape") setEditing(false);
+            }}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && v !== item.title) onRename(item, v);
+              setEditing(false);
+            }}
+          />
+        ) : (
+          <span className={"sub-title" + (item.status === "done" ? " done" : "")}>{item.title}</span>
+        )}
         {item.note ? <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>— {item.note}</span> : null}
         {linked.length > 0 ? (
           <span className="jref-wrap" ref={jrefWrap} style={{ marginLeft: 8 }}>
@@ -881,6 +1041,52 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
           <span style={{ color: "var(--text-3)" }}>· {relativeTime(item.last_update)}</span>
           <Clock size={11} />
         </button>
+      ) : null}
+
+      {!locked && !editing ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 4 }}>
+          {confirmDel ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { setConfirmDel(false); onRemove(item); }}
+                disabled={busy}
+                title="삭제 확정"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t-bug)", fontSize: 11, padding: "0 2px" }}
+              >
+                삭제?
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDel(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: 11, padding: "0 2px" }}
+              >
+                취소
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                disabled={busy}
+                title="항목 이름 변경"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", padding: 2, display: "grid", placeItems: "center" }}
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDel(true)}
+                disabled={busy}
+                title="항목 삭제"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", padding: 2, display: "grid", placeItems: "center" }}
+              >
+                <Trash2 size={12} />
+              </button>
+            </>
+          )}
+        </div>
       ) : null}
     </div>
   );
