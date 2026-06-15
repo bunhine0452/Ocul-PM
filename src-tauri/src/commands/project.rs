@@ -250,6 +250,17 @@ pub async fn index_project(
             if !ana.imports.is_empty() {
                 import_resolver_queue.push((file_id, rel_str.clone(), ana.imports.clone()));
             }
+            // PR-GR2: persist raw relations (resolved into calls/inherits edges
+            // by rebuild_code_graph). Replace so re-index doesn't duplicate; an
+            // empty vec clears stale rows for this file.
+            let rels: Vec<(String, String)> = ana
+                .relations
+                .iter()
+                .map(|r| (r.kind.clone(), r.name.clone()))
+                .collect();
+            db.replace_symbol_relations(file_id, rels)
+                .await
+                .map_err(|e| e.to_string())?;
         }
 
         if chunks.is_empty() {

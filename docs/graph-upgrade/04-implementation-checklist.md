@@ -13,7 +13,7 @@
 |---|---|---|---|---|
 | GR0 | ui_v2 그래프 화면 신설 (React Flow, file-level) | — | ☑ | 2026-06-15 claude-code |
 | GR1 | 멀티관계 스키마 + 빌더 + `get_code_graph` (imports/contains) | GR0 | ☑ | 2026-06-15 claude-code |
-| GR2 | tree-sitter 관계 추출 (calls/inherits/implements) | GR1 | ☐ | — |
+| GR2 | tree-sitter 관계 추출 (calls/inherits/implements) | GR1 | ☑ | 2026-06-15 claude-code |
 | GR3 | 그래프 UX (d3-force/Louvain/필터/심볼펼침/순환/LOD) + similar_to | GR1 | ☐ | — |
 | GR4 | 의미층(LLM enrichment) + diff 영향분석 + JSON export | GR2,GR3 | ☐ | — |
 
@@ -54,18 +54,19 @@
 
 ---
 
-## PR-GR2 — 관계 추출 (calls/inherits/implements)
+## PR-GR2 — 관계 추출 (calls/inherits/implements)  ☑ (2026-06-15)
 
 **목표:** tree-sitter 로 호출·상속 엣지. 정직한 정밀도(estimated 플래그).
 
-- ☐ `ast::analyze_file` → `relations: Vec<RawRelation>` ([`02`](./02-backend-extraction-spec.md) §2)
-- ☐ `queries/<lang>/relations.scm` (TS/JS/Rust/Python/Go) + 언어 레지스트리(`lang.rs`)
-- ☐ 소속 심볼 역산(byte range) + 이름해석(동일파일→import→전역동명, estimated 분류)
-- ☐ `rebuild_project` 에 calls/inherits/implements 삽입(weight/estimated)
-- ☐ 프론트: 엣지 타입 필터(calls/상속 토글), 추정 엣지 점선·배지
-- ☐ Inspector 에 Calls / Called by 섹션
+- ☑ `ast::analyze_file` → `relations: Vec<RawRelation>` — **별도·실패격리 관계 쿼리**(인라인 const, `.scm` 파일 대신). 잘못된 노드명이 심볼 추출을 안 깸
+- ☑ Rust/Python/JS/TS(TSX)/Go 관계 쿼리(calls + inherits/implements). **부수효과: 기존 깨져있던 Go 심볼 쿼리 버그 수정**(`string_literal`→`interpreted_string_literal` — Go AST 분석이 그동안 전부 None 이었음)
+- ☑ `ast` cargo 테스트 5종 — 쿼리 컴파일+캡처 검증(노드명 드리프트 조기 발견)
+- ☑ `symbol_relations` 테이블(migration 019) + `replace_symbol_relations` 영속화(인덱싱 시, 변경파일 replace)
+- ☑ `rebuild_code_graph` 해석 → **파일단위** calls/inherits/implements 엣지. 신뢰(estimated=0)=src 가 import 하는 정의파일 / 추정(estimated=1)=전역 유일 정의 / 모호=skip
+- ☑ 프론트: 엣지 타입 필터 칩(import/호출/상속/구현, 색상), 추정=점선, 폴더모드 타입별 집계, Inspector 나가는/들어오는 관계
+- → **이월(GR3)**: 심볼단위(symbol→symbol) 정밀 엣지 + 소속 심볼 역산. 본 PR 은 가독성·저위험 위해 **파일단위 해석**으로 단순화(02-spec 의 byte-range 역산 미적용)
 
-**DoD:** TS+Rust 픽스처에서 호출/상속 엣지 생성, 추정/확정 구분. 증분 시 변경파일 src 엣지만 변동. `cargo test`(§02 §5) ✓.
+**DoD(달성):** Rust/Py/JS/TS/Go 픽스처에서 calls + inherits/implements 추출·추정 구분(cargo test 5/5). 파일단위 엣지가 graph_edges 에 채워지고 프론트에서 타입별 토글/색/점선. cargo check ✓ / JS 게이트 ✓. (바인딩 무변경 — GR1 DTO 가 이미 edge_type/estimated 포함.)
 
 ---
 

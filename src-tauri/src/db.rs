@@ -26,6 +26,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (16, include_str!("../migrations/016_oculpm_planner.sql")),
     (17, include_str!("../migrations/017_embedding_model_quantized.sql")),
     (18, include_str!("../migrations/018_code_graph.sql")),
+    (19, include_str!("../migrations/019_symbol_relations.sql")),
 ];
 
 pub struct Db {
@@ -1242,6 +1243,36 @@ impl Db {
         Ok(symbols)
     }
 
+    /// PR-GR2 — replace a file's raw relations (delete + insert in one tx) so
+    /// re-indexing a changed file doesn't duplicate rows. Resolved into edges by
+    /// rebuild_code_graph. `relations` is (kind, name) — already de-duped.
+    pub async fn replace_symbol_relations(
+        &self,
+        file_id: u32,
+        relations: Vec<(String, String)>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                tx.execute(
+                    "DELETE FROM symbol_relations WHERE file_id = ?",
+                    params![file_id as i64],
+                )?;
+                {
+                    let mut ins = tx.prepare(
+                        "INSERT INTO symbol_relations (file_id, kind, name) VALUES (?, ?, ?)",
+                    )?;
+                    for (kind, name) in &relations {
+                        ins.execute(params![file_id as i64, kind, name])?;
+                    }
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     /// PR-GR1 — rebuild the code graph (graph_nodes/graph_edges) for a project
     /// from the already-indexed files / symbol_definitions / file_dependencies.
     /// Pure SQL, LLM-free, deterministic (docs/graph-upgrade D-A). Full rebuild
@@ -1340,6 +1371,91 @@ impl Db {
                     for (src, tgt) in &deps {
                         if let (Some(&s), Some(&t)) = (file_node.get(src), file_node.get(tgt)) {
                             ins_edge.execute(params![project_id as i64, s, t])?;
+                        }
+                    }
+                }
+
+                // calls / inherits / implements edges (file → file), resolved
+                // from raw symbol_relations (PR-GR2). File-level for readability:
+                // a callee/parent `name` resolves to the file(s) defining a
+                // symbol of that name. Confident (estimated=0) when the source
+                // file imports that file; else a single global definer is an
+                // estimated guess (estimated=1). Ambiguous (>1, not imported) is
+                // skipped to avoid noise.
+                {
+                    let mut defs: std::collections::HashMap<String, Vec<i64>> =
+                        std::collections::HashMap::new();
+                    {
+                        let mut s = tx.prepare(
+                            "SELECT sd.name, sd.file_id FROM symbol_definitions sd
+                             JOIN files f ON f.id = sd.file_id WHERE f.project_id = ?",
+                        )?;
+                        let rows = s.query_map([project_id as i64], |r| {
+                            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                        })?;
+                        for row in rows {
+                            let (name, fid) = row?;
+                            defs.entry(name).or_default().push(fid);
+                        }
+                    }
+                    let mut imports_of: std::collections::HashMap<i64, std::collections::HashSet<i64>> =
+                        std::collections::HashMap::new();
+                    {
+                        let mut s = tx.prepare(
+                            "SELECT source_file_id, target_file_id FROM file_dependencies WHERE project_id = ?",
+                        )?;
+                        let rows = s.query_map([project_id as i64], |r| {
+                            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+                        })?;
+                        for row in rows {
+                            let (sfid, tfid) = row?;
+                            imports_of.entry(sfid).or_default().insert(tfid);
+                        }
+                    }
+                    let rels: Vec<(i64, String, String)> = {
+                        let mut s = tx.prepare(
+                            "SELECT sr.file_id, sr.kind, sr.name FROM symbol_relations sr
+                             JOIN files f ON f.id = sr.file_id WHERE f.project_id = ?",
+                        )?;
+                        let rows = s.query_map([project_id as i64], |r| {
+                            Ok((
+                                r.get::<_, i64>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, String>(2)?,
+                            ))
+                        })?;
+                        rows.collect::<rusqlite::Result<Vec<_>>>()?
+                    };
+                    let mut ins_edge = tx.prepare(
+                        "INSERT OR IGNORE INTO graph_edges (project_id, edge_type, source_id, target_id, weight, direction, estimated)
+                         VALUES (?, ?, ?, ?, ?, 'forward', ?)",
+                    )?;
+                    for (src_fid, kind, name) in &rels {
+                        let candidates = match defs.get(name) {
+                            Some(c) => c,
+                            None => continue,
+                        };
+                        let imported = imports_of.get(src_fid);
+                        let mut targets: Vec<i64> = Vec::new();
+                        let mut estimated = 0i64;
+                        for &cand in candidates {
+                            if cand != *src_fid && imported.map_or(false, |s| s.contains(&cand)) {
+                                targets.push(cand);
+                            }
+                        }
+                        if targets.is_empty() {
+                            let others: Vec<i64> =
+                                candidates.iter().copied().filter(|&c| c != *src_fid).collect();
+                            if others.len() == 1 {
+                                targets.push(others[0]);
+                                estimated = 1;
+                            }
+                        }
+                        let weight: f64 = if estimated == 1 { 0.5 } else { 0.8 };
+                        for tgt in targets {
+                            if let (Some(&s), Some(&t)) = (file_node.get(src_fid), file_node.get(&tgt)) {
+                                ins_edge.execute(params![project_id as i64, kind, s, t, weight, estimated])?;
+                            }
                         }
                     }
                 }
