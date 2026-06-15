@@ -27,6 +27,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (17, include_str!("../migrations/017_embedding_model_quantized.sql")),
     (18, include_str!("../migrations/018_code_graph.sql")),
     (19, include_str!("../migrations/019_symbol_relations.sql")),
+    (20, include_str!("../migrations/020_symbol_relations_from.sql")),
 ];
 
 pub struct Db {
@@ -1249,7 +1250,7 @@ impl Db {
     pub async fn replace_symbol_relations(
         &self,
         file_id: u32,
-        relations: Vec<(String, String)>,
+        relations: Vec<(String, Option<String>, String)>, // (kind, from_symbol, name)
     ) -> Result<()> {
         self.conn
             .call(move |c| {
@@ -1260,10 +1261,10 @@ impl Db {
                 )?;
                 {
                     let mut ins = tx.prepare(
-                        "INSERT INTO symbol_relations (file_id, kind, name) VALUES (?, ?, ?)",
+                        "INSERT INTO symbol_relations (file_id, kind, from_symbol, name) VALUES (?, ?, ?, ?)",
                     )?;
-                    for (kind, name) in &relations {
-                        ins.execute(params![file_id as i64, kind, name])?;
+                    for (kind, from_symbol, name) in &relations {
+                        ins.execute(params![file_id as i64, kind, from_symbol, name])?;
                     }
                 }
                 tx.commit()?;
@@ -1636,6 +1637,89 @@ impl Db {
             })
             .await?;
         Ok(report)
+    }
+
+    /// PR-GR3 — symbol-level calls for one file's symbols ("which function calls
+    /// which"). Resolves each callee name to a defining file: same file →
+    /// imported file → single global definer (estimated). Read-only.
+    pub async fn get_file_calls(&self, file_id: u32) -> Result<Vec<SymbolCall>> {
+        let calls = self
+            .conn
+            .call(move |c| {
+                use std::collections::{HashMap, HashSet};
+                let project_id: i64 = c.query_row(
+                    "SELECT project_id FROM files WHERE id = ?",
+                    [file_id as i64],
+                    |r| r.get(0),
+                )?;
+                // name -> [(path, file_id)] defining a symbol of that name
+                let mut defs: HashMap<String, Vec<(String, i64)>> = HashMap::new();
+                {
+                    let mut s = c.prepare(
+                        "SELECT sd.name, f.path, f.id FROM symbol_definitions sd
+                         JOIN files f ON f.id = sd.file_id WHERE f.project_id = ?",
+                    )?;
+                    let rows = s.query_map([project_id], |r| {
+                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+                    })?;
+                    for row in rows {
+                        let (n, p, fid) = row?;
+                        defs.entry(n).or_default().push((p, fid));
+                    }
+                }
+                let mut imported: HashSet<i64> = HashSet::new();
+                {
+                    let mut s = c.prepare(
+                        "SELECT target_file_id FROM file_dependencies WHERE source_file_id = ?",
+                    )?;
+                    let rows = s.query_map([file_id as i64], |r| r.get::<_, i64>(0))?;
+                    for row in rows {
+                        imported.insert(row?);
+                    }
+                }
+                let rels: Vec<(String, Option<String>, String)> = {
+                    let mut s = c.prepare(
+                        "SELECT kind, from_symbol, name FROM symbol_relations WHERE file_id = ?
+                         ORDER BY from_symbol IS NULL, from_symbol, kind, name",
+                    )?;
+                    let rows = s.query_map([file_id as i64], |r| {
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, Option<String>>(1)?,
+                            r.get::<_, String>(2)?,
+                        ))
+                    })?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                let self_id = file_id as i64;
+                let mut out = Vec::new();
+                for (kind, from_symbol, name) in rels {
+                    let (target_path, estimated) = match defs.get(&name) {
+                        None => (None, false),
+                        Some(list) => {
+                            if let Some((p, _)) = list.iter().find(|(_, fid)| *fid == self_id) {
+                                (Some(p.clone()), false)
+                            } else if let Some((p, _)) =
+                                list.iter().find(|(_, fid)| imported.contains(fid))
+                            {
+                                (Some(p.clone()), false)
+                            } else {
+                                let others: Vec<&(String, i64)> =
+                                    list.iter().filter(|(_, fid)| *fid != self_id).collect();
+                                if others.len() == 1 {
+                                    (Some(others[0].0.clone()), true)
+                                } else {
+                                    (None, false)
+                                }
+                            }
+                        }
+                    };
+                    out.push(SymbolCall { from_symbol, kind, callee: name, target_path, estimated });
+                }
+                Ok(out)
+            })
+            .await?;
+        Ok(calls)
     }
 
     pub async fn list_project_files(&self, project_id: u32) -> Result<Vec<(u32, String)>> {
@@ -2772,6 +2856,18 @@ pub struct ImpactReport {
     pub changed: Vec<String>,
     /// Files that (transitively) import a changed file, nearest first.
     pub affected: Vec<ImpactNode>,
+}
+
+// Symbol-level call (PR-GR3) — "which function calls/uses which".
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct SymbolCall {
+    /// Caller symbol in this file (None = file top-level).
+    pub from_symbol: Option<String>,
+    pub kind: String, // calls | inherits | implements
+    pub callee: String,
+    /// Resolved defining file path (None = external / unresolved).
+    pub target_path: Option<String>,
+    pub estimated: bool,
 }
 
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships

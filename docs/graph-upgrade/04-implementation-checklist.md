@@ -14,7 +14,7 @@
 | GR0 | ui_v2 그래프 화면 신설 (React Flow, file-level) | — | ☑ | 2026-06-15 claude-code |
 | GR1 | 멀티관계 스키마 + 빌더 + `get_code_graph` (imports/contains) | GR0 | ☑ | 2026-06-15 claude-code |
 | GR2 | tree-sitter 관계 추출 (calls/inherits/implements) | GR1 | ☑ | 2026-06-15 claude-code |
-| GR3 | 그래프 UX (d3-force/Louvain/필터/심볼펼침/순환/LOD) + similar_to | GR1 | ☐ | — |
+| GR3 | 그래프 UX (force/Louvain) + 심볼단위 호출 | GR1 | ▣ | 2026-06-15 (force/Louvain·심볼단위 호출 ☑; 순환/LOD/similar_to/심볼노드 이월) |
 | GR4 | 의미층(LLM enrichment) + diff 영향분석 + JSON export | GR2,GR3 | ▣ | 2026-06-15 claude-code (diff 영향분석 ☑, LLM/export 이월) |
 
 > GR0 는 단독 출시 가능(가장 큰 즉시 체감). GR3 는 GR2 와 독립적으로 GR1 위에서 진행 가능.
@@ -70,19 +70,16 @@
 
 ---
 
-## PR-GR3 — 그래프 UX + similar_to
+## PR-GR3 — 그래프 UX + 심볼단위 호출  ▣ (2026-06-15)
 
-**목표:** 탐색 가능한 시각화. (GR2 와 병행 가능, GR1 의존.)
+**목표:** 탐색 가능한 시각화 + 심볼단위 호출 가시화.
 
-- ☐ 레이아웃 토글: dagre 계층 ↔ d3-force 유기형 (워커/메모이즈)
-- ☐ `graphology-communities-louvain` 클러스터 → 접을 수 있는 묶음(graphGroupThreshold 재해석)
-- ☐ 심볼 펼침 LOD(줌 레벨 연동), 포커스 모드(1~2 hop)
-- ☐ 순환참조 감지(stats.cycles) + "순환만" 토글 + 빨강 강조
-- ☐ 언어/심볼종류 필터, 고립노드(graphShowIsolated 연계)
-- ☐ `similar_to` 엣지: sqlite-vec top-k cosine ≥τ (빌더 §01 §3-6), 토글
-- ☐ 성능: onlyRenderVisibleElements + 뷰포트 컬링, 1000+ 파일 < 1s 목표
+- ☑ 레이아웃 3분기: 계층(dagre) / 유기형(d3-force) / 묶음(force + Louvain 클러스터 응집) — 가독성 도그푸딩 라운드에서
+- ☑ 언어/엣지타입 필터, 고립노드(graphShowIsolated 연계), 언어색 범례
+- ☑ **심볼단위 호출 (어느 함수가 어느 함수를)** — `ast` 소속심볼 역산(byte range, `from_symbol`), migration 020(symbol_relations.from_symbol), `get_file_calls(file_id)` 해석(동일파일→import→전역유일 estimated). 코드 맵 Inspector(파일선택)에 **호출 관계** 섹션(caller별 그룹 → callee·대상파일·추정). cargo 테스트 from_symbol 검증
+- → **이월**: 심볼 노드 그래프 렌더링/펼침 LOD·포커스, 순환참조 감지, `similar_to`(sqlite-vec) 엣지, onlyRenderVisibleElements 외 추가 성능
 
-**DoD:** 레이아웃 2종 전환, 클러스터 접기, 순환 강조, similar_to 토글 동작. 대형 픽스처에서 끊김 없음.
+**DoD(부분):** 레이아웃 3종 ☑ / 심볼단위 호출 Inspector ☑ (cargo+ast 테스트, JS 게이트 ✓). 심볼 노드 그래프 렌더링·순환·similar_to 미구현.
 
 ---
 

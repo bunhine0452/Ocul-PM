@@ -112,7 +112,7 @@ use crate::commands::{
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
     plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
-    get_dependency_graph, get_file_symbols, get_code_graph, get_change_impact,
+    get_dependency_graph, get_file_symbols, get_code_graph, get_change_impact, get_file_calls,
     minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
     open_ai_window,
     list_project_files, list_project_tree, read_project_file, read_file_range, write_project_file,
@@ -187,6 +187,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         get_file_symbols,
         get_code_graph,
         get_change_impact,
+        get_file_calls,
         clear_project_index,
         // M4 — Planner
         goal_create,

@@ -253,10 +253,10 @@ pub async fn index_project(
             // PR-GR2: persist raw relations (resolved into calls/inherits edges
             // by rebuild_code_graph). Replace so re-index doesn't duplicate; an
             // empty vec clears stale rows for this file.
-            let rels: Vec<(String, String)> = ana
+            let rels: Vec<(String, Option<String>, String)> = ana
                 .relations
                 .iter()
-                .map(|r| (r.kind.clone(), r.name.clone()))
+                .map(|r| (r.kind.clone(), r.from_symbol.clone(), r.name.clone()))
                 .collect();
             db.replace_symbol_relations(file_id, rels)
                 .await

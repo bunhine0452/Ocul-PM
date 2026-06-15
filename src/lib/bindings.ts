@@ -37,6 +37,7 @@ export const commands = {
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
 	getCodeGraph: (projectId: number, opts: GraphOpts) => typedError<CodeGraph, string>(__TAURI_INVOKE("get_code_graph", { projectId, opts })),
 	getChangeImpact: (projectId: number, changedPaths: string[]) => typedError<ImpactReport, string>(__TAURI_INVOKE("get_change_impact", { projectId, changedPaths })),
+	getFileCalls: (fileId: number) => typedError<SymbolCall[], string>(__TAURI_INVOKE("get_file_calls", { fileId })),
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
 	goalCreate: (projectId: number | null, title: string, description: string | null, priority: number, dueDate: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_create", { projectId, title, description, priority, dueDate })),
 	goalList: (projectId: number | null, statusFilter: string | null) => typedError<Goal[], string>(__TAURI_INVOKE("goal_list", { projectId, statusFilter })),
@@ -1819,6 +1820,16 @@ export type Subtask = {
 	title: string,
 	done: boolean,
 	sort_order: number,
+};
+
+export type SymbolCall = {
+	/**  Caller symbol in this file (None = file top-level). */
+	from_symbol: string | null,
+	kind: string,
+	callee: string,
+	/**  Resolved defining file path (None = external / unresolved). */
+	target_path: string | null,
+	estimated: boolean,
 };
 
 export type SymbolDef = {

@@ -19,6 +19,9 @@ pub struct SymbolDef {
 #[derive(Debug, Clone)]
 pub struct RawRelation {
     pub kind: String, // "calls" | "inherits" | "implements"
+    /// Enclosing symbol the reference occurs in (the *caller* function/class),
+    /// resolved from byte ranges. None = file top-level. (PR-GR3)
+    pub from_symbol: Option<String>,
     pub name: String,
 }
 
@@ -196,7 +199,7 @@ pub fn analyze_file(path: &Path, content: &str) -> Option<AstAnalysis> {
         }
     }
 
-    let relations = extract_relations(&lang, &tree, content, extension.as_str());
+    let relations = extract_relations(&lang, &tree, content, extension.as_str(), &symbols);
 
     Some(AstAnalysis { symbols, imports, relations })
 }
@@ -236,11 +239,21 @@ const GO_REL_QUERY: &str = r#"
     (call_expression function: (selector_expression field: (field_identifier) @calls))
 "#;
 
+/// Innermost symbol whose byte range contains `byte` (the *caller*). (PR-GR3)
+fn enclosing_symbol(symbols: &[SymbolDef], byte: usize) -> Option<String> {
+    symbols
+        .iter()
+        .filter(|s| (s.start_byte as usize) <= byte && byte < (s.end_byte as usize))
+        .max_by_key(|s| s.start_byte)
+        .map(|s| s.name.clone())
+}
+
 fn extract_relations(
     lang: &tree_sitter::Language,
     tree: &tree_sitter::Tree,
     content: &str,
     ext: &str,
+    symbols: &[SymbolDef],
 ) -> Vec<RawRelation> {
     let query_str = match ext {
         "rs" => RUST_REL_QUERY,
@@ -259,7 +272,8 @@ fn extract_relations(
     let mut cursor = QueryCursor::new();
     let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
-    // De-dupe (kind, name) within the file so symbol_relations stays compact.
+    // De-dupe (kind, from_symbol, name) within the file so symbol_relations
+    // stays compact while keeping the caller granularity (PR-GR3).
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
     for m in matches {
@@ -275,8 +289,9 @@ fn extract_relations(
                 if name.is_empty() || name.len() > 128 {
                     continue;
                 }
-                if seen.insert((kind, name.clone())) {
-                    out.push(RawRelation { kind: kind.to_string(), name });
+                let from_symbol = enclosing_symbol(symbols, cap.node.start_byte());
+                if seen.insert((kind, from_symbol.clone(), name.clone())) {
+                    out.push(RawRelation { kind: kind.to_string(), from_symbol, name });
                 }
             }
         }
@@ -707,6 +722,11 @@ mod relation_tests {
         let r = rels("t.rs", "trait T {}\nstruct S;\nimpl T for S {}\nfn a() { b(); }\n");
         assert!(has(&r, "calls", "b"), "{r:?}");
         assert!(has(&r, "implements", "T"), "{r:?}");
+        // caller granularity (PR-GR3): b() is called inside fn a
+        assert!(
+            r.iter().any(|x| x.name == "b" && x.from_symbol.as_deref() == Some("a")),
+            "from_symbol: {r:?}",
+        );
     }
     #[test]
     fn python_calls_and_inherit() {
