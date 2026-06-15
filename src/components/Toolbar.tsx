@@ -14,12 +14,18 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ title, sub, leading, children }: ToolbarProps) {
+  // Window drag (Dogfooding 2026-06-15): the whole top bar should move the
+  // window, not just the window edges. Tauri starts a drag only when the
+  // clicked element ITSELF carries data-tauri-drag-region (it inspects
+  // e.target, not ancestors), so the attribute goes on the container AND each
+  // non-interactive child (title/sub/spacer). `leading` and action `children`
+  // are buttons — they intentionally omit it so they stay clickable.
   return (
-    <div className="toolbar">
+    <div className="toolbar" data-tauri-drag-region>
       {leading}
-      <div className="toolbar-title">{title}</div>
-      {sub ? <span className="toolbar-sub">{sub}</span> : null}
-      <div className="toolbar-spacer" />
+      <div className="toolbar-title" data-tauri-drag-region>{title}</div>
+      {sub ? <span className="toolbar-sub" data-tauri-drag-region>{sub}</span> : null}
+      <div className="toolbar-spacer" data-tauri-drag-region />
       {children}
     </div>
   );

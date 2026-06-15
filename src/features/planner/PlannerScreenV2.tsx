@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   Plus,
@@ -8,6 +8,7 @@ import {
   Clock,
   RefreshCw,
   Sparkles,
+  NotebookText,
 } from "@/components/Icons";
 import {
   commands,
@@ -17,9 +18,10 @@ import {
   type PlanItemUpdateDto,
 } from "@/lib/bindings";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
+import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { OculSpinner } from "@/components/OculSpinner";
-import { type UiV2View } from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
@@ -34,6 +36,29 @@ const STATUS_META: Record<string, { glyph: string; label: string; color: string 
   deferred: { glyph: "→", label: "이월", color: "var(--text-3)" },
   dropped: { glyph: "✗", label: "폐기", color: "var(--text-3)" },
 };
+
+// A linked journal resolved to display metadata for the multi-journal picker.
+interface JournalRefMeta {
+  /** The raw ref as stored on the plan item (passed back to onOpenJournalRef). */
+  ref: string;
+  /** Ref with `.oculpm/`/`journal/` prefixes stripped — relative to journal root. */
+  path: string;
+  /** Leading path segment, e.g. "20260615". */
+  workday: string;
+  /** First line of the entry (real title), falling back to the file name. */
+  title: string;
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "20260615" → "2026.06.15 (월)". Returns the input unchanged if not 8 digits. */
+function fmtWorkday(wd: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(wd);
+  if (!m) return wd;
+  const [, y, mo, d] = m;
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+  return `${y}.${mo}.${d} (${WEEKDAYS[dt.getDay()] ?? ""})`;
+}
 
 // Forward-progress click cycle; the off-path states fold back to todo.
 const NEXT_STATUS: Record<string, string> = {
@@ -88,8 +113,11 @@ interface PlannerScreenV2Props {
 }
 
 export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: PlannerScreenV2Props) {
+  const { state, setState } = useWorkspace();
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Restore the last-viewed plan (persisted) so returning from a linked journal
+  // lands back on the SAME plan instead of resetting to the first one.
+  const [selectedId, setSelectedId] = useState<string | null>(state.plannerPlanId);
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,12 +140,24 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     const res = await commands.planList(projectId);
     if (res.status === "ok") {
       setPlans(res.data ?? []);
-      setSelectedId((cur) => cur ?? res.data?.[0]?.plan_id ?? null);
+      // Keep the current selection if it still exists; otherwise fall back to
+      // the first plan. (A persisted id may point at a since-deleted plan.)
+      setSelectedId((cur) =>
+        cur && res.data?.some((p) => p.plan_id === cur)
+          ? cur
+          : res.data?.[0]?.plan_id ?? null,
+      );
     } else {
       setError(res.error);
       setPlans([]);
     }
   }, [projectId]);
+
+  // Persist the active plan so it survives navigating away (e.g. to a linked
+  // journal) and back.
+  useEffect(() => {
+    setState((prev) => (prev.plannerPlanId === selectedId ? prev : { ...prev, plannerPlanId: selectedId }));
+  }, [selectedId, setState]);
 
   const refreshDetail = useCallback(async () => {
     if (selectedId == null) {
@@ -167,6 +207,27 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (onOpenJournal) onOpenJournal(path);
     else onNavigate("journal");
   };
+
+  // Resolve a plan item's linked journal refs to {date, title} for the picker
+  // shown when an item links MORE THAN ONE journal. The workday comes free from
+  // the path; the real title is the entry's first line (getJournalEntry).
+  const resolveJournalRefs = useCallback(
+    async (refs: string[]): Promise<JournalRefMeta[]> =>
+      Promise.all(
+        refs.map(async (ref) => {
+          const path = ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
+          const workday = path.split("/")[0] ?? "";
+          const fallback = path.split("/").pop()?.replace(/\.md$/, "") || path;
+          try {
+            const entry = await oculpmApi.getJournalEntry(projectId, path);
+            return { ref, path, workday, title: entry?.title?.trim() || fallback };
+          } catch {
+            return { ref, path, workday, title: fallback };
+          }
+        }),
+      ),
+    [projectId],
+  );
 
   const submitNewItem = async () => {
     if (!composer || selectedId == null || !composer.title.trim()) return;
@@ -461,6 +522,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               onToggleHistory={toggleHistory}
               onRefresh={() => void refreshDetail()}
               onOpenJournalRef={openJournal}
+              resolveJournalRefs={resolveJournalRefs}
             />
           )}
 
@@ -514,10 +576,11 @@ interface PlanBodyProps {
   onToggleHistory: (itemId: string) => void;
   onRefresh: () => void;
   onOpenJournalRef: (ref: string) => void;
+  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
@@ -625,6 +688,7 @@ function PlanBody(props: PlanBodyProps) {
                     history={historyFor === it.item_id ? history : null}
                     onToggleHistory={onToggleHistory}
                     onOpenJournalRef={onOpenJournalRef}
+                    resolveJournalRefs={resolveJournalRefs}
                   />
                 ))
               : null}
@@ -663,12 +727,40 @@ interface PlanItemRowProps {
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
   onOpenJournalRef: (ref: string) => void;
+  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
 }
 
-function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
   const linked = item.journal_refs ?? [];
+  const multiLinked = linked.length > 1;
+
+  // Multi-journal picker: one linked entry opens directly; several show a
+  // date+title chooser. Metas resolve lazily on first open.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [refMetas, setRefMetas] = useState<JournalRefMeta[] | null>(null);
+  const jrefWrap = useRef<HTMLSpanElement>(null);
+
+  const handleJournalBtn = () => {
+    if (!multiLinked) {
+      onOpenJournalRef(linked[0]);
+      return;
+    }
+    setPickerOpen((o) => !o);
+    if (refMetas == null) void resolveJournalRefs(linked).then(setRefMetas);
+  };
+
+  // Close the picker on an outside click (only while open).
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (jrefWrap.current && !jrefWrap.current.contains(e.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [pickerOpen]);
+
   // Suggestion (never auto-applied): journal work is logged against this item
   // but it isn't closed out yet → offer a one-click "완료?". Suppressed on a
   // locked plan (no edits allowed).
@@ -693,15 +785,43 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
         <span className={"sub-title" + (item.status === "done" ? " done" : "")}>{item.title}</span>
         {item.note ? <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>— {item.note}</span> : null}
         {linked.length > 0 ? (
-          <button
-            type="button"
-            className="jref-btn"
-            style={{ marginLeft: 8 }}
-            onClick={() => onOpenJournalRef(linked[0])}
-            title={`연결된 일지 ${linked.length}건 — 열기`}
-          >
-            📓 일지{linked.length > 1 ? ` ${linked.length}` : ""}
-          </button>
+          <span className="jref-wrap" ref={jrefWrap} style={{ marginLeft: 8 }}>
+            <button
+              type="button"
+              className="jref-btn"
+              onClick={handleJournalBtn}
+              title={multiLinked ? `연결된 일지 ${linked.length}건 — 선택해서 열기` : "연결된 일지 열기"}
+              aria-haspopup={multiLinked ? "menu" : undefined}
+              aria-expanded={multiLinked ? pickerOpen : undefined}
+            >
+              <NotebookText size={13} strokeWidth={2} />
+              <span>일지{multiLinked ? ` ${linked.length}` : ""}</span>
+              {multiLinked ? <ChevronDown size={12} /> : null}
+            </button>
+            {multiLinked && pickerOpen ? (
+              <div className="jref-pop" role="menu">
+                {refMetas == null ? (
+                  <div className="jref-pop-loading">불러오는 중…</div>
+                ) : (
+                  refMetas.map((m) => (
+                    <button
+                      key={m.ref}
+                      type="button"
+                      role="menuitem"
+                      className="jref-pop-item"
+                      onClick={() => {
+                        setPickerOpen(false);
+                        onOpenJournalRef(m.ref);
+                      }}
+                    >
+                      <span className="jref-pop-date">{fmtWorkday(m.workday)}</span>
+                      <span className="jref-pop-title">{m.title}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </span>
         ) : null}
         {suggestDone ? (
           <button
@@ -735,7 +855,8 @@ function PlanItemRow({ item, busy, locked, onSetStatus, historyOpen, history, on
                       onClick={() => onOpenJournalRef(u.journal_ref!)}
                       title={`일지로 이동: ${u.journal_ref}`}
                     >
-                      📓 일지
+                      <NotebookText size={13} strokeWidth={2} />
+                      <span>일지</span>
                     </button>
                   ) : null}
                 </div>

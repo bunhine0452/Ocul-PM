@@ -1,10 +1,15 @@
-import { Clock, GitBranch } from "@/components/Icons";
+import { Clock, FileDiff, GitBranch, NotebookText } from "@/components/Icons";
 import { StatCard } from "./StatCard";
 import type { TodayMonitor as TodayMonitorData } from "./useTodayMonitor";
 
 // Code-search round (2026-06-15) — a second Today stat row: active work time,
 // git status / today's commits, and goal progress. Mirrors the StatCard layout
 // of the primary row so it reads as one dashboard.
+//
+// Dogfooding 2026-06-15: this row only had 2 cards, leaving 2 empty columns in
+// the shared 4-column `.stat-row`. Filled to a full 4 — left pair = work
+// progress (활동 시간 · 전체 작업 일지), right pair = git (오늘 커밋 · 미커밋 변경).
+// 전체 작업 일지 = this project's lifetime journal-entry count (monitor.totalEntries).
 
 function fmtDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
@@ -32,6 +37,16 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
         }
       />
 
+      {/* 전체 작업 일지 — this project's lifetime journal-entry count */}
+      <StatCard
+        icon={NotebookText}
+        tint={{ bg: "var(--t-feature-soft)", fg: "var(--t-feature)" }}
+        label="전체 작업 일지"
+        value={monitor ? monitor.totalEntries : "—"}
+        unit={monitor ? "건" : undefined}
+        sub={monitor ? <span>이 프로젝트 누적</span> : null}
+      />
+
       {/* Git — today's commits + branch + dirty count */}
       <StatCard
         icon={GitBranch}
@@ -43,9 +58,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
           monitor && monitor.isGitRepo ? (
             <span style={{ display: "block", minWidth: 0 }}>
               <span className="mono">{monitor.branch ?? "detached"}</span>
-              {monitor.uncommitted > 0 ? (
-                <span className="diff-del"> · 미커밋 {monitor.uncommitted}</span>
-              ) : null}
               {monitor.latestCommit ? (
                 <span
                   style={{
@@ -61,6 +73,38 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
                 </span>
               ) : null}
             </span>
+          ) : (
+            <span>git 저장소 아님</span>
+          )
+        }
+        hoverTip={
+          monitor && monitor.isGitRepo && monitor.latestCommit ? (
+            <>
+              <div style={{ fontWeight: 600, color: "var(--text)" }}>
+                {monitor.latestCommit.subject}
+              </div>
+              <div className="mono" style={{ marginTop: 4, color: "var(--text-3)" }}>
+                {monitor.latestCommit.short_sha} · {monitor.latestCommit.author_name}
+              </div>
+            </>
+          ) : undefined
+        }
+      />
+
+      {/* 미커밋 변경 — pending working-tree changes awaiting a commit */}
+      <StatCard
+        icon={FileDiff}
+        tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
+        label="미커밋 변경"
+        value={monitor && monitor.isGitRepo ? monitor.uncommitted : "—"}
+        unit={monitor && monitor.isGitRepo ? "개" : undefined}
+        sub={
+          monitor && monitor.isGitRepo ? (
+            monitor.uncommitted > 0 ? (
+              <span className="diff-del">커밋 대기 중</span>
+            ) : (
+              <span>모두 커밋됨</span>
+            )
           ) : (
             <span>git 저장소 아님</span>
           )

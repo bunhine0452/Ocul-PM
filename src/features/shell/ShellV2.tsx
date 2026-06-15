@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useTheme } from "@/lib/theme";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -65,6 +65,11 @@ export default function ShellV2({
   // whose work is weeks old still navigate. Cleared once the journal consumes it.
   const [journalOpenEntry, setJournalOpenEntry] = useState<string | null>(null);
   const clearJournalOpenEntry = useCallback(() => setJournalOpenEntry(null), []);
+
+  // When a journal entry is opened from another screen (e.g. the Planner's 일지
+  // link), remember where to send the detail view's "back" button so the user
+  // returns to that origin screen instead of the journal timeline.
+  const [journalReturnView, setJournalReturnView] = useState<UiV2View | null>(null);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
@@ -193,6 +198,15 @@ export default function ShellV2({
             onFocusConsumed={() => setJournalFocus(null)}
             openEntryPath={journalOpenEntry}
             onOpenEntryConsumed={clearJournalOpenEntry}
+            onReturnToOrigin={
+              journalReturnView
+                ? () => {
+                    const target = journalReturnView;
+                    setJournalReturnView(null);
+                    setUiV2View(target);
+                  }
+                : undefined
+            }
           />
         ) : view === "diff" ? (
           <DiffScreenV2
@@ -209,6 +223,7 @@ export default function ShellV2({
             projectId={projectId}
             onNavigate={setUiV2View}
             onOpenJournal={(path) => {
+              setJournalReturnView("planner");
               setJournalOpenEntry(path);
               setUiV2View("journal");
             }}

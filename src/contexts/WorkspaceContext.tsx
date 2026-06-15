@@ -175,6 +175,12 @@ export interface WorkspaceState {
   diffMode: DiffMode;
   /** Planner goal 카드 펼침 상태 (goalId → open). */
   plannerOpen: Record<string, boolean>;
+  /**
+   * 마지막으로 본 Planner 계획 id. 일지로 이동했다가 뒤로가기로 돌아왔을 때
+   * 같은 계획을 복원하기 위해 영속. (PlannerScreenV2 는 remount 시 이 값으로
+   * selectedId 를 초기화한다.)
+   */
+  plannerPlanId: string | null;
   /** 코드 검색 scope. */
   searchScope: SearchScope;
   /** 최근 검색어 (최대 10개). */
@@ -248,6 +254,7 @@ const DEFAULT_STATE: WorkspaceState = {
   diffReadPaths: [],
   diffMode: "unified",
   plannerOpen: {},
+  plannerPlanId: null,
   searchScope: "semantic",
   searchRecent: [],
   terminalTabs: [],

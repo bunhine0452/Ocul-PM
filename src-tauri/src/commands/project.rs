@@ -78,7 +78,37 @@ pub async fn create_project(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_project(db: State<'_, Db>, project_id: u32) -> Result<(), String> {
+pub async fn delete_project(
+    db: State<'_, Db>,
+    project_id: u32,
+    // Independently opt in to deleting Ocul-PM's on-disk artifacts from the
+    // project folder: the `.oculpm/` directory and/or `AGENTS.md`. Both off by
+    // default so the plain "워크스페이스에서 제거" stays non-destructive.
+    delete_oculpm: bool,
+    delete_agents_md: bool,
+) -> Result<(), String> {
+    if delete_oculpm || delete_agents_md {
+        // Capture the root BEFORE the DB row is gone. If the project lookup
+        // fails we skip file cleanup (nothing reliable to point at) and still
+        // remove the workspace entry below.
+        if let Ok(project) = db.get_project(project_id).await {
+            let root = PathBuf::from(&project.root_path);
+            if delete_oculpm {
+                let oculpm_dir = root.join(".oculpm");
+                if oculpm_dir.is_dir() {
+                    fs::remove_dir_all(&oculpm_dir)
+                        .map_err(|e| format!(".oculpm 폴더 삭제 실패: {e}"))?;
+                }
+            }
+            if delete_agents_md {
+                let agents_md = root.join("AGENTS.md");
+                if agents_md.is_file() {
+                    fs::remove_file(&agents_md)
+                        .map_err(|e| format!("AGENTS.md 삭제 실패: {e}"))?;
+                }
+            }
+        }
+    }
     db.delete_project(project_id)
         .await
         .map_err(|e| e.to_string())

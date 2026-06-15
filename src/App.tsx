@@ -58,6 +58,10 @@ function App() {
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [newName, setNewName] = useState("");
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  // Opt-in: independently wipe Ocul-PM's on-disk artifacts from the project
+  // folder when removing. Both reset every time the dialog opens.
+  const [deleteOculpm, setDeleteOculpm] = useState(false);
+  const [deleteAgentsMd, setDeleteAgentsMd] = useState(false);
 
   // Global overlays
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -260,12 +264,16 @@ function App() {
     }
   };
 
-  const confirmDeleteProject = (p: Project) => setDeletingProject(p);
+  const confirmDeleteProject = (p: Project) => {
+    setDeleteOculpm(false);
+    setDeleteAgentsMd(false);
+    setDeletingProject(p);
+  };
 
   const handleDeleteProject = async () => {
     if (!deletingProject) return;
     setError(null);
-    const res = await commands.deleteProject(deletingProject.id);
+    const res = await commands.deleteProject(deletingProject.id, deleteOculpm, deleteAgentsMd);
     if (res.status === "ok") {
       setDeletingProject(null);
       if (selectedProjectId === deletingProject.id) handleBackToDashboard();
@@ -395,6 +403,35 @@ function App() {
             <span className="text-destructive font-semibold">참고:</span> 앱 데이터베이스에서 인덱스와
             목표가 삭제되지만, 실제 프로젝트 폴더는 삭제되지 않습니다.
           </p>
+          <div className="mt-1 space-y-1.5">
+            <label className="flex items-start gap-2 p-2.5 rounded-xl border border-border bg-muted/40 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={deleteOculpm}
+                onChange={(e) => setDeleteOculpm(e.target.checked)}
+                className="mt-0.5 accent-destructive"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                프로젝트 폴더의 <code className="font-mono text-foreground">.oculpm</code> 폴더도 삭제
+              </span>
+            </label>
+            <label className="flex items-start gap-2 p-2.5 rounded-xl border border-border bg-muted/40 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={deleteAgentsMd}
+                onChange={(e) => setDeleteAgentsMd(e.target.checked)}
+                className="mt-0.5 accent-destructive"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                프로젝트 폴더의 <code className="font-mono text-foreground">AGENTS.md</code> 파일도 삭제
+              </span>
+            </label>
+            {(deleteOculpm || deleteAgentsMd) && (
+              <p className="text-[11px] text-destructive px-1">
+                선택한 파일은 디스크에서 영구 삭제되며 되돌릴 수 없습니다.
+              </p>
+            )}
+          </div>
           <div className="flex justify-end space-x-2 pt-2">
             <button
               onClick={() => setDeletingProject(null)}

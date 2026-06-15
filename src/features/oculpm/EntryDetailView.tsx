@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { ArrowLeft, Bot, Clock, GitCompareArrows } from "@/components/Icons";
+import { ArrowLeft, Bot, Calendar, GitCompareArrows } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
@@ -29,6 +29,27 @@ interface EntryDetailViewProps {
 function timeLabel(createdAt: string): string {
   const m = /T(\d{2}:\d{2})/.exec(createdAt);
   return m ? m[1] : "";
+}
+
+const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
+/**
+ * The entry's written date, e.g. "2026.06.15 (월)". Prefers the ISO `created_at`
+ * (exact calendar day) and falls back to the YYYYMMDD `workday`. Returns "" when
+ * neither parses.
+ */
+function dateLabel(createdAt: string, workday: string): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(createdAt);
+  let y: string, mo: string, d: string;
+  if (iso) {
+    [, y, mo, d] = iso;
+  } else {
+    const wd = /^(\d{4})(\d{2})(\d{2})$/.exec(workday);
+    if (!wd) return "";
+    [, y, mo, d] = wd;
+  }
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+  return `${y}.${mo}.${d} (${WEEKDAYS_KO[dt.getDay()] ?? ""})`;
 }
 
 /**
@@ -161,21 +182,23 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
         sub={
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <TriggerBadge type={entry.type} />
+            {dateLabel(entry.created_at, entry.workday) ? (
+              <span className="entry-date-chip">
+                <Calendar size={12} /> {dateLabel(entry.created_at, entry.workday)}
+                {timeLabel(entry.created_at) ? (
+                  <span style={{ color: "var(--text-3)", fontWeight: 500 }}>
+                    {timeLabel(entry.created_at)}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <Bot size={12} /> {agentLabel(entry.agent_id)}
             </span>
-            {timeLabel(entry.created_at) ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <Clock size={11} /> {timeLabel(entry.created_at)}
-              </span>
-            ) : null}
           </span>
         }
-      >
-        <button className="btn ghost" onClick={() => onOpenDiff(entry)} title="변경 diff 화면에서 열기">
-          <GitCompareArrows size={15} /> 변경 diff 화면
-        </button>
-      </Toolbar>
+      />
+
 
       <div className="entry-detail">
         {/* Left: meta + changed-file list + narrative */}

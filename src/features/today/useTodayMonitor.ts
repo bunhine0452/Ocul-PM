@@ -18,6 +18,10 @@ export interface TodayMonitor {
   uncommitted: number;
   commitsToday: number;
   latestCommit: GitCommit | null;
+
+  /** Total journal entries recorded for this project (summed over the overview
+   *  heatmap window). Covers the project's lifetime in practice. */
+  totalEntries: number;
 }
 
 /** Local-midnight unix seconds — the boundary for "오늘 커밋". */
@@ -41,15 +45,22 @@ export function useTodayMonitor(
     // Defensive: a failed read degrades the row to "—" placeholders rather than
     // escaping as an unhandled rejection (refresh is called via `void`).
     try {
-      const [sessions, headRes, logRes] = await Promise.all([
+      const [sessions, headRes, logRes, statsRes] = await Promise.all([
         oculpmApi.listSessions(projectId, workday ?? undefined).catch(() => []),
         commands.gitHeadStatusBrief(projectId),
         commands.gitLog(projectId, 50),
+        // 365-day window is the clamp ceiling — sums to the project's lifetime
+        // entry total for any project younger than a year.
+        commands.oculpmOverviewStats(projectId, 365),
       ]);
 
       const activeMs = sessions.reduce((s, x) => s + (x.active_window_ms ?? 0), 0);
       const head = headRes.status === "ok" ? headRes.data : null;
       const commits = logRes.status === "ok" ? logRes.data : [];
+      const totalEntries =
+        statsRes.status === "ok"
+          ? statsRes.data.heatmap_cells.reduce((s, c) => s + c.entry_count, 0)
+          : 0;
       const since = startOfTodaySeconds();
 
       setMonitor({
@@ -60,6 +71,7 @@ export function useTodayMonitor(
         uncommitted: head?.uncommitted ?? 0,
         commitsToday: commits.filter((c) => c.timestamp >= since).length,
         latestCommit: commits[0] ?? null,
+        totalEntries,
       });
     } catch {
       setMonitor(null);

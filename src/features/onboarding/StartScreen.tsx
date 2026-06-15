@@ -104,6 +104,14 @@ export function StartScreen(props: StartScreenProps) {
   const [addExpanded, setAddExpanded] = useState(false);
   const [cockpit, setCockpit] = useState<CockpitData | null>(null);
 
+  // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the webview
+  // reaches the very top under the floating traffic lights, with no title bar
+  // to grab. The main page (pre-project) had no Toolbar, so the window was only
+  // draggable at the window edges. Reserve a full-width drag strip at the top.
+  // Windows/Linux keep native decorations, so the strip is macOS-only.
+  const isMac =
+    typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+
   useEffect(() => {
     loadBlueprints();
   }, []);
@@ -207,6 +215,17 @@ export function StartScreen(props: StartScreenProps) {
     // so the page itself must own the scroll or it clips on short windows
     // (dogfooding 2026-06-15: main page wasn't scrollable).
     <main className="h-full overflow-y-auto scrollbar-thin">
+      {isMac && (
+        // Window drag strip — sits over the top edge (under the native traffic
+        // lights, which capture their own clicks). z-20 keeps it above page
+        // content but below modals/overlays (z-[90]+). The hero starts ~48px
+        // down, so this 34px strip covers only empty space.
+        <div
+          data-tauri-drag-region
+          className="fixed top-0 left-0 right-0 h-[34px] z-20"
+          aria-hidden="true"
+        />
+      )}
       <div className="p-8 max-w-5xl mx-auto w-full space-y-10">
       {/* ── Hero ────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center space-y-3 mt-4">

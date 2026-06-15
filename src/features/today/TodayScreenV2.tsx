@@ -189,7 +189,7 @@ export function TodayScreenV2({
             />
           </div>
 
-          {/* 모니터링 행 — 활동시간 · Git · 목표 진행률 (code-search round) */}
+          {/* 모니터링 행 — 활동시간 · 전체 작업 일지 · 오늘 커밋 · 미커밋 변경 */}
           {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
 
           {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}

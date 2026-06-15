@@ -55,6 +55,12 @@ interface JournalScreenV2Props {
   openEntryPath?: string | null;
   /** Called once the entry has been opened (or failed to resolve). */
   onOpenEntryConsumed?: () => void;
+  /**
+   * When the detail view was reached via `openEntryPath` (i.e. navigated in from
+   * the Planner), this routes the detail's "back" button to the origin screen
+   * instead of the journal timeline. Undefined → back goes to the timeline.
+   */
+  onReturnToOrigin?: () => void;
 }
 
 export function JournalScreenV2({
@@ -66,6 +72,7 @@ export function JournalScreenV2({
   onFocusConsumed,
   openEntryPath,
   onOpenEntryConsumed,
+  onReturnToOrigin,
 }: JournalScreenV2Props) {
   const { state, setState } = useWorkspace();
   const filter = state.journalFilter;
@@ -77,6 +84,10 @@ export function JournalScreenV2({
   // Master-detail: a non-null entry shows the full-screen 변경 기록 detail view
   // in place of the timeline (Dogfooding 2026-06-07 — replaced the modal).
   const [detailEntry, setDetailEntry] = useState<JournalEntrySummary | null>(null);
+  // True when detailEntry was opened by navigating in from another screen
+  // (Planner journal link) rather than clicking a timeline row. Drives whether
+  // "back" returns to the origin screen or the journal timeline.
+  const [detailFromExternal, setDetailFromExternal] = useState(false);
 
   // Timeline length control (Dogfooding 2026-06-14 #1): older days collapse to a
   // one-line summary; a side date-rail jumps/scrubs. dayOpen holds explicit user
@@ -169,8 +180,10 @@ export function JournalScreenV2({
         const hit =
           list.find((e) => e.relative_path === openEntryPath) ??
           list.find((e) => e.relative_path.split("/").pop() === base);
-        if (hit) setDetailEntry(hit);
-        else toast.warning("연결된 일지를 찾지 못했어요.");
+        if (hit) {
+          setDetailFromExternal(true);
+          setDetailEntry(hit);
+        } else toast.warning("연결된 일지를 찾지 못했어요.");
       } catch {
         if (!cancelled) toast.warning("연결된 일지를 열지 못했어요.");
       } finally {
@@ -218,7 +231,14 @@ export function JournalScreenV2({
       <EntryDetailView
         projectId={projectId}
         entry={detailEntry}
-        onBack={() => setDetailEntry(null)}
+        onBack={() => {
+          // From the Planner → return to it; otherwise back to the timeline.
+          if (detailFromExternal && onReturnToOrigin) {
+            onReturnToOrigin();
+          } else {
+            setDetailEntry(null);
+          }
+        }}
         onOpenDiff={onOpenDiff}
       />
     );
@@ -328,7 +348,10 @@ export function JournalScreenV2({
                             <JournalCardV2
                               entry={e}
                               focused={focusPath === e.relative_path}
-                              onOpenEntry={setDetailEntry}
+                              onOpenEntry={(entry) => {
+                                setDetailFromExternal(false);
+                                setDetailEntry(entry);
+                              }}
                               onOpenDiff={onOpenDiff}
                             />
                           </div>

@@ -18,12 +18,44 @@
 .stat {
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-l); padding: 14px 16px; box-shadow: var(--shadow-card);
+  /* Grid items default to min-width:auto, so a long unbreakable child (e.g. the
+     "오늘 커밋" commit subject) blows the card past its 1fr track instead of
+     truncating. min-width:0 lets the card honor the track so the ellipsis on
+     .stat-sub / the subject span actually kicks in. */
+  min-width: 0;
 }
 .stat-top { display: flex; align-items: center; gap: 7px; color: var(--text-2); font-size: 12px; font-weight: 550; }
 .stat-val { font-size: 27px; font-weight: 720; letter-spacing: -0.02em; margin-top: 6px; line-height: 1; }
 .stat-val .unit { font-size: 14px; font-weight: 600; color: var(--text-3); margin-left: 3px; }
 .stat-sub { font-size: 11.5px; color: var(--text-3); margin-top: 6px; display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-ico { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+
+/* Hover popover for a card whose sub line is truncated (e.g. 오늘 커밋's commit
+   message). Lives directly under .stat (overflow:visible), so it escapes the
+   overflow:hidden .stat-sub. .stat itself isn't a positioning context by
+   default — .has-tip makes it one. */
+.stat.has-tip { position: relative; }
+.stat-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: max-content;
+  max-width: min(360px, 80vw);
+  padding: 8px 10px;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
+}
+.stat.has-tip:hover .stat-tip { display: block; }
 
 .grid-2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; align-items: start; }
 .panel-head {
@@ -187,6 +219,15 @@
 /* --- Diff (PR-UI 4) --- */
 .diff-screen { display: grid; grid-template-columns: 260px 1fr; height: 100%; min-height: 0; }
 /* 작업 일지 항목 디테일 뷰 (Dogfooding 2026-06-07 — 모달 대체). */
+/* Prominent "작성 날짜" chip in the entry header sub-line. Accent pill so the
+   written date reads at a glance when arriving from the planner. */
+.entry-date-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 99px;
+  background: var(--accent-soft); color: var(--accent-text);
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+
 .entry-detail { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; height: 100%; min-height: 0; }
 .entry-detail-side { border-right: 1px solid var(--sep); background: var(--bg-window); overflow: auto; padding: 18px 18px 48px; }
 .entry-detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -308,15 +349,45 @@
 }
 .plan-group-toggle:hover { color: var(--text-2); }
 
-/* Journal-ref ("📓 일지") link button — a real tappable hit target (Dogfooding
-   2026-06-14 #4). Used in plan item rows and the per-item history list. */
+/* Journal-ref ("일지" notebook) link button — a real tappable hit target
+   (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
+   rows and the per-item history list. Bigger padding + min-height makes it
+   easier to click; the icon and label are vertically centered. */
 .jref-btn {
-  display: inline-flex; align-items: center; gap: 3px; vertical-align: middle;
-  padding: 2px 7px; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  min-height: 24px; padding: 3px 10px; border-radius: 7px; cursor: pointer;
   background: var(--bg-inset); border: 1px solid var(--border-card);
-  color: var(--text-2); font-family: var(--font); font-size: 11px; line-height: 1.5;
+  color: var(--text-2); font-family: var(--font); font-size: 11.5px; font-weight: 550;
+  line-height: 1; transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
+.jref-btn > svg { flex-shrink: 0; color: var(--text-3); }
 .jref-btn:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+.jref-btn:hover > svg { color: var(--accent-text); }
+
+/* Multi-journal picker — shown when a plan item links >1 journal. Lists each
+   linked entry's date + title so the user picks where to navigate. */
+.jref-wrap { position: relative; display: inline-flex; vertical-align: middle; }
+.jref-pop {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  min-width: 248px; max-width: 380px;
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+  max-height: 320px; overflow-y: auto;
+}
+.jref-pop-loading { padding: 8px 10px; font-size: 12px; color: var(--text-3); }
+.jref-pop-item {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  padding: 7px 9px; border-radius: 7px; cursor: pointer;
+  background: none; border: none; color: var(--text); font-family: var(--font);
+}
+.jref-pop-item:hover { background: var(--accent-soft); }
+.jref-pop-date { font-size: 10.5px; color: var(--text-3); font-family: var(--mono); }
+.jref-pop-item:hover .jref-pop-date { color: var(--accent-text); }
+.jref-pop-title {
+  font-size: 12.5px; font-weight: 550;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .search-results { max-width: 880px; margin: 0 auto; }
 .sresult { margin-bottom: 12px; }
 .sresult-head {
