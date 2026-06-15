@@ -25,6 +25,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (15, include_str!("../migrations/015_file_snapshots.sql")),
     (16, include_str!("../migrations/016_oculpm_planner.sql")),
     (17, include_str!("../migrations/017_embedding_model_quantized.sql")),
+    (18, include_str!("../migrations/018_code_graph.sql")),
 ];
 
 pub struct Db {
@@ -1241,6 +1242,201 @@ impl Db {
         Ok(symbols)
     }
 
+    /// PR-GR1 — rebuild the code graph (graph_nodes/graph_edges) for a project
+    /// from the already-indexed files / symbol_definitions / file_dependencies.
+    /// Pure SQL, LLM-free, deterministic (docs/graph-upgrade D-A). Full rebuild
+    /// in one transaction, run at the end of indexing. Fills `contains`
+    /// (file→symbol) + `imports` (file→file); calls/inherits land in PR-GR2.
+    pub async fn rebuild_code_graph(&self, project_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                tx.execute(
+                    "DELETE FROM graph_edges WHERE project_id = ?",
+                    params![project_id as i64],
+                )?;
+                tx.execute(
+                    "DELETE FROM graph_nodes WHERE project_id = ?",
+                    params![project_id as i64],
+                )?;
+
+                // file nodes
+                let files: Vec<(i64, String, Option<String>)> = {
+                    let mut s = tx.prepare("SELECT id, path, language FROM files WHERE project_id = ?")?;
+                    let rows = s.query_map([project_id as i64], |r| {
+                        Ok((
+                            r.get::<_, i64>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, Option<String>>(2)?,
+                        ))
+                    })?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                let mut file_node: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+                {
+                    let mut ins = tx.prepare(
+                        "INSERT INTO graph_nodes (project_id, kind, file_id, symbol_id, label, sub_kind, language, start_line, end_line)
+                         VALUES (?, 'file', ?, NULL, ?, NULL, ?, NULL, NULL)",
+                    )?;
+                    for (fid, path, lang) in &files {
+                        let label = path.rsplit('/').next().unwrap_or(path.as_str()).to_string();
+                        ins.execute(params![project_id as i64, fid, label, lang])?;
+                        file_node.insert(*fid, tx.last_insert_rowid());
+                    }
+                }
+
+                // symbol nodes + `contains` edges (file → its symbols)
+                let syms: Vec<(i64, i64, String, String, i64, i64)> = {
+                    let mut s = tx.prepare(
+                        "SELECT sd.id, sd.file_id, sd.name, sd.kind, sd.start_line, sd.end_line
+                         FROM symbol_definitions sd JOIN files f ON f.id = sd.file_id
+                         WHERE f.project_id = ?",
+                    )?;
+                    let rows = s.query_map([project_id as i64], |r| {
+                        Ok((
+                            r.get::<_, i64>(0)?,
+                            r.get::<_, i64>(1)?,
+                            r.get::<_, String>(2)?,
+                            r.get::<_, String>(3)?,
+                            r.get::<_, i64>(4)?,
+                            r.get::<_, i64>(5)?,
+                        ))
+                    })?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                {
+                    let mut ins = tx.prepare(
+                        "INSERT INTO graph_nodes (project_id, kind, file_id, symbol_id, label, sub_kind, language, start_line, end_line)
+                         VALUES (?, 'symbol', ?, ?, ?, ?, NULL, ?, ?)",
+                    )?;
+                    let mut ins_edge = tx.prepare(
+                        "INSERT OR IGNORE INTO graph_edges (project_id, edge_type, source_id, target_id, weight, direction, estimated)
+                         VALUES (?, 'contains', ?, ?, 1.0, 'forward', 0)",
+                    )?;
+                    for (sid, fid, name, kind, sl, el) in &syms {
+                        ins.execute(params![project_id as i64, fid, sid, name, kind, sl, el])?;
+                        let node_id = tx.last_insert_rowid();
+                        if let Some(&fnode) = file_node.get(fid) {
+                            ins_edge.execute(params![project_id as i64, fnode, node_id])?;
+                        }
+                    }
+                }
+
+                // `imports` edges (file → file), mapped onto file nodes
+                {
+                    let deps: Vec<(i64, i64)> = {
+                        let mut s = tx.prepare(
+                            "SELECT source_file_id, target_file_id FROM file_dependencies WHERE project_id = ?",
+                        )?;
+                        let rows = s.query_map([project_id as i64], |r| {
+                            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+                        })?;
+                        rows.collect::<rusqlite::Result<Vec<_>>>()?
+                    };
+                    let mut ins_edge = tx.prepare(
+                        "INSERT OR IGNORE INTO graph_edges (project_id, edge_type, source_id, target_id, weight, direction, estimated)
+                         VALUES (?, 'imports', ?, ?, 1.0, 'forward', 0)",
+                    )?;
+                    for (src, tgt) in &deps {
+                        if let (Some(&s), Some(&t)) = (file_node.get(src), file_node.get(tgt)) {
+                            ins_edge.execute(params![project_id as i64, s, t])?;
+                        }
+                    }
+                }
+
+                tx.commit()?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// PR-GR1 — read the code graph for rendering. `symbol_level=false` returns
+    /// only file nodes + file→file (`imports`) edges (equivalent to
+    /// get_dependency_graph but typed); `true` also includes symbol nodes +
+    /// `contains` edges.
+    pub async fn get_code_graph(&self, project_id: u32, symbol_level: bool) -> Result<CodeGraph> {
+        // Lazy backfill: projects indexed before PR-GR1 have empty graph tables
+        // (they fill on the next index). If the graph is empty but the project
+        // has files, build it once now so the Code Map works without a reindex.
+        let needs_backfill = self
+            .conn
+            .call(move |c| {
+                let nodes: i64 = c.query_row(
+                    "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?",
+                    [project_id as i64],
+                    |r| r.get(0),
+                )?;
+                let files: i64 = c.query_row(
+                    "SELECT COUNT(*) FROM files WHERE project_id = ?",
+                    [project_id as i64],
+                    |r| r.get(0),
+                )?;
+                Ok(nodes == 0 && files > 0)
+            })
+            .await?;
+        if needs_backfill {
+            self.rebuild_code_graph(project_id).await?;
+        }
+
+        let graph = self
+            .conn
+            .call(move |c| {
+                let node_sql = if symbol_level {
+                    "SELECT gn.id, gn.kind, gn.label, gn.sub_kind, gn.language, gn.file_id, f.path, gn.start_line, gn.end_line
+                     FROM graph_nodes gn JOIN files f ON f.id = gn.file_id WHERE gn.project_id = ?"
+                } else {
+                    "SELECT gn.id, gn.kind, gn.label, gn.sub_kind, gn.language, gn.file_id, f.path, gn.start_line, gn.end_line
+                     FROM graph_nodes gn JOIN files f ON f.id = gn.file_id WHERE gn.project_id = ? AND gn.kind = 'file'"
+                };
+                let mut stmt = c.prepare(node_sql)?;
+                let nodes = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok(GraphNodeDto {
+                            id: r.get::<_, i64>(0)? as u32,
+                            kind: r.get(1)?,
+                            label: r.get(2)?,
+                            sub_kind: r.get(3)?,
+                            language: r.get(4)?,
+                            file_id: r.get::<_, i64>(5)? as u32,
+                            file_path: r.get(6)?,
+                            start_line: r.get::<_, Option<i64>>(7)?.map(|v| v as u32),
+                            end_line: r.get::<_, Option<i64>>(8)?.map(|v| v as u32),
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+
+                let edge_sql = if symbol_level {
+                    "SELECT id, edge_type, source_id, target_id, weight, direction, estimated
+                     FROM graph_edges WHERE project_id = ?"
+                } else {
+                    "SELECT ge.id, ge.edge_type, ge.source_id, ge.target_id, ge.weight, ge.direction, ge.estimated
+                     FROM graph_edges ge
+                     JOIN graph_nodes s ON s.id = ge.source_id
+                     JOIN graph_nodes t ON t.id = ge.target_id
+                     WHERE ge.project_id = ? AND s.kind = 'file' AND t.kind = 'file'"
+                };
+                let mut stmt = c.prepare(edge_sql)?;
+                let edges = stmt
+                    .query_map([project_id as i64], |r| {
+                        Ok(GraphEdgeDto {
+                            id: r.get::<_, i64>(0)? as u32,
+                            edge_type: r.get(1)?,
+                            source: r.get::<_, i64>(2)? as u32,
+                            target: r.get::<_, i64>(3)? as u32,
+                            weight: r.get::<_, f64>(4)? as f32,
+                            direction: r.get(5)?,
+                            estimated: r.get::<_, i64>(6)? != 0,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+
+                Ok(CodeGraph { nodes, edges })
+            })
+            .await?;
+        Ok(graph)
+    }
+
     pub async fn list_project_files(&self, project_id: u32) -> Result<Vec<(u32, String)>> {
         let files = self
             .conn
@@ -2327,6 +2523,38 @@ pub struct DependencyEdge {
 pub struct DependencyGraph {
     pub nodes: Vec<DependencyNode>,
     pub edges: Vec<DependencyEdge>,
+}
+
+// Code graph (PR-GR1) — multi-relation, file + symbol level. Returned by
+// `get_code_graph`; built by `rebuild_code_graph`. See docs/graph-upgrade/.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct GraphNodeDto {
+    pub id: u32,
+    pub kind: String, // "file" | "symbol"
+    pub label: String,
+    pub sub_kind: Option<String>,
+    pub language: Option<String>,
+    pub file_id: u32,
+    pub file_path: String,
+    pub start_line: Option<u32>,
+    pub end_line: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct GraphEdgeDto {
+    pub id: u32,
+    pub edge_type: String, // imports | contains | calls | inherits | implements | similar_to
+    pub source: u32,
+    pub target: u32,
+    pub weight: f32,
+    pub direction: String,
+    pub estimated: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct CodeGraph {
+    pub nodes: Vec<GraphNodeDto>,
+    pub edges: Vec<GraphEdgeDto>,
 }
 
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships

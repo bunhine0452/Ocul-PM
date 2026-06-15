@@ -35,6 +35,7 @@ export const commands = {
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
 	getDependencyGraph: (projectId: number) => typedError<DependencyGraph, string>(__TAURI_INVOKE("get_dependency_graph", { projectId })),
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
+	getCodeGraph: (projectId: number, opts: GraphOpts) => typedError<CodeGraph, string>(__TAURI_INVOKE("get_code_graph", { projectId, opts })),
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
 	goalCreate: (projectId: number | null, title: string, description: string | null, priority: number, dueDate: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_create", { projectId, title, description, priority, dueDate })),
 	goalList: (projectId: number | null, statusFilter: string | null) => typedError<Goal[], string>(__TAURI_INVOKE("goal_list", { projectId, statusFilter })),
@@ -776,6 +777,11 @@ export type CliCheckResult = {
 	version: string | null,
 };
 
+export type CodeGraph = {
+	nodes: GraphNodeDto[],
+	edges: GraphEdgeDto[],
+};
+
 export type ConflictResolution = "suffix_added" | "skipped";
 
 export type Conversation = {
@@ -1128,6 +1134,36 @@ export type Goal = {
 	progress: number | null,
 	created_at: number,
 	updated_at: number,
+};
+
+export type GraphEdgeDto = {
+	id: number,
+	edge_type: string,
+	source: number,
+	target: number,
+	weight: number | null,
+	direction: string,
+	estimated: boolean,
+};
+
+export type GraphNodeDto = {
+	id: number,
+	kind: string,
+	label: string,
+	sub_kind: string | null,
+	language: string | null,
+	file_id: number,
+	file_path: string,
+	start_line: number | null,
+	end_line: number | null,
+};
+
+export type GraphOpts = {
+	/**
+	 *  Include symbol nodes + `contains` (file→symbol) edges. `false` = only
+	 *  file nodes + `imports` edges (lighter payload for large projects).
+	 */
+	symbol_level: boolean,
 };
 
 export type GreenfieldResult = {

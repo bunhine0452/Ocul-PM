@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod diff;
 pub mod external_editor;
 pub mod git;
+pub mod graph;
 pub mod greenfield;
 pub mod llm;
 pub mod oculpm;
@@ -21,6 +22,7 @@ pub use diagnostics::*;
 pub use diff::*;
 pub use external_editor::*;
 pub use git::*;
+pub use graph::*;
 pub use greenfield::*;
 pub use llm::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.

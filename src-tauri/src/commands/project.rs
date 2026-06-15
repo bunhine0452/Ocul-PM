@@ -303,6 +303,13 @@ pub async fn index_project(
         }
     }
 
+    // PR-GR1: rebuild the code graph (graph_nodes/graph_edges) from the freshly
+    // indexed files / symbols / dependencies. Deterministic + LLM-free; best
+    // effort (a failure here must not fail the whole index).
+    if let Err(e) = db.rebuild_code_graph(project_id).await {
+        tracing::warn!(project_id, error = %e, "code graph rebuild failed");
+    }
+
     let took_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
     info!(files_processed, files_changed, chunks_created, took_ms, "indexing done");
 
