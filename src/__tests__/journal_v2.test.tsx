@@ -176,15 +176,6 @@ describe("PR-UI 3 — Journal timeline", () => {
     expect(onOpenDiff).not.toHaveBeenCalled();
   });
 
-  it("the '변경 diff 화면' foot button jumps to the live diff", async () => {
-    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
-    const { findByText, getByText, onOpenDiff } = renderJournal();
-    await findByText("검토 대상");
-    fireEvent.click(getByText("변경 diff 화면"));
-    expect(onOpenDiff).toHaveBeenCalledTimes(1);
-    expect(onOpenDiff.mock.calls[0][0].relative_path).toBe("a");
-  });
-
   it("empty journal shows the no-entries hint", async () => {
     fixtures.byWorkday["20260531"] = [];
     const { findByText } = renderJournal();

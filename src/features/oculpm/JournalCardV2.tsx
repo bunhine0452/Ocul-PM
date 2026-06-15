@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Bot, RotateCcw, GitCompareArrows } from "@/components/Icons";
+import { Bot, RotateCcw } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
 import { agentLabel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
@@ -25,11 +25,9 @@ interface JournalCardV2Props {
   focused: boolean;
   /** Open the full-screen 변경 기록 detail view for this entry. */
   onOpenEntry: (entry: JournalEntrySummary) => void;
-  /** Jump to the LIVE 변경 diff 화면, pre-selected to this entry's file. */
-  onOpenDiff: (entry: JournalEntrySummary) => void;
 }
 
-export function JournalCardV2({ entry, focused, onOpenEntry, onOpenDiff }: JournalCardV2Props) {
+export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,15 +60,6 @@ export function JournalCardV2({ entry, focused, onOpenEntry, onOpenDiff }: Journ
           <div className="jcard-title">{entry.title || entry.slug}</div>
         </button>
         <div className="jcard-foot">
-          <button
-            type="button"
-            className="file-pill file-pill--btn"
-            onClick={() => onOpenDiff(entry)}
-            title="변경 diff 화면에서 열기"
-          >
-            <GitCompareArrows size={12} color="var(--text-3)" />
-            변경 diff 화면
-          </button>
           {entry.status !== "done" ? (
             <span className="cycle-flag">
               <RotateCcw size={13} /> {entry.status === "in_progress" ? "진행중" : entry.status}

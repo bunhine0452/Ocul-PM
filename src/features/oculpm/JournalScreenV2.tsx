@@ -352,7 +352,6 @@ export function JournalScreenV2({
                                 setDetailFromExternal(false);
                                 setDetailEntry(entry);
                               }}
-                              onOpenDiff={onOpenDiff}
                             />
                           </div>
                         ))}
