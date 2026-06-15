@@ -1120,13 +1120,30 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
 
 // Repo behind the updater endpoint (tauri.conf.json) — used to fetch live patch
 // notes (the latest release body == the installed version when up to date).
-const RELEASES_API = "https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest";
+// All recent releases (newest first), so the patch-notes section can show past
+// versions too — not just the latest.
+const RELEASES_API = "https://api.github.com/repos/bunhine0452/Ocul-PM/releases?per_page=20";
+
+interface ReleaseNote {
+  tag: string;
+  date: string;
+  highlights: string;
+}
 
 function UpdateTab() {
   const { status: updater, check: checkUpdate, install: installUpdate } = useUpdater();
   const [version, setVersion] = useState<string | null>(null);
-  const [notes, setNotes] = useState<string | null>(null);
+  const [releases, setReleases] = useState<ReleaseNote[] | null>(null);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [notesLoading, setNotesLoading] = useState(true);
+
+  const toggleRelease = (tag: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
 
   useEffect(() => {
     commands.appInfo().then((res) => {
@@ -1134,12 +1151,24 @@ function UpdateTab() {
     });
     // Auto-check on open so the update state isn't hidden behind a manual click.
     void checkUpdate();
-    // Live patch notes from the latest GitHub release (public repo, CORS-enabled;
-    // offline / rate-limited just falls back to the empty-state message).
+    // Live patch notes from GitHub releases (public repo, CORS-enabled; offline /
+    // rate-limited just falls back to the empty-state message). Newest first.
     fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setNotes(data?.body ? releaseHighlights(data.body) : null))
-      .catch(() => setNotes(null))
+      .then((data: unknown) => {
+        const list: ReleaseNote[] = (Array.isArray(data) ? data : [])
+          .filter((r) => r && !r.draft)
+          .map((r) => ({
+            tag: String(r.tag_name || r.name || ""),
+            date: typeof r.published_at === "string" ? r.published_at.slice(0, 10) : "",
+            highlights: r.body ? releaseHighlights(r.body) : "",
+          }))
+          .filter((r) => r.tag);
+        setReleases(list);
+        // Expand the newest release by default.
+        setOpen(new Set(list.slice(0, 1).map((r) => r.tag)));
+      })
+      .catch(() => setReleases(null))
       .finally(() => setNotesLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1199,12 +1228,39 @@ function UpdateTab() {
         )}
       </Section>
 
-      <Section title="패치노트" description="최근 릴리스의 변경 사항입니다.">
+      <Section title="패치노트" description="버전별 변경 사항 — 과거 릴리스도 펼쳐볼 수 있어요.">
         {notesLoading ? (
           <span className="text-xs text-muted-foreground">불러오는 중…</span>
-        ) : notes ? (
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">
-            <Markdown>{notes}</Markdown>
+        ) : releases && releases.length > 0 ? (
+          <div className="space-y-1.5 max-h-[440px] overflow-y-auto scrollbar-thin pr-1">
+            {releases.map((rel) => {
+              const isOpen = open.has(rel.tag);
+              return (
+                <div key={rel.tag} className="rounded-md border border-border bg-muted/20">
+                  <button
+                    type="button"
+                    onClick={() => toggleRelease(rel.tag)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left cursor-pointer"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="font-mono text-xs font-semibold text-foreground">{rel.tag}</span>
+                    {rel.date ? (
+                      <span className="text-[11px] text-muted-foreground">{rel.date}</span>
+                    ) : null}
+                    <span className="ml-auto text-[10px] text-muted-foreground">{isOpen ? "▾" : "▸"}</span>
+                  </button>
+                  {isOpen ? (
+                    <div className="border-t border-border px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">
+                      {rel.highlights ? (
+                        <Markdown>{rel.highlights}</Markdown>
+                      ) : (
+                        <span className="text-muted-foreground">변경 내용이 없어요.</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">
