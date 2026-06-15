@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { oculpmApi } from "@/api/oculpm";
-import { commands, type GitCommit } from "@/lib/bindings";
+import { commands, events, type GitCommit } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
 
 // Today monitoring extras — surfaces data the backend already exposes but Today
@@ -9,9 +9,14 @@ import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
 // (Goal progress was dropped 2026-06-15 per dogfooding feedback.)
 
 export interface TodayMonitor {
-  /** Σ active_window_ms across today's sessions. */
+  /** Σ active_window_ms across today's *ended* sessions. The open session's
+   *  window isn't stamped until it finalizes (backend computes it on end), so
+   *  its live time is carried by `openSince` and added in the UI. */
   activeMs: number;
   sessionCount: number;
+  /** Epoch ms when the currently-open session started (ended_at == null), or
+   *  null when no session is live. Lets the UI tick 활동시간 in real time. */
+  openSince: number | null;
 
   isGitRepo: boolean;
   branch: string | null;
@@ -54,7 +59,21 @@ export function useTodayMonitor(
         commands.oculpmOverviewStats(projectId, 365),
       ]);
 
-      const activeMs = sessions.reduce((s, x) => s + (x.active_window_ms ?? 0), 0);
+      // The open session (ended_at == null) carries active_window_ms == 0 until
+      // it finalizes, so sum only ended sessions here and let the UI add the
+      // open session's live elapsed time from `openSince`.
+      let activeMs = 0;
+      let openSince: number | null = null;
+      for (const x of sessions) {
+        if (x.ended_at == null) {
+          const t = Date.parse(x.started_at);
+          if (!Number.isNaN(t)) {
+            openSince = openSince == null ? t : Math.min(openSince, t);
+          }
+        } else {
+          activeMs += x.active_window_ms ?? 0;
+        }
+      }
       const head = headRes.status === "ok" ? headRes.data : null;
       const commits = logRes.status === "ok" ? logRes.data : [];
       const totalEntries =
@@ -66,6 +85,7 @@ export function useTodayMonitor(
       setMonitor({
         activeMs,
         sessionCount: sessions.length,
+        openSince,
         isGitRepo: head?.is_git_repo ?? false,
         branch: head?.head_branch ?? null,
         uncommitted: head?.uncommitted ?? 0,
@@ -86,6 +106,40 @@ export function useTodayMonitor(
 
   // New journal activity usually means new sessions / commits — refresh.
   useJournalEvents(projectId, enabled, refresh);
+
+  // Session start/end shifts 활동시간 but doesn't always coincide with a journal
+  // event (e.g. an inactivity-timeout end) — subscribe so the row refetches the
+  // settled active_window_ms then too, and flips the live counter on/off.
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    const offs: Array<() => void> = [];
+    const sub = (ev: {
+      listen: (
+        cb: (e: { payload: { project_id: number } }) => void,
+      ) => Promise<() => void>;
+    }) => {
+      try {
+        void ev
+          .listen((e) => {
+            if (e.payload.project_id === projectId) void refresh();
+          })
+          .then((off) => {
+            if (active) offs.push(off);
+            else off();
+          })
+          .catch(() => {});
+      } catch {
+        /* event channel unavailable */
+      }
+    };
+    sub(events.oculpmSessionStarted);
+    sub(events.oculpmSessionEnded);
+    return () => {
+      active = false;
+      offs.forEach((off) => off());
+    };
+  }, [projectId, enabled, refresh]);
 
   return { monitor, loading, refresh };
 }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Clock, FileDiff, GitBranch, NotebookText } from "@/components/Icons";
 import { StatCard } from "./StatCard";
 import type { TodayMonitor as TodayMonitorData } from "./useTodayMonitor";
@@ -20,6 +21,21 @@ function fmtDuration(ms: number): string {
 }
 
 export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) {
+  // The backend stamps a session's active_window_ms only on end, so the open
+  // session contributes its elapsed time via `openSince`. Tick it here — kept in
+  // this small component so only the stat row re-renders, not the whole screen.
+  const openSince = monitor?.openSince ?? null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (openSince == null) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [openSince]);
+  const activeMs = monitor
+    ? monitor.activeMs + (openSince != null ? Math.max(0, now - openSince) : 0)
+    : 0;
+
   return (
     <div className="stat-row" style={{ marginTop: 12 }}>
       {/* 활동 시간 — Σ session active windows */}
@@ -27,7 +43,7 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
         icon={Clock}
         tint={{ bg: "var(--t-refactor-soft)", fg: "var(--t-refactor)" }}
         label="활동 시간"
-        value={monitor ? fmtDuration(monitor.activeMs) : "—"}
+        value={monitor ? fmtDuration(activeMs) : "—"}
         sub={
           monitor ? (
             <span>
