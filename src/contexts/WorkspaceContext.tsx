@@ -54,6 +54,7 @@ export type UiV2View =
   | "search"
   | "terminal"
   | "ai"
+  | "graph"
   | "settings";
 export type JournalFilter =
   | "all"

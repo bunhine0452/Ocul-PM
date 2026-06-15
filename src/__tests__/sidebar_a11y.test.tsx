@@ -9,7 +9,7 @@ import type { UiV2View } from "@/contexts/WorkspaceContext";
 // ─── PR-UI 1 — ui_v2 Sidebar a11y + nav contract ─────────────────────────
 //
 // DoD (05-implementation-checklist §1 PR-UI 1): axe-core sidebar violations 0,
-// and the 9 slots (4 main + 3 tools + dark toggle + settings) drive navigation.
+// and the 10 slots (4 main + 4 tools + dark toggle + settings) drive navigation.
 // Sidebar is a pure presentational component (props in, callbacks out), so we
 // test it standalone without the providers.
 
@@ -66,7 +66,7 @@ describe("PR-UI 1 — Sidebar a11y", () => {
 });
 
 describe("PR-UI 1 — Sidebar navigation", () => {
-  it("renders all 9 slots", () => {
+  it("renders all 10 slots", () => {
     const { getByText } = renderSidebar();
     for (const label of [
       "Today",
@@ -74,6 +74,7 @@ describe("PR-UI 1 — Sidebar navigation", () => {
       "변경 diff",
       "Planner",
       "코드 검색",
+      "코드 맵",
       "터미널",
       "AI 패널",
       "다크 모드",

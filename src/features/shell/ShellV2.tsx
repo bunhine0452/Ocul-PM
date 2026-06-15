@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -10,6 +10,11 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
+// Code Map pulls in React Flow + dagre (~226 kB); lazy-load so it stays out of
+// the initial ShellV2 chunk and only loads when the user opens the 코드 맵.
+const GraphScreenV2 = lazy(() =>
+  import("@/features/graph/GraphScreenV2").then((m) => ({ default: m.GraphScreenV2 })),
+);
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 
@@ -234,6 +239,16 @@ export default function ShellV2({
           <TerminalScreenV2 projectRoot={projectRoot} />
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
+        ) : view === "graph" ? (
+          <Suspense
+            fallback={
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">
+                코드 맵 불러오는 중…
+              </div>
+            }
+          >
+            <GraphScreenV2 projectId={projectId} />
+          </Suspense>
         ) : null}
       </main>
     </div>

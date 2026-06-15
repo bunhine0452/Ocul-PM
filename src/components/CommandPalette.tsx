@@ -10,6 +10,7 @@ import {
   Sparkles,
   Terminal as TerminalIcon,
   Search,
+  Network,
   Plus,
 } from "@/components/Icons";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -92,6 +93,8 @@ export function CommandPalette({
         group: "이동", icon: TerminalIcon, shortcut: "⌘6", onSelect: go("terminal") },
       { id: "view-ai",       label: "AI 패널", alias: "ai 패널 채팅 chat llm",
         group: "이동", icon: Sparkles,     shortcut: "⌘7", onSelect: go("ai") },
+      { id: "view-graph",    label: "코드 맵", alias: "graph 코드 맵 의존성 dependency 그래프",
+        group: "이동", icon: Network,      onSelect: go("graph") },
 
       // ── 액션
       { id: "toggle-ai-overlay", label: "AI 오버레이 토글", alias: "ai overlay chat ⌘\\",

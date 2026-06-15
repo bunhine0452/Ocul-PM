@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import {
   Sunrise,
   NotebookText,
@@ -8,6 +7,7 @@ import {
   SearchIcon,
   SquareTerminal,
   SparklesIcon,
+  Network,
   MoonIcon,
   SunIcon,
   SettingsIcon,
@@ -15,26 +15,7 @@ import {
   ChevronsUpDown,
   PanelLeft,
 } from "@/components/Icons";
-import { BrandMark } from "@/components/BrandMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
-
-/** The running app version (from tauri.conf.json via the Tauri runtime). Falls
- *  back to null outside Tauri (tests/SSR) so the brand line just drops the tag. */
-function useAppVersion(): string | null {
-  const [version, setVersion] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    getVersion()
-      .then((v) => alive && setVersion(v))
-      .catch(() => {
-        /* not running under Tauri — leave null */
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return version;
-}
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). 9 slots: 4 main + 3 tools + 2 footer
@@ -65,6 +46,7 @@ const MAIN_NAV: NavSlot[] = [
 
 const TOOL_NAV: NavSlot[] = [
   { id: "search", label: "코드 검색", icon: SearchIcon },
+  { id: "graph", label: "코드 맵", icon: Network },
   { id: "terminal", label: "터미널", icon: SquareTerminal },
   { id: "ai", label: "AI 패널", icon: SparklesIcon },
 ];
@@ -140,7 +122,6 @@ export function Sidebar({
   collapsed = false,
   onMouseLeave,
 }: SidebarProps) {
-  const appVersion = useAppVersion();
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
@@ -169,11 +150,7 @@ export function Sidebar({
         <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
       ) : null}
       <div className="side-brand" data-tauri-drag-region>
-        <BrandMark size={28} />
-        <div>
-          <div className="brand-name">Ocul-PM</div>
-          <div className="brand-sub">로컬-우선{appVersion ? ` · v${appVersion}` : ""}</div>
-        </div>
+        <div className="brand-name">Ocul-PM</div>
         {onToggleCollapse ? (
           <button
             type="button"
