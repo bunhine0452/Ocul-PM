@@ -150,7 +150,6 @@ export function Sidebar({
         <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
       ) : null}
       <div className="side-brand" data-tauri-drag-region>
-        <div className="brand-name">Ocul-PM</div>
         {onToggleCollapse ? (
           <button
             type="button"

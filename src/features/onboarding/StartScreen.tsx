@@ -30,7 +30,6 @@ import {
   Bot,
   NotebookText,
 } from "../../components/Icons";
-import { BrandMark } from "../../components/BrandMark";
 
 type StatsMap = Record<number, ProjectStats>;
 
@@ -230,7 +229,6 @@ export function StartScreen(props: StartScreenProps) {
       {/* ── Hero ────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center space-y-3 mt-4">
         <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
-          <BrandMark size={40} className="mr-3" />
           <span>Ocul-PM</span>
         </h1>
         <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
