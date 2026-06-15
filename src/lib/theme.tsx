@@ -7,6 +7,15 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 export type Theme = "light" | "dark" | "system";
 
+// Preset themes resolve to a light/dark base family (mirrors SettingsContext).
+const PRESET_FAMILY: Record<string, "light" | "dark"> = {
+  solarized: "light",
+  sepia: "light",
+  nord: "dark",
+  dracula: "dark",
+  "high-contrast": "dark",
+};
+
 export function useTheme() {
   const { settings, set } = useSettings();
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
@@ -17,12 +26,12 @@ export function useTheme() {
   );
 
   useEffect(() => {
-    const compute = () =>
-      settings.theme === "system"
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light"
-        : settings.theme;
+    const compute = (): "light" | "dark" => {
+      if (settings.theme === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      return PRESET_FAMILY[settings.theme] ?? (settings.theme === "dark" ? "dark" : "light");
+    };
     setResolvedTheme(compute());
     if (settings.theme === "system") {
       const mq = window.matchMedia("(prefers-color-scheme: dark)");

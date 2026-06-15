@@ -178,6 +178,83 @@
     --sidebar-ring: var(--accent, #2bc488);
 }
 
+/* Preset themes (풀 프리셋 테마) — shadcn vars for the dashboard (StartScreen)
+   + global overlays, which read these always-loaded tokens (tokens.css isn't on
+   the dashboard). `data-preset` is set on <html> alongside the light/dark base
+   `data-theme`; placed after both blocks above so it wins on equal specificity.
+   Accent values are hard-coded (not `var(--accent)`) since tokens.css may not be
+   loaded on the surface reading these. */
+[data-preset="solarized"] {
+    --background: #f3ecd7; --foreground: #586e75;
+    --card: #fdf6e3; --card-foreground: #586e75;
+    --popover: #fdf6e3; --popover-foreground: #586e75;
+    --primary: #268bd2; --primary-foreground: #fdf6e3;
+    --secondary: #eee8d5; --secondary-foreground: #586e75;
+    --muted: #eee8d5; --muted-foreground: #657b83;
+    --accent-surface: #e7e0cb; --accent-foreground: #586e75;
+    --destructive: #dc322f; --border: #ddd6c1; --input: #ddd6c1; --ring: #268bd2;
+    --sidebar: #eee8d5; --sidebar-foreground: #586e75;
+    --sidebar-primary: #268bd2; --sidebar-primary-foreground: #fdf6e3;
+    --sidebar-accent: #e1dac4; --sidebar-accent-foreground: #586e75;
+    --sidebar-border: #ddd6c1; --sidebar-ring: #268bd2;
+}
+[data-preset="sepia"] {
+    --background: #f1e7d0; --foreground: #4a3a2a;
+    --card: #faf3e0; --card-foreground: #4a3a2a;
+    --popover: #faf3e0; --popover-foreground: #4a3a2a;
+    --primary: #b06a2c; --primary-foreground: #fbf6ea;
+    --secondary: #e9ddc2; --secondary-foreground: #4a3a2a;
+    --muted: #e9ddc2; --muted-foreground: #6b5847;
+    --accent-surface: #e4d8bd; --accent-foreground: #4a3a2a;
+    --destructive: #b3433a; --border: #ddcfb0; --input: #ddcfb0; --ring: #b06a2c;
+    --sidebar: #ece1c8; --sidebar-foreground: #4a3a2a;
+    --sidebar-primary: #b06a2c; --sidebar-primary-foreground: #fbf6ea;
+    --sidebar-accent: #e4d8bd; --sidebar-accent-foreground: #4a3a2a;
+    --sidebar-border: #ddcfb0; --sidebar-ring: #b06a2c;
+}
+[data-preset="nord"] {
+    --background: #2e3440; --foreground: #eceff4;
+    --card: #3b4252; --card-foreground: #eceff4;
+    --popover: #3b4252; --popover-foreground: #eceff4;
+    --primary: #88c0d0; --primary-foreground: #2e3440;
+    --secondary: #3b4252; --secondary-foreground: #eceff4;
+    --muted: #3b4252; --muted-foreground: #aab4c4;
+    --accent-surface: #3b4252; --accent-foreground: #eceff4;
+    --destructive: #bf616a; --border: #434c5e; --input: #434c5e; --ring: #88c0d0;
+    --sidebar: #2b303b; --sidebar-foreground: #eceff4;
+    --sidebar-primary: #88c0d0; --sidebar-primary-foreground: #2e3440;
+    --sidebar-accent: #3b4252; --sidebar-accent-foreground: #eceff4;
+    --sidebar-border: #434c5e; --sidebar-ring: #88c0d0;
+}
+[data-preset="dracula"] {
+    --background: #282a36; --foreground: #f8f8f2;
+    --card: #343746; --card-foreground: #f8f8f2;
+    --popover: #343746; --popover-foreground: #f8f8f2;
+    --primary: #bd93f9; --primary-foreground: #282a36;
+    --secondary: #44475a; --secondary-foreground: #f8f8f2;
+    --muted: #44475a; --muted-foreground: #9ea3c0;
+    --accent-surface: #44475a; --accent-foreground: #f8f8f2;
+    --destructive: #ff5555; --border: #44475a; --input: #44475a; --ring: #bd93f9;
+    --sidebar: #21222c; --sidebar-foreground: #f8f8f2;
+    --sidebar-primary: #bd93f9; --sidebar-primary-foreground: #282a36;
+    --sidebar-accent: #343746; --sidebar-accent-foreground: #f8f8f2;
+    --sidebar-border: #44475a; --sidebar-ring: #bd93f9;
+}
+[data-preset="high-contrast"] {
+    --background: #000000; --foreground: #ffffff;
+    --card: #0a0a0a; --card-foreground: #ffffff;
+    --popover: #0a0a0a; --popover-foreground: #ffffff;
+    --primary: #ffd400; --primary-foreground: #000000;
+    --secondary: #1a1a1a; --secondary-foreground: #ffffff;
+    --muted: #1a1a1a; --muted-foreground: #d4d4d4;
+    --accent-surface: #1f1f1f; --accent-foreground: #ffffff;
+    --destructive: #ff5b5b; --border: #8a8a8a; --input: #8a8a8a; --ring: #ffd400;
+    --sidebar: #000000; --sidebar-foreground: #ffffff;
+    --sidebar-primary: #ffd400; --sidebar-primary-foreground: #000000;
+    --sidebar-accent: #1f1f1f; --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #8a8a8a; --sidebar-ring: #ffd400;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

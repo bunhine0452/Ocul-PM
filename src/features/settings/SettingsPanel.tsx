@@ -23,7 +23,7 @@ import {
 import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
-import { PROVIDERS, type Provider } from "@/lib/settings";
+import { PROVIDERS, type Provider, type Theme } from "@/lib/settings";
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
@@ -36,7 +36,8 @@ type TabId =
   | "graph"
   | "data"
   | "oculpm"
-  | "diagnostics";
+  | "diagnostics"
+  | "update";
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", label: "모양", icon: Sun },
@@ -48,6 +49,8 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ classN
   { id: "oculpm", label: "ocul-pm", icon: FileCode },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
   { id: "diagnostics", label: "진단", icon: SettingsIcon },
+  // Update surfaced out of the buried 데이터 section into its own tab below 진단.
+  { id: "update", label: "업데이트", icon: Download },
 ];
 
 const GITHUB_SECRET = "github_api_key";
@@ -163,6 +166,25 @@ function NumberSlider({
 
 // ---------- Tabs ----------
 
+// Preset themes shown in 모양 → 테마. Each `id` is a `Theme` value the
+// SettingsContext turns into `data-preset` over a light/dark base family. The
+// swatch colors mirror the palette in tokens.css / App.css so the picker shows a
+// faithful mini-preview without loading the theme.
+const THEME_PRESETS: Array<{
+  id: Theme;
+  label: string;
+  bg: string;
+  fg: string;
+  accent: string;
+  accent2: string;
+}> = [
+  { id: "solarized", label: "Solarized", bg: "#fdf6e3", fg: "#586e75", accent: "#268bd2", accent2: "#859900" },
+  { id: "nord", label: "Nord", bg: "#2e3440", fg: "#eceff4", accent: "#88c0d0", accent2: "#81a1c1" },
+  { id: "dracula", label: "Dracula", bg: "#282a36", fg: "#f8f8f2", accent: "#bd93f9", accent2: "#ff79c6" },
+  { id: "sepia", label: "Sepia", bg: "#f4ecd8", fg: "#4a3a2a", accent: "#b06a2c", accent2: "#8a6a3a" },
+  { id: "high-contrast", label: "High Contrast", bg: "#000000", fg: "#ffffff", accent: "#ffd400", accent2: "#ffffff" },
+];
+
 function AppearanceTab() {
   const { settings, set } = useSettings();
   return (
@@ -184,7 +206,7 @@ function AppearanceTab() {
         </Field>
       </Section>
 
-      <Section title="테마" description="밝게 / 어둡게, 또는 OS 설정을 따릅니다.">
+      <Section title="테마" description="밝게 / 어둡게 · OS 설정 · 또는 프리셋 테마를 선택합니다.">
         <div className="grid grid-cols-3 gap-3">
           {(["light", "dark", "system"] as const).map((t) => {
             const isActive = settings.theme === t;
@@ -202,6 +224,91 @@ function AppearanceTab() {
                 {t === "dark" && <Moon className="w-4 h-4" />}
                 {t === "system" && <Monitor className="w-4 h-4" />}
                 <span className="capitalize">{t}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-1">
+          <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+            프리셋 테마
+          </Label>
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {THEME_PRESETS.map((p) => {
+              const isActive = settings.theme === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => set("theme", p.id)}
+                  className={`flex flex-col items-stretch gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    isActive
+                      ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                      : "border-border hover:border-primary/45 bg-background"
+                  }`}
+                >
+                  <span
+                    className="flex items-center gap-1.5 h-9 px-2 rounded-md border"
+                    style={{ background: p.bg, borderColor: "rgba(127,127,127,0.25)" }}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: p.accent }} />
+                    <span className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: p.accent2 }} />
+                    <span className="flex-1 h-1.5 rounded-full" style={{ background: p.fg, opacity: 0.4 }} />
+                  </span>
+                  <span
+                    className={`text-xs font-semibold text-center ${
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {p.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="글자 크기"
+        description="앱 전체 글자와 화면 배율을 조절합니다 — 브라우저 확대/축소처럼 동작합니다."
+      >
+        <Field label={`배율 — ${Math.round(settings.uiScale * 100)}%`}>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={70}
+              max={160}
+              step={5}
+              value={Math.round(settings.uiScale * 100)}
+              onChange={(e) => set("uiScale", Number(e.target.value) / 100)}
+              className="flex-1 accent-[color:var(--primary)]"
+            />
+            <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
+              {Math.round(settings.uiScale * 100)}%
+            </span>
+          </div>
+        </Field>
+        <div className="grid grid-cols-4 gap-2">
+          {(
+            [
+              ["작게", 0.9],
+              ["기본", 1],
+              ["크게", 1.1],
+              ["더 크게", 1.25],
+            ] as const
+          ).map(([label, v]) => {
+            const isActive = Math.abs(settings.uiScale - v) < 0.001;
+            return (
+              <button
+                key={label}
+                onClick={() => set("uiScale", v)}
+                className={`px-2 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-primary/10 border-primary text-primary"
+                    : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
               </button>
             );
           })}
@@ -831,7 +938,6 @@ function GraphTab() {
 
 function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   const { resetAll } = useSettings();
-  const { status: updater, check: checkUpdate, install: installUpdate } = useUpdater();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -905,68 +1011,6 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">Loading…</span>
-        )}
-      </Section>
-
-      <Section
-        title="업데이트"
-        description="GitHub 릴리스에서 새 버전을 확인하고 앱 내에서 바로 설치합니다."
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-muted-foreground">
-            현재 버전{" "}
-            <span className="font-mono text-foreground">
-              v{info?.version ?? "—"}
-            </span>
-          </div>
-          {updater.kind === "available" ? (
-            <Button
-              onClick={() => void installUpdate()}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Download className="w-3.5 h-3.5 mr-2" />
-              v{updater.version} 설치 후 재시작
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => void checkUpdate()}
-              disabled={updater.kind === "checking" || updater.kind === "installing"}
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 mr-2 ${updater.kind === "checking" ? "animate-spin" : ""}`}
-              />
-              업데이트 확인
-            </Button>
-          )}
-        </div>
-        {updater.kind === "checking" && (
-          <p className="text-[11px] text-muted-foreground">새 버전을 확인하는 중…</p>
-        )}
-        {updater.kind === "uptodate" && (
-          <p className="text-[11px] text-primary">최신 버전을 사용 중입니다.</p>
-        )}
-        {updater.kind === "available" && (
-          <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">
-              새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
-            </p>
-            {releaseHighlights(updater.notes) ? (
-              <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">
-                <Markdown>{releaseHighlights(updater.notes)}</Markdown>
-              </div>
-            ) : null}
-          </div>
-        )}
-        {updater.kind === "installing" && (
-          <p className="text-[11px] text-muted-foreground">
-            다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작됩니다.
-          </p>
-        )}
-        {updater.kind === "error" && (
-          <p className="text-[11px] text-destructive">
-            업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {updater.message}
-          </p>
         )}
       </Section>
 
@@ -1074,6 +1118,104 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
   );
 }
 
+// Repo behind the updater endpoint (tauri.conf.json) — used to fetch live patch
+// notes (the latest release body == the installed version when up to date).
+const RELEASES_API = "https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest";
+
+function UpdateTab() {
+  const { status: updater, check: checkUpdate, install: installUpdate } = useUpdater();
+  const [version, setVersion] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(true);
+
+  useEffect(() => {
+    commands.appInfo().then((res) => {
+      if (res.status === "ok") setVersion(res.data.version);
+    });
+    // Auto-check on open so the update state isn't hidden behind a manual click.
+    void checkUpdate();
+    // Live patch notes from the latest GitHub release (public repo, CORS-enabled;
+    // offline / rate-limited just falls back to the empty-state message).
+    fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setNotes(data?.body ? releaseHighlights(data.body) : null))
+      .catch(() => setNotes(null))
+      .finally(() => setNotesLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <Section
+        title="업데이트"
+        description="GitHub 릴리스에서 새 버전을 확인하고 앱 내에서 바로 설치합니다."
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            현재 버전{" "}
+            <span className="font-mono text-foreground">v{version ?? "—"}</span>
+          </div>
+          {updater.kind === "available" ? (
+            <Button
+              onClick={() => void installUpdate()}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Download className="w-3.5 h-3.5 mr-2" />
+              v{updater.version} 설치 후 재시작
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => void checkUpdate()}
+              disabled={updater.kind === "checking" || updater.kind === "installing"}
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 mr-2 ${updater.kind === "checking" ? "animate-spin" : ""}`}
+              />
+              업데이트 확인
+            </Button>
+          )}
+        </div>
+        {updater.kind === "checking" && (
+          <p className="text-[11px] text-muted-foreground">새 버전을 확인하는 중…</p>
+        )}
+        {updater.kind === "uptodate" && (
+          <p className="text-[11px] text-primary">최신 버전을 사용 중입니다.</p>
+        )}
+        {updater.kind === "available" && (
+          <p className="text-[11px] text-muted-foreground">
+            새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
+          </p>
+        )}
+        {updater.kind === "installing" && (
+          <p className="text-[11px] text-muted-foreground">
+            다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작됩니다.
+          </p>
+        )}
+        {updater.kind === "error" && (
+          <p className="text-[11px] text-destructive">
+            업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {updater.message}
+          </p>
+        )}
+      </Section>
+
+      <Section title="패치노트" description="최근 릴리스의 변경 사항입니다.">
+        {notesLoading ? (
+          <span className="text-xs text-muted-foreground">불러오는 중…</span>
+        ) : notes ? (
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">
+            <Markdown>{notes}</Markdown>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            패치노트를 불러오지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음).
+          </span>
+        )}
+      </Section>
+    </>
+  );
+}
+
 function Stat({ label, value }: { label: string; value?: string }) {
   return (
     <div className="p-3 bg-secondary/40 rounded-xl">
@@ -1115,6 +1257,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <OculpmSettings />;
       case "diagnostics":
         return <DiagnosticsTab onError={setError} />;
+      case "update":
+        return <UpdateTab />;
     }
   }, [tab]);
 

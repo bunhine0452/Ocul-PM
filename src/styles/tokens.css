@@ -153,3 +153,72 @@
   --accent: #5fd5d0; --accent-strong: #4cccc6; --accent-text: #86e6e1;
   --accent-soft: rgba(95,213,208,0.16); --accent-ring: rgba(95,213,208,0.4);
 }
+
+/* ============================================================
+   Preset themes (풀 프리셋 테마)
+   `data-preset` on <html> repaints surfaces + accent over a light/dark base
+   family (`data-theme`, set by SettingsContext). Placed last so these win over
+   the base :root / [data-theme="dark"] blocks on equal specificity. Trigger
+   hues + diff colors stay inherited from the family (semantic, untouched).
+   data-accent is removed while a preset is active, so no [data-accent] conflict.
+   ============================================================ */
+
+/* Solarized (light family) — Ethan Schoonover's classic cream + blue */
+[data-preset="solarized"] {
+  --bg-window: #fdf6e3;  --bg-sidebar: #eee8d5;  --bg-content: #f5eed9;
+  --bg-card: #fdf6e3;    --bg-inset: #eee8d5;
+  --bg-hover: rgba(101,123,131,0.10);  --bg-active: rgba(101,123,131,0.16);
+  --text: #586e75;  --text-2: #657b83;  --text-3: #93a1a1;  --text-on-accent: #fdf6e3;
+  --sep: rgba(88,110,117,0.16);  --sep-strong: rgba(88,110,117,0.28);
+  --border-card: rgba(88,110,117,0.18);
+  --accent: #268bd2;  --accent-strong: #1f7ab8;  --accent-text: #1f6a9e;
+  --accent-soft: rgba(38,139,210,0.14);  --accent-ring: rgba(38,139,210,0.40);
+}
+
+/* Sepia (light family) — warm paper / reading mode */
+[data-preset="sepia"] {
+  --bg-window: #f4ecd8;  --bg-sidebar: #ece1c8;  --bg-content: #f1e7d0;
+  --bg-card: #faf3e0;    --bg-inset: #e9ddc2;
+  --bg-hover: rgba(91,70,54,0.07);  --bg-active: rgba(91,70,54,0.12);
+  --text: #4a3a2a;  --text-2: #6b5847;  --text-3: #927b63;  --text-on-accent: #fbf6ea;
+  --sep: rgba(91,70,54,0.16);  --sep-strong: rgba(91,70,54,0.26);
+  --border-card: rgba(91,70,54,0.18);
+  --accent: #b06a2c;  --accent-strong: #9a5a22;  --accent-text: #8a4f1d;
+  --accent-soft: rgba(176,106,44,0.14);  --accent-ring: rgba(176,106,44,0.38);
+}
+
+/* Nord (dark family) — arctic blue-grey + frost accent */
+[data-preset="nord"] {
+  --bg-window: #2e3440;  --bg-sidebar: #2b303b;  --bg-content: #2e3440;
+  --bg-card: #3b4252;    --bg-inset: #434c5e;
+  --bg-hover: rgba(216,222,233,0.06);  --bg-active: rgba(216,222,233,0.10);
+  --text: #eceff4;  --text-2: #d8dee9;  --text-3: #8d99b3;  --text-on-accent: #2e3440;
+  --sep: rgba(216,222,233,0.09);  --sep-strong: rgba(216,222,233,0.16);
+  --border-card: rgba(216,222,233,0.10);
+  --accent: #88c0d0;  --accent-strong: #79b0c2;  --accent-text: #9fcfdd;
+  --accent-soft: rgba(136,192,208,0.16);  --accent-ring: rgba(136,192,208,0.40);
+}
+
+/* Dracula (dark family) — deep slate + purple */
+[data-preset="dracula"] {
+  --bg-window: #282a36;  --bg-sidebar: #21222c;  --bg-content: #282a36;
+  --bg-card: #343746;    --bg-inset: #44475a;
+  --bg-hover: rgba(248,248,242,0.06);  --bg-active: rgba(248,248,242,0.10);
+  --text: #f8f8f2;  --text-2: #bdc0d6;  --text-3: #6272a4;  --text-on-accent: #282a36;
+  --sep: rgba(248,248,242,0.09);  --sep-strong: rgba(248,248,242,0.16);
+  --border-card: rgba(248,248,242,0.10);
+  --accent: #bd93f9;  --accent-strong: #a87fe6;  --accent-text: #d0b3ff;
+  --accent-soft: rgba(189,147,249,0.16);  --accent-ring: rgba(189,147,249,0.40);
+}
+
+/* High Contrast (dark family) — pure black, white text, yellow accent (a11y) */
+[data-preset="high-contrast"] {
+  --bg-window: #000000;  --bg-sidebar: #000000;  --bg-content: #000000;
+  --bg-card: #0a0a0a;    --bg-inset: #141414;
+  --bg-hover: rgba(255,255,255,0.12);  --bg-active: rgba(255,255,255,0.20);
+  --text: #ffffff;  --text-2: #f0f0f0;  --text-3: #c8c8c8;  --text-on-accent: #000000;
+  --sep: rgba(255,255,255,0.50);  --sep-strong: rgba(255,255,255,0.80);
+  --border-card: rgba(255,255,255,0.60);
+  --accent: #ffd400;  --accent-strong: #ffde33;  --accent-text: #ffe666;
+  --accent-soft: rgba(255,212,0,0.20);  --accent-ring: rgba(255,212,0,0.60);
+}

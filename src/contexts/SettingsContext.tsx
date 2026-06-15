@@ -19,6 +19,19 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+// Preset themes (Solarized / Nord / …) are full palettes that layer on top of a
+// light or dark *base family*. `data-theme` carries the family — so every
+// existing `[data-theme="dark"]` rule (code editor, hljs, scrollbars, glass)
+// keeps working — while `data-preset` repaints the surfaces + accent on top
+// (tokens.css / App.css). Plain light/dark/system set no `data-preset`.
+const PRESET_FAMILY: Record<string, "light" | "dark"> = {
+  solarized: "light",
+  sepia: "light",
+  nord: "dark",
+  dracula: "dark",
+  "high-contrast": "dark",
+};
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
@@ -69,14 +82,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loaded) return;
     const root = document.documentElement;
+    const preset = PRESET_FAMILY[settings.theme] ? settings.theme : null;
     const apply = () => {
-      const desired =
-        settings.theme === "system"
-          ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          : settings.theme === "dark";
-      root.setAttribute("data-theme", desired ? "dark" : "light");
+      let family: "light" | "dark";
+      if (preset) {
+        family = PRESET_FAMILY[preset];
+      } else if (settings.theme === "system") {
+        family = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      } else {
+        family = settings.theme === "dark" ? "dark" : "light";
+      }
+      root.setAttribute("data-theme", family);
+      if (preset) root.setAttribute("data-preset", preset);
+      else root.removeAttribute("data-preset");
     };
     apply();
+    // Only "system" tracks the OS — a fixed preset/light/dark doesn't.
     if (settings.theme === "system") {
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       mq.addEventListener("change", apply);
@@ -86,11 +107,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Accent palette: `data-accent` overrides the --accent* tokens (tokens.css)
   // over whichever light/dark mode is active. "green" is the base (no override),
-  // so any selection just swaps which `[data-accent="…"]` block wins.
+  // so any selection just swaps which `[data-accent="…"]` block wins. Preset
+  // themes ship their own accent, so we drop `data-accent` while one is active.
   useEffect(() => {
     if (!loaded) return;
-    document.documentElement.setAttribute("data-accent", settings.colorTheme);
-  }, [settings.colorTheme, loaded]);
+    const root = document.documentElement;
+    if (PRESET_FAMILY[settings.theme]) root.removeAttribute("data-accent");
+    else root.setAttribute("data-accent", settings.colorTheme);
+  }, [settings.colorTheme, settings.theme, loaded]);
+
+  // App-wide UI scale: apply as CSS `zoom` on <html> so everything (both
+  // rem-based shadcn text and px-based ui_v2 tokens/icons/spacing) scales
+  // uniformly — like a browser zoom. Clamped so a bad value can't lock the user
+  // out of the UI. The native window chrome lives outside the webview, so only
+  // the app content scales.
+  useEffect(() => {
+    if (!loaded) return;
+    const scale = Math.min(1.6, Math.max(0.7, settings.uiScale || 1));
+    (document.documentElement.style as CSSStyleDeclaration & { zoom?: string }).zoom =
+      String(scale);
+  }, [settings.uiScale, loaded]);
 
   const value = useMemo<SettingsContextValue>(
     () => ({ settings, loaded, set, setMany, reload, resetAll }),

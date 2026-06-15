@@ -1,7 +1,17 @@
 // Centralized app settings registry. All keys, defaults, and types live here.
 // Settings are persisted in the SQLite `settings` table via Tauri commands.
 
-export type Theme = "light" | "dark" | "system";
+export type Theme =
+  | "light"
+  | "dark"
+  | "system"
+  // Full preset palettes. Each layers a named palette (`data-preset`) over a
+  // light/dark base family (`data-theme`) — see PRESET_FAMILY in SettingsContext.
+  | "solarized"
+  | "nord"
+  | "dracula"
+  | "sepia"
+  | "high-contrast";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type UiDensity = "compact" | "comfortable";
@@ -17,6 +27,7 @@ export const KEYS = {
   theme: "theme",
   colorTheme: "color_theme",
   uiDensity: "ui_density",
+  uiScale: "ui_scale",
   editorFontFamily: "editor_font_family",
   editorFontSize: "editor_font_size",
   editorTabWidth: "editor_tab_width",
@@ -72,6 +83,9 @@ export interface Settings {
   theme: Theme;
   colorTheme: ColorTheme;
   uiDensity: UiDensity;
+  /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
+   *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
+  uiScale: number;
 
   editorFontFamily: string;
   editorFontSize: number;
@@ -129,6 +143,7 @@ export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
   uiDensity: "comfortable",
+  uiScale: 1,
 
   editorFontFamily: "D2Coding",
   editorFontSize: 13,
@@ -175,6 +190,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiDensity]: "uiDensity",
+  [KEYS.uiScale]: "uiScale",
   [KEYS.editorFontFamily]: "editorFontFamily",
   [KEYS.editorFontSize]: "editorFontSize",
   [KEYS.editorTabWidth]: "editorTabWidth",
