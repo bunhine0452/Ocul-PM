@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { commands } from "@/lib/bindings";
 import {
   DEFAULTS,
@@ -116,16 +117,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     else root.setAttribute("data-accent", settings.colorTheme);
   }, [settings.colorTheme, settings.theme, loaded]);
 
-  // App-wide UI scale: apply as CSS `zoom` on <html> so everything (both
-  // rem-based shadcn text and px-based ui_v2 tokens/icons/spacing) scales
-  // uniformly — like a browser zoom. Clamped so a bad value can't lock the user
-  // out of the UI. The native window chrome lives outside the webview, so only
-  // the app content scales.
+  // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
+  // `zoom`, this reflows the page natively, so pixel-measuring components
+  // (xterm terminal, React Flow graph, charts) stay correct instead of breaking.
+  // Webview zoom resets on reload, so we re-apply on mount + whenever it changes.
+  // Clamped so a bad value can't lock the user out. No-op outside Tauri.
   useEffect(() => {
     if (!loaded) return;
     const scale = Math.min(1.6, Math.max(0.7, settings.uiScale || 1));
-    (document.documentElement.style as CSSStyleDeclaration & { zoom?: string }).zoom =
-      String(scale);
+    try {
+      // getCurrentWebview() throws synchronously outside Tauri (tests / web
+      // preview); setZoom() may reject — both are ignored as a no-op.
+      void getCurrentWebview()
+        .setZoom(scale)
+        .catch(() => {});
+    } catch {
+      /* not running under Tauri — ignore */
+    }
   }, [settings.uiScale, loaded]);
 
   const value = useMemo<SettingsContextValue>(
