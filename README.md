@@ -7,10 +7,10 @@
 <p><b>코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다.</b><br/>
 Local-first <b>AI project manager (AI PM)</b> for AI coding agents — Claude Code · Cursor · Gemini CLI.</p>
 
-[![Latest release](https://img.shields.io/github/v/release/bunhine0452/Ocul-PM?color=12a06b&label=%E2%AC%87%20download&style=for-the-badge&cacheSeconds=3600)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
+[![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=%E2%AC%87%20download&color=12a06b&scale=1.4)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Website](https://img.shields.io/badge/oculpm.com-12a06b?style=for-the-badge&logo=vercel&logoColor=white)](https://oculpm.com)
 
-[![Downloads](https://img.shields.io/github/downloads/bunhine0452/Ocul-PM/total?color=12a06b&cacheSeconds=3600)](https://github.com/bunhine0452/Ocul-PM/releases)
+[![Downloads](https://badgen.net/github/assets-dl/bunhine0452/Ocul-PM?color=12a06b&label=downloads)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-000?logo=rust&logoColor=white)](https://www.rust-lang.org)
