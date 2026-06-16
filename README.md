@@ -16,7 +16,7 @@ Local-first <b>AI project manager (AI PM)</b> for AI coding agents — Claude Co
 [![Rust](https://img.shields.io/badge/Rust-000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/bunhine0452/Ocul-PM?style=social&cacheSeconds=3600)](https://github.com/bunhine0452/Ocul-PM/stargazers)
+[![Stars](https://badgen.net/github/stars/bunhine0452/Ocul-PM?icon=github&color=12a06b&label=stars)](https://github.com/bunhine0452/Ocul-PM/stargazers)
 
 **[🌐 oculpm.com](https://oculpm.com)** · **[⬇️ 다운로드](https://github.com/bunhine0452/Ocul-PM/releases/latest)** · **[📋 변경 이력](CHANGELOG.md)** · **[🐛 이슈](https://github.com/bunhine0452/Ocul-PM/issues)**
 
