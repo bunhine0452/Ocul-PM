@@ -1593,7 +1593,13 @@ export type PlanEditOp =
 /**  Remove an existing item. */
 { kind: "remove_item"; item_id: string } | 
 /**  Rename an existing item's title. */
-{ kind: "rename_item"; item_id: string; title: string };
+{ kind: "rename_item"; item_id: string; title: string } | 
+/**  Rename a phase heading (keeps its items + tracking id). */
+{ kind: "rename_phase"; from: string; to: string } | 
+/**  Remove a phase heading and every item under it. */
+{ kind: "remove_phase"; phase: string } | 
+/**  Reorder a phase among its siblings (`up = true` moves it earlier). */
+{ kind: "move_phase"; phase: string; up: boolean };
 
 export type PlanItemDto = {
 	item_id: string,

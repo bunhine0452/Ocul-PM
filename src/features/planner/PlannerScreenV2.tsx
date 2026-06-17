@@ -4,6 +4,7 @@ import {
   Plus,
   TriangleAlert,
   ChevronDown,
+  ChevronUpIcon as ChevronUp,
   ChevronRight,
   Clock,
   RefreshCw,
@@ -18,6 +19,7 @@ import {
   type PlanDetail,
   type PlanItemDto,
   type PlanItemUpdateDto,
+  type PlanEditOp,
 } from "@/lib/bindings";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { oculpmApi } from "@/api/oculpm";
@@ -52,6 +54,10 @@ interface JournalRefMeta {
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+// Synthetic bucket for items written before any `## ` heading — it has no real
+// heading on disk, so phase rename/delete/reorder are not offered for it.
+const NO_PHASE = "(기타)";
 
 /** "20260615" → "2026.06.15 (월)". Returns the input unchanged if not 8 digits. */
 function fmtWorkday(wd: string): string {
@@ -336,6 +342,29 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     }
   };
 
+  // Phase-level CRUD — rename / delete / reorder a `## ` section. Phases were
+  // previously only creatable (implicitly, via add_item); these close the gap.
+  const editPhase = async (op: PlanEditOp, failMsg: string) => {
+    if (busy || selectedId == null) return;
+    setBusy(true);
+    const res = await commands.planApplyEdit(projectId, selectedId, op, "user");
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+    } else {
+      toast.destructive(`${failMsg}: ${res.error}`);
+    }
+  };
+
+  const renamePhase = (from: string, to: string) => {
+    if (!to.trim() || to.trim() === from) return;
+    void editPhase({ kind: "rename_phase", from, to: to.trim() }, "단계 이름 변경 실패");
+  };
+  const removePhase = (phase: string) => void editPhase({ kind: "remove_phase", phase }, "단계 삭제 실패");
+  const movePhase = (phase: string, up: boolean) =>
+    void editPhase({ kind: "move_phase", phase, up }, "단계 순서 변경 실패");
+
   // Dogfooding 2026-06-07 (Planner #1) — 완료·잠금: mark the plan done (read-only).
   // Locked plans reject in-app edits + AI refresh (backend guard) and AGENTS.md
   // tells external agents the same, so finished plans freeze and work moves on.
@@ -414,7 +443,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const phases = useMemo(() => {
     const map = new Map<string, PlanItemDto[]>();
     for (const it of detail?.items ?? []) {
-      const key = it.phase ?? "(기타)";
+      const key = it.phase ?? NO_PHASE;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(it);
     }
@@ -588,6 +617,9 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               onDelete={deletePlan}
               onRemoveItem={removeItem}
               onRenameItem={renameItem}
+              onRenamePhase={renamePhase}
+              onRemovePhase={removePhase}
+              onMovePhase={movePhase}
               historyFor={historyFor}
               history={history}
               onToggleHistory={toggleHistory}
@@ -646,6 +678,9 @@ interface PlanBodyProps {
   onDelete: () => void;
   onRemoveItem: (item: PlanItemDto) => void;
   onRenameItem: (item: PlanItemDto, title: string) => void;
+  onRenamePhase: (from: string, to: string) => void;
+  onRemovePhase: (phase: string) => void;
+  onMovePhase: (phase: string, up: boolean) => void;
   historyFor: string | null;
   history: PlanItemUpdateDto[] | null;
   onToggleHistory: (itemId: string) => void;
@@ -655,7 +690,7 @@ interface PlanBodyProps {
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
@@ -670,9 +705,9 @@ function PlanBody(props: PlanBodyProps) {
             {renaming ? (
               <input
                 autoFocus
-                className="set-input"
+                className="goal-title-input"
                 defaultValue={detail.plan.title}
-                style={{ fontSize: 16, fontWeight: 600, width: "100%" }}
+                style={{ fontSize: 16, fontWeight: 660 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     onRename((e.target as HTMLInputElement).value);
@@ -686,8 +721,19 @@ function PlanBody(props: PlanBodyProps) {
                   setRenaming(false);
                 }}
               />
-            ) : (
+            ) : locked ? (
               <div className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</div>
+            ) : (
+              <button
+                type="button"
+                className="plan-title-btn"
+                onClick={() => setRenaming(true)}
+                disabled={busy}
+                title="클릭하여 계획 이름 변경"
+              >
+                <span className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</span>
+                <span className="plan-title-pen"><Pencil size={13} /></span>
+              </button>
             )}
             <div className="goal-due" style={{ marginTop: 4 }}>
               <span className={"goal-status " + (locked ? "planned" : "active")}>
@@ -699,14 +745,6 @@ function PlanBody(props: PlanBodyProps) {
           </div>
           <button
             className="btn sm"
-            onClick={() => setRenaming(true)}
-            disabled={busy || renaming}
-            title="계획 이름 변경"
-          >
-            <Pencil size={13} />
-          </button>
-          <button
-            className="btn sm"
             onClick={() => onToggleLock(!locked)}
             disabled={busy}
             title={locked ? "잠금 해제하고 다시 편집" : "이 계획을 완료·잠금 (읽기전용)"}
@@ -715,31 +753,17 @@ function PlanBody(props: PlanBodyProps) {
           </button>
           {confirmDelete ? (
             <>
-              <button
-                className="btn sm"
-                style={{ color: "var(--t-bug)", borderColor: "var(--t-bug)" }}
-                onClick={() => {
-                  setConfirmDelete(false);
-                  onDelete();
-                }}
-                disabled={busy}
-                title="이 계획을 영구 삭제"
-              >
+              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title="이 계획을 영구 삭제">
                 삭제 확정
               </button>
-              <button className="btn sm" onClick={() => setConfirmDelete(false)}>취소</button>
+              <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>취소</button>
             </>
           ) : (
-            <button
-              className="btn sm"
-              onClick={() => setConfirmDelete(true)}
-              disabled={busy}
-              title="계획 삭제"
-            >
-              <Trash2 size={13} />
+            <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title="계획 삭제">
+              <Trash2 size={14} />
             </button>
           )}
-          <button className="btn sm" onClick={onRefresh} title="새로고침"><RefreshCw size={13} /></button>
+          <button type="button" className="pln-iconbtn" onClick={onRefresh} title="새로고침"><RefreshCw size={14} /></button>
         </div>
         {locked ? (
           <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
@@ -776,57 +800,37 @@ function PlanBody(props: PlanBodyProps) {
         </div>
       ) : null}
 
-      {/* Phases */}
+      {/* Phases — reorder bounds are computed among real (on-disk) headings so
+          the synthetic 기타 bucket never blocks moving the last real phase. */}
       {phases.map(([phase, items]) => {
-        const isOpen = collapsed[phase] !== true;
-        const meta = phaseMeta.get(phase);
-        const phasePct = meta ? Math.round((meta.progress ?? 0) * 100) : phaseProgress(items);
+        const realPhases = phases.map(([p]) => p).filter((p) => p !== NO_PHASE);
+        const ri = realPhases.indexOf(phase);
+        const canEdit = phase !== NO_PHASE;
         return (
-          <div className="card goal-card" key={phase} style={{ marginBottom: 12 }}>
-            <button
-              type="button"
-              className="goal-head"
-              onClick={() => setCollapsed((c) => ({ ...c, [phase]: isOpen }))}
-              aria-expanded={isOpen}
-            >
-              {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
-              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <span style={{ color: (STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo).color, fontSize: 13, flexShrink: 0 }}>
-                  {(STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo).glyph}
-                </span>
-                <span className="goal-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{phase}</span>
-                {meta?.last_agent ? (
-                  <span
-                    title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}
-                  >
-                    <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(meta.last_agent) }} />
-                    {agentLabel(meta.last_agent)}
-                  </span>
-                ) : null}
-              </div>
-              <span className="prog-pct">{phasePct}%</span>
-            </button>
-
-            {isOpen
-              ? items.map((it) => (
-                  <PlanItemRow
-                    key={it.item_id}
-                    item={it}
-                    busy={busy}
-                    locked={locked}
-                    onSetStatus={onSetStatus}
-                    onRemove={onRemoveItem}
-                    onRename={onRenameItem}
-                    historyOpen={historyFor === it.item_id}
-                    history={historyFor === it.item_id ? history : null}
-                    onToggleHistory={onToggleHistory}
-                    onOpenJournalRef={onOpenJournalRef}
-                    resolveJournalRefs={resolveJournalRefs}
-                  />
-                ))
-              : null}
-          </div>
+        <PhaseCard
+          key={phase}
+          phase={phase}
+          items={items}
+          meta={phaseMeta.get(phase)}
+          isOpen={collapsed[phase] !== true}
+          onToggle={() => setCollapsed((c) => ({ ...c, [phase]: c[phase] !== true }))}
+          busy={busy}
+          locked={locked}
+          canEdit={canEdit}
+          canMoveUp={ri > 0}
+          canMoveDown={ri >= 0 && ri < realPhases.length - 1}
+          onRenamePhase={onRenamePhase}
+          onRemovePhase={onRemovePhase}
+          onMovePhase={onMovePhase}
+          onSetStatus={onSetStatus}
+          onRemoveItem={onRemoveItem}
+          onRenameItem={onRenameItem}
+          historyFor={historyFor}
+          history={history}
+          onToggleHistory={onToggleHistory}
+          onOpenJournalRef={onOpenJournalRef}
+          resolveJournalRefs={resolveJournalRefs}
+        />
         );
       })}
 
@@ -847,6 +851,142 @@ function PlanBody(props: PlanBodyProps) {
         </div>
       ) : null}
     </>
+  );
+}
+
+// ── Phase card (collapsible section + inline rename / reorder / delete) ──────
+
+interface PhaseCardProps {
+  phase: string;
+  items: PlanItemDto[];
+  meta: NonNullable<PlanDetail["phases"]>[number] | undefined;
+  isOpen: boolean;
+  onToggle: () => void;
+  busy: boolean;
+  locked: boolean;
+  canEdit: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onRenamePhase: (from: string, to: string) => void;
+  onRemovePhase: (phase: string) => void;
+  onMovePhase: (phase: string, up: boolean) => void;
+  onSetStatus: (item: PlanItemDto, status: string) => void;
+  onRemoveItem: (item: PlanItemDto) => void;
+  onRenameItem: (item: PlanItemDto, title: string) => void;
+  historyFor: string | null;
+  history: PlanItemUpdateDto[] | null;
+  onToggleHistory: (itemId: string) => void;
+  onOpenJournalRef: (ref: string) => void;
+  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
+}
+
+function PhaseCard(props: PhaseCardProps) {
+  const {
+    phase, items, meta, isOpen, onToggle, busy, locked, canEdit, canMoveUp, canMoveDown,
+    onRenamePhase, onRemovePhase, onMovePhase,
+    onSetStatus, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
+    onOpenJournalRef, resolveJournalRefs,
+  } = props;
+  const [editing, setEditing] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  // Phases are matched by name, so a rename must fire exactly once: Enter blurs
+  // the input and the single onBlur commits; Escape blurs with this flag set so
+  // the commit is skipped. (A double submit would re-target the old, now-gone
+  // name and surface a spurious "not found".)
+  const cancelEditRef = useRef(false);
+
+  const sm = STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo;
+  const phasePct = meta ? Math.round((meta.progress ?? 0) * 100) : phaseProgress(items);
+
+  return (
+    <div className="card goal-card" style={{ marginBottom: 12 }}>
+      <div className={"goal-head-row" + (confirmDel ? " is-active" : "")}>
+        {editing ? (
+          <div className="goal-head-edit">
+            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
+            <input
+              autoFocus
+              className="goal-title-input"
+              defaultValue={phase}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                if (e.key === "Escape") { cancelEditRef.current = true; (e.target as HTMLInputElement).blur(); }
+              }}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (!cancelEditRef.current && v && v !== phase) onRenamePhase(phase, v);
+                cancelEditRef.current = false;
+                setEditing(false);
+              }}
+            />
+          </div>
+        ) : (
+          <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
+            {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
+            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
+            <span className="goal-title goal-title-clip">{phase}</span>
+            {meta?.last_agent ? (
+              <span
+                className="phase-agent"
+                title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(meta.last_agent) }} />
+                {agentLabel(meta.last_agent)}
+              </span>
+            ) : null}
+          </button>
+        )}
+
+        {!locked && !editing && canEdit ? (
+          <div className="phase-actions">
+            {confirmDel ? (
+              <>
+                <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemovePhase(phase); }} disabled={busy}>
+                  단계 삭제
+                </button>
+                <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>취소</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="pln-iconbtn" title="단계 이름 변경" onClick={() => setEditing(true)} disabled={busy}>
+                  <Pencil size={13} />
+                </button>
+                <button type="button" className="pln-iconbtn" title="위로 이동" onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
+                  <ChevronUp size={14} />
+                </button>
+                <button type="button" className="pln-iconbtn" title="아래로 이동" onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
+                  <ChevronDown size={14} />
+                </button>
+                <button type="button" className="pln-iconbtn danger" title="단계 삭제 (항목 포함)" onClick={() => setConfirmDel(true)} disabled={busy}>
+                  <Trash2 size={13} />
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        <span className="prog-pct">{phasePct}%</span>
+      </div>
+
+      {isOpen
+        ? items.map((it) => (
+            <PlanItemRow
+              key={it.item_id}
+              item={it}
+              busy={busy}
+              locked={locked}
+              onSetStatus={onSetStatus}
+              onRemove={onRemoveItem}
+              onRename={onRenameItem}
+              historyOpen={historyFor === it.item_id}
+              history={historyFor === it.item_id ? history : null}
+              onToggleHistory={onToggleHistory}
+              onOpenJournalRef={onOpenJournalRef}
+              resolveJournalRefs={resolveJournalRefs}
+            />
+          ))
+        : null}
+    </div>
   );
 }
 
@@ -924,9 +1064,8 @@ function PlanItemRow({ item, busy, locked, onSetStatus, onRemove, onRename, hist
         {editing ? (
           <input
             autoFocus
-            className="set-input"
+            className="sub-title-input"
             defaultValue={item.title}
-            style={{ fontSize: 13, width: "100%", maxWidth: 360 }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 onRename(item, (e.target as HTMLInputElement).value);
@@ -1044,44 +1183,20 @@ function PlanItemRow({ item, busy, locked, onSetStatus, onRemove, onRename, hist
       ) : null}
 
       {!locked && !editing ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 4 }}>
+        <div className={"item-actions" + (confirmDel ? " is-active" : "")}>
           {confirmDel ? (
             <>
-              <button
-                type="button"
-                onClick={() => { setConfirmDel(false); onRemove(item); }}
-                disabled={busy}
-                title="삭제 확정"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t-bug)", fontSize: 11, padding: "0 2px" }}
-              >
-                삭제?
+              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title="삭제 확정">
+                삭제
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDel(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: 11, padding: "0 2px" }}
-              >
-                취소
-              </button>
+              <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>취소</button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                disabled={busy}
-                title="항목 이름 변경"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", padding: 2, display: "grid", placeItems: "center" }}
-              >
+              <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title="항목 이름 변경">
                 <Pencil size={12} />
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDel(true)}
-                disabled={busy}
-                title="항목 삭제"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", padding: 2, display: "grid", placeItems: "center" }}
-              >
+              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title="항목 삭제">
                 <Trash2 size={12} />
               </button>
             </>

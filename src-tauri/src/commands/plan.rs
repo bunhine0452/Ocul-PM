@@ -18,8 +18,8 @@ use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMP
 use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
-    add_item, append_log_row, create_plan_skeleton, remove_item, rename_item, set_item_status,
-    set_plan_status, set_plan_title, LogRow,
+    add_item, append_log_row, create_plan_skeleton, move_phase, remove_item, remove_phase,
+    rename_item, rename_phase, set_item_status, set_plan_status, set_plan_title, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -102,6 +102,12 @@ pub enum PlanEditOp {
     RemoveItem { item_id: String },
     /// Rename an existing item's title.
     RenameItem { item_id: String, title: String },
+    /// Rename a phase heading (keeps its items + tracking id).
+    RenamePhase { from: String, to: String },
+    /// Remove a phase heading and every item under it.
+    RemovePhase { phase: String },
+    /// Reorder a phase among its siblings (`up = true` moves it earlier).
+    MovePhase { phase: String, up: bool },
 }
 
 /// True when a plan is locked (frontmatter `status` is anything other than
@@ -241,6 +247,11 @@ pub async fn plan_apply_edit(
             };
             append_log_row(&renamed, &row)
         }
+        // Phase structural ops are not item attribution, so they edit the body
+        // directly without a plan-log row.
+        PlanEditOp::RenamePhase { from, to } => rename_phase(&md, &from, &to)?,
+        PlanEditOp::RemovePhase { phase } => remove_phase(&md, &phase)?,
+        PlanEditOp::MovePhase { phase, up } => move_phase(&md, &phase, up)?,
     };
 
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;

@@ -159,6 +159,129 @@ pub fn rename_item(md: &str, item_id: &str, new_title: &str) -> Result<String, S
     Ok(lines.join("\n"))
 }
 
+// ── phase (`## ` heading) structural ops ─────────────────────────────────────
+
+/// Derive a `## ` heading's display name the way the parser does (`{#id}`
+/// removed, trimmed). Returns `None` for non-`## ` lines.
+fn phase_heading_name(line: &str) -> Option<String> {
+    let rest = line.trim_start().strip_prefix("## ")?;
+    let mut h = rest.trim().to_string();
+    if let Some(start) = h.find("{#") {
+        if let Some(end_rel) = h[start..].find('}') {
+            h.replace_range(start..=start + end_rel, "");
+        }
+    }
+    Some(h.trim().to_string())
+}
+
+/// The ` {#id}` marker of a `## ` heading, if any (so rename can keep a phase's
+/// tracking id). Returns the bare `{#id}` token without the leading space.
+fn phase_heading_marker(line: &str) -> Option<String> {
+    let rest = line.trim_start().strip_prefix("## ")?;
+    let start = rest.find("{#")?;
+    let end_rel = rest[start..].find('}')?;
+    Some(rest[start..=start + end_rel].to_string())
+}
+
+/// A `## ` heading is a Decisions section header, not a phase (same heuristic
+/// the parser uses) — these are never renamed/removed/reordered as phases.
+fn is_decisions_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.contains("결정") || lower.contains("decision")
+}
+
+/// Rename a phase heading (`## <old>` → `## <new>`), preserving any `{#id}`
+/// marker and every item beneath it. Errors if the phase isn't found.
+pub fn rename_phase(md: &str, old: &str, new: &str) -> Result<String, String> {
+    let new = new.trim();
+    if new.is_empty() {
+        return Err("단계 이름을 입력하세요.".to_string());
+    }
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let idx = lines
+        .iter()
+        .position(|l| phase_heading_name(l).as_deref() == Some(old.trim()))
+        .ok_or_else(|| format!("phase '{old}' not found"))?;
+    let suffix = phase_heading_marker(&lines[idx])
+        .map(|m| format!(" {m}"))
+        .unwrap_or_default();
+    lines[idx] = format!("## {new}{suffix}");
+    Ok(lines.join("\n"))
+}
+
+/// Remove a phase heading and everything under it up to the next `## ` heading
+/// or the plan-log block (i.e. all of its items). Errors if not found.
+pub fn remove_phase(md: &str, phase: &str) -> Result<String, String> {
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let start = lines
+        .iter()
+        .position(|l| phase_heading_name(l).as_deref() == Some(phase.trim()))
+        .ok_or_else(|| format!("phase '{phase}' not found"))?;
+    let mut end = lines.len();
+    for j in (start + 1)..lines.len() {
+        let t = lines[j].trim_start();
+        if t.starts_with("## ") || t.starts_with("<!-- oculpm:plan-log") {
+            end = j;
+            break;
+        }
+    }
+    lines.drain(start..end);
+    Ok(lines.join("\n"))
+}
+
+/// Reorder a phase among its sibling phases (`up = true` moves it earlier). The
+/// Decisions section and the plan-log are not phases and never move; a swap at
+/// the first/last position is a no-op (returns the input unchanged).
+pub fn move_phase(md: &str, phase: &str, up: bool) -> Result<String, String> {
+    let lines: Vec<String> = md.split('\n').map(String::from).collect();
+    // Phases live before the Decisions section and the plan-log block; bound the
+    // reorder region so neither gets dragged along.
+    let log_idx = lines
+        .iter()
+        .position(|l| l.trim_start().starts_with("<!-- oculpm:plan-log begin"))
+        .unwrap_or(lines.len());
+    let dec_idx = lines
+        .iter()
+        .position(|l| phase_heading_name(l).map(|n| is_decisions_name(&n)).unwrap_or(false))
+        .unwrap_or(lines.len());
+    let region_end = log_idx.min(dec_idx);
+
+    let heads: Vec<usize> = (0..region_end)
+        .filter(|&i| phase_heading_name(&lines[i]).is_some())
+        .collect();
+    let pos = heads
+        .iter()
+        .position(|&i| phase_heading_name(&lines[i]).as_deref() == Some(phase.trim()))
+        .ok_or_else(|| format!("phase '{phase}' not found"))?;
+    let other = if up {
+        if pos == 0 {
+            return Ok(md.to_string());
+        }
+        pos - 1
+    } else {
+        if pos + 1 >= heads.len() {
+            return Ok(md.to_string());
+        }
+        pos + 1
+    };
+
+    // Blocks are adjacent (a, a+1). Each spans its heading up to the next
+    // heading (or the region boundary), so trailing blank lines move with it.
+    let a = pos.min(other);
+    let b = pos.max(other);
+    let a_start = heads[a];
+    let a_end = heads[a + 1];
+    let b_start = heads[b];
+    let b_end = heads.get(b + 1).copied().unwrap_or(region_end);
+
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    out.extend_from_slice(&lines[..a_start]);
+    out.extend_from_slice(&lines[b_start..b_end]);
+    out.extend_from_slice(&lines[a_start..a_end]);
+    out.extend_from_slice(&lines[b_end..]);
+    Ok(out.join("\n"))
+}
+
 /// Insert a new item under `phase` (creating the phase section if absent).
 /// Errors if `item_id` already exists.
 pub fn add_item(
@@ -475,5 +598,90 @@ mod tests {
         let it = p.items.iter().find(|i| i.item_id == "x").unwrap();
         assert_eq!(it.title, "새 항목");
         assert_eq!(it.status, ItemStatus::Done);
+    }
+
+    #[test]
+    fn rename_phase_keeps_items_and_id() {
+        let md = create_plan_skeleton("p", "t", "user", "2026-06-07");
+        let md = add_item(&md, "Phase A", "a1", "a1", ItemStatus::Todo).unwrap();
+        let md = add_item(&md, "Phase B", "b1", "b1", ItemStatus::Todo).unwrap();
+        let out = rename_phase(&md, "Phase A", "Phase A — 캐시 안정화").unwrap();
+        let p = parse_plan(&out, "p");
+        assert!(p.phases.iter().any(|ph| ph.name == "Phase A — 캐시 안정화"));
+        let a1 = p.items.iter().find(|i| i.item_id == "a1").unwrap();
+        assert_eq!(a1.phase.as_deref(), Some("Phase A — 캐시 안정화"));
+        // empty title + missing phase both error.
+        assert!(rename_phase(&out, "Phase B", "  ").is_err());
+        assert!(rename_phase(&out, "ghost", "x").is_err());
+    }
+
+    #[test]
+    fn rename_phase_preserves_brace_id() {
+        let md = "---\nid: p\ntitle: \"t\"\nstatus: active\n---\n## 옛 단계 {#ph1}\n- [ ] a {#a}\n";
+        let out = rename_phase(md, "옛 단계", "새 단계").unwrap();
+        assert!(out.contains("## 새 단계 {#ph1}"), "{out}");
+        let p = parse_plan(&out, "p");
+        let ph = p.phases.iter().find(|ph| ph.name == "새 단계").unwrap();
+        assert_eq!(ph.id.as_deref(), Some("ph1"));
+    }
+
+    #[test]
+    fn remove_phase_drops_heading_and_items() {
+        let md = create_plan_skeleton("p", "t", "user", "2026-06-07");
+        let md = add_item(&md, "Phase A", "a1", "a1", ItemStatus::Todo).unwrap();
+        let md = add_item(&md, "Phase B", "b1", "b1", ItemStatus::Todo).unwrap();
+        let out = remove_phase(&md, "Phase A").unwrap();
+        let p = parse_plan(&out, "p");
+        assert!(p.warnings.is_empty(), "{:?}", p.warnings);
+        assert!(!p.phases.iter().any(|ph| ph.name == "Phase A"));
+        assert!(p.phases.iter().any(|ph| ph.name == "Phase B"));
+        assert!(p.items.iter().all(|i| i.item_id != "a1"));
+        assert!(p.items.iter().any(|i| i.item_id == "b1"));
+        assert!(remove_phase(&out, "ghost").is_err());
+    }
+
+    #[test]
+    fn move_phase_swaps_adjacent_and_no_ops_at_edges() {
+        let md = create_plan_skeleton("p", "t", "user", "2026-06-07");
+        let md = add_item(&md, "Phase A", "a1", "a1", ItemStatus::Todo).unwrap();
+        let md = add_item(&md, "Phase B", "b1", "b1", ItemStatus::Todo).unwrap();
+        let md = add_item(&md, "Phase C", "c1", "c1", ItemStatus::Todo).unwrap();
+
+        let names = |m: &str| -> Vec<String> {
+            parse_plan(m, "p").phases.into_iter().map(|p| p.name).collect()
+        };
+
+        let up = move_phase(&md, "Phase B", true).unwrap();
+        assert_eq!(names(&up), vec!["Phase B", "Phase A", "Phase C"]);
+        // items still belong to their (now reordered) phases.
+        let p = parse_plan(&up, "p");
+        assert_eq!(
+            p.items.iter().find(|i| i.item_id == "a1").unwrap().phase.as_deref(),
+            Some("Phase A")
+        );
+
+        let down = move_phase(&up, "Phase A", false).unwrap();
+        assert_eq!(names(&down), vec!["Phase B", "Phase C", "Phase A"]);
+
+        // boundary no-ops return the document unchanged.
+        assert_eq!(move_phase(&down, "Phase B", true).unwrap(), down);
+        assert_eq!(move_phase(&down, "Phase A", false).unwrap(), down);
+        assert!(move_phase(&down, "ghost", true).is_err());
+    }
+
+    #[test]
+    fn move_phase_leaves_decisions_in_place() {
+        let md = "---\nid: p\ntitle: \"t\"\nstatus: active\n---\n## Phase A\n- [ ] a {#a}\n\n## Phase B\n- [ ] b {#b}\n\n## 결정 (Decisions)\n### Decision X {#dx}\n본문\n";
+        let out = move_phase(md, "Phase B", false).unwrap(); // B is last phase → no-op
+        assert_eq!(out, md);
+        let up = move_phase(md, "Phase B", true).unwrap();
+        let p = parse_plan(&up, "p");
+        assert_eq!(
+            p.phases.iter().map(|ph| ph.name.as_str()).collect::<Vec<_>>(),
+            vec!["Phase B", "Phase A"]
+        );
+        // decisions survived intact.
+        assert!(up.contains("## 결정 (Decisions)"));
+        assert_eq!(p.decisions.len(), 1);
     }
 }

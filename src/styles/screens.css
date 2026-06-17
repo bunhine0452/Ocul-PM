@@ -321,6 +321,85 @@
 .sub-entries { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
 .sub-active-pill { font-size: 10px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
 
+/* Planner CRUD polish — inline in-place editing + hover-revealed row actions +
+   phase rename/reorder/delete (goal-title 인라인 편집 라운드 2026-06-17). */
+
+/* Phase header row (replaces the old single-button `.goal-head`). The collapse
+   toggle, the inline-rename input, the hover actions and the % share one row. */
+.goal-head-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; }
+.goal-head-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
+}
+.goal-head-edit { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.goal-glyph { font-size: 13px; line-height: 1; flex-shrink: 0; }
+.goal-title-clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phase-agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+
+/* Seamless title inputs — look like the heading they replace. */
+.goal-title-input {
+  flex: 1; min-width: 0; width: 100%;
+  font-family: var(--font); font-size: 15px; font-weight: 660; letter-spacing: -0.01em;
+  color: var(--text); background: var(--bg-inset);
+  border: 1px solid var(--border-card); border-radius: 7px; padding: 5px 9px; outline: none;
+}
+.goal-title-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.sub-title-input {
+  width: 100%; max-width: 380px;
+  font-family: var(--font); font-size: 13px; font-weight: 520; color: var(--text);
+  background: var(--bg-inset); border: 1px solid var(--border-card); border-radius: 6px;
+  padding: 3px 8px; outline: none;
+}
+.sub-title-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+/* Click-to-edit plan title (pencil fades in on hover). */
+.plan-title-btn {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
+  padding: 2px 6px; margin: -2px -6px; border-radius: 7px; transition: background 0.12s ease;
+}
+.plan-title-btn:hover { background: var(--bg-hover); }
+.plan-title-btn:disabled { cursor: default; }
+.plan-title-btn .goal-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-title-pen { display: inline-grid; place-items: center; color: var(--text-3); opacity: 0; flex-shrink: 0; transition: opacity 0.12s ease; }
+.plan-title-btn:hover .plan-title-pen { opacity: 1; }
+
+/* Hover-revealed action clusters — kept out of the way until you reach the row,
+   space reserved so nothing reflows when they appear. */
+.phase-actions, .item-actions {
+  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
+}
+.item-actions { margin-left: 4px; }
+.goal-head-row:hover .phase-actions,
+.goal-head-row:focus-within .phase-actions,
+.goal-head-row.is-active .phase-actions,
+.subtask:hover .item-actions,
+.subtask:focus-within .item-actions,
+.item-actions.is-active { opacity: 1; pointer-events: auto; }
+
+/* Reusable planner buttons. */
+.pln-iconbtn {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border-radius: 7px; border: 1px solid transparent; background: transparent;
+  color: var(--text-3); cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.pln-iconbtn:hover { background: var(--bg-hover); color: var(--text); }
+.pln-iconbtn.danger:hover { background: var(--t-bug-soft); color: var(--t-bug); border-color: transparent; }
+.pln-iconbtn:disabled { opacity: 0.32; cursor: default; background: transparent; color: var(--text-3); }
+.pln-textbtn {
+  appearance: none; -webkit-appearance: none; background: none; border: none; cursor: pointer;
+  padding: 3px 7px; border-radius: 6px; font-family: var(--font); font-size: 11.5px; font-weight: 600;
+  color: var(--text-3); transition: background 0.12s ease, color 0.12s ease;
+}
+.pln-textbtn:hover { background: var(--bg-hover); color: var(--text); }
+.pln-textbtn.danger { color: var(--t-bug); }
+.pln-textbtn.danger:hover { background: var(--t-bug-soft); color: var(--t-bug); }
+.pln-textbtn:disabled { opacity: 0.5; cursor: default; }
+
 /* --- Search (PR-UI 5) --- */
 .search-hero { max-width: 720px; margin: 8px auto 22px; }
 .search-big {
