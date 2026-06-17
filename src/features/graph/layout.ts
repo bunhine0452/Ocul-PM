@@ -17,14 +17,42 @@ import louvain from "graphology-communities-louvain";
 export const NODE_W = 184;
 export const NODE_H = 54;
 
+// Importance tiers (readability redesign 2026-06-17). A node's visual size
+// encodes its centrality (total degree = imports + imported-by) so hubs read
+// as big and leaves as small at a glance — the single biggest legibility win on
+// a dense graph. Layout uses these dimensions so larger nodes never overlap.
+export interface NodeSize {
+  w: number;
+  h: number;
+  tier: 0 | 1 | 2 | 3 | 4;
+}
+// Heights fit the NEAR card content (title + sub + optional counts) so React
+// Flow's forced wrapper height never clips. tier ≥ 2 (h ≥ 58) shows the
+// ←in/out→ counts row; smaller nodes show title + sub only.
+export function sizeForDegree(deg: number): NodeSize {
+  if (deg <= 0) return { w: 128, h: 44, tier: 0 };
+  if (deg <= 2) return { w: 150, h: 48, tier: 1 };
+  if (deg <= 6) return { w: 176, h: 58, tier: 2 };
+  if (deg <= 14) return { w: 204, h: 66, tier: 3 };
+  return { w: 238, h: 78, tier: 4 };
+}
+
+type SizeMap = Map<string, NodeSize>;
+const sizeOf = (sizes: SizeMap | undefined, id: string): NodeSize =>
+  sizes?.get(id) ?? { w: NODE_W, h: NODE_H, tier: 2 };
+
 export function dagreLayout(
   nodeIds: string[],
   edges: { source: string; target: string }[],
+  sizes?: SizeMap,
 ): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 26, ranksep: 92, marginx: 24, marginy: 24 });
-  nodeIds.forEach((id) => g.setNode(id, { width: NODE_W, height: NODE_H }));
+  g.setGraph({ rankdir: "LR", nodesep: 30, ranksep: 96, marginx: 24, marginy: 24 });
+  nodeIds.forEach((id) => {
+    const s = sizeOf(sizes, id);
+    g.setNode(id, { width: s.w, height: s.h });
+  });
   edges.forEach((e) => {
     if (e.source !== e.target) g.setEdge(e.source, e.target);
   });
@@ -32,7 +60,8 @@ export function dagreLayout(
   const pos = new Map<string, { x: number; y: number }>();
   nodeIds.forEach((id) => {
     const n = g.node(id);
-    if (n) pos.set(id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 });
+    const s = sizeOf(sizes, id);
+    if (n) pos.set(id, { x: n.x - s.w / 2, y: n.y - s.h / 2 });
   });
   return pos;
 }
@@ -50,6 +79,7 @@ export function forceLayout(
   nodeIds: string[],
   edges: { source: string; target: string }[],
   clustered = false,
+  sizes?: SizeMap,
 ): Map<string, { x: number; y: number }> {
   const n = nodeIds.length;
   if (n === 0) return new Map();
@@ -102,7 +132,16 @@ export function forceLayout(
         .distance(clustered ? 64 : 160)
         .strength(clustered ? 0.18 : 0.45),
     )
-    .force("collide", forceCollide(Math.max(NODE_W, NODE_H) * (clustered ? 0.55 : 0.62)))
+    // Collide radius scales with each node's importance size so big hubs keep
+    // clear of their neighbours.
+    .force(
+      "collide",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      forceCollide((d: any) => {
+        const s = sizeOf(sizes, d.id);
+        return Math.max(s.w, s.h) * (clustered ? 0.55 : 0.62);
+      }),
+    )
     .stop();
   if (clustered && community) {
     const cx = (id: string) => (centers.get(community!.get(id) ?? 0) ?? { x: 0, y: 0 }).x;
@@ -117,6 +156,9 @@ export function forceLayout(
   const ticks = Math.min(400, Math.max(140, n * 6));
   for (let i = 0; i < ticks; i++) sim.tick();
   const pos = new Map<string, { x: number; y: number }>();
-  nodes.forEach((nd) => pos.set(nd.id, { x: nd.x - NODE_W / 2, y: nd.y - NODE_H / 2 }));
+  nodes.forEach((nd) => {
+    const s = sizeOf(sizes, nd.id);
+    pos.set(nd.id, { x: nd.x - s.w / 2, y: nd.y - s.h / 2 });
+  });
   return pos;
 }

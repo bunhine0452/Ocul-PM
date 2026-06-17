@@ -247,7 +247,7 @@ export default function ShellV2({
               </div>
             }
           >
-            <GraphScreenV2 projectId={projectId} />
+            <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
           </Suspense>
         ) : null}
       </main>
