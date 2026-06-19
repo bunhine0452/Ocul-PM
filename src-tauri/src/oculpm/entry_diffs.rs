@@ -14,7 +14,7 @@
 //! it is NOT rebuilt from the markdown, so the recorded diffs survive a cache
 //! rebuild.
 //!
-//! ## Capture model (3-tier)
+//! ## Capture model (4-tier)
 //! Capture tries, per `files_touched[].path`, in order:
 //!   1. working-tree `git diff HEAD -- <path>` (the dogfooding flow: agent edits
 //!      then writes the journal before committing → exactly the entry's diff);
@@ -28,11 +28,20 @@
 //!      its diff. This makes the common "review *after* committing" flow work,
 //!      and lets `backfill_entry_diffs` reconstruct diffs for entries that were
 //!      written before this feature existed or imported via reindex rather than
-//!      the live watcher (`git::diff_at_nearest_commit`).
+//!      the live watcher (`git::diff_at_nearest_commit`);
+//!   4. when (1)–(3) are all empty and the file is **brand new** — a **created-
+//!      file fallback**: `git diff HEAD` cannot see an untracked file (the agent
+//!      writes the journal right after `Write`, before `git add`), and there's no
+//!      snapshot baseline or commit history for it yet, so all three tiers come
+//!      up empty and the create previously showed nothing. Synthesise the diff
+//!      from an empty baseline vs current disk content (the whole file as
+//!      additions). Guarded by `git::path_in_head` so a *tracked, unchanged*
+//!      file (a legitimate empty tier 1) is never rendered as all-additions;
+//!      outside git it falls back to the recorded `op == create`.
 //!
-//! Because of (3), capture is no longer strictly going-forward: any committed
-//! entry with `files_touched` can be reconstructed. Remaining limits, surfaced
-//! as "기록된 변경 없음" when they bite:
+//! Because of (3)/(4), capture is no longer strictly going-forward: any committed
+//! or newly-created entry with `files_touched` can be reconstructed. Remaining
+//! limits, surfaced as "기록된 변경 없음" when they bite:
 //!   - intermediate states never committed nor seen by the indexer are gone
 //!     (e.g. edit → journal → revert before any commit/index);
 //!   - tier 3 is a timestamp heuristic — for a file touched by many commits at
@@ -48,7 +57,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::git;
-use crate::oculpm::spec::FileTouched;
+use crate::oculpm::spec::{FileOp, FileTouched};
 
 /// One file's recorded diff for a journal entry. `patch` is a git-style unified
 /// diff (`a/ b/` headers) — never stored empty.
@@ -68,7 +77,11 @@ struct EntryDiffsFile {
     files: Vec<EntryFileDiff>,
 }
 
-const SCHEMA_VERSION: u32 = 1;
+/// v2 (2026-06-19): added tier 4 (created-file fallback). Bumping invalidates v1
+/// sidecars on read, so an entry whose newly-created file was missed by v1 self-
+/// heals on next open — the lazy reconstruct re-captures with tier 4 and rewrites
+/// the sidecar (see `capture_entry_diffs`'s fresh-schema guard).
+const SCHEMA_VERSION: u32 = 2;
 /// Per-file patch cap (matches the spirit of `compute_diff`'s truncation —
 /// keeps a runaway generated file from bloating the sidecar).
 const MAX_PATCH_BYTES: usize = 256 * 1024;
@@ -106,7 +119,12 @@ pub fn capture_entry_diffs(
     let Some(out) = sidecar_path(root, entry_rel) else {
         return Ok(());
     };
-    if out.exists() {
+    // Skip only when a *current-schema* sidecar already exists. An older-schema
+    // one (v1, pre tier-4) is upgraded in place: it may have missed a newly
+    // created file, so we re-capture and overwrite. The caller invokes this on
+    // `Inserted` (no sidecar yet) and on lazy reconstruct (where a stale sidecar
+    // is exactly what we want to refresh).
+    if sidecar_is_current(&out) {
         return Ok(());
     }
 
@@ -122,13 +140,15 @@ pub fn capture_entry_diffs(
             }
             // Empty git patch (committed / unchanged) or a recoverable git error
             // (non-git project) → tier 2 snapshot fallback, then tier 3
-            // git-history fallback (see module docs). Tier 3 runs even when
-            // `entry_time` is None (filename has no HH:MM) — it then uses the
-            // newest commit touching the path, so externally-authored journals
-            // without the `HHMM_` prefix still recover their diff.
+            // git-history fallback, then tier 4 created-file fallback (see module
+            // docs). Tier 3 runs even when `entry_time` is None (filename has no
+            // HH:MM) — it then uses the newest commit touching the path, so
+            // externally-authored journals without the `HHMM_` prefix still
+            // recover their diff.
             _ => {
                 let patch = snapshot_patch(root, &f.path, snapshots)
-                    .or_else(|| history_patch(root, &f.path, entry_time));
+                    .or_else(|| history_patch(root, &f.path, entry_time))
+                    .or_else(|| new_file_patch(root, &f.path, f.op));
                 if let Some(patch) = patch {
                     files.push(EntryFileDiff {
                         path: f.path.clone(),
@@ -175,6 +195,53 @@ fn entry_unix_time(entry_rel: &str) -> Option<i64> {
         .with_ymd_and_hms(year, month, day, hour, min, 0)
         .single()
         .map(|dt| dt.timestamp())
+}
+
+/// Created-file fallback (tier 4) for a single file: synthesise the diff of a
+/// brand-new file as an empty baseline vs current disk content (the whole file
+/// rendered as additions). This is the only tier that recovers the dogfooding
+/// flow's most common shape — the agent `Write`s a NEW file then writes the
+/// journal before `git add`, so `git diff HEAD` can't see the untracked path,
+/// there's no snapshot baseline, and the file isn't in history yet.
+///
+/// Guarded so an *unchanged tracked* file (a legitimately empty tier 1) is never
+/// mis-rendered as all-additions:
+///   - in a git repo, only when the path is NOT in `HEAD` (untracked / new);
+///   - outside any git repo, only when the entry recorded `op == create`.
+/// Returns `None` for a deleted/unreadable path or an empty file.
+fn new_file_patch(root: &Path, rel_path: &str, op: FileOp) -> Option<String> {
+    let treat_as_new = match git::path_in_head(root, rel_path) {
+        Some(true) => false,             // tracked & in HEAD → a real no-op, leave empty
+        Some(false) => true,             // git repo, not in HEAD → genuinely new
+        None => op == FileOp::Create,    // non-git → trust the recorded op
+    };
+    if !treat_as_new {
+        return None;
+    }
+    let disk = std::fs::read(root.join(rel_path)).ok()?;
+    if disk.is_empty() {
+        return None; // an empty new file has nothing meaningful to show
+    }
+    let next = String::from_utf8_lossy(&disk);
+    let patch = crate::commands::diff::render_unified_diff(rel_path, "", &next, MAX_PATCH_BYTES);
+    if patch.trim().is_empty() {
+        None
+    } else {
+        Some(patch)
+    }
+}
+
+/// Whether the sidecar at `out` exists AND is the current schema version. Lets
+/// `capture_entry_diffs` skip already-captured entries but still upgrade stale
+/// (older-schema) sidecars in place.
+fn sidecar_is_current(out: &Path) -> bool {
+    let Ok(bytes) = std::fs::read(out) else {
+        return false;
+    };
+    matches!(
+        serde_json::from_slice::<EntryDiffsFile>(&bytes),
+        Ok(f) if f.schema_version == SCHEMA_VERSION
+    )
 }
 
 /// Snapshot fallback for a single file: render a unified diff of the supplied
@@ -478,6 +545,161 @@ mod tests {
             "expected the newest commit's diff, got: {}",
             got[0].patch
         );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn new_file_patch_renders_additions_and_guards() {
+        // Tier 4 in isolation (non-git branch): a `create` op renders the whole
+        // file as additions; an `update` op is NOT treated as new (would risk
+        // mis-rendering an unchanged file); a missing file yields nothing.
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-tier4-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        std::fs::write(tmp.join("src/new.ts"), "export const a = 1;\nconst b = 2;\n").unwrap();
+
+        let created = new_file_patch(&tmp, "src/new.ts", FileOp::Create)
+            .expect("create op on a real file records a patch");
+        assert!(created.contains("export const a = 1;"));
+        assert!(created.contains("const b = 2;"));
+
+        // Non-git + non-create op → not treated as new.
+        assert!(new_file_patch(&tmp, "src/new.ts", FileOp::Update).is_none());
+        // Missing / deleted path → nothing to synthesise.
+        assert!(new_file_patch(&tmp, "src/missing.ts", FileOp::Create).is_none());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn capture_records_newly_created_file_via_tier4() {
+        // The bug: a journal entry that touches a brand-new file (op=create)
+        // showed no diff because git diff HEAD can't see the untracked file and
+        // there's no snapshot/history. Tier 4 must record it. Non-git root keeps
+        // the test hermetic (no `git` dependency); tier 4's non-git branch fires
+        // on op=create.
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-create-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260619/Features_to_add/1924_feature_docs.md";
+        let rel = "src/features/docs/DocsScreenV2.tsx";
+        std::fs::create_dir_all(tmp.join("src/features/docs")).unwrap();
+        std::fs::write(tmp.join(rel), "export function DocsScreenV2() {}\n").unwrap();
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: FileOp::Create,
+            bytes_added: Some(40),
+            bytes_removed: Some(0),
+            rename_from: None,
+        }];
+
+        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new()).unwrap();
+
+        let got = read_entry_diffs(&tmp, entry);
+        assert_eq!(got.len(), 1, "newly created file must record a diff");
+        assert_eq!(got[0].path, rel);
+        assert!(got[0].patch.contains("export function DocsScreenV2()"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn stale_v1_sidecar_is_upgraded_to_include_missed_new_file() {
+        // Self-heal: an entry captured under v1 recorded only the modified file A
+        // and missed the newly created file B (tier 4 didn't exist). On the next
+        // read, the v1 sidecar reads as empty (schema mismatch) and the lazy
+        // reconstruct re-runs capture, which now overwrites with v2 carrying both.
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-upgrade-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260619/Bugs/1000_bug_x.md";
+        // A — modified (recovered via snapshot baseline); B — newly created (tier 4).
+        std::fs::write(tmp.join("src/a.ts"), "const a = 2;\n").unwrap();
+        std::fs::write(tmp.join("src/b.ts"), "const b = 1;\n").unwrap();
+
+        // Hand-write a stale v1 sidecar that only knows about A.
+        let out = sidecar_path(&tmp, entry).unwrap();
+        std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+        std::fs::write(
+            &out,
+            br#"{"schema_version":1,"captured_at":"x","entry":"20260619/Bugs/1000_bug_x.md","files":[{"path":"src/a.ts","patch":"old"}]}"#,
+        )
+        .unwrap();
+        // v1 sidecar reads back as empty (rejected schema) → triggers reconstruct.
+        assert!(read_entry_diffs(&tmp, entry).is_empty());
+
+        let touched = vec![
+            FileTouched {
+                path: "src/a.ts".into(),
+                op: FileOp::Update,
+                bytes_added: None,
+                bytes_removed: None,
+                rename_from: None,
+            },
+            FileTouched {
+                path: "src/b.ts".into(),
+                op: FileOp::Create,
+                bytes_added: None,
+                bytes_removed: None,
+                rename_from: None,
+            },
+        ];
+        let mut snapshots = HashMap::new();
+        snapshots.insert("src/a.ts".to_string(), b"const a = 1;\n".to_vec());
+
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
+
+        let got = read_entry_diffs(&tmp, entry);
+        let paths: Vec<&str> = got.iter().map(|d| d.path.as_str()).collect();
+        assert!(paths.contains(&"src/a.ts"), "modified file kept: {paths:?}");
+        assert!(paths.contains(&"src/b.ts"), "newly created file added: {paths:?}");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn capture_records_untracked_new_file_in_git_repo() {
+        // The exact dogfooding shape: inside a real git repo with commits, a file
+        // is created but NOT yet `git add`ed when the journal is written. tier 1
+        // (`git diff HEAD`) can't see the untracked path, there's no snapshot or
+        // history — tier 4 (via `git::path_in_head` → not in HEAD) must record it,
+        // even when the entry mislabels the op as `update`.
+        let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-utnew-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        if git(&tmp, &["init", "-q"]).is_err() {
+            return; // git unavailable → skip cleanly
+        }
+        git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+        git(&tmp, &["config", "user.name", "t"]).unwrap();
+        // Establish HEAD with an unrelated committed file.
+        std::fs::write(tmp.join("src/base.ts"), "const base = 0;\n").unwrap();
+        git(&tmp, &["add", "."]).unwrap();
+        git(&tmp, &["commit", "-qm", "base"]).unwrap();
+
+        // Brand-new, still-untracked file (no `git add`).
+        let rel = "src/brand_new.tsx";
+        std::fs::write(tmp.join(rel), "export const fresh = 1;\n").unwrap();
+        assert_eq!(
+            crate::git::path_in_head(&tmp, rel),
+            Some(false),
+            "untracked file must read as not-in-HEAD"
+        );
+
+        let workday = chrono::Local::now().format("%Y%m%d").to_string();
+        let entry = format!("{workday}/Features_to_add/1200_feature_new.md");
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: FileOp::Update, // mislabelled — git truth (not in HEAD) wins
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        }];
+
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        let got = read_entry_diffs(&tmp, &entry);
+        assert_eq!(got.len(), 1, "untracked new file must record a diff");
+        assert!(got[0].patch.contains("export const fresh = 1;"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

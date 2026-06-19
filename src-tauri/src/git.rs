@@ -656,6 +656,25 @@ pub fn diff_patch(
     Ok(truncate_patch(text, max_bytes))
 }
 
+/// Whether `file_path` exists in the repo's `HEAD` commit.
+///   - `None`        — the path isn't inside any git repo.
+///   - `Some(true)`  — tracked and present in `HEAD`.
+///   - `Some(false)` — inside a repo but NOT in `HEAD`: an untracked/newly
+///     created file, a staged-but-never-committed add, or an unborn-HEAD repo.
+///
+/// Lets the entry-diff capture tell "tracked file with an empty `git diff HEAD`"
+/// (a genuine no-op) apart from "brand-new file git diff can't see" (untracked),
+/// so only the latter is synthesised as a create diff. Resolves the repo that
+/// actually contains the file (it may sit below the Ocul-PM project root).
+pub fn path_in_head(root: &Path, file_path: &str) -> Option<bool> {
+    let abs = root.join(file_path);
+    let repo = repo_root_for(&abs)?;
+    let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.to_string());
+    // `cat-file -e HEAD:<rel>` exits 0 iff the blob exists in HEAD; any failure
+    // (missing path, or unborn HEAD in a fresh repo) means "not in HEAD".
+    Some(run_git(&repo, &["cat-file", "-e", &format!("HEAD:{rel}")]).is_ok())
+}
+
 /// Cap a unified-diff blob at `max_bytes`, appending a truncation marker. Keeps
 /// a runaway generated file from bloating callers (sidecars, IPC payloads).
 fn truncate_patch(text: String, max_bytes: usize) -> String {
