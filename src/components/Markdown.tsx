@@ -1,4 +1,4 @@
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { useState, useCallback, type ReactNode } from "react";
@@ -46,7 +46,25 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
   );
 }
 
-export function Markdown({ children }: { children: string }) {
+export function Markdown({
+  children,
+  components,
+  urlTransform,
+}: {
+  children: string;
+  /**
+   * Optional react-markdown component overrides, merged on top of the built-in
+   * `pre` (copy button) renderer. The 문서(docs) 뷰어 passes `a`/`img` here to
+   * intercept relative links and load images via the backend.
+   */
+  components?: Components;
+  /**
+   * Optional react-markdown URL transform. Defaults to react-markdown's safe
+   * transform; the docs viewer passes an identity fn so relative `./foo.md`
+   * and `../bar.png` URLs reach the custom `a`/`img` renderers untouched.
+   */
+  urlTransform?: (url: string) => string;
+}) {
   // PR-UI 8b — Tailwind Typography's dark inversion applied via the theme
   // (no Tailwind dark-variant): add `prose-invert` only when the resolved
   // theme is dark. data-theme drives `resolvedTheme`.
@@ -67,12 +85,14 @@ export function Markdown({ children }: { children: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
+        urlTransform={urlTransform}
         components={{
           pre: ({ children, className }) => (
             <CodeBlockWrapper className={className}>
               {children}
             </CodeBlockWrapper>
           ),
+          ...components,
         }}
       >
         {children}

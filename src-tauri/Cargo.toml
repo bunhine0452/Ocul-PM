@@ -43,6 +43,8 @@ ignore = "0.4.25"
 walkdir = "2.5.0"
 blake3 = "1.8.5"
 regex = "1.11"
+# 문서(docs) 뷰어 — docs/ 이미지를 data URI 로 프런트에 전달할 때 사용.
+base64 = "0.22"
 # PR6.6 — unified-diff generator for LocalDiffView's snapshot fallback path.
 # MIT/Apache-2.0. Compact (~70KB compiled). Used only by commands::diff for
 # the non-git / HEAD-less branch; the git path still shells out to `git diff`.

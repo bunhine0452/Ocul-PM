@@ -10,6 +10,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
+import { DocsScreenV2 } from "@/features/docs/DocsScreenV2";
 // Code Map pulls in React Flow + dagre (~226 kB); lazy-load so it stays out of
 // the initial ShellV2 chunk and only loads when the user opens the 코드 맵.
 const GraphScreenV2 = lazy(() =>
@@ -239,6 +240,8 @@ export default function ShellV2({
           <TerminalScreenV2 projectRoot={projectRoot} />
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
+        ) : view === "docs" ? (
+          <DocsScreenV2 projectId={projectId} />
         ) : view === "graph" ? (
           <Suspense
             fallback={

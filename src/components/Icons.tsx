@@ -472,6 +472,8 @@ export {
   SquareTerminal,
   Sparkles as SparklesIcon,
   Search as SearchIcon,
+  // 문서(docs) 뷰어 사이드바 슬롯.
+  BookText,
   Moon as MoonIcon,
   Sun as SunIcon,
   Settings as SettingsIcon,

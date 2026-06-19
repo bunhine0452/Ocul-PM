@@ -118,6 +118,8 @@ use crate::commands::{
     open_ai_window,
     list_project_files, list_project_tree, read_project_file, read_file_range, write_project_file,
     detect_file_changes, list_file_changes, generate_edit_prompt,
+    // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
+    docs_tree, docs_read, docs_asset,
     // G3 — Clarify (W5)
     clarify_edit_intent, generate_edit_prompt_with_answers,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
@@ -235,6 +237,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         read_project_file,
         read_file_range,
         write_project_file,
+        // 문서(docs) 뷰어
+        docs_tree,
+        docs_read,
+        docs_asset,
         // M6 — AI Assist
         detect_file_changes,
         list_file_changes,

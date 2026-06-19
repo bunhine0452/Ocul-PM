@@ -189,6 +189,12 @@ export const commands = {
 	 */
 	readFileRange: (projectId: number, relPath: string, startLine: number, endLine: number) => typedError<string, string>(__TAURI_INVOKE("read_file_range", { projectId, relPath, startLine, endLine })),
 	writeProjectFile: (projectId: number, relPath: string, content: string) => typedError<null, string>(__TAURI_INVOKE("write_project_file", { projectId, relPath, content })),
+	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
+	docsTree: (projectId: number) => typedError<DocsTree, string>(__TAURI_INVOKE("docs_tree", { projectId })),
+	/**  단일 문서의 마크다운 본문을 읽는다. `rel_path` 는 프로젝트 루트 기준 (`docs/...`). */
+	docsRead: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("docs_read", { projectId, relPath })),
+	/**  문서가 참조하는 이미지를 base64 로 읽는다. `rel_path` 는 프로젝트 루트 기준. */
+	docsAsset: (projectId: number, relPath: string) => typedError<DocsAsset, string>(__TAURI_INVOKE("docs_asset", { projectId, relPath })),
 	detectFileChanges: (projectId: number) => typedError<FileChange[], string>(__TAURI_INVOKE("detect_file_changes", { projectId })),
 	listFileChanges: (projectId: number, since: number) => typedError<FileChange[], string>(__TAURI_INVOKE("list_file_changes", { projectId, since })),
 	generateEditPrompt: (projectId: number, userRequest: string, provider: string, model: string) => typedError<EditPromptResult, string>(__TAURI_INVOKE("generate_edit_prompt", { projectId, userRequest, provider, model })),
@@ -940,6 +946,29 @@ export type DifficultyMix = {
 	superhigh: number,
 	/**  Entries that didn't specify a difficulty in frontmatter. */
 	null_count: number,
+};
+
+/**  `docs_asset` 응답 — 이미지 바이트를 base64 + MIME 으로. 프런트는 `data:` URI 로 조립한다. */
+export type DocsAsset = {
+	mime: string,
+	base64: string,
+};
+
+/**  `docs_tree` 응답. `exists=false` 면 프로젝트에 `docs/` 폴더가 없다 (빈 상태 UI). */
+export type DocsTree = {
+	exists: boolean,
+	nodes: DocsTreeNode[],
+};
+
+/**
+ *  docs 트리 한 노드. `relative_path` 는 **프로젝트 루트 기준** 슬래시 경로
+ *  (예: `docs/graph-upgrade/00-master-plan.md`) — 그대로 `docs_read`/`docs_asset` 인자로 쓴다.
+ */
+export type DocsTreeNode = {
+	name: string,
+	relative_path: string,
+	is_dir: boolean,
+	children: DocsTreeNode[],
 };
 
 export type EditPromptResult = {

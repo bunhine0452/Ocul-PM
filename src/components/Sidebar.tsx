@@ -8,6 +8,7 @@ import {
   SquareTerminal,
   SparklesIcon,
   Network,
+  BookText,
   MoonIcon,
   SunIcon,
   SettingsIcon,
@@ -47,6 +48,7 @@ const MAIN_NAV: NavSlot[] = [
 const TOOL_NAV: NavSlot[] = [
   { id: "search", label: "코드 검색", icon: SearchIcon },
   { id: "graph", label: "코드 맵", icon: Network },
+  { id: "docs", label: "문서", icon: BookText },
   { id: "terminal", label: "터미널", icon: SquareTerminal },
   { id: "ai", label: "AI 패널", icon: SparklesIcon },
 ];

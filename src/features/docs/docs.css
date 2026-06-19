@@ -1,0 +1,190 @@
+/* 문서(docs) 화면 — 좌측 트리 + 우측 마크다운 2-pane. ui_v2 토큰만 사용. */
+
+.docs-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ── 좌측 트리 ─────────────────────────────────────────────── */
+.docs-sidebar {
+  flex: none;
+  width: 264px;
+  min-width: 264px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: 1px solid var(--sep);
+  background: var(--bg-sidebar);
+  padding: 10px 8px 40px;
+}
+
+.docs-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.docs-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1.3;
+}
+.docs-tree-row:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.docs-tree-file.on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.docs-tree-ico {
+  flex: none;
+  color: var(--text-3);
+}
+.docs-tree-file.on .docs-tree-ico {
+  color: var(--accent);
+}
+.docs-tree-dir .docs-tree-label {
+  font-weight: 600;
+  color: var(--text);
+}
+.docs-tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.docs-tree-caret {
+  flex: none;
+  color: var(--text-3);
+  transition: transform 0.12s ease;
+}
+.docs-tree-caret.open {
+  transform: rotate(90deg);
+}
+
+/* ── 우측 본문 ─────────────────────────────────────────────── */
+.docs-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.docs-article {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 36px 72px;
+}
+
+/* 문서 내 링크 — 상대(위키 내) / 외부 / 깨진 링크 구분. */
+.docs-link {
+  color: var(--accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-ring);
+  cursor: pointer;
+}
+.docs-link:hover {
+  border-bottom-color: var(--accent);
+}
+.docs-link.missing {
+  color: var(--text-3);
+  border-bottom-style: dashed;
+  cursor: help;
+}
+.docs-link-ext {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* 인라인 이미지 + 로딩/실패 상태. */
+.docs-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--sep);
+}
+.docs-img-skeleton {
+  display: inline-block;
+  width: 100%;
+  height: 180px;
+  border-radius: var(--radius-m);
+  background: linear-gradient(90deg, var(--bg-inset), var(--bg-hover), var(--bg-inset));
+  background-size: 200% 100%;
+  animation: docs-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes docs-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.docs-img-missing {
+  display: inline-block;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--bg-inset);
+  border: 1px dashed var(--sep);
+  border-radius: var(--radius-s);
+}
+
+/* 새로고침 버튼 (툴바 액션). */
+.docs-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-s);
+  color: var(--text-2);
+  background: none;
+  border: 1px solid var(--sep);
+  cursor: pointer;
+}
+.docs-refresh:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* docs 폴더 부재 빈 상태. */
+.docs-empty {
+  max-width: 440px;
+  margin: 60px auto 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.docs-empty-ico {
+  color: var(--text-3);
+}
+.docs-empty-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+}
+.docs-empty-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-3);
+  margin: 0;
+}
+.docs-empty-desc code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+  color: var(--text-2);
+}
