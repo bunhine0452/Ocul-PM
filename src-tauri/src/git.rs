@@ -64,6 +64,22 @@ pub struct GitChange {
     pub op: String,
 }
 
+/// The most recent commit's metadata + the files it touched. Powers the 변경
+/// diff 화면's "직전 커밋" baseline, shown when the working tree is clean so the
+/// screen isn't empty after a coding agent commits its work.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct LastCommitChanges {
+    pub sha: String,
+    pub short_sha: String,
+    pub subject: String,
+    pub changes: Vec<GitChange>,
+}
+
+/// Git's well-known empty-tree object. `git diff <empty-tree> HEAD` renders the
+/// whole tree as additions — used as the baseline when HEAD is a root commit
+/// (no `HEAD~1` parent).
+pub(crate) const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
 fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(root);
@@ -595,6 +611,68 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
                 op: porcelain_op(x, y).to_string(),
             });
         }
+    }
+    changes
+}
+
+/// Files changed by the most recent commit (`HEAD~1..HEAD`, or against the empty
+/// tree for a root commit), with the commit's sha/subject. `None` for non-git
+/// projects and repos with no commits yet (unborn HEAD).
+pub fn last_commit_changes(root: &Path) -> Option<LastCommitChanges> {
+    let repo = primary_repo(root)?;
+    // Commit metadata; fails on an unborn HEAD (no commits) → None.
+    let meta = run_git(&repo, &["log", "-1", "--no-color", "--pretty=format:%H\x1f%s"]).ok()?;
+    let (sha, subject) = meta.split_once('\x1f')?;
+    let sha = sha.to_string();
+    let short_sha: String = sha.chars().take(7).collect();
+    let from = if run_git(&repo, &["rev-parse", "--verify", "-q", "HEAD~1"]).is_ok() {
+        "HEAD~1"
+    } else {
+        EMPTY_TREE
+    };
+    let changes = changes_in_range(&repo, root, from, "HEAD");
+    Some(LastCommitChanges {
+        sha,
+        short_sha,
+        subject: subject.to_string(),
+        changes,
+    })
+}
+
+/// `git diff --name-status -z <from> <to>` parsed into `GitChange` rows, with
+/// paths made relative to the project `root` (nested-repo aware). Mirrors the
+/// op mapping the 변경 diff 화면 expects (`A`/`M`/`D`; rename/copy → add).
+fn changes_in_range(repo: &Path, root: &Path, from: &str, to: &str) -> Vec<GitChange> {
+    let prefix = repo.strip_prefix(root).ok().map(PathBuf::from);
+    let Ok(out) = run_git(repo, &["diff", "--name-status", "-z", from, to]) else {
+        return Vec::new();
+    };
+    let mut changes = Vec::new();
+    let mut tokens = out.split('\0').filter(|t| !t.is_empty());
+    while let Some(status) = tokens.next() {
+        let code = status.chars().next().unwrap_or('M');
+        // With `-z`, status and path(s) are separate NUL tokens. A rename/copy
+        // (R/C) carries two path tokens (old, new); we report the new path.
+        let raw = if code == 'R' || code == 'C' {
+            let _old = tokens.next();
+            tokens.next()
+        } else {
+            tokens.next()
+        };
+        let Some(raw) = raw else { break };
+        let path = match &prefix {
+            Some(p) if !p.as_os_str().is_empty() => p.join(raw).to_string_lossy().to_string(),
+            _ => raw.to_string(),
+        };
+        let op = match code {
+            'A' | 'R' | 'C' => "A",
+            'D' => "D",
+            _ => "M",
+        };
+        changes.push(GitChange {
+            path,
+            op: op.to_string(),
+        });
     }
     changes
 }

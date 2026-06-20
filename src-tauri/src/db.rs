@@ -28,6 +28,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (18, include_str!("../migrations/018_code_graph.sql")),
     (19, include_str!("../migrations/019_symbol_relations.sql")),
     (20, include_str!("../migrations/020_symbol_relations_from.sql")),
+    (21, include_str!("../migrations/021_oculpm_agent_version.sql")),
 ];
 
 pub struct Db {

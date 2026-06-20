@@ -34,6 +34,18 @@ import { langFromPath } from "./diffParse";
 
 const DIFF_MAX_BYTES = 64 * 1024;
 
+// Which baseline the screen diffs against. "working" = uncommitted (git status +
+// live watcher); "last_commit" = the most recent commit (HEAD~1..HEAD), shown
+// when the working tree is clean so the screen isn't empty after an agent commits.
+type DiffBaseline = "working" | "last_commit";
+
+interface LastCommit {
+  sha: string;
+  short_sha: string;
+  subject: string;
+  changes: { path: string; op: string }[];
+}
+
 function badgeLetter(op: ChangeOp): "A" | "M" | "D" {
   return op;
 }
@@ -119,11 +131,49 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     // an empty list and the watcher buffer carries the screen on its own.
   }, [projectId, watcherPathKey]);
 
-  // The list the screen actually renders: persistent git baseline + live edits.
-  const changes = useMemo(
+  // The 변경 diff screen is uncommitted-only by nature: once work is committed
+  // `git status` goes clean and the screen would read "변경 없음" even though the
+  // change is real (the journal still shows it via its sidecar). So we also fetch
+  // the most recent commit and fall back to it when the working tree is clean.
+  const [lastCommit, setLastCommit] = useState<LastCommit | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    commands
+      .gitLastCommitChanges(projectId)
+      .then((res) => {
+        if (!cancelled) setLastCommit(res.status === "ok" ? res.data : null);
+      })
+      .catch(() => {
+        if (!cancelled) setLastCommit(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, watcherPathKey]);
+
+  // Working-tree changes: persistent git baseline + live edits.
+  const workingChanges = useMemo(
     () => mergeChanges(gitChanges, recentChanges),
     [gitChanges, recentChanges],
   );
+  const lastCommitChanges = useMemo<RecentChange[]>(
+    () =>
+      (lastCommit?.changes ?? []).map((c) => ({
+        path: c.path,
+        op: c.op as ChangeOp,
+        ts: 0,
+        read: true,
+      })),
+    [lastCommit],
+  );
+
+  // Auto-pick the baseline: working tree when it has changes (or there's no
+  // commit to fall back to), else the last commit. The user can pin a choice.
+  const [baselinePinned, setBaselinePinned] = useState<DiffBaseline | null>(null);
+  const autoBaseline: DiffBaseline =
+    workingChanges.length > 0 || lastCommitChanges.length === 0 ? "working" : "last_commit";
+  const baseline = baselinePinned ?? autoBaseline;
+  const changes = baseline === "last_commit" ? lastCommitChanges : workingChanges;
 
   // Selected file. Seed from diffActivePath (the journal-card → diff handoff
   // parked by PR-UI 3), else the most recent change.
@@ -203,7 +253,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     setError(null);
     setNewFilePatch(null);
     commands
-      .computeDiff(projectId, selected, DIFF_MAX_BYTES)
+      .computeDiff(projectId, selected, DIFF_MAX_BYTES, baseline === "last_commit" ? "last_commit" : null)
       .then(async (res) => {
         if (cancelled) return;
         if (res.status !== "ok") {
@@ -245,7 +295,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     return () => {
       cancelled = true;
     };
-  }, [projectId, selected]);
+  }, [projectId, selected, baseline]);
 
   // Mark the change read once its body renders (mirrors LocalDiffView).
   useEffect(() => {
@@ -355,12 +405,44 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         title="변경 diff"
         sub={
           <span>
-            {branch ? <span className="mono">{branch}</span> : null}
-            {branch ? " · " : ""}
-            {changes.length}개 파일 변경
+            {baseline === "last_commit" ? (
+              <>
+                직전 커밋 <span className="mono">{lastCommit?.short_sha}</span>
+                {lastCommit?.subject ? ` · ${lastCommit.subject}` : ""}
+              </>
+            ) : (
+              <>
+                {branch ? <span className="mono">{branch}</span> : null}
+                {branch ? " · " : ""}
+                미커밋 {changes.length}개 파일
+              </>
+            )}
           </span>
         }
       >
+        {lastCommitChanges.length > 0 ? (
+          <div className="diff-mode-toggle" title="비교 기준 — 미커밋 변경 / 마지막 커밋">
+            {(
+              [
+                ["working", `미커밋${workingChanges.length ? ` ${workingChanges.length}` : ""}`],
+                ["last_commit", "직전 커밋"],
+              ] as [DiffBaseline, string][]
+            ).map(([b, label]) => (
+              <button
+                key={b}
+                type="button"
+                className="btn ghost sm"
+                style={{
+                  background: baseline === b ? "var(--accent-soft)" : "transparent",
+                  color: baseline === b ? "var(--accent-text)" : "var(--text-2)",
+                }}
+                onClick={() => setBaselinePinned(b)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="diff-mode-toggle">
           {(["unified", "split"] as DiffMode[]).map((m) => (
             <button
@@ -398,8 +480,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         <div className="scroll">
           <div className="page fade-in">
             <div className="empty-hint">
-              이 브랜치엔 아직 변경이 없어요. 외부 LLM 이 파일을 수정하면
-              Watcher 가 감지해 여기에 표시합니다.
+              {baseline === "working" && lastCommitChanges.length > 0
+                ? "미커밋 변경이 없어요. 위에서 '직전 커밋' 을 눌러 마지막 커밋의 변경을 확인하세요."
+                : "이 브랜치엔 아직 변경이 없어요. 외부 LLM 이 파일을 수정하면 Watcher 가 감지해 여기에 표시합니다."}
             </div>
           </div>
         </div>
@@ -561,6 +644,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   mode={diffMode}
                   newFilePatch={newFilePatch}
                   deleted={cur?.op === "D"}
+                  baseline={baseline}
                 />
               ) : (
                 <div className="empty-hint">왼쪽에서 파일을 선택하세요.</div>
@@ -580,11 +664,13 @@ function DiffBody({
   mode,
   newFilePatch,
   deleted,
+  baseline,
 }: {
   result: DiffResult;
   mode: DiffMode;
   newFilePatch: string | null;
   deleted: boolean;
+  baseline: DiffBaseline;
 }) {
   if (result.source.source === "snapshots_unavailable") {
     // A deleted file with no baseline — nothing to diff, but don't error.
@@ -633,7 +719,9 @@ function DiffBody({
       <PatchView patch={patch} mode={mode} lang={langFromPath(result.path)} />
       <div className="diff-foot">
         <GitBranchIcon size={13} />
-        이 diff는 {isSnapshot ? "로컬 스냅샷" : "git HEAD"} 기준입니다. 커밋 전 변경분을 검증하세요.
+        {baseline === "last_commit"
+          ? "이 diff는 직전 커밋(HEAD~1..HEAD) 기준입니다. 방금 커밋한 변경을 검토하세요."
+          : `이 diff는 ${isSnapshot ? "로컬 스냅샷" : "git HEAD"} 기준입니다. 커밋 전 변경분을 검증하세요.`}
       </div>
     </div>
   );

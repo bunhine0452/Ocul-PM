@@ -145,8 +145,10 @@ pub enum ConflictResolution {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct AgentRef {
-    /// One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `manual`.
+    /// One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
+    /// `manual`.
     pub id: String,
+    /// The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`.
     pub version: Option<String>,
 }
 
@@ -218,6 +220,9 @@ pub struct JournalEntrySummary {
     pub checkbox: Option<bool>,
     pub session_id: String,
     pub agent_id: String,
+    /// The model the agent reported (frontmatter `agent.version`), e.g.
+    /// `"Opus 4.8"` / `"Gemini 3 Pro"`. `None` when not reported.
+    pub agent_version: Option<String>,
     pub verified_by_user: bool,
     pub created_at: String,
     pub updated_at: Option<String>,

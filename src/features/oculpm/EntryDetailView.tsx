@@ -7,7 +7,7 @@ import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
 import { Markdown } from "@/components/Markdown";
 import { TriggerBadge } from "./triggerMeta";
-import { agentLabel } from "@/features/today/agentColor";
+import { agentLabelWithModel } from "@/features/today/agentColor";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
 
@@ -193,7 +193,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
               </span>
             ) : null}
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <Bot size={12} /> {agentLabel(entry.agent_id)}
+              <Bot size={12} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
           </span>
         }

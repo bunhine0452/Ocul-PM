@@ -19,6 +19,8 @@ import {
   Copy,
   RefreshCw,
   Download,
+  Bug,
+  MessageSquare,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -1074,9 +1076,22 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
 
 // ---------- Diagnostics ----------
 
+// GitHub repo behind feedback issues + the updater endpoint.
+const FEEDBACK_REPO = "bunhine0452/Ocul-PM";
+
+/** Short OS label for prefilling feedback issues (best-effort from the webview UA). */
+function platformLabel(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes("Mac")) return "macOS";
+  if (ua.includes("Windows")) return "Windows";
+  if (ua.includes("Linux")) return "Linux";
+  return ua.slice(0, 60);
+}
+
 function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) {
   const [health, setHealth] = useState<DbHealth | null>(null);
   const [loading, setLoading] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
 
   async function check() {
     setLoading(true);
@@ -1092,8 +1107,34 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
 
   useEffect(() => {
     check();
+    commands.appInfo().then((res) => {
+      if (res.status === "ok") setVersion(res.data.version);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function openIssue(kind: "bug" | "feature") {
+    const isBug = kind === "bug";
+    const title = isBug ? "[버그] " : "[기능 문의] ";
+    const body = [
+      isBug
+        ? "## 무슨 일이 있었나요?\n\n"
+        : "## 어떤 기능을 원하세요?\n\n",
+      isBug
+        ? "## 재현 방법\n1. \n2. \n\n## 기대한 동작\n\n"
+        : "## 왜 필요한가요?\n\n",
+      "---",
+      `- 앱 버전: ${version ?? "?"}`,
+      `- OS: ${platformLabel()}`,
+    ].join("\n");
+    const url =
+      `https://github.com/${FEEDBACK_REPO}/issues/new` +
+      `?labels=${encodeURIComponent(isBug ? "bug" : "enhancement")}` +
+      `&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    void commands.openUrl(url).then((res) => {
+      if (res.status === "error") toast.destructive(`브라우저 열기 실패: ${res.error}`);
+    });
+  }
 
   return (
     <>
@@ -1113,6 +1154,25 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
           상태 새로고침
         </Button>
+      </Section>
+
+      <Section
+        title="피드백 보내기"
+        description="버그나 기능 아이디어를 개발자에게 GitHub 이슈로 전달합니다. 앱 버전·OS 가 자동으로 채워져요."
+      >
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={() => openIssue("bug")} variant="outline" size="sm">
+            <Bug className="w-3.5 h-3.5 mr-1.5" />
+            버그 리포트
+          </Button>
+          <Button onClick={() => openIssue("feature")} variant="outline" size="sm">
+            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+            기능 문의
+          </Button>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          GitHub 계정이 필요해요. 브라우저에서 이슈 작성 페이지가 열립니다.
+        </div>
       </Section>
     </>
   );

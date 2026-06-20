@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Bot, RotateCcw } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
-import { agentLabel } from "@/features/today/agentColor";
+import { agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // Final UI Update (ui_v2) — journal timeline card. Mirrors
@@ -53,7 +53,7 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
           <div className="jcard-top">
             <TriggerBadge type={entry.type} />
             <span className="jcard-agent">
-              <Bot size={13} /> {agentLabel(entry.agent_id)}
+              <Bot size={13} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
             <span className="jcard-time">{timeLabel(entry.created_at)}</span>
           </div>

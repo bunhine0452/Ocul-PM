@@ -9,6 +9,7 @@ const KNOWN: Record<string, string> = {
   cursor: "#5a7a95",
   "gemini-cli": "#7c5cdb",
   antigravity: "#12a06b",
+  pi: "#3a9bb5",
   manual: "#97979d",
 };
 
@@ -29,7 +30,16 @@ export function agentLabel(agentId: string): string {
     cursor: "Cursor",
     "gemini-cli": "Gemini CLI",
     antigravity: "Antigravity",
+    pi: "Pi",
     manual: "수동 기록",
   };
   return map[agentId] ?? agentId;
+}
+
+/** Agent label with the reported model appended — "Claude Code · Opus 4.8".
+ *  Falls back to just the label when no model/version was recorded. */
+export function agentLabelWithModel(agentId: string, version?: string | null): string {
+  const base = agentLabel(agentId);
+  const v = version?.trim();
+  return v ? `${base} · ${v}` : base;
 }

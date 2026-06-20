@@ -173,10 +173,10 @@ impl<'a> JournalCache<'a> {
                 tx.execute(
                     "INSERT INTO oculpm_journal
                      (project_id, relative_path, workday, type, slug, status, difficulty,
-                      title, checkbox, session_id, agent_id, language, verified_by_user,
-                      created_at, updated_at, file_mtime, body_markdown, body_md_hash,
-                      parse_ok, parse_warnings)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)
+                      title, checkbox, session_id, agent_id, agent_version, language,
+                      verified_by_user, created_at, updated_at, file_mtime, body_markdown,
+                      body_md_hash, parse_ok, parse_warnings)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)
                      ON CONFLICT(project_id, relative_path) DO UPDATE SET
                        workday = excluded.workday,
                        type = excluded.type,
@@ -187,6 +187,7 @@ impl<'a> JournalCache<'a> {
                        checkbox = excluded.checkbox,
                        session_id = excluded.session_id,
                        agent_id = excluded.agent_id,
+                       agent_version = excluded.agent_version,
                        language = excluded.language,
                        verified_by_user = excluded.verified_by_user,
                        created_at = excluded.created_at,
@@ -208,6 +209,7 @@ impl<'a> JournalCache<'a> {
                         snap.checkbox,
                         &snap.session_id,
                         &snap.agent_id,
+                        &snap.agent_version,
                         &snap.language,
                         snap.verified_by_user as i64,
                         &snap.created_at,
@@ -825,8 +827,8 @@ impl<'a> JournalCache<'a> {
                 let row: rusqlite::Result<Option<JournalEntrySummary>> = c
                     .query_row(
                         "SELECT relative_path, workday, type, slug, status, difficulty,
-                                title, checkbox, session_id, agent_id, verified_by_user,
-                                created_at, updated_at
+                                title, checkbox, session_id, agent_id, agent_version,
+                                verified_by_user, created_at, updated_at
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -1263,6 +1265,7 @@ struct CacheRowSnapshot {
     checkbox: Option<i64>,
     session_id: String,
     agent_id: String,
+    agent_version: Option<String>,
     language: String,
     verified_by_user: bool,
     created_at: String,
@@ -1311,6 +1314,7 @@ impl CacheRowSnapshot {
                 checkbox: body.checkbox.map(i64::from),
                 session_id: fm.session_id.clone(),
                 agent_id: fm.agent.id.clone(),
+                agent_version: fm.agent.version.clone(),
                 language: fm.language.clone(),
                 verified_by_user: fm.verified_by_user,
                 created_at: fm.created_at.clone(),
@@ -1350,6 +1354,7 @@ impl CacheRowSnapshot {
                     checkbox: body.checkbox.map(i64::from),
                     session_id: String::new(),
                     agent_id: "unknown".to_string(),
+                    agent_version: None,
                     language: "ko".to_string(),
                     verified_by_user: false,
                     created_at: String::new(),
@@ -1421,6 +1426,7 @@ fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySumma
         checkbox: checkbox.map(|n| n != 0),
         session_id: r.get("session_id")?,
         agent_id: r.get("agent_id")?,
+        agent_version: r.get("agent_version")?,
         verified_by_user: r.get::<_, i64>("verified_by_user")? != 0,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
@@ -1447,7 +1453,7 @@ fn build_list_sql(
 ) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
     let mut sql = String::from(
         "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
-                session_id, agent_id, verified_by_user, created_at, updated_at
+                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at
          FROM oculpm_journal
          WHERE project_id = ?1",
     );

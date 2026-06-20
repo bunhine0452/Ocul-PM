@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 2 -->
+<!-- template_version: 3 -->
 # ocul-pm 작업 기록 규칙 (v1)
 
 당신은 ocul-pm 으로 추적되는 프로젝트에서 작업하고 있습니다. **하나의 논리적 작업 단위** (버그 수정 / 기능 추가 / 리팩토링 / 에러 해결 / 잡일) 를 끝낼 때마다, 그 작업에 관한 markdown 파일을 정해진 위치에 한 개 작성하세요. 사용자에게 묻지 마세요 — 작업의 끝을 인식하면 즉시 기록합니다.
@@ -43,8 +43,8 @@ created_at: "2026-05-24T22:30:13+09:00"      # ⚠ timezone offset 필수. +09:0
 updated_at: "2026-05-24T22:52:00+09:00"      # 선택
 session_id: "20260524-001"                   # 활성 세션 id, 없으면 "manual-<workday>-HHMMSS"
 agent:
-  id: claude-code                            # claude-code | cursor | antigravity | gemini-cli | manual
-  version: "4.7"                             # 선택
+  id: claude-code                            # claude-code | cursor | antigravity | gemini-cli | pi | manual
+  version: "Opus 4.8"                        # ⭐ 네가 돌고 있는 모델명 (예: Opus 4.8 / Gemini 3 Pro / GPT-5 / Cursor). 모르면 생략
 language: ko                                 # ko | en
 verified_by_user: false                      # 사용자가 UI 에서 토글
 files_touched:
@@ -132,7 +132,7 @@ owner: claude-code             # 네 agent.id
 
 - `시각` = ISO-8601, **tz offset 필수** (`created_at` 과 동일 규칙).
 - `항목` = 대응 항목의 `{#id}` (앞 `#` 포함).
-- `에이전트` = **네 agent.id 그대로** (`claude-code` / `cursor` / `antigravity` / `gemini-cli`). 위조 금지.
+- `에이전트` = **네 agent.id 그대로** (`claude-code` / `cursor` / `antigravity` / `gemini-cli` / `pi`). 위조 금지.
 - `변화` = `이전→새` 글리프 (예 `~→x`). 새 항목 생성이면 `→☐`.
 - `일지` = 방금 쓴 일지의 `.oculpm/` 상대경로 (없으면 빈칸).
 

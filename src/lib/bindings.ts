@@ -242,7 +242,7 @@ export const commands = {
 	 *  can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
 	 *  — never bubbles `fatal: bad revision 'HEAD'` to the UI.
 	 */
-	computeDiff: (projectId: number, path: string, maxBytes: number) => typedError<DiffResult, string>(__TAURI_INVOKE("compute_diff", { projectId, path, maxBytes })),
+	computeDiff: (projectId: number, path: string, maxBytes: number, baseline: string | null) => typedError<DiffResult, string>(__TAURI_INVOKE("compute_diff", { projectId, path, maxBytes, baseline })),
 	/**
 	 *  PR6.6 — re-capture snapshots for the supplied paths from disk content.
 	 *  Powers the LocalDiffView "비우기" action: after the user acknowledges a
@@ -257,6 +257,17 @@ export const commands = {
 	 *  the UI keeps using the watcher buffer + snapshot baselines.
 	 */
 	gitUncommittedChanges: (projectId: number) => typedError<GitChange[], string>(__TAURI_INVOKE("git_uncommitted_changes", { projectId })),
+	/**
+	 *  Files changed by the most recent commit, with its sha/subject. The 변경 diff
+	 *  화면 shows these when the working tree is clean (e.g. the agent committed its
+	 *  work) so the screen isn't empty. `None` for non-git / no-commit repos.
+	 */
+	gitLastCommitChanges: (projectId: number) => typedError<{
+	sha: string,
+	short_sha: string,
+	subject: string,
+	changes: GitChange[],
+} | null, string>(__TAURI_INVOKE("git_last_commit_changes", { projectId })),
 	openInEditor: (projectRoot: string, relPath: string, editorCmd: string) => typedError<null, string>(__TAURI_INVOKE("open_in_editor", { projectRoot, relPath, editorCmd })),
 	/**
 	 *  Open an http(s) URL in the user's default browser. Used by the Today commit
@@ -671,8 +682,12 @@ export type AgentDetection = {
 };
 
 export type AgentRef = {
-	/**  One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `manual`. */
+	/**
+	 *  One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
+	 *  `manual`.
+	 */
 	id: string,
+	/**  The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`. */
 	version: string | null,
 };
 
@@ -1297,6 +1312,11 @@ export type JournalEntrySummary = {
 	checkbox: boolean | null,
 	session_id: string,
 	agent_id: string,
+	/**
+	 *  The model the agent reported (frontmatter `agent.version`), e.g.
+	 *  `"Opus 4.8"` / `"Gemini 3 Pro"`. `None` when not reported.
+	 */
+	agent_version: string | null,
 	verified_by_user: boolean,
 	created_at: string,
 	updated_at: string | null,
@@ -1320,6 +1340,18 @@ export type JournalFrontmatter = {
 	files_touched: FileTouched[],
 	related: RelatedRef[],
 	tags: string[],
+};
+
+/**
+ *  The most recent commit's metadata + the files it touched. Powers the 변경
+ *  diff 화면's "직전 커밋" baseline, shown when the working tree is clean so the
+ *  screen isn't empty after a coding agent commits its work.
+ */
+export type LastCommitChanges = {
+	sha: string,
+	short_sha: string,
+	subject: string,
+	changes: GitChange[],
 };
 
 /**

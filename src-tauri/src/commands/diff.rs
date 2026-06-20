@@ -233,6 +233,10 @@ pub async fn compute_diff(
     project_id: u32,
     path: String,
     max_bytes: u32,
+    // Which baseline to diff against. `None`/`"working"` = the working tree vs
+    // `HEAD` (with snapshot fallback) — the default. `"last_commit"` = the most
+    // recent commit (`HEAD~1..HEAD`), shown when the working tree is clean.
+    baseline: Option<String>,
 ) -> Result<DiffResult, String> {
     let project = db
         .list_projects()
@@ -244,6 +248,10 @@ pub async fn compute_diff(
 
     let root = PathBuf::from(&project.root_path);
     let max_bytes = max_bytes as usize;
+
+    if baseline.as_deref() == Some("last_commit") {
+        return committed_diff(&root, path, max_bytes);
+    }
 
     match git::diff_patch(&root, &path, None, None, max_bytes) {
         Ok(patch) if !patch.trim().is_empty() => Ok(DiffResult {
@@ -259,6 +267,44 @@ pub async fn compute_diff(
         }
         Err(e) => Err(e),
     }
+}
+
+/// Diff a single file across the most recent commit (`HEAD~1..HEAD`). Falls
+/// back to the empty tree for a root commit so the first commit's files still
+/// render (as all-additions). Always a `Git` source — no snapshot fallback,
+/// since both sides are committed refs.
+fn committed_diff(root: &std::path::Path, path: String, max_bytes: usize) -> Result<DiffResult, String> {
+    let patch = match git::diff_patch(root, &path, Some("HEAD~1"), Some("HEAD"), max_bytes) {
+        Ok(p) => p,
+        Err(e) if is_recoverable_git_failure(&e) => {
+            git::diff_patch(root, &path, Some(git::EMPTY_TREE), Some("HEAD"), max_bytes)?
+        }
+        Err(e) => return Err(e),
+    };
+    Ok(DiffResult {
+        path,
+        source: DiffSource::Git { patch },
+    })
+}
+
+/// Files changed by the most recent commit, with its sha/subject. The 변경 diff
+/// 화면 shows these when the working tree is clean (e.g. the agent committed its
+/// work) so the screen isn't empty. `None` for non-git / no-commit repos.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_last_commit_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Option<git::LastCommitChanges>, String> {
+    let project = db
+        .list_projects()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.id == project_id)
+        .ok_or_else(|| format!("project {project_id} not found"))?;
+    let root = PathBuf::from(&project.root_path);
+    Ok(git::last_commit_changes(&root))
 }
 
 /// Persistent uncommitted-change list for the 변경 diff 화면. Backed by
