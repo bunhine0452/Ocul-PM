@@ -24,7 +24,7 @@ use crate::oculpm::spec::{
     JournalEntrySummary, LayerComparison, LegacyDeletionReport, ManualEntryDraft,
     MigrationCommandError, MigrationHistoryEntry, MigrationPlan, MigrationReport, OculpmConfig,
     OculpmInitReport, OculpmIntegrityWarning, OculpmMigrationProgress, OculpmOverviewStats,
-    OculpmStatus, ReindexReport, RollbackReport, Session, Snapshot, SnapshotKind, WatcherStatus,
+    OculpmStatus, ReindexReport, RollbackReport, Session,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -200,19 +200,6 @@ pub async fn oculpm_set_config(
 
 // ─── W2-PR6 commands ────────────────────────────────────────────────────────
 
-/// Get the current active session. Returns `None` if idle or no watcher.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_get_current_session(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<Option<Session>, String> {
-    manager
-        .get_current_session(project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 /// Manually start a session. Idempotent — returns existing if already active.
 #[tauri::command]
 #[specta::specta]
@@ -269,21 +256,6 @@ pub async fn oculpm_get_file_changes(
         .map_err(|e| e.to_string())
 }
 
-/// Read a snapshot (open or close) for a workday.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_get_index_snapshot(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    workday: String,
-    kind: SnapshotKind,
-) -> Result<Snapshot, String> {
-    manager
-        .get_index_snapshot(project_id, workday, kind)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 /// Start the filesystem watcher. Idempotent. Requires lock ownership.
 #[tauri::command]
 #[specta::specta]
@@ -329,17 +301,6 @@ pub async fn oculpm_watcher_stop(
         .watcher_stop(project_id)
         .await
         .map_err(|e| e.to_string())
-}
-
-/// Watcher status. Safe to call anytime — returns Stopped + zero counters if
-/// the project is not initialized or the watcher hasn't started.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_watcher_status(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<WatcherStatus, String> {
-    Ok(manager.watcher_status(project_id).await)
 }
 
 // ─── W3-PR3 commands ────────────────────────────────────────────────────────
@@ -775,24 +736,6 @@ pub async fn oculpm_delete_legacy_changelog(
 ) -> Result<LegacyDeletionReport, String> {
     manager
         .delete_legacy_changelog(&db, project_id, &confirm_token)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-// ─── W5-PR6 — Observed agent ids ────────────────────────────────────────────
-
-/// Distinct agent_id list (sorted ASC) for the project. Used by the agent
-/// filter dropdown so users can include agents that wrote entries but
-/// aren't in the spec's hard-coded "known" list.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_observed_agent_ids(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<Vec<String>, String> {
-    manager
-        .observed_agent_ids(&db, project_id)
         .await
         .map_err(|e| e.to_string())
 }

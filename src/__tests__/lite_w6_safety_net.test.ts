@@ -18,6 +18,7 @@ import {
 import {
   flattenVisibleNodes,
   nextFocusedPath,
+  type ProjectTreeNode,
   // PR-UI 7 — FileExplorer was retired; these two pure helpers were lifted to
   // a live module so their safety-net coverage survives the legacy removal.
 } from "@/features/code/fileTreeNav";
@@ -30,7 +31,6 @@ import {
 import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { renderHook, act } from "@testing-library/react";
-import type { ProjectTreeNode } from "@/lib/bindings";
 
 // ─── Lite-W6 frontend safety net ─────────────────────────────────────────
 //

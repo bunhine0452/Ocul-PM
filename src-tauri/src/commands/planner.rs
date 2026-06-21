@@ -2,7 +2,7 @@
 
 use tauri::State;
 
-use crate::db::{DashboardStats, Db, Goal, Subtask};
+use crate::db::{Db, Goal, Subtask};
 
 // ---------- Goals ----------
 
@@ -35,12 +35,6 @@ pub async fn goal_list(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn goal_get(db: State<'_, Db>, goal_id: u32) -> Result<Goal, String> {
-    db.get_goal(goal_id).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 #[allow(clippy::too_many_arguments)]
 pub async fn goal_update(
     db: State<'_, Db>,
@@ -61,17 +55,6 @@ pub async fn goal_update(
 #[specta::specta]
 pub async fn goal_delete(db: State<'_, Db>, goal_id: u32) -> Result<(), String> {
     db.delete_goal(goal_id).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn dashboard_stats(
-    db: State<'_, Db>,
-    project_id: Option<u32>,
-) -> Result<DashboardStats, String> {
-    db.dashboard_stats(project_id)
-        .await
-        .map_err(|e| e.to_string())
 }
 
 // ---------- Subtasks ----------

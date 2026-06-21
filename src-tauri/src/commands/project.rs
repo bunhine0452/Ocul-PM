@@ -10,7 +10,7 @@ use tracing::info;
 
 use crate::db::{
     ChunkSearchResult, ClarifyAnswer, ClarifyQuestion, ClarifyResult, Db, EditPromptResult,
-    FileChange, Project, SymbolSearchResult,
+    Project, SymbolSearchResult,
 };
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
@@ -365,17 +365,6 @@ pub async fn index_project(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_dependency_graph(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<crate::db::DependencyGraph, String> {
-    db.get_dependency_graph(project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn get_file_symbols(
     db: State<'_, Db>,
     file_id: u32,
@@ -466,17 +455,6 @@ fn secure_join(root: &std::path::Path, rel_path: &str) -> Result<PathBuf, String
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_project_files(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<Vec<(u32, String)>, String> {
-    db.list_project_files(project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn read_project_file(
     db: State<'_, Db>,
     project_id: u32,
@@ -516,150 +494,8 @@ pub async fn read_file_range(
     Ok(lines[start..end].join("\n"))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn write_project_file(
-    db: State<'_, Db>,
-    project_id: u32,
-    rel_path: String,
-    content: String,
-) -> Result<(), String> {
-    let root = get_project_root(&db, project_id).await?;
-    let full_path = secure_join(&root, &rel_path)?;
-    tokio::fs::write(&full_path, content)
-        .await
-        .map_err(|e| format!("Failed to write file: {e}"))?;
-    Ok(())
-}
-
-// ---------- File Change Detection ----------
-
-#[tauri::command]
-#[specta::specta]
-pub async fn detect_file_changes(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<Vec<FileChange>, String> {
-    db.clean_duplicate_file_changes().await.map_err(|e| e.to_string())?;
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
-    let root = PathBuf::from(&project.root_path);
-
-    // Get all currently indexed files
-    let indexed_files = db.list_project_files(project_id).await.map_err(|e| e.to_string())?;
-    let indexed_map: std::collections::HashMap<String, u32> = indexed_files
-        .iter()
-        .map(|(id, path)| (path.clone(), *id))
-        .collect();
-
-    // Walk current filesystem (use same settings-driven config as indexing)
-    let settings_map: std::collections::HashMap<String, String> = db
-        .settings_get_all()
-        .await
-        .map_err(|e| e.to_string())?
-        .into_iter()
-        .collect();
-    let index_config = indexer::config_from_settings(|k| settings_map.get(k).cloned());
-    let current_files = indexer::walk_text_files(&root, &index_config);
-    let mut current_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    for file_path in &current_files {
-        let rel = file_path.strip_prefix(&root).unwrap_or(file_path);
-        let rel_str = rel.to_string_lossy().to_string();
-        current_paths.insert(rel_str.clone());
-
-        let Ok(content) = fs::read_to_string(file_path) else { continue };
-        let new_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-
-        if let Some(existing) = db.get_file_hash(project_id, rel_str.clone()).await.map_err(|e| e.to_string())? {
-            let (_file_id, old_hash) = existing;
-            if old_hash != new_hash {
-                // Modified
-                db.insert_file_change(
-                    project_id,
-                    rel_str.clone(),
-                    "modified".to_string(),
-                    Some(old_hash),
-                    Some(new_hash),
-                ).await.map_err(|e| e.to_string())?;
-            }
-        } else {
-            // Created (new file not in index)
-            db.insert_file_change(
-                project_id,
-                rel_str.clone(),
-                "created".to_string(),
-                None,
-                Some(new_hash),
-            ).await.map_err(|e| e.to_string())?;
-        }
-    }
-
-    // Check for deleted files
-    for path in indexed_map.keys() {
-        if !current_paths.contains(path) {
-            let old_hash = db.get_file_hash(project_id, path.clone())
-                .await
-                .map_err(|e| e.to_string())?
-                .map(|(_, h)| h);
-            db.insert_file_change(
-                project_id,
-                path.clone(),
-                "deleted".to_string(),
-                old_hash,
-                None,
-            ).await.map_err(|e| e.to_string())?;
-        }
-    }
-
-    // Return today's changes
-    let today_start = {
-        let now = std::time::SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
-        // Align to start of day (UTC)
-        now - (now % 86400)
-    };
-
-    let changes = db.list_file_changes(project_id, today_start)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(changes)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn list_file_changes(
-    db: State<'_, Db>,
-    project_id: u32,
-    since: i32,
-) -> Result<Vec<FileChange>, String> {
-    db.list_file_changes(project_id, since as i64)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 // ───────────────────────────────────────────────────────────────────────
 // G3: Edit prompt generation (with optional clarify step)
-//
-// Legacy `generate_edit_prompt` is kept as a thin shim that calls the
-// `_with_answers` variant with an empty answer list — that way any caller
-// still on the old contract keeps working until W6 / UI-7 cleanup.
-
-#[tauri::command]
-#[specta::specta]
-pub async fn generate_edit_prompt(
-    db: State<'_, Db>,
-    embedder: State<'_, Embedder>,
-    project_id: u32,
-    user_request: String,
-    provider: String,
-    model: String,
-) -> Result<EditPromptResult, String> {
-    generate_with_answers_inner(&db, &embedder, project_id, &user_request, &[], &provider, &model)
-        .await
-}
 
 #[tauri::command]
 #[specta::specta]
