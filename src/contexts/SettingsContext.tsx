@@ -13,7 +13,6 @@ interface SettingsContextValue {
   settings: Settings;
   loaded: boolean;
   set: <K extends keyof Settings>(field: K, value: Settings[K]) => Promise<void>;
-  setMany: (partial: Partial<Settings>) => Promise<void>;
   reload: () => Promise<void>;
   resetAll: () => Promise<void>;
 }
@@ -56,16 +55,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
-
-  const setMany = useCallback(async (partial: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...partial }));
-    const entries: Array<[string, string]> = (
-      Object.entries(partial) as Array<[keyof Settings, Settings[keyof Settings]]>
-    ).map(([field, value]) => [keyForField(field), serialize(field, value)]);
-    if (entries.length > 0) {
-      await commands.settingsSetMany(entries);
-    }
-  }, []);
 
   const resetAll = useCallback(async () => {
     setSettings(DEFAULTS);
@@ -137,8 +126,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings.uiScale, loaded]);
 
   const value = useMemo<SettingsContextValue>(
-    () => ({ settings, loaded, set, setMany, reload, resetAll }),
-    [settings, loaded, set, setMany, reload, resetAll]
+    () => ({ settings, loaded, set, reload, resetAll }),
+    [settings, loaded, set, reload, resetAll]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

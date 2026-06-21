@@ -14,7 +14,6 @@ export type Theme =
   | "high-contrast";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
-export type UiDensity = "compact" | "comfortable";
 export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 
@@ -23,18 +22,10 @@ export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "o
 /// Every setting we recognize. Keys are the exact column values in the
 /// `settings` SQLite table; values are stringified.
 export const KEYS = {
-  // --- Appearance / editor ---
+  // --- Appearance ---
   theme: "theme",
   colorTheme: "color_theme",
-  uiDensity: "ui_density",
   uiScale: "ui_scale",
-  editorFontFamily: "editor_font_family",
-  editorFontSize: "editor_font_size",
-  editorTabWidth: "editor_tab_width",
-  editorWordWrap: "editor_word_wrap",
-  editorShowLineNumbers: "editor_show_line_numbers",
-  editorActiveLineHighlight: "editor_active_line_highlight",
-  editorIndentGuides: "editor_indent_guides",
 
   // --- LLM ---
   defaultProvider: "default_provider",
@@ -82,18 +73,9 @@ export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
 export interface Settings {
   theme: Theme;
   colorTheme: ColorTheme;
-  uiDensity: UiDensity;
   /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
    *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
   uiScale: number;
-
-  editorFontFamily: string;
-  editorFontSize: number;
-  editorTabWidth: number;
-  editorWordWrap: boolean;
-  editorShowLineNumbers: boolean;
-  editorActiveLineHighlight: boolean;
-  editorIndentGuides: boolean;
 
   defaultProvider: Provider;
   defaultModel: string;
@@ -142,16 +124,7 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
-  uiDensity: "comfortable",
   uiScale: 1,
-
-  editorFontFamily: "D2Coding",
-  editorFontSize: 13,
-  editorTabWidth: 2,
-  editorWordWrap: false,
-  editorShowLineNumbers: true,
-  editorActiveLineHighlight: true,
-  editorIndentGuides: true,
 
   defaultProvider: "anthropic",
   defaultModel: "",
@@ -189,15 +162,7 @@ export const DEFAULTS: Settings = {
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
-  [KEYS.uiDensity]: "uiDensity",
   [KEYS.uiScale]: "uiScale",
-  [KEYS.editorFontFamily]: "editorFontFamily",
-  [KEYS.editorFontSize]: "editorFontSize",
-  [KEYS.editorTabWidth]: "editorTabWidth",
-  [KEYS.editorWordWrap]: "editorWordWrap",
-  [KEYS.editorShowLineNumbers]: "editorShowLineNumbers",
-  [KEYS.editorActiveLineHighlight]: "editorActiveLineHighlight",
-  [KEYS.editorIndentGuides]: "editorIndentGuides",
   [KEYS.defaultProvider]: "defaultProvider",
   [KEYS.defaultModel]: "defaultModel",
   [KEYS.modelAnthropic]: "modelAnthropic",

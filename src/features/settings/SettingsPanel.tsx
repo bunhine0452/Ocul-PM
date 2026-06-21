@@ -317,54 +317,6 @@ function AppearanceTab() {
         </div>
       </Section>
 
-      <Section title="코드 에디터" description="앱 내 코드 에디터의 글꼴과 레이아웃 (※ Lite-W6 PR5 에서 코드 에디터는 legacy 로 이동 — 이 설정은 1.1 까지 보존).">
-        <Field label="글꼴" hint="지정한 글꼴이 없으면 시스템 모노스페이스로 대체됩니다.">
-          <Input
-            value={settings.editorFontFamily}
-            onChange={(e) => set("editorFontFamily", e.currentTarget.value)}
-            placeholder="D2Coding"
-          />
-        </Field>
-
-        <Field label={`글꼴 크기 — ${settings.editorFontSize}px`}>
-          <NumberSlider
-            value={settings.editorFontSize}
-            min={10}
-            max={22}
-            onChange={(v) => set("editorFontSize", v)}
-          />
-        </Field>
-
-        <Field label={`탭 너비 — ${settings.editorTabWidth} spaces`}>
-          <NumberSlider
-            value={settings.editorTabWidth}
-            min={1}
-            max={8}
-            onChange={(v) => set("editorTabWidth", v)}
-          />
-        </Field>
-
-        <Toggle
-          checked={settings.editorShowLineNumbers}
-          onChange={(v) => set("editorShowLineNumbers", v)}
-          label="줄 번호 표시"
-        />
-        <Toggle
-          checked={settings.editorActiveLineHighlight}
-          onChange={(v) => set("editorActiveLineHighlight", v)}
-          label="활성 줄 강조"
-        />
-        <Toggle
-          checked={settings.editorIndentGuides}
-          onChange={(v) => set("editorIndentGuides", v)}
-          label="들여쓰기 가이드 표시"
-        />
-        <Toggle
-          checked={settings.editorWordWrap}
-          onChange={(v) => set("editorWordWrap", v)}
-          label="줄 바꿈"
-        />
-      </Section>
     </>
   );
 }

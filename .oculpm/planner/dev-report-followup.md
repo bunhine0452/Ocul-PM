@@ -15,7 +15,7 @@ owner: claude-code
 - [x] 프런트 legacy + 비-legacy 죽은 코드 ~13.6k줄 삭제 + 미사용 deps 제거 {#frontend-dead-code}
 - [x] 고아 백엔드 커맨드 정리 — "삭제"군 22개 제거, "재활성화"군 분리 {#orphan-commands}
 - [x] 마이그레이션 shim(migrate_from_sqlite, 1911줄) 은퇴 vs 버전 게이트 결정 {#migration-shim}
-- [ ] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
+- [~] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
 
 ## Phase 2 — 구조적 부채 {#debt}
 - [x] redaction(redact_text)을 일지·diff 쓰기/읽기 경로에 연결 (안전 1순위) {#redaction-wire}
@@ -39,4 +39,5 @@ owner: claude-code
 | 2026-06-22T06:30:00+09:00 | #redaction-wire | claude-code | ~→x | journal/20260622/Bugs/0630_bug_redaction-not-wired-to-journal-diff.md | 본문전용 마스킹·sidecar v3·적대적리뷰 8건 반영, 게이트 전부 통과 |
 | 2026-06-22T07:00:00+09:00 | #migration-shim | claude-code | →x | journal/20260622/Refactors/0700_refactor_retire-sqlite-migration-shim.md | 결정 C(코드제거·테이블보존). ~2.9k줄 순삭, slug 크레이트 제거, 게이트 전부 통과 |
 | 2026-06-22T07:30:00+09:00 | #parse-warnings | claude-code | →~ | journal/20260622/Features_to_add/0730_feature_expose-parse-warnings.md | 노출(A) 완료: parse_ok/parse_warnings DTO+⚠배지. 자동보정(B) 후속 |
+| 2026-06-22T08:00:00+09:00 | #surgical-context-cleanup | claude-code | →~ | journal/20260622/Refactors/0800_refactor_settings-dead-code-cleanup.md | Settings 파트 완료(setMany·에디터설정군). WorkspaceContext reducer 수술은 보류(리스크) |
 <!-- oculpm:plan-log end -->
