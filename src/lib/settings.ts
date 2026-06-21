@@ -262,15 +262,6 @@ export function entriesToSettings(entries: Array<[string, string]>): Settings {
   return result;
 }
 
-// Convenience: the resolved model for the current provider, falling back to
-// `defaultModel` and finally to the provider-specific default.
-export function resolveModel(settings: Settings): string {
-  const m = providerModel(settings, settings.defaultProvider);
-  if (m) return m;
-  if (settings.defaultModel) return settings.defaultModel;
-  return DEFAULTS.modelAnthropic;
-}
-
 export function providerModel(settings: Settings, provider: Provider): string {
   switch (provider) {
     case "anthropic":

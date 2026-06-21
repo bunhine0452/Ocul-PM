@@ -18,9 +18,9 @@ import {
 import {
   flattenVisibleNodes,
   nextFocusedPath,
-  // PR-UI 7 — FileExplorer moved to src/legacy/; these two pure helpers keep
-  // their safety-net coverage from the new path.
-} from "@/legacy/FileExplorer";
+  // PR-UI 7 — FileExplorer was retired; these two pure helpers were lifted to
+  // a live module so their safety-net coverage survives the legacy removal.
+} from "@/features/code/fileTreeNav";
 import {
   classifyDiffLines,
   groupIntoHunks,
@@ -32,31 +32,11 @@ import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { renderHook, act } from "@testing-library/react";
 import type { ProjectTreeNode } from "@/lib/bindings";
 
-// ─── Lite-W6 PR0 frontend safety net ─────────────────────────────────────
+// ─── Lite-W6 frontend safety net ─────────────────────────────────────────
 //
-// The three scenarios below are listed in `docs/Lite-update/07-implementation
-// -checklist.md` §1 PR0. Each is `it.todo` until the upstream PR it depends
-// on lands the surface it asserts against. Lifting `.todo` → `.fn` is the
-// last step of the dependent PR so its DoD checkbox flips green.
-
-describe("Lite-W6 PR0 — frontend safety net (deferred to upstream PRs)", () => {
-  it.todo(
-    "SC1: empty SQLite + seeded journal renders Today (enable in PR4 — journal-only path)",
-  );
-
-  // SC2 was enabled by PR2 (BottomDrawerTab "problems" → "terminal") and
-  // again by PR5 (single-member union). PR7 Part 2 retired the
-  // BottomDrawer entirely and migrated state to `layoutMode` /
-  // `splitRatio`; the assertions move to the new helpers below.
-  it.todo("SC2: retired in PR7 Part 2 (BottomDrawer fully replaced)");
-
-  // SC3 is exercised by the dedicated PR8 Part 1 block below — the watcher
-  // wiring in WorkspaceContext composes pushRecentChange + mapFileOpToChangeOp,
-  // both of which are pure and covered there. A full DOM-roundtrip test
-  // (event fires → FileExplorer renders a dot) lives with the integration
-  // suite in Phase D PR11.
-  it.todo("SC3: replaced by PR8 Part 1 pure-fn coverage below");
-});
+// The original PR0 placeholder block (SC1/SC2/SC3 it.todo tombstones) was for
+// a shipped effort and has been removed; the real coverage those scenarios
+// stood in for lives in the concrete blocks below.
 
 describe("Lite-W6 PR8 Part 1 — recentChanges buffer", () => {
   it("appends to an empty buffer", () => {
