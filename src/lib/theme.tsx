@@ -49,8 +49,3 @@ export function useTheme() {
     resolvedTheme,
   };
 }
-
-/** Legacy provider — no-op now that SettingsProvider applies the theme class. */
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
