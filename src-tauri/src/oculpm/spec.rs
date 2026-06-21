@@ -198,6 +198,11 @@ pub struct JournalEntry {
     /// which no realistic journal entry will hit.
     pub byte_size: u32,
     pub mtime: String,
+    /// False when the YAML frontmatter failed to parse (the row is still cached
+    /// as a synthesized chore). Drives a ⚠ reliability badge (F7a).
+    pub parse_ok: bool,
+    /// Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …).
+    pub parse_warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -221,6 +226,8 @@ pub struct JournalEntrySummary {
     pub updated_at: Option<String>,
     pub tags: Vec<String>,
     pub files_count: u32,
+    pub parse_ok: bool,
+    pub parse_warnings: Vec<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

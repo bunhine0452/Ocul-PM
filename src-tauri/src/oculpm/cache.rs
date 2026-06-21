@@ -609,7 +609,7 @@ impl<'a> JournalCache<'a> {
                     .query_row(
                         "SELECT relative_path, type, slug, status, difficulty, title, checkbox,
                                 session_id, agent_id, language, verified_by_user, created_at,
-                                updated_at, file_mtime, body_markdown
+                                updated_at, file_mtime, body_markdown, parse_ok, parse_warnings
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -674,6 +674,8 @@ impl<'a> JournalCache<'a> {
                 body_markdown: r.body_markdown,
                 byte_size: body_bytes,
                 mtime: r.file_mtime.to_string(),
+                parse_ok: r.parse_ok,
+                parse_warnings: parse_warnings_vec(&r.parse_warnings),
             }
         }))
     }
@@ -898,7 +900,7 @@ impl<'a> JournalCache<'a> {
                     .query_row(
                         "SELECT relative_path, workday, type, slug, status, difficulty,
                                 title, checkbox, session_id, agent_id, agent_version,
-                                verified_by_user, created_at, updated_at
+                                verified_by_user, created_at, updated_at, parse_ok, parse_warnings
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -1458,6 +1460,8 @@ struct EntryRow {
     updated_at: Option<String>,
     file_mtime: i64,
     body_markdown: String,
+    parse_ok: bool,
+    parse_warnings: Option<String>,
 }
 
 fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
@@ -1477,7 +1481,17 @@ fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
         updated_at: r.get(12)?,
         file_mtime: r.get(13)?,
         body_markdown: r.get(14)?,
+        parse_ok: r.get::<_, i64>(15)? != 0,
+        parse_warnings: r.get(16)?,
     })
+}
+
+/// Decode the stored `parse_warnings` column (a JSON string array, or NULL) into
+/// a `Vec<String>` for the DTO. Malformed JSON / NULL → empty (F7a).
+fn parse_warnings_vec(raw: &Option<String>) -> Vec<String> {
+    raw.as_deref()
+        .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
+        .unwrap_or_default()
 }
 
 fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySummary> {
@@ -1502,6 +1516,8 @@ fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySumma
         updated_at: r.get("updated_at")?,
         tags: Vec::new(),     // filled by list_entries' batch query
         files_count: 0,       // filled by list_entries' batch query
+        parse_ok: r.get::<_, i64>("parse_ok")? != 0,
+        parse_warnings: parse_warnings_vec(&r.get::<_, Option<String>>("parse_warnings")?),
     })
 }
 
@@ -1523,7 +1539,8 @@ fn build_list_sql(
 ) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
     let mut sql = String::from(
         "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
-                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at
+                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at,
+                parse_ok, parse_warnings
          FROM oculpm_journal
          WHERE project_id = ?1",
     );

@@ -417,6 +417,13 @@ export const commands = {
 	 */
 	byte_size: number,
 	mtime: string,
+	/**
+	 *  False when the YAML frontmatter failed to parse (the row is still cached
+	 *  as a synthesized chore). Drives a ⚠ reliability badge (F7a).
+	 */
+	parse_ok: boolean,
+	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
+	parse_warnings: string[],
 } | null, string>(__TAURI_INVOKE("oculpm_get_journal_entry", { projectId, relativePath })),
 	/**
 	 *  Read the per-file diffs recorded for a journal entry at the moment it was
@@ -1120,6 +1127,13 @@ export type JournalEntry = {
 	 */
 	byte_size: number,
 	mtime: string,
+	/**
+	 *  False when the YAML frontmatter failed to parse (the row is still cached
+	 *  as a synthesized chore). Drives a ⚠ reliability badge (F7a).
+	 */
+	parse_ok: boolean,
+	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
+	parse_warnings: string[],
 };
 
 export type JournalEntrySummary = {
@@ -1143,6 +1157,8 @@ export type JournalEntrySummary = {
 	updated_at: string | null,
 	tags: string[],
 	files_count: number,
+	parse_ok: boolean,
+	parse_warnings: string[],
 };
 
 export type JournalFrontmatter = {

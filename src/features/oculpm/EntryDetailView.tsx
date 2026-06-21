@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { ArrowLeft, Bot, Calendar, GitCompareArrows } from "@/components/Icons";
+import { AlertTriangle, ArrowLeft, Bot, Calendar, GitCompareArrows } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
@@ -170,6 +170,11 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
     [detail, entry.title, entry.slug],
   );
 
+  // F7a — reliability badge. Defensive against optimistic-UI summaries / older
+  // fixtures that predate the parse_ok / parse_warnings fields.
+  const parseWarnings = entry.parse_warnings ?? [];
+  const parseFailed = entry.parse_ok === false;
+
   return (
     <>
       <Toolbar
@@ -195,6 +200,25 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <Bot size={12} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
+            {parseFailed ? (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  color: "var(--warn, #c2810a)",
+                  fontWeight: 600,
+                }}
+                title={
+                  parseWarnings.length > 0
+                    ? parseWarnings.join("\n")
+                    : "frontmatter 파싱 경고"
+                }
+              >
+                <AlertTriangle size={12} /> 파싱 경고
+                {parseWarnings.length > 0 ? ` ${parseWarnings.length}` : ""}
+              </span>
+            ) : null}
           </span>
         }
       />
@@ -203,6 +227,37 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
       <div className="entry-detail">
         {/* Left: meta + changed-file list + narrative */}
         <aside className="entry-detail-side">
+          {parseWarnings.length > 0 ? (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "8px 10px",
+                borderRadius: 8,
+                background: "var(--warn-bg, rgba(194,129,10,0.08))",
+                border: "1px solid var(--warn-border, rgba(194,129,10,0.25))",
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--warn, #c2810a)",
+                  marginBottom: 4,
+                }}
+              >
+                <AlertTriangle size={12} /> frontmatter 파싱 경고
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-2)" }}>
+                {parseWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {entry.tags.length > 0 ? (
             <div className="flex flex-wrap gap-1" style={{ marginBottom: 14 }}>
               {entry.tags.map((t) => (
