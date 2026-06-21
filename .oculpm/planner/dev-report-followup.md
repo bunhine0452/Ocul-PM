@@ -23,7 +23,7 @@ owner: claude-code
 - [ ] 자동 일지→플래너 화해 (on-journal-write reconciliation) {#auto-reconcile}
 
 ## Phase 3 — 기능 {#features}
-- [ ] 정직성 감사 — compare_layers 재활성화로 빠뜨린 변경 탐지 {#honesty-audit}
+- [x] 정직성 감사 — compare_layers 재활성화로 빠뜨린 변경 탐지 {#honesty-audit}
 - [ ] 백엔드 기반 저널 쿼리 + 무한 타임라인 (14일 한계 제거) {#journal-query}
 - [~] 파싱 경고 노출 + frontmatter 자동 보정 {#parse-warnings}
 - [x] Git 히스토리 백필 — 기존 레포 콜드스타트 절벽 제거 {#git-backfill}
@@ -41,4 +41,5 @@ owner: claude-code
 | 2026-06-22T07:30:00+09:00 | #parse-warnings | claude-code | →~ | journal/20260622/Features_to_add/0730_feature_expose-parse-warnings.md | 노출(A) 완료: parse_ok/parse_warnings DTO+⚠배지. 자동보정(B) 후속 |
 | 2026-06-22T08:00:00+09:00 | #surgical-context-cleanup | claude-code | →~ | journal/20260622/Refactors/0800_refactor_settings-dead-code-cleanup.md | Settings 파트 완료(setMany·에디터설정군). WorkspaceContext reducer 수술은 보류(리스크) |
 | 2026-06-22T08:30:00+09:00 | #git-backfill | claude-code | →x | journal/20260622/Features_to_add/0830_feature_git-history-backfill.md | commits_for_backfill+backfill_from_git(멱등·redact·entry_diffs tier-3)+빈화면 트리거. 게이트 전부 통과 |
+| 2026-06-22T09:00:00+09:00 | #honesty-audit | claude-code | →x | journal/20260622/Features_to_add/0900_feature_honesty-audit.md | compare_layers 재활성(Today HonestyAudit 카드, only_in_index 노출, 문제시만 렌더). 프런트전용 |
 <!-- oculpm:plan-log end -->

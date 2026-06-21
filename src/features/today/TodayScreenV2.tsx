@@ -22,6 +22,7 @@ import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
+import { HonestyAudit } from "./HonestyAudit";
 import { PlanUpdates } from "./PlanUpdates";
 import { TodayMonitor } from "./TodayMonitor";
 import { TodayGitGraph } from "./TodayGitGraph";
@@ -270,6 +271,9 @@ export function TodayScreenV2({
           )}
 
           <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
+
+          {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
+          <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} />
 
           {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
           {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
