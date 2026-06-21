@@ -1,10 +1,21 @@
-import type { ProjectTreeNode } from "@/lib/bindings";
-
 // Pure file-tree keyboard-navigation helpers, extracted from the retired
 // `src/legacy/FileExplorer.tsx` (PR-UI 7) so their safety-net coverage in
 // `lite_w6_safety_net.test.ts` survives the legacy folder's removal. No
 // React/DOM dependency — operate on a `ProjectTreeNode` + a controlled
 // `expanded` map only.
+
+/**
+ * A node in a project file tree. Mirrors the shape the (now-retired)
+ * `list_project_tree` backend command produced; kept here, with its only
+ * remaining consumer, so the helpers stay self-contained.
+ */
+export interface ProjectTreeNode {
+  name: string;
+  /** Forward-slash relative path from the project root; `""` for the root. */
+  relative_path: string;
+  is_dir: boolean;
+  children: ProjectTreeNode[];
+}
 
 /**
  * One entry per *visible* node in DFS order — i.e. respecting the controlled

@@ -104,8 +104,8 @@ use crate::commands::{
     conversation_create, conversation_delete, conversation_list, conversation_rename,
     conversation_set_context,
     // W5 — action proposal apply-state
-    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, dashboard_stats, db_health, goal_create,
-    goal_delete, goal_get, goal_list, goal_update, index_project, list_projects, project_stats,
+    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health, goal_create,
+    goal_delete, goal_list, goal_update, index_project, list_projects, project_stats,
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     subtask_create, subtask_delete, subtask_list, subtask_toggle,
@@ -113,18 +113,15 @@ use crate::commands::{
     plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
     plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
     plan_rename, plan_delete,
-    get_dependency_graph, get_file_symbols, get_code_graph, get_change_impact, get_file_calls,
-    minimize_window, toggle_maximize_window, close_window, open_devtools, open_terminal_window,
-    open_ai_window,
-    list_project_files, list_project_tree, read_project_file, read_file_range, write_project_file,
-    detect_file_changes, list_file_changes, generate_edit_prompt,
+    get_file_symbols, get_code_graph, get_change_impact, get_file_calls,
+    open_devtools, open_terminal_window,
+    read_project_file, read_file_range,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
     // G3 — Clarify (W5)
     clarify_edit_intent, generate_edit_prompt_with_answers,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
-    git_log, git_graph, git_remotes, git_status, git_head_status_brief, github_verify,
-    git_tags, git_log_range, read_changelog, github_releases,
+    git_log, git_graph, git_status, git_head_status_brief, github_verify,
     reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
     // G2 — Project Overview + Daily Brief
@@ -135,9 +132,9 @@ use crate::commands::{
     check_cli_available, create_greenfield_project, generate_seed_goals,
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
     oculpm_init, oculpm_get_status, oculpm_get_config, oculpm_set_config,
-    oculpm_get_current_session, oculpm_start_session_manual, oculpm_end_session_manual,
-    oculpm_list_sessions, oculpm_get_file_changes, oculpm_get_index_snapshot,
-    oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_status,
+    oculpm_start_session_manual, oculpm_end_session_manual,
+    oculpm_list_sessions, oculpm_get_file_changes,
+    oculpm_watcher_start, oculpm_watcher_stop,
     oculpm_list_journal_entries, oculpm_get_journal_entry, oculpm_get_entry_diffs,
     oculpm_group_changes, oculpm_set_journal_verified,
     oculpm_reindex_cache, oculpm_create_manual_entry, oculpm_update_entry_meta,
@@ -150,8 +147,6 @@ use crate::commands::{
     oculpm_open_backup_dir,
     // W5-PR5 — Overview stats
     oculpm_overview_stats,
-    // W5-PR6 — Agent filter
-    oculpm_observed_agent_ids,
     // W5-PR7 — Migration history + legacy delete
     oculpm_get_migration_history, oculpm_delete_legacy_changelog,
 };
@@ -187,7 +182,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         search_chunks,
         search_text,
         search_symbols,
-        get_dependency_graph,
         get_file_symbols,
         get_code_graph,
         get_change_impact,
@@ -196,10 +190,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // M4 — Planner
         goal_create,
         goal_list,
-        goal_get,
         goal_update,
         goal_delete,
-        dashboard_stats,
         subtask_create,
         subtask_list,
         subtask_toggle,
@@ -227,25 +219,14 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         record_conversation_action,
         list_conversation_actions,
         // M5 — Window & File Operations
-        minimize_window,
-        toggle_maximize_window,
-        close_window,
         open_devtools,
         open_terminal_window,
-        open_ai_window,
-        list_project_files,
-        list_project_tree,
         read_project_file,
         read_file_range,
-        write_project_file,
         // 문서(docs) 뷰어
         docs_tree,
         docs_read,
         docs_asset,
-        // M6 — AI Assist
-        detect_file_changes,
-        list_file_changes,
-        generate_edit_prompt,
         // G3 — Clarify (W5)
         clarify_edit_intent,
         generate_edit_prompt_with_answers,
@@ -257,14 +238,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // M7 — Git / GitHub
         git_log,
         git_graph,
-        git_remotes,
         git_status,
         git_head_status_brief,
         github_verify,
-        git_tags,
-        git_log_range,
-        read_changelog,
-        github_releases,
         // Lite-W6 PR6 — LocalDiffView backend
         reindex_paths,
         compute_diff,
@@ -292,15 +268,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_get_status,
         oculpm_get_config,
         oculpm_set_config,
-        oculpm_get_current_session,
         oculpm_start_session_manual,
         oculpm_end_session_manual,
         oculpm_list_sessions,
         oculpm_get_file_changes,
-        oculpm_get_index_snapshot,
         oculpm_watcher_start,
         oculpm_watcher_stop,
-        oculpm_watcher_status,
         oculpm_list_journal_entries,
         oculpm_get_journal_entry,
         oculpm_get_entry_diffs,
@@ -327,8 +300,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_open_backup_dir,
         // W5-PR5 — Overview stats
         oculpm_overview_stats,
-        // W5-PR6 — Agent filter
-        oculpm_observed_agent_ids,
         // W5-PR7 — Migration history + legacy delete
         oculpm_get_migration_history,
         oculpm_delete_legacy_changelog,

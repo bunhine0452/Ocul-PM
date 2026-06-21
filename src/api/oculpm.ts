@@ -38,9 +38,6 @@ import type {
   RollbackReport,
   Session,
   FileChangeEvent,
-  Snapshot,
-  SnapshotKind,
-  WatcherStatus,
 } from "@/lib/bindings";
 
 /** Error subclass so toasts / fallbacks can narrow on `instanceof OculpmApiError`. */
@@ -80,12 +77,6 @@ export const oculpmApi = {
 
   // ─── W2 — sessions / file_changes / snapshots / watcher ───────────────
 
-  getCurrentSession: (projectId: number) =>
-    unwrap<Session | null>(
-      "oculpm_get_current_session",
-      commands.oculpmGetCurrentSession(projectId)
-    ),
-
   startSessionManual: (projectId: number) =>
     unwrap<Session | null>(
       "oculpm_start_session_manual",
@@ -110,23 +101,11 @@ export const oculpmApi = {
       commands.oculpmGetFileChanges(projectId, workday, sessionId ?? null)
     ),
 
-  getIndexSnapshot: (projectId: number, workday: string, kind: SnapshotKind) =>
-    unwrap<Snapshot>(
-      "oculpm_get_index_snapshot",
-      commands.oculpmGetIndexSnapshot(projectId, workday, kind)
-    ),
-
   watcherStart: (projectId: number) =>
     unwrap<null>("oculpm_watcher_start", commands.oculpmWatcherStart(projectId)),
 
   watcherStop: (projectId: number) =>
     unwrap<null>("oculpm_watcher_stop", commands.oculpmWatcherStop(projectId)),
-
-  watcherStatus: (projectId: number) =>
-    unwrap<WatcherStatus>(
-      "oculpm_watcher_status",
-      commands.oculpmWatcherStatus(projectId)
-    ),
 
   // ─── W3-PR3 — journal cache + manual entry ─────────────────────────────
 

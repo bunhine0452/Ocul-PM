@@ -86,14 +86,6 @@ vi.mock("@/lib/bindings", () => ({
     gitGraph: () => Promise.resolve({ status: "ok", data: [] }),
     gitStatus: () =>
       Promise.resolve({ status: "ok", data: { is_git_repo: false, head_branch: null, remotes: [] } }),
-    dashboardStats: () =>
-      Promise.resolve({
-        status: "ok",
-        data: {
-          total: 0, open: 0, in_progress: 0, done: 0,
-          cancelled: 0, overdue: 0, due_today: 0, avg_progress: null,
-        },
-      }),
   },
   // WorkspaceProvider registers events.oculpm*.listen on mount; stub no-ops.
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),

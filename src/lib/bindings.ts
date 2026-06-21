@@ -33,7 +33,6 @@ export const commands = {
 	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
-	getDependencyGraph: (projectId: number) => typedError<DependencyGraph, string>(__TAURI_INVOKE("get_dependency_graph", { projectId })),
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
 	getCodeGraph: (projectId: number, opts: GraphOpts) => typedError<CodeGraph, string>(__TAURI_INVOKE("get_code_graph", { projectId, opts })),
 	getChangeImpact: (projectId: number, changedPaths: string[]) => typedError<ImpactReport, string>(__TAURI_INVOKE("get_change_impact", { projectId, changedPaths })),
@@ -41,10 +40,8 @@ export const commands = {
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
 	goalCreate: (projectId: number | null, title: string, description: string | null, priority: number, dueDate: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_create", { projectId, title, description, priority, dueDate })),
 	goalList: (projectId: number | null, statusFilter: string | null) => typedError<Goal[], string>(__TAURI_INVOKE("goal_list", { projectId, statusFilter })),
-	goalGet: (goalId: number) => typedError<Goal, string>(__TAURI_INVOKE("goal_get", { goalId })),
 	goalUpdate: (goalId: number, title: string | null, description: string | null, status: string | null, priority: number | null, dueDate: number | null, progress: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_update", { goalId, title, description, status, priority, dueDate, progress })),
 	goalDelete: (goalId: number) => typedError<null, string>(__TAURI_INVOKE("goal_delete", { goalId })),
-	dashboardStats: (projectId: number | null) => typedError<DashboardStats, string>(__TAURI_INVOKE("dashboard_stats", { projectId })),
 	subtaskCreate: (goalId: number, title: string) => typedError<Subtask, string>(__TAURI_INVOKE("subtask_create", { goalId, title })),
 	subtaskList: (goalId: number) => typedError<Subtask[], string>(__TAURI_INVOKE("subtask_list", { goalId })),
 	subtaskToggle: (subtaskId: number) => typedError<Subtask, string>(__TAURI_INVOKE("subtask_toggle", { subtaskId })),
@@ -163,23 +160,8 @@ export const commands = {
 	 */
 	recordConversationAction: (conversationId: number, messageIndex: number, status: string | null) => typedError<ConversationAction, string>(__TAURI_INVOKE("record_conversation_action", { conversationId, messageIndex, status })),
 	listConversationActions: (conversationId: number) => typedError<ConversationAction[], string>(__TAURI_INVOKE("list_conversation_actions", { conversationId })),
-	minimizeWindow: () => typedError<null, string>(__TAURI_INVOKE("minimize_window")),
-	toggleMaximizeWindow: () => typedError<null, string>(__TAURI_INVOKE("toggle_maximize_window")),
-	closeWindow: () => typedError<null, string>(__TAURI_INVOKE("close_window")),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	openTerminalWindow: () => typedError<null, string>(__TAURI_INVOKE("open_terminal_window")),
-	/**
-	 *  Lite-W6 PR9 — open the AI workbench in a standalone window so the user
-	 *  can park it on a second monitor next to Today / Plan. Idempotent: if the
-	 *  window already exists, we focus + unminimise instead of erroring.
-	 *  `tauri-plugin-window-state` restores the position + size automatically.
-	 */
-	openAiWindow: () => typedError<null, string>(__TAURI_INVOKE("open_ai_window")),
-	listProjectFiles: (projectId: number) => typedError<([number, string])[], string>(__TAURI_INVOKE("list_project_files", { projectId })),
-	listProjectTree: (projectId: number, opts: {
-	/**  Cap on directory descent. `None` walks the entire tree (default). */
-	max_depth: number | null,
-} | null) => typedError<ProjectTreeNode, string>(__TAURI_INVOKE("list_project_tree", { projectId, opts })),
 	readProjectFile: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("read_project_file", { projectId, relPath })),
 	/**
 	 *  Read an inclusive, 1-indexed line range from a project file. Backs the
@@ -188,16 +170,12 @@ export const commands = {
 	 *  every result with content. Out-of-range bounds clamp to the file.
 	 */
 	readFileRange: (projectId: number, relPath: string, startLine: number, endLine: number) => typedError<string, string>(__TAURI_INVOKE("read_file_range", { projectId, relPath, startLine, endLine })),
-	writeProjectFile: (projectId: number, relPath: string, content: string) => typedError<null, string>(__TAURI_INVOKE("write_project_file", { projectId, relPath, content })),
 	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
 	docsTree: (projectId: number) => typedError<DocsTree, string>(__TAURI_INVOKE("docs_tree", { projectId })),
 	/**  단일 문서의 마크다운 본문을 읽는다. `rel_path` 는 프로젝트 루트 기준 (`docs/...`). */
 	docsRead: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("docs_read", { projectId, relPath })),
 	/**  문서가 참조하는 이미지를 base64 로 읽는다. `rel_path` 는 프로젝트 루트 기준. */
 	docsAsset: (projectId: number, relPath: string) => typedError<DocsAsset, string>(__TAURI_INVOKE("docs_asset", { projectId, relPath })),
-	detectFileChanges: (projectId: number) => typedError<FileChange[], string>(__TAURI_INVOKE("detect_file_changes", { projectId })),
-	listFileChanges: (projectId: number, since: number) => typedError<FileChange[], string>(__TAURI_INVOKE("list_file_changes", { projectId, since })),
-	generateEditPrompt: (projectId: number, userRequest: string, provider: string, model: string) => typedError<EditPromptResult, string>(__TAURI_INVOKE("generate_edit_prompt", { projectId, userRequest, provider, model })),
 	/**
 	 *  Evaluate how ambiguous the user's request is. Returns 1~3 clarifying
 	 *  questions plus an `auto_proceed` flag — the frontend skips the dialog when
@@ -216,21 +194,10 @@ export const commands = {
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
 	gitLog: (projectId: number, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log", { projectId, limit })),
 	gitGraph: (projectId: number, limit: number) => typedError<GitGraphCommit[], string>(__TAURI_INVOKE("git_graph", { projectId, limit })),
-	gitRemotes: (projectId: number) => typedError<GitRemote[], string>(__TAURI_INVOKE("git_remotes", { projectId })),
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
-	/**
-	 *  Lite-W6 PR5 — slim head + dirty-count wrapper for the TitleBar mini git
-	 *  chip. The richer `git_status` is preserved for the legacy GitPanel.
-	 */
+	/**  Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip. */
 	gitHeadStatusBrief: (projectId: number) => typedError<GitHeadStatusBrief, string>(__TAURI_INVOKE("git_head_status_brief", { projectId })),
 	githubVerify: () => typedError<GithubVerifyResult, string>(__TAURI_INVOKE("github_verify")),
-	gitTags: (projectId: number, limit: number) => typedError<GitTag[], string>(__TAURI_INVOKE("git_tags", { projectId, limit })),
-	gitLogRange: (projectId: number, from: string, to: string, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log_range", { projectId, from, to, limit })),
-	readChangelog: (projectId: number) => typedError<{
-	path: string,
-	content: string,
-} | null, string>(__TAURI_INVOKE("read_changelog", { projectId })),
-	githubReleases: (owner: string, repo: string, perPage: number) => typedError<GithubRelease[], string>(__TAURI_INVOKE("github_releases", { owner, repo, perPage })),
 	/**
 	 *  Re-run the indexing pipeline for `paths` (relative to the project root).
 	 *  Mirrors the per-file branch of `commands::project::index_project` so that
@@ -373,26 +340,6 @@ export const commands = {
 	 *  disk.
 	 */
 	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, string>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
-	/**  Get the current active session. Returns `None` if idle or no watcher. */
-	oculpmGetCurrentSession: (projectId: number) => typedError<{
-	/**  `YYYYMMDD-NNN`. */
-	id: string,
-	started_at: string,
-	ended_at: string | null,
-	ended_reason: EndedReason | null,
-	/**
-	 *  u32 — caps at ~49 days of continuous active time. A single session
-	 *  will never approach this.
-	 */
-	active_window_ms: number,
-	file_event_count: number,
-	files_unique: number,
-	git_head_at_start: string | null,
-	git_head_at_end: string | null,
-	agent_label_guess: string | null,
-	/**  Paths relative to `.oculpm/journal/<workday>/`. */
-	linked_journal_entries: string[],
-} | null, string>(__TAURI_INVOKE("oculpm_get_current_session", { projectId })),
 	/**  Manually start a session. Idempotent — returns existing if already active. */
 	oculpmStartSessionManual: (projectId: number) => typedError<{
 	/**  `YYYYMMDD-NNN`. */
@@ -419,17 +366,10 @@ export const commands = {
 	oculpmListSessions: (projectId: number, workday: string | null) => typedError<Session[], string>(__TAURI_INVOKE("oculpm_list_sessions", { projectId, workday })),
 	/**  Get file change events for a workday, optionally filtered by session_id. */
 	oculpmGetFileChanges: (projectId: number, workday: string, sessionId: string | null) => typedError<FileChangeEvent[], string>(__TAURI_INVOKE("oculpm_get_file_changes", { projectId, workday, sessionId })),
-	/**  Read a snapshot (open or close) for a workday. */
-	oculpmGetIndexSnapshot: (projectId: number, workday: string, kind: SnapshotKind) => typedError<Snapshot, string>(__TAURI_INVOKE("oculpm_get_index_snapshot", { projectId, workday, kind })),
 	/**  Start the filesystem watcher. Idempotent. Requires lock ownership. */
 	oculpmWatcherStart: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_start", { projectId })),
 	/**  Stop the filesystem watcher. Idempotent. */
 	oculpmWatcherStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_stop", { projectId })),
-	/**
-	 *  Watcher status. Safe to call anytime — returns Stopped + zero counters if
-	 *  the project is not initialized or the watcher hasn't started.
-	 */
-	oculpmWatcherStatus: (projectId: number) => typedError<WatcherStatus, string>(__TAURI_INVOKE("oculpm_watcher_status", { projectId })),
 	/**
 	 *  List cached journal entries for a workday (or today if None) with filters.
 	 *  Returns `[]` for uninitialised projects so the UI can render EmptyToday
@@ -633,12 +573,6 @@ export const commands = {
 	 */
 	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, string>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
 	/**
-	 *  Distinct agent_id list (sorted ASC) for the project. Used by the agent
-	 *  filter dropdown so users can include agents that wrote entries but
-	 *  aren't in the spec's hard-coded "known" list.
-	 */
-	oculpmObservedAgentIds: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("oculpm_observed_agent_ids", { projectId })),
-	/**
 	 *  All successful migration history rows for a project, most-recent first.
 	 *  Returns `[]` for projects that never ran a migration.
 	 */
@@ -746,11 +680,6 @@ export type ChangePlanRef = {
 	plan_id: string,
 	plan_title: string,
 	item_title: string,
-};
-
-export type ChangelogFile = {
-	path: string,
-	content: string,
 };
 
 export type ChatEvent = { kind: "delta"; text: string } | { kind: "done" } | { kind: "error"; message: string };
@@ -870,39 +799,11 @@ export type DailyBrief = {
 	completed_today: Goal[],
 };
 
-export type DashboardStats = {
-	total: number,
-	open: number,
-	in_progress: number,
-	done: number,
-	cancelled: number,
-	overdue: number,
-	due_today: number,
-	avg_progress: number | null,
-};
-
 export type DbHealth = {
 	sqlite_version: string,
 	vec_version: string,
 	schema_version: number,
 	path: string,
-};
-
-export type DependencyEdge = {
-	source_file_id: number,
-	target_file_id: number,
-};
-
-export type DependencyGraph = {
-	nodes: DependencyNode[],
-	edges: DependencyEdge[],
-};
-
-export type DependencyNode = {
-	file_id: number,
-	path: string,
-	language: string | null,
-	size: number,
 };
 
 export type DetectConfidence = 
@@ -1037,17 +938,6 @@ export type EntryStatus = "planned" | "in_progress" | "done" | "abandoned";
 
 export type EntryType = "bug" | "feature" | "error" | "refactor" | "chore";
 
-export type FileChange = {
-	id: number,
-	project_id: number,
-	file_path: string,
-	change_type: string,
-	old_hash: string | null,
-	new_hash: string | null,
-	detected_at: number,
-	summary: string | null,
-};
-
 export type FileChangeEvent = {
 	ts: string,
 	session_id: string,
@@ -1145,37 +1035,11 @@ export type GitRepoStatus = {
 	remotes: GitRemote[],
 };
 
-export type GitTag = {
-	name: string,
-	/**  SHA the tag points to. */
-	sha: string,
-	/**
-	 *  Tagger date (unix seconds). For lightweight tags this falls back to the
-	 *  referenced commit's author date.
-	 */
-	timestamp: number,
-	/**  Annotated tag message (empty for lightweight tags). */
-	message: string,
-	/**  Subject of the commit this tag points to. */
-	subject: string,
-};
-
 export type GithubRateLimit = {
 	limit: number,
 	remaining: number,
 	/**  Unix timestamp when the window resets. */
 	reset: number,
-};
-
-export type GithubRelease = {
-	tag_name: string,
-	name: string | null,
-	body: string | null,
-	html_url: string,
-	published_at: string | null,
-	draft: boolean,
-	prerelease: boolean,
-	author_login: string | null,
 };
 
 export type GithubUser = {
@@ -1391,11 +1255,6 @@ export type LegacyDeletionReport = {
 	deleted_files: number,
 	safety_backup_dir: string,
 	deleted_at: number,
-};
-
-export type ListProjectTreeOpts = {
-	/**  Cap on directory descent. `None` walks the entire tree (default). */
-	max_depth: number | null,
 };
 
 export type LocalDiffReindexReport = {
@@ -1753,17 +1612,6 @@ export type ProjectStats = {
 	chunks: number,
 };
 
-export type ProjectTreeNode = {
-	name: string,
-	/**
-	 *  Forward-slash relative path from the project root. `""` for the root
-	 *  node so the frontend can use it as the React key without collisions.
-	 */
-	relative_path: string,
-	is_dir: boolean,
-	children: ProjectTreeNode[],
-};
-
 /**
  *  One entry in the user-configured failover chain (Settings → LLM → 폴백 체인).
  *  On a failed call the next entry is tried, in order.
@@ -1884,28 +1732,6 @@ export type SessionDailyAgg = {
 
 export type Severity = "ok" | "warning" | "critical";
 
-export type Snapshot = {
-	schema_version: number,
-	captured_at: string,
-	git: SnapshotGit,
-	tree_summary: SnapshotTree,
-};
-
-export type SnapshotGit = {
-	head_sha: string,
-	branch: string,
-	dirty_files: string[],
-	untracked_files: string[],
-};
-
-export type SnapshotKind = "open" | "close";
-
-export type SnapshotTree = {
-	total_tracked_files: number,
-	/**  `blake3:<hex>` — merkle root of sorted blake3 hashes of tracked files. */
-	merkle_root: string,
-};
-
 export type Subtask = {
 	id: number,
 	goal_id: number,
@@ -1953,18 +1779,6 @@ export type WatcherConfig = {
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";
-
-export type WatcherStatus = {
-	state: WatcherStateView,
-	/**
-	 *  u32 cumulative counters — wrap at 4.29B (≈ 1k events/sec for 50 days).
-	 *  Practical workloads stay far below this; watcher resets on restart.
-	 */
-	events_seen_total: number,
-	events_ignored_total: number,
-	last_event_at: string | null,
-	debounce_ms: number,
-};
 
 export type WorkdayConfig = {
 	/**  IANA timezone name (e.g. `Asia/Seoul`). */

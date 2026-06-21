@@ -13,7 +13,7 @@ owner: claude-code
 
 ## Phase 1 — 코드 정리 {#cleanup}
 - [x] 프런트 legacy + 비-legacy 죽은 코드 ~13.6k줄 삭제 + 미사용 deps 제거 {#frontend-dead-code}
-- [~] 고아 백엔드 커맨드 정리 — "삭제"군 제거, "재활성화"군 분리 {#orphan-commands}
+- [x] 고아 백엔드 커맨드 정리 — "삭제"군 22개 제거, "재활성화"군 분리 {#orphan-commands}
 - [ ] 마이그레이션 shim(migrate_from_sqlite, 1911줄) 은퇴 vs 버전 게이트 결정 {#migration-shim}
 - [ ] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
 
@@ -34,4 +34,5 @@ owner: claude-code
 |---|---|---|---|---|---|
 | 2026-06-22T01:38:00+09:00 | #frontend-dead-code | claude-code | →x | journal/20260622/Refactors/0138_refactor_legacy-dead-code-removal.md | ~13.6k줄 삭제, 게이트 전부 통과 |
 | 2026-06-22T01:40:00+09:00 | #orphan-commands | claude-code | →~ | | 착수 — "삭제"군부터 |
+| 2026-06-22T01:57:00+09:00 | #orphan-commands | claude-code | ~→x | journal/20260622/Refactors/0157_refactor_orphan-backend-commands.md | 22개 제거, 게이트 전부 통과 |
 <!-- oculpm:plan-log end -->
