@@ -18,7 +18,7 @@ owner: claude-code
 - [ ] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
 
 ## Phase 2 — 구조적 부채 {#debt}
-- [ ] redaction(redact_text)을 일지·diff 쓰기/읽기 경로에 연결 (안전 1순위) {#redaction-wire}
+- [x] redaction(redact_text)을 일지·diff 쓰기/읽기 경로에 연결 (안전 1순위) {#redaction-wire}
 - [ ] 플래너 이중화 해소 — Today·AI챗·그린필드를 파일 기반 plan 으로 일원화 {#planner-unify}
 - [ ] 자동 일지→플래너 화해 (on-journal-write reconciliation) {#auto-reconcile}
 
@@ -35,4 +35,6 @@ owner: claude-code
 | 2026-06-22T01:38:00+09:00 | #frontend-dead-code | claude-code | →x | journal/20260622/Refactors/0138_refactor_legacy-dead-code-removal.md | ~13.6k줄 삭제, 게이트 전부 통과 |
 | 2026-06-22T01:40:00+09:00 | #orphan-commands | claude-code | →~ | | 착수 — "삭제"군부터 |
 | 2026-06-22T01:57:00+09:00 | #orphan-commands | claude-code | ~→x | journal/20260622/Refactors/0157_refactor_orphan-backend-commands.md | 22개 제거, 게이트 전부 통과 |
+| 2026-06-22T05:45:00+09:00 | #redaction-wire | claude-code | →~ | | 착수 — 02 §2 삽입점 확인, 투영/at-write/at-capture 3갈래 설계 |
+| 2026-06-22T06:30:00+09:00 | #redaction-wire | claude-code | ~→x | journal/20260622/Bugs/0630_bug_redaction-not-wired-to-journal-diff.md | 본문전용 마스킹·sidecar v3·적대적리뷰 8건 반영, 게이트 전부 통과 |
 <!-- oculpm:plan-log end -->

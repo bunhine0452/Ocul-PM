@@ -22,6 +22,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use chrono::{DateTime, TimeZone, Utc};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -32,7 +33,9 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::write_frontmatter_and_body;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::paths::WorkdayResolver;
-use crate::oculpm::redact::{build_forbidden_matcher, is_forbidden_path};
+use crate::oculpm::redact::{
+    build_forbidden_matcher, compile_redact_patterns, is_forbidden_path, redact_text,
+};
 use crate::oculpm::spec::{
     AgentRef, ConflictResolution, EndedReason, EntryStatus, EntryType, FileOp, FileTouched,
     MigrationConflict, MigrationEntryPlan, MigrationFailure, MigrationPlan, MigrationProgress,
@@ -230,7 +233,7 @@ pub async fn execute(
     project_id: u32,
     root: &Path,
     resolver: &WorkdayResolver,
-    _config: &OculpmConfig,
+    config: &OculpmConfig,
     plan: MigrationPlan,
     progress: Option<mpsc::Sender<MigrationProgress>>,
 ) -> Result<MigrationReport, OculpmError> {
@@ -255,6 +258,12 @@ pub async fn execute(
     // For frontmatter `agent` + body. We re-fetch entries by id to keep the
     // plan small (frontend doesn't need ai_summary etc.).
     let entries = fetch_entries_map(db, project_id).await?;
+
+    // R1 — we author each journal markdown from free-form legacy changelog
+    // fields (never redacted on the way into SQLite), so mask secrets in the
+    // body before it lands on disk (committing `.oculpm/` would otherwise leak
+    // them). Compiled once and reused for the post-migration reindex below.
+    let redact = compile_redact_patterns(&config.git.auto_redact_patterns);
 
     let index_writer = IndexWriter::new(root.to_path_buf(), resolver.clone());
 
@@ -299,6 +308,7 @@ pub async fn execute(
                 source,
                 resolver,
                 &backup_dir,
+                &redact,
             ) {
                 Ok(()) => {
                     success_count += 1;
@@ -324,8 +334,11 @@ pub async fn execute(
         }
     }
 
-    // 3. Reindex cache so Today picks up the new entries immediately.
-    let cache = JournalCache::new(db);
+    // 3. Reindex cache so Today picks up the new entries immediately. R1 — mask
+    //    on projection too (the bodies are now masked at write above, so this is
+    //    belt-and-suspenders for any older on-disk entry). Reuses the patterns
+    //    compiled above.
+    let cache = JournalCache::with_redaction(db, redact);
     if let Err(e) = cache.reindex_incremental(project_id, &journal_root).await {
         tracing::warn!(
             target: "oculpm::migrate",
@@ -378,6 +391,7 @@ async fn create_backup_dir(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_one_entry(
     _project_id: u32,
     journal_root: &Path,
@@ -386,6 +400,7 @@ fn write_one_entry(
     source: &EntryWithFiles,
     resolver: &WorkdayResolver,
     backup_dir: &Path,
+    redact: &[Regex],
 ) -> Result<(), OculpmError> {
     let utc = unix_to_utc(source.entry.created_at);
     let created_at_rfc3339 = utc.with_timezone(&resolver.tz).to_rfc3339();
@@ -454,6 +469,8 @@ fn write_one_entry(
         tags,
     };
 
+    // R1 — mask secrets in the body before writing (we author this markdown).
+    let (body_markdown, _hits) = redact_text(&body_markdown, redact);
     let markdown = write_frontmatter_and_body(&fm, &body_markdown);
     let target_abs = journal_root.join(&plan_entry.target_relative_path);
     write_atomic(&target_abs, markdown.as_bytes())?;

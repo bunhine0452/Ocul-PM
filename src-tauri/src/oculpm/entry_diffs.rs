@@ -53,10 +53,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::git;
+use crate::oculpm::redact::redact_text;
 use crate::oculpm::spec::{FileOp, FileTouched};
 
 /// One file's recorded diff for a journal entry. `patch` is a git-style unified
@@ -77,11 +79,14 @@ struct EntryDiffsFile {
     files: Vec<EntryFileDiff>,
 }
 
-/// v2 (2026-06-19): added tier 4 (created-file fallback). Bumping invalidates v1
-/// sidecars on read, so an entry whose newly-created file was missed by v1 self-
-/// heals on next open — the lazy reconstruct re-captures with tier 4 and rewrites
-/// the sidecar (see `capture_entry_diffs`'s fresh-schema guard).
-const SCHEMA_VERSION: u32 = 2;
+/// v2 (2026-06-19): added tier 4 (created-file fallback).
+/// v3 (2026-06-22): secret redaction applied to patch content at capture time
+/// (dev-report §2 / R1), so the sidecar — read by the 변경 모달 and folded into
+/// AI context — never holds a plaintext key. Bumping invalidates older sidecars
+/// on read, so an entry captured before redaction self-heals on next open: the
+/// lazy reconstruct re-captures with masking and rewrites the sidecar (see
+/// `capture_entry_diffs`'s fresh-schema guard).
+const SCHEMA_VERSION: u32 = 3;
 /// Per-file patch cap (matches the spirit of `compute_diff`'s truncation —
 /// keeps a runaway generated file from bloating the sidecar).
 const MAX_PATCH_BYTES: usize = 256 * 1024;
@@ -110,56 +115,57 @@ fn sidecar_path(root: &Path, entry_rel: &str) -> Option<PathBuf> {
 ///
 /// Never returns the underlying error to the caller's control flow beyond IO on
 /// the final write; callers should log-and-continue.
+///
+/// `redact` are the project's compiled `auto_redact_patterns`; each file's patch
+/// is masked *at capture time* (dev-report §2 / R1) so the persisted sidecar
+/// never holds a plaintext key (it is read by the 변경 모달 and folded into AI
+/// context). Pass an empty slice to disable masking. Returns the number of
+/// redacted spans across all files so callers can surface an integrity warning.
 pub fn capture_entry_diffs(
     root: &Path,
     entry_rel: &str,
     touched: &[FileTouched],
     snapshots: &HashMap<String, Vec<u8>>,
-) -> std::io::Result<()> {
+    redact: &[Regex],
+) -> std::io::Result<usize> {
     let Some(out) = sidecar_path(root, entry_rel) else {
-        return Ok(());
+        return Ok(0);
     };
     // Skip only when a *current-schema* sidecar already exists. An older-schema
-    // one (v1, pre tier-4) is upgraded in place: it may have missed a newly
-    // created file, so we re-capture and overwrite. The caller invokes this on
-    // `Inserted` (no sidecar yet) and on lazy reconstruct (where a stale sidecar
-    // is exactly what we want to refresh).
+    // one (pre-redaction / pre tier-4) is upgraded in place: it may have missed
+    // a newly created file or still hold a plaintext secret, so we re-capture
+    // and overwrite. The caller invokes this on `Inserted` (no sidecar yet) and
+    // on lazy reconstruct (where a stale sidecar is exactly what we refresh).
     if sidecar_is_current(&out) {
-        return Ok(());
+        return Ok(0);
     }
 
     let entry_time = entry_unix_time(entry_rel);
     let mut files = Vec::new();
+    let mut redacted_spans = 0usize;
     for f in touched {
-        match git::diff_patch(root, &f.path, None, None, MAX_PATCH_BYTES) {
-            Ok(patch) if !patch.trim().is_empty() => {
-                files.push(EntryFileDiff {
-                    path: f.path.clone(),
-                    patch,
-                });
-            }
-            // Empty git patch (committed / unchanged) or a recoverable git error
-            // (non-git project) → tier 2 snapshot fallback, then tier 3
-            // git-history fallback, then tier 4 created-file fallback (see module
-            // docs). Tier 3 runs even when `entry_time` is None (filename has no
-            // HH:MM) — it then uses the newest commit touching the path, so
-            // externally-authored journals without the `HHMM_` prefix still
-            // recover their diff.
-            _ => {
-                let patch = snapshot_patch(root, &f.path, snapshots)
-                    .or_else(|| history_patch(root, &f.path, entry_time))
-                    .or_else(|| new_file_patch(root, &f.path, f.op));
-                if let Some(patch) = patch {
-                    files.push(EntryFileDiff {
-                        path: f.path.clone(),
-                        patch,
-                    });
-                }
-            }
-        }
+        // Resolve the raw patch through the 4-tier fallback (see module docs).
+        // Tier 1 = working-tree `git diff HEAD`. Empty/error → tier 2 snapshot,
+        // tier 3 git-history (runs even when `entry_time` is None — newest
+        // commit), tier 4 created-file.
+        let patch = match git::diff_patch(root, &f.path, None, None, MAX_PATCH_BYTES) {
+            Ok(p) if !p.trim().is_empty() => Some(p),
+            _ => snapshot_patch(root, &f.path, snapshots)
+                .or_else(|| history_patch(root, &f.path, entry_time))
+                .or_else(|| new_file_patch(root, &f.path, f.op)),
+        };
+        let Some(patch) = patch else { continue };
+        // Mask secrets in the diff hunk content before the sidecar is written.
+        let (patch, hits) = redact_text(&patch, redact);
+        redacted_spans += hits.len();
+        files.push(EntryFileDiff {
+            path: f.path.clone(),
+            patch,
+        });
     }
 
-    persist(&out, entry_rel, files)
+    persist(&out, entry_rel, files)?;
+    Ok(redacted_spans)
 }
 
 /// Git-history fallback (tier 3) for a single file: the diff of the commit that
@@ -374,7 +380,7 @@ mod tests {
             rename_from: None,
         }];
         // No git repo + no snapshot baseline → nothing recorded.
-        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new()).unwrap();
+        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &[]).unwrap();
         assert!(read_entry_diffs(&tmp, entry).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -402,7 +408,7 @@ mod tests {
         let mut snapshots = HashMap::new();
         snapshots.insert(rel.to_string(), b"const old = 1;\n".to_vec());
 
-        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
 
         let got = read_entry_diffs(&tmp, entry);
         assert_eq!(got.len(), 1, "snapshot fallback should record one file");
@@ -430,7 +436,7 @@ mod tests {
         }];
         let mut snapshots = HashMap::new();
         snapshots.insert(rel.to_string(), b"same\n".to_vec()); // identical → no diff
-        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
         assert!(read_entry_diffs(&tmp, entry).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -489,7 +495,7 @@ mod tests {
             rename_from: None,
         }];
 
-        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
         let got = read_entry_diffs(&tmp, &entry);
         assert_eq!(got.len(), 1, "history fallback should record one file");
         assert!(
@@ -537,7 +543,7 @@ mod tests {
             rename_from: None,
         }];
 
-        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
         let got = read_entry_diffs(&tmp, &entry);
         assert_eq!(got.len(), 1, "no-HHMM entry should still recover via newest commit");
         assert!(
@@ -594,7 +600,7 @@ mod tests {
             rename_from: None,
         }];
 
-        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new()).unwrap();
+        capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &[]).unwrap();
 
         let got = read_entry_diffs(&tmp, entry);
         assert_eq!(got.len(), 1, "newly created file must record a diff");
@@ -648,7 +654,7 @@ mod tests {
         let mut snapshots = HashMap::new();
         snapshots.insert("src/a.ts".to_string(), b"const a = 1;\n".to_vec());
 
-        capture_entry_diffs(&tmp, entry, &touched, &snapshots).unwrap();
+        capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
 
         let got = read_entry_diffs(&tmp, entry);
         let paths: Vec<&str> = got.iter().map(|d| d.path.as_str()).collect();
@@ -696,10 +702,107 @@ mod tests {
             rename_from: None,
         }];
 
-        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new()).unwrap();
+        capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
         let got = read_entry_diffs(&tmp, &entry);
         assert_eq!(got.len(), 1, "untracked new file must record a diff");
         assert!(got[0].patch.contains("export const fresh = 1;"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn capture_redacts_secret_in_patch() {
+        // R1: a brand-new file whose content carries an AWS-style key. Tier 4
+        // synthesises the all-additions patch; redaction must mask the key in
+        // the persisted sidecar and report exactly one redacted span.
+        let regs = crate::oculpm::redact::compile_redact_patterns(
+            &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+                .git
+                .auto_redact_patterns,
+        );
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-redact-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260622/Bugs/1000_bug_secret.md";
+        let rel = "src/config.ts";
+        std::fs::write(
+            tmp.join(rel),
+            "export const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n",
+        )
+        .unwrap();
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: FileOp::Create,
+            bytes_added: Some(40),
+            bytes_removed: Some(0),
+            rename_from: None,
+        }];
+
+        let spans = capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &regs).unwrap();
+        assert_eq!(spans, 1, "exactly one secret should be masked");
+
+        let got = read_entry_diffs(&tmp, entry);
+        assert_eq!(got.len(), 1, "the file's diff is still recorded");
+        assert!(
+            got[0].patch.contains("[REDACTED]"),
+            "patch should be masked: {}",
+            got[0].patch
+        );
+        assert!(
+            !got[0].patch.contains("AKIAABCDEFGHIJKLMNOP"),
+            "plaintext key must not survive in the sidecar"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn stale_v2_sidecar_self_heals_to_masked_v3() {
+        // R1: the SCHEMA_VERSION 2→3 bump is the mechanism that retroactively
+        // scrubs a sidecar captured *before* redaction. A stale v2 sidecar
+        // holding a plaintext key must read as empty (schema mismatch) and, on
+        // re-capture with patterns, be overwritten with a masked v3.
+        let regs = crate::oculpm::redact::compile_redact_patterns(
+            &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+                .git
+                .auto_redact_patterns,
+        );
+        let tmp =
+            std::env::temp_dir().join(format!("ocul-entrydiff-selfheal-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("src")).unwrap();
+        let entry = "20260622/Bugs/1100_bug_heal.md";
+        let rel = "src/config.ts";
+        // Current disk content carries the secret (new file → tier 4 yields a patch).
+        std::fs::write(tmp.join(rel), "const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n").unwrap();
+
+        // Hand-write a stale v2 sidecar whose patch holds the plaintext key.
+        let out = sidecar_path(&tmp, entry).unwrap();
+        std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+        std::fs::write(
+            &out,
+            br#"{"schema_version":2,"captured_at":"x","entry":"20260622/Bugs/1100_bug_heal.md","files":[{"path":"src/config.ts","patch":"@@ -0,0 +1 @@\n+const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n"}]}"#,
+        )
+        .unwrap();
+        // v2 reads back as empty (rejected schema) → would trigger reconstruct.
+        assert!(read_entry_diffs(&tmp, entry).is_empty());
+
+        let touched = vec![FileTouched {
+            path: rel.into(),
+            op: FileOp::Create,
+            bytes_added: Some(30),
+            bytes_removed: Some(0),
+            rename_from: None,
+        }];
+        let spans = capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &regs).unwrap();
+        assert_eq!(spans, 1, "re-capture masks the one key");
+
+        let got = read_entry_diffs(&tmp, entry); // now current (v3) → readable
+        assert_eq!(got.len(), 1);
+        assert!(got[0].patch.contains("[REDACTED]"));
+        assert!(
+            !got[0].patch.contains("AKIAABCDEFGHIJKLMNOP"),
+            "stale v2 plaintext must be scrubbed on self-heal"
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

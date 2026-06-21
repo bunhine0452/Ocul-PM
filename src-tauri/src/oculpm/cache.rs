@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use chrono::Utc;
+use regex::Regex;
 use rusqlite::{params, params_from_iter, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -109,11 +110,69 @@ pub struct ChangeGroup {
 /// to the process-wide [`Db`] connection — no extra connection pooling.
 pub struct JournalCache<'a> {
     db: &'a Db,
+    /// On-projection secret masking applied to journal text *before* it enters
+    /// SQLite. Empty (the [`new`][Self::new] default) → no masking. Populated
+    /// via [`with_redaction`][Self::with_redaction] on the paths that project
+    /// agent-authored disk content into the cache (watcher, reindex, cache-miss
+    /// disk read) so a pasted key never reaches the cache → AI context. The
+    /// on-disk markdown is left untouched (it is the SSOT). See dev-report §2.
+    redact: Vec<Regex>,
 }
 
 impl<'a> JournalCache<'a> {
     pub fn new(db: &'a Db) -> Self {
-        Self { db }
+        Self {
+            db,
+            redact: Vec::new(),
+        }
+    }
+
+    /// Like [`new`][Self::new] but masks secrets matching `redact` as journal
+    /// text is projected into the cache (dev-report §2 / R1). Use this on the
+    /// watcher / reindex / disk-read paths; the read-only query paths can stay
+    /// on [`new`][Self::new] since the cache they read is already masked.
+    pub fn with_redaction(db: &'a Db, redact: Vec<Regex>) -> Self {
+        Self { db, redact }
+    }
+
+    /// Parse a journal file's raw text for projection into the cache, masking
+    /// secrets in the **body only** — never the YAML frontmatter, where a
+    /// `[REDACTED]` placeholder would parse as a flow sequence (`['REDACTED']`)
+    /// and degrade the row to an unparseable `chore` (dev-report §2 / R1). The
+    /// at-write writers (`create_manual_journal_entry` / `update_journal_entry_body`)
+    /// already mask only the body for the same reason.
+    ///
+    /// Returns `(frontmatter, masked body, full-text for the body-hash gate,
+    /// redacted span count)`. This is the **single producer** of the cache's
+    /// `full_text`, so the body-hash basis is consistent across every projection
+    /// path. When nothing is masked it returns `raw` verbatim, so a no-secret
+    /// file projects byte-identically to the non-redacting path (the no-churn
+    /// mtime fast path in [`upsert_entry`][Self::upsert_entry] still holds);
+    /// only when a secret is actually replaced does it rebuild a deterministic
+    /// `---\n<frontmatter>\n---\n<masked body>` so re-scans stay stable.
+    pub(crate) fn project_text(
+        &self,
+        raw: &str,
+    ) -> (ParsedFrontmatter, ParsedBody, String, usize) {
+        let (parsed, body_text) = parse_frontmatter_and_body(raw);
+        if self.redact.is_empty() {
+            let body = parse_body(&body_text);
+            return (parsed, body, raw.to_string(), 0);
+        }
+        let (masked_body, hits) = crate::oculpm::redact::redact_text(&body_text, &self.redact);
+        if hits.is_empty() {
+            // No secret in the body → identical projection to the non-redacting
+            // path (full_text == raw keeps the hash basis stable).
+            let body = parse_body(&body_text);
+            return (parsed, body, raw.to_string(), 0);
+        }
+        let full = if parsed.raw_yaml.is_empty() {
+            masked_body.clone()
+        } else {
+            format!("---\n{}\n---\n{}", parsed.raw_yaml, masked_body)
+        };
+        let body = parse_body(&masked_body);
+        (parsed, body, full, hits.len())
     }
 
     // ────────── single-entry operations ──────────
@@ -664,17 +723,16 @@ impl<'a> JournalCache<'a> {
 
         for (relative_path, mtime) in walk_journal(journal_root) {
             let abs = journal_root.join(&relative_path);
-            let text = match std::fs::read_to_string(&abs) {
+            let raw = match std::fs::read_to_string(&abs) {
                 Ok(t) => t,
                 Err(_) => continue, // file deleted between walk and read
             };
-            let (parsed, body_text) = parse_frontmatter_and_body(&text);
+            let (parsed, body, full, _redacted) = self.project_text(&raw);
             if parsed.parsed.is_none() {
                 report.parse_errors += 1;
             }
-            let body = parse_body(&body_text);
             match self
-                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &text)
+                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &full)
                 .await
             {
                 Ok(UpsertOutcome::Inserted) => report.inserted += 1,
@@ -696,6 +754,17 @@ impl<'a> JournalCache<'a> {
     /// Incremental rebuild — only re-parse files whose `file_mtime` differs
     /// from the cached value, and delete rows whose underlying file is
     /// gone. O(walk + changed-files).
+    ///
+    /// R1 redaction caveat (dev-report §2): masking is applied as files are
+    /// re-projected, but an mtime-unchanged file is skipped *before* masking.
+    /// So a secret that was already projected into the cache by a pre-redaction
+    /// build is NOT scrubbed by an incremental pass — only a content edit (mtime
+    /// bump) or a full reindex (the manual "재인덱스" button → [`reindex_full`],
+    /// which always re-projects with masking) clears it. New projects are fully
+    /// covered: redaction is on by default from creation, so every first
+    /// projection is masked. Scrubbing stale pre-R1 rows is a follow-up.
+    ///
+    /// [`reindex_full`]: Self::reindex_full
     pub async fn reindex_incremental(
         &self,
         project_id: u32,
@@ -721,17 +790,16 @@ impl<'a> JournalCache<'a> {
                 continue;
             }
             let abs = journal_root.join(&relative_path);
-            let text = match std::fs::read_to_string(&abs) {
+            let raw = match std::fs::read_to_string(&abs) {
                 Ok(t) => t,
                 Err(_) => continue,
             };
-            let (parsed, body_text) = parse_frontmatter_and_body(&text);
+            let (parsed, body, full, _redacted) = self.project_text(&raw);
             if parsed.parsed.is_none() {
                 report.parse_errors += 1;
             }
-            let body = parse_body(&body_text);
             match self
-                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &text)
+                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &full)
                 .await
             {
                 Ok(UpsertOutcome::Inserted) => report.inserted += 1,
@@ -761,22 +829,25 @@ impl<'a> JournalCache<'a> {
     /// Created/Modified are coalesced — the cache always reads the latest
     /// on-disk state rather than trusting the event payload.
     ///
-    /// Returns the upsert outcome so the caller (watcher) can decide whether
-    /// to emit `OculpmJournalAdded` (new row → toast + optimistic UI add) vs
-    /// `OculpmJournalUpdated` (row mutated → silent refresh) vs nothing
-    /// (mtime-only / unchanged hash). For `Removed`, returns `None` and the
-    /// watcher emits via `oculpm-journal-path-changed` only.
+    /// Returns `(outcome, redacted_spans)`. The outcome lets the caller (watcher)
+    /// decide whether to emit `OculpmJournalAdded` (new row → toast + optimistic
+    /// UI add) vs `OculpmJournalUpdated` (row mutated → silent refresh) vs
+    /// nothing (mtime-only / unchanged hash). For `Removed`, the outcome is
+    /// `None` and the watcher emits via `oculpm-journal-path-changed` only.
+    /// `redacted_spans` is how many secrets this cache (when built with
+    /// [`with_redaction`][Self::with_redaction]) masked on projection — the
+    /// watcher turns a non-zero count into an integrity warning.
     pub async fn apply_path_change(
         &self,
         project_id: u32,
         journal_root: &Path,
         relative_path: &str,
         kind: PathChangeKind,
-    ) -> Result<Option<UpsertOutcome>, OculpmError> {
+    ) -> Result<(Option<UpsertOutcome>, usize), OculpmError> {
         match kind {
             PathChangeKind::Removed => {
                 self.delete_entry(project_id, relative_path).await?;
-                Ok(None)
+                Ok((None, 0))
             }
             PathChangeKind::Created | PathChangeKind::Modified => {
                 let abs = journal_root.join(relative_path);
@@ -790,16 +861,15 @@ impl<'a> JournalCache<'a> {
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or_else(|| Utc::now().timestamp());
-                let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+                let raw = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
                     path: abs,
                     source,
                 })?;
-                let (parsed, body_text) = parse_frontmatter_and_body(&text);
-                let body = parse_body(&body_text);
+                let (parsed, body, full, redacted) = self.project_text(&raw);
                 let outcome = self
-                    .upsert_entry(project_id, relative_path, &parsed, &body, mtime, &text)
+                    .upsert_entry(project_id, relative_path, &parsed, &body, mtime, &full)
                     .await?;
-                Ok(Some(outcome))
+                Ok((Some(outcome), redacted))
             }
         }
     }
@@ -2018,6 +2088,152 @@ mod tests {
             .await
             .unwrap();
         assert!(rows.is_empty());
+    }
+
+    fn default_redact() -> Vec<Regex> {
+        crate::oculpm::redact::compile_redact_patterns(
+            &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+                .git
+                .auto_redact_patterns,
+        )
+    }
+
+    #[tokio::test]
+    async fn reindex_with_redaction_masks_secret_in_cache_body() {
+        // R1: an agent-authored entry pastes an AWS key into the body. A cache
+        // built with redaction must mask it on projection so the cached
+        // body_markdown (→ AI context) never carries the plaintext, while a
+        // plain cache leaves it as-is (proves masking is the facade's doing).
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_secret.md";
+        write_entry(
+            &journal_root,
+            rel,
+            &standard_frontmatter("bug-secret"),
+            "[x] leaked\n\napi key: AKIAABCDEFGHIJKLMNOP done\n",
+        );
+
+        JournalCache::with_redaction(&db, default_redact())
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+        let entry = JournalCache::new(&db)
+            .get_entry(1, rel)
+            .await
+            .unwrap()
+            .expect("row exists");
+        assert!(
+            entry.body_markdown.contains("[REDACTED]"),
+            "body should be masked: {}",
+            entry.body_markdown
+        );
+        assert!(!entry.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
+    }
+
+    #[tokio::test]
+    async fn apply_path_change_reports_redacted_count() {
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_two.md";
+        write_entry(
+            &journal_root,
+            rel,
+            &standard_frontmatter("bug-two"),
+            "[x] two\n\ntoken=ghp_abcdefghijklmnopqrstuvwxyz0123456789\n",
+        );
+
+        let (outcome, redacted) = JournalCache::with_redaction(&db, default_redact())
+            .apply_path_change(1, &journal_root, rel, PathChangeKind::Created)
+            .await
+            .unwrap();
+        assert!(matches!(outcome, Some(UpsertOutcome::Inserted)));
+        assert_eq!(redacted, 1, "one GitHub PAT masked");
+
+        let entry = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+        assert!(entry.body_markdown.contains("[REDACTED]"));
+        assert!(!entry.body_markdown.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
+    }
+
+    #[tokio::test]
+    async fn redaction_masks_body_but_preserves_secret_like_frontmatter() {
+        // R1 regression: masking touches the BODY only. A slug that itself
+        // matches a redact pattern (`sk-…`) must survive — masking the YAML
+        // would turn `slug: [REDACTED]` into a flow sequence and degrade the
+        // row to an unparseable chore (wrong slug/type/status in the cache).
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_sk.md";
+        // slug matches `sk-[A-Za-z0-9_-]{20,}`; body carries an AWS key.
+        let fm = standard_frontmatter("sk-secret-looking-slug-1234");
+        write_entry(
+            &journal_root,
+            rel,
+            &fm,
+            "[x] done\n\nleaked AKIAABCDEFGHIJKLMNOP here\n",
+        );
+
+        JournalCache::with_redaction(&db, default_redact())
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+        let entry = JournalCache::new(&db)
+            .get_entry(1, rel)
+            .await
+            .unwrap()
+            .expect("row exists");
+        // Frontmatter parsed intact — slug NOT masked.
+        assert_eq!(entry.frontmatter.slug, "sk-secret-looking-slug-1234");
+        assert_eq!(entry.frontmatter.entry_type, EntryType::Bug);
+        // Body masked.
+        assert!(entry.body_markdown.contains("[REDACTED]"));
+        assert!(!entry.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
+    }
+
+    #[tokio::test]
+    async fn reindex_incremental_does_not_scrub_preexisting_unmasked_secret() {
+        // R1 KNOWN LIMITATION (dev-report §2 follow-up): a secret projected into
+        // the cache by a pre-redaction build is NOT scrubbed by an incremental
+        // reindex when the file's mtime is unchanged (the file is skipped before
+        // masking). Only a full reindex or a content edit clears it. This pins
+        // the behavior so a future "fix" updates the test deliberately.
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_stale.md";
+        write_entry(
+            &journal_root,
+            rel,
+            &standard_frontmatter("stale"),
+            "[x] x\n\nkey AKIAABCDEFGHIJKLMNOP\n",
+        );
+
+        // First projection WITHOUT redaction (simulates a pre-R1 build).
+        JournalCache::new(&db)
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+        let before = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+        assert!(before.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
+
+        // Incremental WITH redaction but unchanged mtime → file skipped → secret survives.
+        JournalCache::with_redaction(&db, default_redact())
+            .reindex_incremental(1, &journal_root)
+            .await
+            .unwrap();
+        let after = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+        assert!(
+            after.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"),
+            "known limitation: incremental skip leaves the stale secret"
+        );
+
+        // A FULL reindex with redaction DOES scrub it (the escape hatch).
+        JournalCache::with_redaction(&db, default_redact())
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+        let healed = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+        assert!(healed.body_markdown.contains("[REDACTED]"));
+        assert!(!healed.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
     }
 
     #[tokio::test]

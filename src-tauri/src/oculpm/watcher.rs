@@ -29,6 +29,7 @@ use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
     new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
+use regex::Regex;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
@@ -42,9 +43,9 @@ use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    FileChangeEvent, FileOp, OculpmAgentDrift, OculpmAgentsTemplateChanged,
-    OculpmConfig, OculpmFileChanged, OculpmJournalAdded, OculpmJournalPathChanged,
-    OculpmJournalUpdated, WatcherStateView, WatcherStatus,
+    FileChangeEvent, FileOp, IntegrityWarning, OculpmAgentDrift, OculpmAgentsTemplateChanged,
+    OculpmConfig, OculpmFileChanged, OculpmIntegrityWarning, OculpmJournalAdded,
+    OculpmJournalPathChanged, OculpmJournalUpdated, WatcherStateView, WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -99,6 +100,11 @@ impl ProjectWatcher {
         // watcher and `manager::create_manual_journal_entry` see the same
         // glob semantics — see `oculpm::redact::is_forbidden_path`.
         let forbidden = build_forbidden_matcher(&root, &config.git.forbid_journal_for_paths);
+        // R1 — compile the project's secret patterns once; the journal cache
+        // projection masks agent-authored bodies on read and the diff capture
+        // masks patch content, so neither a pasted key reaches the cache (→ AI
+        // context) nor the persisted sidecar.
+        let redact_patterns = redact::compile_redact_patterns(&config.git.auto_redact_patterns);
 
         let stats = Arc::new(RwLock::new(WatcherStatsInner::default()));
         let inner = WatcherInner {
@@ -110,6 +116,7 @@ impl ProjectWatcher {
             user_ignore,
             project_gitignore,
             forbidden,
+            redact_patterns,
             stats: stats.clone(),
         };
 
@@ -218,6 +225,10 @@ struct WatcherInner {
     user_ignore: Gitignore,
     project_gitignore: Option<Gitignore>,
     forbidden: Gitignore,
+    /// Compiled `auto_redact_patterns`. Empty → masking is a no-op. Used to
+    /// build a redacting [`JournalCache`] for journal upserts and threaded into
+    /// per-entry diff capture (dev-report §2 / R1).
+    redact_patterns: Vec<Regex>,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
@@ -698,12 +709,15 @@ impl WatcherInner {
         let kind = resolve_path_change_kind(op, exists);
 
         let db_state: tauri::State<'_, Db> = handle.state::<Db>();
-        let cache = JournalCache::new(&db_state);
+        // R1 — build the cache with redaction so an agent-authored body carrying
+        // a secret is masked on projection (disk SSOT untouched); the count lets
+        // us warn the user.
+        let cache = JournalCache::with_redaction(&db_state, self.redact_patterns.clone());
         match cache
             .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
             .await
         {
-            Ok(outcome) => {
+            Ok((outcome, redacted_spans)) => {
                 tracing::info!(
                     target: "oculpm::watcher",
                     project_id = self.project_id,
@@ -711,6 +725,7 @@ impl WatcherInner {
                     ?kind,
                     raw_op = ?op,
                     outcome = ?outcome,
+                    redacted_spans,
                     "[FLOW] journal cache invalidated"
                 );
                 // W4 dogfooding follow-up (2026-05-26) — emit the high-level
@@ -721,7 +736,24 @@ impl WatcherInner {
                 // OculpmJournalPathChanged event was emitted, so the user
                 // never saw "새 기록" toasts.
                 let inserted = matches!(outcome, Some(UpsertOutcome::Inserted));
+                let content_changed = matches!(
+                    outcome,
+                    Some(UpsertOutcome::Inserted | UpsertOutcome::Updated)
+                );
                 self.emit_journal_outcome(&cache, entry_rel, outcome).await;
+                // R1 — the entry carried secret(s); we masked them in the cache
+                // (disk untouched) and warn so the user can scrub the on-disk
+                // markdown before committing `.oculpm/`. Gated on an actual
+                // content write so an unchanged re-scan doesn't spam toasts.
+                if content_changed && redacted_spans > 0 {
+                    self.emit_integrity_warning(
+                        "secret_redacted",
+                        entry_rel,
+                        &format!(
+                            "작업 일지에서 비밀로 보이는 값 {redacted_spans}건을 캐시에서 가렸습니다. 디스크 원본도 확인하세요."
+                        ),
+                    );
+                }
                 // Persist per-file diffs for a brand-new entry so the 작업 일지
                 // can re-open "그 시점의 변경" at any later time, even after the
                 // file is committed (see oculpm::entry_diffs). Capture only on
@@ -786,17 +818,29 @@ impl WatcherInner {
         }
         let root = self.root.clone();
         let entry_rel_owned = entry_rel.to_string();
+        let redact = self.redact_patterns.clone();
         let res = tokio::task::spawn_blocking(move || {
             crate::oculpm::entry_diffs::capture_entry_diffs(
                 &root,
                 &entry_rel_owned,
                 &touched,
                 &snapshots,
+                &redact,
             )
         })
         .await;
         match res {
-            Ok(Ok(())) => {}
+            Ok(Ok(redacted_spans)) => {
+                // R1 — masked a secret in the captured diff hunk(s); warn so the
+                // user can scrub the source before committing.
+                if redacted_spans > 0 {
+                    self.emit_integrity_warning(
+                        "secret_redacted",
+                        entry_rel,
+                        &format!("변경 diff에서 비밀로 보이는 값 {redacted_spans}건을 가렸습니다."),
+                    );
+                }
+            }
             Ok(Err(e)) => tracing::warn!(
                 target: "oculpm::watcher",
                 project_id = self.project_id,
@@ -812,6 +856,25 @@ impl WatcherInner {
                 "entry-diff capture: blocking task panicked"
             ),
         }
+    }
+
+    /// Emit an `OculpmIntegrityWarning` toast (e.g. "비밀 N건 마스킹됨"). No-op
+    /// when running without an app handle (unit tests). Mirrors the index
+    /// actor's integrity-warning path.
+    fn emit_integrity_warning(&self, kind: &str, path: &str, message: &str) {
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
+        use tauri_specta::Event;
+        let _ = OculpmIntegrityWarning {
+            project_id: self.project_id,
+            warning: IntegrityWarning {
+                kind: kind.to_string(),
+                path: path.to_string(),
+                message: message.to_string(),
+            },
+        }
+        .emit(handle);
     }
 
     /// Map a cache outcome to the matching high-level Tauri event. Inserted

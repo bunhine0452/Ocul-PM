@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use regex::Regex;
 use tokio::sync::{mpsc, RwLock};
 
 use crate::db::Db;
@@ -31,7 +32,9 @@ use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
-use crate::oculpm::redact::{build_forbidden_matcher, is_forbidden_path};
+use crate::oculpm::redact::{
+    build_forbidden_matcher, compile_redact_patterns, is_forbidden_path, redact_text,
+};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::migrate_from_sqlite::{self, MigrationFailureWithRollback};
 use crate::oculpm::spec::{
@@ -677,6 +680,19 @@ impl OculpmManager {
         Ok(entry.resolver.journal_root(&entry.root))
     }
 
+    /// Compile this project's `auto_redact_patterns` from its in-memory config
+    /// for the cache-projection paths (reindex / cache-miss disk read). Empty
+    /// when the project isn't registered (no config in memory) — callers then
+    /// project without masking; the disk-rooted paths use
+    /// [`redact::patterns_for_project`][crate::oculpm::redact::patterns_for_project]
+    /// instead so they still mask for unregistered projects.
+    async fn redact_patterns(&self, project_id: u32) -> Vec<Regex> {
+        match self.get_config(project_id).await {
+            Ok(cfg) => compile_redact_patterns(&cfg.git.auto_redact_patterns),
+            Err(_) => Vec::new(),
+        }
+    }
+
     /// Resolve a project's repository root — the directory that holds `.oculpm/`.
     /// Used to drive git (per-entry diff capture) against the working tree.
     pub async fn project_root(&self, project_id: u32) -> Result<PathBuf, OculpmError> {
@@ -701,6 +717,8 @@ impl OculpmManager {
     ) -> Result<u32, OculpmError> {
         use crate::oculpm::entry_diffs;
         let root = self.project_root(project_id).await?;
+        // R1 — compile redaction once; each diff sidecar is masked at capture.
+        let redact = crate::oculpm::redact::patterns_for_project(&root);
         let journal_root = self.journal_root(project_id).await?;
         let cache = JournalCache::new(db);
         let mut captured = 0u32;
@@ -725,12 +743,13 @@ impl OculpmManager {
             }
             let root2 = root.clone();
             let rel2 = relative_path.clone();
+            let redact2 = redact.clone();
             let res = tokio::task::spawn_blocking(move || {
-                entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots)
+                entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots, &redact2)
             })
             .await;
             match res {
-                Ok(Ok(())) => {
+                Ok(Ok(_)) => {
                     if entry_diffs::sidecar_exists(&root, &relative_path) {
                         captured += 1;
                     }
@@ -792,10 +811,13 @@ impl OculpmManager {
                 snapshots.insert(f.path.clone(), snap.content);
             }
         }
+        // R1 — `root` may be an unregistered project (browsed from the cache),
+        // so load redaction from disk rather than the in-memory config.
+        let redact = crate::oculpm::redact::patterns_for_project(&root);
         let root2 = root.clone();
         let rel2 = relative_path.clone();
         let _ = tokio::task::spawn_blocking(move || {
-            entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots)
+            entry_diffs::capture_entry_diffs(&root2, &rel2, &touched, &snapshots, &redact)
         })
         .await;
         Ok(entry_diffs::read_entry_diffs(&root, &relative_path))
@@ -833,7 +855,12 @@ impl OculpmManager {
         if !abs.exists() {
             return Ok(None);
         }
-        cache
+        // Project the disk file with on-read masking so a secret in an
+        // agent-authored entry never reaches the cache (→ AI context). Compiled
+        // only on the (rare) miss path, not on the cache-hit fast path above.
+        let redact = self.redact_patterns(project_id).await;
+        let redacting = JournalCache::with_redaction(db, redact);
+        redacting
             .apply_path_change(
                 project_id,
                 &journal_root,
@@ -841,7 +868,7 @@ impl OculpmManager {
                 PathChangeKind::Created,
             )
             .await?;
-        cache.get_entry(project_id, &relative_path).await
+        redacting.get_entry(project_id, &relative_path).await
     }
 
     /// Toggle `verified_by_user` on a journal entry. Reads the disk file,
@@ -870,24 +897,19 @@ impl OculpmManager {
         let new_text = write_frontmatter_and_body(&fm, &body);
         write_atomic(&abs, new_text.as_bytes())?;
 
-        // Write-through: parse new text + upsert. The new mtime is whatever
-        // the OS just wrote — re-stat for accuracy.
-        let (parsed2, body2) = parse_frontmatter_and_body(&new_text);
-        let body_parsed = parse_body(&body2);
-        let mtime = std::fs::metadata(&abs)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or_else(|| chrono::Utc::now().timestamp());
-        JournalCache::new(db)
-            .upsert_entry(
+        // Re-project through the redacting cache (same path the watcher uses):
+        // disk keeps the agent's original body (SSOT), the cache row is masked
+        // on projection. This re-reads the just-written file, so the frontmatter
+        // edit and the body masking are both reflected. R1 — closes the cache
+        // re-pollution bypass where a frontmatter-only edit re-inserted an
+        // agent body's plaintext secret into the cache (→ AI context).
+        let redact = self.redact_patterns(project_id).await;
+        JournalCache::with_redaction(db, redact)
+            .apply_path_change(
                 project_id,
+                &journal_root,
                 &relative_path,
-                &parsed2,
-                &body_parsed,
-                mtime,
-                &new_text,
+                PathChangeKind::Modified,
             )
             .await?;
         Ok(())
@@ -935,23 +957,16 @@ impl OculpmManager {
         let new_text = write_frontmatter_and_body(&fm, &body);
         write_atomic(&abs, new_text.as_bytes())?;
 
-        let (parsed2, body2) = parse_frontmatter_and_body(&new_text);
-        let body_parsed = parse_body(&body2);
-        let mtime = std::fs::metadata(&abs)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or_else(|| chrono::Utc::now().timestamp());
-        let cache = JournalCache::new(db);
+        // Re-project through the redacting cache (disk keeps the agent's body;
+        // the cache row is masked on projection — R1, mirrors set_journal_verified).
+        let redact = self.redact_patterns(project_id).await;
+        let cache = JournalCache::with_redaction(db, redact);
         cache
-            .upsert_entry(
+            .apply_path_change(
                 project_id,
+                &journal_root,
                 &relative_path,
-                &parsed2,
-                &body_parsed,
-                mtime,
-                &new_text,
+                PathChangeKind::Modified,
             )
             .await?;
         // Return the hydrated entry so the UI can update without a second
@@ -986,6 +1001,11 @@ impl OculpmManager {
                 "cannot edit body of entry with broken frontmatter".to_string(),
             ));
         };
+        // R1 — mask secrets in the edited body before writing. We author this
+        // write, so at-write masking keeps both the disk file and the cache
+        // (upserted from `new_text` below) free of plaintext keys.
+        let redact = self.redact_patterns(project_id).await;
+        let (new_body, _hits) = redact_text(&new_body, &redact);
         let new_text = write_frontmatter_and_body(&fm, &new_body);
         write_atomic(&abs, new_text.as_bytes())?;
 
@@ -1285,7 +1305,8 @@ impl OculpmManager {
         project_id: u32,
     ) -> Result<ReindexReport, OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
-        let report = JournalCache::new(db)
+        let redact = self.redact_patterns(project_id).await;
+        let report = JournalCache::with_redaction(db, redact)
             .reindex_full(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))
@@ -1306,7 +1327,8 @@ impl OculpmManager {
         project_id: u32,
     ) -> Result<ReindexReport, OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
-        let report = JournalCache::new(db)
+        let redact = self.redact_patterns(project_id).await;
+        let report = JournalCache::with_redaction(db, redact)
             .reindex_incremental(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))
@@ -1633,7 +1655,7 @@ impl OculpmManager {
 
         // Snapshot the per-project state we need without holding the lock
         // across disk IO.
-        let (root, resolver, language, forbid_patterns) = {
+        let (root, resolver, language, forbid_patterns, redact_strings) = {
             let projects = self.projects.read().await;
             let entry = projects
                 .get(&project_id)
@@ -1643,6 +1665,7 @@ impl OculpmManager {
                 entry.resolver.clone(),
                 "ko".to_string(), // No top-level language field yet; default per spec.
                 entry.config.git.forbid_journal_for_paths.clone(),
+                entry.config.git.auto_redact_patterns.clone(),
             )
         };
 
@@ -1715,6 +1738,17 @@ impl OculpmManager {
         } else {
             format!("{marker} {}\n\n{}", draft.title, draft.body_markdown)
         };
+        // R1 — mask any secret the user pasted into the modal *before* it touches
+        // disk, so a manual entry never persists a plaintext key (committing
+        // `.oculpm/` to git would otherwise leak it). We author this file, so
+        // at-write masking is correct here — unlike agent-authored entries, which
+        // we mask only on cache projection to preserve their on-disk SSOT. The
+        // returned entry carries the masked body, surfacing the redaction in the
+        // modal without a separate toast. Frontmatter is left untouched (paths /
+        // session_id never match a secret pattern; masking only the body avoids
+        // any risk of corrupting the YAML).
+        let redact = compile_redact_patterns(&redact_strings);
+        let (body, _hits) = redact_text(&body, &redact);
         let text = write_frontmatter_and_body(&fm, &body);
 
         // Resolve target path + write atomically. On filename collision we
@@ -2553,6 +2587,122 @@ mod tests {
                 .unwrap();
             assert_eq!(rows.len(), 1);
             assert_eq!(rows[0].slug, "my-slug");
+        }
+
+        #[tokio::test]
+        async fn create_manual_entry_masks_secret_in_body_at_write() {
+            // R1: a user pastes a key into the modal. The on-disk markdown and
+            // the returned entry must both carry [REDACTED], never the plaintext
+            // — so committing `.oculpm/` can't leak it and the cache (→ AI) stays
+            // clean. Uses the project's default `auto_redact_patterns`.
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let mut draft = minimal_draft("leaky");
+            draft.body_markdown =
+                "deploy key AKIAABCDEFGHIJKLMNOP do not share\n".to_string();
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, draft)
+                .await
+                .expect("created");
+
+            assert!(
+                entry.body_markdown.contains("[REDACTED]"),
+                "returned body should be masked: {}",
+                entry.body_markdown
+            );
+            assert!(!entry.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
+
+            let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+            let on_disk = std::fs::read_to_string(&abs).unwrap();
+            assert!(on_disk.contains("[REDACTED]"), "disk should be masked: {on_disk}");
+            assert!(
+                !on_disk.contains("AKIAABCDEFGHIJKLMNOP"),
+                "plaintext key must never reach disk"
+            );
+        }
+
+        #[tokio::test]
+        async fn update_journal_entry_body_masks_secret_on_disk_and_cache() {
+            // R1: editing a body via the in-app editor is a WE-authored write, so
+            // it masks at-write — disk, the returned entry, AND the cache row all
+            // carry [REDACTED], never the plaintext.
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("editme"))
+                .await
+                .expect("created");
+            let updated = manager
+                .update_journal_entry_body(
+                    &db,
+                    7,
+                    entry.relative_path.clone(),
+                    "edited body with ghp_abcdefghijklmnopqrstuvwxyz0123456789 token\n".to_string(),
+                )
+                .await
+                .expect("updated");
+
+            assert!(updated.body_markdown.contains("[REDACTED]"));
+            assert!(!updated
+                .body_markdown
+                .contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
+
+            let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+            let on_disk = std::fs::read_to_string(&abs).unwrap();
+            assert!(on_disk.contains("[REDACTED]"));
+            assert!(!on_disk.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
+        }
+
+        #[tokio::test]
+        async fn set_journal_verified_keeps_agent_secret_masked_in_cache() {
+            // R1 regression: a frontmatter-only edit must NOT re-pollute the cache
+            // with an agent body's plaintext secret. The agent's on-disk body is
+            // preserved (SSOT); the cache row stays masked (→ AI context clean).
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            let rel = "20260524/Bugs/0925_bug_agent.md";
+            let abs = project_root.join(".oculpm/journal").join(rel);
+            std::fs::create_dir_all(abs.parent().unwrap()).unwrap();
+            // Agent-authored entry on disk with a secret in the body (NOT via the
+            // masking manual-create path).
+            let content = "---\nschema_version: 1\ntype: bug\nslug: agent-bug\nstatus: planned\ncreated_at: \"2026-05-24T09:25:13+09:00\"\nsession_id: \"20260524-001\"\nagent: { id: claude-code }\nlanguage: ko\n---\n[ ] agent did a thing\n\nleaked AKIAABCDEFGHIJKLMNOP oops\n";
+            std::fs::write(&abs, content).unwrap();
+
+            // Index (masks on projection).
+            manager.reindex_journal_cache(&db, 7).await.unwrap();
+            let cached = manager
+                .get_journal_entry(&db, 7, rel.to_string())
+                .await
+                .unwrap()
+                .expect("indexed");
+            assert!(
+                cached.body_markdown.contains("[REDACTED]"),
+                "indexed body should be masked"
+            );
+
+            // Toggle verified — must NOT re-pollute the cache.
+            manager
+                .set_journal_verified(&db, 7, rel.to_string(), true)
+                .await
+                .unwrap();
+            let after = manager
+                .get_journal_entry(&db, 7, rel.to_string())
+                .await
+                .unwrap()
+                .expect("still present");
+            assert!(after.frontmatter.verified_by_user, "verified flag set");
+            assert!(
+                after.body_markdown.contains("[REDACTED]"),
+                "cache must stay masked after a frontmatter-only edit"
+            );
+            assert!(
+                !after.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"),
+                "no plaintext re-pollution into the cache"
+            );
+
+            // Disk SSOT preserved — the agent's original body is untouched.
+            let on_disk = std::fs::read_to_string(&abs).unwrap();
+            assert!(
+                on_disk.contains("AKIAABCDEFGHIJKLMNOP"),
+                "agent's on-disk body is preserved (we never rewrite it)"
+            );
         }
 
         #[tokio::test]

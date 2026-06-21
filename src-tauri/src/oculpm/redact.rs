@@ -7,24 +7,35 @@
 //!   journalled?" without rebuilding the matcher on every event.
 //!   Mirrors `00-spec.md` §9 — `git.forbid_journal_for_paths`.
 //! * [`compile_redact_patterns`] / [`redact_text`] — regex-driven content
-//!   masking. The watcher does *not* call `redact_text` (variable names like
-//!   `sk_initialize_module` would false-positive against path text); manager
-//!   uses it on journal frontmatter / body when writing entries from
-//!   untrusted sources (W5 dogfooding pipeline).
+//!   masking. Scope is **body / diff-hunk content only**, never path or
+//!   identifier text (variable names like `sk_initialize_module` would
+//!   false-positive). As of dev-report §2 / R1 this is wired into three
+//!   places: the journal SQLite projection (on-read masking in
+//!   [`cache`][super::cache] so agent-authored secrets never reach the cache →
+//!   AI context), the manual-entry / body-edit writers ([`manager`]) at write
+//!   time, and the per-entry diff sidecars ([`entry_diffs`][super::entry_diffs])
+//!   at capture time. Use [`patterns_for_project`] to load+compile a project's
+//!   `auto_redact_patterns` from disk in one call.
 //!
 //! See `docs/major_update/oculpm/W4/PR3-redact-forbid.md`.
 //! See `docs/major_update/oculpm/phases/W4-agents-dual-layer.md` §2.6 for the
 //! path-vs-content scoping rationale.
+//! See `docs/20260622_dev-report/02-structural-debt.md` §2 for the wiring (R1).
 //!
 //! [`watcher`]: super::watcher
 //! [`manager`]: super::manager
 
-#![allow(dead_code)] // `redact_text` is wired but not yet consumed (W5).
+#![allow(dead_code)] // A few accessors stay unused; the core (`redact_text` /
+                     // `compile_redact_patterns` / `patterns_for_project`) is
+                     // consumed by the journal cache projection, manual-entry
+                     // writes, and per-entry diff capture (dev-report §2 / R1).
 
 use std::path::Path;
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use regex::Regex;
+
+use crate::oculpm::spec::OculpmConfig;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries
@@ -121,6 +132,20 @@ pub fn compile_redact_patterns(patterns: &[String]) -> Vec<Regex> {
             }
         })
         .collect()
+}
+
+/// Load + compile a project's `auto_redact_patterns` from its
+/// `.oculpm/config.toml`. Returns an empty vec when the config is missing or
+/// unreadable (→ redaction is a no-op). Centralises the load+compile dance the
+/// journal/diff write paths share so each call site doesn't re-implement it
+/// (and so paths that run for a project not registered in `OculpmManager`, like
+/// the lazy diff reconstruct, can still mask). Used by [`manager`] and
+/// [`entry_diffs`][super::entry_diffs].
+pub fn patterns_for_project(project_root: &Path) -> Vec<Regex> {
+    let cfg_path = project_root.join(".oculpm").join("config.toml");
+    OculpmConfig::load(&cfg_path)
+        .map(|cfg| compile_redact_patterns(&cfg.git.auto_redact_patterns))
+        .unwrap_or_default()
 }
 
 /// Replace every match of `patterns` in `text` with [`REDACTED_PLACEHOLDER`].
@@ -230,6 +255,26 @@ mod tests {
         let (out, hits) = redact_text(input, &regs);
         assert_eq!(out, input, "variable name must survive redaction");
         assert!(hits.is_empty(), "no hits expected, got {hits:?}");
+    }
+
+    /// Positive coverage for the two default shapes that previously had only a
+    /// negative/absent test — guards a regex typo in the `sk-` or `xox` rule.
+    #[test]
+    fn redact_openai_sk_key_and_slack_token() {
+        let regs = defaults_redact();
+        // OpenAI/Anthropic-style key: `sk-` then >=20 of [A-Za-z0-9_-].
+        let sk = "sk-proj-abcdEFGH1234ijklMNOP5678";
+        let (out, hits) = redact_text(&format!("OPENAI_API_KEY={sk}"), &regs);
+        assert!(out.contains("[REDACTED]"), "sk- key must be masked: {out:?}");
+        assert!(!out.contains(sk));
+        assert_eq!(hits.len(), 1);
+
+        // Slack bot token: `xox[baprs]-` then [A-Za-z0-9-]+.
+        let xox = "xoxb-not-a-real-token";
+        let (out2, hits2) = redact_text(&format!("slack: {xox}"), &regs);
+        assert!(out2.contains("[REDACTED]"), "slack token must be masked: {out2:?}");
+        assert!(!out2.contains(xox));
+        assert_eq!(hits2.len(), 1);
     }
 
     #[test]
