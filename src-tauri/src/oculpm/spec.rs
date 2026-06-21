@@ -538,6 +538,16 @@ pub struct ReindexReport {
     pub completed_at: String,
 }
 
+/// Result of a git-history backfill (F5): one synthesised journal entry per
+/// commit. `skipped` counts commits already backfilled (idempotent re-runs).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BackfillReport {
+    pub project_id: u32,
+    pub scanned: u32,
+    pub created: u32,
+    pub skipped: u32,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tauri events — emitted by the backend, listened on the frontend.
 // All carry `project_id` so multi-project listeners can filter.

@@ -18,6 +18,7 @@ import { commands } from "@/lib/bindings";
 import type {
   AgentDetection,
   AgentSyncReport,
+  BackfillReport,
   Difficulty,
   EntryFileDiff,
   EntryFilters,
@@ -249,6 +250,16 @@ export const oculpmApi = {
     unwrap<null>(
       "oculpm_open_entry_in_editor",
       commands.oculpmOpenEntryInEditor(projectId, relativePath),
+    ),
+
+  /**
+   * F5 — synthesise journal entries from recent git history (cold-start
+   * backfill). Idempotent: re-running only adds commits not seen before.
+   */
+  backfillFromGit: (projectId: number, maxCommits: number) =>
+    unwrap<BackfillReport>(
+      "oculpm_backfill_from_git",
+      commands.oculpmBackfillFromGit(projectId, maxCommits),
     ),
 } as const;
 

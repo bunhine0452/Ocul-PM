@@ -144,6 +144,8 @@ use crate::commands::{
     oculpm_update_entry_body, oculpm_open_entry_in_editor,
     // W5-PR5 — Overview stats
     oculpm_overview_stats,
+    // F5 — git-history backfill
+    oculpm_backfill_from_git,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -289,6 +291,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_open_entry_in_editor,
         // W5-PR5 — Overview stats
         oculpm_overview_stats,
+        // F5 — git-history backfill
+        oculpm_backfill_from_git,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

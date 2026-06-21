@@ -81,6 +81,28 @@ export function JournalScreenV2({
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+
+  // F5 — cold-start backfill: synthesise journal entries from git history so a
+  // repo with commits but no journal isn't a blank wall on day 1.
+  const runGitBackfill = async () => {
+    setBackfilling(true);
+    try {
+      const r = await oculpmApi.backfillFromGit(projectId, 300);
+      if (r.created > 0) {
+        toast.info(`git 히스토리에서 일지 ${r.created}건을 가져왔어요.`);
+        refresh();
+      } else if (r.scanned === 0) {
+        toast.warning("가져올 git 커밋이 없어요 (git 저장소가 아닐 수 있어요).");
+      } else {
+        toast.info("새로 가져올 커밋이 없어요 (이미 모두 반영됨).");
+      }
+    } catch {
+      toast.warning("git 히스토리 가져오기에 실패했어요.");
+    } finally {
+      setBackfilling(false);
+    }
+  };
   // Master-detail: a non-null entry shows the full-screen 변경 기록 detail view
   // in place of the timeline (Dogfooding 2026-06-07 — replaced the modal).
   const [detailEntry, setDetailEntry] = useState<JournalEntrySummary | null>(null);
@@ -369,6 +391,16 @@ export function JournalScreenV2({
             ) : (
               <div className="empty-hint">
                 아직 일지가 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 기록합니다.
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={backfilling}
+                    onClick={runGitBackfill}
+                  >
+                    {backfilling ? "가져오는 중…" : "git 히스토리에서 가져오기"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

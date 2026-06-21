@@ -37,11 +37,11 @@ use crate::oculpm::redact::{
 };
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    AgentRef, AgentSyncReport, CommentStyle, EndedReason, EntryStatus, EntryType, FileChangeEvent,
-    JournalEntry, JournalEntrySummary, JournalFrontmatter, LayerComparison, LockStateView,
-    ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmOverviewStats, OculpmStatus,
-    ReindexReport, Session, SessionEnd, Severity, Snapshot, SnapshotKind,
-    WatcherStateView, WatcherStatus,
+    AgentRef, AgentSyncReport, BackfillReport, CommentStyle, EndedReason, EntryStatus, EntryType,
+    FileChangeEvent, FileOp, FileTouched, JournalEntry, JournalEntrySummary, JournalFrontmatter,
+    LayerComparison, LockStateView, ManualEntryDraft, OculpmConfig, OculpmInitReport,
+    OculpmOverviewStats, OculpmStatus, ReindexReport, Session, SessionEnd, Severity, Snapshot,
+    SnapshotKind, WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -1332,6 +1332,176 @@ impl OculpmManager {
         Ok(reindex_report_to_spec(project_id, report))
     }
 
+    // ─── F5: git-history backfill ───────────────────────────────────────────
+
+    /// Synthesise one journal entry per recent git commit so a repo with rich
+    /// history but an empty `.oculpm/journal/` isn't a blank wall on day 1
+    /// (the cold-start cliff). Idempotent: a durable sidecar of processed
+    /// commit SHAs (`.oculpm/index/git-backfill.json`) means re-running only
+    /// adds new commits. Each entry's per-file diff is captured via
+    /// `entry_diffs` — its tier-3 nearest-commit path finds exactly this
+    /// commit — and masked; the narrative body is redacted at write.
+    /// `max_commits` caps the scan (clamped to 1..=2000).
+    pub async fn backfill_from_git(
+        &self,
+        db: &Db,
+        project_id: u32,
+        max_commits: u32,
+    ) -> Result<BackfillReport, OculpmError> {
+        use std::collections::{HashMap, HashSet};
+
+        let (root, resolver, language, redact_strings) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            (
+                entry.root.clone(),
+                entry.resolver.clone(),
+                "ko".to_string(),
+                entry.config.git.auto_redact_patterns.clone(),
+            )
+        };
+
+        let cap = max_commits.clamp(1, 2000);
+        let root2 = root.clone();
+        let commits = tokio::task::spawn_blocking(move || crate::git::commits_for_backfill(&root2, cap))
+            .await
+            .map_err(|e| OculpmError::InvalidConfig(format!("git backfill task panicked: {e}")))?
+            .map_err(OculpmError::InvalidConfig)?;
+
+        let redact = compile_redact_patterns(&redact_strings);
+        let tz = chrono_tz_from(&resolver);
+
+        // Durable processed-SHA set for idempotency.
+        let sidecar = root.join(".oculpm").join("index").join("git-backfill.json");
+        let mut processed: HashSet<String> = std::fs::read(&sidecar)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<Vec<String>>(&b).ok())
+            .map(|v| v.into_iter().collect())
+            .unwrap_or_default();
+
+        let cache = JournalCache::new(db);
+        let scanned = commits.len() as u32;
+        let mut created = 0u32;
+        let mut skipped = 0u32;
+
+        // Oldest → newest so on-disk filenames read chronologically.
+        for c in commits.iter().rev() {
+            if processed.contains(&c.sha) {
+                skipped += 1;
+                continue;
+            }
+            let Some(commit_utc) = chrono::DateTime::from_timestamp(c.timestamp as i64, 0) else {
+                continue;
+            };
+            let local = commit_utc.with_timezone(&tz);
+            let workday = resolver.workday_of(commit_utc);
+            let hhmm = format!("{:02}{:02}", local.hour(), local.minute());
+            let entry_type = infer_entry_type(&c.subject);
+            let slug = slug_from_subject(&c.subject, &c.short_sha);
+
+            let files_touched: Vec<FileTouched> = c
+                .files
+                .iter()
+                .map(|f| FileTouched {
+                    path: f.path.clone(),
+                    op: status_to_op(f.status),
+                    bytes_added: None,
+                    bytes_removed: None,
+                    rename_from: f.rename_from.clone(),
+                })
+                .collect();
+
+            let fm = JournalFrontmatter {
+                schema_version: 1,
+                entry_type,
+                slug: slug.clone(),
+                status: EntryStatus::Done,
+                difficulty: None,
+                created_at: local.to_rfc3339(),
+                updated_at: None,
+                session_id: format!("{workday}-git"),
+                agent: AgentRef {
+                    id: infer_agent_id(&c.body),
+                    version: None,
+                },
+                language: language.clone(),
+                verified_by_user: false,
+                files_touched: files_touched.clone(),
+                related: Vec::new(),
+                tags: vec!["git-backfill".to_string(), c.short_sha.clone()],
+            };
+
+            let title = c.subject.trim();
+            let (body_masked, _hits) = redact_text(&c.body, &redact);
+            let body_md = if body_masked.trim().is_empty() {
+                format!("[x] {title}\n")
+            } else {
+                format!("[x] {title}\n\n{}\n", body_masked.trim())
+            };
+            let text = write_frontmatter_and_body(&fm, &body_md);
+
+            let category_dir = resolver.journal_dir(&root, &workday, entry_type);
+            if std::fs::create_dir_all(&category_dir).is_err() {
+                continue;
+            }
+            let base = format!("{hhmm}_{}_{}", entry_type_filename_token(entry_type), slug);
+            let (abs, file_name) = pick_nonconflicting_path(&category_dir, &base);
+            if write_atomic(&abs, text.as_bytes()).is_err() {
+                continue;
+            }
+
+            let relative_path = format!("{workday}/{}/{file_name}", category_subdir(entry_type));
+            let mtime = std::fs::metadata(&abs)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or_else(|| commit_utc.timestamp());
+            let (parsed, body_text) = parse_frontmatter_and_body(&text);
+            let body_parsed = parse_body(&body_text);
+            let _ = cache
+                .upsert_entry(project_id, &relative_path, &parsed, &body_parsed, mtime, &text)
+                .await;
+
+            // Capture this commit's per-file diff (entry_diffs tier-3) + mask.
+            let root3 = root.clone();
+            let rel3 = relative_path.clone();
+            let touched3 = files_touched.clone();
+            let redact3 = redact.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                crate::oculpm::entry_diffs::capture_entry_diffs(
+                    &root3,
+                    &rel3,
+                    &touched3,
+                    &HashMap::new(),
+                    &redact3,
+                )
+            })
+            .await;
+
+            processed.insert(c.sha.clone());
+            created += 1;
+        }
+
+        // Persist the processed set (best-effort).
+        if let Some(parent) = sidecar.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let list: Vec<String> = processed.into_iter().collect();
+        if let Ok(json) = serde_json::to_vec(&list) {
+            let _ = std::fs::write(&sidecar, json);
+        }
+
+        Ok(BackfillReport {
+            project_id,
+            scanned,
+            created,
+            skipped,
+        })
+    }
+
     // ─── W5-PR6: Observed agent ids ─────────────────────────────────────────
 
     /// Distinct agents that have actually written an entry. Drives the
@@ -1658,6 +1828,78 @@ fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, String) {
 /// formatting. `WorkdayResolver` exposes `tz` as a public field.
 fn chrono_tz_from(resolver: &WorkdayResolver) -> chrono_tz::Tz {
     resolver.tz
+}
+
+// ─── F5 git-backfill helpers ────────────────────────────────────────────────
+
+/// Infer an entry type from a (conventional-commit) subject prefix.
+fn infer_entry_type(subject: &str) -> EntryType {
+    let prefix: String = subject
+        .trim_start()
+        .split([':', '(', ' ', '/'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match prefix.as_str() {
+        "feat" | "feature" => EntryType::Feature,
+        "fix" | "bug" | "bugfix" | "hotfix" => EntryType::Bug,
+        "refactor" | "perf" | "style" => EntryType::Refactor,
+        _ => EntryType::Chore,
+    }
+}
+
+/// Build a valid `[a-z0-9-]{1,60}` slug from a commit subject (stripping a
+/// conventional-commit `type(scope): ` prefix), falling back to
+/// `commit-<short_sha>` when the subject is non-ASCII (e.g. Korean) or yields
+/// nothing. Always satisfies [`validate_slug`].
+fn slug_from_subject(subject: &str, short_sha: &str) -> String {
+    let body = subject.splitn(2, ':').nth(1).unwrap_or(subject);
+    let mut out = String::new();
+    let mut dash = false;
+    for c in body.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            dash = false;
+        } else if !out.is_empty() && !dash {
+            out.push('-');
+            dash = true;
+        }
+        if out.len() >= 48 {
+            break;
+        }
+    }
+    let s = out.trim_matches('-').to_string();
+    if s.is_empty() {
+        format!("commit-{short_sha}")
+    } else {
+        s
+    }
+}
+
+/// Heuristic agent attribution from a commit body's trailers / co-author lines.
+fn infer_agent_id(body: &str) -> String {
+    let lower = body.to_ascii_lowercase();
+    if lower.contains("claude") {
+        "claude-code".to_string()
+    } else if lower.contains("cursor") {
+        "cursor".to_string()
+    } else if lower.contains("antigravity") {
+        "antigravity".to_string()
+    } else if lower.contains("gemini") {
+        "gemini-cli".to_string()
+    } else {
+        "git".to_string()
+    }
+}
+
+/// Map a git name-status code to a journal `FileOp`.
+fn status_to_op(status: char) -> FileOp {
+    match status {
+        'A' | 'C' => FileOp::Create,
+        'D' => FileOp::Delete,
+        'R' => FileOp::Rename,
+        _ => FileOp::Update,
+    }
 }
 
 fn reindex_report_to_spec(project_id: u32, r: CacheReindexReport) -> ReindexReport {
@@ -2393,6 +2635,53 @@ mod tests {
                 on_disk.contains("AKIAABCDEFGHIJKLMNOP"),
                 "agent's on-disk body is preserved (we never rewrite it)"
             );
+        }
+
+        #[tokio::test]
+        async fn backfill_from_git_creates_typed_entries_and_is_idempotent() {
+            // F5: a repo with git history but empty journal gets one entry per
+            // commit, typed from the conventional-commit prefix, tagged
+            // `git-backfill`, and a re-run adds nothing (idempotent).
+            fn git(root: &std::path::Path, args: &[&str]) -> bool {
+                std::process::Command::new("git")
+                    .arg("-C")
+                    .arg(root)
+                    .args(args)
+                    .output()
+                    .ok()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
+            }
+            let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+            if !git(&project_root, &["init", "-q"]) {
+                return; // git unavailable → skip cleanly
+            }
+            git(&project_root, &["config", "user.email", "t@t.dev"]);
+            git(&project_root, &["config", "user.name", "t"]);
+            std::fs::write(project_root.join("a.rs"), "fn a() {}\n").unwrap();
+            git(&project_root, &["add", "."]);
+            git(&project_root, &["commit", "-qm", "feat: add a"]);
+            std::fs::write(project_root.join("a.rs"), "fn a() { /* fixed */ }\n").unwrap();
+            git(&project_root, &["add", "."]);
+            git(&project_root, &["commit", "-qm", "fix: patch a"]);
+
+            let report = manager.backfill_from_git(&db, 7, 50).await.expect("backfill");
+            assert_eq!(report.created, 2, "two commits → two entries");
+            assert_eq!(report.skipped, 0);
+
+            let rows = manager
+                .list_journal_entries(&db, 7, None, EntryFilters::default())
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 2);
+            assert!(rows.iter().any(|r| r.entry_type == EntryType::Feature), "feat → Feature");
+            assert!(rows.iter().any(|r| r.entry_type == EntryType::Bug), "fix → Bug");
+            assert!(rows.iter().all(|r| r.tags.contains(&"git-backfill".to_string())));
+
+            // Idempotent re-run — nothing new.
+            let report2 = manager.backfill_from_git(&db, 7, 50).await.expect("backfill 2");
+            assert_eq!(report2.created, 0, "re-run creates nothing");
+            assert_eq!(report2.skipped, 2);
         }
 
         #[tokio::test]

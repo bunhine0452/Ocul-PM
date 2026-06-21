@@ -551,6 +551,12 @@ export const commands = {
 	 *  1..=365 inside the manager — the modal-facing default is 90 (heatmap).
 	 */
 	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, string>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
+	/**
+	 *  Synthesise one journal entry per recent git commit (cold-start backfill).
+	 *  Idempotent: re-running only adds commits not seen before. `max_commits`
+	 *  caps the scan (clamped 1..=2000 in the manager).
+	 */
+	oculpmBackfillFromGit: (projectId: number, maxCommits: number) => typedError<BackfillReport, string>(__TAURI_INVOKE("oculpm_backfill_from_git", { projectId, maxCommits })),
 };
 
 /** Events */
@@ -622,6 +628,17 @@ export type AppInfo = {
 	app_data_dir: string,
 	secrets_store: string,
 	version: string,
+};
+
+/**
+ *  Result of a git-history backfill (F5): one synthesised journal entry per
+ *  commit. `skipped` counts commits already backfilled (idempotent re-runs).
+ */
+export type BackfillReport = {
+	project_id: number,
+	scanned: number,
+	created: number,
+	skipped: number,
 };
 
 /**

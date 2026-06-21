@@ -20,9 +20,10 @@ use crate::oculpm::entry_diffs::EntryFileDiff;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
-    JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig, OculpmInitReport,
-    OculpmIntegrityWarning, OculpmOverviewStats, OculpmStatus, ReindexReport, Session,
+    AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
+    JournalEntry, JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig,
+    OculpmInitReport, OculpmIntegrityWarning, OculpmOverviewStats, OculpmStatus, ReindexReport,
+    Session,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -717,6 +718,25 @@ pub async fn oculpm_overview_stats(
 ) -> Result<OculpmOverviewStats, String> {
     manager
         .overview_stats(&db, project_id, window_days)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ─── F5 — git-history backfill ──────────────────────────────────────────────
+
+/// Synthesise one journal entry per recent git commit (cold-start backfill).
+/// Idempotent: re-running only adds commits not seen before. `max_commits`
+/// caps the scan (clamped 1..=2000 in the manager).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_backfill_from_git(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    max_commits: u32,
+) -> Result<BackfillReport, String> {
+    manager
+        .backfill_from_git(&db, project_id, max_commits)
         .await
         .map_err(|e| e.to_string())
 }
