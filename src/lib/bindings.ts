@@ -540,50 +540,10 @@ export const commands = {
 	 */
 	oculpmOpenEntryInEditor: (projectId: number, relativePath: string) => typedError<null, string>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath })),
 	/**
-	 *  Build a [`MigrationPlan`] without touching disk. Returns an empty plan
-	 *  (source_entry_count == 0) when the project has no legacy changelog rows —
-	 *  the modal can self-dismiss on that signal.
-	 */
-	oculpmMigrationDryRun: (projectId: number) => typedError<MigrationPlan, string>(__TAURI_INVOKE("oculpm_migration_dry_run", { projectId })),
-	/**
-	 *  Execute a previously-computed migration plan. On any `execute` error the
-	 *  wrapper auto-rolls-back via the JSONL manifest in `backup_dir` and the
-	 *  outcome is surfaced as [`MigrationCommandError`] so the modal can show a
-	 *  structured error (rollback summary vs. fatal abort).
-	 * 
-	 *  Emits one [`OculpmMigrationProgress`] event per successfully-written entry.
-	 */
-	oculpmMigrateFromSqlite: (projectId: number, plan: MigrationPlan) => typedError<MigrationReport, MigrationCommandError>(__TAURI_INVOKE("oculpm_migrate_from_sqlite", { projectId, plan })),
-	/**
-	 *  Manually roll back a prior migration. `backup_dir_basename` must be the
-	 *  directory name only (no `..`, no `/`, no `\\`) — the manager rejects
-	 *  traversal attempts before touching disk.
-	 */
-	oculpmMigrationRollback: (projectId: number, backupDirBasename: string) => typedError<RollbackReport, string>(__TAURI_INVOKE("oculpm_migration_rollback", { projectId, backupDirBasename })),
-	/**
-	 *  Reveal a migration backup directory in the OS file manager. Same
-	 *  opener-plugin-scope workaround as `oculpm_open_entry_in_editor` — resolves
-	 *  the absolute path inside the backend and shells out directly. Rejects
-	 *  path traversal attempts via the manager guard.
-	 */
-	oculpmOpenBackupDir: (projectId: number, backupDirBasename: string) => typedError<null, string>(__TAURI_INVOKE("oculpm_open_backup_dir", { projectId, backupDirBasename })),
-	/**
 	 *  Single-shot fetch of every Overview widget. `window_days` clamps to
 	 *  1..=365 inside the manager — the modal-facing default is 90 (heatmap).
 	 */
 	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, string>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
-	/**
-	 *  All successful migration history rows for a project, most-recent first.
-	 *  Returns `[]` for projects that never ran a migration.
-	 */
-	oculpmGetMigrationHistory: (projectId: number) => typedError<MigrationHistoryEntry[], string>(__TAURI_INVOKE("oculpm_get_migration_history", { projectId })),
-	/**
-	 *  Truncate legacy `changelog_entries` + `changelog_files` rows for a
-	 *  project. The `confirm_token` must match `migrated:<ts>:<entry_count>` for
-	 *  an existing un-deleted history row, otherwise this errors. Writes a
-	 *  JSON safety dump to `.oculpm.backup-legacy-deletion-<ISO>` first.
-	 */
-	oculpmDeleteLegacyChangelog: (projectId: number, confirmToken: string) => typedError<LegacyDeletionReport, string>(__TAURI_INVOKE("oculpm_delete_legacy_changelog", { projectId, confirmToken })),
 };
 
 /** Events */
@@ -595,7 +555,6 @@ export const events = {
 	oculpmJournalAdded: makeEvent<OculpmJournalAdded>("oculpm-journal-added"),
 	oculpmJournalPathChanged: makeEvent<OculpmJournalPathChanged>("oculpm-journal-path-changed"),
 	oculpmJournalUpdated: makeEvent<OculpmJournalUpdated>("oculpm-journal-updated"),
-	oculpmMigrationProgress: makeEvent<OculpmMigrationProgress>("oculpm-migration-progress"),
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
 };
@@ -754,8 +713,6 @@ export type CodeGraph = {
 	nodes: GraphNodeDto[],
 	edges: GraphEdgeDto[],
 };
-
-export type ConflictResolution = "suffix_added" | "skipped";
 
 export type Conversation = {
 	id: number,
@@ -1249,14 +1206,6 @@ export type LayerComparison = {
 	jaccard_index: number | null,
 };
 
-export type LegacyDeletionReport = {
-	project_id: number,
-	deleted_entries: number,
-	deleted_files: number,
-	safety_backup_dir: string,
-	deleted_at: number,
-};
-
 export type LocalDiffReindexReport = {
 	indexed: string[],
 	skipped: ReindexSkip[],
@@ -1293,80 +1242,6 @@ export type MasterUpgrade = {
 export type Message = {
 	role: Role,
 	content: string,
-};
-
-/**
- *  Wire-friendly envelope for `oculpm_migrate_from_sqlite` failures.
- * 
- *  - `PartialFailure` — `execute` returned `Err`; the wrapper auto-rolled-back
- *    and the cleanup itself succeeded. UI can show the rollback summary.
- *  - `Aborted` — either the rollback also failed, or we never got far enough
- *    to run one. UI must direct the user to the backup directory manually.
- */
-export type MigrationCommandError = { kind: "partial_failure"; error: string; rollback: RollbackReport } | { kind: "aborted"; error: string };
-
-export type MigrationConflict = {
-	source_entry_id: number,
-	conflicting_target_path: string,
-	resolution: ConflictResolution,
-};
-
-export type MigrationEntryPlan = {
-	source_entry_id: number,
-	target_relative_path: string,
-	type_inferred: EntryType,
-	slug: string,
-	session_id: string,
-	forbidden_files: string[],
-	will_skip: boolean,
-};
-
-export type MigrationFailure = {
-	source_entry_id: number,
-	reason: string,
-};
-
-export type MigrationHistoryEntry = {
-	id: number,
-	/**
-	 *  Unix epoch seconds. u32 caps at 2106-02-07; we only store recent
-	 *  migrations, never historical / future dates beyond that.
-	 */
-	report_timestamp: number,
-	source_entry_count: number,
-	success_count: number,
-	skip_count: number,
-	failure_count: number,
-	backup_dir: string,
-	legacy_deleted_at: number | null,
-	legacy_delete_backup_dir: string | null,
-};
-
-export type MigrationPlan = {
-	project_id: number,
-	source_entry_count: number,
-	by_workday: MigrationWorkdayPlan[],
-	conflicts: MigrationConflict[],
-	backup_dir: string,
-	forbidden_path_hits: number,
-	/**  u32 — aggregate journal markdown size cap 4 GB. */
-	estimated_bytes_written: number,
-};
-
-export type MigrationReport = {
-	project_id: number,
-	success_count: number,
-	skip_count: number,
-	failure_count: number,
-	backup_dir: string,
-	completed_at: string,
-	failures: MigrationFailure[],
-};
-
-export type MigrationWorkdayPlan = {
-	workday: string,
-	synthetic_session_count: number,
-	entries: MigrationEntryPlan[],
 };
 
 export type OculpmAgentDrift = {
@@ -1422,18 +1297,6 @@ export type OculpmJournalPathChanged = {
 export type OculpmJournalUpdated = {
 	project_id: number,
 	summary: JournalEntrySummary,
-};
-
-/**
- *  W5-PR3 — re-emitted by `oculpm_migrate_from_sqlite` for each entry
- *  `execute` finishes writing. Mirrors `MigrationProgress` but carries the
- *  `Event` derive so the frontend can `listen` via tauri-specta bindings.
- */
-export type OculpmMigrationProgress = {
-	project_id: number,
-	processed: number,
-	total: number,
-	current_entry: string,
 };
 
 export type OculpmOverviewStats = {
@@ -1650,37 +1513,6 @@ export type RelatedRef = {
 };
 
 export type Role = "system" | "user" | "assistant";
-
-export type RollbackReport = {
-	project_id: number,
-	/**
-	 *  Basename of `.oculpm.backup-pre-migration-...` — same shape as
-	 *  `MigrationPlan.backup_dir`. Always preserved on disk (never deleted)
-	 *  so the user can recover from a misfired rollback.
-	 */
-	backup_dir: string,
-	/**
-	 *  Project-relative paths under `.oculpm/journal/` that were actually
-	 *  removed by this rollback. Subset of `manifest_entries_total`.
-	 */
-	removed_paths: string[],
-	deleted_cache_rows: number,
-	manifest_entries_total: number,
-	/**
-	 *  Entries listed in manifest.json whose target file was already
-	 *  missing on disk (e.g. user manually deleted before rolling back).
-	 *  Idempotent re-rollbacks see this == total.
-	 */
-	manifest_entries_missing_on_disk: number,
-	/**  Synthetic `<workday>-mNN` sessions stripped from sessions.json. */
-	stripped_session_count: number,
-	/**
-	 *  Always `true` — backup_dir is never auto-deleted. Field exists so
-	 *  callers can assert the invariant without an off-by-one check.
-	 */
-	backup_dir_preserved: boolean,
-	completed_at: string,
-};
 
 export type Session = {
 	/**  `YYYYMMDD-NNN`. */

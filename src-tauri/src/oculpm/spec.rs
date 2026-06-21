@@ -132,13 +132,6 @@ pub enum DetectionConfidence {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum ConflictResolution {
-    SuffixAdded,
-    Skipped,
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Journal frontmatter / entries
 // ─────────────────────────────────────────────────────────────────────────────
@@ -470,111 +463,6 @@ pub struct ManualEntryDraft {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Migration (W5)
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationEntryPlan {
-    pub source_entry_id: u32,
-    pub target_relative_path: String,
-    pub type_inferred: EntryType,
-    pub slug: String,
-    pub session_id: String,
-    pub forbidden_files: Vec<String>,
-    pub will_skip: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationWorkdayPlan {
-    pub workday: String,
-    pub synthetic_session_count: u32,
-    pub entries: Vec<MigrationEntryPlan>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationConflict {
-    pub source_entry_id: u32,
-    pub conflicting_target_path: String,
-    pub resolution: ConflictResolution,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationPlan {
-    pub project_id: u32,
-    pub source_entry_count: u32,
-    pub by_workday: Vec<MigrationWorkdayPlan>,
-    pub conflicts: Vec<MigrationConflict>,
-    pub backup_dir: String,
-    pub forbidden_path_hits: u32,
-    /// u32 — aggregate journal markdown size cap 4 GB.
-    pub estimated_bytes_written: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationFailure {
-    pub source_entry_id: u32,
-    pub reason: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationReport {
-    pub project_id: u32,
-    pub success_count: u32,
-    pub skip_count: u32,
-    pub failure_count: u32,
-    pub backup_dir: String,
-    pub completed_at: String,
-    pub failures: Vec<MigrationFailure>,
-}
-
-/// Streaming progress emitted by `migrate_from_sqlite::execute` via an
-/// `mpsc::Sender`. PR3 (Tauri command) re-emits these as a tauri-specta event.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationProgress {
-    pub project_id: u32,
-    pub processed: u32,
-    pub total: u32,
-    pub current_entry: String,
-}
-
-/// Wire-friendly envelope for `oculpm_migrate_from_sqlite` failures.
-///
-/// - `PartialFailure` — `execute` returned `Err`; the wrapper auto-rolled-back
-///   and the cleanup itself succeeded. UI can show the rollback summary.
-/// - `Aborted` — either the rollback also failed, or we never got far enough
-///   to run one. UI must direct the user to the backup directory manually.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum MigrationCommandError {
-    PartialFailure { error: String, rollback: RollbackReport },
-    Aborted { error: String },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct RollbackReport {
-    pub project_id: u32,
-    /// Basename of `.oculpm.backup-pre-migration-...` — same shape as
-    /// `MigrationPlan.backup_dir`. Always preserved on disk (never deleted)
-    /// so the user can recover from a misfired rollback.
-    pub backup_dir: String,
-    /// Project-relative paths under `.oculpm/journal/` that were actually
-    /// removed by this rollback. Subset of `manifest_entries_total`.
-    pub removed_paths: Vec<String>,
-    pub deleted_cache_rows: u32,
-    pub manifest_entries_total: u32,
-    /// Entries listed in manifest.json whose target file was already
-    /// missing on disk (e.g. user manually deleted before rolling back).
-    /// Idempotent re-rollbacks see this == total.
-    pub manifest_entries_missing_on_disk: u32,
-    /// Synthetic `<workday>-mNN` sessions stripped from sessions.json.
-    pub stripped_session_count: u32,
-    /// Always `true` — backup_dir is never auto-deleted. Field exists so
-    /// callers can assert the invariant without an off-by-one check.
-    pub backup_dir_preserved: bool,
-    pub completed_at: String,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Overview stats (W5-PR5)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -631,34 +519,6 @@ pub struct OculpmOverviewStats {
     pub unfinished_entries: Vec<JournalEntrySummary>,
     /// Up to 30 days of session aggregates, most recent first.
     pub recent_sessions: Vec<SessionDailyAgg>,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Migration history + legacy deletion (W5-PR7)
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct MigrationHistoryEntry {
-    pub id: u32,
-    /// Unix epoch seconds. u32 caps at 2106-02-07; we only store recent
-    /// migrations, never historical / future dates beyond that.
-    pub report_timestamp: u32,
-    pub source_entry_count: u32,
-    pub success_count: u32,
-    pub skip_count: u32,
-    pub failure_count: u32,
-    pub backup_dir: String,
-    pub legacy_deleted_at: Option<u32>,
-    pub legacy_delete_backup_dir: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct LegacyDeletionReport {
-    pub project_id: u32,
-    pub deleted_entries: u32,
-    pub deleted_files: u32,
-    pub safety_backup_dir: String,
-    pub deleted_at: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -731,15 +591,4 @@ pub struct OculpmJournalPathChanged {
     pub project_id: u32,
     pub relative_path: String,
     pub op: FileOp,
-}
-
-/// W5-PR3 — re-emitted by `oculpm_migrate_from_sqlite` for each entry
-/// `execute` finishes writing. Mirrors `MigrationProgress` but carries the
-/// `Event` derive so the frontend can `listen` via tauri-specta bindings.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
-pub struct OculpmMigrationProgress {
-    pub project_id: u32,
-    pub processed: u32,
-    pub total: u32,
-    pub current_entry: String,
 }

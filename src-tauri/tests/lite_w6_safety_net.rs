@@ -2,8 +2,8 @@
 //!
 //! Each test pins one master-prompt §3 invariant against the integration
 //! boundary. The deep semantic coverage already lives in the per-module
-//! `#[cfg(test)] mod tests` blocks and in the `oculpm_{migration,
-//! agents_compare}` integration suites — this file's job is narrower: catch a
+//! `#[cfg(test)] mod tests` blocks and in the `oculpm_agents_compare`
+//! integration suite — this file's job is narrower: catch a
 //! cut PR that accidentally removes or renames a load-bearing public API, or
 //! weakens a behaviour the Lite-W6 removal plan relies on.
 //!
@@ -18,7 +18,6 @@
 //!   #4  .oculpm/index/.lock single-instance    → invariant_04_*
 //!   #6  planner CRUD round-trip                → invariant_06_*
 //!   #7  project lifecycle                      → invariant_07_*
-//!   #10 migration dry-run idempotency          → invariant_10_*
 
 use chrono::{SecondsFormat, Utc};
 
@@ -290,34 +289,3 @@ async fn invariant_07_project_lifecycle_complete() {
     assert!(listed.iter().all(|p| p.id != pid));
 }
 
-// ─── #10 — migration dry-run is callable + idempotent ──────────────────────
-//
-// PR4 DROPs the changelog tables (migration 008). MigrationModal still needs
-// to call migration_dry_run / migration_execute against v0.x DBs. A no-op
-// project (no legacy entries) should produce a stable plan across repeated
-// calls — that's MigrationModal's "is there anything to migrate?" check.
-
-#[tokio::test]
-async fn invariant_10_migration_dry_run_is_idempotent() {
-    let (db, manager, _dir, _root, project_id) = fresh_project().await;
-
-    let p1 = manager
-        .migration_dry_run(&db, project_id)
-        .await
-        .expect("migration_dry_run #1");
-    let p2 = manager
-        .migration_dry_run(&db, project_id)
-        .await
-        .expect("migration_dry_run #2");
-
-    assert_eq!(p1.project_id, p2.project_id);
-    assert_eq!(p1.source_entry_count, p2.source_entry_count);
-    assert_eq!(p1.by_workday.len(), p2.by_workday.len());
-    assert_eq!(p1.conflicts.len(), p2.conflicts.len());
-    assert_eq!(p1.forbidden_path_hits, p2.forbidden_path_hits);
-    assert_eq!(p1.estimated_bytes_written, p2.estimated_bytes_written);
-    assert_eq!(
-        p1.source_entry_count, 0,
-        "no-op project must report zero legacy entries"
-    );
-}

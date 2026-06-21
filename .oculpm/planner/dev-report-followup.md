@@ -14,7 +14,7 @@ owner: claude-code
 ## Phase 1 — 코드 정리 {#cleanup}
 - [x] 프런트 legacy + 비-legacy 죽은 코드 ~13.6k줄 삭제 + 미사용 deps 제거 {#frontend-dead-code}
 - [x] 고아 백엔드 커맨드 정리 — "삭제"군 22개 제거, "재활성화"군 분리 {#orphan-commands}
-- [ ] 마이그레이션 shim(migrate_from_sqlite, 1911줄) 은퇴 vs 버전 게이트 결정 {#migration-shim}
+- [x] 마이그레이션 shim(migrate_from_sqlite, 1911줄) 은퇴 vs 버전 게이트 결정 {#migration-shim}
 - [ ] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
 
 ## Phase 2 — 구조적 부채 {#debt}
@@ -37,4 +37,5 @@ owner: claude-code
 | 2026-06-22T01:57:00+09:00 | #orphan-commands | claude-code | ~→x | journal/20260622/Refactors/0157_refactor_orphan-backend-commands.md | 22개 제거, 게이트 전부 통과 |
 | 2026-06-22T05:45:00+09:00 | #redaction-wire | claude-code | →~ | | 착수 — 02 §2 삽입점 확인, 투영/at-write/at-capture 3갈래 설계 |
 | 2026-06-22T06:30:00+09:00 | #redaction-wire | claude-code | ~→x | journal/20260622/Bugs/0630_bug_redaction-not-wired-to-journal-diff.md | 본문전용 마스킹·sidecar v3·적대적리뷰 8건 반영, 게이트 전부 통과 |
+| 2026-06-22T07:00:00+09:00 | #migration-shim | claude-code | →x | journal/20260622/Refactors/0700_refactor_retire-sqlite-migration-shim.md | 결정 C(코드제거·테이블보존). ~2.9k줄 순삭, slug 크레이트 제거, 게이트 전부 통과 |
 <!-- oculpm:plan-log end -->

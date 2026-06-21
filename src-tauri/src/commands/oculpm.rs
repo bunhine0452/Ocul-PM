@@ -21,10 +21,8 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning, JournalEntry,
-    JournalEntrySummary, LayerComparison, LegacyDeletionReport, ManualEntryDraft,
-    MigrationCommandError, MigrationHistoryEntry, MigrationPlan, MigrationReport, OculpmConfig,
-    OculpmInitReport, OculpmIntegrityWarning, OculpmMigrationProgress, OculpmOverviewStats,
-    OculpmStatus, ReindexReport, RollbackReport, Session,
+    JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig, OculpmInitReport,
+    OculpmIntegrityWarning, OculpmOverviewStats, OculpmStatus, ReindexReport, Session,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -705,41 +703,6 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
     }
 }
 
-// ─── W5-PR7 — Migration history + legacy delete ────────────────────────────
-
-/// All successful migration history rows for a project, most-recent first.
-/// Returns `[]` for projects that never ran a migration.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_get_migration_history(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<Vec<MigrationHistoryEntry>, String> {
-    manager
-        .get_migration_history(&db, project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-/// Truncate legacy `changelog_entries` + `changelog_files` rows for a
-/// project. The `confirm_token` must match `migrated:<ts>:<entry_count>` for
-/// an existing un-deleted history row, otherwise this errors. Writes a
-/// JSON safety dump to `.oculpm.backup-legacy-deletion-<ISO>` first.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_delete_legacy_changelog(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    confirm_token: String,
-) -> Result<LegacyDeletionReport, String> {
-    manager
-        .delete_legacy_changelog(&db, project_id, &confirm_token)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 // ─── W5-PR5 — Overview stats ────────────────────────────────────────────────
 
 /// Single-shot fetch of every Overview widget. `window_days` clamps to
@@ -754,121 +717,6 @@ pub async fn oculpm_overview_stats(
 ) -> Result<OculpmOverviewStats, String> {
     manager
         .overview_stats(&db, project_id, window_days)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-// ─── W5-PR3 — Migration commands ────────────────────────────────────────────
-
-/// Build a [`MigrationPlan`] without touching disk. Returns an empty plan
-/// (source_entry_count == 0) when the project has no legacy changelog rows —
-/// the modal can self-dismiss on that signal.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_migration_dry_run(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<MigrationPlan, String> {
-    manager
-        .migration_dry_run(&db, project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-/// Execute a previously-computed migration plan. On any `execute` error the
-/// wrapper auto-rolls-back via the JSONL manifest in `backup_dir` and the
-/// outcome is surfaced as [`MigrationCommandError`] so the modal can show a
-/// structured error (rollback summary vs. fatal abort).
-///
-/// Emits one [`OculpmMigrationProgress`] event per successfully-written entry.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_migrate_from_sqlite(
-    app_handle: AppHandle,
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan: MigrationPlan,
-) -> Result<MigrationReport, MigrationCommandError> {
-    use crate::oculpm::spec::MigrationProgress;
-    use tokio::sync::mpsc;
-
-    // Progress channel — execute moves the sender in; when execute returns,
-    // the sender drops, the receiver returns None, and the drain task exits.
-    let (tx, mut rx) = mpsc::channel::<MigrationProgress>(64);
-    let app_for_emit = app_handle.clone();
-    let drain_handle = tokio::spawn(async move {
-        while let Some(p) = rx.recv().await {
-            let _ = OculpmMigrationProgress {
-                project_id: p.project_id,
-                processed: p.processed,
-                total: p.total,
-                current_entry: p.current_entry,
-            }
-            .emit(&app_for_emit);
-        }
-    });
-
-    let outcome = manager
-        .migration_execute(&db, project_id, plan, Some(tx), Some(app_handle))
-        .await;
-
-    // Wait for the drain task — guarantees all progress events have been
-    // emitted before we return the final report.
-    let _ = drain_handle.await;
-
-    match outcome {
-        Ok(report) => Ok(report),
-        Err(fail) => match fail.rollback {
-            Ok(rb) => Err(MigrationCommandError::PartialFailure {
-                error: fail.execute_error.to_string(),
-                rollback: rb,
-            }),
-            Err(rb_err) => Err(MigrationCommandError::Aborted {
-                error: format!(
-                    "{} (rollback also failed: {})",
-                    fail.execute_error, rb_err
-                ),
-            }),
-        },
-    }
-}
-
-/// Reveal a migration backup directory in the OS file manager. Same
-/// opener-plugin-scope workaround as `oculpm_open_entry_in_editor` — resolves
-/// the absolute path inside the backend and shells out directly. Rejects
-/// path traversal attempts via the manager guard.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_open_backup_dir(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    backup_dir_basename: String,
-) -> Result<(), String> {
-    let abs = manager
-        .resolve_backup_dir_absolute(project_id, &backup_dir_basename)
-        .await
-        .map_err(|e| e.to_string())?;
-    if !abs.exists() {
-        return Err(format!("backup dir not found: {}", abs.display()));
-    }
-    open_native(&abs).map_err(|e| e.to_string())
-}
-
-/// Manually roll back a prior migration. `backup_dir_basename` must be the
-/// directory name only (no `..`, no `/`, no `\\`) — the manager rejects
-/// traversal attempts before touching disk.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_migration_rollback(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    backup_dir_basename: String,
-) -> Result<RollbackReport, String> {
-    manager
-        .migration_rollback(&db, project_id, &backup_dir_basename)
         .await
         .map_err(|e| e.to_string())
 }

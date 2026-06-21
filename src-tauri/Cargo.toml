@@ -69,7 +69,6 @@ serde_yaml = "0.9"
 pulldown-cmark = { version = "0.10", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.8"
-slug = "0.1"
 toml = "0.8"
 uuid = { version = "1", features = ["v4"] }
 

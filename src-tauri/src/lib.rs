@@ -142,13 +142,8 @@ use crate::commands::{
     oculpm_agents_check_master_upgrade, oculpm_agents_apply_master_upgrade,
     oculpm_compare_layers, oculpm_get_log_dir, oculpm_log,
     oculpm_update_entry_body, oculpm_open_entry_in_editor,
-    // W5-PR3 — Migration from legacy SQLite changelog
-    oculpm_migration_dry_run, oculpm_migrate_from_sqlite, oculpm_migration_rollback,
-    oculpm_open_backup_dir,
     // W5-PR5 — Overview stats
     oculpm_overview_stats,
-    // W5-PR7 — Migration history + legacy delete
-    oculpm_get_migration_history, oculpm_delete_legacy_changelog,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -292,17 +287,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_log,
         oculpm_update_entry_body,
         oculpm_open_entry_in_editor,
-        // W5-PR3 — Migration
-        oculpm_migration_dry_run,
-        oculpm_migrate_from_sqlite,
-        oculpm_migration_rollback,
-        // W5-PR4 — Migration modal helpers
-        oculpm_open_backup_dir,
         // W5-PR5 — Overview stats
         oculpm_overview_stats,
-        // W5-PR7 — Migration history + legacy delete
-        oculpm_get_migration_history,
-        oculpm_delete_legacy_changelog,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
@@ -315,8 +301,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
-        // W5-PR3 — Migration progress stream
-        crate::oculpm::spec::OculpmMigrationProgress,
     ])
 }
 
