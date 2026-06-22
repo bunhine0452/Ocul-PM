@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { SearchIcon, TriangleAlert, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
-import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
+import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
 import { useJournalDays } from "./useJournalDays";
 import { JournalCardV2 } from "./JournalCardV2";
@@ -76,12 +76,48 @@ export function JournalScreenV2({
 }: JournalScreenV2Props) {
   const { state, setState } = useWorkspace();
   const filter = state.journalFilter;
-  const { days, loading, error, refresh } = useJournalDays(projectId, todayKey, oculpmReady);
 
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [unfinishedOnly, setUnfinishedOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+
+  // F3 — debounce the search so the all-period backend query (below) isn't
+  // fired on every keystroke; the in-memory filter still narrows instantly.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // F3 — when any filter/search is active (or the user asked for older entries),
+  // query the backend over the FULL history instead of the 14-day window, so
+  // search + filters reach every entry. The backend `EntryFilters` path was
+  // already complete; this finally drives it.
+  const allPeriod =
+    showAll ||
+    filter !== "all" ||
+    unfinishedOnly ||
+    verifiedOnly ||
+    debouncedSearch.trim() !== "";
+  const backendFilters = useMemo<EntryFilters | null>(() => {
+    if (!allPeriod) return null;
+    return {
+      types: filter === "all" ? [] : [FILTER_TO_TYPE[filter]],
+      verified_only: verifiedOnly,
+      mismatch_only: false,
+      unfinished_only: unfinishedOnly,
+      search: debouncedSearch.trim() || null,
+    };
+  }, [allPeriod, filter, verifiedOnly, unfinishedOnly, debouncedSearch]);
+
+  const { days, loading, error, refresh } = useJournalDays(projectId, todayKey, oculpmReady, {
+    filters: backendFilters,
+    allPeriod,
+  });
 
   // F5 — cold-start backfill: synthesise journal entries from git history so a
   // repo with commits but no journal isn't a blank wall on day 1.
@@ -181,7 +217,8 @@ export function JournalScreenV2({
 
   // While a filter/search is active, force every day open so matches in older
   // (default-collapsed) days are visible.
-  const searchActive = search.trim() !== "" || filter !== "all";
+  const searchActive =
+    search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly;
 
   // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
   // workday (parsed from the path), so a completed plan's weeks-old journal opens
@@ -303,6 +340,26 @@ export function JournalScreenV2({
             </button>
           ))}
         </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button
+            type="button"
+            className={"scope-chip" + (unfinishedOnly ? " on" : "")}
+            style={{ height: 28 }}
+            onClick={() => setUnfinishedOnly((v) => !v)}
+            title="미완료 일지만 (전체 기간 검색)"
+          >
+            미완료
+          </button>
+          <button
+            type="button"
+            className={"scope-chip" + (verifiedOnly ? " on" : "")}
+            style={{ height: 28 }}
+            onClick={() => setVerifiedOnly((v) => !v)}
+            title="검증됨만 (전체 기간 검색)"
+          >
+            검증됨
+          </button>
+        </div>
         <button
           type="button"
           className="btn primary"
@@ -334,7 +391,8 @@ export function JournalScreenV2({
             ) : !oculpmReady ? (
               <div className="empty-hint">ocul-pm이 활성화되면 일지가 여기에 표시됩니다.</div>
             ) : filteredDays && filteredDays.length > 0 ? (
-              filteredDays.map((day, idx) => {
+              <>
+                {filteredDays.map((day, idx) => {
                 const open = searchActive ? true : (dayOpen[day.workday] ?? idx < 2);
                 return (
                   <div
@@ -381,13 +439,20 @@ export function JournalScreenV2({
                     ) : null}
                   </div>
                 );
-              })
-            ) : total > 0 ? (
-              <div className="empty-hint">
-                {search || filter !== "all"
-                  ? "조건에 맞는 일지가 없어요."
-                  : "표시할 일지가 없어요."}
-              </div>
+                })}
+                {!allPeriod ? (
+                  <button
+                    type="button"
+                    className="btn sm"
+                    style={{ margin: "16px auto 0", display: "block" }}
+                    onClick={() => setShowAll(true)}
+                  >
+                    이전 기록 더 보기 (전체 기간)
+                  </button>
+                ) : null}
+              </>
+            ) : searchActive ? (
+              <div className="empty-hint">조건에 맞는 일지가 없어요. (전체 기간 검색됨)</div>
             ) : (
               <div className="empty-hint">
                 아직 일지가 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 기록합니다.
