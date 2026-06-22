@@ -14,6 +14,7 @@ owner: claude-code
 ## Phase 1 — 코드 정리 {#cleanup}
 - [x] 프런트 legacy + 비-legacy 죽은 코드 ~13.6k줄 삭제 + 미사용 deps 제거 {#frontend-dead-code}
 - [x] 고아 백엔드 커맨드 정리 — "삭제"군 22개 제거, "재활성화"군 분리 {#orphan-commands}
+- [x] 죽은 레거시 goal/subtask 커맨드 8개 제거 (planner-unify 후속, 테이블·migration 보존) {#legacy-goal-subtask-removal}
 - [x] 마이그레이션 shim(migrate_from_sqlite, 1911줄) 은퇴 vs 버전 게이트 결정 {#migration-shim}
 - [~] WorkspaceContext 죽은 조각·SettingsContext.setMany·에디터 설정 외과적 제거 {#surgical-context-cleanup}
 
@@ -44,4 +45,5 @@ owner: claude-code
 | 2026-06-22T09:00:00+09:00 | #honesty-audit | claude-code | →x | journal/20260622/Features_to_add/0900_feature_honesty-audit.md | compare_layers 재활성(Today HonestyAudit 카드, only_in_index 노출, 문제시만 렌더). 프런트전용 |
 | 2026-06-22T09:30:00+09:00 | #journal-query | claude-code | →x | journal/20260622/Features_to_add/0930_feature_journal-query-full-history.md | all-period 백엔드 쿼리(EntryFilters)로 14일 한계 제거 + 미완료/검증됨 토글 + 더보기. v1.13.0 |
 | 2026-06-22T10:00:00+09:00 | #planner-unify | claude-code | →x | journal/20260622/Refactors/1000_refactor_planner-unify.md | 세 소비처(Today useNextTasks·AI챗 aiActions+aiContext·그린필드 시드)를 파일 기반 plan(plan_list/get/create/apply_edit)으로 전환. 레거시 goal/subtask 호출 0건. 백엔드 무변경, 게이트 전부 통과. v1.14.0. 후속: 죽은 레거시 커맨드 8개+hooks.ts 제거 |
+| 2026-06-22T12:40:00+09:00 | #legacy-goal-subtask-removal | claude-code | →x | journal/20260622/Refactors/1240_refactor_remove-legacy-goal-subtask-commands.md | 13에이전트 감사(blocked 0)→ planner.rs 전체 삭제 + mod.rs/lib.rs 등록 제거, bindings 재생성(커맨드 8개+미사용 Subtask 타입 드롭). 테이블·migration·plan_migrate_goals·Goal 타입 보존. hooks.ts 는 c59546a 에서 이미 삭제됨. 게이트 전부 통과. 후속: 고아 db 메서드 5개(안전망 테스트 얽힘) |
 <!-- oculpm:plan-log end -->

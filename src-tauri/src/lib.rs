@@ -104,11 +104,10 @@ use crate::commands::{
     conversation_create, conversation_delete, conversation_list, conversation_rename,
     conversation_set_context,
     // W5 — action proposal apply-state
-    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health, goal_create,
-    goal_delete, goal_list, goal_update, index_project, list_projects, project_stats,
+    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health,
+    index_project, list_projects, project_stats,
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
-    subtask_create, subtask_delete, subtask_list, subtask_toggle,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
     plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
@@ -184,15 +183,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         get_change_impact,
         get_file_calls,
         clear_project_index,
-        // M4 — Planner
-        goal_create,
-        goal_list,
-        goal_update,
-        goal_delete,
-        subtask_create,
-        subtask_list,
-        subtask_toggle,
-        subtask_delete,
         // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
         plan_list,
         plan_get,

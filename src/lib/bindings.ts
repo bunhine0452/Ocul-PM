@@ -38,14 +38,6 @@ export const commands = {
 	getChangeImpact: (projectId: number, changedPaths: string[]) => typedError<ImpactReport, string>(__TAURI_INVOKE("get_change_impact", { projectId, changedPaths })),
 	getFileCalls: (fileId: number) => typedError<SymbolCall[], string>(__TAURI_INVOKE("get_file_calls", { fileId })),
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
-	goalCreate: (projectId: number | null, title: string, description: string | null, priority: number, dueDate: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_create", { projectId, title, description, priority, dueDate })),
-	goalList: (projectId: number | null, statusFilter: string | null) => typedError<Goal[], string>(__TAURI_INVOKE("goal_list", { projectId, statusFilter })),
-	goalUpdate: (goalId: number, title: string | null, description: string | null, status: string | null, priority: number | null, dueDate: number | null, progress: number | null) => typedError<Goal, string>(__TAURI_INVOKE("goal_update", { goalId, title, description, status, priority, dueDate, progress })),
-	goalDelete: (goalId: number) => typedError<null, string>(__TAURI_INVOKE("goal_delete", { goalId })),
-	subtaskCreate: (goalId: number, title: string) => typedError<Subtask, string>(__TAURI_INVOKE("subtask_create", { goalId, title })),
-	subtaskList: (goalId: number) => typedError<Subtask[], string>(__TAURI_INVOKE("subtask_list", { goalId })),
-	subtaskToggle: (subtaskId: number) => typedError<Subtask, string>(__TAURI_INVOKE("subtask_toggle", { subtaskId })),
-	subtaskDelete: (subtaskId: number) => typedError<null, string>(__TAURI_INVOKE("subtask_delete", { subtaskId })),
 	/**  List the project's plans (summary + progress + done counts). */
 	planList: (projectId: number) => typedError<PlanSummary[], string>(__TAURI_INVOKE("plan_list", { projectId })),
 	/**
@@ -1596,14 +1588,6 @@ export type SessionDailyAgg = {
 };
 
 export type Severity = "ok" | "warning" | "critical";
-
-export type Subtask = {
-	id: number,
-	goal_id: number,
-	title: string,
-	done: boolean,
-	sort_order: number,
-};
 
 export type SymbolCall = {
 	/**  Caller symbol in this file (None = file top-level). */
