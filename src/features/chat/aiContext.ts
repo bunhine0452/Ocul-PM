@@ -58,23 +58,23 @@ export async function buildGitSystemContext(
 }
 
 export async function buildPlannerSystemContext(projectId: number | null): Promise<string> {
-  const res = await commands.goalList(projectId, null);
-  if (res.status === "error" || !res.data.length) {
+  // S1 / planner-unify (2026-06-22): the file-based Plan (`.oculpm/planner/*.md`)
+  // is the single SSOT — inject plans + items (with their `plan_id`/`item_id`)
+  // so the assistant can reference them in json:action proposals.
+  if (projectId == null) return "";
+  const pl = await commands.planList(projectId);
+  if (pl.status === "error" || !pl.data.length) {
     return "";
   }
-  let markdown = "### Current Workspace Planner Goals:\n";
-  for (const goal of res.data) {
-    const priorityText = goal.priority === 2 ? "Urgent" : goal.priority === 1 ? "High" : "Normal";
-    const dateText = goal.due_date ? new Date(goal.due_date * 1000).toLocaleDateString() : "No deadline";
-    markdown += `- **Goal (ID: ${goal.id})**: ${goal.title} | Status: ${goal.status} | Priority: ${priorityText} | Due: ${dateText}\n`;
-    if (goal.description) {
-      markdown += `  Description: ${goal.description}\n`;
-    }
-    const subRes = await commands.subtaskList(goal.id);
-    if (subRes.status === "ok" && subRes.data.length) {
-      markdown += "  Subtasks:\n";
-      for (const sub of subRes.data) {
-        markdown += `    - [${sub.done ? "x" : " "}] (ID: ${sub.id}) ${sub.title}\n`;
+  let markdown = "### Current Workspace Plans (file-based SSOT):\n";
+  for (const p of pl.data) {
+    markdown += `- **Plan (plan_id: ${p.plan_id})**: ${p.title} | Status: ${p.status} | ${p.done_count}/${p.item_count} done\n`;
+    const dr = await commands.planGet(projectId, p.plan_id);
+    if (dr.status === "ok" && dr.data) {
+      for (const it of dr.data.items) {
+        const mark = it.status === "done" ? "x" : it.status === "in_progress" ? "~" : " ";
+        const phase = it.phase ? `[${it.phase}] ` : "";
+        markdown += `    - [${mark}] (item_id: ${it.item_id}) ${phase}${it.title}\n`;
       }
     }
   }

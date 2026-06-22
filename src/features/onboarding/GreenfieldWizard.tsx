@@ -286,10 +286,27 @@ export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps)
       if (res.status === "ok") {
         const projectId = res.data.project_id;
 
-        // Create seed goals if we have them
+        // Seed the file-based Planner (S1 / planner-unify) — one "초기 계획"
+        // plan whose items are the seed goals, so onboarding output lands in
+        // the same SSOT the Planner + Today read (not the retired SQLite goals).
         if (wizState.seedGoals.length > 0) {
-          for (const goal of wizState.seedGoals) {
-            await commands.goalCreate(projectId, goal.title, goal.description, goal.priority, null);
+          const created = await commands.planCreate(projectId, "초기 계획");
+          if (created.status === "ok") {
+            const planId = created.data.plan_id;
+            for (const goal of wizState.seedGoals) {
+              await commands.planApplyEdit(
+                projectId,
+                planId,
+                {
+                  kind: "add_item",
+                  phase: "초기 목표",
+                  title: goal.title,
+                  item_id: null,
+                  status: null,
+                },
+                "user",
+              );
+            }
           }
         }
 

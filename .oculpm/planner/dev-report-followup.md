@@ -19,7 +19,7 @@ owner: claude-code
 
 ## Phase 2 — 구조적 부채 {#debt}
 - [x] redaction(redact_text)을 일지·diff 쓰기/읽기 경로에 연결 (안전 1순위) {#redaction-wire}
-- [ ] 플래너 이중화 해소 — Today·AI챗·그린필드를 파일 기반 plan 으로 일원화 {#planner-unify}
+- [x] 플래너 이중화 해소 — Today·AI챗·그린필드를 파일 기반 plan 으로 일원화 {#planner-unify}
 - [ ] 자동 일지→플래너 화해 (on-journal-write reconciliation) {#auto-reconcile}
 
 ## Phase 3 — 기능 {#features}
@@ -43,4 +43,5 @@ owner: claude-code
 | 2026-06-22T08:30:00+09:00 | #git-backfill | claude-code | →x | journal/20260622/Features_to_add/0830_feature_git-history-backfill.md | commits_for_backfill+backfill_from_git(멱등·redact·entry_diffs tier-3)+빈화면 트리거. 게이트 전부 통과 |
 | 2026-06-22T09:00:00+09:00 | #honesty-audit | claude-code | →x | journal/20260622/Features_to_add/0900_feature_honesty-audit.md | compare_layers 재활성(Today HonestyAudit 카드, only_in_index 노출, 문제시만 렌더). 프런트전용 |
 | 2026-06-22T09:30:00+09:00 | #journal-query | claude-code | →x | journal/20260622/Features_to_add/0930_feature_journal-query-full-history.md | all-period 백엔드 쿼리(EntryFilters)로 14일 한계 제거 + 미완료/검증됨 토글 + 더보기. v1.13.0 |
+| 2026-06-22T10:00:00+09:00 | #planner-unify | claude-code | →x | journal/20260622/Refactors/1000_refactor_planner-unify.md | 세 소비처(Today useNextTasks·AI챗 aiActions+aiContext·그린필드 시드)를 파일 기반 plan(plan_list/get/create/apply_edit)으로 전환. 레거시 goal/subtask 호출 0건. 백엔드 무변경, 게이트 전부 통과. v1.14.0. 후속: 죽은 레거시 커맨드 8개+hooks.ts 제거 |
 <!-- oculpm:plan-log end -->

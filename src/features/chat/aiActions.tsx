@@ -13,15 +13,25 @@ import { Button } from "@/components/ui/button";
 // (The one-time localStorage→SQLite migration stays in ChatPanel — it only
 // needs to run once and ChatPanel already runs it on mount.)
 
+// S1 / planner-unify (2026-06-22): plan-action protocol targets the file-based
+// Plan (`.oculpm/planner/*.md` via plan_create / plan_apply_edit) — not the
+// retired SQLite goals. Plans + items are referenced by their string ids
+// (`plan_id` / `item_id`), surfaced to the model via buildPlannerSystemContext.
 export interface PlannerAction {
-  type: "create_goal" | "update_goal" | "delete_goal" | "create_subtasks" | "toggle_subtask" | "delete_subtask";
+  type: "create_plan" | "add_items" | "set_status" | "rename_item" | "remove_item";
+  /** Target plan for add_items / set_status / rename_item / remove_item. */
+  plan_id?: string;
+  /** New plan title (create_plan). */
+  plan_title?: string;
+  /** Phase heading for added items (created if absent). */
+  phase?: string;
+  /** Item titles to add (create_plan / add_items). */
+  titles?: string[];
+  /** Target item for set_status / rename_item / remove_item. */
+  item_id?: string;
+  /** New title (rename_item). */
   title?: string;
-  description?: string;
-  priority?: number;
-  due_date?: string; // YYYY-MM-DD
-  subtasks?: string[];
-  goal_id?: number;
-  subtask_id?: number;
+  /** "todo" | "in_progress" | "done" (set_status). */
   status?: string;
 }
 
@@ -47,67 +57,40 @@ export function extractPlannerAction(text: string): { cleanText: string; action:
 export function buildActionInstruction(): string {
   return [
     "### Interactive Planner Actions:",
-    "If the user asks to create, update, or delete a goal or subtask, or if you propose doing so, you MUST append a markdown code block with the language `json:action` AT the end of your response.",
-    "Do NOT invoke database commands directly. Instead, output the instruction so the user can review and approve it.",
+    "If the user asks to create or change a plan or its items (tasks), or you propose doing so, you MUST append a markdown code block with the language `json:action` AT the end of your response.",
+    "Do NOT call commands directly — output the proposal so the user can review and approve it.",
+    "Reference existing plans/items by the `plan_id` / `item_id` shown in \"Current Workspace Plans\". An item `status` is one of: \"todo\" | \"in_progress\" | \"done\".",
     "",
-    "Format for creating a goal (priority: 0=Normal, 1=High, 2=Urgent):",
+    "Create a new plan (optionally with initial items under a phase):",
     "```json:action",
     "{",
-    "  \"type\": \"create_goal\",",
-    "  \"title\": \"Goal Title\",",
-    "  \"description\": \"Goal Description (optional)\",",
-    "  \"priority\": 0 | 1 | 2,",
-    "  \"due_date\": \"YYYY-MM-DD\" (optional),",
-    "  \"subtasks\": [\"Subtask 1\", \"Subtask 2\"] (optional)",
+    "  \"type\": \"create_plan\",",
+    "  \"plan_title\": \"Plan Title\",",
+    "  \"phase\": \"Phase name (optional, default 할 일)\",",
+    "  \"titles\": [\"Item 1\", \"Item 2\"] (optional)",
     "}",
     "```",
     "",
-    "Format for updating a goal's properties:",
+    "Add items to an existing plan (the phase is created if absent):",
     "```json:action",
-    "{",
-    "  \"type\": \"update_goal\",",
-    "  \"goal_id\": number,",
-    "  \"title\": \"New Title (optional)\",",
-    "  \"description\": \"New Description (optional)\",",
-    "  \"status\": \"open\" | \"in_progress\" | \"done\" | \"cancelled\" (optional),",
-    "  \"priority\": 0 | 1 | 2 (optional),",
-    "  \"due_date\": \"YYYY-MM-DD\" (optional)",
-    "}",
+    "{ \"type\": \"add_items\", \"plan_id\": \"...\", \"phase\": \"...\", \"titles\": [\"Item 1\", \"Item 2\"] }",
     "```",
     "",
-    "Format for deleting a goal:",
+    "Change an item's status:",
     "```json:action",
-    "{",
-    "  \"type\": \"delete_goal\",",
-    "  \"goal_id\": number",
-    "}",
+    "{ \"type\": \"set_status\", \"plan_id\": \"...\", \"item_id\": \"...\", \"status\": \"done\" }",
     "```",
     "",
-    "Format for adding subtasks to a goal:",
+    "Rename an item:",
     "```json:action",
-    "{",
-    "  \"type\": \"create_subtasks\",",
-    "  \"goal_id\": number,",
-    "  \"subtasks\": [\"Subtask 1\", \"Subtask 2\"]",
-    "}",
+    "{ \"type\": \"rename_item\", \"plan_id\": \"...\", \"item_id\": \"...\", \"title\": \"New title\" }",
     "```",
     "",
-    "Format for toggling a subtask's completion status:",
+    "Remove an item:",
     "```json:action",
-    "{",
-    "  \"type\": \"toggle_subtask\",",
-    "  \"subtask_id\": number",
-    "}",
+    "{ \"type\": \"remove_item\", \"plan_id\": \"...\", \"item_id\": \"...\" }",
     "```",
-    "",
-    "Format for deleting a subtask:",
-    "```json:action",
-    "{",
-    "  \"type\": \"delete_subtask\",",
-    "  \"subtask_id\": number",
-    "}",
-    "```",
-    "Ensure to also include a normal text response explaining what action you are proposing. Propose only ONE action block per turn.",
+    "Always include a normal text response explaining the proposal. Propose only ONE action block per turn.",
   ].join("\n");
 }
 
@@ -154,60 +137,56 @@ export function ActionProposalCard({
     setStatus("applying");
     setErrorMsg(null);
     try {
-      if (action.type === "create_goal") {
-        const priorityVal = action.priority ?? 0;
-        const dueTs = action.due_date
-          ? Math.floor(new Date(action.due_date + "T00:00:00").getTime() / 1000)
-          : null;
-        const res = await commands.goalCreate(
-          projectId ?? null,
-          action.title ?? "New Goal",
-          action.description ?? null,
-          priorityVal,
-          dueTs
+      if (projectId == null) throw new Error("프로젝트가 선택되지 않았습니다.");
+      const agent = "assistant";
+      const addItem = async (planId: string, phase: string, title: string) => {
+        const r = await commands.planApplyEdit(
+          projectId,
+          planId,
+          { kind: "add_item", phase, title, item_id: null, status: null },
+          agent,
         );
-        if (res.status === "error") throw new Error(res.error);
-
-        if (action.subtasks && action.subtasks.length > 0) {
-          const goalId = res.data.id;
-          for (const sub of action.subtasks) {
-            await commands.subtaskCreate(goalId, sub);
-          }
-        }
-      } else if (action.type === "update_goal") {
-        if (action.goal_id == null) throw new Error("Goal ID is missing");
-        const dueTs = action.due_date
-          ? Math.floor(new Date(action.due_date + "T00:00:00").getTime() / 1000)
-          : null;
-        const res = await commands.goalUpdate(
-          action.goal_id,
-          action.title ?? null,
-          action.description ?? null,
-          action.status ?? null,
-          action.priority ?? null,
-          dueTs,
-          null
+        if (r.status === "error") throw new Error(r.error);
+      };
+      if (action.type === "create_plan") {
+        const created = await commands.planCreate(projectId, action.plan_title ?? "새 계획");
+        if (created.status === "error") throw new Error(created.error);
+        const planId = created.data.plan_id;
+        for (const t of action.titles ?? []) await addItem(planId, action.phase ?? "할 일", t);
+      } else if (action.type === "add_items") {
+        if (!action.plan_id) throw new Error("plan_id 가 없습니다");
+        if (!action.titles?.length) throw new Error("추가할 항목이 없습니다");
+        for (const t of action.titles) await addItem(action.plan_id, action.phase ?? "할 일", t);
+      } else if (action.type === "set_status") {
+        if (!action.plan_id || !action.item_id || !action.status)
+          throw new Error("plan_id / item_id / status 가 필요합니다");
+        const r = await commands.planApplyEdit(
+          projectId,
+          action.plan_id,
+          { kind: "set_status", item_id: action.item_id, status: action.status },
+          agent,
         );
-        if (res.status === "error") throw new Error(res.error);
-      } else if (action.type === "delete_goal") {
-        if (action.goal_id == null) throw new Error("Goal ID is missing");
-        const res = await commands.goalDelete(action.goal_id);
-        if (res.status === "error") throw new Error(res.error);
-      } else if (action.type === "create_subtasks") {
-        if (action.goal_id == null) throw new Error("Goal ID is missing");
-        if (!action.subtasks || action.subtasks.length === 0) throw new Error("Subtasks are missing");
-        for (const sub of action.subtasks) {
-          const res = await commands.subtaskCreate(action.goal_id, sub);
-          if (res.status === "error") throw new Error(res.error);
-        }
-      } else if (action.type === "toggle_subtask") {
-        if (action.subtask_id == null) throw new Error("Subtask ID is missing");
-        const res = await commands.subtaskToggle(action.subtask_id);
-        if (res.status === "error") throw new Error(res.error);
-      } else if (action.type === "delete_subtask") {
-        if (action.subtask_id == null) throw new Error("Subtask ID is missing");
-        const res = await commands.subtaskDelete(action.subtask_id);
-        if (res.status === "error") throw new Error(res.error);
+        if (r.status === "error") throw new Error(r.error);
+      } else if (action.type === "rename_item") {
+        if (!action.plan_id || !action.item_id || !action.title)
+          throw new Error("plan_id / item_id / title 이 필요합니다");
+        const r = await commands.planApplyEdit(
+          projectId,
+          action.plan_id,
+          { kind: "rename_item", item_id: action.item_id, title: action.title },
+          agent,
+        );
+        if (r.status === "error") throw new Error(r.error);
+      } else if (action.type === "remove_item") {
+        if (!action.plan_id || !action.item_id)
+          throw new Error("plan_id / item_id 가 필요합니다");
+        const r = await commands.planApplyEdit(
+          projectId,
+          action.plan_id,
+          { kind: "remove_item", item_id: action.item_id },
+          agent,
+        );
+        if (r.status === "error") throw new Error(r.error);
       }
 
       const rec = await commands.recordConversationAction(
@@ -226,21 +205,12 @@ export function ActionProposalCard({
   }
 
   const typeLabels: Record<string, string> = {
-    create_goal: "🎯 목표 생성",
-    update_goal: "🔄 목표 수정",
-    delete_goal: "🗑 목표 삭제",
-    create_subtasks: "➕ 하위 작업 추가",
-    toggle_subtask: "✅ 작업 완료 토글",
-    delete_subtask: "❌ 하위 작업 삭제",
+    create_plan: "🗂 계획 생성",
+    add_items: "➕ 항목 추가",
+    set_status: "✅ 상태 변경",
+    rename_item: "✏️ 항목 이름변경",
+    remove_item: "🗑 항목 삭제",
   };
-
-  const priorityLabels = ["보통", "높음", "긴급"];
-  // ui_v2 trigger-token vars (theme via [data-theme] attribute).
-  const priorityColors = [
-    "bg-[var(--t-chore-soft)] text-[var(--t-chore)]",
-    "bg-[var(--t-error-soft)] text-[var(--t-error)]",
-    "bg-[var(--t-bug-soft)] text-[var(--t-bug)]",
-  ];
 
   return (
     <div className="mt-3 p-4 rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm shadow-sm space-y-3 max-w-full">
@@ -255,32 +225,28 @@ export function ActionProposalCard({
         )}
       </div>
 
-      {action.type === "create_goal" && (
+      {(action.type === "create_plan" || action.type === "add_items") && (
         <div className="space-y-1.5 text-xs text-foreground">
-          <div className="font-semibold text-sm">{action.title}</div>
-          {action.description && (
-            <p className="text-muted-foreground whitespace-pre-wrap">{action.description}</p>
+          {action.type === "create_plan" ? (
+            <div className="font-semibold text-sm">새 계획: {action.plan_title ?? "새 계획"}</div>
+          ) : (
+            <div className="text-muted-foreground">
+              계획: <span className="font-mono font-semibold text-foreground">{action.plan_id}</span>
+            </div>
           )}
-          <div className="flex items-center gap-2 pt-1 flex-wrap">
-            {action.priority != null && (
-              <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${priorityColors[action.priority]}`}>
-                우선순위: {priorityLabels[action.priority]}
-              </span>
-            )}
-            {action.due_date && (
-              <span className="px-2 py-0.5 rounded bg-muted text-[10px] font-medium">
-                기한: {action.due_date}
-              </span>
-            )}
-          </div>
-          {action.subtasks && action.subtasks.length > 0 && (
-            <div className="pt-2">
-              <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">제안된 하위 작업</div>
+          {action.phase && (
+            <div className="text-muted-foreground">
+              단계: <span className="font-medium text-foreground">{action.phase}</span>
+            </div>
+          )}
+          {action.titles && action.titles.length > 0 && (
+            <div className="pt-1">
+              <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">추가할 항목</div>
               <ul className="space-y-1 pl-2">
-                {action.subtasks.map((sub, idx) => (
+                {action.titles.map((t, idx) => (
                   <li key={idx} className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="inline-block w-1 h-1 rounded-full bg-muted-foreground" />
-                    {sub}
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/40" />
+                    {t}
                   </li>
                 ))}
               </ul>
@@ -289,58 +255,25 @@ export function ActionProposalCard({
         </div>
       )}
 
-      {action.type === "update_goal" && (
-        <div className="space-y-1 text-xs text-foreground">
-          <div className="text-muted-foreground">목표 ID: <span className="font-mono font-semibold text-foreground">#{action.goal_id}</span></div>
-          {action.title && <div>변경 제목: <span className="font-semibold">{action.title}</span></div>}
-          {action.description && <div className="text-muted-foreground">변경 설명: {action.description}</div>}
-          {action.status && (
-            <div>
-              상태 변경:{" "}
-              <span className="px-1.5 py-0.5 rounded bg-muted font-medium">
-                {action.status}
-              </span>
-            </div>
-          )}
-          {action.priority != null && (
-            <div>우선순위 변경: <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityColors[action.priority]}`}>{priorityLabels[action.priority]}</span></div>
-          )}
-          {action.due_date && <div>기한 변경: <span className="font-semibold">{action.due_date}</span></div>}
-        </div>
-      )}
-
-      {action.type === "delete_goal" && (
+      {action.type === "set_status" && (
         <div className="text-xs text-foreground">
-          목표 ID <span className="font-mono font-semibold">#{action.goal_id}</span>를 삭제합니다.
+          항목 <span className="font-mono font-semibold">{action.item_id}</span> 상태 →{" "}
+          <span className="px-1.5 py-0.5 rounded bg-muted font-medium">{action.status}</span>
+          <span className="text-muted-foreground"> (계획 {action.plan_id})</span>
         </div>
       )}
 
-      {action.type === "create_subtasks" && (
-        <div className="space-y-1.5 text-xs text-foreground">
-          <div className="text-muted-foreground">목표 ID: <span className="font-mono font-semibold text-foreground">#{action.goal_id}</span></div>
-          <div className="pt-1">
-            <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">추가할 서브태스크</div>
-            <ul className="space-y-1 pl-2">
-              {action.subtasks?.map((sub, idx) => (
-                <li key={idx} className="flex items-center gap-1.5 text-muted-foreground">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  {sub}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {action.type === "toggle_subtask" && (
+      {action.type === "rename_item" && (
         <div className="text-xs text-foreground">
-          서브태스크 ID <span className="font-mono font-semibold">#{action.subtask_id}</span>의 완료 상태를 전환(토글)합니다.
+          항목 <span className="font-mono font-semibold">{action.item_id}</span> 이름 →{" "}
+          <span className="font-semibold">{action.title}</span>
         </div>
       )}
 
-      {action.type === "delete_subtask" && (
+      {action.type === "remove_item" && (
         <div className="text-xs text-foreground">
-          서브태스크 ID <span className="font-mono font-semibold text-foreground">#{action.subtask_id}</span>를 삭제합니다.
+          항목 <span className="font-mono font-semibold text-foreground">{action.item_id}</span> 를 삭제합니다.
+          <span className="text-muted-foreground"> (계획 {action.plan_id})</span>
         </div>
       )}
 

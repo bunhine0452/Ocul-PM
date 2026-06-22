@@ -68,16 +68,28 @@ vi.mock("@/api/oculpm", () => ({
 
 // PR-R1 (A1) — NextTasks pulls Planner subtasks via @/lib/bindings commands.
 // Mirrors the `fixtures` pattern above so each test can stage its own goals.
-const nextFx: { goals: unknown[]; subtasks: Record<number, unknown[]> } = {
-  goals: [],
-  subtasks: {},
+const nextFx: {
+  plans: Array<Record<string, unknown>>;
+  items: Record<string, Array<Record<string, unknown>>>;
+} = {
+  plans: [],
+  items: {},
 };
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
-    goalList: () => Promise.resolve({ status: "ok", data: nextFx.goals }),
-    subtaskList: (goalId: number) =>
-      Promise.resolve({ status: "ok", data: nextFx.subtasks[goalId] ?? [] }),
+    planList: () => Promise.resolve({ status: "ok", data: nextFx.plans }),
+    planGet: (_pid: number, planId: string) =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          plan: nextFx.plans.find((p) => p.plan_id === planId) ?? null,
+          items: nextFx.items[planId] ?? [],
+          phases: [],
+          decisions: [],
+          warnings: [],
+        },
+      }),
     planRecentUpdates: () => Promise.resolve({ status: "ok", data: [] }),
     // code-search round — useTodayMonitor reads git + goal stats.
     gitHeadStatusBrief: () =>
@@ -91,23 +103,36 @@ vi.mock("@/lib/bindings", () => ({
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
 }));
 
-function goal(over: Partial<Record<string, unknown>> = {}) {
+// planner-unify (2026-06-22): Today 다음 할 일 now reads the file-based plan
+// (plan_list/plan_get), so stage PlanSummary + PlanItemDto shapes.
+function planSummary(over: Partial<Record<string, unknown>> = {}) {
   return {
-    id: 1,
-    project_id: 1,
+    plan_id: "p1",
     title: "로그인 리팩터",
-    description: null,
-    status: "in_progress",
-    priority: 0,
-    due_date: null,
-    progress: null,
-    created_at: 0,
-    updated_at: 0,
+    status: "active",
+    owner_agent: "user",
+    progress: 0,
+    file_path: ".oculpm/planner/p1.md",
+    updated_at: "",
+    item_count: 1,
+    done_count: 0,
     ...over,
   };
 }
-function subtask(over: Partial<Record<string, unknown>> = {}) {
-  return { id: 11, goal_id: 1, title: "할 일", done: false, sort_order: 0, ...over };
+function planItem(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    item_id: "i1",
+    phase: null,
+    title: "할 일",
+    status: "todo",
+    order_idx: 0,
+    parent_item: null,
+    note: null,
+    last_agent: null,
+    last_update: null,
+    journal_refs: [],
+    ...over,
+  };
 }
 
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
@@ -141,8 +166,8 @@ function statValue(container: HTMLElement, label: string): string {
 
 afterEach(() => {
   cleanup();
-  nextFx.goals = [];
-  nextFx.subtasks = {};
+  nextFx.plans = [];
+  nextFx.items = {};
 });
 
 describe("PR-UI 2 — Today stat aggregation", () => {
@@ -220,11 +245,13 @@ describe("PR-R1 (A1) — Today 다음 할 일", () => {
   it("renders incomplete Planner subtasks (done excluded, in-progress pill)", async () => {
     // Non-empty day so the grid (incl. NextTasks) renders.
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
-    nextFx.goals = [goal({ id: 1, title: "로그인 리팩터", status: "in_progress" })];
-    nextFx.subtasks = {
-      1: [
-        subtask({ id: 11, title: "토큰 갱신 처리", done: false, sort_order: 0 }),
-        subtask({ id: 12, title: "끝난 일", done: true, sort_order: 1 }),
+    nextFx.plans = [
+      planSummary({ plan_id: "p1", title: "로그인 리팩터", item_count: 2, done_count: 1 }),
+    ];
+    nextFx.items = {
+      p1: [
+        planItem({ item_id: "i1", title: "토큰 갱신 처리", status: "in_progress", order_idx: 0 }),
+        planItem({ item_id: "i2", title: "끝난 일", status: "done", order_idx: 1 }),
       ],
     };
     const { container } = renderToday();
@@ -244,7 +271,7 @@ describe("PR-R1 (A1) — Today 다음 할 일", () => {
 
   it("falls back to the empty hint when no open subtasks", async () => {
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
-    nextFx.goals = []; // no goals → nothing to do
+    nextFx.plans = []; // no plans → nothing to do
     const { container, findByText } = renderToday();
     await findByText(/1건/);
     expect(
