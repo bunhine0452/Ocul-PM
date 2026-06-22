@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use chrono::Utc;
+use chrono_tz::Tz;
 use regex::Regex;
 use rusqlite::{params, params_from_iter, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -24,7 +25,10 @@ use walkdir::WalkDir;
 
 use crate::db::Db;
 use crate::oculpm::error::OculpmError;
-use crate::oculpm::frontmatter::{parse_frontmatter_and_body, ParsedFrontmatter};
+use crate::oculpm::frontmatter::{
+    backfill_tz_offset, iso_lacks_offset, normalize_slug, parse_frontmatter_and_body,
+    ParsedFrontmatter,
+};
 use crate::oculpm::markdown::{parse_body, ParsedBody};
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalEntry,
@@ -117,6 +121,11 @@ pub struct JournalCache<'a> {
     /// disk read) so a pasted key never reaches the cache → AI context. The
     /// on-disk markdown is left untouched (it is the SSOT). See dev-report §2.
     redact: Vec<Regex>,
+    /// Project timezone for read-time `created_at`/`updated_at` offset backfill
+    /// (F7a-B). `None` (the query-path default) → detect-and-warn only, no
+    /// rewrite. Set via [`with_tz`][Self::with_tz] on the indexing/projection
+    /// paths. Disk is never touched — only the cached/displayed value.
+    tz: Option<Tz>,
 }
 
 impl<'a> JournalCache<'a> {
@@ -124,6 +133,7 @@ impl<'a> JournalCache<'a> {
         Self {
             db,
             redact: Vec::new(),
+            tz: None,
         }
     }
 
@@ -132,7 +142,20 @@ impl<'a> JournalCache<'a> {
     /// watcher / reindex / disk-read paths; the read-only query paths can stay
     /// on [`new`][Self::new] since the cache they read is already masked.
     pub fn with_redaction(db: &'a Db, redact: Vec<Regex>) -> Self {
-        Self { db, redact }
+        Self {
+            db,
+            redact,
+            tz: None,
+        }
+    }
+
+    /// Attach the project timezone so [`CacheRowSnapshot::from`] backfills a
+    /// missing offset onto `created_at`/`updated_at` (F7a-B). Chainable after
+    /// [`with_redaction`][Self::with_redaction] on every disk→cache projection
+    /// path. Without it the coercion degrades to detect-and-warn (still safe).
+    pub fn with_tz(mut self, tz: Tz) -> Self {
+        self.tz = Some(tz);
+        self
     }
 
     /// Parse a journal file's raw text for projection into the cache, masking
@@ -194,7 +217,7 @@ impl<'a> JournalCache<'a> {
         file_mtime: i64,
         full_text: &str,
     ) -> Result<UpsertOutcome, OculpmError> {
-        let snapshot = CacheRowSnapshot::from(parsed, body, relative_path, full_text)?;
+        let snapshot = CacheRowSnapshot::from(parsed, body, relative_path, full_text, self.tz)?;
         let pid = project_id as i64;
         let rp = relative_path.to_string();
         let snap = snapshot.clone();
@@ -1358,12 +1381,49 @@ struct CacheFileRow {
     bytes_removed: Option<u32>,
 }
 
+/// Coerce one timestamp field for the cache projection (F7a-B). With a project
+/// `tz`, backfill a missing offset (DST-correct) and record what changed; with
+/// `None`, only flag the missing offset. Returns the value to store in cache;
+/// the on-disk file is never modified here.
+fn coerce_timestamp(s: &str, tz: Option<Tz>, field: &str, warns: &mut Vec<String>) -> String {
+    match tz {
+        Some(tz) => match backfill_tz_offset(s, tz) {
+            Some(fixed) => {
+                warns.push(format!(
+                    "{field} '{s}' lacks a timezone offset; backfilled to '{fixed}' ({tz}) for display (disk unchanged)"
+                ));
+                fixed
+            }
+            // Lacks an offset but couldn't be backfilled — e.g. a DST
+            // spring-forward gap (a local time that doesn't exist). Still flag
+            // it rather than letting the more-suspicious value pass silently.
+            None => {
+                if iso_lacks_offset(s) {
+                    warns.push(format!(
+                        "{field} '{s}' lacks a timezone offset (could not backfill in {tz})"
+                    ));
+                }
+                s.to_string()
+            }
+        },
+        None => {
+            if iso_lacks_offset(s) {
+                warns.push(format!(
+                    "{field} '{s}' lacks a timezone offset (interpreted as project-local)"
+                ));
+            }
+            s.to_string()
+        }
+    }
+}
+
 impl CacheRowSnapshot {
     fn from(
         parsed: &ParsedFrontmatter,
         body: &ParsedBody,
         relative_path: &str,
         full_text: &str,
+        tz: Option<Tz>,
     ) -> Result<Self, OculpmError> {
         // Hash the full on-disk text so frontmatter-only edits (verified
         // toggle, status change) defeat the mtime-only fast path.
@@ -1376,37 +1436,68 @@ impl CacheRowSnapshot {
         };
 
         match &parsed.parsed {
-            Some(fm) => Ok(Self {
-                workday,
-                entry_type: entry_type_as_str(fm.entry_type).to_string(),
-                slug: fm.slug.clone(),
-                status: entry_status_as_str(fm.status).to_string(),
-                difficulty: fm.difficulty.map(|d| difficulty_as_str(d).to_string()),
-                title: body.title.clone(),
-                checkbox: body.checkbox.map(i64::from),
-                session_id: fm.session_id.clone(),
-                agent_id: fm.agent.id.clone(),
-                agent_version: fm.agent.version.clone(),
-                language: fm.language.clone(),
-                verified_by_user: fm.verified_by_user,
-                created_at: fm.created_at.clone(),
-                updated_at: fm.updated_at.clone(),
-                body_markdown: body.raw.clone(),
-                body_md_hash,
-                parse_ok: parsed.parse_warnings.is_empty(),
-                parse_warnings,
-                files: fm
-                    .files_touched
-                    .iter()
-                    .map(|f| CacheFileRow {
-                        path: f.path.clone(),
-                        op: file_op_as_str(f.op).to_string(),
-                        bytes_added: f.bytes_added,
-                        bytes_removed: f.bytes_removed,
-                    })
-                    .collect(),
-                tags: fm.tags.clone(),
-            }),
+            Some(fm) => {
+                // F7a-B read-time coercion — cache/display only, disk untouched.
+                // Coercion notes are advisory: they're appended to the displayed
+                // `parse_warnings` (lighting the ⚠ badge) but do NOT flip
+                // `parse_ok`, which stays a *structural* signal ("frontmatter
+                // parsed"). A tz-less created_at is common and structurally fine,
+                // so it must keep `parse_ok = true` — otherwise parse_ok-gated
+                // queries (e.g. overview difficulty_mix) would wrongly drop it.
+                let mut warns = parsed.parse_warnings.clone();
+                let created_at = coerce_timestamp(&fm.created_at, tz, "created_at", &mut warns);
+                let updated_at = fm
+                    .updated_at
+                    .as_deref()
+                    .map(|u| coerce_timestamp(u, tz, "updated_at", &mut warns));
+                let slug = match normalize_slug(&fm.slug) {
+                    Some(norm) => {
+                        warns.push(format!(
+                            "slug '{}' is not kebab-case; using '{norm}' for display (disk unchanged)",
+                            fm.slug
+                        ));
+                        norm
+                    }
+                    None => fm.slug.clone(),
+                };
+                let parse_ok = parsed.parse_warnings.is_empty();
+                let parse_warnings = if warns.is_empty() {
+                    None
+                } else {
+                    Some(serde_json::to_string(&warns).map_err(OculpmError::JsonSerialize)?)
+                };
+                Ok(Self {
+                    workday,
+                    entry_type: entry_type_as_str(fm.entry_type).to_string(),
+                    slug,
+                    status: entry_status_as_str(fm.status).to_string(),
+                    difficulty: fm.difficulty.map(|d| difficulty_as_str(d).to_string()),
+                    title: body.title.clone(),
+                    checkbox: body.checkbox.map(i64::from),
+                    session_id: fm.session_id.clone(),
+                    agent_id: fm.agent.id.clone(),
+                    agent_version: fm.agent.version.clone(),
+                    language: fm.language.clone(),
+                    verified_by_user: fm.verified_by_user,
+                    created_at,
+                    updated_at,
+                    body_markdown: body.raw.clone(),
+                    body_md_hash,
+                    parse_ok,
+                    parse_warnings,
+                    files: fm
+                        .files_touched
+                        .iter()
+                        .map(|f| CacheFileRow {
+                            path: f.path.clone(),
+                            op: file_op_as_str(f.op).to_string(),
+                            bytes_added: f.bytes_added,
+                            bytes_removed: f.bytes_removed,
+                        })
+                        .collect(),
+                    tags: fm.tags.clone(),
+                })
+            }
             None => {
                 // Frontmatter unparseable — synthesise a "chore" row so the
                 // entry still appears in the cache (and the UI can show a
@@ -2113,6 +2204,78 @@ mod tests {
                 .git
                 .auto_redact_patterns,
         )
+    }
+
+    /// F7a-B: an agent wrote `created_at` without a tz offset. The indexing
+    /// projection (`.with_tz`) backfills the project offset into the cached
+    /// value and records a warning (flipping `parse_ok`) — while the on-disk
+    /// file is left exactly as authored.
+    #[tokio::test]
+    async fn with_tz_backfills_offset_and_warns_disk_unchanged() {
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_notz.md";
+        let fm = "schema_version: 1\ntype: bug\nslug: notz\nstatus: done\n\
+                  created_at: \"2026-05-24T09:25:13\"\nsession_id: \"20260524-001\"\n\
+                  agent: { id: claude-code }\nlanguage: ko";
+        let abs = write_entry(&journal_root, rel, fm, "[x] body\n");
+        let on_disk_before = std::fs::read_to_string(&abs).unwrap();
+
+        let seoul: Tz = "Asia/Seoul".parse().unwrap();
+        JournalCache::with_redaction(&db, default_redact())
+            .with_tz(seoul)
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+
+        let entry = JournalCache::new(&db)
+            .get_entry(1, rel)
+            .await
+            .unwrap()
+            .expect("row exists");
+        // Cached value carries the backfilled +09:00 offset…
+        assert_eq!(entry.frontmatter.created_at, "2026-05-24T09:25:13+09:00");
+        // …recorded as an *advisory* warning (lights the ⚠ badge) but the
+        // frontmatter parsed structurally, so parse_ok stays true.
+        assert!(entry.parse_ok, "tz coercion is advisory, not a parse failure");
+        assert!(
+            entry.parse_warnings.iter().any(|w| w.contains("timezone offset")),
+            "warns: {:?}",
+            entry.parse_warnings
+        );
+        // …but the on-disk SSOT is byte-identical to what the agent wrote.
+        assert_eq!(std::fs::read_to_string(&abs).unwrap(), on_disk_before);
+    }
+
+    /// Without `.with_tz`, the same tz-less entry is only *flagged* (detect +
+    /// warn), and the cached value is left untouched — proving backfill is the
+    /// tz facade's doing, not unconditional.
+    #[tokio::test]
+    async fn without_tz_detects_but_does_not_rewrite() {
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_notz2.md";
+        let fm = "schema_version: 1\ntype: bug\nslug: notz2\nstatus: done\n\
+                  created_at: \"2026-05-24T09:25:13\"\nsession_id: \"20260524-001\"\n\
+                  agent: { id: claude-code }\nlanguage: ko";
+        write_entry(&journal_root, rel, fm, "[x] body\n");
+
+        JournalCache::with_redaction(&db, default_redact())
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+
+        let entry = JournalCache::new(&db)
+            .get_entry(1, rel)
+            .await
+            .unwrap()
+            .expect("row exists");
+        assert_eq!(entry.frontmatter.created_at, "2026-05-24T09:25:13"); // unchanged
+        assert!(entry.parse_ok, "detect-only warning is advisory, not a parse failure");
+        assert!(entry
+            .parse_warnings
+            .iter()
+            .any(|w| w.contains("timezone offset")));
     }
 
     #[tokio::test]

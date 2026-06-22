@@ -16,6 +16,8 @@
 #![allow(dead_code)] // Consumed by `cache.rs` (W3-PR2) and `commands/oculpm.rs`
                      // (W3-PR3).
 
+use chrono::{DateTime, NaiveDateTime, TimeZone};
+use chrono_tz::Tz;
 use serde_yaml::Value as YamlValue;
 
 use crate::oculpm::spec::{
@@ -130,6 +132,85 @@ pub fn write_frontmatter_and_body(fm: &JournalFrontmatter, body: &str) -> String
     out.push_str("---\n");
     out.push_str(body);
     out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Read-time coercion (F7a-B). These never touch disk — callers apply them to
+// the *cache/display* projection only, recording a parse warning so the ⚠
+// reliability badge surfaces what was coerced. The on-disk markdown stays the
+// authored SSOT; the explicit "fix original" action is a separate write path.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Parse a timezone-less ISO-8601 local datetime (`YYYY-MM-DDThh:mm[:ss]`,
+/// space-separated variant accepted). Returns `None` for anything that already
+/// carries an offset, for date-only strings, or for non-datetime garbage.
+fn parse_naive_local(s: &str) -> Option<NaiveDateTime> {
+    let s = s.trim();
+    NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S"))
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M"))
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"))
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M"))
+        .ok()
+}
+
+/// True when `s` is a real ISO datetime that is **missing** a timezone offset
+/// (so a naive `new Date(...)` / lexicographic sort would misread it). A string
+/// that already has `Z`/`±hh:mm`, or that isn't a datetime at all, returns
+/// false — we only flag the specific "tz dropped" friction, nothing else.
+pub fn iso_lacks_offset(s: &str) -> bool {
+    let s = s.trim();
+    if s.is_empty() || DateTime::parse_from_rfc3339(s).is_ok() {
+        return false;
+    }
+    parse_naive_local(s).is_some()
+}
+
+/// Backfill the project timezone offset onto a no-offset ISO datetime,
+/// DST-correct via `chrono_tz`. Returns `Some(rfc3339_with_offset)` only when
+/// `s` lacked an offset and was successfully interpreted in `tz`; returns
+/// `None` (leave untouched) when it already had an offset or isn't a datetime.
+/// On a DST fold (ambiguous local time) the earliest instant is chosen.
+pub fn backfill_tz_offset(s: &str, tz: Tz) -> Option<String> {
+    if !iso_lacks_offset(s) {
+        return None;
+    }
+    let naive = parse_naive_local(s)?;
+    let dt = tz.from_local_datetime(&naive).earliest()?;
+    Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false))
+}
+
+/// Normalize a slug to the spec's kebab-case `[a-z0-9-]` (lowercase; each run
+/// of other ASCII → a single `-`; leading/trailing `-` trimmed; max 60).
+///
+/// Any non-ASCII character (e.g. Korean) makes this a no-op (`None`): we would
+/// otherwise drop the non-ASCII half of a mixed slug like `버그-fix` → `fix`,
+/// which is lossy in a Korean-first product. Such slugs are left exactly as
+/// authored. Returns `Some(normalized)` only for an ASCII-only slug that is
+/// non-empty and actually differs from the input.
+pub fn normalize_slug(s: &str) -> Option<String> {
+    if s.chars().any(|c| !c.is_ascii()) {
+        return None;
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut prev_hyphen = false;
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            prev_hyphen = false;
+        } else if !prev_hyphen {
+            out.push('-');
+            prev_hyphen = true;
+        }
+    }
+    let norm: String = out.trim_matches('-').chars().take(60).collect();
+    let norm = norm.trim_matches('-').to_string();
+    if norm.is_empty() || norm == s {
+        None
+    } else {
+        Some(norm)
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,6 +728,59 @@ fn file_op_str(op: FileOp) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── F7a-B read-time coercion helpers ───────────────────────────────────
+
+    #[test]
+    fn iso_lacks_offset_only_flags_real_tz_less_datetimes() {
+        assert!(iso_lacks_offset("2026-06-22T10:00:00"));
+        assert!(iso_lacks_offset("2026-06-22T10:00")); // minute precision
+        assert!(iso_lacks_offset("2026-06-22 10:00:00")); // space variant
+        // Already has an offset / Z → not flagged.
+        assert!(!iso_lacks_offset("2026-06-22T10:00:00+09:00"));
+        assert!(!iso_lacks_offset("2026-06-22T01:00:00Z"));
+        // Not a datetime at all → not flagged (a different concern).
+        assert!(!iso_lacks_offset("x"));
+        assert!(!iso_lacks_offset("2026-06-22")); // date-only
+        assert!(!iso_lacks_offset(""));
+    }
+
+    #[test]
+    fn backfill_tz_offset_adds_project_offset_dst_correct() {
+        let seoul: Tz = "Asia/Seoul".parse().unwrap();
+        // Korea is UTC+9 year-round (no DST).
+        assert_eq!(
+            backfill_tz_offset("2026-06-22T10:00:00", seoul).as_deref(),
+            Some("2026-06-22T10:00:00+09:00")
+        );
+        // A DST zone: New York in July is EDT (-04:00), in January EST (-05:00).
+        let ny: Tz = "America/New_York".parse().unwrap();
+        assert_eq!(
+            backfill_tz_offset("2026-07-01T12:00:00", ny).as_deref(),
+            Some("2026-07-01T12:00:00-04:00")
+        );
+        assert_eq!(
+            backfill_tz_offset("2026-01-01T12:00:00", ny).as_deref(),
+            Some("2026-01-01T12:00:00-05:00")
+        );
+        // Already offset-bearing or non-datetime → left untouched (None).
+        assert_eq!(backfill_tz_offset("2026-06-22T10:00:00+09:00", seoul), None);
+        assert_eq!(backfill_tz_offset("garbage", seoul), None);
+    }
+
+    #[test]
+    fn normalize_slug_kebabs_only_when_needed() {
+        assert_eq!(normalize_slug("My_Feature").as_deref(), Some("my-feature"));
+        assert_eq!(normalize_slug("Has Spaces!!").as_deref(), Some("has-spaces"));
+        assert_eq!(normalize_slug("--Trim--Me--").as_deref(), Some("trim-me"));
+        // Already valid → None (no change).
+        assert_eq!(normalize_slug("already-valid-123"), None);
+        // Any non-ASCII → None (left untouched). A mixed slug must NOT have its
+        // Korean half dropped to an ASCII fragment ("버그-fix" must not → "fix").
+        assert_eq!(normalize_slug("한글슬러그"), None);
+        assert_eq!(normalize_slug("버그-fix"), None);
+        assert_eq!(normalize_slug("fix-한글-bug"), None);
+    }
 
     fn sample_yaml() -> String {
         r#"---

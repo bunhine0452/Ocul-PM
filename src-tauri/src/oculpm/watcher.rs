@@ -24,6 +24,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
@@ -105,6 +106,9 @@ impl ProjectWatcher {
         // masks patch content, so neither a pasted key reaches the cache (→ AI
         // context) nor the persisted sidecar.
         let redact_patterns = redact::compile_redact_patterns(&config.git.auto_redact_patterns);
+        // Config tz already validated by `OculpmConfig::validate` on load; fall
+        // back to UTC if somehow unparseable rather than failing watcher start.
+        let tz: Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
 
         let stats = Arc::new(RwLock::new(WatcherStatsInner::default()));
         let inner = WatcherInner {
@@ -117,6 +121,7 @@ impl ProjectWatcher {
             project_gitignore,
             forbidden,
             redact_patterns,
+            tz,
             stats: stats.clone(),
         };
 
@@ -229,6 +234,10 @@ struct WatcherInner {
     /// build a redacting [`JournalCache`] for journal upserts and threaded into
     /// per-entry diff capture (dev-report §2 / R1).
     redact_patterns: Vec<Regex>,
+    /// Project timezone (from `config.workday.timezone`). Threaded into the
+    /// redacting [`JournalCache`] so read-time `created_at` offset backfill
+    /// (F7a-B) interprets tz-less agent timestamps as project-local.
+    tz: Tz,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
@@ -712,7 +721,8 @@ impl WatcherInner {
         // R1 — build the cache with redaction so an agent-authored body carrying
         // a secret is masked on projection (disk SSOT untouched); the count lets
         // us warn the user.
-        let cache = JournalCache::with_redaction(&db_state, self.redact_patterns.clone());
+        let cache =
+            JournalCache::with_redaction(&db_state, self.redact_patterns.clone()).with_tz(self.tz);
         match cache
             .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
             .await

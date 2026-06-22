@@ -691,6 +691,16 @@ impl OculpmManager {
         }
     }
 
+    /// Resolve a project's timezone for read-time `created_at`/`updated_at`
+    /// offset backfill (F7a-B). Falls back to UTC for an unregistered project
+    /// or an unparseable tz, so projection never fails on the tz lookup.
+    async fn tz_for(&self, project_id: u32) -> chrono_tz::Tz {
+        match self.get_config(project_id).await {
+            Ok(cfg) => cfg.workday.timezone.parse().unwrap_or(chrono_tz::UTC),
+            Err(_) => chrono_tz::UTC,
+        }
+    }
+
     /// Resolve a project's repository root — the directory that holds `.oculpm/`.
     /// Used to drive git (per-entry diff capture) against the working tree.
     pub async fn project_root(&self, project_id: u32) -> Result<PathBuf, OculpmError> {
@@ -857,7 +867,7 @@ impl OculpmManager {
         // agent-authored entry never reaches the cache (→ AI context). Compiled
         // only on the (rare) miss path, not on the cache-hit fast path above.
         let redact = self.redact_patterns(project_id).await;
-        let redacting = JournalCache::with_redaction(db, redact);
+        let redacting = JournalCache::with_redaction(db, redact).with_tz(self.tz_for(project_id).await);
         redacting
             .apply_path_change(
                 project_id,
@@ -903,6 +913,7 @@ impl OculpmManager {
         // agent body's plaintext secret into the cache (→ AI context).
         let redact = self.redact_patterns(project_id).await;
         JournalCache::with_redaction(db, redact)
+            .with_tz(self.tz_for(project_id).await)
             .apply_path_change(
                 project_id,
                 &journal_root,
@@ -958,7 +969,7 @@ impl OculpmManager {
         // Re-project through the redacting cache (disk keeps the agent's body;
         // the cache row is masked on projection — R1, mirrors set_journal_verified).
         let redact = self.redact_patterns(project_id).await;
-        let cache = JournalCache::with_redaction(db, redact);
+        let cache = JournalCache::with_redaction(db, redact).with_tz(self.tz_for(project_id).await);
         cache
             .apply_path_change(
                 project_id,
@@ -1015,7 +1026,10 @@ impl OculpmManager {
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
             .unwrap_or_else(|| chrono::Utc::now().timestamp());
-        let cache = JournalCache::new(db);
+        // .with_tz mirrors update_journal_entry_meta — keep the cache row's
+        // backfilled created_at offset consistent on a body edit (F7a-B). The
+        // body is already masked at-write above, so no redaction needed here.
+        let cache = JournalCache::new(db).with_tz(self.tz_for(project_id).await);
         cache
             .upsert_entry(
                 project_id,
@@ -1305,6 +1319,7 @@ impl OculpmManager {
         let journal_root = self.journal_root(project_id).await?;
         let redact = self.redact_patterns(project_id).await;
         let report = JournalCache::with_redaction(db, redact)
+            .with_tz(self.tz_for(project_id).await)
             .reindex_full(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))
@@ -1327,6 +1342,7 @@ impl OculpmManager {
         let journal_root = self.journal_root(project_id).await?;
         let redact = self.redact_patterns(project_id).await;
         let report = JournalCache::with_redaction(db, redact)
+            .with_tz(self.tz_for(project_id).await)
             .reindex_incremental(project_id, &journal_root)
             .await?;
         Ok(reindex_report_to_spec(project_id, report))

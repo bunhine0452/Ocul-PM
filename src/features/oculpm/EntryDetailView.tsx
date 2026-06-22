@@ -172,8 +172,12 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
 
   // F7a — reliability badge. Defensive against optimistic-UI summaries / older
   // fixtures that predate the parse_ok / parse_warnings fields.
+  // `parseFailed` = the frontmatter didn't parse (synthesized chore row).
+  // Advisory warnings (F7a-B tz/slug coercion) keep parse_ok=true but still
+  // carry notes — surfaced as a softer "보정됨" badge, not "malformed".
   const parseWarnings = entry.parse_warnings ?? [];
   const parseFailed = entry.parse_ok === false;
+  const hasNotice = parseFailed || parseWarnings.length > 0;
 
   return (
     <>
@@ -200,7 +204,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <Bot size={12} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
-            {parseFailed ? (
+            {hasNotice ? (
               <span
                 style={{
                   display: "inline-flex",
@@ -215,7 +219,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                     : "frontmatter 파싱 경고"
                 }
               >
-                <AlertTriangle size={12} /> 파싱 경고
+                <AlertTriangle size={12} /> {parseFailed ? "파싱 경고" : "보정됨"}
                 {parseWarnings.length > 0 ? ` ${parseWarnings.length}` : ""}
               </span>
             ) : null}
@@ -248,7 +252,8 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                   marginBottom: 4,
                 }}
               >
-                <AlertTriangle size={12} /> frontmatter 파싱 경고
+                <AlertTriangle size={12} />{" "}
+                {parseFailed ? "frontmatter 파싱 경고" : "frontmatter 보정 내역"}
               </div>
               <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-2)" }}>
                 {parseWarnings.map((w, i) => (
