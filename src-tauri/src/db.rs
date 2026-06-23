@@ -29,6 +29,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (19, include_str!("../migrations/019_symbol_relations.sql")),
     (20, include_str!("../migrations/020_symbol_relations_from.sql")),
     (21, include_str!("../migrations/021_oculpm_agent_version.sql")),
+    (22, include_str!("../migrations/022_retro_insights.sql")),
 ];
 
 pub struct Db {
@@ -2061,6 +2062,65 @@ impl Db {
         Ok(())
     }
 
+    // ---------- F4: Retro insights ----------
+
+    pub async fn get_retro_insight(
+        &self,
+        project_id: u32,
+        range_key: String,
+    ) -> Result<Option<RetroInsight>> {
+        let retro = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT project_id, range_key, signature, retro_md,
+                            generated_at, generated_by_model
+                     FROM retro_insights WHERE project_id = ?1 AND range_key = ?2",
+                    params![project_id as i64, range_key],
+                    retro_insight_from_row,
+                )
+                .optional()
+            })
+            .await?;
+        Ok(retro)
+    }
+
+    pub async fn upsert_retro_insight(
+        &self,
+        project_id: u32,
+        range_key: String,
+        signature: String,
+        retro_md: String,
+        generated_at: u32,
+        generated_by_model: Option<String>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO retro_insights (
+                        project_id, range_key, signature, retro_md,
+                        generated_at, generated_by_model
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                     ON CONFLICT(project_id, range_key) DO UPDATE SET
+                        signature = excluded.signature,
+                        retro_md = excluded.retro_md,
+                        generated_at = excluded.generated_at,
+                        generated_by_model = excluded.generated_by_model",
+                    params![
+                        project_id as i64,
+                        range_key,
+                        signature,
+                        retro_md,
+                        generated_at as i64,
+                        generated_by_model,
+                    ],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     // ---------- File snapshots (PR6.6 / Lite-W6) ----------
 
     /// Upsert the snapshot row for a single path. Used by the indexer at the
@@ -2317,6 +2377,17 @@ fn project_overview_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectOverv
         source_signature: r.get(4)?,
         generated_at: r.get::<_, Option<i64>>(5)?.map(|v| v as u32),
         generated_by_model: r.get(6)?,
+    })
+}
+
+fn retro_insight_from_row(r: &rusqlite::Row) -> rusqlite::Result<RetroInsight> {
+    Ok(RetroInsight {
+        project_id: r.get::<_, i64>(0)? as u32,
+        range_key: r.get(1)?,
+        signature: r.get(2)?,
+        retro_md: r.get(3)?,
+        generated_at: r.get::<_, i64>(4)? as u32,
+        generated_by_model: r.get(5)?,
     })
 }
 
@@ -2602,6 +2673,20 @@ pub struct ProjectOverview {
     pub overview_md: Option<String>,
     pub source_signature: Option<String>,
     pub generated_at: Option<u32>,
+    pub generated_by_model: Option<String>,
+}
+
+/// F4 — one cached retrospective for a workday range. `signature` is a hash of
+/// the deterministic signals; when it diverges from the current signals the
+/// frontend marks the cached narrative stale. Mirrors `project_overviews`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct RetroInsight {
+    pub project_id: u32,
+    /// "YYYYMMDD..YYYYMMDD" (inclusive workday range).
+    pub range_key: String,
+    pub signature: String,
+    pub retro_md: String,
+    pub generated_at: u32,
     pub generated_by_model: Option<String>,
 }
 

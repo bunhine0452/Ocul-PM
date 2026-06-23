@@ -51,6 +51,7 @@ export type UiV2View =
   | "journal"
   | "diff"
   | "planner"
+  | "retro"
   | "search"
   | "terminal"
   | "ai"

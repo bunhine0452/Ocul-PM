@@ -7,6 +7,7 @@ import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
+import { RetroScreenV2 } from "@/features/retro/RetroScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
@@ -234,6 +235,8 @@ export default function ShellV2({
               setUiV2View("journal");
             }}
           />
+        ) : view === "retro" ? (
+          <RetroScreenV2 projectId={projectId} />
         ) : view === "search" ? (
           <SearchScreenV2 projectId={projectId} />
         ) : view === "terminal" ? (

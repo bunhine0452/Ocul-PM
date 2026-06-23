@@ -145,6 +145,8 @@ use crate::commands::{
     oculpm_overview_stats,
     // F5 — git-history backfill
     oculpm_backfill_from_git,
+    // F4 — 회고/인사이트
+    retro_signals, get_retro, generate_retro,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -283,6 +285,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_overview_stats,
         // F5 — git-history backfill
         oculpm_backfill_from_git,
+        // F4 — 회고/인사이트
+        retro_signals,
+        get_retro,
+        generate_retro,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

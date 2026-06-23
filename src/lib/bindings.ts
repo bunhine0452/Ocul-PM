@@ -549,6 +549,27 @@ export const commands = {
 	 *  caps the scan (clamped 1..=2000 in the manager).
 	 */
 	oculpmBackfillFromGit: (projectId: number, maxCommits: number) => typedError<BackfillReport, string>(__TAURI_INVOKE("oculpm_backfill_from_git", { projectId, maxCommits })),
+	/**
+	 *  Deterministic signals for a workday range — no LLM. `since`/`until` are
+	 *  inclusive "YYYYMMDD".
+	 */
+	retroSignals: (projectId: number, since: string, until: string) => typedError<RetroSignals, string>(__TAURI_INVOKE("retro_signals", { projectId, since, until })),
+	/**  The cached retro narrative for a range, or `None` if never generated. */
+	getRetro: (projectId: number, rangeKey: string) => typedError<{
+	project_id: number,
+	/**  "YYYYMMDD..YYYYMMDD" (inclusive workday range). */
+	range_key: string,
+	signature: string,
+	retro_md: string,
+	generated_at: number,
+	generated_by_model: string | null,
+} | null, string>(__TAURI_INVOKE("get_retro", { projectId, rangeKey })),
+	/**
+	 *  Run the configured LLM over the range's signals and cache a Korean retro.
+	 *  Always regenerates (the user clicked "생성") — the signature is stored so the
+	 *  UI can later tell whether the data has drifted.
+	 */
+	generateRetro: (projectId: number, since: string, until: string, provider: string, model: string) => typedError<RetroInsight, string>(__TAURI_INVOKE("generate_retro", { projectId, since, until, provider, model })),
 };
 
 /** Events */
@@ -864,6 +885,23 @@ export type EditPromptResult = {
 	english_prompt: string,
 	korean_summary: string,
 	related_files: string[],
+};
+
+/**
+ *  A file where effort concentrated, annotated with its graph fan-out so the
+ *  retro can say "time went into a high-fan-out core module" with evidence.
+ */
+export type EffortHotspot = {
+	path: string,
+	/**  Distinct journal entries that touched it in the range. */
+	touch_count: number,
+	/**
+	 *  Files that (transitively) import it (`get_change_impact` reverse-BFS).
+	 *  0 when the path isn't in the code index (deleted / non-source / not yet
+	 *  indexed).
+	 */
+	impact_fan_out: number,
+	is_hub: boolean,
 };
 
 export type EndedReason = "inactivity_timeout" | "app_quit" | "workday_boundary" | "manual" | "crash_recovered" | 
@@ -1537,6 +1575,61 @@ export type RelatedRef = {
 	kind: string,
 };
 
+/**
+ *  A file touched by 2+ error/bug entries in the range — a recurring trouble
+ *  spot.
+ */
+export type RepeatedFile = {
+	path: string,
+	/**  Number of distinct error/bug entries that touched it. */
+	count: number,
+};
+
+/**  A friction unit — an error/bug journal entry. */
+export type ResistanceItem = {
+	/**  Raw frontmatter type: `error` | `bug`. */
+	kind: string,
+	title: string,
+	status: string,
+	workday: string,
+};
+
+/**
+ *  F4 — one cached retrospective for a workday range. `signature` is a hash of
+ *  the deterministic signals; when it diverges from the current signals the
+ *  frontend marks the cached narrative stale. Mirrors `project_overviews`.
+ */
+export type RetroInsight = {
+	project_id: number,
+	/**  "YYYYMMDD..YYYYMMDD" (inclusive workday range). */
+	range_key: string,
+	signature: string,
+	retro_md: string,
+	generated_at: number,
+	generated_by_model: string | null,
+};
+
+/**
+ *  The deterministic signal set the retro is grounded in. Returned to the UI
+ *  directly *and* fed to the LLM. `signature` hashes everything but itself, so
+ *  the frontend can compare it to a cached retro's signature to show staleness.
+ */
+export type RetroSignals = {
+	/**  Workday "YYYYMMDD". */
+	since: string,
+	until: string,
+	/**  "since..until". */
+	range_key: string,
+	signature: string,
+	total_entries: number,
+	shipped: ShippedItem[],
+	resistance: ResistanceItem[],
+	repeated_files: RepeatedFile[],
+	effort_hotspots: EffortHotspot[],
+	agent_breakdown: AgentCount[],
+	difficulty_mix: DifficultyMix,
+};
+
 export type Role = "system" | "user" | "assistant";
 
 export type Session = {
@@ -1588,6 +1681,15 @@ export type SessionDailyAgg = {
 };
 
 export type Severity = "ok" | "warning" | "critical";
+
+/**  A shipped unit — a completed feature/refactor journal entry. */
+export type ShippedItem = {
+	/**  Raw frontmatter type: `feature` | `refactor`. */
+	kind: string,
+	title: string,
+	agent_id: string,
+	workday: string,
+};
 
 export type SymbolCall = {
 	/**  Caller symbol in this file (None = file top-level). */

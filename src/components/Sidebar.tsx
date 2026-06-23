@@ -4,6 +4,7 @@ import {
   NotebookText,
   GitCompareArrows,
   TargetIcon,
+  History,
   SearchIcon,
   SquareTerminal,
   SparklesIcon,
@@ -43,6 +44,7 @@ const MAIN_NAV: NavSlot[] = [
   { id: "journal", label: "작업 일지", icon: NotebookText },
   { id: "diff", label: "변경 diff", icon: GitCompareArrows },
   { id: "planner", label: "Planner", icon: TargetIcon },
+  { id: "retro", label: "회고", icon: History },
 ];
 
 const TOOL_NAV: NavSlot[] = [

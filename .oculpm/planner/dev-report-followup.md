@@ -28,7 +28,7 @@ owner: claude-code
 - [x] 백엔드 기반 저널 쿼리 + 무한 타임라인 (14일 한계 제거) {#journal-query}
 - [x] 파싱 경고 노출 + frontmatter 자동 보정 {#parse-warnings}
 - [x] Git 히스토리 백필 — 기존 레포 콜드스타트 절벽 제거 {#git-backfill}
-- [ ] 회고/인사이트 생성 (overview 파이프라인 재활용) {#retro-insight}
+- [x] 회고/인사이트 생성 (overview 파이프라인 재활용) {#retro-insight}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -47,4 +47,5 @@ owner: claude-code
 | 2026-06-22T10:00:00+09:00 | #planner-unify | claude-code | →x | journal/20260622/Refactors/1000_refactor_planner-unify.md | 세 소비처(Today useNextTasks·AI챗 aiActions+aiContext·그린필드 시드)를 파일 기반 plan(plan_list/get/create/apply_edit)으로 전환. 레거시 goal/subtask 호출 0건. 백엔드 무변경, 게이트 전부 통과. v1.14.0. 후속: 죽은 레거시 커맨드 8개+hooks.ts 제거 |
 | 2026-06-22T12:40:00+09:00 | #legacy-goal-subtask-removal | claude-code | →x | journal/20260622/Refactors/1240_refactor_remove-legacy-goal-subtask-commands.md | 13에이전트 감사(blocked 0)→ planner.rs 전체 삭제 + mod.rs/lib.rs 등록 제거, bindings 재생성(커맨드 8개+미사용 Subtask 타입 드롭). 테이블·migration·plan_migrate_goals·Goal 타입 보존. hooks.ts 는 c59546a 에서 이미 삭제됨. 게이트 전부 통과. 후속: 고아 db 메서드 5개(안전망 테스트 얽힘) |
 | 2026-06-22T13:30:00+09:00 | #parse-warnings | claude-code | ~→x | journal/20260622/Features_to_add/1330_feature_frontmatter-tz-slug-coercion.md | B(자동보정) 완료: tz 오프셋 backfill(DST정확)+slug 정규화, 캐시/표시 전용·디스크 불변. parse_ok=구조신호 분리(advisory 경고). 6에이전트 적대리뷰 blocker 0, should-fix 3+nit 2 전부 반영. 백엔드 273+통합·프런트 게이트 전부 통과, bindings 불변 |
+| 2026-06-24T00:25:00+09:00 | #retro-insight | claude-code | →x | journal/20260624/Features_to_add/0025_feature_retro-insight.md | F4 완료: 신규 "회고" 화면(5번째 MAIN_NAV). 결정적 신호(출시/저항/노력핫스팟×그래프팬아웃/에이전트/난이도)→retro_signals, blake3 signature 캐시(retro_insights 022 마이그레이션)·오래됨 배지, generate_retro LLM(planner provider/failover 경로). range_entries 범위쿼리+aggregate 순수함수(단위 6)+적대리뷰(should-fix 1 레이스 수정). 백엔드 297 테스트·프런트 게이트 전부 통과 |
 <!-- oculpm:plan-log end -->

@@ -110,6 +110,22 @@ pub struct ChangeGroup {
     pub files: Vec<String>,
 }
 
+/// One journal entry inside a workday range, with its touched file paths
+/// (F4 retro). A lean projection — just the columns the retro signal pass
+/// aggregates over, so the heavier `JournalEntrySummary` hydration is avoided.
+#[derive(Debug, Clone)]
+pub struct RangeEntry {
+    pub relative_path: String,
+    pub workday: String,
+    /// Raw frontmatter type: `bug | feature | error | refactor | chore`.
+    pub entry_type: String,
+    pub status: String,
+    pub difficulty: Option<String>,
+    pub agent_id: String,
+    pub title: String,
+    pub files: Vec<String>,
+}
+
 /// Thin facade over the `oculpm_journal*` tables. Holds a shared reference
 /// to the process-wide [`Db`] connection — no extra connection pooling.
 pub struct JournalCache<'a> {
@@ -513,6 +529,90 @@ impl<'a> JournalCache<'a> {
             .await
             .map_err(map_sqlite_err)?;
         Ok(rows)
+    }
+
+    /// F4 — every journal entry whose `workday` falls in `[since, until]`
+    /// (inclusive, string-compared "YYYYMMDD"), each carrying its touched file
+    /// paths. Two bounded queries (entries, then their files) joined in Rust —
+    /// no per-entry N+1. Newest workday first. Drives the deterministic retro
+    /// signal pass without hydrating the full summary (tags etc.).
+    pub async fn range_entries(
+        &self,
+        project_id: u32,
+        since: &str,
+        until: &str,
+    ) -> Result<Vec<RangeEntry>, OculpmError> {
+        let pid = project_id as i64;
+        let since = since.to_string();
+        let until = until.to_string();
+        let (since_q, until_q) = (since.clone(), until.clone());
+
+        let mut entries: Vec<RangeEntry> = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT relative_path, workday, type, status, difficulty, agent_id, title
+                     FROM oculpm_journal
+                     WHERE project_id = ?1 AND workday >= ?2 AND workday <= ?3
+                     ORDER BY workday DESC, relative_path",
+                )?;
+                let collected: rusqlite::Result<Vec<RangeEntry>> = stmt
+                    .query_map(params![pid, &since_q, &until_q], |r| {
+                        Ok(RangeEntry {
+                            relative_path: r.get(0)?,
+                            workday: r.get(1)?,
+                            entry_type: r.get(2)?,
+                            status: r.get(3)?,
+                            difficulty: r.get(4)?,
+                            agent_id: r.get(5)?,
+                            title: r.get(6)?,
+                            files: Vec::new(),
+                        })
+                    })?
+                    .collect();
+                collected
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        if entries.is_empty() {
+            return Ok(entries);
+        }
+
+        // Files for every entry in the same range, in one join.
+        let files: Vec<(String, String)> = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT f.relative_path, f.file_path
+                     FROM oculpm_journal_files f
+                     JOIN oculpm_journal j
+                       ON j.project_id = f.project_id
+                      AND j.relative_path = f.relative_path
+                     WHERE j.project_id = ?1 AND j.workday >= ?2 AND j.workday <= ?3",
+                )?;
+                let collected: rusqlite::Result<Vec<(String, String)>> = stmt
+                    .query_map(params![pid, &since, &until], |r| {
+                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                    })?
+                    .collect();
+                collected
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        let mut by_path: HashMap<String, Vec<String>> = HashMap::new();
+        for (rel, file) in files {
+            by_path.entry(rel).or_default().push(file);
+        }
+        for e in &mut entries {
+            if let Some(fs) = by_path.remove(&e.relative_path) {
+                e.files = fs;
+            }
+        }
+        Ok(entries)
     }
 
     /// Group changed file paths by the journal entry that most recently touched
@@ -1943,6 +2043,67 @@ mod tests {
         assert!(rows.iter().all(|r| r.tags.contains(&"alpha".to_string())));
         // files_count = 1 (one file_touched per entry)
         assert!(rows.iter().all(|r| r.files_count == 1));
+    }
+
+    fn fm(ty: &str, slug: &str, status: &str, agent: &str, files: &[&str]) -> String {
+        let files_block = files
+            .iter()
+            .map(|f| format!("  - path: \"{f}\"\n    op: update"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "schema_version: 1\ntype: {ty}\nslug: {slug}\nstatus: {status}\ndifficulty: medium\ncreated_at: \"2026-06-20T09:25:13+09:00\"\nsession_id: \"20260620-001\"\nagent: {{ id: {agent} }}\nlanguage: ko\nfiles_touched:\n{files_block}\ntags: []"
+        )
+    }
+
+    #[tokio::test]
+    async fn range_entries_filters_by_workday_and_attaches_files() {
+        let (db, dir) = fresh_db().await;
+        let cache = JournalCache::new(&db);
+        let root = dir.path().join("journal");
+        write_entry(
+            &root,
+            "20260618/Features_to_add/0900_feature_x.md",
+            &fm("feature", "feat-x", "done", "claude-code", &["src/a.rs", "src/b.rs"]),
+            "[x] Feature X\n",
+        );
+        write_entry(
+            &root,
+            "20260620/Refactors/1000_refactor_y.md",
+            &fm("refactor", "ref-y", "done", "cursor", &["src/b.rs"]),
+            "[x] Refactor Y\n",
+        );
+        write_entry(
+            &root,
+            "20260622/Errors/1100_error_z.md",
+            &fm("error", "err-z", "abandoned", "claude-code", &["src/c.rs"]),
+            "[ ] Error Z\n",
+        );
+        cache.reindex_full(7, &root).await.unwrap();
+
+        // Full range — all three, newest workday first.
+        let all = cache.range_entries(7, "20260618", "20260622").await.unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].workday, "20260622");
+        assert_eq!(all[0].entry_type, "error");
+        // files attached
+        let feat = all.iter().find(|e| e.entry_type == "feature").unwrap();
+        let mut feat_files = feat.files.clone();
+        feat_files.sort();
+        assert_eq!(
+            feat_files,
+            vec!["src/a.rs".to_string(), "src/b.rs".to_string()]
+        );
+
+        // Narrow range excludes the boundary days.
+        let narrow = cache.range_entries(7, "20260619", "20260621").await.unwrap();
+        assert_eq!(narrow.len(), 1);
+        assert_eq!(narrow[0].entry_type, "refactor");
+        assert_eq!(narrow[0].agent_id, "cursor");
+
+        // No entries in range → empty.
+        let none = cache.range_entries(7, "20260101", "20260102").await.unwrap();
+        assert!(none.is_empty());
     }
 
     #[tokio::test]

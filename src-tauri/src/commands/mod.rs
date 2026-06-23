@@ -12,6 +12,7 @@ pub mod oculpm;
 pub mod overview;
 pub mod plan;
 pub mod project;
+pub mod retro;
 pub mod window;
 pub mod terminal;
 
@@ -30,5 +31,6 @@ pub use oculpm::*;
 pub use overview::*;
 pub use plan::*;
 pub use project::*;
+pub use retro::*;
 pub use window::*;
 pub use terminal::*;
