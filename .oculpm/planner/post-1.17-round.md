@@ -13,7 +13,7 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 
 ## Phase 1 — deferred 정리 {#cleanup}
 - [x] 고아 goal/subtask db 메서드 5개 제거 (안전망 테스트 슬림) {#orphan-db-methods}
-- [ ] F7a-B 한계 후속 (기존 캐시행 재보정·한글 slug·원본 1회 기록) {#f7a-b-followups}
+- [~] F7a-B 한계 후속 (기존 캐시행 재보정·한글 slug·원본 1회 기록) {#f7a-b-followups}
 - [ ] auto-reconcile 후속 (N4 공유락·완료 토스트·다중 활성 플랜) {#auto-reconcile-followups}
 
 ## Phase 2 — 백로그 기능 {#features}
@@ -24,4 +24,5 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 |---|---|---|---|---|---|
 | 2026-06-24T17:35:00+09:00 | #orphan-db-methods | claude-code | →x | journal/20260624/Refactors/1735_refactor_orphan-goal-subtask-db-methods.md | Db::update_goal/delete_goal/create_subtask/toggle_subtask/delete_subtask 제거(호출처 0 grep 확인). invariant_06 슬림(delete 단언→list_subtasks 가드, stale 주석 갱신). create_goal/list_goals/get_goal/list_subtasks+테이블 보존. cargo 284 통과, bindings 무변경. 표면0→C2와 묶음 |
 | 2026-06-24T17:41:00+09:00 | #export-digest | claude-code | →x | journal/20260624/Features_to_add/1741_feature_export-digest.md | C2 완료: 회고 화면 "내보내기"→oculpm_export_digest(range_entries 재사용, 워크데이별 .md 평탄화, get_entry 본문). 네이티브 저장 다이얼로그+write_atomic 백엔드, 마스킹 캐시(R1)라 안전, dialog:allow-save 명시. 백엔드 286·프런트 게이트 통과. orphan-db-methods 와 묶어 v1.18.0 |
+| 2026-06-24T18:05:00+09:00 | #f7a-b-followups | claude-code | →~ | journal/20260624/Features_to_add/1805_feature_f7a-b-coercion-coverage.md | Unit A(①②): Unicode-aware normalize_slug(한글 보존+구분자/대소문자 정규화) + coercion_version(migration 023) 으로 기존 캐시행 재보정(증분 패스가 버전 stale 행 1회 재투영+도장, upsert 빠른경로 drift self-heal). 캐시/표시 전용·디스크 불변. 백엔드 288 테스트(신규 3), bindings 불변. ③ 원본고치기는 Unit B |
 <!-- oculpm:plan-log end -->

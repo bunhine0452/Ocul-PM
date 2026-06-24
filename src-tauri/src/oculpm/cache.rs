@@ -35,6 +35,15 @@ use crate::oculpm::spec::{
     JournalEntrySummary, JournalFrontmatter,
 };
 
+/// Version of the F7a-B frontmatter coercion (tz-offset backfill + slug
+/// normalization) applied to a cached row. **Bump this whenever the coercion
+/// logic changes** so the incremental indexer re-projects rows stamped with an
+/// older version exactly once — even when their mtime is unchanged — then stamps
+/// them current (and skips again thereafter).
+///
+/// History: 1 — tz backfill + Unicode-aware (Hangul-preserving) slug normalize.
+pub const COERCION_VERSION: i64 = 1;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -242,18 +251,75 @@ impl<'a> JournalCache<'a> {
             .db
             .conn()
             .call(move |c| {
-                let existing: Option<(String, i64)> = c
+                #[allow(clippy::type_complexity)]
+                let existing: Option<(String, i64, String, Option<String>, String, Option<String>, i64, i64)> = c
                     .query_row(
-                        "SELECT body_md_hash, file_mtime FROM oculpm_journal
+                        "SELECT body_md_hash, file_mtime, created_at, updated_at, slug,
+                                parse_warnings, parse_ok, coercion_version
+                         FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
-                        |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+                        |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, i64>(1)?,
+                                r.get::<_, String>(2)?,
+                                r.get::<_, Option<String>>(3)?,
+                                r.get::<_, String>(4)?,
+                                r.get::<_, Option<String>>(5)?,
+                                r.get::<_, i64>(6)?,
+                                r.get::<_, i64>(7)?,
+                            ))
+                        },
                     )
                     .optional()?;
 
-                if let Some((ref existing_hash, existing_mtime)) = existing {
+                if let Some((
+                    ref existing_hash,
+                    existing_mtime,
+                    ref ex_created,
+                    ref ex_updated,
+                    ref ex_slug,
+                    ref ex_warnings,
+                    ex_parse_ok,
+                    ex_coercion_version,
+                )) = existing
+                {
                     if existing_hash == &snap.body_md_hash {
-                        // Body identical — bump mtime only and exit.
+                        // Full on-disk text identical — the wholesale rewrite below
+                        // is avoidable. BUT the cache's *coerced* columns (F7a-B)
+                        // may be stale if they were written by an older coercion
+                        // than `snap` (a row cached before tz-backfill / Unicode
+                        // slug normalize shipped). Self-heal those cheap
+                        // frontmatter-derived columns + stamp the coercion version
+                        // when the row is version-stale OR the values drift; else
+                        // fall through to the mtime-only / no-op fast path.
+                        let coerced_drift = ex_created != &snap.created_at
+                            || ex_updated != &snap.updated_at
+                            || ex_slug != &snap.slug
+                            || ex_warnings != &snap.parse_warnings
+                            || ex_parse_ok != snap.parse_ok as i64;
+                        if coerced_drift || ex_coercion_version != COERCION_VERSION {
+                            c.execute(
+                                "UPDATE oculpm_journal SET
+                                   file_mtime = ?1, created_at = ?2, updated_at = ?3,
+                                   slug = ?4, parse_warnings = ?5, parse_ok = ?6,
+                                   coercion_version = ?7
+                                 WHERE project_id = ?8 AND relative_path = ?9",
+                                params![
+                                    file_mtime,
+                                    &snap.created_at,
+                                    &snap.updated_at,
+                                    &snap.slug,
+                                    &snap.parse_warnings,
+                                    snap.parse_ok as i64,
+                                    COERCION_VERSION,
+                                    pid,
+                                    &rp,
+                                ],
+                            )?;
+                            return Ok(UpsertOutcomeRaw::MtimeOnly);
+                        }
                         if existing_mtime != file_mtime {
                             c.execute(
                                 "UPDATE oculpm_journal SET file_mtime = ?1
@@ -273,8 +339,8 @@ impl<'a> JournalCache<'a> {
                      (project_id, relative_path, workday, type, slug, status, difficulty,
                       title, checkbox, session_id, agent_id, agent_version, language,
                       verified_by_user, created_at, updated_at, file_mtime, body_markdown,
-                      body_md_hash, parse_ok, parse_warnings)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)
+                      body_md_hash, parse_ok, parse_warnings, coercion_version)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)
                      ON CONFLICT(project_id, relative_path) DO UPDATE SET
                        workday = excluded.workday,
                        type = excluded.type,
@@ -294,7 +360,8 @@ impl<'a> JournalCache<'a> {
                        body_markdown = excluded.body_markdown,
                        body_md_hash = excluded.body_md_hash,
                        parse_ok = excluded.parse_ok,
-                       parse_warnings = excluded.parse_warnings",
+                       parse_warnings = excluded.parse_warnings,
+                       coercion_version = excluded.coercion_version",
                     params![
                         pid,
                         &rp,
@@ -317,6 +384,7 @@ impl<'a> JournalCache<'a> {
                         &snap.body_md_hash,
                         snap.parse_ok as i64,
                         &snap.parse_warnings,
+                        COERCION_VERSION,
                     ],
                 )?;
 
@@ -909,10 +977,14 @@ impl<'a> JournalCache<'a> {
         let mut seen: HashMap<String, ()> = HashMap::new();
         for (relative_path, mtime) in walk_journal(journal_root) {
             seen.insert(relative_path.clone(), ());
-            let cached_mtime = known.get(&relative_path).copied();
-            if cached_mtime == Some(mtime) {
-                report.skipped_unchanged += 1;
-                continue;
+            // Skip only when the file is unchanged AND already coerced at the
+            // current version — a coercion-logic bump (COERCION_VERSION) forces a
+            // one-time re-projection of otherwise-unchanged rows (F7a-B follow-up).
+            if let Some((cached_mtime, cached_version)) = known.get(&relative_path).copied() {
+                if cached_mtime == mtime && cached_version == COERCION_VERSION {
+                    report.skipped_unchanged += 1;
+                    continue;
+                }
             }
             let abs = journal_root.join(&relative_path);
             let raw = match std::fs::read_to_string(&abs) {
@@ -1073,26 +1145,29 @@ impl<'a> JournalCache<'a> {
         Ok(Some(summary))
     }
 
+    /// Per-row `(file_mtime, coercion_version)` for the incremental skip check.
+    /// A row is skipped only when BOTH match the disk mtime and the current
+    /// `COERCION_VERSION` — so a coercion-logic bump re-projects stale rows once.
     async fn load_known_mtimes(
         &self,
         project_id: u32,
-    ) -> Result<HashMap<String, i64>, OculpmError> {
+    ) -> Result<HashMap<String, (i64, i64)>, OculpmError> {
         let pid = project_id as i64;
         let map = self
             .db
             .conn()
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT relative_path, file_mtime FROM oculpm_journal
+                    "SELECT relative_path, file_mtime, coercion_version FROM oculpm_journal
                      WHERE project_id = ?1",
                 )?;
-                let mut out: HashMap<String, i64> = HashMap::new();
+                let mut out: HashMap<String, (i64, i64)> = HashMap::new();
                 let rows = stmt.query_map(params![pid], |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+                    Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
                 })?;
                 for row in rows {
-                    let (k, v) = row?;
-                    out.insert(k, v);
+                    let (k, mtime, ver) = row?;
+                    out.insert(k, (mtime, ver));
                 }
                 Ok(out)
             })
@@ -2437,6 +2512,69 @@ mod tests {
             .parse_warnings
             .iter()
             .any(|w| w.contains("timezone offset")));
+    }
+
+    /// F7a-B follow-up: a row cached before the coercion logic existed
+    /// (`coercion_version` < current) must be re-projected by an *incremental*
+    /// pass even though its file is unchanged — then stamped current so it's
+    /// skipped again. We simulate the pre-mechanism row by writing it raw (no
+    /// tz) and forcing its version to 0.
+    #[tokio::test]
+    async fn incremental_recoerces_version_stale_row_then_skips() {
+        let (db, dir) = fresh_db().await;
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_stale.md";
+        let fm = "schema_version: 1\ntype: bug\nslug: \"버그 수정\"\nstatus: done\n\
+                  created_at: \"2026-05-24T09:25:13\"\nsession_id: \"20260524-001\"\n\
+                  agent: { id: claude-code }\nlanguage: ko";
+        write_entry(&journal_root, rel, fm, "[x] body\n");
+
+        // Index WITHOUT tz → raw created_at + raw (spaced) slug cached.
+        JournalCache::new(&db)
+            .reindex_full(1, &journal_root)
+            .await
+            .unwrap();
+        // Force the row to look pre-mechanism (version 0).
+        db.conn()
+            .call(|c| {
+                c.execute("UPDATE oculpm_journal SET coercion_version = 0", [])?;
+                Ok::<_, tokio_rusqlite::Error>(())
+            })
+            .await
+            .unwrap();
+
+        // Incremental WITH tz: mtime is unchanged, but the stale version must
+        // prevent the walk-level skip so the row gets re-coerced. (The re-coerce
+        // returns MtimeOnly, which the report folds into skipped_unchanged — so
+        // the *values* below are the real proof it was re-processed, not skipped.)
+        let seoul: Tz = "Asia/Seoul".parse().unwrap();
+        JournalCache::new(&db)
+            .with_tz(seoul)
+            .reindex_incremental(1, &journal_root)
+            .await
+            .unwrap();
+
+        let row = JournalCache::new(&db)
+            .list_entries(1, None, &EntryFilters::default())
+            .await
+            .unwrap();
+        // Had it been skipped at the walk level, these would still be raw.
+        assert_eq!(row[0].created_at, "2026-05-24T09:25:13+09:00"); // backfilled
+        assert_eq!(row[0].slug, "버그-수정"); // Unicode-normalized
+
+        // …and the row is stamped current, so future incrementals skip it again.
+        let ver: i64 = db
+            .conn()
+            .call(|c| {
+                Ok::<_, tokio_rusqlite::Error>(c.query_row(
+                    "SELECT coercion_version FROM oculpm_journal",
+                    [],
+                    |r| r.get::<_, i64>(0),
+                )?)
+            })
+            .await
+            .unwrap();
+        assert_eq!(ver, COERCION_VERSION);
     }
 
     #[tokio::test]

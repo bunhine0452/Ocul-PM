@@ -181,22 +181,24 @@ pub fn backfill_tz_offset(s: &str, tz: Tz) -> Option<String> {
     Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false))
 }
 
-/// Normalize a slug to the spec's kebab-case `[a-z0-9-]` (lowercase; each run
-/// of other ASCII → a single `-`; leading/trailing `-` trimmed; max 60).
+/// Normalize a slug to kebab-case for display: lowercase ASCII letters, keep
+/// any Unicode *alphanumeric* (so Hangul / other scripts survive intact), and
+/// collapse every run of other characters into a single `-` (leading/trailing
+/// trimmed; max 60 chars).
 ///
-/// Any non-ASCII character (e.g. Korean) makes this a no-op (`None`): we would
-/// otherwise drop the non-ASCII half of a mixed slug like `버그-fix` → `fix`,
-/// which is lossy in a Korean-first product. Such slugs are left exactly as
-/// authored. Returns `Some(normalized)` only for an ASCII-only slug that is
-/// non-empty and actually differs from the input.
+/// F7a-B shipped this ASCII-only (any non-ASCII char → no-op) to avoid dropping
+/// the Korean half of a mixed slug like `버그-fix`. This follow-up makes it
+/// Unicode-aware instead: `버그 수정!!` → `버그-수정`, `버그-FIX` → `버그-fix`,
+/// while already-clean slugs (`버그-fix`, `한글슬러그`) stay untouched. Still a
+/// no-op (`None`) when the result is empty or equals the input. Cache/display
+/// only — the on-disk slug is never rewritten here.
 pub fn normalize_slug(s: &str) -> Option<String> {
-    if s.chars().any(|c| !c.is_ascii()) {
-        return None;
-    }
     let mut out = String::with_capacity(s.len());
     let mut prev_hyphen = false;
     for c in s.chars() {
-        if c.is_ascii_alphanumeric() {
+        if c.is_alphanumeric() {
+            // `to_ascii_lowercase` lowercases A–Z and leaves every other
+            // codepoint (Hangul, digits, accented letters) unchanged.
             out.push(c.to_ascii_lowercase());
             prev_hyphen = false;
         } else if !prev_hyphen {
@@ -775,11 +777,22 @@ mod tests {
         assert_eq!(normalize_slug("--Trim--Me--").as_deref(), Some("trim-me"));
         // Already valid → None (no change).
         assert_eq!(normalize_slug("already-valid-123"), None);
-        // Any non-ASCII → None (left untouched). A mixed slug must NOT have its
-        // Korean half dropped to an ASCII fragment ("버그-fix" must not → "fix").
+    }
+
+    #[test]
+    fn normalize_slug_is_unicode_aware_for_hangul() {
+        // Already-clean Hangul slugs are untouched (no Korean half dropped).
         assert_eq!(normalize_slug("한글슬러그"), None);
         assert_eq!(normalize_slug("버그-fix"), None);
         assert_eq!(normalize_slug("fix-한글-bug"), None);
+        // But separators / case ARE normalized while Hangul survives intact.
+        assert_eq!(normalize_slug("버그 수정!!").as_deref(), Some("버그-수정"));
+        assert_eq!(normalize_slug("버그__수정").as_deref(), Some("버그-수정"));
+        assert_eq!(normalize_slug("버그-FIX").as_deref(), Some("버그-fix"));
+        assert_eq!(normalize_slug("  한글 슬러그  ").as_deref(), Some("한글-슬러그"));
+        // All-punctuation / emoji → empty → None (no-op, not a lossy rewrite).
+        assert_eq!(normalize_slug("!!!"), None);
+        assert_eq!(normalize_slug("🎉"), None);
     }
 
     fn sample_yaml() -> String {
