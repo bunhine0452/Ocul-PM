@@ -12,7 +12,7 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 `docs/20260622_dev-report/03-next-features.md` 백로그에서 고른 항목을 추적한다.
 
 ## Phase 1 — deferred 정리 {#cleanup}
-- [ ] 고아 goal/subtask db 메서드 5개 제거 (안전망 테스트 슬림) {#orphan-db-methods}
+- [x] 고아 goal/subtask db 메서드 5개 제거 (안전망 테스트 슬림) {#orphan-db-methods}
 - [ ] F7a-B 한계 후속 (기존 캐시행 재보정·한글 slug·원본 1회 기록) {#f7a-b-followups}
 - [ ] auto-reconcile 후속 (N4 공유락·완료 토스트·다중 활성 플랜) {#auto-reconcile-followups}
 
@@ -22,4 +22,5 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-06-24T17:35:00+09:00 | #orphan-db-methods | claude-code | →x | journal/20260624/Refactors/1735_refactor_orphan-goal-subtask-db-methods.md | Db::update_goal/delete_goal/create_subtask/toggle_subtask/delete_subtask 제거(호출처 0 grep 확인). invariant_06 슬림(delete 단언→list_subtasks 가드, stale 주석 갱신). create_goal/list_goals/get_goal/list_subtasks+테이블 보존. cargo 284 통과, bindings 무변경. 표면0→C2와 묶음 |
 <!-- oculpm:plan-log end -->

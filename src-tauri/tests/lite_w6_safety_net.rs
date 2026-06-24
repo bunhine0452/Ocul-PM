@@ -215,12 +215,15 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
     // `first` drops at scope exit, releasing the lock.
 }
 
-// ─── #6 — planner goal CRUD round-trip via Db ──────────────────────────────
+// ─── #6 — legacy goal read/create round-trip via Db ────────────────────────
 //
-// commands::planner::* is a thin Tauri wrapper over these Db methods. PR4
-// touches db.rs heavily; any of these methods quietly going private breaks
-// the Plan screen without a compile error at the command layer (Tauri
-// generates the bridge at macro time).
+// The goals/subtasks tables are legacy (planner-unify moved the live Plan to
+// file-based `.oculpm/planner/*.md`), but `create_goal`/`list_goals`/`get_goal`
+// /`list_subtasks` are RETAINED — `plan_migrate_goals` (one-time import) and
+// greenfield `generate_seed_goals` still use them. This guards they stay
+// reachable. The write-side methods (update_goal / delete_goal / *_subtask
+// mutators) were orphaned after planner-unify and removed, so they're no
+// longer exercised here.
 
 #[tokio::test]
 async fn invariant_06_planner_goal_crud_roundtrip() {
@@ -253,9 +256,9 @@ async fn invariant_06_planner_goal_crud_roundtrip() {
     assert_eq!(got.id, g.id);
     assert_eq!(got.project_id, Some(project_id));
 
-    db.delete_goal(g.id).await.unwrap();
-    let listed = db.list_goals(Some(project_id), None).await.unwrap();
-    assert!(listed.iter().all(|x| x.id != g.id));
+    // subtask read path stays reachable (used by plan_migrate_goals).
+    let subs = db.list_subtasks(g.id).await.unwrap();
+    assert!(subs.is_empty());
 }
 
 // ─── #7 — project lifecycle ────────────────────────────────────────────────

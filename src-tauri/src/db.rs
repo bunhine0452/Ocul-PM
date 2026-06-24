@@ -683,78 +683,6 @@ impl Db {
         Ok(goal)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub async fn update_goal(
-        &self,
-        goal_id: u32,
-        title: Option<String>,
-        description: Option<Option<String>>,
-        status: Option<String>,
-        priority: Option<i32>,
-        due_date: Option<Option<i32>>,
-        progress: Option<f64>,
-    ) -> Result<Goal> {
-        let goal = self
-            .conn
-            .call(move |c| {
-                if let Some(ref v) = title {
-                    c.execute(
-                        "UPDATE goals SET title = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-                if let Some(ref v) = description {
-                    c.execute(
-                        "UPDATE goals SET description = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-                if let Some(ref v) = status {
-                    c.execute(
-                        "UPDATE goals SET status = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-                if let Some(v) = priority {
-                    c.execute(
-                        "UPDATE goals SET priority = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-                if let Some(ref v) = due_date {
-                    c.execute(
-                        "UPDATE goals SET due_date = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-                if let Some(v) = progress {
-                    c.execute(
-                        "UPDATE goals SET progress = ?, updated_at = unixepoch() WHERE id = ?",
-                        params![v, goal_id as i64],
-                    )?;
-                }
-
-                c.query_row(
-                    "SELECT id, project_id, title, description, status, priority,
-                            due_date, progress, created_at, updated_at
-                     FROM goals WHERE id = ?1",
-                    [goal_id as i64],
-                    goal_from_row,
-                )})
-            .await?;
-        Ok(goal)
-    }
-
-    pub async fn delete_goal(&self, goal_id: u32) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute("DELETE FROM goals WHERE id = ?", [goal_id as i64])?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
     pub async fn dashboard_stats(&self, project_id: Option<u32>) -> Result<DashboardStats> {
         let stats = self
             .conn
@@ -844,34 +772,6 @@ impl Db {
 
     // ---------- Subtasks ----------
 
-    pub async fn create_subtask(&self, goal_id: u32, title: String) -> Result<Subtask> {
-        let subtask = self
-            .conn
-            .call(move |c| {
-                let max_order: i32 = c
-                    .query_row(
-                        "SELECT COALESCE(MAX(sort_order), -1) FROM subtasks WHERE goal_id = ?",
-                        [goal_id as i64],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or(-1);
-                c.execute(
-                    "INSERT INTO subtasks (goal_id, title, sort_order) VALUES (?, ?, ?)",
-                    params![goal_id as i64, &title, max_order + 1],
-                )?;
-                let id = c.last_insert_rowid();
-                Ok(Subtask {
-                    id: id as u32,
-                    goal_id,
-                    title,
-                    done: false,
-                    sort_order: (max_order + 1) as u32,
-                })
-            })
-            .await?;
-        Ok(subtask)
-    }
-
     pub async fn list_subtasks(&self, goal_id: u32) -> Result<Vec<Subtask>> {
         let subtasks = self
             .conn
@@ -895,42 +795,6 @@ impl Db {
             })
             .await?;
         Ok(subtasks)
-    }
-
-    pub async fn toggle_subtask(&self, subtask_id: u32) -> Result<Subtask> {
-        let subtask = self
-            .conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE subtasks SET done = CASE WHEN done = 0 THEN 1 ELSE 0 END
-                     WHERE id = ?",
-                    [subtask_id as i64],
-                )?;
-                c.query_row(
-                    "SELECT id, goal_id, title, done, sort_order FROM subtasks WHERE id = ?",
-                    [subtask_id as i64],
-                    |r| {
-                        Ok(Subtask {
-                            id: r.get::<_, i64>(0)? as u32,
-                            goal_id: r.get::<_, i64>(1)? as u32,
-                            title: r.get(2)?,
-                            done: r.get::<_, i32>(3)? != 0,
-                            sort_order: r.get::<_, i64>(4)? as u32,
-                        })
-                    },
-                )})
-            .await?;
-        Ok(subtask)
-    }
-
-    pub async fn delete_subtask(&self, subtask_id: u32) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute("DELETE FROM subtasks WHERE id = ?", [subtask_id as i64])?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
     }
 
     // ---------- Conversations (chat history) ----------
