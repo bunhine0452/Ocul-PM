@@ -17,10 +17,11 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 - [ ] auto-reconcile 후속 (N4 공유락·완료 토스트·다중 활성 플랜) {#auto-reconcile-followups}
 
 ## Phase 2 — 백로그 기능 {#features}
-- [ ] 공유 가능한 일지 내보내기 (.md 번들, C2) {#export-digest}
+- [x] 공유 가능한 일지 내보내기 (.md 번들, C2) {#export-digest}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
 | 2026-06-24T17:35:00+09:00 | #orphan-db-methods | claude-code | →x | journal/20260624/Refactors/1735_refactor_orphan-goal-subtask-db-methods.md | Db::update_goal/delete_goal/create_subtask/toggle_subtask/delete_subtask 제거(호출처 0 grep 확인). invariant_06 슬림(delete 단언→list_subtasks 가드, stale 주석 갱신). create_goal/list_goals/get_goal/list_subtasks+테이블 보존. cargo 284 통과, bindings 무변경. 표면0→C2와 묶음 |
+| 2026-06-24T17:41:00+09:00 | #export-digest | claude-code | →x | journal/20260624/Features_to_add/1741_feature_export-digest.md | C2 완료: 회고 화면 "내보내기"→oculpm_export_digest(range_entries 재사용, 워크데이별 .md 평탄화, get_entry 본문). 네이티브 저장 다이얼로그+write_atomic 백엔드, 마스킹 캐시(R1)라 안전, dialog:allow-save 명시. 백엔드 286·프런트 게이트 통과. orphan-db-methods 와 묶어 v1.18.0 |
 <!-- oculpm:plan-log end -->

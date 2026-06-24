@@ -570,6 +570,12 @@ export const commands = {
 	 *  UI can later tell whether the data has drifted.
 	 */
 	generateRetro: (projectId: number, since: string, until: string, provider: string, model: string) => typedError<RetroInsight, string>(__TAURI_INVOKE("generate_retro", { projectId, since, until, provider, model })),
+	/**
+	 *  Render the range digest, open a native save dialog (default `.md` name), and
+	 *  write the file. Returns the saved path, or `None` if the user cancelled.
+	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
+	 */
+	oculpmExportDigest: (projectId: number, since: string, until: string) => typedError<string | null, string>(__TAURI_INVOKE("oculpm_export_digest", { projectId, since, until })),
 };
 
 /** Events */

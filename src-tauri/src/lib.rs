@@ -147,6 +147,8 @@ use crate::commands::{
     oculpm_backfill_from_git,
     // F4 — 회고/인사이트
     retro_signals, get_retro, generate_retro,
+    // C2 — 일지 내보내기
+    oculpm_export_digest,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -289,6 +291,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         retro_signals,
         get_retro,
         generate_retro,
+        // C2 — 일지 내보내기
+        oculpm_export_digest,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

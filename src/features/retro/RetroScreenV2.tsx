@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   SparklesIcon,
   RotateCcw,
+  Download,
 } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import {
@@ -67,6 +68,7 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
   const [cached, setCached] = useState<RetroInsight | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Tracks the currently-displayed range so a slow generate() that resolves
@@ -136,6 +138,21 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
     }
   }, [generating, signals, projectId, since, until, rangeKey]);
 
+  // C2 — export the range's journal entries to a shareable .md (native save
+  // dialog + write happen in the backend; we just toast the result).
+  const exportDigest = useCallback(async () => {
+    if (exporting || !signals || signals.total_entries === 0) return;
+    setExporting(true);
+    const res = await commands.oculpmExportDigest(projectId, since, until);
+    setExporting(false);
+    if (res.status === "ok") {
+      if (res.data) toast.info(`내보냈어요: ${res.data}`);
+      // null = 사용자가 취소 → 조용히 무시
+    } else {
+      toast.destructive(`내보내기 실패: ${res.error}`);
+    }
+  }, [exporting, signals, projectId, since, until]);
+
   const hasWork = !!signals && signals.total_entries > 0;
 
   return (
@@ -159,8 +176,16 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
             </button>
           ))}
           <button
-            className="btn primary"
+            className="btn sm"
             style={{ marginLeft: 8 }}
+            onClick={() => void exportDigest()}
+            disabled={exporting || loading || !hasWork}
+            title={hasWork ? "이 기간 일지를 .md 로 내보내기" : "이 기간에 기록된 작업이 없습니다"}
+          >
+            <Download size={14} /> {exporting ? "내보내는 중…" : "내보내기"}
+          </button>
+          <button
+            className="btn primary"
             onClick={() => void generate()}
             disabled={generating || loading || !hasWork}
             title={hasWork ? undefined : "이 기간에 기록된 작업이 없습니다"}

@@ -19,6 +19,7 @@
       "allow": [{ "url": "https://*" }]
     },
     "dialog:default",
+    "dialog:allow-save",
     "updater:default",
     "process:default",
     "core:window:allow-start-dragging",
