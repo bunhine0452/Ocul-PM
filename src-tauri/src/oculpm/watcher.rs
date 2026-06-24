@@ -923,13 +923,29 @@ impl WatcherInner {
             )
             .await
             {
-                Ok(outcome) => tracing::info!(
-                    target: "oculpm::watcher",
-                    project_id,
-                    path = %entry_rel,
-                    ?outcome,
-                    "[FLOW] auto-reconcile finished"
-                ),
+                Ok(outcome) => {
+                    // Surface an actual change to the UI (toast + planner refresh).
+                    if let crate::oculpm::reconcile::ReconcileOutcome::Applied {
+                        count,
+                        plan_id,
+                    } = &outcome
+                    {
+                        use tauri_specta::Event;
+                        let _ = crate::oculpm::spec::OculpmPlanReconciled {
+                            project_id,
+                            plan_id: plan_id.clone(),
+                            applied: *count as u32,
+                        }
+                        .emit(&handle);
+                    }
+                    tracing::info!(
+                        target: "oculpm::watcher",
+                        project_id,
+                        path = %entry_rel,
+                        ?outcome,
+                        "[FLOW] auto-reconcile finished"
+                    );
+                }
                 Err(e) => tracing::warn!(
                     target: "oculpm::watcher",
                     project_id,

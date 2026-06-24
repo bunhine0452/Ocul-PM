@@ -596,6 +596,17 @@ pub struct OculpmIntegrityWarning {
     pub warning: IntegrityWarning,
 }
 
+/// F1 — emitted after auto-reconcile applies status flips to a plan, so the UI
+/// can toast ("AI 가 N개 항목을 자동 갱신") and refresh the planner. Only fired on
+/// an actual change (≥1 applied); skips/no-ops stay silent.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct OculpmPlanReconciled {
+    pub project_id: u32,
+    pub plan_id: String,
+    /// Number of item statuses changed.
+    pub applied: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 pub struct OculpmAgentDrift {
     pub project_id: u32,

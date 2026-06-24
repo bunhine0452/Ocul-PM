@@ -594,6 +594,7 @@ export const events = {
 	oculpmJournalAdded: makeEvent<OculpmJournalAdded>("oculpm-journal-added"),
 	oculpmJournalPathChanged: makeEvent<OculpmJournalPathChanged>("oculpm-journal-path-changed"),
 	oculpmJournalUpdated: makeEvent<OculpmJournalUpdated>("oculpm-journal-updated"),
+	oculpmPlanReconciled: makeEvent<OculpmPlanReconciled>("oculpm-plan-reconciled"),
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
 };
@@ -1394,6 +1395,18 @@ export type OculpmOverviewStats = {
 	unfinished_entries: JournalEntrySummary[],
 	/**  Up to 30 days of session aggregates, most recent first. */
 	recent_sessions: SessionDailyAgg[],
+};
+
+/**
+ *  F1 — emitted after auto-reconcile applies status flips to a plan, so the UI
+ *  can toast ("AI 가 N개 항목을 자동 갱신") and refresh the planner. Only fired on
+ *  an actual change (≥1 applied); skips/no-ops stay silent.
+ */
+export type OculpmPlanReconciled = {
+	project_id: number,
+	plan_id: string,
+	/**  Number of item statuses changed. */
+	applied: number,
 };
 
 export type OculpmSessionEnded = {

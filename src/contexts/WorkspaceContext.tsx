@@ -718,6 +718,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       console.warn("[oculpm] integrity warning:", w);
     }).then((off) => offFns.push(off));
 
+    // F1 — auto-reconcile applied status changes to the active plan in the
+    // background. Toast so the user knows the plan moved on its own. Dedup per
+    // plan within a short window so a burst of entries doesn't spam.
+    void events.oculpmPlanReconciled.listen((evt) => {
+      if (evt.payload.project_id !== currentProjectId()) return;
+      const { applied, plan_id: planId } = evt.payload;
+      toast.info(`AI 가 계획 항목 ${applied}개를 자동 갱신했어요`, {
+        title: "자동 화해",
+        dedupKey: `reconciled:${planId}`,
+        dedupWindowMs: 5_000,
+      });
+    }).then((off) => offFns.push(off));
+
     void events.oculpmAgentDrift.listen((evt) => {
       const pid = currentProjectId();
       if (evt.payload.project_id !== pid || pid == null) return;

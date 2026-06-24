@@ -304,6 +304,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmJournalAdded,
         crate::oculpm::spec::OculpmJournalUpdated,
         crate::oculpm::spec::OculpmIntegrityWarning,
+        crate::oculpm::spec::OculpmPlanReconciled,
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
