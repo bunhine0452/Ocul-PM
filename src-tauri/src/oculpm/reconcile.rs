@@ -1,11 +1,11 @@
 //! F1 — automatic journal→plan reconciliation.
 //!
 //! When `agents.auto_reconcile` is on, the watcher calls [`reconcile_entry`]
-//! after a *new* journal entry is indexed. It asks the configured LLM "which
-//! item of the single active plan did this entry advance, and to what status?"
-//! and applies only the valid status flips, stamped `agent_id = auto:<provider>`
-//! with the entry path filled into the plan-log `journal_ref` (the column that
-//! was always `None` before F1).
+//! after a *new* journal entry is indexed. For **each active plan** it asks the
+//! configured LLM "which item of this plan did the entry advance, and to what
+//! status?" and applies only the valid status flips, stamped
+//! `agent_id = auto:<provider>` with the entry path filled into the plan-log
+//! `journal_ref` (the column that was always `None` before F1).
 //!
 //! This is the opt-in, billable, background counterpart of the user-driven
 //! `plan_ai_refresh` (commands/plan.rs): it reuses the same prompt + tolerant
@@ -14,8 +14,9 @@
 //!
 //! Safety properties:
 //! - **Opt-in** — never runs unless the config flag is set (checked by caller).
-//! - **Single active plan only** — skips (no-op) on 0 or >1 active plans, so we
-//!   never guess which plan a journal entry belongs to.
+//! - **All active plans** — every active plan is reconciled independently (one
+//!   LLM call each); a plan whose items the entry didn't touch is a no-op. Cost
+//!   scales with the number of active plans (bounded by the opt-in).
 //! - **Loop-safe** — only triggered by *journal* inserts; it writes only to
 //!   `.oculpm/planner/*.md`, which never produces a journal event.
 //! - **Fail-soft** — every skip/credential-miss returns `Skipped`, never errors
@@ -50,12 +51,22 @@ pub fn is_git_backfill_session(session_id: &str) -> bool {
     session_id.ends_with(GIT_BACKFILL_SESSION_SUFFIX)
 }
 
+/// What one active plan's reconciliation did.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PlanReconcileResult {
+    pub plan_id: String,
+    /// Item statuses flipped in this plan (0 = considered but nothing changed).
+    pub applied: usize,
+}
+
 /// Result of a reconciliation attempt. `Skipped` carries a static reason for
-/// the watcher log; `Applied` reports how many item statuses were flipped.
+/// the watcher log (entry/credential/no-active-plan level). `Ran` reports the
+/// per-active-plan results — every active plan is reconciled (the user chose
+/// "all active plans"); the watcher emits an event per plan that changed.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReconcileOutcome {
     Skipped(&'static str),
-    Applied { count: usize, plan_id: String },
+    Ran(Vec<PlanReconcileResult>),
 }
 
 /// Serialise a snake_case spec enum (EntryType/EntryStatus) to its wire string
@@ -86,7 +97,7 @@ fn entry_block(entry_type: &str, status: &str, title: &str, files: &[String], bo
     )
 }
 
-/// Reconcile the single active plan against one freshly-written journal entry.
+/// Reconcile every active plan against one freshly-written journal entry.
 /// See the module docs for the safety contract. `redact`/`tz` mirror the
 /// watcher's so the cache read masks secrets + backfills tz exactly as the
 /// indexing path did.
@@ -149,36 +160,8 @@ pub async fn reconcile_entry(
         None => return Ok(ReconcileOutcome::Skipped("no api key for provider")),
     };
 
-    // ── 2. Find the single active plan (skip if 0 or >1 — never guess) ──
-    let planner_root = planner_dir(root);
-    let summaries = PlanCache::new(db).list(project_id, &planner_root).await?;
-    let mut active = summaries.into_iter().filter(|s| s.status == "active");
-    let plan = match (active.next(), active.next()) {
-        (Some(p), None) => p,
-        (None, _) => return Ok(ReconcileOutcome::Skipped("no active plan")),
-        (Some(_), Some(_)) => {
-            return Ok(ReconcileOutcome::Skipped("multiple active plans (ambiguous)"))
-        }
-    };
-    let plan_id = plan.plan_id.clone();
-    let path = find_plan_path(&planner_root, &plan_id).ok_or("active plan file vanished")?;
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let parsed = parse_plan(&md, &plan_id);
-    // Locked plans (done/archived) reject edits — same rule as plan_apply_edit.
-    if parsed.frontmatter.status.as_str() != "active" {
-        return Ok(ReconcileOutcome::Skipped("active plan is locked"));
-    }
-    if parsed.items.is_empty() {
-        return Ok(ReconcileOutcome::Skipped("active plan has no items"));
-    }
-    let items_block = parsed
-        .items
-        .iter()
-        .map(|i| format!("- {{#{}}} [{}] {}", i.item_id, i.status.as_str(), i.title))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    // ── 3. Build the prompt context from the entry loaded in step 0 ──
+    // ── 2. Build the prompt context from the entry loaded in step 0 (shared by
+    // every active plan's reconciliation). ──
     let files: Vec<String> = entry
         .frontmatter
         .files_touched
@@ -193,91 +176,140 @@ pub async fn reconcile_entry(
         &entry.body_markdown,
     );
 
-    // ── 4. Ask the LLM which items advanced (reuse the plan-AI prompt) ──
-    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
-    let user_msg = build_user_prompt(&parsed.frontmatter.title, &items_block, &journal_block);
-    let response = client
-        .chat(
-            vec![
-                llm::Message {
-                    role: llm::Role::System,
-                    content: SYSTEM_PROMPT.to_string(),
-                },
-                llm::Message {
-                    role: llm::Role::User,
-                    content: user_msg,
-                },
-            ],
-            llm::ChatOptions {
-                model,
-                temperature: Some(0.1),
-                max_tokens: Some(400),
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-
-    // ── 5. Apply valid, changed status flips via the plan-log path ──
-    let edits = parse_ai_edits(&response.content);
-    let agent = format!("auto:{provider}");
-    let ts = chrono::Utc::now().to_rfc3339();
-    let existing: HashSet<String> = parsed.items.iter().map(|i| i.item_id.clone()).collect();
-    let cur_status: HashMap<String, ItemStatus> = parsed
-        .items
-        .iter()
-        .map(|i| (i.item_id.clone(), i.status))
+    // ── 3. Reconcile EVERY active plan (user chose "all active plans"). ──
+    let planner_root = planner_dir(root);
+    let summaries = PlanCache::new(db).list(project_id, &planner_root).await?;
+    let active: Vec<_> = summaries
+        .into_iter()
+        .filter(|s| s.status == "active")
         .collect();
+    if active.is_empty() {
+        return Ok(ReconcileOutcome::Skipped("no active plan"));
+    }
+    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+    let agent = format!("auto:{provider}");
 
-    let mut cur = md.clone();
-    let mut applied = 0usize;
-    for e in edits {
-        if !existing.contains(&e.item_id) {
-            continue; // never invent ids
-        }
-        let Some(ns) = ItemStatus::parse_status(&e.status) else {
+    let mut results: Vec<PlanReconcileResult> = Vec::new();
+    for plan in &active {
+        let plan_id = plan.plan_id.clone();
+        let Some(path) = find_plan_path(&planner_root, &plan_id) else {
+            continue; // vanished between list and read — skip this plan
+        };
+        let Ok(md) = std::fs::read_to_string(&path) else {
             continue;
         };
-        if cur_status.get(&e.item_id) == Some(&ns) {
-            continue; // no-op
+        let parsed = parse_plan(&md, &plan_id);
+        // Locked (done/archived) or empty plans are skipped (same rule as
+        // plan_apply_edit); other active plans still get their turn.
+        if parsed.frontmatter.status.as_str() != "active" || parsed.items.is_empty() {
+            continue;
         }
-        if let Ok(res) = set_item_status(&cur, &e.item_id, ns) {
-            let row = LogRow {
-                ts: ts.clone(),
-                item_id: e.item_id.clone(),
-                agent_id: agent.clone(),
-                from: Some(res.old_status),
-                to: Some(ns),
-                // F1 — fill the previously-always-None journal_ref so the
-                // plan item links back to the entry that advanced it.
-                journal_ref: Some(entry_rel.to_string()),
-                note: Some("자동 화해".to_string()),
+        let items_block = parsed
+            .items
+            .iter()
+            .map(|i| format!("- {{#{}}} [{}] {}", i.item_id, i.status.as_str(), i.title))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Ask the LLM which of THIS plan's items the entry advanced.
+        let user_msg = build_user_prompt(&parsed.frontmatter.title, &items_block, &journal_block);
+        let response = match client
+            .chat(
+                vec![
+                    llm::Message {
+                        role: llm::Role::System,
+                        content: SYSTEM_PROMPT.to_string(),
+                    },
+                    llm::Message {
+                        role: llm::Role::User,
+                        content: user_msg,
+                    },
+                ],
+                llm::ChatOptions {
+                    model: model.clone(),
+                    temperature: Some(0.1),
+                    max_tokens: Some(400),
+                },
+            )
+            .await
+        {
+            Ok(r) => r,
+            // One plan's LLM error must not abort the others.
+            Err(_) => continue,
+        };
+
+        // Apply valid, changed status flips to this plan's markdown.
+        let edits = parse_ai_edits(&response.content);
+        let ts = chrono::Utc::now().to_rfc3339();
+        let existing: HashSet<String> = parsed.items.iter().map(|i| i.item_id.clone()).collect();
+        let cur_status: HashMap<String, ItemStatus> = parsed
+            .items
+            .iter()
+            .map(|i| (i.item_id.clone(), i.status))
+            .collect();
+        let mut cur = md.clone();
+        let mut applied = 0usize;
+        for e in edits {
+            if !existing.contains(&e.item_id) {
+                continue; // never invent ids
+            }
+            let Some(ns) = ItemStatus::parse_status(&e.status) else {
+                continue;
             };
-            cur = append_log_row(&res.md, &row);
-            applied += 1;
+            if cur_status.get(&e.item_id) == Some(&ns) {
+                continue; // no-op
+            }
+            if let Ok(res) = set_item_status(&cur, &e.item_id, ns) {
+                let row = LogRow {
+                    ts: ts.clone(),
+                    item_id: e.item_id.clone(),
+                    agent_id: agent.clone(),
+                    from: Some(res.old_status),
+                    to: Some(ns),
+                    // F1 — fill the previously-always-None journal_ref so the
+                    // plan item links back to the entry that advanced it.
+                    journal_ref: Some(entry_rel.to_string()),
+                    note: Some("자동 화해".to_string()),
+                };
+                cur = append_log_row(&res.md, &row);
+                applied += 1;
+            }
         }
+        if applied == 0 {
+            results.push(PlanReconcileResult { plan_id, applied: 0 });
+            continue;
+        }
+        // N4 — take the shared plan-write lock ONLY for the recheck→write (the
+        // LLM call above ran unlocked). CAS against the snapshot the edits were
+        // built from: if the plan changed under us, yield rather than clobber.
+        {
+            let _plan_guard = plan_lock.lock().await;
+            let Ok(on_disk) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            if on_disk != md {
+                // A user edit / in-app refresh landed during our LLM call; yield
+                // (the proposed flips are dropped, not retried). Logged so the
+                // dropped reconciliation is diagnosable rather than invisible.
+                tracing::info!(
+                    target: "oculpm::reconcile",
+                    project_id,
+                    plan_id = %plan_id,
+                    "auto-reconcile yielded: plan changed during LLM call (edits dropped)"
+                );
+                results.push(PlanReconcileResult { plan_id, applied: 0 });
+                continue; // plan changed during reconcile — skip this one
+            }
+            if write_atomic(&path, cur.as_bytes()).is_err() {
+                continue;
+            }
+        }
+        // Reproject so the cache reflects the new statuses immediately.
+        let _ = PlanCache::new(db).get(project_id, &planner_root, &plan_id).await;
+        results.push(PlanReconcileResult { plan_id, applied });
     }
 
-    if applied == 0 {
-        return Ok(ReconcileOutcome::Skipped("no applicable status changes"));
-    }
-    // N4 — take the shared plan-write lock ONLY now (the LLM call above ran
-    // unlocked, so user edits never block on it). Under the lock, CAS against
-    // the snapshot the edits were built from: if the plan changed (a user edit,
-    // in-app AI refresh, or external agent), bail rather than clobber — explicit
-    // edits win, the background pass yields. The lock makes the recheck→write
-    // atomic against the other plan writers.
-    let _plan_guard = plan_lock.lock().await;
-    let on_disk = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    if on_disk != md {
-        return Ok(ReconcileOutcome::Skipped("plan changed during reconcile"));
-    }
-    write_atomic(&path, cur.as_bytes()).map_err(|e| e.to_string())?;
-    // Reproject so the cache reflects the new statuses immediately.
-    let _ = PlanCache::new(db).get(project_id, &planner_root, &plan_id).await;
-    Ok(ReconcileOutcome::Applied {
-        count: applied,
-        plan_id,
-    })
+    Ok(ReconcileOutcome::Ran(results))
 }
 
 #[cfg(test)]

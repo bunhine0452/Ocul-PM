@@ -14,7 +14,7 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 ## Phase 1 — deferred 정리 {#cleanup}
 - [x] 고아 goal/subtask db 메서드 5개 제거 (안전망 테스트 슬림) {#orphan-db-methods}
 - [x] F7a-B 한계 후속 (기존 캐시행 재보정·한글 slug·원본 1회 기록) {#f7a-b-followups}
-- [~] auto-reconcile 후속 (N4 공유락·완료 토스트·다중 활성 플랜) {#auto-reconcile-followups}
+- [x] auto-reconcile 후속 (N4 공유락·완료 토스트·다중 활성 플랜) {#auto-reconcile-followups}
 
 ## Phase 2 — 백로그 기능 {#features}
 - [x] 공유 가능한 일지 내보내기 (.md 번들, C2) {#export-digest}
@@ -28,4 +28,5 @@ dev-report-followup 플랜(전 항목 완료, 잠금) 이후의 후속. deferred
 | 2026-06-24T18:18:00+09:00 | #f7a-b-followups | claude-code | ~→x | journal/20260624/Features_to_add/1818_feature_coerce-entry-on-disk.md | Unit B(③): "원본 고치기" — 명시적 옵인 버튼+인라인 확인으로 tz 보정을 원본 .md 에 1회 기록(coerce_journal_entry_timestamps_on_disk, update_journal_entry_meta 패턴 재사용). 타임스탬프만(slug=파일명 결합이라 디스크 미반영). 디스크 불변 원칙을 사용자 의도시에만 깸. 백엔드 289(신규 1)·프런트 게이트 통과. F7a-B 3서브태스크 완료 |
 | 2026-06-24T18:22:00+09:00 | #auto-reconcile-followups | claude-code | →~ | journal/20260624/Features_to_add/1822_feature_reconcile-completion-event.md | Unit C(①): 완료 이벤트/토스트. OculpmPlanReconciled{project_id,plan_id,applied} 이벤트(spec+collect_events), watcher spawn_reconcile Applied 시 emit, WorkspaceContext 리스너→토스트(plan 기준 5초 dedup). 백엔드 289·프런트 게이트 통과, bindings 재생성. D(N4락)·E(다중플랜) 남음 |
 | 2026-06-24T18:30:00+09:00 | #auto-reconcile-followups | claude-code | ~ | journal/20260624/Refactors/1830_refactor_n4-shared-plan-write-lock.md | Unit D(②): N4 공유 plan-write 락. OculpmManager.plan_write_lock(프로젝트별 Arc<Mutex>) 을 plan.rs 6개 쓰기 커맨드 + reconcile 가 공유. reconcile 은 LLM 밖에서 락 잡고 CAS 재독→write 만 원자화(사용자 편집이 네트워크콜에 안 막힘). 백엔드 290(신규 1)·bindings 불변(State 주입). E(다중플랜) 남음 |
+| 2026-06-24T18:48:00+09:00 | #auto-reconcile-followups | claude-code | ~→x | journal/20260624/Features_to_add/1848_feature_reconcile-all-active-plans.md | Unit E(③): 다중 활성 플랜. reconcile_entry 를 활성 플랜 루프로 재작성(플랜마다 LLM 1회, 잠금/빈/에러 plan 은 continue). ReconcileOutcome::Ran(Vec<PlanReconcileResult>), watcher 가 applied>0 플랜마다 이벤트. git-backfill 가드 루프 전 유지. 7항목 적대리뷰 blocker 0(락순서 비순환·CAS 건전·N콜), nit 반영(stale 주석·CAS yield 로그). 백엔드 290·bindings 불변. **auto-reconcile 후속 3서브 완료, post-1.17-round 전 항목 완료** |
 <!-- oculpm:plan-log end -->

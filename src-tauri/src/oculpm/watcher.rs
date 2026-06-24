@@ -241,12 +241,13 @@ struct WatcherInner {
     /// (F7a-B) interprets tz-less agent timestamps as project-local.
     tz: Tz,
     /// F1 — opt-in: when on, a newly-inserted journal entry triggers a
-    /// background LLM reconciliation of the single active plan. Mirrors
+    /// background LLM reconciliation of every active plan. Mirrors
     /// `config.agents.auto_reconcile`.
     auto_reconcile: bool,
-    /// Serialises F1 reconcile tasks per project so two concurrent runs can't
-    /// clobber each other's plan-file writes (the read-modify-write on the
-    /// plan `.md` isn't CAS-guarded yet — see N4).
+    /// Bounds F1 to ONE in-flight reconcile per project (try-lock at spawn;
+    /// overlapping inserts are dropped). Distinct from the shared
+    /// `plan_write_lock` (N4), which serialises the actual plan-file writes
+    /// against the in-app writers.
     reconcile_lock: Arc<tokio::sync::Mutex<()>>,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
@@ -885,11 +886,12 @@ impl WatcherInner {
         }
     }
 
-    /// F1 — spawn a background reconciliation of the single active plan against
-    /// a freshly-inserted journal entry. Fire-and-forget: a slow LLM call must
-    /// not block the watcher loop. Serialised per project via `reconcile_lock`
-    /// so concurrent inserts can't clobber each other's plan writes. No-op
-    /// without an app handle (unit tests have no Db/keychain).
+    /// F1 — spawn a background reconciliation of every active plan against a
+    /// freshly-inserted journal entry. Fire-and-forget: a slow LLM call must
+    /// not block the watcher loop. `reconcile_lock` bounds it to ONE in-flight
+    /// reconcile per project; the shared `plan_write_lock` (N4) serialises each
+    /// plan write against the in-app plan writers. No-op without an app handle
+    /// (unit tests have no Db/keychain).
     fn spawn_reconcile(&self, entry_rel: &str) {
         let Some(handle) = self.app_handle.clone() else {
             return;
@@ -927,19 +929,20 @@ impl WatcherInner {
             .await
             {
                 Ok(outcome) => {
-                    // Surface an actual change to the UI (toast + planner refresh).
-                    if let crate::oculpm::reconcile::ReconcileOutcome::Applied {
-                        count,
-                        plan_id,
-                    } = &outcome
-                    {
+                    // Surface each plan that actually changed to the UI (one
+                    // toast per changed plan; no-op/skipped plans stay silent).
+                    if let crate::oculpm::reconcile::ReconcileOutcome::Ran(results) = &outcome {
                         use tauri_specta::Event;
-                        let _ = crate::oculpm::spec::OculpmPlanReconciled {
-                            project_id,
-                            plan_id: plan_id.clone(),
-                            applied: *count as u32,
+                        for r in results {
+                            if r.applied > 0 {
+                                let _ = crate::oculpm::spec::OculpmPlanReconciled {
+                                    project_id,
+                                    plan_id: r.plan_id.clone(),
+                                    applied: r.applied as u32,
+                                }
+                                .emit(&handle);
+                            }
                         }
-                        .emit(&handle);
                     }
                     tracing::info!(
                         target: "oculpm::watcher",
