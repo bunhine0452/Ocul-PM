@@ -30,7 +30,7 @@ import {
 } from "@/features/diff/diffParse";
 import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 
 // ─── Lite-W6 frontend safety net ─────────────────────────────────────────
 //
@@ -375,70 +375,6 @@ describe("Lite-W6 PR9 — aiOverlayOpen migration", () => {
     expect(migrateAiOverlayOpen(null)).toBe(false);
     expect(migrateAiOverlayOpen("true")).toBe(false);
     expect(migrateAiOverlayOpen(1)).toBe(false);
-  });
-});
-
-describe("Lite-W6 PR6.4 — diffTarget single-shot handoff", () => {
-  // openDiffFor + consumeDiffTarget live inside the React context, so we
-  // drive them through renderHook. Single-shot semantics: the first consume
-  // returns the path and clears; the second returns null.
-
-  it("openDiffFor sets diffTarget + diff mode", () => {
-    const { result } = renderHook(() => useWorkspace(), {
-      wrapper: WorkspaceProvider,
-    });
-    expect(result.current.state.diffTarget).toBe(null);
-    act(() => result.current.openDiffFor("src/a.ts"));
-    expect(result.current.state.diffTarget).toBe("src/a.ts");
-    expect(result.current.state.sidePanelMode).toBe("diff");
-  });
-
-  it("consumeDiffTarget returns + clears on first call, null thereafter", () => {
-    const { result } = renderHook(() => useWorkspace(), {
-      wrapper: WorkspaceProvider,
-    });
-    act(() => result.current.openDiffFor("src/b.ts"));
-    let first: string | null = "<unset>";
-    act(() => {
-      first = result.current.consumeDiffTarget();
-    });
-    expect(first).toBe("src/b.ts");
-    expect(result.current.state.diffTarget).toBe(null);
-    let second: string | null = "<unset>";
-    act(() => {
-      second = result.current.consumeDiffTarget();
-    });
-    expect(second).toBe(null);
-  });
-
-  it("consumeDiffTarget when no target was set returns null without setState churn", () => {
-    const { result } = renderHook(() => useWorkspace(), {
-      wrapper: WorkspaceProvider,
-    });
-    let out: string | null = "<unset>";
-    act(() => {
-      out = result.current.consumeDiffTarget();
-    });
-    expect(out).toBe(null);
-    expect(result.current.state.diffTarget).toBe(null);
-  });
-});
-
-describe("Lite-W6 PR8 Part 3 — clearRecentChanges semantics", () => {
-  // Backed by a pure-fn assertion: pushRecentChange + an empty-array reset
-  // mirror the WorkspaceContext callback. A DOM round-trip lives in PR11.
-  it("an empty array is the canonical cleared state", () => {
-    const seed: RecentChange[] = [
-      { path: "a.ts", op: "M", ts: 1, read: false },
-      { path: "b.ts", op: "A", ts: 2, read: false },
-    ];
-    const cleared: RecentChange[] = [];
-    expect(cleared.length).toBe(0);
-    // Confirm pushRecentChange still works on a freshly cleared buffer so the
-    // watcher doesn't get stuck after the user clicks "비우기".
-    const next = pushRecentChange(cleared, { path: "c.ts", op: "D", ts: 3, read: false });
-    expect(next).toEqual([{ path: "c.ts", op: "D", ts: 3, read: false }]);
-    void seed;
   });
 });
 

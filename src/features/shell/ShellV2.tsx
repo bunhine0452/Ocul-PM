@@ -63,7 +63,7 @@ export default function ShellV2({
 
   // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
   // as shell-local ephemeral state (focus is not persisted; it's a single
-  // event, mirroring WorkspaceContext.diffTarget's one-shot semantics).
+  // event, mirroring the diffActivePath one-shot handoff in DiffScreenV2).
   const [journalFocus, setJournalFocus] = useState<string | null>(null);
 
   // Planner 📓 → open a specific journal entry's detail view directly. Distinct

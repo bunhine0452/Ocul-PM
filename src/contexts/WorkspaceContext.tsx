@@ -139,23 +139,16 @@ export interface WorkspaceState {
   // Persistence schema (1: pre-W3; 2: defaultTab promoted to today).
   schemaVersion: number;
   /**
-   * If true the user has explicitly chosen a tab via the IA strip — we
-   * leave their choice alone during the v1→v2 migration. Set by
-   * `setActiveView` after the user picks a tab.
+   * If true the user had explicitly chosen a tab via the (now-removed) IA
+   * strip — we leave their choice alone during the v1→v2 migration. Retained
+   * as a read-compat field: only persisted records (pre-ui_v2) set it; the
+   * migration normalizer still honours it.
    */
   defaultTabUserOverride: boolean;
 
   // Volatile (not persisted)
   indexingProjectId: number | null;
   indexProgress: IndexProgress | null;
-
-  /**
-   * Lite-W6 PR6.4: one-shot handoff target for the FileTree → Diff jump.
-   * Set when a user clicks a changed-file dot in FileExplorer; LocalDiffView
-   * reads it on mount + clears so we don't snap back to it on every render.
-   * Not persisted — handoff is a single event, not a sticky state.
-   */
-  diffTarget: string | null;
 
   // .oculpm/ — populated by event listeners + on-demand fetches (W3-PR4).
   // Volatile: re-derived on project switch.
@@ -246,7 +239,6 @@ const DEFAULT_STATE: WorkspaceState = {
   defaultTabUserOverride: false,
   indexingProjectId: null,
   indexProgress: null,
-  diffTarget: null,
   oculpmEnabled: false,
   oculpmStatus: null,
   currentSession: null,
@@ -526,7 +518,6 @@ function loadFromStorage(): WorkspaceState {
         // Always reset volatile state
         indexingProjectId: null,
         indexProgress: null,
-        diffTarget: null,
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
@@ -553,7 +544,6 @@ function persistToStorage(state: WorkspaceState) {
   const {
     indexingProjectId: _ip,
     indexProgress: _ipr,
-    diffTarget: _dt,
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
@@ -570,7 +560,6 @@ interface WorkspaceContextValue {
 
   // Convenience actions
   setProject: (id: number | null, name?: string | null, root?: string | null) => void;
-  setActiveView: (view: ActiveView) => void;
   /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
   setUiV2View: (view: UiV2View) => void;
   setActiveFile: (file: string | null) => void;
@@ -581,29 +570,17 @@ interface WorkspaceContextValue {
   // sync; screens call them directly when they need to refresh on demand.
   setOculpmStatus: (status: OculpmStatus | null) => void;
   setCurrentSession: (session: Session | null) => void;
-  setWorkdayKey: (workday: string | null) => void;
 
-  // Lite-W6 PR6.3 / PR8 Part 2 — side panel width + surface switcher.
-  // (sidePanelOpen / ⌘B toggle removed in PR-UI 7.)
-  setSidePanelWidth: (width: number) => void;
-  setSidePanelMode: (mode: SidePanelMode) => void;
-
-  // Lite-W6 PR8 Part 3 — explicit clear for the change-highlight buffer.
-  clearRecentChanges: () => void;
   /**
    * Lite-W6 PR6.5: flip one recentChanges entry's `read` flag to true. Used
-   * by LocalDiffView when a diff body for that path is shown, so the file
-   * list and FileExplorer can drop the "unread" emphasis.
+   * by the Diff screen when a diff body for that path is shown, so the file
+   * list can drop the "unread" emphasis.
    */
   markRecentChangeRead: (path: string) => void;
 
   // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
   toggleAiOverlay: () => void;
   setAiOverlayOpen: (open: boolean) => void;
-
-  // Lite-W6 PR6.4 — one-shot FileTree → Diff handoff.
-  openDiffFor: (path: string) => void;
-  consumeDiffTarget: () => string | null;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -635,16 +612,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
     []
   );
-
-  const setActiveView = useCallback((view: ActiveView) => {
-    setState((prev) => ({
-      ...prev,
-      activeView: view,
-      // First user pick locks in their preference — the v1→v2 migration
-      // (and any future default-tab change) will respect this flag.
-      defaultTabUserOverride: true,
-    }));
-  }, []);
 
   const setUiV2View = useCallback((view: UiV2View) => {
     setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
@@ -691,24 +658,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, currentSession: session }));
   }, []);
 
-  const setWorkdayKey = useCallback((workday: string | null) => {
-    setState((prev) => ({ ...prev, workdayKey: workday }));
-  }, []);
-
-  const setSidePanelWidth = useCallback((width: number) => {
-    setState((prev) => ({ ...prev, sidePanelWidth: migrateSidePanelWidth(width) }));
-  }, []);
-
-  const setSidePanelMode = useCallback((mode: SidePanelMode) => {
-    setState((prev) => ({ ...prev, sidePanelMode: migrateSidePanelMode(mode) }));
-  }, []);
-
-  const clearRecentChanges = useCallback(() => {
-    setState((prev) =>
-      prev.recentChanges.length === 0 ? prev : { ...prev, recentChanges: [] },
-    );
-  }, []);
-
   /**
    * Lite-W6 PR6.5: flip a single change to read=true. Called by LocalDiffView
    * when the diff body for that path has been rendered (the user has "seen"
@@ -734,36 +683,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setAiOverlayOpen = useCallback((open: boolean) => {
     setState((prev) => ({ ...prev, aiOverlayOpen: open }));
-  }, []);
-
-  /**
-   * Lite-W6 PR6.4: invoked by the FileExplorer when a user clicks a file
-   * that has a recentChanges entry. Atomically jumps the side panel to Diff
-   * mode, ensures the panel is open, and stashes the target path so
-   * LocalDiffView can pre-select it. The clear half lives in `consumeDiffTarget`.
-   */
-  const openDiffFor = useCallback((path: string) => {
-    setState((prev) => ({
-      ...prev,
-      sidePanelMode: "diff",
-      diffTarget: path,
-    }));
-  }, []);
-
-  /**
-   * Lite-W6 PR6.4: LocalDiffView calls this on mount + after each effect
-   * that observes diffTarget; it returns the pending target and clears it
-   * in the same setState so we don't snap back to it on every selection
-   * change. Single-shot semantics.
-   */
-  const consumeDiffTarget = useCallback((): string | null => {
-    const current = stateRef.current?.diffTarget ?? null;
-    if (current !== null) {
-      setState((prev) =>
-        prev.diffTarget === null ? prev : { ...prev, diffTarget: null },
-      );
-    }
-    return current;
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -894,22 +813,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         state,
         setState,
         setProject,
-        setActiveView,
         setUiV2View,
         setActiveFile,
         setIndexing,
         resetWorkspace,
         setOculpmStatus,
         setCurrentSession,
-        setWorkdayKey,
-        setSidePanelWidth,
-        setSidePanelMode,
-        clearRecentChanges,
         markRecentChangeRead,
         toggleAiOverlay,
         setAiOverlayOpen,
-        openDiffFor,
-        consumeDiffTarget,
       }}
     >
       {children}
