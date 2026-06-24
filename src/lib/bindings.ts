@@ -634,6 +634,14 @@ export type AgentsConfig = {
 	active: string[],
 	auto_detect_on_open: boolean,
 	auto_sync_adapters: boolean,
+	/**
+	 *  F1 — when on, the watcher reconciles the single active plan against each
+	 *  newly-written journal entry via a background LLM call (`auto:<provider>`
+	 *  attribution). Opt-in (default `false`): it triggers automatic, billable
+	 *  LLM requests that send journal/plan text to the configured provider.
+	 *  `#[serde(default)]` so pre-F1 `config.toml` files parse to `false`.
+	 */
+	auto_reconcile?: boolean,
 };
 
 export type AppInfo = {

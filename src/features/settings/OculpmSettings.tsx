@@ -461,6 +461,18 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_sync_adapters: v } }))
           }
         />
+        <Toggle
+          label="자동 화해 (일지→플랜, 백그라운드 AI)"
+          checked={config.agents.auto_reconcile ?? false}
+          onChange={(v) =>
+            update((d) => ({ ...d, agents: { ...d.agents, auto_reconcile: v } }))
+          }
+        />
+        <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
+          새 작업 일지가 기록되면 <strong>활성 계획 1개</strong>를 자동으로 갱신합니다.
+          켜면 일지·계획 내용이 설정한 AI 제공자로 전송되는 <strong>과금 호출이
+          자동으로</strong> 발생합니다. 활성 계획이 정확히 1개일 때만 동작합니다.
+        </p>
       </Section>
 
       <LogsSection />

@@ -491,6 +491,7 @@ mod tests {
             active: active.iter().map(|s| s.to_string()).collect(),
             auto_detect_on_open: false,
             auto_sync_adapters: false,
+            auto_reconcile: false,
         };
         cfg
     }

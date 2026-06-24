@@ -371,6 +371,13 @@ pub struct AgentsConfig {
     pub active: Vec<String>,
     pub auto_detect_on_open: bool,
     pub auto_sync_adapters: bool,
+    /// F1 — when on, the watcher reconciles the single active plan against each
+    /// newly-written journal entry via a background LLM call (`auto:<provider>`
+    /// attribution). Opt-in (default `false`): it triggers automatic, billable
+    /// LLM requests that send journal/plan text to the configured provider.
+    /// `#[serde(default)]` so pre-F1 `config.toml` files parse to `false`.
+    #[serde(default)]
+    pub auto_reconcile: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

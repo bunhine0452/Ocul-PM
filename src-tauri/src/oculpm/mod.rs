@@ -21,6 +21,7 @@ pub mod manager;
 pub mod markdown;
 pub mod paths;
 pub mod planner;
+pub mod reconcile;
 pub mod redact;
 pub mod session;
 pub mod spec;

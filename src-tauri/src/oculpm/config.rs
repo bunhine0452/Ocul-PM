@@ -66,6 +66,8 @@ impl OculpmConfig {
                 active: vec!["agents-md".into()],
                 auto_detect_on_open: true,
                 auto_sync_adapters: true,
+                // F1 — automatic background LLM reconciliation is opt-in.
+                auto_reconcile: false,
             },
         }
     }

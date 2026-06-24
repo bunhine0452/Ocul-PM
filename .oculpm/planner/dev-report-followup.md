@@ -21,7 +21,7 @@ owner: claude-code
 ## Phase 2 — 구조적 부채 {#debt}
 - [x] redaction(redact_text)을 일지·diff 쓰기/읽기 경로에 연결 (안전 1순위) {#redaction-wire}
 - [x] 플래너 이중화 해소 — Today·AI챗·그린필드를 파일 기반 plan 으로 일원화 {#planner-unify}
-- [ ] 자동 일지→플래너 화해 (on-journal-write reconciliation) {#auto-reconcile}
+- [x] 자동 일지→플래너 화해 (on-journal-write reconciliation) {#auto-reconcile}
 
 ## Phase 3 — 기능 {#features}
 - [x] 정직성 감사 — compare_layers 재활성화로 빠뜨린 변경 탐지 {#honesty-audit}
@@ -49,4 +49,5 @@ owner: claude-code
 | 2026-06-22T13:30:00+09:00 | #parse-warnings | claude-code | ~→x | journal/20260622/Features_to_add/1330_feature_frontmatter-tz-slug-coercion.md | B(자동보정) 완료: tz 오프셋 backfill(DST정확)+slug 정규화, 캐시/표시 전용·디스크 불변. parse_ok=구조신호 분리(advisory 경고). 6에이전트 적대리뷰 blocker 0, should-fix 3+nit 2 전부 반영. 백엔드 273+통합·프런트 게이트 전부 통과, bindings 불변 |
 | 2026-06-24T00:25:00+09:00 | #retro-insight | claude-code | →x | journal/20260624/Features_to_add/0025_feature_retro-insight.md | F4 완료: 신규 "회고" 화면(5번째 MAIN_NAV). 결정적 신호(출시/저항/노력핫스팟×그래프팬아웃/에이전트/난이도)→retro_signals, blake3 signature 캐시(retro_insights 022 마이그레이션)·오래됨 배지, generate_retro LLM(planner provider/failover 경로). range_entries 범위쿼리+aggregate 순수함수(단위 6)+적대리뷰(should-fix 1 레이스 수정). 백엔드 297 테스트·프런트 게이트 전부 통과. v1.16.0 릴리스 |
 | 2026-06-24T16:40:00+09:00 | #surgical-context-cleanup | claude-code | ~→x | journal/20260624/Refactors/1640_refactor_workspace-context-dead-code.md | WorkspaceContext 죽은 조각 제거: 세터 4개(setActiveView/setWorkdayKey/setSidePanel*)+옛 diffTarget 핸드오프(openDiffFor/consumeDiffTarget/diffTarget, diffActivePath로 대체)+clearRecentChanges. 조각마다 grep 검증(보고서 openDiffFor "활성2개"는 오기 확인). 마이그레이션 normalizer·필드 보존. 죽은-동작 safety-net 2블록 삭제. 표면0→단독 릴리스 안 함(auto-reconcile과 묶음). typecheck/lint/build·테스트 121 통과 |
+| 2026-06-24T17:09:00+09:00 | #auto-reconcile | claude-code | →x | journal/20260624/Features_to_add/1709_feature_auto-reconcile.md | F1 완료: 옵인(agents.auto_reconcile, 기본off) 백그라운드 화해. watcher inserted→spawn_reconcile(try_lock 동시1건), reconcile.rs(일지1건→단일활성플랜 LLM status flip, agent_id=auto:<provider>+journal_ref 채움). 루프안전+백필(-git)스킵+CAS(사람편집 우선). 설정 토글+과금경고. 적대리뷰 should-fix 3(버스트/레이스/가드중앙화) 반영. 백엔드 284·프런트 게이트 통과. surgical-cleanup과 묶어 v1.17.0 |
 <!-- oculpm:plan-log end -->

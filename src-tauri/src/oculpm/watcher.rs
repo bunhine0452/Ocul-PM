@@ -122,6 +122,8 @@ impl ProjectWatcher {
             forbidden,
             redact_patterns,
             tz,
+            auto_reconcile: config.agents.auto_reconcile,
+            reconcile_lock: Arc::new(tokio::sync::Mutex::new(())),
             stats: stats.clone(),
         };
 
@@ -238,6 +240,14 @@ struct WatcherInner {
     /// redacting [`JournalCache`] so read-time `created_at` offset backfill
     /// (F7a-B) interprets tz-less agent timestamps as project-local.
     tz: Tz,
+    /// F1 — opt-in: when on, a newly-inserted journal entry triggers a
+    /// background LLM reconciliation of the single active plan. Mirrors
+    /// `config.agents.auto_reconcile`.
+    auto_reconcile: bool,
+    /// Serialises F1 reconcile tasks per project so two concurrent runs can't
+    /// clobber each other's plan-file writes (the read-modify-write on the
+    /// plan `.md` isn't CAS-guarded yet — see N4).
+    reconcile_lock: Arc<tokio::sync::Mutex<()>>,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
@@ -770,6 +780,13 @@ impl WatcherInner {
                 // first insert; best-effort, never blocks the cache path.
                 if inserted {
                     self.capture_entry_diffs(&cache, entry_rel).await;
+                    // F1 — opt-in: reconcile the active plan against this brand-new
+                    // entry via a background LLM call. Spawned (never awaited) so a
+                    // slow network call can't stall the watcher event loop; loop-safe
+                    // because it writes only to planner/*.md (not a journal path).
+                    if self.auto_reconcile {
+                        self.spawn_reconcile(entry_rel);
+                    }
                 }
             }
             Err(e) => {
@@ -866,6 +883,62 @@ impl WatcherInner {
                 "entry-diff capture: blocking task panicked"
             ),
         }
+    }
+
+    /// F1 — spawn a background reconciliation of the single active plan against
+    /// a freshly-inserted journal entry. Fire-and-forget: a slow LLM call must
+    /// not block the watcher loop. Serialised per project via `reconcile_lock`
+    /// so concurrent inserts can't clobber each other's plan writes. No-op
+    /// without an app handle (unit tests have no Db/keychain).
+    fn spawn_reconcile(&self, entry_rel: &str) {
+        let Some(handle) = self.app_handle.clone() else {
+            return;
+        };
+        // Bound to ONE in-flight reconcile per project: if one is already
+        // running, drop this entry rather than queue an unbounded backlog of
+        // billable LLM calls during a write burst. Best-effort — the user's
+        // manual "AI 갱신" reconciles against recent entries to cover any gaps.
+        let Ok(guard) = self.reconcile_lock.clone().try_lock_owned() else {
+            tracing::debug!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                "[FLOW] auto-reconcile skipped (another reconcile in flight)"
+            );
+            return;
+        };
+        let project_id = self.project_id;
+        let root = self.root.clone();
+        let entry_rel = entry_rel.to_string();
+        let redact = self.redact_patterns.clone();
+        let tz = self.tz;
+        tokio::spawn(async move {
+            use tauri::Manager;
+            // Hold the guard for the whole reconcile so a concurrent insert
+            // skips (above) instead of racing this plan write.
+            let _guard = guard;
+            let db = handle.state::<Db>();
+            match crate::oculpm::reconcile::reconcile_entry(
+                &db, project_id, &root, &entry_rel, redact, tz,
+            )
+            .await
+            {
+                Ok(outcome) => tracing::info!(
+                    target: "oculpm::watcher",
+                    project_id,
+                    path = %entry_rel,
+                    ?outcome,
+                    "[FLOW] auto-reconcile finished"
+                ),
+                Err(e) => tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "[FLOW] auto-reconcile failed (swallowed)"
+                ),
+            }
+        });
     }
 
     /// Emit an `OculpmIntegrityWarning` toast (e.g. "비밀 N건 마스킹됨"). No-op
