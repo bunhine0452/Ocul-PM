@@ -66,6 +66,12 @@ pub const RECOVERY_WORKDAYS: usize = 3;
 #[derive(Default)]
 pub struct OculpmManager {
     projects: RwLock<HashMap<u32, ProjectEntry>>,
+    /// N4 — per-project serializer for plan-file writes. Every writer (in-app
+    /// edits `plan_apply_edit`/`plan_set_status`/…, in-app `plan_ai_refresh`,
+    /// and the background `reconcile`) holds this around its read-modify-write
+    /// so concurrent writers can't clobber each other (last-writer-wins lost
+    /// updates). Lazily created per project.
+    plan_write_locks: RwLock<HashMap<u32, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 /// Cloned view of a project's lazy-loaded state. Used by `overview_stats`
@@ -94,6 +100,23 @@ impl OculpmManager {
     /// Empty manager. Project entries are added by `init_project` on first open.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// N4 — the per-project plan-write serializer (lazily created). Hold the
+    /// returned mutex's guard around any read-modify-write of a
+    /// `.oculpm/planner/*.md` so the in-app writers and the background
+    /// `reconcile` never clobber each other.
+    pub async fn plan_write_lock(&self, project_id: u32) -> Arc<tokio::sync::Mutex<()>> {
+        {
+            let map = self.plan_write_locks.read().await;
+            if let Some(l) = map.get(&project_id) {
+                return l.clone();
+            }
+        }
+        let mut map = self.plan_write_locks.write().await;
+        map.entry(project_id)
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
     }
 
     /// Initialise `.oculpm/` for a project. Idempotent — calling twice with
@@ -2158,6 +2181,21 @@ mod tests {
             .coerce_journal_entry_timestamps_on_disk(&db, 1, rel.to_string())
             .await;
         assert!(again.is_err(), "second coerce should error (already offset)");
+    }
+
+    /// N4 — the plan-write lock is one shared instance per project (so all
+    /// writers contend on it), distinct across projects, and actually excludes.
+    #[tokio::test]
+    async fn plan_write_lock_is_shared_per_project() {
+        let manager = OculpmManager::new();
+        let a1 = manager.plan_write_lock(1).await;
+        let a2 = manager.plan_write_lock(1).await;
+        let b = manager.plan_write_lock(2).await;
+        assert!(std::sync::Arc::ptr_eq(&a1, &a2), "same project shares one lock");
+        assert!(!std::sync::Arc::ptr_eq(&a1, &b), "different projects differ");
+        // Held lock blocks the shared handle (real mutual exclusion).
+        let _g = a1.lock().await;
+        assert!(a2.try_lock().is_err(), "held lock must block the shared handle");
     }
 
     // ─── W1-PR8 — `.gitignore` managed block ───────────────────────────────

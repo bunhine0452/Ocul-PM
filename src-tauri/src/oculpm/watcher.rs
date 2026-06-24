@@ -918,8 +918,11 @@ impl WatcherInner {
             // skips (above) instead of racing this plan write.
             let _guard = guard;
             let db = handle.state::<Db>();
+            // N4 — the shared per-project plan-write lock, so reconcile's write
+            // serializes against in-app plan writers (not just other reconciles).
+            let plan_lock = handle.state::<OculpmManager>().plan_write_lock(project_id).await;
             match crate::oculpm::reconcile::reconcile_entry(
-                &db, project_id, &root, &entry_rel, redact, tz,
+                &db, project_id, &root, &entry_rel, redact, tz, plan_lock,
             )
             .await
             {

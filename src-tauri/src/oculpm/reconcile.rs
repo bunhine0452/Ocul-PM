@@ -90,6 +90,7 @@ fn entry_block(entry_type: &str, status: &str, title: &str, files: &[String], bo
 /// See the module docs for the safety contract. `redact`/`tz` mirror the
 /// watcher's so the cache read masks secrets + backfills tz exactly as the
 /// indexing path did.
+#[allow(clippy::too_many_arguments)]
 pub async fn reconcile_entry(
     db: &Db,
     project_id: u32,
@@ -97,6 +98,10 @@ pub async fn reconcile_entry(
     entry_rel: &str,
     redact: Vec<Regex>,
     tz: chrono_tz::Tz,
+    // N4 — the shared per-project plan-write lock. Acquired only for the final
+    // read-recheck-write (NOT during the LLM call), so user edits never block on
+    // our network round-trip.
+    plan_lock: std::sync::Arc<tokio::sync::Mutex<()>>,
 ) -> Result<ReconcileOutcome, String> {
     // ── 0. Load the just-written entry (masked + tz-backfilled like indexing).
     // Done first so we can cheaply bail on entries that must never trigger a
@@ -255,11 +260,13 @@ pub async fn reconcile_entry(
     if applied == 0 {
         return Ok(ReconcileOutcome::Skipped("no applicable status changes"));
     }
-    // CAS — the LLM call took seconds; if the plan changed under us in the
-    // meantime (a user edit, in-app AI refresh, or external agent), bail rather
-    // than clobber. Explicit/human edits win; the background pass yields. (The
-    // residual window before write_atomic is sub-millisecond; full serialisation
-    // across all plan writers is N4.)
+    // N4 — take the shared plan-write lock ONLY now (the LLM call above ran
+    // unlocked, so user edits never block on it). Under the lock, CAS against
+    // the snapshot the edits were built from: if the plan changed (a user edit,
+    // in-app AI refresh, or external agent), bail rather than clobber — explicit
+    // edits win, the background pass yields. The lock makes the recheck→write
+    // atomic against the other plan writers.
+    let _plan_guard = plan_lock.lock().await;
     let on_disk = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     if on_disk != md {
         return Ok(ReconcileOutcome::Skipped("plan changed during reconcile"));

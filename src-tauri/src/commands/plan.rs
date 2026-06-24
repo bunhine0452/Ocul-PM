@@ -14,6 +14,7 @@ use crate::db::Db;
 use crate::llm;
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::cache::{EntryFilters, JournalCache};
+use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMPT};
 use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
@@ -138,9 +139,13 @@ fn free_plan_path(root: &Path, base: &str) -> (String, PathBuf) {
 #[specta::specta]
 pub async fn plan_create(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     project_id: u32,
     title: String,
 ) -> Result<PlanSummary, String> {
+    // N4 — serialize against other plan writers (incl. background reconcile).
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     let (id, path) = free_plan_path(&root, &slug_for(&title));
@@ -162,11 +167,15 @@ pub async fn plan_create(
 #[specta::specta]
 pub async fn plan_apply_edit(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     project_id: u32,
     plan_id: String,
     op: PlanEditOp,
     agent_id: Option<String>,
 ) -> Result<Option<PlanDetail>, String> {
+    // N4 — serialize against other plan writers (incl. background reconcile).
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let agent = agent_id
         .filter(|s| !s.trim().is_empty())
@@ -267,6 +276,7 @@ pub async fn plan_apply_edit(
 #[specta::specta]
 pub async fn plan_set_status(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     project_id: u32,
     plan_id: String,
     status: String,
@@ -274,6 +284,8 @@ pub async fn plan_set_status(
     if !matches!(status.as_str(), "active" | "done" | "archived") {
         return Err(format!("unknown plan status '{status}'"));
     }
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let path =
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
@@ -290,6 +302,7 @@ pub async fn plan_set_status(
 #[specta::specta]
 pub async fn plan_rename(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     project_id: u32,
     plan_id: String,
     title: String,
@@ -298,6 +311,8 @@ pub async fn plan_rename(
     if t.is_empty() {
         return Err("제목을 입력하세요.".to_string());
     }
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let path =
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
@@ -313,7 +328,14 @@ pub async fn plan_rename(
 /// the unlink cleans up). Works regardless of lock state.
 #[tauri::command]
 #[specta::specta]
-pub async fn plan_delete(db: State<'_, Db>, project_id: u32, plan_id: String) -> Result<(), String> {
+pub async fn plan_delete(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    plan_id: String,
+) -> Result<(), String> {
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let path =
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
@@ -331,11 +353,17 @@ pub async fn plan_delete(db: State<'_, Db>, project_id: u32, plan_id: String) ->
 #[specta::specta]
 pub async fn plan_ai_refresh(
     db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
     project_id: u32,
     plan_id: String,
     provider: String,
     model: String,
 ) -> Result<Option<PlanDetail>, String> {
+    // N4 — held for the whole command (incl. the LLM call). This is
+    // user-initiated and rare, so briefly blocking other writers is acceptable
+    // and guarantees no lost update without a separate CAS.
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let path =
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
