@@ -445,6 +445,24 @@ pub async fn oculpm_update_entry_meta(
         .map_err(|e| e.to_string())
 }
 
+/// F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
+/// frontmatter once (explicit user action). Only timestamps are written; the
+/// slug stays display-coerced (filename coupling). Returns the re-projected
+/// entry so the UI can drop the "보정됨" tz note.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_coerce_entry_on_disk(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    relative_path: String,
+) -> Result<JournalEntry, String> {
+    manager
+        .coerce_journal_entry_timestamps_on_disk(&db, project_id, relative_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Wire wrapper so the frontend can express "set difficulty to None" vs
 /// "leave difficulty alone". Two-step Option unfolds to:
 ///   - omitted / null → `None` (leave alone)

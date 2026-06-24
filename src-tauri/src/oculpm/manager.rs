@@ -27,7 +27,9 @@ use crate::oculpm::agents::{self, AgentDetection};
 use crate::oculpm::atomic_io::{write_atomic, write_managed_block, ManagedBlockResult};
 use crate::oculpm::cache::{CacheReindexReport, EntryFilters, JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
-use crate::oculpm::frontmatter::{parse_frontmatter_and_body, write_frontmatter_and_body};
+use crate::oculpm::frontmatter::{
+    backfill_tz_offset, parse_frontmatter_and_body, write_frontmatter_and_body,
+};
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::markdown::parse_body;
@@ -986,6 +988,70 @@ impl OculpmManager {
             .ok_or_else(|| OculpmError::InvalidConfig(
                 format!("entry vanished after upsert: {relative_path}")
             ))
+    }
+
+    /// F7a-B Unit B — write the tz-offset backfill into the on-disk frontmatter
+    /// once, on explicit user request. This is the **only** path that
+    /// intentionally modifies the agent's source file (every other coercion is
+    /// cache/display-only). Scope is timestamps (`created_at`/`updated_at`)
+    /// only: the slug is deliberately left alone because it's coupled to the
+    /// filename, and rewriting one without the other would desync them. Errors
+    /// when there's nothing to coerce. Returns the re-projected entry.
+    pub async fn coerce_journal_entry_timestamps_on_disk(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+    ) -> Result<JournalEntry, OculpmError> {
+        let tz = self.tz_for(project_id).await;
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = journal_root.join(&relative_path);
+        let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+            path: abs.clone(),
+            source,
+        })?;
+        let (mut parsed, body) = parse_frontmatter_and_body(&text);
+        let Some(mut fm) = parsed.parsed.take() else {
+            return Err(OculpmError::InvalidConfig(
+                "cannot edit entry with broken frontmatter".to_string(),
+            ));
+        };
+        let mut changed = false;
+        if let Some(fixed) = backfill_tz_offset(&fm.created_at, tz) {
+            fm.created_at = fixed;
+            changed = true;
+        }
+        if let Some(u) = fm.updated_at.clone() {
+            if let Some(fixed) = backfill_tz_offset(&u, tz) {
+                fm.updated_at = Some(fixed);
+                changed = true;
+            }
+        }
+        if !changed {
+            return Err(OculpmError::InvalidConfig(
+                "보정할 시간대가 없습니다 (이미 오프셋이 있거나 시간 형식이 아닙니다).".to_string(),
+            ));
+        }
+        let new_text = write_frontmatter_and_body(&fm, &body);
+        write_atomic(&abs, new_text.as_bytes())?;
+
+        // Re-project (masked + tz) so the cache reflects the now-offset source.
+        let redact = self.redact_patterns(project_id).await;
+        let cache = JournalCache::with_redaction(db, redact).with_tz(tz);
+        cache
+            .apply_path_change(
+                project_id,
+                &journal_root,
+                &relative_path,
+                PathChangeKind::Modified,
+            )
+            .await?;
+        cache
+            .get_entry(project_id, &relative_path)
+            .await?
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(format!("entry vanished after coerce: {relative_path}"))
+            })
     }
 
     /// Replace the body markdown of an existing entry, keeping the YAML
@@ -2051,6 +2117,47 @@ mod tests {
         let s2 = manager.get_status(2).await;
         assert!(!s1.initialized);
         assert!(!s2.initialized);
+    }
+
+    /// F7a-B Unit B — "원본 고치기": the tz-offset coercion is written into the
+    /// on-disk frontmatter exactly once, and re-running errors (nothing left to
+    /// coerce). The body is preserved.
+    #[tokio::test]
+    async fn coerce_timestamps_writes_offset_to_disk_once() {
+        let dir = tempdir().unwrap();
+        let db = crate::db::Db::open(dir.path().join("test.db")).await.unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path()).await.unwrap();
+
+        // A journal entry whose created_at lacks a tz offset.
+        let rel = "20260524/Bugs/0925_bug_notz.md";
+        let abs = dir.path().join(".oculpm/journal").join(rel);
+        std::fs::create_dir_all(abs.parent().unwrap()).unwrap();
+        let content = "---\nschema_version: 1\ntype: bug\nslug: notz\nstatus: done\n\
+                       created_at: \"2026-05-24T09:25:13\"\nsession_id: \"20260524-001\"\n\
+                       agent: { id: claude-code }\nlanguage: ko\n---\n[x] body line\n";
+        std::fs::write(&abs, content).unwrap();
+
+        let updated = manager
+            .coerce_journal_entry_timestamps_on_disk(&db, 1, rel.to_string())
+            .await
+            .unwrap();
+        // Returned (re-projected) entry carries the +09:00 offset…
+        assert_eq!(updated.frontmatter.created_at, "2026-05-24T09:25:13+09:00");
+        // …and so does the on-disk source file now (SSOT was rewritten once).
+        let on_disk = std::fs::read_to_string(&abs).unwrap();
+        assert!(
+            on_disk.contains("2026-05-24T09:25:13+09:00"),
+            "disk not coerced: {on_disk}"
+        );
+        // Body preserved.
+        assert!(on_disk.contains("[x] body line"), "body lost: {on_disk}");
+
+        // Re-running has nothing to coerce → error (idempotent guard).
+        let again = manager
+            .coerce_journal_entry_timestamps_on_disk(&db, 1, rel.to_string())
+            .await;
+        assert!(again.is_err(), "second coerce should error (already offset)");
     }
 
     // ─── W1-PR8 — `.gitignore` managed block ───────────────────────────────

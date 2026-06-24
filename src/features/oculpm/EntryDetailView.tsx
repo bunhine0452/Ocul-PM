@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { AlertTriangle, ArrowLeft, Bot, Calendar, GitCompareArrows } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
@@ -175,9 +176,41 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
   // `parseFailed` = the frontmatter didn't parse (synthesized chore row).
   // Advisory warnings (F7a-B tz/slug coercion) keep parse_ok=true but still
   // carry notes — surfaced as a softer "보정됨" badge, not "malformed".
-  const parseWarnings = entry.parse_warnings ?? [];
+  // Warnings live in local state so the F7a-B Unit B "원본에 시간대 적용" action
+  // can clear the tz note in place after rewriting the on-disk frontmatter
+  // (the `entry` summary prop is owned by the parent and won't refresh until
+  // the timeline refetches).
+  const [warnings, setWarnings] = useState<string[]>(entry.parse_warnings ?? []);
+  const [confirmCoerce, setConfirmCoerce] = useState(false);
+  const [coercing, setCoercing] = useState(false);
+  useEffect(() => {
+    setWarnings(entry.parse_warnings ?? []);
+    setConfirmCoerce(false);
+  }, [entry.relative_path, entry.parse_warnings]);
+
+  const parseWarnings = warnings;
   const parseFailed = entry.parse_ok === false;
   const hasNotice = parseFailed || parseWarnings.length > 0;
+  // A "backfilled to" note means there's a concrete tz offset we can write to
+  // the source file. (DST-gap "could not backfill" notes are not writable.)
+  const canCoerceTz =
+    !parseFailed && parseWarnings.some((w) => w.includes("backfilled to"));
+
+  const applyTzToDisk = useCallback(async () => {
+    if (coercing) return;
+    setCoercing(true);
+    try {
+      const updated = await oculpmApi.coerceEntryOnDisk(projectId, entry.relative_path);
+      setWarnings(updated.parse_warnings ?? []);
+      setDetail(updated);
+      setConfirmCoerce(false);
+      toast.info("원본 파일에 시간대를 기록했어요");
+    } catch (e) {
+      toast.destructive(e instanceof OculpmApiError ? e.message : String(e));
+    } finally {
+      setCoercing(false);
+    }
+  }, [coercing, projectId, entry.relative_path]);
 
   return (
     <>
@@ -260,6 +293,42 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                   <li key={i}>{w}</li>
                 ))}
               </ul>
+              {canCoerceTz ? (
+                <div style={{ marginTop: 8 }}>
+                  {confirmCoerce ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                      <span style={{ color: "var(--text-2)" }}>
+                        원본 .md 파일을 직접 수정합니다.
+                      </span>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => void applyTzToDisk()}
+                        disabled={coercing}
+                      >
+                        {coercing ? "적용 중…" : "적용"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => setConfirmCoerce(false)}
+                        disabled={coercing}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => setConfirmCoerce(true)}
+                      title="위 시간대 보정을 원본 .md 파일에 1회 기록합니다 (슬러그는 표시용으로만 정돈)"
+                    >
+                      원본 파일에 시간대 적용
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

@@ -465,6 +465,13 @@ export const commands = {
 	value: Difficulty | null,
 } | null, status: "planned" | "in_progress" | "done" | "abandoned" | null) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_update_entry_meta", { projectId, relativePath, difficultyChange, status })),
 	/**
+	 *  F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
+	 *  frontmatter once (explicit user action). Only timestamps are written; the
+	 *  slug stays display-coerced (filename coupling). Returns the re-projected
+	 *  entry so the UI can drop the "보정됨" tz note.
+	 */
+	oculpmCoerceEntryOnDisk: (projectId: number, relativePath: string) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_coerce_entry_on_disk", { projectId, relativePath })),
+	/**
 	 *  Re-render every adapter according to `config.agents.active`. Idempotent —
 	 *  when nothing's changed since the last sync, every result is `unchanged`
 	 *  and disk mtimes don't move. Called by:

@@ -187,6 +187,14 @@ export const oculpmApi = {
     );
   },
 
+  /** F7a-B Unit B — write the tz-offset coercion into the on-disk frontmatter
+   * once (timestamps only). Returns the re-projected entry. */
+  coerceEntryOnDisk: (projectId: number, relativePath: string) =>
+    unwrap<JournalEntry>(
+      "oculpm_coerce_entry_on_disk",
+      commands.oculpmCoerceEntryOnDisk(projectId, relativePath),
+    ),
+
   // ─── W4 — agent adapter sync + detect + drift / layer comparison ───────
 
   syncAgents: (projectId: number) =>
