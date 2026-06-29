@@ -10,6 +10,7 @@ import {
   SparklesIcon,
   Network,
   BookText,
+  MessageSquare,
   MoonIcon,
   SunIcon,
   SettingsIcon,
@@ -42,8 +43,9 @@ interface NavSlot {
 const MAIN_NAV: NavSlot[] = [
   { id: "today", label: "Today", icon: Sunrise },
   { id: "journal", label: "작업 일지", icon: NotebookText },
-  { id: "diff", label: "변경 diff", icon: GitCompareArrows },
+  { id: "discussion", label: "문제 해결", icon: MessageSquare },
   { id: "planner", label: "Planner", icon: TargetIcon },
+  { id: "diff", label: "변경 diff", icon: GitCompareArrows },
   { id: "retro", label: "회고", icon: History },
 ];
 

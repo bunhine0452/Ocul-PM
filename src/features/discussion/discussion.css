@@ -1,0 +1,427 @@
+/* 문제 해결(Discussion) 화면 — 좌측 목록 + 우측 문서 2-pane. ui_v2 토큰만 사용. */
+
+.disc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ── 좌측 목록 ─────────────────────────────────────────────── */
+.disc-list {
+  flex: none;
+  width: 288px;
+  min-width: 288px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: 1px solid var(--sep);
+  background: var(--bg-sidebar);
+  padding: 10px 8px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.disc-new-row {
+  display: flex;
+  gap: 6px;
+  padding: 4px 4px 10px;
+}
+.disc-new-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--sep);
+  background: var(--bg-inset);
+  color: var(--text);
+}
+
+.disc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.disc-item:hover {
+  background: var(--bg-hover);
+}
+.disc-item.on {
+  background: var(--accent-soft);
+}
+.disc-item-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.disc-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-item.on .disc-item-title {
+  color: var(--accent-text);
+}
+.disc-item-preview {
+  font-size: 11.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.disc-archive-head {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 12px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── 상태 pill ─────────────────────────────────────────────── */
+.disc-status {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+.disc-status.open {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-text);
+}
+.disc-status.resolved {
+  background: var(--bg-inset);
+  color: var(--text-2);
+}
+.disc-status.archived {
+  background: var(--bg-inset);
+  color: var(--text-3);
+}
+
+/* ── 우측 본문 ─────────────────────────────────────────────── */
+.disc-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.disc-doc {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 22px 32px 72px;
+}
+
+.disc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.disc-head-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.disc-head-title input {
+  width: 100%;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--accent);
+  background: var(--bg-inset);
+  color: var(--text);
+}
+.disc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 22px;
+}
+.disc-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.disc-reslink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: var(--radius-s);
+  padding: 4px 9px;
+  cursor: pointer;
+}
+
+/* ── 버튼 ──────────────────────────────────────────────────── */
+.disc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.disc-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.disc-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.disc-btn.primary {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.disc-btn.danger:hover:not(:disabled) {
+  color: #e5484d;
+}
+
+/* ── 섹션 ──────────────────────────────────────────────────── */
+.disc-section {
+  margin-bottom: 26px;
+}
+.disc-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.disc-option-card {
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--bg-card);
+}
+.disc-option-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.disc-log-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sep);
+}
+.disc-log-row:last-child {
+  border-bottom: none;
+}
+.disc-log-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  min-width: 120px;
+}
+.disc-log-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: none;
+}
+.disc-log-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.disc-log-ts {
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.disc-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.disc-next-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.disc-next-box {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 4px;
+  border: 1.5px solid var(--text-3);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.disc-next-box.done {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.disc-next-item.done {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+/* ── 첨부 ──────────────────────────────────────────────────── */
+.disc-attach-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.disc-attach {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 150px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  padding: 8px;
+  background: var(--bg-card);
+}
+.disc-attach img {
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--bg-inset);
+}
+.disc-attach-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-2);
+  overflow: hidden;
+}
+.disc-attach-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-attach-x {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0;
+}
+.disc-attach-x:hover {
+  color: #e5484d;
+}
+
+/* ── 편집기 ────────────────────────────────────────────────── */
+.disc-editor {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+.disc-editor textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 60vh;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--sep);
+  background: var(--bg-inset);
+  color: var(--text);
+  resize: none;
+}
+.disc-editor-preview {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 70vh;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  padding: 4px 16px;
+  background: var(--bg-card);
+}
+
+/* ── 승격 미리보기 모달 ────────────────────────────────────── */
+.disc-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.disc-modal {
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-content);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+  padding: 20px 22px;
+}
+.disc-modal h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.disc-modal-sub {
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+.disc-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}

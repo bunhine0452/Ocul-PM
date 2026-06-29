@@ -24,6 +24,7 @@ import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
 import { PlanUpdates } from "./PlanUpdates";
+import { DiscussionPending } from "./DiscussionPending";
 import { TodayMonitor } from "./TodayMonitor";
 import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
@@ -269,6 +270,8 @@ export function TodayScreenV2({
               </div>
             </div>
           )}
+
+          <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
 
           <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
 

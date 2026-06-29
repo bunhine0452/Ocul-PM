@@ -51,6 +51,7 @@ export type UiV2View =
   | "journal"
   | "diff"
   | "planner"
+  | "discussion"
   | "retro"
   | "search"
   | "terminal"
@@ -191,6 +192,8 @@ export interface WorkspaceState {
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
   docsActivePath: string | null;
+  /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
+  discussionActiveId: string | null;
   /**
    * 사이드바 접힘 상태 (Dogfooding 2026-06-07). true 면 사이드바가 화면에서
    * 사라지고, 좌측 가장자리 호버 시에만 오버레이로 떠오름. 영속.
@@ -259,6 +262,7 @@ const DEFAULT_STATE: WorkspaceState = {
   aiActiveModel: null,
   aiThreadId: null,
   docsActivePath: null,
+  discussionActiveId: null,
   sidebarCollapsed: false,
 };
 

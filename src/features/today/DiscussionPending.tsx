@@ -1,0 +1,107 @@
+import { useEffect, useState } from "react";
+import { MessageSquare, ArrowRight } from "@/components/Icons";
+import { commands, type DiscussionSummary } from "@/lib/bindings";
+import { type UiV2View } from "@/contexts/WorkspaceContext";
+
+// Today block (Discussion feature, PR-DISC 4) — open problem-solving documents
+// awaiting a decision, so the "fuzzy front end" surfaces on the dashboard next
+// to plan + journal activity. Clicking jumps to the 문제 해결 screen.
+
+interface DiscussionPendingProps {
+  projectId: number;
+  onNavigate: (view: UiV2View) => void;
+}
+
+export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingProps) {
+  const [items, setItems] = useState<DiscussionSummary[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const r = await commands.discussionList(projectId);
+      if (!cancelled && r.status === "ok") {
+        setItems((r.data ?? []).filter((d) => d.status === "open"));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  // No open discussions → don't take up dashboard space.
+  if (items != null && items.length === 0) return null;
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="panel-head">
+        <MessageSquare size={16} color="var(--accent-text)" />
+        <h3>결정 대기</h3>
+        <span className="count">{items?.length ?? 0}</span>
+        <button
+          className="btn ghost sm right"
+          onClick={() => onNavigate("discussion")}
+          aria-label="문제 해결 열기"
+        >
+          문제 해결 <ArrowRight size={13} />
+        </button>
+      </div>
+      <div className="panel-body">
+        {items == null ? (
+          <div className="empty-hint">불러오는 중…</div>
+        ) : (
+          items.map((d, i) => (
+            <button
+              key={d.discussion_id}
+              type="button"
+              onClick={() => onNavigate("discussion")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                width: "100%",
+                textAlign: "left",
+                background: "none",
+                border: "none",
+                borderTop: i > 0 ? "1px solid var(--border)" : undefined,
+                padding: "8px 2px",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-1)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {d.title}
+                </div>
+                {d.problem_preview ? (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-3)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {d.problem_preview}
+                  </div>
+                ) : null}
+              </div>
+              {d.next_step_count > 0 ? (
+                <span style={{ fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}>
+                  다음 {d.next_step_count}
+                </span>
+              ) : null}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

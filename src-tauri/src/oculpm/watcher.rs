@@ -326,6 +326,21 @@ impl WatcherInner {
             return;
         }
 
+        // 3.6 .oculpm/discussion/** — problem-solving (Discussion) SSOT.
+        //     Like planner, the projection rebuilds from disk on read
+        //     (discussion_* commands reproject), so short-circuit here to keep
+        //     discussion edits out of the code-change ndjson pipeline. The
+        //     live-push event for the UI lands in PR-DISC 3.
+        if rel_str.starts_with(".oculpm/discussion/") {
+            tracing::debug!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %rel_str,
+                "[FLOW] discussion fs event (handled by projection on read)"
+            );
+            return;
+        }
+
         // 4. config.toml — restart deferred to W4.
         if rel_str == ".oculpm/config.toml" {
             tracing::info!(

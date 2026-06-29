@@ -169,6 +169,130 @@ export const commands = {
 	/**  문서가 참조하는 이미지를 base64 로 읽는다. `rel_path` 는 프로젝트 루트 기준. */
 	docsAsset: (projectId: number, relPath: string) => typedError<DocsAsset, string>(__TAURI_INVOKE("docs_asset", { projectId, relPath })),
 	/**
+	 *  List the project's discussions (summary + problem preview + counts).
+	 *  Recent-first.
+	 */
+	discussionList: (projectId: number) => typedError<DiscussionSummary[], string>(__TAURI_INVOKE("discussion_list", { projectId })),
+	/**
+	 *  One discussion's full detail: problem, candidate options, discussion log,
+	 *  conclusion, next steps, attachments, resolution link, and non-fatal parse
+	 *  warnings. `None` when the discussion_id isn't found.
+	 */
+	discussionGet: (projectId: number, discussionId: string) => typedError<{
+	discussion: DiscussionSummary,
+	problem: string,
+	background: string,
+	options: DiscussionOptionDto[],
+	log: DiscussionLogDto[],
+	conclusion: string,
+	next_steps: DiscussionNextStepDto[],
+	attachments: DiscussionAttachmentDto[],
+	resolution_plan_id: string | null,
+	resolution_decided_at: string | null,
+	tags: string[],
+	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
+	warnings: string[],
+} | null, string>(__TAURI_INVOKE("discussion_get", { projectId, discussionId })),
+	/**
+	 *  Create a new discussion folder (`.oculpm/discussion/<slug>/discussion.md`)
+	 *  with the section skeleton, returning its summary.
+	 */
+	discussionCreate: (projectId: number, title: string) => typedError<DiscussionSummary, string>(__TAURI_INVOKE("discussion_create", { projectId, title })),
+	/**
+	 *  Replace the discussion body (the `## …` sections). Frontmatter is preserved
+	 *  and `updated` re-stamped. Rejected when the document is closed (status not
+	 *  `open`) — the body is read-only after a discussion is resolved/archived.
+	 */
+	discussionWrite: (projectId: number, discussionId: string, bodyMd: string) => typedError<{
+	discussion: DiscussionSummary,
+	problem: string,
+	background: string,
+	options: DiscussionOptionDto[],
+	log: DiscussionLogDto[],
+	conclusion: string,
+	next_steps: DiscussionNextStepDto[],
+	attachments: DiscussionAttachmentDto[],
+	resolution_plan_id: string | null,
+	resolution_decided_at: string | null,
+	tags: string[],
+	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
+	warnings: string[],
+} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd })),
+	/**
+	 *  Read the raw (un-redacted) body markdown (everything after the frontmatter)
+	 *  for the in-app editor. Unlike `discussion_get` (redacted projection for
+	 *  display), this returns exactly what's on disk so a save round-trip is
+	 *  lossless — the user is editing their own file. `discussion_write` saves it.
+	 */
+	discussionReadRaw: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
+	/**
+	 *  Set a discussion's lifecycle status (`open` / `resolved` / `archived`).
+	 *  `archived` moves the folder into `_archive/`; un-archiving moves it back.
+	 */
+	discussionSetStatus: (projectId: number, discussionId: string, status: string) => typedError<{
+	discussion: DiscussionSummary,
+	problem: string,
+	background: string,
+	options: DiscussionOptionDto[],
+	log: DiscussionLogDto[],
+	conclusion: string,
+	next_steps: DiscussionNextStepDto[],
+	attachments: DiscussionAttachmentDto[],
+	resolution_plan_id: string | null,
+	resolution_decided_at: string | null,
+	tags: string[],
+	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
+	warnings: string[],
+} | null, string>(__TAURI_INVOKE("discussion_set_status", { projectId, discussionId, status })),
+	/**
+	 *  Rename a discussion (frontmatter `title:`). The `id` / folder stay the same
+	 *  so references keep working.
+	 */
+	discussionRename: (projectId: number, discussionId: string, title: string) => typedError<{
+	discussion: DiscussionSummary,
+	problem: string,
+	background: string,
+	options: DiscussionOptionDto[],
+	log: DiscussionLogDto[],
+	conclusion: string,
+	next_steps: DiscussionNextStepDto[],
+	attachments: DiscussionAttachmentDto[],
+	resolution_plan_id: string | null,
+	resolution_decided_at: string | null,
+	tags: string[],
+	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
+	warnings: string[],
+} | null, string>(__TAURI_INVOKE("discussion_rename", { projectId, discussionId, title })),
+	/**
+	 *  Delete a discussion: remove its folder (incl. attachments) and refresh the
+	 *  cache (a full reproject from disk is the only cache writer).
+	 */
+	discussionDelete: (projectId: number, discussionId: string) => typedError<null, string>(__TAURI_INVOKE("discussion_delete", { projectId, discussionId })),
+	/**
+	 *  Copy an external file (known absolute path, e.g. a drag-drop) into the
+	 *  discussion's `attachments/` sidecar. Returns the new `attachments/<file>`.
+	 */
+	discussionAttach: (projectId: number, discussionId: string, sourcePath: string) => typedError<string, string>(__TAURI_INVOKE("discussion_attach", { projectId, discussionId, sourcePath })),
+	/**
+	 *  Open a native file picker and attach the chosen file. Returns the new
+	 *  `attachments/<file>` path, or `None` if the user cancelled.
+	 */
+	discussionAttachViaDialog: (projectId: number, discussionId: string) => typedError<string | null, string>(__TAURI_INVOKE("discussion_attach_via_dialog", { projectId, discussionId })),
+	/**
+	 *  Read an attachment as base64 + MIME for inline rendering. `rel_path` is the
+	 *  `attachments/<file>` path from `discussion_get`.
+	 */
+	discussionAsset: (projectId: number, discussionId: string, relPath: string) => typedError<DiscussionAsset, string>(__TAURI_INVOKE("discussion_asset", { projectId, discussionId, relPath })),
+	/**  Remove one attachment file. `rel_path` is `attachments/<file>`. */
+	discussionDetach: (projectId: number, discussionId: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("discussion_detach", { projectId, discussionId, relPath })),
+	/**
+	 *  Promote a resolved discussion into a Planner plan: create a new
+	 *  `.oculpm/planner/<id>.md` whose items are the discussion's `## 다음 단계`,
+	 *  then mark the discussion `resolved` with a `resolution_ref` back-link. The
+	 *  new plan_id is returned (the frontend navigates to it). LLM-free.
+	 */
+	discussionPromoteToPlan: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_promote_to_plan", { projectId, discussionId })),
+	/**
 	 *  Evaluate how ambiguous the user's request is. Returns 1~3 clarifying
 	 *  questions plus an `auto_proceed` flag — the frontend skips the dialog when
 	 *  `auto_proceed` is true or when no questions are produced.
@@ -878,6 +1002,71 @@ export type DifficultyMix = {
 	superhigh: number,
 	/**  Entries that didn't specify a difficulty in frontmatter. */
 	null_count: number,
+};
+
+/**
+ *  An attachment's bytes for inline rendering — base64 + MIME, assembled into a
+ *  `data:` URI by the frontend (mirrors `DocsAsset`).
+ */
+export type DiscussionAsset = {
+	mime: string,
+	base64: string,
+};
+
+export type DiscussionAttachmentDto = {
+	rel_path: string,
+	kind: string,
+};
+
+export type DiscussionDetail = {
+	discussion: DiscussionSummary,
+	problem: string,
+	background: string,
+	options: DiscussionOptionDto[],
+	log: DiscussionLogDto[],
+	conclusion: string,
+	next_steps: DiscussionNextStepDto[],
+	attachments: DiscussionAttachmentDto[],
+	resolution_plan_id: string | null,
+	resolution_decided_at: string | null,
+	tags: string[],
+	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
+	warnings: string[],
+};
+
+export type DiscussionLogDto = {
+	ts: string,
+	author: string,
+	body: string,
+};
+
+export type DiscussionNextStepDto = {
+	step_id: string,
+	title: string,
+	done: boolean,
+	order_idx: number,
+};
+
+export type DiscussionOptionDto = {
+	option_id: string,
+	title: string,
+	body: string,
+	order_idx: number,
+};
+
+export type DiscussionSummary = {
+	discussion_id: string,
+	title: string,
+	status: string,
+	owner: string,
+	/**  First line of the problem statement, truncated — for the list preview. */
+	problem_preview: string,
+	option_count: number,
+	next_step_count: number,
+	resolution_plan_id: string | null,
+	file_path: string,
+	created_at: string,
+	updated_at: string,
 };
 
 /**  `docs_asset` 응답 — 이미지 바이트를 base64 + MIME 으로. 프런트는 `data:` URI 로 조립한다. */

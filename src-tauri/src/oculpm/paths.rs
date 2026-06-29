@@ -166,6 +166,29 @@ impl WorkdayResolver {
         self.planner_root(project_root).join(format!("{slug}.md"))
     }
 
+    /// `<project_root>/.oculpm/discussion`. Root of the problem-solving
+    /// (Discussion) tree — sibling of `planner_root`. Each discussion is a
+    /// folder `<slug>/` holding `discussion.md` + an `attachments/` sidecar
+    /// (folder-per-discussion; see `docs/discussion-feature/01-…` §1).
+    pub fn discussion_root(&self, project_root: &Path) -> PathBuf {
+        self.project_oculpm_dir(project_root).join("discussion")
+    }
+
+    /// `<project_root>/.oculpm/discussion/<slug>`.
+    pub fn discussion_dir(&self, project_root: &Path, slug: &str) -> PathBuf {
+        self.discussion_root(project_root).join(slug)
+    }
+
+    /// `<project_root>/.oculpm/discussion/<slug>/discussion.md` (the SSOT doc).
+    pub fn discussion_path(&self, project_root: &Path, slug: &str) -> PathBuf {
+        self.discussion_dir(project_root, slug).join("discussion.md")
+    }
+
+    /// `<project_root>/.oculpm/discussion/<slug>/attachments` (research sidecar).
+    pub fn discussion_attachments_dir(&self, project_root: &Path, slug: &str) -> PathBuf {
+        self.discussion_dir(project_root, slug).join("attachments")
+    }
+
     /// `<project_root>/.oculpm/.lock`.
     pub fn lock_path(&self, project_root: &Path) -> PathBuf {
         self.project_oculpm_dir(project_root).join(".lock")
@@ -364,6 +387,22 @@ mod tests {
         assert_eq!(
             r.plan_path(root, "fastembed-stabilize"),
             PathBuf::from("/p/.oculpm/planner/fastembed-stabilize.md")
+        );
+        assert_eq!(
+            r.discussion_root(root),
+            PathBuf::from("/p/.oculpm/discussion")
+        );
+        assert_eq!(
+            r.discussion_dir(root, "onnx-cache-strategy"),
+            PathBuf::from("/p/.oculpm/discussion/onnx-cache-strategy")
+        );
+        assert_eq!(
+            r.discussion_path(root, "onnx-cache-strategy"),
+            PathBuf::from("/p/.oculpm/discussion/onnx-cache-strategy/discussion.md")
+        );
+        assert_eq!(
+            r.discussion_attachments_dir(root, "onnx-cache-strategy"),
+            PathBuf::from("/p/.oculpm/discussion/onnx-cache-strategy/attachments")
         );
         assert_eq!(r.lock_path(root), PathBuf::from("/p/.oculpm/.lock"));
         assert_eq!(

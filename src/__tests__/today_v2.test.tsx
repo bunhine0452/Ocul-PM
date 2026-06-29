@@ -91,6 +91,8 @@ vi.mock("@/lib/bindings", () => ({
         },
       }),
     planRecentUpdates: () => Promise.resolve({ status: "ok", data: [] }),
+    // Discussion feature (PR-DISC 4) — Today's "결정 대기" widget.
+    discussionList: () => Promise.resolve({ status: "ok", data: [] }),
     // code-search round — useTodayMonitor reads git + goal stats.
     gitHeadStatusBrief: () =>
       Promise.resolve({ status: "ok", data: { is_git_repo: false, head_branch: null, uncommitted: 0 } }),

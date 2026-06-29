@@ -1,6 +1,6 @@
 <!-- oculpm:begin v1 -->
 <!-- schema_version: 1 -->
-<!-- template_version: 3 -->
+<!-- template_version: 4 -->
 # ocul-pm 작업 기록 규칙 (v1)
 
 당신은 ocul-pm 으로 추적되는 프로젝트에서 작업하고 있습니다. **하나의 논리적 작업 단위** (버그 수정 / 기능 추가 / 리팩토링 / 에러 해결 / 잡일) 를 끝낼 때마다, 그 작업에 관한 markdown 파일을 정해진 위치에 한 개 작성하세요. 사용자에게 묻지 마세요 — 작업의 끝을 인식하면 즉시 기록합니다.
@@ -146,4 +146,62 @@ owner: claude-code             # 네 agent.id
 - **일지 내용을 Planner 에 복붙하지 말 것.** Planner 항목은 일지를 *참조* (`일지` 열) 만 한다 — 같은 내용을 두 곳에 쓰지 않는다.
 - **완료·잠금된 plan 은 절대 수정하지 말 것.** frontmatter `status:` 가 `active` 가 아니면(`done`/`archived`) 그 plan 은 사용자가 잠근 것이다 — 항목 글리프·plan-log·본문을 건드리지 말라. 새 작업은 `status: active` 인 다른 plan 에서 진행하고, 그런 plan 이 없으면 **새 plan 파일을 만들어** 거기서 계획하라.
 - 항목의 *현재 상태* 는 본문 글리프가 정답, 로그는 *이력* 이다 (제자리 갱신 — 일지처럼 append-only 가 아니다).
+
+## 8. 문제 해결 문서 (작업일지·플래너와 별개)
+
+작업일지가 *무엇을 했나*(회고), 플래너가 *무엇을, 어디까지*(결정 후 계획)라면, **문제 해결 문서** (`.oculpm/discussion/<slug>/discussion.md`) 는 그 **앞** 단계다 — *"이게 문제인가? 어떤 안들이 있나? 무엇을 할까?"* 를 결정하기 전에 정리하는 회의록이다.
+
+**언제 쓰는가 (요청 기반 — 매 작업마다가 아님):**
+
+- 사용자가 *"이 문제 같이 정리/토의해보자", "큰 계획을 세우자", "옵션을 비교하자"* 라고 **명시적으로 요청**할 때.
+- 한 세션에 결정되지 않는 사안을 여러 세션에 걸쳐 다듬어야 할 때.
+- 그 외 일반 작업에는 쓰지 말 것 — 작업이 끝나면 일지·플래너가 정답이다.
+
+**어떻게 쓰는가 (파일 맨 위는 반드시 YAML frontmatter):**
+
+```markdown
+---
+oculpm_discussion: v1
+id: onnx-cache-strategy        # 영문 kebab-case. 폴더명과 동일하게
+title: "onnx 모델 캐시 전략 결정"
+status: open                   # open | resolved | archived
+created: 2026-06-29
+updated: 2026-06-29
+owner: claude-code             # 네 agent.id
+---
+
+## 문제 정의
+무엇을 결정해야 하는지 한두 문단으로. (필수·최상단)
+
+## 후보 해결 방안
+### 방안 A — 제목 {#opt-a}
+- 장점 / 단점 / 비용
+
+## 토의 / 메모
+<!-- oculpm:discussion-log begin v1 -->
+| 시각 | 작성자 | 내용 |
+|---|---|---|
+| 2026-06-29T14:03:00+09:00 | claude-code | A 가 비용이 낮음 |
+<!-- oculpm:discussion-log end -->
+
+## 결론
+채택안 + 근거. (status 를 resolved 로)
+
+## 다음 단계
+- [ ] 실행할 일 {#next-1}
+```
+
+**규칙:**
+
+1. `## 문제 정의` 를 **먼저** 채운다 (필수). 정의 없는 토의는 만들지 말 것.
+2. 후보안은 `### 제목 {#opt-id}`, 다음 단계는 `- [ ] 내용 {#next-id}` 로 안정 id 를 한 줄에 붙인다 (플래너 항목과 동일 규칙 — 둘째 줄로 넘기지 말 것).
+3. 토의 발언은 `## 토의 / 메모` 의 managed block (`<!-- oculpm:discussion-log … -->`) 표에 **한 줄 append** 한다: `| <ISO 시각> | <네 agent.id> | <내용> |`. 기존 행은 수정하지 말 것.
+4. 결론이 서면 `## 결론` 을 쓰고 frontmatter `status` 를 `resolved` 로 바꾼다 (사용자가 플래너로 승격한다).
+
+**금지:**
+
+- **진척(progress) 을 추적하지 말 것** — 그건 플래너(`.oculpm/planner/`)의 일이다.
+- 결론이 난 작업의 실행 기록은 일지에. 문제 해결 문서에 실행 로그를 쌓지 말 것.
+- `resolved`/`archived` 문서는 수정하지 말 것 (사용자가 닫은 것).
+- secrets / API key 를 본문·첨부에 넣지 말 것.
 <!-- oculpm:end -->

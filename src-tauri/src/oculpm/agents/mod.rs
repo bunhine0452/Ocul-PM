@@ -525,6 +525,28 @@ mod tests {
         );
     }
 
+    /// PR-DISC 5 — the 문제 해결(Discussion) protocol lives in the master so
+    /// every agent inherits it via `AGENTS.md`. Guard against accidental removal.
+    #[test]
+    fn master_template_carries_discussion_rules() {
+        assert!(
+            MASTER_KO.contains("문제 해결 문서"),
+            "master must keep the Discussion section"
+        );
+        assert!(
+            MASTER_KO.contains("oculpm:discussion-log"),
+            "master must document the discussion-log managed block"
+        );
+        assert!(
+            MASTER_KO.contains(".oculpm/discussion/"),
+            "master must point at the discussion tree"
+        );
+        assert!(
+            embedded_template_version() >= 4,
+            "template_version must be bumped to 4 for the Discussion rules"
+        );
+    }
+
     #[test]
     fn template_version_parses_marker_and_defaults_to_one() {
         assert_eq!(template_version("<!-- template_version: 5 -->\n# x"), 5);

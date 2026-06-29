@@ -117,6 +117,12 @@ use crate::commands::{
     read_project_file, read_file_range,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
+    // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
+    discussion_list, discussion_get,
+    discussion_create, discussion_write, discussion_read_raw, discussion_set_status,
+    discussion_rename, discussion_delete,
+    discussion_attach, discussion_attach_via_dialog, discussion_asset, discussion_detach,
+    discussion_promote_to_plan,
     // G3 — Clarify (W5)
     clarify_edit_intent, generate_edit_prompt_with_answers,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
@@ -219,6 +225,20 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         docs_tree,
         docs_read,
         docs_asset,
+        // 문제 해결(Discussion) — PR-DISC 0/1/2/4
+        discussion_list,
+        discussion_get,
+        discussion_create,
+        discussion_write,
+        discussion_read_raw,
+        discussion_set_status,
+        discussion_rename,
+        discussion_delete,
+        discussion_attach,
+        discussion_attach_via_dialog,
+        discussion_asset,
+        discussion_detach,
+        discussion_promote_to_plan,
         // G3 — Clarify (W5)
         clarify_edit_intent,
         generate_edit_prompt_with_answers,
