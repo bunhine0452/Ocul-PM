@@ -40,6 +40,9 @@ export function useTodayMonitor(
   projectId: number,
   workday: string | null,
   enabled: boolean,
+  /** v2 U12 — 총 일지 수는 workday brief 가 스칼라로 내려준다 (365일 히트맵
+   *  전체를 받아 프런트에서 합산하던 IPC 제거). brief 도착 전엔 null → "—". */
+  totalEntriesFromBrief: number | null = null,
 ) {
   const [monitor, setMonitor] = useState<TodayMonitor | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,13 +53,10 @@ export function useTodayMonitor(
     // Defensive: a failed read degrades the row to "—" placeholders rather than
     // escaping as an unhandled rejection (refresh is called via `void`).
     try {
-      const [sessions, headRes, logRes, statsRes] = await Promise.all([
+      const [sessions, headRes, logRes] = await Promise.all([
         oculpmApi.listSessions(projectId, workday ?? undefined).catch(() => []),
         commands.gitHeadStatusBrief(projectId),
         commands.gitLog(projectId, 50),
-        // 365-day window is the clamp ceiling — sums to the project's lifetime
-        // entry total for any project younger than a year.
-        commands.oculpmOverviewStats(projectId, 365),
       ]);
 
       // The open session (ended_at == null) carries active_window_ms == 0 until
@@ -76,10 +76,7 @@ export function useTodayMonitor(
       }
       const head = headRes.status === "ok" ? headRes.data : null;
       const commits = logRes.status === "ok" ? logRes.data : [];
-      const totalEntries =
-        statsRes.status === "ok"
-          ? statsRes.data.heatmap_cells.reduce((s, c) => s + c.entry_count, 0)
-          : 0;
+      const totalEntries = totalEntriesFromBrief ?? 0;
       const since = startOfTodaySeconds();
 
       setMonitor({
@@ -98,7 +95,7 @@ export function useTodayMonitor(
     } finally {
       setLoading(false);
     }
-  }, [projectId, workday, enabled]);
+  }, [projectId, workday, enabled, totalEntriesFromBrief]);
 
   useEffect(() => {
     void refresh();

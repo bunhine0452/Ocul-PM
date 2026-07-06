@@ -323,6 +323,77 @@ pub async fn oculpm_list_journal_entries(
         .map_err(|e| e.to_string())
 }
 
+/// v2 U12 (N3) — 워크데이 버킷 하나.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct WorkdayBucket {
+    pub workday: String,
+    pub entries: Vec<JournalEntrySummary>,
+}
+
+/// v2 U12 (N3) — Today/저널 타임라인의 단일 집계 응답. 기존에 Today 오픈이
+/// [요일당 list 7회 + 오늘 엔트리당 get 1회 + 플랜당 get 1회 + 365일 히트맵]
+/// = 12+N 회 IPC 를 유발하던 것을 이 커맨드 1회로 대체한다.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct WorkdayBrief {
+    pub days: Vec<WorkdayBucket>,
+    /// `bytes_workday` 로 지정한 워크데이의 bytes 합 (미지정 시 0/0).
+    pub bytes_added: u32,
+    pub bytes_removed: u32,
+    /// 활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유.
+    pub open_plan_items: Vec<crate::db::OpenPlanItem>,
+    /// 프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라).
+    pub total_entries: u32,
+}
+
+/// v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
+/// 총 일지 수를 IPC 1회에. 서버측 fan-in — SQL 비용은 기존과 동일하고
+/// 왕복(직렬화·스케줄링)만 제거된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_workday_brief(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workdays: Vec<String>,
+    bytes_workday: Option<String>,
+) -> Result<WorkdayBrief, String> {
+    let cache = crate::oculpm::cache::JournalCache::new(&db);
+
+    let mut days = Vec::with_capacity(workdays.len().min(62));
+    for wd in workdays.into_iter().take(62) {
+        let entries = manager
+            .list_journal_entries(&db, project_id, Some(wd.clone()), EntryFilters::default())
+            .await
+            .map_err(|e| e.to_string())?;
+        days.push(WorkdayBucket { workday: wd, entries });
+    }
+
+    let (bytes_added, bytes_removed) = match &bytes_workday {
+        Some(wd) => cache
+            .workday_bytes(project_id, wd)
+            .await
+            .map_err(|e| e.to_string())?,
+        None => (0, 0),
+    };
+
+    let open_plan_items = db
+        .list_open_plan_items(project_id, 24)
+        .await
+        .map_err(|e| e.to_string())?;
+    let total_entries = cache
+        .count_entries(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(WorkdayBrief {
+        days,
+        bytes_added,
+        bytes_removed,
+        open_plan_items,
+        total_entries,
+    })
+}
+
 /// v2 U7 — 커맨드 팔레트 엔티티 점프 ("go to anything"): 일지·플랜·플랜
 /// 항목·토의를 제목으로 통합 검색한다. SQLite 캐시만 읽는 저비용 경로
 /// (타이핑 debounce 마다 호출됨).

@@ -599,6 +599,57 @@ impl<'a> JournalCache<'a> {
         Ok(rows)
     }
 
+    /// v2 U12 — 한 워크데이의 bytes_added/removed 합. Today 히어로가 엔트리마다
+    /// `get_journal_entry` 를 N 회 부르던 것을 SUM 한 방으로 대체한다
+    /// (bytes 는 인덱싱 시 `oculpm_journal_files` 에 이미 캐시됨).
+    pub async fn workday_bytes(
+        &self,
+        project_id: u32,
+        workday: &str,
+    ) -> Result<(u32, u32), OculpmError> {
+        let pid = project_id as i64;
+        let workday = workday.to_string();
+        let sums = self
+            .db
+            .conn()
+            .call(move |c| {
+                c.query_row(
+                    "SELECT COALESCE(SUM(f.bytes_added), 0), COALESCE(SUM(f.bytes_removed), 0)
+                     FROM oculpm_journal_files f
+                     JOIN oculpm_journal j
+                       ON j.project_id = f.project_id
+                      AND j.relative_path = f.relative_path
+                     WHERE j.project_id = ?1 AND j.workday = ?2",
+                    params![pid, &workday],
+                    |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+                )
+                .map_err(Into::into)
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok((sums.0.max(0) as u32, sums.1.max(0) as u32))
+    }
+
+    /// v2 U12 — 프로젝트 전체 일지 수. Today 가 365일 히트맵 전체를 받아
+    /// 프런트에서 숫자 하나로 축약하던 것을 대체한다.
+    pub async fn count_entries(&self, project_id: u32) -> Result<u32, OculpmError> {
+        let pid = project_id as i64;
+        let count = self
+            .db
+            .conn()
+            .call(move |c| {
+                c.query_row(
+                    "SELECT COUNT(*) FROM oculpm_journal WHERE project_id = ?1",
+                    params![pid],
+                    |r| r.get::<_, i64>(0),
+                )
+                .map_err(Into::into)
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(count.max(0) as u32)
+    }
+
     /// F4 — every journal entry whose `workday` falls in `[since, until]`
     /// (inclusive, string-compared "YYYYMMDD"), each carrying its touched file
     /// paths. Two bounded queries (entries, then their files) joined in Rust —

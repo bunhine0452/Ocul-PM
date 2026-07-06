@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
+import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
 //
-// Decision (PR-UI 2, §0.8): NO new backend command. The mockup's
-// get_today_brief / get_today_highlights are computed on the FRONTEND from the
-// existing `oculpm_list_journal_entries` summaries. The only field the summary
-// lacks is per-file line counts (+/-), so the 4 highlighted/featured entries
-// hydrate `getJournalEntry` to sum `files_touched[].bytes_added/removed`.
-// Anything beyond a handful of entries/day keeps the brief light.
+// v2 U12 (N3): 이전엔 요일당 list 7회 + 오늘 엔트리당 get 1회(bytes 합산용)로
+// Today 오픈이 7+N 회 IPC 를 유발했다. 이제 단일 `oculpm_workday_brief` 가
+// 7일 버킷 + 오늘 bytes 합(SQL SUM) + 미완 플랜 항목("다음 할 일") + 총 일지
+// 수를 한 번에 내려준다 — 집계는 계속 프런트에서 (주간 차트/하이라이트 랭킹).
 
 export interface AgentContribution {
   id: string;
@@ -24,6 +21,17 @@ export interface WeekBar {
   label: string;
   count: number;
   isToday: boolean;
+}
+
+/** Today "다음 할 일" 행 (v2 U12 — brief 의 open_plan_items 에서 파생). */
+export interface NextTask {
+  /** Stable React key: `<plan_id>:<item_id>` (item ids only unique per plan). */
+  id: string;
+  title: string;
+  /** The item's phase, else its plan title — context for the row. */
+  goalTitle: string;
+  /** Item is in progress (drives the spinner + 진행중 pill). */
+  active: boolean;
 }
 
 export interface TodayBrief {
@@ -43,9 +51,14 @@ export interface TodayBrief {
   week: WeekBar[];
   /** Top-3 highlight entries (error first, then most files touched). */
   highlights: JournalEntrySummary[];
+  /** 활성 플랜의 미완 항목 상위 5 (진행중 우선) — "다음 할 일" 위젯. */
+  nextTasks: NextTask[];
+  /** 프로젝트 전체 일지 수 (모니터 행의 365-히트맵 축약을 대체). */
+  totalEntries: number;
 }
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const MAX_NEXT_TASKS = 5;
 
 /** Shift a YYYYMMDD key by `delta` calendar days (local time). */
 function shiftWorkday(workday: string, delta: number): string {
@@ -121,14 +134,16 @@ export function useTodayBrief(
     setError(null);
     (async () => {
       try {
-        // One list call per charted workday (7) + yesterday is already in the
-        // set (weekKeys[5]). Today is weekKeys[6].
-        const lists = await Promise.all(
-          weekKeys.map((wd) => oculpmApi.listJournalEntries(projectId, wd)),
-        );
+        // v2 U12 — 단일 IPC. 이전: list×7 + getEntry×N.
+        const res = await commands.oculpmWorkdayBrief(projectId, weekKeys, workday);
         if (cancelled) return;
+        if (res.status !== "ok") {
+          setError(res.error);
+          setBrief(null);
+          return;
+        }
         const byKey = new Map<string, JournalEntrySummary[]>();
-        weekKeys.forEach((wd, i) => byKey.set(wd, lists[i] ?? []));
+        for (const bucket of res.data.days) byKey.set(bucket.workday, bucket.entries);
 
         const today = byKey.get(workday) ?? [];
         const yesterdayKey = shiftWorkday(workday, -1);
@@ -155,41 +170,33 @@ export function useTodayBrief(
         const errorCycles = today.filter((e) => e.type === "error").length;
         const highlights = rankHighlights(today);
 
-        // Hydrate today's entries for line counts. The summary has no +/-, so
-        // sum files_touched bytes from the full entry. Bounded by today's
-        // entry count (a handful per day).
-        let bytesAdded = 0;
-        let bytesRemoved = 0;
-        const full = await Promise.all(
-          today.map((e) =>
-            oculpmApi.getJournalEntry(projectId, e.relative_path).catch(() => null),
-          ),
-        );
-        if (cancelled) return;
-        for (const entry of full) {
-          if (!entry) continue;
-          for (const f of entry.frontmatter.files_touched) {
-            bytesAdded += f.bytes_added ?? 0;
-            bytesRemoved += f.bytes_removed ?? 0;
-          }
-        }
+        // 백엔드가 이미 진행중 우선으로 정렬해서 내려준다.
+        const nextTasks: NextTask[] = res.data.open_plan_items
+          .slice(0, MAX_NEXT_TASKS)
+          .map((it) => ({
+            id: `${it.plan_id}:${it.item_id}`,
+            title: it.item_title,
+            goalTitle: it.phase ?? it.plan_title,
+            active: it.status === "in_progress",
+          }));
 
         setBrief({
           today,
           yesterdayDone: yesterdayDone.slice(0, 3),
           changedToday: today.length,
           filesTouched,
-          bytesAdded,
-          bytesRemoved,
+          bytesAdded: res.data.bytes_added,
+          bytesRemoved: res.data.bytes_removed,
           errorCycles,
           agents,
           week,
           highlights,
+          nextTasks,
+          totalEntries: res.data.total_entries,
         });
       } catch (e) {
         if (cancelled) return;
-        const msg = e instanceof OculpmApiError ? e.message : String(e);
-        setError(msg);
+        setError(String(e));
         setBrief(null);
       } finally {
         if (!cancelled) setLoading(false);

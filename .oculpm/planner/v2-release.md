@@ -29,7 +29,7 @@ owner: claude-code
 
 ## Phase 3 — 깊이 & 성능 {#round3}
 - [x] U11 FTS5 텍스트 검색 (trigram substring 보존, LIKE 폴백; 심볼은 LIKE 유지 판정) {#fts-search}
-- [ ] U12 workday brief 단일 집계 커맨드 (Today IPC 12+N→3 이하) {#workday-brief}
+- [x] U12 workday brief 단일 집계 커맨드 (Today IPC 12+N→3+gitLog) {#workday-brief}
 - [ ] U13 공유 AppDialog 프리미티브 (포커스 트랩·복원, 폼 모달 3곳 이전) {#app-dialog}
 
 ## Phase 4 — 릴리스 {#release}
@@ -50,4 +50,5 @@ owner: claude-code
 | 2026-07-06T22:36:00+09:00 | #optimistic-planner | claude-code | →x | journal/20260706/Features_to_add/2236_feature_planner-optimistic-toggle.md | 토글 즉시 반영+실패 롤백, busy 게이트 제거(N4 백엔드 직렬화 신뢰), refreshPlans 비차단. vitest 2(pending 낙관·에러 롤백), 게이트 ✓ |
 | 2026-07-06T22:52:00+09:00 | #generate-summary | claude-code | →x | journal/20260706/Features_to_add/2252_feature_generate-summary.md | oculpm_generate_summary 3스타일(LLM+결정적 폴백 항상동작, note 정직표기)+list_open_plan_items. 회고 "산출물" 모달+Today "스탠드업 복사". Rust 테스트 4, cargo 339 ✓ |
 | 2026-07-06T23:05:00+09:00 | #fts-search | claude-code | →x | journal/20260706/Features_to_add/2305_feature_fts5-text-search.md | 025 chunk_fts(trigram, external-content+트리거 3종+백필), search_text 2단(FTS phrase 인용→3자미만/오류 LIKE 폴백). 심볼은 LIKE 유지 판정(소형 테이블·substring 필수). 통합테스트 5, cargo 344 ✓ |
+| 2026-07-06T23:40:00+09:00 | #workday-brief | claude-code | →x | journal/20260706/Features_to_add/2340_feature_workday-brief.md | oculpm_workday_brief(버킷+bytes SUM+미완항목+총계), useNextTasks 삭제·overviewStats 제거, 저널 14콜→1콜. Today IPC 12+N→3+gitLog. mock 이전 17/17, cargo 344 ✓ |
 <!-- oculpm:plan-log end -->

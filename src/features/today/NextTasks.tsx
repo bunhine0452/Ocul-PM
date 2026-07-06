@@ -1,5 +1,5 @@
 import { ListTodo, ArrowRight, Loader } from "@/components/Icons";
-import type { NextTask } from "./useNextTasks";
+import type { NextTask } from "./useTodayBrief";
 
 // Final UI Update (ui_v2) — "다음 할 일" panel. PR-R1 (A1): wired to Planner
 // subtasks via useNextTasks (the PR-UI 2 placeholder is now real data). Shows

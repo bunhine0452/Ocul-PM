@@ -91,6 +91,33 @@ vi.mock("@/components/Markdown", () => ({
   Markdown: ({ children }: { children: string }) => children,
 }));
 
+// v2 U12 — 타임라인 윈도우 로드는 이제 단일 workday brief 커맨드. 나머지
+// bindings 표면(타입·이벤트 등)은 원본 유지 (partial mock).
+vi.mock("@/lib/bindings", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@/lib/bindings")>();
+  return {
+    ...orig,
+    commands: {
+      ...orig.commands,
+      oculpmWorkdayBrief: (_pid: number, workdays: string[]) =>
+        Promise.resolve({
+          status: "ok" as const,
+          data: {
+            days: workdays.map((wd) => ({
+              workday: wd,
+              entries: fixtures.byWorkday[wd] ?? [],
+            })),
+            bytes_added: 0,
+            bytes_removed: 0,
+            open_plan_items: [],
+            total_entries: 0,
+          },
+        }),
+    },
+    events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
+  };
+});
+
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 

@@ -78,6 +78,42 @@ const nextFx: {
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
+    // v2 U12 — Today/타임라인의 단일 집계 커맨드. fixtures 를 그대로 버킷팅하고
+    // bytes 는 구 per-entry 하이드레이션 mock 과 동일한 수치(엔트리당 15/3)로.
+    oculpmWorkdayBrief: (_pid: number, workdays: string[], bytesWorkday: string | null) => {
+      const todayCount = bytesWorkday ? (fixtures.byWorkday[bytesWorkday] ?? []).length : 0;
+      const openItems = nextFx.plans
+        .filter((p) => p.status === "active")
+        .flatMap((p) =>
+          (nextFx.items[p.plan_id as string] ?? [])
+            .filter((it) => it.status !== "done")
+            .map((it) => ({
+              plan_id: p.plan_id,
+              plan_title: p.title,
+              item_id: it.item_id,
+              item_title: it.title,
+              phase: it.phase ?? null,
+              status: it.status,
+            })),
+        )
+        .sort(
+          (a, b) =>
+            (b.status === "in_progress" ? 1 : 0) - (a.status === "in_progress" ? 1 : 0),
+        );
+      return Promise.resolve({
+        status: "ok",
+        data: {
+          days: workdays.map((wd) => ({
+            workday: wd,
+            entries: fixtures.byWorkday[wd] ?? [],
+          })),
+          bytes_added: todayCount * 15,
+          bytes_removed: todayCount * 3,
+          open_plan_items: openItems,
+          total_entries: 0,
+        },
+      });
+    },
     planList: () => Promise.resolve({ status: "ok", data: nextFx.plans }),
     planGet: (_pid: number, planId: string) =>
       Promise.resolve({

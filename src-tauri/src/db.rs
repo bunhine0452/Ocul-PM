@@ -737,7 +737,8 @@ impl Db {
     }
 
     /// v2 U10 (C1) — 활성 플랜들의 미완 항목 (todo/in_progress/blocked).
-    /// 최근 갱신 플랜 우선, 플랜 내 순서 유지.
+    /// 진행중 우선, 그다음 최근 갱신 플랜, 플랜 내 순서 유지 (Today "다음 할 일"
+    /// 위젯과 스탠드업이 같은 순서를 공유).
     pub async fn list_open_plan_items(
         &self,
         project_id: u32,
@@ -748,21 +749,24 @@ impl Db {
             .conn
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT p.title, i.title, i.status
+                    "SELECT p.plan_id, p.title, i.item_id, i.title, i.phase, i.status
                      FROM oculpm_plan_items i
                      JOIN oculpm_plans p
                        ON p.project_id = i.project_id AND p.plan_id = i.plan_id
                      WHERE i.project_id = ?1 AND p.status = 'active'
                        AND i.status IN ('todo', 'in_progress', 'blocked')
-                     ORDER BY p.updated_at DESC, i.order_idx ASC
+                     ORDER BY (i.status = 'in_progress') DESC, p.updated_at DESC, i.order_idx ASC
                      LIMIT ?2",
                 )?;
                 let rows = stmt
                     .query_map(params![project_id as i64, lim], |r| {
                         Ok(OpenPlanItem {
-                            plan_title: r.get(0)?,
-                            item_title: r.get(1)?,
-                            status: r.get(2)?,
+                            plan_id: r.get(0)?,
+                            plan_title: r.get(1)?,
+                            item_id: r.get(2)?,
+                            item_title: r.get(3)?,
+                            phase: r.get(4)?,
+                            status: r.get(5)?,
                         })
                     })?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -2555,10 +2559,15 @@ pub struct EntityHit {
 }
 
 /// v2 U10 (C1) — 활성 플랜의 미완 항목 한 건 (스탠드업 "오늘 할 일"/"막힘" 소스).
+/// v2 U12 에서 Today "다음 할 일" 위젯도 이 shape 를 소비한다 (workday brief).
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct OpenPlanItem {
+    pub plan_id: String,
     pub plan_title: String,
+    pub item_id: String,
     pub item_title: String,
+    /// 항목이 속한 phase 헤딩 (없으면 None — UI 는 플랜 제목으로 폴백).
+    pub phase: Option<String>,
     /// todo | in_progress | blocked
     pub status: String,
 }

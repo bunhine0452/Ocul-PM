@@ -33,7 +33,6 @@ import { TodayMonitor } from "./TodayMonitor";
 import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
-import { useNextTasks } from "./useNextTasks";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
 // Pure presenter over useTodayBrief (frontend aggregation, no new backend
@@ -73,8 +72,15 @@ export function TodayScreenV2({
     workday,
     oculpmReady,
   );
-  const { tasks: nextTasks } = useNextTasks(projectId);
-  const { monitor } = useTodayMonitor(projectId, workday, oculpmReady);
+  // v2 U12 — "다음 할 일"과 총 일지 수는 brief 한 콜에 동승 (useNextTasks 의
+  // planList+planGet×N, 모니터의 365일 히트맵 IPC 제거).
+  const nextTasks = brief?.nextTasks ?? null;
+  const { monitor } = useTodayMonitor(
+    projectId,
+    workday,
+    oculpmReady,
+    brief?.totalEntries ?? null,
+  );
   const [termOpen, setTermOpen] = useState(false);
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the

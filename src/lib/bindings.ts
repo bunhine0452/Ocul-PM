@@ -567,6 +567,12 @@ export const commands = {
 	 */
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], string>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
 	/**
+	 *  v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
+	 *  총 일지 수를 IPC 1회에. 서버측 fan-in — SQL 비용은 기존과 동일하고
+	 *  왕복(직렬화·스케줄링)만 제거된다.
+	 */
+	oculpmWorkdayBrief: (projectId: number, workdays: string[], bytesWorkday: string | null) => typedError<WorkdayBrief, string>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, bytesWorkday })),
+	/**
 	 *  Rebuild the journal cache from disk. Drops every cached row for the
 	 *  project and re-walks `.oculpm/journal/`. Use after manual sqlite
 	 *  tampering or schema migration.
@@ -1656,6 +1662,21 @@ export type OculpmStatus = {
 	watcher_state: WatcherStateView,
 };
 
+/**
+ *  v2 U10 (C1) — 활성 플랜의 미완 항목 한 건 (스탠드업 "오늘 할 일"/"막힘" 소스).
+ *  v2 U12 에서 Today "다음 할 일" 위젯도 이 shape 를 소비한다 (workday brief).
+ */
+export type OpenPlanItem = {
+	plan_id: string,
+	plan_title: string,
+	item_id: string,
+	item_title: string,
+	/**  항목이 속한 phase 헤딩 (없으면 None — UI 는 플랜 제목으로 폴백). */
+	phase: string | null,
+	/**  todo | in_progress | blocked */
+	status: string,
+};
+
 /**  Recent plan activity across all plans — drives the Today "계획 업데이트" block. */
 export type PlanActivityDto = {
 	plan_id: string,
@@ -1995,6 +2016,28 @@ export type WatcherConfig = {
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";
+
+/**
+ *  v2 U12 (N3) — Today/저널 타임라인의 단일 집계 응답. 기존에 Today 오픈이
+ *  [요일당 list 7회 + 오늘 엔트리당 get 1회 + 플랜당 get 1회 + 365일 히트맵]
+ *  = 12+N 회 IPC 를 유발하던 것을 이 커맨드 1회로 대체한다.
+ */
+export type WorkdayBrief = {
+	days: WorkdayBucket[],
+	/**  `bytes_workday` 로 지정한 워크데이의 bytes 합 (미지정 시 0/0). */
+	bytes_added: number,
+	bytes_removed: number,
+	/**  활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유. */
+	open_plan_items: OpenPlanItem[],
+	/**  프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라). */
+	total_entries: number,
+};
+
+/**  v2 U12 (N3) — 워크데이 버킷 하나. */
+export type WorkdayBucket = {
+	workday: string,
+	entries: JournalEntrySummary[],
+};
 
 export type WorkdayConfig = {
 	/**  IANA timezone name (e.g. `Asia/Seoul`). */

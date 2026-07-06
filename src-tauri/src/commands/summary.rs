@@ -374,8 +374,11 @@ mod tests {
 
     fn item(plan: &str, title: &str, status: &str) -> OpenPlanItem {
         OpenPlanItem {
+            plan_id: "p".to_string(),
             plan_title: plan.to_string(),
+            item_id: title.to_string(),
             item_title: title.to_string(),
+            phase: None,
             status: status.to_string(),
         }
     }

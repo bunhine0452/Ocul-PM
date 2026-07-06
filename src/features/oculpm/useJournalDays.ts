@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import type { EntryFilters, JournalEntrySummary } from "@/lib/bindings";
+import { commands, type EntryFilters, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "./useJournalEvents";
 
 // Final UI Update (ui_v2) — fetch journal entries and group them by day for the
@@ -125,15 +125,18 @@ export function useJournalDays(
           if (cancelled) return;
           grouped = groupByWorkday(list, todayKey);
         } else {
-          const lists = await Promise.all(
-            keys.map((wd) => oculpmApi.listJournalEntries(projectId, wd)),
-          );
+          // v2 U12 — 워크데이당 1콜(×14) 대신 단일 workday brief 로.
+          const res = await commands.oculpmWorkdayBrief(projectId, keys, null);
           if (cancelled) return;
+          if (res.status !== "ok") throw new Error(res.error);
+          const byKey = new Map<string, JournalEntrySummary[]>(
+            res.data.days.map((b) => [b.workday, b.entries]),
+          );
           grouped = keys
-            .map((wd, i) => ({
+            .map((wd) => ({
               workday: wd,
               label: dayLabel(wd, todayKey),
-              entries: (lists[i] ?? [])
+              entries: (byKey.get(wd) ?? [])
                 .slice()
                 .sort((a, b) => b.created_at.localeCompare(a.created_at)),
             }))
