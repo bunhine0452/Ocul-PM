@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_BUS } from "@/lib/navRegistry";
+import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -107,6 +107,37 @@ export default function ShellV2({
   // link), remember where to send the detail view's "back" button so the user
   // returns to that origin screen instead of the journal timeline.
   const [journalReturnView, setJournalReturnView] = useState<UiV2View | null>(null);
+
+  // v2 U7 — 팔레트 엔티티 점프. 플래너/토의/문서 화면은 영속 필드
+  // (plannerPlanId 등)를 mount 시에만 읽으므로, 이미 그 화면에 있어도 점프가
+  // 반영되도록 nonce 로 remount 를 강제한다 (화면은 mount 시 재조회).
+  const [jumpNonce, setJumpNonce] = useState(0);
+  useEffect(() => {
+    const onOpenEntity = (e: Event) => {
+      const detail = (e as CustomEvent<OpenEntityDetail>).detail;
+      if (!detail?.kind || !detail?.id) return;
+      if (detail.kind === "journal") {
+        setJournalReturnView(null);
+        setJournalOpenEntry(detail.id);
+        setUiV2View("journal");
+      } else if (detail.kind === "plan" || detail.kind === "plan_item") {
+        const planId = detail.id.split("#")[0];
+        setState((prev) => ({ ...prev, plannerPlanId: planId }));
+        setJumpNonce((n) => n + 1);
+        setUiV2View("planner");
+      } else if (detail.kind === "discussion") {
+        setState((prev) => ({ ...prev, discussionActiveId: detail.id }));
+        setJumpNonce((n) => n + 1);
+        setUiV2View("discussion");
+      } else if (detail.kind === "doc") {
+        setState((prev) => ({ ...prev, docsActivePath: detail.id }));
+        setJumpNonce((n) => n + 1);
+        setUiV2View("docs");
+      }
+    };
+    window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
+    return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
+  }, [setState, setUiV2View]);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
@@ -273,6 +304,7 @@ export default function ShellV2({
           />
         ) : view === "planner" ? (
           <PlannerScreenV2
+            key={`planner-${jumpNonce}`}
             projectId={projectId}
             onNavigate={setUiV2View}
             onOpenJournal={(path) => {
@@ -290,9 +322,13 @@ export default function ShellV2({
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
         ) : view === "docs" ? (
-          <DocsScreenV2 projectId={projectId} />
+          <DocsScreenV2 key={`docs-${jumpNonce}`} projectId={projectId} />
         ) : view === "discussion" ? (
-          <DiscussionScreenV2 projectId={projectId} onNavigate={setUiV2View} />
+          <DiscussionScreenV2
+            key={`discussion-${jumpNonce}`}
+            projectId={projectId}
+            onNavigate={setUiV2View}
+          />
         ) : view === "graph" ? (
           <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
         ) : null}

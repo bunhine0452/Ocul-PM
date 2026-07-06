@@ -323,6 +323,22 @@ pub async fn oculpm_list_journal_entries(
         .map_err(|e| e.to_string())
 }
 
+/// v2 U7 — 커맨드 팔레트 엔티티 점프 ("go to anything"): 일지·플랜·플랜
+/// 항목·토의를 제목으로 통합 검색한다. SQLite 캐시만 읽는 저비용 경로
+/// (타이핑 debounce 마다 호출됨).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_search_entities(
+    db: State<'_, Db>,
+    project_id: u32,
+    query: String,
+    limit: u32,
+) -> Result<Vec<crate::db::EntityHit>, String> {
+    db.search_oculpm_entities(project_id, query, limit)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Get a single journal entry by relative path. Falls back to on-demand
 /// disk read + cache upsert if the row is missing. Returns `None` only
 /// when the file does not exist on disk either.

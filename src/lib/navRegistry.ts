@@ -63,9 +63,17 @@ export function navShortcutLabel(view: UiV2View): string | undefined {
 }
 
 /**
- * 전역 이벤트 채널 — ⌘P·팔레트가 사이드바의 프로젝트 스위처 팝오버를 연다.
+ * 전역 이벤트 채널 — ⌘P·팔레트가 사이드바의 프로젝트 스위처 팝오버를 열고,
+ * 팔레트 엔티티 점프(U7)가 ShellV2 라우팅에 도달한다.
  * (CommandPalette 의 OCULPM_BUS 와 같은 패턴 — 소유 트리를 관통하지 않는다.)
  */
 export const NAV_BUS = {
   openProjectSwitcher: "oculpm:open-project-switcher",
+  /** detail: { kind: "journal"|"plan"|"plan_item"|"discussion"|"doc", id: string } */
+  openEntity: "oculpm:open-entity",
 } as const;
+
+export interface OpenEntityDetail {
+  kind: "journal" | "plan" | "plan_item" | "discussion" | "doc";
+  id: string;
+}

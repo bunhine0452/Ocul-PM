@@ -561,6 +561,12 @@ export const commands = {
 	 */
 	oculpmSetJournalVerified: (projectId: number, relativePath: string, verified: boolean) => typedError<null, string>(__TAURI_INVOKE("oculpm_set_journal_verified", { projectId, relativePath, verified })),
 	/**
+	 *  v2 U7 — 커맨드 팔레트 엔티티 점프 ("go to anything"): 일지·플랜·플랜
+	 *  항목·토의를 제목으로 통합 검색한다. SQLite 캐시만 읽는 저비용 경로
+	 *  (타이핑 debounce 마다 호출됨).
+	 */
+	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], string>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
+	/**
 	 *  Rebuild the journal cache from disk. Drops every cached row for the
 	 *  project and re-walks `.oculpm/journal/`. Use after manual sqlite
 	 *  tampering or schema migration.
@@ -1122,6 +1128,21 @@ export type EffortHotspot = {
 export type EndedReason = "inactivity_timeout" | "app_quit" | "workday_boundary" | "manual" | "crash_recovered" | 
 /**  W5 — session synthesized from migrated SQLite changelog entries. */
 "synthetic_migrated";
+
+export type EntityHit = {
+	kind: EntityKind,
+	id: string,
+	title: string,
+	/**  보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목, 토의: status. */
+	subtitle: string,
+};
+
+/**
+ *  v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
+ *  히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
+ *  plan=plan_id, plan_item="plan_id#item_id", discussion=discussion_id.
+ */
+export type EntityKind = "journal" | "plan" | "plan_item" | "discussion";
 
 /**
  *  One file's recorded diff for a journal entry. `patch` is a git-style unified

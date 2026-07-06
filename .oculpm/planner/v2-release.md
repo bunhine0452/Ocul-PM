@@ -22,7 +22,7 @@ owner: claude-code
 
 ## Phase 2 — 키보드 & 되돌려주기 {#round2}
 - [x] U6 화면별 lazy 분할 (ShellV2 청크 −58%, manualChunks 불필요 판정) {#bundle-split}
-- [ ] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
+- [x] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
 - [ ] U8 키보드 diff 검토 — j/k·o·`/` in-diff 검색 {#keyboard-diff}
 - [ ] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
 - [ ] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
@@ -45,4 +45,5 @@ owner: claude-code
 | 2026-07-06T21:52:00+09:00 | #agent-adapters | claude-code | →x | journal/20260706/Features_to_add/2152_feature_agent-adapters-expansion.md | 어댑터 5종(windsurf/copilot/aider/cline/zed stub)+codex 귀속, 단어단위 infer, 감지 마커, Settings/색상. Rust 테스트 2개 신설, cargo 332 ✓ |
 | 2026-07-06T21:56:00+09:00 | #log-retention | claude-code | →x | journal/20260706/Chores/2156_chore_log-retention-cap.md | RollingFileAppender builder max_log_files(14), 실패시 무제한 daily 폴백. cargo 332 ✓ |
 | 2026-07-06T22:04:00+09:00 | #bundle-split | claude-code | →x | journal/20260706/Features_to_add/2204_feature_screen-lazy-split.md | ShellV2 584→244KB(−58%). 7화면 lazy+공용 스켈레톤 fallback, Markdown/TerminalInstance impl 분리(xterm 288KB 격리 — TodayTerminal 경유 eager 유입이 원인이었음). 게이트 ✓ |
+| 2026-07-06T22:18:00+09:00 | #entity-jump | claude-code | →x | journal/20260706/Features_to_add/2218_feature_palette-entity-jump.md | oculpm_search_entities(4캐시 병합·prefix 랭킹·이스케이프)+팔레트 "바로가기"(debounce 120ms, docs_tree 1회 캐시)+NAV_BUS.openEntity 라우팅(jumpNonce remount). Rust 테스트 3, cargo 335 ✓ |
 <!-- oculpm:plan-log end -->

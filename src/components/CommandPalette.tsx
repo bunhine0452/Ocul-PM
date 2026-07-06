@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Flame,
@@ -7,9 +7,14 @@ import {
   Sparkles,
   Plus,
   FolderGit2,
+  NotebookText,
+  TargetIcon,
+  MessageSquare,
+  BookText,
 } from "@/components/Icons";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_ENTRIES, NAV_BUS, navShortcutLabel } from "@/lib/navRegistry";
+import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
+import { commands, type DocsTreeNode, type EntityHit } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 
@@ -66,6 +71,74 @@ export function CommandPalette({
   useEffect(() => {
     if (!open) setSearch("");
   }, [open]);
+
+  // ── v2 U7 — 엔티티 점프 ("go to anything") ────────────────────────────
+  // 입력 2자 이상이면 120ms debounce 로 일지·플랜·토의 제목을 백엔드 캐시에서,
+  // docs 파일명을 (팔레트가 열려 있는 동안 1회 캐시한) docs_tree 에서 찾는다.
+  const [entityHits, setEntityHits] = useState<EntityHit[]>([]);
+  const [docHits, setDocHits] = useState<{ path: string; name: string }[]>([]);
+  const docsFlatRef = useRef<{ path: string; name: string }[] | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setEntityHits([]);
+      setDocHits([]);
+      docsFlatRef.current = null;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const q = search.trim();
+    const pid = state.currentProjectId;
+    if (!open || pid == null || q.length < 2) {
+      setEntityHits([]);
+      setDocHits([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void commands.oculpmSearchEntities(pid, q, 8).then((res) => {
+        setEntityHits(res.status === "ok" ? res.data : []);
+      });
+      const lower = q.toLowerCase();
+      const filterDocs = (files: { path: string; name: string }[]) =>
+        files
+          .filter(
+            (f) =>
+              f.name.toLowerCase().includes(lower) || f.path.toLowerCase().includes(lower),
+          )
+          .slice(0, 4);
+      if (docsFlatRef.current) {
+        setDocHits(filterDocs(docsFlatRef.current));
+      } else {
+        void commands.docsTree(pid).then((res) => {
+          if (res.status !== "ok" || !res.data.exists) {
+            docsFlatRef.current = [];
+            setDocHits([]);
+            return;
+          }
+          const flat: { path: string; name: string }[] = [];
+          const walk = (nodes: DocsTreeNode[]) => {
+            for (const n of nodes) {
+              if (n.is_dir) walk(n.children);
+              else if (n.name.endsWith(".md")) flat.push({ path: n.relative_path, name: n.name });
+            }
+          };
+          walk(res.data.nodes);
+          docsFlatRef.current = flat;
+          setDocHits(filterDocs(flat));
+        });
+      }
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [open, search, state.currentProjectId]);
+
+  const openEntity = (detail: OpenEntityDetail) => {
+    onOpenChange(false);
+    window.dispatchEvent(new CustomEvent(NAV_BUS.openEntity, { detail }));
+  };
+
+  const entityIcon = (kind: EntityHit["kind"]) =>
+    kind === "journal" ? NotebookText : kind === "discussion" ? MessageSquare : TargetIcon;
 
   const go = (view: UiV2View) => () => {
     setUiV2View(view);
@@ -246,6 +319,47 @@ export function CommandPalette({
           <Command.Empty className="px-4 py-6 text-sm text-muted-foreground text-center">
             매칭되는 명령이 없습니다.
           </Command.Empty>
+          {entityHits.length + docHits.length > 0 ? (
+            <Command.Group
+              heading="바로가기"
+              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
+            >
+              {entityHits.map((hit) => {
+                const Icon = entityIcon(hit.kind);
+                return (
+                  <Command.Item
+                    key={`ent:${hit.kind}:${hit.id}`}
+                    value={`ent:${hit.kind}:${hit.id}`}
+                    // 백엔드가 이미 매칭했다 — cmdk 필터를 항상 통과시킨다.
+                    keywords={[search]}
+                    onSelect={() => openEntity({ kind: hit.kind, id: hit.id })}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80"
+                  >
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="flex-1 truncate">{hit.title}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {hit.subtitle}
+                    </span>
+                  </Command.Item>
+                );
+              })}
+              {docHits.map((doc) => (
+                <Command.Item
+                  key={`ent:doc:${doc.path}`}
+                  value={`ent:doc:${doc.path}`}
+                  keywords={[search]}
+                  onSelect={() => openEntity({ kind: "doc", id: doc.path })}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80"
+                >
+                  <BookText className="w-4 h-4 text-muted-foreground" />
+                  <span className="flex-1 truncate">{doc.name}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0 truncate max-w-[40%]">
+                    {doc.path}
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
           {grouped.map(([group, list]) => (
             <Command.Group
               key={group}
