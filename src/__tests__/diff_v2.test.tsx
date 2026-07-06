@@ -200,6 +200,31 @@ describe("PR-UI 4 — Diff screen", () => {
     expect(await findByText(/새 파일 첫 줄/)).toBeInTheDocument();
   });
 
+  it("v2 U8 — j/k 가 파일 선택을 이동한다 (입력 필드 밖에서만)", async () => {
+    seedRecentChanges([
+      { path: "src/a.ts", op: "M" },
+      { path: "src/b.ts", op: "M" },
+    ]);
+    const { container } = renderDiff();
+    await waitForBody(container);
+    // 기본 선택 = 최신 변경(src/b.ts) — 리스트 표시는 최신순이라 첫 행.
+    const activeName = () =>
+      container.querySelector(".dfile.active .dfile-name")?.textContent;
+    expect(activeName()).toBe("src/b.ts");
+    fireEvent.keyDown(window, { key: "j" });
+    await waitFor(() => expect(activeName()).toBe("src/a.ts"));
+    fireEvent.keyDown(window, { key: "k" });
+    await waitFor(() => expect(activeName()).toBe("src/b.ts"));
+    // 리스트 경계에서 멈춘다 (순환 없음).
+    fireEvent.keyDown(window, { key: "k" });
+    expect(activeName()).toBe("src/b.ts");
+    // 검색 인풋 포커스 중엔 j/k 무시.
+    const input = container.querySelector(".diff-search input") as HTMLInputElement;
+    input.focus();
+    fireEvent.keyDown(input, { key: "j" });
+    expect(activeName()).toBe("src/b.ts");
+  });
+
   it("pre-selects the diffActivePath handoff from the journal card", async () => {
     seedRecentChanges(
       [

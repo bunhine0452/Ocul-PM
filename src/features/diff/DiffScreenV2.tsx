@@ -374,6 +374,96 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     [projectRoot, settings.externalEditorCommand],
   );
 
+  // ── v2 U8 (docs/20260706_v2/01-ux-spec.md §3) — 키보드 diff 검토 ──────────
+  // j/k = 파일 이동(선택 즉시 diff 로드), `/` = in-diff 검색, n/N = 매치 이동.
+  // 입력 필드 포커스 중엔 무시. 리스트 표시 순서(그룹/평면)를 그대로 따른다.
+  const orderedPaths = useMemo(
+    () =>
+      groups
+        ? groups.flatMap((g) => g.files)
+        : changes
+            .slice()
+            .reverse()
+            .map((c) => c.path),
+    [groups, changes],
+  );
+
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const diffCodeRef = useRef<HTMLDivElement | null>(null);
+  const [diffQuery, setDiffQuery] = useState("");
+  const [matchPos, setMatchPos] = useState<{ idx: number; total: number } | null>(null);
+  const matchIdxRef = useRef(-1);
+
+  // 매치는 렌더된 diff 라인(.dl)의 textContent 로 그때그때 수집한다 — PatchView
+  // 내부(하이라이트된 HTML)를 건드리지 않는 최소 침습 접점.
+  const jumpMatch = useCallback(
+    (dir: 1 | -1) => {
+      const root = diffCodeRef.current;
+      const q = diffQuery.trim().toLowerCase();
+      if (!root || !q) return;
+      root.querySelectorAll(".dl-hit").forEach((el) => el.classList.remove("dl-hit"));
+      const matches = Array.from(root.querySelectorAll<HTMLElement>(".dl")).filter((el) =>
+        (el.textContent ?? "").toLowerCase().includes(q),
+      );
+      if (matches.length === 0) {
+        matchIdxRef.current = -1;
+        setMatchPos({ idx: 0, total: 0 });
+        return;
+      }
+      const next = (((matchIdxRef.current + dir) % matches.length) + matches.length) % matches.length;
+      matchIdxRef.current = next;
+      const el = matches[next];
+      el.classList.add("dl-hit");
+      el.scrollIntoView?.({ block: "center" });
+      setMatchPos({ idx: next + 1, total: matches.length });
+    },
+    [diffQuery],
+  );
+
+  // 쿼리/파일/모드가 바뀌면 매치 커서 리셋.
+  useEffect(() => {
+    matchIdxRef.current = -1;
+    setMatchPos(null);
+    diffCodeRef.current
+      ?.querySelectorAll(".dl-hit")
+      .forEach((el) => el.classList.remove("dl-hit"));
+  }, [diffQuery, selected, diffMode, diff]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "j" || e.key === "k") {
+        e.preventDefault();
+        if (orderedPaths.length === 0) return;
+        const cur = selected ? orderedPaths.indexOf(selected) : -1;
+        const next =
+          e.key === "j"
+            ? Math.min(cur + 1, orderedPaths.length - 1)
+            : Math.max(cur - 1, 0);
+        setSelected(orderedPaths[next]);
+      } else if (e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if ((e.key === "n" || e.key === "N") && diffQuery.trim()) {
+        e.preventDefault();
+        jumpMatch(e.key === "n" ? 1 : -1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [orderedPaths, selected, diffQuery, jumpMatch]);
+
+  // 키보드 이동 시 활성 행이 리스트 뷰포트를 벗어나지 않게.
+  useEffect(() => {
+    if (!selected) return;
+    document
+      .querySelector(".diff-files .dfile.active")
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [selected]);
+
   const cur = changes.find((c) => c.path === selected) ?? null;
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
   const allReviewed =
@@ -494,7 +584,13 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           {/* Left: file list — grouped by the journal entry / plan that
               recorded each change (Dogfooding #3), with a flat fallback. */}
           <div className="diff-files">
-            <div className="diff-files-head">변경된 파일</div>
+            <div className="diff-files-head">
+              변경된 파일
+              <span className="diff-kbd-hint" aria-hidden="true">
+                <kbd>j</kbd>
+                <kbd>k</kbd> 이동 · <kbd>/</kbd> 검색
+              </span>
+            </div>
             {groups
               ? groups.map((g) => (
                   <div className="diff-group" key={g.entry_path ?? "__untracked"}>
@@ -618,6 +714,31 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 </span>
               ) : null}
               <span style={{ flex: 1 }} />
+              {/* v2 U8 — in-diff 검색. Enter/n=다음, Shift+Enter/N=이전, Esc=해제 */}
+              <div className="diff-search">
+                <input
+                  ref={searchInputRef}
+                  value={diffQuery}
+                  onChange={(e) => setDiffQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      jumpMatch(e.shiftKey ? -1 : 1);
+                    } else if (e.key === "Escape") {
+                      setDiffQuery("");
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  placeholder="diff 내 검색 (/)"
+                  aria-label="diff 내 검색"
+                  spellCheck={false}
+                />
+                {matchPos ? (
+                  <span className="diff-search-count">
+                    {matchPos.total === 0 ? "0건" : `${matchPos.idx}/${matchPos.total}`}
+                  </span>
+                ) : null}
+              </div>
               <button
                 className="iconbtn"
                 title="에디터에서 열기"
@@ -629,7 +750,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               </button>
             </div>
 
-            <div className="diff-code">
+            <div className="diff-code" ref={diffCodeRef}>
               {loading ? (
                 <div className="empty-hint">
                   <Loader size={14} /> diff 계산 중…
