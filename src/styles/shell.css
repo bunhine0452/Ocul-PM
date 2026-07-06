@@ -173,6 +173,13 @@
   padding: 1px 7px; border-radius: 9px; min-width: 20px; text-align: center;
 }
 .nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: #fff; }
+/* v2 U1 — ⌘번호 힌트. 상시 노출은 소음이라 hover 시에만 보인다. */
+.nav-kbd {
+  margin-left: auto; font-size: 10px; font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-3); opacity: 0; transition: opacity 0.12s ease;
+}
+.nav-item:hover .nav-kbd { opacity: 1; }
+.nav-item.active .nav-kbd { color: rgba(255,255,255,0.75); }
 
 .side-spacer { flex: 1; }
 .side-foot { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid var(--sep); }

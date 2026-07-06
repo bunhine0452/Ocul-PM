@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { NAV_BUS } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -61,6 +62,15 @@ export default function ShellV2({
     setHovering(false);
     setState((prev) => ({ ...prev, sidebarCollapsed: !prev.sidebarCollapsed }));
   };
+
+  // ⌘P 프로젝트 전환 (v2 U1): 사이드바가 접혀 있으면 팝오버가 화면 밖에
+  // 열리므로, 이벤트 수신 시 hover-reveal 로 먼저 띄운다.
+  useEffect(() => {
+    if (!collapsed) return;
+    const reveal = () => setHovering(true);
+    window.addEventListener(NAV_BUS.openProjectSwitcher, reveal);
+    return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, reveal);
+  }, [collapsed]);
 
   // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
   // as shell-local ephemeral state (focus is not persisted; it's a single

@@ -2,18 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Command } from "cmdk";
 import {
   Flame,
-  Calendar,
-  FileCode,
-  Code2,
   Settings as SettingsIcon,
   RefreshCw,
   Sparkles,
-  Terminal as TerminalIcon,
-  Search,
-  Network,
   Plus,
+  FolderGit2,
 } from "@/components/Icons";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { NAV_ENTRIES, NAV_BUS, navShortcutLabel } from "@/lib/navRegistry";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 
@@ -78,25 +74,25 @@ export function CommandPalette({
 
   const items: CommandItem[] = useMemo(
     () => [
-      // ── 이동 (ui_v2 — main 4 + tools 3, 01-ia-and-shell §3)
-      { id: "view-today",    label: "오늘 (Today)", alias: "today 오늘 대시보드 포커스",
-        group: "이동", icon: Flame,        shortcut: "⌘1", onSelect: go("today") },
-      { id: "view-journal",  label: "작업 일지", alias: "journal 일지 timeline 기록 변경 로그",
-        group: "이동", icon: FileCode,     shortcut: "⌘2", onSelect: go("journal") },
-      { id: "view-diff",     label: "변경 diff", alias: "diff 변경 로컬 파일 검토",
-        group: "이동", icon: Code2,        shortcut: "⌘3", onSelect: go("diff") },
-      { id: "view-planner",  label: "Planner", alias: "planner 플래너 목표 goal 계획",
-        group: "이동", icon: Calendar,     shortcut: "⌘4", onSelect: go("planner") },
-      { id: "view-search",   label: "코드 검색", alias: "search 코드 검색 시맨틱 semantic",
-        group: "이동", icon: Search,       shortcut: "⌘5", onSelect: go("search") },
-      { id: "view-terminal", label: "터미널", alias: "terminal 터미널 셸 shell",
-        group: "이동", icon: TerminalIcon, shortcut: "⌘6", onSelect: go("terminal") },
-      { id: "view-ai",       label: "AI 패널", alias: "ai 패널 채팅 chat llm",
-        group: "이동", icon: Sparkles,     shortcut: "⌘7", onSelect: go("ai") },
-      { id: "view-graph",    label: "코드 맵", alias: "graph 코드 맵 의존성 dependency 그래프",
-        group: "이동", icon: Network,      onSelect: go("graph") },
+      // ── 이동 — navRegistry 단일 소스에서 파생 (v2 U1). 사이드바의 모든
+      // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
+      ...NAV_ENTRIES.map((e) => ({
+        id: `view-${e.id}`,
+        label: e.label,
+        alias: e.alias,
+        group: "이동" as const,
+        icon: e.icon,
+        shortcut: navShortcutLabel(e.id),
+        onSelect: go(e.id),
+      })),
 
       // ── 액션
+      { id: "switch-project", label: "프로젝트 전환", alias: "project switch 프로젝트 전환 바꾸기",
+        group: "액션", icon: FolderGit2, shortcut: "⌘P",
+        onSelect: () => {
+          onOpenChange(false);
+          window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
+        } },
       { id: "toggle-ai-overlay", label: "AI 오버레이 토글", alias: "ai overlay chat ⌘\\",
         group: "액션", icon: Sparkles, shortcut: "⌘\\",
         onSelect: () => { toggleAiOverlay(); onOpenChange(false); } },

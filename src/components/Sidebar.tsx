@@ -1,16 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Sunrise,
-  NotebookText,
-  GitCompareArrows,
-  TargetIcon,
-  History,
-  SearchIcon,
-  SquareTerminal,
-  SparklesIcon,
-  Network,
-  BookText,
-  MessageSquare,
   MoonIcon,
   SunIcon,
   SettingsIcon,
@@ -19,43 +8,16 @@ import {
   PanelLeft,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
-// Ocul-PM1.0/src/shell.jsx). 9 slots: 4 main + 3 tools + 2 footer
-// (dark toggle / settings). Rendered as <nav> + <button>s for a11y; the
+// Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
 // mockup used <div onClick>. Dogfooding 2026-06-07: now collapsible — a
 // brand-row button toggles `sidebarCollapsed`; ShellV2 owns the hover-reveal.
+// v2: nav 항목은 navRegistry 단일 소스에서 파생 (docs/20260706_v2/01-ux-spec.md §1).
 
-type IconComp = React.ComponentType<{
-  size?: number | string;
-  strokeWidth?: number | string;
-  color?: string;
-}>;
-
-interface NavSlot {
-  id: UiV2View;
-  label: string;
-  icon: IconComp;
-  /** Optional count chip (populated by PR-UI 2 backend brief; omitted now). */
-  badge?: number;
-}
-
-const MAIN_NAV: NavSlot[] = [
-  { id: "today", label: "Today", icon: Sunrise },
-  { id: "journal", label: "작업 일지", icon: NotebookText },
-  { id: "discussion", label: "문제 해결", icon: MessageSquare },
-  { id: "planner", label: "Planner", icon: TargetIcon },
-  { id: "diff", label: "변경 diff", icon: GitCompareArrows },
-  { id: "retro", label: "회고", icon: History },
-];
-
-const TOOL_NAV: NavSlot[] = [
-  { id: "search", label: "코드 검색", icon: SearchIcon },
-  { id: "graph", label: "코드 맵", icon: Network },
-  { id: "docs", label: "문서", icon: BookText },
-  { id: "terminal", label: "터미널", icon: SquareTerminal },
-  { id: "ai", label: "AI 패널", icon: SparklesIcon },
-];
+const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
+const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
 
 interface SidebarProps {
   view: UiV2View;
@@ -91,23 +53,25 @@ function NavRow({
   active,
   onNavigate,
 }: {
-  slot: NavSlot;
+  slot: NavEntry;
   active: boolean;
   onNavigate: (view: UiV2View) => void;
 }) {
   const Icon = slot.icon;
+  const shortcut = navShortcutLabel(slot.id);
   return (
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
       aria-current={active ? "page" : undefined}
+      title={shortcut ? `${slot.label} (${shortcut})` : slot.label}
       onClick={() => onNavigate(slot.id)}
     >
       <span className="nav-ico">
         <Icon size={17} strokeWidth={active ? 2 : 1.8} />
       </span>
       <span>{slot.label}</span>
-      {slot.badge != null ? <span className="nav-badge">{slot.badge}</span> : null}
+      {shortcut ? <kbd className="nav-kbd">{shortcut}</kbd> : null}
     </button>
   );
 }
@@ -130,6 +94,13 @@ export function Sidebar({
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
+
+  // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
+  useEffect(() => {
+    const onOpen = () => setSwitcherOpen(true);
+    window.addEventListener(NAV_BUS.openProjectSwitcher, onOpen);
+    return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, onOpen);
+  }, []);
 
   // Close the inline switcher on outside-click / Esc.
   useEffect(() => {
