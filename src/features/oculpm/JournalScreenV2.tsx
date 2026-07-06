@@ -10,7 +10,7 @@ import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
 import { toast } from "@/lib/toast";
-import { OculSpinner } from "@/components/OculSpinner";
+import { SkeletonList } from "@/components/ui/Skeleton";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -387,7 +387,7 @@ export function JournalScreenV2({
             ) : null}
 
             {loading && days == null ? (
-              <OculSpinner label="불러오는 중…" />
+              <SkeletonList rows={4} height={76} />
             ) : !oculpmReady ? (
               <div className="empty-hint">ocul-pm이 활성화되면 일지가 여기에 표시됩니다.</div>
             ) : filteredDays && filteredDays.length > 0 ? (

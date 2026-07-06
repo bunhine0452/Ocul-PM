@@ -24,7 +24,7 @@ import {
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
-import { OculSpinner } from "@/components/OculSpinner";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
@@ -590,7 +590,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           ) : null}
 
           {plans == null ? (
-            <OculSpinner label="불러오는 중…" />
+            <SkeletonList rows={3} height={44} />
           ) : plans.length === 0 ? (
             <div className="empty-hint">
               아직 계획이 없어요. 새 계획을 만들면, 이후 AI(외부 에이전트·인앱)가 작업하며 항목을 스스로 갱신합니다.
@@ -601,7 +601,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               </div>
             </div>
           ) : detail == null ? (
-            loadingDetail ? <OculSpinner label="불러오는 중…" /> : null
+            loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
           ) : (
             <PlanBody
               detail={detail}

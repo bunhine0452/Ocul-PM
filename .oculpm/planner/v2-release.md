@@ -15,7 +15,7 @@ owner: claude-code
 
 ## Phase 1 — 빠른 승리 {#round1}
 - [x] U1 단축키·팔레트 정비 (navRegistry 단일 소스, 누락 3화면, ⌘번호 일치, ⌘P) {#nav-registry}
-- [ ] U2 Toaster 테마 토큰화 + 공용 Skeleton (Today·Journal·Planner 적용) {#toaster-skeleton}
+- [x] U2 Toaster 테마 토큰화 + 공용 Skeleton (Today·Journal·Planner 적용) {#toaster-skeleton}
 - [ ] U3 WorkspaceContext 리렌더 수술 (value 메모·recentChanges 스토어 분리·persist 디바운스) {#workspace-render}
 - [ ] U4 에이전트 감지 확대 — Windsurf/Copilot/Codex/aider/Cline/Zed {#agent-adapters}
 - [ ] U5 로그 retention 상한 (max_log_files) {#log-retention}
@@ -40,4 +40,5 @@ owner: claude-code
 |---|---|---|---|---|---|
 | 2026-07-06T21:20:30+09:00 | #v2-docs | claude-code | →x | journal/20260706/Chores/2120_chore_v2-master-plan-docs.md | docs/20260706_v2 4종(마스터플랜+UX/기능/성능 스펙)+플랜 등록. U1~U13 3라운드, 이월(F6/P2/반응형/폰트) 명시 |
 | 2026-07-06T21:31:00+09:00 | #nav-registry | claude-code | →x | journal/20260706/Features_to_add/2131_feature_nav-registry-shortcuts.md | navRegistry 단일 소스(11화면), 팔레트 누락 3화면 해소, ⌘1~9·0=사이드바 순서, ⌘P 실동작(NAV_BUS), hover ⌘힌트. 신규 테스트 5케이스, 게이트 ✓ |
+| 2026-07-06T21:34:30+09:00 | #toaster-skeleton | claude-code | →x | journal/20260706/Features_to_add/2134_feature_toaster-theme-skeleton.md | Toaster 다크 하드코딩→카드 토큰+틴트, .skel 승격 Skeleton/SkeletonList(reduced-motion 정지), 일지/플래너/Today 3화면 적용. 게이트 ✓ |
 <!-- oculpm:plan-log end -->

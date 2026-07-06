@@ -15,6 +15,7 @@ import {
 } from "@/components/Icons";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import type { JournalEntrySummary } from "@/lib/bindings";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "./StatCard";
 import { MiniEntry } from "./MiniEntry";
 import { WeekChart } from "./WeekChart";
@@ -124,7 +125,7 @@ export function TodayScreenV2({
                       기록됐어요
                     </>
                   ) : oculpmReady ? (
-                    "오늘의 기록을 불러오는 중…"
+                    <Skeleton width={240} height={22} style={{ display: "inline-block", verticalAlign: "middle" }} />
                   ) : (
                     "ocul-pm이 아직 활성화되지 않았어요"
                   )}

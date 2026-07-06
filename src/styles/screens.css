@@ -122,6 +122,9 @@
   transform: translateX(-100%); animation: skelShimmer 1.3s infinite;
 }
 @keyframes skelShimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .skel::after { animation: none; }
+}
 
 /* --- Journal (PR-UI 3) --- */
 .day-label {
