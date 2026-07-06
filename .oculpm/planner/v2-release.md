@@ -28,7 +28,7 @@ owner: claude-code
 - [x] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
 
 ## Phase 3 — 깊이 & 성능 {#round3}
-- [ ] U11 FTS5 텍스트/심볼 검색 (LIKE 풀스캔 제거, 실패시 LIKE 폴백) {#fts-search}
+- [x] U11 FTS5 텍스트 검색 (trigram substring 보존, LIKE 폴백; 심볼은 LIKE 유지 판정) {#fts-search}
 - [ ] U12 workday brief 단일 집계 커맨드 (Today IPC 12+N→3 이하) {#workday-brief}
 - [ ] U13 공유 AppDialog 프리미티브 (포커스 트랩·복원, 폼 모달 3곳 이전) {#app-dialog}
 
@@ -49,4 +49,5 @@ owner: claude-code
 | 2026-07-06T22:26:00+09:00 | #keyboard-diff | claude-code | →x | journal/20260706/Features_to_add/2226_feature_keyboard-diff-review.md | j/k 파일 이동(표시 순서·경계 정지·인풋 가드), `/` 검색+n/N 매치(.dl textContent 수집, PatchView 무침습), kbd 힌트. vitest 신규 1, 게이트 ✓ |
 | 2026-07-06T22:36:00+09:00 | #optimistic-planner | claude-code | →x | journal/20260706/Features_to_add/2236_feature_planner-optimistic-toggle.md | 토글 즉시 반영+실패 롤백, busy 게이트 제거(N4 백엔드 직렬화 신뢰), refreshPlans 비차단. vitest 2(pending 낙관·에러 롤백), 게이트 ✓ |
 | 2026-07-06T22:52:00+09:00 | #generate-summary | claude-code | →x | journal/20260706/Features_to_add/2252_feature_generate-summary.md | oculpm_generate_summary 3스타일(LLM+결정적 폴백 항상동작, note 정직표기)+list_open_plan_items. 회고 "산출물" 모달+Today "스탠드업 복사". Rust 테스트 4, cargo 339 ✓ |
+| 2026-07-06T23:05:00+09:00 | #fts-search | claude-code | →x | journal/20260706/Features_to_add/2305_feature_fts5-text-search.md | 025 chunk_fts(trigram, external-content+트리거 3종+백필), search_text 2단(FTS phrase 인용→3자미만/오류 LIKE 폴백). 심볼은 LIKE 유지 판정(소형 테이블·substring 필수). 통합테스트 5, cargo 344 ✓ |
 <!-- oculpm:plan-log end -->
