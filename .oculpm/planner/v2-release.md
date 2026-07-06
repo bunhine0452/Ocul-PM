@@ -1,0 +1,42 @@
+---
+oculpm_plan: v1
+id: v2-release
+title: "v2.0.0 대규모 업데이트 — 키보드 퍼스트·되돌려주기·자원 규율"
+status: active
+created: 2026-07-06
+updated: 2026-07-06
+owner: claude-code
+---
+
+설계 SSOT: `docs/20260706_v2/00-master-plan.md`. 유닛당 1커밋+1일지, 게이트 전부 exit 0 확인.
+
+## Phase 0 — 설계 {#design}
+- [x] 마스터 플랜 + UX/기능/성능 스펙 문서 작성 {#v2-docs}
+
+## Phase 1 — 빠른 승리 {#round1}
+- [ ] U1 단축키·팔레트 정비 (navRegistry 단일 소스, 누락 3화면, ⌘번호 일치, ⌘P) {#nav-registry}
+- [ ] U2 Toaster 테마 토큰화 + 공용 Skeleton (Today·Journal·Planner 적용) {#toaster-skeleton}
+- [ ] U3 WorkspaceContext 리렌더 수술 (value 메모·recentChanges 스토어 분리·persist 디바운스) {#workspace-render}
+- [ ] U4 에이전트 감지 확대 — Windsurf/Copilot/Codex/aider/Cline/Zed {#agent-adapters}
+- [ ] U5 로그 retention 상한 (max_log_files) {#log-retention}
+
+## Phase 2 — 키보드 & 되돌려주기 {#round2}
+- [ ] U6 화면별 lazy 분할 + manualChunks (ShellV2 청크 −40% 목표) {#bundle-split}
+- [ ] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
+- [ ] U8 키보드 diff 검토 — j/k·o·`/` in-diff 검색 {#keyboard-diff}
+- [ ] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
+- [ ] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
+
+## Phase 3 — 깊이 & 성능 {#round3}
+- [ ] U11 FTS5 텍스트/심볼 검색 (LIKE 풀스캔 제거, 실패시 LIKE 폴백) {#fts-search}
+- [ ] U12 workday brief 단일 집계 커맨드 (Today IPC 12+N→3 이하) {#workday-brief}
+- [ ] U13 공유 AppDialog 프리미티브 (포커스 트랩·복원, 폼 모달 3곳 이전) {#app-dialog}
+
+## Phase 4 — 릴리스 {#release}
+- [ ] 전 게이트 재확인 + 버전 2.0.0 bump + CHANGELOG {#v2-ship}
+
+<!-- oculpm:plan-log begin v1 -->
+| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
+|---|---|---|---|---|---|
+| 2026-07-06T21:20:30+09:00 | #v2-docs | claude-code | →x | journal/20260706/Chores/2120_chore_v2-master-plan-docs.md | docs/20260706_v2 4종(마스터플랜+UX/기능/성능 스펙)+플랜 등록. U1~U13 3라운드, 이월(F6/P2/반응형/폰트) 명시 |
+<!-- oculpm:plan-log end -->
