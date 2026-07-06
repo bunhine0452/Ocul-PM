@@ -56,6 +56,13 @@ const KNOWN_AGENTS = [
   { id: "cursor", label: "Cursor" },
   { id: "antigravity", label: "Antigravity" },
   { id: "gemini-cli", label: "Gemini CLI" },
+  // v2 U4 (A1) — 어댑터 확대. Codex CLI 는 AGENTS.md 를 그대로 읽으므로 별도
+  // 항목이 없다.
+  { id: "windsurf", label: "Windsurf" },
+  { id: "copilot", label: "GitHub Copilot" },
+  { id: "aider", label: "aider" },
+  { id: "cline", label: "Cline" },
+  { id: "zed", label: "Zed" },
 ] as const;
 
 export function OculpmSettings() {

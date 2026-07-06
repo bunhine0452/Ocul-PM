@@ -1987,6 +1987,13 @@ fn slug_from_subject(subject: &str, short_sha: &str) -> String {
 /// Heuristic agent attribution from a commit body's trailers / co-author lines.
 fn infer_agent_id(body: &str) -> String {
     let lower = body.to_ascii_lowercase();
+    // v2 U4 — 짧거나 흔한 이름(zed⊂optimized, cline⊂decline 등)은 부분 문자열
+    // 매치가 오탐하므로 단어 단위로 본다.
+    let has_word = |w: &str| {
+        lower
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|t| t == w)
+    };
     if lower.contains("claude") {
         "claude-code".to_string()
     } else if lower.contains("cursor") {
@@ -1995,6 +2002,18 @@ fn infer_agent_id(body: &str) -> String {
         "antigravity".to_string()
     } else if lower.contains("gemini") {
         "gemini-cli".to_string()
+    } else if has_word("copilot") {
+        "copilot".to_string()
+    } else if has_word("codex") {
+        "codex".to_string()
+    } else if has_word("windsurf") {
+        "windsurf".to_string()
+    } else if has_word("aider") {
+        "aider".to_string()
+    } else if has_word("cline") {
+        "cline".to_string()
+    } else if has_word("zed") {
+        "zed".to_string()
     } else {
         "git".to_string()
     }

@@ -740,8 +740,9 @@ export type AgentDetection = {
 
 export type AgentRef = {
 	/**
-	 *  One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
-	 *  `manual`.
+	 *  e.g. `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
+	 *  `windsurf`, `copilot`, `codex`, `aider`, `cline`, `zed`, `manual`
+	 *  (자유 문자열 — 미지의 id 도 저장은 된다).
 	 */
 	id: string,
 	/**  The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`. */
@@ -768,7 +769,10 @@ export type AgentSyncResult = {
 };
 
 export type AgentsConfig = {
-	/**  Subset of `["claude-code", "cursor", "antigravity", "gemini-cli"]`. */
+	/**
+	 *  Subset of `config::KNOWN_AGENT_IDS` — `agents-md` + 도구별 어댑터
+	 *  (claude-code/cursor/antigravity/gemini-cli/windsurf/copilot/aider/cline/zed).
+	 */
 	active: string[],
 	auto_detect_on_open: boolean,
 	auto_sync_adapters: boolean,

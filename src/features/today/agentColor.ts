@@ -11,6 +11,13 @@ const KNOWN: Record<string, string> = {
   antigravity: "#12a06b",
   pi: "#3a9bb5",
   manual: "#97979d",
+  // v2 U4 — 어댑터 확대분 (git 백필 귀속 codex 포함).
+  windsurf: "#0e9488",
+  copilot: "#64748b",
+  codex: "#10a37f",
+  aider: "#e0524b",
+  cline: "#2563eb",
+  zed: "#d9881f",
 };
 
 const PALETTE = ["#d97a4f", "#5a7a95", "#7c5cdb", "#12a06b", "#d9881f", "#e0524b"];
@@ -32,6 +39,12 @@ export function agentLabel(agentId: string): string {
     antigravity: "Antigravity",
     pi: "Pi",
     manual: "수동 기록",
+    windsurf: "Windsurf",
+    copilot: "GitHub Copilot",
+    codex: "Codex CLI",
+    aider: "aider",
+    cline: "Cline",
+    zed: "Zed",
   };
   return map[agentId] ?? agentId;
 }

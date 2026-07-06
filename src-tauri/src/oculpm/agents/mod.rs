@@ -1,7 +1,7 @@
 //! Adapter renderer + sync + detect — W4-PR2.
 //!
-//! Renders the in-binary templates from `templates/` to the four supported
-//! adapter paths according to `config.agents.active`. Drives:
+//! Renders the in-binary templates from `templates/` to the known adapter
+//! paths according to `config.agents.active`. Drives:
 //! - `OculpmManager::sync_agents` (init / Greenfield wizard / Settings save)
 //! - `OculpmManager::detect_agents` (Settings "감지" button)
 //! - watcher's `.oculpm/agents/**` change handler (master edit → cascading
@@ -38,6 +38,13 @@ const CURSOR_TPL: &str = include_str!("templates/cursor.mdc.tpl");
 const CLAUDE_CODE_TPL: &str = include_str!("templates/claude_code.md.tpl");
 const ANTIGRAVITY_TPL: &str = include_str!("templates/antigravity.md.tpl");
 const GEMINI_TPL: &str = include_str!("templates/gemini.md.tpl");
+// v2 U4 (docs/20260706_v2/02-features-spec.md §4) — 어댑터 확대. Codex CLI 는
+// AGENTS.md 를 네이티브로 읽으므로 별도 어댑터가 없다 (git 백필 귀속만 지원).
+const WINDSURF_TPL: &str = include_str!("templates/windsurf.md.tpl");
+const COPILOT_TPL: &str = include_str!("templates/copilot.md.tpl");
+const AIDER_TPL: &str = include_str!("templates/aider.md.tpl");
+const CLINE_TPL: &str = include_str!("templates/cline.md.tpl");
+const ZED_TPL: &str = include_str!("templates/zed.md.tpl");
 
 /// `block_id` for ManagedBlock-mode adapters. Matches `atomic_io` convention.
 const BLOCK_ID: &str = "oculpm";
@@ -116,6 +123,42 @@ pub fn known_adapters() -> &'static [AgentAdapter] {
             write_mode: WriteMode::ManagedBlock,
             render: render_gemini,
         },
+        // ── v2 U4 확대분 — 전부 `@AGENTS.md` 위임 stub (기존 패턴 유지) ──
+        AgentAdapter {
+            id: "windsurf",
+            adapter_path: ".windsurf/rules/ocul-pm.md",
+            write_mode: WriteMode::Overwrite,
+            render: render_windsurf,
+        },
+        AgentAdapter {
+            // GitHub Copilot (VS Code / coding agent) — 사용자가 자기 지침을
+            // 함께 적는 파일이라 marker block 만 소유한다.
+            id: "copilot",
+            adapter_path: ".github/copilot-instructions.md",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_copilot,
+        },
+        AgentAdapter {
+            // aider 의 관례 컨벤션 파일. 루트 공용 문서라 marker block.
+            id: "aider",
+            adapter_path: "CONVENTIONS.md",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_aider,
+        },
+        AgentAdapter {
+            id: "cline",
+            adapter_path: ".clinerules/ocul-pm.md",
+            write_mode: WriteMode::Overwrite,
+            render: render_cline,
+        },
+        AgentAdapter {
+            // Zed 는 루트 `.rules` 를 읽는다 — 사용자 규칙과 공존해야 하므로
+            // marker block.
+            id: "zed",
+            adapter_path: ".rules",
+            write_mode: WriteMode::ManagedBlock,
+            render: render_zed,
+        },
     ]
 }
 
@@ -158,6 +201,36 @@ fn render_gemini(ctx: &AgentContext) -> String {
     ctx.per_agent_override
         .clone()
         .unwrap_or_else(|| GEMINI_TPL.to_string())
+}
+
+fn render_windsurf(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| WINDSURF_TPL.to_string())
+}
+
+fn render_copilot(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| COPILOT_TPL.to_string())
+}
+
+fn render_aider(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| AIDER_TPL.to_string())
+}
+
+fn render_cline(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| CLINE_TPL.to_string())
+}
+
+fn render_zed(ctx: &AgentContext) -> String {
+    ctx.per_agent_override
+        .clone()
+        .unwrap_or_else(|| ZED_TPL.to_string())
 }
 
 // ─── sync_active ─────────────────────────────────────────────────────────────
@@ -286,7 +359,7 @@ pub fn lookup_adapter(agent_id: &str) -> Option<&'static AgentAdapter> {
 }
 
 /// Inverse of `lookup_adapter` — given a project-relative path that the
-/// watcher saw change, return the matching adapter if it's one of our four.
+/// watcher saw change, return the matching adapter if it's one of ours.
 pub fn lookup_adapter_by_path(relative_path: &str) -> Option<&'static AgentAdapter> {
     known_adapters().iter().find(|a| a.adapter_path == relative_path)
 }
@@ -458,11 +531,21 @@ fn adjacent_marker_for(adapter_id: &str, root: &Path) -> bool {
         // agents-md is universal — any AI-tool footprint counts as a hint that
         // the project would benefit from it. AGENTS.md itself isn't here because
         // adapter_path_exists handles it directly.
-        "agents-md" => &[".claude", ".cursor", ".agent", ".gemini", "GEMINI.md", "CLAUDE.md"],
+        "agents-md" => &[
+            ".claude", ".cursor", ".agent", ".gemini", "GEMINI.md", "CLAUDE.md",
+            ".windsurf", ".clinerules", ".aider", ".zed",
+        ],
         "cursor" => &[".cursor"],
         "claude-code" => &[".claude"],
         "antigravity" => &[".agent"],
         "gemini-cli" => &[".gemini", "GEMINI.md"],
+        // v2 U4 — 확대분.
+        "windsurf" => &[".windsurf", ".windsurfrules"],
+        "aider" => &[".aider", ".aider.conf.yml"],
+        "cline" => &[".clinerules"],
+        "zed" => &[".zed"],
+        // copilot 은 신뢰할 인접 마커가 없다 (.github 은 모든 저장소에 있음) —
+        // adapter_path 존재 여부로만 판단.
         _ => &[],
     };
     candidates.iter().any(|c| root.join(c).exists())
@@ -505,6 +588,62 @@ mod tests {
 
     fn read(path: &Path) -> String {
         std::fs::read_to_string(path).unwrap()
+    }
+
+    /// v2 U4 — 어댑터 테이블 계약: id/경로 유일, 신규 5종 존재, 모든 id 가
+    /// config 검증(KNOWN_AGENT_IDS)에 수용됨.
+    #[test]
+    fn adapter_table_covers_v2_agents() {
+        let adapters = known_adapters();
+        let ids: Vec<&str> = adapters.iter().map(|a| a.id).collect();
+        let unique_ids: std::collections::HashSet<&&str> = ids.iter().collect();
+        assert_eq!(unique_ids.len(), ids.len(), "adapter ids must be unique");
+        let paths: std::collections::HashSet<&str> =
+            adapters.iter().map(|a| a.adapter_path).collect();
+        assert_eq!(paths.len(), adapters.len(), "adapter paths must be unique");
+        for id in ["windsurf", "copilot", "aider", "cline", "zed"] {
+            assert!(ids.contains(&id), "missing v2 adapter {id}");
+        }
+        for a in adapters {
+            assert!(
+                crate::oculpm::config::KNOWN_AGENT_IDS.contains(&a.id),
+                "{} must be accepted by config validation",
+                a.id
+            );
+        }
+    }
+
+    /// v2 U4 — 신규 어댑터 sync 왕복: 활성 시 파일/블록 생성, 비활성 시 제거,
+    /// 2회 호출 멱등(unchanged).
+    #[tokio::test]
+    async fn v2_adapters_sync_roundtrip() {
+        let dir = setup();
+        let root = dir.path();
+        let cfg = config_with(&["windsurf", "copilot", "aider", "cline", "zed"]);
+
+        let first = sync_active(root, &cfg).await.unwrap();
+        for id in ["windsurf", "copilot", "aider", "cline", "zed"] {
+            let r = first.results.iter().find(|r| r.id == id).unwrap();
+            assert_eq!(r.action, "inserted", "{id} first sync must insert");
+        }
+        // Overwrite 모드는 파일 자체, ManagedBlock 은 marker 를 포함해야 한다.
+        assert!(root.join(".windsurf/rules/ocul-pm.md").exists());
+        assert!(root.join(".clinerules/ocul-pm.md").exists());
+        assert!(read(&root.join(".github/copilot-instructions.md")).contains("oculpm:begin"));
+        assert!(read(&root.join("CONVENTIONS.md")).contains("agent.id 는 `aider`"));
+        assert!(read(&root.join(".rules")).contains("agent.id 는 `zed`"));
+
+        let second = sync_active(root, &cfg).await.unwrap();
+        for id in ["windsurf", "copilot", "aider", "cline", "zed"] {
+            let r = second.results.iter().find(|r| r.id == id).unwrap();
+            assert_eq!(r.action, "unchanged", "{id} second sync must be idempotent");
+        }
+
+        // 비활성화 → Overwrite 파일 삭제 / ManagedBlock 블록 제거.
+        let off = config_with(&[]);
+        sync_active(root, &off).await.unwrap();
+        assert!(!root.join(".windsurf/rules/ocul-pm.md").exists());
+        assert!(!read(&root.join(".github/copilot-instructions.md")).contains("oculpm:begin"));
     }
 
     /// PR-PLN 2 — the Planner update protocol lives in the master so every

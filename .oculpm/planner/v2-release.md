@@ -17,7 +17,7 @@ owner: claude-code
 - [x] U1 단축키·팔레트 정비 (navRegistry 단일 소스, 누락 3화면, ⌘번호 일치, ⌘P) {#nav-registry}
 - [x] U2 Toaster 테마 토큰화 + 공용 Skeleton (Today·Journal·Planner 적용) {#toaster-skeleton}
 - [x] U3 WorkspaceContext 리렌더 수술 (value 메모·recentChanges 스토어 분리·persist 디바운스) {#workspace-render}
-- [ ] U4 에이전트 감지 확대 — Windsurf/Copilot/Codex/aider/Cline/Zed {#agent-adapters}
+- [x] U4 에이전트 감지 확대 — Windsurf/Copilot/Codex/aider/Cline/Zed {#agent-adapters}
 - [ ] U5 로그 retention 상한 (max_log_files) {#log-retention}
 
 ## Phase 2 — 키보드 & 되돌려주기 {#round2}
@@ -42,4 +42,5 @@ owner: claude-code
 | 2026-07-06T21:31:00+09:00 | #nav-registry | claude-code | →x | journal/20260706/Features_to_add/2131_feature_nav-registry-shortcuts.md | navRegistry 단일 소스(11화면), 팔레트 누락 3화면 해소, ⌘1~9·0=사이드바 순서, ⌘P 실동작(NAV_BUS), hover ⌘힌트. 신규 테스트 5케이스, 게이트 ✓ |
 | 2026-07-06T21:34:30+09:00 | #toaster-skeleton | claude-code | →x | journal/20260706/Features_to_add/2134_feature_toaster-theme-skeleton.md | Toaster 다크 하드코딩→카드 토큰+틴트, .skel 승격 Skeleton/SkeletonList(reduced-motion 정지), 일지/플래너/Today 3화면 적용. 게이트 ✓ |
 | 2026-07-06T21:43:00+09:00 | #workspace-render | claude-code | →x | journal/20260706/Refactors/2143_refactor_workspace-render-surgery.md | recentChangesStore 분리(useSyncExternalStore, watcher push 가 셸 리렌더 0), persist 300ms 디바운스+flush, value useMemo, 영속 blob 에서 버퍼 제외. 격리 계약 테스트 신설, 게이트 4/4=0 |
+| 2026-07-06T21:52:00+09:00 | #agent-adapters | claude-code | →x | journal/20260706/Features_to_add/2152_feature_agent-adapters-expansion.md | 어댑터 5종(windsurf/copilot/aider/cline/zed stub)+codex 귀속, 단어단위 infer, 감지 마커, Settings/색상. Rust 테스트 2개 신설, cargo 332 ✓ |
 <!-- oculpm:plan-log end -->

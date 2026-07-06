@@ -138,8 +138,9 @@ pub enum DetectionConfidence {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct AgentRef {
-    /// One of `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
-    /// `manual`.
+    /// e.g. `claude-code`, `cursor`, `antigravity`, `gemini-cli`, `pi`,
+    /// `windsurf`, `copilot`, `codex`, `aider`, `cline`, `zed`, `manual`
+    /// (자유 문자열 — 미지의 id 도 저장은 된다).
     pub id: String,
     /// The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`.
     pub version: Option<String>,
@@ -367,7 +368,8 @@ pub struct WatcherConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct AgentsConfig {
-    /// Subset of `["claude-code", "cursor", "antigravity", "gemini-cli"]`.
+    /// Subset of `config::KNOWN_AGENT_IDS` — `agents-md` + 도구별 어댑터
+    /// (claude-code/cursor/antigravity/gemini-cli/windsurf/copilot/aider/cline/zed).
     pub active: Vec<String>,
     pub auto_detect_on_open: bool,
     pub auto_sync_adapters: bool,

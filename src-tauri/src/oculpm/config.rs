@@ -22,6 +22,13 @@ pub const KNOWN_AGENT_IDS: &[&str] = &[
     "cursor",
     "antigravity",
     "gemini-cli",
+    // v2 U4 (A1) — 어댑터 확대. Codex CLI 는 AGENTS.md 를 네이티브로 읽어
+    // 별도 어댑터가 필요 없다.
+    "windsurf",
+    "copilot",
+    "aider",
+    "cline",
+    "zed",
 ];
 
 #[allow(dead_code)] // Consumed by OculpmManager (W1-PR6) and Settings UI (W4).
