@@ -62,7 +62,15 @@ fn setup_logging() {
         Some(dir) => {
             // Daily rotation so the file stays grep-friendly. Non-blocking
             // writer keeps the watcher's hot path off disk-flush latency.
-            let appender = tracing_appender::rolling::daily(&dir, "oculpm.log");
+            // v2 U5 — retention 상한 14개(2주): 일별 로그가 무한 누적되던 것을
+            // 회전 시점에 오래된 파일부터 정리. 빌더 실패 시 기존 무제한
+            // daily 로 폴백(로깅이 앱을 못 죽인다).
+            let appender = tracing_appender::rolling::RollingFileAppender::builder()
+                .rotation(tracing_appender::rolling::Rotation::DAILY)
+                .filename_prefix("oculpm.log")
+                .max_log_files(14)
+                .build(&dir)
+                .unwrap_or_else(|_| tracing_appender::rolling::daily(&dir, "oculpm.log"));
             // Leak the guard intentionally — we want the writer to live for
             // the whole process lifetime. Dropping it would flush + close the
             // file, silently dropping later logs.
