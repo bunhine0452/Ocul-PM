@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
 import {
   History,
@@ -329,21 +330,15 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      {/* v2 U10 — 산출물 결과 모달: 프리뷰 + 클립보드 복사 */}
-      {summaryResult ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-background/60 p-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label="생성된 산출물"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSummaryResult(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setSummaryResult(null);
-          }}
-        >
-          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-2xl">
+      {/* v2 U10+U13 — 산출물 결과 모달: AppDialog 셸 (포커스 트랩·복원·Esc 내장) */}
+      <AppDialog
+        open={summaryResult != null}
+        onClose={() => setSummaryResult(null)}
+        label="생성된 산출물"
+        width={672}
+      >
+        {summaryResult ? (
+          <>
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <SparklesIcon size={15} />
               <span className="text-sm font-semibold">{summaryLabel(summaryResult.style)}</span>
@@ -351,7 +346,7 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
                 일지 {summaryResult.entry_count}건 · {summaryResult.used_llm ? "AI 생성" : "기본 형식"}
               </span>
               <span className="flex-1" />
-              <button className="btn primary sm" onClick={() => void copySummary()} autoFocus>
+              <button className="btn primary sm" onClick={() => void copySummary()}>
                 클립보드 복사
               </button>
               <button className="btn ghost sm" onClick={() => setSummaryResult(null)}>
@@ -361,9 +356,9 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
             <div className="overflow-y-auto p-5">
               <Markdown>{summaryResult.markdown}</Markdown>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </AppDialog>
     </>
   );
 }

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { commands, type Conversation } from "@/lib/bindings";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 
@@ -64,16 +65,9 @@ export function ConversationHistoryModal({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // v2 U13 — Esc/포커스 트랩/트리거 복원은 공용 모달 훅으로.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalBehavior({ open: true, onClose, panelRef });
 
   const remove = async (id: number) => {
     const res = await commands.conversationDelete(id);
@@ -89,6 +83,7 @@ export function ConversationHistoryModal({
   return (
     <div className="set-modal-backdrop" onMouseDown={onClose}>
       <div
+        ref={panelRef}
         className="set-modal"
         role="dialog"
         aria-modal="true"

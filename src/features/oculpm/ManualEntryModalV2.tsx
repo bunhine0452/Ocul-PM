@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { Plus, X, CheckMark } from "@/components/Icons";
 import type {
   Difficulty,
@@ -83,22 +84,18 @@ export function ManualEntryModalV2({
     }
   }, [slug]);
 
-  // Esc closes. Stop propagation so the journal screen's ⌘F/⌘N don't also fire.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !submitting) {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, submitting]);
-
+  // v2 U13 — Esc/포커스 트랩/트리거 복원은 공용 모달 훅으로 (기존: Esc 만
+  // 있고 Tab 이 모달 뒤로 샜음). 제출 중 Esc 는 닫지 않는다.
+  const panelRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
+  useModalBehavior({
+    open: true,
+    onClose: () => {
+      if (!submitting) onClose();
+    },
+    panelRef,
+    initialFocusRef: titleRef,
+  });
 
   const canSubmit =
     !submitting && title.trim().length > 0 && slug.trim().length > 0 && slugError == null;
@@ -158,6 +155,7 @@ export function ManualEntryModalV2({
   return (
     <div className="set-modal-backdrop" onMouseDown={() => !submitting && onClose()}>
       <div
+        ref={panelRef}
         className="set-modal set-modal--wide"
         role="dialog"
         aria-modal="true"

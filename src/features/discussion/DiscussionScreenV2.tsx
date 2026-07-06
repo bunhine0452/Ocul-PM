@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
@@ -18,6 +18,7 @@ import {
 import { toast } from "@/lib/toast";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import {
   commands,
   type DiscussionSummary,
@@ -64,6 +65,14 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [promoting, setPromoting] = useState(false);
+  // v2 U13 — 승격 모달: Esc/포커스 트랩/트리거 복원 공용 훅 (기존엔 스크림
+  // 클릭만 닫혔고 Tab 이 모달 뒤로 샜음).
+  const promoteRef = useRef<HTMLDivElement>(null);
+  useModalBehavior({
+    open: promoting,
+    onClose: () => setPromoting(false),
+    panelRef: promoteRef,
+  });
 
   const select = useCallback(
     (id: string | null) => setState((prev) => ({ ...prev, discussionActiveId: id })),
@@ -507,6 +516,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       {promoting && detail ? (
         <div className="disc-modal-scrim" onClick={() => setPromoting(false)}>
           <div
+            ref={promoteRef}
             className="disc-modal"
             role="dialog"
             aria-modal="true"
