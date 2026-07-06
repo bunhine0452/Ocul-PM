@@ -8,18 +8,37 @@ import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
-import { RetroScreenV2 } from "@/features/retro/RetroScreenV2";
-import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
-import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
-import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
-import { DocsScreenV2 } from "@/features/docs/DocsScreenV2";
-import { DiscussionScreenV2 } from "@/features/discussion/DiscussionScreenV2";
-// Code Map pulls in React Flow + dagre (~226 kB); lazy-load so it stays out of
-// the initial ShellV2 chunk and only loads when the user opens the 코드 맵.
+// v2 U6 (docs/20260706_v2/03-performance-spec.md §2) — 핵심 루프 4화면
+// (Today/일지/diff/플래너)만 eager. 나머지는 화면별 청크로 분할해 프로젝트
+// 첫 오픈 비용에서 뺀다 — 특히 터미널(xterm)·AI/문서/토의/회고(markdown)·
+// 설정(1400줄)·검색. 코드 맵(React Flow+dagre)은 이전부터 lazy.
+const RetroScreenV2 = lazy(() =>
+  import("@/features/retro/RetroScreenV2").then((m) => ({ default: m.RetroScreenV2 })),
+);
+const SearchScreenV2 = lazy(() =>
+  import("@/features/search/SearchScreenV2").then((m) => ({ default: m.SearchScreenV2 })),
+);
+const TerminalScreenV2 = lazy(() =>
+  import("@/features/terminal/TerminalScreenV2").then((m) => ({ default: m.TerminalScreenV2 })),
+);
+const AiPanelScreenV2 = lazy(() =>
+  import("@/features/chat/AiPanelScreenV2").then((m) => ({ default: m.AiPanelScreenV2 })),
+);
+const DocsScreenV2 = lazy(() =>
+  import("@/features/docs/DocsScreenV2").then((m) => ({ default: m.DocsScreenV2 })),
+);
+const DiscussionScreenV2 = lazy(() =>
+  import("@/features/discussion/DiscussionScreenV2").then((m) => ({
+    default: m.DiscussionScreenV2,
+  })),
+);
 const GraphScreenV2 = lazy(() =>
   import("@/features/graph/GraphScreenV2").then((m) => ({ default: m.GraphScreenV2 })),
 );
-import { SettingsPanel } from "@/features/settings/SettingsPanel";
+const SettingsPanel = lazy(() =>
+  import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
+);
+import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -173,6 +192,22 @@ export default function ShellV2({
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}
       />
       <main className="content">
+        {/* v2 U6 — lazy 화면 공용 fallback: 툴바 자리 + 콘텐츠 스켈레톤.
+            스피너 대신 콘텐츠 형태를 유지해 화면 전환 점프를 줄인다. */}
+        <Suspense
+          fallback={
+            <>
+              <div className="toolbar" aria-hidden="true">
+                <Skeleton width={160} height={18} />
+              </div>
+              <div className="scroll">
+                <div className="page">
+                  <SkeletonList rows={4} height={76} />
+                </div>
+              </div>
+            </>
+          }
+        >
         {view === "settings" ? (
           // Unified settings (dogfooding 2026-06-15): the in-project ⌘, screen now
           // renders the SAME comprehensive SettingsPanel as the project-picker, so
@@ -259,16 +294,9 @@ export default function ShellV2({
         ) : view === "discussion" ? (
           <DiscussionScreenV2 projectId={projectId} onNavigate={setUiV2View} />
         ) : view === "graph" ? (
-          <Suspense
-            fallback={
-              <div className="h-full grid place-items-center text-sm text-muted-foreground">
-                코드 맵 불러오는 중…
-              </div>
-            }
-          >
-            <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
-          </Suspense>
+          <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
         ) : null}
+        </Suspense>
       </main>
     </div>
   );

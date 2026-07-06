@@ -21,7 +21,7 @@ owner: claude-code
 - [x] U5 로그 retention 상한 (max_log_files) {#log-retention}
 
 ## Phase 2 — 키보드 & 되돌려주기 {#round2}
-- [ ] U6 화면별 lazy 분할 + manualChunks (ShellV2 청크 −40% 목표) {#bundle-split}
+- [x] U6 화면별 lazy 분할 (ShellV2 청크 −58%, manualChunks 불필요 판정) {#bundle-split}
 - [ ] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
 - [ ] U8 키보드 diff 검토 — j/k·o·`/` in-diff 검색 {#keyboard-diff}
 - [ ] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
@@ -44,4 +44,5 @@ owner: claude-code
 | 2026-07-06T21:43:00+09:00 | #workspace-render | claude-code | →x | journal/20260706/Refactors/2143_refactor_workspace-render-surgery.md | recentChangesStore 분리(useSyncExternalStore, watcher push 가 셸 리렌더 0), persist 300ms 디바운스+flush, value useMemo, 영속 blob 에서 버퍼 제외. 격리 계약 테스트 신설, 게이트 4/4=0 |
 | 2026-07-06T21:52:00+09:00 | #agent-adapters | claude-code | →x | journal/20260706/Features_to_add/2152_feature_agent-adapters-expansion.md | 어댑터 5종(windsurf/copilot/aider/cline/zed stub)+codex 귀속, 단어단위 infer, 감지 마커, Settings/색상. Rust 테스트 2개 신설, cargo 332 ✓ |
 | 2026-07-06T21:56:00+09:00 | #log-retention | claude-code | →x | journal/20260706/Chores/2156_chore_log-retention-cap.md | RollingFileAppender builder max_log_files(14), 실패시 무제한 daily 폴백. cargo 332 ✓ |
+| 2026-07-06T22:04:00+09:00 | #bundle-split | claude-code | →x | journal/20260706/Features_to_add/2204_feature_screen-lazy-split.md | ShellV2 584→244KB(−58%). 7화면 lazy+공용 스켈레톤 fallback, Markdown/TerminalInstance impl 분리(xterm 288KB 격리 — TodayTerminal 경유 eager 유입이 원인이었음). 게이트 ✓ |
 <!-- oculpm:plan-log end -->
