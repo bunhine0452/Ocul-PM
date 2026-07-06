@@ -33,7 +33,7 @@ owner: claude-code
 - [x] U13 공유 모달 동작 — useModalBehavior 훅+AppDialog 셸 (폼 모달 3곳+산출물 모달) {#app-dialog}
 
 ## Phase 4 — 릴리스 {#release}
-- [ ] 전 게이트 재확인 + 버전 2.0.0 bump + CHANGELOG {#v2-ship}
+- [x] 전 게이트 재확인 + 버전 2.0.0 bump + CHANGELOG {#v2-ship}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -52,4 +52,5 @@ owner: claude-code
 | 2026-07-06T23:05:00+09:00 | #fts-search | claude-code | →x | journal/20260706/Features_to_add/2305_feature_fts5-text-search.md | 025 chunk_fts(trigram, external-content+트리거 3종+백필), search_text 2단(FTS phrase 인용→3자미만/오류 LIKE 폴백). 심볼은 LIKE 유지 판정(소형 테이블·substring 필수). 통합테스트 5, cargo 344 ✓ |
 | 2026-07-06T23:40:00+09:00 | #workday-brief | claude-code | →x | journal/20260706/Features_to_add/2340_feature_workday-brief.md | oculpm_workday_brief(버킷+bytes SUM+미완항목+총계), useNextTasks 삭제·overviewStats 제거, 저널 14콜→1콜. Today IPC 12+N→3+gitLog. mock 이전 17/17, cargo 344 ✓ |
 | 2026-07-06T23:52:00+09:00 | #app-dialog | claude-code | →x | journal/20260706/Features_to_add/2352_feature_app-dialog-focus-trap.md | useModalBehavior 훅(트랩·복원·Esc·스크롤락, 마크업 불변 채택 방식)+AppDialog 셸. 수동일지/대화기록/토의승격+산출물 모달 적용. 테스트 4, 게이트 ✓ |
+| 2026-07-07T00:10:00+09:00 | #v2-ship | claude-code | →x | journal/20260707/Chores/0010_chore_v2-release-prep.md | 2.0.0 bump(3파일+lock)+CHANGELOG 3축 정리. 최종 게이트 cargo 344/vitest 135/lint/build 전부 0. **v2-release 전 항목 완료** — 태그 푸시는 사용자 결정 대기 |
 <!-- oculpm:plan-log end -->
