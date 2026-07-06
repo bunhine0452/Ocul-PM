@@ -65,6 +65,7 @@ vi.mock("@/lib/bindings", () => {
 
 import { DiffScreenV2, collapsePlanRefs } from "@/features/diff/DiffScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { recentChangesStore } from "@/lib/recentChangesStore";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 
 describe("collapsePlanRefs", () => {
@@ -94,19 +95,16 @@ describe("collapsePlanRefs", () => {
 
 const STORAGE_KEY = "aipm:workspace:v1";
 
-/** Seed the persisted WorkspaceContext envelope so recentChanges is populated
- *  on first mount (the provider hydrates from this key). */
+/** Seed the watcher change buffer (v2 U3 — 세션 휘발 store) + optional
+ *  persisted WorkspaceContext fields (diffActivePath 등). */
 function seedRecentChanges(
   changes: Array<{ path: string; op: "A" | "M" | "D" }>,
   extra: Record<string, unknown> = {},
 ) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      recentChanges: changes.map((c) => ({ ...c, ts: 1, read: false })),
-      ...extra,
-    }),
-  );
+  changes.forEach((c, i) => recentChangesStore.push({ ...c, ts: i + 1, read: false }));
+  if (Object.keys(extra).length > 0) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+  }
 }
 
 function renderDiff() {
@@ -128,6 +126,7 @@ async function waitForBody(container: HTMLElement) {
 
 beforeEach(() => {
   localStorage.clear();
+  recentChangesStore.clear(); // v2 U3 — 모듈 스코프 스토어는 테스트 간 공유된다
   for (const k of Object.keys(diffByPath)) delete diffByPath[k];
 });
 afterEach(() => cleanup());

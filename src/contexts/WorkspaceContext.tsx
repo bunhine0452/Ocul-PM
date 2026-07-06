@@ -6,11 +6,18 @@
  * - 영속화 키: "aipm:workspace:v1" 단일 키 + JSON
  * - 마이그레이션 함수로 기존 12개 키 자동 흡수 후 삭제
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 
 import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
+import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
+
+// v2 U3 — recentChanges 는 전용 외부 스토어로 분리됐다 (아래 주석 및
+// docs/20260706_v2/03-performance-spec.md §1). 기존 임포트 경로 호환을 위해
+// 타입/헬퍼를 재수출한다.
+export { pushRecentChange, RECENT_CHANGES_CAP, recentChangesStore, useRecentChanges } from "@/lib/recentChangesStore";
+export type { RecentChange, ChangeOp } from "@/lib/recentChangesStore";
 
 // ---------- State Shape ----------
 
@@ -23,13 +30,6 @@ import { toast, DriftCooldown } from "@/lib/toast";
  */
 export type ActiveView = "today" | "plan" | "code";
 export type AiWorkbenchMode = "quick-edit" | "chat";
-
-/**
- * Lite-W6 PR8 Part 1: FileTree change-highlight marker. The watcher's
- * `FileOp` collapses into three categories the explorer renders as dot +
- * badge. See `mapFileOpToChangeOp` for the projection.
- */
-export type ChangeOp = "A" | "M" | "D";
 
 export type SidePanelMode = "files" | "diff";
 
@@ -75,23 +75,6 @@ export interface TerminalTab {
   cwd: string;
 }
 
-export interface RecentChange {
-  /** Project-relative forward-slash path (matches `ProjectTreeNode.relative_path`). */
-  path: string;
-  op: ChangeOp;
-  /** Unix milliseconds when we ingested the event. Used only for ordering. */
-  ts: number;
-  /**
-   * Lite-W6 PR6.5: read/unread flag for the LocalDiffView. New watcher events
-   * start as `false`; viewing the diff body in LocalDiffView flips it to
-   * `true` (one-way per change — re-running the watcher event resets to
-   * unread). Legacy persisted entries (pre-PR6.5) without this field are
-   * read as `true` during `loadFromStorage` so old changes don't suddenly
-   * scream for attention.
-   */
-  read: boolean;
-}
-
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
@@ -120,12 +103,8 @@ export interface WorkspaceState {
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
 
-  /**
-   * Lite-W6 PR8 Part 1: FIFO buffer of watcher-observed changes for the
-   * current project. Capped at `RECENT_CHANGES_CAP` (1000) to bound memory
-   * growth during long sessions. Cleared on project switch.
-   */
-  recentChanges: RecentChange[];
+  // v2 U3: recentChanges 는 더 이상 여기 없다 — 파일 이벤트마다 전 소비자가
+  // 리렌더되는 것을 막기 위해 `@/lib/recentChangesStore` 로 분리 (구독형).
 
   /** Pixel width. Clamped to [`SIDE_PANEL_MIN_WIDTH`, `SIDE_PANEL_MAX_WIDTH`]. */
   sidePanelWidth: number;
@@ -235,7 +214,6 @@ const DEFAULT_STATE: WorkspaceState = {
   aiWorkbenchMode: "quick-edit",
   aiOverlayOpen: false,
   fileExplorerExpanded: {},
-  recentChanges: [],
   sidePanelWidth: 260,
   sidePanelMode: "files",
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
@@ -268,31 +246,8 @@ const DEFAULT_STATE: WorkspaceState = {
 
 const STORAGE_KEY = "aipm:workspace:v1";
 
-/**
- * Lite-W6 PR8 Part 1: cap on `recentChanges` so a runaway watcher (or a
- * long-running dogfood session) can't grow the persisted blob unbounded.
- * 1000 entries × ~80 bytes each ≈ 80 KB on disk — well below the 5 MB
- * localStorage budget but enough to cover a busy day.
- */
-export const RECENT_CHANGES_CAP = 1000;
-
-/**
- * Append a change to the FIFO buffer. If the same path already has an entry
- * we drop the earlier one so the latest op wins (e.g. create→update collapses
- * to update). Trims to `RECENT_CHANGES_CAP` from the *front* so the newest
- * 1000 are kept. Exported for unit testing.
- */
-export function pushRecentChange(
-  prev: RecentChange[],
-  next: RecentChange,
-): RecentChange[] {
-  const filtered = prev.filter((c) => c.path !== next.path);
-  filtered.push(next);
-  if (filtered.length > RECENT_CHANGES_CAP) {
-    return filtered.slice(filtered.length - RECENT_CHANGES_CAP);
-  }
-  return filtered;
-}
+/** v2 U3 — 상태 변경 폭주(타이핑·연속 토글) 시 저장을 병합하는 트레일링 디바운스. */
+export const PERSIST_DEBOUNCE_MS = 300;
 
 /**
  * Lite-W6 PR9: the AI overlay was migrated from `aiWorkbenchOpen`. We
@@ -476,33 +431,9 @@ function loadFromStorage(): WorkspaceState {
       delete parsed.sidePanelOpen;
       delete parsed.bottomDrawerOpen;
       delete parsed.bottomDrawerTab;
-      // Lite-W6 PR8 Part 1: sanitise the persisted recentChanges buffer.
-      // Anything that isn't a well-shaped {path, op, ts} entry is dropped so a
-      // corrupted record can't crash the FileExplorer on next boot.
-      if (Array.isArray(parsed.recentChanges)) {
-        const safe: RecentChange[] = [];
-        for (const raw of parsed.recentChanges) {
-          if (
-            raw &&
-            typeof raw === "object" &&
-            typeof raw.path === "string" &&
-            (raw.op === "A" || raw.op === "M" || raw.op === "D") &&
-            typeof raw.ts === "number"
-          ) {
-            // Lite-W6 PR6.5: read/unread flag. Legacy entries (pre-PR6.5)
-            // are read as "read" so the user isn't ambushed by a buffer
-            // full of "unread" markers after upgrade.
-            const read = typeof raw.read === "boolean" ? raw.read : true;
-            safe.push({ path: raw.path, op: raw.op, ts: raw.ts, read });
-          }
-        }
-        parsed.recentChanges =
-          safe.length > RECENT_CHANGES_CAP
-            ? safe.slice(safe.length - RECENT_CHANGES_CAP)
-            : safe;
-      } else {
-        parsed.recentChanges = [];
-      }
+      // v2 U3: recentChanges 는 세션 휘발 스토어로 이동 — 과거 영속 레코드의
+      // 큰 배열(최대 1000건)은 읽지 않고 버린다 (blob 축소, 일방향).
+      delete parsed.recentChanges;
       if (!parsed.fileExplorerExpanded || typeof parsed.fileExplorerExpanded !== "object") {
         parsed.fileExplorerExpanded = {};
       }
@@ -575,12 +506,7 @@ interface WorkspaceContextValue {
   setOculpmStatus: (status: OculpmStatus | null) => void;
   setCurrentSession: (session: Session | null) => void;
 
-  /**
-   * Lite-W6 PR6.5: flip one recentChanges entry's `read` flag to true. Used
-   * by the Diff screen when a diff body for that path is shown, so the file
-   * list can drop the "unread" emphasis.
-   */
-  markRecentChangeRead: (path: string) => void;
+  // v2 U3: markRecentChangeRead 는 recentChangesStore.markRead 로 이동.
 
   // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
   toggleAiOverlay: () => void;
@@ -592,13 +518,43 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WorkspaceState>(loadFromStorage);
 
-  // Single useEffect for disk sync
+  // Keep a ref to the latest state so the event-listener effect and the
+  // debounced persist can read fresh state without re-subscribing/re-arming.
+  const stateRef = React.useRef<WorkspaceState>(state);
   useEffect(() => {
-    persistToStorage(state);
+    stateRef.current = state;
   }, [state]);
+
+  // v2 U3 — 디스크 동기화를 트레일링 디바운스로. 이전엔 상태 변경마다 전체
+  // blob 을 동기 JSON.stringify → localStorage 기록했다. 언마운트/종료 시 flush.
+  const persistTimer = React.useRef<number | null>(null);
+  useEffect(() => {
+    if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(() => {
+      persistTimer.current = null;
+      persistToStorage(stateRef.current);
+    }, PERSIST_DEBOUNCE_MS);
+  }, [state]);
+  useEffect(() => {
+    const flush = () => {
+      if (persistTimer.current != null) {
+        window.clearTimeout(persistTimer.current);
+        persistTimer.current = null;
+        persistToStorage(stateRef.current);
+      }
+    };
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      flush();
+    };
+  }, []);
 
   const setProject = useCallback(
     (id: number | null, name?: string | null, root?: string | null) => {
+      // 프로젝트가 실제로 바뀔 때만 watcher 변경 버퍼를 비운다 — 프로젝트 A 의
+      // 변경은 B 의 트리에서 무의미하다 (스토어 분리 후에도 규칙 유지).
+      if (id !== stateRef.current.currentProjectId) recentChangesStore.clear();
       setState((prev) => {
         const switched = id !== prev.currentProjectId;
         return {
@@ -607,9 +563,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           currentProjectName: name ?? null,
           currentProjectRoot: root ?? null,
           activeFile: switched ? null : prev.activeFile,
-          // Lite-W6 PR8 Part 1: changes from project A would be meaningless
-          // (and confusing) when viewing project B's tree.
-          recentChanges: switched ? [] : prev.recentChanges,
           fileExplorerExpanded: switched ? {} : prev.fileExplorerExpanded,
         };
       });
@@ -637,6 +590,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const resetWorkspace = useCallback(() => {
+    recentChangesStore.clear();
     setState((prev) => ({
       ...DEFAULT_STATE,
       // Preserve non-project settings
@@ -660,25 +614,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setCurrentSession = useCallback((session: Session | null) => {
     setState((prev) => ({ ...prev, currentSession: session }));
-  }, []);
-
-  /**
-   * Lite-W6 PR6.5: flip a single change to read=true. Called by LocalDiffView
-   * when the diff body for that path has been rendered (the user has "seen"
-   * the change). No-op when the path isn't in the buffer or is already read,
-   * so we don't churn setState on every body re-render.
-   */
-  const markRecentChangeRead = useCallback((path: string) => {
-    setState((prev) => {
-      const entry = prev.recentChanges.find((c) => c.path === path);
-      if (!entry || entry.read) return prev;
-      return {
-        ...prev,
-        recentChanges: prev.recentChanges.map((c) =>
-          c.path === path ? { ...c, read: true } : c,
-        ),
-      };
-    });
   }, []);
 
   const toggleAiOverlay = useCallback(() => {
@@ -781,7 +716,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // so multiple screens can subscribe through the same channel).
     void events.oculpmJournalPathChanged.listen(() => {}).then((off) => offFns.push(off));
 
-    // Lite-W6 PR8 Part 1: feed the FileTree's change-highlight buffer.
+    // Lite-W6 PR8 Part 1: feed the change-highlight buffer.
+    // v2 U3: 컨텍스트 setState 가 아니라 전용 스토어로 push — 파일 이벤트가
+    // 전 화면 리렌더 + localStorage 직렬화를 일으키던 경로를 제거.
     void events.oculpmFileChanged.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const op = mapFileOpToChangeOp(evt.payload.event.op);
@@ -791,17 +728,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // no real path) and are pure noise in the 변경 diff list, so drop them
       // here. The ndjson/journal masking on the backend is untouched.
       if (path.startsWith("**redacted/sensitive**")) return;
-      setState((prev) => ({
-        ...prev,
-        recentChanges: pushRecentChange(prev.recentChanges, {
-          path,
-          op,
-          ts: Date.now(),
-          // Lite-W6 PR6.5: every fresh watcher event starts unread so the
-          // LocalDiffView can surface "new since you last looked".
-          read: false,
-        }),
-      }));
+      recentChangesStore.push({
+        path,
+        op,
+        ts: Date.now(),
+        // Lite-W6 PR6.5: every fresh watcher event starts unread so the
+        // diff view can surface "new since you last looked".
+        read: false,
+      });
     }).then((off) => offFns.push(off));
 
     void events.oculpmJournalAdded.listen((evt) => {
@@ -817,33 +751,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [setCurrentSession]);
 
-  // Keep a ref to the latest state so the listener effect above doesn't
-  // need to re-subscribe on every project switch.
-  const stateRef = React.useRef<WorkspaceState>(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  return (
-    <WorkspaceContext.Provider
-      value={{
-        state,
-        setState,
-        setProject,
-        setUiV2View,
-        setActiveFile,
-        setIndexing,
-        resetWorkspace,
-        setOculpmStatus,
-        setCurrentSession,
-        markRecentChangeRead,
-        toggleAiOverlay,
-        setAiOverlayOpen,
-      }}
-    >
-      {children}
-    </WorkspaceContext.Provider>
+  // v2 U3 — Provider 리렌더마다 새 객체를 만들지 않는다. 콜백은 전부
+  // useCallback([]) 로 안정적이므로 value 는 사실상 state 에만 종속된다.
+  const value = useMemo<WorkspaceContextValue>(
+    () => ({
+      state,
+      setState,
+      setProject,
+      setUiV2View,
+      setActiveFile,
+      setIndexing,
+      resetWorkspace,
+      setOculpmStatus,
+      setCurrentSession,
+      toggleAiOverlay,
+      setAiOverlayOpen,
+    }),
+    [
+      state,
+      setProject,
+      setUiV2View,
+      setActiveFile,
+      setIndexing,
+      resetWorkspace,
+      setOculpmStatus,
+      setCurrentSession,
+      toggleAiOverlay,
+      setAiOverlayOpen,
+    ],
   );
+
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
 export function useWorkspace(): WorkspaceContextValue {

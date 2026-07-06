@@ -10,12 +10,13 @@ import {
   TargetIcon,
 } from "@/components/Icons";
 import { commands, type DiffResult, type ChangeGroup, type ChangePlanRef, type ImpactReport } from "@/lib/bindings";
+import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import {
-  useWorkspace,
+  recentChangesStore,
+  useRecentChanges,
   type ChangeOp,
-  type DiffMode,
   type RecentChange,
-} from "@/contexts/WorkspaceContext";
+} from "@/lib/recentChangesStore";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
@@ -97,8 +98,10 @@ interface DiffScreenV2Props {
 }
 
 export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: DiffScreenV2Props) {
-  const { state, setState, markRecentChangeRead } = useWorkspace();
-  const { recentChanges, diffActivePath, diffReadPaths, diffMode } = state;
+  const { state, setState } = useWorkspace();
+  const { diffActivePath, diffReadPaths, diffMode } = state;
+  // v2 U3 — watcher 버퍼는 전용 스토어 구독. 이 화면만 파일 이벤트에 리렌더한다.
+  const recentChanges = useRecentChanges();
   const { settings } = useSettings();
 
   // Bug 1 fix — persistent change source. The live `recentChanges` watcher
@@ -300,8 +303,8 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // Mark the change read once its body renders (mirrors LocalDiffView).
   useEffect(() => {
     if (!selected || loading || error || !diff) return;
-    markRecentChangeRead(selected);
-  }, [selected, diff, loading, error, markRecentChangeRead]);
+    recentChangesStore.markRead(selected);
+  }, [selected, diff, loading, error]);
 
   const setMode = (mode: DiffMode) =>
     setState((prev) => ({ ...prev, diffMode: mode }));
