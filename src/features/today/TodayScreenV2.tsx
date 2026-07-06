@@ -12,9 +12,12 @@ import {
   History,
   ArrowRight,
   Terminal,
+  Clipboard,
 } from "@/components/Icons";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
-import type { JournalEntrySummary } from "@/lib/bindings";
+import { commands, type JournalEntrySummary } from "@/lib/bindings";
+import { toast } from "@/lib/toast";
+import { resolveLlmTarget } from "@/lib/llmTarget";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "./StatCard";
 import { MiniEntry } from "./MiniEntry";
@@ -84,6 +87,45 @@ export function TodayScreenV2({
 
   const empty = oculpmReady && !loading && brief != null && brief.changedToday === 0;
 
+  // v2 U10 (C1) — 원클릭 스탠드업: 어제~오늘 일지 + 활성 플랜을 마크다운으로
+  // 만들어 클립보드에. LLM 미설정이어도 결정적 폴백으로 항상 동작한다.
+  const [standupBusy, setStandupBusy] = useState(false);
+  const copyStandup = async () => {
+    if (standupBusy || !workday) return;
+    setStandupBusy(true);
+    try {
+      const y = new Date(
+        Number(workday.slice(0, 4)),
+        Number(workday.slice(4, 6)) - 1,
+        Number(workday.slice(6, 8)) - 1,
+      );
+      const since = `${y.getFullYear()}${String(y.getMonth() + 1).padStart(2, "0")}${String(
+        y.getDate(),
+      ).padStart(2, "0")}`;
+      const target = await resolveLlmTarget();
+      const res = await commands.oculpmGenerateSummary(
+        projectId,
+        since,
+        workday,
+        "standup",
+        target?.provider ?? null,
+        target?.model ?? null,
+      );
+      if (res.status !== "ok") {
+        toast.destructive(`스탠드업 생성 실패: ${res.error}`);
+        return;
+      }
+      await navigator.clipboard.writeText(res.data.markdown);
+      toast.info(
+        res.data.used_llm
+          ? "AI 스탠드업을 클립보드에 복사했어요"
+          : "스탠드업을 클립보드에 복사했어요 (기본 형식)",
+      );
+    } finally {
+      setStandupBusy(false);
+    }
+  };
+
   return (
     <>
       <Toolbar title="Today" sub={dateLabel}>
@@ -97,6 +139,14 @@ export function TodayScreenV2({
           <SearchIcon size={15} color="var(--text-3)" />
           <span style={{ color: "var(--text-3)", flex: 1, textAlign: "left" }}>코드 검색…</span>
           <span className="kbd">⌘K</span>
+        </button>
+        <button
+          className="btn"
+          onClick={() => void copyStandup()}
+          disabled={standupBusy || !oculpmReady || !workday}
+          title="어제~오늘 일지로 스탠드업 공유문을 만들어 클립보드에 복사"
+        >
+          <Clipboard size={15} /> {standupBusy ? "생성 중…" : "스탠드업 복사"}
         </button>
         <button className="btn" onClick={() => onNavigate("journal")}>
           <NotebookText size={15} /> 전체 일지

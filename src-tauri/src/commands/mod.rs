@@ -15,6 +15,7 @@ pub mod overview;
 pub mod plan;
 pub mod project;
 pub mod retro;
+pub mod summary;
 pub mod window;
 pub mod terminal;
 
@@ -36,5 +37,6 @@ pub use overview::*;
 pub use plan::*;
 pub use project::*;
 pub use retro::*;
+pub use summary::*;
 pub use window::*;
 pub use terminal::*;

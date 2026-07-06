@@ -691,6 +691,12 @@ export const commands = {
 	 *  inclusive "YYYYMMDD".
 	 */
 	retroSignals: (projectId: number, since: string, until: string) => typedError<RetroSignals, string>(__TAURI_INVOKE("retro_signals", { projectId, since, until })),
+	/**
+	 *  기간의 일지 + 활성 플랜을 스탠드업/PR 본문/주간 보고 마크다운으로 만든다.
+	 *  provider/model 이 없거나 LLM 이 실패하면 결정적 마크다운으로 폴백한다
+	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
+	 */
+	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
 	/**  The cached retro narrative for a range, or `None` if never generated. */
 	getRetro: (projectId: number, rangeKey: string) => typedError<{
 	project_id: number,
@@ -1207,6 +1213,15 @@ export type FileTouched = {
 	bytes_added: number | null,
 	bytes_removed: number | null,
 	rename_from: string | null,
+};
+
+export type GeneratedSummary = {
+	style: SummaryStyle,
+	markdown: string,
+	entry_count: number,
+	used_llm: boolean,
+	/**  LLM 폴백 사유 등 사용자에게 알릴 한 줄 (없으면 None). */
+	note: string | null,
 };
 
 /**
@@ -1938,6 +1953,8 @@ export type ShippedItem = {
 	agent_id: string,
 	workday: string,
 };
+
+export type SummaryStyle = "standup" | "pr_description" | "weekly_status";
 
 export type SymbolCall = {
 	/**  Caller symbol in this file (None = file top-level). */

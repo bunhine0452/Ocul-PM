@@ -691,6 +691,42 @@ impl Db {
         Ok(hits)
     }
 
+    /// v2 U10 (C1) — 활성 플랜들의 미완 항목 (todo/in_progress/blocked).
+    /// 최근 갱신 플랜 우선, 플랜 내 순서 유지.
+    pub async fn list_open_plan_items(
+        &self,
+        project_id: u32,
+        cap: u32,
+    ) -> Result<Vec<OpenPlanItem>> {
+        let lim = cap.clamp(1, 100) as i64;
+        let rows = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT p.title, i.title, i.status
+                     FROM oculpm_plan_items i
+                     JOIN oculpm_plans p
+                       ON p.project_id = i.project_id AND p.plan_id = i.plan_id
+                     WHERE i.project_id = ?1 AND p.status = 'active'
+                       AND i.status IN ('todo', 'in_progress', 'blocked')
+                     ORDER BY p.updated_at DESC, i.order_idx ASC
+                     LIMIT ?2",
+                )?;
+                let rows = stmt
+                    .query_map(params![project_id as i64, lim], |r| {
+                        Ok(OpenPlanItem {
+                            plan_title: r.get(0)?,
+                            item_title: r.get(1)?,
+                            status: r.get(2)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .await?;
+        Ok(rows)
+    }
+
     pub async fn count_chunks(&self, project_id: u32) -> Result<u32> {
         let count = self
             .conn
@@ -2471,6 +2507,15 @@ pub struct EntityHit {
     pub title: String,
     /// 보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목, 토의: status.
     pub subtitle: String,
+}
+
+/// v2 U10 (C1) — 활성 플랜의 미완 항목 한 건 (스탠드업 "오늘 할 일"/"막힘" 소스).
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct OpenPlanItem {
+    pub plan_title: String,
+    pub item_title: String,
+    /// todo | in_progress | blocked
+    pub status: String,
 }
 
 /// SQL fragment that excludes prose/documentation files from a result set by

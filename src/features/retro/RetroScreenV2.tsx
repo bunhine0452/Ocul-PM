@@ -14,10 +14,13 @@ import {
   Download,
 } from "@/components/Icons";
 import { toast } from "@/lib/toast";
+import { resolveLlmTarget } from "@/lib/llmTarget";
 import {
   commands,
   type RetroSignals,
   type RetroInsight,
+  type GeneratedSummary,
+  type SummaryStyle,
 } from "@/lib/bindings";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
@@ -155,6 +158,67 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
 
   const hasWork = !!signals && signals.total_entries > 0;
 
+  // ── v2 U10 (C1) — 스탠드업·PR 본문·주간 보고 생성 ─────────────────────────
+  const [summaryMenuOpen, setSummaryMenuOpen] = useState(false);
+  const [summaryBusy, setSummaryBusy] = useState<SummaryStyle | null>(null);
+  const [summaryResult, setSummaryResult] = useState<GeneratedSummary | null>(null);
+  const summaryMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!summaryMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (summaryMenuRef.current && !summaryMenuRef.current.contains(e.target as Node)) {
+        setSummaryMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [summaryMenuOpen]);
+
+  const runSummary = useCallback(
+    async (style: SummaryStyle) => {
+      if (summaryBusy) return;
+      setSummaryMenuOpen(false);
+      setSummaryBusy(style);
+      // LLM 미설정/실패여도 백엔드가 결정적 마크다운으로 폴백 — 항상 성공 경로.
+      const target = await resolveLlmTarget();
+      const res = await commands.oculpmGenerateSummary(
+        projectId,
+        since,
+        until,
+        style,
+        target?.provider ?? null,
+        target?.model ?? null,
+      );
+      setSummaryBusy(null);
+      if (res.status === "ok") {
+        setSummaryResult(res.data);
+        if (res.data.note) toast.warning(res.data.note);
+      } else {
+        toast.destructive(`생성 실패: ${res.error}`);
+      }
+    },
+    [summaryBusy, projectId, since, until],
+  );
+
+  const copySummary = useCallback(async () => {
+    if (!summaryResult) return;
+    try {
+      await navigator.clipboard.writeText(summaryResult.markdown);
+      toast.info("클립보드에 복사했어요");
+    } catch {
+      toast.destructive("클립보드 복사에 실패했어요");
+    }
+  }, [summaryResult]);
+
+  const SUMMARY_STYLES: { style: SummaryStyle; label: string }[] = [
+    { style: "standup", label: "스탠드업" },
+    { style: "pr_description", label: "PR 본문" },
+    { style: "weekly_status", label: "주간 보고" },
+  ];
+  const summaryLabel = (s: SummaryStyle) =>
+    SUMMARY_STYLES.find((x) => x.style === s)?.label ?? s;
+
   return (
     <>
       <Toolbar title="회고" sub={`${wd(since)} – ${wd(until)} · ${days}일`}>
@@ -184,6 +248,38 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
           >
             <Download size={14} /> {exporting ? "내보내는 중…" : "내보내기"}
           </button>
+          {/* v2 U10 (C1) — 이 기간을 스탠드업/PR 본문/주간 보고로 */}
+          <div className="relative" ref={summaryMenuRef}>
+            <button
+              className="btn sm"
+              onClick={() => setSummaryMenuOpen((o) => !o)}
+              disabled={loading || !hasWork || summaryBusy != null}
+              aria-haspopup="menu"
+              aria-expanded={summaryMenuOpen}
+              title={hasWork ? "일지를 공유용 산출물로 생성" : "이 기간에 기록된 작업이 없습니다"}
+            >
+              <SparklesIcon size={14} /> {summaryBusy ? `${summaryLabel(summaryBusy)} 생성 중…` : "산출물"}
+            </button>
+            {summaryMenuOpen ? (
+              <div
+                role="menu"
+                aria-label="산출물 종류"
+                className="absolute right-0 top-full z-30 mt-1 w-36 rounded-lg border border-border bg-card p-1 shadow-lg"
+              >
+                {SUMMARY_STYLES.map((s) => (
+                  <button
+                    key={s.style}
+                    type="button"
+                    role="menuitem"
+                    className="w-full rounded-md px-2.5 py-1.5 text-left text-xs text-foreground/85 hover:bg-accent"
+                    onClick={() => void runSummary(s.style)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <button
             className="btn primary"
             onClick={() => void generate()}
@@ -232,6 +328,42 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
           )}
         </div>
       </div>
+
+      {/* v2 U10 — 산출물 결과 모달: 프리뷰 + 클립보드 복사 */}
+      {summaryResult ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-background/60 p-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="생성된 산출물"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSummaryResult(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSummaryResult(null);
+          }}
+        >
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <SparklesIcon size={15} />
+              <span className="text-sm font-semibold">{summaryLabel(summaryResult.style)}</span>
+              <span className="text-xs text-muted-foreground">
+                일지 {summaryResult.entry_count}건 · {summaryResult.used_llm ? "AI 생성" : "기본 형식"}
+              </span>
+              <span className="flex-1" />
+              <button className="btn primary sm" onClick={() => void copySummary()} autoFocus>
+                클립보드 복사
+              </button>
+              <button className="btn ghost sm" onClick={() => setSummaryResult(null)}>
+                닫기
+              </button>
+            </div>
+            <div className="overflow-y-auto p-5">
+              <Markdown>{summaryResult.markdown}</Markdown>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

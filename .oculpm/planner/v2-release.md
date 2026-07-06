@@ -25,7 +25,7 @@ owner: claude-code
 - [x] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
 - [x] U8 키보드 diff 검토 — j/k·`/` in-diff 검색·n/N {#keyboard-diff}
 - [x] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
-- [ ] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
+- [x] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
 
 ## Phase 3 — 깊이 & 성능 {#round3}
 - [ ] U11 FTS5 텍스트/심볼 검색 (LIKE 풀스캔 제거, 실패시 LIKE 폴백) {#fts-search}
@@ -48,4 +48,5 @@ owner: claude-code
 | 2026-07-06T22:18:00+09:00 | #entity-jump | claude-code | →x | journal/20260706/Features_to_add/2218_feature_palette-entity-jump.md | oculpm_search_entities(4캐시 병합·prefix 랭킹·이스케이프)+팔레트 "바로가기"(debounce 120ms, docs_tree 1회 캐시)+NAV_BUS.openEntity 라우팅(jumpNonce remount). Rust 테스트 3, cargo 335 ✓ |
 | 2026-07-06T22:26:00+09:00 | #keyboard-diff | claude-code | →x | journal/20260706/Features_to_add/2226_feature_keyboard-diff-review.md | j/k 파일 이동(표시 순서·경계 정지·인풋 가드), `/` 검색+n/N 매치(.dl textContent 수집, PatchView 무침습), kbd 힌트. vitest 신규 1, 게이트 ✓ |
 | 2026-07-06T22:36:00+09:00 | #optimistic-planner | claude-code | →x | journal/20260706/Features_to_add/2236_feature_planner-optimistic-toggle.md | 토글 즉시 반영+실패 롤백, busy 게이트 제거(N4 백엔드 직렬화 신뢰), refreshPlans 비차단. vitest 2(pending 낙관·에러 롤백), 게이트 ✓ |
+| 2026-07-06T22:52:00+09:00 | #generate-summary | claude-code | →x | journal/20260706/Features_to_add/2252_feature_generate-summary.md | oculpm_generate_summary 3스타일(LLM+결정적 폴백 항상동작, note 정직표기)+list_open_plan_items. 회고 "산출물" 모달+Today "스탠드업 복사". Rust 테스트 4, cargo 339 ✓ |
 <!-- oculpm:plan-log end -->

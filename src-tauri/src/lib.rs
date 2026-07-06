@@ -162,6 +162,8 @@ use crate::commands::{
     oculpm_backfill_from_git,
     // F4 — 회고/인사이트
     retro_signals, get_retro, generate_retro,
+    // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
+    oculpm_generate_summary,
     // C2 — 일지 내보내기
     oculpm_export_digest,
 };
@@ -320,6 +322,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_backfill_from_git,
         // F4 — 회고/인사이트
         retro_signals,
+        oculpm_generate_summary,
         get_retro,
         generate_retro,
         // C2 — 일지 내보내기
