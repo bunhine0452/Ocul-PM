@@ -24,7 +24,7 @@ owner: claude-code
 - [x] U6 화면별 lazy 분할 (ShellV2 청크 −58%, manualChunks 불필요 판정) {#bundle-split}
 - [x] U7 팔레트 엔티티 점프 — search_entities 커맨드 + go-to-anything {#entity-jump}
 - [x] U8 키보드 diff 검토 — j/k·`/` in-diff 검색·n/N {#keyboard-diff}
-- [ ] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
+- [x] U9 플래너 상태 토글 낙관적 업데이트 {#optimistic-planner}
 - [ ] U10 스탠드업·PR 본문 생성 (generate_summary, LLM+결정적 폴백) {#generate-summary}
 
 ## Phase 3 — 깊이 & 성능 {#round3}
@@ -47,4 +47,5 @@ owner: claude-code
 | 2026-07-06T22:04:00+09:00 | #bundle-split | claude-code | →x | journal/20260706/Features_to_add/2204_feature_screen-lazy-split.md | ShellV2 584→244KB(−58%). 7화면 lazy+공용 스켈레톤 fallback, Markdown/TerminalInstance impl 분리(xterm 288KB 격리 — TodayTerminal 경유 eager 유입이 원인이었음). 게이트 ✓ |
 | 2026-07-06T22:18:00+09:00 | #entity-jump | claude-code | →x | journal/20260706/Features_to_add/2218_feature_palette-entity-jump.md | oculpm_search_entities(4캐시 병합·prefix 랭킹·이스케이프)+팔레트 "바로가기"(debounce 120ms, docs_tree 1회 캐시)+NAV_BUS.openEntity 라우팅(jumpNonce remount). Rust 테스트 3, cargo 335 ✓ |
 | 2026-07-06T22:26:00+09:00 | #keyboard-diff | claude-code | →x | journal/20260706/Features_to_add/2226_feature_keyboard-diff-review.md | j/k 파일 이동(표시 순서·경계 정지·인풋 가드), `/` 검색+n/N 매치(.dl textContent 수집, PatchView 무침습), kbd 힌트. vitest 신규 1, 게이트 ✓ |
+| 2026-07-06T22:36:00+09:00 | #optimistic-planner | claude-code | →x | journal/20260706/Features_to_add/2236_feature_planner-optimistic-toggle.md | 토글 즉시 반영+실패 롤백, busy 게이트 제거(N4 백엔드 직렬화 신뢰), refreshPlans 비차단. vitest 2(pending 낙관·에러 롤백), 게이트 ✓ |
 <!-- oculpm:plan-log end -->

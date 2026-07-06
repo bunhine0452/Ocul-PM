@@ -188,20 +188,36 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     void refreshDetail();
   }, [refreshDetail]);
 
+  // v2 U9 (docs/20260706_v2/01-ux-spec.md §4) — 낙관적 업데이트: 글리프를
+  // 즉시 바꾸고 백그라운드로 기록한다. 파생 상태(phases/counts)는 detail 의
+  // useMemo 라 자동 추종. 성공 시 응답의 정규화된 detail 로 치환하고 진행률
+  // 롤업(plans 목록)만 비차단 refetch; 실패 시 이전 detail 로 롤백 + 토스트.
+  // busy 게이트를 걸지 않아 연속 토글이 즉각 반응한다 (백엔드는 N4 공유
+  // plan-write 락이 직렬화).
   const applyStatus = async (item: PlanItemDto, status: string) => {
-    if (busy || selectedId == null) return;
-    setBusy(true);
+    if (selectedId == null || item.status === status) return;
+    const prevDetail = detail;
+    setDetail((d) =>
+      d
+        ? {
+            ...d,
+            items: d.items.map((it) =>
+              it.item_id === item.item_id ? { ...it, status } : it,
+            ),
+          }
+        : d,
+    );
     const res = await commands.planApplyEdit(
       projectId,
       selectedId,
       { kind: "set_status", item_id: item.item_id, status },
       "user",
     );
-    setBusy(false);
     if (res.status === "ok") {
       if (res.data) setDetail(res.data);
       void refreshPlans();
     } else {
+      setDetail(prevDetail);
       toast.destructive(`상태 변경 실패: ${res.error}`);
     }
   };

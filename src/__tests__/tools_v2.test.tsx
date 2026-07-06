@@ -24,6 +24,8 @@ const fx = {
   chunks: [] as unknown[],
   symbols: [] as unknown[],
   conversations: [] as unknown[],
+  /** v2 U9 — planApplyEdit 응답을 케이스별로 바꿔치기 (지연/에러 시뮬레이션). */
+  applyEditImpl: null as null | (() => Promise<unknown>),
 };
 
 vi.mock("@/lib/bindings", () => {
@@ -39,7 +41,7 @@ vi.mock("@/lib/bindings", () => {
             case "planGet":
               return () => ok(fx.planDetail);
             case "planApplyEdit":
-              return () => ok(fx.planDetail);
+              return () => (fx.applyEditImpl ? fx.applyEditImpl() : ok(fx.planDetail));
             case "planItemHistory":
               return () => ok([]);
             case "planCreate":
@@ -160,6 +162,7 @@ beforeEach(() => {
   fx.chunks = [];
   fx.symbols = [];
   fx.conversations = [];
+  fx.applyEditImpl = null;
 });
 afterEach(() => cleanup());
 
@@ -189,6 +192,36 @@ describe("PR-PLN 3 — Planner", () => {
     );
     await findByText("타임존 계산");
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+
+  it("v2 U9 — 상태 토글이 낙관적으로 즉시 반영된다 (백엔드 응답 전)", async () => {
+    fx.plans = [planSummary()];
+    fx.planDetail = planDetail();
+    fx.applyEditImpl = () => new Promise(() => {}); // 영원히 pending — 응답 없이도 UI 는 변해야 한다
+    const { findByText, findByTitle } = render(
+      wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    await findByText("타임존 계산");
+    const toggle = await findByTitle(/클릭하여 진행/);
+    const glyphBefore = toggle.textContent;
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.textContent).not.toBe(glyphBefore));
+  });
+
+  it("v2 U9 — 백엔드 실패 시 이전 상태로 롤백한다", async () => {
+    fx.plans = [planSummary()];
+    fx.planDetail = planDetail();
+    fx.applyEditImpl = () =>
+      Promise.resolve({ status: "error" as const, error: "plan write lock" });
+    const { findByText, findByTitle } = render(
+      wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    await findByText("타임존 계산");
+    const toggle = await findByTitle(/클릭하여 진행/);
+    const glyphBefore = toggle.textContent;
+    fireEvent.click(toggle);
+    // 낙관 반영 → 에러 응답 → 롤백 (최종적으로 원래 글리프).
+    await waitFor(() => expect(toggle.textContent).toBe(glyphBefore));
   });
 });
 
