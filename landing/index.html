@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM) · 로컬-우선</title>
-<meta name="description" content="Claude Code · Cursor · Gemini CLI 같은 AI 코딩 에이전트가 코드를 쓰는 동안, Ocul-PM(AI PM)이 작업을 자동으로 기록·검증·정리합니다. 자동 작업 일지, 로컬 diff 검증, 일일 브리프. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
-<meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Cursor, Gemini CLI, Aider, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, AI 개발 도구, 로컬 우선, local-first, 시맨틱 코드 검색, macOS 개발 도구, 개발 생산성" />
+<meta name="description" content="Claude Code · Codex · Cursor · Gemini CLI 같은 AI 코딩 에이전트가 코드를 쓰는 동안, Ocul-PM(AI PM)이 작업을 자동으로 기록하고 스탠드업·PR 본문·회고로 되돌려줍니다. 자동 작업 일지, 로컬 diff 검증, 코드 맵, ⌘K 팔레트. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
+<meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, 스탠드업 생성, PR 본문 생성, 개발 회고, 코드 맵, 의존성 그래프, AI 개발 도구, 로컬 우선, local-first, 시맨틱 코드 검색, macOS 개발 도구, 개발 생산성" />
 <meta name="author" content="Ocul-PM" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 <meta name="theme-color" content="#0f5b43" />
@@ -17,7 +17,7 @@
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/" />
 <meta property="og:title" content="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM)" />
-<meta property="og:description" content="AI 코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
+<meta property="og:description" content="AI 코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다. 자동 일지 · 회고 · 스탠드업 산출물. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="1200" />
@@ -43,16 +43,21 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "1.3.0",
-  "description": "AI 코딩 에이전트(Claude Code · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 오늘 무엇이 바뀌었는지 보여주고, 로컬 diff 로 즉시 검증합니다.",
+  "softwareVersion": "2.0.0",
+  "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
-    "자동 작업 일지 (trigger 분류)",
-    "Today 일일 브리프 (워크데이 경계)",
-    "로컬 변경 diff",
-    "시맨틱 코드 검색 (tree-sitter + 로컬 임베딩)",
+    "자동 작업 일지 (trigger 분류 · 에이전트/모델 표시 · git 백필)",
+    "Today 일일 브리프 + 스탠드업 복사",
+    "로컬 변경 diff (키보드 검토 · 변경 영향 분석)",
+    "회고 · 산출물 (AI 회고, PR 본문, 주간 보고, .md 내보내기)",
+    "플래너 (자동 화해 옵션)",
+    "문제 해결 토의 문서",
+    "코드 맵 (의존성 · 호출 · 상속 그래프)",
+    "코드 검색 — 의미(로컬 임베딩) · 심볼(AST) · 텍스트(FTS5)",
+    "⌘K 커맨드 팔레트 (일지·계획·문서 바로가기)",
     "내장 PTY 터미널",
-    "멀티-LLM AI 패널 (Anthropic·OpenAI·Gemini)"
+    "멀티-LLM AI 패널 (Anthropic·OpenAI·Gemini·OpenRouter + 폴백 체인)"
   ]
 }
 </script>
@@ -71,7 +76,12 @@
     {
       "@type": "Question",
       "name": "어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code, Cursor, Gemini CLI 등 AGENTS.md 규칙을 읽는 에이전트와 함께 동작합니다. 특정 도구에 묶이지 않습니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code, Codex CLI, Gemini CLI, Antigravity, pi 는 별도 설정 없이 동작하고, Cursor, Windsurf, GitHub Copilot, aider, Cline, Zed 는 설정에서 규칙 파일을 켜면 됩니다. AGENTS.md 를 읽는 에이전트라면 무엇이든 함께 쓸 수 있어 특정 도구에 묶이지 않습니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "기록만 남기나요? 산출물도 만들어 주나요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "쌓인 작업 일지로 스탠드업 텍스트, PR 본문, 주간 보고를 생성하고, 기간별 회고와 일지 .md 내보내기도 지원합니다. AI 를 설정하면 AI 가 다듬고, 설정이 없어도 기본 형식으로 항상 동작합니다." }
     },
     {
       "@type": "Question",
@@ -108,7 +118,7 @@
     <a class="nav-brand" href="#top">
       <img src="icon.svg" alt="Ocul-PM" />
       <span class="nm">Ocul-PM</span>
-      <span class="v" data-version>v1.7.0</span>
+      <span class="v" data-version>v2.0.0</span>
     </a>
     <div class="nav-links">
       <a href="#features">기능</a>
@@ -134,9 +144,9 @@
           당신은 <em>기록·관리·검증</em>만 합니다.
         </h1>
         <p class="hero-sub reveal d2">
-          Claude Code · Cursor · Gemini CLI가 만든 변경을 <b>자동으로 기록</b>하고,
-          오늘 무엇이 바뀌었는지 한눈에 보여주고, 할루시네이션을 <b>로컬 diff로 즉시 검증</b>합니다.
-          클라우드도, 계정도, 텔레메트리도 없습니다.
+          Claude Code · Codex · Cursor · Gemini CLI 등 11종 에이전트가 만든 변경을 <b>자동으로 기록</b>하고,
+          할루시네이션을 <b>로컬 diff로 즉시 검증</b>하고, 쌓인 기록을
+          <b>스탠드업·PR 본문·회고</b>로 되돌려줍니다. 클라우드도, 계정도, 텔레메트리도 없습니다.
         </p>
         <div class="hero-cta reveal d3">
           <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
@@ -152,6 +162,7 @@
           <span><i class="dot"></i> 번들 &lt; 60MB</span>
           <span><i class="dot"></i> Tauri 네이티브 (Electron 아님)</span>
           <span><i class="dot"></i> 콜드 스타트 &lt; 1.5초</span>
+          <span><i class="dot"></i> 11개 화면 · ⌘K 팔레트</span>
         </div>
       </div>
 
@@ -159,7 +170,7 @@
         <div class="preview-card">
           <div class="preview-top">
             <div class="tdots"><i></i><i></i><i></i></div>
-            <span class="tt">.oculpm/journal/20260608</span>
+            <span class="tt">.oculpm/journal/20260711</span>
             <span class="live"><span class="pulse"></span> 자동 기록 중</span>
           </div>
           <div class="preview-body">
@@ -169,7 +180,7 @@
                 <span class="jrow-time">16:42</span>
               </div>
               <div class="jrow-title">워크데이 경계 기준 일일 롤오버 구현</div>
-              <div class="jrow-meta"><span>Claude Code</span><span>·</span><span>3개 파일</span><span class="add">+127</span><span class="del">−13</span></div>
+              <div class="jrow-meta"><span>Claude Code · Opus 4.8</span><span>·</span><span>3개 파일</span><span class="add">+127</span><span class="del">−13</span></div>
             </div>
             <div class="jrow">
               <div class="jrow-top">
@@ -177,7 +188,7 @@
                 <span class="jrow-time">15:08</span>
               </div>
               <div class="jrow-title">자정 직후 entry가 두 번 나타나던 문제 수정</div>
-              <div class="jrow-meta"><span>Claude Code</span><span>·</span><span>1개 파일</span><span class="add">+9</span><span class="del">−14</span></div>
+              <div class="jrow-meta"><span>Codex · GPT-5</span><span>·</span><span>1개 파일</span><span class="add">+9</span><span class="del">−14</span></div>
             </div>
             <div class="jrow">
               <div class="jrow-top">
@@ -248,7 +259,22 @@
     <div class="sec-head reveal">
       <span class="eyebrow">핵심 기능</span>
       <h2 class="sec-title">에이전트의 분 단위 작업을, <em>읽을 수 있는 기록</em>으로.</h2>
-      <p class="sec-desc">기록·검증·계획·실행이 한 앱 안에서. 전부 당신의 디스크 위에서 일어납니다.</p>
+      <p class="sec-desc">기록·검증·계획·회고가 11개 화면, 한 앱 안에서. 전부 당신의 디스크 위에서 일어납니다.</p>
+    </div>
+
+    <div class="agents-row reveal d1" aria-label="지원 에이전트">
+      <span class="agent-chip core">Claude Code</span>
+      <span class="agent-chip core">Codex CLI</span>
+      <span class="agent-chip core">Gemini CLI</span>
+      <span class="agent-chip core">Antigravity</span>
+      <span class="agent-chip core">pi</span>
+      <span class="agent-chip">Cursor</span>
+      <span class="agent-chip">Windsurf</span>
+      <span class="agent-chip">GitHub Copilot</span>
+      <span class="agent-chip">aider</span>
+      <span class="agent-chip">Cline</span>
+      <span class="agent-chip">Zed</span>
+      <span class="agent-note">초록 5종은 설정 없이 바로, 나머지는 설정에서 규칙 파일만 켜면 됩니다</span>
     </div>
 
     <div class="bento">
@@ -257,12 +283,12 @@
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 4a2 2 0 0 1 2-2h10l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></div>
         <span class="cell-tag">.oculpm/journal/</span>
         <h3>자동 작업 일지</h3>
-        <p>에이전트는 작업을 끝낼 때마다 마스터 프롬프트 규칙에 따라 markdown 한 개를 남깁니다. 플랫 파일 SSOT라 DB lock-in이 없고, 코드와 함께 커밋해 PR 리뷰에서 같이 볼 수 있습니다.</p>
+        <p>에이전트는 작업을 끝낼 때마다 규칙에 따라 markdown 한 개를 남깁니다. 어떤 에이전트가 <b>어떤 모델로</b> 작업했는지까지 기록되고, 일지가 없던 저장소는 <b>git 히스토리에서 한 번에 백필</b>합니다. 플랫 파일 SSOT라 DB lock-in이 없습니다.</p>
         <div class="cell-visual">
           <div class="mini-md">
-<span class="c">--- 20260608/16-42-feature.md</span><br/>
+<span class="c">--- 20260711/0926_feature_rollover.md</span><br/>
 <span class="k">trigger:</span> <span class="v">feature</span><br/>
-<span class="k">agent:</span> <span class="v">Claude Code</span><br/>
+<span class="k">agent:</span> <span class="v">claude-code · Opus 4.8</span><br/>
 <span class="k">files:</span> <span class="v">3</span>  <span class="c"># +127 −13</span><br/>
 <span class="k">title:</span> <span class="v">워크데이 일일 롤오버 구현</span>
           </div>
@@ -274,7 +300,7 @@
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 4h6M7 2v6M3 16l4 4 4-4M7 12v8"/><path d="M14 6h7M14 12h7M14 18h7"/></svg></div>
         <span class="cell-tag">할루시네이션 1차 방어선</span>
         <h3>변경 파일 로컬 diff</h3>
-        <p>에이전트가 "수정했다"고 주장하는 모든 파일을 <b>네트워크 호출 없이</b> 즉시 비교합니다. Git이면 git diff, 아니면 file snapshot fallback.</p>
+        <p>에이전트가 "수정했다"고 주장하는 모든 파일을 <b>네트워크 호출 없이</b> 즉시 비교합니다. 일지별 diff는 그 시점 그대로 보관되고, 바뀐 파일이 어디까지 영향을 주는지도 함께 계산합니다.</p>
         <div class="cell-visual">
           <div class="mini-diff">
             <div class="dl ctx">  const fileCount = files.length;</div>
@@ -282,6 +308,7 @@
             <div class="dl add">+ const removed = files.reduce((s,f)=&gt;s+f.del,0);</div>
             <div class="dl del">− return &lt;span&gt;{fileCount} files&lt;/span&gt;;</div>
           </div>
+          <div class="mini-cap"><b>j</b>/<b>k</b> 파일 이동 · <b>/</b> diff 안 검색 · <b>n</b>/<b>N</b> 매치 점프</div>
         </div>
       </div>
 
@@ -290,7 +317,7 @@
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v2M5 7l1.5 1.5M3 14h2M19 14h2M17.5 8.5 19 7"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M4 21h16"/></svg></div>
         <span class="cell-tag">Today</span>
         <h3>일일 브리프</h3>
-        <p>오늘 무엇이 바뀌고, 어제 무엇을 끝냈고, 다음은 무엇인지 워크데이 경계로 정리. 타임존 자정에 자동 롤오버.</p>
+        <p>오늘 바뀐 것·미커밋 변경·커밋 그래프를 워크데이 경계로 정리. 일지에 안 적힌 변경은 정직성 감사가 잡아냅니다.</p>
         <div class="cell-visual">
           <div class="mini-stat">
             <div class="ms"><div class="n">6<span class="u">건</span></div><div class="l">오늘 기록</div></div>
@@ -299,42 +326,96 @@
         </div>
       </div>
 
-      <!-- Planner -->
+      <!-- 회고 · 산출물 -->
       <div class="cell c-span2 reveal d1">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 2.8-6.5M3 4v4h4"/><path d="M12 8v4l3 2"/></svg></div>
+        <span class="cell-tag">회고 · 산출물</span>
+        <h3>기록이 산출물로</h3>
+        <p>쌓인 일지로 스탠드업·PR 본문·주간 보고를 만듭니다. AI가 있으면 다듬고, 없어도 기본 형식으로 항상 동작합니다.</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">스탠드업</span><span class="rv">어제 5 · 오늘 2 · 다음 3</span><span class="rc">복사</span></div>
+            <div class="rr"><span class="rl">PR 본문</span><span class="rv">일지 4건 → 요약·검증</span><span class="rc">생성</span></div>
+            <div class="rr"><span class="rl">주간 보고</span><span class="rv">출시 3 · 막힘 1</span><span class="rc">생성</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Planner -->
+      <div class="cell c-span2 reveal d2">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg></div>
         <span class="cell-tag">Planner</span>
-        <h3>통합 플래너</h3>
-        <p>goal → 서브태스크 → journal entry의 3단 위계로, AI의 분 단위 작업을 사람의 주 단위 목표에 묶습니다.</p>
+        <h3>살아있는 계획</h3>
+        <p>계획 항목마다 근거가 된 일지가 링크됩니다. 자동 화해를 켜면 새 일지가 들어올 때 계획이 스스로 갱신됩니다.</p>
         <div class="cell-visual">
           <div class="mini-plan">
             <div class="pl"><span class="ck done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5L20 7"/></svg></span> 워크데이 롤오버 안정화</div>
-            <div class="pl sub"><span class="ck done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5L20 7"/></svg></span> 타임존 경계 계산</div>
+            <div class="pl sub"><span class="ck done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5L20 7"/></svg></span> 타임존 경계 계산 <span class="auto">auto</span></div>
             <div class="pl sub"><span class="ck todo"></span> 자정 자동 롤오버</div>
           </div>
         </div>
       </div>
 
-      <!-- 멀티 LLM -->
-      <div class="cell c-span2 reveal d2">
-        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m12 3 2 4.5L18.5 9 14 11l-2 4.5L10 11 5.5 9 10 7.5z"/><path d="M5 19h.01M19 18h.01"/></svg></div>
-        <span class="cell-tag">멀티-LLM 패널</span>
-        <h3>한 인터페이스, 세 모델</h3>
-        <p>OpenAI · Anthropic · Gemini를 같은 화면에서. API 키는 OS 키체인에만 저장됩니다.</p>
+      <!-- 코드 맵 -->
+      <div class="cell c-span2 reveal">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M10.5 13.5 6.5 17M13.5 13.5l4 3.5"/></svg></div>
+        <span class="cell-tag">코드 맵</span>
+        <h3>의존성이 보입니다</h3>
+        <p>import·호출·상속 관계를 그래프로. 파일을 고르면 "바꾸면 몇 개 파일에 영향"이 먼저 보입니다.</p>
         <div class="cell-visual">
-          <div class="mini-models">
-            <span class="mmodel"><span class="md" style="background:#d97a4f"></span>Claude</span>
-            <span class="mmodel"><span class="md" style="background:#1aa37a"></span>GPT</span>
-            <span class="mmodel"><span class="md" style="background:#4a7ad9"></span>Gemini</span>
+          <svg class="mini-graph" viewBox="0 0 240 96" fill="none" aria-hidden="true">
+            <g stroke="#bfd8cc" stroke-width="1.4">
+              <path d="M120 48 36 22M120 48 38 76M120 48l84-28M120 48l86 28"/>
+              <path d="M120 48V14" stroke-dasharray="3 4"/>
+            </g>
+            <circle cx="120" cy="48" r="13" fill="#12a06b"/>
+            <circle cx="36" cy="22" r="7" fill="#54e3ad"/>
+            <circle cx="38" cy="76" r="7" fill="#54e3ad"/>
+            <circle cx="204" cy="20" r="7" fill="#b7f0d8"/>
+            <circle cx="206" cy="76" r="7" fill="#b7f0d8"/>
+            <circle cx="120" cy="14" r="6" fill="#c3b1f5"/>
+          </svg>
+          <div class="mini-cap">manager.rs — 바꾸면 <b>12개 파일</b>에 영향</div>
+        </div>
+      </div>
+
+      <!-- 문제 해결 -->
+      <div class="cell c-span2 reveal d1">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg></div>
+        <span class="cell-tag">.oculpm/discussion/</span>
+        <h3>결정 전 토의 문서</h3>
+        <p>큰 결정은 하기 전에 정리합니다. 문제 정의와 후보안 비교를 회의록처럼 남기고, 결론은 버튼 하나로 계획이 됩니다.</p>
+        <div class="cell-visual">
+          <div class="mini-steps">
+            <div class="st"><span class="no">1</span> 문제 정의</div>
+            <div class="st"><span class="no">2</span> 후보안 A/B — 장단·비용</div>
+            <div class="st hot"><span class="no">3</span> 결론 → 플래너로 승격</div>
           </div>
         </div>
       </div>
 
-      <!-- 시맨틱 검색 -->
+      <!-- ⌘K 팔레트 -->
+      <div class="cell c-span2 reveal d2">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg></div>
+        <span class="cell-tag">⌘K · ⌘1~0 · ⌘P</span>
+        <h3>어디로든 가기</h3>
+        <p>화면 이동은 물론, 일지·계획·토의·문서를 제목으로 검색해 바로 엽니다. diff 검토도 계획 토글도 키보드로 끝납니다.</p>
+        <div class="cell-visual">
+          <div class="mini-palette">
+            <div class="pinput"><span class="pk">⌘K</span> 롤오버</div>
+            <div class="prow sel"><span class="pdot" style="background:var(--green-500)"></span>자정 직후 entry 중복 수정 <span class="ptag">일지</span></div>
+            <div class="prow"><span class="pdot" style="background:#7c5cdb"></span>워크데이 롤오버 안정화 <span class="ptag">계획</span></div>
+            <div class="prow"><span class="pdot" style="background:#5a7a95"></span>workday-spec.md <span class="ptag">문서</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 코드 검색 -->
       <div class="cell c-span2 reveal">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
-        <span class="cell-tag">로컬 임베딩</span>
-        <h3>시맨틱 코드 검색</h3>
-        <p>tree-sitter AST + fastembed 임베딩 + sqlite-vec. <b>임베딩이 외부로 나가지 않습니다.</b></p>
+        <span class="cell-tag">로컬 임베딩 · FTS5</span>
+        <h3>코드 검색 3모드</h3>
+        <p>의미(임베딩) · 심볼(AST) · 텍스트(FTS5 전문 인덱스). <b>임베딩이 외부로 나가지 않습니다.</b></p>
         <div class="cell-visual">
           <div class="mini-search">
             <div class="sb"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg> 자정 롤오버 처리</div>
@@ -343,12 +424,28 @@
         </div>
       </div>
 
-      <!-- 내장 터미널 -->
+      <!-- 멀티 LLM -->
       <div class="cell c-span2 reveal d1">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m12 3 2 4.5L18.5 9 14 11l-2 4.5L10 11 5.5 9 10 7.5z"/><path d="M5 19h.01M19 18h.01"/></svg></div>
+        <span class="cell-tag">멀티-LLM 패널</span>
+        <h3>프로젝트를 아는 AI</h3>
+        <p>코드·일지·계획·git 맥락을 함께 보내는 채팅. 호출이 실패하면 폴백 체인이 다음 모델을 시도합니다. 키는 OS 키체인에만.</p>
+        <div class="cell-visual">
+          <div class="mini-models">
+            <span class="mmodel"><span class="md" style="background:#d97a4f"></span>Claude</span>
+            <span class="mmodel"><span class="md" style="background:#1aa37a"></span>GPT</span>
+            <span class="mmodel"><span class="md" style="background:#4a7ad9"></span>Gemini</span>
+            <span class="mmodel"><span class="md" style="background:#8a63d2"></span>OpenRouter</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 내장 터미널 -->
+      <div class="cell c-span2 reveal d2">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="4" width="19" height="16" rx="3"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
         <span class="cell-tag">portable-pty · xterm.js</span>
         <h3>내장 터미널</h3>
-        <p>창 전환 없이 같은 앱에서 CLI를 실행하며, 일지가 옆에서 쌓이는 걸 봅니다.</p>
+        <p>창 전환 없이 같은 앱에서 에이전트를 돌리며, 일지가 옆에서 쌓이는 걸 봅니다.</p>
         <div class="cell-visual">
           <div class="mini-term">
 <span class="p">➜</span> <span class="c">claude-code "롤오버 구현"</span><br/>
@@ -427,11 +524,12 @@
 
       <div class="stack-list reveal d1">
         <div class="stack-row"><span class="layer">셸</span><span class="tools"><b>Tauri 2</b> · Rust 백엔드 + 시스템 웹뷰</span></div>
-        <div class="stack-row"><span class="layer">백엔드</span><span class="tools">Rust 2021 · tokio · <b>rusqlite</b> · sqlite-vec</span></div>
-        <div class="stack-row"><span class="layer">코드 분석</span><span class="tools"><b>tree-sitter</b> · fastembed · blake3</span></div>
+        <div class="stack-row"><span class="layer">백엔드</span><span class="tools">Rust 2021 · tokio · <b>rusqlite</b> · sqlite-vec · FTS5</span></div>
+        <div class="stack-row"><span class="layer">코드 분석</span><span class="tools"><b>tree-sitter</b> (Rust·TS·JS·Py·Go) · fastembed · blake3</span></div>
+        <div class="stack-row"><span class="layer">코드 맵</span><span class="tools">React Flow · dagre · <b>graphology</b> (louvain)</span></div>
         <div class="stack-row"><span class="layer">파일 감시</span><span class="tools">notify · gitignore 존중 · 500ms 디바운스</span></div>
         <div class="stack-row"><span class="layer">터미널</span><span class="tools"><b>portable-pty</b> · xterm.js · addon-fit</span></div>
-        <div class="stack-row"><span class="layer">보안</span><span class="tools"><b>keyring</b> 네이티브 키체인 · rustls</span></div>
+        <div class="stack-row"><span class="layer">보안</span><span class="tools"><b>keyring</b> 네이티브 키체인 · rustls · 시크릿 자동 redaction</span></div>
         <div class="stack-row"><span class="layer">프론트엔드</span><span class="tools">React 19 · TypeScript 5.8 · Vite 7 · Tailwind 4</span></div>
       </div>
     </div>
@@ -448,11 +546,11 @@
     <div class="aud-grid">
       <div class="aud reveal">
         <span class="ai"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V5a2 2 0 0 0-2-2H8M8 13h.01M16 13h.01"/></svg></span>
-        <div><h4>AI 에이전트를 일상으로 쓰는 개발자</h4><p>Claude Code, Cursor, Aider, Gemini CLI, Antigravity를 매일 쓰는 사람.</p></div>
+        <div><h4>AI 에이전트를 일상으로 쓰는 개발자</h4><p>Claude Code, Codex, Cursor, Gemini CLI, Windsurf, Copilot, aider, Cline, Zed를 매일 쓰는 사람.</p></div>
       </div>
       <div class="aud reveal d1">
         <span class="ai"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6M18 20a6 6 0 0 0-3-5.2"/></svg></span>
-        <div><h4>개인 프로젝트 · 1~3인 팀</h4><p>가볍게 시작. 팀 클라우드 동기화는 v1.1 이후 로드맵.</p></div>
+        <div><h4>개인 프로젝트 · 1~3인 팀</h4><p>가볍게 시작. 스탠드업·주간 보고는 이미 만들어 주고, 팀 동기화는 로드맵에 있습니다.</p></div>
       </div>
       <div class="aud reveal d2">
         <span class="ai"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="4" width="19" height="16" rx="3"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></span>
@@ -470,7 +568,7 @@
 <section class="cta" id="download">
   <svg class="cta-arc" viewBox="0 0 760 760" aria-hidden="true"><use href="#arc-motif"/></svg>
   <div class="wrap">
-    <span class="eyebrow on-dark reveal">최신 버전 출시 — 지금 다운로드 · macOS (Apple Silicon)</span>
+    <span class="eyebrow on-dark reveal">v2.0 대규모 업데이트 — 지금 다운로드 · macOS (Apple Silicon)</span>
     <h2 class="reveal d1">AI에게 빼앗긴 <em>"왜 이걸 만들었더라"</em>의<br/>답을 다시 손에 쥐세요.</h2>
     <p class="cta-sub reveal d2">설치하고, 프로젝트 폴더를 열고, 에이전트를 부르세요. 나머지는 Ocul-PM이 기록합니다.</p>
     <div class="cta-btns reveal d2">

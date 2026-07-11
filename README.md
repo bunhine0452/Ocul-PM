@@ -1,131 +1,107 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bunhine0452/Ocul-PM/main/landing/og.png" alt="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저" width="460" />
+<img src="https://raw.githubusercontent.com/bunhine0452/Ocul-PM/main/landing/og.png" alt="Ocul-PM" width="440" />
 
 <h1>Ocul-PM</h1>
 
-<p><b>코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다.</b><br/>
-Local-first <b>AI project manager (AI PM)</b> for AI coding agents — Claude Code · Cursor · Gemini CLI.</p>
+<p><b>AI 코딩 에이전트가 코드를 쓰는 동안, 그 기록은 Ocul-PM 이 남깁니다.</b><br/>
+Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저</p>
 
-[![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=%E2%AC%87%20download&color=12a06b&scale=1.4)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
-[![Website](https://img.shields.io/badge/oculpm.com-12a06b?style=for-the-badge&logo=vercel&logoColor=white)](https://oculpm.com)
-
+[![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Downloads](https://badgen.net/github/assets-dl/bunhine0452/Ocul-PM?color=12a06b&label=downloads)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
-[![Rust](https://img.shields.io/badge/Rust-000?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Stars](https://badgen.net/github/stars/bunhine0452/Ocul-PM?icon=github&color=12a06b&label=stars)](https://github.com/bunhine0452/Ocul-PM/stargazers)
 
-**[🌐 oculpm.com](https://oculpm.com)** · **[⬇️ 다운로드](https://github.com/bunhine0452/Ocul-PM/releases/latest)** · **[📋 변경 이력](CHANGELOG.md)** · **[🐛 이슈](https://github.com/bunhine0452/Ocul-PM/issues)**
+[oculpm.com](https://oculpm.com) · [다운로드](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [변경 이력](CHANGELOG.md) · [이슈](https://github.com/bunhine0452/Ocul-PM/issues)
 
 </div>
 
 ---
 
-외부 AI 코딩 에이전트는 빠르지만, 며칠이 지나면 **무엇이 왜 바뀌었는지** 추적이 끊깁니다.
-어제 Claude 에게 시킨 리팩토링이 어떤 파일을 건드렸는지, Cursor 가 "고쳤다"는 코드가 실제로 도는지 — 매번 다시 확인해야 하죠.
+에이전트한테 일을 시키는 날이 늘수록 이상한 비용이 하나 생깁니다. 지난주에 Claude Code 가 어떤 파일을 왜 건드렸는지, Cursor 가 고쳤다는 버그가 진짜 고쳐졌는지를 매번 git log 와 기억에 의존해 다시 캐내는 일입니다. 코드는 남는데 맥락은 남지 않기 때문입니다.
 
-**Ocul-PM 은 이 간극을 메웁니다.** 에이전트가 코드를 쓰고, Ocul-PM 이 **그들이 한 일을 사람이 읽을 수 있는 기록으로** 남깁니다. 변경을 로컬 diff 로 즉시 검증하고, 오늘 무엇이 바뀌었는지 한눈에 보여줍니다. **클라우드도, 계정도, 텔레메트리도 없습니다.**
+Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 것으로 시작합니다. 에이전트는 작업 하나를 끝낼 때마다 이 규칙대로 `.oculpm/journal/` 에 마크다운 일지를 남기고, 앱은 그것을 읽어 타임라인과 일일 브리프, 변경 diff, 회고로 보여줍니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
-> AI 에게 빼앗긴 *"내가 이걸 왜 만들었더라"* 의 답을, 다시 손에 쥐는 도구.
+서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 밖으로 나가는 것은 직접 부른 LLM API 호출과 새 버전 확인이 전부입니다.
 
-<br/>
+## 화면 구성
 
-## ✨ 핵심 기능
+- **Today** — 오늘 무엇이 바뀌었는지 워크데이 기준으로 모아 보여줍니다. 커밋 그래프, 미커밋 변경, 에이전트가 고쳐놓고 일지에 안 적은 파일 감지(정직성 감사)까지. "스탠드업 복사"를 누르면 어제~오늘 한 일이 공유용 텍스트로 클립보드에 담깁니다.
+- **작업 일지** — 에이전트가 남긴 기록의 타임라인. 어떤 에이전트가 어떤 모델로 작업했는지 표시되고, 일지마다 그 시점의 변경 diff 를 함께 보관합니다. 일지 없이 쌓여 온 저장소는 git 히스토리에서 한 번에 백필할 수 있습니다.
+- **문제 해결** — 무엇을 할지 정하기 *전* 단계의 토의 문서. 문제 정의부터 후보안 비교, 결론까지 정리하고, 결론이 서면 버튼 한 번으로 플래너 계획이 됩니다.
+- **Planner** — 살아있는 계획 문서. 항목마다 관련 일지가 링크되고, 원하면 새 일지가 들어올 때 계획이 따라 갱신되는 자동 화해(옵트인)도 켤 수 있습니다.
+- **변경 diff** — 에이전트가 수정한 파일을 네트워크 없이 바로 비교합니다. `j`/`k` 로 파일을 오가고 `/` 로 diff 안을 검색합니다. 바뀐 파일이 코드 그래프에서 어디까지 영향을 주는지도 계산해 줍니다.
+- **회고** — 최근 7·14·30일 동안 무엇을 출시했고 어디서 막혔는지, 노력이 어느 파일에 몰렸는지를 신호로 보여줍니다. AI 회고 생성, PR 본문·주간 보고 산출물, 기간 일지 `.md` 내보내기가 여기 있습니다.
+- **코드 검색** — 의미(로컬 임베딩) · 심볼(AST) · 텍스트(FTS5 전문 인덱스) 세 가지 모드.
+- **코드 맵** — import 만이 아니라 호출·상속·구현 관계까지 그래프로 그립니다. 파일을 고르면 "이 파일을 바꾸면 N개 파일에 영향"이 먼저 보입니다.
+- **문서** — 프로젝트의 `docs/` 폴더를 위키처럼 탐색합니다.
+- **터미널** — 앱 안 PTY 터미널. 에이전트를 여기서 돌리면 일지가 옆 화면에 쌓입니다.
+- **AI 패널** — 코드 검색·일지·플래너·git 맥락을 아는 채팅. Anthropic · OpenAI · Gemini · OpenRouter 를 지원하고, 호출이 실패하면 폴백 체인으로 다음 모델을 시도합니다.
 
-| | |
-|---|---|
-| 📓 **자동 작업 일지** | 에이전트가 작업을 끝낼 때마다 규칙(`AGENTS.md`)에 따라 markdown 한 개를 남깁니다. 버그·기능·리팩토링·에러·잡일 — **5종 트리거 자동 분류.** 플랫 파일 SSOT, DB lock-in 없음, git 친화. |
-| 📊 **Today 일일 브리프** | 오늘 무엇이 바뀌고, 어제 무엇을 끝냈고, 다음은 무엇인지 — **워크데이 경계**로 정리. 새 작업이 기록되면 실시간 갱신. |
-| 🔍 **변경 diff (로컬)** | 에이전트가 "수정했다"는 모든 파일을 **네트워크 없이** 즉시 비교. 할루시네이션 1차 방어선. 일지별 diff 를 그 시점 그대로 영구 보관. |
-| 🧭 **시맨틱 코드 검색** | 의미(임베딩) · 심볼(AST) · 정확(텍스트) **3 모드.** `tree-sitter` + 로컬 임베딩 — **임베딩이 외부로 나가지 않습니다.** |
-| ⌨️ **내장 터미널** | `portable-pty` + `xterm.js` 풀스크린 터미널. 창 전환 없이 같은 앱에서 에이전트를 돌리며 일지가 쌓이는 걸 옆에서 봅니다. |
-| ✨ **멀티-LLM AI 패널** | Anthropic · OpenAI · Gemini 를 한 인터페이스로. API 키는 **OS 키체인에만** 저장. |
-| 🧩 **통합 Planner** | goal → 서브태스크 → journal entry 3단 위계로, AI 의 분 단위 작업을 사람의 주 단위 목표에 묶습니다. |
+⌘1~⌘0 으로 화면을 오가고, ⌘K 팔레트에서 일지·계획·토의·문서를 제목으로 검색해 바로 엽니다. ⌘P 는 프로젝트 전환입니다.
 
-<br/>
+## 지원 에이전트
 
-## ⬇️ 다운로드 / 설치
+`AGENTS.md` 를 읽을 수 있는 에이전트라면 무엇이든 동작합니다.
 
-**[→ 최신 릴리스에서 받기](https://github.com/bunhine0452/Ocul-PM/releases/latest)** — macOS (Apple Silicon)
+- 별도 설정 없이: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
+- 설정 → Agents 에서 규칙 파일을 켜면: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
 
-1. `Ocul-PM_x.y.z_aarch64.dmg` 를 받아 열고, **Ocul-PM** 을 `Applications` 로 드래그합니다.
-2. 처음 열 때 **"손상되었기 때문에 열 수 없습니다"** 가 뜨면 — 공증(notarization) 전 빌드라 macOS 가 격리 표시를 붙인 것입니다(실제 손상 아님). 터미널에 한 줄:
+git 백필 시에는 커밋 서명으로 에이전트를 구분합니다.
 
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
-   ```
+## 설치
 
-> 🔄 한 번 설치하면 다음 버전부터는 **앱 안에서 자동 업데이트**됩니다.
-> 첫 의미 검색/인덱싱 때 임베딩 모델(~135MB)을 1회 자동으로 내려받습니다(이후 오프라인).
+[최신 릴리스](https://github.com/bunhine0452/Ocul-PM/releases/latest)에서 `Ocul-PM_x.y.z_aarch64.dmg` 를 받아 `Applications` 로 드래그하면 끝입니다. macOS(Apple Silicon)용이고, 한 번 설치하면 이후 버전은 앱 안에서 자동으로 업데이트됩니다.
 
-<br/>
+아직 Apple 공증 전이라 처음 열 때 "손상되었기 때문에 열 수 없습니다"가 뜰 수 있습니다. 실제 손상이 아니라 macOS 의 격리 표시 때문이니, 터미널에서 한 줄이면 됩니다:
 
-## 🔭 이렇게 동작해요
-
-```
-1. 프로젝트 폴더 추가        →  Ocul-PM 이 에이전트용 규칙(AGENTS.md)을 심습니다
-2. 평소처럼 에이전트로 코딩   →  규칙에 따라 에이전트가 작업 일지를 남깁니다
-3. 자동으로 기록·정리        →  일지·변경 diff·통계가 Today 화면에 실시간으로 모입니다
+```bash
+xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
 ```
 
-<br/>
+첫 의미 검색 때 임베딩 모델(약 135MB)을 한 번 내려받습니다. 이후에는 오프라인으로 동작합니다.
 
-## 🧱 기술 스택
+## 데이터는 어디에 있나
 
-**네이티브 데스크톱 앱입니다. Electron 이 아닙니다.**
+```
+your-project/
+├── AGENTS.md          # 에이전트가 읽는 기록 규칙 (앱이 심고 버전 관리)
+└── .oculpm/
+    ├── journal/       # 작업 일지 — 원본(SSOT)
+    ├── planner/       # 계획 문서
+    ├── discussion/    # 토의 문서
+    └── index/         # 앱이 관리하는 캐시 · diff 보관
+```
 
-| 계층 | 기술 |
-|---|---|
-| 셸 | [Tauri 2](https://tauri.app) — Rust 백엔드 + 시스템 웹뷰 |
-| 백엔드 | Rust 2021 · `tokio` · `rusqlite` · `sqlite-vec` |
-| 코드 분석 | `tree-sitter` (Rust/TS/JS/Py/Go) · `fastembed` (로컬 임베딩) · `blake3` |
-| 터미널 / 보안 | `portable-pty` · `xterm.js` · `keyring` (네이티브 키체인) · `rustls` |
-| 프론트엔드 | React 19 · TypeScript 5.8 · Vite 7 · Tailwind 4 |
+SQLite 는 화면을 빨리 그리기 위한 파생 캐시일 뿐이라 언제든 파일에서 다시 만들 수 있습니다. 일지와 diff 에 실수로 섞여 들어간 API 키·토큰은 저장 전에 자동으로 가려집니다(`[REDACTED]`).
 
-전체 데이터는 프로젝트의 **`.oculpm/` 디렉토리 + 로컬 SQLite** 에 머뭅니다. 외부로 나가는 건 — 당신이 직접 호출한 LLM API 와 새 버전 확인, 그것뿐입니다.
+## 기술
 
-<br/>
+Tauri 2 네이티브 앱입니다. Electron 이 아니라서 dmg 가 60MB 를 넘지 않고 콜드 스타트가 1.5초 안에 끝납니다. 백엔드는 Rust(tokio · rusqlite · sqlite-vec), 프론트는 React 19 + TypeScript. 코드 분석은 tree-sitter(Rust · TS · JS · Python · Go), 임베딩은 fastembed 로 전부 로컬에서 돌고, API 키는 DB 가 아니라 OS 키체인에 저장합니다.
 
-## 🔒 왜 로컬-우선인가
-
-- **소유권** — 일지는 markdown 파일. 앱이 망해도 데이터는 그대로. `git clone` 으로 옮기면 그대로 동작합니다.
-- **개인 정보** — 코드·임베딩·작업 기록 어느 것도 우리 서버로 가지 않습니다. **우리 서버가 없기 때문입니다.**
-- **속도** — 콜드 스타트 1.5초 미만. 검색은 디스크 I/O 가 한계.
-- **오프라인** — LLM 호출을 빼면 전부 오프라인.
-
-<br/>
-
-## 🗺️ 로드맵
-
-- [x] macOS (Apple Silicon) 빌드 + 인앱 자동 업데이트
-- [ ] macOS (Intel) · **Windows** 빌드
-- [ ] 팀 클라우드 동기화 (옵트인)
-- [ ] Apple 공증(notarization)
-
-<br/>
-
-## 🛠️ 소스에서 빌드
+## 소스에서 빌드
 
 ```bash
 git clone https://github.com/bunhine0452/Ocul-PM
 cd Ocul-PM
 pnpm install
 pnpm tauri dev      # 개발 실행
-pnpm tauri build    # 배포 번들 (.dmg / .app)
+pnpm tauri build    # .dmg / .app 번들
 ```
 
-요구사항: Node 18+ · pnpm · Rust (stable) · (macOS) Xcode Command Line Tools.
+Node 18+, pnpm, Rust stable 이 필요하고 macOS 는 Xcode Command Line Tools 도 있어야 합니다.
 
-<br/>
+## 로드맵
 
-## ⭐ 응원하기
+- [ ] macOS (Intel) · Windows 빌드
+- [ ] Apple 공증
+- [ ] 팀 동기화 (옵트인)
 
-이 도구가 마음에 든다면 **[Star](https://github.com/bunhine0452/Ocul-PM/stargazers) 한 번**이 큰 힘이 됩니다.
-버그·아이디어는 [이슈](https://github.com/bunhine0452/Ocul-PM/issues)로, 개선은 PR 로 언제든 환영합니다.
+## 그리고
 
-## 📄 라이선스
+이 저장소 자체가 Ocul-PM 으로 추적됩니다. `.oculpm/journal/` 을 열면 이 앱을 만드는 동안 에이전트들이 남긴 일지가 그대로 들어 있습니다. 버그와 아이디어는 [이슈](https://github.com/bunhine0452/Ocul-PM/issues)로, 마음에 들면 Star 하나 눌러 주세요.
+
+## 라이선스
 
 [MIT](LICENSE) © 2026 Kim Hyunbin

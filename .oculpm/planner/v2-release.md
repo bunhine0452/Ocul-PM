@@ -4,7 +4,7 @@ id: v2-release
 title: "v2.0.0 대규모 업데이트 — 키보드 퍼스트·되돌려주기·자원 규율"
 status: active
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-11
 owner: claude-code
 ---
 
@@ -34,6 +34,7 @@ owner: claude-code
 
 ## Phase 4 — 릴리스 {#release}
 - [x] 전 게이트 재확인 + 버전 2.0.0 bump + CHANGELOG {#v2-ship}
+- [x] README·랜딩(oculpm.com) v2.0 내용 반영 {#readme-landing-refresh}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -53,4 +54,5 @@ owner: claude-code
 | 2026-07-06T23:40:00+09:00 | #workday-brief | claude-code | →x | journal/20260706/Features_to_add/2340_feature_workday-brief.md | oculpm_workday_brief(버킷+bytes SUM+미완항목+총계), useNextTasks 삭제·overviewStats 제거, 저널 14콜→1콜. Today IPC 12+N→3+gitLog. mock 이전 17/17, cargo 344 ✓ |
 | 2026-07-06T23:52:00+09:00 | #app-dialog | claude-code | →x | journal/20260706/Features_to_add/2352_feature_app-dialog-focus-trap.md | useModalBehavior 훅(트랩·복원·Esc·스크롤락, 마크업 불변 채택 방식)+AppDialog 셸. 수동일지/대화기록/토의승격+산출물 모달 적용. 테스트 4, 게이트 ✓ |
 | 2026-07-07T00:10:00+09:00 | #v2-ship | claude-code | →x | journal/20260707/Chores/0010_chore_v2-release-prep.md | 2.0.0 bump(3파일+lock)+CHANGELOG 3축 정리. 최종 게이트 cargo 344/vitest 135/lint/build 전부 0. **v2-release 전 항목 완료** — 태그 푸시는 사용자 결정 대기 |
+| 2026-07-11T09:34:00+09:00 | #readme-landing-refresh | claude-code | →x | journal/20260711/Chores/0934_chore_readme-landing-v2-refresh.md | README 전면 재작성(11화면·에이전트 11종·산출물) + 랜딩 벤토 7→11셀·JSON-LD/FAQ/메타 v2.0 현행화. 앱 코드 무변경, 커밋·배포는 사용자 대기 |
 <!-- oculpm:plan-log end -->
