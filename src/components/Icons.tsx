@@ -510,4 +510,6 @@ export {
   Info,
   // PR-R5/release — update notifier banner.
   Download,
+  // 스킬 관리 화면 — 사이드바 슬롯 + 빈 상태.
+  Puzzle,
 } from "lucide-react";

@@ -1,0 +1,76 @@
+/* 부트 스플래시 — 전역(shadcn) 토큰만 사용한다: ui_v2 tokens.css 는 셸 청크와
+   함께 늦게 오지만 이 오버레이는 첫 페인트에 있어야 하기 때문. */
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: var(--background);
+  pointer-events: none;
+  animation: bootOut 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) 0.55s forwards;
+}
+
+.boot-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.boot-center {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+
+.boot-mark {
+  position: relative;
+  z-index: 1;
+  animation: bootMarkIn 0.5s cubic-bezier(0.34, 1.4, 0.4, 1) backwards;
+}
+
+/* 아이콘(동심원 눈)의 에코 — 라운드 사각 링 두 겹이 퍼지며 사라진다. */
+.boot-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 20px;
+  border: 1.5px solid var(--primary);
+  opacity: 0;
+  animation: bootRing 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.boot-r1 { animation-delay: 0.16s; }
+.boot-r2 { animation-delay: 0.34s; }
+
+.boot-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  opacity: 0;
+  animation: bootNameIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) 0.22s forwards;
+}
+
+@keyframes bootMarkIn {
+  from { opacity: 0; transform: scale(0.76); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes bootRing {
+  0% { opacity: 0.5; transform: scale(0.92); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+@keyframes bootNameIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 0.85; transform: none; }
+}
+@keyframes bootOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.02); }
+}
+
+/* 컴포넌트가 matchMedia 로도 거르지만, CSS 단에서도 이중 안전망. */
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash { display: none; }
+}

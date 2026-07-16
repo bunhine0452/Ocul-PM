@@ -33,6 +33,8 @@ export interface GNode {
   fileIds: number[];
   inCount: number;
   outCount: number;
+  /** dir 노드의 언어 구성 (상위 3 + 기타, ratio 합 1). near LOD 미니 바용. */
+  langMix?: { color: string; ratio: number }[];
 }
 export interface GEdge {
   source: string;

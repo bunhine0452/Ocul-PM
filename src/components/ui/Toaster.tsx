@@ -44,7 +44,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   const Icon = toast.kind === "info" ? Check : AlertTriangle;
   return (
     <div
-      className={`pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg ${tone}`}
+      className={`animate-in fade-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg duration-200 ${tone}`}
       role={toast.kind === "info" ? "status" : "alert"}
     >
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconTone}`} />

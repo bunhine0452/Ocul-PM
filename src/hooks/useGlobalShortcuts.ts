@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { type UiV2View } from "@/contexts/WorkspaceContext";
 import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
 
 // v2 전역 단축키 (docs/20260706_v2/01-ux-spec.md §1).
@@ -8,7 +8,8 @@ import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
 //   ⌘K : Command Palette 열기.
 //   ⌘P : 프로젝트 전환 팝오버 (사이드바가 NAV_BUS 이벤트 수신).
 //   ⌘, : 설정 화면.
-//   ⌘\ : AI 오버레이 토글 (보조 통로).
+//   ⌘\ : AI 패널 화면 (감사 2026-07-16 — 별도 오버레이 스택을 은퇴하고
+//        단축키는 유지: 기존 손버릇이 그대로 새 정본으로 간다).
 // Mac ⌘ 과 Win/Linux Ctrl 동일 취급; 입력 필드 안에서도 동작 (기존 정책 유지).
 
 interface Options {
@@ -18,8 +19,6 @@ interface Options {
 }
 
 export function useGlobalShortcuts({ onOpenPalette, uiV2Nav }: Options) {
-  const { toggleAiOverlay } = useWorkspace();
-
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -50,14 +49,14 @@ export function useGlobalShortcuts({ onOpenPalette, uiV2Nav }: Options) {
         uiV2Nav(view);
         return;
       }
-      // ⌘\ — AI 오버레이 토글 (보조 통로)
+      // ⌘\ — AI 패널 화면 (프로젝트가 열려 있을 때만 의미 있음 — 셸이 가드)
       if (e.key === "\\") {
         e.preventDefault();
-        toggleAiOverlay();
+        uiV2Nav("ai");
         return;
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, uiV2Nav, toggleAiOverlay]);
+  }, [onOpenPalette, uiV2Nav]);
 }

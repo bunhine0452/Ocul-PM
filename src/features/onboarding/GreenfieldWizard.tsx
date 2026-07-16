@@ -10,7 +10,7 @@
  * X 닫으면 blueprint에 초안 저장. 완료 시 blueprint 삭제.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { commands, type CliCheckResult } from "@/lib/bindings";
+import { commands, type CliCheckResult, type ProjectBlueprint } from "@/lib/bindings";
 import {
   Sparkles,
   ArrowRight,
@@ -28,6 +28,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface GreenfieldWizardProps {
   onClose: () => void;
   onComplete: (projectId: number) => void;
+  /** 대시보드 "복원" — 저장된 초안에서 단계·입력을 이어서 시작한다 (감사 fix). */
+  resume?: ProjectBlueprint | null;
 }
 
 interface WizardState {
@@ -107,19 +109,50 @@ const IDEA_EXAMPLES = [
   "데이터 분석 파이프라인",
 ];
 
-export function GreenfieldWizard({ onClose, onComplete }: GreenfieldWizardProps) {
-  const [step, setStep] = useState(0);
-  const [wizState, setWizState] = useState<WizardState>({
-    ideaText: "",
-    targetUsers: "",
-    stackChoice: "",
-    scaffoldCmd: null,
-    scaffoldArgs: [],
-    folderName: "",
-    folderPath: "",
-    seedGoals: [],
-  });
-  const [blueprintId, setBlueprintId] = useState<number | null>(null);
+/** seed_goals_json 관대 파싱 — 초안이 깨져 있어도 마법사는 열려야 한다. */
+function parseSeedGoals(json: string | null): WizardState["seedGoals"] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export function GreenfieldWizard({ onClose, onComplete, resume = null }: GreenfieldWizardProps) {
+  // 복원(감사 fix): 저장된 초안이 오면 단계·입력·blueprint id 를 그대로 이어서
+  // 시작한다 — 이전에는 "복원"이 항상 0단계 새 초안을 만들어 중복이 쌓였다.
+  const resumePreset = resume?.stack_choice
+    ? STACK_PRESETS.find((s) => s.id === resume.stack_choice)
+    : null;
+  const [step, setStep] = useState(() =>
+    resume ? Math.min(Math.max(resume.wizard_step, 0), 4) : 0,
+  );
+  const [wizState, setWizState] = useState<WizardState>(() =>
+    resume
+      ? {
+          ideaText: resume.idea_text ?? "",
+          targetUsers: resume.target_users ?? "",
+          stackChoice: resume.stack_choice ?? "",
+          scaffoldCmd: resumePreset?.scaffoldCmd ?? null,
+          scaffoldArgs: resumePreset ? [...resumePreset.scaffoldArgs] : [],
+          folderName: resume.folder_name ?? "",
+          folderPath: resume.folder_path ?? "",
+          seedGoals: parseSeedGoals(resume.seed_goals_json),
+        }
+      : {
+          ideaText: "",
+          targetUsers: "",
+          stackChoice: "",
+          scaffoldCmd: null,
+          scaffoldArgs: [],
+          folderName: "",
+          folderPath: "",
+          seedGoals: [],
+        },
+  );
+  const [blueprintId, setBlueprintId] = useState<number | null>(resume?.id ?? null);
   const [cliChecks, setCliChecks] = useState<Record<string, CliCheckResult>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);

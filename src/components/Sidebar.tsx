@@ -51,10 +51,13 @@ interface SidebarProps {
 function NavRow({
   slot,
   active,
+  index,
   onNavigate,
 }: {
   slot: NavEntry;
   active: boolean;
+  /** 셸 진입 캐스케이드(--i) 순번 — shell.css .nav-item 의 animation-delay. */
+  index: number;
   onNavigate: (view: UiV2View) => void;
 }) {
   const Icon = slot.icon;
@@ -63,6 +66,7 @@ function NavRow({
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
+      style={{ "--i": index } as React.CSSProperties}
       aria-current={active ? "page" : undefined}
       title={shortcut ? `${slot.label} (${shortcut})` : slot.label}
       onClick={() => onNavigate(slot.id)}
@@ -203,13 +207,19 @@ export function Sidebar({
         ) : null}
       </div>
 
-      {MAIN_NAV.map((slot) => (
-        <NavRow key={slot.id} slot={slot} active={view === slot.id} onNavigate={onNavigate} />
+      {MAIN_NAV.map((slot, i) => (
+        <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
       ))}
 
       <div className="nav-section-label">도구</div>
-      {TOOL_NAV.map((slot) => (
-        <NavRow key={slot.id} slot={slot} active={view === slot.id} onNavigate={onNavigate} />
+      {TOOL_NAV.map((slot, i) => (
+        <NavRow
+          key={slot.id}
+          slot={slot}
+          active={view === slot.id}
+          index={MAIN_NAV.length + i}
+          onNavigate={onNavigate}
+        />
       ))}
 
       <div className="side-spacer" />

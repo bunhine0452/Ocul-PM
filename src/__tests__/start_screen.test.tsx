@@ -42,6 +42,7 @@ function renderStart(over: Partial<React.ComponentProps<typeof StartScreen>> = {
     onDeleteProject: vi.fn(),
     onOpenSettings: vi.fn(),
     onStartGreenfield: vi.fn(),
+    onResumeBlueprint: vi.fn(),
     ...over,
   };
   return { ...render(<StartScreen {...props} />), props };

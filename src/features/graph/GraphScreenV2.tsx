@@ -46,6 +46,7 @@ import {
   type GEdge,
   type NeighborRel,
 } from "./types";
+import "./graph.css";
 
 const nodeTypes = { fileNode: FileNode };
 type Mode = "dir" | "file";
@@ -81,6 +82,8 @@ export function GraphScreenV2({
   const { settings } = useSettings();
   const [graph, setGraph] = useState<{ nodes: FileRow[]; edges: FileEdge[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  // 감사 fix (2026-07-16): 백엔드 실패를 "관계 없음" 빈 상태로 삼키지 않는다.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("dir");
   const [layout, setLayout] = useState<Layout>("dagre");
@@ -91,6 +94,10 @@ export function GraphScreenV2({
   // Readability redesign state
   const [focusMode, setFocusMode] = useState(true);
   const [lod, setLod] = useState<Lod>("near");
+  // 대규모 가독성 (2026-07-16): 기본은 연결 차수 상위 N 노드만 — showAll 로 해제.
+  const [showAll, setShowAll] = useState(false);
+  // 호버 하이라이트 — 클릭 없이 이웃 관계를 미리 본다.
+  const [hovered, setHovered] = useState<string | null>(null);
   const flowRef = useRef<FlowApi | null>(null);
   // Deferred so typing in the path filter never blocks on the (cheap) re-filter
   // — and, crucially, the layout no longer recomputes per keystroke (see below).
@@ -99,6 +106,9 @@ export function GraphScreenV2({
   const load = useCallback(async () => {
     setLoading(true);
     setSelected(null);
+    setHovered(null);
+    setShowAll(false);
+    setLoadError(null);
     const res = await commands.getCodeGraph(projectId, { symbol_level: false });
     if (res.status === "ok") {
       const code = res.data;
@@ -118,6 +128,7 @@ export function GraphScreenV2({
       });
     } else {
       setGraph({ nodes: [], edges: [] });
+      setLoadError(res.error);
     }
     setLoading(false);
   }, [projectId]);
@@ -150,6 +161,8 @@ export function GraphScreenV2({
       pos: new Map<string, { x: number; y: number }>(),
       map: new Map<string, GNode>(),
       sizes: new Map<string, NodeSize>(),
+      total: 0,
+      capped: false,
     };
     if (!graph) return empty;
     const edges = graph.edges.filter((e) => enabled.has(e.type) && e.source !== e.target);
@@ -211,6 +224,13 @@ export function GraphScreenV2({
             dom = l;
           }
         });
+        // 언어 구성 미니 바 — 상위 3 언어 + 기타 (near LOD 의 폴더 카드 하단).
+        const top = [...counts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([l, c]) => ({ color: langColor(l), ratio: c / files.length }));
+        const rest = 1 - top.reduce((s, m) => s + m.ratio, 0);
+        const langMix = rest > 0.02 ? [...top, { color: "var(--text-3)", ratio: rest }] : top;
         return {
           id: `d:${dir}`,
           kind: "dir" as const,
@@ -221,6 +241,7 @@ export function GraphScreenV2({
           fileIds: files.map((f) => f.fileId),
           inCount: 0,
           outCount: 0,
+          langMix,
         };
       });
       gedges = [...agg.values()].map((a) => ({
@@ -245,7 +266,19 @@ export function GraphScreenV2({
     });
 
     // isolated filter (stable — the search query is applied cheaply downstream).
-    const kept = settings.graphShowIsolated ? nodes : nodes.filter((n) => n.inCount + n.outCount > 0);
+    const keptAll = settings.graphShowIsolated ? nodes : nodes.filter((n) => n.inCount + n.outCount > 0);
+    // 대규모 가독성 — 기본은 중요(연결 차수) 상위 N 만 그린다. 큰 저장소를 열어도
+    // 첫 화면이 '핵심 지도'로 읽히고, 전체는 툴바 칩으로 옵트인.
+    const CAP = mode === "file" ? 160 : 240;
+    const capped = !showAll && keptAll.length > CAP;
+    const kept = capped
+      ? [...keptAll]
+          .sort(
+            (a, b) =>
+              b.inCount + b.outCount - (a.inCount + a.outCount) || a.path.localeCompare(b.path),
+          )
+          .slice(0, CAP)
+      : keptAll;
     const vis = new Set(kept.map((n) => n.id));
     const fedges = gedges.filter((e) => vis.has(e.source) && vis.has(e.target));
     const ids = kept.map((n) => n.id);
@@ -258,8 +291,8 @@ export function GraphScreenV2({
         ? dagreLayout(ids, fedges, sizes)
         : forceLayout(ids, fedges, layout === "cluster", sizes);
     const map = new Map(kept.map((n) => [n.id, n]));
-    return { nodes: kept, edges: fedges, pos, map, sizes };
-  }, [graph, mode, layout, enabled, settings.graphShowIsolated]);
+    return { nodes: kept, edges: fedges, pos, map, sizes, total: keptAll.length, capped };
+  }, [graph, mode, layout, enabled, showAll, settings.graphShowIsolated]);
 
   // Light stage — apply the path-search filter to the already-laid-out graph. No
   // layout work, so search stays responsive even on large graphs.
@@ -272,12 +305,22 @@ export function GraphScreenV2({
         pos: laidOut.pos,
         map: laidOut.map,
         sizes: laidOut.sizes,
+        total: laidOut.total,
+        capped: laidOut.capped,
       };
     }
     const visible = laidOut.nodes.filter((n) => n.path.toLowerCase().includes(q));
     const vis = new Set(visible.map((n) => n.id));
     const edges = laidOut.edges.filter((e) => vis.has(e.source) && vis.has(e.target));
-    return { visible, edges, pos: laidOut.pos, map: laidOut.map, sizes: laidOut.sizes };
+    return {
+      visible,
+      edges,
+      pos: laidOut.pos,
+      map: laidOut.map,
+      sizes: laidOut.sizes,
+      total: laidOut.total,
+      capped: laidOut.capped,
+    };
   }, [laidOut, deferredQuery]);
 
   // Hub threshold — top-tier degree (p85, min 4). Drives the inspector's role
@@ -301,6 +344,20 @@ export function GraphScreenV2({
     });
     return set;
   }, [selected, built.edges]);
+
+  // 호버 이웃 — 선택 없이도 관계를 미리 본다. 선택 중이거나 노드가 아주 많을
+  // 땐(호버마다 전 노드 리렌더 비용) 비활성.
+  const HOVER_LIMIT = 400;
+  const hoverSet = useMemo(() => {
+    if (hovered == null || selected != null) return null;
+    if (built.visible.length > HOVER_LIMIT) return null;
+    const set = new Set<string>([hovered]);
+    built.edges.forEach((e) => {
+      if (e.source === hovered) set.add(e.target);
+      if (e.target === hovered) set.add(e.source);
+    });
+    return set;
+  }, [hovered, selected, built.visible.length, built.edges]);
 
   // Focus active = a node is selected AND focus culling is on → render only the
   // neighbourhood. Positions are kept (no relayout) so spatial memory survives.
@@ -344,25 +401,54 @@ export function GraphScreenV2({
             outCount: n.outCount,
             selected: selected === n.id,
             // Don't dim inside focus mode — everything shown is relevant.
-            dimmed: !focusActive && connected != null && !connected.has(n.id),
+            // 선택 시엔 hard(강한 감쇠), 호버 시엔 soft(가벼운 감쇠).
+            dim:
+              focusActive || (connected == null && hoverSet == null)
+                ? ("none" as const)
+                : connected != null
+                  ? connected.has(n.id)
+                    ? ("none" as const)
+                    : ("hard" as const)
+                  : hoverSet!.has(n.id)
+                    ? ("none" as const)
+                    : ("soft" as const),
             w: size.w,
             h: size.h,
             tier: size.tier,
             // Focus view is sparse → always show full detail regardless of zoom.
             lod: focusActive ? "near" : lod,
             hub: deg >= hubThreshold,
+            langMix: n.langMix,
           } satisfies GraphNodeData as unknown as Record<string, unknown>,
         };
       });
-  }, [built.visible, built.pos, built.sizes, selected, connected, focusActive, lod, hubThreshold]);
+  }, [built.visible, built.pos, built.sizes, selected, connected, hoverSet, focusActive, lod, hubThreshold]);
+
+  // 초대형 그래프 엣지 상한 — 가중치 상위만 상시 표시하고, 선택/호버 인접
+  // 엣지는 언제나 살린다 (헤어볼의 잉크량 자체를 줄이는 안전판).
+  const EDGE_CAP = 1400;
+  const edgeKeep = useMemo(() => {
+    if (built.edges.length <= EDGE_CAP) return null;
+    return new Set([...built.edges].sort((a, b) => b.weight - a.weight).slice(0, EDGE_CAP));
+  }, [built.edges]);
 
   const displayEdges = useMemo<Edge[]>(() => {
+    const hot = selected ?? hovered;
+    // 줌 아웃할수록 엣지 잉크를 줄인다 — far 에선 노드 라벨이 주인공.
+    const baseOpacity = lod === "far" ? 0.3 : lod === "mid" ? 0.55 : 0.72;
     return built.edges
       // In focus mode only keep edges incident to the selected node.
       .filter((e) => !focusActive || e.source === selected || e.target === selected)
+      .filter(
+        (e) =>
+          edgeKeep == null ||
+          edgeKeep.has(e) ||
+          (hot != null && (e.source === hot || e.target === hot)),
+      )
       .map((e, i) => {
-        const active = connected != null && (e.source === selected || e.target === selected);
-        const dim = !focusActive && connected != null && !active;
+        const active = hot != null && (e.source === hot || e.target === hot);
+        const dimHard = !focusActive && connected != null && !active;
+        const dimSoft = !dimHard && hoverSet != null && !active;
         const base = EDGE_META[e.type]?.color ?? "var(--sep-strong)";
         return {
           id: `e${i}-${e.type}-${e.source}-${e.target}`,
@@ -373,15 +459,61 @@ export function GraphScreenV2({
             stroke: active ? "var(--accent)" : base,
             strokeWidth: active ? 2.2 : Math.min(3, 1.2 + Math.log2(e.weight)),
             strokeDasharray: e.estimated ? "5 3" : undefined,
-            opacity: dim ? 0.08 : active ? 0.9 : e.estimated ? 0.55 : 0.7,
+            opacity: dimHard
+              ? 0.06
+              : dimSoft
+                ? 0.12
+                : active
+                  ? 0.95
+                  : e.estimated
+                    ? baseOpacity * 0.75
+                    : baseOpacity,
           },
         };
       });
-  }, [built.edges, connected, selected, focusActive]);
+  }, [built.edges, edgeKeep, connected, hoverSet, selected, hovered, focusActive, lod]);
 
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelected((prev) => (prev === node.id ? null : node.id));
   }, []);
+
+  const onNodeHover: NodeMouseHandler = useCallback((_, node) => setHovered(node.id), []);
+  const onNodeHoverEnd = useCallback(() => setHovered(null), []);
+
+  // 폴더 더블클릭 → 파일 모드로 그 폴더만 드릴다운 (경로 필터 재사용).
+  const onNodeDoubleClick: NodeMouseHandler = useCallback(
+    (_, node) => {
+      const g = built.map.get(node.id);
+      if (!g || g.kind !== "dir") return;
+      setMode("file");
+      setSelected(null);
+      setHovered(null);
+      setShowAll(false);
+      setQuery(g.path ? `${g.path}/` : "");
+    },
+    [built.map],
+  );
+
+  // 검색 Enter — 가장 그럴듯한 매치(이름 시작 > 중심성)를 선택 + 프레이밍.
+  // deferredQuery 가 아니라 현재 query 로 직접 거른다 (Enter 시점 지연 회피).
+  const focusFirstMatch = useCallback(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return;
+    const pool = laidOut.nodes.filter((n) => n.path.toLowerCase().includes(q));
+    if (pool.length === 0) return;
+    pool.sort(
+      (a, b) =>
+        Number(b.label.toLowerCase().startsWith(q)) - Number(a.label.toLowerCase().startsWith(q)) ||
+        b.inCount + b.outCount - (a.inCount + a.outCount),
+    );
+    const id = pool[0].id;
+    setSelected(id);
+    if (!focusMode) {
+      window.setTimeout(() => {
+        flowRef.current?.fitView({ nodes: [{ id }], padding: 0.4, maxZoom: 1.15, duration: 300 });
+      }, 30);
+    }
+  }, [query, laidOut.nodes, focusMode]);
 
   const onMove = useCallback((_: unknown, vp: Viewport) => {
     const next = lodForZoom(vp.zoom);
@@ -476,45 +608,54 @@ export function GraphScreenV2({
     <div className="flex flex-col h-full">
       <Toolbar
         title="코드 맵"
-        sub={`${built.visible.length} ${unit} · ${built.edges.length} 관계${focusActive ? " · 포커스" : ""}`}
+        sub={`${built.visible.length}${built.capped ? ` / ${built.total}` : ""} ${unit} · ${built.edges.length} 관계${focusActive ? " · 포커스" : ""}`}
       >
-        <div className="flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
+        <div className="gr-seg" role="group" aria-label="묶음 단위">
           {(["dir", "file"] as const).map((m) => (
             <button
               key={m}
               onClick={() => {
                 setMode(m);
                 setSelected(null);
+                setShowAll(false);
               }}
-              className={`px-2 py-1 rounded font-semibold cursor-pointer ${
-                mode === m ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={mode === m ? "on" : ""}
             >
               {m === "dir" ? "폴더" : "파일"}
             </button>
           ))}
         </div>
-        <div className="flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
+        <div className="gr-seg" role="group" aria-label="레이아웃">
           {LAYOUTS.map((l) => (
             <button
               key={l.id}
               onClick={() => setLayout(l.id)}
               title={l.title}
-              className={`px-2 py-1 rounded font-semibold cursor-pointer ${
-                layout === l.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={layout === l.id ? "on" : ""}
             >
               {l.label}
             </button>
           ))}
         </div>
+        {/* 상위 N 추림 상태 — 클릭으로 전체/핵심 토글. */}
+        {built.capped || showAll ? (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            title={
+              showAll
+                ? "다시 핵심(연결 상위)만 표시"
+                : `연결이 많은 상위만 표시 중 — 클릭하면 전체 ${built.total}개를 그립니다`
+            }
+            className={`gr-chip${showAll ? " on" : ""}`}
+          >
+            {showAll ? `전체 ${built.total}` : `핵심 ${built.visible.length} / ${built.total}`}
+          </button>
+        ) : null}
         {/* Focus toggle — selecting a node culls to its neighbourhood. */}
         <button
           onClick={() => setFocusMode((v) => !v)}
           title="포커스 — 노드 선택 시 이웃만 표시 (끄면 흐리게만)"
-          className={`inline-flex items-center gap-1 px-2 h-7 rounded-md border text-[11px] font-medium cursor-pointer ${
-            focusMode ? "border-primary/50 bg-primary/5 text-foreground" : "border-border text-muted-foreground"
-          }`}
+          className={`gr-chip${focusMode ? " on" : ""}`}
         >
           <Target size={13} /> 포커스
         </button>
@@ -527,13 +668,14 @@ export function GraphScreenV2({
                   key={t}
                   onClick={() => toggleType(t)}
                   title={`${EDGE_META[t]?.label ?? t} 엣지 표시`}
-                  className={`flex items-center gap-1 px-2 h-7 rounded-md border text-[11px] font-medium cursor-pointer ${
-                    on ? "border-primary/50 bg-primary/5 text-foreground" : "border-border text-muted-foreground"
-                  }`}
+                  className={`gr-chip${on ? " on" : ""}`}
                 >
                   <span
-                    className="w-2 h-2 rounded-sm"
-                    style={{ background: on ? EDGE_META[t]?.color ?? "var(--text-3)" : "var(--text-3)", opacity: on ? 1 : 0.4 }}
+                    className="sw"
+                    style={{
+                      background: on ? EDGE_META[t]?.color ?? "var(--text-3)" : "var(--text-3)",
+                      opacity: on ? 1 : 0.4,
+                    }}
                   />
                   {EDGE_META[t]?.label ?? t}
                 </button>
@@ -541,39 +683,44 @@ export function GraphScreenV2({
             })}
           </div>
         ) : null}
-        <div className="relative flex items-center">
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 flex text-muted-foreground pointer-events-none">
-            <SearchIcon size={13} />
-          </span>
+        <div className="gr-search">
+          <SearchIcon size={13} />
           <input
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
-            placeholder="경로 필터…"
-            className="h-7 w-36 rounded-md border border-border bg-background pl-7 pr-2 text-xs text-foreground outline-none focus:border-primary/50"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") focusFirstMatch();
+            }}
+            placeholder="경로 필터 — Enter 로 이동"
+            aria-label="경로 필터"
           />
         </div>
         <button
           onClick={() => void load()}
           title="새로고침"
-          className="h-7 w-7 grid place-items-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground cursor-pointer"
+          aria-label="그래프 새로고침"
+          className="gr-iconbtn"
         >
           <RefreshCw size={13} />
         </button>
       </Toolbar>
 
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 relative">
+        <div className="gr-wrap flex-1 relative">
           {loading ? (
             <div className="absolute inset-0 grid place-items-center">
               <OculSpinner label="그래프 불러오는 중…" />
             </div>
           ) : displayNodes.length > 0 ? (
             <ReactFlow
-              key={`${projectId}-${mode}-${layout}`}
+              key={`${projectId}-${mode}-${layout}-${showAll ? "all" : "top"}`}
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
               onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
+              onNodeMouseEnter={onNodeHover}
+              onNodeMouseLeave={onNodeHoverEnd}
               onPaneClick={() => setSelected(null)}
               onMove={onMove}
               onInit={(inst) => {
@@ -583,7 +730,8 @@ export function GraphScreenV2({
               // Floor the *initial* fit zoom so a large graph opens at a
               // readable scale (labels legible) instead of tiny-fit-everything.
               // The user can still zoom out to 0.05 for the overview (LOD pills).
-              fitViewOptions={{ padding: 0.2, minZoom: 0.5, maxZoom: 1.2 }}
+              // 전체 보기(showAll)는 그래프가 훨씬 크므로 플로어를 낮춘다.
+              fitViewOptions={{ padding: 0.2, minZoom: showAll ? 0.18 : 0.5, maxZoom: 1.2 }}
               minZoom={0.05}
               maxZoom={2}
               onlyRenderVisibleElements
@@ -596,32 +744,36 @@ export function GraphScreenV2({
                 zoomable
                 // SVG rects can't resolve CSS vars — fall back to a concrete
                 // gray for unknown-language nodes (whose color is a token var).
+                // (mask 색은 graph.css 의 --gr-mask 가 테마별로 담당.)
                 nodeColor={(n) => {
                   const c = (n.data as unknown as GraphNodeData)?.color;
                   return c && c.startsWith("#") ? c : "#94a3b8";
                 }}
-                maskColor="rgba(0,0,0,0.06)"
               />
               {legend.length > 0 ? (
                 <Panel position="top-left">
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 rounded-md border border-border bg-card/80 px-2.5 py-1.5 backdrop-blur max-w-[420px]">
+                  <div className="gr-panel">
                     {legend.map(([lang, color]) => (
-                      <span key={lang} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <span className="w-2 h-2 rounded-sm" style={{ background: color }} />
+                      <span key={lang} className="gr-legend-item">
+                        <span className="sw" style={{ background: color }} />
                         {lang}
                       </span>
                     ))}
+                    {mode === "dir" ? (
+                      <span className="gr-legend-item" style={{ opacity: 0.75 }}>
+                        폴더 더블클릭 = 드릴다운
+                      </span>
+                    ) : null}
                   </div>
                 </Panel>
               ) : null}
               {focusActive ? (
                 <Panel position="top-right">
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="rounded-md border border-border bg-card/90 px-2.5 py-1 text-[11px] font-medium text-foreground hover:border-primary/50 backdrop-blur cursor-pointer"
-                  >
-                    포커스 해제 — 전체 보기
-                  </button>
+                  <div className="gr-panel">
+                    <button onClick={() => setSelected(null)} className="gr-panel-btn">
+                      포커스 해제 — 전체 보기
+                    </button>
+                  </div>
                 </Panel>
               ) : null}
             </ReactFlow>
@@ -630,12 +782,18 @@ export function GraphScreenV2({
               <div className="max-w-sm">
                 <FileCode2 size={28} />
                 <p className="mt-3 text-sm font-semibold text-foreground">
-                  {query ? "필터에 맞는 항목이 없어요" : "표시할 관계가 없어요"}
+                  {loadError
+                    ? "그래프를 불러오지 못했어요"
+                    : query
+                      ? "필터에 맞는 항목이 없어요"
+                      : "표시할 관계가 없어요"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {query
-                    ? "검색어를 지우거나 다른 경로로 시도하세요."
-                    : "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요."}
+                  {loadError
+                    ? loadError
+                    : query
+                      ? "검색어를 지우거나 다른 경로로 시도하세요."
+                      : "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요."}
                 </p>
                 <button
                   onClick={() => void load()}

@@ -10,6 +10,7 @@ import {
   BookText,
   SquareTerminal,
   SparklesIcon,
+  Puzzle,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 
@@ -47,6 +48,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "docs", label: "문서", alias: "docs 문서 위키 마크다운 wiki", icon: BookText, group: "tools" },
   { id: "terminal", label: "터미널", alias: "terminal 터미널 셸 shell", icon: SquareTerminal, group: "tools" },
   { id: "ai", label: "AI 패널", alias: "ai 패널 채팅 chat llm", icon: SparklesIcon, group: "tools" },
+  // 11번째 이후는 ⌘번호가 없다 — 기존 화면의 번호를 밀지 않도록 끝에 추가.
+  { id: "skills", label: "스킬", alias: "skills 스킬 skill claude 에이전트 규칙 프롬프트", icon: Puzzle, group: "tools" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

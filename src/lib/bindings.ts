@@ -292,18 +292,6 @@ export const commands = {
 	 *  new plan_id is returned (the frontend navigates to it). LLM-free.
 	 */
 	discussionPromoteToPlan: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_promote_to_plan", { projectId, discussionId })),
-	/**
-	 *  Evaluate how ambiguous the user's request is. Returns 1~3 clarifying
-	 *  questions plus an `auto_proceed` flag — the frontend skips the dialog when
-	 *  `auto_proceed` is true or when no questions are produced.
-	 * 
-	 *  We deliberately do NOT embed code context here — the goal is a cheap
-	 *  ambiguity check (≤500 input / ≤300 output tokens per §4.3), so the LLM
-	 *  only sees the user's prompt and a short list of file paths from the
-	 *  project to ground its questions.
-	 */
-	clarifyEditIntent: (projectId: number, userRequest: string, provider: string, model: string) => typedError<ClarifyResult, string>(__TAURI_INVOKE("clarify_edit_intent", { projectId, userRequest, provider, model })),
-	generateEditPromptWithAnswers: (projectId: number, userRequest: string, answers: ClarifyAnswer[], provider: string, model: string) => typedError<EditPromptResult, string>(__TAURI_INVOKE("generate_edit_prompt_with_answers", { projectId, userRequest, answers, provider, model })),
 	startPtySession: (sessionId: string, cwd: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("start_pty_session", { sessionId, cwd, rows, cols })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
@@ -313,7 +301,6 @@ export const commands = {
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
 	/**  Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip. */
 	gitHeadStatusBrief: (projectId: number) => typedError<GitHeadStatusBrief, string>(__TAURI_INVOKE("git_head_status_brief", { projectId })),
-	githubVerify: () => typedError<GithubVerifyResult, string>(__TAURI_INVOKE("github_verify")),
 	/**
 	 *  Re-run the indexing pipeline for `paths` (relative to the project root).
 	 *  Mirrors the per-file branch of `commands::project::index_project` so that
@@ -725,6 +712,24 @@ export const commands = {
 	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
 	 */
 	oculpmExportDigest: (projectId: number, since: string, until: string) => typedError<string | null, string>(__TAURI_INVOKE("oculpm_export_digest", { projectId, since, until })),
+	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
+	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
+	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
+	skillsRead: (projectId: number, scope: SkillScope, dirName: string) => typedError<SkillDetail, string>(__TAURI_INVOKE("skills_read", { projectId, scope, dirName })),
+	/**
+	 *  SKILL.md 를 저장한다. `create=true` 면 새 폴더 생성(중복 거부),
+	 *  `false` 면 기존 스킬(비활성 포함)의 본문 교체.
+	 */
+	skillsSave: (projectId: number, scope: SkillScope, dirName: string, content: string, create: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_save", { projectId, scope, dirName, content, create })),
+	/**  스킬 폴더를 통째로 삭제한다 (보조 파일 포함, 복구 불가). */
+	skillsDelete: (projectId: number, scope: SkillScope, dirName: string) => typedError<null, string>(__TAURI_INVOKE("skills_delete", { projectId, scope, dirName })),
+	/**  스킬 활성/비활성 토글 — `<skills>/` ↔ `<skills>/.disabled/` 이동. */
+	skillsSetEnabled: (projectId: number, scope: SkillScope, dirName: string, enabled: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_set_enabled", { projectId, scope, dirName, enabled })),
+	/**
+	 *  스킬을 다른 스코프로 복사한다 (프로젝트 ↔ 전역). 대상에 같은 이름이 있으면 거부.
+	 *  복사본은 항상 활성 위치에 놓인다.
+	 */
+	skillsCopy: (projectId: number, fromScope: SkillScope, toScope: SkillScope, dirName: string) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_copy", { projectId, fromScope, toScope, dirName })),
 };
 
 /** Events */
@@ -877,34 +882,6 @@ export type ChunkSearchResult = {
 	end_line: number,
 	content: string,
 	distance: number | null,
-};
-
-export type ClarifyAnswer = {
-	id: string,
-	answer: string,
-};
-
-/**
- *  A single clarifying question shown to the user before we let the LLM
- *  produce the final English prompt. `kind` is either `"choice"` (radio
- *  buttons with `options`) or `"text"` (free-form input, `options` empty).
- */
-export type ClarifyQuestion = {
-	id: string,
-	kind: string,
-	text: string,
-	options?: string[],
-};
-
-/**
- *  Backend response for the ambiguity-check pass. When `auto_proceed` is true
- *  the caller may skip the clarify dialog entirely and go straight to
- *  `generate_edit_prompt_with_answers` with no answers.
- */
-export type ClarifyResult = {
-	ambiguity_score: number | null,
-	questions: ClarifyQuestion[],
-	auto_proceed: boolean,
 };
 
 export type CliCheckResult = {
@@ -1114,12 +1091,6 @@ export type DocsTreeNode = {
 	children: DocsTreeNode[],
 };
 
-export type EditPromptResult = {
-	english_prompt: string,
-	korean_summary: string,
-	related_files: string[],
-};
-
 /**
  *  A file where effort concentrated, annotated with its graph fan-out so the
  *  retro can say "time went into a high-fan-out core module" with evidence.
@@ -1301,25 +1272,6 @@ export type GitRepoStatus = {
 	is_git_repo: boolean,
 	head_branch: string | null,
 	remotes: GitRemote[],
-};
-
-export type GithubRateLimit = {
-	limit: number,
-	remaining: number,
-	/**  Unix timestamp when the window resets. */
-	reset: number,
-};
-
-export type GithubUser = {
-	login: string,
-	name: string | null,
-	avatar_url: string | null,
-	html_url: string,
-};
-
-export type GithubVerifyResult = {
-	user: GithubUser,
-	rate_limit: GithubRateLimit,
 };
 
 export type Goal = {
@@ -1973,6 +1925,47 @@ export type ShippedItem = {
 	title: string,
 	agent_id: string,
 	workday: string,
+};
+
+/**  `skills_read` 응답 — 원문 + 보조 파일 목록. */
+export type SkillDetail = {
+	entry: SkillEntry,
+	/**  SKILL.md 원문 (frontmatter 포함). */
+	content: string,
+	/**  스킬 폴더 내 보조 파일 상대 경로 (SKILL.md 제외, 최대 50개). */
+	files: string[],
+	/**  SKILL.md 절대 경로 — 외부 에디터로 열 때 사용. */
+	skill_md_path: string,
+};
+
+/**  스킬 목록의 한 줄. `dir_name` 이 (scope 내) 조작 키다. */
+export type SkillEntry = {
+	scope: SkillScope,
+	dir_name: string,
+	/**  frontmatter `name` (없으면 폴더명). */
+	name: string,
+	/**  frontmatter `description` (없으면 빈 문자열) — 에이전트 자동 발동 기준. */
+	description: string,
+	enabled: boolean,
+	/**  표시용 경로 — project 는 프로젝트 루트 상대, global 은 `~/…`. */
+	display_path: string,
+	/**  SKILL.md 를 제외한 보조 파일 수 (참고 문서·스크립트 등). */
+	extra_files: number,
+};
+
+export type SkillScope = 
+/**  `<project>/.claude/skills` — 이 프로젝트에서만 로드. */
+"project" | 
+/**  `~/.claude/skills` — 모든 프로젝트에서 로드. */
+"global";
+
+/**  `skills_list` 응답. 두 스코프를 한 번에 내려 UI 왕복을 줄인다. */
+export type SkillsOverview = {
+	project: SkillEntry[],
+	global: SkillEntry[],
+	/**  절대 경로 — 빈 상태 안내·"폴더 열기" 용. */
+	project_skills_dir: string,
+	global_skills_dir: string,
 };
 
 export type SummaryStyle = "standup" | "pr_description" | "weekly_status";

@@ -7,9 +7,14 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+
+/* 네이티브 위젯(스크롤바·캐럿·폼)이 테마 가족을 따라가게 한다. */
+:root { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
 body {
   font-family: var(--font);
-  background: var(--bg-window);
+  /* 전면 리스킨: 최하층은 캔버스 색 — .app 과 이음새 없이 이어진다. */
+  background: var(--bg-sidebar);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -20,11 +25,39 @@ body {
 #root { height: 100vh; }
 ::selection { background: var(--accent-ring); }
 
-/* scrollbars */
-::-webkit-scrollbar { width: 11px; height: 11px; }
+/* ── UI 폴리시 라운드 (2026-07-16) — 공용 물성 ─────────────────────────────
+   전 버튼의 색·배경·그림자 전환을 한 물성으로 통일한다. :where() 로 명시도를
+   0 으로 낮춰, 자체 transition 을 가진 컴포넌트(.toggle 등)가 언제든 이긴다.
+   transform 은 요소별 의도(press/lift)가 달라 각자 선언한다. */
+:where(button) {
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+}
+
+/* 키보드 포커스 — 마우스 클릭엔 침묵(:focus-visible), Tab 이동엔 일관된 액센트 링. */
+:where(button, a, input, textarea, select, summary, [role="button"], [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 접근성 — 모션 최소화 설정을 전역에서 존중한다. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* scrollbars — 얇고 조용하게, hover 에서만 또렷해진다. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(120,120,128,0.34); border-radius: 8px;
+  background: rgba(120,120,128,0.28); border-radius: 8px;
   border: 3px solid transparent; background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(120,120,128,0.55); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(120,120,128,0.5); background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }

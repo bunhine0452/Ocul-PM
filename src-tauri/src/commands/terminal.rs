@@ -41,6 +41,15 @@ pub async fn start_pty_session(
 
     let mut cmd = CommandBuilder::new(shell);
     cmd.env("TERM", "xterm-256color");
+    // 한국어 입력 fix (2026-07-16): Finder 로 실행된 .app 은 LANG 이 비어 셸이
+    // C 로케일로 뜬다 — zsh ZLE 가 멀티바이트(한글) 입력을 바이트 단위로 다뤄
+    // 조합·백스페이스·에코가 깨진다. 기존 값은 존중하고 없을 때만 UTF-8 보장.
+    if std::env::var("LANG").map(|v| v.trim().is_empty()).unwrap_or(true) {
+        cmd.env("LANG", "en_US.UTF-8");
+    }
+    if std::env::var("LC_ALL").is_err() && std::env::var("LC_CTYPE").is_err() {
+        cmd.env("LC_CTYPE", "UTF-8");
+    }
     if !cwd.is_empty() {
         cmd.cwd(cwd);
     }

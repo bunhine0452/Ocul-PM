@@ -15,7 +15,6 @@ export type Theme =
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
-export type LogLevel = "error" | "warn" | "info" | "debug";
 
 export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "openrouter"];
 
@@ -41,7 +40,6 @@ export const KEYS = {
   temperature: "temperature",
   maxTokens: "max_tokens",
   systemPrompt: "system_prompt",
-  streamResponses: "stream_responses",
 
   // --- Indexing / RAG ---
   chunkSize: "chunk_size",
@@ -64,8 +62,7 @@ export const KEYS = {
   // --- External editor (Lite-W6 PR8 Part 2) ---
   externalEditorCommand: "external_editor_command",
 
-  // --- Diagnostics ---
-  logLevel: "log_level",
+  // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -89,7 +86,6 @@ export interface Settings {
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
-  streamResponses: boolean;
 
   chunkSize: number;
   chunkOverlap: number;
@@ -118,7 +114,6 @@ export interface Settings {
    */
   externalEditorCommand: string;
 
-  logLevel: LogLevel;
 }
 
 export const DEFAULTS: Settings = {
@@ -139,7 +134,6 @@ export const DEFAULTS: Settings = {
   temperature: 0.7,
   maxTokens: 4096,
   systemPrompt: "",
-  streamResponses: true,
 
   chunkSize: 30,
   chunkOverlap: 4,
@@ -156,7 +150,6 @@ export const DEFAULTS: Settings = {
 
   externalEditorCommand: 'code "%path"',
 
-  logLevel: "info",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -174,7 +167,6 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.temperature]: "temperature",
   [KEYS.maxTokens]: "maxTokens",
   [KEYS.systemPrompt]: "systemPrompt",
-  [KEYS.streamResponses]: "streamResponses",
   [KEYS.chunkSize]: "chunkSize",
   [KEYS.chunkOverlap]: "chunkOverlap",
   [KEYS.ragTopK]: "ragTopK",
@@ -186,7 +178,6 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.graphShowIsolated]: "graphShowIsolated",
   [KEYS.graphGroupThreshold]: "graphGroupThreshold",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
-  [KEYS.logLevel]: "logLevel",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

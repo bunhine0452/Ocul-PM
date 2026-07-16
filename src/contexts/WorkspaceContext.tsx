@@ -29,7 +29,6 @@ export type { RecentChange, ChangeOp } from "@/lib/recentChangesStore";
  * "today" inside `loadFromStorage` + `mapLegacyTab`.
  */
 export type ActiveView = "today" | "plan" | "code";
-export type AiWorkbenchMode = "quick-edit" | "chat";
 
 export type SidePanelMode = "files" | "diff";
 
@@ -58,6 +57,7 @@ export type UiV2View =
   | "ai"
   | "graph"
   | "docs"
+  | "skills"
   | "settings";
 export type JournalFilter =
   | "all"
@@ -91,14 +91,9 @@ export interface WorkspaceState {
   // Code sub-state
   openFiles: string[];
   activeFile: string | null;
-  aiWorkbenchMode: AiWorkbenchMode;
-  /**
-   * Lite-W6 PR9: AI panel as a Workspace-level overlay (⌘\). Replaces the
-   * old `aiWorkbenchOpen` field which only controlled the Code view's right
-   * sidebar — the new flag governs the cross-view overlay. Legacy persisted
-   * values for `aiWorkbenchOpen` are dropped during load.
-   */
-  aiOverlayOpen: boolean;
+  // (aiWorkbenchMode / aiOverlayOpen 은 감사 2026-07-16 에서 은퇴 — ⌘\ 오버레이
+  // 채팅 스택이 AI 패널 화면으로 단일화되면서 상태도 함께 제거. 과거 영속
+  // 레코드의 두 키는 loadFromStorage 에서 일방향 삭제된다.)
 
   // File explorer expanded state
   fileExplorerExpanded: Record<string, boolean>;
@@ -211,8 +206,6 @@ const DEFAULT_STATE: WorkspaceState = {
   activeView: "today",
   openFiles: [],
   activeFile: null,
-  aiWorkbenchMode: "quick-edit",
-  aiOverlayOpen: false,
   fileExplorerExpanded: {},
   sidePanelWidth: 260,
   sidePanelMode: "files",
@@ -249,14 +242,6 @@ const STORAGE_KEY = "aipm:workspace:v1";
 /** v2 U3 — 상태 변경 폭주(타이핑·연속 토글) 시 저장을 병합하는 트레일링 디바운스. */
 export const PERSIST_DEBOUNCE_MS = 300;
 
-/**
- * Lite-W6 PR9: the AI overlay was migrated from `aiWorkbenchOpen`. We
- * intentionally drop the legacy true so the overlay never auto-opens on
- * launch — discovery happens through ⌘\, not surprise.
- */
-export function migrateAiOverlayOpen(rawOverlay: unknown): boolean {
-  return rawOverlay === true;
-}
 
 /**
  * Lite-W6 PR8 Part 2: clamp the persisted side-panel width into a usable
@@ -441,11 +426,11 @@ function loadFromStorage(): WorkspaceState {
       // (sidePanelOpen was dropped above — PR-UI 7.)
       parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
       parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
-      // Lite-W6 PR9: aiWorkbenchOpen retired in favour of aiOverlayOpen.
-      // Auto-opening the overlay on launch would be jarring; default to
-      // closed regardless of the legacy persisted value.
-      parsed.aiOverlayOpen = parsed.aiOverlayOpen === true;
+      // AI 오버레이 은퇴 (감사 2026-07-16): 오버레이 관련 영속 키는 전부
+      // 일방향 삭제 — ⌘\ 는 이제 AI 패널 화면으로 이동한다.
       delete parsed.aiWorkbenchOpen;
+      delete parsed.aiOverlayOpen;
+      delete parsed.aiWorkbenchMode;
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
@@ -507,10 +492,6 @@ interface WorkspaceContextValue {
   setCurrentSession: (session: Session | null) => void;
 
   // v2 U3: markRecentChangeRead 는 recentChangesStore.markRead 로 이동.
-
-  // Lite-W6 PR9 — AI overlay (⌘\) + detach (⌘⇧\).
-  toggleAiOverlay: () => void;
-  setAiOverlayOpen: (open: boolean) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -593,8 +574,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     recentChangesStore.clear();
     setState((prev) => ({
       ...DEFAULT_STATE,
-      // Preserve non-project settings
-      aiWorkbenchMode: prev.aiWorkbenchMode,
       // Carry forward the override flag — switching projects shouldn't
       // re-trigger the "default tab" demotion next launch.
       defaultTabUserOverride: prev.defaultTabUserOverride,
@@ -614,14 +593,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setCurrentSession = useCallback((session: Session | null) => {
     setState((prev) => ({ ...prev, currentSession: session }));
-  }, []);
-
-  const toggleAiOverlay = useCallback(() => {
-    setState((prev) => ({ ...prev, aiOverlayOpen: !prev.aiOverlayOpen }));
-  }, []);
-
-  const setAiOverlayOpen = useCallback((open: boolean) => {
-    setState((prev) => ({ ...prev, aiOverlayOpen: open }));
   }, []);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
@@ -764,8 +735,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       resetWorkspace,
       setOculpmStatus,
       setCurrentSession,
-      toggleAiOverlay,
-      setAiOverlayOpen,
     }),
     [
       state,
@@ -776,8 +745,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       resetWorkspace,
       setOculpmStatus,
       setCurrentSession,
-      toggleAiOverlay,
-      setAiOverlayOpen,
     ],
   );
 

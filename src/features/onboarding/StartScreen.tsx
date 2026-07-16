@@ -83,6 +83,8 @@ interface StartScreenProps {
   onDeleteProject: (p: Project) => void;
   onOpenSettings: () => void;
   onStartGreenfield: () => void;
+  /** 임시 저장 초안을 저장 단계부터 이어서 연다 (감사 fix — 이전엔 새로 시작). */
+  onResumeBlueprint: (bp: ProjectBlueprint) => void;
 }
 
 export function StartScreen(props: StartScreenProps) {
@@ -97,6 +99,7 @@ export function StartScreen(props: StartScreenProps) {
     onDeleteProject,
     onOpenSettings,
     onStartGreenfield,
+    onResumeBlueprint,
   } = props;
 
   const [blueprints, setBlueprints] = useState<ProjectBlueprint[]>([]);
@@ -376,10 +379,7 @@ export function StartScreen(props: StartScreenProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    // TODO: Resume wizard from saved step
-                    onStartGreenfield();
-                  }}
+                  onClick={() => onResumeBlueprint(bp)}
                   className="text-xs font-bold text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded-lg hover:bg-primary/10 cursor-pointer"
                   aria-label={`${bp.name || "프로젝트"} 복원`}
                 >

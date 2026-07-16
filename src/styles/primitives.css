@@ -15,12 +15,26 @@
   font-size: 12.5px; font-weight: 550; font-family: var(--font);
   cursor: pointer; white-space: nowrap;
   box-shadow: var(--shadow-card);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
-.btn:hover { background: var(--bg-hover); }
-.btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 1px 2px var(--accent-ring); }
-.btn.primary:hover { background: var(--accent-strong); }
+.btn:hover { background: var(--bg-hover); border-color: var(--sep-strong); }
+.btn:active { transform: translateY(0.5px) scale(0.98); }
+/* primary — 위쪽 광택 한 겹 + 안쪽 하이라이트로 '눌리는 물체' 질감.
+   글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
+.btn.primary {
+  background-color: var(--accent);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%);
+  border-color: transparent; color: var(--text-on-accent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px var(--accent-ring);
+}
+.btn.primary:hover { background-color: var(--accent-strong); }
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
-.btn.ghost:hover { background: var(--bg-hover); }
+.btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
 .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
 
@@ -28,8 +42,13 @@
   width: 30px; height: 30px; border-radius: var(--radius-s);
   display: grid; place-items: center; cursor: pointer;
   color: var(--text-2); border: none; background: transparent;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 .iconbtn:hover { background: var(--bg-hover); color: var(--text); }
+.iconbtn:active { transform: scale(0.92); }
 
 .card {
   background: var(--bg-card);
@@ -82,8 +101,12 @@
 
 .section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); }
 
-.fade-in { animation: fadeIn 0.24s ease both; }
-@keyframes fadeIn { from { transform: translateY(5px); } to { transform: none; } }
+/* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다. */
+.fade-in { animation: fadeIn var(--dur-3) var(--ease-out) both; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 
 .divider { height: 1px; background: var(--sep); border: none; margin: 0; }
 

@@ -10,36 +10,37 @@
    ============================================================ */
 
 :root {
-  /* surfaces (light) */
-  --bg-window: #ffffff;
-  --bg-sidebar: #ebebed;
-  --bg-content: #f6f6f7;
+  /* surfaces (light) — "Atelier Ivory" (전면 리스킨 2026-07-16): 차가운 회색 대신
+     웜 아이보리 캔버스(--bg-sidebar) 위에 콘텐츠 시트(--bg-content)가 떠 있는 구성. */
+  --bg-window: #fdfcf9;
+  --bg-sidebar: #f1eee6;
+  --bg-content: #faf9f5;
   --bg-card: #ffffff;
-  --bg-inset: #f0f0f2;
-  --bg-hover: rgba(0,0,0,0.045);
-  --bg-active: rgba(0,0,0,0.07);
+  --bg-inset: #f0ede4;
+  --bg-hover: rgba(56,48,36,0.05);
+  --bg-active: rgba(56,48,36,0.085);
 
-  /* text */
-  --text: #1d1d1f;
-  --text-2: #66666b;
-  --text-3: #97979d;
+  /* text — 잉크 계열(순수 검정 대신 웜 잉크) */
+  --text: #211e18;
+  --text-2: #6d675c;
+  --text-3: #9c9588;
   --text-on-accent: #ffffff;
 
   /* lines */
-  --sep: rgba(0,0,0,0.085);
-  --sep-strong: rgba(0,0,0,0.14);
-  --border-card: rgba(0,0,0,0.07);
+  --sep: rgba(60,52,38,0.10);
+  --sep-strong: rgba(60,52,38,0.17);
+  --border-card: rgba(60,52,38,0.085);
 
-  /* accent — green */
-  --accent: #12a06b;
-  --accent-strong: #0c9061;
-  --accent-text: #0a7b53;
-  --accent-soft: #e4f5ee;
-  --accent-ring: rgba(18,160,107,0.35);
+  /* accent — deep emerald (브랜드 초록 가족 유지, 한 톤 깊게) */
+  --accent: #0e8a60;
+  --accent-strong: #0c7b55;
+  --accent-text: #0a6b4b;
+  --accent-soft: #e3f2ea;
+  --accent-ring: rgba(14,138,96,0.32);
 
   /* trigger hues */
   --t-bug: #e0524b;       --t-bug-soft: #fbe9e8;
-  --t-feature: #12a06b;   --t-feature-soft: #e4f5ee;
+  --t-feature: #0e8a60;   --t-feature-soft: #e3f2ea;
   --t-refactor: #7c5cdb;  --t-refactor-soft: #efeafb;
   --t-error: #d9881f;     --t-error-soft: #fbf0db;
   --t-chore: #5a7a95;     --t-chore-soft: #e9eff4;
@@ -47,58 +48,77 @@
   /* diff */
   --diff-add-bg: #e6f6ec;   --diff-add-line: #1f9d57;  --diff-add-text: #0e6b39;
   --diff-del-bg: #fbe9e9;   --diff-del-line: #d6443c;  --diff-del-text: #9b2820;
-  --diff-gutter: #f3f3f4;
+  --diff-gutter: #f2f0e9;
 
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.03);
-  --shadow-pop: 0 8px 28px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  /* elevation — 저불투명 다층 그림자 3단 (경계는 border 가, 깊이는 그림자가 담당).
+     hover 승격은 --shadow-raise, 팝오버/모달은 --shadow-pop. */
+  --shadow-card: 0 1px 1px rgba(24,20,12,0.04), 0 2px 6px rgba(24,20,12,0.04);
+  --shadow-raise: 0 2px 4px rgba(24,20,12,0.06), 0 10px 24px rgba(24,20,12,0.09);
+  --shadow-pop: 0 0 0 1px rgba(24,20,12,0.04), 0 4px 10px rgba(24,20,12,0.08), 0 18px 44px rgba(24,20,12,0.18);
+  /* 캔버스 위에 떠 있는 콘텐츠 시트 전용 (전면 리스킨). */
+  --shadow-sheet: 0 1px 2px rgba(24,20,12,0.03), 0 10px 32px rgba(24,20,12,0.06);
   --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.06);
 
-  --radius-s: 6px;
-  --radius-m: 9px;
-  --radius-l: 13px;
-  --radius-xl: 18px;
+  /* motion — 전 인터랙션이 공유하는 지속시간/이징 (UI 폴리시 라운드 2026-07-16).
+     1=hover 급 미세 반응, 2=팝오버/토글, 3=화면 진입. spring 은 살짝의 overshoot. */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 340ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.25, 0.4, 1);
 
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+  --radius-s: 7px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --radius-xl: 20px;
+
+  /* SUITE 는 App.css 가 로컬 @font-face 로 전역 번들 — 대시보드(Tailwind font-sans)와
+     셸 타이포를 한 서체로 통일한다 (오프라인, 네트워크 페치 없음). */
+  --font: "SUITE", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
           "Helvetica Neue", "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
 }
 
 [data-theme="dark"] {
-  --bg-window: #1d1d1f;
-  --bg-sidebar: #1a1a1c;
-  --bg-content: #232325;
-  --bg-card: #2b2b2e;
-  --bg-inset: #2f2f33;
-  --bg-hover: rgba(255,255,255,0.06);
-  --bg-active: rgba(255,255,255,0.1);
+  /* "Deep Forest" — 초록기가 도는 딥 차콜 캔버스 위 시트 (전면 리스킨 2026-07-16). */
+  --bg-window: #191d1b;
+  --bg-sidebar: #121514;
+  --bg-content: #1b1f1d;
+  --bg-card: #232826;
+  --bg-inset: #282e2b;
+  --bg-hover: rgba(255,255,255,0.055);
+  --bg-active: rgba(255,255,255,0.09);
 
-  --text: #f4f4f6;
-  --text-2: #a3a3aa;
-  --text-3: #6f6f77;
-  --text-on-accent: #ffffff;
+  --text: #f1f4f1;
+  --text-2: #a6aea8;
+  --text-3: #6e7670;
+  --text-on-accent: #06281c;
 
-  --sep: rgba(255,255,255,0.09);
-  --sep-strong: rgba(255,255,255,0.16);
-  --border-card: rgba(255,255,255,0.08);
+  --sep: rgba(255,255,255,0.08);
+  --sep-strong: rgba(255,255,255,0.15);
+  --border-card: rgba(255,255,255,0.075);
 
-  --accent: #2bc488;
-  --accent-strong: #25b87e;
-  --accent-text: #4fdca0;
-  --accent-soft: rgba(43,196,136,0.16);
-  --accent-ring: rgba(43,196,136,0.4);
+  --accent: #34d095;
+  --accent-strong: #2ac489;
+  --accent-text: #5fe0ab;
+  --accent-soft: rgba(52,208,149,0.15);
+  --accent-ring: rgba(52,208,149,0.38);
 
   --t-bug: #f1685f;       --t-bug-soft: rgba(241,104,95,0.16);
-  --t-feature: #2bc488;   --t-feature-soft: rgba(43,196,136,0.16);
+  --t-feature: #34d095;   --t-feature-soft: rgba(52,208,149,0.16);
   --t-refactor: #a78bfa;  --t-refactor-soft: rgba(167,139,250,0.16);
   --t-error: #eaa23f;     --t-error-soft: rgba(234,162,63,0.16);
   --t-chore: #87a6c0;     --t-chore-soft: rgba(135,166,192,0.16);
 
   --diff-add-bg: rgba(46,160,87,0.16);  --diff-add-line: #3fb950;  --diff-add-text: #6cd584;
   --diff-del-bg: rgba(214,68,60,0.16);  --diff-del-line: #f1685f;  --diff-del-text: #f7918a;
-  --diff-gutter: #29292c;
+  --diff-gutter: #232826;
 
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-pop: 0 10px 34px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.22);
+  --shadow-raise: 0 2px 6px rgba(0,0,0,0.35), 0 12px 28px rgba(0,0,0,0.4);
+  /* 다크 팝오버는 1px 라이트 아웃라인이 유리판 경계 역할을 한다. */
+  --shadow-pop: 0 0 0 1px rgba(255,255,255,0.06), 0 6px 14px rgba(0,0,0,0.42), 0 22px 52px rgba(0,0,0,0.56);
+  --shadow-sheet: 0 0 0 1px rgba(255,255,255,0.045), 0 12px 36px rgba(0,0,0,0.45);
   --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.4);
 }
 

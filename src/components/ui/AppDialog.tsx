@@ -36,7 +36,7 @@ export function AppDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-background/60 p-6 backdrop-blur-sm"
+      className="animate-in fade-in fixed inset-0 z-[95] flex items-center justify-center bg-background/60 p-6 backdrop-blur-sm duration-150"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -47,7 +47,7 @@ export function AppDialog({
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl outline-none"
+        className="animate-in fade-in zoom-in-95 slide-in-from-bottom-1 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl outline-none duration-200"
         style={{ maxWidth: width }}
       >
         {children}

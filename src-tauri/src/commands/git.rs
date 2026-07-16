@@ -1,13 +1,13 @@
-//! Tauri commands for git/GitHub operations.
+//! Tauri commands for local git operations.
+//! (GitHub PAT verify 는 감사(2026-07-16)에서 은퇴 — 소비처가 설정 탭 verify
+//! 버튼뿐인 vestigial 이었다. 로컬 git 은 토큰 없이 git CLI 로 동작한다.)
 
 use std::path::PathBuf;
 
 use tauri::State;
 
 use crate::db::Db;
-use crate::{git, github, secrets};
-
-pub const GITHUB_SECRET_NAME: &str = "github_api_key";
+use crate::git;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
@@ -57,11 +57,3 @@ pub async fn git_head_status_brief(
     Ok(git::head_status_brief(&root))
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn github_verify() -> Result<github::GithubVerifyResult, String> {
-    let token = secrets::get(GITHUB_SECRET_NAME)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "No GitHub token saved.".to_string())?;
-    github::verify_token(&token).await
-}

@@ -35,6 +35,9 @@ const DiscussionScreenV2 = lazy(() =>
 const GraphScreenV2 = lazy(() =>
   import("@/features/graph/GraphScreenV2").then((m) => ({ default: m.GraphScreenV2 })),
 );
+const SkillsScreenV2 = lazy(() =>
+  import("@/features/skills/SkillsScreenV2").then((m) => ({ default: m.SkillsScreenV2 })),
+);
 const SettingsPanel = lazy(() =>
   import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
 );
@@ -331,6 +334,8 @@ export default function ShellV2({
           />
         ) : view === "graph" ? (
           <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
+        ) : view === "skills" ? (
+          <SkillsScreenV2 projectId={projectId} />
         ) : null}
         </Suspense>
       </main>

@@ -2757,42 +2757,7 @@ pub struct FileChange {
     pub summary: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct EditPromptResult {
-    pub english_prompt: String,
-    pub korean_summary: String,
-    pub related_files: Vec<String>,
-}
-
-// ---------- G3: Clarify types (MASTER-GUIDE §4.3) ----------
-
-/// A single clarifying question shown to the user before we let the LLM
-/// produce the final English prompt. `kind` is either `"choice"` (radio
-/// buttons with `options`) or `"text"` (free-form input, `options` empty).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct ClarifyQuestion {
-    pub id: String,
-    pub kind: String,
-    pub text: String,
-    #[serde(default)]
-    pub options: Vec<String>,
-}
-
-/// Backend response for the ambiguity-check pass. When `auto_proceed` is true
-/// the caller may skip the clarify dialog entirely and go straight to
-/// `generate_edit_prompt_with_answers` with no answers.
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ClarifyResult {
-    pub ambiguity_score: f32,
-    pub questions: Vec<ClarifyQuestion>,
-    pub auto_proceed: bool,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct ClarifyAnswer {
-    pub id: String,
-    pub answer: String,
-}
+// (G3 Clarify/EditPrompt 타입은 감사 2026-07-16 에서 커맨드와 함께 은퇴.)
 
 // ---------- UI-5: ConversationAction (W5) ----------
 

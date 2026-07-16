@@ -25,7 +25,6 @@ use ocul_pm_lib::db::Db;
 use ocul_pm_lib::oculpm::frontmatter::parse_frontmatter_and_body;
 use ocul_pm_lib::oculpm::index::IndexWriter;
 use ocul_pm_lib::oculpm::lock::{LockAcquisition, LockGuard};
-use ocul_pm_lib::oculpm::manager::OculpmManager;
 use ocul_pm_lib::oculpm::paths::WorkdayResolver;
 use ocul_pm_lib::oculpm::spec::{
     FileChangeEvent, FileOp, IntegrityWarning, OculpmIntegrityWarning,
@@ -41,33 +40,8 @@ fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-async fn fresh_project() -> (
-    Db,
-    OculpmManager,
-    tempfile::TempDir,
-    std::path::PathBuf,
-    u32,
-) {
-    let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db"))
-        .await
-        .expect("Db::open");
-    let root = dir.path().join("project");
-    std::fs::create_dir_all(&root).unwrap();
-    let project_id = db
-        .create_project(
-            "safety-net".into(),
-            root.to_string_lossy().into_owned(),
-        )
-        .await
-        .expect("create_project");
-    let manager = OculpmManager::new();
-    manager
-        .init_project(project_id, &root)
-        .await
-        .expect("init_project");
-    (db, manager, dir, root, project_id)
-}
+// (fresh_project 헬퍼는 v1.18.0 고아 goal/subtask 정리에서 소비자를 잃고
+//  경고만 내던 잔재 — 완벽 라운드(2026-07-16)에서 제거.)
 
 // ─── #1 — IndexWriter.append_file_change is append-only ────────────────────
 //

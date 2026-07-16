@@ -1,13 +1,19 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
-import { commands, type Project, type ProjectStats, type IndexProgress } from "@/lib/bindings";
+import {
+  commands,
+  type Project,
+  type ProjectStats,
+  type IndexProgress,
+  type ProjectBlueprint,
+} from "@/lib/bindings";
 
 // Core Components
 import { CommandPalette } from "./components/CommandPalette";
 
 // Feature Panels
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
-import { AiOverlay } from "@/components/AiOverlay";
+import { BootSplash } from "@/components/BootSplash";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
 import { StartScreen } from "@/features/onboarding/StartScreen";
@@ -67,6 +73,8 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [greenfieldOpen, setGreenfieldOpen] = useState(false);
+  // 대시보드 "복원" (감사 fix) — 저장된 초안을 마법사에 넘겨 이어서 시작.
+  const [greenfieldResume, setGreenfieldResume] = useState<ProjectBlueprint | null>(null);
 
   // ── Keyboard shortcuts (⌘1~⌘7, ⌘K, ⌘,, ⌘\) ────────────────────────────
   useGlobalShortcuts({
@@ -298,6 +306,9 @@ function App() {
 
   return (
     <div className="h-screen overflow-hidden">
+      {/* 부트 스플래시 — 콜드 스타트 1회, 첫 페인트를 브랜드 모션으로 덮고
+          들리며 아래 UI(시트 상승·내비 캐스케이드)를 드러낸다. */}
+      <BootSplash />
       {/* PR-UI 7 — ui_v2 is the only shell. A selected project mounts the
           full-screen ShellV2 (its own chrome); no project shows the picker. */}
       {selectedProjectId !== null ? (
@@ -319,17 +330,20 @@ function App() {
           onRenameProject={startRenameProject}
           onDeleteProject={confirmDeleteProject}
           onOpenSettings={() => setSettingsOpen(true)}
-          onStartGreenfield={() => setGreenfieldOpen(true)}
+          onStartGreenfield={() => {
+            setGreenfieldResume(null);
+            setGreenfieldOpen(true);
+          }}
+          onResumeBlueprint={(bp) => {
+            setGreenfieldResume(bp);
+            setGreenfieldOpen(true);
+          }}
         />
       )}
 
-      {/* Global overlays */}
+      {/* Global overlays — AI 오버레이는 감사(2026-07-16)에서 은퇴, ⌘\ 는 AI 패널로 */}
       <UpdateBanner />
       <EmbeddingModelBanner />
-      <AiOverlay
-        activeProjectId={selectedProjectId}
-        activeFile={state.activeFile}
-      />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
@@ -345,9 +359,14 @@ function App() {
 
       {greenfieldOpen && (
         <GreenfieldWizard
-          onClose={() => setGreenfieldOpen(false)}
+          resume={greenfieldResume}
+          onClose={() => {
+            setGreenfieldOpen(false);
+            setGreenfieldResume(null);
+          }}
           onComplete={async (projectId) => {
             setGreenfieldOpen(false);
+            setGreenfieldResume(null);
             await refreshProjects();
             const res = await commands.listProjects();
             if (res.status === "ok") {

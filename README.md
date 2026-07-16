@@ -15,6 +15,8 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 
 [oculpm.com](https://oculpm.com) · [다운로드](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [변경 이력](CHANGELOG.md) · [이슈](https://github.com/bunhine0452/Ocul-PM/issues)
 
+한국어 · [English](README.en.md)
+
 </div>
 
 ---
@@ -38,6 +40,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 - **문서** — 프로젝트의 `docs/` 폴더를 위키처럼 탐색합니다.
 - **터미널** — 앱 안 PTY 터미널. 에이전트를 여기서 돌리면 일지가 옆 화면에 쌓입니다.
 - **AI 패널** — 코드 검색·일지·플래너·git 맥락을 아는 채팅. Anthropic · OpenAI · Gemini · OpenRouter 를 지원하고, 호출이 실패하면 폴백 체인으로 다음 모델을 시도합니다.
+- **스킬** — Claude Code 스킬(`.claude/skills/`)을 프로젝트별로 관리합니다. GUI 에서 만들고 편집하고, 프로젝트 ↔ 전역(`~/.claude/skills`)으로 복사합니다. 끄면 지워지는 게 아니라 `.disabled/` 로 옮겨 로드에서만 빠집니다.
 
 ⌘1~⌘0 으로 화면을 오가고, ⌘K 팔레트에서 일지·계획·토의·문서를 제목으로 검색해 바로 엽니다. ⌘P 는 프로젝트 전환입니다.
 

@@ -21,9 +21,7 @@ const ROOT = new URL("../src", import.meta.url).pathname;
 // short and aim for the empty state.
 const ALLOWLIST = new Set([
   "contexts/WorkspaceContext.tsx", // Owns persistence + legacy-key migration.
-  // ChatPanel is W5-scope (action_* keys → conversation_actions SQLite table).
-  // Tracked in MASTER-GUIDE §7.3 "W5 — G3 + UI-5". Remove when migrated.
-  "features/chat/ChatPanel.tsx",
+  // (ChatPanel 항목은 감사 2026-07-16 에서 제거 — 파일이 오버레이 스택과 함께 은퇴.)
   // PR-UI 8a — the W3-scope ocul-pm UI-state files that used to be allowlisted
   // here (OculpmOnboardingModal / SessionCard / filters / TodayScreen /
   // MigrationModal / ProjectMetaHeader) moved to src/legacy/ (dead in ui_v2)

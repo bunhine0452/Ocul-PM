@@ -64,7 +64,7 @@ export function CommandPalette({
   onReindex,
   onRegenerateOverview,
 }: CommandPaletteProps) {
-  const { setUiV2View, state, toggleAiOverlay } = useWorkspace();
+  const { setUiV2View, state } = useWorkspace();
   const [search, setSearch] = useState("");
 
   // Reset query when palette closes — feels less surprising on next open.
@@ -166,9 +166,9 @@ export function CommandPalette({
           onOpenChange(false);
           window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
         } },
-      { id: "toggle-ai-overlay", label: "AI 오버레이 토글", alias: "ai overlay chat ⌘\\",
+      { id: "open-ai-panel", label: "AI 패널 열기", alias: "ai panel chat 채팅 ⌘\\",
         group: "액션", icon: Sparkles, shortcut: "⌘\\",
-        onSelect: () => { toggleAiOverlay(); onOpenChange(false); } },
+        onSelect: () => { setUiV2View("ai"); onOpenChange(false); } },
       { id: "settings", label: "설정 열기", alias: "settings 설정",
         group: "액션", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },

@@ -5,7 +5,6 @@ import {
   migrateV2ToV3,
   migrateSidePanelWidth,
   migrateSidePanelMode,
-  migrateAiOverlayOpen,
   pushRecentChange,
   mapFileOpToChangeOp,
   RECENT_CHANGES_CAP,
@@ -15,13 +14,6 @@ import {
   SIDE_PANEL_DEFAULT_WIDTH,
   type RecentChange,
 } from "@/contexts/WorkspaceContext";
-import {
-  flattenVisibleNodes,
-  nextFocusedPath,
-  type ProjectTreeNode,
-  // PR-UI 7 — FileExplorer was retired; these two pure helpers were lifted to
-  // a live module so their safety-net coverage survives the legacy removal.
-} from "@/features/code/fileTreeNav";
 import {
   classifyDiffLines,
   groupIntoHunks,
@@ -118,146 +110,8 @@ describe("Lite-W6 PR8 Part 2 — sidePanelWidth clamp", () => {
   });
 });
 
-// ─── PR8 Part 3 — FileExplorer keyboard a11y helpers ────────────────────
-
-function mkTree(): ProjectTreeNode {
-  // Fixture:
-  //   src/
-  //     a.ts
-  //     features/
-  //       today/
-  //         index.tsx
-  //   README.md
-  return {
-    name: "",
-    relative_path: "",
-    is_dir: true,
-    children: [
-      {
-        name: "src",
-        relative_path: "src",
-        is_dir: true,
-        children: [
-          { name: "a.ts", relative_path: "src/a.ts", is_dir: false, children: [] },
-          {
-            name: "features",
-            relative_path: "src/features",
-            is_dir: true,
-            children: [
-              {
-                name: "today",
-                relative_path: "src/features/today",
-                is_dir: true,
-                children: [
-                  {
-                    name: "index.tsx",
-                    relative_path: "src/features/today/index.tsx",
-                    is_dir: false,
-                    children: [],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      { name: "README.md", relative_path: "README.md", is_dir: false, children: [] },
-    ],
-  };
-}
-
-describe("Lite-W6 PR8 Part 3 — flattenVisibleNodes", () => {
-  it("hides children of collapsed folders", () => {
-    const out = flattenVisibleNodes(mkTree(), {});
-    // src + README.md only — src's children are hidden because src is collapsed.
-    expect(out.map((n) => n.path)).toEqual(["src", "README.md"]);
-  });
-
-  it("expands a single folder one level deep", () => {
-    const out = flattenVisibleNodes(mkTree(), { src: true });
-    expect(out.map((n) => n.path)).toEqual([
-      "src",
-      "src/a.ts",
-      "src/features",
-      "README.md",
-    ]);
-  });
-
-  it("populates depth + parentPath correctly", () => {
-    const out = flattenVisibleNodes(mkTree(), {
-      src: true,
-      "src/features": true,
-      "src/features/today": true,
-    });
-    const idx = out.find((n) => n.path === "src/features/today/index.tsx");
-    expect(idx?.depth).toBe(3);
-    expect(idx?.parentPath).toBe("src/features/today");
-  });
-});
-
-describe("Lite-W6 PR8 Part 3 — nextFocusedPath", () => {
-  it("ArrowDown moves to next sibling within the visible list", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    // visible: ["src", "src/a.ts", "src/features", "README.md"]
-    expect(nextFocusedPath(visible, "src", "ArrowDown", { src: true })).toBe("src/a.ts");
-    expect(nextFocusedPath(visible, "src/a.ts", "ArrowDown", { src: true })).toBe(
-      "src/features",
-    );
-  });
-
-  it("ArrowDown at the last node returns null (no movement)", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    expect(nextFocusedPath(visible, "README.md", "ArrowDown", { src: true })).toBe(null);
-  });
-
-  it("ArrowUp at the first node clamps to the first", () => {
-    const visible = flattenVisibleNodes(mkTree(), {});
-    expect(nextFocusedPath(visible, "src", "ArrowUp", {})).toBe("src");
-  });
-
-  it("ArrowRight on a collapsed folder expands instead of moving", () => {
-    const visible = flattenVisibleNodes(mkTree(), {});
-    const calls: string[] = [];
-    const out = nextFocusedPath(visible, "src", "ArrowRight", {}, (p) => calls.push(p));
-    expect(out).toBe(null);
-    expect(calls).toEqual(["src"]);
-  });
-
-  it("ArrowRight on an already-expanded folder descends to first child", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    expect(nextFocusedPath(visible, "src", "ArrowRight", { src: true })).toBe(
-      "src/a.ts",
-    );
-  });
-
-  it("ArrowLeft on an expanded folder collapses", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    const calls: string[] = [];
-    const out = nextFocusedPath(
-      visible,
-      "src",
-      "ArrowLeft",
-      { src: true },
-      undefined,
-      (p) => calls.push(p),
-    );
-    expect(out).toBe(null);
-    expect(calls).toEqual(["src"]);
-  });
-
-  it("ArrowLeft on a child file moves to its parent folder", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    expect(nextFocusedPath(visible, "src/a.ts", "ArrowLeft", { src: true })).toBe(
-      "src",
-    );
-  });
-
-  it("Home / End jump to first / last visible", () => {
-    const visible = flattenVisibleNodes(mkTree(), { src: true });
-    expect(nextFocusedPath(visible, "src/a.ts", "Home", { src: true })).toBe("src");
-    expect(nextFocusedPath(visible, "src", "End", { src: true })).toBe("README.md");
-  });
-});
+// (PR8 Part 3 FileExplorer 키보드 헬퍼 + PR9 aiOverlayOpen 마이그레이션 커버리지는
+//  감사 2026-07-16 에서 제거 — 대상 모듈(fileTreeNav / AI 오버레이)이 은퇴했다.)
 
 describe("Lite-W6 PR6.3 — sidePanelMode migration", () => {
   it("preserves known members", () => {
@@ -361,20 +215,6 @@ describe("Lite-W6 PR6.5 — DiffBody hunk grouping + side-by-side pairing", () =
   it("effectiveSidePanelMaxWidth flips diff to 1100, keeps files at 500", () => {
     expect(effectiveSidePanelMaxWidth("files")).toBe(500);
     expect(effectiveSidePanelMaxWidth("diff")).toBe(1100);
-  });
-});
-
-describe("Lite-W6 PR9 — aiOverlayOpen migration", () => {
-  it("only `true` survives — legacy persisted shapes drop", () => {
-    expect(migrateAiOverlayOpen(true)).toBe(true);
-    expect(migrateAiOverlayOpen(false)).toBe(false);
-  });
-
-  it("defaults non-booleans to false so the overlay never auto-opens", () => {
-    expect(migrateAiOverlayOpen(undefined)).toBe(false);
-    expect(migrateAiOverlayOpen(null)).toBe(false);
-    expect(migrateAiOverlayOpen("true")).toBe(false);
-    expect(migrateAiOverlayOpen(1)).toBe(false);
   });
 });
 

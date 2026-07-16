@@ -120,62 +120,65 @@
    now adopt the ui_v2 green / macOS tone instead of the legacy cream/coral.
    --primary = ui_v2 accent (green); --accent = subtle hover surface. */
 :root {
-    --background: #f6f6f7;
-    --foreground: #1d1d1f;
-    --card: #ffffff;
-    --card-foreground: #1d1d1f;
-    --popover: #ffffff;
-    --popover-foreground: #1d1d1f;
-    --primary: var(--accent, #12a06b); /* follows 컬러 테마 (--accent); green fallback on dashboard */
+    /* 전면 리스킨 (2026-07-16) — "Atelier Ivory": 웜 아이보리 캔버스 + 잉크 텍스트.
+       ui_v2 tokens.css 의 라이트 팔레트와 값이 짝을 이룬다 (대시보드는 이 파일만 읽음). */
+    --background: #f1eee6;
+    --foreground: #211e18;
+    --card: #fdfcf9;
+    --card-foreground: #211e18;
+    --popover: #fdfcf9;
+    --popover-foreground: #211e18;
+    --primary: var(--accent, #0e8a60); /* follows 컬러 테마 (--accent); emerald fallback on dashboard */
     --primary-foreground: #ffffff;
-    --secondary: #f0f0f2;
-    --secondary-foreground: #1d1d1f;
-    --muted: #f0f0f2;
-    --muted-foreground: #66666b;
-    --accent-surface: #eef0f1; /* subtle hover/selected surface (shadcn `accent`) */
-    --accent-foreground: #1d1d1f;
+    --secondary: #eae6da;
+    --secondary-foreground: #211e18;
+    --muted: #eae6da;
+    --muted-foreground: #6d675c;
+    --accent-surface: #eae7dc; /* subtle hover/selected surface (shadcn `accent`) */
+    --accent-foreground: #211e18;
     --destructive: #e0524b; /* ui_v2 --t-bug */
-    --border: #e6e6e8;
-    --input: #e6e6e8;
-    --ring: var(--accent, #12a06b);
+    --border: #e1dcd0;
+    --input: #e1dcd0;
+    --ring: var(--accent, #0e8a60);
     --radius: 0.625rem; /* ~10px, near ui_v2 --radius-m */
-    --sidebar: #ebebed;
-    --sidebar-foreground: #1d1d1f;
-    --sidebar-primary: var(--accent, #12a06b);
+    --sidebar: #f1eee6;
+    --sidebar-foreground: #211e18;
+    --sidebar-primary: var(--accent, #0e8a60);
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #eef0f1;
-    --sidebar-accent-foreground: #1d1d1f;
-    --sidebar-border: #e6e6e8;
-    --sidebar-ring: var(--accent, #12a06b);
+    --sidebar-accent: #eae7dc;
+    --sidebar-accent-foreground: #211e18;
+    --sidebar-border: #e1dcd0;
+    --sidebar-ring: var(--accent, #0e8a60);
 }
 
 [data-theme="dark"] {
-    --background: #232325;
-    --foreground: #f4f4f6;
-    --card: #2b2b2e;
-    --card-foreground: #f4f4f6;
-    --popover: #2b2b2e;
-    --popover-foreground: #f4f4f6;
-    --primary: var(--accent, #2bc488); /* follows 컬러 테마 (--accent); green fallback on dashboard */
-    --primary-foreground: #ffffff;
-    --secondary: #2f2f33;
-    --secondary-foreground: #f4f4f6;
-    --muted: #2f2f33;
-    --muted-foreground: #a3a3aa;
-    --accent-surface: #313135; /* subtle hover/selected surface (shadcn `accent`) */
-    --accent-foreground: #f4f4f6;
+    /* "Deep Forest" — 초록기 도는 딥 차콜 (tokens.css 다크 팔레트와 짝). */
+    --background: #191d1b;
+    --foreground: #f1f4f1;
+    --card: #232826;
+    --card-foreground: #f1f4f1;
+    --popover: #232826;
+    --popover-foreground: #f1f4f1;
+    --primary: var(--accent, #34d095); /* follows 컬러 테마 (--accent); mint fallback on dashboard */
+    --primary-foreground: #06281c;
+    --secondary: #282e2b;
+    --secondary-foreground: #f1f4f1;
+    --muted: #282e2b;
+    --muted-foreground: #a6aea8;
+    --accent-surface: #2a312d; /* subtle hover/selected surface (shadcn `accent`) */
+    --accent-foreground: #f1f4f1;
     --destructive: #f1685f; /* ui_v2 --t-bug (dark) */
-    --border: rgba(255, 255, 255, 0.1);
-    --input: rgba(255, 255, 255, 0.1);
-    --ring: var(--accent, #2bc488);
-    --sidebar: #1d1d1f;
-    --sidebar-foreground: #f4f4f6;
-    --sidebar-primary: var(--accent, #2bc488);
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #313135;
-    --sidebar-accent-foreground: #f4f4f6;
-    --sidebar-border: rgba(255, 255, 255, 0.1);
-    --sidebar-ring: var(--accent, #2bc488);
+    --border: rgba(255, 255, 255, 0.09);
+    --input: rgba(255, 255, 255, 0.09);
+    --ring: var(--accent, #34d095);
+    --sidebar: #121514;
+    --sidebar-foreground: #f1f4f1;
+    --sidebar-primary: var(--accent, #34d095);
+    --sidebar-primary-foreground: #06281c;
+    --sidebar-accent: #2a312d;
+    --sidebar-accent-foreground: #f1f4f1;
+    --sidebar-border: rgba(255, 255, 255, 0.09);
+    --sidebar-ring: var(--accent, #34d095);
 }
 
 /* Preset themes (풀 프리셋 테마) — shadcn vars for the dashboard (StartScreen)

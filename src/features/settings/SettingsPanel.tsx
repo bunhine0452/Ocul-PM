@@ -3,7 +3,7 @@ import { Channel } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { commands, type DbHealth, type GithubVerifyResult, type IndexProgress } from "@/lib/bindings";
+import { commands, type DbHealth, type IndexProgress } from "@/lib/bindings";
 import {
   Sun,
   Moon,
@@ -14,7 +14,6 @@ import {
   GitBranch,
   Settings as SettingsIcon,
   FileCode,
-  Save,
   Trash2,
   Copy,
   RefreshCw,
@@ -25,7 +24,7 @@ import {
 import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
-import { PROVIDERS, type Provider, type Theme } from "@/lib/settings";
+import { PROVIDERS, type ColorTheme, type Provider, type Theme } from "@/lib/settings";
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
@@ -33,7 +32,6 @@ import { OculpmSettings } from "./OculpmSettings";
 type TabId =
   | "appearance"
   | "llm"
-  | "github"
   | "indexing"
   | "graph"
   | "data"
@@ -44,7 +42,8 @@ type TabId =
 const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", label: "모양", icon: Sun },
   { id: "llm", label: "LLM", icon: Sparkles },
-  { id: "github", label: "GitHub", icon: GitBranch },
+  // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
+  // 이었고, 로컬 git 은 토큰 없이 동작한다 (git_log/status 는 git CLI).
   { id: "indexing", label: "인덱싱 & RAG", icon: FileCode },
   { id: "graph", label: "그래프", icon: GitBranch },
   { id: "data", label: "데이터", icon: Database },
@@ -54,8 +53,6 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ classN
   // Update surfaced out of the buried 데이터 section into its own tab below 진단.
   { id: "update", label: "업데이트", icon: Download },
 ];
-
-const GITHUB_SECRET = "github_api_key";
 
 function secretName(provider: Provider): string {
   return `${provider}_api_key`;
@@ -187,6 +184,49 @@ const THEME_PRESETS: Array<{
   { id: "high-contrast", label: "High Contrast", bg: "#000000", fg: "#ffffff", accent: "#ffd400", accent2: "#ffffff" },
 ];
 
+/** 액센트 6색 스와치 — tokens.css [data-accent] 팔레트의 라이트 기준색 미리보기. */
+const ACCENTS: Array<{ id: ColorTheme; label: string; color: string }> = [
+  { id: "green", label: "그린", color: "#0e8a60" },
+  { id: "blue", label: "블루", color: "#2570e0" },
+  { id: "purple", label: "퍼플", color: "#7c5cdb" },
+  { id: "orange", label: "오렌지", color: "#e07b12" },
+  { id: "rose", label: "로즈", color: "#e0524b" },
+  { id: "teal", label: "틸", color: "#0e9aa0" },
+];
+
+function AccentPicker() {
+  const { settings, set } = useSettings();
+  // 프리셋 테마는 자기 액센트를 갖고 온다 (SettingsContext 가 data-accent 제거).
+  const presetActive = !["light", "dark", "system"].includes(settings.theme);
+  return (
+    <div className="mt-2">
+      <div className={`flex items-center gap-2 ${presetActive ? "opacity-40 pointer-events-none" : ""}`}>
+        {ACCENTS.map((a) => {
+          const on = settings.colorTheme === a.id;
+          return (
+            <button
+              key={a.id}
+              onClick={() => set("colorTheme", a.id)}
+              title={a.label}
+              aria-label={`액센트 ${a.label}`}
+              aria-pressed={on}
+              className={`h-7 w-7 rounded-full border-2 transition-all cursor-pointer ${
+                on ? "border-foreground scale-110 shadow-sm" : "border-transparent hover:scale-105"
+              }`}
+              style={{ background: a.color }}
+            />
+          );
+        })}
+      </div>
+      {presetActive ? (
+        <p className="mt-1.5 text-[11px] text-muted-foreground/80">
+          프리셋 테마가 자체 액센트를 사용 중입니다 — 밝게/어둡게/OS 테마에서 적용됩니다.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function AppearanceTab() {
   const { settings, set } = useSettings();
   return (
@@ -229,6 +269,16 @@ function AppearanceTab() {
               </button>
             );
           })}
+        </div>
+
+        {/* 액센트 컬러 (감사 fix 2026-07-16) — colorTheme 인프라(data-accent)는
+            v1.3.0 부터 살아있었지만 바꿀 UI 가 유실돼 있었다. 프리셋 테마는
+            자기 액센트를 갖고 오므로(data-accent 제거) 그동안은 비활성. */}
+        <div className="mt-1">
+          <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+            액센트 컬러
+          </Label>
+          <AccentPicker />
         </div>
 
         <div className="mt-1">
@@ -563,174 +613,6 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
           />
         </Field>
-        <Toggle
-          checked={settings.streamResponses}
-          onChange={(v) => set("streamResponses", v)}
-          label="응답 스트리밍"
-        />
-      </Section>
-    </>
-  );
-}
-
-function GithubTab({ onError }: { onError: (msg: string | null) => void }) {
-  const [token, setToken] = useState("");
-  const [hasToken, setHasToken] = useState<boolean | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState<GithubVerifyResult | null>(null);
-
-  const refresh = async () => {
-    const res = await commands.secretHas(GITHUB_SECRET);
-    if (res.status === "ok") setHasToken(res.data);
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  const save = async () => {
-    if (!token) return;
-    const res = await commands.secretSet(GITHUB_SECRET, token);
-    if (res.status === "ok") {
-      setToken("");
-      setVerified(null);
-      await refresh();
-      onError(null);
-    } else {
-      onError(res.error);
-    }
-  };
-
-  const clear = async () => {
-    const res = await commands.secretDelete(GITHUB_SECRET);
-    if (res.status === "ok") {
-      setVerified(null);
-      await refresh();
-      onError(null);
-    } else {
-      onError(res.error);
-    }
-  };
-
-  const verify = async () => {
-    setVerifying(true);
-    onError(null);
-    const res = await commands.githubVerify();
-    setVerifying(false);
-    if (res.status === "ok") {
-      setVerified(res.data);
-    } else {
-      setVerified(null);
-      onError(res.error);
-    }
-  };
-
-  return (
-    <>
-      <Section
-        title="개인 액세스 토큰 (Personal Access Token)"
-        description="저장소 메타데이터 · PR · 이슈 등을 읽는 데 사용됩니다. OS 키체인에 저장됩니다."
-      >
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <KeyRound className="w-3.5 h-3.5" />
-          <span>
-            {hasToken === null
-              ? "확인 중…"
-              : hasToken
-              ? "토큰이 키체인에 저장됨"
-              : "저장된 토큰 없음"}
-          </span>
-        </div>
-
-        <Input
-          type="password"
-          placeholder="ghp_… 또는 github_pat_…"
-          value={token}
-          onChange={(e) => setToken(e.currentTarget.value)}
-        />
-
-        <div className="flex gap-2">
-          <Button
-            onClick={save}
-            disabled={!token}
-            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            저장
-          </Button>
-          <Button
-            onClick={clear}
-            disabled={!hasToken}
-            variant="outline"
-            className="flex-1"
-          >
-            삭제
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 pt-1 text-[11px] text-muted-foreground">
-          <span>
-            권장 scope: <code className="font-mono">read:user</code>,{" "}
-            <code className="font-mono">repo</code> (private 저장소 시).{" "}
-            <a
-              href="https://github.com/settings/tokens?type=beta"
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline"
-            >
-              토큰 만들기 →
-            </a>
-          </span>
-          <button
-            onClick={verify}
-            disabled={!hasToken || verifying}
-            className="shrink-0 text-primary hover:underline disabled:opacity-50 cursor-pointer"
-          >
-            {verifying ? "확인 중…" : "토큰 확인"}
-          </button>
-        </div>
-      </Section>
-
-      {verified && (
-        <Section title="연결된 계정">
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
-            {verified.user.avatar_url && (
-              <img
-                src={verified.user.avatar_url}
-                alt={verified.user.login}
-                className="w-10 h-10 rounded-full border border-border"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground truncate">
-                {verified.user.name || verified.user.login}
-              </div>
-              <a
-                href={verified.user.html_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-muted-foreground hover:text-primary hover:underline font-mono"
-              >
-                @{verified.user.login}
-              </a>
-            </div>
-            <div className="text-right text-[11px] text-muted-foreground font-mono">
-              <div>
-                {verified.rate_limit.remaining}/{verified.rate_limit.limit}
-              </div>
-              <div>남은 API 호출</div>
-            </div>
-          </div>
-        </Section>
-      )}
-
-      <Section
-        title="로컬 git"
-        description="로컬 git CLI 로 프로젝트 폴더의 git 로그와 remote 를 읽습니다 — 토큰 불필요."
-      >
-        <p className="text-[11px] text-muted-foreground/80">
-          토큰은 GitHub 전용 데이터 (PR, 이슈, GraphQL 쿼리, write action) 를
-          가져올 때만 필요합니다.
-        </p>
       </Section>
     </>
   );
@@ -1313,8 +1195,6 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <AppearanceTab />;
       case "llm":
         return <LlmTab onError={setError} />;
-      case "github":
-        return <GithubTab onError={setError} />;
       case "indexing":
         return <IndexingTab />;
       case "graph":
@@ -1403,6 +1283,3 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   );
 }
 
-// Re-export helper for callers that previously imported the Save icon path
-// from this module (kept for compatibility).
-export { Save };

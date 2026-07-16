@@ -64,7 +64,10 @@ export default function TerminalInstanceImpl({ sessionId, cwd, visible, fontSize
       cursorStyle: "bar",
       cursorWidth: 2,
       allowProposedApi: true,
-      fontFamily: '"SF Mono", "JetBrains Mono", "D2Coding", Menlo, Consolas, monospace',
+      // 한국어 입력 fix: D2Coding(번들 subset, 한글 2:1 고정폭)을 선두로 —
+      // 라틴 우선(SF Mono)이면 한글 글리프가 시스템 고딕 폴백으로 렌더돼
+      // 셀 폭(반각×2)과 어긋나 겹침/들쭉날쭉이 생긴다.
+      fontFamily: '"D2Coding", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace',
       fontSize,
       fontWeightBold: "600",
       lineHeight: 1.2,

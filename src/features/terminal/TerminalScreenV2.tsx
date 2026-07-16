@@ -89,11 +89,20 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalActiveId, terminalTabs]);
 
+  // 감사 fix (2026-07-16): "변경 감시중"이 하드코딩 상시 초록이었다 — 실제
+  // 워처 상태(oculpmStatus.watcher_state)를 그대로 보여준다.
+  const watcher = state.oculpmStatus?.watcher_state ?? null;
+  const watchLabel =
+    watcher === "running" ? "변경 감시중" : watcher === "error" ? "감시 오류" : "감시 꺼짐";
+  const watchColor =
+    watcher === "running" ? "#57c98a" : watcher === "error" ? "var(--t-bug)" : "var(--text-3)";
+
   return (
     <>
       <Toolbar title="터미널" sub="에이전트 실행을 감지해 자동으로 일지를 작성합니다">
         <span className="chip">
-          <Activity size={13} color="var(--accent-text)" /> 변경 감시중
+          <Activity size={13} color={watcher === "running" ? "var(--accent-text)" : "var(--text-3)"} />{" "}
+          {watchLabel}
         </span>
         <button className="btn" onClick={addTab}>
           <Plus size={15} /> 새 세션
@@ -145,11 +154,11 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
                 width: 9,
                 height: 9,
                 borderRadius: "50%",
-                background: "#57c98a",
+                background: watchColor,
                 display: "inline-block",
               }}
             />
-            .oculpm 감시중
+            {watcher === "running" ? ".oculpm 감시중" : `.oculpm ${watchLabel}`}
           </div>
         </div>
 

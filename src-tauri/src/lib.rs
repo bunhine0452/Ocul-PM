@@ -8,7 +8,6 @@ mod embedding;
 mod error;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
-mod github;
 mod indexer;
 mod llm;
 pub mod oculpm;
@@ -131,10 +130,8 @@ use crate::commands::{
     discussion_rename, discussion_delete,
     discussion_attach, discussion_attach_via_dialog, discussion_asset, discussion_detach,
     discussion_promote_to_plan,
-    // G3 — Clarify (W5)
-    clarify_edit_intent, generate_edit_prompt_with_answers,
     start_pty_session, write_to_pty, resize_pty, kill_pty_session,
-    git_log, git_graph, git_status, git_head_status_brief, github_verify,
+    git_log, git_graph, git_status, git_head_status_brief,
     reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
     // G2 — Project Overview + Daily Brief
@@ -167,6 +164,8 @@ use crate::commands::{
     oculpm_generate_summary,
     // C2 — 일지 내보내기
     oculpm_export_digest,
+    // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills) CRUD·토글·복사
+    skills_list, skills_read, skills_save, skills_delete, skills_set_enabled, skills_copy,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -250,9 +249,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         discussion_asset,
         discussion_detach,
         discussion_promote_to_plan,
-        // G3 — Clarify (W5)
-        clarify_edit_intent,
-        generate_edit_prompt_with_answers,
         // Terminal
         start_pty_session,
         write_to_pty,
@@ -263,7 +259,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         git_graph,
         git_status,
         git_head_status_brief,
-        github_verify,
         // Lite-W6 PR6 — LocalDiffView backend
         reindex_paths,
         compute_diff,
@@ -329,6 +324,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         generate_retro,
         // C2 — 일지 내보내기
         oculpm_export_digest,
+        // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
+        skills_list,
+        skills_read,
+        skills_save,
+        skills_delete,
+        skills_set_enabled,
+        skills_copy,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

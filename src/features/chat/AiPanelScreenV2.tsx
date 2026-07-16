@@ -20,8 +20,9 @@ import { ConversationHistoryModal } from "./ConversationHistoryModal";
 // Final UI Update (ui_v2) — AI 패널 화면 (02-screen-specs §7). Mockup
 // .ai-wrap/.ai-models/.ai-thread/.ai-compose visuals + the chatStream
 // streaming loop extracted from the legacy ChatPanel (Channel<ChatEvent> →
-// delta accumulation → chatMessageAppend persistence). flag-off ChatPanel /
-// AiOverlay untouched. The active conversation id is shared with the overlay
+// delta accumulation → chatMessageAppend persistence). ChatPanel/AiOverlay 는
+// 감사(2026-07-16)에서 은퇴 — 이 화면이 유일한 채팅 정본이고 ⌘\ 도 여기로
+// 온다. The active conversation id is shared via WorkspaceContext
 // via WorkspaceContext.aiThreadId; the active provider via aiActiveModel.
 
 const VENDOR: Record<Provider, { name: string; vendor: string; color: string }> = {
