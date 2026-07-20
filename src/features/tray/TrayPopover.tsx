@@ -2,13 +2,15 @@
 //
 // "앱을 열지 않고 답이 되는 5초" — 위에서 아래로: 프로젝트 스위처 → 활성
 // 세션 → 오늘 한 줄 → 최근 일지 → 활성 플랜 → 빠른 액션. 읽기 전용 +
-// 딥링크가 원칙이고, 유일한 쓰기는 스탠드업 복사(결정적 폴백 경로)다.
+// 딥링크가 원칙이고, 쓰기는 스탠드업 복사와 트레이 설정 토글(상단바에서
+// 끝낼 수 있는 것은 상단바에서 — 전체 설정은 앱으로 딥링크)뿐이다.
 //
 // 데이터는 팝오버가 열릴 때만 기존 커맨드로 당긴다 (폴링 없음 — 백엔드가
 // show 시점에 "tray-popover-shown" 을 쏜다). 신규 백엔드 집계 커맨드 없음.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import {
   commands,
   type JournalEntrySummary,
@@ -84,11 +86,191 @@ async function loadProject(p: {
   };
 }
 
+// ─── 프로젝트 스위처 (커스텀 드롭다운 — 네이티브 select 는 팝오버 톤과 어긋남) ──
+
+function ProjectPicker({
+  snapshots,
+  selected,
+  onSelect,
+}: {
+  snapshots: ProjectSnapshot[];
+  selected: number | "all";
+  onSelect: (v: number | "all") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const todayCount = (s: ProjectSnapshot) =>
+    s.entries.filter((e) => e.workday === s.workday).length;
+  const label =
+    selected === "all"
+      ? "전체 프로젝트"
+      : (snapshots.find((s) => s.id === selected)?.name ?? "프로젝트");
+
+  const row = (
+    key: string,
+    active: boolean,
+    name: string,
+    count: number,
+    live: boolean,
+    onClick: () => void,
+  ) => (
+    <button key={key} className="tp-picker-row" role="option" aria-selected={active} onClick={onClick}>
+      <span className="tp-picker-check">{active && <Check size={13} strokeWidth={2.6} />}</span>
+      <span className="tp-picker-name">{name}</span>
+      {live && <span className="tp-live-dot tp-live-dot-sm" />}
+      {count > 0 && <span className="tp-picker-count">{count}</span>}
+    </button>
+  );
+
+  return (
+    <div className="tp-picker" ref={rootRef}>
+      <button
+        className="tp-picker-btn"
+        aria-label="프로젝트"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="tp-picker-label">{label}</span>
+        <ChevronDown size={14} className={`tp-picker-chev ${open ? "is-open" : ""}`} />
+      </button>
+      {open && (
+        <div className="tp-picker-menu" role="listbox">
+          {row(
+            "all",
+            selected === "all",
+            "전체 프로젝트",
+            snapshots.reduce((n, s) => n + todayCount(s), 0),
+            snapshots.some((s) => s.sessions.some((x) => x.ended_at === null)),
+            () => {
+              onSelect("all");
+              setOpen(false);
+            },
+          )}
+          <div className="tp-picker-sep" />
+          {snapshots.map((s) =>
+            row(
+              String(s.id),
+              selected === s.id,
+              s.name,
+              todayCount(s),
+              s.sessions.some((x) => x.ended_at === null),
+              () => {
+                onSelect(s.id);
+                setOpen(false);
+              },
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 트레이 설정 (상단바에서 끝낼 수 있는 것) ────────────────────────────────
+
+const TRAY_TOGGLES: Array<{ key: string; label: string; hint: string; defaultOn: boolean }> = [
+  {
+    key: "tray.show_icon",
+    label: "메뉴바 아이콘 표시",
+    hint: "세션이 활성일 때 아이콘이 움직입니다",
+    defaultOn: true,
+  },
+  {
+    key: "tray.keep_running",
+    label: "창 닫기(⌘W) = 메뉴바로 최소화",
+    hint: "끄면 창 닫기가 곧 종료입니다 (⌘Q 는 항상 완전 종료)",
+    defaultOn: false,
+  },
+  {
+    key: "tray.hide_dock",
+    label: "상주 중 Dock 아이콘 숨김",
+    hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다",
+    defaultOn: false,
+  },
+];
+
+function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: () => void }) {
+  const [vals, setVals] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    void commands.settingsGetAll().then((res) => {
+      if (res.status !== "ok") return;
+      const m = new Map(res.data);
+      setVals(
+        Object.fromEntries(
+          TRAY_TOGGLES.map((t) => [
+            t.key,
+            m.has(t.key) ? m.get(t.key) === "1" : t.defaultOn,
+          ]),
+        ),
+      );
+    });
+  }, []);
+
+  const toggle = (key: string) => {
+    if (!vals) return;
+    const next = { ...vals, [key]: !vals[key] };
+    setVals(next);
+    void commands.settingsSet(key, next[key] ? "1" : "0").then(() => commands.trayApplySettings());
+  };
+
+  const dockDisabled = vals ? !vals["tray.keep_running"] : true;
+
+  return (
+    <div className="tp-settings">
+      <div className="tp-settings-head">
+        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+          <ArrowLeft size={14} />
+        </button>
+        <span className="tp-settings-title">상단바 설정</span>
+      </div>
+      <div className="tp-settings-body">
+        {TRAY_TOGGLES.map((t) => {
+          const disabled = !vals || (t.key === "tray.hide_dock" && dockDisabled);
+          const on = !!vals?.[t.key] && !(t.key === "tray.hide_dock" && dockDisabled);
+          return (
+            <button
+              key={t.key}
+              className={`tp-toggle-row ${disabled ? "is-disabled" : ""}`}
+              disabled={disabled}
+              onClick={() => toggle(t.key)}
+            >
+              <span className={`tp-switch ${on ? "is-on" : ""}`}>
+                <span className="tp-switch-knob" />
+              </span>
+              <span className="tp-toggle-text">
+                <span className="tp-toggle-label">{t.label}</span>
+                <span className="tp-toggle-hint">{t.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <button className="tp-open-settings" onClick={onOpenApp}>
+        앱에서 전체 설정 열기 <ExternalLink size={12} />
+      </button>
+    </div>
+  );
+}
+
+// ─── 팝오버 본체 ─────────────────────────────────────────────────────────────
+
 export function TrayPopover() {
   const [snapshots, setSnapshots] = useState<ProjectSnapshot[]>([]);
   const [selected, setSelected] = useState<number | "all">("all");
   const [loading, setLoading] = useState(true);
   const [standupState, setStandupState] = useState<"idle" | "busy" | "copied">("idle");
+  const [pane, setPane] = useState<"main" | "settings">("main");
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -106,8 +288,11 @@ export function TrayPopover() {
 
   useEffect(() => {
     void reload();
-    // 팝오버가 다시 열릴 때마다 재조회 (백엔드 show 시점 신호).
-    const un = listen("tray-popover-shown", () => void reload());
+    // 팝오버가 다시 열릴 때마다 재조회 + 메인 화면 복귀 (백엔드 show 신호).
+    const un = listen("tray-popover-shown", () => {
+      setPane("main");
+      void reload();
+    });
     return () => {
       void un.then((f) => f());
     };
@@ -210,24 +395,21 @@ export function TrayPopover() {
     setStandupState("idle");
   };
 
+  if (pane === "settings") {
+    return (
+      <div className="traypop" data-testid="tray-popover">
+        <TraySettings
+          onBack={() => setPane("main")}
+          onOpenApp={() => openMain({ view: "settings" })}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="traypop" data-testid="tray-popover">
       <header className="tp-head">
-        <select
-          className="tp-project"
-          aria-label="프로젝트"
-          value={selected === "all" ? "all" : String(selected)}
-          onChange={(e) =>
-            setSelected(e.target.value === "all" ? "all" : Number(e.target.value))
-          }
-        >
-          <option value="all">전체 프로젝트</option>
-          {snapshots.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        <ProjectPicker snapshots={snapshots} selected={selected} onSelect={setSelected} />
         <button className="tp-open" onClick={() => openMain(null)}>
           앱 열기 ↗
         </button>
@@ -326,10 +508,7 @@ export function TrayPopover() {
         >
           {standupState === "copied" ? "복사됨 ✓" : "스탠드업 복사"}
         </button>
-        <button className="tp-action" onClick={() => openMain({ view: "today" })}>
-          Today
-        </button>
-        <button className="tp-action" onClick={() => openMain({ view: "settings" })}>
+        <button className="tp-action" onClick={() => setPane("settings")}>
           설정
         </button>
       </footer>

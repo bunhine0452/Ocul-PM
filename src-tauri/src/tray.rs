@@ -292,6 +292,10 @@ pub fn handle_main_close_requested(app: &AppHandle) -> bool {
     let db = app.state::<crate::db::Db>();
     let keep = tauri::async_runtime::block_on(setting_on(&db, SETTING_KEEP_RUNNING, false));
     if !keep {
+        // 상주 옵인 전의 ⌘W 계약 유지: 메인 창 닫기 = 앱 종료. 숨겨진 트레이
+        // 팝오버 창이 살아 있어 "마지막 창 닫힘 → 종료" 가 자연 발화하지
+        // 않으므로 명시적으로 종료한다 (graceful — 락 해제 경로 동일).
+        app.exit(0);
         return false;
     }
     if let Some(main) = app.get_webview_window("main") {

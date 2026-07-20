@@ -41,7 +41,13 @@ const fx = {
   sessions: [] as Record<string, unknown>[],
   entries: [] as Record<string, unknown>[],
   plans: [] as Record<string, unknown>[],
-  calls: { openMain: [] as unknown[][], hide: [] as unknown[][] },
+  settings: [] as [string, string][],
+  calls: {
+    openMain: [] as unknown[][],
+    hide: [] as unknown[][],
+    settingsSet: [] as unknown[][],
+    applySettings: 0,
+  },
 };
 
 vi.mock("@tauri-apps/api/event", () => ({
@@ -74,6 +80,18 @@ vi.mock("@/lib/bindings", () => {
             case "trayHidePopover":
               return (...a: unknown[]) => {
                 fx.calls.hide.push(a);
+                return ok(null);
+              };
+            case "settingsGetAll":
+              return () => ok(fx.settings);
+            case "settingsSet":
+              return (...a: unknown[]) => {
+                fx.calls.settingsSet.push(a);
+                return ok(null);
+              };
+            case "trayApplySettings":
+              return () => {
+                fx.calls.applySettings += 1;
                 return ok(null);
               };
             default:
@@ -123,8 +141,11 @@ beforeEach(() => {
       done_count: 3,
     },
   ];
+  fx.settings = [];
   fx.calls.openMain = [];
   fx.calls.hide = [];
+  fx.calls.settingsSet = [];
+  fx.calls.applySettings = 0;
 });
 
 afterEach(() => {
@@ -174,5 +195,37 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     await waitFor(() => expect(r.getByTestId("tray-popover")).toBeTruthy());
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(fx.calls.hide).toHaveLength(1));
+  });
+
+  it("프로젝트 스위처 — 드롭다운에서 선택하면 해당 프로젝트만 집계", async () => {
+    const r = render(<TrayPopover />);
+    await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "프로젝트" }));
+    await waitFor(() => expect(r.getByRole("listbox")).toBeTruthy());
+    // 전체 + ai-pm 두 옵션, 오늘 카운트 배지
+    const options = r.getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining("전체 프로젝트"),
+      expect.stringContaining("ai-pm"),
+    ]);
+    fireEvent.click(options[1]);
+    await waitFor(() => expect(r.queryByRole("listbox")).toBeNull());
+  });
+
+  it("설정 → 팝오버 안 토글 패널: 저장 즉시 trayApplySettings, 전체 설정은 앱 딥링크", async () => {
+    fx.settings = [["tray.keep_running", "0"]];
+    const r = render(<TrayPopover />);
+    await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "설정" }));
+    await waitFor(() => expect(r.getByText("상단바 설정")).toBeTruthy());
+
+    fireEvent.click(r.getByText(/창 닫기\(⌘W\) = 메뉴바로 최소화/));
+    await waitFor(() => expect(fx.calls.settingsSet).toHaveLength(1));
+    expect(fx.calls.settingsSet[0]).toEqual(["tray.keep_running", "1"]);
+    await waitFor(() => expect(fx.calls.applySettings).toBe(1));
+
+    fireEvent.click(r.getByText(/앱에서 전체 설정 열기/));
+    await waitFor(() => expect(fx.calls.openMain).toHaveLength(1));
+    expect(fx.calls.openMain[0][0]).toMatchObject({ view: "settings" });
   });
 });
