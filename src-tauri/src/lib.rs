@@ -13,6 +13,7 @@ mod llm;
 mod notion;
 pub mod oculpm;
 mod secrets;
+mod tray;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -179,6 +180,8 @@ use crate::commands::{
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
     notion_status, notion_verify_token, notion_set_parent, notion_export,
 };
+// v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
+use crate::tray::{tray_apply_settings, tray_hide_popover, tray_open_main};
 use crate::db::Db;
 use crate::embedding::Embedder;
 
@@ -370,6 +373,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         notion_verify_token,
         notion_set_parent,
         notion_export,
+        // v2.3.0 메뉴바
+        tray_open_main,
+        tray_hide_popover,
+        tray_apply_settings,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
@@ -383,6 +390,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
+        // v2.3.0 메뉴바 — 팝오버 → 메인 창 딥링크
+        crate::tray::TrayNavigate,
     ])
 }
 
@@ -400,7 +409,12 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            // tray 팝오버 창은 위치를 트레이 클릭이 결정 — 상태 복원 제외.
+            tauri_plugin_window_state::Builder::default()
+                .with_denylist(&[crate::tray::TRAY_WINDOW])
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(builder.invoke_handler())
@@ -429,6 +443,24 @@ pub fn run() {
             app.manage(crate::commands::terminal::PtyState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
+
+            // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
+            // 설정 조회가 Db state 를 쓴다).
+            #[cfg(desktop)]
+            crate::tray::init(app)?;
+
+            // 창 닫기 = 트레이로 최소화 (옵인, D4). 설정이 꺼져 있으면
+            // 가로채지 않아 현행과 완전 동일.
+            if let Some(main) = app.get_webview_window("main") {
+                let handle = app.handle().clone();
+                main.on_window_event(move |ev| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = ev {
+                        if crate::tray::handle_main_close_requested(&handle) {
+                            api.prevent_close();
+                        }
+                    }
+                });
+            }
 
             Ok(())
         })

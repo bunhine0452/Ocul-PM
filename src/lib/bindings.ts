@@ -813,6 +813,15 @@ export const commands = {
 	notionSetParent: (input: string) => typedError<string | null, string>(__TAURI_INVOKE("notion_set_parent", { input })),
 	/**  마크다운을 부모 페이지 아래 새 Notion 페이지로 내보낸다 — 성공 시 페이지 URL. */
 	notionExport: (projectId: number, title: string, markdown: string) => typedError<string, string>(__TAURI_INVOKE("notion_export", { projectId, title, markdown })),
+	trayOpenMain: (nav: {
+	view: string,
+	project_id: number | null,
+	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
+	entry_path: string | null,
+} | null) => typedError<null, string>(__TAURI_INVOKE("tray_open_main", { nav })),
+	trayHidePopover: () => typedError<null, string>(__TAURI_INVOKE("tray_hide_popover")),
+	/**  설정 UI 가 토글 저장 직후 호출 — 아이콘 표시/숨김 즉시 반영. */
+	trayApplySettings: () => typedError<null, string>(__TAURI_INVOKE("tray_apply_settings")),
 };
 
 /** Events */
@@ -827,6 +836,7 @@ export const events = {
 	oculpmPlanReconciled: makeEvent<OculpmPlanReconciled>("oculpm-plan-reconciled"),
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
+	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
 };
 
 /* Types */
@@ -2307,6 +2317,14 @@ export type SymbolSearchResult = {
 	file_path: string,
 	start_line: number,
 	end_line: number,
+};
+
+/**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */
+export type TrayNavigate = {
+	view: string,
+	project_id: number | null,
+	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
+	entry_path: string | null,
 };
 
 export type WatcherConfig = {

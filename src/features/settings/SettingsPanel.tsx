@@ -367,7 +367,100 @@ function AppearanceTab() {
         </div>
       </Section>
 
+      <MenubarSection />
     </>
+  );
+}
+
+/**
+ * v2.3.0 메뉴바 상주 토글 3종 (docs/menubar/00-master-plan.md D4) — 전부 옵인,
+ * 기본은 현행 동작. 키는 SQLite settings_* 직접 사용 (SettingsContext 의 정형
+ * 키가 아니라 트레이 전용): tray.show_icon(기본 on) · tray.keep_running ·
+ * tray.hide_dock(keep_running 이 켜져 있을 때만 의미).
+ */
+function MenubarSection() {
+  const [vals, setVals] = useState<{ show: boolean; keep: boolean; dock: boolean } | null>(null);
+
+  useEffect(() => {
+    void commands.settingsGetAll().then((res) => {
+      if (res.status !== "ok") return;
+      const m = new Map(res.data);
+      setVals({
+        show: m.get("tray.show_icon") !== "0",
+        keep: m.get("tray.keep_running") === "1",
+        dock: m.get("tray.hide_dock") === "1",
+      });
+    });
+  }, []);
+
+  const toggle = (key: "show" | "keep" | "dock") => {
+    if (!vals) return;
+    const next = { ...vals, [key]: !vals[key] };
+    setVals(next);
+    const settingKey =
+      key === "show" ? "tray.show_icon" : key === "keep" ? "tray.keep_running" : "tray.hide_dock";
+    void commands
+      .settingsSet(settingKey, next[key] ? "1" : "0")
+      .then(() => commands.trayApplySettings());
+  };
+
+  const rows: Array<{ key: "show" | "keep" | "dock"; label: string; hint: string; disabled?: boolean }> = [
+    {
+      key: "show",
+      label: "메뉴바 아이콘 표시",
+      hint: "상단바에 상태 아이콘을 띄웁니다. 에이전트 세션이 활성일 때 아이콘이 움직입니다.",
+    },
+    {
+      key: "keep",
+      label: "창 닫기 = 메뉴바로 최소화",
+      hint: "창을 닫아도 앱이 메뉴바에 남아 세션 감지·기록을 계속합니다. 종료는 트레이 우클릭 → 종료.",
+    },
+    {
+      key: "dock",
+      label: "상주 중 Dock 아이콘 숨김",
+      hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다 (macOS).",
+      disabled: !vals?.keep,
+    },
+  ];
+
+  return (
+    <Section
+      title="메뉴바 (v2.3.0)"
+      description="RunCat 처럼 상단바에서 에이전트 활동을 보여주고, 클릭하면 오늘의 상태 팝오버가 열립니다."
+    >
+      <div className="space-y-2">
+        {rows.map((r) => (
+          <button
+            key={r.key}
+            disabled={!vals || r.disabled}
+            onClick={() => toggle(r.key)}
+            className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
+              vals?.[r.key] && !r.disabled
+                ? "bg-primary/10 border-primary/60"
+                : "bg-background border-border hover:border-primary/45"
+            } ${r.disabled ? "opacity-45 cursor-default" : "cursor-pointer"}`}
+          >
+            <span
+              className={`mt-0.5 w-8 h-4.5 rounded-full flex-none relative transition-colors ${
+                vals?.[r.key] && !r.disabled ? "bg-primary" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all ${
+                  vals?.[r.key] && !r.disabled ? "left-4" : "left-0.5"
+                }`}
+              />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-foreground">{r.label}</span>
+              <span className="block text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                {r.hint}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </Section>
   );
 }
 

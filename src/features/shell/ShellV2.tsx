@@ -42,7 +42,7 @@ const SettingsPanel = lazy(() =>
   import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
 );
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
-import { commands, type JournalEntrySummary } from "@/lib/bindings";
+import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
 // mechanism (PR-UI 0 §0.6): App lazy-loads ShellV2 via React.lazy, so Vite
@@ -173,6 +173,33 @@ export default function ShellV2({
     const p = projects.find((x) => x.id === id);
     if (p && p.id !== projectId) setProject(p.id, p.name, p.root_path);
   };
+
+  // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
+  // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로
+  // 이동한다. 다른 프로젝트의 일지면 전환 후 open 핸드오프를 세팅 — 저널
+  // 화면이 mount 후 경로로 해소하므로 전환 타이밍과 무관하게 동작한다.
+  useEffect(() => {
+    const un = events.trayNavigate.listen(({ payload }) => {
+      if (payload.project_id != null && payload.project_id !== projectId) {
+        const p = projects.find((x) => x.id === payload.project_id);
+        if (p) setProject(p.id, p.name, p.root_path);
+      }
+      if (payload.entry_path) {
+        setJournalReturnView(null);
+        setJournalOpenEntry(payload.entry_path);
+        setUiV2View("journal");
+        return;
+      }
+      const known: UiV2View[] = [
+        "today", "journal", "diff", "planner", "discussion", "retro", "search",
+        "terminal", "ai", "graph", "docs", "skills", "settings",
+      ];
+      setUiV2View(known.includes(payload.view as UiV2View) ? (payload.view as UiV2View) : "today");
+    });
+    return () => {
+      void un.then((f) => f());
+    };
+  }, [projectId, projects, setProject, setUiV2View]);
   const dateLabel = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",

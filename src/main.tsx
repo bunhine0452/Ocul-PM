@@ -22,13 +22,29 @@ if (import.meta.hot) {
   import.meta.hot.on("vite:ws:connect", diag("ws-connect"));
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <SettingsProvider>
-      <WorkspaceProvider>
-        <App />
-        <Toaster />
-      </WorkspaceProvider>
-    </SettingsProvider>
-  </React.StrictMode>,
-);
+// v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`)은 `?tray=1` 로 뜬다.
+// 본 앱 셸·WorkspaceProvider 를 로드하지 않는 경량 진입점 (D2; 두 창이
+// 같은 localStorage 키를 쓰는 충돌도 회피).
+const isTrayWindow = new URLSearchParams(window.location.search).has("tray");
+
+if (isTrayWindow) {
+  const TrayApp = React.lazy(() => import("./features/tray/TrayApp"));
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <React.Suspense fallback={null}>
+        <TrayApp />
+      </React.Suspense>
+    </React.StrictMode>,
+  );
+} else {
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <SettingsProvider>
+        <WorkspaceProvider>
+          <App />
+          <Toaster />
+        </WorkspaceProvider>
+      </SettingsProvider>
+    </React.StrictMode>,
+  );
+}
