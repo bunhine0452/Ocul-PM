@@ -1,0 +1,7 @@
+{
+  "oculpm": {
+    "type": "stdio",
+    "command": "/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp",
+    "args": ["--root", "${CLAUDE_PROJECT_DIR}"]
+  }
+}

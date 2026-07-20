@@ -74,7 +74,9 @@ Desktop.ini
 # (dev 는 src-tauri/target/, 배포는 .app 내부) 공유하면 팀원에게 깨진 설정이
 # 된다 — 각자 설정 → Agents → MCP 서버 "등록" 으로 생성. PR-CI8(플러그인
 # 패키징)이 경로 문제를 해소하면 이 줄을 재검토한다.
-.mcp.json
+# ⚠ 반드시 루트 앵커(`/`) — 앵커 없으면 모든 깊이에 매칭돼
+# `plugin/oculpm/.mcp.json`(플러그인이 배포하는 번들 파일)까지 삼킨다.
+/.mcp.json
 
 # oculpm:begin v1
 .oculpm/index/
