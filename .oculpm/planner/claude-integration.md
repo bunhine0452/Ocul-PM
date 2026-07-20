@@ -27,7 +27,8 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 ## Phase B — 규칙 플라이휠 {#phase-b}
 - [x] PR-CI3 규칙 허브 — 스킬 화면 탭 확장(규칙/훅), CLAUDE.md·.claude/rules CRUD+paths 편집(실측: globs 아님), Cursor 병행 배포 {#ci3-rules-hub}
 - [ ] PR-CI3 실기기 확인 — 앱에서 규칙 탭 CRUD·paths 칩·Cursor 배포 토글(.mdc 실생성/충돌 보호)·허브 탭 회귀 실사용 확인 {#ci3-runtime-verify}
-- [ ] PR-CI4 실패→규칙 승격 루프 — 회고·일지 신호→규칙 초안 제안(paths 추론)→승인 저장 {#ci4-rule-promotion}
+- [x] PR-CI4 실패→규칙 승격 루프 — 회고·일지 신호→규칙 초안 제안(paths 추론)→승인 저장 {#ci4-rule-promotion}
+- [ ] PR-CI4 실기기 확인 — 실데이터 회고에서 후보 노출→LLM 초안 실호출→승인 저장(.claude/rules 실생성·재등장 억제) 확인 {#ci4-runtime-verify}
 - [ ] PR-CI5 추천 스킬 갤러리 — self-audit·run-evals·tdd-workflow 원클릭 설치 {#ci5-skill-gallery}
 
 ## Phase C — 검증·아웃바운드 {#phase-c}
@@ -50,4 +51,5 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T16:07:05+09:00 | #ci0-runtime-verify | claude-code | ☐→x | journal/20260720/Chores/1607_chore_phase-a-runtime-verify.md | 실앱 검증 통과: 훅 3건→앱 소비→세션 20260720-008(agent_label_guess=claude-code, ended_reason=agent_exit, 중복 0). 기존 permissions 100여 항목 보존 확인. 부수 fix 3건(default-run·optimizeDeps·멱등 config+vite ignore)로 dev 마찰 해소 |
 | 2026-07-20T16:07:05+09:00 | #ci2-runtime-verify | claude-code | ☐→~ | journal/20260720/Chores/1607_chore_phase-a-runtime-verify.md | 앱 UI 등록 .mcp.json 으로 실세션 plan_status 호출→라이브 플랜 응답 확인. .mcp.json 은 경로 머신종속이라 이 레포에서 gitignore 결정. Desktop 실연결만 잔여 |
 | 2026-07-20T17:34:15+09:00 | #ci3-rules-hub | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1734_feature_rules-hub-tabs-and-cursor-mirror.md | 실측 교정(globs 아님—paths 스키마, 03 스펙 문서) + 허브 3탭(스킬/규칙/훅) + rules.rs CRUD·Cursor 미러(마커 소유·conflict 보호·멱등 sync) + rules_translate 옵인. cargo 364·vitest 154·게이트 그린. 실앱 확인은 신규 #ci3-runtime-verify |
+| 2026-07-20T17:47:05+09:00 | #ci4-rule-promotion | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1746_feature_rule-promotion-loop.md | area 클러스터링(≥2, paths·promoted-from 이중 억제)+redact 증거→LLM JSON 초안→회고 "규칙 후보" 승인 카드→rules_save 재사용. 자동 적용 경로 부재를 코드 구조+테스트로 고정. cargo 373·vitest 160 그린. 실사용 확인은 신규 #ci4-runtime-verify |
 <!-- oculpm:plan-log end -->

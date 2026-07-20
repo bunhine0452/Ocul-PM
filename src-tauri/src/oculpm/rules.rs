@@ -604,6 +604,11 @@ pub fn sync_mirrors(project_root: &Path, enabled: bool) -> Vec<MirrorWriteResult
     results
 }
 
+/// 프로젝트 스코프 규칙만 나열한다 — rule_promotion(CI4)의 억제 재료.
+pub(crate) fn list_project_rules(project_root: &Path) -> Vec<RuleEntry> {
+    list_scope(RuleScope::Project, project_root, Some(project_root))
+}
+
 /// 홈 디렉터리 (전역 스코프 루트).
 pub fn home_dir() -> OculpmResult<PathBuf> {
     directories::BaseDirs::new()

@@ -755,6 +755,17 @@ export const commands = {
 } | null, string>(__TAURI_INVOKE("rules_delete", { projectId, scope, relPath })),
 	/**  config 기준으로 미러 전체를 화해시킨다 (토글 직후 + 수동 재동기화). */
 	rulesSyncTranslations: (projectId: number) => typedError<MirrorWriteResult[], string>(__TAURI_INVOKE("rules_sync_translations", { projectId })),
+	/**
+	 *  기간 내 반복 실패 클러스터(규칙 후보)를 결정적으로 뽑는다 — LLM 없음.
+	 *  이미 규칙이 덮는 영역·승격된 후보(promoted-from 마커)는 제외된다.
+	 */
+	ruleCandidates: (projectId: number, since: string, until: string) => typedError<RuleCandidate[], string>(__TAURI_INVOKE("rule_candidates", { projectId, since, until })),
+	/**
+	 *  후보 하나의 증거(일지 본문 redact 발췌 + entry_diffs 변경 파일)로 LLM 규칙
+	 *  초안을 만든다. 과금 호출 — 사용자가 버튼으로만 트리거한다. 파일은 쓰지
+	 *  않는다 (저장은 프런트의 `rules_save` 승인 경로 전담).
+	 */
+	ruleDraftGenerate: (projectId: number, since: string, until: string, candidateKey: string, provider: string, model: string) => typedError<RuleDraft, string>(__TAURI_INVOKE("rule_draft_generate", { projectId, since, until, candidateKey, provider, model })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1983,12 +1994,49 @@ export type RetroSignals = {
 
 export type Role = "system" | "user" | "assistant";
 
+/**  결정적 규칙 후보 — 한 코드 영역의 반복 실패 클러스터. */
+export type RuleCandidate = {
+	/**  억제/재조회 키 (`area:<영역>`). */
+	key: string,
+	/**  공유 디렉터리 영역 (예: `src-tauri/src/oculpm`). */
+	area: string,
+	/**  클러스터의 실패(error/bug) 일지 수. */
+	entry_count: number,
+	/**  등장한 종류 (정렬: `bug`, `error`). */
+	kinds: string[],
+	/**  표본 제목 (최신순, 최대 4). */
+	sample_titles: string[],
+	/**  증거 일지의 캐시 상대경로 (최신순 — 초안 생성이 본문을 읽는다). */
+	entry_rels: string[],
+	/**  결정적 paths 제안 (`<area>/**`) — LLM 이 다듬되 폴백으로도 쓴다. */
+	suggested_paths: string[],
+	/**  가장 최근 실패 workday. */
+	last_workday: string,
+};
+
 /**  `rules_read` 응답. */
 export type RuleDetail = {
 	entry: RuleEntry,
 	content: string,
 	/**  절대 경로 — 외부 에디터로 열 때 사용. */
 	abs_path: string,
+};
+
+/**
+ *  LLM 이 만든 규칙 초안. `content` 가 저장용 완성본 — 프런트는 슬러그만
+ *  바꿔서 `rules_save(".claude/rules/<slug>.md", content, create=true)` 를
+ *  부른다 (승인 없이는 어떤 파일도 쓰이지 않는다).
+ */
+export type RuleDraft = {
+	candidate_key: string,
+	slug: string,
+	title: string,
+	paths: string[],
+	body_markdown: string,
+	/**  frontmatter(paths) + promoted-from 마커 + 본문의 저장용 완성본. */
+	content: string,
+	/**  제안 저장 위치 (`.claude/rules/<slug>.md`). */
+	rel_path: string,
 };
 
 /**  목록의 한 줄. `(scope, rel_path)` 가 조작 키다. */
