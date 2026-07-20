@@ -37,4 +37,5 @@ docs/menubar/00-master-plan.md — 결정(D1~D5)·수용 기준은 그 문서가
 | 2026-07-20T21:59:00+09:00 | #mb2-popover-core | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/2158_feature_menubar-tray-implementation.md | 무장식 창+?tray=1 경량 진입점. 집계는 기존 커맨드 재사용 — tray_summary 신설 불필요로 판명 |
 | 2026-07-20T21:59:04+09:00 | #mb3-popover-full | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/2158_feature_menubar-tray-implementation.md | 일지 딥링크(TrayNavigate→ShellV2 핸드오프)·플랜 진행률·스탠드업 복사·빈 상태. vitest 4 |
 | 2026-07-20T21:59:16+09:00 | #mb4-residency | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/2158_feature_menubar-tray-implementation.md | 토글 3종(모양 탭)+CloseRequested 가로채기+Accessory 왕복+트레이 메뉴 종료. autostart 는 후속(옵션) |
+| 2026-07-20T22:20:45+09:00 | #mb3-popover-full | claude-code | x→x | .oculpm/journal/20260720/Bugs/2220_bug_tray-polish-shadow-picker-settings.md | 실기기 피드백 반영 — 그림자 클리핑·커스텀 스위처·팝오버 내 상단바 설정 패널·⌘W 계약 fix |
 <!-- oculpm:plan-log end -->
