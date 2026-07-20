@@ -22,7 +22,7 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 - [ ] PR-CI1 실기기 확인 — auto_journal_draft 켠 실세션 종료 → 초안 일지 생성(자필 일지 있으면 미생성) 확인 {#ci1-runtime-verify}
 - [x] PR-CI2 oculpm-mcp v1 — journal_write/plan_status/plan_update stdio 서버, .mcp.json+Desktop 스니펫 등록, 템플릿 v5 {#ci2-mcp-server}
 - [~] PR-CI2 실기기 확인 — 앱 UI 등록→실세션 plan_status 호출 성공(라이브 플랜 응답). Claude Desktop 실연결만 잔여 {#ci2-runtime-verify}
-- [ ] PR-CI2 후속 — .app 번들에 oculpm-mcp sidecar(externalBin) 동봉, 릴리스 빌드에서 검증 {#ci2-sidecar-bundle}
+- [x] PR-CI2 후속 — .app 번들에 oculpm-mcp sidecar(externalBin) 동봉, 릴리스 빌드에서 검증 {#ci2-sidecar-bundle}
 
 ## Phase B — 규칙 플라이휠 {#phase-b}
 - [x] PR-CI3 규칙 허브 — 스킬 화면 탭 확장(규칙/훅), CLAUDE.md·.claude/rules CRUD+paths 편집(실측: globs 아님), Cursor 병행 배포 {#ci3-rules-hub}
@@ -69,4 +69,5 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T18:53:18+09:00 | #design-master-plan | claude-code | x→x | journal/20260720/Refactors/1853_refactor_oculpm-settings-subtabs.md | 설정 ocul-pm 탭 5분할(기록·에이전트·자동화·연동·로그) — PR-CI0~8 누적으로 한 화면 스크롤 과부하. 과금 토글 2개를 '자동화'에 집약 |
 | 2026-07-20T20:07:43+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2007_feature_claude-desktop-one-click-register.md | D3 잔여분 Desktop 원클릭 등록 구현 — claude_desktop_config.json 직접 머지(프로젝트별 키·멱등·비파괴), 커맨드 3종+UI 행. 실연결 확인은 #ci2-runtime-verify 그대로 |
 | 2026-07-20T20:26:51+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2026_feature_mcp-hardening-and-desktop-key-collision.md | 보안 하드닝 2건(plan_update redact·stdin 10MiB 상한) + Desktop 동명 폴더 키 충돌 fix(루트 기준 판정·해시 접미) |
+| 2026-07-20T21:24:32+09:00 | #ci2-sidecar-bundle | claude-code | ☐→x | .oculpm/journal/20260720/Chores/2124_chore_release-v2-2-0-sidecar-and-promo.md | externalBin+build-sidecar.mjs+build.rs 플레이스홀더(순환 해소). CI 동일조건 로컬 번들에서 .app 동봉·--version 실검증. v2.2.0 태그로 릴리스 가동 |
 <!-- oculpm:plan-log end -->
