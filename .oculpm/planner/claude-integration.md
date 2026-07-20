@@ -34,7 +34,8 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 ## Phase C — 검증·아웃바운드 {#phase-c}
 - [x] PR-CI6 EDD-lite — 플래너 완료 소프트 게이트 + 회고 eval 신호 {#ci6-edd-lite}
 - [x] PR-CI7 Notion 내보내기 v1 — internal token 키체인 + REST 페이지 생성, 회고/주간 요약 {#ci7-notion-export}
-- [ ] PR-CI8 oculpm 플러그인 패키징 — 훅+MCP 번들 배포 골격 {#ci8-plugin-packaging}
+- [x] PR-CI8 oculpm 플러그인 패키징 — 훅+MCP 번들 배포 골격 {#ci8-plugin-packaging}
+- [ ] Phase C 실기기 확인 — 완료 게이트 다이얼로그·EVALS.md 추이 실렌더, Notion 실계정 왕복(토큰 검증→페이지 생성), 플러그인 --plugin-dir 실로드(sidecar 번들 후) {#phase-c-runtime-verify}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -55,4 +56,5 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T17:56:38+09:00 | #ci5-skill-gallery | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1756_feature_skill-gallery-one-click.md | 순수 데이터 갤러리(백엔드 무변경)+skills_save 재사용+이중 중복가드. run-evals 템플릿이 EVALS.md ## 기록 표 규약 정의(CI6 이 파싱). vitest 163 그린 |
 | 2026-07-20T18:04:14+09:00 | #ci6-edd-lite | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1804_feature_edd-lite-gate-and-eval-trend.md | journal_refs 기반 소프트 게이트(백엔드 무변경)+evals.rs 기록표 파서(CI5 규약 한 쌍, 부풀림 거부)+회고 추이 카드. cargo 377·vitest 168 그린 |
 | 2026-07-20T18:25:24+09:00 | #ci7-notion-export | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1825_feature_notion-export-v1.md | notion.rs md→블록(제한 방어·정규화)+커맨드 4종, 토큰은 기존 secret_set 키체인 재사용(검증 후에만 저장), 설정 데이터탭 섹션+회고/산출물 버튼(토큰 없으면 비노출). cargo 382·vitest 173 그린. 실계정 왕복은 Phase C 실기기 확인으로 |
+| 2026-07-20T18:29:05+09:00 | #ci8-plugin-packaging | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1828_feature_oculpm-plugin-skeleton.md | 스펙 실측(04 문서)+plugin/oculpm 골격. 훅 .oculpm 가드(비추적 무해 — 샌드박스 실검증)+MCP --root ${CLAUDE_PROJECT_DIR}(머신 종속 해소, 유저 스코프 1개로 전 프로젝트). 실로드 검증은 sidecar 번들 선행 → #phase-c-runtime-verify |
 <!-- oculpm:plan-log end -->

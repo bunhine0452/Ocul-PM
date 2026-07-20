@@ -1,0 +1,35 @@
+{
+  "description": "ocul-pm 훅 브리지 — 세션 이벤트를 프로젝트의 .oculpm/hooks 인박스에 append 합니다 (로컬 파일 한 줄, 네트워크 없음). .oculpm 이 없는 프로젝트에서는 아무것도 하지 않습니다.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\" || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\" || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\" || true"
+          }
+        ]
+      }
+    ]
+  }
+}
