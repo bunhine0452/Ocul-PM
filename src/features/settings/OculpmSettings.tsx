@@ -33,6 +33,7 @@ import {
   commands,
   type AgentDetection,
   type ClaudeHooksStatus,
+  type DesktopRegistrationStatus,
   type McpRegistrationStatus,
   type OculpmConfig,
 } from "@/lib/bindings";
@@ -699,13 +700,16 @@ export function ClaudeHooksBlock({ projectId }: { projectId: number }) {
  * PR-CI2 (docs/claude-integration/00-master-plan.md D3) — oculpm-mcp 서버 등록
  * 블록. 프로젝트 `.mcp.json` 에 stdio 서버(journal_write/plan_status/
  * plan_update)를 등록해 Claude Code 가 파일 규격을 흉내 내는 대신 구조화
- * 도구로 기록하게 한다. Claude Desktop 은 스니펫 복사로 연결.
+ * 도구로 기록하게 한다. Claude Desktop 은 원클릭으로
+ * `claude_desktop_config.json` 에 같은 서버를 기입한다 (스니펫 복사는 폴백).
  *
  * (export 는 테스트 전용 — mcp_settings.test.tsx.)
  */
 export function McpServerBlock({ projectId }: { projectId: number }) {
   const [mcp, setMcp] = useState<McpRegistrationStatus | null>(null);
   const [mcpError, setMcpError] = useState<string | null>(null);
+  const [desk, setDesk] = useState<DesktopRegistrationStatus | null>(null);
+  const [deskError, setDeskError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -716,6 +720,14 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
         setMcpError(null);
       } else {
         setMcpError(res.error);
+      }
+    });
+    void commands.mcpDesktopStatus(projectId).then((res) => {
+      if (res.status === "ok") {
+        setDesk(res.data);
+        setDeskError(null);
+      } else {
+        setDeskError(res.error);
       }
     });
   }, [projectId]);
@@ -744,6 +756,30 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
     }
   };
 
+  const mutateDesktop = async (action: "register" | "unregister") => {
+    setBusy(true);
+    try {
+      const res =
+        action === "register"
+          ? await commands.mcpDesktopRegister(projectId)
+          : await commands.mcpDesktopUnregister(projectId);
+      if (res.status === "ok") {
+        setDesk(res.data);
+        setDeskError(null);
+        toast.info(
+          action === "register"
+            ? "Claude Desktop 에 등록했습니다 — Desktop 재시작 후 반영됩니다"
+            : "Claude Desktop 등록을 해제했습니다",
+        );
+      } else {
+        setDeskError(res.error);
+        toast.destructive(`Claude Desktop 등록 변경 실패: ${res.error}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const copySnippet = async () => {
     if (!mcp) return;
     try {
@@ -765,6 +801,16 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
           ? { label: "바이너리 없음", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
           : { label: "미등록", cls: "border-border bg-muted/30 text-muted-foreground" };
 
+  const deskBadge = deskError
+    ? { label: "설정 파일 오류", cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    : !desk
+      ? { label: "확인 중…", cls: "border-border bg-muted/30 text-muted-foreground" }
+      : desk.registered
+        ? { label: "등록됨", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        : !desk.installed
+          ? { label: "Desktop 미설치", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          : { label: "미등록", cls: "border-border bg-muted/30 text-muted-foreground" };
+
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -775,9 +821,6 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
           {badge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={busy || !mcp} onClick={() => void copySnippet()}>
-            {copied ? "복사됨" : "Desktop 스니펫 복사"}
-          </Button>
           {mcp?.registered ? (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutate("unregister")}>
               {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
@@ -799,8 +842,6 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
         프로젝트 <code className="text-[10px]">.mcp.json</code> 에 로컬 stdio 서버를 등록합니다.
         에이전트가 마크다운 규격을 흉내 내는 대신 <strong>구조화 도구</strong>로 일지·플랜을
         기록해 frontmatter 오류가 원천 차단됩니다. 앱이 꺼져 있어도 동작합니다 (디스크 SSOT).
-        Claude Desktop 은 위 스니펫을 <code className="text-[10px]">claude_desktop_config.json</code>
-        에 붙여넣으면 같은 서버로 프로젝트 현황을 물을 수 있습니다.
       </p>
       {mcp && !mcp.binary_found && (
         <p className="text-[11px] text-amber-400">
@@ -815,6 +856,48 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
         </p>
       )}
       {mcpError && <p className="text-[11px] text-red-400">{mcpError}</p>}
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Claude Desktop
+        </Label>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${deskBadge.cls}`}>
+          {deskBadge.label}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={busy || !mcp} onClick={() => void copySnippet()}>
+            {copied ? "복사됨" : "Desktop 스니펫 복사"}
+          </Button>
+          {desk?.registered ? (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutateDesktop("unregister")}>
+              {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              Desktop 해제
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={busy || !!deskError || !desk?.installed || !mcp?.binary_found}
+              onClick={() => void mutateDesktop("register")}
+            >
+              {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              Desktop 등록
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        같은 서버를 <code className="text-[10px]">claude_desktop_config.json</code> 에 프로젝트별
+        키(<code className="text-[10px]">{desk?.server_key ?? "oculpm-…"}</code>)로 기입합니다 —
+        Claude Desktop 에서 "이 프로젝트 어디까지 됐어?" 를 물을 수 있습니다.
+        등록·해제 후 <strong>Claude Desktop 재시작</strong>이 필요합니다.
+      </p>
+      {desk && !desk.installed && (
+        <p className="text-[11px] text-amber-400">
+          Claude Desktop 설정 폴더를 찾지 못했습니다 — Desktop 이 설치되어 있다면 한 번 실행한 뒤
+          새로고침하세요. 설치가 안 되어 있으면 스니펫 복사로 다른 머신에 수동 등록할 수 있습니다.
+        </p>
+      )}
+      {deskError && <p className="text-[11px] text-red-400">{deskError}</p>}
     </div>
   );
 }

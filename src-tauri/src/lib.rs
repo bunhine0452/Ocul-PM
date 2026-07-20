@@ -173,8 +173,9 @@ use crate::commands::{
     rule_candidates, rule_draft_generate,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
-    // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Desktop 스니펫)
+    // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
     mcp_status, mcp_register, mcp_unregister,
+    mcp_desktop_status, mcp_desktop_register, mcp_desktop_unregister,
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
     notion_status, notion_verify_token, notion_set_parent, notion_export,
 };
@@ -361,6 +362,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         mcp_status,
         mcp_register,
         mcp_unregister,
+        mcp_desktop_status,
+        mcp_desktop_register,
+        mcp_desktop_unregister,
         // PR-CI7 — Notion 내보내기
         notion_status,
         notion_verify_token,

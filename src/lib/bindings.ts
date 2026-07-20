@@ -796,6 +796,9 @@ export const commands = {
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
+	mcpDesktopStatus: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_status", { projectId })),
+	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
+	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
 	/**  토큰/부모 페이지 설정 상태 (네트워크 없음). */
 	notionStatus: () => typedError<NotionStatus, string>(__TAURI_INVOKE("notion_status")),
 	/**
@@ -1055,6 +1058,18 @@ export type DbHealth = {
 	vec_version: string,
 	schema_version: number,
 	path: string,
+};
+
+export type DesktopRegistrationStatus = {
+	/**  설정 폴더가 존재한다 — Claude Desktop 설치 추정 근거. */
+	installed: boolean,
+	/**  이 프로젝트의 서버 엔트리가 등록되어 있다. */
+	registered: boolean,
+	config_path: string,
+	/**  이 프로젝트가 쓰는 서버 키 (`oculpm-<폴더명>`). */
+	server_key: string,
+	/**  oculpm 아닌 서버 정의 수 (정보 표시용 — 건드리지 않음). */
+	foreign_servers: number,
 };
 
 export type DetectConfidence = 

@@ -385,14 +385,16 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
     let now_local = Utc::now().with_timezone(&resolver.tz);
+    // note·journal_path 도 plan-log 에 원문 그대로 남으므로 본문과 동일하게 redact.
+    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
     let row = LogRow {
         ts: now_local.to_rfc3339_opts(SecondsFormat::Secs, false),
         item_id: item_id.to_string(),
         agent_id,
         from: Some(result.old_status),
         to: Some(new_status),
-        journal_ref: arg_str(args, "journal_path").map(str::to_string),
-        note: arg_str(args, "note").map(str::to_string),
+        journal_ref: arg_str(args, "journal_path").map(|s| redact_text(s, &patterns).0),
+        note: arg_str(args, "note").map(|s| redact_text(s, &patterns).0),
     };
     let with_log = append_log_row(&result.md, &row);
     write_atomic(&path, with_log.as_bytes()).map_err(|e| e.to_string())?;
@@ -516,6 +518,21 @@ mod tests {
         std::fs::write(planner_dir(root).join("test-plan.md"), locked).unwrap();
         let err = call_tool(root, "plan_update", &args).unwrap_err();
         assert!(err.contains("locked"));
+    }
+
+    #[test]
+    fn plan_update_note_and_journal_ref_are_redacted() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        seed_plan(root);
+        let args = serde_json::json!({
+            "plan_id": "test-plan", "item_id": "second", "status": "done",
+            "note": "키 sk-abcdefghijklmnopqrstuvwx 로 검증함"
+        });
+        call_tool(root, "plan_update", &args).unwrap();
+        let md = std::fs::read_to_string(planner_dir(root).join("test-plan.md")).unwrap();
+        assert!(!md.contains("sk-abcdefghijklmnopqrstuvwx"), "시크릿이 plan-log 에 남음");
+        assert!(md.contains("[REDACTED]"), "{md}");
     }
 
     #[test]

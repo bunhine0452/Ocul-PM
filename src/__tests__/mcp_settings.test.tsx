@@ -19,9 +19,26 @@ function status(over: Record<string, unknown> = {}) {
   };
 }
 
+function desktopStatus(over: Record<string, unknown> = {}) {
+  return {
+    installed: true,
+    registered: false,
+    config_path: "/home/u/.config/Claude/claude_desktop_config.json",
+    server_key: "oculpm-proj",
+    foreign_servers: 0,
+    ...over,
+  };
+}
+
 const fx = {
   status: status() as Record<string, unknown>,
-  calls: { register: [] as unknown[][], unregister: [] as unknown[][] },
+  desktop: desktopStatus() as Record<string, unknown>,
+  calls: {
+    register: [] as unknown[][],
+    unregister: [] as unknown[][],
+    deskRegister: [] as unknown[][],
+    deskUnregister: [] as unknown[][],
+  },
 };
 
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
@@ -46,6 +63,18 @@ vi.mock("@/lib/bindings", () => {
                 fx.calls.unregister.push(a);
                 return ok(status());
               };
+            case "mcpDesktopStatus":
+              return () => ok(fx.desktop);
+            case "mcpDesktopRegister":
+              return (...a: unknown[]) => {
+                fx.calls.deskRegister.push(a);
+                return ok(desktopStatus({ registered: true }));
+              };
+            case "mcpDesktopUnregister":
+              return (...a: unknown[]) => {
+                fx.calls.deskUnregister.push(a);
+                return ok(desktopStatus());
+              };
             default:
               return () => ok(null);
           }
@@ -60,8 +89,11 @@ import { McpServerBlock } from "@/features/settings/OculpmSettings";
 
 beforeEach(() => {
   fx.status = status();
+  fx.desktop = desktopStatus();
   fx.calls.register = [];
   fx.calls.unregister = [];
+  fx.calls.deskRegister = [];
+  fx.calls.deskUnregister = [];
 });
 
 afterEach(() => {
@@ -71,7 +103,8 @@ afterEach(() => {
 describe("McpServerBlock (PR-CI2)", () => {
   it("미등록 + 바이너리 있음: 등록 → mcpRegister(projectId) 호출, 배지 갱신", async () => {
     const r = render(<McpServerBlock projectId={9} />);
-    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+    // 프로젝트(.mcp.json)와 Desktop 두 배지가 각각 미등록으로 뜬다.
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
 
     fireEvent.click(r.getByRole("button", { name: "등록" }));
     await waitFor(() => expect(fx.calls.register).toHaveLength(1));
@@ -96,16 +129,55 @@ describe("McpServerBlock (PR-CI2)", () => {
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     fireEvent.click(r.getByRole("button", { name: "해제" }));
     await waitFor(() => expect(fx.calls.unregister).toHaveLength(1));
-    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
   });
 
   it("Desktop 스니펫 복사 버튼이 클립보드에 스니펫을 쓴다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     const r = render(<McpServerBlock projectId={3} />);
-    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+    await waitFor(() => expect(r.getAllByText("미등록").length).toBeGreaterThan(0));
     fireEvent.click(r.getByRole("button", { name: "Desktop 스니펫 복사" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining("oculpm-proj")));
     await waitFor(() => expect(r.getByText("복사됨")).toBeTruthy());
+  });
+
+  // ─── Claude Desktop 원클릭 등록 ──────────────────────────────────────────
+
+  it("Desktop 등록 → mcpDesktopRegister(projectId) 호출, 등록됨 + 재시작 고지", async () => {
+    const r = render(<McpServerBlock projectId={7} />);
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+
+    fireEvent.click(r.getByRole("button", { name: "Desktop 등록" }));
+    await waitFor(() => expect(fx.calls.deskRegister).toHaveLength(1));
+    expect(fx.calls.deskRegister[0][0]).toBe(7);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    expect(r.getByText(/Claude Desktop 재시작/)).toBeTruthy();
+  });
+
+  it("Desktop 등록됨: Desktop 해제 → mcpDesktopUnregister 호출", async () => {
+    fx.desktop = desktopStatus({ registered: true });
+    const r = render(<McpServerBlock projectId={4} />);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "Desktop 해제" }));
+    await waitFor(() => expect(fx.calls.deskUnregister).toHaveLength(1));
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+  });
+
+  it("Desktop 미설치: 경고 배지 + 등록 버튼 비활성 (설정 폴더 창조 금지 계약)", async () => {
+    fx.desktop = desktopStatus({ installed: false });
+    const r = render(<McpServerBlock projectId={5} />);
+    await waitFor(() => expect(r.getByText("Desktop 미설치")).toBeTruthy());
+    const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(r.getByText(/설정 폴더를 찾지 못했습니다/)).toBeTruthy();
+  });
+
+  it("바이너리 없음: Desktop 등록 버튼도 비활성 (죽은 경로 기입 방지)", async () => {
+    fx.status = status({ binary_found: false, binary_path: null });
+    const r = render(<McpServerBlock projectId={6} />);
+    await waitFor(() => expect(r.getByText("바이너리 없음")).toBeTruthy());
+    const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
   });
 });

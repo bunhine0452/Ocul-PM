@@ -109,6 +109,21 @@ impl McpServer {
     }
 }
 
+/// 한 라인의 최대 크기 — 초과분은 파싱하지 않고 버린다 (메모리 방어).
+/// journal_write 본문을 넉넉히 담고도 남는 상한.
+pub const MAX_LINE_BYTES: u64 = 10 * 1024 * 1024;
+
+/// 상한 초과 라인에 대한 고정 응답 — id 를 알 수 없으므로 null (parse error 와
+/// 동일 취급, MCP 클라이언트가 읽고 요청을 줄일 수 있다).
+pub fn oversized_line_response() -> String {
+    error_response(
+        Value::Null,
+        -32700,
+        &format!("parse error: line exceeds {MAX_LINE_BYTES} bytes"),
+    )
+    .to_string()
+}
+
 fn ok_response(id: Value, result: Value) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "result": result })
 }
@@ -176,6 +191,17 @@ mod tests {
         assert_eq!(resp["result"]["isError"], false);
         let path = resp["result"]["structuredContent"]["path"].as_str().unwrap();
         assert!(dir.path().join(path).exists(), "{path}");
+    }
+
+    #[test]
+    fn oversized_line_response_is_valid_parse_error() {
+        let resp: Value = serde_json::from_str(&oversized_line_response()).unwrap();
+        assert_eq!(resp["error"]["code"], -32700);
+        assert!(resp["id"].is_null());
+        assert!(resp["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains(&MAX_LINE_BYTES.to_string()));
     }
 
     #[test]

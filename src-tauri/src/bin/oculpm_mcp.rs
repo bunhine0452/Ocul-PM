@@ -10,9 +10,9 @@
 //!
 //! stdout 은 프로토콜 전용이다 — 사람용 로그는 전부 stderr 로.
 
-use std::io::{BufRead, Write};
+use std::io::{BufRead, Read, Write};
 
-use ocul_pm_lib::oculpm::mcp::protocol::McpServer;
+use ocul_pm_lib::oculpm::mcp::protocol::{oversized_line_response, McpServer, MAX_LINE_BYTES};
 
 fn main() {
     let mut root: Option<std::path::PathBuf> = None;
@@ -48,12 +48,34 @@ fn main() {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(_) => break, // stdin 닫힘 = 클라이언트 종료
+    let mut reader = stdin.lock();
+    // 라인 크기 상한 — `lines()` 는 무한 append 라 거대 라인이 메모리를 먹는다.
+    // 바이트 단위로 상한까지만 읽고, 초과분은 개행까지 버린 뒤 에러 응답.
+    let mut buf: Vec<u8> = Vec::new();
+    loop {
+        buf.clear();
+        let n = match reader.by_ref().take(MAX_LINE_BYTES).read_until(b'\n', &mut buf) {
+            Ok(0) => break, // stdin 닫힘 = 클라이언트 종료
+            Ok(n) => n,
+            Err(_) => break,
         };
-        if let Some(resp) = server.handle_line(&line) {
+        let oversized = n as u64 >= MAX_LINE_BYTES && buf.last() != Some(&b'\n');
+        let resp = if oversized {
+            // read_until 은 개행에서 멈추므로 다음 메시지를 침범하지 않는다.
+            let mut discard: Vec<u8> = Vec::with_capacity(8192);
+            loop {
+                discard.clear();
+                match reader.by_ref().take(8192).read_until(b'\n', &mut discard) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) if discard.last() == Some(&b'\n') => break,
+                    Ok(_) => {}
+                }
+            }
+            Some(oversized_line_response())
+        } else {
+            server.handle_line(&String::from_utf8_lossy(&buf))
+        };
+        if let Some(resp) = resp {
             if writeln!(out, "{resp}").and_then(|_| out.flush()).is_err() {
                 break; // stdout 닫힘
             }

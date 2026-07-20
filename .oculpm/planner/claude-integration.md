@@ -67,4 +67,6 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T19:01:00+09:00 | #review-fixes-round2 | claude-code | →☐ | journal/20260720/Bugs/1901_bug_rules-managed-block-and-review-fixes.md | 리뷰 잔여 5건(미러 충돌 문구·sync_mirrors 비fixpoint·evidence 삼킴·frontmatter 수평선 오인·읽기 상한) — 데이터 손실 없음, 다음 라운드 |
 | 2026-07-20T19:01:00+09:00 | #managed-block-versioning | claude-code | →☐ | journal/20260720/Bugs/1848_bug_gitignore-anchor-and-block-drift.md | 구버전 앱이 관리블록을 downgrade 하는 구조적 위험 — gitignore 의 경우 민감경로 노출로 이어짐 |
 | 2026-07-20T18:53:18+09:00 | #design-master-plan | claude-code | x→x | journal/20260720/Refactors/1853_refactor_oculpm-settings-subtabs.md | 설정 ocul-pm 탭 5분할(기록·에이전트·자동화·연동·로그) — PR-CI0~8 누적으로 한 화면 스크롤 과부하. 과금 토글 2개를 '자동화'에 집약 |
+| 2026-07-20T20:07:43+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2007_feature_claude-desktop-one-click-register.md | D3 잔여분 Desktop 원클릭 등록 구현 — claude_desktop_config.json 직접 머지(프로젝트별 키·멱등·비파괴), 커맨드 3종+UI 행. 실연결 확인은 #ci2-runtime-verify 그대로 |
+| 2026-07-20T20:26:51+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2026_feature_mcp-hardening-and-desktop-key-collision.md | 보안 하드닝 2건(plan_update redact·stdin 10MiB 상한) + Desktop 동명 폴더 키 충돌 fix(루트 기준 판정·해시 접미) |
 <!-- oculpm:plan-log end -->
