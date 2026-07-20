@@ -29,7 +29,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { commands, type AgentDetection, type OculpmConfig } from "@/lib/bindings";
+import {
+  commands,
+  type AgentDetection,
+  type ClaudeHooksStatus,
+  type OculpmConfig,
+} from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -480,9 +485,120 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           켜면 일지·계획 내용이 설정한 AI 제공자로 전송되는 <strong>과금 호출이
           자동으로</strong> 발생합니다. 활성 계획이 정확히 1개일 때만 동작합니다.
         </p>
+
+        <ClaudeHooksBlock projectId={projectId} />
       </Section>
 
       <LogsSection />
+    </div>
+  );
+}
+
+/**
+ * PR-CI0 (docs/claude-integration/00-master-plan.md D1·D2) — Claude Code 훅
+ * 연동 블록. `.claude/settings.local.json`(비공유, 로컬 전용)에 SessionStart /
+ * Stop / SessionEnd 훅을 설치해 세션 감지를 파일와처 휴리스틱이 아닌 Claude
+ * Code 의 실제 신호로 만든다. 상태는 디스크의 설정 파일이 SSOT — 별도 config
+ * 플래그 없이 매번 읽는다.
+ *
+ * (export 는 테스트 전용 — claude_hooks_settings.test.tsx 가 Workspace/config
+ * 부트스트랩 없이 이 블록만 단독 렌더한다.)
+ */
+export function ClaudeHooksBlock({ projectId }: { projectId: number }) {
+  const [hooks, setHooks] = useState<ClaudeHooksStatus | null>(null);
+  const [hooksError, setHooksError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(() => {
+    void commands.claudeHooksStatus(projectId).then((res) => {
+      if (res.status === "ok") {
+        setHooks(res.data);
+        setHooksError(null);
+      } else {
+        setHooksError(res.error);
+      }
+    });
+  }, [projectId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const mutate = async (action: "install" | "uninstall") => {
+    setBusy(true);
+    try {
+      const res =
+        action === "install"
+          ? await commands.claudeHooksInstall(projectId)
+          : await commands.claudeHooksUninstall(projectId);
+      if (res.status === "ok") {
+        setHooks(res.data);
+        setHooksError(null);
+        toast.info(
+          action === "install" ? "Claude Code 훅 연동을 켰습니다" : "Claude Code 훅 연동을 껐습니다",
+        );
+      } else {
+        setHooksError(res.error);
+        toast.destructive(`훅 설정 변경 실패: ${res.error}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const badge = hooksError
+    ? { label: "설정 파일 오류", cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    : !hooks
+      ? { label: "확인 중…", cls: "border-border bg-muted/30 text-muted-foreground" }
+      : hooks.installed
+        ? { label: "연동됨", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        : hooks.partial
+          ? { label: "드리프트 — 재설치 필요", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          : { label: "꺼짐", cls: "border-border bg-muted/30 text-muted-foreground" };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Claude Code 훅 연동
+        </Label>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+          {badge.label}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {hooks && (hooks.installed || hooks.partial) ? (
+            <>
+              {hooks.partial && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutate("install")}>
+                  재설치
+                </Button>
+              )}
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutate("uninstall")}>
+                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                끄기
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" disabled={busy || !!hooksError} onClick={() => void mutate("install")}>
+              {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              켜기
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Claude Code 의 세션 시작·종료 신호를 <code className="text-[10px]">.claude/settings.local.json</code>
+        (git 비공유·이 머신 전용)에 훅으로 설치합니다. 세션 감지가 휴리스틱이 아닌{" "}
+        <strong>실제 신호</strong>가 되어 세션 중복·유령 세션이 사라지고, 에이전트 라벨이 실측으로
+        기록됩니다. 훅은 로컬 파일 append 한 줄 — 네트워크 호출이 없습니다.
+      </p>
+      {hooks?.foreign_hooks && (
+        <p className="text-[11px] text-muted-foreground">
+          사용자 정의 훅이 감지되었습니다 — ocul-pm 은 자기 항목만 추가/제거하며 기존 훅은 건드리지
+          않습니다.
+        </p>
+      )}
+      {hooksError && <p className="text-[11px] text-red-400">{hooksError}</p>}
     </div>
   );
 }

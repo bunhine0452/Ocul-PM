@@ -11,6 +11,7 @@
 pub mod agents;
 pub mod atomic_io;
 pub mod cache;
+pub mod claude_hooks;
 pub mod config;
 pub mod discussion;
 pub mod entry_diffs;

@@ -97,6 +97,9 @@ pub enum EndedReason {
     CrashRecovered,
     /// W5 — session synthesized from migrated SQLite changelog entries.
     SyntheticMigrated,
+    /// PR-CI0 — external agent hook reported the session ended (Claude Code
+    /// SessionEnd). Precise close, unlike the InactivityTimeout heuristic.
+    AgentExit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]

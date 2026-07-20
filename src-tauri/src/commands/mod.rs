@@ -1,3 +1,4 @@
+pub mod claude_hooks;
 pub mod config;
 pub mod conversation;
 pub mod diagnostics;
@@ -20,6 +21,7 @@ pub mod summary;
 pub mod window;
 pub mod terminal;
 
+pub use claude_hooks::*;
 pub use config::*;
 pub use conversation::*;
 pub use diagnostics::*;

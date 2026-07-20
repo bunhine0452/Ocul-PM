@@ -32,6 +32,8 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (22, include_str!("../migrations/022_retro_insights.sql")),
     (23, include_str!("../migrations/023_coercion_version.sql")),
     (24, include_str!("../migrations/024_oculpm_discussion.sql")),
+    // 25 는 디스크의 025_fts.sql 몫으로 비워 둔다 (v2 U11 — 아직 미등록).
+    (26, include_str!("../migrations/026_claude_hooks_inbox.sql")),
 ];
 
 pub struct Db {
@@ -140,6 +142,40 @@ impl Db {
                 .optional()})
             .await?;
         Ok(value)
+    }
+
+    // ─── PR-CI0: Claude Code 훅 인박스 소비 오프셋 (claude_hooks bridge) ─────
+
+    pub async fn claude_hooks_offset_get(&self, root: String) -> Result<Option<i64>> {
+        let value = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT consumed_bytes FROM claude_hooks_inbox WHERE root = ?1",
+                    [root],
+                    |r| r.get::<_, i64>(0),
+                )
+                .optional()
+            })
+            .await?;
+        Ok(value)
+    }
+
+    pub async fn claude_hooks_offset_set(&self, root: String, consumed_bytes: i64) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "INSERT INTO claude_hooks_inbox (root, consumed_bytes, updated_at)
+                     VALUES (?1, ?2, unixepoch())
+                     ON CONFLICT(root) DO UPDATE SET
+                       consumed_bytes = excluded.consumed_bytes,
+                       updated_at = excluded.updated_at",
+                    (root, consumed_bytes),
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
     }
 
     pub async fn settings_get_all(&self) -> Result<Vec<(String, String)>> {

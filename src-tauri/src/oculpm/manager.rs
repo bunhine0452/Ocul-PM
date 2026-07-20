@@ -48,8 +48,11 @@ use crate::oculpm::spec::{
 use crate::oculpm::watcher::ProjectWatcher;
 
 /// `.gitignore` managed-block body. Matches `00-spec.md` §1.2.
+/// `.oculpm/hooks/` — PR-CI0: Claude Code 훅 인박스. 이벤트 payload 에 대화
+/// 내용(prompt / last_assistant_message)이 포함되므로 머신 로컬로만 남긴다.
 const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm/index/
+.oculpm/hooks/
 .oculpm/.lock
 .oculpm/.schema-version
 .oculpm/oculpm.log

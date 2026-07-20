@@ -51,6 +51,13 @@ pub enum SessionCmd {
     ManualEnd(String /* session_id */),
     InactivityFired,
     BoundaryFired,
+    /// PR-CI0 — external agent hook signal (claude_hooks bridge): the agent
+    /// is alive (SessionStart / turn Stop). Ensures a session exists, labels
+    /// it, and refreshes the inactivity window — no file event required.
+    HookAgentActive { agent_label: String },
+    /// PR-CI0 — the last open hooked agent session reported SessionEnd →
+    /// finalize now with the precise `AgentExit` reason.
+    HookAgentEnded,
     Shutdown(oneshot::Sender<()>),
     /// Query: returns the current session if Active, else None.
     GetCurrentSession(oneshot::Sender<Option<Session>>),
@@ -118,6 +125,22 @@ impl SessionActor {
             .send(SessionCmd::Shutdown(tx))
             .map_err(|_| OculpmError::ActorClosed)?;
         rx.await.map_err(|_| OculpmError::ActorClosed)
+    }
+
+    /// PR-CI0 — hook bridge: agent alive signal (SessionStart / Stop).
+    pub fn hook_agent_active(&self, agent_label: &str) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::HookAgentActive {
+                agent_label: agent_label.to_string(),
+            })
+            .map_err(|_| OculpmError::ActorClosed)
+    }
+
+    /// PR-CI0 — hook bridge: last agent session ended → finalize now.
+    pub fn hook_agent_ended(&self) -> Result<(), OculpmError> {
+        self.cmd_tx
+            .send(SessionCmd::HookAgentEnded)
+            .map_err(|_| OculpmError::ActorClosed)
     }
 
     /// Force-fires the workday boundary handler. Exposed for W2-PR4 crash
@@ -223,6 +246,10 @@ impl ActorInner {
             SessionCmd::ManualEnd(id) => self.on_manual_end(id).await,
             SessionCmd::InactivityFired => self.on_inactivity_fired().await,
             SessionCmd::BoundaryFired => self.on_boundary_fired().await,
+            SessionCmd::HookAgentActive { agent_label } => {
+                self.on_hook_agent_active(agent_label).await
+            }
+            SessionCmd::HookAgentEnded => self.on_hook_agent_ended().await,
             SessionCmd::Shutdown(_) => unreachable!("Shutdown handled in run loop"),
             SessionCmd::GetCurrentSession(tx) => {
                 let session = match &self.state {
@@ -328,6 +355,55 @@ impl ActorInner {
             // ended_at is the moment of last activity, not the firing time.
             self.finalize_active(EndedReason::InactivityTimeout, EndedAt::LastActivity)
                 .await;
+        }
+    }
+
+    /// PR-CI0 — hook alive signal. Unlike `on_activity` there is no file
+    /// event to append; this only guarantees an Active session, stamps the
+    /// precise agent label (measured, not frontmatter self-report), and
+    /// resets the inactivity window so a thinking-but-not-writing agent
+    /// doesn't get heuristically closed mid-run.
+    async fn on_hook_agent_active(&mut self, agent_label: String) {
+        match &mut self.state {
+            SessionState::Idle => {
+                if let Err(e) = self.start_session(None).await {
+                    tracing::error!(target: "oculpm::session", error = ?e, "hook start failed");
+                    return;
+                }
+                if let SessionState::Active(active) = &mut self.state {
+                    active.session.agent_label_guess = Some(agent_label);
+                    // Persist the label right away — start_session upserted
+                    // without it and the debounce window would leave a
+                    // label-less row if the agent session is short.
+                    let to_save = active.session.clone();
+                    active.last_upsert = Utc::now();
+                    active.dirty = false;
+                    if let Err(e) = self.index_writer.upsert_session(&to_save).await {
+                        tracing::warn!(target: "oculpm::session", error = ?e, "hook label upsert failed");
+                    }
+                }
+            }
+            SessionState::Active(active) => {
+                if active.session.agent_label_guess.is_none() {
+                    active.session.agent_label_guess = Some(agent_label);
+                }
+                active.last_activity = Utc::now();
+                active.dirty = true;
+                let timeout = inactivity_timeout(&self.config);
+                let new_handle = spawn_inactivity_timer(self.cmd_tx.clone(), timeout);
+                let old = std::mem::replace(&mut active.inactivity_handle, new_handle);
+                old.abort();
+            }
+            SessionState::Closing => {}
+        }
+    }
+
+    /// PR-CI0 — precise close from the agent's own SessionEnd. Idle is a
+    /// no-op (the heuristic may have closed first — that's fine, the hook
+    /// just makes it exact when it can).
+    async fn on_hook_agent_ended(&mut self) {
+        if matches!(self.state, SessionState::Active(_)) {
+            self.finalize_active(EndedReason::AgentExit, EndedAt::Now).await;
         }
     }
 
@@ -848,6 +924,61 @@ mod tests {
         assert!(writer.snapshot_exists(&workday, SnapshotKind::Open));
         // Shutdown finalized with app_quit.
         assert_eq!(session.ended_reason.unwrap() as u8, EndedReason::AppQuit as u8);
+    }
+
+    /// PR-CI0 — hook SessionStart from Idle opens exactly one session with a
+    /// measured agent label; hook SessionEnd closes it with AgentExit.
+    #[tokio::test]
+    async fn hook_signals_open_label_and_close_precisely() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.hook_agent_active("claude-code").unwrap();
+        // A turn Stop while Active must NOT split into a second session.
+        actor.hook_agent_active("claude-code").unwrap();
+        actor.hook_agent_ended().unwrap();
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let session = read_only_session(&writer, &workday).await;
+        assert_eq!(session.agent_label_guess.as_deref(), Some("claude-code"));
+        assert_eq!(
+            session.ended_reason.unwrap() as u8,
+            EndedReason::AgentExit as u8
+        );
+        assert!(session.ended_at.is_some());
+    }
+
+    /// PR-CI0 — hook activity on an already file-active session labels it in
+    /// place (no new session), and a hook end after heuristic-Idle is a no-op.
+    #[tokio::test]
+    async fn hook_labels_existing_session_and_end_is_noop_when_idle() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.note_activity(make_event("src/a.rs")).unwrap();
+        actor.hook_agent_active("claude-code").unwrap();
+        actor
+            .cmd_tx
+            .send(SessionCmd::InactivityFired)
+            .map_err(|_| OculpmError::ActorClosed)
+            .unwrap();
+        // Late hook end after the heuristic already closed — must not panic
+        // or resurrect a session.
+        actor.hook_agent_ended().unwrap();
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let session = read_only_session(&writer, &workday).await;
+        assert_eq!(session.agent_label_guess.as_deref(), Some("claude-code"));
+        assert_eq!(
+            session.ended_reason.unwrap() as u8,
+            EndedReason::InactivityTimeout as u8
+        );
     }
 
     /// Case 2 — inactivity timer fires → Idle, ended_reason = InactivityTimeout.

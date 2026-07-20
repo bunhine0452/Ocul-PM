@@ -19,6 +19,7 @@
 
 #![allow(dead_code)] // Consumed by W2-PR6 (commands) + W2 manager bootstrap.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -38,6 +39,7 @@ use crate::db::Db;
 use crate::embedding::Embedder;
 use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
+use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
@@ -124,8 +126,16 @@ impl ProjectWatcher {
             tz,
             auto_reconcile: config.agents.auto_reconcile,
             reconcile_lock: Arc::new(tokio::sync::Mutex::new(())),
+            hook_inbox_offset: Arc::new(tokio::sync::Mutex::new(None)),
+            hook_open_sessions: Arc::new(tokio::sync::Mutex::new(BTreeSet::new())),
             stats: stats.clone(),
         };
+
+        // PR-CI0 — 앱이 꺼진 동안 큐잉된 훅 이벤트를 즉시 소비한다. 인박스는
+        // append 가 있어야만 fs 이벤트가 오므로, 시작 시 1회 능동 소비가
+        // 없으면 "앱 켜기 전에 끝난 Claude 세션" 이 다음 append 까지 미처리로
+        // 남는다.
+        inner.consume_hooks_inbox().await;
 
         // Bridge std/sync notify worker → tokio task.
         let (event_tx, mut event_rx) = mpsc::unbounded_channel::<DebounceEventResult>();
@@ -249,6 +259,14 @@ struct WatcherInner {
     /// `plan_write_lock` (N4), which serialises the actual plan-file writes
     /// against the in-app writers.
     reconcile_lock: Arc<tokio::sync::Mutex<()>>,
+    /// PR-CI0 — Claude Code 훅 인박스의 소비 오프셋. `None` = 아직 DB 에서
+    /// 로드 전 (lazy). 값은 소비할 때마다 DB(`claude_hooks_inbox`)에 영속 —
+    /// 앱 재시작 후 큐잉된 이벤트를 정확히 이어서 소비한다. 테스트처럼
+    /// `app_handle` 이 없으면 메모리 전용.
+    hook_inbox_offset: Arc<tokio::sync::Mutex<Option<u64>>>,
+    /// PR-CI0 — 현재 열려 있는 Claude 세션 id 집합. 여러 터미널 동시 세션에서
+    /// 마지막 SessionEnd 에만 종료 신호를 내기 위함 (claude_hooks::apply_event).
+    hook_open_sessions: Arc<tokio::sync::Mutex<BTreeSet<String>>>,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
@@ -276,6 +294,14 @@ impl WatcherInner {
         // 1. Self-suppress.
         if is_self_suppressed(&rel_str) {
             self.bump_ignored();
+            return;
+        }
+
+        // 1.5 PR-CI0 — Claude Code 훅 인박스 (D1). 훅 커맨드의 `cat` append 가
+        //     이 경로로 들어온다. 코드 변경 파이프라인(ndjson/일지/인덱싱)에는
+        //     절대 넣지 않고, 인박스 소비(→ SessionActor 정밀 신호)만 한다.
+        if rel_str.starts_with(".oculpm/hooks/") {
+            self.consume_hooks_inbox().await;
             return;
         }
 
@@ -421,6 +447,99 @@ impl WatcherInner {
         // 10. Emit file_changed.
         self.emit_file_changed(&change);
         self.touch_last_event_at();
+    }
+
+    /// PR-CI0 — 인박스(`.oculpm/hooks/claude-events.jsonl`)를 오프셋부터
+    /// 소비한다. 완전한 라인만 파싱(부분 append 허용), 소비 오프셋은 DB 에
+    /// 영속. 이벤트는 열린-세션 집합을 거쳐 SessionActor 정밀 신호가 된다.
+    /// 우리 쪽 쓰기는 DB 뿐이라 fs 피드백 루프가 없다.
+    async fn consume_hooks_inbox(&self) {
+        let path = self.root.join(claude_hooks::INBOX_REL);
+        let root_key = self.root.to_string_lossy().to_string();
+
+        let mut offset_guard = self.hook_inbox_offset.lock().await;
+        if offset_guard.is_none() {
+            // Lazy init: 앱 재시작 후에도 소비 지점을 이어간다.
+            let stored: u64 = match &self.app_handle {
+                Some(handle) => {
+                    use tauri::Manager;
+                    let db = handle.state::<Db>();
+                    db.claude_hooks_offset_get(root_key.clone())
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|v| u64::try_from(v).ok())
+                        .unwrap_or(0)
+                }
+                None => 0,
+            };
+            *offset_guard = Some(stored);
+        }
+        let mut offset = offset_guard.unwrap_or(0);
+
+        let bytes = match tokio::fs::read(&path).await {
+            Ok(b) => b,
+            Err(_) => return, // 인박스 없음 (훅 미설치 또는 아직 이벤트 0)
+        };
+        if (bytes.len() as u64) < offset {
+            // 파일이 줄었다 — 사용자가 지웠거나 재생성. 처음부터 다시.
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                "hooks inbox shrank — resetting consume offset"
+            );
+            offset = 0;
+        }
+        if (bytes.len() as u64) == offset {
+            *offset_guard = Some(offset);
+            return;
+        }
+
+        let (events, consumed) = claude_hooks::parse_inbox_slice(&bytes[offset as usize..]);
+        let new_offset = offset + consumed;
+        *offset_guard = Some(new_offset);
+        drop(offset_guard);
+
+        if let Some(handle) = &self.app_handle {
+            use tauri::Manager;
+            let db = handle.state::<Db>();
+            if let Err(e) = db
+                .claude_hooks_offset_set(root_key, new_offset as i64)
+                .await
+            {
+                tracing::warn!(target: "oculpm::watcher", error = %e, "hooks inbox offset persist failed");
+            }
+        }
+
+        if events.is_empty() {
+            return;
+        }
+        let mut open = self.hook_open_sessions.lock().await;
+        for ev in &events {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                event = %ev.hook_event_name,
+                claude_session = %ev.session_id,
+                "[FLOW] claude hook event"
+            );
+            match claude_hooks::apply_event(&mut open, ev) {
+                HookSignal::AgentActive => {
+                    if let Err(e) = self
+                        .session
+                        .hook_agent_active(claude_hooks::HOOK_AGENT_LABEL)
+                    {
+                        tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_active send failed");
+                    }
+                }
+                HookSignal::AgentEnded => {
+                    if let Err(e) = self.session.hook_agent_ended() {
+                        tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_ended send failed");
+                    }
+                }
+                HookSignal::None => {}
+            }
+        }
     }
 
     fn should_track(&self, abs_path: &Path) -> bool {

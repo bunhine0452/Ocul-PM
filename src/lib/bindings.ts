@@ -730,6 +730,12 @@ export const commands = {
 	 *  복사본은 항상 활성 위치에 놓인다.
 	 */
 	skillsCopy: (projectId: number, fromScope: SkillScope, toScope: SkillScope, dirName: string) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_copy", { projectId, fromScope, toScope, dirName })),
+	/**  현재 설치 상태 조회 (쓰기 없음). */
+	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
+	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
+	claudeHooksInstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_install", { projectId })),
+	/**  훅 제거 (우리 서명 엔트리만 — 사용자 훅·인박스 파일은 보존). */
+	claudeHooksUninstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_uninstall", { projectId })),
 };
 
 /** Events */
@@ -882,6 +888,23 @@ export type ChunkSearchResult = {
 	end_line: number,
 	content: string,
 	distance: number | null,
+};
+
+export type ClaudeHooksStatus = {
+	/**  3개 이벤트 전부에 우리 엔트리가 있다. */
+	installed: boolean,
+	/**  일부 이벤트에만 있다 (외부 편집으로 인한 드리프트 — 재설치 권장). */
+	partial: boolean,
+	/**  우리 것 아닌 훅 엔트리도 존재한다 (정보 표시용 — 건드리지 않음). */
+	foreign_hooks: boolean,
+	/**  `.claude/settings.local.json` 절대경로 (UI "파일 열기"용). */
+	settings_path: string,
+	/**
+	 *  인박스 파일 현재 크기 (0 = 없음). 성장 관찰용. u32 saturating —
+	 *  specta 가 u64(BigInt) 내보내기를 금지하고, 4GiB 넘는 인박스는 표시
+	 *  정밀도가 무의미하다.
+	 */
+	inbox_bytes: number,
 };
 
 export type CliCheckResult = {
@@ -1110,7 +1133,12 @@ export type EffortHotspot = {
 
 export type EndedReason = "inactivity_timeout" | "app_quit" | "workday_boundary" | "manual" | "crash_recovered" | 
 /**  W5 — session synthesized from migrated SQLite changelog entries. */
-"synthetic_migrated";
+"synthetic_migrated" | 
+/**
+ *  PR-CI0 — external agent hook reported the session ended (Claude Code
+ *  SessionEnd). Precise close, unlike the InactivityTimeout heuristic.
+ */
+"agent_exit";
 
 export type EntityHit = {
 	kind: EntityKind,

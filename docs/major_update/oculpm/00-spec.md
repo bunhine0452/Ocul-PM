@@ -22,6 +22,9 @@
 │   │       ├── snapshot_open.json  # 워크데이 시작 시점의 git/tree 스냅샷
 │   │       └── snapshot_close.json # 워크데이 종료 시점 (없을 수 있음 = 진행 중)
 │   │
+│   ├── hooks/                      # (PR-CI0) Claude Code 훅 이벤트 인박스. .gitignore 됨.
+│   │   └── claude-events.jsonl     # 훅 커맨드가 append, 앱이 오프셋 소비 (truncate 안 함)
+│   │
 │   ├── journal/                    # 외부 LLM 작성 영역. .git 에 커밋됨.
 │   │   └── 20260522/
 │   │       ├── Bugs/
@@ -44,7 +47,7 @@
 │           ├── antigravity.md
 │           └── gemini-cli.md
 │
-├── .gitignore                      # 앱이 ".oculpm/index/" 와 ".oculpm/.lock" 추가 (멱등 관리 블록)
+├── .gitignore                      # 앱이 ".oculpm/index/"·".oculpm/hooks/"·".oculpm/.lock" 추가 (멱등 관리 블록)
 │
 ├── .cursor/rules/ocul-pm.mdc       # 어댑터 — 앱이 자동 생성/갱신. 사용자 편집 가능하나 관리 블록은 보존됨.
 ├── .claude/CLAUDE.md               # 어댑터 — 관리 블록 형태로 append. 기존 사용자 콘텐츠 보존.
