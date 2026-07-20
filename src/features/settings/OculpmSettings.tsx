@@ -86,7 +86,61 @@ export function OculpmSettings() {
   return <OculpmSettingsBody projectId={projectId} />;
 }
 
+/**
+ * 하위 탭 (2026-07-20) — PR-CI0~CI8 이 이 화면에 훅·MCP·자동화 블록을 계속
+ * 얹어 한 화면 스크롤이 과하게 길어졌다. 성격별로 4분할한다:
+ * 기록(언제·무엇을 기록) / 에이전트(누가 규칙을 받나) / 자동화(과금 AI) /
+ * 연동(Claude 훅·MCP) / 로그. 탭 상태는 이 화면 안의 일시적 UI 상태라
+ * localStorage 가 아니라 useState (WorkspaceContext 규율 대상 아님).
+ */
+const SUB_TABS = [
+  { id: "record", label: "기록" },
+  { id: "agents", label: "에이전트" },
+  { id: "automation", label: "자동화" },
+  { id: "integration", label: "연동" },
+  { id: "logs", label: "로그" },
+] as const;
+
+type SubTabId = (typeof SUB_TABS)[number]["id"];
+
+export function SubTabs({
+  value,
+  onChange,
+}: {
+  value: SubTabId;
+  onChange: (v: SubTabId) => void;
+}) {
+  return (
+    <div
+      className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/30 p-1"
+      role="tablist"
+      aria-label="ocul-pm 설정 하위 탭"
+    >
+      {SUB_TABS.map((t) => {
+        const on = value === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(t.id)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              on
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function OculpmSettingsBody({ projectId }: { projectId: number }) {
+  const [sub, setSub] = useState<SubTabId>("record");
   const [config, setConfig] = useState<OculpmConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -203,6 +257,10 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </div>
       )}
 
+      <SubTabs value={sub} onChange={setSub} />
+
+      {sub === "record" && (
+      <>
       <Section title="Workday" description="작업일 경계와 timezone.">
         <Field label="Timezone (IANA)">
           <Input
@@ -392,7 +450,10 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           />
         </Field>
       </Section>
+      </>
+      )}
 
+      {sub === "agents" && (
       <Section
         title="Agents"
         description="활성 어댑터 + 자동 감지 / 동기화 정책."
@@ -474,6 +535,14 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_sync_adapters: v } }))
           }
         />
+      </Section>
+      )}
+
+      {sub === "automation" && (
+      <Section
+        title="자동화 (AI · 과금)"
+        description="켜면 설정한 AI 제공자로 자동 호출이 나갑니다. 둘 다 기본 꺼짐."
+      >
         <Toggle
           label="자동 화해 (일지→플랜, 백그라운드 AI)"
           checked={config.agents.auto_reconcile ?? false}
@@ -494,17 +563,25 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           }
         />
         <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
-          아래 훅 연동이 켜진 상태에서 Claude Code 세션이 끝나면, 그 세션의 transcript 를
-          설정한 AI 로 요약해 <strong>작업 일지 초안 1건</strong>을 자동 작성합니다
-          (<strong>과금 호출</strong>, 대화 발췌가 제공자로 전송됨). 에이전트가 규칙대로
-          직접 쓴 일지가 있으면 만들지 않고, 요약에 실패해도 세션 메타는 기록됩니다.
+          <strong>연동</strong> 탭의 훅 연동이 켜진 상태에서 Claude Code 세션이 끝나면, 그
+          세션의 transcript 를 설정한 AI 로 요약해 <strong>작업 일지 초안 1건</strong>을 자동
+          작성합니다 (<strong>과금 호출</strong>, 대화 발췌가 제공자로 전송됨). 에이전트가
+          규칙대로 직접 쓴 일지가 있으면 만들지 않고, 요약에 실패해도 세션 메타는 기록됩니다.
         </p>
+      </Section>
+      )}
 
+      {sub === "integration" && (
+      <Section
+        title="Claude 연동"
+        description="훅·MCP 로 Claude Code / Desktop 과 직접 연결합니다."
+      >
         <ClaudeHooksBlock projectId={projectId} />
         <McpServerBlock projectId={projectId} />
       </Section>
+      )}
 
-      <LogsSection />
+      {sub === "logs" && <LogsSection />}
     </div>
   );
 }
