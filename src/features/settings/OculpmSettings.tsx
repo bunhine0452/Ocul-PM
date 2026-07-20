@@ -485,6 +485,19 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           켜면 일지·계획 내용이 설정한 AI 제공자로 전송되는 <strong>과금 호출이
           자동으로</strong> 발생합니다. 활성 계획이 정확히 1개일 때만 동작합니다.
         </p>
+        <Toggle
+          label="일지 자동 초안 (Claude 훅 세션 종료 시)"
+          checked={config.agents.auto_journal_draft ?? false}
+          onChange={(v) =>
+            update((d) => ({ ...d, agents: { ...d.agents, auto_journal_draft: v } }))
+          }
+        />
+        <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
+          아래 훅 연동이 켜진 상태에서 Claude Code 세션이 끝나면, 그 세션의 transcript 를
+          설정한 AI 로 요약해 <strong>작업 일지 초안 1건</strong>을 자동 작성합니다
+          (<strong>과금 호출</strong>, 대화 발췌가 제공자로 전송됨). 에이전트가 규칙대로
+          직접 쓴 일지가 있으면 만들지 않고, 요약에 실패해도 세션 메타는 기록됩니다.
+        </p>
 
         <ClaudeHooksBlock projectId={projectId} />
       </Section>

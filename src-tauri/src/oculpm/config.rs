@@ -75,6 +75,8 @@ impl OculpmConfig {
                 auto_sync_adapters: true,
                 // F1 — automatic background LLM reconciliation is opt-in.
                 auto_reconcile: false,
+                // PR-CI1 — hook-session journal drafting is opt-in (billable).
+                auto_journal_draft: false,
             },
         }
     }

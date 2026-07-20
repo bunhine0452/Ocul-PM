@@ -1733,12 +1733,14 @@ impl OculpmManager {
             created_at: local_now.to_rfc3339(),
             updated_at: None,
             session_id,
-            agent: AgentRef {
+            // PR-CI1 — 자동 초안(journal_draft)이 실측 에이전트를 넘긴다;
+            // None(수동 모달)이면 기존 의미("manual", 사용자 검증 완료) 유지.
+            agent: draft.agent.clone().unwrap_or(AgentRef {
                 id: "manual".to_string(),
                 version: None,
-            },
+            }),
             language,
-            verified_by_user: true,
+            verified_by_user: draft.verified_by_user.unwrap_or(true),
             files_touched: draft.files_touched.clone(),
             related: Vec::new(),
             tags: draft.tags.clone(),
@@ -2676,7 +2678,32 @@ mod tests {
                 }],
                 status: Some(EntryStatus::Done),
                 tags: vec!["alpha".into()],
+                agent: None,
+                verified_by_user: None,
             }
+        }
+
+        /// PR-CI1 — 자동 초안의 실측 귀속 오버라이드: agent/verified_by_user 를
+        /// draft 가 넘기면 그대로 frontmatter 에 쓰인다.
+        #[tokio::test]
+        async fn create_manual_entry_honours_agent_override() {
+            let (manager, db, _dir, _project_root) = fresh_manager_and_db().await;
+            let mut draft = minimal_draft("auto-draft-slug");
+            draft.agent = Some(crate::oculpm::spec::AgentRef {
+                id: "claude-code".to_string(),
+                version: Some("claude-haiku-4-5-20251001".to_string()),
+            });
+            draft.verified_by_user = Some(false);
+            let entry = manager
+                .create_manual_journal_entry(&db, 7, draft)
+                .await
+                .expect("created");
+            assert_eq!(entry.frontmatter.agent.id, "claude-code");
+            assert_eq!(
+                entry.frontmatter.agent.version.as_deref(),
+                Some("claude-haiku-4-5-20251001")
+            );
+            assert!(!entry.frontmatter.verified_by_user);
         }
 
         #[tokio::test]
@@ -3331,6 +3358,8 @@ mod tests {
                     .collect(),
                 status: Some(EntryStatus::Done),
                 tags: Vec::new(),
+                agent: None,
+                verified_by_user: None,
             }
         }
 

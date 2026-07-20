@@ -18,6 +18,7 @@ pub mod entry_diffs;
 pub mod error;
 pub mod frontmatter;
 pub mod index;
+pub mod journal_draft;
 pub mod lock;
 pub mod manager;
 pub mod markdown;
@@ -27,6 +28,7 @@ pub mod reconcile;
 pub mod redact;
 pub mod session;
 pub mod spec;
+pub mod transcript;
 pub mod watcher;
 
 #[allow(unused_imports)] // Re-exported for sibling modules landing in W1-PR3..PR8.

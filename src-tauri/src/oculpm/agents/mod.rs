@@ -575,6 +575,7 @@ mod tests {
             auto_detect_on_open: false,
             auto_sync_adapters: false,
             auto_reconcile: false,
+            auto_journal_draft: false,
         };
         cfg
     }

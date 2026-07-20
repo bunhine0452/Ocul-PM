@@ -135,6 +135,9 @@ export function ManualEntryModalV2({
       })),
       status,
       tags,
+      // PR-CI1 — null = 기존 의미 유지 (agent: manual, 사용자 검증 완료).
+      agent: null,
+      verified_by_user: null,
     };
     try {
       const entry = await oculpmApi.createManualEntry(projectId, draft);

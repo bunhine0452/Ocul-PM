@@ -813,6 +813,14 @@ export type AgentsConfig = {
 	 *  `#[serde(default)]` so pre-F1 `config.toml` files parse to `false`.
 	 */
 	auto_reconcile?: boolean,
+	/**
+	 *  PR-CI1 — when on, a hook-detected Claude Code session end (AgentExit)
+	 *  triggers a background LLM summary of the session transcript into ONE
+	 *  journal draft (skipped if the agent wrote its own entry). Opt-in
+	 *  (default `false`): billable, and sends transcript excerpts to the
+	 *  configured provider.
+	 */
+	auto_journal_draft?: boolean,
 };
 
 export type AppInfo = {
@@ -1531,6 +1539,16 @@ export type ManualEntryDraft = {
 	/**  `None` → defaults to `planned`. Spec §3.1. */
 	status: EntryStatus | null,
 	tags: string[],
+	/**
+	 *  PR-CI1 — `None` → `manual` (수동 모달의 기존 의미). 훅 기반 자동 초안은
+	 *  실측 에이전트(`claude-code` + transcript 의 model)를 넣는다.
+	 */
+	agent?: AgentRef | null,
+	/**
+	 *  PR-CI1 — `None` → `true` (수동 모달 = 사용자가 직접 씀). 자동 초안은
+	 *  `Some(false)` — 사용자가 UI 에서 검토 후 토글한다.
+	 */
+	verified_by_user?: boolean | null,
 };
 
 /**  An available master-template upgrade for a project. */

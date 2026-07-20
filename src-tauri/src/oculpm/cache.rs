@@ -851,7 +851,8 @@ impl<'a> JournalCache<'a> {
                     .query_row(
                         "SELECT relative_path, type, slug, status, difficulty, title, checkbox,
                                 session_id, agent_id, language, verified_by_user, created_at,
-                                updated_at, file_mtime, body_markdown, parse_ok, parse_warnings
+                                updated_at, file_mtime, body_markdown, parse_ok, parse_warnings,
+                                agent_version
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -903,7 +904,9 @@ impl<'a> JournalCache<'a> {
                     session_id: r.session_id,
                     agent: AgentRef {
                         id: r.agent_id,
-                        version: None,
+                        // PR-CI1 에서 발견한 잠복 버그 fix — 021 부터 캐시 행에
+                        // agent_version 이 있는데 하이드레이션이 버리고 있었다.
+                        version: r.agent_version,
                     },
                     language: r.language,
                     verified_by_user: r.verified_by_user,
@@ -1771,6 +1774,8 @@ struct EntryRow {
     checkbox: Option<i64>,
     session_id: String,
     agent_id: String,
+    /// PR-CI1 — 021 컬럼. 하이드레이션이 frontmatter.agent.version 으로 복원.
+    agent_version: Option<String>,
     language: String,
     verified_by_user: bool,
     created_at: String,
@@ -1800,6 +1805,7 @@ fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
         body_markdown: r.get(14)?,
         parse_ok: r.get::<_, i64>(15)? != 0,
         parse_warnings: r.get(16)?,
+        agent_version: r.get(17)?,
     })
 }
 

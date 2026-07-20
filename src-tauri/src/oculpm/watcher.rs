@@ -48,7 +48,7 @@ use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
     FileChangeEvent, FileOp, IntegrityWarning, OculpmAgentDrift, OculpmAgentsTemplateChanged,
     OculpmConfig, OculpmFileChanged, OculpmIntegrityWarning, OculpmJournalAdded,
-    OculpmJournalPathChanged, OculpmJournalUpdated, WatcherStateView, WatcherStatus,
+    OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView, WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -128,6 +128,8 @@ impl ProjectWatcher {
             reconcile_lock: Arc::new(tokio::sync::Mutex::new(())),
             hook_inbox_offset: Arc::new(tokio::sync::Mutex::new(None)),
             hook_open_sessions: Arc::new(tokio::sync::Mutex::new(BTreeSet::new())),
+            auto_journal_draft: config.agents.auto_journal_draft,
+            draft_lock: Arc::new(tokio::sync::Mutex::new(())),
             stats: stats.clone(),
         };
 
@@ -267,6 +269,11 @@ struct WatcherInner {
     /// PR-CI0 — 현재 열려 있는 Claude 세션 id 집합. 여러 터미널 동시 세션에서
     /// 마지막 SessionEnd 에만 종료 신호를 내기 위함 (claude_hooks::apply_event).
     hook_open_sessions: Arc<tokio::sync::Mutex<BTreeSet<String>>>,
+    /// PR-CI1 — opt-in: 훅 세션 종료(AgentExit) 시 transcript 를 LLM 으로
+    /// 요약해 일지 초안 1건을 자동 작성. `config.agents.auto_journal_draft`.
+    auto_journal_draft: bool,
+    /// PR-CI1 — 일지 초안 단일 인플라이트 (reconcile_lock 동형).
+    draft_lock: Arc<tokio::sync::Mutex<()>>,
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
@@ -514,6 +521,8 @@ impl WatcherInner {
         if events.is_empty() {
             return;
         }
+        // PR-CI1 — AgentEnded 시 초안 생성에 넘길 (finalize 직전) 세션 스냅샷.
+        let mut pending_draft: Option<(Session, Option<String>, String)> = None;
         let mut open = self.hook_open_sessions.lock().await;
         for ev in &events {
             tracing::info!(
@@ -533,6 +542,15 @@ impl WatcherInner {
                     }
                 }
                 HookSignal::AgentEnded => {
+                    // PR-CI1 — finalize 명령보다 먼저 질의해 세션 id/시작 시각을
+                    // 확보한다 (actor 는 mpsc 순서대로 처리하므로 이 질의는
+                    // 아직 Active 상태를 본다). 옵인 off / 헤드리스면 스킵.
+                    if self.auto_journal_draft && self.app_handle.is_some() {
+                        if let Ok(Some(sess)) = self.session.get_current_session().await {
+                            pending_draft =
+                                Some((sess, ev.transcript_path.clone(), ev.session_id.clone()));
+                        }
+                    }
                     if let Err(e) = self.session.hook_agent_ended() {
                         tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_ended send failed");
                     }
@@ -540,6 +558,63 @@ impl WatcherInner {
                 HookSignal::None => {}
             }
         }
+        drop(open);
+        if let Some((sess, transcript_path, claude_session_id)) = pending_draft {
+            self.spawn_journal_draft(sess, transcript_path, claude_session_id);
+        }
+    }
+
+    /// PR-CI1 — fire-and-forget 일지 자동 초안. 옵인·과금은 호출부에서 걸렀고,
+    /// 여기서는 단일 인플라이트(try_lock)만 보장한다. 실패는 로그로 삼킨다 —
+    /// 초안 실패가 watcher 를 멈추면 안 된다 (reconcile 동형).
+    fn spawn_journal_draft(
+        &self,
+        session: Session,
+        transcript_path: Option<String>,
+        claude_session_id: String,
+    ) {
+        let Some(handle) = self.app_handle.clone() else {
+            return;
+        };
+        let Ok(guard) = self.draft_lock.clone().try_lock_owned() else {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                "journal draft already in flight — skipped"
+            );
+            return;
+        };
+        let project_id = self.project_id;
+        let root = self.root.clone();
+        let index_writer = self.index_writer.clone();
+        let redact = self.redact_patterns.clone();
+        tauri::async_runtime::spawn(async move {
+            let _guard = guard;
+            match crate::oculpm::journal_draft::draft_for_session(
+                handle,
+                project_id,
+                root,
+                index_writer,
+                redact,
+                session,
+                transcript_path,
+                claude_session_id,
+            )
+            .await
+            {
+                Ok(outcome) => {
+                    tracing::info!(
+                        target: "oculpm::watcher",
+                        project_id,
+                        ?outcome,
+                        "[FLOW] journal draft outcome"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(target: "oculpm::watcher", project_id, error = %e, "journal draft failed");
+                }
+            }
+        });
     }
 
     fn should_track(&self, abs_path: &Path) -> bool {

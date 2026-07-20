@@ -383,6 +383,13 @@ pub struct AgentsConfig {
     /// `#[serde(default)]` so pre-F1 `config.toml` files parse to `false`.
     #[serde(default)]
     pub auto_reconcile: bool,
+    /// PR-CI1 — when on, a hook-detected Claude Code session end (AgentExit)
+    /// triggers a background LLM summary of the session transcript into ONE
+    /// journal draft (skipped if the agent wrote its own entry). Opt-in
+    /// (default `false`): billable, and sends transcript excerpts to the
+    /// configured provider.
+    #[serde(default)]
+    pub auto_journal_draft: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -479,6 +486,14 @@ pub struct ManualEntryDraft {
     /// `None` → defaults to `planned`. Spec §3.1.
     pub status: Option<EntryStatus>,
     pub tags: Vec<String>,
+    /// PR-CI1 — `None` → `manual` (수동 모달의 기존 의미). 훅 기반 자동 초안은
+    /// 실측 에이전트(`claude-code` + transcript 의 model)를 넣는다.
+    #[serde(default)]
+    pub agent: Option<AgentRef>,
+    /// PR-CI1 — `None` → `true` (수동 모달 = 사용자가 직접 씀). 자동 초안은
+    /// `Some(false)` — 사용자가 UI 에서 검토 후 토글한다.
+    #[serde(default)]
+    pub verified_by_user: Option<bool>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

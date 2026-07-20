@@ -1180,6 +1180,7 @@ mod tests {
                 auto_detect_on_open: true,
                 auto_sync_adapters: true,
                 auto_reconcile: false,
+                auto_journal_draft: false,
             },
         }
     }
