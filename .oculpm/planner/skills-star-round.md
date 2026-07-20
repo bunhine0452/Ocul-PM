@@ -51,4 +51,5 @@ owner: claude-code
 | 2026-07-16T21:49:00+09:00 | #settings-cleanup | claude-code | →x | journal/20260716/Chores/2145_chore_dead-settings-honesty-cleanup.md | streamResponses(소비자 은퇴로 무효)·logLevel(소비자 0)·Save 재수출·lint allowlist 잔재 제거. 액센트 피커는 2146 feature 로 복원 |
 | 2026-07-16T21:49:30+09:00 | #terminal-watch-truth | claude-code | →x | journal/20260716/Chores/2145_chore_dead-settings-honesty-cleanup.md | "변경 감시중" 상시 초록 하드코딩→watcher_state 연동(running/error/stopped 3상태 라벨+색) |
 | 2026-07-16T22:16:00+09:00 | #reskin-verify | claude-code | ☐→~ | journal/20260716/Chores/2215_chore_runtime-verify-and-docs-truth.md | pnpm tauri dev 실구동: JS예외/패닉 0, 부트 플로우(마운트→init→에이전트 sync→워처 러닝) 정상. 스크린샷은 TCC 화면기록 권한 부재로 불가 — 시각·한글 타이핑 체감은 사용자 몫. 잔여 컴파일 경고 2건(unused import·fresh_project 잔재)도 0으로. CLAUDE.md 12화면 현행화+CHANGELOG v2.1.0 초안 동승 |
+| 2026-07-20T19:57:54+09:00 | #reskin-verify | claude-code | ~→~ | .oculpm/journal/20260720/Bugs/1957_bug_pty-utf8-chunk-split-mojibake.md | 터미널 한글 깨짐 근본원인 발견·수정(PTY UTF-8 청크분할) + 터미널 대개편 — 실기기 재확인 항목에 분할/세션지속/검색 추가 |
 <!-- oculpm:plan-log end -->

@@ -510,20 +510,61 @@
 .scode .ln { color: var(--text-3); display: inline-block; width: 30px; user-select: none; }
 .scode .hl { background: var(--accent-soft); border-radius: 3px; }
 
-/* --- Terminal (PR-UI 5) --- */
-.term-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.term-tabs { display: flex; align-items: center; gap: 4px; padding: 8px 14px 0; background: var(--bg-window); border-bottom: 1px solid var(--sep); }
-.term-tab {
-  display: flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px 8px 0 0;
-  font-size: 12px; font-weight: 550; color: var(--text-2); cursor: pointer;
-  appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font);
+/* --- Terminal — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 톤) ---
+   터미널 영역 전체를 하나의 다크 서피스로: 탭 스트립·캔버스·상태바가
+   TERM_THEME.background(#16161c)와 한 몸으로 읽힌다 (라이트 테마에서도). */
+.term-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #101014; }
+.term-tabs {
+  display: flex; align-items: flex-end; gap: 3px; padding: 7px 10px 0;
+  background: #101014; border-bottom: 1px solid #26262e; overflow-x: auto; flex: none;
 }
-/* terminal canvas tone — matches TerminalInstance TERM_THEME.background so the
-   xterm canvas and its container/active-tab read as one surface (both themes). */
+.term-tabs::-webkit-scrollbar { display: none; }
+.term-tab {
+  display: flex; align-items: center; gap: 7px; padding: 7px 11px 8px; border-radius: 9px 9px 0 0;
+  font-size: 12px; font-weight: 550; color: #8a8a92; cursor: pointer; user-select: none;
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  font-family: var(--font); white-space: nowrap; flex: none; max-width: 220px;
+}
+.term-tab:hover { color: #c8c8d0; background: #16161c66; }
 .term-tab.active { background: #16161c; color: #e6e6ea; }
-.term-tab-close { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; opacity: 0.6; }
-.term-tab-close:hover { opacity: 1; background: var(--bg-active); }
-.term-screen { flex: 1; min-height: 0; background: #16161c; overflow: hidden; padding: 8px 10px; }
+.term-tab-label { overflow: hidden; text-overflow: ellipsis; }
+.term-tab-rename {
+  width: 90px; border: none; outline: none; background: #26262e; color: #e6e6ea;
+  border-radius: 5px; padding: 2px 6px; font-family: var(--font); font-size: 12px;
+}
+.term-tab-close { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; opacity: 0; flex: none; }
+.term-tab:hover .term-tab-close, .term-tab.active .term-tab-close { opacity: 0.6; }
+.term-tab-close:hover { opacity: 1 !important; background: #33333d; }
+.term-tab-add {
+  display: grid; place-items: center; width: 26px; height: 26px; margin: 0 0 5px 3px; border-radius: 7px;
+  border: none; background: transparent; color: #8a8a92; cursor: pointer; flex: none;
+}
+.term-tab-add:hover { background: #16161c; color: #e6e6ea; }
+
+/* 페인 캔버스 — 탭당 하나, 분할 트리를 담는다. */
+.term-body { flex: 1; min-height: 0; position: relative; display: flex; background: #16161c; }
+.term-canvas { flex: 1; min-width: 0; min-height: 0; }
+.term-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
+.term-split.row { flex-direction: row; }
+.term-split.col { flex-direction: column; }
+.term-cell { flex-basis: 0; flex-shrink: 1; min-width: 0; min-height: 0; display: flex; }
+.term-divider { flex: none; background: #26262e; position: relative; z-index: 3; transition: background 0.12s ease; }
+.term-divider.row { width: 4px; cursor: col-resize; }
+.term-divider.col { height: 4px; cursor: row-resize; }
+.term-divider:hover, .term-divider:active { background: var(--accent); }
+.term-pane { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
+/* 분할 시 포커스 페인 표시 — 안쪽 헤어라인 링. */
+.term-pane.focused { box-shadow: inset 0 0 0 1px rgba(43, 196, 136, 0.45); }
+.term-pane .pane-close {
+  position: absolute; top: 6px; right: 8px; z-index: 4;
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
+  border: none; background: #26262ecc; color: #8a8a92; cursor: pointer; opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.term-pane:hover .pane-close { opacity: 1; }
+.term-pane .pane-close:hover { color: #e6e6ea; background: #33333d; }
+
+.term-screen { flex: 1; width: 100%; min-height: 0; height: 100%; background: #16161c; overflow: hidden; padding: 8px 10px; }
 /* 한국어 IME 조합 미리보기 — xterm 기본은 무스타일이라 조합 중인 글자가
    보이지 않는다. 터미널 배경 위에 또렷한 조합 상자 + 액센트 밑줄. */
 .term-screen .xterm .composition-view {
@@ -534,44 +575,191 @@
   padding: 0 1px;
   z-index: 5;
 }
-.term-watch { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 11.5px; color: #8a8a92; padding-right: 8px; }
 
-/* --- AI Panel (PR-UI 5) --- */
-.ai-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.ai-models { display: flex; align-items: center; gap: 8px; padding: 12px 22px; border-bottom: 1px solid var(--sep); background: var(--bg-window); flex-wrap: wrap; }
-.model-chip {
-  display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 9px; border-radius: 9px;
-  border: 1px solid var(--border-card); background: var(--bg-card); cursor: pointer;
-  font-size: 12px; font-weight: 550; box-shadow: var(--shadow-card);
-  appearance: none; -webkit-appearance: none; font-family: var(--font); color: var(--text);
+/* 스크롤백 검색 오버레이 (⌘F). */
+.term-search {
+  position: absolute; top: 10px; right: 14px; z-index: 6;
+  display: flex; align-items: center; gap: 6px; padding: 6px 9px;
+  background: #101014f2; border: 1px solid #33333d; border-radius: 9px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); color: #8a8a92;
 }
-.model-chip.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
-.model-chip:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
-/* Typewriter caret while an assistant turn streams (AiPanelScreenV2). */
-.ai-caret {
-  display: inline-block; width: 7px; height: 14px; margin-left: 1px;
-  vertical-align: text-bottom; background: var(--accent);
+.term-search input {
+  width: 200px; border: none; outline: none; background: transparent;
+  color: #e6e6ea; font-family: var(--font); font-size: 12.5px;
+}
+
+/* 하단 상태바 — 탭·페인·단축키 힌트·글자크기·.oculpm 감시. */
+.term-status {
+  display: flex; align-items: center; gap: 14px; padding: 5px 14px; flex: none;
+  background: #101014; border-top: 1px solid #26262e;
+  font-size: 11px; color: #8a8a92; font-family: var(--font);
+}
+.term-status .ts-seg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.term-status .ts-hint { color: #5b5b66; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ts-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
+  padding: 0 4px; border: none; border-radius: 5px; background: transparent; color: #8a8a92;
+  cursor: pointer; font-family: var(--font); font-size: 11px;
+}
+.ts-btn:hover { background: #26262e; color: #e6e6ea; }
+.ts-font { font-family: var(--mono); font-size: 10.5px; min-width: 34px; text-align: center; }
+.ts-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* --- AI Panel — 2026-07-20 대규모 개편 (Cursor 식 컴포저) --- */
+.ai-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ai-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 22px 14px; }
+.ai-thread-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.model-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+/* Messages — user 는 우측 말풍선, assistant 는 플랫 전폭(마크다운 친화). */
+.msg { display: flex; flex-direction: column; min-width: 0; }
+.msg.user { align-items: flex-end; }
+.msg-bubble {
+  max-width: 85%; background: var(--accent-soft); color: var(--text);
+  border-radius: 14px 14px 4px 14px; padding: 9px 14px;
+  font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+}
+.msg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; font-size: 12px; min-height: 22px; }
+.msg-model { font-weight: 650; }
+.msg-vendor { color: var(--text-3); font-weight: 500; font-size: 11px; }
+.msg-copy {
+  display: grid; place-items: center; width: 22px; height: 22px; margin-left: auto;
+  border: none; border-radius: 6px; background: transparent; color: var(--text-3);
+  cursor: pointer; opacity: 0; transition: opacity 0.12s ease, background 0.12s ease;
+}
+.msg:hover .msg-copy, .msg-copy:focus-visible { opacity: 1; }
+.msg-copy:hover { background: var(--bg-inset); color: var(--text-2); }
+.msg-live { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--accent-text); font-size: 11px; font-weight: 550; }
+.msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse 1.2s ease-in-out infinite; }
+@keyframes ai-pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
+.msg-wait { color: var(--text-3); font-size: 12.5px; }
+.msg-error { color: var(--t-bug); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+
+/* 채팅 마크다운 스케일 — prose 기본 헤딩(2em대)은 채팅에 과대하고, 구
+   .msg-text 의 white-space: pre-wrap 상속이 블록 사이 개행 텍스트 노드를
+   이중 공백으로 렌더하던 문제(2026-07-20)를 함께 수정한다. */
+.msg-md { font-size: 13.5px; line-height: 1.65; word-break: break-word; white-space: normal; }
+.msg-md .prose { font-size: 13.5px; line-height: 1.65; }
+.msg-md .prose h1 { font-size: 1.25em; margin: 1em 0 0.45em; }
+.msg-md .prose h2 { font-size: 1.15em; margin: 1em 0 0.4em; }
+.msg-md .prose h3 { font-size: 1.06em; margin: 0.9em 0 0.35em; }
+.msg-md .prose h4, .msg-md .prose h5, .msg-md .prose h6 { font-size: 1em; margin: 0.8em 0 0.3em; }
+.msg-md .prose > :first-child { margin-top: 0; }
+.msg-md .prose > :last-child { margin-bottom: 0; }
+.msg-md .prose p { margin: 0.5em 0; }
+.msg-md .prose ul, .msg-md .prose ol { margin: 0.45em 0; padding-left: 1.5em; }
+.msg-md .prose li { margin: 0.18em 0; }
+.msg-md .prose li > p { margin: 0.2em 0; }
+.msg-md .prose pre { font-size: 12px; line-height: 1.55; }
+.msg-md .prose code { font-size: 0.87em; }
+.msg-md .prose table { font-size: 0.92em; display: block; overflow-x: auto; }
+.msg-md .prose blockquote { margin: 0.6em 0; }
+.msg-md .prose hr { margin: 1em 0; }
+/* Streaming caret — 마지막 블록 끝에서 깜빡인다 (마크다운 라이브 렌더). */
+.msg.streaming .msg-md .prose > :last-child::after {
+  content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 3px;
+  vertical-align: -0.15em; background: var(--accent);
   animation: ai-blink 1.1s steps(2) infinite;
 }
 @keyframes ai-blink { 50% { opacity: 0; } }
-.model-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.model-vendor { color: var(--text-3); font-size: 11px; font-weight: 500; }
-.ai-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; }
-.ai-thread-inner { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-.msg { display: flex; gap: 12px; }
-.msg-av { width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; }
-.msg.user .msg-av { background: var(--bg-active); color: var(--text); }
-.msg-body { flex: 1; min-width: 0; }
-.msg-name { font-size: 12px; font-weight: 650; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-.msg-name .vendor { color: var(--text-3); font-weight: 500; }
-.msg-text { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-l); padding: 13px 16px; line-height: 1.55; box-shadow: var(--shadow-card); white-space: pre-wrap; word-break: break-word; }
-.msg.user .msg-text { background: var(--bg-inset); border-color: transparent; }
-.msg-text code { font-family: var(--mono); font-size: 11.5px; background: var(--bg-inset); padding: 1px 5px; border-radius: 4px; color: var(--accent-text); }
-.ai-compose { padding: 14px 22px 18px; border-top: 1px solid var(--sep); background: var(--bg-window); }
-.compose-box { max-width: 780px; margin: 0 auto; display: flex; align-items: flex-end; gap: 10px; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-l); padding: 10px 12px; box-shadow: var(--shadow-card); }
-.compose-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
-.compose-box textarea { flex: 1; border: none; outline: none; resize: none; background: transparent; font-family: var(--font); font-size: 13.5px; color: var(--text); line-height: 1.5; max-height: 120px; }
-.compose-ctx { max-width: 780px; margin: 0 auto 10px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-3); }
+
+/* 빈 상태 — 히어로 + 제안 프롬프트 칩. */
+.ai-hero { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 14vh auto 0; text-align: center; max-width: 480px; }
+.ai-hero-icon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); margin-bottom: 7px; }
+.ai-hero-title { font-size: 17px; font-weight: 700; }
+.ai-hero-sub { font-size: 12.5px; color: var(--text-3); }
+.ai-suggest { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+.ai-suggest-chip {
+  padding: 7px 13px; border-radius: 10px; border: 1px solid var(--border-card);
+  background: var(--bg-card); box-shadow: var(--shadow-card); cursor: pointer;
+  font-family: var(--font); font-size: 12px; font-weight: 550; color: var(--text-2);
+}
+.ai-suggest-chip:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+
+/* 위로 스크롤 시 맨아래 FAB — 스크롤러 안 sticky 로 컴포저 위에 뜬다. */
+.ai-scroll-fab {
+  position: sticky; bottom: 6px; margin: 10px auto 0; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-card);
+  background: var(--bg-card); box-shadow: var(--shadow-pop); color: var(--text-2);
+  cursor: pointer; z-index: 5;
+}
+.ai-scroll-fab:hover { color: var(--text); background: var(--bg-inset); }
+
+/* Composer — 컨텍스트 칩 / 입력 / (모델 선택 · 전송) 3단 카드. */
+.ai-compose { padding: 10px 22px 16px; border-top: 1px solid var(--sep); background: var(--bg-window); }
+.composer {
+  max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 7px;
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 16px;
+  padding: 10px 12px; box-shadow: var(--shadow-card);
+}
+.composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.composer-ctx { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-3); flex-wrap: wrap; }
+.composer-ctx .scope-chip { height: 24px; padding: 0 10px; font-size: 11.5px; border-radius: 7px; box-shadow: none; }
+.composer-input textarea {
+  width: 100%; border: none; outline: none; resize: none; background: transparent;
+  font-family: var(--font); font-size: 13.5px; color: var(--text); line-height: 1.55;
+  max-height: 180px; padding: 2px 2px 0;
+}
+.composer-foot { display: flex; align-items: center; gap: 8px; }
+.composer-send, .composer-stop { width: 32px; height: 32px; border-radius: 10px; flex: none; }
+.composer-stop { color: var(--t-bug); border-color: var(--t-bug-soft); }
+.composer-stop:hover { background: var(--t-bug-soft); }
+
+/* Cursor 식 모델 선택 — 트리거 + 위로 열리는 리스트. */
+.model-select { position: relative; }
+.model-trigger {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px;
+  border: none; border-radius: 8px; background: transparent; cursor: pointer;
+  font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--text-2);
+}
+.model-trigger:hover, .model-trigger.open { background: var(--bg-inset); color: var(--text); }
+.model-trigger-model {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500; color: var(--text-3);
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.model-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 60; min-width: 270px;
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.model-option {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px;
+  border: none; border-radius: 7px; background: none; cursor: pointer; text-align: left;
+  font-family: var(--font); font-size: 12.5px; color: var(--text);
+}
+.model-option:hover:not(:disabled) { background: var(--accent-soft); }
+.model-option.active { background: var(--bg-inset); }
+.model-option:disabled { opacity: 0.45; cursor: default; }
+.model-option-name { font-weight: 600; flex: none; }
+.model-option-model {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 10.5px; color: var(--text-3);
+}
+.model-option > svg { color: var(--accent-text); flex: none; }
+
+/* 입력 토큰 추정 배지 + 브레이크다운 팝오버. */
+.tok-wrap { position: relative; margin-left: auto; }
+.tok-badge {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px;
+  border: none; border-radius: 7px; background: transparent; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; color: var(--text-3);
+}
+.tok-badge:hover, .tok-badge.open { background: var(--bg-inset); color: var(--text-2); }
+.tok-pop {
+  position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 60; width: 300px;
+  padding: 12px 13px 10px; background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.tok-pop-title { font-size: 11.5px; font-weight: 650; margin-bottom: 8px; }
+.tok-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 11.5px; }
+.tok-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.tok-row-bar { width: 66px; height: 5px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; flex: none; }
+.tok-row-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.tok-row-val { font-family: var(--mono); font-size: 10.5px; color: var(--text-3); flex: none; min-width: 44px; text-align: right; }
+.tok-row-empty { font-size: 11.5px; color: var(--text-3); padding: 2px 0 4px; }
+.tok-pop-total { display: flex; justify-content: space-between; border-top: 1px solid var(--sep); margin-top: 7px; padding-top: 7px; font-size: 11.5px; font-weight: 650; }
+.tok-pop-note { margin-top: 7px; font-size: 10.5px; line-height: 1.55; color: var(--text-3); }
 
 /* --- Settings (PR-UI 6) — ported from Ocul-PM1.0/screens.css `.set-*` --- */
 .set-section { margin-bottom: 22px; }

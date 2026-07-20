@@ -73,7 +73,13 @@ export interface TerminalTab {
   label: string;
   shell: string;
   cwd: string;
+  /** 분할 페인 레이아웃 (2026-07-20 터미널 개편). 없으면 leaf(id) 단일 페인. */
+  panes?: TerminalPaneNode;
+  /** 포커스된 페인 sid (분할 시). 없거나 무효면 첫 leaf. */
+  focusSid?: string;
 }
+/** 터미널 분할 트리 — 실제 정의는 `@/lib/termPanes` (여기선 영속 타입만 재수출). */
+export type TerminalPaneNode = import("@/lib/termPanes").PaneNode;
 
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
@@ -160,6 +166,8 @@ export interface WorkspaceState {
   terminalTabs: TerminalTab[];
   /** 활성 터미널 탭 id. */
   terminalActiveId: string | null;
+  /** 터미널 글자 크기 (⌘+/⌘- 로 조절, 2026-07-20). */
+  terminalFontSize: number;
   /** AI 패널 활성 모델 id. */
   aiActiveModel: string | null;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
@@ -230,6 +238,7 @@ const DEFAULT_STATE: WorkspaceState = {
   searchRecent: [],
   terminalTabs: [],
   terminalActiveId: null,
+  terminalFontSize: 13,
   aiActiveModel: null,
   aiThreadId: null,
   docsActivePath: null,

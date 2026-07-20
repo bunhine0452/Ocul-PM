@@ -293,6 +293,16 @@ export const commands = {
 	 */
 	discussionPromoteToPlan: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_promote_to_plan", { projectId, discussionId })),
 	startPtySession: (sessionId: string, cwd: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("start_pty_session", { sessionId, cwd, rows, cols })),
+	/**
+	 *  살아있는 세션의 스크롤백 스냅샷을 반환한다 (없으면 None). 화면 재마운트가
+	 *  `start` 대신 이걸 먼저 불러 세션을 이어받는다.
+	 */
+	attachPtySession: (sessionId: string) => typedError<{
+	/**  지금까지의 스크롤백 (상한 내). xterm 에 그대로 write 해 리플레이한다. */
+	text: string,
+	/**  스냅샷에 포함된 마지막 청크의 seq — 이 값 이하의 라이브 이벤트는 중복. */
+	seq: number,
+} | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
@@ -1963,6 +1973,13 @@ export type ProjectStats = {
 export type ProviderModel = {
 	provider: string,
 	model: string,
+};
+
+export type PtyAttach = {
+	/**  지금까지의 스크롤백 (상한 내). xterm 에 그대로 write 해 리플레이한다. */
+	text: string,
+	/**  스냅샷에 포함된 마지막 청크의 seq — 이 값 이하의 라이브 이벤트는 중복. */
+	seq: number,
 };
 
 export type ReindexReport = {

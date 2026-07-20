@@ -512,4 +512,11 @@ export {
   Download,
   // 스킬 관리 화면 — 사이드바 슬롯 + 빈 상태.
   Puzzle,
+  // AI 패널 개편 — 중지 / 맨아래 스크롤 / 새 대화.
+  Square,
+  ArrowDown,
+  SquarePen,
+  // 터미널 개편 — 가로/세로 분할.
+  Columns2,
+  Rows2,
 } from "lucide-react";

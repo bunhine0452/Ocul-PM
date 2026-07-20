@@ -1,19 +1,55 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SquareTerminal, Bot, Activity, Plus, X } from "@/components/Icons";
+import {
+  SquareTerminal,
+  Bot,
+  Plus,
+  X,
+  Search,
+  Columns2,
+  Rows2,
+} from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
-import { TerminalInstance } from "./TerminalInstance";
+import {
+  leaf,
+  collectSids,
+  firstSid,
+  splitPane,
+  removePane,
+  setRatio,
+  siblingSid,
+  clampRatio,
+  type PaneNode,
+  type PaneDir,
+} from "@/lib/termPanes";
+import { TerminalInstance, type TerminalHandles } from "./TerminalInstance";
 
-// Final UI Update (ui_v2) — 터미널 화면 (02-screen-specs §6). Mockup
-// .term-wrap/.term-tabs/.term-screen visuals + the PTY wiring extracted from
-// the legacy TerminalPanel (startPtySession / writeToPty / resizePty /
-// killPtySession + listen pty-data). flag-off TerminalPanel/TerminalDock
-// untouched. Tabs persist in WorkspaceContext.terminalTabs (PTY handles are
-// volatile — re-spawned on mount).
+// 터미널 화면 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
+//  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
+//    탭/페인을 닫을 때만 kill 한다.
+//  - 분할 페인: 탭마다 이진 트리 레이아웃(@/lib/termPanes) — ⌘D 가로,
+//    ⇧⌘D 세로, 드래그 리사이즈(로컬 오버레이 + pointerup 커밋), 포커스 링.
+//  - 탭: 더블클릭 리네임, 호버 닫기, ⌘T/⌘W.
+//  - 검색 오버레이(⌘F, addon-search), 글자 크기(⌘+/⌘-/⌘0, 영속),
+//    하단 상태바(탭·페인·단축키 힌트·글자크기·.oculpm 감시).
 
-function newTabId(): string {
+const FONT_MIN = 9;
+const FONT_MAX = 22;
+const FONT_DEFAULT = 13;
+
+function newId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function panesOfTab(t: TerminalTab): PaneNode {
+  return t.panes ?? leaf(t.id);
+}
+
+function focusOfTab(t: TerminalTab): string {
+  const panes = panesOfTab(t);
+  const sids = collectSids(panes);
+  return t.focusSid && sids.includes(t.focusSid) ? t.focusSid : firstSid(panes);
 }
 
 interface TerminalScreenV2Props {
@@ -23,29 +59,48 @@ interface TerminalScreenV2Props {
 export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const { state, setState } = useWorkspace();
   const { terminalTabs, terminalActiveId } = state;
+  const fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, state.terminalFontSize || FONT_DEFAULT));
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
+  // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
+  // (드래그 매 프레임 전역 상태를 흔들지 않기 위해).
+  const [drag, setDrag] = useState<{ tabId: string; path: string; ratio: number } | null>(null);
+
+  // sid → xterm 핸들 (검색/포커스 제어). onReady 로 채워진다.
+  const regRef = useRef(new Map<string, TerminalHandles>());
+
+  const activeTab = terminalTabs.find((t) => t.id === terminalActiveId) ?? null;
+  const paneCount = activeTab ? collectSids(panesOfTab(activeTab)).length : 0;
 
   // Ensure at least one tab exists.
   useEffect(() => {
     if (terminalTabs.length === 0) {
-      const id = newTabId();
-      const tab: TerminalTab = {
-        id,
-        label: "zsh",
-        shell: "zsh",
-        cwd: projectRoot ?? "",
-      };
-      setState((prev) => ({
-        ...prev,
-        terminalTabs: [tab],
-        terminalActiveId: id,
-      }));
+      const id = newId();
+      const tab: TerminalTab = { id, label: "zsh", shell: "zsh", cwd: projectRoot ?? "" };
+      setState((prev) => ({ ...prev, terminalTabs: [tab], terminalActiveId: id }));
     } else if (terminalActiveId == null || !terminalTabs.some((t) => t.id === terminalActiveId)) {
       setState((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
     }
   }, [terminalTabs, terminalActiveId, projectRoot, setState]);
 
+  // 닫힌 세션의 핸들 정리.
+  useEffect(() => {
+    const alive = new Set(terminalTabs.flatMap((t) => collectSids(panesOfTab(t))));
+    for (const sid of regRef.current.keys()) {
+      if (!alive.has(sid)) regRef.current.delete(sid);
+    }
+  }, [terminalTabs]);
+
+  const patchTab = (id: string, fn: (t: TerminalTab) => TerminalTab) =>
+    setState((prev) => ({
+      ...prev,
+      terminalTabs: prev.terminalTabs.map((t) => (t.id === id ? fn(t) : t)),
+    }));
+
   const addTab = () => {
-    const id = newTabId();
+    const id = newId();
     const n = terminalTabs.length + 1;
     const tab: TerminalTab = { id, label: `zsh ${n}`, shell: "zsh", cwd: projectRoot ?? "" };
     setState((prev) => ({
@@ -56,7 +111,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   };
 
   const closeTab = (id: string) => {
-    void commands.killPtySession(id);
+    const tab = terminalTabs.find((t) => t.id === id);
+    if (tab) for (const sid of collectSids(panesOfTab(tab))) void commands.killPtySession(sid);
     setState((prev) => {
       const remaining = prev.terminalTabs.filter((t) => t.id !== id);
       const nextActive =
@@ -67,67 +123,296 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     });
   };
 
-  const selectTab = (id: string) =>
-    setState((prev) => ({ ...prev, terminalActiveId: id }));
+  const selectTab = (id: string) => setState((prev) => ({ ...prev, terminalActiveId: id }));
 
-  // ⌘T new tab, ⌘W close active (screen-local).
+  const commitRename = () => {
+    if (!renaming) return;
+    const label = renaming.draft.trim();
+    if (label) patchTab(renaming.id, (t) => ({ ...t, label }));
+    setRenaming(null);
+  };
+
+  const splitFocused = (dir: PaneDir) => {
+    if (!activeTab) return;
+    const sid = focusOfTab(activeTab);
+    const newSid = newId();
+    patchTab(activeTab.id, (t) => ({
+      ...t,
+      panes: splitPane(panesOfTab(t), sid, dir, newSid),
+      focusSid: newSid,
+    }));
+  };
+
+  // ⌘W — 분할 중이면 포커스 페인만, 마지막 페인이면 탭을 닫는다.
+  const closeFocusedPane = () => {
+    if (!activeTab) return;
+    const panes = panesOfTab(activeTab);
+    const sid = focusOfTab(activeTab);
+    if (panes.type === "leaf") {
+      closeTab(activeTab.id);
+      return;
+    }
+    const nextFocus = siblingSid(panes, sid);
+    void commands.killPtySession(sid);
+    patchTab(activeTab.id, (t) => {
+      const next = removePane(panesOfTab(t), sid);
+      return { ...t, panes: next ?? leaf(t.id), focusSid: nextFocus ?? undefined };
+    });
+  };
+
+  const closePane = (sid: string) => {
+    if (!activeTab) return;
+    const panes = panesOfTab(activeTab);
+    if (panes.type === "leaf") {
+      closeTab(activeTab.id);
+      return;
+    }
+    const nextFocus = siblingSid(panes, sid);
+    void commands.killPtySession(sid);
+    patchTab(activeTab.id, (t) => {
+      const next = removePane(panesOfTab(t), sid);
+      return { ...t, panes: next ?? leaf(t.id), focusSid: nextFocus ?? undefined };
+    });
+  };
+
+  const focusPane = (tabId: string, sid: string) => {
+    const tab = terminalTabs.find((t) => t.id === tabId);
+    if (!tab || tab.focusSid === sid) return;
+    patchTab(tabId, (t) => ({ ...t, focusSid: sid }));
+  };
+
+  const fontDelta = (d: number) =>
+    setState((prev) => ({
+      ...prev,
+      terminalFontSize: Math.min(
+        FONT_MAX,
+        Math.max(FONT_MIN, (prev.terminalFontSize || FONT_DEFAULT) + d),
+      ),
+    }));
+  const fontReset = () => setState((prev) => ({ ...prev, terminalFontSize: FONT_DEFAULT }));
+
+  const focusedHandles = () =>
+    activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined;
+
+  const openSearch = () => setSearchOpen(true);
+  const closeSearch = () => {
+    setSearchOpen(false);
+    focusedHandles()?.term.focus();
+  };
+  const runSearch = (dirn: "next" | "prev") => {
+    const h = focusedHandles();
+    if (!h || !query) return;
+    if (dirn === "next") h.search.findNext(query);
+    else h.search.findPrevious(query);
+  };
+
+  // 화면-로컬 단축키 — 핸들러는 ref 로 항상 최신을 읽고 리스너는 1회 등록.
+  const actionsRef = useRef({
+    addTab,
+    closeFocusedPane,
+    splitFocused,
+    openSearch,
+    closeSearch,
+    fontDelta,
+    fontReset,
+    searchOpen,
+  });
+  actionsRef.current = {
+    addTab,
+    closeFocusedPane,
+    splitFocused,
+    openSearch,
+    closeSearch,
+    fontDelta,
+    fontReset,
+    searchOpen,
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key.toLowerCase() === "t") {
-        e.preventDefault();
-        e.stopPropagation();
-        addTab();
-      } else if (e.key.toLowerCase() === "w" && terminalActiveId) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeTab(terminalActiveId);
+      const a = actionsRef.current;
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+        const k = e.key.toLowerCase();
+        if (k === "t" && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          a.addTab();
+        } else if (k === "w" && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          a.closeFocusedPane();
+        } else if (k === "d") {
+          e.preventDefault();
+          e.stopPropagation();
+          a.splitFocused(e.shiftKey ? "col" : "row");
+        } else if (k === "f" && !e.shiftKey) {
+          e.preventDefault();
+          a.openSearch();
+        } else if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          a.fontDelta(1);
+        } else if (e.key === "-") {
+          e.preventDefault();
+          a.fontDelta(-1);
+        } else if (e.key === "0") {
+          e.preventDefault();
+          a.fontReset();
+        }
+      } else if (e.key === "Escape" && a.searchOpen) {
+        a.closeSearch();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [terminalActiveId, terminalTabs]);
+  }, []);
 
-  // 감사 fix (2026-07-16): "변경 감시중"이 하드코딩 상시 초록이었다 — 실제
-  // 워처 상태(oculpmStatus.watcher_state)를 그대로 보여준다.
+  const startDrag = (
+    e: React.PointerEvent<HTMLDivElement>,
+    tabId: string,
+    path: string,
+    dir: PaneDir,
+  ) => {
+    e.preventDefault();
+    const parent = e.currentTarget.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const calc = (ev: PointerEvent) =>
+      clampRatio(
+        dir === "row"
+          ? (ev.clientX - rect.left) / Math.max(1, rect.width)
+          : (ev.clientY - rect.top) / Math.max(1, rect.height),
+      );
+    const move = (ev: PointerEvent) => setDrag({ tabId, path, ratio: calc(ev) });
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setDrag(null);
+      const ratio = calc(ev);
+      patchTab(tabId, (t) => ({ ...t, panes: setRatio(panesOfTab(t), path, ratio) }));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
   const watcher = state.oculpmStatus?.watcher_state ?? null;
   const watchLabel =
-    watcher === "running" ? "변경 감시중" : watcher === "error" ? "감시 오류" : "감시 꺼짐";
+    watcher === "running" ? ".oculpm 감시중" : watcher === "error" ? "감시 오류" : "감시 꺼짐";
   const watchColor =
     watcher === "running" ? "#57c98a" : watcher === "error" ? "var(--t-bug)" : "var(--text-3)";
+
+  const renderPane = (tab: TerminalTab, node: PaneNode, path: string): React.ReactNode => {
+    const isActiveTab = tab.id === terminalActiveId;
+    if (node.type === "leaf") {
+      const focusSid = focusOfTab(tab);
+      const count = collectSids(panesOfTab(tab)).length;
+      const focused = count > 1 && node.sid === focusSid;
+      return (
+        <div className={"term-pane" + (focused ? " focused" : "")}>
+          <TerminalInstance
+            sessionId={node.sid}
+            cwd={tab.cwd || projectRoot || ""}
+            visible={isActiveTab}
+            fontSize={fontSize}
+            persistent
+            autoFocus={node.sid === focusSid}
+            onReady={(h) => regRef.current.set(node.sid, h)}
+            onFocusIn={() => focusPane(tab.id, node.sid)}
+          />
+          {count > 1 ? (
+            <button
+              type="button"
+              className="pane-close"
+              onClick={() => closePane(node.sid)}
+              aria-label="페인 닫기"
+              title="페인 닫기 (⌘W)"
+            >
+              <X size={11} />
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+    const ratio =
+      drag && drag.tabId === tab.id && drag.path === path ? drag.ratio : node.ratio;
+    return (
+      <div className={"term-split " + node.dir}>
+        <div className="term-cell" style={{ flexGrow: ratio }}>
+          {renderPane(tab, node.a, path + "a")}
+        </div>
+        <div
+          className={"term-divider " + node.dir}
+          onPointerDown={(e) => startDrag(e, tab.id, path, node.dir)}
+          role="separator"
+          aria-orientation={node.dir === "row" ? "vertical" : "horizontal"}
+        />
+        <div className="term-cell" style={{ flexGrow: 1 - ratio }}>
+          {renderPane(tab, node.b, path + "b")}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
       <Toolbar title="터미널" sub="에이전트 실행을 감지해 자동으로 일지를 작성합니다">
-        <span className="chip">
-          <Activity size={13} color={watcher === "running" ? "var(--accent-text)" : "var(--text-3)"} />{" "}
-          {watchLabel}
-        </span>
+        <button
+          className="btn icon"
+          onClick={() => (searchOpen ? closeSearch() : openSearch())}
+          title="스크롤백 검색 (⌘F)"
+          aria-label="스크롤백 검색"
+        >
+          <Search size={15} />
+        </button>
+        <button className="btn icon" onClick={() => splitFocused("row")} title="가로 분할 (⌘D)" aria-label="가로 분할">
+          <Columns2 size={15} />
+        </button>
+        <button className="btn icon" onClick={() => splitFocused("col")} title="세로 분할 (⇧⌘D)" aria-label="세로 분할">
+          <Rows2 size={15} />
+        </button>
         <button className="btn" onClick={addTab}>
           <Plus size={15} /> 새 세션
         </button>
       </Toolbar>
 
       <div className="term-wrap">
-        <div className="term-tabs">
+        <div className="term-tabs" role="tablist" aria-label="터미널 세션 탭">
           {terminalTabs.map((t) => (
             <div
               key={t.id}
               className={"term-tab" + (t.id === terminalActiveId ? " active" : "")}
               onClick={() => selectTab(t.id)}
-              role="button"
+              onDoubleClick={() => setRenaming({ id: t.id, draft: t.label })}
+              role="tab"
+              aria-selected={t.id === terminalActiveId}
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") selectTab(t.id);
               }}
+              title="더블클릭으로 이름 변경"
             >
               {t.label.includes("claude") || t.label.includes("cursor") ? (
                 <Bot size={14} />
               ) : (
                 <SquareTerminal size={14} />
               )}
-              {t.label}
+              {renaming?.id === t.id ? (
+                <input
+                  className="term-tab-rename"
+                  autoFocus
+                  value={renaming.draft}
+                  onChange={(e) => setRenaming({ id: t.id, draft: e.target.value })}
+                  onBlur={commitRename}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    else if (e.key === "Escape") setRenaming(null);
+                    e.stopPropagation();
+                  }}
+                  aria-label="탭 이름 변경"
+                />
+              ) : (
+                <span className="term-tab-label">{t.label}</span>
+              )}
               <span
                 className="term-tab-close"
                 onClick={(e) => {
@@ -148,29 +433,80 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
               </span>
             </div>
           ))}
-          <div className="term-watch">
-            <span
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: "50%",
-                background: watchColor,
-                display: "inline-block",
-              }}
-            />
-            {watcher === "running" ? ".oculpm 감시중" : `.oculpm ${watchLabel}`}
-          </div>
+          <button
+            type="button"
+            className="term-tab-add"
+            onClick={addTab}
+            aria-label="새 세션 (⌘T)"
+            title="새 세션 (⌘T)"
+          >
+            <Plus size={14} />
+          </button>
         </div>
 
-        {/* Keep every tab's xterm mounted; CSS-hide inactive so PTY survives. */}
-        {terminalTabs.map((t) => (
-          <TerminalInstance
-            key={t.id}
-            sessionId={t.id}
-            cwd={t.cwd || projectRoot || ""}
-            visible={t.id === terminalActiveId}
-          />
-        ))}
+        <div className="term-body">
+          {terminalTabs.map((tab) => (
+            <div
+              key={tab.id}
+              className="term-canvas"
+              style={{ display: tab.id === terminalActiveId ? "flex" : "none" }}
+            >
+              {renderPane(tab, panesOfTab(tab), "")}
+            </div>
+          ))}
+          {searchOpen ? (
+            <div className="term-search">
+              <Search size={13} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  const h = focusedHandles();
+                  if (h && e.target.value) h.search.findNext(e.target.value, { incremental: true });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") runSearch(e.shiftKey ? "prev" : "next");
+                  else if (e.key === "Escape") closeSearch();
+                }}
+                placeholder="스크롤백 검색…"
+                aria-label="터미널 검색"
+              />
+              <button type="button" className="ts-btn" onClick={() => runSearch("prev")} title="이전 (⇧Enter)">
+                ↑
+              </button>
+              <button type="button" className="ts-btn" onClick={() => runSearch("next")} title="다음 (Enter)">
+                ↓
+              </button>
+              <button type="button" className="ts-btn" onClick={closeSearch} aria-label="검색 닫기" title="닫기 (Esc)">
+                <X size={12} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="term-status">
+          <span className="ts-seg">
+            <SquareTerminal size={12} />
+            {activeTab?.label ?? "—"}
+            {paneCount > 1 ? ` · 페인 ${paneCount}` : ""}
+          </span>
+          <span className="ts-hint">⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘W 닫기</span>
+          <span style={{ flex: 1 }} />
+          <span className="ts-seg">
+            <button type="button" className="ts-btn" onClick={() => fontDelta(-1)} aria-label="글자 작게 (⌘-)">
+              A−
+            </button>
+            <span className="ts-font">{fontSize}px</span>
+            <button type="button" className="ts-btn" onClick={() => fontDelta(1)} aria-label="글자 크게 (⌘+)">
+              A+
+            </button>
+          </span>
+          <span className="ts-seg">
+            <span className="ts-dot" style={{ background: watchColor }} />
+            {watchLabel}
+          </span>
+        </div>
       </div>
     </>
   );

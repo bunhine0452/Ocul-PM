@@ -150,6 +150,14 @@ export interface AiContextOptions {
   includeActions?: boolean;
 }
 
+export interface AiContextPart {
+  key: "system" | "rag" | "planner" | "actions" | "git" | "oculpm";
+  /** UI label (토큰 추정 브레이크다운에 표시). */
+  label: string;
+  /** Raw text of this part — token estimation runs over it. */
+  text: string;
+}
+
 export interface AiContextResult {
   /** Assembled system-prompt addition (system prompt + project context). */
   system: string;
@@ -157,6 +165,8 @@ export interface AiContextResult {
   chunks: ChunkSearchResult[];
   /** Short labels of what got attached, for the UI. */
   attached: string[];
+  /** Per-part breakdown, in injection order — 전송 전 토큰 추정용. */
+  parts: AiContextPart[];
 }
 
 /**
@@ -173,48 +183,49 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   const includeOculpm = opts.includeOculpm ?? settings.includeOculpmContext;
   const includeActions = opts.includeActions ?? includePlanner;
 
-  let system = "";
   const attached: string[] = [];
+  const parts: AiContextPart[] = [];
   let chunks: ChunkSearchResult[] = [];
 
   if (settings.systemPrompt.trim()) {
-    system += settings.systemPrompt.trim() + "\n\n";
+    parts.push({ key: "system", label: "시스템 프롬프트", text: settings.systemPrompt.trim() });
   }
 
   if (includeRag && projectId != null && query.trim() && settings.ragTopK > 0) {
     const res = await commands.searchChunks(projectId, query, settings.ragTopK, false);
     if (res.status === "ok" && res.data.length > 0) {
       chunks = res.data;
-      system += buildContextSystem(chunks) + "\n\n";
+      parts.push({ key: "rag", label: `코드 ${chunks.length}곳`, text: buildContextSystem(chunks) });
       attached.push(`코드 ${chunks.length}곳`);
     }
   }
   if (includePlanner) {
     const p = await buildPlannerSystemContext(projectId);
     if (p) {
-      system += p + "\n\n";
+      parts.push({ key: "planner", label: "플래너", text: p });
       attached.push("플래너");
     }
   }
   // The action protocol is cheap (a static instruction) and only useful when
   // the planner is in play, so it follows the planner block.
   if (includeActions) {
-    system += buildActionInstruction() + "\n\n";
+    parts.push({ key: "actions", label: "액션 프로토콜", text: buildActionInstruction() });
   }
   if (includeGit) {
     const g = await buildGitSystemContext(projectId);
     if (g) {
-      system += g + "\n\n";
+      parts.push({ key: "git", label: "git", text: g });
       attached.push("git");
     }
   }
   if (includeOculpm) {
     const o = await buildOculpmSystemContext(projectId, settings.oculpmContextEntries);
     if (o) {
-      system += o + "\n\n";
+      parts.push({ key: "oculpm", label: "작업일지", text: o });
       attached.push("작업일지");
     }
   }
 
-  return { system: system.trim(), chunks, attached };
+  const system = parts.map((p) => p.text).join("\n\n").trim();
+  return { system, chunks, attached, parts };
 }

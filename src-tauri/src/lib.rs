@@ -131,7 +131,7 @@ use crate::commands::{
     discussion_rename, discussion_delete,
     discussion_attach, discussion_attach_via_dialog, discussion_asset, discussion_detach,
     discussion_promote_to_plan,
-    start_pty_session, write_to_pty, resize_pty, kill_pty_session,
+    start_pty_session, attach_pty_session, write_to_pty, resize_pty, kill_pty_session,
     git_log, git_graph, git_status, git_head_status_brief,
     reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
@@ -262,6 +262,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         discussion_promote_to_plan,
         // Terminal
         start_pty_session,
+        attach_pty_session,
         write_to_pty,
         resize_pty,
         kill_pty_session,
