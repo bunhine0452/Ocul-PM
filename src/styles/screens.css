@@ -437,6 +437,8 @@
   font-size: 12px; font-weight: 550; background: var(--bg-card); border: 1px solid var(--border-card);
   cursor: pointer; color: var(--text-2);
   appearance: none; -webkit-appearance: none; font-family: var(--font);
+  /* 좁은 창 방어 (2026-07-20): 칩 라벨이 한 글자씩 세로로 꺾이지 않게. */
+  white-space: nowrap; flex: none;
 }
 .scope-chip.on { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 

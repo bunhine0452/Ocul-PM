@@ -271,8 +271,25 @@
   -webkit-backdrop-filter: saturate(1.4) blur(18px);
   backdrop-filter: saturate(1.4) blur(18px);
 }
-.toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; }
-.toolbar-sub { font-size: 12px; color: var(--text-3); }
-.toolbar-spacer { flex: 1; }
+/* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
+   세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
+   .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
+.toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
+.toolbar-sub {
+  font-size: 12px; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 0 1 auto; min-width: 0;
+}
+.toolbar-spacer { flex: 1; min-width: 12px; }
+.toolbar-actions {
+  display: flex; align-items: center; gap: 12px;
+  min-width: 0; max-width: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  /* 세로 중앙정렬 유지 + 스크롤 시 버튼 포커스링이 잘리지 않게 약간의 여백 */
+  padding: 2px 0;
+}
+.toolbar-actions::-webkit-scrollbar { display: none; }
+.toolbar-actions button { white-space: nowrap; }
 .scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; }
 .page { padding: 24px 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%; }
