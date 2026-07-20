@@ -17,6 +17,41 @@ const fileLog = (level: string, msg: string) => {
     // 로그 파일 실패는 dev 를 막지 않는다
   }
 };
+// 리로드 수사 2단 (2026-07-20): 서버 로그 없이 raw full-reload 를 보내는
+// 플러그인을 특정하기 위해 (a) ws.send 를 가로채 full-reload 송신 시점의
+// **스택 트레이스**를, (b) chokidar 파일 이벤트를 파일로 남긴다. 원인 확정
+// 후 제거 예정.
+const reloadSpy = {
+  name: "oculpm-reload-spy",
+  configureServer(server: import("vite").ViteDevServer) {
+    server.watcher.on("all", (event: string, file: string) => {
+      if (file.includes("node_modules")) return;
+      fileLog("WATCH", `${event} ${file}`);
+    });
+    const hook = (label: string, target: { send: (...a: never[]) => void } | undefined) => {
+      if (!target || typeof target.send !== "function") return;
+      const orig = (target.send as (...a: unknown[]) => unknown).bind(target);
+      (target as { send: unknown }).send = (...args: unknown[]) => {
+        try {
+          const payload = args[0] as { type?: string } | undefined;
+          if (payload && payload.type === "full-reload") {
+            const stack = new Error("full-reload origin").stack ?? "(no stack)";
+            fileLog("SPY", `${label} full-reload ${JSON.stringify(payload)}\n${stack}`);
+          }
+        } catch {
+          // 스파이 실패는 무해
+        }
+        return orig(...args);
+      };
+    };
+    hook("server.ws", server.ws as unknown as { send: () => void });
+    const clientHot = (server as unknown as {
+      environments?: Record<string, { hot?: { send: () => void } }>;
+    }).environments?.client?.hot;
+    hook("client.hot", clientHot);
+  },
+};
+
 const baseLogger = createLogger();
 const fileTeeLogger: typeof baseLogger = {
   ...baseLogger,
@@ -51,7 +86,7 @@ const buildHash = (() => {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), reloadSpy],
 
   customLogger: fileTeeLogger,
 
