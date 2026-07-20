@@ -77,7 +77,14 @@ impl LockGuard {
                         source,
                     })?;
                 let age = heartbeat_age_seconds(&existing.heartbeat_at)?;
-                if age <= STALE_THRESHOLD_SECS {
+                // PR-CI 실기기 확인(2026-07-20)에서 드러난 dev 마찰: Ctrl+C 등
+                // 비정상 종료는 graceful 락 해제를 못 타고, 재시작이 5분
+                // 하트비트 창 내내 read-only 로 밀렸다. 보유 PID 가 이 호스트에
+                // 확실히 없으면 하트비트 나이와 무관하게 즉시 회수한다.
+                // 판정 불가(비 unix·ps 실패)나 PID 재사용으로 "살아있음" 이면
+                // 종전대로 하트비트 기준 폴백 — 회수를 미루는 쪽이 안전.
+                let holder_dead = pid_alive(existing.pid) == Some(false);
+                if !holder_dead && age <= STALE_THRESHOLD_SECS {
                     return Ok(LockAcquisition::Held {
                         by_pid: existing.pid,
                         heartbeat_at: existing.heartbeat_at,
@@ -180,6 +187,26 @@ impl Drop for LockGuard {
     }
 }
 
+/// 같은 호스트에서 보유 PID 생존 여부를 최선-노력으로 판정한다. `ps -p` 는
+/// 소유자와 무관하게 프로세스 존재 시 exit 0 (macOS/Linux 공통) — `kill -0`
+/// 의 EPERM 오판(타 사용자 프로세스를 사망으로 봄)이 없다. 판정 불가면
+/// `None` → 호출부가 하트비트 기준으로 폴백.
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> Option<bool> {
+    std::process::Command::new("ps")
+        .args(["-p", &pid.to_string()])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .ok()
+        .map(|s| s.success())
+}
+
+#[cfg(not(unix))]
+fn pid_alive(_pid: u32) -> Option<bool> {
+    None
+}
+
 fn heartbeat_age_seconds(heartbeat_at: &str) -> Result<i64, OculpmError> {
     let parsed = chrono::DateTime::parse_from_rfc3339(heartbeat_at)
         .map_err(|_| OculpmError::InvalidConfig(format!("invalid heartbeat_at: {heartbeat_at}")))?;
@@ -265,7 +292,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
         let now = chrono::Utc::now().to_rfc3339();
-        let other_pid = std::process::id().wrapping_add(99);
+        // 살아있는 타 프로세스여야 한다 — pid 1(launchd/init)은 unix 에서 항상
+        // 생존. (죽은 pid 는 이제 하트비트가 신선해도 즉시 회수된다 — 아래
+        // dead-holder 케이스.)
+        let other_pid = 1u32;
         write_synthetic_lock(&path, other_pid, &now);
 
         let before = std::fs::read(&path).unwrap();
@@ -277,6 +307,28 @@ mod tests {
                 assert_eq!(before, after, "Held must not modify the lock file");
             }
             other => panic!("expected Held, got {:?}", other),
+        }
+    }
+
+    /// Case 2.5 (PR-CI 실기기 확인 fix) — 보유 PID 가 죽어 있으면 하트비트가
+    /// 신선해도 즉시 회수한다. dev Ctrl+C 처럼 graceful 해제를 못 탄 락이
+    /// 5분간 read-only 를 강제하던 마찰의 재발 방지.
+    #[tokio::test]
+    async fn acquire_recovers_immediately_when_holder_pid_is_dead() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join(".lock");
+        let fresh = chrono::Utc::now().to_rfc3339();
+        // macOS pid_max(≈99998)·linux 기본(4194304)보다 큰 값 — 존재 불가.
+        let dead_pid = 4_999_999u32;
+        write_synthetic_lock(&path, dead_pid, &fresh);
+
+        let acq = LockGuard::acquire(&path).await.unwrap();
+        match acq {
+            LockAcquisition::Recovered { info, guard } => {
+                assert_eq!(info.previous_pid, dead_pid);
+                guard.release().await.unwrap();
+            }
+            other => panic!("expected Recovered (dead holder), got {:?}", other),
         }
     }
 
