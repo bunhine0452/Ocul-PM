@@ -350,16 +350,25 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
         })
         .on_tray_icon_event({
             let state = state.clone();
-            move |tray, event| {
-                if let TrayIconEvent::Click {
+            move |tray, event| match event {
+                TrayIconEvent::Click {
                     button: MouseButton::Left,
                     button_state: MouseButtonState::Up,
                     position,
                     ..
-                } = event
-                {
-                    toggle_popover(tray.app_handle(), &state, position);
+                } => toggle_popover(tray.app_handle(), &state, position),
+                // 더블클릭 = 팝오버 닫기 (앱 열기 아님 — 실기기 피드백).
+                // macOS 는 Click(→팝오버 열림) 후 DoubleClick 이 이어지므로
+                // 여기서 숨기면 더블클릭의 순효과가 "닫힘"이 된다.
+                TrayIconEvent::DoubleClick {
+                    button: MouseButton::Left,
+                    ..
+                } => {
+                    if let Some(win) = tray.app_handle().get_webview_window(TRAY_WINDOW) {
+                        let _ = win.hide();
+                    }
                 }
+                _ => {}
             }
         })
         .build(app)?;

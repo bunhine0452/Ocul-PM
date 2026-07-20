@@ -2,8 +2,20 @@
    창(368×508)은 투명 캔버스(macOSPrivateApi)이고, 사방 12px 여백 안에
    라운드 카드가 떠 있다 — 그림자·코너 전부 CSS 소유. */
 
-html, body, #root {
+/* 팝오버는 창=문서 — 문서 스크롤·WKWebView 고무줄 바운스를 전부 차단한다.
+   스크롤은 목록 영역(.tp-entries 등)만 소유한다 (실기기 피드백: "상단바가
+   왜 스크롤되지"). */
+html, body {
   background: transparent !important;
+  height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+#root {
+  background: transparent !important;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
 
 .traypop {
