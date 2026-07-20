@@ -17,11 +17,11 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 
 ## Phase A — 기록의 결정론화 {#phase-a}
 - [x] PR-CI0 훅 브리지 — payload 실측 스파이크, settings.local.json 설치/드리프트, .oculpm/hooks 인박스+watcher 라우팅, SessionActor 정밀 신호 {#ci0-hook-bridge}
-- [ ] PR-CI0 실기기 확인 — pnpm tauri dev + 훅 켠 실제 Claude Code 세션 1회 → 세션 1개 정확 생성·AgentExit 종료(중복·유령 0) 확인 후 릴리스 판단 {#ci0-runtime-verify}
+- [x] PR-CI0 실기기 확인 — 실앱에서 훅 켜기→실세션 1회: 인박스 3건·앱 소비·세션 1개(agent_label=claude-code, ended=agent_exit)·사용자 permissions 보존 확인 {#ci0-runtime-verify}
 - [x] PR-CI1 transcript 일지 초안 — 방어적 파싱, 옵인 LLM 초안→redact→규격 일지, 자필 일지 중복 스킵 {#ci1-transcript-draft}
 - [ ] PR-CI1 실기기 확인 — auto_journal_draft 켠 실세션 종료 → 초안 일지 생성(자필 일지 있으면 미생성) 확인 {#ci1-runtime-verify}
 - [x] PR-CI2 oculpm-mcp v1 — journal_write/plan_status/plan_update stdio 서버, .mcp.json+Desktop 스니펫 등록, 템플릿 v5 {#ci2-mcp-server}
-- [ ] PR-CI2 실기기 확인 — 설정에서 등록 후 실세션 도구 호출 + Claude Desktop 실연결 확인 {#ci2-runtime-verify}
+- [~] PR-CI2 실기기 확인 — 앱 UI 등록→실세션 plan_status 호출 성공(라이브 플랜 응답). Claude Desktop 실연결만 잔여 {#ci2-runtime-verify}
 - [ ] PR-CI2 후속 — .app 번들에 oculpm-mcp sidecar(externalBin) 동봉, 릴리스 빌드에서 검증 {#ci2-sidecar-bundle}
 
 ## Phase B — 규칙 플라이휠 {#phase-b}
@@ -46,4 +46,6 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T14:49:18+09:00 | #ci2-runtime-verify | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | 헤드리스 E2E 는 통과 — 앱 설정 UI 경유 등록 + Desktop 실연결만 남음 |
 | 2026-07-20T14:49:18+09:00 | #ci2-sidecar-bundle | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | externalBin 번들 배선은 릴리스 빌드에서만 검증 가능 — 다음 릴리스 준비 시 처리 |
 | 2026-07-20T14:58:06+09:00 | #ci2-mcp-server | claude-code | x→x | journal/20260720/Bugs/1458_bug_tauri-dev-default-run.md | 실기기 확인 중 발견된 회귀 fix — [[bin]] 추가로 cargo run 모호 → default-run="ocul-pm" 고정 |
+| 2026-07-20T16:07:05+09:00 | #ci0-runtime-verify | claude-code | ☐→x | journal/20260720/Chores/1607_chore_phase-a-runtime-verify.md | 실앱 검증 통과: 훅 3건→앱 소비→세션 20260720-008(agent_label_guess=claude-code, ended_reason=agent_exit, 중복 0). 기존 permissions 100여 항목 보존 확인. 부수 fix 3건(default-run·optimizeDeps·멱등 config+vite ignore)로 dev 마찰 해소 |
+| 2026-07-20T16:07:05+09:00 | #ci2-runtime-verify | claude-code | ☐→~ | journal/20260720/Chores/1607_chore_phase-a-runtime-verify.md | 앱 UI 등록 .mcp.json 으로 실세션 plan_status 호출→라이브 플랜 응답 확인. .mcp.json 은 경로 머신종속이라 이 레포에서 gitignore 결정. Desktop 실연결만 잔여 |
 <!-- oculpm:plan-log end -->

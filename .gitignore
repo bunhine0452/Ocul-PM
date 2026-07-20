@@ -70,6 +70,11 @@ Desktop.ini
 
 # ---------- Claude Code workspace ----------
 .claude/
+# PR-CI2: 앱이 써 주는 MCP 등록 파일. 서버 바이너리 경로가 이 머신 전용이라
+# (dev 는 src-tauri/target/, 배포는 .app 내부) 공유하면 팀원에게 깨진 설정이
+# 된다 — 각자 설정 → Agents → MCP 서버 "등록" 으로 생성. PR-CI8(플러그인
+# 패키징)이 경로 문제를 해소하면 이 줄을 재검토한다.
+.mcp.json
 
 # oculpm:begin v1
 .oculpm/index/
