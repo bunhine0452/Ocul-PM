@@ -576,6 +576,7 @@ mod tests {
             auto_sync_adapters: false,
             auto_reconcile: false,
             auto_journal_draft: false,
+            rules_translate: vec![],
         };
         cfg
     }

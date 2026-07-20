@@ -98,7 +98,9 @@ ocul-pm 은 첫 번째(파일 SSOT)는 이미 제품의 본질이다. 그러나 
 
 ### D5 — 규칙 허브 = 기존 "스킬" 화면의 확장 (신규 화면 아님) {#d5-rules-hub}
 
-- navRegistry 끝-append 제약과 12화면 밀도를 고려, 12번째 "스킬" 화면을 **"스킬·규칙" 허브**로 확장 — 탭: 스킬(현행) · 규칙(CLAUDE.md + `.claude/rules/*.md`, globs frontmatter 편집) · 훅(D2 토글·상태) · 서브에이전트(`.claude/agents`, 후순위).
+> **실측 교정 (2026-07-20, PR-CI3 착수 시)**: 공식 문서 재검증 결과 `.claude/rules/**/*.md` 는 프로젝트+유저(`~/.claude/rules`) 양 스코프 **재귀** 네이티브 지원이며, frontmatter 는 `globs` 가 아니라 **`paths: [glob…]` 하나뿐**이다 (없으면 항상 로드, 있으면 조건부). 상세·번역 규칙은 [`03-rules-hub-ui-spec.md`](03-rules-hub-ui-spec.md) 가 정답.
+
+- navRegistry 끝-append 제약과 12화면 밀도를 고려, 12번째 "스킬" 화면을 **"스킬·규칙" 허브**로 확장 — 탭: 스킬(현행) · 규칙(CLAUDE.md + `.claude/rules/*.md`, paths frontmatter 편집) · 훅(D2 토글·상태) · 서브에이전트(`.claude/agents`, 후순위).
 - 크로스툴 번역: 규칙 파일 저장 시 기존 10종 어댑터 파이프라인으로 Cursor `.mdc` 등 병행 배포 (옵인·어댑터별 on/off). "한 규칙 소스 → 모든 에이전트" 가 차별점.
 - 승격 루프(PR-CI4): 회고 신호·일지 error/bug 반복 패턴 → LLM 이 규칙 초안 + **entry_diffs 로 globs 스코프 추론** → ActionProposalCard 승인 UX 재사용 → `.claude/rules/` 저장. 절대 자동 적용 없음 (draft=AI, decision=사람 — 보고서 6.2 의 정신).
 

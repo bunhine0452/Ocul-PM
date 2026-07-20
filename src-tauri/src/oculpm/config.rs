@@ -77,6 +77,8 @@ impl OculpmConfig {
                 auto_reconcile: false,
                 // PR-CI1 — hook-session journal drafting is opt-in (billable).
                 auto_journal_draft: false,
+                // PR-CI3 — rules cross-tool translation is opt-in.
+                rules_translate: vec![],
             },
         }
     }
@@ -150,6 +152,16 @@ impl OculpmConfig {
                     "agents.active contains unknown id '{}' (expected one of: {})",
                     agent_id,
                     KNOWN_AGENT_IDS.join(", ")
+                )));
+            }
+        }
+
+        for target in &self.agents.rules_translate {
+            if !crate::oculpm::rules::TRANSLATE_TARGETS.contains(&target.as_str()) {
+                return Err(OculpmError::InvalidConfig(format!(
+                    "agents.rules_translate contains unknown target '{}' (expected one of: {})",
+                    target,
+                    crate::oculpm::rules::TRANSLATE_TARGETS.join(", ")
                 )));
             }
         }

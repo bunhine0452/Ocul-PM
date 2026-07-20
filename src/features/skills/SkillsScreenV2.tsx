@@ -1,8 +1,16 @@
-// 스킬(Skills) 화면 — 프로젝트/전역 Claude Code 스킬(`.claude/skills/`)을
-// GUI 로 조회·생성·편집·토글·복사·삭제한다. SSOT 는 디스크의 SKILL.md
-// (백엔드 commands/skills.rs — 캐시 없음). 좌: 스코프별 목록 / 우: 미리보기·편집.
+// 스킬·규칙 허브 (PR-CI3, docs/claude-integration/00-master-plan.md D5) —
+// 12번째 화면을 탭 허브로 확장했다: [스킬] 기존 `.claude/skills/` 관리 그대로,
+// [규칙] CLAUDE.md 계열 + `.claude/rules` CRUD·paths 편집·Cursor 병행 배포
+// (RulesTab.tsx), [훅] CI0 훅 브리지 토글 (설정의 ClaudeHooksBlock 재사용).
+// 탭 상태는 비영속 useState — localStorage 규율(WorkspaceContext 단독 소유)과
+// 무관하다.
+//
+// 스킬 탭: 프로젝트/전역 Claude Code 스킬(`.claude/skills/`)을 GUI 로
+// 조회·생성·편집·토글·복사·삭제한다. SSOT 는 디스크의 SKILL.md (백엔드
+// commands/skills.rs — 캐시 없음). 좌: 스코프별 목록 / 우: 미리보기·편집.
 // 비활성화는 `.claude/skills/.disabled/` 이동 규약 — 파일을 지우지 않고 로드에서만 뺀다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
@@ -16,7 +24,9 @@ import {
   type SkillsOverview,
 } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
+import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, skillTemplate, splitFrontmatter } from "./skillsModel";
+import { RulesTab } from "./RulesTab";
 import "./skills.css";
 
 interface SkillsScreenV2Props {
@@ -27,7 +37,66 @@ type SelKey = { scope: SkillScope; dirName: string } | null;
 
 const scopeLabel = (scope: SkillScope) => (scope === "project" ? "프로젝트" : "전역");
 
+// ─── 허브 셸 ─────────────────────────────────────────────────────────────────
+
+const HUB_TABS = [
+  { id: "skills", label: "스킬" },
+  { id: "rules", label: "규칙" },
+  { id: "hooks", label: "훅" },
+] as const;
+type HubTab = (typeof HUB_TABS)[number]["id"];
+
 export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
+  const [tab, setTab] = useState<HubTab>("skills");
+  const tabs = <HubTabsSeg tab={tab} onChange={setTab} />;
+  if (tab === "rules") return <RulesTab projectId={projectId} tabs={tabs} />;
+  if (tab === "hooks") return <HooksTab projectId={projectId} tabs={tabs} />;
+  return <SkillsTabView projectId={projectId} tabs={tabs} />;
+}
+
+function HubTabsSeg({ tab, onChange }: { tab: HubTab; onChange: (t: HubTab) => void }) {
+  return (
+    <div className="sk-tabs" role="tablist" aria-label="스킬·규칙 허브 탭">
+      {HUB_TABS.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={tab === t.id}
+          className={tab === t.id ? "on" : ""}
+          onClick={() => onChange(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 훅 탭 — CI0 훅 브리지 블록(설정과 동일 컴포넌트)을 허브에서 바로 노출. */
+function HooksTab({ projectId, tabs }: { projectId: number; tabs: ReactNode }) {
+  return (
+    <>
+      <Toolbar title="스킬·규칙" sub="Claude Code 훅 연동">
+        {tabs}
+      </Toolbar>
+      <div className="scroll">
+        <div className="sk-hooks">
+          <ClaudeHooksBlock projectId={projectId} />
+          <p className="sk-hooks-hint">
+            훅이 켜지면 Claude Code 세션의 시작·종료가 휴리스틱이 아닌 실측 신호로 기록됩니다.
+            세션 종료 시의 <strong>일지 자동 초안</strong>(과금)과 <strong>MCP 도구 등록</strong>은
+            설정 → ocul-pm → 에이전트 연동에서 관리합니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── 스킬 탭 (기존 화면) ─────────────────────────────────────────────────────
+
+function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode }) {
   const [overview, setOverview] = useState<SkillsOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [listError, setListError] = useState<string | null>(null);
@@ -225,7 +294,8 @@ export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
 
   return (
     <>
-      <Toolbar title="스킬" sub={sub}>
+      <Toolbar title="스킬·규칙" sub={sub}>
+        {tabs}
         <button
           type="button"
           className="sk-iconbtn"

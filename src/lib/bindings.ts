@@ -730,6 +730,31 @@ export const commands = {
 	 *  복사본은 항상 활성 위치에 놓인다.
 	 */
 	skillsCopy: (projectId: number, fromScope: SkillScope, toScope: SkillScope, dirName: string) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_copy", { projectId, fromScope, toScope, dirName })),
+	/**  CLAUDE.md 슬롯 + 프로젝트/전역 규칙을 한 번에 나열한다. */
+	rulesList: (projectId: number) => typedError<RulesOverview, string>(__TAURI_INVOKE("rules_list", { projectId })),
+	/**  단일 규칙/CLAUDE.md 파일 원문을 읽는다. */
+	rulesRead: (projectId: number, scope: RuleScope, relPath: string) => typedError<RuleDetail, string>(__TAURI_INVOKE("rules_read", { projectId, scope, relPath })),
+	/**
+	 *  저장 (`create=true` 는 신규 — 기존 파일 거부). 프로젝트 규칙이고 번역이
+	 *  켜져 있으면 Cursor 미러를 병행 갱신해 결과를 함께 돌려준다.
+	 */
+	rulesSave: (projectId: number, scope: RuleScope, relPath: string, content: string, create: boolean) => typedError<RuleSaveOutcome, string>(__TAURI_INVOKE("rules_save", { projectId, scope, relPath, content, create })),
+	/**
+	 *  규칙 삭제 (`.claude/rules/**` 만 — CLAUDE.md 계열은 구조적으로 거부).
+	 *  프로젝트 규칙이면 마커 미러도 함께 걷어낸다 (옵인 여부 무관 — 잔재 제거).
+	 */
+	rulesDelete: (projectId: number, scope: RuleScope, relPath: string) => typedError<{
+	/**  번역 타깃 id (v1: "cursor"). */
+	target: string,
+	/**  원본 rel_path. */
+	source_rel: string,
+	/**  "written" | "unchanged" | "removed" | "conflict". */
+	action: string,
+	/**  미러 파일의 프로젝트 상대 경로. */
+	mirror_rel: string,
+} | null, string>(__TAURI_INVOKE("rules_delete", { projectId, scope, relPath })),
+	/**  config 기준으로 미러 전체를 화해시킨다 (토글 직후 + 수동 재동기화). */
+	rulesSyncTranslations: (projectId: number) => typedError<MirrorWriteResult[], string>(__TAURI_INVOKE("rules_sync_translations", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -824,6 +849,13 @@ export type AgentsConfig = {
 	 *  configured provider.
 	 */
 	auto_journal_draft?: boolean,
+	/**
+	 *  PR-CI3 — 규칙 크로스툴 번역 타깃 (`rules::TRANSLATE_TARGETS` 의 부분집합,
+	 *  v1: "cursor"). 켜져 있으면 `.claude/rules/*.md` 저장 시 해당 도구의
+	 *  규칙 파일로 병행 배포한다. `#[serde(default)]` 라 기존 config 는 빈
+	 *  배열(off)로 파싱된다.
+	 */
+	rules_translate?: string[],
 };
 
 export type AppInfo = {
@@ -1578,6 +1610,27 @@ export type Message = {
 	content: string,
 };
 
+/**  Cursor 미러 상태 — 프로젝트 스코프 `Rule` 에만 의미가 있다. */
+export type MirrorState = 
+/**  미러 없음 (번역 꺼짐 포함). */
+"none" | 
+/**  우리 마커가 있는 미러가 존재. */
+"mirrored" | 
+/**  같은 경로에 마커 없는 파일이 존재 — 건드리지 않는다. */
+"conflict";
+
+/**  미러 쓰기/제거 한 건의 결과. */
+export type MirrorWriteResult = {
+	/**  번역 타깃 id (v1: "cursor"). */
+	target: string,
+	/**  원본 rel_path. */
+	source_rel: string,
+	/**  "written" | "unchanged" | "removed" | "conflict". */
+	action: string,
+	/**  미러 파일의 프로젝트 상대 경로. */
+	mirror_rel: string,
+};
+
 export type OculpmAgentDrift = {
 	project_id: number,
 	agent_id: string,
@@ -1929,6 +1982,63 @@ export type RetroSignals = {
 };
 
 export type Role = "system" | "user" | "assistant";
+
+/**  `rules_read` 응답. */
+export type RuleDetail = {
+	entry: RuleEntry,
+	content: string,
+	/**  절대 경로 — 외부 에디터로 열 때 사용. */
+	abs_path: string,
+};
+
+/**  목록의 한 줄. `(scope, rel_path)` 가 조작 키다. */
+export type RuleEntry = {
+	scope: RuleScope,
+	kind: RuleKind,
+	/**  스코프 루트 상대 경로 (`CLAUDE.md`, `.claude/rules/api/validation.md` …). */
+	rel_path: string,
+	/**  표시명 — ClaudeMd 는 파일명, Rule 은 rules/ 이하 스템 (`api/validation`). */
+	name: string,
+	/**  본문 첫 H1 텍스트 (없으면 빈 문자열) — 목록 부제용. */
+	title: string,
+	/**  ClaudeMd 슬롯 전용 — 파일이 아직 없으면 false ("만들기" 어포던스). */
+	exists: boolean,
+	/**  frontmatter `paths` (없으면 빈 배열 = 항상 로드). */
+	paths: string[],
+	bytes: number,
+	mirror: MirrorState,
+};
+
+export type RuleKind = 
+/**  CLAUDE.md 계열 고정 슬롯 (항상 로드되는 메모리 파일). */
+"claude_md" | 
+/**  `.claude/rules/**\/*.md` 규칙 파일. */
+"rule";
+
+/**  `rules_save` 응답 — 저장된 엔트리 + (옵인 시) 미러 결과. */
+export type RuleSaveOutcome = {
+	entry: RuleEntry,
+	mirror: MirrorWriteResult | null,
+};
+
+export type RuleScope = 
+/**  프로젝트 루트 기준 (`<project>/CLAUDE.md`, `<project>/.claude/rules/…`). */
+"project" | 
+/**  홈 디렉터리 기준 (`~/.claude/CLAUDE.md`, `~/.claude/rules/…`). */
+"global";
+
+/**  `rules_list` 응답 — 전 스코프를 한 번에 (스킬 overview 패턴). */
+export type RulesOverview = {
+	/**  고정 슬롯 (프로젝트 3 + 전역 1, exists=false 포함). */
+	claude_md: RuleEntry[],
+	project_rules: RuleEntry[],
+	global_rules: RuleEntry[],
+	/**  절대 경로 — 빈 상태 안내용. */
+	project_rules_dir: string,
+	global_rules_dir: string,
+	/**  `config.agents.rules_translate` 에 "cursor" 가 있는가. */
+	cursor_translate: boolean,
+};
 
 export type Session = {
 	/**  `YYYYMMDD-NNN`. */

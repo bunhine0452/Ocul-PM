@@ -1181,6 +1181,7 @@ mod tests {
                 auto_sync_adapters: true,
                 auto_reconcile: false,
                 auto_journal_draft: false,
+                rules_translate: vec![],
             },
         }
     }

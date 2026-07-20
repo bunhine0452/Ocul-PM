@@ -27,6 +27,7 @@ pub mod paths;
 pub mod planner;
 pub mod reconcile;
 pub mod redact;
+pub mod rules;
 pub mod session;
 pub mod spec;
 pub mod transcript;

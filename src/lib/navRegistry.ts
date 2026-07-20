@@ -49,7 +49,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "terminal", label: "터미널", alias: "terminal 터미널 셸 shell", icon: SquareTerminal, group: "tools" },
   { id: "ai", label: "AI 패널", alias: "ai 패널 채팅 chat llm", icon: SparklesIcon, group: "tools" },
   // 11번째 이후는 ⌘번호가 없다 — 기존 화면의 번호를 밀지 않도록 끝에 추가.
-  { id: "skills", label: "스킬", alias: "skills 스킬 skill claude 에이전트 규칙 프롬프트", icon: Puzzle, group: "tools" },
+  // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
+  { id: "skills", label: "스킬·규칙", alias: "skills 스킬 skill rules 규칙 rule hooks 훅 claude CLAUDE.md 에이전트 프롬프트 cursor", icon: Puzzle, group: "tools" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

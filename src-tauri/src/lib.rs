@@ -166,6 +166,8 @@ use crate::commands::{
     oculpm_export_digest,
     // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills) CRUD·토글·복사
     skills_list, skills_read, skills_save, skills_delete, skills_set_enabled, skills_copy,
+    // PR-CI3 — 규칙 허브 (CLAUDE.md·.claude/rules CRUD + Cursor 미러 번역)
+    rules_list, rules_read, rules_save, rules_delete, rules_sync_translations,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Desktop 스니펫)
@@ -335,6 +337,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         skills_delete,
         skills_set_enabled,
         skills_copy,
+        // PR-CI3 — 규칙 허브
+        rules_list,
+        rules_read,
+        rules_save,
+        rules_delete,
+        rules_sync_translations,
         // PR-CI0 — Claude Code 훅 브리지
         claude_hooks_status,
         claude_hooks_install,

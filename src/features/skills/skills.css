@@ -1,4 +1,30 @@
-/* 스킬 화면 — 좌측 스코프별 목록 + 우측 미리보기/편집 2-pane. ui_v2 토큰만 사용. */
+/* 스킬·규칙 허브 — 좌측 스코프별 목록 + 우측 미리보기/편집 2-pane. ui_v2 토큰만 사용. */
+
+/* ── 허브 세그먼트 탭 (Toolbar 내부 — graph .gr-seg 규격) ───── */
+.sk-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--sep);
+  border-radius: 8px;
+}
+.sk-tabs button {
+  padding: 3px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.sk-tabs button.on {
+  background: var(--bg-card);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-card);
+}
 
 .sk-body {
   flex: 1;
@@ -370,4 +396,126 @@
   border-radius: 4px;
   background: var(--bg-inset);
   color: var(--text-2);
+}
+
+/* ── 규칙 탭 ───────────────────────────────────────────────── */
+
+/* CLAUDE.md 미존재 슬롯의 "만들기" 고스트 행. */
+.sk-row.ghost .sk-row-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.sk-row.ghost:hover .sk-row-name {
+  color: var(--text-2);
+}
+
+/* Cursor 병행 배포 옵인 행 (프로젝트 규칙 섹션 아래). */
+.sk-translate {
+  margin: 0 8px 14px;
+  padding: 9px 10px;
+  border: 1px dashed var(--sep);
+  border-radius: var(--radius-m);
+}
+.sk-translate-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.sk-translate-label input {
+  accent-color: var(--accent);
+}
+.sk-translate-hint {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.sk-translate-hint code {
+  font-size: 10.5px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+}
+
+/* paths 칩 편집기 (편집 모드에서 textarea 위). */
+.sk-paths {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+}
+.sk-paths-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.sk-path-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 3px 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--sep);
+  background: var(--bg-card);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.sk-path-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.sk-path-chip button:hover {
+  color: var(--t-bug);
+  background: var(--bg-hover);
+}
+.sk-paths input {
+  flex: 1;
+  min-width: 180px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 3px 2px;
+}
+.sk-paths input:focus {
+  outline: none;
+}
+
+/* ── 훅 탭 ─────────────────────────────────────────────────── */
+.sk-hooks {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sk-hooks-hint {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-3);
+  margin: 0;
 }

@@ -390,6 +390,12 @@ pub struct AgentsConfig {
     /// configured provider.
     #[serde(default)]
     pub auto_journal_draft: bool,
+    /// PR-CI3 — 규칙 크로스툴 번역 타깃 (`rules::TRANSLATE_TARGETS` 의 부분집합,
+    /// v1: "cursor"). 켜져 있으면 `.claude/rules/*.md` 저장 시 해당 도구의
+    /// 규칙 파일로 병행 배포한다. `#[serde(default)]` 라 기존 config 는 빈
+    /// 배열(off)로 파싱된다.
+    #[serde(default)]
+    pub rules_translate: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
