@@ -504,6 +504,61 @@
   outline: none;
 }
 
+/* ── 추천 스킬 갤러리 (PR-CI5) ─────────────────────────────── */
+.sk-gallery {
+  padding: 12px 20px 6px;
+}
+.sk-gallery-intro {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+.sk-gallery-intro code {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+  color: var(--text-2);
+}
+.sk-gallery-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sk-gallery-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+}
+.sk-gallery-meta {
+  flex: 1;
+  min-width: 0;
+}
+.sk-gallery-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+.sk-gallery-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.sk-empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ── 훅 탭 ─────────────────────────────────────────────────── */
 .sk-hooks {
   max-width: 720px;

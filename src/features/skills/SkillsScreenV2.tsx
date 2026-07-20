@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { RefreshCw, Plus, Pencil, Trash2, Copy, Puzzle } from "@/components/Icons";
+import { RefreshCw, Plus, Pencil, Trash2, Copy, Puzzle, Sparkles } from "@/components/Icons";
 import {
   commands,
   type SkillDetail,
@@ -26,6 +26,7 @@ import {
 import { toast } from "@/lib/toast";
 import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, skillTemplate, splitFrontmatter } from "./skillsModel";
+import { GALLERY_SKILLS } from "./skillsGallery";
 import { RulesTab } from "./RulesTab";
 import "./skills.css";
 
@@ -118,6 +119,8 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
   const [createDesc, setCreateDesc] = useState("");
   const createNameRef = useRef<HTMLInputElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // PR-CI5 — 추천 스킬 갤러리 (설치는 skills_save 재사용, 프로젝트 스코프).
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const loadList = useCallback(async () => {
     setListError(null);
@@ -262,6 +265,27 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
     setCreateOpen(true);
   };
 
+  // 갤러리 중복 설치 가드 — 프로젝트 스코프에 같은 폴더명이 있으면 "설치됨".
+  // (비활성(.disabled) 상태도 dir_name 으로 잡힌다 — 재설치 대신 활성화 유도.)
+  const installedGalleryIds = useMemo(
+    () => new Set((overview?.project ?? []).map((e) => e.dir_name)),
+    [overview],
+  );
+  const installGallerySkill = async (id: string) => {
+    const g = GALLERY_SKILLS.find((x) => x.id === id);
+    if (!g || busy) return;
+    setBusy(true);
+    const res = await commands.skillsSave(projectId, "project", g.id, g.content, true);
+    setBusy(false);
+    if (res.status === "ok") {
+      toast.info(`추천 스킬 설치됨: ${g.id}`);
+      await loadList();
+      setSelected({ scope: "project", dirName: g.id });
+    } else {
+      toast.destructive(res.error);
+    }
+  };
+
   const createValid = isValidSkillName(createName.trim());
   const submitCreate = async () => {
     const name = createName.trim();
@@ -305,6 +329,14 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
         >
           <RefreshCw size={15} />
         </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => setGalleryOpen(true)}
+          title="검증 습관을 만드는 추천 스킬(self-audit 등)을 원클릭 설치"
+        >
+          <Sparkles size={14} /> 추천 스킬
+        </button>
         <button type="button" className="btn primary sm" onClick={openCreate}>
           <Plus size={14} /> 새 스킬
         </button>
@@ -327,7 +359,7 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
           </div>
         </div>
       ) : all.length === 0 ? (
-        <SkillsEmptyState onCreate={openCreate} />
+        <SkillsEmptyState onCreate={openCreate} onGallery={() => setGalleryOpen(true)} />
       ) : (
         <div className="sk-body">
           <aside className="sk-list" aria-label="스킬 목록">
@@ -491,6 +523,57 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
           </section>
         </div>
       )}
+
+      {/* PR-CI5 — 추천 스킬 갤러리 모달. 설치는 skills_save(create=true) 재사용 —
+          동명 스킬이 있으면 "설치됨" 으로 비활성 (백엔드 동명 거부가 이중 가드). */}
+      <AppDialog
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        label="추천 스킬 갤러리"
+        width={620}
+      >
+        <div className="sk-modal-head">
+          <Sparkles size={15} /> 추천 스킬
+        </div>
+        <div className="sk-gallery">
+          <p className="sk-gallery-intro">
+            검증·감사 습관을 만드는 스킬 묶음입니다. 설치하면 이 프로젝트의{" "}
+            <code>.claude/skills/</code> 에 들어가고, 에이전트가 상황에 맞춰 자동으로 씁니다.
+          </p>
+          <ul className="sk-gallery-list">
+            {GALLERY_SKILLS.map((g) => {
+              const installed = installedGalleryIds.has(g.id);
+              return (
+                <li key={g.id} className="sk-gallery-item">
+                  <div className="sk-gallery-meta">
+                    <div className="sk-gallery-name">{g.label}</div>
+                    <div className="sk-gallery-desc">{g.summary}</div>
+                  </div>
+                  {installed ? (
+                    <span className="sk-chip" title="이미 이 프로젝트에 있습니다">
+                      설치됨
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn primary sm"
+                      disabled={busy}
+                      onClick={() => void installGallerySkill(g.id)}
+                    >
+                      설치
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="sk-modal-foot">
+          <button type="button" className="btn ghost sm" onClick={() => setGalleryOpen(false)}>
+            닫기
+          </button>
+        </div>
+      </AppDialog>
 
       {/* 새 스킬 모달 — AppDialog 셸 (포커스 트랩·복원·Esc 내장, v2 U13). */}
       <AppDialog
@@ -673,7 +756,13 @@ function SkillPreview({ content }: { content: string }) {
   );
 }
 
-function SkillsEmptyState({ onCreate }: { onCreate: () => void }) {
+function SkillsEmptyState({
+  onCreate,
+  onGallery,
+}: {
+  onCreate: () => void;
+  onGallery: () => void;
+}) {
   return (
     <div className="scroll">
       <div className="page">
@@ -686,9 +775,14 @@ function SkillsEmptyState({ onCreate }: { onCreate: () => void }) {
             <code>~/.claude/skills/</code> 에 두면 Claude Code 가 상황에 맞춰 자동으로
             불러 씁니다. 여기서 만들고, 프로젝트별로 켜고 끄고, 전역과 주고받을 수 있습니다.
           </p>
-          <button type="button" className="btn primary sm" onClick={onCreate}>
-            <Plus size={14} /> 새 스킬 만들기
-          </button>
+          <div className="sk-empty-actions">
+            <button type="button" className="btn ghost sm" onClick={onGallery}>
+              <Sparkles size={14} /> 추천 스킬 보기
+            </button>
+            <button type="button" className="btn primary sm" onClick={onCreate}>
+              <Plus size={14} /> 새 스킬 만들기
+            </button>
+          </div>
         </div>
       </div>
     </div>
