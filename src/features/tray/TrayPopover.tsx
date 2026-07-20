@@ -365,6 +365,12 @@ const TRAY_TOGGLES: Array<{ key: string; label: string; hint: string; defaultOn:
     hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다",
     defaultOn: false,
   },
+  {
+    key: "tray.notify_journal",
+    label: "새 일지 알림",
+    hint: "에이전트가 일지를 남기면 macOS 알림이 뜹니다 (10초에 3건 초과분은 생략)",
+    defaultOn: false,
+  },
 ];
 
 function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: () => void }) {

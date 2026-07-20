@@ -70,6 +70,7 @@ tauri-plugin-window-state = "2"
 # Self-update (benchmarked from uvws): official updater + process(relaunch).
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-notification = "2"
 
 # .oculpm/ subsystem (W1-PR1)
 notify = "6.1"

@@ -52,6 +52,8 @@ pub struct TrayState {
     active: Mutex<HashSet<String>>,
     attention: AtomicBool,
     animating: AtomicBool,
+    /// 최근 일지 알림 시각들 — git 백필처럼 일지가 몰릴 때 스로틀 (§아래).
+    notified_at: Mutex<Vec<std::time::Instant>>,
 }
 
 impl TrayState {
@@ -245,6 +247,77 @@ fn listen_signals(app: &AppHandle, state: Arc<TrayState>) {
             }
         });
     }
+    {
+        let (app, state) = (app.clone(), state.clone());
+        app.clone().listen("oculpm-journal-added", move |event| {
+            if let Ok(p) = serde_json::from_str::<JournalAddedPayload>(event.payload()) {
+                notify_journal_added(&app, &state, p);
+            }
+        });
+    }
+}
+
+// ─── 새 일지 네이티브 알림 (옵인) ────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct JournalAddedPayload {
+    project_id: u32,
+    summary: JournalSummaryLite,
+}
+
+#[derive(Deserialize)]
+struct JournalSummaryLite {
+    title: String,
+    #[serde(rename = "type")]
+    entry_type: String,
+    agent_id: String,
+}
+
+fn type_label(t: &str) -> &str {
+    match t {
+        "feature" => "기능",
+        "bug" => "버그",
+        "error" => "에러",
+        "refactor" => "리팩토링",
+        "chore" => "잡일",
+        other => other,
+    }
+}
+
+/// 새 일지 → macOS 알림. git 백필·재인덱싱처럼 일지가 몰릴 때 알림 폭탄을
+/// 막기 위해 10초 창에 3건을 넘으면 조용히 버린다 (제목까지 봤다면 이미
+/// 팝오버·앱이 더 나은 표면이다).
+fn notify_journal_added(app: &AppHandle, state: &Arc<TrayState>, p: JournalAddedPayload) {
+    let db = app.state::<crate::db::Db>();
+    let enabled =
+        tauri::async_runtime::block_on(setting_on(&db, SETTING_NOTIFY_JOURNAL, false));
+    if !enabled {
+        return;
+    }
+    {
+        let Ok(mut times) = state.notified_at.lock() else { return };
+        let now = std::time::Instant::now();
+        times.retain(|t| now.duration_since(*t).as_secs() < 10);
+        if times.len() >= 3 {
+            return;
+        }
+        times.push(now);
+    }
+    let project = tauri::async_runtime::block_on(db.get_project(p.project_id))
+        .map(|pr| pr.name)
+        .unwrap_or_else(|_| "프로젝트".to_string());
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app
+        .notification()
+        .builder()
+        .title(format!("{project} — 새 일지"))
+        .body(format!(
+            "[{}] {} · {}",
+            type_label(&p.summary.entry_type),
+            p.summary.title,
+            p.summary.agent_id
+        ))
+        .show();
 }
 
 // ─── 팝오버 창 (D2) ──────────────────────────────────────────────────────────
@@ -317,6 +390,7 @@ fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::Physica
 pub const SETTING_SHOW_ICON: &str = "tray.show_icon"; // 기본 on ("0" 일 때만 숨김)
 pub const SETTING_KEEP_RUNNING: &str = "tray.keep_running"; // 기본 off
 pub const SETTING_HIDE_DOCK: &str = "tray.hide_dock"; // 기본 off
+pub const SETTING_NOTIFY_JOURNAL: &str = "tray.notify_journal"; // 기본 off
 
 async fn setting_on(db: &crate::db::Db, key: &str, default_on: bool) -> bool {
     match db.settings_get(key.to_string()).await {

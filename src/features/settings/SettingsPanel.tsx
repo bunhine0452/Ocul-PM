@@ -379,7 +379,12 @@ function AppearanceTab() {
  * tray.hide_dock(keep_running 이 켜져 있을 때만 의미).
  */
 function MenubarSection() {
-  const [vals, setVals] = useState<{ show: boolean; keep: boolean; dock: boolean } | null>(null);
+  const [vals, setVals] = useState<{
+    show: boolean;
+    keep: boolean;
+    dock: boolean;
+    notify: boolean;
+  } | null>(null);
 
   useEffect(() => {
     void commands.settingsGetAll().then((res) => {
@@ -389,22 +394,28 @@ function MenubarSection() {
         show: m.get("tray.show_icon") !== "0",
         keep: m.get("tray.keep_running") === "1",
         dock: m.get("tray.hide_dock") === "1",
+        notify: m.get("tray.notify_journal") === "1",
       });
     });
   }, []);
 
-  const toggle = (key: "show" | "keep" | "dock") => {
+  const KEYS = {
+    show: "tray.show_icon",
+    keep: "tray.keep_running",
+    dock: "tray.hide_dock",
+    notify: "tray.notify_journal",
+  } as const;
+
+  const toggle = (key: keyof typeof KEYS) => {
     if (!vals) return;
     const next = { ...vals, [key]: !vals[key] };
     setVals(next);
-    const settingKey =
-      key === "show" ? "tray.show_icon" : key === "keep" ? "tray.keep_running" : "tray.hide_dock";
     void commands
-      .settingsSet(settingKey, next[key] ? "1" : "0")
+      .settingsSet(KEYS[key], next[key] ? "1" : "0")
       .then(() => commands.trayApplySettings());
   };
 
-  const rows: Array<{ key: "show" | "keep" | "dock"; label: string; hint: string; disabled?: boolean }> = [
+  const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; disabled?: boolean }> = [
     {
       key: "show",
       label: "메뉴바 아이콘 표시",
@@ -420,6 +431,11 @@ function MenubarSection() {
       label: "상주 중 Dock 아이콘 숨김",
       hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다 (macOS).",
       disabled: !vals?.keep,
+    },
+    {
+      key: "notify",
+      label: "새 일지 알림",
+      hint: "에이전트가 일지를 남기면 macOS 알림이 뜹니다. 백필 등으로 몰리면 10초에 3건까지만.",
     },
   ];
 
