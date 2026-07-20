@@ -413,3 +413,66 @@ section { position: relative; }
 .foot-brand .nm { color: #fff; font-weight: 600; font-size: 15px; }
 .foot-quote { flex: 1; min-width: 240px; font-size: 13px; font-style: italic; color: rgba(255,255,255,0.45); text-align: right; }
 @media (max-width: 700px){ .foot-quote { text-align: left; flex-basis: 100%; } }
+
+/* ============================================================ v2.2.0 UPDATE BAND */
+.announce-pill {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  padding: 7px 14px 7px 8px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: var(--green-200); text-decoration: none;
+  background: rgba(43,200,138,0.12); border: 1px solid rgba(84,227,173,0.35);
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+.announce-pill:hover { background: rgba(43,200,138,0.2); border-color: rgba(84,227,173,0.6); transform: translateY(-1px); }
+.announce-pill .ap-new {
+  background: var(--green-300); color: var(--green-950); border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; padding: 3px 8px;
+}
+
+.update-band {
+  background:
+    radial-gradient(70% 110% at 0% 100%, rgba(43,200,138,0.14), transparent 55%),
+    linear-gradient(180deg, var(--green-950), var(--green-900));
+  color: #fff; padding: 110px 0; position: relative; overflow: hidden;
+}
+.update-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; position: relative; z-index: 2; }
+.update-title { font-size: clamp(30px, 3.6vw, 46px); line-height: 1.15; letter-spacing: -0.025em; font-weight: 700; margin: 16px 0 0; text-wrap: balance; }
+.update-title em { font-style: normal; color: var(--green-300); }
+.update-sub { font-size: 16.5px; line-height: 1.62; color: rgba(255,255,255,0.78); margin: 18px 0 0; }
+.update-sub b { color: #fff; font-weight: 600; }
+.update-points { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.update-points li {
+  position: relative; padding: 0 0 0 26px; font-size: 14.5px; line-height: 1.55;
+  color: rgba(255,255,255,0.72);
+}
+.update-points li::before {
+  content: "✓"; position: absolute; left: 0; top: 0; color: var(--green-300); font-weight: 800;
+}
+.update-points b { color: #fff; font-weight: 640; }
+.update-points .mono { font-family: var(--mono); font-size: 13px; color: var(--green-200); }
+.update-cta { display: flex; align-items: center; gap: 22px; margin-top: 30px; flex-wrap: wrap; }
+.update-notes { color: var(--green-200); font-size: 14px; font-weight: 600; text-decoration: none; }
+.update-notes:hover { color: var(--green-300); }
+
+.chat-line { border-radius: 12px; padding: 11px 13px; font-size: 13.5px; line-height: 1.65; }
+.chat-line.user {
+  background: rgba(43,200,138,0.16); border: 1px solid rgba(84,227,173,0.25);
+  color: #fff; align-self: flex-end; max-width: 85%; font-weight: 560;
+}
+.chat-line.ai { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+.chat-line.ai b { color: #fff; }
+.chat-tool {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  font-family: var(--mono); font-size: 11.5px; color: var(--green-200);
+  background: rgba(6,31,24,0.55); border: 1px dashed rgba(84,227,173,0.35);
+  border-radius: 8px; padding: 5px 10px;
+}
+.chat-tool .ct-ico { opacity: 0.8; }
+.chat-tool .ct-ok { color: rgba(255,255,255,0.55); }
+.ck { font-family: var(--mono); font-size: 11.5px; font-weight: 700; margin-right: 4px; }
+.ck.done { color: var(--green-300); }
+.ck.todo { color: #f0c074; }
+
+@media (max-width: 920px){
+  .update-grid { grid-template-columns: 1fr; gap: 38px; }
+  .update-band { padding: 80px 0; }
+}

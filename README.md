@@ -8,7 +8,7 @@
 Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저</p>
 
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
-[![Downloads](https://badgen.net/github/assets-dl/bunhine0452/Ocul-PM?color=12a06b&label=downloads)](https://github.com/bunhine0452/Ocul-PM/releases)
+[![Downloads](https://img.shields.io/github/downloads/bunhine0452/Ocul-PM/total?color=12a06b&label=downloads)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -26,6 +26,15 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 것으로 시작합니다. 에이전트는 작업 하나를 끝낼 때마다 이 규칙대로 `.oculpm/journal/` 에 마크다운 일지를 남기고, 앱은 그것을 읽어 타임라인과 일일 브리프, 변경 diff, 회고로 보여줍니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
 서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 밖으로 나가는 것은 직접 부른 LLM API 호출과 새 버전 확인이 전부입니다.
+
+## 🚀 v2.2.0 — Claude 직접 연동
+
+지금까지 기록은 에이전트가 규칙 파일을 "기억해서" 남기는 것이었습니다. v2.2.0 부터 Ocul-PM 은 Claude 와 직접 악수합니다:
+
+- **MCP 서버 내장** — 버튼 한 번으로 **Claude Code 와 Claude Desktop** 에 등록됩니다. 에이전트는 마크다운 규격을 흉내 내는 대신 구조화 도구(`journal_write` · `plan_status` · `plan_update`)로 기록하고, Claude Desktop 에서 *"이 프로젝트 어디까지 됐어?"* 라고 물으면 라이브 플랜이 답합니다. 앱이 꺼져 있어도 동작합니다.
+- **훅 기반 세션 감지** — Claude Code 공식 훅으로 세션 시작·종료를 정확히 기록하고, 옵인하면 세션이 끝날 때 **transcript 로 일지 초안을 자동 생성**합니다. 에이전트가 일지를 깜빡해도 기록이 남습니다.
+- **실패 → 규칙 플라이휠** — 회고가 반복 실패를 감지해 `.claude/rules` 규칙 초안을 제안하고, 사람이 승인하면 저장됩니다. 규칙 허브에서 `CLAUDE.md`·규칙·훅을 GUI 로 관리하고 Cursor 에도 병행 배포합니다.
+- 그 외: Notion 내보내기, 추천 스킬 갤러리, AI 패널 스트리밍 마크다운·토큰 추정, 터미널 분할 페인·세션 지속. 전체 목록은 [CHANGELOG](CHANGELOG.md)에.
 
 ## 화면 구성
 
@@ -50,6 +59,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 - 별도 설정 없이: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
 - 설정 → Agents 에서 규칙 파일을 켜면: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
+- **Claude Code · Claude Desktop** 은 여기서 한 단계 더 — 훅(정확한 세션 감지)과 MCP 도구(구조화 기록·플랜 질의)로 직접 연동됩니다 (v2.2.0)
 
 git 백필 시에는 커밋 서명으로 에이전트를 구분합니다.
 

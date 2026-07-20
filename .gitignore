@@ -12,6 +12,8 @@ build
 # (src-tauri/.gitignore also covers target/ and gen/schemas)
 src-tauri/target
 src-tauri/gen/schemas
+# build-sidecar.mjs staging dir (externalBin) — 빌드 산출물, 커밋 금지
+src-tauri/binaries/
 
 # Embedding model cache (fastembed downloads ~120MB ONNX models here).
 # Lives wherever the binary is run from, so match anywhere.
@@ -78,9 +80,11 @@ Desktop.ini
 # `plugin/oculpm/.mcp.json`(플러그인이 배포하는 번들 파일)까지 삼킨다.
 /.mcp.json
 
+# 훅 이벤트 인박스 — payload 에 로컬 경로·대화 흔적 포함, 커밋 금지.
+# (관리블록이 구버전 앱에 의해 downgrade 되는 사고가 있어 블록 밖에 고정)
+.oculpm/hooks/
 # oculpm:begin v1
 .oculpm/index/
-.oculpm/hooks/
 .oculpm/.lock
 .oculpm/.schema-version
 .oculpm/oculpm.log
