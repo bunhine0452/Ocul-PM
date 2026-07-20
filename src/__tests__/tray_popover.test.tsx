@@ -47,6 +47,7 @@ const fx = {
     hide: [] as unknown[][],
     settingsSet: [] as unknown[][],
     getEntry: [] as unknown[][],
+    getPlan: [] as unknown[][],
     applySettings: 0,
   },
 };
@@ -73,6 +74,20 @@ vi.mock("@/lib/bindings", () => {
               return () => ok(fx.entries);
             case "planList":
               return () => ok(fx.plans);
+            case "planGet":
+              return (...a: unknown[]) => {
+                fx.calls.getPlan.push(a);
+                return ok({
+                  plan: fx.plans[0],
+                  items: [
+                    { item_id: "a", phase: null, title: "끝난 항목", status: "done", order_idx: 0, parent_item: null, note: null, last_agent: null, last_update: null },
+                    { item_id: "b", phase: null, title: "실기기 확인", status: "todo", order_idx: 1, parent_item: null, note: null, last_agent: null, last_update: null },
+                  ],
+                  phases: [],
+                  decisions: [],
+                  warnings: [],
+                });
+              };
             case "trayOpenMain":
               return (...a: unknown[]) => {
                 fx.calls.openMain.push(a);
@@ -163,6 +178,7 @@ beforeEach(() => {
   fx.calls.hide = [];
   fx.calls.settingsSet = [];
   fx.calls.getEntry = [];
+  fx.calls.getPlan = [];
   fx.calls.applySettings = 0;
 });
 
@@ -182,9 +198,27 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     // 최근 목록에는 어제 것도 날짜 표기로 나온다
     expect(r.getByText("어제 잡일")).toBeTruthy();
     expect(r.getByText("7/19")).toBeTruthy();
-    // 플랜 진행률
+    // 플랜 진행률 + "다음 할 일" 1줄 (planGet 항목에서 계산)
     expect(r.getByText("메뉴바 상주 라운드")).toBeTruthy();
     expect(r.getByText("3/6")).toBeTruthy();
+    await waitFor(() => expect(r.getByText("다음: 실기기 확인")).toBeTruthy());
+  });
+
+  it("플랜 행 클릭 → 팝오버 안 상세(항목 글리프 목록) → '앱에서 열기' 딥링크", async () => {
+    const r = render(<TrayPopover />);
+    await waitFor(() => expect(r.getByText("메뉴바 상주 라운드")).toBeTruthy());
+    fireEvent.click(r.getByText("메뉴바 상주 라운드"));
+
+    await waitFor(() => expect(r.getByText("끝난 항목")).toBeTruthy());
+    expect(r.getByText("실기기 확인")).toBeTruthy();
+    expect(fx.calls.openMain).toHaveLength(0);
+
+    fireEvent.click(r.getByText(/앱에서 열기/));
+    await waitFor(() => expect(fx.calls.openMain).toHaveLength(1));
+    expect(fx.calls.openMain[0][0]).toMatchObject({ view: "planner", project_id: 1 });
+
+    fireEvent.click(r.getByRole("button", { name: "뒤로" }));
+    await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
   });
 
   it("일지 행 클릭 → 팝오버 안 상세(본문 마크다운 라이트) → '앱에서 열기' 딥링크", async () => {

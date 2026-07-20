@@ -13,11 +13,19 @@ import { listen } from "@tauri-apps/api/event";
 import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import {
   commands,
+  events,
   type JournalEntrySummary,
+  type PlanItemDto,
   type PlanSummary,
   type Session,
 } from "@/lib/bindings";
 import "./tray.css";
+
+interface ActivePlan {
+  summary: PlanSummary;
+  /** 진행중 우선, 없으면 첫 todo — "다음 할 일" 1줄. */
+  next: string | null;
+}
 
 interface ProjectSnapshot {
   id: number;
@@ -26,7 +34,7 @@ interface ProjectSnapshot {
   workday: string | null;
   sessions: Session[];
   entries: JournalEntrySummary[];
-  plans: PlanSummary[];
+  plans: ActivePlan[];
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -75,6 +83,21 @@ async function loadProject(p: {
     commands.oculpmListJournalEntries(p.id, null, null),
     commands.planList(p.id),
   ]);
+  // 활성 플랜(표시 상한 2)은 항목까지 당겨 "다음 할 일"을 계산한다.
+  const active = plans.status === "ok" ? plans.data.filter((x) => x.status === "active") : [];
+  const enriched: ActivePlan[] = await Promise.all(
+    active.slice(0, 2).map(async (summary) => {
+      const d = await commands.planGet(p.id, summary.plan_id);
+      let next: string | null = null;
+      if (d.status === "ok" && d.data) {
+        const items = [...d.data.items].sort((a, b) => a.order_idx - b.order_idx);
+        next =
+          (items.find((i) => i.status === "in_progress") ??
+            items.find((i) => i.status === "todo"))?.title ?? null;
+      }
+      return { summary, next };
+    }),
+  );
   return {
     id: p.id,
     name: p.name,
@@ -82,7 +105,7 @@ async function loadProject(p: {
     workday: status.status === "ok" ? status.data.current_workday : null,
     sessions: sessions.status === "ok" ? sessions.data : [],
     entries: entries.status === "ok" ? entries.data : [],
-    plans: plans.status === "ok" ? plans.data.filter((x) => x.status === "active") : [],
+    plans: enriched,
   };
 }
 
@@ -344,6 +367,106 @@ function EntryDetail({
   );
 }
 
+// ─── 플랜 상세 (팝오버 안에서 보기) ──────────────────────────────────────────
+
+const ITEM_GLYPH: Record<string, { ch: string; cls: string }> = {
+  done: { ch: "✓", cls: "is-done" },
+  in_progress: { ch: "◐", cls: "is-progress" },
+  todo: { ch: "○", cls: "is-todo" },
+  blocked: { ch: "!", cls: "is-blocked" },
+  deferred: { ch: "›", cls: "is-muted" },
+  dropped: { ch: "×", cls: "is-muted" },
+};
+
+function PlanDetail({
+  projectId,
+  projectName,
+  planId,
+  onBack,
+  onOpenApp,
+}: {
+  projectId: number;
+  projectName: string;
+  planId: string;
+  onBack: () => void;
+  onOpenApp: () => void;
+}) {
+  const [plan, setPlan] = useState<{
+    title: string;
+    done: number;
+    total: number;
+    items: PlanItemDto[];
+  } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void commands.planGet(projectId, planId).then((res) => {
+      if (!alive) return;
+      if (res.status === "ok" && res.data) {
+        setPlan({
+          title: res.data.plan.title,
+          done: res.data.plan.done_count,
+          total: res.data.plan.item_count,
+          items: [...res.data.items].sort((a, b) => a.order_idx - b.order_idx),
+        });
+      } else {
+        setFailed(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, planId]);
+
+  return (
+    <div className="tp-detail">
+      <div className="tp-settings-head">
+        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+          <ArrowLeft size={14} />
+        </button>
+        <span className="tp-settings-title">플랜</span>
+        <span className="tp-detail-proj">{projectName}</span>
+      </div>
+      {failed ? (
+        <div className="tp-empty">플랜을 읽지 못했습니다</div>
+      ) : !plan ? (
+        <div className="tp-empty">불러오는 중…</div>
+      ) : (
+        <div className="tp-detail-body">
+          <div className="tp-detail-title">{plan.title}</div>
+          <div className="tp-plan-head-progress">
+            <span className="tp-progress">
+              <span
+                className="tp-progress-fill"
+                style={{ width: `${plan.total ? Math.round((plan.done / plan.total) * 100) : 0}%` }}
+              />
+            </span>
+            <span className="tp-dim">
+              {plan.done}/{plan.total}
+            </span>
+          </div>
+          <div className="tp-plan-items">
+            {plan.items.map((it) => (
+              <div className="tp-plan-item" key={it.item_id}>
+                <span className={`tp-item-glyph ${ITEM_GLYPH[it.status]?.cls ?? "is-todo"}`}>
+                  {ITEM_GLYPH[it.status]?.ch ?? "○"}
+                </span>
+                <span className={`tp-item-title ${it.status === "done" ? "is-done" : ""}`}>
+                  {it.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <button className="tp-open-settings" onClick={onOpenApp}>
+        앱에서 열기 <ExternalLink size={12} />
+      </button>
+    </div>
+  );
+}
+
 // ─── 트레이 설정 (상단바에서 끝낼 수 있는 것) ────────────────────────────────
 
 const TRAY_TOGGLES: Array<{ key: string; label: string; hint: string; defaultOn: boolean }> = [
@@ -451,6 +574,12 @@ export function TrayPopover() {
     projectName: string;
     path: string;
   } | null>(null);
+  // 플랜 상세 — 같은 패턴.
+  const [planDetail, setPlanDetail] = useState<{
+    projectId: number;
+    projectName: string;
+    planId: string;
+  } | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -472,9 +601,25 @@ export function TrayPopover() {
     const un = listen("tray-popover-shown", () => {
       setPane("main");
       setDetail(null);
+      setPlanDetail(null);
       void reload();
     });
     return () => {
+      void un.then((f) => f());
+    };
+  }, [reload]);
+
+  // 실시간 갱신 — 새 일지가 인덱싱되면 목록을 다시 당긴다. 백필처럼 이벤트가
+  // 몰릴 때를 위해 1.2초 트레일링 디바운스 (팝오버가 숨어 있어도 갱신해 두면
+  // 다음 오픈이 그만큼 신선하다).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const un = events.oculpmJournalAdded.listen(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void reload(), 1200);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
       void un.then((f) => f());
     };
   }, [reload]);
@@ -592,6 +737,20 @@ export function TrayPopover() {
     );
   }
 
+  if (planDetail) {
+    return (
+      <div className="traypop" data-testid="tray-popover">
+        <PlanDetail
+          projectId={planDetail.projectId}
+          projectName={planDetail.projectName}
+          planId={planDetail.planId}
+          onBack={() => setPlanDetail(null)}
+          onOpenApp={() => openMain({ view: "planner", project_id: planDetail.projectId })}
+        />
+      </div>
+    );
+  }
+
   if (pane === "settings") {
     return (
       <div className="traypop" data-testid="tray-popover">
@@ -679,19 +838,28 @@ export function TrayPopover() {
         <section className="tp-plans">
           {activePlans.slice(0, 2).map(({ project, plan }) => (
             <button
-              key={`${project.id}:${plan.plan_id}`}
+              key={`${project.id}:${plan.summary.plan_id}`}
               className="tp-plan-row"
-              onClick={() => openMain({ view: "planner", project_id: project.id })}
+              onClick={() =>
+                setPlanDetail({
+                  projectId: project.id,
+                  projectName: project.name,
+                  planId: plan.summary.plan_id,
+                })
+              }
             >
-              <span className="tp-title">{plan.title}</span>
+              <span className="tp-plan-main">
+                <span className="tp-title">{plan.summary.title}</span>
+                {plan.next && <span className="tp-plan-next">다음: {plan.next}</span>}
+              </span>
               <span className="tp-progress">
                 <span
                   className="tp-progress-fill"
-                  style={{ width: `${Math.round((plan.progress ?? 0) * 100)}%` }}
+                  style={{ width: `${Math.round((plan.summary.progress ?? 0) * 100)}%` }}
                 />
               </span>
               <span className="tp-dim">
-                {plan.done_count}/{plan.item_count}
+                {plan.summary.done_count}/{plan.summary.item_count}
               </span>
             </button>
           ))}
