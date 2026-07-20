@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:log": "echo \"===== dev session $(date '+%F %T') =====\" >> /tmp/oculpm-tauri-dev.log && pnpm tauri dev 2>&1 | tee -a /tmp/oculpm-tauri-dev.log",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
