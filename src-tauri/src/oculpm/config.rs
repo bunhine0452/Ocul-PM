@@ -103,6 +103,17 @@ impl OculpmConfig {
     /// it directly. Never leaves a partial file behind.
     pub fn save(&self, path: &Path) -> Result<(), OculpmError> {
         let text = toml::to_string_pretty(self)?;
+        // 멱등 쓰기 (2026-07-20): 내용이 같으면 디스크를 건드리지 않는다.
+        // 같은-내용 재작성이 mtime 만 바꿔 (a) 우리 watcher 의
+        // "config.toml changed" 재시작 경고, (b) 이 레포를 dev 로 열 때
+        // @tailwindcss/vite 가 change 이벤트에 raw full-reload 를 쏘는
+        // 웹뷰 전체 리로드(스파이 스택으로 확정)를 유발했다. 어댑터
+        // sync 의 byte-stable 규율과 동일한 원칙.
+        if let Ok(existing) = std::fs::read(path) {
+            if existing == text.as_bytes() {
+                return Ok(());
+            }
+        }
         write_atomic(path, text.as_bytes())
     }
 
