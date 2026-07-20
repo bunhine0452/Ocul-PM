@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: post-1.17-round
 title: "1.17 후속 — deferred 정리 + 백로그"
-status: active
+status: done
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-07-20
 owner: claude-code
 ---
 

@@ -37,6 +37,18 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+  // 설정(lazy 청크)만 쓰는 tauri 플러그인들을 서버 시작 시 미리 번들한다.
+  // 안 하면 설정 첫 진입 때 Vite 가 온디맨드 최적화를 돌며
+  // "optimized dependencies changed. reloading" 전체 페이지 리로드가 난다
+  // (dev 전용 — 2026-07-20 실기기 확인에서 발견).
+  optimizeDeps: {
+    include: [
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-updater",
+      "@tauri-apps/plugin-process",
+    ],
+  },
+
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,

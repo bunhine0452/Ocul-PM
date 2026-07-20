@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: v2-release
 title: "v2.0.0 대규모 업데이트 — 키보드 퍼스트·되돌려주기·자원 규율"
-status: active
+status: done
 created: 2026-07-06
-updated: 2026-07-11
+updated: 2026-07-20
 owner: claude-code
 ---
 
