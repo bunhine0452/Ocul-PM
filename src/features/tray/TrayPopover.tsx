@@ -204,6 +204,20 @@ function inlineMd(text: string): ReactNode[] {
   return out;
 }
 
+/**
+ * 일지 본문 첫 줄은 규격상 `[x] 제목` 체크박스 라인 (AGENTS.md §4) — 상세
+ * 패널이 제목을 이미 헤더로 보여주므로 본문에서는 중복이라 잘라낸다.
+ */
+function stripTitleLine(body: string): string {
+  const lines = body.split("\n");
+  let i = 0;
+  while (i < lines.length && !lines[i].trim()) i += 1;
+  if (i < lines.length && /^\s*\[(x| )\]\s/.test(lines[i])) {
+    return lines.slice(i + 1).join("\n");
+  }
+  return body;
+}
+
 function MdLite({ text }: { text: string }) {
   const blocks: ReactNode[] = [];
   const lines = text.split("\n");
@@ -317,7 +331,7 @@ function EntryDetail({
           <div className="tp-detail-meta">
             {entry.agent} · {fmtTime(entry.createdAt)}
           </div>
-          <MdLite text={entry.body} />
+          <MdLite text={stripTitleLine(entry.body)} />
         </div>
       )}
       <button className="tp-open-settings" onClick={onOpenApp}>

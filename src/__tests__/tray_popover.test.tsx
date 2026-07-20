@@ -91,7 +91,7 @@ vi.mock("@/lib/bindings", () => {
                   title: "트레이 팝오버 골격",
                   checkbox: true,
                   body_markdown:
-                    "## 추가 기능\n\n- 팝오버 안 **일지 읽기**\n\n```rust\nfn x() {}\n```",
+                    "[x] 트레이 팝오버 골격\n\n## 추가 기능\n\n- 팝오버 안 **일지 읽기**\n\n```rust\nfn x() {}\n```",
                   frontmatter: {
                     type: "feature",
                     created_at: iso(30 * 60_000),
@@ -198,6 +198,8 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     expect(fx.calls.openMain).toHaveLength(0);
     expect(r.getByText("일지 읽기")).toBeTruthy(); // **굵게** 인라인
     expect(r.getByText("fn x() {}")).toBeTruthy(); // 코드펜스
+    // 본문 첫 줄의 [x] 체크박스 제목은 헤더와 중복 — 렌더에서 제거된다.
+    expect(r.getAllByText(/트레이 팝오버 골격/)).toHaveLength(1);
 
     // 앱에서 열기 = 기존 딥링크 경로.
     fireEvent.click(r.getByText(/앱에서 열기/));
