@@ -799,7 +799,7 @@ export const commands = {
 	 */
 	notionSetParent: (input: string) => typedError<string | null, string>(__TAURI_INVOKE("notion_set_parent", { input })),
 	/**  마크다운을 부모 페이지 아래 새 Notion 페이지로 내보낸다 — 성공 시 페이지 URL. */
-	notionExport: (title: string, markdown: string) => typedError<string, string>(__TAURI_INVOKE("notion_export", { title, markdown })),
+	notionExport: (projectId: number, title: string, markdown: string) => typedError<string, string>(__TAURI_INVOKE("notion_export", { projectId, title, markdown })),
 };
 
 /** Events */

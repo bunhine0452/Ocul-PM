@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/react";
+import { cleanup, render, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -167,10 +167,11 @@ describe("RuleCandidatesPanel", () => {
     ];
     expect([pid, scope, relPath, create]).toEqual([1, "project", ".claude/rules/api-guard.md", true]);
     expect(content).toBe(DRAFT.content);
-    // 저장된 후보는 목록에서 사라진다.
-    await waitFor(() =>
-      expect(within(dialog).queryByText("규칙으로 저장")).toBeNull(),
-    );
+    // 저장된 후보는 **목록에서** 사라진다 (savedKeys 필터). 다이얼로그 내부를
+    // 물으면 setDraft(null) 로 이미 분리된 노드라 항상 null 이어서 아무것도
+    // 검증하지 못했다 — 목록 컨테이너를 직접 단언한다 (2026-07-20 리뷰 #11).
+    await waitFor(() => expect(screen.queryByText("src/api")).toBeNull());
+    expect(screen.queryByText("src/api/**")).toBeNull();
   });
 
   it("잘못된 슬러그면 저장 버튼이 비활성화된다", async () => {

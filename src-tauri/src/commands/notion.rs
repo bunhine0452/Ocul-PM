@@ -75,6 +75,7 @@ pub async fn notion_set_parent(
 #[specta::specta]
 pub async fn notion_export(
     db: State<'_, Db>,
+    project_id: u32,
     title: String,
     markdown: String,
 ) -> Result<String, String> {
@@ -87,5 +88,15 @@ pub async fn notion_export(
         .map_err(|e| e.to_string())?
         .filter(|s| !s.is_empty())
         .ok_or_else(|| "내보낼 부모 페이지가 설정되지 않았습니다 (설정 → 데이터)".to_string())?;
+    // 심층 방어 (2026-07-20 리뷰): 이 커맨드는 임의 문자열을 외부(api.notion.com)
+    // 로 내보내는 유일한 경로다. 현재 호출자는 이미 마스킹된 캐시 파생물만
+    // 넘기지만, 커맨드 자체가 보증을 갖도록 프로젝트 redact 패턴을 한 번 더
+    // 통과시킨다 (rule_promotion 의 LLM 전송 경로와 동일 규율).
+    let patterns = match db.get_project(project_id).await {
+        Ok(p) => crate::oculpm::redact::patterns_for_project(std::path::Path::new(&p.root_path)),
+        Err(_) => Vec::new(),
+    };
+    let (title, _) = crate::oculpm::redact::redact_text(&title, &patterns);
+    let (markdown, _) = crate::oculpm::redact::redact_text(&markdown, &patterns);
     notion::create_page(&token, &parent, &title, &markdown).await
 }

@@ -107,8 +107,26 @@ fn area_of(file: &str) -> Option<String> {
 fn rule_covers_area(rule_paths: &[String], area: &str) -> bool {
     rule_paths.iter().any(|g| {
         let g = g.trim_start_matches("./");
-        g == area
-            || g.strip_prefix(area)
+        if g == area {
+            return true;
+        }
+        // 규칙이 영역보다 좁다: `src/api/**` 는 영역 `src/api` 를 덮는다.
+        if g.strip_prefix(area).is_some_and(|rest| rest.starts_with('/')) {
+            return true;
+        }
+        // 규칙이 영역보다 **넓다**: `src/**` 나 `src/**/*.ts` 는 영역
+        // `src/api` 를 덮는다 (2026-07-20 리뷰 — 이 방향이 빠져 넓은 규칙을
+        // 가진 사용자에게 같은 후보가 영구 재제안됐다). 와일드카드가 나오기
+        // 전까지의 세그먼트를 base 로 잡아 디렉터리 경계로 비교한다
+        // (`src/apiX/**` 가 `src/api` 를 덮지 않도록 경계는 `/` 로 판정).
+        let base = g
+            .split('/')
+            .take_while(|seg| !seg.contains(['*', '?', '[']))
+            .collect::<Vec<_>>()
+            .join("/");
+        !base.is_empty()
+            && area
+                .strip_prefix(base.as_str())
                 .is_some_and(|rest| rest.starts_with('/'))
     })
 }
@@ -527,6 +545,19 @@ mod tests {
         assert_eq!(extract_candidates(&entries, &other, &BTreeSet::new()).len(), 1);
         // "src/apiX" 처럼 접두 문자열만 겹치는 glob 은 영역을 덮지 않는다.
         assert!(!rule_covers_area(&["src/apiX/**".to_string()], "src/api"));
+        // 2026-07-20 리뷰 — 영역보다 **넓은** 규칙도 덮는다. 이 방향이 빠져
+        // `src/**` 를 가진 사용자에게 같은 후보가 영구 재제안됐다.
+        let broad = [rule(".claude/rules/src.md", &["src/**"])];
+        assert!(
+            extract_candidates(&entries, &broad, &BTreeSet::new()).is_empty(),
+            "넓은 규칙(src/**)이 하위 영역(src/api) 후보를 억제해야 한다"
+        );
+        assert!(rule_covers_area(&["src/**/*.ts".to_string()], "src/api"));
+        assert!(rule_covers_area(&["src/*".to_string()], "src/api"));
+        // 넓어도 다른 가지면 억제하지 않는다.
+        assert!(!rule_covers_area(&["docs/**".to_string()], "src/api"));
+        // 루트 전체 glob 은 areas 를 무차별 억제하지 않도록 base 가 비면 제외.
+        assert!(!rule_covers_area(&["**".to_string()], "src/api"));
         // promoted-from 마커 키 → 억제.
         let mut promoted = BTreeSet::new();
         promoted.insert("area:src/api".to_string());

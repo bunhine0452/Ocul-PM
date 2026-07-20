@@ -35,7 +35,12 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 - [x] PR-CI6 EDD-lite — 플래너 완료 소프트 게이트 + 회고 eval 신호 {#ci6-edd-lite}
 - [x] PR-CI7 Notion 내보내기 v1 — internal token 키체인 + REST 페이지 생성, 회고/주간 요약 {#ci7-notion-export}
 - [x] PR-CI8 oculpm 플러그인 패키징 — 훅+MCP 번들 배포 골격 {#ci8-plugin-packaging}
-- [ ] Phase C 실기기 확인 — 완료 게이트 다이얼로그·EVALS.md 추이 실렌더, Notion 실계정 왕복(토큰 검증→페이지 생성), 플러그인 --plugin-dir 실로드(sidecar 번들 후) {#phase-c-runtime-verify}
+- [~] Phase C 실기기 확인 — 플러그인 `--plugin-dir` 실로드 통과(도구 3종 노출·훅 3건·비추적 프로젝트 무동작). 완료 게이트·EVALS.md 추이·Notion 실계정 왕복만 잔여 {#phase-c-runtime-verify}
+
+## Phase D — 리뷰 후속 {#phase-d}
+- [x] 적대적 코드 리뷰(PR-CI3~8) + HIGH/MED 5건 수정 — 관리블록 파괴·Notion redact·억제 양방향·URL 프래그먼트·훅 EPIPE {#review-fixes-round1}
+- [ ] 리뷰 잔여 5건 — Cursor 미러 충돌 안내 문구 오류·sync_mirrors 비fixpoint(rename 1패스 유실)·gather_evidence 누락 삼킴·split_frontmatter 수평선 오인·읽기 크기 상한 부재 {#review-fixes-round2}
+- [ ] 관리블록 버전 인식 — 구버전 앱이 gitignore 블록을 downgrade 해 민감 경로가 노출될 수 있음(union 병합 또는 버전 가드) {#managed-block-versioning}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -57,4 +62,9 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T18:04:14+09:00 | #ci6-edd-lite | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1804_feature_edd-lite-gate-and-eval-trend.md | journal_refs 기반 소프트 게이트(백엔드 무변경)+evals.rs 기록표 파서(CI5 규약 한 쌍, 부풀림 거부)+회고 추이 카드. cargo 377·vitest 168 그린 |
 | 2026-07-20T18:25:24+09:00 | #ci7-notion-export | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1825_feature_notion-export-v1.md | notion.rs md→블록(제한 방어·정규화)+커맨드 4종, 토큰은 기존 secret_set 키체인 재사용(검증 후에만 저장), 설정 데이터탭 섹션+회고/산출물 버튼(토큰 없으면 비노출). cargo 382·vitest 173 그린. 실계정 왕복은 Phase C 실기기 확인으로 |
 | 2026-07-20T18:29:05+09:00 | #ci8-plugin-packaging | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1828_feature_oculpm-plugin-skeleton.md | 스펙 실측(04 문서)+plugin/oculpm 골격. 훅 .oculpm 가드(비추적 무해 — 샌드박스 실검증)+MCP --root ${CLAUDE_PROJECT_DIR}(머신 종속 해소, 유저 스코프 1개로 전 프로젝트). 실로드 검증은 sidecar 번들 선행 → #phase-c-runtime-verify |
+| 2026-07-20T18:48:59+09:00 | #ci8-plugin-packaging | claude-code | x→x | journal/20260720/Bugs/1848_bug_gitignore-anchor-and-block-drift.md | 교차 세션 검토: 플러그인 --plugin-dir 실로드 통과(도구 3종·훅 3건·가드). gitignore 앵커 누락으로 번들 .mcp.json 이 커밋 안 되던 것 + 관리블록에서 .oculpm/hooks 유실(대화내용 노출 위험) fix |
+| 2026-07-20T19:01:00+09:00 | #review-fixes-round1 | claude-code | →x | journal/20260720/Bugs/1901_bug_rules-managed-block-and-review-fixes.md | 적대 리뷰 5건 수정: HIGH 규칙허브가 앱 관리블록 파괴(guard_managed_block)·Notion redact 심층방어(project_id)·억제 양방향(넓은 glob)·URL 프래그먼트·훅 EPIPE + 실패불가 테스트 실질화. cargo 384·vitest 176 그린 |
+| 2026-07-20T19:01:00+09:00 | #review-fixes-round2 | claude-code | →☐ | journal/20260720/Bugs/1901_bug_rules-managed-block-and-review-fixes.md | 리뷰 잔여 5건(미러 충돌 문구·sync_mirrors 비fixpoint·evidence 삼킴·frontmatter 수평선 오인·읽기 상한) — 데이터 손실 없음, 다음 라운드 |
+| 2026-07-20T19:01:00+09:00 | #managed-block-versioning | claude-code | →☐ | journal/20260720/Bugs/1848_bug_gitignore-anchor-and-block-drift.md | 구버전 앱이 관리블록을 downgrade 하는 구조적 위험 — gitignore 의 경우 민감경로 노출로 이어짐 |
+| 2026-07-20T18:53:18+09:00 | #design-master-plan | claude-code | x→x | journal/20260720/Refactors/1853_refactor_oculpm-settings-subtabs.md | 설정 ocul-pm 탭 5분할(기록·에이전트·자동화·연동·로그) — PR-CI0~8 누적으로 한 화면 스크롤 과부하. 과금 토글 2개를 '자동화'에 집약 |
 <!-- oculpm:plan-log end -->

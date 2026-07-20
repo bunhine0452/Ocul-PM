@@ -139,7 +139,9 @@ describe("회고 화면 Notion 내보내기 (PR-CI7)", () => {
     fireEvent.click(await findByRole("button", { name: "Notion 으로" }));
 
     await waitFor(() => expect(fx.calls.export).toHaveLength(1));
-    const [title, markdown] = fx.calls.export[0] as [string, string];
+    // projectId 가 첫 인자 — 백엔드 redact 심층 방어 계약 (2026-07-20 리뷰).
+    const [pid, title, markdown] = fx.calls.export[0] as [number, string, string];
+    expect(pid).toBe(1);
     expect(title).toBe("회고 7/14–7/20");
     expect(markdown).toContain("좋은 한 주였다");
     await waitFor(() => expect(fx.calls.openUrl).toHaveLength(1));

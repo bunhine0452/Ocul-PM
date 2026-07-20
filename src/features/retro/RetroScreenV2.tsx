@@ -178,7 +178,9 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
     async (title: string, markdown: string) => {
       if (notionBusy) return;
       setNotionBusy(true);
-      const res = await commands.notionExport(title, markdown);
+      // projectId — 백엔드가 프로젝트 redact 패턴으로 한 번 더 마스킹한다
+      // (외부 반출 심층 방어, 2026-07-20 리뷰).
+      const res = await commands.notionExport(projectId, title, markdown);
       setNotionBusy(false);
       if (res.status === "ok") {
         toast.info("Notion 페이지를 만들었어요 — 새 창에서 엽니다");
@@ -187,7 +189,7 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
         toast.destructive(`Notion 내보내기 실패: ${res.error}`);
       }
     },
-    [notionBusy],
+    [notionBusy, projectId],
   );
 
   // ── v2 U10 (C1) — 스탠드업·PR 본문·주간 보고 생성 ─────────────────────────

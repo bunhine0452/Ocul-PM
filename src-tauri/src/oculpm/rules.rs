@@ -420,6 +420,14 @@ pub fn save(
     if create && abs.exists() {
         return Err(format!("이미 존재하는 파일입니다: {rel_path}"));
     }
+    // 앱 소유 관리 블록 보호 (2026-07-20 적대 리뷰 HIGH). 일부 슬롯(특히
+    // `.claude/CLAUDE.md`)은 어댑터가 `<!-- oculpm:begin v1 -->` 구간을
+    // **매 sync 마다 재작성**한다. 규칙 허브가 전체 파일을 덮어쓰면 (a) 사용자가
+    // 블록 *안에* 쓴 내용이 다음 sync 에 조용히 사라지고, (b) 편집 중 sync 가
+    // 끼면 낡은 스냅샷이 어댑터 갱신을 되돌린다. 블록 밖은 자유롭게 편집하되,
+    // 블록 안이 디스크와 다르면 저장을 거부한다 (claude_hooks/mcp::register 의
+    // "해석 불가 대상은 쓰지 않는다" 계약과 같은 정신).
+    guard_managed_block(&abs, content)?;
     // 멱등: 동일 바이트면 디스크를 건드리지 않는다 (watcher 증폭 방지).
     let unchanged = std::fs::read(&abs).is_ok_and(|cur| cur == content.as_bytes());
     if !unchanged {
@@ -427,6 +435,64 @@ pub fn save(
     }
     let project_root = (scope == RuleScope::Project).then_some(project_root);
     Ok(build_entry(scope, kind, rel_path, Some(content), project_root))
+}
+
+/// 문자열에서 oculpm 관리 블록 **본문**을 뽑는다.
+/// `Ok(None)` = 블록 없음, `Err` = 마커 짝이 안 맞음(어댑터가 영구 에러로
+/// 취급하는 상태 — 저장 자체를 막아야 한다).
+fn extract_managed_block(text: &str) -> Result<Option<String>, String> {
+    let mut inner: Vec<&str> = Vec::new();
+    let mut in_block = false;
+    let mut closed = false;
+    for line in text.lines() {
+        let t = line.trim();
+        if t.starts_with("<!--") && t.contains("oculpm:begin") {
+            if in_block || closed {
+                return Err("oculpm 관리 블록 마커가 중복됩니다".into());
+            }
+            in_block = true;
+            continue;
+        }
+        if t.starts_with("<!--") && t.contains("oculpm:end") {
+            if !in_block {
+                return Err("oculpm:end 마커가 begin 없이 있습니다".into());
+            }
+            in_block = false;
+            closed = true;
+            continue;
+        }
+        if in_block {
+            inner.push(line);
+        }
+    }
+    if in_block {
+        return Err("oculpm:begin 마커가 닫히지 않았습니다".into());
+    }
+    Ok(closed.then(|| inner.join("\n")))
+}
+
+/// 저장 전 관리 블록 무결성 검사. 디스크에 블록이 있으면 저장 내용의 같은
+/// 구간이 바이트 동일해야 한다.
+fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
+    // 저장 내용 자체가 깨진 마커면 무조건 거부 — 어댑터를 영구 에러 상태로
+    // 만들 수 있다.
+    let incoming = extract_managed_block(content)?;
+    let on_disk = match std::fs::read_to_string(abs) {
+        Ok(cur) => extract_managed_block(&cur).unwrap_or(None),
+        Err(_) => None, // 신규 파일 / 읽기 불가 → 보호할 블록 없음
+    };
+    let Some(disk_block) = on_disk else {
+        return Ok(());
+    };
+    match incoming {
+        Some(ref new_block) if new_block == &disk_block => Ok(()),
+        _ => Err(
+            "이 파일의 `oculpm:begin/end` 구간은 ocul-pm 이 관리합니다 (에이전트 sync 때마다 \
+             재작성됨). 블록 밖은 자유롭게 편집할 수 있지만 블록 안은 바꿀 수 없습니다 — \
+             규칙 본문을 바꾸려면 `.oculpm/agents/_template.md` 를 편집하세요."
+                .into(),
+        ),
+    }
 }
 
 /// 삭제 — Rule 만. ClaudeMd 슬롯은 구조적으로 거부한다.
@@ -634,6 +700,62 @@ mod tests {
 
     const PATHS_RULE: &str = "---\npaths:\n  - \"src/api/**/*.ts\"\n  - \"src/components/*.tsx\"\n---\n\n# API 규칙\n\n- 입력 검증 필수\n";
     const ALWAYS_RULE: &str = "# 커밋 규칙\n\n- 한국어로 쓴다\n";
+
+    // ─── 관리 블록 보호 (2026-07-20 적대 리뷰 HIGH) ─────────────────────────
+
+    const MANAGED: &str =
+        "# 프로젝트 메모\n\n사용자 영역\n\n<!-- oculpm:begin v1 -->\n앱이 관리하는 규칙\n<!-- oculpm:end -->\n\n꼬리\n";
+
+    #[test]
+    fn save_preserves_app_managed_block_and_allows_edits_outside() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        seed(root, ".claude/CLAUDE.md", MANAGED);
+
+        // 블록 밖 편집 → 허용.
+        let outside = MANAGED.replace("사용자 영역", "사용자가 고친 영역");
+        assert!(save(
+            RuleScope::Project, root, root, ".claude/CLAUDE.md", &outside, false
+        )
+        .is_ok());
+        assert!(std::fs::read_to_string(root.join(".claude/CLAUDE.md"))
+            .unwrap()
+            .contains("사용자가 고친 영역"));
+
+        // 블록 **안** 편집 → 거부 (다음 sync 에 조용히 사라질 내용).
+        let inside = outside.replace("앱이 관리하는 규칙", "내가 몰래 끼워넣은 규칙");
+        let err = save(
+            RuleScope::Project, root, root, ".claude/CLAUDE.md", &inside, false,
+        )
+        .unwrap_err();
+        assert!(err.contains("_template.md"), "행동 가능한 안내: {err}");
+        // 디스크는 불변 — 직전 성공 저장 상태 그대로.
+        let on_disk = std::fs::read_to_string(root.join(".claude/CLAUDE.md")).unwrap();
+        assert!(on_disk.contains("앱이 관리하는 규칙"));
+        assert!(!on_disk.contains("몰래"));
+
+        // 블록 통째 삭제 시도 → 거부.
+        let dropped = "# 프로젝트 메모\n\n블록 없앰\n";
+        assert!(save(
+            RuleScope::Project, root, root, ".claude/CLAUDE.md", dropped, false
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn save_rejects_unbalanced_marker_that_would_break_adapter_forever() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        // 신규 파일이라 보호할 블록은 없지만, 짝 안 맞는 마커 자체가 어댑터를
+        // 영구 에러 상태로 만든다 — 저장 자체를 막아야 한다.
+        let orphan = "# 메모\n\n<!-- oculpm:begin v1 -->\n닫히지 않음\n";
+        let err = save(
+            RuleScope::Project, root, root, "CLAUDE.md", orphan, false,
+        )
+        .unwrap_err();
+        assert!(err.contains("닫히지"), "{err}");
+        assert!(!root.join("CLAUDE.md").exists(), "거부 시 파일을 만들지 않는다");
+    }
 
     // ─── 경로 검증 ──────────────────────────────────────────────────────────
 

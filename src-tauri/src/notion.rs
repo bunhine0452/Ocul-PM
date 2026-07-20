@@ -132,13 +132,12 @@ fn is_numbered_item(s: &str) -> bool {
 pub fn normalize_page_id(input: &str) -> Option<String> {
     let cleaned = input.trim();
     // URL 이면 마지막 경로 조각, 쿼리 제거.
-    let tail = cleaned
-        .rsplit('/')
-        .next()
-        .unwrap_or(cleaned)
-        .split('?')
-        .next()
-        .unwrap_or(cleaned);
+    // 쿼리(`?pvs=4`)와 **프래그먼트(`#<블록id>`)** 를 먼저 떼고 마지막 경로
+    // 조각을 본다. 프래그먼트를 안 떼면 블록 id 를 페이지 id 로 오인해 이후
+    // 모든 내보내기가 Notion 4xx 로 실패한다 (2026-07-20 리뷰).
+    let no_fragment = cleaned.split('#').next().unwrap_or(cleaned);
+    let no_query = no_fragment.split('?').next().unwrap_or(no_fragment);
+    let tail = no_query.rsplit('/').next().unwrap_or(no_query);
     let hex: String = tail
         .chars()
         .filter(|c| c.is_ascii_hexdigit())
@@ -305,6 +304,23 @@ mod tests {
         assert_eq!(
             normalize_page_id("https://www.notion.so/acme/회고-모음-1234567890abcdef1234567890abcdef?pvs=4")
                 .as_deref(),
+            Some(dashed)
+        );
+        // 2026-07-20 리뷰 — 프래그먼트(#블록id)가 붙으면 블록 id 를 페이지 id 로
+        // 오인해 이후 모든 내보내기가 4xx 로 실패했다.
+        assert_eq!(
+            normalize_page_id(
+                "https://www.notion.so/acme/Retros-1234567890abcdef1234567890abcdef#fedcba0987654321fedcba0987654321"
+            )
+            .as_deref(),
+            Some(dashed),
+            "프래그먼트의 블록 id 가 아니라 페이지 id 를 써야 한다"
+        );
+        assert_eq!(
+            normalize_page_id(
+                "https://www.notion.so/acme/Retros-1234567890abcdef1234567890abcdef?pvs=4#abc"
+            )
+            .as_deref(),
             Some(dashed)
         );
         assert_eq!(normalize_page_id("짧음"), None);
