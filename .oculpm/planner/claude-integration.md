@@ -45,4 +45,5 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T14:49:18+09:00 | #ci2-mcp-server | claude-code | →x | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | 최소 JSON-RPC 직접 구현(D3 수정 — rmcp 은 도구 확장 시), 디스크 SSOT·앱 IPC 없음, .mcp.json 머지+Desktop 스니펫, 템플릿 v5(MCP 도구 우선). cargo 355·게이트 그린. **실 Claude Code E2E**: 3 도구 왕복 — 규격 일지·글리프·plan-log 전부 확인(앱 미실행) |
 | 2026-07-20T14:49:18+09:00 | #ci2-runtime-verify | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | 헤드리스 E2E 는 통과 — 앱 설정 UI 경유 등록 + Desktop 실연결만 남음 |
 | 2026-07-20T14:49:18+09:00 | #ci2-sidecar-bundle | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | externalBin 번들 배선은 릴리스 빌드에서만 검증 가능 — 다음 릴리스 준비 시 처리 |
+| 2026-07-20T14:58:06+09:00 | #ci2-mcp-server | claude-code | x→x | journal/20260720/Bugs/1458_bug_tauri-dev-default-run.md | 실기기 확인 중 발견된 회귀 fix — [[bin]] 추가로 cargo run 모호 → default-run="ocul-pm" 고정 |
 <!-- oculpm:plan-log end -->
