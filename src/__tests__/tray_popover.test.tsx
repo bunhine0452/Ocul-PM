@@ -95,7 +95,7 @@ vi.mock("@/lib/bindings", () => {
                   frontmatter: {
                     type: "feature",
                     created_at: iso(30 * 60_000),
-                    agent: { id: "claude-code", version: null },
+                    agent: { id: "claude-code", version: "Fable 5" },
                   },
                 });
               };
@@ -192,8 +192,9 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     await waitFor(() => expect(r.getByText("트레이 팝오버 골격")).toBeTruthy());
     fireEvent.click(r.getByText("트레이 팝오버 골격"));
 
-    // 상세 패널 — 본문이 팝오버 안에서 읽힌다 (딥링크 아님).
+    // 상세 패널 — 본문이 팝오버 안에서 읽힌다 (딥링크 아님). 메타에 모델명.
     await waitFor(() => expect(r.getByText("추가 기능")).toBeTruthy());
+    expect(r.getByText(/claude-code · Fable 5 ·/)).toBeTruthy();
     expect(fx.calls.getEntry[0]).toEqual([1, "journal/20260720/Features_to_add/1000_feature_a.md"]);
     expect(fx.calls.openMain).toHaveLength(0);
     expect(r.getByText("일지 읽기")).toBeTruthy(); // **굵게** 인라인

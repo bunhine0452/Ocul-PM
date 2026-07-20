@@ -283,6 +283,7 @@ function EntryDetail({
     body: string;
     type: string;
     agent: string;
+    model: string | null;
     createdAt: string;
   } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -297,6 +298,7 @@ function EntryDetail({
           body: res.data.body_markdown,
           type: res.data.frontmatter.type,
           agent: res.data.frontmatter.agent.id,
+          model: res.data.frontmatter.agent.version,
           createdAt: res.data.frontmatter.created_at,
         });
       } else {
@@ -329,7 +331,8 @@ function EntryDetail({
         <div className="tp-detail-body">
           <div className="tp-detail-title">{entry.title}</div>
           <div className="tp-detail-meta">
-            {entry.agent} · {fmtTime(entry.createdAt)}
+            {entry.agent}
+            {entry.model && ` · ${entry.model}`} · {fmtTime(entry.createdAt)}
           </div>
           <MdLite text={stripTitleLine(entry.body)} />
         </div>
@@ -644,6 +647,7 @@ export function TrayPopover() {
             <button
               key={`${project.id}:${entry.relative_path}`}
               className="tp-entry-row"
+              title={`${entry.agent_id}${entry.agent_version ? ` · ${entry.agent_version}` : ""} · ${entry.files_count}개 파일`}
               onClick={() =>
                 setDetail({
                   projectId: project.id,
