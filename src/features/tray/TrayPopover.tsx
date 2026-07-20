@@ -8,7 +8,7 @@
 // 데이터는 팝오버가 열릴 때만 기존 커맨드로 당긴다 (폴링 없음 — 백엔드가
 // show 시점에 "tray-popover-shown" 을 쏜다). 신규 백엔드 집계 커맨드 없음.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import {
@@ -176,6 +176,157 @@ function ProjectPicker({
   );
 }
 
+// ─── 일지 상세 (팝오버 안에서 읽기) ──────────────────────────────────────────
+
+/**
+ * 마크다운 라이트 렌더 — 트레이 팝오버 전용. 일지 본문의 지배적 패턴(##
+ * 헤딩·불릿·코드펜스·**굵게**·`코드`)만 처리하고 나머지는 문단 그대로.
+ * 본 앱의 풀 마크다운 스택을 트레이 번들에 끌어오지 않기 위한 의도적 축소.
+ */
+function inlineMd(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  // `코드` 우선 분리 후 **굵게** 처리.
+  const parts = text.split(/(`[^`]+`)/g);
+  parts.forEach((part, i) => {
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      out.push(<code key={i}>{part.slice(1, -1)}</code>);
+      return;
+    }
+    const bolds = part.split(/(\*\*[^*]+\*\*)/g);
+    bolds.forEach((b, j) => {
+      if (b.startsWith("**") && b.endsWith("**") && b.length > 4) {
+        out.push(<b key={`${i}-${j}`}>{b.slice(2, -2)}</b>);
+      } else if (b) {
+        out.push(<span key={`${i}-${j}`}>{b}</span>);
+      }
+    });
+  });
+  return out;
+}
+
+function MdLite({ text }: { text: string }) {
+  const blocks: ReactNode[] = [];
+  const lines = text.split("\n");
+  let i = 0;
+  let key = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trimStart().startsWith("```")) {
+      const code: string[] = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trimStart().startsWith("```")) {
+        code.push(lines[i]);
+        i += 1;
+      }
+      i += 1; // 닫는 펜스
+      blocks.push(
+        <pre className="tp-md-code" key={key++}>
+          {code.join("\n")}
+        </pre>,
+      );
+      continue;
+    }
+    if (/^#{1,4}\s/.test(line)) {
+      blocks.push(
+        <div className="tp-md-h" key={key++}>
+          {inlineMd(line.replace(/^#{1,4}\s+/, ""))}
+        </div>,
+      );
+    } else if (/^\s*[-*]\s+/.test(line)) {
+      blocks.push(
+        <div className="tp-md-li" key={key++}>
+          <span className="tp-md-dot">•</span>
+          <span>{inlineMd(line.replace(/^\s*[-*]\s+/, ""))}</span>
+        </div>,
+      );
+    } else if (line.trim()) {
+      blocks.push(
+        <p className="tp-md-p" key={key++}>
+          {inlineMd(line)}
+        </p>,
+      );
+    }
+    i += 1;
+  }
+  return <div className="tp-md">{blocks}</div>;
+}
+
+function EntryDetail({
+  projectId,
+  projectName,
+  path,
+  onBack,
+  onOpenApp,
+}: {
+  projectId: number;
+  projectName: string;
+  path: string;
+  onBack: () => void;
+  onOpenApp: () => void;
+}) {
+  const [entry, setEntry] = useState<{
+    title: string;
+    body: string;
+    type: string;
+    agent: string;
+    createdAt: string;
+  } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void commands.oculpmGetJournalEntry(projectId, path).then((res) => {
+      if (!alive) return;
+      if (res.status === "ok" && res.data) {
+        setEntry({
+          title: res.data.title,
+          body: res.data.body_markdown,
+          type: res.data.frontmatter.type,
+          agent: res.data.frontmatter.agent.id,
+          createdAt: res.data.frontmatter.created_at,
+        });
+      } else {
+        setFailed(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, path]);
+
+  return (
+    <div className="tp-detail">
+      <div className="tp-settings-head">
+        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+          <ArrowLeft size={14} />
+        </button>
+        {entry && (
+          <span className={`tp-type tp-type-${entry.type}`}>
+            {TYPE_LABEL[entry.type] ?? entry.type}
+          </span>
+        )}
+        <span className="tp-detail-proj">{projectName}</span>
+      </div>
+      {failed ? (
+        <div className="tp-empty">일지를 읽지 못했습니다</div>
+      ) : !entry ? (
+        <div className="tp-empty">불러오는 중…</div>
+      ) : (
+        <div className="tp-detail-body">
+          <div className="tp-detail-title">{entry.title}</div>
+          <div className="tp-detail-meta">
+            {entry.agent} · {fmtTime(entry.createdAt)}
+          </div>
+          <MdLite text={entry.body} />
+        </div>
+      )}
+      <button className="tp-open-settings" onClick={onOpenApp}>
+        앱에서 열기 <ExternalLink size={12} />
+      </button>
+    </div>
+  );
+}
+
 // ─── 트레이 설정 (상단바에서 끝낼 수 있는 것) ────────────────────────────────
 
 const TRAY_TOGGLES: Array<{ key: string; label: string; hint: string; defaultOn: boolean }> = [
@@ -271,6 +422,12 @@ export function TrayPopover() {
   const [loading, setLoading] = useState(true);
   const [standupState, setStandupState] = useState<"idle" | "busy" | "copied">("idle");
   const [pane, setPane] = useState<"main" | "settings">("main");
+  // 일지 상세 — 팝오버 안에서 본문을 읽는다 (앱 열기는 상세 패널의 선택지).
+  const [detail, setDetail] = useState<{
+    projectId: number;
+    projectName: string;
+    path: string;
+  } | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -291,6 +448,7 @@ export function TrayPopover() {
     // 팝오버가 다시 열릴 때마다 재조회 + 메인 화면 복귀 (백엔드 show 신호).
     const un = listen("tray-popover-shown", () => {
       setPane("main");
+      setDetail(null);
       void reload();
     });
     return () => {
@@ -395,6 +553,22 @@ export function TrayPopover() {
     setStandupState("idle");
   };
 
+  if (detail) {
+    return (
+      <div className="traypop" data-testid="tray-popover">
+        <EntryDetail
+          projectId={detail.projectId}
+          projectName={detail.projectName}
+          path={detail.path}
+          onBack={() => setDetail(null)}
+          onOpenApp={() =>
+            openMain({ view: "journal", project_id: detail.projectId, entry_path: detail.path })
+          }
+        />
+      </div>
+    );
+  }
+
   if (pane === "settings") {
     return (
       <div className="traypop" data-testid="tray-popover">
@@ -457,10 +631,10 @@ export function TrayPopover() {
               key={`${project.id}:${entry.relative_path}`}
               className="tp-entry-row"
               onClick={() =>
-                openMain({
-                  view: "journal",
-                  project_id: project.id,
-                  entry_path: entry.relative_path,
+                setDetail({
+                  projectId: project.id,
+                  projectName: project.name,
+                  path: entry.relative_path,
                 })
               }
             >

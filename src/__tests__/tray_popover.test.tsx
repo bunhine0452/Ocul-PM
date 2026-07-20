@@ -46,6 +46,7 @@ const fx = {
     openMain: [] as unknown[][],
     hide: [] as unknown[][],
     settingsSet: [] as unknown[][],
+    getEntry: [] as unknown[][],
     applySettings: 0,
   },
 };
@@ -81,6 +82,22 @@ vi.mock("@/lib/bindings", () => {
               return (...a: unknown[]) => {
                 fx.calls.hide.push(a);
                 return ok(null);
+              };
+            case "oculpmGetJournalEntry":
+              return (...a: unknown[]) => {
+                fx.calls.getEntry.push(a);
+                return ok({
+                  relative_path: a[1],
+                  title: "트레이 팝오버 골격",
+                  checkbox: true,
+                  body_markdown:
+                    "## 추가 기능\n\n- 팝오버 안 **일지 읽기**\n\n```rust\nfn x() {}\n```",
+                  frontmatter: {
+                    type: "feature",
+                    created_at: iso(30 * 60_000),
+                    agent: { id: "claude-code", version: null },
+                  },
+                });
               };
             case "settingsGetAll":
               return () => ok(fx.settings);
@@ -145,6 +162,7 @@ beforeEach(() => {
   fx.calls.openMain = [];
   fx.calls.hide = [];
   fx.calls.settingsSet = [];
+  fx.calls.getEntry = [];
   fx.calls.applySettings = 0;
 });
 
@@ -169,16 +187,30 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     expect(r.getByText("3/6")).toBeTruthy();
   });
 
-  it("일지 행 클릭 → trayOpenMain 딥링크 (journal + entry_path)", async () => {
+  it("일지 행 클릭 → 팝오버 안 상세(본문 마크다운 라이트) → '앱에서 열기' 딥링크", async () => {
     const r = render(<TrayPopover />);
     await waitFor(() => expect(r.getByText("트레이 팝오버 골격")).toBeTruthy());
     fireEvent.click(r.getByText("트레이 팝오버 골격"));
+
+    // 상세 패널 — 본문이 팝오버 안에서 읽힌다 (딥링크 아님).
+    await waitFor(() => expect(r.getByText("추가 기능")).toBeTruthy());
+    expect(fx.calls.getEntry[0]).toEqual([1, "journal/20260720/Features_to_add/1000_feature_a.md"]);
+    expect(fx.calls.openMain).toHaveLength(0);
+    expect(r.getByText("일지 읽기")).toBeTruthy(); // **굵게** 인라인
+    expect(r.getByText("fn x() {}")).toBeTruthy(); // 코드펜스
+
+    // 앱에서 열기 = 기존 딥링크 경로.
+    fireEvent.click(r.getByText(/앱에서 열기/));
     await waitFor(() => expect(fx.calls.openMain).toHaveLength(1));
     expect(fx.calls.openMain[0][0]).toEqual({
       view: "journal",
       project_id: 1,
       entry_path: "journal/20260720/Features_to_add/1000_feature_a.md",
     });
+
+    // 뒤로 → 메인 화면 복귀.
+    fireEvent.click(r.getByRole("button", { name: "뒤로" }));
+    await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
   });
 
   it("빈 상태 — 세션 0·일지 0 이면 침묵도 정보로 보여준다 (D5)", async () => {

@@ -278,6 +278,52 @@ html, body {
 
 .tp-dim { color: var(--muted-foreground); font-size: 11px; }
 
+/* ─── 일지 상세 (팝오버 안 읽기) ─────────────────────────────────────────── */
+.tp-detail { display: flex; flex-direction: column; height: 100%; }
+.tp-detail-proj {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-detail-body { flex: 1; overflow-y: auto; padding: 12px 14px; user-select: text; }
+.tp-detail-title { font-size: 14px; font-weight: 680; line-height: 1.4; letter-spacing: -0.01em; }
+.tp-detail-meta {
+  margin-top: 4px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.tp-md { margin-top: 9px; display: flex; flex-direction: column; gap: 7px; }
+.tp-md-h { font-size: 12px; font-weight: 700; margin-top: 6px; letter-spacing: 0.01em; }
+.tp-md-p { font-size: 12.5px; line-height: 1.65; margin: 0; color: var(--foreground); }
+.tp-md-li { display: flex; gap: 7px; font-size: 12.5px; line-height: 1.6; }
+.tp-md-dot { color: var(--primary); flex: none; }
+.tp-md code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  background: var(--muted);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.tp-md-code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.55;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+}
+
 /* ─── 트레이 설정 패널 (상단바에서 끝낼 수 있는 것) ─────────────────────── */
 .tp-settings { display: flex; flex-direction: column; height: 100%; }
 .tp-settings-head {

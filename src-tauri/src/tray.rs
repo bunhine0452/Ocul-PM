@@ -33,8 +33,9 @@ const SIZE: u32 = 44;
 const POPOVER_W: f64 = 368.0;
 const POPOVER_H: f64 = 508.0;
 /// 애니메이션 프레임 수·주기 (사전 렌더 — 런타임 드로잉은 시작 시 1회).
-const PULSE_FRAMES: usize = 10;
-const PULSE_TICK_MS: u64 = 140;
+/// 한 사이클 = 호가 한 바퀴 (12×160ms ≈ 1.9초/회전, 심리스 루프).
+const PULSE_FRAMES: usize = 12;
+const PULSE_TICK_MS: u64 = 160;
 
 /// 팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
@@ -61,51 +62,98 @@ impl TrayState {
 
 // ─── 아이콘 렌더 ─────────────────────────────────────────────────────────────
 
+/// 브랜드 아크 모티프 (랜딩 `#arc-motif` 의 트레이판) — 완전한 동심원이
+/// 아니라 **끊긴 호 3개**가 서로 다른 각도로 놓인다. 애니메이션은 반경
+/// 펄스 대신 **호의 회전** — 위상 0.0~1.0 이 정확히 한 바퀴라 루프가
+/// 심리스다. 링 반경별 부호를 엇갈려 서로 반대 방향으로 돈다.
+struct Ring {
+    r: f32,
+    /// 호 폭 (px 반값).
+    w: f32,
+    /// 틈 중심각 (rad, 유휴 기준) — 랜딩 모티프의 rotate 값을 옮김.
+    gap_at: f32,
+    /// 틈 크기 (rad).
+    gap: f32,
+    /// 회전 방향 (+1/-1).
+    dir: f32,
+}
+
+const ARCS: [Ring; 3] = [
+    Ring { r: 6.2, w: 1.55, gap_at: 1.22, gap: 1.5, dir: 1.0 },
+    Ring { r: 11.2, w: 1.55, gap_at: -0.70, gap: 1.25, dir: -1.0 },
+    Ring { r: 16.2, w: 1.55, gap_at: 2.18, gap: 1.05, dir: 1.0 },
+];
+
+/// 각도 차 (rad) 를 [-π, π] 로 정규화한 절대값.
+fn ang_dist(a: f32, b: f32) -> f32 {
+    let mut d = (a - b) % std::f32::consts::TAU;
+    if d > std::f32::consts::PI {
+        d -= std::f32::consts::TAU;
+    }
+    if d < -std::f32::consts::PI {
+        d += std::f32::consts::TAU;
+    }
+    d.abs()
+}
+
+/// 서브픽셀 하나의 알파 (0..1).
+fn sample_alpha(fx: f32, fy: f32, pulse: Option<f32>, attention: bool) -> f32 {
+    let c = (SIZE as f32) / 2.0;
+    let dx = fx - c;
+    let dy = fy - c;
+    let d = (dx * dx + dy * dy).sqrt();
+    let ang = dy.atan2(dx);
+    let mut a = 0.0f32;
+
+    for arc in ARCS.iter() {
+        let radial = (arc.r - d).abs();
+        if radial >= arc.w + 0.8 {
+            continue;
+        }
+        // 반경 방향 소프트 엣지.
+        let ra = (1.0 - (radial / arc.w).powi(2)).clamp(0.0, 1.0);
+        // 각도 방향 — 틈 밖이면 1, 틈 가장자리는 픽셀 단위 페더.
+        let rot = match pulse {
+            Some(p) => arc.gap_at + arc.dir * std::f32::consts::TAU * p,
+            None => arc.gap_at,
+        };
+        let half_gap = arc.gap / 2.0;
+        let feather = 1.4 / arc.r; // 호 끝 라운딩 ≈ 1.4px
+        let aa = ((ang_dist(ang, rot) - half_gap) / feather).clamp(0.0, 1.0);
+        a = a.max(ra * aa);
+    }
+
+    // 중심점.
+    if d < 2.5 {
+        a = a.max((1.0 - (d / 2.5).powi(4)).clamp(0.0, 1.0));
+    }
+
+    if attention {
+        // 우상단 점 — 템플릿(실루엣)이라 색 대신 형태로 구분.
+        let ad = ((fx - (SIZE as f32 - 6.5)).powi(2) + (fy - 6.5).powi(2)).sqrt();
+        if ad < 4.0 {
+            a = a.max((1.0 - (ad / 4.0).powi(6)).clamp(0.0, 1.0));
+        }
+    }
+    a
+}
+
 /// 한 프레임을 그린다. `pulse` 는 0.0~1.0 위상 (None = 유휴 정적).
-/// 동심원 3링 + 중심점 — 링마다 위상차를 줘 바깥으로 퍼지는 파동.
+/// 2×2 슈퍼샘플링 — 22pt 크기에서 호 가장자리가 또렷하게.
 fn render_frame(pulse: Option<f32>, attention: bool) -> Image<'static> {
     let s = SIZE as usize;
     let mut buf = vec![0u8; s * s * 4];
-    let c = (SIZE as f32 - 1.0) / 2.0;
-    let rings = [6.0f32, 11.0, 16.0];
-    let amp = 1.5f32;
-    let ring_w = 1.7f32;
     for y in 0..s {
         for x in 0..s {
-            let dx = x as f32 - c;
-            let dy = y as f32 - c;
-            let d = (dx * dx + dy * dy).sqrt();
-            let mut a = 0.0f32;
-            for (i, r0) in rings.iter().enumerate() {
-                let r = match pulse {
-                    Some(p) => {
-                        r0 + amp * (std::f32::consts::TAU * (p - i as f32 * 0.18)).sin()
-                    }
-                    None => *r0,
-                };
-                let dist = (d - r).abs();
-                if dist < ring_w {
-                    let v = 1.0 - (dist / ring_w) * (dist / ring_w);
-                    a = a.max(v);
-                }
-            }
-            if d < 2.6 {
-                a = a.max(1.0 - (d / 2.6).powi(4));
-            }
-            if attention {
-                // 우상단 점 — 템플릿(실루엣)이라 색 대신 형태로 구분.
-                let ad = ((x as f32 - (SIZE as f32 - 6.5)).powi(2)
-                    + (y as f32 - 6.5).powi(2))
-                .sqrt();
-                if ad < 4.0 {
-                    a = a.max((1.0 - (ad / 4.0).powi(6)).clamp(0.0, 1.0));
-                }
+            let mut acc = 0.0f32;
+            for (ox, oy) in [(0.25f32, 0.25f32), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)] {
+                acc += sample_alpha(x as f32 + ox, y as f32 + oy, pulse, attention);
             }
             let px = (y * s + x) * 4;
             buf[px] = 0;
             buf[px + 1] = 0;
             buf[px + 2] = 0;
-            buf[px + 3] = (a.clamp(0.0, 1.0) * 255.0) as u8;
+            buf[px + 3] = ((acc / 4.0).clamp(0.0, 1.0) * 255.0) as u8;
         }
     }
     Image::new_owned(buf, SIZE, SIZE)
