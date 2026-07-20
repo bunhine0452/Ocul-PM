@@ -1,9 +1,14 @@
 <!-- oculpm:begin v1 -->
 <!-- schema_version: 1 -->
-<!-- template_version: 4 -->
+<!-- template_version: 5 -->
 # ocul-pm 작업 기록 규칙 (v1)
 
 당신은 ocul-pm 으로 추적되는 프로젝트에서 작업하고 있습니다. **하나의 논리적 작업 단위** (버그 수정 / 기능 추가 / 리팩토링 / 에러 해결 / 잡일) 를 끝낼 때마다, 그 작업에 관한 markdown 파일을 정해진 위치에 한 개 작성하세요. 사용자에게 묻지 마세요 — 작업의 끝을 인식하면 즉시 기록합니다.
+
+> **MCP 도구 우선**: 이 프로젝트에 `oculpm` MCP 서버가 연결되어 있어 `journal_write` /
+> `plan_status` / `plan_update` 도구가 보이면, **아래 §2~§4 의 파일 직접 작성 대신 그 도구를
+> 사용하라** — 경로·파일명·frontmatter 규격을 서버가 보장한다 (§7 의 플래너 갱신도
+> `plan_update` 로). 도구가 안 보일 때만 아래 규칙대로 파일을 직접 쓴다.
 
 ## 1. 언제 기록하는가 (5 trigger)
 

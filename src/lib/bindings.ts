@@ -736,6 +736,9 @@ export const commands = {
 	claudeHooksInstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_install", { projectId })),
 	/**  훅 제거 (우리 서명 엔트리만 — 사용자 훅·인박스 파일은 보존). */
 	claudeHooksUninstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_uninstall", { projectId })),
+	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
+	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
+	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
 };
 
 /** Events */
@@ -1555,6 +1558,19 @@ export type ManualEntryDraft = {
 export type MasterUpgrade = {
 	from_version: number,
 	to_version: number,
+};
+
+export type McpRegistrationStatus = {
+	/**  `.mcp.json` 에 우리 서버가 등록되어 있다. */
+	registered: boolean,
+	/**  사이드카 바이너리를 찾았다 (없으면 등록 불가 — dev 는 `cargo build`). */
+	binary_found: boolean,
+	binary_path: string | null,
+	mcp_json_path: string,
+	/**  Claude Desktop `claude_desktop_config.json` 에 붙여넣을 스니펫. */
+	desktop_snippet: string,
+	/**  우리 것 아닌 MCP 서버 정의 수 (정보 표시용 — 건드리지 않음). */
+	foreign_servers: number,
 };
 
 export type Message = {

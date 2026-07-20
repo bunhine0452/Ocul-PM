@@ -14,6 +14,12 @@ edition = "2021"
 name = "ocul_pm_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# PR-CI2 (docs/claude-integration D3) — stdio MCP 서버. 앱과 같은 lib 를 링크해
+# `.oculpm/` 규격 구현을 공유한다. 디스크 SSOT — 앱 프로세스와 IPC 없음.
+[[bin]]
+name = "oculpm-mcp"
+path = "src/bin/oculpm_mcp.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

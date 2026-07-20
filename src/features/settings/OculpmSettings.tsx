@@ -33,6 +33,7 @@ import {
   commands,
   type AgentDetection,
   type ClaudeHooksStatus,
+  type McpRegistrationStatus,
   type OculpmConfig,
 } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -500,6 +501,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </p>
 
         <ClaudeHooksBlock projectId={projectId} />
+        <McpServerBlock projectId={projectId} />
       </Section>
 
       <LogsSection />
@@ -612,6 +614,130 @@ export function ClaudeHooksBlock({ projectId }: { projectId: number }) {
         </p>
       )}
       {hooksError && <p className="text-[11px] text-red-400">{hooksError}</p>}
+    </div>
+  );
+}
+
+/**
+ * PR-CI2 (docs/claude-integration/00-master-plan.md D3) — oculpm-mcp 서버 등록
+ * 블록. 프로젝트 `.mcp.json` 에 stdio 서버(journal_write/plan_status/
+ * plan_update)를 등록해 Claude Code 가 파일 규격을 흉내 내는 대신 구조화
+ * 도구로 기록하게 한다. Claude Desktop 은 스니펫 복사로 연결.
+ *
+ * (export 는 테스트 전용 — mcp_settings.test.tsx.)
+ */
+export function McpServerBlock({ projectId }: { projectId: number }) {
+  const [mcp, setMcp] = useState<McpRegistrationStatus | null>(null);
+  const [mcpError, setMcpError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const refresh = useCallback(() => {
+    void commands.mcpStatus(projectId).then((res) => {
+      if (res.status === "ok") {
+        setMcp(res.data);
+        setMcpError(null);
+      } else {
+        setMcpError(res.error);
+      }
+    });
+  }, [projectId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const mutate = async (action: "register" | "unregister") => {
+    setBusy(true);
+    try {
+      const res =
+        action === "register"
+          ? await commands.mcpRegister(projectId)
+          : await commands.mcpUnregister(projectId);
+      if (res.status === "ok") {
+        setMcp(res.data);
+        setMcpError(null);
+        toast.info(action === "register" ? "MCP 서버를 등록했습니다" : "MCP 서버 등록을 해제했습니다");
+      } else {
+        setMcpError(res.error);
+        toast.destructive(`MCP 등록 변경 실패: ${res.error}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copySnippet = async () => {
+    if (!mcp) return;
+    try {
+      await navigator.clipboard.writeText(mcp.desktop_snippet);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.warning("클립보드 복사 실패 — 스니펫을 직접 선택해 복사하세요");
+    }
+  };
+
+  const badge = mcpError
+    ? { label: "설정 파일 오류", cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    : !mcp
+      ? { label: "확인 중…", cls: "border-border bg-muted/30 text-muted-foreground" }
+      : mcp.registered
+        ? { label: "등록됨", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        : !mcp.binary_found
+          ? { label: "바이너리 없음", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          : { label: "미등록", cls: "border-border bg-muted/30 text-muted-foreground" };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          MCP 서버 (journal_write · plan_status · plan_update)
+        </Label>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+          {badge.label}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={busy || !mcp} onClick={() => void copySnippet()}>
+            {copied ? "복사됨" : "Desktop 스니펫 복사"}
+          </Button>
+          {mcp?.registered ? (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutate("unregister")}>
+              {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              해제
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={busy || !!mcpError || !mcp?.binary_found}
+              onClick={() => void mutate("register")}
+            >
+              {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              등록
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        프로젝트 <code className="text-[10px]">.mcp.json</code> 에 로컬 stdio 서버를 등록합니다.
+        에이전트가 마크다운 규격을 흉내 내는 대신 <strong>구조화 도구</strong>로 일지·플랜을
+        기록해 frontmatter 오류가 원천 차단됩니다. 앱이 꺼져 있어도 동작합니다 (디스크 SSOT).
+        Claude Desktop 은 위 스니펫을 <code className="text-[10px]">claude_desktop_config.json</code>
+        에 붙여넣으면 같은 서버로 프로젝트 현황을 물을 수 있습니다.
+      </p>
+      {mcp && !mcp.binary_found && (
+        <p className="text-[11px] text-amber-400">
+          oculpm-mcp 바이너리를 찾지 못했습니다 — dev 환경에서는{" "}
+          <code className="text-[10px]">cargo build --bin oculpm-mcp</code> 후 새로고침하세요.
+        </p>
+      )}
+      {mcp?.registered && (
+        <p className="text-[11px] text-muted-foreground">
+          주의: <code className="text-[10px]">.mcp.json</code> 은 커밋되는 파일인데 바이너리 경로는
+          이 머신 전용입니다 — 팀 공유 시 각자 재등록이 필요합니다.
+        </p>
+      )}
+      {mcpError && <p className="text-[11px] text-red-400">{mcpError}</p>}
     </div>
   );
 }

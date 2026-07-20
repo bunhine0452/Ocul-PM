@@ -11,6 +11,7 @@ pub mod git;
 pub mod graph;
 pub mod greenfield;
 pub mod llm;
+pub mod mcp;
 pub mod oculpm;
 pub mod overview;
 pub mod plan;
@@ -34,6 +35,7 @@ pub use git::*;
 pub use graph::*;
 pub use greenfield::*;
 pub use llm::*;
+pub use mcp::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.
 pub use oculpm::*;
 pub use overview::*;

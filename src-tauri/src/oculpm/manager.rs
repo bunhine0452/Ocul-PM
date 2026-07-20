@@ -1896,7 +1896,7 @@ fn validate_slug(slug: &str) -> Result<(), OculpmError> {
     Ok(())
 }
 
-fn entry_type_filename_token(t: EntryType) -> &'static str {
+pub(crate) fn entry_type_filename_token(t: EntryType) -> &'static str {
     match t {
         EntryType::Bug => "bug",
         EntryType::Feature => "feature",
@@ -1906,7 +1906,7 @@ fn entry_type_filename_token(t: EntryType) -> &'static str {
     }
 }
 
-fn category_subdir(t: EntryType) -> &'static str {
+pub(crate) fn category_subdir(t: EntryType) -> &'static str {
     match t {
         EntryType::Bug => "Bugs",
         EntryType::Feature => "Features_to_add",
@@ -1918,7 +1918,7 @@ fn category_subdir(t: EntryType) -> &'static str {
 
 /// Resolve a non-conflicting file path: `base.md` first, then `base__2.md`,
 /// `base__3.md`, …. Returns the absolute path and the chosen file name.
-fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, String) {
+pub(crate) fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, String) {
     let initial = format!("{base}.md");
     let first = dir.join(&initial);
     if !first.exists() {

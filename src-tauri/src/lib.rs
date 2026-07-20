@@ -168,6 +168,8 @@ use crate::commands::{
     skills_list, skills_read, skills_save, skills_delete, skills_set_enabled, skills_copy,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
+    // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Desktop 스니펫)
+    mcp_status, mcp_register, mcp_unregister,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -337,6 +339,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         claude_hooks_status,
         claude_hooks_install,
         claude_hooks_uninstall,
+        // PR-CI2 — oculpm-mcp 서버 등록
+        mcp_status,
+        mcp_register,
+        mcp_unregister,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

@@ -22,6 +22,7 @@ pub mod journal_draft;
 pub mod lock;
 pub mod manager;
 pub mod markdown;
+pub mod mcp;
 pub mod paths;
 pub mod planner;
 pub mod reconcile;

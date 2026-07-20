@@ -20,7 +20,9 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 - [ ] PR-CI0 실기기 확인 — pnpm tauri dev + 훅 켠 실제 Claude Code 세션 1회 → 세션 1개 정확 생성·AgentExit 종료(중복·유령 0) 확인 후 릴리스 판단 {#ci0-runtime-verify}
 - [x] PR-CI1 transcript 일지 초안 — 방어적 파싱, 옵인 LLM 초안→redact→규격 일지, 자필 일지 중복 스킵 {#ci1-transcript-draft}
 - [ ] PR-CI1 실기기 확인 — auto_journal_draft 켠 실세션 종료 → 초안 일지 생성(자필 일지 있으면 미생성) 확인 {#ci1-runtime-verify}
-- [ ] PR-CI2 oculpm-mcp v1 — journal_write/plan_status/plan_update stdio 서버, sidecar 번들, .mcp.json+Desktop 등록, 템플릿 v5 {#ci2-mcp-server}
+- [x] PR-CI2 oculpm-mcp v1 — journal_write/plan_status/plan_update stdio 서버, .mcp.json+Desktop 스니펫 등록, 템플릿 v5 {#ci2-mcp-server}
+- [ ] PR-CI2 실기기 확인 — 설정에서 등록 후 실세션 도구 호출 + Claude Desktop 실연결 확인 {#ci2-runtime-verify}
+- [ ] PR-CI2 후속 — .app 번들에 oculpm-mcp sidecar(externalBin) 동봉, 릴리스 빌드에서 검증 {#ci2-sidecar-bundle}
 
 ## Phase B — 규칙 플라이휠 {#phase-b}
 - [ ] PR-CI3 규칙 허브 — 스킬 화면 탭 확장(규칙/훅), CLAUDE.md·.claude/rules CRUD+globs, 크로스툴 번역 {#ci3-rules-hub}
@@ -40,4 +42,7 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T14:11:28+09:00 | #ci0-runtime-verify | claude-code | →☐ | journal/20260720/Features_to_add/1411_feature_claude-hooks-bridge.md | 인박스→세션 반영은 단위 테스트 커버 — 앱 실구동 세션 정확성(중복·유령 0)·AgentExit 라벨 UI 확인만 남음 |
 | 2026-07-20T14:30:42+09:00 | #ci1-transcript-draft | claude-code | →x | journal/20260720/Features_to_add/1430_feature_claude-transcript-journal-draft.md | transcript.rs 방어 파서(사이드체인·tool 블록 제외, 접기)+journal_draft.rs(자필 스킵·강등 경로·타입별 헤더 결정적 조립·redact 이중방어)+agents.auto_journal_draft 옵인+설정 토글. ManualEntryDraft agent/verified 오버라이드. cargo 344·게이트 그린. 부수: 캐시 agent_version 소실 잠복버그 fix(Bugs/1431) |
 | 2026-07-20T14:30:42+09:00 | #ci1-runtime-verify | claude-code | →☐ | journal/20260720/Features_to_add/1430_feature_claude-transcript-journal-draft.md | LLM 호출부만 실기기 미검증 — 옵인 켠 실세션 1회로 초안 생성·자필 스킵 확인 필요 |
+| 2026-07-20T14:49:18+09:00 | #ci2-mcp-server | claude-code | →x | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | 최소 JSON-RPC 직접 구현(D3 수정 — rmcp 은 도구 확장 시), 디스크 SSOT·앱 IPC 없음, .mcp.json 머지+Desktop 스니펫, 템플릿 v5(MCP 도구 우선). cargo 355·게이트 그린. **실 Claude Code E2E**: 3 도구 왕복 — 규격 일지·글리프·plan-log 전부 확인(앱 미실행) |
+| 2026-07-20T14:49:18+09:00 | #ci2-runtime-verify | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | 헤드리스 E2E 는 통과 — 앱 설정 UI 경유 등록 + Desktop 실연결만 남음 |
+| 2026-07-20T14:49:18+09:00 | #ci2-sidecar-bundle | claude-code | →☐ | journal/20260720/Features_to_add/1449_feature_oculpm-mcp-server.md | externalBin 번들 배선은 릴리스 빌드에서만 검증 가능 — 다음 릴리스 준비 시 처리 |
 <!-- oculpm:plan-log end -->
