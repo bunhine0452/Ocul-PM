@@ -32,7 +32,7 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 - [x] PR-CI5 추천 스킬 갤러리 — self-audit·run-evals·tdd-workflow 원클릭 설치 {#ci5-skill-gallery}
 
 ## Phase C — 검증·아웃바운드 {#phase-c}
-- [ ] PR-CI6 EDD-lite — 플래너 완료 소프트 게이트 + 회고 eval 신호 {#ci6-edd-lite}
+- [x] PR-CI6 EDD-lite — 플래너 완료 소프트 게이트 + 회고 eval 신호 {#ci6-edd-lite}
 - [ ] PR-CI7 Notion 내보내기 v1 — internal token 키체인 + REST 페이지 생성, 회고/주간 요약 {#ci7-notion-export}
 - [ ] PR-CI8 oculpm 플러그인 패키징 — 훅+MCP 번들 배포 골격 {#ci8-plugin-packaging}
 
@@ -53,4 +53,5 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T17:34:15+09:00 | #ci3-rules-hub | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1734_feature_rules-hub-tabs-and-cursor-mirror.md | 실측 교정(globs 아님—paths 스키마, 03 스펙 문서) + 허브 3탭(스킬/규칙/훅) + rules.rs CRUD·Cursor 미러(마커 소유·conflict 보호·멱등 sync) + rules_translate 옵인. cargo 364·vitest 154·게이트 그린. 실앱 확인은 신규 #ci3-runtime-verify |
 | 2026-07-20T17:47:05+09:00 | #ci4-rule-promotion | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1746_feature_rule-promotion-loop.md | area 클러스터링(≥2, paths·promoted-from 이중 억제)+redact 증거→LLM JSON 초안→회고 "규칙 후보" 승인 카드→rules_save 재사용. 자동 적용 경로 부재를 코드 구조+테스트로 고정. cargo 373·vitest 160 그린. 실사용 확인은 신규 #ci4-runtime-verify |
 | 2026-07-20T17:56:38+09:00 | #ci5-skill-gallery | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1756_feature_skill-gallery-one-click.md | 순수 데이터 갤러리(백엔드 무변경)+skills_save 재사용+이중 중복가드. run-evals 템플릿이 EVALS.md ## 기록 표 규약 정의(CI6 이 파싱). vitest 163 그린 |
+| 2026-07-20T18:04:14+09:00 | #ci6-edd-lite | claude-code | ☐→x | .oculpm/journal/20260720/Features_to_add/1804_feature_edd-lite-gate-and-eval-trend.md | journal_refs 기반 소프트 게이트(백엔드 무변경)+evals.rs 기록표 파서(CI5 규약 한 쌍, 부풀림 거부)+회고 추이 카드. cargo 377·vitest 168 그린 |
 <!-- oculpm:plan-log end -->

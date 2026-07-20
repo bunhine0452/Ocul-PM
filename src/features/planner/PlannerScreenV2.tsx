@@ -25,6 +25,7 @@ import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
@@ -194,7 +195,20 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 롤업(plans 목록)만 비차단 refetch; 실패 시 이전 detail 로 롤백 + 토스트.
   // busy 게이트를 걸지 않아 연속 토글이 즉각 반응한다 (백엔드는 N4 공유
   // plan-write 락이 직렬화).
+  // PR-CI6 (EDD-lite) — 완료 소프트 게이트: plan-log 에 검증 일지가 연결되지
+  // 않은 항목을 done 으로 바꾸려 하면 확인을 한 번 거친다. 소프트 — "검증
+  // 없이 완료" 를 누르면 그대로 진행되고, 어떤 상태도 강제로 막지 않는다.
+  const [confirmDone, setConfirmDone] = useState<PlanItemDto | null>(null);
+
   const applyStatus = async (item: PlanItemDto, status: string) => {
+    if (status === "done" && item.status !== "done" && item.journal_refs.length === 0) {
+      setConfirmDone(item);
+      return;
+    }
+    await doApplyStatus(item, status);
+  };
+
+  const doApplyStatus = async (item: PlanItemDto, status: string) => {
     if (selectedId == null || item.status === status) return;
     const prevDetail = detail;
     setDetail((d) =>
@@ -674,6 +688,45 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           ) : null}
         </div>
       </div>
+
+      {/* PR-CI6 (EDD-lite) — 완료 소프트 게이트: 검증 일지 미연결 경고 (무시 가능). */}
+      <AppDialog
+        open={confirmDone != null}
+        onClose={() => setConfirmDone(null)}
+        label="검증 일지 없이 완료"
+        width={480}
+      >
+        {confirmDone ? (
+          <>
+            <div style={{ display: "flex", gap: 10, padding: "18px 20px 4px" }}>
+              <TriangleAlert size={18} style={{ flexShrink: 0, marginTop: 2, color: "var(--t-bug, #d97706)" }} />
+              <div style={{ fontSize: 13, lineHeight: 1.65 }}>
+                <strong>{confirmDone.title}</strong> 항목에 연결된 <strong>검증 일지가 없습니다</strong>.
+                <br />
+                <span style={{ color: "var(--text-3)" }}>
+                  일지를 쓰고 plan-log 로 연결하면 "무엇으로 확인했는지"가 함께 남습니다.
+                  그래도 완료로 표시할 수 있어요.
+                </span>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px 16px" }}>
+              <button className="btn sm" onClick={() => setConfirmDone(null)}>
+                취소
+              </button>
+              <button
+                className="btn primary sm"
+                onClick={() => {
+                  const item = confirmDone;
+                  setConfirmDone(null);
+                  void doApplyStatus(item, "done");
+                }}
+              >
+                검증 없이 완료
+              </button>
+            </div>
+          </>
+        ) : null}
+      </AppDialog>
     </>
   );
 }

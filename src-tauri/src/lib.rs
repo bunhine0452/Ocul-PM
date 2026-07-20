@@ -158,8 +158,8 @@ use crate::commands::{
     oculpm_overview_stats,
     // F5 — git-history backfill
     oculpm_backfill_from_git,
-    // F4 — 회고/인사이트
-    retro_signals, get_retro, generate_retro,
+    // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
+    retro_signals, get_retro, generate_retro, eval_signals,
     // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
     oculpm_generate_summary,
     // C2 — 일지 내보내기
@@ -325,11 +325,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_overview_stats,
         // F5 — git-history backfill
         oculpm_backfill_from_git,
-        // F4 — 회고/인사이트
+        // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
         retro_signals,
         oculpm_generate_summary,
         get_retro,
         generate_retro,
+        eval_signals,
         // C2 — 일지 내보내기
         oculpm_export_digest,
         // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)

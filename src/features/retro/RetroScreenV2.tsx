@@ -24,6 +24,7 @@ import {
   type SummaryStyle,
 } from "@/lib/bindings";
 import { RuleCandidatesPanel } from "./RuleCandidates";
+import { EvalTrendPanel } from "./EvalTrend";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
 // 집중·에이전트 기여)를 모아 보여주고, "회고 생성"으로 그 신호 위에 LLM 한국어
@@ -320,6 +321,8 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
           ) : (
             <div className="flex flex-col gap-5 max-w-3xl">
               <SignalsPanel signals={signals!} />
+              {/* PR-CI6 — EVALS.md 점수 추이 (파일 없으면 스스로 숨음). */}
+              <EvalTrendPanel projectId={projectId} />
               {/* PR-CI4 — 반복 실패의 규칙 승격 제안 (후보 없으면 스스로 숨음). */}
               <RuleCandidatesPanel projectId={projectId} since={since} until={until} />
               <NarrativePanel

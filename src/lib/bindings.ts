@@ -707,6 +707,17 @@ export const commands = {
 	 */
 	generateRetro: (projectId: number, since: string, until: string, provider: string, model: string) => typedError<RetroInsight, string>(__TAURI_INVOKE("generate_retro", { projectId, since, until, provider, model })),
 	/**
+	 *  PR-CI6 (EDD-lite) — 프로젝트 루트 `EVALS.md` 의 `## 기록` 표를 점수 추이로.
+	 *  파일이 없으면 `None` (UI 는 섹션을 그리지 않는다). 기간과 무관 — 문서
+	 *  전체가 신호다.
+	 */
+	evalSignals: (projectId: number) => typedError<{
+	/**  날짜 오름차순 (동일 날짜는 문서 순서 유지), 최근 200건. */
+	records: EvalRecord[],
+	/**  등장한 스위트명 (등장 순서). */
+	suites: string[],
+} | null, string>(__TAURI_INVOKE("eval_signals", { projectId })),
+	/**
 	 *  Render the range digest, open a native save dialog (default `.md` name), and
 	 *  write the file. Returns the saved path, or `None` if the user cancelled.
 	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
@@ -1249,6 +1260,27 @@ export type EntryFilters = {
 export type EntryStatus = "planned" | "in_progress" | "done" | "abandoned";
 
 export type EntryType = "bug" | "feature" | "error" | "refactor" | "chore";
+
+/**  `## 기록` 표의 한 행. */
+export type EvalRecord = {
+	/**  `YYYY-MM-DD`. */
+	date: string,
+	suite: string,
+	passed: number,
+	total: number,
+	memo: string,
+};
+
+/**
+ *  `eval_signals` 응답. `EVALS.md` 자체가 없으면 커맨드가 `None` 을 돌려
+ *  UI 가 섹션을 그리지 않는다.
+ */
+export type EvalSignals = {
+	/**  날짜 오름차순 (동일 날짜는 문서 순서 유지), 최근 200건. */
+	records: EvalRecord[],
+	/**  등장한 스위트명 (등장 순서). */
+	suites: string[],
+};
 
 export type FileChangeEvent = {
 	ts: string,

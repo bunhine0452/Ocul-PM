@@ -16,6 +16,7 @@ pub mod config;
 pub mod discussion;
 pub mod entry_diffs;
 pub mod error;
+pub mod evals;
 pub mod frontmatter;
 pub mod index;
 pub mod journal_draft;

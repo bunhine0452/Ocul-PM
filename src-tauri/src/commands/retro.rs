@@ -302,6 +302,21 @@ pub async fn retro_signals(
     gather_signals(&db, project_id, &since, &until).await
 }
 
+/// PR-CI6 (EDD-lite) — 프로젝트 루트 `EVALS.md` 의 `## 기록` 표를 점수 추이로.
+/// 파일이 없으면 `None` (UI 는 섹션을 그리지 않는다). 기간과 무관 — 문서
+/// 전체가 신호다.
+#[tauri::command]
+#[specta::specta]
+pub async fn eval_signals(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Option<crate::oculpm::evals::EvalSignals>, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    Ok(crate::oculpm::evals::signals_for(std::path::Path::new(
+        &project.root_path,
+    )))
+}
+
 /// The cached retro narrative for a range, or `None` if never generated.
 #[tauri::command]
 #[specta::specta]
