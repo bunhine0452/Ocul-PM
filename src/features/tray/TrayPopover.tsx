@@ -137,12 +137,20 @@ export function TrayPopover() {
     [visible],
   );
 
-  const todayEntries = useMemo(
+  // workday=null 조회는 프로젝트 **전체** 일지를 돌려준다 — "오늘" 수치는
+  // 프로젝트별 current_workday 로 잘라야 한다 (첫 실기기에서 전체 누적이
+  // "오늘 536"으로 표시되던 버그).
+  const recentEntries = useMemo(
     () =>
       visible
         .flatMap((s) => s.entries.map((e) => ({ project: s, entry: e })))
         .sort((a, b) => (a.entry.created_at < b.entry.created_at ? 1 : -1)),
     [visible],
+  );
+
+  const todayEntries = useMemo(
+    () => recentEntries.filter(({ project, entry }) => entry.workday === project.workday),
+    [recentEntries],
   );
 
   const filesTouched = useMemo(
@@ -161,7 +169,7 @@ export function TrayPopover() {
   );
 
   // 마지막 활동 시각 — 빈 상태에서도 침묵을 정보로 (D5).
-  const lastActivity = todayEntries[0]?.entry.created_at ?? null;
+  const lastActivity = recentEntries[0]?.entry.created_at ?? null;
 
   const openMain = (nav: { view: string; project_id?: number; entry_path?: string } | null) => {
     void commands.trayOpenMain(
@@ -255,13 +263,14 @@ export function TrayPopover() {
       </section>
 
       <section className="tp-entries">
-        {todayEntries.length === 0 ? (
+        {todayEntries.length === 0 && (
           <div className="tp-empty">
             오늘 아직 기록 없음
             {lastActivity && <span className="tp-dim"> · 마지막 활동 {fmtTime(lastActivity)}</span>}
           </div>
-        ) : (
-          todayEntries.slice(0, 4).map(({ project, entry }) => (
+        )}
+        {recentEntries.length > 0 &&
+          recentEntries.slice(0, 4).map(({ project, entry }) => (
             <button
               key={`${project.id}:${entry.relative_path}`}
               className="tp-entry-row"
@@ -273,14 +282,17 @@ export function TrayPopover() {
                 })
               }
             >
-              <span className="tp-time">{fmtTime(entry.created_at)}</span>
+              <span className="tp-time">
+                {entry.workday === project.workday
+                  ? fmtTime(entry.created_at)
+                  : `${Number(entry.workday.slice(4, 6))}/${Number(entry.workday.slice(6, 8))}`}
+              </span>
               <span className={`tp-type tp-type-${entry.type}`}>
                 {TYPE_LABEL[entry.type] ?? entry.type}
               </span>
               <span className="tp-title">{entry.title}</span>
             </button>
-          ))
-        )}
+          ))}
       </section>
 
       {activePlans.length > 0 && (

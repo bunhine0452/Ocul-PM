@@ -104,7 +104,12 @@ beforeEach(() => {
       linked_journal_entries: [],
     },
   ];
-  fx.entries = [entry(), entry({ relative_path: "journal/20260720/Bugs/0900_bug_b.md", type: "bug", title: "버그 수정", created_at: iso(90 * 60_000), files_count: 1 })];
+  fx.entries = [
+    entry(),
+    entry({ relative_path: "journal/20260720/Bugs/0900_bug_b.md", type: "bug", title: "버그 수정", created_at: iso(90 * 60_000), files_count: 1 }),
+    // 어제 일지 — "오늘" 수치에서 제외돼야 한다 (workday=null 조회는 전체 반환).
+    entry({ relative_path: "journal/20260719/Chores/2200_chore_c.md", workday: "20260719", type: "chore", title: "어제 잡일", created_at: iso(20 * 3_600_000), files_count: 99 }),
+  ];
   fx.plans = [
     {
       plan_id: "menubar-tray",
@@ -132,9 +137,12 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
     expect(r.getByText("claude-code")).toBeTruthy();
     expect(r.getByText(/12분째/)).toBeTruthy();
-    // 오늘 한 줄 — 일지 2 · 변경 파일 4(3+1)
+    // 오늘 한 줄 — 어제 일지(files 99)는 제외: 일지 2 · 변경 파일 4(3+1)
     expect(r.getByText("오늘 일지").parentElement?.textContent).toContain("2");
     expect(r.getByText("변경 파일").parentElement?.textContent).toContain("4");
+    // 최근 목록에는 어제 것도 날짜 표기로 나온다
+    expect(r.getByText("어제 잡일")).toBeTruthy();
+    expect(r.getByText("7/19")).toBeTruthy();
     // 플랜 진행률
     expect(r.getByText("메뉴바 상주 라운드")).toBeTruthy();
     expect(r.getByText("3/6")).toBeTruthy();

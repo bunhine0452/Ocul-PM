@@ -29,8 +29,9 @@ pub const TRAY_WINDOW: &str = "tray";
 const TRAY_ID: &str = "oculpm-tray";
 /// 22pt @2x — macOS 메뉴바 표준 크기.
 const SIZE: u32 = 44;
-const POPOVER_W: f64 = 344.0;
-const POPOVER_H: f64 = 484.0;
+/// 창 크기 — 카드(344×484) + 사방 12px 투명 여백(CSS 그림자·라운드 코너용).
+const POPOVER_W: f64 = 368.0;
+const POPOVER_H: f64 = 508.0;
 /// 애니메이션 프레임 수·주기 (사전 렌더 — 런타임 드로잉은 시작 시 1회).
 const PULSE_FRAMES: usize = 10;
 const PULSE_TICK_MS: u64 = 140;
@@ -215,6 +216,10 @@ fn create_popover(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     .always_on_top(true)
     .skip_taskbar(true)
     .visible(false)
+    // 라운드 코너는 CSS 가 그린다 — 창은 투명 캔버스(macOSPrivateApi)이고
+    // 시스템 그림자는 사각 프레임을 다시 드러내므로 끈다.
+    .transparent(true)
+    .shadow(false)
     .build()?;
     let w = win.clone();
     win.on_window_event(move |ev| {
@@ -244,7 +249,10 @@ fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::Physica
     let scale = win.scale_factor().unwrap_or(2.0);
     tracing::debug!(target: "tray", ?click, scale, "tray click position");
     let mut x = click.x / scale - POPOVER_W / 2.0;
-    let y = 28.0; // 메뉴바(~24pt) 바로 아래
+    // 메뉴바(~25pt) 아래에서 시작 — 시스템이 메뉴바 위 배치를 거부할 수
+    // 있으므로 겹치지 않게. 창 상단 12px 는 투명 여백이라 카드의 시각적
+    // 간격은 메뉴바로부터 ~17px.
+    let y = 30.0;
     if let Ok(Some(monitor)) = win.primary_monitor() {
         let mw = monitor.size().width as f64 / monitor.scale_factor();
         x = x.clamp(8.0, (mw - POPOVER_W - 8.0).max(8.0));
