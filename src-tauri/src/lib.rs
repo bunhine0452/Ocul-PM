@@ -10,6 +10,7 @@ mod error;
 pub mod git;
 mod indexer;
 mod llm;
+mod notion;
 pub mod oculpm;
 mod secrets;
 
@@ -174,6 +175,8 @@ use crate::commands::{
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Desktop 스니펫)
     mcp_status, mcp_register, mcp_unregister,
+    // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
+    notion_status, notion_verify_token, notion_set_parent, notion_export,
 };
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -357,6 +360,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         mcp_status,
         mcp_register,
         mcp_unregister,
+        // PR-CI7 — Notion 내보내기
+        notion_status,
+        notion_verify_token,
+        notion_set_parent,
+        notion_export,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)

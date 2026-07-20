@@ -3,7 +3,7 @@ import { Channel } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { commands, type DbHealth, type IndexProgress } from "@/lib/bindings";
+import { commands, type DbHealth, type IndexProgress, type NotionStatus } from "@/lib/bindings";
 import {
   Sun,
   Moon,
@@ -772,6 +772,148 @@ function GraphTab() {
   );
 }
 
+/**
+ * PR-CI7 (docs/claude-integration/00-master-plan.md D6) — Notion 내보내기 설정.
+ * internal integration token 은 검증(users/me) 성공 후에만 기존 secret_set 으로
+ * OS 키체인에 저장한다 (DB/localStorage 금지 규율 유지). 부모 페이지는 URL 을
+ * 붙여넣으면 백엔드가 id 로 정규화해 SQLite settings 에 둔다. 내보내기 버튼
+ * 자체는 회고 화면에 있고, 토큰이 없으면 그 버튼이 아예 노출되지 않는다.
+ *
+ * (export 는 테스트 전용 — notion_export_v2.test.tsx 가 SettingsContext 부트
+ * 스트랩 없이 이 섹션만 단독 렌더한다.)
+ */
+export function NotionSection({ onError }: { onError: (msg: string | null) => void }) {
+  const [status, setStatus] = useState<NotionStatus | null>(null);
+  const [token, setToken] = useState("");
+  const [parent, setParent] = useState("");
+  const [botName, setBotName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => {
+    void commands.notionStatus().then((res) => {
+      if (res.status === "ok") {
+        setStatus(res.data);
+        setParent(res.data.parent_page_id ?? "");
+      }
+    });
+  };
+  useEffect(refresh, []);
+
+  const saveToken = async () => {
+    const t = token.trim();
+    if (busy || !t) return;
+    setBusy(true);
+    try {
+      const v = await commands.notionVerifyToken(t);
+      if (v.status === "error") {
+        onError(`Notion 토큰 검증 실패: ${v.error}`);
+        return;
+      }
+      const s = await commands.secretSet("notion_api_key", t);
+      if (s.status === "error") {
+        onError(s.error);
+        return;
+      }
+      setBotName(v.data);
+      setToken("");
+      onError(null);
+      toast.info(`Notion 연결됨: ${v.data}`);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeToken = async () => {
+    if (busy) return;
+    setBusy(true);
+    const res = await commands.secretDelete("notion_api_key");
+    setBusy(false);
+    if (res.status === "error") {
+      onError(res.error);
+    } else {
+      setBotName(null);
+      toast.info("Notion 연결을 끊었습니다");
+      refresh();
+    }
+  };
+
+  const saveParent = async () => {
+    if (busy) return;
+    setBusy(true);
+    const res = await commands.notionSetParent(parent);
+    setBusy(false);
+    if (res.status === "error") {
+      onError(res.error);
+    } else {
+      setParent(res.data ?? "");
+      onError(null);
+      toast.info(res.data ? "부모 페이지가 설정되었습니다" : "부모 페이지 설정을 해제했습니다");
+      refresh();
+    }
+  };
+
+  return (
+    <Section
+      title="Notion 내보내기"
+      description="회고·산출물을 지정한 부모 페이지 아래 새 페이지로 내보냅니다. internal integration token 은 OS 키체인에만 저장됩니다."
+    >
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">상태</Label>
+          {status?.has_token ? (
+            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
+              연결됨{botName ? ` · ${botName}` : ""}
+            </span>
+          ) : (
+            <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] text-muted-foreground">
+              미연결
+            </span>
+          )}
+          {status?.has_token && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void removeToken()}>
+              연결 끊기
+            </Button>
+          )}
+        </div>
+
+        {!status?.has_token && (
+          <div className="flex gap-2">
+            <Input
+              type="password"
+              placeholder="ntn_… (Notion internal integration token)"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              autoComplete="off"
+            />
+            <Button size="sm" disabled={busy || !token.trim()} onClick={() => void saveToken()}>
+              {busy ? "검증 중…" : "검증 후 저장"}
+            </Button>
+          </div>
+        )}
+
+        <div>
+          <Label className="mb-1 block text-xs text-muted-foreground">
+            부모 페이지 (URL 또는 ID — 통합이 공유된 페이지여야 합니다)
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://www.notion.so/…"
+              value={parent}
+              onChange={(e) => setParent(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void saveParent()}>
+              저장
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
 function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   const { resetAll } = useSettings();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
@@ -849,6 +991,8 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
           <span className="text-xs text-muted-foreground">Loading…</span>
         )}
       </Section>
+
+      <NotionSection onError={onError} />
 
       <Section title="진단">
         <Button variant="outline" onClick={openDevtools} className="w-full">

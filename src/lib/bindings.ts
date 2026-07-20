@@ -786,6 +786,20 @@ export const commands = {
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
+	/**  토큰/부모 페이지 설정 상태 (네트워크 없음). */
+	notionStatus: () => typedError<NotionStatus, string>(__TAURI_INVOKE("notion_status")),
+	/**
+	 *  입력한 토큰을 실검증한다 (`GET /users/me`) — 성공 시 통합(봇) 이름.
+	 *  저장은 하지 않는다: UI 가 검증 성공 후 기존 `secret_set` 으로 키체인에 쓴다.
+	 */
+	notionVerifyToken: (token: string) => typedError<string, string>(__TAURI_INVOKE("notion_verify_token", { token })),
+	/**
+	 *  부모 페이지 설정 — URL/ID 를 정규화해 저장한다. 빈 입력은 해제.
+	 *  반환: 저장된 정규화 id (해제 시 None).
+	 */
+	notionSetParent: (input: string) => typedError<string | null, string>(__TAURI_INVOKE("notion_set_parent", { input })),
+	/**  마크다운을 부모 페이지 아래 새 Notion 페이지로 내보낸다 — 성공 시 페이지 URL. */
+	notionExport: (title: string, markdown: string) => typedError<string, string>(__TAURI_INVOKE("notion_export", { title, markdown })),
 };
 
 /** Events */
@@ -1672,6 +1686,16 @@ export type MirrorWriteResult = {
 	action: string,
 	/**  미러 파일의 프로젝트 상대 경로. */
 	mirror_rel: string,
+};
+
+export type NotionStatus = {
+	/**
+	 *  키체인에 internal integration token 이 있는가 — 없으면 UI 는 내보내기
+	 *  버튼 자체를 그리지 않는다 (수용 기준: 토큰 없으면 기능 비노출).
+	 */
+	has_token: boolean,
+	/**  정규화된 부모 페이지 id (설정 안 됐으면 None). */
+	parent_page_id: string | null,
 };
 
 export type OculpmAgentDrift = {

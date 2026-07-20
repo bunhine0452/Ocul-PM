@@ -161,6 +161,35 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
 
   const hasWork = !!signals && signals.total_entries > 0;
 
+  // ── PR-CI7 — Notion 내보내기 (토큰 없으면 버튼 자체 비노출) ────────────────
+  const [notionReady, setNotionReady] = useState(false);
+  const [notionBusy, setNotionBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void commands.notionStatus().then((res) => {
+      if (alive && res.status === "ok") setNotionReady(res.data.has_token);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const exportToNotion = useCallback(
+    async (title: string, markdown: string) => {
+      if (notionBusy) return;
+      setNotionBusy(true);
+      const res = await commands.notionExport(title, markdown);
+      setNotionBusy(false);
+      if (res.status === "ok") {
+        toast.info("Notion 페이지를 만들었어요 — 새 창에서 엽니다");
+        void commands.openUrl(res.data);
+      } else {
+        toast.destructive(`Notion 내보내기 실패: ${res.error}`);
+      }
+    },
+    [notionBusy],
+  );
+
   // ── v2 U10 (C1) — 스탠드업·PR 본문·주간 보고 생성 ─────────────────────────
   const [summaryMenuOpen, setSummaryMenuOpen] = useState(false);
   const [summaryBusy, setSummaryBusy] = useState<SummaryStyle | null>(null);
@@ -330,6 +359,11 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
                 stale={stale}
                 generating={generating}
                 onGenerate={() => void generate()}
+                notionReady={notionReady}
+                notionBusy={notionBusy}
+                onExportNotion={(md) =>
+                  void exportToNotion(`회고 ${wd(since)}–${wd(until)}`, md)
+                }
               />
             </div>
           )}
@@ -352,6 +386,20 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
                 일지 {summaryResult.entry_count}건 · {summaryResult.used_llm ? "AI 생성" : "기본 형식"}
               </span>
               <span className="flex-1" />
+              {notionReady ? (
+                <button
+                  className="btn sm"
+                  disabled={notionBusy}
+                  onClick={() =>
+                    void exportToNotion(
+                      `${summaryLabel(summaryResult.style)} ${wd(since)}–${wd(until)}`,
+                      summaryResult.markdown,
+                    )
+                  }
+                >
+                  {notionBusy ? "내보내는 중…" : "Notion 으로"}
+                </button>
+              ) : null}
               <button className="btn primary sm" onClick={() => void copySummary()}>
                 클립보드 복사
               </button>
@@ -560,11 +608,18 @@ function NarrativePanel({
   stale,
   generating,
   onGenerate,
+  notionReady,
+  notionBusy,
+  onExportNotion,
 }: {
   cached: RetroInsight | null;
   stale: boolean;
   generating: boolean;
   onGenerate: () => void;
+  /** PR-CI7 — 토큰이 있을 때만 true; false 면 내보내기 버튼을 아예 그리지 않는다. */
+  notionReady: boolean;
+  notionBusy: boolean;
+  onExportNotion: (markdown: string) => void;
 }) {
   if (!cached) {
     return (
@@ -608,6 +663,17 @@ function NarrativePanel({
             <TriangleAlert size={12} /> 오래됨
           </span>
         )}
+        <span className="flex-1" />
+        {notionReady ? (
+          <button
+            className="btn sm"
+            disabled={notionBusy}
+            onClick={() => onExportNotion(cached.retro_md)}
+            title="이 회고를 Notion 부모 페이지 아래 새 페이지로 내보냅니다"
+          >
+            {notionBusy ? "내보내는 중…" : "Notion 으로"}
+          </button>
+        ) : null}
       </div>
       <Markdown>{cached.retro_md}</Markdown>
     </div>
