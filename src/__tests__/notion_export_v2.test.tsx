@@ -110,6 +110,11 @@ import { RetroScreenV2 } from "@/features/retro/RetroScreenV2";
 import { NotionSection } from "@/features/settings/SettingsPanel";
 
 beforeEach(() => {
+  // 회고 제목 "회고 M/D–M/D" 는 new Date() 로 계산되므로, 실제 날짜가 지나면
+  // 하드코딩한 기대 문자열이 깨진다. Date 만 고정(타이머는 실물 유지 → waitFor
+  // 정상)해 range 를 결정적으로 만든다. 7/20(월) → since 7/14 · until 7/20.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 6, 20, 12, 0, 0));
   fx.hasToken = false;
   fx.verifyOk = true;
   fx.parent = null;
@@ -121,6 +126,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
 });
 

@@ -45,6 +45,9 @@ const ALLOWLIST = new Set([
   // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
   // Test-only.
   "__tests__/tools_v2.test.tsx",
+  // 자정 롤오버 테스트 — 각 테스트가 default state 에서 마운트되도록 persisted
+  // 프로젝트 선택(aipm:workspace:v1)을 비운다. Test-only.
+  "__tests__/workday_rollover.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

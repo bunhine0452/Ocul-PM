@@ -60,6 +60,14 @@ function elapsedLabel(startedAt: string): string {
   return `${Math.floor(min / 60)}시간 ${min % 60}분째`;
 }
 
+/** 로컬 달력 기준 오늘 YYYYMMDD — 자정 넘김 감지용. */
+function localDayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 /** 어제 workday (YYYYMMDD 산술 — 스탠드업 since 용). */
 function yesterdayOf(workday: string): string {
   const y = new Date(
@@ -621,6 +629,33 @@ export function TrayPopover() {
     return () => {
       if (timer) clearTimeout(timer);
       void un.then((f) => f());
+    };
+  }, [reload]);
+
+  // 자정 롤오버 — 팝오버를 연 채로 workday 경계를 넘기면 "오늘" 수치·활동이
+  // 전날에 고정된다 (열 때·새 일지 때만 reload 하므로). 로컬 달력 날짜가
+  // 바뀌면 다시 당겨온다 — reload 가 프로젝트별 current_workday 를 백엔드에서
+  // 재계산하므로 tz/day_starts_at 도 그때 반영된다. 60초 tick + 포커스/재표시
+  // (슬립 복귀로 타이머가 밀렸던 경우 대비).
+  useEffect(() => {
+    let lastDay = localDayKey();
+    const check = () => {
+      const now = localDayKey();
+      if (now !== lastDay) {
+        lastDay = now;
+        void reload();
+      }
+    };
+    const id = window.setInterval(check, 60_000);
+    const onWake = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
     };
   }, [reload]);
 

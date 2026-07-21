@@ -731,6 +731,52 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [setCurrentSession]);
 
+  // ── Workday rollover (자정 넘김) ─────────────────────────────────────────
+  // status(→ workdayKey / current_workday)는 프로젝트를 열 때 App.tsx 에서
+  // 딱 한 번만 조회된다. 그래서 앱(특히 메뉴바 상주)을 계속 켜 두면 실행한
+  // 그 날짜에 고정돼, 00시가 지나도 "오늘" 화면·날짜 라벨·주간 차트가 앱을
+  // 껐다 켜기 전까지 어제를 가리킨다.
+  //
+  // 백엔드에서 workday 를 다시 계산해(프로젝트 tz + day_starts_at 존중) 실제로
+  // 넘어갔을 때만 커밋한다 — 가드 덕분에 매 tick 마다 트리를 리렌더하지 않고
+  // 하루 한 번 경계에서만 갱신된다. 60초 주기 tick 에 더해 창 포커스/탭
+  // 재표시(슬립 복귀 시 throttle 됐던 타이머가 밀린 경우) 시에도 확인한다.
+  useEffect(() => {
+    let inFlight = false;
+
+    const check = async () => {
+      const projectId = stateRef.current?.currentProjectId ?? null;
+      // .oculpm 이 초기화된 프로젝트만 넘길 workday 가 있다.
+      if (projectId == null || inFlight || !stateRef.current?.oculpmEnabled) return;
+      inFlight = true;
+      try {
+        const status = await oculpmApi.getStatus(projectId);
+        // 요청 도중 프로젝트가 바뀌었으면 버린다.
+        if (stateRef.current?.currentProjectId !== projectId) return;
+        if (status.current_workday !== stateRef.current?.oculpmStatus?.current_workday) {
+          setOculpmStatus(status);
+        }
+      } catch {
+        // 일시적 실패 — 다음 tick 에서 재시도한다. 롤오버는 토스트할 일이 아니다.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const id = window.setInterval(() => void check(), 60_000);
+    const onWake = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
+  }, [setOculpmStatus]);
+
   // v2 U3 — Provider 리렌더마다 새 객체를 만들지 않는다. 콜백은 전부
   // useCallback([]) 로 안정적이므로 value 는 사실상 state 에만 종속된다.
   const value = useMemo<WorkspaceContextValue>(
