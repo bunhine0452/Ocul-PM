@@ -8,7 +8,7 @@
 Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저</p>
 
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/bunhine0452/Ocul-PM/total?color=12a06b&label=downloads)](https://github.com/bunhine0452/Ocul-PM/releases)
+[![Downloads](https://badgen.net/github/assets-dl/bunhine0452/Ocul-PM?label=downloads&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -27,7 +27,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 밖으로 나가는 것은 직접 부른 LLM API 호출과 새 버전 확인이 전부입니다.
 
-## 🚀 v2.3.0 — 메뉴바 상주
+## 🚀 v2.3.1 — 메뉴바 상주
 
 Ocul-PM 이 macOS 상단바에 삽니다. **RunCat × Docker Desktop** 컨셉:
 
@@ -35,7 +35,9 @@ Ocul-PM 이 macOS 상단바에 삽니다. **RunCat × Docker Desktop** 컨셉:
 - **클릭 한 번에 5초 브리핑** — 활성 세션(누가·몇 분째) → 오늘 일지·변경 파일 → 최근 일지 → 활성 플랜("다음: …" 포함). **일지 본문도, 플랜 체크리스트도 팝오버 안에서 바로 읽습니다.** 새 일지가 생기면 목록이 실시간 갱신되고, 스탠드업 복사도 그 자리에서.
 - **옵션으로 알림·상주** — 새 일지 macOS 알림, 창 닫기(⌘W)=메뉴바로 최소화, Dock 숨김. 기본값은 전부 기존 동작 그대로.
 
-> v2.2.0 의 Claude 직접 연동(MCP 서버·훅·규칙 플라이휠)은 [CHANGELOG](CHANGELOG.md)에서.
+> 🩹 **v2.3.1** — 앱을 켜 둔 채 자정을 넘겨도 "오늘" 화면·날짜·주간 차트가 자동으로 새 날짜로 넘어갑니다.
+>
+> v2.2.0 의 Claude 직접 연동(MCP 서버·훅·규칙 플라이휠)과 전체 변경 이력은 [CHANGELOG](CHANGELOG.md)에서.
 
 ## 화면 구성
 
