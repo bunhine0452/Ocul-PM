@@ -459,7 +459,9 @@
 .pln-rail {
   flex: none; width: 236px; min-width: 236px;
   overflow-y: auto; overflow-x: hidden;
-  border-right: 1px solid var(--sep); background: transparent;
+  /* 양쪽이 같은 표면이라 이 선이 분리를 전부 떠맡는다 — --sep 는 두 색이
+     다를 때 쓰는 세기라 여기선 안 보인다(하네스에서 확인). */
+  border-right: 1px solid var(--sep-strong); background: transparent;
   padding: 14px 14px 40px 10px;
   display: flex; flex-direction: column; gap: 1px;
 }
@@ -531,12 +533,16 @@
 .pln-row-lock { flex: none; color: var(--text-3); opacity: 0.75; }
 .pln-row.on .pln-row-lock { color: var(--accent-text); opacity: 1; }
 
-/* 진행 바는 2px 헤어라인. 완주한 계획만 액센트로 채우고 나머지는 중성색으로
-   둬서, 레일 전체가 초록 막대 밭이 되지 않게 한다. */
-.pln-row-bar { height: 2px; border-radius: 2px; background: var(--sep); overflow: hidden; }
+/* 진행 바는 meta 줄 오른쪽 끝의 짧은 미터. 제목 밑에 전폭 막대로 깔면 밑줄로
+   읽혀 제목과 수치가 갈라지고, 액센트로 채우면 레일 전체가 초록 막대 밭이 돼
+   정작 선택된 행이 묻힌다. 평소엔 중성색, 선택된 행에서만 액센트. */
+.pln-row-bar {
+  margin-left: auto; flex: none; width: 34px; height: 3px;
+  border-radius: 3px; background: var(--sep-strong); overflow: hidden;
+}
 .pln-row-bar > i {
-  display: block; height: 100%; border-radius: 2px;
-  background: var(--text-3); opacity: 0.55;
+  display: block; height: 100%; border-radius: 3px;
+  background: var(--text-3); opacity: 0.5;
   transition: width var(--dur-2, 0.2s) ease;
 }
 .pln-row.on .pln-row-bar > i { background: var(--accent); opacity: 1; }

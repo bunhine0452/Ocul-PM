@@ -241,9 +241,8 @@ const PlanRailRow = memo(function PlanRailRow({
         <span className="pln-row-title">{plan.title}</span>
         {locked ? <Lock size={11} className="pln-row-lock" aria-label="완료·잠금" /> : null}
       </span>
-      <span className="pln-row-bar">
-        <i style={{ width: `${pct}%` }} />
-      </span>
+      {/* 진행 바는 meta 줄 안에 짧게 둔다. 제목 바로 밑에 전폭으로 깔면
+          밑줄·구분선으로 읽혀 제목과 수치가 갈라져 보인다 (하네스에서 확인). */}
       <span className="pln-row-meta">
         <span className="pln-row-count">
           {plan.done_count}/{plan.item_count}
@@ -256,6 +255,9 @@ const PlanRailRow = memo(function PlanRailRow({
         ) : when ? (
           <span>{when}</span>
         ) : null}
+        <span className="pln-row-bar" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </span>
       </span>
     </button>
   );
