@@ -11,6 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { commands, type CliCheckResult, type ProjectBlueprint } from "@/lib/bindings";
+import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import {
   Sparkles,
   ArrowRight,
@@ -318,6 +319,18 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
       if (res.status === "ok") {
         const projectId = res.data.project_id;
+
+        // IN1 — 인셉션 킥오프 예약: 새 프로젝트에서 터미널을 열면
+        // project-inception 스킬 발화 프롬프트가 프리필돼 있다 (실행은 Enter).
+        {
+          const idea = wizState.ideaText.trim().replace(/\s+/g, " ").slice(0, 300);
+          const who = wizState.targetUsers.trim().replace(/\s+/g, " ").slice(0, 150);
+          const kickoff =
+            `새 프로젝트 설계를 시작하자 — project-inception 스킬을 따라 진행해줘. ` +
+            `아이디어: ${idea}` +
+            (who ? ` / 대상 사용자: ${who}` : "");
+          setPendingDispatch(`claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`);
+        }
 
         // Seed the file-based Planner (S1 / planner-unify) — one "초기 계획"
         // plan whose items are the seed goals, so onboarding output lands in
