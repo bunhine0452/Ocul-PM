@@ -184,6 +184,16 @@ describe("PR-PLN 3 — Planner", () => {
     expect(await findByText(/아직 계획이 없어요/)).toBeInTheDocument();
   });
 
+  it("계획이 하나뿐이면 레일을 그리지 않는다 (가로폭 낭비 방지)", async () => {
+    fx.plans = [planSummary()];
+    fx.planDetail = planDetail();
+    const { container, findByText } = render(
+      wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    await findByText("타임존 계산");
+    expect(container.querySelector(".pln-rail")).toBeNull();
+  });
+
   it("has no axe violations with data", async () => {
     fx.plans = [planSummary()];
     fx.planDetail = planDetail();
@@ -192,6 +202,94 @@ describe("PR-PLN 3 — Planner", () => {
     );
     await findByText("타임존 계산");
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+
+  // ── 계획 레일 (2026-07-30 스케일 라운드) ──────────────────────────────────
+  //
+  // 예전 칩 행은 `flex-wrap:wrap` 에 상한이 없어 계획이 늘수록 본문을 접힘선
+  // 밖으로 밀어냈고, 검색·정렬·묶기가 없어 '무엇이 남았나' 를 알 수 없었다.
+  describe("계획 레일", () => {
+    /** 컨트롤 바가 뜨는 임계값(6) 이상으로 계획을 만든다. */
+    const manyPlans = () => [
+      planSummary({ plan_id: "rollover", title: "롤오버 안정화" }),
+      planSummary({ plan_id: "menubar", title: "메뉴바 트레이" }),
+      planSummary({ plan_id: "claude-int", title: "Claude 직접 연동" }),
+      planSummary({ plan_id: "docs-view", title: "문서 뷰어" }),
+      planSummary({ plan_id: "v2-release", title: "v2 릴리스" }),
+      planSummary({ plan_id: "retro", title: "회고 화면", status: "done", progress: 1 }),
+      planSummary({ plan_id: "legacy", title: "레거시 정리", status: "archived" }),
+    ];
+
+    it("계획이 많으면 레일에 모든 계획을 세로로 나열한다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      await findByText("타임존 계산");
+      expect(container.querySelector(".pln-rail")).not.toBeNull();
+      // 칩 벽은 완전히 사라졌다.
+      expect(container.querySelector(".plan-chip-row")).toBeNull();
+      // 활성 5개는 펼쳐진 '진행 중' 섹션에 보이고, 완료·보관은 기본 접힘.
+      expect(container.querySelectorAll(".pln-row")).toHaveLength(5);
+    });
+
+    it("검색어를 넣으면 일치하는 계획만 남는다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByLabelText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      const search = await findByLabelText("계획 검색");
+      fireEvent.change(search, { target: { value: "메뉴바" } });
+      await waitFor(() => expect(container.querySelectorAll(".pln-row")).toHaveLength(1));
+      expect(container.querySelector(".pln-row-title")?.textContent).toBe("메뉴바 트레이");
+    });
+
+    it("검색은 기본으로 접혀 있는 완료 계획도 찾아낸다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByLabelText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      const search = await findByLabelText("계획 검색");
+      fireEvent.change(search, { target: { value: "회고" } });
+      await waitFor(() => expect(container.querySelectorAll(".pln-row")).toHaveLength(1));
+    });
+
+    it("섹션 헤더를 누르면 완료 계획이 펼쳐진다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      const doneHead = await findByText("완료");
+      expect(container.querySelectorAll(".pln-row")).toHaveLength(5);
+      fireEvent.click(doneHead);
+      await waitFor(() => expect(container.querySelectorAll(".pln-row")).toHaveLength(6));
+    });
+
+    it("활동 기록이 없으면 '멈춤' 을 주장하지 않는다", async () => {
+      // planRecentUpdates 목은 ok(null) 을 돌려준다 — updated_at 이 아무리
+      // 오래돼도(2026-06-07) 멈춤 배지를 붙이면 거짓말이 된다.
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      await findByText("타임존 계산");
+      expect(container.querySelector(".pln-row-stale")).toBeNull();
+    });
+
+    it("레일이 있어도 axe 위반이 없다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      await findByText("타임존 계산");
+      expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+    });
   });
 
   it("v2 U9 — 상태 토글이 낙관적으로 즉시 반영된다 (백엔드 응답 전)", async () => {

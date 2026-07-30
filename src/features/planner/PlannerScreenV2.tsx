@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Sparkles,
   NotebookText,
+  PanelLeft,
   Pencil,
   Trash2,
 } from "@/components/Icons";
@@ -27,6 +28,13 @@ import { toast } from "@/lib/toast";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { PlanRail } from "./PlanRail";
+import {
+  facetsOf,
+  latestActivityByPlan,
+  type PlanGroup,
+  type PlanSort,
+} from "./planList";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
@@ -140,10 +148,20 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const [newPlanTitle, setNewPlanTitle] = useState("");
   const [composer, setComposer] = useState<{ phase: string; title: string } | null>(null);
 
-  // Plan selector grouping (Dogfooding 2026-06-14 #3): active plans stay up top;
-  // completed/archived fold away so the header doesn't pile up as plans grow.
-  const [showDone, setShowDone] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  // 계획 레일 (2026-07-30 스케일 라운드). 검색어만 휘발 — 나머지는 영속.
+  const [query, setQuery] = useState("");
+
+  /**
+   * 계획별 마지막 **실제** 활동 시각 (plan-log 기반).
+   *
+   * `PlanSummary.updated_at` 은 frontmatter `updated:` 인데 항목 편집으로는
+   * 갱신되지 않아 사실상 생성일에 고정돼 있다 — 그 값으로 '멈춤' 을 주장하면
+   * 거짓 경고가 된다. 그래서 멈춤 배지는 이 맵에 기록이 있는 계획에만 붙고,
+   * 없으면 아무 주장도 하지 않는다 (planList.ts 참고).
+   *
+   * 마운트당 1회만 부른다: 이 커맨드도 plan 파일 전량 재읽기를 한다.
+   */
+  const [activity, setActivity] = useState<Record<string, string>>({});
 
   const refreshPlans = useCallback(async () => {
     const res = await commands.planList(projectId);
@@ -183,6 +201,19 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   useEffect(() => {
     void refreshPlans();
   }, [refreshPlans]);
+
+  useEffect(() => {
+    let alive = true;
+    void commands.planRecentUpdates(projectId, 500).then((res) => {
+      // 응답 모양을 신뢰하지 않는다 — 실패하면 조용히 비워 두고, 레일은
+      // 활동 정보 없이도 완전히 동작한다 (멈춤 배지만 안 붙는다).
+      if (!alive || res.status !== "ok") return;
+      setActivity(latestActivityByPlan(res.data));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
 
   useEffect(() => {
     setHistoryFor(null);
@@ -495,29 +526,59 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // edits + AI refresh are disabled in the UI (and refused by the backend).
   const locked = (detail?.plan.status ?? "active") !== "active";
 
-  // Plan selector buckets (#3): active up top, done/archived folded behind toggles.
-  const activePlans = useMemo(() => (plans ?? []).filter((p) => p.status === "active"), [plans]);
-  const donePlans = useMemo(() => (plans ?? []).filter((p) => p.status === "done"), [plans]);
-  const archivedPlans = useMemo(
-    () => (plans ?? []).filter((p) => p.status !== "active" && p.status !== "done"),
-    [plans],
+  // 레일과 툴바 카운트가 같은 계산을 공유하도록 패싯은 여기서 한 번만 만든다.
+  // `now` 를 렌더마다 새로 읽으면 useMemo 가 매번 무효화되므로 마운트에 고정한다
+  // (상대 시각 표시는 분 단위 정확도를 요구하지 않는다).
+  const now = useMemo(() => Date.now(), [projectId]);
+  const facets = useMemo(
+    () => facetsOf(plans ?? [], now, activity),
+    [plans, now, activity],
   );
-  const planChip = (p: PlanSummary) => (
-    <button
-      key={p.plan_id}
-      className={"scope-chip" + (p.plan_id === selectedId ? " on" : "")}
-      onClick={() => setSelectedId(p.plan_id)}
-      title={`${p.status !== "active" ? "완료·잠금 · " : ""}${p.done_count}/${p.item_count} · ${Math.round((p.progress ?? 0) * 100)}%`}
-    >
-      {p.title}
-      <span className="dotsep">·</span>
-      {Math.round((p.progress ?? 0) * 100)}%
-    </button>
-  );
+
+  const railStats = useMemo(() => {
+    let active = 0;
+    let stale = 0;
+    for (const f of facets.values()) {
+      if (f.bucket === "active") active += 1;
+      if (f.staleDays != null) stale += 1;
+    }
+    return { active, stale };
+  }, [facets]);
+
+  // 계획이 하나뿐이면 레일은 제목만 되풀이하므로 가로폭만 낭비한다.
+  const railEligible = (plans?.length ?? 0) >= 2;
+  const railVisible = railEligible && !state.plannerRailCollapsed;
+
+  const setSort = (sort: PlanSort) => setState((p) => ({ ...p, plannerSort: sort }));
+  const setGroup = (group: PlanGroup) => setState((p) => ({ ...p, plannerGroup: group }));
+  const toggleSection = (key: string, nextOpen: boolean) =>
+    setState((p) => ({ ...p, plannerRailOpen: { ...p.plannerRailOpen, [key]: nextOpen } }));
 
   return (
     <>
-      <Toolbar title="Planner" sub="AI 가 갱신하는 계획 — 항목별 진척·귀속">
+      <Toolbar
+        title="Planner"
+        sub={
+          plans && plans.length > 0
+            ? `계획 ${plans.length} · 진행 ${railStats.active}${railStats.stale ? ` · 멈춤 ${railStats.stale}` : ""}`
+            : "AI 가 갱신하는 계획 — 항목별 진척·귀속"
+        }
+        leading={
+          railEligible ? (
+            <button
+              className="pln-iconbtn"
+              aria-label={railVisible ? "계획 목록 접기" : "계획 목록 펼치기"}
+              aria-expanded={railVisible}
+              title={railVisible ? "계획 목록 접기" : "계획 목록 펼치기"}
+              onClick={() =>
+                setState((p) => ({ ...p, plannerRailCollapsed: !p.plannerRailCollapsed }))
+              }
+            >
+              <PanelLeft size={15} />
+            </button>
+          ) : undefined
+        }
+      >
         <button
           className="scope-chip"
           style={{ height: 30 }}
@@ -541,8 +602,27 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         </button>
       </Toolbar>
 
-      <div className="scroll">
-        <div className="page fade-in" style={{ maxWidth: 880 }}>
+      <div className="pln-body">
+        {railVisible && plans ? (
+          <PlanRail
+            plans={plans}
+            facets={facets}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            sort={state.plannerSort}
+            onSortChange={setSort}
+            group={state.plannerGroup}
+            onGroupChange={setGroup}
+            query={query}
+            onQueryChange={setQuery}
+            openOverride={state.plannerRailOpen}
+            onToggleSection={toggleSection}
+            now={now}
+          />
+        ) : null}
+
+        <div className="pln-main">
+        <div className="pln-doc fade-in">
           {error ? (
             <div className="card card-pad" style={{ marginBottom: 16 }}>
               <div className="stat-top" style={{ color: "var(--t-bug)" }}>
@@ -569,53 +649,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               />
               <button className="btn primary" onClick={() => void submitNewPlan()} disabled={busy || !newPlanTitle.trim()}>만들기</button>
               <button className="btn sm" onClick={() => setNewPlanOpen(false)}>취소</button>
-            </div>
-          ) : null}
-
-          {/* Plan selector — active up top, completed/archived folded (#3). */}
-          {plans && plans.length > 0 ? (
-            <div className="plan-selector">
-              <div className="plan-chip-row">
-                {activePlans.length > 0 ? (
-                  activePlans.map(planChip)
-                ) : (
-                  <span style={{ fontSize: 12, color: "var(--text-3)", padding: "4px 0" }}>
-                    진행 중인 계획이 없어요 — 완료된 계획을 펼치거나 새 계획을 만드세요.
-                  </span>
-                )}
-              </div>
-
-              {donePlans.length > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="plan-group-toggle"
-                    onClick={() => setShowDone((s) => !s)}
-                    aria-expanded={showDone}
-                  >
-                    {showDone ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    ✓ 완료 {donePlans.length}
-                  </button>
-                  {showDone ? <div className="plan-chip-row">{donePlans.map(planChip)}</div> : null}
-                </>
-              ) : null}
-
-              {archivedPlans.length > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="plan-group-toggle"
-                    onClick={() => setShowArchived((s) => !s)}
-                    aria-expanded={showArchived}
-                  >
-                    {showArchived ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    🗄 보관 {archivedPlans.length}
-                  </button>
-                  {showArchived ? (
-                    <div className="plan-chip-row">{archivedPlans.map(planChip)}</div>
-                  ) : null}
-                </>
-              ) : null}
             </div>
           ) : null}
 
@@ -686,6 +719,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               <button className="btn sm" onClick={() => setComposer(null)}>취소</button>
             </div>
           ) : null}
+        </div>
         </div>
       </div>
 

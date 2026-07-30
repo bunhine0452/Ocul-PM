@@ -390,9 +390,44 @@ enum Section {
     Decisions,
 }
 
+/// Headings that open the `## 결정` section, matched as a **whole label**.
+///
+/// This used to be a substring test (`contains("결정") || contains("decision")`),
+/// which swallowed any phase whose title merely mentioned the word: the real
+/// plan heading `## Phase A — 기록의 결정론화 {#phase-a}` was classified as the
+/// decisions section, so all 7 checklist items under it vanished from both the
+/// Planner UI and the MCP `plan_status` (20 items on disk → 13 reported).
+///
+/// Anchoring the match inverts the failure mode. An unrecognised decisions
+/// label now renders as a phase — visible, and the user can rename it —
+/// instead of a phase silently eating its own items, which no UI can reveal.
+const DECISIONS_HEADINGS: &[&str] = &[
+    "결정",
+    "결정사항",
+    "결정 사항",
+    "주요 결정",
+    "결정 기록",
+    "결정 로그",
+    "decision",
+    "decisions",
+    "decision log",
+    "decision records",
+];
+
 fn is_decisions_heading(h: &str) -> bool {
-    let lower = h.to_lowercase();
-    lower.contains("결정") || lower.contains("decision")
+    // `## 결정 (Decisions)` is the form AGENTS.md §7 documents, so a trailing
+    // parenthetical gloss is stripped before matching.
+    let mut s = h.trim();
+    if s.ends_with(')') || s.ends_with('）') {
+        if let Some(open) = s.rfind(['(', '（']) {
+            s = s[..open].trim_end();
+        }
+    }
+    let norm = s
+        .trim_end_matches([':', '.', '·', '—', '-'])
+        .trim()
+        .to_lowercase();
+    DECISIONS_HEADINGS.contains(&norm.as_str())
 }
 
 /// Merge a wrapped item's continuation lines back into the item line, so a
@@ -908,6 +943,46 @@ owner: claude-code
         // search-scopes(todo=0). dl-ux(blocked) + bundle(deferred) excluded.
         // (1 + 0.5 + 0 + 0) / 4 = 0.375
         assert!((p.progress() - 0.375).abs() < 1e-9, "got {}", p.progress());
+    }
+
+    #[test]
+    fn phase_titled_with_the_word_decision_keeps_its_items() {
+        // Regression (2026-07-30): `is_decisions_heading` was a substring test,
+        // so this real heading from `.oculpm/planner/claude-integration.md`
+        // opened the decisions section and silently dropped every item under
+        // it — the plan reported 13 of its 20 items in the UI and in the MCP
+        // `plan_status`, with nothing anywhere to indicate the loss.
+        let md = "---\noculpm_plan: v1\nid: p\ntitle: \"t\"\nstatus: active\n---\n\
+                  ## Phase A — 기록의 결정론화 {#phase-a}\n\
+                  - [x] 훅 브리지 {#ci0}\n\
+                  - [ ] 실기기 확인 {#ci0-verify}\n\
+                  \n\
+                  ## 결정 (Decisions)\n\
+                  ### Decision A — 제목 {#d-a}\n\
+                  - 잠금 2026-07-30 · claude-code\n";
+        let p = parse_plan(md, "p");
+
+        assert_eq!(p.items.len(), 2, "items: {:?}", p.items);
+        assert!(p.items.iter().all(|i| i.phase.as_deref() == Some("Phase A — 기록의 결정론화")));
+        // The genuine decisions heading still opens the decisions section.
+        assert_eq!(p.decisions.len(), 1);
+        assert_eq!(p.decisions[0].decision_id, "d-a");
+        // ...and it must NOT have been registered as a phase.
+        assert_eq!(p.phases.len(), 1);
+        assert_eq!(p.phases[0].id.as_deref(), Some("phase-a"));
+    }
+
+    #[test]
+    fn decisions_heading_variants_still_open_the_decisions_section() {
+        for heading in ["## 결정", "## 결정사항", "## Decisions", "## 결정 (Decisions)"] {
+            let md = format!(
+                "---\noculpm_plan: v1\nid: p\ntitle: \"t\"\n---\n\
+                 ## Phase A\n- [ ] a {{#a}}\n\n{heading}\n### D — t {{#d}}\n본문\n"
+            );
+            let p = parse_plan(&md, "p");
+            assert_eq!(p.decisions.len(), 1, "heading {heading:?} → {:?}", p.decisions);
+            assert_eq!(p.phases.len(), 1, "heading {heading:?} leaked into phases");
+        }
     }
 
     #[test]

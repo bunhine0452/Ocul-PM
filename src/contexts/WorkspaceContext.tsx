@@ -9,6 +9,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 
 import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
+import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
 import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
@@ -158,6 +159,26 @@ export interface WorkspaceState {
    * selectedId 를 초기화한다.)
    */
   plannerPlanId: string | null;
+  /**
+   * Planner 계획 레일의 정렬·묶기·접힘 (2026-07-30 스케일 라운드).
+   *
+   * 예전 칩 행의 완료/보관 펼침 상태는 컴포넌트 로컬이라 ⌘K 점프의 강제
+   * remount 마다 초기화됐다 — 계획이 많을수록 '정리해 둔 것이 안 남는' 체감의
+   * 절반이 이것이었다. 레일 설정은 영속화한다.
+   *
+   * 검색어는 일부러 영속화하지 않는다: 다음 진입 때 계획이 숨어 보인다.
+   */
+  plannerSort: PlanSort;
+  plannerGroup: PlanGroup;
+  /**
+   * 사용자가 명시적으로 여닫은 레일 섹션 (key → 펼침). 여기 없는 섹션은
+   * 섹션 자신의 기본값을 따른다 — 완료·보관은 기본 접힘, 진행 중은 펼침.
+   * key 어휘가 유한("done"/"archived"/"today"/"agent:<id>"…)해서 무한히
+   * 자라지 않는다.
+   */
+  plannerRailOpen: Record<string, boolean>;
+  /** 레일 자체를 접어 문서 폭을 되찾은 상태 (계획이 적을 때 유용). */
+  plannerRailCollapsed: boolean;
   /** 코드 검색 scope. */
   searchScope: SearchScope;
   /** 최근 검색어 (최대 10개). */
@@ -234,6 +255,10 @@ const DEFAULT_STATE: WorkspaceState = {
   diffMode: "unified",
   plannerOpen: {},
   plannerPlanId: null,
+  plannerSort: "recent",
+  plannerGroup: "status",
+  plannerRailOpen: {},
+  plannerRailCollapsed: false,
   searchScope: "semantic",
   searchRecent: [],
   terminalTabs: [],
