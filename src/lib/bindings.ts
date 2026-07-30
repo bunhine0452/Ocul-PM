@@ -292,7 +292,7 @@ export const commands = {
 	 *  new plan_id is returned (the frontend navigates to it). LLM-free.
 	 */
 	discussionPromoteToPlan: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_promote_to_plan", { projectId, discussionId })),
-	startPtySession: (sessionId: string, cwd: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("start_pty_session", { sessionId, cwd, rows, cols })),
+	startPtySession: (sessionId: string, cwd: string, rows: number, cols: number) => typedError<PtySessionInfo, string>(__TAURI_INVOKE("start_pty_session", { sessionId, cwd, rows, cols })),
 	/**
 	 *  살아있는 세션의 스크롤백 스냅샷을 반환한다 (없으면 None). 화면 재마운트가
 	 *  `start` 대신 이걸 먼저 불러 세션을 이어받는다.
@@ -302,10 +302,25 @@ export const commands = {
 	text: string,
 	/**  스냅샷에 포함된 마지막 청크의 seq — 이 값 이하의 라이브 이벤트는 중복. */
 	seq: number,
+	/**
+	 *  살아있는 세션의 nonce. 재마운트한 화면도 OSC 를 검증할 수 있어야 하므로
+	 *  start 경로와 동일한 값을 여기서도 돌려준다.
+	 */
+	nonce: string,
+	shell_integration: boolean,
 } | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
+	/**  현재 설치 상태를 읽는다. 파일을 만들거나 고치지 않는다. */
+	shellIntegrationStatus: () => typedError<ShellIntegrationStatus, string>(__TAURI_INVOKE("shell_integration_status")),
+	/**
+	 *  rc 에 관리 블록을 심는다 (멱등). 갱신된 상태를 그대로 돌려줘 UI 가 한 번 더
+	 *  조회하지 않아도 되게 한다.
+	 */
+	shellIntegrationInstall: () => typedError<ShellIntegrationStatus, string>(__TAURI_INVOKE("shell_integration_install")),
+	/**  rc 에서 관리 블록을 걷어낸다 (없으면 no-op). */
+	shellIntegrationUninstall: () => typedError<ShellIntegrationStatus, string>(__TAURI_INVOKE("shell_integration_uninstall")),
 	gitLog: (projectId: number, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log", { projectId, limit })),
 	gitGraph: (projectId: number, limit: number) => typedError<GitGraphCommit[], string>(__TAURI_INVOKE("git_graph", { projectId, limit })),
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
@@ -2005,6 +2020,19 @@ export type PtyAttach = {
 	text: string,
 	/**  스냅샷에 포함된 마지막 청크의 seq — 이 값 이하의 라이브 이벤트는 중복. */
 	seq: number,
+	/**
+	 *  살아있는 세션의 nonce. 재마운트한 화면도 OSC 를 검증할 수 있어야 하므로
+	 *  start 경로와 동일한 값을 여기서도 돌려준다.
+	 */
+	nonce: string,
+	shell_integration: boolean,
+};
+
+/**  `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보. */
+export type PtySessionInfo = {
+	/**  이 값이 실려 있지 않은 OSC 133 페이로드는 신뢰하지 않는다. */
+	nonce: string,
+	shell_integration: boolean,
 };
 
 export type ReindexReport = {
@@ -2235,6 +2263,28 @@ export type SessionDailyAgg = {
 };
 
 export type Severity = "ok" | "warning" | "critical";
+
+/**  설치 상태. UI 가 "설치 / 제거" 버튼 상태를 정하는 데 쓴다. */
+export type ShellIntegrationStatus = {
+	/**  `$SHELL` 로 판정한 셸 종류. */
+	shell: ShellKind,
+	/**  rc 에 우리 관리 블록이 있다. */
+	installed: boolean,
+	/**  rc 절대경로 (지원 셸이 아니면 빈 문자열). */
+	rc_path: string,
+	/**  앱이 심는 스크립트 절대경로 (지원 셸이 아니면 빈 문자열). */
+	script_path: string,
+	/**
+	 *  rc 에 begin/end 중 하나만 있어 쓰기가 막힌 상태 — 사용자가 손으로
+	 *  고쳐야 한다. 이 경우 install 은 실패한다(파일 손상 방지가 우선).
+	 */
+	block_broken: boolean,
+};
+
+/**  우리가 지원하는 셸. 그 외는 조용히 통합을 건너뛴다(터미널은 정상 동작). */
+export type ShellKind = "zsh" | "bash" | 
+/**  fish·nu·pwsh 등 — 통합 미지원. */
+"unsupported";
 
 /**  A shipped unit — a completed feature/refactor journal entry. */
 export type ShippedItem = {

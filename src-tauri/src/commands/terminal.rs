@@ -4,7 +4,10 @@ use std::sync::{Arc, Mutex};
 
 use portable_pty::{CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
+use uuid::Uuid;
+
+use crate::oculpm::shell_integration;
 
 // 터미널 개편 (2026-07-20):
 //  - PTY 출력을 청크별 `from_utf8_lossy` 로 디코딩하던 것을 스트리밍 디코드로
@@ -48,6 +51,28 @@ pub struct PtySession {
     pub writer: Box<dyn Write + Send>,
     pub master: Box<dyn MasterPty + Send>,
     pub buf: Arc<Mutex<SessionBuf>>,
+    /// 이 세션의 OSC 위조 방지 nonce (`OCULPM_NONCE` 로 셸에 심은 값).
+    pub nonce: String,
+    /// 통합 스크립트를 환경에 실어 보냈다. 사용자가 rc 설치를 안 했으면 셸은
+    /// 이 값을 무시하므로 "실제로 켜졌는지"는 첫 OSC 133 수신으로만 알 수 있다.
+    pub shell_integration: bool,
+}
+
+impl PtySession {
+    fn info(&self) -> PtySessionInfo {
+        PtySessionInfo {
+            nonce: self.nonce.clone(),
+            shell_integration: self.shell_integration,
+        }
+    }
+}
+
+/// `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보.
+#[derive(Clone, Serialize, specta::Type)]
+pub struct PtySessionInfo {
+    /// 이 값이 실려 있지 않은 OSC 133 페이로드는 신뢰하지 않는다.
+    pub nonce: String,
+    pub shell_integration: bool,
 }
 
 #[derive(Default)]
@@ -68,6 +93,10 @@ pub struct PtyAttach {
     pub text: String,
     /// 스냅샷에 포함된 마지막 청크의 seq — 이 값 이하의 라이브 이벤트는 중복.
     pub seq: u32,
+    /// 살아있는 세션의 nonce. 재마운트한 화면도 OSC 를 검증할 수 있어야 하므로
+    /// start 경로와 동일한 값을 여기서도 돌려준다.
+    pub nonce: String,
+    pub shell_integration: bool,
 }
 
 /// `pending` 에서 디코딩 가능한 최장 prefix 를 뽑아 반환하고, 청크 경계에
@@ -111,10 +140,11 @@ pub async fn start_pty_session(
     cwd: String,
     rows: u16,
     cols: u16,
-) -> Result<(), String> {
+) -> Result<PtySessionInfo, String> {
     // 이미 살아있는 세션이면 그대로 재사용 (attach 경로와의 경합 방어).
-    if state.sessions.lock().unwrap().contains_key(&session_id) {
-        return Ok(());
+    // nonce 는 세션에 고정된 값이므로 새로 뽑지 말고 기존 것을 돌려준다.
+    if let Some(existing) = state.sessions.lock().unwrap().get(&session_id) {
+        return Ok(existing.info());
     }
 
     let pty_system = NativePtySystem::default();
@@ -127,12 +157,9 @@ pub async fn start_pty_session(
         })
         .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
-    #[cfg(target_os = "windows")]
-    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string());
-    #[cfg(not(target_os = "windows"))]
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let shell = shell_integration::current_shell();
 
-    let mut cmd = CommandBuilder::new(shell);
+    let mut cmd = CommandBuilder::new(&shell);
     cmd.env("TERM", "xterm-256color");
     // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록 광고.
     cmd.env("COLORTERM", "truecolor");
@@ -147,6 +174,18 @@ pub async fn start_pty_session(
     }
     if !cwd.is_empty() {
         cmd.cwd(cwd);
+    }
+
+    // 셸 통합 (OSC 133/7). 사용자 rc 에 심긴 **비활성 한 줄**이 아래 변수를
+    // 보고서야 스크립트를 source 한다 — 설치 전이면 이 env 들은 아무 일도
+    // 하지 않는다(설정에서 옵인). 실패는 전부 삼킨다: 통합이 안 켜지는 것보다
+    // 터미널이 안 뜨는 쪽이 훨씬 나쁘다.
+    let nonce = Uuid::new_v4().simple().to_string();
+    let script = materialize_integration_script(&app, &shell);
+    cmd.env("OCULPM_TERM", "1");
+    cmd.env("OCULPM_NONCE", &nonce);
+    if let Some(path) = script.as_deref() {
+        cmd.env("OCULPM_SHELL_INTEGRATION", path);
     }
 
     let _child = pair
@@ -169,14 +208,19 @@ pub async fn start_pty_session(
         writer,
         master: pair.master,
         buf: buf.clone(),
+        nonce,
+        shell_integration: script.is_some(),
     };
+    let info = session.info();
 
     {
         let mut sessions = state.sessions.lock().unwrap();
-        if sessions.contains_key(&session_id) {
+        if let Some(winner) = sessions.get(&session_id) {
             // 동시 start 경합에서 진 쪽 — 방금 띄운 pair/child 는 여기서 drop
             // 되며 정리된다 (덮어쓰기로 승자 세션을 유령으로 만들지 않는다).
-            return Ok(());
+            // 반환하는 nonce 도 승자의 것이어야 한다. 진 쪽 nonce 를 돌려주면
+            // 프런트가 살아있는 셸의 OSC 를 전부 위조로 판정해 버린다.
+            return Ok(winner.info());
         }
         sessions.insert(session_id.clone(), session);
     }
@@ -217,7 +261,6 @@ pub async fn start_pty_session(
             // 셸이 스스로 종료(exit)한 세션은 맵에서 걷어낸다 — 다음 마운트의
             // attach 가 죽은 세션 대신 None 을 받아 새 셸을 시작하게.
             {
-                use tauri::Manager;
                 let st = app.state::<PtyState>();
                 st.sessions.lock().unwrap().remove(&session_id_clone);
             }
@@ -226,7 +269,28 @@ pub async fn start_pty_session(
         .await;
     });
 
-    Ok(())
+    Ok(info)
+}
+
+/// 이 셸용 통합 스크립트를 앱 데이터에 실체화하고 절대경로를 돌려준다.
+///
+/// 지원하지 않는 셸(fish·nu·pwsh)·앱 데이터 접근 실패·쓰기 실패는 전부 `None`
+/// 으로 삼킨다. 셸 통합은 부가 기능이고, 여기서 에러를 올리면 터미널 자체가
+/// 안 뜬다.
+fn materialize_integration_script(app: &tauri::AppHandle, shell: &str) -> Option<String> {
+    let kind = shell_integration::detect_shell_kind(shell);
+    let dir = app
+        .path()
+        .app_data_dir()
+        .inspect_err(|e| tracing::warn!("셸 통합: 앱 데이터 경로 조회 실패 — {e}"))
+        .ok()?;
+    match shell_integration::materialize_script(&dir, kind) {
+        Ok(path) => path.map(|p| p.display().to_string()),
+        Err(e) => {
+            tracing::warn!("셸 통합: 스크립트 생성 실패 — {e}");
+            None
+        }
+    }
 }
 
 /// 살아있는 세션의 스크롤백 스냅샷을 반환한다 (없으면 None). 화면 재마운트가
@@ -240,7 +304,12 @@ pub fn attach_pty_session(
     let sessions = state.sessions.lock().unwrap();
     Ok(sessions.get(&session_id).map(|s| {
         let (text, seq) = s.buf.lock().unwrap().snapshot();
-        PtyAttach { text, seq }
+        PtyAttach {
+            text,
+            seq,
+            nonce: s.nonce.clone(),
+            shell_integration: s.shell_integration,
+        }
     }))
 }
 

@@ -10,6 +10,13 @@ import { commands } from "@/lib/bindings";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
+import {
+  initialShellState,
+  parseOsc133,
+  parseOsc7,
+  reduceShellState,
+  type ShellState,
+} from "./oscShell";
 
 // Shared PTY-backed terminal instance — used by the full 터미널 화면
 // (TerminalScreenV2, 탭+분할 페인) and the Today 빠른 터미널 (TodayTerminal).
@@ -59,6 +66,11 @@ interface TerminalInstanceProps {
   onFocusIn?: () => void;
   /** 셸이 OSC 0/2 로 알려온 제목 — 탭 자동 이름에 쓴다. */
   onTitleChange?: (title: string) => void;
+  /**
+   * 셸 통합(OSC 133/7) 상태가 바뀔 때마다. 통합이 설치돼 있지 않으면 한 번도
+   * 불리지 않는다 — 소비처는 `state.active` 로 "켜져 있는가"를 판단한다.
+   */
+  onShellState?: (state: ShellState) => void;
 }
 
 export default function TerminalInstanceImpl({
@@ -71,6 +83,7 @@ export default function TerminalInstanceImpl({
   onReady,
   onFocusIn,
   onTitleChange,
+  onShellState,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -84,6 +97,11 @@ export default function TerminalInstanceImpl({
   const onReadyRef = useRef(onReady);
   const onFocusInRef = useRef(onFocusIn);
   const onTitleChangeRef = useRef(onTitleChange);
+  const onShellStateRef = useRef(onShellState);
+  // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
+  // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
+  const nonceRef = useRef("");
+  const shellStateRef = useRef<ShellState>(initialShellState);
   useEffect(() => {
     cwdRef.current = cwd;
     persistentRef.current = persistent;
@@ -91,7 +109,8 @@ export default function TerminalInstanceImpl({
     onReadyRef.current = onReady;
     onFocusInRef.current = onFocusIn;
     onTitleChangeRef.current = onTitleChange;
-  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange]);
+    onShellStateRef.current = onShellState;
+  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange, onShellState]);
 
   // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
   // buffers in xterm until the first open() once the tab is visible.
@@ -135,6 +154,46 @@ export default function TerminalInstanceImpl({
       const trimmed = title.trim();
       if (trimmed) onTitleChangeRef.current?.(trimmed);
     });
+
+    // --- 셸 통합 (OSC 133 명령 경계 / OSC 7 cwd) ---
+    //
+    // 등록은 여기(동기 구간)에서 해야 한다. 아래 async IIFE 의 스크롤백 리플레이
+    // 전에 붙어 있어야 화면을 떠났다 돌아왔을 때 프롬프트 상태가 복원된다.
+    //
+    // 핸들러는 **동기로 boolean 을 반환**한다. Promise 를 돌려주면 xterm 파서가
+    // 그 시퀀스에서 멈춰 터미널 출력 전체가 정지한다. 그래서 소비처 콜백은
+    // microtask 로 밀어 파서 밖에서 돌린다 — 소비처가 던지는 예외가 파서를
+    // 오염시키지 않게 하려는 목적도 있다.
+    const publishShellState = (next: ShellState) => {
+      if (next === shellStateRef.current) return;
+      shellStateRef.current = next;
+      queueMicrotask(() => {
+        try {
+          onShellStateRef.current?.(next);
+        } catch (err) {
+          oculpmLog.error("terminal", `셸 상태 콜백 실패: ${String(err)}`);
+        }
+      });
+    };
+    const oscDisposables = [
+      term.parser.registerOscHandler(133, (payload) => {
+        const event = parseOsc133(payload, nonceRef.current);
+        // 위조/미검증 신호는 조용히 버리되, 마커 자체는 계속 소비한다 —
+        // 화면에 이스케이프 잔해가 찍히지 않게.
+        if (event) publishShellState(reduceShellState(shellStateRef.current, event, Date.now()));
+        return true;
+      }),
+      term.parser.registerOscHandler(7, (payload) => {
+        // OSC 7 에는 nonce 를 실을 자리가 없다 → 표시용 힌트로만 받는다.
+        // 통합이 확인된 세션에서만 반영하고, 경로 해석에는 쓰지 않는다.
+        const cwdFromOsc = parseOsc7(payload);
+        const state = shellStateRef.current;
+        if (cwdFromOsc && state.active && state.cwd !== cwdFromOsc) {
+          publishShellState({ ...state, cwd: cwdFromOsc });
+        }
+        return true;
+      }),
+    ];
 
     // 앱 테마(<html> 의 data-theme/preset/accent) 전환을 그대로 따라간다.
     const stopThemeWatch = observeTerminalTheme(() => {
@@ -194,6 +253,9 @@ export default function TerminalInstanceImpl({
         if (!isMounted) return;
         if (at.status === "ok" && at.data) {
           // 살아있는 세션 재접속 — 스크롤백 리플레이.
+          // nonce 를 write 보다 **먼저** 세운다. 리플레이 안에도 OSC 133 이
+          // 들어 있어서, 순서가 뒤바뀌면 재접속마다 통합이 꺼진 것처럼 보인다.
+          nonceRef.current = at.data.nonce;
           lastSeq = at.data.seq;
           if (at.data.text) term.write(at.data.text);
         } else {
@@ -203,6 +265,7 @@ export default function TerminalInstanceImpl({
             term.write(`\r\n\x1b[1;31m[PTY 시작 실패: ${res.error}]\x1b[0m\r\n`);
             return;
           }
+          nonceRef.current = res.data.nonce;
         }
         attached = true;
         for (const chunk of queued) {
@@ -226,6 +289,7 @@ export default function TerminalInstanceImpl({
       container?.removeEventListener("focusin", handleFocusIn);
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
+      for (const d of oscDisposables) d.dispose();
       imeRef.current?.dispose();
       imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.

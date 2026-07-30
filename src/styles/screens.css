@@ -452,24 +452,32 @@
    `.scope-chip` 은 검색/일지/AI패널/Planner 툴바가 공유하므로 손대지 않았다. */
 .pln-body { flex: 1; min-height: 0; display: flex; align-items: stretch; }
 
+/* 레일은 캔버스(--bg-sidebar)가 아니라 **콘텐츠 시트에 속한다**.
+   시트와 같은 표면 위에 얇은 구분선만 두면, 앱 사이드바 옆에 같은 색 기둥이
+   하나 더 서는 '사이드바 속 사이드바' 가 사라지고 시트 하나에 목차가 붙은
+   모양이 된다. 오른쪽 여백을 넉넉히 둬 본문과 숨 쉴 틈을 만든다. */
 .pln-rail {
-  flex: none; width: 240px; min-width: 240px;
+  flex: none; width: 236px; min-width: 236px;
   overflow-y: auto; overflow-x: hidden;
-  border-right: 1px solid var(--sep); background: var(--bg-sidebar);
-  padding: 10px 8px 40px;
-  display: flex; flex-direction: column; gap: 2px;
+  border-right: 1px solid var(--sep); background: transparent;
+  padding: 14px 14px 40px 10px;
+  display: flex; flex-direction: column; gap: 1px;
 }
 /* 좁은 창(최소 960px)에서는 본문이 먼저다 — 레일을 줄여 문서 폭을 지킨다. */
 @media (max-width: 1120px) {
-  .pln-rail { width: 196px; min-width: 196px; }
+  .pln-rail { width: 194px; min-width: 194px; padding-right: 10px; }
 }
 .pln-rail.is-collapsed { display: none; }
 
 .pln-main { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; }
 .pln-doc { padding: 24px 28px 60px; max-width: 880px; margin: 0 auto; width: 100%; }
 
-.pln-rail-controls { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 10px; }
-.pln-rail-search { min-width: 0; height: 28px; }
+.pln-rail-controls { display: flex; flex-direction: column; gap: 6px; padding: 0 2px 12px; }
+/* 시트 위에 얹히는 컨트롤이라 --bg-inset 대신 옅은 테두리로 존재만 알린다. */
+.pln-rail-search {
+  min-width: 0; height: 30px; background: transparent;
+  border: 1px solid var(--sep); border-radius: var(--radius-s);
+}
 .pln-rail-search input { font-size: 12.5px; }
 .pln-rail-clear {
   display: grid; place-items: center; width: 18px; height: 18px; padding: 0;
@@ -478,47 +486,70 @@
 .pln-rail-clear:hover { color: var(--text); background: var(--bg-hover); }
 .pln-rail-selects { display: flex; gap: 6px; }
 .pln-rail-selects .set-input {
-  flex: 1; min-width: 0; height: 26px; padding: 0 6px;
+  flex: 1; min-width: 0; height: 27px; padding: 0 6px;
   font-family: var(--font); font-size: 11.5px;
+  background: transparent; border-color: var(--sep); color: var(--text-2);
 }
 
 .pln-rail-list { display: flex; flex-direction: column; gap: 2px; }
 .pln-rail-empty { padding: 12px 10px; font-size: 12px; color: var(--text-3); }
 
 .pln-sec-head {
-  display: flex; align-items: center; gap: 6px; width: 100%;
-  padding: 10px 8px 4px; background: none; border: none; cursor: pointer;
-  font-family: var(--font); font-size: 11px; font-weight: 700;
-  letter-spacing: 0.04em; color: var(--text-3);
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  padding: 14px 10px 5px; background: none; border: none; cursor: pointer;
+  font-family: var(--font); font-size: 10.5px; font-weight: 650;
+  letter-spacing: 0.06em; color: var(--text-3);
 }
+.pln-sec-head:first-child { padding-top: 2px; }
 .pln-sec-head:hover { color: var(--text-2); }
-.pln-sec-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.pln-sec-head svg { opacity: 0.6; }
+.pln-sec-count {
+  margin-left: auto; font-variant-numeric: tabular-nums;
+  font-weight: 550; opacity: 0.8;
+}
 
+/* 선택 표시는 왼쪽 세로 막대가 아니라 **면(面)** 으로 한다. 액센트 바는
+   Discussion/문서 목록(둘 다 채움만 씀)과도 어긋났고, 얇은 색 막대는 행마다
+   시선을 끌어 목록의 리듬을 끊는다. 부드러운 액센트 채움 + 제목 색 승격만으로
+   충분히 읽히고 훨씬 조용하다. */
 .pln-row {
-  display: flex; flex-direction: column; gap: 4px; width: 100%;
-  padding: 8px 8px 8px 10px; border: none; background: none;
-  border-left: 2px solid transparent; border-radius: var(--radius-s);
+  display: flex; flex-direction: column; gap: 5px; width: 100%;
+  padding: 9px 10px; border: none; background: none;
+  border-radius: var(--radius-s);
   text-align: left; cursor: pointer; font-family: var(--font); color: var(--text);
+  transition: background var(--dur-1, 0.12s) ease;
 }
 .pln-row:hover { background: var(--bg-hover); }
-.pln-row.on { background: var(--accent-soft); border-left-color: var(--accent); }
+.pln-row.on { background: var(--accent-soft); }
 .pln-row-top { display: flex; align-items: center; gap: 6px; }
 .pln-row-title {
-  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600;
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 550;
+  letter-spacing: -0.005em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.pln-row.on .pln-row-title { color: var(--accent-text); }
-.pln-row-lock { flex: none; font-size: 10px; }
-.pln-row-bar { height: 3px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; }
+.pln-row.on .pln-row-title { color: var(--accent-text); font-weight: 650; }
+.pln-row-lock { flex: none; color: var(--text-3); opacity: 0.75; }
+.pln-row.on .pln-row-lock { color: var(--accent-text); opacity: 1; }
+
+/* 진행 바는 2px 헤어라인. 완주한 계획만 액센트로 채우고 나머지는 중성색으로
+   둬서, 레일 전체가 초록 막대 밭이 되지 않게 한다. */
+.pln-row-bar { height: 2px; border-radius: 2px; background: var(--sep); overflow: hidden; }
 .pln-row-bar > i {
-  display: block; height: 100%; border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong, var(--accent)));
+  display: block; height: 100%; border-radius: 2px;
+  background: var(--text-3); opacity: 0.55;
+  transition: width var(--dur-2, 0.2s) ease;
 }
+.pln-row.on .pln-row-bar > i { background: var(--accent); opacity: 1; }
+
 .pln-row-meta {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
 }
-.pln-row-stale { color: var(--t-bug); font-weight: 650; }
+.pln-row-count { letter-spacing: 0.01em; }
+.pln-row-stale {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: var(--t-bug); font-weight: 600;
+}
 
 /* Journal-ref ("일지" notebook) link button — a real tappable hit target
    (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
@@ -676,6 +707,15 @@
 .ts-btn:hover { background: var(--bg-hover); color: var(--text); }
 .ts-font { font-family: var(--mono); font-size: 10.5px; min-width: 34px; text-align: center; }
 .ts-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+/* 셸 통합(OSC 133) 명령 상태 — 실행 중/성공/실패/대기. */
+.ts-dot.tone-running { background: var(--accent); animation: ts-dot-pulse 1.2s ease-in-out infinite; }
+.ts-dot.tone-ok { background: #57c98a; }
+.ts-dot.tone-fail { background: var(--t-bug); }
+.ts-dot.tone-idle { background: var(--text-3); }
+@keyframes ts-dot-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+    .ts-dot.tone-running { animation: none; }
+}
 
 /* --- AI Panel — 2026-07-20 대규모 개편 (Cursor 식 컴포저) --- */
 .ai-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }

@@ -60,7 +60,9 @@ __oculpm_precmd() {
   fi
   printf '\e]133;A;nonce=%s;cwd=%s\a' "$__oculpm_nonce" "$(__oculpm_esc "$PWD")"
   printf '\e]7;file://%s%s\a' "${HOST:-localhost}" "$PWD"
-  printf '\e]133;B\a'
+  # B 에도 nonce 를 싣는다 — 수신 쪽 규칙을 "nonce 가 맞지 않으면 전부 불신"
+  # 하나로 유지하기 위해서다(예외를 두면 그 예외가 공격면이 된다).
+  printf '\e]133;B;nonce=%s\a' "$__oculpm_nonce"
 }
 
 # 명령 실행 직전: 실행될 명령줄을 함께 실어 보낸다. 앱이 이걸로 코딩

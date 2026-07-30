@@ -23,9 +23,10 @@ import {
   type PaneNode,
   type PaneDir,
 } from "@/lib/termPanes";
-import { TerminalInstance, type TerminalHandles } from "./TerminalInstance";
+import { TerminalInstance, type TerminalHandles, type ShellState } from "./TerminalInstance";
 import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
+import { summarizeShell } from "./shellStatus";
 
 // 터미널 화면 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -90,6 +91,9 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // sid → xterm 핸들 (검색/포커스 제어). onReady 로 채워진다.
   const regRef = useRef(new Map<string, TerminalHandles>());
 
+  // sid → 셸 통합 상태(OSC 133). 통합이 설치되지 않은 세션은 여기 안 들어온다.
+  const [shellStates, setShellStates] = useState<Record<string, ShellState>>({});
+
   const activeTab = terminalTabs.find((t) => t.id === terminalActiveId) ?? null;
   const paneCount = activeTab ? collectSids(panesOfTab(activeTab)).length : 0;
 
@@ -110,6 +114,14 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     for (const sid of regRef.current.keys()) {
       if (!alive.has(sid)) regRef.current.delete(sid);
     }
+    // 셸 상태도 같이 회수 — 안 그러면 탭을 여닫을 때마다 맵이 무한정 자란다.
+    setShellStates((prev) => {
+      const stale = Object.keys(prev).filter((sid) => !alive.has(sid));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      for (const sid of stale) delete next[sid];
+      return next;
+    });
   }, [terminalTabs]);
 
   const patchTab = (id: string, fn: (t: TerminalTab) => TerminalTab) =>
@@ -347,6 +359,16 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     window.addEventListener("pointerup", up);
   };
 
+  // 포커스된 페인의 셸 통합 상태 — 상태바/툴바 문구가 여기서 나온다.
+  const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
+  const shellSummary = focusedShell ? summarizeShell(focusedShell) : null;
+  // 2026-07-30 정직성 수정: 예전 문구는 "에이전트 실행을 감지해 자동으로 일지를
+  // 작성합니다" 였는데, PTY 쪽에 감지 코드가 한 줄도 없었고 자동 일지 초안도
+  // 기본 꺼짐이었다. 이제 실제로 켜져 있을 때만 그렇게 말한다.
+  const toolbarSub = focusedShell?.active
+    ? "셸 통합 켜짐 — 명령 경계·종료코드·작업 디렉터리를 인식합니다"
+    : "설정 → 터미널에서 셸 통합을 켜면 명령 경계와 종료코드를 인식합니다";
+
   // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
   const watcher = state.oculpmStatus?.watcher_state ?? null;
   const watchLabel =
@@ -379,6 +401,9 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             }}
             onFocusIn={() => focusPane(tab.id, node.sid)}
             onTitleChange={(title) => applyShellTitle(tab.id, title)}
+            onShellState={(shell) =>
+              setShellStates((prev) => (prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell }))
+            }
           />
           {count > 1 ? (
             <button
@@ -416,7 +441,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
   return (
     <>
-      <Toolbar title="터미널" sub="에이전트 실행을 감지해 자동으로 일지를 작성합니다">
+      <Toolbar title="터미널" sub={toolbarSub}>
         <button
           className="btn icon"
           onClick={() => (searchOpen ? closeSearch() : openSearch())}
@@ -565,6 +590,12 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             {activeTab?.label ?? "—"}
             {paneCount > 1 ? ` · 페인 ${paneCount}` : ""}
           </span>
+          {shellSummary ? (
+            <span className="ts-seg" title={focusedShell?.cwd ?? undefined} aria-live="polite">
+              <span className={"ts-dot tone-" + shellSummary.tone} />
+              {shellSummary.text}
+            </span>
+          ) : null}
           <span className="ts-hint">⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘L 지우기 · ⌘W 닫기</span>
           <span style={{ flex: 1 }} />
           <span className="ts-seg">

@@ -36,6 +36,7 @@ import {
   type DesktopRegistrationStatus,
   type McpRegistrationStatus,
   type OculpmConfig,
+  type ShellIntegrationStatus,
 } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -579,6 +580,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
       >
         <ClaudeHooksBlock projectId={projectId} />
         <McpServerBlock projectId={projectId} />
+        <ShellIntegrationBlock />
       </Section>
       )}
 
@@ -692,6 +694,122 @@ export function ClaudeHooksBlock({ projectId }: { projectId: number }) {
         </p>
       )}
       {hooksError && <p className="text-[11px] text-red-400">{hooksError}</p>}
+    </div>
+  );
+}
+
+/**
+ * 터미널 셸 통합 (OSC 133/7) — 2026-07-30.
+ *
+ * 내장 터미널이 명령의 시작·끝·종료코드·작업 디렉터리를 알게 한다. 켜려면
+ * 사용자 rc(`~/.zshrc` / `~/.bashrc`)에 **비활성 한 줄**을 심어야 하므로
+ * 반드시 사용자가 직접 눌러야 한다 — 남의 dotfile 을 묻지 않고 고치지 않는다.
+ *
+ * 프로젝트가 아니라 머신 단위 설정이라 `projectId` 를 받지 않는다.
+ */
+export function ShellIntegrationBlock() {
+  const [status, setStatus] = useState<ShellIntegrationStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void commands.shellIntegrationStatus().then((res) => {
+      if (res.status === "ok") {
+        setStatus(res.data);
+        setError(null);
+      } else {
+        setError(res.error);
+      }
+    });
+  }, []);
+
+  const mutate = async (action: "install" | "uninstall") => {
+    setBusy(true);
+    try {
+      const res =
+        action === "install"
+          ? await commands.shellIntegrationInstall()
+          : await commands.shellIntegrationUninstall();
+      if (res.status === "ok") {
+        setStatus(res.data);
+        setError(null);
+        toast.info(
+          action === "install"
+            ? "셸 통합을 켰습니다 — 새 터미널 세션부터 적용됩니다"
+            : "셸 통합을 껐습니다",
+        );
+      } else {
+        setError(res.error);
+        toast.destructive(`셸 통합 변경 실패: ${res.error}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unsupported = status?.shell === "unsupported";
+  const badge = error
+    ? { label: "오류", cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    : !status
+      ? { label: "확인 중…", cls: "border-border bg-muted/30 text-muted-foreground" }
+      : unsupported
+        ? { label: "지원하지 않는 셸", cls: "border-border bg-muted/30 text-muted-foreground" }
+        : status.block_broken
+          ? { label: "rc 블록 손상", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          : status.installed
+            ? { label: "켜짐", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+            : { label: "꺼짐", cls: "border-border bg-muted/30 text-muted-foreground" };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          터미널 셸 통합
+        </Label>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+          {badge.label}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {status && !unsupported ? (
+            status.installed ? (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => void mutate("uninstall")}>
+                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                끄기
+              </Button>
+            ) : (
+              <Button size="sm" disabled={busy || status.block_broken} onClick={() => void mutate("install")}>
+                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                켜기
+              </Button>
+            )
+          ) : null}
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        내장 터미널이 명령의 <strong>시작·종료·종료코드·작업 디렉터리</strong>를 인식하게 합니다.
+        {status?.rc_path ? (
+          <>
+            {" "}
+            <code className="text-[10px]">{status.rc_path}</code> 에 한 줄을 추가하는데, 그 줄은
+            ocul-pm 이 띄운 터미널에서만 동작합니다 — iTerm2·Terminal.app 등 다른 터미널에서는{" "}
+            <strong>아무 일도 하지 않습니다</strong>. 블록 밖 내용은 보존되고, 끄기로 완전히
+            되돌릴 수 있습니다.
+          </>
+        ) : null}
+      </p>
+      {unsupported && (
+        <p className="text-[11px] text-muted-foreground">
+          현재 셸(fish·nu 등)은 아직 지원하지 않습니다. 터미널 자체는 정상 동작합니다.
+        </p>
+      )}
+      {status?.block_broken && (
+        <p className="text-[11px] text-amber-400">
+          rc 파일의 <code className="text-[10px]">oculpm:begin</code> /{" "}
+          <code className="text-[10px]">oculpm:end</code> 짝이 맞지 않습니다. 파일이 상하지 않도록
+          쓰기를 막았습니다 — 해당 줄을 직접 정리한 뒤 다시 시도하세요.
+        </p>
+      )}
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
     </div>
   );
 }

@@ -36,7 +36,8 @@ __oculpm_precmd() {
   fi
   printf '\e]133;A;nonce=%s;cwd=%s\a' "$__oculpm_nonce" "$(__oculpm_esc "$PWD")"
   printf '\e]7;file://%s%s\a' "${HOSTNAME:-localhost}" "$PWD"
-  printf '\e]133;B\a'
+  # zsh 판과 동일 — B 에도 nonce (수신 규칙을 하나로 유지).
+  printf '\e]133;B;nonce=%s\a' "$__oculpm_nonce"
   return $exit_status
 }
 

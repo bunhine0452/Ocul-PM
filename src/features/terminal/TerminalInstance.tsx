@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { TerminalHandles } from "./TerminalInstanceImpl";
+import type { ShellState } from "./oscShell";
 
 // v2 U6 — xterm(+addons, css) 은 TerminalInstanceImpl 로 분리해 lazy 로드.
 // TodayTerminal 위젯이 eager 화면(Today)에서 이 컴포넌트를 임포트하는 바람에
@@ -23,9 +24,11 @@ interface TerminalInstanceProps {
   onFocusIn?: () => void;
   /** 셸이 OSC 0/2 로 알려온 제목 — 탭 자동 이름 (2026-07-30). */
   onTitleChange?: (title: string) => void;
+  /** 셸 통합(OSC 133/7) 상태 — 미설치 세션에서는 한 번도 불리지 않는다. */
+  onShellState?: (state: ShellState) => void;
 }
 
-export type { TerminalHandles };
+export type { TerminalHandles, ShellState };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
   return (

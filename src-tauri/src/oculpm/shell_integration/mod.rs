@@ -80,6 +80,19 @@ impl ShellKind {
     }
 }
 
+/// PTY 를 띄울 때 쓰는 셸 경로. 설정 화면의 상태 표시와 실제 PTY 가 **같은**
+/// 값을 봐야 "설치됨"이 거짓말이 되지 않으므로, 두 곳이 이 함수를 공유한다.
+pub fn current_shell() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
+    }
+}
+
 /// `$SHELL` 경로에서 셸 종류를 판정한다. 순수 함수 — 테스트 대상.
 ///
 /// basename 만 보고 판단하며, `-zsh` 같은 로그인 셸 argv0 표기와 버전 접미사

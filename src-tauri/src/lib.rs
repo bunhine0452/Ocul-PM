@@ -133,6 +133,8 @@ use crate::commands::{
     discussion_attach, discussion_attach_via_dialog, discussion_asset, discussion_detach,
     discussion_promote_to_plan,
     start_pty_session, attach_pty_session, write_to_pty, resize_pty, kill_pty_session,
+    // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
+    shell_integration_status, shell_integration_install, shell_integration_uninstall,
     git_log, git_graph, git_status, git_head_status_brief,
     reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
@@ -270,6 +272,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         write_to_pty,
         resize_pty,
         kill_pty_session,
+        // 터미널 셸 통합 (OSC 133/7)
+        shell_integration_status,
+        shell_integration_install,
+        shell_integration_uninstall,
         // M7 — Git / GitHub
         git_log,
         git_graph,
