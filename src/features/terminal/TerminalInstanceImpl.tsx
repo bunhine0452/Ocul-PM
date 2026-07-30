@@ -100,6 +100,8 @@ export default function TerminalInstanceImpl({
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
   const imeRef = useRef<ImeBridgeHandle | null>(null);
+  // WebGL 애드온 핸들 — 정리 시 코어보다 먼저, 가드하고 dispose 한다.
+  const webglRef = useRef<{ dispose(): void } | null>(null);
   const openedRef = useRef(false);
   const cwdRef = useRef(cwd);
   const persistentRef = useRef(persistent);
@@ -345,7 +347,21 @@ export default function TerminalInstanceImpl({
       imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.
       if (!persistentRef.current) void commands.killPtySession(sessionId);
-      term.dispose();
+      // A0d 근본 원인 — 정리에서 throw 금지: addon-webgl 0.19 가 xterm 5.5
+      // 코어에 없는 내부(_core._store)를 dispose 에서 만져 언마운트 커밋을
+      // 통째로 무너뜨렸다(앱 전체 빈 화면). 버전은 0.18 로 정합했고, 여기는
+      // 미래의 어떤 dispose 예외도 앱을 죽이지 못하게 가드한다.
+      try {
+        webglRef.current?.dispose();
+      } catch (err) {
+        oculpmLog.error("terminal", `webgl dispose 실패 (무시): ${String(err)}`);
+      }
+      webglRef.current = null;
+      try {
+        term.dispose();
+      } catch (err) {
+        oculpmLog.error("terminal", `term.dispose 실패 (무시): ${String(err)}`);
+      }
       termRef.current = null;
       openedRef.current = false;
     };
@@ -392,7 +408,7 @@ export default function TerminalInstanceImpl({
         // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가
         // 실패해도 터미널 자체는 살아 있어야 한다. 예외가 그대로 올라가면
         // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
-        void loadWebglRenderer(term);
+        void loadWebglRenderer(term, webglRef);
         try {
           imeRef.current = attachImeBridge(term, container);
         } catch (err) {
@@ -430,13 +446,17 @@ export default function TerminalInstanceImpl({
  * xterm 이 DOM 렌더러로 되돌아가게 한다. 애드온 청크는 여기서 지연 로드해
  * 터미널을 안 여는 세션에 비용을 지우지 않는다.
  */
-async function loadWebglRenderer(term: Terminal): Promise<void> {
+async function loadWebglRenderer(
+  term: Terminal,
+  handle: { current: { dispose(): void } | null },
+): Promise<void> {
   try {
     const { WebglAddon } = await import("@xterm/addon-webgl");
     if (!term.element) return; // 로드 중 dispose 된 경우
     const webgl = new WebglAddon();
     webgl.onContextLoss(() => webgl.dispose());
     term.loadAddon(webgl);
+    handle.current = webgl;
   } catch (err) {
     // WebGL2 미지원/차단 — DOM 렌더러 그대로 (동작엔 문제 없음).
     console.warn("[TerminalInstance] WebGL 렌더러 사용 불가, DOM 렌더러로 진행:", err);
