@@ -39,8 +39,8 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 
 ## Phase D — 리뷰 후속 {#phase-d}
 - [x] 적대적 코드 리뷰(PR-CI3~8) + HIGH/MED 5건 수정 — 관리블록 파괴·Notion redact·억제 양방향·URL 프래그먼트·훅 EPIPE {#review-fixes-round1}
-- [ ] 리뷰 잔여 5건 — Cursor 미러 충돌 안내 문구 오류·sync_mirrors 비fixpoint(rename 1패스 유실)·gather_evidence 누락 삼킴·split_frontmatter 수평선 오인·읽기 크기 상한 부재 {#review-fixes-round2}
-- [ ] 관리블록 버전 인식 — 구버전 앱이 gitignore 블록을 downgrade 해 민감 경로가 노출될 수 있음(union 병합 또는 버전 가드) {#managed-block-versioning}
+- [x] 리뷰 잔여 5건 — Cursor 미러 충돌 안내 문구 오류·sync_mirrors 비fixpoint(rename 1패스 유실)·gather_evidence 누락 삼킴·split_frontmatter 수평선 오인·읽기 크기 상한 부재 {#review-fixes-round2}
+- [x] 관리블록 버전 인식 — 구버전 앱이 gitignore 블록을 downgrade 해 민감 경로가 노출될 수 있음(union 병합 또는 버전 가드) {#managed-block-versioning}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -70,4 +70,6 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T20:07:43+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2007_feature_claude-desktop-one-click-register.md | D3 잔여분 Desktop 원클릭 등록 구현 — claude_desktop_config.json 직접 머지(프로젝트별 키·멱등·비파괴), 커맨드 3종+UI 행. 실연결 확인은 #ci2-runtime-verify 그대로 |
 | 2026-07-20T20:26:51+09:00 | #ci2-mcp-server | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2026_feature_mcp-hardening-and-desktop-key-collision.md | 보안 하드닝 2건(plan_update redact·stdin 10MiB 상한) + Desktop 동명 폴더 키 충돌 fix(루트 기준 판정·해시 접미) |
 | 2026-07-20T21:24:32+09:00 | #ci2-sidecar-bundle | claude-code | ☐→x | .oculpm/journal/20260720/Chores/2124_chore_release-v2-2-0-sidecar-and-promo.md | externalBin+build-sidecar.mjs+build.rs 플레이스홀더(순환 해소). CI 동일조건 로컬 번들에서 .app 동봉·--version 실검증. v2.2.0 태그로 릴리스 가동 |
+| 2026-07-31T00:58:14+09:00 | #review-fixes-round2 | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/0058_bug_review-fixes-round2-cleared.md | plugin-round A0c 로 이관 청산 — 5건 전부 수정, 상세는 그 플랜/일지 참조 |
+| 2026-07-31T00:58:23+09:00 | #managed-block-versioning | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0035_feature_managed-block-version-guard.md | plugin-round A0a 로 해결 — 다운그레이드 가드+union 병합 (구버전 downgrade 차단은 forward-only) |
 <!-- oculpm:plan-log end -->
