@@ -151,6 +151,12 @@ pub fn append_ndjson(path: &Path, line: &str) -> Result<(), OculpmError> {
 // managed_block
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Version stamped into every `begin` marker this build writes. Bump only with
+/// a migration story: builds carrying the downgrade guard below refuse to touch
+/// blocks whose on-disk version is newer than their own, so a bump is only safe
+/// once the guard has been in the field for a while (#managed-block-versioning).
+pub const MANAGED_BLOCK_VERSION: u32 = 1;
+
 /// Inner contents of a managed block (the lines between `begin`/`end`, with
 /// the marker lines stripped).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,6 +179,11 @@ pub enum ManagedBlockResult {
     Updated,
     /// Block existed with identical content; the file was not touched.
     Unchanged,
+    /// Block carries a NEWER version marker than this build writes; left
+    /// untouched. Downgrade guard: an older app rewriting a newer block could
+    /// silently drop entries (e.g. `.oculpm/hooks/` from `.gitignore`, which
+    /// would let conversation payloads reach commits).
+    SkippedNewer,
 }
 
 /// Locate the `<begin v1> ... <end>` block for `block_id` in `path`. Returns
@@ -258,6 +269,14 @@ pub fn write_managed_block(
     match range {
         Some(r) => {
             let existing_block = &existing_text[r.begin_start..r.end_end];
+            // Downgrade guard — the begin line carries the writing app's
+            // version; never rewrite a block a newer build owns.
+            let begin_line = existing_block.lines().next().unwrap_or_default();
+            if let Some(v) = parse_begin_line(begin_line, block_id, style) {
+                if v > MANAGED_BLOCK_VERSION {
+                    return Ok(ManagedBlockResult::SkippedNewer);
+                }
+            }
             if existing_block == block_text {
                 Ok(ManagedBlockResult::Unchanged)
             } else {
@@ -378,7 +397,7 @@ fn detect_eol(text: &str) -> &'static str {
 }
 
 fn render_block(block_id: &str, content: &str, style: CommentStyle, eol: &str) -> String {
-    let begin = render_begin_line(block_id, style, 1);
+    let begin = render_begin_line(block_id, style, MANAGED_BLOCK_VERSION);
     let end = render_end_line(block_id, style);
     let body = if content.is_empty() {
         String::new()
@@ -453,6 +472,26 @@ mod tests {
         let path = dir.path().join("a.txt");
         write_atomic(&path, b"hello").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"hello");
+    }
+
+    /// A0a — downgrade guard: a block stamped with a NEWER version than this
+    /// build writes must be left byte-identical. An older app stripping lines
+    /// a newer app added is the `.oculpm/hooks/` exposure path.
+    #[test]
+    fn managed_block_refuses_downgrade_of_newer_version() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join(".gitignore");
+        let newer =
+            "# oculpm:begin v99\n.oculpm/index/\n.oculpm/future-secret/\n# oculpm:end\n";
+        std::fs::write(&path, newer).unwrap();
+
+        let r = write_managed_block(&path, "oculpm", "old body\n", CommentStyle::Hash).unwrap();
+        assert_eq!(r, ManagedBlockResult::SkippedNewer);
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            newer,
+            "newer block must not be rewritten by an older writer"
+        );
     }
 
     /// Case 2 — overwrite an existing file. The temp file must not survive

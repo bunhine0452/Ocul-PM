@@ -24,7 +24,9 @@ use tokio::sync::RwLock;
 
 use crate::db::Db;
 use crate::oculpm::agents::{self, AgentDetection};
-use crate::oculpm::atomic_io::{write_atomic, write_managed_block, ManagedBlockResult};
+use crate::oculpm::atomic_io::{
+    read_managed_block, write_atomic, write_managed_block, ManagedBlockResult,
+};
 use crate::oculpm::cache::{CacheReindexReport, EntryFilters, JournalCache, PathChangeKind};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::{
@@ -58,6 +60,27 @@ const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm/oculpm.log
 .oculpm.backup-*/
 ";
+
+/// A0a (#managed-block-versioning) — union of the canonical block body and the
+/// lines already inside the on-disk block. An entry a newer app version added
+/// (e.g. a future sensitive path) must survive this — possibly older — build
+/// rewriting the block. Trade-offs, both locked by tests below: entries removed
+/// from the canonical body linger for existing installs (harmless for ignore
+/// paths), and unknown lines are appended AFTER the canonical set — so the
+/// canonical body must stay order-independent (no `!` negation patterns).
+/// Lines are kept verbatim: gitignore treats a backslash-quoted trailing space
+/// as significant, so no trimming beyond the pure-whitespace emptiness check.
+fn merged_gitignore_body(existing: Option<&str>) -> String {
+    let mut lines: Vec<&str> = GITIGNORE_BLOCK_BODY.lines().collect();
+    for line in existing.into_iter().flat_map(str::lines) {
+        if !line.trim().is_empty() && !lines.contains(&line) {
+            lines.push(line);
+        }
+    }
+    let mut body = lines.join("\n");
+    body.push('\n');
+    body
+}
 
 /// Number of most-recent workdays to scan for zombie sessions on startup.
 /// Kept as a named constant so W4's "full check" command can reference the
@@ -226,10 +249,23 @@ impl OculpmManager {
         //    the rest of init has already succeeded but the lock-acquire side
         //    effects (file + heartbeat) need to be undone before we return.
         let gitignore_path = root.join(".gitignore");
+        // Union-merge with whatever the block already holds (A0a) — see
+        // `merged_gitignore_body`. A newer-versioned block is additionally
+        // left untouched by `write_managed_block`'s downgrade guard.
+        let gitignore_body =
+            match read_managed_block(&gitignore_path, "oculpm", CommentStyle::Hash) {
+                Ok(existing) => {
+                    merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str()))
+                }
+                Err(e) => {
+                    drop(guard);
+                    return Err(e);
+                }
+            };
         match write_managed_block(
             &gitignore_path,
             "oculpm",
-            GITIGNORE_BLOCK_BODY,
+            &gitignore_body,
             CommentStyle::Hash,
         ) {
             Ok(result) => {
@@ -2339,6 +2375,67 @@ mod tests {
 
         // Project is not registered, so the manager's view stays uninitialised.
         assert!(!manager.get_status(1).await.initialized);
+    }
+
+    /// A0a case 6 — a block containing an entry this build doesn't know
+    /// (added by a newer app version) must survive re-init via union merge,
+    /// not get stripped back to the canonical body.
+    #[tokio::test]
+    async fn init_preserves_unknown_lines_in_gitignore_block() {
+        let dir = tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(".gitignore"),
+            "# oculpm:begin v1\n.oculpm/index/\n.oculpm/some-future-dir/\n# oculpm:end\n",
+        )
+        .unwrap();
+
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path()).await.unwrap();
+
+        let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert!(gi.contains(".oculpm/some-future-dir/"), "unknown line must survive: {gi}");
+        assert!(gi.contains(".oculpm/hooks/"), "canonical lines must be (re)added: {gi}");
+        assert_eq!(gi.matches("some-future-dir").count(), 1, "no duplication: {gi}");
+    }
+
+    /// A0a invariant — the union merge appends unknown lines after the
+    /// canonical set, which silently breaks order-sensitive `!` negation
+    /// patterns (gitignore: last match wins). Lock the canonical body to
+    /// order-independent patterns; redesign `merged_gitignore_body` before
+    /// ever adding a negation.
+    #[test]
+    fn gitignore_canonical_body_stays_order_independent() {
+        assert!(
+            GITIGNORE_BLOCK_BODY.lines().all(|l| !l.trim_start().starts_with('!')),
+            "negation pattern in GITIGNORE_BLOCK_BODY — union merge reorders lines"
+        );
+    }
+
+    /// A0a — verbatim preservation: a backslash-quoted trailing space is
+    /// significant to gitignore and must survive the merge untrimmed.
+    #[test]
+    fn merged_gitignore_body_keeps_lines_verbatim() {
+        let merged = merged_gitignore_body(Some("custom\\ \n.oculpm/index/\n"));
+        assert!(merged.contains("custom\\ \n"), "escaped trailing space lost: {merged:?}");
+        assert_eq!(merged.matches(".oculpm/index/").count(), 1, "no duplication");
+    }
+
+    /// A0a case 7 — a block stamped with a newer version marker is left
+    /// byte-identical (downgrade guard end-to-end through init).
+    #[tokio::test]
+    async fn init_leaves_newer_version_gitignore_block_untouched() {
+        let dir = tempdir().unwrap();
+        let newer = "# oculpm:begin v99\n.oculpm/future-secret/\n# oculpm:end\n";
+        std::fs::write(dir.path().join(".gitignore"), newer).unwrap();
+
+        let manager = OculpmManager::new();
+        let report = manager.init_project(1, dir.path()).await.unwrap();
+        assert!(!report.wrote_gitignore, "newer block must not count as written");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(".gitignore")).unwrap(),
+            newer,
+            "newer-versioned block must be byte-identical after init"
+        );
     }
 
     /// PR8 case 5 — CRLF in the pre-existing `.gitignore` is preserved.

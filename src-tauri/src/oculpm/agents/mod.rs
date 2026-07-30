@@ -298,6 +298,17 @@ fn apply_write(adapter: &AgentAdapter, abs: &Path, ctx: &AgentContext) -> AgentS
         Ok(ManagedBlockResult::Unchanged) => {
             action_result(adapter.id, "unchanged", post_write_hash(adapter, abs))
         }
+        Ok(ManagedBlockResult::SkippedNewer) => {
+            // A newer app version owns this block — leave it, and report
+            // "unchanged" with the on-disk hash so the drift comparator
+            // accepts the newer content as legitimate (not user tampering).
+            tracing::warn!(
+                adapter = adapter.id,
+                path = %abs.display(),
+                "managed block has a newer version — write skipped (downgrade guard)"
+            );
+            action_result(adapter.id, "unchanged", post_write_hash(adapter, abs))
+        }
         Err(e) => error_result(adapter.id, &e),
     }
 }
