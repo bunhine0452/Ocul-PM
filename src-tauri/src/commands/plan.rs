@@ -16,6 +16,9 @@ use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::cache::{EntryFilters, JournalCache};
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMPT};
+use crate::oculpm::planner::dispatch::{
+    build_dispatch_prompt, project_redact_patterns, shell_command_for,
+};
 use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
@@ -520,4 +523,48 @@ pub async fn plan_migrate_goals(
         .into_iter()
         .find(|s| s.plan_id == IMPORTED_PLAN_ID)
         .ok_or_else(|| "가져왔지만 투영에 없습니다".to_string())
+}
+
+// ─── IN2 — 플래너 디스패치 ───────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DispatchPrompt {
+    /// 조립된 프롬프트 파일 (프로젝트 상대 — `.oculpm/index/dispatch/…`).
+    pub file_rel: String,
+    /// 터미널에 프리필할 한 줄 명령 (`claude "$(cat '…')"`). 실행은 사용자가.
+    pub command: String,
+    pub item_title: String,
+}
+
+/// IN2 (#in2-dispatch) — 항목 실행 프롬프트를 조립해 `.oculpm/index/dispatch/`
+/// (앱 관리·gitignore 영역)에 쓰고, 터미널 프리필용 한 줄 명령을 돌려준다.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_dispatch_prompt(
+    db: State<'_, Db>,
+    project_id: u32,
+    plan_id: String,
+    item_id: String,
+) -> Result<DispatchPrompt, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = PathBuf::from(&project.root_path);
+    let planner_root = planner_dir(&root);
+    let path = find_plan_path(&planner_root, &plan_id)
+        .ok_or_else(|| format!("plan '{plan_id}' not found"))?;
+    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+
+    let patterns = project_redact_patterns(&root);
+    let built = build_dispatch_prompt(&root, &plan_id, &md, &item_id, &patterns)?;
+
+    let dispatch_dir = root.join(".oculpm").join("index").join("dispatch");
+    std::fs::create_dir_all(&dispatch_dir).map_err(|e| e.to_string())?;
+    let file_name = format!("{plan_id}-{item_id}.md");
+    let abs = dispatch_dir.join(&file_name);
+    write_atomic(&abs, built.prompt.as_bytes()).map_err(|e| e.to_string())?;
+
+    Ok(DispatchPrompt {
+        file_rel: format!(".oculpm/index/dispatch/{file_name}"),
+        command: shell_command_for(&abs),
+        item_title: built.item_title,
+    })
 }

@@ -7,6 +7,7 @@
 //! truth; the SQLite rows are a reconstructible projection.
 
 pub mod ai;
+pub mod dispatch;
 pub mod migrate;
 pub mod parse;
 pub mod plan_edit;

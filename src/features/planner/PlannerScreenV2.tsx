@@ -13,6 +13,7 @@ import {
   NotebookText,
   PanelLeft,
   Pencil,
+  Play,
   Trash2,
 } from "@/components/Icons";
 import {
@@ -26,6 +27,7 @@ import {
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
+import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -240,6 +242,20 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       return;
     }
     await doApplyStatus(item, status);
+  };
+
+  // IN2 — 항목 실행: 백엔드가 프롬프트를 조립·저장하고, 터미널에 프리필할
+  // 한 줄 명령을 돌려준다. 실행(Enter)은 사용자가 한다.
+  const dispatchItem = async (item: PlanItemDto) => {
+    if (selectedId == null) return;
+    const res = await commands.planDispatchPrompt(projectId, selectedId, item.item_id);
+    if (res.status === "ok") {
+      setPendingDispatch(res.data.command);
+      toast.info(`"${res.data.item_title}" 실행 준비 — 터미널에서 Enter 로 시작하세요`);
+      onNavigate("terminal");
+    } else {
+      toast.destructive(`디스패치 실패: ${res.error}`);
+    }
   };
 
   const doApplyStatus = async (item: PlanItemDto, status: string) => {
@@ -676,6 +692,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               collapsed={collapsed}
               setCollapsed={setCollapsed}
               onSetStatus={applyStatus}
+              onDispatch={dispatchItem}
               busy={busy}
               locked={locked}
               onToggleLock={setPlanLock}
@@ -777,6 +794,7 @@ interface PlanBodyProps {
   collapsed: Record<string, boolean>;
   setCollapsed: Dispatch<SetStateAction<Record<string, boolean>>>;
   onSetStatus: (item: PlanItemDto, status: string) => void;
+  onDispatch: (item: PlanItemDto) => void;
   busy: boolean;
   locked: boolean;
   onToggleLock: (lock: boolean) => void;
@@ -796,7 +814,7 @@ interface PlanBodyProps {
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
@@ -935,6 +953,7 @@ function PlanBody(props: PlanBodyProps) {
           onRemovePhase={onRemovePhase}
           onMovePhase={onMovePhase}
           onSetStatus={onSetStatus}
+          onDispatch={onDispatch}
           onRemoveItem={onRemoveItem}
           onRenameItem={onRenameItem}
           historyFor={historyFor}
@@ -983,6 +1002,7 @@ interface PhaseCardProps {
   onRemovePhase: (phase: string) => void;
   onMovePhase: (phase: string, up: boolean) => void;
   onSetStatus: (item: PlanItemDto, status: string) => void;
+  onDispatch: (item: PlanItemDto) => void;
   onRemoveItem: (item: PlanItemDto) => void;
   onRenameItem: (item: PlanItemDto, title: string) => void;
   historyFor: string | null;
@@ -996,7 +1016,7 @@ function PhaseCard(props: PhaseCardProps) {
   const {
     phase, items, meta, isOpen, onToggle, busy, locked, canEdit, canMoveUp, canMoveDown,
     onRenamePhase, onRemovePhase, onMovePhase,
-    onSetStatus, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
+    onSetStatus, onDispatch, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
     onOpenJournalRef, resolveJournalRefs,
   } = props;
   const [editing, setEditing] = useState(false);
@@ -1089,6 +1109,7 @@ function PhaseCard(props: PhaseCardProps) {
               locked={locked}
               isParent={items.some((c) => c.parent_item === it.item_id)}
               onSetStatus={onSetStatus}
+              onDispatch={onDispatch}
               onRemove={onRemoveItem}
               onRename={onRenameItem}
               historyOpen={historyFor === it.item_id}
@@ -1112,6 +1133,8 @@ interface PlanItemRowProps {
   /** 3-depth — 하위를 가진 부모: 상태는 롤업 파생이라 직접 조작 불가. */
   isParent: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
+  /** IN2 — 이 항목을 터미널에서 Claude Code 로 실행 (프롬프트 프리필). */
+  onDispatch: (item: PlanItemDto) => void;
   onRemove: (item: PlanItemDto) => void;
   onRename: (item: PlanItemDto, title: string) => void;
   historyOpen: boolean;
@@ -1121,7 +1144,7 @@ interface PlanItemRowProps {
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
 }
 
-function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
   const linked = item.journal_refs ?? [];
@@ -1286,6 +1309,18 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onRemove, onRe
         ) : null}
       </div>
 
+      {!locked && !["done", "dropped"].includes(item.status) ? (
+        <button
+          type="button"
+          className="jref-btn"
+          onClick={() => onDispatch(item)}
+          title="이 항목을 터미널에서 Claude Code 로 실행 — 프롬프트 프리필, 실행은 Enter 로"
+          style={{ flexShrink: 0 }}
+        >
+          <Play size={12} strokeWidth={2} />
+          <span>실행</span>
+        </button>
+      ) : null}
       {item.last_agent ? (
         <button
           type="button"

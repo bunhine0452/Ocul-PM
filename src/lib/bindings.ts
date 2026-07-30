@@ -79,6 +79,11 @@ export const commands = {
 	warnings: string[],
 } | null, string>(__TAURI_INVOKE("plan_apply_edit", { projectId, planId, op, agentId })),
 	/**
+	 *  IN2 (#in2-dispatch) — 항목 실행 프롬프트를 조립해 `.oculpm/index/dispatch/`
+	 *  (앱 관리·gitignore 영역)에 쓰고, 터미널 프리필용 한 줄 명령을 돌려준다.
+	 */
+	planDispatchPrompt: (projectId: number, planId: string, itemId: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("plan_dispatch_prompt", { projectId, planId, itemId })),
+	/**
 	 *  Ask the configured in-app LLM to update item statuses from recent journal
 	 *  activity. The model proposes `{item_id, status}` edits; we apply the valid,
 	 *  changed ones via the same plan-log path, stamped `agent_id = inapp:<provider>`.
@@ -1238,6 +1243,14 @@ export type DiscussionSummary = {
 	file_path: string,
 	created_at: string,
 	updated_at: string,
+};
+
+export type DispatchPrompt = {
+	/**  조립된 프롬프트 파일 (프로젝트 상대 — `.oculpm/index/dispatch/…`). */
+	file_rel: string,
+	/**  터미널에 프리필할 한 줄 명령 (`claude "$(cat '…')"`). 실행은 사용자가. */
+	command: string,
+	item_title: string,
 };
 
 /**  `docs_asset` 응답 — 이미지 바이트를 base64 + MIME 으로. 프런트는 `data:` URI 로 조립한다. */

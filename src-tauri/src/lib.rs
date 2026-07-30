@@ -118,7 +118,7 @@ use crate::commands::{
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
-    plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
+    plan_dispatch_prompt, plan_list, plan_get, plan_item_history, plan_create, plan_apply_edit,
     plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
     plan_rename, plan_delete,
     get_file_symbols, get_code_graph, get_change_impact, get_file_calls,
@@ -227,6 +227,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         plan_item_history,
         plan_create,
         plan_apply_edit,
+        plan_dispatch_prompt,
         plan_ai_refresh,
         plan_migrate_goals,
         plan_recent_updates,

@@ -30,6 +30,7 @@ import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 import { summarizeShell } from "./shellStatus";
 import { useAgentRuns } from "./useAgentRuns";
+import { consumePendingDispatch, hasPendingDispatch } from "./dispatchBus";
 
 // 터미널 화면 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -97,6 +98,34 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
   // sid → 셸 통합 상태(OSC 133). 통합이 설치되지 않은 세션은 여기 안 들어온다.
   const [shellStates, setShellStates] = useState<Record<string, ShellState>>({});
+
+  // IN2 — 플래너 디스패치 프리필: 대기 중 명령을 활성 페인 PTY 에 써 둔다
+  // (개행 없음 — 실행은 사용자가 Enter 로). 세션 기동 전이면 잠깐 재시도.
+  useEffect(() => {
+    if (!hasPendingDispatch()) return;
+    const tab = terminalTabs.find((tb) => tb.id === terminalActiveId) ?? terminalTabs[0];
+    if (!tab) return;
+    const sid = focusOfTab(tab);
+    const cmd = consumePendingDispatch();
+    if (!cmd) return;
+    let cancelled = false;
+    let tries = 0;
+    const attempt = () => {
+      if (cancelled) return;
+      void commands
+        .writeToPty(sid, cmd)
+        .then((r) => {
+          if (r.status !== "ok" && tries++ < 10) setTimeout(attempt, 300);
+        })
+        .catch(() => {
+          if (tries++ < 10) setTimeout(attempt, 300);
+        });
+    };
+    attempt();
+    return () => {
+      cancelled = true;
+    };
+  }, [terminalTabs, terminalActiveId]);
 
   // 명령 경계에서 코딩 에이전트 실행을 추적 → 세션 신호 + 일지 제안.
   // 셸 통합이 꺼져 있으면 shellStates 가 비어 있어 자동으로 no-op 이다.
