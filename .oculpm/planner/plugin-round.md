@@ -19,7 +19,7 @@ owner: claude-code
 - [x] A0a managed-block 버전 인식 — 구버전 앱의 블록 downgrade 차단(특히 gitignore 의 .oculpm/hooks 노출 경로) + 회귀 테스트 {#a0-managed-block}
 - [x] A0b MCP 비추적 프로젝트 가드 — journal_write/plan_update 에 .oculpm 존재 검사(무가드 create_dir_all 제거, 미추적 시 명시적 에러) {#a0-mcp-guard}
 - [x] A0c 리뷰 잔여 5건 청산 (claude-integration #review-fixes-round2 이관: 미러 충돌 문구·sync_mirrors 비fixpoint·evidence 삼킴·frontmatter 수평선 오인·읽기 상한) {#a0-review-fixes}
-- [ ] A0d 실기기 검증 4건 (ci1 일지 초안·ci3 규칙 탭·ci4 승격 루프·phase-c 게이트/EVALS/Notion — 사용자 확인 포함) {#a0-runtime-verify}
+- [~] A0d 실기기 검증 4건 (ci1 일지 초안·ci3 규칙 탭·ci4 승격 루프·phase-c 게이트/EVALS/Notion — 사용자 확인 포함) {#a0-runtime-verify}
 - [x] A1 스키마·경로 정합 — plugin.json hooks/mcpServers 필드 제거(자동발견 위임)+최소 CLI 버전 명시+--plugin-dir 실로드·인벤토리 CI, bin/oculpm-mcp 셔틀(앱 번들→~/.local→target/debug 탐색), 릴리스 CI 버전 스탬프, 플랫폼 스탠스(v1=macOS) {#a1-schema-paths}
 - [x] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
 - [ ] A3 마켓플레이스 공개 — 레포 루트 marketplace.json(source ./plugin/oculpm)+앱 설정 택일 UX(훅+MCP — 플러그인 감지 시 register.rs 프로젝트 등록 생략)+훅 계약 문서+버전 스큐 매트릭스+claude-plugins-community 제출·발사 글 {#a3-marketplace}
@@ -68,4 +68,5 @@ owner: claude-code
 | 2026-07-31T02:33:57+09:00 | #in2-dispatch | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0233_feature_planner-dispatch-v1.md | 조립기+커맨드+실행버튼→터미널 프리필(Enter는 사용자). rules 미탑재는 의도(네이티브 로드). 실기기는 A0d 동승 |
 | 2026-07-31T02:54:33+09:00 | #in0-inception-skill | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0254_feature_project-inception-skill.md | 플러그인 5종째+갤러리 동기(SSOT=플러그인). 파서 3개 무수정 착지 기준을 본문에 내장. 실사용은 A0d |
 | 2026-07-31T02:54:35+09:00 | #in1-wizard | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0254_feature_greenfield-inception-kickoff.md | 위저드 성공 시 dispatchBus 예약 — 터미널 열면 인셉션 프롬프트 프리필 |
+| 2026-07-31T04:01:27+09:00 | #a0-runtime-verify | claude-code | ☐→~ | .oculpm/journal/20260731/Bugs/0401_bug_webgl-addon-dispose-crash-root.md | 실기기 1차에서 터미널 크래시 발견→근본 수정(addon-webgl 0.18 정합+dispose 가드, 관측 3종 동승). 재확인 대기 |
 <!-- oculpm:plan-log end -->

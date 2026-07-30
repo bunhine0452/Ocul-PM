@@ -321,16 +321,20 @@ pub fn write_to_pty(
     data: String,
 ) -> Result<(), String> {
     let mut sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.get_mut(&session_id) {
-        session
-            .writer
-            .write_all(data.as_bytes())
-            .map_err(|e| format!("Failed to write to PTY: {e}"))?;
-        session
-            .writer
-            .flush()
-            .map_err(|e| format!("Failed to flush PTY: {e}"))?;
-    }
+    let Some(session) = sessions.get_mut(&session_id) else {
+        // 종전엔 미지의 세션도 Ok(()) — "조용한 성공" 때문에 디스패치 프리필이
+        // 세션 기동 전에 소비되고 증발했다 (A0d). 호출측이 재시도를 판단할 수
+        // 있게 명시적 에러로 (키 입력 경로는 envelope 를 무시하므로 무해).
+        return Err(format!("unknown pty session: {session_id}"));
+    };
+    session
+        .writer
+        .write_all(data.as_bytes())
+        .map_err(|e| format!("Failed to write to PTY: {e}"))?;
+    session
+        .writer
+        .flush()
+        .map_err(|e| format!("Failed to flush PTY: {e}"))?;
     Ok(())
 }
 
