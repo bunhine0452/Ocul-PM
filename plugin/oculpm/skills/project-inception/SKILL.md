@@ -1,37 +1,57 @@
 ---
 name: project-inception
-description: Use when kicking off a new project or a new feature area in an ocul-pm tracked project (.oculpm/ present) — turns an idea into a problem statement (discussion doc), a 3-depth plan (plan_create), EVALS.md done-criteria, and starter .claude/rules, all in ocul-pm's file formats.
+description: Use when kicking off a new project or feature area in an ocul-pm tracked project (.oculpm/ present) — interview the user to firm up the problem, research the stack via web search, then seed a discussion doc, a 3-depth plan (plan_create), EVALS.md done-criteria and starter .claude/rules.
 ---
 
 # project-inception — 아이디어를 설계 산출물로
 
 새 프로젝트(또는 새 기능 영역)를 시작할 때, 아이디어를 ocul-pm 파일 체계에 **그대로 물리는** 4종 산출물로 바꿉니다. 성공 기준은 문서를 "만드는 것"이 아니라 — **기존 도구가 무수정으로 소비하는 것**입니다 (discussion→플래너 승격, EVALS→회고 추이, rules→에이전트 자동 로드).
 
-## STAGE 0 — 문제 정의 (discussion)
+## STAGE 0 — 인터뷰: 사용자에게 물어 1차 구체화
 
-1. 사용자에게 3가지만 짧게 확인: **누구의 어떤 문제**인가 · **완성의 정의**(무엇이 되면 성공?) · **비목표**(안 만드는 것).
-2. `.oculpm/agents/discussion-spec.md` 를 읽고 그 규격대로 `.oculpm/discussion/<slug>/discussion.md` 를 만든다 — `## 문제 정의` 를 먼저, 후보 접근안은 `### 방안 {#opt-id}` 로 2개 이상, 트레이드오프 명시.
-3. 사용자가 방안을 고르면 `## 결론` 을 쓰고 status 를 resolved 로.
+**정보가 부족한 채 계획을 지어내지 마세요.** 아래 목록에서 답을 모르는 것 **전부**를 사용자에게 묻습니다 — 한 번에 몰아서, 객관식 보기를 곁들여 답하기 쉽게:
 
-## STAGE 1 — 계획 (plan_create)
+- **문제**: 누구의 어떤 문제인가? 지금은 그 문제를 어떻게 해결하고 있나?
+- **완성의 정의**: 무엇이 되면 성공인가? 첫 데모에서 보여줄 한 장면은?
+- **비목표**: 이번에 일부러 만들지 않는 것.
+- **사용자·규모**: 대상 사용자와 예상 규모 (개인 도구 / 팀 / 공개 서비스).
+- **플랫폼**: 웹 / 데스크톱 / 모바일 / CLI? 지원 OS·브라우저 범위?
+- **제약**: 기한, 비용 허용치(유료 API·인프라?), 오프라인·보안 요건, 기존 자산(코드·디자인·데이터).
+- **선호**: 익숙한 언어·프레임워크, 반드시 쓰거나 피하고 싶은 것.
 
-결론을 **3-depth 계획**으로: `plan_create` MCP 도구로 phases(마일스톤) → items(작업) → children(하위 작업, 1단계)을 만든다. 항목은 "검증 가능한 동사구" 한 줄 — "로그인" 이 아니라 "이메일 로그인 happy-path 가 동작한다". 도구가 없으면 AGENTS.md §4 의 폴백 규격으로 직접 작성.
+답을 받아 `.oculpm/agents/discussion-spec.md` 규격대로 `.oculpm/discussion/<slug>/discussion.md` 를 만들고 `## 문제 정의` 를 채웁니다. 모호한 답은 **재질문** — 추측으로 메꾸지 않습니다.
 
-## STAGE 2 — 완료 정의 (EVALS.md)
+## STAGE 1 — 환경 리서치: 웹 검색으로 2차 구체화
 
-프로젝트 루트에 `EVALS.md` 를 만든다: 결론의 "완성의 정의"를 **실행/재현 가능한 평가 항목**(체크리스트/시나리오)으로 옮기고, 맨 아래에 기록 표를 둔다:
+여기서부터는 사용자에게 묻지 않고 **웹 검색(WebSearch/WebFetch)으로 직접 조사**합니다. 인터뷰 결과에 맞는 후보 스택 2~3개에 대해:
+
+- 현재 안정 버전과 권장 조합 (프레임워크 + 빌드 도구 + 테스트 러너)
+- 공식 스캐폴드 명령·battle-tested 보일러플레이트
+- 해당 도메인의 표준 라이브러리·베스트 프랙티스·흔한 함정
+- 필요한 개발 환경 (런타임 버전, 패키지 매니저, 필수 CLI)
+
+조사 결과를 discussion 의 `### 방안 {#opt-id}` 후보안에 **버전·출처와 함께** 반영하고 트레이드오프를 비교합니다. 기억 속 버전을 단정하지 말 것 — 검색으로 확인한 것만 적습니다. 사용자가 방안을 고르면 `## 결론` 을 쓰고 status 를 resolved 로.
+
+## STAGE 2 — 계획 (plan_create)
+
+결론을 **3-depth 계획**으로: `plan_create` MCP 도구로 phases(마일스톤) → items(작업) → children(하위 작업, 1단계)을 만듭니다. Phase 1 의 첫 항목은 "리서치에서 확정한 버전으로 환경 구성·스캐폴드". 항목은 "검증 가능한 동사구" 한 줄 — "로그인" 이 아니라 "이메일 로그인 happy-path 가 동작한다". 도구가 없으면 AGENTS.md §4 의 폴백 규격으로 직접 작성.
+
+## STAGE 3 — 완료 정의 (EVALS.md)
+
+프로젝트 루트에 `EVALS.md` 를 만듭니다: 결론의 "완성의 정의"를 **실행/재현 가능한 평가 항목**(체크리스트/시나리오)으로 옮기고, 맨 아래에 기록 표를 둡니다:
 
 | 날짜 | 스위트 | 통과 | 메모 |
 |---|---|---|---|
 
-이 표의 형식(날짜 · 스위트 · N/M)은 바꾸지 말 것 — ocul-pm 회고 화면이 그대로 파싱해 추이를 그린다 (run-evals 스킬이 실행·기록을 담당).
+이 표의 형식(날짜 · 스위트 · N/M)은 바꾸지 말 것 — ocul-pm 회고 화면이 그대로 파싱해 추이를 그립니다 (run-evals 스킬이 실행·기록을 담당).
 
-## STAGE 3 — 초기 규칙 (.claude/rules)
+## STAGE 4 — 초기 규칙 (.claude/rules)
 
-스택·결정에서 **근거가 있는 것만** 1~3개를 `.claude/rules/<name>.md` 로 남긴다. 조건부 규칙은 frontmatter `paths: ["src/api/**"]` 로 스코프를 좁힌다 (없으면 상시 로드 — 토큰 비용을 의식할 것). 범용 조언("좋은 코드를 쓰자")은 금지 — 이 프로젝트에서만 참인 제약만.
+인터뷰·리서치에서 확정된 것 중 **근거가 있는 것만** 1~3개를 `.claude/rules/<name>.md` 로 남깁니다 — 예: 확정한 런타임/프레임워크 버전, 도메인 제약, 금지 라이브러리. 조건부 규칙은 frontmatter `paths: ["src/api/**"]` 로 스코프를 좁힙니다 (없으면 상시 로드 — 토큰 비용을 의식할 것). 범용 조언("좋은 코드를 쓰자")은 금지 — 이 프로젝트에서만 참인 제약만.
 
 ## 금지
 
+- 인터뷰를 건너뛰고 추측으로 계획하지 말 것 · 리서치 없이 기억으로 버전·도구를 단정하지 말 것.
 - discussion 에 진척/실행 로그를 쌓지 말 것 — 그건 플래너·일지의 일.
 - 산출물 4종(discussion·plan·EVALS.md·rules) 외의 문서를 남발하지 말 것.
 - 평가 기준을 통과 가능하게 미리 약화하지 말 것 — 애매하면 사용자에게 묻는다.

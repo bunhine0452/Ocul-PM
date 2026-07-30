@@ -74,4 +74,6 @@ owner: claude-code
 | 2026-07-31T04:15:15+09:00 | #a3-marketplace | claude-code | ☐→~ | .oculpm/journal/20260731/Features_to_add/0415_feature_marketplace-and-exclusivity-ux.md | 코드·문서 표면 완료(marketplace.json·감지·택일 UX·계약/스큐 문서·validate 통과). 잔여 = community 제출·발사 글(사용자) |
 | 2026-07-31T04:45:00+09:00 | #notion-oauth | claude-code | →☐ | | 사용자 제안(계정 연동으로 쉽게) 등재 — OAuth 는 서버리스 코드 교환 엔드포인트가 필요(로컬-퍼스트 예외 지점), internal token 은 폴백 유지 |
 | 2026-07-31T04:44:34+09:00 | #notion-oauth | claude-code | ☐→~ | .oculpm/journal/20260731/Features_to_add/0444_feature_notion-oauth-account-connect.md | 앱 루프백+서버리스 교환+설정 버튼 구현 완료. 잔여 = Notion public integration 등록·Vercel env·배포(사용자) |
+| 2026-07-31T05:03:19+09:00 | #in0-inception-skill | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/0502_feature_inception-interview-web-research.md | v2 업그레이드 — 인터뷰(1차)→웹 리서치(2차) 2단 구체화, 갤러리 패리티 유지 |
+| 2026-07-31T05:03:27+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Chores/0503_chore_landing-v2-5-0-redesign.md | 홍보 표면 갱신 — README 한/영 v2.5.0+설치 안내, 랜딩 리뉴얼(시작하기 2경로). 잔여: 커뮤니티 제출·런치 포스트 |
 <!-- oculpm:plan-log end -->
