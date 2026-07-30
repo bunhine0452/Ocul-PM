@@ -83,7 +83,7 @@ export function installConsoleBridge() {
   console.warn = (...args: unknown[]) => {
     origWarn(...args);
     try {
-      send("warn", "console", args.map(stringifyArg).join(" "));
+      send("warn", "console", formatConsoleArgs(args));
     } catch {
       // swallow — we already emitted to DevTools
     }
@@ -91,11 +91,34 @@ export function installConsoleBridge() {
   console.error = (...args: unknown[]) => {
     origError(...args);
     try {
-      send("error", "console", args.map(stringifyArg).join(" "));
+      send("error", "console", formatConsoleArgs(args));
     } catch {
       // swallow
     }
   };
+}
+
+/**
+ * console 포맷 문자열(%s/%o/%O/%d/%i/%f/%c) 치환. React 19 가 컴포넌트 에러를
+ * `console.warn("%s\n\n%s", error, stack)` 형태로 내보내는데, 인자를 단순
+ * join 하면 로그에 "%s" 리터럴만 남고 실제 예외가 사라진다 — 실기기 크래시
+ * 포렌식이 불가능했던 원인.
+ */
+export function formatConsoleArgs(args: unknown[]): string {
+  if (typeof args[0] !== "string" || !/%[soOdifc]/.test(args[0])) {
+    return args.map(stringifyArg).join(" ");
+  }
+  let i = 1;
+  const out = (args[0] as string).replace(/%[soOdifc]/g, (tok) => {
+    if (i >= args.length) return tok;
+    if (tok === "%c") {
+      i += 1; // CSS 스타일 인자는 파일 로그에 무의미 — 소비만 한다.
+      return "";
+    }
+    return stringifyArg(args[i++]);
+  });
+  const rest = args.slice(i).map(stringifyArg);
+  return rest.length > 0 ? `${out} ${rest.join(" ")}` : out;
 }
 
 function stringifyArg(a: unknown): string {

@@ -211,9 +211,13 @@ export default function TerminalInstanceImpl({
             callback(undefined);
             return;
           }
-          const line = term.buffer.active.getLine(
-            bufferLineNumber - 1 + term.buffer.active.viewportY,
-          );
+          // 방어 — 이 콜백은 마우스 이동마다 xterm 내부에서 불린다. 여기서
+          // 예외가 새면 렌더러 상태에 따라 컴포넌트째 죽을 수 있어, 링크
+          // 하나 못 만드는 것으로 강등한다.
+          try {
+          // bufferLineNumber 는 이미 스크롤(ydisp)이 반영된 절대 버퍼 줄이다
+          // — viewportY 를 더 하면 스크롤백이 쌓인 뒤 엉뚱한 줄을 스캔한다.
+          const line = term.buffer.active.getLine(bufferLineNumber - 1);
           const text = line?.translateToString(true) ?? "";
           const refs = scanFileRefs(text);
           if (refs.length === 0) {
@@ -231,6 +235,10 @@ export default function TerminalInstanceImpl({
               activate: () => open(ref.path, ref.line),
             })),
           );
+          } catch (err) {
+            oculpmLog.error("terminal", `링크 스캔 실패 (무시): ${String(err)}`);
+            callback(undefined);
+          }
         },
       }),
     ];

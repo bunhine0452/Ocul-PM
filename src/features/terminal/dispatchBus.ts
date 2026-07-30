@@ -18,3 +18,8 @@ export function consumePendingDispatch(): string | null {
 export function hasPendingDispatch(): boolean {
   return pending != null;
 }
+
+/** 대기 중 명령을 비우지 않고 본다 — 쓰기 성공 후에만 consume 하기 위해. */
+export function peekPendingDispatch(): string | null {
+  return pending;
+}
