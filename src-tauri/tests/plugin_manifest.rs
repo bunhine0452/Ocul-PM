@@ -81,8 +81,8 @@ fn bundled_skills_and_commands_stay_within_budget() {
     names.sort();
     assert_eq!(
         names,
-        ["oculpm-journal", "run-evals", "self-audit", "tdd-workflow"],
-        "동봉 스킬은 4종 고정 — 추가하려면 토큰 예산부터 재계산"
+        ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"],
+        "동봉 스킬은 5종 고정 — 추가하려면 토큰 예산부터 재계산"
     );
 
     let mut desc_chars = 0usize;

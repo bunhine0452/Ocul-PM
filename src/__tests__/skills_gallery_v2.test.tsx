@@ -95,7 +95,7 @@ afterEach(() => {
 
 describe("추천 스킬 갤러리 (PR-CI5)", () => {
   it("갤러리 데이터 — 3종 템플릿과 run-evals 의 기록 표 규약", () => {
-    expect(GALLERY_SKILLS.map((g) => g.id)).toEqual(["self-audit", "run-evals", "tdd-workflow"]);
+    expect(GALLERY_SKILLS.map((g) => g.id)).toEqual(["project-inception", "self-audit", "run-evals", "tdd-workflow"]);
     for (const g of GALLERY_SKILLS) {
       expect(g.content.startsWith(`---\nname: ${g.id}\n`), g.id).toBe(true);
       expect(g.content, g.id).toContain("description:");
@@ -118,7 +118,7 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
     expect(within(dialog).getByText(/tdd-workflow/)).toBeTruthy();
 
     const installButtons = within(dialog).getAllByRole("button", { name: "설치" });
-    expect(installButtons).toHaveLength(3);
+    expect(installButtons).toHaveLength(4);
     fireEvent.click(installButtons[0]);
 
     await waitFor(() => expect(fx.calls.save).toHaveLength(1));
@@ -129,7 +129,7 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
       string,
       boolean,
     ];
-    expect([pid, scope, dirName, create]).toEqual([1, "project", "self-audit", true]);
+    expect([pid, scope, dirName, create]).toEqual([1, "project", "project-inception", true]);
     expect(content).toBe(GALLERY_SKILLS[0].content);
 
     const results = await axe(container, AXE_OPTIONS);
@@ -145,6 +145,6 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
     const dialog = getByRole("dialog", { name: "추천 스킬 갤러리" });
     expect(within(dialog).getByText("설치됨")).toBeTruthy();
     // 남은 두 개만 설치 가능.
-    expect(within(dialog).getAllByRole("button", { name: "설치" })).toHaveLength(2);
+    expect(within(dialog).getAllByRole("button", { name: "설치" })).toHaveLength(3);
   });
 });
