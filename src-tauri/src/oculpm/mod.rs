@@ -26,6 +26,7 @@ pub mod markdown;
 pub mod mcp;
 pub mod paths;
 pub mod planner;
+pub mod readme;
 pub mod reconcile;
 pub mod redact;
 pub mod rule_promotion;

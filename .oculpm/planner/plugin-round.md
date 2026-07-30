@@ -21,7 +21,7 @@ owner: claude-code
 - [x] A0c 리뷰 잔여 5건 청산 (claude-integration #review-fixes-round2 이관: 미러 충돌 문구·sync_mirrors 비fixpoint·evidence 삼킴·frontmatter 수평선 오인·읽기 상한) {#a0-review-fixes}
 - [ ] A0d 실기기 검증 4건 (ci1 일지 초안·ci3 규칙 탭·ci4 승격 루프·phase-c 게이트/EVALS/Notion — 사용자 확인 포함) {#a0-runtime-verify}
 - [x] A1 스키마·경로 정합 — plugin.json hooks/mcpServers 필드 제거(자동발견 위임)+최소 CLI 버전 명시+--plugin-dir 실로드·인벤토리 CI, bin/oculpm-mcp 셔틀(앱 번들→~/.local→target/debug 탐색), 릴리스 CI 버전 스탬프, 플랫폼 스탠스(v1=macOS) {#a1-schema-paths}
-- [ ] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
+- [x] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
 - [ ] A3 마켓플레이스 공개 — 레포 루트 marketplace.json(source ./plugin/oculpm)+앱 설정 택일 UX(훅+MCP — 플러그인 감지 시 register.rs 프로젝트 등록 생략)+훅 계약 문서+버전 스큐 매트릭스+claude-plugins-community 제출·발사 글 {#a3-marketplace}
 - [ ] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
 
@@ -61,4 +61,5 @@ owner: claude-code
 | 2026-07-31T00:39:00+09:00 | #plan-3depth | claude-code | →☐ | | 사용자 제안(Jira 식 3depth 설계) 등재 — oculpm-native 형태(중첩 체크박스·롤업·리프 디스패치)로 구체화, 착수 전 형태 확정 필요 |
 | 2026-07-31T00:58:07+09:00 | #a0-review-fixes | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/0058_bug_review-fixes-round2-cleared.md | 5건 전부 수정+테스트 5. 리뷰 2차 Warning(HIGH 0) — 후속 4건은 보이스카웃 백로그 |
 | 2026-07-31T01:06:13+09:00 | #a1-schema-paths | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0106_feature_plugin-schema-paths-alignment.md | validate 통과·인벤토리(Hooks3/MCP1/v2.3.1/~0tok) 실측·셔틀 핸드셰이크 확인. 불변식 테스트 4 |
+| 2026-07-31T01:28:58+09:00 | #a2-skills-activation | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0128_feature_plugin-skills-and-activation.md | 스킬4+standup+README자동생성+SessionEnd안내. Always-on ~407tok 실측·예산 테스트 잠금. 동기 vitest 3 |
 <!-- oculpm:plan-log end -->

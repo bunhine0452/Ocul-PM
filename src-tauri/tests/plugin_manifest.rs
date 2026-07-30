@@ -58,6 +58,54 @@ fn hooks_json_guards_and_consumes_stdin() {
             assert!(!cmd.contains(banned), "{ev}: 훅은 로컬 append 만 — 네트워크 금지 계약");
         }
     }
+    // 활성화 배선(A2): 안내는 세션당 1회인 SessionEnd 에만 — Stop 은 매 턴
+    // 발화하므로 안내를 붙이면 소음이 된다.
+    let session_end = map["SessionEnd"][0]["hooks"][0]["command"].as_str().unwrap();
+    assert!(session_end.contains(">&2"), "SessionEnd: standup/앱 포인터 stderr 안내");
+    let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
+    assert!(!stop.contains("echo"), "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)");
+}
+
+/// A2 — 동봉 스킬·커맨드 표면과 상시(always-on) 토큰 예산.
+/// 스킬 description 은 전 프로젝트 전 세션의 스킬 목록에 상주한다 — ECC 의
+/// "상시 로드 토큰 폭탄" 을 피하기 위해 표면을 상수로 잠근다.
+#[test]
+fn bundled_skills_and_commands_stay_within_budget() {
+    let skills_dir = plugin_root().join("skills");
+    let mut names: Vec<String> = std::fs::read_dir(&skills_dir)
+        .expect("skills/ 존재")
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        ["oculpm-journal", "run-evals", "self-audit", "tdd-workflow"],
+        "동봉 스킬은 4종 고정 — 추가하려면 토큰 예산부터 재계산"
+    );
+
+    let mut desc_chars = 0usize;
+    for name in &names {
+        let text = std::fs::read_to_string(skills_dir.join(name).join("SKILL.md")).unwrap();
+        assert!(text.starts_with("---\n"), "{name}: frontmatter 필수");
+        let desc = text
+            .lines()
+            .find_map(|l| l.strip_prefix("description: "))
+            .unwrap_or_else(|| panic!("{name}: description 필수 (트리거 문장)"));
+        desc_chars += desc.chars().count();
+    }
+    let cmd = std::fs::read_to_string(plugin_root().join("commands/standup.md")).unwrap();
+    let cmd_desc = cmd
+        .lines()
+        .find_map(|l| l.strip_prefix("description: "))
+        .expect("standup: description 필수");
+    desc_chars += cmd_desc.chars().count();
+    // 한글 혼합 기준 보수적으로 1 tok ≈ 2 chars — 1,400 chars ≈ ~700 tok 상한.
+    assert!(
+        desc_chars <= 1_400,
+        "상시 노출 description 합계 {desc_chars} chars — 예산(1,400) 초과. 트리거를 압축하라"
+    );
 }
 
 /// MCP 는 머신 종속 절대경로 대신 플러그인 동봉 셔틀을 가리킨다.

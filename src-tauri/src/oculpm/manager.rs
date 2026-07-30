@@ -282,6 +282,10 @@ impl OculpmManager {
             }
         }
 
+        // 6.5. `.oculpm/README.md` — 저장소 방문자용 안내 (A2 활성화 배선).
+        //      없을 때만 생성, 실패 무해 (본 init 을 막지 않는다).
+        crate::oculpm::readme::ensure_oculpm_readme(root);
+
         // 7. Stash the entry.
         let entry = ProjectEntry {
             root: root.to_path_buf(),

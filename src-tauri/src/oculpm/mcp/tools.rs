@@ -342,6 +342,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         ".oculpm/journal/{workday}/{}/{file_name}",
         category_subdir(entry_type)
     );
+    // A2 활성화 배선 — 앱 없이 플러그인만으로 기록이 시작된 저장소에도
+    // `.oculpm/` 정체를 설명하는 README 가 생기게 한다 (있으면 불변, 실패 무해).
+    crate::oculpm::readme::ensure_oculpm_readme(root);
     Ok(json!({ "path": rel, "session_id": fm.session_id }))
 }
 

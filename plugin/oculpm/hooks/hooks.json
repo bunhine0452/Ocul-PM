@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\"; else cat > /dev/null; fi"
+            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\"; echo \"oculpm: 세션 기록됨 — /oculpm:standup 으로 오늘 요약, 회고·diff 대조는 ocul-pm 앱 (oculpm.com)\" >&2; else cat > /dev/null; fi"
           }
         ]
       }
