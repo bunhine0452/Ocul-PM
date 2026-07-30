@@ -160,7 +160,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     if (res.status === "ok") {
       if (res.data.mirror?.action === "conflict") {
         toast.destructive(
-          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 ocul-pm 소유가 아닌 파일이 있어 건드리지 않았습니다`,
+          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 다른 파일이 이미 있어 건드리지 않았습니다 (다른 규칙의 미러이거나 — 중첩 경로는 같은 이름으로 평탄화됩니다 — 사용자/어댑터 파일)`,
         );
       } else {
         toast.info(`저장됨: ${displayPath(e)}`);
@@ -407,7 +407,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                       {detail.entry.mirror === "conflict" ? (
                         <span
                           className="sk-chip off"
-                          title="같은 경로에 ocul-pm 소유가 아닌 .mdc 가 있어 배포하지 않습니다"
+                          title="같은 경로에 다른 .mdc 가 있어 배포하지 않습니다 — 다른 규칙의 미러(중첩 경로는 같은 이름으로 평탄화됨)이거나 사용자/어댑터 파일입니다"
                         >
                           미러 충돌
                         </span>

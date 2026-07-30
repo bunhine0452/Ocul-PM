@@ -97,7 +97,7 @@ export function RuleCandidatesPanel({
     if (res.status === "ok") {
       if (res.data.mirror?.action === "conflict") {
         toast.destructive(
-          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 ocul-pm 소유가 아닌 파일이 있어 건드리지 않았습니다`,
+          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 다른 파일이 이미 있어 건드리지 않았습니다 (다른 규칙의 미러이거나 — 중첩 경로는 같은 이름으로 평탄화됩니다 — 사용자/어댑터 파일)`,
         );
       } else {
         toast.info(`규칙이 저장되었습니다: ${relPath} — 스킬·규칙 화면에서 관리할 수 있어요`);

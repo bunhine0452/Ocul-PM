@@ -259,7 +259,9 @@ pub struct Evidence {
 
 /// 클러스터 일지의 본문·변경 파일을 모은다. 본문은 디스크 SSOT 를 읽되
 /// **redact 패턴을 통과시킨 뒤** 잘라낸다 (entry_diffs 사이드카는 캡처 시점에
-/// 이미 마스킹 — v3). 없는 파일은 조용히 건너뛴다 (증거는 최선 노력).
+/// 이미 마스킹 — v3). 읽기 실패는 빈 발췌로 삼키지 않고 발췌 자리에 명시한다
+/// (#a0-review-fixes ③) — LLM/사용자가 "증거 없음" 과 "증거 유실" 을 구분해야
+/// 규칙 초안의 근거 강도를 바로 읽는다.
 pub fn gather_evidence(project_root: &Path, candidate: &RuleCandidate, entries: &[RangeEntry]) -> Vec<Evidence> {
     let patterns = redact::patterns_for_project(project_root);
     let by_rel: BTreeMap<&str, &RangeEntry> = entries
@@ -279,7 +281,7 @@ pub fn gather_evidence(project_root: &Path, candidate: &RuleCandidate, entries: 
                 let (masked, _) = redact::redact_text(&raw, &patterns);
                 truncate_chars(&masked, EVIDENCE_BODY_CHARS)
             }
-            Err(_) => String::new(),
+            Err(_) => format!("(일지 파일을 읽지 못했습니다: {rel} — 디스크에서 이동/삭제된 듯)"),
         };
         out.push(Evidence {
             title: e.title.clone(),
@@ -609,6 +611,25 @@ mod tests {
             suggested_paths: vec!["src/api/**".into()],
             last_workday: "20260719".into(),
         }
+    }
+
+    /// A0c ③ — 일지 파일이 디스크에서 사라졌으면 발췌를 빈 문자열로 삼키지
+    /// 않고 유실을 명시한다 ("증거 없음" 과 "증거 유실" 의 구분).
+    #[test]
+    fn gather_evidence_marks_unreadable_journal_instead_of_empty() {
+        let dir = TempDir::new().unwrap();
+        let e = {
+            let mut e = entry("bug", "20260718", "B1", &["src/api/a.ts"]);
+            e.relative_path = "20260718/Bugs/B1.md".into();
+            e
+        };
+        let out = gather_evidence(dir.path(), &candidate(), &[e]);
+        assert_eq!(out.len(), 1);
+        assert!(
+            out[0].excerpt.contains("읽지 못했습니다"),
+            "유실 명시가 없다: {:?}",
+            out[0].excerpt
+        );
     }
 
     #[test]

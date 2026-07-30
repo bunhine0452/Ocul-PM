@@ -254,17 +254,24 @@ pub fn parse_rule_meta(content: &str) -> (Vec<String>, String) {
 }
 
 /// `(frontmatter 내부, 본문)` — frontmatter 가 없으면 `(None, 전체)`.
+/// 여닫는 구분자는 **정확히 `---` 한 줄**이어야 한다 — 종전의 접두/부분 문자열
+/// 매칭은 `----` 수평선이나 `--- 제목` 을 frontmatter 로 오인해 미러 본문을
+/// 유실시켰다 (#a0-review-fixes ④). 닫는 줄을 못 찾으면 전체를 본문으로 취급.
 fn split_frontmatter(content: &str) -> (Option<&str>, &str) {
-    let Some(rest) = content.strip_prefix("---") else {
+    let first_line_end = content.find('\n').map(|i| i + 1).unwrap_or(content.len());
+    let first_line = content[..first_line_end].trim_end_matches(['\n', '\r']);
+    if first_line != "---" {
         return (None, content);
-    };
-    let Some(end) = rest.find("\n---") else {
-        return (None, content);
-    };
-    let after = &rest[end + 4..];
-    // 닫는 --- 줄의 잔여(개행 포함)를 건너뛴다.
-    let body = after.find('\n').map(|i| &after[i + 1..]).unwrap_or("");
-    (Some(&rest[..end]), body)
+    }
+    let rest = &content[first_line_end..];
+    let mut offset = 0usize;
+    for line in rest.split_inclusive('\n') {
+        if line.trim_end_matches(['\n', '\r']) == "---" {
+            return (Some(&rest[..offset]), &rest[offset + line.len()..]);
+        }
+        offset += line.len();
+    }
+    (None, content)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,6 +311,24 @@ fn build_entry(
     }
 }
 
+/// 읽기 경로 공통 가드 (#a0-review-fixes ⑤) — 저장(`MAX_RULE_BYTES`)과 달리
+/// 읽기에는 상한이 없어 거대 파일이 목록/미러 경로에서 통째로 메모리에 올라
+/// 왔다. `Ok(Some)` 정상 / `Ok(None)` 파일 없음 / `Err(())` 상한 초과·IO 오류
+/// (호출측이 "검증 불능" 으로 취급해야 하는 상태).
+fn read_capped(path: &Path) -> Result<Option<String>, ()> {
+    match std::fs::metadata(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(()),
+        Ok(m) if m.len() > MAX_RULE_BYTES as u64 => return Err(()),
+        Ok(_) => {}
+    }
+    match std::fs::read_to_string(path) {
+        Ok(t) => Ok(Some(t)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(()),
+    }
+}
+
 /// 스코프 루트에서 overview 한 쪽을 만든다. `project_root` 는 미러 상태 계산용
 /// (프로젝트 스코프일 때만 Some).
 fn list_scope(scope: RuleScope, scope_root: &Path, project_root: Option<&Path>) -> Vec<RuleEntry> {
@@ -314,8 +339,7 @@ fn list_scope(scope: RuleScope, scope_root: &Path, project_root: Option<&Path>) 
     rels.sort();
     for inner in rels.into_iter().take(MAX_LISTED_RULES) {
         let rel = format!("{RULES_SUBDIR}/{inner}");
-        let content = std::fs::read_to_string(scope_root.join(&rel)).ok();
-        let Some(content) = content else { continue };
+        let Ok(Some(content)) = read_capped(&scope_root.join(&rel)) else { continue };
         out.push(build_entry(scope, RuleKind::Rule, &rel, Some(&content), project_root));
     }
     out
@@ -359,7 +383,7 @@ pub fn overview(
     let mut claude_md = Vec::new();
     for (scope, scope_root) in [(RuleScope::Project, project_root), (RuleScope::Global, home)] {
         for rel in claude_md_slots(scope) {
-            let content = std::fs::read_to_string(scope_root.join(rel)).ok();
+            let content = read_capped(&scope_root.join(rel)).ok().flatten();
             claude_md.push(build_entry(scope, RuleKind::ClaudeMd, rel, content.as_deref(), None));
         }
     }
@@ -381,6 +405,12 @@ pub fn read(
 ) -> Result<RuleDetail, String> {
     let kind = validate_rel(scope, rel_path)?;
     let abs = secure_path(scope_root, rel_path)?;
+    if std::fs::metadata(&abs).map(|m| m.len()).unwrap_or(0) > MAX_RULE_BYTES as u64 {
+        return Err(format!(
+            "규칙 파일이 읽기 상한을 넘습니다 ({}KB) — 외부에서 커진 파일은 직접 정리하세요",
+            MAX_RULE_BYTES / 1024
+        ));
+    }
     let content = std::fs::read_to_string(&abs)
         .map_err(|e| format!("규칙 파일을 읽지 못했습니다: {e}"))?;
     let project_root = (scope == RuleScope::Project).then_some(project_root);
@@ -477,9 +507,16 @@ fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
     // 저장 내용 자체가 깨진 마커면 무조건 거부 — 어댑터를 영구 에러 상태로
     // 만들 수 있다.
     let incoming = extract_managed_block(content)?;
-    let on_disk = match std::fs::read_to_string(abs) {
-        Ok(cur) => extract_managed_block(&cur).unwrap_or(None),
-        Err(_) => None, // 신규 파일 / 읽기 불가 → 보호할 블록 없음
+    let on_disk = match read_capped(abs) {
+        Ok(Some(cur)) => extract_managed_block(&cur).unwrap_or(None),
+        Ok(None) => None, // 신규 파일 → 보호할 블록 없음
+        Err(()) => {
+            return Err(
+                "기존 파일이 읽기 상한을 넘거나 읽을 수 없어 관리 블록을 검증하지 \
+                 못했습니다 — 저장을 중단합니다"
+                    .into(),
+            )
+        }
     };
     let Some(disk_block) = on_disk else {
         return Ok(());
@@ -536,12 +573,14 @@ fn mirror_source_of(content: &str) -> Option<String> {
 
 fn mirror_state(project_root: &Path, rule_rel: &str) -> MirrorState {
     let abs = project_root.join(mirror_rel_for(rule_rel));
-    match std::fs::read_to_string(&abs) {
-        Ok(text) => match mirror_source_of(&text) {
+    match read_capped(&abs) {
+        Ok(Some(text)) => match mirror_source_of(&text) {
             Some(src) if src == rule_rel => MirrorState::Mirrored,
             Some(_) | None => MirrorState::Conflict,
         },
-        Err(_) => MirrorState::None,
+        Ok(None) => MirrorState::None,
+        // 상한 초과/IO 오류 — 마커를 검증할 수 없으니 건드리면 안 되는 상태.
+        Err(()) => MirrorState::Conflict,
     }
 }
 
@@ -583,8 +622,8 @@ pub fn write_mirror(project_root: &Path, rule_rel: &str, content: &str) -> Mirro
         mirror_rel: mirror_rel.clone(),
     };
     let rendered = render_mirror(rule_rel, content);
-    match std::fs::read_to_string(&abs) {
-        Ok(existing) => {
+    match read_capped(&abs) {
+        Ok(Some(existing)) => {
             if mirror_source_of(&existing).as_deref() != Some(rule_rel) {
                 return result("conflict");
             }
@@ -592,8 +631,8 @@ pub fn write_mirror(project_root: &Path, rule_rel: &str, content: &str) -> Mirro
                 return result("unchanged");
             }
         }
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return result("conflict"),
-        Err(_) => {}
+        Ok(None) => {}
+        Err(()) => return result("conflict"),
     }
     match write_atomic(&abs, rendered.as_bytes()) {
         Ok(()) => result("written"),
@@ -611,15 +650,15 @@ pub fn remove_mirror(project_root: &Path, rule_rel: &str) -> MirrorWriteResult {
         action: action.into(),
         mirror_rel: mirror_rel.clone(),
     };
-    match std::fs::read_to_string(&abs) {
-        Ok(existing) if mirror_source_of(&existing).as_deref() == Some(rule_rel) => {
+    match read_capped(&abs) {
+        Ok(Some(existing)) if mirror_source_of(&existing).as_deref() == Some(rule_rel) => {
             match std::fs::remove_file(&abs) {
                 Ok(()) => result("removed"),
                 Err(_) => result("conflict"),
             }
         }
-        Ok(_) => result("conflict"),
-        Err(_) => result("unchanged"),
+        Ok(Some(_)) | Err(()) => result("conflict"),
+        Ok(None) => result("unchanged"),
     }
 }
 
@@ -640,27 +679,31 @@ pub fn sync_mirrors(project_root: &Path, enabled: bool) -> Vec<MirrorWriteResult
             if path.extension().and_then(|e| e.to_str()) != Some("mdc") {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(&path) else { continue };
+            let Ok(Some(text)) = read_capped(&path) else { continue };
             if let Some(src) = mirror_source_of(&text) {
                 marked.push((path, src));
             }
         }
     }
     if enabled {
-        let live = list_scope(RuleScope::Project, project_root, Some(project_root));
-        for entry in &live {
-            let Ok(content) = std::fs::read_to_string(project_root.join(&entry.rel_path)) else {
-                continue;
-            };
-            results.push(write_mirror(project_root, &entry.rel_path, &content));
-        }
-        // 고아 정리 — 마커의 원본이 더는 없거나 검증 불능이면 제거.
+        // 고아 정리를 쓰기보다 **먼저** — 평탄화가 겹치는 rename(예:
+        // `api/validation.md` → `api-validation.md`, 둘 다 `api-validation.mdc`)
+        // 에서 낡은 마커 미러가 새 미러 쓰기를 conflict 로 막은 채 쓰기 뒤의
+        // 고아 정리에 지워져, 1패스 후 미러가 사라지던 비수렴(#a0-review-fixes ②)
+        // 을 제거한다. 원본이 살아 있는 미러는 이 단계가 건드리지 않는다.
         for (_, src) in &marked {
             let orphan = validate_rel(RuleScope::Project, src).is_err()
                 || !project_root.join(src).is_file();
             if orphan {
                 results.push(remove_mirror(project_root, src));
             }
+        }
+        let live = list_scope(RuleScope::Project, project_root, Some(project_root));
+        for entry in &live {
+            let Ok(Some(content)) = read_capped(&project_root.join(&entry.rel_path)) else {
+                continue;
+            };
+            results.push(write_mirror(project_root, &entry.rel_path, &content));
         }
     } else {
         for (_, src) in &marked {
@@ -942,6 +985,102 @@ mod tests {
         assert!(results.iter().any(|r| r.action == "removed"));
         assert!(!root.join(".cursor/rules/api-validation.mdc").exists());
         assert!(root.join(".cursor/rules/ocul-pm.mdc").exists());
+    }
+
+    /// A0c ② — 평탄화가 겹치는 rename(`api/validation.md` → `api-validation.md`,
+    /// 둘 다 `api-validation.mdc`)이 **1패스에 수렴**해야 한다. 종전에는 낡은
+    /// 마커 미러가 새 쓰기를 conflict 로 막은 채 쓰기 뒤의 고아 정리에 지워져,
+    /// 1패스 후 미러가 사라지고 2패스에야 복구됐다.
+    #[test]
+    fn sync_mirrors_recovers_flatten_colliding_rename_in_one_pass() {
+        let proj = TempDir::new().unwrap();
+        let root = proj.path();
+        seed(root, ".claude/rules/api/validation.md", PATHS_RULE);
+        sync_mirrors(root, true);
+        assert!(root.join(".cursor/rules/api-validation.mdc").exists());
+
+        fs::rename(
+            root.join(".claude/rules/api/validation.md"),
+            root.join(".claude/rules/api-validation.md"),
+        )
+        .unwrap();
+        let results = sync_mirrors(root, true);
+        let mirror = fs::read_to_string(root.join(".cursor/rules/api-validation.mdc"))
+            .expect("1패스 후 미러가 존재해야 한다");
+        assert!(
+            mirror.contains(".claude/rules/api-validation.md"),
+            "마커가 새 원본을 가리켜야 한다: {results:?}"
+        );
+    }
+
+    /// A0c ④ — `----` 수평선·`--- 제목` 텍스트를 frontmatter 로 오인해 미러
+    /// 본문을 유실하던 문제. 구분자는 정확히 `---` 한 줄이어야 한다.
+    #[test]
+    fn split_frontmatter_ignores_horizontal_rules() {
+        // `----` 4개 대시 — frontmatter 아님, 본문 전체 보존.
+        let hr = "----\n첫 단락\n----\n둘째 단락\n";
+        assert_eq!(split_frontmatter(hr), (None, hr));
+        // `--- 제목` — frontmatter 아님.
+        let titled = "--- 구분 ---\n본문\n";
+        assert_eq!(split_frontmatter(titled), (None, titled));
+        // 정상 frontmatter 는 종전대로.
+        let (fm, body) = split_frontmatter("---\npaths:\n  - \"a/**\"\n---\n본문\n");
+        assert_eq!(fm.map(str::trim), Some("paths:\n  - \"a/**\""));
+        assert_eq!(body, "본문\n");
+        // 닫는 줄이 `----` 뿐이면 frontmatter 미확정 — 전체가 본문.
+        let unclosed = "---\nfoo: bar\n----\n본문\n";
+        assert_eq!(split_frontmatter(unclosed), (None, unclosed));
+        // render_mirror 경유 — 수평선 문서의 본문이 미러에서 살아남는다.
+        let rendered = render_mirror(".claude/rules/hr.md", hr);
+        assert!(rendered.contains("첫 단락"), "{rendered}");
+        assert!(rendered.contains("둘째 단락"), "{rendered}");
+    }
+
+    /// A0c ⑤ — 읽기 상한: 상한 초과 파일은 목록에서 제외되고 read 는 명시적
+    /// 에러를 낸다 (조용한 통째 로딩 금지).
+    #[test]
+    fn oversized_rule_is_skipped_and_read_errors() {
+        let proj = TempDir::new().unwrap();
+        let root = proj.path();
+        let big = "x".repeat(MAX_RULE_BYTES + 1);
+        seed(root, ".claude/rules/huge.md", &big);
+        seed(root, ".claude/rules/ok.md", ALWAYS_RULE);
+
+        let listed = list_scope(RuleScope::Project, root, Some(root));
+        assert!(listed.iter().any(|e| e.rel_path.ends_with("ok.md")));
+        assert!(
+            !listed.iter().any(|e| e.rel_path.ends_with("huge.md")),
+            "상한 초과 파일이 목록에 오르면 안 된다"
+        );
+
+        let err = read(RuleScope::Project, root, root, ".claude/rules/huge.md").unwrap_err();
+        assert!(err.contains("상한"), "{err}");
+    }
+
+    /// A0c ⑤ 후속 (리뷰 지적) — 상한 초과로 검증 불능인 대상은 "건드리지
+    /// 않는다": save 는 거부, 미러 쓰기/삭제는 conflict + 파일 보존.
+    #[test]
+    fn oversized_targets_are_treated_as_unverifiable() {
+        let proj = TempDir::new().unwrap();
+        let root = proj.path();
+        let big = "x".repeat(MAX_RULE_BYTES + 1);
+
+        // 관리 블록 가드 — 기존 파일이 상한 초과면 저장 자체를 거부.
+        seed(root, ".claude/CLAUDE.md", &big);
+        let err = save(RuleScope::Project, root, root, ".claude/CLAUDE.md", "새 내용", false)
+            .unwrap_err();
+        assert!(err.contains("검증"), "{err}");
+
+        // 미러 경로 — 검증 불능 .mdc 는 쓰지도 지우지도 않고 상태는 Conflict.
+        seed(root, ".claude/rules/commit.md", ALWAYS_RULE);
+        seed(root, ".cursor/rules/commit.mdc", &big);
+        assert_eq!(write_mirror(root, ".claude/rules/commit.md", ALWAYS_RULE).action, "conflict");
+        assert_eq!(remove_mirror(root, ".claude/rules/commit.md").action, "conflict");
+        assert!(root.join(".cursor/rules/commit.mdc").exists(), "검증 불능 파일은 보존");
+        assert!(matches!(
+            mirror_state(root, ".claude/rules/commit.md"),
+            MirrorState::Conflict
+        ));
     }
 
     #[test]
