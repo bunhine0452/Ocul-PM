@@ -9,6 +9,7 @@ import {
   Clock,
   RefreshCw,
   Sparkles,
+  Lock,
   NotebookText,
   PanelLeft,
   Pencil,
@@ -45,7 +46,9 @@ const STATUS_META: Record<string, { glyph: string; label: string; color: string 
   todo: { glyph: "☐", label: "할 일", color: "var(--text-3)" },
   in_progress: { glyph: "▣", label: "진행중", color: "var(--accent)" },
   done: { glyph: "☑", label: "완료", color: "var(--accent)" },
-  blocked: { glyph: "⚠", label: "막힘", color: "var(--t-bug)" },
+  // U+FE0E (text presentation selector): ⚠ 는 기본이 컬러 이모지라 나머지
+  // 글리프(☐ ▣ ☑ → ✗)와 달리 OS 이모지 폰트로 그려지고 color 를 무시한다.
+  blocked: { glyph: "⚠︎", label: "막힘", color: "var(--t-bug)" },
   deferred: { glyph: "→", label: "이월", color: "var(--text-3)" },
   dropped: { glyph: "✗", label: "폐기", color: "var(--text-3)" },
 };
@@ -840,7 +843,13 @@ function PlanBody(props: PlanBodyProps) {
             )}
             <div className="goal-due" style={{ marginTop: 4 }}>
               <span className={"goal-status " + (locked ? "planned" : "active")}>
-                {locked ? "🔒 완료·잠금" : "진행중"}
+                {locked ? (
+                  <>
+                    <Lock size={11} /> 완료·잠금
+                  </>
+                ) : (
+                  "진행중"
+                )}
               </span>
               <span className="dotsep">·</span>
               {detail.plan.done_count}/{detail.plan.item_count} 완료
@@ -946,7 +955,7 @@ function PlanBody(props: PlanBodyProps) {
               <div className="goal-title" style={{ fontSize: 14 }}>{d.title}</div>
               {d.body ? <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
               <div className="goal-due" style={{ marginTop: 8 }}>
-                {d.locked_at ? <>🔒 {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
+                {d.locked_at ? <><Lock size={10} /> {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
                 {d.affects.length > 0 ? `영향 ${d.affects.map((a) => `#${a}`).join(", ")}` : "영향 없음"}
               </div>
             </div>

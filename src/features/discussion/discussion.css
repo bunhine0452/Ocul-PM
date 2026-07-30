@@ -15,7 +15,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   border-right: 1px solid var(--sep);
-  background: var(--bg-sidebar);
+  /* 캔버스 색을 쓰면 앱 사이드바 옆에 같은 색 기둥이 하나 더 서서 '사이드바
+     속 사이드바' 로 읽힌다. 목록은 콘텐츠 시트에 속하므로 표면을 공유하고
+     구분선만 둔다 (2026-07-30 디자인 라운드). */
+  background: transparent;
   padding: 10px 8px 40px;
   display: flex;
   flex-direction: column;

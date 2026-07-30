@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef } from "react";
-import { ChevronDown, ChevronRight, Search, X } from "@/components/Icons";
+import { ChevronDown, ChevronRight, Lock, Search, TriangleAlert, X } from "@/components/Icons";
 import type { PlanSummary } from "@/lib/bindings";
 import {
   groupPlans,
@@ -239,29 +239,22 @@ const PlanRailRow = memo(function PlanRailRow({
     >
       <span className="pln-row-top">
         <span className="pln-row-title">{plan.title}</span>
-        {locked ? (
-          <span className="pln-row-lock" aria-label="완료·잠금">
-            🔒
-          </span>
-        ) : null}
+        {locked ? <Lock size={11} className="pln-row-lock" aria-label="완료·잠금" /> : null}
       </span>
       <span className="pln-row-bar">
         <i style={{ width: `${pct}%` }} />
       </span>
       <span className="pln-row-meta">
-        <span>
+        <span className="pln-row-count">
           {plan.done_count}/{plan.item_count}
         </span>
         {stale != null ? (
-          <>
-            <span className="dotsep">·</span>
-            <span className="pln-row-stale">⚠ {stale}일째 멈춤</span>
-          </>
+          <span className="pln-row-stale">
+            <TriangleAlert size={10} />
+            {stale}일째 멈춤
+          </span>
         ) : when ? (
-          <>
-            <span className="dotsep">·</span>
-            <span>{when}</span>
-          </>
+          <span>{when}</span>
         ) : null}
       </span>
     </button>

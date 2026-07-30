@@ -15,7 +15,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   border-right: 1px solid var(--sep);
-  background: var(--bg-sidebar);
+  /* 콘텐츠 시트와 표면을 공유한다 — 캔버스 색이면 앱 사이드바 옆에 기둥이
+     하나 더 서서 '사이드바 속 사이드바' 로 읽힌다 (2026-07-30). */
+  background: transparent;
   padding: 10px 8px 40px;
 }
 

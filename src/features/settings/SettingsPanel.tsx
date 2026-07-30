@@ -1471,38 +1471,71 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     );
   }
 
+  // 탭 내비게이션은 두 진입점에서 모양이 다르다.
+  //
+  // 프로젝트 안(embedded)에서는 왼쪽에 이미 앱 사이드바가 있어서, 세로 192px
+  // 열을 하나 더 세우면 '사이드바 속 사이드바' 가 된다 (2026-07-30 디자인
+  // 라운드). embedded 일 때만 가로 스트립으로 눕혀 좌측 열을 없앤다. 좁은
+  // 창에서는 압착 대신 가로 스크롤로 도망가게 한다 — 툴바 액션과 같은 방어책
+  // 으로, 없으면 flex 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다.
+  //
+  // 프로젝트 선택 화면(비-embedded)은 사이드바가 없는 모달이라 세로 목록이
+  // 여전히 맞다.
+  const tabNav = embedded ? (
+    <nav
+      className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-1 pb-2 mb-5"
+      style={{ scrollbarWidth: "none" }}
+    >
+      {TABS.map((t) => {
+        const isActive = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            aria-current={isActive ? "page" : undefined}
+            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors cursor-pointer ${
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+            }`}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </nav>
+  ) : (
+    <nav className="w-48 flex-shrink-0 border-r border-border/60 bg-background/40 p-2 space-y-0.5">
+      {TABS.map((t) => {
+        const Icon = t.icon;
+        const isActive = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            aria-current={isActive ? "page" : undefined}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+            }`}
+          >
+            <Icon className="w-4 h-4 flex-shrink-0" />
+            {t.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
   const body = (
-    <div className="flex">
-      {/* Tab nav */}
-      <nav
-        className={`w-48 flex-shrink-0 ${
-          embedded ? "" : "border-r border-border/60 bg-background/40"
-        } p-2 space-y-0.5`}
-      >
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-              }`}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+    <div className={embedded ? "flex flex-col" : "flex"}>
+      {tabNav}
 
       {/* Tab content */}
       <div
         className={`flex-1 ${
-          embedded ? "px-6 pt-2 pb-6" : "p-6 overflow-y-auto max-h-[70vh] scrollbar-thin"
+          embedded ? "pb-6" : "p-6 overflow-y-auto max-h-[70vh] scrollbar-thin"
         }`}
       >
         {activeTab}
