@@ -17,6 +17,7 @@ import {
   reduceShellState,
   type ShellState,
 } from "./oscShell";
+import { scanFileRefs } from "./fileLinks";
 
 // Shared PTY-backed terminal instance — used by the full 터미널 화면
 // (TerminalScreenV2, 탭+분할 페인) and the Today 빠른 터미널 (TodayTerminal).
@@ -71,6 +72,11 @@ interface TerminalInstanceProps {
    * 불리지 않는다 — 소비처는 `state.active` 로 "켜져 있는가"를 판단한다.
    */
   onShellState?: (state: ShellState) => void;
+  /**
+   * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
+   * (프로젝트가 없는 세션에서 열 곳이 없으므로).
+   */
+  onOpenFileRef?: (path: string, line: number | null) => void;
 }
 
 export default function TerminalInstanceImpl({
@@ -84,6 +90,7 @@ export default function TerminalInstanceImpl({
   onFocusIn,
   onTitleChange,
   onShellState,
+  onOpenFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -98,6 +105,7 @@ export default function TerminalInstanceImpl({
   const onFocusInRef = useRef(onFocusIn);
   const onTitleChangeRef = useRef(onTitleChange);
   const onShellStateRef = useRef(onShellState);
+  const onOpenFileRefRef = useRef(onOpenFileRef);
   // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
   // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
   const nonceRef = useRef("");
@@ -110,7 +118,8 @@ export default function TerminalInstanceImpl({
     onFocusInRef.current = onFocusIn;
     onTitleChangeRef.current = onTitleChange;
     onShellStateRef.current = onShellState;
-  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange, onShellState]);
+    onOpenFileRefRef.current = onOpenFileRef;
+  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange, onShellState, onOpenFileRef]);
 
   // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
   // buffers in xterm until the first open() once the tab is visible.
@@ -192,6 +201,37 @@ export default function TerminalInstanceImpl({
           publishShellState({ ...state, cwd: cwdFromOsc });
         }
         return true;
+      }),
+      // 출력 안의 `src/foo.ts:42` → ⌘클릭으로 편집기 열기.
+      // WebLinksAddon 과 공존한다: URL 은 저쪽이, 상대경로는 이쪽이 맡는다.
+      term.registerLinkProvider({
+        provideLinks(bufferLineNumber, callback) {
+          const open = onOpenFileRefRef.current;
+          if (!open) {
+            callback(undefined);
+            return;
+          }
+          const line = term.buffer.active.getLine(
+            bufferLineNumber - 1 + term.buffer.active.viewportY,
+          );
+          const text = line?.translateToString(true) ?? "";
+          const refs = scanFileRefs(text);
+          if (refs.length === 0) {
+            callback(undefined);
+            return;
+          }
+          callback(
+            refs.map((ref) => ({
+              // xterm 의 x/y 는 1-based, end 는 포함(inclusive)이다.
+              range: {
+                start: { x: ref.start + 1, y: bufferLineNumber },
+                end: { x: ref.end, y: bufferLineNumber },
+              },
+              text: text.slice(ref.start, ref.end),
+              activate: () => open(ref.path, ref.line),
+            })),
+          );
+        },
       }),
     ];
 

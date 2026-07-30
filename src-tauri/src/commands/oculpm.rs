@@ -212,6 +212,25 @@ pub async fn oculpm_start_session_manual(
         .map_err(|e| e.to_string())
 }
 
+/// 터미널이 감지한 코딩 에이전트 실행 신호 (OSC 133;C/D → 세션 경계).
+///
+/// 훅 브리지가 없는 에이전트(cursor·gemini·codex)까지 세션 시작·종료를 실측으로
+/// 만든다. 감시가 꺼져 있으면 `false` 를 돌려주고 아무 일도 하지 않는다 —
+/// 터미널 사용이 감시를 켜는 부작용을 내면 안 된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agent_run_signal(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    started: bool,
+    agent_label: String,
+) -> Result<bool, String> {
+    manager
+        .agent_run_signal(project_id, started, &agent_label)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Manually end a session. `session_id` must match the active session.
 #[tauri::command]
 #[specta::specta]

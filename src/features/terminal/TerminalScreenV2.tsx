@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   SquareTerminal,
@@ -10,6 +10,8 @@ import {
   Rows2,
 } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
+import { toast } from "@/lib/toast";
+import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
   leaf,
@@ -27,6 +29,7 @@ import { TerminalInstance, type TerminalHandles, type ShellState } from "./Termi
 import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 import { summarizeShell } from "./shellStatus";
+import { useAgentRuns } from "./useAgentRuns";
 
 // 터미널 화면 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -76,6 +79,7 @@ interface TerminalScreenV2Props {
 
 export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const { state, setState } = useWorkspace();
+  const { settings } = useSettings();
   const { terminalTabs, terminalActiveId } = state;
   const fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, state.terminalFontSize || FONT_DEFAULT));
 
@@ -93,6 +97,10 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
   // sid → 셸 통합 상태(OSC 133). 통합이 설치되지 않은 세션은 여기 안 들어온다.
   const [shellStates, setShellStates] = useState<Record<string, ShellState>>({});
+
+  // 명령 경계에서 코딩 에이전트 실행을 추적 → 세션 신호 + 일지 제안.
+  // 셸 통합이 꺼져 있으면 shellStates 가 비어 있어 자동으로 no-op 이다.
+  useAgentRuns(shellStates, state.currentProjectId);
 
   const activeTab = terminalTabs.find((t) => t.id === terminalActiveId) ?? null;
   const paneCount = activeTab ? collectSids(panesOfTab(activeTab)).length : 0;
@@ -359,6 +367,23 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     window.addEventListener("pointerup", up);
   };
 
+  // 출력 안의 `src/foo.ts:42` ⌘클릭 → 외부 편집기. 경로는 터미널이 뱉은
+  // 신뢰할 수 없는 문자열이므로 백엔드가 secure_join 으로 루트 안쪽인지 다시
+  // 판정한다 — 거절당하면 조용히 넘기지 말고 이유를 보여준다.
+  const openFileRef = useCallback(
+    async (path: string, line: number | null) => {
+      if (!projectRoot) return;
+      const res = await commands.openInEditor(
+        projectRoot,
+        path,
+        settings.externalEditorCommand,
+        line,
+      );
+      if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+    },
+    [projectRoot, settings.externalEditorCommand],
+  );
+
   // 포커스된 페인의 셸 통합 상태 — 상태바/툴바 문구가 여기서 나온다.
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
   const shellSummary = focusedShell ? summarizeShell(focusedShell) : null;
@@ -404,6 +429,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             onShellState={(shell) =>
               setShellStates((prev) => (prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell }))
             }
+            onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
           {count > 1 ? (
             <button

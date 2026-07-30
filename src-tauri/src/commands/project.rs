@@ -439,7 +439,13 @@ async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     Ok(PathBuf::from(project.root_path))
 }
 
-fn secure_join(root: &std::path::Path, rel_path: &str) -> Result<PathBuf, String> {
+/// 프로젝트 루트 안쪽으로만 해석되는 join. `..` 이스케이프와 **절대경로**
+/// (`Path::join` 은 절대경로를 받으면 base 를 통째로 버린다)를 둘 다 막는다.
+///
+/// 신뢰할 수 없는 출처(터미널 출력·검색 결과·LLM 응답)에서 온 경로는 반드시
+/// 이걸 통과시킨다. `external_editor` 도 같은 함수를 쓴다 — 방어를 복제하면
+/// 한쪽만 고쳐지고 다른 쪽이 남는다.
+pub(crate) fn secure_join(root: &std::path::Path, rel_path: &str) -> Result<PathBuf, String> {
     let abs_path = root.join(rel_path);
     let clean = crate::indexer::clean_path(&abs_path);
     if clean.starts_with(root) {

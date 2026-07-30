@@ -363,7 +363,13 @@ export const commands = {
 	subject: string,
 	changes: GitChange[],
 } | null, string>(__TAURI_INVOKE("git_last_commit_changes", { projectId })),
-	openInEditor: (projectRoot: string, relPath: string, editorCmd: string) => typedError<null, string>(__TAURI_INVOKE("open_in_editor", { projectRoot, relPath, editorCmd })),
+	/**
+	 *  외부 편집기로 프로젝트 파일을 연다.
+	 * 
+	 *  `line` 은 1-based 줄 번호로 템플릿의 `%line` 에 들어간다 (터미널의
+	 *  `file:line` 링크가 쓴다). `None` 이면 파일만 연다.
+	 */
+	openInEditor: (projectRoot: string, relPath: string, editorCmd: string, line: number | null) => typedError<null, string>(__TAURI_INVOKE("open_in_editor", { projectRoot, relPath, editorCmd, line })),
 	/**
 	 *  Open an http(s) URL in the user's default browser. Used by the Today commit
 	 *  graph to jump to a commit on GitHub. We shell out to the OS opener
@@ -490,6 +496,14 @@ export const commands = {
 } | null, string>(__TAURI_INVOKE("oculpm_start_session_manual", { projectId })),
 	/**  Manually end a session. `session_id` must match the active session. */
 	oculpmEndSessionManual: (projectId: number, sessionId: string) => typedError<null, string>(__TAURI_INVOKE("oculpm_end_session_manual", { projectId, sessionId })),
+	/**
+	 *  터미널이 감지한 코딩 에이전트 실행 신호 (OSC 133;C/D → 세션 경계).
+	 * 
+	 *  훅 브리지가 없는 에이전트(cursor·gemini·codex)까지 세션 시작·종료를 실측으로
+	 *  만든다. 감시가 꺼져 있으면 `false` 를 돌려주고 아무 일도 하지 않는다 —
+	 *  터미널 사용이 감시를 켜는 부작용을 내면 안 된다.
+	 */
+	oculpmAgentRunSignal: (projectId: number, started: boolean, agentLabel: string) => typedError<boolean, string>(__TAURI_INVOKE("oculpm_agent_run_signal", { projectId, started, agentLabel })),
 	/**  List sessions for a workday. `workday = None` → today. */
 	oculpmListSessions: (projectId: number, workday: string | null) => typedError<Session[], string>(__TAURI_INVOKE("oculpm_list_sessions", { projectId, workday })),
 	/**  Get file change events for a workday, optionally filtered by session_id. */

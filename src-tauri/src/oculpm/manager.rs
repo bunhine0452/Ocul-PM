@@ -596,6 +596,35 @@ impl OculpmManager {
 
     /// Manually start a session. Idempotent — if already active, returns the
     /// existing session. If no watcher is running, starts one first.
+    /// 터미널에서 코딩 에이전트 실행이 감지됐다 (2026-07-30, OSC 133;C/D).
+    ///
+    /// 훅 브리지(`claude_hooks`)와 **같은 신호**를 쓰되 출처가 PTY 라는 점만
+    /// 다르다 — 덕분에 훅이 없는 에이전트(cursor·gemini·codex)도 세션 경계와
+    /// 라벨을 휴리스틱이 아닌 실측으로 갖는다.
+    ///
+    /// 세션 액터가 없으면(감시 미시작) 조용히 `false` — 터미널을 쓴다는 이유로
+    /// 감시를 켜는 부작용을 내지 않는다. 반환값은 "신호가 전달됐는가".
+    pub async fn agent_run_signal(
+        &self,
+        project_id: u32,
+        started: bool,
+        agent_label: &str,
+    ) -> Result<bool, OculpmError> {
+        let projects = self.projects.read().await;
+        let Some(entry) = projects.get(&project_id) else {
+            return Ok(false);
+        };
+        let Some(actor) = &entry.session else {
+            return Ok(false);
+        };
+        if started {
+            actor.hook_agent_active(agent_label)?;
+        } else {
+            actor.hook_agent_ended()?;
+        }
+        Ok(true)
+    }
+
     pub async fn start_session_manual(
         &self,
         project_id: u32,

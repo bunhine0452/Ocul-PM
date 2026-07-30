@@ -10,6 +10,7 @@ import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
 import { toast } from "@/lib/toast";
+import { consumeManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { SkeletonList } from "@/components/ui/Skeleton";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
@@ -177,6 +178,15 @@ export function JournalScreenV2({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // 화면 밖에서 온 "일지 작성기 열기" 요청 — ⌘K 팔레트의 '새 일지'와 터미널의
+  // 에이전트 실행 종료 제안이 여기로 들어온다. 다른 화면에 있을 때는 이 화면이
+  // 언마운트돼 있어 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
+  // (팔레트는 예전부터 이 이벤트를 쏘고 있었지만 듣는 곳이 없어 무동작이었다.)
+  useEffect(() => {
+    if (consumeManualEntryRequest()) setManualOpen(true);
+    return onManualEntryRequest(() => setManualOpen(true));
   }, []);
 
   // Apply the one-shot focus once the matching entry is in the list.

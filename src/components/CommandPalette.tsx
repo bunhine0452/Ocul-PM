@@ -17,6 +17,7 @@ import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@
 import { commands, type DocsTreeNode, type EntityHit } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
+import { requestManualEntry } from "@/lib/journalCompose";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
 //
@@ -235,7 +236,10 @@ export function CommandPalette({
               icon: Plus,
               onSelect: () => {
                 onOpenChange(false);
-                window.dispatchEvent(new CustomEvent(OCULPM_BUS.manualEntry));
+                // 2026-07-30: 이벤트만 쏘던 것을 sticky one-shot 으로 교체.
+                // 작업 일지 화면이 마운트돼 있지 않으면 이벤트가 그대로
+                // 사라져 이 항목이 아무 일도 하지 않았다.
+                requestManualEntry();
               },
             },
             {

@@ -26,6 +26,8 @@ interface TerminalInstanceProps {
   onTitleChange?: (title: string) => void;
   /** 셸 통합(OSC 133/7) 상태 — 미설치 세션에서는 한 번도 불리지 않는다. */
   onShellState?: (state: ShellState) => void;
+  /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */
+  onOpenFileRef?: (path: string, line: number | null) => void;
 }
 
 export type { TerminalHandles, ShellState };

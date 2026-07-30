@@ -113,7 +113,7 @@ export function GraphInspector({
 
   const onOpenEditor = useCallback(async () => {
     if (!projectRoot) return;
-    const res = await commands.openInEditor(projectRoot, node.path, externalEditorCommand);
+    const res = await commands.openInEditor(projectRoot, node.path, externalEditorCommand, null);
     if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
   }, [projectRoot, node.path, externalEditorCommand]);
 

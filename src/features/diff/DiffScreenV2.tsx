@@ -336,6 +336,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       projectRoot,
       selected,
       settings.externalEditorCommand,
+      null,
     );
     if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
   }, [projectRoot, selected, settings.externalEditorCommand]);
@@ -368,7 +369,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const onOpenAffected = useCallback(
     async (path: string) => {
       if (!projectRoot) return;
-      const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand);
+      const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand, null);
       if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
     },
     [projectRoot, settings.externalEditorCommand],
