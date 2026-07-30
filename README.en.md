@@ -27,6 +27,23 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
+## 🚀 v2.5.0 — Claude Code plugin, and plans that drive implementation
+
+**Recording starts without the app.** Two lines in Claude Code:
+
+```
+/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm
+```
+
+One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **4 MCP tools** (`journal_write` · `plan_status` · `plan_update` · `plan_create` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
+
+**The planner becomes a steering wheel**: press **▶Run** on a plan item and a prompt assembled from the item, its linked journals and update instructions is prefilled into the terminal — one Enter starts a real Claude Code session on it. Plans now nest sub-tasks (parent status rolls up from children), and the **project-inception** skill turns an idea into a problem statement → 3-level plan → `EVALS.md` done-criteria → starter `.claude/rules`, firming things up first by interviewing you, then by researching the stack on the web.
+
+**60% agent-token diet** — the always-injected rules file (AGENTS.md v7) went from ≈2,900 to ≈1,150 tokens with every compliance-critical rule intact.
+
+> Menubar residency (v2.3), direct Claude integration (v2.2) and the full history: [CHANGELOG](CHANGELOG.md).
+
 ## Screens
 
 - **Today** — everything that changed today, organized by workday: the commit graph, uncommitted changes, and an honesty audit that catches files agents modified but never journaled. "Copy standup" puts yesterday-to-today into your clipboard as shareable text.
