@@ -7,12 +7,26 @@
 // aarch64-apple-darwin)와 캐시를 공유하도록 호스트 triple 로 --target 을
 // 강제한다 (macos-latest 러너는 arm64 → 호스트 == CI 타깃).
 import { execSync } from "node:child_process";
-import { copyFileSync, mkdirSync, statSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcTauri = join(repoRoot, "src-tauri");
+
+// A1 (#a1-schema-paths) — 플러그인 버전 스탬프. plugin.json 의 version 은
+// 앱 버전(tauri.conf.json)을 따른다 — 수동 상수 금지, 동기화는
+// src-tauri/tests/plugin_manifest.rs 가 강제한다.
+const appVersion = JSON.parse(
+  readFileSync(join(srcTauri, "tauri.conf.json"), "utf8"),
+).version;
+const pluginJsonPath = join(repoRoot, "plugin", "oculpm", ".claude-plugin", "plugin.json");
+const pluginJson = JSON.parse(readFileSync(pluginJsonPath, "utf8"));
+if (pluginJson.version !== appVersion) {
+  pluginJson.version = appVersion;
+  writeFileSync(pluginJsonPath, `${JSON.stringify(pluginJson, null, 2)}\n`);
+  console.log(`build-sidecar: plugin.json version → ${appVersion}`);
+}
 
 const rustInfo = execSync("rustc -vV").toString();
 const triple = /host: (\S+)/.exec(rustInfo)?.[1];
