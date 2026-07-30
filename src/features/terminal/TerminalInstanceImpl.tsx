@@ -7,6 +7,9 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { commands } from "@/lib/bindings";
+import { oculpmLog } from "@/lib/oculpmLog";
+import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
+import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
 // Shared PTY-backed terminal instance — used by the full 터미널 화면
 // (TerminalScreenV2, 탭+분할 페인) and the Today 빠른 터미널 (TodayTerminal).
@@ -19,30 +22,22 @@ import { commands } from "@/lib/bindings";
 //    브라우저), Search 애드온. onReady 로 화면에 Terminal/Search 핸들 전달.
 //  - fontSize 라이브 변경 (⌘+/⌘-).
 // (2026-06-03 blank-terminal fix — visible+sized 이후에만 open() — 유지.)
+//
+// 2026-07-30 품질 라운드:
+//  - 한글 IME: 조합 처리를 xterm CompositionHelper 에서 회수 (→ imeBridge.ts).
+//  - 렌더러: WebGL 로 승격. DOM 렌더러는 실제 텍스트 레이아웃을 쓰기 때문에
+//    폴백 글리프의 폭이 셀과 다르면 그 줄 전체가 밀리고, 출력이 많을 때 눈에
+//    띄게 버벅였다. 미지원/컨텍스트 소실이면 DOM 렌더러로 되돌아간다.
+//  - 폰트: 라틴·기호·박스문자는 Menlo, 한글은 'D2Coding Term' (App.css 에서
+//    unicode-range + size-adjust 로 정확히 두 셀 폭을 갖게 만든 페이스).
+//  - 테마: TERM_THEME 상수 제거 — tokens.css 의 `--term-*` 에서 파생 (→ termTheme.ts).
 
-const TERM_THEME = {
-  background: "#16161c",
-  foreground: "#e6e6ea",
-  cursor: "#2bc488",
-  cursorAccent: "#16161c",
-  selectionBackground: "rgba(43,196,136,0.30)",
-  black: "#16161c",
-  red: "#f1685f",
-  green: "#2bc488",
-  yellow: "#e6c570",
-  blue: "#6ea8fe",
-  magenta: "#c79bf0",
-  cyan: "#5fd5d0",
-  white: "#d4d4d8",
-  brightBlack: "#5b5b66",
-  brightRed: "#ff8079",
-  brightGreen: "#4fdca0",
-  brightYellow: "#f2d98a",
-  brightBlue: "#8fc0ff",
-  brightMagenta: "#d9b6f7",
-  brightCyan: "#86e6e1",
-  brightWhite: "#f4f4f6",
-} as const;
+// 라틴·기호·박스문자(█ ▀ ● ✓ 포함)는 Menlo 가 전 범위를 0.6021em 로 커버한다.
+// 한글은 'D2Coding Term' 이 unicode-range 로만 끼어들어 정확히 두 셀을 채운다.
+// (D2Coding 을 선두에 두면 서브셋에 없는 글리프가 폴백으로 새면서 줄이 밀린다.)
+const TERM_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
+
+const SCROLLBACK_LINES = 20000;
 
 export interface TerminalHandles {
   term: Terminal;
@@ -62,6 +57,8 @@ interface TerminalInstanceProps {
   onReady?: (handles: TerminalHandles) => void;
   /** 이 페인(컨테이너)으로 포커스가 들어올 때. */
   onFocusIn?: () => void;
+  /** 셸이 OSC 0/2 로 알려온 제목 — 탭 자동 이름에 쓴다. */
+  onTitleChange?: (title: string) => void;
 }
 
 export default function TerminalInstanceImpl({
@@ -73,24 +70,28 @@ export default function TerminalInstanceImpl({
   autoFocus = true,
   onReady,
   onFocusIn,
+  onTitleChange,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
+  const imeRef = useRef<ImeBridgeHandle | null>(null);
   const openedRef = useRef(false);
   const cwdRef = useRef(cwd);
   const persistentRef = useRef(persistent);
   const autoFocusRef = useRef(autoFocus);
   const onReadyRef = useRef(onReady);
   const onFocusInRef = useRef(onFocusIn);
+  const onTitleChangeRef = useRef(onTitleChange);
   useEffect(() => {
     cwdRef.current = cwd;
     persistentRef.current = persistent;
     autoFocusRef.current = autoFocus;
     onReadyRef.current = onReady;
     onFocusInRef.current = onFocusIn;
-  }, [cwd, persistent, autoFocus, onReady, onFocusIn]);
+    onTitleChangeRef.current = onTitleChange;
+  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange]);
 
   // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
   // buffers in xterm until the first open() once the tab is visible.
@@ -100,16 +101,13 @@ export default function TerminalInstanceImpl({
       cursorStyle: "bar",
       cursorWidth: 2,
       allowProposedApi: true,
-      // 한국어 입력 fix: D2Coding(번들 subset, 한글 2:1 고정폭)을 선두로 —
-      // 라틴 우선(SF Mono)이면 한글 글리프가 시스템 고딕 폴백으로 렌더돼
-      // 셀 폭(반각×2)과 어긋나 겹침/들쭉날쭉이 생긴다.
-      fontFamily: '"D2Coding", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace',
+      fontFamily: TERM_FONT,
       fontSize,
       fontWeightBold: "600",
       lineHeight: 1.2,
       letterSpacing: 0,
-      theme: TERM_THEME,
-      scrollback: 5000,
+      theme: readTerminalTheme(),
+      scrollback: SCROLLBACK_LINES,
       macOptionIsMeta: true,
       drawBoldTextInBrightColors: true,
       minimumContrastRatio: 1.5,
@@ -133,6 +131,19 @@ export default function TerminalInstanceImpl({
     const search = new SearchAddon();
     searchRef.current = search;
     term.loadAddon(search);
+    term.onTitleChange((title) => {
+      const trimmed = title.trim();
+      if (trimmed) onTitleChangeRef.current?.(trimmed);
+    });
+
+    // 앱 테마(<html> 의 data-theme/preset/accent) 전환을 그대로 따라간다.
+    const stopThemeWatch = observeTerminalTheme(() => {
+      try {
+        term.options.theme = readTerminalTheme();
+      } catch (err) {
+        oculpmLog.error("terminal", `테마 반영 실패: ${String(err)}`);
+      }
+    });
 
     // Refit whenever the container changes size — including the 0→N jump when
     // the tab goes display:none → block. No-op until opened + sized.
@@ -211,9 +222,12 @@ export default function TerminalInstanceImpl({
     return () => {
       isMounted = false;
       ro.disconnect();
+      stopThemeWatch();
       container?.removeEventListener("focusin", handleFocusIn);
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
+      imeRef.current?.dispose();
+      imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.
       if (!persistentRef.current) void commands.killPtySession(sessionId);
       term.dispose();
@@ -248,10 +262,30 @@ export default function TerminalInstanceImpl({
       if (!container || !term) return;
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       if (!openedRef.current) {
-        term.open(container);
+        try {
+          term.open(container);
+        } catch (err) {
+          // 렌더러가 테마 색을 파싱하는 지점이라 잘못된 토큰 하나가 여기서 터진다.
+          // 삼키지 말고 원문을 남긴다 (예전엔 React 가 컴포넌트째 언마운트했다).
+          oculpmLog.error("terminal", `term.open 실패: ${String(err)}`);
+          throw err;
+        }
         openedRef.current = true;
-        const search = searchRef.current;
-        if (search) onReadyRef.current?.({ term, search });
+        // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가
+        // 실패해도 터미널 자체는 살아 있어야 한다. 예외가 그대로 올라가면
+        // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
+        void loadWebglRenderer(term);
+        try {
+          imeRef.current = attachImeBridge(term, container);
+        } catch (err) {
+          oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
+        }
+        try {
+          const search = searchRef.current;
+          if (search) onReadyRef.current?.({ term, search });
+        } catch (err) {
+          oculpmLog.error("terminal", `onReady 핸들 등록 실패: ${String(err)}`);
+        }
       }
       try {
         fitRef.current?.fit();
@@ -271,4 +305,22 @@ export default function TerminalInstanceImpl({
       ref={containerRef}
     />
   );
+}
+
+/**
+ * GPU 렌더러로 승격. open() 이후에만 붙일 수 있고, 컨텍스트를 잃으면 dispose 해
+ * xterm 이 DOM 렌더러로 되돌아가게 한다. 애드온 청크는 여기서 지연 로드해
+ * 터미널을 안 여는 세션에 비용을 지우지 않는다.
+ */
+async function loadWebglRenderer(term: Terminal): Promise<void> {
+  try {
+    const { WebglAddon } = await import("@xterm/addon-webgl");
+    if (!term.element) return; // 로드 중 dispose 된 경우
+    const webgl = new WebglAddon();
+    webgl.onContextLoss(() => webgl.dispose());
+    term.loadAddon(webgl);
+  } catch (err) {
+    // WebGL2 미지원/차단 — DOM 렌더러 그대로 (동작엔 문제 없음).
+    console.warn("[TerminalInstance] WebGL 렌더러 사용 불가, DOM 렌더러로 진행:", err);
+  }
 }

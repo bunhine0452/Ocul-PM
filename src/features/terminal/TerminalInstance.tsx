@@ -21,6 +21,8 @@ interface TerminalInstanceProps {
   autoFocus?: boolean;
   onReady?: (handles: TerminalHandles) => void;
   onFocusIn?: () => void;
+  /** 셸이 OSC 0/2 로 알려온 제목 — 탭 자동 이름 (2026-07-30). */
+  onTitleChange?: (title: string) => void;
 }
 
 export type { TerminalHandles };

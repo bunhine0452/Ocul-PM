@@ -442,15 +442,83 @@
 }
 .scope-chip.on { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 
-/* Planner plan-selector groups (Dogfooding 2026-06-14 #3). */
-.plan-selector { margin-bottom: 16px; }
-.plan-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.plan-group-toggle {
-  display: inline-flex; align-items: center; gap: 5px; margin: 12px 0 4px;
-  background: none; border: none; cursor: pointer; padding: 2px 0;
-  font-family: var(--font); font-size: 12px; font-weight: 650; color: var(--text-3);
+/* ── Planner 계획 레일 (2026-07-30 스케일 라운드) ─────────────────────────────
+   `.plan-selector`/`.plan-chip-row`/`.plan-group-toggle` 을 대체한다. 예전
+   칩 행은 `flex-wrap:wrap` 에 높이 상한이 없고 칩이 `flex:none` 이라, 계획이
+   늘수록 본문을 접힘선 밖으로 밀어내는 벽이 됐다. 세로 목록은 계획 수와
+   무관하게 높이가 일정하다.
+
+   규격은 Discussion 의 `.disc-body`/`.disc-list`/`.disc-main` 을 따른다.
+   `.scope-chip` 은 검색/일지/AI패널/Planner 툴바가 공유하므로 손대지 않았다. */
+.pln-body { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+
+.pln-rail {
+  flex: none; width: 240px; min-width: 240px;
+  overflow-y: auto; overflow-x: hidden;
+  border-right: 1px solid var(--sep); background: var(--bg-sidebar);
+  padding: 10px 8px 40px;
+  display: flex; flex-direction: column; gap: 2px;
 }
-.plan-group-toggle:hover { color: var(--text-2); }
+/* 좁은 창(최소 960px)에서는 본문이 먼저다 — 레일을 줄여 문서 폭을 지킨다. */
+@media (max-width: 1120px) {
+  .pln-rail { width: 196px; min-width: 196px; }
+}
+.pln-rail.is-collapsed { display: none; }
+
+.pln-main { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; }
+.pln-doc { padding: 24px 28px 60px; max-width: 880px; margin: 0 auto; width: 100%; }
+
+.pln-rail-controls { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 10px; }
+.pln-rail-search { min-width: 0; height: 28px; }
+.pln-rail-search input { font-size: 12.5px; }
+.pln-rail-clear {
+  display: grid; place-items: center; width: 18px; height: 18px; padding: 0;
+  border: none; background: none; border-radius: 4px; cursor: pointer; color: var(--text-3);
+}
+.pln-rail-clear:hover { color: var(--text); background: var(--bg-hover); }
+.pln-rail-selects { display: flex; gap: 6px; }
+.pln-rail-selects .set-input {
+  flex: 1; min-width: 0; height: 26px; padding: 0 6px;
+  font-family: var(--font); font-size: 11.5px;
+}
+
+.pln-rail-list { display: flex; flex-direction: column; gap: 2px; }
+.pln-rail-empty { padding: 12px 10px; font-size: 12px; color: var(--text-3); }
+
+.pln-sec-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 10px 8px 4px; background: none; border: none; cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; color: var(--text-3);
+}
+.pln-sec-head:hover { color: var(--text-2); }
+.pln-sec-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.pln-row {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  padding: 8px 8px 8px 10px; border: none; background: none;
+  border-left: 2px solid transparent; border-radius: var(--radius-s);
+  text-align: left; cursor: pointer; font-family: var(--font); color: var(--text);
+}
+.pln-row:hover { background: var(--bg-hover); }
+.pln-row.on { background: var(--accent-soft); border-left-color: var(--accent); }
+.pln-row-top { display: flex; align-items: center; gap: 6px; }
+.pln-row-title {
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pln-row.on .pln-row-title { color: var(--accent-text); }
+.pln-row-lock { flex: none; font-size: 10px; }
+.pln-row-bar { height: 3px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; }
+.pln-row-bar > i {
+  display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong, var(--accent)));
+}
+.pln-row-meta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.pln-row-stale { color: var(--t-bug); font-weight: 650; }
 
 /* Journal-ref ("일지" notebook) link button — a real tappable hit target
    (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
@@ -511,97 +579,101 @@
 .scode .hl { background: var(--accent-soft); border-radius: 3px; }
 
 /* --- Terminal — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 톤) ---
-   터미널 영역 전체를 하나의 다크 서피스로: 탭 스트립·캔버스·상태바가
-   TERM_THEME.background(#16161c)와 한 몸으로 읽힌다 (라이트 테마에서도). */
-.term-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #101014; }
+   2026-07-30: 하드코딩 다크(#101014/#16161c/#26262e)를 전부 걷어내고 테마
+   토큰으로 옮겼다. 예전엔 라이트/Solarized/Sepia 를 골라도 터미널 화면만
+   새까맣게 남아 "앱 테마와 따로 논다"는 불만이 있었다. 캔버스 색은 xterm
+   테마와 같은 소스(tokens.css `--term-*`)를 읽으므로 두 면이 항상 붙는다. */
+.term-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--term-chrome); }
 .term-tabs {
   display: flex; align-items: flex-end; gap: 3px; padding: 7px 10px 0;
-  background: #101014; border-bottom: 1px solid #26262e; overflow-x: auto; flex: none;
+  background: var(--term-chrome); border-bottom: 1px solid var(--sep); overflow-x: auto; flex: none;
 }
 .term-tabs::-webkit-scrollbar { display: none; }
 .term-tab {
   display: flex; align-items: center; gap: 7px; padding: 7px 11px 8px; border-radius: 9px 9px 0 0;
-  font-size: 12px; font-weight: 550; color: #8a8a92; cursor: pointer; user-select: none;
+  font-size: 12px; font-weight: 550; color: var(--text-3); cursor: pointer; user-select: none;
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   font-family: var(--font); white-space: nowrap; flex: none; max-width: 220px;
 }
-.term-tab:hover { color: #c8c8d0; background: #16161c66; }
-.term-tab.active { background: #16161c; color: #e6e6ea; }
+.term-tab:hover { color: var(--text-2); background: var(--bg-hover); }
+.term-tab.active { background: var(--term-bg); color: var(--text); }
 .term-tab-label { overflow: hidden; text-overflow: ellipsis; }
 .term-tab-rename {
-  width: 90px; border: none; outline: none; background: #26262e; color: #e6e6ea;
+  width: 90px; border: none; outline: none; background: var(--bg-inset); color: var(--text);
   border-radius: 5px; padding: 2px 6px; font-family: var(--font); font-size: 12px;
 }
 .term-tab-close { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; opacity: 0; flex: none; }
 .term-tab:hover .term-tab-close, .term-tab.active .term-tab-close { opacity: 0.6; }
-.term-tab-close:hover { opacity: 1 !important; background: #33333d; }
+.term-tab-close:hover { opacity: 1 !important; background: var(--bg-active); }
 .term-tab-add {
   display: grid; place-items: center; width: 26px; height: 26px; margin: 0 0 5px 3px; border-radius: 7px;
-  border: none; background: transparent; color: #8a8a92; cursor: pointer; flex: none;
+  border: none; background: transparent; color: var(--text-3); cursor: pointer; flex: none;
 }
-.term-tab-add:hover { background: #16161c; color: #e6e6ea; }
+.term-tab-add:hover { background: var(--bg-hover); color: var(--text); }
 
 /* 페인 캔버스 — 탭당 하나, 분할 트리를 담는다. */
-.term-body { flex: 1; min-height: 0; position: relative; display: flex; background: #16161c; }
+.term-body { flex: 1; min-height: 0; position: relative; display: flex; background: var(--term-bg); }
 .term-canvas { flex: 1; min-width: 0; min-height: 0; }
 .term-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .term-split.row { flex-direction: row; }
 .term-split.col { flex-direction: column; }
 .term-cell { flex-basis: 0; flex-shrink: 1; min-width: 0; min-height: 0; display: flex; }
-.term-divider { flex: none; background: #26262e; position: relative; z-index: 3; transition: background 0.12s ease; }
+.term-divider { flex: none; background: var(--sep-strong); position: relative; z-index: 3; transition: background 0.12s ease; }
 .term-divider.row { width: 4px; cursor: col-resize; }
 .term-divider.col { height: 4px; cursor: row-resize; }
 .term-divider:hover, .term-divider:active { background: var(--accent); }
 .term-pane { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
 /* 분할 시 포커스 페인 표시 — 안쪽 헤어라인 링. */
-.term-pane.focused { box-shadow: inset 0 0 0 1px rgba(43, 196, 136, 0.45); }
+.term-pane.focused { box-shadow: inset 0 0 0 1px var(--accent-ring); }
 .term-pane .pane-close {
   position: absolute; top: 6px; right: 8px; z-index: 4;
   display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
-  border: none; background: #26262ecc; color: #8a8a92; cursor: pointer; opacity: 0;
+  border: none; background: var(--bg-inset); color: var(--text-3); cursor: pointer; opacity: 0;
   transition: opacity 0.12s ease;
 }
 .term-pane:hover .pane-close { opacity: 1; }
-.term-pane .pane-close:hover { color: #e6e6ea; background: #33333d; }
+.term-pane .pane-close:hover { color: var(--text); background: var(--bg-active); }
 
-.term-screen { flex: 1; width: 100%; min-height: 0; height: 100%; background: #16161c; overflow: hidden; padding: 8px 10px; }
-/* 한국어 IME 조합 미리보기 — xterm 기본은 무스타일이라 조합 중인 글자가
-   보이지 않는다. 터미널 배경 위에 또렷한 조합 상자 + 액센트 밑줄. */
-.term-screen .xterm .composition-view {
-  background: #16161c;
-  color: #f4f4f6;
-  font-family: "D2Coding", ui-monospace, monospace;
-  border-bottom: 2px solid #2bc488;
-  padding: 0 1px;
-  z-index: 5;
-}
+.term-screen { flex: 1; width: 100%; min-height: 0; height: 100%; background: var(--term-bg); overflow: hidden; padding: 8px 10px; }
+
+/* 한글 IME 조합 미리보기용 오버레이는 두지 않는다 (2026-07-30).
+   커서 위치에 DOM 을 얹는 방식은 앞 글자의 커서 전진이 셸 에코를 기다리는
+   비동기라 한 박자 늦은 자리에 그려졌다("가나다라마 사"). 지금은 조합 중인
+   글자까지 셸에 흘리고 바뀔 때마다 DEL 로 교체하므로(imeBridge.ts) 렌더링을
+   전부 터미널이 담당한다 — 얹을 요소 자체가 없다. */
 
 /* 스크롤백 검색 오버레이 (⌘F). */
 .term-search {
   position: absolute; top: 10px; right: 14px; z-index: 6;
   display: flex; align-items: center; gap: 6px; padding: 6px 9px;
-  background: #101014f2; border: 1px solid #33333d; border-radius: 9px;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); color: #8a8a92;
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 9px;
+  box-shadow: var(--shadow-pop); color: var(--text-3);
 }
 .term-search input {
   width: 200px; border: none; outline: none; background: transparent;
-  color: #e6e6ea; font-family: var(--font); font-size: 12.5px;
+  color: var(--text); font-family: var(--font); font-size: 12.5px;
 }
+/* 검색 결과 카운터 — "3/17". 일치 없음은 경고색. */
+.term-search .ts-count {
+  font-family: var(--mono); font-size: 11px; min-width: 46px; text-align: center;
+  color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.term-search .ts-count.empty { color: var(--t-bug); }
 
 /* 하단 상태바 — 탭·페인·단축키 힌트·글자크기·.oculpm 감시. */
 .term-status {
   display: flex; align-items: center; gap: 14px; padding: 5px 14px; flex: none;
-  background: #101014; border-top: 1px solid #26262e;
-  font-size: 11px; color: #8a8a92; font-family: var(--font);
+  background: var(--term-chrome); border-top: 1px solid var(--sep);
+  font-size: 11px; color: var(--text-3); font-family: var(--font);
 }
 .term-status .ts-seg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.term-status .ts-hint { color: #5b5b66; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.term-status .ts-hint { color: var(--text-3); opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ts-btn {
   display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
-  padding: 0 4px; border: none; border-radius: 5px; background: transparent; color: #8a8a92;
+  padding: 0 4px; border: none; border-radius: 5px; background: transparent; color: var(--text-3);
   cursor: pointer; font-family: var(--font); font-size: 11px;
 }
-.ts-btn:hover { background: #26262e; color: #e6e6ea; }
+.ts-btn:hover { background: var(--bg-hover); color: var(--text); }
 .ts-font { font-family: var(--mono); font-size: 10.5px; min-width: 34px; text-align: center; }
 .ts-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 

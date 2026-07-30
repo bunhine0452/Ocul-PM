@@ -24,6 +24,8 @@ import {
   type PaneDir,
 } from "@/lib/termPanes";
 import { TerminalInstance, type TerminalHandles } from "./TerminalInstance";
+import { readSearchDecorations } from "./termTheme";
+import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 
 // 터미널 화면 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -40,6 +42,21 @@ const FONT_DEFAULT = 13;
 
 function newId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * 검색 카운터 표시 — "3/17". 검색어가 없으면 빈 문자열, 일치가 없으면 안내,
+ * 결과가 하이라이트 한계를 넘어 활성 인덱스를 못 셀 땐(-1) 총 개수만 보여준다.
+ */
+export function formatMatchCount(
+  query: string,
+  matches: { index: number; count: number } | null,
+): string {
+  if (!query) return "";
+  if (!matches) return "";
+  if (matches.count === 0) return "일치 없음";
+  if (matches.index < 0) return `${matches.count}건`;
+  return `${matches.index + 1}/${matches.count}`;
 }
 
 function panesOfTab(t: TerminalTab): PaneNode {
@@ -63,6 +80,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // 검색 결과 카운터 "3/17" — SearchAddon.onDidChangeResults 가 채운다.
+  const [matches, setMatches] = useState<{ index: number; count: number } | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
   // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
   // (드래그 매 프레임 전역 상태를 흔들지 않기 위해).
@@ -194,16 +213,40 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const focusedHandles = () =>
     activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined;
 
+  /** 셸이 알려온 제목으로 탭 이름을 갱신 — 사용자가 직접 지은 이름은 보존. */
+  const applyShellTitle = (tabId: string, title: string) => {
+    const label = shellTitleToTabLabel(title);
+    if (!label) return;
+    setState((prev) => ({
+      ...prev,
+      terminalTabs: prev.terminalTabs.map((t) =>
+        t.id === tabId && canAutoRename(t.label) && t.label !== label ? { ...t, label } : t,
+      ),
+    }));
+  };
+
   const openSearch = () => setSearchOpen(true);
   const closeSearch = () => {
     setSearchOpen(false);
+    setMatches(null);
+    focusedHandles()?.search.clearDecorations();
     focusedHandles()?.term.focus();
   };
+  // 하이라이트 색은 테마 토큰에서 매번 새로 읽는다 (테마 전환 즉시 반영).
+  const searchOptions = () => ({ decorations: readSearchDecorations() });
   const runSearch = (dirn: "next" | "prev") => {
     const h = focusedHandles();
     if (!h || !query) return;
-    if (dirn === "next") h.search.findNext(query);
-    else h.search.findPrevious(query);
+    if (dirn === "next") h.search.findNext(query, searchOptions());
+    else h.search.findPrevious(query, searchOptions());
+  };
+
+  /** ⌘K — 스크롤백을 비우고 현재 줄만 남긴다 (Terminal.app 과 동일). */
+  const clearScreen = () => {
+    const h = focusedHandles();
+    if (!h) return;
+    h.term.clear();
+    h.term.focus();
   };
 
   // 화면-로컬 단축키 — 핸들러는 ref 로 항상 최신을 읽고 리스너는 1회 등록.
@@ -213,6 +256,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     splitFocused,
     openSearch,
     closeSearch,
+    clearScreen,
     fontDelta,
     fontReset,
     searchOpen,
@@ -223,6 +267,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     splitFocused,
     openSearch,
     closeSearch,
+    clearScreen,
     fontDelta,
     fontReset,
     searchOpen,
@@ -247,14 +292,23 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
         } else if (k === "f" && !e.shiftKey) {
           e.preventDefault();
           a.openSearch();
+        } else if (k === "l" && !e.shiftKey) {
+          // ⌘K 는 전역 커맨드 팔레트가 선점하므로(useGlobalShortcuts) ⌘L 을 쓴다.
+          // 셸 자체의 Ctrl+L 은 그대로 PTY 로 흘러가 함께 동작한다.
+          e.preventDefault();
+          e.stopPropagation();
+          a.clearScreen();
         } else if (e.key === "=" || e.key === "+") {
           e.preventDefault();
           a.fontDelta(1);
         } else if (e.key === "-") {
           e.preventDefault();
           a.fontDelta(-1);
-        } else if (e.key === "0") {
+        } else if (e.shiftKey && (e.key === "0" || e.key === ")")) {
+          // ⌘0 은 전역 화면 이동(navRegistry 10번째)이 함께 잡아가 눌렀을 때
+          // 글자 크기 초기화 + 화면 전환이 동시에 일어났다 → ⇧⌘0 으로 옮긴다.
           e.preventDefault();
+          e.stopPropagation();
           a.fontReset();
         }
       } else if (e.key === "Escape" && a.searchOpen) {
@@ -315,8 +369,16 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             fontSize={fontSize}
             persistent
             autoFocus={node.sid === focusSid}
-            onReady={(h) => regRef.current.set(node.sid, h)}
+            onReady={(h) => {
+              regRef.current.set(node.sid, h);
+              // 결과 수는 포커스된 페인의 것만 표시한다 (검색은 항상 포커스 페인 대상).
+              h.search.onDidChangeResults((e) => {
+                if (regRef.current.get(node.sid) !== h) return;
+                setMatches({ index: e.resultIndex, count: e.resultCount });
+              });
+            }}
             onFocusIn={() => focusPane(tab.id, node.sid)}
+            onTitleChange={(title) => applyShellTitle(tab.id, title)}
           />
           {count > 1 ? (
             <button
@@ -461,9 +523,15 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
                 autoFocus
                 value={query}
                 onChange={(e) => {
-                  setQuery(e.target.value);
+                  const next = e.target.value;
+                  setQuery(next);
                   const h = focusedHandles();
-                  if (h && e.target.value) h.search.findNext(e.target.value, { incremental: true });
+                  if (!h) return;
+                  if (next) h.search.findNext(next, { incremental: true, ...searchOptions() });
+                  else {
+                    h.search.clearDecorations();
+                    setMatches(null);
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") runSearch(e.shiftKey ? "prev" : "next");
@@ -472,6 +540,12 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
                 placeholder="스크롤백 검색…"
                 aria-label="터미널 검색"
               />
+              <span
+                className={"ts-count" + (query && matches?.count === 0 ? " empty" : "")}
+                aria-live="polite"
+              >
+                {formatMatchCount(query, matches)}
+              </span>
               <button type="button" className="ts-btn" onClick={() => runSearch("prev")} title="이전 (⇧Enter)">
                 ↑
               </button>
@@ -491,7 +565,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             {activeTab?.label ?? "—"}
             {paneCount > 1 ? ` · 페인 ${paneCount}` : ""}
           </span>
-          <span className="ts-hint">⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘W 닫기</span>
+          <span className="ts-hint">⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘L 지우기 · ⌘W 닫기</span>
           <span style={{ flex: 1 }} />
           <span className="ts-seg">
             <button type="button" className="ts-btn" onClick={() => fontDelta(-1)} aria-label="글자 작게 (⌘-)">

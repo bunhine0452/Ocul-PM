@@ -77,6 +77,26 @@
   --font: "SUITE", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
           "Helvetica Neue", "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
+
+  /* 내장 터미널 팔레트 (2026-07-30) — 예전엔 xterm 테마가 TS 상수로 박힌 다크
+     한 벌이라 라이트/프리셋 테마에서 터미널만 따로 놀았다. 이제 표면·커서·선택은
+     테마 토큰을 그대로 물려받고, ANSI 16색만 라이트/다크 가족별로 정의한다.
+     termTheme.ts 가 이 변수들을 읽어 xterm ITheme 을 만든다 (SSOT = CSS). */
+  --term-bg: var(--bg-content);
+  --term-fg: var(--text);
+  --term-cursor: var(--accent);
+  --term-cursor-accent: var(--bg-content);
+  --term-selection: var(--accent-ring);
+  --term-chrome: var(--bg-sidebar);
+  /* 라이트 가족 ANSI — 밝은 배경에서 대비가 서는 톤 */
+  --term-black: #2f3336;         --term-bright-black: #7b8085;
+  --term-red: #c5322b;           --term-bright-red: #e0524b;
+  --term-green: #1a7f4b;         --term-bright-green: #22a163;
+  --term-yellow: #a16207;        --term-bright-yellow: #c2820c;
+  --term-blue: #1f62c4;          --term-bright-blue: #2f79e0;
+  --term-magenta: #8b3fbe;       --term-bright-magenta: #a75ad8;
+  --term-cyan: #0e7490;          --term-bright-cyan: #128fa8;
+  --term-white: #5c6165;         --term-bright-white: #1b1e20;
 }
 
 [data-theme="dark"] {
@@ -120,6 +140,16 @@
   --shadow-pop: 0 0 0 1px rgba(255,255,255,0.06), 0 6px 14px rgba(0,0,0,0.42), 0 22px 52px rgba(0,0,0,0.56);
   --shadow-sheet: 0 0 0 1px rgba(255,255,255,0.045), 0 12px 36px rgba(0,0,0,0.45);
   --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.4);
+
+  /* 다크 가족 ANSI — 2026-07-20 개편 때 쓰던 TERM_THEME 값 그대로 승계. */
+  --term-black: #1b201e;         --term-bright-black: #6e7670;
+  --term-red: #f1685f;           --term-bright-red: #ff8079;
+  --term-green: #34d095;         --term-bright-green: #4fdca0;
+  --term-yellow: #e6c570;        --term-bright-yellow: #f2d98a;
+  --term-blue: #6ea8fe;          --term-bright-blue: #8fc0ff;
+  --term-magenta: #c79bf0;       --term-bright-magenta: #d9b6f7;
+  --term-cyan: #5fd5d0;          --term-bright-cyan: #86e6e1;
+  --term-white: #d4d4d8;         --term-bright-white: #f4f4f6;
 }
 
 /* ============================================================
