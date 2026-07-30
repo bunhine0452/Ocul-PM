@@ -170,6 +170,7 @@ mod tests {
     #[test]
     fn tools_list_and_full_journal_flow_over_protocol() {
         let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
         let s = server(dir.path());
         let resp = call(&s, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#);
         let names: Vec<&str> = resp["result"]["tools"]
@@ -207,6 +208,7 @@ mod tests {
     #[test]
     fn tool_failure_is_is_error_not_rpc_error_and_unknowns_are_rpc_errors() {
         let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
         let s = server(dir.path());
         let resp = call(
             &s,

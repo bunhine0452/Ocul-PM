@@ -101,6 +101,32 @@ pub fn tool_definitions() -> Value {
 }
 
 pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String> {
+    // A0b — 비추적 프로젝트 가드. user 스코프 플러그인 배포에서는 이 서버가
+    // 모든 프로젝트에 노출되므로, `.oculpm/` 이 없는 곳에서는 어떤 도구도
+    // 동작하지 않는다 — 특히 사용자 동의 없는 조용한 디렉터리 생성 금지.
+    // symlink_metadata: 링크를 따라가지 않는다 — 악의적 저장소가 `.oculpm` 을
+    // 외부 경로로 심볼릭 링크해 두면 가드를 통과한 쓰기가 프로젝트 밖으로
+    // 탈출하므로, 실디렉터리만 인정한다.
+    let oculpm_meta = std::fs::symlink_metadata(root.join(".oculpm"));
+    let is_real_dir = oculpm_meta.as_ref().map(|m| m.file_type().is_dir()).unwrap_or(false);
+    if !is_real_dir {
+        let is_symlink =
+            oculpm_meta.map(|m| m.file_type().is_symlink()).unwrap_or(false);
+        return Err(if is_symlink {
+            format!(
+                "{} 의 .oculpm 이 심볼릭 링크입니다 — 안전상 링크된 .oculpm 에는 \
+                 기록하지 않습니다 (실제 디렉터리만 지원).",
+                root.display()
+            )
+        } else {
+            format!(
+                "이 프로젝트는 ocul-pm 추적 대상이 아닙니다 — {} 에 .oculpm/ 이 없습니다. \
+                 ocul-pm 앱에서 이 폴더를 프로젝트로 추가한 뒤 다시 시도하세요 \
+                 (이 도구는 .oculpm/ 을 임의로 생성하지 않습니다).",
+                root.display()
+            )
+        });
+    }
     match name {
         "journal_write" => journal_write(root, args),
         "plan_status" => plan_status(root, args),
@@ -562,10 +588,56 @@ mod tests {
         .unwrap();
     }
 
+    /// A0b — 비추적 프로젝트 가드: `.oculpm/` 없는 루트에서는 세 도구 모두
+    /// 명시적 에러를 내고 아무것도 만들지 않는다 (user 스코프 플러그인 배포의
+    /// 폭발 반경 차단 — 조용한 create_dir_all 금지 계약).
+    #[test]
+    fn tools_refuse_untracked_project_and_create_nothing() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        for (tool, args) in [
+            (
+                "journal_write",
+                serde_json::json!({ "type": "chore", "slug": "x", "title": "t", "body_markdown": "b" }),
+            ),
+            ("plan_status", serde_json::json!({})),
+            (
+                "plan_update",
+                serde_json::json!({ "plan_id": "p", "item_id": "i", "status": "done" }),
+            ),
+        ] {
+            let err = call_tool(root, tool, &args).unwrap_err();
+            assert!(err.contains("추적 대상이 아닙니다"), "{tool}: {err}");
+        }
+        assert!(!root.join(".oculpm").exists(), ".oculpm 이 생기면 안 된다");
+    }
+
+    /// A0b — `.oculpm` 이 심볼릭 링크면 가드가 거부하고 링크 대상에 아무것도
+    /// 쓰지 않는다 (악의적 저장소의 프로젝트 밖 쓰기 탈출 차단).
+    #[cfg(unix)]
+    #[test]
+    fn tools_refuse_symlinked_oculpm() {
+        let dir = TempDir::new().unwrap();
+        let target = TempDir::new().unwrap();
+        std::os::unix::fs::symlink(target.path(), dir.path().join(".oculpm")).unwrap();
+
+        let args = serde_json::json!({
+            "type": "chore", "slug": "x", "title": "t", "body_markdown": "b"
+        });
+        let err = call_tool(dir.path(), "journal_write", &args).unwrap_err();
+        assert!(err.contains("심볼릭 링크"), "{err}");
+        assert_eq!(
+            std::fs::read_dir(target.path()).unwrap().count(),
+            0,
+            "링크 대상 디렉터리는 비어 있어야 한다"
+        );
+    }
+
     #[test]
     fn journal_write_produces_spec_valid_entry() {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
         let args = serde_json::json!({
             "type": "bug",
             "slug": "Fix Cache!!",
@@ -864,6 +936,7 @@ mod tests {
     #[test]
     fn unknown_tool_and_missing_args_error_cleanly() {
         let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
         assert!(call_tool(dir.path(), "nope", &serde_json::json!({})).is_err());
         let err = call_tool(dir.path(), "journal_write", &serde_json::json!({})).unwrap_err();
         assert!(err.contains("'type'"));
