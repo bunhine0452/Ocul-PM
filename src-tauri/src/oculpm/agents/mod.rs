@@ -688,6 +688,52 @@ mod tests {
         );
     }
 
+    /// An `@path` import inside an adapter file resolves **relative to the file
+    /// that contains it**, not to the project root — that is what the Claude
+    /// Code memory docs specify. So an adapter written into a subdirectory must
+    /// import `@../AGENTS.md`; a bare `@AGENTS.md` there points at e.g.
+    /// `.claude/AGENTS.md`, which does not exist, and the import silently
+    /// expands to nothing.
+    ///
+    /// That was the live bug (found 2026-07-30): `.claude/CLAUDE.md` shipped a
+    /// bare `@AGENTS.md`, so Claude Code received only the ~565-byte stub and
+    /// never the rules. It fails in the worst possible direction — silently,
+    /// with the agent simply not knowing journals exist.
+    #[test]
+    fn adapter_agents_imports_resolve_to_the_root_agents_md() {
+        for adapter in known_adapters() {
+            let ctx = AgentContext {
+                master_template: MASTER_KO.to_string(),
+                per_agent_override: None,
+            };
+            let rendered = (adapter.render)(&ctx);
+            let dir = Path::new(adapter.adapter_path)
+                .parent()
+                .unwrap_or(Path::new(""));
+            let depth = dir.components().count();
+            let expected = if depth == 0 {
+                "AGENTS.md".to_string()
+            } else {
+                format!("{}AGENTS.md", "../".repeat(depth))
+            };
+
+            for line in rendered.lines() {
+                let Some(import) = line.trim().strip_prefix('@') else {
+                    continue;
+                };
+                if !import.ends_with("AGENTS.md") {
+                    continue;
+                }
+                assert_eq!(
+                    import, expected,
+                    "adapter '{}' at '{}' imports '{import}' — from that directory it must be \
+                     '{expected}' to reach the root AGENTS.md",
+                    adapter.id, adapter.adapter_path
+                );
+            }
+        }
+    }
+
     #[test]
     fn template_version_parses_marker_and_defaults_to_one() {
         assert_eq!(template_version("<!-- template_version: 5 -->\n# x"), 5);
