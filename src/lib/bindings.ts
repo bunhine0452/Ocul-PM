@@ -831,6 +831,14 @@ export const commands = {
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
 	mcpDesktopStatus: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_status", { projectId })),
+	/**
+	 *  `~/.claude/plugins/**` 를 얕게 훑어 oculpm 플러그인 설치 여부를 본다.
+	 *  설치 레이아웃(마켓플레이스 캐시 구조)이 CLI 버전에 따라 다를 수 있어
+	 *  "이름이 oculpm 인 `.claude-plugin/plugin.json`" 을 깊이 6·항목 2,000개
+	 *  상한으로 탐색한다 — 설정 화면의 택일 안내(훅·MCP 이중 등록 방지)용이라
+	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
+	 */
+	claudePluginStatus: () => __TAURI_INVOKE<ClaudePluginStatus>("claude_plugin_status"),
 	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
 	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
 	/**  토큰/부모 페이지 설정 상태 (네트워크 없음). */
@@ -1047,6 +1055,12 @@ export type ClaudeHooksStatus = {
 	 *  정밀도가 무의미하다.
 	 */
 	inbox_bytes: number,
+};
+
+export type ClaudePluginStatus = {
+	installed: boolean,
+	/**  발견된 플러그인 디렉터리 (installed=true 일 때). */
+	path: string | null,
 };
 
 export type CliCheckResult = {

@@ -138,3 +138,24 @@ fn shuttle_script_is_executable_and_stderr_only() {
     assert!(script.starts_with("#!/bin/sh"), "POSIX sh — bash 의존 금지");
     assert!(script.contains(">&2"), "안내는 stderr 로 (stdout 은 MCP 프로토콜 전용)");
 }
+
+/// A3 — 레포 루트 마켓플레이스: `/plugin marketplace add bunhine0452/Ocul-PM`
+/// 의 진입점. source 는 서브디렉터리 상대경로(git-source add 에서만 동작 —
+/// 직접 URL add 는 상대경로를 못 푼다), 버전은 plugin.json 과 동기.
+#[test]
+fn marketplace_points_at_plugin_and_stays_version_synced() {
+    let mkt_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.claude-plugin/marketplace.json");
+    let mkt: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&mkt_path).expect("marketplace.json"))
+            .expect("marketplace.json 파싱");
+    assert_eq!(mkt["name"], "oculpm");
+    let plugins = mkt["plugins"].as_array().expect("plugins 배열");
+    assert_eq!(plugins.len(), 1, "플러그인은 1개 — 표면 극소화 원칙");
+    assert_eq!(plugins[0]["source"], "./plugin/oculpm");
+    let manifest = read_json(".claude-plugin/plugin.json");
+    assert_eq!(
+        plugins[0]["version"], manifest["version"],
+        "marketplace 버전은 plugin.json 과 동기 (build-sidecar 가 스탬프)"
+    );
+}
+

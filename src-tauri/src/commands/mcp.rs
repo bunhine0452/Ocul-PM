@@ -86,3 +86,69 @@ pub async fn mcp_desktop_unregister(
     let root = project_root(&db, project_id).await?;
     register::desktop_unregister_at(&desktop_config_path()?, &root).map_err(|e| e.to_string())
 }
+
+// ─── A3 — Claude Code 플러그인 설치 감지 ─────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ClaudePluginStatus {
+    pub installed: bool,
+    /// 발견된 플러그인 디렉터리 (installed=true 일 때).
+    pub path: Option<String>,
+}
+
+/// `~/.claude/plugins/**` 를 얕게 훑어 oculpm 플러그인 설치 여부를 본다.
+/// 설치 레이아웃(마켓플레이스 캐시 구조)이 CLI 버전에 따라 다를 수 있어
+/// "이름이 oculpm 인 `.claude-plugin/plugin.json`" 을 깊이 6·항목 2,000개
+/// 상한으로 탐색한다 — 설정 화면의 택일 안내(훅·MCP 이중 등록 방지)용이라
+/// 놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
+#[tauri::command]
+#[specta::specta]
+pub fn claude_plugin_status() -> ClaudePluginStatus {
+    let none = ClaudePluginStatus { installed: false, path: None };
+    let Some(base) = directories::BaseDirs::new().map(|b| b.home_dir().join(".claude").join("plugins"))
+    else {
+        return none;
+    };
+    if !base.is_dir() {
+        return none;
+    }
+    let mut budget = 2_000usize;
+    match find_oculpm_plugin(&base, 6, &mut budget) {
+        Some(dir) => ClaudePluginStatus { installed: true, path: Some(dir.display().to_string()) },
+        None => none,
+    }
+}
+
+fn find_oculpm_plugin(dir: &std::path::Path, depth: u8, budget: &mut usize) -> Option<std::path::PathBuf> {
+    if depth == 0 || *budget == 0 {
+        return None;
+    }
+    let manifest = dir.join(".claude-plugin").join("plugin.json");
+    if manifest.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&manifest) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                if v.get("name").and_then(|n| n.as_str()) == Some("oculpm") {
+                    return Some(dir.to_path_buf());
+                }
+            }
+        }
+        // 다른 플러그인의 루트 — 그 아래로 더 내려갈 이유가 없다.
+        return None;
+    }
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        if *budget == 0 {
+            return None;
+        }
+        *budget -= 1;
+        let path = entry.path();
+        let is_dir = entry.file_type().map(|t| t.is_dir() && !t.is_symlink()).unwrap_or(false);
+        if is_dir {
+            if let Some(hit) = find_oculpm_plugin(&path, depth - 1, budget) {
+                return Some(hit);
+            }
+        }
+    }
+    None
+}
+

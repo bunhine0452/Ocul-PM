@@ -830,6 +830,9 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
   const [deskError, setDeskError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // A3 — Claude Code 플러그인 설치 감지 (훅·MCP 이중 등록 방지 택일 안내).
+  const [plugin, setPlugin] = useState<{ installed: boolean; path: string | null } | null>(null);
+  const [pluginCopied, setPluginCopied] = useState(false);
 
   const refresh = useCallback(() => {
     void commands.mcpStatus(projectId).then((res) => {
@@ -852,7 +855,18 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
 
   useEffect(() => {
     refresh();
+    void commands.claudePluginStatus().then(setPlugin);
   }, [refresh]);
+
+  const copyPluginInstall = async () => {
+    try {
+      await navigator.clipboard.writeText("/plugin marketplace add bunhine0452/Ocul-PM");
+      setPluginCopied(true);
+      setTimeout(() => setPluginCopied(false), 2000);
+    } catch {
+      toast.warning("클립보드 복사 실패 — 명령을 직접 입력하세요");
+    }
+  };
 
   const mutate = async (action: "register" | "unregister") => {
     setBusy(true);
@@ -931,6 +945,37 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
 
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Claude Code 플러그인 (훅 + MCP + 스킬 한 번에)
+        </Label>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] ${
+            plugin?.installed
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+              : "border-border bg-muted/30 text-muted-foreground"
+          }`}
+        >
+          {plugin == null ? "확인 중…" : plugin.installed ? "설치됨" : "미설치"}
+        </span>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" onClick={() => void copyPluginInstall()}>
+            {pluginCopied ? "복사됨" : "설치 명령 복사"}
+          </Button>
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Claude Code 에서 <code className="text-[10px]">/plugin marketplace add bunhine0452/Ocul-PM</code> 후{" "}
+        <code className="text-[10px]">/plugin install oculpm@oculpm</code> — 훅 브리지·MCP·스킬 5종이
+        전 프로젝트에 한 번에 구성됩니다 (.oculpm 추적 프로젝트에서만 동작).
+      </p>
+      {plugin?.installed ? (
+        <p className="text-[11px] text-amber-400">
+          플러그인이 이미 훅과 MCP 를 제공합니다 — 아래 프로젝트별 훅 토글·MCP 등록을 함께 켜면
+          이벤트가 이중 적재되고 도구가 2벌 노출됩니다. 플러그인 하나만 쓰는 것을 권장해요.
+        </p>
+      ) : null}
+      <div className="my-2 border-t border-border/60" />
       <div className="flex flex-wrap items-center gap-2">
         <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
           MCP 서버 (journal_write · plan_status · plan_update)

@@ -27,6 +27,13 @@ if (pluginJson.version !== appVersion) {
   writeFileSync(pluginJsonPath, `${JSON.stringify(pluginJson, null, 2)}\n`);
   console.log(`build-sidecar: plugin.json version → ${appVersion}`);
 }
+const marketplacePath = join(repoRoot, ".claude-plugin", "marketplace.json");
+const marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
+if (marketplace.plugins?.[0] && marketplace.plugins[0].version !== appVersion) {
+  marketplace.plugins[0].version = appVersion;
+  writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`);
+  console.log(`build-sidecar: marketplace.json version → ${appVersion}`);
+}
 
 const rustInfo = execSync("rustc -vV").toString();
 const triple = /host: (\S+)/.exec(rustInfo)?.[1];

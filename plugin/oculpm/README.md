@@ -26,7 +26,16 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 claude --plugin-dir /path/to/ai-pm/plugin/oculpm
 ```
 
-마켓플레이스 설치(레포 루트 `.claude-plugin/marketplace.json`)는 A3 에서 공개 예정입니다.
+마켓플레이스 (권장):
+
+```bash
+/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm
+```
+
+> git-source 로 add 하세요 — marketplace.json 을 직접 URL 로 add 하면 서브디렉터리
+> 상대경로(source)를 해석하지 못합니다. 이 플러그인이 읽고 쓰는 것의 전체 계약은
+> [docs/claude-integration/06-plugin-contract.md](../../docs/claude-integration/06-plugin-contract.md) 참조.
 
 ## 바이너리 탐색 (bin/oculpm-mcp 셔틀)
 
