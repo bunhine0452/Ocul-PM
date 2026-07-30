@@ -19,7 +19,7 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 - [x] PR-CI0 훅 브리지 — payload 실측 스파이크, settings.local.json 설치/드리프트, .oculpm/hooks 인박스+watcher 라우팅, SessionActor 정밀 신호 {#ci0-hook-bridge}
 - [x] PR-CI0 실기기 확인 — 실앱에서 훅 켜기→실세션 1회: 인박스 3건·앱 소비·세션 1개(agent_label=claude-code, ended=agent_exit)·사용자 permissions 보존 확인 {#ci0-runtime-verify}
 - [x] PR-CI1 transcript 일지 초안 — 방어적 파싱, 옵인 LLM 초안→redact→규격 일지, 자필 일지 중복 스킵 {#ci1-transcript-draft}
-- [ ] PR-CI1 실기기 확인 — auto_journal_draft 켠 실세션 종료 → 초안 일지 생성(자필 일지 있으면 미생성) 확인 {#ci1-runtime-verify}
+- [x] PR-CI1 실기기 확인 — auto_journal_draft 켠 실세션 종료 → 초안 일지 생성(자필 일지 있으면 미생성) 확인 {#ci1-runtime-verify}
 - [x] PR-CI2 oculpm-mcp v1 — journal_write/plan_status/plan_update stdio 서버, .mcp.json+Desktop 스니펫 등록, 템플릿 v5 {#ci2-mcp-server}
 - [~] PR-CI2 실기기 확인 — 앱 UI 등록→실세션 plan_status 호출 성공(라이브 플랜 응답). Claude Desktop 실연결만 잔여 {#ci2-runtime-verify}
 - [x] PR-CI2 후속 — .app 번들에 oculpm-mcp sidecar(externalBin) 동봉, 릴리스 빌드에서 검증 {#ci2-sidecar-bundle}
@@ -72,4 +72,6 @@ docs/claude-integration/00-master-plan.md — 결정(D1~D6)·수용 기준은 �
 | 2026-07-20T21:24:32+09:00 | #ci2-sidecar-bundle | claude-code | ☐→x | .oculpm/journal/20260720/Chores/2124_chore_release-v2-2-0-sidecar-and-promo.md | externalBin+build-sidecar.mjs+build.rs 플레이스홀더(순환 해소). CI 동일조건 로컬 번들에서 .app 동봉·--version 실검증. v2.2.0 태그로 릴리스 가동 |
 | 2026-07-31T00:58:14+09:00 | #review-fixes-round2 | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/0058_bug_review-fixes-round2-cleared.md | plugin-round A0c 로 이관 청산 — 5건 전부 수정, 상세는 그 플랜/일지 참조 |
 | 2026-07-31T00:58:23+09:00 | #managed-block-versioning | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0035_feature_managed-block-version-guard.md | plugin-round A0a 로 해결 — 다운그레이드 가드+union 병합 (구버전 downgrade 차단은 forward-only) |
+| 2026-07-30T19:51:04.222929+00:00 | #ci1-runtime-verify | user | ☐→~ |  |  |
+| 2026-07-30T19:51:06.007905+00:00 | #ci1-runtime-verify | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->
