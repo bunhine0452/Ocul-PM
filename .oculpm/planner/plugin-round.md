@@ -76,4 +76,5 @@ owner: claude-code
 | 2026-07-31T04:44:34+09:00 | #notion-oauth | claude-code | ☐→~ | .oculpm/journal/20260731/Features_to_add/0444_feature_notion-oauth-account-connect.md | 앱 루프백+서버리스 교환+설정 버튼 구현 완료. 잔여 = Notion public integration 등록·Vercel env·배포(사용자) |
 | 2026-07-31T05:03:19+09:00 | #in0-inception-skill | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/0502_feature_inception-interview-web-research.md | v2 업그레이드 — 인터뷰(1차)→웹 리서치(2차) 2단 구체화, 갤러리 패리티 유지 |
 | 2026-07-31T05:03:27+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Chores/0503_chore_landing-v2-5-0-redesign.md | 홍보 표면 갱신 — README 한/영 v2.5.0+설치 안내, 랜딩 리뉴얼(시작하기 2경로). 잔여: 커뮤니티 제출·런치 포스트 |
+| 2026-07-31T05:15:54+09:00 | #notion-oauth | claude-code | ~→~ | .oculpm/journal/20260731/Chores/0515_chore_release-v2-5-1.md | v2.5.1 로 출시 — 잔여: Notion 공개 통합 등록 + Vercel env 설정 후 실기기 E2E 확인 |
 <!-- oculpm:plan-log end -->
