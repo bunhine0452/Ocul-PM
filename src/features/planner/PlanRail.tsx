@@ -169,7 +169,7 @@ export function PlanRail({
           const open = isOpen(sec.key, sec.defaultOpen);
           const flat = !showSections && sec.key === "all";
           return (
-            <div key={sec.key}>
+            <div key={sec.key} className="pln-sec">
               {flat ? null : (
                 <button
                   type="button"

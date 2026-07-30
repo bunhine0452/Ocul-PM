@@ -496,18 +496,26 @@
 .pln-rail-list { display: flex; flex-direction: column; gap: 2px; }
 .pln-rail-empty { padding: 12px 10px; font-size: 12px; color: var(--text-3); }
 
-.pln-sec-head {
-  display: flex; align-items: center; gap: 5px; width: 100%;
-  padding: 14px 10px 5px; background: none; border: none; cursor: pointer;
-  font-family: var(--font); font-size: 10.5px; font-weight: 650;
-  letter-spacing: 0.06em; color: var(--text-3);
+/* 섹션은 이 목록의 뼈대다. 헤더만 조용히 얹으면 '진행 중' 과 '완료' 의 행들이
+   한 덩어리로 흘러 어디가 어딘지 안 보인다. 구분선 + 여백으로 물리적으로 끊고,
+   스크롤 중에도 헤더를 고정해 지금 보고 있는 묶음이 항상 보이게 한다. */
+.pln-sec + .pln-sec {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sep-strong);
 }
-.pln-sec-head:first-child { padding-top: 2px; }
-.pln-sec-head:hover { color: var(--text-2); }
-.pln-sec-head svg { opacity: 0.6; }
+.pln-sec-head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  padding: 4px 10px 6px; background: var(--bg-content); border: none; cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.05em; color: var(--text-2);
+}
+.pln-sec-head:hover { color: var(--text); }
+.pln-sec-head svg { opacity: 0.75; }
+/* 개수는 칩으로 — 오른쪽 끝에 무게를 줘 섹션의 시작을 한 번 더 표시한다. */
 .pln-sec-count {
-  margin-left: auto; font-variant-numeric: tabular-nums;
-  font-weight: 550; opacity: 0.8;
+  margin-left: auto; padding: 1px 6px; border-radius: 999px;
+  background: var(--bg-inset); color: var(--text-3);
+  font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
 
 /* 선택 표시는 왼쪽 세로 막대가 아니라 **면(面)** 으로 한다. 액센트 바는
