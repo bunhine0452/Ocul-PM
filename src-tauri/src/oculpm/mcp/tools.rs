@@ -96,6 +96,43 @@ pub fn tool_definitions() -> Value {
                 },
                 "required": ["plan_id", "item_id", "status"]
             }
+        },
+        {
+            "name": "plan_create",
+            "description": "새 플랜 파일(.oculpm/planner/<plan_id>.md)을 규격대로 생성한다. 사용자가 새 계획 수립을 승인/요청했고 기존 활성 플랜에 넣을 자리가 없을 때 호출. frontmatter·phase 헤딩·항목 {#id}·plan-log 블록은 서버가 보장 — 파일을 직접 만들지 말 것.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "영문 kebab-case ≤40자 — 파일명이자 frontmatter id" },
+                    "title": { "type": "string", "description": "사람이 읽는 제목 (한국어 권장)" },
+                    "description": { "type": "string", "description": "선택 — 제목 아래 소개 1~2문장" },
+                    "phases": {
+                        "type": "array",
+                        "description": "1개 이상 — 각각 '## 제목 {#id}' 헤딩이 된다. phase 진척은 하위 항목 롤업으로 자동 계산",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": { "type": "string" },
+                                "id": { "type": "string", "description": "kebab id (생략 시 p1, p2…)" },
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "text": { "type": "string", "description": "항목 한 줄 (줄바꿈 금지 — 전부 [ ] 할일로 생성됨)" },
+                                            "id": { "type": "string", "description": "안정적 kebab id (생략 시 텍스트에서 유도, 한글뿐이면 p<n>-<m>)" }
+                                        },
+                                        "required": ["text"]
+                                    }
+                                }
+                            },
+                            "required": ["title"]
+                        }
+                    },
+                    "agent_id": { "type": "string", "description": "기본 claude-code — frontmatter owner" }
+                },
+                "required": ["plan_id", "title", "phases"]
+            }
         }
     ])
 }
@@ -131,6 +168,7 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
         "journal_write" => journal_write(root, args),
         "plan_status" => plan_status(root, args),
         "plan_update" => plan_update(root, args),
+        "plan_create" => plan_create(root, args),
         other => Err(format!("unknown tool: {other}")),
     }
 }
@@ -575,6 +613,165 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     }))
 }
 
+// ─── plan_create ─────────────────────────────────────────────────────────────
+
+/// 플랜 규모 상한 — 한 호출로 거대 계획을 욱여넣는 것 방지 (TK0).
+const MAX_PLAN_PHASES: usize = 20;
+const MAX_PLAN_ITEMS: usize = 120;
+
+/// frontmatter/{#id} 에 쓰는 kebab 검증 — sanitize 가 아니라 거부 (id 는
+/// 에이전트가 안정적으로 재참조해야 하므로 조용한 변형이 더 위험하다).
+fn valid_kebab(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 40
+        && !s.starts_with('-')
+        && !s.ends_with('-')
+        && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// used 에 없는 id 를 확보한다 (충돌 시 -2, -3 … 접미).
+fn claim_unique_id(used: &mut std::collections::HashSet<String>, base: String) -> String {
+    if used.insert(base.clone()) {
+        return base;
+    }
+    let mut n = 2usize;
+    loop {
+        let cand = format!("{base}-{n}");
+        if used.insert(cand.clone()) {
+            return cand;
+        }
+        n += 1;
+    }
+}
+
+/// TK0 — 새 plan 파일 생성. §7 의 "새 plan 템플릿" 을 서버가 규격대로 조립해
+/// frontmatter 누락(title 경고)·{#id} 줄바꿈 파손 같은 자기신고 오류를 원천
+/// 차단한다. 슬림 템플릿(TK1)이 §7 생성 규격을 들어낼 수 있는 전제 조건.
+fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
+    let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
+    if !valid_kebab(plan_id) {
+        return Err(format!("plan_id '{plan_id}' 는 영문 kebab-case ≤40자여야 합니다"));
+    }
+    let agent_id = arg_str(args, "agent_id").unwrap_or("claude-code");
+    if !agent_id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.')) {
+        return Err(format!("agent_id '{agent_id}' 에 허용되지 않는 문자"));
+    }
+    let phases_in = args.get("phases").and_then(Value::as_array).ok_or("'phases' is required")?;
+    if phases_in.is_empty() || phases_in.len() > MAX_PLAN_PHASES {
+        return Err(format!("phases 는 1~{MAX_PLAN_PHASES}개여야 합니다"));
+    }
+
+    let planner_root = planner_dir(root);
+    if planner_root.join(format!("{plan_id}.md")).exists()
+        || find_plan_path(&planner_root, plan_id).is_some()
+    {
+        return Err(format!(
+            "plan '{plan_id}' 이 이미 있습니다 — 갱신은 plan_update, 새 계획이면 다른 id"
+        ));
+    }
+
+    let cfg = load_config(root);
+    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
+    let one_line = |s: &str| redact_text(s, &patterns).0.replace(['\n', '\r'], " ").trim().to_string();
+    let title = one_line(arg_str(args, "title").ok_or("'title' is required")?);
+
+    let mut used_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let empty: Vec<Value> = Vec::new();
+    let mut body = String::new();
+    let mut item_count = 0usize;
+    for (pi, phase) in phases_in.iter().enumerate() {
+        let ptitle_raw = phase
+            .get("title")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| format!("phases[{pi}].title is required"))?;
+        let pid = match phase.get("id").and_then(Value::as_str).map(str::trim) {
+            Some(s) if !s.is_empty() => {
+                if !valid_kebab(s) {
+                    return Err(format!("phase id '{s}' 는 kebab-case 여야 합니다"));
+                }
+                claim_unique_id(&mut used_ids, s.to_string())
+            }
+            _ => claim_unique_id(&mut used_ids, format!("p{}", pi + 1)),
+        };
+        body.push_str(&format!("\n## {} {{#{pid}}}\n", one_line(ptitle_raw)));
+
+        let items = phase.get("items").and_then(Value::as_array).unwrap_or(&empty);
+        for (ii, item) in items.iter().enumerate() {
+            item_count += 1;
+            if item_count > MAX_PLAN_ITEMS {
+                return Err(format!("항목이 너무 많습니다 (상한 {MAX_PLAN_ITEMS})"));
+            }
+            let text_raw = item
+                .get("text")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!("phases[{pi}].items[{ii}].text is required"))?;
+            let text = one_line(text_raw);
+            let iid = match item.get("id").and_then(Value::as_str).map(str::trim) {
+                Some(s) if !s.is_empty() => {
+                    if !valid_kebab(s) {
+                        return Err(format!("item id '{s}' 는 kebab-case 여야 합니다"));
+                    }
+                    claim_unique_id(&mut used_ids, s.to_string())
+                }
+                _ => {
+                    // 텍스트에서 유도 — 한글뿐이면 빈 slug 가 되므로 위치 기반 폴백.
+                    let derived = sanitize_slug(&text)
+                        .ok()
+                        .map(|s| s.chars().take(40).collect::<String>())
+                        .map(|s| s.trim_end_matches('-').to_string())
+                        .filter(|s| !s.is_empty());
+                    claim_unique_id(
+                        &mut used_ids,
+                        derived.unwrap_or_else(|| format!("{pid}-{}", ii + 1)),
+                    )
+                }
+            };
+            body.push_str(&format!("- [ ] {text} {{#{iid}}}\n"));
+        }
+    }
+
+    let resolver = resolver_of(&cfg);
+    let today = Utc::now().with_timezone(&resolver.tz).format("%Y-%m-%d");
+    let yaml_title = title.replace('\\', "\\\\").replace('"', "\\\"");
+    let mut md = format!(
+        "---\noculpm_plan: v1\nid: {plan_id}\ntitle: \"{yaml_title}\"\nstatus: active\n\
+         created: {today}\nupdated: {today}\nowner: {agent_id}\n---\n"
+    );
+    if let Some(desc) = arg_str(args, "description") {
+        let desc = redact_text(desc, &patterns).0;
+        md.push_str(&format!("\n{}\n", desc.trim()));
+    }
+    md.push_str(&body);
+    md.push_str(
+        "\n<!-- oculpm:plan-log begin v1 -->\n\
+         | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n\
+         |---|---|---|---|---|---|\n\
+         <!-- oculpm:plan-log end -->\n",
+    );
+
+    // 자기 검증 — 방금 조립한 마크다운이 파서 경고 0 으로 읽혀야 규격 보증이
+    // 말이 된다. 실패는 구현 버그이므로 파일을 쓰지 않고 에러로 노출한다.
+    let parsed = parse_plan(&md, plan_id);
+    if !parsed.warnings.is_empty() {
+        return Err(format!("internal: 생성물이 파서 경고를 냈습니다 — {:?}", parsed.warnings));
+    }
+
+    std::fs::create_dir_all(&planner_root).map_err(|e| format!("mkdir failed: {e}"))?;
+    let path = planner_root.join(format!("{plan_id}.md"));
+    write_atomic(&path, md.as_bytes()).map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "path": format!(".oculpm/planner/{plan_id}.md"),
+        "id": plan_id,
+        "phases": phases_in.len(),
+        "items": item_count,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,6 +804,10 @@ mod tests {
             (
                 "plan_update",
                 serde_json::json!({ "plan_id": "p", "item_id": "i", "status": "done" }),
+            ),
+            (
+                "plan_create",
+                serde_json::json!({ "plan_id": "p", "title": "t", "phases": [{ "title": "Phase 1" }] }),
             ),
         ] {
             let err = call_tool(root, tool, &args).unwrap_err();
@@ -934,6 +1135,62 @@ mod tests {
         let md = std::fs::read_to_string(planner_dir(root).join("test-plan.md")).unwrap();
         assert!(!md.contains("sk-abcdefghijklmnopqrstuvwx"), "시크릿이 plan-log 에 남음");
         assert!(md.contains("[REDACTED]"), "{md}");
+    }
+
+    /// TK0 — plan_create: 생성물이 파서 경고 0 으로 읽히고, plan_status 가
+    /// 같은 와이어에서 즉시 본다. id 규칙(명시/유도/한글 폴백/중복 접미)과
+    /// 재생성 거부까지 한 번에 잠근다.
+    #[test]
+    fn plan_create_produces_parseable_plan_and_status_sees_it() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+
+        let args = serde_json::json!({
+            "plan_id": "token-diet",
+            "title": "토큰 \"다이어트\" 라운드",
+            "description": "템플릿 v6 슬림화 라운드.",
+            "phases": [
+                { "title": "Phase 1 — 도구", "id": "tools", "items": [
+                    { "text": "plan_create MCP 도구", "id": "plan-create" },
+                    { "text": "한글만 있는 항목" },
+                    { "text": "Fix cache invalidation bug" }
+                ]},
+                { "title": "Phase 2 — 템플릿", "items": [
+                    { "text": "둘째 한글 항목" }
+                ]}
+            ]
+        });
+        let out = call_tool(root, "plan_create", &args).unwrap();
+        assert_eq!(out["path"], ".oculpm/planner/token-diet.md");
+        assert_eq!(out["items"], 4);
+
+        let md = std::fs::read_to_string(root.join(".oculpm/planner/token-diet.md")).unwrap();
+        assert!(md.contains("title: \"토큰 \\\"다이어트\\\" 라운드\""), "{md}");
+        assert!(md.contains("## Phase 1 — 도구 {#tools}"), "{md}");
+        assert!(md.contains("- [ ] plan_create MCP 도구 {#plan-create}"), "{md}");
+        assert!(md.contains("{#tools-2}"), "한글 항목은 위치 폴백 id: {md}");
+        assert!(md.contains("{#fix-cache-invalidation-bug}"), "영문은 텍스트 유도 id: {md}");
+        assert!(md.contains("{#p2-1}"), "auto phase id 폴백: {md}");
+        assert!(md.contains("<!-- oculpm:plan-log begin v1 -->"), "{md}");
+
+        // 같은 와이어(plan_status)에서 경고 없이 보인다.
+        let status = call_tool(root, "plan_status", &serde_json::json!({})).unwrap();
+        assert_eq!(status["plans"].as_array().unwrap().len(), 1);
+        assert_eq!(status["total"], 4);
+        assert!(status.get("warnings").is_none(), "{status}");
+
+        // 재생성 거부 + plan_update 로 항목 갱신 가능(왕복).
+        let err = call_tool(root, "plan_create", &args).unwrap_err();
+        assert!(err.contains("이미 있습니다"), "{err}");
+        call_tool(root, "plan_update", &serde_json::json!({
+            "plan_id": "token-diet", "item_id": "plan-create", "status": "done"
+        }))
+        .unwrap();
+
+        // 잘못된 id 는 조용한 변형 대신 거부.
+        let bad = serde_json::json!({ "plan_id": "Bad_ID", "title": "t", "phases": [{ "title": "p" }] });
+        assert!(call_tool(root, "plan_create", &bad).unwrap_err().contains("kebab"));
     }
 
     #[test]

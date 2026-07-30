@@ -26,7 +26,7 @@ owner: claude-code
 - [ ] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
 
 ## Phase B — 토큰 다이어트 {#round-b}
-- [ ] TK0 plan_create MCP 도구 (frontmatter 규격 서버 보장 — §7 슬림화 전제) {#tk0-plan-create}
+- [x] TK0 plan_create MCP 도구 (frontmatter 규격 서버 보장 — §7 슬림화 전제) {#tk0-plan-create}
 - [ ] TK1 템플릿 v6 — claude-code 어댑터 MCP-first 슬림(~600 tok)/비MCP 어댑터 압축(~1,700 tok) 이원화 + en 변형 동시 설계 + §8 discussion on-demand 분리 + .claude/CLAUDE.md import 1줄화 {#tk1-template-v6}
 
 ## Phase C — 플래너를 핸들로 {#round-c}
@@ -62,4 +62,5 @@ owner: claude-code
 | 2026-07-31T00:58:07+09:00 | #a0-review-fixes | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/0058_bug_review-fixes-round2-cleared.md | 5건 전부 수정+테스트 5. 리뷰 2차 Warning(HIGH 0) — 후속 4건은 보이스카웃 백로그 |
 | 2026-07-31T01:06:13+09:00 | #a1-schema-paths | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0106_feature_plugin-schema-paths-alignment.md | validate 통과·인벤토리(Hooks3/MCP1/v2.3.1/~0tok) 실측·셔틀 핸드셰이크 확인. 불변식 테스트 4 |
 | 2026-07-31T01:28:58+09:00 | #a2-skills-activation | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0128_feature_plugin-skills-and-activation.md | 스킬4+standup+README자동생성+SessionEnd안내. Always-on ~407tok 실측·예산 테스트 잠금. 동기 vitest 3 |
+| 2026-07-31T01:38:33+09:00 | #tk0-plan-create | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0138_feature_plan-create-mcp-tool.md | 파서 자기검증 내장·id 4규칙·redact. 실바이너리 E2E 통과. instructions 강화 동승 |
 <!-- oculpm:plan-log end -->

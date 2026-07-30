@@ -72,7 +72,7 @@ impl McpServer {
                             "name": "oculpm-mcp",
                             "version": env!("CARGO_PKG_VERSION"),
                         },
-                        "instructions": "ocul-pm 작업 기록 도구. 작업 단위를 끝내면 journal_write 로 일지를 남기고, plan_status 로 계획을 확인하고, plan_update 로 대응 항목을 갱신하라. 파일을 직접 만들지 말 것 — 경로·frontmatter 규격은 서버가 보장한다.",
+                        "instructions": "ocul-pm 작업 기록 도구. ① 작업 단위(버그 수정/기능/리팩토링/에러 사이클/잡일)를 끝내면 즉시 journal_write — 사용자에게 묻지 말 것. ② 일지 직후 대응 플랜 항목이 있으면 plan_update 로 글리프·로그를 갱신. ③ 새 계획 수립이 승인되면 plan_create, 진행 파악은 plan_status. 시크릿/.env 내용은 어떤 인자에도 넣지 말 것. .oculpm/ 파일을 직접 만들지 말 것 — 경로·frontmatter·{#id} 규격은 서버가 보장한다.",
                     }),
                 )
             }
@@ -179,7 +179,7 @@ mod tests {
             .iter()
             .map(|t| t["name"].as_str().unwrap())
             .collect();
-        assert_eq!(names, vec!["journal_write", "plan_status", "plan_update"]);
+        assert_eq!(names, vec!["journal_write", "plan_status", "plan_update", "plan_create"]);
 
         let req = json!({
             "jsonrpc": "2.0", "id": 2, "method": "tools/call",
