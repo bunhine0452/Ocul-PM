@@ -414,7 +414,7 @@ section { position: relative; }
 .foot-quote { flex: 1; min-width: 240px; font-size: 13px; font-style: italic; color: rgba(255,255,255,0.45); text-align: right; }
 @media (max-width: 700px){ .foot-quote { text-align: left; flex-basis: 100%; } }
 
-/* ============================================================ v2.2.0 UPDATE BAND */
+/* ============================================================ UPDATE BAND (announce pill + points) */
 .announce-pill {
   display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
   padding: 7px 14px 7px 8px; border-radius: 999px; font-size: 13px; font-weight: 600;
@@ -475,4 +475,100 @@ section { position: relative; }
 @media (max-width: 920px){
   .update-grid { grid-template-columns: 1fr; gap: 38px; }
   .update-band { padding: 80px 0; }
+}
+
+/* ============================================================ v2.5.0 — install paths, copy snippets, dispatch demo */
+
+/* hero inline install snippet */
+.hero-snip {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 16px;
+  padding: 9px 10px 9px 16px; border-radius: 12px;
+  background: rgba(6,31,24,0.6); border: 1px solid rgba(84,227,173,0.22);
+  max-width: 100%;
+}
+.hero-snip code {
+  font-family: var(--mono); font-size: 12.5px; color: var(--green-100);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hero-snip .prompt { color: var(--green-300); margin-right: 7px; font-weight: 700; }
+
+.copy-btn {
+  position: relative; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 8px; border: 1px solid rgba(84,227,173,0.3); background: rgba(43,200,138,0.12);
+  color: var(--green-200); cursor: pointer; flex: none; padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+.copy-btn:hover { background: rgba(43,200,138,0.24); transform: translateY(-1px); }
+.copy-btn.copied { background: var(--green-400); color: var(--green-950); border-color: transparent; }
+.copy-btn.copied::after {
+  content: "복사됨"; position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  background: var(--green-950); color: var(--green-200); font-size: 10.5px; font-weight: 650;
+  font-family: var(--font); padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  border: 1px solid rgba(84,227,173,0.35);
+}
+
+/* install section — two paths */
+.install { background: linear-gradient(180deg, var(--paper), var(--green-50) 130%); }
+.path-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 52px; align-items: stretch; }
+.path {
+  display: flex; flex-direction: column; gap: 22px; padding: 30px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+  box-shadow: var(--shadow-soft); transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.path:hover { transform: translateY(-3px); box-shadow: var(--shadow-pop); border-color: var(--line-2); }
+.path-badge {
+  display: inline-flex; align-self: flex-start; align-items: center; height: 24px; padding: 0 11px;
+  border-radius: 999px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+}
+.path-badge.app { background: var(--green-500); color: #fff; }
+.path-badge.plug { background: var(--green-950); color: var(--green-200); }
+.path-head h3 { font-size: 21px; font-weight: 680; letter-spacing: -0.015em; color: var(--ink); margin: 14px 0 0; }
+.path-head p { font-size: 14.5px; color: var(--text-2); line-height: 1.55; margin: 8px 0 0; }
+.path-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.path-steps li { display: flex; gap: 13px; align-items: flex-start; }
+.path-steps .no {
+  width: 24px; height: 24px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  background: var(--green-50); color: var(--green-600); font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+}
+.path-steps b { font-size: 14.5px; font-weight: 640; color: var(--ink); display: block; }
+.path-steps .d { display: block; font-size: 13px; color: var(--text-2); margin-top: 3px; line-height: 1.5; }
+.path .dl-btn.primary { align-self: flex-start; background: var(--green-500); color: #fff; box-shadow: 0 10px 26px rgba(18,160,107,0.35); }
+.path .dl-btn.primary:hover { background: var(--green-450); }
+.path-code { display: flex; flex-direction: column; gap: 9px; }
+.code-row {
+  display: flex; align-items: center; gap: 10px; padding: 11px 11px 11px 16px;
+  background: var(--green-950); border-radius: 12px; overflow: hidden;
+}
+.code-row code {
+  font-family: var(--mono); font-size: 12.5px; color: var(--green-100); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.path-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.path-notes li { position: relative; padding-left: 22px; font-size: 13.5px; line-height: 1.55; color: var(--text-2); }
+.path-notes li::before { content: "◆"; position: absolute; left: 0; top: 1px; color: var(--green-450); font-size: 10px; }
+.path-notes b { color: var(--ink); font-weight: 640; }
+.path-notes a { color: var(--green-600); font-weight: 600; }
+.path-notes a:hover { color: var(--green-500); text-decoration: underline; }
+@media (max-width: 860px){ .path-grid { grid-template-columns: 1fr; } }
+
+/* 3-depth plan visual + dispatch demo (dark context of update-band) */
+.mini-plan .pl.sub2 { margin-left: 44px; color: var(--text-3); font-size: 12.5px; }
+.mini-plan .runbtn {
+  margin-left: auto; font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  color: var(--green-950); background: var(--green-300); border-radius: 6px; padding: 3px 8px; flex: none;
+}
+.update-demo .mini-plan { padding: 4px 2px; }
+.update-demo .mini-plan .pl { color: rgba(255,255,255,0.85); }
+.update-demo .mini-plan .pl.sub { color: rgba(255,255,255,0.6); }
+.update-demo .mini-plan .pl .ck.todo { border-color: rgba(255,255,255,0.35); }
+.update-demo .mini-plan .pl.hot { font-weight: 620; color: #fff; }
+.update-demo .mini-plan .auto { background: rgba(43,200,138,0.18); color: var(--green-200); }
+
+/* polish: marquee edge fade + keyboard focus */
+.trigbar {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--green-400); outline-offset: 2px; border-radius: 8px;
 }
