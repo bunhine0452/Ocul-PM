@@ -15,15 +15,17 @@ interface CodeSnippetProps {
   formatted: boolean;
 }
 
-let hljsPromise: Promise<typeof import("highlight.js").default> | null = null;
+let hljsPromise: Promise<typeof import("highlight.js/lib/common").default> | null = null;
 function getHljs() {
-  if (!hljsPromise) hljsPromise = import("highlight.js").then((m) => m.default);
+  if (!hljsPromise)
+    hljsPromise = import("highlight.js/lib/common").then((m) => m.default);
   return hljsPromise;
 }
 
 // Extension → highlight.js language id. Unknown extensions fall back to
-// highlightAuto. (Separate from formatCode's map: hljs covers more languages
-// than we can format, e.g. rust/ruby/sql.)
+// highlightAuto. lib/common (same subset PatchView uses — ~90KB vs the 808KB
+// full build) lacks a few of these (e.g. protobuf); getLanguage() returns
+// undefined for those and the highlightAuto fallback below covers them.
 const HLJS_LANG: Record<string, string> = {
   ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
   js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
