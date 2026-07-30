@@ -31,6 +31,7 @@ pub mod redact;
 pub mod rule_promotion;
 pub mod rules;
 pub mod session;
+pub mod shell_integration;
 pub mod spec;
 pub mod transcript;
 pub mod watcher;
