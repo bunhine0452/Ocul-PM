@@ -8,7 +8,11 @@
 //! 포커스 이탈 시 hide. 데이터 조회는 팝오버 프런트가 기존 커맨드로 직접
 //! (D3 — 신규 집계 커맨드 없음, 폴링 없음).
 //!
-//! 세션 신호는 `oculpm-session-started/ended` 앱 이벤트 구독이 유일한 입력.
+//! 세션 신호는 `oculpm-session-started/ended` 앱 이벤트 구독이 1차 입력이고,
+//! 애니메이션이 도는 동안에는 세션 액터의 실제 상태를 주기적으로 재확인한다
+//! (`reconcile_active`). `ended` 는 액터가 정상 종료될 때만 나오므로 —
+//! 프로젝트를 닫거나 앱이 죽으면 유실된다 — 이벤트만 믿으면 활성 세션이
+//! 없는데도 아이콘이 영원히 돈다.
 //! 세션 0 이면 애니메이션 타이머가 스스로 멈춘다 — 유휴 전력 0 (§5).
 
 use std::collections::HashSet;
@@ -36,6 +40,12 @@ const POPOVER_H: f64 = 508.0;
 /// 한 사이클 = 호가 한 바퀴 (12×160ms ≈ 1.9초/회전, 심리스 루프).
 const PULSE_FRAMES: usize = 12;
 const PULSE_TICK_MS: u64 = 160;
+/// 애니메이션이 도는 동안 실제 세션 상태를 다시 확인하는 주기 (프레임 수).
+/// 30 × 160ms ≈ 4.8초 — `ended` 이벤트를 통째로 놓쳐도 이 안에 멈춘다.
+const RECONCILE_EVERY: usize = 30;
+/// 세션 액터 조회 응답 대기 상한. 액터가 무거운 작업 중이면 늦게 답할 수
+/// 있으므로, 넘기면 "모름"으로 두고 다음 회차에 다시 본다 (섣부른 정지 방지).
+const RECONCILE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// 팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
@@ -173,6 +183,61 @@ fn set_idle_icon(app: &AppHandle, attention: bool) {
     set_tray_icon(app, render_frame(None, attention));
 }
 
+// ─── 활성 세션 재확인 ────────────────────────────────────────────────────────
+
+/// `"{project_id}:{session_id}"` 키에서 project_id 를 뽑는다.
+fn project_id_of(key: &str) -> Option<u32> {
+    key.split(':').next()?.parse().ok()
+}
+
+/// 트레이가 기억하는 활성 세션 집합을 **세션 액터의 실제 상태**와 맞추고,
+/// 남은 활성 세션 수를 돌려준다.
+///
+/// `oculpm-session-ended` 는 액터가 스스로 finalize 할 때만 나온다. 프로젝트를
+/// 닫거나(액터 drop) 앱이 비정상 종료하면 이벤트 없이 세션이 사라지므로,
+/// 이벤트만 구독하면 활성 세션이 0 인데도 아이콘이 계속 돈다. 여기서 프로젝트
+/// 별로 실제 상태를 물어 유령 키를 걷어낸다.
+async fn reconcile_active(app: &AppHandle, state: &Arc<TrayState>) -> usize {
+    let Some(manager) = app.try_state::<crate::oculpm::manager::OculpmManager>() else {
+        return state.active_count();
+    };
+    let known: HashSet<String> = match state.active.lock() {
+        Ok(set) => set.clone(),
+        Err(_) => return 0,
+    };
+    let mut project_ids: Vec<u32> = known.iter().filter_map(|k| project_id_of(k)).collect();
+    project_ids.sort_unstable();
+    project_ids.dedup();
+
+    let mut keep: HashSet<String> = HashSet::new();
+    for pid in project_ids {
+        match tokio::time::timeout(RECONCILE_TIMEOUT, manager.get_current_session(pid)).await {
+            // 살아 있는 세션은 프로젝트당 최대 1개 — 그 키만 남긴다.
+            Ok(Ok(Some(session))) => {
+                keep.insert(format!("{}:{}", pid, session.id));
+            }
+            // 유휴(None) 이거나 액터·프로젝트가 사라짐(Err) → 이 프로젝트는 비활성.
+            Ok(_) => {}
+            Err(_) => {
+                tracing::debug!(target: "tray", project_id = pid, "세션 상태 조회 시간초과 — 판단 보류");
+                keep.extend(
+                    known
+                        .iter()
+                        .filter(|k| project_id_of(k) == Some(pid))
+                        .cloned(),
+                );
+            }
+        }
+    }
+
+    let Ok(mut set) = state.active.lock() else {
+        return 0;
+    };
+    // 조회하는 동안 새로 시작된 세션(known 에 없던 키)은 건드리지 않는다.
+    set.retain(|k| keep.contains(k) || !known.contains(k));
+    set.len()
+}
+
 // ─── 애니메이션 (D1 — 세션 활성 시에만) ──────────────────────────────────────
 
 fn start_animation(app: &AppHandle, state: &Arc<TrayState>) {
@@ -188,7 +253,14 @@ fn start_animation(app: &AppHandle, state: &Arc<TrayState>) {
     tauri::async_runtime::spawn(async move {
         let mut i = 0usize;
         loop {
-            if state.active_count() == 0 {
+            // 이벤트만 믿지 않는다 — 주기적으로 액터의 실제 상태와 대조해
+            // 유령 세션을 걷어낸다. i == 0 은 방금 온 started 이벤트라 건너뛴다.
+            let remaining = if i > 0 && i.is_multiple_of(RECONCILE_EVERY) {
+                reconcile_active(&app, &state).await
+            } else {
+                state.active_count()
+            };
+            if remaining == 0 {
                 break;
             }
             set_tray_icon(&app, frames[i % PULSE_FRAMES].clone());
@@ -360,6 +432,19 @@ fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::Physica
     // 팝오버 열람 = 주의 확인으로 간주 (D1).
     if state.attention.swap(false, Ordering::Relaxed) && !state.animating.load(Ordering::SeqCst) {
         set_idle_icon(app, false);
+    }
+    // 팝오버는 디스크의 세션 목록을 직접 읽어 "지금 활성 세션 없음" 을 보여준다.
+    // 아이콘이 계속 돌면 둘이 어긋나 보이므로, 여는 순간 한 번 맞춘다. 활성이
+    // 0 이 되면 애니메이션 루프가 다음 tick(160ms) 에 스스로 멈춘다.
+    {
+        let (app, state) = (app.clone(), state.clone());
+        tauri::async_runtime::spawn(async move {
+            if reconcile_active(&app, &state).await == 0
+                && !state.animating.load(Ordering::SeqCst)
+            {
+                set_idle_icon(&app, state.attention.load(Ordering::Relaxed));
+            }
+        });
     }
     let Some(win) = popover(app) else { return };
     if win.is_visible().unwrap_or(false) {
@@ -564,6 +649,15 @@ mod tests {
         let plain = render_frame(None, false);
         let attn = render_frame(None, true);
         assert_ne!(plain.rgba(), attn.rgba(), "주의 점이 실제로 그려져야 함");
+    }
+
+    #[test]
+    fn project_id_parses_from_active_key() {
+        // 세션 id 에도 '-' 와 숫자가 섞이지만 project_id 는 첫 ':' 앞 전부.
+        assert_eq!(project_id_of("7:20260730-001"), Some(7));
+        assert_eq!(project_id_of("12:20260730-042"), Some(12));
+        assert_eq!(project_id_of("nope:20260730-001"), None);
+        assert_eq!(project_id_of(""), None);
     }
 
     #[test]
