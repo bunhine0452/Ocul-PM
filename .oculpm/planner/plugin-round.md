@@ -24,6 +24,7 @@ owner: claude-code
 - [x] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
 - [~] A3 마켓플레이스 공개 — 레포 루트 marketplace.json(source ./plugin/oculpm)+앱 설정 택일 UX(훅+MCP — 플러그인 감지 시 register.rs 프로젝트 등록 생략)+훅 계약 문서+버전 스큐 매트릭스+claude-plugins-community 제출·발사 글 {#a3-marketplace}
 - [ ] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
+- [~] Notion OAuth 계정 연동(사용자 제안 2026-07-31) — "Notion 계정 연결" 버튼: public integration 등록 + oculpm.com 서버리스 코드 교환(클라 시크릿은 데스크톱에 못 넣음) + 로컬 콜백/딥링크 + 키체인 저장. 기존 internal token 경로는 폴백 유지 {#notion-oauth}
 
 ## Phase B — 토큰 다이어트 {#round-b}
 - [x] TK0 plan_create MCP 도구 (frontmatter 규격 서버 보장 — §7 슬림화 전제) {#tk0-plan-create}
@@ -71,4 +72,6 @@ owner: claude-code
 | 2026-07-31T04:01:27+09:00 | #a0-runtime-verify | claude-code | ☐→~ | .oculpm/journal/20260731/Bugs/0401_bug_webgl-addon-dispose-crash-root.md | 실기기 1차에서 터미널 크래시 발견→근본 수정(addon-webgl 0.18 정합+dispose 가드, 관측 3종 동승). 재확인 대기 |
 | 2026-07-31T04:10:01+09:00 | #a0-runtime-verify | claude-code | ~→~ |  | 디스패치 E2E 사용자 확인(프리필→Enter→실세션) ✓. 잔여: 템플릿 v7 승인·ci1/ci3/ci4·phase-c·인셉션·3depth 실사용 |
 | 2026-07-31T04:15:15+09:00 | #a3-marketplace | claude-code | ☐→~ | .oculpm/journal/20260731/Features_to_add/0415_feature_marketplace-and-exclusivity-ux.md | 코드·문서 표면 완료(marketplace.json·감지·택일 UX·계약/스큐 문서·validate 통과). 잔여 = community 제출·발사 글(사용자) |
+| 2026-07-31T04:45:00+09:00 | #notion-oauth | claude-code | →☐ | | 사용자 제안(계정 연동으로 쉽게) 등재 — OAuth 는 서버리스 코드 교환 엔드포인트가 필요(로컬-퍼스트 예외 지점), internal token 은 폴백 유지 |
+| 2026-07-31T04:44:34+09:00 | #notion-oauth | claude-code | ☐→~ | .oculpm/journal/20260731/Features_to_add/0444_feature_notion-oauth-account-connect.md | 앱 루프백+서버리스 교환+설정 버튼 구현 완료. 잔여 = Notion public integration 등록·Vercel env·배포(사용자) |
 <!-- oculpm:plan-log end -->

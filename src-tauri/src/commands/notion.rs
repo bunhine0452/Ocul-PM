@@ -100,3 +100,91 @@ pub async fn notion_export(
     let (markdown, _) = crate::oculpm::redact::redact_text(&markdown, &patterns);
     notion::create_page(&token, &parent, &title, &markdown).await
 }
+
+/// #notion-oauth — "Notion 계정 연결". 루프백 리스너를 열고 브라우저로 OAuth
+/// 를 시작해, 서버리스 교환을 거쳐 돌아온 토큰을 검증 후 키체인에 저장한다.
+/// 성공 시 워크스페이스 이름을 돌려준다. 3분 내 콜백이 없으면 타임아웃.
+#[tauri::command]
+#[specta::specta]
+pub async fn notion_oauth_start() -> Result<String, String> {
+    let nonce = notion::oauth_nonce();
+    let (listener, port) = tokio::task::spawn_blocking(|| {
+        let l = std::net::TcpListener::bind("127.0.0.1:0")
+            .map_err(|e| format!("루프백 포트 확보 실패: {e}"))?;
+        l.set_nonblocking(true).map_err(|e| e.to_string())?;
+        let port = l.local_addr().map_err(|e| e.to_string())?.port();
+        Ok::<_, String>((l, port))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let url = format!("{}?port={port}&state={nonce}", notion::OAUTH_START_URL);
+    open_in_browser(&url)?;
+
+    let expect = nonce.clone();
+    let token = tokio::task::spawn_blocking(move || wait_for_oauth_callback(listener, &expect))
+        .await
+        .map_err(|e| e.to_string())??;
+
+    let workspace = notion::verify_token(token.trim()).await?;
+    crate::secrets::set(notion::NOTION_TOKEN_SECRET, token.trim())
+        .map_err(|e| format!("키체인 저장 실패: {e}"))?;
+    Ok(workspace)
+}
+
+fn open_in_browser(url: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let status = std::process::Command::new("open").arg(url).status();
+    #[cfg(target_os = "linux")]
+    let status = std::process::Command::new("xdg-open").arg(url).status();
+    #[cfg(target_os = "windows")]
+    let status = std::process::Command::new("cmd").args(["/C", "start", "", url]).status();
+    status
+        .map_err(|e| format!("브라우저 열기 실패: {e}"))
+        .and_then(|s| if s.success() { Ok(()) } else { Err("브라우저 열기 실패".into()) })
+}
+
+/// 루프백에서 콜백 1건을 기다린다 (논블로킹 accept 폴링, 상한
+/// [`notion::OAUTH_TIMEOUT_SECS`]). state 불일치는 토큰을 버리고 계속 대기
+/// (다른 로컬 프로세스의 우연/악의 요청 방어).
+fn wait_for_oauth_callback(
+    listener: std::net::TcpListener,
+    expect_state: &str,
+) -> Result<String, String> {
+    use std::io::{Read, Write};
+    let deadline = std::time::Instant::now()
+        + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
+    loop {
+        if std::time::Instant::now() > deadline {
+            return Err("Notion 연결 대기 시간 초과 — 브라우저에서 승인을 완료했는지 확인하세요".into());
+        }
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+                let mut buf = [0u8; 2048];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let text = String::from_utf8_lossy(&buf[..n]);
+                let first = text.lines().next().unwrap_or("");
+                match notion::parse_oauth_callback(first) {
+                    Some((token, state)) if state == expect_state && !token.is_empty() => {
+                        let _ = stream.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n\
+                              <html><body style=\"font-family:sans-serif;text-align:center;padding-top:80px\">\
+                              <h2>Notion \xec\x97\xb0\xea\xb2\xb0 \xec\x99\x84\xeb\xa3\x8c</h2><p>ocul-pm \xec\x95\xb1\xec\x9c\xbc\xeb\xa1\x9c \xeb\x8f\x8c\xec\x95\x84\xea\xb0\x80\xec\x84\xb8\xec\x9a\x94.</p></body></html>",
+                        );
+                        return Ok(token);
+                    }
+                    _ => {
+                        let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\n\r\n");
+                        // state 불일치/무관 요청 — 계속 대기.
+                    }
+                }
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(std::time::Duration::from_millis(120));
+            }
+            Err(e) => return Err(format!("루프백 수신 실패: {e}")),
+        }
+    }
+}
+

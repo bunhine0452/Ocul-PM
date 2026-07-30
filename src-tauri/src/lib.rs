@@ -180,7 +180,7 @@ use crate::commands::{
     mcp_status, mcp_register, mcp_unregister,
     claude_plugin_status, mcp_desktop_status, mcp_desktop_register, mcp_desktop_unregister,
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
-    notion_status, notion_verify_token, notion_set_parent, notion_export,
+    notion_status, notion_verify_token, notion_oauth_start, notion_set_parent, notion_export,
 };
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::tray::{tray_apply_settings, tray_hide_popover, tray_open_main};
@@ -379,6 +379,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         mcp_desktop_unregister,
         // PR-CI7 — Notion 내보내기
         notion_status,
+        notion_oauth_start,
         notion_verify_token,
         notion_set_parent,
         notion_export,

@@ -338,3 +338,101 @@ mod tests {
         assert_eq!(p["children"].as_array().unwrap().len(), 1);
     }
 }
+
+// ─── OAuth 계정 연동 (#notion-oauth) ─────────────────────────────────────────
+//
+// 데스크톱에는 client secret 을 넣을 수 없어(추출 가능) 코드→토큰 교환은
+// oculpm.com 의 서버리스 함수가 대행한다 (`landing/api/notion/oauth/*` —
+// 데이터는 거치지 않고 교환만). 앱은 루프백 리스너로 결과를 받는다:
+//
+//   앱: 127.0.0.1:{port} 리슨 → 브라우저로 /oauth/start?port&state 열기
+//   서버: Notion authorize 로 302 → callback 에서 교환 → 127.0.0.1 로 302
+//   앱: state(nonce) 검증 → 기존 verify_token → 키체인 저장
+//
+// state nonce 는 CSRF/혼선 방지 — 검증 실패 시 토큰을 버린다.
+
+/// OAuth 시작 URL (서버리스 함수).
+pub const OAUTH_START_URL: &str = "https://oculpm.com/api/notion/oauth/start";
+/// 루프백 콜백 대기 상한.
+pub const OAUTH_TIMEOUT_SECS: u64 = 180;
+
+/// 루프백으로 돌아온 요청 라인에서 (token, state) 를 뽑는다.
+/// 형식: `GET /oculpm/notion?token=…&state=… HTTP/1.1`
+pub fn parse_oauth_callback(request_line: &str) -> Option<(String, String)> {
+    let path = request_line.strip_prefix("GET ")?.split_whitespace().next()?;
+    let query = path.split_once('?')?.1;
+    let mut token = None;
+    let mut state = None;
+    for pair in query.split('&') {
+        let (k, v) = pair.split_once('=')?;
+        match k {
+            "token" => token = Some(percent_decode(v)),
+            "state" => state = Some(percent_decode(v)),
+            _ => {}
+        }
+    }
+    Some((token?, state?))
+}
+
+/// 최소 퍼센트 디코딩 — Notion 토큰(ntn_…)과 nonce(hex)는 예약 문자가 없지만,
+/// 방어적으로 처리한다.
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// 프로세스 로컬 nonce — 시각+pid+카운터의 blake3. 예측 불가면 충분하다
+/// (루프백 CSRF 방지 용도).
+pub fn oauth_nonce() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let seed = format!("{now}-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed));
+    blake3::hash(seed.as_bytes()).to_hex()[..32].to_string()
+}
+
+#[cfg(test)]
+mod oauth_tests {
+    use super::*;
+
+    #[test]
+    fn parses_callback_and_rejects_garbage() {
+        let (t, s) =
+            parse_oauth_callback("GET /oculpm/notion?token=ntn_abc123&state=deadbeef HTTP/1.1")
+                .unwrap();
+        assert_eq!(t, "ntn_abc123");
+        assert_eq!(s, "deadbeef");
+        assert!(parse_oauth_callback("GET /favicon.ico HTTP/1.1").is_none());
+        assert!(parse_oauth_callback("POST /x?token=a&state=b HTTP/1.1").is_none());
+        // 퍼센트 인코딩 방어.
+        let (t2, _) =
+            parse_oauth_callback("GET /cb?token=a%2Bb&state=s HTTP/1.1").unwrap();
+        assert_eq!(t2, "a+b");
+    }
+
+    #[test]
+    fn nonces_are_unique_and_hex() {
+        let a = oauth_nonce();
+        let b = oauth_nonce();
+        assert_ne!(a, b);
+        assert_eq!(a.len(), 32);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+}
+

@@ -20,6 +20,7 @@ import {
   Download,
   Bug,
   MessageSquare,
+  Loader2,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -933,6 +934,26 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
     }
   };
 
+  // #notion-oauth — "계정으로 연결": 브라우저 승인 → 서버리스 교환 → 루프백
+  // 수신 → 키체인 저장까지 백엔드 한 커맨드. 최대 3분 대기.
+  const connectOauth = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await commands.notionOauthStart();
+      if (res.status === "ok") {
+        setBotName(res.data);
+        onError(null);
+        toast.info(`Notion 연결됨: ${res.data}`);
+        refresh();
+      } else {
+        onError(`Notion 계정 연결 실패: ${res.error}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const removeToken = async () => {
     if (busy) return;
     setBusy(true);
@@ -965,9 +986,18 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
   return (
     <Section
       title="Notion 내보내기"
-      description="회고·산출물을 지정한 부모 페이지 아래 새 페이지로 내보냅니다. internal integration token 은 OS 키체인에만 저장됩니다."
+      description="회고·산출물을 지정한 부모 페이지 아래 새 페이지로 내보냅니다. 토큰은 OS 키체인에만 저장됩니다."
     >
       <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Button size="sm" disabled={busy} onClick={() => void connectOauth()}>
+            {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Notion 계정으로 연결
+          </Button>
+          <span className="text-[11px] text-muted-foreground">
+            브라우저에서 승인하면 끝 — 또는 아래에 internal token 을 직접 입력하세요.
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <Label className="text-xs text-muted-foreground">상태</Label>
           {status?.has_token ? (
