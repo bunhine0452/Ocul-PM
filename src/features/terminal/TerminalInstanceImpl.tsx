@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -93,6 +93,9 @@ export default function TerminalInstanceImpl({
   onOpenFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // 경계 포착용 — 비동기(setTimeout) 지점의 치명 오류를 렌더로 승격한다.
+  const [fatal, setFatal] = useState<Error | null>(null);
+  if (fatal) throw fatal;
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
@@ -378,9 +381,12 @@ export default function TerminalInstanceImpl({
           term.open(container);
         } catch (err) {
           // 렌더러가 테마 색을 파싱하는 지점이라 잘못된 토큰 하나가 여기서 터진다.
-          // 삼키지 말고 원문을 남긴다 (예전엔 React 가 컴포넌트째 언마운트했다).
+          // setTimeout 안이라 여기서 rethrow 하면 에러 경계가 원리적으로 못
+          // 잡는다 (A0d: 앱 전체 빈 화면의 유력 경로) — state 로 승격해 렌더
+          // 단계에서 다시 던져 TerminalErrorBoundary 가 포착하게 한다.
           oculpmLog.error("terminal", `term.open 실패: ${String(err)}`);
-          throw err;
+          setFatal(err instanceof Error ? err : new Error(String(err)));
+          return;
         }
         openedRef.current = true;
         // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가

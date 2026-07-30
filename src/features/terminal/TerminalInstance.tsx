@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { TerminalHandles } from "./TerminalInstanceImpl";
 import type { ShellState } from "./oscShell";
+import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
 
 // v2 U6 — xterm(+addons, css) 은 TerminalInstanceImpl 로 분리해 lazy 로드.
 // TodayTerminal 위젯이 eager 화면(Today)에서 이 컴포넌트를 임포트하는 바람에
@@ -33,7 +34,10 @@ interface TerminalInstanceProps {
 export type { TerminalHandles, ShellState };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
+  // 경계가 래퍼 안에 있어 모든 소비처(터미널 화면·Today 위젯)가 보호된다 —
+  // A0d 크래시(경계 밖 소비처에서 앱 전체 언마운트)의 재발 방지.
   return (
+    <TerminalErrorBoundary>
     <Suspense
       fallback={
         <div
@@ -46,5 +50,6 @@ export function TerminalInstance(props: TerminalInstanceProps) {
     >
       <TerminalInstanceImpl {...props} />
     </Suspense>
+    </TerminalErrorBoundary>
   );
 }

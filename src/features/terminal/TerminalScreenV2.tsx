@@ -26,7 +26,6 @@ import {
   type PaneDir,
 } from "@/lib/termPanes";
 import { TerminalInstance, type TerminalHandles, type ShellState } from "./TerminalInstance";
-import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
 import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 import { summarizeShell } from "./shellStatus";
@@ -93,8 +92,6 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
   // (드래그 매 프레임 전역 상태를 흔들지 않기 위해).
   const [drag, setDrag] = useState<{ tabId: string; path: string; ratio: number } | null>(null);
-  // 페인 크래시 "다시 열기" — sid 별 nonce 로 TerminalInstance 를 재마운트한다.
-  const [paneRetry, setPaneRetry] = useState<Record<string, number>>({});
 
   // sid → xterm 핸들 (검색/포커스 제어). onReady 로 채워진다.
   const regRef = useRef(new Map<string, TerminalHandles>());
@@ -449,10 +446,6 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
       const focused = count > 1 && node.sid === focusSid;
       return (
         <div className={"term-pane" + (focused ? " focused" : "")}>
-          <TerminalErrorBoundary
-            key={`${node.sid}-${paneRetry[node.sid] ?? 0}`}
-            onRetry={() => setPaneRetry((prev) => ({ ...prev, [node.sid]: (prev[node.sid] ?? 0) + 1 }))}
-          >
           <TerminalInstance
             sessionId={node.sid}
             cwd={tab.cwd || projectRoot || ""}
@@ -475,7 +468,6 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             }
             onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
-          </TerminalErrorBoundary>
           {count > 1 ? (
             <button
               type="button"

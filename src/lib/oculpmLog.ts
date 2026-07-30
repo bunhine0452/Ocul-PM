@@ -78,6 +78,35 @@ let installed = false;
 export function installConsoleBridge() {
   if (installed) return;
   installed = true;
+  // A0d 포렌식 — 에러 경계도 console 도 못 보는 경로(setTimeout·promise·
+  // 이벤트 핸들러)의 예외를 전역에서 받아 실스택을 파일 로그로. React 19 는
+  // 미포착 에러의 실체를 console 인자로 넘기지 않아 이 훅 없이는 증발한다.
+  window.addEventListener("error", (e) => {
+    try {
+      const err = e.error as unknown;
+      send(
+        "error",
+        "window",
+        `uncaught: ${e.message} @ ${e.filename ?? "?"}:${e.lineno ?? "?"}\n${
+          err instanceof Error ? (err.stack ?? "") : stringifyArg(err)
+        }`,
+      );
+    } catch {
+      // swallow
+    }
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    try {
+      const r = e.reason as unknown;
+      send(
+        "error",
+        "window",
+        `unhandled rejection: ${r instanceof Error ? `${r.message}\n${r.stack ?? ""}` : stringifyArg(r)}`,
+      );
+    } catch {
+      // swallow
+    }
+  });
   const origWarn = console.warn.bind(console);
   const origError = console.error.bind(console);
   console.warn = (...args: unknown[]) => {

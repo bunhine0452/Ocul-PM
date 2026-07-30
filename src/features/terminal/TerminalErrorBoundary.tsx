@@ -1,26 +1,26 @@
-import { Component, type ReactNode } from "react";
+import { Component, Fragment, type ReactNode } from "react";
 import { oculpmLog } from "@/lib/oculpmLog";
 
-// 실기기 A0d 발견(2026-07-31): TerminalInstanceImpl 내부 예외가 경계 없이
-// 올라가 React 가 트리를 통째로 언마운트 — 터미널이 "빈 화면 + 무반응"이 되고
-// 이후 어느 화면으로 가도 빈 화면이었다. 페인 단위 경계로 폭발 반경을 페인
-// 하나로 가두고, 실제 스택을 oculpm.log 에 남긴다 (React 19 는 에러 경계가
-// 없으면 콘솔 포맷 문자열로만 흘려 포렌식이 안 됐다).
+// 실기기 A0d 발견(2026-07-31): TerminalInstanceImpl 예외가 경계 없이 올라가
+// React 가 트리를 통째로 언마운트 — 앱 전체가 빈 화면이 됐다. 이 경계는
+// `TerminalInstance` 래퍼 **내부**에 산다 — 터미널 화면·Today 위젯 등 모든
+// 소비처가 자동으로 보호되고, 실스택은 oculpm.log 에 남는다. "다시 열기"는
+// 내부 nonce 로 하위 트리를 재마운트한다 (persistent PTY 는 백엔드에 살아
+// 있어 재접속으로 이어진다).
 
 interface Props {
-  /** 폴백에서 "다시 열기"를 누르면 호출 — 부모가 key 를 바꿔 재마운트한다. */
-  onRetry: () => void;
   children: ReactNode;
 }
 
 interface State {
   error: Error | null;
+  nonce: number;
 }
 
 export class TerminalErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, nonce: 0 };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
@@ -32,13 +32,15 @@ export class TerminalErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.error == null) return this.props.children;
+    if (this.state.error == null) {
+      return <Fragment key={this.state.nonce}>{this.props.children}</Fragment>;
+    }
     return (
       <div
         role="alert"
         style={{
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          gap: 10, height: "100%", padding: 24, color: "var(--text-2)", fontSize: 13, textAlign: "center",
+          gap: 10, height: "100%", minHeight: 120, padding: 24, color: "var(--text-2)", fontSize: 13, textAlign: "center",
         }}
       >
         <strong style={{ color: "var(--text-1)" }}>터미널 렌더러 오류</strong>
@@ -49,10 +51,7 @@ export class TerminalErrorBoundary extends Component<Props, State> {
         <button
           type="button"
           className="btn"
-          onClick={() => {
-            this.setState({ error: null });
-            this.props.onRetry();
-          }}
+          onClick={() => this.setState((s) => ({ error: null, nonce: s.nonce + 1 }))}
         >
           다시 열기
         </button>
