@@ -944,6 +944,12 @@ export type AgentsConfig = {
 	 *  배열(off)로 파싱된다.
 	 */
 	rules_translate?: string[],
+	/**
+	 *  TK1 (template v6) — 마스터 템플릿 언어 (`ko` | `en`). 기존 config 는
+	 *  default 로 `ko` 파싱. 변경은 다음 템플릿 시드/업그레이드부터 반영된다
+	 *  (이미 시드된 `_template.md` 는 사용자 소유라 자동 교체하지 않음).
+	 */
+	template_language?: string,
 };
 
 export type AppInfo = {

@@ -396,6 +396,15 @@ pub struct AgentsConfig {
     /// 배열(off)로 파싱된다.
     #[serde(default)]
     pub rules_translate: Vec<String>,
+    /// TK1 (template v6) — 마스터 템플릿 언어 (`ko` | `en`). 기존 config 는
+    /// default 로 `ko` 파싱. 변경은 다음 템플릿 시드/업그레이드부터 반영된다
+    /// (이미 시드된 `_template.md` 는 사용자 소유라 자동 교체하지 않음).
+    #[serde(default = "default_template_language")]
+    pub template_language: String,
+}
+
+fn default_template_language() -> String {
+    "ko".to_string()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

@@ -34,6 +34,13 @@ use crate::oculpm::spec::{AgentSyncReport, AgentSyncResult, CommentStyle, Oculpm
 // ─── Templates (PR1) ─────────────────────────────────────────────────────────
 
 pub const MASTER_KO: &str = include_str!("templates/master_ko.md.tpl");
+/// TK1 (template v6) — 영어 변형. 버전 마커는 ko 와 항상 동일해야 한다
+/// (패리티 테스트가 강제).
+pub const MASTER_EN: &str = include_str!("templates/master_en.md.tpl");
+/// TK1 — §5 가 가리키는 on-demand 문제 해결 문서 규격. `.oculpm/agents/`
+/// 에 앱 관리 파일로 동기화된다 (상시 컨텍스트 비용 0, 필요할 때만 Read).
+const DISCUSSION_SPEC_KO: &str = include_str!("templates/discussion_spec_ko.md.tpl");
+const DISCUSSION_SPEC_EN: &str = include_str!("templates/discussion_spec_en.md.tpl");
 const CURSOR_TPL: &str = include_str!("templates/cursor.mdc.tpl");
 const CLAUDE_CODE_TPL: &str = include_str!("templates/claude_code.md.tpl");
 const ANTIGRAVITY_TPL: &str = include_str!("templates/antigravity.md.tpl");
@@ -250,7 +257,10 @@ pub async fn sync_active(
     root: &Path,
     config: &OculpmConfig,
 ) -> Result<AgentSyncReport, OculpmError> {
-    let master_template = ensure_master_template(root)?;
+    let lang = config.agents.template_language.as_str();
+    let master_template = ensure_master_template(root, lang)?;
+    // discussion-spec 은 앱 관리 파일 — 항상 임베디드 내용으로 수렴시킨다.
+    ensure_discussion_spec(root, lang)?;
     let per_agent_dir = root.join(".oculpm").join("agents").join("per-agent");
 
     let active: std::collections::HashSet<&str> = config
@@ -414,16 +424,44 @@ fn error_result(id: &str, e: &OculpmError) -> AgentSyncResult {
     }
 }
 
-fn ensure_master_template(root: &Path) -> Result<String, OculpmError> {
+/// 언어별 임베디드 마스터. 미지의 값은 ko 로 폴백 (config 손편집 방어).
+pub fn embedded_master(lang: &str) -> &'static str {
+    match lang {
+        "en" => MASTER_EN,
+        _ => MASTER_KO,
+    }
+}
+
+fn embedded_discussion_spec(lang: &str) -> &'static str {
+    match lang {
+        "en" => DISCUSSION_SPEC_EN,
+        _ => DISCUSSION_SPEC_KO,
+    }
+}
+
+fn ensure_master_template(root: &Path, lang: &str) -> Result<String, OculpmError> {
     let dir = root.join(".oculpm").join("agents");
     let path = dir.join("_template.md");
+    let embedded = embedded_master(lang);
     match std::fs::read_to_string(&path) {
         Ok(t) => Ok(t),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            write_atomic(&path, MASTER_KO.as_bytes())?;
-            Ok(MASTER_KO.to_string())
+            write_atomic(&path, embedded.as_bytes())?;
+            Ok(embedded.to_string())
         }
         Err(source) => Err(OculpmError::Io { path, source }),
+    }
+}
+
+/// `.oculpm/agents/discussion-spec.md` 를 임베디드 내용으로 수렴시킨다.
+/// `_template.md` 와 달리 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 —
+/// 마스터 §5 가 "필요할 때 읽으라" 고 가리키는 규격서라 항상 최신이어야 한다.
+fn ensure_discussion_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
+    let path = root.join(".oculpm").join("agents").join("discussion-spec.md");
+    let embedded = embedded_discussion_spec(lang);
+    match std::fs::read(&path) {
+        Ok(cur) if cur == embedded.as_bytes() => Ok(()),
+        _ => write_atomic(&path, embedded.as_bytes()),
     }
 }
 
@@ -479,7 +517,12 @@ pub fn upgrade_master(root: &Path) -> Result<(), OculpmError> {
     if let Ok(old) = std::fs::read_to_string(&path) {
         let _ = write_atomic(&dir.join("_template.md.bak"), old.as_bytes());
     }
-    write_atomic(&path, MASTER_KO.as_bytes())
+    let lang_cfg = OculpmConfig::load(&root.join(".oculpm").join("config.toml"))
+        .map(|c| c.agents.template_language)
+        .unwrap_or_else(|_| "ko".to_string());
+    let lang = lang_cfg.as_str();
+    ensure_discussion_spec(root, lang)?;
+    write_atomic(&path, embedded_master(lang).as_bytes())
 }
 
 fn read_per_agent_override(per_agent_dir: &Path, id: &str) -> Option<String> {
@@ -588,6 +631,7 @@ mod tests {
             auto_reconcile: false,
             auto_journal_draft: false,
             rules_translate: vec![],
+            template_language: "ko".into(),
         };
         cfg
     }
@@ -677,25 +721,29 @@ mod tests {
         );
     }
 
-    /// PR-DISC 5 — the 문제 해결(Discussion) protocol lives in the master so
-    /// every agent inherits it via `AGENTS.md`. Guard against accidental removal.
+    /// PR-DISC 5 → TK1(v6): Discussion 프로토콜 전문은 on-demand 규격서
+    /// (`discussion-spec.md`)로 이동했다 — 마스터는 트리거+포인터만 상시
+    /// 유지하고, 규격서가 managed block 문법을 계속 보유해야 한다.
     #[test]
     fn master_template_carries_discussion_rules() {
         assert!(
             MASTER_KO.contains("문제 해결 문서"),
-            "master must keep the Discussion section"
-        );
-        assert!(
-            MASTER_KO.contains("oculpm:discussion-log"),
-            "master must document the discussion-log managed block"
+            "master must keep the Discussion trigger section"
         );
         assert!(
             MASTER_KO.contains(".oculpm/discussion/"),
             "master must point at the discussion tree"
         );
+        for (name, spec) in [("ko", DISCUSSION_SPEC_KO), ("en", DISCUSSION_SPEC_EN)] {
+            assert!(
+                spec.contains("oculpm:discussion-log"),
+                "{name} spec must document the discussion-log managed block"
+            );
+            assert!(spec.contains("oculpm_discussion: v1"), "{name} spec frontmatter");
+        }
         assert!(
-            embedded_template_version() >= 4,
-            "template_version must be bumped to 4 for the Discussion rules"
+            embedded_template_version() >= 6,
+            "template_version must be bumped to 6 for the split spec"
         );
     }
 
@@ -745,6 +793,50 @@ mod tests {
         }
     }
 
+    /// TK1 — 템플릿 다이어트 회귀 가드. v5 는 8,031 chars(≈2,900 tok)가 전
+    /// 추적 프로젝트의 전 세션에 상시 주입됐다 — 다시 자라면 그 비용이
+    /// 그대로 돌아온다. 언어 변형은 버전·핵심 포인터가 항상 패리티여야 한다.
+    #[test]
+    fn master_templates_stay_lean_and_in_parity() {
+        let ko = MASTER_KO.chars().count();
+        let en = MASTER_EN.chars().count();
+        assert!(ko <= 4_800, "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)");
+        assert!(en <= 5_200, "en 마스터 {en} chars — 상한 5,200");
+        assert_eq!(
+            template_version(MASTER_KO),
+            template_version(MASTER_EN),
+            "ko/en 템플릿 버전은 항상 함께 bump"
+        );
+        for (name, t) in [("ko", MASTER_KO), ("en", MASTER_EN)] {
+            assert!(t.contains("plan_create"), "{name}: MCP 도구 4종 안내 누락");
+            assert!(t.contains("discussion-spec.md"), "{name}: §5 on-demand 포인터 누락");
+        }
+        // wrapper 는 import 금지 — @import 를 확장하는 런타임에서 마스터가
+        // 2중 주입되던 위험(v5)의 재발 방지.
+        assert!(!CLAUDE_CODE_TPL.contains("@../AGENTS.md"), "claude wrapper 에 import 금지");
+        assert!(!CLAUDE_CODE_TPL.contains("@AGENTS.md"), "claude wrapper 에 import 금지");
+    }
+
+    /// TK1 — 언어 변형 시드 + discussion-spec 은 앱 관리 파일(손상 시 다음
+    /// sync 가 복원).
+    #[tokio::test]
+    async fn sync_seeds_language_variant_and_restores_discussion_spec() {
+        let dir = setup();
+        let root = dir.path();
+        let mut cfg = config_with(&["agents-md"]);
+        cfg.agents.template_language = "en".into();
+        sync_active(root, &cfg).await.unwrap();
+
+        let master = read(&root.join(".oculpm/agents/_template.md"));
+        assert!(master.contains("work-journal rules"), "en 마스터가 시드돼야 한다");
+        let spec_path = root.join(".oculpm/agents/discussion-spec.md");
+        assert!(read(&spec_path).contains("Discussion-doc spec"));
+
+        std::fs::write(&spec_path, "깨진 내용").unwrap();
+        sync_active(root, &cfg).await.unwrap();
+        assert!(read(&spec_path).contains("Discussion-doc spec"), "관리 파일은 수렴 복원");
+    }
+
     #[test]
     fn template_version_parses_marker_and_defaults_to_one() {
         assert_eq!(template_version("<!-- template_version: 5 -->\n# x"), 5);
@@ -773,9 +865,11 @@ mod tests {
             .join("agents")
             .join("_template.md.bak")
             .exists());
-        // The on-disk master is now the embedded one (carries the strengthened §7).
+        // The on-disk master is now the embedded one (v6 — plan_create first).
         let now = std::fs::read_to_string(&tpl).unwrap();
-        assert!(now.contains("새 plan 을 만들 때"));
+        assert!(now.contains("plan_create"));
+        // Upgrade also (re)seeds the on-demand discussion spec.
+        assert!(root.join(".oculpm/agents/discussion-spec.md").exists());
     }
 
     // ─── sync_active — six matrix cases per PR2 §3 ─────────────────────────

@@ -27,7 +27,7 @@ owner: claude-code
 
 ## Phase B — 토큰 다이어트 {#round-b}
 - [x] TK0 plan_create MCP 도구 (frontmatter 규격 서버 보장 — §7 슬림화 전제) {#tk0-plan-create}
-- [ ] TK1 템플릿 v6 — claude-code 어댑터 MCP-first 슬림(~600 tok)/비MCP 어댑터 압축(~1,700 tok) 이원화 + en 변형 동시 설계 + §8 discussion on-demand 분리 + .claude/CLAUDE.md import 1줄화 {#tk1-template-v6}
+- [x] TK1 템플릿 v6 — claude-code 어댑터 MCP-first 슬림(~600 tok)/비MCP 어댑터 압축(~1,700 tok) 이원화 + en 변형 동시 설계 + §8 discussion on-demand 분리 + .claude/CLAUDE.md import 1줄화 {#tk1-template-v6}
 
 ## Phase C — 플래너를 핸들로 {#round-c}
 - [ ] 3-depth 플랜 계층(사용자 제안 2026-07-31) — 들여쓰기 중첩 `- [ ]` 서브아이템(최대 3depth 하드캡: phase→item→sub), 상위 글리프=하위 롤업(phase 규칙 재사용), plan_status TSV parent 열 1개, 레일/목록 들여쓰기+접기, 무중첩 기존 plan 완전 호환. 템플릿 §7 반영은 TK1 열차 동승 {#plan-3depth}
@@ -63,4 +63,5 @@ owner: claude-code
 | 2026-07-31T01:06:13+09:00 | #a1-schema-paths | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0106_feature_plugin-schema-paths-alignment.md | validate 통과·인벤토리(Hooks3/MCP1/v2.3.1/~0tok) 실측·셔틀 핸드셰이크 확인. 불변식 테스트 4 |
 | 2026-07-31T01:28:58+09:00 | #a2-skills-activation | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0128_feature_plugin-skills-and-activation.md | 스킬4+standup+README자동생성+SessionEnd안내. Always-on ~407tok 실측·예산 테스트 잠금. 동기 vitest 3 |
 | 2026-07-31T01:38:33+09:00 | #tk0-plan-create | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0138_feature_plan-create-mcp-tool.md | 파서 자기검증 내장·id 4규칙·redact. 실바이너리 E2E 통과. instructions 강화 동승 |
+| 2026-07-31T01:53:08+09:00 | #tk1-template-v6 | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0153_feature_template-v6-token-diet.md | 8,031→3,229 chars(−60%). spec 분리·wrapper 탈임포트·en+template_language. 크기 가드 테스트로 회귀 차단. 실기기 업그레이드 확인은 A0d 동승 |
 <!-- oculpm:plan-log end -->

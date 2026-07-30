@@ -1182,6 +1182,7 @@ mod tests {
                 auto_reconcile: false,
                 auto_journal_draft: false,
                 rules_translate: vec![],
+                template_language: "ko".into(),
             },
         }
     }

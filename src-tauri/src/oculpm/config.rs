@@ -79,6 +79,8 @@ impl OculpmConfig {
                 auto_journal_draft: false,
                 // PR-CI3 — rules cross-tool translation is opt-in.
                 rules_translate: vec![],
+                // TK1 — master template language (ko | en).
+                template_language: "ko".into(),
             },
         }
     }
