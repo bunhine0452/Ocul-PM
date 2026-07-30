@@ -1,4 +1,4 @@
-<!-- template_version: 6 -->
+<!-- template_version: 7 -->
 # 문제 해결 문서 규격 (ocul-pm)
 
 > 이 파일은 ocul-pm 이 관리합니다 (직접 편집 금지 — 앱 업그레이드 시 갱신됨).

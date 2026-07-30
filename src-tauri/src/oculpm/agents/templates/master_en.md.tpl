@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 6 -->
+<!-- template_version: 7 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -34,7 +34,9 @@ The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the curre
 2. Append **one row** to the `<!-- oculpm:plan-log begin v1 -->` table at the bottom (never edit existing rows):
    `| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |`
 
-Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end* of the line, never wrap (a wrapped `{#id}` is invisible to the parser) · give new items stable English kebab ids · never paste journal content into the planner (reference it via the journal column) · **never modify a plan whose frontmatter `status:` is not `active`** (done/archived — work in a new plan instead) · the body glyph is the truth for current state; the log is history.
+Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end* of the line, never wrap (a wrapped `{#id}` is invisible to the parser) · give new items stable English kebab ids · never paste journal content into the planner (reference it via the journal column) · **never modify a plan whose frontmatter `status:` is not `active`** (done/archived — work in a new plan instead) · the body glyph is the truth for current state (except parents with children — their state is the rollup of their children); the log is history.
+
+Items may nest **one level**: indent sub-tasks two spaces (`  - [ ] sub {#id}`). A parent's glyph is derived by rolling up its children — **never set a parent directly** (update the children instead).
 
 Create new plans with the MCP `plan_create` tool. Without it: YAML frontmatter (`oculpm_plan: v1` · `id` (kebab, same as filename) · `title` (quoted) · `status: active` · `created`/`updated` · `owner` (your agent.id)) → `## Phase title {#id}` headings (no glyph — phase progress rolls up from items) → `- [ ] item {#id}` lines → an empty `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` block.
 

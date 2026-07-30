@@ -33,7 +33,7 @@ use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::cache::JournalCache;
 use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMPT};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
-use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status, LogRow};
+use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status_rolled, LogRow};
 use crate::oculpm::planner::project::{find_plan_path, planner_dir, PlanCache};
 
 /// How much of the entry body we feed the model. Enough for a status decision
@@ -204,9 +204,13 @@ pub async fn reconcile_entry(
         if parsed.frontmatter.status.as_str() != "active" || parsed.items.is_empty() {
             continue;
         }
+        // 3-depth — 부모 항목은 목록에서 제외: 상태가 파생이라 모델이 제안해도
+        // 거부돼 조용한 no-op 이 된다 (매 회차 재제안 루프 방지).
+        let parents = parsed.parent_ids();
         let items_block = parsed
             .items
             .iter()
+            .filter(|i| !parents.contains(i.item_id.as_str()))
             .map(|i| format!("- {{#{}}} [{}] {}", i.item_id, i.status.as_str(), i.title))
             .collect::<Vec<_>>()
             .join("\n");
@@ -259,7 +263,7 @@ pub async fn reconcile_entry(
             if cur_status.get(&e.item_id) == Some(&ns) {
                 continue; // no-op
             }
-            if let Ok(res) = set_item_status(&cur, &e.item_id, ns) {
+            if let Ok(res) = set_item_status_rolled(&cur, &e.item_id, ns) {
                 let row = LogRow {
                     ts: ts.clone(),
                     item_id: e.item_id.clone(),

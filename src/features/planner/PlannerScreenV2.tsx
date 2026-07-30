@@ -1087,6 +1087,7 @@ function PhaseCard(props: PhaseCardProps) {
               item={it}
               busy={busy}
               locked={locked}
+              isParent={items.some((c) => c.parent_item === it.item_id)}
               onSetStatus={onSetStatus}
               onRemove={onRemoveItem}
               onRename={onRenameItem}
@@ -1108,6 +1109,8 @@ interface PlanItemRowProps {
   item: PlanItemDto;
   busy: boolean;
   locked: boolean;
+  /** 3-depth — 하위를 가진 부모: 상태는 롤업 파생이라 직접 조작 불가. */
+  isParent: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onRemove: (item: PlanItemDto) => void;
   onRename: (item: PlanItemDto, title: string) => void;
@@ -1118,7 +1121,7 @@ interface PlanItemRowProps {
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
 }
 
-function PlanItemRow({ item, busy, locked, onSetStatus, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
+function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const indent = item.parent_item ? 22 : 0;
   const linked = item.journal_refs ?? [];
@@ -1156,16 +1159,22 @@ function PlanItemRow({ item, busy, locked, onSetStatus, onRemove, onRename, hist
   // but it isn't closed out yet → offer a one-click "완료?". Suppressed on a
   // locked plan (no edits allowed).
   const suggestDone =
-    !locked && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
+    !locked && !isParent && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
   return (
     <div className="subtask" style={{ alignItems: "flex-start", paddingLeft: 14 + indent, cursor: "default" }}>
       <button
         type="button"
         onClick={() => onSetStatus(item, NEXT_STATUS[item.status] ?? "in_progress")}
-        disabled={busy || locked}
-        title={locked ? `${meta.label} (완료·잠금)` : `${meta.label} — 클릭하여 진행`}
+        disabled={busy || locked || isParent}
+        title={
+          isParent
+            ? `${meta.label} (하위 롤업으로 자동 계산 — 하위 항목을 갱신하세요)`
+            : locked
+              ? `${meta.label} (완료·잠금)`
+              : `${meta.label} — 클릭하여 진행`
+        }
         style={{
-          background: "none", border: "none", cursor: busy || locked ? "default" : "pointer",
+          background: "none", border: "none", cursor: busy || locked || isParent ? "default" : "pointer",
           color: meta.color, fontSize: 16, lineHeight: "20px", padding: 0, width: 22, flexShrink: 0,
         }}
       >

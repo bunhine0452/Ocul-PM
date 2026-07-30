@@ -12,7 +12,7 @@
 
 #![allow(dead_code)] // Fields/methods consumed by the projection + commands (PR-PLN 0 part 2/3).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde_yaml::Value as YamlValue;
 
@@ -226,11 +226,23 @@ pub struct ParsedPlan {
 
 impl ParsedPlan {
     /// Weighted progress (0..1) over countable items (todo/in_progress/done).
-    /// Empty / all-excluded → 0.0.
+    /// Empty / all-excluded → 0.0. 3-depth: 부모 항목은 하위의 파생값이므로
+    /// 리프만 센다 (부모까지 세면 하위가 이중 가중된다).
+    /// 3-depth — 하위를 가진 항목 id 집합. 이 항목들의 상태·카운트는 파생값
+    /// 이므로 모든 집계는 이 집합을 제외한 리프 기준이어야 한다 (진척 바와
+    /// done/total 카운트가 갈라지는 것 방지).
+    pub fn parent_ids(&self) -> HashSet<&str> {
+        self.items.iter().filter_map(|i| i.parent_item.as_deref()).collect()
+    }
+
     pub fn progress(&self) -> f64 {
+        let parents = self.parent_ids();
         let mut sum = 0.0;
         let mut n = 0u32;
         for it in &self.items {
+            if parents.contains(it.item_id.as_str()) {
+                continue;
+            }
             if let Some(w) = it.status.weight() {
                 sum += w;
                 n += 1;
@@ -327,6 +339,9 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
                 cur_decision = Some(parse_decision_header(h.trim(), &mut seen_ids, &mut warnings));
                 decision_lines.clear();
             }
+            // 3-depth — 서브 헤딩도 항목 흐름을 끊는다: 헤딩 너머의 들여쓴
+            // 항목이 헤딩 앞 최상위 항목에 입양되지 않게.
+            last_toplevel = None;
             continue;
         }
         // `# H1` — a document title many agents write instead of frontmatter.
@@ -371,6 +386,22 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
         };
     }
 
+    // 3-depth (#plan-3depth) — 하위가 있는 항목의 상태는 하위 롤업이 정답이다
+    // (phase 규칙과 동일 정신). 파일의 부모 글리프가 낡아도 파생값이 이기고,
+    // 쓰기 경로(`plan_edit::set_item_status_rolled`)가 글리프를 함께 정규화한다.
+    let mut child_statuses: HashMap<String, Vec<ItemStatus>> = HashMap::new();
+    for it in &items {
+        if let Some(p) = &it.parent_item {
+            child_statuses.entry(p.clone()).or_default().push(it.status);
+        }
+    }
+    let mut items = items;
+    for it in &mut items {
+        if let Some(kids) = child_statuses.get(&it.item_id) {
+            it.status = rollup_status(kids);
+        }
+    }
+
     ParsedPlan {
         frontmatter,
         items,
@@ -379,6 +410,26 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
         updates,
         warnings,
     }
+}
+
+/// 3-depth — 하위 상태들의 롤업. dropped 는 모수에서 제외(전부 dropped 면
+/// Dropped), 하나라도 blocked 면 Blocked, 전부 done/todo/deferred 면 그 값,
+/// 그 외 혼합은 InProgress.
+pub fn rollup_status(children: &[ItemStatus]) -> ItemStatus {
+    let live: Vec<ItemStatus> =
+        children.iter().copied().filter(|s| *s != ItemStatus::Dropped).collect();
+    if live.is_empty() {
+        return ItemStatus::Dropped;
+    }
+    if live.contains(&ItemStatus::Blocked) {
+        return ItemStatus::Blocked;
+    }
+    for uniform in [ItemStatus::Done, ItemStatus::Todo, ItemStatus::Deferred] {
+        if live.iter().all(|s| *s == uniform) {
+            return uniform;
+        }
+    }
+    ItemStatus::InProgress
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -525,8 +576,11 @@ fn parse_item_line(
     seen_ids: &mut HashSet<String>,
     warnings: &mut Vec<String>,
 ) -> Option<PlanItem> {
-    let indent = line.len() - line.trim_start().len();
     let t = line.trim_start();
+    // 들여쓰기 판정 — 탭 1개도 중첩 의도로 본다 (문자 수로만 재면 `\t` 는
+    // 1 < 2 라 새 최상위가 되고, 이어지는 2칸 항목들을 제 하위로 입양한다).
+    let ws = &line[..line.len() - t.len()];
+    let indent = if ws.contains('\t') { 2 } else { ws.len() };
 
     // List marker.
     let rest = t.strip_prefix("- ").or_else(|| t.strip_prefix("* "))?;
@@ -939,10 +993,46 @@ owner: claude-code
     #[test]
     fn progress_rollup_excludes_blocked_deferred_dropped() {
         let p = parse_plan(SAMPLE, "x");
-        // Countable: abs-cache(done=1) seed-verify(ip=.5) fresh-machine(todo=0)
+        // 3-depth: seed-verify 는 부모(파생)라 제외 — 리프만 센다.
+        // Countable leaves: abs-cache(done=1) fresh-machine(todo=0)
         // search-scopes(todo=0). dl-ux(blocked) + bundle(deferred) excluded.
-        // (1 + 0.5 + 0 + 0) / 4 = 0.375
-        assert!((p.progress() - 0.375).abs() < 1e-9, "got {}", p.progress());
+        // (1 + 0 + 0) / 3 = 1/3
+        assert!((p.progress() - 1.0 / 3.0).abs() < 1e-9, "got {}", p.progress());
+    }
+
+    /// 3-depth — 하위가 있는 부모의 상태는 롤업이 파일 글리프를 이긴다.
+    /// SAMPLE 의 seed-verify 는 `[~]` 이지만 유일한 하위가 todo 라 Todo 로 파생.
+    #[test]
+    fn parent_status_is_rolled_up_from_children() {
+        let p = parse_plan(SAMPLE, "x");
+        let parent = p.items.iter().find(|i| i.item_id == "seed-verify").unwrap();
+        assert_eq!(parent.status, ItemStatus::Todo, "글리프 [~] 보다 롤업(하위 todo)이 정답");
+        let leaf = p.items.iter().find(|i| i.item_id == "fresh-machine").unwrap();
+        assert_eq!(leaf.status, ItemStatus::Todo);
+    }
+
+    /// 리뷰 F7/L2 — 탭 들여쓰기도 중첩이고, `###` 헤딩은 입양을 끊는다.
+    #[test]
+    fn tab_indent_nests_and_subheading_breaks_adoption() {
+        let md = "---\noculpm_plan: v1\nid: t\ntitle: \"t\"\nstatus: active\n---\n\n## P {#p}\n- [ ] a {#a}\n\t- [ ] tabbed {#tb}\n\n### 메모\n  - [ ] stray {#st}\n";
+        let p = parse_plan(md, "t");
+        let tb = p.items.iter().find(|i| i.item_id == "tb").unwrap();
+        assert_eq!(tb.parent_item.as_deref(), Some("a"), "탭도 중첩");
+        let st = p.items.iter().find(|i| i.item_id == "st").unwrap();
+        assert_eq!(st.parent_item, None, "### 너머 입양 금지");
+    }
+
+    #[test]
+    fn rollup_status_covers_the_vocabulary() {
+        use ItemStatus::*;
+        assert_eq!(rollup_status(&[Done, Done]), Done);
+        assert_eq!(rollup_status(&[Todo, Todo]), Todo);
+        assert_eq!(rollup_status(&[Done, Todo]), InProgress);
+        assert_eq!(rollup_status(&[Done, InProgress]), InProgress);
+        assert_eq!(rollup_status(&[Done, Blocked, Todo]), Blocked, "blocked 최우선");
+        assert_eq!(rollup_status(&[Dropped, Dropped]), Dropped);
+        assert_eq!(rollup_status(&[Done, Dropped]), Done, "dropped 는 모수 제외");
+        assert_eq!(rollup_status(&[Deferred, Deferred]), Deferred);
     }
 
     #[test]

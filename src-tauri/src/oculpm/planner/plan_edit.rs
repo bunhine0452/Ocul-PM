@@ -129,6 +129,74 @@ pub fn set_item_status(
     })
 }
 
+/// 3-depth (#plan-3depth) — 롤업 인지 상태 변경. 모든 제품 쓰기 경로(앱 UI ·
+/// MCP `plan_update` · reconcile)가 이걸 쓴다:
+/// - 대상이 **하위를 가진 부모**면 거부 — 부모 상태는 하위 롤업으로 파생된다
+///   (phase 와 동일: 직접 설정할 수 있는 상태가 아니다).
+/// - 대상이 **자식**이면 변경 후 부모 글리프를 롤업으로 함께 정규화한다 —
+///   파일의 글리프와 파생값이 갈라지지 않게 (본문 글리프가 정답 원칙 유지).
+pub fn set_item_status_rolled(
+    md: &str,
+    item_id: &str,
+    new: ItemStatus,
+) -> Result<SetStatusResult, String> {
+    let parsed = crate::oculpm::planner::parse::parse_plan(md, "x");
+    if parsed.items.iter().any(|i| i.parent_item.as_deref() == Some(item_id)) {
+        return Err(format!(
+            "'{item_id}' 는 하위 항목이 있는 부모입니다 — 상태는 하위 롤업으로 자동 계산됩니다. \
+             하위 항목을 갱신하세요"
+        ));
+    }
+    let parent_id = parsed
+        .items
+        .iter()
+        .find(|i| i.item_id == item_id)
+        .and_then(|i| i.parent_item.clone());
+    let result = set_item_status(md, item_id, new)?;
+    if let Some(parent_id) = parent_id {
+        // 방어 — parent_id 는 *파싱된* id 라 dedup(`x`→`x-2`) 산물일 수 있고,
+        // 그 경우 needle 이 유일하게 맞는 줄이 원래 `{#x-2}` 를 달고 있던
+        // **방관자**일 수 있다. 원문에 중복 {#id} 가 하나라도 있으면 어느 줄이
+        // 진짜 부모인지 원문만으로 확정할 수 없으니 정규화를 통째로 건너뛴다
+        // (파생 상태는 파서가 계속 보장 — 파일 글리프만 잠시 낡는다).
+        let mut seen_raw = std::collections::HashSet::new();
+        let has_dup = result
+            .md
+            .split('\n')
+            .filter(|l| is_item_line(l))
+            .filter_map(raw_brace_id)
+            .any(|id| !seen_raw.insert(id.to_string()));
+        let needle = format!("{{#{parent_id}}}");
+        let raw_hits = result
+            .md
+            .split('\n')
+            .filter(|l| is_item_line(l) && l.contains(&needle))
+            .count();
+        if has_dup || raw_hits != 1 {
+            return Ok(result);
+        }
+        let reparsed = crate::oculpm::planner::parse::parse_plan(&result.md, "x");
+        let siblings: Vec<ItemStatus> = reparsed
+            .items
+            .iter()
+            .filter(|i| i.parent_item.as_deref() == Some(parent_id.as_str()))
+            .map(|i| i.status)
+            .collect();
+        let roll = crate::oculpm::planner::parse::rollup_status(&siblings);
+        if let Ok(normalized) = set_item_status(&result.md, &parent_id, roll) {
+            return Ok(SetStatusResult { md: normalized.md, old_status: result.old_status });
+        }
+    }
+    Ok(result)
+}
+
+/// 항목 줄의 원문 `{#id}` 를 뽑는다 (파서의 dedup 이전 값).
+fn raw_brace_id(line: &str) -> Option<&str> {
+    let s = line.rfind("{#")?;
+    let e = line[s..].find('}')? + s;
+    Some(&line[s + 2..e])
+}
+
 /// Remove an item line (`{#item_id}`) entirely. Errors if not found. Other
 /// content (the plan-log rows referencing it) is left as historical record.
 pub fn remove_item(md: &str, item_id: &str) -> Result<String, String> {
@@ -138,7 +206,24 @@ pub fn remove_item(md: &str, item_id: &str) -> Result<String, String> {
         .iter()
         .position(|l| is_item_line(l) && l.contains(&needle))
         .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
+    let was_toplevel = !lines[idx].starts_with(' ') && !lines[idx].starts_with('\t');
     lines.remove(idx);
+    // 3-depth — 최상위 항목을 지우면 바로 아래 들여쓴 하위들이 *직전* 최상위
+    // 항목에 위치상 입양돼 그 항목의 상태를 파생값으로 잠가버린다. 하위를
+    // 최상위로 승격(들여쓰기 제거)해 내용을 보존하며 입양을 끊는다.
+    if was_toplevel {
+        let mut i = idx;
+        while i < lines.len() {
+            let l = &lines[i];
+            let indented = l.starts_with(' ') || l.starts_with('\t');
+            if indented && is_item_line(l) {
+                lines[i] = l.trim_start().to_string();
+                i += 1;
+            } else {
+                break;
+            }
+        }
+    }
     Ok(lines.join("\n"))
 }
 
@@ -683,5 +768,54 @@ mod tests {
         // decisions survived intact.
         assert!(up.contains("## 결정 (Decisions)"));
         assert_eq!(p.decisions.len(), 1);
+    }
+
+    // ─── 3-depth (#plan-3depth) ─────────────────────────────────────────────
+
+    const NESTED: &str = "---\noculpm_plan: v1\nid: n\ntitle: \"n\"\nstatus: active\n---\n\n## P {#p}\n- [ ] 부모 {#parent}\n  - [ ] 하나 {#c1}\n  - [ ] 둘 {#c2}\n\n<!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n";
+
+    /// 자식 변경이 부모 글리프를 롤업으로 정규화한다 (파일과 파생값의 일치).
+    #[test]
+    fn rolled_set_normalizes_parent_glyph() {
+        let r1 = set_item_status_rolled(NESTED, "c1", ItemStatus::Done).unwrap();
+        assert!(r1.md.contains("- [~] 부모 {#parent}"), "{}", r1.md);
+        let r2 = set_item_status_rolled(&r1.md, "c2", ItemStatus::Done).unwrap();
+        assert!(r2.md.contains("- [x] 부모 {#parent}"), "{}", r2.md);
+        assert!(r2.md.contains("  - [x] 하나 {#c1}"));
+    }
+
+    /// 리뷰 M1 — dedup 된 부모 id(`x`→`x-2`)로 정규화하면 원래 `{#x-2}` 를
+    /// 달고 있던 방관자 항목을 덮어쓸 수 있다: 원문 항목 줄이 유일할 때만
+    /// 정규화하고, 모호하면 건드리지 않는다 (파생값은 파서가 계속 보장).
+    #[test]
+    fn rolled_set_skips_normalization_on_ambiguous_parent_id() {
+        let md = "---\noculpm_plan: v1\nid: n\ntitle: \"n\"\nstatus: active\n---\n\n## P {#p}\n- [ ] one {#x}\n- [ ] two {#x}\n  - [ ] kid {#k}\n- [ ] bystander {#x-2}\n\n<!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n";
+        let r = set_item_status_rolled(md, "k", ItemStatus::Done).unwrap();
+        assert!(r.md.contains("- [ ] bystander {#x-2}"), "방관자 불가침: {}", r.md);
+        assert!(r.md.contains("  - [x] kid {#k}"));
+    }
+
+    /// 리뷰 M2 — 최상위 부모 삭제 시 하위가 직전 항목에 위치상 입양돼 그
+    /// 항목이 파생·잠금 상태가 되던 문제: 하위를 최상위로 승격해 보존한다.
+    #[test]
+    fn remove_parent_promotes_children_to_top_level() {
+        let md = "---\noculpm_plan: v1\nid: n\ntitle: \"n\"\nstatus: active\n---\n\n## P {#p}\n- [x] prev {#prev}\n- [ ] gone {#gone}\n  - [ ] a {#a}\n  - [x] b {#b}\n\n<!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n";
+        let out = remove_item(md, "gone").unwrap();
+        assert!(out.contains("\n- [ ] a {#a}"), "승격: {out}");
+        assert!(out.contains("\n- [x] b {#b}"));
+        let parsed = crate::oculpm::planner::parse::parse_plan(&out, "n");
+        let prev = parsed.items.iter().find(|i| i.item_id == "prev").unwrap();
+        assert_eq!(prev.status, ItemStatus::Done, "prev 가 입양으로 파생되면 안 됨");
+    }
+
+    /// 부모 직접 설정은 거부 — 상태는 하위 롤업으로만 움직인다 (phase 와 동일).
+    #[test]
+    fn rolled_set_rejects_parent_with_children() {
+        let err = set_item_status_rolled(NESTED, "parent", ItemStatus::Done).unwrap_err();
+        assert!(err.contains("하위"), "{err}");
+        // 중첩 없는 항목은 종전과 동일하게 동작.
+        let flat = NESTED.replace("  - [ ] 하나 {#c1}\n  - [ ] 둘 {#c2}\n", "");
+        let ok = set_item_status_rolled(&flat, "parent", ItemStatus::Done).unwrap();
+        assert!(ok.md.contains("- [x] 부모 {#parent}"));
     }
 }

@@ -192,3 +192,23 @@ CREATE TABLE IF NOT EXISTS oculpm_plan_decisions (
 | `plan_create(project_id, title)` | 빈 plan .md 생성 |
 
 > `plan_apply_edit` 는 *유일한 쓰기 경로*(앱/인앱AI). 외부 에이전트는 파일 직접 편집(AGENTS.md). 둘 다 watcher 가 흡수. ([`02`](./02-agents-protocol-and-attribution.md))
+
+## 2.x 중첩과 롤업 (3-depth, 2026-07-31 — #plan-3depth)
+
+항목은 **최대 1단계** 중첩된다: 최상위 `- [ ] 부모 {#id}` 아래 **두 칸 들여쓴**
+`  - [ ] 하위 {#id}`. 탭 들여쓰기도 중첩으로 인정하고, 더 깊은 들여쓰기(4칸+)는
+같은 최상위 항목으로 평탄화된다 (손자 없음). `##`/`###` 헤딩은 항목 흐름을 끊는다
+— 헤딩 다음의 들여쓴 항목은 이전 항목에 붙지 않는다.
+
+**롤업이 부모의 정답이다** (`parse.rs::rollup_status`): dropped 는 모수에서 제외
+(전부 dropped → dropped) · 하나라도 blocked → blocked · 전부 done/todo/deferred →
+그 값 · 그 외 혼합 → in_progress. 파서는 하위를 가진 항목의 상태를 파일 글리프와
+무관하게 롤업으로 **파생**시키고, 쓰기 경로(`plan_edit::set_item_status_rolled`)는
+하위 변경 시 부모 글리프를 롤업으로 함께 정규화한다 (글리프-파생값 일치 유지;
+이 정규화는 plan-log 행을 남기지 않는다 — 하위의 행이 원인 기록이다). 부모를
+직접 갱신하는 시도는 거부된다 (phase 와 동일: 설정할 수 있는 상태가 아니다).
+
+**집계는 리프 기준**: `progress()`·요약 done/total·phase 진척·MCP `plan_status`
+전부 부모를 제외하고 센다 (부모까지 세면 하위가 이중 가중). MCP TSV 는 `parent`
+열(6번째)로 하위→부모 관계를 나른다. 최상위 부모를 `remove_item` 으로 지우면
+그 하위들은 최상위로 승격된다 (직전 항목으로의 위치상 입양 방지).

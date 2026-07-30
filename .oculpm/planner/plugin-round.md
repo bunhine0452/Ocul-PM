@@ -30,7 +30,7 @@ owner: claude-code
 - [x] TK1 템플릿 v6 — claude-code 어댑터 MCP-first 슬림(~600 tok)/비MCP 어댑터 압축(~1,700 tok) 이원화 + en 변형 동시 설계 + §8 discussion on-demand 분리 + .claude/CLAUDE.md import 1줄화 {#tk1-template-v6}
 
 ## Phase C — 플래너를 핸들로 {#round-c}
-- [ ] 3-depth 플랜 계층(사용자 제안 2026-07-31) — 들여쓰기 중첩 `- [ ]` 서브아이템(최대 3depth 하드캡: phase→item→sub), 상위 글리프=하위 롤업(phase 규칙 재사용), plan_status TSV parent 열 1개, 레일/목록 들여쓰기+접기, 무중첩 기존 plan 완전 호환. 템플릿 §7 반영은 TK1 열차 동승 {#plan-3depth}
+- [x] 3-depth 플랜 계층(사용자 제안 2026-07-31) — 들여쓰기 중첩 `- [ ]` 서브아이템(최대 3depth 하드캡: phase→item→sub), 상위 글리프=하위 롤업(phase 규칙 재사용), plan_status TSV parent 열 1개, 레일/목록 들여쓰기+접기, 무중첩 기존 plan 완전 호환. 템플릿 §7 반영은 TK1 열차 동승 {#plan-3depth}
 - [ ] IN2 플래너 디스패치 v1 — 항목 선택→항목 텍스트+관련 일지 2건+해당 rules 프롬프트 조립→기존 터미널로 Claude Code 발화 (자동화·큐잉은 v2). 실행 단위 = 3depth 의 리프 {#in2-dispatch}
 - [ ] IN0 project-inception 스킬 — STAGE 0~3 산출물을 .oculpm/discussion+planner+EVALS.md 로. 성공 기준 = 기존 파서 3개(discussion 승격·EVALS 표 규약·rule paths)에 무수정 착지 {#in0-inception-skill}
 - [ ] IN1 GreenfieldWizard 마지막 단계 → IN0 스킬 발화 안내 연결 {#in1-wizard}
@@ -64,4 +64,5 @@ owner: claude-code
 | 2026-07-31T01:28:58+09:00 | #a2-skills-activation | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0128_feature_plugin-skills-and-activation.md | 스킬4+standup+README자동생성+SessionEnd안내. Always-on ~407tok 실측·예산 테스트 잠금. 동기 vitest 3 |
 | 2026-07-31T01:38:33+09:00 | #tk0-plan-create | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0138_feature_plan-create-mcp-tool.md | 파서 자기검증 내장·id 4규칙·redact. 실바이너리 E2E 통과. instructions 강화 동승 |
 | 2026-07-31T01:53:08+09:00 | #tk1-template-v6 | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0153_feature_template-v6-token-diet.md | 8,031→3,229 chars(−60%). spec 분리·wrapper 탈임포트·en+template_language. 크기 가드 테스트로 회귀 차단. 실기기 업그레이드 확인은 A0d 동승 |
+| 2026-07-31T02:20:08+09:00 | #plan-3depth | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/0219_feature_plan-3depth-rollup.md | 롤업·리프 집계·중첩 생성·UI 가드·템플릿 v7. 적대 검증 HIGH3/MED5/LOW3 전부 반영. 접기 UI 는 후속 |
 <!-- oculpm:plan-log end -->

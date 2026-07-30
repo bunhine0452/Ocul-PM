@@ -20,7 +20,7 @@ use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubta
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
     add_item, append_log_row, create_plan_skeleton, move_phase, remove_item, remove_phase,
-    rename_item, rename_phase, set_item_status, set_plan_status, set_plan_title, LogRow,
+    rename_item, rename_phase, set_item_status_rolled, set_plan_status, set_plan_title, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -192,7 +192,7 @@ pub async fn plan_apply_edit(
         PlanEditOp::SetStatus { item_id, status } => {
             let new_status = ItemStatus::parse_status(&status)
                 .ok_or_else(|| format!("unknown status '{status}'"))?;
-            let res = set_item_status(&md, &item_id, new_status)?;
+            let res = set_item_status_rolled(&md, &item_id, new_status)?;
             let row = LogRow {
                 ts,
                 item_id,
@@ -378,9 +378,13 @@ pub async fn plan_ai_refresh(
         return Err(LOCKED_MSG.to_string());
     }
 
+    // 3-depth — 부모 항목은 목록에서 제외: 상태가 파생이라 모델이 제안해도
+    // 거부돼 조용한 no-op 이 된다 (매 회차 재제안 루프 방지).
+    let parents = parsed.parent_ids();
     let items_block = parsed
         .items
         .iter()
+        .filter(|i| !parents.contains(i.item_id.as_str()))
         .map(|i| format!("- {{#{}}} [{}] {}", i.item_id, i.status.as_str(), i.title))
         .collect::<Vec<_>>()
         .join("\n");
@@ -453,7 +457,7 @@ pub async fn plan_ai_refresh(
         if cur_status.get(&e.item_id) == Some(&ns) {
             continue; // no-op
         }
-        if let Ok(res) = set_item_status(&cur, &e.item_id, ns) {
+        if let Ok(res) = set_item_status_rolled(&cur, &e.item_id, ns) {
             let row = LogRow {
                 ts: ts.clone(),
                 item_id: e.item_id.clone(),

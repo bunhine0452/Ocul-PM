@@ -243,11 +243,12 @@ fn last_update_map(parsed: &ParsedPlan) -> HashMap<String, (String, String)> {
 
 fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
     let p = &loaded.parsed;
-    let done = p
-        .items
-        .iter()
-        .filter(|i| i.status == ItemStatus::Done)
-        .count() as u32;
+    // 3-depth — 카운트는 리프 기준 (부모는 파생값: progress() 와 동일 규칙,
+    // 아니면 레일이 "1/3 · 100%" 처럼 진척 바와 어긋난 숫자를 보인다).
+    let parents = p.parent_ids();
+    let leaves = || p.items.iter().filter(|i| !parents.contains(i.item_id.as_str()));
+    let done = leaves().filter(|i| i.status == ItemStatus::Done).count() as u32;
+    let item_count = leaves().count() as u32;
     PlanSummary {
         plan_id: loaded.plan_id.clone(),
         title: p.frontmatter.title.clone(),
@@ -256,7 +257,7 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
         progress: p.progress(),
         file_path: loaded.file_path.clone(),
         updated_at: loaded.updated_at.clone(),
-        item_count: p.items.len() as u32,
+        item_count,
         done_count: done,
     }
 }
@@ -323,7 +324,10 @@ fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
             let mut sum = 0.0;
             let mut n = 0u32;
             let mut done = 0u32;
-            for it in &in_phase {
+            // 3-depth — 부모는 파생값이라 제외 (부모+하위를 같이 재면 하위가
+            // 이중 가중되고, phase done 수가 부풀려진다).
+            let parents = p.parent_ids();
+            for it in in_phase.iter().filter(|i| !parents.contains(i.item_id.as_str())) {
                 if let Some(w) = it.status.weight() {
                     sum += w;
                     n += 1;

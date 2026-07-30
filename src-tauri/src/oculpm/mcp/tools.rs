@@ -18,7 +18,7 @@ use crate::oculpm::frontmatter::write_frontmatter_and_body;
 use crate::oculpm::manager::{category_subdir, entry_type_filename_token, pick_nonconflicting_path};
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
-use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status, LogRow};
+use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status_rolled, LogRow};
 use crate::oculpm::planner::project::{find_plan_path, planner_dir};
 use crate::oculpm::redact::{
     build_forbidden_matcher, compile_redact_patterns, is_forbidden_path, redact_text,
@@ -120,7 +120,19 @@ pub fn tool_definitions() -> Value {
                                         "type": "object",
                                         "properties": {
                                             "text": { "type": "string", "description": "항목 한 줄 (줄바꿈 금지 — 전부 [ ] 할일로 생성됨)" },
-                                            "id": { "type": "string", "description": "안정적 kebab id (생략 시 텍스트에서 유도, 한글뿐이면 p<n>-<m>)" }
+                                            "id": { "type": "string", "description": "안정적 kebab id (생략 시 텍스트에서 유도, 한글뿐이면 p<n>-<m>)" },
+                                            "children": {
+                                                "type": "array",
+                                                "description": "선택 — 하위 작업 (최대 1단계 중첩). 부모 상태는 하위 롤업으로 자동 계산되므로 부모를 직접 갱신하지 말 것",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "text": { "type": "string" },
+                                                        "id": { "type": "string" }
+                                                    },
+                                                    "required": ["text"]
+                                                }
+                                            }
                                         },
                                         "required": ["text"]
                                     }
@@ -454,7 +466,7 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let mut plans: Vec<Value> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
     // (plan_id, item_id, status_token, phase, title) — 필터를 통과한 전체 집합.
-    let mut rows: Vec<(String, String, &'static str, String, String)> = Vec::new();
+    let mut rows: Vec<(String, String, &'static str, String, String, String)> = Vec::new();
 
     for path in paths {
         let Ok(md) = std::fs::read_to_string(&path) else { continue };
@@ -468,15 +480,23 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
             continue;
         }
 
+        // 3-depth — done/total 은 리프 기준 (부모는 파생값: progress() 와 동일).
+        let parent_ids = parsed.parent_ids();
         let done = parsed
             .items
             .iter()
+            .filter(|i| !parent_ids.contains(i.item_id.as_str()))
             .filter(|i| matches!(i.status, ItemStatus::Done))
+            .count();
+        let total = parsed
+            .items
+            .iter()
+            .filter(|i| !parent_ids.contains(i.item_id.as_str()))
             .count();
         plans.push(json!({
             "id": plan_id,
             "title": parsed.frontmatter.title,
-            "progress": { "done": done, "total": parsed.items.len() },
+            "progress": { "done": done, "total": total },
         }));
         for w in &parsed.warnings {
             warnings.push(format!("{plan_id}: {w}"));
@@ -494,6 +514,7 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
                     i.status.token(),
                     i.phase.clone().unwrap_or_default(),
                     i.title.clone(),
+                    i.parent_item.clone().unwrap_or_default(),
                 ));
             }
         }
@@ -519,23 +540,25 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let end = (start + limit).min(total);
     let page = &rows[start..end];
 
-    let mut tsv = String::from("plan\titem\tst\tphase\ttitle");
-    for (plan_id, item_id, tok, phase, title) in page {
+    // 3-depth — parent 열: 하위 항목이면 부모 item id, 최상위면 빈칸.
+    let mut tsv = String::from("plan\titem\tst\tphase\ttitle\tparent");
+    for (plan_id, item_id, tok, phase, title, parent) in page {
         tsv.push('\n');
         tsv.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}",
             tsv_cell(plan_id),
             tsv_cell(item_id),
             tok,
             tsv_cell(phase),
-            tsv_cell(title)
+            tsv_cell(title),
+            tsv_cell(parent)
         ));
     }
 
     let mut out = json!({
         "plans": plans,
         "items_tsv": tsv,
-        "legend": "st: ' '=todo ~=in_progress x=done !=blocked >=deferred -=dropped (디스크 글리프와 동일)",
+        "legend": "st: ' '=todo ~=in_progress x=done !=blocked >=deferred -=dropped (디스크 글리프와 동일 — 단 parent 열이 비지 않은 하위를 가진 부모 행의 st 는 하위 롤업 파생값)",
         "returned": page.len(),
         "total": total,
         "more": end < total,
@@ -587,7 +610,7 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         ));
     }
 
-    let result = set_item_status(&md, item_id, new_status)?;
+    let result = set_item_status_rolled(&md, item_id, new_status)?;
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
     let now_local = Utc::now().with_timezone(&resolver.tz);
@@ -731,6 +754,49 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                 }
             };
             body.push_str(&format!("- [ ] {text} {{#{iid}}}\n"));
+
+            // 3-depth — 하위 작업 (두 칸 들여쓰기, 최대 1단계).
+            let children = item.get("children").and_then(Value::as_array).unwrap_or(&empty);
+            for (ci, child) in children.iter().enumerate() {
+                item_count += 1;
+                if item_count > MAX_PLAN_ITEMS {
+                    return Err(format!("항목이 너무 많습니다 (상한 {MAX_PLAN_ITEMS})"));
+                }
+                if child.get("children").is_some() {
+                    return Err(format!(
+                        "phases[{pi}].items[{ii}].children[{ci}] 에 children 불가 — 중첩은 1단계까지"
+                    ));
+                }
+                let ctext_raw = child
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| {
+                        format!("phases[{pi}].items[{ii}].children[{ci}].text is required")
+                    })?;
+                let ctext = one_line(ctext_raw);
+                let cid = match child.get("id").and_then(Value::as_str).map(str::trim) {
+                    Some(s) if !s.is_empty() => {
+                        if !valid_kebab(s) {
+                            return Err(format!("child id '{s}' 는 kebab-case 여야 합니다"));
+                        }
+                        claim_unique_id(&mut used_ids, s.to_string())
+                    }
+                    _ => {
+                        let derived = sanitize_slug(&ctext)
+                            .ok()
+                            .map(|s| s.chars().take(40).collect::<String>())
+                            .map(|s| s.trim_end_matches('-').to_string())
+                            .filter(|s| !s.is_empty());
+                        claim_unique_id(
+                            &mut used_ids,
+                            derived.unwrap_or_else(|| format!("{iid}-{}", ci + 1)),
+                        )
+                    }
+                };
+                body.push_str(&format!("  - [ ] {ctext} {{#{cid}}}\n"));
+            }
         }
     }
 
@@ -927,10 +993,10 @@ mod tests {
         // 항목은 중첩 JSON 이 아니라 TSV 로 실린다 (실측 −37%).
         let tsv = out["items_tsv"].as_str().unwrap();
         let lines: Vec<&str> = tsv.lines().collect();
-        assert_eq!(lines[0], "plan\titem\tst\tphase\ttitle");
+        assert_eq!(lines[0], "plan\titem\tst\tphase\ttitle\tparent");
         assert_eq!(lines.len(), 3, "헤더 + 항목 2개: {tsv}");
-        assert_eq!(lines[1], "test-plan\tfirst\t \tPhase 1\t첫 항목");
-        assert_eq!(lines[2], "test-plan\tsecond\t~\tPhase 1\t둘째 항목");
+        assert_eq!(lines[1], "test-plan\tfirst\t \tPhase 1\t첫 항목\t");
+        assert_eq!(lines[2], "test-plan\tsecond\t~\tPhase 1\t둘째 항목\t");
         assert_eq!(out["returned"], 2);
         assert_eq!(out["total"], 2);
         assert_eq!(out["more"], false);
@@ -1093,7 +1159,7 @@ mod tests {
         let out = call_tool(dir.path(), "plan_status", &serde_json::json!({})).unwrap();
         let tsv = out["items_tsv"].as_str().unwrap();
         for line in tsv.lines() {
-            assert_eq!(line.split('\t').count(), 5, "열이 5개여야 함: {line:?}");
+            assert_eq!(line.split('\t').count(), 6, "열이 6개여야 함: {line:?}");
         }
     }
 
@@ -1191,6 +1257,50 @@ mod tests {
         // 잘못된 id 는 조용한 변형 대신 거부.
         let bad = serde_json::json!({ "plan_id": "Bad_ID", "title": "t", "phases": [{ "title": "p" }] });
         assert!(call_tool(root, "plan_create", &bad).unwrap_err().contains("kebab"));
+    }
+
+    /// 3-depth — plan_create 중첩 생성 → TSV parent 열 → 부모 직접 갱신 거부
+    /// → 자식 갱신 시 부모 글리프 정규화까지 한 와이어에서 검증.
+    #[test]
+    fn nested_plan_roundtrip_over_the_wire() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+
+        let args = serde_json::json!({
+            "plan_id": "nested", "title": "중첩", "phases": [{
+                "title": "P1", "id": "p1", "items": [{
+                    "text": "부모 작업", "id": "papa",
+                    "children": [
+                        { "text": "하위 하나", "id": "kid-a" },
+                        { "text": "하위 둘", "id": "kid-b" }
+                    ]
+                }]
+            }]
+        });
+        let out = call_tool(root, "plan_create", &args).unwrap();
+        assert_eq!(out["items"], 3, "부모 1 + 하위 2");
+        let md = std::fs::read_to_string(root.join(".oculpm/planner/nested.md")).unwrap();
+        assert!(md.contains("\n  - [ ] 하위 하나 {#kid-a}"), "{md}");
+
+        // TSV parent 열: 하위는 부모 id, 부모/최상위는 빈칸.
+        let status = call_tool(root, "plan_status", &serde_json::json!({})).unwrap();
+        let tsv = status["items_tsv"].as_str().unwrap();
+        assert!(tsv.lines().any(|l| l.starts_with("nested\tkid-a\t") && l.ends_with("\tpapa")), "{tsv}");
+        assert!(tsv.lines().any(|l| l.starts_with("nested\tpapa\t") && l.ends_with("\t")), "{tsv}");
+
+        // 부모 직접 갱신은 거부, 자식 갱신은 부모 글리프를 롤업으로 정규화.
+        let err = call_tool(root, "plan_update", &serde_json::json!({
+            "plan_id": "nested", "item_id": "papa", "status": "done"
+        }))
+        .unwrap_err();
+        assert!(err.contains("하위"), "{err}");
+        call_tool(root, "plan_update", &serde_json::json!({
+            "plan_id": "nested", "item_id": "kid-a", "status": "done"
+        }))
+        .unwrap();
+        let md = std::fs::read_to_string(root.join(".oculpm/planner/nested.md")).unwrap();
+        assert!(md.contains("- [~] 부모 작업 {#papa}"), "부모 정규화: {md}");
     }
 
     #[test]
