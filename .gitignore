@@ -91,3 +91,4 @@ Desktop.ini
 .oculpm/oculpm.log
 .oculpm.backup-*/
 # oculpm:end
+.vercel

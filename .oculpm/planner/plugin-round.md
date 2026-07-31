@@ -23,7 +23,7 @@ owner: claude-code
 - [x] A1 스키마·경로 정합 — plugin.json hooks/mcpServers 필드 제거(자동발견 위임)+최소 CLI 버전 명시+--plugin-dir 실로드·인벤토리 CI, bin/oculpm-mcp 셔틀(앱 번들→~/.local→target/debug 탐색), 릴리스 CI 버전 스탬프, 플랫폼 스탠스(v1=macOS) {#a1-schema-paths}
 - [x] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
 - [~] A3 마켓플레이스 공개 — 레포 루트 marketplace.json(source ./plugin/oculpm)+앱 설정 택일 UX(훅+MCP — 플러그인 감지 시 register.rs 프로젝트 등록 생략)+훅 계약 문서+버전 스큐 매트릭스+claude-plugins-community 제출·발사 글 {#a3-marketplace}
-- [ ] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
+- [~] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
 - [~] Notion OAuth 계정 연동(사용자 제안 2026-07-31) — "Notion 계정 연결" 버튼: public integration 등록 + oculpm.com 서버리스 코드 교환(클라 시크릿은 데스크톱에 못 넣음) + 로컬 콜백/딥링크 + 키체인 저장. 기존 internal token 경로는 폴백 유지 {#notion-oauth}
 
 ## Phase B — 토큰 다이어트 {#round-b}
@@ -77,4 +77,7 @@ owner: claude-code
 | 2026-07-31T05:03:19+09:00 | #in0-inception-skill | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/0502_feature_inception-interview-web-research.md | v2 업그레이드 — 인터뷰(1차)→웹 리서치(2차) 2단 구체화, 갤러리 패리티 유지 |
 | 2026-07-31T05:03:27+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Chores/0503_chore_landing-v2-5-0-redesign.md | 홍보 표면 갱신 — README 한/영 v2.5.0+설치 안내, 랜딩 리뉴얼(시작하기 2경로). 잔여: 커뮤니티 제출·런치 포스트 |
 | 2026-07-31T05:15:54+09:00 | #notion-oauth | claude-code | ~→~ | .oculpm/journal/20260731/Chores/0515_chore_release-v2-5-1.md | v2.5.1 로 출시 — 잔여: Notion 공개 통합 등록 + Vercel env 설정 후 실기기 E2E 확인 |
+| 2026-07-31T13:58:14+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 발사 글 최종본(ko/en)+채널 조사 문서화, 토픽 4종 스왑, awesome-claude-plugins PR #385. 잔여: Anthropic Console 폼·GeekNews/reddit 게시(사용자 직접) |
+| 2026-07-31T13:58:22+09:00 | #pricing-license | claude-code | ☐→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 결정 자료 완성(discussion pricing-open-core) — 추천 A+C 조합·DCO. 사용자 결정 질문 3건(경계 고정·개인 정의·팀 서버 데이터 스탠스) 대기 |
+| 2026-07-31T13:58:29+09:00 | #notion-oauth | claude-code | ~→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 에러 페이지 안내형 개선·배포 + Developer portal 절차 문서화(docs/notion-oauth-setup.md). 잔여: 사용자의 public connection 생성·Vercel env 2종·재배포 후 E2E |
 <!-- oculpm:plan-log end -->

@@ -45,7 +45,7 @@ export default async function handler(
   const id = process.env.NOTION_OAUTH_CLIENT_ID;
   const secret = process.env.NOTION_OAUTH_CLIENT_SECRET;
   if (!id || !secret) {
-    res.status(500).send("OAuth env not configured");
+    fail("서버 측 연동 구성이 아직 완료되지 않았습니다. ocul-pm 설정의 내부 통합 API 키 방식을 이용해 주세요.");
     return;
   }
   const basic = Buffer.from(`${id}:${secret}`).toString("base64");

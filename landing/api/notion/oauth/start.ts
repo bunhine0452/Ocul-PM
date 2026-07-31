@@ -20,7 +20,12 @@ export default function handler(
   }
   const clientId = process.env.NOTION_OAUTH_CLIENT_ID;
   if (!clientId) {
-    res.status(500).send("NOTION_OAUTH_CLIENT_ID not configured");
+    // 서버에 OAuth env 가 아직 등록되지 않은 기간에도 사용자에게는 다음 행동이 보이게.
+    res
+      .status(503)
+      .send(
+        `<html><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#1d2a24"><h2>Notion 계정 연결이 아직 준비 중입니다</h2><p>서버 측 연동 구성이 완료되면 이 버튼이 바로 동작합니다.</p><p>지금 연동하려면 ocul-pm 설정에서 <b>내부 통합 API 키</b> 방식을 사용해 주세요.<br/>(Notion → 통합 만들기 → Internal Integration Secret 붙여넣기)</p></body></html>`,
+      );
     return;
   }
   const u = new URL("https://api.notion.com/v1/oauth/authorize");
