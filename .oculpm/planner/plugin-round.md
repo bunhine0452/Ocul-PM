@@ -94,4 +94,5 @@ owner: claude-code
 | 2026-07-31T14:15:28+09:00 | #notion-oauth | claude-code | ~→~ |  | 사용자 등록·env·재배포 완료 — start 엔드포인트 302(실 client_id) 확인. 잔여: 앱 버튼 1회 클릭 E2E 확인만 |
 | 2026-07-31T16:28:39+09:00 | #retro-cc-generate | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1628_feature_retro-claude-code-generate.md | 디스패치+파일 규격+병합 구현, 적대 리뷰 HIGH(경로 탈출)·MED(redact-signature 파괴) 반영. 실기기 확인은 A0d 동승 |
 | 2026-07-31T16:28:47+09:00 | #retro-gen-bus | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/1628_bug_retro-gen-state-survives-nav.md | 전역 버스+경과 표시+부재중 입양. 리뷰 MED(스톨 영구잠금→3분 시효) 등 4건 반영, 자정 경계는 한계 명시 |
+| 2026-07-31T16:42:18+09:00 | #in0-inception-skill | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/1642_feature_inception-v3-research-first.md | v3 — 사용자 표준 흐름 반영: 리서치 선행→근거 실린 대화로 사양 확정, 기능 추가=계획→구현 반복 루프 명시 |
 <!-- oculpm:plan-log end -->
