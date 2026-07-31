@@ -29,6 +29,7 @@ export const commands = {
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
 	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
+	detectStack: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("detect_stack", { projectId })),
 	/**
 	 *  홈 화면이 마운트 때 1회 호출하는 단일 집계.
 	 * 

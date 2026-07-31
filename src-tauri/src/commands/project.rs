@@ -432,6 +432,21 @@ pub async fn search_symbols(
         .map_err(|e| e.to_string())
 }
 
+// C2 — 결정적 스택 감지: 프로젝트 루트의 매니페스트(+확장자 폴백)만으로
+// 언어·프레임워크 태그를 뽑는다 (LLM 0 · 네트워크 0). 스킬 카탈로그 추천의
+// 매칭 키. 로직은 oculpm::stack_detect 에 — 여기는 root 해석만.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_stack(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<String>, String> {
+    let root = get_project_root(&db, project_id).await?;
+    tokio::task::spawn_blocking(move || crate::oculpm::stack_detect::detect_stack(&root))
+        .await
+        .map_err(|e| format!("스택 감지 작업 실패: {e}"))
+}
+
 async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db.get_project(project_id)
         .await

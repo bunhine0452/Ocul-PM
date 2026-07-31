@@ -28,6 +28,7 @@ import { toast } from "@/lib/toast";
 import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, skillTemplate, splitFrontmatter } from "./skillsModel";
 import { GALLERY_SKILLS } from "./skillsGallery";
+import { CATALOG_SKILLS } from "./skillsCatalog";
 import { RulesTab } from "./RulesTab";
 import "./skills.css";
 
@@ -284,6 +285,53 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
       toast.info(`추천 스킬 설치됨: ${g.id}`);
       await loadList();
       setSelected({ scope: "project", dirName: g.id });
+    } else {
+      toast.destructive(res.error);
+    }
+  };
+
+  // C3 (#catalog-ui) — 제3자 카탈로그: 갤러리를 열 때 스택을 결정적으로
+  // 감지(LLM·네트워크 0)해 태그가 겹치는 스킬을 추천한다. 콘텐츠는 커밋 핀
+  // 벤더 사본(skillsCatalog) — 설치도 skills_save 재사용.
+  const [stackTags, setStackTags] = useState<string[] | null>(null);
+  const [catalogAllOpen, setCatalogAllOpen] = useState(false);
+  // 프로젝트가 바뀌면 감지 캐시를 비운다 — 이전 프로젝트 스택으로 추천하는 오염 방지.
+  useEffect(() => {
+    setStackTags(null);
+  }, [projectId]);
+  useEffect(() => {
+    if (!galleryOpen || stackTags != null) return;
+    // alive 가드: 프로젝트 제자리 전환 시 이전 프로젝트의 느린 감지 응답이
+    // 늦게 도착해 새 프로젝트 추천을 오염시키는 것을 막는다.
+    let alive = true;
+    void commands.detectStack(projectId).then((res) => {
+      if (!alive) return;
+      setStackTags(res.status === "ok" ? res.data : []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [galleryOpen, stackTags, projectId]);
+  const matchedCatalog = useMemo(() => {
+    if (!stackTags?.length) return [];
+    const tagSet = new Set(stackTags);
+    return CATALOG_SKILLS.filter((c) => c.tags.some((t) => tagSet.has(t)));
+  }, [stackTags]);
+  const restCatalog = useMemo(() => {
+    const matched = new Set(matchedCatalog.map((c) => c.id));
+    return CATALOG_SKILLS.filter((c) => !matched.has(c.id));
+  }, [matchedCatalog]);
+
+  const installCatalogSkill = async (id: string) => {
+    const c = CATALOG_SKILLS.find((x) => x.id === id);
+    if (!c || busy) return;
+    setBusy(true);
+    const res = await commands.skillsSave(projectId, "project", c.id, c.content, true);
+    setBusy(false);
+    if (res.status === "ok") {
+      toast.info(`카탈로그 스킬 설치됨: ${c.id} (${c.source}, MIT)`);
+      await loadList();
+      setSelected({ scope: "project", dirName: c.id });
     } else {
       toast.destructive(res.error);
     }
@@ -570,6 +618,104 @@ function SkillsTabView({ projectId, tabs }: { projectId: number; tabs: ReactNode
               );
             })}
           </ul>
+
+          {/* C3 — 스택 감지 기반 제3자 카탈로그 추천 (MIT · 커밋 핀 벤더 사본) */}
+          <div className="mt-4 border-t border-border/60 pt-3">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="text-[13px] font-semibold">이 프로젝트 스택 추천</span>
+              {stackTags?.map((t) => (
+                <span key={t} className="rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                  {t}
+                </span>
+              ))}
+            </div>
+            {stackTags == null ? (
+              <p className="text-[12px] text-muted-foreground">스택 감지 중…</p>
+            ) : matchedCatalog.length === 0 ? (
+              <p className="text-[12px] text-muted-foreground">
+                {stackTags.length === 0
+                  ? "스택을 감지하지 못했습니다 — 아래 전체 카탈로그에서 직접 고를 수 있어요."
+                  : "감지된 스택과 일치하는 카탈로그 스킬이 없습니다."}
+              </p>
+            ) : (
+              <ul className="sk-gallery-list">
+                {matchedCatalog.map((c) => {
+                  const installed = installedGalleryIds.has(c.id);
+                  return (
+                    <li key={c.id} className="sk-gallery-item">
+                      <div className="sk-gallery-meta">
+                        <div className="sk-gallery-name">
+                          {c.label}{" "}
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {c.source} · 본문 ≈{c.tokenEstimate.toLocaleString()} tok
+                          </span>
+                        </div>
+                        <div className="sk-gallery-desc">{c.summary}</div>
+                      </div>
+                      {installed ? (
+                        <span className="sk-chip" title="같은 이름의 스킬이 이 프로젝트에 이미 있습니다 (내용은 다를 수 있어요)">설치됨</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn primary sm"
+                          disabled={busy}
+                          onClick={() => void installCatalogSkill(c.id)}
+                        >
+                          설치
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <button
+              type="button"
+              className="btn ghost sm mt-2"
+              aria-expanded={catalogAllOpen}
+              onClick={() => setCatalogAllOpen((o) => !o)}
+            >
+              {catalogAllOpen ? "전체 카탈로그 접기" : `전체 카탈로그 보기 (${CATALOG_SKILLS.length})`}
+            </button>
+            {catalogAllOpen && (
+              <ul className="sk-gallery-list mt-1">
+                {restCatalog.map((c) => {
+                  const installed = installedGalleryIds.has(c.id);
+                  return (
+                    <li key={c.id} className="sk-gallery-item">
+                      <div className="sk-gallery-meta">
+                        <div className="sk-gallery-name">
+                          {c.label}{" "}
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {c.source} · {c.tags.join("·")} · 본문 ≈{c.tokenEstimate.toLocaleString()} tok
+                          </span>
+                        </div>
+                        <div className="sk-gallery-desc">{c.summary}</div>
+                      </div>
+                      {installed ? (
+                        <span className="sk-chip" title="같은 이름의 스킬이 이 프로젝트에 이미 있습니다 (내용은 다를 수 있어요)">설치됨</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn primary sm"
+                          disabled={busy}
+                          onClick={() => void installCatalogSkill(c.id)}
+                        >
+                          설치
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              제3자 스킬(MIT, 출처·버전 고정 사본 — ECC·ponytail)입니다. 설치된 스킬의{" "}
+              <strong>설명 한 줄은 매 세션 컨텍스트에 상시 탑승</strong>하므로 프로젝트당 2~3개를
+              권장해요. 표기된 "본문 ≈N tok" 은 스킬이 <strong>발동될 때만</strong> 로드되는 본문
+              크기입니다.
+            </p>
+          </div>
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setGalleryOpen(false)}>

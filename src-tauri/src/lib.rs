@@ -117,6 +117,8 @@ use crate::commands::{
     // W5 — action proposal apply-state
     record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health,
     index_project, list_projects, project_stats,
+    // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
+    detect_stack,
     // 메인 화면(프로젝트 선택) 단일 집계 — IPC 1회 · SQL 6문
     home_brief,
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
@@ -220,6 +222,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         delete_project,
         rename_project,
         project_stats,
+        // C2 — 스킬 카탈로그: 결정적 스택 감지
+        detect_stack,
         home_brief,
         index_project,
         search_chunks,
