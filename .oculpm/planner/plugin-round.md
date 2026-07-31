@@ -44,6 +44,8 @@ owner: claude-code
 - [x] E1 project_init MCP 도구 — 플러그인-온리 그린필드 구멍 해소: A0b 가드의 유일 예외(confirm 강제·선제 호출 금지·심볼릭 링크 거부·추적 중 무변경), 스캐폴드=config·schema-version·gitignore 블록·README·에이전트 어댑터. 계약 문서·도구 5종 표면 스윕·인셉션 스킬 연결 {#mcp-project-init}
 - [x] E2 반복 절차→스킬 승격 루프 — ci4 미러: tag 클러스터(≥3, 스톱리스트·기존 스킬 억제) 결정적 후보 + LLM SKILL.md 초안 + 회고 화면 "스킬 후보" 카드(저장은 사람 승인, skills_save 재사용) {#skill-promotion}
 
+- [x] E3 인앱 플러그인 문서 — 스킬·규칙 4번째 "플러그인" 탭(설치 상태·권장 흐름·커맨드 카드·도구/훅 요약·문서 링크) + pluginDocs↔commands/*.md·tools.rs 양방향 동기 테스트 (사용자 요청 2026-07-31) {#in-app-plugin-docs}
+
 ## 결정
 
 ### Decision 1 — 방안 A 채택 + 미결 3건 확정 {#d1-plan-a}
@@ -104,4 +106,5 @@ owner: claude-code
 | 2026-07-31T17:20:32+09:00 | #mcp-project-init | claude-code | x→x |  | 적대 리뷰 4건 반영 — ensure 수렴(반쪽 초기화 고착 해소, 특히 gitignore 무보호 훅 커밋 경로)·create_dir 원자 선점(TOCTOU)·홈/루트 가드·block_on 함정 주석. mcp 33 그린 |
 | 2026-07-31T18:02:21+09:00 | #mcp-project-init | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/1802_feature_project-init-command-and-restart-note.md | 후속: /oculpm:project_init 커맨드(사용자 요청)+MCP 등록 변경 재시작 안내 토스트. 예산 테스트 커맨드 전수 스캔화 |
 | 2026-07-31T18:10:31+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Features_to_add/1810_feature_flow-commands-and-docs-page.md | 홍보/문서 표면 확장 — oculpm.com/plugin 문서 페이지(테스트 강제 동기) + 흐름 커맨드 4종 완결. 잔여: Anthropic 폼·커뮤니티 게시(사용자) |
+| 2026-07-31T22:30:00+09:00 | #in-app-plugin-docs | claude-code | →x | .oculpm/journal/20260731/Features_to_add/2325_feature_in-app-plugin-docs.md | 배치=스킬·규칙 탭(신규 화면 금지 부합). 동기 테스트 7건으로 문서 표면 3곳 전부 게이트화 |
 <!-- oculpm:plan-log end -->

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
+import { PluginDocsTab } from "./PluginDocsTab";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { RefreshCw, Plus, Pencil, Trash2, Copy, Puzzle, Sparkles } from "@/components/Icons";
@@ -44,6 +45,7 @@ const HUB_TABS = [
   { id: "skills", label: "스킬" },
   { id: "rules", label: "규칙" },
   { id: "hooks", label: "훅" },
+  { id: "plugin", label: "플러그인" },
 ] as const;
 type HubTab = (typeof HUB_TABS)[number]["id"];
 
@@ -52,6 +54,7 @@ export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
   const tabs = <HubTabsSeg tab={tab} onChange={setTab} />;
   if (tab === "rules") return <RulesTab projectId={projectId} tabs={tabs} />;
   if (tab === "hooks") return <HooksTab projectId={projectId} tabs={tabs} />;
+  if (tab === "plugin") return <PluginDocsTab tabs={tabs} />;
   return <SkillsTabView projectId={projectId} tabs={tabs} />;
 }
 

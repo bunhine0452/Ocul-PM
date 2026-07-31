@@ -974,6 +974,7 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
         Claude Code 에서 <code className="text-[10px]">/plugin marketplace add bunhine0452/Ocul-PM</code> 후{" "}
         <code className="text-[10px]">/plugin install oculpm@oculpm</code> — 훅 브리지·MCP·스킬 5종이
         전 프로젝트에 한 번에 구성됩니다 (.oculpm 추적 프로젝트에서만 동작).
+        커맨드·도구·훅 안내는 <strong>스킬·규칙 → 플러그인 탭</strong>에서 볼 수 있어요.
       </p>
       {plugin?.installed ? (
         <p className="text-[11px] text-amber-400">
