@@ -27,7 +27,8 @@ DietrichGebert/ponytail 조사(2026-07-31, 리서치 에이전트 실코드 확�
 - [x] H3 미기록 세션 신호 — 세션 마커(create-only)+SessionEnd 판정: 미작성이면 stderr 경고+journal-missing.jsonl(상한 트림). 근거=헤드리스 준수 0/12 실측 {#journal-missing-signal}
 
 ## 백로그 (착수 트리거 명시)
-- [ ] B1 statusline 배지 — 디스패치된 플랜 항목 `[OCULPM: …]` 표시 + 1회성 넛지 (트리거: H1 실사용 피드백) {#statusline-badge}
+- [x] B1 statusline 배지 — 디스패치된 플랜 항목 `[OCULPM: …]` 표시 + 1회성 넛지 (사용자 승인으로 착수) {#statusline-badge}
+- [x] B3 H3b 앱 소비자 — journal-missing.jsonl 을 워처가 소비해 Today 에 "일지 없이 끝난 세션" 카드 + 초안 안내 (사용자 승인으로 착수) {#journal-missing-consumer}
 - [x] B2 에이전틱 A/B 벤치마크 — AGENTS.md 주입 비용/효과 측정, ponytail 방법론(오염 격리 --setting-sources/--plugin-dir) 재사용 (트리거: 랜딩 수치 필요 시) {#agentic-bench}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -43,4 +44,7 @@ DietrichGebert/ponytail 조사(2026-07-31, 리서치 에이전트 실코드 확�
 | 2026-07-31T19:05:00+09:00 | #agentic-bench | claude-code | ☐→~ | | 사용자 "진행해" — 착수 트리거 격상. 하네스(benchmarks/agentic: 합성 타깃+티켓 6·2팔 러너·격리 플래그·준수 채점기) 구축+스모크 진행 중 |
 | 2026-07-31T19:36:00+09:00 | #agentic-bench | claude-code | ~→x | .oculpm/journal/20260731/Chores/1935_chore_agentic-ab-benchmark.md | 24세션 완주 — 무손상(성공률 동률·cost 동률) + 헤드리스 단발 준수 0/12(→CI1 초안 기능의 존재 근거). 리포트 results/2026-07-31-agentic.md |
 | 2026-07-31T20:12:00+09:00 | #journal-missing-signal | claude-code | →x | .oculpm/journal/20260731/Features_to_add/2010_feature_journal-missing-signal.md | 리뷰 HIGH(compact 재터치 오탐→create-only)·LOW3 수정, MED(동시 세션 미탐)는 보수적 수용. 앱 소비자(H3b)는 백로그 |
+| 2026-07-31T20:35:00+09:00 | #statusline-badge | claude-code | ☐→~ | | 사용자 "나머지도 진행해" — B1·H3b 동시 착수 |
+| 2026-07-31T21:15:00+09:00 | #statusline-badge | claude-code | ~→x | .oculpm/journal/20260731/Features_to_add/2110_feature_statusline-badge.md | 플래그(ttl·살균)+스크립트(-F 매치·perl 절단)+1회 넛지. 리뷰 4건 반영 |
+| 2026-07-31T21:15:10+09:00 | #journal-missing-consumer | claude-code | ~→x | .oculpm/journal/20260731/Features_to_add/2111_feature_journal-missing-consumer.md | Today 카드+해소 필터(거짓 경고 자동 정리)+크로스 계약 테스트. 리뷰 8건 전수 처리 — ponytail 라운드 전 항목 완료 |
 <!-- oculpm:plan-log end -->

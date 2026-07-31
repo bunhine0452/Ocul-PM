@@ -5,9 +5,10 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 | 구성 | 대체하는 수동 설정 | 동작 |
 |---|---|---|
 | 훅 브리지 (CI0) | 앱 설정의 "Claude Code 훅 연동" 토글 (`.claude/settings.local.json`) | SessionStart / Stop / SessionEnd 이벤트를 프로젝트의 `.oculpm/hooks/claude-events.jsonl` 에 append — 앱 watcher 가 소비해 세션을 실측 신호로 기록 |
+| oculpm-mcp (CI2) | 앱 설정의 "MCP 등록" (`.mcp.json`) | `journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init` 구조화 도구 — `--root "${CLAUDE_PROJECT_DIR}"` 라 어느 프로젝트에서든 그 프로젝트의 `.oculpm/` 에 기록 |
 | 플랜 컨텍스트 주입 | (앱에 없는 플러그인 전용) | 세션·서브에이전트 시작 시 활성 플랜의 미완 항목 요약(≤1,600자)을 컨텍스트로 주입 — 에이전트가 "현재 계획"을 알고 시작. 파일 쓰기 없음 |
 | 미기록 세션 신호 | (앱에 없는 플러그인 전용) | 세션이 일지 없이 끝나면 stderr 경고 + `.oculpm/hooks/journal-missing.jsonl` 신호 — 근거: 헤드리스 단발 세션 준수 0/12 실측(benchmarks/agentic) |
-| oculpm-mcp (CI2) | 앱 설정의 "MCP 등록" (`.mcp.json`) | `journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init` 구조화 도구 — `--root "${CLAUDE_PROJECT_DIR}"` 라 어느 프로젝트에서든 그 프로젝트의 `.oculpm/` 에 기록 |
+| statusline 배지 | (앱에 없는 플러그인 전용) | 디스패치된 플랜 항목을 터미널 상태줄에 `⏵ OCULPM: <항목>` 으로 — 아래 "statusline 설정" 참조 |
 
 **안전 가드**: 훅과 MCP 도구 모두 `.oculpm/` 폴더가 있는(= ocul-pm 이 추적하는)
 프로젝트에서만 동작합니다. 비추적 저장소에는 어떤 파일/디렉터리도 만들지 않고,
@@ -15,6 +16,10 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 없습니다. **유일한 예외는 `project_init`**: 사용자가 추적 시작을 명시적으로
 요청·확인(`confirm=true`)했을 때만 `.oculpm/` 스캐폴드를 만듭니다 — 선제·자동
 호출은 도구 설명과 서버 instructions 가 금지합니다.
+
+## statusline 설정 (선택)
+
+앱 플래너에서 ▶실행(또는 회고 [Claude Code 로])을 누르면 `.oculpm/index/dispatch/current.json` 에 현재 항목이 기록됩니다. Claude Code 의 `/statusline` 에서 이 플러그인의 `hooks/oculpm-statusline.sh` 를 지정하면 상태줄에 그 항목이 표시됩니다 — 항목이 완료 글리프가 되거나 24시간이 지나면 자동으로 기본 상태줄(모델·폴더)로 돌아갑니다. 설치 경로 예: `~/.claude/plugins/marketplaces/oculpm/plugin/oculpm/hooks/oculpm-statusline.sh` (설치 방식에 따라 다를 수 있음 — `/plugin` UI 에서 플러그인 경로 확인).
 
 ## 요구 사항
 

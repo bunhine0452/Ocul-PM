@@ -182,6 +182,8 @@ use crate::commands::{
     skill_candidates, skill_draft_generate,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
+    // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
+    journal_missing_signals,
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
     mcp_status, mcp_register, mcp_unregister,
     claude_plugin_status, mcp_desktop_status, mcp_desktop_register, mcp_desktop_unregister,
@@ -381,6 +383,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         claude_hooks_status,
         claude_hooks_install,
         claude_hooks_uninstall,
+        // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
+        journal_missing_signals,
         // PR-CI2 — oculpm-mcp 서버 등록
         mcp_status,
         mcp_register,

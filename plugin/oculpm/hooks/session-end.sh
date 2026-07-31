@@ -15,9 +15,6 @@ ROOT="${CLAUDE_PROJECT_DIR:-.}"
 payload=$(cat 2>/dev/null || true)
 [ -d "$ROOT/.oculpm" ] || exit 0
 mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
-# 빈 payload 는 append 하지 않는다 (구 인라인 cat>> 과 바이트 동등).
-[ -n "$payload" ] && printf '%s\n' "$payload" >> "$ROOT/.oculpm/hooks/claude-events.jsonl" 2>/dev/null || true
-
 sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
 marker="$ROOT/.oculpm/hooks/.session-start-$sid"
 missing=""
@@ -45,5 +42,21 @@ if [ -n "$missing" ]; then
   echo "oculpm: 이 세션은 일지 없이 끝났습니다 — 다음 세션에서 journal_write 로 남기거나, ocul-pm 앱의 일지 초안 기능을 켜 두세요" >&2
 else
   echo "oculpm: 세션 기록됨 — /oculpm:standup 으로 오늘 요약, 회고·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
+fi
+
+# 이벤트 인박스 append 는 신호 append **뒤에** — 워처의 인박스 소비가 낸
+# oculpmSessionEnded 로 프론트가 재조회할 때 신호가 이미 디스크에 있도록
+# (순서 경합 리뷰 지적). 빈 payload 는 append 하지 않는다.
+[ -n "$payload" ] && printf '%s\n' "$payload" >> "$ROOT/.oculpm/hooks/claude-events.jsonl" 2>/dev/null || true
+
+# B1 — statusline 1회성 넛지 (ponytail 패턴: 반복하면 잔소리가 된다).
+# 디스패치를 써 본 프로젝트(current.json 존재)에서, statusLine 미설정이고,
+# 아직 넛지한 적 없을 때 단 한 번.
+nudged="$ROOT/.oculpm/hooks/.statusline-nudged"
+if [ -f "$ROOT/.oculpm/index/dispatch/current.json" ] && [ ! -f "$nudged" ]; then
+  if ! grep -q '"statusLine"' "$HOME/.claude/settings.json" "$ROOT/.claude/settings.json" "$ROOT/.claude/settings.local.json" 2>/dev/null; then
+    echo "oculpm: 팁 — 상태줄에 현재 디스패치 항목을 띄울 수 있어요: /statusline 에서 플러그인의 hooks/oculpm-statusline.sh 지정 (자세히: oculpm.com/plugin)" >&2
+    : > "$nudged" 2>/dev/null || true
+  fi
 fi
 exit 0

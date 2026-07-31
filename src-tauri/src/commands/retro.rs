@@ -680,6 +680,16 @@ pub async fn retro_dispatch_prompt(
     let abs = dispatch_dir.join(&file_name);
     crate::oculpm::atomic_io::write_atomic(&abs, prompt.as_bytes()).map_err(|e| e.to_string())?;
 
+    // B1 — statusline 배지 플래그 (plan 항목이 아니므로 글리프 재확인 없음).
+    // 회고 배지는 완료 재확인이 불가능하므로 짧은 ttl(2h) — 낡은 배지가
+    // 상태줄을 하루 종일 점유하지 않게 (리뷰 지적).
+    crate::commands::plan::write_dispatch_flag(
+        &dispatch_dir,
+        &format!("회고 {}", signals.range_key),
+        None,
+        7_200,
+    );
+
     Ok(crate::commands::plan::DispatchPrompt {
         file_rel: format!(".oculpm/index/dispatch/{file_name}"),
         command: crate::oculpm::planner::dispatch::shell_command_for(&abs),

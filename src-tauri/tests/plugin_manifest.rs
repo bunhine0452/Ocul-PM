@@ -91,6 +91,40 @@ fn hooks_json_guards_and_consumes_stdin() {
     assert!(end.contains("일지 없이 끝났습니다"), "SessionEnd 스크립트: 미작성 경고 문구");
     assert!(end.contains("-mtime +7 -delete"), "SessionEnd 스크립트: 크래시 잔여 마커 청소 (판정 뒤)");
     assert!(end.contains("tail -n 100"), "SessionEnd 스크립트: 신호 파일 성장 상한");
+    // 크로스-언어 계약 — 이 두 문자열이 바뀌면 Rust 파서(claude_hooks)가
+    // 전 라인을 skip 해 카드가 무증상으로 죽는다 (리뷰 MED). 파서 쪽에는
+    // 동일 템플릿 라인을 실제 파싱하는 테스트가 있다.
+    assert!(
+        end.contains(r#"'{"ts":"%s","session_id":"%s","kind":"journal_missing"}\n'"#),
+        "SessionEnd 스크립트: 신호 라인 printf 템플릿 변경 금지 (파서 계약)"
+    );
+    assert!(
+        end.contains("date -u +%Y-%m-%dT%H:%M:%SZ"),
+        "SessionEnd 스크립트: ts 는 UTC RFC3339 (파서 계약)"
+    );
+    // B1 — statusline 넛지는 딱 1회 (ponytail 패턴: 반복하면 잔소리).
+    assert!(end.contains(".statusline-nudged"), "SessionEnd 스크립트: 넛지 1회성 플래그");
+    assert!(end.contains("\"statusLine\""), "SessionEnd 스크립트: 미설정일 때만 넛지");
+
+    // B1 — statusline 배지 스크립트: 디스패치 플래그 → 상태줄. 매 렌더
+    // 호출되므로 저비용·무네트워크·실패는 기본 출력 낙하 계약.
+    let sl = std::fs::read_to_string(plugin_root().join("hooks/oculpm-statusline.sh"))
+        .expect("oculpm-statusline.sh 존재");
+    assert!(sl.contains("current.json"), "statusline: 디스패치 플래그 읽기");
+    assert!(sl.contains("86400"), "statusline: 24h 신선도 컷");
+    assert!(sl.contains("perl -CS"), "statusline: 문자 단위 절단 (바이트 절단은 한글 파괴)");
+    for banned in ["curl", "wget", "http://", "https://"] {
+        assert!(!sl.contains(banned), "statusline: 네트워크 금지");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(plugin_root().join("hooks/oculpm-statusline.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert!(mode & 0o111 != 0, "oculpm-statusline.sh 실행 비트 누락");
+    }
     for script in [&marker, &end] {
         for banned in ["curl", "wget", "http://"] {
             assert!(!script.contains(banned), "훅 스크립트: 네트워크 금지");

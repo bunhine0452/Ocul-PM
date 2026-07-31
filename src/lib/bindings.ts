@@ -864,6 +864,12 @@ export const commands = {
 	claudeHooksInstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_install", { projectId })),
 	/**  훅 제거 (우리 서명 엔트리만 — 사용자 훅·인박스 파일은 보존). */
 	claudeHooksUninstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_uninstall", { projectId })),
+	/**
+	 *  H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
+	 *  `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
+	 *  배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.
+	 */
+	journalMissingSignals: (projectId: number, days: number) => typedError<JournalMissingSignal[], string>(__TAURI_INVOKE("journal_missing_signals", { projectId, days })),
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
@@ -1797,6 +1803,15 @@ export type JournalFrontmatter = {
 	files_touched: FileTouched[],
 	related: RelatedRef[],
 	tags: string[],
+};
+
+/**
+ *  일지 없이 끝난 세션 1건. `ts` 는 훅이 기록한 UTC ISO 문자열 그대로 —
+ *  로컬 시각 변환은 UI 몫이다.
+ */
+export type JournalMissingSignal = {
+	ts: string,
+	session_id: string,
 };
 
 /**

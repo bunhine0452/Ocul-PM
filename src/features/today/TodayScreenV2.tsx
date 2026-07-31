@@ -27,6 +27,7 @@ import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
+import { JournalMissingCard } from "./JournalMissingCard";
 import { PlanUpdates } from "./PlanUpdates";
 import { DiscussionPending } from "./DiscussionPending";
 import { TodayMonitor } from "./TodayMonitor";
@@ -334,6 +335,13 @@ export function TodayScreenV2({
 
           {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
           <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} />
+
+          {/* H3b 일지 없이 끝난 세션 — 플러그인 훅 신호가 있을 때만 렌더 */}
+          <JournalMissingCard
+            projectId={projectId}
+            enabled={oculpmReady}
+            onNavigate={onNavigate}
+          />
 
           {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
           {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}

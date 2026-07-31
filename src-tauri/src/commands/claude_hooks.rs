@@ -7,7 +7,7 @@
 use tauri::State;
 
 use crate::db::Db;
-use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus};
+use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus, JournalMissingSignal};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
@@ -45,4 +45,18 @@ pub async fn claude_hooks_uninstall(
 ) -> Result<ClaudeHooksStatus, String> {
     let root = project_root(&db, project_id).await?;
     claude_hooks::uninstall(&root).map_err(|e| e.to_string())
+}
+
+/// H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
+/// `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
+/// 배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn journal_missing_signals(
+    db: State<'_, Db>,
+    project_id: u32,
+    days: u32,
+) -> Result<Vec<JournalMissingSignal>, String> {
+    let root = project_root(&db, project_id).await?;
+    Ok(claude_hooks::journal_missing_signals(&root, days))
 }

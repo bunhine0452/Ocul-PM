@@ -562,9 +562,81 @@ pub async fn plan_dispatch_prompt(
     let abs = dispatch_dir.join(&file_name);
     write_atomic(&abs, built.prompt.as_bytes()).map_err(|e| e.to_string())?;
 
+    // B1 (#statusline-badge) — "지금 무엇이 디스패치돼 있나" 플래그.
+    // 플러그인 statusline 스크립트가 읽어 터미널 상태줄에 표시한다.
+    // 실패는 디스패치를 막지 않는다 (배지는 편의).
+    write_dispatch_flag(&dispatch_dir, &built.item_title, Some((&plan_id, &item_id)), 86_400);
+
     Ok(DispatchPrompt {
         file_rel: format!(".oculpm/index/dispatch/{file_name}"),
         command: shell_command_for(&abs),
         item_title: built.item_title,
     })
+}
+
+/// `.oculpm/index/dispatch/current.json` — 가장 최근 디스패치 항목 (B1 배지).
+/// plan 항목이면 statusline 이 글리프를 재확인할 수 있게 plan 상대경로·id 포함.
+pub(crate) fn write_dispatch_flag(
+    dispatch_dir: &std::path::Path,
+    title: &str,
+    plan_item: Option<(&str, &str)>,
+    ttl_secs: u64,
+) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // statusline 은 의존성 없는 sed 파서라 JSON 이스케이프를 못 다룬다 —
+    // 배지는 표시 전용이므로 따옴표·역슬래시를 쓰기 측에서 순화해 계약을
+    // 앱이 보장한다 (리뷰 지적: 제목의 " 가 배지를 절단).
+    let title: String = title
+        .chars()
+        .map(|c| match c {
+            '"' => '\'',
+            '\\' => ' ',
+            c => c,
+        })
+        .collect();
+    let flag = match plan_item {
+        Some((plan_id, item_id)) => serde_json::json!({
+            "title": title,
+            "plan_rel": format!(".oculpm/planner/{plan_id}.md"),
+            "item_id": item_id,
+            "ts": ts,
+            "ttl": ttl_secs,
+        }),
+        None => serde_json::json!({ "title": title, "ts": ts, "ttl": ttl_secs }),
+    };
+    if let Err(e) = write_atomic(&dispatch_dir.join("current.json"), flag.to_string().as_bytes()) {
+        tracing::warn!(target: "oculpm::plan", error = %e, "dispatch 배지 플래그 쓰기 실패 (무해)");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// current.json 키 스냅샷 — statusline 의 sed 파서와의 크로스-언어 계약.
+    /// 키 개명·ts 단위 변경은 배지를 무증상으로 죽인다 (리뷰 MED).
+    #[test]
+    fn dispatch_flag_keys_and_title_sanitized() {
+        let dir = tempfile::TempDir::new().unwrap();
+        write_dispatch_flag(dir.path(), "릴리스 \"v2\" 준비\\끝", Some(("my-plan", "item-1")), 86_400);
+        let raw = std::fs::read_to_string(dir.path().join("current.json")).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        for key in ["title", "plan_rel", "item_id", "ts", "ttl"] {
+            assert!(v.get(key).is_some(), "current.json 키 누락: {key}");
+        }
+        assert_eq!(v["plan_rel"], ".oculpm/planner/my-plan.md");
+        assert!(v["ts"].as_u64().unwrap() > 1_700_000_000, "ts 는 unix 초");
+        // sed 단순 파서 계약: 제목에 따옴표·역슬래시가 남지 않는다.
+        let title = v["title"].as_str().unwrap();
+        assert!(!title.contains('"') && !title.contains('\\'), "살균 실패: {title}");
+        // 회고 배지(plan 없음)는 짧은 ttl.
+        write_dispatch_flag(dir.path(), "회고 W31", None, 7_200);
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.path().join("current.json")).unwrap()).unwrap();
+        assert_eq!(v["ttl"], 7_200);
+        assert!(v.get("plan_rel").is_none());
+    }
 }
