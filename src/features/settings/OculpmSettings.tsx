@@ -878,7 +878,13 @@ export function McpServerBlock({ projectId }: { projectId: number }) {
       if (res.status === "ok") {
         setMcp(res.data);
         setMcpError(null);
-        toast.info(action === "register" ? "MCP 서버를 등록했습니다" : "MCP 서버 등록을 해제했습니다");
+        // Claude Code 는 .mcp.json 을 세션 시작 시에만 읽는다 — 재시작 없이는
+        // 등록/해제가 반영되지 않아 "해제했는데 도구가 계속 보이는" 혼란이 생긴다.
+        toast.info(
+          action === "register"
+            ? "MCP 서버를 등록했습니다 — 열려 있는 Claude Code 세션은 재시작해야 반영됩니다"
+            : "MCP 서버 등록을 해제했습니다 — 열려 있는 Claude Code 세션은 재시작해야 반영됩니다",
+        );
       } else {
         setMcpError(res.error);
         toast.destructive(`MCP 등록 변경 실패: ${res.error}`);

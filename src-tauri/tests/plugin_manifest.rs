@@ -95,12 +95,27 @@ fn bundled_skills_and_commands_stay_within_budget() {
             .unwrap_or_else(|| panic!("{name}: description 필수 (트리거 문장)"));
         desc_chars += desc.chars().count();
     }
-    let cmd = std::fs::read_to_string(plugin_root().join("commands/standup.md")).unwrap();
-    let cmd_desc = cmd
-        .lines()
-        .find_map(|l| l.strip_prefix("description: "))
-        .expect("standup: description 필수");
-    desc_chars += cmd_desc.chars().count();
+    // 커맨드는 전수 스캔 — 새 커맨드가 예산 계산에서 빠지지 않게.
+    let mut cmd_names: Vec<String> = std::fs::read_dir(plugin_root().join("commands"))
+        .expect("commands/ 존재")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|n| n.ends_with(".md"))
+        .collect();
+    cmd_names.sort();
+    assert_eq!(
+        cmd_names,
+        ["project_init.md", "standup.md"],
+        "동봉 커맨드 2종 고정 — 추가하려면 토큰 예산부터 재계산"
+    );
+    for name in &cmd_names {
+        let cmd = std::fs::read_to_string(plugin_root().join("commands").join(name)).unwrap();
+        let cmd_desc = cmd
+            .lines()
+            .find_map(|l| l.strip_prefix("description: "))
+            .unwrap_or_else(|| panic!("{name}: description 필수"));
+        desc_chars += cmd_desc.chars().count();
+    }
     // 한글 혼합 기준 보수적으로 1 tok ≈ 2 chars — 1,400 chars ≈ ~700 tok 상한.
     assert!(
         desc_chars <= 1_400,
