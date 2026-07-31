@@ -103,4 +103,5 @@ owner: claude-code
 | 2026-07-31T17:20:24+09:00 | #skill-promotion | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1707_feature_skill-promotion-loop.md | ci4 미러 구현 + 적대 리뷰 5건 반영(HIGH: 증거가 frontmatter 만 담기던 문제 — 벗기고 1600자, 마커 전수 제거·조건부 펜스·해시 폴백·소문자 클러스터). lib 482 그린 |
 | 2026-07-31T17:20:32+09:00 | #mcp-project-init | claude-code | x→x |  | 적대 리뷰 4건 반영 — ensure 수렴(반쪽 초기화 고착 해소, 특히 gitignore 무보호 훅 커밋 경로)·create_dir 원자 선점(TOCTOU)·홈/루트 가드·block_on 함정 주석. mcp 33 그린 |
 | 2026-07-31T18:02:21+09:00 | #mcp-project-init | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/1802_feature_project-init-command-and-restart-note.md | 후속: /oculpm:project_init 커맨드(사용자 요청)+MCP 등록 변경 재시작 안내 토스트. 예산 테스트 커맨드 전수 스캔화 |
+| 2026-07-31T18:10:31+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Features_to_add/1810_feature_flow-commands-and-docs-page.md | 홍보/문서 표면 확장 — oculpm.com/plugin 문서 페이지(테스트 강제 동기) + 흐름 커맨드 4종 완결. 잔여: Anthropic 폼·커뮤니티 게시(사용자) |
 <!-- oculpm:plan-log end -->

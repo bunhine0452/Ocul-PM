@@ -13,7 +13,7 @@
 | 훅 SessionEnd | 세션 종료 (1회) | 〃 | 〃 + stderr 안내 1줄 | 〃 (Stop 에는 안내 없음 — 매 턴 소음 방지) |
 | oculpm-mcp (`bin/` 셔틀 → 바이너리) | 도구 호출 시 | `<프로젝트>/.oculpm/` 마크다운·config | `journal/`·`planner/` 규격 파일 (redact 통과 후) | `.oculpm` 없거나 심볼릭 링크면 전 도구 거부 · 디렉터리 임의 생성 금지 · 앱 IPC 없음 |
 | `project_init` (위 거부 규칙의 **유일한 예외**) | 사용자의 명시적 추적 시작 요청 + `confirm=true` | 프로젝트 루트 | `.oculpm/` 스캐폴드(config·schema-version·README)·`.gitignore` 관리 블록·AGENTS.md 등 어댑터 | confirm 없이 거부 · 선제/자동 호출 금지(도구 설명+instructions 로 강제) · 이미 추적 중이면 무변경 · 심볼릭 링크 `.oculpm` 거부 |
-| 스킬 5종·커맨드 2종 (`/oculpm:standup` · `/oculpm:project_init`) | 모델 판단/사용자 호출 | (문서 — 실행 코드 없음) | 없음 (project_init 커맨드는 위 도구를 호출할 뿐) | 상시 컨텍스트 예산 매니페스트 테스트로 상한 고정 |
+| 스킬 5종·커맨드 4종 (`/oculpm:project_init` · `/oculpm:inception` · `/oculpm:next` · `/oculpm:standup`) | 모델 판단/사용자 호출 | (문서 — 실행 코드 없음) | 없음 (커맨드는 위 도구·스킬을 호출할 뿐) | 상시 컨텍스트 예산·문서 페이지 동기(oculpm.com/plugin) 매니페스트 테스트로 고정 |
 
 - 훅 payload 에는 대화 내용이 포함될 수 있어 `.oculpm/hooks/` 는 **앱이 gitignore
   관리 블록으로 커밋 차단**한다 (v7 블록 + 다운그레이드 가드 + union 병합).

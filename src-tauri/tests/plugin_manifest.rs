@@ -105,8 +105,8 @@ fn bundled_skills_and_commands_stay_within_budget() {
     cmd_names.sort();
     assert_eq!(
         cmd_names,
-        ["project_init.md", "standup.md"],
-        "동봉 커맨드 2종 고정 — 추가하려면 토큰 예산부터 재계산"
+        ["inception.md", "next.md", "project_init.md", "standup.md"],
+        "동봉 커맨드 4종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     for name in &cmd_names {
         let cmd = std::fs::read_to_string(plugin_root().join("commands").join(name)).unwrap();
@@ -121,6 +121,31 @@ fn bundled_skills_and_commands_stay_within_budget() {
         desc_chars <= 1_400,
         "상시 노출 description 합계 {desc_chars} chars — 예산(1,400) 초과. 트리거를 압축하라"
     );
+}
+
+/// oculpm.com/plugin 문서 페이지가 플러그인의 실제 표면과 동기 —
+/// 새 커맨드/도구를 추가하고 문서를 빼먹으면 여기서 게이트가 실패한다
+/// ("새 커맨드는 항상 문서에 업데이트" 를 리마인더가 아니라 테스트로 강제).
+#[test]
+fn landing_plugin_docs_page_lists_every_command_and_tool() {
+    let page_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../landing/plugin.html");
+    let page = std::fs::read_to_string(&page_path)
+        .unwrap_or_else(|e| panic!("{} 읽기 실패: {e} — 플러그인 문서 페이지가 필요하다", page_path.display()));
+
+    for entry in std::fs::read_dir(plugin_root().join("commands")).unwrap() {
+        let name = entry.unwrap().file_name().to_string_lossy().to_string();
+        let Some(base) = name.strip_suffix(".md") else { continue };
+        let cmd = format!("/oculpm:{base}");
+        assert!(page.contains(&cmd), "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라");
+    }
+    // MCP 도구 5종 — tools/list 계약(protocol 테스트)과 같은 목록.
+    for tool in ["journal_write", "plan_status", "plan_update", "plan_create", "project_init"] {
+        assert!(page.contains(tool), "landing/plugin.html 에 MCP 도구 {tool} 문서 누락");
+    }
+    // 스킬 5종 — 갤러리/매니페스트와 같은 목록.
+    for skill in ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"] {
+        assert!(page.contains(skill), "landing/plugin.html 에 스킬 {skill} 문서 누락");
+    }
 }
 
 /// MCP 는 머신 종속 절대경로 대신 플러그인 동봉 셔틀을 가리킨다.

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocul-PM 플러그인 문서 — 커맨드 · MCP 도구 · 스킬</title>
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 5종, 스킬 5종. 설치 두 줄부터 프로젝트 시작→설계→구현 루프까지." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0f5b43" />
+<link rel="canonical" href="https://oculpm.com/plugin" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:url" content="https://oculpm.com/plugin" />
+<meta property="og:title" content="Ocul-PM 플러그인 문서 — 커맨드 · MCP 도구 · 스킬" />
+<meta property="og:description" content="설치 두 줄부터 /oculpm:project_init → /oculpm:inception → /oculpm:next 구현 루프까지." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="icon.svg" />
+<link rel="stylesheet" href="landing.css" />
+<style>
+  /* 문서 페이지 전용 — 랜딩 토큰 위에 얹는 최소 레이어 */
+  .docs-hero { background: linear-gradient(160deg, #0c4332 0%, var(--green-900) 60%, var(--green-950) 100%); color: #fff; padding: 120px 0 56px; }
+  .docs-hero h1 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.025em; margin: 14px 0 0; }
+  .docs-hero p { color: rgba(255,255,255,0.78); margin: 14px 0 0; max-width: 640px; line-height: 1.6; }
+  .docs-body { padding: 56px 0 90px; }
+  .docs-body .sec-title { font-size: clamp(22px, 2.6vw, 30px); }
+  .docs-sec { margin-top: 56px; }
+  .doc-card { border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: 20px 22px; margin-top: 14px; box-shadow: var(--shadow-soft); }
+  .doc-card h3 { margin: 0; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .doc-card h3 code { font-family: var(--mono); font-size: 15px; background: var(--green-50); color: var(--green-600); border-radius: 8px; padding: 3px 9px; }
+  .doc-card .when { font-size: 12px; color: var(--text-3); font-weight: 500; }
+  .doc-card p { margin: 9px 0 0; font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
+  .doc-card p code, .docs-note code { font-family: var(--mono); font-size: 12.5px; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  .doc-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+  .doc-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 8px 10px; border-bottom: 1px solid var(--line-2); }
+  .doc-table td { padding: 10px; border-bottom: 1px solid var(--line); color: var(--text-2); vertical-align: top; line-height: 1.55; }
+  .doc-table td:first-child { font-family: var(--mono); font-size: 13px; color: var(--green-600); white-space: nowrap; }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; font-family: var(--mono); font-size: 13px; }
+  .flow .step { background: var(--green-50); color: var(--green-600); border: 1px solid rgba(18,160,107,0.3); border-radius: 999px; padding: 6px 13px; font-weight: 600; }
+  .flow .arr { color: var(--text-3); }
+  .flow .loop { color: var(--text-3); font-size: 12px; font-family: var(--font); }
+  .docs-note { margin-top: 14px; font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+  .docs-note a { color: var(--green-600); font-weight: 600; }
+  .docs-note a:hover { text-decoration: underline; }
+  .back-link { color: var(--green-200); font-size: 14px; font-weight: 600; }
+  .back-link:hover { color: var(--green-300); }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js');</script>
+
+<nav class="nav scrolled" id="nav">
+  <div class="wrap">
+    <a class="nav-brand" href="/">
+      <img src="icon.svg" alt="Ocul-PM" />
+      <span class="nm">Ocul-PM</span>
+      <span class="v">플러그인 문서</span>
+    </a>
+    <div class="nav-spacer"></div>
+    <a class="back-link" href="/">← oculpm.com</a>
+  </div>
+</nav>
+
+<header class="docs-hero">
+  <div class="wrap">
+    <span class="eyebrow on-dark">Claude Code 플러그인</span>
+    <h1>커맨드 · MCP 도구 · 스킬 — 전체 표면</h1>
+    <p>플러그인 하나가 프로젝트 시작 → 설계 → 구현 루프 → 보고까지 커버합니다. 이 페이지는 플러그인이 제공하는 모든 것의 살아있는 문서입니다 — 새 커맨드가 생기면 여기가 함께 갱신됩니다 (저장소 테스트로 강제).</p>
+    <div class="path-code" style="max-width:560px;margin-top:22px">
+      <div class="code-row">
+        <code>/plugin marketplace add bunhine0452/Ocul-PM</code>
+        <button class="copy-btn" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM" aria-label="명령 복사"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+      </div>
+      <div class="code-row">
+        <code>/plugin install oculpm@oculpm</code>
+        <button class="copy-btn" type="button" data-copy="/plugin install oculpm@oculpm" aria-label="명령 복사"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="docs-body">
+  <div class="wrap">
+
+    <section class="docs-sec" id="flow" style="margin-top:0">
+      <span class="eyebrow">권장 흐름</span>
+      <h2 class="sec-title">프로젝트 시작부터 구현 루프까지</h2>
+      <div class="flow">
+        <span class="step">/oculpm:project_init</span><span class="arr">→</span>
+        <span class="step">/oculpm:inception</span><span class="arr">→</span>
+        <span class="step">/oculpm:next</span><span class="loop">(리프가 끝날 때까지 반복)</span><span class="arr">→</span>
+        <span class="step">/oculpm:standup</span>
+      </div>
+      <p class="docs-note">기능 추가는 <code>/oculpm:inception</code>(계획만 확장) 또는 바로 <code>/oculpm:next</code> 부터 — 인셉션의 인터뷰·리서치는 낯선 영역일 때만 다시 돕니다.</p>
+    </section>
+
+    <section class="docs-sec" id="commands">
+      <span class="eyebrow">슬래시 커맨드 4종</span>
+      <h2 class="sec-title">타이핑 한 줄로 부르는 것</h2>
+
+      <div class="doc-card">
+        <h3><code>/oculpm:project_init</code><span class="when">새 저장소에서 한 번</span></h3>
+        <p>이 프로젝트를 ocul-pm 추적 대상으로 초기화합니다 — <code>.oculpm/</code>(기록 저장소), <code>AGENTS.md</code>(에이전트 기록 규칙), <code>.gitignore</code> 보호 블록이 생깁니다. 커맨드를 직접 실행한 것이 곧 명시적 동의라 재확인 없이 진행되고, 이미 추적 중이면 누락 구성만 보완합니다. 앱은 없어도 됩니다.</p>
+      </div>
+
+      <div class="doc-card">
+        <h3><code>/oculpm:inception</code><span class="when">새 프로젝트/기능 영역 설계</span></h3>
+        <p>project-inception 스킬로 설계를 시드합니다: 최소 문제 파악 → <b>웹 리서치로 환경 탐색</b> → 근거(버전·출처)가 실린 선택지로 <b>사용자와 사양 확정</b> → <code>plan_create</code> 로 3단계 상세 계획 → <code>EVALS.md</code> 완료 정의 → 초기 <code>.claude/rules</code>. 아이디어를 인자로 줄 수 있습니다: <code>/oculpm:inception 할 일 앱을 만들고 싶어</code></p>
+      </div>
+
+      <div class="doc-card">
+        <h3><code>/oculpm:next</code><span class="when">구현 루프 — 반복 실행</span></h3>
+        <p>활성 플랜의 다음 미완 리프를 잡아 <b>구현 → 게이트 확인 → 일지 → 플랜 갱신</b> 한 사이클을 돕니다. 앱 플래너의 ▶실행과 같은 역할의 플러그인 대응물입니다. 특정 항목을 지정하려면: <code>/oculpm:next login-happy-path</code></p>
+      </div>
+
+      <div class="doc-card">
+        <h3><code>/oculpm:standup</code><span class="when">보고가 필요할 때</span></h3>
+        <p>오늘 일지와 플랜 진행을 모아 스탠드업 요약(한 일 / 진행 중·막힘 / 다음)을 만듭니다.</p>
+      </div>
+    </section>
+
+    <section class="docs-sec" id="tools">
+      <span class="eyebrow">MCP 도구 5종</span>
+      <h2 class="sec-title">에이전트가 기록에 쓰는 구조화 도구</h2>
+      <p class="docs-note">에이전트가 마크다운 규격을 흉내 내는 대신 도구로 기록합니다 — 경로·frontmatter·항목 id 규격은 서버가 보장합니다. 모든 도구는 <code>.oculpm/</code> 이 있는 추적 프로젝트에서만 동작합니다 (유일한 예외: <code>project_init</code>).</p>
+      <table class="doc-table">
+        <thead><tr><th>도구</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록.</td></tr>
+          <tr><td>plan_status</td><td>활성 플랜의 항목·상태를 조회 — "지금 어디까지 됐나"의 근거.</td></tr>
+          <tr><td>plan_update</td><td>플랜 항목의 상태를 갱신하고 plan-log 를 남김. 하위를 가진 부모는 롤업 자동이라 직접 갱신 거부.</td></tr>
+          <tr><td>plan_create</td><td>새 계획을 3-depth(마일스톤→작업→하위 작업)로 생성 — frontmatter·id 규격 서버 보장.</td></tr>
+          <tr><td>project_init</td><td>미추적 저장소의 추적 시작 — 사용자의 명시적 요청·확인(confirm)이 있을 때만. 심볼릭 링크 거부·홈 디렉터리 가드.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="docs-sec" id="skills">
+      <span class="eyebrow">스킬 5종</span>
+      <h2 class="sec-title">상황에 맞게 스스로 발동하는 방법론</h2>
+      <table class="doc-table">
+        <thead><tr><th>스킬</th><th>언제 · 무엇</th></tr></thead>
+        <tbody>
+          <tr><td>oculpm-journal</td><td>기록 규격의 풀 스펙 캐리어 — 일지·플랜 규칙의 세부가 필요할 때 로드.</td></tr>
+          <tr><td>project-inception</td><td>새 프로젝트/기능 영역 킥오프 — 리서치→사양 확정→3-depth 계획→EVALS→rules 시드 (<code>/oculpm:inception</code> 이 부르는 그 스킬).</td></tr>
+          <tr><td>self-audit</td><td>"다 했다"고 말하기 전에 요구사항 대조·게이트 실행·diff 재검토를 강제.</td></tr>
+          <tr><td>run-evals</td><td><code>EVALS.md</code> 의 완료 정의를 실제로 실행·채점하고 기록 표에 추가 — 앱 회고 화면이 추이를 그립니다.</td></tr>
+          <tr><td>tdd-workflow</td><td>실패하는 테스트 먼저 → 최소 구현 → 그린 → 리팩토링 사이클을 강제.</td></tr>
+        </tbody>
+      </table>
+      <p class="docs-note">안전 계약(무엇을 읽고 쓰고 절대 하지 않는지)은 저장소의 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">플러그인 계약 문서</a>에 테스트와 함께 고정돼 있습니다. 훅은 네트워크 없는 로컬 append 한 줄이고, 대화 로그가 담기는 <code>.oculpm/hooks/</code> 는 gitignore 관리 블록이 커밋을 막습니다.</p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-brand">
+      <img src="icon.svg" alt="Ocul-PM" />
+      <span class="nm">Ocul-PM</span>
+    </div>
+    <span class="mono" style="font-size:12px"><a href="/" style="color:inherit">oculpm.com</a> · <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer" style="color:inherit">GitHub</a></span>
+    <span class="foot-quote">개인 영구 무료 · 코어는 영원히 MIT</span>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy');
+      if (!text || !navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.classList.add('copied');
+        setTimeout(function () { btn.classList.remove('copied'); }, 1600);
+      }).catch(function () {});
+    });
+  });
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
