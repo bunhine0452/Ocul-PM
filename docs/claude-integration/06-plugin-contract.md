@@ -10,7 +10,8 @@
 | 구성 | 트리거 | 읽는 것 | 쓰는 것 | 하지 않는 것 |
 |---|---|---|---|---|
 | 훅 SessionStart/Stop | Claude Code 세션 이벤트 | stdin 의 이벤트 JSON | `<프로젝트>/.oculpm/hooks/claude-events.jsonl` 에 1줄 append | 네트워크 · 외부 실행 · `.oculpm` 없는 저장소에는 아무것도 안 씀 |
-| 훅 SessionEnd | 세션 종료 (1회) | 〃 | 〃 + stderr 안내 1줄 | 〃 (Stop 에는 안내 없음 — 매 턴 소음 방지) |
+| 훅 SessionEnd (`hooks/session-end.sh`) | 세션 종료 (1회) | 〃 + 세션 마커·`.oculpm/journal/` mtime | 〃 + stderr 안내 1줄(조건부: 일지 미작성이면 경고 문구) + 미작성 시 `.oculpm/hooks/journal-missing.jsonl` 1줄 | 〃 (Stop 에는 안내 없음 — 매 턴 소음 방지). 신호 근거 = 벤치 실측(헤드리스 단발 준수 0/12, benchmarks/agentic) |
+| 훅 세션 마커 (SessionStart 3번째 — `hooks/session-marker.sh`) | 세션 시작 | stdin 의 session_id | `.oculpm/hooks/.session-start-<sid>` 마커(빈 파일) — 7일+ 잔여는 자체 청소 | SessionEnd 의 "이 세션에서 일지가 났는가" 판정 기준점 외 다른 용도 없음 |
 | 훅 플랜 컨텍스트 주입 (SessionStart 2번째·SubagentStart — `hooks/plan-context.sh`) | 세션/서브에이전트 시작 | `.oculpm/planner/*.md` 중 frontmatter `status: active` | **없음** — `hookSpecificOutput.additionalContext` JSON 만 (활성 플랜 미완 항목, ≤24줄·1,600자 줄 경계 컷+절단 표식, "지시가 아님" 프레이밍+펜스) | 네트워크·외부 실행 없음 · stdin 즉시 소비(블록 금지) · `.oculpm` 없으면 침묵. plain stdout 이 아닌 이유: SubagentStart 는 JSON additionalContext 만 컨텍스트로 받는다 |
 | oculpm-mcp (`bin/` 셔틀 → 바이너리) | 도구 호출 시 | `<프로젝트>/.oculpm/` 마크다운·config | `journal/`·`planner/` 규격 파일 (redact 통과 후) | `.oculpm` 없거나 심볼릭 링크면 전 도구 거부 · 디렉터리 임의 생성 금지 · 앱 IPC 없음 |
 | `project_init` (위 거부 규칙의 **유일한 예외**) | 사용자의 명시적 추적 시작 요청 + `confirm=true` | 프로젝트 루트 | `.oculpm/` 스캐폴드(config·schema-version·README)·`.gitignore` 관리 블록·AGENTS.md 등 어댑터 | confirm 없이 거부 · 선제/자동 호출 금지(도구 설명+instructions 로 강제) · 이미 추적 중이면 무변경 · 심볼릭 링크 `.oculpm` 거부 |

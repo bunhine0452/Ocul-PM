@@ -54,8 +54,8 @@ fn hooks_json_guards_and_consumes_stdin() {
         4,
         "구독 이벤트는 SessionStart/Stop/SessionEnd(싱크) + SubagentStart(주입) 4종"
     );
-    // 이벤트 싱크 3종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
-    for ev in ["SessionStart", "Stop", "SessionEnd"] {
+    // 인라인 이벤트 싱크 2종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
+    for ev in ["SessionStart", "Stop"] {
         let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap_or_else(|| panic!("{ev} command"));
         assert!(cmd.contains(".oculpm"), "{ev}: 추적 프로젝트 가드 누락");
         assert!(cmd.contains("cat > /dev/null"), "{ev}: 비추적에서도 stdin 을 소비해야 한다 (EPIPE)");
@@ -63,12 +63,47 @@ fn hooks_json_guards_and_consumes_stdin() {
             assert!(!cmd.contains(banned), "{ev}: 훅은 로컬 append 만 — 네트워크 금지 계약");
         }
     }
-    // 활성화 배선(A2): 안내는 세션당 1회인 SessionEnd 에만 — Stop 은 매 턴
-    // 발화하므로 안내를 붙이면 소음이 된다.
-    let session_end = map["SessionEnd"][0]["hooks"][0]["command"].as_str().unwrap();
-    assert!(session_end.contains(">&2"), "SessionEnd: standup/앱 포인터 stderr 안내");
     let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
     assert!(!stop.contains("echo"), "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)");
+
+    // H3 — SessionStart 3번째 훅: 세션 마커 (journal-missing 판정 기준점).
+    let marker_cmd = map["SessionStart"][0]["hooks"][2]["command"]
+        .as_str()
+        .expect("SessionStart[2] 세션 마커 훅 누락");
+    assert!(marker_cmd.contains("session-marker.sh"), "SessionStart: session-marker.sh 참조");
+    let marker = std::fs::read_to_string(plugin_root().join("hooks/session-marker.sh")).expect("session-marker.sh 존재");
+    assert!(marker.contains("payload=$(cat"), "마커 스크립트: stdin 즉시 소비");
+    assert!(marker.contains(".session-start-"), "마커 스크립트: 세션별 마커 파일");
+    // create-only — auto-compact 재발화가 마커를 재터치하면 기록한 세션에
+    // 미작성 오탐이 난다 (리뷰 HIGH 회귀 방지).
+    assert!(marker.contains("[ ! -f \"$marker\" ]"), "마커 스크립트: create-only (재터치 금지)");
+
+    // H3 — SessionEnd 는 스크립트로: append + 일지 미작성 판정 + 조건부 안내.
+    // (벤치 실측 — 헤드리스 단발 준수 0/12 — 이 신호의 존재 근거다.)
+    let end_cmd = map["SessionEnd"][0]["hooks"][0]["command"].as_str().unwrap();
+    assert!(end_cmd.contains("session-end.sh"), "SessionEnd: session-end.sh 참조");
+    let end = std::fs::read_to_string(plugin_root().join("hooks/session-end.sh")).expect("session-end.sh 존재");
+    assert!(end.contains("payload=$(cat"), "SessionEnd 스크립트: stdin 즉시 소비");
+    assert!(end.contains("claude-events.jsonl"), "SessionEnd 스크립트: 이벤트 인박스 append 유지");
+    assert!(end.contains("journal-missing.jsonl"), "SessionEnd 스크립트: 미작성 신호 파일");
+    assert!(end.contains("journal_missing"), "SessionEnd 스크립트: 신호 kind");
+    assert!(end.contains(">&2"), "SessionEnd 스크립트: stderr 안내 (조건부)");
+    assert!(end.contains("일지 없이 끝났습니다"), "SessionEnd 스크립트: 미작성 경고 문구");
+    assert!(end.contains("-mtime +7 -delete"), "SessionEnd 스크립트: 크래시 잔여 마커 청소 (판정 뒤)");
+    assert!(end.contains("tail -n 100"), "SessionEnd 스크립트: 신호 파일 성장 상한");
+    for script in [&marker, &end] {
+        for banned in ["curl", "wget", "http://"] {
+            assert!(!script.contains(banned), "훅 스크립트: 네트워크 금지");
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for name in ["hooks/session-marker.sh", "hooks/session-end.sh"] {
+            let mode = std::fs::metadata(plugin_root().join(name)).unwrap().permissions().mode();
+            assert!(mode & 0o111 != 0, "{name} 실행 비트 누락");
+        }
+    }
 
     // ponytail-round H1/H2 — 플랜 컨텍스트 주입: SessionStart 2번째 훅과
     // SubagentStart(서브에이전트엔 SessionStart stdout 이 안 닿는다)가 같은
