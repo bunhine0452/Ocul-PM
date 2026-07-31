@@ -253,6 +253,10 @@ fn render_zed(ctx: &AgentContext) -> String {
 /// `.oculpm/agents/_template.md` on disk), the embedded `MASTER_KO` is
 /// atomically written there so the user can edit it going forward. Later
 /// calls always read the on-disk master so user edits persist.
+/// ⚠️ 이 함수 본문에 실제 `.await`(특히 tokio 기반)를 넣지 말 것 — oculpm-mcp
+/// 바이너리의 `project_init` 이 tokio 런타임 없이 `futures::executor::block_on`
+/// 으로 호출한다. await 이 생기면 테스트(#[tokio::test])는 통과하고 필드의
+/// MCP 호출에서만 패닉하는 함정이 된다. async 서명은 호출부 일관성용.
 pub async fn sync_active(
     root: &Path,
     config: &OculpmConfig,

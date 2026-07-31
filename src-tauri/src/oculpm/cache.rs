@@ -133,6 +133,8 @@ pub struct RangeEntry {
     pub agent_id: String,
     pub title: String,
     pub files: Vec<String>,
+    /// Frontmatter tags — drives the tag-cluster pass (skill promotion).
+    pub tags: Vec<String>,
 }
 
 /// Thin facade over the `oculpm_journal*` tables. Holds a shared reference
@@ -652,9 +654,9 @@ impl<'a> JournalCache<'a> {
 
     /// F4 — every journal entry whose `workday` falls in `[since, until]`
     /// (inclusive, string-compared "YYYYMMDD"), each carrying its touched file
-    /// paths. Two bounded queries (entries, then their files) joined in Rust —
-    /// no per-entry N+1. Newest workday first. Drives the deterministic retro
-    /// signal pass without hydrating the full summary (tags etc.).
+    /// paths and tags. Three bounded queries (entries, files, tags) joined in
+    /// Rust — no per-entry N+1. Newest workday first. Drives the deterministic
+    /// retro signal + promotion passes without hydrating the full summary.
     pub async fn range_entries(
         &self,
         project_id: u32,
@@ -665,6 +667,7 @@ impl<'a> JournalCache<'a> {
         let since = since.to_string();
         let until = until.to_string();
         let (since_q, until_q) = (since.clone(), until.clone());
+        let (since_t, until_t) = (since.clone(), until.clone());
 
         let mut entries: Vec<RangeEntry> = self
             .db
@@ -687,6 +690,7 @@ impl<'a> JournalCache<'a> {
                             agent_id: r.get(5)?,
                             title: r.get(6)?,
                             files: Vec::new(),
+                            tags: Vec::new(),
                         })
                     })?
                     .collect();
@@ -729,6 +733,39 @@ impl<'a> JournalCache<'a> {
         for e in &mut entries {
             if let Some(fs) = by_path.remove(&e.relative_path) {
                 e.files = fs;
+            }
+        }
+
+        // Tags for every entry in the same range, same one-join shape as files.
+        let tags: Vec<(String, String)> = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT t.relative_path, t.tag
+                     FROM oculpm_journal_tags t
+                     JOIN oculpm_journal j
+                       ON j.project_id = t.project_id
+                      AND j.relative_path = t.relative_path
+                     WHERE j.project_id = ?1 AND j.workday >= ?2 AND j.workday <= ?3",
+                )?;
+                let collected: rusqlite::Result<Vec<(String, String)>> = stmt
+                    .query_map(params![pid, &since_t, &until_t], |r| {
+                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                    })?
+                    .collect();
+                collected
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+
+        let mut tags_by_path: HashMap<String, Vec<String>> = HashMap::new();
+        for (rel, tag) in tags {
+            tags_by_path.entry(rel).or_default().push(tag);
+        }
+        for e in &mut entries {
+            if let Some(ts) = tags_by_path.remove(&e.relative_path) {
+                e.tags = ts;
             }
         }
         Ok(entries)
@@ -2208,7 +2245,8 @@ mod tests {
         write_entry(
             &root,
             "20260622/Errors/1100_error_z.md",
-            &fm("error", "err-z", "abandoned", "claude-code", &["src/c.rs"]),
+            &fm("error", "err-z", "abandoned", "claude-code", &["src/c.rs"])
+                .replace("tags: []", "tags: [\"perf\", \"hotfix\"]"),
             "[ ] Error Z\n",
         );
         cache.reindex_full(7, &root).await.unwrap();
@@ -2218,6 +2256,10 @@ mod tests {
         assert_eq!(all.len(), 3);
         assert_eq!(all[0].workday, "20260622");
         assert_eq!(all[0].entry_type, "error");
+        // tags attached (skill promotion pass reads these)
+        let mut err_tags = all[0].tags.clone();
+        err_tags.sort();
+        assert_eq!(err_tags, vec!["hotfix".to_string(), "perf".to_string()]);
         // files attached
         let feat = all.iter().find(|e| e.entry_type == "feature").unwrap();
         let mut feat_files = feat.files.clone();

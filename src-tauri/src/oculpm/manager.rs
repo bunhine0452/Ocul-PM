@@ -70,7 +70,7 @@ const GITIGNORE_BLOCK_BODY: &str = "\
 /// canonical body must stay order-independent (no `!` negation patterns).
 /// Lines are kept verbatim: gitignore treats a backslash-quoted trailing space
 /// as significant, so no trimming beyond the pure-whitespace emptiness check.
-fn merged_gitignore_body(existing: Option<&str>) -> String {
+pub(crate) fn merged_gitignore_body(existing: Option<&str>) -> String {
     let mut lines: Vec<&str> = GITIGNORE_BLOCK_BODY.lines().collect();
     for line in existing.into_iter().flat_map(str::lines) {
         if !line.trim().is_empty() && !lines.contains(&line) {

@@ -67,6 +67,8 @@ vi.mock("@/lib/bindings", () => {
               return () => ok(null);
             case "ruleCandidates":
               return () => ok([]);
+            case "skillCandidates":
+              return () => ok([]);
             case "notionStatus":
               return () => ok({ has_token: fx.hasToken, parent_page_id: fx.parent });
             case "notionVerifyToken":

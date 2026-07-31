@@ -59,20 +59,20 @@
 ## 4. 채널별 제출물 초안
 
 ### 4-1. Anthropic Console 폼 (영문 description 초안)
-> **Ocul-PM** — Local-first work journal for AI coding agents. The plugin wires up a hook bridge (session start/stop signals, local file append only — no network), 4 MCP tools (`journal_write` / `plan_status` / `plan_update` / `plan_create`) that write structured markdown journals and plans into your project's `.oculpm/` directory, and 5 skills (journaling spec, project-inception, self-audit, run-evals, tdd-workflow) plus `/oculpm:standup`. Works only in repos already tracked with `.oculpm/`; creates nothing elsewhere (full read/write contract in `docs/claude-integration/06-plugin-contract.md`). Optional macOS companion app (Tauri 2, MIT) renders the journals as timelines, diffs and retros. Free forever for individuals; team plan in the works.
+> **Ocul-PM** — Local-first work journal for AI coding agents. The plugin wires up a hook bridge (session start/stop signals, local file append only — no network), 5 MCP tools (`journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init`) that write structured markdown journals and plans into your project's `.oculpm/` directory, and 5 skills (journaling spec, project-inception, self-audit, run-evals, tdd-workflow) plus `/oculpm:standup`. Works only in repos already tracked with `.oculpm/`; creates nothing elsewhere except the explicit, user-confirmed `project_init` (full read/write contract in `docs/claude-integration/06-plugin-contract.md`). Optional macOS companion app (Tauri 2, MIT) renders the journals as timelines, diffs and retros. Free forever for individuals; team plan in the works.
 - Repo: `https://github.com/bunhine0452/Ocul-PM` / 사전 체크: `claude plugin validate ./plugin/oculpm` (경로 실확인: 플러그인 소스는 `plugin/oculpm`, 마켓플레이스 매니페스트는 `.claude-plugin/marketplace.json`)
 
 ### 4-2. composio-community/awesome-claude-plugins PR
 - **추가 파일 없음** — `README.md` 의 `### Developer Productivity` 섹션에 1행 추가 (알파벳순 아님, 말미 추가가 관행):
 ```markdown
-- [oculpm](https://github.com/bunhine0452/Ocul-PM) - Local-first work journal for AI coding agents. Hook bridge + 4 MCP tools + 5 skills auto-record what Claude Code does as markdown journals and living plans in `.oculpm/`, with planner dispatch and 3-depth plans. Optional macOS companion app (Tauri 2) for timelines, diffs and retros. ([Website](https://oculpm.com))
+- [oculpm](https://github.com/bunhine0452/Ocul-PM) - Local-first work journal for AI coding agents. Hook bridge + 5 MCP tools + 5 skills auto-record what Claude Code does as markdown journals and living plans in `.oculpm/`, with planner dispatch and 3-depth plans. Optional macOS companion app (Tauri 2) for timelines, diffs and retros. ([Website](https://oculpm.com))
 ```
 - **PR 제목**: `Add oculpm — local-first work journal plugin for coding agents`
 - **PR 본문 요지**: real use case(에이전트 작업 기록·검증), 비중복(저널링+플래너 결합은 기존 목록에 없음 — backlog 는 task 관리, CCHub 는 생태계 관리 앱이라 상보적), 테스트됨(플러그인 계약을 문서+테스트로 고정), 설치 두 줄.
 
 ### 4-3. GeekNews Show GN (한국어)
 - **제목**: `Show GN: Ocul-PM — AI 코딩 에이전트가 일하는 동안 작업 일지를 대신 쓰는 로컬-우선 PM (Tauri 2, MIT)`
-- **요약 초안**: Claude Code·Cursor·Gemini CLI 가 코드를 쓰는 동안 "지난주에 뭘 왜 건드렸는지"가 증발하는 문제에서 시작했습니다. 프로젝트에 규칙 파일 하나를 심으면 에이전트가 작업 단위마다 `.oculpm/` 에 마크다운 일지를 남기고, 앱이 타임라인·변경 diff·회고로 보여줍니다. 서버 없음, 데이터는 전부 로컬(마크다운이 원본, SQLite 는 캐시). v2.5 부터는 앱 없이도 Claude Code 에서 두 줄이면 시작됩니다: `/plugin marketplace add bunhine0452/Ocul-PM` → `/plugin install oculpm@oculpm` (훅+MCP 도구 4종+스킬 5종). 개인 영구 무료(Free forever for individuals), 팀 플랜 준비 중. 피드백 환영합니다.
+- **요약 초안**: Claude Code·Cursor·Gemini CLI 가 코드를 쓰는 동안 "지난주에 뭘 왜 건드렸는지"가 증발하는 문제에서 시작했습니다. 프로젝트에 규칙 파일 하나를 심으면 에이전트가 작업 단위마다 `.oculpm/` 에 마크다운 일지를 남기고, 앱이 타임라인·변경 diff·회고로 보여줍니다. 서버 없음, 데이터는 전부 로컬(마크다운이 원본, SQLite 는 캐시). v2.5 부터는 앱 없이도 Claude Code 에서 두 줄이면 시작됩니다: `/plugin marketplace add bunhine0452/Ocul-PM` → `/plugin install oculpm@oculpm` (훅+MCP 도구 5종+스킬 5종). 개인 영구 무료(Free forever for individuals), 팀 플랜 준비 중. 피드백 환영합니다.
 
 ### 4-4. r/ClaudeAI ("Built with Claude" 플레어)
 - **제목**: `I built a local-first "work journal" that makes Claude Code document everything it does — installs as a plugin in 2 lines`

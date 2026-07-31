@@ -174,6 +174,8 @@ use crate::commands::{
     rules_list, rules_read, rules_save, rules_delete, rules_sync_translations,
     // PR-CI4 — 실패→규칙 승격 (결정적 후보 + 옵인 LLM 초안; 저장은 rules_save 승인 경로만)
     rule_candidates, rule_draft_generate,
+    // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
+    skill_candidates, skill_draft_generate,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
@@ -366,6 +368,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // PR-CI4 — 실패→규칙 승격
         rule_candidates,
         rule_draft_generate,
+        // 반복 절차→스킬 승격 (CI4 미러)
+        skill_candidates,
+        skill_draft_generate,
         // PR-CI0 — Claude Code 훅 브리지
         claude_hooks_status,
         claude_hooks_install,

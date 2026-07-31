@@ -145,11 +145,30 @@ pub fn tool_definitions() -> Value {
                 },
                 "required": ["plan_id", "title", "phases"]
             }
+        },
+        {
+            "name": "project_init",
+            "description": "이 프로젝트를 ocul-pm 추적 대상으로 초기화한다 (.oculpm/ 스캐폴드 + 에이전트 규칙 파일 생성). 반드시 사용자가 추적 시작을 명시적으로 요청하고 확인한 뒤에만 호출할 것 — 조용히/선제적으로 호출 금지. 이미 추적 중인 프로젝트에서는 아무것도 바꾸지 않는다.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "confirm": { "type": "boolean", "description": "사용자가 ocul-pm 추적 시작을 명시적으로 확인했으면 true. false/누락이면 도구가 거부한다 — 먼저 사용자에게 물어볼 것." }
+                },
+                "required": ["confirm"]
+            }
         }
     ])
 }
 
 pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String> {
+    // project_init 는 **유일하게** 비추적 프로젝트에서 동작하는 도구다 — A0b
+    // 가드(아래)의 명시적 예외. 조용한 생성 금지 원칙은 유지된다: 사용자
+    // 확인(confirm=true)을 요구하고, 심볼릭 링크 .oculpm 은 여기서도 거부하며,
+    // 이미 추적 중이면 아무것도 바꾸지 않는다. 계약 문서(06-plugin-contract)의
+    // 예외 조항과 함께 움직인다.
+    if name == "project_init" {
+        return project_init(root, args);
+    }
     // A0b — 비추적 프로젝트 가드. user 스코프 플러그인 배포에서는 이 서버가
     // 모든 프로젝트에 노출되므로, `.oculpm/` 이 없는 곳에서는 어떤 도구도
     // 동작하지 않는다 — 특히 사용자 동의 없는 조용한 디렉터리 생성 금지.
@@ -183,6 +202,125 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
         "plan_create" => plan_create(root, args),
         other => Err(format!("unknown tool: {other}")),
     }
+}
+
+/// 플러그인-온리 그린필드의 시작점 — `.oculpm/` 스캐폴드를 만든다.
+///
+/// 앱의 `init_project` 중 **디스크 부분만** 재현한다: config + schema-version +
+/// gitignore managed block + `.oculpm/README.md` + 에이전트 규칙 동기화
+/// (AGENTS.md 어댑터·마스터 템플릿·discussion-spec). 락/세션 감지/워처/DB
+/// 캐시는 앱 몫 — 앱을 열면 기존 초기화를 그대로 이어받는다 (idempotent).
+fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
+    if !args.get("confirm").and_then(Value::as_bool).unwrap_or(false) {
+        return Err(
+            "project_init 은 사용자가 ocul-pm 추적 시작을 명시적으로 확인한 뒤에만 호출할 수 \
+             있습니다 — 사용자에게 물어보고 동의를 받은 경우에만 confirm=true 로 다시 호출하세요."
+                .to_string(),
+        );
+    }
+    if !root.is_dir() {
+        return Err(format!("프로젝트 루트가 디렉터리가 아닙니다: {}", root.display()));
+    }
+    // 폭발 반경 가드 — --root 를 홈/파일시스템 루트로 잘못 고정한 설정 사고가
+    // ~/.gitignore(core.excludesFile 관행)·~/AGENTS.md 오염으로 번지지 않게.
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    if canonical.parent().is_none() {
+        return Err("파일시스템 루트는 초기화 대상이 아닙니다 — --root 설정을 확인하세요.".to_string());
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        if !home.is_empty() && canonical == std::path::PathBuf::from(&home) {
+            return Err(
+                "홈 디렉터리는 초기화 대상이 아닙니다 — 프로젝트 폴더에서 다시 시도하세요 \
+                 (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
+                    .to_string(),
+            );
+        }
+    }
+
+    let oculpm_dir = root.join(".oculpm");
+    // 원자적 선점: create_dir(비재귀)은 이미 무언가 있으면 실패한다 — "없음 확인
+    // 후 생성" 사이에 심볼릭 링크를 끼워 넣는 TOCTOU 를 원천 차단. 이미 있으면
+    // 종류를 판정해 실디렉터리만 ensure 경로로 계속 간다.
+    let already = match std::fs::create_dir(&oculpm_dir) {
+        Ok(()) => false,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            let m = std::fs::symlink_metadata(&oculpm_dir).map_err(|e| e.to_string())?;
+            if m.file_type().is_symlink() {
+                return Err(format!(
+                    "{} 의 .oculpm 이 심볼릭 링크입니다 — 안전상 초기화하지 않습니다.",
+                    root.display()
+                ));
+            }
+            if !m.file_type().is_dir() {
+                return Err(
+                    ".oculpm 이 디렉터리가 아닌 파일로 존재합니다 — 제거 후 다시 시도하세요."
+                        .to_string(),
+                );
+            }
+            true
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+
+    // 여기부터는 **ensure 시맨틱** — 이미 추적 중이든, 이전 호출이 중간에
+    // 실패했든, 누락분만 채우고 재호출은 항상 완전 상태로 수렴한다. (초기
+    // 구현은 디렉터리 존재 시 전면 스킵이라 반쪽 초기화가 영구 고착됐고,
+    // 특히 gitignore 블록 없이 훅 인박스가 커밋될 수 있었다 — 리뷰 지적.)
+    // 1. config.toml (있으면 검증만) + `.schema-version`
+    let config_path = oculpm_dir.join("config.toml");
+    let cfg = if config_path.exists() {
+        let cfg =
+            crate::oculpm::spec::OculpmConfig::load(&config_path).map_err(|e| e.to_string())?;
+        cfg.validate().map_err(|e| e.to_string())?;
+        cfg
+    } else {
+        let cfg = crate::oculpm::spec::OculpmConfig::default_for_new_project();
+        cfg.validate().map_err(|e| e.to_string())?;
+        cfg.save(&config_path).map_err(|e| e.to_string())?;
+        cfg
+    };
+    let schema_version = oculpm_dir.join(".schema-version");
+    if !schema_version.exists() {
+        write_atomic(&schema_version, b"1\n").map_err(|e| e.to_string())?;
+    }
+
+    // 2. `.gitignore` managed block — 앱과 동일한 union 병합 + 다운그레이드 가드.
+    let gitignore = root.join(".gitignore");
+    let existing = crate::oculpm::atomic_io::read_managed_block(
+        &gitignore,
+        "oculpm",
+        crate::oculpm::spec::CommentStyle::Hash,
+    )
+    .map_err(|e| e.to_string())?;
+    let body =
+        crate::oculpm::manager::merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str()));
+    crate::oculpm::atomic_io::write_managed_block(
+        &gitignore,
+        "oculpm",
+        &body,
+        crate::oculpm::spec::CommentStyle::Hash,
+    )
+    .map_err(|e| e.to_string())?;
+
+    // 3. 방문자용 README (실패 무해).
+    crate::oculpm::readme::ensure_oculpm_readme(root);
+
+    // 4. 에이전트 규칙 — 마스터 템플릿 시드 + AGENTS.md 등 활성 어댑터 렌더.
+    //    sync_active 는 await 이 없는 async 서명이라 executor block_on 이 안전.
+    let report = futures::executor::block_on(crate::oculpm::agents::sync_active(root, &cfg))
+        .map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "initialized": !already,
+        "root": canonical.display().to_string(),
+        "adapters_synced": report.results.len(),
+        "note": if already {
+            "이미 추적 중인 프로젝트 — 누락된 구성(설정·gitignore 보호·규칙 파일)을 보완했습니다."
+        } else {
+            "이제 journal_write · plan_create 등 ocul-pm 도구를 쓸 수 있습니다. \
+             ocul-pm 앱에서 이 폴더를 열면 타임라인·세션 감지·인덱싱이 활성화됩니다."
+        }
+    }))
 }
 
 fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
@@ -852,6 +990,67 @@ mod tests {
             "---\noculpm_plan: v1\nid: test-plan\ntitle: \"테스트 플랜\"\nstatus: active\ncreated: 2026-07-20\nupdated: 2026-07-20\nowner: claude-code\n---\n\n## Phase 1 {#p1}\n- [ ] 첫 항목 {#first}\n- [~] 둘째 항목 {#second}\n\n<!-- oculpm:plan-log begin v1 -->\n| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n|---|---|---|---|---|---|\n<!-- oculpm:plan-log end -->\n",
         )
         .unwrap();
+    }
+
+    /// project_init — A0b 의 유일한 예외. confirm 게이트·심볼릭 링크 거부·
+    /// idempotence(추적 중이면 무변경)를 계약으로 잠근다.
+    #[test]
+    fn project_init_gates_and_scaffolds() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // 1) confirm 누락/false → 거부, 아무것도 안 만든다.
+        assert!(call_tool(root, "project_init", &json!({})).is_err());
+        assert!(call_tool(root, "project_init", &json!({"confirm": false})).is_err());
+        assert!(!root.join(".oculpm").exists());
+
+        // 2) confirm=true → 스캐폴드 생성 (config·schema-version·gitignore 블록·
+        //    AGENTS.md 어댑터·마스터 템플릿).
+        let out = call_tool(root, "project_init", &json!({"confirm": true})).unwrap();
+        assert_eq!(out["initialized"], json!(true));
+        assert!(root.join(".oculpm/config.toml").exists());
+        assert!(root.join(".oculpm/.schema-version").exists());
+        assert!(root.join(".oculpm/agents/_template.md").exists());
+        assert!(root.join("AGENTS.md").exists());
+        assert!(std::fs::read_to_string(root.join(".gitignore")).unwrap().contains("oculpm"));
+
+        // 3) 초기화 직후 다른 도구가 실제로 동작한다 (플러그인-온리 그린필드 흐름).
+        let journal = call_tool(
+            root,
+            "journal_write",
+            &json!({"type": "chore", "slug": "first", "title": "첫 기록", "body_markdown": "## 검증\n- ok"}),
+        );
+        assert!(journal.is_ok(), "{journal:?}");
+
+        // 4) 재호출 → initialized=false (ensure 경로).
+        let again = call_tool(root, "project_init", &json!({"confirm": true})).unwrap();
+        assert_eq!(again["initialized"], json!(false));
+    }
+
+    /// 부분 실패 수렴 — `.oculpm/` 디렉터리만 있고 나머지가 없는 반쪽 상태에서
+    /// 재호출하면 누락분(config·gitignore 보호·AGENTS.md)이 채워져야 한다.
+    /// (전면 스킵이면 훅 인박스가 gitignore 보호 없이 커밋될 수 있다.)
+    #[test]
+    fn project_init_converges_half_initialized_state() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir(root.join(".oculpm")).unwrap();
+
+        let out = call_tool(root, "project_init", &json!({"confirm": true})).unwrap();
+        assert_eq!(out["initialized"], json!(false));
+        assert!(root.join(".oculpm/config.toml").exists());
+        assert!(root.join("AGENTS.md").exists());
+        assert!(std::fs::read_to_string(root.join(".gitignore")).unwrap().contains("oculpm"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn project_init_rejects_symlinked_oculpm() {
+        let tmp = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        std::os::unix::fs::symlink(outside.path(), tmp.path().join(".oculpm")).unwrap();
+        let err = call_tool(tmp.path(), "project_init", &json!({"confirm": true})).unwrap_err();
+        assert!(err.contains("심볼릭 링크"));
     }
 
     /// A0b — 비추적 프로젝트 가드: `.oculpm/` 없는 루트에서는 세 도구 모두

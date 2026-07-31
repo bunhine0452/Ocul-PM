@@ -40,6 +40,10 @@ owner: claude-code
 - [x] RT1 회고 Claude Code 생성 — `retro_dispatch_prompt`(신호+파일 계약 프롬프트 조립, redact) + `.oculpm/retro/<range_key>.md` 규격(retro_file.rs) + get_retro 파일/DB 병합(newer wins) + 회고 화면 "Claude Code 로" 버튼→터미널 프리필 {#retro-cc-generate}
 - [x] RT2 회고 생성 상태 전역화 — 생성 상태를 retroGen 버스(모듈 싱글턴)로 이동: 화면 이탈-복귀에도 "생성 중" 유지(초기화 버그 수정), 경과 초·provider/model 표시, 부재 중 완료 입양+전역 토스트 {#retro-gen-bus}
 
+## Phase E — 사용자 흐름 완결 (사용자 승인 2026-08-01) {#round-e}
+- [x] E1 project_init MCP 도구 — 플러그인-온리 그린필드 구멍 해소: A0b 가드의 유일 예외(confirm 강제·선제 호출 금지·심볼릭 링크 거부·추적 중 무변경), 스캐폴드=config·schema-version·gitignore 블록·README·에이전트 어댑터. 계약 문서·도구 5종 표면 스윕·인셉션 스킬 연결 {#mcp-project-init}
+- [x] E2 반복 절차→스킬 승격 루프 — ci4 미러: tag 클러스터(≥3, 스톱리스트·기존 스킬 억제) 결정적 후보 + LLM SKILL.md 초안 + 회고 화면 "스킬 후보" 카드(저장은 사람 승인, skills_save 재사용) {#skill-promotion}
+
 ## 결정
 
 ### Decision 1 — 방안 A 채택 + 미결 3건 확정 {#d1-plan-a}
@@ -95,4 +99,7 @@ owner: claude-code
 | 2026-07-31T16:28:39+09:00 | #retro-cc-generate | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1628_feature_retro-claude-code-generate.md | 디스패치+파일 규격+병합 구현, 적대 리뷰 HIGH(경로 탈출)·MED(redact-signature 파괴) 반영. 실기기 확인은 A0d 동승 |
 | 2026-07-31T16:28:47+09:00 | #retro-gen-bus | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/1628_bug_retro-gen-state-survives-nav.md | 전역 버스+경과 표시+부재중 입양. 리뷰 MED(스톨 영구잠금→3분 시효) 등 4건 반영, 자정 경계는 한계 명시 |
 | 2026-07-31T16:42:18+09:00 | #in0-inception-skill | claude-code | x→x | .oculpm/journal/20260731/Features_to_add/1642_feature_inception-v3-research-first.md | v3 — 사용자 표준 흐름 반영: 리서치 선행→근거 실린 대화로 사양 확정, 기능 추가=계획→구현 반복 루프 명시 |
+| 2026-07-31T17:08:45+09:00 | #mcp-project-init | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1708_feature_mcp-project-init.md | confirm 3중 게이트+스캐폴드+계약 문서·5종 스윕·인셉션 연결. 리뷰는 스킬 승격과 합산 진행 중 |
+| 2026-07-31T17:20:24+09:00 | #skill-promotion | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1707_feature_skill-promotion-loop.md | ci4 미러 구현 + 적대 리뷰 5건 반영(HIGH: 증거가 frontmatter 만 담기던 문제 — 벗기고 1600자, 마커 전수 제거·조건부 펜스·해시 폴백·소문자 클러스터). lib 482 그린 |
+| 2026-07-31T17:20:32+09:00 | #mcp-project-init | claude-code | x→x |  | 적대 리뷰 4건 반영 — ensure 수렴(반쪽 초기화 고착 해소, 특히 gitignore 무보호 훅 커밋 경로)·create_dir 원자 선점(TOCTOU)·홈/루트 가드·block_on 함정 주석. mcp 33 그린 |
 <!-- oculpm:plan-log end -->

@@ -12,11 +12,16 @@
 | 훅 SessionStart/Stop | Claude Code 세션 이벤트 | stdin 의 이벤트 JSON | `<프로젝트>/.oculpm/hooks/claude-events.jsonl` 에 1줄 append | 네트워크 · 외부 실행 · `.oculpm` 없는 저장소에는 아무것도 안 씀 |
 | 훅 SessionEnd | 세션 종료 (1회) | 〃 | 〃 + stderr 안내 1줄 | 〃 (Stop 에는 안내 없음 — 매 턴 소음 방지) |
 | oculpm-mcp (`bin/` 셔틀 → 바이너리) | 도구 호출 시 | `<프로젝트>/.oculpm/` 마크다운·config | `journal/`·`planner/` 규격 파일 (redact 통과 후) | `.oculpm` 없거나 심볼릭 링크면 전 도구 거부 · 디렉터리 임의 생성 금지 · 앱 IPC 없음 |
+| `project_init` (위 거부 규칙의 **유일한 예외**) | 사용자의 명시적 추적 시작 요청 + `confirm=true` | 프로젝트 루트 | `.oculpm/` 스캐폴드(config·schema-version·README)·`.gitignore` 관리 블록·AGENTS.md 등 어댑터 | confirm 없이 거부 · 선제/자동 호출 금지(도구 설명+instructions 로 강제) · 이미 추적 중이면 무변경 · 심볼릭 링크 `.oculpm` 거부 |
 | 스킬 5종·커맨드 1종 | 모델 판단/사용자 호출 | (문서 — 실행 코드 없음) | 없음 | 상시 컨텍스트 ~520 tok 외 비용 없음 (매니페스트 테스트로 상한 고정) |
 
 - 훅 payload 에는 대화 내용이 포함될 수 있어 `.oculpm/hooks/` 는 **앱이 gitignore
   관리 블록으로 커밋 차단**한다 (v7 블록 + 다운그레이드 가드 + union 병합).
 - 모든 쓰기는 원자적(write_atomic)이고, 시크릿은 프로젝트 redact 패턴으로 마스킹된다.
+- "비추적 저장소에는 아무것도 만들지 않는다"는 원칙은 `project_init` 도입(2026-08-01,
+  사용자 승인) 후 "**사용자가 명시적으로 요청·확인한 초기화 한 가지만 예외**"로
+  갱신됐다 — 게이트는 3중: confirm 인자 강제(`mcp/tools.rs` 테스트 잠금), 도구
+  설명의 호출 조건, 서버 instructions 의 선제 호출 금지.
 
 ## 2. 설치 경로는 하나만
 

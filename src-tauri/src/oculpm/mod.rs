@@ -33,6 +33,7 @@ pub mod retro_file;
 pub mod rule_promotion;
 pub mod rules;
 pub mod session;
+pub mod skill_promotion;
 pub mod shell_integration;
 pub mod spec;
 pub mod transcript;

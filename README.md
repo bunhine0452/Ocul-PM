@@ -39,7 +39,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 플러그인 하나로 전 프로젝트에 구성되는 것:
 
 - **훅 브리지** — 세션 시작·종료가 실시간 신호로 기록됩니다 (로컬 파일 append 한 줄, 네트워크 없음).
-- **MCP 도구 4종** — `journal_write` · `plan_status` · `plan_update` · `plan_create`. 에이전트가 마크다운 규격을 흉내 내는 대신 구조화 도구로 기록해 frontmatter 오류가 원천 차단됩니다.
+- **MCP 도구 5종** — `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`(사용자 확인 시 새 프로젝트 추적 시작). 에이전트가 마크다운 규격을 흉내 내는 대신 구조화 도구로 기록해 frontmatter 오류가 원천 차단됩니다.
 - **스킬 5종 + `/oculpm:standup`** — 기록 규격 · project-inception(설계 시드) · self-audit · run-evals · tdd-workflow.
 - `.oculpm` 이 있는 추적 프로젝트에서만 동작하고, 비추적 저장소에는 아무 파일도 만들지 않습니다 — [무엇을 읽고 쓰는지 전체 계약](docs/claude-integration/06-plugin-contract.md).
 - 앱 설정의 프로젝트별 훅·MCP 등록과는 **택일**입니다 (동시에 켜면 설정 화면이 경고합니다).
@@ -48,7 +48,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 - **▶실행 (디스패치)** — 플랜 항목을 누르면 항목 내용 + 연결된 일지 + 갱신 지시가 조립된 프롬프트가 터미널에 프리필되고, Enter 한 번으로 Claude Code 실세션이 그 항목을 잡습니다.
 - **3단계 계획** — 항목 아래 하위 작업 중첩. 부모 상태는 하위 롤업으로 자동 계산되고, 진행 카운트는 리프 기준으로 일관됩니다.
-- **project-inception 스킬** — 아이디어를 사용자 인터뷰(1차)와 웹 리서치(2차)로 구체화해 문제 정의 → 3단계 계획 → `EVALS.md` 완료 정의 → 초기 `.claude/rules` 로 시드합니다. Greenfield 마법사와도 연결됩니다.
+- **project-inception 스킬** — 웹 리서치로 환경을 먼저 탐색하고, 그 근거가 실린 선택지로 사용자와 사양을 확정해 문제 정의 → 3단계 상세 계획 → `EVALS.md` 완료 정의 → 초기 `.claude/rules` 로 시드합니다. Greenfield 마법사와도 연결됩니다.
 
 **에이전트 토큰 60% 다이어트** — 모든 추적 프로젝트에 상시 주입되던 규칙(AGENTS.md)이 v7 에서 ≈2,900→≈1,150 토큰으로. 준수를 담보하던 규칙은 전부 유지됩니다.
 

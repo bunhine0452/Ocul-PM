@@ -59,10 +59,10 @@
     "내장 PTY 터미널",
     "멀티-LLM AI 패널 (Anthropic·OpenAI·Gemini·OpenRouter + 폴백 체인)",
     "Claude Code · Claude Desktop 직접 연동 (MCP 서버 · 공식 훅 · transcript 일지 초안)",
-    "Claude Code 플러그인 (/plugin 두 줄 설치 — 훅 브리지 · MCP 도구 4종 · 스킬 5종)",
+    "Claude Code 플러그인 (/plugin 두 줄 설치 — 훅 브리지 · MCP 도구 5종 · 스킬 5종)",
     "플래너 ▶실행 디스패치 (계획 항목 → 터미널 프리필 → 에이전트 실세션)",
     "3단계 계획 (하위 작업 중첩 · 부모 상태 자동 롤업)",
-    "project-inception 스킬 (사용자 인터뷰 → 웹 리서치 → 설계 시드)",
+    "project-inception 스킬 (웹 리서치 → 근거 실린 대화 → 설계 시드)",
     "macOS 메뉴바 상주 (세션 상태 아이콘 · 팝오버 브리핑 · 새 일지 알림)",
     "규칙 허브 · 실패→규칙 승격 플라이휠 (.claude/rules · Cursor 병행 배포)"
   ]
@@ -98,7 +98,7 @@
     {
       "@type": "Question",
       "name": "앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 4종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 5종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다." }
     },
     {
       "@type": "Question",
@@ -268,9 +268,9 @@
           백미러가 핸들이 되는 릴리스.
         </p>
         <ul class="update-points">
-          <li class="reveal d2"><b>Claude Code 플러그인</b> — <span class="mono">/plugin</span> 두 줄이면 훅 브리지 · MCP 도구 4종 · 스킬 5종이 전 프로젝트에. 앱이 없어도 기록이 시작됩니다.</li>
+          <li class="reveal d2"><b>Claude Code 플러그인</b> — <span class="mono">/plugin</span> 두 줄이면 훅 브리지 · MCP 도구 5종 · 스킬 5종이 전 프로젝트에. 앱이 없어도 기록이 시작됩니다.</li>
           <li class="reveal d3"><b>▶실행 디스패치</b> — 플랜 항목을 누르면 항목+연결 일지+갱신 지시가 조립된 프롬프트가 터미널에 프리필. Enter 한 번으로 실세션이 그 항목을 잡습니다.</li>
-          <li class="reveal d3"><b>3단계 계획 + project-inception</b> — 하위 작업 중첩(부모 상태는 자동 롤업), 아이디어는 사용자 인터뷰→웹 리서치로 구체화해 설계 산출물 4종으로 시드.</li>
+          <li class="reveal d3"><b>3단계 계획 + project-inception</b> — 하위 작업 중첩(부모 상태는 자동 롤업), 아이디어는 웹 리서치→근거 실린 대화로 사양을 확정해 설계 산출물 4종으로 시드.</li>
           <li class="reveal d3"><b>에이전트 토큰 60% 다이어트</b> — 상시 주입 규칙이 ≈2,900→≈1,150 토큰. 준수를 담보하던 규칙은 전부 유지.</li>
         </ul>
         <div class="update-cta reveal d4">
@@ -441,7 +441,7 @@
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v6M9 5l3 3 3-3"/><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 15h.01M12 15h.01M16 15h.01"/></svg></div>
         <span class="cell-tag">v2.5.0 · /plugin</span>
         <h3>Claude Code 플러그인</h3>
-        <p>두 줄이면 훅 브리지·MCP 도구 4종·스킬 5종이 전 프로젝트에. <b>앱 없이도 기록이 시작됩니다.</b></p>
+        <p>두 줄이면 훅 브리지·MCP 도구 5종·스킬 5종이 전 프로젝트에. <b>앱 없이도 기록이 시작됩니다.</b></p>
         <div class="cell-visual">
           <div class="mini-term">
 <span class="p">&gt;</span> <span class="c">/plugin marketplace add bunhine0452/Ocul-PM</span><br/>
@@ -626,7 +626,7 @@
           </div>
         </div>
         <ul class="path-notes">
-          <li><b>MCP 도구 4종</b> — journal_write · plan_status · plan_update · plan_create. 규격은 서버가 보장합니다.</li>
+          <li><b>MCP 도구 5종</b> — journal_write · plan_status · plan_update · plan_create · project_init. 규격은 서버가 보장합니다.</li>
           <li><b>스킬 5종 + /oculpm:standup</b> — 기록 규격 · project-inception · self-audit · run-evals · tdd-workflow.</li>
           <li><span class="mono">.oculpm</span> 추적 프로젝트에서만 동작 — 비추적 저장소는 건드리지 않습니다. <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">읽기/쓰기 계약 →</a></li>
         </ul>

@@ -16,7 +16,7 @@
 
 Ocul-PM 은 그 빈칸을 파일로 메웁니다. 에이전트가 작업 하나를 끝낼 때마다 프로젝트의 `.oculpm/` 폴더에 사람이 읽을 수 있는 마크다운 일지가 남고, 앱은 그것을 타임라인·일일 브리프·회고로 보여줍니다. 일지마다 그 시점의 diff 가 붙어 "고쳤다"는 말을 코드로 확인할 수 있고, 바꿔놓고 일지에 안 적은 파일은 정직성 감사가 잡아냅니다. 쌓인 기록은 스탠드업·PR 본문·주간 보고로 돌아오고, Notion 으로도 내보냅니다. 플래너 항목의 ▶실행을 누르면 항목과 연결 일지가 조립된 프롬프트로 터미널에 프리필되고, Enter 한 번에 Claude Code 실세션이 그 항목을 잡습니다.
 
-설계는 세 가지로 요약됩니다. 서버 없음 — 데이터는 프로젝트 폴더와 로컬 SQLite 캐시뿐. 파일이 원본(SSOT) — SQLite 는 언제든 파일에서 재구성되는 파생 캐시고, 원본이 마크다운이라 코드와 함께 커밋됩니다. 기록은 흉내가 아니라 도구로 — MCP 도구 4종이 frontmatter 규격을 서버 쪽에서 보장하고, 훅은 네트워크 없는 로컬 append 한 줄입니다.
+설계는 세 가지로 요약됩니다. 서버 없음 — 데이터는 프로젝트 폴더와 로컬 SQLite 캐시뿐. 파일이 원본(SSOT) — SQLite 는 언제든 파일에서 재구성되는 파생 캐시고, 원본이 마크다운이라 코드와 함께 커밋됩니다. 기록은 흉내가 아니라 도구로 — MCP 도구 5종이 frontmatter 규격을 서버 쪽에서 보장하고, 훅은 네트워크 없는 로컬 append 한 줄입니다.
 
 시작은 Claude Code 에서 두 줄:
 
@@ -25,7 +25,7 @@ Ocul-PM 은 그 빈칸을 파일로 메웁니다. 에이전트가 작업 하나�
 /plugin install oculpm@oculpm
 ```
 
-훅 브리지·MCP 도구 4종·스킬 5종이 함께 구성됩니다. MIT 공개, 개인 영구 무료(Free forever for individuals) — 팀 플랜 준비 중. 앱(macOS)은 [oculpm.com](https://oculpm.com) 에서.
+훅 브리지·MCP 도구 5종·스킬 5종이 함께 구성됩니다. MIT 공개, 개인 영구 무료(Free forever for individuals) — 팀 플랜 준비 중. 앱(macOS)은 [oculpm.com](https://oculpm.com) 에서.
 
 ## English (r/ClaudeAI · Show HN 등)
 
@@ -35,7 +35,7 @@ The more work you hand to agents, the more you pay a strange tax: digging throug
 
 Ocul-PM fills that gap with files. Every time an agent finishes a unit of work, a human-readable markdown journal lands in the project's `.oculpm/` folder, and the app turns those into a timeline, a daily brief, and retrospectives. Each journal carries the diff from that moment, so "fixed it" can be checked against actual code — and an honesty audit catches files the agent changed but never wrote down. The accumulated record comes back as standups, PR descriptions, and weekly reports, and exports to Notion. Hit ▶Run on a planner item and a prompt assembled from the item and its linked journals is prefilled into the terminal; one Enter puts a live Claude Code session on it.
 
-The design boils down to three decisions. No server — your data lives only in the project folder and a local SQLite cache. Files are the source of truth — SQLite is a derived cache that can always be rebuilt from disk, and since journals are markdown, they commit alongside your code. Recording goes through tools, not format mimicry — four MCP tools enforce the frontmatter spec server-side, and the hooks are a single network-free local append.
+The design boils down to three decisions. No server — your data lives only in the project folder and a local SQLite cache. Files are the source of truth — SQLite is a derived cache that can always be rebuilt from disk, and since journals are markdown, they commit alongside your code. Recording goes through tools, not format mimicry — five MCP tools enforce the frontmatter spec server-side, and the hooks are a single network-free local append.
 
 Getting started is two lines in Claude Code:
 
@@ -44,7 +44,7 @@ Getting started is two lines in Claude Code:
 /plugin install oculpm@oculpm
 ```
 
-That sets up the hook bridge, four MCP tools, and five skills. MIT open source, free forever for individuals — a team plan is in the works. The macOS app is at [oculpm.com](https://oculpm.com).
+That sets up the hook bridge, five MCP tools, and five skills. MIT open source, free forever for individuals — a team plan is in the works. The macOS app is at [oculpm.com](https://oculpm.com).
 
 ---
 

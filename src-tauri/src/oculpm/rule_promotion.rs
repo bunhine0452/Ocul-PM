@@ -477,6 +477,7 @@ mod tests {
             agent_id: "claude-code".to_string(),
             title: title.to_string(),
             files: files.iter().map(|s| s.to_string()).collect(),
+            tags: Vec::new(),
         }
     }
 

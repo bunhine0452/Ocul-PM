@@ -9,6 +9,8 @@ description: Use when kicking off a new project or feature area in an ocul-pm tr
 
 ## STAGE 0 — 문제 파악 (리서치 방향을 정할 만큼만)
 
+`.oculpm/` 이 없는 새 저장소라면 먼저 사용자에게 **"이 프로젝트를 ocul-pm 으로 추적할까요?"** 를 물어보고, 동의를 받으면 `project_init` 도구(confirm=true)로 초기화합니다 — 동의 없이/선제적으로 호출하지 않습니다. 도구가 없으면 ocul-pm 앱에서 프로젝트 추가를 안내하세요.
+
 **정보가 부족한 채 계획을 지어내지 마세요.** 단, 여기서는 리서치의 방향을 정하는 데 필요한 최소만 묻습니다 — 문제(누구의 어떤 문제), 완성의 정의(첫 데모 한 장면), 비목표, 플랫폼·강한 제약(기한·오프라인·보안). 아이디어에 이미 담긴 것은 다시 묻지 않습니다. 답을 받아 `.oculpm/agents/discussion-spec.md` 규격대로 `.oculpm/discussion/<slug>/discussion.md` 를 만들고 `## 문제 정의` 를 채웁니다.
 
 ## STAGE 1 — 환경 탐색 (웹 리서치)

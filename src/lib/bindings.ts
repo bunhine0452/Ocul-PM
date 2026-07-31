@@ -833,6 +833,17 @@ export const commands = {
 	 *  않는다 (저장은 프런트의 `rules_save` 승인 경로 전담).
 	 */
 	ruleDraftGenerate: (projectId: number, since: string, until: string, candidateKey: string, provider: string, model: string) => typedError<RuleDraft, string>(__TAURI_INVOKE("rule_draft_generate", { projectId, since, until, candidateKey, provider, model })),
+	/**
+	 *  기간 내 반복 tag 클러스터(스킬 후보)를 결정적으로 뽑는다 — LLM 없음.
+	 *  이미 스킬 폴더가 있는 슬러그·승격된 tag(promoted-from 마커)는 제외된다.
+	 */
+	skillCandidates: (projectId: number, since: string, until: string) => typedError<SkillCandidate[], string>(__TAURI_INVOKE("skill_candidates", { projectId, since, until })),
+	/**
+	 *  후보 하나의 증거(일지 본문 redact 발췌)로 LLM 스킬 초안(SKILL.md)을 만든다.
+	 *  과금 호출 — 사용자가 버튼으로만 트리거한다. 파일은 쓰지 않는다 (저장은
+	 *  프런트의 `skills_save` 승인 경로 전담).
+	 */
+	skillDraftGenerate: (projectId: number, since: string, until: string, tag: string, provider: string, model: string) => typedError<SkillDraft, string>(__TAURI_INVOKE("skill_draft_generate", { projectId, since, until, tag, provider, model })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -2360,6 +2371,20 @@ export type ShippedItem = {
 	workday: string,
 };
 
+/**  결정적 스킬 후보 — 한 tag 의 반복 작업 클러스터. */
+export type SkillCandidate = {
+	/**  원본 tag (억제/재조회 키). */
+	tag: string,
+	/**  tag 의 폴더명 정규화 (`.claude/skills/<slug>/` 제안 위치). */
+	slug: string,
+	/**  이 tag 가 붙은 일지 수. */
+	count: number,
+	/**  가장 최근 등장 workday. */
+	last_workday: string,
+	/**  표본 제목 (최신순, 최대 3). */
+	sample_titles: string[],
+};
+
 /**  `skills_read` 응답 — 원문 + 보조 파일 목록. */
 export type SkillDetail = {
 	entry: SkillEntry,
@@ -2369,6 +2394,24 @@ export type SkillDetail = {
 	files: string[],
 	/**  SKILL.md 절대 경로 — 외부 에디터로 열 때 사용. */
 	skill_md_path: string,
+};
+
+/**
+ *  LLM 이 만든 스킬 초안. `content` 가 저장용 SKILL.md 전문 — 프런트는
+ *  슬러그만 바꿔서 `skills_save(scope=project, <slug>, content, create=true)`
+ *  를 부른다 (승인 없이는 어떤 파일도 쓰이지 않는다).
+ */
+export type SkillDraft = {
+	tag: string,
+	slug: string,
+	/**  frontmatter description (영어 "Use when …" — 자동 발동 트리거). */
+	description: string,
+	/**  본문만 (frontmatter·마커 제외) — 모달 미리보기용. */
+	body_markdown: string,
+	/**  frontmatter + 본문 + promoted-from 마커의 저장용 완성본. */
+	content: string,
+	/**  제안 저장 위치 (`.claude/skills/<slug>/SKILL.md`). */
+	rel_path: string,
 };
 
 /**  스킬 목록의 한 줄. `dir_name` 이 (scope 내) 조작 키다. */

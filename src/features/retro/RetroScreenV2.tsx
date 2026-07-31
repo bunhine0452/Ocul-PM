@@ -24,6 +24,7 @@ import {
   type SummaryStyle,
 } from "@/lib/bindings";
 import { RuleCandidatesPanel } from "./RuleCandidates";
+import { SkillCandidatesPanel } from "./SkillCandidates";
 import { EvalTrendPanel } from "./EvalTrend";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
@@ -426,6 +427,8 @@ export function RetroScreenV2({
               <EvalTrendPanel projectId={projectId} />
               {/* PR-CI4 — 반복 실패의 규칙 승격 제안 (후보 없으면 스스로 숨음). */}
               <RuleCandidatesPanel projectId={projectId} since={since} until={until} />
+              {/* CI4 미러 — 반복 태그의 스킬 승격 제안 (후보 없으면 스스로 숨음). */}
+              <SkillCandidatesPanel projectId={projectId} since={since} until={until} />
               <NarrativePanel
                 cached={cached}
                 stale={stale}
