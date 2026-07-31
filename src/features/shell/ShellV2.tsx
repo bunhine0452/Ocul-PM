@@ -344,7 +344,7 @@ export default function ShellV2({
             }}
           />
         ) : view === "retro" ? (
-          <RetroScreenV2 projectId={projectId} />
+          <RetroScreenV2 projectId={projectId} onNavigate={setUiV2View} />
         ) : view === "search" ? (
           <SearchScreenV2 projectId={projectId} />
         ) : view === "terminal" ? (

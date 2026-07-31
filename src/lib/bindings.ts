@@ -734,7 +734,13 @@ export const commands = {
 	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
-	/**  The cached retro narrative for a range, or `None` if never generated. */
+	/**
+	 *  The cached retro narrative for a range, or `None` if never generated.
+	 * 
+	 *  Two generation paths land in two places — the API path in the SQLite cache,
+	 *  the Claude Code dispatch path in `.oculpm/retro/<range_key>.md`. Whichever
+	 *  is newer wins, so "다시 생성" through either path always shows up.
+	 */
 	getRetro: (projectId: number, rangeKey: string) => typedError<{
 	project_id: number,
 	/**  "YYYYMMDD..YYYYMMDD" (inclusive workday range). */
@@ -750,6 +756,12 @@ export const commands = {
 	 *  UI can later tell whether the data has drifted.
 	 */
 	generateRetro: (projectId: number, since: string, until: string, provider: string, model: string) => typedError<RetroInsight, string>(__TAURI_INVOKE("generate_retro", { projectId, since, until, provider, model })),
+	/**
+	 *  #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
+	 *  API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다. 플래너
+	 *  디스패치(IN2)와 같은 결: 프롬프트 파일 저장 → `claude "$(cat …)"` 프리필.
+	 */
+	retroDispatchPrompt: (projectId: number, since: string, until: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("retro_dispatch_prompt", { projectId, since, until })),
 	/**
 	 *  PR-CI6 (EDD-lite) — 프로젝트 루트 `EVALS.md` 의 `## 기록` 표를 점수 추이로.
 	 *  파일이 없으면 `None` (UI 는 섹션을 그리지 않는다). 기간과 무관 — 문서

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
@@ -25,6 +25,16 @@ import {
 } from "@/lib/bindings";
 import { RuleCandidatesPanel } from "./RuleCandidates";
 import { EvalTrendPanel } from "./EvalTrend";
+import { setPendingDispatch } from "@/features/terminal/dispatchBus";
+import type { UiV2View } from "@/contexts/WorkspaceContext";
+import {
+  consumeRetroGenDone,
+  getRetroGenRunning,
+  retroGenKey,
+  retroGenVersion,
+  startRetroGen,
+  subscribeRetroGen,
+} from "./retroGen";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
 // 집중·에이전트 기여)를 모아 보여주고, "회고 생성"으로 그 신호 위에 LLM 한국어
@@ -59,7 +69,14 @@ const KIND_LABEL: Record<string, string> = {
   bug: "버그",
 };
 
-export function RetroScreenV2({ projectId }: { projectId: number }) {
+export function RetroScreenV2({
+  projectId,
+  onNavigate,
+}: {
+  projectId: number;
+  /** #retro-cc-generate — 디스패치 후 터미널 화면으로 이동 (플래너와 동일 결). */
+  onNavigate?: (view: UiV2View) => void;
+}) {
   const [days, setDays] = useState(7);
   const { since, until, rangeKey } = useMemo(() => {
     const u = new Date();
@@ -73,17 +90,33 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
   const [signals, setSignals] = useState<RetroSignals | null>(null);
   const [cached, setCached] = useState<RetroInsight | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tracks the currently-displayed range so a slow generate() that resolves
-  // after the user switched ranges doesn't write its (now-wrong) narrative over
-  // the new range's view.
-  const latestRange = useRef(rangeKey);
+  // 생성 상태는 전역 버스가 소유 — 화면을 떠났다 와도 "생성 중…"이 이어지고,
+  // 부재 중 끝난 결과는 아래 useEffect 가 입양한다.
+  const genVersion = useSyncExternalStore(subscribeRetroGen, retroGenVersion);
+  const myGenKey = retroGenKey(projectId, rangeKey);
+  const runningGen = getRetroGenRunning();
+  const generating = runningGen?.key === myGenKey;
+
   useEffect(() => {
-    latestRange.current = rangeKey;
-  }, [rangeKey]);
+    const done = consumeRetroGenDone(myGenKey);
+    if (done?.insight) setCached(done.insight);
+  }, [genVersion, myGenKey]);
+
+  // 경과 초 표시 — 생성 중일 때만 1초 틱.
+  const [, setElapsedTick] = useState(0);
+  useEffect(() => {
+    if (!generating) return;
+    const id = setInterval(() => setElapsedTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [generating]);
+  const elapsedSec =
+    generating && runningGen ? Math.max(0, Math.round((Date.now() - runningGen.startedAt) / 1000)) : 0;
+  const generatingLabel = generating
+    ? `생성 중… ${elapsedSec}초 · ${runningGen!.provider}/${runningGen!.model}`
+    : null;
 
   // Refetch deterministic signals + cached narrative whenever the range (or
   // project) changes. The two are independent reads, run in parallel.
@@ -101,7 +134,14 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
         setSignals(null);
         setError(sigRes.error);
       }
-      setCached(retroRes.status === "ok" ? retroRes.data : null);
+      // 재마운트 refetch 가 (생성 완료 직전에 읽은) null 로, 방금 입양한 같은
+      // 기간의 완료 결과를 덮지 않게 — 같은 range 의 기존 값은 유지한다.
+      // 다른 range 로 전환한 경우엔 prev.range_key 가 달라 정상적으로 비운다.
+      setCached((prev) => {
+        const next = retroRes.status === "ok" ? retroRes.data : null;
+        if (!next && prev && prev.range_key === rangeKey) return prev;
+        return next;
+      });
       setLoading(false);
     });
     return () => {
@@ -130,19 +170,31 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
       toast.warning("설정에서 기본 모델을 먼저 지정하세요.");
       return;
     }
-    const rk = rangeKey;
-    setGenerating(true);
-    const res = await commands.generateRetro(projectId, since, until, provider, model);
-    setGenerating(false);
-    // Range switched mid-flight — drop this result; the new range owns the view.
-    if (latestRange.current !== rk) return;
-    if (res.status === "ok") {
-      setCached(res.data);
-      toast.info("회고를 생성했어요");
-    } else {
-      toast.destructive(`회고 생성 실패: ${res.error}`);
-    }
+    // 실제 호출·완료 처리는 전역 버스가 맡는다 — 이 컴포넌트가 언마운트돼도
+    // 생성은 이어지고, 결과 입양은 genVersion effect 가 한다.
+    const started = startRetroGen(projectId, since, until, rangeKey, provider, model);
+    if (!started) toast.warning("이미 회고를 생성하는 중이에요 — 끝나면 알려드릴게요.");
   }, [generating, signals, projectId, since, until, rangeKey]);
+
+  // #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
+  // API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다.
+  const [dispatchBusy, setDispatchBusy] = useState(false);
+  const dispatchRetro = useCallback(async () => {
+    if (dispatchBusy) return;
+    setDispatchBusy(true);
+    try {
+      const res = await commands.retroDispatchPrompt(projectId, since, until);
+      if (res.status === "ok") {
+        setPendingDispatch(res.data.command);
+        toast.info(`"${res.data.item_title}" 준비 — 터미널에서 Enter 로 시작하세요`);
+        onNavigate?.("terminal");
+      } else {
+        toast.destructive(`디스패치 실패: ${res.error}`);
+      }
+    } finally {
+      setDispatchBusy(false);
+    }
+  }, [dispatchBusy, projectId, since, until, onNavigate]);
 
   // C2 — export the range's journal entries to a shareable .md (native save
   // dialog + write happen in the backend; we just toast the result).
@@ -315,14 +367,32 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
             ) : null}
           </div>
           <button
+            className="btn sm"
+            onClick={() => void dispatchRetro()}
+            disabled={loading || !hasWork || dispatchBusy}
+            title={
+              hasWork
+                ? "터미널의 Claude Code 세션으로 회고를 생성합니다 — API 키·과금 없이, 진행 과정이 터미널에 그대로 보여요"
+                : "이 기간에 기록된 작업이 없습니다"
+            }
+          >
+            <Bot size={14} /> Claude Code 로
+          </button>
+          <button
             className="btn primary"
             onClick={() => void generate()}
             disabled={generating || loading || !hasWork}
-            title={hasWork ? undefined : "이 기간에 기록된 작업이 없습니다"}
+            title={
+              generating
+                ? generatingLabel!
+                : hasWork
+                  ? undefined
+                  : "이 기간에 기록된 작업이 없습니다"
+            }
           >
             {generating ? (
               <>
-                <OculSpinner size={14} /> 생성 중…
+                <OculSpinner size={14} /> {generatingLabel}
               </>
             ) : cached ? (
               <>
@@ -360,7 +430,9 @@ export function RetroScreenV2({ projectId }: { projectId: number }) {
                 cached={cached}
                 stale={stale}
                 generating={generating}
+                generatingLabel={generatingLabel}
                 onGenerate={() => void generate()}
+                onDispatch={() => void dispatchRetro()}
                 notionReady={notionReady}
                 notionBusy={notionBusy}
                 onExportNotion={(md) =>
@@ -609,7 +681,9 @@ function NarrativePanel({
   cached,
   stale,
   generating,
+  generatingLabel,
   onGenerate,
+  onDispatch,
   notionReady,
   notionBusy,
   onExportNotion,
@@ -617,7 +691,11 @@ function NarrativePanel({
   cached: RetroInsight | null;
   stale: boolean;
   generating: boolean;
+  /** 생성 중일 때 경과·모델 표기 (예: "생성 중… 12초 · anthropic/claude-…"). */
+  generatingLabel: string | null;
   onGenerate: () => void;
+  /** #retro-cc-generate — 터미널 Claude Code 세션으로 생성. */
+  onDispatch: () => void;
   /** PR-CI7 — 토큰이 있을 때만 true; false 면 내보내기 버튼을 아예 그리지 않는다. */
   notionReady: boolean;
   notionBusy: boolean;
@@ -630,22 +708,26 @@ function NarrativePanel({
         <div className="text-sm text-muted-foreground">
           위 신호를 바탕으로 한국어 회고를 생성할 수 있어요.
         </div>
-        <button
-          className="btn primary"
-          style={{ marginTop: 12 }}
-          onClick={onGenerate}
-          disabled={generating}
-        >
-          {generating ? (
-            <>
-              <OculSpinner size={14} /> 생성 중…
-            </>
-          ) : (
-            <>
-              <SparklesIcon size={14} /> 회고 생성
-            </>
-          )}
-        </button>
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <button className="btn primary" onClick={onGenerate} disabled={generating}>
+            {generating ? (
+              <>
+                <OculSpinner size={14} /> {generatingLabel ?? "생성 중…"}
+              </>
+            ) : (
+              <>
+                <SparklesIcon size={14} /> 회고 생성
+              </>
+            )}
+          </button>
+          <button
+            className="btn"
+            onClick={onDispatch}
+            title="터미널의 Claude Code 세션으로 회고를 생성합니다 — API 키·과금 없이, 진행 과정이 터미널에 그대로 보여요"
+          >
+            <Bot size={14} /> Claude Code 로
+          </button>
+        </div>
       </div>
     );
   }

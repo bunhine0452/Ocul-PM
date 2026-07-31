@@ -29,6 +29,7 @@ pub mod planner;
 pub mod readme;
 pub mod reconcile;
 pub mod redact;
+pub mod retro_file;
 pub mod rule_promotion;
 pub mod rules;
 pub mod session;

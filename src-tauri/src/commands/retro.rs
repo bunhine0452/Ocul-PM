@@ -6,11 +6,16 @@
 //! the backend gathers a *deterministic* set of signals, and an LLM turns them
 //! into a Korean retro.
 //!
-//! Three commands:
+//! Four commands:
 //! - `retro_signals` — the deterministic signals (no LLM). The screen renders
 //!   these immediately and uses their `signature` to detect staleness.
 //! - `get_retro` — the cached narrative for a range (`None` if never generated).
+//!   Merges two sources: the SQLite cache (API path) and the on-disk
+//!   `.oculpm/retro/<range_key>.md` (Claude Code dispatch path) — newer wins.
 //! - `generate_retro` — run the LLM over the signals and cache the result.
+//! - `retro_dispatch_prompt` — assemble the same signals into a prompt for a
+//!   terminal Claude Code session (no API key / billing; progress is visible
+//!   in the terminal). The session writes the retro file `get_retro` reads.
 //!
 //! All journal text we read here comes from the SQLite cache, which is already
 //! secret-masked on projection (redaction-wire / R1), so the retro inherits
@@ -318,6 +323,10 @@ pub async fn eval_signals(
 }
 
 /// The cached retro narrative for a range, or `None` if never generated.
+///
+/// Two generation paths land in two places — the API path in the SQLite cache,
+/// the Claude Code dispatch path in `.oculpm/retro/<range_key>.md`. Whichever
+/// is newer wins, so "다시 생성" through either path always shows up.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_retro(
@@ -325,9 +334,43 @@ pub async fn get_retro(
     project_id: u32,
     range_key: String,
 ) -> Result<Option<RetroInsight>, String> {
-    db.get_retro_insight(project_id, range_key)
+    let cached = db
+        .get_retro_insight(project_id, range_key.clone())
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let file = crate::oculpm::retro_file::read_retro_file(
+        std::path::Path::new(&project.root_path),
+        &range_key,
+    );
+
+    Ok(match (cached, file) {
+        // 동률(같은 초)은 파일이 이긴다 — 사용자가 방금 터미널에서 지켜본
+        // 산출물이 조용히 지는 쪽이 더 나쁘다. mtime=0(메타데이터 실패)은
+        // 자연히 캐시에 진다.
+        (Some(c), Some((f, mtime))) if mtime >= c.generated_at && mtime > 0 => {
+            Some(retro_from_file(project_id, f, mtime))
+        }
+        (Some(c), _) => Some(c),
+        (None, Some((f, mtime))) => Some(retro_from_file(project_id, f, mtime)),
+        (None, None) => None,
+    })
+}
+
+fn retro_from_file(
+    project_id: u32,
+    f: crate::oculpm::retro_file::RetroFile,
+    mtime: u32,
+) -> RetroInsight {
+    RetroInsight {
+        project_id,
+        range_key: f.range_key,
+        signature: f.signature,
+        retro_md: f.body,
+        generated_at: mtime,
+        generated_by_model: Some(f.generated_by),
+    }
 }
 
 /// Run the configured LLM over the range's signals and cache a Korean retro.
@@ -523,6 +566,109 @@ async fn call_llm(provider: &str, model: &str, signals: &RetroSignals) -> Result
     Ok(body.to_string())
 }
 
+// ─── Claude Code dispatch (#retro-cc-generate) ───────────────────────────────
+
+/// 회고 디스패치 프롬프트 (pure — 신호만으로 조립, 테스트 가능).
+///
+/// API 경로와 같은 신호·같은 섹션 규칙을 쓰되, 산출물을 LLM 응답이 아니라
+/// `.oculpm/retro/<range_key>.md` **파일**로 받는다 — frontmatter 의
+/// `signature` 를 여기서 채워 넣으므로 "오래됨" 배지가 파일 경로에서도 똑같이
+/// 동작한다.
+/// `redacted_signals_text` 는 **이미 redact 를 통과한** fmt_signals 출력이다 —
+/// redact 를 프롬프트 전체에 돌리면 사용자 정의 패턴(예: hex 마스킹)이
+/// frontmatter 계약의 signature·경로까지 부숴 신선도 판정이 무너진다.
+/// 그래서 마스킹 대상(일지 제목·파일 경로가 든 신호 본문)만 밖에서 redact 하고,
+/// 계약 블록은 여기서 원문 그대로 조립한다.
+fn build_retro_dispatch_prompt(signals: &RetroSignals, redacted_signals_text: &str) -> String {
+    let mut p = String::new();
+    p.push_str("ocul-pm 회고 디스패치 — 아래 신호를 한국어 회고로 종합하라.\n\n");
+    p.push_str("## 역할과 규칙\n\n");
+    p.push_str(SYSTEM_PROMPT);
+    p.push_str(
+        "\n\n(위 규칙의 \"마크다운 본문만 출력·머리말 금지\"는 **회고 본문**에 대한 것이다 — \
+         아래 산출물 계약의 frontmatter 는 예외로, 파일 맨 위에 반드시 포함한다.)",
+    );
+    p.push_str("\n\n## 입력 신호 (이것만 근거로 — 저장소를 다시 뒤질 필요 없음)\n\n");
+    p.push_str(redacted_signals_text);
+    p.push_str(&format!(
+        r#"
+## 산출물 — 파일 하나
+
+회고 본문을 정확히 이 파일에 저장하라 (디렉터리가 없으면 만들 것):
+
+`.oculpm/retro/{rk}.md`
+
+파일은 반드시 아래 frontmatter 로 시작해야 한다 (값 그대로 복사, LF 개행):
+
+```
+---
+oculpm_retro: v1
+range_key: {rk}
+signature: {sig}
+generated_by: claude-code
+---
+```
+
+frontmatter 아래에 회고 본문(## 한눈에 보기 부터)을 이어 쓴다.
+
+주의:
+- 이 파일 **하나만** 만든다 — 작업 일지·플랜 갱신은 하지 않는다 (회고는 작업 단위가 아니라 산출물이다).
+- frontmatter 의 signature 는 수정 금지 — ocul-pm 이 회고의 신선도 판정에 쓴다.
+- 저장 후 ocul-pm 회고 화면을 다시 열면 이 회고가 표시된다.
+"#,
+        rk = signals.range_key,
+        sig = signals.signature,
+    ));
+    p
+}
+
+/// #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
+/// API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다. 플래너
+/// 디스패치(IN2)와 같은 결: 프롬프트 파일 저장 → `claude "$(cat …)"` 프리필.
+#[tauri::command]
+#[specta::specta]
+pub async fn retro_dispatch_prompt(
+    db: State<'_, Db>,
+    project_id: u32,
+    since: String,
+    until: String,
+) -> Result<crate::commands::plan::DispatchPrompt, String> {
+    let signals = gather_signals(&db, project_id, &since, &until).await?;
+    // range_key 는 그대로 디스패치/회고 파일명이 된다 — `YYYYMMDD..YYYYMMDD`
+    // 외 입력(경로 조작 포함)은 여기서 자른다 (읽기 경로의 가드와 대칭).
+    if !crate::oculpm::retro_file::is_valid_range_key(&signals.range_key) {
+        return Err(format!(
+            "잘못된 기간 형식입니다: {} (YYYYMMDD 워크데이만 허용)",
+            signals.range_key
+        ));
+    }
+    if signals.total_entries == 0 {
+        return Err("이 기간에 기록된 작업이 없습니다.".to_string());
+    }
+
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = std::path::PathBuf::from(&project.root_path);
+
+    // 신호에는 일지 제목·파일 경로가 들어간다 — 신호 본문만 redact 하고,
+    // frontmatter 계약(signature·경로)은 원문 유지 (build_retro_dispatch_prompt 주석 참조).
+    let patterns = crate::oculpm::planner::dispatch::project_redact_patterns(&root);
+    let (signals_text, _hits) =
+        crate::oculpm::redact::redact_text(&fmt_signals(&signals), &patterns);
+    let prompt = build_retro_dispatch_prompt(&signals, &signals_text);
+
+    let dispatch_dir = root.join(".oculpm").join("index").join("dispatch");
+    std::fs::create_dir_all(&dispatch_dir).map_err(|e| e.to_string())?;
+    let file_name = format!("retro-{}.md", signals.range_key);
+    let abs = dispatch_dir.join(&file_name);
+    crate::oculpm::atomic_io::write_atomic(&abs, prompt.as_bytes()).map_err(|e| e.to_string())?;
+
+    Ok(crate::commands::plan::DispatchPrompt {
+        file_rel: format!(".oculpm/index/dispatch/{file_name}"),
+        command: crate::oculpm::planner::dispatch::shell_command_for(&abs),
+        item_title: format!("회고 {}", signals.range_key),
+    })
+}
+
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -548,6 +694,47 @@ mod tests {
             title: title.to_string(),
             files: files.iter().map(|s| s.to_string()).collect(),
         }
+    }
+
+    #[test]
+    fn dispatch_prompt_carries_contract() {
+        let agg = aggregate(&[entry(
+            "feature",
+            "done",
+            "claude-code",
+            Some("high"),
+            "20260726",
+            "F1",
+            &["src/a.rs"],
+        )]);
+        let mut signals = RetroSignals {
+            since: "20260726".into(),
+            until: "20260801".into(),
+            range_key: "20260726..20260801".into(),
+            signature: String::new(),
+            total_entries: agg.total_entries,
+            shipped: agg.shipped,
+            resistance: agg.resistance,
+            repeated_files: agg.repeated_files,
+            effort_hotspots: vec![],
+            agent_breakdown: agg.agent_breakdown,
+            difficulty_mix: agg.difficulty_mix,
+        };
+        signals.signature = compute_signature(&signals);
+
+        // 신호 본문이 공격적 redact 패턴(예: hex 마스킹)에 전부 지워져도
+        // 계약 블록(signature·경로)은 원문 그대로 남아야 한다.
+        let p = build_retro_dispatch_prompt(&signals, "[REDACTED-SIGNALS]");
+        assert!(p.contains("[REDACTED-SIGNALS]"));
+        // 산출 파일 경로·frontmatter 계약·신선도 서명이 전부 프롬프트에 실려야 한다.
+        assert!(p.contains(".oculpm/retro/20260726..20260801.md"));
+        assert!(p.contains("oculpm_retro: v1"));
+        assert!(p.contains(&format!("signature: {}", signals.signature)));
+        assert!(p.contains("generated_by: claude-code"));
+        // 회고 섹션 규칙(시스템 프롬프트) 포함.
+        assert!(p.contains("## 한눈에 보기"));
+        // 일지·플랜을 건드리지 말라는 경계.
+        assert!(p.contains("작업 일지·플랜 갱신은 하지 않는다"));
     }
 
     #[test]

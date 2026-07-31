@@ -36,6 +36,10 @@ owner: claude-code
 - [x] IN0 project-inception 스킬 — STAGE 0~3 산출물을 .oculpm/discussion+planner+EVALS.md 로. 성공 기준 = 기존 파서 3개(discussion 승격·EVALS 표 규약·rule paths)에 무수정 착지 {#in0-inception-skill}
 - [x] IN1 GreenfieldWizard 마지막 단계 → IN0 스킬 발화 안내 연결 {#in1-wizard}
 
+## Phase D — 회고 개선 (사용자 피드백 2026-08-01) {#round-d}
+- [x] RT1 회고 Claude Code 생성 — `retro_dispatch_prompt`(신호+파일 계약 프롬프트 조립, redact) + `.oculpm/retro/<range_key>.md` 규격(retro_file.rs) + get_retro 파일/DB 병합(newer wins) + 회고 화면 "Claude Code 로" 버튼→터미널 프리필 {#retro-cc-generate}
+- [x] RT2 회고 생성 상태 전역화 — 생성 상태를 retroGen 버스(모듈 싱글턴)로 이동: 화면 이탈-복귀에도 "생성 중" 유지(초기화 버그 수정), 경과 초·provider/model 표시, 부재 중 완료 입양+전역 토스트 {#retro-gen-bus}
+
 ## 결정
 
 ### Decision 1 — 방안 A 채택 + 미결 3건 확정 {#d1-plan-a}
@@ -87,4 +91,7 @@ owner: claude-code
 | 2026-07-31T13:58:22+09:00 | #pricing-license | claude-code | ☐→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 결정 자료 완성(discussion pricing-open-core) — 추천 A+C 조합·DCO. 사용자 결정 질문 3건(경계 고정·개인 정의·팀 서버 데이터 스탠스) 대기 |
 | 2026-07-31T13:58:29+09:00 | #notion-oauth | claude-code | ~→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 에러 페이지 안내형 개선·배포 + Developer portal 절차 문서화(docs/notion-oauth-setup.md). 잔여: 사용자의 public connection 생성·Vercel env 2종·재배포 후 E2E |
 | 2026-07-31T14:15:07+09:00 | #pricing-license | claude-code | ~→x | .oculpm/journal/20260731/Chores/1415_chore_pricing-decision-execute.md | Decision 3 — A+C 조합·DCO 확정 실행 (README 약속 명문화·CONTRIBUTING·discussion resolved). 팀 착수는 수요 신호 대기 |
+| 2026-07-31T14:15:28+09:00 | #notion-oauth | claude-code | ~→~ |  | 사용자 등록·env·재배포 완료 — start 엔드포인트 302(실 client_id) 확인. 잔여: 앱 버튼 1회 클릭 E2E 확인만 |
+| 2026-07-31T16:28:39+09:00 | #retro-cc-generate | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1628_feature_retro-claude-code-generate.md | 디스패치+파일 규격+병합 구현, 적대 리뷰 HIGH(경로 탈출)·MED(redact-signature 파괴) 반영. 실기기 확인은 A0d 동승 |
+| 2026-07-31T16:28:47+09:00 | #retro-gen-bus | claude-code | ☐→x | .oculpm/journal/20260731/Bugs/1628_bug_retro-gen-state-survives-nav.md | 전역 버스+경과 표시+부재중 입양. 리뷰 MED(스톨 영구잠금→3분 시효) 등 4건 반영, 자정 경계는 한계 명시 |
 <!-- oculpm:plan-log end -->
