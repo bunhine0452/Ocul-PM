@@ -122,6 +122,10 @@ Requires Node 18+, pnpm, Rust stable, and Xcode Command Line Tools on macOS.
 
 This repository is itself tracked by Ocul-PM. Open `.oculpm/journal/` and you'll find the actual journals agents wrote while building this app. Bugs and ideas go to [issues](https://github.com/bunhine0452/Ocul-PM/issues) — and if you like it, a star helps more than you'd think.
 
-## License
+## License & promise
 
 [MIT](LICENSE) © 2026 Kim Hyunbin
+
+**Everything in this repository today stays free and MIT, forever.** Individual use is free forever — at work or at home. Paid plans will only ever apply to upcoming team features (sync server · team view — a separate module). Core features will never move behind a paywall.
+
+Contributions are accepted under the [DCO (sign-off)](CONTRIBUTING.md), no CLA — the core stays MIT forever, so there is no reason to pool copyright.

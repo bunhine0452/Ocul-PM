@@ -2,9 +2,9 @@
 oculpm_discussion: v1
 id: pricing-open-core
 title: "가격/라이선스 확정 — 개인 무료·팀 유료의 메커니즘 (open-core vs 라이선스 전환 vs 호스팅)"
-status: open
+status: resolved
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-01
 owner: claude-code
 ---
 
@@ -116,9 +116,20 @@ Decision 2({#d2-pricing-3depth}, 2026-07-31)로 가격 방향이 "전부 무료"
 
 *출처: [PostHog ee/LICENSE](https://github.com/PostHog/posthog/blob/master/ee/LICENSE) · [PostHog #2824](https://github.com/PostHog/posthog/issues/2824) · [Cal.com AGPL+EE 블로그](https://calcom.framer.website/blog/changing-to-agplv3-and-introducing-enterprise-edition) · [Cal.com ee/LICENSE](https://github.com/calcom/cal.com/blob/main/packages/features/ee/LICENSE) · [FSL 공식](https://fsl.software/) · [Sentry licensing](https://open.sentry.io/licensing) · [TechCrunch FSL](https://techcrunch.com/2023/11/20/with-functional-source-license-sentry-wants-to-grant-developers-freedom-without-harmful-free-riding/) · [The Register FSL 비판](https://www.theregister.com/2023/11/20/sentry_introduces_the_functional_source/) · [Plausible 라이선스 전환](https://plausible.io/blog/open-source-licenses) · [Plausible $1M ARR](https://plausible.io/blog/open-source-saas) · [Forgejo GPLv3+ (LWN)](https://lwn.net/Articles/986998/) · [Forgejo vs Gitea](https://forgejo.org/compare-to-gitea/) · [Obsidian license](https://obsidian.md/license) · [CLA vs DCO (opensource.com)](https://opensource.com/article/18/3/cla-vs-dco-whats-difference) · [Kate Downing DCO/CLA](https://katedowninglaw.com/2019/02/15/should-i-use-a-developers-certificate-of-origin-or-a-contributor-agreement/)*
 
+## 결론 (2026-08-01 · 사용자 위임 → 추천안 채택)
+
+사용자가 "최선의 선택으로 진행"을 위임(2026-08-01)해 {#recommendation} 을 그대로 확정한다:
+
+- **메커니즘 = 방안 A+C 조합**: 코어(현 저장소 전체)는 **영원히 MIT** — README 한/영 "라이선스와 약속" 섹션에 명문화 완료. 팀 기능(동기화 서버·팀 뷰)은 처음부터 **별도 비공개 저장소**로 개발하고, v1 판매 형태는 **호스팅 구독**. 셀프호스트 팀 서버 판매는 수요 증명 후 재론.
+- **Q1 경계 고정 = 동의**: "지금 MIT 코어에 있는 기능은 영원히 무료·MIT" 공개 약속. 따라서 CLA 불요 — **DCO 채택** (CONTRIBUTING.md 신설).
+- **Q2 "개인"의 정의 = 팀 기능을 쓰지 않는 한 회사 내 사용 포함 무료** (Obsidian 2025 정책 선례 — 집행 불가능한 조항을 만들지 않는다).
+- **Q3 팀 서버 데이터 스탠스 = E2E 암호화 릴레이 우선 원칙**: 서버는 저널 원문을 읽지 못하는 설계를 기본으로 하고, 팀 웹 뷰 요구가 실수요로 검증되면 옵인 평문 저장을 별도 재론. "데이터는 기계를 떠나지 않는다" 서사가 팀 플랜에서도 기본값.
+- **집행 원칙**: 팀 기능 코드는 이 저장소에 커밋하지 않는다. 착수 트리거(팀 수요 신호)는 Decision 2 대로 유지 — 이 결정은 "무엇을/어떻게"의 확정이지 착수 명령이 아니다.
+
 ## 토의 / 메모
 <!-- oculpm:discussion-log begin v1 -->
 | 시각 | 작성자 | 내용 |
 |---|---|---|
 | 2026-07-31T05:40:00+09:00 | claude-code | 웹 선례 조사(PostHog·Cal.com·Sentry FSL·Plausible·Forgejo·Obsidian) 기반 방안 3종 작성. 추천 = A(경계 분리)+C(호스팅 판매) 조합, DCO 채택. 사용자 결정 대기: {#open-questions} 3건 |
+| 2026-08-01T00:00:00+09:00 | claude-code | 사용자 위임("네가 최선의 선택으로 진행")으로 추천안 확정 — A+C·DCO·개인=비팀사용전부·E2E우선. README 한/영 명문화+CONTRIBUTING.md(DCO) 실행, status resolved |
 <!-- oculpm:discussion-log end -->

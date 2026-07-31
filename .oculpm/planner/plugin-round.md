@@ -23,7 +23,7 @@ owner: claude-code
 - [x] A1 스키마·경로 정합 — plugin.json hooks/mcpServers 필드 제거(자동발견 위임)+최소 CLI 버전 명시+--plugin-dir 실로드·인벤토리 CI, bin/oculpm-mcp 셔틀(앱 번들→~/.local→target/debug 탐색), 릴리스 CI 버전 스탬프, 플랫폼 스탠스(v1=macOS) {#a1-schema-paths}
 - [x] A2 스킬 동봉+활성화 배선 — skills/oculpm-journal(풀 스펙 캐리어, en description)+갤러리 3종 이관(플러그인 SSOT·자기완결 제약)+/oculpm:standup 커맨드+.oculpm/README.md 자동 생성+Stop 훅 stderr 1줄+standup 앱 포인터. 스킬 description 토큰 예산 포함 {#a2-skills-activation}
 - [~] A3 마켓플레이스 공개 — 레포 루트 marketplace.json(source ./plugin/oculpm)+앱 설정 택일 UX(훅+MCP — 플러그인 감지 시 register.rs 프로젝트 등록 생략)+훅 계약 문서+버전 스큐 매트릭스+claude-plugins-community 제출·발사 글 {#a3-marketplace}
-- [~] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
+- [x] A3 선행 — 가격/라이선스 전략 확정: 개인 무료·팀 유료(open-core) 제안 검토 — 현 레포 MIT 전면 공개와의 정합(팀 모듈 분리 vs 라이선스 전환), 외부 기여 받기 전 CLA 여부, 발사 문구("개인 영구 무료") — 사용자 결정 {#pricing-license}
 - [~] Notion OAuth 계정 연동(사용자 제안 2026-07-31) — "Notion 계정 연결" 버튼: public integration 등록 + oculpm.com 서버리스 코드 교환(클라 시크릿은 데스크톱에 못 넣음) + 로컬 콜백/딥링크 + 키체인 저장. 기존 internal token 경로는 폴백 유지 {#notion-oauth}
 
 ## Phase B — 토큰 다이어트 {#round-b}
@@ -50,6 +50,12 @@ owner: claude-code
 - 가격: Decision 1 의 "전부 무료" 를 **개인 무료 / 팀 유료** 로 갱신 (사용자 제안 2026-07-31). 메커니즘은 open-core 분리(팀 모듈 비공개) 권고 채택 — 세부(모듈 경계·CLA·결제 인프라)는 {#pricing-license} 작업에서, 착수 트리거는 팀 수요 신호 유지. A3 발사 문구 = "개인 영구 무료(Free forever for individuals), 팀 플랜 준비 중".
 - 3-depth 플랜 계층: oculpm-native 형태(들여쓰기 중첩 체크박스·상위=하위 롤업·리프가 디스패치 실행 단위·3depth 하드캡) 확정 — {#plan-3depth} 를 IN2 보다 먼저 착수.
 - 영향: #pricing-license #a3-marketplace #plan-3depth #in2-dispatch
+
+### Decision 3 — 가격/라이선스 메커니즘 확정 {#d3-pricing-mechanism}
+- 잠금 2026-08-01 · claude-code (사용자 "네가 최선의 선택으로 진행해줘" 위임 기록)
+- `.oculpm/discussion/pricing-open-core/discussion.md` (resolved) 의 추천안 채택: **코어 영원히 MIT**(README 한/영 명문화) + 팀 기능은 **별도 비공개 repo** + v1 판매는 **호스팅 구독**. CLA 없이 **DCO**(CONTRIBUTING.md). "개인" = 팀 기능 미사용이면 회사 내 사용 포함 무료. 팀 서버는 **E2E 암호화 릴레이 우선** 원칙(평문 저장은 실수요 검증 후 재론). 팀 기능 코드는 본 저장소에 커밋 금지.
+- 착수 트리거(팀 수요 신호)는 Decision 2 유지 — 본 결정은 메커니즘 확정이지 착수 명령이 아님.
+- 영향: #pricing-license #a3-marketplace(발사 문구 근거 확보)
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -80,4 +86,5 @@ owner: claude-code
 | 2026-07-31T13:58:14+09:00 | #a3-marketplace | claude-code | ~→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 발사 글 최종본(ko/en)+채널 조사 문서화, 토픽 4종 스왑, awesome-claude-plugins PR #385. 잔여: Anthropic Console 폼·GeekNews/reddit 게시(사용자 직접) |
 | 2026-07-31T13:58:22+09:00 | #pricing-license | claude-code | ☐→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 결정 자료 완성(discussion pricing-open-core) — 추천 A+C 조합·DCO. 사용자 결정 질문 3건(경계 고정·개인 정의·팀 서버 데이터 스탠스) 대기 |
 | 2026-07-31T13:58:29+09:00 | #notion-oauth | claude-code | ~→~ | .oculpm/journal/20260731/Chores/1358_chore_launch-pricing-notion-round.md | 에러 페이지 안내형 개선·배포 + Developer portal 절차 문서화(docs/notion-oauth-setup.md). 잔여: 사용자의 public connection 생성·Vercel env 2종·재배포 후 E2E |
+| 2026-07-31T14:15:07+09:00 | #pricing-license | claude-code | ~→x | .oculpm/journal/20260731/Chores/1415_chore_pricing-decision-execute.md | Decision 3 — A+C 조합·DCO 확정 실행 (README 약속 명문화·CONTRIBUTING·discussion resolved). 팀 착수는 수요 신호 대기 |
 <!-- oculpm:plan-log end -->
