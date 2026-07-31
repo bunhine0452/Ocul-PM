@@ -27,7 +27,13 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.6.0 — Claude Code writes your retros now
+## 🚀 v2.7.0 — The first screen now answers "where do I pick up?"
+
+- **Bento cockpit home** — the resume tile gathers your next tasks (active plan), latest entry, a 14-day activity sparkline, and the last agent + model in one place; the flow tile streams today's journals across all projects.
+- **Keyboard end-to-end** — type anywhere to search (Korean initial-consonant matching included), `↓↑⏎` to move and open, `⌘O` folder · `⌘N` new project · `⌘E` rename · `⌘⌫` remove.
+- **Unrecorded-session signal** — Claude Code sessions that end without a journal are detected and surfaced as a Today card (auto-resolved once recorded), plus a statusline badge and new `/oculpm:inception` · `/oculpm:next` commands.
+
+## v2.6.0 — Claude Code writes your retros now
 
 - **[Via Claude Code] retro generation** — a terminal session writes the retro to `.oculpm/retro/` markdown, no API key or billing; API generation now shows elapsed time and model live.
 - **Repeated procedures → skill promotion** — recurring tags surface as skill candidates in Retro; approve to save into `.claude/skills/`.
