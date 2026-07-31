@@ -26,8 +26,8 @@ const VENDORED_RE =
   /<!-- vendored-from: https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/blob\/([0-9a-f]{40})\/skills\/[\w-]+\/SKILL\.md · MIT License © [^·]+· retrieved \d{4}-\d{2}-\d{2} · ocul-pm catalog -->/;
 
 describe("skills catalog (C1 vendored)", () => {
-  it("13개 엔트리가 있고 id 는 중복이 없다", () => {
-    expect(CATALOG_SKILLS).toHaveLength(13);
+  it("25개 엔트리가 있고 id 는 중복이 없다", () => {
+    expect(CATALOG_SKILLS).toHaveLength(25);
     const ids = CATALOG_SKILLS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -111,4 +111,31 @@ describe("skills catalog (C1 vendored)", () => {
     expect(text).toContain("Permission is hereby granted, free of charge");
     expect(text).toContain("THE SOFTWARE IS PROVIDED \"AS IS\"");
   });
+
+  // 유니코드 위생 — 제3자 콘텐츠를 사용자 컨텍스트에 주입하는 파이프라인이므로,
+  // bidi 제어문자(텍스트 방향 뒤집기)와 제로폭 문자(보이지 않는 스머글링)를
+  // 벤더 파일 전체에서 금지한다.
+  const BIDI_AND_ZERO_WIDTH_RE =
+    // U+202A–U+202E bidi 임베딩/오버라이드, U+2066–U+2069 bidi 아이솔레이트,
+    // U+200B/U+200C/U+200D 제로폭, U+FEFF BOM/ZWNBSP, U+00AD soft hyphen.
+    /[\u202A-\u202E\u2066-\u2069\u200B\u200C\u200D\uFEFF\u00AD]/u;
+
+  const hygieneTargets = [
+    ...fs.readdirSync(CATALOG_DIR).filter((f) => f.endsWith(".md")),
+    "LICENSE-ecc",
+    "LICENSE-ponytail",
+  ];
+
+  it.each(hygieneTargets.map((f) => [f] as const))(
+    "%s — bidi 제어문자·제로폭 문자가 없다",
+    (file) => {
+      const text = fs.readFileSync(path.join(CATALOG_DIR, file), "utf8");
+      const match = text.match(BIDI_AND_ZERO_WIDTH_RE);
+      expect(
+        match === null
+          ? null
+          : `U+${match[0].codePointAt(0)?.toString(16).toUpperCase()} at index ${match.index}`,
+      ).toBeNull();
+    },
+  );
 });

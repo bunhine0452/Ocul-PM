@@ -67,6 +67,13 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
     detail: "한 일 / 진행 중·막힘 / 다음 형식으로 오늘을 요약합니다.",
     example: "/oculpm:standup",
   },
+  {
+    slug: "help",
+    cmd: "/oculpm:help",
+    description: "ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨드·MCP 도구·스킬·훅 한눈에",
+    detail: "커맨드 5종·MCP 도구 5종·스킬 5종·훅 동작을 한 카드로 보여주고 다음 한 걸음을 추천합니다.",
+    example: "/oculpm:help",
+  },
 ];
 
 export type PluginToolDoc = { name: string; desc: string };
@@ -90,6 +97,10 @@ export const PLUGIN_HOOK_FEATURES: readonly PluginHookDoc[] = [
   {
     name: "미기록 세션 신호",
     desc: "일지 없이 끝난 세션을 감지해 경고하고 Today 화면 카드로 알립니다. 사후에 일지를 쓰면 자동 해소.",
+  },
+  {
+    name: "배달 게이트",
+    desc: "이 세션에서 코드가 바뀌었는데 일지가 없으면 세션당 한 번 턴 종료를 멈추고 에이전트에게 일지 작성을 지시합니다 — 작업 중이면 안내를 무시하고 계속돼 방해가 없습니다.",
   },
   {
     name: "상태줄 배지",

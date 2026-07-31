@@ -22,6 +22,18 @@ import codebaseOnboarding from "./catalog/codebase-onboarding.md?raw";
 import ponytail from "./catalog/ponytail.md?raw";
 import ponytailReview from "./catalog/ponytail-review.md?raw";
 import ponytailAudit from "./catalog/ponytail-audit.md?raw";
+import vuePatterns from "./catalog/vue-patterns.md?raw";
+import reactPerformance from "./catalog/react-performance.md?raw";
+import vitePatterns from "./catalog/vite-patterns.md?raw";
+import laravelPatterns from "./catalog/laravel-patterns.md?raw";
+import springbootPatterns from "./catalog/springboot-patterns.md?raw";
+import djangoPatterns from "./catalog/django-patterns.md?raw";
+import fastapiPatterns from "./catalog/fastapi-patterns.md?raw";
+import accessibility from "./catalog/accessibility.md?raw";
+import apiDesign from "./catalog/api-design.md?raw";
+import databaseMigrations from "./catalog/database-migrations.md?raw";
+import e2eTesting from "./catalog/e2e-testing.md?raw";
+import inheritLegacyStyle from "./catalog/inherit-legacy-style.md?raw";
 
 /** 벤더링 당시 핀 고정한 업스트림 커밋 (재fetch 시 갱신). */
 export const CATALOG_PINS = {
@@ -48,6 +60,15 @@ export const CATALOG_TAGS = [
   "docs",
   "minimalism",
   "frontend",
+  "vue",
+  "performance",
+  "laravel",
+  "springboot",
+  "django",
+  "fastapi",
+  "a11y",
+  "backend",
+  "database",
 ] as const;
 
 export type CatalogTag = (typeof CATALOG_TAGS)[number];
@@ -213,5 +234,113 @@ export const CATALOG_SKILLS: CatalogSkill[] = [
     summary:
       "diff 가 아닌 저장소 전체를 훑어 삭제·단순화·stdlib 대체 후보를 순위 목록으로 뽑는 일회성 감사입니다.",
     content: ponytailAudit,
+  }),
+  seed({
+    id: "vue-patterns",
+    label: "vue-patterns — Vue 3 Composition API 패턴",
+    source: "ecc",
+    tags: ["vue", "patterns"],
+    summary:
+      "Vue 3 Composition API·반응성·Pinia·Vue Router·Nuxt SSR 등 Vue 컴포넌트 아키텍처 베스트 프랙티스입니다.",
+    content: vuePatterns,
+  }),
+  seed({
+    id: "react-performance",
+    label: "react-performance — React/Next.js 성능 최적화",
+    source: "ecc",
+    tags: ["react", "performance"],
+    summary:
+      "워터폴·번들 크기·리렌더 등 8개 우선순위 카테고리로 정리한 React/Next.js 성능 최적화 규칙 모음입니다.",
+    content: reactPerformance,
+  }),
+  seed({
+    id: "vite-patterns",
+    label: "vite-patterns — Vite 설정·빌드 패턴",
+    source: "ecc",
+    tags: ["frontend", "patterns"],
+    summary:
+      "vite.config 설정, 플러그인, HMR, env, 프록시, SSR, 라이브러리 모드, 빌드 최적화 등 Vite 패턴입니다.",
+    content: vitePatterns,
+  }),
+  seed({
+    id: "laravel-patterns",
+    label: "laravel-patterns — Laravel 아키텍처 패턴",
+    source: "ecc",
+    tags: ["laravel", "patterns"],
+    summary:
+      "라우팅·Eloquent ORM·서비스 레이어·큐·이벤트·캐싱·API 리소스 등 프로덕션 Laravel 패턴입니다.",
+    content: laravelPatterns,
+  }),
+  seed({
+    id: "springboot-patterns",
+    label: "springboot-patterns — Spring Boot 백엔드 패턴",
+    source: "ecc",
+    tags: ["springboot", "patterns"],
+    summary:
+      "REST API 설계·계층화 서비스·데이터 접근·캐싱·비동기 처리·로깅 등 Java Spring Boot 백엔드 패턴입니다.",
+    content: springbootPatterns,
+  }),
+  seed({
+    id: "django-patterns",
+    label: "django-patterns — Django/DRF 패턴",
+    source: "ecc",
+    tags: ["django", "patterns"],
+    summary:
+      "DRF 기반 REST API·ORM 베스트 프랙티스·캐싱·시그널·미들웨어 등 프로덕션급 Django 패턴입니다.",
+    content: djangoPatterns,
+  }),
+  seed({
+    id: "fastapi-patterns",
+    label: "fastapi-patterns — FastAPI 비동기 API 패턴",
+    source: "ecc",
+    tags: ["fastapi", "patterns"],
+    summary:
+      "프로젝트 구조·Pydantic v2·의존성 주입·async 핸들러·인증/인가·httpx+pytest 테스트까지 FastAPI 베스트 프랙티스입니다.",
+    content: fastapiPatterns,
+  }),
+  seed({
+    id: "accessibility",
+    label: "accessibility — WCAG 2.2 접근성 구현·감사",
+    source: "ecc",
+    tags: ["frontend", "a11y"],
+    summary:
+      "WCAG 2.2 AA 기준으로 웹 시맨틱 ARIA 와 네이티브(iOS/Android) 접근성 속성을 설계·구현·감사합니다.",
+    content: accessibility,
+  }),
+  seed({
+    id: "api-design",
+    label: "api-design — REST API 설계 패턴",
+    source: "ecc",
+    tags: ["backend", "patterns"],
+    summary:
+      "리소스 네이밍·상태 코드·페이지네이션·필터링·에러 응답·버저닝·레이트 리밋 등 프로덕션 REST API 설계 패턴입니다.",
+    content: apiDesign,
+  }),
+  seed({
+    id: "database-migrations",
+    label: "database-migrations — 무중단 DB 마이그레이션",
+    source: "ecc",
+    tags: ["database", "patterns"],
+    summary:
+      "스키마 변경·데이터 마이그레이션·롤백·무중단 배포를 PostgreSQL/MySQL 과 주요 ORM 전반에서 다룹니다.",
+    content: databaseMigrations,
+  }),
+  seed({
+    id: "e2e-testing",
+    label: "e2e-testing — Playwright E2E 테스트",
+    source: "ecc",
+    tags: ["frontend", "testing"],
+    summary:
+      "Playwright E2E 패턴 — Page Object Model, 설정, CI/CD 통합, 아티팩트 관리, flaky 테스트 전략을 다룹니다.",
+    content: e2eTesting,
+  }),
+  seed({
+    id: "inherit-legacy-style",
+    label: "inherit-legacy-style — 레거시 스타일 상속",
+    source: "ecc",
+    tags: ["onboarding", "style"],
+    summary:
+      "손으로 짠 레거시 프로젝트에 AI 에이전트를 온보딩할 때 기존 스타일을 학습시켜 스타일 드리프트를 막는 언어 불문 스킬입니다.",
+    content: inheritLegacyStyle,
   }),
 ];

@@ -16,8 +16,11 @@ marker="$ROOT/.oculpm/hooks/.session-start-$sid"
 # 기록한 세션에 미작성 경고가 나는 오탐(리뷰 HIGH)이 생긴다.
 if [ ! -f "$marker" ]; then
   : > "$marker" 2>/dev/null || exit 0
-  # 같은 초에 작성된 일지가 -newer(엄격 초과)에서 밀리지 않게 1초 과거로.
+  # 같은 초에 작성된 일지가 -newer(엄격 초과)에서 밀리지 않게 2초 과거로.
   # (HFS+ 등 초 단위 mtime 파일시스템 대비 — 실패해도 무해.)
-  touch -t "$(date -v-2S +%Y%m%d%H%M.%S 2>/dev/null)" "$marker" 2>/dev/null || true
+  # date -v 는 BSD(macOS), -d 는 GNU(Linux) — 양쪽 폴백. 둘 다 실패하면
+  # 백데이팅만 생략 (같은 초 경계의 드문 오탐을 감수, 마커 자체는 유효).
+  past=$(date -v-2S +%Y%m%d%H%M.%S 2>/dev/null || date -d '-2 seconds' +%Y%m%d%H%M.%S 2>/dev/null)
+  [ -n "$past" ] && touch -t "$past" "$marker" 2>/dev/null || true
 fi
 exit 0

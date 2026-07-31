@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ocul-PM 플러그인 문서 — 커맨드 · MCP 도구 · 스킬</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 5종, 스킬 5종. 설치 두 줄부터 프로젝트 시작→설계→구현 루프까지." />
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 5종, 스킬 5종. 설치 두 줄부터 프로젝트 시작→설계→구현 루프까지." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0f5b43" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -94,7 +94,7 @@
     </section>
 
     <section class="docs-sec" id="commands">
-      <span class="eyebrow">슬래시 커맨드 4종</span>
+      <span class="eyebrow">슬래시 커맨드 5종</span>
       <h2 class="sec-title">타이핑 한 줄로 부르는 것</h2>
 
       <div class="doc-card">
@@ -115,6 +115,11 @@
       <div class="doc-card">
         <h3><code>/oculpm:standup</code><span class="when">보고가 필요할 때</span></h3>
         <p>오늘 일지와 플랜 진행을 모아 스탠드업 요약(한 일 / 진행 중·막힘 / 다음)을 만듭니다.</p>
+      </div>
+
+      <div class="doc-card">
+        <h3><code>/oculpm:help</code><span class="when">뭐가 있는지 잊었을 때</span></h3>
+        <p>플러그인 표면 전체(커맨드 5·MCP 도구 5·스킬 5·훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
       </div>
     </section>
 
@@ -147,7 +152,7 @@
           <tr><td>tdd-workflow</td><td>실패하는 테스트 먼저 → 최소 구현 → 그린 → 리팩토링 사이클을 강제.</td></tr>
         </tbody>
       </table>
-      <p class="docs-note">안전 계약(무엇을 읽고 쓰고 절대 하지 않는지)은 저장소의 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">플러그인 계약 문서</a>에 테스트와 함께 고정돼 있습니다. 훅은 네트워크 없는 로컬 append 한 줄이고, 대화 로그가 담기는 <code>.oculpm/hooks/</code> 는 gitignore 관리 블록이 커밋을 막습니다.</p>
+      <p class="docs-note">안전 계약(무엇을 읽고 쓰고 절대 하지 않는지)은 저장소의 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">플러그인 계약 문서</a>에 테스트와 함께 고정돼 있습니다. 훅은 네트워크 없는 로컬 append 한 줄이고, 대화 로그가 담기는 <code>.oculpm/hooks/</code> 는 gitignore 관리 블록이 커밋을 막습니다. 여기에 <b>배달 게이트</b>가 하나 더 있습니다 — 코드 변경이 있는데 일지 없이 세션을 마치려 하면 세션당 한 번 에이전트에게 일지 작성을 지시합니다 (규칙 주입만으로는 헤드리스 세션 기록 준수가 0% 였던 자체 벤치 실측이 근거).</p>
     </section>
 
   </div>

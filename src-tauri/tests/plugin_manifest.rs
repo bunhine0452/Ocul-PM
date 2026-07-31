@@ -66,6 +66,43 @@ fn hooks_json_guards_and_consumes_stdin() {
     let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
     assert!(!stop.contains("echo"), "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)");
 
+    // 배달 게이트 — Stop 2번째 훅 (ponytail delivery-gate 이식). "코드 변경이
+    // 있는데 일지 없음"을 세션당 1회만 차단하는 계약을 잠근다.
+    let gate_cmd = map["Stop"][0]["hooks"][1]["command"]
+        .as_str()
+        .expect("Stop[1] 배달 게이트 훅 누락");
+    assert!(gate_cmd.contains("delivery-gate.sh"), "Stop: delivery-gate.sh 참조");
+    let gate = std::fs::read_to_string(plugin_root().join("hooks/delivery-gate.sh"))
+        .expect("delivery-gate.sh 존재");
+    assert!(gate.contains("payload=$(cat"), "배달 게이트: stdin 즉시 소비");
+    assert!(gate.contains("stop_hook_active"), "배달 게이트: 무한 차단 방지 가드 (공식 플래그)");
+    assert!(gate.contains(".delivery-gate-"), "배달 게이트: 세션당 1회 플래그 파일");
+    assert!(gate.contains(".session-start-"), "배달 게이트: 세션 마커를 판정 기준점으로 공유");
+    assert!(gate.contains("exit 2"), "배달 게이트: 차단은 exit 2 (stderr 가 에이전트에 전달)");
+    assert!(gate.contains("작업 일지가 없습니다"), "배달 게이트: 지시 문구");
+    assert!(gate.contains("계속하세요"), "배달 게이트: 진행 중 세션의 오탐 자기해소 문구");
+    // 코드 변경 판정의 3계약 (리뷰 HIGH/MED 회귀 방지):
+    // ① 세션 귀속 — 마커보다 새로운 파일만 (기존 WIP·병렬 세션 잔여 제외),
+    // ② .oculpm 만의 변경 비발화 (모노레포 하위 프로젝트는 show-prefix 보정),
+    // ③ 비ASCII 경로가 8진 이스케이프로 필터를 새지 않게 quotepath off.
+    assert!(gate.contains(r#"-nt "$marker""#), "배달 게이트: 세션 귀속 판정 (마커 mtime 대조)");
+    assert!(gate.contains("show-prefix"), "배달 게이트: 모노레포 하위 디렉터리 경로 보정");
+    assert!(gate.contains(".oculpm/*) continue"), "배달 게이트: .oculpm 만의 변경으로는 발화하지 않는다");
+    assert!(gate.contains("core.quotepath=off"), "배달 게이트: 비ASCII 경로 이스케이프 무력화 방지");
+    assert!(gate.contains("status --porcelain -- ."), "배달 게이트: pathspec 스코프 (이웃 패키지 제외)");
+    for banned in ["curl", "wget", "http://", "https://"] {
+        assert!(!gate.contains(banned), "배달 게이트: 네트워크 금지");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(plugin_root().join("hooks/delivery-gate.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert!(mode & 0o111 != 0, "delivery-gate.sh 실행 비트 누락");
+    }
+
     // H3 — SessionStart 3번째 훅: 세션 마커 (journal-missing 판정 기준점).
     let marker_cmd = map["SessionStart"][0]["hooks"][2]["command"]
         .as_str()
@@ -77,6 +114,8 @@ fn hooks_json_guards_and_consumes_stdin() {
     // create-only — auto-compact 재발화가 마커를 재터치하면 기록한 세션에
     // 미작성 오탐이 난다 (리뷰 HIGH 회귀 방지).
     assert!(marker.contains("[ ! -f \"$marker\" ]"), "마커 스크립트: create-only (재터치 금지)");
+    // 마커 백데이팅은 BSD/GNU date 양쪽 폴백 (Linux 에서 조용한 무효 방지 — 리뷰 LOW).
+    assert!(marker.contains("date -d '-2 seconds'"), "마커 스크립트: GNU date 폴백");
 
     // H3 — SessionEnd 는 스크립트로: append + 일지 미작성 판정 + 조건부 안내.
     // (벤치 실측 — 헤드리스 단발 준수 0/12 — 이 신호의 존재 근거다.)
@@ -212,8 +251,8 @@ fn bundled_skills_and_commands_stay_within_budget() {
     cmd_names.sort();
     assert_eq!(
         cmd_names,
-        ["inception.md", "next.md", "project_init.md", "standup.md"],
-        "동봉 커맨드 4종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+        ["help.md", "inception.md", "next.md", "project_init.md", "standup.md"],
+        "동봉 커맨드 5종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     for name in &cmd_names {
         let cmd = std::fs::read_to_string(plugin_root().join("commands").join(name)).unwrap();

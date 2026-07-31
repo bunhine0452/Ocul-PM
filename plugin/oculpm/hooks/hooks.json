@@ -25,6 +25,10 @@
           {
             "type": "command",
             "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then mkdir -p \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\" && cat >> \"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks/claude-events.jsonl\"; else cat > /dev/null; fi"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/delivery-gate.sh\""
           }
         ]
       }
