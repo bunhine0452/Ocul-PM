@@ -3677,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "ocul-pm"
-version = "2.5.1"
+version = "2.6.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",

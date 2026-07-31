@@ -27,7 +27,13 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.5.0 — Claude Code plugin, and plans that drive implementation
+## 🚀 v2.6.0 — Claude Code writes your retros now
+
+- **[Via Claude Code] retro generation** — a terminal session writes the retro to `.oculpm/retro/` markdown, no API key or billing; API generation now shows elapsed time and model live.
+- **Repeated procedures → skill promotion** — recurring tags surface as skill candidates in Retro; approve to save into `.claude/skills/`.
+- **`project_init`** — start tracking a new project with the plugin alone (explicit user confirmation required).
+
+## v2.5 — Claude Code plugin, and plans that drive implementation
 
 **Recording starts without the app.** Two lines in Claude Code:
 
