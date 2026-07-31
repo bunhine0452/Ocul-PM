@@ -259,6 +259,24 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     expect(r.getByText(/오늘 아직 기록 없음/)).toBeTruthy();
   });
 
+  it("일지 목록 — 4행 상한 없이 최근 것을 쌓고 스크롤 영역이 소유한다", async () => {
+    // 상한이 4였을 때는 5번째부터 아예 렌더되지 않았다 (실기기 피드백:
+    // "6개는 보이고 위아래로 넘길 수 있으면 좋겠다").
+    fx.entries = Array.from({ length: 12 }, (_, i) =>
+      entry({
+        relative_path: `journal/20260720/Chores/10${String(i).padStart(2, "0")}_chore_${i}.md`,
+        title: `일지 ${i}`,
+        created_at: iso(i * 60_000),
+      }),
+    );
+    const r = render(<TrayPopover />);
+    await waitFor(() => expect(r.getByText("일지 0")).toBeTruthy());
+    expect(r.getByText("일지 5")).toBeTruthy(); // 6번째 행
+    expect(r.getByText("일지 11")).toBeTruthy(); // 스크롤로 닿는 행
+    // 스크롤 소유자는 목록 섹션 하나뿐 — 카드/문서는 스크롤하지 않는다.
+    expect(r.getByText("일지 0").closest(".tp-entries")).toBeTruthy();
+  });
+
   it("Esc 키 → trayHidePopover (닫기는 백엔드 위임)", async () => {
     const r = render(<TrayPopover />);
     await waitFor(() => expect(r.getByTestId("tray-popover")).toBeTruthy());

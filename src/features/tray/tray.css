@@ -183,7 +183,17 @@ html, body {
 .tp-today b { color: var(--foreground); }
 .tp-warn { color: #d9881f; font-weight: 650; }
 
-.tp-entries { flex: 1; overflow-y: auto; padding: 6px 6px; }
+/* 일지 목록이 팝오버의 유일한 스크롤 영역 — 남는 높이가 곧 보이는 행 수다
+   (플랜 2줄 기준 ~6행). min-height:0 이 없으면 flex 항목이 콘텐츠 높이만큼
+   부풀어 푸터를 카드 밖으로 밀어낸다. overscroll-behavior 로 목록 끝에서
+   창(문서) 고무줄 바운스로 번지는 것을 끊는다. */
+.tp-entries {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 6px;
+}
 .tp-empty { padding: 14px 8px; color: var(--muted-foreground); }
 .tp-entry-row {
   display: flex;

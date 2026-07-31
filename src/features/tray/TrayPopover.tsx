@@ -37,6 +37,10 @@ interface ProjectSnapshot {
   plans: ActivePlan[];
 }
 
+/** 일지 목록 렌더 상한 — 팝오버에는 6행 남짓만 보이고 나머지는 세로 스크롤로
+    거슬러 올라간다. 전체(수백 건)를 DOM 에 얹지 않기 위한 상한. */
+const ENTRY_LIST_MAX = 50;
+
 const TYPE_LABEL: Record<string, string> = {
   feature: "기능",
   bug: "버그",
@@ -835,7 +839,7 @@ export function TrayPopover() {
         {warnCount > 0 && <span className="tp-warn">⚠ {warnCount}</span>}
       </section>
 
-      <section className="tp-entries">
+      <section className="tp-entries scrollbar-thin">
         {todayEntries.length === 0 && (
           <div className="tp-empty">
             오늘 아직 기록 없음
@@ -843,7 +847,7 @@ export function TrayPopover() {
           </div>
         )}
         {recentEntries.length > 0 &&
-          recentEntries.slice(0, 4).map(({ project, entry }) => (
+          recentEntries.slice(0, ENTRY_LIST_MAX).map(({ project, entry }) => (
             <button
               key={`${project.id}:${entry.relative_path}`}
               className="tp-entry-row"
