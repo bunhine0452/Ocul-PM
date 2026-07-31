@@ -1,0 +1,664 @@
+/* ============================================================
+   home.css — 메인 화면(프로젝트 선택) 전용 스타일.
+
+   ⚠️ 모든 클래스는 `home-` 접두를 갖는다. 이 화면은 ShellV2 청크(base/shell/
+   primitives/screens.css)를 로드하지 않으므로 `.card` `.chip` `.stat` `.scroll`
+   같은 제네릭 이름이 이 전역에 없다 — 그래서 더더욱, 나중에 누가 그 파일들을
+   전역화하려 들 때 충돌하지 않도록 접두를 강제한다.
+
+   색·그림자·모션은 전부 tokens.css (App.css 가 전역 로드) 변수를 쓴다.
+   하드코딩 색상 0 — 라이트/다크/프리셋 5종/액센트 6종에서 전부 성립해야 한다.
+   ============================================================ */
+
+.home {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-sidebar);
+  color: var(--text);
+  position: relative;
+}
+
+/* 앰비언트 — 액센트가 아주 옅게 상단에 번진다. 장식이지만 캔버스가 완전한
+   무채색 평면으로 죽는 걸 막는다. 다크에서는 더 옅게. */
+.home::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 320px;
+  background: radial-gradient(80% 100% at 50% 0%, var(--accent-soft) 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+[data-theme="dark"] .home::before {
+  opacity: 0.22;
+}
+
+.home-wrap {
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 28px 56px;
+}
+
+/* ── 밴드 0 — 상단 레일 ─────────────────────────────────────────────── */
+
+.home-rail {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  border-bottom: 1px solid var(--sep);
+  /* 스크롤 콘텐츠가 밑으로 지나갈 때 글자가 겹쳐 보이지 않게. */
+  background: color-mix(in srgb, var(--bg-sidebar) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* macOS 는 titleBarStyle Overlay — 신호등이 좌상단에 떠 있어 그만큼 비운다. */
+.home-rail[data-mac="1"] {
+  padding-left: 78px;
+}
+
+.home-wordmark {
+  font-family: var(--font-heading, "EB Garamond", serif);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.home-rule {
+  width: 1px;
+  height: 12px;
+  background: var(--sep-strong);
+  flex: none;
+}
+
+.home-dateline {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 밴드 1 — 검색 ──────────────────────────────────────────────────── */
+
+.home-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.home-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  outline: none;
+  padding: 6px 0;
+}
+.home-search input::placeholder {
+  color: var(--text-3);
+}
+/* 포커스는 밑줄 한 줄로 — 입력 박스를 그리면 밴드의 여백감이 죽는다. */
+.home-search:focus-within {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+.home-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* ── 공통 타일 ──────────────────────────────────────────────────────── */
+
+.home-tile {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+/* 승격은 한 단계 + 1px — 예전 .project-card 의 -3px 는 카드 10장에서 화면이
+   출렁였다. 물성은 screens.css 의 .jcard 규약을 따른다. */
+.home-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-raise);
+  border-color: var(--sep-strong);
+}
+.home-tile:active {
+  transform: translateY(0) scale(0.995);
+}
+.home-tile:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 사령탑 — 유일하게 "시트" 급 그림자와 큰 반경을 갖는다. */
+.home-tile--hero {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sheet);
+}
+
+/* ── 벤토 그리드 ────────────────────────────────────────────────────── */
+
+.home-bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+/* 높이는 전부 min-height — 웹뷰 줌(설정 › 글자 크기)이 켜지면 고정 높이는
+   내용을 자른다. CLS 이점은 min-height 로도 그대로 얻는다. */
+.home-t-hero {
+  grid-column: span 7;
+  min-height: 340px;
+}
+.home-t-flow {
+  grid-column: span 5;
+  min-height: 340px;
+}
+.home-t-panel {
+  grid-column: span 6;
+  min-height: 144px;
+}
+.home-t-wide {
+  grid-column: span 12;
+}
+
+@media (max-width: 900px) {
+  .home-t-hero,
+  .home-t-flow,
+  .home-t-panel {
+    grid-column: span 12;
+  }
+}
+
+/* ── 레일 (목록) ────────────────────────────────────────────────────── */
+
+.home-list {
+  margin-top: 20px;
+  background: var(--bg-content);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.home-sechead {
+  position: sticky;
+  top: 44px; /* 상단 레일 높이 */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 16px;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--sep);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  color: var(--text-2);
+}
+.home-sechead-line {
+  flex: 1;
+  height: 1px;
+  background: var(--sep);
+}
+.home-sechead-n {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* 행 — 반경 0 풀블리드. 컬럼 폭을 고정해 스켈레톤→실물 전환에 리플로우가
+   없다 (내용 길이가 열 폭을 바꾸지 않는다). */
+.home-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 96px 64px 76px;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 16px;
+  position: relative;
+  border-bottom: 1px solid var(--sep);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.home-row:last-child {
+  border-bottom: 0;
+}
+.home-row:hover,
+.home-row.is-cursor {
+  background: var(--bg-hover);
+}
+.home-row:active {
+  background: var(--bg-active);
+}
+.home-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 커서 행은 좌측 바로도 표시 — 색만으로 의미를 나르지 않는다. */
+.home-row.is-cursor::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .home-row {
+    grid-template-columns: 26px minmax(0, 1fr) 76px;
+  }
+  .home-row-spark,
+  .home-row-actions {
+    display: none;
+  }
+}
+
+/* 색인 행 — 2주 이상 조용한 프로젝트. 신문 시세표 밀도. */
+.home-quiet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 16px;
+  padding: 4px 16px 10px;
+}
+.home-quiet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 6px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.home-quiet-row:hover,
+.home-quiet-row.is-cursor {
+  background: var(--bg-hover);
+}
+.home-quiet-row:hover .home-quiet-name {
+  color: var(--accent-text);
+}
+.home-quiet-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.home-quiet-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .home-quiet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── 프로젝트 마크 ──────────────────────────────────────────────────── */
+
+.home-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-card);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  flex: none;
+  user-select: none;
+}
+.home-mark--lg {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-m);
+  font-size: 14px;
+}
+
+/* ── 스트레치 오픈 — 행/타일 전체가 클릭 영역이 되게 ────────────────
+   버튼을 행 크기로 키우면 그 안의 ✎/🗑 이 중첩 인터랙티브가 된다(axe 위반).
+   대신 작은 버튼 하나를 두고 ::after 로 조상 박스를 덮는다 — 형제인 액션
+   버튼들은 z-index 로 그 위에 뜬다. */
+.home-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.home-above {
+  position: relative;
+  z-index: 2;
+}
+
+/* 경로는 선택 가능해야 한다 (복사해서 터미널에 붙이는 흐름). */
+.home-path {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+/* ── 액션 (이름 변경 / 제거) ─────────────────────────────────────────
+   hover 로만 나타나면 키보드·터치 사용자에게는 존재하지 않는 기능이 된다.
+   hover / 컨테이너 포커스 / 커서 3조건 중 하나면 보인다. */
+.home-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.home-row:hover .home-actions,
+.home-row:focus-within .home-actions,
+.home-row.is-cursor .home-actions,
+.home-tile:hover .home-actions,
+.home-tile:focus-within .home-actions {
+  opacity: 1;
+}
+/* 포커스를 받은 버튼은 컨테이너 상태와 무관하게 항상 보여야 한다. */
+.home-actions:focus-within {
+  opacity: 1;
+}
+
+.home-iconbtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
+}
+/* 시각 크기는 28px 이지만 히트 영역은 44px — 손가락/트랙패드용. */
+.home-iconbtn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+.home-iconbtn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.home-iconbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.home-iconbtn--danger:hover {
+  color: var(--t-bug);
+  background: var(--t-bug-soft);
+}
+
+/* ── 키커 (작업 유형 단어) ───────────────────────────────────────────
+   색 점 대신 단어. 색이 안 보여도(색맹·흑백 인쇄·다크 대비) 의미가 남는다. */
+.home-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.home-kicker-bar {
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: currentColor;
+  flex: none;
+}
+.home-kicker[data-trigger="feature"] { color: var(--t-feature); }
+.home-kicker[data-trigger="bug"]      { color: var(--t-bug); }
+.home-kicker[data-trigger="refactor"] { color: var(--t-refactor); }
+.home-kicker[data-trigger="error"]    { color: var(--t-error); }
+.home-kicker[data-trigger="chore"]    { color: var(--t-chore); }
+
+/* ── 스파크라인 ─────────────────────────────────────────────────────── */
+
+.home-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+.home-spark-bar {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0.75;
+  transform-origin: bottom;
+  animation: sparkIn var(--dur-2) var(--ease-out) both;
+}
+/* 값 0 인 날은 베이스라인만 — 데이터가 없는 것과 "그날 일 안 함"을 형태로
+   구분한다 (없으면 아예 스파크라인을 안 그린다). */
+.home-spark-bar[data-zero="1"] {
+  background: var(--bg-inset);
+  opacity: 1;
+}
+
+/* ── 배지 / 메타 ────────────────────────────────────────────────────── */
+
+.home-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.home-agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.home-eyebrow {
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  color: var(--text-2);
+  text-transform: none;
+}
+
+.home-when {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.home-kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  border: 1px solid var(--sep);
+  border-radius: 4px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+/* 검색 매칭 하이라이트 */
+.home-hit {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── 진행률 ─────────────────────────────────────────────────────────── */
+
+.home-prog {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+.home-prog-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ── 스켈레톤 ───────────────────────────────────────────────────────
+   components/ui/Skeleton.tsx 를 쓰지 않는다 — 그건 screens.css 의 `.skel`
+   에 의존하는데 이 화면은 그 파일을 로드하지 않아 무색으로 깨진다. */
+.home-skel {
+  background: linear-gradient(
+    90deg,
+    var(--bg-inset) 0%,
+    color-mix(in srgb, var(--bg-inset) 60%, var(--bg-card)) 50%,
+    var(--bg-inset) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: homeShimmer 1.4s linear infinite;
+}
+
+/* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
+
+.home-add {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  border: 1px dashed var(--sep-strong);
+  border-radius: var(--radius-l);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.home-add:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.home-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── 액션 바 (밴드 4) ───────────────────────────────────────────────── */
+
+.home-actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 44px;
+  margin-top: 20px;
+  padding: 0 16px;
+  border-top: 1px solid var(--sep);
+  border-radius: var(--radius-m) var(--radius-m) 0 0;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 11px;
+  color: var(--text-2);
+}
+.home-actionbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* ── 모션 ───────────────────────────────────────────────────────────
+   스태거는 캡을 둔다 — 프로젝트 30개에서 마지막 행이 1.2초 뒤에 나타나면
+   그건 연출이 아니라 지연이다. */
+@keyframes homeShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+@keyframes bentoIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes sparkIn {
+  from { transform: scaleY(0.05); }
+  to   { transform: scaleY(1); }
+}
+@keyframes bandOut {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+
+.home-in-bento {
+  animation: bentoIn var(--dur-3) var(--ease-spring) both;
+}
+.home-in-row {
+  animation: rowIn var(--dur-2) var(--ease-out) both;
+}
+
+/* OS '동작 줄이기' — App.css 에 전역 가드가 있지만, 이 파일이 단독으로
+   읽혀도 성립하도록 여기서도 명시한다. */
+@media (prefers-reduced-motion: reduce) {
+  .home-in-bento,
+  .home-in-row,
+  .home-spark-bar,
+  .home-skel {
+    animation: none !important;
+  }
+  .home-tile,
+  .home-row {
+    transition: none !important;
+  }
+  .home-tile:hover {
+    transform: none;
+  }
+}

@@ -2,13 +2,15 @@
    index.css — single entry for the Final UI Update (ui_v2) stylesheet.
    Bundles the 5 token/layer files (03-design-system.md §10).
 
-   NOT imported globally in PR-UI 0 (token isolation): the new `--accent`
-   collides by name with the legacy shadcn `--accent` in src/App.css, so a
-   global :root import would repaint the flag-off UI. PR-UI 1 imports this
-   scoped to the ui_v2 shell once the new sidebar/toolbar mount behind the flag.
+   ShellV2 (lazy 청크) 가 이 파일을 import 한다 — base/shell/primitives/screens
+   는 body/#root 를 강탈하고 .card/.chip/.stat/.scroll 같은 제네릭 클래스명을
+   점유하므로 셸 안에 갇혀 있어야 한다. **절대 전역화하지 말 것.**
+
+   단 tokens.css 는 2026-07-31 에 여기서 빠져 src/App.css 로 승격됐다 (전부
+   커스텀 프로퍼티 선언이라 부작용이 없고, 대시보드가 --accent 없이 렌더되던
+   버그를 고치기 위해). 전역과 중복 import 하지 않도록 여기서는 제외한다.
    ============================================================ */
 
-@import "./tokens.css";
 @import "./base.css";
 @import "./shell.css";
 @import "./primitives.css";

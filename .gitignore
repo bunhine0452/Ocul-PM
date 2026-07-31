@@ -92,3 +92,6 @@ Desktop.ini
 .oculpm.backup-*/
 # oculpm:end
 .vercel
+
+# 에이전틱 벤치마크 세션 원본 (benchmarks/agentic — 리포트 .md 만 커밋)
+benchmarks/agentic/results/raw/

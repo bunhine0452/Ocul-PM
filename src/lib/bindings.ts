@@ -29,6 +29,13 @@ export const commands = {
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
 	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
+	/**
+	 *  홈 화면이 마운트 때 1회 호출하는 단일 집계.
+	 * 
+	 *  `days` 는 활동 스파크라인의 창 (프런트는 14). 1~62 로 클램프된다.
+	 *  프로젝트 수와 무관하게 SQL 6문 — 자세한 근거는 `crate::home` 모듈 주석 참고.
+	 */
+	homeBrief: (days: number) => typedError<HomeBrief, string>(__TAURI_INVOKE("home_brief", { days })),
 	indexProject: (projectId: number, onProgress: Channel<IndexProgress>) => typedError<IndexResult, string>(__TAURI_INVOKE("index_project", { projectId, onProgress })),
 	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
@@ -1617,6 +1624,78 @@ export type HeatmapCell = {
 	entry_count: number,
 	file_event_count: number,
 	score: number,
+};
+
+export type HomeActivePlan = {
+	plan_id: string,
+	plan_title: string,
+	/**  0..1 가중 롤업 (oculpm_plans.progress). */
+	progress: number | null,
+	done: number,
+	total: number,
+};
+
+export type HomeBrief = {
+	projects: HomeProjectBrief[],
+	/**  로컬 캘린더 오늘 (YYYYMMDD). */
+	today_workday: string,
+	/**  창의 시작일 (YYYYMMDD, 포함). */
+	since_workday: string,
+	today_total: number,
+	/**  최근 7일 안에 일지가 하나라도 있는 프로젝트 수. */
+	active_projects: number,
+	/**  크로스 프로젝트 최신 12건. */
+	feed: HomeFeedItem[],
+};
+
+export type HomeDayCount = {
+	workday: string,
+	count: number,
+};
+
+export type HomeFeedItem = {
+	project_id: number,
+	relative_path: string,
+	workday: string,
+	created_at: string,
+	title: string,
+	type: string,
+	agent_id: string,
+	agent_version: string | null,
+};
+
+export type HomeProjectBrief = {
+	project_id: number,
+	/**  평생 일지 수 (창과 무관). */
+	total_entries: number,
+	/**
+	 *  MAX(created_at) — 창(days) 밖이어도 잡힌다. 오래 조용한 프로젝트도
+	 *  "마지막 활동 N일 전"을 정확히 말할 수 있어야 한다.
+	 */
+	last_at: string | null,
+	last_workday: string | null,
+	last_title: string | null,
+	last_type: string | null,
+	last_agent_id: string | null,
+	last_agent_version: string | null,
+	today_count: number,
+	/**  활동이 **있는 날만** 담는다 (희소 배열). 프런트가 days 길이로 0 패딩한다. */
+	days: HomeDayCount[],
+	/**
+	 *  활성 플랜의 미완 항목 ≤3 (진행중 우선).
+	 * 
+	 *  ⚠️ `oculpm_plan_items` 는 플래너 화면이 디스크 마크다운을 파싱할 때
+	 *  채워지는 **투영 테이블**이다. 플래너를 한 번도 연 적 없는 프로젝트는
+	 *  플랜 파일이 있어도 여기가 비어 있다 — 정상이며, 화면은 이 줄을
+	 *  렌더하지 않는 것으로 대응한다 (틀린 값을 보여주지 않는다).
+	 */
+	next_tasks: OpenPlanItem[],
+	active_plan: HomeActivePlan | null,
+	/**
+	 *  `project_overviews.identity` — LLM 이 만든 캐시. 없으면 `None`.
+	 *  **여기서 생성하지 않는다** (LLM 호출 0).
+	 */
+	identity: string | null,
 };
 
 export type ImpactNode = {

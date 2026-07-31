@@ -8,6 +8,8 @@ mod embedding;
 mod error;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
+// 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
+pub mod home;
 mod indexer;
 mod llm;
 mod notion;
@@ -115,6 +117,8 @@ use crate::commands::{
     // W5 — action proposal apply-state
     record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health,
     index_project, list_projects, project_stats,
+    // 메인 화면(프로젝트 선택) 단일 집계 — IPC 1회 · SQL 6문
+    home_brief,
     search_chunks, search_text, search_symbols, secret_delete, secret_has, secret_set, secret_verify, select_project_folder, settings_get,
     settings_set, settings_get_all, settings_set_many, app_info, clear_all_data,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
@@ -214,6 +218,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         delete_project,
         rename_project,
         project_stats,
+        home_brief,
         index_project,
         search_chunks,
         search_text,

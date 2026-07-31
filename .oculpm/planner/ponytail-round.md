@@ -25,7 +25,7 @@ DietrichGebert/ponytail 조사(2026-07-31, 리서치 에이전트 실코드 확�
 
 ## 백로그 (착수 트리거 명시)
 - [ ] B1 statusline 배지 — 디스패치된 플랜 항목 `[OCULPM: …]` 표시 + 1회성 넛지 (트리거: H1 실사용 피드백) {#statusline-badge}
-- [ ] B2 에이전틱 A/B 벤치마크 — AGENTS.md 주입 비용/효과 측정, ponytail 방법론(오염 격리 --setting-sources/--plugin-dir) 재사용 (트리거: 랜딩 수치 필요 시) {#agentic-bench}
+- [x] B2 에이전틱 A/B 벤치마크 — AGENTS.md 주입 비용/효과 측정, ponytail 방법론(오염 격리 --setting-sources/--plugin-dir) 재사용 (트리거: 랜딩 수치 필요 시) {#agentic-bench}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -37,4 +37,6 @@ DietrichGebert/ponytail 조사(2026-07-31, 리서치 에이전트 실코드 확�
 | 2026-07-31T18:58:30+09:00 | #defer-panel | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1856_feature_defer-ledger.md | 자기은닉 카드+no-trigger 배지+에디터 열기. 플래너 승격은 후속 |
 | 2026-07-31T18:58:40+09:00 | #hook-inject | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1857_feature_hook-plan-context.md | 리뷰 HIGH: JSON additionalContext 로 교체(plain stdout 은 서브에이전트에 안 닿음). 프레이밍·frontmatter 스코프·절단 표식 |
 | 2026-07-31T18:58:50+09:00 | #hook-subagent | claude-code | ☐→x | .oculpm/journal/20260731/Features_to_add/1857_feature_hook-plan-context.md | 같은 스크립트 재주입, 매니페스트 4이벤트 계약 테스트 |
+| 2026-07-31T19:05:00+09:00 | #agentic-bench | claude-code | ☐→~ | | 사용자 "진행해" — 착수 트리거 격상. 하네스(benchmarks/agentic: 합성 타깃+티켓 6·2팔 러너·격리 플래그·준수 채점기) 구축+스모크 진행 중 |
+| 2026-07-31T19:36:00+09:00 | #agentic-bench | claude-code | ~→x | .oculpm/journal/20260731/Chores/1935_chore_agentic-ab-benchmark.md | 24세션 완주 — 무손상(성공률 동률·cost 동률) + 헤드리스 단발 준수 0/12(→CI1 초안 기능의 존재 근거). 리포트 results/2026-07-31-agentic.md |
 <!-- oculpm:plan-log end -->

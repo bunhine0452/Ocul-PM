@@ -1,80 +1,41 @@
 /**
- * StartScreen — 프로젝트 미선택 상태의 진입 화면 (MASTER-GUIDE §5.7)
+ * StartScreen — 프로젝트 미선택 상태의 진입 화면.
  *
- * 기존 Dashboard 컴포넌트를 대체. 두 가지 진입 경로를 제공:
- *  - 📂 기존 폴더 불러오기 (folder picker)
- *  - ✨ 새 프로젝트 시작하기 (Greenfield Wizard)
+ * 이 화면은 앱을 열면 처음 보는 얼굴이자 프로젝트 선택기다. 답해야 할 질문은
+ * 하나다: **"어디서 이어서 일하지?"**
  *
- * 추가로 미완성 blueprint 복원/삭제 UI와 최근 프로젝트 카드를 표시.
+ * 구성 (2026-07-31 벤토 콕핏 재구성):
+ *   밴드 0  상단 레일 — 워드마크 · 데이트라인 · 설정 · 추가 (macOS 드래그 영역)
+ *   밴드 1  검색 전용 밴드 (자동 포커스)
+ *   밴드 2  벤토 — 사령탑(이어서 일하기) · 오늘의 흐름 · 판 2개
+ *   밴드 3  레일 — 모든 프로젝트 / 색인(조용한 곳) / 초안 / 명령
+ *   밴드 4  액션 바 — 커서 항목의 단축키 지도
+ *
+ * 검색어가 있으면 벤토가 빠지고 레일이 점수순 단일 목록이 된다.
+ *
+ * 데이터는 `home_brief` 1콜이 전부다 (프로젝트 수와 무관하게 SQL 6문).
+ * 백엔드가 실패해도 `projects` prop 만으로 화면 전체가 선다.
  */
-import { useEffect, useMemo, useState } from "react";
-import {
-  commands,
-  type Project,
-  type ProjectStats,
-  type ProjectBlueprint,
-  type JournalEntrySummary,
-} from "@/lib/bindings";
-import { oculpmApi } from "@/api/oculpm";
-import {
-  FolderCode,
-  FolderOpen,
-  RefreshCw,
-  Pencil,
-  Trash2,
-  Sparkles,
-  Plus,
-  Settings,
-  Clock,
-  ArrowRight,
-  Bot,
-  NotebookText,
-} from "../../components/Icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type StatsMap = Record<number, ProjectStats>;
+import { commands, type Project, type ProjectBlueprint } from "@/lib/bindings";
+import { NAV_BUS } from "@/lib/navRegistry";
 
-// ── Cockpit home (Dogfooding 2026-06-14c #2) ────────────────────────────────
-// The main screen aggregates *cross-project* journal activity so opening the app
-// surfaces the product's core value (auto-recorded work) at a glance — not just a
-// project picker. Trigger hues are hardcoded here because the --t-* tokens live
-// in the ShellV2 chunk (tokens.css), which isn't loaded on this dashboard.
-interface FeedItem {
-  projectId: number;
-  projectName: string;
-  entry: JournalEntrySummary;
-}
-interface CockpitData {
-  feed: FeedItem[];
-  todayCount: number;
-  todayByProject: Record<number, number>;
-  /** ISO created_at of each project's most recent entry (for "마지막 활동"). */
-  lastByProject: Record<number, string>;
-}
-const TYPE_TONE: Record<string, { label: string; color: string }> = {
-  feature: { label: "기능", color: "#12a06b" },
-  bug: { label: "버그", color: "#e0524b" },
-  refactor: { label: "리팩토링", color: "#7c5cdb" },
-  error: { label: "에러", color: "#d9881f" },
-  chore: { label: "잡일", color: "#5a7a95" },
-};
+import "./home.css";
+import { buildHome, type CommandSpec, type HomeRow } from "./home/homeModel";
+import { useHomeBrief } from "./home/useHomeBrief";
+import { useHomeCursor } from "./home/useHomeCursor";
+import { HomeActionBar, HomeSearchBand, HomeTopRail } from "./home/chrome";
+import { CommandRow, DraftRow, HomeSection, IndexRow, ProjectRow, type RowWiring } from "./home/rows";
+import { AddTile, FlowTile, OnboardingTile, ProjectPanel, ResumeTile } from "./home/tiles";
 
-/** Calendar today as a YYYYMMDD workday key (local). */
-function calToday(): string {
-  const d = new Date();
-  return (
-    d.getFullYear().toString().padStart(4, "0") +
-    (d.getMonth() + 1).toString().padStart(2, "0") +
-    d.getDate().toString().padStart(2, "0")
-  );
-}
-function hhmm(iso: string): string {
-  const m = /T(\d{2}:\d{2})/.exec(iso);
-  return m ? m[1] : "";
-}
-
-interface StartScreenProps {
+/**
+ * [중요] 이 타입을 export 해야 테스트가 직접 참조할 수 있다. JSX 스프레드는
+ * 초과 프로퍼티를 검사하지 않으므로, 테스트 헬퍼가 `Partial<StartScreenProps>`
+ * 로 타이핑되지 않으면 없어진 prop(`stats` 등)이 조용히 통과한다.
+ */
+export interface StartScreenProps {
   projects: Project[];
-  stats: StatsMap;
   indexingId: number | null;
   error: string | null;
   onSelectProject: (p: Project) => void;
@@ -83,14 +44,13 @@ interface StartScreenProps {
   onDeleteProject: (p: Project) => void;
   onOpenSettings: () => void;
   onStartGreenfield: () => void;
-  /** 임시 저장 초안을 저장 단계부터 이어서 연다 (감사 fix — 이전엔 새로 시작). */
+  /** 임시 저장 초안을 저장 단계부터 이어서 연다. */
   onResumeBlueprint: (bp: ProjectBlueprint) => void;
 }
 
 export function StartScreen(props: StartScreenProps) {
   const {
     projects,
-    stats,
     indexingId,
     error,
     onSelectProject,
@@ -102,444 +62,390 @@ export function StartScreen(props: StartScreenProps) {
     onResumeBlueprint,
   } = props;
 
+  const { brief, loading, failed, reload } = useHomeBrief(projects);
   const [blueprints, setBlueprints] = useState<ProjectBlueprint[]>([]);
-  const [addExpanded, setAddExpanded] = useState(false);
-  const [cockpit, setCockpit] = useState<CockpitData | null>(null);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the webview
-  // reaches the very top under the floating traffic lights, with no title bar
-  // to grab. The main page (pre-project) had no Toolbar, so the window was only
-  // draggable at the window edges. Reserve a full-width drag strip at the top.
-  // Windows/Linux keep native decorations, so the strip is macOS-only.
+  // 분 단위 상대시각("3시간 전")이 세션 내내 얼어붙지 않도록 1분마다 갱신.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const isMac =
     typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
 
   useEffect(() => {
-    loadBlueprints();
+    void loadBlueprints();
   }, []);
 
-  // Aggregate cross-project journal activity for the cockpit. One list call per
-  // project (cached SQLite read — works even when no watcher is running), bucketed
-  // client-side into the recent feed, today's count, and a 7-day sparkline.
+  async function loadBlueprints() {
+    const res = await Promise.resolve()
+      .then(() => commands.listBlueprints())
+      .catch(() => null);
+    if (res && res.status === "ok") setBlueprints(res.data);
+  }
+
+  const discardBlueprint = useCallback(async (id: number) => {
+    const res = await Promise.resolve()
+      .then(() => commands.deleteBlueprint(id))
+      .catch(() => null);
+    if (res && res.status === "ok") setBlueprints((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  // 목록이 절대 비지 않게 하는 장치 — 프로젝트 0개거나 검색 결과 0건이어도
+  // 이 행들이 남아 ⏎ 가 항상 무언가를 한다.
+  const commandSpecs: CommandSpec[] = useMemo(
+    () => [
+      { id: "cmd:add", label: "기존 폴더 불러오기", hint: "⌘O", run: onAddProject },
+      { id: "cmd:new", label: "새 프로젝트 시작하기", hint: "⌘N", run: onStartGreenfield },
+      { id: "cmd:settings", label: "설정 열기", hint: "⌘,", run: onOpenSettings },
+    ],
+    [onAddProject, onStartGreenfield, onOpenSettings],
+  );
+
+  const model = useMemo(
+    () => buildHome({ projects, brief, blueprints, query, now, commands: commandSpecs }),
+    [projects, brief, blueprints, query, now, commandSpecs],
+  );
+
+  const searching = query.trim().length > 0;
+  const cursor = useHomeCursor({ flat: model.flat, searchRef });
+
+  const openRow = useCallback(
+    (row: HomeRow) => {
+      if (row.kind === "project") onSelectProject(row.project);
+      else if (row.kind === "draft") onResumeBlueprint(row.bp);
+      else row.run();
+    },
+    [onSelectProject, onResumeBlueprint],
+  );
+
+  // ── 전역 키 ──────────────────────────────────────────────────────────
+  // useGlobalShortcuts 는 수식키 없는 키를 즉시 반환하므로 충돌이 없다.
   useEffect(() => {
-    if (projects.length === 0) {
-      setCockpit(null);
-      return;
+    function isTyping(el: EventTarget | null): boolean {
+      const n = el as HTMLElement | null;
+      if (!n) return false;
+      const tag = n.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || n.isContentEditable;
     }
-    let alive = true;
-    const todayKey = calToday();
-    void (async () => {
-      const results = await Promise.allSettled(
-        // Promise.resolve().then(...) so a synchronous throw (e.g. a project whose
-        // oculpm cache isn't reachable) becomes a handled rejection, not an
-        // unhandled error.
-        projects.map((p) =>
-          Promise.resolve()
-            .then(() => oculpmApi.listJournalEntries(p.id))
-            .then((list) => ({ p, list })),
-        ),
-      );
-      if (!alive) return;
-      const feed: FeedItem[] = [];
-      const todayByProject: Record<number, number> = {};
-      const lastByProject: Record<number, string> = {};
-      let todayCount = 0;
-      for (const r of results) {
-        if (r.status !== "fulfilled") continue;
-        const { p, list } = r.value;
-        for (const e of list) {
-          feed.push({ projectId: p.id, projectName: p.name, entry: e });
-          if (!lastByProject[p.id] || e.created_at > lastByProject[p.id]) {
-            lastByProject[p.id] = e.created_at;
+
+    function focusSearch(seed?: string) {
+      const el = searchRef.current;
+      if (!el) return;
+      el.focus();
+      if (seed !== undefined) setQuery((q) => q + seed);
+      else el.select();
+    }
+
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      const typing = isTyping(e.target);
+
+      if (mod) {
+        const k = e.key.toLowerCase();
+        if (k === "o") {
+          e.preventDefault();
+          onAddProject();
+          return;
+        }
+        if (k === "n") {
+          e.preventDefault();
+          onStartGreenfield();
+          return;
+        }
+        if (k === "e" && cursor.row?.kind === "project") {
+          e.preventDefault();
+          onRenameProject(cursor.row.project);
+          return;
+        }
+        if (e.key === "Backspace") {
+          // macOS 에서 ⌘⌫ 는 "커서 앞 전부 삭제"다. 검색 입력에 값이 있는
+          // 동안은 그 관례를 뺏지 않는다 — 글자를 지우려던 손이 프로젝트
+          // 제거 다이얼로그를 띄우면 최악이다.
+          if (typing && (e.target as HTMLInputElement).value) return;
+          if (cursor.row?.kind === "project") {
+            e.preventDefault();
+            onDeleteProject(cursor.row.project);
           }
-          if (e.workday === todayKey) {
-            todayCount += 1;
-            todayByProject[p.id] = (todayByProject[p.id] ?? 0) + 1;
-          }
+          return;
+        }
+        if (k === "f") {
+          e.preventDefault();
+          focusSearch();
+        }
+        return;
+      }
+
+      if (typing) return;
+
+      if (e.key === "/") {
+        e.preventDefault();
+        focusSearch();
+        return;
+      }
+      // 타입어헤드 — 아무 데서나 글자를 치면 검색으로 흘러든다.
+      if (e.key.length === 1 && !e.altKey) {
+        e.preventDefault();
+        focusSearch(e.key);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cursor.row, onAddProject, onStartGreenfield, onRenameProject, onDeleteProject]);
+
+  // ⌘P — useGlobalShortcuts 가 이미 이 이벤트를 쏘고 있는데 대시보드에는
+  // 수신자가 없어 무반응이었다. 여기서 받아 검색으로 연결한다.
+  useEffect(() => {
+    const onSwitch = () => {
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    };
+    window.addEventListener(NAV_BUS.openProjectSwitcher, onSwitch);
+    return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, onSwitch);
+  }, []);
+
+  const onSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        cursor.focusFirst();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        // 포커스를 옮기지 않고 1위를 연다 — "타이핑 → ⏎" 고속 경로.
+        const first = model.flat[0];
+        if (first) openRow(first);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        // 2단: 질의가 있으면 지우고, 이미 비었으면 포커스를 놓는다.
+        if (query) setQuery("");
+        else {
+          cursor.reset();
+          searchRef.current?.blur();
         }
       }
-      feed.sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at));
-      setCockpit({ feed: feed.slice(0, 10), todayCount, todayByProject, lastByProject });
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [projects]);
+    },
+    [cursor, model.flat, openRow, query],
+  );
 
-  function handleChooseExisting() {
-    setAddExpanded(false);
-    onAddProject();
-  }
+  const wiringFor = useCallback(
+    (row: HomeRow): RowWiring => ({
+      isCursor: cursor.id === row.id,
+      register: cursor.register,
+      onRowKeyDown: (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          // 스페이스도 활성화로 — 버튼 기본 동작이지만 preventDefault 로
+          // 스크롤이 튀는 걸 막는다.
+          if (e.key === " ") e.preventDefault();
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          cursor.reset();
+          searchRef.current?.focus();
+          return;
+        }
+        cursor.onRowKeyDown(e);
+      },
+      onRowFocus: cursor.onRowFocus,
+      onRowPointerMove: cursor.onRowPointerMove,
+    }),
+    [cursor],
+  );
 
-  function handleChooseGreenfield() {
-    setAddExpanded(false);
-    onStartGreenfield();
-  }
-
-  async function loadBlueprints() {
-    const res = await commands.listBlueprints();
-    if (res.status === "ok") setBlueprints(res.data);
-  }
-
-  async function handleDeleteBlueprint(id: number) {
-    const res = await commands.deleteBlueprint(id);
-    if (res.status === "ok") {
-      setBlueprints((prev) => prev.filter((b) => b.id !== id));
-    }
-  }
-
-  const stepLabels = ["아이디어", "사용자", "스택", "위치", "목표"];
-
-  function relativeTime(unixSec: number): string {
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - unixSec;
-    if (diff < 60) return "방금 전";
-    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-    return `${Math.floor(diff / 86400)}일 전`;
-  }
-
-  // Surface what you're actively working on: projects with today's activity
-  // float up, then most-recently-active. Falls back to the given order.
-  const displayProjects = useMemo(() => {
-    if (!cockpit) return projects;
-    const { todayByProject, lastByProject } = cockpit;
-    return [...projects].sort((a, b) => {
-      const ta = todayByProject[a.id] ?? 0;
-      const tb = todayByProject[b.id] ?? 0;
-      if (ta !== tb) return tb - ta;
-      return (lastByProject[b.id] ?? "").localeCompare(lastByProject[a.id] ?? "");
-    });
-  }, [projects, cockpit]);
+  const hasProjects = projects.length > 0;
+  const showBento = !searching;
+  const matchCount = searching ? model.rows.length : projects.length;
 
   return (
-    // Full-height scroll container — the parent (App) is `h-screen overflow-hidden`,
-    // so the page itself must own the scroll or it clips on short windows
-    // (dogfooding 2026-06-15: main page wasn't scrollable).
-    <main className="h-full overflow-y-auto scrollbar-thin">
-      {isMac && (
-        // Window drag strip — sits over the top edge (under the native traffic
-        // lights, which capture their own clicks). z-20 keeps it above page
-        // content but below modals/overlays (z-[90]+). The hero starts ~48px
-        // down, so this 34px strip covers only empty space.
-        <div
-          data-tauri-drag-region
-          className="fixed top-0 left-0 right-0 h-[34px] z-20"
-          aria-hidden="true"
+    <main className="home scrollbar-thin">
+      <div className="home-wrap">
+        <HomeTopRail
+          isMac={isMac}
+          dateline={model.dateline}
+          failed={failed}
+          onRetry={reload}
+          onOpenSettings={onOpenSettings}
+          onAdd={onAddProject}
         />
-      )}
-      <div className="p-8 max-w-5xl mx-auto w-full space-y-10">
-      {/* ── Hero ────────────────────────────────────── */}
-      <div className="flex flex-col items-center text-center space-y-3 mt-4">
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground font-heading flex items-center justify-center">
-          <span>Ocul-PM</span>
-        </h1>
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-          오늘 무엇을 만들 건가요?
+
+        <HomeSearchBand
+          value={query}
+          onChange={setQuery}
+          inputRef={searchRef}
+          matchCount={matchCount}
+          total={projects.length}
+          onKeyDown={onSearchKeyDown}
+        />
+
+        {/* 검색 결과 건수만 알린다 — 커서 이동은 실제 포커스가 옮겨가므로
+            스크린리더가 알아서 읽는다. */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {model.liveMessage}
         </p>
-      </div>
-
-      {/* ── Cockpit: cross-project activity (#2) ─────── */}
-      {projects.length > 0 && cockpit && cockpit.feed.length > 0 && (
-        <section
-          className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-5"
-          aria-label="오늘의 활동"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
-              <NotebookText className="w-4 h-4 text-primary" strokeWidth={2} />
-              오늘의 활동
-            </h2>
-            <span className="text-xs text-muted-foreground font-medium">
-              오늘 <span className="text-foreground font-bold">{cockpit.todayCount}</span>건 · 전
-              프로젝트 {projects.length}
-            </span>
-          </div>
-
-          <ul className="space-y-0.5">
-            {cockpit.feed.map((it, i) => {
-              const tone = TYPE_TONE[it.entry.type] ?? TYPE_TONE.chore;
-              return (
-                <li key={i}>
-                  <button
-                    onClick={() => {
-                      const p = projects.find((x) => x.id === it.projectId);
-                      if (p) onSelectProject(p);
-                    }}
-                    className="group w-full flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-accent/40 transition-colors cursor-pointer text-left"
-                    aria-label={`${it.projectName} · ${it.entry.title} 열기`}
-                  >
-                    <span className="text-[11px] font-mono text-muted-foreground/70 w-10 shrink-0">
-                      {hhmm(it.entry.created_at)}
-                    </span>
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: tone.color }}
-                      title={tone.label}
-                    />
-                    <span className="text-xs font-semibold text-muted-foreground shrink-0 max-w-[110px] truncate">
-                      {it.projectName}
-                    </span>
-                    <span className="text-sm text-foreground truncate flex-1">
-                      {it.entry.title || it.entry.slug}
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary shrink-0" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {/* ── How it works (PR-R2 C1) — 첫 사용자(프로젝트 0개)에게 핵심 가치
-          루프와 *수동 기록이 아니라는* 멘탈 모델을 설명한다. ───────────── */}
-      {projects.length === 0 && (
-        <section
-          className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-5"
-          aria-label="Ocul-PM 사용 안내"
-        >
-          <div className="space-y-1.5">
-            <h2 className="text-lg font-bold text-foreground tracking-tight">
-              Ocul-PM 은 이렇게 동작해요
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              직접 기록하지 않아도 됩니다. 평소처럼 코딩 에이전트로 작업하면, Ocul-PM 이
-              변경·작업 일지·통계를 <span className="text-foreground font-semibold">자동으로</span> 모아줍니다.
-            </p>
-          </div>
-
-          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              {
-                n: 1,
-                Icon: FolderOpen,
-                title: "프로젝트 폴더 추가",
-                body: "폴더를 불러오면 Ocul-PM 이 코딩 에이전트용 규칙(AGENTS.md)을 자동으로 심어요.",
-              },
-              {
-                n: 2,
-                Icon: Bot,
-                title: "평소처럼 에이전트로 코딩",
-                body: "Claude Code·Cursor·Gemini 등 쓰던 에이전트로 작업하면, 그 규칙에 따라 에이전트가 작업 일지를 남겨요.",
-              },
-              {
-                n: 3,
-                Icon: NotebookText,
-                title: "자동으로 기록·정리",
-                body: "남겨진 작업 일지·변경 diff·통계를 Today 화면에 모아 보여줍니다.",
-              },
-            ].map(({ n, Icon, title, body }) => (
-              <li
-                key={n}
-                className="rounded-xl border border-border/70 bg-background/40 p-4 space-y-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/12 text-primary text-xs font-bold shrink-0">
-                    {n}
-                  </span>
-                  <Icon className="w-4 h-4 text-primary" strokeWidth={1.75} />
-                  <h3 className="text-sm font-bold text-foreground">{title}</h3>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
-              </li>
-            ))}
-          </ol>
-
-          <button
-            onClick={() => setAddExpanded(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors cursor-pointer"
-            aria-label="프로젝트 추가하고 시작하기"
-          >
-            <Plus className="w-4 h-4" />
-            프로젝트 추가하고 시작하기
-          </button>
-        </section>
-      )}
-
-      {/* ── Saved Blueprints ───────────────────────── */}
-      {blueprints.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5" />
-            임시 저장된 프로젝트
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {blueprints.map((bp) => (
-              <div
-                key={bp.id}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border bg-card/50 text-sm"
-              >
-                <div className="flex-1 min-w-0">
-                  <span className="font-semibold text-foreground truncate">
-                    {bp.name || bp.idea_text?.slice(0, 20) || "새 프로젝트"}
-                  </span>
-                  <span className="text-muted-foreground text-xs ml-2">
-                    {stepLabels[bp.wizard_step]}단계 · {relativeTime(bp.updated_at)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => onResumeBlueprint(bp)}
-                  className="text-xs font-bold text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded-lg hover:bg-primary/10 cursor-pointer"
-                  aria-label={`${bp.name || "프로젝트"} 복원`}
-                >
-                  복원
-                </button>
-                <button
-                  onClick={() => handleDeleteBlueprint(bp.id)}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors p-1 rounded-lg hover:bg-destructive/10 cursor-pointer"
-                  aria-label={`${bp.name || "프로젝트"} 초안 삭제`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Projects ───────────────────────────────── */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground tracking-tight">내 프로젝트</h2>
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-muted-foreground font-medium">{projects.length} 전체</span>
-            <button
-              onClick={onOpenSettings}
-              className="p-1.5 rounded-lg border border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-all duration-200 flex items-center space-x-1.5 text-xs font-semibold cursor-pointer"
-              aria-label="설정 열기"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>설정</span>
-              <kbd className="text-[9px] text-muted-foreground/70 font-mono ml-1">⌘,</kbd>
-            </button>
-          </div>
-        </div>
 
         {error && (
-          <div className="p-3.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold rounded-xl">
+          <div
+            role="alert"
+            className="mt-4 px-4 py-3 rounded-[var(--radius-m)] text-[12px] font-semibold"
+            style={{
+              background: "var(--t-error-soft)",
+              color: "var(--t-error)",
+              border: "1px solid var(--t-error)",
+            }}
+          >
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {displayProjects.map((p) => {
-            const s = stats[p.id];
-            const isIndexing = indexingId === p.id;
-            const lastIso = cockpit?.lastByProject[p.id];
-            return (
-              <div
-                key={p.id}
-                onClick={() => onSelectProject(p)}
-                className="project-card group bg-card hover:bg-accent/40 border border-border/80 hover:border-primary/40 rounded-2xl p-5 cursor-pointer shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between min-h-[150px] relative overflow-hidden"
-                style={{ transform: "translateY(0)" }}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <FolderCode className="w-10 h-10 text-primary/80 group-hover:text-primary transition-colors" strokeWidth={1.5} />
-                    <div className="flex items-center space-x-1">
-                      {isIndexing && (
-                        <span className="flex items-center space-x-1 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold mr-2">
-                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          <span>인덱싱</span>
-                        </span>
-                      )}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => onRenameProject(p)}
-                          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={`${p.name} 이름 변경`}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteProject(p)}
-                          className="p-1.5 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors"
-                          aria-label={`${p.name} 제거`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-base truncate text-foreground group-hover:text-primary transition-colors">
-                    {p.name}
-                  </h3>
-                  <p className="text-[10px] text-muted-foreground/80 font-mono truncate mt-1">{p.root_path}</p>
-                  {lastIso ? (
-                    <p className="text-[10px] text-muted-foreground/70 mt-1.5 flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
-                      마지막 활동 {relativeTime(Math.floor(new Date(lastIso).getTime() / 1000))}
-                    </p>
-                  ) : null}
-                </div>
+        {/* ── 밴드 2 — 벤토 ──────────────────────────────────────── */}
+        {showBento && (
+          <div className="home-bento">
+            {!hasProjects ? (
+              <OnboardingTile onStart={onAddProject} />
+            ) : (
+              <>
+                {model.hero && (
+                  <ResumeTile
+                    row={model.hero}
+                    now={now}
+                    loading={loading}
+                    indexing={indexingId === model.hero.project.id}
+                    onOpen={onSelectProject}
+                    onRename={onRenameProject}
+                    onDelete={onDeleteProject}
+                  />
+                )}
+                <FlowTile
+                  brief={brief}
+                  projects={projects}
+                  loading={loading}
+                  onOpenProject={onSelectProject}
+                />
+                {model.panels.map((row) => (
+                  <ProjectPanel
+                    key={row.id}
+                    row={row}
+                    now={now}
+                    indexing={indexingId === row.project.id}
+                    onOpen={onSelectProject}
+                    onRename={onRenameProject}
+                    onDelete={onDeleteProject}
+                  />
+                ))}
+                {/* 판이 2개가 안 되면 격자에 구멍이 남는다 — 추가 슬롯이 메운다. */}
+                {model.panels.length < 2 && (
+                  <AddTile
+                    variant="panel"
+                    onAddExisting={onAddProject}
+                    onStartNew={onStartGreenfield}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        )}
 
-                <div className="flex items-center justify-between mt-4 border-t border-border/40 pt-3">
-                  <span className="text-[11px] text-muted-foreground font-semibold">
-                    {s ? `${s.files} 파일` : "—"}
-                    {cockpit?.todayByProject[p.id] ? (
-                      <span className="ml-2 text-primary font-bold">
-                        · 오늘 {cockpit.todayByProject[p.id]}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/60 font-medium flex items-center gap-1">
-                    {s ? `${s.chunks} 청크` : ""}
-                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                  </span>
-                </div>
+        {/* ── 밴드 3 — 레일 ──────────────────────────────────────── */}
+        {(model.rows.length > 0 ||
+          model.quiet.length > 0 ||
+          model.drafts.length > 0 ||
+          model.commands.length > 0) && (
+          <div className="home-list">
+            {model.rows.length > 0 && (
+              <>
+                <HomeSection
+                  title={searching ? "검색 결과" : "모든 프로젝트"}
+                  count={model.rows.length}
+                />
+                <ul>
+                  {model.rows.map((row, i) => (
+                    <ProjectRow
+                      key={row.id}
+                      row={row}
+                      query={query}
+                      now={now}
+                      loading={loading}
+                      indexing={indexingId === row.project.id}
+                      wiring={wiringFor(row)}
+                      onOpen={onSelectProject}
+                      onRename={onRenameProject}
+                      onDelete={onDeleteProject}
+                      index={i}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {searching && model.rows.length === 0 && (
+              <div className="px-4 py-6 space-y-1">
+                <p className="text-[13px] text-[var(--text-2)]">
+                  ‘{query}’ 와 일치하는 프로젝트가 없어요
+                </p>
+                <p className="text-[11px] text-[var(--text-3)]">
+                  경로와 초성으로도 찾을 수 있어요
+                </p>
               </div>
-            );
-          })}
+            )}
 
-          {addExpanded ? (
-            <div
-              className="border border-dashed border-primary/50 bg-primary/5 rounded-2xl p-3 flex flex-col min-h-[150px] gap-2 animate-in fade-in zoom-in-95 duration-150"
-              role="group"
-              aria-label="프로젝트 추가 옵션"
-            >
-              <button
-                onClick={handleChooseExisting}
-                className="group flex-1 flex items-center gap-3 px-3 rounded-xl border border-border bg-background hover:border-primary/40 hover:bg-accent/40 transition-all duration-200 cursor-pointer text-left"
-                aria-label="기존 폴더 불러오기"
-              >
-                <FolderOpen className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors shrink-0" strokeWidth={1.5} />
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-foreground">기존 폴더</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">불러오기</div>
+            {model.quiet.length > 0 && (
+              <>
+                <HomeSection title="색인 · 2주 이상 조용한 곳" count={model.quiet.length} />
+                <div className="home-quiet">
+                  {model.quiet.map((row) => (
+                    <IndexRow
+                      key={row.id}
+                      row={row}
+                      query={query}
+                      wiring={wiringFor(row)}
+                      onOpen={onSelectProject}
+                    />
+                  ))}
                 </div>
-              </button>
-              <button
-                onClick={handleChooseGreenfield}
-                className="group flex-1 flex items-center gap-3 px-3 rounded-xl border border-primary/30 bg-background hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 cursor-pointer text-left"
-                aria-label="새 프로젝트 시작하기"
-              >
-                <Sparkles className="w-6 h-6 text-primary group-hover:scale-110 transition-transform shrink-0" strokeWidth={1.5} />
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-foreground">새 프로젝트</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">시작하기</div>
-                </div>
-              </button>
-              <button
-                onClick={() => setAddExpanded(false)}
-                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer self-end px-2 py-0.5"
-                aria-label="취소"
-              >
-                취소
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setAddExpanded(true)}
-              className="group border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[150px] transition-all duration-200 cursor-pointer text-muted-foreground hover:text-primary"
-              aria-label="프로젝트 폴더 추가"
-            >
-              <Plus className="w-8 h-8 mb-2 stroke-[1.5] group-hover:scale-110 transition-transform duration-200" />
-              <span className="text-xs font-bold">프로젝트 폴더 추가</span>
-            </button>
-          )}
-        </div>
-      </section>
+              </>
+            )}
+
+            {model.drafts.length > 0 && (
+              <>
+                <HomeSection title="초안" count={model.drafts.length} />
+                <ul>
+                  {model.drafts.map((row) => (
+                    <DraftRow
+                      key={row.id}
+                      row={row}
+                      wiring={wiringFor(row)}
+                      onResume={onResumeBlueprint}
+                      onDiscard={discardBlueprint}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {model.commands.length > 0 && (
+              <>
+                <HomeSection title="명령" count={model.commands.length} />
+                <ul>
+                  {model.commands.map((row, i) => (
+                    <CommandRow key={row.id} row={row} wiring={wiringFor(row)} index={i} />
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── 밴드 4 — 액션 바 ───────────────────────────────────── */}
+        {hasProjects && <HomeActionBar row={cursor.row} />}
       </div>
     </main>
   );

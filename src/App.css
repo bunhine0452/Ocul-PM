@@ -1,4 +1,16 @@
 @import "tailwindcss";
+/* tokens.css 전역화 (2026-07-31) — 예전엔 이 파일이 styles/index.css 를 통해
+   ShellV2(lazy 청크)에서만 로드됐다. 그래서 메인 화면(StartScreen)은 콜드
+   스타트에서 --accent 가 없어 `--primary: var(--accent, #0e8a60)` 이 emerald 로
+   풀리고, 프로젝트를 한 번 열었다 돌아오면 [data-accent] 팔레트가 로드돼
+   같은 화면이 사용자가 고른 색으로 보였다 — 세션 이력에 따라 두 얼굴.
+   전역화가 안전한 이유: 274줄 전부 :root/[data-*] 커스텀 프로퍼티 선언이고
+   셀렉터 규칙이 0개라 부작용 표면이 없다. 부수 효과로 --t-*(트리거 색)·
+   --shadow-*·--dur-* 가 대시보드에서도 살아나 TYPE_TONE 하드코딩 3중 진실이
+   정리된다.
+   ⚠️ styles/index.css(base/shell/primitives/screens)는 절대 전역화하지 말 것 —
+   base.css 가 body/#root 를 강탈하고 .card/.chip/.stat/.scroll 을 점유한다. */
+@import "./styles/tokens.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
@@ -90,6 +102,14 @@
 @custom-variant dark (&:is([data-theme="dark"] *));
 
 @theme inline {
+    /* tokens.css 전역화에 따른 명시적 합의: Tailwind 기본 theme 의
+       --ease-out: cubic-bezier(0,0,0.2,1) 과 tokens.css 의 --ease-out 이 이름을
+       공유한다. unlayered 인 tokens.css 가 캐스케이드에서 이기므로, Tailwind
+       유틸리티(ease-out)도 같은 곡선을 쓰도록 여기서 못박는다.
+       값을 바꿀 때는 반드시 src/styles/tokens.css 의 --ease-out 과 함께.
+       (리네임 대안 기각: src/features/graph/graph.css 등 CSS 7파일 35곳이
+        --ease-out 을 참조해 일괄 치환이 조용히 새는 곳을 만든다.) */
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
     --font-heading: 'EB Garamond', serif;
     --font-sans: 'SUITE', 'Inter Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -343,23 +363,12 @@
 }
 
 /* Project card micro-interaction (W6 UI-6) */
-.project-card {
-  transition:
-    transform var(--motion-fast, 150ms) ease,
-    box-shadow var(--motion-fast, 150ms) ease,
-    border-color var(--motion-fast, 150ms) ease;
-}
-.project-card:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 8px 25px -5px rgba(0, 0, 0, 0.08),
-    0 2px 8px -2px rgba(204, 120, 92, 0.08);
-}
-[data-theme="dark"] .project-card:hover {
-  box-shadow:
-    0 8px 25px -5px rgba(0, 0, 0, 0.4),
-    0 2px 8px -2px rgba(204, 120, 92, 0.12);
-}
+/* `.project-card` 3블록 삭제 (2026-07-31, 메인 화면 재구성).
+   유일한 소비처가 StartScreen 의 프로젝트 카드였고, hover 그림자의
+   rgba(204,120,92,…) 는 2026-07-16 "Atelier Ivory" 리스킨 이전의 코랄
+   액센트라 Nord/Dracula/고대비 프리셋에서 코랄 기가 섞였다. 새 메인 화면은
+   tokens.css 의 --shadow-card / --shadow-raise / --shadow-sheet 4단 스케일을
+   쓴다 (features/onboarding/home.css). 되살리지 말 것. */
 
 /* Glassmorphism styling utilities */
 .glassy-sidebar {

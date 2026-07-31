@@ -1,0 +1,38 @@
+[
+  {
+    "id": "t1",
+    "type": "bug",
+    "prompt": "median 함수가 짝수 길이 배열에서 틀린 값을 돌려줍니다. tests/t1.test.ts 에 재현 테스트가 있으니 통과하게 고쳐 주세요. 기존 홀수 길이 동작과 다른 테스트는 깨지면 안 됩니다.",
+    "check": "pnpm vitest run tests/t1.test.ts && pnpm vitest run tests/base.test.ts"
+  },
+  {
+    "id": "t2",
+    "type": "bug",
+    "prompt": "slugify 가 연속 공백과 특수문자가 섞인 입력을 제대로 처리하지 못합니다 (하이픈이 여러 개 생기거나 특수문자가 남습니다). tests/t2.test.ts 의 기대대로 동작하게 수정해 주세요.",
+    "check": "pnpm vitest run tests/t2.test.ts && pnpm vitest run tests/base.test.ts"
+  },
+  {
+    "id": "t3",
+    "type": "feature",
+    "prompt": "src/range.ts 의 parseRange 가 아직 미구현 상태입니다. tests/t3.test.ts 에 적힌 스펙대로 구현해 주세요.",
+    "check": "pnpm vitest run tests/t3.test.ts && pnpm vitest run tests/base.test.ts"
+  },
+  {
+    "id": "t4",
+    "type": "feature",
+    "prompt": "src/duration.ts 의 formatDuration 을 tests/t4.test.ts 에 적힌 스펙대로 구현해 주세요.",
+    "check": "pnpm vitest run tests/t4.test.ts && pnpm vitest run tests/base.test.ts"
+  },
+  {
+    "id": "t5",
+    "type": "refactor",
+    "prompt": "src/stats.ts 가 통계 함수와 히스토그램 책임을 같이 들고 있습니다. histogram 함수를 새 파일 src/histogram.ts 로 옮기고, src/index.ts 의 재수출은 유지해 주세요. tests/base.test.ts 는 계속 통과해야 합니다.",
+    "check": "pnpm vitest run tests/base.test.ts && test -f src/histogram.ts && grep -q 'function histogram' src/histogram.ts && ! grep -q 'function histogram' src/stats.ts"
+  },
+  {
+    "id": "t6",
+    "type": "chore",
+    "prompt": "tsconfig.json 에서 strict 모드를 켜 주세요. 그로 인해 생기는 타입 오류가 있으면 모두 고쳐서 pnpm exec tsc --noEmit 이 깨끗하게 통과해야 합니다.",
+    "check": "grep -Eq '\"strict\"[[:space:]]*:[[:space:]]*true' tsconfig.json && pnpm exec tsc --noEmit && pnpm vitest run tests/base.test.ts"
+  }
+]

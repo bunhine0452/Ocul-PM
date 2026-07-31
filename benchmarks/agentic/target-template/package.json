@@ -1,0 +1,15 @@
+{
+  "name": "bench-target",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "합성 벤치마크 대상 — 작은 TypeScript 유틸리티 라이브러리",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

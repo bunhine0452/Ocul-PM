@@ -3,10 +3,16 @@
    Source of truth: docs/Lite-update/Fianl_UI_update_before1.0/Ocul-PM1.0/styles.css
    + 03-design-system.md §1~§3. Values match the mockup character-for-character.
 
-   PR-UI 0 (token isolation): this file is authored but NOT imported globally
-   yet. The new `--accent` (green) collides by name with the legacy shadcn
-   `--accent` (cream) in src/App.css, so importing this at :root now would
-   repaint the flag-off UI. PR-UI 1 wires it in scoped to the ui_v2 shell.
+   전역화됨 (2026-07-31): src/App.css 가 이 파일을 직접 @import 한다 —
+   styles/index.css 경로가 아니다. 예전의 격리(PR-UI 0)는 legacy shadcn
+   `--accent`(cream) 와의 이름 충돌 때문이었으나, App.css 가 그 유틸리티를
+   `--accent-surface` 로 옮기며(PR-R4 D1) 충돌이 이미 해소됐다.
+   격리를 유지하면 메인 화면(StartScreen)이 ShellV2 청크 로드 여부에 따라
+   --accent 유무가 갈려 같은 화면이 두 색으로 보였다.
+
+   ⚠️ 이 파일에는 셀렉터 규칙을 추가하지 말 것 — 전부 :root/[data-*] 커스텀
+   프로퍼티 선언이라는 점이 전역화의 안전 근거다. 레이아웃/컴포넌트 규칙은
+   styles/base|shell|primitives|screens.css (ShellV2 전용) 로.
    ============================================================ */
 
 :root {

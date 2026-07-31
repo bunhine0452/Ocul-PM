@@ -1,9 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
   commands,
   type Project,
-  type ProjectStats,
   type IndexProgress,
   type ProjectBlueprint,
 } from "@/lib/bindings";
@@ -19,7 +18,7 @@ import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
 import { StartScreen } from "@/features/onboarding/StartScreen";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 // PR-UI 7 — ui_v2 is now the ONLY shell (flag removed). ShellV2 stays lazy so
@@ -31,8 +30,6 @@ import { toast } from "@/lib/toast";
 
 import "./App.css";
 
-
-type StatsMap = Record<number, ProjectStats>;
 
 function App() {
   // ── Workspace state (project, view, file, indexing, etc.) ──────────────
@@ -57,7 +54,6 @@ function App() {
 
   // ── Local-only (volatile) UI state ─────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
-  const [stats, setStats] = useState<StatsMap>({});
   const [error, setError] = useState<string | null>(null);
 
   // Project lifecycle dialogs
@@ -77,10 +73,26 @@ function App() {
   const [greenfieldResume, setGreenfieldResume] = useState<ProjectBlueprint | null>(null);
 
   // ── Keyboard shortcuts (⌘1~⌘7, ⌘K, ⌘,, ⌘\) ────────────────────────────
+  // 대시보드(프로젝트 미선택)에서는 셸이 언마운트라 화면 전환이 의미가 없다.
+  // 예전에는 그대로 setUiV2View 를 호출해 ⌘, 가 무반응이면서(설정이 안 열림)
+  // 언마운트된 셸의 uiV2View 만 조용히 바꿔 놓았다 — 힌트는 표시하면서
+  // 동작하지 않는 거짓 UI. 이제 ⌘, 만 설정 오버레이로 연결하고 나머지 화면
+  // 전환은 삼킨다. 프로젝트가 열려 있으면 종전대로 셸로 그대로 넘어간다.
+  const navFromShortcut = useCallback(
+    (v: UiV2View) => {
+      if (selectedProjectId === null) {
+        if (v === "settings") setSettingsOpen(true);
+        return;
+      }
+      setUiV2View(v);
+    },
+    [selectedProjectId, setUiV2View],
+  );
+
   useGlobalShortcuts({
     onOpenPalette: () => setPaletteOpen(true),
     // ⌘1~⌘7 + ⌘, drive the ui_v2 screens (01-ia-and-shell §3).
-    uiV2Nav: setUiV2View,
+    uiV2Nav: navFromShortcut,
   });
 
   // .oculpm/ auto-init + watcher start on project selection (W1-PR7 + F-1 fix).
@@ -198,12 +210,10 @@ function App() {
     const res = await commands.listProjects();
     if (res.status === "ok") {
       setProjects(res.data);
-      const all: StatsMap = {};
-      for (const p of res.data) {
-        const s = await commands.projectStats(p.id);
-        if (s.status === "ok") all[p.id] = s.data;
-      }
-      setStats(all);
+      // 프로젝트별 projectStats 직렬 루프는 2026-07-31 에 제거했다 — 유일한
+      // 소비처가 메인 화면의 "N 파일 · N 청크" 였는데, 그건 인덱싱 내부 지표라
+      // 사용자 가치가 없으면서 프로젝트 수만큼 IPC 를 직렬로 때렸다.
+      // 메인 화면은 이제 home_brief 1콜로 필요한 걸 전부 받는다.
     } else {
       setError(res.error);
     }
@@ -322,7 +332,6 @@ function App() {
       ) : (
         <StartScreen
           projects={projects}
-          stats={stats}
           indexingId={indexingId}
           error={error}
           onSelectProject={handleSelectProject}
