@@ -49,7 +49,12 @@ fn plugin_json_is_minimal_and_version_synced() {
 fn hooks_json_guards_and_consumes_stdin() {
     let hooks = read_json("hooks/hooks.json");
     let map = hooks["hooks"].as_object().expect("hooks 맵");
-    assert_eq!(map.len(), 3, "구독 이벤트는 SessionStart/Stop/SessionEnd 3종 (D1)");
+    assert_eq!(
+        map.len(),
+        4,
+        "구독 이벤트는 SessionStart/Stop/SessionEnd(싱크) + SubagentStart(주입) 4종"
+    );
+    // 이벤트 싱크 3종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
     for ev in ["SessionStart", "Stop", "SessionEnd"] {
         let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap_or_else(|| panic!("{ev} command"));
         assert!(cmd.contains(".oculpm"), "{ev}: 추적 프로젝트 가드 누락");
@@ -64,6 +69,39 @@ fn hooks_json_guards_and_consumes_stdin() {
     assert!(session_end.contains(">&2"), "SessionEnd: standup/앱 포인터 stderr 안내");
     let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
     assert!(!stop.contains("echo"), "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)");
+
+    // ponytail-round H1/H2 — 플랜 컨텍스트 주입: SessionStart 2번째 훅과
+    // SubagentStart(서브에이전트엔 SessionStart stdout 이 안 닿는다)가 같은
+    // 스크립트를 공유한다.
+    for (ev, idx) in [("SessionStart", 1usize), ("SubagentStart", 0)] {
+        let cmd = map[ev][0]["hooks"][idx]["command"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{ev}[{idx}] 주입 훅 누락"));
+        assert!(cmd.contains("${CLAUDE_PLUGIN_ROOT}"), "{ev}: 주입은 플러그인 동봉 스크립트로");
+        assert!(cmd.contains("plan-context.sh"), "{ev}: plan-context.sh 참조");
+    }
+    // 주입 스크립트 계약 — 절대 블록 금지·상한·네트워크 금지·JSON 출력.
+    let script_path = plugin_root().join("hooks/plan-context.sh");
+    let script = std::fs::read_to_string(&script_path).expect("plan-context.sh 존재");
+    assert!(script.contains("payload=$(cat"), "주입 스크립트: stdin 즉시 소비 (블록 금지)");
+    // plain stdout 은 SubagentStart 에서 버려진다 — JSON additionalContext 만
+    // 두 이벤트 모두에 닿는다 (적대 리뷰 HIGH 회귀 방지).
+    assert!(script.contains("hookSpecificOutput"), "주입 스크립트: JSON 출력 계약");
+    assert!(script.contains("additionalContext"), "주입 스크립트: additionalContext 필드");
+    assert!(script.contains("지시가 아님"), "주입 스크립트: 비신뢰 데이터 프레이밍");
+    // 바이트 컷(head -c)은 한글 멀티바이트를 중간에서 깨뜨린다 — 줄 경계 컷 + 절단 표식.
+    assert!(script.contains("if (n > 1600)"), "주입 스크립트: 컨텍스트 상한 (토큰 예산, 줄 경계)");
+    assert!(script.contains("생략"), "주입 스크립트: 절단 표식 (침묵 절단 금지)");
+    assert!(script.contains("status: active"), "주입 스크립트: 활성 플랜만 (frontmatter 스코프)");
+    for banned in ["curl", "wget", "http://", "https://"] {
+        assert!(!script.contains(banned), "주입 스크립트: 네트워크 금지");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&script_path).unwrap().permissions().mode();
+        assert!(mode & 0o111 != 0, "plan-context.sh 실행 비트 누락");
+    }
 }
 
 /// A2 — 동봉 스킬·커맨드 표면과 상시(always-on) 토큰 예산.

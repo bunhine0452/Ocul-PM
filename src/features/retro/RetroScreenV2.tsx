@@ -26,6 +26,7 @@ import {
 import { RuleCandidatesPanel } from "./RuleCandidates";
 import { SkillCandidatesPanel } from "./SkillCandidates";
 import { EvalTrendPanel } from "./EvalTrend";
+import { DeferLedgerPanel } from "./DeferLedger";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import {
@@ -425,6 +426,8 @@ export function RetroScreenV2({
               <SignalsPanel signals={signals!} />
               {/* PR-CI6 — EVALS.md 점수 추이 (파일 없으면 스스로 숨음). */}
               <EvalTrendPanel projectId={projectId} />
+              {/* defer 원장 — 코드 주석의 미룬 지름길 (마커 없으면 스스로 숨음). */}
+              <DeferLedgerPanel projectId={projectId} />
               {/* PR-CI4 — 반복 실패의 규칙 승격 제안 (후보 없으면 스스로 숨음). */}
               <RuleCandidatesPanel projectId={projectId} since={since} until={until} />
               {/* CI4 미러 — 반복 태그의 스킬 승격 제안 (후보 없으면 스스로 숨음). */}

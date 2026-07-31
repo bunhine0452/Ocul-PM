@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 7 -->
+<!-- template_version: 8 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -9,6 +9,8 @@ You are working in a project tracked by ocul-pm. Every time you finish **one log
 ## 1. When to record (5 triggers)
 
 **bug fix** (a reproducible defect verified gone) · **feature done** (first happy-path works) · **refactor batch** (same behaviour + structural change complete, tests green) · **error cycle** (one diagnose-fix cycle — record failures too) · **chore** (non-functional change done).
+
+When you leave an **intentional shortcut** (a simplification with a ceiling), mark it with a code comment `// oculpm-defer: <ceiling>; <revisit trigger>` — the retro screen harvests these into a ledger (markers without a trigger are flagged as rotting).
 
 ## 2. Journal file format (only without the tools)
 

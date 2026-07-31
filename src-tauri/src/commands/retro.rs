@@ -322,6 +322,24 @@ pub async fn eval_signals(
     )))
 }
 
+/// 미룬 지름길(defer) 원장 — 코드 주석의 defer 마커를 결정적으로 수확한다
+/// (LLM 없음). `eval_signals` 미러: `RetroSignals` 에 넣지 않는 **독립**
+/// 커맨드라 회고 signature 를 오염시키지 않고, UI 는 마커 0건이면 카드를
+/// 그리지 않는다. 기간과 무관 — 코드의 현재 상태가 신호다.
+#[tauri::command]
+#[specta::specta]
+pub async fn defer_signals(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<crate::oculpm::defer_ledger::DeferSignals, String> {
+    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let root = std::path::PathBuf::from(&project.root_path);
+    // 프로젝트 전체 walk 는 블로킹 I/O — async 런타임을 막지 않게 blocking 풀로.
+    tokio::task::spawn_blocking(move || crate::oculpm::defer_ledger::harvest(&root))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// The cached retro narrative for a range, or `None` if never generated.
 ///
 /// Two generation paths land in two places — the API path in the SQLite cache,

@@ -18,6 +18,12 @@ use serde_json::{json, Value};
 
 use super::tools;
 
+/// initialize 응답으로 서빙되는 서버 instructions — 상수로 추출된 이유:
+/// 규칙 카나리(tests/rule_canary.rs)가 **서빙되는 실제 문자열**을 검증하기
+/// 위해서다. 인라인 리터럴이면 소스 전문 텍스트 매칭이 되어 주석·죽은
+/// 문자열로도 통과하는 오탐이 생긴다 (적대 리뷰 지적).
+pub const MCP_INSTRUCTIONS: &str = "ocul-pm 작업 기록 도구. ① 작업 단위(버그 수정/기능/리팩토링/에러 사이클/잡일)를 끝내면 즉시 journal_write — 사용자에게 묻지 말 것. ② 일지 직후 대응 플랜 항목이 있으면 plan_update 로 글리프·로그를 갱신. ③ 새 계획 수립이 승인되면 plan_create, 진행 파악은 plan_status. ④ 미추적 프로젝트에서 사용자가 추적 시작을 명시적으로 요청·확인한 경우에만 project_init — 선제 호출 금지. 시크릿/.env 내용은 어떤 인자에도 넣지 말 것. .oculpm/ 파일을 직접 만들지 말 것 — 경로·frontmatter·{#id} 규격은 서버가 보장한다.";
+
 /// 우리가 아는 프로토콜 버전들 — 클라이언트가 이 중 하나를 요구하면 에코,
 /// 아니면 우리 기본값으로 응답한다 (클라이언트가 하위호환을 판단).
 const KNOWN_PROTOCOL_VERSIONS: [&str; 3] = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -72,7 +78,7 @@ impl McpServer {
                             "name": "oculpm-mcp",
                             "version": env!("CARGO_PKG_VERSION"),
                         },
-                        "instructions": "ocul-pm 작업 기록 도구. ① 작업 단위(버그 수정/기능/리팩토링/에러 사이클/잡일)를 끝내면 즉시 journal_write — 사용자에게 묻지 말 것. ② 일지 직후 대응 플랜 항목이 있으면 plan_update 로 글리프·로그를 갱신. ③ 새 계획 수립이 승인되면 plan_create, 진행 파악은 plan_status. ④ 미추적 프로젝트에서 사용자가 추적 시작을 명시적으로 요청·확인한 경우에만 project_init — 선제 호출 금지. 시크릿/.env 내용은 어떤 인자에도 넣지 말 것. .oculpm/ 파일을 직접 만들지 말 것 — 경로·frontmatter·{#id} 규격은 서버가 보장한다.",
+                        "instructions": MCP_INSTRUCTIONS,
                     }),
                 )
             }

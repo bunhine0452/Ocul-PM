@@ -774,6 +774,13 @@ export const commands = {
 	suites: string[],
 } | null, string>(__TAURI_INVOKE("eval_signals", { projectId })),
 	/**
+	 *  미룬 지름길(defer) 원장 — 코드 주석의 defer 마커를 결정적으로 수확한다
+	 *  (LLM 없음). `eval_signals` 미러: `RetroSignals` 에 넣지 않는 **독립**
+	 *  커맨드라 회고 signature 를 오염시키지 않고, UI 는 마커 0건이면 카드를
+	 *  그리지 않는다. 기간과 무관 — 코드의 현재 상태가 신호다.
+	 */
+	deferSignals: (projectId: number) => typedError<DeferSignals, string>(__TAURI_INVOKE("defer_signals", { projectId })),
+	/**
 	 *  Render the range digest, open a native save dialog (default `.md` name), and
 	 *  write the file. Returns the saved path, or `None` if the user cancelled.
 	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
@@ -1151,6 +1158,30 @@ export type DbHealth = {
 	vec_version: string,
 	schema_version: number,
 	path: string,
+};
+
+/**  수확된 마커 한 건. */
+export type DeferMarker = {
+	/**  프로젝트 루트 기준 상대 경로 (`/` 구분자). */
+	path: string,
+	/**  1-based. */
+	line: number,
+	/**  `;` 앞 — 이 지름길의 천장(무엇을 미뤘는가). */
+	ceiling: string,
+	/**  `;` 뒤 — 재방문 트리거. 없으면 `None`. */
+	trigger: string | null,
+	/**  트리거가 없는 마커 — 조용히 썩는 것. 정렬에서 앞선다. */
+	no_trigger: boolean,
+};
+
+/**  `defer_signals` 응답. 마커 0건이면 UI 가 카드를 그리지 않는다. */
+export type DeferSignals = {
+	/**  no_trigger 우선, 그다음 path·line 오름차순. */
+	markers: DeferMarker[],
+	/**  실제로 마커를 찾아본(스킵 제외) 파일 수. */
+	files_scanned: number,
+	/**  파일 2,000개·마커 200개 상한에 걸려 일부만 봤다는 표시. */
+	truncated: boolean,
 };
 
 export type DesktopRegistrationStatus = {

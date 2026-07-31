@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: plugin-round
 title: "Claude 플러그인 라운드 — 슬림 플러그인 + 토큰 다이어트 + 디스패치"
-status: active
+status: done
 created: 2026-07-31
 updated: 2026-07-31
 owner: claude-code

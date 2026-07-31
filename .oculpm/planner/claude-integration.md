@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: claude-integration
 title: "Claude 직접 연동 + 규칙 플라이휠 라운드"
-status: active
+status: done
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-31
 owner: claude-code
 ---
 

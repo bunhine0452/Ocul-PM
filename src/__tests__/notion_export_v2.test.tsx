@@ -50,6 +50,17 @@ vi.mock("@/components/Markdown", () => ({
   Markdown: ({ children }: { children: string }) => children,
 }));
 
+// 회고 화면이 마운트하는 DeferLedgerPanel(미룬 지름길 카드)이 워크스페이스·설정
+// 컨텍스트를 쓴다 — 프로바이더 없는 이 하네스에선 훅이 throw 하므로 모킹한다.
+// (deferSignals 는 아래 bindings Proxy 의 default 가 ok(null) 을 돌려 카드가
+// 스스로 숨는다 — 이 파일의 Notion 단언에는 영향 없음.)
+vi.mock("@/contexts/WorkspaceContext", () => ({
+  useWorkspace: () => ({ state: { currentProjectRoot: "/proj" } }),
+}));
+vi.mock("@/contexts/SettingsContext", () => ({
+  useSettings: () => ({ settings: { externalEditorCommand: "code %path" } }),
+}));
+
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
   const err = (error: string) => Promise.resolve({ status: "error" as const, error });
