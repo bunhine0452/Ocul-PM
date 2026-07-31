@@ -146,11 +146,14 @@ export function FlowTile({
   brief,
   projects,
   loading,
+  failed,
   onOpenProject,
 }: {
   brief: HomeBrief | null;
   projects: Project[];
   loading: boolean;
+  /** 집계 자체가 실패했는가. `기록 0건` 과 반드시 구분해야 한다. */
+  failed: boolean;
   onOpenProject: (p: Project) => void;
 }) {
   const feed = (brief?.feed ?? []).slice(0, FEED_MAX);
@@ -181,7 +184,18 @@ export function FlowTile({
         </ul>
       )}
 
-      {!loading && feed.length === 0 && (
+      {/* 집계가 실패했을 때 "아직 기록이 없어요" 라고 말하면 거짓말이다 —
+          기록은 있는데 못 읽어온 것일 수 있다. 두 상태를 구분한다. */}
+      {!loading && feed.length === 0 && failed && (
+        <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
+          기록을 불러오지 못했어요.
+          <br />
+          <span className="text-[11px] text-[var(--text-3)]">
+            프로젝트는 아래에서 그대로 열 수 있습니다.
+          </span>
+        </p>
+      )}
+      {!loading && feed.length === 0 && !failed && (
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
           아직 기록이 없어요.
           <br />
@@ -207,7 +221,7 @@ export function FlowTile({
                   {hhmm(it.created_at)}
                 </span>
                 <span className="min-w-0 flex flex-col gap-0.5">
-                  <TriggerKicker type={it.entry_type} title={null} />
+                  <TriggerKicker type={it.type} title={null} />
                   <span className="text-[12.5px] text-[var(--text)] leading-snug line-clamp-2">
                     {it.title}
                   </span>
@@ -309,12 +323,18 @@ export function AddTile({
   onAddExisting,
   onStartNew,
 }: {
-  variant: "hero" | "panel" | "tall";
+  variant: "hero" | "panel" | "tall" | "wide";
   onAddExisting: () => void;
   onStartNew: () => void;
 }) {
   const span =
-    variant === "hero" ? "home-t-hero" : variant === "tall" ? "home-t-flow" : "home-t-panel";
+    variant === "hero"
+      ? "home-t-hero"
+      : variant === "tall"
+        ? "home-t-flow"
+        : variant === "wide"
+          ? "home-t-wide"
+          : "home-t-panel";
 
   return (
     <div className={`home-add ${span} home-in-bento p-5`} style={{ display: "grid" }}>
@@ -322,19 +342,11 @@ export function AddTile({
         <Plus className="w-7 h-7" strokeWidth={1.5} aria-hidden="true" />
         <span className="text-[13px] font-bold">프로젝트 추가</span>
         <span className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onAddExisting}
-            className="home-kbd cursor-pointer hover:text-[var(--accent-text)] flex items-center gap-1.5 px-2 py-1"
-          >
+          <button type="button" onClick={onAddExisting} className="home-chipbtn">
             <FolderOpen className="w-3 h-3" />
             기존 폴더
           </button>
-          <button
-            type="button"
-            onClick={onStartNew}
-            className="home-kbd cursor-pointer hover:text-[var(--accent-text)] flex items-center gap-1.5 px-2 py-1"
-          >
+          <button type="button" onClick={onStartNew} className="home-chipbtn">
             <Sparkles className="w-3 h-3" />
             새 프로젝트
           </button>

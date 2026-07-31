@@ -34,6 +34,23 @@ async fn empty_db() -> (tempfile::TempDir, Db) {
     (dir, db)
 }
 
+/// 프로젝트 행을 보장한다. `home_brief` 의 모든 쿼리가 `JOIN projects` 를 끼므로
+/// (제거된 프로젝트의 고아 일지를 배제하기 위해) 테스트도 실제와 같이
+/// 워크스페이스에 등록된 프로젝트만 집계 대상이 된다.
+async fn ensure_project(db: &Db, project_id: i64) {
+    db.conn()
+        .call(move |c| {
+            c.execute(
+                "INSERT OR IGNORE INTO projects (id, name, root_path, created_at)
+                 VALUES (?1, ?2, ?3, 0)",
+                rusqlite::params![project_id, format!("p{project_id}"), format!("/tmp/p{project_id}")],
+            )?;
+            Ok::<(), tokio_rusqlite::Error>(())
+        })
+        .await
+        .unwrap();
+}
+
 async fn insert_entry(
     db: &Db,
     project_id: i64,
@@ -44,6 +61,7 @@ async fn insert_entry(
     agent: &str,
     version: Option<&str>,
 ) {
+    ensure_project(db, project_id).await;
     let wd = workday(offset_days);
     let at = created_at(offset_days, hhmm);
     let path = format!("{wd}/{ty}/{}_{}.md", hhmm.replace(':', ""), ty);
@@ -162,6 +180,35 @@ async fn feed_is_capped_at_twelve() {
 }
 
 #[tokio::test]
+async fn orphan_journals_from_removed_projects_are_excluded() {
+    // oculpm_journal 은 projects 로의 외래키가 없다(migrations/012) — 프로젝트를
+    // 워크스페이스에서 제거해도 일지 행이 그대로 남는다. 조인하지 않으면 지워진
+    // 프로젝트의 일지가 오늘 건수에 계속 더해지고 피드에 열 수 없는 유령 행이
+    // 뜬다.
+    let (_dir, db) = empty_db().await;
+    insert_entry(&db, 1, 0, "09:00", "feature", "살아있는 프로젝트", "claude-code", None).await;
+    insert_entry(&db, 2, 0, "10:00", "bug", "지워질 프로젝트", "cursor", None).await;
+
+    // 프로젝트 2만 워크스페이스에서 제거 (일지 행은 남는다).
+    db.conn()
+        .call(|c| {
+            c.execute("DELETE FROM projects WHERE id = 2", [])?;
+            Ok::<(), tokio_rusqlite::Error>(())
+        })
+        .await
+        .unwrap();
+
+    let brief = home::collect(&db, 14).await.unwrap();
+
+    assert_eq!(brief.projects.len(), 1, "살아 있는 프로젝트만 남아야 한다");
+    assert_eq!(brief.projects[0].project_id, 1);
+    assert_eq!(brief.today_total, 1, "지워진 프로젝트의 오늘 건수는 빠져야 한다");
+    assert_eq!(brief.active_projects, 1);
+    assert_eq!(brief.feed.len(), 1, "피드에 유령 행이 없어야 한다");
+    assert_eq!(brief.feed[0].title, "살아있는 프로젝트");
+}
+
+#[tokio::test]
 async fn missing_plan_projection_yields_empty_next_tasks() {
     // 플랜 파일이 디스크에 있어도 플래너를 연 적이 없으면 투영 테이블이 비어
     // 있다. 그때 next_tasks 는 빈 배열이어야 한다 (거짓 값 금지).
@@ -220,6 +267,84 @@ VALUES (1, 'home-redesign', 'a', '토큰 전역화', 'done',        0, 'Phase A'
 }
 
 #[tokio::test]
+async fn next_tasks_and_progress_describe_the_same_plan() {
+    // next_tasks 는 프로젝트 단위로 뽑히므로, 활성 플랜이 둘이면 서로 다른
+    // 플랜의 항목이 섞여 올 수 있다. 그러면 그 옆에 붙는 진행률(대표 플랜
+    // 하나 기준)과 목록이 다른 것을 가리키게 된다.
+    let (_dir, db) = empty_db().await;
+    insert_entry(&db, 1, 0, "09:00", "feature", "일지", "claude-code", None).await;
+    db.conn()
+        .call(|c| {
+            c.execute_batch(
+                r#"
+INSERT INTO oculpm_plans (project_id, plan_id, title, status, owner_agent, progress, file_path, updated_at)
+VALUES (1, 'newer', '최신 계획', 'active', 'claude-code', 0.5,
+        '.oculpm/planner/newer.md', '2026-07-31T12:00:00+09:00'),
+       (1, 'older', '오래된 계획', 'active', 'claude-code', 0.1,
+        '.oculpm/planner/older.md', '2026-07-01T12:00:00+09:00');
+INSERT INTO oculpm_plan_items (project_id, plan_id, item_id, title, status, order_idx)
+VALUES (1, 'newer', 'n1', '최신 항목 A', 'todo', 0),
+       (1, 'newer', 'n2', '최신 항목 B', 'todo', 1),
+       (1, 'older', 'o1', '오래된 항목', 'in_progress', 0);
+"#,
+            )?;
+            Ok::<(), tokio_rusqlite::Error>(())
+        })
+        .await
+        .unwrap();
+
+    let brief = home::collect(&db, 14).await.unwrap();
+    let p = &brief.projects[0];
+    let plan = p.active_plan.as_ref().unwrap();
+
+    assert_eq!(plan.plan_id, "newer", "가장 최근 갱신된 활성 플랜이 대표");
+    assert!(
+        p.next_tasks.iter().all(|i| i.plan_id == plan.plan_id),
+        "목록과 진행률이 같은 플랜을 가리켜야 한다 — 실제: {:?}",
+        p.next_tasks.iter().map(|i| &i.plan_id).collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test]
+async fn parent_items_and_cancelled_items_stay_out_of_the_counts() {
+    // 부모(컨테이너) 항목은 실행 대상이 아니고, dropped/deferred 는 끝낼 수
+    // 없는 항목이라 분모에 남으면 진행률이 100%에 못 닿는다.
+    let (_dir, db) = empty_db().await;
+    insert_entry(&db, 1, 0, "09:00", "feature", "일지", "claude-code", None).await;
+    db.conn()
+        .call(|c| {
+            c.execute_batch(
+                r#"
+INSERT INTO oculpm_plans (project_id, plan_id, title, status, owner_agent, progress, file_path, updated_at)
+VALUES (1, 'p', '계획', 'active', 'claude-code', 0.5, '.oculpm/planner/p.md', '2026-07-31T10:00:00+09:00');
+INSERT INTO oculpm_plan_items (project_id, plan_id, item_id, title, status, order_idx, parent_item)
+VALUES (1, 'p', 'parent', '묶음 항목',   'todo',    0, NULL),
+       (1, 'p', 'c1',     '자식 A',      'done',    1, 'parent'),
+       (1, 'p', 'c2',     '자식 B',      'todo',    2, 'parent'),
+       (1, 'p', 'gone',   '취소된 항목', 'dropped', 3, NULL);
+"#,
+            )?;
+            Ok::<(), tokio_rusqlite::Error>(())
+        })
+        .await
+        .unwrap();
+
+    let brief = home::collect(&db, 14).await.unwrap();
+    let p = &brief.projects[0];
+
+    assert!(
+        p.next_tasks.iter().all(|i| i.item_id != "parent"),
+        "부모 항목이 다음 할 일 슬롯을 차지하면 안 된다"
+    );
+    assert_eq!(p.next_tasks.len(), 1);
+    assert_eq!(p.next_tasks[0].item_id, "c2");
+
+    let plan = p.active_plan.as_ref().unwrap();
+    assert_eq!(plan.done, 1, "자식 중 done 1건");
+    assert_eq!(plan.total, 2, "부모와 dropped 를 뺀 실행 가능 항목 2건");
+}
+
+#[tokio::test]
 async fn project_with_only_plan_or_identity_is_not_dropped() {
     // 그린필드 직후 — 일지 0건이지만 플랜/정체성은 있다. 홈에서 사라지면 안 된다.
     let (_dir, db) = empty_db().await;
@@ -227,7 +352,7 @@ async fn project_with_only_plan_or_identity_is_not_dropped() {
         .call(|c| {
             c.execute_batch(
                 r#"
-INSERT INTO projects (id, name, root_path, created_at) VALUES (7, 'fresh', '/tmp/fresh', 0);
+INSERT OR IGNORE INTO projects (id, name, root_path, created_at) VALUES (7, 'fresh', '/tmp/fresh', 0);
 INSERT INTO project_overviews (project_id, identity) VALUES (7, '갓 만든 프로젝트');
 INSERT INTO oculpm_plans (project_id, plan_id, title, status, owner_agent, progress, file_path, updated_at)
 VALUES (7, 'kickoff', '착수', 'active', 'claude-code', 0, '.oculpm/planner/kickoff.md', '2026-07-31T10:00:00+09:00');
@@ -256,7 +381,7 @@ async fn blank_identity_is_treated_as_absent() {
     db.conn()
         .call(|c| {
             c.execute_batch(
-                "INSERT INTO projects (id, name, root_path, created_at) VALUES (1, 'p', '/tmp/p', 0);
+                "INSERT OR IGNORE INTO projects (id, name, root_path, created_at) VALUES (1, 'p', '/tmp/p', 0);
                  INSERT INTO project_overviews (project_id, identity) VALUES (1, '');",
             )?;
             Ok::<(), tokio_rusqlite::Error>(())

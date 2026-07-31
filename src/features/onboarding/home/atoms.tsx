@@ -142,15 +142,25 @@ export function RowActions({
   name,
   onRename,
   onDelete,
+  tabbable = true,
 }: {
   name: string;
   onRename: () => void;
   onDelete: () => void;
+  /**
+   * 이 행이 목록의 탭 스톱인가. 레일 행은 로빙 tabindex 라 '열기' 버튼이
+   * 커서 행에서만 tabIndex=0 인데, 액션 버튼을 기본값(0)으로 두면 **Tab 순서에
+   * 파괴적 액션(제거)만 남고 정작 '열기'는 빠지는** 뒤집힌 상태가 된다.
+   * 그래서 액션도 같은 규칙을 따른다 — 커서 행에서만 Tab 으로 닿는다.
+   */
+  tabbable?: boolean;
 }) {
+  const tabIndex = tabbable ? 0 : -1;
   return (
     <span className="home-actions home-above">
       <button
         type="button"
+        tabIndex={tabIndex}
         className="home-iconbtn"
         aria-label={`${name} 이름 변경`}
         onClick={(e) => {
@@ -162,6 +172,7 @@ export function RowActions({
       </button>
       <button
         type="button"
+        tabIndex={tabIndex}
         className="home-iconbtn home-iconbtn--danger"
         aria-label={`${name} 제거`}
         onClick={(e) => {

@@ -127,6 +127,11 @@ fn workday_key(offset_days: i64) -> String {
 }
 
 /// 홈 화면 집계 전체. SQL 6문, 프로젝트 수 무관.
+///
+/// 모든 쿼리가 `JOIN projects` 를 낀다. `oculpm_journal` 은 `projects` 로의
+/// 외래키가 없어서(migrations/012) 프로젝트를 워크스페이스에서 제거해도 일지
+/// 행이 그대로 남는다 — 조인하지 않으면 지워진 프로젝트의 일지가 `today_total`
+/// 과 `active_projects` 에 계속 더해지고, 피드에는 열 수 없는 유령 행이 뜬다.
 pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
     let days = days.clamp(DAYS_MIN, DAYS_MAX);
     let today = workday_key(0);
@@ -146,8 +151,10 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             let mut totals: HashMap<u32, (u32, Option<String>, Option<String>)> = HashMap::new();
             {
                 let mut stmt = c.prepare(
-                    "SELECT project_id, COUNT(*), MAX(created_at), MAX(workday)
-                       FROM oculpm_journal GROUP BY project_id",
+                    "SELECT j.project_id, COUNT(*), MAX(j.created_at), MAX(j.workday)
+                       FROM oculpm_journal j
+                       JOIN projects p ON p.id = j.project_id
+                      GROUP BY j.project_id",
                 )?;
                 let rows = stmt.query_map([], |r| {
                     Ok((
@@ -167,9 +174,11 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             let mut days_map: HashMap<u32, Vec<HomeDayCount>> = HashMap::new();
             {
                 let mut stmt = c.prepare(
-                    "SELECT project_id, workday, COUNT(*)
-                       FROM oculpm_journal WHERE workday >= ?1
-                      GROUP BY project_id, workday",
+                    "SELECT j.project_id, j.workday, COUNT(*)
+                       FROM oculpm_journal j
+                       JOIN projects p ON p.id = j.project_id
+                      WHERE j.workday >= ?1
+                      GROUP BY j.project_id, j.workday",
                 )?;
                 let rows = stmt.query_map(params![since_q], |r| {
                     Ok((
@@ -197,10 +206,11 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             {
                 let mut stmt = c.prepare(
                     "SELECT project_id, title, type, agent_id, agent_version FROM (
-                       SELECT project_id, title, type, agent_id, agent_version,
-                              ROW_NUMBER() OVER (PARTITION BY project_id
-                                  ORDER BY created_at DESC, relative_path DESC) rn
-                         FROM oculpm_journal
+                       SELECT j.project_id, j.title, j.type, j.agent_id, j.agent_version,
+                              ROW_NUMBER() OVER (PARTITION BY j.project_id
+                                  ORDER BY j.created_at DESC, j.relative_path DESC) rn
+                         FROM oculpm_journal j
+                         JOIN projects p ON p.id = j.project_id
                      ) WHERE rn = 1",
                 )?;
                 let rows = stmt.query_map([], |r| {
@@ -222,10 +232,11 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             let mut feed: Vec<HomeFeedItem> = Vec::new();
             {
                 let mut stmt = c.prepare(
-                    "SELECT project_id, relative_path, workday, created_at, title, type,
-                            agent_id, agent_version
-                       FROM oculpm_journal
-                      ORDER BY created_at DESC, relative_path DESC LIMIT ?1",
+                    "SELECT j.project_id, j.relative_path, j.workday, j.created_at, j.title,
+                            j.type, j.agent_id, j.agent_version
+                       FROM oculpm_journal j
+                       JOIN projects p ON p.id = j.project_id
+                      ORDER BY j.created_at DESC, j.relative_path DESC LIMIT ?1",
                 )?;
                 let rows = stmt.query_map(params![FEED_LIMIT], |r| {
                     Ok(HomeFeedItem {
@@ -257,13 +268,24 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
                               p.progress,
                               ROW_NUMBER() OVER (PARTITION BY i.project_id
                                   ORDER BY (i.status='in_progress') DESC,
-                                           p.updated_at DESC, i.order_idx ASC) rn
+                                           p.updated_at DESC, i.order_idx ASC) rn,
+                              DENSE_RANK() OVER (PARTITION BY i.project_id
+                                  ORDER BY p.updated_at DESC, p.plan_id ASC) plan_rank
                          FROM oculpm_plan_items i
                          JOIN oculpm_plans p
                            ON p.project_id = i.project_id AND p.plan_id = i.plan_id
+                         JOIN projects pr ON pr.id = i.project_id
                         WHERE p.status = 'active'
+                          -- 컨테이너(부모) 항목은 실행 대상이 아니다. 자식을
+                          -- 거느린 항목이 다음 할 일 슬롯을 잠식하면 정작
+                          -- 손댈 수 있는 일이 밀려난다.
+                          AND NOT EXISTS (
+                                SELECT 1 FROM oculpm_plan_items c
+                                 WHERE c.project_id = i.project_id
+                                   AND c.plan_id = i.plan_id
+                                   AND c.parent_item = i.item_id)
                           AND i.status IN ('todo','in_progress','blocked')
-                     ) WHERE rn <= ?1",
+                     ) WHERE plan_rank = 1 AND rn <= ?1",
                 )?;
                 let rows = stmt.query_map(params![NEXT_TASK_CAP as i64], |r| {
                     Ok((
@@ -295,9 +317,20 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             let mut counts: HashMap<(u32, String), (u32, u32)> = HashMap::new();
             {
                 let mut stmt = c.prepare(
-                    "SELECT project_id, plan_id,
-                            SUM(CASE WHEN status='done' THEN 1 ELSE 0 END), COUNT(*)
-                       FROM oculpm_plan_items GROUP BY project_id, plan_id",
+                    // 모수에서 컨테이너(부모) 항목과 취소/보류 항목을 뺀다 —
+                    // 넣으면 "3/12" 같은 수치가 플래너 화면과 어긋나고, 끝낼
+                    // 수 없는 항목이 분모에 남아 진행률이 100%에 못 닿는다.
+                    "SELECT i.project_id, i.plan_id,
+                            SUM(CASE WHEN i.status='done' THEN 1 ELSE 0 END), COUNT(*)
+                       FROM oculpm_plan_items i
+                       JOIN projects p ON p.id = i.project_id
+                      WHERE i.status NOT IN ('dropped','deferred')
+                        AND NOT EXISTS (
+                              SELECT 1 FROM oculpm_plan_items c
+                               WHERE c.project_id = i.project_id
+                                 AND c.plan_id = i.plan_id
+                                 AND c.parent_item = i.item_id)
+                      GROUP BY i.project_id, i.plan_id",
                 )?;
                 let rows = stmt.query_map([], |r| {
                     Ok((
@@ -317,8 +350,9 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             let mut identity: HashMap<u32, String> = HashMap::new();
             {
                 let mut stmt = c.prepare(
-                    "SELECT project_id, identity FROM project_overviews
-                      WHERE identity IS NOT NULL AND identity <> ''",
+                    "SELECT o.project_id, o.identity FROM project_overviews o
+                       JOIN projects p ON p.id = o.project_id
+                      WHERE o.identity IS NOT NULL AND o.identity <> ''",
                 )?;
                 let rows = stmt.query_map([], |r| {
                     Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))

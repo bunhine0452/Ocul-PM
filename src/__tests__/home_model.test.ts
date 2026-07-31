@@ -14,7 +14,6 @@ import {
   isQuiet,
   QUIET_DAYS,
   relativeTime,
-  SPARK_DAYS,
   sparkSeries,
   tildePath,
 } from "@/features/onboarding/home/homeModel";
@@ -306,9 +305,53 @@ describe("buildHome — 랭킹과 티어", () => {
       commands: [{ id: "cmd:add", label: "기존 폴더 불러오기", hint: "⌘O", run: () => {} }],
     });
 
+    // flat 은 **레일 행만** 담는다 — 벤토 타일(hero/panels)은 커서 평면에
+    // 들어가지 않는다. 타일이 여기 섞이면 flat[0] 이 커서에 등록되지 않은
+    // 요소를 가리켜 레일의 탭 스톱이 0개가 되고 ↓/↑/Home 이 전부 죽는다.
     const kinds = m.flat.map((r) => r.kind);
-    expect(kinds).toEqual(["project", "project", "project", "project", "draft", "command"]);
-    expect(m.flat[0].kind === "project" && m.flat[0].project.name).toBe("alpha");
+    expect(kinds).toEqual(["project", "draft", "command"]);
+    // hero(alpha)·panels(bravo, charlie)는 제외, quiet(delta)만 레일에 남는다.
+    expect(m.flat[0].kind === "project" && m.flat[0].project.name).toBe("delta");
+    expect(m.hero?.project.name).toBe("alpha");
+
+    // ⏎ 는 사령탑을 연다 (flat[0] 이 아니다).
+    expect(m.primary).toBe(m.hero);
+  });
+
+  it("검색 중에는 primary 가 1위 결과 — flat[0] 과 같아진다", () => {
+    const m = buildHome({
+      projects,
+      brief: brief(),
+      blueprints: [],
+      query: "charlie",
+      now: NOW,
+      commands: [],
+    });
+    expect(m.hero).toBeNull();
+    expect(m.primary).toBe(m.flat[0]);
+    expect(m.primary!.kind === "project" && m.primary!.project.name).toBe("charlie");
+  });
+
+  it("벤토 타일은 flat 에 절대 들어가지 않는다 (커서 사망 회귀 방지)", () => {
+    const recent = "2026-07-30T10:00:00+09:00";
+    const m = buildHome({
+      projects,
+      brief: brief({
+        projects: [
+          pb(1, { today_count: 3, last_at: recent }),
+          pb(2, { last_at: recent }),
+          pb(3, { last_at: recent }),
+        ],
+      }),
+      blueprints: [],
+      query: "",
+      now: NOW,
+      commands: [],
+    });
+    const tileIds = [m.hero!.id, ...m.panels.map((p) => p.id)];
+    for (const id of tileIds) {
+      expect(m.flat.some((r) => r.id === id)).toBe(false);
+    }
   });
 
   it("오늘 총계와 데이트라인은 brief 를 따른다", () => {

@@ -360,6 +360,8 @@ function App() {
         onReindex={
           selectedProjectId !== null ? () => startIndex(selectedProjectId, false) : undefined
         }
+        projects={projects}
+        onSelectProject={handleSelectProject}
       />
 
       {settingsOpen && (
@@ -496,6 +498,7 @@ function SettingsOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      data-home-overlay
       className="fixed inset-0 z-[90] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -514,7 +517,11 @@ function SettingsOverlay({ onClose }: { onClose: () => void }) {
             </svg>
           </button>
         </header>
-        <div className="overflow-y-auto scrollbar-thin">
+        {/* `embedded` 는 **호스트가 좌우 여백을 준다**는 전제로 만들어졌다
+            (ShellV2 는 `.page` 로 감싼다 — ShellV2.tsx). 이 모달은 그동안
+            패딩 없는 div 로 감싸고 있어서 탭·입력·카드가 전부 카드 가장자리에
+            붙어 있었다. 헤더의 px-6 과 같은 좌우 여백을 준다. */}
+        <div className="overflow-y-auto scrollbar-thin px-6 pt-5">
           <SettingsPanel embedded />
         </div>
       </div>

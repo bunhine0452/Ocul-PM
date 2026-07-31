@@ -14,7 +14,7 @@ import {
 } from "@/components/Icons";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
-import { commands, type DocsTreeNode, type EntityHit } from "@/lib/bindings";
+import { commands, type DocsTreeNode, type EntityHit, type Project } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -34,6 +34,13 @@ interface CommandPaletteProps {
   onReindex?: () => void;
   /** Trigger overview regeneration. */
   onRegenerateOverview?: () => void;
+  /**
+   * 대시보드(프로젝트 미선택)에서 팔레트가 사실상 비어 있던 문제를 메운다 —
+   * 나머지 액션이 전부 `currentProjectId !== null` 로 게이트돼 있어서, 앱을
+   * 열자마자 ⌘K 를 누르면 화면 이동 항목만 나오고 그것들도 동작하지 않았다.
+   */
+  projects?: Project[];
+  onSelectProject?: (p: Project) => void;
 }
 
 type CommandItem = {
@@ -41,7 +48,7 @@ type CommandItem = {
   label: string;
   // Korean alias for fuzzy matching ("체인지로그" → Changelog)
   alias?: string;
-  group: "이동" | "액션" | "ocul-pm";
+  group: "프로젝트 열기" | "이동" | "액션" | "ocul-pm";
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
@@ -64,6 +71,8 @@ export function CommandPalette({
   onOpenSettings,
   onReindex,
   onRegenerateOverview,
+  projects,
+  onSelectProject,
 }: CommandPaletteProps) {
   const { setUiV2View, state } = useWorkspace();
   const [search, setSearch] = useState("");
@@ -148,6 +157,21 @@ export function CommandPalette({
 
   const items: CommandItem[] = useMemo(
     () => [
+      // ── 프로젝트 열기 — 대시보드에서만. 프로젝트가 열려 있으면 사이드바의
+      // 전환 팝오버(⌘P)가 그 역할을 하므로 중복해서 싣지 않는다.
+      ...(state.currentProjectId === null && projects && onSelectProject
+        ? projects.map((p) => ({
+            id: `open-project-${p.id}`,
+            label: p.name,
+            alias: p.root_path,
+            group: "프로젝트 열기" as const,
+            icon: FolderGit2,
+            onSelect: () => {
+              onSelectProject(p);
+              onOpenChange(false);
+            },
+          }))
+        : []),
       // ── 이동 — navRegistry 단일 소스에서 파생 (v2 U1). 사이드바의 모든
       // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
       ...NAV_ENTRIES.map((e) => ({
@@ -280,7 +304,7 @@ export function CommandPalette({
           ]
         : []),
     ],
-    [onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, state.currentProjectId, state.currentSession],
+    [onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, state.currentProjectId, state.currentSession],
   );
 
   // Group items by `group` field, preserving the original order so the
@@ -297,6 +321,7 @@ export function CommandPalette({
 
   return (
     <div
+      data-home-overlay
       className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);

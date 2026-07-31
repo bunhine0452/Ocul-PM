@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { FolderOpen, Sparkles, Settings, Trash2, Clock } from "@/components/Icons";
 import type { Project, ProjectBlueprint } from "@/lib/bindings";
 
-import { AgentBadge, Highlight, Mark, Progress, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
+import { Highlight, Mark, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
 import {
   initials,
   relativeTime,
@@ -28,6 +28,12 @@ import {
 /** 커서/포커스 배선 — 모든 행이 같은 형태로 받는다. */
 export interface RowWiring {
   isCursor: boolean;
+  /**
+   * 이 행이 목록의 탭 스톱인가. 로빙 tabindex 의 핵심: 목록 전체에서 **정확히
+   * 하나**가 true 여야 한다. 커서가 있으면 그 행, 아직 없으면(초기 상태)
+   * 첫 행 — 둘 다 아니면 Tab 으로 목록에 진입할 방법이 사라진다.
+   */
+  tabbable: boolean;
   register: (id: string, el: HTMLElement | null) => void;
   onRowKeyDown: (e: React.KeyboardEvent) => void;
   onRowFocus: (id: string) => void;
@@ -37,7 +43,7 @@ export interface RowWiring {
 function wire(row: { id: string }, w: RowWiring) {
   return {
     ref: (el: HTMLElement | null) => w.register(row.id, el),
-    tabIndex: w.isCursor ? 0 : -1,
+    tabIndex: w.tabbable ? 0 : -1,
     onKeyDown: w.onRowKeyDown,
     onFocus: () => w.onRowFocus(row.id),
     onMouseMove: () => w.onRowPointerMove(row.id),
@@ -115,7 +121,12 @@ export function ProjectRow({
       <span className="home-when">{when}</span>
 
       <span className="home-row-actions flex justify-end">
-        <RowActions name={p.name} onRename={() => onRename(p)} onDelete={() => onDelete(p)} />
+        <RowActions
+          name={p.name}
+          onRename={() => onRename(p)}
+          onDelete={() => onDelete(p)}
+          tabbable={wiring.tabbable}
+        />
       </span>
     </li>
   );
@@ -225,7 +236,7 @@ export function DraftRow({
             <span className="text-[11px] text-[var(--text-2)]">정말 버릴까요?</span>
             <button
               type="button"
-              className="home-kbd cursor-pointer hover:text-[var(--t-bug)]"
+              className="home-chipbtn home-chipbtn--danger"
               onClick={(e) => {
                 e.stopPropagation();
                 onDiscard(bp.id);
@@ -235,7 +246,7 @@ export function DraftRow({
             </button>
             <button
               type="button"
-              className="home-kbd cursor-pointer"
+              className="home-chipbtn"
               onClick={(e) => {
                 e.stopPropagation();
                 setConfirming(false);
@@ -325,11 +336,3 @@ export function HomeSection({ title, count }: { title: string; count?: number })
   );
 }
 
-/** 프로젝트 행 그룹의 진행률 — 활성 플랜이 있을 때만. */
-export function PlanProgress({ row }: { row: ProjectRowT }) {
-  const plan = row.snap?.activePlan;
-  if (!plan) return null;
-  return <Progress done={plan.done} total={plan.total} />;
-}
-
-export { AgentBadge };

@@ -33,6 +33,8 @@ export interface UseHomeCursor {
    * 밑을 지나가는 것만으로 커서를 빼앗아 간다.
    */
   onRowPointerMove: (id: string) => void;
+  /** 커서 행이 실제로 포커스를 갖고 있는가 (파괴적 단축키의 전제 조건). */
+  isFocusedRow: () => boolean;
   /** 커서를 비운다 (Esc 2단의 2단계). */
   reset: () => void;
 }
@@ -124,6 +126,18 @@ export function useHomeCursor(args: {
     [],
   );
 
+  /**
+   * 커서가 **키보드로** 놓인 것인지. 마우스가 스쳐 지나간 행을 대상으로
+   * `⌘E`(이름 변경)·`⌘⌫`(제거)가 발동하면 안 된다 — 포인터는 화면을 가로지르며
+   * 아무 행이나 지나가지만 사용자의 의도는 그게 아니다. 파괴적 액션은 실제로
+   * 포커스를 가진 행에만 적용한다.
+   */
+  const isFocusedRow = useCallback(() => {
+    if (id === null) return false;
+    const el = els.current.get(id);
+    return !!el && el === document.activeElement;
+  }, [id]);
+
   const reset = useCallback(() => setId(null), []);
 
   return {
@@ -134,6 +148,7 @@ export function useHomeCursor(args: {
     onRowKeyDown,
     onRowFocus,
     onRowPointerMove,
+    isFocusedRow,
     reset,
   };
 }

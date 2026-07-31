@@ -398,6 +398,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
   return (
     <div
+      data-home-overlay
       className="fixed inset-0 z-[90] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();

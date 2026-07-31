@@ -88,8 +88,21 @@ export interface HomeModel {
   quiet: ProjectRowT[];
   drafts: DraftRowT[];
   commands: CommandRowT[];
-  /** 커서 이동용 시각 순서 평면 — hero → panels → rows → quiet → drafts → commands. */
+  /**
+   * 키보드 커서가 훑는 평면 — **레일 행들만** (rows → quiet → drafts → commands).
+   *
+   * 벤토 타일(hero/panels)은 여기 넣지 않는다. 타일의 제목 버튼은 평범한
+   * `<button>` 이라 기본 탭 순서에 이미 들어 있고, 로빙 tabindex 로 관리되는
+   * 것은 레일뿐이기 때문이다. 예전에 타일을 이 배열에 섞었더니 `flat[0]` 이
+   * 커서에 등록되지 않은 hero 를 가리켜 **레일의 탭 스톱이 0개가 되고 ↓/↑/Home
+   * 이 전부 죽었다** — 등록된 엘리먼트가 없어 focusRow 가 조용히 반환했다.
+   */
   flat: HomeRow[];
+  /**
+   * 검색창에서 ⏎ 를 눌렀을 때 열 대상. 검색 중이면 1위 결과, 아니면 사령탑
+   * (= "이어서 일하기"). `flat[0]` 과 다를 수 있으므로 별도 필드로 둔다.
+   */
+  primary: HomeRow | null;
   dateline: string;
   todayTotal: number;
   /** 검색 결과를 스크린리더에 알리는 문장 (aria-live). */
@@ -294,14 +307,9 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
     quiet = rest;
   }
 
-  const flat: HomeRow[] = [
-    ...(hero ? [hero] : []),
-    ...panels,
-    ...rows,
-    ...quiet,
-    ...drafts,
-    ...commandRows,
-  ];
+  // 커서 평면은 레일 행만. 벤토 타일은 기본 탭 순서가 담당한다 (위 주석 참고).
+  const flat: HomeRow[] = [...rows, ...quiet, ...drafts, ...commandRows];
+  const primary: HomeRow | null = hero ?? flat[0] ?? null;
 
   const matched = searching ? rows.length : all.length;
   const liveMessage = searching
@@ -318,6 +326,7 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
     drafts,
     commands: commandRows,
     flat,
+    primary,
     dateline: formatDateline(new Date(now), brief ? brief.today_total : null, projects.length),
     todayTotal: brief?.today_total ?? 0,
     liveMessage,

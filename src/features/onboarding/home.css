@@ -23,7 +23,9 @@
 .home::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto 0;
+  /* 상단 레일(44px, 불투명)이 끝나는 지점부터 — 레일이 그라디언트의 정점을
+     덮어 경계에 단차가 생기는 걸 피한다. */
+  inset: 44px 0 auto 0;
   height: 320px;
   background: radial-gradient(80% 100% at 50% 0%, var(--accent-soft) 0%, transparent 70%);
   opacity: 0.5;
@@ -45,21 +47,29 @@
 .home-rail {
   position: sticky;
   top: 0;
-  z-index: 30;
+  /* z-index 는 낮게 유지한다 — 이 화면의 크롬이 오버레이(설정 z-90, 커맨드
+     팔레트 z-100)보다 위로 올라가면 안 된다. */
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 14px;
   height: 44px;
   border-bottom: 1px solid var(--sep);
-  /* 스크롤 콘텐츠가 밑으로 지나갈 때 글자가 겹쳐 보이지 않게. */
-  background: color-mix(in srgb, var(--bg-sidebar) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* 불투명 배경 — backdrop-filter 를 쓰지 않는다. sticky + backdrop-filter 는
+     WKWebView 에서 별도 합성 레이어를 강제해 스크롤 중 미세한 어긋남을 만들고,
+     스크롤 콘텐츠를 가린다는 목적 자체는 불투명 배경만으로 달성된다. */
+  background: var(--bg-sidebar);
 }
 
-/* macOS 는 titleBarStyle Overlay — 신호등이 좌상단에 떠 있어 그만큼 비운다. */
+/* macOS 는 titleBarStyle Overlay — 신호등이 창 좌상단 ~78px 를 차지한다.
+   그런데 이 레일은 중앙 정렬된 .home-wrap(max 1240 + 좌우 28) 안에 있어서,
+   무조건 78px 를 더하면 창이 넓을 때 밴드 0 만 오른쪽으로 밀려 밴드 1(검색)과
+   좌측 정렬선이 어긋난다. 실제로 부족한 만큼만 채운다:
+     창 왼쪽 → wrap 콘텐츠 좌단 = max(0, (100vw - 1240px)/2) + 28px
+   이 값이 78px 에 못 미칠 때만 그 차이를 padding 으로 준다. 넓은 창에서는
+   0 이 되어 두 밴드의 정렬선이 정확히 일치한다. */
 .home-rail[data-mac="1"] {
-  padding-left: 78px;
+  padding-left: max(0px, calc(50px - max(0px, (100vw - 1240px) / 2)));
 }
 
 .home-wordmark {
@@ -148,7 +158,10 @@
 .home-tile:active {
   transform: translateY(0) scale(0.995);
 }
-.home-tile:focus-within {
+/* `:focus-within` 이 아니라 `:has(:focus-visible)` — 전자는 마우스로 그냥
+   클릭만 해도 340px 짜리 사령탑 전체에 액센트 아웃라인이 남는다. 키보드로
+   들어왔을 때만 테두리를 보여준다. */
+.home-tile:has(:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -157,6 +170,11 @@
 .home-tile--hero {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sheet);
+}
+/* `.home-tile:hover` 와 특이성이 같아 순서로 지면 사령탑이 hover 때 오히려
+   '시트' 깊이를 잃는다. 같은 특이성 싸움을 피하려고 명시적으로 다시 준다. */
+.home-tile--hero:hover {
+  box-shadow: var(--shadow-sheet), var(--shadow-raise);
 }
 
 /* ── 벤토 그리드 ────────────────────────────────────────────────────── */
@@ -201,13 +219,18 @@
   border: 1px solid var(--border-card);
   border-radius: var(--radius-l);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  /* `clip` 이지 `hidden` 이 아니다 — hidden 은 스크롤 컨테이너를 만들어서
+     안쪽 .home-sechead 의 position:sticky 가 이 박스 기준으로 묶여 버린다
+     (이 박스는 스크롤되지 않으므로 헤더가 전혀 안 붙는다). clip 은 스크롤
+     컨테이너를 만들지 않아 sticky 가 실제 스크롤 조상(.home)을 따른다. */
+  overflow: clip;
 }
 
 .home-sechead {
   position: sticky;
   top: 44px; /* 상단 레일 높이 */
-  z-index: 10;
+  /* 행들 위, 상단 레일 아래. 오버레이(z-90/100)보다는 항상 낮다. */
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -255,7 +278,9 @@
 .home-row:active {
   background: var(--bg-active);
 }
-.home-row:focus-visible {
+/* 포커스를 실제로 받는 것은 행 안의 '열기' 버튼이므로 자손 기준으로 건다
+   (행 자체는 tabindex 가 없어 :focus-visible 이 매칭될 수 없다). */
+.home-row:has(:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -304,7 +329,7 @@
 .home-quiet-row:hover .home-quiet-name {
   color: var(--accent-text);
 }
-.home-quiet-row:focus-visible {
+.home-quiet-row:has(:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -377,7 +402,11 @@
 .home-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* 8px — 아래 ::after 히트 영역(36px)이 이웃과 겹치지 않는 최소 간격.
+     예전엔 gap 2px + 히트 44px 라 두 버튼의 히트가 14px 겹쳤고, 겹친 구간은
+     나중에 그려지는 '제거'가 이겼다. 즉 이름 변경 버튼의 오른쪽 6px 를 누르면
+     삭제 확인창이 떴다 — 파괴적 액션에서 절대 있으면 안 되는 오작동. */
+  gap: 8px;
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
 }
@@ -408,14 +437,17 @@
     color var(--dur-1) var(--ease-out),
     background var(--dur-1) var(--ease-out);
 }
-/* 시각 크기는 28px 이지만 히트 영역은 44px — 손가락/트랙패드용. */
+/* 시각 크기는 28px, 히트 영역은 36×40 으로 넓힌다.
+   가로는 36px 를 넘기면 안 된다 — 버튼 28px + gap 8px = 중심 간격 36px 이라
+   그보다 넓으면 이웃 버튼의 히트 영역을 침범한다 (파괴적 액션 오작동).
+   세로는 행 높이(56px) 안에서 자유로우므로 40px 로 넉넉히 잡는다. */
 .home-iconbtn::after {
   content: "";
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 40px;
   transform: translate(-50%, -50%);
 }
 .home-iconbtn:hover {
@@ -524,6 +556,45 @@
   white-space: nowrap;
 }
 
+/* 칩 버튼 — AddTile 의 '기존 폴더'/'새 프로젝트', 초안 행의 '예'/'아니오'.
+   예전엔 .home-kbd 에 Tailwind 유틸(px-2 py-1 hover:text-*)을 얹었는데,
+   home.css 는 컴포넌트 import 로 들어와 **레이어가 없고** Tailwind 유틸은
+   @layer utilities 안에 있다. unlayered 가 항상 이기므로 .home-kbd 의
+   padding:1px 4px 가 px-2/py-1 을 눌러 버리고 hover:text-* 도 죽었다.
+   그래서 칩은 별도 클래스로 완결시킨다 (유틸리티를 얹지 않는다). */
+.home-chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.home-chipbtn:hover {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.home-chipbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.home-chipbtn--danger:hover {
+  color: var(--t-bug);
+  border-color: var(--t-bug);
+  background: var(--t-bug-soft);
+}
+
 /* 검색 매칭 하이라이트 */
 .home-hit {
   background: var(--accent-soft);
@@ -592,7 +663,9 @@
 .home-actionbar {
   position: sticky;
   bottom: 0;
-  z-index: 20;
+  /* 상단 레일과 같은 이유로 낮은 z-index + 불투명 배경 (backdrop-filter 금지).
+     예전엔 이 바도 설정 창 위로 뚫고 올라와 하단에 줄이 하나 떠 보였다. */
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -601,9 +674,7 @@
   padding: 0 16px;
   border-top: 1px solid var(--sep);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-card);
   font-size: 11px;
   color: var(--text-2);
 }

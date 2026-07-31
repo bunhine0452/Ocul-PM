@@ -142,6 +142,15 @@ export function StartScreen(props: StartScreenProps) {
     }
 
     function onKey(e: KeyboardEvent) {
+      // 오버레이(설정·그린필드 마법사·이름변경/제거 다이얼로그·커맨드 팔레트)가
+      // 떠 있는 동안에는 이 화면의 전역 키를 전부 내려놓는다. 안 그러면 열린
+      // 다이얼로그의 버튼에 포커스가 있을 때 글자를 치면 타입어헤드가 뒤에 있는
+      // 검색창으로 포커스를 끌어내 모달 밖으로 탈출한다.
+      if (document.querySelector('[role="dialog"], [data-home-overlay]')) return;
+
+      // IME 조합 중에는 키를 가로채지 않는다 — 조합 중 키다운은 확정 신호다.
+      if (e.isComposing || e.keyCode === 229) return;
+
       const mod = e.metaKey || e.ctrlKey;
       const typing = isTyping(e.target);
 
@@ -157,9 +166,15 @@ export function StartScreen(props: StartScreenProps) {
           onStartGreenfield();
           return;
         }
-        if (k === "e" && cursor.row?.kind === "project") {
-          e.preventDefault();
-          onRenameProject(cursor.row.project);
+        // ⌘E / ⌘⌫ 는 **키보드로 포커스한 행**에만 적용한다. 커서는 마우스가
+        // 스쳐 지나가도 옮겨가므로(onMouseMove), 포커스 확인 없이 발동하면
+        // 포인터가 우연히 얹힌 프로젝트의 제거 확인창이 뜬다.
+        if (k === "e") {
+          if (typing) return;
+          if (cursor.row?.kind === "project" && cursor.isFocusedRow()) {
+            e.preventDefault();
+            onRenameProject(cursor.row.project);
+          }
           return;
         }
         if (e.key === "Backspace") {
@@ -167,7 +182,7 @@ export function StartScreen(props: StartScreenProps) {
           // 동안은 그 관례를 뺏지 않는다 — 글자를 지우려던 손이 프로젝트
           // 제거 다이얼로그를 띄우면 최악이다.
           if (typing && (e.target as HTMLInputElement).value) return;
-          if (cursor.row?.kind === "project") {
+          if (cursor.row?.kind === "project" && cursor.isFocusedRow()) {
             e.preventDefault();
             onDeleteProject(cursor.row.project);
           }
@@ -188,7 +203,9 @@ export function StartScreen(props: StartScreenProps) {
         return;
       }
       // 타입어헤드 — 아무 데서나 글자를 치면 검색으로 흘러든다.
-      if (e.key.length === 1 && !e.altKey) {
+      // 스페이스는 제외한다: 행 버튼에 포커스가 있을 때 스페이스는 그 행을
+      // 여는 표준 동작이고, 질의 선두 공백은 어차피 trim 되어 의미도 없다.
+      if (e.key.length === 1 && e.key !== " " && !e.altKey) {
         e.preventDefault();
         focusSearch(e.key);
       }
@@ -196,7 +213,7 @@ export function StartScreen(props: StartScreenProps) {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cursor.row, onAddProject, onStartGreenfield, onRenameProject, onDeleteProject]);
+  }, [cursor, onAddProject, onStartGreenfield, onRenameProject, onDeleteProject]);
 
   // ⌘P — useGlobalShortcuts 가 이미 이 이벤트를 쏘고 있는데 대시보드에는
   // 수신자가 없어 무반응이었다. 여기서 받아 검색으로 연결한다.
@@ -211,6 +228,14 @@ export function StartScreen(props: StartScreenProps) {
 
   const onSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // 한글 IME 조합 중의 Enter 는 "후보 확정"이지 "실행"이 아니다. 가드가
+      // 없으면 "회고"를 치다가 조합을 확정하는 순간 프로젝트가 열려 버린다.
+      // (`keyCode === 229` 는 조합 중 키다운의 전통적 신호 — Safari 포함
+      //  일부 엔진이 isComposing 을 늦게 세팅해 둘 다 본다.)
+      const composing =
+        e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229;
+      if (composing) return;
+
       if (e.key === "ArrowDown") {
         e.preventDefault();
         cursor.focusFirst();
@@ -219,8 +244,8 @@ export function StartScreen(props: StartScreenProps) {
       if (e.key === "Enter") {
         e.preventDefault();
         // 포커스를 옮기지 않고 1위를 연다 — "타이핑 → ⏎" 고속 경로.
-        const first = model.flat[0];
-        if (first) openRow(first);
+        // primary 는 검색 중이면 1위 결과, 아니면 사령탑이다 (flat[0] 아님).
+        if (model.primary) openRow(model.primary);
         return;
       }
       if (e.key === "Escape") {
@@ -233,20 +258,21 @@ export function StartScreen(props: StartScreenProps) {
         }
       }
     },
-    [cursor, model.flat, openRow, query],
+    [cursor, model.primary, openRow, query],
   );
+
+  // 로빙 tabindex 의 탭 스톱. 커서가 아직 없으면(초기 상태) 첫 행이 맡는다 —
+  // 안 그러면 목록 전체가 tabIndex=-1 이라 Tab 으로 들어갈 방법이 없다.
+  const firstRowId = model.flat[0]?.id ?? null;
 
   const wiringFor = useCallback(
     (row: HomeRow): RowWiring => ({
       isCursor: cursor.id === row.id,
+      tabbable: cursor.id === null ? row.id === firstRowId : cursor.id === row.id,
       register: cursor.register,
       onRowKeyDown: (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          // 스페이스도 활성화로 — 버튼 기본 동작이지만 preventDefault 로
-          // 스크롤이 튀는 걸 막는다.
-          if (e.key === " ") e.preventDefault();
-          return;
-        }
+        // Enter/Space 는 <button> 이 알아서 활성화한다 — 가로채지 않는다.
+        if (e.key === "Enter" || e.key === " ") return;
         if (e.key === "Escape") {
           e.preventDefault();
           cursor.reset();
@@ -258,7 +284,7 @@ export function StartScreen(props: StartScreenProps) {
       onRowFocus: cursor.onRowFocus,
       onRowPointerMove: cursor.onRowPointerMove,
     }),
-    [cursor],
+    [cursor, firstRowId],
   );
 
   const hasProjects = projects.length > 0;
@@ -328,6 +354,7 @@ export function StartScreen(props: StartScreenProps) {
                   brief={brief}
                   projects={projects}
                   loading={loading}
+                  failed={failed}
                   onOpenProject={onSelectProject}
                 />
                 {model.panels.map((row) => (
@@ -341,10 +368,11 @@ export function StartScreen(props: StartScreenProps) {
                     onDelete={onDeleteProject}
                   />
                 ))}
-                {/* 판이 2개가 안 되면 격자에 구멍이 남는다 — 추가 슬롯이 메운다. */}
+                {/* 판이 2개가 안 되면 격자 아랫줄에 구멍이 남는다 — 추가
+                    슬롯이 남은 칸을 정확히 메운다 (판 0개면 12열, 1개면 6열). */}
                 {model.panels.length < 2 && (
                   <AddTile
-                    variant="panel"
+                    variant={model.panels.length === 0 ? "wide" : "panel"}
                     onAddExisting={onAddProject}
                     onStartNew={onStartGreenfield}
                   />
