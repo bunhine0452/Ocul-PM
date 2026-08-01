@@ -19,6 +19,10 @@ ECC(281종)·ponytail 전수 재감사 워크플로(2026-08-01, 6 에이전트·
 - [x] J1 growth-log 규율 이식 — oculpm-journal 스킬에 학습 품질 규율(실패·막다른길 우선 기록, 성과 나열 금지) 추가 {#growth-log}
 - [x] I1 인셉션 보강 번들 — product-lens(인터뷰 질문 프레임) + plan-prd(증거 게이트·anti-fluff) + plan(leaf 항목 Validate 필드) 를 project-inception 스킬·inception 커맨드에 이식 {#inception-bundle}
 
+## Phase R4 — 스킬 샵 표면화 (사용자 요청) {#round-r4}
+- [x] S1 샵 탭 — 카탈로그를 갤러리 모달에서 허브 정식 탭으로 승격 (스택 추천·검색·태그 필터·미리보기·원클릭 설치, 게이트 없음 = 스킬은 Claude Code 네이티브) {#shop-tab}
+- [x] S2 문서 표면 — oculpm.com/plugin 카탈로그 25종 섹션 + 전 스킬 문서화 테스트 게이트 {#shop-docs}
+
 ## 백로그 (합의 채택·후속 라운드) {#round-backlog}
 - [ ] B1 훅 브리지 크로스플랫폼(Windows) — 양판사 now 였으나 앱이 현재 macOS 전용 배포라 Windows 앱 트랙과 동승해야 실효 (commandWindows·stdin fail-open·PreCompact 마커 동반) {#hooks-xplat}
 - [ ] B2 일지 스키마 확장 라운드 — 실패 원장(save-session "실패해서 재시도 금지") + ADR("왜/버린 대안") + growth-log 심화 를 병합 설계로 (독립 이식 금지 — 축 겹침) {#journal-schema-2}
@@ -34,4 +38,5 @@ ECC(281종)·ponytail 전수 재감사 워크플로(2026-08-01, 6 에이전트·
 |---|---|---|---|---|---|
 | 2026-08-01T00:40:00+09:00 | #round-r3 | claude-code | →☐ | | 전수 재감사(91후보→양판사 합의) 채택분 라운드 개설 (사용자 "계속 진행해") |
 | 2026-08-01T00:58:00+09:00 | #vendor-12 #unicode-gate #help-command #delivery-gate #growth-log #inception-bundle | claude-code | →[x] | 20260801/Features_to_add/0057_feature_catalog-round-2-and-delivery-gate.md | R3 전 항목 완료 — 적대 리뷰 6건(HIGH 세션 귀속 오판 포함) 반영, 게이트 8시나리오 기능검증, 전체 게이트 그린 |
+| 2026-08-01T11:08:00+09:00 | #shop-tab #shop-docs | claude-code | →[x] | 20260801/Features_to_add/1105_feature_skill-shop-tab.md | 샵 탭 승격 + plugin.html 카탈로그 동기 게이트 — 리뷰 2건 반영, v2.8.0 릴리스에 탑승 |
 <!-- oculpm:plan-log end -->

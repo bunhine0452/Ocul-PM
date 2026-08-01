@@ -99,6 +99,19 @@ describe("skills catalog (C1 vendored)", () => {
     }
   });
 
+  // oculpm.com/plugin 문서 페이지가 카탈로그 실표면과 동기 — 스킬을 추가하고
+  // 문서를 빼먹으면 여기서 게이트가 실패한다 (커맨드의 plugin_manifest.rs
+  // 게이트와 같은 원칙을 카탈로그로 확장).
+  it("landing/plugin.html 이 카탈로그 전 스킬을 문서화한다", () => {
+    const page = fs.readFileSync(path.join(process.cwd(), "landing", "plugin.html"), "utf8");
+    for (const skill of CATALOG_SKILLS) {
+      expect(page, `landing/plugin.html 에 카탈로그 스킬 ${skill.id} 문서 누락`).toContain(
+        skill.id,
+      );
+    }
+    expect(page).toContain(`카탈로그 ${CATALOG_SKILLS.length}종`);
+  });
+
   // MIT 는 사본 재배포 시 저작권 고지 + 허가 고지 전문 동봉을 요구한다 —
   // 벤더 사본과 함께 업스트림 LICENSE 전문을 catalog/ 에 동봉해야 한다.
   it.each([
