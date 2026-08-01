@@ -59,6 +59,7 @@ function renderStart(over: Partial<StartScreenProps> = {}) {
     onOpenSettings: vi.fn(),
     onStartGreenfield: vi.fn(),
     onResumeBlueprint: vi.fn(),
+    onProjectsChanged: vi.fn(),
     ...over,
   };
   return { ...render(<StartScreen {...props} />), props };

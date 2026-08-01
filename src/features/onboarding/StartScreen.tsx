@@ -28,6 +28,7 @@ import { useHomeCursor } from "./home/useHomeCursor";
 import { HomeActionBar, HomeSearchBand, HomeTopRail } from "./home/chrome";
 import { CommandRow, DraftRow, HomeSection, IndexRow, ProjectRow, type RowWiring } from "./home/rows";
 import { AddTile, FlowTile, OnboardingTile, ProjectPanel, ResumeTile } from "./home/tiles";
+import { ProjectManager } from "@/features/projects/ProjectManager";
 
 /**
  * [중요] 이 타입을 export 해야 테스트가 직접 참조할 수 있다. JSX 스프레드는
@@ -46,6 +47,12 @@ export interface StartScreenProps {
   onStartGreenfield: () => void;
   /** 임시 저장 초안을 저장 단계부터 이어서 연다. */
   onResumeBlueprint: (bp: ProjectBlueprint) => void;
+  /**
+   * 관리 화면의 일괄 제거처럼 **이 화면 안에서** 프로젝트 목록을 바꾼 뒤,
+   * 소유자(App)가 목록을 다시 읽게 한다. 단건 이름 변경/제거는 App 의
+   * 다이얼로그가 스스로 갱신하므로 여기로 오지 않는다.
+   */
+  onProjectsChanged: () => void;
 }
 
 export function StartScreen(props: StartScreenProps) {
@@ -60,10 +67,12 @@ export function StartScreen(props: StartScreenProps) {
     onOpenSettings,
     onStartGreenfield,
     onResumeBlueprint,
+    onProjectsChanged,
   } = props;
 
   const { brief, loading, failed, reload } = useHomeBrief(projects);
   const [blueprints, setBlueprints] = useState<ProjectBlueprint[]>([]);
+  const [manageOpen, setManageOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -97,13 +106,19 @@ export function StartScreen(props: StartScreenProps) {
 
   // 목록이 절대 비지 않게 하는 장치 — 프로젝트 0개거나 검색 결과 0건이어도
   // 이 행들이 남아 ⏎ 가 항상 무언가를 한다.
+  const openManage = useCallback(() => setManageOpen(true), []);
+
   const commandSpecs: CommandSpec[] = useMemo(
     () => [
       { id: "cmd:add", label: "기존 폴더 불러오기", hint: "⌘O", run: onAddProject },
       { id: "cmd:new", label: "새 프로젝트 시작하기", hint: "⌘N", run: onStartGreenfield },
+      // 관리할 게 없으면 관리 명령도 없다 — 0개일 때 이 행은 막다른 길이다.
+      ...(projects.length > 0
+        ? [{ id: "cmd:manage", label: "프로젝트 관리", hint: "⌘⇧M", run: openManage }]
+        : []),
       { id: "cmd:settings", label: "설정 열기", hint: "⌘,", run: onOpenSettings },
     ],
-    [onAddProject, onStartGreenfield, onOpenSettings],
+    [projects.length, onAddProject, onStartGreenfield, openManage, onOpenSettings],
   );
 
   const model = useMemo(
@@ -166,6 +181,12 @@ export function StartScreen(props: StartScreenProps) {
           onStartGreenfield();
           return;
         }
+        // ⌘⇧M — 프로젝트 관리. ⌘M 은 macOS 의 창 최소화라 건드리지 않는다.
+        if (k === "m" && e.shiftKey) {
+          e.preventDefault();
+          openManage();
+          return;
+        }
         // ⌘E / ⌘⌫ 는 **키보드로 포커스한 행**에만 적용한다. 커서는 마우스가
         // 스쳐 지나가도 옮겨가므로(onMouseMove), 포커스 확인 없이 발동하면
         // 포인터가 우연히 얹힌 프로젝트의 제거 확인창이 뜬다.
@@ -213,7 +234,7 @@ export function StartScreen(props: StartScreenProps) {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cursor, onAddProject, onStartGreenfield, onRenameProject, onDeleteProject]);
+  }, [cursor, onAddProject, onStartGreenfield, onRenameProject, onDeleteProject, openManage]);
 
   // ⌘P — useGlobalShortcuts 가 이미 이 이벤트를 쏘고 있는데 대시보드에는
   // 수신자가 없어 무반응이었다. 여기서 받아 검색으로 연결한다.
@@ -299,6 +320,7 @@ export function StartScreen(props: StartScreenProps) {
           dateline={model.dateline}
           failed={failed}
           onRetry={reload}
+          onManage={openManage}
           onOpenSettings={onOpenSettings}
           onAdd={onAddProject}
         />
@@ -393,6 +415,13 @@ export function StartScreen(props: StartScreenProps) {
                 <HomeSection
                   title={searching ? "검색 결과" : "모든 프로젝트"}
                   count={model.rows.length}
+                  action={
+                    searching ? undefined : (
+                      <button type="button" className="home-chipbtn" onClick={openManage}>
+                        관리
+                      </button>
+                    )
+                  }
                 />
                 <ul>
                   {model.rows.map((row, i) => (
@@ -475,6 +504,24 @@ export function StartScreen(props: StartScreenProps) {
         {/* ── 밴드 4 — 액션 바 ───────────────────────────────────── */}
         {hasProjects && <HomeActionBar row={cursor.row} />}
       </div>
+
+      {/* 프로젝트 관리 — 전체 목록을 평면으로 펼쳐 추가·이름 변경·제거한다.
+          단건 이름 변경/제거는 App 의 다이얼로그를 그대로 재사용하므로 이
+          시트 위(z-110)에 뜬다. */}
+      {manageOpen && (
+        <ProjectManager
+          projects={projects}
+          brief={brief}
+          indexingId={indexingId}
+          onClose={() => setManageOpen(false)}
+          onOpenProject={onSelectProject}
+          onRenameProject={onRenameProject}
+          onDeleteProject={onDeleteProject}
+          onAddProject={onAddProject}
+          onStartGreenfield={onStartGreenfield}
+          onProjectsChanged={onProjectsChanged}
+        />
+      )}
     </main>
   );
 }

@@ -1,7 +1,7 @@
 /**
  * 화면 크롬 — 상단 레일(밴드 0) / 검색 밴드(밴드 1) / 액션 바(밴드 4).
  */
-import { Plus, Search, Settings } from "@/components/Icons";
+import { Folder, Plus, Search, Settings } from "@/components/Icons";
 
 import { BriefFootnote } from "./atoms";
 import type { HomeRow } from "./homeModel";
@@ -21,6 +21,7 @@ export function HomeTopRail({
   dateline,
   failed,
   onRetry,
+  onManage,
   onOpenSettings,
   onAdd,
 }: {
@@ -28,6 +29,8 @@ export function HomeTopRail({
   dateline: string;
   failed: boolean;
   onRetry: () => void;
+  /** 프로젝트 관리 화면 열기. */
+  onManage: () => void;
   onOpenSettings: () => void;
   onAdd: () => void;
 }) {
@@ -43,6 +46,12 @@ export function HomeTopRail({
 
       <span className="ml-auto flex items-center gap-2">
         {failed && <BriefFootnote onRetry={onRetry} />}
+        {/* 관리는 **글자**로 둔다. 아이콘 하나로는 "설정"과 구별되지 않고,
+            프로젝트를 지우러 오는 사람이 아이콘 수수께끼를 풀 이유가 없다. */}
+        <button type="button" onClick={onManage} className="home-chipbtn">
+          <Folder className="w-3.5 h-3.5" />
+          프로젝트 관리
+        </button>
         <button
           type="button"
           onClick={onOpenSettings}

@@ -326,12 +326,22 @@ export function CommandRow({
 
 // ── 섹션 헤더 ───────────────────────────────────────────────────────────
 
-export function HomeSection({ title, count }: { title: string; count?: number }) {
+export function HomeSection({
+  title,
+  count,
+  action,
+}: {
+  title: string;
+  count?: number;
+  /** 섹션 우측에 붙는 액션 (예: '모든 프로젝트' 의 관리 버튼). */
+  action?: React.ReactNode;
+}) {
   return (
     <div className="home-sechead">
       <span>{title}</span>
       <span className="home-sechead-line" />
       {count !== undefined && <span className="home-sechead-n">{count}</span>}
+      {action}
     </div>
   );
 }
