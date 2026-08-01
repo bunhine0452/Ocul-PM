@@ -62,36 +62,44 @@
 
 /* D2Coding — Korean-friendly monospace fallback (terminal / editor).
    PR-R5 (E1): subset to Latin + Hangul + box-drawing + CJK punctuation and
-   re-encoded as woff2 — 8.4 MB .ttc → ~440 KB. Full .ttc removed from the
+   re-encoded as woff2 — 8.4 MB .ttc → ~280 KB. Full .ttc removed from the
    bundle (it was only ever a rarely-active fallback; ui_v2's --mono leads with
-   SF Mono / system mono). */
+   SF Mono / system mono).
+   주의: 이 파일의 advance 는 Menlo 그리드(반각 0.602em / 전각 1.204em)로 재작성돼
+   있다 — 아래 'D2Coding Term' 참고. 모노스페이스 정합은 그대로지만 라틴이 원본
+   D2Coding(0.5em)보다 여유롭게 배치된다. 재생성은 scripts/build-d2coding-subset.py. */
 @font-face {
     font-family: 'D2Coding';
-    src: url('./assets/fonts/D2Coding-subset.woff2') format('woff2');
-    font-weight: 400 700;
+    src: url('./assets/fonts/D2Coding-term.woff2') format('woff2');
+    font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 
-/* D2Coding Term — 내장 터미널 전용 한글 전담 페이스 (2026-07-30).
-   기존 터미널 폰트 스택은 D2Coding 을 선두로 뒀는데, 번들 서브셋에는
-   Block Elements(█▀▄░▒▓) · Geometric Shapes(●■▶◆) · Dingbats(✓✗) · Braille 이
-   빠져 있다. 그 글리프들만 폴백 폰트(0.6em)로 넘어가는데 셀 폭은 D2Coding
-   기준(0.5em)으로 잡혀 있어 줄 전체가 밀렸다 — Claude Code 배너 아트와 박스
-   테두리가 어긋나 보이던 원인.
-   해결: 라틴·기호·박스문자는 그 범위를 전부 채우는 Menlo(0.6021em)에 맡기고,
-   D2Coding 은 unicode-range 로 한글/전각에만 쓴다. D2Coding 한글은 1.0em 이라
-   Menlo 두 셀(1.2042em)에 못 미치므로 size-adjust 로 폭을 맞춘다
-   (0.6021 / 0.5 ≈ 120.4%). 폰트 파일은 그대로 재사용한다(추가 다운로드 없음). */
+/* D2Coding Term — 내장 터미널 전용 한글 전담 페이스 (2026-07-30, 2026-08-01 개정).
+   터미널 폰트 스택은 라틴·기호·박스문자를 Menlo 에 맡긴다. D2Coding 을 선두에
+   두면 번들 서브셋에 없는 Block Elements(█▀▄░▒▓) · Geometric Shapes(●■▶◆) ·
+   Dingbats(✓✗) 가 폴백으로 새면서 Claude Code 배너 아트와 박스 테두리가 어긋난다.
+   그래서 D2Coding 은 unicode-range 로 한글/전각에만 끼어든다.
+
+   xterm 은 셀 폭을 스택 선두(Menlo, 0.60205em)로 재므로 한글은 정확히 두 셀
+   (1.2041em)을 차지해야 하는데 D2Coding 한글 advance 는 1.0em 이다.
+   1차 해결은 size-adjust: 120.4% 였지만, size-adjust 는 advance 뿐 아니라
+   **글리프 자체를 20.4% 확대**한다 — 한 줄 안에서 한글만 라틴·숫자보다 크게
+   보이던 원인. CSS 로는 advance 만 늘릴 수 없어 폰트 파일의 hmtx 를 Menlo
+   그리드로 재작성하고(글리프는 원본 크기 그대로 중앙 정렬) size-adjust 를 뗐다.
+   → scripts/build-d2coding-subset.py
+
+   unicode-range 는 서브셋이 실제로 가진 범위만 적는다. 조합형 자모(U+1100-11FF)는
+   D2Coding 원본에도 없어 여기 적어봐야 폴백으로 샌다. */
 @font-face {
     font-family: 'D2Coding Term';
-    src: url('./assets/fonts/D2Coding-subset.woff2') format('woff2');
-    font-weight: 400 700;
+    src: url('./assets/fonts/D2Coding-term.woff2') format('woff2');
+    font-weight: 400;
     font-style: normal;
     font-display: swap;
-    size-adjust: 120.4%;
-    unicode-range: U+1100-11FF, U+3000-303F, U+3130-318F, U+A960-A97F,
-                   U+AC00-D7A3, U+D7B0-D7FF, U+FF01-FF60;
+    unicode-range: U+3000-303F, U+3130-318F, U+AC00-D7A3, U+FF01-FF60,
+                   U+FFE0-FFE6;
 }
 
 @plugin "@tailwindcss/typography";

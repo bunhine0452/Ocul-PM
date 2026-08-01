@@ -37,8 +37,13 @@ import { scanFileRefs } from "./fileLinks";
 //    폴백 글리프의 폭이 셀과 다르면 그 줄 전체가 밀리고, 출력이 많을 때 눈에
 //    띄게 버벅였다. 미지원/컨텍스트 소실이면 DOM 렌더러로 되돌아간다.
 //  - 폰트: 라틴·기호·박스문자는 Menlo, 한글은 'D2Coding Term' (App.css 에서
-//    unicode-range + size-adjust 로 정확히 두 셀 폭을 갖게 만든 페이스).
+//    unicode-range 로 한글에만 끼어드는 페이스).
 //  - 테마: TERM_THEME 상수 제거 — tokens.css 의 `--term-*` 에서 파생 (→ termTheme.ts).
+//
+// 2026-08-01: 한글이 라틴·숫자보다 크게 보이던 문제 수정. 두 셀 폭을 맞추던
+// CSS size-adjust(120.4%)가 advance 와 함께 글리프까지 20.4% 확대하고 있었다.
+// 폰트 파일의 advance 를 Menlo 그리드로 재작성해(scripts/build-d2coding-subset.py)
+// size-adjust 없이 두 셀에 맞춘다 — 글리프는 원본 크기 그대로.
 
 // 라틴·기호·박스문자(█ ▀ ● ✓ 포함)는 Menlo 가 전 범위를 0.6021em 로 커버한다.
 // 한글은 'D2Coding Term' 이 unicode-range 로만 끼어들어 정확히 두 셀을 채운다.

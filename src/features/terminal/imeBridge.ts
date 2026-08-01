@@ -27,9 +27,11 @@ import { oculpmLog } from "@/lib/oculpmLog";
 //    "가나다라마 사" 처럼 조합 글자가 앞으로 튀어나왔다.
 //
 // ── 처리 방식 ─────────────────────────────────────────────────────────────
-// 일반 영문 타이핑은 xterm 이 keydown 에서 preventDefault 하므로 `input` 이
-// 아예 발생하지 않는다(실측). 따라서 **우리에게 도달하는 input 은 전부
-// IME·받아쓰기 발원**이고, 전량 가로채도 일반 입력을 해치지 않는다.
+// 입력기가 붙지 않은 배열(ABC 등)의 영문 타이핑은 xterm 이 keydown 에서
+// preventDefault 하므로 `input` 이 아예 발생하지 않는다. 반면 **한글 입력기가
+// 영문 모드일 때는 ASCII 도 IME 를 거쳐** input 이 먼저 온다. 즉 우리에게
+// 도달하는 input 은 전부 IME·받아쓰기 발원이고, 전량 가로채도 일반 입력을
+// 해치지 않는다 — 단 그 키를 xterm 이 다시 보내지 않게 막아야 한다(아래 참고).
 //
 // 오버레이를 쓰지 않고 조합 중인 글자까지 셸에 그대로 흘린다. textarea 가
 // 바뀔 때마다 이전에 보낸 문자열과의 **공통 접두사**를 구해, 달라진 만큼만
@@ -43,6 +45,34 @@ import { oculpmLog } from "@/lib/oculpmLog";
 
 /** readline/ZLE 의 backward-delete-char. 조합 중 글자가 바뀌면 되돌린다. */
 const DEL = "";
+
+// ── 2026-08-01: 영문·스페이스가 두 번 입력되던 문제 ───────────────────────
+// 실제 트레이스(oculpm.log)로 확인한 사실:
+//
+//   05:29:15.139 keydown key=' ' code=32        ← xterm 이 여기서 ' ' 를 보낸다
+//   05:29:15.141 input   data=' ' textarea='…\xa0'  ← 브리지가 여기서 또 보낸다
+//
+// **한글 입력기가 켜져 있으면 ASCII·스페이스도 input 을 한 번 더 만든다.** 다만
+// 조합 키와 순서가 반대다 — 한글은 input→keydown, ASCII·스페이스는 keydown→input.
+// 그래서 xterm 과 브리지가 같은 글자를 각각 한 번씩 보내 두 번 찍혔다.
+// 게다가 IME 가 textarea 에 넣는 공백은 U+00A0(NBSP)라 셸에 NBSP 가 나가고 있었다.
+//
+// 판정은 타이밍으로 하지 않는다 — 실측상 연속 keydown 간격이 최소 0~7ms 라
+// "직전에 input 이 있었나" 류의 시간 창은 오발동해 **멀쩡한 키를 삼킨다**.
+// 대신 두 축으로 나눈다:
+//   1. keydown 억제는 `imeKey`(keyCode 229)일 때만. 트레이스의 input→keydown
+//      287건이 전부 229 였다 — 결정적 신호다.
+//   2. 나머지는 xterm 이 보낸 글자를 기록해두고, 뒤늦게 같은 글자가 input 으로
+//      올라오면 그 에코를 버린다.
+
+/** IME 가 textarea 에 넣는 공백. 셸에 그대로 보내면 인자 구분이 깨진다. */
+const NBSP = / /g;
+
+/**
+ * xterm 이 keydown 에서 보낸 글자의 에코를 인정하는 시간 창. 실측 keydown→input
+ * 간격은 1~5ms 다. 창을 벗어난 기록은 "에코가 오지 않은 키"로 보고 버린다.
+ */
+const XTERM_ECHO_WINDOW_MS = 250;
 
 /** 개발 빌드에서만 이벤트 흐름을 남긴다 (`<app_data>/logs/oculpm.log.*`). */
 const TRACE = import.meta.env.DEV;
@@ -62,13 +92,24 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   /** 이번 조합 세션에서 셸 입력줄에 올려놓은 문자열 (우리가 보낸 것 기준). */
   let echoed = "";
   /**
-   * 직전 keydown 이후 input 이 있었는가. 이 웹뷰는 IME 키에 대해 input 을
-   * keydown **보다 먼저** 보내므로, keydown 시점의 이 값은 곧 "이 키의 글자는
-   * 이미 input 으로 처리했다"는 뜻이다. 조합을 확정시키는 스페이스가 대표적인데,
-   * 그때 keydown 은 조합이 끝난 뒤라 keyCode 가 229 가 아니어서 그냥 두면 xterm
-   * 이 공백을 한 번 더 보낸다(= 공백이 두 칸으로 보이던 증상).
+   * xterm 이 keydown 에서 이미 PTY 로 보낸 글자들. 입력기가 켜져 있으면 같은
+   * 글자가 곧이어 input 으로 한 번 더 올라오는데, 그건 이미 나간 글자의 에코이지
+   * 새 입력이 아니다. 큐로 두는 건 타이핑이 빠르면 keydown 두 개가 input 보다
+   * 먼저 몰릴 수 있어서다 (실측 keydown 간격 최소 0ms).
    */
-  let inputSinceKeydown = false;
+  const xtermEchoes: { char: string; at: number }[] = [];
+
+  /** `char` 가 xterm 이 방금 보낸 글자의 에코면 소비하고 true. */
+  const takeXtermEcho = (char: string): boolean => {
+    const now = Date.now();
+    while (xtermEchoes.length && now - xtermEchoes[0].at > XTERM_ECHO_WINDOW_MS) {
+      xtermEchoes.shift();
+    }
+    const index = xtermEchoes.findIndex((echo) => echo.char === char);
+    if (index < 0) return false;
+    xtermEchoes.splice(index, 1);
+    return true;
+  };
 
   const trace = (event: string, detail: Record<string, unknown>) => {
     if (!TRACE) return;
@@ -85,6 +126,9 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     const addition = next.slice(common);
     echoed = next;
     if (removals === 0 && !addition) return;
+    // 새로 붙은 꼬리가 xterm 이 방금 keydown 에서 보낸 그 글자면 에코다 —
+    // 다시 보내면 영문·스페이스가 두 번 찍힌다. 부기(echoed)만 맞추고 끝낸다.
+    if (removals === 0 && takeXtermEcho(addition)) return;
     term.input(DEL.repeat(removals) + addition, true);
   };
 
@@ -100,8 +144,9 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
    */
   const onInput = (event: Event) => {
     event.stopPropagation(); // xterm `_inputEvent` 의 낱자 중복 전송을 막는다
-    inputSinceKeydown = true;
-    const value = textarea?.value ?? "";
+    // IME 는 공백을 NBSP 로 넣는다. 정규화한 값을 부기 기준으로 삼아야 셸에
+    // NBSP 가 나가지 않고, xterm 이 보낸 ' ' 와 에코 대조도 성립한다.
+    const value = (textarea?.value ?? "").replace(NBSP, " ");
     trace("input", {
       inputType: (event as InputEvent).inputType ?? "",
       data: (event as InputEvent).data,
@@ -134,24 +179,33 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     const imeKey = event.isComposing || event.keyCode === 229 || event.key === "Process";
 
     if (event.type === "keydown") {
-      const handledByInput = inputSinceKeydown;
-      inputSinceKeydown = false;
       trace("keydown", {
         key: event.key,
         keyCode: event.keyCode,
         isComposing: event.isComposing,
         imeKey,
-        handledByInput,
       });
       // Enter·Tab 은 조합을 끝낸다. 글자는 이미 셸에 올라가 있으므로 세션만
       // 정리하고 xterm 이 CR/TAB 을 보내게 둔다.
+      // Backspace·Delete 는 xterm 이 셸에 지우라고 보내는데 textarea 는 그대로라,
+      // 세션을 끊지 않으면 부기가 어긋난 채 계속 자란다(트레이스에서 30자 넘게
+      // 누적된 채 남아 있었다). 다음 조합은 빈 상태에서 새로 시작하게 한다.
       if (event.key === "Enter" || event.key === "Tab") endSession();
-      // 이 키의 글자를 input 이 이미 보냈다면 xterm 이 또 보내면 안 된다
-      // (조합을 확정시키는 스페이스가 두 칸으로 찍히던 원인).
-      if (handledByInput && event.key.length === 1) return false;
+      else if (event.key === "Backspace" || event.key === "Delete") endSession();
+
+      // 조합 중인 키만 xterm 에서 걷어낸다. 조합 이벤트를 쏘지 않는 웹뷰라
+      // keyCode 229 가 유일하게 믿을 수 있는 신호다 (트레이스의 input→keydown
+      // 287건이 전부 229). 여기서 preventDefault 하면 IME 가 조합을 못 잇는다.
+      if (imeKey) return false;
+
+      // xterm 이 이 키의 글자를 PTY 로 보낸다. 입력기가 켜져 있으면 곧이어 같은
+      // 글자가 input 으로도 올라오므로, 그 에코를 걸러내려고 기록해둔다.
+      if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        xtermEchoes.push({ char: event.key, at: Date.now() });
+      }
+      return true;
     }
 
-    // 조합 중인 키를 xterm 이 preventDefault 하면 IME 가 조합을 이어가지 못한다.
     if (imeKey) return false;
     return true;
   });
