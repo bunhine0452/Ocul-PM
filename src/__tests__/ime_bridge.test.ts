@@ -135,6 +135,16 @@ describe("imeBridge", () => {
     expect(h.sent).toEqual(["가", "나"]);
   });
 
+  test("붙여넣기는 xterm 몫 — 브리지가 다시 보내지 않는다", () => {
+    // xterm 의 handlePasteEvent 는 preventDefault 를 하지 않아(5.5) 이미 PTY 로
+    // 보낸 뒤에도 textarea 에 텍스트가 꽂히고 insertFromPaste 가 여기로 올라온다.
+    // 여기서 또 보내면 내용이 두 번 들어가고, bracketed paste 가 아니라 개행이
+    // 날것으로 나가 셸이 각 줄을 실행한다.
+    fireInput(h, "첫 줄\n둘째 줄\n", "insertFromPaste");
+    expect(h.sent).toEqual([]);
+    expect(h.textarea.value).toBe(""); // 다음 조합이 붙여넣기 잔재와 섞이지 않게
+  });
+
   test("Enter 는 xterm 이 CR 을 보내도록 넘긴다", () => {
     fireInput(h, "가");
     expect(fireKeydown(h, { key: "Enter", keyCode: 13 })).toBe(true);

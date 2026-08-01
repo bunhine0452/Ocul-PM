@@ -144,6 +144,18 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
    */
   const onInput = (event: Event) => {
     event.stopPropagation(); // xterm `_inputEvent` 의 낱자 중복 전송을 막는다
+
+    // 붙여넣기는 xterm 이 `paste` 이벤트에서 이미 보냈다 — bracketed paste 로 감싸고
+    // 개행을 CR 로 바꿔서. 그런데 xterm 의 handlePasteEvent 는 stopPropagation 만 하고
+    // preventDefault 를 하지 않아(5.5) 브라우저가 textarea 에도 그대로 꽂고, 그 결과
+    // 여기로 insertFromPaste 가 올라온다. 이걸 다시 보내면 같은 내용이 두 번 들어갈 뿐
+    // 아니라 **우리 경로는 bracketed 가 아니라 개행이 날것으로 나가 셸이 각 줄을
+    // 실행한다.** 그러니 전송하지 않고 버퍼만 정리한다.
+    if ((event as InputEvent).inputType === "insertFromPaste") {
+      trace("paste-ignored", { length: ((event as InputEvent).data ?? "").length });
+      endSession();
+      return;
+    }
     // IME 는 공백을 NBSP 로 넣는다. 정규화한 값을 부기 기준으로 삼아야 셸에
     // NBSP 가 나가지 않고, xterm 이 보낸 ' ' 와 에코 대조도 성립한다.
     const value = (textarea?.value ?? "").replace(NBSP, " ");
