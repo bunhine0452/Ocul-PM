@@ -109,7 +109,10 @@ img { display: block; }
     radial-gradient(120% 90% at 78% 8%, rgba(43,200,138,0.22), transparent 55%),
     radial-gradient(90% 80% at 12% 100%, rgba(18,160,107,0.18), transparent 60%),
     linear-gradient(160deg, #0c4332 0%, var(--green-900) 48%, var(--green-950) 100%);
-  color: #fff; padding: 96px 0;
+  color: #fff;
+  /* 위쪽은 fixed 네비(64px) 아래로 내려오지 않게 최소치를 지키고, 아래쪽만 화면
+     높이에 따라 줄인다 — 첫 화면이 마키까지 한 번에 들어오도록. */
+  padding: clamp(78px, 9vh, 112px) 0 clamp(18px, 4vh, 96px);
 }
 .hero-arc {
   position: absolute; right: -200px; top: -120px; width: 760px; height: 760px;
@@ -120,19 +123,19 @@ img { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hero-grid {
   position: relative; z-index: 2;
-  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center;
+  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(26px, 4vw, 56px); align-items: center;
 }
 .hero h1 {
-  font-size: clamp(38px, 5vw, 62px); line-height: 1.05; letter-spacing: -0.03em;
-  font-weight: 700; margin: 22px 0 0; text-wrap: balance;
+  font-size: clamp(28px, min(5vw, 6.2vh), 62px); line-height: 1.05; letter-spacing: -0.03em;
+  font-weight: 700; margin: clamp(10px, 2.2vh, 22px) 0 0; text-wrap: balance;
 }
-.hero h1 .soft { color: var(--green-200); font-weight: 600; display: block; font-size: 0.62em; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero h1 .soft { color: var(--green-200); font-weight: 600; display: block; font-size: 0.62em; letter-spacing: -0.01em; margin-bottom: clamp(4px, 1vh, 10px); }
 .hero h1 em { font-style: normal; color: var(--green-300); }
-.hero-sub { font-size: 18px; line-height: 1.6; color: rgba(255,255,255,0.8); margin: 24px 0 0; max-width: 520px; }
+.hero-sub { font-size: clamp(14.5px, 1.85vh, 18px); line-height: 1.6; color: rgba(255,255,255,0.8); margin: clamp(12px, 2.5vh, 24px) 0 0; max-width: 520px; }
 .hero-sub b { color: #fff; font-weight: 600; }
-.hero-cta { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+.hero-cta { display: flex; gap: 12px; margin-top: clamp(16px, 3.4vh, 34px); flex-wrap: wrap; }
 .dl-btn {
-  display: inline-flex; align-items: center; gap: 11px; height: 54px; padding: 0 22px;
+  display: inline-flex; align-items: center; gap: 11px; height: clamp(44px, 5.8vh, 54px); padding: 0 22px;
   border-radius: 14px; font-weight: 600; font-size: 15px;
 }
 .dl-btn.primary { background: #fff; color: var(--green-900); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
@@ -142,7 +145,7 @@ img { display: block; }
 .dl-btn .sub { display: block; font-size: 11px; font-weight: 500; opacity: 0.6; line-height: 1; margin-top: 3px; }
 .dl-btn .lg { line-height: 1; }
 .dl-btn, .dl-btn:hover { transition: transform 0.18s, box-shadow 0.18s, background 0.18s; }
-.hero-micro { display: flex; gap: 18px; margin-top: 22px; flex-wrap: wrap; font-size: 13px; color: rgba(255,255,255,0.6); }
+.hero-micro { display: flex; gap: clamp(10px, 1.4vw, 18px); margin-top: clamp(10px, 2.3vh, 22px); flex-wrap: wrap; font-size: clamp(11.5px, 1.45vh, 13px); color: rgba(255,255,255,0.6); }
 .hero-micro span { display: inline-flex; align-items: center; gap: 6px; }
 .hero-micro .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green-300); }
 
@@ -160,9 +163,9 @@ img { display: block; }
 .preview-top .live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green-200); font-weight: 600; }
 .preview-top .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green-300); box-shadow: 0 0 0 0 rgba(84,227,173,0.7); animation: pulse 2s infinite; }
 @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(84,227,173,0); } 100% { box-shadow: 0 0 0 0 rgba(84,227,173,0); } }
-.preview-body { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.preview-body { padding: clamp(8px, 1.4vh, 12px); display: flex; flex-direction: column; gap: clamp(6px, 1.1vh, 9px); }
 
-.jrow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 13px; }
+.jrow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: clamp(8px, 1.5vh, 12px) 13px; }
 .jrow-top { display: flex; align-items: center; gap: 8px; }
 .jrow-title { font-size: 13.5px; font-weight: 560; color: #fff; margin-top: 8px; letter-spacing: -0.01em; }
 .jrow-meta { display: flex; align-items: center; gap: 7px; margin-top: 7px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5); }
@@ -188,13 +191,23 @@ img { display: block; }
 .preview-badge .pb-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--green-50); display: grid; place-items: center; color: var(--green-550); flex: none; }
 .preview-badge .pb-t { font-size: 12.5px; font-weight: 650; }
 .preview-badge .pb-s { font-size: 11px; color: var(--text-2); }
+/* 그리드·플렉스 자식의 기본 min-width:auto 는 nowrap 자식(설치 명령 코드)의
+   min-content 폭만큼 열을 벌려서, 좁은 화면에서 히어로 전체가 가로로 넘쳤다.
+   min-width:0 을 줘야 열이 컨테이너까지 줄고 코드가 말줄임으로 잘린다. */
+.hero-copy, .hero-preview { min-width: 0; }
+.hero-snip code { min-width: 0; }
 @media (max-width: 920px){
-  .hero-grid { grid-template-columns: 1fr; gap: 44px; }
+  .hero-grid { grid-template-columns: 1fr; gap: clamp(24px, 4vh, 44px); }
   .preview-badge { left: 8px; }
+}
+@media (max-width: 700px){
+  /* 공지 필과 eyebrow 가 한 줄에 붙어 화면 밖으로 밀려나가지 않게 분리한다. */
+  .hero .announce-pill { max-width: 100%; }
+  .hero .eyebrow.on-dark { display: block; margin-top: 12px; }
 }
 
 /* ============================================================ MARQUEE (triggers) */
-.trigbar { background: var(--green-950); border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; padding: 18px 0; }
+.trigbar { background: var(--green-950); border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; padding: clamp(8px, 1.7vh, 18px) 0; }
 .trig-track { display: flex; gap: 40px; width: max-content; animation: marquee 26s linear infinite; }
 @media (prefers-reduced-motion: reduce){ .trig-track { animation: none; flex-wrap: wrap; width: auto; justify-content: center; } }
 @keyframes marquee { to { transform: translateX(-50%); } }
@@ -231,8 +244,11 @@ section { position: relative; }
   flex-direction: column;
   scroll-snap-align: start;
 }
+/* min-height:0 이 없으면 flex 자식이 콘텐츠 높이 밑으로 줄지 못해, 화면이 낮을 때
+   히어로가 마키를 화면 밖으로 밀어낸다. 세로 리듬은 아래에서 vh 로 함께 줄인다. */
 .hero {
   flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -422,6 +438,7 @@ section { position: relative; }
   background: rgba(43,200,138,0.12); border: 1px solid rgba(84,227,173,0.35);
   transition: background 0.18s, border-color 0.18s, transform 0.18s;
 }
+.hero .announce-pill { margin-bottom: clamp(8px, 1.8vh, 18px); }
 .announce-pill:hover { background: rgba(43,200,138,0.2); border-color: rgba(84,227,173,0.6); transform: translateY(-1px); }
 .announce-pill .ap-new {
   background: var(--green-300); color: var(--green-950); border-radius: 999px;
@@ -481,8 +498,8 @@ section { position: relative; }
 
 /* hero inline install snippet */
 .hero-snip {
-  display: inline-flex; align-items: center; gap: 10px; margin-top: 16px;
-  padding: 9px 10px 9px 16px; border-radius: 12px;
+  display: inline-flex; align-items: center; gap: 10px; margin-top: clamp(10px, 1.9vh, 16px);
+  padding: clamp(6px, 1.1vh, 9px) 10px clamp(6px, 1.1vh, 9px) 16px; border-radius: 12px;
   background: rgba(6,31,24,0.6); border: 1px solid rgba(84,227,173,0.22);
   max-width: 100%;
 }
@@ -565,10 +582,18 @@ section { position: relative; }
 .update-demo .mini-plan .auto { background: rgba(43,200,138,0.18); color: var(--green-200); }
 
 /* polish: marquee edge fade + keyboard focus */
-.trigbar {
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+/* 양끝 페이드는 mask-image 로 하면 안 된다 — 마스크는 .trigbar 의 배경(--green-950)
+   까지 투명하게 깎아 body 의 --paper(#f5f6f5)가 흰 얼룩으로 비친다. 대신 바와 같은
+   색의 그라디언트를 위에 덮는다. (.trig-track 에 마스크를 걸면 트랙이 translateX 로
+   흐르므로 페이드가 글자를 따라 움직인다 — 그것도 답이 아니다.) */
+.trigbar { position: relative; }
+.trigbar::before,
+.trigbar::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: clamp(40px, 8%, 120px);
+  z-index: 2; pointer-events: none;
 }
+.trigbar::before { left: 0; background: linear-gradient(90deg, var(--green-950), transparent); }
+.trigbar::after { right: 0; background: linear-gradient(270deg, var(--green-950), transparent); }
 a:focus-visible, button:focus-visible {
   outline: 2px solid var(--green-400); outline-offset: 2px; border-radius: 8px;
 }
