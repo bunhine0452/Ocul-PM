@@ -43,7 +43,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.8.2",
+  "softwareVersion": "2.8.3",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -152,7 +152,7 @@
     <div class="hero-grid">
       <div class="hero-copy">
         <a class="announce-pill reveal" href="#update">
-          <span class="ap-new">NEW</span> v2.8.2 — 터미널 한국어 입력·표시 수정
+          <span class="ap-new">NEW</span> v2.8.3 — 터미널 붙여넣기 이중 입력 수정
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
         </a>
         <span class="eyebrow on-dark reveal">로컬-우선 AI 프로젝트 매니저</span>
@@ -268,6 +268,7 @@
           백미러가 핸들이 되는 릴리스.
         </p>
         <ul class="update-points">
+          <li class="reveal d2"><b>v2.8.3 — 터미널 붙여넣기 수정</b> · 내장 터미널에 붙여넣은 내용이 <b>두 번 들어가던</b> 문제를 고쳤습니다. 중복만이 아니라 두 번째 사본은 줄바꿈이 날것으로 전달돼 <b>각 줄이 명령으로 실행될 수</b> 있었습니다.</li>
           <li class="reveal d2"><b>v2.8.2 — 터미널 한국어 수정</b> · 내장 터미널에서 <b>한글만 영문보다 크게</b> 보이던 문제(폰트 자간 정보를 터미널 격자에 맞춰 재생성 — 글자 크기는 그대로, 용량은 440KB→279KB)와, 한글 입력기가 켜져 있을 때 <b>영문·스페이스가 두 번 입력</b>되던 문제를 고쳤습니다. 스페이스가 <span class="mono">NBSP</span>로 셸에 전달되던 것도 함께.</li>
           <li class="reveal d2"><b>v2.8.1 — 프로젝트 관리 화면</b> · 등록된 프로젝트를 <b>평면 표</b>로 펼쳐 이름 변경·제거·추가를 한자리에서. 체크박스로 <b>여러 개를 한 번에 제거</b>하고, 폴더의 <span class="mono">.oculpm</span>·<span class="mono">AGENTS.md</span> 삭제 여부는 따로 고릅니다(기본 꺼짐). 첫 화면이 접어 둔 조용한 프로젝트도 여기선 전부 보입니다.</li>
           <li class="reveal d2"><b>v2.8.0 — 스킬 샵</b> · 프로젝트 스택을 감지(매니페스트 기반, LLM 0)해 <b>검증된 제3자 스킬 25종</b>(MIT·커밋 고정 사본)을 추천 — 검색·미리보기 후 원클릭 설치. 배달 게이트가 "코드 변경 있는데 일지 없음"을 세션당 1회 잡아 에이전트에게 일지를 시킵니다.</li>
@@ -280,7 +281,7 @@
         </ul>
         <div class="update-cta reveal d4">
           <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-            <span><span class="lg">v2.8.2 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
+            <span><span class="lg">v2.8.3 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
           </a>
           <a class="update-notes" href="https://github.com/bunhine0452/Ocul-PM/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">전체 변경 이력 →</a>
         </div>
@@ -750,7 +751,7 @@
 <section class="cta" id="download">
   <svg class="cta-arc" viewBox="0 0 760 760" aria-hidden="true"><use href="#arc-motif"/></svg>
   <div class="wrap">
-    <span class="eyebrow on-dark reveal">v2.8.2 — 지금 다운로드 · macOS (Apple Silicon)</span>
+    <span class="eyebrow on-dark reveal">v2.8.3 — 지금 다운로드 · macOS (Apple Silicon)</span>
     <h2 class="reveal d1">AI에게 빼앗긴 <em>"왜 이걸 만들었더라"</em>의<br/>답을 다시 손에 쥐세요.</h2>
     <p class="cta-sub reveal d2">설치하고, 프로젝트 폴더를 열고, 에이전트를 부르세요. 나머지는 Ocul-PM이 기록합니다.</p>
     <div class="cta-btns reveal d2">
