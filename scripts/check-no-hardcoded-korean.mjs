@@ -15,7 +15,8 @@
  *  - Phase 2 진척도가 PENDING 길이로 정확히 측정된다 (Phase 0 시딩 시점 130 → 0)
  *  - 이미 끝낸 파일의 회귀가 즉시 잡힌다
  *
- * Phase 2 완료 기준 = ALLOWLIST 가 PERMANENT 만 남은 상태.
+ * Phase 2 완료 기준 = PENDING 이 빈 상태 (ALLOWLIST 에 PERMANENT 와
+ * DISK_CONTENT 만 남는다 — 둘 다 번역 대상이 아닌 파일들이다).
  *
  * ## 탐지 방식
  *
@@ -52,6 +53,29 @@ const PERMANENT = new Set([
   "__tests__/i18n_lint_scanner.test.ts",
   "__tests__/i18n_switch.test.tsx",
   "__tests__/i18n_settings_wiring.test.tsx",
+]);
+
+/**
+ * 한글이 **UI 카피가 아니라 디스크 산출물의 내용**인 파일.
+ *
+ * Phase 2(화면 영어화)의 대상이 아니라서 PENDING 에 두면 카운터가 영영 0 이
+ * 안 된다. 그렇다고 `i18n-ignore` 로도 못 적는다 — 이 한글은 **여러 줄
+ * 템플릿 리터럴 안**에 있고, 거기에 `//` 를 넣으면 주석이 아니라 사용자
+ * 저장소에 기록되는 파일 내용의 일부가 된다.
+ *
+ * 나중에 "AI 작성 언어"(`settings.contentLanguage`) 축이 배선되면 그때 이
+ * 목록을 다시 본다 — UI 언어로 뒤집는 건 잘못된 축이다.
+ */
+const DISK_CONTENT = new Set([
+  // 사용자 저장소에 기록되는 시드 파일 본문 (.claude/rules/*.md · CLAUDE.md).
+  "features/skills/rulesModel.ts",
+  // 같음 (.claude/skills/<name>/SKILL.md).
+  "features/skills/skillsModel.ts",
+  // 플러그인 실표면(plugin/oculpm/**)의 **거울**. `plugin_docs_sync.test.ts` 가
+  // `description` 을 커맨드 .md 의 frontmatter 와 글자 단위로 일치시킨다 —
+  // 여기만 번역하면 그 게이트가 깨지고, 앱이 플러그인의 실제 문구를 잘못
+  // 인용하게 된다. 플러그인 .md 자체가 번역될 때 함께 간다.
+  "features/skills/pluginDocs.ts",
 ]);
 
 /**
@@ -114,14 +138,10 @@ const PENDING = new Set([
   "features/onboarding/home/rows.tsx",
   "features/onboarding/home/tiles.tsx",
   "features/projects/ProjectManager.tsx",
-  "features/skills/PluginDocsTab.tsx",
-  "features/skills/pluginDocs.ts",
-  "features/skills/rulesModel.ts",
-  "features/skills/skillsModel.ts",
   // @PENDING_END
 ]);
 
-const ALLOWLIST = new Set([...PERMANENT, ...PENDING]);
+const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...PENDING]);
 
 const EXT = new Set([".ts", ".tsx"]);
 const HANGUL = /[가-힣]/;
@@ -289,7 +309,8 @@ async function main() {
     if (ALLOWLIST.has(rel)) {
       // allowlist 에 있는데 이미 깨끗하다 → 번역이 끝났다는 뜻. 목록에서 빼도록
       // 알려 준다 (역방향 게이트가 실제로 줄어들게 만드는 장치).
-      if (hits.length === 0 && !PERMANENT.has(rel)) cleanedAllowlisted.push(rel);
+      if (hits.length === 0 && !PERMANENT.has(rel) && !DISK_CONTENT.has(rel))
+        cleanedAllowlisted.push(rel);
       continue;
     }
     if (hits.length > 0) offenders.push({ rel, hits });

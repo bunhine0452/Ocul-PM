@@ -1259,6 +1259,39 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Skills & rules → plugin guide tab ───────────────────────────────────
+  // The **data** this tab renders (command descriptions, tool descs) mirrors
+  // plugin/oculpm/ and stays untranslated (pluginDocs.ts — scanner
+  // DISK_CONTENT). The keys here are only the chrome the app wraps around it.
+  "plugin.copyTitle": "Copy: {text}",
+  "plugin.copied": "Copied",
+  "plugin.copy": "Copy",
+  "plugin.copyToast": "Copied — paste it into Claude Code",
+  "plugin.toolbarTitle": "Skills & rules",
+  "plugin.toolbarSub": "Claude Code plugin guide",
+  "plugin.name": "Ocul-PM plugin",
+  "plugin.installed": "Installed",
+  "plugin.notInstalled": "Not installed",
+  "plugin.blurb":
+    "Sets up the hook bridge, 5 MCP tools, 5 skills, and 4 commands across every project at once. It complements this app — the plugin records, the app shows.",
+  "plugin.blurbInstalled": " You can use the commands below directly in Claude Code.",
+  "plugin.blurbNotInstalled": " Two lines in Claude Code installs it:",
+  "plugin.flowTitle": "Suggested flow",
+  "plugin.flowRepeat": "(next repeats until the leaf is done)",
+  "plugin.flowNote":
+    "For a new feature start at inception (to extend the plan) or go straight to next — interviews and research only come back around in unfamiliar territory.",
+  "plugin.commandsTitle": "Slash commands",
+  "plugin.example": "e.g. {example}",
+  "plugin.toolsTitle": "MCP tools agents record with",
+  // `.oculpm` sits inside the sentence as <code>, so it splits (§4.2).
+  "plugin.toolsNotePrefix":
+    "Agents record through tools instead of imitating the markdown spec — the server guarantees paths and frontmatter, and it only works in projects tracked with ",
+  "plugin.toolsNoteSuffix": " (exception: project_init).",
+  "plugin.hooksTitle": "What the hooks do",
+  "plugin.fullDocs": "Full docs (oculpm.com/plugin)",
+  "plugin.contractDocs": "Safety contract",
+  "plugin.contractTitle": "What it reads, writes, and never does — a contract pinned by tests",
+
   // ── Retro → rule/skill promotion candidates (twin cards share keys) ─────
   "promo.needProvider": "Pick a default AI provider/model in Settings first.",
   "promo.aiDraftNote": "AI draft · saved only once you approve",

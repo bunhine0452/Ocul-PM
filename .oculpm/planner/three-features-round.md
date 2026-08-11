@@ -33,7 +33,7 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 
 ## Phase 2 — i18n 본 추출 (v2.10.0) {#p2-i18n-extract}
 - [x] 묶음1 설정 — SettingsPanel 184 + OculpmSettings 176 {#i18n-settings}
-- [ ] 묶음2 스킬·규칙 — skillsGallery/SkillsScreenV2/RulesTab/skillsCatalog/SkillShopTab/pluginDocs/PluginDocsTab (521줄) {#i18n-skills}
+- [x] 묶음2 스킬·규칙 — skillsGallery/SkillsScreenV2/RulesTab/skillsCatalog/SkillShopTab/pluginDocs/PluginDocsTab (521줄) {#i18n-skills}
 - [x] 묶음3 플래너 — PlannerScreenV2/planList/PlanRail (232줄) {#i18n-planner}
 - [x] 묶음4 회고·토의 — RetroScreenV2/DiscussionScreenV2/SkillCandidates (203줄) {#i18n-retro}
 - [x] 묶음5 터미널 — TerminalInstanceImpl/imeBridge/TerminalScreenV2/oscShell (303줄) {#i18n-terminal}
@@ -77,4 +77,5 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 | 2026-08-12T05:11:46+09:00 | #i18n-terminal | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0511_feature_i18n-terminal-screen.md | 터미널 10파일 + 스캐너 정규식 오독 수정. allowlist 75→66 |
 | 2026-08-12T05:24:03+09:00 | #i18n-rest | claude-code | ☐→~ | .oculpm/journal/20260812/Features_to_add/0523_feature_i18n-ai-panel-screen.md | AI 패널 4파일 완료 — 12개 화면 전부 끝. 남은 62개는 테스트·비화면 모듈 |
 | 2026-08-12T05:32:47+09:00 | #i18n-retro | claude-code | ~→x | .oculpm/journal/20260812/Features_to_add/0532_feature_i18n-retro-promotion-cards.md | RuleCandidates·SkillCandidates·retroGen 완료 — 회고·토의 묶음 종료 |
+| 2026-08-12T05:37:58+09:00 | #i18n-skills | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0537_feature_i18n-plugin-tab-disk-content.md | PluginDocsTab 영어화 + pluginDocs/rulesModel/skillsModel 은 DISK_CONTENT 로 분류 |
 <!-- oculpm:plan-log end -->

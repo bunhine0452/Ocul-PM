@@ -1253,6 +1253,36 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── 스킬·규칙 → 플러그인 안내 탭 ────────────────────────────────────────
+  // 이 탭이 렌더하는 **데이터**(커맨드 설명·도구 desc)는 plugin/oculpm/ 의
+  // 거울이라 번역하지 않는다 (pluginDocs.ts — 스캐너 DISK_CONTENT). 여기 키는
+  // 앱이 두르는 chrome 뿐이다.
+  "plugin.copyTitle": "복사: {text}",
+  "plugin.copied": "복사됨",
+  "plugin.copy": "복사",
+  "plugin.copyToast": "복사했어요 — Claude Code 에 붙여넣으세요",
+  "plugin.toolbarTitle": "스킬·규칙",
+  "plugin.toolbarSub": "Claude Code 플러그인 안내",
+  "plugin.name": "Ocul-PM 플러그인",
+  "plugin.installed": "설치됨",
+  "plugin.notInstalled": "미설치",
+  "plugin.blurb": "훅 브리지 · MCP 도구 5종 · 스킬 5종 · 커맨드 4종을 모든 프로젝트에 한 번에 구성합니다. 이 앱과는 상호 보완 — 플러그인이 기록하고, 앱이 보여줍니다.",
+  "plugin.blurbInstalled": " 아래 커맨드를 Claude Code 에서 바로 쓸 수 있어요.",
+  "plugin.blurbNotInstalled": " Claude Code 에서 두 줄이면 설치됩니다:",
+  "plugin.flowTitle": "권장 흐름",
+  "plugin.flowRepeat": "(next 는 리프가 끝날 때까지 반복)",
+  "plugin.flowNote": "기능 추가는 inception(계획 확장) 또는 바로 next 부터 — 인터뷰·리서치는 낯선 영역일 때만 다시 돕니다.",
+  "plugin.commandsTitle": "슬래시 커맨드",
+  "plugin.example": "예: {example}",
+  "plugin.toolsTitle": "에이전트가 기록에 쓰는 MCP 도구",
+  // 문장 가운데 `.oculpm` 이 <code> 로 들어가 앞/뒤로 쪼갠다 (§4.2).
+  "plugin.toolsNotePrefix": "에이전트가 마크다운 규격을 흉내 내는 대신 도구로 기록합니다 — 경로·frontmatter 규격은 서버가 보장하고, ",
+  "plugin.toolsNoteSuffix": " 이 있는 추적 프로젝트에서만 동작합니다 (예외: project_init).",
+  "plugin.hooksTitle": "훅이 해주는 것",
+  "plugin.fullDocs": "전체 문서 (oculpm.com/plugin)",
+  "plugin.contractDocs": "안전 계약 문서",
+  "plugin.contractTitle": "무엇을 읽고 쓰고 절대 하지 않는지 — 테스트로 고정된 계약",
+
   // ── 회고 → 규칙·스킬 승격 후보 (두 카드가 구조가 같아 공용 키를 나눈다) ──
   "promo.needProvider": "설정에서 기본 AI 제공자/모델을 먼저 지정하세요.",
   "promo.aiDraftNote": "AI 초안 · 승인해야 저장됩니다",
