@@ -39,7 +39,7 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 - [x] 묶음5 터미널 — TerminalInstanceImpl/imeBridge/TerminalScreenV2/oscShell (303줄) {#i18n-terminal}
 - [ ] 묶음6 온보딩·런처 — StartScreen/GreenfieldWizard/homeModel/tiles/atoms (307줄) {#i18n-onboarding}
 - [x] 묶음7 셸·공용 — WorkspaceContext/CommandPalette/App/TrayPopover (268줄) {#i18n-shell}
-- [ ] 묶음8 나머지 화면 — AI 패널·diff·그래프·Today·일지·검색·문서 (~500줄) {#i18n-rest}
+- [~] 묶음8 나머지 화면 — AI 패널·diff·그래프·Today·일지·검색·문서 (~500줄) {#i18n-rest}
 - [ ] 묶음9a Rust 사용자 노출 에러 ~130곳 한글→영어 + 프런트 tError() 매핑 (OculpmError 는 이미 영어 — 무변경) {#i18n-rust-errors}
 - [x] 묶음9b LLM 프롬프트 12파일 — 출력 언어 지시 파라미터화. 본문은 한국어 유지(드리프트 방지), 단 plan_dispatch_prompt 는 사용자 산출물이라 본문도 번역 {#i18n-rust-prompts}
 - [ ] 영어 모드 12화면 순회 — 248px 사이드바/툴바 칩 오버플로 잡기 + a11y 스위트 양 언어 실행 {#i18n-overflow}
@@ -75,4 +75,5 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 | 2026-08-11T23:40:12+09:00 | #i18n-planner | claude-code | ☐→x | journal/20260811/Features_to_add/2322_feature_planner-i18n-and-collapsed-sidebar-gutter.md | PlannerScreenV2·PlanRail·planList. NO_PHASE 를 sentinel 키로 분리 |
 | 2026-08-12T03:07:17+09:00 | #i18n-retro | claude-code | ☐→~ | journal/20260812/Features_to_add/0307_feature_i18n-retro-screen.md | RetroScreenV2·DiscussionScreenV2·DeferLedger·EvalTrend 완료 / RuleCandidates·SkillCandidates·retroGen 남음 |
 | 2026-08-12T05:11:46+09:00 | #i18n-terminal | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0511_feature_i18n-terminal-screen.md | 터미널 10파일 + 스캐너 정규식 오독 수정. allowlist 75→66 |
+| 2026-08-12T05:24:03+09:00 | #i18n-rest | claude-code | ☐→~ | .oculpm/journal/20260812/Features_to_add/0523_feature_i18n-ai-panel-screen.md | AI 패널 4파일 완료 — 12개 화면 전부 끝. 남은 62개는 테스트·비화면 모듈 |
 <!-- oculpm:plan-log end -->

@@ -3,6 +3,8 @@ import { commands, type Conversation } from "@/lib/bindings";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { toast } from "@/lib/toast";
+// 모듈 t()/getLang() 은 순수 헬퍼 relTime 용, useT() 는 컴포넌트 용.
+import { t, getLang, useT } from "@/i18n";
 
 // PR-R1 (A3) — AI 패널 "대화 기록". 직전 라운드에서 disabled("1.1") 였던 버튼을
 // 기존 backend(conversation_list / conversation_create / conversation_delete)로
@@ -28,11 +30,13 @@ function relTime(conv: Conversation): string {
   if (Number.isNaN(d.getTime())) return "";
   const diffMs = Date.now() - d.getTime();
   const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("chat.agoJustNow");
+  if (min < 60) return t("chat.agoMinutes", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  if (hr < 24) return t("chat.agoHours", { n: hr });
+  // 하루가 넘으면 날짜로 — 월/일 표기 순서는 로케일마다 달라서 사전에 넣지
+  // 않고 Intl 에 맡긴다 (03-i18n.md §3).
+  return new Intl.DateTimeFormat(getLang(), { month: "long", day: "numeric" }).format(d);
 }
 
 export function ConversationHistoryModal({
@@ -43,6 +47,7 @@ export function ConversationHistoryModal({
   onActiveDeleted,
   onClose,
 }: Props) {
+  const { t } = useT();
   const titleId = useId();
   const [convs, setConvs] = useState<Conversation[] | null>(null);
 
@@ -57,7 +62,7 @@ export function ConversationHistoryModal({
       setConvs(sorted);
     } else {
       setConvs([]);
-      toast.destructive(`대화 목록을 불러오지 못했어요: ${res.error}`);
+      toast.destructive(t("chat.listFailed", { error: res.error }));
     }
   }, [projectId]);
 
@@ -72,11 +77,11 @@ export function ConversationHistoryModal({
   const remove = async (id: number) => {
     const res = await commands.conversationDelete(id);
     if (res.status === "ok") {
-      toast.info("대화를 삭제했어요.");
+      toast.info(t("chat.deleted"));
       await load();
       if (id === activeId) onActiveDeleted();
     } else {
-      toast.destructive(`대화 삭제 실패: ${res.error}`);
+      toast.destructive(t("chat.deleteFailed", { error: res.error }));
     }
   };
 
@@ -92,18 +97,18 @@ export function ConversationHistoryModal({
       >
         <div className="set-modal-actions" style={{ marginTop: 0, marginBottom: 4 }}>
           <div className="set-modal-title" id={titleId} style={{ marginRight: "auto", marginBottom: 0 }}>
-            대화 기록
+            {t("chat.historyTitle")}
           </div>
           <button type="button" className="btn sm primary" onClick={onNew}>
-            <Plus size={14} /> 새 대화
+            <Plus size={14} /> {t("chat.newConversation")}
           </button>
         </div>
 
         {convs == null ? (
-          <div className="empty-hint" style={{ padding: "24px 8px" }}>불러오는 중…</div>
+          <div className="empty-hint" style={{ padding: "24px 8px" }}>{t("chat.loading")}</div>
         ) : convs.length === 0 ? (
           <div className="empty-hint" style={{ padding: "24px 8px" }}>
-            아직 대화가 없어요. "새 대화" 로 시작하세요.
+            {t("chat.empty")}
           </div>
         ) : (
           <div className="conv-list">
@@ -112,7 +117,7 @@ export function ConversationHistoryModal({
                 <button type="button" className="conv-main" onClick={() => onSelect(c.id)}>
                   <span className="conv-title">
                     <MessageSquare size={12} color="var(--text-3)" />{" "}
-                    {c.title || "제목 없는 대화"}
+                    {c.title || t("chat.untitled")}
                   </span>
                   <span className="conv-meta">{relTime(c)}</span>
                 </button>
@@ -120,8 +125,8 @@ export function ConversationHistoryModal({
                   type="button"
                   className="iconbtn conv-del"
                   onClick={() => void remove(c.id)}
-                  aria-label={`${c.title || "대화"} 삭제`}
-                  title="삭제"
+                  aria-label={t("chat.deleteAria", { title: c.title || t("chat.conversationWord") })}
+                  title={t("chat.delete")}
                 >
                   <Trash2 size={14} />
                 </button>

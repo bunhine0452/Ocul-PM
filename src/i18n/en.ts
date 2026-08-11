@@ -1259,6 +1259,116 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── AI panel screen ─────────────────────────────────────────────────────
+  "ai.title": "AI panel",
+  "ai.toolbarSub": "Ask several LLMs with the same context",
+  "ai.newThread": "New chat",
+  "ai.newThreadTitle": "Start a new chat",
+  "ai.historyBtn": "History",
+  "ai.streaming": "Generating",
+  "ai.copyAnswer": "Copy answer",
+  "ai.waiting": "Waiting for a response…",
+  // Default title stored in the DB when a conversation is created. The app
+  // writes it as a display label — not AI-authored content — so it follows the
+  // UI language ("AI writing language" governs journals/planner/retro). It is
+  // frozen at creation time and the user can rename it.
+  "ai.threadTitle": "AI panel",
+  "ai.errorLabel": "Error",
+  "ai.scrollBottom": "Scroll to bottom",
+  "ai.noApiKey": "No API key for {vendor}. Add one in Settings.",
+  "ai.heroNoKeyTitle": "No API keys available",
+  "ai.heroAddKey": "Add a key in Settings →",
+  "ai.heroTitle": "Ask anything",
+  "ai.heroSub": "Attach code, journal, planner, and git context to your question.",
+  // Example prompt chips — clicking one drops it straight into the composer,
+  // so each has to read as a natural question in both languages.
+  "ai.suggestStructure": "Summarize this project's structure at a glance",
+  "ai.suggestNextSteps": "Suggest what to do next based on the recent journal",
+  "ai.suggestPlannerRisk": "Summarize planner progress and call out the risks",
+  "ai.suggestCommits": "Review the recent commit history",
+  // Context chips — the key stays a discriminator, only the label is looked up.
+  "ai.chipCode": "Code",
+  "ai.chipJournal": "Journal",
+  "ai.chipPlanner": "Planner",
+  "ai.chipGit": "git",
+  "ai.chipAttach": "Attach {label} context to the question",
+  // Token estimate popover
+  "ai.tokenBadgeTitle": "Estimated input tokens (approximate)",
+  "ai.tokenBadge": "Input ~{n} tokens",
+  "ai.tokenPopTitle": "Estimated input for the next send",
+  "ai.tokenPopEmpty": "No context attached.",
+  "ai.tokenTotal": "Total",
+  "ai.tokenTotalValue": "~{n} tokens",
+  "ai.tokenNote": "A rough heuristic (±30%). Every send re-transmits the full context plus the entire conversation.",
+  "ai.tokenNoteRag": " Code search is counted once you type a question.",
+  "ai.tokenNoteAttached": " · Last send attached: {list}",
+  "ai.rowHistory": "Conversation history ({n})",
+  "ai.rowQuestion": "Question",
+  // Composer + model picker
+  "ai.placeholder": "Ask anything…  ⏎ send · ⇧⏎ newline",
+  "ai.inputAria": "Ask the AI",
+  "ai.modelSelect": "Select model",
+  "ai.needKeyHint": "Add an API key in Settings (⌘,)",
+  "ai.noKey": "No key",
+  "ai.stop": "Stop generating",
+  "ai.send": "Send",
+  "ai.sendHint": "Send (⏎)",
+
+  // ── AI panel · conversation history ─────────────────────────────────────
+  "chat.historyTitle": "Conversation history",
+  "chat.newConversation": "New conversation",
+  "chat.loading": "Loading…",
+  "chat.empty": "No conversations yet — start one with \"New conversation\".",
+  "chat.untitled": "Untitled conversation",
+  "chat.conversationWord": "conversation",
+  "chat.delete": "Delete",
+  "chat.deleteAria": "Delete {title}",
+  "chat.deleted": "Conversation deleted.",
+  "chat.listFailed": "Could not load conversations: {error}",
+  "chat.deleteFailed": "Could not delete conversation: {error}",
+  // Minute/hour relative time. Past a day it hands off to an Intl date.
+  "chat.agoJustNow": "Just now",
+  "chat.agoMinutes": "{n}m ago",
+  "chat.agoHours": "{n}h ago",
+
+  // ── AI panel ────────────────────────────────────────────────────────────
+  // Labels for injected context parts (token popover · "last send attached").
+  // parts[].key is a separate sentinel, so translating labels is safe.
+  "ai.partSystem": "System prompt",
+  "ai.partCode": "Code ({n})",
+  "ai.partPlanner": "Planner",
+  "ai.partActions": "Action protocol",
+  "ai.partJournal": "Journal",
+
+  "ai.actionNoProject": "No project is selected.",
+  "ai.actionMissingPlanId": "plan_id is missing",
+  "ai.actionNoItems": "No items to add",
+  "ai.actionNeedStatus": "plan_id / item_id / status are required",
+  "ai.actionNeedTitle": "plan_id / item_id / title are required",
+  "ai.actionNeedItem": "plan_id / item_id are required",
+  "ai.actionUnknownError": "Something went wrong.",
+  "ai.actionCreatePlan": "🗂 Create plan",
+  "ai.actionAddItems": "➕ Add items",
+  "ai.actionSetStatus": "✅ Change status",
+  "ai.actionRenameItem": "✏️ Rename item",
+  "ai.actionRemoveItem": "🗑 Remove item",
+  "ai.actionFallback": "Planner proposal",
+  "ai.actionApplied": "✓ Applied",
+  "ai.actionNewPlan": "New plan: {title}",
+  "ai.actionPlanLabel": "Plan",
+  "ai.actionPhaseLabel": "Phase",
+  "ai.actionItemsToAdd": "Items to add",
+  // The card sentence is interrupted by <span>-highlighted ids and statuses —
+  // per §4.2 the dictionary holds no JSX, so it is split into fragments. Both
+  // languages run "item → id → predicate", so the split holds.
+  "ai.actionItemWord": "Item",
+  "ai.actionStatusArrow": "status →",
+  "ai.actionNameArrow": "name →",
+  "ai.actionRemoveSuffix": "will be removed.",
+  "ai.actionInPlan": "(plan {planId})",
+  "ai.actionApplying": "Applying…",
+  "ai.actionApply": "Apply",
+
   // ── Terminal screen ─────────────────────────────────────────────────────
   "term.title": "Terminal",
   "term.loading": "Loading terminal",

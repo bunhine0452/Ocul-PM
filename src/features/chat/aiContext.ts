@@ -8,6 +8,9 @@
 // one-call helper the simpler panels use.
 
 import { commands, type ChunkSearchResult } from "@/lib/bindings";
+// 모듈 t() — 순수 조립 함수라 훅을 쓸 수 없다. 여기서 t() 를 쓰는 건 UI 에
+// 보이는 파트 라벨뿐이고, 모델에게 가는 본문은 §4.5 대로 한국어로 남는다.
+import { t } from "@/i18n";
 import type { Settings } from "@/lib/settings";
 import { buildActionInstruction } from "./aiActions";
 
@@ -103,9 +106,11 @@ export async function buildPlannerSystemContext(projectId: number | null): Promi
       const phase = it.phase ? `[${it.phase}] ` : "";
       markdown += `    - [${mark}] (item_id: ${it.item_id}) ${phase}${it.title}\n`;
     }
+    // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
     if (closed > 0) markdown += `    - … 종료된 항목 ${closed}건 생략\n`;
   }
   if (active.length > shown.length) {
+    // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
     markdown += `- … 활성 계획 ${active.length - shown.length}개 생략 (앞 ${MAX_CTX_PLANS}개만 표시)\n`;
   }
   return markdown;
@@ -114,6 +119,7 @@ export async function buildPlannerSystemContext(projectId: number | null): Promi
 /** Clamp long text so a single journal body / ruleset can't blow the token
  *  budget. Adds a visible elision marker. */
 function clampText(s: string, max: number): string {
+  // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
   return s.length > max ? s.slice(0, max).trimEnd() + "\n… (생략됨)" : s;
 }
 
@@ -181,6 +187,7 @@ export function digestRules(master: string, budget = RULES_DIGEST_CHARS): string
   const out = [preamble, ...chosen.sort((a, b) => a.order - b.order).map((s) => s.text)]
     .filter(Boolean)
     .join("\n\n");
+  // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
   return omitted > 0 ? `${out}\n\n… 규칙 ${omitted}개 절 생략 (전문은 AGENTS.md)` : out;
 }
 
@@ -201,11 +208,15 @@ export async function buildOculpmSystemContext(
     const listRes = await commands.oculpmListJournalEntries(projectId, null, null);
     if (listRes.status === "ok" && listRes.data.length > 0) {
       const recent = listRes.data.slice(0, maxEntries);
+      // LLM 프롬프트 본문 (03-i18n.md §4.5 — 본문은 한국어 유지, 출력 언어만 지시)
       let md =
+        // i18n-ignore-next-line -- 위 사유
         "### 프로젝트 작업 맥락 (ocul-pm 작업일지, 최신순)\n" +
+        // i18n-ignore-next-line -- 위 사유
         "이 프로젝트에서 최근 진행한 작업 기록입니다. 작업 방향과 결정을 이어가세요.\n\n";
       for (const e of recent) {
         const date = e.created_at ? e.created_at.slice(0, 10) : e.workday;
+        // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
         md += `- [${e.status}] ${e.title} _(${e.type}, ${e.agent_id}, ${e.files_count} 파일, ${date})_\n`;
       }
 
@@ -217,6 +228,7 @@ export async function buildOculpmSystemContext(
           bodies.push(`#### ${detRes.data.title}\n${clampText(detRes.data.body_markdown.trim(), 1200)}`);
         }
       }
+      // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
       if (bodies.length > 0) md += "\n최근 기록 상세:\n\n" + bodies.join("\n\n");
       sections.push(md);
     }
@@ -225,6 +237,7 @@ export async function buildOculpmSystemContext(
   const rulesRes = await commands.oculpmAgentsGetMasterTemplate(projectId);
   if (rulesRes.status === "ok" && rulesRes.data.trim()) {
     sections.push(
+      // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
       "### 작업 규칙 (AGENTS)\n이 프로젝트의 규칙입니다. 응답과 제안은 이 규칙을 따르세요.\n\n" +
         digestRules(rulesRes.data),
     );
@@ -285,28 +298,29 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   let chunks: ChunkSearchResult[] = [];
 
   if (settings.systemPrompt.trim()) {
-    parts.push({ key: "system", label: "시스템 프롬프트", text: settings.systemPrompt.trim() });
+    parts.push({ key: "system", label: t("ai.partSystem"), text: settings.systemPrompt.trim() });
   }
 
   if (includeRag && projectId != null && query.trim() && settings.ragTopK > 0) {
     const res = await commands.searchChunks(projectId, query, settings.ragTopK, false);
     if (res.status === "ok" && res.data.length > 0) {
       chunks = res.data;
-      parts.push({ key: "rag", label: `코드 ${chunks.length}곳`, text: buildContextSystem(chunks) });
-      attached.push(`코드 ${chunks.length}곳`);
+      const ragLabel = t("ai.partCode", { n: chunks.length });
+      parts.push({ key: "rag", label: ragLabel, text: buildContextSystem(chunks) });
+      attached.push(ragLabel);
     }
   }
   if (includePlanner) {
     const p = await buildPlannerSystemContext(projectId);
     if (p) {
-      parts.push({ key: "planner", label: "플래너", text: p });
-      attached.push("플래너");
+      parts.push({ key: "planner", label: t("ai.partPlanner"), text: p });
+      attached.push(t("ai.partPlanner"));
     }
   }
   // The action protocol is cheap (a static instruction) and only useful when
   // the planner is in play, so it follows the planner block.
   if (includeActions) {
-    parts.push({ key: "actions", label: "액션 프로토콜", text: buildActionInstruction() });
+    parts.push({ key: "actions", label: t("ai.partActions"), text: buildActionInstruction() });
   }
   if (includeGit) {
     const g = await buildGitSystemContext(projectId);
@@ -318,8 +332,8 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   if (includeOculpm) {
     const o = await buildOculpmSystemContext(projectId, settings.oculpmContextEntries);
     if (o) {
-      parts.push({ key: "oculpm", label: "작업일지", text: o });
-      attached.push("작업일지");
+      parts.push({ key: "oculpm", label: t("ai.partJournal"), text: o });
+      attached.push(t("ai.partJournal"));
     }
   }
 

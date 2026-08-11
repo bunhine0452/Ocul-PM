@@ -34,6 +34,11 @@ import {
 import { assembleAiContext, type AiContextResult } from "./aiContext";
 import { ActionProposalCard, extractPlannerAction } from "./aiActions";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
+// `useT()` 는 렌더 경로용(언어가 바뀌면 리렌더). `tNow()` 는 모듈 조회로
+// **호출 시점의** 언어를 읽는다 — 아이덴티티가 고정이라 deps 에 넣을 필요가
+// 없고, deps 에 t 가 빠진 콜백에서도 낡은 언어로 굳지 않는다. DB 에 저장되는
+// 대화 제목처럼 한번 잘못 들어가면 영구히 남는 자리에 쓴다.
+import { t as tNow, useT } from "@/i18n";
 
 // AI 패널 (ui_v2) — 2026-07-20 대규모 개편.
 //  - 모델 선택: 상단 칩 바 → Cursor 식 컴포저 하단 드롭다운(위로 열림).
@@ -65,12 +70,18 @@ function secretName(p: Provider): string {
   return `${p}_api_key`;
 }
 
-const SUGGESTIONS = [
-  "이 프로젝트 구조를 한눈에 요약해줘",
-  "최근 작업일지를 바탕으로 다음 할 일을 제안해줘",
-  "플래너 진행 상황을 정리하고 리스크를 짚어줘",
-  "최근 커밋 흐름을 리뷰해줘",
-];
+/**
+ * 예시 질문 칩의 사전 키.
+ *
+ * **문자열 배열 상수가 아니라 키 배열이다** — `const SUGGESTIONS = [t(…)]` 로
+ * 두면 모듈이 임포트되는 시점의 언어로 굳어 이후 전환이 반영되지 않는다.
+ */
+const SUGGESTION_KEYS = [
+  "ai.suggestStructure",
+  "ai.suggestNextSteps",
+  "ai.suggestPlannerRisk",
+  "ai.suggestCommits",
+] as const;
 
 /** open 상태의 팝업을 바깥 클릭/Escape 로 닫는 공통 훅. */
 function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, close: () => void) {
@@ -107,6 +118,9 @@ const MessageRow = memo(function MessageRow({
   messageIndex: number;
   projectId: number;
 }) {
+  // memo 컴포넌트라 useT() 여야 한다 — 모듈 t() 를 쓰면 props 가 그대로일 때
+  // 언어를 바꿔도 이 행만 옛 언어로 남는다.
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
   const mp = msg.provider ?? fallbackProvider;
 
@@ -136,15 +150,15 @@ const MessageRow = memo(function MessageRow({
         <span className="msg-vendor">{VENDOR[mp].vendor}</span>
         {isStreamingRow ? (
           <span className="msg-live">
-            <span className="msg-live-dot" /> 생성 중
+            <span className="msg-live-dot" /> {t("ai.streaming")}
           </span>
         ) : msg.content ? (
           <button
             type="button"
             className="msg-copy"
             onClick={() => void copy()}
-            aria-label="답변 복사"
-            title="답변 복사"
+            aria-label={t("ai.copyAnswer")}
+            title={t("ai.copyAnswer")}
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
           </button>
@@ -155,7 +169,7 @@ const MessageRow = memo(function MessageRow({
           msg.content ? (
             <Markdown>{msg.content}</Markdown>
           ) : (
-            <div className="msg-wait">응답 대기 중…</div>
+            <div className="msg-wait">{t("ai.waiting")}</div>
           )
         ) : msg.content ? (
           (() => {
@@ -186,6 +200,7 @@ interface AiPanelScreenV2Props {
 }
 
 export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
+  const { t } = useT();
   const { state, setState, setUiV2View } = useWorkspace();
   const { settings } = useSettings();
 
@@ -249,7 +264,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         id = convs[0]?.id ?? null;
       }
       if (id == null) {
-        const created = await commands.conversationCreate("AI 패널", provider, null, projectId);
+        const created = await commands.conversationCreate(tNow("ai.threadTitle"), provider, null, projectId);
         if (cancelled) return;
         if (created.status === "ok") id = created.data.id;
       }
@@ -385,8 +400,12 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
             .map((p) => ({ label: p.label, tokens: estimateTokens(p.text) }))
             .filter((r) => r.tokens > 0);
           const hist = estimateMessagesTokens(messages);
-          if (hist > 0) rows.push({ label: `대화 기록 ${messages.length}개`, tokens: hist });
-          if (query) rows.push({ label: "질문", tokens: MESSAGE_OVERHEAD_TOKENS + estimateTokens(query) });
+          if (hist > 0) rows.push({ label: t("ai.rowHistory", { n: messages.length }), tokens: hist });
+          if (query)
+            rows.push({
+              label: t("ai.rowQuestion"),
+              tokens: MESSAGE_OVERHEAD_TOKENS + estimateTokens(query),
+            });
           setEstimate({
             total: rows.reduce((s, r) => s + r.tokens, 0),
             rows,
@@ -407,7 +426,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     const trimmed = draft.trim();
     if (!trimmed || streaming) return;
     if (hasKey[provider] === false) {
-      setError(`${VENDOR[provider].name} 의 API 키가 없습니다. 설정에서 추가하세요.`);
+      setError(t("ai.noApiKey", { vendor: VENDOR[provider].name }));
       return;
     }
     setError(null);
@@ -617,7 +636,12 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   );
 
   const handleNewThread = useCallback(async () => {
-    const res = await commands.conversationCreate("새 대화", provider, null, projectId);
+    const res = await commands.conversationCreate(
+      tNow("ai.newThread"),
+      provider,
+      null,
+      projectId,
+    );
     if (res.status === "ok") await loadThread(res.data.id);
     setHistoryOpen(false);
   }, [provider, projectId, loadThread]);
@@ -628,7 +652,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     const convs = listRes.status === "ok" ? listRes.data : [];
     let id = convs[0]?.id ?? null;
     if (id == null) {
-      const created = await commands.conversationCreate("AI 패널", provider, null, projectId);
+      const created = await commands.conversationCreate(tNow("ai.threadTitle"), provider, null, projectId);
       if (created.status === "ok") id = created.data.id;
     }
     if (id != null) await loadThread(id);
@@ -642,12 +666,16 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
   return (
     <>
-      <Toolbar title="AI 패널" sub="여러 LLM에 같은 컨텍스트로 질문">
-        <button className="btn" onClick={() => void handleNewThread()} title="새 대화 시작">
-          <SquarePen size={15} /> 새 대화
+      <Toolbar title={t("ai.title")} sub={t("ai.toolbarSub")}>
+        <button
+          className="btn"
+          onClick={() => void handleNewThread()}
+          title={t("ai.newThreadTitle")}
+        >
+          <SquarePen size={15} /> {t("ai.newThread")}
         </button>
-        <button className="btn" onClick={() => setHistoryOpen(true)} title="대화 기록">
-          <History size={15} /> 대화 기록
+        <button className="btn" onClick={() => setHistoryOpen(true)} title={t("ai.historyBtn")}>
+          <History size={15} /> {t("ai.historyBtn")}
         </button>
       </Toolbar>
 
@@ -660,14 +688,14 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   <div className="ai-hero-icon">
                     <SparklesIcon size={22} />
                   </div>
-                  <div className="ai-hero-title">사용할 수 있는 API 키가 없어요</div>
+                  <div className="ai-hero-title">{t("ai.heroNoKeyTitle")}</div>
                   <div className="ai-hero-sub">
                     <button
                       type="button"
                       className="set-link"
                       onClick={() => setUiV2View("settings")}
                     >
-                      설정에서 키 추가 →
+                      {t("ai.heroAddKey")}
                     </button>
                   </div>
                 </div>
@@ -676,24 +704,25 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   <div className="ai-hero-icon">
                     <SparklesIcon size={22} />
                   </div>
-                  <div className="ai-hero-title">무엇이든 물어보세요</div>
-                  <div className="ai-hero-sub">
-                    코드 · 작업일지 · 플래너 · git 컨텍스트를 붙여 질문할 수 있어요.
-                  </div>
+                  <div className="ai-hero-title">{t("ai.heroTitle")}</div>
+                  <div className="ai-hero-sub">{t("ai.heroSub")}</div>
                   <div className="ai-suggest">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="ai-suggest-chip"
-                        onClick={() => {
-                          setDraft(s);
-                          taRef.current?.focus();
-                        }}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    {SUGGESTION_KEYS.map((key) => {
+                      const text = t(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className="ai-suggest-chip"
+                          onClick={() => {
+                            setDraft(text);
+                            taRef.current?.focus();
+                          }}
+                        >
+                          {text}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )
@@ -714,7 +743,9 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
               <div className="msg assistant">
                 <div className="msg-head">
                   <TriangleAlert size={13} style={{ color: "var(--t-bug)" }} />
-                  <span className="msg-model" style={{ color: "var(--t-bug)" }}>오류</span>
+                  <span className="msg-model" style={{ color: "var(--t-bug)" }}>
+                    {t("ai.errorLabel")}
+                  </span>
                 </div>
                 <div className="msg-md">
                   <div className="msg-error">{error}</div>
@@ -727,8 +758,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
               type="button"
               className="ai-scroll-fab"
               onClick={scrollToBottom}
-              aria-label="맨 아래로"
-              title="맨 아래로"
+              aria-label={t("ai.scrollBottom")}
+              title={t("ai.scrollBottom")}
             >
               <ArrowDown size={15} />
             </button>
@@ -741,10 +772,10 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
               <Paperclip size={13} />
               {(
                 [
-                  { key: "rag", label: "코드" },
-                  { key: "oculpm", label: "작업일지" },
-                  { key: "planner", label: "플래너" },
-                  { key: "git", label: "git" },
+                  { key: "rag", labelKey: "ai.chipCode" },
+                  { key: "oculpm", labelKey: "ai.chipJournal" },
+                  { key: "planner", labelKey: "ai.chipPlanner" },
+                  { key: "git", labelKey: "ai.chipGit" },
                 ] as const
               ).map((it) => (
                 <button
@@ -752,9 +783,9 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   type="button"
                   className={"scope-chip" + (ctx[it.key] ? " on" : "")}
                   onClick={() => setCtx((c) => ({ ...c, [it.key]: !c[it.key] }))}
-                  title={`${it.label} 컨텍스트를 질문에 첨부`}
+                  title={t("ai.chipAttach", { label: t(it.labelKey) })}
                 >
-                  {it.label}
+                  {t(it.labelKey)}
                 </button>
               ))}
               <span style={{ flex: 1 }} />
@@ -764,16 +795,16 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   className={"tok-badge" + (tokenPopOpen ? " open" : "")}
                   onClick={() => setTokenPopOpen((v) => !v)}
                   aria-expanded={tokenPopOpen}
-                  title="예상 입력 토큰 (근사치)"
+                  title={t("ai.tokenBadgeTitle")}
                 >
-                  입력 ~{formatTokenCount(estimate?.total ?? 0)} 토큰
+                  {t("ai.tokenBadge", { n: formatTokenCount(estimate?.total ?? 0) })}
                   <ChevronDown size={12} />
                 </button>
                 {tokenPopOpen && estimate ? (
                   <div className="tok-pop">
-                    <div className="tok-pop-title">다음 전송의 예상 입력</div>
+                    <div className="tok-pop-title">{t("ai.tokenPopTitle")}</div>
                     {estimate.rows.length === 0 ? (
-                      <div className="tok-row-empty">첨부된 컨텍스트가 없어요.</div>
+                      <div className="tok-row-empty">{t("ai.tokenPopEmpty")}</div>
                     ) : (
                       estimate.rows.map((r) => (
                         <div className="tok-row" key={r.label}>
@@ -791,14 +822,15 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                       ))
                     )}
                     <div className="tok-pop-total">
-                      <span>합계</span>
-                      <span>~{formatTokenCount(estimate.total)} 토큰</span>
+                      <span>{t("ai.tokenTotal")}</span>
+                      <span>{t("ai.tokenTotalValue", { n: formatTokenCount(estimate.total) })}</span>
                     </div>
                     <div className="tok-pop-note">
-                      휴리스틱 근사치예요 (±30%). 매 전송마다 컨텍스트 + 대화 기록 전체가
-                      다시 전송됩니다.
-                      {estimate.ragPending ? " 코드 검색분은 질문을 입력하면 반영돼요." : ""}
-                      {lastAttached.length > 0 ? ` · 지난 전송 첨부: ${lastAttached.join(", ")}` : ""}
+                      {t("ai.tokenNote")}
+                      {estimate.ragPending ? t("ai.tokenNoteRag") : ""}
+                      {lastAttached.length > 0
+                        ? t("ai.tokenNoteAttached", { list: lastAttached.join(", ") })
+                        : ""}
                     </div>
                   </div>
                 ) : null}
@@ -817,8 +849,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                     void send();
                   }
                 }}
-                placeholder="무엇이든 물어보세요…  ⏎ 전송 · ⇧⏎ 줄바꿈"
-                aria-label="AI 질문 입력"
+                placeholder={t("ai.placeholder")}
+                aria-label={t("ai.inputAria")}
               />
             </div>
 
@@ -830,7 +862,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   onClick={() => setModelMenuOpen((v) => !v)}
                   aria-haspopup="listbox"
                   aria-expanded={modelMenuOpen}
-                  title="모델 선택"
+                  title={t("ai.modelSelect")}
                 >
                   <span className="model-dot" style={{ background: VENDOR[provider].color }} />
                   <span className="model-trigger-name">{VENDOR[provider].name}</span>
@@ -838,7 +870,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   <ChevronDown size={13} />
                 </button>
                 {modelMenuOpen ? (
-                  <div className="model-menu" role="listbox" aria-label="모델 선택">
+                  <div className="model-menu" role="listbox" aria-label={t("ai.modelSelect")}>
                     {PROVIDERS.map((p) => {
                       const v = VENDOR[p];
                       const disabled = hasKey[p] === false;
@@ -854,12 +886,12 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                             setProvider(p);
                             setModelMenuOpen(false);
                           }}
-                          title={disabled ? "설정(⌘,)에서 API 키를 추가하세요" : undefined}
+                          title={disabled ? t("ai.needKeyHint") : undefined}
                         >
                           <span className="model-dot" style={{ background: v.color }} />
                           <span className="model-option-name">{v.name}</span>
                           <span className="model-option-model">
-                            {disabled ? "키 없음" : providerModel(settings, p)}
+                            {disabled ? t("ai.noKey") : providerModel(settings, p)}
                           </span>
                           {provider === p ? <Check size={13} /> : null}
                         </button>
@@ -874,8 +906,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   type="button"
                   className="btn icon composer-stop"
                   onClick={stop}
-                  aria-label="생성 중지"
-                  title="생성 중지"
+                  aria-label={t("ai.stop")}
+                  title={t("ai.stop")}
                 >
                   <Square size={13} fill="currentColor" />
                 </button>
@@ -885,8 +917,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   className="btn primary icon composer-send"
                   onClick={() => void send()}
                   disabled={!draft.trim()}
-                  aria-label="보내기"
-                  title="보내기 (⏎)"
+                  aria-label={t("ai.send")}
+                  title={t("ai.sendHint")}
                 >
                   <ArrowUp size={16} strokeWidth={2.2} />
                 </button>

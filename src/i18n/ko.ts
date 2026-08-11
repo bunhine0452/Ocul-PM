@@ -1253,6 +1253,115 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── AI 패널 화면 ────────────────────────────────────────────────────────
+  "ai.title": "AI 패널",
+  "ai.toolbarSub": "여러 LLM에 같은 컨텍스트로 질문",
+  "ai.newThread": "새 대화",
+  "ai.newThreadTitle": "새 대화 시작",
+  "ai.historyBtn": "대화 기록",
+  "ai.streaming": "생성 중",
+  "ai.copyAnswer": "답변 복사",
+  "ai.waiting": "응답 대기 중…",
+  // 대화 생성 시 DB 에 저장되는 기본 제목. AI 가 쓰는 내용이 아니라 앱이
+  // 붙이는 표시용 라벨이라 UI 언어를 따른다 (설정의 "AI 작성 언어" 는
+  // 일지·플래너·회고를 가리킨다). 만들 때 언어로 굳고, 사용자가 바꿀 수 있다.
+  "ai.threadTitle": "AI 패널",
+  "ai.errorLabel": "오류",
+  "ai.scrollBottom": "맨 아래로",
+  "ai.noApiKey": "{vendor} 의 API 키가 없습니다. 설정에서 추가하세요.",
+  "ai.heroNoKeyTitle": "사용할 수 있는 API 키가 없어요",
+  "ai.heroAddKey": "설정에서 키 추가 →",
+  "ai.heroTitle": "무엇이든 물어보세요",
+  "ai.heroSub": "코드 · 작업일지 · 플래너 · git 컨텍스트를 붙여 질문할 수 있어요.",
+  // 예시 질문 칩 — 누르면 입력창에 그대로 들어간다. 모델에게 가는 문장이자
+  // 화면에 보이는 문장이라 두 언어 모두 자연스러운 질문이어야 한다.
+  "ai.suggestStructure": "이 프로젝트 구조를 한눈에 요약해줘",
+  "ai.suggestNextSteps": "최근 작업일지를 바탕으로 다음 할 일을 제안해줘",
+  "ai.suggestPlannerRisk": "플래너 진행 상황을 정리하고 리스크를 짚어줘",
+  "ai.suggestCommits": "최근 커밋 흐름을 리뷰해줘",
+  // 컨텍스트 첨부 칩 — key 는 판별자라 그대로, 라벨만 사전을 거친다.
+  "ai.chipCode": "코드",
+  "ai.chipJournal": "작업일지",
+  "ai.chipPlanner": "플래너",
+  "ai.chipGit": "git",
+  "ai.chipAttach": "{label} 컨텍스트를 질문에 첨부",
+  // 토큰 추정 팝오버
+  "ai.tokenBadgeTitle": "예상 입력 토큰 (근사치)",
+  "ai.tokenBadge": "입력 ~{n} 토큰",
+  "ai.tokenPopTitle": "다음 전송의 예상 입력",
+  "ai.tokenPopEmpty": "첨부된 컨텍스트가 없어요.",
+  "ai.tokenTotal": "합계",
+  "ai.tokenTotalValue": "~{n} 토큰",
+  "ai.tokenNote": "휴리스틱 근사치예요 (±30%). 매 전송마다 컨텍스트 + 대화 기록 전체가 다시 전송됩니다.",
+  "ai.tokenNoteRag": " 코드 검색분은 질문을 입력하면 반영돼요.",
+  "ai.tokenNoteAttached": " · 지난 전송 첨부: {list}",
+  "ai.rowHistory": "대화 기록 {n}개",
+  "ai.rowQuestion": "질문",
+  // 입력·모델 선택
+  "ai.placeholder": "무엇이든 물어보세요…  ⏎ 전송 · ⇧⏎ 줄바꿈",
+  "ai.inputAria": "AI 질문 입력",
+  "ai.modelSelect": "모델 선택",
+  "ai.needKeyHint": "설정(⌘,)에서 API 키를 추가하세요",
+  "ai.noKey": "키 없음",
+  "ai.stop": "생성 중지",
+  "ai.send": "보내기",
+  "ai.sendHint": "보내기 (⏎)",
+
+  // ── AI 패널 · 대화 기록 ─────────────────────────────────────────────────
+  "chat.historyTitle": "대화 기록",
+  "chat.newConversation": "새 대화",
+  "chat.loading": "불러오는 중…",
+  "chat.empty": "아직 대화가 없어요. \"새 대화\" 로 시작하세요.",
+  "chat.untitled": "제목 없는 대화",
+  "chat.conversationWord": "대화",
+  "chat.delete": "삭제",
+  "chat.deleteAria": "{title} 삭제",
+  "chat.deleted": "대화를 삭제했어요.",
+  "chat.listFailed": "대화 목록을 불러오지 못했어요: {error}",
+  "chat.deleteFailed": "대화 삭제 실패: {error}",
+  // 분·시간 단위 상대 시각. 하루가 넘어가면 Intl 날짜로 넘긴다 (사전 아님).
+  "chat.agoJustNow": "방금",
+  "chat.agoMinutes": "{n}분 전",
+  "chat.agoHours": "{n}시간 전",
+
+  // ── AI 패널 ─────────────────────────────────────────────────────────────
+  // 주입된 컨텍스트 조각 라벨 (토큰 팝오버 · "지난 전송 첨부" 목록).
+  // parts[].key 가 별도 sentinel 이라 라벨을 번역해도 판별에 영향이 없다.
+  "ai.partSystem": "시스템 프롬프트",
+  "ai.partCode": "코드 {n}곳",
+  "ai.partPlanner": "플래너",
+  "ai.partActions": "액션 프로토콜",
+  "ai.partJournal": "작업일지",
+
+  "ai.actionNoProject": "프로젝트가 선택되지 않았습니다.",
+  "ai.actionMissingPlanId": "plan_id 가 없습니다",
+  "ai.actionNoItems": "추가할 항목이 없습니다",
+  "ai.actionNeedStatus": "plan_id / item_id / status 가 필요합니다",
+  "ai.actionNeedTitle": "plan_id / item_id / title 이 필요합니다",
+  "ai.actionNeedItem": "plan_id / item_id 가 필요합니다",
+  "ai.actionUnknownError": "알 수 없는 오류가 발생했습니다.",
+  "ai.actionCreatePlan": "🗂 계획 생성",
+  "ai.actionAddItems": "➕ 항목 추가",
+  "ai.actionSetStatus": "✅ 상태 변경",
+  "ai.actionRenameItem": "✏️ 항목 이름변경",
+  "ai.actionRemoveItem": "🗑 항목 삭제",
+  "ai.actionFallback": "플래너 제안",
+  "ai.actionApplied": "✓ 반영 완료",
+  "ai.actionNewPlan": "새 계획: {title}",
+  "ai.actionPlanLabel": "계획",
+  "ai.actionPhaseLabel": "단계",
+  "ai.actionItemsToAdd": "추가할 항목",
+  // 카드 문장은 항목 id·상태가 <span> 으로 강조돼 중간에 끼어든다 — §4.2 대로
+  // 사전에 JSX 를 넣지 않고 조각으로 쪼갠다. 두 언어 모두 "항목 → id → 서술"
+  // 어순이라 이 분할이 성립한다.
+  "ai.actionItemWord": "항목",
+  "ai.actionStatusArrow": "상태 →",
+  "ai.actionNameArrow": "이름 →",
+  "ai.actionRemoveSuffix": "를 삭제합니다.",
+  "ai.actionInPlan": "(계획 {planId})",
+  "ai.actionApplying": "반영 중…",
+  "ai.actionApply": "적용하기 (Apply)",
+
   // ── 터미널 화면 ─────────────────────────────────────────────────────────
   "term.title": "터미널",
   "term.loading": "터미널 불러오는 중",

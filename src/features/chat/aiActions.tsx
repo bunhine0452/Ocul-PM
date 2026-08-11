@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
 import { Button } from "@/components/ui/button";
+import { useT, type I18nKey } from "@/i18n";
 
 // Shared planner-action machinery (Group B Stage 2 — 어시스턴트화).
 //
@@ -52,6 +53,18 @@ export function extractPlannerAction(text: string): { cleanText: string; action:
   }
 }
 
+/**
+ * AI 제안에 제목·단계가 없을 때 쓰는 기본값.
+ *
+ * **UI 문자열이 아니라 플래너 파일에 기록되는 내용값**이다 — UI 언어가 아니라
+ * AI 작성 언어(`settings.contentLanguage`) 축에 속한다. 그 축은 설정만 있고
+ * 아직 소비처가 없어(미배선) 한국어로 둔다. 배선될 때 여기부터 바꾸면 된다.
+ */
+// i18n-ignore-next-line -- 플래너 파일에 기록되는 내용값 (contentLanguage 축)
+const DEFAULT_PLAN_TITLE = "새 계획";
+// i18n-ignore-next-line -- 위와 같음
+const DEFAULT_PHASE = "할 일";
+
 /** System-prompt fragment teaching the model the json:action protocol. Injected
  *  when planner context is attached so the assistant can propose changes. */
 export function buildActionInstruction(): string {
@@ -66,7 +79,7 @@ export function buildActionInstruction(): string {
     "{",
     "  \"type\": \"create_plan\",",
     "  \"plan_title\": \"Plan Title\",",
-    "  \"phase\": \"Phase name (optional, default 할 일)\",",
+    `  "phase": "Phase name (optional, default ${DEFAULT_PHASE})",`,
     "  \"titles\": [\"Item 1\", \"Item 2\"] (optional)",
     "}",
     "```",
@@ -109,6 +122,7 @@ export function ActionProposalCard({
   projectId = null,
   onApplied,
 }: ActionProposalCardProps) {
+  const { t } = useT();
   // Apply-state lives in the SQLite `conversation_actions` table (W5).
   // We start in "idle" and quietly upgrade to "applied" if a matching row
   // shows up — this avoids a render flicker for unmatched messages.
@@ -137,7 +151,7 @@ export function ActionProposalCard({
     setStatus("applying");
     setErrorMsg(null);
     try {
-      if (projectId == null) throw new Error("프로젝트가 선택되지 않았습니다.");
+      if (projectId == null) throw new Error(t("ai.actionNoProject"));
       const agent = "assistant";
       const addItem = async (planId: string, phase: string, title: string) => {
         const r = await commands.planApplyEdit(
@@ -149,17 +163,22 @@ export function ActionProposalCard({
         if (r.status === "error") throw new Error(r.error);
       };
       if (action.type === "create_plan") {
-        const created = await commands.planCreate(projectId, action.plan_title ?? "새 계획");
+        const created = await commands.planCreate(
+          projectId,
+          action.plan_title ?? DEFAULT_PLAN_TITLE,
+        );
         if (created.status === "error") throw new Error(created.error);
         const planId = created.data.plan_id;
-        for (const t of action.titles ?? []) await addItem(planId, action.phase ?? "할 일", t);
+        for (const title of action.titles ?? [])
+          await addItem(planId, action.phase ?? DEFAULT_PHASE, title);
       } else if (action.type === "add_items") {
-        if (!action.plan_id) throw new Error("plan_id 가 없습니다");
-        if (!action.titles?.length) throw new Error("추가할 항목이 없습니다");
-        for (const t of action.titles) await addItem(action.plan_id, action.phase ?? "할 일", t);
+        if (!action.plan_id) throw new Error(t("ai.actionMissingPlanId"));
+        if (!action.titles?.length) throw new Error(t("ai.actionNoItems"));
+        for (const title of action.titles)
+          await addItem(action.plan_id, action.phase ?? DEFAULT_PHASE, title);
       } else if (action.type === "set_status") {
         if (!action.plan_id || !action.item_id || !action.status)
-          throw new Error("plan_id / item_id / status 가 필요합니다");
+          throw new Error(t("ai.actionNeedStatus"));
         const r = await commands.planApplyEdit(
           projectId,
           action.plan_id,
@@ -169,7 +188,7 @@ export function ActionProposalCard({
         if (r.status === "error") throw new Error(r.error);
       } else if (action.type === "rename_item") {
         if (!action.plan_id || !action.item_id || !action.title)
-          throw new Error("plan_id / item_id / title 이 필요합니다");
+          throw new Error(t("ai.actionNeedTitle"));
         const r = await commands.planApplyEdit(
           projectId,
           action.plan_id,
@@ -179,7 +198,7 @@ export function ActionProposalCard({
         if (r.status === "error") throw new Error(r.error);
       } else if (action.type === "remove_item") {
         if (!action.plan_id || !action.item_id)
-          throw new Error("plan_id / item_id 가 필요합니다");
+          throw new Error(t("ai.actionNeedItem"));
         const r = await commands.planApplyEdit(
           projectId,
           action.plan_id,
@@ -199,28 +218,30 @@ export function ActionProposalCard({
       onApplied();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || "알 수 없는 오류가 발생했습니다.");
+      setErrorMsg(err.message || t("ai.actionUnknownError"));
       setStatus("error");
     }
   }
 
-  const typeLabels: Record<string, string> = {
-    create_plan: "🗂 계획 생성",
-    add_items: "➕ 항목 추가",
-    set_status: "✅ 상태 변경",
-    rename_item: "✏️ 항목 이름변경",
-    remove_item: "🗑 항목 삭제",
+  // 표시 라벨만 사전을 거친다 — 키(action.type)는 프로토콜 판별자라 그대로다.
+  const typeLabels: Record<string, I18nKey> = {
+    create_plan: "ai.actionCreatePlan",
+    add_items: "ai.actionAddItems",
+    set_status: "ai.actionSetStatus",
+    rename_item: "ai.actionRenameItem",
+    remove_item: "ai.actionRemoveItem",
   };
+  const typeKey = typeLabels[action.type];
 
   return (
     <div className="mt-3 p-4 rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm shadow-sm space-y-3 max-w-full">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
-          {typeLabels[action.type] || "플래너 제안"}
+          {typeKey ? t(typeKey) : t("ai.actionFallback")}
         </span>
         {status === "applied" && (
           <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            ✓ 반영 완료
+            {t("ai.actionApplied")}
           </span>
         )}
       </div>
@@ -228,25 +249,31 @@ export function ActionProposalCard({
       {(action.type === "create_plan" || action.type === "add_items") && (
         <div className="space-y-1.5 text-xs text-foreground">
           {action.type === "create_plan" ? (
-            <div className="font-semibold text-sm">새 계획: {action.plan_title ?? "새 계획"}</div>
+            <div className="font-semibold text-sm">
+              {t("ai.actionNewPlan", { title: action.plan_title ?? DEFAULT_PLAN_TITLE })}
+            </div>
           ) : (
             <div className="text-muted-foreground">
-              계획: <span className="font-mono font-semibold text-foreground">{action.plan_id}</span>
+              {t("ai.actionPlanLabel")}:{" "}
+              <span className="font-mono font-semibold text-foreground">{action.plan_id}</span>
             </div>
           )}
           {action.phase && (
             <div className="text-muted-foreground">
-              단계: <span className="font-medium text-foreground">{action.phase}</span>
+              {t("ai.actionPhaseLabel")}:{" "}
+              <span className="font-medium text-foreground">{action.phase}</span>
             </div>
           )}
           {action.titles && action.titles.length > 0 && (
             <div className="pt-1">
-              <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">추가할 항목</div>
+              <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
+                {t("ai.actionItemsToAdd")}
+              </div>
               <ul className="space-y-1 pl-2">
-                {action.titles.map((t, idx) => (
+                {action.titles.map((title, idx) => (
                   <li key={idx} className="flex items-center gap-1.5 text-muted-foreground">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/40" />
-                    {t}
+                    {title}
                   </li>
                 ))}
               </ul>
@@ -257,23 +284,34 @@ export function ActionProposalCard({
 
       {action.type === "set_status" && (
         <div className="text-xs text-foreground">
-          항목 <span className="font-mono font-semibold">{action.item_id}</span> 상태 →{" "}
+          {t("ai.actionItemWord")}{" "}
+          <span className="font-mono font-semibold">{action.item_id}</span>{" "}
+          {t("ai.actionStatusArrow")}{" "}
           <span className="px-1.5 py-0.5 rounded bg-muted font-medium">{action.status}</span>
-          <span className="text-muted-foreground"> (계획 {action.plan_id})</span>
+          <span className="text-muted-foreground">
+            {" "}
+            {t("ai.actionInPlan", { planId: action.plan_id ?? "" })}
+          </span>
         </div>
       )}
 
       {action.type === "rename_item" && (
         <div className="text-xs text-foreground">
-          항목 <span className="font-mono font-semibold">{action.item_id}</span> 이름 →{" "}
-          <span className="font-semibold">{action.title}</span>
+          {t("ai.actionItemWord")}{" "}
+          <span className="font-mono font-semibold">{action.item_id}</span>{" "}
+          {t("ai.actionNameArrow")} <span className="font-semibold">{action.title}</span>
         </div>
       )}
 
       {action.type === "remove_item" && (
         <div className="text-xs text-foreground">
-          항목 <span className="font-mono font-semibold text-foreground">{action.item_id}</span> 를 삭제합니다.
-          <span className="text-muted-foreground"> (계획 {action.plan_id})</span>
+          {t("ai.actionItemWord")}{" "}
+          <span className="font-mono font-semibold text-foreground">{action.item_id}</span>{" "}
+          {t("ai.actionRemoveSuffix")}
+          <span className="text-muted-foreground">
+            {" "}
+            {t("ai.actionInPlan", { planId: action.plan_id ?? "" })}
+          </span>
         </div>
       )}
 
@@ -291,7 +329,7 @@ export function ActionProposalCard({
             disabled={status === "applying"}
             className="h-8 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           >
-            {status === "applying" ? "반영 중..." : "적용하기 (Apply)"}
+            {status === "applying" ? t("ai.actionApplying") : t("ai.actionApply")}
           </Button>
         </div>
       )}
