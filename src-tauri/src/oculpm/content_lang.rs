@@ -59,10 +59,30 @@ impl ContentLang {
     }
 }
 
+/// UI 언어 설정 키 — `content_language` 가 "system" 일 때의 폴백.
+const UI_SETTING_KEY: &str = "language";
+
 /// DB 에서 현재 산출물 언어를 읽는다. 조회 실패는 `Unset` — 설정 조회가
 /// 안 된다고 일지 생성 자체가 막히면 안 된다.
+///
+/// ## "system" 은 UI 언어를 따른다
+///
+/// 프런트의 `getContentLang()` 과 **같은 규칙**이어야 한다 (i18n/index.ts).
+/// 두 쪽이 어긋나면 영어 UI 사용자가 화면은 영어인데 일지는 한국어로 받는다 —
+/// 설정을 한 번도 안 건드린 사람에게 그게 기본값이 되면 안 된다.
+///
+/// 다만 `language` 마저 "system" 이면 `Unset` 으로 남긴다. 그 해석은
+/// `navigator.language`(웹뷰) 몫이라 Rust 가 알 수 없고, 여기서 OS 로케일을
+/// 새로 추측하면 프런트와 또 다른 규칙이 하나 더 생긴다.
 pub async fn current(db: &Db) -> ContentLang {
-    match db.settings_get(SETTING_KEY.to_string()).await {
+    let explicit = match db.settings_get(SETTING_KEY.to_string()).await {
+        Ok(v) => ContentLang::from_setting(v.as_deref()),
+        Err(_) => return ContentLang::Unset,
+    };
+    if explicit != ContentLang::Unset {
+        return explicit;
+    }
+    match db.settings_get(UI_SETTING_KEY.to_string()).await {
         Ok(v) => ContentLang::from_setting(v.as_deref()),
         Err(_) => ContentLang::Unset,
     }
@@ -107,5 +127,45 @@ mod tests {
         let out = ContentLang::Korean.apply("BODY");
         assert!(out.starts_with("BODY"));
         assert!(out.contains("한국어"));
+    }
+
+    // `current()` 의 폴백 규칙 — 프런트 `getContentLang()` 과 같아야 한다.
+    // 어긋나면 영어 UI 사용자가 화면은 영어인데 일지는 한국어로 받는다.
+
+    async fn db_with(pairs: &[(&str, &str)]) -> (tempfile::TempDir, Db) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(dir.path().join("t.db")).await.unwrap();
+        for (k, v) in pairs {
+            db.settings_set(k.to_string(), v.to_string()).await.unwrap();
+        }
+        (dir, db)
+    }
+
+    #[tokio::test]
+    async fn explicit_content_language_wins_over_ui() {
+        let (_d, db) = db_with(&[("content_language", "ko"), ("language", "en")]).await;
+        // 화면은 영어인데 일지는 한국어로 남기고 싶은 사용자 — 이 축을 나눈 이유다.
+        assert_eq!(current(&db).await, ContentLang::Korean);
+    }
+
+    #[tokio::test]
+    async fn system_content_language_follows_ui_language() {
+        let (_d, db) = db_with(&[("content_language", "system"), ("language", "en")]).await;
+        assert_eq!(current(&db).await, ContentLang::English);
+    }
+
+    #[tokio::test]
+    async fn missing_content_language_also_follows_ui() {
+        // 기존 프로젝트는 이 키가 아예 없다.
+        let (_d, db) = db_with(&[("language", "en")]).await;
+        assert_eq!(current(&db).await, ContentLang::English);
+    }
+
+    #[tokio::test]
+    async fn both_unset_stays_unset() {
+        // `language` 의 "system" 해석은 navigator.language 몫이라 Rust 가 모른다 —
+        // 여기서 OS 로케일을 새로 추측하면 규칙이 하나 더 생긴다.
+        let (_d, db) = db_with(&[("content_language", "system"), ("language", "system")]).await;
+        assert_eq!(current(&db).await, ContentLang::Unset);
     }
 }
