@@ -7,6 +7,7 @@ import {
   CATALOG_SKILLS,
   CATALOG_TAGS,
 } from "@/features/skills/skillsCatalog";
+import { t } from "@/i18n";
 
 // ─── C1 — 벤더링 스킬 카탈로그 무결성 ─────────────────────────────────────
 //
@@ -92,8 +93,11 @@ describe("skills catalog (C1 vendored)", () => {
   it("메타데이터: license=MIT, source 별 sourceUrl 저장소가 맞다", () => {
     for (const skill of CATALOG_SKILLS) {
       expect(skill.license).toBe("MIT");
-      expect(skill.summary.length).toBeGreaterThan(0);
-      expect(skill.label.length).toBeGreaterThan(0);
+      // 라벨·요약은 사전 키다 — 값이 비지 않았는지는 i18n 테스트가 본다.
+      // 여기서는 키가 실제로 사전에 존재하는지(오타·누락)를 확인한다.
+      expect(t(skill.labelKey).length).toBeGreaterThan(0);
+      expect(t(skill.labelKey)).not.toBe(skill.labelKey);
+      expect(t(skill.summaryKey)).not.toBe(skill.summaryKey);
       const repo = skill.source === "ecc" ? "affaan-m/ecc" : "DietrichGebert/ponytail";
       expect(skill.sourceUrl.startsWith(`https://github.com/${repo}/blob/`)).toBe(true);
     }

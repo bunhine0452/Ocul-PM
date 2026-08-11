@@ -31,6 +31,7 @@ import { GALLERY_SKILLS } from "./skillsGallery";
 import { CATALOG_SKILLS } from "./skillsCatalog";
 import { RulesTab } from "./RulesTab";
 import { SkillShopTab } from "./SkillShopTab";
+import { useT } from "@/i18n";
 import "./skills.css";
 
 interface SkillsScreenV2Props {
@@ -113,6 +114,7 @@ function SkillsTabView({
   tabs: ReactNode;
   onOpenShop: () => void;
 }) {
+  const { t } = useT();
   const [overview, setOverview] = useState<SkillsOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [listError, setListError] = useState<string | null>(null);
@@ -561,8 +563,8 @@ function SkillsTabView({
               return (
                 <li key={g.id} className="sk-gallery-item">
                   <div className="sk-gallery-meta">
-                    <div className="sk-gallery-name">{g.label}</div>
-                    <div className="sk-gallery-desc">{g.summary}</div>
+                    <div className="sk-gallery-name">{t(g.labelKey)}</div>
+                    <div className="sk-gallery-desc">{t(g.summaryKey)}</div>
                   </div>
                   {installed ? (
                     <span className="sk-chip" title="이미 이 프로젝트에 있습니다">

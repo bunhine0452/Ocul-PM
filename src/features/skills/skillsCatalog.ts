@@ -34,6 +34,7 @@ import apiDesign from "./catalog/api-design.md?raw";
 import databaseMigrations from "./catalog/database-migrations.md?raw";
 import e2eTesting from "./catalog/e2e-testing.md?raw";
 import inheritLegacyStyle from "./catalog/inherit-legacy-style.md?raw";
+import type { I18nKey } from "@/i18n";
 
 /** 벤더링 당시 핀 고정한 업스트림 커밋 (재fetch 시 갱신). */
 export const CATALOG_PINS = {
@@ -76,8 +77,8 @@ export type CatalogTag = (typeof CATALOG_TAGS)[number];
 export interface CatalogSkill {
   /** `catalog/<id>.md` 파일명이자 설치 폴더명 (kebab-case). */
   id: string;
-  /** 목록 표시명 (한국어 한 줄). */
-  label: string;
+  /** 목록 표시명의 사전 키 — 표시는 소비처가 `t()` 로. */
+  labelKey: I18nKey;
   /** 어느 업스트림에서 왔는지. */
   source: CatalogSource;
   /** 핀 SHA 로 고정된 업스트림 원문 URL. */
@@ -85,8 +86,8 @@ export interface CatalogSkill {
   license: "MIT";
   /** 스택 매칭용 태그 (CATALOG_TAGS 어휘 내). */
   tags: CatalogTag[];
-  /** 한국어 1문장 요약. */
-  summary: string;
+  /** 1문장 요약의 사전 키. */
+  summaryKey: I18nKey;
   /** 대략적 토큰 수 (content.length/4 반올림). */
   tokenEstimate: number;
   /** SKILL.md 전문 (frontmatter + vendored-from 헤더 포함, 원문 무수정). */
@@ -102,21 +103,27 @@ const skillUrl = (source: CatalogSource, id: string): string => {
 
 interface CatalogSeed {
   id: string;
-  label: string;
+  /**
+   * 표시 라벨·요약의 **사전 키**. 문자열을 여기 직접 두면 `seed()` 가 모듈 로드
+   * 시점에 실행되므로 그때 언어가 굳어 설정을 바꿔도 안 바뀐다 — 소비처가
+   * `t(labelKey)` 로 그린다. (SKILL.md 본문 `content` 는 벤더링된 디스크
+   * 산출물이라 번역 대상이 아니다.)
+   */
+  labelKey: I18nKey;
   source: CatalogSource;
   tags: CatalogTag[];
-  summary: string;
+  summaryKey: I18nKey;
   content: string;
 }
 
-const seed = ({ id, label, source, tags, summary, content }: CatalogSeed): CatalogSkill => ({
+const seed = ({ id, labelKey, source, tags, summaryKey, content }: CatalogSeed): CatalogSkill => ({
   id,
-  label,
+  labelKey,
   source,
   sourceUrl: skillUrl(source, id),
   license: "MIT",
   tags,
-  summary,
+  summaryKey,
   tokenEstimate: estimateTokens(content),
   content,
 });
@@ -124,223 +131,202 @@ const seed = ({ id, label, source, tags, summary, content }: CatalogSeed): Catal
 export const CATALOG_SKILLS: CatalogSkill[] = [
   seed({
     id: "python-patterns",
-    label: "python-patterns — Python 관용구·패턴",
+    labelKey: "skill.python-patterns.label",
     source: "ecc",
     tags: ["python", "patterns"],
-    summary:
-      "Pythonic 관용구, PEP 8, 타입 힌트 등 견고하고 유지보수 가능한 Python 코드를 위한 베스트 프랙티스입니다.",
+    summaryKey: "skill.python-patterns.summary",
     content: pythonPatterns,
   }),
   seed({
     id: "python-testing",
-    label: "python-testing — pytest 기반 TDD",
+    labelKey: "skill.python-testing.label",
     source: "ecc",
     tags: ["python", "testing"],
-    summary: "pytest 픽스처·모킹·파라미터라이즈와 TDD 방법론, 커버리지 요건을 다룹니다.",
+    summaryKey: "skill.python-testing.summary",
     content: pythonTesting,
   }),
   seed({
     id: "rust-patterns",
-    label: "rust-patterns — Rust 소유권·트레이트 패턴",
+    labelKey: "skill.rust-patterns.label",
     source: "ecc",
     tags: ["rust", "patterns"],
-    summary: "소유권·에러 처리·트레이트·동시성 등 안전하고 성능 좋은 Rust 를 위한 관용 패턴입니다.",
+    summaryKey: "skill.rust-patterns.summary",
     content: rustPatterns,
   }),
   seed({
     id: "rust-testing",
-    label: "rust-testing — Rust 테스트 패턴",
+    labelKey: "skill.rust-testing.label",
     source: "ecc",
     tags: ["rust", "testing"],
-    summary:
-      "단위·통합·비동기·property 기반 테스트와 모킹, 커버리지까지 TDD 방법론을 따르는 Rust 테스트 패턴입니다.",
+    summaryKey: "skill.rust-testing.summary",
     content: rustTesting,
   }),
   seed({
     id: "react-patterns",
-    label: "react-patterns — React 18/19 컴포넌트 패턴",
+    labelKey: "skill.react-patterns.label",
     source: "ecc",
     tags: ["react", "patterns"],
-    summary:
-      "훅 규율, 서버/클라이언트 컴포넌트 경계, Suspense·폼 액션·상태관리 결정 트리 등 React 18/19 패턴입니다.",
+    summaryKey: "skill.react-patterns.summary",
     content: reactPatterns,
   }),
   seed({
     id: "react-testing",
-    label: "react-testing — React Testing Library 테스트",
+    labelKey: "skill.react-testing.label",
     source: "ecc",
     tags: ["react", "testing"],
-    summary:
-      "React Testing Library + Vitest/Jest, MSW 네트워크 모킹, axe 접근성 단언과 E2E 경계 판단을 다룹니다.",
+    summaryKey: "skill.react-testing.summary",
     content: reactTesting,
   }),
   seed({
     id: "golang-patterns",
-    label: "golang-patterns — Go 관용구·패턴",
+    labelKey: "skill.golang-patterns.label",
     source: "ecc",
     tags: ["go", "patterns"],
-    summary: "관용적 Go 패턴·컨벤션으로 견고하고 효율적인 Go 애플리케이션을 만들게 합니다.",
+    summaryKey: "skill.golang-patterns.summary",
     content: golangPatterns,
   }),
   seed({
     id: "golang-testing",
-    label: "golang-testing — Go 테이블 주도 테스트",
+    labelKey: "skill.golang-testing.label",
     source: "ecc",
     tags: ["go", "testing"],
-    summary: "테이블 주도 테스트·서브테스트·벤치마크·퍼징·커버리지 등 Go 테스트 패턴을 TDD 로 안내합니다.",
+    summaryKey: "skill.golang-testing.summary",
     content: golangTesting,
   }),
   seed({
     id: "security-review",
-    label: "security-review — 보안 리뷰 체크리스트",
+    labelKey: "skill.security-review.label",
     source: "ecc",
     tags: ["security", "review"],
-    summary:
-      "인증·사용자 입력·시크릿·API 엔드포인트·결제 코드를 위한 종합 보안 체크리스트입니다 (블록체인(Solana) 절 포함).",
+    summaryKey: "skill.security-review.summary",
     content: securityReview,
   }),
   seed({
     id: "codebase-onboarding",
-    label: "codebase-onboarding — 코드베이스 온보딩 가이드",
+    labelKey: "skill.codebase-onboarding.label",
     source: "ecc",
     tags: ["onboarding", "docs"],
-    summary:
-      "낯선 코드베이스를 분석해 아키텍처 맵·진입점·컨벤션 정리와 초기 CLAUDE.md 를 만들어 주는 온보딩 가이드입니다.",
+    summaryKey: "skill.codebase-onboarding.summary",
     content: codebaseOnboarding,
   }),
   seed({
     id: "ponytail",
-    label: "ponytail — 가장 게으른(최소) 해법 강제",
+    labelKey: "skill.ponytail.label",
     source: "ponytail",
     tags: ["style", "minimalism"],
-    summary:
-      "실제로 동작하는 가장 게으르고 짧고 최소한의 해법을 강제합니다 — YAGNI, 표준 라이브러리·네이티브 기능 우선.",
+    summaryKey: "skill.ponytail.summary",
     content: ponytail,
   }),
   seed({
     id: "ponytail-review",
-    label: "ponytail-review — 오버엔지니어링 삭제 리뷰",
+    labelKey: "skill.ponytail-review.label",
     source: "ponytail",
     tags: ["style", "review"],
-    summary:
-      "오버엔지니어링만 겨냥한 코드 리뷰 — 재발명된 stdlib·불필요 의존성·투기적 추상화 등 삭제할 것을 한 줄씩 짚습니다.",
+    summaryKey: "skill.ponytail-review.summary",
     content: ponytailReview,
   }),
   seed({
     id: "ponytail-audit",
-    label: "ponytail-audit — 저장소 전체 과잉설계 감사",
+    labelKey: "skill.ponytail-audit.label",
     source: "ponytail",
     tags: ["style", "review"],
-    summary:
-      "diff 가 아닌 저장소 전체를 훑어 삭제·단순화·stdlib 대체 후보를 순위 목록으로 뽑는 일회성 감사입니다.",
+    summaryKey: "skill.ponytail-audit.summary",
     content: ponytailAudit,
   }),
   seed({
     id: "vue-patterns",
-    label: "vue-patterns — Vue 3 Composition API 패턴",
+    labelKey: "skill.vue-patterns.label",
     source: "ecc",
     tags: ["vue", "patterns"],
-    summary:
-      "Vue 3 Composition API·반응성·Pinia·Vue Router·Nuxt SSR 등 Vue 컴포넌트 아키텍처 베스트 프랙티스입니다.",
+    summaryKey: "skill.vue-patterns.summary",
     content: vuePatterns,
   }),
   seed({
     id: "react-performance",
-    label: "react-performance — React/Next.js 성능 최적화",
+    labelKey: "skill.react-performance.label",
     source: "ecc",
     tags: ["react", "performance"],
-    summary:
-      "워터폴·번들 크기·리렌더 등 8개 우선순위 카테고리로 정리한 React/Next.js 성능 최적화 규칙 모음입니다.",
+    summaryKey: "skill.react-performance.summary",
     content: reactPerformance,
   }),
   seed({
     id: "vite-patterns",
-    label: "vite-patterns — Vite 설정·빌드 패턴",
+    labelKey: "skill.vite-patterns.label",
     source: "ecc",
     tags: ["frontend", "patterns"],
-    summary:
-      "vite.config 설정, 플러그인, HMR, env, 프록시, SSR, 라이브러리 모드, 빌드 최적화 등 Vite 패턴입니다.",
+    summaryKey: "skill.vite-patterns.summary",
     content: vitePatterns,
   }),
   seed({
     id: "laravel-patterns",
-    label: "laravel-patterns — Laravel 아키텍처 패턴",
+    labelKey: "skill.laravel-patterns.label",
     source: "ecc",
     tags: ["laravel", "patterns"],
-    summary:
-      "라우팅·Eloquent ORM·서비스 레이어·큐·이벤트·캐싱·API 리소스 등 프로덕션 Laravel 패턴입니다.",
+    summaryKey: "skill.laravel-patterns.summary",
     content: laravelPatterns,
   }),
   seed({
     id: "springboot-patterns",
-    label: "springboot-patterns — Spring Boot 백엔드 패턴",
+    labelKey: "skill.springboot-patterns.label",
     source: "ecc",
     tags: ["springboot", "patterns"],
-    summary:
-      "REST API 설계·계층화 서비스·데이터 접근·캐싱·비동기 처리·로깅 등 Java Spring Boot 백엔드 패턴입니다.",
+    summaryKey: "skill.springboot-patterns.summary",
     content: springbootPatterns,
   }),
   seed({
     id: "django-patterns",
-    label: "django-patterns — Django/DRF 패턴",
+    labelKey: "skill.django-patterns.label",
     source: "ecc",
     tags: ["django", "patterns"],
-    summary:
-      "DRF 기반 REST API·ORM 베스트 프랙티스·캐싱·시그널·미들웨어 등 프로덕션급 Django 패턴입니다.",
+    summaryKey: "skill.django-patterns.summary",
     content: djangoPatterns,
   }),
   seed({
     id: "fastapi-patterns",
-    label: "fastapi-patterns — FastAPI 비동기 API 패턴",
+    labelKey: "skill.fastapi-patterns.label",
     source: "ecc",
     tags: ["fastapi", "patterns"],
-    summary:
-      "프로젝트 구조·Pydantic v2·의존성 주입·async 핸들러·인증/인가·httpx+pytest 테스트까지 FastAPI 베스트 프랙티스입니다.",
+    summaryKey: "skill.fastapi-patterns.summary",
     content: fastapiPatterns,
   }),
   seed({
     id: "accessibility",
-    label: "accessibility — WCAG 2.2 접근성 구현·감사",
+    labelKey: "skill.accessibility.label",
     source: "ecc",
     tags: ["frontend", "a11y"],
-    summary:
-      "WCAG 2.2 AA 기준으로 웹 시맨틱 ARIA 와 네이티브(iOS/Android) 접근성 속성을 설계·구현·감사합니다.",
+    summaryKey: "skill.accessibility.summary",
     content: accessibility,
   }),
   seed({
     id: "api-design",
-    label: "api-design — REST API 설계 패턴",
+    labelKey: "skill.api-design.label",
     source: "ecc",
     tags: ["backend", "patterns"],
-    summary:
-      "리소스 네이밍·상태 코드·페이지네이션·필터링·에러 응답·버저닝·레이트 리밋 등 프로덕션 REST API 설계 패턴입니다.",
+    summaryKey: "skill.api-design.summary",
     content: apiDesign,
   }),
   seed({
     id: "database-migrations",
-    label: "database-migrations — 무중단 DB 마이그레이션",
+    labelKey: "skill.database-migrations.label",
     source: "ecc",
     tags: ["database", "patterns"],
-    summary:
-      "스키마 변경·데이터 마이그레이션·롤백·무중단 배포를 PostgreSQL/MySQL 과 주요 ORM 전반에서 다룹니다.",
+    summaryKey: "skill.database-migrations.summary",
     content: databaseMigrations,
   }),
   seed({
     id: "e2e-testing",
-    label: "e2e-testing — Playwright E2E 테스트",
+    labelKey: "skill.e2e-testing.label",
     source: "ecc",
     tags: ["frontend", "testing"],
-    summary:
-      "Playwright E2E 패턴 — Page Object Model, 설정, CI/CD 통합, 아티팩트 관리, flaky 테스트 전략을 다룹니다.",
+    summaryKey: "skill.e2e-testing.summary",
     content: e2eTesting,
   }),
   seed({
     id: "inherit-legacy-style",
-    label: "inherit-legacy-style — 레거시 스타일 상속",
+    labelKey: "skill.inherit-legacy-style.label",
     source: "ecc",
     tags: ["onboarding", "style"],
-    summary:
-      "손으로 짠 레거시 프로젝트에 AI 에이전트를 온보딩할 때 기존 스타일을 학습시켜 스타일 드리프트를 막는 언어 불문 스킬입니다.",
+    summaryKey: "skill.inherit-legacy-style.summary",
     content: inheritLegacyStyle,
   }),
 ];

@@ -14,6 +14,7 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { CATALOG_SKILLS, type CatalogSkill, type CatalogTag } from "./skillsCatalog";
+import { tAll, useT } from "@/i18n";
 
 interface SkillShopTabProps {
   projectId: number;
@@ -21,6 +22,7 @@ interface SkillShopTabProps {
 }
 
 export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
+  const { t } = useT();
   // 설치 여부 판정은 프로젝트 스코프 폴더명 기준 — 동명의 자작 스킬도 "있음"
   // 으로 표시된다 (백엔드 skills_save 의 동명 거부가 이중 가드, title 로 고지).
   const [installedDirs, setInstalledDirs] = useState<Set<string> | null>(null);
@@ -84,7 +86,9 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
     return CATALOG_SKILLS.filter((c) => {
       if (tagFilter && !c.tags.includes(tagFilter)) return false;
       if (!q) return true;
-      const hay = `${c.id} ${c.label} ${c.summary} ${c.tags.join(" ")}`.toLowerCase();
+      // 검색은 **양 언어**를 색인한다 — 영어 모드에서도 한국어 요약으로 찾히도록
+      // (내비·팔레트와 같은 정책, i18n `tAll`).
+      const hay = `${c.id} ${tAll(c.labelKey).join(" ")} ${tAll(c.summaryKey).join(" ")} ${c.tags.join(" ")}`.toLowerCase();
       return hay.includes(q);
     });
   }, [query, tagFilter]);
@@ -96,7 +100,7 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
     const res = await commands.skillsSave(projectId, "project", c.id, c.content, true);
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`카탈로그 스킬 설치됨: ${c.id} (${c.source}, MIT)`);
+      toast.info(t("shop.installed", { id: c.id, source: c.source }));
       setInstalledDirs(null); // 재조회
     } else {
       toast.destructive(res.error);
@@ -111,22 +115,22 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
           type="button"
           className="sk-gallery-meta sk-shop-meta"
           onClick={() => setPreview(c)}
-          title="클릭해서 본문 미리보기"
+          title={t("shop.previewTitle")}
         >
           <div className="sk-gallery-name">
-            {c.label}{" "}
+            {t(c.labelKey)}{" "}
             <span className="font-mono text-[10px] text-muted-foreground">
-              {c.source} · {c.tags.join("·")} · 본문 ≈{c.tokenEstimate.toLocaleString()} tok
+              {c.source} · {c.tags.join("·")} · {t("shop.bodyTok", { n: c.tokenEstimate.toLocaleString() })}
             </span>
           </div>
-          <div className="sk-gallery-desc">{c.summary}</div>
+          <div className="sk-gallery-desc">{t(c.summaryKey)}</div>
         </button>
         {installed ? (
           <span
             className="sk-chip"
-            title="같은 이름의 스킬이 이 프로젝트에 이미 있습니다 (내용은 다를 수 있어요)"
+            title={t("shop.dupTitle")}
           >
-            설치됨
+            {t("shop.isInstalled")}
           </span>
         ) : (
           <button
@@ -135,7 +139,7 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
             disabled={busy}
             onClick={() => void install(c.id)}
           >
-            설치
+            {t("shop.install")}
           </button>
         )}
       </li>
@@ -144,14 +148,14 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
 
   return (
     <>
-      <Toolbar title="스킬·규칙" sub="스킬 샵 — 검증된 제3자 스킬 (MIT · 버전 고정)">
+      <Toolbar title={t("nav.skills")} sub={t("shop.toolbarSub")}>
         {tabs}
       </Toolbar>
       <div className="scroll">
         <div className="page sk-shop">
           <section>
             <h2 className="sk-shop-h">
-              이 프로젝트 스택 추천
+              {t("shop.recommended")}
               <span className="sk-shop-tags">
                 {stackTags?.map((t) => (
                   <span key={t} className="sk-chip">
@@ -161,12 +165,12 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
               </span>
             </h2>
             {stackTags == null ? (
-              <p className="text-sm text-muted-foreground">스택 감지 중…</p>
+              <p className="text-sm text-muted-foreground">{t("shop.detecting")}</p>
             ) : matched.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {stackTags.length === 0
-                  ? "스택을 감지하지 못했습니다 — 아래 전체 카탈로그에서 직접 고를 수 있어요."
-                  : "감지된 스택과 일치하는 카탈로그 스킬이 없습니다."}
+                  ? t("shop.noStack")
+                  : t("shop.noMatchStack")}
               </p>
             ) : (
               <ul className="sk-gallery-list">{matched.map(row)}</ul>
@@ -174,23 +178,23 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
           </section>
 
           <section>
-            <h2 className="sk-shop-h">전체 카탈로그 ({CATALOG_SKILLS.length})</h2>
+            <h2 className="sk-shop-h">{t("shop.fullCatalog", { n: CATALOG_SKILLS.length })}</h2>
             <div className="sk-shop-filter">
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="이름·요약·태그 검색"
-                aria-label="카탈로그 검색"
+                placeholder={t("shop.searchPlaceholder")}
+                aria-label={t("shop.searchAria")}
               />
-              <div className="sk-shop-tagrow" role="group" aria-label="태그 필터">
+              <div className="sk-shop-tagrow" role="group" aria-label={t("shop.tagFilterAria")}>
                 <button
                   type="button"
                   aria-pressed={tagFilter == null}
                   className={`sk-chip sk-chip-btn${tagFilter == null ? " on" : ""}`}
                   onClick={() => setTagFilter(null)}
                 >
-                  전체
+                  {t("shop.allTags")}
                 </button>
                 {presentTags.map((t) => (
                   <button
@@ -206,19 +210,16 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
               </div>
             </div>
             {filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground">검색과 일치하는 스킬이 없습니다.</p>
+              <p className="text-sm text-muted-foreground">{t("shop.noSearchMatch")}</p>
             ) : (
               <ul className="sk-gallery-list">{filtered.map(row)}</ul>
             )}
           </section>
 
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            전부 제3자 스킬(MIT)의 <strong>출처·버전 고정 사본</strong>입니다 — ECC(Affaan
-            Mustafa)·ponytail(DietrichGebert), 원문 무수정, 런타임 네트워크 0. 설치하면{" "}
-            <code>.claude/skills/</code> 에 들어가며 이는 Claude Code 의 <strong>네이티브
-            기능이라 ocul-pm 플러그인 없이도 동작</strong>합니다. 설치된 스킬의 설명 한 줄은 매
-            세션 컨텍스트에 상시 탑승하므로 프로젝트당 2~3개를 권장하고, 표기된 "본문 ≈N tok"
-            은 스킬이 발동될 때만 로드되는 본문 크기입니다.
+            {t("shop.note1")} <strong>{t("shop.note2")}</strong>{t("shop.note3")}{" "}
+            <code>.claude/skills/</code> {t("shop.note4")}{" "}
+            <strong>{t("shop.note5")}</strong>{t("shop.note6")}
           </p>
         </div>
       </div>
@@ -226,17 +227,17 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
       <AppDialog
         open={preview != null}
         onClose={() => setPreview(null)}
-        label={preview ? `${preview.id} 미리보기` : "미리보기"}
+        label={preview ? t("shop.previewLabel", { id: preview.id }) : t("shop.preview")}
         width={720}
       >
         {preview && (
           <>
             <div className="sk-modal-head">
-              <h2>{preview.label}</h2>
+              <h2>{t(preview.labelKey)}</h2>
               <p className="text-xs text-muted-foreground">
                 {preview.source} · MIT ·{" "}
                 <a href={preview.sourceUrl} target="_blank" rel="noreferrer">
-                  원본 (핀 커밋)
+                  {t("shop.source")}
                 </a>
               </p>
             </div>
@@ -245,7 +246,7 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
             </div>
             <div className="sk-modal-foot">
               {installedDirs?.has(preview.id) ? (
-                <span className="sk-chip">설치됨</span>
+                <span className="sk-chip">{t("shop.isInstalled")}</span>
               ) : (
                 <button
                   type="button"
@@ -253,11 +254,11 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
                   disabled={busy}
                   onClick={() => void install(preview.id)}
                 >
-                  이 프로젝트에 설치
+                  {t("shop.installHere")}
                 </button>
               )}
               <button type="button" className="btn ghost sm" onClick={() => setPreview(null)}>
-                닫기
+                {t("common.close")}
               </button>
             </div>
           </>

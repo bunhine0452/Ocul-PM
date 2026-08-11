@@ -29,6 +29,7 @@ import {
   ruleTemplate,
   setRulePaths,
 } from "./rulesModel";
+import { t, useT } from "@/i18n";
 
 interface RulesTabProps {
   projectId: number;
@@ -38,7 +39,7 @@ interface RulesTabProps {
 
 type SelKey = { scope: RuleScope; relPath: string } | null;
 
-const scopeLabel = (scope: RuleScope) => (scope === "project" ? "프로젝트" : "전역");
+const scopeLabel = (scope: RuleScope) => (scope === "project" ? t("rules.scope.project") : t("rules.scope.global"));
 
 /** 목록/헤더 표시 경로 — 전역은 `~/` 접두로 스코프를 드러낸다. */
 const displayPath = (e: RuleEntry) =>
@@ -46,15 +47,17 @@ const displayPath = (e: RuleEntry) =>
 
 /** 토글/동기화 결과 요약 토스트 문구. */
 function mirrorSummary(results: MirrorWriteResult[]): string {
+  useT();
   const count = (action: string) => results.filter((r) => r.action === action).length;
   const parts: string[] = [];
-  if (count("written")) parts.push(`배포 ${count("written")}`);
-  if (count("removed")) parts.push(`제거 ${count("removed")}`);
-  if (count("conflict")) parts.push(`충돌 ${count("conflict")}`);
-  return parts.length ? parts.join(" · ") : "변경 없음";
+  if (count("written")) parts.push(t("rules.mirror.written", { n: count("written") }));
+  if (count("removed")) parts.push(t("rules.mirror.removed", { n: count("removed") }));
+  if (count("conflict")) parts.push(t("rules.mirror.conflict", { n: count("conflict") }));
+  return parts.length ? parts.join(" · ") : t("rules.mirror.none");
 }
 
 export function RulesTab({ projectId, tabs }: RulesTabProps) {
+  useT();
   const [overview, setOverview] = useState<RulesOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [listError, setListError] = useState<string | null>(null);
@@ -160,10 +163,10 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     if (res.status === "ok") {
       if (res.data.mirror?.action === "conflict") {
         toast.destructive(
-          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 다른 파일이 이미 있어 건드리지 않았습니다 (다른 규칙의 미러이거나 — 중첩 경로는 같은 이름으로 평탄화됩니다 — 사용자/어댑터 파일)`,
+          t("rules.savedMirrorConflict", { path: res.data.mirror.mirror_rel }),
         );
       } else {
-        toast.info(`저장됨: ${displayPath(e)}`);
+        toast.info(t("rules.saved", { path: displayPath(e) }));
       }
       setEditing(false);
       setDetail({ ...detail, entry: res.data.entry, content: draft });
@@ -186,7 +189,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     );
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`만들어졌습니다: ${displayPath(e)}`);
+      toast.info(t("rules.created", { path: displayPath(e) }));
       await loadList();
       setSelected({ scope: e.scope, relPath: e.rel_path });
     } else {
@@ -219,7 +222,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     );
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`규칙 생성됨: ${name}`);
+      toast.info(t("rules.ruleCreated", { name }));
       setCreateOpen(false);
       await loadList();
       setSelected({ scope: createScope, relPath: `.claude/rules/${name}.md` });
@@ -235,7 +238,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     const res = await commands.rulesDelete(projectId, e.scope, e.rel_path);
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`규칙 삭제됨: ${e.name}`);
+      toast.info(t("rules.ruleDeleted", { name: e.name }));
       setDeleteOpen(false);
       setSelected(null); // 보정 이펙트가 첫 항목을 재선택
       await loadList();
@@ -262,18 +265,18 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       if (res.status === "ok") {
         toast.info(
           turnOn
-            ? `Cursor 병행 배포 켜짐 — ${mirrorSummary(res.data)}`
-            : `Cursor 병행 배포 꺼짐 — ${mirrorSummary(res.data)}`,
+            ? t("rules.mirrorOn", { summary: mirrorSummary(res.data) })
+            : t("rules.mirrorOff", { summary: mirrorSummary(res.data) }),
         );
       } else {
-        toast.destructive(`미러 동기화 실패: ${res.error}`);
+        toast.destructive(t("rules.mirrorFailed", { error: res.error }));
       }
       await loadList();
     } catch (err) {
       toast.destructive(
-        `번역 설정을 저장하지 못했습니다 (.oculpm 미초기화 프로젝트일 수 있음): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        t("rules.translateSaveFailed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
       );
     } finally {
       setBusy(false);
@@ -284,40 +287,40 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
 
   const sub =
     status === "ready" && overview
-      ? `프로젝트 ${overview.project_rules.length} · 전역 ${overview.global_rules.length}${
-          overview.cursor_translate ? " · Cursor 배포 중" : ""
+      ? `${t("rules.toolbarSub", { p: overview.project_rules.length, g: overview.global_rules.length })}${
+          overview.cursor_translate ? t("rules.cursorDeploying") : ""
         }`
       : undefined;
 
   return (
     <>
-      <Toolbar title="스킬·규칙" sub={sub}>
+      <Toolbar title={t("nav.skills")} sub={sub}>
         {tabs}
         <button
           type="button"
           className="sk-iconbtn"
           onClick={() => void loadList()}
-          title="규칙 목록 새로고침"
-          aria-label="규칙 목록 새로고침"
+          title={t("rules.refresh")}
+          aria-label={t("rules.refresh")}
         >
           <RefreshCw size={15} />
         </button>
         <button type="button" className="btn primary sm" onClick={openCreate}>
-          <Plus size={14} /> 새 규칙
+          <Plus size={14} /> {t("rules.new")}
         </button>
       </Toolbar>
 
       {status === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">규칙을 불러오는 중…</div>
+            <div className="empty-hint">{t("rules.loading")}</div>
           </div>
         </div>
       ) : status === "error" ? (
         <div className="scroll">
           <div className="page">
             <div className="empty-hint">
-              규칙 목록을 불러오지 못했습니다.
+              {t("rules.loadFailed")}
               <br />
               {listError}
             </div>
@@ -325,7 +328,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
         </div>
       ) : (
         <div className="sk-body">
-          <aside className="sk-list" aria-label="규칙 목록">
+          <aside className="sk-list" aria-label={t("rules.listAria")}>
             <ClaudeMdSection
               entries={overview?.claude_md ?? []}
               selected={selected}
@@ -334,7 +337,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
               onCreate={(e) => void createClaudeMd(e)}
             />
             <RulesSection
-              title="프로젝트 규칙"
+              title={t("rules.projectRules")}
               entries={overview?.project_rules ?? []}
               selected={selected}
               onSelect={(e) => setSelected({ scope: e.scope, relPath: e.rel_path })}
@@ -347,12 +350,11 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                   disabled={busy}
                   onChange={() => void toggleTranslate()}
                 />
-                Cursor 로 병행 배포
+                {t("rules.mirrorToCursor")}
               </label>
               <p className="sk-translate-hint">
-                켜면 프로젝트 규칙을 저장할 때마다 <code>.cursor/rules/*.mdc</code> 로도
-                번역해 배포합니다 (<code>paths</code>→<code>globs</code>). ocul-pm 이 만든
-                미러만 갱신·삭제합니다.
+                {t("rules.mirrorHint1")} <code>.cursor/rules/*.mdc</code> {t("rules.mirrorHint2")}{" "}
+                {t("rules.mirrorHint3")}<code>paths</code>→<code>globs</code>{t("rules.mirrorHint4")}
               </p>
             </div>
             <RulesSection
@@ -487,17 +489,17 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       <AppDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        label="새 규칙 만들기"
+        label={t("rules.createLabel")}
         width={520}
         initialFocusRef={createNameRef}
       >
         <div className="sk-modal-head">
-          <FileCode size={15} /> 새 규칙
+          <FileCode size={15} /> {t("rules.new")}
         </div>
         <div className="sk-form">
           <div className="sk-field">
-            <label htmlFor="rl-create-scope">범위</label>
-            <div className="sk-scope-seg" id="rl-create-scope" role="radiogroup" aria-label="규칙 범위">
+            <label htmlFor="rl-create-scope">{t("rules.scopeLabel")}</label>
+            <div className="sk-scope-seg" id="rl-create-scope" role="radiogroup" aria-label={t("rules.scopeAria")}>
               <button
                 type="button"
                 role="radio"
@@ -505,7 +507,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                 className={createScope === "project" ? "on" : ""}
                 onClick={() => setCreateScope("project")}
               >
-                이 프로젝트
+                {t("rules.thisProject")}
               </button>
               <button
                 type="button"
@@ -514,38 +516,38 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                 className={createScope === "global" ? "on" : ""}
                 onClick={() => setCreateScope("global")}
               >
-                전역 (모든 프로젝트)
+                {t("rules.globalAll")}
               </button>
             </div>
           </div>
           <div className="sk-field">
-            <label htmlFor="rl-create-name">이름 (파일명)</label>
+            <label htmlFor="rl-create-name">{t("rules.nameLabel")}</label>
             <input
               id="rl-create-name"
               ref={createNameRef}
               className="sk-input"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder="예: api-validation"
+              placeholder={t("rules.namePlaceholder")}
               autoComplete="off"
               spellCheck={false}
             />
             <div className={"sk-field-hint" + (createName.trim() && !createValid ? " bad" : "")}>
               {createName.trim() && !createValid
-                ? "영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다"
+                ? t("rules.nameInvalid")
                 : createScope === "project"
-                  ? ".claude/rules/<이름>.md 로 생성됩니다"
-                  : "~/.claude/rules/<이름>.md 로 생성됩니다"}
+                  ? t("rules.createsProject")
+                  : t("rules.createsGlobal")}
             </div>
           </div>
           <div className="sk-field">
-            <label htmlFor="rl-create-paths">paths (선택 — 쉼표로 구분)</label>
+            <label htmlFor="rl-create-paths">{t("rules.pathsLabel")}</label>
             <input
               id="rl-create-paths"
               className="sk-input"
               value={createPaths}
               onChange={(e) => setCreatePaths(e.target.value)}
-              placeholder='예: src/api/**/*.ts, src/components/*.tsx'
+              placeholder={t("rules.pathsPlaceholder")}
               autoComplete="off"
               spellCheck={false}
               onKeyDown={(e) => {
@@ -553,13 +555,13 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
               }}
             />
             <div className="sk-field-hint">
-              비우면 세션 시작 시 항상 로드되고, 적으면 매칭 파일을 다룰 때만 로드됩니다
+              {t("rules.pathsHint")}
             </div>
           </div>
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setCreateOpen(false)}>
-            취소
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -567,7 +569,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
             disabled={!createValid || busy}
             onClick={() => void submitCreate()}
           >
-            만들기
+            {t("rules.create")}
           </button>
         </div>
       </AppDialog>
@@ -576,20 +578,19 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       <AppDialog
         open={deleteOpen && detail != null}
         onClose={() => setDeleteOpen(false)}
-        label="규칙 삭제 확인"
+        label={t("rules.deleteConfirmLabel")}
         width={440}
       >
         <div className="sk-modal-head">
-          <Trash2 size={15} /> 규칙 삭제
+          <Trash2 size={15} /> {t("rules.deleteTitle")}
         </div>
         <div className="sk-modal-warn">
-          <code>{detail ? displayPath(detail.entry) : ""}</code> 파일이 삭제됩니다
-          {detail?.entry.mirror === "mirrored" ? " (Cursor 미러도 함께 제거)" : ""}. 이 동작은
-          되돌릴 수 없습니다.
+          <code>{detail ? displayPath(detail.entry) : ""}</code> {t("rules.deleteBody1")}
+          {detail?.entry.mirror === "mirrored" ? t("rules.deleteMirrorNote") : ""}{t("rules.deleteBody2")}
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setDeleteOpen(false)}>
-            취소
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -597,7 +598,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
             disabled={busy}
             onClick={() => void submitDelete()}
           >
-            삭제
+            {t("common.delete")}
           </button>
         </div>
       </AppDialog>
@@ -620,10 +621,11 @@ function ClaudeMdSection({
   onSelect: (e: RuleEntry) => void;
   onCreate: (e: RuleEntry) => void;
 }) {
+  useT();
   return (
     <div className="sk-sec">
       <div className="sk-sec-head">
-        CLAUDE 메모리 <span className="sk-sec-count">{entries.filter((e) => e.exists).length}</span>
+        {t("rules.claudeMemory")} <span className="sk-sec-count">{entries.filter((e) => e.exists).length}</span>
       </div>
       {entries.map((e) => {
         const on = selected?.scope === e.scope && selected?.relPath === e.rel_path;
@@ -647,11 +649,11 @@ function ClaudeMdSection({
             className="sk-row ghost"
             disabled={busy}
             onClick={() => onCreate(e)}
-            title="아직 없는 파일 — 클릭하면 시드 본문으로 만듭니다"
+            title={t("rules.seedTitle")}
           >
             <div className="sk-row-top">
               <span className="sk-row-name">
-                <Plus size={11} /> {displayPath(e)} 만들기
+                <Plus size={11} /> {t("rules.createNamed", { path: displayPath(e) })}
               </span>
             </div>
           </button>
@@ -672,13 +674,14 @@ function RulesSection({
   selected: SelKey;
   onSelect: (e: RuleEntry) => void;
 }) {
+  useT();
   return (
     <div className="sk-sec">
       <div className="sk-sec-head">
         {title} <span className="sk-sec-count">{entries.length}</span>
       </div>
       {entries.length === 0 ? (
-        <div className="sk-none">없음</div>
+        <div className="sk-none">{t("rules.none")}</div>
       ) : (
         entries.map((e) => {
           const on = selected?.scope === e.scope && selected?.relPath === e.rel_path;
@@ -695,10 +698,10 @@ function RulesSection({
                 {e.paths.length > 0 ? (
                   <span className="sk-chip">paths {e.paths.length}</span>
                 ) : (
-                  <span className="sk-chip">항상</span>
+                  <span className="sk-chip">{t("rules.always")}</span>
                 )}
                 {e.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
-                {e.mirror === "conflict" ? <span className="sk-chip off">충돌</span> : null}
+                {e.mirror === "conflict" ? <span className="sk-chip off">{t("rules.conflict")}</span> : null}
               </div>
               {e.title ? <div className="sk-row-desc">{e.title}</div> : null}
             </button>
@@ -721,6 +724,7 @@ function RuleEditor({
   isRule: boolean;
   onSave: () => void;
 }) {
+  useT();
   const [pathInput, setPathInput] = useState("");
   const paths = useMemo(() => parseRulePaths(draft), [draft]);
 
@@ -737,12 +741,12 @@ function RuleEditor({
   return (
     <div className="sk-editor">
       {isRule ? (
-        <div className="sk-paths" aria-label="paths 편집기">
+        <div className="sk-paths" aria-label={t("rules.pathsEditorAria")}>
           <span className="sk-paths-label">paths</span>
           {paths.map((p, i) => (
             <span key={`${p}:${i}`} className="sk-path-chip">
               {p}
-              <button type="button" aria-label={`${p} 제거`} onClick={() => removePath(i)}>
+              <button type="button" aria-label={t("rules.removePath", { path: p })} onClick={() => removePath(i)}>
                 <X size={11} />
               </button>
             </span>
@@ -757,8 +761,8 @@ function RuleEditor({
               }
             }}
             onBlur={addPath}
-            placeholder={paths.length === 0 ? "glob 추가 후 Enter — 비우면 항상 로드" : "glob 추가…"}
-            aria-label="paths glob 추가"
+            placeholder={paths.length === 0 ? t("rules.globPlaceholderEmpty") : t("rules.globPlaceholder")}
+            aria-label={t("rules.globAria")}
             spellCheck={false}
           />
         </div>
@@ -773,17 +777,16 @@ function RuleEditor({
             onSave();
           }
         }}
-        aria-label="규칙 원문 편집"
+        aria-label={t("rules.editAria")}
         spellCheck={false}
       />
       <div className="sk-editor-hint">
         {isRule ? (
           <>
-            frontmatter 의 <code>paths</code> 가 있으면 매칭 파일을 다룰 때만, 없으면 항상
-            로드됩니다 · ⌘S 저장
+            {t("rules.footer1")} <code>paths</code> {t("rules.footer2")}
           </>
         ) : (
-          <>세션 시작 시 항상 로드되는 메모리 파일입니다 · ⌘S 저장</>
+          <>{t("rules.footerMemory")}</>
         )}
       </div>
     </div>
@@ -792,6 +795,7 @@ function RuleEditor({
 
 /** frontmatter 는 접이식 원문으로, 본문만 마크다운 렌더 (스킬과 동일 규격). */
 function RulePreview({ content }: { content: string }) {
+  useT();
   const { meta, body } = useMemo(() => splitFrontmatter(content), [content]);
   return (
     <>
