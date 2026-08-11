@@ -3,6 +3,8 @@ import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { requestManualEntry } from "@/lib/journalCompose";
+// 모듈 t() — `proposeJournalEntry` 는 훅이 아닌 순수 헬퍼라 useT() 를 쓸 수 없다.
+import { t } from "@/i18n";
 import { detectAgent, type AgentRun } from "./agentDetect";
 import { formatDuration } from "./shellStatus";
 import type { ShellState } from "./oscShell";
@@ -60,6 +62,7 @@ export function useAgentRuns(
       if (pid == null) return;
       void commands.oculpmAgentRunSignal(pid, started, agent.id).then((res) => {
         if (res.status === "error") {
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `에이전트 세션 신호 실패: ${res.error}`);
         }
       });
@@ -122,9 +125,12 @@ function proposeJournalEntry(agent: AgentRun, state: ShellState): void {
   const last = state.last;
   if (!last || last.durationMs < PROPOSE_AFTER_MS) return;
   const spent = formatDuration(last.durationMs);
-  toast.info(`${agent.label} 실행이 끝났습니다${spent ? ` (${spent})` : ""}`, {
-    title: "작업 일지를 남기시겠어요?",
+  const headline = spent
+    ? t("term.agentFinishedIn", { agent: agent.label, duration: spent })
+    : t("term.agentFinished", { agent: agent.label });
+  toast.info(headline, {
+    title: t("term.agentJournalPrompt"),
     dedupKey: `agent-run-${agent.id}`,
-    actions: [{ label: "일지 남기기", onClick: () => requestManualEntry() }],
+    actions: [{ label: t("term.agentJournalAction"), onClick: () => requestManualEntry() }],
   });
 }

@@ -1,5 +1,8 @@
 import { Component, Fragment, type ReactNode } from "react";
 import { oculpmLog } from "@/lib/oculpmLog";
+// 클래스 컴포넌트라 훅을 쓸 수 없다 — 모듈 t(). 언어 전환은 이 경계가
+// 떠 있는 동안에만 반영이 늦는데, 크래시 화면은 곧 재마운트되므로 무시한다.
+import { t } from "@/i18n";
 
 // 실기기 A0d 발견(2026-07-31): TerminalInstanceImpl 예외가 경계 없이 올라가
 // React 가 트리를 통째로 언마운트 — 앱 전체가 빈 화면이 됐다. 이 경계는
@@ -27,6 +30,7 @@ export class TerminalErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     oculpmLog.error(
       "terminal",
+      // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
       `터미널 페인 크래시: ${error.name}: ${error.message}\n${error.stack ?? ""}\n컴포넌트: ${info.componentStack ?? "?"}`,
     );
   }
@@ -43,17 +47,17 @@ export class TerminalErrorBoundary extends Component<Props, State> {
           gap: 10, height: "100%", minHeight: 120, padding: 24, color: "var(--text-2)", fontSize: 13, textAlign: "center",
         }}
       >
-        <strong style={{ color: "var(--text-1)" }}>터미널 렌더러 오류</strong>
+        <strong style={{ color: "var(--text-1)" }}>{t("term.crashTitle")}</strong>
         <code style={{ fontSize: 11, color: "var(--text-3)", maxWidth: 480, overflow: "hidden", textOverflow: "ellipsis" }}>
           {this.state.error.message}
         </code>
-        <span>세션은 백엔드에 살아 있어요 — 다시 열면 이어집니다. 상세는 진단 로그(oculpm.log)에 남겼어요.</span>
+        <span>{t("term.crashBody")}</span>
         <button
           type="button"
           className="btn"
           onClick={() => this.setState((s) => ({ error: null, nonce: s.nonce + 1 }))}
         >
-          다시 열기
+          {t("term.crashReopen")}
         </button>
       </div>
     );

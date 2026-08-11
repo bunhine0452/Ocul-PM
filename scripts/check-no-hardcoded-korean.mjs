@@ -125,15 +125,6 @@ const PENDING = new Set([
   "features/skills/pluginDocs.ts",
   "features/skills/rulesModel.ts",
   "features/skills/skillsModel.ts",
-  "features/terminal/TerminalErrorBoundary.tsx",
-  "features/terminal/TerminalInstance.tsx",
-  "features/terminal/TerminalInstanceImpl.tsx",
-  "features/terminal/TerminalScreenV2.tsx",
-  "features/terminal/fileLinks.ts",
-  "features/terminal/imeBridge.ts",
-  "features/terminal/shellStatus.ts",
-  "features/terminal/tabTitle.ts",
-  "features/terminal/useAgentRuns.ts",
   "features/tray/TrayPopover.tsx",
   // @PENDING_END
 ]);
@@ -144,22 +135,56 @@ const EXT = new Set([".ts", ".tsx"]);
 const HANGUL = /[가-힣]/;
 
 /**
+ * 정규식 리터럴이 시작될 수 있는 위치인지 — 직전 유효 문자로 판정한다.
+ *
+ * `/` 는 나눗셈이기도 해서 문맥 없이는 구분이 안 된다. 피연산자가 올 자리
+ * (`(`, `=`, `,`, `return` 뒤 …)의 `/` 는 정규식이고, 값이 끝난 자리
+ * (식별자·숫자·`)`·`]` 뒤)의 `/` 는 나눗셈이다.
+ *
+ * `<` `>` `}` 는 **일부러 뺐다.** JSX 가 이 셋 뒤에 `/` 를 흔히 놓는다 —
+ * `</div>`, `<A/></>`, `{dir}/{file}`. 정규식으로 오인하면 닫는 `/` 를 찾아
+ * 헤매다 그 뒤 코드를 통째로 삼킨다. 반대 방향(이 셋 뒤의 진짜 정규식)은
+ * 실제 코드에 사실상 없어서 이 교환은 한쪽으로만 안전하다.
+ */
+const REGEX_PREV = new Set(["(", ",", "=", ":", "[", "!", "&", "|", "?", ";", "+", "-", "*", "%", "~", "^", "{"]);
+const REGEX_KEYWORD = /(?:^|[^\w$])(?:return|typeof|instanceof|in|of|case|do|else|yield|await|new|delete|void|throw)$/;
+
+function startsRegex(emitted) {
+  const trimmed = emitted.replace(/\s+$/, "");
+  if (trimmed === "") return true;
+  const last = trimmed[trimmed.length - 1];
+  if (REGEX_PREV.has(last)) return true;
+  return REGEX_KEYWORD.test(trimmed);
+}
+
+/**
  * 소스에서 **주석을 제외한** 영역만 남긴다. 주석 문자는 공백으로 치환해
  * 줄/열 번호가 보존된다.
  *
- * 상태: code / line-comment / block-comment / '…' / "…" / `…`
+ * 상태: code / line-comment / block-comment / '…' / "…" / `…` / /…/
  * 문자열 안에 남은 한글은 표시 문자열이거나 JSX 텍스트다 — 둘 다 번역 대상.
+ *
+ * ## 정규식 리터럴을 왜 따로 다루나
+ *
+ * 정규식 안의 따옴표(`/[\s'"(\[<]/`)를 문자열 시작으로 오독하면 그 뒤 파일
+ * 전체가 "문자열 안"이 된다. 그러면 주석 속 한글이 위반으로 보고되고(거짓
+ * 양성 — `features/terminal/fileLinks.ts` 가 실제로 그랬다), 반대로 정규식
+ * 안의 `//` 를 줄 주석으로 오독하면 진짜 한글을 놓친다(거짓 음성 — 게이트가
+ * 조용히 뚫린다). 정규식 **내용은 그대로 남긴다** — 문자 클래스의 한글은
+ * 여전히 보고돼야 하고, 면제는 `i18n-ignore` 주석으로 명시한다.
  */
 function stripComments(src) {
   let out = "";
   let i = 0;
   const n = src.length;
-  // 0=code 1=line 2=block 3=single 4=double 5=template
+  // 0=code 1=line 2=block 3=single 4=double 5=template 6=regex 7=regex char class
   let state = 0;
   while (i < n) {
     const c = src[i];
     const c2 = src[i + 1];
     if (state === 0) {
+      // 주석 판정이 정규식 판정보다 **앞선다**. 정규식 리터럴은 `/` 나 `*` 로
+      // 시작할 수 없어서(`//` 는 주석, `/*` 는 수량자 오류) 순서가 안전하다.
       if (c === "/" && c2 === "/") {
         state = 1;
         out += "  ";
@@ -172,7 +197,8 @@ function stripComments(src) {
         i += 2;
         continue;
       }
-      if (c === "'") state = 3;
+      if (c === "/" && startsRegex(out)) state = 6;
+      else if (c === "'") state = 3;
       else if (c === '"') state = 4;
       else if (c === "`") state = 5;
       out += c;
@@ -200,13 +226,28 @@ function stripComments(src) {
       i += 1;
       continue;
     }
-    // 문자열 3종 — 이스케이프를 건너뛰고 닫는 따옴표에서 code 로 복귀.
+    // 문자열 3종 + 정규식 — 이스케이프를 건너뛰고 닫는 구분자에서 code 로 복귀.
     if (c === "\\") {
       out += c + (c2 ?? "");
       i += 2;
       continue;
     }
-    if (
+    // 정규식 리터럴은 줄을 넘지 못한다. 줄바꿈을 만났다면 `/` 를 정규식으로
+    // 오인한 것이므로 code 로 되돌려 피해를 그 줄에 가둔다.
+    if ((state === 6 || state === 7) && c === "\n") {
+      state = 0;
+      out += c;
+      i += 1;
+      continue;
+    }
+    if (state === 6) {
+      // 문자 클래스 안의 `/` 는 구분자가 아니다 — `/[a-z/]/` 를 여기서 끊으면
+      // 남은 패턴이 코드로 새어 나온다.
+      if (c === "[") state = 7;
+      else if (c === "/") state = 0;
+    } else if (state === 7) {
+      if (c === "]") state = 6;
+    } else if (
       (state === 3 && c === "'") ||
       (state === 4 && c === '"') ||
       (state === 5 && c === "`")

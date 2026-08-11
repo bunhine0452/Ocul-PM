@@ -5,6 +5,8 @@
  * 소요시간 반올림은 눈으로 확인하기 어렵고 조용히 틀리기 쉽다.
  */
 
+import { t } from "@/i18n";
+
 import type { ShellState } from "./oscShell";
 
 /** 상태바에 넣을 명령줄 최대 길이 — 넘으면 가운데를 생략한다. */
@@ -27,12 +29,16 @@ const SIGNAL_NAMES: Readonly<Record<number, string>> = {
 export function formatDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 1000) return "";
   const totalSeconds = Math.round(ms / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}초`;
+  if (totalSeconds < 60) return t("term.durSeconds", { n: totalSeconds });
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  if (minutes < 60) return seconds === 0 ? `${minutes}분` : `${minutes}분 ${seconds}초`;
+  if (minutes < 60) {
+    return seconds === 0
+      ? t("term.durMinutes", { m: minutes })
+      : t("term.durMinutesSeconds", { m: minutes, s: seconds });
+  }
   const hours = Math.floor(minutes / 60);
-  return `${hours}시간 ${minutes % 60}분`;
+  return t("term.durHoursMinutes", { h: hours, m: minutes % 60 });
 }
 
 /**
@@ -61,19 +67,23 @@ export interface ShellSummary {
 export function summarizeShell(state: ShellState): ShellSummary | null {
   if (!state.active) return null;
   if (state.running) {
-    return { text: `${truncateCommand(state.running.command)} 실행 중`, tone: "running" };
+    return {
+      text: t("term.shellRunning", { command: truncateCommand(state.running.command) }),
+      tone: "running",
+    };
   }
   const last = state.last;
-  if (!last) return { text: "셸 통합 켜짐", tone: "idle" };
+  if (!last) return { text: t("term.shellActive"), tone: "idle" };
 
   const duration = formatDuration(last.durationMs);
   const name = truncateCommand(last.command);
   const head = name ? `${name} ` : "";
-  if (last.exitCode === null) return { text: `${head}종료`.trim(), tone: "idle" };
+  if (last.exitCode === null) return { text: `${head}${t("term.shellExited")}`.trim(), tone: "idle" };
   if (last.exitCode === 0) {
-    return { text: `${head}완료${duration ? ` · ${duration}` : ""}`, tone: "ok" };
+    return { text: `${head}${t("term.shellDone")}${duration ? ` · ${duration}` : ""}`, tone: "ok" };
   }
   // 128+N 은 시그널로 죽은 것 — "실패 130" 보다 "SIGINT" 가 훨씬 읽힌다.
-  const reason = SIGNAL_NAMES[last.exitCode - 128] ?? `실패 ${last.exitCode}`;
+  const reason =
+    SIGNAL_NAMES[last.exitCode - 128] ?? t("term.shellFailed", { code: last.exitCode });
   return { text: `${head}${reason}${duration ? ` · ${duration}` : ""}`, tone: "fail" };
 }

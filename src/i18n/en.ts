@@ -1259,6 +1259,73 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Terminal screen ─────────────────────────────────────────────────────
+  "term.title": "Terminal",
+  "term.loading": "Loading terminal",
+  "term.newSession": "New session",
+  "term.newSessionHint": "New session (⌘T)",
+  "term.tablist": "Terminal session tabs",
+  "term.renameHint": "Double-click to rename",
+  "term.renameLabel": "Rename tab",
+  "term.closeTab": "Close {label}",
+  "term.closePane": "Close pane",
+  "term.closePaneHint": "Close pane (⌘W)",
+  "term.splitRow": "Split horizontally",
+  "term.splitRowHint": "Split horizontally (⌘D)",
+  "term.splitCol": "Split vertically",
+  "term.splitColHint": "Split vertically (⇧⌘D)",
+  "term.searchScrollback": "Search scrollback",
+  "term.searchScrollbackHint": "Search scrollback (⌘F)",
+  "term.searchPlaceholder": "Search scrollback…",
+  "term.searchLabel": "Search terminal",
+  "term.prevMatch": "Previous (⇧Enter)",
+  "term.nextMatch": "Next (Enter)",
+  "term.closeSearch": "Close search",
+  "term.closeSearchHint": "Close (Esc)",
+  "term.matchNone": "No matches",
+  "term.matchCount": "{n} matches",
+  "term.paneCount": "{n} panes",
+  "term.shortcuts":
+    "⌘T new tab · ⌘D split · ⇧⌘D split down · ⌘F find · ⌘L clear · ⌘W close",
+  "term.fontSmaller": "Smaller text (⌘-)",
+  "term.fontLarger": "Larger text (⌘+)",
+  "term.openEditorFailed": "Could not open editor: {error}",
+  "term.shellOn":
+    "Shell integration on — command boundaries, exit codes, and working directory are tracked",
+  "term.shellOff":
+    "Turn on shell integration in Settings → Terminal to track command boundaries and exit codes",
+  "term.watchRunning": "Watching .oculpm",
+  "term.watchError": "Watch error",
+  "term.watchOff": "Watch off",
+
+  // Written straight into the terminal, where PTY output would be.
+  "term.processEnded": "Process ended",
+  "term.ptyStartFailed": "Could not start PTY: {error}",
+
+  // Renderer crash boundary
+  "term.crashTitle": "Terminal renderer error",
+  "term.crashBody":
+    "The session is still alive in the backend — reopening picks up where it left off. Details are in the diagnostics log (oculpm.log).",
+  "term.crashReopen": "Reopen",
+
+  // Shell integration status bar — assembled by `summarizeShell()`. Command
+  // name first, status after, so the same assembly works in both languages.
+  "term.shellRunning": "{command} running",
+  "term.shellActive": "Shell integration on",
+  "term.shellExited": "exited",
+  "term.shellDone": "done",
+  "term.shellFailed": "exit {code}",
+  "term.durSeconds": "{n}s",
+  "term.durMinutes": "{m}m",
+  "term.durMinutesSeconds": "{m}m {s}s",
+  "term.durHoursMinutes": "{h}h {m}m",
+
+  // Agent run ended → offer to journal it (never written automatically)
+  "term.agentFinished": "{agent} finished",
+  "term.agentFinishedIn": "{agent} finished in {duration}",
+  "term.agentJournalPrompt": "Write a work journal entry?",
+  "term.agentJournalAction": "Write entry",
+
   // ── Embedding model banner ──────────────────────────────────────────────
   "embed.failed": "Couldn't download the embedding model — check your connection and try again",
   "embed.ready": "Embedding model ready ✓",

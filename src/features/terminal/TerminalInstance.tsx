@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { useT } from "@/i18n";
 import type { TerminalHandles } from "./TerminalInstanceImpl";
 import type { ShellState } from "./oscShell";
 import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
@@ -34,6 +35,7 @@ interface TerminalInstanceProps {
 export type { TerminalHandles, ShellState };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
+  const { t } = useT();
   // 경계가 래퍼 안에 있어 모든 소비처(터미널 화면·Today 위젯)가 보호된다 —
   // A0d 크래시(경계 밖 소비처에서 앱 전체 언마운트)의 재발 방지.
   return (
@@ -44,7 +46,7 @@ export function TerminalInstance(props: TerminalInstanceProps) {
           className="skel"
           style={{ height: "100%", minHeight: 120 }}
           role="status"
-          aria-label="터미널 불러오는 중"
+          aria-label={t("term.loading")}
         />
       }
     >

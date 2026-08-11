@@ -235,5 +235,6 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
 
 /** 아직 교체될 수 있는 글자인가 — 한글 자모·완성형이면 조합이 이어질 수 있다. */
 function isComposable(char: string): boolean {
+  // i18n-ignore-next-line -- 한글 자모·완성형 범위 (표시 문자열이 아니라 조합 판정용)
   return /[ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힣ힰ-퟿]/.test(char);
 }

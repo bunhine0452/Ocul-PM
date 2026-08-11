@@ -8,6 +8,9 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { commands } from "@/lib/bindings";
 import { oculpmLog } from "@/lib/oculpmLog";
+// 모듈 t() — 이 두 문구는 PTY 이벤트 시점에 터미널 버퍼로 **써 넣는** 것이라
+// 리렌더와 무관하다. 이미 쓰인 줄은 언어를 바꿔도 소급되지 않는 게 맞다.
+import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
@@ -190,6 +193,7 @@ export default function TerminalInstanceImpl({
         try {
           onShellStateRef.current?.(next);
         } catch (err) {
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `셸 상태 콜백 실패: ${String(err)}`);
         }
       });
@@ -246,6 +250,7 @@ export default function TerminalInstanceImpl({
             })),
           );
           } catch (err) {
+            // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
             oculpmLog.error("terminal", `링크 스캔 실패 (무시): ${String(err)}`);
             callback(undefined);
           }
@@ -258,6 +263,7 @@ export default function TerminalInstanceImpl({
       try {
         term.options.theme = readTerminalTheme();
       } catch (err) {
+        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
         oculpmLog.error("terminal", `테마 반영 실패: ${String(err)}`);
       }
     });
@@ -303,7 +309,7 @@ export default function TerminalInstanceImpl({
         );
         if (!isMounted) return;
         unlistenExit = await listen<void>(`pty-exit-${sessionId}`, () => {
-          if (isMounted) term.write("\r\n\x1b[1;31m[프로세스 종료됨]\x1b[0m\r\n");
+          if (isMounted) term.write(`\r\n\x1b[1;31m[${t("term.processEnded")}]\x1b[0m\r\n`);
         });
         if (!isMounted) return;
 
@@ -320,7 +326,7 @@ export default function TerminalInstanceImpl({
           const res = await commands.startPtySession(sessionId, cwdRef.current, term.rows, term.cols);
           if (!isMounted) return;
           if (res.status === "error") {
-            term.write(`\r\n\x1b[1;31m[PTY 시작 실패: ${res.error}]\x1b[0m\r\n`);
+            term.write(`\r\n\x1b[1;31m[${t("term.ptyStartFailed", { error: res.error })}]\x1b[0m\r\n`);
             return;
           }
           nonceRef.current = res.data.nonce;
@@ -359,12 +365,14 @@ export default function TerminalInstanceImpl({
       try {
         webglRef.current?.dispose();
       } catch (err) {
+        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
         oculpmLog.error("terminal", `webgl dispose 실패 (무시): ${String(err)}`);
       }
       webglRef.current = null;
       try {
         term.dispose();
       } catch (err) {
+        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
         oculpmLog.error("terminal", `term.dispose 실패 (무시): ${String(err)}`);
       }
       termRef.current = null;
@@ -405,6 +413,7 @@ export default function TerminalInstanceImpl({
           // setTimeout 안이라 여기서 rethrow 하면 에러 경계가 원리적으로 못
           // 잡는다 (A0d: 앱 전체 빈 화면의 유력 경로) — state 로 승격해 렌더
           // 단계에서 다시 던져 TerminalErrorBoundary 가 포착하게 한다.
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `term.open 실패: ${String(err)}`);
           setFatal(err instanceof Error ? err : new Error(String(err)));
           return;
@@ -417,12 +426,14 @@ export default function TerminalInstanceImpl({
         try {
           imeRef.current = attachImeBridge(term, container);
         } catch (err) {
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
         }
         try {
           const search = searchRef.current;
           if (search) onReadyRef.current?.({ term, search });
         } catch (err) {
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `onReady 핸들 등록 실패: ${String(err)}`);
         }
       }
@@ -464,6 +475,7 @@ async function loadWebglRenderer(
     handle.current = webgl;
   } catch (err) {
     // WebGL2 미지원/차단 — DOM 렌더러 그대로 (동작엔 문제 없음).
+    // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
     console.warn("[TerminalInstance] WebGL 렌더러 사용 불가, DOM 렌더러로 진행:", err);
   }
 }

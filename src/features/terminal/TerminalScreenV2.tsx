@@ -11,6 +11,8 @@ import {
 } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
+// 모듈 t() 는 `formatMatchCount`(순수·테스트 대상) 용, useT() 는 컴포넌트 용.
+import { t, useT } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
@@ -59,19 +61,19 @@ export function formatMatchCount(
 ): string {
   if (!query) return "";
   if (!matches) return "";
-  if (matches.count === 0) return "일치 없음";
-  if (matches.index < 0) return `${matches.count}건`;
+  if (matches.count === 0) return t("term.matchNone");
+  if (matches.index < 0) return t("term.matchCount", { n: matches.count });
   return `${matches.index + 1}/${matches.count}`;
 }
 
-function panesOfTab(t: TerminalTab): PaneNode {
-  return t.panes ?? leaf(t.id);
+function panesOfTab(tab: TerminalTab): PaneNode {
+  return tab.panes ?? leaf(tab.id);
 }
 
-function focusOfTab(t: TerminalTab): string {
-  const panes = panesOfTab(t);
+function focusOfTab(tab: TerminalTab): string {
+  const panes = panesOfTab(tab);
   const sids = collectSids(panes);
-  return t.focusSid && sids.includes(t.focusSid) ? t.focusSid : firstSid(panes);
+  return tab.focusSid && sids.includes(tab.focusSid) ? tab.focusSid : firstSid(panes);
 }
 
 interface TerminalScreenV2Props {
@@ -79,6 +81,7 @@ interface TerminalScreenV2Props {
 }
 
 export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
+  const { t } = useT();
   const { state, setState } = useWorkspace();
   const { settings } = useSettings();
   const { terminalTabs, terminalActiveId } = state;
@@ -138,7 +141,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // 셸 통합이 꺼져 있으면 shellStates 가 비어 있어 자동으로 no-op 이다.
   useAgentRuns(shellStates, state.currentProjectId);
 
-  const activeTab = terminalTabs.find((t) => t.id === terminalActiveId) ?? null;
+  const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
   const paneCount = activeTab ? collectSids(panesOfTab(activeTab)).length : 0;
   dispatchSidRef.current = activeTab ? focusOfTab(activeTab) : null;
 
@@ -148,14 +151,14 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
       const id = newId();
       const tab: TerminalTab = { id, label: "zsh", shell: "zsh", cwd: projectRoot ?? "" };
       setState((prev) => ({ ...prev, terminalTabs: [tab], terminalActiveId: id }));
-    } else if (terminalActiveId == null || !terminalTabs.some((t) => t.id === terminalActiveId)) {
+    } else if (terminalActiveId == null || !terminalTabs.some((tab) => tab.id === terminalActiveId)) {
       setState((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
     }
   }, [terminalTabs, terminalActiveId, projectRoot, setState]);
 
   // 닫힌 세션의 핸들 정리.
   useEffect(() => {
-    const alive = new Set(terminalTabs.flatMap((t) => collectSids(panesOfTab(t))));
+    const alive = new Set(terminalTabs.flatMap((tab) => collectSids(panesOfTab(tab))));
     for (const sid of regRef.current.keys()) {
       if (!alive.has(sid)) regRef.current.delete(sid);
     }
@@ -169,10 +172,10 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     });
   }, [terminalTabs]);
 
-  const patchTab = (id: string, fn: (t: TerminalTab) => TerminalTab) =>
+  const patchTab = (id: string, fn: (tab: TerminalTab) => TerminalTab) =>
     setState((prev) => ({
       ...prev,
-      terminalTabs: prev.terminalTabs.map((t) => (t.id === id ? fn(t) : t)),
+      terminalTabs: prev.terminalTabs.map((tab) => (tab.id === id ? fn(tab) : tab)),
     }));
 
   const addTab = () => {
@@ -187,10 +190,10 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   };
 
   const closeTab = (id: string) => {
-    const tab = terminalTabs.find((t) => t.id === id);
+    const tab = terminalTabs.find((candidate) => candidate.id === id);
     if (tab) for (const sid of collectSids(panesOfTab(tab))) void commands.killPtySession(sid);
     setState((prev) => {
-      const remaining = prev.terminalTabs.filter((t) => t.id !== id);
+      const remaining = prev.terminalTabs.filter((tab) => tab.id !== id);
       const nextActive =
         prev.terminalActiveId === id
           ? (remaining[remaining.length - 1]?.id ?? null)
@@ -204,7 +207,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const commitRename = () => {
     if (!renaming) return;
     const label = renaming.draft.trim();
-    if (label) patchTab(renaming.id, (t) => ({ ...t, label }));
+    if (label) patchTab(renaming.id, (tab) => ({ ...tab, label }));
     setRenaming(null);
   };
 
@@ -212,9 +215,9 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     if (!activeTab) return;
     const sid = focusOfTab(activeTab);
     const newSid = newId();
-    patchTab(activeTab.id, (t) => ({
-      ...t,
-      panes: splitPane(panesOfTab(t), sid, dir, newSid),
+    patchTab(activeTab.id, (tab) => ({
+      ...tab,
+      panes: splitPane(panesOfTab(tab), sid, dir, newSid),
       focusSid: newSid,
     }));
   };
@@ -230,9 +233,9 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     }
     const nextFocus = siblingSid(panes, sid);
     void commands.killPtySession(sid);
-    patchTab(activeTab.id, (t) => {
-      const next = removePane(panesOfTab(t), sid);
-      return { ...t, panes: next ?? leaf(t.id), focusSid: nextFocus ?? undefined };
+    patchTab(activeTab.id, (tab) => {
+      const next = removePane(panesOfTab(tab), sid);
+      return { ...tab, panes: next ?? leaf(tab.id), focusSid: nextFocus ?? undefined };
     });
   };
 
@@ -245,16 +248,16 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     }
     const nextFocus = siblingSid(panes, sid);
     void commands.killPtySession(sid);
-    patchTab(activeTab.id, (t) => {
-      const next = removePane(panesOfTab(t), sid);
-      return { ...t, panes: next ?? leaf(t.id), focusSid: nextFocus ?? undefined };
+    patchTab(activeTab.id, (tab) => {
+      const next = removePane(panesOfTab(tab), sid);
+      return { ...tab, panes: next ?? leaf(tab.id), focusSid: nextFocus ?? undefined };
     });
   };
 
   const focusPane = (tabId: string, sid: string) => {
-    const tab = terminalTabs.find((t) => t.id === tabId);
+    const tab = terminalTabs.find((candidate) => candidate.id === tabId);
     if (!tab || tab.focusSid === sid) return;
-    patchTab(tabId, (t) => ({ ...t, focusSid: sid }));
+    patchTab(tabId, (tab) => ({ ...tab, focusSid: sid }));
   };
 
   const fontDelta = (d: number) =>
@@ -276,8 +279,10 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     if (!label) return;
     setState((prev) => ({
       ...prev,
-      terminalTabs: prev.terminalTabs.map((t) =>
-        t.id === tabId && canAutoRename(t.label) && t.label !== label ? { ...t, label } : t,
+      terminalTabs: prev.terminalTabs.map((tab) =>
+        tab.id === tabId && canAutoRename(tab.label) && tab.label !== label
+          ? { ...tab, label }
+          : tab,
       ),
     }));
   };
@@ -398,7 +403,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
       window.removeEventListener("pointerup", up);
       setDrag(null);
       const ratio = calc(ev);
-      patchTab(tabId, (t) => ({ ...t, panes: setRatio(panesOfTab(t), path, ratio) }));
+      patchTab(tabId, (tab) => ({ ...tab, panes: setRatio(panesOfTab(tab), path, ratio) }));
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -416,7 +421,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
         settings.externalEditorCommand,
         line,
       );
-      if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+      if (res.status === "error") toast.destructive(t("term.openEditorFailed", { error: res.error }));
     },
     [projectRoot, settings.externalEditorCommand],
   );
@@ -427,14 +432,16 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // 2026-07-30 정직성 수정: 예전 문구는 "에이전트 실행을 감지해 자동으로 일지를
   // 작성합니다" 였는데, PTY 쪽에 감지 코드가 한 줄도 없었고 자동 일지 초안도
   // 기본 꺼짐이었다. 이제 실제로 켜져 있을 때만 그렇게 말한다.
-  const toolbarSub = focusedShell?.active
-    ? "셸 통합 켜짐 — 명령 경계·종료코드·작업 디렉터리를 인식합니다"
-    : "설정 → 터미널에서 셸 통합을 켜면 명령 경계와 종료코드를 인식합니다";
+  const toolbarSub = focusedShell?.active ? t("term.shellOn") : t("term.shellOff");
 
   // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
   const watcher = state.oculpmStatus?.watcher_state ?? null;
   const watchLabel =
-    watcher === "running" ? ".oculpm 감시중" : watcher === "error" ? "감시 오류" : "감시 꺼짐";
+    watcher === "running"
+      ? t("term.watchRunning")
+      : watcher === "error"
+        ? t("term.watchError")
+        : t("term.watchOff");
   const watchColor =
     watcher === "running" ? "#57c98a" : watcher === "error" ? "var(--t-bug)" : "var(--text-3)";
 
@@ -473,8 +480,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
               type="button"
               className="pane-close"
               onClick={() => closePane(node.sid)}
-              aria-label="페인 닫기"
-              title="페인 닫기 (⌘W)"
+              aria-label={t("term.closePane")}
+              title={t("term.closePaneHint")}
             >
               <X size={11} />
             </button>
@@ -504,53 +511,63 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
 
   return (
     <>
-      <Toolbar title="터미널" sub={toolbarSub}>
+      <Toolbar title={t("term.title")} sub={toolbarSub}>
         <button
           className="btn icon"
           onClick={() => (searchOpen ? closeSearch() : openSearch())}
-          title="스크롤백 검색 (⌘F)"
-          aria-label="스크롤백 검색"
+          title={t("term.searchScrollbackHint")}
+          aria-label={t("term.searchScrollback")}
         >
           <Search size={15} />
         </button>
-        <button className="btn icon" onClick={() => splitFocused("row")} title="가로 분할 (⌘D)" aria-label="가로 분할">
+        <button
+          className="btn icon"
+          onClick={() => splitFocused("row")}
+          title={t("term.splitRowHint")}
+          aria-label={t("term.splitRow")}
+        >
           <Columns2 size={15} />
         </button>
-        <button className="btn icon" onClick={() => splitFocused("col")} title="세로 분할 (⇧⌘D)" aria-label="세로 분할">
+        <button
+          className="btn icon"
+          onClick={() => splitFocused("col")}
+          title={t("term.splitColHint")}
+          aria-label={t("term.splitCol")}
+        >
           <Rows2 size={15} />
         </button>
         <button className="btn" onClick={addTab}>
-          <Plus size={15} /> 새 세션
+          <Plus size={15} /> {t("term.newSession")}
         </button>
       </Toolbar>
 
       <div className="term-wrap">
-        <div className="term-tabs" role="tablist" aria-label="터미널 세션 탭">
-          {terminalTabs.map((t) => (
+        <div className="term-tabs" role="tablist" aria-label={t("term.tablist")}>
+          {terminalTabs.map((tab) => (
             <div
-              key={t.id}
-              className={"term-tab" + (t.id === terminalActiveId ? " active" : "")}
-              onClick={() => selectTab(t.id)}
-              onDoubleClick={() => setRenaming({ id: t.id, draft: t.label })}
+              key={tab.id}
+              className={"term-tab" + (tab.id === terminalActiveId ? " active" : "")}
+              onClick={() => selectTab(tab.id)}
+              onDoubleClick={() => setRenaming({ id: tab.id, draft: tab.label })}
               role="tab"
-              aria-selected={t.id === terminalActiveId}
+              aria-selected={tab.id === terminalActiveId}
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") selectTab(t.id);
+                if (e.key === "Enter" || e.key === " ") selectTab(tab.id);
               }}
-              title="더블클릭으로 이름 변경"
+              title={t("term.renameHint")}
             >
-              {t.label.includes("claude") || t.label.includes("cursor") ? (
+              {tab.label.includes("claude") || tab.label.includes("cursor") ? (
                 <Bot size={14} />
               ) : (
                 <SquareTerminal size={14} />
               )}
-              {renaming?.id === t.id ? (
+              {renaming?.id === tab.id ? (
                 <input
                   className="term-tab-rename"
                   autoFocus
                   value={renaming.draft}
-                  onChange={(e) => setRenaming({ id: t.id, draft: e.target.value })}
+                  onChange={(e) => setRenaming({ id: tab.id, draft: e.target.value })}
                   onBlur={commitRename}
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => {
@@ -558,24 +575,24 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
                     else if (e.key === "Escape") setRenaming(null);
                     e.stopPropagation();
                   }}
-                  aria-label="탭 이름 변경"
+                  aria-label={t("term.renameLabel")}
                 />
               ) : (
-                <span className="term-tab-label">{t.label}</span>
+                <span className="term-tab-label">{tab.label}</span>
               )}
               <span
                 className="term-tab-close"
                 onClick={(e) => {
                   e.stopPropagation();
-                  closeTab(t.id);
+                  closeTab(tab.id);
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={`${t.label} 닫기`}
+                aria-label={t("term.closeTab", { label: tab.label })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.stopPropagation();
-                    closeTab(t.id);
+                    closeTab(tab.id);
                   }
                 }}
               >
@@ -587,8 +604,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             type="button"
             className="term-tab-add"
             onClick={addTab}
-            aria-label="새 세션 (⌘T)"
-            title="새 세션 (⌘T)"
+            aria-label={t("term.newSessionHint")}
+            title={t("term.newSessionHint")}
           >
             <Plus size={14} />
           </button>
@@ -625,8 +642,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
                   if (e.key === "Enter") runSearch(e.shiftKey ? "prev" : "next");
                   else if (e.key === "Escape") closeSearch();
                 }}
-                placeholder="스크롤백 검색…"
-                aria-label="터미널 검색"
+                placeholder={t("term.searchPlaceholder")}
+                aria-label={t("term.searchLabel")}
               />
               <span
                 className={"ts-count" + (query && matches?.count === 0 ? " empty" : "")}
@@ -634,13 +651,29 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
               >
                 {formatMatchCount(query, matches)}
               </span>
-              <button type="button" className="ts-btn" onClick={() => runSearch("prev")} title="이전 (⇧Enter)">
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={() => runSearch("prev")}
+                title={t("term.prevMatch")}
+              >
                 ↑
               </button>
-              <button type="button" className="ts-btn" onClick={() => runSearch("next")} title="다음 (Enter)">
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={() => runSearch("next")}
+                title={t("term.nextMatch")}
+              >
                 ↓
               </button>
-              <button type="button" className="ts-btn" onClick={closeSearch} aria-label="검색 닫기" title="닫기 (Esc)">
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={closeSearch}
+                aria-label={t("term.closeSearch")}
+                title={t("term.closeSearchHint")}
+              >
                 <X size={12} />
               </button>
             </div>
@@ -651,7 +684,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
           <span className="ts-seg">
             <SquareTerminal size={12} />
             {activeTab?.label ?? "—"}
-            {paneCount > 1 ? ` · 페인 ${paneCount}` : ""}
+            {paneCount > 1 ? ` · ${t("term.paneCount", { n: paneCount })}` : ""}
           </span>
           {shellSummary ? (
             <span className="ts-seg" title={focusedShell?.cwd ?? undefined} aria-live="polite">
@@ -659,14 +692,24 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
               {shellSummary.text}
             </span>
           ) : null}
-          <span className="ts-hint">⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘L 지우기 · ⌘W 닫기</span>
+          <span className="ts-hint">{t("term.shortcuts")}</span>
           <span style={{ flex: 1 }} />
           <span className="ts-seg">
-            <button type="button" className="ts-btn" onClick={() => fontDelta(-1)} aria-label="글자 작게 (⌘-)">
+            <button
+              type="button"
+              className="ts-btn"
+              onClick={() => fontDelta(-1)}
+              aria-label={t("term.fontSmaller")}
+            >
               A−
             </button>
             <span className="ts-font">{fontSize}px</span>
-            <button type="button" className="ts-btn" onClick={() => fontDelta(1)} aria-label="글자 크게 (⌘+)">
+            <button
+              type="button"
+              className="ts-btn"
+              onClick={() => fontDelta(1)}
+              aria-label={t("term.fontLarger")}
+            >
               A+
             </button>
           </span>

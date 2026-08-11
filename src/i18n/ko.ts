@@ -1253,6 +1253,72 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── 터미널 화면 ─────────────────────────────────────────────────────────
+  "term.title": "터미널",
+  "term.loading": "터미널 불러오는 중",
+  "term.newSession": "새 세션",
+  "term.newSessionHint": "새 세션 (⌘T)",
+  "term.tablist": "터미널 세션 탭",
+  "term.renameHint": "더블클릭으로 이름 변경",
+  "term.renameLabel": "탭 이름 변경",
+  "term.closeTab": "{label} 닫기",
+  "term.closePane": "페인 닫기",
+  "term.closePaneHint": "페인 닫기 (⌘W)",
+  "term.splitRow": "가로 분할",
+  "term.splitRowHint": "가로 분할 (⌘D)",
+  "term.splitCol": "세로 분할",
+  "term.splitColHint": "세로 분할 (⇧⌘D)",
+  "term.searchScrollback": "스크롤백 검색",
+  "term.searchScrollbackHint": "스크롤백 검색 (⌘F)",
+  "term.searchPlaceholder": "스크롤백 검색…",
+  "term.searchLabel": "터미널 검색",
+  "term.prevMatch": "이전 (⇧Enter)",
+  "term.nextMatch": "다음 (Enter)",
+  "term.closeSearch": "검색 닫기",
+  "term.closeSearchHint": "닫기 (Esc)",
+  "term.matchNone": "일치 없음",
+  // 활성 인덱스를 못 세는 경우(하이라이트 한계 초과) 총 개수만 — "3/17" 과
+  // 달리 위치 정보가 없다.
+  "term.matchCount": "{n}건",
+  "term.paneCount": "페인 {n}",
+  "term.shortcuts": "⌘T 새 탭 · ⌘D 분할 · ⇧⌘D 아래 분할 · ⌘F 검색 · ⌘L 지우기 · ⌘W 닫기",
+  "term.fontSmaller": "글자 작게 (⌘-)",
+  "term.fontLarger": "글자 크게 (⌘+)",
+  "term.openEditorFailed": "에디터 열기 실패: {error}",
+  "term.shellOn": "셸 통합 켜짐 — 명령 경계·종료코드·작업 디렉터리를 인식합니다",
+  "term.shellOff": "설정 → 터미널에서 셸 통합을 켜면 명령 경계와 종료코드를 인식합니다",
+  "term.watchRunning": ".oculpm 감시중",
+  "term.watchError": "감시 오류",
+  "term.watchOff": "감시 꺼짐",
+
+  // 터미널 안에 직접 써 넣는 문구 (PTY 출력 자리에 나타난다).
+  "term.processEnded": "프로세스 종료됨",
+  "term.ptyStartFailed": "PTY 시작 실패: {error}",
+
+  // 렌더러 크래시 경계
+  "term.crashTitle": "터미널 렌더러 오류",
+  "term.crashBody":
+    "세션은 백엔드에 살아 있어요 — 다시 열면 이어집니다. 상세는 진단 로그(oculpm.log)에 남겼어요.",
+  "term.crashReopen": "다시 열기",
+
+  // 셸 통합 상태바 — `summarizeShell()` 이 조립한다. 명령 이름이 앞에 오고
+  // 상태가 뒤에 붙는 어순이라 두 언어 모두 같은 조립이 성립한다.
+  "term.shellRunning": "{command} 실행 중",
+  "term.shellActive": "셸 통합 켜짐",
+  "term.shellExited": "종료",
+  "term.shellDone": "완료",
+  "term.shellFailed": "실패 {code}",
+  "term.durSeconds": "{n}초",
+  "term.durMinutes": "{m}분",
+  "term.durMinutesSeconds": "{m}분 {s}초",
+  "term.durHoursMinutes": "{h}시간 {m}분",
+
+  // 에이전트 실행 종료 → 일지 제안 (자동 작성은 하지 않는다)
+  "term.agentFinished": "{agent} 실행이 끝났습니다",
+  "term.agentFinishedIn": "{agent} 실행이 끝났습니다 ({duration})",
+  "term.agentJournalPrompt": "작업 일지를 남기시겠어요?",
+  "term.agentJournalAction": "일지 남기기",
+
   // ── 임베딩 모델 배너 ────────────────────────────────────────────────────
   "embed.failed": "임베딩 모델 다운로드 실패 — 인터넷 연결 확인 후 다시 시도해 주세요",
   "embed.ready": "임베딩 모델 준비 완료 ✓",

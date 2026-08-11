@@ -5,8 +5,14 @@
 // 더블클릭으로 직접 지은 이름은 절대 덮지 않는다 — 기본 라벨일 때만 갱신한다.
 // (덕분에 `TerminalTab` 에 "renamed" 같은 필드를 새로 둘 필요가 없다.)
 
-/** `addTab()` 이 만드는 기본 라벨 — "zsh", "zsh 2" …  */
-const DEFAULT_LABEL = /^(zsh|bash|sh|fish|dash|셸)(\s+\d+)?$/;
+/**
+ * `addTab()` 이 만드는 기본 라벨 — "zsh", "zsh 2" …
+ *
+ * 셸 실행 파일 이름이라 번역하지 않는다 (기본 라벨은 언제나 ASCII). 예전엔
+ * `셸` 도 후보에 있었지만 그런 라벨을 만드는 경로가 없어 죽은 분기였다 —
+ * i18n 라운드에서 걷어냈다.
+ */
+const DEFAULT_LABEL = /^(zsh|bash|sh|fish|dash)(\s+\d+)?$/;
 
 /** `user@host: ~/dir` 형태의 흔한 프롬프트 제목에서 앞부분을 떼어낸다. */
 const USER_HOST_PREFIX = /^[^\s:]+@[^\s:]+:\s*/;

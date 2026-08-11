@@ -77,6 +77,46 @@ describe("scanSource — 상태 기계가 필요한 이유", () => {
   });
 });
 
+describe("scanSource — 정규식 리터럴", () => {
+  it("정규식 안의 따옴표가 문자열을 열지 않는다", () => {
+    // 실제로 밟은 버그: `features/terminal/fileLinks.ts` 의 경로 정규식이
+    // 문자 클래스에 `'` 와 `"` 를 담고 있어, 스캐너가 그 뒤 파일 전체를
+    // "문자열 안"으로 오독했다. 주석 9줄이 통째로 위반으로 보고됐다.
+    const src = [`const RE = /(?:^|[\\s'"(\\[<])(\\w+)/g;`, "// 한글 주석", "const a = 1;"].join(
+      "\n",
+    );
+    expect(lines(src)).toEqual([]);
+  });
+
+  it("정규식 안의 // 를 줄 주석으로 오독하지 않는다", () => {
+    // 반대 방향의 실패 — 이쪽은 게이트가 **조용히 뚫린다**. 같은 줄 뒤쪽
+    // 한글이 주석으로 삼켜져 위반이 보고되지 않는다.
+    const src = `const ok = /https:\\/\\//.test(u) ? "확인됨" : "";`;
+    expect(lines(src)).toEqual([1]);
+  });
+
+  it("문자 클래스 안의 / 가 정규식을 끝내지 않는다", () => {
+    const src = `const RE = /[a-z/]+/; const msg = "저장됨";`;
+    expect(lines(src)).toEqual([1]);
+  });
+
+  it("정규식 문자 클래스의 한글은 **여전히** 보고된다", () => {
+    // 면제는 스캐너가 조용히 봐주는 게 아니라 `i18n-ignore` 로 명시한다.
+    expect(lines(`const RE = /[가-힣]/;`)).toEqual([1]);
+  });
+
+  it("JSX 닫는 태그를 정규식 시작으로 오인하지 않는다", () => {
+    // `</` `/>` 를 정규식으로 보면 닫는 `/` 를 찾아 헤매다 뒤 코드를 삼킨다.
+    const src = `const a = <div><br/></div>;\nconst b = "취소";`;
+    expect(lines(src)).toEqual([2]);
+  });
+
+  it("나눗셈을 정규식 시작으로 오인하지 않는다", () => {
+    const src = `const pct = done / total;\nconst msg = "완료";`;
+    expect(lines(src)).toEqual([2]);
+  });
+});
+
 describe("scanSource — i18n-ignore 예외", () => {
   it("같은 줄 i18n-ignore 로 면제된다", () => {
     expect(lines(`const RE = /[가-힣]/; // i18n-ignore -- 정규식 문자 클래스`)).toEqual([]);
