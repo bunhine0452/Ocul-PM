@@ -19,6 +19,7 @@
  */
 
 import type { PlanSummary } from "@/lib/bindings";
+import { t, type I18nKey } from "@/i18n";
 
 /** 계획 묶음 — 백엔드 status 를 3개 버킷으로 접는다 (기존 판정 그대로). */
 export type PlanBucket = "active" | "done" | "archived";
@@ -169,10 +170,10 @@ export interface PlanSection {
   defaultOpen: boolean;
 }
 
-const RECENCY_BUCKETS: { key: string; label: string; maxDays: number }[] = [
-  { key: "today", label: "오늘", maxDays: 1 },
-  { key: "week", label: "이번 주", maxDays: 7 },
-  { key: "fortnight", label: "2주 내", maxDays: 14 },
+const RECENCY_BUCKETS: { key: string; labelKey: I18nKey; maxDays: number }[] = [
+  { key: "today", labelKey: "plan.group.today", maxDays: 1 },
+  { key: "week", labelKey: "plan.group.week", maxDays: 7 },
+  { key: "fortnight", labelKey: "plan.group.fortnight", maxDays: 14 },
 ];
 
 const SECTION_ORDER = [
@@ -200,7 +201,7 @@ export function groupPlans(
   now: number,
 ): PlanSection[] {
   if (group === "none") {
-    return plans.length ? [{ key: "all", label: "전체", plans: [...plans], defaultOpen: true }] : [];
+    return plans.length ? [{ key: "all", label: t("plan.group.all"), plans: [...plans], defaultOpen: true }] : [];
   }
 
   const order: string[] = [];
@@ -219,22 +220,23 @@ export function groupPlans(
     const f = facets.get(p.plan_id);
     if (group === "status") {
       const b = f?.bucket ?? bucketOf(p);
-      if (b === "active") push("active", "진행 중", true, p);
-      else if (b === "done") push("done", "완료", false, p);
-      else push("archived", "보관", false, p);
+      if (b === "active") push("active", t("plan.group.active"), true, p);
+      else if (b === "done") push("done", t("plan.group.done"), false, p);
+      else push("archived", t("plan.group.archived"), false, p);
     } else if (group === "agent") {
       const owner = p.owner_agent || "unknown";
       push(`agent:${owner}`, owner, true, p);
     } else {
-      const t = f?.touchedAt ?? null;
-      if (t == null) {
-        push("unknown", "기록 없음", false, p);
+      // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다 (섀도잉).
+      const touched = f?.touchedAt ?? null;
+      if (touched == null) {
+        push("unknown", t("plan.group.unknown"), false, p);
         continue;
       }
-      const days = Math.floor((now - t) / DAY_MS);
+      const days = Math.floor((now - touched) / DAY_MS);
       const b = RECENCY_BUCKETS.find((x) => days < x.maxDays);
-      if (b) push(b.key, b.label, true, p);
-      else push("older", "그 이전", false, p);
+      if (b) push(b.key, t(b.labelKey), true, p);
+      else push("older", t("plan.group.older"), false, p);
     }
   }
 
@@ -256,11 +258,11 @@ export function groupPlans(
 export function relDay(touchedAt: number | null, now: number): string {
   if (touchedAt == null) return "";
   const days = Math.floor((now - touchedAt) / DAY_MS);
-  if (days <= 0) return "오늘";
-  if (days === 1) return "어제";
-  if (days < 30) return `${days}일 전`;
+  if (days <= 0) return t("plan.ago.today");
+  if (days === 1) return t("plan.ago.yesterday");
+  if (days < 30) return t("plan.ago.days", { n: days });
   const months = Math.floor(days / 30);
-  return months < 12 ? `${months}개월 전` : `${Math.floor(days / 365)}년 전`;
+  return months < 12 ? t("plan.ago.months", { n: months }) : t("plan.ago.years", { n: Math.floor(days / 365) });
 }
 
 /**

@@ -4,6 +4,7 @@ import rehypeHighlight from "rehype-highlight";
 import { useState, useCallback, type ReactNode } from "react";
 import { Copy, Check } from "./Icons";
 import { useTheme } from "@/lib/theme";
+import { useT } from "@/i18n";
 
 // v2 U6 — react-markdown + remark-gfm + rehype-highlight(≈141KB) 를 lazy 경계
 // 뒤로 보내기 위해 렌더 구현을 이 파일로 분리했다. 소비처는 계속
@@ -11,6 +12,7 @@ import { useTheme } from "@/lib/theme";
 
 /** Code block wrapper with a copy button overlay */
 function CodeBlockWrapper({ children, className }: { children: ReactNode; className?: string }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -33,7 +35,7 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
       <button
         onClick={handleCopy}
         className="absolute top-2 right-2 p-1 rounded-md bg-muted/80 border border-border/50 text-muted-foreground hover:text-foreground opacity-0 group-hover/code:opacity-100 transition-opacity duration-150 cursor-pointer"
-        aria-label="코드 복사"
+        aria-label={t("markdown.copyCode")}
       >
         {copied ? (
           <Check className="w-3.5 h-3.5 text-green-500" />
@@ -43,7 +45,7 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
       </button>
       {copied && (
         <span className="absolute top-2 right-9 text-[10px] font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
-          복사됨
+          {t("common.copied")}
         </span>
       )}
     </div>

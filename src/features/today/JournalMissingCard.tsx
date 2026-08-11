@@ -3,6 +3,7 @@ import { safeUnlisten } from "@/lib/unlisten";
 
 import { commands, events, type JournalMissingSignal } from "@/lib/bindings";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { useT } from "@/i18n";
 
 interface JournalMissingCardProps {
   projectId: number;
@@ -47,6 +48,7 @@ export function JournalMissingCard({
   enabled,
   onNavigate,
 }: JournalMissingCardProps) {
+  const { t } = useT();
   const [signals, setSignals] = useState<JournalMissingSignal[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -116,7 +118,7 @@ export function JournalMissingCard({
           marginBottom: 4,
         }}
       >
-        <span style={{ fontWeight: 700 }}>일지 없이 끝난 세션</span>
+        <span style={{ fontWeight: 700 }}>{t("today.missing.title")}</span>
         <span
           style={{
             fontSize: 12,
@@ -124,12 +126,11 @@ export function JournalMissingCard({
             color: "var(--warn, #c2810a)",
           }}
         >
-          최근 {SIGNAL_DAYS}일 {signals.length}건
+          {t("today.missing.recent", { days: SIGNAL_DAYS, n: signals.length })}
         </span>
       </div>
       <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10 }}>
-        규칙·도구가 있어도 짧은 세션은 기록을 건너뛸 수 있어요 — 설정의 일지
-        초안(auto_journal_draft)을 켜면 세션 종료 시 초안이 자동으로 남습니다.
+          {t("today.missing.desc")}
       </div>
       <ul
         style={{
@@ -141,13 +142,13 @@ export function JournalMissingCard({
       >
         {signals.slice(0, MAX_ROWS).map((s, i) => (
           <li key={`${s.session_id}-${s.ts}-${i}`}>
-            {formatLocalTs(s.ts)} · 세션{" "}
+            {formatLocalTs(s.ts)} · {t("today.missing.session")}{" "}
             <span className="mono">{shortSid(s.session_id)}</span>
           </li>
         ))}
         {signals.length > MAX_ROWS ? (
           <li style={{ color: "var(--text-3)" }}>
-            … 외 {signals.length - MAX_ROWS}개
+            {t("today.missing.more", { n: signals.length - MAX_ROWS })}
           </li>
         ) : null}
       </ul>
@@ -156,7 +157,7 @@ export function JournalMissingCard({
         className="btn sm"
         onClick={() => onNavigate("settings")}
       >
-        설정에서 일지 초안 켜기
+        {t("today.missing.enable")}
       </button>
     </section>
   );

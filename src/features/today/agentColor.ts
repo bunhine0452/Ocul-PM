@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 // Final UI Update (ui_v2) — stable per-agent swatch color. Data-driven color is
 // explicitly allowed by UI-MASTER-PROMPT §3.1 ("agent 별 색은 데이터로 받음").
 // We don't get a color from the backend, so derive a deterministic one from a
@@ -38,7 +39,7 @@ export function agentLabel(agentId: string): string {
     "gemini-cli": "Gemini CLI",
     antigravity: "Antigravity",
     pi: "Pi",
-    manual: "수동 기록",
+    manual: t("agent.manual"),
     windsurf: "Windsurf",
     copilot: "GitHub Copilot",
     codex: "Codex CLI",

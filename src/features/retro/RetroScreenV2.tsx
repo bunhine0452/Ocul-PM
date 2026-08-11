@@ -37,6 +37,7 @@ import {
   startRetroGen,
   subscribeRetroGen,
 } from "./retroGen";
+import { useT, type I18nKey } from "@/i18n";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
 // 집중·에이전트 기여)를 모아 보여주고, "회고 생성"으로 그 신호 위에 LLM 한국어
@@ -44,11 +45,11 @@ import {
 // 일지/코드그래프가 변함) "오래됨" 배지를 띄워 재생성을 권한다. 모든 신호는 이미
 // 시크릿 마스킹된 SQLite 캐시에서 나오므로 추가 정제가 필요 없다.
 
-type Preset = { days: number; label: string };
+type Preset = { days: number; labelKey: I18nKey };
 const PRESETS: Preset[] = [
-  { days: 7, label: "최근 7일" },
-  { days: 14, label: "최근 14일" },
-  { days: 30, label: "최근 30일" },
+  { days: 7, labelKey: "retro.range.7" },
+  { days: 14, labelKey: "retro.range.14" },
+  { days: 30, labelKey: "retro.range.30" },
 ];
 
 function ymd(d: Date): string {
@@ -65,10 +66,10 @@ function wd(s: string): string {
 }
 
 const KIND_LABEL: Record<string, string> = {
-  feature: "기능",
-  refactor: "리팩토링",
-  error: "에러",
-  bug: "버그",
+  feature: "retro.type.feature",
+  refactor: "retro.type.refactor",
+  error: "retro.type.error",
+  bug: "retro.type.bug",
 };
 
 export function RetroScreenV2({
@@ -79,6 +80,7 @@ export function RetroScreenV2({
   /** #retro-cc-generate — 디스패치 후 터미널 화면으로 이동 (플래너와 동일 결). */
   onNavigate?: (view: UiV2View) => void;
 }) {
+  const { t } = useT();
   const [days, setDays] = useState(7);
   const { since, until, rangeKey } = useMemo(() => {
     const u = new Date();
@@ -117,7 +119,7 @@ export function RetroScreenV2({
   const elapsedSec =
     generating && runningGen ? Math.max(0, Math.round((Date.now() - runningGen.startedAt) / 1000)) : 0;
   const generatingLabel = generating
-    ? `생성 중… ${elapsedSec}초 · ${runningGen!.provider}/${runningGen!.model}`
+    ? t("retro.generating", { sec: elapsedSec, provider: runningGen!.provider, model: runningGen!.model })
     : null;
 
   // Refetch deterministic signals + cached narrative whenever the range (or
@@ -159,7 +161,7 @@ export function RetroScreenV2({
     const provR = await commands.settingsGet("default_provider");
     const provider = provR.status === "ok" ? provR.data : null;
     if (!provider) {
-      toast.warning("설정에서 기본 AI 제공자/모델을 먼저 지정하세요.");
+      toast.warning(t("retro.needProvider"));
       return;
     }
     const mR = await commands.settingsGet(`model_${provider}`);
@@ -169,13 +171,13 @@ export function RetroScreenV2({
       model = dm.status === "ok" ? dm.data : null;
     }
     if (!model) {
-      toast.warning("설정에서 기본 모델을 먼저 지정하세요.");
+      toast.warning(t("retro.needModel"));
       return;
     }
     // 실제 호출·완료 처리는 전역 버스가 맡는다 — 이 컴포넌트가 언마운트돼도
     // 생성은 이어지고, 결과 입양은 genVersion effect 가 한다.
     const started = startRetroGen(projectId, since, until, rangeKey, provider, model);
-    if (!started) toast.warning("이미 회고를 생성하는 중이에요 — 끝나면 알려드릴게요.");
+    if (!started) toast.warning(t("retro.alreadyRunning"));
   }, [generating, signals, projectId, since, until, rangeKey]);
 
   // #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
@@ -188,10 +190,10 @@ export function RetroScreenV2({
       const res = await commands.retroDispatchPrompt(projectId, since, until);
       if (res.status === "ok") {
         setPendingDispatch(res.data.command);
-        toast.info(`"${res.data.item_title}" 준비 — 터미널에서 Enter 로 시작하세요`);
+        toast.info(t("retro.dispatchReady", { title: res.data.item_title }));
         onNavigate?.("terminal");
       } else {
-        toast.destructive(`디스패치 실패: ${res.error}`);
+        toast.destructive(t("retro.dispatchFailed", { error: res.error }));
       }
     } finally {
       setDispatchBusy(false);
@@ -206,10 +208,10 @@ export function RetroScreenV2({
     const res = await commands.oculpmExportDigest(projectId, since, until);
     setExporting(false);
     if (res.status === "ok") {
-      if (res.data) toast.info(`내보냈어요: ${res.data}`);
+      if (res.data) toast.info(t("retro.exported", { path: res.data }));
       // null = 사용자가 취소 → 조용히 무시
     } else {
-      toast.destructive(`내보내기 실패: ${res.error}`);
+      toast.destructive(t("retro.exportFailed", { error: res.error }));
     }
   }, [exporting, signals, projectId, since, until]);
 
@@ -237,10 +239,10 @@ export function RetroScreenV2({
       const res = await commands.notionExport(projectId, title, markdown);
       setNotionBusy(false);
       if (res.status === "ok") {
-        toast.info("Notion 페이지를 만들었어요 — 새 창에서 엽니다");
+        toast.info(t("retro.notionDone"));
         void commands.openUrl(res.data);
       } else {
-        toast.destructive(`Notion 내보내기 실패: ${res.error}`);
+        toast.destructive(t("retro.notionFailed", { error: res.error }));
       }
     },
     [notionBusy, projectId],
@@ -283,7 +285,7 @@ export function RetroScreenV2({
         setSummaryResult(res.data);
         if (res.data.note) toast.warning(res.data.note);
       } else {
-        toast.destructive(`생성 실패: ${res.error}`);
+        toast.destructive(t("retro.genFailed", { error: res.error }));
       }
     },
     [summaryBusy, projectId, since, until],
@@ -293,23 +295,26 @@ export function RetroScreenV2({
     if (!summaryResult) return;
     try {
       await navigator.clipboard.writeText(summaryResult.markdown);
-      toast.info("클립보드에 복사했어요");
+      toast.info(t("retro.copied"));
     } catch {
-      toast.destructive("클립보드 복사에 실패했어요");
+      toast.destructive(t("retro.copyFailed"));
     }
   }, [summaryResult]);
 
-  const SUMMARY_STYLES: { style: SummaryStyle; label: string }[] = [
-    { style: "standup", label: "스탠드업" },
-    { style: "pr_description", label: "PR 본문" },
-    { style: "weekly_status", label: "주간 보고" },
+  const SUMMARY_STYLES: { style: SummaryStyle; labelKey: I18nKey }[] = [
+    { style: "standup", labelKey: "retro.summary.standup" },
+    { style: "pr_description", labelKey: "retro.summary.pr" },
+    { style: "weekly_status", labelKey: "retro.summary.weekly" },
   ];
   const summaryLabel = (s: SummaryStyle) =>
-    SUMMARY_STYLES.find((x) => x.style === s)?.label ?? s;
+    (() => {
+      const found = SUMMARY_STYLES.find((x) => x.style === s);
+      return found ? t(found.labelKey) : s;
+    })();
 
   return (
     <>
-      <Toolbar title="회고" sub={`${wd(since)} – ${wd(until)} · ${days}일`}>
+      <Toolbar title={t("nav.retro")} sub={t("retro.toolbarSub", { since: wd(since), until: wd(until), days })}>
         <div className="flex items-center gap-1.5">
           {PRESETS.map((p) => (
             <button
@@ -324,7 +329,7 @@ export function RetroScreenV2({
               aria-pressed={days === p.days}
               onClick={() => setDays(p.days)}
             >
-              {p.label}
+              {t(p.labelKey)}
             </button>
           ))}
           <button
@@ -332,9 +337,9 @@ export function RetroScreenV2({
             style={{ marginLeft: 8 }}
             onClick={() => void exportDigest()}
             disabled={exporting || loading || !hasWork}
-            title={hasWork ? "이 기간 일지를 .md 로 내보내기" : "이 기간에 기록된 작업이 없습니다"}
+            title={hasWork ? t("retro.exportTitle") : t("retro.noWork")}
           >
-            <Download size={14} /> {exporting ? "내보내는 중…" : "내보내기"}
+            <Download size={14} /> {exporting ? t("retro.exporting") : t("retro.export")}
           </button>
           {/* v2 U10 (C1) — 이 기간을 스탠드업/PR 본문/주간 보고로 */}
           <div className="relative" ref={summaryMenuRef}>
@@ -344,14 +349,14 @@ export function RetroScreenV2({
               disabled={loading || !hasWork || summaryBusy != null}
               aria-haspopup="menu"
               aria-expanded={summaryMenuOpen}
-              title={hasWork ? "일지를 공유용 산출물로 생성" : "이 기간에 기록된 작업이 없습니다"}
+              title={hasWork ? t("retro.summaryTitle") : t("retro.noWork")}
             >
-              <SparklesIcon size={14} /> {summaryBusy ? `${summaryLabel(summaryBusy)} 생성 중…` : "산출물"}
+              <SparklesIcon size={14} /> {summaryBusy ? t("retro.summaryBusy", { label: summaryLabel(summaryBusy) }) : t("retro.summary")}
             </button>
             {summaryMenuOpen ? (
               <div
                 role="menu"
-                aria-label="산출물 종류"
+                aria-label={t("retro.summaryKindAria")}
                 className="absolute right-0 top-full z-30 mt-1 w-36 rounded-lg border border-border bg-card p-1 shadow-lg"
               >
                 {SUMMARY_STYLES.map((s) => (
@@ -362,7 +367,7 @@ export function RetroScreenV2({
                     className="w-full rounded-md px-2.5 py-1.5 text-left text-xs text-foreground/85 hover:bg-accent"
                     onClick={() => void runSummary(s.style)}
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </button>
                 ))}
               </div>
@@ -374,11 +379,11 @@ export function RetroScreenV2({
             disabled={loading || !hasWork || dispatchBusy}
             title={
               hasWork
-                ? "터미널의 Claude Code 세션으로 회고를 생성합니다 — API 키·과금 없이, 진행 과정이 터미널에 그대로 보여요"
-                : "이 기간에 기록된 작업이 없습니다"
+                ? t("retro.claudeTitle")
+                : t("retro.noWork")
             }
           >
-            <Bot size={14} /> Claude Code 로
+            <Bot size={14} /> {t("retro.viaClaude")}
           </button>
           <button
             className="btn primary"
@@ -389,7 +394,7 @@ export function RetroScreenV2({
                 ? generatingLabel!
                 : hasWork
                   ? undefined
-                  : "이 기간에 기록된 작업이 없습니다"
+                  : t("retro.noWork")
             }
           >
             {generating ? (
@@ -398,11 +403,11 @@ export function RetroScreenV2({
               </>
             ) : cached ? (
               <>
-                <RotateCcw size={14} /> 다시 생성
+                <RotateCcw size={14} /> {t("retro.regen")}
               </>
             ) : (
               <>
-                <SparklesIcon size={14} /> 회고 생성
+                <SparklesIcon size={14} /> {t("retro.generate")}
               </>
             )}
           </button>
@@ -413,13 +418,13 @@ export function RetroScreenV2({
         <div className="page fade-in">
           {loading ? (
             <div className="grid place-items-center py-20">
-              <OculSpinner size={28} label="신호 모으는 중…" />
+              <OculSpinner size={28} label={t("retro.gatheringSignals")} />
             </div>
           ) : error ? (
-            <div className="empty-hint">신호를 불러오지 못했어요: {error}</div>
+            <div className="empty-hint">{t("retro.signalsFailed", { error })}</div>
           ) : !hasWork ? (
             <div className="empty-hint">
-              이 기간에 기록된 작업이 없습니다. 다른 기간을 골라보세요.
+              {t("retro.emptyPeriod")}
             </div>
           ) : (
             <div className="flex flex-col gap-5 max-w-3xl">
@@ -442,7 +447,7 @@ export function RetroScreenV2({
                 notionReady={notionReady}
                 notionBusy={notionBusy}
                 onExportNotion={(md) =>
-                  void exportToNotion(`회고 ${wd(since)}–${wd(until)}`, md)
+                  void exportToNotion(t("retro.notionTitle", { since: wd(since), until: wd(until) }), md)
                 }
               />
             </div>
@@ -454,7 +459,7 @@ export function RetroScreenV2({
       <AppDialog
         open={summaryResult != null}
         onClose={() => setSummaryResult(null)}
-        label="생성된 산출물"
+        label={t("retro.artifactLabel")}
         width={672}
       >
         {summaryResult ? (
@@ -463,7 +468,7 @@ export function RetroScreenV2({
               <SparklesIcon size={15} />
               <span className="text-sm font-semibold">{summaryLabel(summaryResult.style)}</span>
               <span className="text-xs text-muted-foreground">
-                일지 {summaryResult.entry_count}건 · {summaryResult.used_llm ? "AI 생성" : "기본 형식"}
+                {t("retro.artifactMeta", { n: summaryResult.entry_count, mode: summaryResult.used_llm ? t("retro.byAi") : t("retro.byTemplate") })}
               </span>
               <span className="flex-1" />
               {notionReady ? (
@@ -477,14 +482,14 @@ export function RetroScreenV2({
                     )
                   }
                 >
-                  {notionBusy ? "내보내는 중…" : "Notion 으로"}
+                  {notionBusy ? t("retro.notionBusy") : t("retro.toNotion")}
                 </button>
               ) : null}
               <button className="btn primary sm" onClick={() => void copySummary()}>
-                클립보드 복사
+                {t("retro.copyClipboard")}
               </button>
               <button className="btn ghost sm" onClick={() => setSummaryResult(null)}>
-                닫기
+                {t("common.close")}
               </button>
             </div>
             <div className="overflow-y-auto p-5">
@@ -500,19 +505,20 @@ export function RetroScreenV2({
 // ─── deterministic signals ───────────────────────────────────────────────────
 
 function SignalsPanel({ signals }: { signals: RetroSignals }) {
+  const { t } = useT();
   const s = signals;
   return (
     <section className="flex flex-col gap-4">
       {/* stat row */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="총 일지" value={s.total_entries} />
-        <Stat label="출시" value={s.shipped.length} accent="text-emerald-500" />
-        <Stat label="저항" value={s.resistance.length} accent="text-amber-500" />
-        <Stat label="에이전트" value={s.agent_breakdown.length} />
+        <Stat label={t("retro.stat.total")} value={s.total_entries} />
+        <Stat label={t("retro.stat.shipped")} value={s.shipped.length} accent="text-emerald-500" />
+        <Stat label={t("retro.stat.resistance")} value={s.resistance.length} accent="text-amber-500" />
+        <Stat label={t("retro.stat.agents")} value={s.agent_breakdown.length} />
       </div>
 
       {s.shipped.length > 0 && (
-        <Card icon={<TrendingUp size={15} />} title="출시한 것">
+        <Card icon={<TrendingUp size={15} />} title={t("retro.card.shipped")}>
           <ul className="flex flex-col gap-1.5">
             {s.shipped.map((it, i) => (
               <li key={i} className="flex items-baseline gap-2 text-sm">
@@ -530,7 +536,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
       )}
 
       {(s.resistance.length > 0 || s.repeated_files.length > 0) && (
-        <Card icon={<Bug size={15} />} title="저항한 것">
+        <Card icon={<Bug size={15} />} title={t("retro.card.resistance")}>
           {s.resistance.length > 0 && (
             <ul className="flex flex-col gap-1.5">
               {s.resistance.map((it, i) => (
@@ -549,7 +555,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
           {s.repeated_files.length > 0 && (
             <div className="mt-3 border-t border-border/60 pt-2.5">
               <div className="mb-1.5 text-xs font-medium text-muted-foreground">
-                반복 등장한 문제 파일
+                {t("retro.repeatFiles")}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {s.repeated_files.map((rf) => (
@@ -568,7 +574,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
       )}
 
       {s.effort_hotspots.length > 0 && (
-        <Card icon={<Wrench size={15} />} title="노력이 몰린 곳">
+        <Card icon={<Wrench size={15} />} title={t("retro.card.effort")}>
           <ul className="flex flex-col gap-1.5">
             {s.effort_hotspots.map((h) => (
               <li key={h.path} className="flex items-center gap-2 text-sm">
@@ -577,11 +583,11 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
                 </span>
                 {h.is_hub && (
                   <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                    코어 허브
+                    {t("retro.coreHub")}
                   </span>
                 )}
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {h.touch_count}회 · 의존 {h.impact_fan_out}
+                  {t("retro.hubMeta", { n: h.touch_count, fan: h.impact_fan_out })}
                 </span>
               </li>
             ))}
@@ -589,7 +595,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
         </Card>
       )}
 
-      <Card icon={<Bot size={15} />} title="에이전트 기여">
+      <Card icon={<Bot size={15} />} title={t("retro.card.agents")}>
         <div className="flex flex-col gap-2">
           {s.agent_breakdown.map((a) => (
             <div key={a.agent_id} className="flex items-center gap-2">
@@ -601,7 +607,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
                 />
               </div>
               <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
-                {a.entry_count}개 · {Math.round((a.share ?? 0) * 100)}%
+                {t("retro.agentMeta", { n: a.entry_count, pct: Math.round((a.share ?? 0) * 100) })}
               </span>
             </div>
           ))}
@@ -619,22 +625,23 @@ function DifficultyRow({
   mix: RetroSignals["difficulty_mix"];
   total: number;
 }) {
-  const buckets: { label: string; n: number }[] = [
-    { label: "매우낮음", n: mix.verylow },
-    { label: "낮음", n: mix.low },
-    { label: "보통", n: mix.medium },
-    { label: "높음", n: mix.high },
-    { label: "매우높음", n: mix.superhigh },
-    { label: "미지정", n: mix.null_count },
+  const { t } = useT();
+  const buckets: { labelKey: I18nKey; n: number }[] = [
+    { labelKey: "retro.diff.verylow" as I18nKey, n: mix.verylow },
+    { labelKey: "retro.diff.low" as I18nKey, n: mix.low },
+    { labelKey: "retro.diff.medium" as I18nKey, n: mix.medium },
+    { labelKey: "retro.diff.high" as I18nKey, n: mix.high },
+    { labelKey: "retro.diff.superhigh" as I18nKey, n: mix.superhigh },
+    { labelKey: "retro.diff.null" as I18nKey, n: mix.null_count },
   ].filter((b) => b.n > 0);
   if (buckets.length === 0 || total === 0) return null;
   return (
     <div className="mt-2 border-t border-border/60 pt-2.5">
-      <div className="mb-1.5 text-xs font-medium text-muted-foreground">난이도 분포</div>
+      <div className="mb-1.5 text-xs font-medium text-muted-foreground">{t("retro.diffTitle")}</div>
       <div className="flex flex-wrap gap-1.5">
         {buckets.map((b) => (
-          <span key={b.label} className="rounded bg-muted px-2 py-0.5 text-xs">
-            {b.label} {b.n}
+          <span key={b.labelKey} className="rounded bg-muted px-2 py-0.5 text-xs">
+            {t(b.labelKey)} {b.n}
           </span>
         ))}
       </div>
@@ -707,31 +714,32 @@ function NarrativePanel({
   notionBusy: boolean;
   onExportNotion: (markdown: string) => void;
 }) {
+  const { t } = useT();
   if (!cached) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card/50 p-6 text-center">
         <History size={22} className="mx-auto mb-2 text-muted-foreground" />
         <div className="text-sm text-muted-foreground">
-          위 신호를 바탕으로 한국어 회고를 생성할 수 있어요.
+          {t("retro.genHint")}
         </div>
         <div className="mt-3 flex items-center justify-center gap-2">
           <button className="btn primary" onClick={onGenerate} disabled={generating}>
             {generating ? (
               <>
-                <OculSpinner size={14} /> {generatingLabel ?? "생성 중…"}
+                <OculSpinner size={14} /> {generatingLabel ?? t("retro.busy")}
               </>
             ) : (
               <>
-                <SparklesIcon size={14} /> 회고 생성
+                <SparklesIcon size={14} /> {t("retro.generate")}
               </>
             )}
           </button>
           <button
             className="btn"
             onClick={onDispatch}
-            title="터미널의 Claude Code 세션으로 회고를 생성합니다 — API 키·과금 없이, 진행 과정이 터미널에 그대로 보여요"
+            title={t("retro.claudeTitle")}
           >
-            <Bot size={14} /> Claude Code 로
+            <Bot size={14} /> {t("retro.viaClaude")}
           </button>
         </div>
       </div>
@@ -748,9 +756,9 @@ function NarrativePanel({
         {stale && (
           <span
             className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 dark:text-amber-400"
-            title="이 회고 이후 일지·코드가 바뀌었어요. 다시 생성하면 최신 상태를 반영합니다."
+            title={t("retro.staleTitle")}
           >
-            <TriangleAlert size={12} /> 오래됨
+            <TriangleAlert size={12} /> {t("retro.stale")}
           </span>
         )}
         <span className="flex-1" />
@@ -759,9 +767,9 @@ function NarrativePanel({
             className="btn sm"
             disabled={notionBusy}
             onClick={() => onExportNotion(cached.retro_md)}
-            title="이 회고를 Notion 부모 페이지 아래 새 페이지로 내보냅니다"
+            title={t("retro.notionExportTitle")}
           >
-            {notionBusy ? "내보내는 중…" : "Notion 으로"}
+            {notionBusy ? t("retro.notionBusy") : t("retro.toNotion")}
           </button>
         ) : null}
       </div>

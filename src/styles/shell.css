@@ -48,9 +48,21 @@
 /* ── Sidebar collapse + hover-reveal (Dogfooding 2026-06-07) ── */
 /* Collapsed: content takes the full width; the sidebar floats out of flow and
    slides off-screen, returning as an overlay when the left edge is hovered. */
+/* 접었을 때는 시트가 창을 꽉 채운다 — 캔버스 여백 0.
+   펼친 상태에서 10px 여백이 '떠 있는 시트'로 읽히는 건 **왼쪽에 사이드바가
+   있어서**다. 사이드바가 사라지면 그 여백은 맥락을 잃고 창 가장자리를 두르는
+   빈 띠(단차)로만 남는다 — 특히 왼쪽은 `padding-left: 10px` 로 새로 생기던
+   자리라 접을 때마다 콘텐츠가 안쪽으로 밀려 보였다.
+   여백이 0이면 시트 뒤에 아무것도 없으므로 테두리·라운드·그림자도 함께 끈다
+   (분리할 배경이 없는데 남기면 그것 자체가 또 다른 단차로 보인다). */
 .app.sidebar-collapsed {
   grid-template-columns: 1fr;
-  padding-left: 10px;
+  padding: 0;
+}
+.app.sidebar-collapsed > .content {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 .app.sidebar-collapsed .sidebar {
   position: absolute;

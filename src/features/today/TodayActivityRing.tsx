@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { t } from "@/i18n";
 
 // Advanced Today UI — a live "aperture" of today's activity. Three concentric,
 // independently-hoverable arcs each encode one of today's metrics (work
@@ -72,23 +73,23 @@ export function TodayActivityRing({
       r: 44,
       cls: "o",
       fraction: fillFraction(changedToday, 4),
-      label: "작업일지",
-      value: `${changedToday}건`,
+      label: t("today.ring.entries"),
+      value: `${changedToday}`,
     },
     {
       id: "files",
       r: 33,
       cls: "m",
       fraction: fillFraction(filesTouched, 8),
-      label: "변경된 파일",
-      value: `${filesTouched}개`,
+      label: t("today.ring.files"),
+      value: `${filesTouched}`,
     },
     {
       id: "lines",
       r: 22,
       cls: "i",
       fraction: fillFraction(lineChurn, 160),
-      label: "라인 변화",
+      label: t("today.ring.lines"),
       value: `+${bytesAdded} / −${bytesRemoved}`,
     },
   ];
@@ -99,7 +100,7 @@ export function TodayActivityRing({
     <div
       className="today-ring"
       style={{ width: size, height: size }}
-      aria-label={`오늘 ${changedToday}건 기록, 변경 파일 ${filesTouched}개, 라인 +${bytesAdded}/−${bytesRemoved}`}
+      aria-label={t("today.ring.aria", { entries: changedToday, files: filesTouched, added: bytesAdded, removed: bytesRemoved })}
     >
       {pulse > 0 ? <span key={`ripple-${pulse}`} className="today-ring-ripple" /> : null}
       <svg viewBox="0 0 100 100" className="today-ring-svg" fill="none" aria-hidden="true">
@@ -139,7 +140,7 @@ export function TodayActivityRing({
       <span className="today-ring-center">
         {changedToday}
         {errorCycles > 0 ? (
-          <span className="today-ring-err" title={`에러 사이클 ${errorCycles}건`}>
+          <span className="today-ring-err" title={t("today.ring.errorCycles", { n: errorCycles })}>
             ⚠{errorCycles}
           </span>
         ) : null}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Download } from "@/components/Icons";
+import { useT } from "@/i18n";
 
 // First-run embedding-model download progress. The Rust `Embedder` emits
 // `embedding-model-download` events (start / progress / done / error) the first
@@ -17,6 +18,7 @@ type Progress = {
 const mb = (n: number) => (n / (1024 * 1024)).toFixed(0);
 
 export function EmbeddingModelBanner() {
+  const { t } = useT();
   const [p, setP] = useState<Progress | null>(null);
 
   useEffect(() => {
@@ -43,17 +45,17 @@ export function EmbeddingModelBanner() {
       <Download size={16} />
       <div className="update-banner-text">
         {p.status === "error" ? (
-          <>임베딩 모델 다운로드 실패 — 인터넷 연결 확인 후 다시 시도해 주세요</>
+          <>{t("embed.failed")}</>
         ) : p.status === "done" ? (
-          <>임베딩 모델 준비 완료 ✓</>
+          <>{t("embed.ready")}</>
         ) : (
           <>
-            임베딩 모델 최초 다운로드 중 <b>{pct}%</b>
+            {t("embed.downloading")} <b>{pct}%</b>
             <div className="dl-progress">
               <div className="dl-progress-bar" style={{ width: `${pct}%` }} />
             </div>
             <span className="dl-sub">
-              {mb(p.downloaded)} / ~{mb(p.total)} MB · 처음 한 번만 받습니다
+              {mb(p.downloaded)} / ~{mb(p.total)} MB · {t("embed.onceOnly")}
             </span>
           </>
         )}

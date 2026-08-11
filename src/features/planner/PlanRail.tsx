@@ -10,6 +10,7 @@ import {
   type PlanGroup,
   type PlanSort,
 } from "./planList";
+import { useT } from "@/i18n";
 
 /**
  * Planner 좌측 계획 레일 — 계획 목록을 '선택기' 에서 '포트폴리오 뷰' 로 올린다.
@@ -65,6 +66,7 @@ export function PlanRail({
   onToggleSection,
   now,
 }: PlanRailProps) {
+  const { t } = useT();
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const showControls = plans.length >= CONTROLS_MIN_PLANS;
@@ -115,8 +117,8 @@ export function PlanRail({
           <div className="search-box pln-rail-search">
             <Search size={13} />
             <input
-              aria-label="계획 검색"
-              placeholder="계획 검색"
+              aria-label={t("plan.rail.searchAria")}
+              placeholder={t("plan.rail.searchAria")}
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
             />
@@ -124,7 +126,7 @@ export function PlanRail({
               <button
                 type="button"
                 className="pln-rail-clear"
-                aria-label="검색어 지우기"
+                aria-label={t("journal.clearSearch")}
                 onClick={() => onQueryChange("")}
               >
                 <X size={12} />
@@ -134,25 +136,25 @@ export function PlanRail({
           <div className="pln-rail-selects">
             <select
               className="set-input"
-              aria-label="계획 정렬"
+              aria-label={t("plan.rail.sortAria")}
               value={sort}
               onChange={(e) => onSortChange(e.target.value as PlanSort)}
             >
-              <option value="recent">최근순</option>
-              <option value="progress">진척순</option>
-              <option value="remaining">남은 일 순</option>
-              <option value="title">이름순</option>
+              <option value="recent">{t("plan.rail.sort.recent")}</option>
+              <option value="progress">{t("plan.rail.sort.progress")}</option>
+              <option value="remaining">{t("plan.rail.sort.remaining")}</option>
+              <option value="title">{t("plan.rail.sort.title")}</option>
             </select>
             <select
               className="set-input"
-              aria-label="계획 묶기"
+              aria-label={t("plan.rail.groupAria")}
               value={group}
               onChange={(e) => onGroupChange(e.target.value as PlanGroup)}
             >
-              <option value="status">상태별</option>
-              <option value="recency">최근활동별</option>
-              <option value="agent">작성자별</option>
-              <option value="none">묶지 않음</option>
+              <option value="status">{t("plan.rail.group.status")}</option>
+              <option value="recency">{t("plan.rail.group.recency")}</option>
+              <option value="agent">{t("plan.rail.group.agent")}</option>
+              <option value="none">{t("plan.rail.group.none")}</option>
             </select>
           </div>
         </div>
@@ -161,7 +163,7 @@ export function PlanRail({
       <div className="pln-rail-list" ref={listRef} onKeyDown={onListKeyDown}>
         {sections.length === 0 ? (
           <div className="pln-rail-empty">
-            {searching ? "일치하는 계획이 없어요." : "계획이 없어요."}
+            {searching ? t("plan.rail.noMatch") : t("plan.rail.empty")}
           </div>
         ) : null}
 
@@ -223,6 +225,7 @@ const PlanRailRow = memo(function PlanRailRow({
   onSelect,
   now,
 }: PlanRailRowProps) {
+  const { t } = useT();
   const pct = facet?.pct ?? Math.round((plan.progress ?? 0) * 100);
   const locked = plan.status !== "active";
   const stale = facet?.staleDays ?? null;
@@ -234,12 +237,12 @@ const PlanRailRow = memo(function PlanRailRow({
       data-plan-id={plan.plan_id}
       className={"pln-row" + (selected ? " on" : "")}
       aria-current={selected ? "true" : undefined}
-      title={`${locked ? "완료·잠금 · " : ""}${plan.done_count}/${plan.item_count} · ${pct}%`}
+      title={`${locked ? t("plan.rail.lockedPrefix") : ""}${plan.done_count}/${plan.item_count} · ${pct}%`}
       onClick={() => onSelect(plan.plan_id)}
     >
       <span className="pln-row-top">
         <span className="pln-row-title">{plan.title}</span>
-        {locked ? <Lock size={11} className="pln-row-lock" aria-label="완료·잠금" /> : null}
+        {locked ? <Lock size={11} className="pln-row-lock" aria-label={t("plan.locked")} /> : null}
       </span>
       {/* 진행 바는 meta 줄 안에 짧게 둔다. 제목 바로 밑에 전폭으로 깔면
           밑줄·구분선으로 읽혀 제목과 수치가 갈라져 보인다 (하네스에서 확인). */}
@@ -250,7 +253,7 @@ const PlanRailRow = memo(function PlanRailRow({
         {stale != null ? (
           <span className="pln-row-stale">
             <TriangleAlert size={10} />
-            {stale}일째 멈춤
+            {t("plan.rail.stale", { n: stale })}
           </span>
         ) : when ? (
           <span>{when}</span>

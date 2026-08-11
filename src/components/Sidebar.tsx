@@ -9,6 +9,7 @@ import {
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
@@ -62,19 +63,21 @@ function NavRow({
 }) {
   const Icon = slot.icon;
   const shortcut = navShortcutLabel(slot.id);
+  const { t } = useT();
+  const label = t(slot.labelKey);
   return (
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
       style={{ "--i": index } as React.CSSProperties}
       aria-current={active ? "page" : undefined}
-      title={shortcut ? `${slot.label} (${shortcut})` : slot.label}
+      title={shortcut ? `${label} (${shortcut})` : label}
       onClick={() => onNavigate(slot.id)}
     >
       <span className="nav-ico">
         <Icon size={17} strokeWidth={active ? 2 : 1.8} />
       </span>
-      <span>{slot.label}</span>
+      <span>{label}</span>
       {shortcut ? <kbd className="nav-kbd">{shortcut}</kbd> : null}
     </button>
   );
@@ -125,8 +128,10 @@ export function Sidebar({
     };
   }, [switcherOpen]);
 
+  const { t } = useT();
+
   return (
-    <nav className="sidebar" aria-label="메인 내비게이션" onMouseLeave={onMouseLeave}>
+    <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
       {macTopInset > 0 ? (
         <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
       ) : null}
@@ -136,8 +141,8 @@ export function Sidebar({
             type="button"
             className="side-collapse-btn"
             onClick={onToggleCollapse}
-            title={collapsed ? "사이드바 고정" : "사이드바 접기"}
-            aria-label={collapsed ? "사이드바 고정" : "사이드바 접기"}
+            title={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
+            aria-label={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
           >
             <PanelLeft size={16} />
           </button>
@@ -149,7 +154,7 @@ export function Sidebar({
           type="button"
           className="proj-switch"
           onClick={() => setSwitcherOpen((o) => !o)}
-          title="프로젝트 전환 (⌘P)"
+          title={t("sidebar.switchProject")}
           aria-haspopup="menu"
           aria-expanded={switcherOpen}
         >
@@ -157,14 +162,14 @@ export function Sidebar({
             <FolderGit2 size={15} strokeWidth={2} />
           </div>
           <div className="proj-meta">
-            <div className="proj-name">{projectName ?? "프로젝트 선택"}</div>
+            <div className="proj-name">{projectName ?? t("sidebar.selectProject")}</div>
             <div className="proj-path">{projectPath ?? "—"}</div>
           </div>
           <ChevronsUpDown size={14} color="var(--text-3)" />
         </button>
 
         {switcherOpen ? (
-          <div className="proj-pop" role="menu" aria-label="프로젝트 전환">
+          <div className="proj-pop" role="menu" aria-label={t("sidebar.switchProjectMenu")}>
             {projects && projects.length > 0 ? (
               <div className="proj-pop-list">
                 {projects.map((p) => {
@@ -186,7 +191,7 @@ export function Sidebar({
                         <span className="proj-pop-name">{p.name}</span>
                         <span className="proj-pop-path">{p.root_path}</span>
                       </span>
-                      {isCurrent ? <span className="proj-pop-cur">현재</span> : null}
+                      {isCurrent ? <span className="proj-pop-cur">{t("sidebar.currentProject")}</span> : null}
                     </button>
                   );
                 })}
@@ -201,7 +206,7 @@ export function Sidebar({
                 onOpenProjectSwitcher();
               }}
             >
-              <ChevronsUpDown size={13} /> 프로젝트 관리 · 추가…
+              <ChevronsUpDown size={13} /> {t("sidebar.manageProjects")}
             </button>
           </div>
         ) : null}
@@ -211,7 +216,7 @@ export function Sidebar({
         <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
       ))}
 
-      <div className="nav-section-label">도구</div>
+      <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
       {TOOL_NAV.map((slot, i) => (
         <NavRow
           key={slot.id}
@@ -229,7 +234,7 @@ export function Sidebar({
           <span className="nav-ico">
             {isDark ? <SunIcon size={17} strokeWidth={1.8} /> : <MoonIcon size={17} strokeWidth={1.8} />}
           </span>
-          <span>{isDark ? "라이트 모드" : "다크 모드"}</span>
+          <span>{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
         </button>
         <button
           type="button"
@@ -240,7 +245,7 @@ export function Sidebar({
           <span className="nav-ico">
             <SettingsIcon size={17} strokeWidth={1.8} />
           </span>
-          <span>설정</span>
+          <span>{t("sidebar.settings")}</span>
         </button>
       </div>
     </nav>

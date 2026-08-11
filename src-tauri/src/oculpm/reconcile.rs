@@ -222,7 +222,7 @@ pub async fn reconcile_entry(
                 vec![
                     llm::Message {
                         role: llm::Role::System,
-                        content: SYSTEM_PROMPT.to_string(),
+                        content: crate::oculpm::content_lang::current(&db).await.apply(SYSTEM_PROMPT),
                     },
                     llm::Message {
                         role: llm::Role::User,

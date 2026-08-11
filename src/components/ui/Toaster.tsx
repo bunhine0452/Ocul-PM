@@ -13,6 +13,7 @@ import {
   type Toast,
 } from "@/lib/toast";
 import { AlertTriangle, Check, X } from "@/components/Icons";
+import { useT } from "@/i18n";
 
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
@@ -27,6 +28,7 @@ export function Toaster() {
 }
 
 function ToastItem({ toast }: { toast: Toast }) {
+  const { t } = useT();
   // v2 U2 — 다크 하드코딩(bg-zinc-900 등) 제거: 카드 표면 토큰 + 종류별 틴트
   // 보더/아이콘으로 라이트·다크·프리셋 전 테마에서 주변 UI 와 일관되게.
   const tone =
@@ -72,7 +74,7 @@ function ToastItem({ toast }: { toast: Toast }) {
       <button
         type="button"
         onClick={() => dismissToast(toast.id)}
-        aria-label="닫기"
+        aria-label={t("common.close")}
         className="ml-1 rounded p-0.5 opacity-60 hover:opacity-100"
       >
         <X className="h-3 w-3" />

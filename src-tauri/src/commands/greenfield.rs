@@ -384,7 +384,7 @@ Goals should cover project setup, core feature, and testing/deployment."#;
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: system_prompt.to_string(),
+                    content: crate::oculpm::content_lang::current(&db).await.apply(&system_prompt),
                 },
                 llm::Message {
                     role: llm::Role::User,

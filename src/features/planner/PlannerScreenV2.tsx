@@ -38,21 +38,22 @@ import {
   type PlanGroup,
   type PlanSort,
 } from "./planList";
+import { getLang, t, useT, type I18nKey } from "@/i18n";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
 // plan_apply_edit (status cycle / add item) and plan_create. Per-item
 // attribution chips reuse Today's agentColor. Legacy PlannerPanel untouched.
 
-const STATUS_META: Record<string, { glyph: string; label: string; color: string }> = {
-  todo: { glyph: "☐", label: "할 일", color: "var(--text-3)" },
-  in_progress: { glyph: "▣", label: "진행중", color: "var(--accent)" },
-  done: { glyph: "☑", label: "완료", color: "var(--accent)" },
+const STATUS_META: Record<string, { glyph: string; labelKey: I18nKey; color: string }> = {
+  todo: { glyph: "☐", labelKey: "plan.status.todo", color: "var(--text-3)" },
+  in_progress: { glyph: "▣", labelKey: "plan.status.in_progress", color: "var(--accent)" },
+  done: { glyph: "☑", labelKey: "plan.status.done", color: "var(--accent)" },
   // U+FE0E (text presentation selector): ⚠ 는 기본이 컬러 이모지라 나머지
   // 글리프(☐ ▣ ☑ → ✗)와 달리 OS 이모지 폰트로 그려지고 color 를 무시한다.
-  blocked: { glyph: "⚠︎", label: "막힘", color: "var(--t-bug)" },
-  deferred: { glyph: "→", label: "이월", color: "var(--text-3)" },
-  dropped: { glyph: "✗", label: "폐기", color: "var(--text-3)" },
+  blocked: { glyph: "⚠︎", labelKey: "plan.status.blocked", color: "var(--t-bug)" },
+  deferred: { glyph: "→", labelKey: "plan.status.deferred", color: "var(--text-3)" },
+  dropped: { glyph: "✗", labelKey: "plan.status.dropped", color: "var(--text-3)" },
 };
 
 // A linked journal resolved to display metadata for the multi-journal picker.
@@ -67,11 +68,16 @@ interface JournalRefMeta {
   title: string;
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const weekdays = () => {
+  const f = new Intl.DateTimeFormat(getLang(), { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(1970, 0, 4 + i))));
+};
 
 // Synthetic bucket for items written before any `## ` heading — it has no real
 // heading on disk, so phase rename/delete/reorder are not offered for it.
-const NO_PHASE = "(기타)";
+/** 단계 없는 항목의 **그룹 키**. 표시 라벨은 `t("plan.noPhase")` 로 따로 그린다
+ *  — 키를 번역하면 언어를 바꿀 때 그룹이 갈라진다. */
+const NO_PHASE = "__no_phase__";
 
 /** "20260615" → "2026.06.15 (월)". Returns the input unchanged if not 8 digits. */
 function fmtWorkday(wd: string): string {
@@ -79,7 +85,7 @@ function fmtWorkday(wd: string): string {
   if (!m) return wd;
   const [, y, mo, d] = m;
   const dt = new Date(Number(y), Number(mo) - 1, Number(d));
-  return `${y}.${mo}.${d} (${WEEKDAYS[dt.getDay()] ?? ""})`;
+  return `${y}.${mo}.${d} (${weekdays()[dt.getDay()] ?? ""})`;
 }
 
 // Forward-progress click cycle; the off-path states fold back to todo.
@@ -114,17 +120,18 @@ function phaseProgress(items: PlanItemDto[]): number {
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "";
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "";
-  const diff = Date.now() - t;
+  // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다 (섀도잉).
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const diff = Date.now() - ms;
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("time.justNow");
+  if (min < 60) return t("time.minutesAgo", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
+  if (hr < 24) return t("time.hoursAgo", { n: hr });
   const d = Math.floor(hr / 24);
-  if (d < 30) return `${d}일 전`;
-  return new Date(t).toLocaleDateString();
+  if (d < 30) return t("time.daysAgo", { n: d });
+  return new Date(ms).toLocaleDateString();
 }
 
 interface PlannerScreenV2Props {
@@ -135,6 +142,9 @@ interface PlannerScreenV2Props {
 }
 
 export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: PlannerScreenV2Props) {
+  // 언어 전환 시 이 화면 전체가 다시 그려지도록 구독한다 (표시는 모듈 t 로도 되지만
+  // 훅이 없으면 언어를 바꿔도 리렌더가 안 걸린다).
+  useT();
   const { state, setState } = useWorkspace();
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   // Restore the last-viewed plan (persisted) so returning from a linked journal
@@ -251,10 +261,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     const res = await commands.planDispatchPrompt(projectId, selectedId, item.item_id);
     if (res.status === "ok") {
       setPendingDispatch(res.data.command);
-      toast.info(`"${res.data.item_title}" 실행 준비 — 터미널에서 Enter 로 시작하세요`);
+      toast.info(t("plan.dispatchReady", { title: res.data.item_title }));
       onNavigate("terminal");
     } else {
-      toast.destructive(`디스패치 실패: ${res.error}`);
+      toast.destructive(t("plan.dispatchFailed", { error: res.error }));
     }
   };
 
@@ -282,7 +292,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       void refreshPlans();
     } else {
       setDetail(prevDetail);
-      toast.destructive(`상태 변경 실패: ${res.error}`);
+      toast.destructive(t("plan.statusFailed", { error: res.error }));
     }
   };
 
@@ -325,7 +335,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       selectedId,
       {
         kind: "add_item",
-        phase: composer.phase.trim() || "할 일",
+        phase: composer.phase.trim() || t("plan.defaultPhase"),
         title: composer.title.trim(),
         item_id: null,
         status: null,
@@ -338,7 +348,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       setComposer(null);
       void refreshPlans();
     } else {
-      toast.destructive(`항목 추가 실패: ${res.error}`);
+      toast.destructive(t("plan.addItemFailed", { error: res.error }));
     }
   };
 
@@ -353,7 +363,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       setSelectedId(res.data.plan_id);
       void refreshPlans();
     } else {
-      toast.destructive(`계획 생성 실패: ${res.error}`);
+      toast.destructive(t("plan.createFailed", { error: res.error }));
     }
   };
 
@@ -367,7 +377,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       if (res.data) setDetail(res.data);
       void refreshPlans();
     } else {
-      toast.destructive(`이름 변경 실패: ${res.error}`);
+      toast.destructive(t("plan.renameFailed", { error: res.error }));
     }
   };
 
@@ -381,7 +391,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       setDetail(null);
       void refreshPlans();
     } else {
-      toast.destructive(`삭제 실패: ${res.error}`);
+      toast.destructive(t("plan.deleteFailed", { error: res.error }));
     }
   };
 
@@ -400,7 +410,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       if (res.data) setDetail(res.data);
       void refreshPlans();
     } else {
-      toast.destructive(`항목 삭제 실패: ${res.error}`);
+      toast.destructive(t("plan.removeItemFailed", { error: res.error }));
     }
   };
 
@@ -418,7 +428,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       if (res.data) setDetail(res.data);
       void refreshPlans();
     } else {
-      toast.destructive(`이름 변경 실패: ${res.error}`);
+      toast.destructive(t("plan.renameFailed", { error: res.error }));
     }
   };
 
@@ -439,11 +449,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
 
   const renamePhase = (from: string, to: string) => {
     if (!to.trim() || to.trim() === from) return;
-    void editPhase({ kind: "rename_phase", from, to: to.trim() }, "단계 이름 변경 실패");
+    void editPhase({ kind: "rename_phase", from, to: to.trim() }, t("plan.phaseRenameFailed"));
   };
-  const removePhase = (phase: string) => void editPhase({ kind: "remove_phase", phase }, "단계 삭제 실패");
+  const removePhase = (phase: string) => void editPhase({ kind: "remove_phase", phase }, t("plan.phaseRemoveFailed"));
   const movePhase = (phase: string, up: boolean) =>
-    void editPhase({ kind: "move_phase", phase, up }, "단계 순서 변경 실패");
+    void editPhase({ kind: "move_phase", phase, up }, t("plan.phaseMoveFailed"));
 
   // Dogfooding 2026-06-07 (Planner #1) — 완료·잠금: mark the plan done (read-only).
   // Locked plans reject in-app edits + AI refresh (backend guard) and AGENTS.md
@@ -456,7 +466,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (res.status === "ok") {
       if (res.data) setDetail(res.data);
       void refreshPlans();
-      toast.info(lock ? "계획을 완료·잠금했어요 — 새 계획에서 이어가세요" : "잠금을 해제했어요");
+      toast.info(lock ? t("plan.lockedDone") : t("plan.unlocked"));
     } else {
       toast.destructive(res.error);
     }
@@ -468,7 +478,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     const provR = await commands.settingsGet("default_provider");
     const provider = provR.status === "ok" ? provR.data : null;
     if (!provider) {
-      toast.warning("설정에서 기본 AI 제공자/모델을 먼저 지정하세요.");
+      toast.warning(t("plan.needProvider"));
       return;
     }
     const mR = await commands.settingsGet(`model_${provider}`);
@@ -478,7 +488,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       model = dm.status === "ok" ? dm.data : null;
     }
     if (!model) {
-      toast.warning("설정에서 기본 모델을 먼저 지정하세요.");
+      toast.warning(t("plan.needModel"));
       return;
     }
     setBusy(true);
@@ -487,9 +497,9 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (res.status === "ok") {
       if (res.data) setDetail(res.data);
       void refreshPlans();
-      toast.info("AI 갱신 완료");
+      toast.info(t("plan.aiDone"));
     } else {
-      toast.destructive(`AI 갱신 실패: ${res.error}`);
+      toast.destructive(t("plan.aiFailed", { error: res.error }));
     }
   };
 
@@ -502,7 +512,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (res.status === "ok") {
       setSelectedId(res.data.plan_id);
       void refreshPlans();
-      toast.info("기존 목표를 가져왔어요");
+      toast.info(t("plan.goalsImported"));
     } else {
       toast.destructive(res.error);
     }
@@ -579,16 +589,16 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         title="Planner"
         sub={
           plans && plans.length > 0
-            ? `계획 ${plans.length} · 진행 ${railStats.active}${railStats.stale ? ` · 멈춤 ${railStats.stale}` : ""}`
-            : "AI 가 갱신하는 계획 — 항목별 진척·귀속"
+            ? `${t("plan.toolbarSub", { n: plans.length, active: railStats.active })}${railStats.stale ? t("plan.toolbarStale", { n: railStats.stale }) : ""}`
+            : t("plan.toolbarIdle")
         }
         leading={
           railEligible ? (
             <button
               className="pln-iconbtn"
-              aria-label={railVisible ? "계획 목록 접기" : "계획 목록 펼치기"}
+              aria-label={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
               aria-expanded={railVisible}
-              title={railVisible ? "계획 목록 접기" : "계획 목록 펼치기"}
+              title={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
               onClick={() =>
                 setState((p) => ({ ...p, plannerRailCollapsed: !p.plannerRailCollapsed }))
               }
@@ -603,21 +613,21 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           style={{ height: 30 }}
           onClick={() => void aiRefresh()}
           disabled={selectedId == null || busy || locked}
-          title={locked ? "완료·잠금된 계획은 갱신할 수 없어요" : "최근 작업 일지를 근거로 AI 가 항목 상태를 갱신"}
+          title={locked ? t("plan.aiLockedTitle") : t("plan.aiTitle")}
         >
-          <Sparkles size={13} /> AI 갱신
+          <Sparkles size={13} /> {t("plan.aiRefresh")}
         </button>
         <button
           className="scope-chip"
           style={{ height: 30 }}
-          onClick={() => setComposer((c) => (c ? null : { phase: existingPhases[0] ?? "할 일", title: "" }))}
+          onClick={() => setComposer((c) => (c ? null : { phase: existingPhases[0] ?? t("plan.defaultPhase"), title: "" }))}
           disabled={selectedId == null || busy || locked}
-          title={locked ? "완료·잠금된 계획에는 항목을 추가할 수 없어요" : "새 항목"}
+          title={locked ? t("plan.addLockedTitle") : t("plan.addItemTitle")}
         >
-          <Plus size={13} /> 항목
+          <Plus size={13} /> {t("plan.addItem")}
         </button>
         <button className="btn primary" onClick={() => setNewPlanOpen((v) => !v)} disabled={busy}>
-          <Plus size={15} /> 새 계획
+          <Plus size={15} /> {t("plan.newPlan")}
         </button>
       </Toolbar>
 
@@ -645,11 +655,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           {error ? (
             <div className="card card-pad" style={{ marginBottom: 16 }}>
               <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> 문제가 발생했어요
+                <TriangleAlert size={14} /> {t("plan.error")}
               </div>
               <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
               <button className="btn sm" style={{ marginTop: 12 }} onClick={() => { setError(null); void refreshPlans(); }}>
-                다시 시도
+                {t("common.retry")}
               </button>
             </div>
           ) : null}
@@ -661,13 +671,13 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 autoFocus
                 className="set-input"
                 style={{ flex: 1 }}
-                placeholder="계획 제목 (예: fastembed 안정화)"
+                placeholder={t("plan.newPlanPlaceholder")}
                 value={newPlanTitle}
                 onChange={(e) => setNewPlanTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void submitNewPlan(); if (e.key === "Escape") setNewPlanOpen(false); }}
               />
-              <button className="btn primary" onClick={() => void submitNewPlan()} disabled={busy || !newPlanTitle.trim()}>만들기</button>
-              <button className="btn sm" onClick={() => setNewPlanOpen(false)}>취소</button>
+              <button className="btn primary" onClick={() => void submitNewPlan()} disabled={busy || !newPlanTitle.trim()}>{t("plan.create")}</button>
+              <button className="btn sm" onClick={() => setNewPlanOpen(false)}>{t("common.cancel")}</button>
             </div>
           ) : null}
 
@@ -675,10 +685,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
             <SkeletonList rows={3} height={44} />
           ) : plans.length === 0 ? (
             <div className="empty-hint">
-              아직 계획이 없어요. 새 계획을 만들면, 이후 AI(외부 에이전트·인앱)가 작업하며 항목을 스스로 갱신합니다.
+              {t("plan.empty")}
               <div style={{ marginTop: 12 }}>
                 <button className="btn sm" onClick={() => void importGoals()} disabled={busy}>
-                  기존 목표 가져오기
+                  {t("plan.importGoals")}
                 </button>
               </div>
             </div>
@@ -719,7 +729,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 className="set-input"
                 style={{ width: 180 }}
                 list="phase-suggestions"
-                placeholder="단계 (Phase)"
+                placeholder={t("plan.phasePlaceholder")}
                 value={composer.phase}
                 onChange={(e) => setComposer({ ...composer, phase: e.target.value })}
               />
@@ -730,13 +740,13 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 autoFocus
                 className="set-input"
                 style={{ flex: 1, minWidth: 200 }}
-                placeholder="새 항목 제목"
+                placeholder={t("plan.itemPlaceholder")}
                 value={composer.title}
                 onChange={(e) => setComposer({ ...composer, title: e.target.value })}
                 onKeyDown={(e) => { if (e.key === "Enter") void submitNewItem(); if (e.key === "Escape") setComposer(null); }}
               />
-              <button className="btn primary" onClick={() => void submitNewItem()} disabled={busy || !composer.title.trim()}>추가</button>
-              <button className="btn sm" onClick={() => setComposer(null)}>취소</button>
+              <button className="btn primary" onClick={() => void submitNewItem()} disabled={busy || !composer.title.trim()}>{t("plan.add")}</button>
+              <button className="btn sm" onClick={() => setComposer(null)}>{t("common.cancel")}</button>
             </div>
           ) : null}
         </div>
@@ -747,7 +757,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       <AppDialog
         open={confirmDone != null}
         onClose={() => setConfirmDone(null)}
-        label="검증 일지 없이 완료"
+        label={t("plan.confirmDoneTitle")}
         width={480}
       >
         {confirmDone ? (
@@ -755,17 +765,16 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
             <div style={{ display: "flex", gap: 10, padding: "18px 20px 4px" }}>
               <TriangleAlert size={18} style={{ flexShrink: 0, marginTop: 2, color: "var(--t-bug, #d97706)" }} />
               <div style={{ fontSize: 13, lineHeight: 1.65 }}>
-                <strong>{confirmDone.title}</strong> 항목에 연결된 <strong>검증 일지가 없습니다</strong>.
+                <strong>{confirmDone.title}</strong> {t("plan.confirmDoneBody1")} <strong>{t("plan.confirmDoneBody2")}</strong>.
                 <br />
                 <span style={{ color: "var(--text-3)" }}>
-                  일지를 쓰고 plan-log 로 연결하면 "무엇으로 확인했는지"가 함께 남습니다.
-                  그래도 완료로 표시할 수 있어요.
+                  {t("plan.confirmDoneHint")}
                 </span>
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px 16px" }}>
               <button className="btn sm" onClick={() => setConfirmDone(null)}>
-                취소
+                {t("common.cancel")}
               </button>
               <button
                 className="btn primary sm"
@@ -775,7 +784,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                   void doApplyStatus(item, "done");
                 }}
               >
-                검증 없이 완료
+                {t("plan.confirmDoneAction")}
               </button>
             </div>
           </>
@@ -853,7 +862,7 @@ function PlanBody(props: PlanBodyProps) {
                 className="plan-title-btn"
                 onClick={() => setRenaming(true)}
                 disabled={busy}
-                title="클릭하여 계획 이름 변경"
+                title={t("plan.renameTitle")}
               >
                 <span className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</span>
                 <span className="plan-title-pen"><Pencil size={13} /></span>
@@ -863,41 +872,41 @@ function PlanBody(props: PlanBodyProps) {
               <span className={"goal-status " + (locked ? "planned" : "active")}>
                 {locked ? (
                   <>
-                    <Lock size={11} /> 완료·잠금
+                    <Lock size={11} /> {t("plan.locked")}
                   </>
                 ) : (
-                  "진행중"
+                  t("plan.inProgress")
                 )}
               </span>
               <span className="dotsep">·</span>
-              {detail.plan.done_count}/{detail.plan.item_count} 완료
+              {t("plan.doneOf", { done: detail.plan.done_count, total: detail.plan.item_count })}
             </div>
           </div>
           <button
             className="btn sm"
             onClick={() => onToggleLock(!locked)}
             disabled={busy}
-            title={locked ? "잠금 해제하고 다시 편집" : "이 계획을 완료·잠금 (읽기전용)"}
+            title={locked ? t("plan.unlockTitle") : t("plan.lockTitle")}
           >
-            {locked ? "잠금 해제" : "완료·잠금"}
+            {locked ? t("plan.unlock") : t("plan.locked")}
           </button>
           {confirmDelete ? (
             <>
-              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title="이 계획을 영구 삭제">
-                삭제 확정
+              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title={t("plan.deleteConfirmTitle")}>
+                {t("plan.deleteConfirm")}
               </button>
-              <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>취소</button>
+              <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>{t("common.cancel")}</button>
             </>
           ) : (
-            <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title="계획 삭제">
+            <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title={t("plan.deleteTitle")}>
               <Trash2 size={14} />
             </button>
           )}
-          <button type="button" className="pln-iconbtn" onClick={onRefresh} title="새로고침"><RefreshCw size={14} /></button>
+          <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={14} /></button>
         </div>
         {locked ? (
           <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
-            완료·잠금된 계획입니다 — 인앱 편집·AI 갱신·외부 에이전트 수정이 비활성화돼요. 새 계획에서 이어가세요.
+            {t("plan.lockedNote")}
           </div>
         ) : null}
 
@@ -912,7 +921,7 @@ function PlanBody(props: PlanBodyProps) {
             .map((s) => (
               <span key={s} style={{ fontSize: 12, color: "var(--text-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <span style={{ color: STATUS_META[s].color, fontSize: 14 }}>{STATUS_META[s].glyph}</span>
-                {STATUS_META[s].label} {counts[s]}
+                {t(STATUS_META[s].labelKey)} {counts[s]}
               </span>
             ))}
         </div>
@@ -922,7 +931,7 @@ function PlanBody(props: PlanBodyProps) {
       {detail.warnings.length > 0 ? (
         <div className="card card-pad" style={{ marginBottom: 16, borderColor: "var(--t-bug)" }}>
           <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-            <TriangleAlert size={14} /> 형식 경고 {detail.warnings.length}건
+            <TriangleAlert size={14} /> {t("plan.warnings", { n: detail.warnings.length })}
           </div>
           <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--text-2)" }}>
             {detail.warnings.slice(0, 8).map((w, i) => <li key={i}>{w}</li>)}
@@ -968,14 +977,14 @@ function PlanBody(props: PlanBodyProps) {
       {/* Decisions */}
       {detail.decisions.length > 0 ? (
         <div style={{ marginTop: 20 }}>
-          <div className="today-date" style={{ marginBottom: 8, fontWeight: 600 }}>결정 (Decisions)</div>
+          <div className="today-date" style={{ marginBottom: 8, fontWeight: 600 }}>{t("plan.decisions")}</div>
           {detail.decisions.map((d) => (
             <div className="card card-pad" key={d.decision_id} style={{ marginBottom: 10 }}>
               <div className="goal-title" style={{ fontSize: 14 }}>{d.title}</div>
               {d.body ? <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
               <div className="goal-due" style={{ marginTop: 8 }}>
                 {d.locked_at ? <><Lock size={10} /> {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
-                {d.affects.length > 0 ? `영향 ${d.affects.map((a) => `#${a}`).join(", ")}` : "영향 없음"}
+                {d.affects.length > 0 ? t("plan.affects", { list: d.affects.map((a) => `#${a}`).join(", ") }) : t("plan.noAffects")}
               </div>
             </div>
           ))}
@@ -1056,7 +1065,9 @@ function PhaseCard(props: PhaseCardProps) {
           <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
             {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
             <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
-            <span className="goal-title goal-title-clip">{phase}</span>
+            <span className="goal-title goal-title-clip">
+              {phase === NO_PHASE ? t("plan.noPhase") : phase}
+            </span>
             {meta?.last_agent ? (
               <span
                 className="phase-agent"
@@ -1074,22 +1085,22 @@ function PhaseCard(props: PhaseCardProps) {
             {confirmDel ? (
               <>
                 <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemovePhase(phase); }} disabled={busy}>
-                  단계 삭제
+                  {t("plan.phaseRemove")}
                 </button>
-                <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>취소</button>
+                <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
               </>
             ) : (
               <>
-                <button type="button" className="pln-iconbtn" title="단계 이름 변경" onClick={() => setEditing(true)} disabled={busy}>
+                <button type="button" className="pln-iconbtn" title={t("plan.phaseRename")} onClick={() => setEditing(true)} disabled={busy}>
                   <Pencil size={13} />
                 </button>
-                <button type="button" className="pln-iconbtn" title="위로 이동" onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
+                <button type="button" className="pln-iconbtn" title={t("plan.phaseUp")} onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
                   <ChevronUp size={14} />
                 </button>
-                <button type="button" className="pln-iconbtn" title="아래로 이동" onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
+                <button type="button" className="pln-iconbtn" title={t("plan.phaseDown")} onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
                   <ChevronDown size={14} />
                 </button>
-                <button type="button" className="pln-iconbtn danger" title="단계 삭제 (항목 포함)" onClick={() => setConfirmDel(true)} disabled={busy}>
+                <button type="button" className="pln-iconbtn danger" title={t("plan.phaseRemoveTitle")} onClick={() => setConfirmDel(true)} disabled={busy}>
                   <Trash2 size={13} />
                 </button>
               </>
@@ -1191,10 +1202,10 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
         disabled={busy || locked || isParent}
         title={
           isParent
-            ? `${meta.label} (하위 롤업으로 자동 계산 — 하위 항목을 갱신하세요)`
+            ? t("plan.statusParent", { label: t(meta.labelKey) })
             : locked
-              ? `${meta.label} (완료·잠금)`
-              : `${meta.label} — 클릭하여 진행`
+              ? t("plan.statusLocked", { label: t(meta.labelKey) })
+              : t("plan.statusClick", { label: t(meta.labelKey) })
         }
         style={{
           background: "none", border: "none", cursor: busy || locked || isParent ? "default" : "pointer",
@@ -1233,18 +1244,18 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
               type="button"
               className="jref-btn"
               onClick={handleJournalBtn}
-              title={multiLinked ? `연결된 일지 ${linked.length}건 — 선택해서 열기` : "연결된 일지 열기"}
+              title={multiLinked ? t("plan.linkedMulti", { n: linked.length }) : t("plan.linkedOne")}
               aria-haspopup={multiLinked ? "menu" : undefined}
               aria-expanded={multiLinked ? pickerOpen : undefined}
             >
               <NotebookText size={13} strokeWidth={2} />
-              <span>일지{multiLinked ? ` ${linked.length}` : ""}</span>
+              <span>{t("plan.entryLabel")}{multiLinked ? ` ${linked.length}` : ""}</span>
               {multiLinked ? <ChevronDown size={12} /> : null}
             </button>
             {multiLinked && pickerOpen ? (
               <div className="jref-pop" role="menu">
                 {refMetas == null ? (
-                  <div className="jref-pop-loading">불러오는 중…</div>
+                  <div className="jref-pop-loading">{t("common.loading")}</div>
                 ) : (
                   refMetas.map((m) => (
                     <button
@@ -1270,19 +1281,19 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
           <button
             type="button"
             onClick={() => onSetStatus(item, "done")}
-            title="관련 일지가 있어요 — 완료로 표시할까요?"
+            title={t("plan.markDoneTitle")}
             style={{ marginLeft: 8, background: "var(--accent-ring)", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: 99, fontSize: 11, padding: "1px 8px", cursor: "pointer" }}
           >
-            완료?
+            {t("plan.markDone")}
           </button>
         ) : null}
 
         {historyOpen ? (
           <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-2)" }}>
             {history == null ? (
-              <span style={{ color: "var(--text-3)" }}>이력 불러오는 중…</span>
+              <span style={{ color: "var(--text-3)" }}>{t("plan.historyLoading")}</span>
             ) : history.length === 0 ? (
-              <span style={{ color: "var(--text-3)" }}>갱신 이력이 없어요.</span>
+              <span style={{ color: "var(--text-3)" }}>{t("plan.noHistory")}</span>
             ) : (
               history.map((u, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
@@ -1296,10 +1307,10 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
                       type="button"
                       className="jref-btn"
                       onClick={() => onOpenJournalRef(u.journal_ref!)}
-                      title={`일지로 이동: ${u.journal_ref}`}
+                      title={t("plan.gotoEntry", { ref: u.journal_ref })}
                     >
                       <NotebookText size={13} strokeWidth={2} />
-                      <span>일지</span>
+                      <span>{t("plan.entryLabel")}</span>
                     </button>
                   ) : null}
                 </div>
@@ -1314,18 +1325,18 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
           type="button"
           className="jref-btn"
           onClick={() => onDispatch(item)}
-          title="이 항목을 터미널에서 Claude Code 로 실행 — 프롬프트 프리필, 실행은 Enter 로"
+          title={t("plan.dispatchTitle")}
           style={{ flexShrink: 0 }}
         >
           <Play size={12} strokeWidth={2} />
-          <span>실행</span>
+          <span>{t("plan.dispatch")}</span>
         </button>
       ) : null}
       {item.last_agent ? (
         <button
           type="button"
           onClick={() => onToggleHistory(item.item_id)}
-          title="갱신 이력"
+          title={t("plan.history")}
           style={{
             display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none",
             cursor: "pointer", fontSize: 11, color: "var(--text-3)", flexShrink: 0, padding: 0,
@@ -1342,17 +1353,17 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
         <div className={"item-actions" + (confirmDel ? " is-active" : "")}>
           {confirmDel ? (
             <>
-              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title="삭제 확정">
-                삭제
+              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title={t("plan.itemDeleteConfirm")}>
+                {t("plan.itemDeleteConfirm")}
               </button>
-              <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>취소</button>
+              <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
             </>
           ) : (
             <>
-              <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title="항목 이름 변경">
+              <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title={t("plan.itemRename")}>
                 <Pencil size={12} />
               </button>
-              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title="항목 삭제">
+              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title={t("plan.itemDelete")}>
                 <Trash2 size={12} />
               </button>
             </>

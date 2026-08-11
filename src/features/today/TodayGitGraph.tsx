@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commands, type GitGraphCommit } from "@/lib/bindings";
 import { GitBranch, RefreshCw, Tag, TriangleAlert } from "@/components/Icons";
 import { computeGitGraph, type GraphRow } from "./gitGraph";
+import { t } from "@/i18n";
 
 // A VSCode-style commit graph on Today. Lanes are computed in gitGraph.ts; here
 // we draw each row as a small SVG (pass-through verticals + converging/diverging
@@ -18,10 +19,10 @@ const laneColor = (c: number) => LANE_COLORS[((c % LANE_COLORS.length) + LANE_CO
 
 function relTime(unixSec: number): string {
   const diff = Date.now() / 1000 - unixSec;
-  if (diff < 60) return "방금";
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}일 전`;
+  if (diff < 60) return t("time.justNow");
+  if (diff < 3600) return t("time.minutesAgo", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("time.hoursAgo", { n: Math.floor(diff / 3600) });
+  if (diff < 86400 * 7) return t("time.daysAgo", { n: Math.floor(diff / 86400) });
   return new Date(unixSec * 1000).toLocaleDateString();
 }
 
@@ -98,13 +99,13 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
       <div className="card" style={{ marginTop: 16 }}>
         <div className="panel-head">
           <GitBranch size={16} color="var(--text-2)" />
-          <h3>커밋 그래프</h3>
+          <h3>{t("today.git.title")}</h3>
         </div>
         <div className="empty-hint" style={{ padding: "18px 16px", textAlign: "left" }}>
-          이 프로젝트는 git 저장소가 아니어서 커밋 그래프를 표시할 수 없어요.
+          {t("today.git.notRepo")}
           <br />
           <span style={{ fontSize: 11, color: "var(--text-3)" }}>
-            (루트 또는 하위 폴더에 git 저장소가 있어야 합니다.)
+            {t("today.git.notRepoHint")}
           </span>
         </div>
       </div>
@@ -119,9 +120,9 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
         <GitBranch size={16} color="var(--accent-text)" />
-        <h3>커밋 그래프</h3>
+        <h3>{t("today.git.title")}</h3>
         {commits ? <span className="count">{commits.length}</span> : null}
-        <button className="btn ghost sm right" onClick={() => void refresh()} disabled={loading} aria-label="새로고침" title="새로고침">
+        <button className="btn ghost sm right" onClick={() => void refresh()} disabled={loading} aria-label={t("today.git.refresh")} title={t("today.git.refresh")}>
           <RefreshCw size={13} />
         </button>
       </div>
@@ -131,7 +132,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
               <div
                 key={row.commit.sha}
                 onClick={ghBase ? () => openCommit(row.commit.sha) : undefined}
-                title={ghBase ? "GitHub에서 이 커밋 열기" : undefined}
+                title={ghBase ? t("today.git.openOnGitHub") : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -179,7 +180,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
           style={{ borderTop: "1px solid var(--border-card)", padding: "8px 14px", fontSize: 11, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6 }}
         >
           <TriangleAlert size={12} />
-          GitHub 원격이 연결돼 있지 않아 커밋을 브라우저에서 열 수 없어요. GitHub 토큰·연결은 설정의 GitHub 항목에서 확인하세요.
+          {t("today.git.noRemote")}
         </div>
       ) : null}
     </div>

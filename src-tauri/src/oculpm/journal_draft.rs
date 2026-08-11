@@ -328,6 +328,11 @@ pub async fn draft_for_session(
         return Ok(DraftOutcome::Skipped("malformed session id"));
     }
     let workday = session.id[..8].to_string();
+    // 산출물 언어 (설정 `content_language`). 조회 실패는 Unset — 기존 동작 유지.
+    let content_lang = {
+        use tauri::Manager;
+        crate::oculpm::content_lang::current(&app.state::<crate::db::Db>()).await
+    };
 
     // 1. 자필 일지 우선 — 세션 창 안에 이미 일지가 있으면 우리는 비킨다.
     let since = chrono::DateTime::parse_from_rfc3339(&session.started_at)
@@ -406,7 +411,10 @@ pub async fn draft_for_session(
                 vec![
                     llm::Message {
                         role: llm::Role::System,
-                        content: SYSTEM_PROMPT.to_string(),
+                        // 산출물 언어 지시를 덧붙인다 — 일지는 디스크에 남는
+                        // 문서라 UI 언어가 아니라 `content_language` 를 따른다
+                        // (oculpm::content_lang).
+                        content: content_lang.apply(SYSTEM_PROMPT),
                     },
                     llm::Message {
                         role: llm::Role::User,

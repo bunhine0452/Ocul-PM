@@ -85,7 +85,8 @@ pub async fn skill_draft_generate(
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: skill_promotion::DRAFT_SYSTEM_PROMPT.to_string(),
+                    content: crate::oculpm::content_lang::current(&db).await
+                        .apply(skill_promotion::DRAFT_SYSTEM_PROMPT),
                 },
                 llm::Message {
                     role: llm::Role::User,

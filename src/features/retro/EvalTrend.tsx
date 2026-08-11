@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ClipboardCheck } from "@/components/Icons";
 import { commands, type EvalRecord, type EvalSignals } from "@/lib/bindings";
+import { useT } from "@/i18n";
 
 /** 통과율 → 시맨틱 색 (기존 emerald/amber 팔레트와 일치). */
 function rateClass(rate: number): string {
@@ -19,6 +20,7 @@ function rateClass(rate: number): string {
 }
 
 export function EvalTrendPanel({ projectId }: { projectId: number }) {
+  const { t } = useT();
   const [signals, setSignals] = useState<EvalSignals | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -52,14 +54,15 @@ export function EvalTrendPanel({ projectId }: { projectId: number }) {
         <span className="text-muted-foreground">
           <ClipboardCheck size={15} />
         </span>
-        Eval 추이
+        {t("retro.eval.title")}
         <span className="text-xs font-normal text-muted-foreground">EVALS.md</span>
       </div>
       {signals.records.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          <code className="font-mono text-[11px]">EVALS.md</code> 는 있지만{" "}
-          <code className="font-mono text-[11px]">## 기록</code> 표가 비어 있어요 —{" "}
-          <strong>run-evals</strong> 추천 스킬로 채점을 기록하면 추이가 여기 그려집니다.
+          <code className="font-mono text-[11px]">EVALS.md</code> {t("retro.eval.empty1")}{" "}
+          {/* i18n-ignore-next-line -- EVALS.md 안의 실제 섹션 제목 (디스크 산출물, 번역 범위 밖) */}
+          <code className="font-mono text-[11px]">## 기록</code> {t("retro.eval.empty2")}{" "}
+          {t("retro.eval.empty3")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -77,7 +80,7 @@ export function EvalTrendPanel({ projectId }: { projectId: number }) {
                   <div
                     className="flex flex-1 items-center gap-1"
                     role="img"
-                    aria-label={`${suite} 최근 ${recent.length}회 실행 추이`}
+                    aria-label={t("retro.eval.aria", { suite, n: recent.length })}
                   >
                     {recent.map((r, i) => (
                       <span

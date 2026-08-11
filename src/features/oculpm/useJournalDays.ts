@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { commands, type EntryFilters, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "./useJournalEvents";
+import { t } from "@/i18n";
 
 // Final UI Update (ui_v2) — fetch journal entries and group them by day for the
 // timeline. F3 (2026-06-22): two modes. The default windowed load (last N
@@ -36,8 +37,8 @@ function shiftWorkday(workday: string, delta: number): string {
 /** Human label: 오늘 / 어제 / N일 전 prefix + ISO date. */
 function dayLabel(workday: string, todayKey: string): string {
   const iso = `${workday.slice(0, 4)}-${workday.slice(4, 6)}-${workday.slice(6, 8)}`;
-  if (workday === todayKey) return `오늘 · ${iso}`;
-  if (workday === shiftWorkday(todayKey, -1)) return `어제 · ${iso}`;
+  if (workday === todayKey) return `${t("journal.day.today")} · ${iso}`;
+  if (workday === shiftWorkday(todayKey, -1)) return `${t("journal.day.yesterday")} · ${iso}`;
   return iso;
 }
 

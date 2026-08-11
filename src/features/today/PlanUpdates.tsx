@@ -3,6 +3,7 @@ import { Target, ArrowRight } from "@/components/Icons";
 import { commands, type PlanActivityDto } from "@/lib/bindings";
 import { agentColor, agentLabel } from "./agentColor";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
+import { t } from "@/i18n";
 
 // Today block (Planner Upgrade follow-up) — recent plan activity across all
 // plans, so Planner updates surface on the dashboard next to journal activity.
@@ -23,14 +24,15 @@ function glyph(s: string | null): string {
 }
 
 function relTime(iso: string): string {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "";
-  const min = Math.floor((Date.now() - t) / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
+  // 지역 변수명을 `t` 로 두면 번역 함수를 섀도잉한다.
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  const min = Math.floor((Date.now() - ms) / 60000);
+  if (min < 1) return t("time.justNow");
+  if (min < 60) return t("time.minutesAgo", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  return `${Math.floor(hr / 24)}일 전`;
+  if (hr < 24) return t("time.hoursAgo", { n: hr });
+  return t("time.daysAgo", { n: Math.floor(hr / 24) });
 }
 
 interface PlanUpdatesProps {
@@ -59,19 +61,19 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
         <Target size={16} color="var(--accent-text)" />
-        <h3>계획 업데이트</h3>
+        <h3>{t("today.plan.title")}</h3>
         <span className="count">{items?.length ?? 0}</span>
         <button
           className="btn ghost sm right"
           onClick={() => onNavigate("planner")}
-          aria-label="Planner 열기"
+          aria-label={t("today.next.open")}
         >
           Planner <ArrowRight size={13} />
         </button>
       </div>
       <div className="panel-body">
         {items == null ? (
-          <div className="empty-hint">불러오는 중…</div>
+          <div className="empty-hint">{t("common.loading")}</div>
         ) : (
           items.map((u, i) => (
             <button

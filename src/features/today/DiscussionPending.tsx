@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MessageSquare, ArrowRight } from "@/components/Icons";
 import { commands, type DiscussionSummary } from "@/lib/bindings";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
+import { useT } from "@/i18n";
 
 // Today block (Discussion feature, PR-DISC 4) — open problem-solving documents
 // awaiting a decision, so the "fuzzy front end" surfaces on the dashboard next
@@ -13,6 +14,7 @@ interface DiscussionPendingProps {
 }
 
 export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingProps) {
+  const { t } = useT();
   const [items, setItems] = useState<DiscussionSummary[] | null>(null);
 
   useEffect(() => {
@@ -35,19 +37,19 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
         <MessageSquare size={16} color="var(--accent-text)" />
-        <h3>결정 대기</h3>
+        <h3>{t("today.discussion.title")}</h3>
         <span className="count">{items?.length ?? 0}</span>
         <button
           className="btn ghost sm right"
           onClick={() => onNavigate("discussion")}
-          aria-label="문제 해결 열기"
+          aria-label={t("today.discussion.open")}
         >
-          문제 해결 <ArrowRight size={13} />
+          {t("nav.discussion")} <ArrowRight size={13} />
         </button>
       </div>
       <div className="panel-body">
         {items == null ? (
-          <div className="empty-hint">불러오는 중…</div>
+          <div className="empty-hint">{t("common.loading")}</div>
         ) : (
           items.map((d, i) => (
             <button
@@ -95,7 +97,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
               </div>
               {d.next_step_count > 0 ? (
                 <span style={{ fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}>
-                  다음 {d.next_step_count}
+                  {t("today.discussion.nextSteps", { n: d.next_step_count })}
                 </span>
               ) : null}
             </button>

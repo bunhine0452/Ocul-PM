@@ -1,6 +1,8 @@
 // Centralized app settings registry. All keys, defaults, and types live here.
 // Settings are persisted in the SQLite `settings` table via Tauri commands.
 
+import type { LangSetting } from "@/i18n";
+
 export type Theme =
   | "light"
   | "dark"
@@ -25,6 +27,12 @@ export const KEYS = {
   theme: "theme",
   colorTheme: "color_theme",
   uiScale: "ui_scale",
+  // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
+  // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
+  language: "language",
+  // AI 가 **쓰는** 언어 (일지·플랜·회고). UI 언어와 의도적으로 분리한다 —
+  // UI 는 즉시 되돌릴 수 있지만 일지는 디스크에 남아 되돌릴 수 없다.
+  contentLanguage: "content_language",
 
   // --- LLM ---
   defaultProvider: "default_provider",
@@ -73,6 +81,18 @@ export interface Settings {
   /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
    *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
   uiScale: number;
+  /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
+  language: LangSetting;
+  /**
+   * LLM 이 생성하는 산출물(작업 일지·플래너 항목·회고)의 언어.
+   *
+   * **`language` 를 따라가지 않는다.** UI 언어는 화면 텍스트만 바꾸고 언제든
+   * 되돌릴 수 있지만, 이 값은 `.oculpm/journal/*.md` 처럼 디스크에 영구히
+   * 남는 문서의 언어를 정한다. UI 를 영어로 바꿨다는 이유로 일지가 조용히
+   * 영어로 넘어가면 언어가 섞인 이력이 남고 되돌릴 방법이 없다.
+   * 설정에서 UI 언어를 바꾸면 이 값도 맞출지 **토스트로 제안**한다.
+   */
+  contentLanguage: LangSetting;
 
   defaultProvider: Provider;
   defaultModel: string;
@@ -120,6 +140,8 @@ export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
   uiScale: 1,
+  language: "system",
+  contentLanguage: "system",
 
   defaultProvider: "anthropic",
   defaultModel: "",
@@ -156,6 +178,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiScale]: "uiScale",
+  [KEYS.language]: "language",
+  [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.defaultProvider]: "defaultProvider",
   [KEYS.defaultModel]: "defaultModel",
   [KEYS.modelAnthropic]: "modelAnthropic",

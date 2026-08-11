@@ -1,6 +1,9 @@
 {
   "name": "oculpm",
-  "owner": { "name": "ocul-pm", "url": "https://oculpm.com" },
+  "owner": {
+    "name": "ocul-pm",
+    "url": "https://oculpm.com"
+  },
   "metadata": {
     "description": "ocul-pm — local-first AI work journal for coding agents: hooks + MCP + skills for Claude Code"
   },
@@ -9,12 +12,22 @@
       "name": "oculpm",
       "source": "./plugin/oculpm",
       "description": "ocul-pm 훅 브리지(세션 신호) + oculpm-mcp(journal/plan 구조화 도구) + 스킬 5종(기록 규격·인셉션·self-audit·run-evals·tdd). .oculpm 추적 프로젝트에서만 동작하며, v1 은 macOS 전용입니다.",
-      "version": "2.8.3",
-      "author": { "name": "ocul-pm", "url": "https://oculpm.com" },
+      "version": "2.8.4",
+      "author": {
+        "name": "ocul-pm",
+        "url": "https://oculpm.com"
+      },
       "homepage": "https://oculpm.com",
       "repository": "https://github.com/bunhine0452/Ocul-PM",
       "license": "MIT",
-      "keywords": ["journal", "planner", "work-log", "mcp", "hooks", "korean"],
+      "keywords": [
+        "journal",
+        "planner",
+        "work-log",
+        "mcp",
+        "hooks",
+        "korean"
+      ],
       "category": "workflow",
       "strict": false
     }

@@ -12,11 +12,13 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { commands, type DeferSignals } from "@/lib/bindings";
+import { t, useT } from "@/i18n";
 
-const NO_TRIGGER_TITLE =
-  "재방문 조건이 없는 지름길은 조용히 썩습니다 — 트리거를 적거나 플래너로 승격하세요";
+/** 모듈 상수로 두면 임포트 시점에 언어가 굳는다 — 호출 시점에 해석하도록 함수로. */
+const noTriggerTitle = () => t("retro.defer.hint");
 
 export function DeferLedgerPanel({ projectId }: { projectId: number }) {
+  const { t } = useT();
   const { state } = useWorkspace();
   const { settings } = useSettings();
   const projectRoot = state.currentProjectRoot;
@@ -47,7 +49,7 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
         settings.externalEditorCommand,
         line,
       );
-      if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+      if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
     },
     [projectRoot, settings.externalEditorCommand],
   );
@@ -61,14 +63,14 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
         <span className="text-muted-foreground">
           <Clock size={15} />
         </span>
-        미룬 지름길
+        {t("retro.defer.title")}
         <span className="text-xs font-normal text-muted-foreground">
-          {signals.markers.length}건
+          {t("retro.defer.count", { n: signals.markers.length })}
         </span>
       </div>
       <p className="mb-2.5 text-xs text-muted-foreground">
-        코드에 <code className="font-mono text-[11px]">oculpm-defer:</code> 주석으로 표시한
-        의도적 지름길입니다. 천장과 재방문 트리거를 함께 남기세요.
+        {t("retro.defer.desc1")} <code className="font-mono text-[11px]">oculpm-defer:</code>{" "}
+        {t("retro.defer.desc2")}
       </p>
       <ul className="flex flex-col gap-1.5">
         {signals.markers.map((m) => (
@@ -77,7 +79,7 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
               type="button"
               className="shrink-0 font-mono text-xs text-primary hover:underline"
               onClick={() => void openMarker(m.path, m.line)}
-              title="에디터에서 열기"
+              title={t("diff.openEditor")}
             >
               {m.path}:{m.line}
             </button>
@@ -87,9 +89,9 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
             {m.no_trigger ? (
               <span
                 className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-                title={NO_TRIGGER_TITLE}
+                title={noTriggerTitle()}
               >
-                <TriangleAlert size={12} /> 트리거 없음
+                <TriangleAlert size={12} /> {t("retro.defer.noTrigger")}
               </span>
             ) : (
               <span
@@ -103,7 +105,7 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
         ))}
       </ul>
       {signals.truncated && (
-        <p className="mt-2 text-xs text-muted-foreground">상한 도달 — 일부만 표시</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("retro.defer.capped")}</p>
       )}
     </div>
   );

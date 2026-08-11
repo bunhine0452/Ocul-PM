@@ -3,6 +3,7 @@ import { Bot, RotateCcw } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — journal timeline card. Mirrors
 // Ocul-PM1.0/src/journal-diff.jsx `JournalCard`.
@@ -28,6 +29,7 @@ interface JournalCardV2Props {
 }
 
 export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Props) {
+  const { t } = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
           type="button"
           className="jcard-main"
           onClick={() => onOpenEntry(entry)}
-          aria-label={`${entry.title} — ${entry.type} · 변경 기록 열기`}
+          aria-label={t("journal.card.aria", { title: entry.title, type: entry.type })}
         >
           <div className="jcard-top">
             <TriggerBadge type={entry.type} />
@@ -62,7 +64,7 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
         <div className="jcard-foot">
           {entry.status !== "done" ? (
             <span className="cycle-flag">
-              <RotateCcw size={13} /> {entry.status === "in_progress" ? "진행중" : entry.status}
+              <RotateCcw size={13} /> {entry.status === "in_progress" ? t("journal.card.inProgress") : entry.status}
             </span>
           ) : null}
           <span style={{ flex: 1 }} />

@@ -25,6 +25,7 @@ import {
   type DiscussionDetail,
   type DiscussionAttachmentDto,
 } from "@/lib/bindings";
+import { useT, type I18nKey } from "@/i18n";
 import "./discussion.css";
 
 interface Props {
@@ -32,14 +33,15 @@ interface Props {
   onNavigate: (view: UiV2View) => void;
 }
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  open: { label: "탐색 중", cls: "open" },
-  resolved: { label: "결론남", cls: "resolved" },
-  archived: { label: "보관", cls: "archived" },
+const STATUS_META: Record<string, { labelKey: I18nKey; cls: string }> = {
+  open: { labelKey: "disc.status.open", cls: "open" },
+  resolved: { labelKey: "disc.status.resolved", cls: "resolved" },
+  archived: { labelKey: "disc.status.archived", cls: "archived" },
 };
 
-function statusMeta(s: string) {
-  return STATUS_META[s] ?? { label: s, cls: "resolved" };
+/** 알 수 없는 상태는 원문을 그대로 보여준다 — 사전 키가 없으므로 rawLabel 로. */
+function statusMeta(s: string): { labelKey?: I18nKey; rawLabel?: string; cls: string } {
+  return STATUS_META[s] ?? { rawLabel: s, cls: "resolved" };
 }
 
 /** Short YYYY-MM-DD slice of an ISO/date string. */
@@ -48,6 +50,7 @@ function shortDate(s: string): string {
 }
 
 export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
+  const { t } = useT();
   const { state, setState } = useWorkspace();
   const selectedId = state.discussionActiveId;
 
@@ -112,7 +115,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       if (res.status === "ok") setDetail(res.data);
       else {
         setDetail(null);
-        toast.destructive(`문서를 불러오지 못했어요: ${res.error}`);
+        toast.destructive(t("disc.loadDocFailed", { error: res.error }));
       }
     },
     [projectId],
@@ -128,17 +131,18 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   // ── actions ────────────────────────────────────────────────────────────────
 
   const submitCreate = async () => {
-    const t = newTitle.trim();
-    if (!t) return;
+    // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다.
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) return;
     setBusy(true);
-    const res = await commands.discussionCreate(projectId, t);
+    const res = await commands.discussionCreate(projectId, trimmedTitle);
     setBusy(false);
     if (res.status === "ok") {
       setCreating(false);
       setNewTitle("");
       await loadList();
       select(res.data.discussion_id);
-    } else toast.destructive(`만들기 실패: ${res.error}`);
+    } else toast.destructive(t("disc.createFailed", { error: res.error }));
   };
 
   const startEdit = async () => {
@@ -147,7 +151,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     if (res.status === "ok") {
       setDraft(res.data);
       setEditing(true);
-    } else toast.destructive(`편집기를 열지 못했어요: ${res.error}`);
+    } else toast.destructive(t("disc.editorFailed", { error: res.error }));
   };
 
   const saveBody = async () => {
@@ -159,8 +163,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       setEditing(false);
       setDetail(res.data);
       void loadList();
-      toast.info("저장했어요");
-    } else toast.destructive(`저장 실패: ${res.error}`);
+      toast.info(t("disc.saved"));
+    } else toast.destructive(t("disc.saveFailed", { error: res.error }));
   };
 
   const changeStatus = async (status: string) => {
@@ -176,10 +180,11 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const submitRename = async () => {
     if (!selectedId) return;
-    const t = renameTitle.trim();
-    if (!t) return;
+    // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다.
+    const trimmedRename = renameTitle.trim();
+    if (!trimmedRename) return;
     setBusy(true);
-    const res = await commands.discussionRename(projectId, selectedId, t);
+    const res = await commands.discussionRename(projectId, selectedId, trimmedRename);
     setBusy(false);
     if (res.status === "ok") {
       setRenaming(false);
@@ -190,7 +195,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const remove = async () => {
     if (!selectedId) return;
-    if (!window.confirm("이 문제 해결 문서를 삭제할까요? (첨부 포함)")) return;
+    if (!window.confirm(t("disc.deleteConfirm"))) return;
     setBusy(true);
     const res = await commands.discussionDelete(projectId, selectedId);
     setBusy(false);
@@ -206,7 +211,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     if (res.status === "ok") {
       if (res.data) {
         await loadDetail(selectedId);
-        toast.info("첨부했어요");
+        toast.info(t("disc.attached"));
       }
     } else toast.destructive(res.error);
   };
@@ -226,7 +231,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     setPromoting(false);
     if (res.status === "ok") {
       setState((prev) => ({ ...prev, plannerPlanId: res.data }));
-      toast.info("플래너로 승격했어요");
+      toast.info(t("disc.promoted"));
       onNavigate("planner");
     } else toast.destructive(res.error);
   };
@@ -251,12 +256,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       >
         <div className="disc-item-top">
           <span className="disc-item-title">{d.title}</span>
-          <span className={`disc-status ${meta.cls}`}>{meta.label}</span>
+          <span className={`disc-status ${meta.cls}`}>{meta.labelKey ? t(meta.labelKey) : meta.rawLabel}</span>
         </div>
         {d.problem_preview ? <div className="disc-item-preview">{d.problem_preview}</div> : null}
         <div className="disc-item-meta">
-          {d.option_count > 0 ? <span>{d.option_count}안</span> : null}
-          {d.next_step_count > 0 ? <span>·다음 {d.next_step_count}</span> : null}
+          {d.option_count > 0 ? <span>{t("disc.options", { n: d.option_count })}</span> : null}
+          {d.next_step_count > 0 ? <span>{t("disc.nextSteps", { n: d.next_step_count })}</span> : null}
           {d.resolution_plan_id ? <span>· → 📋</span> : null}
           <span style={{ marginLeft: "auto" }}>{shortDate(d.updated_at)}</span>
         </div>
@@ -267,8 +272,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   return (
     <>
       <Toolbar
-        title="문제 해결"
-        sub={list ? `${active.length}건 · 결정 대기 ${openCount}` : undefined}
+        title={t("nav.discussion")}
+        sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
       >
         <button
           type="button"
@@ -278,7 +283,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             setNewTitle("");
           }}
         >
-          <Plus size={14} /> 새 문제
+          <Plus size={14} /> {t("disc.new")}
         </button>
       </Toolbar>
 
@@ -286,7 +291,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         <div className="scroll">
           <div className="page">
             <div className="grid place-items-center py-20">
-              <OculSpinner size={28} label="불러오는 중…" />
+              <OculSpinner size={28} label={t("common.loading")} />
             </div>
           </div>
         </div>
@@ -296,10 +301,10 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             {creating ? (
               <div className="disc-new-row">
                 <input
-                  aria-label="새 문제 제목"
+                  aria-label={t("disc.newTitleAria")}
                   autoFocus
                   value={newTitle}
-                  placeholder="무엇을 정해야 하나요?"
+                  placeholder={t("disc.newTitlePlaceholder")}
                   onChange={(e) => setNewTitle(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void submitCreate();
@@ -312,25 +317,25 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   disabled={busy || !newTitle.trim()}
                   onClick={() => void submitCreate()}
                 >
-                  생성
+                  {t("disc.create")}
                 </button>
               </div>
             ) : null}
 
             {listError ? (
-              <div className="empty-hint">목록을 불러오지 못했어요: {listError}</div>
+              <div className="empty-hint">{t("disc.listFailed", { error: listError })}</div>
             ) : list.length === 0 ? (
               <div className="empty-hint">
-                아직 문제 해결 문서가 없어요.
+                {t("disc.empty")}
                 <br />
-                “새 문제”로 첫 토의를 시작하세요.
+                {t("disc.emptyHint")}
               </div>
             ) : (
               <>
                 {active.map(renderItem)}
                 {archived.length > 0 ? (
                   <>
-                    <div className="disc-archive-head">보관 {archived.length}</div>
+                    <div className="disc-archive-head">{t("disc.archiveHead", { n: archived.length })}</div>
                     {archived.map(renderItem)}
                   </>
                 ) : null}
@@ -340,13 +345,13 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
           <div className="disc-main">
             {selectedId == null ? (
-              <div className="empty-hint">왼쪽에서 문제를 선택하거나 새로 만드세요.</div>
+              <div className="empty-hint">{t("disc.pickOne")}</div>
             ) : detailLoading && !detail ? (
               <div className="grid place-items-center py-20">
-                <OculSpinner size={24} label="문서 여는 중…" />
+                <OculSpinner size={24} label={t("disc.openingDoc")} />
               </div>
             ) : !detail ? (
-              <div className="empty-hint">문서를 불러오지 못했습니다.</div>
+              <div className="empty-hint">{t("disc.docFailed")}</div>
             ) : (
               <div className="disc-doc fade-in">
                 {/* ── 헤더 ── */}
@@ -354,7 +359,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   {renaming ? (
                     <div className="disc-head-title">
                       <input
-                        aria-label="제목 변경"
+                        aria-label={t("disc.renameAria")}
                         autoFocus
                         value={renameTitle}
                         onChange={(e) => setRenameTitle(e.target.value)}
@@ -369,7 +374,9 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                     <h1 className="disc-head-title">{detail.discussion.title}</h1>
                   )}
                   <span className={`disc-status ${statusMeta(detail.discussion.status).cls}`}>
-                    {statusMeta(detail.discussion.status).label}
+                    {statusMeta(detail.discussion.status).labelKey
+                      ? t(statusMeta(detail.discussion.status).labelKey!)
+                      : statusMeta(detail.discussion.status).rawLabel}
                   </span>
                 </div>
 
@@ -390,22 +397,22 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                       disabled={busy}
                       onClick={() => void saveBody()}
                     >
-                      <Save size={14} /> 저장
+                      <Save size={14} /> {t("common.save")}
                     </button>
                     <button type="button" className="disc-btn" onClick={() => setEditing(false)}>
-                      취소
+                      {t("common.cancel")}
                     </button>
                   </div>
                 ) : (
                   <div className="disc-actions">
                     {!locked ? (
                       <button type="button" className="disc-btn" onClick={() => void startEdit()}>
-                        <Pencil size={14} /> 편집
+                        <Pencil size={14} /> {t("disc.edit")}
                       </button>
                     ) : null}
                     {!locked ? (
                       <button type="button" className="disc-btn" onClick={() => void attach()}>
-                        <Paperclip size={14} /> 첨부
+                        <Paperclip size={14} /> {t("disc.attach")}
                       </button>
                     ) : null}
                     {!locked ? (
@@ -417,7 +424,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                           setRenaming(true);
                         }}
                       >
-                        이름 변경
+                        {t("disc.rename")}
                       </button>
                     ) : null}
                     {detail.discussion.status === "open" ? (
@@ -427,12 +434,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                         disabled={busy || detail.next_steps.length === 0}
                         title={
                           detail.next_steps.length === 0
-                            ? "먼저 ‘다음 단계’를 작성하세요"
-                            : "다음 단계를 플래너 계획으로 만듭니다"
+                            ? t("disc.promoteNeedSteps")
+                            : t("disc.promoteTitle")
                         }
                         onClick={() => setPromoting(true)}
                       >
-                        <TargetIcon size={14} /> 플래너로 승격
+                        <TargetIcon size={14} /> {t("disc.promote")}
                       </button>
                     ) : null}
                     {detail.discussion.status !== "open" ? (
@@ -442,7 +449,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                         disabled={busy}
                         onClick={() => void changeStatus("open")}
                       >
-                        <RotateCcw size={14} /> 다시 열기
+                        <RotateCcw size={14} /> {t("disc.reopen")}
                       </button>
                     ) : (
                       <button
@@ -451,7 +458,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                         disabled={busy}
                         onClick={() => void changeStatus("resolved")}
                       >
-                        <Check size={14} /> 닫기(결론)
+                        <Check size={14} /> {t("disc.close")}
                       </button>
                     )}
                     {detail.discussion.status !== "archived" ? (
@@ -461,7 +468,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                         disabled={busy}
                         onClick={() => void changeStatus("archived")}
                       >
-                        보관
+                        {t("disc.archive")}
                       </button>
                     ) : null}
                     <button
@@ -470,7 +477,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                       disabled={busy}
                       onClick={() => void remove()}
                     >
-                      <Trash2 size={14} /> 삭제
+                      <Trash2 size={14} /> {t("common.delete")}
                     </button>
                     {detail.resolution_plan_id ? (
                       <button
@@ -481,7 +488,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                           onNavigate("planner");
                         }}
                       >
-                        <TargetIcon size={13} /> {detail.resolution_plan_id} 계획 보기
+                        <TargetIcon size={13} /> {t("disc.viewPlan", { id: detail.resolution_plan_id })}
                       </button>
                     ) : null}
                   </div>
@@ -491,12 +498,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 {editing ? (
                   <div className="disc-editor">
                     <textarea
-                      aria-label="문서 본문 마크다운"
+                      aria-label={t("disc.bodyAria")}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                     />
                     <div className="disc-editor-preview">
-                      <Markdown>{draft || "_미리보기_"}</Markdown>
+                      <Markdown>{draft || t("disc.preview")}</Markdown>
                     </div>
                   </div>
                 ) : (
@@ -520,13 +527,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             className="disc-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="플래너로 승격"
+            aria-label={t("disc.promoteAria")}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2>플래너로 승격</h2>
+            <h2>{t("disc.promote")}</h2>
             <p className="disc-modal-sub">
-              아래 “다음 단계” {detail.next_steps.length}개가 새 플래너 계획의 항목이 됩니다. 이
-              문제는 <b>결론남</b> 상태로 닫히고 계획과 연결돼요.
+              {t("disc.promoteBody", { n: detail.next_steps.length })}
             </p>
             <div className="disc-next">
               {detail.next_steps.map((s) => (
@@ -540,7 +546,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             </div>
             <div className="disc-modal-foot">
               <button type="button" className="disc-btn" onClick={() => setPromoting(false)}>
-                취소
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -548,7 +554,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 disabled={busy}
                 onClick={() => void confirmPromote()}
               >
-                <ArrowRight size={14} /> 승격
+                <ArrowRight size={14} /> {t("disc.promoteAction")}
               </button>
             </div>
           </div>
@@ -571,6 +577,7 @@ function DiscussionView({
   locked: boolean;
   onDetach: (relPath: string) => void;
 }) {
+  const { t } = useT();
   return (
     <>
       {detail.warnings.length > 0 ? (
@@ -578,25 +585,25 @@ function DiscussionView({
           <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
             {/* U+FE0E — ⚠ 는 기본이 컬러 이모지라 텍스트 표현으로 고정해야
                 주변 텍스트와 같은 색·무게로 그려진다. */}
-            ⚠︎ 파싱 경고: {detail.warnings.join(" · ")}
+            {t("disc.parseWarn", { list: detail.warnings.join(" · ") })}
           </div>
         </div>
       ) : null}
 
       <section className="disc-section">
-        <div className="disc-section-title">문제 정의</div>
+        <div className="disc-section-title">{t("disc.sec.problem")}</div>
         {detail.problem.trim() ? (
           <Markdown>{detail.problem}</Markdown>
         ) : (
           <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
-            문제 정의가 비어 있어요. “편집”에서 먼저 문제를 적어보세요.
+            {t("disc.sec.problemEmpty")}
           </div>
         )}
       </section>
 
       {detail.options.length > 0 ? (
         <section className="disc-section">
-          <div className="disc-section-title">후보 해결 방안</div>
+          <div className="disc-section-title">{t("disc.sec.options")}</div>
           {detail.options.map((o) => (
             <div className="disc-option-card" key={o.option_id}>
               <div className="disc-option-title">{o.title}</div>
@@ -608,7 +615,7 @@ function DiscussionView({
 
       {detail.background.trim() || detail.attachments.length > 0 ? (
         <section className="disc-section">
-          <div className="disc-section-title">배경 / 조사 자료</div>
+          <div className="disc-section-title">{t("disc.sec.background")}</div>
           {detail.background.trim() ? <Markdown>{detail.background}</Markdown> : null}
           {detail.attachments.length > 0 ? (
             <div className="disc-attach-rail">
@@ -629,7 +636,7 @@ function DiscussionView({
 
       {detail.log.length > 0 ? (
         <section className="disc-section">
-          <div className="disc-section-title">토의 / 메모</div>
+          <div className="disc-section-title">{t("disc.sec.notes")}</div>
           {detail.log.map((l, i) => (
             <div className="disc-log-row" key={`${l.ts}-${i}`}>
               <span className="disc-log-author">
@@ -647,14 +654,14 @@ function DiscussionView({
 
       {detail.conclusion.trim() ? (
         <section className="disc-section">
-          <div className="disc-section-title">결론</div>
+          <div className="disc-section-title">{t("disc.sec.conclusion")}</div>
           <Markdown>{detail.conclusion}</Markdown>
         </section>
       ) : null}
 
       {detail.next_steps.length > 0 ? (
         <section className="disc-section">
-          <div className="disc-section-title">다음 단계</div>
+          <div className="disc-section-title">{t("disc.sec.next")}</div>
           <div className="disc-next">
             {detail.next_steps.map((s) => (
               <div key={s.step_id} className={`disc-next-item${s.done ? " done" : ""}`}>
@@ -686,6 +693,7 @@ function AttachmentChip({
   locked: boolean;
   onDetach: (relPath: string) => void;
 }) {
+  const { t } = useT();
   const [uri, setUri] = useState<string | null>(null);
   const name = att.rel_path.replace(/^attachments\//, "");
 
@@ -712,7 +720,7 @@ function AttachmentChip({
           <button
             type="button"
             className="disc-attach-x"
-            aria-label={`첨부 ${name} 삭제`}
+            aria-label={t("disc.deleteAttachment", { name })}
             onClick={() => onDetach(att.rel_path)}
           >
             <X size={13} />

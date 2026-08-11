@@ -1,5 +1,6 @@
 import { Bug, SparklesIcon, GitBranch, TriangleAlert, Wrench } from "@/components/Icons";
 import type { EntryType } from "@/lib/bindings";
+import { t, type I18nKey } from "@/i18n";
 
 // Final UI Update (ui_v2) — trigger (작업 일지 카테고리) metadata, shared by the
 // Today highlights and the Journal timeline. Mirrors Ocul-PM1.0/src/icons.jsx
@@ -14,7 +15,7 @@ type IconComp = React.ComponentType<{
 
 interface TriggerMeta {
   icon: IconComp;
-  label: string;
+  labelKey: I18nKey;
   /** primitives.css class — note bug → t-bugfix. */
   cls: string;
   /** tokens.css trigger var suffix — `var(--t-${cssVar})`. */
@@ -22,11 +23,11 @@ interface TriggerMeta {
 }
 
 export const TRIGGER_META: Record<EntryType, TriggerMeta> = {
-  bug: { icon: Bug, label: "버그 수정", cls: "t-bugfix", cssVar: "bug" },
-  feature: { icon: SparklesIcon, label: "기능 추가", cls: "t-feature", cssVar: "feature" },
-  refactor: { icon: GitBranch, label: "리팩토링", cls: "t-refactor", cssVar: "refactor" },
-  error: { icon: TriangleAlert, label: "에러 사이클", cls: "t-error", cssVar: "error" },
-  chore: { icon: Wrench, label: "잡일", cls: "t-chore", cssVar: "chore" },
+  bug: { icon: Bug, labelKey: "trigger.bug", cls: "t-bugfix", cssVar: "bug" },
+  feature: { icon: SparklesIcon, labelKey: "trigger.feature", cls: "t-feature", cssVar: "feature" },
+  refactor: { icon: GitBranch, labelKey: "trigger.refactor", cls: "t-refactor", cssVar: "refactor" },
+  error: { icon: TriangleAlert, labelKey: "trigger.error", cls: "t-error", cssVar: "error" },
+  chore: { icon: Wrench, labelKey: "trigger.chore", cls: "t-chore", cssVar: "chore" },
 };
 
 export function TriggerBadge({
@@ -41,7 +42,7 @@ export function TriggerBadge({
   return (
     <span className={"tbadge " + m.cls}>
       <Icon size={12} strokeWidth={2.1} />
-      {withLabel ? m.label : null}
+      {withLabel ? t(m.labelKey) : null}
     </span>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "@/components/Icons";
 import { useUpdater } from "@/lib/updater";
+import { useT } from "@/i18n";
 
 // Launch-time self-update banner. On mount it asks the updater plugin (via the
 // shared `useUpdater` hook) whether a newer signed build exists; when one does
@@ -27,6 +28,7 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 export function UpdateBanner() {
+  const { t } = useT();
   const { status, check, install } = useUpdater();
   const [dismissed, setDismissed] = useState(false);
   // Once we've seen an available update we keep showing the banner through its
@@ -52,10 +54,10 @@ export function UpdateBanner() {
       <Download size={16} />
       <div className="update-banner-text">
         {failed ? (
-          <>업데이트 실패 — 잠시 후 다시 시도해 주세요</>
+          <>{t("update.failed")}</>
         ) : (
           <>
-            새 버전 <b>v{version}</b> 이 나왔어요
+            {t("update.availablePrefix")} <b>v{version}</b> {t("update.availableSuffix")}
           </>
         )}
       </div>
@@ -65,13 +67,13 @@ export function UpdateBanner() {
         onClick={() => void install()}
         disabled={installing}
       >
-        {installing ? "설치 중…" : "지금 업데이트"}
+        {installing ? t("update.installing") : t("update.now")}
       </button>
       <button
         type="button"
         className="update-banner-x"
         onClick={() => setDismissed(true)}
-        aria-label="알림 닫기"
+        aria-label={t("update.dismiss")}
         disabled={installing}
       >
         <X size={14} />

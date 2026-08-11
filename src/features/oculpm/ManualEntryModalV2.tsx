@@ -11,6 +11,7 @@ import type {
   JournalEntry,
   ManualEntryDraft,
 } from "@/lib/bindings";
+import { useT } from "@/i18n";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
 //
@@ -41,6 +42,7 @@ export function ManualEntryModalV2({
   onCreated,
   onClose,
 }: ManualEntryModalV2Props) {
+  const { t } = useT();
   const titleId = useId();
   const [type, setType] = useState<EntryType>("feature");
   const [slug, setSlug] = useState("");
@@ -78,7 +80,7 @@ export function ManualEntryModalV2({
     if (slug === "") {
       setSlugError(null);
     } else if (!SLUG_RE.test(slug)) {
-      setSlugError("slug 은 소문자/숫자/하이픈만 (1–60자). 예: changelog-export-fix");
+      setSlugError(t("manual.slugError"));
     } else {
       setSlugError(null);
     }
@@ -146,7 +148,7 @@ export function ManualEntryModalV2({
     } catch (e) {
       setError(
         e instanceof OculpmApiError
-          ? `${e.command} 실패: ${e.message}`
+          ? t("manual.commandFailed", { command: e.command, message: e.message })
           : e instanceof Error
             ? e.message
             : String(e),
@@ -166,12 +168,11 @@ export function ManualEntryModalV2({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="set-modal-title" id={titleId}>
-          <Plus size={16} /> 수동 일지 작성{" "}
+          <Plus size={16} /> {t("manual.title")}{" "}
           <span className="entry-hint">workday {workday}</span>
         </div>
         <div className="set-modal-desc">
-          에이전트가 놓친 작업을 직접 기록합니다. session_id 가 비면 활성 세션 또는
-          manual-{workday}-… 이 자동 부여됩니다.
+          {t("manual.desc", { workday })}
         </div>
 
         <form
@@ -183,7 +184,7 @@ export function ManualEntryModalV2({
         >
           {/* type */}
           <div className="entry-field">
-            <label className="entry-label">트리거</label>
+            <label className="entry-label">{t("manual.trigger")}</label>
             <div className="entry-chips">
               {ENTRY_TYPES.map((t) => (
                 <button
@@ -201,7 +202,7 @@ export function ManualEntryModalV2({
           {/* title */}
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-title`}>
-              제목<span className="req">*</span>
+              {t("manual.titleField")}<span className="req">*</span>
             </label>
             <input
               id={`${titleId}-title`}
@@ -209,7 +210,7 @@ export function ManualEntryModalV2({
               className="set-modal-input"
               value={title}
               maxLength={140}
-              placeholder="예: Changelog Export 파라미터 불일치"
+              placeholder={t("manual.titlePlaceholder")}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
@@ -218,7 +219,7 @@ export function ManualEntryModalV2({
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-slug`}>
               slug<span className="req">*</span>
-              <span className="entry-hint">kebab-case · 1–60자 · ASCII</span>
+              <span className="entry-hint">{t("manual.slugHint")}</span>
             </label>
             <input
               id={`${titleId}-slug`}
@@ -236,7 +237,7 @@ export function ManualEntryModalV2({
           <div className="entry-row2">
             <div className="entry-field">
               <label className="entry-label" htmlFor={`${titleId}-diff`}>
-                난이도
+                {t("manual.difficulty")}
               </label>
               <select
                 id={`${titleId}-diff`}
@@ -246,7 +247,7 @@ export function ManualEntryModalV2({
                   setDifficulty(e.target.value === "_none" ? null : (e.target.value as Difficulty))
                 }
               >
-                <option value="_none">— (없음)</option>
+                <option value="_none">{t("manual.none")}</option>
                 {DIFFICULTIES.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -256,7 +257,7 @@ export function ManualEntryModalV2({
             </div>
             <div className="entry-field">
               <label className="entry-label" htmlFor={`${titleId}-status`}>
-                상태
+                {t("manual.status")}
               </label>
               <select
                 id={`${titleId}-status`}
@@ -276,7 +277,7 @@ export function ManualEntryModalV2({
           {/* tags */}
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-tags`}>
-              태그<span className="entry-hint">Enter 또는 , 로 추가</span>
+              {t("manual.tags")}<span className="entry-hint">{t("manual.tagsHint")}</span>
             </label>
             {tags.length > 0 ? (
               <div className="entry-chips">
@@ -310,10 +311,10 @@ export function ManualEntryModalV2({
           {/* files_touched */}
           <div className="entry-field">
             <label className="entry-label">
-              변경 파일<span className="entry-hint">오늘 변경된 파일 — 클릭으로 토글</span>
+              {t("manual.files")}<span className="entry-hint">{t("manual.filesHint")}</span>
             </label>
             {fileCandidates.length === 0 ? (
-              <div className="entry-hint">오늘 추적된 파일 변경이 없어요. 비워둬도 됩니다.</div>
+              <div className="entry-hint">{t("manual.noFiles")}</div>
             ) : (
               <div className="entry-files">
                 {fileCandidates.map((path) => {
@@ -338,13 +339,13 @@ export function ManualEntryModalV2({
           {/* body */}
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-body`}>
-              본문<span className="entry-hint">markdown · 선택</span>
+              {t("manual.body")}<span className="entry-hint">{t("manual.bodyHint")}</span>
             </label>
             <textarea
               id={`${titleId}-body`}
               className="entry-textarea"
               value={bodyMarkdown}
-              placeholder={"## 발생 원인\n…\n\n## 해결 방법\n…"}
+              placeholder={t("manual.bodyPlaceholder")}
               onChange={(e) => setBodyMarkdown(e.target.value)}
             />
           </div>
@@ -354,7 +355,7 @@ export function ManualEntryModalV2({
 
         <div className="set-modal-actions">
           <button type="button" className="btn sm" onClick={onClose} disabled={submitting}>
-            취소
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -362,7 +363,7 @@ export function ManualEntryModalV2({
             onClick={() => void submit()}
             disabled={!canSubmit}
           >
-            {submitting ? "작성 중…" : "작성"}
+            {submitting ? t("manual.submitting") : t("manual.submit")}
           </button>
         </div>
       </div>

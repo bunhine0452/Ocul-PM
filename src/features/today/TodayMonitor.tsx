@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Clock, FileDiff, GitBranch, NotebookText } from "@/components/Icons";
 import { StatCard } from "./StatCard";
 import type { TodayMonitor as TodayMonitorData } from "./useTodayMonitor";
+import { t } from "@/i18n";
 
 // Code-search round (2026-06-15) — a second Today stat row: active work time,
 // git status / today's commits, and goal progress. Mirrors the StatCard layout
@@ -16,8 +17,8 @@ function fmtDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h > 0) return `${h}시간 ${m}분`;
-  return `${m}분`;
+  if (h > 0) return t("time.hoursMinutes", { h, m });
+  return t("time.minutes", { n: m });
 }
 
 export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) {
@@ -42,12 +43,12 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       <StatCard
         icon={Clock}
         tint={{ bg: "var(--t-refactor-soft)", fg: "var(--t-refactor)" }}
-        label="활동 시간"
+        label={t("today.monitor.activeTime")}
         value={monitor ? fmtDuration(activeMs) : "—"}
         sub={
           monitor ? (
             <span>
-              {monitor.sessionCount}개 세션
+              {t("today.monitor.sessions", { n: monitor.sessionCount })}
             </span>
           ) : null
         }
@@ -57,19 +58,19 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       <StatCard
         icon={NotebookText}
         tint={{ bg: "var(--t-feature-soft)", fg: "var(--t-feature)" }}
-        label="전체 작업 일지"
+        label={t("today.monitor.totalEntries")}
         value={monitor ? monitor.totalEntries : "—"}
-        unit={monitor ? "건" : undefined}
-        sub={monitor ? <span>이 프로젝트 누적</span> : null}
+        unit={monitor ? t("today.unit.entries") : undefined}
+        sub={monitor ? <span>{t("today.monitor.cumulative")}</span> : null}
       />
 
       {/* Git — today's commits + branch + dirty count */}
       <StatCard
         icon={GitBranch}
         tint={{ bg: "var(--accent-soft)", fg: "var(--accent-text)" }}
-        label="오늘 커밋"
+        label={t("today.monitor.commitsToday")}
         value={monitor && monitor.isGitRepo ? monitor.commitsToday : "—"}
-        unit={monitor && monitor.isGitRepo ? "개" : undefined}
+        unit={monitor && monitor.isGitRepo ? t("today.unit.count") : undefined}
         sub={
           monitor && monitor.isGitRepo ? (
             <span style={{ display: "block", minWidth: 0 }}>
@@ -90,7 +91,7 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
               ) : null}
             </span>
           ) : (
-            <span>git 저장소 아님</span>
+            <span>{t("today.monitor.notGitRepo")}</span>
           )
         }
         hoverTip={
@@ -111,18 +112,18 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       <StatCard
         icon={FileDiff}
         tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
-        label="미커밋 변경"
+        label={t("today.monitor.uncommitted")}
         value={monitor && monitor.isGitRepo ? monitor.uncommitted : "—"}
-        unit={monitor && monitor.isGitRepo ? "개" : undefined}
+        unit={monitor && monitor.isGitRepo ? t("today.unit.count") : undefined}
         sub={
           monitor && monitor.isGitRepo ? (
             monitor.uncommitted > 0 ? (
-              <span className="diff-del">커밋 대기 중</span>
+              <span className="diff-del">{t("today.monitor.pending")}</span>
             ) : (
-              <span>모두 커밋됨</span>
+              <span>{t("today.monitor.allCommitted")}</span>
             )
           ) : (
-            <span>git 저장소 아님</span>
+            <span>{t("today.monitor.notGitRepo")}</span>
           )
         }
       />

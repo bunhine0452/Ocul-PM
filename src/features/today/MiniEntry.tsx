@@ -2,6 +2,7 @@ import { ChevronRight } from "@/components/Icons";
 import { TriggerBadge } from "@/features/oculpm/triggerMeta";
 import { agentLabel } from "./agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — compact journal entry row in the Today highlights /
 // yesterday panels. Mirrors Ocul-PM1.0/src/today.jsx `MiniEntry`. The backend
@@ -21,6 +22,7 @@ interface MiniEntryProps {
 }
 
 export function MiniEntry({ entry, onOpen }: MiniEntryProps) {
+  const { t } = useT();
   return (
     <button type="button" className="mini-entry" onClick={() => onOpen(entry)}>
       <TriggerBadge type={entry.type} withLabel={false} />
@@ -31,7 +33,7 @@ export function MiniEntry({ entry, onOpen }: MiniEntryProps) {
           <span className="dotsep">·</span>
           <span>{agentLabel(entry.agent_id)}</span>
           <span className="dotsep">·</span>
-          <span>{entry.files_count}개 파일</span>
+          <span>{t("today.entry.files", { n: entry.files_count })}</span>
         </div>
       </div>
       <ChevronRight size={15} color="var(--text-3)" />

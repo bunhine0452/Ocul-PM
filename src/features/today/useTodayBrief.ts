@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
+import { getLang } from "@/i18n";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
 //
@@ -57,7 +58,16 @@ export interface TodayBrief {
   totalEntries: number;
 }
 
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+/**
+ * 요일 라벨 — 하드코딩 배열 대신 `Intl` 로 뽑는다. 사전에 7개 키를 넣는 것보다
+ * 정확하고(로케일별 축약 규칙을 브라우저가 안다) 언어를 늘려도 손댈 게 없다.
+ * 인덱스는 `Date.getDay()` 와 같은 일요일=0 기준.
+ */
+function weekdayLabels(lang: string): string[] {
+  const fmt = new Intl.DateTimeFormat(lang, { weekday: "short" });
+  // 1970-01-04 는 일요일 — 거기서 7일을 돌린다.
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(1970, 0, 4 + i))));
+}
 const MAX_NEXT_TASKS = 5;
 
 /** Shift a YYYYMMDD key by `delta` calendar days (local time). */
@@ -77,7 +87,7 @@ function weekdayLabel(workday: string): string {
   const y = Number(workday.slice(0, 4));
   const m = Number(workday.slice(4, 6)) - 1;
   const d = Number(workday.slice(6, 8));
-  return WEEKDAY_LABELS[new Date(y, m, d).getDay()] ?? "";
+  return weekdayLabels(getLang())[new Date(y, m, d).getDay()] ?? "";
 }
 
 /** Highlight ranking: error cycles first, then most files touched. */

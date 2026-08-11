@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { commands } from "@/lib/bindings";
+import { resolveLang, setLangSetting } from "@/i18n";
 import {
   DEFAULTS,
   Settings,
@@ -63,6 +64,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     );
     await commands.settingsSetMany(entries);
   }, []);
+
+  // --- UI language: push the persisted setting into the i18n module store.
+  // The store (not this context) is the source `t()` reads, because a large
+  // share of translatable strings live in plain modules — lib/toast.ts,
+  // lib/updater.ts, features/planner/planList.ts — which can't consume a React
+  // context. `useT()` subscribes to that store, so components still re-render.
+  //
+  // Runs before `loaded` too: DEFAULTS.language is "system", so the very first
+  // paint already resolves to the OS locale instead of flashing Korean at an
+  // English user and then swapping.
+  useEffect(() => {
+    setLangSetting(settings.language);
+    // Keep <html lang> honest for screen readers + `:lang()` CSS.
+    document.documentElement.lang = resolveLang(settings.language);
+  }, [settings.language]);
 
   // --- Theme application: set the `data-theme` attribute on <html> from the
   // theme setting. Decision A (2026-05-31): SettingsContext is the single

@@ -14,6 +14,7 @@ import {
 } from "@/components/Icons";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
+import { tAll, useT, type I18nKey } from "@/i18n";
 import { commands, type DocsTreeNode, type EntityHit, type Project } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
@@ -43,12 +44,25 @@ interface CommandPaletteProps {
   onSelectProject?: (p: Project) => void;
 }
 
+type CommandGroup = "projects" | "nav" | "actions" | "oculpm";
+
+const GROUP_LABEL: Record<CommandGroup, I18nKey> = {
+  projects: "palette.group.projects",
+  nav: "palette.group.nav",
+  actions: "palette.group.actions",
+  oculpm: "palette.group.oculpm",
+};
+
 type CommandItem = {
   id: string;
   label: string;
   // Korean alias for fuzzy matching ("체인지로그" → Changelog)
   alias?: string;
-  group: "프로젝트 열기" | "이동" | "액션" | "ocul-pm";
+  /**
+   * 그룹 **id**. 예전엔 한글 표시 문자열이 그대로 판별자였는데, 그러면
+   * 언어를 바꿀 때 타입이 따라 바뀌어야 한다. id 는 고정하고 헤딩만 번역한다.
+   */
+  group: CommandGroup;
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
@@ -150,6 +164,11 @@ export function CommandPalette({
   const entityIcon = (kind: EntityHit["kind"]) =>
     kind === "journal" ? NotebookText : kind === "discussion" ? MessageSquare : TargetIcon;
 
+  const { t } = useT();
+  // 검색 색인 — 양 언어 라벨을 모두 넣는다 (내비와 같은 정책, i18n `tAll`).
+  // 영어 모드에서도 "전환" 으로, 한국어 모드에서도 "switch" 로 찾힌다.
+  const aliasOf = (key: I18nKey) => tAll(key).join(" ");
+
   const go = (view: UiV2View) => () => {
     setUiV2View(view);
     onOpenChange(false);
@@ -164,7 +183,7 @@ export function CommandPalette({
             id: `open-project-${p.id}`,
             label: p.name,
             alias: p.root_path,
-            group: "프로젝트 열기" as const,
+            group: "projects" as const,
             icon: FolderGit2,
             onSelect: () => {
               onSelectProject(p);
@@ -176,34 +195,36 @@ export function CommandPalette({
       // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
       ...NAV_ENTRIES.map((e) => ({
         id: `view-${e.id}`,
-        label: e.label,
-        alias: e.alias,
-        group: "이동" as const,
+        label: t(e.labelKey),
+        // 양 언어 별칭 + 양 언어 라벨을 전부 색인한다 — 영어 모드에서도 "일지",
+        // 한국어 모드에서도 "journal" 로 찾힌다 (i18n `tAll`).
+        alias: [...tAll(e.aliasKey), ...tAll(e.labelKey)].join(" "),
+        group: "nav" as const,
         icon: e.icon,
         shortcut: navShortcutLabel(e.id),
         onSelect: go(e.id),
       })),
 
       // ── 액션
-      { id: "switch-project", label: "프로젝트 전환", alias: "project switch 프로젝트 전환 바꾸기",
-        group: "액션", icon: FolderGit2, shortcut: "⌘P",
+      { id: "switch-project", label: t("palette.switchProject"), alias: aliasOf("palette.switchProject"),
+        group: "actions", icon: FolderGit2, shortcut: "⌘P",
         onSelect: () => {
           onOpenChange(false);
           window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
         } },
-      { id: "open-ai-panel", label: "AI 패널 열기", alias: "ai panel chat 채팅 ⌘\\",
-        group: "액션", icon: Sparkles, shortcut: "⌘\\",
+      { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
+        group: "actions", icon: Sparkles, shortcut: "⌘\\",
         onSelect: () => { setUiV2View("ai"); onOpenChange(false); } },
-      { id: "settings", label: "설정 열기", alias: "settings 설정",
-        group: "액션", icon: SettingsIcon, shortcut: "⌘,",
+      { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
+        group: "actions", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
       ...(onReindex && state.currentProjectId !== null
-        ? [{ id: "reindex", label: "프로젝트 재인덱싱", alias: "reindex 재색인",
-            group: "액션" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]
+        ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),
+            group: "actions" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]
         : []),
       ...(onRegenerateOverview && state.currentProjectId !== null
-        ? [{ id: "regen-overview", label: "개요 다시 생성", alias: "overview 개요 재생성",
-            group: "액션" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
+        ? [{ id: "regen-overview", label: t("palette.regenOverview"), alias: aliasOf("palette.regenOverview"),
+            group: "actions" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
         : []),
 
       // ── ocul-pm — W4-PR8
@@ -211,16 +232,16 @@ export function CommandPalette({
         ? [
             {
               id: "oculpm-session-start",
-              label: "세션 수동 시작",
-              alias: "ocul-pm session start 세션 시작",
-              group: "ocul-pm" as const,
+              label: t("palette.sessionStart"),
+              alias: aliasOf("palette.sessionStart"),
+              group: "oculpm" as const,
               icon: Flame,
               onSelect: () => {
                 const pid = state.currentProjectId!;
                 onOpenChange(false);
                 oculpmApi
                   .startSessionManual(pid)
-                  .then((s) => toast.info(`세션 시작: ${s?.id ?? "(no id)"}`))
+                  .then((s) => toast.info(t("palette.toast.sessionStarted", { id: s?.id ?? "(no id)" })))
                   .catch((e) =>
                     toast.destructive(
                       e instanceof OculpmApiError ? e.message : String(e),
@@ -230,21 +251,21 @@ export function CommandPalette({
             },
             {
               id: "oculpm-session-end",
-              label: "세션 수동 종료",
-              alias: "ocul-pm session end 세션 종료",
-              group: "ocul-pm" as const,
+              label: t("palette.sessionEnd"),
+              alias: aliasOf("palette.sessionEnd"),
+              group: "oculpm" as const,
               icon: Flame,
               onSelect: () => {
                 const pid = state.currentProjectId!;
                 onOpenChange(false);
                 const sid = state.currentSession?.id;
                 if (!sid) {
-                  toast.warning("종료할 활성 세션이 없습니다.");
+                  toast.warning(t("palette.toast.noActiveSession"));
                   return;
                 }
                 oculpmApi
                   .endSessionManual(pid, sid)
-                  .then(() => toast.info(`세션 종료: ${sid}`))
+                  .then(() => toast.info(t("palette.toast.sessionEnded", { id: sid })))
                   .catch((e) =>
                     toast.destructive(
                       e instanceof OculpmApiError ? e.message : String(e),
@@ -254,9 +275,9 @@ export function CommandPalette({
             },
             {
               id: "oculpm-manual-entry",
-              label: "수동 작업 기록 작성",
-              alias: "ocul-pm manual entry journal 수동 기록",
-              group: "ocul-pm" as const,
+              label: t("palette.manualEntry"),
+              alias: aliasOf("palette.manualEntry"),
+              group: "oculpm" as const,
               icon: Plus,
               onSelect: () => {
                 onOpenChange(false);
@@ -268,9 +289,9 @@ export function CommandPalette({
             },
             {
               id: "oculpm-sync-agents",
-              label: "어댑터 규칙 다시 보내기",
-              alias: "ocul-pm sync agents 동기화 어댑터",
-              group: "ocul-pm" as const,
+              label: t("palette.syncAgents"),
+              alias: aliasOf("palette.syncAgents"),
+              group: "oculpm" as const,
               icon: RefreshCw,
               onSelect: () => {
                 const pid = state.currentProjectId!;
@@ -281,7 +302,7 @@ export function CommandPalette({
                     const updated = report.results.filter(
                       (r) => r.action === "inserted" || r.action === "updated",
                     ).length;
-                    toast.info(`동기화 완료 (${updated} 어댑터 갱신)`);
+                    toast.info(t("palette.toast.syncDone", { n: updated }));
                   })
                   .catch((e) =>
                     toast.destructive(
@@ -292,9 +313,9 @@ export function CommandPalette({
             },
             {
               id: "oculpm-settings",
-              label: "ocul-pm 설정",
-              alias: "ocul-pm settings 설정",
-              group: "ocul-pm" as const,
+              label: t("palette.oculpmSettings"),
+              alias: aliasOf("palette.oculpmSettings"),
+              group: "oculpm" as const,
               icon: SettingsIcon,
               onSelect: () => {
                 onOpenSettings();
@@ -304,17 +325,19 @@ export function CommandPalette({
           ]
         : []),
     ],
-    [onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, state.currentProjectId, state.currentSession],
+    // `t` 는 언어가 바뀔 때만 아이덴티티가 바뀐다 (useT) — 언어 전환 시
+    // 정확히 한 번 재계산되고 평소엔 안정적이다.
+    [t, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, state.currentProjectId, state.currentSession],
   );
 
   // Group items by `group` field, preserving the original order so the
   // "이동" group always renders before "코드 화면" / "액션".
   const grouped = useMemo(() => {
-    const groups: Record<string, CommandItem[]> = {};
+    const groups = {} as Record<CommandGroup, CommandItem[]>;
     items.forEach((it) => {
       (groups[it.group] ??= []).push(it);
     });
-    return Object.entries(groups);
+    return Object.entries(groups) as Array<[CommandGroup, CommandItem[]]>;
   }, [items]);
 
   if (!open) return null;
@@ -328,7 +351,7 @@ export function CommandPalette({
       }}
     >
       <Command
-        label="명령 팔레트"
+        label={t("palette.aria")}
         className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
         // cmdk uses a custom fuzzy match. Provide alias as searchable text so
         // Korean queries hit English labels and vice versa.
@@ -341,16 +364,16 @@ export function CommandPalette({
           autoFocus
           value={search}
           onValueChange={setSearch}
-          placeholder="화면 이동, 액션, 검색…"
+          placeholder={t("palette.placeholder")}
           className="w-full px-4 py-3 bg-transparent border-0 border-b border-border outline-none text-sm placeholder:text-muted-foreground"
         />
         <Command.List className="max-h-[60vh] overflow-y-auto scrollbar-thin p-1">
           <Command.Empty className="px-4 py-6 text-sm text-muted-foreground text-center">
-            매칭되는 명령이 없습니다.
+            {t("palette.empty")}
           </Command.Empty>
           {entityHits.length + docHits.length > 0 ? (
             <Command.Group
-              heading="바로가기"
+              heading={t("palette.group.jump")}
               className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
             >
               {entityHits.map((hit) => {
@@ -392,7 +415,7 @@ export function CommandPalette({
           {grouped.map(([group, list]) => (
             <Command.Group
               key={group}
-              heading={group}
+              heading={t(GROUP_LABEL[group])}
               className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
             >
               {list.map((it) => {

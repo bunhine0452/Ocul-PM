@@ -1,5 +1,6 @@
 import { SquareTerminal, ArrowRight, ChevronDown, ChevronRight } from "@/components/Icons";
 import { TerminalInstance } from "@/features/terminal/TerminalInstance";
+import { useT } from "@/i18n";
 
 // Today 빠른 터미널 — run an agent without leaving Today. Opt-in: the PTY only
 // spawns once expanded (TerminalInstance mounts), and is killed on collapse /
@@ -16,18 +17,19 @@ interface TodayTerminalProps {
 }
 
 export function TodayTerminal({ projectRoot, open, onOpenChange, onFull }: TodayTerminalProps) {
+  const { t } = useT();
   return (
     <div className="card today-term">
       <div className="panel-head">
         <SquareTerminal size={16} color="var(--text-2)" />
-        <h3>빠른 터미널</h3>
+        <h3>{t("today.terminal.title")}</h3>
         <button
           type="button"
           className="btn ghost sm right"
           onClick={onFull}
-          aria-label="전체 터미널 화면 열기"
+          aria-label={t("today.terminal.openFull")}
         >
-          전체 터미널 <ArrowRight size={13} />
+          {t("today.terminal.full")} <ArrowRight size={13} />
         </button>
         <button
           type="button"
@@ -36,7 +38,7 @@ export function TodayTerminal({ projectRoot, open, onOpenChange, onFull }: Today
           aria-expanded={open}
         >
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          {open ? "접기" : "열기"}
+          {open ? t("today.terminal.collapse") : t("today.terminal.expand")}
         </button>
       </div>
 
@@ -52,7 +54,7 @@ export function TodayTerminal({ projectRoot, open, onOpenChange, onFull }: Today
       ) : (
         <div className="panel-body">
           <div className="empty-hint" style={{ padding: "16px" }}>
-            여기서 바로 에이전트를 실행하세요. 작업은 자동으로 일지에 기록됩니다.
+            {t("today.terminal.hint")}
           </div>
         </div>
       )}

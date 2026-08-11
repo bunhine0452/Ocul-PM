@@ -21,6 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
 import { langFromPath } from "./diffParse";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = git uncommitted changes (persistent,
@@ -98,6 +99,7 @@ interface DiffScreenV2Props {
 }
 
 export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: DiffScreenV2Props) {
+  const { t } = useT();
   const { state, setState } = useWorkspace();
   const { diffActivePath, diffReadPaths, diffMode } = state;
   // v2 U3 — watcher 버퍼는 전용 스토어 구독. 이 화면만 파일 이벤트에 리렌더한다.
@@ -338,7 +340,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       settings.externalEditorCommand,
       null,
     );
-    if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+    if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
   }, [projectRoot, selected, settings.externalEditorCommand]);
 
   // GR4 — change impact: files that (transitively) import a changed file, found
@@ -370,7 +372,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     async (path: string) => {
       if (!projectRoot) return;
       const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand, null);
-      if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+      if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
     },
     [projectRoot, settings.externalEditorCommand],
   );
@@ -485,7 +487,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         <span className={"dstatus " + badgeLetter(op)}>{op}</span>
         <span className="dfile-name">{path}</span>
         {isReviewed ? (
-          <span className="dfile-read" title="검토 완료">
+          <span className="dfile-read" title={t("diff.reviewed")}>
             <CheckMark size={12} />
           </span>
         ) : null}
@@ -496,30 +498,30 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   return (
     <>
       <Toolbar
-        title="변경 diff"
+        title={t("diff.title")}
         sub={
           <span>
             {baseline === "last_commit" ? (
               <>
-                직전 커밋 <span className="mono">{lastCommit?.short_sha}</span>
+                {t("diff.lastCommit")} <span className="mono">{lastCommit?.short_sha}</span>
                 {lastCommit?.subject ? ` · ${lastCommit.subject}` : ""}
               </>
             ) : (
               <>
                 {branch ? <span className="mono">{branch}</span> : null}
                 {branch ? " · " : ""}
-                미커밋 {changes.length}개 파일
+                {t("diff.uncommittedFiles", { n: changes.length })}
               </>
             )}
           </span>
         }
       >
         {lastCommitChanges.length > 0 ? (
-          <div className="diff-mode-toggle" title="비교 기준 — 미커밋 변경 / 마지막 커밋">
+          <div className="diff-mode-toggle" title={t("diff.modeTitle")}>
             {(
               [
-                ["working", `미커밋${workingChanges.length ? ` ${workingChanges.length}` : ""}`],
-                ["last_commit", "직전 커밋"],
+                ["working", `${t("diff.modeWorking")}${workingChanges.length ? ` ${workingChanges.length}` : ""}`],
+                ["last_commit", t("diff.lastCommit")],
               ] as [DiffBaseline, string][]
             ).map(([b, label]) => (
               <button
@@ -549,7 +551,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               }}
               onClick={() => setMode(m)}
             >
-              {m === "unified" ? "통합" : "분할"}
+              {m === "unified" ? t("diff.viewUnified") : t("diff.viewSplit")}
             </button>
           ))}
         </div>
@@ -557,16 +559,16 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           className="btn ghost"
           onClick={onMarkAllReviewed}
           disabled={changes.length === 0 || allReviewed}
-          title="변경된 모든 파일을 검토 완료로 표시"
+          title={t("diff.markAllTitle")}
         >
-          <CheckMark size={15} /> 모두 검토 완료
+          <CheckMark size={15} /> {t("diff.markAll")}
         </button>
         <button
           className="btn primary"
           onClick={onMarkReviewed}
           disabled={!selected || reviewed}
         >
-          <CheckMark size={15} /> {reviewed ? "검토함" : "검토 완료"}
+          <CheckMark size={15} /> {reviewed ? t("diff.isReviewed") : t("diff.reviewed")}
         </button>
       </Toolbar>
 
@@ -575,8 +577,8 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           <div className="page fade-in">
             <div className="empty-hint">
               {baseline === "working" && lastCommitChanges.length > 0
-                ? "미커밋 변경이 없어요. 위에서 '직전 커밋' 을 눌러 마지막 커밋의 변경을 확인하세요."
-                : "이 브랜치엔 아직 변경이 없어요. 외부 LLM 이 파일을 수정하면 Watcher 가 감지해 여기에 표시합니다."}
+                ? t("diff.emptyWorking")
+                : t("diff.emptyBranch")}
             </div>
           </div>
         </div>
@@ -586,10 +588,10 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               recorded each change (Dogfooding #3), with a flat fallback. */}
           <div className="diff-files">
             <div className="diff-files-head">
-              변경된 파일
+              {t("diff.changedFiles")}
               <span className="diff-kbd-hint" aria-hidden="true">
                 <kbd>j</kbd>
-                <kbd>k</kbd> 이동 · <kbd>/</kbd> 검색
+                <kbd>k</kbd> {t("diff.navHint")} <kbd>/</kbd> {t("diff.searchHint")}
               </span>
             </div>
             {groups
@@ -607,7 +609,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                           {g.entry_title || g.entry_path}
                         </button>
                       ) : (
-                        <span className="diff-group-title muted">미기록 변경</span>
+                        <span className="diff-group-title muted">{t("diff.untracked")}</span>
                       )}
                       {g.created_at ? (
                         <span className="diff-group-time">{groupDate(g.created_at)}</span>
@@ -646,7 +648,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 <button
                   type="button"
                   onClick={() => setImpactOpen((o) => !o)}
-                  title="변경된 파일을 (간접적으로) import 하는 파일들 — 함께 검토할 후보"
+                  title={t("diff.impactTitle")}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -662,7 +664,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   }}
                 >
                   <GitBranchIcon size={11} />
-                  영향 받는 파일
+                  {t("diff.impact")}
                   <span style={{ marginLeft: "auto", color: "var(--text-3)" }}>
                     {impact.affected.length}
                   </span>
@@ -675,7 +677,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                         type="button"
                         className="dfile"
                         onClick={() => onOpenAffected(n.path)}
-                        title={`${n.path} · ${n.depth}홉 거리 (외부 에디터로 열기)`}
+                        title={t("diff.impactHop", { path: n.path, n: n.depth })}
                       >
                         <span
                           className="dstatus"
@@ -695,7 +697,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                     ))}
                     {impact.affected.length > 60 ? (
                       <span style={{ padding: "3px 6px", fontSize: 11, color: "var(--text-3)" }}>
-                        … 외 {impact.affected.length - 60}개
+                        {t("diff.impactMore", { n: impact.affected.length - 60 })}
                       </span>
                     ) : null}
                   </div>
@@ -711,7 +713,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               <span className="fname">{selected ?? "—"}</span>
               {cur ? (
                 <span className="chip" style={{ height: 20 }}>
-                  {cur.op === "A" ? "새 파일" : cur.op === "D" ? "삭제됨" : "수정됨"}
+                  {cur.op === "A" ? t("diff.opAdded") : cur.op === "D" ? t("diff.opDeleted") : t("diff.opModified")}
                 </span>
               ) : null}
               <span style={{ flex: 1 }} />
@@ -730,22 +732,22 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  placeholder="diff 내 검색 (/)"
-                  aria-label="diff 내 검색"
+                  placeholder={t("diff.searchPlaceholder")}
+                  aria-label={t("diff.searchAria")}
                   spellCheck={false}
                 />
                 {matchPos ? (
                   <span className="diff-search-count">
-                    {matchPos.total === 0 ? "0건" : `${matchPos.idx}/${matchPos.total}`}
+                    {matchPos.total === 0 ? t("diff.noMatches") : `${matchPos.idx}/${matchPos.total}`}
                   </span>
                 ) : null}
               </div>
               <button
                 className="iconbtn"
-                title="에디터에서 열기"
+                title={t("diff.openEditor")}
                 onClick={onOpenEditor}
                 disabled={!selected}
-                aria-label="에디터에서 열기"
+                aria-label={t("diff.openEditor")}
               >
                 <ExternalLinkIcon size={15} />
               </button>
@@ -754,7 +756,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             <div className="diff-code" ref={diffCodeRef}>
               {loading ? (
                 <div className="empty-hint">
-                  <Loader size={14} /> diff 계산 중…
+                  <Loader size={14} /> {t("diff.computing")}
                 </div>
               ) : error ? (
                 <div
@@ -772,7 +774,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   baseline={baseline}
                 />
               ) : (
-                <div className="empty-hint">왼쪽에서 파일을 선택하세요.</div>
+                <div className="empty-hint">{t("diff.pickFile")}</div>
               )}
             </div>
           </div>
@@ -797,15 +799,16 @@ function DiffBody({
   deleted: boolean;
   baseline: DiffBaseline;
 }) {
+  const { t } = useT();
   if (result.source.source === "snapshots_unavailable") {
     // A deleted file with no baseline — nothing to diff, but don't error.
     if (deleted) {
       return (
         <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-          이 파일은 삭제되었습니다.
+          {t("diff.fileDeleted")}
           <br />
           <span className="text-muted-foreground" style={{ fontSize: 11 }}>
-            (기록된 이전 내용이 없어 변경 내용을 표시할 수 없어요)
+            {t("diff.noBaseline")}
           </span>
         </div>
       );
@@ -815,7 +818,7 @@ function DiffBody({
     if (newFilePatch == null) {
       return (
         <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-          파일을 읽는 중…
+          {t("diff.readingFile")}
         </div>
       );
     }
@@ -824,8 +827,7 @@ function DiffBody({
         <PatchView patch={newFilePatch} mode={mode} lang={langFromPath(result.path)} />
         <div className="diff-foot">
           <GitBranchIcon size={13} />
-          아직 baseline 이 없는 새 파일이라 전체 내용을 표시합니다. (git 커밋 또는
-          인덱싱 후엔 변경분만 표시)
+          {t("diff.newFileNote")}
         </div>
       </div>
     );
@@ -835,7 +837,7 @@ function DiffBody({
   if (!patch.trim()) {
     return (
       <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-        변경 사항 없음 ({isSnapshot ? "스냅샷" : "HEAD"} 과 동일).
+        {t("diff.noChanges", { base: isSnapshot ? t("diff.baseSnapshot") : t("diff.baseHead") })}
       </div>
     );
   }
@@ -845,8 +847,8 @@ function DiffBody({
       <div className="diff-foot">
         <GitBranchIcon size={13} />
         {baseline === "last_commit"
-          ? "이 diff는 직전 커밋(HEAD~1..HEAD) 기준입니다. 방금 커밋한 변경을 검토하세요."
-          : `이 diff는 ${isSnapshot ? "로컬 스냅샷" : "git HEAD"} 기준입니다. 커밋 전 변경분을 검증하세요.`}
+          ? t("diff.footerLastCommit")
+          : t("diff.footerWorking", { base: isSnapshot ? t("diff.baseSnapshotLong") : t("diff.baseHeadLong") })}
       </div>
     </div>
   );

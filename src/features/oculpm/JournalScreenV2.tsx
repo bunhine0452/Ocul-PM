@@ -12,6 +12,7 @@ import { TRIGGER_META } from "./triggerMeta";
 import { toast } from "@/lib/toast";
 import { consumeManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { useT, type I18nKey } from "@/i18n";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -28,13 +29,13 @@ const FILTER_TO_TYPE: Record<Exclude<JournalFilter, "all">, EntryType> = {
   chore: "chore",
 };
 
-const CHIPS: { id: JournalFilter; label: string }[] = [
-  { id: "all", label: "전체" },
-  { id: "feature", label: "기능" },
-  { id: "bugfix", label: "버그" },
-  { id: "refactor", label: "리팩토링" },
-  { id: "error", label: "에러" },
-  { id: "chore", label: "잡일" },
+const CHIPS: { id: JournalFilter; labelKey: I18nKey }[] = [
+  { id: "all", labelKey: "journal.filter.all" },
+  { id: "feature", labelKey: "journal.filter.feature" },
+  { id: "bugfix", labelKey: "journal.filter.bugfix" },
+  { id: "refactor", labelKey: "journal.filter.refactor" },
+  { id: "error", labelKey: "journal.filter.error" },
+  { id: "chore", labelKey: "journal.filter.chore" },
 ];
 
 interface JournalScreenV2Props {
@@ -75,6 +76,7 @@ export function JournalScreenV2({
   onOpenEntryConsumed,
   onReturnToOrigin,
 }: JournalScreenV2Props) {
+  const { t } = useT();
   const { state, setState } = useWorkspace();
   const filter = state.journalFilter;
 
@@ -127,15 +129,15 @@ export function JournalScreenV2({
     try {
       const r = await oculpmApi.backfillFromGit(projectId, 300);
       if (r.created > 0) {
-        toast.info(`git 히스토리에서 일지 ${r.created}건을 가져왔어요.`);
+        toast.info(t("journal.backfill.done", { n: r.created }));
         refresh();
       } else if (r.scanned === 0) {
-        toast.warning("가져올 git 커밋이 없어요 (git 저장소가 아닐 수 있어요).");
+        toast.warning(t("journal.backfill.noCommits"));
       } else {
-        toast.info("새로 가져올 커밋이 없어요 (이미 모두 반영됨).");
+        toast.info(t("journal.backfill.upToDate"));
       }
     } catch {
-      toast.warning("git 히스토리 가져오기에 실패했어요.");
+      toast.warning(t("journal.backfill.failed"));
     } finally {
       setBackfilling(false);
     }
@@ -240,7 +242,7 @@ export function JournalScreenV2({
     void (async () => {
       try {
         if (!/^\d{8}$/.test(workday)) {
-          toast.warning("일지 경로를 해석하지 못했어요.");
+          toast.warning(t("journal.resolveFailed"));
           return;
         }
         const list = await oculpmApi.listJournalEntries(projectId, workday);
@@ -252,9 +254,9 @@ export function JournalScreenV2({
         if (hit) {
           setDetailFromExternal(true);
           setDetailEntry(hit);
-        } else toast.warning("연결된 일지를 찾지 못했어요.");
+        } else toast.warning(t("journal.linkNotFound"));
       } catch {
-        if (!cancelled) toast.warning("연결된 일지를 열지 못했어요.");
+        if (!cancelled) toast.warning(t("journal.linkOpenFailed"));
       } finally {
         if (!cancelled) onOpenEntryConsumed?.();
       }
@@ -315,15 +317,15 @@ export function JournalScreenV2({
 
   return (
     <>
-      <Toolbar title="작업 일지" sub={`${total}건의 자동 기록`}>
+      <Toolbar title={t("nav.journal")} sub={t("journal.toolbarSub", { n: total })}>
         <div className="search-box" style={{ minWidth: 180 }}>
           <SearchIcon size={15} color="var(--text-3)" />
           <input
             ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="일지 검색 (⌘F)"
-            aria-label="일지 검색"
+            placeholder={t("journal.searchPlaceholder")}
+            aria-label={t("journal.searchAria")}
           />
           {search ? (
             <button
@@ -331,7 +333,7 @@ export function JournalScreenV2({
               className="iconbtn"
               style={{ width: 22, height: 22 }}
               onClick={() => setSearch("")}
-              aria-label="검색어 지우기"
+              aria-label={t("journal.clearSearch")}
             >
               <X size={14} />
             </button>
@@ -346,7 +348,7 @@ export function JournalScreenV2({
               style={{ height: 28 }}
               onClick={() => setFilter(c.id)}
             >
-              {c.label}
+              {t(c.labelKey)}
             </button>
           ))}
         </div>
@@ -356,18 +358,18 @@ export function JournalScreenV2({
             className={"scope-chip" + (unfinishedOnly ? " on" : "")}
             style={{ height: 28 }}
             onClick={() => setUnfinishedOnly((v) => !v)}
-            title="미완료 일지만 (전체 기간 검색)"
+            title={t("journal.filterOpenTitle")}
           >
-            미완료
+            {t("journal.filterOpen")}
           </button>
           <button
             type="button"
             className={"scope-chip" + (verifiedOnly ? " on" : "")}
             style={{ height: 28 }}
             onClick={() => setVerifiedOnly((v) => !v)}
-            title="검증됨만 (전체 기간 검색)"
+            title={t("journal.filterVerifiedTitle")}
           >
-            검증됨
+            {t("journal.filterVerified")}
           </button>
         </div>
         <button
@@ -375,9 +377,9 @@ export function JournalScreenV2({
           className="btn primary"
           onClick={() => setManualOpen(true)}
           disabled={!todayKey}
-          title={todayKey ? "수동 일지 작성 (⌘N)" : "ocul-pm 활성화 후 사용 가능"}
+          title={todayKey ? t("journal.newTitle") : t("journal.newDisabled")}
         >
-          <Plus size={15} /> 새 일지
+          <Plus size={15} /> {t("journal.new")}
         </button>
       </Toolbar>
 
@@ -387,11 +389,11 @@ export function JournalScreenV2({
             {error ? (
               <div className="card card-pad" style={{ marginBottom: 16 }}>
                 <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                  <TriangleAlert size={14} /> 일지를 불러오지 못했어요
+                  <TriangleAlert size={14} /> {t("journal.loadFailed")}
                 </div>
                 <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
                 <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
-                  다시 시도
+                  {t("common.retry")}
                 </button>
               </div>
             ) : null}
@@ -399,7 +401,7 @@ export function JournalScreenV2({
             {loading && days == null ? (
               <SkeletonList rows={4} height={76} />
             ) : !oculpmReady ? (
-              <div className="empty-hint">ocul-pm이 활성화되면 일지가 여기에 표시됩니다.</div>
+              <div className="empty-hint">{t("journal.notActive")}</div>
             ) : filteredDays && filteredDays.length > 0 ? (
               <>
                 {filteredDays.map((day, idx) => {
@@ -426,7 +428,7 @@ export function JournalScreenV2({
                       )}
                       <span className="day-head-label">{day.label}</span>
                       <span className="day-head-line" />
-                      <span className="day-head-count">{day.entries.length}건</span>
+                      <span className="day-head-count">{t("journal.dayCount", { n: day.entries.length })}</span>
                     </button>
                     {open ? (
                       <div className="tl">
@@ -457,15 +459,15 @@ export function JournalScreenV2({
                     style={{ margin: "16px auto 0", display: "block" }}
                     onClick={() => setShowAll(true)}
                   >
-                    이전 기록 더 보기 (전체 기간)
+                    {t("journal.loadMore")}
                   </button>
                 ) : null}
               </>
             ) : searchActive ? (
-              <div className="empty-hint">조건에 맞는 일지가 없어요. (전체 기간 검색됨)</div>
+              <div className="empty-hint">{t("journal.noMatch")}</div>
             ) : (
               <div className="empty-hint">
-                아직 일지가 없어요. AI 에이전트에게 작업을 요청하면 Ocul-PM이 자동으로 기록합니다.
+                {t("journal.empty")}
                 <div style={{ marginTop: 12 }}>
                   <button
                     type="button"
@@ -473,7 +475,7 @@ export function JournalScreenV2({
                     disabled={backfilling}
                     onClick={runGitBackfill}
                   >
-                    {backfilling ? "가져오는 중…" : "git 히스토리에서 가져오기"}
+                    {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
                   </button>
                 </div>
               </div>
@@ -481,14 +483,14 @@ export function JournalScreenV2({
           </div>
 
           {filteredDays && filteredDays.length > 1 ? (
-            <nav className="date-rail" aria-label="날짜로 이동">
+            <nav className="date-rail" aria-label={t("journal.dateRail")}>
               {filteredDays.map((day) => (
                 <button
                   key={day.workday}
                   type="button"
                   className={"date-rail-item" + (activeWorkday === day.workday ? " active" : "")}
                   onClick={() => jumpToDay(day.workday)}
-                  title={`${day.label} · ${day.entries.length}건`}
+                  title={`${day.label} · ${t("journal.dayCount", { n: day.entries.length })}`}
                 >
                   <span className="date-rail-md">
                     {day.workday.slice(4, 6)}-{day.workday.slice(6, 8)}
@@ -507,7 +509,7 @@ export function JournalScreenV2({
           workday={todayKey}
           onCreated={(entry) => {
             void refresh();
-            toast.info(`일지를 작성했어요: ${entry.title}`);
+            toast.info(t("journal.written", { title: entry.title }));
           }}
           onClose={() => setManualOpen(false)}
         />

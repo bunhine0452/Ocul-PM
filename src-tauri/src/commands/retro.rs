@@ -409,7 +409,8 @@ pub async fn generate_retro(
         return Err("이 기간에 기록된 작업이 없습니다.".to_string());
     }
 
-    let retro_md = call_llm(&provider, &model, &signals).await?;
+    let content_lang = crate::oculpm::content_lang::current(&db).await;
+    let retro_md = call_llm(&provider, &model, &signals, content_lang).await?;
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -536,7 +537,12 @@ fn fmt_signals(s: &RetroSignals) -> String {
     out
 }
 
-async fn call_llm(provider: &str, model: &str, signals: &RetroSignals) -> Result<String, String> {
+async fn call_llm(
+    provider: &str,
+    model: &str,
+    signals: &RetroSignals,
+    content_lang: crate::oculpm::content_lang::ContentLang,
+) -> Result<String, String> {
     let api_key = {
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
@@ -550,7 +556,7 @@ async fn call_llm(provider: &str, model: &str, signals: &RetroSignals) -> Result
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: SYSTEM_PROMPT.to_string(),
+                    content: content_lang.apply(SYSTEM_PROMPT),
                 },
                 llm::Message {
                     role: llm::Role::User,

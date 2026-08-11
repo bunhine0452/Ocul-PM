@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:storage": "node scripts/check-no-localstorage.mjs",
-    "lint": "pnpm lint:storage"
+    "lint:i18n": "node scripts/check-no-hardcoded-korean.mjs",
+    "lint": "pnpm lint:storage && pnpm lint:i18n"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

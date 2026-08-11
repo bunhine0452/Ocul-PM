@@ -7,6 +7,8 @@
  * Skeleton, 모양을 예측할 수 없는 단발 작업(재인덱싱 등)은 스피너.
  */
 
+import { useT } from "@/i18n";
+
 interface SkeletonProps {
   width?: number | string;
   height?: number | string;
@@ -34,11 +36,12 @@ export function SkeletonList({
   height?: number;
   gap?: number;
 }) {
+  const { t } = useT();
   return (
     <div
       style={{ display: "flex", flexDirection: "column", gap }}
       role="status"
-      aria-label="불러오는 중"
+      aria-label={t("common.loading")}
     >
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton key={i} height={height} />

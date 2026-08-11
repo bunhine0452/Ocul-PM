@@ -4,6 +4,8 @@
 // resolves on both the shadcn dashboard and the ui_v2 shell). Replaces bare
 // "불러오는 중…" text spinners. See App.css `@keyframes ocul*` for the motion.
 
+import { useT } from "@/i18n";
+
 interface OculSpinnerProps {
   size?: number;
   className?: string;
@@ -12,6 +14,7 @@ interface OculSpinnerProps {
 }
 
 export function OculSpinner({ size = 28, className, label }: OculSpinnerProps) {
+  const { t } = useT();
   const svg = (
     <svg
       width={size}
@@ -19,7 +22,7 @@ export function OculSpinner({ size = 28, className, label }: OculSpinnerProps) {
       viewBox="0 0 24 24"
       fill="none"
       role="img"
-      aria-label={label ?? "불러오는 중"}
+      aria-label={label ?? t("common.loading")}
       style={{ display: "block" }}
     >
       <g stroke="var(--primary)" strokeWidth={2} strokeLinecap="round">

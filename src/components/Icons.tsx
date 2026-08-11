@@ -528,4 +528,6 @@ export {
   // 터미널 개편 — 가로/세로 분할.
   Columns2,
   Rows2,
+  // i18n Phase 0 — 설정 → 모양 → 언어.
+  Languages,
 } from "lucide-react";

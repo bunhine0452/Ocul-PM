@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
 import type { LayerComparison } from "@/lib/bindings";
+import { useT, type I18nKey } from "@/i18n";
 
 interface HonestyAuditProps {
   projectId: number;
@@ -15,10 +16,10 @@ const SEV_COLOR: Record<string, string> = {
   warning: "var(--warn, #c2810a)",
   critical: "var(--danger, #c0392b)",
 };
-const SEV_LABEL: Record<string, string> = {
-  ok: "경미",
-  warning: "주의",
-  critical: "심각",
+const SEV_LABEL: Record<string, I18nKey> = {
+  ok: "today.honesty.ok",
+  warning: "today.honesty.warning",
+  critical: "today.honesty.critical",
 };
 
 /**
@@ -30,6 +31,7 @@ const SEV_LABEL: Record<string, string> = {
  * days). Reuses the already-complete `oculpm_compare_layers` backend (F2).
  */
 export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps) {
+  const { t } = useT();
   const [rows, setRows] = useState<LayerComparison[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -88,7 +90,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
           marginBottom: 4,
         }}
       >
-        <span style={{ fontWeight: 700 }}>정직성 감사</span>
+        <span style={{ fontWeight: 700 }}>{t("today.honesty.title")}</span>
         <span
           style={{
             fontSize: 12,
@@ -96,11 +98,11 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
             color: "var(--warn, #c2810a)",
           }}
         >
-          기록 안 된 변경 {totalMissed}
+          {t("today.honesty.unlogged", { n: totalMissed })}
         </span>
       </div>
       <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10 }}>
-        에이전트가 바꿨지만 작업 일지에 기록하지 않은 파일이에요.
+          {t("today.honesty.desc")}
       </div>
       {rows.map((r) => (
         <div key={r.session_id} style={{ marginBottom: 8 }}>
@@ -112,8 +114,8 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
               marginBottom: 2,
             }}
           >
-            세션 {r.session_id} · {SEV_LABEL[r.mismatch_severity] ?? r.mismatch_severity} ·{" "}
-            {r.only_in_index.length}개
+            {t("today.honesty.session")} {r.session_id} · {SEV_LABEL[r.mismatch_severity] ? t(SEV_LABEL[r.mismatch_severity]) : r.mismatch_severity} ·{" "}
+            {t("today.honesty.count", { n: r.only_in_index.length })}
           </div>
           <ul
             style={{
@@ -128,7 +130,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
             ))}
             {r.only_in_index.length > 12 ? (
               <li style={{ color: "var(--text-3)" }}>
-                … 외 {r.only_in_index.length - 12}개
+                {t("today.honesty.more", { n: r.only_in_index.length - 12 })}
               </li>
             ) : null}
           </ul>

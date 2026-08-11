@@ -11,6 +11,7 @@ import { TriggerBadge } from "./triggerMeta";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
+import { useT, getLang } from "@/i18n";
 
 // 작업 일지 항목의 풍부한 열람 — 전용 화면(마스터-디테일). Dogfooding 2026-06-07:
 // 모달(오버레이) 대신 콘텐츠 영역을 가득 채우는 디테일 뷰로 교체. 좌 pane 은
@@ -32,7 +33,11 @@ function timeLabel(createdAt: string): string {
   return m ? m[1] : "";
 }
 
-const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
+/** 요일 라벨 — 로케일 인식 (하드코딩 배열 대신 Intl, useTodayBrief 와 같은 방식). */
+const weekdays = () => {
+  const f = new Intl.DateTimeFormat(getLang(), { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(1970, 0, 4 + i))));
+};
 
 /**
  * The entry's written date, e.g. "2026.06.15 (월)". Prefers the ISO `created_at`
@@ -50,7 +55,7 @@ function dateLabel(createdAt: string, workday: string): string {
     [, y, mo, d] = wd;
   }
   const dt = new Date(Number(y), Number(mo) - 1, Number(d));
-  return `${y}.${mo}.${d} (${WEEKDAYS_KO[dt.getDay()] ?? ""})`;
+  return `${y}.${mo}.${d} (${weekdays()[dt.getDay()] ?? ""})`;
 }
 
 /**
@@ -103,6 +108,7 @@ function stripLeadingTitle(body: string, title: string): string {
 }
 
 export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryDetailViewProps) {
+  const { t } = useT();
   const { state } = useWorkspace();
   const diffMode = state.diffMode;
   const [detail, setDetail] = useState<JournalEntry | null>(null);
@@ -204,7 +210,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
       setWarnings(updated.parse_warnings ?? []);
       setDetail(updated);
       setConfirmCoerce(false);
-      toast.info("원본 파일에 시간대를 기록했어요");
+      toast.info(t("entry.tzApplied"));
     } catch (e) {
       toast.destructive(e instanceof OculpmApiError ? e.message : String(e));
     } finally {
@@ -216,7 +222,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
     <>
       <Toolbar
         leading={
-          <button type="button" className="iconbtn" onClick={onBack} aria-label="목록으로" title="목록으로 (Esc)">
+          <button type="button" className="iconbtn" onClick={onBack} aria-label={t("entry.back")} title={t("entry.backTitle")}>
             <ArrowLeft size={17} />
           </button>
         }
@@ -249,10 +255,10 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                 title={
                   parseWarnings.length > 0
                     ? parseWarnings.join("\n")
-                    : "frontmatter 파싱 경고"
+                    : t("entry.parseWarn")
                 }
               >
-                <AlertTriangle size={12} /> {parseFailed ? "파싱 경고" : "보정됨"}
+                <AlertTriangle size={12} /> {parseFailed ? t("entry.parseWarnShort") : t("entry.coerced")}
                 {parseWarnings.length > 0 ? ` ${parseWarnings.length}` : ""}
               </span>
             ) : null}
@@ -286,7 +292,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                 }}
               >
                 <AlertTriangle size={12} />{" "}
-                {parseFailed ? "frontmatter 파싱 경고" : "frontmatter 보정 내역"}
+                {parseFailed ? t("entry.parseWarn") : t("entry.coercionTitle")}
               </div>
               <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-2)" }}>
                 {parseWarnings.map((w, i) => (
@@ -298,7 +304,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                   {confirmCoerce ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
                       <span style={{ color: "var(--text-2)" }}>
-                        원본 .md 파일을 직접 수정합니다.
+                        {t("entry.editsOriginal")}
                       </span>
                       <button
                         type="button"
@@ -306,7 +312,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                         onClick={() => void applyTzToDisk()}
                         disabled={coercing}
                       >
-                        {coercing ? "적용 중…" : "적용"}
+                        {coercing ? t("entry.applying") : t("entry.apply")}
                       </button>
                       <button
                         type="button"
@@ -314,7 +320,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                         onClick={() => setConfirmCoerce(false)}
                         disabled={coercing}
                       >
-                        취소
+                        {t("common.cancel")}
                       </button>
                     </div>
                   ) : (
@@ -322,9 +328,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                       type="button"
                       className="btn sm"
                       onClick={() => setConfirmCoerce(true)}
-                      title="위 시간대 보정을 원본 .md 파일에 1회 기록합니다 (슬러그는 표시용으로만 정돈)"
+                      title={t("entry.applyTzTitle")}
                     >
-                      원본 파일에 시간대 적용
+                      {t("entry.applyTz")}
                     </button>
                   )}
                 </div>
@@ -345,7 +351,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
           {files.length > 0 ? (
             <div style={{ marginBottom: 16 }}>
               <div className="diff-files-head" style={{ padding: "0 0 8px" }}>
-                변경된 파일 {files.length}
+                {t("entry.filesChanged", { n: files.length })}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {files.map((f) => {
@@ -365,7 +371,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                       <span className="dfile-name">{labels[f.path] ?? f.path}</span>
                       {!hasDiff ? (
                         <span style={{ fontSize: 10, color: "var(--text-3)", flex: "none" }}>
-                          {f.op === "delete" ? "삭제됨" : "기록없음"}
+                          {f.op === "delete" ? t("entry.deleted") : t("entry.noRecord")}
                         </span>
                       ) : null}
                     </button>
@@ -378,13 +384,13 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
           <div className="entry-narrative">
             {detail == null ? (
               <span className="text-muted-foreground" style={{ fontSize: 12 }}>
-                불러오는 중…
+                {t("common.loading")}
               </span>
             ) : narrative.trim() ? (
               <Markdown>{narrative}</Markdown>
             ) : (
               <span className="text-muted-foreground" style={{ fontSize: 12 }}>
-                추가 서술이 없어요.
+                {t("entry.noNarrative")}
               </span>
             )}
           </div>
@@ -423,23 +429,22 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
           <div className="diff-code">
             {error ? (
               <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-                변경 기록을 불러오지 못했어요: {error}
+                {t("entry.diffLoadFailed", { error })}
               </div>
             ) : diffs == null ? (
               <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-                불러오는 중…
+                {t("common.loading")}
               </div>
             ) : diffs.length === 0 ? (
               <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-                이 일지에는 기록된 변경이 없어요.
+                {t("entry.noDiff")}
                 <br />
                 <span className="text-muted-foreground" style={{ fontSize: 11 }}>
-                  (git 저장소가 아니거나, 변경한 파일 경로를 git 이력에서 찾지 못한 경우예요 —
-                  아래에서 현재 변경을 직접 확인하거나 왼쪽 서술로 맥락을 보세요)
+                  {t("entry.noDiffHint")}
                 </span>
                 <div style={{ marginTop: 12 }}>
                   <button className="btn sm" onClick={() => onOpenDiff(entry)}>
-                    <GitCompareArrows size={14} /> 변경 diff 화면에서 보기
+                    <GitCompareArrows size={14} /> {t("entry.openInDiff")}
                   </button>
                 </div>
               </div>

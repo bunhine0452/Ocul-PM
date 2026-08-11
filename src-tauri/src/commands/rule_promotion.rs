@@ -84,7 +84,8 @@ pub async fn rule_draft_generate(
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: rule_promotion::DRAFT_SYSTEM_PROMPT.to_string(),
+                    content: crate::oculpm::content_lang::current(&db).await
+                        .apply(rule_promotion::DRAFT_SYSTEM_PROMPT),
                 },
                 llm::Message {
                     role: llm::Role::User,

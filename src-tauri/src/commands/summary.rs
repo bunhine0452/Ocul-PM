@@ -247,6 +247,7 @@ async fn call_llm(
     model: &str,
     style: SummaryStyle,
     input: String,
+    content_lang: crate::oculpm::content_lang::ContentLang,
 ) -> Result<String, String> {
     let api_key = {
         let secret_name = format!("{provider}_api_key");
@@ -260,7 +261,7 @@ async fn call_llm(
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: system_prompt(style).to_string(),
+                    content: content_lang.apply(system_prompt(style)),
                 },
                 llm::Message {
                     role: llm::Role::User,
@@ -322,7 +323,8 @@ pub async fn oculpm_generate_summary(
 
     if let (Some(provider), Some(model)) = (provider, model) {
         let input = fmt_llm_input(&since, &until, &entries, &open_items);
-        match call_llm(&provider, &model, style, input).await {
+        let content_lang = crate::oculpm::content_lang::current(&db).await;
+        match call_llm(&provider, &model, style, input, content_lang).await {
             Ok(markdown) => {
                 return Ok(GeneratedSummary {
                     style,

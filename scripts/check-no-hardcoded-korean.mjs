@@ -1,0 +1,315 @@
+#!/usr/bin/env node
+/**
+ * Lint rule: 사용자에게 보이는 한글은 소스에 직접 쓰지 않고 `src/i18n` 사전을
+ * 거친다 (docs/20260811_three-features/03-i18n.md §5).
+ *
+ * `check-no-localstorage.mjs` 와 같은 구조 — zero-dep Node 워커 + allowlist.
+ *
+ * ## allowlist 를 역방향으로 쓴다
+ *
+ * Phase 0 에서 **현재 한글이 있는 파일을 전부 ALLOWLIST 에 넣고 통과**시킨다.
+ * Phase 2 에서 파일을 하나 번역할 때마다 여기서 한 줄씩 뺀다. 그래서:
+ *
+ *  - Phase 0 직후부터 **신규 파일은 한글 하드코딩이 불가능**하다
+ *    (allowlist 에 없으므로 즉시 걸린다)
+ *  - Phase 2 진척도가 PENDING 길이로 정확히 측정된다 (Phase 0 시딩 시점 130 → 0)
+ *  - 이미 끝낸 파일의 회귀가 즉시 잡힌다
+ *
+ * Phase 2 완료 기준 = ALLOWLIST 가 PERMANENT 만 남은 상태.
+ *
+ * ## 탐지 방식
+ *
+ * 라인 단위 정규식이 아니라 **문자 단위 상태 기계**로 훑는다. `"https://…"`
+ * 안의 `//` 를 주석 시작으로 오독해 그 뒤 한글을 놓치는(= 게이트가 조용히
+ * 뚫리는) 실패를 막기 위해서다. 주석 안 한글은 번역 대상이 아니므로 건너뛴다
+ * — 이 코드베이스의 서술 언어는 한국어다.
+ *
+ * ## 예외 주석
+ *
+ *   // i18n-ignore -- 사유          (같은 줄)
+ *   // i18n-ignore-next-line -- 사유 (다음 줄)
+ *
+ * 정규식 문자 클래스(`[가-힣]`)나 검색 별칭처럼 **표시 문자열이 아닌** 한글에
+ * 쓴다. 사유를 반드시 적는다.
+ *
+ * Exit 0 on clean, non-zero with a report on violations.
+ */
+import { readdir, readFile } from "node:fs/promises";
+import { join, relative } from "node:path";
+
+const ROOT = new URL("../src", import.meta.url).pathname;
+
+/**
+ * 설계상 한글이 있어야 하는 파일 — Phase 2 가 끝나도 남는다.
+ */
+const PERMANENT = new Set([
+  "i18n/ko.ts", // 한국어 사전 정본.
+  "i18n/en.ts", // 언어 이름("한국어")은 자기 언어 표기로 두는 게 관례.
+  // i18n 자체를 검증하는 테스트 3종 — 여기서 한글은 번역할 UI 카피가 아니라
+  // **검사 대상 소재**다. 스캐너 픽스처("URL 안의 // 를 오독하지 않는가")와
+  // 한국어 렌더 단언(`getByText("작업 일지")`)은 한글이어야만 의미가 있다.
+  "__tests__/i18n.test.ts",
+  "__tests__/i18n_lint_scanner.test.ts",
+  "__tests__/i18n_switch.test.tsx",
+  "__tests__/i18n_settings_wiring.test.tsx",
+]);
+
+/**
+ * Phase 2 에서 하나씩 제거할 미번역 파일. **추가 금지** — 새 파일은 처음부터
+ * `t()` 로 쓴다. 줄이는 방향으로만 편집한다.
+ */
+const PENDING = new Set([
+  // @PENDING_START (scripts/gen-i18n-allowlist.mjs 가 생성)
+  "__tests__/agent_detect.test.ts",
+  "__tests__/ai_context_parts.test.ts",
+  "__tests__/ai_history.test.tsx",
+  "__tests__/app_dialog.test.tsx",
+  "__tests__/claude_hooks_settings.test.tsx",
+  "__tests__/console_bridge_format.test.ts",
+  "__tests__/defer_ledger_v2.test.tsx",
+  "__tests__/diff_v2.test.tsx",
+  "__tests__/discussion_v2.test.tsx",
+  "__tests__/docs_resolve.test.ts",
+  "__tests__/edd_lite_v2.test.tsx",
+  "__tests__/file_links.test.ts",
+  "__tests__/home_match.test.ts",
+  "__tests__/home_model.test.ts",
+  "__tests__/ime_bridge.test.ts",
+  "__tests__/journal_v2.test.tsx",
+  "__tests__/mcp_settings.test.tsx",
+  "__tests__/nav_registry.test.ts",
+  "__tests__/notion_export_v2.test.tsx",
+  "__tests__/oculpm_settings_subtabs.test.tsx",
+  "__tests__/osc_shell.test.ts",
+  "__tests__/plan_list.test.ts",
+  "__tests__/plugin_docs_sync.test.ts",
+  "__tests__/plugin_skills_sync.test.ts",
+  "__tests__/project_manager.test.tsx",
+  "__tests__/recent_changes_store.test.tsx",
+  "__tests__/rule_promotion_v2.test.tsx",
+  "__tests__/rules_hub_v2.test.tsx",
+  "__tests__/sidebar_a11y.test.tsx",
+  "__tests__/skill_promotion_v2.test.tsx",
+  "__tests__/skill_shop.test.tsx",
+  "__tests__/skills_catalog.test.ts",
+  "__tests__/skills_gallery_v2.test.tsx",
+  "__tests__/skills_v2.test.tsx",
+  "__tests__/start_screen.test.tsx",
+  "__tests__/term_panes.test.ts",
+  "__tests__/terminal_quality_round.test.ts",
+  "__tests__/today_journal_missing.test.tsx",
+  "__tests__/today_v2.test.tsx",
+  "__tests__/token_estimate.test.ts",
+  "__tests__/tools_v2.test.tsx",
+  "__tests__/tray_popover.test.tsx",
+  "__tests__/update_banner.test.tsx",
+  "__tests__/workday_rollover.test.tsx",
+  "contexts/WorkspaceContext.tsx",
+  "features/chat/AiPanelScreenV2.tsx",
+  "features/chat/ConversationHistoryModal.tsx",
+  "features/chat/aiActions.tsx",
+  "features/chat/aiContext.ts",
+  "features/docs/DocsImage.tsx",
+  "features/docs/DocsScreenV2.tsx",
+  "features/docs/DocsTree.tsx",
+  "features/graph/FileNode.tsx",
+  "features/graph/GraphInspector.tsx",
+  "features/graph/GraphScreenV2.tsx",
+  "features/graph/types.ts",
+  "features/onboarding/GreenfieldWizard.tsx",
+  "features/onboarding/StartScreen.tsx",
+  "features/onboarding/home/atoms.tsx",
+  "features/onboarding/home/chrome.tsx",
+  "features/onboarding/home/homeMatch.ts",
+  "features/onboarding/home/homeModel.ts",
+  "features/onboarding/home/rows.tsx",
+  "features/onboarding/home/tiles.tsx",
+  "features/projects/ProjectManager.tsx",
+  "features/retro/RuleCandidates.tsx",
+  "features/retro/SkillCandidates.tsx",
+  "features/retro/retroGen.ts",
+  "features/search/SearchScreenV2.tsx",
+  "features/skills/PluginDocsTab.tsx",
+  "features/skills/RulesTab.tsx",
+  "features/skills/SkillShopTab.tsx",
+  "features/skills/SkillsScreenV2.tsx",
+  "features/skills/pluginDocs.ts",
+  "features/skills/rulesModel.ts",
+  "features/skills/skillsCatalog.ts",
+  "features/skills/skillsGallery.ts",
+  "features/skills/skillsModel.ts",
+  "features/terminal/TerminalErrorBoundary.tsx",
+  "features/terminal/TerminalInstance.tsx",
+  "features/terminal/TerminalInstanceImpl.tsx",
+  "features/terminal/TerminalScreenV2.tsx",
+  "features/terminal/fileLinks.ts",
+  "features/terminal/imeBridge.ts",
+  "features/terminal/shellStatus.ts",
+  "features/terminal/tabTitle.ts",
+  "features/terminal/useAgentRuns.ts",
+  "features/tray/TrayPopover.tsx",
+  // @PENDING_END
+]);
+
+const ALLOWLIST = new Set([...PERMANENT, ...PENDING]);
+
+const EXT = new Set([".ts", ".tsx"]);
+const HANGUL = /[가-힣]/;
+
+/**
+ * 소스에서 **주석을 제외한** 영역만 남긴다. 주석 문자는 공백으로 치환해
+ * 줄/열 번호가 보존된다.
+ *
+ * 상태: code / line-comment / block-comment / '…' / "…" / `…`
+ * 문자열 안에 남은 한글은 표시 문자열이거나 JSX 텍스트다 — 둘 다 번역 대상.
+ */
+function stripComments(src) {
+  let out = "";
+  let i = 0;
+  const n = src.length;
+  // 0=code 1=line 2=block 3=single 4=double 5=template
+  let state = 0;
+  while (i < n) {
+    const c = src[i];
+    const c2 = src[i + 1];
+    if (state === 0) {
+      if (c === "/" && c2 === "/") {
+        state = 1;
+        out += "  ";
+        i += 2;
+        continue;
+      }
+      if (c === "/" && c2 === "*") {
+        state = 2;
+        out += "  ";
+        i += 2;
+        continue;
+      }
+      if (c === "'") state = 3;
+      else if (c === '"') state = 4;
+      else if (c === "`") state = 5;
+      out += c;
+      i += 1;
+      continue;
+    }
+    if (state === 1) {
+      if (c === "\n") {
+        state = 0;
+        out += c;
+      } else {
+        out += " ";
+      }
+      i += 1;
+      continue;
+    }
+    if (state === 2) {
+      if (c === "*" && c2 === "/") {
+        state = 0;
+        out += "  ";
+        i += 2;
+        continue;
+      }
+      out += c === "\n" ? c : " ";
+      i += 1;
+      continue;
+    }
+    // 문자열 3종 — 이스케이프를 건너뛰고 닫는 따옴표에서 code 로 복귀.
+    if (c === "\\") {
+      out += c + (c2 ?? "");
+      i += 2;
+      continue;
+    }
+    if (
+      (state === 3 && c === "'") ||
+      (state === 4 && c === '"') ||
+      (state === 5 && c === "`")
+    ) {
+      state = 0;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+
+async function* walk(dir) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // src/legacy 는 빌드·tsconfig·vitest 에서 제외된 보존 사문 —
+      // check-no-localstorage.mjs 와 동일하게 건너뛴다.
+      if (entry.name === "legacy") continue;
+      yield* walk(full);
+    } else if (EXT.has(entry.name.slice(entry.name.lastIndexOf(".")))) yield full;
+  }
+}
+
+/** 파일 하나를 검사해 위반 줄 목록을 돌려준다. */
+export function scanSource(src) {
+  const rawLines = src.split("\n");
+  const codeLines = stripComments(src).split("\n");
+  const hits = [];
+  for (let idx = 0; idx < codeLines.length; idx++) {
+    if (!HANGUL.test(codeLines[idx])) continue;
+    const raw = rawLines[idx] ?? "";
+    const prev = rawLines[idx - 1] ?? "";
+    if (raw.includes("i18n-ignore") || prev.includes("i18n-ignore-next-line")) continue;
+    hits.push({ num: idx + 1, line: raw.trim() });
+  }
+  return hits;
+}
+
+async function main() {
+  const offenders = [];
+  const cleanedAllowlisted = [];
+  for await (const file of walk(ROOT)) {
+    const rel = relative(ROOT, file).split("\\").join("/");
+    const src = await readFile(file, "utf8");
+    const hits = scanSource(src);
+    if (ALLOWLIST.has(rel)) {
+      // allowlist 에 있는데 이미 깨끗하다 → 번역이 끝났다는 뜻. 목록에서 빼도록
+      // 알려 준다 (역방향 게이트가 실제로 줄어들게 만드는 장치).
+      if (hits.length === 0 && !PERMANENT.has(rel)) cleanedAllowlisted.push(rel);
+      continue;
+    }
+    if (hits.length > 0) offenders.push({ rel, hits });
+  }
+
+  if (cleanedAllowlisted.length > 0) {
+    console.log(
+      `ℹ 번역이 끝나 allowlist 에서 뺄 수 있는 파일 ${cleanedAllowlisted.length}개:`,
+    );
+    for (const rel of cleanedAllowlisted) console.log(`    ${rel}`);
+    console.log("");
+  }
+
+  if (offenders.length === 0) {
+    console.log(
+      `✓ no hardcoded Korean outside the allowlist (남은 미번역 ${PENDING.size}개)`,
+    );
+    process.exit(0);
+  }
+
+  console.error("✗ 하드코딩된 한글 — src/i18n 사전을 거치세요:");
+  for (const { rel, hits } of offenders) {
+    console.error(`  ${rel}`);
+    for (const { num, line } of hits) console.error(`    ${num}: ${line}`);
+  }
+  console.error(
+    [
+      "",
+      "고치는 법:",
+      "  1. src/i18n/ko.ts 에 키를 추가하고 en.ts 에 영어를 넣는다",
+      "     (en.ts 는 ko.ts 의 키 집합으로 타입 제약 — 빠뜨리면 typecheck 가 잡는다)",
+      "  2. 컴포넌트는 useT() 의 t(), 순수 모듈은 t() 를 직접 쓴다",
+      "  3. 표시 문자열이 아니면 (정규식·검색 별칭 등)",
+      "     `// i18n-ignore -- 사유` 를 같은 줄이나 앞줄에 단다",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
+// 테스트에서 import 할 때는 실행하지 않는다.
+if (process.argv[1] && process.argv[1].endsWith("check-no-hardcoded-korean.mjs")) {
+  await main();
+}

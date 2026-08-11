@@ -34,6 +34,7 @@ import { TodayMonitor } from "./TodayMonitor";
 import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
 // Pure presenter over useTodayBrief (frontend aggregation, no new backend
@@ -68,6 +69,7 @@ export function TodayScreenV2({
   tz,
   onOpenEntry,
 }: TodayScreenV2Props) {
+  const { t } = useT();
   const { brief, loading, error, refresh } = useTodayBrief(
     projectId,
     workday,
@@ -119,14 +121,14 @@ export function TodayScreenV2({
         target?.model ?? null,
       );
       if (res.status !== "ok") {
-        toast.destructive(`스탠드업 생성 실패: ${res.error}`);
+        toast.destructive(t("today.standup.failed", { error: res.error }));
         return;
       }
       await navigator.clipboard.writeText(res.data.markdown);
       toast.info(
         res.data.used_llm
-          ? "AI 스탠드업을 클립보드에 복사했어요"
-          : "스탠드업을 클립보드에 복사했어요 (기본 형식)",
+          ? t("today.standup.copiedAi")
+          : t("today.standup.copiedPlain"),
       );
     } finally {
       setStandupBusy(false);
@@ -141,22 +143,22 @@ export function TodayScreenV2({
           className="search-box"
           style={{ minWidth: 200 }}
           onClick={() => onNavigate("search")}
-          aria-label="코드 검색 열기"
+          aria-label={t("today.search.open")}
         >
           <SearchIcon size={15} color="var(--text-3)" />
-          <span style={{ color: "var(--text-3)", flex: 1, textAlign: "left" }}>코드 검색…</span>
+          <span style={{ color: "var(--text-3)", flex: 1, textAlign: "left" }}>{t("today.search.placeholder")}</span>
           <span className="kbd">⌘K</span>
         </button>
         <button
           className="btn"
           onClick={() => void copyStandup()}
           disabled={standupBusy || !oculpmReady || !workday}
-          title="어제~오늘 일지로 스탠드업 공유문을 만들어 클립보드에 복사"
+          title={t("today.standup.title")}
         >
-          <Clipboard size={15} /> {standupBusy ? "생성 중…" : "스탠드업 복사"}
+          <Clipboard size={15} /> {standupBusy ? t("today.standup.busy") : t("today.standup.copy")}
         </button>
         <button className="btn" onClick={() => onNavigate("journal")}>
-          <NotebookText size={15} /> 전체 일지
+          <NotebookText size={15} /> {t("today.allEntries")}
         </button>
       </Toolbar>
 
@@ -178,33 +180,34 @@ export function TodayScreenV2({
                 <div className="today-greet">
                   {oculpmReady && brief ? (
                     <>
-                      오늘 <span className="accent">{brief.changedToday}건</span>의 작업이
-                      기록됐어요
+                      {t("today.headlinePrefix")}{" "}
+                      <span className="accent">{t("today.headlineCount", { n: brief.changedToday })}</span>{" "}
+                      {t("today.headlineSuffix")}
                     </>
                   ) : oculpmReady ? (
                     <Skeleton width={240} height={22} style={{ display: "inline-block", verticalAlign: "middle" }} />
                   ) : (
-                    "ocul-pm이 아직 활성화되지 않았어요"
+                    t("today.notActive")
                   )}
                 </div>
                 <div className="today-date">
-                  AI 에이전트가 코드를 쓰는 동안 Ocul-PM이 자동으로 일지를 작성합니다 · {tz}
+                  {t("today.subhead")} · {tz}
                 </div>
               </div>
             </div>
             <button className="btn primary" onClick={() => onNavigate("diff")}>
-              <GitCompareArrows size={15} /> 오늘 변경 검토
+              <GitCompareArrows size={15} /> {t("today.reviewChanges")}
             </button>
           </div>
 
           {error ? (
             <div className="card card-pad" style={{ marginBottom: 16 }}>
               <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> 오늘 데이터를 불러오지 못했어요
+                <TriangleAlert size={14} /> {t("today.loadFailed")}
               </div>
               <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
               <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
-                다시 시도
+                {t("common.retry")}
               </button>
             </div>
           ) : null}
@@ -214,21 +217,21 @@ export function TodayScreenV2({
             <StatCard
               icon={GitCommitVertical}
               tint={{ bg: "var(--accent-soft)", fg: "var(--accent-text)" }}
-              label="기록된 작업"
+              label={t("today.stat.recorded")}
               value={brief ? brief.changedToday : "—"}
-              unit="건"
+              unit={t("today.unit.entries")}
             />
             <StatCard
               icon={FileCode2}
               tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
-              label="변경된 파일"
+              label={t("today.stat.filesChanged")}
               value={brief ? brief.filesTouched : "—"}
-              unit="개"
+              unit={t("today.unit.files")}
               sub={
                 brief ? (
                   <span className="mono">
                     <span className="diff-add">+{brief.bytesAdded}</span>{" "}
-                    <span className="diff-del">−{brief.bytesRemoved}</span> 바이트
+                    <span className="diff-del">−{brief.bytesRemoved}</span> {t("today.unit.bytes")}
                   </span>
                 ) : null
               }
@@ -236,16 +239,16 @@ export function TodayScreenV2({
             <StatCard
               icon={TriangleAlert}
               tint={{ bg: "var(--t-error-soft)", fg: "var(--t-error)" }}
-              label="에러 사이클"
+              label={t("today.stat.errorCycles")}
               value={brief ? brief.errorCycles : "—"}
-              unit="회"
+              unit={t("today.unit.times")}
             />
             <StatCard
               icon={Bot}
               tint={{ bg: "var(--t-refactor-soft)", fg: "var(--t-refactor)" }}
-              label="참여 에이전트"
+              label={t("today.stat.agents")}
               value={brief ? brief.agents.length : "—"}
-              unit="개"
+              unit={t("today.unit.files")}
             />
           </div>
 
@@ -267,10 +270,10 @@ export function TodayScreenV2({
                 style={{ padding: "40px 20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}
               >
                 <div>
-                  오늘 아직 기록이 없어요. 평소처럼 코딩 에이전트로 작업하면 Ocul-PM이 자동으로 일지를 작성합니다.
+                  {t("today.empty")}
                 </div>
                 <button className="btn primary" onClick={() => setTermOpen(true)}>
-                  <Terminal size={15} /> 여기서 에이전트 실행
+                  <Terminal size={15} /> {t("today.runAgent")}
                 </button>
               </div>
             </div>
@@ -281,14 +284,14 @@ export function TodayScreenV2({
                 <div className="card" style={{ marginBottom: 16 }}>
                   <div className="panel-head">
                     <Star size={16} color="var(--accent-text)" />
-                    <h3>오늘의 하이라이트</h3>
+                    <h3>{t("today.highlights")}</h3>
                     <span className="count">{brief ? brief.highlights.length : 0}</span>
                     <button
                       className="btn ghost sm right"
                       onClick={() => onNavigate("journal")}
-                      aria-label="작업 일지 모두 보기"
+                      aria-label={t("today.viewAllAria")}
                     >
-                      모두 보기 <ArrowRight size={13} />
+                      {t("today.viewAll")} <ArrowRight size={13} />
                     </button>
                   </div>
                   <div className="panel-body">
@@ -297,7 +300,7 @@ export function TodayScreenV2({
                         <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
                       ))
                     ) : (
-                      <div className="empty-hint">표시할 하이라이트가 없어요.</div>
+                      <div className="empty-hint">{t("today.noHighlights")}</div>
                     )}
                   </div>
                 </div>
@@ -305,7 +308,7 @@ export function TodayScreenV2({
                 <div className="card">
                   <div className="panel-head">
                     <History size={16} color="var(--text-2)" />
-                    <h3>어제 마무리한 작업</h3>
+                    <h3>{t("today.yesterday")}</h3>
                     <span className="count">{brief ? brief.yesterdayDone.length : 0}</span>
                   </div>
                   <div className="panel-body">
@@ -314,7 +317,7 @@ export function TodayScreenV2({
                         <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
                       ))
                     ) : (
-                      <div className="empty-hint">어제 완료한 작업이 없어요.</div>
+                      <div className="empty-hint">{t("today.noYesterday")}</div>
                     )}
                   </div>
                 </div>

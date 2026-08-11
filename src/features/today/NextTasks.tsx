@@ -1,5 +1,6 @@
 import { ListTodo, ArrowRight, Loader } from "@/components/Icons";
 import type { NextTask } from "./useTodayBrief";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — "다음 할 일" panel. PR-R1 (A1): wired to Planner
 // subtasks via useNextTasks (the PR-UI 2 placeholder is now real data). Shows
@@ -13,15 +14,16 @@ export function NextTasks({
   tasks: NextTask[] | null;
   onOpenPlanner: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="card">
       <div className="panel-head">
         <ListTodo size={16} color="var(--text-2)" />
-        <h3>다음 할 일</h3>
+        <h3>{t("today.next.title")}</h3>
         <button
           className="btn ghost sm right"
           onClick={onOpenPlanner}
-          aria-label="Planner 열기"
+          aria-label={t("today.next.open")}
         >
           Planner <ArrowRight size={13} />
         </button>
@@ -29,28 +31,28 @@ export function NextTasks({
       <div className="panel-body">
         {tasks == null ? (
           <div className="empty-hint" style={{ padding: "24px 16px" }}>
-            불러오는 중…
+            {t("common.loading")}
           </div>
         ) : tasks.length === 0 ? (
           <div className="empty-hint" style={{ padding: "24px 16px" }}>
-            Planner에서 목표와 다음 할 일을 관리하세요.
+            {t("today.next.empty")}
           </div>
         ) : (
-          tasks.map((t) => (
+          tasks.map((task) => (
             <button
               type="button"
               className="next-item"
-              key={t.id}
+              key={task.id}
               onClick={onOpenPlanner}
             >
-              <span className={"next-check" + (t.active ? " active" : "")}>
-                {t.active ? <Loader size={11} color="var(--accent)" /> : null}
+              <span className={"next-check" + (task.active ? " active" : "")}>
+                {task.active ? <Loader size={11} color="var(--accent)" /> : null}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="next-title">{t.title}</div>
-                <div className="next-goal">{t.goalTitle}</div>
+                <div className="next-title">{task.title}</div>
+                <div className="next-goal">{task.goalTitle}</div>
               </div>
-              {t.active ? <span className="sub-active-pill">진행중</span> : null}
+              {task.active ? <span className="sub-active-pill">{t("today.next.active")}</span> : null}
             </button>
           ))
         )}

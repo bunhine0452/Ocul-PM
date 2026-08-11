@@ -13,6 +13,7 @@ import {
   Puzzle,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import type { I18nKey } from "@/i18n";
 
 // v2 (docs/20260706_v2/01-ux-spec.md §1) — 내비게이션 단일 소스.
 // 사이드바·커맨드 팔레트·⌘번호 단축키가 전부 이 배열에서 파생된다.
@@ -29,28 +30,36 @@ export type NavIcon = React.ComponentType<{
 
 export interface NavEntry {
   id: UiV2View;
-  label: string;
-  /** 팔레트 fuzzy 검색용 한/영 별칭. */
-  alias: string;
+  /**
+   * 표시 라벨의 **사전 키** (i18n Phase 0). 라벨 문자열을 여기 직접 두면
+   * 모듈 로드 시점에 언어가 굳어 설정에서 언어를 바꿔도 사이드바가 안 바뀐다.
+   * 소비처가 `t(labelKey)` 로 그린다.
+   */
+  labelKey: I18nKey;
+  /**
+   * ⌘K 팔레트 검색 별칭의 사전 키. 팔레트는 `tAll(aliasKey)` 로 **양 언어의
+   * 별칭을 모두** 키워드에 넣는다 — 영어 모드에서도 "일지" 로 찾히도록.
+   */
+  aliasKey: I18nKey;
   icon: NavIcon;
   group: "main" | "tools";
 }
 
 export const NAV_ENTRIES: NavEntry[] = [
-  { id: "today", label: "Today", alias: "today 오늘 대시보드 포커스", icon: Sunrise, group: "main" },
-  { id: "journal", label: "작업 일지", alias: "journal 일지 timeline 기록 변경 로그", icon: NotebookText, group: "main" },
-  { id: "discussion", label: "문제 해결", alias: "discussion 토의 문제 해결 결정 회의록", icon: MessageSquare, group: "main" },
-  { id: "planner", label: "Planner", alias: "planner 플래너 목표 goal 계획", icon: TargetIcon, group: "main" },
-  { id: "diff", label: "변경 diff", alias: "diff 변경 로컬 파일 검토", icon: GitCompareArrows, group: "main" },
-  { id: "retro", label: "회고", alias: "retro 회고 인사이트 요약 보고", icon: History, group: "main" },
-  { id: "search", label: "코드 검색", alias: "search 코드 검색 시맨틱 semantic", icon: SearchIcon, group: "tools" },
-  { id: "graph", label: "코드 맵", alias: "graph 코드 맵 의존성 dependency 그래프", icon: Network, group: "tools" },
-  { id: "docs", label: "문서", alias: "docs 문서 위키 마크다운 wiki", icon: BookText, group: "tools" },
-  { id: "terminal", label: "터미널", alias: "terminal 터미널 셸 shell", icon: SquareTerminal, group: "tools" },
-  { id: "ai", label: "AI 패널", alias: "ai 패널 채팅 chat llm", icon: SparklesIcon, group: "tools" },
+  { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, group: "main" },
+  { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
+  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessageSquare, group: "main" },
+  { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
+  { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
+  { id: "retro", labelKey: "nav.retro", aliasKey: "nav.retro.alias", icon: History, group: "main" },
+  { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
+  { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
+  { id: "docs", labelKey: "nav.docs", aliasKey: "nav.docs.alias", icon: BookText, group: "tools" },
+  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
+  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: SparklesIcon, group: "tools" },
   // 11번째 이후는 ⌘번호가 없다 — 기존 화면의 번호를 밀지 않도록 끝에 추가.
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
-  { id: "skills", label: "스킬·규칙", alias: "skills 스킬 skill rules 규칙 rule hooks 훅 claude CLAUDE.md 에이전트 프롬프트 cursor", icon: Puzzle, group: "tools" },
+  { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "tools" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

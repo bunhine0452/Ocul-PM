@@ -176,7 +176,14 @@ pub async fn run_generation(
     }
 
     let (identity, stack_json, overview_md) =
-        call_llm(provider, model, &project.name, &signals).await?;
+        call_llm(
+            provider,
+            model,
+            &project.name,
+            &signals,
+            crate::oculpm::content_lang::current(db).await,
+        )
+        .await?;
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -296,6 +303,7 @@ async fn call_llm(
     model: &str,
     project_name: &str,
     signals: &OverviewSignals,
+    content_lang: crate::oculpm::content_lang::ContentLang,
 ) -> Result<(String, String, String), String> {
     let api_key = {
         let secret_name = format!("{provider}_api_key");
@@ -361,7 +369,7 @@ single JSON object with exactly these keys:
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: system_prompt.to_string(),
+                    content: content_lang.apply(&system_prompt),
                 },
                 llm::Message {
                     role: llm::Role::User,

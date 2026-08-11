@@ -5,6 +5,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
+import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
@@ -71,6 +72,7 @@ export default function ShellV2({
   projectRoot,
   onOpenProjectSwitcher,
 }: ShellV2Props) {
+  const { t } = useT();
   const { state, setUiV2View, setState, setProject } = useWorkspace();
   const { resolvedTheme, setTheme } = useTheme();
   const view = state.uiV2View;
@@ -276,7 +278,7 @@ export default function ShellV2({
           // both entry points are identical. Per-project rows read the active
           // project from WorkspaceContext and self-disable when none is selected.
           <>
-            <Toolbar title="설정" sub="모든 데이터는 이 기기에만 저장됩니다" />
+            <Toolbar title={t("shell.settings.title")} sub={t("shell.settings.sub")} />
             <div className="scroll">
               <div className="page fade-in">
                 <SettingsPanel embedded />
@@ -285,10 +287,10 @@ export default function ShellV2({
           </>
         ) : projectId == null ? (
           <>
-            <Toolbar title={view === "today" ? "Today" : "작업 일지"} />
+            <Toolbar title={view === "today" ? t("nav.today") : t("nav.journal")} />
             <div className="scroll">
               <div className="page fade-in">
-                <div className="empty-hint">프로젝트를 먼저 선택해주세요.</div>
+                <div className="empty-hint">{t("shell.selectProjectFirst")}</div>
               </div>
             </div>
           </>

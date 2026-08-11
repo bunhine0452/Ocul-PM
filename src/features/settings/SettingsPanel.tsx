@@ -8,6 +8,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Languages,
   KeyRound,
   Sparkles,
   Database,
@@ -26,6 +27,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { PROVIDERS, type ColorTheme, type Provider, type Theme } from "@/lib/settings";
+import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting } from "@/i18n";
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
@@ -40,19 +42,19 @@ type TabId =
   | "diagnostics"
   | "update";
 
-const TABS: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "appearance", label: "모양", icon: Sun },
-  { id: "llm", label: "LLM", icon: Sparkles },
+const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: "appearance", labelKey: "settings.tab.appearance", icon: Sun },
+  { id: "llm", labelKey: "settings.tab.llm", icon: Sparkles },
   // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
   // 이었고, 로컬 git 은 토큰 없이 동작한다 (git_log/status 는 git CLI).
-  { id: "indexing", label: "인덱싱 & RAG", icon: FileCode },
-  { id: "graph", label: "그래프", icon: GitBranch },
-  { id: "data", label: "데이터", icon: Database },
-  { id: "oculpm", label: "ocul-pm", icon: FileCode },
+  { id: "indexing", labelKey: "settings.tab.indexing", icon: FileCode },
+  { id: "graph", labelKey: "settings.tab.graph", icon: GitBranch },
+  { id: "data", labelKey: "settings.tab.data", icon: Database },
+  { id: "oculpm", labelKey: "settings.tab.oculpm", icon: FileCode },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
-  { id: "diagnostics", label: "진단", icon: SettingsIcon },
+  { id: "diagnostics", labelKey: "settings.tab.diagnostics", icon: SettingsIcon },
   // Update surfaced out of the buried 데이터 section into its own tab below 진단.
-  { id: "update", label: "업데이트", icon: Download },
+  { id: "update", labelKey: "settings.tab.update", icon: Download },
 ];
 
 function secretName(provider: Provider): string {
@@ -186,17 +188,18 @@ const THEME_PRESETS: Array<{
 ];
 
 /** 액센트 6색 스와치 — tokens.css [data-accent] 팔레트의 라이트 기준색 미리보기. */
-const ACCENTS: Array<{ id: ColorTheme; label: string; color: string }> = [
-  { id: "green", label: "그린", color: "#0e8a60" },
-  { id: "blue", label: "블루", color: "#2570e0" },
-  { id: "purple", label: "퍼플", color: "#7c5cdb" },
-  { id: "orange", label: "오렌지", color: "#e07b12" },
-  { id: "rose", label: "로즈", color: "#e0524b" },
-  { id: "teal", label: "틸", color: "#0e9aa0" },
+const ACCENTS: Array<{ id: ColorTheme; labelKey: I18nKey; color: string }> = [
+  { id: "green", labelKey: "settings.accent.green", color: "#0e8a60" },
+  { id: "blue", labelKey: "settings.accent.blue", color: "#2570e0" },
+  { id: "purple", labelKey: "settings.accent.purple", color: "#7c5cdb" },
+  { id: "orange", labelKey: "settings.accent.orange", color: "#e07b12" },
+  { id: "rose", labelKey: "settings.accent.rose", color: "#e0524b" },
+  { id: "teal", labelKey: "settings.accent.teal", color: "#0e9aa0" },
 ];
 
 function AccentPicker() {
   const { settings, set } = useSettings();
+  const { t } = useT();
   // 프리셋 테마는 자기 액센트를 갖고 온다 (SettingsContext 가 data-accent 제거).
   const presetActive = !["light", "dark", "system"].includes(settings.theme);
   return (
@@ -208,8 +211,8 @@ function AccentPicker() {
             <button
               key={a.id}
               onClick={() => set("colorTheme", a.id)}
-              title={a.label}
-              aria-label={`액센트 ${a.label}`}
+              title={t(a.labelKey)}
+              aria-label={t("settings.accent.aria", { name: t(a.labelKey) })}
               aria-pressed={on}
               className={`h-7 w-7 rounded-full border-2 transition-all cursor-pointer ${
                 on ? "border-foreground scale-110 shadow-sm" : "border-transparent hover:scale-105"
@@ -221,24 +224,146 @@ function AccentPicker() {
       </div>
       {presetActive ? (
         <p className="mt-1.5 text-[11px] text-muted-foreground/80">
-          프리셋 테마가 자체 액센트를 사용 중입니다 — 밝게/어둡게/OS 테마에서 적용됩니다.
+          {t("settings.accent.presetActive")}
         </p>
       ) : null}
     </div>
   );
 }
 
-function AppearanceTab() {
+/**
+ * UI 언어 (Phase 0 — docs/20260811_three-features/03-i18n.md).
+ *
+ * 라벨을 `t()` 로 뽑는 이유: 이 섹션 자체가 i18n 배선이 살아 있는지 보여주는
+ * 첫 소비처다. 언어를 바꾸면 제목·힌트가 즉시 바뀌어야 하고, 그게 안 되면
+ * `useT()` 구독이 끊긴 것이다.
+ *
+ * 언어 이름("한국어"/"English")은 양쪽 사전에서 **자기 언어 표기 그대로** 둔다 —
+ * 영어 UI 에서 "Korean" 이라고 쓰면 한국어를 못 읽는 상태에서 자기 언어를 찾기가
+ * 더 어렵다. OS 언어 선택 UI 들의 관례이기도 하다.
+ */
+/** 언어 3지선다 한 줄 — UI 언어와 AI 작성 언어가 같은 모양을 공유한다. */
+function LangPicker({
+  value,
+  onPick,
+}: {
+  value: LangSetting;
+  onPick: (v: LangSetting) => void;
+}) {
+  const { t } = useT();
+  const options: Array<{ id: LangSetting; label: string }> = [
+    { id: "system", label: t("settings.language.system") },
+    { id: "ko", label: t("settings.language.ko") },
+    { id: "en", label: t("settings.language.en") },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {options.map((o) => {
+        const isActive = value === o.id;
+        return (
+          <button
+            key={o.id}
+            onClick={() => onPick(o.id)}
+            aria-pressed={isActive}
+            className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+              isActive
+                ? "bg-primary/10 border-primary text-primary shadow-sm"
+                : "bg-background border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {o.id === "system" ? <Monitor className="w-4 h-4" /> : <Languages className="w-4 h-4" />}
+            <span>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * 언어 설정 — **UI 언어와 AI 작성 언어를 분리**한다.
+ *
+ * 둘을 하나로 묶지 않은 이유는 되돌릴 수 있느냐가 다르기 때문이다. UI 언어는
+ * 화면 텍스트만 바꾸고 언제든 되돌릴 수 있지만, AI 작성 언어는
+ * `.oculpm/journal/*.md` 처럼 **디스크에 영구히 남는 문서**의 언어를 정한다.
+ * UI 를 영어로 바꿨다는 이유만으로 일지가 조용히 영어로 넘어가면 언어가 섞인
+ * 이력이 남고 되돌릴 방법이 없다.
+ *
+ * 그래서 UI 언어를 바꿔도 AI 작성 언어는 **따라가지 않고**, 맞출지 여부를
+ * 액션 버튼 달린 토스트로 제안한다 (차단 모달이 아니라 — 되돌릴 수 있는
+ * 조작마다 흐름을 막으면 설정을 만지기 싫어진다. AGENTS.md 업그레이드 제안과
+ * 같은 관용구다).
+ */
+function LanguageSection() {
   const { settings, set } = useSettings();
+  const { t } = useT();
+  const uiLang = normalizeLangSetting(settings.language);
+  const contentLang = normalizeLangSetting(settings.contentLanguage);
+
+  const langLabel = (v: LangSetting) =>
+    v === "ko"
+      ? t("settings.language.ko")
+      : v === "en"
+        ? t("settings.language.en")
+        : t("settings.language.system");
+
+  const pickUiLang = (next: LangSetting) => {
+    void set("language", next);
+    // 해석된 언어가 실제로 갈라질 때만 제안한다 — 둘 다 "system" 이면 이미
+    // 같은 언어라 물어볼 게 없다.
+    if (resolveLang(next) === resolveLang(contentLang)) return;
+    toast.warning(
+      t("settings.language.syncToastBody", { target: langLabel(next) }),
+      {
+        title: t("settings.language.syncToast", { current: langLabel(contentLang) }),
+        dedupKey: "content-language-sync",
+        durationMs: 15000,
+        actions: [
+          {
+            label: t("settings.language.syncAction", { target: langLabel(next) }),
+            onClick: () => {
+              void set("contentLanguage", next);
+              toast.info(t("settings.language.syncDone", { target: langLabel(next) }));
+            },
+          },
+        ],
+      },
+    );
+  };
+
   return (
     <>
       <Section
-        title="외부 에디터"
-        description="외부 에디터로 열기 (⌘B → 파일 선택 → 외부 에디터). %path 는 절대 파일 경로로 치환됩니다."
+        title={t("settings.language.uiTitle")}
+        description={t("settings.language.uiHint")}
+      >
+        <LangPicker value={uiLang} onPick={pickUiLang} />
+      </Section>
+
+      <Section
+        title={t("settings.language.contentTitle")}
+        description={t("settings.language.contentHint")}
+      >
+        <LangPicker value={contentLang} onPick={(v) => void set("contentLanguage", v)} />
+      </Section>
+    </>
+  );
+}
+
+function AppearanceTab() {
+  const { t } = useT();
+  const { settings, set } = useSettings();
+  return (
+    <>
+      <LanguageSection />
+
+      <Section
+        title={t("settings.editor.title")}
+        description={t("settings.editor.desc")}
       >
         <Field
-          label="명령 템플릿"
-          hint='기본값: code "%path". Cursor 는 cursor "%path", Sublime 은 subl "%path". macOS GUI 앱은 셸 PATH 를 상속받지 않으므로 PATH 에 없으면 절대 경로를 적어 주세요 (예: /usr/local/bin/code "%path").'
+          label={t("settings.editor.field")}
+          hint={t("settings.editor.hint")}
         >
           <Input
             value={settings.externalEditorCommand}
@@ -249,7 +374,7 @@ function AppearanceTab() {
         </Field>
       </Section>
 
-      <Section title="테마" description="밝게 / 어둡게 · OS 설정 · 또는 프리셋 테마를 선택합니다.">
+      <Section title={t("settings.theme.title")} description={t("settings.theme.desc")}>
         <div className="grid grid-cols-3 gap-3">
           {(["light", "dark", "system"] as const).map((t) => {
             const isActive = settings.theme === t;
@@ -277,14 +402,14 @@ function AppearanceTab() {
             자기 액센트를 갖고 오므로(data-accent 제거) 그동안은 비활성. */}
         <div className="mt-1">
           <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
-            액센트 컬러
+            {t("settings.accent.title")}
           </Label>
           <AccentPicker />
         </div>
 
         <div className="mt-1">
           <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
-            프리셋 테마
+            {t("settings.theme.presets")}
           </Label>
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
             {THEME_PRESETS.map((p) => {
@@ -322,10 +447,10 @@ function AppearanceTab() {
       </Section>
 
       <Section
-        title="글자 크기"
-        description="앱 전체 글자와 화면 배율을 조절합니다 — 브라우저 확대/축소처럼 동작합니다."
+        title={t("settings.scale.title")}
+        description={t("settings.scale.desc")}
       >
-        <Field label={`배율 — ${Math.round(settings.uiScale * 100)}%`}>
+        <Field label={t("settings.scale.field", { pct: Math.round(settings.uiScale * 100) })}>
           <div className="flex items-center gap-3">
             <input
               type="range"
@@ -344,16 +469,16 @@ function AppearanceTab() {
         <div className="grid grid-cols-4 gap-2">
           {(
             [
-              ["작게", 0.9],
-              ["기본", 1],
-              ["크게", 1.1],
-              ["더 크게", 1.25],
+              ["settings.scale.small", 0.9],
+              ["settings.scale.default", 1],
+              ["settings.scale.large", 1.1],
+              ["settings.scale.xlarge", 1.25],
             ] as const
-          ).map(([label, v]) => {
+          ).map(([labelKey, v]) => {
             const isActive = Math.abs(settings.uiScale - v) < 0.001;
             return (
               <button
-                key={label}
+                key={labelKey}
                 onClick={() => set("uiScale", v)}
                 className={`px-2 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                   isActive
@@ -361,7 +486,7 @@ function AppearanceTab() {
                     : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {label}
+                {t(labelKey)}
               </button>
             );
           })}
@@ -380,6 +505,7 @@ function AppearanceTab() {
  * tray.hide_dock(keep_running 이 켜져 있을 때만 의미).
  */
 function MenubarSection() {
+  const { t } = useT();
   const [vals, setVals] = useState<{
     show: boolean;
     keep: boolean;
@@ -419,31 +545,31 @@ function MenubarSection() {
   const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; disabled?: boolean }> = [
     {
       key: "show",
-      label: "메뉴바 아이콘 표시",
-      hint: "상단바에 상태 아이콘을 띄웁니다. 에이전트 세션이 활성일 때 아이콘이 움직입니다.",
+      label: t("settings.tray.showIcon"),
+      hint: t("settings.tray.showIconHint"),
     },
     {
       key: "keep",
-      label: "창 닫기 = 메뉴바로 최소화",
-      hint: "창을 닫아도 앱이 메뉴바에 남아 세션 감지·기록을 계속합니다. 종료는 트레이 우클릭 → 종료.",
+      label: t("settings.tray.keepRunning"),
+      hint: t("settings.tray.keepRunningHint"),
     },
     {
       key: "dock",
-      label: "상주 중 Dock 아이콘 숨김",
-      hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다 (macOS).",
+      label: t("settings.tray.hideDock"),
+      hint: t("settings.tray.hideDockHint"),
       disabled: !vals?.keep,
     },
     {
       key: "notify",
-      label: "새 일지 알림",
-      hint: "에이전트가 일지를 남기면 macOS 알림이 뜹니다. 백필 등으로 몰리면 10초에 3건까지만.",
+      label: t("settings.tray.notify"),
+      hint: t("settings.tray.notifyHint"),
     },
   ];
 
   return (
     <Section
-      title="메뉴바 (v2.3.0)"
-      description="RunCat 처럼 상단바에서 에이전트 활동을 보여주고, 클릭하면 오늘의 상태 팝오버가 열립니다."
+      title={t("settings.tray.title")}
+      description={t("settings.tray.desc")}
     >
       <div className="space-y-2">
         {rows.map((r) => (
@@ -482,6 +608,7 @@ function MenubarSection() {
 }
 
 function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
+  const { t } = useT();
   const { settings, set } = useSettings();
   const [provider, setProvider] = useState<Provider>(settings.defaultProvider);
   const [apiKey, setApiKey] = useState("");
@@ -549,7 +676,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
 
   return (
     <>
-      <Section title="API 키" description="OS 키체인에 안전하게 저장됩니다.">
+      <Section title={t("settings.keys.title")} description={t("settings.keys.desc")}>
         <select
           value={provider}
           onChange={(e) => setProvider(e.currentTarget.value as Provider)}
@@ -557,7 +684,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         >
           {PROVIDERS.map((p) => (
             <option key={p} value={p}>
-              {p} {hasKey[p] === true ? "  ✓ 저장됨" : hasKey[p] === false ? "  ✗ 미설정" : ""}
+              {p} {hasKey[p] === true ? t("settings.keys.saved") : hasKey[p] === false ? t("settings.keys.unset") : ""}
             </option>
           ))}
         </select>
@@ -566,16 +693,16 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           <KeyRound className="w-3.5 h-3.5" />
           <span>
             {hasKey[provider] === null
-              ? "확인 중…"
+              ? t("settings.keys.checking")
               : hasKey[provider]
-              ? "키체인에 저장됨"
-              : "이 프로바이더에 키 없음"}
+              ? t("settings.keys.inKeychain")
+              : t("settings.keys.noKey")}
           </span>
         </div>
 
         <Input
           type="password"
-          placeholder="API 키 붙여넣기…"
+          placeholder={t("settings.keys.placeholder")}
           value={apiKey}
           onChange={(e) => setApiKey(e.currentTarget.value)}
         />
@@ -586,7 +713,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             disabled={!apiKey}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            저장
+            {t("common.save")}
           </Button>
           <Button
             onClick={clearKey}
@@ -594,26 +721,26 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             variant="outline"
             className="flex-1"
           >
-            삭제
+            {t("common.delete")}
           </Button>
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-1 text-[11px] text-muted-foreground">
           <span>
-            상태는 로컬에 캐시됩니다 — 이 패널을 열어도 키체인 프롬프트가 뜨지 않습니다.
+            {t("settings.keys.cacheNote")}
           </span>
           <button
             onClick={verifyAll}
             disabled={verifying}
             className="shrink-0 text-primary hover:underline disabled:opacity-50 cursor-pointer"
-            title="OS 키체인 재확인 (프롬프트가 뜹니다)"
+            title={t("settings.keys.verifyTitle")}
           >
-            {verifying ? "확인 중…" : "키체인 대조 확인"}
+            {verifying ? t("settings.keys.checking") : t("settings.keys.verify")}
           </button>
         </div>
       </Section>
 
-      <Section title="기본 프로바이더" description="채팅과 지원에 기본으로 사용할 프로바이더.">
+      <Section title={t("settings.provider.title")} description={t("settings.provider.desc")}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {PROVIDERS.map((p) => {
             const isActive = settings.defaultProvider === p;
@@ -634,7 +761,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </div>
       </Section>
 
-      <Section title="모델" description="프로바이더별 모델 오버라이드. 비우면 내장 기본값을 사용합니다.">
+      <Section title={t("settings.models.title")} description={t("settings.models.desc")}>
         <Field label="Anthropic">
           <Input
             placeholder="claude-sonnet-4-6"
@@ -656,21 +783,21 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => set("modelGemini", e.currentTarget.value)}
           />
         </Field>
-        <Field label="NVIDIA NIM" hint="integrate.api.nvidia.com 의 OpenAI 호환 엔드포인트.">
+        <Field label="NVIDIA NIM" hint={t("settings.models.nimHint")}>
           <Input
             placeholder="meta/llama-3.3-70b-instruct"
             value={settings.modelNim}
             onChange={(e) => set("modelNim", e.currentTarget.value)}
           />
         </Field>
-        <Field label="OpenRouter" hint="openrouter.ai — 수백 개 모델을 OpenAI 호환으로. 모델 id 예: openai/gpt-4o.">
+        <Field label="OpenRouter" hint={t("settings.models.openrouterHint")}>
           <Input
             placeholder="openai/gpt-4o-mini"
             value={settings.modelOpenrouter}
             onChange={(e) => set("modelOpenrouter", e.currentTarget.value)}
           />
         </Field>
-        <Field label="폴백 기본 모델">
+        <Field label={t("settings.models.fallbackDefault")}>
           <Input
             placeholder="claude-opus-4-7"
             value={settings.defaultModel}
@@ -680,10 +807,10 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
       </Section>
 
       <Section
-        title="폴백 체인"
-        description="기본 모델 호출이 실패하면 아래 모델을 위에서부터 차례로 재시도합니다. 한 줄에 하나씩 `provider:model` 형식."
+        title={t("settings.fallback.title")}
+        description={t("settings.fallback.desc")}
       >
-        <Field label="순서대로 재시도" hint="예) openai:gpt-4o-mini · anthropic:claude-3.5-haiku-latest · openrouter:openai/gpt-4o">
+        <Field label={t("settings.fallback.field")} hint={t("settings.fallback.hint")}>
           <textarea
             value={settings.fallbackModels}
             onChange={(e) => set("fallbackModels", e.currentTarget.value)}
@@ -695,8 +822,8 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </Field>
       </Section>
 
-      <Section title="생성" description="모델 응답 방식.">
-        <Field label={`Temperature — ${settings.temperature.toFixed(2)}`} hint="낮을수록 집중, 높을수록 창의적.">
+      <Section title={t("settings.gen.title")} description={t("settings.gen.desc")}>
+        <Field label={t("settings.gen.temperature", { value: settings.temperature.toFixed(2) })} hint={t("settings.gen.temperatureHint")}>
           <NumberSlider
             value={settings.temperature}
             min={0}
@@ -705,7 +832,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(v) => set("temperature", v)}
           />
         </Field>
-        <Field label={`최대 출력 토큰 — ${settings.maxTokens}`}>
+        <Field label={t("settings.gen.maxTokens", { value: settings.maxTokens })}>
           <NumberSlider
             value={settings.maxTokens}
             min={256}
@@ -714,11 +841,11 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(v) => set("maxTokens", v)}
           />
         </Field>
-        <Field label="시스템 프롬프트" hint="모든 채팅 앞에 추가됩니다. 비우면 앱 기본값을 사용합니다.">
+        <Field label={t("settings.gen.systemPrompt")} hint={t("settings.gen.systemPromptHint")}>
           <textarea
             value={settings.systemPrompt}
             onChange={(e) => set("systemPrompt", e.currentTarget.value)}
-            placeholder="당신은 도움이 되는 코딩 어시스턴트입니다…"
+            placeholder={t("settings.gen.systemPromptPlaceholder")}
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
           />
@@ -729,6 +856,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
 }
 
 function IndexingTab() {
+  const { t } = useT();
   const { settings, set } = useSettings();
   const { state } = useWorkspace();
   const projectId = state.currentProjectId;
@@ -740,20 +868,20 @@ function IndexingTab() {
     const channel = new Channel<IndexProgress>();
     const res = await commands.indexProject(projectId, channel);
     setReindexing(false);
-    if (res.status === "ok") toast.info("코드 검색 인덱스를 다시 만들었어요.");
-    else toast.destructive(`인덱스 재구축 실패: ${res.error}`);
+    if (res.status === "ok") toast.info(t("settings.index.reindexDone"));
+    else toast.destructive(t("settings.index.reindexFailed", { error: res.error }));
   };
 
   return (
     <>
       <Section
-        title="자동 인덱싱 · 재구축"
-        description="파일이 바뀌면 워처가 바뀐 파일만 곧바로 인덱싱합니다(이미 인덱싱된 프로젝트). 직접 처음부터 다시 만들려면 재구축하세요."
+        title={t("settings.index.title")}
+        description={t("settings.index.desc")}
       >
         <Toggle
           checked={settings.autoIndex}
           onChange={(v) => set("autoIndex", v)}
-          label="변경 시 자동 인덱싱"
+          label={t("settings.index.auto")}
         />
         <div className="flex items-center gap-3 pt-1">
           <Button
@@ -763,19 +891,19 @@ function IndexingTab() {
             className="gap-2"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${reindexing ? "animate-spin" : ""}`} />
-            {reindexing ? "재구축 중…" : "인덱스 재구축"}
+            {reindexing ? t("settings.index.rebuilding") : t("settings.index.rebuild")}
           </Button>
           {projectId == null ? (
-            <span className="text-[11px] text-muted-foreground">프로젝트를 선택하면 재구축할 수 있어요.</span>
+            <span className="text-[11px] text-muted-foreground">{t("settings.index.pickProject")}</span>
           ) : null}
         </div>
       </Section>
 
       <Section
-        title="청킹"
-        description="청크가 클수록 스니펫당 컨텍스트가 풍부하고, 작을수록 검색 정밀도가 높아집니다."
+        title={t("settings.chunk.title")}
+        description={t("settings.chunk.desc")}
       >
-        <Field label={`청크 크기 — ${settings.chunkSize} 줄`}>
+        <Field label={t("settings.chunk.size", { n: settings.chunkSize })}>
           <NumberSlider
             value={settings.chunkSize}
             min={5}
@@ -783,7 +911,7 @@ function IndexingTab() {
             onChange={(v) => set("chunkSize", v)}
           />
         </Field>
-        <Field label={`청크 오버랩 — ${settings.chunkOverlap} 줄`} hint="연속된 청크가 공유하는 양. 청크 크기보다 작아야 합니다.">
+        <Field label={t("settings.chunk.overlap", { n: settings.chunkOverlap })} hint={t("settings.chunk.overlapHint")}>
           <NumberSlider
             value={settings.chunkOverlap}
             min={0}
@@ -793,8 +921,8 @@ function IndexingTab() {
         </Field>
       </Section>
 
-      <Section title="검색 (Retrieval)" description="채팅 메시지마다 모델에 컨텍스트로 전달할 청크 수.">
-        <Field label={`RAG 컨텍스트 — 상위 ${settings.ragTopK} 청크`}>
+      <Section title={t("settings.retrieval.title")} description={t("settings.retrieval.desc")}>
+        <Field label={t("settings.retrieval.topK", { n: settings.ragTopK })}>
           <NumberSlider
             value={settings.ragTopK}
             min={0}
@@ -805,18 +933,18 @@ function IndexingTab() {
       </Section>
 
       <Section
-        title="AI 작업 맥락 (ocul-pm)"
-        description="최근 작업일지와 AGENTS 규칙을 채팅 컨텍스트에 자동으로 넣어, 세션·모델이 바뀌어도 작업 방향을 유지합니다."
+        title={t("settings.aiContext.title")}
+        description={t("settings.aiContext.desc")}
       >
         <Toggle
           checked={settings.includeOculpmContext}
           onChange={(v) => set("includeOculpmContext", v)}
-          label="작업일지 · 규칙 자동 주입"
+          label={t("settings.aiContext.inject")}
         />
         {settings.includeOculpmContext && (
           <Field
-            label={`주입할 최근 일지 — ${settings.oculpmContextEntries}개`}
-            hint="많을수록 맥락이 풍부하지만 토큰 사용량이 늘어납니다. 0이면 규칙만 주입합니다."
+            label={t("settings.aiContext.entries", { n: settings.oculpmContextEntries })}
+            hint={t("settings.aiContext.entriesHint")}
           >
             <NumberSlider
               value={settings.oculpmContextEntries}
@@ -828,8 +956,8 @@ function IndexingTab() {
         )}
       </Section>
 
-      <Section title="파일 스캔" description="어떤 파일을 탐색·인덱싱할지 제어합니다.">
-        <Field label={`최대 파일 크기 — ${settings.maxFileSizeKb} KB`} hint="이보다 큰 파일은 전체가 스킵됩니다.">
+      <Section title={t("settings.scan.title")} description={t("settings.scan.desc")}>
+        <Field label={t("settings.scan.maxSize", { n: settings.maxFileSizeKb })} hint={t("settings.scan.maxSizeHint")}>
           <NumberSlider
             value={settings.maxFileSizeKb}
             min={50}
@@ -839,8 +967,8 @@ function IndexingTab() {
           />
         </Field>
         <Field
-          label="추가 제외 패턴"
-          hint="한 줄에 하나의 gitignore 스타일 패턴. .gitignore 위에 적용됩니다. 예: dist/**, *.snap"
+          label={t("settings.scan.exclude")}
+          hint={t("settings.scan.excludeHint")}
         >
           <textarea
             value={settings.excludePatterns}
@@ -851,7 +979,7 @@ function IndexingTab() {
           />
         </Field>
         <p className="text-[11px] text-muted-foreground/80 italic">
-          변경 사항은 다음 번 프로젝트 재인덱싱 때 적용됩니다.
+          {t("settings.scan.applyNote")}
         </p>
       </Section>
     </>
@@ -859,17 +987,18 @@ function IndexingTab() {
 }
 
 function GraphTab() {
+  const { t } = useT();
   const { settings, set } = useSettings();
   return (
-    <Section title="의존성 그래프 기본값">
+    <Section title={t("settings.graph.title")}>
       <Toggle
         checked={settings.graphShowIsolated}
         onChange={(v) => set("graphShowIsolated", v)}
-        label="기본으로 고립된 파일 표시"
+        label={t("settings.graph.showIsolated")}
       />
       <Field
-        label={`자동 그룹 임계값 — ${settings.graphGroupThreshold} 파일`}
-        hint="이 개수 이상의 파일을 가진 디렉토리는 컬럼 안에서 접을 수 있는 그룹이 됩니다."
+        label={t("settings.graph.threshold", { n: settings.graphGroupThreshold })}
+        hint={t("settings.graph.thresholdHint")}
       >
         <NumberSlider
           value={settings.graphGroupThreshold}
@@ -893,6 +1022,7 @@ function GraphTab() {
  * 스트랩 없이 이 섹션만 단독 렌더한다.)
  */
 export function NotionSection({ onError }: { onError: (msg: string | null) => void }) {
+  const { t } = useT();
   const [status, setStatus] = useState<NotionStatus | null>(null);
   const [token, setToken] = useState("");
   const [parent, setParent] = useState("");
@@ -910,16 +1040,17 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
   useEffect(refresh, []);
 
   const saveToken = async () => {
-    const t = token.trim();
-    if (busy || !t) return;
+    // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다 (섀도잉).
+    const trimmed = token.trim();
+    if (busy || !trimmed) return;
     setBusy(true);
     try {
-      const v = await commands.notionVerifyToken(t);
+      const v = await commands.notionVerifyToken(trimmed);
       if (v.status === "error") {
-        onError(`Notion 토큰 검증 실패: ${v.error}`);
+        onError(t("settings.notion.tokenFailed", { error: v.error }));
         return;
       }
-      const s = await commands.secretSet("notion_api_key", t);
+      const s = await commands.secretSet("notion_api_key", trimmed);
       if (s.status === "error") {
         onError(s.error);
         return;
@@ -927,7 +1058,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
       setBotName(v.data);
       setToken("");
       onError(null);
-      toast.info(`Notion 연결됨: ${v.data}`);
+      toast.info(t("settings.notion.linked", { name: v.data }));
       refresh();
     } finally {
       setBusy(false);
@@ -944,10 +1075,10 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
       if (res.status === "ok") {
         setBotName(res.data);
         onError(null);
-        toast.info(`Notion 연결됨: ${res.data}`);
+        toast.info(t("settings.notion.linked", { name: res.data }));
         refresh();
       } else {
-        onError(`Notion 계정 연결 실패: ${res.error}`);
+        onError(t("settings.notion.linkFailed", { error: res.error }));
       }
     } finally {
       setBusy(false);
@@ -963,7 +1094,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
       onError(res.error);
     } else {
       setBotName(null);
-      toast.info("Notion 연결을 끊었습니다");
+      toast.info(t("settings.notion.unlinked"));
       refresh();
     }
   };
@@ -978,40 +1109,40 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
     } else {
       setParent(res.data ?? "");
       onError(null);
-      toast.info(res.data ? "부모 페이지가 설정되었습니다" : "부모 페이지 설정을 해제했습니다");
+      toast.info(res.data ? t("settings.notion.parentSet") : t("settings.notion.parentCleared"));
       refresh();
     }
   };
 
   return (
     <Section
-      title="Notion 내보내기"
-      description="회고·산출물을 지정한 부모 페이지 아래 새 페이지로 내보냅니다. 토큰은 OS 키체인에만 저장됩니다."
+      title={t("settings.notion.title")}
+      description={t("settings.notion.desc")}
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Button size="sm" disabled={busy} onClick={() => void connectOauth()}>
             {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Notion 계정으로 연결
+            {t("settings.notion.connect")}
           </Button>
           <span className="text-[11px] text-muted-foreground">
-            브라우저에서 승인하면 끝 — 또는 아래에 internal token 을 직접 입력하세요.
+            {t("settings.notion.connectHint")}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">상태</Label>
+          <Label className="text-xs text-muted-foreground">{t("settings.notion.status")}</Label>
           {status?.has_token ? (
             <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
-              연결됨{botName ? ` · ${botName}` : ""}
+              {t("settings.notion.connected")}{botName ? ` · ${botName}` : ""}
             </span>
           ) : (
             <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] text-muted-foreground">
-              미연결
+              {t("settings.notion.disconnected")}
             </span>
           )}
           {status?.has_token && (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void removeToken()}>
-              연결 끊기
+              {t("settings.notion.disconnect")}
             </Button>
           )}
         </div>
@@ -1026,14 +1157,14 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
               autoComplete="off"
             />
             <Button size="sm" disabled={busy || !token.trim()} onClick={() => void saveToken()}>
-              {busy ? "검증 중…" : "검증 후 저장"}
+              {busy ? t("settings.notion.verifying") : t("settings.notion.verifySave")}
             </Button>
           </div>
         )}
 
         <div>
           <Label className="mb-1 block text-xs text-muted-foreground">
-            부모 페이지 (URL 또는 ID — 통합이 공유된 페이지여야 합니다)
+            {t("settings.notion.parent")}
           </Label>
           <div className="flex gap-2">
             <Input
@@ -1044,7 +1175,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
               spellCheck={false}
             />
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void saveParent()}>
-              저장
+              {t("common.save")}
             </Button>
           </div>
         </div>
@@ -1054,6 +1185,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
 }
 
 function DataTab({ onError }: { onError: (msg: string | null) => void }) {
+  const { t } = useT();
   const { resetAll } = useSettings();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -1093,16 +1225,16 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
 
   return (
     <>
-      <Section title="저장소" description="이 앱이 데이터를 저장하는 위치.">
+      <Section title={t("settings.storage.title")} description={t("settings.storage.desc")}>
         {info ? (
           <div className="space-y-2 text-xs font-mono">
             {(
               [
-                ["데이터베이스", info.db_path],
-                ["앱 데이터", info.app_data_dir],
-                ["비밀 데이터", info.secrets_store],
-                ["버전", info.version],
-              ] as Array<[string, string]>
+                ["settings.storage.db", info.db_path],
+                ["settings.storage.appData", info.app_data_dir],
+                ["settings.storage.secrets", info.secrets_store],
+                ["settings.storage.version", info.version],
+              ] as Array<[I18nKey, string]>
             ).map(([k, v]) => (
               <div
                 key={k}
@@ -1110,7 +1242,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
               >
                 <div className="overflow-hidden">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {k}
+                    {t(k)}
                   </div>
                   <div className="truncate text-foreground" title={v}>
                     {v}
@@ -1119,7 +1251,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 <button
                   onClick={() => copy(v, k)}
                   className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 cursor-pointer"
-                  title={copied === k ? "복사됨!" : "복사"}
+                  title={copied === k ? t("settings.storage.copied") : t("common.copy")}
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </button>
@@ -1133,25 +1265,25 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
 
       <NotionSection onError={onError} />
 
-      <Section title="진단">
+      <Section title={t("settings.diag.title")}>
         <Button variant="outline" onClick={openDevtools} className="w-full">
-          DevTools 열기
+          {t("settings.diag.devtools")}
         </Button>
       </Section>
 
       <Section
-        title="초기화"
-        description="모든 설정을 기본값으로 복원합니다. API 키와 인덱싱된 프로젝트는 유지됩니다."
+        title={t("settings.reset.title")}
+        description={t("settings.reset.desc")}
       >
         <Button variant="outline" onClick={resetSettings} className="w-full">
           <RefreshCw className="w-3.5 h-3.5 mr-2" />
-          설정 기본값으로 초기화
+          {t("settings.reset.action")}
         </Button>
       </Section>
 
       <Section
-        title="위험 구역"
-        description="이 컴퓨터의 모든 프로젝트 · 인덱스 · 대화 · 설정 · 저장된 API 키를 삭제합니다."
+        title={t("settings.danger.title")}
+        description={t("settings.danger.desc")}
       >
         {!confirmingClear ? (
           <Button
@@ -1160,12 +1292,12 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
             className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="w-3.5 h-3.5 mr-2" />
-            모든 데이터 삭제
+            {t("settings.danger.wipe")}
           </Button>
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-destructive font-medium">
-              이 작업은 되돌릴 수 없습니다. 정말로 삭제하시겠습니까?
+              {t("settings.danger.confirm")}
             </p>
             <div className="flex gap-2">
               <Button
@@ -1173,7 +1305,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 disabled={busy}
                 className="flex-1 bg-destructive text-white hover:bg-destructive/90"
               >
-                {busy ? "삭제 중…" : "예, 모두 삭제"}
+                {busy ? t("settings.danger.deleting") : t("settings.danger.yes")}
               </Button>
               <Button
                 onClick={() => setConfirmingClear(false)}
@@ -1181,7 +1313,7 @@ function DataTab({ onError }: { onError: (msg: string | null) => void }) {
                 disabled={busy}
                 className="flex-1"
               >
-                취소
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
@@ -1206,6 +1338,7 @@ function platformLabel(): string {
 }
 
 function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) {
+  const { t } = useT();
   const [health, setHealth] = useState<DbHealth | null>(null);
   const [loading, setLoading] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
@@ -1232,16 +1365,16 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
 
   function openIssue(kind: "bug" | "feature") {
     const isBug = kind === "bug";
-    const title = isBug ? "[버그] " : "[기능 문의] ";
+    const title = isBug ? t("settings.feedback.bugTitle") : t("settings.feedback.featureTitle");
     const body = [
       isBug
-        ? "## 무슨 일이 있었나요?\n\n"
-        : "## 어떤 기능을 원하세요?\n\n",
+        ? t("settings.feedback.bugBody1")
+        : t("settings.feedback.featureBody1"),
       isBug
-        ? "## 재현 방법\n1. \n2. \n\n## 기대한 동작\n\n"
-        : "## 왜 필요한가요?\n\n",
+        ? t("settings.feedback.bugBody2")
+        : t("settings.feedback.featureBody2"),
       "---",
-      `- 앱 버전: ${version ?? "?"}`,
+      t("settings.feedback.appVersion", { version: version ?? "?" }),
       `- OS: ${platformLabel()}`,
     ].join("\n");
     const url =
@@ -1249,46 +1382,46 @@ function DiagnosticsTab({ onError }: { onError: (msg: string | null) => void }) 
       `?labels=${encodeURIComponent(isBug ? "bug" : "enhancement")}` +
       `&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
     void commands.openUrl(url).then((res) => {
-      if (res.status === "error") toast.destructive(`브라우저 열기 실패: ${res.error}`);
+      if (res.status === "error") toast.destructive(t("settings.feedback.openFailed", { error: res.error }));
     });
   }
 
   return (
     <>
       <Section
-        title="데이터베이스 상태"
-        description="SQLite + sqlite-vec 상태와 스키마 버전을 확인합니다."
+        title={t("settings.db.title")}
+        description={t("settings.db.desc")}
       >
         <div className="grid grid-cols-3 gap-2">
           <Stat label="SQLite" value={health?.sqlite_version} />
           <Stat label="sqlite-vec" value={health?.vec_version} />
-          <Stat label="스키마" value={health ? `v${health.schema_version}` : undefined} />
+          <Stat label={t("settings.db.schema")} value={health ? `v${health.schema_version}` : undefined} />
         </div>
         <div className="text-[11px] font-mono break-all text-muted-foreground">
-          {health?.path ?? "조회되지 않음"}
+          {health?.path ?? t("settings.db.noPath")}
         </div>
         <Button onClick={check} disabled={loading} variant="outline" size="sm">
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          상태 새로고침
+          {t("settings.db.refresh")}
         </Button>
       </Section>
 
       <Section
-        title="피드백 보내기"
-        description="버그나 기능 아이디어를 개발자에게 GitHub 이슈로 전달합니다. 앱 버전·OS 가 자동으로 채워져요."
+        title={t("settings.feedback.title")}
+        description={t("settings.feedback.desc")}
       >
         <div className="flex gap-2 flex-wrap">
           <Button onClick={() => openIssue("bug")} variant="outline" size="sm">
             <Bug className="w-3.5 h-3.5 mr-1.5" />
-            버그 리포트
+            {t("settings.feedback.bug")}
           </Button>
           <Button onClick={() => openIssue("feature")} variant="outline" size="sm">
             <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-            기능 문의
+            {t("settings.feedback.feature")}
           </Button>
         </div>
         <div className="text-[11px] text-muted-foreground">
-          GitHub 계정이 필요해요. 브라우저에서 이슈 작성 페이지가 열립니다.
+          {t("settings.feedback.note")}
         </div>
       </Section>
     </>
@@ -1308,6 +1441,7 @@ interface ReleaseNote {
 }
 
 function UpdateTab() {
+  const { t } = useT();
   const { status: updater, check: checkUpdate, install: installUpdate } = useUpdater();
   const [version, setVersion] = useState<string | null>(null);
   const [releases, setReleases] = useState<ReleaseNote[] | null>(null);
@@ -1353,12 +1487,12 @@ function UpdateTab() {
   return (
     <>
       <Section
-        title="업데이트"
-        description="GitHub 릴리스에서 새 버전을 확인하고 앱 내에서 바로 설치합니다."
+        title={t("settings.update.title")}
+        description={t("settings.update.desc")}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-muted-foreground">
-            현재 버전{" "}
+            {t("settings.update.current")}{" "}
             <span className="font-mono text-foreground">v{version ?? "—"}</span>
           </div>
           {updater.kind === "available" ? (
@@ -1367,7 +1501,7 @@ function UpdateTab() {
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Download className="w-3.5 h-3.5 mr-2" />
-              v{updater.version} 설치 후 재시작
+              {t("settings.update.installRestart", { version: updater.version ?? "" })}
             </Button>
           ) : (
             <Button
@@ -1378,36 +1512,36 @@ function UpdateTab() {
               <RefreshCw
                 className={`w-3.5 h-3.5 mr-2 ${updater.kind === "checking" ? "animate-spin" : ""}`}
               />
-              업데이트 확인
+              {t("settings.update.check")}
             </Button>
           )}
         </div>
         {updater.kind === "checking" && (
-          <p className="text-[11px] text-muted-foreground">새 버전을 확인하는 중…</p>
+          <p className="text-[11px] text-muted-foreground">{t("settings.update.checking")}</p>
         )}
         {updater.kind === "uptodate" && (
-          <p className="text-[11px] text-primary">최신 버전을 사용 중입니다.</p>
+          <p className="text-[11px] text-primary">{t("settings.update.upToDate")}</p>
         )}
         {updater.kind === "available" && (
           <p className="text-[11px] text-muted-foreground">
-            새 버전 <span className="font-mono">v{updater.version}</span> 을 사용할 수 있어요.
+            {t("settings.update.availPrefix")} <span className="font-mono">v{updater.version}</span> {t("settings.update.availSuffix")}
           </p>
         )}
         {updater.kind === "installing" && (
           <p className="text-[11px] text-muted-foreground">
-            다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작됩니다.
+            {t("settings.update.installing")}
           </p>
         )}
         {updater.kind === "error" && (
           <p className="text-[11px] text-destructive">
-            업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {updater.message}
+            {t("settings.update.checkFailed", { message: updater.message ?? "" })}
           </p>
         )}
       </Section>
 
-      <Section title="패치노트" description="버전별 변경 사항 — 과거 릴리스도 펼쳐볼 수 있어요.">
+      <Section title={t("settings.changelog.title")} description={t("settings.changelog.desc")}>
         {notesLoading ? (
-          <span className="text-xs text-muted-foreground">불러오는 중…</span>
+          <span className="text-xs text-muted-foreground">{t("settings.changelog.loading")}</span>
         ) : releases && releases.length > 0 ? (
           <div className="space-y-1.5 max-h-[440px] overflow-y-auto scrollbar-thin pr-1">
             {releases.map((rel) => {
@@ -1431,7 +1565,7 @@ function UpdateTab() {
                       {rel.highlights ? (
                         <Markdown>{rel.highlights}</Markdown>
                       ) : (
-                        <span className="text-muted-foreground">변경 내용이 없어요.</span>
+                        <span className="text-muted-foreground">{t("settings.changelog.empty")}</span>
                       )}
                     </div>
                   ) : null}
@@ -1441,7 +1575,7 @@ function UpdateTab() {
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">
-            패치노트를 불러오지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음).
+            {t("settings.changelog.failed")}
           </span>
         )}
       </Section>
@@ -1468,6 +1602,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
+  const { t } = useT();
   const [tab, setTab] = useState<TabId>("appearance");
   const [error, setError] = useState<string | null>(null);
   const { loaded } = useSettings();
@@ -1516,12 +1651,12 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
       className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-1 pb-2 mb-5"
       style={{ scrollbarWidth: "none" }}
     >
-      {TABS.map((t) => {
-        const isActive = tab === t.id;
+      {TABS.map((entry) => {
+        const isActive = tab === entry.id;
         return (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={entry.id}
+            onClick={() => setTab(entry.id)}
             aria-current={isActive ? "page" : undefined}
             className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors cursor-pointer ${
               isActive
@@ -1529,20 +1664,20 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
             }`}
           >
-            {t.label}
+            {t(entry.labelKey)}
           </button>
         );
       })}
     </nav>
   ) : (
     <nav className="w-48 flex-shrink-0 border-r border-border/60 bg-background/40 p-2 space-y-0.5">
-      {TABS.map((t) => {
-        const Icon = t.icon;
-        const isActive = tab === t.id;
+      {TABS.map((entry) => {
+        const Icon = entry.icon;
+        const isActive = tab === entry.id;
         return (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={entry.id}
+            onClick={() => setTab(entry.id)}
             aria-current={isActive ? "page" : undefined}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
               isActive
@@ -1551,7 +1686,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            {t.label}
+            {t(entry.labelKey)}
           </button>
         );
       })}

@@ -20,6 +20,7 @@ import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useT } from "@/i18n";
 
 // PR-UI 7 — ui_v2 is now the ONLY shell (flag removed). ShellV2 stays lazy so
 // it (plus its token/layer CSS chunk) loads only once a project is open; the
@@ -32,6 +33,7 @@ import "./App.css";
 
 
 function App() {
+  const { t } = useT();
   // ── Workspace state (project, view, file, indexing, etc.) ──────────────
   // All persistence + 17 legacy localStorage keys are owned by WorkspaceContext.
   // Reads/writes go through useWorkspace(); App no longer touches localStorage.
@@ -151,20 +153,20 @@ function App() {
       if (cancelled) return;
       if (upRes.status === "ok" && upRes.data) {
         const { from_version, to_version } = upRes.data;
-        toast.warning("에이전트 규칙(AGENTS.md) 업데이트가 있어요", {
-          title: `규칙 템플릿 v${from_version} → v${to_version}`,
+        toast.warning(t("agents.upgrade.title"), {
+          title: t("agents.upgrade.version", { from: from_version, to: to_version }),
           dedupKey: `master-upgrade-${projectId}`,
           durationMs: 20000,
           actions: [
             {
-              label: "업데이트",
+              label: t("agents.upgrade.action"),
               onClick: () => {
                 void (async () => {
                   const r = await commands.oculpmAgentsApplyMasterUpgrade(projectId);
                   if (r.status === "ok") {
-                    toast.info("AGENTS.md 를 최신 규칙으로 갱신했어요 (이전 master 는 _template.md.bak 백업).");
+                    toast.info(t("agents.upgrade.done"));
                   } else {
-                    toast.destructive(`업데이트 실패: ${r.error}`);
+                    toast.destructive(t("agents.upgrade.failed", { error: r.error }));
                   }
                 })();
               },
@@ -391,16 +393,16 @@ function App() {
 
       {/* Rename / Delete dialogs */}
       {renamingProject && (
-        <Dialog title="이름 변경" onClose={() => setRenamingProject(null)}>
+        <Dialog title={t("project.rename.title")} onClose={() => setRenamingProject(null)}>
           <p className="text-xs text-muted-foreground">
-            프로젝트 워크스페이스의 새 이름을 입력하세요. 실제 디렉토리 이름은 변경되지 않습니다.
+            {t("project.rename.hint")}
           </p>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             className="w-full px-3 py-2 border border-border rounded-xl bg-background text-sm focus:outline-none focus:border-primary transition-colors text-foreground"
-            placeholder="Project name"
+            placeholder={t("project.rename.placeholder")}
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") handleRenameProject();
@@ -412,27 +414,31 @@ function App() {
               onClick={() => setRenamingProject(null)}
               className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
             >
-              취소
+              {t("common.cancel")}
             </button>
             <button
               onClick={handleRenameProject}
               disabled={!newName.trim()}
               className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
             >
-              이름 변경
+              {t("common.rename")}
             </button>
           </div>
         </Dialog>
       )}
 
       {deletingProject && (
-        <Dialog title="프로젝트 제거" titleClass="text-destructive" onClose={() => setDeletingProject(null)}>
+        <Dialog title={t("project.remove.title")} titleClass="text-destructive" onClose={() => setDeletingProject(null)}>
+          {/* 대상 이름을 문장 안에 끼우지 않고 위에 단독으로 세운다 — 예전엔
+              "{이름}을(를) … 제거하시겠습니까?" 처럼 굵은 이름이 문장 중간에
+              박혀 있어 번역하려면 조사 자리에서 문자열을 쪼개야 했다. 파괴적
+              확인 다이얼로그에서는 대상이 먼저 눈에 띄는 편이 낫기도 하다. */}
+          <p className="font-bold text-foreground font-mono text-sm">{deletingProject.name}</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <span className="font-bold text-foreground font-mono">{deletingProject.name}</span>을(를)
-            Ocul-PM 워크스페이스에서 제거하시겠습니까?
+            {t("project.remove.confirm")}
             <br />
-            <span className="text-destructive font-semibold">참고:</span> 앱 데이터베이스에서 인덱스와
-            목표가 삭제되지만, 실제 프로젝트 폴더는 삭제되지 않습니다.
+            <span className="text-destructive font-semibold">{t("project.remove.noteLabel")}</span>{" "}
+            {t("project.remove.note")}
           </p>
           <div className="mt-1 space-y-1.5">
             <label className="flex items-start gap-2 p-2.5 rounded-xl border border-border bg-muted/40 cursor-pointer select-none">
@@ -443,7 +449,9 @@ function App() {
                 className="mt-0.5 accent-destructive"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
-                프로젝트 폴더의 <code className="font-mono text-foreground">.oculpm</code> 폴더도 삭제
+                {t("project.remove.folderPrefix")}{" "}
+                <code className="font-mono text-foreground">.oculpm</code>{" "}
+                {t("project.remove.oculpmSuffix")}
               </span>
             </label>
             <label className="flex items-start gap-2 p-2.5 rounded-xl border border-border bg-muted/40 cursor-pointer select-none">
@@ -454,12 +462,14 @@ function App() {
                 className="mt-0.5 accent-destructive"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
-                프로젝트 폴더의 <code className="font-mono text-foreground">AGENTS.md</code> 파일도 삭제
+                {t("project.remove.folderPrefix")}{" "}
+                <code className="font-mono text-foreground">AGENTS.md</code>{" "}
+                {t("project.remove.agentsMdSuffix")}
               </span>
             </label>
             {(deleteOculpm || deleteAgentsMd) && (
               <p className="text-[11px] text-destructive px-1">
-                선택한 파일은 디스크에서 영구 삭제되며 되돌릴 수 없습니다.
+                {t("project.remove.irreversible")}
               </p>
             )}
           </div>
@@ -468,13 +478,13 @@ function App() {
               onClick={() => setDeletingProject(null)}
               className="px-4 py-2 border border-border hover:bg-accent rounded-xl text-xs font-semibold transition-colors"
             >
-              취소
+              {t("common.cancel")}
             </button>
             <button
               onClick={handleDeleteProject}
               className="px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl text-xs font-semibold transition-colors"
             >
-              프로젝트 제거
+              {t("project.remove.title")}
             </button>
           </div>
         </Dialog>
@@ -488,6 +498,7 @@ function App() {
 // ────────────────────────────────────────────────────────────────────────
 
 function SettingsOverlay({ onClose }: { onClose: () => void }) {
+  const { t } = useT();
   // Esc to close — feels native for an overlay.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -511,7 +522,7 @@ function SettingsOverlay({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="닫기 (Esc)"
+            title={t("settings.closeEsc")}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
