@@ -33,6 +33,10 @@ const ALLOWLIST = new Set([
   // mounts so each screen renders from the default WorkspaceContext state.
   // Test-only.
   "__tests__/a11y_screens.test.tsx",
+  // i18n Phase 2 — 영어 모드 렌더 스위트도 같은 이유로 마운트 사이에 비운다
+  // (지속된 WorkspaceContext 상태가 화면 분기를 바꾸면 한글 검출이 흔들린다).
+  // Test-only.
+  "__tests__/i18n_english_render.test.tsx",
   // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
   // mounts so the persisted journalFilter (aipm:workspace:v1 envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.
