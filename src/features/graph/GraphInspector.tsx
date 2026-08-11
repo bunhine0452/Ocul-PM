@@ -23,6 +23,7 @@ import {
   type GNode,
   type NeighborRel,
 } from "./types";
+import { t, useT, type I18nKey } from "@/i18n";
 
 type Tone = "muted" | "ok" | "info" | "warn" | "danger";
 
@@ -36,15 +37,15 @@ const TONE_CLASS: Record<Tone, string> = {
 
 // Plain-language role from the in/out degree, relative to the graph's hub
 // threshold (top-tier degree). The labels are deliberately non-jargon.
-function roleFor(inC: number, outC: number, hubT: number): { label: string; tone: Tone; desc: string } {
+function roleFor(inC: number, outC: number, hubT: number): { labelKey: I18nKey; tone: Tone; descKey: I18nKey } {
   const deg = inC + outC;
-  if (deg === 0) return { label: "고립", tone: "muted", desc: "연결된 관계가 없어요" };
-  if (inC >= hubT && outC >= hubT) return { label: "허브", tone: "danger", desc: "많이 쓰고, 많이 쓰이는 중심축" };
-  if (inC >= hubT) return { label: "핵심 모듈", tone: "warn", desc: "여러 곳이 이 파일에 의존해요" };
-  if (outC >= hubT) return { label: "진입점·조립", tone: "info", desc: "여러 모듈을 끌어다 조립해요" };
-  if (outC === 0) return { label: "기반 모듈", tone: "ok", desc: "다른 곳이 가져다 쓰기만 해요" };
-  if (inC === 0) return { label: "진입점", tone: "info", desc: "아무도 import 하지 않아요" };
-  return { label: "연결", tone: "muted", desc: "중간 연결 고리예요" };
+  if (deg === 0) return { labelKey: "graph.role.isolated", tone: "muted", descKey: "graph.role.isolatedDesc" };
+  if (inC >= hubT && outC >= hubT) return { labelKey: "graph.role.hub", tone: "danger", descKey: "graph.role.hubDesc" };
+  if (inC >= hubT) return { labelKey: "graph.role.core", tone: "warn", descKey: "graph.role.coreDesc" };
+  if (outC >= hubT) return { labelKey: "graph.role.assembler", tone: "info", descKey: "graph.role.assemblerDesc" };
+  if (outC === 0) return { labelKey: "graph.role.leaf", tone: "ok", descKey: "graph.role.leafDesc" };
+  if (inC === 0) return { labelKey: "graph.role.entry", tone: "info", descKey: "graph.role.entryDesc" };
+  return { labelKey: "graph.role.link", tone: "muted", descKey: "graph.role.linkDesc" };
 }
 
 function impactTone(n: number): { tone: Tone; warn: boolean } {
@@ -87,6 +88,7 @@ export function GraphInspector({
   onOpenFileNode,
   onClose,
 }: Props) {
+  useT();
   const role = roleFor(node.inCount, node.outCount, hubThreshold);
 
   // ── Change impact ("바꾸면 N개 파일에 영향") — reverse-dependency BFS. For a
@@ -114,7 +116,7 @@ export function GraphInspector({
   const onOpenEditor = useCallback(async () => {
     if (!projectRoot) return;
     const res = await commands.openInEditor(projectRoot, node.path, externalEditorCommand, null);
-    if (res.status === "error") toast.destructive(`에디터 열기 실패: ${res.error}`);
+    if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
   }, [projectRoot, node.path, externalEditorCommand]);
 
   // Symbols grouped by kind, with a count per kind.
@@ -138,13 +140,13 @@ export function GraphInspector({
               {node.kind === "dir" ? `${node.label}/` : node.label}
             </div>
             <div className="text-[11px] text-muted-foreground truncate" title={node.path}>
-              {node.path || "(루트)"}
+              {node.path || t("graph.root")}
             </div>
           </div>
           <button
             onClick={onClose}
             className="h-6 w-6 grid place-items-center rounded text-muted-foreground hover:text-foreground cursor-pointer flex-none"
-            title="닫기"
+            title={t("common.close")}
           >
             <X size={14} />
           </button>
@@ -153,7 +155,7 @@ export function GraphInspector({
         {/* ── Role badge ── */}
         <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${TONE_CLASS[role.tone]}`}>
-            {role.label}
+            {t(role.labelKey)}
           </span>
           {node.kind === "file" && node.language ? (
             <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -161,25 +163,25 @@ export function GraphInspector({
               {node.language}
             </span>
           ) : node.kind === "dir" ? (
-            <span className="text-[11px] text-muted-foreground">{node.fileIds.length} 파일</span>
+            <span className="text-[11px] text-muted-foreground">{t("graph.fileCount", { n: node.fileIds.length })}</span>
           ) : null}
         </div>
-        {role.desc ? <p className="-mt-2 text-[11px] text-muted-foreground">{role.desc}</p> : null}
+        {t(role.descKey) ? <p className="-mt-2 text-[11px] text-muted-foreground">{t(role.descKey)}</p> : null}
 
         {/* ── Change-impact headline ── */}
         <div className={`rounded-lg border px-3 py-2.5 ${imp ? TONE_CLASS[imp.tone] : "bg-muted text-muted-foreground"} border-transparent`}>
           <div className="flex items-center gap-1.5 text-[11px] font-medium opacity-80">
             {imp?.warn ? <AlertTriangle size={12} /> : null}
-            변경 영향
+            {t("graph.impact")}
           </div>
           <div className="mt-0.5 text-sm font-semibold">
             {impact == null ? (
-              "계산 중…"
+              t("graph.computing")
             ) : impact === 0 ? (
-              "이 변경에 직접 영향받는 파일이 없어요"
+              t("graph.noImpact")
             ) : (
               <>
-                이 {unit}을 바꾸면 <span className="tabular-nums">{impact}</span>개 파일에 영향
+                {t("graph.impactBody", { unit, n: impact })}
               </>
             )}
           </div>
@@ -187,12 +189,12 @@ export function GraphInspector({
 
         {/* ── At-a-glance metrics ── */}
         <div className="grid grid-cols-3 gap-2 text-center">
-          <Metric label="의존" value={node.outCount} hint="이 노드가 가져다 쓰는 수" />
-          <Metric label="의존받음" value={node.inCount} hint="이 노드를 가져다 쓰는 수" />
+          <Metric label={t("graph.metricOut")} value={node.outCount} hint={t("graph.metricOutHint")} />
+          <Metric label={t("graph.metricIn")} value={node.inCount} hint={t("graph.metricInHint")} />
           <Metric
-            label="심볼"
+            label={t("graph.symbols")}
             value={node.kind === "file" ? symbols?.length ?? "—" : node.fileIds.length}
-            hint={node.kind === "file" ? "함수·클래스 등" : "포함 파일 수"}
+            hint={node.kind === "file" ? t("graph.symbolsHintFile") : t("graph.symbolsHintDir")}
           />
         </div>
 
@@ -204,7 +206,7 @@ export function GraphInspector({
               disabled={!projectRoot}
               className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:border-primary/50 disabled:opacity-50 cursor-pointer"
             >
-              <ExternalLink size={13} /> 에디터에서 열기
+              <ExternalLink size={13} /> {t("graph.openEditor")}
             </button>
           </div>
         ) : null}
@@ -213,12 +215,12 @@ export function GraphInspector({
         {node.kind === "file" ? <CodePeek projectId={projectId} path={node.path} /> : null}
 
         {/* ── Relations ── */}
-        <RelationList title={`의존 — 가져다 쓰는 곳 (${out.length})`} dir="out" items={out} onPick={onPick} />
-        <RelationList title={`의존받음 — 이 곳을 쓰는 데 (${incoming.length})`} dir="in" items={incoming} onPick={onPick} />
+        <RelationList title={t("graph.relOut", { n: out.length })} dir="out" items={out} onPick={onPick} />
+        <RelationList title={t("graph.relIn", { n: incoming.length })} dir="in" items={incoming} onPick={onPick} />
 
         {/* ── Folder: file list ── */}
         {node.kind === "dir" ? (
-          <Section title={`파일 (${node.fileIds.length})`}>
+          <Section title={t("graph.filesSection", { n: node.fileIds.length })}>
             <ul className="space-y-0.5">
               {node.fileIds.map((fid) => {
                 const f = fileById.get(fid);
@@ -242,11 +244,11 @@ export function GraphInspector({
 
         {/* ── Symbols (file only) ── */}
         {node.kind === "file" ? (
-          <Section title={`심볼${symbols ? ` (${symbols.length})` : ""}`}>
+          <Section title={t("graph.symbolsSection", { suffix: symbols ? ` (${symbols.length})` : "" })}>
             {symbols == null ? (
-              <div className="text-xs text-muted-foreground">불러오는 중…</div>
+              <div className="text-xs text-muted-foreground">{t("common.loading")}</div>
             ) : symbols.length === 0 ? (
-              <div className="text-xs text-muted-foreground">심볼 없음</div>
+              <div className="text-xs text-muted-foreground">{t("graph.noSymbols")}</div>
             ) : (
               <div className="space-y-2">
                 {symbolGroups!.map(([kind, defs]) => (
@@ -268,24 +270,24 @@ export function GraphInspector({
 
         {/* ── Symbol-level calls (file only) ── */}
         {node.kind === "file" && callCount > 0 ? (
-          <Section title={`호출 관계 (${callCount})`}>
+          <Section title={t("graph.callsSection", { n: callCount })}>
             <ul className="space-y-1.5">
               {callGroups.map((g) => (
                 <li key={g.from || "__top"}>
                   <div className="text-[11px] font-mono text-foreground truncate" title={g.from || undefined}>
-                    {g.from || "(파일 최상위)"}
+                    {g.from || t("graph.fileTop")}
                   </div>
                   <ul className="mt-0.5 space-y-0.5 pl-2 border-l border-border">
                     {g.list.map((c, i) => (
                       <li key={`${c.kind}-${c.callee}-${i}`} className="flex items-center gap-1.5 text-xs" title={c.target_path ?? undefined}>
                         <span className="text-[9px] uppercase text-muted-foreground flex-none w-7">
-                          {c.kind === "calls" ? "→" : c.kind === "inherits" ? "상속" : "구현"}
+                          {c.kind === "calls" ? "→" : c.kind === "inherits" ? t("graph.edge.inherits") : t("graph.edge.implements")}
                         </span>
                         <span className="font-mono text-foreground truncate">{c.callee}</span>
                         {c.target_path ? (
                           <span className="text-[10px] text-muted-foreground truncate ml-auto">{baseName(c.target_path)}</span>
                         ) : null}
-                        {c.estimated ? <span className="text-[9px] text-muted-foreground/70 flex-none">추정</span> : null}
+                        {c.estimated ? <span className="text-[9px] text-muted-foreground/70 flex-none">{t("graph.estimated")}</span> : null}
                       </li>
                     ))}
                   </ul>
@@ -300,6 +302,7 @@ export function GraphInspector({
 }
 
 function Metric({ label, value, hint }: { label: string; value: number | string; hint: string }) {
+  useT();
   return (
     <div className="rounded-md border border-border bg-background py-1.5" title={hint}>
       <div className="text-sm font-semibold text-foreground tabular-nums">{value}</div>
@@ -309,6 +312,7 @@ function Metric({ label, value, hint }: { label: string; value: number | string;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  useT();
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{title}</div>
@@ -328,10 +332,11 @@ function RelationList({
   items: NeighborRel[];
   onPick: (id: string) => void;
 }) {
+  useT();
   return (
     <Section title={title}>
       {items.length === 0 ? (
-        <div className="text-xs text-muted-foreground">없음</div>
+        <div className="text-xs text-muted-foreground">{t("graph.none")}</div>
       ) : (
         <ul className="space-y-0.5">
           {items.map((r) => (
@@ -350,16 +355,17 @@ function RelationList({
                   {r.node.kind === "dir" ? `${r.node.label}/` : r.node.label}
                 </span>
                 <span className="ml-auto flex items-center gap-1 flex-none">
-                  {r.types.map((t) => (
+                  {/* 콜백 인자를 `t` 로 두면 번역 함수를 섀도잉한다 — `et`(edge type). */}
+                  {r.types.map((et) => (
                     <span
-                      key={t}
+                      key={et}
                       className="px-1 rounded text-[9px] font-medium"
-                      style={{ background: `${EDGE_META[t]?.color ?? "#888"}22`, color: EDGE_META[t]?.color ?? "#888" }}
+                      style={{ background: `${EDGE_META[et]?.color ?? "#888"}22`, color: EDGE_META[et]?.color ?? "#888" }}
                     >
-                      {EDGE_META[t]?.label ?? t}
+                      {EDGE_META[et] ? t(EDGE_META[et].labelKey) : et}
                     </span>
                   ))}
-                  {r.estimated ? <span className="text-[9px] text-muted-foreground/70">추정</span> : null}
+                  {r.estimated ? <span className="text-[9px] text-muted-foreground/70">{t("graph.estimated")}</span> : null}
                 </span>
               </button>
             </li>
@@ -374,6 +380,7 @@ function RelationList({
 // mirroring SearchScreenV2's SymbolResult so the user can read a function
 // without leaving the map.
 function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; sym: SymbolDef }) {
+  useT();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -384,7 +391,7 @@ function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; 
     if (next && code == null && !loading) {
       setLoading(true);
       const res = await commands.readFileRange(projectId, path, sym.start_line, sym.end_line);
-      setCode(res.status === "ok" ? res.data : `// 미리보기 실패: ${res.status === "error" ? res.error : ""}`);
+      setCode(res.status === "ok" ? res.data : t("graph.previewFailed", { error: res.status === "error" ? res.error : "" }));
       setLoading(false);
     }
   };
@@ -406,7 +413,7 @@ function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; 
       </button>
       {open ? (
         loading ? (
-          <div className="mt-1 ml-4 text-[11px] text-muted-foreground">불러오는 중…</div>
+          <div className="mt-1 ml-4 text-[11px] text-muted-foreground">{t("common.loading")}</div>
         ) : (
           <pre className="mt-1 ml-4 max-h-56 overflow-auto rounded-md border border-border bg-background p-2 text-[11px] leading-snug font-mono text-foreground scrollbar-thin">
             {code}
@@ -420,6 +427,7 @@ function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; 
 // First lines of the file, lazily revealed. Cheap "what's in here" peek that
 // doesn't pull the whole file unless asked.
 function CodePeek({ projectId, path }: { projectId: number; path: string }) {
+  useT();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -430,7 +438,7 @@ function CodePeek({ projectId, path }: { projectId: number; path: string }) {
     if (next && code == null && !loading) {
       setLoading(true);
       const res = await commands.readFileRange(projectId, path, 1, 40);
-      setCode(res.status === "ok" ? res.data : `// 미리보기 실패: ${res.status === "error" ? res.error : ""}`);
+      setCode(res.status === "ok" ? res.data : t("graph.previewFailed", { error: res.status === "error" ? res.error : "" }));
       setLoading(false);
     }
   };
@@ -442,11 +450,11 @@ function CodePeek({ projectId, path }: { projectId: number; path: string }) {
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
         aria-expanded={open}
       >
-        <Eye size={13} /> 코드 미리보기 (앞 40줄)
+        <Eye size={13} /> {t("graph.preview")}
       </button>
       {open ? (
         loading ? (
-          <div className="mt-1 text-[11px] text-muted-foreground">불러오는 중…</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{t("common.loading")}</div>
         ) : (
           <pre className="mt-1 max-h-64 overflow-auto rounded-md border border-border bg-background p-2 text-[11px] leading-snug font-mono text-foreground scrollbar-thin">
             {code}

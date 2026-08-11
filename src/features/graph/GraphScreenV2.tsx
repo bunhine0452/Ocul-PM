@@ -46,16 +46,17 @@ import {
   type GEdge,
   type NeighborRel,
 } from "./types";
+import { useT, type I18nKey } from "@/i18n";
 import "./graph.css";
 
 const nodeTypes = { fileNode: FileNode };
 type Mode = "dir" | "file";
 // 계층 = dagre / 유기형 = force spread / 묶음 = force + Louvain 클러스터
 type Layout = "dagre" | "force" | "cluster";
-const LAYOUTS: { id: Layout; label: string; title: string }[] = [
-  { id: "dagre", label: "계층", title: "계층형 레이아웃 (의존 깊이)" },
-  { id: "force", label: "유기형", title: "유기형(force) — 넓게 펼침" },
-  { id: "cluster", label: "묶음", title: "유기형 + 커뮤니티 클러스터 — 촘촘하게 묶음" },
+const LAYOUTS: { id: Layout; labelKey: I18nKey; titleKey: I18nKey }[] = [
+  { id: "dagre", labelKey: "graph.layout.dagre", titleKey: "graph.layout.dagreTitle" },
+  { id: "force", labelKey: "graph.layout.force", titleKey: "graph.layout.forceTitle" },
+  { id: "cluster", labelKey: "graph.layout.cluster", titleKey: "graph.layout.clusterTitle" },
 ];
 
 // Zoom → level of detail. Below `far` we draw label pills; above `near`, full
@@ -79,6 +80,7 @@ export function GraphScreenV2({
   projectId: number;
   projectRoot: string | null;
 }) {
+  const { t } = useT();
   const { settings } = useSettings();
   const [graph, setGraph] = useState<{ nodes: FileRow[]; edges: FileEdge[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -602,15 +604,15 @@ export function GraphScreenV2({
     return [...set.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 10);
   }, [laidOut.nodes]);
 
-  const unit = mode === "dir" ? "폴더" : "파일";
+  const unit = mode === "dir" ? t("graph.unitDir") : t("graph.unitFile");
 
   return (
     <div className="flex flex-col h-full">
       <Toolbar
-        title="코드 맵"
-        sub={`${built.visible.length}${built.capped ? ` / ${built.total}` : ""} ${unit} · ${built.edges.length} 관계${focusActive ? " · 포커스" : ""}`}
+        title={t("nav.graph")}
+        sub={t("graph.toolbarSub", { n: built.visible.length, cap: built.capped ? ` / ${built.total}` : "", unit, edges: built.edges.length, focus: focusActive ? t("graph.focusSuffix") : "" })}
       >
-        <div className="gr-seg" role="group" aria-label="묶음 단위">
+        <div className="gr-seg" role="group" aria-label={t("graph.groupAria")}>
           {(["dir", "file"] as const).map((m) => (
             <button
               key={m}
@@ -621,19 +623,19 @@ export function GraphScreenV2({
               }}
               className={mode === m ? "on" : ""}
             >
-              {m === "dir" ? "폴더" : "파일"}
+              {m === "dir" ? t("graph.unitDir") : t("graph.unitFile")}
             </button>
           ))}
         </div>
-        <div className="gr-seg" role="group" aria-label="레이아웃">
+        <div className="gr-seg" role="group" aria-label={t("graph.layoutAria")}>
           {LAYOUTS.map((l) => (
             <button
               key={l.id}
               onClick={() => setLayout(l.id)}
-              title={l.title}
+              title={t(l.titleKey)}
               className={layout === l.id ? "on" : ""}
             >
-              {l.label}
+              {t(l.labelKey)}
             </button>
           ))}
         </div>
@@ -643,41 +645,42 @@ export function GraphScreenV2({
             onClick={() => setShowAll((v) => !v)}
             title={
               showAll
-                ? "다시 핵심(연결 상위)만 표시"
-                : `연결이 많은 상위만 표시 중 — 클릭하면 전체 ${built.total}개를 그립니다`
+                ? t("graph.showCore")
+                : t("graph.showAllTitle", { n: built.total })
             }
             className={`gr-chip${showAll ? " on" : ""}`}
           >
-            {showAll ? `전체 ${built.total}` : `핵심 ${built.visible.length} / ${built.total}`}
+            {showAll ? t("graph.showAll", { n: built.total }) : t("graph.showCoreCount", { n: built.visible.length, total: built.total })}
           </button>
         ) : null}
         {/* Focus toggle — selecting a node culls to its neighbourhood. */}
         <button
           onClick={() => setFocusMode((v) => !v)}
-          title="포커스 — 노드 선택 시 이웃만 표시 (끄면 흐리게만)"
+          title={t("graph.focusTitle")}
           className={`gr-chip${focusMode ? " on" : ""}`}
         >
-          <Target size={13} /> 포커스
+          <Target size={13} /> {t("graph.focus")}
         </button>
         {presentTypes.length > 1 ? (
           <div className="flex items-center gap-1">
-            {presentTypes.map((t) => {
-              const on = enabled.has(t);
+            {/* 콜백 인자를 `t` 로 두면 번역 함수를 섀도잉한다 — `et`(edge type). */}
+            {presentTypes.map((et) => {
+              const on = enabled.has(et);
               return (
                 <button
-                  key={t}
-                  onClick={() => toggleType(t)}
-                  title={`${EDGE_META[t]?.label ?? t} 엣지 표시`}
+                  key={et}
+                  onClick={() => toggleType(et)}
+                  title={t("graph.edgeToggle", { label: EDGE_META[et] ? t(EDGE_META[et].labelKey) : et })}
                   className={`gr-chip${on ? " on" : ""}`}
                 >
                   <span
                     className="sw"
                     style={{
-                      background: on ? EDGE_META[t]?.color ?? "var(--text-3)" : "var(--text-3)",
+                      background: on ? EDGE_META[et]?.color ?? "var(--text-3)" : "var(--text-3)",
                       opacity: on ? 1 : 0.4,
                     }}
                   />
-                  {EDGE_META[t]?.label ?? t}
+                  {EDGE_META[et] ? t(EDGE_META[et].labelKey) : et}
                 </button>
               );
             })}
@@ -691,14 +694,14 @@ export function GraphScreenV2({
             onKeyDown={(e) => {
               if (e.key === "Enter") focusFirstMatch();
             }}
-            placeholder="경로 필터 — Enter 로 이동"
-            aria-label="경로 필터"
+            placeholder={t("graph.filterPlaceholder")}
+            aria-label={t("graph.filterAria")}
           />
         </div>
         <button
           onClick={() => void load()}
-          title="새로고침"
-          aria-label="그래프 새로고침"
+          title={t("graph.refresh")}
+          aria-label={t("graph.refreshAria")}
           className="gr-iconbtn"
         >
           <RefreshCw size={13} />
@@ -709,7 +712,7 @@ export function GraphScreenV2({
         <div className="gr-wrap flex-1 relative">
           {loading ? (
             <div className="absolute inset-0 grid place-items-center">
-              <OculSpinner label="그래프 불러오는 중…" />
+              <OculSpinner label={t("graph.loading")} />
             </div>
           ) : displayNodes.length > 0 ? (
             <ReactFlow
@@ -761,7 +764,7 @@ export function GraphScreenV2({
                     ))}
                     {mode === "dir" ? (
                       <span className="gr-legend-item" style={{ opacity: 0.75 }}>
-                        폴더 더블클릭 = 드릴다운
+                        {t("graph.drilldownHint")}
                       </span>
                     ) : null}
                   </div>
@@ -771,7 +774,7 @@ export function GraphScreenV2({
                 <Panel position="top-right">
                   <div className="gr-panel">
                     <button onClick={() => setSelected(null)} className="gr-panel-btn">
-                      포커스 해제 — 전체 보기
+                      {t("graph.clearFocus")}
                     </button>
                   </div>
                 </Panel>
@@ -783,23 +786,23 @@ export function GraphScreenV2({
                 <FileCode2 size={28} />
                 <p className="mt-3 text-sm font-semibold text-foreground">
                   {loadError
-                    ? "그래프를 불러오지 못했어요"
+                    ? t("graph.loadFailed")
                     : query
-                      ? "필터에 맞는 항목이 없어요"
-                      : "표시할 관계가 없어요"}
+                      ? t("graph.noFilterMatch")
+                      : t("graph.noRelations")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {loadError
                     ? loadError
                     : query
-                      ? "검색어를 지우거나 다른 경로로 시도하세요."
-                      : "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요."}
+                      ? t("graph.filterHint")
+                      : t("graph.indexHint")}
                 </p>
                 <button
                   onClick={() => void load()}
                   className="mt-3 px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground hover:border-primary/50 cursor-pointer"
                 >
-                  새로고침
+                  {t("graph.refresh")}
                 </button>
               </div>
             </div>

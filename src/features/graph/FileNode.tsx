@@ -11,6 +11,7 @@
 // (onlyRenderVisibleElements); the card fills that box (100%/100%).
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { t, useT } from "@/i18n";
 
 export type Lod = "far" | "mid" | "near";
 export type NodeDim = "none" | "soft" | "hard";
@@ -48,6 +49,7 @@ const stateClass = (d: GraphNodeData): string =>
   (d.dim === "hard" ? " dim-hard" : d.dim === "soft" ? " dim-soft" : "");
 
 function FileNodeImpl(props: NodeProps) {
+  useT();
   const d = props.data as unknown as GraphNodeData;
 
   // FAR — a compact label pill: colored dot + name only, so a 500-node graph
@@ -98,8 +100,8 @@ function FileNodeImpl(props: NodeProps) {
       ) : null}
       {showCounts ? (
         <div className="gn-cnt">
-          <span title="이 노드를 참조하는 수">← {d.inCount}</span>
-          <span title="이 노드가 참조하는 수">{d.outCount} →</span>
+          <span title={t("graph.inCount")}>← {d.inCount}</span>
+          <span title={t("graph.outCount")}>{d.outCount} →</span>
         </div>
       ) : null}
       {showMix ? (

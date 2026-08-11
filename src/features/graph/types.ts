@@ -2,11 +2,13 @@
 
 // Typed edge metadata. `imports` is on by default; the rest are opt-in (calls
 // overlap imports heavily, so showing all at once is noisy).
-export const EDGE_META: Record<string, { label: string; color: string }> = {
-  imports: { label: "import", color: "#8b93a1" },
-  calls: { label: "호출", color: "#e0a82e" },
-  inherits: { label: "상속", color: "#a78bfa" },
-  implements: { label: "구현", color: "#5b9bff" },
+import type { I18nKey } from "@/i18n";
+
+export const EDGE_META: Record<string, { labelKey: I18nKey; color: string }> = {
+  imports: { labelKey: "graph.edge.imports", color: "#8b93a1" },
+  calls: { labelKey: "graph.edge.calls", color: "#e0a82e" },
+  inherits: { labelKey: "graph.edge.inherits", color: "#a78bfa" },
+  implements: { labelKey: "graph.edge.implements", color: "#5b9bff" },
 };
 export const EDGE_ORDER = ["imports", "calls", "inherits", "implements"];
 
