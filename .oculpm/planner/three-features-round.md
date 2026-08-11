@@ -37,7 +37,7 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 - [x] 묶음3 플래너 — PlannerScreenV2/planList/PlanRail (232줄) {#i18n-planner}
 - [x] 묶음4 회고·토의 — RetroScreenV2/DiscussionScreenV2/SkillCandidates (203줄) {#i18n-retro}
 - [x] 묶음5 터미널 — TerminalInstanceImpl/imeBridge/TerminalScreenV2/oscShell (303줄) {#i18n-terminal}
-- [ ] 묶음6 온보딩·런처 — StartScreen/GreenfieldWizard/homeModel/tiles/atoms (307줄) {#i18n-onboarding}
+- [x] 묶음6 온보딩·런처 — StartScreen/GreenfieldWizard/homeModel/tiles/atoms (307줄) {#i18n-onboarding}
 - [x] 묶음7 셸·공용 — WorkspaceContext/CommandPalette/App/TrayPopover (268줄) {#i18n-shell}
 - [~] 묶음8 나머지 화면 — AI 패널·diff·그래프·Today·일지·검색·문서 (~500줄) {#i18n-rest}
 - [x] 묶음9a Rust 사용자 노출 에러 ~130곳 한글→영어 + 프런트 tError() 매핑 (OculpmError 는 이미 영어 — 무변경) {#i18n-rust-errors}
@@ -79,4 +79,5 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 | 2026-08-12T05:32:47+09:00 | #i18n-retro | claude-code | ~→x | .oculpm/journal/20260812/Features_to_add/0532_feature_i18n-retro-promotion-cards.md | RuleCandidates·SkillCandidates·retroGen 완료 — 회고·토의 묶음 종료 |
 | 2026-08-12T05:37:58+09:00 | #i18n-skills | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0537_feature_i18n-plugin-tab-disk-content.md | PluginDocsTab 영어화 + pluginDocs/rulesModel/skillsModel 은 DISK_CONTENT 로 분류 |
 | 2026-08-12T06:03:47+09:00 | #i18n-rust-errors | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0603_feature_i18n-rust-errors-terror.md | Rust 114곳 영어화 + tError 역매핑 24개 + 자리표시자 정합성 게이트 |
+| 2026-08-12T06:22:40+09:00 | #i18n-onboarding | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0622_feature_i18n-last-source-files-content-lang.md | StartScreen·GreenfieldWizard·home/* 완료 + contentLanguage 축 배선. 소스 전량 종료 |
 <!-- oculpm:plan-log end -->

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
 import { Button } from "@/components/ui/button";
-import { useT, type I18nKey } from "@/i18n";
+import { tc, useT, type I18nKey } from "@/i18n";
 
 // Shared planner-action machinery (Group B Stage 2 — 어시스턴트화).
 //
@@ -56,14 +56,12 @@ export function extractPlannerAction(text: string): { cleanText: string; action:
 /**
  * AI 제안에 제목·단계가 없을 때 쓰는 기본값.
  *
- * **UI 문자열이 아니라 플래너 파일에 기록되는 내용값**이다 — UI 언어가 아니라
- * AI 작성 언어(`settings.contentLanguage`) 축에 속한다. 그 축은 설정만 있고
- * 아직 소비처가 없어(미배선) 한국어로 둔다. 배선될 때 여기부터 바꾸면 된다.
+ * **UI 문자열이 아니라 플래너 파일에 기록되는 내용값**이라 `t()` 가 아니라
+ * `tc()` 를 쓴다 — AI 작성 언어(`settings.contentLanguage`) 축이다. 함수인
+ * 이유는 모듈 상수로 두면 임포트 시점에 언어가 굳기 때문이다.
  */
-// i18n-ignore-next-line -- 플래너 파일에 기록되는 내용값 (contentLanguage 축)
-const DEFAULT_PLAN_TITLE = "새 계획";
-// i18n-ignore-next-line -- 위와 같음
-const DEFAULT_PHASE = "할 일";
+const defaultPlanTitle = () => tc("content.defaultPlanTitle");
+const defaultPhase = () => tc("content.defaultPhase");
 
 /** System-prompt fragment teaching the model the json:action protocol. Injected
  *  when planner context is attached so the assistant can propose changes. */
@@ -79,7 +77,7 @@ export function buildActionInstruction(): string {
     "{",
     "  \"type\": \"create_plan\",",
     "  \"plan_title\": \"Plan Title\",",
-    `  "phase": "Phase name (optional, default ${DEFAULT_PHASE})",`,
+    `  "phase": "Phase name (optional, default ${defaultPhase()})",`,
     "  \"titles\": [\"Item 1\", \"Item 2\"] (optional)",
     "}",
     "```",
@@ -165,17 +163,17 @@ export function ActionProposalCard({
       if (action.type === "create_plan") {
         const created = await commands.planCreate(
           projectId,
-          action.plan_title ?? DEFAULT_PLAN_TITLE,
+          action.plan_title ?? defaultPlanTitle(),
         );
         if (created.status === "error") throw new Error(created.error);
         const planId = created.data.plan_id;
         for (const title of action.titles ?? [])
-          await addItem(planId, action.phase ?? DEFAULT_PHASE, title);
+          await addItem(planId, action.phase ?? defaultPhase(), title);
       } else if (action.type === "add_items") {
         if (!action.plan_id) throw new Error(t("ai.actionMissingPlanId"));
         if (!action.titles?.length) throw new Error(t("ai.actionNoItems"));
         for (const title of action.titles)
-          await addItem(action.plan_id, action.phase ?? DEFAULT_PHASE, title);
+          await addItem(action.plan_id, action.phase ?? defaultPhase(), title);
       } else if (action.type === "set_status") {
         if (!action.plan_id || !action.item_id || !action.status)
           throw new Error(t("ai.actionNeedStatus"));
@@ -250,7 +248,7 @@ export function ActionProposalCard({
         <div className="space-y-1.5 text-xs text-foreground">
           {action.type === "create_plan" ? (
             <div className="font-semibold text-sm">
-              {t("ai.actionNewPlan", { title: action.plan_title ?? DEFAULT_PLAN_TITLE })}
+              {t("ai.actionNewPlan", { title: action.plan_title ?? defaultPlanTitle() })}
             </div>
           ) : (
             <div className="text-muted-foreground">

@@ -25,6 +25,7 @@ import { commands, type HomeBrief, type Project } from "@/lib/bindings";
 import { initials, relativeTime, tildePath } from "@/features/onboarding/home/homeModel";
 
 import "./projects.css";
+import { useT } from "@/i18n";
 import {
   buildManagerRows,
   firstDir,
@@ -53,6 +54,7 @@ export interface ProjectManagerProps {
 }
 
 export function ProjectManager(props: ProjectManagerProps) {
+  const { t } = useT();
   const {
     projects,
     brief,
@@ -187,7 +189,7 @@ export function ProjectManager(props: ProjectManagerProps) {
 
     // 부분 실패를 침묵시키지 않는다 — 목록에서 사라지지 않은 이유를 알려준다.
     if (failed.length > 0) {
-      setError(`제거하지 못한 프로젝트 ${failed.length}곳: ${failed.join(", ")}`);
+      setError(t("pm.removeFailed", { n: failed.length, names: failed.join(", ") }));
     }
   }, [selected, wipeOculpm, wipeAgentsMd, onProjectsChanged]);
 
@@ -210,10 +212,13 @@ export function ProjectManager(props: ProjectManagerProps) {
   const confirmNames =
     selected.length <= NAMES_IN_CONFIRM
       ? selected.map((p) => p.name).join(", ")
-      : `${selected
-          .slice(0, NAMES_IN_CONFIRM)
-          .map((p) => p.name)
-          .join(", ")} 외 ${selected.length - NAMES_IN_CONFIRM}곳`;
+      : t("pm.andMore", {
+          names: selected
+            .slice(0, NAMES_IN_CONFIRM)
+            .map((p) => p.name)
+            .join(", "),
+          n: selected.length - NAMES_IN_CONFIRM,
+        });
 
   return (
     <div
@@ -232,14 +237,13 @@ export function ProjectManager(props: ProjectManagerProps) {
         <header className="pm-head">
           <div className="min-w-0">
             <h2 id="pm-title" className="pm-title">
-              프로젝트 관리
+              {t("pm.title")}
             </h2>
             <p className="pm-sub">
-              등록된 {projects.length}곳. 이름 변경과 제거는 Ocul-PM 워크스페이스에만 적용되고,
-              실제 프로젝트 폴더는 그대로 남습니다.
+              {t("pm.subtitle", { n: projects.length })}
             </p>
           </div>
-          <button type="button" className="pm-close" onClick={onClose} aria-label="닫기 (Esc)">
+          <button type="button" className="pm-close" onClick={onClose} aria-label={t("pm.close")}>
             <X className="w-4 h-4" />
           </button>
         </header>
@@ -252,15 +256,15 @@ export function ProjectManager(props: ProjectManagerProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="이름 · 경로로 거르기"
-              aria-label="관리할 프로젝트 검색"
+              placeholder={t("pm.filterPlaceholder")}
+              aria-label={t("pm.filterAria")}
               autoComplete="off"
               spellCheck={false}
             />
           </span>
           <button type="button" className="pm-btn" onClick={onAddProject}>
             <FolderOpen className="w-3.5 h-3.5" />
-            폴더 불러오기
+            {t("pm.openFolder")}
           </button>
           <button
             type="button"
@@ -272,7 +276,7 @@ export function ProjectManager(props: ProjectManagerProps) {
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            새 프로젝트
+            {t("pm.newProject")}
           </button>
         </div>
 
@@ -285,7 +289,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                     ref={selectAllRef}
                     type="checkbox"
                     className="pm-check"
-                    aria-label="보이는 프로젝트 전체 선택"
+                    aria-label={t("pm.selectAllAria")}
                     checked={allVisibleSelected}
                     onChange={toggleAllVisible}
                     disabled={rows.length === 0}
@@ -293,7 +297,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                 </th>
                 <th scope="col" aria-sort={ariaSort(sort === "name", dir)}>
                   <SortButton
-                    label="프로젝트"
+                    label={t("pm.colProject")}
                     active={sort === "name"}
                     dir={dir}
                     onClick={() => sortBy("name")}
@@ -301,7 +305,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                 </th>
                 <th scope="col" className="pm-c-when" aria-sort={ariaSort(sort === "recent", dir)}>
                   <SortButton
-                    label="마지막 활동"
+                    label={t("pm.colLastActivity")}
                     active={sort === "recent"}
                     dir={dir}
                     onClick={() => sortBy("recent")}
@@ -309,14 +313,14 @@ export function ProjectManager(props: ProjectManagerProps) {
                 </th>
                 <th scope="col" className="pm-c-num" aria-sort={ariaSort(sort === "entries", dir)}>
                   <SortButton
-                    label="기록"
+                    label={t("pm.colEntries")}
                     active={sort === "entries"}
                     dir={dir}
                     onClick={() => sortBy("entries")}
                   />
                 </th>
                 <th scope="col" className="pm-c-act">
-                  <span className="sr-only">작업</span>
+                  <span className="sr-only">{t("pm.colActions")}</span>
                 </th>
               </tr>
             </thead>
@@ -327,7 +331,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                     <input
                       type="checkbox"
                       className="pm-check"
-                      aria-label={`${p.name} 선택`}
+                      aria-label={t("pm.selectAria", { name: p.name })}
                       checked={selectedIds.has(p.id)}
                       onChange={() => toggleOne(p.id)}
                     />
@@ -342,7 +346,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                           type="button"
                           className="pm-name"
                           onClick={() => onOpenProject(p)}
-                          aria-label={`${p.name} 열기`}
+                          aria-label={t("pm.openAria", { name: p.name })}
                         >
                           {p.name}
                         </button>
@@ -352,19 +356,19 @@ export function ProjectManager(props: ProjectManagerProps) {
                       </span>
                       {indexingId === p.id && (
                         <span className="pm-badge" role="status">
-                          인덱싱
+                          {t("pm.indexing")}
                         </span>
                       )}
                     </span>
                   </td>
                   <td className="pm-when">{relativeTime(lastAt, now)}</td>
-                  <td className="pm-num">{totalEntries}건</td>
+                  <td className="pm-num">{t("pm.entryCount", { n: totalEntries })}</td>
                   <td>
                     <span className="pm-act">
                       <button
                         type="button"
                         className="pm-iconbtn"
-                        aria-label={`${p.name} 이름 변경`}
+                        aria-label={t("pm.renameAria", { name: p.name })}
                         onClick={() => onRenameProject(p)}
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -372,7 +376,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                       <button
                         type="button"
                         className="pm-iconbtn pm-iconbtn--danger"
-                        aria-label={`${p.name} 제거`}
+                        aria-label={t("pm.removeAria", { name: p.name })}
                         onClick={() => onDeleteProject(p)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -387,14 +391,10 @@ export function ProjectManager(props: ProjectManagerProps) {
           {rows.length === 0 && (
             <div className="pm-empty">
               <p className="pm-empty-title">
-                {searching
-                  ? `‘${query}’ 와 일치하는 프로젝트가 없어요`
-                  : "아직 등록된 프로젝트가 없어요"}
+                {searching ? t("pm.emptySearch", { query }) : t("pm.emptyNone")}
               </p>
               <p className="pm-empty-sub">
-                {searching
-                  ? "경로와 초성으로도 찾을 수 있어요"
-                  : "‘폴더 불러오기’ 로 기존 프로젝트를 추가하세요"}
+                {searching ? t("pm.emptySearchTip") : t("pm.emptyNoneTip")}
               </p>
             </div>
           )}
@@ -404,9 +404,8 @@ export function ProjectManager(props: ProjectManagerProps) {
           {confirming ? (
             <div className="pm-confirm">
               <p className="pm-confirm-q">
-                <span className="pm-confirm-names">{confirmNames}</span> — 총 {selected.length}곳을
-                워크스페이스에서 제거할까요? 앱의 인덱스와 캐시만 지워지고, 프로젝트 폴더 자체는
-                삭제되지 않습니다.
+                <span className="pm-confirm-names">{confirmNames}</span>
+                {t("pm.confirmSuffix", { n: selected.length })}
               </p>
               <div className="pm-confirm-opts">
                 <label className="pm-opt">
@@ -415,7 +414,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                     checked={wipeOculpm}
                     onChange={(e) => setWipeOculpm(e.target.checked)}
                   />
-                  각 폴더의 <code>.oculpm</code> 폴더도 삭제
+                  {t("pm.alsoDeletePrefix")}<code>.oculpm</code>{t("pm.alsoDeleteOculpmSuffix")}
                 </label>
                 <label className="pm-opt">
                   <input
@@ -423,12 +422,12 @@ export function ProjectManager(props: ProjectManagerProps) {
                     checked={wipeAgentsMd}
                     onChange={(e) => setWipeAgentsMd(e.target.checked)}
                   />
-                  각 폴더의 <code>AGENTS.md</code> 파일도 삭제
+                  {t("pm.alsoDeletePrefix")}<code>AGENTS.md</code>{t("pm.alsoDeleteAgentsSuffix")}
                 </label>
               </div>
               {(wipeOculpm || wipeAgentsMd) && (
                 <p className="pm-warn">
-                  선택한 파일은 {selected.length}곳 전부에서 영구 삭제되며 되돌릴 수 없습니다.
+                  {t("pm.permanentWarning", { n: selected.length })}
                 </p>
               )}
               <div className="pm-confirm-actions">
@@ -438,7 +437,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                   onClick={() => setConfirming(false)}
                   disabled={busy}
                 >
-                  취소
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="button"
@@ -446,31 +445,32 @@ export function ProjectManager(props: ProjectManagerProps) {
                   onClick={() => void runBulkDelete()}
                   disabled={busy}
                 >
-                  {busy ? "제거 중…" : `${selected.length}곳 제거`}
+                  {busy ? t("pm.removing") : t("pm.removeN", { n: selected.length })}
                 </button>
               </div>
             </div>
           ) : selected.length > 0 ? (
             <div className="pm-bulk">
               <span>
-                <span className="pm-bulk-count">{selected.length}곳</span> 선택됨
+                <span className="pm-bulk-count">{t("pm.selectedCount", { n: selected.length })}</span>
+                {t("pm.selectedSuffix")}
               </span>
               <span className="pm-bulk-spacer" />
               <button type="button" className="pm-btn" onClick={clearSelection}>
-                선택 해제
+                {t("pm.clearSelection")}
               </button>
               <button type="button" className="pm-btn pm-btn--danger" onClick={startConfirm}>
-                선택 제거
+                {t("pm.removeSelected")}
               </button>
             </div>
           ) : (
             <p className="pm-hint">
-              <span>{searching ? `${rows.length}곳 일치` : `${rows.length}곳`}</span>
+              <span>{searching ? t("pm.matchCount", { n: rows.length }) : t("pm.totalCount", { n: rows.length })}</span>
               <span aria-hidden="true">·</span>
-              <span>여러 곳을 한 번에 지우려면 왼쪽 체크박스로 고르세요</span>
+              <span>{t("pm.bulkHint")}</span>
               <span className="pm-bulk-spacer" />
               <span>
-                <kbd>Esc</kbd> 닫기
+                <kbd>Esc</kbd> {t("pm.escToClose")}
               </span>
             </p>
           )}

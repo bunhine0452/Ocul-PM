@@ -3,14 +3,17 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   __resetLangForTests,
   en,
+  getContentLang,
   getLang,
   getLangSetting,
   ko,
   normalizeLangSetting,
   resolveLang,
+  setContentLangSetting,
   setLangSetting,
   t,
   tAll,
+  tc,
 } from "@/i18n";
 
 // i18n Phase 0 계약 (docs/20260811_three-features/03-i18n.md).
@@ -98,6 +101,41 @@ describe("t()", () => {
     // (사전에 보간 키가 생기면 그 키로 바꾼다 — 지금은 계약만 고정.)
     setLangSetting("ko");
     expect(t("common.save", { unused: 1 })).toBe("저장");
+  });
+});
+
+describe("tc() — AI 작성 언어 축", () => {
+  // UI 언어와 **다른 축**이다. 화면은 영어로 쓰면서 일지·플래너는 한국어로
+  // 남기고 싶은 사용자가 실재해서 설정이 둘로 나뉘어 있다. 이 계약이 무너지면
+  // 영어 UI 사용자의 플래너에 한국어 항목이 기록되거나(축 미반영) 한국어
+  // 사용자의 일지가 영어로 바뀐다(축 혼동).
+
+  it('"system" 이면 UI 언어를 따른다 (OS 로케일이 아니라)', () => {
+    setLangSetting("en");
+    setContentLangSetting("system");
+    expect(getContentLang()).toBe("en");
+    expect(tc("content.defaultPhase")).toBe("To do");
+  });
+
+  it("명시 설정은 UI 언어와 독립이다", () => {
+    setLangSetting("en");
+    setContentLangSetting("ko");
+    // 화면은 영어, 산출물은 한국어 — 이게 이 축을 나눈 이유다.
+    expect(t("nav.journal")).toBe("Work Journal");
+    expect(tc("content.defaultPhase")).toBe("할 일");
+  });
+
+  it("반대 방향도 성립한다", () => {
+    setLangSetting("ko");
+    setContentLangSetting("en");
+    expect(t("nav.journal")).toBe("작업 일지");
+    expect(tc("content.defaultPhase")).toBe("To do");
+  });
+
+  it("깨진 값은 system 취급 — UI 언어로 접힌다", () => {
+    setLangSetting("ko");
+    setContentLangSetting("fr");
+    expect(getContentLang()).toBe("ko");
   });
 });
 

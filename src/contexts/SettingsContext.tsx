@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { commands } from "@/lib/bindings";
-import { resolveLang, setLangSetting } from "@/i18n";
+import { resolveLang, setContentLangSetting, setLangSetting } from "@/i18n";
 import {
   DEFAULTS,
   Settings,
@@ -79,6 +79,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // Keep <html lang> honest for screen readers + `:lang()` CSS.
     document.documentElement.lang = resolveLang(settings.language);
   }, [settings.language]);
+
+  // --- AI 작성 언어: 같은 이유로 모듈 스토어에 밀어넣는다. 화면 언어와 **다른
+  // 축**이라 별도 설정이고, "system" 이면 UI 언어를 따른다 (OS 로케일이 아니라
+  // — 산출물 언어의 자연스러운 기본값은 "지금 이 사람이 읽고 있는 언어"다).
+  useEffect(() => {
+    setContentLangSetting(settings.contentLanguage);
+  }, [settings.contentLanguage]);
 
   // --- Theme application: set the `data-theme` attribute on <html> from the
   // theme setting. Decision A (2026-05-31): SettingsContext is the single

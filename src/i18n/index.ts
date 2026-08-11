@@ -103,6 +103,43 @@ function subscribe(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
+// ── AI 작성 언어 (contentLanguage) ────────────────────────────────────────
+
+/**
+ * **UI 언어와 다른 축이다.** 화면 문구는 `language`, AI 가 만드는 산출물(작업
+ * 일지·플래너 항목·회고)은 `contentLanguage` 를 따른다. 영어 UI 를 쓰면서
+ * 일지는 한국어로 남기고 싶은 사용자가 실재하기 때문에 분리돼 있다.
+ *
+ * `"system"` 은 **UI 언어를 따른다** — OS 로케일이 아니라. 산출물 언어의
+ * 자연스러운 기본값은 "지금 이 사람이 앱을 읽고 있는 언어"이고, 그래야 영어
+ * 사용자가 설정을 건드리지 않아도 영어 계획 항목을 받는다.
+ */
+let contentSetting: LangSetting = "system";
+
+/** 산출물에 쓸 언어. 컴포넌트 밖에서도 부른다 (플래너 시드 등). */
+export function getContentLang(): Lang {
+  return contentSetting === "ko" || contentSetting === "en" ? contentSetting : currentLang;
+}
+
+/** SettingsContext 가 설정 로드/변경 때 호출한다. */
+export function setContentLangSetting(setting: LangSetting | string | null | undefined): void {
+  const next = normalizeLangSetting(setting);
+  if (next === contentSetting) return;
+  contentSetting = next;
+  notify();
+}
+
+/**
+ * 산출물용 조회 — `t()` 의 쌍둥이지만 **작성 언어** 사전을 읽는다.
+ *
+ * 디스크·DB 에 기록되는 문자열(플래너 단계명·시드 목표·기본 계획 제목)에 쓴다.
+ * 화면 문구에 쓰면 안 된다 — 두 설정이 갈릴 때 화면이 섞인다.
+ */
+export function tc(key: I18nKey, vars?: TVars): string {
+  const raw = DICTS[getContentLang()][key] ?? ko[key] ?? key;
+  return interpolate(raw, vars);
+}
+
 /**
  * "system" 일 때 OS 테마 변경을 따라가듯 OS 로케일 변경도 따라가야 하지만,
  * 브라우저는 로케일 변경 이벤트를 주지 않는다 (`languagechange` 는 지원이
@@ -183,6 +220,7 @@ export function useT(): { t: typeof t; lang: Lang } {
 export function __resetLangForTests(): void {
   currentSetting = "system";
   currentLang = resolveLang(currentSetting);
+  contentSetting = "system";
   notify();
 }
 

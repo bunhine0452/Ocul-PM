@@ -25,6 +25,8 @@ import {
 } from "../../components/Icons";
 import { BrandMark } from "../../components/BrandMark";
 import { Checkbox } from "@/components/ui/checkbox";
+// t() = 화면 문구, tc() = 디스크·에이전트로 나가는 산출물 (작성 언어 축).
+import { tc, useT, type I18nKey } from "@/i18n";
 
 interface GreenfieldWizardProps {
   onClose: () => void;
@@ -44,11 +46,24 @@ interface WizardState {
   seedGoals: Array<{ title: string; description: string; priority: number }>;
 }
 
-const STACK_PRESETS = [
+/**
+ * 스택 프리셋. `name` 은 제품명(Vite + React · Rust …)이라 **번역하지 않는다** —
+ * 번역 대상은 설명(`descKey`)과, 제품명이 아닌 "빈 프로젝트"(`nameKey`)뿐이다.
+ */
+const STACK_PRESETS: Array<{
+  id: string;
+  name?: string;
+  nameKey?: I18nKey;
+  descKey: I18nKey;
+  icon: string;
+  cli: string | null;
+  scaffoldCmd: string | null;
+  scaffoldArgs: string[];
+}> = [
   {
     id: "vite-react",
     name: "Vite + React",
-    desc: "빠른 웹 앱 개발에 적합",
+    descKey: "gf.stackNextDesc",
     icon: "⚡",
     cli: "pnpm",
     scaffoldCmd: "pnpm",
@@ -57,7 +72,7 @@ const STACK_PRESETS = [
   {
     id: "nextjs",
     name: "Next.js",
-    desc: "풀스택 웹 프레임워크",
+    descKey: "gf.stackFullstackDesc",
     icon: "▲",
     cli: "npx",
     scaffoldCmd: "npx",
@@ -66,7 +81,7 @@ const STACK_PRESETS = [
   {
     id: "rust",
     name: "Rust",
-    desc: "시스템 프로그래밍 / CLI 도구",
+    descKey: "gf.stackRustDesc",
     icon: "🦀",
     cli: "cargo",
     scaffoldCmd: "cargo",
@@ -75,7 +90,7 @@ const STACK_PRESETS = [
   {
     id: "python",
     name: "Python",
-    desc: "데이터 분석 / API 서버",
+    descKey: "gf.stackPythonDesc",
     icon: "🐍",
     cli: "python3",
     scaffoldCmd: null,
@@ -84,7 +99,7 @@ const STACK_PRESETS = [
   {
     id: "go",
     name: "Go",
-    desc: "고성능 서버 / 마이크로서비스",
+    descKey: "gf.stackGoDesc",
     icon: "🔵",
     cli: "go",
     scaffoldCmd: "go",
@@ -92,8 +107,8 @@ const STACK_PRESETS = [
   },
   {
     id: "empty",
-    name: "빈 프로젝트",
-    desc: "수동으로 설정",
+    nameKey: "gf.stackEmptyName",
+    descKey: "gf.stackEmptyDesc",
     icon: "📁",
     cli: null,
     scaffoldCmd: null,
@@ -101,14 +116,15 @@ const STACK_PRESETS = [
   },
 ];
 
-const IDEA_EXAMPLES = [
-  "사내 업무용 대시보드 웹앱",
-  "개인 블로그 + 포트폴리오",
-  "CLI 파일 변환 도구",
-  "REST API 백엔드 서버",
-  "모바일 앱 (React Native)",
-  "데이터 분석 파이프라인",
-];
+/** 예시 아이디어 — 키 배열이다 (모듈 상수 문자열이면 언어가 임포트 시점에 굳는다). */
+const IDEA_EXAMPLE_KEYS = [
+  "gf.idea1",
+  "gf.idea2",
+  "gf.idea3",
+  "gf.idea4",
+  "gf.idea5",
+  "gf.idea6",
+] as const;
 
 /** seed_goals_json 관대 파싱 — 초안이 깨져 있어도 마법사는 열려야 한다. */
 function parseSeedGoals(json: string | null): WizardState["seedGoals"] {
@@ -122,6 +138,7 @@ function parseSeedGoals(json: string | null): WizardState["seedGoals"] {
 }
 
 export function GreenfieldWizard({ onClose, onComplete, resume = null }: GreenfieldWizardProps) {
+  const { t } = useT();
   // 복원(감사 fix): 저장된 초안이 오면 단계·입력·blueprint id 를 그대로 이어서
   // 시작한다 — 이전에는 "복원"이 항상 0단계 새 초안을 만들어 중복이 쌓였다.
   const resumePreset = resume?.stack_choice
@@ -173,7 +190,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
       try {
         const res = await commands.saveBlueprint(
           blueprintId,
-          wizState.folderName || wizState.ideaText.slice(0, 30) || "새 프로젝트",
+          wizState.folderName || wizState.ideaText.slice(0, 30) || tc("gf.defaultName"),
           wizState.ideaText || null,
           wizState.targetUsers || null,
           wizState.stackChoice || null,
@@ -217,7 +234,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
     if (wizState.ideaText || wizState.folderName) {
       await commands.saveBlueprint(
         blueprintId,
-        wizState.folderName || wizState.ideaText.slice(0, 30) || "새 프로젝트",
+        wizState.folderName || wizState.ideaText.slice(0, 30) || tc("gf.defaultName"),
         wizState.ideaText || null,
         wizState.targetUsers || null,
         wizState.stackChoice || null,
@@ -267,9 +284,9 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         setWizState((prev) => ({
           ...prev,
           seedGoals: [
-            { title: "프로젝트 초기 설정 완료", description: "의존성 설치, 빌드 환경 구성, 기본 폴더 구조 정리", priority: 1 },
-            { title: "핵심 기능 프로토타입 구현", description: "MVP 수준의 메인 기능 1개 구현", priority: 2 },
-            { title: "README 및 문서 작성", description: "프로젝트 설명, 설치 방법, 사용법 문서화", priority: 3 },
+            { title: tc("content.seed1Title"), description: tc("content.seed1Desc"), priority: 1 },
+            { title: tc("content.seed2Title"), description: tc("content.seed2Desc"), priority: 2 },
+            { title: tc("content.seed3Title"), description: tc("content.seed3Desc"), priority: 3 },
           ],
         }));
         return;
@@ -281,9 +298,9 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
       setWizState((prev) => ({
         ...prev,
         seedGoals: [
-          { title: "프로젝트 초기 설정 완료", description: "의존성 설치, 빌드 환경 구성, 기본 폴더 구조 정리", priority: 1 },
-          { title: "핵심 기능 프로토타입 구현", description: "MVP 수준의 메인 기능 1개 구현", priority: 2 },
-          { title: "README 및 문서 작성", description: "프로젝트 설명, 설치 방법, 사용법 문서화", priority: 3 },
+          { title: tc("content.seed1Title"), description: tc("content.seed1Desc"), priority: 1 },
+          { title: tc("content.seed2Title"), description: tc("content.seed2Desc"), priority: 2 },
+          { title: tc("content.seed3Title"), description: tc("content.seed3Desc"), priority: 3 },
         ],
       }));
     } finally {
@@ -325,10 +342,13 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         {
           const idea = wizState.ideaText.trim().replace(/\s+/g, " ").slice(0, 300);
           const who = wizState.targetUsers.trim().replace(/\s+/g, " ").slice(0, 150);
+          // 터미널에 프리필돼 **사용자가 읽고 실행**하는 프롬프트라 §4.5 의
+          // 예외에 해당한다 — 본문도 번역하되, 응답 언어가 산출물 언어와
+          // 같아야 하므로 t() 가 아니라 tc() 다.
           const kickoff =
-            `새 프로젝트 설계를 시작하자 — project-inception 스킬을 따라 진행해줘. ` +
-            `아이디어: ${idea}` +
-            (who ? ` / 대상 사용자: ${who}` : "");
+            tc("gf.kickoffLead") +
+            tc("gf.kickoffIdea", { idea }) +
+            (who ? tc("gf.kickoffWho", { who }) : "");
           setPendingDispatch(`claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`);
         }
 
@@ -336,7 +356,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         // plan whose items are the seed goals, so onboarding output lands in
         // the same SSOT the Planner + Today read (not the retired SQLite goals).
         if (wizState.seedGoals.length > 0) {
-          const created = await commands.planCreate(projectId, "초기 계획");
+          const created = await commands.planCreate(projectId, tc("content.initialPlan"));
           if (created.status === "ok") {
             const planId = created.data.plan_id;
             for (const goal of wizState.seedGoals) {
@@ -345,7 +365,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                 planId,
                 {
                   kind: "add_item",
-                  phase: "초기 목표",
+                  phase: tc("content.initialGoalsPhase"),
                   title: goal.title,
                   item_id: null,
                   status: null,
@@ -385,7 +405,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
     setStep((s) => Math.min(s + 1, 4));
   };
 
-  const stepTitles = ["어떤 앱을 만들까요?", "누가 사용하나요?", "기술 스택 선택", "프로젝트 위치", "초기 목표 확인"];
+  const stepTitles = [t("gf.step1"), t("gf.step2"), t("gf.step3"), t("gf.step4"), t("gf.step5")];
 
   // Escape key to close
   useEffect(() => {
@@ -417,7 +437,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           <button
             onClick={handleClose}
             className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            aria-label="닫기 (Esc)"
+            aria-label={t("gf.close")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -440,7 +460,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step === 0 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                만들고 싶은 앱이나 프로젝트를 자유롭게 설명해주세요.
+                {t("gf.ideaPrompt")}
               </p>
               <textarea
                 value={wizState.ideaText}
@@ -448,19 +468,19 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                   setWizState((prev) => ({ ...prev, ideaText: e.target.value }))
                 }
                 className="w-full h-32 px-4 py-3 border border-border rounded-xl bg-background text-sm resize-none focus:outline-none focus:border-primary transition-colors"
-                placeholder="예: 팀 내부에서 사용할 프로젝트 관리 대시보드"
+                placeholder={t("gf.ideaPlaceholder")}
                 autoFocus
               />
               <div className="flex flex-wrap gap-2">
-                {IDEA_EXAMPLES.map((ex) => (
+                {IDEA_EXAMPLE_KEYS.map((key) => (
                   <button
-                    key={ex}
+                    key={key}
                     onClick={() =>
-                      setWizState((prev) => ({ ...prev, ideaText: ex }))
+                      setWizState((prev) => ({ ...prev, ideaText: t(key) }))
                     }
                     className="px-3 py-1.5 text-xs rounded-full border border-border hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                   >
-                    {ex}
+                    {t(key)}
                   </button>
                 ))}
               </div>
@@ -470,7 +490,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                주요 사용자가 누구인지 알려주세요. (선택 사항)
+                {t("gf.usersPrompt")}
               </p>
               <textarea
                 value={wizState.targetUsers}
@@ -478,14 +498,23 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                   setWizState((prev) => ({ ...prev, targetUsers: e.target.value }))
                 }
                 className="w-full h-24 px-4 py-3 border border-border rounded-xl bg-background text-sm resize-none focus:outline-none focus:border-primary transition-colors"
-                placeholder="예: 사내 개발팀 5명, 비개발자도 포함"
+                placeholder={t("gf.usersPlaceholder")}
                 autoFocus
               />
               <div className="flex flex-wrap gap-2">
-                {["개발자", "일반 사용자", "내부 팀", "학생", "오픈소스 커뮤니티"].map(
-                  (ex) => (
+                {(
+                  [
+                    "gf.userDev",
+                    "gf.userGeneral",
+                    "gf.userInternal",
+                    "gf.userStudent",
+                    "gf.userOss",
+                  ] as const
+                ).map((key) => {
+                  const ex = t(key);
+                  return (
                     <button
-                      key={ex}
+                      key={key}
                       onClick={() =>
                         setWizState((prev) => ({
                           ...prev,
@@ -498,8 +527,8 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                     >
                       {ex}
                     </button>
-                  )
-                )}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -507,7 +536,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                프로젝트에 사용할 기술 스택을 선택하세요.
+                {t("gf.stackPrompt")}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {STACK_PRESETS.map((preset) => {
@@ -538,16 +567,18 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                             }`}
                           >
                             {cliCheck === undefined
-                              ? "확인 중..."
+                              ? t("gf.checking")
                               : cliAvailable
-                                ? "✅ 설치됨"
-                                : "⚠️ 미설치"}
+                                ? t("gf.installed")
+                                : t("gf.notInstalled")}
                           </span>
                         )}
                       </div>
-                      <div className="font-bold text-sm">{preset.name}</div>
+                      <div className="font-bold text-sm">
+                        {preset.nameKey ? t(preset.nameKey) : preset.name}
+                      </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {preset.desc}
+                        {t(preset.descKey)}
                       </div>
                       {isSelected && (
                         <div className="absolute top-2 right-2">
@@ -564,12 +595,12 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step === 3 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                프로젝트를 저장할 위치와 이름을 지정하세요.
+                {t("gf.locationPrompt")}
               </p>
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    프로젝트 이름
+                    {t("gf.projectName")}
                   </label>
                   <input
                     type="text"
@@ -584,7 +615,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-                    저장 위치
+                    {t("gf.saveLocation")}
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -600,10 +631,10 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                     <button
                       onClick={handleSelectFolder}
                       className="px-4 py-2.5 border border-border rounded-xl hover:bg-accent text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2"
-                      aria-label="폴더 선택"
+                      aria-label={t("gf.pickFolder")}
                     >
                       <Folder className="w-4 h-4" />
-                      선택
+                      {t("gf.pick")}
                     </button>
                   </div>
                 </div>
@@ -619,13 +650,13 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step === 4 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                AI가 생성한 초기 목표를 확인하고 수정할 수 있습니다.
+                {t("gf.goalsPrompt")}
               </p>
 
               {isGeneratingGoals ? (
                 <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">목표를 생성하고 있어요...</span>
+                  <span className="text-sm">{t("gf.generatingGoals")}</span>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -657,12 +688,12 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                   ))}
                   {wizState.seedGoals.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
-                      <p>목표가 아직 없습니다.</p>
+                      <p>{t("gf.noGoals")}</p>
                       <button
                         onClick={handleGenerateGoals}
                         className="mt-2 text-primary text-xs font-bold hover:underline cursor-pointer"
                       >
-                        AI로 목표 생성하기
+                        {t("gf.generateGoals")}
                       </button>
                     </div>
                   )}
@@ -675,22 +706,21 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                   <Checkbox
                     checked={initOculpm}
                     onCheckedChange={(v) => setInitOculpm(v === true)}
-                    aria-label="ocul-pm 으로 이 프로젝트 추적"
+                    aria-label={t("gf.trackAria")}
                     className="mt-0.5"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="flex items-center gap-1.5 text-sm font-medium">
                       <BrandMark size={16} />
-                      ocul-pm 으로 이 프로젝트 추적
+                      {t("gf.trackLabel")}
                       <span className="text-[10px] text-primary/80 font-semibold uppercase tracking-wider">
-                        권장
+                        {t("gf.recommended")}
                       </span>
                     </span>
                     <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                      파일 변경과 작업 narrative 를 자동 기록합니다.
+                      {t("gf.trackHint1")}
                       <code className="font-mono mx-1 text-[10.5px] bg-muted px-1 rounded">.oculpm/</code>
-                      디렉토리가 생기고, 외부 LLM (Claude Code, Cursor 등) 의 작업이 Today 탭에 정리됩니다.
-                      나중에 EmptyToday 의 활성화 카드로도 켤 수 있습니다.
+                      {t("gf.trackHint2Suffix")}
                     </span>
                   </span>
                 </label>
@@ -713,7 +743,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-accent flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            {step > 0 ? "이전" : "닫기"}
+            {step > 0 ? t("gf.prev") : t("common.close")}
           </button>
 
           {step < 4 ? (
@@ -722,7 +752,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
               disabled={!canNext()}
               className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
             >
-              다음
+              {t("gf.next")}
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           ) : (
@@ -734,11 +764,11 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
               {isCreating ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  생성 중...
+                  {t("gf.creating")}
                 </>
               ) : (
                 <>
-                  프로젝트 시작하기
+                  {t("gf.start")}
                   <Rocket className="w-3.5 h-3.5" />
                 </>
               )}

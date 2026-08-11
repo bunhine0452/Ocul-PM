@@ -14,6 +14,9 @@ import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
 import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
+// 이벤트 리스너 안에서 부르는 토스트라 훅이 아닌 모듈 t() 가 맞다
+// (구독 시점이 아니라 **발생 시점**의 언어를 읽어야 한다).
+import { t } from "@/i18n";
 
 // v2 U3 — recentChanges 는 전용 외부 스토어로 분리됐다 (아래 주석 및
 // docs/20260706_v2/03-performance-spec.md §1). 기존 임포트 경로 호환을 위해
@@ -669,8 +672,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     void events.oculpmPlanReconciled.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const { applied, plan_id: planId } = evt.payload;
-      toast.info(`AI 가 계획 항목 ${applied}개를 자동 갱신했어요`, {
-        title: "자동 화해",
+      toast.info(t("ws.reconciled", { n: applied }), {
+        title: t("ws.reconciledTitle"),
         dedupKey: `reconciled:${planId}`,
         dedupWindowMs: 5_000,
       });
@@ -682,15 +685,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const { agent_id: agentId } = evt.payload;
       if (DriftCooldown.isDismissed(agentId)) return;
       toast.warning(
-        `${agentId} 규칙 파일이 외부에서 수정되었습니다.`,
+        t("ws.driftBody", { agent: agentId }),
         {
-          title: "어댑터 drift 감지",
+          title: t("ws.driftTitle"),
           dedupKey: `drift:${agentId}`,
           dedupWindowMs: 60_000,
           durationMs: 0, // sticky until user acts
           actions: [
             {
-              label: "동기화",
+              label: t("ws.driftSync"),
               onClick: () => {
                 if (pid == null) return;
                 oculpmApi
@@ -700,16 +703,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                       (r) => r.action === "inserted" || r.action === "updated",
                     ).length;
                     DriftCooldown.clear(agentId);
-                    toast.info(`동기화 완료 (${updated} 어댑터 갱신)`);
+                    toast.info(t("ws.driftSynced", { n: updated }));
                   })
                   .catch((e) => {
                     const msg = e instanceof OculpmApiError ? e.message : String(e);
-                    toast.destructive(`동기화 실패: ${msg}`);
+                    toast.destructive(t("ws.driftSyncFailed", { error: msg }));
                   });
               },
             },
             {
-              label: "무시 (5분)",
+              label: t("ws.driftIgnore"),
               onClick: () => DriftCooldown.dismiss(agentId),
             },
           ],
@@ -746,7 +749,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     void events.oculpmJournalAdded.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
-      toast.info(`새 기록: ${evt.payload.summary.title}`, {
+      toast.info(t("ws.newEntry", { title: evt.payload.summary.title }), {
         dedupKey: `journal_added:${evt.payload.summary.relative_path}`,
       });
     }).then((off) => offFns.push(off));

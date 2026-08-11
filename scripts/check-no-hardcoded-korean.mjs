@@ -131,9 +131,6 @@ const PENDING = new Set([
   "__tests__/tray_popover.test.tsx",
   "__tests__/update_banner.test.tsx",
   "__tests__/workday_rollover.test.tsx",
-  "contexts/WorkspaceContext.tsx",
-  "features/onboarding/GreenfieldWizard.tsx",
-  "features/projects/ProjectManager.tsx",
   // @PENDING_END
 ]);
 
