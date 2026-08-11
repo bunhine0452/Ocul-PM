@@ -1259,6 +1259,103 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Launcher home (StartScreen · home/*) ────────────────────────────────
+  // The first screen on launch and the project-switching hub.
+  "home.agoJustNow": "just now",
+  "home.agoMinutes": "{n}m ago",
+  "home.agoHours": "{n}h ago",
+  "home.agoDays": "{n}d ago",
+  // Dateline — the date itself comes from Intl (§3); only the tail clauses
+  // live in the dictionary.
+  "home.datelineToday": "{n} today",
+  "home.datelineProjects": "{n} projects",
+  // Greenfield draft steps
+  "home.step1": "Idea",
+  "home.step2": "Users",
+  "home.step3": "Stack",
+  "home.step4": "Location",
+  "home.step5": "Goals",
+  "home.stepDraft": "Draft",
+  "home.noMatchCommandHint": "No project matches \"{q}\". You can still run a command.",
+  "home.matchedProjects": "{n} projects found",
+  // Atoms
+  "home.sparkAria": "Activity over the last {n} days",
+  "home.sparkProjectAria": "Recent activity for {name}",
+  "home.progressAria": "{done} of {total} done",
+  "home.renameAria": "Rename {name}",
+  "home.removeAria": "Remove {name}",
+  "home.unverified": "Unverified",
+  // Project rows
+  "home.openAria": "Open {name} — last activity {when}",
+  "home.openWithEntryAria": "Open {name} — {title}",
+  "home.indexing": "Indexing",
+  "home.indexingNow": "Indexing…",
+  "home.quietAria": "Open {name} — {n} entries, quiet for over 2 weeks",
+  "home.entryCount": "{n} entries",
+  "home.newProjectFallback": "New project",
+  "home.draftResumeAria": "Resume the {name} draft — {step} step",
+  "home.draftStoppedAt": "Stopped at {step}",
+  "home.discardConfirm": "Discard it?",
+  "home.yes": "Yes",
+  "home.no": "No",
+  "home.draftDiscardAria": "Discard the {name} draft",
+  // Top chrome
+  "home.manageProjects": "Manage projects",
+  "home.openSettings": "Open settings",
+  "home.addProject": "Add project",
+  "home.searchProjects": "Search projects",
+  "home.matchCount": "{n} matches",
+  "home.totalCount": "{n} total",
+  "home.pickProject": "Pick a project",
+  "home.kbdOpen": "open",
+  "home.kbdRename": "rename",
+  "home.kbdRemove": "remove",
+  "home.kbdMove": "move",
+  "home.kbdPalette": "command palette",
+  // Sections and commands
+  "home.cmdAdd": "Open an existing folder",
+  "home.cmdNew": "Start a new project",
+  "home.sectionSearch": "Search results",
+  "home.sectionAll": "All projects",
+  "home.sectionQuiet": "Indexed · quiet for over 2 weeks",
+  "home.sectionDrafts": "Drafts",
+  "home.sectionCommands": "Commands",
+  "home.manage": "Manage",
+  "home.noMatch": "No project matches ‘{query}’",
+  "home.noMatchTip": "You can also search by path, or by Korean initials",
+  // Tiles
+  "home.resumeWork": "Pick up where you left off",
+  "home.lastActivity": "last activity {when}",
+  "home.nextTasks": "Next up",
+  "home.recentEntries": "Recent entries",
+  "home.enterToOpen": "⏎ open",
+  "home.todayFlow": "Today's flow",
+  "home.todayCountPrefix": "Today",
+  "home.todayCountSuffix": "entries",
+  "home.briefFailed": "Could not load the records.",
+  "home.briefFailedHint": "You can still open projects below.",
+  "home.briefEmpty": "Nothing recorded yet.",
+  "home.briefEmptyHint": "Work with your agent as usual and it will pile up here.",
+  "home.existingFolder": "Existing folder",
+  "home.brandNew": "New project",
+  // First-run explainer
+  "home.how1Title": "Add a project folder",
+  "home.how1Body":
+    "When you open a folder, Ocul-PM plants the rules for coding agents (AGENTS.md) automatically.",
+  "home.how2Title": "Code with your agent as usual",
+  "home.how2Body":
+    "Work with Claude Code, Cursor, Gemini, or whatever you already use — those rules make the agent write a work journal.",
+  "home.how3Title": "Recorded and organized for you",
+  "home.how3Body":
+    "The journal entries, change diffs, and stats it leaves behind are gathered onto the Today screen.",
+  "home.howTitle": "Here is how Ocul-PM works",
+  // "automatically" is emphasized mid-sentence, so it splits (§4.2).
+  "home.howBodyPrefix":
+    "You never record anything by hand. Work with your coding agent as usual and Ocul-PM gathers the changes, journal entries, and stats ",
+  "home.howBodyEmphasis": "automatically",
+  "home.howBodySuffix": ".",
+  "home.ctaAddProject": "Add a project and get started",
+
   // ── Backend error mapping (i18n/errors.ts — tError) ─────────────────────
   // Rust returns English only and this maps it back (§4.4). In English mode
   // tError short-circuits, so these values exist purely for key completeness
@@ -1371,15 +1468,15 @@ export const en: Record<keyof typeof ko, string> = {
   // Retro generation done (failure reuses the existing `retro.genFailed`)
   "retro.genReady": "Your retro is ready",
 
-  // ── Menu-bar popover (tray) ─────────────────────────────────────────────
-  // Journal type badge — **singular**, since it labels one entry.
-  // `journal.filter.*` / `retro.type.*` are filter chips and read as plurals
-  // ("Bugs") in English, so they cannot be reused here.
-  "tray.typeFeature": "Feature",
-  "tray.typeBug": "Bug",
-  "tray.typeError": "Error",
-  "tray.typeRefactor": "Refactor",
-  "tray.typeChore": "Chore",
+  // ── Journal type badge (shared: tray + launcher home) ───────────────────
+  // **Singular**, since it labels one entry. `journal.filter.*` /
+  // `retro.type.*` are filter chips and read as plurals ("Bugs") in English,
+  // so they cannot be reused here.
+  "entryType.feature": "Feature",
+  "entryType.bug": "Bug",
+  "entryType.error": "Error",
+  "entryType.refactor": "Refactor",
+  "entryType.chore": "Chore",
   // Session elapsed time
   "tray.justStarted": "Just started",
   "tray.elapsedMinutes": "{n}m in",

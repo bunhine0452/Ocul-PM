@@ -25,6 +25,7 @@ const CHOSEONG = [
   "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
 ];
 /** 완성형 한글이 하나라도 있는지 (초성 규칙 적용 여부). */
+// i18n-ignore-next-line -- 초성 검색용 한글 판정 문자 클래스 (표시 문자열 아님)
 const HANGUL = /[가-힣]/;
 const HANGUL_BASE = 0xac00;
 const HANGUL_LAST = 0xd7a3;

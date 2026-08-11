@@ -9,6 +9,7 @@ import { ArrowRight, Bot, NotebookText, Plus, Sparkles, FolderOpen } from "@/com
 import type { Project } from "@/lib/bindings";
 
 import { AgentBadge, Mark, Progress, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
+import { useT } from "@/i18n";
 import {
   FEED_MAX,
   hhmm,
@@ -38,15 +39,16 @@ export function ResumeTile({
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
 }) {
+  const { t } = useT();
   const { project: p, snap } = row;
   const when = relativeTime(snap?.lastAt ?? null, now);
 
   return (
     <article className="home-tile home-tile--hero home-t-hero home-in-bento p-[22px] flex flex-col">
       <header className="flex items-start justify-between gap-3">
-        <span className="home-eyebrow">이어서 일하기</span>
+        <span className="home-eyebrow">{t("home.resumeWork")}</span>
         <span className="flex items-center gap-2">
-          <span className="home-when">마지막 활동 {when}</span>
+          <span className="home-when">{t("home.lastActivity", { when })}</span>
           <RowActions name={p.name} onRename={() => onRename(p)} onDelete={() => onDelete(p)} />
         </span>
       </header>
@@ -59,7 +61,7 @@ export function ResumeTile({
               type="button"
               onClick={() => onOpen(p)}
               className="home-open text-left bg-transparent border-0 p-0 cursor-pointer text-inherit font-inherit"
-              aria-label={`${p.name} 열기 — 마지막 활동 ${when}`}
+              aria-label={t("home.openAria", { name: p.name, when })}
             >
               {p.name}
             </button>
@@ -68,7 +70,7 @@ export function ResumeTile({
         </div>
         {indexing && (
           <span className="home-kbd ml-auto self-start" role="status">
-            인덱싱 중
+            {t("home.indexingNow")}
           </span>
         )}
       </div>
@@ -82,23 +84,23 @@ export function ResumeTile({
       )}
 
       {snap?.nextTasks && snap.nextTasks.length > 0 && (
-        <section className="mt-5" aria-label="다음 할 일">
-          <h3 className="home-eyebrow">다음 할 일</h3>
+        <section className="mt-5" aria-label={t("home.nextTasks")}>
+          <h3 className="home-eyebrow">{t("home.nextTasks")}</h3>
           <ul className="mt-2 space-y-1.5">
-            {snap.nextTasks.map((t) => (
-              <li key={`${t.plan_id}:${t.item_id}`} className="flex items-center gap-2 min-w-0">
+            {snap.nextTasks.map((task) => (
+              <li key={`${task.plan_id}:${task.item_id}`} className="flex items-center gap-2 min-w-0">
                 <span
                   className="text-[11px] shrink-0"
-                  style={{ color: t.status === "in_progress" ? "var(--accent)" : "var(--text-3)" }}
+                  style={{ color: task.status === "in_progress" ? "var(--accent)" : "var(--text-3)" }}
                   aria-hidden="true"
                 >
-                  {t.status === "in_progress" ? "◐" : t.status === "blocked" ? "⊘" : "○"}
+                  {task.status === "in_progress" ? "◐" : task.status === "blocked" ? "⊘" : "○"}
                 </span>
                 <span className="text-[12.5px] text-[var(--text)] truncate min-w-0">
-                  {t.item_title}
+                  {task.item_title}
                 </span>
                 <span className="text-[10.5px] font-mono text-[var(--text-3)] ml-auto shrink-0">
-                  {t.phase ?? t.plan_title}
+                  {task.phase ?? task.plan_title}
                 </span>
               </li>
             ))}
@@ -112,8 +114,8 @@ export function ResumeTile({
       )}
 
       {snap?.lastTitle && (
-        <section className="mt-5" aria-label="최근 기록">
-          <h3 className="home-eyebrow">최근 기록</h3>
+        <section className="mt-5" aria-label={t("home.recentEntries")}>
+          <h3 className="home-eyebrow">{t("home.recentEntries")}</h3>
           <div className="mt-2">
             <TriggerKicker type={snap.lastType} title={snap.lastTitle} />
           </div>
@@ -129,11 +131,11 @@ export function ResumeTile({
 
       <footer className="mt-auto pt-5 flex items-end justify-between gap-3">
         <span className="min-w-0 flex flex-col gap-1.5">
-          {snap && <Sparkline data={snap.spark} label={`${p.name} 최근 활동 추이`} />}
+          {snap && <Sparkline data={snap.spark} label={t("home.sparkProjectAria", { name: p.name })} />}
           <AgentBadge agentId={snap?.lastAgentId ?? null} version={snap?.lastAgentVersion ?? null} />
         </span>
         <span className="home-kbd shrink-0" aria-hidden="true">
-          ⏎ 열기
+          {t("home.enterToOpen")}
         </span>
       </footer>
     </article>
@@ -156,19 +158,22 @@ export function FlowTile({
   failed: boolean;
   onOpenProject: (p: Project) => void;
 }) {
+  const { t } = useT();
   const feed = (brief?.feed ?? []).slice(0, FEED_MAX);
   const byId = new Map(projects.map((p) => [p.id, p]));
 
   return (
-    <article className="home-tile home-t-flow home-in-bento p-4 flex flex-col" aria-label="오늘의 흐름">
+    <article className="home-tile home-t-flow home-in-bento p-4 flex flex-col" aria-label={t("home.todayFlow")}>
       <header className="flex items-center justify-between gap-3">
         <h2 className="home-eyebrow flex items-center gap-1.5">
           <NotebookText className="w-3.5 h-3.5 text-[var(--accent)]" strokeWidth={2} />
-          오늘의 흐름
+          {t("home.todayFlow")}
         </h2>
         {brief && (
           <span className="home-when">
-            오늘 <span className="text-[var(--text)] font-bold">{brief.today_total}</span>건
+            {t("home.todayCountPrefix")}{" "}
+            <span className="text-[var(--text)] font-bold">{brief.today_total}</span>{" "}
+            {t("home.todayCountSuffix")}
           </span>
         )}
       </header>
@@ -188,19 +193,19 @@ export function FlowTile({
           기록은 있는데 못 읽어온 것일 수 있다. 두 상태를 구분한다. */}
       {!loading && feed.length === 0 && failed && (
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
-          기록을 불러오지 못했어요.
+          {t("home.briefFailed")}
           <br />
           <span className="text-[11px] text-[var(--text-3)]">
-            프로젝트는 아래에서 그대로 열 수 있습니다.
+            {t("home.briefFailedHint")}
           </span>
         </p>
       )}
       {!loading && feed.length === 0 && !failed && (
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
-          아직 기록이 없어요.
+          {t("home.briefEmpty")}
           <br />
           <span className="text-[11px] text-[var(--text-3)]">
-            평소처럼 에이전트로 작업하면 여기에 쌓입니다.
+            {t("home.briefEmptyHint")}
           </span>
         </p>
       )}
@@ -215,7 +220,7 @@ export function FlowTile({
                 disabled={!p}
                 onClick={() => p && onOpenProject(p)}
                 className="w-full flex items-start gap-2.5 px-1.5 py-1.5 rounded-[var(--radius-s)] text-left transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-60 disabled:cursor-default cursor-pointer"
-                aria-label={p ? `${p.name} 열기 — ${it.title}` : it.title}
+                aria-label={p ? t("home.openWithEntryAria", { name: p.name, title: it.title }) : it.title}
               >
                 <span className="text-[10.5px] font-mono text-[var(--text-3)] w-9 shrink-0 pt-0.5 tabular-nums">
                   {hhmm(it.created_at)}
@@ -257,6 +262,7 @@ export function ProjectPanel({
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
 }) {
+  const { t } = useT();
   const { project: p, snap } = row;
   const when = relativeTime(snap?.lastAt ?? null, now);
 
@@ -270,14 +276,14 @@ export function ProjectPanel({
               type="button"
               onClick={() => onOpen(p)}
               className="home-open text-left bg-transparent border-0 p-0 cursor-pointer text-inherit"
-              aria-label={`${p.name} 열기 — 마지막 활동 ${when}`}
+              aria-label={t("home.openAria", { name: p.name, when })}
             >
               {p.name}
             </button>
           </h3>
           {indexing && (
             <span className="home-kbd shrink-0" role="status">
-              인덱싱
+              {t("home.indexing")}
             </span>
           )}
         </span>
@@ -285,7 +291,7 @@ export function ProjectPanel({
       </header>
 
       <div className="flex items-center gap-3 min-w-0">
-        {snap && <Sparkline data={snap.spark} label={`${p.name} 최근 활동 추이`} />}
+        {snap && <Sparkline data={snap.spark} label={t("home.sparkProjectAria", { name: p.name })} />}
         {snap?.activePlan && (
           <span className="min-w-0 flex-1 flex items-center gap-2">
             <span className="text-[11px] text-[var(--text-2)] truncate min-w-0">
@@ -327,6 +333,7 @@ export function AddTile({
   onAddExisting: () => void;
   onStartNew: () => void;
 }) {
+  const { t } = useT();
   const span =
     variant === "hero"
       ? "home-t-hero"
@@ -340,15 +347,15 @@ export function AddTile({
     <div className={`home-add ${span} home-in-bento p-5`} style={{ display: "grid" }}>
       <div className="flex flex-col items-center gap-3">
         <Plus className="w-7 h-7" strokeWidth={1.5} aria-hidden="true" />
-        <span className="text-[13px] font-bold">프로젝트 추가</span>
+        <span className="text-[13px] font-bold">{t("home.addProject")}</span>
         <span className="flex items-center gap-2">
           <button type="button" onClick={onAddExisting} className="home-chipbtn">
             <FolderOpen className="w-3 h-3" />
-            기존 폴더
+            {t("home.existingFolder")}
           </button>
           <button type="button" onClick={onStartNew} className="home-chipbtn">
             <Sparkles className="w-3 h-3" />
-            새 프로젝트
+            {t("home.brandNew")}
           </button>
         </span>
       </div>
@@ -367,41 +374,45 @@ export function AddTile({
  * 바꾸려면 그 테스트도 같은 커밋에서 고쳐야 한다.
  */
 export function OnboardingTile({ onStart }: { onStart: () => void }) {
+  const { t } = useT();
+  // `as const` 로 titleKey/bodyKey 가 리터럴 타입이 돼 I18nKey 에 맞는다
+  // (명시 애노테이션은 lucide 아이콘 타입과 싸운다).
   const steps = [
     {
       n: 1,
       Icon: FolderOpen,
-      title: "프로젝트 폴더 추가",
-      body: "폴더를 불러오면 Ocul-PM 이 코딩 에이전트용 규칙(AGENTS.md)을 자동으로 심어요.",
+      titleKey: "home.how1Title",
+      bodyKey: "home.how1Body",
     },
     {
       n: 2,
       Icon: Bot,
-      title: "평소처럼 에이전트로 코딩",
-      body: "Claude Code·Cursor·Gemini 등 쓰던 에이전트로 작업하면, 그 규칙에 따라 에이전트가 작업 일지를 남겨요.",
+      titleKey: "home.how2Title",
+      bodyKey: "home.how2Body",
     },
     {
       n: 3,
       Icon: NotebookText,
-      title: "자동으로 기록·정리",
-      body: "남겨진 작업 일지·변경 diff·통계를 Today 화면에 모아 보여줍니다.",
+      titleKey: "home.how3Title",
+      bodyKey: "home.how3Body",
     },
-  ];
+  ] as const;
 
   return (
     <article className="home-tile home-tile--hero home-t-wide home-in-bento p-7 space-y-5">
       <div className="space-y-1.5">
         <h2 className="text-[22px] font-bold tracking-tight text-[var(--text)]">
-          Ocul-PM 은 이렇게 동작해요
+          {t("home.howTitle")}
         </h2>
         <p className="text-[13px] text-[var(--text-2)] leading-relaxed">
-          직접 기록하지 않아도 됩니다. 평소처럼 코딩 에이전트로 작업하면, Ocul-PM 이 변경·작업
-          일지·통계를 <span className="text-[var(--text)] font-semibold">자동으로</span> 모아줍니다.
+          {t("home.howBodyPrefix")}
+          <span className="text-[var(--text)] font-semibold">{t("home.howBodyEmphasis")}</span>
+          {t("home.howBodySuffix")}
         </p>
       </div>
 
       <ol className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {steps.map(({ n, Icon, title, body }) => (
+        {steps.map(({ n, Icon, titleKey, bodyKey }) => (
           <li
             key={n}
             className="rounded-[var(--radius-m)] border border-[var(--border-card)] bg-[var(--bg-inset)] p-4 space-y-2"
@@ -415,9 +426,9 @@ export function OnboardingTile({ onStart }: { onStart: () => void }) {
                 {n}
               </span>
               <Icon className="w-4 h-4 text-[var(--accent)]" strokeWidth={1.75} />
-              <h3 className="text-[13px] font-bold text-[var(--text)]">{title}</h3>
+              <h3 className="text-[13px] font-bold text-[var(--text)]">{t(titleKey)}</h3>
             </div>
-            <p className="text-[11.5px] text-[var(--text-2)] leading-relaxed">{body}</p>
+            <p className="text-[11.5px] text-[var(--text-2)] leading-relaxed">{t(bodyKey)}</p>
           </li>
         ))}
       </ol>
@@ -426,10 +437,10 @@ export function OnboardingTile({ onStart }: { onStart: () => void }) {
         type="button"
         onClick={onStart}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-m)] bg-[var(--accent)] text-[var(--text-on-accent)] text-[13px] font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer"
-        aria-label="프로젝트 추가하고 시작하기"
+        aria-label={t("home.ctaAddProject")}
       >
         <Plus className="w-4 h-4" />
-        프로젝트 추가하고 시작하기
+        {t("home.ctaAddProject")}
         <ArrowRight className="w-3.5 h-3.5" />
       </button>
     </article>

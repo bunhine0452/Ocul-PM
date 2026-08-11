@@ -46,11 +46,11 @@ const ENTRY_LIST_MAX = 50;
 
 /** 일지 타입 → 배지 라벨 키. 표시만 사전을 거치고 타입 자체는 판별자로 남는다. */
 const TYPE_LABEL: Record<string, I18nKey> = {
-  feature: "tray.typeFeature",
-  bug: "tray.typeBug",
-  error: "tray.typeError",
-  refactor: "tray.typeRefactor",
-  chore: "tray.typeChore",
+  feature: "entryType.feature",
+  bug: "entryType.bug",
+  error: "entryType.error",
+  refactor: "entryType.refactor",
+  chore: "entryType.chore",
 };
 
 function fmtTime(iso: string): string {

@@ -29,6 +29,7 @@ import { HomeActionBar, HomeSearchBand, HomeTopRail } from "./home/chrome";
 import { CommandRow, DraftRow, HomeSection, IndexRow, ProjectRow, type RowWiring } from "./home/rows";
 import { AddTile, FlowTile, OnboardingTile, ProjectPanel, ResumeTile } from "./home/tiles";
 import { ProjectManager } from "@/features/projects/ProjectManager";
+import { useT } from "@/i18n";
 
 /**
  * [중요] 이 타입을 export 해야 테스트가 직접 참조할 수 있다. JSX 스프레드는
@@ -56,6 +57,7 @@ export interface StartScreenProps {
 }
 
 export function StartScreen(props: StartScreenProps) {
+  const { t } = useT();
   const {
     projects,
     indexingId,
@@ -110,15 +112,15 @@ export function StartScreen(props: StartScreenProps) {
 
   const commandSpecs: CommandSpec[] = useMemo(
     () => [
-      { id: "cmd:add", label: "기존 폴더 불러오기", hint: "⌘O", run: onAddProject },
-      { id: "cmd:new", label: "새 프로젝트 시작하기", hint: "⌘N", run: onStartGreenfield },
+      { id: "cmd:add", label: t("home.cmdAdd"), hint: "⌘O", run: onAddProject },
+      { id: "cmd:new", label: t("home.cmdNew"), hint: "⌘N", run: onStartGreenfield },
       // 관리할 게 없으면 관리 명령도 없다 — 0개일 때 이 행은 막다른 길이다.
       ...(projects.length > 0
-        ? [{ id: "cmd:manage", label: "프로젝트 관리", hint: "⌘⇧M", run: openManage }]
+        ? [{ id: "cmd:manage", label: t("home.manageProjects"), hint: "⌘⇧M", run: openManage }]
         : []),
-      { id: "cmd:settings", label: "설정 열기", hint: "⌘,", run: onOpenSettings },
+      { id: "cmd:settings", label: t("home.openSettings"), hint: "⌘,", run: onOpenSettings },
     ],
-    [projects.length, onAddProject, onStartGreenfield, openManage, onOpenSettings],
+    [t, projects.length, onAddProject, onStartGreenfield, openManage, onOpenSettings],
   );
 
   const model = useMemo(
@@ -413,12 +415,12 @@ export function StartScreen(props: StartScreenProps) {
             {model.rows.length > 0 && (
               <>
                 <HomeSection
-                  title={searching ? "검색 결과" : "모든 프로젝트"}
+                  title={searching ? t("home.sectionSearch") : t("home.sectionAll")}
                   count={model.rows.length}
                   action={
                     searching ? undefined : (
                       <button type="button" className="home-chipbtn" onClick={openManage}>
-                        관리
+                        {t("home.manage")}
                       </button>
                     )
                   }
@@ -446,17 +448,17 @@ export function StartScreen(props: StartScreenProps) {
             {searching && model.rows.length === 0 && (
               <div className="px-4 py-6 space-y-1">
                 <p className="text-[13px] text-[var(--text-2)]">
-                  ‘{query}’ 와 일치하는 프로젝트가 없어요
+                  {t("home.noMatch", { query })}
                 </p>
                 <p className="text-[11px] text-[var(--text-3)]">
-                  경로와 초성으로도 찾을 수 있어요
+                  {t("home.noMatchTip")}
                 </p>
               </div>
             )}
 
             {model.quiet.length > 0 && (
               <>
-                <HomeSection title="색인 · 2주 이상 조용한 곳" count={model.quiet.length} />
+                <HomeSection title={t("home.sectionQuiet")} count={model.quiet.length} />
                 <div className="home-quiet">
                   {model.quiet.map((row) => (
                     <IndexRow
@@ -473,7 +475,7 @@ export function StartScreen(props: StartScreenProps) {
 
             {model.drafts.length > 0 && (
               <>
-                <HomeSection title="초안" count={model.drafts.length} />
+                <HomeSection title={t("home.sectionDrafts")} count={model.drafts.length} />
                 <ul>
                   {model.drafts.map((row) => (
                     <DraftRow
@@ -490,7 +492,7 @@ export function StartScreen(props: StartScreenProps) {
 
             {model.commands.length > 0 && (
               <>
-                <HomeSection title="명령" count={model.commands.length} />
+                <HomeSection title={t("home.sectionCommands")} count={model.commands.length} />
                 <ul>
                   {model.commands.map((row, i) => (
                     <CommandRow key={row.id} row={row} wiring={wiringFor(row)} index={i} />

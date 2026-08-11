@@ -4,6 +4,7 @@
 import { Folder, Plus, Search, Settings } from "@/components/Icons";
 
 import { BriefFootnote } from "./atoms";
+import { useT } from "@/i18n";
 import type { HomeRow } from "./homeModel";
 
 // ── 밴드 0 — 상단 레일 ──────────────────────────────────────────────────
@@ -34,6 +35,7 @@ export function HomeTopRail({
   onOpenSettings: () => void;
   onAdd: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="home-rail" data-mac={isMac ? "1" : undefined} data-tauri-drag-region>
       <h1 className="home-wordmark" data-tauri-drag-region>
@@ -50,13 +52,13 @@ export function HomeTopRail({
             프로젝트를 지우러 오는 사람이 아이콘 수수께끼를 풀 이유가 없다. */}
         <button type="button" onClick={onManage} className="home-chipbtn">
           <Folder className="w-3.5 h-3.5" />
-          프로젝트 관리
+          {t("home.manageProjects")}
         </button>
         <button
           type="button"
           onClick={onOpenSettings}
           className="home-iconbtn"
-          aria-label="설정 열기"
+          aria-label={t("home.openSettings")}
         >
           <Settings className="w-4 h-4" />
         </button>
@@ -66,7 +68,7 @@ export function HomeTopRail({
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-[12px] font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
         >
           <Plus className="w-3.5 h-3.5" />
-          프로젝트 추가
+          {t("home.addProject")}
         </button>
       </span>
     </div>
@@ -95,6 +97,7 @@ export function HomeSearchBand({
   total: number;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
+  const { t } = useT();
   const searching = value.trim().length > 0;
   return (
     <div className="home-search">
@@ -105,12 +108,12 @@ export function HomeSearchBand({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="프로젝트 검색"
-        aria-label="프로젝트 검색"
+        placeholder={t("home.searchProjects")}
+        aria-label={t("home.searchProjects")}
         autoComplete="off"
         spellCheck={false}
       />
-      <span className="home-count">{searching ? `${matchCount}곳 일치` : `${total} 곳`}</span>
+      <span className="home-count">{searching ? t("home.matchCount", { n: matchCount }) : t("home.totalCount", { n: total })}</span>
       <kbd className="home-kbd" aria-hidden="true">
         /
       </kbd>
@@ -126,11 +129,12 @@ export function HomeSearchBand({
  * 대상이 바뀌면 안 되므로, 여기 있는 것은 안내이지 버튼이 아니다.
  */
 export function HomeActionBar({ row }: { row: HomeRow | null }) {
+  const { t } = useT();
   const name =
     row?.kind === "project"
       ? row.project.name
       : row?.kind === "draft"
-        ? row.bp.name || "초안"
+        ? row.bp.name || t("home.stepDraft")
         : row?.kind === "command"
           ? row.label
           : null;
@@ -138,27 +142,27 @@ export function HomeActionBar({ row }: { row: HomeRow | null }) {
   return (
     <div className="home-actionbar" role="status" aria-live="off">
       <span className="font-semibold text-[var(--text)] truncate max-w-[220px]">
-        {name ?? "프로젝트를 고르세요"}
+        {name ?? t("home.pickProject")}
       </span>
       <span className="home-actionbar-item">
-        <kbd className="home-kbd">⏎</kbd> 열기
+        <kbd className="home-kbd">⏎</kbd> {t("home.kbdOpen")}
       </span>
       {row?.kind === "project" && (
         <>
           <span className="home-actionbar-item">
-            <kbd className="home-kbd">⌘E</kbd> 이름 변경
+            <kbd className="home-kbd">⌘E</kbd> {t("home.kbdRename")}
           </span>
           <span className="home-actionbar-item">
-            <kbd className="home-kbd">⌘⌫</kbd> 제거
+            <kbd className="home-kbd">⌘⌫</kbd> {t("home.kbdRemove")}
           </span>
         </>
       )}
       <span className="ml-auto flex items-center gap-4">
         <span className="home-actionbar-item">
-          <kbd className="home-kbd">↑↓</kbd> 이동
+          <kbd className="home-kbd">↑↓</kbd> {t("home.kbdMove")}
         </span>
         <span className="home-actionbar-item">
-          <kbd className="home-kbd">⌘K</kbd> 명령 팔레트
+          <kbd className="home-kbd">⌘K</kbd> {t("home.kbdPalette")}
         </span>
       </span>
     </div>

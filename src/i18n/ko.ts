@@ -1253,6 +1253,98 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── 런처 홈 (StartScreen · home/*) ──────────────────────────────────────
+  // 앱을 처음 여는 화면이자 프로젝트 전환 허브.
+  "home.agoJustNow": "방금 전",
+  "home.agoMinutes": "{n}분 전",
+  "home.agoHours": "{n}시간 전",
+  "home.agoDays": "{n}일 전",
+  // 데이트라인 — 날짜 자체는 Intl 이 만든다 (§3). 뒤에 붙는 절만 사전.
+  "home.datelineToday": "오늘 {n}건",
+  "home.datelineProjects": "프로젝트 {n}",
+  // 그린필드 초안 단계
+  "home.step1": "아이디어",
+  "home.step2": "사용자",
+  "home.step3": "스택",
+  "home.step4": "위치",
+  "home.step5": "목표",
+  "home.stepDraft": "초안",
+  "home.noMatchCommandHint": "\"{q}\" 와 맞는 프로젝트가 없습니다. 명령을 실행할 수 있습니다.",
+  "home.matchedProjects": "프로젝트 {n}곳 검색됨",
+  // 원자 컴포넌트
+  "home.sparkAria": "최근 {n}일 활동 추이",
+  "home.sparkProjectAria": "{name} 최근 활동 추이",
+  "home.progressAria": "{total}개 중 {done}개 완료",
+  "home.renameAria": "{name} 이름 변경",
+  "home.removeAria": "{name} 제거",
+  "home.unverified": "기록 미확인",
+  // 프로젝트 행
+  "home.openAria": "{name} 열기 — 마지막 활동 {when}",
+  "home.openWithEntryAria": "{name} 열기 — {title}",
+  "home.indexing": "인덱싱",
+  "home.indexingNow": "인덱싱 중",
+  "home.quietAria": "{name} 열기 — 기록 {n}건, 2주 이상 활동 없음",
+  "home.entryCount": "기록 {n}건",
+  "home.newProjectFallback": "새 프로젝트",
+  "home.draftResumeAria": "{name} 초안 이어서 만들기 — {step} 단계",
+  "home.draftStoppedAt": "{step} 단계에서 멈춤",
+  "home.discardConfirm": "정말 버릴까요?",
+  "home.yes": "예",
+  "home.no": "아니오",
+  "home.draftDiscardAria": "{name} 초안 버리기",
+  // 상단 chrome
+  "home.manageProjects": "프로젝트 관리",
+  "home.openSettings": "설정 열기",
+  "home.addProject": "프로젝트 추가",
+  "home.searchProjects": "프로젝트 검색",
+  "home.matchCount": "{n}곳 일치",
+  "home.totalCount": "{n} 곳",
+  "home.pickProject": "프로젝트를 고르세요",
+  "home.kbdOpen": "열기",
+  "home.kbdRename": "이름 변경",
+  "home.kbdRemove": "제거",
+  "home.kbdMove": "이동",
+  "home.kbdPalette": "명령 팔레트",
+  // 섹션·명령
+  "home.cmdAdd": "기존 폴더 불러오기",
+  "home.cmdNew": "새 프로젝트 시작하기",
+  "home.sectionSearch": "검색 결과",
+  "home.sectionAll": "모든 프로젝트",
+  "home.sectionQuiet": "색인 · 2주 이상 조용한 곳",
+  "home.sectionDrafts": "초안",
+  "home.sectionCommands": "명령",
+  "home.manage": "관리",
+  "home.noMatch": "‘{query}’ 와 일치하는 프로젝트가 없어요",
+  "home.noMatchTip": "경로와 초성으로도 찾을 수 있어요",
+  // 타일
+  "home.resumeWork": "이어서 일하기",
+  "home.lastActivity": "마지막 활동 {when}",
+  "home.nextTasks": "다음 할 일",
+  "home.recentEntries": "최근 기록",
+  "home.enterToOpen": "⏎ 열기",
+  "home.todayFlow": "오늘의 흐름",
+  "home.todayCountPrefix": "오늘",
+  "home.todayCountSuffix": "건",
+  "home.briefFailed": "기록을 불러오지 못했어요.",
+  "home.briefFailedHint": "프로젝트는 아래에서 그대로 열 수 있습니다.",
+  "home.briefEmpty": "아직 기록이 없어요.",
+  "home.briefEmptyHint": "평소처럼 에이전트로 작업하면 여기에 쌓입니다.",
+  "home.existingFolder": "기존 폴더",
+  "home.brandNew": "새 프로젝트",
+  // 첫 사용 안내 3단계
+  "home.how1Title": "프로젝트 폴더 추가",
+  "home.how1Body": "폴더를 불러오면 Ocul-PM 이 코딩 에이전트용 규칙(AGENTS.md)을 자동으로 심어요.",
+  "home.how2Title": "평소처럼 에이전트로 코딩",
+  "home.how2Body": "Claude Code·Cursor·Gemini 등 쓰던 에이전트로 작업하면, 그 규칙에 따라 에이전트가 작업 일지를 남겨요.",
+  "home.how3Title": "자동으로 기록·정리",
+  "home.how3Body": "남겨진 작업 일지·변경 diff·통계를 Today 화면에 모아 보여줍니다.",
+  "home.howTitle": "Ocul-PM 은 이렇게 동작해요",
+  // 가운데 "자동으로" 가 강조돼 앞/뒤로 쪼갠다 (§4.2).
+  "home.howBodyPrefix": "직접 기록하지 않아도 됩니다. 평소처럼 코딩 에이전트로 작업하면, Ocul-PM 이 변경·작업 일지·통계를 ",
+  "home.howBodyEmphasis": "자동으로",
+  "home.howBodySuffix": " 모아줍니다.",
+  "home.ctaAddProject": "프로젝트 추가하고 시작하기",
+
   // ── 백엔드 에러 매핑 (i18n/errors.ts — tError) ──────────────────────────
   // Rust 는 영어만 반환하고 여기서 되돌린다 (§4.4). 표에 없으면 영어 원문이
   // 그대로 보이므로, 자주 보는 것부터 늘려 가면 된다.
@@ -1354,14 +1446,14 @@ export const ko = {
   // 회고 생성 완료 알림 (실패는 기존 `retro.genFailed` 재사용)
   "retro.genReady": "회고가 준비됐어요",
 
-  // ── 메뉴바 팝오버 (트레이) ──────────────────────────────────────────────
-  // 일지 타입 배지 — 한 건짜리 배지라 **단수**다. `journal.filter.*` 와
-  // `retro.type.*` 는 필터 칩이라 영어가 복수형("Bugs")이어서 재사용할 수 없다.
-  "tray.typeFeature": "기능",
-  "tray.typeBug": "버그",
-  "tray.typeError": "에러",
-  "tray.typeRefactor": "리팩토링",
-  "tray.typeChore": "잡일",
+  // ── 일지 타입 배지 (트레이 · 런처 홈 공용) ──────────────────────────────
+  // 한 건짜리 배지라 **단수**다. `journal.filter.*` 와 `retro.type.*` 는 필터
+  // 칩이라 영어가 복수형("Bugs")이어서 재사용할 수 없다.
+  "entryType.feature": "기능",
+  "entryType.bug": "버그",
+  "entryType.error": "에러",
+  "entryType.refactor": "리팩토링",
+  "entryType.chore": "잡일",
   // 세션 경과 시간
   "tray.justStarted": "방금 시작",
   "tray.elapsedMinutes": "{n}분째",

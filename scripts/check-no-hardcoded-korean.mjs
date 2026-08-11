@@ -133,13 +133,6 @@ const PENDING = new Set([
   "__tests__/workday_rollover.test.tsx",
   "contexts/WorkspaceContext.tsx",
   "features/onboarding/GreenfieldWizard.tsx",
-  "features/onboarding/StartScreen.tsx",
-  "features/onboarding/home/atoms.tsx",
-  "features/onboarding/home/chrome.tsx",
-  "features/onboarding/home/homeMatch.ts",
-  "features/onboarding/home/homeModel.ts",
-  "features/onboarding/home/rows.tsx",
-  "features/onboarding/home/tiles.tsx",
   "features/projects/ProjectManager.tsx",
   // @PENDING_END
 ]);

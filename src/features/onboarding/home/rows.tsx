@@ -16,6 +16,7 @@ import { FolderOpen, Sparkles, Settings, Trash2, Clock } from "@/components/Icon
 import type { Project, ProjectBlueprint } from "@/lib/bindings";
 
 import { Highlight, Mark, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
+import { useT } from "@/i18n";
 import {
   initials,
   relativeTime,
@@ -75,6 +76,7 @@ export function ProjectRow({
   onDelete: (p: Project) => void;
   index: number;
 }) {
+  const { t } = useT();
   const { project: p, snap } = row;
   const when = relativeTime(snap?.lastAt ?? null, now);
   const w = wire(row, wiring);
@@ -97,13 +99,13 @@ export function ProjectRow({
             onFocus={w.onFocus}
             onClick={() => onOpen(p)}
             className="home-open text-[14px] font-[650] text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
-            aria-label={`${p.name} 열기 — 마지막 활동 ${when}`}
+            aria-label={t("home.openAria", { name: p.name, when })}
           >
             <Highlight text={p.name} query={query} />
           </button>
           {indexing && (
             <span className="home-kbd" role="status">
-              인덱싱
+              {t("home.indexing")}
             </span>
           )}
         </span>
@@ -145,6 +147,7 @@ export function IndexRow({
   wiring: RowWiring;
   onOpen: (p: Project) => void;
 }) {
+  const { t } = useT();
   const { project: p, snap } = row;
   const w = wire(row, wiring);
   const total = snap?.totalEntries ?? 0;
@@ -163,13 +166,13 @@ export function IndexRow({
         onFocus={w.onFocus}
         onClick={() => onOpen(p)}
         className="home-open home-quiet-name min-w-0 flex-1 text-left cursor-pointer bg-transparent border-0 p-0"
-        aria-label={`${p.name} 열기 — 기록 ${total}건, 2주 이상 활동 없음`}
+        aria-label={t("home.quietAria", { name: p.name, n: total })}
       >
         <Highlight text={p.name} query={query} />
       </button>
       <span className="home-path flex-1 min-w-0 hidden sm:block">{tildePath(p.root_path)}</span>
       <span className="text-[10.5px] font-mono text-[var(--text-3)] whitespace-nowrap">
-        기록 {total}건
+        {t("home.entryCount", { n: total })}
       </span>
     </div>
   );
@@ -191,6 +194,7 @@ export function DraftRow({
   onResume: (bp: ProjectBlueprint) => void;
   onDiscard: (id: number) => void;
 }) {
+  const { t } = useT();
   const { bp } = row;
   const w = wire(row, wiring);
   const [confirming, setConfirming] = useState(false);
@@ -205,7 +209,7 @@ export function DraftRow({
     };
   }, [confirming]);
 
-  const name = bp.name || bp.idea_text?.slice(0, 20) || "새 프로젝트";
+  const name = bp.name || bp.idea_text?.slice(0, 20) || t("home.newProjectFallback");
 
   return (
     <li
@@ -223,17 +227,17 @@ export function DraftRow({
           onFocus={w.onFocus}
           onClick={() => onResume(bp)}
           className="home-open text-[14px] font-[650] text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
-          aria-label={`${name} 초안 이어서 만들기 — ${row.stepLabel} 단계`}
+          aria-label={t("home.draftResumeAria", { name, step: row.stepLabel })}
         >
           {name}
         </button>
-        <span className="text-[11px] text-[var(--text-2)]">{row.stepLabel} 단계에서 멈춤</span>
+        <span className="text-[11px] text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
       </span>
 
       <span className="home-above flex items-center gap-1.5 justify-end min-w-[168px]">
         {confirming ? (
           <>
-            <span className="text-[11px] text-[var(--text-2)]">정말 버릴까요?</span>
+            <span className="text-[11px] text-[var(--text-2)]">{t("home.discardConfirm")}</span>
             <button
               type="button"
               className="home-chipbtn home-chipbtn--danger"
@@ -242,7 +246,7 @@ export function DraftRow({
                 onDiscard(bp.id);
               }}
             >
-              예
+              {t("home.yes")}
             </button>
             <button
               type="button"
@@ -252,14 +256,14 @@ export function DraftRow({
                 setConfirming(false);
               }}
             >
-              아니오
+              {t("home.no")}
             </button>
           </>
         ) : (
           <button
             type="button"
             className="home-iconbtn home-iconbtn--danger"
-            aria-label={`${name} 초안 버리기`}
+            aria-label={t("home.draftDiscardAria", { name })}
             onClick={(e) => {
               e.stopPropagation();
               setConfirming(true);

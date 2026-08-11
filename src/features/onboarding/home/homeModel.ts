@@ -19,6 +19,8 @@ import type {
   ProjectBlueprint,
 } from "@/lib/bindings";
 import { bestScore } from "./homeMatch";
+// 순수 모듈 — 훅을 쓸 수 없으므로 모듈 t()/getLang().
+import { getLang, t, type I18nKey } from "@/i18n";
 
 // ── 상수 (매직넘버 금지) ─────────────────────────────────────────────────
 /** 사령탑 타일 수. */
@@ -114,13 +116,13 @@ export interface HomeModel {
 /** 상대 시각. 기록이 없으면 대시 — 거짓 시각을 지어내지 않는다. */
 export function relativeTime(iso: string | null, now: number): string {
   if (!iso) return "—";
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "—";
-  const diff = Math.max(0, now - t);
-  if (diff < 60_000) return "방금 전";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}분 전`;
-  if (diff < DAY_MS) return `${Math.floor(diff / 3_600_000)}시간 전`;
-  return `${Math.floor(diff / DAY_MS)}일 전`;
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return "—";
+  const diff = Math.max(0, now - at);
+  if (diff < 60_000) return t("home.agoJustNow");
+  if (diff < 3_600_000) return t("home.agoMinutes", { n: Math.floor(diff / 60_000) });
+  if (diff < DAY_MS) return t("home.agoHours", { n: Math.floor(diff / 3_600_000) });
+  return t("home.agoDays", { n: Math.floor(diff / DAY_MS) });
 }
 
 /** ISO 에서 `HH:MM` 만. 형식이 어긋나면 빈 문자열. */
@@ -142,26 +144,33 @@ export function initials(name: string): string {
   const parts = name.split(/[-_.\s/]+/).filter(Boolean);
   if (parts.length === 0) return "";
   // 한글은 한 글자로 충분하다 (두 글자를 붙이면 단어처럼 읽혀 오히려 헷갈린다).
+  // i18n-ignore-next-line -- 한글 판정용 문자 클래스 (표시 문자열 아님)
   if (/[가-힣]/.test(parts[0][0])) return parts[0][0];
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
 /**
  * 상단 데이트라인. `todayTotal` 이 `null` (아직 집계 전) 이면 건수 절을
  * 생략한다 — "오늘 0건" 이라고 단정하면 로딩 중에 거짓말이 된다.
+ *
+ * 날짜 부분은 `Intl` 에 맡긴다 (03-i18n.md §3) — 연/월/일 순서도 요일 표기도
+ * 로케일마다 달라서 사전에 넣으면 한쪽이 반드시 어색해진다.
  */
 export function formatDateline(
   d: Date,
   todayTotal: number | null,
   projectCount: number,
 ): string {
-  const date = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}요일`;
+  const date = new Intl.DateTimeFormat(getLang(), {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(d);
   const parts = [date];
-  if (todayTotal !== null) parts.push(`오늘 ${todayTotal}건`);
-  parts.push(`프로젝트 ${projectCount}`);
+  if (todayTotal !== null) parts.push(t("home.datelineToday", { n: todayTotal }));
+  parts.push(t("home.datelineProjects", { n: projectCount }));
   return parts.join(" · ");
 }
 
@@ -205,9 +214,9 @@ export function sparkSeries(days: HomeDayCount[], since: string, len: number): n
 /** 2주 이상 조용한가. 기록이 아예 없으면 조용한 쪽으로 본다. */
 export function isQuiet(lastAt: string | null, now: number): boolean {
   if (!lastAt) return true;
-  const t = Date.parse(lastAt);
-  if (Number.isNaN(t)) return true;
-  return now - t >= QUIET_DAYS * DAY_MS;
+  const at = Date.parse(lastAt);
+  if (Number.isNaN(at)) return true;
+  return now - at >= QUIET_DAYS * DAY_MS;
 }
 
 function toSnap(b: HomeProjectBrief, since: string): ProjectSnap {
@@ -227,7 +236,14 @@ function toSnap(b: HomeProjectBrief, since: string): ProjectSnap {
 }
 
 /** 그린필드 마법사 단계 라벨 (기존 StartScreen 과 동일). */
-const STEP_LABELS = ["아이디어", "사용자", "스택", "위치", "목표"];
+/** 그린필드 마법사 단계 라벨 키 — 인덱스가 `wizard_step` 에 대응한다. */
+const STEP_LABEL_KEYS: I18nKey[] = [
+  "home.step1",
+  "home.step2",
+  "home.step3",
+  "home.step4",
+  "home.step5",
+];
 
 // ── 조립 ────────────────────────────────────────────────────────────────
 
@@ -281,7 +297,7 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
     kind: "draft",
     id: `draft:${bp.id}`,
     bp,
-    stepLabel: STEP_LABELS[bp.wizard_step] ?? "초안",
+    stepLabel: t(STEP_LABEL_KEYS[bp.wizard_step] ?? "home.stepDraft"),
   }));
   const commandRows: CommandRowT[] = commands.map((c) => ({ kind: "command", ...c }));
 
@@ -314,8 +330,8 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
   const matched = searching ? rows.length : all.length;
   const liveMessage = searching
     ? matched === 0
-      ? `"${q}" 와 맞는 프로젝트가 없습니다. 명령을 실행할 수 있습니다.`
-      : `프로젝트 ${matched}곳 검색됨`
+      ? t("home.noMatchCommandHint", { q })
+      : t("home.matchedProjects", { n: matched })
     : "";
 
   return {

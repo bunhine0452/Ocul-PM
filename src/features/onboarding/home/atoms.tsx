@@ -7,6 +7,7 @@
 import { agentColor, agentLabelWithModel } from "@/features/today/agentColor";
 import { Pencil, Trash2 } from "@/components/Icons";
 import { SPARK_DAYS } from "./homeModel";
+import { useT, type I18nKey } from "@/i18n";
 
 // ── 프로젝트 마크 ───────────────────────────────────────────────────────
 
@@ -20,12 +21,13 @@ export function Mark({ text, large }: { text: string; large?: boolean }) {
 
 // ── 작업 유형 키커 ──────────────────────────────────────────────────────
 
-const TRIGGER_LABEL: Record<string, string> = {
-  feature: "기능",
-  bug: "버그",
-  refactor: "리팩토링",
-  error: "에러",
-  chore: "잡일",
+/** 작업 유형 → 라벨 키. 트레이 배지와 같은 단수 표기를 공유한다. */
+const TRIGGER_LABEL: Record<string, I18nKey> = {
+  feature: "entryType.feature",
+  bug: "entryType.bug",
+  refactor: "entryType.refactor",
+  error: "entryType.error",
+  chore: "entryType.chore",
 };
 
 /**
@@ -34,6 +36,7 @@ const TRIGGER_LABEL: Record<string, string> = {
  * 사실상 유일한 의미 전달 경로가 색 하나였다.
  */
 export function TriggerKicker({ type, title }: { type: string | null; title: string | null }) {
+  const { t } = useT();
   if (!type && !title) return null;
   const key = type && TRIGGER_LABEL[type] ? type : "chore";
   return (
@@ -41,7 +44,7 @@ export function TriggerKicker({ type, title }: { type: string | null; title: str
       {type && (
         <span className="home-kicker" data-trigger={key}>
           <span className="home-kicker-bar" />
-          {TRIGGER_LABEL[key]}
+          {t(TRIGGER_LABEL[key])}
         </span>
       )}
       {title && (
@@ -72,13 +75,14 @@ export function AgentBadge({ agentId, version }: { agentId: string | null; versi
  * "그 기간에 일 안 함"을 구분하지 못해 노이즈만 된다.
  */
 export function Sparkline({ data, label }: { data: number[]; label?: string }) {
+  const { t } = useT();
   const max = Math.max(...data, 0);
   if (max === 0) return null;
   return (
     <span
       className="home-spark"
       role="img"
-      aria-label={label ?? `최근 ${SPARK_DAYS}일 활동 추이`}
+      aria-label={label ?? t("home.sparkAria", { n: SPARK_DAYS })}
     >
       {data.map((n, i) => (
         <span
@@ -98,11 +102,16 @@ export function Sparkline({ data, label }: { data: number[]; label?: string }) {
 // ── 진행률 ──────────────────────────────────────────────────────────────
 
 export function Progress({ done, total }: { done: number; total: number }) {
+  const { t } = useT();
   if (total <= 0) return null;
   const pct = Math.round((done / total) * 100);
   return (
     <span className="flex items-center gap-2 min-w-0">
-      <span className="home-prog flex-1 min-w-[48px]" role="img" aria-label={`${total}개 중 ${done}개 완료`}>
+      <span
+        className="home-prog flex-1 min-w-[48px]"
+        role="img"
+        aria-label={t("home.progressAria", { done, total })}
+      >
         <span className="home-prog-fill block" style={{ width: `${pct}%` }} />
       </span>
       <span className="text-[11px] text-[var(--text-3)] tabular-nums whitespace-nowrap">
@@ -155,6 +164,7 @@ export function RowActions({
    */
   tabbable?: boolean;
 }) {
+  const { t } = useT();
   const tabIndex = tabbable ? 0 : -1;
   return (
     <span className="home-actions home-above">
@@ -162,7 +172,7 @@ export function RowActions({
         type="button"
         tabIndex={tabIndex}
         className="home-iconbtn"
-        aria-label={`${name} 이름 변경`}
+        aria-label={t("home.renameAria", { name })}
         onClick={(e) => {
           e.stopPropagation();
           onRename();
@@ -174,7 +184,7 @@ export function RowActions({
         type="button"
         tabIndex={tabIndex}
         className="home-iconbtn home-iconbtn--danger"
-        aria-label={`${name} 제거`}
+        aria-label={t("home.removeAria", { name })}
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
@@ -200,15 +210,16 @@ export function Skel({ w, h = 10 }: { w: number | string; h?: number }) {
  * 띄우지 않는다 — 화면을 못 쓰는 게 아니라 곁가지 정보가 빈 것뿐이다.
  */
 export function BriefFootnote({ onRetry }: { onRetry: () => void }) {
+  const { t } = useT();
   return (
     <span className="flex items-center gap-2 text-[10px] font-mono text-[var(--text-3)]">
-      기록 미확인
+      {t("home.unverified")}
       <button
         type="button"
         onClick={onRetry}
         className="underline underline-offset-2 hover:text-[var(--text-2)] cursor-pointer"
       >
-        다시 시도
+        {t("common.retry")}
       </button>
     </span>
   );
