@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmApi } from "@/api/oculpm";
 import { commands, events, type GitCommit } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
@@ -123,7 +124,7 @@ export function useTodayMonitor(
           })
           .then((off) => {
             if (active) offs.push(off);
-            else off();
+            else safeUnlisten(off);
           })
           .catch(() => {});
       } catch {
@@ -134,7 +135,7 @@ export function useTodayMonitor(
     sub(events.oculpmSessionEnded);
     return () => {
       active = false;
-      offs.forEach((off) => off());
+      offs.forEach(safeUnlisten);
     };
   }, [projectId, enabled, refresh]);
 

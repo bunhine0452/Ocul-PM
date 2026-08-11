@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { safeUnlisten } from "@/lib/unlisten";
 import { events } from "@/lib/bindings";
 
 // PR-UI 8b follow-up — the watcher indexes new/changed journal files and emits
@@ -40,7 +41,7 @@ export function useJournalEvents(
           })
           .then((off) => {
             if (active) offs.push(off);
-            else off();
+            else safeUnlisten(off);
           })
           .catch(() => {});
       } catch {
@@ -53,7 +54,7 @@ export function useJournalEvents(
     return () => {
       active = false;
       if (timer != null) window.clearTimeout(timer);
-      offs.forEach((off) => off());
+      offs.forEach(safeUnlisten);
     };
   }, [projectId, enabled, onChange]);
 }

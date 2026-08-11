@@ -9,6 +9,7 @@
 // show 시점에 "tray-popover-shown" 을 쏜다). 신규 백엔드 집계 커맨드 없음.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { safeUnlistenPromise } from "@/lib/unlisten";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import {
@@ -617,7 +618,7 @@ export function TrayPopover() {
       void reload();
     });
     return () => {
-      void un.then((f) => f());
+      safeUnlistenPromise(un);
     };
   }, [reload]);
 
@@ -632,7 +633,7 @@ export function TrayPopover() {
     });
     return () => {
       if (timer) clearTimeout(timer);
-      void un.then((f) => f());
+      safeUnlistenPromise(un);
     };
   }, [reload]);
 

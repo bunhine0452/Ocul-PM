@@ -170,12 +170,11 @@ pub(crate) async fn reindex_single_file(
     let mut ast_updated: u32 = 0;
     let (chunks, analysis) = indexer::chunk_file(&abs_path, &content, index_config);
     if let Some(ref ana) = analysis {
-        for sym in &ana.symbols {
-            db.insert_symbol_definition(file_id, sym.clone())
-                .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
-            ast_updated += 1;
-        }
+        ast_updated += db
+            .insert_symbol_definitions(file_id, ana.symbols.clone())
+            .await
+            .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?
+            as u32;
     }
     if !chunks.is_empty() {
         for batch in chunks.chunks(EMBED_BATCH) {
@@ -184,19 +183,22 @@ pub(crate) async fn reindex_single_file(
                 .embed(texts)
                 .await
                 .map_err(|e| ReindexSkipReason::UpsertFailed { error: e })?;
-            for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
-                db.insert_chunk_with_embedding(
-                    file_id,
-                    chunk.kind.to_string(),
-                    chunk.start_line,
-                    chunk.end_line,
-                    chunk.content.clone(),
-                    vec_to_bytes(embedding),
-                )
+            let rows: Vec<crate::db::ChunkInsert> = batch
+                .iter()
+                .zip(embeddings.iter())
+                .map(|(chunk, embedding)| crate::db::ChunkInsert {
+                    kind: chunk.kind.to_string(),
+                    start_line: chunk.start_line,
+                    end_line: chunk.end_line,
+                    content: chunk.content.clone(),
+                    embedding: vec_to_bytes(embedding),
+                })
+                .collect();
+            embeddings_updated += db
+                .insert_chunks_with_embeddings(file_id, rows)
                 .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
-                embeddings_updated += 1;
-            }
+                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?
+                as u32;
         }
     }
 

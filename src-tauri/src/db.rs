@@ -41,6 +41,16 @@ pub struct Db {
     path: PathBuf,
 }
 
+/// `insert_chunks_with_embeddings` 한 행. 인덱서가 만든 청크와 그 임베딩을
+/// 배치로 넘기기 위한 그릇이다 (임베딩은 vec0 가 받는 f32 리틀엔디언 바이트).
+pub struct ChunkInsert {
+    pub kind: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub content: String,
+    pub embedding: Vec<u8>,
+}
+
 impl Db {
     pub async fn open(path: PathBuf) -> Result<Self> {
         if let Some(parent) = path.parent() {
@@ -51,10 +61,26 @@ impl Db {
 
         let conn = Connection::open(path.clone()).await?;
         conn.call(|c| {
+            // WAL + synchronous=NORMAL 은 원래대로 (커밋마다 fsync 하지 않고
+            // 체크포인트에서 모아 한다). 아래 넷은 2026-08-11 에 추가:
+            //
+            //  busy_timeout — WAL 이라도 쓰기는 한 번에 하나다. 인덱싱 배치와
+            //    워처의 증분 재인덱싱이 겹치면 예전에는 SQLITE_BUSY 로 즉시
+            //    실패했다. 5초 동안 재시도한다.
+            //  cache_size  — 음수는 KiB 단위. -64000 = 64MiB. 기본값 2MiB 로는
+            //    청크/임베딩 테이블을 훑는 질의가 페이지를 계속 다시 읽는다.
+            //  mmap_size   — 256MiB 까지 읽기를 mmap 으로 넘겨 read() 시스템콜과
+            //    버퍼 복사를 줄인다.
+            //  temp_store  — ORDER BY / 큰 조인의 임시 B-트리를 디스크 대신
+            //    메모리에 만든다.
             c.execute_batch(
                 "PRAGMA journal_mode = WAL;
                  PRAGMA foreign_keys = ON;
-                 PRAGMA synchronous = NORMAL;",
+                 PRAGMA synchronous = NORMAL;
+                 PRAGMA busy_timeout = 5000;
+                 PRAGMA cache_size = -64000;
+                 PRAGMA mmap_size = 268435456;
+                 PRAGMA temp_store = MEMORY;",
             )?;
             Ok(())
         })
@@ -403,34 +429,91 @@ impl Db {
 
     // ---------- Chunks + embeddings ----------
 
-    pub async fn insert_chunk_with_embedding(
+    /// 한 배치의 청크+임베딩을 트랜잭션 하나로 적재한다.
+    ///
+    /// 예전에는 청크 하나마다 이 일을 했다 — tokio-rusqlite 채널 왕복 1회,
+    /// BEGIN/COMMIT 1회, 문장 준비 2회. 파일 5,000개 × 청크 20개면 왕복 10만 번이
+    /// 되어 첫 인덱싱의 실질적인 병목이었다. 임베딩은 이미 EMBED_BATCH 단위로
+    /// 묶여 있으니 적재도 같은 단위로 묶는다.
+    ///
+    /// `prepare_cached` 는 같은 SQL 을 배치 안에서 재사용해 파싱을 한 번만 한다.
+    pub async fn insert_chunks_with_embeddings(
         &self,
         file_id: u32,
-        kind: String,
-        start_line: u32,
-        end_line: u32,
-        content: String,
-        embedding_bytes: Vec<u8>,
-    ) -> Result<u32> {
-        let id = self
+        rows: Vec<ChunkInsert>,
+    ) -> Result<usize> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+        let inserted = self
             .conn
             .call(move |c| {
                 let tx = c.transaction()?;
-                tx.execute(
-                    "INSERT INTO chunks (file_id, kind, start_line, end_line, content)
-                     VALUES (?, ?, ?, ?, ?)",
-                    params![file_id as i64, &kind, start_line as i64, end_line as i64, &content],
-                )?;
-                let chunk_id = tx.last_insert_rowid();
-                tx.execute(
-                    "INSERT INTO chunk_embeddings (chunk_id, embedding) VALUES (?, ?)",
-                    params![chunk_id, &embedding_bytes],
-                )?;
+                {
+                    // 준비된 문장은 tx 를 빌리므로 commit(자기 소유 소비) 전에
+                    // 반드시 스코프를 닫아 드롭시켜야 한다.
+                    let mut insert_chunk = tx.prepare_cached(
+                        "INSERT INTO chunks (file_id, kind, start_line, end_line, content)
+                         VALUES (?, ?, ?, ?, ?)",
+                    )?;
+                    let mut insert_embedding = tx.prepare_cached(
+                        "INSERT INTO chunk_embeddings (chunk_id, embedding) VALUES (?, ?)",
+                    )?;
+                    for row in &rows {
+                        insert_chunk.execute(params![
+                            file_id as i64,
+                            &row.kind,
+                            row.start_line as i64,
+                            row.end_line as i64,
+                            &row.content,
+                        ])?;
+                        let chunk_id = tx.last_insert_rowid();
+                        insert_embedding.execute(params![chunk_id, &row.embedding])?;
+                    }
+                }
                 tx.commit()?;
-                Ok(chunk_id as u32)
+                Ok(rows.len())
             })
             .await?;
-        Ok(id)
+        Ok(inserted)
+    }
+
+    /// 한 파일치 심볼 정의를 트랜잭션 하나로 적재한다 (위와 같은 이유).
+    pub async fn insert_symbol_definitions(
+        &self,
+        file_id: u32,
+        symbols: Vec<crate::ast::SymbolDef>,
+    ) -> Result<usize> {
+        if symbols.is_empty() {
+            return Ok(0);
+        }
+        let inserted = self
+            .conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                {
+                    let mut stmt = tx.prepare_cached(
+                        "INSERT INTO symbol_definitions
+                           (file_id, name, kind, start_line, end_line, start_byte, end_byte)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    )?;
+                    for symbol in &symbols {
+                        stmt.execute(params![
+                            file_id as i64,
+                            &symbol.name,
+                            &symbol.kind,
+                            symbol.start_line as i64,
+                            symbol.end_line as i64,
+                            symbol.start_byte as i64,
+                            symbol.end_byte as i64,
+                        ])?;
+                    }
+                }
+                tx.commit()?;
+                Ok(symbols.len())
+            })
+            .await?;
+        Ok(inserted)
     }
 
     pub async fn search_chunks(
@@ -1278,31 +1361,6 @@ impl Db {
 
     // ---------- AST & Code Analysis ----------
 
-    pub async fn insert_symbol_definition(
-        &self,
-        file_id: u32,
-        symbol: crate::ast::SymbolDef,
-    ) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "INSERT INTO symbol_definitions (file_id, name, kind, start_line, end_line, start_byte, end_byte)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    params![
-                        file_id as i64,
-                        &symbol.name,
-                        &symbol.kind,
-                        symbol.start_line as i64,
-                        symbol.end_line as i64,
-                        symbol.start_byte as i64,
-                        symbol.end_byte as i64,
-                    ],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
 
     pub async fn insert_file_dependency(
         &self,

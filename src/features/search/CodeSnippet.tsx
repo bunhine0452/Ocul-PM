@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatCode, isFormattable } from "./formatCode";
+import { loadHljs } from "@/lib/hljs";
 
 // A code-search result body: optionally pretty-printed (formatCode) and always
 // syntax-highlighted with highlight.js (whose token classes are already themed
@@ -13,13 +14,6 @@ interface CodeSnippetProps {
   content: string;
   /** When true, run the snippet through the language formatter before display. */
   formatted: boolean;
-}
-
-let hljsPromise: Promise<typeof import("highlight.js/lib/common").default> | null = null;
-function getHljs() {
-  if (!hljsPromise)
-    hljsPromise = import("highlight.js/lib/common").then((m) => m.default);
-  return hljsPromise;
 }
 
 // Extension → highlight.js language id. Unknown extensions fall back to
@@ -39,7 +33,7 @@ const HLJS_LANG: Record<string, string> = {
 };
 
 async function highlightCode(code: string, path: string): Promise<string> {
-  const hljs = await getHljs();
+  const hljs = await loadHljs();
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
   const lang = HLJS_LANG[ext];
   if (lang && hljs.getLanguage(lang)) {

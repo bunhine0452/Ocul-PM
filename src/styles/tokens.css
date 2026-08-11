@@ -78,10 +78,11 @@
   --radius-l: 14px;
   --radius-xl: 20px;
 
-  /* SUITE 는 App.css 가 로컬 @font-face 로 전역 번들 — 대시보드(Tailwind font-sans)와
-     셸 타이포를 한 서체로 통일한다 (오프라인, 네트워크 페치 없음). */
-  --font: "SUITE", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-          "Helvetica Neue", "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
+  /* Pretendard Variable 은 App.css 가 로컬 @font-face 로 전역 번들 —
+     대시보드(Tailwind font-sans)와 셸 타이포를 한 서체로 통일한다
+     (오프라인, 네트워크 페치 없음). App.css 의 --font-sans 와 스택을 맞출 것. */
+  --font: "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+          "Apple SD Gothic Neo", "SF Pro Text", system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
 
   /* 내장 터미널 팔레트 (2026-07-30) — 예전엔 xterm 테마가 TS 상수로 박힌 다크

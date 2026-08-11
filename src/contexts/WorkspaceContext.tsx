@@ -7,6 +7,7 @@
  * - 마이그레이션 함수로 기존 12개 키 자동 흡수 후 삭제
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { safeUnlisten } from "@/lib/unlisten";
 
 import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
@@ -752,7 +753,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     void events.oculpmJournalUpdated.listen(() => {}).then((off) => offFns.push(off));
 
     return () => {
-      offFns.forEach((off) => off());
+      offFns.forEach(safeUnlisten);
     };
   }, [setCurrentSession]);
 

@@ -1,6 +1,6 @@
 [package]
 name = "ocul-pm"
-version = "2.8.3"
+version = "2.8.4"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"
@@ -86,6 +86,35 @@ uuid = { version = "1", features = ["v4"] }
 # Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).
 tempfile = "3.10"
 tokio = { version = "1.52.3", features = ["test-util"] }
+
+# 빌드 프로파일 (2026-08-11). 이전에는 프로파일 지정이 아예 없어 카고 기본값으로
+# 나갔다 — tree-sitter 5종 + fastembed/ort + tauri 를 링크하는 규모에서는 기본값이
+# 남기는 것이 많다.
+[profile.release]
+opt-level = 3
+# "fat" 대신 "thin": 링크 시간이 몇 배 차이 나는데 크기/속도 이득은 대부분 따라온다.
+lto = "thin"
+# 크레이트당 코드생성 단위를 1로 두면 인라이닝 범위가 넓어진다 (빌드는 느려진다).
+codegen-units = 1
+strip = true
+
+# panic = "abort" 는 일부러 넣지 않는다. 이 앱은 .oculpm 잠금을 Drop 으로 푼다
+# (oculpm/lock.rs 의 LockGuard). abort 는 되감기를 건너뛰어 소멸자를 돌리지 않으므로,
+# 패닉 한 번에 잠금 파일이 남아 다음 실행이 "다른 프로세스가 쓰는 중"으로 막힌다.
+# 바이너리 몇 %를 그 위험과 바꾸지 않는다.
+
+[profile.dev]
+# 기본값(debug = true)은 macOS 에서 split-debuginfo="unpacked" 와 맞물려
+# target/debug 를 수십 GB 로 불린다 (실측 24GB, deps 에만 파일 50,619개).
+# line-tables-only 는 백트레이스의 파일·줄 번호를 그대로 남기면서 타입/변수
+# 디버그 정보만 뺀다 — 디버거로 변수를 들여다볼 때만 debug = true 로 되돌리면 된다.
+debug = "line-tables-only"
+
+# 의존성은 최적화해서 컴파일한다. 우리 코드만 -O0 으로 남으므로 증분 빌드 속도는
+# 유지되면서, 디버그 실행 시 fastembed/ort 임베딩과 tree-sitter 파싱이 몇 배 빨라진다.
+# 최초 1회 의존성 재컴파일 비용이 든다.
+[profile.dev.package."*"]
+opt-level = 2
 
 
 

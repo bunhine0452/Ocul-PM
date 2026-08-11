@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { safeUnlistenPromise } from "@/lib/unlisten";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -197,7 +198,7 @@ export default function ShellV2({
       setUiV2View(known.includes(payload.view as UiV2View) ? (payload.view as UiV2View) : "today");
     });
     return () => {
-      void un.then((f) => f());
+      safeUnlistenPromise(un);
     };
   }, [projectId, projects, setProject, setUiV2View]);
   const dateLabel = new Date().toLocaleDateString("ko-KR", {

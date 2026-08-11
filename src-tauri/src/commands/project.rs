@@ -238,11 +238,9 @@ pub async fn index_project(
 
         let (chunks, analysis) = indexer::chunk_file(file_path, &content, &index_config);
         if let Some(ref ana) = analysis {
-            for sym in &ana.symbols {
-                db.insert_symbol_definition(file_id, sym.clone())
-                    .await
-                    .map_err(|e| e.to_string())?;
-            }
+            db.insert_symbol_definitions(file_id, ana.symbols.clone())
+                .await
+                .map_err(|e| e.to_string())?;
             if !ana.imports.is_empty() {
                 import_resolver_queue.push((file_id, rel_str.clone(), ana.imports.clone()));
             }
@@ -267,19 +265,21 @@ pub async fn index_project(
             let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
             let embeddings = embedder.embed(texts).await?;
 
-            for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
-                db.insert_chunk_with_embedding(
-                    file_id,
-                    chunk.kind.to_string(),
-                    chunk.start_line,
-                    chunk.end_line,
-                    chunk.content.clone(),
-                    vec_to_bytes(embedding),
-                )
+            let rows: Vec<crate::db::ChunkInsert> = batch
+                .iter()
+                .zip(embeddings.iter())
+                .map(|(chunk, embedding)| crate::db::ChunkInsert {
+                    kind: chunk.kind.to_string(),
+                    start_line: chunk.start_line,
+                    end_line: chunk.end_line,
+                    content: chunk.content.clone(),
+                    embedding: vec_to_bytes(embedding),
+                })
+                .collect();
+            chunks_created += db
+                .insert_chunks_with_embeddings(file_id, rows)
                 .await
-                .map_err(|e| e.to_string())?;
-                chunks_created += 1;
-            }
+                .map_err(|e| e.to_string())? as u32;
         }
     }
 

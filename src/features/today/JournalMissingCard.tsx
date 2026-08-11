@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { safeUnlisten } from "@/lib/unlisten";
 
 import { commands, events, type JournalMissingSignal } from "@/lib/bindings";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
@@ -83,7 +84,7 @@ export function JournalMissingCard({
         })
         .then((unlisten) => {
           if (active) off = unlisten;
-          else unlisten();
+          else safeUnlisten(unlisten);
         })
         .catch(() => {});
     } catch {
@@ -91,7 +92,7 @@ export function JournalMissingCard({
     }
     return () => {
       active = false;
-      off?.();
+      safeUnlisten(off);
     };
   }, [projectId, enabled, refresh]);
 

@@ -1,4 +1,4 @@
-import hljs from "highlight.js/lib/common";
+import { useHljs, type Hljs } from "@/lib/hljs";
 import {
   classifyDiffLines,
   groupIntoHunks,
@@ -22,14 +22,20 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Split a diff line into its marker (+/-/space) and syntax-highlighted code. */
-function renderLine(text: string, lang: string | null): { marker: string; html: string } {
+/** Split a diff line into its marker (+/-/space) and syntax-highlighted code.
+ *  `hljs` 가 아직 null 이면(지연 로드 중) 평문으로 escape 해 그린다 — 색은
+ *  로드가 끝난 뒤 리렌더에서 입혀진다. */
+function renderLine(
+  text: string,
+  lang: string | null,
+  hljs: Hljs | null,
+): { marker: string; html: string } {
   const first = text.charAt(0);
   const hasMarker = first === "+" || first === "-" || first === " ";
   const marker = hasMarker ? first : "";
   const code = hasMarker ? text.slice(1) : text;
   let html: string;
-  if (code && lang && hljs.getLanguage(lang)) {
+  if (code && lang && hljs?.getLanguage(lang)) {
     try {
       html = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
     } catch {
@@ -42,8 +48,16 @@ function renderLine(text: string, lang: string | null): { marker: string; html: 
 }
 
 /** Inner of a code cell: a fixed marker column + the highlighted code. */
-function CodeInner({ text, lang }: { text: string; lang: string | null }) {
-  const { marker, html } = renderLine(text, lang);
+function CodeInner({
+  text,
+  lang,
+  hljs,
+}: {
+  text: string;
+  lang: string | null;
+  hljs: Hljs | null;
+}) {
+  const { marker, html } = renderLine(text, lang, hljs);
   return (
     <>
       <span className="dl-mark">{marker || " "}</span>
@@ -65,13 +79,23 @@ export function PatchView({
   lang?: string | null;
 }) {
   const hunks = groupIntoHunks(classifyDiffLines(patch));
+  // 하이라이터는 여기 한 번만 구독한다. 줄마다 useHljs() 를 부르면 diff 한 장에
+  // 훅 수천 개가 붙고 로드 완료 시 setState 가 그만큼 터진다.
+  const hljs = useHljs();
   // Long lines wrap to the pane width (`.dl-x`/`.dl-code` are `pre-wrap` +
   // `overflow-wrap: anywhere`) so nothing is clipped off-screen — macOS overlay
   // scrollbars hid the horizontal scroll, so wrapping reads better than scroll.
   return (
     <div className="diff-content">
       {hunks.map((h, hi) => (
-        <Hunk key={hi} header={h.header?.text ?? null} lines={h.lines} mode={mode} lang={lang} />
+        <Hunk
+          key={hi}
+          header={h.header?.text ?? null}
+          lines={h.lines}
+          mode={mode}
+          lang={lang}
+          hljs={hljs}
+        />
       ))}
     </div>
   );
@@ -82,11 +106,13 @@ export function Hunk({
   lines,
   mode,
   lang = null,
+  hljs = null,
 }: {
   header: string | null;
   lines: DiffLine[];
   mode: DiffMode;
   lang?: string | null;
+  hljs?: Hljs | null;
 }) {
   // The hunk's leading line is the @@ header itself (groupIntoHunks keeps it
   // in `lines`); render the body lines after it. Skip header/hunk-kind lines
@@ -95,12 +121,24 @@ export function Hunk({
   return (
     <div>
       {header ? <div className="hunk-head">{header}</div> : null}
-      {mode === "split" ? <SplitRows lines={body} lang={lang} /> : <UnifiedRows lines={body} lang={lang} />}
+      {mode === "split" ? (
+        <SplitRows lines={body} lang={lang} hljs={hljs} />
+      ) : (
+        <UnifiedRows lines={body} lang={lang} hljs={hljs} />
+      )}
     </div>
   );
 }
 
-function UnifiedRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }) {
+function UnifiedRows({
+  lines,
+  lang,
+  hljs,
+}: {
+  lines: DiffLine[];
+  lang: string | null;
+  hljs: Hljs | null;
+}) {
   // Single gutter: additions show the new-side number, deletions the old-side,
   // context advances both and shows the new number. The actual base offsets
   // come from the @@ header, which we don't parse here — these are 1-based
@@ -116,7 +154,7 @@ function UnifiedRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }
             <div className="dl add" key={i}>
               <span className="dl-gut">{newNo}</span>
               <span className="dl-x">
-                <CodeInner text={l.text} lang={lang} />
+                <CodeInner text={l.text} lang={lang} hljs={hljs} />
               </span>
             </div>
           );
@@ -127,7 +165,7 @@ function UnifiedRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }
             <div className="dl del" key={i}>
               <span className="dl-gut">{oldNo}</span>
               <span className="dl-x">
-                <CodeInner text={l.text} lang={lang} />
+                <CodeInner text={l.text} lang={lang} hljs={hljs} />
               </span>
             </div>
           );
@@ -138,7 +176,7 @@ function UnifiedRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }
           <div className="dl" key={i}>
             <span className="dl-gut">{newNo}</span>
             <span className="dl-x">
-              <CodeInner text={l.text} lang={lang} />
+              <CodeInner text={l.text} lang={lang} hljs={hljs} />
             </span>
           </div>
         );
@@ -147,7 +185,15 @@ function UnifiedRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }
   );
 }
 
-function SplitRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }) {
+function SplitRows({
+  lines,
+  lang,
+  hljs,
+}: {
+  lines: DiffLine[];
+  lang: string | null;
+  hljs: Hljs | null;
+}) {
   const rows = pairDiffLines(lines);
   return (
     <>
@@ -162,7 +208,7 @@ function SplitRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }) 
                 : undefined
             }
           >
-            {row.left ? <CodeInner text={row.left.text} lang={lang} /> : ""}
+            {row.left ? <CodeInner text={row.left.text} lang={lang} hljs={hljs} /> : ""}
           </span>
           <span className="dl-gut">{row.right ? "·" : ""}</span>
           <span
@@ -173,7 +219,7 @@ function SplitRows({ lines, lang }: { lines: DiffLine[]; lang: string | null }) 
                 : undefined
             }
           >
-            {row.right ? <CodeInner text={row.right.text} lang={lang} /> : ""}
+            {row.right ? <CodeInner text={row.right.text} lang={lang} hljs={hljs} /> : ""}
           </span>
         </div>
       ))}
