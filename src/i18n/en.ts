@@ -1259,6 +1259,37 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Backend error mapping (i18n/errors.ts — tError) ─────────────────────
+  // Rust returns English only and this maps it back (§4.4). In English mode
+  // tError short-circuits, so these values exist purely for key completeness
+  // and must stay identical to what Rust emits.
+  "err.noApiKey": "No API key configured for {provider}",
+  "err.enterTitle": "Enter a title.",
+  "err.enterPhaseName": "Enter a phase name.",
+  "err.enterToken": "Enter a token",
+  "err.noWorkInPeriod": "No work was recorded in this period.",
+  "err.nothingToExport": "No journal entries to export in this period.",
+  "err.retroEmpty": "The retro came back empty.",
+  "err.resultEmpty": "The result came back empty.",
+  "err.skillExists": "A skill with that name already exists: {name}",
+  "err.skillExistsInScope": "The target scope already has a skill with that name: {name}",
+  "err.skillNotFound": "Skill not found: {name}",
+  "err.skillNameCharset":
+    "Skill name may only use lowercase letters, digits, and hyphens (kebab-case)",
+  "err.skillNameLength": "Skill name must be 1-64 characters",
+  "err.skillNamePath": "Skill name cannot contain path characters",
+  "err.ruleNameCharset":
+    "Rule name may only use lowercase letters, digits, and hyphens (kebab-case)",
+  "err.ruleMustBeMd": "Rule files must be .md",
+  "err.fileExists": "File already exists: {path}",
+  "err.accessDenied": "Access denied: path is outside the {area}",
+  "err.alreadyPromoted": "This discussion was already promoted to the planner.",
+  "err.nothingToImport": "There are no legacy goals to import.",
+  "err.notionNoToken": "No Notion token configured (Settings → Data)",
+  "err.notionNoParent": "No parent page configured for export (Settings → Data)",
+  "err.browserOpenFailed": "Could not open the browser",
+  "err.cliTimeout": "CLI timed out (60s)",
+
   // ── Skills & rules → plugin guide tab ───────────────────────────────────
   // The **data** this tab renders (command descriptions, tool descs) mirrors
   // plugin/oculpm/ and stays untranslated (pluginDocs.ts — scanner

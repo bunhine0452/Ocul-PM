@@ -76,7 +76,7 @@ pub async fn rule_draft_generate(
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("{provider} API 키가 설정되지 않았습니다"))?
+            .ok_or_else(|| format!("No API key configured for {provider}"))?
     };
     let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
     let response = client

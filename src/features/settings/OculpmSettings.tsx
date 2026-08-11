@@ -53,6 +53,7 @@ import {
   Plus,
 } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 const DEBOUNCE_MS = 500;
 
@@ -716,7 +717,7 @@ export function ShellIntegrationBlock() {
         setStatus(res.data);
         setError(null);
       } else {
-        setError(res.error);
+        setError(tError(res.error));
       }
     });
   }, []);
@@ -737,7 +738,7 @@ export function ShellIntegrationBlock() {
             : t("op.shell.off"),
         );
       } else {
-        setError(res.error);
+        setError(tError(res.error));
         toast.destructive(t("op.shell.failed", { error: res.error }));
       }
     } finally {

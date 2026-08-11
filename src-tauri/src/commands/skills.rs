@@ -106,7 +106,7 @@ pub async fn skills_read(
     let (dir, enabled) = locate_skill(&root, &dir_name)?;
     let skill_md = dir.join(SKILL_FILENAME);
     let content = std::fs::read_to_string(&skill_md)
-        .map_err(|e| format!("SKILL.md 를 읽지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not read SKILL.md: {e}"))?;
     let entry = build_entry(scope, &root, &dir_name, enabled, &content);
     Ok(SkillDetail {
         entry,
@@ -129,22 +129,22 @@ pub async fn skills_save(
     create: bool,
 ) -> Result<SkillEntry, String> {
     if content.len() > MAX_SKILL_BYTES {
-        return Err("SKILL.md 가 너무 큽니다 (512KB 초과) — 긴 자료는 보조 파일로 분리하세요".into());
+        return Err("SKILL.md is too large (over 512KB) — split long material into supporting files".into());
     }
     let root = scope_dir(&db, project_id, scope).await?;
     let (dir, enabled) = if create {
         validate_dir_name(&dir_name, true)?;
         if locate_skill(&root, &dir_name).is_ok() {
-            return Err(format!("같은 이름의 스킬이 이미 있습니다: {dir_name}"));
+            return Err(format!("A skill with that name already exists: {dir_name}"));
         }
         let dir = secure_skill_path(&root, &dir_name, true)?;
-        std::fs::create_dir_all(&dir).map_err(|e| format!("스킬 폴더를 만들지 못했습니다: {e}"))?;
+        std::fs::create_dir_all(&dir).map_err(|e| format!("Could not create the skill folder: {e}"))?;
         (dir, true)
     } else {
         locate_skill(&root, &dir_name)?
     };
     std::fs::write(dir.join(SKILL_FILENAME), &content)
-        .map_err(|e| format!("SKILL.md 를 저장하지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not save SKILL.md: {e}"))?;
     Ok(build_entry(scope, &root, &dir_name, enabled, &content))
 }
 
@@ -162,9 +162,9 @@ pub async fn skills_delete(
     // 안전망: SKILL.md 가 있는 폴더만 지운다 — 오타·경합으로 엉뚱한 폴더를
     // 재귀 삭제하는 사고를 구조적으로 차단.
     if !dir.join(SKILL_FILENAME).is_file() {
-        return Err("SKILL.md 가 없는 폴더는 삭제하지 않습니다".into());
+        return Err("Folders without a SKILL.md are not deleted".into());
     }
-    std::fs::remove_dir_all(&dir).map_err(|e| format!("스킬을 삭제하지 못했습니다: {e}"))
+    std::fs::remove_dir_all(&dir).map_err(|e| format!("Could not delete the skill: {e}"))
 }
 
 /// 스킬 활성/비활성 토글 — `<skills>/` ↔ `<skills>/.disabled/` 이동.
@@ -183,9 +183,9 @@ pub async fn skills_set_enabled(
         let target = secure_skill_path(&root, &dir_name, enabled)?;
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| format!("보관 폴더를 만들지 못했습니다: {e}"))?;
+                .map_err(|e| format!("Could not create the archive folder: {e}"))?;
         }
-        std::fs::rename(&dir, &target).map_err(|e| format!("스킬을 이동하지 못했습니다: {e}"))?;
+        std::fs::rename(&dir, &target).map_err(|e| format!("Could not move the skill: {e}"))?;
     }
     let (dir, enabled) = locate_skill(&root, &dir_name)?;
     let content = std::fs::read_to_string(dir.join(SKILL_FILENAME)).unwrap_or_default();
@@ -204,16 +204,16 @@ pub async fn skills_copy(
     dir_name: String,
 ) -> Result<SkillEntry, String> {
     if from_scope == to_scope {
-        return Err("같은 스코프로는 복사할 수 없습니다".into());
+        return Err("Cannot copy into the same scope".into());
     }
     let from_root = scope_dir(&db, project_id, from_scope).await?;
     let to_root = scope_dir(&db, project_id, to_scope).await?;
     let (src, _) = locate_skill(&from_root, &dir_name)?;
     if locate_skill(&to_root, &dir_name).is_ok() {
-        return Err(format!("대상 스코프에 같은 이름의 스킬이 이미 있습니다: {dir_name}"));
+        return Err(format!("The target scope already has a skill with that name: {dir_name}"));
     }
     let dst = secure_skill_path(&to_root, &dir_name, true)?;
-    copy_dir_recursive(&src, &dst).map_err(|e| format!("스킬을 복사하지 못했습니다: {e}"))?;
+    copy_dir_recursive(&src, &dst).map_err(|e| format!("Could not copy the skill: {e}"))?;
     let content = std::fs::read_to_string(dst.join(SKILL_FILENAME)).unwrap_or_default();
     Ok(build_entry(to_scope, &to_root, &dir_name, true, &content))
 }
@@ -228,7 +228,7 @@ async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
 fn home_dir() -> Result<PathBuf, String> {
     directories::BaseDirs::new()
         .map(|b| b.home_dir().to_path_buf())
-        .ok_or_else(|| "홈 디렉터리를 찾지 못했습니다".to_string())
+        .ok_or_else(|| "Could not find the home directory".to_string())
 }
 
 async fn scope_dirs(db: &Db, project_id: u32) -> Result<(PathBuf, PathBuf), String> {
@@ -249,16 +249,16 @@ async fn scope_dir(db: &Db, project_id: u32, scope: SkillScope) -> Result<PathBu
 /// `strict=true`(신규 생성)는 Claude Code 관례인 kebab-case 만 허용한다.
 fn validate_dir_name(name: &str, strict: bool) -> Result<(), String> {
     if name.is_empty() || name.len() > 64 {
-        return Err("스킬 이름은 1~64자여야 합니다".into());
+        return Err("Skill name must be 1-64 characters".into());
     }
     if name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.starts_with('.') {
-        return Err("스킬 이름에 경로 문자를 쓸 수 없습니다".into());
+        return Err("Skill name cannot contain path characters".into());
     }
     if strict {
         let ok = name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
             && name.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
         if !ok {
-            return Err("스킬 이름은 영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다".into());
+            return Err("Skill name may only use lowercase letters, digits, and hyphens (kebab-case)".into());
         }
     }
     Ok(())
@@ -273,7 +273,7 @@ fn secure_skill_path(root: &Path, dir_name: &str, enabled: bool) -> Result<PathB
     if clean.starts_with(&root_clean) {
         Ok(clean)
     } else {
-        Err("접근이 거부되었습니다: 스킬 폴더 밖의 경로입니다".into())
+        Err("Access denied: path is outside the skills folder".into())
     }
 }
 
@@ -285,7 +285,7 @@ fn locate_skill(root: &Path, dir_name: &str) -> Result<(PathBuf, bool), String> 
             return Ok((dir, enabled));
         }
     }
-    Err(format!("스킬을 찾을 수 없습니다: {dir_name}"))
+    Err(format!("Skill not found: {dir_name}"))
 }
 
 /// frontmatter 에서 (name, description) 을 관대하게 추출한다.

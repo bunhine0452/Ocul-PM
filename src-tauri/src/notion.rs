@@ -173,7 +173,7 @@ pub fn build_page_payload(parent_page_id: &str, title: &str, blocks: Vec<Value>)
 fn http(token: &str) -> Result<reqwest::Client, String> {
     let mut headers = reqwest::header::HeaderMap::new();
     let auth = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
-        .map_err(|_| "토큰에 쓸 수 없는 문자가 있습니다".to_string())?;
+        .map_err(|_| "The token contains characters that cannot be used".to_string())?;
     headers.insert(reqwest::header::AUTHORIZATION, auth);
     headers.insert(
         "Notion-Version",
@@ -200,7 +200,7 @@ pub async fn verify_token(token: &str) -> Result<String, String> {
         .get(format!("{API_BASE}/users/me"))
         .send()
         .await
-        .map_err(|e| format!("Notion 연결 실패: {e}"))?;
+        .map_err(|e| format!("Could not reach Notion: {e}"))?;
     let status = res.status();
     let body = res.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -227,7 +227,7 @@ pub async fn create_page(
         .json(&payload)
         .send()
         .await
-        .map_err(|e| format!("Notion 연결 실패: {e}"))?;
+        .map_err(|e| format!("Could not reach Notion: {e}"))?;
     let status = res.status();
     let body = res.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -237,7 +237,7 @@ pub async fn create_page(
     v.get("url")
         .and_then(Value::as_str)
         .map(str::to_string)
-        .ok_or_else(|| "Notion 응답에 페이지 URL 이 없습니다".to_string())
+        .ok_or_else(|| "The Notion response has no page URL".to_string())
 }
 
 #[cfg(test)]

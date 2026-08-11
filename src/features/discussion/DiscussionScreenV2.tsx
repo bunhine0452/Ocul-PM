@@ -27,6 +27,7 @@ import {
 } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
 import "./discussion.css";
+import { tError } from "@/i18n/errors";
 
 interface Props {
   projectId: number;
@@ -175,7 +176,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     if (res.status === "ok") {
       setDetail(res.data);
       void loadList();
-    } else toast.destructive(res.error);
+    } else toast.destructive(tError(res.error));
   };
 
   const submitRename = async () => {
@@ -190,7 +191,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       setRenaming(false);
       setDetail(res.data);
       void loadList();
-    } else toast.destructive(res.error);
+    } else toast.destructive(tError(res.error));
   };
 
   const remove = async () => {
@@ -202,7 +203,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     if (res.status === "ok") {
       select(null);
       await loadList();
-    } else toast.destructive(res.error);
+    } else toast.destructive(tError(res.error));
   };
 
   const attach = async () => {
@@ -213,14 +214,14 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         await loadDetail(selectedId);
         toast.info(t("disc.attached"));
       }
-    } else toast.destructive(res.error);
+    } else toast.destructive(tError(res.error));
   };
 
   const detach = async (relPath: string) => {
     if (!selectedId) return;
     const res = await commands.discussionDetach(projectId, selectedId, relPath);
     if (res.status === "ok") await loadDetail(selectedId);
-    else toast.destructive(res.error);
+    else toast.destructive(tError(res.error));
   };
 
   const confirmPromote = async () => {
@@ -233,7 +234,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       setState((prev) => ({ ...prev, plannerPlanId: res.data }));
       toast.info(t("disc.promoted"));
       onNavigate("planner");
-    } else toast.destructive(res.error);
+    } else toast.destructive(tError(res.error));
   };
 
   // ── derived ────────────────────────────────────────────────────────────────

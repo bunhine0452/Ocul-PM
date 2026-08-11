@@ -119,7 +119,7 @@ pub async fn discussion_create(
 ) -> Result<DiscussionSummary, String> {
     let t = title.trim();
     if t.is_empty() {
-        return Err("제목을 입력하세요.".to_string());
+        return Err("Enter a title.".to_string());
     }
     let root = discussion_root_of(&db, project_id).await?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
@@ -227,7 +227,7 @@ pub async fn discussion_rename(
 ) -> Result<Option<DiscussionDetail>, String> {
     let t = title.trim();
     if t.is_empty() {
-        return Err("제목을 입력하세요.".to_string());
+        return Err("Enter a title.".to_string());
     }
     let root = discussion_root_of(&db, project_id).await?;
     let path = find_discussion_path(&root, &discussion_id)
@@ -291,7 +291,7 @@ fn secure_attachment_join(folder: &Path, rel_path: &str) -> Result<PathBuf, Stri
     if clean.starts_with(&attachments) {
         Ok(clean)
     } else {
-        Err("접근이 거부되었습니다: attachments 폴더 밖의 경로입니다".to_string())
+        Err("Access denied: path is outside the attachments folder".to_string())
     }
 }
 
@@ -316,13 +316,13 @@ fn mime_for(path: &Path) -> String {
 /// `attachments/<file>` relative path.
 fn copy_into_attachments(folder: &Path, src: &Path) -> Result<String, String> {
     if !src.is_file() {
-        return Err("첨부할 파일을 찾을 수 없습니다.".to_string());
+        return Err("Could not find the file to attach.".to_string());
     }
     let name = src
         .file_name()
         .and_then(|n| n.to_str())
         .filter(|n| !n.is_empty() && !n.starts_with('.'))
-        .ok_or_else(|| "유효하지 않은 파일 이름입니다.".to_string())?
+        .ok_or_else(|| "Invalid file name.".to_string())?
         .to_string();
 
     let attachments = folder.join("attachments");
@@ -338,7 +338,7 @@ fn copy_into_attachments(folder: &Path, src: &Path) -> Result<String, String> {
         final_name = format!("{stem}-{n}{ext}");
         n += 1;
     }
-    std::fs::copy(src, attachments.join(&final_name)).map_err(|e| format!("첨부 복사 실패: {e}"))?;
+    std::fs::copy(src, attachments.join(&final_name)).map_err(|e| format!("Could not copy the attachment: {e}"))?;
     Ok(format!("attachments/{final_name}"))
 }
 
@@ -400,13 +400,13 @@ pub async fn discussion_asset(
     let full = secure_attachment_join(&folder, &rel_path)?;
     let meta = tokio::fs::metadata(&full)
         .await
-        .map_err(|e| format!("첨부를 읽지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not read the attachment: {e}"))?;
     if meta.len() > MAX_ASSET_BYTES {
-        return Err("첨부가 너무 큽니다 (16MB 초과)".to_string());
+        return Err("Attachment is too large (over 16MB)".to_string());
     }
     let bytes = tokio::fs::read(&full)
         .await
-        .map_err(|e| format!("첨부를 읽지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not read the attachment: {e}"))?;
     let mime = mime_for(&full);
     let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(DiscussionAsset {
@@ -466,10 +466,10 @@ pub async fn discussion_promote_to_plan(
     let disc_md = std::fs::read_to_string(&disc_path).map_err(|e| e.to_string())?;
     let parsed = parse_discussion(&disc_md, &discussion_id);
     if parsed.frontmatter.resolution_plan_id.is_some() {
-        return Err("이미 플래너로 승격된 문제입니다.".to_string());
+        return Err("This discussion was already promoted to the planner.".to_string());
     }
     if parsed.next_steps.is_empty() {
-        return Err("`## 다음 단계` 항목이 없습니다. 먼저 다음 단계를 작성하세요.".to_string());
+        return Err("No `## 다음 단계` items - write the next steps first.".to_string());
     }
 
     // Serialize against other plan writers (in-app + background reconcile).

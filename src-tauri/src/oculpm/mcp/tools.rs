@@ -219,13 +219,13 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
         );
     }
     if !root.is_dir() {
-        return Err(format!("프로젝트 루트가 디렉터리가 아닙니다: {}", root.display()));
+        return Err(format!("Project root is not a directory: {}", root.display()));
     }
     // 폭발 반경 가드 — --root 를 홈/파일시스템 루트로 잘못 고정한 설정 사고가
     // ~/.gitignore(core.excludesFile 관행)·~/AGENTS.md 오염으로 번지지 않게.
     let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     if canonical.parent().is_none() {
-        return Err("파일시스템 루트는 초기화 대상이 아닙니다 — --root 설정을 확인하세요.".to_string());
+        return Err("The filesystem root cannot be initialized - check your --root setting.".to_string());
     }
     if let Ok(home) = std::env::var("HOME") {
         if !home.is_empty() && canonical == std::path::PathBuf::from(&home) {
@@ -589,7 +589,7 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let planner_root = planner_dir(root);
     let entries = match std::fs::read_dir(&planner_root) {
         Ok(e) => e,
-        Err(_) => return Ok(json!({ "plans": [], "note": "planner 폴더 없음 — 아직 플랜이 없다" })),
+        Err(_) => return Ok(json!({ "plans": [], "note": "no planner folder - no plans yet" })),
     };
 
     // 파일 순서는 OS 가 정하므로 정렬해 응답을 결정적으로 만든다 (cursor 가
@@ -671,7 +671,7 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let start = match &cursor {
         Some(c) => match rows.iter().position(|r| &r.1 == c) {
             Some(i) => i,
-            None => return Err(format!("cursor '{c}' not found — 처음부터 다시 호출할 것")),
+            None => return Err(format!("cursor '{c}' not found - call again from the start")),
         },
         None => 0,
     };
@@ -811,15 +811,15 @@ fn claim_unique_id(used: &mut std::collections::HashSet<String>, base: String) -
 fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
     if !valid_kebab(plan_id) {
-        return Err(format!("plan_id '{plan_id}' 는 영문 kebab-case ≤40자여야 합니다"));
+        return Err(format!("plan_id '{plan_id}' must be kebab-case, 40 chars or fewer"));
     }
     let agent_id = arg_str(args, "agent_id").unwrap_or("claude-code");
     if !agent_id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.')) {
-        return Err(format!("agent_id '{agent_id}' 에 허용되지 않는 문자"));
+        return Err(format!("agent_id '{agent_id}' contains disallowed characters"));
     }
     let phases_in = args.get("phases").and_then(Value::as_array).ok_or("'phases' is required")?;
     if phases_in.is_empty() || phases_in.len() > MAX_PLAN_PHASES {
-        return Err(format!("phases 는 1~{MAX_PLAN_PHASES}개여야 합니다"));
+        return Err(format!("phases must number 1-{MAX_PLAN_PHASES}"));
     }
 
     let planner_root = planner_dir(root);
@@ -827,7 +827,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         || find_plan_path(&planner_root, plan_id).is_some()
     {
         return Err(format!(
-            "plan '{plan_id}' 이 이미 있습니다 — 갱신은 plan_update, 새 계획이면 다른 id"
+            "plan '{plan_id}' already exists - use plan_update to change it, or a different id for a new plan"
         ));
     }
 
@@ -850,7 +850,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         let pid = match phase.get("id").and_then(Value::as_str).map(str::trim) {
             Some(s) if !s.is_empty() => {
                 if !valid_kebab(s) {
-                    return Err(format!("phase id '{s}' 는 kebab-case 여야 합니다"));
+                    return Err(format!("phase id '{s}' must be kebab-case"));
                 }
                 claim_unique_id(&mut used_ids, s.to_string())
             }
@@ -862,7 +862,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         for (ii, item) in items.iter().enumerate() {
             item_count += 1;
             if item_count > MAX_PLAN_ITEMS {
-                return Err(format!("항목이 너무 많습니다 (상한 {MAX_PLAN_ITEMS})"));
+                return Err(format!("Too many items (limit {MAX_PLAN_ITEMS})"));
             }
             let text_raw = item
                 .get("text")
@@ -874,7 +874,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             let iid = match item.get("id").and_then(Value::as_str).map(str::trim) {
                 Some(s) if !s.is_empty() => {
                     if !valid_kebab(s) {
-                        return Err(format!("item id '{s}' 는 kebab-case 여야 합니다"));
+                        return Err(format!("item id '{s}' must be kebab-case"));
                     }
                     claim_unique_id(&mut used_ids, s.to_string())
                 }
@@ -898,7 +898,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             for (ci, child) in children.iter().enumerate() {
                 item_count += 1;
                 if item_count > MAX_PLAN_ITEMS {
-                    return Err(format!("항목이 너무 많습니다 (상한 {MAX_PLAN_ITEMS})"));
+                    return Err(format!("Too many items (limit {MAX_PLAN_ITEMS})"));
                 }
                 if child.get("children").is_some() {
                     return Err(format!(
@@ -917,7 +917,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                 let cid = match child.get("id").and_then(Value::as_str).map(str::trim) {
                     Some(s) if !s.is_empty() => {
                         if !valid_kebab(s) {
-                            return Err(format!("child id '{s}' 는 kebab-case 여야 합니다"));
+                            return Err(format!("child id '{s}' must be kebab-case"));
                         }
                         claim_unique_id(&mut used_ids, s.to_string())
                     }
@@ -961,7 +961,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     // 말이 된다. 실패는 구현 버그이므로 파일을 쓰지 않고 에러로 노출한다.
     let parsed = parse_plan(&md, plan_id);
     if !parsed.warnings.is_empty() {
-        return Err(format!("internal: 생성물이 파서 경고를 냈습니다 — {:?}", parsed.warnings));
+        return Err(format!("internal: the generated file produced parser warnings - {:?}", parsed.warnings));
     }
 
     std::fs::create_dir_all(&planner_root).map_err(|e| format!("mkdir failed: {e}"))?;
@@ -1447,7 +1447,7 @@ mod tests {
 
         // 재생성 거부 + plan_update 로 항목 갱신 가능(왕복).
         let err = call_tool(root, "plan_create", &args).unwrap_err();
-        assert!(err.contains("이미 있습니다"), "{err}");
+        assert!(err.contains("already exists"), "{err}");
         call_tool(root, "plan_update", &serde_json::json!({
             "plan_id": "token-diet", "item_id": "plan-create", "status": "done"
         }))

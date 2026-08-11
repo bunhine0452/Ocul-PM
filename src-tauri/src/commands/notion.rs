@@ -42,7 +42,7 @@ pub async fn notion_status(db: State<'_, Db>) -> Result<NotionStatus, String> {
 pub async fn notion_verify_token(token: String) -> Result<String, String> {
     let token = token.trim();
     if token.is_empty() {
-        return Err("토큰을 입력하세요".into());
+        return Err("Enter a token".into());
     }
     notion::verify_token(token).await
 }
@@ -63,7 +63,7 @@ pub async fn notion_set_parent(
         return Ok(None);
     }
     let id = notion::normalize_page_id(trimmed)
-        .ok_or_else(|| "페이지 URL/ID 를 인식하지 못했습니다 — Notion 페이지 링크를 붙여넣으세요".to_string())?;
+        .ok_or_else(|| "Could not recognize the page URL/ID — paste a Notion page link".to_string())?;
     db.settings_set(notion::NOTION_PARENT_SETTING.to_string(), id.clone())
         .await
         .map_err(|e| e.to_string())?;
@@ -81,13 +81,13 @@ pub async fn notion_export(
 ) -> Result<String, String> {
     let token = crate::secrets::get(notion::NOTION_TOKEN_SECRET)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Notion 토큰이 설정되지 않았습니다 (설정 → 데이터)".to_string())?;
+        .ok_or_else(|| "No Notion token configured (Settings → Data)".to_string())?;
     let parent = db
         .settings_get(notion::NOTION_PARENT_SETTING.to_string())
         .await
         .map_err(|e| e.to_string())?
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| "내보낼 부모 페이지가 설정되지 않았습니다 (설정 → 데이터)".to_string())?;
+        .ok_or_else(|| "No parent page configured for export (Settings → Data)".to_string())?;
     // 심층 방어 (2026-07-20 리뷰): 이 커맨드는 임의 문자열을 외부(api.notion.com)
     // 로 내보내는 유일한 경로다. 현재 호출자는 이미 마스킹된 캐시 파생물만
     // 넘기지만, 커맨드 자체가 보증을 갖도록 프로젝트 redact 패턴을 한 번 더
@@ -110,7 +110,7 @@ pub async fn notion_oauth_start() -> Result<String, String> {
     let nonce = notion::oauth_nonce();
     let (listener, port) = tokio::task::spawn_blocking(|| {
         let l = std::net::TcpListener::bind("127.0.0.1:0")
-            .map_err(|e| format!("루프백 포트 확보 실패: {e}"))?;
+            .map_err(|e| format!("Could not bind a loopback port: {e}"))?;
         l.set_nonblocking(true).map_err(|e| e.to_string())?;
         let port = l.local_addr().map_err(|e| e.to_string())?.port();
         Ok::<_, String>((l, port))
@@ -128,7 +128,7 @@ pub async fn notion_oauth_start() -> Result<String, String> {
 
     let workspace = notion::verify_token(token.trim()).await?;
     crate::secrets::set(notion::NOTION_TOKEN_SECRET, token.trim())
-        .map_err(|e| format!("키체인 저장 실패: {e}"))?;
+        .map_err(|e| format!("Could not save to the keychain: {e}"))?;
     Ok(workspace)
 }
 
@@ -140,8 +140,8 @@ fn open_in_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let status = std::process::Command::new("cmd").args(["/C", "start", "", url]).status();
     status
-        .map_err(|e| format!("브라우저 열기 실패: {e}"))
-        .and_then(|s| if s.success() { Ok(()) } else { Err("브라우저 열기 실패".into()) })
+        .map_err(|e| format!("Could not open the browser: {e}"))
+        .and_then(|s| if s.success() { Ok(()) } else { Err("Could not open the browser".into()) })
 }
 
 /// 루프백에서 콜백 1건을 기다린다 (논블로킹 accept 폴링, 상한
@@ -156,7 +156,7 @@ fn wait_for_oauth_callback(
         + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
     loop {
         if std::time::Instant::now() > deadline {
-            return Err("Notion 연결 대기 시간 초과 — 브라우저에서 승인을 완료했는지 확인하세요".into());
+            return Err("Timed out waiting for Notion — check that you finished approving in the browser".into());
         }
         match listener.accept() {
             Ok((mut stream, _)) => {
@@ -183,7 +183,7 @@ fn wait_for_oauth_callback(
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::sleep(std::time::Duration::from_millis(120));
             }
-            Err(e) => return Err(format!("루프백 수신 실패: {e}")),
+            Err(e) => return Err(format!("Loopback listener failed: {e}")),
         }
     }
 }

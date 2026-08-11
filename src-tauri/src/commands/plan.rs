@@ -312,7 +312,7 @@ pub async fn plan_rename(
 ) -> Result<Option<PlanDetail>, String> {
     let t = title.trim();
     if t.is_empty() {
-        return Err("제목을 입력하세요.".to_string());
+        return Err("Enter a title.".to_string());
     }
     let plan_lock = manager.plan_write_lock(project_id).await;
     let _guard = plan_lock.lock().await;
@@ -417,7 +417,7 @@ pub async fn plan_ai_refresh(
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("{provider} API 키가 설정되지 않았습니다"))?
+            .ok_or_else(|| format!("No API key configured for {provider}"))?
     };
     let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
     let user_msg = build_user_prompt(&parsed.frontmatter.title, &items_block, &journal_block);
@@ -491,14 +491,14 @@ pub async fn plan_migrate_goals(
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     let path = root.join(format!("{IMPORTED_PLAN_ID}.md"));
     if path.exists() {
-        return Err("이미 _imported.md 가 있습니다 (한 번만 가져올 수 있어요).".to_string());
+        return Err("_imported.md already exists (you can import only once).".to_string());
     }
     let goals = db
         .list_goals(Some(project_id), None)
         .await
         .map_err(|e| e.to_string())?;
     if goals.is_empty() {
-        return Err("가져올 기존 목표가 없습니다.".to_string());
+        return Err("There are no legacy goals to import.".to_string());
     }
     let mut import: Vec<ImportGoal> = Vec::new();
     for g in &goals {
@@ -524,7 +524,7 @@ pub async fn plan_migrate_goals(
     summaries
         .into_iter()
         .find(|s| s.plan_id == IMPORTED_PLAN_ID)
-        .ok_or_else(|| "가져왔지만 투영에 없습니다".to_string())
+        .ok_or_else(|| "Imported, but it is missing from the projection".to_string())
 }
 
 // ─── IN2 — 플래너 디스패치 ───────────────────────────────────────────────────

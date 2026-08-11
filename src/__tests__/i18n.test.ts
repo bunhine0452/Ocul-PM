@@ -111,6 +111,18 @@ describe("사전 값 품질", () => {
     }
   });
 
+  it("ko 와 en 의 자리표시자 집합이 일치한다", () => {
+    // 타입은 키만 강제하고 **값 안의 `{n}`** 은 못 본다. 한쪽에만 있으면
+    // 조용히 깨진다 — en 에 빠지면 숫자가 사라지고("N건" → "entries"),
+    // en 에만 있으면 치환값이 없어 `{n}` 이 그대로 렌더된다.
+    const holders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+    for (const key of Object.keys(ko) as (keyof typeof ko)[]) {
+      expect(holders(en[key]), `${key} — ko "${ko[key]}" / en "${en[key]}"`).toEqual(
+        holders(ko[key]),
+      );
+    }
+  });
+
   it("영어 사전에 한글이 없다 — 언어 이름은 예외", () => {
     // 자기 언어 표기("한국어")는 OS 언어 선택 UI 의 관례라 의도적으로 남긴다.
     const allowed = new Set(["settings.language.ko"]);

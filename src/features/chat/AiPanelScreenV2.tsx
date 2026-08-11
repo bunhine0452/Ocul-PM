@@ -39,6 +39,7 @@ import { ConversationHistoryModal } from "./ConversationHistoryModal";
 // 없고, deps 에 t 가 빠진 콜백에서도 낡은 언어로 굳지 않는다. DB 에 저장되는
 // 대화 제목처럼 한번 잘못 들어가면 영구히 남는 자리에 쓴다.
 import { t as tNow, useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // AI 패널 (ui_v2) — 2026-07-20 대규모 개편.
 //  - 모델 선택: 상단 칩 바 → Cursor 식 컴포저 하단 드롭다운(위로 열림).
@@ -585,7 +586,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
-      setError(res.error);
+      setError(tError(res.error));
       setMessages((prev) => prev.slice(0, -1));
       setStreaming(false);
       abortRef.current = null;

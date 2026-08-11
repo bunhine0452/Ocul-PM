@@ -406,7 +406,7 @@ pub async fn generate_retro(
 ) -> Result<RetroInsight, String> {
     let signals = gather_signals(&db, project_id, &since, &until).await?;
     if signals.total_entries == 0 {
-        return Err("이 기간에 기록된 작업이 없습니다.".to_string());
+        return Err("No work was recorded in this period.".to_string());
     }
 
     let content_lang = crate::oculpm::content_lang::current(&db).await;
@@ -547,7 +547,7 @@ async fn call_llm(
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("{provider} API 키가 설정되지 않았습니다"))?
+            .ok_or_else(|| format!("No API key configured for {provider}"))?
     };
     let client = llm::create(provider, api_key).map_err(|e| e.to_string())?;
 
@@ -585,7 +585,7 @@ async fn call_llm(
         content
     };
     if body.is_empty() {
-        return Err("회고 생성 결과가 비어 있습니다.".to_string());
+        return Err("The retro came back empty.".to_string());
     }
     Ok(body.to_string())
 }
@@ -667,7 +667,7 @@ pub async fn retro_dispatch_prompt(
         ));
     }
     if signals.total_entries == 0 {
-        return Err("이 기간에 기록된 작업이 없습니다.".to_string());
+        return Err("No work was recorded in this period.".to_string());
     }
 
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;

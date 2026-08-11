@@ -253,7 +253,7 @@ async fn call_llm(
         let secret_name = format!("{provider}_api_key");
         crate::secrets::get(&secret_name)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("{provider} API 키가 설정되지 않았습니다"))?
+            .ok_or_else(|| format!("No API key configured for {provider}"))?
     };
     let client = llm::create(provider, api_key).map_err(|e| e.to_string())?;
     let response = client
@@ -288,7 +288,7 @@ async fn call_llm(
         content
     };
     if body.is_empty() {
-        return Err("생성 결과가 비어 있습니다.".to_string());
+        return Err("The result came back empty.".to_string());
     }
     Ok(body.to_string())
 }

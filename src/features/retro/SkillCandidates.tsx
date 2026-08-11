@@ -17,6 +17,7 @@ import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type SkillCandidate, type SkillDraft } from "@/lib/bindings";
 import { isValidSkillName } from "@/features/skills/skillsModel";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 /** "YYYYMMDD" → "M/D". */
 function wd(s: string): string {
@@ -106,7 +107,7 @@ export function SkillCandidatesPanel({
       setDraft(null);
     } else {
       // 예: 같은 이름의 스킬 존재 — 슬러그를 고쳐 다시 시도할 수 있게 모달 유지.
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 

@@ -281,6 +281,8 @@ pub fn gather_evidence(project_root: &Path, candidate: &RuleCandidate, entries: 
                 let (masked, _) = redact::redact_text(&raw, &patterns);
                 truncate_chars(&masked, EVIDENCE_BODY_CHARS)
             }
+            // 에러 반환이 아니라 **프롬프트 증거 본문**에 끼워 넣는 자리표시자다
+            // — 모델에게 가는 문구라 §4.5 대로 한국어로 둔다.
             Err(_) => format!("(일지 파일을 읽지 못했습니다: {rel} — 디스크에서 이동/삭제된 듯)"),
         };
         out.push(Evidence {
@@ -399,15 +401,15 @@ pub fn parse_draft_response(
     let end = text.rfind('}');
     let json = match (start, end) {
         (Some(s), Some(e)) if e > s => &text[s..=e],
-        _ => return Err("규칙 초안 응답에서 JSON 을 찾지 못했습니다".into()),
+        _ => return Err("No JSON in the rule draft response".into()),
     };
     let raw: RawDraft = serde_json::from_str(json)
-        .map_err(|e| format!("규칙 초안 JSON 파싱 실패: {e}"))?;
+        .map_err(|e| format!("Could not parse the rule draft JSON: {e}"))?;
 
     let title = raw.title.trim().to_string();
     let body = raw.body_markdown.trim().to_string();
     if title.is_empty() || body.is_empty() {
-        return Err("규칙 초안에 title/body 가 비어 있습니다".into());
+        return Err("The rule draft has an empty title/body".into());
     }
     // paths 검증: 공백 제거, 절대경로·과대입력 거부, 상한 8. 전부 무효/빈
     // 배열이면 빈 배열(항상 로드) 그대로 — 결정적 제안으로 강제 폴백하지

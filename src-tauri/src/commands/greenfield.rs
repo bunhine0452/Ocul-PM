@@ -229,7 +229,7 @@ pub async fn create_greenfield_project(
     if !target.exists() {
         tokio::fs::create_dir_all(&target)
             .await
-            .map_err(|e| format!("폴더 생성 실패: {e}"))?;
+            .map_err(|e| format!("Could not create the folder: {e}"))?;
     }
 
     // 2. Run scaffold CLI (if specified)
@@ -304,18 +304,18 @@ async fn run_scaffold_cli(cmd: &str, args: &[&str], cwd: &Path) -> Result<String
             Ok(c) => match c.wait_with_output() {
                 Ok(output) => {
                     if start.elapsed() > timeout {
-                        Err("CLI 실행 시간 초과 (60초)".to_string())
+                        Err("CLI timed out (60s)".to_string())
                     } else {
                         Ok(output)
                     }
                 }
-                Err(e) => Err(format!("CLI 출력 대기 실패: {e}")),
+                Err(e) => Err(format!("Failed waiting for CLI output: {e}")),
             },
-            Err(e) => Err(format!("CLI 실행 실패: {e}")),
+            Err(e) => Err(format!("Could not run the CLI: {e}")),
         }
     })
     .await
-    .map_err(|e| format!("task spawn 실패: {e}"))??;
+    .map_err(|e| format!("Task spawn failed: {e}"))??;
 
     let stdout = String::from_utf8_lossy(&result.stdout);
     let stderr = String::from_utf8_lossy(&result.stderr);

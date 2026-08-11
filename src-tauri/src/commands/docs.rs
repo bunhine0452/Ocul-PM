@@ -79,7 +79,7 @@ pub async fn docs_read(
     let full = secure_docs_join(&root, &rel_path)?;
     tokio::fs::read_to_string(&full)
         .await
-        .map_err(|e| format!("문서를 읽지 못했습니다: {e}"))
+        .map_err(|e| format!("Could not read the document: {e}"))
 }
 
 /// 문서가 참조하는 이미지를 base64 로 읽는다. `rel_path` 는 프로젝트 루트 기준.
@@ -94,9 +94,9 @@ pub async fn docs_asset(
     let full = secure_docs_join(&root, &rel_path)?;
     let bytes = tokio::fs::read(&full)
         .await
-        .map_err(|e| format!("이미지를 읽지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not read the image: {e}"))?;
     if bytes.len() > MAX_ASSET_BYTES {
-        return Err("이미지가 너무 큽니다 (16MB 초과)".to_string());
+        return Err("Image is too large (over 16MB)".to_string());
     }
     let mime = mime_for(&full);
     let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
@@ -120,7 +120,7 @@ fn secure_docs_join(root: &Path, rel_path: &str) -> Result<PathBuf, String> {
     if clean.starts_with(&docs_dir) {
         Ok(clean)
     } else {
-        Err("접근이 거부되었습니다: docs 폴더 밖의 경로입니다".to_string())
+        Err("Access denied: path is outside the docs folder".to_string())
     }
 }
 

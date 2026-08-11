@@ -16,6 +16,7 @@ import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type RuleCandidate, type RuleDraft } from "@/lib/bindings";
 import { isValidRuleName } from "@/features/skills/rulesModel";
 import { useT, type I18nKey } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 /** 반복 종류 배지 — 표시만 사전을 거치고 kind 자체는 판별자로 남는다. */
 const KIND_LABEL: Record<string, I18nKey> = {
@@ -112,7 +113,7 @@ export function RuleCandidatesPanel({
       setDraft(null);
     } else {
       // 예: 같은 이름의 파일 존재 — 슬러그를 고쳐 다시 시도할 수 있게 모달 유지.
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 

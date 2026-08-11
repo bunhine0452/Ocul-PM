@@ -93,14 +93,14 @@ pub async fn delete_project(
                 let oculpm_dir = root.join(".oculpm");
                 if oculpm_dir.is_dir() {
                     fs::remove_dir_all(&oculpm_dir)
-                        .map_err(|e| format!(".oculpm 폴더 삭제 실패: {e}"))?;
+                        .map_err(|e| format!("Could not delete the .oculpm folder: {e}"))?;
                 }
             }
             if delete_agents_md {
                 let agents_md = root.join("AGENTS.md");
                 if agents_md.is_file() {
                     fs::remove_file(&agents_md)
-                        .map_err(|e| format!("AGENTS.md 삭제 실패: {e}"))?;
+                        .map_err(|e| format!("Could not delete AGENTS.md: {e}"))?;
                 }
             }
         }
@@ -444,7 +444,7 @@ pub async fn detect_stack(
     let root = get_project_root(&db, project_id).await?;
     tokio::task::spawn_blocking(move || crate::oculpm::stack_detect::detect_stack(&root))
         .await
-        .map_err(|e| format!("스택 감지 작업 실패: {e}"))
+        .map_err(|e| format!("Stack detection failed: {e}"))
 }
 
 async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {

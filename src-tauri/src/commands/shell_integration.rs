@@ -16,11 +16,11 @@ fn dirs(app: &tauri::AppHandle) -> Result<(std::path::PathBuf, std::path::PathBu
     let home = app
         .path()
         .home_dir()
-        .map_err(|e| format!("홈 디렉터리를 찾지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not find the home directory: {e}"))?;
     let data = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("앱 데이터 디렉터리를 찾지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not find the app data directory: {e}"))?;
     Ok((home, data))
 }
 

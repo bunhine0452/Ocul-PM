@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
 import { langFromPath } from "./diffParse";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = git uncommitted changes (persistent,
@@ -263,7 +264,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         if (cancelled) return;
         if (res.status !== "ok") {
           setDiff(null);
-          setError(res.error);
+          setError(tError(res.error));
           return;
         }
         setDiff(res.data);

@@ -280,7 +280,7 @@ fn is_decisions_name(name: &str) -> bool {
 pub fn rename_phase(md: &str, old: &str, new: &str) -> Result<String, String> {
     let new = new.trim();
     if new.is_empty() {
-        return Err("단계 이름을 입력하세요.".to_string());
+        return Err("Enter a phase name.".to_string());
     }
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines

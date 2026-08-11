@@ -53,6 +53,9 @@ const PERMANENT = new Set([
   "__tests__/i18n_lint_scanner.test.ts",
   "__tests__/i18n_switch.test.tsx",
   "__tests__/i18n_settings_wiring.test.tsx",
+  // tError 계약 — 백엔드 영어 원문이 한국어로 되돌아오는지가 검사 대상이라
+  // 양쪽 언어 문자열이 단언에 그대로 있어야 한다.
+  "__tests__/i18n_errors.test.ts",
 ]);
 
 /**

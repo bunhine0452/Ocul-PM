@@ -11,7 +11,7 @@ use crate::oculpm::mcp::register::{
 };
 
 fn desktop_config_path() -> Result<std::path::PathBuf, String> {
-    register::desktop_config_path().ok_or_else(|| "홈 디렉터리를 찾지 못했습니다".to_string())
+    register::desktop_config_path().ok_or_else(|| "Could not find the home directory".to_string())
 }
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {

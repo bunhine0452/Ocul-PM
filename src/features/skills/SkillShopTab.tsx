@@ -15,6 +15,7 @@ import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { CATALOG_SKILLS, type CatalogSkill, type CatalogTag } from "./skillsCatalog";
 import { tAll, useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 interface SkillShopTabProps {
   projectId: number;
@@ -103,7 +104,7 @@ export function SkillShopTab({ projectId, tabs }: SkillShopTabProps) {
       toast.info(t("shop.installed", { id: c.id, source: c.source }));
       setInstalledDirs(null); // 재조회
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 

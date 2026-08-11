@@ -30,6 +30,7 @@ import {
   setRulePaths,
 } from "./rulesModel";
 import { t, useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 interface RulesTabProps {
   projectId: number;
@@ -171,7 +172,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       setDetail({ ...detail, entry: res.data.entry, content: draft });
       void loadList(); // paths/제목·미러 배지가 바뀌었을 수 있으니 목록 동기화
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -192,7 +193,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       await loadList();
       setSelected({ scope: e.scope, relPath: e.rel_path });
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -226,7 +227,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       await loadList();
       setSelected({ scope: createScope, relPath: `.claude/rules/${name}.md` });
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -242,7 +243,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       setSelected(null); // 보정 이펙트가 첫 항목을 재선택
       await loadList();
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 

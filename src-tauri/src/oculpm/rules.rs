@@ -159,17 +159,17 @@ pub fn validate_rel(scope: RuleScope, rel_path: &str) -> Result<RuleKind, String
     }
     let prefix = format!("{RULES_SUBDIR}/");
     let Some(inner) = rel_path.strip_prefix(&prefix) else {
-        return Err(format!("허용되지 않는 규칙 경로입니다: {rel_path}"));
+        return Err(format!("Rule path is not allowed: {rel_path}"));
     };
     if !inner.ends_with(".md") {
-        return Err("규칙 파일은 .md 여야 합니다".into());
+        return Err("Rule files must be .md".into());
     }
     if inner.len() > 200 {
-        return Err("규칙 경로가 너무 깁니다 (200자 초과)".into());
+        return Err("Rule path is too long (over 200 characters)".into());
     }
     let segments: Vec<&str> = inner.split('/').collect();
     if segments.len() > MAX_RULES_DEPTH as usize {
-        return Err(format!("규칙 폴더 깊이는 {MAX_RULES_DEPTH} 단계까지입니다"));
+        return Err(format!("Rule folders may nest at most {MAX_RULES_DEPTH} levels"));
     }
     for (i, seg) in segments.iter().enumerate() {
         let is_last = i == segments.len() - 1;
@@ -180,7 +180,7 @@ pub fn validate_rel(scope: RuleScope, rel_path: &str) -> Result<RuleKind, String
             || stem.starts_with('.')
             || stem.contains('\\')
         {
-            return Err(format!("규칙 경로에 쓸 수 없는 이름입니다: {seg:?}"));
+            return Err(format!("Rule path contains an unusable name: {seg:?}"));
         }
     }
     Ok(RuleKind::Rule)
@@ -200,7 +200,7 @@ pub fn validate_new_rule_name(name: &str) -> Result<(), String> {
     if ok {
         Ok(())
     } else {
-        Err("규칙 이름은 영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다".into())
+        Err("Rule name may only use lowercase letters, digits, and hyphens (kebab-case)".into())
     }
 }
 
@@ -211,7 +211,7 @@ fn secure_path(scope_root: &Path, rel_path: &str) -> Result<PathBuf, String> {
     if clean.starts_with(&root_clean) {
         Ok(clean)
     } else {
-        Err("접근이 거부되었습니다: 스코프 밖의 경로입니다".into())
+        Err("Access denied: path is outside the scope".into())
     }
 }
 
@@ -412,7 +412,7 @@ pub fn read(
         ));
     }
     let content = std::fs::read_to_string(&abs)
-        .map_err(|e| format!("규칙 파일을 읽지 못했습니다: {e}"))?;
+        .map_err(|e| format!("Could not read the rule file: {e}"))?;
     let project_root = (scope == RuleScope::Project).then_some(project_root);
     Ok(RuleDetail {
         entry: build_entry(scope, kind, rel_path, Some(&content), project_root),
@@ -433,7 +433,7 @@ pub fn save(
     create: bool,
 ) -> Result<RuleEntry, String> {
     if content.len() > MAX_RULE_BYTES {
-        return Err("규칙 파일이 너무 큽니다 (512KB 초과)".into());
+        return Err("Rule file is too large (over 512KB)".into());
     }
     let kind = validate_rel(scope, rel_path)?;
     // 신규 규칙은 rules/ 바로 아래 kebab-case 만 (중첩·기존 파일 편집은 자유).
@@ -442,13 +442,13 @@ pub fn save(
             .strip_prefix(&format!("{RULES_SUBDIR}/"))
             .unwrap_or(rel_path);
         if inner.contains('/') {
-            return Err("신규 규칙은 rules/ 바로 아래에만 만들 수 있습니다".into());
+            return Err("New rules can only be created directly under rules/".into());
         }
         validate_new_rule_name(inner.trim_end_matches(".md"))?;
     }
     let abs = secure_path(scope_root, rel_path)?;
     if create && abs.exists() {
-        return Err(format!("이미 존재하는 파일입니다: {rel_path}"));
+        return Err(format!("File already exists: {rel_path}"));
     }
     // 앱 소유 관리 블록 보호 (2026-07-20 적대 리뷰 HIGH). 일부 슬롯(특히
     // `.claude/CLAUDE.md`)은 어댑터가 `<!-- oculpm:begin v1 -->` 구간을
@@ -478,14 +478,14 @@ fn extract_managed_block(text: &str) -> Result<Option<String>, String> {
         let t = line.trim();
         if t.starts_with("<!--") && t.contains("oculpm:begin") {
             if in_block || closed {
-                return Err("oculpm 관리 블록 마커가 중복됩니다".into());
+                return Err("Duplicate oculpm managed-block markers".into());
             }
             in_block = true;
             continue;
         }
         if t.starts_with("<!--") && t.contains("oculpm:end") {
             if !in_block {
-                return Err("oculpm:end 마커가 begin 없이 있습니다".into());
+                return Err("An oculpm:end marker appears without a begin".into());
             }
             in_block = false;
             closed = true;
@@ -496,7 +496,7 @@ fn extract_managed_block(text: &str) -> Result<Option<String>, String> {
         }
     }
     if in_block {
-        return Err("oculpm:begin 마커가 닫히지 않았습니다".into());
+        return Err("An oculpm:begin marker was never closed".into());
     }
     Ok(closed.then(|| inner.join("\n")))
 }
@@ -536,10 +536,10 @@ fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
 pub fn delete(scope: RuleScope, scope_root: &Path, rel_path: &str) -> Result<(), String> {
     let kind = validate_rel(scope, rel_path)?;
     if kind != RuleKind::Rule {
-        return Err("CLAUDE.md 계열 파일은 여기서 삭제할 수 없습니다".into());
+        return Err("CLAUDE.md-family files cannot be deleted here".into());
     }
     let abs = secure_path(scope_root, rel_path)?;
-    std::fs::remove_file(&abs).map_err(|e| format!("규칙을 삭제하지 못했습니다: {e}"))
+    std::fs::remove_file(&abs).map_err(|e| format!("Could not delete the rule: {e}"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -722,7 +722,7 @@ pub(crate) fn list_project_rules(project_root: &Path) -> Vec<RuleEntry> {
 pub fn home_dir() -> OculpmResult<PathBuf> {
     directories::BaseDirs::new()
         .map(|b| b.home_dir().to_path_buf())
-        .ok_or_else(|| OculpmError::InvalidConfig("홈 디렉터리를 찾지 못했습니다".into()))
+        .ok_or_else(|| OculpmError::InvalidConfig("Could not find the home directory".into()))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -796,7 +796,7 @@ mod tests {
             RuleScope::Project, root, root, "CLAUDE.md", orphan, false,
         )
         .unwrap_err();
-        assert!(err.contains("닫히지"), "{err}");
+        assert!(err.contains("never closed"), "{err}");
         assert!(!root.join("CLAUDE.md").exists(), "거부 시 파일을 만들지 않는다");
     }
 

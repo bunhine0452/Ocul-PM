@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
 import { getLang } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
 //
@@ -148,7 +149,7 @@ export function useTodayBrief(
         const res = await commands.oculpmWorkdayBrief(projectId, weekKeys, workday);
         if (cancelled) return;
         if (res.status !== "ok") {
-          setError(res.error);
+          setError(tError(res.error));
           setBrief(null);
           return;
         }

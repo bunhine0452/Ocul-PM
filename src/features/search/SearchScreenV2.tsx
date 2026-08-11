@@ -17,6 +17,7 @@ import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
 import { OculSpinner } from "@/components/OculSpinner";
 import { CodeSnippet } from "./CodeSnippet";
 import { t, useT, type I18nKey } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — 코드 검색 화면 (02-screen-specs §5). PR-R1b (A2):
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
@@ -86,7 +87,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
         if (res.status === "ok") setResults({ kind: "symbol", items: res.data });
         else {
           setResults(null);
-          setError(res.error);
+          setError(tError(res.error));
         }
       } else {
         const res =
@@ -97,7 +98,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
           setResults({ kind: "chunk", mode: scopeArg === "text" ? "text" : "semantic", items: res.data });
         } else {
           setResults(null);
-          setError(res.error);
+          setError(tError(res.error));
         }
       }
       setLoading(false);

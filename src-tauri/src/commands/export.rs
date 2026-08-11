@@ -53,7 +53,7 @@ async fn render_digest(
         .map_err(|e| e.to_string())?;
 
     if entries.is_empty() {
-        return Err("이 기간에 내보낼 일지가 없습니다.".to_string());
+        return Err("No journal entries to export in this period.".to_string());
     }
 
     let mut out = String::new();

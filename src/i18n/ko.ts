@@ -1253,6 +1253,34 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── 백엔드 에러 매핑 (i18n/errors.ts — tError) ──────────────────────────
+  // Rust 는 영어만 반환하고 여기서 되돌린다 (§4.4). 표에 없으면 영어 원문이
+  // 그대로 보이므로, 자주 보는 것부터 늘려 가면 된다.
+  "err.noApiKey": "{provider} API 키가 설정되지 않았습니다",
+  "err.enterTitle": "제목을 입력하세요.",
+  "err.enterPhaseName": "단계 이름을 입력하세요.",
+  "err.enterToken": "토큰을 입력하세요",
+  "err.noWorkInPeriod": "이 기간에 기록된 작업이 없습니다.",
+  "err.nothingToExport": "이 기간에 내보낼 일지가 없습니다.",
+  "err.retroEmpty": "회고 생성 결과가 비어 있습니다.",
+  "err.resultEmpty": "생성 결과가 비어 있습니다.",
+  "err.skillExists": "같은 이름의 스킬이 이미 있습니다: {name}",
+  "err.skillExistsInScope": "대상 스코프에 같은 이름의 스킬이 이미 있습니다: {name}",
+  "err.skillNotFound": "스킬을 찾을 수 없습니다: {name}",
+  "err.skillNameCharset": "스킬 이름은 영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다",
+  "err.skillNameLength": "스킬 이름은 1~64자여야 합니다",
+  "err.skillNamePath": "스킬 이름에 경로 문자를 쓸 수 없습니다",
+  "err.ruleNameCharset": "규칙 이름은 영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다",
+  "err.ruleMustBeMd": "규칙 파일은 .md 여야 합니다",
+  "err.fileExists": "이미 존재하는 파일입니다: {path}",
+  "err.accessDenied": "접근이 거부되었습니다: {area} 밖의 경로입니다",
+  "err.alreadyPromoted": "이미 플래너로 승격된 문제입니다.",
+  "err.nothingToImport": "가져올 기존 목표가 없습니다.",
+  "err.notionNoToken": "Notion 토큰이 설정되지 않았습니다 (설정 → 데이터)",
+  "err.notionNoParent": "내보낼 부모 페이지가 설정되지 않았습니다 (설정 → 데이터)",
+  "err.browserOpenFailed": "브라우저 열기 실패",
+  "err.cliTimeout": "CLI 실행 시간 초과 (60초)",
+
   // ── 스킬·규칙 → 플러그인 안내 탭 ────────────────────────────────────────
   // 이 탭이 렌더하는 **데이터**(커맨드 설명·도구 desc)는 plugin/oculpm/ 의
   // 거울이라 번역하지 않는다 (pluginDocs.ts — 스캐너 DISK_CONTENT). 여기 키는

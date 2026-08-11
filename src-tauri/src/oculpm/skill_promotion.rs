@@ -412,25 +412,25 @@ pub fn parse_draft_response(
     let text = response.trim();
     let start = text
         .find("---")
-        .ok_or_else(|| "스킬 초안 응답에서 frontmatter 를 찾지 못했습니다".to_string())?;
+        .ok_or_else(|| "No frontmatter in the skill draft response".to_string())?;
     let text = &text[start..];
     let rest = text
         .strip_prefix("---")
-        .ok_or_else(|| "스킬 초안 응답에서 frontmatter 를 찾지 못했습니다".to_string())?;
+        .ok_or_else(|| "No frontmatter in the skill draft response".to_string())?;
     let end = rest
         .find("\n---")
-        .ok_or_else(|| "스킬 초안의 frontmatter 가 닫히지 않았습니다".to_string())?;
+        .ok_or_else(|| "The skill draft frontmatter was never closed".to_string())?;
     let yaml: serde_yaml::Value = serde_yaml::from_str(&rest[..end])
-        .map_err(|e| format!("스킬 초안 frontmatter 파싱 실패: {e}"))?;
+        .map_err(|e| format!("Could not parse the skill draft frontmatter: {e}"))?;
     let get = |key: &str| {
         yaml.get(key)
             .and_then(|v| v.as_str())
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
     };
-    let name = get("name").ok_or_else(|| "스킬 초안에 name 이 비어 있습니다".to_string())?;
+    let name = get("name").ok_or_else(|| "The skill draft has an empty name".to_string())?;
     let description =
-        get("description").ok_or_else(|| "스킬 초안에 description 이 비어 있습니다".to_string())?;
+        get("description").ok_or_else(|| "The skill draft has an empty description".to_string())?;
 
     // 본문 = 닫는 --- 줄 다음부터. 코드펜스 잔여(```)와 마커는 떼어 낸다 —
     // content 는 결정적으로 재조립하므로 본문은 순수 마크다운만 남긴다.
@@ -453,7 +453,7 @@ pub fn parse_draft_response(
     }
     let body = body.trim().to_string();
     if body.is_empty() {
-        return Err("스킬 초안에 본문이 비어 있습니다".into());
+        return Err("The skill draft has an empty body".into());
     }
 
     let slug = sanitize_slug(&name);

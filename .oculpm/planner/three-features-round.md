@@ -40,7 +40,7 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 - [ ] 묶음6 온보딩·런처 — StartScreen/GreenfieldWizard/homeModel/tiles/atoms (307줄) {#i18n-onboarding}
 - [x] 묶음7 셸·공용 — WorkspaceContext/CommandPalette/App/TrayPopover (268줄) {#i18n-shell}
 - [~] 묶음8 나머지 화면 — AI 패널·diff·그래프·Today·일지·검색·문서 (~500줄) {#i18n-rest}
-- [ ] 묶음9a Rust 사용자 노출 에러 ~130곳 한글→영어 + 프런트 tError() 매핑 (OculpmError 는 이미 영어 — 무변경) {#i18n-rust-errors}
+- [x] 묶음9a Rust 사용자 노출 에러 ~130곳 한글→영어 + 프런트 tError() 매핑 (OculpmError 는 이미 영어 — 무변경) {#i18n-rust-errors}
 - [x] 묶음9b LLM 프롬프트 12파일 — 출력 언어 지시 파라미터화. 본문은 한국어 유지(드리프트 방지), 단 plan_dispatch_prompt 는 사용자 산출물이라 본문도 번역 {#i18n-rust-prompts}
 - [ ] 영어 모드 12화면 순회 — 248px 사이드바/툴바 칩 오버플로 잡기 + a11y 스위트 양 언어 실행 {#i18n-overflow}
 - [ ] 완료 게이트 — check-no-hardcoded-korean allowlist 가 빈 배열 {#i18n-gate}
@@ -78,4 +78,5 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 | 2026-08-12T05:24:03+09:00 | #i18n-rest | claude-code | ☐→~ | .oculpm/journal/20260812/Features_to_add/0523_feature_i18n-ai-panel-screen.md | AI 패널 4파일 완료 — 12개 화면 전부 끝. 남은 62개는 테스트·비화면 모듈 |
 | 2026-08-12T05:32:47+09:00 | #i18n-retro | claude-code | ~→x | .oculpm/journal/20260812/Features_to_add/0532_feature_i18n-retro-promotion-cards.md | RuleCandidates·SkillCandidates·retroGen 완료 — 회고·토의 묶음 종료 |
 | 2026-08-12T05:37:58+09:00 | #i18n-skills | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0537_feature_i18n-plugin-tab-disk-content.md | PluginDocsTab 영어화 + pluginDocs/rulesModel/skillsModel 은 DISK_CONTENT 로 분류 |
+| 2026-08-12T06:03:47+09:00 | #i18n-rust-errors | claude-code | ☐→x | .oculpm/journal/20260812/Features_to_add/0603_feature_i18n-rust-errors-terror.md | Rust 114곳 영어화 + tError 역매핑 24개 + 자리표시자 정합성 게이트 |
 <!-- oculpm:plan-log end -->

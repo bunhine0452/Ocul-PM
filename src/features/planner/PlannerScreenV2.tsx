@@ -39,6 +39,7 @@ import {
   type PlanSort,
 } from "./planList";
 import { getLang, t, useT, type I18nKey } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
@@ -190,7 +191,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           : res.data?.[0]?.plan_id ?? null,
       );
     } else {
-      setError(res.error);
+      setError(tError(res.error));
       setPlans([]);
     }
   }, [projectId]);
@@ -210,7 +211,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     const res = await commands.planGet(projectId, selectedId);
     setLoadingDetail(false);
     if (res.status === "ok") setDetail(res.data);
-    else setError(res.error);
+    else setError(tError(res.error));
   }, [projectId, selectedId]);
 
   useEffect(() => {
@@ -468,7 +469,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       void refreshPlans();
       toast.info(lock ? t("plan.lockedDone") : t("plan.unlocked"));
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -514,7 +515,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       void refreshPlans();
       toast.info(t("plan.goalsImported"));
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 

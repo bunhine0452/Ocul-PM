@@ -33,6 +33,7 @@ import { RulesTab } from "./RulesTab";
 import { SkillShopTab } from "./SkillShopTab";
 import { t, useT } from "@/i18n";
 import "./skills.css";
+import { tError } from "@/i18n/errors";
 
 interface SkillsScreenV2Props {
   projectId: number;
@@ -214,7 +215,7 @@ function SkillsTabView({
       await loadList();
       setDetailNonce((n) => n + 1);
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -236,7 +237,7 @@ function SkillsTabView({
       setDetail({ ...detail, entry: res.data, content: draft });
       void loadList(); // 이름/설명이 바뀌었을 수 있으니 목록 동기화
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -253,7 +254,7 @@ function SkillsTabView({
       );
       await loadList();
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -269,7 +270,7 @@ function SkillsTabView({
       setSelected(null); // 보정 이펙트가 첫 항목을 재선택
       await loadList();
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -297,7 +298,7 @@ function SkillsTabView({
       await loadList();
       setSelected({ scope: "project", dirName: g.id });
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
@@ -320,7 +321,7 @@ function SkillsTabView({
       await loadList();
       setSelected({ scope: createScope, dirName: name });
     } else {
-      toast.destructive(res.error);
+      toast.destructive(tError(res.error));
     }
   };
 
