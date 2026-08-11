@@ -16,6 +16,7 @@ import { commands, type ChunkSearchResult, type SymbolSearchResult } from "@/lib
 import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
 import { OculSpinner } from "@/components/OculSpinner";
 import { CodeSnippet } from "./CodeSnippet";
+import { t, useT, type I18nKey } from "@/i18n";
 
 // Final UI Update (ui_v2) — 코드 검색 화면 (02-screen-specs §5). PR-R1b (A2):
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
@@ -32,13 +33,13 @@ const SEARCH_LIMIT = 20;
 
 const SCOPES: {
   id: SearchScope;
-  label: string;
+  labelKey: I18nKey;
   icon: React.ComponentType<{ size?: number }>;
-  placeholder: string;
+  placeholderKey: I18nKey;
 }[] = [
-  { id: "semantic", label: "의미 검색", icon: SparklesIcon, placeholder: "자연어로 검색 후 Enter…" },
-  { id: "symbol", label: "심볼", icon: Variable, placeholder: "함수·클래스 등 심볼 이름…" },
-  { id: "text", label: "정확히 일치", icon: CaseSensitive, placeholder: "정확히 일치할 문자열…" },
+  { id: "semantic", labelKey: "search.scope.semantic", icon: SparklesIcon, placeholderKey: "search.ph.semantic" },
+  { id: "symbol", labelKey: "search.scope.symbol", icon: Variable, placeholderKey: "search.ph.symbol" },
+  { id: "text", labelKey: "search.scope.text", icon: CaseSensitive, placeholderKey: "search.ph.text" },
 ];
 
 // Discriminated by which command produced the results — `mode` distinguishes
@@ -52,6 +53,7 @@ interface SearchScreenV2Props {
 }
 
 export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
+  useT();
   const { state, setState } = useWorkspace();
   const scope = state.searchScope;
 
@@ -146,9 +148,9 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
 
   return (
     <>
-      <Toolbar title="코드 검색" sub="로컬 인덱스">
+      <Toolbar title={t("nav.search")} sub={t("search.localIndex")}>
         <span className="chip">
-          <Database size={13} /> 로컬 인덱스
+          <Database size={13} /> {t("search.localIndex")}
         </span>
       </Toolbar>
 
@@ -161,8 +163,8 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={`${activeScope.placeholder} (⌘F 포커스, ⌘N 초기화)`}
-                aria-label="코드 검색"
+                placeholder={t("search.inputPlaceholder", { ph: t(activeScope.placeholderKey) })}
+                aria-label={t("search.aria")}
               />
               {query ? (
                 <button
@@ -172,7 +174,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                     setQuery("");
                     setResults(null);
                   }}
-                  aria-label="검색어 지우기"
+                  aria-label={t("journal.clearSearch")}
                 >
                   <X size={15} />
                 </button>
@@ -188,7 +190,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                     className={"scope-chip" + (scope === s.id ? " on" : "")}
                     onClick={() => onScope(s.id)}
                   >
-                    <Icon size={13} /> {s.label}
+                    <Icon size={13} /> {t(s.labelKey)}
                   </button>
                 );
               })}
@@ -197,10 +199,10 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                   type="button"
                   className={"scope-chip" + (includeDocs ? " on" : "")}
                   onClick={() => onToggleDocs(!includeDocs)}
-                  title="md·txt 등 문서 파일을 의미검색 결과에 포함"
+                  title={t("search.includeDocsTitle")}
                   style={{ marginLeft: "auto" }}
                 >
-                  <FileCode2 size={13} /> 문서 포함
+                  <FileCode2 size={13} /> {t("search.includeDocs")}
                 </button>
               ) : null}
             </div>
@@ -209,18 +211,18 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
           {error ? (
             <div className="card card-pad" style={{ maxWidth: 880, margin: "0 auto" }}>
               <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> 검색에 실패했어요
+                <TriangleAlert size={14} /> {t("search.failed")}
               </div>
               <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
             </div>
           ) : loading ? (
-            <OculSpinner label="검색 중…" />
+            <OculSpinner label={t("search.searching")} />
           ) : show && resultCount(results!) === 0 ? (
-            <div className="empty-hint">결과가 없어요. 다른 키워드로 시도해보세요.</div>
+            <div className="empty-hint">{t("search.noResults")}</div>
           ) : show && results!.kind === "symbol" ? (
             <div className="search-results">
               <div className="section-title" style={{ marginBottom: 12 }}>
-                {results!.items.length}개 심볼 · 펼쳐서 코드 보기
+                {t("search.symbolCount", { n: results!.items.length })}
               </div>
               {results!.items.map((r, i) => (
                 <SymbolResult
@@ -237,13 +239,13 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                 style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}
               >
                 <span>
-                  {results!.items.length}개 결과
+                  {t("search.resultCount", { n: results!.items.length })}
                   {results!.kind === "chunk" && results!.mode === "semantic"
-                    ? " · 의미 유사도순"
-                    : " · 정확히 일치"}
+                    ? t("search.bySimilarity")
+                    : t("search.byExact")}
                 </span>
                 <span style={{ flex: 1 }} />
-                <div className="diff-mode-toggle" role="group" aria-label="코드 표시 방식">
+                <div className="diff-mode-toggle" role="group" aria-label={t("search.displayAria")}>
                   {([true, false] as const).map((on) => (
                     <button
                       key={String(on)}
@@ -256,7 +258,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
                       onClick={() => setFormatted(on)}
                       aria-pressed={formatted === on}
                     >
-                      {on ? "정렬" : "원본"}
+                      {on ? t("search.formatted") : t("search.raw")}
                     </button>
                   ))}
                 </div>
@@ -295,6 +297,7 @@ export function SearchScreenV2({ projectId }: SearchScreenV2Props) {
 // class body open; the code is fetched lazily on first expand (read_file_range)
 // so a 20-symbol result list doesn't pull 20 file ranges up front.
 function SymbolResult({ projectId, r }: { projectId: number; r: SymbolSearchResult }) {
+  useT();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -347,7 +350,7 @@ function SymbolResult({ projectId, r }: { projectId: number; r: SymbolSearchResu
       </button>
       {open ? (
         loading ? (
-          <div className="scode" style={{ color: "var(--text-3)" }}>불러오는 중…</div>
+          <div className="scode" style={{ color: "var(--text-3)" }}>{t("common.loading")}</div>
         ) : err ? (
           <div className="scode" style={{ color: "var(--t-bug)" }}>{err}</div>
         ) : code != null ? (
@@ -363,7 +366,7 @@ function resultCount(r: Results): number {
 }
 
 function hint(scope: SearchScope): string {
-  if (scope === "symbol") return "함수·클래스·타입 등 심볼 이름으로 정의 위치를 찾습니다.";
-  if (scope === "text") return "정확히 일치하는 문자열을 인덱스에서 찾습니다.";
-  return "검색어를 입력하면 의미 기반으로 관련 코드를 찾아줍니다.";
+  if (scope === "symbol") return t("search.hintSymbol");
+  if (scope === "text") return t("search.hintText");
+  return t("search.hintSemantic");
 }

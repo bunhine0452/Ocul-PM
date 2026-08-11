@@ -47,7 +47,6 @@ const displayPath = (e: RuleEntry) =>
 
 /** 토글/동기화 결과 요약 토스트 문구. */
 function mirrorSummary(results: MirrorWriteResult[]): string {
-  useT();
   const count = (action: string) => results.filter((r) => r.action === action).length;
   const parts: string[] = [];
   if (count("written")) parts.push(t("rules.mirror.written", { n: count("written") }));

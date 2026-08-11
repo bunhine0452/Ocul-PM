@@ -31,7 +31,7 @@ import { GALLERY_SKILLS } from "./skillsGallery";
 import { CATALOG_SKILLS } from "./skillsCatalog";
 import { RulesTab } from "./RulesTab";
 import { SkillShopTab } from "./SkillShopTab";
-import { useT } from "@/i18n";
+import { t, useT } from "@/i18n";
 import "./skills.css";
 
 interface SkillsScreenV2Props {
@@ -40,16 +40,16 @@ interface SkillsScreenV2Props {
 
 type SelKey = { scope: SkillScope; dirName: string } | null;
 
-const scopeLabel = (scope: SkillScope) => (scope === "project" ? "프로젝트" : "전역");
+const scopeLabel = (scope: SkillScope) => (scope === "project" ? t("rules.scope.project") : t("rules.scope.global"));
 
 // ─── 허브 셸 ─────────────────────────────────────────────────────────────────
 
 const HUB_TABS = [
-  { id: "skills", label: "스킬" },
-  { id: "shop", label: "샵" },
-  { id: "rules", label: "규칙" },
-  { id: "hooks", label: "훅" },
-  { id: "plugin", label: "플러그인" },
+  { id: "skills", labelKey: "sk.tab.skills" },
+  { id: "shop", labelKey: "sk.tab.shop" },
+  { id: "rules", labelKey: "sk.tab.rules" },
+  { id: "hooks", labelKey: "sk.tab.hooks" },
+  { id: "plugin", labelKey: "sk.tab.plugin" },
 ] as const;
 type HubTab = (typeof HUB_TABS)[number]["id"];
 
@@ -65,17 +65,17 @@ export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
 
 function HubTabsSeg({ tab, onChange }: { tab: HubTab; onChange: (t: HubTab) => void }) {
   return (
-    <div className="sk-tabs" role="tablist" aria-label="스킬·규칙 허브 탭">
-      {HUB_TABS.map((t) => (
+    <div className="sk-tabs" role="tablist" aria-label={t("sk.tabsAria")}>
+      {HUB_TABS.map((entry) => (
         <button
-          key={t.id}
+          key={entry.id}
           type="button"
           role="tab"
-          aria-selected={tab === t.id}
-          className={tab === t.id ? "on" : ""}
-          onClick={() => onChange(t.id)}
+          aria-selected={tab === entry.id}
+          className={tab === entry.id ? "on" : ""}
+          onClick={() => onChange(entry.id)}
         >
-          {t.label}
+          {t(entry.labelKey)}
         </button>
       ))}
     </div>
@@ -86,16 +86,14 @@ function HubTabsSeg({ tab, onChange }: { tab: HubTab; onChange: (t: HubTab) => v
 function HooksTab({ projectId, tabs }: { projectId: number; tabs: ReactNode }) {
   return (
     <>
-      <Toolbar title="스킬·규칙" sub="Claude Code 훅 연동">
+      <Toolbar title={t("nav.skills")} sub={t("sk.hooksSub")}>
         {tabs}
       </Toolbar>
       <div className="scroll">
         <div className="sk-hooks">
           <ClaudeHooksBlock projectId={projectId} />
           <p className="sk-hooks-hint">
-            훅이 켜지면 Claude Code 세션의 시작·종료가 휴리스틱이 아닌 실측 신호로 기록됩니다.
-            세션 종료 시의 <strong>일지 자동 초안</strong>(과금)과 <strong>MCP 도구 등록</strong>은
-            설정 → ocul-pm → 에이전트 연동에서 관리합니다.
+            {t("sk.hooksNote")}
           </p>
         </div>
       </div>
@@ -211,7 +209,7 @@ function SkillsTabView({
     setBusy(false);
     if (res.status === "ok") {
       toast.info(
-        res.data.enabled ? `스킬 활성화: ${res.data.name}` : `스킬 비활성화: ${res.data.name}`,
+        res.data.enabled ? t("sk.enabled", { name: res.data.name }) : t("sk.disabled", { name: res.data.name }),
       );
       await loadList();
       setDetailNonce((n) => n + 1);
@@ -233,7 +231,7 @@ function SkillsTabView({
     const res = await commands.skillsSave(projectId, e.scope, e.dir_name, draft, false);
     setBusy(false);
     if (res.status === "ok") {
-      toast.info("SKILL.md 저장됨");
+      toast.info(t("sk.saved"));
       setEditing(false);
       setDetail({ ...detail, entry: res.data, content: draft });
       void loadList(); // 이름/설명이 바뀌었을 수 있으니 목록 동기화
@@ -251,7 +249,7 @@ function SkillsTabView({
     setBusy(false);
     if (res.status === "ok") {
       toast.info(
-        to === "global" ? `전역 스킬로 복사됨: ${e.name}` : `이 프로젝트로 복사됨: ${e.name}`,
+        to === "global" ? t("sk.copiedGlobal", { name: e.name }) : t("sk.copiedProject", { name: e.name }),
       );
       await loadList();
     } else {
@@ -266,7 +264,7 @@ function SkillsTabView({
     const res = await commands.skillsDelete(projectId, e.scope, e.dir_name);
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`스킬 삭제됨: ${e.name}`);
+      toast.info(t("sk.deleted", { name: e.name }));
       setDeleteOpen(false);
       setSelected(null); // 보정 이펙트가 첫 항목을 재선택
       await loadList();
@@ -295,7 +293,7 @@ function SkillsTabView({
     const res = await commands.skillsSave(projectId, "project", g.id, g.content, true);
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`추천 스킬 설치됨: ${g.id}`);
+      toast.info(t("sk.galleryInstalled", { id: g.id }));
       await loadList();
       setSelected({ scope: "project", dirName: g.id });
     } else {
@@ -317,7 +315,7 @@ function SkillsTabView({
     );
     setBusy(false);
     if (res.status === "ok") {
-      toast.info(`스킬 생성됨: ${name}`);
+      toast.info(t("sk.created", { name }));
       setCreateOpen(false);
       await loadList();
       setSelected({ scope: createScope, dirName: name });
@@ -330,19 +328,19 @@ function SkillsTabView({
 
   const sub =
     status === "ready" && overview
-      ? `프로젝트 ${overview.project.length} · 전역 ${overview.global.length}`
+      ? t("sk.toolbarSub", { p: overview.project.length, g: overview.global.length })
       : undefined;
 
   return (
     <>
-      <Toolbar title="스킬·규칙" sub={sub}>
+      <Toolbar title={t("nav.skills")} sub={sub}>
         {tabs}
         <button
           type="button"
           className="sk-iconbtn"
           onClick={() => void loadList()}
-          title="스킬 목록 새로고침"
-          aria-label="스킬 목록 새로고침"
+          title={t("sk.refresh")}
+          aria-label={t("sk.refresh")}
         >
           <RefreshCw size={15} />
         </button>
@@ -350,26 +348,26 @@ function SkillsTabView({
           type="button"
           className="btn ghost sm"
           onClick={() => setGalleryOpen(true)}
-          title="검증 습관을 만드는 추천 스킬(self-audit 등)을 원클릭 설치"
+          title={t("sk.galleryTitle")}
         >
-          <Sparkles size={14} /> 추천 스킬
+          <Sparkles size={14} /> {t("sk.gallery")}
         </button>
         <button type="button" className="btn primary sm" onClick={openCreate}>
-          <Plus size={14} /> 새 스킬
+          <Plus size={14} /> {t("sk.new")}
         </button>
       </Toolbar>
 
       {status === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">스킬을 불러오는 중…</div>
+            <div className="empty-hint">{t("sk.loading")}</div>
           </div>
         </div>
       ) : status === "error" ? (
         <div className="scroll">
           <div className="page">
             <div className="empty-hint">
-              스킬 목록을 불러오지 못했습니다.
+              {t("sk.loadFailed")}
               <br />
               {listError}
             </div>
@@ -379,33 +377,33 @@ function SkillsTabView({
         <SkillsEmptyState onCreate={openCreate} onGallery={() => setGalleryOpen(true)} />
       ) : (
         <div className="sk-body">
-          <aside className="sk-list" aria-label="스킬 목록">
+          <aside className="sk-list" aria-label={t("sk.listAria")}>
             <ScopeSection
-              title="프로젝트"
+              title={t("rules.scope.project")}
               entries={overview?.project ?? []}
               selected={selected}
               onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
             />
             <ScopeSection
-              title="전역"
+              title={t("rules.scope.global")}
               entries={overview?.global ?? []}
               selected={selected}
               onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
             />
           </aside>
 
-          <section className="sk-main" aria-label="스킬 상세">
+          <section className="sk-main" aria-label={t("sk.detailAria")}>
             {detailState === "loading" ? (
               <div className="scroll">
                 <div className="page">
-                  <div className="empty-hint">불러오는 중…</div>
+                  <div className="empty-hint">{t("common.loading")}</div>
                 </div>
               </div>
             ) : detailState === "error" ? (
               <div className="scroll">
                 <div className="page">
                   <div className="empty-hint">
-                    스킬을 읽지 못했습니다.
+                    {t("sk.readFailed")}
                     <br />
                     {detailError}
                   </div>
@@ -418,12 +416,12 @@ function SkillsTabView({
                     <div className="sk-head-name">
                       {detail.entry.name}
                       <span className="sk-chip">{scopeLabel(detail.entry.scope)}</span>
-                      {!detail.entry.enabled ? <span className="sk-chip off">비활성</span> : null}
+                      {!detail.entry.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
                     </div>
                     <div className="sk-head-path" title={detail.skill_md_path}>
                       {detail.entry.display_path}/SKILL.md
                       {detail.entry.extra_files > 0
-                        ? ` · 보조 파일 ${detail.entry.extra_files}개`
+                        ? t("sk.extraFiles", { n: detail.entry.extra_files })
                         : ""}
                     </div>
                   </div>
@@ -436,7 +434,7 @@ function SkillsTabView({
                           disabled={busy}
                           onClick={() => setEditing(false)}
                         >
-                          취소
+                          {t("common.cancel")}
                         </button>
                         <button
                           type="button"
@@ -444,7 +442,7 @@ function SkillsTabView({
                           disabled={busy}
                           onClick={() => void saveDraft()}
                         >
-                          저장
+                          {t("common.save")}
                         </button>
                       </>
                     ) : (
@@ -456,11 +454,11 @@ function SkillsTabView({
                           onClick={() => void toggleEnabled()}
                           title={
                             detail.entry.enabled
-                              ? ".claude/skills/.disabled/ 로 옮겨 로드에서 뺍니다 (파일 유지)"
-                              : "다시 .claude/skills/ 로 옮겨 로드에 포함합니다"
+                              ? t("sk.disableTitle")
+                              : t("sk.enableTitle")
                           }
                         >
-                          {detail.entry.enabled ? "비활성화" : "활성화"}
+                          {detail.entry.enabled ? t("sk.disable") : t("sk.enable")}
                         </button>
                         <button
                           type="button"
@@ -469,15 +467,15 @@ function SkillsTabView({
                           onClick={() => void copyToOtherScope()}
                           title={
                             detail.entry.scope === "project"
-                              ? "~/.claude/skills 로 복사해 모든 프로젝트에서 쓰기"
-                              : "이 프로젝트의 .claude/skills 로 복사"
+                              ? t("sk.copyGlobalTitle")
+                              : t("sk.copyProjectTitle")
                           }
                         >
                           <Copy size={13} />{" "}
-                          {detail.entry.scope === "project" ? "전역으로 복사" : "프로젝트로 복사"}
+                          {detail.entry.scope === "project" ? t("sk.copyToGlobal") : t("sk.copyToProject")}
                         </button>
                         <button type="button" className="btn ghost sm" onClick={startEdit}>
-                          <Pencil size={13} /> 편집
+                          <Pencil size={13} /> {t("sk.edit")}
                         </button>
                         <button
                           type="button"
@@ -485,7 +483,7 @@ function SkillsTabView({
                           disabled={busy}
                           onClick={() => setDeleteOpen(true)}
                         >
-                          <Trash2 size={13} /> 삭제
+                          <Trash2 size={13} /> {t("common.delete")}
                         </button>
                       </>
                     )}
@@ -504,12 +502,11 @@ function SkillsTabView({
                           void saveDraft();
                         }
                       }}
-                      aria-label="SKILL.md 편집"
+                      aria-label={t("sk.editAria")}
                       spellCheck={false}
                     />
                     <div className="sk-editor-hint">
-                      frontmatter 의 <code>description</code> 이 에이전트가 스킬을 자동 발동하는
-                      기준입니다 · ⌘S 저장
+                      {t("sk.footer1")} <code>description</code> {t("sk.footer2")}
                     </div>
                   </div>
                 ) : (
@@ -518,7 +515,7 @@ function SkillsTabView({
                       <SkillPreview content={detail.content} />
                       {detail.files.length > 0 ? (
                         <div className="sk-files">
-                          <div className="sk-files-title">보조 파일 {detail.files.length}개</div>
+                          <div className="sk-files-title">{t("sk.filesTitle", { n: detail.files.length })}</div>
                           <ul>
                             {detail.files.map((f) => (
                               <li key={f}>{f}</li>
@@ -533,7 +530,7 @@ function SkillsTabView({
             ) : (
               <div className="scroll">
                 <div className="page">
-                  <div className="empty-hint">왼쪽에서 스킬을 선택하세요.</div>
+                  <div className="empty-hint">{t("sk.pickSkill")}</div>
                 </div>
               </div>
             )}
@@ -546,16 +543,16 @@ function SkillsTabView({
       <AppDialog
         open={galleryOpen}
         onClose={() => setGalleryOpen(false)}
-        label="추천 스킬 갤러리"
+        label={t("sk.galleryLabel")}
         width={620}
       >
         <div className="sk-modal-head">
-          <Sparkles size={15} /> 추천 스킬
+          <Sparkles size={15} /> {t("sk.gallery")}
         </div>
         <div className="sk-gallery">
           <p className="sk-gallery-intro">
-            검증·감사 습관을 만드는 스킬 묶음입니다. 설치하면 이 프로젝트의{" "}
-            <code>.claude/skills/</code> 에 들어가고, 에이전트가 상황에 맞춰 자동으로 씁니다.
+            {t("sk.galleryDesc1")}{" "}
+              <code>.claude/skills/</code> {t("sk.galleryDesc2")}
           </p>
           <ul className="sk-gallery-list">
             {GALLERY_SKILLS.map((g) => {
@@ -567,8 +564,8 @@ function SkillsTabView({
                     <div className="sk-gallery-desc">{t(g.summaryKey)}</div>
                   </div>
                   {installed ? (
-                    <span className="sk-chip" title="이미 이 프로젝트에 있습니다">
-                      설치됨
+                    <span className="sk-chip" title={t("sk.alreadyHere")}>
+                      {t("sk.isInstalled")}
                     </span>
                   ) : (
                     <button
@@ -577,7 +574,7 @@ function SkillsTabView({
                       disabled={busy}
                       onClick={() => void installGallerySkill(g.id)}
                     >
-                      설치
+                      {t("sk.install")}
                     </button>
                   )}
                 </li>
@@ -595,13 +592,13 @@ function SkillsTabView({
                 onOpenShop();
               }}
             >
-              검증된 제3자 스킬 카탈로그 ({CATALOG_SKILLS.length}) — 스택 추천·검색은 샵 탭에서 →
+              {t("sk.catalogHint", { n: CATALOG_SKILLS.length })}
             </button>
           </div>
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setGalleryOpen(false)}>
-            닫기
+            {t("common.close")}
           </button>
         </div>
       </AppDialog>
@@ -610,17 +607,17 @@ function SkillsTabView({
       <AppDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        label="새 스킬 만들기"
+        label={t("sk.createLabel")}
         width={520}
         initialFocusRef={createNameRef}
       >
         <div className="sk-modal-head">
-          <Puzzle size={15} /> 새 스킬
+          <Puzzle size={15} /> {t("sk.new")}
         </div>
         <div className="sk-form">
           <div className="sk-field">
-            <label htmlFor="sk-create-scope">범위</label>
-            <div className="sk-scope-seg" id="sk-create-scope" role="radiogroup" aria-label="스킬 범위">
+            <label htmlFor="sk-create-scope">{t("sk.scopeLabel")}</label>
+            <div className="sk-scope-seg" id="sk-create-scope" role="radiogroup" aria-label={t("sk.scopeAria")}>
               <button
                 type="button"
                 role="radio"
@@ -628,7 +625,7 @@ function SkillsTabView({
                 className={createScope === "project" ? "on" : ""}
                 onClick={() => setCreateScope("project")}
               >
-                이 프로젝트
+                {t("sk.thisProject")}
               </button>
               <button
                 type="button"
@@ -637,38 +634,38 @@ function SkillsTabView({
                 className={createScope === "global" ? "on" : ""}
                 onClick={() => setCreateScope("global")}
               >
-                전역 (모든 프로젝트)
+                {t("sk.globalAll")}
               </button>
             </div>
           </div>
           <div className="sk-field">
-            <label htmlFor="sk-create-name">이름 (폴더명)</label>
+            <label htmlFor="sk-create-name">{t("sk.nameLabel")}</label>
             <input
               id="sk-create-name"
               ref={createNameRef}
               className="sk-input"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder="예: review-checklist"
+              placeholder={t("sk.namePlaceholder")}
               autoComplete="off"
               spellCheck={false}
             />
             <div className={"sk-field-hint" + (createName.trim() && !createValid ? " bad" : "")}>
               {createName.trim() && !createValid
-                ? "영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다"
+                ? t("sk.nameInvalid")
                 : createScope === "project"
-                  ? ".claude/skills/<이름>/SKILL.md 로 생성됩니다"
-                  : "~/.claude/skills/<이름>/SKILL.md 로 생성됩니다"}
+                  ? t("sk.createsProject")
+                  : t("sk.createsGlobal")}
             </div>
           </div>
           <div className="sk-field">
-            <label htmlFor="sk-create-desc">설명 (스킬이 자동 발동되는 기준)</label>
+            <label htmlFor="sk-create-desc">{t("sk.descLabel")}</label>
             <input
               id="sk-create-desc"
               className="sk-input"
               value={createDesc}
               onChange={(e) => setCreateDesc(e.target.value)}
-              placeholder="예: PR 을 만들기 전 리뷰 체크리스트를 적용할 때"
+              placeholder={t("sk.descPlaceholder")}
               autoComplete="off"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && createValid) void submitCreate();
@@ -678,7 +675,7 @@ function SkillsTabView({
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setCreateOpen(false)}>
-            취소
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -686,7 +683,7 @@ function SkillsTabView({
             disabled={!createValid || busy}
             onClick={() => void submitCreate()}
           >
-            만들기
+            {t("sk.create")}
           </button>
         </div>
       </AppDialog>
@@ -695,22 +692,22 @@ function SkillsTabView({
       <AppDialog
         open={deleteOpen && detail != null}
         onClose={() => setDeleteOpen(false)}
-        label="스킬 삭제 확인"
+        label={t("sk.deleteConfirmLabel")}
         width={440}
       >
         <div className="sk-modal-head">
-          <Trash2 size={15} /> 스킬 삭제
+          <Trash2 size={15} /> {t("sk.deleteTitle")}
         </div>
         <div className="sk-modal-warn">
-          <code>{detail?.entry.display_path}</code> 폴더 전체가 삭제됩니다
+          <code>{detail?.entry.display_path}</code> {t("sk.deleteBody1")}
           {detail && detail.entry.extra_files > 0
-            ? ` (보조 파일 ${detail.entry.extra_files}개 포함)`
+            ? t("sk.deleteExtra", { n: detail.entry.extra_files })
             : ""}
-          . 이 동작은 되돌릴 수 없습니다.
+          {t("sk.deleteBody2")}
         </div>
         <div className="sk-modal-foot">
           <button type="button" className="btn ghost sm" onClick={() => setDeleteOpen(false)}>
-            취소
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -718,7 +715,7 @@ function SkillsTabView({
             disabled={busy}
             onClick={() => void submitDelete()}
           >
-            삭제
+            {t("common.delete")}
           </button>
         </div>
       </AppDialog>
@@ -745,7 +742,7 @@ function ScopeSection({
         {title} <span className="sk-sec-count">{entries.length}</span>
       </div>
       {entries.length === 0 ? (
-        <div className="sk-none">없음</div>
+        <div className="sk-none">{t("sk.none")}</div>
       ) : (
         entries.map((e) => {
           const on = selected?.scope === e.scope && selected?.dirName === e.dir_name;
@@ -759,7 +756,7 @@ function ScopeSection({
             >
               <div className="sk-row-top">
                 <span className="sk-row-name">{e.name}</span>
-                {!e.enabled ? <span className="sk-chip off">비활성</span> : null}
+                {!e.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
                 {e.extra_files > 0 ? <span className="sk-chip">+{e.extra_files}</span> : null}
               </div>
               {e.description ? <div className="sk-row-desc">{e.description}</div> : null}
@@ -799,19 +796,18 @@ function SkillsEmptyState({
       <div className="page">
         <div className="sk-empty">
           <Puzzle size={32} strokeWidth={1.5} className="sk-empty-ico" />
-          <div className="sk-empty-title">아직 스킬이 없습니다</div>
+          <div className="sk-empty-title">{t("sk.emptyTitle")}</div>
           <p className="sk-empty-desc">
-            스킬은 에이전트에게 가르치는 재사용 작업 절차입니다. 프로젝트의{" "}
-            <code>.claude/skills/&lt;이름&gt;/SKILL.md</code> 또는 전역{" "}
-            <code>~/.claude/skills/</code> 에 두면 Claude Code 가 상황에 맞춰 자동으로
-            불러 씁니다. 여기서 만들고, 프로젝트별로 켜고 끄고, 전역과 주고받을 수 있습니다.
+            {t("sk.emptyBody1")}{" "}
+              <code>.claude/skills/&lt;name&gt;/SKILL.md</code> {t("sk.emptyBody2")}{" "}
+              <code>~/.claude/skills/</code> {t("sk.emptyBody3")}
           </p>
           <div className="sk-empty-actions">
             <button type="button" className="btn ghost sm" onClick={onGallery}>
-              <Sparkles size={14} /> 추천 스킬 보기
+              <Sparkles size={14} /> {t("sk.viewGallery")}
             </button>
             <button type="button" className="btn primary sm" onClick={onCreate}>
-              <Plus size={14} /> 새 스킬 만들기
+              <Plus size={14} /> {t("sk.createNew")}
             </button>
           </div>
         </div>

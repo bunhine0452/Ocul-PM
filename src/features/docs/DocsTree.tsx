@@ -2,6 +2,7 @@
 import type { DocsTreeNode } from "@/lib/bindings";
 import { ChevronRight, Folder, File } from "@/components/Icons";
 import { displayName } from "./resolveDocsPath";
+import { t, useT } from "@/i18n";
 
 interface DocsTreeProps {
   nodes: DocsTreeNode[];
@@ -12,8 +13,9 @@ interface DocsTreeProps {
 }
 
 export function DocsTree({ nodes, selected, expanded, onToggle, onSelect }: DocsTreeProps) {
+  useT();
   return (
-    <div className="docs-tree" role="tree" aria-label="문서 목록">
+    <div className="docs-tree" role="tree" aria-label={t("docs.treeAria")}>
       <TreeLevel
         nodes={nodes}
         depth={0}
@@ -34,6 +36,7 @@ function TreeLevel({
   onToggle,
   onSelect,
 }: DocsTreeProps & { depth: number }) {
+  useT();
   return (
     <>
       {nodes.map((node) => {

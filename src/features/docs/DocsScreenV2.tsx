@@ -13,6 +13,7 @@ import { toast } from "@/lib/toast";
 import { DocsTree } from "./DocsTree";
 import { DocsImage } from "./DocsImage";
 import { classifyHref, isMarkdownPath } from "./resolveDocsPath";
+import { t, useT } from "@/i18n";
 import "./docs.css";
 
 /** 트리에서 파일 경로만 DFS 순서로 모은다 (백엔드 정렬 그대로 → 첫 원소가 README/최상단 문서). */
@@ -37,6 +38,7 @@ interface DocsScreenV2Props {
 }
 
 export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
+  useT();
   const { state, setState } = useWorkspace();
   const [tree, setTree] = useState<DocsTreeData | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -181,11 +183,11 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
           <a
             className={"docs-link" + (exists ? "" : " missing")}
             href={cls.path}
-            title={exists ? cls.path : `찾을 수 없음: ${cls.path}`}
+            title={exists ? cls.path : t("docs.notFoundPath", { path: cls.path })}
             onClick={(e) => {
               e.preventDefault();
               if (exists) setSelected(cls.path);
-              else toast.warning(`문서를 찾을 수 없습니다: ${cls.path}`);
+              else toast.warning(t("docs.notFound", { path: cls.path }));
             }}
           >
             {children}
@@ -209,19 +211,19 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
     status === "ready" && tree?.exists
       ? selected
         ? selected.replace(/^docs\//, "")
-        : "문서를 선택하세요"
+        : t("docs.pickDoc")
       : undefined;
 
   return (
     <>
-      <Toolbar title="문서" sub={sub}>
+      <Toolbar title={t("nav.docs")} sub={sub}>
         {status === "ready" && tree?.exists ? (
           <button
             type="button"
             className="docs-refresh"
             onClick={loadTree}
-            title="문서 목록 새로고침"
-            aria-label="문서 목록 새로고침"
+            title={t("docs.refresh")}
+            aria-label={t("docs.refresh")}
           >
             <RefreshCw size={15} />
           </button>
@@ -231,14 +233,14 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
       {status === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">문서를 불러오는 중…</div>
+            <div className="empty-hint">{t("docs.loading")}</div>
           </div>
         </div>
       ) : status === "error" ? (
         <div className="scroll">
           <div className="page">
             <div className="empty-hint">
-              문서 목록을 불러오지 못했습니다.
+              {t("docs.listFailed")}
               <br />
               {treeError}
             </div>
@@ -259,12 +261,12 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
           </aside>
           <div className="docs-main" ref={scrollRef}>
             {selected == null ? (
-              <div className="empty-hint">왼쪽에서 문서를 선택하세요.</div>
+              <div className="empty-hint">{t("docs.pickLeft")}</div>
             ) : bodyState === "loading" ? (
-              <div className="empty-hint">불러오는 중…</div>
+              <div className="empty-hint">{t("common.loading")}</div>
             ) : bodyState === "error" ? (
               <div className="empty-hint">
-                문서를 읽지 못했습니다.
+                {t("docs.readFailed")}
                 <br />
                 {bodyError}
               </div>
@@ -283,15 +285,15 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
 }
 
 function DocsEmptyState() {
+  useT();
   return (
     <div className="scroll">
       <div className="page">
         <div className="docs-empty">
           <BookText size={32} strokeWidth={1.5} className="docs-empty-ico" />
-          <div className="docs-empty-title">이 프로젝트에는 docs 폴더가 없습니다</div>
+          <div className="docs-empty-title">{t("docs.noFolder")}</div>
           <p className="docs-empty-desc">
-            프로젝트 루트에 <code>docs/</code> 폴더를 만들고 마크다운(<code>.md</code>) 문서를
-            넣으면, 여기에서 위키처럼 탐색하며 읽을 수 있습니다.
+            {t("docs.noFolderHint1")} <code>docs/</code> {t("docs.noFolderHint2")}<code>.md</code>{t("docs.noFolderHint3")}
           </p>
         </div>
       </div>

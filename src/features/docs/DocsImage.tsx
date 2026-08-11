@@ -2,6 +2,7 @@
 // Tauri webview 는 임의 파일 경로를 <img src> 로 직접 못 쓰므로 base64 로 받아 조립한다.
 import { useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
+import { t, useT } from "@/i18n";
 
 // 같은 문서를 오갈 때 재요청을 막는 단순 메모리 캐시 (relPath → data URI).
 // 문서 뷰어 세션 동안만 유지되며 프로젝트 전환과 무관하게 경로가 키라 충돌 없음.
@@ -17,6 +18,7 @@ export function DocsImage({
   relPath: string;
   alt?: string;
 }) {
+  useT();
   const [src, setSrc] = useState<string | null>(() => cache.get(relPath) ?? null);
   const [failed, setFailed] = useState(false);
 
@@ -46,10 +48,10 @@ export function DocsImage({
   }, [projectId, relPath]);
 
   if (failed) {
-    return <span className="docs-img-missing">이미지를 불러오지 못했습니다: {alt || relPath}</span>;
+    return <span className="docs-img-missing">{t("docs.imgFailed", { name: alt || relPath })}</span>;
   }
   if (!src) {
-    return <span className="docs-img-skeleton" aria-busy="true" aria-label="이미지 불러오는 중" />;
+    return <span className="docs-img-skeleton" aria-busy="true" aria-label={t("docs.imgLoading")} />;
   }
   return <img className="docs-img" src={src} alt={alt ?? ""} loading="lazy" />;
 }
