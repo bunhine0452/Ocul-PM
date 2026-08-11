@@ -1259,6 +1259,54 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Retro → rule/skill promotion candidates (twin cards share keys) ─────
+  "promo.needProvider": "Pick a default AI provider/model in Settings first.",
+  "promo.aiDraftNote": "AI draft · saved only once you approve",
+  "promo.slugInvalid": "Only lowercase letters, digits, and hyphens (kebab-case)",
+  "promo.savePath": "Will be saved to {path}",
+  "promo.reject": "Reject",
+  "promo.saving": "Saving…",
+  "promo.drafting": "Drafting…",
+  "promo.draft": "Draft it",
+  "promo.hideHint": "Hides this candidate for the session (no files change)",
+  "promo.hideAria": "Hide the {name} candidate",
+  "promo.recent": "latest {workday}",
+  // Rule candidates
+  "promo.ruleTitle": "Rule candidates",
+  // `.claude/rules` sits inside the sentence as <code>, so it splits (§4.2).
+  "promo.ruleIntroPrefix":
+    "Errors and bugs keep recurring in the same area. You can promote this into a rule (",
+  "promo.ruleIntroSuffix": ") that prevents a repeat — saving always requires human approval.",
+  "promo.ruleKindBug": "bug",
+  "promo.ruleKindError": "error",
+  "promo.ruleEntryCount": "{kinds} ×{n}",
+  "promo.ruleDraftHint":
+    "Summarizes the evidence for this repeated failure (journal excerpts) with AI into a rule draft (billed call)",
+  "promo.ruleDraftFailed": "Could not draft the rule: {error}",
+  "promo.ruleDialogLabel": "Proposed rule draft",
+  "promo.ruleSlugLabel": "File name (slug)",
+  "promo.rulePathsEmpty": "(none — always loaded at session start)",
+  "promo.ruleSave": "Save as rule",
+  "promo.ruleSaved": "Rule saved: {path} — manage it on the Skills & rules screen",
+  "promo.ruleMirrorConflict":
+    "Saved — but the Cursor mirror clashed: {path} already holds a different file and was left alone (either another rule's mirror — nested paths flatten to the same name — or a user/adapter file)",
+  // Skill candidates
+  "promo.skillTitle": "Skill candidates",
+  "promo.skillIntroPrefix":
+    "Work with the same tag keeps recurring. You can promote the reusable procedure into a Claude Code skill (",
+  "promo.skillIntroSuffix": ") — saving always requires human approval.",
+  "promo.skillRepeatCount": "×{n}",
+  "promo.skillDraftHint":
+    "Summarizes the evidence for this repeated procedure (journal excerpts) with AI into a skill draft (billed call)",
+  "promo.skillDraftFailed": "Could not draft the skill: {error}",
+  "promo.skillDialogLabel": "Proposed skill draft",
+  "promo.skillSlugLabel": "Folder name (slug)",
+  "promo.skillDescLabel": "description (auto-trigger)",
+  "promo.skillSave": "Save as skill",
+  "promo.skillSaved": "Skill saved: {path} — manage it on the Skills & rules screen",
+  // Retro generation done (failure reuses the existing `retro.genFailed`)
+  "retro.genReady": "Your retro is ready",
+
   // ── Menu-bar popover (tray) ─────────────────────────────────────────────
   // Journal type badge — **singular**, since it labels one entry.
   // `journal.filter.*` / `retro.type.*` are filter chips and read as plurals

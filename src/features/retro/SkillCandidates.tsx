@@ -16,6 +16,7 @@ import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type SkillCandidate, type SkillDraft } from "@/lib/bindings";
 import { isValidSkillName } from "@/features/skills/skillsModel";
+import { useT } from "@/i18n";
 
 /** "YYYYMMDD" → "M/D". */
 function wd(s: string): string {
@@ -32,6 +33,7 @@ export function SkillCandidatesPanel({
   since: string;
   until: string;
 }) {
+  const { t } = useT();
   const [cands, setCands] = useState<SkillCandidate[]>([]);
   /** 세션-로컬 숨김/저장 키 — 파일에는 아무것도 쓰지 않는다. */
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
@@ -65,7 +67,7 @@ export function SkillCandidatesPanel({
     if (draftingTag) return;
     const target = await resolveLlmTarget();
     if (!target) {
-      toast.warning("설정에서 기본 AI 제공자/모델을 먼저 지정하세요.");
+      toast.warning(t("promo.needProvider"));
       return;
     }
     setDraftingTag(c.tag);
@@ -82,7 +84,7 @@ export function SkillCandidatesPanel({
       setDraft(res.data);
       setSlug(res.data.slug);
     } else {
-      toast.destructive(`스킬 초안 생성 실패: ${res.error}`);
+      toast.destructive(t("promo.skillDraftFailed", { error: res.error }));
     }
   };
 
@@ -98,7 +100,7 @@ export function SkillCandidatesPanel({
     setSaving(false);
     if (res.status === "ok") {
       toast.info(
-        `스킬이 저장되었습니다: .claude/skills/${dirName}/SKILL.md — 스킬·규칙 화면에서 관리할 수 있어요`,
+        t("promo.skillSaved", { path: `.claude/skills/${dirName}/SKILL.md` }),
       );
       setSavedTags((prev) => new Set(prev).add(draft.tag));
       setDraft(null);
@@ -116,12 +118,12 @@ export function SkillCandidatesPanel({
         <span className="text-muted-foreground">
           <Puzzle size={15} />
         </span>
-        스킬 후보
+        {t("promo.skillTitle")}
       </div>
       <p className="mb-2.5 text-xs text-muted-foreground">
-        같은 태그의 작업이 반복됐어요. 재사용 절차를 Claude Code 스킬(
-        <code className="font-mono text-[11px]">.claude/skills</code>)로 승격할 수 있습니다 —
-        저장은 항상 사람의 승인으로만 이뤄집니다.
+        {t("promo.skillIntroPrefix")}
+        <code className="font-mono text-[11px]">.claude/skills</code>
+        {t("promo.skillIntroSuffix")}
       </p>
       <ul className="flex flex-col gap-2">
         {visible.map((c) => (
@@ -132,10 +134,10 @@ export function SkillCandidatesPanel({
             <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs text-foreground">{c.tag}</span>
               <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                반복 {c.count}회
+                {t("promo.skillRepeatCount", { n: c.count })}
               </span>
               <span className="shrink-0 text-[11px] text-muted-foreground">
-                최근 {wd(c.last_workday)}
+                {t("promo.recent", { workday: wd(c.last_workday) })}
               </span>
               <span className="flex-1" />
               <button
@@ -143,23 +145,23 @@ export function SkillCandidatesPanel({
                 className="btn sm"
                 disabled={draftingTag != null}
                 onClick={() => void generateDraft(c)}
-                title="이 반복 절차의 증거(일지 발췌)를 AI 로 요약해 스킬 초안을 만듭니다 (과금 호출)"
+                title={t("promo.skillDraftHint")}
               >
                 {draftingTag === c.tag ? (
                   <>
-                    <OculSpinner size={13} /> 초안 생성 중…
+                    <OculSpinner size={13} /> {t("promo.drafting")}
                   </>
                 ) : (
                   <>
-                    <SparklesIcon size={13} /> 초안 생성
+                    <SparklesIcon size={13} /> {t("promo.draft")}
                   </>
                 )}
               </button>
               <button
                 type="button"
                 className="btn ghost sm"
-                aria-label={`${c.tag} 후보 숨기기`}
-                title="이 후보를 이번 세션에서 숨깁니다 (파일 변경 없음)"
+                aria-label={t("promo.hideAria", { name: c.tag })}
+                title={t("promo.hideHint")}
                 onClick={() => setDismissed((prev) => new Set(prev).add(c.tag))}
               >
                 <X size={13} />
@@ -176,7 +178,7 @@ export function SkillCandidatesPanel({
       <AppDialog
         open={draft != null}
         onClose={() => setDraft(null)}
-        label="스킬 초안 제안"
+        label={t("promo.skillDialogLabel")}
         width={672}
       >
         {draft ? (
@@ -184,7 +186,7 @@ export function SkillCandidatesPanel({
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <SparklesIcon size={15} />
               <span className="text-sm font-semibold">{draft.slug}</span>
-              <span className="text-xs text-muted-foreground">AI 초안 · 승인해야 저장됩니다</span>
+              <span className="text-xs text-muted-foreground">{t("promo.aiDraftNote")}</span>
             </div>
             <div className="flex flex-col gap-3 overflow-y-auto p-4">
               <div>
@@ -192,7 +194,7 @@ export function SkillCandidatesPanel({
                   htmlFor="sp-slug"
                   className="mb-1 block text-xs font-semibold text-muted-foreground"
                 >
-                  폴더 이름 (슬러그)
+                  {t("promo.skillSlugLabel")}
                 </label>
                 <input
                   id="sp-slug"
@@ -209,13 +211,15 @@ export function SkillCandidatesPanel({
                   }
                 >
                   {slug.trim() && !slugValid
-                    ? "영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다"
-                    : `.claude/skills/${slug.trim() || "…"}/SKILL.md 로 저장됩니다`}
+                    ? t("promo.slugInvalid")
+                    : t("promo.savePath", {
+                        path: `.claude/skills/${slug.trim() || "…"}/SKILL.md`,
+                      })}
                 </div>
               </div>
               <div>
                 <div className="mb-1 text-xs font-semibold text-muted-foreground">
-                  description (자동 발동 트리거)
+                  {t("promo.skillDescLabel")}
                 </div>
                 <p className="text-xs text-foreground/85">{draft.description}</p>
               </div>
@@ -230,7 +234,7 @@ export function SkillCandidatesPanel({
                 disabled={saving}
                 onClick={() => setDraft(null)}
               >
-                거절
+                {t("promo.reject")}
               </button>
               <button
                 type="button"
@@ -238,7 +242,7 @@ export function SkillCandidatesPanel({
                 disabled={saving || !slugValid}
                 onClick={() => void approve()}
               >
-                {saving ? "저장 중…" : "스킬로 저장"}
+                {saving ? t("promo.saving") : t("promo.skillSave")}
               </button>
             </div>
           </>

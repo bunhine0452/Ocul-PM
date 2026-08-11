@@ -1253,6 +1253,49 @@ export const ko = {
   "graph.noRelations": "표시할 관계가 없어요",
   "graph.filterHint": "검색어를 지우거나 다른 경로로 시도하세요.",
   "graph.indexHint": "프로젝트가 아직 인덱싱되지 않았거나, 켜진 엣지 유형의 관계가 없을 수 있어요. 인덱싱 후 새로고침하세요.",
+  // ── 회고 → 규칙·스킬 승격 후보 (두 카드가 구조가 같아 공용 키를 나눈다) ──
+  "promo.needProvider": "설정에서 기본 AI 제공자/모델을 먼저 지정하세요.",
+  "promo.aiDraftNote": "AI 초안 · 승인해야 저장됩니다",
+  "promo.slugInvalid": "영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다",
+  "promo.savePath": "{path} 로 저장됩니다",
+  "promo.reject": "거절",
+  "promo.saving": "저장 중…",
+  "promo.drafting": "초안 생성 중…",
+  "promo.draft": "초안 생성",
+  "promo.hideHint": "이 후보를 이번 세션에서 숨깁니다 (파일 변경 없음)",
+  "promo.hideAria": "{name} 후보 숨기기",
+  "promo.recent": "최근 {workday}",
+  // 규칙 후보
+  "promo.ruleTitle": "규칙 후보",
+  // 문단 가운데 `.claude/rules` 가 <code> 로 들어가 앞/뒤로 쪼갠다 (§4.2).
+  "promo.ruleIntroPrefix": "같은 영역에서 에러·버그가 반복됐어요. 재발을 막는 규칙(",
+  "promo.ruleIntroSuffix": ")으로 승격할 수 있습니다 — 저장은 항상 사람의 승인으로만 이뤄집니다.",
+  "promo.ruleKindBug": "버그",
+  "promo.ruleKindError": "에러",
+  "promo.ruleEntryCount": "{kinds} {n}건",
+  "promo.ruleDraftHint": "이 반복 실패의 증거(일지 발췌)를 AI 로 요약해 규칙 초안을 만듭니다 (과금 호출)",
+  "promo.ruleDraftFailed": "규칙 초안 생성 실패: {error}",
+  "promo.ruleDialogLabel": "규칙 초안 제안",
+  "promo.ruleSlugLabel": "파일 이름 (슬러그)",
+  "promo.rulePathsEmpty": "(없음 — 세션 시작 시 항상 로드)",
+  "promo.ruleSave": "규칙으로 저장",
+  "promo.ruleSaved": "규칙이 저장되었습니다: {path} — 스킬·규칙 화면에서 관리할 수 있어요",
+  "promo.ruleMirrorConflict": "저장됨 — 단, Cursor 미러 충돌: {path} 에 다른 파일이 이미 있어 건드리지 않았습니다 (다른 규칙의 미러이거나 — 중첩 경로는 같은 이름으로 평탄화됩니다 — 사용자/어댑터 파일)",
+  // 스킬 후보
+  "promo.skillTitle": "스킬 후보",
+  "promo.skillIntroPrefix": "같은 태그의 작업이 반복됐어요. 재사용 절차를 Claude Code 스킬(",
+  "promo.skillIntroSuffix": ")로 승격할 수 있습니다 — 저장은 항상 사람의 승인으로만 이뤄집니다.",
+  "promo.skillRepeatCount": "반복 {n}회",
+  "promo.skillDraftHint": "이 반복 절차의 증거(일지 발췌)를 AI 로 요약해 스킬 초안을 만듭니다 (과금 호출)",
+  "promo.skillDraftFailed": "스킬 초안 생성 실패: {error}",
+  "promo.skillDialogLabel": "스킬 초안 제안",
+  "promo.skillSlugLabel": "폴더 이름 (슬러그)",
+  "promo.skillDescLabel": "description (자동 발동 트리거)",
+  "promo.skillSave": "스킬로 저장",
+  "promo.skillSaved": "스킬이 저장되었습니다: {path} — 스킬·규칙 화면에서 관리할 수 있어요",
+  // 회고 생성 완료 알림 (실패는 기존 `retro.genFailed` 재사용)
+  "retro.genReady": "회고가 준비됐어요",
+
   // ── 메뉴바 팝오버 (트레이) ──────────────────────────────────────────────
   // 일지 타입 배지 — 한 건짜리 배지라 **단수**다. `journal.filter.*` 와
   // `retro.type.*` 는 필터 칩이라 영어가 복수형("Bugs")이어서 재사용할 수 없다.

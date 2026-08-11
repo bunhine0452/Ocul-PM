@@ -7,6 +7,8 @@
 // 모듈-싱글턴 결.)
 
 import { commands, type RetroInsight } from "@/lib/bindings";
+// 순수 모듈 — 훅을 쓸 수 없으므로 모듈 t().
+import { t } from "@/i18n";
 import { toast } from "@/lib/toast";
 
 export type RetroGenRunning = {
@@ -95,16 +97,16 @@ export function startRetroGen(
     .then((res) => {
       if (res.status === "ok") {
         lastDone = { key, insight: res.data, error: null };
-        toast.info("회고가 준비됐어요");
+        toast.info(t("retro.genReady"));
       } else {
         lastDone = { key, insight: null, error: res.error };
-        toast.destructive(`회고 생성 실패: ${res.error}`);
+        toast.destructive(t("retro.genFailed", { error: res.error }));
       }
     })
     .catch((e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
       lastDone = { key, insight: null, error: msg };
-      toast.destructive(`회고 생성 실패: ${msg}`);
+      toast.destructive(t("retro.genFailed", { error: msg }));
     })
     .finally(() => {
       // 스톨 시효로 다른 시작이 슬롯을 넘겨받았을 수 있다 — 내 것일 때만 비운다.

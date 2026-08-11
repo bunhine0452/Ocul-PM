@@ -15,8 +15,13 @@ import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type RuleCandidate, type RuleDraft } from "@/lib/bindings";
 import { isValidRuleName } from "@/features/skills/rulesModel";
+import { useT, type I18nKey } from "@/i18n";
 
-const KIND_LABEL: Record<string, string> = { bug: "버그", error: "에러" };
+/** 반복 종류 배지 — 표시만 사전을 거치고 kind 자체는 판별자로 남는다. */
+const KIND_LABEL: Record<string, I18nKey> = {
+  bug: "promo.ruleKindBug",
+  error: "promo.ruleKindError",
+};
 
 /** "YYYYMMDD" → "M/D". */
 function wd(s: string): string {
@@ -33,6 +38,7 @@ export function RuleCandidatesPanel({
   since: string;
   until: string;
 }) {
+  const { t } = useT();
   const [cands, setCands] = useState<RuleCandidate[]>([]);
   /** 세션-로컬 숨김/저장 키 — 파일에는 아무것도 쓰지 않는다. */
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
@@ -66,7 +72,7 @@ export function RuleCandidatesPanel({
     if (draftingKey) return;
     const target = await resolveLlmTarget();
     if (!target) {
-      toast.warning("설정에서 기본 AI 제공자/모델을 먼저 지정하세요.");
+      toast.warning(t("promo.needProvider"));
       return;
     }
     setDraftingKey(c.key);
@@ -83,7 +89,7 @@ export function RuleCandidatesPanel({
       setDraft(res.data);
       setSlug(res.data.slug);
     } else {
-      toast.destructive(`규칙 초안 생성 실패: ${res.error}`);
+      toast.destructive(t("promo.ruleDraftFailed", { error: res.error }));
     }
   };
 
@@ -97,10 +103,10 @@ export function RuleCandidatesPanel({
     if (res.status === "ok") {
       if (res.data.mirror?.action === "conflict") {
         toast.destructive(
-          `저장됨 — 단, Cursor 미러 충돌: ${res.data.mirror.mirror_rel} 에 다른 파일이 이미 있어 건드리지 않았습니다 (다른 규칙의 미러이거나 — 중첩 경로는 같은 이름으로 평탄화됩니다 — 사용자/어댑터 파일)`,
+          t("promo.ruleMirrorConflict", { path: res.data.mirror.mirror_rel }),
         );
       } else {
-        toast.info(`규칙이 저장되었습니다: ${relPath} — 스킬·규칙 화면에서 관리할 수 있어요`);
+        toast.info(t("promo.ruleSaved", { path: relPath }));
       }
       setSavedKeys((prev) => new Set(prev).add(draft.candidate_key));
       setDraft(null);
@@ -118,12 +124,12 @@ export function RuleCandidatesPanel({
         <span className="text-muted-foreground">
           <ClipboardCheck size={15} />
         </span>
-        규칙 후보
+        {t("promo.ruleTitle")}
       </div>
       <p className="mb-2.5 text-xs text-muted-foreground">
-        같은 영역에서 에러·버그가 반복됐어요. 재발을 막는 규칙(
-        <code className="font-mono text-[11px]">.claude/rules</code>)으로 승격할 수 있습니다 —
-        저장은 항상 사람의 승인으로만 이뤄집니다.
+        {t("promo.ruleIntroPrefix")}
+        <code className="font-mono text-[11px]">.claude/rules</code>
+        {t("promo.ruleIntroSuffix")}
       </p>
       <ul className="flex flex-col gap-2">
         {visible.map((c) => (
@@ -134,10 +140,13 @@ export function RuleCandidatesPanel({
             <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs text-foreground">{c.area}</span>
               <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                {c.kinds.map((k) => KIND_LABEL[k] ?? k).join("·")} {c.entry_count}건
+                {t("promo.ruleEntryCount", {
+                  kinds: c.kinds.map((k) => (KIND_LABEL[k] ? t(KIND_LABEL[k]) : k)).join("·"),
+                  n: c.entry_count,
+                })}
               </span>
               <span className="shrink-0 text-[11px] text-muted-foreground">
-                최근 {wd(c.last_workday)}
+                {t("promo.recent", { workday: wd(c.last_workday) })}
               </span>
               <span className="flex-1" />
               <button
@@ -145,23 +154,23 @@ export function RuleCandidatesPanel({
                 className="btn sm"
                 disabled={draftingKey != null}
                 onClick={() => void generateDraft(c)}
-                title="이 반복 실패의 증거(일지 발췌)를 AI 로 요약해 규칙 초안을 만듭니다 (과금 호출)"
+                title={t("promo.ruleDraftHint")}
               >
                 {draftingKey === c.key ? (
                   <>
-                    <OculSpinner size={13} /> 초안 생성 중…
+                    <OculSpinner size={13} /> {t("promo.drafting")}
                   </>
                 ) : (
                   <>
-                    <SparklesIcon size={13} /> 초안 생성
+                    <SparklesIcon size={13} /> {t("promo.draft")}
                   </>
                 )}
               </button>
               <button
                 type="button"
                 className="btn ghost sm"
-                aria-label={`${c.area} 후보 숨기기`}
-                title="이 후보를 이번 세션에서 숨깁니다 (파일 변경 없음)"
+                aria-label={t("promo.hideAria", { name: c.area })}
+                title={t("promo.hideHint")}
                 onClick={() => setDismissed((prev) => new Set(prev).add(c.key))}
               >
                 <X size={13} />
@@ -185,7 +194,7 @@ export function RuleCandidatesPanel({
       <AppDialog
         open={draft != null}
         onClose={() => setDraft(null)}
-        label="규칙 초안 제안"
+        label={t("promo.ruleDialogLabel")}
         width={672}
       >
         {draft ? (
@@ -193,7 +202,7 @@ export function RuleCandidatesPanel({
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <SparklesIcon size={15} />
               <span className="text-sm font-semibold">{draft.title}</span>
-              <span className="text-xs text-muted-foreground">AI 초안 · 승인해야 저장됩니다</span>
+              <span className="text-xs text-muted-foreground">{t("promo.aiDraftNote")}</span>
             </div>
             <div className="flex flex-col gap-3 overflow-y-auto p-4">
               <div>
@@ -201,7 +210,7 @@ export function RuleCandidatesPanel({
                   htmlFor="rp-slug"
                   className="mb-1 block text-xs font-semibold text-muted-foreground"
                 >
-                  파일 이름 (슬러그)
+                  {t("promo.ruleSlugLabel")}
                 </label>
                 <input
                   id="rp-slug"
@@ -218,15 +227,17 @@ export function RuleCandidatesPanel({
                   }
                 >
                   {slug.trim() && !slugValid
-                    ? "영문 소문자·숫자·하이픈(kebab-case)만 쓸 수 있습니다"
-                    : `.claude/rules/${slug.trim() || "…"}.md 로 저장됩니다`}
+                    ? t("promo.slugInvalid")
+                    : t("promo.savePath", {
+                        path: `.claude/rules/${slug.trim() || "…"}.md`,
+                      })}
                 </div>
               </div>
               <div>
                 <div className="mb-1 text-xs font-semibold text-muted-foreground">paths</div>
                 {draft.paths.length === 0 ? (
                   <span className="text-xs text-muted-foreground">
-                    (없음 — 세션 시작 시 항상 로드)
+                    {t("promo.rulePathsEmpty")}
                   </span>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
@@ -252,7 +263,7 @@ export function RuleCandidatesPanel({
                 disabled={saving}
                 onClick={() => setDraft(null)}
               >
-                거절
+                {t("promo.reject")}
               </button>
               <button
                 type="button"
@@ -260,7 +271,7 @@ export function RuleCandidatesPanel({
                 disabled={saving || !slugValid}
                 onClick={() => void approve()}
               >
-                {saving ? "저장 중…" : "규칙으로 저장"}
+                {saving ? t("promo.saving") : t("promo.ruleSave")}
               </button>
             </div>
           </>
