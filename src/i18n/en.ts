@@ -1259,6 +1259,57 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.noRelations": "No relations to show",
   "graph.filterHint": "Clear the filter or try a different path.",
   "graph.indexHint": "The project may not be indexed yet, or there are no relations of the enabled edge types. Index it and refresh.",
+  // ── Menu-bar popover (tray) ─────────────────────────────────────────────
+  // Journal type badge — **singular**, since it labels one entry.
+  // `journal.filter.*` / `retro.type.*` are filter chips and read as plurals
+  // ("Bugs") in English, so they cannot be reused here.
+  "tray.typeFeature": "Feature",
+  "tray.typeBug": "Bug",
+  "tray.typeError": "Error",
+  "tray.typeRefactor": "Refactor",
+  "tray.typeChore": "Chore",
+  // Session elapsed time
+  "tray.justStarted": "Just started",
+  "tray.elapsedMinutes": "{n}m in",
+  "tray.elapsedHours": "{h}h {m}m in",
+  // Project picker
+  "tray.allProjects": "All projects",
+  "tray.projectFallback": "Project",
+  "tray.projectAria": "Project",
+  "tray.back": "Back",
+  "tray.openInApp": "Open in app",
+  "tray.openApp": "Open app ↗",
+  "tray.loading": "Loading…",
+  "tray.loadingAria": "Loading",
+  "tray.entryReadFailed": "Could not read the entry",
+  "tray.planReadFailed": "Could not read the plan",
+  "tray.planTitle": "Plan",
+  "tray.planNext": "Next: {title}",
+  // Menu-bar settings
+  "tray.settingsTitle": "Menu bar settings",
+  "tray.openFullSettings": "Open full settings in the app",
+  "tray.toggleShowIcon": "Show menu bar icon",
+  "tray.toggleShowIconHint": "The icon animates while a session is active",
+  "tray.toggleKeepRunning": "Close window (⌘W) = minimize to menu bar",
+  "tray.toggleKeepRunningHint": "When off, closing the window quits (⌘Q always quits fully)",
+  "tray.toggleHideDock": "Hide Dock icon while resident",
+  "tray.toggleHideDockHint": "Also disappears from the Dock while minimized to the menu bar",
+  "tray.toggleNotify": "New entry notifications",
+  "tray.toggleNotifyHint": "macOS notifies you when an agent writes an entry (past 3 in 10s are skipped)",
+  // Body
+  "tray.noActiveSession": "No active session right now",
+  "tray.sessionsActive": "{n} sessions active",
+  "tray.agentFallback": "Agent",
+  "tray.todayEntries": "Entries today",
+  "tray.filesChanged": "Files changed",
+  "tray.noEntriesToday": "Nothing recorded today yet",
+  "tray.lastActivity": " · last activity {time}",
+  "tray.entryTooltip": "{agent} · {files} files",
+  "tray.entryTooltipWithModel": "{agent} · {model} · {files} files",
+  "tray.standupCopy": "Copy standup",
+  "tray.standupCopied": "Copied ✓",
+  "tray.settings": "Settings",
+
   // ── AI panel screen ─────────────────────────────────────────────────────
   "ai.title": "AI panel",
   "ai.toolbarSub": "Ask several LLMs with the same context",

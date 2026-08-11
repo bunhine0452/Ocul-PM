@@ -20,6 +20,8 @@ import {
   type PlanSummary,
   type Session,
 } from "@/lib/bindings";
+// 모듈 t() 는 순수 헬퍼 `elapsedLabel` 용, useT() 는 각 컴포넌트용.
+import { t, useT, type I18nKey } from "@/i18n";
 import "./tray.css";
 
 interface ActivePlan {
@@ -42,12 +44,13 @@ interface ProjectSnapshot {
     거슬러 올라간다. 전체(수백 건)를 DOM 에 얹지 않기 위한 상한. */
 const ENTRY_LIST_MAX = 50;
 
-const TYPE_LABEL: Record<string, string> = {
-  feature: "기능",
-  bug: "버그",
-  error: "에러",
-  refactor: "리팩토링",
-  chore: "잡일",
+/** 일지 타입 → 배지 라벨 키. 표시만 사전을 거치고 타입 자체는 판별자로 남는다. */
+const TYPE_LABEL: Record<string, I18nKey> = {
+  feature: "tray.typeFeature",
+  bug: "tray.typeBug",
+  error: "tray.typeError",
+  refactor: "tray.typeRefactor",
+  chore: "tray.typeChore",
 };
 
 function fmtTime(iso: string): string {
@@ -60,9 +63,9 @@ function elapsedLabel(startedAt: string): string {
   const ms = Date.now() - new Date(startedAt).getTime();
   if (!Number.isFinite(ms) || ms < 0) return "";
   const min = Math.floor(ms / 60_000);
-  if (min < 1) return "방금 시작";
-  if (min < 60) return `${min}분째`;
-  return `${Math.floor(min / 60)}시간 ${min % 60}분째`;
+  if (min < 1) return t("tray.justStarted");
+  if (min < 60) return t("tray.elapsedMinutes", { n: min });
+  return t("tray.elapsedHours", { h: Math.floor(min / 60), m: min % 60 });
 }
 
 /** 로컬 달력 기준 오늘 YYYYMMDD — 자정 넘김 감지용. */
@@ -133,6 +136,7 @@ function ProjectPicker({
   selected: number | "all";
   onSelect: (v: number | "all") => void;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -149,8 +153,8 @@ function ProjectPicker({
     s.entries.filter((e) => e.workday === s.workday).length;
   const label =
     selected === "all"
-      ? "전체 프로젝트"
-      : (snapshots.find((s) => s.id === selected)?.name ?? "프로젝트");
+      ? t("tray.allProjects")
+      : (snapshots.find((s) => s.id === selected)?.name ?? t("tray.projectFallback"));
 
   const row = (
     key: string,
@@ -172,7 +176,7 @@ function ProjectPicker({
     <div className="tp-picker" ref={rootRef}>
       <button
         className="tp-picker-btn"
-        aria-label="프로젝트"
+        aria-label={t("tray.projectAria")}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -184,7 +188,7 @@ function ProjectPicker({
           {row(
             "all",
             selected === "all",
-            "전체 프로젝트",
+            t("tray.allProjects"),
             snapshots.reduce((n, s) => n + todayCount(s), 0),
             snapshots.some((s) => s.sessions.some((x) => x.ended_at === null)),
             () => {
@@ -314,6 +318,7 @@ function EntryDetail({
   onBack: () => void;
   onOpenApp: () => void;
 }) {
+  const { t } = useT();
   const [entry, setEntry] = useState<{
     title: string;
     body: string;
@@ -349,20 +354,20 @@ function EntryDetail({
   return (
     <div className="tp-detail">
       <div className="tp-settings-head">
-        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+        <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
           <ArrowLeft size={14} />
         </button>
         {entry && (
           <span className={`tp-type tp-type-${entry.type}`}>
-            {TYPE_LABEL[entry.type] ?? entry.type}
+            {TYPE_LABEL[entry.type] ? t(TYPE_LABEL[entry.type]) : entry.type}
           </span>
         )}
         <span className="tp-detail-proj">{projectName}</span>
       </div>
       {failed ? (
-        <div className="tp-empty">일지를 읽지 못했습니다</div>
+        <div className="tp-empty">{t("tray.entryReadFailed")}</div>
       ) : !entry ? (
-        <div className="tp-empty">불러오는 중…</div>
+        <div className="tp-empty">{t("tray.loading")}</div>
       ) : (
         <div className="tp-detail-body">
           <div className="tp-detail-title">{entry.title}</div>
@@ -374,7 +379,7 @@ function EntryDetail({
         </div>
       )}
       <button className="tp-open-settings" onClick={onOpenApp}>
-        앱에서 열기 <ExternalLink size={12} />
+        {t("tray.openInApp")} <ExternalLink size={12} />
       </button>
     </div>
   );
@@ -404,6 +409,7 @@ function PlanDetail({
   onBack: () => void;
   onOpenApp: () => void;
 }) {
+  const { t } = useT();
   const [plan, setPlan] = useState<{
     title: string;
     done: number;
@@ -435,16 +441,16 @@ function PlanDetail({
   return (
     <div className="tp-detail">
       <div className="tp-settings-head">
-        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+        <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
           <ArrowLeft size={14} />
         </button>
-        <span className="tp-settings-title">플랜</span>
+        <span className="tp-settings-title">{t("tray.planTitle")}</span>
         <span className="tp-detail-proj">{projectName}</span>
       </div>
       {failed ? (
-        <div className="tp-empty">플랜을 읽지 못했습니다</div>
+        <div className="tp-empty">{t("tray.planReadFailed")}</div>
       ) : !plan ? (
-        <div className="tp-empty">불러오는 중…</div>
+        <div className="tp-empty">{t("tray.loading")}</div>
       ) : (
         <div className="tp-detail-body">
           <div className="tp-detail-title">{plan.title}</div>
@@ -474,7 +480,7 @@ function PlanDetail({
         </div>
       )}
       <button className="tp-open-settings" onClick={onOpenApp}>
-        앱에서 열기 <ExternalLink size={12} />
+        {t("tray.openInApp")} <ExternalLink size={12} />
       </button>
     </div>
   );
@@ -482,34 +488,41 @@ function PlanDetail({
 
 // ─── 트레이 설정 (상단바에서 끝낼 수 있는 것) ────────────────────────────────
 
-const TRAY_TOGGLES: Array<{ key: string; label: string; hint: string; defaultOn: boolean }> = [
+// `key` 는 SQLite 설정 키라 그대로 두고 표시 문구만 사전 키로 뽑는다.
+const TRAY_TOGGLES: Array<{
+  key: string;
+  labelKey: I18nKey;
+  hintKey: I18nKey;
+  defaultOn: boolean;
+}> = [
   {
     key: "tray.show_icon",
-    label: "메뉴바 아이콘 표시",
-    hint: "세션이 활성일 때 아이콘이 움직입니다",
+    labelKey: "tray.toggleShowIcon",
+    hintKey: "tray.toggleShowIconHint",
     defaultOn: true,
   },
   {
     key: "tray.keep_running",
-    label: "창 닫기(⌘W) = 메뉴바로 최소화",
-    hint: "끄면 창 닫기가 곧 종료입니다 (⌘Q 는 항상 완전 종료)",
+    labelKey: "tray.toggleKeepRunning",
+    hintKey: "tray.toggleKeepRunningHint",
     defaultOn: false,
   },
   {
     key: "tray.hide_dock",
-    label: "상주 중 Dock 아이콘 숨김",
-    hint: "메뉴바로 최소화된 동안 Dock 에서도 사라집니다",
+    labelKey: "tray.toggleHideDock",
+    hintKey: "tray.toggleHideDockHint",
     defaultOn: false,
   },
   {
     key: "tray.notify_journal",
-    label: "새 일지 알림",
-    hint: "에이전트가 일지를 남기면 macOS 알림이 뜹니다 (10초에 3건 초과분은 생략)",
+    labelKey: "tray.toggleNotify",
+    hintKey: "tray.toggleNotifyHint",
     defaultOn: false,
   },
 ];
 
 function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: () => void }) {
+  const { t } = useT();
   const [vals, setVals] = useState<Record<string, boolean> | null>(null);
 
   useEffect(() => {
@@ -518,9 +531,9 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
       const m = new Map(res.data);
       setVals(
         Object.fromEntries(
-          TRAY_TOGGLES.map((t) => [
-            t.key,
-            m.has(t.key) ? m.get(t.key) === "1" : t.defaultOn,
+          TRAY_TOGGLES.map((row) => [
+            row.key,
+            m.has(row.key) ? m.get(row.key) === "1" : row.defaultOn,
           ]),
         ),
       );
@@ -539,35 +552,35 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
   return (
     <div className="tp-settings">
       <div className="tp-settings-head">
-        <button className="tp-back" onClick={onBack} aria-label="뒤로">
+        <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
           <ArrowLeft size={14} />
         </button>
-        <span className="tp-settings-title">상단바 설정</span>
+        <span className="tp-settings-title">{t("tray.settingsTitle")}</span>
       </div>
       <div className="tp-settings-body">
-        {TRAY_TOGGLES.map((t) => {
-          const disabled = !vals || (t.key === "tray.hide_dock" && dockDisabled);
-          const on = !!vals?.[t.key] && !(t.key === "tray.hide_dock" && dockDisabled);
+        {TRAY_TOGGLES.map((row) => {
+          const disabled = !vals || (row.key === "tray.hide_dock" && dockDisabled);
+          const on = !!vals?.[row.key] && !(row.key === "tray.hide_dock" && dockDisabled);
           return (
             <button
-              key={t.key}
+              key={row.key}
               className={`tp-toggle-row ${disabled ? "is-disabled" : ""}`}
               disabled={disabled}
-              onClick={() => toggle(t.key)}
+              onClick={() => toggle(row.key)}
             >
               <span className={`tp-switch ${on ? "is-on" : ""}`}>
                 <span className="tp-switch-knob" />
               </span>
               <span className="tp-toggle-text">
-                <span className="tp-toggle-label">{t.label}</span>
-                <span className="tp-toggle-hint">{t.hint}</span>
+                <span className="tp-toggle-label">{t(row.labelKey)}</span>
+                <span className="tp-toggle-hint">{t(row.hintKey)}</span>
               </span>
             </button>
           );
         })}
       </div>
       <button className="tp-open-settings" onClick={onOpenApp}>
-        앱에서 전체 설정 열기 <ExternalLink size={12} />
+        {t("tray.openFullSettings")} <ExternalLink size={12} />
       </button>
     </div>
   );
@@ -576,6 +589,7 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
 // ─── 팝오버 본체 ─────────────────────────────────────────────────────────────
 
 export function TrayPopover() {
+  const { t } = useT();
   const [snapshots, setSnapshots] = useState<ProjectSnapshot[]>([]);
   const [selected, setSelected] = useState<number | "all">("all");
   const [loading, setLoading] = useState(true);
@@ -807,21 +821,24 @@ export function TrayPopover() {
       <header className="tp-head">
         <ProjectPicker snapshots={snapshots} selected={selected} onSelect={setSelected} />
         <button className="tp-open" onClick={() => openMain(null)}>
-          앱 열기 ↗
+          {t("tray.openApp")}
         </button>
       </header>
 
       <section className="tp-sessions">
         {activeSessions.length === 0 ? (
-          <div className="tp-idle-line">지금 활성 세션 없음</div>
+          <div className="tp-idle-line">{t("tray.noActiveSession")}</div>
         ) : (
           <>
             <div className="tp-sec-label">
-              <span className="tp-live-dot" /> 세션 {activeSessions.length} 활성
+              <span className="tp-live-dot" />{" "}
+              {t("tray.sessionsActive", { n: activeSessions.length })}
             </div>
             {activeSessions.slice(0, 4).map(({ project, session }) => (
               <div className="tp-session-row" key={`${project.id}:${session.id}`}>
-                <span className="tp-agent">{session.agent_label_guess ?? "에이전트"}</span>
+                <span className="tp-agent">
+                  {session.agent_label_guess ?? t("tray.agentFallback")}
+                </span>
                 <span className="tp-dim">{elapsedLabel(session.started_at)}</span>
                 <span className="tp-proj">{project.name}</span>
               </div>
@@ -832,10 +849,10 @@ export function TrayPopover() {
 
       <section className="tp-today">
         <span>
-          오늘 일지 <b>{todayEntries.length}</b>
+          {t("tray.todayEntries")} <b>{todayEntries.length}</b>
         </span>
         <span>
-          변경 파일 <b>{filesTouched}</b>
+          {t("tray.filesChanged")} <b>{filesTouched}</b>
         </span>
         {warnCount > 0 && <span className="tp-warn">⚠ {warnCount}</span>}
       </section>
@@ -843,8 +860,12 @@ export function TrayPopover() {
       <section className="tp-entries scrollbar-thin">
         {todayEntries.length === 0 && (
           <div className="tp-empty">
-            오늘 아직 기록 없음
-            {lastActivity && <span className="tp-dim"> · 마지막 활동 {fmtTime(lastActivity)}</span>}
+            {t("tray.noEntriesToday")}
+            {lastActivity && (
+              <span className="tp-dim">
+                {t("tray.lastActivity", { time: fmtTime(lastActivity) })}
+              </span>
+            )}
           </div>
         )}
         {recentEntries.length > 0 &&
@@ -852,7 +873,15 @@ export function TrayPopover() {
             <button
               key={`${project.id}:${entry.relative_path}`}
               className="tp-entry-row"
-              title={`${entry.agent_id}${entry.agent_version ? ` · ${entry.agent_version}` : ""} · ${entry.files_count}개 파일`}
+              title={
+                entry.agent_version
+                  ? t("tray.entryTooltipWithModel", {
+                      agent: entry.agent_id,
+                      model: entry.agent_version,
+                      files: entry.files_count,
+                    })
+                  : t("tray.entryTooltip", { agent: entry.agent_id, files: entry.files_count })
+              }
               onClick={() =>
                 setDetail({
                   projectId: project.id,
@@ -867,7 +896,7 @@ export function TrayPopover() {
                   : `${Number(entry.workday.slice(4, 6))}/${Number(entry.workday.slice(6, 8))}`}
               </span>
               <span className={`tp-type tp-type-${entry.type}`}>
-                {TYPE_LABEL[entry.type] ?? entry.type}
+                {TYPE_LABEL[entry.type] ? t(TYPE_LABEL[entry.type]) : entry.type}
               </span>
               <span className="tp-title">{entry.title}</span>
             </button>
@@ -890,7 +919,9 @@ export function TrayPopover() {
             >
               <span className="tp-plan-main">
                 <span className="tp-title">{plan.summary.title}</span>
-                {plan.next && <span className="tp-plan-next">다음: {plan.next}</span>}
+                {plan.next && (
+                  <span className="tp-plan-next">{t("tray.planNext", { title: plan.next })}</span>
+                )}
               </span>
               <span className="tp-progress">
                 <span
@@ -912,14 +943,14 @@ export function TrayPopover() {
           disabled={!standupTarget?.workday || standupState === "busy"}
           onClick={() => void copyStandup()}
         >
-          {standupState === "copied" ? "복사됨 ✓" : "스탠드업 복사"}
+          {standupState === "copied" ? t("tray.standupCopied") : t("tray.standupCopy")}
         </button>
         <button className="tp-action" onClick={() => setPane("settings")}>
-          설정
+          {t("tray.settings")}
         </button>
       </footer>
 
-      {loading && <div className="tp-loading" aria-label="불러오는 중" />}
+      {loading && <div className="tp-loading" aria-label={t("tray.loadingAria")} />}
     </div>
   );
 }

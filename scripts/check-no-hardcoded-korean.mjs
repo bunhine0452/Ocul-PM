@@ -121,7 +121,6 @@ const PENDING = new Set([
   "features/skills/pluginDocs.ts",
   "features/skills/rulesModel.ts",
   "features/skills/skillsModel.ts",
-  "features/tray/TrayPopover.tsx",
   // @PENDING_END
 ]);
 
