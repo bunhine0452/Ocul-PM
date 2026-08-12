@@ -556,7 +556,9 @@ pub async fn plan_dispatch_prompt(
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
 
     let patterns = project_redact_patterns(&root);
-    let built = build_dispatch_prompt(&root, &plan_id, &md, &item_id, &patterns)?;
+    // 이 프롬프트를 읽고 에이전트가 일지를 쓴다 — 여기 언어가 곧 일지 언어다.
+    let lang = crate::oculpm::content_lang::current(&db).await;
+    let built = build_dispatch_prompt(&root, &plan_id, &md, &item_id, &patterns, lang)?;
 
     let dispatch_dir = root.join(".oculpm").join("index").join("dispatch");
     std::fs::create_dir_all(&dispatch_dir).map_err(|e| e.to_string())?;

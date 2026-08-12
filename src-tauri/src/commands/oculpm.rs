@@ -604,7 +604,7 @@ pub async fn oculpm_create_manual_entry(
         // returning the error keeps the modal in the "still editing" state.
         Err(OculpmError::ForbiddenJournalPath { paths }) => {
             let message = format!(
-                "{} 개 경로가 forbid_journal_for_paths 와 매치되어 작성이 거부됨: {}",
+                "{} paths matched forbid_journal_for_paths, so the write was refused: {}",
                 paths.len(),
                 paths.join(", ")
             );

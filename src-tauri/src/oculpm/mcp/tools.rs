@@ -182,7 +182,7 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
             oculpm_meta.map(|m| m.file_type().is_symlink()).unwrap_or(false);
         return Err(if is_symlink {
             format!(
-                "{} 의 .oculpm 이 심볼릭 링크입니다 — 안전상 링크된 .oculpm 에는 \
+                "The .oculpm in {} is a symlink - for safety a linked .oculpm is \
                  기록하지 않습니다 (실제 디렉터리만 지원).",
                 root.display()
             )
@@ -213,7 +213,7 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
 fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
     if !args.get("confirm").and_then(Value::as_bool).unwrap_or(false) {
         return Err(
-            "project_init 은 사용자가 ocul-pm 추적 시작을 명시적으로 확인한 뒤에만 호출할 수 \
+            "project_init may only be called after the user explicitly confirms starting \
              있습니다 — 사용자에게 물어보고 동의를 받은 경우에만 confirm=true 로 다시 호출하세요."
                 .to_string(),
         );
@@ -230,7 +230,7 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
     if let Ok(home) = std::env::var("HOME") {
         if !home.is_empty() && canonical == std::path::PathBuf::from(&home) {
             return Err(
-                "홈 디렉터리는 초기화 대상이 아닙니다 — 프로젝트 폴더에서 다시 시도하세요 \
+                "The home directory cannot be initialized - retry from a project folder \
                  (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
                     .to_string(),
             );
@@ -247,13 +247,13 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
             let m = std::fs::symlink_metadata(&oculpm_dir).map_err(|e| e.to_string())?;
             if m.file_type().is_symlink() {
                 return Err(format!(
-                    "{} 의 .oculpm 이 심볼릭 링크입니다 — 안전상 초기화하지 않습니다.",
+                    "The .oculpm in {} is a symlink - not initializing, for safety.",
                     root.display()
                 ));
             }
             if !m.file_type().is_dir() {
                 return Err(
-                    ".oculpm 이 디렉터리가 아닌 파일로 존재합니다 — 제거 후 다시 시도하세요."
+                    ".oculpm exists as a file, not a directory - remove it and retry."
                         .to_string(),
                 );
             }
@@ -743,7 +743,7 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let parsed = parse_plan(&md, plan_id);
     if parsed.frontmatter.status.as_str() != "active" {
         return Err(format!(
-            "plan '{plan_id}' is locked (status={}) — 잠긴 plan 은 수정 금지",
+            "plan '{plan_id}' is locked (status={}) - locked plans cannot be edited",
             parsed.frontmatter.status.as_str()
         ));
     }
@@ -902,7 +902,7 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                 }
                 if child.get("children").is_some() {
                     return Err(format!(
-                        "phases[{pi}].items[{ii}].children[{ci}] 에 children 불가 — 중첩은 1단계까지"
+                        "phases[{pi}].items[{ii}].children[{ci}] cannot have children - nesting is one level deep"
                     ));
                 }
                 let ctext_raw = child
@@ -1050,7 +1050,7 @@ mod tests {
         let outside = TempDir::new().unwrap();
         std::os::unix::fs::symlink(outside.path(), tmp.path().join(".oculpm")).unwrap();
         let err = call_tool(tmp.path(), "project_init", &json!({"confirm": true})).unwrap_err();
-        assert!(err.contains("심볼릭 링크"));
+        assert!(err.contains("symlink"));
     }
 
     /// A0b — 비추적 프로젝트 가드: `.oculpm/` 없는 루트에서는 세 도구 모두
@@ -1094,7 +1094,7 @@ mod tests {
             "type": "chore", "slug": "x", "title": "t", "body_markdown": "b"
         });
         let err = call_tool(dir.path(), "journal_write", &args).unwrap_err();
-        assert!(err.contains("심볼릭 링크"), "{err}");
+        assert!(err.contains("symlink"), "{err}");
         assert_eq!(
             std::fs::read_dir(target.path()).unwrap().count(),
             0,

@@ -192,13 +192,13 @@ pub fn desktop_register_at(
 ) -> OculpmResult<DesktopRegistrationStatus> {
     if !config_path.parent().is_some_and(Path::exists) {
         return Err(OculpmError::InvalidConfig(
-            "Claude Desktop 설정 폴더가 없습니다 — Claude Desktop 이 설치되어 있는지 확인하세요".into(),
+            "No Claude Desktop config folder - check that Claude Desktop is installed".into(),
         ));
     }
     let mut value = read_json_config(config_path)?;
     if !value.is_object() {
         return Err(OculpmError::InvalidConfig(
-            "claude_desktop_config.json 최상위가 JSON 오브젝트가 아닙니다".into(),
+            "The top level of claude_desktop_config.json is not a JSON object".into(),
         ));
     }
     let obj = value.as_object_mut().expect("checked is_object above");
@@ -207,7 +207,7 @@ pub fn desktop_register_at(
         .or_insert_with(|| Value::Object(Map::new()));
     let Some(servers) = servers.as_object_mut() else {
         return Err(OculpmError::InvalidConfig(
-            "claude_desktop_config.json 의 \"mcpServers\" 가 오브젝트가 아닙니다".into(),
+            "\"mcpServers\" in claude_desktop_config.json is not an object".into(),
         ));
     };
     let mut key = desktop_server_key(root);
@@ -283,7 +283,7 @@ pub fn register_with_binary(root: &Path, binary: &Path) -> OculpmResult<McpRegis
     let mut value = read_mcp_json(root)?;
     if !value.is_object() {
         return Err(OculpmError::InvalidConfig(
-            ".mcp.json 최상위가 JSON 오브젝트가 아닙니다".into(),
+            "The top level of .mcp.json is not a JSON object".into(),
         ));
     }
     let obj = value.as_object_mut().expect("checked is_object above");
@@ -292,7 +292,7 @@ pub fn register_with_binary(root: &Path, binary: &Path) -> OculpmResult<McpRegis
         .or_insert_with(|| Value::Object(Map::new()));
     let Some(servers) = servers.as_object_mut() else {
         return Err(OculpmError::InvalidConfig(
-            ".mcp.json 의 \"mcpServers\" 가 오브젝트가 아닙니다".into(),
+            "\"mcpServers\" in .mcp.json is not an object".into(),
         ));
     };
     servers.insert(SERVER_KEY.to_string(), server_entry(binary, root));

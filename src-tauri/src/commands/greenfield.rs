@@ -241,7 +241,7 @@ pub async fn create_greenfield_project(
             Err(e) => {
                 // Non-fatal: project folder already created, user can scaffold manually
                 tracing::warn!(cmd, error = %e, "scaffold CLI failed, continuing with empty project");
-                Some(format!("⚠️ 스캐폴딩 실패: {e}\n수동으로 실행해주세요."))
+                Some(format!("⚠️ Scaffolding failed: {e}\nRun it manually."))
             }
         }
     } else {
@@ -324,7 +324,7 @@ async fn run_scaffold_cli(cmd: &str, args: &[&str], cwd: &Path) -> Result<String
         Ok(format!("{stdout}\n{stderr}").trim().to_string())
     } else {
         Err(format!(
-            "CLI 종료 코드 {}: {}",
+            "CLI exit code {}: {}",
             result.status.code().unwrap_or(-1),
             stderr.trim()
         ))
@@ -412,7 +412,7 @@ Goals should cover project setup, core feature, and testing/deployment."#;
     };
 
     let payloads: Vec<SeedGoalPayload> = serde_json::from_str(json_str).map_err(|e| {
-        format!("LLM 응답 파싱 실패: {e}\nRaw: {content}")
+        format!("Could not parse the LLM response: {e}\nRaw: {content}")
     })?;
 
     let mut goals = Vec::new();

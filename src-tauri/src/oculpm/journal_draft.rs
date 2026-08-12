@@ -432,7 +432,8 @@ pub async fn draft_for_session(
                 d
             }
             Err(_) => {
-                degraded_reason = Some("transcript 파일을 읽지 못함");
+                degraded_reason =
+                    Some(content_lang.pick("transcript 파일을 읽지 못함", "could not read the transcript file"));
                 TranscriptDigest::default()
             }
         },
@@ -475,7 +476,8 @@ pub async fn draft_for_session(
             },
             Err(e) => {
                 tracing::warn!(target: "oculpm::journal_draft", error = %e, "draft LLM call failed");
-                degraded_reason = Some("LLM 호출 실패");
+                degraded_reason =
+                    Some(content_lang.pick("LLM 호출 실패", "LLM call failed"));
             }
         }
     }

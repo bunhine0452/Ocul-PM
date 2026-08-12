@@ -9,6 +9,8 @@ use std::path::Path;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 use regex::Regex;
 
+use crate::oculpm::content_lang::ContentLang;
+
 use crate::oculpm::redact::{compile_redact_patterns, redact_text};
 
 /// 프롬프트에 넣을 연결 일지 수 상한 — 최근 것 2건이면 맥락은 충분하고,
@@ -23,17 +25,22 @@ pub struct DispatchBuild {
 }
 
 /// 항목 하나의 디스패치 프롬프트를 조립한다. 잠긴 plan·미지의 item 은 거부.
+///
+/// 이 프롬프트는 터미널에 프리필돼 **사용자가 읽고 실행**한다 — 03-i18n.md
+/// §4.5 가 이름을 집어 지목한 예외라 본문도 산출물 언어를 따른다. 에이전트가
+/// 이걸 읽고 일지를 쓰므로, 여기 언어가 곧 일지 언어가 된다.
 pub fn build_dispatch_prompt(
     root: &Path,
     plan_id: &str,
     md: &str,
     item_id: &str,
     redact_patterns: &[Regex],
+    lang: ContentLang,
 ) -> Result<DispatchBuild, String> {
     let parsed = parse_plan(md, plan_id);
     if parsed.frontmatter.status.as_str() != "active" {
         return Err(format!(
-            "plan '{plan_id}' 은 잠겨 있습니다 (status={}) — 실행 대상이 아닙니다",
+            "plan '{plan_id}' is locked (status={}) - not dispatchable",
             parsed.frontmatter.status.as_str()
         ));
     }
@@ -47,10 +54,19 @@ pub fn build_dispatch_prompt(
 
     let mut p = String::new();
     p.push_str(&format!(
-        "ocul-pm 플래너 디스패치 — plan \"{}\" ({plan_id}) 의 다음 항목을 구현하라.\n\n",
-        parsed.frontmatter.title
+        "{}\n\n",
+        match lang {
+            ContentLang::English => format!(
+                "ocul-pm planner dispatch — implement the next item of plan \"{}\" ({plan_id}).",
+                parsed.frontmatter.title
+            ),
+            _ => format!(
+                "ocul-pm 플래너 디스패치 — plan \"{}\" ({plan_id}) 의 다음 항목을 구현하라.",
+                parsed.frontmatter.title
+            ),
+        }
     ));
-    p.push_str("## 대상 항목\n\n");
+    p.push_str(&format!("## {}\n\n", lang.pick("대상 항목", "Target item")));
     p.push_str(&format!(
         "- {{#{}}} [{}] {}{}\n",
         item.item_id,
@@ -59,23 +75,32 @@ pub fn build_dispatch_prompt(
         item.phase.as_deref().map(|ph| format!("  (phase: {ph})")).unwrap_or_default()
     ));
     if !children.is_empty() {
-        p.push_str("\n하위 작업 (미완만 실행 대상 — 부모 글리프는 하위 롤업 자동):\n");
+        p.push_str(lang.pick(
+            "\n하위 작업 (미완만 실행 대상 — 부모 글리프는 하위 롤업 자동):\n",
+            "\nSubtasks (only unfinished ones are in scope — the parent glyph rolls up automatically):\n",
+        ));
         for c in &children {
             p.push_str(&format!("  - {{#{}}} [{}] {}\n", c.item_id, c.status.token(), c.title));
         }
     }
     if let Some(note) = &item.note {
-        p.push_str(&format!("\n메모: {note}\n"));
+        p.push_str(&format!("\n{}: {note}\n", lang.pick("메모", "Note")));
     }
 
     let refs = linked_journal_refs(&parsed, item_id, &children);
     if !refs.is_empty() {
-        p.push_str("\n## 맥락 — 이 항목에 연결된 최근 일지\n");
+        p.push_str(lang.pick(
+            "\n## 맥락 — 이 항목에 연결된 최근 일지\n",
+            "\n## Context — recent journal entries linked to this item\n",
+        ));
         for r in refs.iter().rev().take(MAX_LINKED_JOURNALS) {
             p.push_str(&format!("\n### {r}\n"));
             match read_journal_excerpt(root, r) {
                 Some(x) => p.push_str(&format!("{x}\n")),
-                None => p.push_str("(파일을 읽지 못했습니다 — 필요하면 직접 여세요)\n"),
+                None => p.push_str(lang.pick(
+                    "(파일을 읽지 못했습니다 — 필요하면 직접 여세요)\n",
+                    "(could not read the file — open it yourself if you need it)\n",
+                )),
             }
         }
     }
@@ -89,16 +114,24 @@ pub fn build_dispatch_prompt(
             .map(|c| c.item_id.as_str())
             .collect()
     };
-    p.push_str(&format!(
-        "\n## 완료 시\n\n1. 프로젝트 게이트(빌드/테스트/린트)를 실제로 실행해 exit 0 을 확인한다.\n\
-         2. `journal_write` 로 일지를 남긴다.\n\
-         3. `plan_update` 로 항목을 갱신한다 — plan_id=\"{plan_id}\", item_id={}.\n",
-        leaf_targets
-            .iter()
-            .map(|t| format!("\"{t}\""))
-            .collect::<Vec<_>>()
-            .join(" · ")
-    ));
+    let targets = leaf_targets
+        .iter()
+        .map(|t| format!("\"{t}\""))
+        .collect::<Vec<_>>()
+        .join(" · ");
+    p.push_str(&match lang {
+        ContentLang::English => format!(
+            "\n## When done\n\n\
+             1. Actually run the project gates (build/test/lint) and confirm exit 0.\n\
+             2. Write a journal entry with `journal_write`.\n\
+             3. Update the item with `plan_update` — plan_id=\"{plan_id}\", item_id={targets}.\n"
+        ),
+        _ => format!(
+            "\n## 완료 시\n\n1. 프로젝트 게이트(빌드/테스트/린트)를 실제로 실행해 exit 0 을 확인한다.\n\
+             2. `journal_write` 로 일지를 남긴다.\n\
+             3. `plan_update` 로 항목을 갱신한다 — plan_id=\"{plan_id}\", item_id={targets}.\n"
+        ),
+    });
 
     // 프롬프트 전체 redact — 일지 발췌는 이미 redact 를 거쳐 기록됐지만,
     // 프로젝트 패턴이 그 사이 늘었을 수 있다 (심층 방어).
@@ -183,7 +216,7 @@ mod tests {
         .unwrap();
 
         let patterns = compile_redact_patterns(&["sk-[A-Za-z0-9]+".to_string()]);
-        let b = build_dispatch_prompt(dir.path(), "p", MD, "papa", &patterns).unwrap();
+        let b = build_dispatch_prompt(dir.path(), "p", MD, "papa", &patterns, ContentLang::Unset).unwrap();
         assert!(b.prompt.contains("{#papa}"), "{}", b.prompt);
         assert!(b.prompt.contains("{#kid-todo}"), "하위 체크리스트: {}", b.prompt);
         assert!(b.prompt.contains("지난 수정"), "일지 발췌: {}", b.prompt);
@@ -195,12 +228,12 @@ mod tests {
         );
 
         // 단독(리프) 항목은 자기 자신이 갱신 대상.
-        let s = build_dispatch_prompt(dir.path(), "p", MD, "solo", &patterns).unwrap();
+        let s = build_dispatch_prompt(dir.path(), "p", MD, "solo", &patterns, ContentLang::Unset).unwrap();
         assert!(s.prompt.contains("item_id=\"solo\""));
         // 미지 항목·잠긴 plan 거부.
-        assert!(build_dispatch_prompt(dir.path(), "p", MD, "ghost", &patterns).is_err());
+        assert!(build_dispatch_prompt(dir.path(), "p", MD, "ghost", &patterns, ContentLang::Unset).is_err());
         let locked = MD.replace("status: active", "status: done");
-        assert!(build_dispatch_prompt(dir.path(), "p", &locked, "solo", &patterns).is_err());
+        assert!(build_dispatch_prompt(dir.path(), "p", &locked, "solo", &patterns, ContentLang::Unset).is_err());
     }
 
     #[test]
@@ -208,4 +241,34 @@ mod tests {
         let cmd = shell_command_for(Path::new("/a/o'brien/p.md"));
         assert_eq!(cmd, "claude \"$(cat '/a/o'\\''brien/p.md')\"");
     }
+
+    #[test]
+    fn english_dispatch_prompt_is_english_but_keeps_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let patterns: Vec<Regex> = vec![];
+        let b = build_dispatch_prompt(
+            dir.path(),
+            "p",
+            MD,
+            "solo",
+            &patterns,
+            ContentLang::English,
+        )
+        .unwrap();
+        assert!(b.prompt.contains("ocul-pm planner dispatch"), "{}", b.prompt);
+        assert!(b.prompt.contains("## Target item"), "{}", b.prompt);
+        assert!(b.prompt.contains("## When done"), "{}", b.prompt);
+        // 도구 이름과 id 는 계약이라 언어와 무관하게 그대로다.
+        assert!(b.prompt.contains("`journal_write`") && b.prompt.contains("`plan_update`"));
+        assert!(b.prompt.contains("plan_id=\"p\""), "{}", b.prompt);
+        // 남는 한글은 **사용자 데이터**뿐이어야 한다 — 플랜/항목 제목은 그
+        // 사람이 쓴 내용이라 번역 대상이 아니다. 그것만 벗겨내고 검사한다.
+        let scaffolding = b.prompt.replace("디스패치 플랜", "").replace("단독 항목", "");
+        assert!(
+            !scaffolding.chars().any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)),
+            "뼈대에 한글이 남았다:\n{}",
+            b.prompt
+        );
+    }
+
 }

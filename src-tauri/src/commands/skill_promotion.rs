@@ -68,7 +68,7 @@ pub async fn skill_draft_generate(
         .into_iter()
         .find(|c| c.tag == tag)
         .ok_or_else(|| {
-            "후보를 찾을 수 없습니다 — 그 사이 일지·스킬이 바뀌었을 수 있으니 새로고침하세요"
+            "Candidate not found - journals or skills may have changed since; refresh and retry"
                 .to_string()
         })?;
     let evidence = skill_promotion::gather_evidence(&root, &candidate, &entries);

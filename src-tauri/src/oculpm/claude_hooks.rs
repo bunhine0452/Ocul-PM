@@ -147,7 +147,7 @@ pub fn install(root: &Path) -> OculpmResult<ClaudeHooksStatus> {
     let mut settings = read_settings(root)?;
     if !settings.is_object() {
         return Err(OculpmError::InvalidConfig(
-            "settings.local.json 최상위가 JSON 오브젝트가 아닙니다".into(),
+            "The top level of settings.local.json is not a JSON object".into(),
         ));
     }
     let obj = settings.as_object_mut().expect("checked is_object above");
@@ -156,7 +156,7 @@ pub fn install(root: &Path) -> OculpmResult<ClaudeHooksStatus> {
         .or_insert_with(|| Value::Object(Map::new()));
     if !hooks.is_object() {
         return Err(OculpmError::InvalidConfig(
-            "settings.local.json 의 \"hooks\" 가 오브젝트가 아닙니다".into(),
+            "\"hooks\" in settings.local.json is not an object".into(),
         ));
     }
     let hooks = hooks.as_object_mut().expect("checked is_object above");
@@ -166,7 +166,7 @@ pub fn install(root: &Path) -> OculpmResult<ClaudeHooksStatus> {
             .or_insert_with(|| Value::Array(vec![]));
         let Some(arr) = arr.as_array_mut() else {
             return Err(OculpmError::InvalidConfig(format!(
-                "settings.local.json 의 hooks.{event} 가 배열이 아닙니다"
+                "hooks.{event} in settings.local.json is not an array"
             )));
         };
         if !event_has_ours(arr) {

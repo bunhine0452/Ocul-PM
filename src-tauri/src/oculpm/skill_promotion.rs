@@ -311,6 +311,8 @@ pub fn gather_evidence(
                 let (masked, _) = redact::redact_text(body, &patterns);
                 truncate_chars(&masked, EVIDENCE_BODY_CHARS)
             }
+            // 에러 반환이 아니라 **프롬프트 증거 본문**에 끼우는 자리표시자다
+            // — 모델에게 가는 문구라 §4.5 대로 한국어로 둔다.
             Err(_) => format!(
                 "(일지 파일을 읽지 못했습니다: {} — 디스크에서 이동/삭제된 듯)",
                 e.relative_path

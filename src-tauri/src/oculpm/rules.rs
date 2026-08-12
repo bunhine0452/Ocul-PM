@@ -407,7 +407,7 @@ pub fn read(
     let abs = secure_path(scope_root, rel_path)?;
     if std::fs::metadata(&abs).map(|m| m.len()).unwrap_or(0) > MAX_RULE_BYTES as u64 {
         return Err(format!(
-            "규칙 파일이 읽기 상한을 넘습니다 ({}KB) — 외부에서 커진 파일은 직접 정리하세요",
+            "Rule file exceeds the read limit ({}KB) - clean up files that grew outside the app",
             MAX_RULE_BYTES / 1024
         ));
     }
@@ -512,8 +512,8 @@ fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
         Ok(None) => None, // 신규 파일 → 보호할 블록 없음
         Err(()) => {
             return Err(
-                "기존 파일이 읽기 상한을 넘거나 읽을 수 없어 관리 블록을 검증하지 \
-                 못했습니다 — 저장을 중단합니다"
+                "The existing file exceeds the read limit or could not be read, so the \
+                 managed block could not be verified - aborting the save"
                     .into(),
             )
         }
@@ -524,9 +524,9 @@ fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
     match incoming {
         Some(ref new_block) if new_block == &disk_block => Ok(()),
         _ => Err(
-            "이 파일의 `oculpm:begin/end` 구간은 ocul-pm 이 관리합니다 (에이전트 sync 때마다 \
-             재작성됨). 블록 밖은 자유롭게 편집할 수 있지만 블록 안은 바꿀 수 없습니다 — \
-             규칙 본문을 바꾸려면 `.oculpm/agents/_template.md` 를 편집하세요."
+            "The `oculpm:begin/end` region of this file is managed by ocul-pm (rewritten on \
+             every agent sync). You can edit freely outside the block, but not inside it - \
+             to change the rule text, edit `.oculpm/agents/_template.md`."
                 .into(),
         ),
     }
@@ -1054,7 +1054,7 @@ mod tests {
         );
 
         let err = read(RuleScope::Project, root, root, ".claude/rules/huge.md").unwrap_err();
-        assert!(err.contains("상한"), "{err}");
+        assert!(err.contains("read limit"), "{err}");
     }
 
     /// A0c ⑤ 후속 (리뷰 지적) — 상한 초과로 검증 불능인 대상은 "건드리지
@@ -1069,7 +1069,7 @@ mod tests {
         seed(root, ".claude/CLAUDE.md", &big);
         let err = save(RuleScope::Project, root, root, ".claude/CLAUDE.md", "새 내용", false)
             .unwrap_err();
-        assert!(err.contains("검증"), "{err}");
+        assert!(err.contains("could not be verified"), "{err}");
 
         // 미러 경로 — 검증 불능 .mdc 는 쓰지도 지우지도 않고 상태는 Conflict.
         seed(root, ".claude/rules/commit.md", ALWAYS_RULE);

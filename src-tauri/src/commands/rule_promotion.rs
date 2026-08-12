@@ -67,7 +67,7 @@ pub async fn rule_draft_generate(
         .into_iter()
         .find(|c| c.key == candidate_key)
         .ok_or_else(|| {
-            "후보를 찾을 수 없습니다 — 그 사이 일지·규칙이 바뀌었을 수 있으니 새로고침하세요"
+            "Candidate not found - journals or rules may have changed since; refresh and retry"
                 .to_string()
         })?;
     let evidence = rule_promotion::gather_evidence(&root, &candidate, &entries);

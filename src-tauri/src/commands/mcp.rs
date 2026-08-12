@@ -38,7 +38,7 @@ pub async fn mcp_register(
 ) -> Result<McpRegistrationStatus, String> {
     let root = project_root(&db, project_id).await?;
     let binary = resolve_binary_path().ok_or_else(|| {
-        "oculpm-mcp 바이너리를 찾지 못했습니다 — dev 에서는 `cargo build --bin oculpm-mcp` 후 다시 시도하세요".to_string()
+        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
     })?;
     register::register_with_binary(&root, &binary).map_err(|e| e.to_string())
 }
@@ -72,7 +72,7 @@ pub async fn mcp_desktop_register(
 ) -> Result<DesktopRegistrationStatus, String> {
     let root = project_root(&db, project_id).await?;
     let binary = resolve_binary_path().ok_or_else(|| {
-        "oculpm-mcp 바이너리를 찾지 못했습니다 — dev 에서는 `cargo build --bin oculpm-mcp` 후 다시 시도하세요".to_string()
+        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
     })?;
     register::desktop_register_at(&desktop_config_path()?, &root, &binary).map_err(|e| e.to_string())
 }

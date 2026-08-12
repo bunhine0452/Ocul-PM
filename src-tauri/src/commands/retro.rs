@@ -29,6 +29,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::db::{Db, RetroInsight};
+use crate::oculpm::content_lang::ContentLang;
 use crate::llm;
 use crate::oculpm::cache::{JournalCache, RangeEntry};
 use crate::oculpm::spec::{AgentCount, DifficultyMix};
@@ -603,19 +604,67 @@ async fn call_llm(
 /// frontmatter 계약의 signature·경로까지 부숴 신선도 판정이 무너진다.
 /// 그래서 마스킹 대상(일지 제목·파일 경로가 든 신호 본문)만 밖에서 redact 하고,
 /// 계약 블록은 여기서 원문 그대로 조립한다.
-fn build_retro_dispatch_prompt(signals: &RetroSignals, redacted_signals_text: &str) -> String {
+fn build_retro_dispatch_prompt(
+    signals: &RetroSignals,
+    redacted_signals_text: &str,
+    lang: ContentLang,
+) -> String {
     let mut p = String::new();
-    p.push_str("ocul-pm 회고 디스패치 — 아래 신호를 한국어 회고로 종합하라.\n\n");
-    p.push_str("## 역할과 규칙\n\n");
+    // 예전엔 "한국어 회고로 종합하라" 가 **박혀** 있었다 — 산출물 언어를
+    // English 로 둬도 디스패치 회고만 한국어로 돌아왔다.
+    p.push_str(lang.pick(
+        "ocul-pm 회고 디스패치 — 아래 신호를 한국어 회고로 종합하라.\n\n",
+        "ocul-pm retro dispatch — synthesize the signals below into a retro written in English.\n\n",
+    ));
+    p.push_str(&format!("## {}\n\n", lang.pick("역할과 규칙", "Role and rules")));
     p.push_str(SYSTEM_PROMPT);
-    p.push_str(
+    p.push_str(lang.pick(
         "\n\n(위 규칙의 \"마크다운 본문만 출력·머리말 금지\"는 **회고 본문**에 대한 것이다 — \
          아래 산출물 계약의 frontmatter 는 예외로, 파일 맨 위에 반드시 포함한다.)",
-    );
-    p.push_str("\n\n## 입력 신호 (이것만 근거로 — 저장소를 다시 뒤질 필요 없음)\n\n");
+        "\n\n(The \"markdown body only, no preamble\" rule above applies to the **retro body** — \
+         the frontmatter in the output contract below is the exception and must start the file.)",
+    ));
+    p.push_str(lang.pick(
+        "\n\n## 입력 신호 (이것만 근거로 — 저장소를 다시 뒤질 필요 없음)\n\n",
+        "\n\n## Input signals (base it only on these — no need to dig through the repo)\n\n",
+    ));
     p.push_str(redacted_signals_text);
-    p.push_str(&format!(
-        r#"
+    // frontmatter 블록(`oculpm_retro`/`range_key`/`signature`/`generated_by`)과
+    // 파일 경로는 `retro_file::parse_retro_file` 이 읽는 **계약**이라 두 언어에서
+    // 글자 단위로 동일하다 — 본문 헤딩만 자유 산문이다.
+    p.push_str(&match lang {
+        ContentLang::English => format!(
+            r#"
+## Output — a single file
+
+Save the retro body to exactly this file (create the directory if missing):
+
+`.oculpm/retro/{rk}.md`
+
+The file must start with this frontmatter (copy the values verbatim, LF newlines):
+
+```
+---
+oculpm_retro: v1
+range_key: {rk}
+signature: {sig}
+generated_by: claude-code
+---
+```
+
+Continue with the retro body below the frontmatter, starting at its first `##` heading.
+
+Notes:
+- Create **only** this file — do not write a journal entry or touch the plan (a retro is an
+  artifact, not a unit of work).
+- Do not modify `signature` — ocul-pm uses it to judge whether the retro is stale.
+- Reopen the ocul-pm retro screen after saving and this retro will show up.
+"#,
+            rk = signals.range_key,
+            sig = signals.signature,
+        ),
+        _ => format!(
+            r#"
 ## 산출물 — 파일 하나
 
 회고 본문을 정확히 이 파일에 저장하라 (디렉터리가 없으면 만들 것):
@@ -640,9 +689,10 @@ frontmatter 아래에 회고 본문(## 한눈에 보기 부터)을 이어 쓴다
 - frontmatter 의 signature 는 수정 금지 — ocul-pm 이 회고의 신선도 판정에 쓴다.
 - 저장 후 ocul-pm 회고 화면을 다시 열면 이 회고가 표시된다.
 "#,
-        rk = signals.range_key,
-        sig = signals.signature,
-    ));
+            rk = signals.range_key,
+            sig = signals.signature,
+        ),
+    });
     p
 }
 
@@ -662,7 +712,7 @@ pub async fn retro_dispatch_prompt(
     // 외 입력(경로 조작 포함)은 여기서 자른다 (읽기 경로의 가드와 대칭).
     if !crate::oculpm::retro_file::is_valid_range_key(&signals.range_key) {
         return Err(format!(
-            "잘못된 기간 형식입니다: {} (YYYYMMDD 워크데이만 허용)",
+            "Invalid period format: {} (only YYYYMMDD workdays are allowed)",
             signals.range_key
         ));
     }
@@ -678,7 +728,8 @@ pub async fn retro_dispatch_prompt(
     let patterns = crate::oculpm::planner::dispatch::project_redact_patterns(&root);
     let (signals_text, _hits) =
         crate::oculpm::redact::redact_text(&fmt_signals(&signals), &patterns);
-    let prompt = build_retro_dispatch_prompt(&signals, &signals_text);
+    let lang = crate::oculpm::content_lang::current(&db).await;
+    let prompt = build_retro_dispatch_prompt(&signals, &signals_text, lang);
 
     let dispatch_dir = root.join(".oculpm").join("index").join("dispatch");
     std::fs::create_dir_all(&dispatch_dir).map_err(|e| e.to_string())?;
@@ -759,7 +810,7 @@ mod tests {
 
         // 신호 본문이 공격적 redact 패턴(예: hex 마스킹)에 전부 지워져도
         // 계약 블록(signature·경로)은 원문 그대로 남아야 한다.
-        let p = build_retro_dispatch_prompt(&signals, "[REDACTED-SIGNALS]");
+        let p = build_retro_dispatch_prompt(&signals, "[REDACTED-SIGNALS]", ContentLang::Unset);
         assert!(p.contains("[REDACTED-SIGNALS]"));
         // 산출 파일 경로·frontmatter 계약·신선도 서명이 전부 프롬프트에 실려야 한다.
         assert!(p.contains(".oculpm/retro/20260726..20260801.md"));
@@ -848,4 +899,59 @@ mod tests {
         assert!(agg.hot_paths.is_empty());
         assert!(agg.agent_breakdown.is_empty());
     }
+
+    #[test]
+    fn english_retro_dispatch_keeps_the_parsed_contract_byte_identical() {
+        let signals = sample_signals();
+        let ko = build_retro_dispatch_prompt(&signals, "[S]", ContentLang::Unset);
+        let en = build_retro_dispatch_prompt(&signals, "[S]", ContentLang::English);
+
+        // 예전엔 "한국어 회고로 종합하라" 가 박혀 있어 산출물 언어를 English 로
+        // 둬도 디스패치 회고만 한국어로 돌아왔다.
+        assert!(en.contains("written in English"), "{en}");
+        assert!(!en.contains("한국어 회고로"), "{en}");
+
+        // frontmatter 는 `retro_file::parse_retro_file` 이 읽는 계약이라 두
+        // 언어에서 **글자 단위로** 같아야 한다 — 여기가 갈리면 저장된 회고를
+        // 앱이 못 알아본다.
+        for needle in [
+            "oculpm_retro: v1",
+            "generated_by: claude-code",
+            ".oculpm/retro/",
+        ] {
+            assert!(ko.contains(needle), "ko: {needle}");
+            assert!(en.contains(needle), "en: {needle}");
+        }
+        assert!(en.contains(&format!("range_key: {}", signals.range_key)), "{en}");
+        assert!(en.contains(&format!("signature: {}", signals.signature)), "{en}");
+    }
+
+
+    fn sample_signals() -> RetroSignals {
+        let agg = aggregate(&[entry(
+            "feature",
+            "done",
+            "claude-code",
+            Some("high"),
+            "20260726",
+            "F1",
+            &["src/a.rs"],
+        )]);
+        let mut signals = RetroSignals {
+            since: "20260726".into(),
+            until: "20260801".into(),
+            range_key: "20260726..20260801".into(),
+            signature: String::new(),
+            total_entries: agg.total_entries,
+            shipped: agg.shipped,
+            resistance: agg.resistance,
+            repeated_files: agg.repeated_files,
+            effort_hotspots: vec![],
+            agent_breakdown: agg.agent_breakdown,
+            difficulty_mix: agg.difficulty_mix,
+        };
+        signals.signature = compute_signature(&signals);
+        signals
+    }
+
 }

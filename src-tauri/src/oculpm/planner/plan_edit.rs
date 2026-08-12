@@ -143,7 +143,7 @@ pub fn set_item_status_rolled(
     let parsed = crate::oculpm::planner::parse::parse_plan(md, "x");
     if parsed.items.iter().any(|i| i.parent_item.as_deref() == Some(item_id)) {
         return Err(format!(
-            "'{item_id}' 는 하위 항목이 있는 부모입니다 — 상태는 하위 롤업으로 자동 계산됩니다. \
+            "'{item_id}' is a parent with children - its status is rolled up automatically. \
              하위 항목을 갱신하세요"
         ));
     }

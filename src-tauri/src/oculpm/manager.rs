@@ -1124,7 +1124,7 @@ impl OculpmManager {
         }
         if !changed {
             return Err(OculpmError::InvalidConfig(
-                "보정할 시간대가 없습니다 (이미 오프셋이 있거나 시간 형식이 아닙니다).".to_string(),
+                "Nothing to fix (it already has an offset, or it is not a time value).".to_string(),
             ));
         }
         let new_text = write_frontmatter_and_body(&fm, &body);
