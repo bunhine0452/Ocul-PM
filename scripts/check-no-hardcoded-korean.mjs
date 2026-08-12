@@ -117,6 +117,8 @@ const PENDING = new Set([
  * 남는지 본다. 이쪽을 넓히는 게 맞고, 이 파일들을 번역하는 건 틀렸다.
  */
 const TESTS = new Set([
+  // 양 언어 a11y — ko 마커("설정")와 한국어 테스트 이름이 검사 재료다.
+  "__tests__/a11y_screens.test.tsx",
   "__tests__/agent_detect.test.ts",
   "__tests__/ai_context_parts.test.ts",
   "__tests__/ai_history.test.tsx",

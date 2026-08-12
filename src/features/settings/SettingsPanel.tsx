@@ -141,17 +141,22 @@ function NumberSlider({
   max,
   step,
   onChange,
+  ariaLabel,
 }: {
   value: number;
   min: number;
   max: number;
   step?: number;
   onChange: (v: number) => void;
+  /** 접근 가능한 이름. `Field` 의 <Label> 은 htmlFor 가 없어 연결되지 않는다 —
+   *  axe "Form elements must have labels" 가 여기서 걸린다. */
+  ariaLabel: string;
 }) {
   return (
     <div className="flex items-center gap-3">
       <input
         type="range"
+        aria-label={ariaLabel}
         value={value}
         min={min}
         max={max}
@@ -454,6 +459,7 @@ function AppearanceTab() {
           <div className="flex items-center gap-3">
             <input
               type="range"
+              aria-label={t("settings.scale.title")}
               min={70}
               max={160}
               step={5}
@@ -825,6 +831,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
       <Section title={t("settings.gen.title")} description={t("settings.gen.desc")}>
         <Field label={t("settings.gen.temperature", { value: settings.temperature.toFixed(2) })} hint={t("settings.gen.temperatureHint")}>
           <NumberSlider
+            ariaLabel={t("settings.gen.temperature", { value: settings.temperature.toFixed(2) })}
             value={settings.temperature}
             min={0}
             max={1}
@@ -834,6 +841,7 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </Field>
         <Field label={t("settings.gen.maxTokens", { value: settings.maxTokens })}>
           <NumberSlider
+            ariaLabel={t("settings.gen.maxTokens", { value: settings.maxTokens })}
             value={settings.maxTokens}
             min={256}
             max={32768}
@@ -905,6 +913,7 @@ function IndexingTab() {
       >
         <Field label={t("settings.chunk.size", { n: settings.chunkSize })}>
           <NumberSlider
+            ariaLabel={t("settings.chunk.size", { n: settings.chunkSize })}
             value={settings.chunkSize}
             min={5}
             max={120}
@@ -913,6 +922,7 @@ function IndexingTab() {
         </Field>
         <Field label={t("settings.chunk.overlap", { n: settings.chunkOverlap })} hint={t("settings.chunk.overlapHint")}>
           <NumberSlider
+            ariaLabel={t("settings.chunk.overlap", { n: settings.chunkOverlap })}
             value={settings.chunkOverlap}
             min={0}
             max={Math.max(0, settings.chunkSize - 1)}
@@ -924,6 +934,7 @@ function IndexingTab() {
       <Section title={t("settings.retrieval.title")} description={t("settings.retrieval.desc")}>
         <Field label={t("settings.retrieval.topK", { n: settings.ragTopK })}>
           <NumberSlider
+            ariaLabel={t("settings.retrieval.topK", { n: settings.ragTopK })}
             value={settings.ragTopK}
             min={0}
             max={20}
@@ -947,6 +958,7 @@ function IndexingTab() {
             hint={t("settings.aiContext.entriesHint")}
           >
             <NumberSlider
+              ariaLabel={t("settings.aiContext.entries", { n: settings.oculpmContextEntries })}
               value={settings.oculpmContextEntries}
               min={0}
               max={15}
@@ -959,6 +971,7 @@ function IndexingTab() {
       <Section title={t("settings.scan.title")} description={t("settings.scan.desc")}>
         <Field label={t("settings.scan.maxSize", { n: settings.maxFileSizeKb })} hint={t("settings.scan.maxSizeHint")}>
           <NumberSlider
+            ariaLabel={t("settings.scan.maxSize", { n: settings.maxFileSizeKb })}
             value={settings.maxFileSizeKb}
             min={50}
             max={4096}
@@ -1001,6 +1014,7 @@ function GraphTab() {
         hint={t("settings.graph.thresholdHint")}
       >
         <NumberSlider
+          ariaLabel={t("settings.graph.threshold", { n: settings.graphGroupThreshold })}
           value={settings.graphGroupThreshold}
           min={2}
           max={12}
@@ -1727,7 +1741,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     <section className="w-full max-w-4xl rounded-xl border bg-card shadow-sm overflow-hidden">
       <header className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
         <SettingsIcon className="w-4 h-4 text-primary" />
-        <h2 className="text-lg font-heading font-semibold">Settings</h2>
+        <h2 className="text-lg font-heading font-semibold">{t("shell.settings.title")}</h2>
       </header>
       {body}
     </section>
