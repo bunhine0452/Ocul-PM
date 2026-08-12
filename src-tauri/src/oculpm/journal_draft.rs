@@ -177,12 +177,21 @@ pub fn sanitize_slug(raw: &str, fallback: &str) -> String {
 }
 
 /// 타입별 강제 헤더 (AGENTS.md §4) 를 코드가 조립한다.
-/// 타입별 강제 헤더는 **온디스크 규격**(AGENTS.md §4)이라 번역하지 않는다 —
-/// 파서·정직성 감사가 `## 검증` 을 읽고, 기존 일지가 전부 그 모양이다
-/// (03-i18n.md §1: 디스크 산출물은 `schema_version` 범프가 필요한 별도 라운드).
+/// 타입별 강제 헤더 (AGENTS.md §4) 를 코드가 조립한다.
 ///
-/// 반면 LLM 이 못 채운 자리를 메우는 **폴백 문구**는 코드가 쓰는 산문이라
-/// 산출물 언어를 따라야 한다 — 영어 일지 한가운데 한국어 한 줄이 남는다.
+/// ## 헤더도 산출물 언어를 따른다 — 마이그레이션은 필요 없다
+///
+/// 처음엔 이걸 `schema_version` 범프가 필요한 별도 라운드로 미뤄 뒀는데,
+/// 실제로 확인해 보니 **헤더 이름으로 파싱하는 코드가 한 곳도 없다**:
+/// `markdown::extract_headers` 는 어떤 텍스트든 일반적으로 걷어내고(영어 헤더
+/// 테스트가 이미 있다), 그 `headers` 필드를 읽는 소비처가 없다.
+///
+/// 그래서 기존 한국어 일지는 **한 글자도 안 바뀐 채 그대로 파싱되고**, 새
+/// 일지만 설정 언어를 따른다. 언어가 섞인 이력이 남지만 그건 원래 그렇다 —
+/// 이미 쓰인 문서는 되돌리지 않는다는 게 이 설정의 약속이다.
+///
+/// 영어 이름은 프런트가 먼저 정한 것(`manual.bodyPlaceholder`: Root cause /
+/// Fix)을 따라 맞춘다 — 수동 작성과 자동 초안이 다른 헤더를 쓰면 안 된다.
 pub fn compose_body(
     entry_type: EntryType,
     plan: &DraftPlan,
@@ -190,9 +199,18 @@ pub fn compose_body(
     lang: ContentLang,
 ) -> String {
     let (h1, h2) = match entry_type {
-        EntryType::Bug | EntryType::Error => (Some("발생 원인"), Some("해결 방법")),
-        EntryType::Feature => (Some("추가 기능"), Some("동작 흐름")),
-        EntryType::Refactor => (Some("동기"), Some("변경 요약")),
+        EntryType::Bug | EntryType::Error => (
+            Some(lang.pick("발생 원인", "Root cause")),
+            Some(lang.pick("해결 방법", "Fix")),
+        ),
+        EntryType::Feature => (
+            Some(lang.pick("추가 기능", "What was added")),
+            Some(lang.pick("동작 흐름", "How it works")),
+        ),
+        EntryType::Refactor => (
+            Some(lang.pick("동기", "Motivation")),
+            Some(lang.pick("변경 요약", "Summary of changes")),
+        ),
         EntryType::Chore => (None, None),
     };
     let mut body = String::new();
@@ -221,8 +239,8 @@ pub fn compose_body(
     } else {
         plan.verification.trim()
     };
-    body.push_str(&format!("## 검증\n\n{verification}\n\n"));
-    body.push_str(&format!("## 메모\n\n{meta_note}\n"));
+    body.push_str(&format!("## {}\n\n{verification}\n\n", lang.pick("검증", "Verification")));
+    body.push_str(&format!("## {}\n\n{meta_note}\n", lang.pick("메모", "Notes")));
     body
 }
 
@@ -243,7 +261,6 @@ pub fn compose_degraded_body(
             .collect::<Vec<_>>()
             .join("\n")
     };
-    // `## 검증` · `## 메모` 는 온디스크 규격이라 두 언어에서 동일하다.
     let (lead, verify) = match lang {
         ContentLang::English => (
             format!(
@@ -266,14 +283,15 @@ pub fn compose_degraded_body(
     );
     format!(
         "{lead}\n\n\
-         - {s_label}: `{}` ({} {})\n\
-         - {f_label}:\n{}\n\n\
-         ## 검증\n\n{verify}\n\n\
-         ## 메모\n\n{meta_note}\n",
-        session.id,
-        lang.pick("시작", "started"),
-        session.started_at,
-        file_lines
+         - {s_label}: `{id}` ({started} {at})\n\
+         - {f_label}:\n{file_lines}\n\n\
+         ## {h_verify}\n\n{verify}\n\n\
+         ## {h_note}\n\n{meta_note}\n",
+        id = session.id,
+        started = lang.pick("시작", "started"),
+        at = session.started_at,
+        h_verify = lang.pick("검증", "Verification"),
+        h_note = lang.pick("메모", "Notes"),
     )
 }
 
@@ -692,7 +710,7 @@ mod tests {
     // ── 산출물 언어 (English) — 헤더는 규격, 폴백 문구는 산문 ─────────────
 
     #[test]
-    fn english_fallbacks_are_english_but_headers_stay_spec() {
+    fn english_fallbacks_and_headers_are_english() {
         // LLM 이 secondary/verification 을 못 채운 최악의 경우.
         let p = DraftPlan {
             type_: "bug".into(),
@@ -705,9 +723,12 @@ mod tests {
         };
         let body = compose_body(EntryType::Bug, &p, "note", ContentLang::English);
 
-        // 헤더는 온디스크 규격이라 한국어 그대로다 (03-i18n.md §1).
-        assert!(body.contains("## 발생 원인"), "{body}");
-        assert!(body.contains("## 검증"), "{body}");
+        // 헤더도 산출물 언어를 따른다 — 헤더 이름으로 파싱하는 코드가 없어
+        // 마이그레이션이 필요 없다는 걸 확인한 뒤 바꿨다 (compose_body 주석).
+        // 이름은 프런트 `manual.bodyPlaceholder` 와 맞춘다.
+        assert!(body.contains("## Root cause"), "{body}");
+        assert!(body.contains("## Verification"), "{body}");
+        assert!(!body.contains("## 발생 원인"), "{body}");
 
         // 폴백 **산문**은 영어여야 한다 — 영어 일지 한가운데 한국어 한 줄이
         // 남는 게 이 수정 전의 실제 동작이었다.
@@ -735,8 +756,24 @@ mod tests {
             compose_degraded_body(&session, &[], "llm failed", "note", ContentLang::English);
         assert!(body.contains("Auto-downgraded record"), "{body}");
         assert!(body.contains("Session:"), "{body}");
-        assert!(body.contains("## 검증"), "규격 헤더는 유지: {body}");
+        assert!(body.contains("## Verification"), "{body}");
         assert!(!body.contains("자동 강등"), "{body}");
+    }
+
+
+    #[test]
+    fn korean_path_is_byte_identical_to_before() {
+        // 이 라운드의 안전판 — 기존 사용자의 일지 모양이 바뀌면 안 된다.
+        // `Unset`(설정 미지정)과 명시 `Korean` 둘 다 예전 헤더 그대로여야 한다.
+        let p = plan("bug");
+        for lang in [ContentLang::Unset, ContentLang::Korean] {
+            let body = compose_body(EntryType::Bug, &p, "m", lang);
+            assert!(body.contains("## 발생 원인"), "{lang:?}: {body}");
+            assert!(body.contains("## 해결 방법"), "{lang:?}: {body}");
+            assert!(body.contains("## 검증"), "{lang:?}: {body}");
+            assert!(body.contains("## 메모"), "{lang:?}: {body}");
+            assert!(!body.contains("Root cause"), "{lang:?}: {body}");
+        }
     }
 
 }
