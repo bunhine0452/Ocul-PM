@@ -189,7 +189,12 @@ describe("tAll()", () => {
   });
 
   it("양 언어 값이 같으면 한 번만 나온다", () => {
-    // "Today" 는 양쪽 사전에서 동일 — 색인에 중복이 쌓이면 안 된다.
-    expect(tAll("nav.today")).toEqual(["Today"]);
+    // "LLM" 은 양쪽 사전에서 동일 — 색인에 중복이 쌓이면 안 된다.
+    // (예전엔 `nav.today` 를 썼지만 라벨이 "오늘" 로 한국어화되며 갈렸다.)
+    expect(tAll("settings.tab.llm")).toEqual(["LLM"]);
+  });
+
+  it("양 언어가 다르면 둘 다 나온다 — 팔레트가 양쪽으로 찾히게", () => {
+    expect(tAll("nav.today").sort()).toEqual(["Today", "오늘"]);
   });
 });

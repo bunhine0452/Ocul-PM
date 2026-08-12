@@ -277,7 +277,7 @@ describe("PR-UI 2 — Today a11y", () => {
     await findByText(/2건/);
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
     // sanity: `within` import is exercised so lint doesn't flag it unused.
-    expect(within(container).queryByText("Today")).toBeTruthy();
+    expect(within(container).queryByText("오늘")).toBeTruthy();
   });
 });
 

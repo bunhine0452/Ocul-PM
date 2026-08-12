@@ -14,10 +14,10 @@
  */
 export const ko = {
   // ── 내비게이션 (navRegistry.ts) ─────────────────────────────────────────
-  "nav.today": "Today",
+  "nav.today": "오늘",
   "nav.journal": "작업 일지",
   "nav.discussion": "문제 해결",
-  "nav.planner": "Planner",
+  "nav.planner": "플래너",
   "nav.diff": "변경 diff",
   "nav.retro": "회고",
   "nav.search": "코드 검색",
@@ -32,10 +32,10 @@ export const ko = {
   // 언어의 별칭을 모두** 키워드에 넣으므로, 여기엔 한국어 검색어만 적으면
   // 된다 (영어는 en.ts 가 담당). 라벨 자체도 자동으로 색인되므로 라벨에 있는
   // 단어는 반복하지 않는다.
-  "nav.today.alias": "오늘 대시보드 포커스",
+  "nav.today.alias": "투데이 대시보드 포커스 today",
   "nav.journal.alias": "일지 기록 타임라인 변경 로그",
   "nav.discussion.alias": "토의 문제 해결 결정 회의록",
-  "nav.planner.alias": "플래너 목표 계획",
+  "nav.planner.alias": "목표 계획 planner",
   "nav.diff.alias": "변경 로컬 파일 검토 차이",
   "nav.retro.alias": "회고 인사이트 요약 보고",
   "nav.search.alias": "코드 검색 의미 시맨틱",

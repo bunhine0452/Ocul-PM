@@ -69,10 +69,10 @@ describe("PR-UI 1 — Sidebar navigation", () => {
   it("renders all 10 slots", () => {
     const { getByText } = renderSidebar();
     for (const label of [
-      "Today",
+      "오늘",
       "작업 일지",
       "변경 diff",
-      "Planner",
+      "플래너",
       "코드 검색",
       "코드 맵",
       "터미널",
@@ -95,7 +95,7 @@ describe("PR-UI 1 — Sidebar navigation", () => {
   it("marks the active slot with aria-current", () => {
     const { getByText } = renderSidebar({ view: "journal" });
     expect(getByText("작업 일지").closest("button")).toHaveAttribute("aria-current", "page");
-    expect(getByText("Today").closest("button")).not.toHaveAttribute("aria-current");
+    expect(getByText("오늘").closest("button")).not.toHaveAttribute("aria-current");
   });
 
   it("dark toggle fires; project button opens the inline switcher whose 관리 item fires onOpenProjectSwitcher", () => {

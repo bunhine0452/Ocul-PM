@@ -137,7 +137,7 @@ export function TodayScreenV2({
 
   return (
     <>
-      <Toolbar title="Today" sub={dateLabel}>
+      <Toolbar title={t("nav.today")} sub={dateLabel}>
         <button
           type="button"
           className="search-box"
