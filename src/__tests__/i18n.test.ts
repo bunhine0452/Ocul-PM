@@ -195,6 +195,6 @@ describe("tAll()", () => {
   });
 
   it("양 언어가 다르면 둘 다 나온다 — 팔레트가 양쪽으로 찾히게", () => {
-    expect(tAll("nav.today").sort()).toEqual(["Today", "오늘"]);
+    expect(tAll("nav.today").sort()).toEqual(["Today", "오늘 현황"]);
   });
 });

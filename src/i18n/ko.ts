@@ -14,7 +14,7 @@
  */
 export const ko = {
   // ── 내비게이션 (navRegistry.ts) ─────────────────────────────────────────
-  "nav.today": "오늘",
+  "nav.today": "오늘 현황",
   "nav.journal": "작업 일지",
   "nav.discussion": "문제 해결",
   "nav.planner": "플래너",
