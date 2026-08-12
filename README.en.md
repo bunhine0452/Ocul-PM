@@ -27,17 +27,19 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.7.0 — The first screen now answers "where do I pick up?"
+## 🚀 v2.8 — English support · Skill shop · Terminal cleanup
 
-- **Bento cockpit home** — the resume tile gathers your next tasks (active plan), latest entry, a 14-day activity sparkline, and the last agent + model in one place; the flow tile streams today's journals across all projects.
-- **Keyboard end-to-end** — type anywhere to search (Korean initial-consonant matching included), `↓↑⏎` to move and open, `⌘O` folder · `⌘N` new project · `⌘E` rename · `⌘⌫` remove.
-- **Unrecorded-session signal** — Claude Code sessions that end without a journal are detected and surfaced as a Today card (auto-resolved once recorded), plus a statusline badge and new `/oculpm:inception` · `/oculpm:next` commands.
+- **The app speaks English (v2.8.5)** — pick your UI language in Settings → Appearance and all 12 screens switch over. Not just labels: **error messages**, the journals, retros and plan items your AI writes, and the `AGENTS.md` planted into new projects follow along. **UI language and AI writing language are separate settings** (English UI, Korean journals is a valid combination), and documents already on disk are never rewritten. The ⌘K palette matches in both languages, so your muscle memory survives the switch.
+- **Skill shop (v2.8.0)** — the **Shop tab** on the Skills screen detects your project's stack (manifest-based — zero LLM, zero network) and recommends from a **catalog of 25 vetted third-party skills** (all MIT, commit-pinned vendored copies, unmodified). Search, filter by tag, preview the body, install into `.claude/skills/` in one click — it's a native Claude Code feature, so it works without the plugin. Full catalog: [oculpm.com/plugin](https://oculpm.com/plugin). Shipping alongside it, a **delivery gate** catches sessions that changed code but wrote no journal, once per session, and tells the agent to record.
+- **Project management screen (v2.8.1)** — `⌘⇧M` lays every registered project out as a **flat table**: search by name/path, sort by last activity, entry count or name, and **remove several at once** via checkboxes. Whether to also delete the folder's `.oculpm` · `AGENTS.md` is a separate opt-in at the confirmation step (off by default — the project only leaves your workspace).
+- **Terminal Korean input & paste fixes (v2.8.2 · v2.8.3)** — Korean glyphs rendering larger than Latin ones, characters and spaces being delivered twice while a Korean IME was active, and pasted text arriving twice — where the second copy skipped bracketed paste and could **execute each line as a command**.
+- **Typography and speed (v2.8.4)** — the body typeface is now **Pretendard**, and 96 places where the designed font weight wasn't actually rendering are fixed. The diff screen loads its syntax-highlighting data only when you open it (266KB → 125KB right after opening a project), and the first code indexing batches its chunk writes.
 
-## v2.6.0 — Claude Code writes your retros now
+## v2.6 – v2.7 — the first screen, and retros
 
-- **[Via Claude Code] retro generation** — a terminal session writes the retro to `.oculpm/retro/` markdown, no API key or billing; API generation now shows elapsed time and model live.
-- **Repeated procedures → skill promotion** — recurring tags surface as skill candidates in Retro; approve to save into `.claude/skills/`.
-- **`project_init`** — start tracking a new project with the plugin alone (explicit user confirmation required).
+- **Bento cockpit home** — the resume tile gathers your next tasks (active plan), latest entry, a 14-day activity sparkline, and the last agent + model in one place; the flow tile streams today's journals across all projects. Type anywhere to search (Korean initial-consonant matching included), `↓↑⏎` to move and open, `⌘O` folder · `⌘N` new project · `⌘E` rename · `⌘⌫` remove.
+- **Unrecorded-session signal** — Claude Code sessions that end without a journal are detected and surfaced as a Today card (auto-resolved once recorded), plus a statusline badge and `/oculpm:inception` · `/oculpm:next` commands.
+- **[Via Claude Code] retro generation** — a terminal session writes the retro to `.oculpm/retro/` markdown, no API key or billing. Recurring tags surface as **skill candidates** to promote into `.claude/skills/`, and `project_init` starts tracking a new project with the plugin alone (explicit confirmation required).
 
 ## v2.5 — Claude Code plugin, and plans that drive implementation
 
@@ -69,9 +71,11 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 - **Docs** — browse your project's `docs/` folder like a wiki.
 - **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over.
 - **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails.
-- **Skills** — manage Claude Code skills (`.claude/skills/`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading.
+- **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. The **Shop tab** installs vetted third-party skills matched to your stack, 25 of them, in one click.
 
-⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, and ⌘P switches projects.
+⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management.
+
+Pick your UI language — **한국어 · English** — in Settings → Appearance. The language your AI writes documents in (journals, retros, plans) is a separate setting that defaults to following the UI.
 
 ## Supported agents
 

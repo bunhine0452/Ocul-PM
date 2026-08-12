@@ -34,6 +34,8 @@ cargo build
 
 Before committing, confirm typecheck / test / lint / build each exit 0 directly — don't assume.
 
+**Releasing?** Follow [docs/RELEASE.md](docs/RELEASE.md). A release is only done when the change is written on all five surfaces: the 3 version files, `CHANGELOG.md` (the sole source of the GitHub release notes), **`README.md` and `README.en.md` (both)**, and `landing/index.html` (version strings in 5 places, plus JSON-LD `featureList` / FAQ / bento cell when a feature was added). The landing site has no git integration — deploy it with `cd landing && vercel --prod`.
+
 ## Critical: the Rust↔TS command bridge
 
 The frontend never invokes Tauri directly. It calls typed functions from **`src/lib/bindings.ts`**, which is **auto-generated** by `tauri-specta` — **never hand-edit it.** It is regenerated two ways:

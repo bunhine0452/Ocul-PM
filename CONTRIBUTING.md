@@ -29,6 +29,10 @@ pnpm typecheck && pnpm test && pnpm lint && pnpm build
 cd src-tauri && cargo test   # bindings.ts 재생성 포함
 ```
 
+## 릴리스
+
+버전을 올릴 때는 [docs/RELEASE.md](docs/RELEASE.md) 의 체크리스트를 따릅니다. 변경 내용은 **다섯 면**(버전 3파일 · `CHANGELOG.md` · `README.md` · `README.en.md` · `landing/index.html`)에 모두 반영돼야 하고, 랜딩은 git 연동이 없어 `cd landing && vercel --prod` 로 따로 배포합니다.
+
 ## 알아두면 좋은 것
 
 - 아키텍처 개요와 규칙은 [CLAUDE.md](CLAUDE.md) 에 있습니다 (AI 에이전트용으로 쓰였지만 사람에게도 가장 빠른 지도입니다).

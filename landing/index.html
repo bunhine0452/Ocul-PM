@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM) · 로컬-우선</title>
-<meta name="description" content="Claude Code · Codex · Cursor · Gemini CLI 같은 AI 코딩 에이전트가 코드를 쓰는 동안, Ocul-PM(AI PM)이 작업을 자동으로 기록하고 스탠드업·PR 본문·회고로 되돌려줍니다. 자동 작업 일지, 로컬 diff 검증, 코드 맵, ⌘K 팔레트. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
-<meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, 스탠드업 생성, PR 본문 생성, 개발 회고, 코드 맵, 의존성 그래프, AI 개발 도구, 로컬 우선, local-first, 시맨틱 코드 검색, macOS 개발 도구, 개발 생산성" />
+<meta name="description" content="Claude Code · Codex · Cursor · Gemini CLI 같은 AI 코딩 에이전트가 코드를 쓰는 동안, Ocul-PM(AI PM)이 작업을 자동으로 기록하고 스탠드업·PR 본문·회고로 되돌려줍니다. 자동 작업 일지, 로컬 diff 검증, 코드 맵, 스킬 샵, ⌘K 팔레트. 화면 언어 한국어·English. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
+<meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, 스탠드업 생성, PR 본문 생성, 개발 회고, 코드 맵, 의존성 그래프, Claude Code 스킬, 스킬 샵, Claude Code skills, AI 개발 도구, 로컬 우선, local-first, 시맨틱 코드 검색, macOS 개발 도구, 개발 생산성, English UI, 영어 지원" />
 <meta name="author" content="Ocul-PM" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 <meta name="theme-color" content="#0f5b43" />
@@ -64,7 +64,10 @@
     "3단계 계획 (하위 작업 중첩 · 부모 상태 자동 롤업)",
     "project-inception 스킬 (웹 리서치 → 근거 실린 대화 → 설계 시드)",
     "macOS 메뉴바 상주 (세션 상태 아이콘 · 팝오버 브리핑 · 새 일지 알림)",
-    "규칙 허브 · 실패→규칙 승격 플라이휠 (.claude/rules · Cursor 병행 배포)"
+    "규칙 허브 · 실패→규칙 승격 플라이휠 (.claude/rules · Cursor 병행 배포)",
+    "스킬 샵 — 스택 자동 감지 후 검증된 제3자 스킬 25종 원클릭 설치 (MIT · 커밋 고정)",
+    "한국어 · English 화면 언어 (AI 작성 언어는 별도 지정)",
+    "프로젝트 관리 화면 (평면 표 · 검색 · 정렬 · 일괄 제거)"
   ]
 }
 </script>
@@ -99,6 +102,11 @@
       "@type": "Question",
       "name": "앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?",
       "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 5종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "영어(English)도 지원하나요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "네. v2.8.5 부터 설정 → 모양에서 화면 언어를 한국어 · English 중에 고르면 12개 화면 전체와 오류 메시지가 함께 바뀝니다. AI 가 쓰는 작업 일지·회고·플래너 항목의 언어는 따로 지정할 수 있어 화면은 영어, 기록은 한국어로 남기는 것도 가능하고, 이미 기록된 문서는 다시 쓰지 않습니다." }
     },
     {
       "@type": "Question",
@@ -265,7 +273,7 @@
         <p class="update-sub reveal d2">
           기록은 시작일 뿐이었습니다. <b>Claude Code 플러그인</b>이 설치 문턱을 두 줄로 낮추고,
           플래너의 <b>▶실행</b> 버튼이 계획 항목을 곧바로 에이전트 실세션으로 만듭니다 —
-          백미러가 핸들이 되는 흐름. v2.8 은 여기에 <b>스킬 샵</b>과 <b>프로젝트 관리 화면</b>을 더했습니다.
+          백미러가 핸들이 되는 흐름. v2.8 은 여기에 <b>스킬 샵</b> · <b>프로젝트 관리 화면</b> · <b>영어 지원</b>을 더했습니다.
         </p>
         <ul class="update-points">
           <li class="reveal d2"><b>v2.8.5 — 영어 지원</b> · 설정에서 화면 언어를 고르면 <b>12개 화면 전체</b>가 영어로 바뀝니다. 화면 문구뿐 아니라 <b>오류 메시지</b>와 AI 가 쓰는 작업 일지·회고·플래너 항목, 새 프로젝트에 심기는 기록 규칙까지 함께 따라갑니다. 화면 언어와 <b>AI 작성 언어는 따로</b> 고를 수 있고 — 화면은 영어, 일지는 한국어가 가능합니다 — <b>이미 기록된 문서는 다시 쓰지 않습니다</b>. ⌘K 팔레트는 양쪽 언어로 모두 찾힙니다.</li>
@@ -583,6 +591,49 @@
 <span class="p">➜</span> <span class="c">claude-code "롤오버 구현"</span><br/>
 <span class="o">● 3 files changed · 5 tests</span><br/>
 <span class="ok">◆ journal entry 작성됨</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 스킬 샵 -->
+      <div class="cell c-span2 reveal">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 7h14l1 13H4z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></div>
+        <span class="cell-tag">v2.8 · 샵 탭</span>
+        <h3>스킬 샵</h3>
+        <p>프로젝트 스택을 감지(매니페스트 기반 · LLM 0)해 <b>검증된 제3자 스킬 25종</b>을 추천합니다. 전부 MIT·커밋 고정 사본이고, 설치되면 <span class="mono">.claude/skills/</span> 에 들어가 <b>플러그인 없이도</b> 동작합니다.</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">rust-patterns</span><span class="rv">ecc · MIT</span><span class="rc">설치</span></div>
+            <div class="rr"><span class="rl">react-performance</span><span class="rv">감지된 스택</span><span class="rc">설치</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 한국어 · English -->
+      <div class="cell c-span2 reveal d1">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg></div>
+        <span class="cell-tag">v2.8.5 · 한국어 · English</span>
+        <h3>화면 언어를 고릅니다</h3>
+        <p>12개 화면 전체와 <b>오류 메시지</b>까지 함께 바뀝니다. <b>AI 작성 언어는 따로</b> — 화면은 영어, 일지는 한국어가 가능하고 이미 기록된 문서는 다시 쓰지 않습니다.</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">화면 언어</span><span class="rv">English</span><span class="rc">적용</span></div>
+            <div class="rr"><span class="rl">AI 작성 언어</span><span class="rv">한국어 유지</span><span class="rc">별도</span></div>
+          </div>
+          <div class="mini-cap">⌘K 팔레트는 <b>양쪽 언어</b>로 모두 찾힙니다</div>
+        </div>
+      </div>
+
+      <!-- 프로젝트 관리 -->
+      <div class="cell c-span2 reveal d2">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M10 10v10"/></svg></div>
+        <span class="cell-tag">v2.8.1 · ⌘⇧M</span>
+        <h3>프로젝트 관리</h3>
+        <p>등록된 프로젝트를 <b>평면 표</b>로 펼쳐 검색·정렬·이름 변경·제거를 한자리에서. 폴더의 <span class="mono">.oculpm</span>·<span class="mono">AGENTS.md</span> 삭제는 따로 고릅니다(기본 꺼짐).</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">ocul-pm</span><span class="rv">오늘 · 일지 412</span><span class="rc">열기</span></div>
+            <div class="rr"><span class="rl">old-side-project</span><span class="rv">3개월 전 · 일지 8</span><span class="rc">선택</span></div>
           </div>
         </div>
       </div>
