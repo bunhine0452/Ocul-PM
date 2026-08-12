@@ -41,8 +41,8 @@ pub fn tool_definitions() -> Value {
                 "properties": {
                     "type": { "type": "string", "enum": ["bug", "feature", "error", "refactor", "chore"], "description": "작업 단위의 종류" },
                     "slug": { "type": "string", "description": "ASCII kebab-case, 40자 이내 (예: fix-cache-invalidation)" },
-                    "title": { "type": "string", "description": "한 줄 제목 (한국어 권장)" },
-                    "body_markdown": { "type": "string", "description": "본문. 타입별 권장 헤더 — bug/error: '## 발생 원인'·'## 해결 방법', feature: '## 추가 기능'·'## 동작 흐름', refactor: '## 동기'·'## 변경 요약'. 마지막에 '## 검증' 1~3줄 필수. 시크릿 금지." },
+                    "title": { "type": "string", "description": "한 줄 제목. 언어는 프로젝트 AGENTS.md 를 따른다 (앱의 \"AI 작성 언어\" 설정이 그 마스터를 고른다)" },
+                    "body_markdown": { "type": "string", "description": "본문. 타입별 권장 헤더 — bug/error: 발생 원인·해결 방법, feature: 추가 기능·동작 흐름, refactor: 동기·변경 요약. 마지막에 검증 섹션 1~3줄 필수. **정확한 헤더 이름과 언어는 프로젝트 AGENTS.md 를 따른다** (영어 프로젝트는 Root cause / Fix / Verification). 시크릿 금지." },
                     "status": { "type": "string", "enum": ["planned", "in_progress", "done", "abandoned"], "description": "기본 done" },
                     "difficulty": { "type": "string", "enum": ["verylow", "low", "medium", "high", "superhigh"] },
                     "files_touched": {

@@ -260,7 +260,11 @@ pub async fn create_greenfield_project(
     //     `manager.sync_agents(project_id)` call here once the adapter
     //     templates exist; the wire-point is intentionally placed.
     if init_oculpm {
-        if let Err(e) = manager.init_project(project_id, &target).await {
+        let template_lang = match crate::oculpm::content_lang::current(&db).await {
+            crate::oculpm::content_lang::ContentLang::English => "en",
+            _ => "ko",
+        };
+        if let Err(e) = manager.init_project(project_id, &target, template_lang).await {
             tracing::warn!(
                 project_id,
                 error = %e,

@@ -46,8 +46,14 @@ pub async fn oculpm_init(
         root = %root.display(),
         "[FLOW] step 1 — oculpm_init invoked"
     );
+    // AGENTS.md 마스터 언어 = AI 작성 언어. 이 프로젝트에 심을 기록 규칙을
+    // 영어 사용자에게 한국어로 주지 않기 위한 것 — 최초 시드에만 반영된다.
+    let template_lang = match crate::oculpm::content_lang::current(&db).await {
+        crate::oculpm::content_lang::ContentLang::English => "en",
+        _ => "ko",
+    };
     let report = manager
-        .init_project(project_id, &root)
+        .init_project(project_id, &root, template_lang)
         .await
         .map_err(|e| {
             tracing::error!(

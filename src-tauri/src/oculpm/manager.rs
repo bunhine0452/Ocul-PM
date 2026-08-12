@@ -147,10 +147,15 @@ impl OculpmManager {
 
     /// Initialise `.oculpm/` for a project. Idempotent — calling twice with
     /// the same `project_id` returns a no-op report on the second call.
+    /// `template_lang` 은 **최초 시드 때만** 쓰인다 — 이미 config 가 있으면
+    /// 무시된다. AGENTS.md 마스터(`master_ko` / `master_en`)를 고르는 값이고,
+    /// 한 번 시드된 `_template.md` 는 사용자 소유라 나중에 바꿔도 안 갈린다
+    /// (그래서 여기서 정하는 게 유일한 기회다).
     pub async fn init_project(
         &self,
         project_id: u32,
         root: &Path,
+        template_lang: &str,
     ) -> Result<OculpmInitReport, OculpmError> {
         // Fast path: already initialised in this session.
         {
@@ -183,7 +188,11 @@ impl OculpmManager {
             cfg.validate()?;
             cfg
         } else {
-            let cfg = OculpmConfig::default_for_new_project();
+            let mut cfg = OculpmConfig::default_for_new_project();
+            cfg.agents.template_language = match template_lang {
+                "en" => "en".to_string(),
+                _ => "ko".to_string(),
+            };
             // Defaults are validated by `roundtrip_default` (W1-PR4), so this
             // can't fail in practice — kept as a guard.
             cfg.validate()?;
@@ -2139,7 +2148,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        let report = manager.init_project(1, dir.path()).await.unwrap();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(report.wrote_config, "config.toml must be created on fresh init");
         assert!(matches!(report.lock_state, LockStateView::Healthy));
 
@@ -2159,8 +2168,8 @@ mod tests {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        let r1 = manager.init_project(1, dir.path()).await.unwrap();
-        let r2 = manager.init_project(1, dir.path()).await.unwrap();
+        let r1 = manager.init_project(1, dir.path(), "ko").await.unwrap();
+        let r2 = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(r1.wrote_config);
         assert!(!r2.wrote_config, "second init must not rewrite config.toml");
         assert_eq!(r2.created_dirs, Vec::<String>::new());
@@ -2177,7 +2186,7 @@ mod tests {
         assert!(!s0.initialized);
         assert!(matches!(s0.lock_state, LockStateView::Uninitialized));
 
-        manager.init_project(1, dir.path()).await.unwrap();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
 
         let s1 = manager.get_status(1).await;
         assert!(s1.initialized);
@@ -2193,7 +2202,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        manager.init_project(1, dir.path()).await.unwrap();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(dir.path().join(".oculpm/.lock").exists());
 
         manager.on_project_closed(1).await.unwrap();
@@ -2218,8 +2227,8 @@ mod tests {
         let dir2 = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        manager.init_project(1, dir1.path()).await.unwrap();
-        manager.init_project(2, dir2.path()).await.unwrap();
+        manager.init_project(1, dir1.path(), "ko").await.unwrap();
+        manager.init_project(2, dir2.path(), "ko").await.unwrap();
         assert!(dir1.path().join(".oculpm/.lock").exists());
         assert!(dir2.path().join(".oculpm/.lock").exists());
 
@@ -2243,7 +2252,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db = crate::db::Db::open(dir.path().join("test.db")).await.unwrap();
         let manager = OculpmManager::new();
-        manager.init_project(1, dir.path()).await.unwrap();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
 
         // A journal entry whose created_at lacks a tz offset.
         let rel = "20260524/Bugs/0925_bug_notz.md";
@@ -2300,7 +2309,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        let report = manager.init_project(1, dir.path()).await.unwrap();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(report.wrote_gitignore);
 
         let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
@@ -2328,7 +2337,7 @@ mod tests {
         )
         .unwrap();
 
-        let report = manager.init_project(1, dir.path()).await.unwrap();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(report.wrote_gitignore);
 
         let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
@@ -2344,11 +2353,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
 
-        let r1 = manager.init_project(1, dir.path()).await.unwrap();
+        let r1 = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(r1.wrote_gitignore);
         let snapshot = std::fs::read(dir.path().join(".gitignore")).unwrap();
 
-        let r2 = manager.init_project(1, dir.path()).await.unwrap();
+        let r2 = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(!r2.wrote_gitignore);
         let after = std::fs::read(dir.path().join(".gitignore")).unwrap();
         assert_eq!(snapshot, after, ".gitignore must not be rewritten on idempotent init");
@@ -2368,7 +2377,7 @@ mod tests {
         )
         .unwrap();
 
-        let err = manager.init_project(1, dir.path()).await.unwrap_err();
+        let err = manager.init_project(1, dir.path(), "ko").await.unwrap_err();
         assert!(matches!(err, OculpmError::ManagedBlockMismatch { .. }));
 
         // Lock file must not survive a failed init.
@@ -2394,7 +2403,7 @@ mod tests {
         .unwrap();
 
         let manager = OculpmManager::new();
-        manager.init_project(1, dir.path()).await.unwrap();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
 
         let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
         assert!(gi.contains(".oculpm/some-future-dir/"), "unknown line must survive: {gi}");
@@ -2433,7 +2442,7 @@ mod tests {
         std::fs::write(dir.path().join(".gitignore"), newer).unwrap();
 
         let manager = OculpmManager::new();
-        let report = manager.init_project(1, dir.path()).await.unwrap();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(!report.wrote_gitignore, "newer block must not count as written");
         assert_eq!(
             std::fs::read_to_string(dir.path().join(".gitignore")).unwrap(),
@@ -2454,7 +2463,7 @@ mod tests {
         )
         .unwrap();
 
-        let report = manager.init_project(1, dir.path()).await.unwrap();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
         assert!(report.wrote_gitignore);
 
         let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
@@ -2469,7 +2478,7 @@ mod tests {
     async fn set_config_persists_and_updates_resolver() {
         let dir = tempdir().unwrap();
         let manager = OculpmManager::new();
-        manager.init_project(1, dir.path()).await.unwrap();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
 
         // Mutate + save.
         let mut updated = manager.get_config(1).await.unwrap();
@@ -2787,7 +2796,7 @@ mod tests {
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
             std::fs::create_dir_all(&project_root).unwrap();
-            manager.init_project(7, &project_root).await.unwrap();
+            manager.init_project(7, &project_root, "ko").await.unwrap();
             (manager, db, dir, project_root)
         }
 
@@ -3316,7 +3325,7 @@ mod tests {
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
             std::fs::create_dir_all(&project_root).unwrap();
-            manager.init_project(7, &project_root).await.unwrap();
+            manager.init_project(7, &project_root, "ko").await.unwrap();
             activate(&manager, 7, active).await;
             (manager, db, dir, project_root)
         }
@@ -3444,7 +3453,7 @@ mod tests {
             let manager = OculpmManager::new();
             let project_root = dir.path().join("project");
             std::fs::create_dir_all(&project_root).unwrap();
-            manager.init_project(7, &project_root).await.unwrap();
+            manager.init_project(7, &project_root, "ko").await.unwrap();
             (manager, db, dir, project_root)
         }
 
@@ -3676,6 +3685,30 @@ mod tests {
             assert_eq!(cmp.mismatch_severity, Severity::Ok);
             assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
         }
+    }
+
+
+    #[tokio::test]
+    async fn init_seeds_template_language_and_never_overrides_an_existing_config() {
+        // 영어 사용자에게 한국어 기록 규칙을 심지 않기 위한 것 —
+        // `master_en.md.tpl` 은 예전부터 있었지만 이 배선이 없어 **도달 불가**였다.
+        let dir = tempfile::tempdir().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "en").await.unwrap();
+        let cfg = OculpmConfig::load(&dir.path().join(".oculpm").join("config.toml")).unwrap();
+        assert_eq!(cfg.agents.template_language, "en");
+        // 이 값이 곧 마스터 선택이다 (agents::embedded_master). `_template.md`
+        // 자체는 sync 시점에 시드되므로 여기서는 config 계약만 못박는다.
+        assert_eq!(
+            crate::oculpm::agents::embedded_master(&cfg.agents.template_language),
+            crate::oculpm::agents::MASTER_EN
+        );
+
+        // 이미 config 가 있으면 무시된다 — 사용자가 고른 값을 덮지 않는다.
+        let manager2 = OculpmManager::new();
+        manager2.init_project(2, dir.path(), "ko").await.unwrap();
+        let after = OculpmConfig::load(&dir.path().join(".oculpm").join("config.toml")).unwrap();
+        assert_eq!(after.agents.template_language, "en", "기존 설정을 덮지 않는다");
     }
 
 }

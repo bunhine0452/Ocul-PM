@@ -30,7 +30,7 @@ async fn fresh_with_active_agents(active: &[&str]) -> (
     let project_root = dir.path().join("project");
     std::fs::create_dir_all(&project_root).unwrap();
     manager
-        .init_project(project_id, &project_root)
+        .init_project(project_id, &project_root, "ko")
         .await
         .unwrap();
     // Patch the config to activate the requested agents.
