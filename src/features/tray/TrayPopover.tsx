@@ -820,7 +820,16 @@ export function TrayPopover() {
     <div className="traypop" data-testid="tray-popover">
       <header className="tp-head">
         <ProjectPicker snapshots={snapshots} selected={selected} onSelect={setSelected} />
-        <button className="tp-open" onClick={() => openMain(null)}>
+        {/* 상단에서 고른 프로젝트가 있으면 **그 프로젝트**를 연다 — 예전에는
+            선택을 무시하고 앱만 앞으로 가져와, 고른 의미가 사라졌다. */}
+        <button
+          className="tp-open"
+          onClick={() =>
+            openMain(
+              selected === "all" ? null : { view: "today", project_id: selected },
+            )
+          }
+        >
           {t("tray.openApp")}
         </button>
       </header>

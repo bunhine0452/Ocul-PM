@@ -3055,6 +3055,11 @@ mod tests {
             assert!(res3.is_err());
         }
 
+        /// 파일명에 `HHMM` 이 들어가므로 **두 번만 쓰면 분 경계에서 깨진다**
+        /// (22:20:59 → 22:21:00 이면 애초에 충돌하지 않아 접미사도 없다).
+        /// 실제로 그 시각에 한 번 실패했다. 세 번 쓰면 마이크로초 단위 테스트가
+        /// 분 경계를 두 번 넘을 수는 없으므로 **적어도 둘은 같은 분**이고,
+        /// 충돌 경로가 반드시 실행된다.
         #[tokio::test]
         async fn create_manual_entry_handles_filename_collision_with_suffix() {
             let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
@@ -3066,15 +3071,21 @@ mod tests {
                 .create_manual_journal_entry(&db, 7, minimal_draft("collide"))
                 .await
                 .expect("second");
+            let c = manager
+                .create_manual_journal_entry(&db, 7, minimal_draft("collide"))
+                .await
+                .expect("third");
 
-            assert_ne!(a.relative_path, b.relative_path, "must not overwrite");
+            let paths = [&a.relative_path, &b.relative_path, &c.relative_path];
+            let unique: std::collections::HashSet<_> = paths.iter().collect();
+            assert_eq!(unique.len(), 3, "must not overwrite: {paths:?}");
             assert!(
-                b.relative_path.contains("__2"),
-                "second write should suffix __2: {}",
-                b.relative_path
+                paths.iter().any(|p| p.contains("__2")),
+                "같은 분에 쓴 두 건 중 뒤쪽은 __2 접미사를 가져야 한다: {paths:?}"
             );
             // Both files on disk.
             let r = project_root.join(".oculpm/journal");
+            assert!(r.join(&c.relative_path).exists());
             assert!(r.join(&a.relative_path).exists());
             assert!(r.join(&b.relative_path).exists());
         }

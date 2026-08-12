@@ -1,30 +1,24 @@
 /**
- * 레일(목록) 행들 — 프로젝트 / 색인 / 초안 / 명령.
+ * 바닥 띠의 행들 — 초안 / 명령.
  *
- * 공통 규약 3가지:
- *  1. **스트레치 오픈** — 행 전체가 클릭 영역이지만, 실제 인터랙티브 요소는
- *     작은 버튼 하나(`.home-open`)이고 그 `::after` 가 행을 덮는다. 행 전체를
- *     `<button>` 으로 감싸면 안의 ✎/🗑 이 중첩 인터랙티브(axe 위반)가 된다.
- *  2. **로빙 tabindex** — 커서 행만 `tabIndex=0`, 나머지는 `-1`. 프로젝트가
- *     50개여도 목록 전체의 탭 스톱은 1개다.
- *  3. **고정 폭 컬럼** — 내용 길이가 열 폭을 바꾸지 않아 스켈레톤→실물 전환에
- *     리플로우가 없다.
+ * 프로젝트 행·조용한 색인 행·섹션 헤더는 2026-08-12 대격변에서 제거됐다:
+ * 프로젝트는 전부 같은 크기의 `ProjectCard` 격자에 그려지고, 초안·명령만
+ * 바닥에 한 줄로 남는다.
+ *
+ * 공통 규약 2가지:
+ *  1. **로빙 tabindex** — 커서 행만 `tabIndex=0`, 나머지는 `-1`. 항목이 몇
+ *     개든 목록 전체의 탭 스톱은 1개다.
+ *  2. 행 전체를 `<button>` 으로 감싸지 않는다 — 안의 아이콘 버튼이 중첩
+ *     인터랙티브(axe 위반)가 되기 때문이다.
  */
 import { useEffect, useRef, useState } from "react";
 
 import { FolderOpen, Sparkles, Settings, Trash2, Clock } from "@/components/Icons";
-import type { Project, ProjectBlueprint } from "@/lib/bindings";
+import type { ProjectBlueprint } from "@/lib/bindings";
 
-import { Highlight, Mark, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
+import { Mark } from "./atoms";
 import { useT } from "@/i18n";
-import {
-  initials,
-  relativeTime,
-  tildePath,
-  type CommandRowT,
-  type DraftRowT,
-  type ProjectRowT,
-} from "./homeModel";
+import { type CommandRowT, type DraftRowT } from "./homeModel";
 
 /** 커서/포커스 배선 — 모든 행이 같은 형태로 받는다. */
 export interface RowWiring {
@@ -51,132 +45,6 @@ function wire(row: { id: string }, w: RowWiring) {
   };
 }
 
-// ── 프로젝트 행 (56px) ──────────────────────────────────────────────────
-
-export function ProjectRow({
-  row,
-  query,
-  now,
-  indexing,
-  loading,
-  wiring,
-  onOpen,
-  onRename,
-  onDelete,
-  index,
-}: {
-  row: ProjectRowT;
-  query: string;
-  now: number;
-  indexing: boolean;
-  loading: boolean;
-  wiring: RowWiring;
-  onOpen: (p: Project) => void;
-  onRename: (p: Project) => void;
-  onDelete: (p: Project) => void;
-  index: number;
-}) {
-  const { t } = useT();
-  const { project: p, snap } = row;
-  const when = relativeTime(snap?.lastAt ?? null, now);
-  const w = wire(row, wiring);
-
-  return (
-    <li
-      className={"home-row home-in-row" + (wiring.isCursor ? " is-cursor" : "")}
-      style={{ animationDelay: `${Math.min(index, 12) * 14}ms` }}
-      onMouseMove={w.onMouseMove}
-    >
-      <Mark text={initials(p.name)} />
-
-      <span className="min-w-0 flex flex-col gap-0.5 py-2">
-        <span className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
-            ref={w.ref as (el: HTMLButtonElement | null) => void}
-            tabIndex={w.tabIndex}
-            onKeyDown={w.onKeyDown}
-            onFocus={w.onFocus}
-            onClick={() => onOpen(p)}
-            className="home-open text-[14px] font-[650] text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
-            aria-label={t("home.openAria", { name: p.name, when })}
-          >
-            <Highlight text={p.name} query={query} />
-          </button>
-          {indexing && (
-            <span className="home-kbd" role="status">
-              {t("home.indexing")}
-            </span>
-          )}
-        </span>
-        {snap?.lastTitle ? (
-          <TriggerKicker type={snap.lastType} title={snap.lastTitle} />
-        ) : (
-          <span className="home-path">{tildePath(p.root_path)}</span>
-        )}
-      </span>
-
-      <span className="home-row-spark">
-        {loading && !snap ? <Skel w="100%" h={14} /> : snap && <Sparkline data={snap.spark} />}
-      </span>
-
-      <span className="home-when">{when}</span>
-
-      <span className="home-row-actions flex justify-end">
-        <RowActions
-          name={p.name}
-          onRename={() => onRename(p)}
-          onDelete={() => onDelete(p)}
-          tabbable={wiring.tabbable}
-        />
-      </span>
-    </li>
-  );
-}
-
-// ── 색인 행 (40px) — 2주 이상 조용한 프로젝트 ───────────────────────────
-
-export function IndexRow({
-  row,
-  query,
-  wiring,
-  onOpen,
-}: {
-  row: ProjectRowT;
-  query: string;
-  wiring: RowWiring;
-  onOpen: (p: Project) => void;
-}) {
-  const { t } = useT();
-  const { project: p, snap } = row;
-  const w = wire(row, wiring);
-  const total = snap?.totalEntries ?? 0;
-
-  return (
-    <div
-      className={"home-quiet-row" + (wiring.isCursor ? " is-cursor" : "")}
-      onMouseMove={w.onMouseMove}
-      style={{ position: "relative" }}
-    >
-      <button
-        type="button"
-        ref={w.ref as (el: HTMLButtonElement | null) => void}
-        tabIndex={w.tabIndex}
-        onKeyDown={w.onKeyDown}
-        onFocus={w.onFocus}
-        onClick={() => onOpen(p)}
-        className="home-open home-quiet-name min-w-0 flex-1 text-left cursor-pointer bg-transparent border-0 p-0"
-        aria-label={t("home.quietAria", { name: p.name, n: total })}
-      >
-        <Highlight text={p.name} query={query} />
-      </button>
-      <span className="home-path flex-1 min-w-0 hidden sm:block">{tildePath(p.root_path)}</span>
-      <span className="text-[10.5px] font-mono text-[var(--text-3)] whitespace-nowrap">
-        {t("home.entryCount", { n: total })}
-      </span>
-    </div>
-  );
-}
 
 // ── 초안 행 — 인라인 2단 확인 ───────────────────────────────────────────
 
@@ -327,26 +195,3 @@ export function CommandRow({
     </li>
   );
 }
-
-// ── 섹션 헤더 ───────────────────────────────────────────────────────────
-
-export function HomeSection({
-  title,
-  count,
-  action,
-}: {
-  title: string;
-  count?: number;
-  /** 섹션 우측에 붙는 액션 (예: '모든 프로젝트' 의 관리 버튼). */
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="home-sechead">
-      <span>{title}</span>
-      <span className="home-sechead-line" />
-      {count !== undefined && <span className="home-sechead-n">{count}</span>}
-      {action}
-    </div>
-  );
-}
-

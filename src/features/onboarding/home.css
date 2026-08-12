@@ -10,36 +10,32 @@
    하드코딩 색상 0 — 라이트/다크/프리셋 5종/액센트 6종에서 전부 성립해야 한다.
    ============================================================ */
 
+/* 판 (2026-08-12 대격변) — 창을 열었을 때 **보이는 것이 전부**여야 한다.
+   그래서 페이지 자체는 스크롤하지 않고(고정 높이 그리드), 스크롤은 안쪽 두
+   칸(프로젝트 격자 · 오늘의 흐름)이 각자 소유한다. */
 .home {
   height: 100%;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-sidebar);
   color: var(--text);
   position: relative;
 }
 
-/* 앰비언트 — 액센트가 아주 옅게 상단에 번진다. 장식이지만 캔버스가 완전한
-   무채색 평면으로 죽는 걸 막는다. 다크에서는 더 옅게. */
-.home::before {
-  content: "";
-  position: absolute;
-  /* 상단 레일(44px, 불투명)이 끝나는 지점부터 — 레일이 그라디언트의 정점을
-     덮어 경계에 단차가 생기는 걸 피한다. */
-  inset: 44px 0 auto 0;
-  height: 320px;
-  background: radial-gradient(80% 100% at 50% 0%, var(--accent-soft) 0%, transparent 70%);
-  opacity: 0.5;
-  pointer-events: none;
-}
-[data-theme="dark"] .home::before {
-  opacity: 0.22;
-}
+/* 앰비언트 그라디언트는 2026-08-12 폴리시에서 제거했다 — 헤더 뒤에 깔린
+   액센트 광원은 화면을 "생성된 것"처럼 보이게 하는 가장 흔한 신호다.
+   평평하고 정확한 면 위에서 위계를 만드는 편이 훨씬 정제돼 보인다. */
 
 .home-wrap {
   position: relative;
-  max-width: 1240px;
+  max-width: 1560px;
+  height: 100%;
+  min-height: 0;
   margin: 0 auto;
-  padding: 0 28px 56px;
+  padding: 0 24px 10px;
+  display: grid;
+  /* 상단 레일 · 검색 · 판(남는 전부) · 바닥 띠 */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 /* ── 밴드 0 — 상단 레일 ─────────────────────────────────────────────── */
@@ -72,11 +68,13 @@
   padding-left: max(0px, calc(50px - max(0px, (100vw - 1240px) / 2)));
 }
 
+/* 본문과 같은 서체를 쓴다 — 산세리프 UI 위의 세리프 워드마크는 "AI 가 만든
+   랜딩" 의 전형이다. 대신 자간을 조여 워드마크다운 밀도를 만든다. */
 .home-wordmark {
-  font-family: var(--font-heading, "EB Garamond", serif);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-family: var(--font);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--text);
   white-space: nowrap;
 }
@@ -137,122 +135,13 @@
 
 /* ── 공통 타일 ──────────────────────────────────────────────────────── */
 
-.home-tile {
-  position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-card);
-  transition:
-    transform var(--dur-1) var(--ease-out),
-    box-shadow var(--dur-1) var(--ease-out),
-    border-color var(--dur-1) var(--ease-out);
-}
-/* 승격은 한 단계 + 1px — 예전 .project-card 의 -3px 는 카드 10장에서 화면이
-   출렁였다. 물성은 screens.css 의 .jcard 규약을 따른다. */
-.home-tile:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-raise);
-  border-color: var(--sep-strong);
-}
-.home-tile:active {
-  transform: translateY(0) scale(0.995);
-}
-/* `:focus-within` 이 아니라 `:has(:focus-visible)` — 전자는 마우스로 그냥
-   클릭만 해도 340px 짜리 사령탑 전체에 액센트 아웃라인이 남는다. 키보드로
-   들어왔을 때만 테두리를 보여준다. */
-.home-tile:has(:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* 벤토(사령탑·판·타일) 규칙은 2026-08-12 대격변에서 제거됐다 — 크기로
+   위계를 만들던 구조가 프로젝트 9개에서 무너졌고, 지금은 같은 크기의 카드
+   격자(.hg-*)가 순위만으로 그 일을 한다. */
 
-/* 사령탑 — 유일하게 "시트" 급 그림자와 큰 반경을 갖는다. */
-.home-tile--hero {
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sheet);
-}
-/* `.home-tile:hover` 와 특이성이 같아 순서로 지면 사령탑이 hover 때 오히려
-   '시트' 깊이를 잃는다. 같은 특이성 싸움을 피하려고 명시적으로 다시 준다. */
-.home-tile--hero:hover {
-  box-shadow: var(--shadow-sheet), var(--shadow-raise);
-}
+/* ── 초안·명령 행 ───────────────────────────────────────────────────── */
 
-/* ── 벤토 그리드 ────────────────────────────────────────────────────── */
 
-.home-bento {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-/* 높이는 전부 min-height — 웹뷰 줌(설정 › 글자 크기)이 켜지면 고정 높이는
-   내용을 자른다. CLS 이점은 min-height 로도 그대로 얻는다. */
-.home-t-hero {
-  grid-column: span 7;
-  min-height: 340px;
-}
-.home-t-flow {
-  grid-column: span 5;
-  min-height: 340px;
-}
-.home-t-panel {
-  grid-column: span 6;
-  min-height: 144px;
-}
-.home-t-wide {
-  grid-column: span 12;
-}
-
-@media (max-width: 900px) {
-  .home-t-hero,
-  .home-t-flow,
-  .home-t-panel {
-    grid-column: span 12;
-  }
-}
-
-/* ── 레일 (목록) ────────────────────────────────────────────────────── */
-
-.home-list {
-  margin-top: 20px;
-  background: var(--bg-content);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-card);
-  /* `clip` 이지 `hidden` 이 아니다 — hidden 은 스크롤 컨테이너를 만들어서
-     안쪽 .home-sechead 의 position:sticky 가 이 박스 기준으로 묶여 버린다
-     (이 박스는 스크롤되지 않으므로 헤더가 전혀 안 붙는다). clip 은 스크롤
-     컨테이너를 만들지 않아 sticky 가 실제 스크롤 조상(.home)을 따른다. */
-  overflow: clip;
-}
-
-.home-sechead {
-  position: sticky;
-  top: 44px; /* 상단 레일 높이 */
-  /* 행들 위, 상단 레일 아래. 오버레이(z-90/100)보다는 항상 낮다. */
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 30px;
-  padding: 0 16px;
-  background: var(--bg-inset);
-  border-bottom: 1px solid var(--sep);
-  font-size: 10.5px;
-  font-weight: 750;
-  letter-spacing: 0.09em;
-  color: var(--text-2);
-}
-.home-sechead-line {
-  flex: 1;
-  height: 1px;
-  background: var(--sep);
-}
-.home-sechead-n {
-  font-family: var(--mono);
-  font-weight: 500;
-  color: var(--text-3);
-}
 
 /* 행 — 반경 0 풀블리드. 컬럼 폭을 고정해 스켈레톤→실물 전환에 리플로우가
    없다 (내용 길이가 열 폭을 바꾸지 않는다). */
@@ -284,65 +173,12 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-/* 커서 행은 좌측 바로도 표시 — 색만으로 의미를 나르지 않는다. */
-.home-row.is-cursor::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--accent);
-}
+/* 좌측 액센트 막대는 제거했다 — 유일한 소비처인 바닥 띠에서 모서리 반경과
+   어긋났고, 커서는 면(배경)으로 표시하는 편이 어떤 모양에서도 성립한다. */
 
 @media (max-width: 760px) {
   .home-row {
     grid-template-columns: 26px minmax(0, 1fr) 76px;
-  }
-  .home-row-spark,
-  .home-row-actions {
-    display: none;
-  }
-}
-
-/* 색인 행 — 2주 이상 조용한 프로젝트. 신문 시세표 밀도. */
-.home-quiet {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 16px;
-  padding: 4px 16px 10px;
-}
-.home-quiet-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 0 6px;
-  border-radius: var(--radius-s);
-  cursor: pointer;
-  transition: background var(--dur-1) var(--ease-out);
-}
-.home-quiet-row:hover,
-.home-quiet-row.is-cursor {
-  background: var(--bg-hover);
-}
-.home-quiet-row:hover .home-quiet-name {
-  color: var(--accent-text);
-}
-.home-quiet-row:has(:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.home-quiet-name {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-@media (max-width: 760px) {
-  .home-quiet {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -355,7 +191,8 @@
   height: 26px;
   border-radius: var(--radius-s);
   background: var(--bg-inset);
-  border: 1px solid var(--border-card);
+  /* 테두리 없음 — 26px 상자에 테두리까지 두르면 아이콘 하나가 세 겹으로
+     보인다. 면 하나로 충분하다. */
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.02em;
@@ -386,15 +223,6 @@
 }
 
 /* 경로는 선택 가능해야 한다 (복사해서 터미널에 붙이는 흐름). */
-.home-path {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  user-select: text;
-}
 
 /* ── 액션 (이름 변경 / 제거) ─────────────────────────────────────────
    hover 로만 나타나면 키보드·터치 사용자에게는 존재하지 않는 기능이 된다.
@@ -413,8 +241,9 @@
 .home-row:hover .home-actions,
 .home-row:focus-within .home-actions,
 .home-row.is-cursor .home-actions,
-.home-tile:hover .home-actions,
-.home-tile:focus-within .home-actions {
+.hg-card:hover .home-actions,
+.hg-card:focus-within .home-actions,
+.hg-card.is-cursor .home-actions {
   opacity: 1;
 }
 /* 포커스를 받은 버튼은 컨테이너 상태와 무관하게 항상 보여야 한다. */
@@ -496,14 +325,21 @@
   gap: 2px;
   height: 18px;
 }
+/* 14일 전부를 액센트로 칠하면 카드에서 가장 시끄러운 요소가 된다.
+   과거는 중성색으로 두고 **오늘(마지막 막대)만** 액센트 — 그래야 눈이
+   "지금" 을 먼저 찾는다. */
 .home-spark-bar {
   flex: 1;
   min-width: 2px;
   border-radius: 1px;
-  background: var(--accent);
-  opacity: 0.75;
+  background: var(--text-3);
+  opacity: 0.45;
   transform-origin: bottom;
   animation: sparkIn var(--dur-2) var(--ease-out) both;
+}
+.home-spark-bar:last-child {
+  background: var(--accent);
+  opacity: 1;
 }
 /* 값 0 인 날은 베이스라인만 — 데이터가 없는 것과 "그날 일 안 함"을 형태로
    구분한다 (없으면 아예 스파크라인을 안 그린다). */
@@ -581,9 +417,9 @@
     border-color var(--dur-1) var(--ease-out);
 }
 .home-chipbtn:hover {
-  color: var(--accent-text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--sep-strong);
+  background: transparent;
 }
 .home-chipbtn:focus-visible {
   outline: 2px solid var(--accent);
@@ -629,34 +465,13 @@
   );
   background-size: 200% 100%;
   border-radius: 4px;
-  animation: homeShimmer 1.4s linear infinite;
+  /* 무한 반복이라 등속이 맞다 — 이징을 넣으면 주기마다 맥이 뛴다.
+     대신 주기를 늘려 '기다리는 중' 이 조급해 보이지 않게. */
+  animation: homeShimmer 1.8s linear infinite;
 }
 
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
 
-.home-add {
-  display: grid;
-  place-items: center;
-  gap: 8px;
-  border: 1px dashed var(--sep-strong);
-  border-radius: var(--radius-l);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-  transition:
-    border-color var(--dur-1) var(--ease-out),
-    background var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out);
-}
-.home-add:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-.home-add:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 
 /* ── 액션 바 (밴드 4) ───────────────────────────────────────────────── */
 
@@ -709,9 +524,6 @@
   to   { opacity: 0; transform: translateY(-6px); }
 }
 
-.home-in-bento {
-  animation: bentoIn var(--dur-3) var(--ease-spring) both;
-}
 .home-in-row {
   animation: rowIn var(--dur-2) var(--ease-out) both;
 }
@@ -719,17 +531,466 @@
 /* OS '동작 줄이기' — App.css 에 전역 가드가 있지만, 이 파일이 단독으로
    읽혀도 성립하도록 여기서도 명시한다. */
 @media (prefers-reduced-motion: reduce) {
-  .home-in-bento,
   .home-in-row,
   .home-spark-bar,
   .home-skel {
     animation: none !important;
   }
-  .home-tile,
+  .hg-card,
   .home-row {
     transition: none !important;
   }
-  .home-tile:hover {
-    transform: none;
+}
+
+/* ============================================================
+   판 — 프로젝트 격자 + 오늘의 흐름 (2026-08-12 대격변)
+
+   예전 벤토(사령탑 340px / 판 / 행)를 대체한다. 크기로 위계를 만들던 구조가
+   프로젝트 9개에서 무너졌다 — 1위 하나가 화면 절반을 먹고 나머지가 스크롤
+   아래로 사라졌다. 지금은 **같은 크기의 카드**가 순위대로 놓이고, 1위는
+   왼쪽 액센트 모서리로만 드러난다.
+   ============================================================ */
+
+.home-alert {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--t-error-soft);
+  color: var(--t-error);
+  border: 1px solid var(--t-error);
+}
+
+.home-board {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  padding-top: 8px;
+}
+/* 좁아지면 흐름 레일이 아래로 접힌다 — 격자가 2열 밑으로 내려가면 카드가
+   읽을 수 없이 좁아지기 때문이다. */
+@media (max-width: 1080px) {
+  .home-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 200px;
   }
 }
+
+.home-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.home-panehead {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.home-panecount {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.home-panehint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.home-empty {
+  padding: 28px 4px;
+  font-size: 13px;
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── 프로젝트 격자 ────────────────────────────────────────────────────── */
+
+.hg-grid {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 10px;
+  padding: 2px 6px 6px 2px;
+  margin: 0;
+  list-style: none;
+}
+
+.hg-card {
+  /* `.home-open::after` 가 이 상자를 덮어 **카드 전체가 클릭 판정**이 된다 —
+     그 앵커가 되려면 position 이 static 이면 안 된다. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px 12px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  /* 색·테두리는 즉답(dur-1), 깊이(그림자)는 한 박자 길게 — 같은 시간을 쓰면
+     그림자가 색을 따라잡지 못해 어긋나 보인다. */
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+.hg-card:hover { border-color: var(--sep-strong); }
+/* 커서는 **헤어라인 한 겹**으로만 표시한다. 예전의 3px 액센트 글로우
+   (`0 0 0 3px accent-soft`)는 카드 9장에서 화면이 번져 보였고, 무엇보다
+   "생성된 UI" 의 전형이다. */
+.hg-card.is-cursor { border-color: var(--accent); }
+/* 1위는 색이 아니라 **깊이**로 말한다 — 왼쪽 액센트 막대는 제거했다.
+   막대는 카드 모서리 반경과 어긋나고, 색으로 순위를 코딩하면 액센트가
+   의미를 잃는다 (열림·오늘 건수도 같은 색을 쓴다). */
+.hg-card.is-lead {
+  border-color: var(--sep-strong);
+  box-shadow: var(--shadow-sheet);
+}
+/* 키보드로 들어왔을 때만 진짜 아웃라인 — 마우스 hover 에는 링을 그리지 않는다. */
+.hg-card:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* 2주 넘게 조용함 — 밀어내되 읽을 수는 있게. */
+.hg-card.is-quiet { opacity: 0.6; }
+.hg-card.is-quiet:hover,
+.hg-card.is-quiet:focus-within { opacity: 1; }
+
+.hg-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.hg-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hg-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  /* 큰 글자일수록 자간을 조인다 — 제목이 헐거우면 본문과 위계가 안 선다. */
+  letter-spacing: -0.008em;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 이름 버튼은 카드 전체를 덮는 히트박스의 앵커일 뿐이라, hover 색은 카드가
+   책임진다 (버튼 위에 있을 때만 색이 변하면 "이름만 눌러야 하나?" 로 읽힌다). */
+.hg-card:hover .hg-name { color: var(--pc-text, var(--accent-text)); }
+.hg-path {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-3);
+  /* 시각·건수가 카드마다 세로로 흔들리지 않게. */
+  font-variant-numeric: tabular-nums;
+}
+.hg-when { flex: none; }
+.hg-today {
+  flex: none;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+/* 알약 모양 + 채움 배경을 나열하면 "배지 수프" 가 된다. 윤곽선 한 겹 +
+   작은 반경이 훨씬 정밀해 보이고, 옆의 숫자·시각과 광학 높이도 맞는다. */
+.hg-chip,
+.hg-lead-chip {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 14px;
+  padding: 0 5px;
+  letter-spacing: 0.01em;
+  border-radius: 4px;
+  border: 1px solid var(--sep);
+  background: transparent;
+  color: var(--text-3);
+}
+/* '이어서' 는 순위 정보고, 순위는 이미 카드 그림자가 말한다. 액센트는 카드
+   안에서 **오늘의 활동** 한 가지 의미로만 쓴다 (오늘 건수 + 스파크라인의
+   마지막 막대). 색이 두 가지를 뜻하기 시작하면 아무 것도 안 뜻한다. */
+.hg-lead-chip {
+  border-color: var(--sep-strong);
+  color: var(--text-2);
+}
+/* 스파크라인은 카드 안의 작은 지표다 — `.home-spark` 는 폭 지정이 없어
+   부모를 그대로 채우므로(막대가 flex:1), 여기서 폭을 못박지 않으면 카드
+   한 줄을 통째로 먹는다. */
+.hg-spark {
+  margin-left: auto;
+  flex: 0 0 62px;
+  width: 62px;
+  opacity: 0.85;
+}
+.hg-spark .home-spark { height: 14px; }
+.hg-dim { color: var(--text-3); }
+
+/* 높이 고정 — 다음 할 일이 있든 없든 카드 높이가 같아야 격자가 정렬된다. */
+.hg-next {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 17px;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 아이콘은 글자와 같은 톤 — 여기에 액센트를 쓰면 카드마다 색점이 하나씩
+   더 생기고, 액센트가 "오늘" 을 뜻한다는 규칙이 깨진다. */
+.hg-next-icon {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  color: var(--text-3);
+}
+.hg-next > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hg-add {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-2);
+  min-height: 98px;
+}
+.hg-add-title { font-size: 12.5px; font-weight: 700; }
+.hg-add-actions { display: flex; gap: 6px; }
+
+/* ── 프로젝트 색 팔레트 ────────────────────────────────────────────────
+   hex 가 아니라 **id** 를 저장하고(`data-pc`) 테마가 해석한다. 라이트/다크에서
+   같은 hex 는 성립하지 않기 때문이다. 각 색은 두 값만 노출한다:
+     --pc      아이콘·강조에 쓰는 선명한 색
+     --pc-soft 마크 배경에 쓰는 아주 옅은 면
+   본문 색은 건드리지 않는다 — 카드 8장이 각자 다른 글자색을 가지면 목록이
+   읽히지 않는다. 색은 **식별자**지 의미가 아니다. */
+.hg-card[data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
+.hg-card[data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
+.hg-card[data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }
+.hg-card[data-pc="violet"] { --pc: #7c5cd6; --pc-soft: rgba(124,92,214,0.14); }
+.hg-card[data-pc="amber"]  { --pc: #c2891b; --pc-soft: rgba(194,137,27,0.15); }
+.hg-card[data-pc="rose"]   { --pc: #d05470; --pc-soft: rgba(208,84,112,0.13); }
+.hg-card[data-pc="teal"]   { --pc: #0f9a99; --pc-soft: rgba(15,154,153,0.13); }
+.hg-card[data-pc="orange"] { --pc: #d2703a; --pc-soft: rgba(210,112,58,0.14); }
+
+/* 다크에서는 채도를 낮추고 명도를 올린다 — 라이트용 값을 그대로 쓰면 어두운
+   면 위에서 탁해지고 대비가 부족해진다. */
+[data-theme="dark"] .hg-card[data-pc="slate"]  { --pc: #9aa3b2; --pc-soft: rgba(154,163,178,0.16); }
+[data-theme="dark"] .hg-card[data-pc="green"]  { --pc: #4ecb96; --pc-soft: rgba(78,203,150,0.16); }
+[data-theme="dark"] .hg-card[data-pc="blue"]   { --pc: #6aa9f0; --pc-soft: rgba(106,169,240,0.16); }
+[data-theme="dark"] .hg-card[data-pc="violet"] { --pc: #a68cf0; --pc-soft: rgba(166,140,240,0.17); }
+[data-theme="dark"] .hg-card[data-pc="amber"]  { --pc: #e0b155; --pc-soft: rgba(224,177,85,0.16); }
+[data-theme="dark"] .hg-card[data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
+[data-theme="dark"] .hg-card[data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
+[data-theme="dark"] .hg-card[data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }
+
+/* 프로젝트 아이콘 — 색이 실제로 살아 있는 유일한 자리. */
+.hg-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: var(--pc-soft, var(--bg-inset));
+  color: var(--pc, var(--text-2));
+}
+.hg-mark svg { width: 15px; height: 15px; }
+
+/* ── 오늘의 흐름 레일 ─────────────────────────────────────────────────── */
+
+.home-side { min-width: 0; }
+.home-flow {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 13px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+/* 피드만 스크롤한다 — 헤더·빈 상태 문구는 제자리에 남는다. */
+.home-flow > ul {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* ── 바닥 띠 — 초안·명령·키 안내를 한 줄로 압축 ─────────────────────── */
+
+.home-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  min-width: 0;
+}
+.home-foot-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+}
+/* 바닥 띠의 초안·명령 행 — 레일 시절의 전체 폭 격자 행을 한 줄짜리 항목으로
+   되돌린다.
+   알약(반경 99px)은 쓰지 않는다: 커서 표시가 **왼쪽 세로 막대**인데 둥근
+   모서리와 만나면 막대가 곡선 밖으로 삐져나와 붙인 것처럼 보인다. 사각에
+   가까운 반경 + 면(배경) 강조로 바꾸면 그 충돌 자체가 사라진다. */
+.home-foot .home-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-height: 0;
+  padding: 5px 10px 5px 8px;
+  border: 0;
+  border-bottom: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+}
+/* 커서 세로 막대 제거 — 면으로 표시한다. */
+.home-foot .home-row::before { content: none; }
+.home-foot .home-row:hover,
+.home-foot .home-row.is-cursor { background: var(--bg-hover); }
+.home-foot .home-row:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 초안 행의 액션 칸은 레일 폭(168px)을 전제로 최소폭을 잡고 있다 — 바닥
+   띠에서는 내용만큼만 차지하게 푼다. */
+.home-foot .home-row > :last-child { min-width: 0; }
+.home-foot .home-mark { width: 20px; height: 20px; border-radius: 5px; font-size: 9px; }
+.home-foot .home-actionbar {
+  margin-left: auto;
+  position: static;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+/* ── 겉모습 선택기 (프로젝트 편집 다이얼로그) ────────────────────────── */
+
+.ap-wrap { display: flex; flex-direction: column; gap: 12px; }
+.ap-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.ap-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ap-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--sep);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.ap-icon svg { width: 15px; height: 15px; }
+.ap-icon:hover { border-color: var(--sep-strong); color: var(--text); }
+/* 고른 아이콘은 지금 고른 **색으로** 미리 보인다 — 두 축을 따로 고르지만
+   결과는 함께 보이는 편이 훨씬 덜 헷갈린다. */
+.ap-icon.on {
+  border-color: var(--pc, var(--accent));
+  background: var(--pc-soft, var(--accent-soft));
+  color: var(--pc, var(--accent-text));
+}
+.ap-icon:focus-visible,
+.ap-color:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ap-color {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--sep);
+  background: var(--pc);
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+.ap-color:hover { transform: scale(1.08); }
+/* 선택 표시는 안쪽 링 — 체크 아이콘을 얹으면 26px 원 안에서 색이 안 보인다. */
+.ap-color.on {
+  box-shadow:
+    0 0 0 2px var(--bg-card),
+    0 0 0 4px var(--pc);
+}
+
+/* 선택기는 다이얼로그(카드 밖)에 있으므로 `.hg-card[data-pc]` 규칙이 닿지
+   않는다 — 같은 팔레트를 요소 자신에게 한 번 더 준다. */
+.ap-icon[data-pc="slate"],  .ap-color[data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
+.ap-icon[data-pc="green"],  .ap-color[data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
+.ap-icon[data-pc="blue"],   .ap-color[data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }
+.ap-icon[data-pc="violet"], .ap-color[data-pc="violet"] { --pc: #7c5cd6; --pc-soft: rgba(124,92,214,0.14); }
+.ap-icon[data-pc="amber"],  .ap-color[data-pc="amber"]  { --pc: #c2891b; --pc-soft: rgba(194,137,27,0.15); }
+.ap-icon[data-pc="rose"],   .ap-color[data-pc="rose"]   { --pc: #d05470; --pc-soft: rgba(208,84,112,0.13); }
+.ap-icon[data-pc="teal"],   .ap-color[data-pc="teal"]   { --pc: #0f9a99; --pc-soft: rgba(15,154,153,0.13); }
+.ap-icon[data-pc="orange"], .ap-color[data-pc="orange"] { --pc: #d2703a; --pc-soft: rgba(210,112,58,0.14); }
+
+[data-theme="dark"] .ap-icon[data-pc="slate"],  [data-theme="dark"] .ap-color[data-pc="slate"]  { --pc: #9aa3b2; --pc-soft: rgba(154,163,178,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="green"],  [data-theme="dark"] .ap-color[data-pc="green"]  { --pc: #4ecb96; --pc-soft: rgba(78,203,150,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="blue"],   [data-theme="dark"] .ap-color[data-pc="blue"]   { --pc: #6aa9f0; --pc-soft: rgba(106,169,240,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="violet"], [data-theme="dark"] .ap-color[data-pc="violet"] { --pc: #a68cf0; --pc-soft: rgba(166,140,240,0.17); }
+[data-theme="dark"] .ap-icon[data-pc="amber"],  [data-theme="dark"] .ap-color[data-pc="amber"]  { --pc: #e0b155; --pc-soft: rgba(224,177,85,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="rose"],   [data-theme="dark"] .ap-color[data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="teal"],   [data-theme="dark"] .ap-color[data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
+[data-theme="dark"] .ap-icon[data-pc="orange"], [data-theme="dark"] .ap-color[data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }

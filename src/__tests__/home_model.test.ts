@@ -22,7 +22,7 @@ import type { HomeBrief, Project } from "@/lib/bindings";
 const NOW = new Date("2026-07-31T14:00:00+09:00").getTime();
 
 function project(id: number, name: string, root = `/Users/me/git/${name}`): Project {
-  return { id, name, root_path: root, created_at: 0 };
+  return { id, name, root_path: root, created_at: 0, icon: null, color: null };
 }
 
 function brief(over: Partial<HomeBrief> = {}): HomeBrief {
@@ -175,7 +175,7 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    expect(m.hero?.project.name).toBe("charlie");
+    expect(m.ranked[0]?.project.name).toBe("charlie");
   });
 
   it("오늘 동률이면 마지막 활동이 최근인 쪽이 앞", () => {
@@ -192,7 +192,7 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    expect(m.hero?.project.name).toBe("bravo");
+    expect(m.ranked[0]?.project.name).toBe("bravo");
   });
 
   it("사령탑 1 · 판 2 · 나머지 행, 14일 이상 조용한 것은 색인으로", () => {
@@ -214,9 +214,11 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    expect(m.hero?.project.name).toBe("alpha");
-    expect(m.panels).toHaveLength(2);
-    expect(m.rows).toHaveLength(1);
+    expect(m.ranked[0]?.project.name).toBe("alpha");
+    // 티어가 사라졌다 — 활발한 것 순위대로, 조용한 것이 꼬리.
+    expect(m.ranked.map((r) => r.project.name)).toEqual([
+      "alpha", "bravo", "charlie", "delta", "echo",
+    ]);
     expect(m.quiet.map((r) => r.project.name)).toEqual(["echo"]);
   });
 
@@ -230,9 +232,9 @@ describe("buildHome — 랭킹과 티어", () => {
       commands: [],
     });
     // 기록이 없으면 전부 조용한 쪽 — 다만 사령탑은 비우지 않는다.
-    expect(m.hero?.project.name).toBe("alpha");
-    expect(m.hero!.snap).toBeNull();
-    const all = [m.hero!, ...m.panels, ...m.rows, ...m.quiet];
+    expect(m.ranked[0]?.project.name).toBe("alpha");
+    expect(m.ranked[0]!.snap).toBeNull();
+    const all = m.ranked;
     expect(all).toHaveLength(5);
   });
 
@@ -245,14 +247,13 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    expect(m.hero).toBeNull();
-    expect(m.panels).toEqual([]);
+    expect(m.quiet).toEqual([]);
     expect(m.quiet).toEqual([]);
     // charlie 는 접두(100), echo 는 퍼지 부분수열(e-CH-o). 둘 다 결과에 남되
     // 접두가 반드시 앞선다 — "타이핑 후 ⏎" 가 의도한 프로젝트를 열어야 한다.
-    expect(m.rows[0].project.name).toBe("charlie");
-    expect(m.rows.map((r) => r.project.name)).toContain("echo");
-    expect(m.rows[0].score!).toBeGreaterThan(m.rows[1].score!);
+    expect(m.ranked[0].project.name).toBe("charlie");
+    expect(m.ranked.map((r) => r.project.name)).toContain("echo");
+    expect(m.ranked[0].score!).toBeGreaterThan(m.ranked[1].score!);
   });
 
   it("검색은 명령 행도 거른다 — 그래도 결과 0이면 명령이 남아 ⏎ 가 살아 있다", () => {
@@ -268,12 +269,12 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: cmds,
     });
-    expect(m.rows).toEqual([]);
+    expect(m.ranked).toEqual([]);
     expect(m.commands.length).toBeGreaterThan(0);
     expect(m.flat.length).toBeGreaterThan(0);
   });
 
-  it("flat 은 시각 순서와 같다 — hero → panels → rows → quiet → drafts → commands", () => {
+  it("flat 은 화면 순서와 같다 — ranked → drafts → commands", () => {
     const recent = "2026-07-30T10:00:00+09:00";
     const m = buildHome({
       projects: [project(1, "alpha"), project(2, "bravo"), project(3, "charlie"), project(4, "delta")],
@@ -305,17 +306,18 @@ describe("buildHome — 랭킹과 티어", () => {
       commands: [{ id: "cmd:add", label: "기존 폴더 불러오기", hint: "⌘O", run: () => {} }],
     });
 
-    // flat 은 **레일 행만** 담는다 — 벤토 타일(hero/panels)은 커서 평면에
-    // 들어가지 않는다. 타일이 여기 섞이면 flat[0] 이 커서에 등록되지 않은
-    // 요소를 가리켜 레일의 탭 스톱이 0개가 되고 ↓/↑/Home 이 전부 죽는다.
-    const kinds = m.flat.map((r) => r.kind);
-    expect(kinds).toEqual(["project", "draft", "command"]);
-    // hero(alpha)·panels(bravo, charlie)는 제외, quiet(delta)만 레일에 남는다.
-    expect(m.flat[0].kind === "project" && m.flat[0].project.name).toBe("delta");
-    expect(m.hero?.project.name).toBe("alpha");
+    // 대격변 이후 모든 카드가 같은 격자에 있고 전부 커서에 등록된다 —
+    // 예전처럼 "타일은 빼고 행만" 이라는 예외가 없다.
+    expect(m.flat.map((r) => r.kind)).toEqual([
+      "project", "project", "project", "project", "draft", "command",
+    ]);
+    // 순위: 오늘 3건인 alpha 가 1위, 2주 넘게 조용한 delta 가 꼬리.
+    expect(m.ranked.map((r) => r.project.name)).toEqual(["alpha", "bravo", "charlie", "delta"]);
+    expect(m.quiet.map((r) => r.project.name)).toEqual(["delta"]);
 
-    // ⏎ 는 사령탑을 연다 (flat[0] 이 아니다).
-    expect(m.primary).toBe(m.hero);
+    // ⏎ 는 1위를 연다 — 이제 flat[0] 과 같다.
+    expect(m.primary).toBe(m.flat[0]);
+    expect(m.primary).toBe(m.ranked[0]);
   });
 
   it("검색 중에는 primary 가 1위 결과 — flat[0] 과 같아진다", () => {
@@ -327,12 +329,20 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    expect(m.hero).toBeNull();
+    // 검색 중에는 조용함이 순위 요소가 아니다 — 점수순 하나뿐이라 quiet 는 빈다.
+    expect(m.quiet).toEqual([]);
+    expect(m.ranked).toHaveLength(1);
     expect(m.primary).toBe(m.flat[0]);
     expect(m.primary!.kind === "project" && m.primary!.project.name).toBe("charlie");
   });
 
-  it("벤토 타일은 flat 에 절대 들어가지 않는다 (커서 사망 회귀 방지)", () => {
+  /**
+   * 예전 회귀: 커서에 등록되지 않은 요소가 `flat[0]` 을 차지하면 로빙
+   * tabindex 의 탭 스톱이 0개가 되어 ↓/↑/Home 이 전부 죽었다. 지금은 모든
+   * 카드가 등록되므로, 지켜야 할 계약은 **flat 이 ranked 를 하나도 빠뜨리지
+   * 않는다** 로 뒤집힌다.
+   */
+  it("ranked 의 모든 카드가 커서 평면에 들어간다 (커서 사망 회귀 방지)", () => {
     const recent = "2026-07-30T10:00:00+09:00";
     const m = buildHome({
       projects,
@@ -348,10 +358,11 @@ describe("buildHome — 랭킹과 티어", () => {
       now: NOW,
       commands: [],
     });
-    const tileIds = [m.hero!.id, ...m.panels.map((p) => p.id)];
-    for (const id of tileIds) {
-      expect(m.flat.some((r) => r.id === id)).toBe(false);
+    expect(m.ranked.length).toBeGreaterThan(0);
+    for (const row of m.ranked) {
+      expect(m.flat.some((r) => r.id === row.id)).toBe(true);
     }
+    expect(m.flat[0]).toBe(m.ranked[0]);
   });
 
   it("오늘 총계와 데이트라인은 brief 를 따른다", () => {

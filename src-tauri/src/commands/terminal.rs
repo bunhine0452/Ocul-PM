@@ -80,6 +80,28 @@ pub struct PtyState {
     pub sessions: Arc<Mutex<HashMap<String, PtySession>>>,
 }
 
+impl PtyState {
+    /// 창 하나가 소유한 세션 전량 종료 (멀티 창 T4). sid 는 프런트가
+    /// `p<projectId>-` 접두사와 함께 만들고, 창의 CloseRequested 훅이 이
+    /// 접두사로 자기 세션만 골라 죽인다. 반환값은 죽인 개수.
+    pub fn kill_with_prefix(&self, prefix: &str) -> usize {
+        let mut sessions = match self.sessions.lock() {
+            Ok(s) => s,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let doomed: Vec<String> = sessions
+            .keys()
+            .filter(|k| k.starts_with(prefix))
+            .cloned()
+            .collect();
+        for key in &doomed {
+            // PtySession 이 여기서 drop → master 가 닫히며 자식에 SIGHUP.
+            sessions.remove(key);
+        }
+        doomed.len()
+    }
+}
+
 /// `pty-data-{id}` 이벤트 페이로드. `seq` 는 attach 스냅샷과의 중복 제거용.
 #[derive(Clone, Serialize)]
 pub struct PtyChunk {

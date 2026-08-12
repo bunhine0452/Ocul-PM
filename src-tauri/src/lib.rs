@@ -15,6 +15,7 @@ mod llm;
 mod notion;
 pub mod oculpm;
 mod secrets;
+mod menu;
 mod tray;
 
 use std::path::PathBuf;
@@ -115,7 +116,7 @@ use crate::commands::{
     conversation_create, conversation_delete, conversation_list, conversation_rename,
     conversation_set_context,
     // W5 — action proposal apply-state
-    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, db_health,
+    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, set_project_appearance, db_health,
     index_project, list_projects, project_stats,
     // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
     detect_stack,
@@ -128,7 +129,9 @@ use crate::commands::{
     plan_ai_refresh, plan_migrate_goals, plan_recent_updates, plan_set_status,
     plan_rename, plan_delete,
     get_file_symbols, get_code_graph, get_change_impact, get_file_calls,
-    open_devtools, open_terminal_window,
+    apply_menu_language,
+    open_devtools, open_project_tab, new_start_tab, set_tab_project, close_tab,
+    activate_tab, reorder_tabs, detach_tab, get_window_tabs, list_open_project_ids,
     read_project_file, read_file_range,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
@@ -221,6 +224,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         create_project,
         delete_project,
         rename_project,
+        set_project_appearance,
         project_stats,
         // C2 — 스킬 카탈로그: 결정적 스택 감지
         detect_stack,
@@ -259,7 +263,19 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         list_conversation_actions,
         // M5 — Window & File Operations
         open_devtools,
-        open_terminal_window,
+        // 크롬식 탭 (v2.9.0) — 창 = 탭 집합(시작 탭 + 프로젝트 탭).
+        // 레지스트리는 Rust 소유 (전역 유일성·PTY 정리·떼어내기 심판).
+        open_project_tab,
+        new_start_tab,
+        set_tab_project,
+        close_tab,
+        activate_tab,
+        reorder_tabs,
+        detach_tab,
+        get_window_tabs,
+        list_open_project_ids,
+        // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
+        apply_menu_language,
         read_project_file,
         read_file_range,
         // 문서(docs) 뷰어
@@ -420,8 +436,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
-        // v2.3.0 메뉴바 — 팝오버 → 메인 창 딥링크
+        // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
         crate::tray::TrayNavigate,
+        // 크롬식 탭 — 창별 탭 구성 + 런처의 "열림" 배지
+        crate::commands::window::WindowTabsChanged,
+        crate::commands::window::ProjectWindowsChanged,
+        // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
+        crate::commands::config::SettingsChanged,
     ])
 }
 
@@ -472,6 +493,8 @@ pub fn run() {
             let embed_cache = app_data.join("fastembed_cache");
             app.manage(Embedder::new(app.handle().clone(), embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
+            // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
+            app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
 
@@ -480,18 +503,31 @@ pub fn run() {
             #[cfg(desktop)]
             crate::tray::init(app)?;
 
-            // 창 닫기 = 트레이로 최소화 (옵인, D4). 설정이 꺼져 있으면
-            // 가로채지 않아 현행과 완전 동일.
-            if let Some(main) = app.get_webview_window("main") {
-                let handle = app.handle().clone();
-                main.on_window_event(move |ev| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = ev {
-                        if crate::tray::handle_main_close_requested(&handle) {
-                            api.prevent_close();
-                        }
-                    }
-                });
+            // `tauri.conf.json` 이 만든 첫 창을 레지스트리에 편입한다 — 이제
+            // 특별한 "런처 창" 은 없고, 시작 탭 하나를 문 평범한 탭 창이다.
+            // 창 닫기 훅(포커스 추적·탭 정리·마지막 창 판정)도 여기서 붙는다.
+            crate::commands::window::adopt_first_window(app.handle());
+
+            // 추적 중인 **모든** 프로젝트 감시 시작 (2026-08-12 사용자 결정).
+            // 예전에는 watcher 가 탭 수명에 묶여 있어, 탭을 안 연 프로젝트는
+            // 에이전트가 일해도 세션이 생성조차 되지 않았다 — 상단바가
+            // "하나만 감지" 하던 이유. 백그라운드에서 순차·간격 시작한다.
+            crate::commands::window::start_background_watchers(app.handle());
+
+            // 앱 메뉴 — `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는다.
+            // 기본 언어(ko)로 먼저 세우고, 프런트가 마운트하면서 해석된 UI
+            // 언어를 `apply_menu_language` 로 알려 주면 다시 만든다 (Rust 는
+            // 프런트의 i18n 사전도 OS 로케일도 읽지 않는다).
+            let handle = app.handle().clone();
+            match crate::menu::build(&handle, "ko") {
+                Ok(m) => {
+                    let _ = handle.set_menu(m);
+                }
+                Err(e) => tracing::warn!(target: "menu", error = %e, "메뉴 생성 실패"),
             }
+            handle.on_menu_event(|app, event| {
+                crate::menu::handle_event(app, event.id().as_ref());
+            });
 
             Ok(())
         })

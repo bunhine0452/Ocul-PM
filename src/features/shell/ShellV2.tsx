@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { safeUnlistenPromise } from "@/lib/unlisten";
+import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -60,20 +60,42 @@ import "@/styles/index.css";
 // selected. Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT §7.4), so
 // the shell only owns the sidebar + the screen router. All 8 screens are built.
 
+/** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
+const KNOWN_VIEWS: UiV2View[] = [
+  "today", "journal", "diff", "planner", "discussion", "retro", "search",
+  "terminal", "ai", "graph", "docs", "skills", "settings",
+];
+
 interface ShellV2Props {
   projectName: string | null;
   projectRoot: string | null;
-  /** Opens the project switcher. PR-UI 1 routes this to the dashboard picker. */
+  /** 시작 탭을 연다 (프로젝트 관리·추가·제거는 전부 시작 화면에 있다). */
   onOpenProjectSwitcher: () => void;
+  /** 다른 프로젝트를 이 창의 탭으로 연다 (이미 열려 있으면 그 탭 활성화). */
+  onOpenProject: (projectId: number) => void;
+  /** 트레이 딥링크가 URL 로 실어 온 목적 화면 — mount 시 1회 적용. */
+  initialView?: string | null;
+  /** 트레이 딥링크가 URL 로 실어 온 `.oculpm` 상대 일지 경로. */
+  initialEntryPath?: string | null;
+  /**
+   * 이 탭이 화면에 보이는가. 비활성 탭도 마운트된 채라(크롬식 탭), 창 전역
+   * CustomEvent(`NAV_BUS`)는 활성 탭만 들어야 한다 — 아니면 팔레트에서 연
+   * 일지가 숨은 탭에서도 열린다.
+   */
+  active?: boolean;
 }
 
 export default function ShellV2({
   projectName,
   projectRoot,
   onOpenProjectSwitcher,
+  onOpenProject,
+  initialView = null,
+  initialEntryPath = null,
+  active = true,
 }: ShellV2Props) {
   const { t } = useT();
-  const { state, setUiV2View, setState, setProject } = useWorkspace();
+  const { state, setUiV2View, setState } = useWorkspace();
   const { resolvedTheme, setTheme } = useTheme();
   const view = state.uiV2View;
   const isDark = resolvedTheme === "dark";
@@ -91,11 +113,11 @@ export default function ShellV2({
   // ⌘P 프로젝트 전환 (v2 U1): 사이드바가 접혀 있으면 팝오버가 화면 밖에
   // 열리므로, 이벤트 수신 시 hover-reveal 로 먼저 띄운다.
   useEffect(() => {
-    if (!collapsed) return;
+    if (!collapsed || !active) return;
     const reveal = () => setHovering(true);
     window.addEventListener(NAV_BUS.openProjectSwitcher, reveal);
     return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, reveal);
-  }, [collapsed]);
+  }, [collapsed, active]);
 
   // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
   // as shell-local ephemeral state (focus is not persisted; it's a single
@@ -119,6 +141,7 @@ export default function ShellV2({
   // 반영되도록 nonce 로 remount 를 강제한다 (화면은 mount 시 재조회).
   const [jumpNonce, setJumpNonce] = useState(0);
   useEffect(() => {
+    if (!active) return;
     const onOpenEntity = (e: Event) => {
       const detail = (e as CustomEvent<OpenEntityDetail>).detail;
       if (!detail?.kind || !detail?.id) return;
@@ -143,7 +166,7 @@ export default function ShellV2({
     };
     window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setState, setUiV2View]);
+  }, [setState, setUiV2View, active]);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
@@ -172,10 +195,45 @@ export default function ShellV2({
     };
   }, [projectId]);
 
+  // 다른 프로젝트가 어디든 열려 있는지 — 팝오버의 "열림" 표시.
+  const [openWindows, setOpenWindows] = useState<number[]>([]);
+  useEffect(() => {
+    void commands.listOpenProjectIds().then((res) => {
+      if (res.status === "ok") setOpenWindows(res.data);
+    });
+    let off: (() => void) | undefined;
+    void events.projectWindowsChanged
+      .listen(({ payload }) => setOpenWindows(payload.open))
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, []);
+
+  // I3 — "프로젝트 전환"은 제자리 교체가 아니라 **그 프로젝트의 탭을 열거나
+  // 활성화**하는 것이다. 이 탭의 프로젝트는 끝까지 바뀌지 않는다.
   const switchProject = (id: number) => {
-    const p = projects.find((x) => x.id === id);
-    if (p && p.id !== projectId) setProject(p.id, p.name, p.root_path);
+    if (id !== projectId) onOpenProject(id);
   };
+
+  // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
+  // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
+  useEffect(() => {
+    if (!active) return;
+    if (initialEntryPath) {
+      setJournalReturnView(null);
+      setJournalOpenEntry(initialEntryPath);
+      setUiV2View("journal");
+      return;
+    }
+    if (initialView && KNOWN_VIEWS.includes(initialView as UiV2View)) {
+      setUiV2View(initialView as UiV2View);
+    }
+    // 최초 1회 — 이후 사용자의 화면 이동을 되돌리면 안 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
   // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로
@@ -183,26 +241,23 @@ export default function ShellV2({
   // 화면이 mount 후 경로로 해소하므로 전환 타이밍과 무관하게 동작한다.
   useEffect(() => {
     const un = events.trayNavigate.listen(({ payload }) => {
-      if (payload.project_id != null && payload.project_id !== projectId) {
-        const p = projects.find((x) => x.id === payload.project_id);
-        if (p) setProject(p.id, p.name, p.root_path);
-      }
+      // 백엔드가 대상 창을 지정해 쏘지만(T5), 라벨이 어긋난 페이로드가 남의
+      // 일지로 창을 끌고 가지 못하도록 여기서도 한 번 더 확인한다.
+      if (payload.project_id != null && payload.project_id !== projectId) return;
       if (payload.entry_path) {
         setJournalReturnView(null);
         setJournalOpenEntry(payload.entry_path);
         setUiV2View("journal");
         return;
       }
-      const known: UiV2View[] = [
-        "today", "journal", "diff", "planner", "discussion", "retro", "search",
-        "terminal", "ai", "graph", "docs", "skills", "settings",
-      ];
-      setUiV2View(known.includes(payload.view as UiV2View) ? (payload.view as UiV2View) : "today");
+      setUiV2View(
+        KNOWN_VIEWS.includes(payload.view as UiV2View) ? (payload.view as UiV2View) : "today",
+      );
     });
     return () => {
       safeUnlistenPromise(un);
     };
-  }, [projectId, projects, setProject, setUiV2View]);
+  }, [projectId, setUiV2View]);
   const dateLabel = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
@@ -248,9 +303,10 @@ export default function ShellV2({
         projects={projects}
         currentProjectId={projectId}
         onSwitchProject={switchProject}
+        openWindows={openWindows}
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
-        macTopInset={isMac ? 22 : 0}
+        macTopInset={0}
         onToggleCollapse={toggleSidebar}
         collapsed={collapsed}
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}

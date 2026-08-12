@@ -43,7 +43,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.8.5",
+  "softwareVersion": "2.9.0",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -67,7 +67,8 @@
     "규칙 허브 · 실패→규칙 승격 플라이휠 (.claude/rules · Cursor 병행 배포)",
     "스킬 샵 — 스택 자동 감지 후 검증된 제3자 스킬 25종 원클릭 설치 (MIT · 커밋 고정)",
     "한국어 · English 화면 언어 (AI 작성 언어는 별도 지정)",
-    "프로젝트 관리 화면 (평면 표 · 검색 · 정렬 · 일괄 제거)"
+    "프로젝트 관리 화면 (평면 표 · 검색 · 정렬 · 일괄 제거)",
+    "멀티 프로젝트 창 · 크롬식 탭 (순서 변경 · 떼어내기 · 프로젝트별 색·아이콘)"
   ]
 }
 </script>
@@ -78,6 +79,11 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "프로젝트를 여러 개 동시에 열 수 있나요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "네. v2.9.0 부터 한 창이 프로젝트 여러 개를 탭으로 뭅니다. 탭을 끌어 순서를 바꾸거나 창 밖으로 떼어내 새 창을 만들 수 있고, 프로젝트마다 화면·필터·사이드바 상태를 따로 기억합니다. 터미널 세션은 프로젝트에 묶여 있어 탭이 창을 옮겨 다녀도 끊기지 않습니다. ⌘T 새 탭, ⌘W 탭 닫기, ⇧⌘N 새 창입니다." }
+    },
     {
       "@type": "Question",
       "name": "Ocul-PM 은 무엇인가요?",
@@ -160,7 +166,7 @@
     <div class="hero-grid">
       <div class="hero-copy">
         <a class="announce-pill reveal" href="#update">
-          <span class="ap-new">NEW</span> v2.8.5 — 영어 지원
+          <span class="ap-new">NEW</span> v2.9.0 — 창과 탭
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
         </a>
         <span class="eyebrow on-dark reveal">로컬-우선 AI 프로젝트 매니저</span>
@@ -268,15 +274,16 @@
   <div class="wrap">
     <div class="update-grid">
       <div class="update-copy">
-        <span class="eyebrow on-dark reveal">새 업데이트 · v2.5 → v2.8</span>
+        <span class="eyebrow on-dark reveal">새 업데이트 · v2.5 → v2.9</span>
         <h2 class="update-title reveal d1">이제 <em>계획이 구현을</em> 끌고 갑니다.</h2>
         <p class="update-sub reveal d2">
           기록은 시작일 뿐이었습니다. <b>Claude Code 플러그인</b>이 설치 문턱을 두 줄로 낮추고,
           플래너의 <b>▶실행</b> 버튼이 계획 항목을 곧바로 에이전트 실세션으로 만듭니다 —
-          백미러가 핸들이 되는 흐름. v2.8 은 여기에 <b>스킬 샵</b> · <b>프로젝트 관리 화면</b> · <b>영어 지원</b>을 더했습니다.
+          백미러가 핸들이 되는 흐름. v2.8 은 여기에 <b>스킬 샵</b> · <b>영어 지원</b>을, v2.9 는 <b>창과 탭</b>을 더했습니다.
         </p>
         <ul class="update-points">
-          <li class="reveal d2"><b>v2.8.5 — 영어 지원</b> · 설정에서 화면 언어를 고르면 <b>12개 화면 전체</b>가 영어로 바뀝니다. 화면 문구뿐 아니라 <b>오류 메시지</b>와 AI 가 쓰는 작업 일지·회고·플래너 항목, 새 프로젝트에 심기는 기록 규칙까지 함께 따라갑니다. 화면 언어와 <b>AI 작성 언어는 따로</b> 고를 수 있고 — 화면은 영어, 일지는 한국어가 가능합니다 — <b>이미 기록된 문서는 다시 쓰지 않습니다</b>. ⌘K 팔레트는 양쪽 언어로 모두 찾힙니다.</li>
+          <li class="reveal d2"><b>v2.9.0 — 창과 탭</b> · 한 창이 <b>프로젝트 여러 개를 탭</b>으로 뭅니다. 끌어서 순서를 바꾸고 창 밖으로 <b>떼어내면 새 창</b>이 됩니다. 프로젝트마다 화면·필터 상태를 따로 기억하고 <b>터미널 세션은 프로젝트에 묶여</b> 탭이 창을 옮겨도 끊기지 않습니다. <b>⌘T</b> 새 탭(=시작 탭) · <b>⌘W</b> 탭 닫기 · <b>⇧⌘N</b> 새 창. 시작 화면은 <b>등록된 프로젝트 전부를 한 격자</b>로 다시 짰고, 프로젝트마다 <b>색 8종·아이콘 10종</b>을 고릅니다. 상단바는 이제 <b>추적 중인 프로젝트 전부</b>를 감지합니다 — 그동안 탭을 열지 않은 프로젝트는 일지를 남겨도 놓치고 있었습니다.</li>
+          <li class="reveal d3"><b>v2.8.5 — 영어 지원</b> · 설정에서 화면 언어를 고르면 <b>12개 화면 전체</b>가 영어로 바뀝니다. 화면 문구뿐 아니라 <b>오류 메시지</b>와 AI 가 쓰는 작업 일지·회고·플래너 항목, 새 프로젝트에 심기는 기록 규칙까지 함께 따라갑니다. 화면 언어와 <b>AI 작성 언어는 따로</b> 고를 수 있고 — 화면은 영어, 일지는 한국어가 가능합니다 — <b>이미 기록된 문서는 다시 쓰지 않습니다</b>. ⌘K 팔레트는 양쪽 언어로 모두 찾힙니다.</li>
           <li class="reveal d3"><b>v2.8.4 — Pretendard 서체 · 화면 전환 속도</b> · 본문 서체를 <b>Pretendard</b>(애플고딕을 모델로 한 한글 서체)로 바꾸고, 그동안 <b>지정한 굵기대로 그려지지 않던 96군데</b>를 바로잡았습니다. 서체 파일은 7개 2.7MB → 1개 2.0MB. 변경 diff 화면은 코드 색칠 데이터를 <b>열 때만</b> 불러오도록 바꿔 프로젝트 진입 직후 로드량이 절반 아래로(266KB→125KB), 첫 코드 인덱싱도 기록을 묶어 처리해 빨라졌습니다.</li>
           <li class="reveal d2"><b>v2.8.3 — 터미널 붙여넣기 수정</b> · 내장 터미널에 붙여넣은 내용이 <b>두 번 들어가던</b> 문제를 고쳤습니다. 중복만이 아니라 두 번째 사본은 줄바꿈이 날것으로 전달돼 <b>각 줄이 명령으로 실행될 수</b> 있었습니다.</li>
           <li class="reveal d2"><b>v2.8.2 — 터미널 한국어 수정</b> · 내장 터미널에서 <b>한글만 영문보다 크게</b> 보이던 문제(폰트 자간 정보를 터미널 격자에 맞춰 재생성 — 글자 크기는 그대로, 용량은 440KB→279KB)와, 한글 입력기가 켜져 있을 때 <b>영문·스페이스가 두 번 입력</b>되던 문제를 고쳤습니다. 스페이스가 <span class="mono">NBSP</span>로 셸에 전달되던 것도 함께.</li>
@@ -291,7 +298,7 @@
         </ul>
         <div class="update-cta reveal d4">
           <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-            <span><span class="lg">v2.8.5 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
+            <span><span class="lg">v2.9.0 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
           </a>
           <a class="update-notes" href="https://github.com/bunhine0452/Ocul-PM/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">전체 변경 이력 →</a>
         </div>
@@ -408,6 +415,36 @@
         </div>
       </div>
 
+      <!-- 창과 탭 -->
+      <div class="cell c-span3 reveal">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 11h18"/><path d="M7 7V4h6v3"/></svg></div>
+        <span class="cell-tag">v2.9 · ⌘T · ⌘W</span>
+        <h3>창과 탭</h3>
+        <p>한 창이 <b>프로젝트 여러 개를 탭</b>으로 뭅니다. 끌어서 순서를 바꾸고, 창 밖으로 <b>떼어내면 새 창</b>이 됩니다. 프로젝트마다 화면·필터·사이드바를 따로 기억하고, <b>터미널 세션은 프로젝트에 묶여</b> 있어 탭이 창을 옮겨 다녀도 끊기지 않습니다.</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">ocul-pm</span><span class="rv">세션 활성</span><span class="rc">활성 탭</span></div>
+            <div class="rr"><span class="rl">side-project</span><span class="rv">일지 2건</span><span class="rc">탭</span></div>
+          </div>
+          <div class="mini-cap"><b>⌘T</b> 새 탭(=시작 탭) · <b>⌘W</b> 탭 닫기 · <b>⇧⌘N</b> 새 창 · <b>⌃Tab</b> 이동</div>
+        </div>
+      </div>
+
+      <!-- 시작 화면 · 프로젝트 겉모습 -->
+      <div class="cell c-span3 reveal d1">
+        <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+        <span class="cell-tag">v2.9 · 시작 화면</span>
+        <h3>열면 전부 보입니다</h3>
+        <p>등록된 <b>프로젝트 전부를 한 화면 격자</b>에 폅니다 — 무엇이 있고 어디가 움직이는지 창을 여는 순간 보입니다. 카드는 이름뿐 아니라 <b>어디를 눌러도</b> 열리고, 프로젝트마다 <b>색 8종 · 아이콘 10종</b>을 골라 탭에서도 형태로 구분됩니다.</p>
+        <div class="cell-visual">
+          <div class="mini-report">
+            <div class="rr"><span class="rl">ocul-pm</span><span class="rv">오늘 · 일지 9</span><span class="rc">열기</span></div>
+            <div class="rr"><span class="rl">landing</span><span class="rv">2일 전 · 일지 3</span><span class="rc">열기</span></div>
+          </div>
+          <div class="mini-cap">고르지 않으면 <b>이름에서 자동</b>으로 정해집니다</div>
+        </div>
+      </div>
+
       <!-- Today brief -->
       <div class="cell c-span2 reveal">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v2M5 7l1.5 1.5M3 14h2M19 14h2M17.5 8.5 19 7"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M4 21h16"/></svg></div>
@@ -487,7 +524,7 @@
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="4" width="19" height="4.5" rx="1.5"/><circle cx="17.5" cy="6.2" r="1.2" fill="currentColor" stroke="none"/><path d="M13 12h8v7a1.5 1.5 0 0 1-1.5 1.5H14.5A1.5 1.5 0 0 1 13 19z"/></svg></div>
         <span class="cell-tag">macOS 상단바</span>
         <h3>메뉴바 상주</h3>
-        <p>세션이 활성이면 상단바 아이콘이 움직이고, 클릭 한 번에 오늘의 세션·일지·플랜이 5초 브리핑으로. 창을 닫아도 지켜봅니다.</p>
+        <p>세션이 활성이면 상단바 아이콘에 <b>표시가 붙고</b>, 클릭 한 번에 오늘의 세션·일지·플랜이 5초 브리핑으로. 창을 닫아도 <b>추적 중인 프로젝트 전부</b>를 지켜봅니다.</p>
         <div class="cell-visual">
           <div class="mini-report">
             <div class="rr"><span class="rl">세션</span><span class="rv">claude-code · 12분째</span><span class="rc">활성</span></div>
@@ -804,7 +841,7 @@
 <section class="cta" id="download">
   <svg class="cta-arc" viewBox="0 0 760 760" aria-hidden="true"><use href="#arc-motif"/></svg>
   <div class="wrap">
-    <span class="eyebrow on-dark reveal">v2.8.5 — 지금 다운로드 · macOS (Apple Silicon)</span>
+    <span class="eyebrow on-dark reveal">v2.9.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
     <h2 class="reveal d1">AI에게 빼앗긴 <em>"왜 이걸 만들었더라"</em>의<br/>답을 다시 손에 쥐세요.</h2>
     <p class="cta-sub reveal d2">설치하고, 프로젝트 폴더를 열고, 에이전트를 부르세요. 나머지는 Ocul-PM이 기록합니다.</p>
     <div class="cta-btns reveal d2">

@@ -2,7 +2,7 @@
 /**
  * Lint rule: direct `localStorage` access is forbidden outside
  * `WorkspaceContext.tsx` (MASTER-GUIDE §6.1). Persistence happens through
- * the single `aipm:workspace:v1` key managed by the context — anything else
+ * the per-project `aipm:workspace:v2:p<id>` keys managed by the context — anything else
  * causes the "12 useState + 5 useEffect with scattered keys" regression.
  *
  * Runs in any Node 18+ environment with zero deps. Intent matches the
@@ -38,7 +38,7 @@ const ALLOWLIST = new Set([
   // Test-only.
   "__tests__/i18n_english_render.test.tsx",
   // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
-  // mounts so the persisted journalFilter (aipm:workspace:v1 envelope) doesn't
+  // mounts so the persisted journalFilter (aipm:workspace:v2:p<id> envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.
   "__tests__/journal_v2.test.tsx",
   // Final UI Update PR-UI 4 — DiffScreenV2 tests seed the persisted
@@ -50,8 +50,12 @@ const ALLOWLIST = new Set([
   // Test-only.
   "__tests__/tools_v2.test.tsx",
   // 자정 롤오버 테스트 — 각 테스트가 default state 에서 마운트되도록 persisted
-  // 프로젝트 선택(aipm:workspace:v1)을 비운다. Test-only.
+  // 워크스페이스 레코드(aipm:workspace:v2:p<id>)를 비운다. Test-only.
   "__tests__/workday_rollover.test.tsx",
+  // 멀티 프로젝트 창 (v2.9.0) — 키 분리(R3)와 v1 단일 키 이관을 검증하려면
+  // 저장소를 직접 들여다봐야 한다. 이 스위트가 곧 그 계약의 회귀 방지선이다.
+  // Test-only.
+  "__tests__/multi_window.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

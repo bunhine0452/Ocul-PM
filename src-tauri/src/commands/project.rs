@@ -110,6 +110,21 @@ pub async fn delete_project(
         .map_err(|e| e.to_string())
 }
 
+/// 카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서
+/// 유도)으로 되돌아간다.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_project_appearance(
+    db: State<'_, Db>,
+    project_id: u32,
+    icon: Option<String>,
+    color: Option<String>,
+) -> Result<(), String> {
+    db.set_project_appearance(project_id, icon, color)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn rename_project(

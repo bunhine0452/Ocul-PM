@@ -64,7 +64,7 @@ vi.mock("@/lib/bindings", () => {
 });
 
 import { DiffScreenV2, collapsePlanRefs } from "@/features/diff/DiffScreenV2";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, storageKeyFor } from "@/contexts/WorkspaceContext";
 import { recentChangesStore } from "@/lib/recentChangesStore";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 
@@ -93,7 +93,9 @@ describe("collapsePlanRefs", () => {
   });
 });
 
-const STORAGE_KEY = "aipm:workspace:v1";
+// 멀티 창 이후 워크스페이스 영속 키는 프로젝트별이다 — 하드코딩 대신
+// 컨텍스트가 내보내는 헬퍼를 쓴다 (키가 또 바뀌면 여기가 자동으로 따라간다).
+const STORAGE_KEY = storageKeyFor(1);
 
 /** Seed the watcher change buffer (v2 U3 — 세션 휘발 store) + optional
  *  persisted WorkspaceContext fields (diffActivePath 등). */
@@ -110,7 +112,7 @@ function seedRecentChanges(
 function renderDiff() {
   return render(
     <SettingsProvider>
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <DiffScreenV2 projectId={1} projectRoot="/tmp/proj" branch="feat/x" />
       </WorkspaceProvider>
     </SettingsProvider>,

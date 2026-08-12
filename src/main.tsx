@@ -1,9 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { WorkspaceProvider } from "./contexts/WorkspaceContext";
 import { Toaster } from "./components/ui/Toaster";
+import { parseWindowRoute } from "./lib/windowRoute";
 
 // 리로드 원인 캡처 (dev 전용 — 2026-07-20 "ai-pm 선택 직후 웹뷰 리로드" 수사).
 // Vite 클라이언트가 전체 리로드를 명령하는 순간과 사유(payload)를 콘솔로 남기면
@@ -22,14 +21,16 @@ if (import.meta.hot) {
   import.meta.hot.on("vite:ws:connect", diag("ws-connect"));
 }
 
-// v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`)은 `?tray=1` 로 뜬다.
-// 본 앱 셸·WorkspaceProvider 를 로드하지 않는 경량 진입점 (D2; 두 창이
-// 같은 localStorage 키를 쓰는 충돌도 회피).
-const isTrayWindow = new URLSearchParams(window.location.search).has("tray");
+// 두 갈래 (크롬식 탭 §2) — 트레이 팝오버냐, 탭을 문 앱 창이냐. 어느 갈래인지는
+// URL 이 정하고 런타임에 바뀌지 않는다. "런처 전용 창" 은 시작 탭이 대체했다.
+const route = parseWindowRoute(window.location.search);
+const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
-if (isTrayWindow) {
+if (route.kind === "tray") {
+  // v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`). 본 앱 셸·워크스페이스를
+  // 로드하지 않는 경량 진입점.
   const TrayApp = React.lazy(() => import("./features/tray/TrayApp"));
-  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  root.render(
     <React.StrictMode>
       <React.Suspense fallback={null}>
         <TrayApp />
@@ -37,13 +38,20 @@ if (isTrayWindow) {
     </React.StrictMode>,
   );
 } else {
-  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  // 프로젝트 창 — 탭 여러 개를 물고, 탭마다 WorkspaceProvider 를 마운트한다
+  // (그 배선은 TabbedWindow 안에 있다 — 탭 집합이 런타임에 바뀌므로).
+  const TabbedWindow = React.lazy(() => import("./windows/TabbedWindow"));
+  root.render(
     <React.StrictMode>
       <SettingsProvider>
-        <WorkspaceProvider>
-          <App />
-          <Toaster />
-        </WorkspaceProvider>
+        <React.Suspense fallback={null}>
+          <TabbedWindow
+            windowLabel={route.label}
+            initialView={route.view}
+            initialEntryPath={route.entryPath}
+          />
+        </React.Suspense>
+        <Toaster />
       </SettingsProvider>
     </React.StrictMode>,
   );

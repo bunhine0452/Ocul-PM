@@ -93,7 +93,7 @@ const HANGUL = /[가-힣]/;
 function Wrap({ children }: { children: React.ReactNode }) {
   return (
     <SettingsProvider>
-      <WorkspaceProvider>{children}</WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>{children}</WorkspaceProvider>
     </SettingsProvider>
   );
 }

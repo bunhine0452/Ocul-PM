@@ -1,8 +1,13 @@
 //! v2.3.0 메뉴바 상주 — SSOT: docs/menubar/00-master-plan.md (D1~D5).
 //!
-//! D1 — 트레이 3상태: 유휴(정적) / 세션 활성(펄스 애니메이션) / 주의(점).
+//! D1 — 트레이 2상태: 유휴(정적) / 주의(점).
 //! 아이콘은 번들 에셋 없이 **런타임에 RGBA 로 그린다** (동심원 로고 모티프).
 //! macOS 템플릿 이미지 규약 — 검정+알파만 사용, `icon_as_template(true)`.
+//!
+//! **세션 활성 시 회전 애니메이션은 2026-08-12 에 제거했다** (사용자 요청).
+//! 메뉴바에서 끊임없이 도는 아이콘은 정보량 대비 시선을 너무 많이 가져간다.
+//! "세션이 돈다" 는 신호는 두 군데에 그대로 있다 — 팝오버의 "세션 N 활성"
+//! 줄, 그리고 탭 스트립의 활동 점.
 //!
 //! D2 — 팝오버는 무장식 보조 창 1개(label `tray`)를 숨김 생성해 재사용.
 //! 포커스 이탈 시 hide. 데이터 조회는 팝오버 프런트가 기존 커맨드로 직접
@@ -27,7 +32,6 @@ use tauri::{
     AppHandle, Listener, LogicalPosition, Manager, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
-use tauri_specta::Event;
 
 pub const TRAY_WINDOW: &str = "tray";
 const TRAY_ID: &str = "oculpm-tray";
@@ -36,15 +40,8 @@ const SIZE: u32 = 44;
 /// 창 크기 — 카드(344×484) + 사방 12px 투명 여백(CSS 그림자·라운드 코너용).
 const POPOVER_W: f64 = 368.0;
 const POPOVER_H: f64 = 508.0;
-/// 애니메이션 프레임 수·주기 (사전 렌더 — 런타임 드로잉은 시작 시 1회).
-/// 한 사이클 = 호가 한 바퀴 (12×160ms ≈ 1.9초/회전, 심리스 루프).
-const PULSE_FRAMES: usize = 12;
-const PULSE_TICK_MS: u64 = 160;
-/// 애니메이션이 도는 동안 실제 세션 상태를 다시 확인하는 주기 (프레임 수).
-/// 30 × 160ms ≈ 4.8초 — `ended` 이벤트를 통째로 놓쳐도 이 안에 멈춘다.
-const RECONCILE_EVERY: usize = 30;
 /// 세션 액터 조회 응답 대기 상한. 액터가 무거운 작업 중이면 늦게 답할 수
-/// 있으므로, 넘기면 "모름"으로 두고 다음 회차에 다시 본다 (섣부른 정지 방지).
+/// 있으므로, 넘기면 "모름"으로 두고 다음 회차에 다시 본다.
 const RECONCILE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// 팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열.
@@ -61,7 +58,6 @@ pub struct TrayState {
     /// `"{project_id}:{session_id}"` — 프로젝트를 가로지르는 활성 세션 집합.
     active: Mutex<HashSet<String>>,
     attention: AtomicBool,
-    animating: AtomicBool,
     /// 최근 일지 알림 시각들 — git 백필처럼 일지가 몰릴 때 스로틀 (§아래).
     notified_at: Mutex<Vec<std::time::Instant>>,
 }
@@ -86,14 +82,12 @@ struct Ring {
     gap_at: f32,
     /// 틈 크기 (rad).
     gap: f32,
-    /// 회전 방향 (+1/-1).
-    dir: f32,
 }
 
 const ARCS: [Ring; 3] = [
-    Ring { r: 6.2, w: 1.55, gap_at: 1.22, gap: 1.5, dir: 1.0 },
-    Ring { r: 11.2, w: 1.55, gap_at: -0.70, gap: 1.25, dir: -1.0 },
-    Ring { r: 16.2, w: 1.55, gap_at: 2.18, gap: 1.05, dir: 1.0 },
+    Ring { r: 6.2, w: 1.55, gap_at: 1.22, gap: 1.5 },
+    Ring { r: 11.2, w: 1.55, gap_at: -0.70, gap: 1.25 },
+    Ring { r: 16.2, w: 1.55, gap_at: 2.18, gap: 1.05 },
 ];
 
 /// 각도 차 (rad) 를 [-π, π] 로 정규화한 절대값.
@@ -109,7 +103,7 @@ fn ang_dist(a: f32, b: f32) -> f32 {
 }
 
 /// 서브픽셀 하나의 알파 (0..1).
-fn sample_alpha(fx: f32, fy: f32, pulse: Option<f32>, attention: bool) -> f32 {
+fn sample_alpha(fx: f32, fy: f32, attention: bool) -> f32 {
     let c = (SIZE as f32) / 2.0;
     let dx = fx - c;
     let dy = fy - c;
@@ -125,10 +119,8 @@ fn sample_alpha(fx: f32, fy: f32, pulse: Option<f32>, attention: bool) -> f32 {
         // 반경 방향 소프트 엣지.
         let ra = (1.0 - (radial / arc.w).powi(2)).clamp(0.0, 1.0);
         // 각도 방향 — 틈 밖이면 1, 틈 가장자리는 픽셀 단위 페더.
-        let rot = match pulse {
-            Some(p) => arc.gap_at + arc.dir * std::f32::consts::TAU * p,
-            None => arc.gap_at,
-        };
+        // 회전 항(`arc.dir * TAU * phase`)은 애니메이션과 함께 제거했다.
+        let rot = arc.gap_at;
         let half_gap = arc.gap / 2.0;
         let feather = 1.4 / arc.r; // 호 끝 라운딩 ≈ 1.4px
         let aa = ((ang_dist(ang, rot) - half_gap) / feather).clamp(0.0, 1.0);
@@ -150,16 +142,16 @@ fn sample_alpha(fx: f32, fy: f32, pulse: Option<f32>, attention: bool) -> f32 {
     a
 }
 
-/// 한 프레임을 그린다. `pulse` 는 0.0~1.0 위상 (None = 유휴 정적).
-/// 2×2 슈퍼샘플링 — 22pt 크기에서 호 가장자리가 또렷하게.
-fn render_frame(pulse: Option<f32>, attention: bool) -> Image<'static> {
+/// 아이콘을 그린다. 2×2 슈퍼샘플링 — 22pt 크기에서 호 가장자리가 또렷하게.
+/// 상태는 `attention` 하나뿐이다 (회전 애니메이션 제거 후).
+fn render_icon(attention: bool) -> Image<'static> {
     let s = SIZE as usize;
     let mut buf = vec![0u8; s * s * 4];
     for y in 0..s {
         for x in 0..s {
             let mut acc = 0.0f32;
             for (ox, oy) in [(0.25f32, 0.25f32), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)] {
-                acc += sample_alpha(x as f32 + ox, y as f32 + oy, pulse, attention);
+                acc += sample_alpha(x as f32 + ox, y as f32 + oy, attention);
             }
             let px = (y * s + x) * 4;
             buf[px] = 0;
@@ -180,7 +172,7 @@ fn set_tray_icon(app: &AppHandle, img: Image<'static>) {
 }
 
 fn set_idle_icon(app: &AppHandle, attention: bool) {
-    set_tray_icon(app, render_frame(None, attention));
+    set_tray_icon(app, render_icon(attention));
 }
 
 // ─── 활성 세션 재확인 ────────────────────────────────────────────────────────
@@ -238,40 +230,6 @@ async fn reconcile_active(app: &AppHandle, state: &Arc<TrayState>) -> usize {
     set.len()
 }
 
-// ─── 애니메이션 (D1 — 세션 활성 시에만) ──────────────────────────────────────
-
-fn start_animation(app: &AppHandle, state: &Arc<TrayState>) {
-    if state.animating.swap(true, Ordering::SeqCst) {
-        return; // 이미 도는 중
-    }
-    // 프레임 사전 렌더 — 루프 안에서는 픽셀 계산 없음.
-    let frames: Vec<Image<'static>> = (0..PULSE_FRAMES)
-        .map(|i| render_frame(Some(i as f32 / PULSE_FRAMES as f32), false))
-        .collect();
-    let app = app.clone();
-    let state = state.clone();
-    tauri::async_runtime::spawn(async move {
-        let mut i = 0usize;
-        loop {
-            // 이벤트만 믿지 않는다 — 주기적으로 액터의 실제 상태와 대조해
-            // 유령 세션을 걷어낸다. i == 0 은 방금 온 started 이벤트라 건너뛴다.
-            let remaining = if i > 0 && i.is_multiple_of(RECONCILE_EVERY) {
-                reconcile_active(&app, &state).await
-            } else {
-                state.active_count()
-            };
-            if remaining == 0 {
-                break;
-            }
-            set_tray_icon(&app, frames[i % PULSE_FRAMES].clone());
-            i += 1;
-            tokio::time::sleep(std::time::Duration::from_millis(PULSE_TICK_MS)).await;
-        }
-        state.animating.store(false, Ordering::SeqCst);
-        set_idle_icon(&app, state.attention.load(Ordering::Relaxed));
-    });
-}
-
 // ─── 세션·주의 신호 구독 ─────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
@@ -295,7 +253,7 @@ fn listen_signals(app: &AppHandle, state: Arc<TrayState>) {
                 if let Ok(mut set) = state.active.lock() {
                     set.insert(format!("{}:{}", p.project_id, p.session.id));
                 }
-                start_animation(&app, &state);
+                // 회전 애니메이션은 제거됐다 — 활성 집합만 갱신한다.
             }
         });
     }
@@ -314,9 +272,7 @@ fn listen_signals(app: &AppHandle, state: Arc<TrayState>) {
         let (app, state) = (app.clone(), state.clone());
         app.clone().listen("oculpm-integrity-warning", move |_| {
             state.attention.store(true, Ordering::Relaxed);
-            if !state.animating.load(Ordering::SeqCst) {
-                set_idle_icon(&app, true);
-            }
+            set_idle_icon(&app, true);
         });
     }
     {
@@ -430,20 +386,15 @@ fn popover(app: &AppHandle) -> Option<WebviewWindow> {
 
 fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::PhysicalPosition<f64>) {
     // 팝오버 열람 = 주의 확인으로 간주 (D1).
-    if state.attention.swap(false, Ordering::Relaxed) && !state.animating.load(Ordering::SeqCst) {
+    if state.attention.swap(false, Ordering::Relaxed) {
         set_idle_icon(app, false);
     }
-    // 팝오버는 디스크의 세션 목록을 직접 읽어 "지금 활성 세션 없음" 을 보여준다.
-    // 아이콘이 계속 돌면 둘이 어긋나 보이므로, 여는 순간 한 번 맞춘다. 활성이
-    // 0 이 되면 애니메이션 루프가 다음 tick(160ms) 에 스스로 멈춘다.
+    // 유령 세션 정리 — 아이콘은 이제 안 돌지만, 활성 집합이 계속 부풀면 주의
+    // 신호 판정이 어긋난다. 여는 순간 한 번 실제 상태와 대조한다.
     {
         let (app, state) = (app.clone(), state.clone());
         tauri::async_runtime::spawn(async move {
-            if reconcile_active(&app, &state).await == 0
-                && !state.animating.load(Ordering::SeqCst)
-            {
-                set_idle_icon(&app, state.attention.load(Ordering::Relaxed));
-            }
+            reconcile_active(&app, &state).await;
         });
     }
     let Some(win) = popover(app) else { return };
@@ -493,20 +444,27 @@ pub async fn apply_settings(app: &AppHandle) {
     }
 }
 
-/// 메인 창 닫기 = 트레이로 최소화 (옵인). CloseRequested 훅에서 호출.
-/// true 를 돌려주면 닫기를 가로챈 것.
-pub fn handle_main_close_requested(app: &AppHandle) -> bool {
+/// 마지막 창을 닫을 때의 판정 — 순수 함수라 창 런타임 없이 단위 테스트한다.
+///
+/// 상주 옵인 전의 ⌘W 계약: 마지막 창을 닫으면 앱이 종료된다. 숨겨진 트레이
+/// 팝오버 창이 살아 있어 Tauri 의 "마지막 창 닫힘 → 종료" 가 자연 발화하지
+/// 않으므로 명시적으로 판정한다. 창이 더 남아 있으면 당연히 종료하지 않는다
+/// — 작업 중인 다른 창을 죽이는 참사(R1)를 막는 자리다.
+pub fn should_exit_on_last_window_close(remaining_windows: usize, keep_running: bool) -> bool {
+    remaining_windows == 0 && !keep_running
+}
+
+/// 마지막 앱 창이 닫혔다. `true` 를 돌려주면 닫기를 가로챈 것(트레이 상주).
+pub fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
     let db = app.state::<crate::db::Db>();
     let keep = tauri::async_runtime::block_on(setting_on(&db, SETTING_KEEP_RUNNING, false));
-    if !keep {
-        // 상주 옵인 전의 ⌘W 계약 유지: 메인 창 닫기 = 앱 종료. 숨겨진 트레이
-        // 팝오버 창이 살아 있어 "마지막 창 닫힘 → 종료" 가 자연 발화하지
-        // 않으므로 명시적으로 종료한다 (graceful — 락 해제 경로 동일).
+    if should_exit_on_last_window_close(0, keep) {
         app.exit(0);
         return false;
     }
-    if let Some(main) = app.get_webview_window("main") {
-        let _ = main.hide();
+    // 상주 모드 — 창을 닫는 대신 숨겨 두면 다음 "열기" 가 즉시 뜬다.
+    if let Some(win) = app.get_webview_window(label) {
+        let _ = win.hide();
     }
     #[cfg(target_os = "macos")]
     {
@@ -519,15 +477,12 @@ pub fn handle_main_close_requested(app: &AppHandle) -> bool {
     true
 }
 
-/// 메인 창 표시 + 포커스 (트레이 메뉴·팝오버 딥링크 공용).
+/// 앱 창을 앞으로 (트레이 메뉴 "열기"). 없으면 시작 탭으로 하나 만든다.
 pub fn show_main(app: &AppHandle) {
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-    if let Some(main) = app.get_webview_window("main") {
-        let _ = main.show();
-        let _ = main.unminimize();
-        let _ = main.set_focus();
-    }
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = crate::commands::window::focus_or_open_window(&handle).await;
+    });
 }
 
 // ─── 초기화 ──────────────────────────────────────────────────────────────────
@@ -545,7 +500,7 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
         .build()?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(render_frame(None, false))
+        .icon(render_icon(false))
         .icon_as_template(true)
         .tooltip("Ocul-PM")
         .menu(&menu)
@@ -597,11 +552,19 @@ pub async fn tray_open_main(app: AppHandle, nav: Option<TrayNavigate>) -> Result
     if let Some(win) = app.get_webview_window(TRAY_WINDOW) {
         let _ = win.hide();
     }
-    show_main(&app);
-    if let Some(nav) = nav {
-        nav.emit(&app).map_err(|e| e.to_string())?;
-    }
-    Ok(())
+
+    // 프로젝트가 지정된 딥링크는 **그 프로젝트의 탭**으로 간다 (T5). 예전처럼
+    // 전역 emit 을 하면 열려 있는 모든 창이 남의 일지로 점프한다.
+    let Some(project_id) = nav.as_ref().and_then(|n| n.project_id) else {
+        crate::commands::window::focus_or_open_window(&app).await?;
+        return Ok(());
+    };
+    let nav = nav.expect("project_id 를 꺼냈으므로 nav 는 Some");
+
+    // 탭을 열거나(없으면) 활성화하고(있으면) 그 창에만 목적지를 전달한다.
+    // 갓 만든 창은 아직 리스너가 없어 emit 이 유실되므로, 그 경우 커맨드가
+    // 목적지를 URL 에 실어 보낸다.
+    crate::commands::window::open_project_tab_with_nav(&app, project_id, None, Some(&nav)).await
 }
 
 #[tauri::command]
@@ -627,9 +590,9 @@ mod tests {
 
     #[test]
     fn frames_are_template_black_with_alpha() {
-        for pulse in [None, Some(0.3)] {
+        {
             for attention in [false, true] {
-                let img = render_frame(pulse, attention);
+                let img = render_icon(attention);
                 let rgba = img.rgba();
                 assert_eq!(rgba.len(), (SIZE * SIZE * 4) as usize);
                 let mut any_alpha = false;
@@ -646,8 +609,8 @@ mod tests {
 
     #[test]
     fn attention_dot_changes_top_right_region() {
-        let plain = render_frame(None, false);
-        let attn = render_frame(None, true);
+        let plain = render_icon(false);
+        let attn = render_icon(true);
         assert_ne!(plain.rgba(), attn.rgba(), "주의 점이 실제로 그려져야 함");
     }
 
@@ -660,10 +623,24 @@ mod tests {
         assert_eq!(project_id_of(""), None);
     }
 
+    /// R1 — 창 하나를 닫았다고 작업 중인 다른 창이 죽으면 안 된다.
     #[test]
-    fn pulse_frames_differ_across_phase() {
-        let a = render_frame(Some(0.0), false);
-        let b = render_frame(Some(0.5), false);
-        assert_ne!(a.rgba(), b.rgba());
+    fn exits_only_when_no_window_remains() {
+        // 남은 창이 없으면 옛 계약 그대로: 닫기 = 종료.
+        assert!(should_exit_on_last_window_close(0, false));
+        // 상주 설정 ON — 종료하지 않고 숨긴다 (기존 동작).
+        assert!(!should_exit_on_last_window_close(0, true));
+        // R1 — 창이 남아 있으면 무슨 일이 있어도 종료하지 않는다.
+        assert!(!should_exit_on_last_window_close(3, false));
+        assert!(!should_exit_on_last_window_close(3, true));
+        assert!(!should_exit_on_last_window_close(1, false));
+    }
+
+    /// 회전 애니메이션 제거 회귀 방지 — 아이콘은 **입력이 같으면 언제나 같다**.
+    /// 위상 인자가 다시 생기면 이 테스트가 컴파일부터 깨진다.
+    #[test]
+    fn icon_is_deterministic_and_static() {
+        assert_eq!(render_icon(false).rgba(), render_icon(false).rgba());
+        assert_eq!(render_icon(true).rgba(), render_icon(true).rgba());
     }
 }

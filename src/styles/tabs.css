@@ -1,0 +1,213 @@
+/* ============================================================
+   tabs.css — 창 셸(.winroot) + 탭 스트립 (01b-chrome-tabs.md).
+
+   ⚠️ **styles/index.css 계열에 두면 안 된다.** 그쪽은 ShellV2(lazy 청크)만
+   임포트하므로, 시작 탭만 있는 창에서는 스트립이 통째로 무스타일이 된다
+   — 실제 증상: 탭이 세로로 쌓이고 창 상단이 흰 띠로 남았다. 탭은 **모든**
+   창에 항상 있으므로 TabbedWindow 가 직접 임포트한다.
+
+   스트립이 창 최상단을 차지하므로 macOS 신호등 자리를 좌측 인셋으로 비우고
+   (컴포넌트가 인라인으로 준다), 남는 공간은 드래그 리전이 되어 무장식
+   타이틀바의 '잡는 자리'를 대신한다. 토큰은 App.css 가 전역화한
+   styles/tokens.css 에서 온다.
+   ============================================================ */
+.winroot {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-sidebar);
+}
+.tabstrip {
+  flex: 0 0 auto;
+  height: 38px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 8px 0;
+  user-select: none;
+  position: relative;
+  z-index: 20;
+}
+/* 탭을 떼어내는 중 — 스트립 전체를 흐리게 해 "이 창에서 빠진다"를 알린다. */
+.tabstrip.is-detaching { opacity: 0.55; }
+
+.tabstrip-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 96px;
+  max-width: 200px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border-radius: 9px 9px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: default;
+  position: relative;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.tabstrip-tab:hover { background: var(--bg-hover); color: var(--text); }
+.tabstrip-tab.on {
+  background: var(--bg-content);
+  color: var(--text);
+  box-shadow: 0 -1px 0 var(--border-card) inset, 1px 0 0 var(--border-card) inset,
+    -1px 0 0 var(--border-card) inset;
+}
+/* 드래그 중인 탭은 손에 들린 것처럼 살짝 뜬다. */
+.tabstrip-tab.dragging { box-shadow: var(--shadow-pop); z-index: 2; }
+.tabstrip-tab.detaching { opacity: 0.7; transform: translateY(-2px); }
+
+/* 아이콘은 프로젝트 색으로 — 카드와 같은 팔레트다 (home.css 의 `[data-pc]`
+   와 값이 같아야 두 화면에서 같은 프로젝트가 같은 색으로 보인다). */
+.tabstrip-icon { flex: none; width: 13px; height: 13px; color: var(--pc, var(--text-3)); }
+.tabstrip-tab[data-pc="slate"]  { --pc: #6b7280; }
+.tabstrip-tab[data-pc="green"]  { --pc: #12a06b; }
+.tabstrip-tab[data-pc="blue"]   { --pc: #2f7fd8; }
+.tabstrip-tab[data-pc="violet"] { --pc: #7c5cd6; }
+.tabstrip-tab[data-pc="amber"]  { --pc: #c2891b; }
+.tabstrip-tab[data-pc="rose"]   { --pc: #d05470; }
+.tabstrip-tab[data-pc="teal"]   { --pc: #0f9a99; }
+.tabstrip-tab[data-pc="orange"] { --pc: #d2703a; }
+[data-theme="dark"] .tabstrip-tab[data-pc="slate"]  { --pc: #9aa3b2; }
+[data-theme="dark"] .tabstrip-tab[data-pc="green"]  { --pc: #4ecb96; }
+[data-theme="dark"] .tabstrip-tab[data-pc="blue"]   { --pc: #6aa9f0; }
+[data-theme="dark"] .tabstrip-tab[data-pc="violet"] { --pc: #a68cf0; }
+[data-theme="dark"] .tabstrip-tab[data-pc="amber"]  { --pc: #e0b155; }
+[data-theme="dark"] .tabstrip-tab[data-pc="rose"]   { --pc: #ef8ba1; }
+[data-theme="dark"] .tabstrip-tab[data-pc="teal"]   { --pc: #4ec7c6; }
+[data-theme="dark"] .tabstrip-tab[data-pc="orange"] { --pc: #ee9a66; }
+.tabstrip-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.tabstrip-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+}
+.tabstrip-tab:hover .tabstrip-close,
+.tabstrip-tab.on .tabstrip-close { opacity: 1; }
+.tabstrip-close:hover { background: var(--bg-hover); color: var(--text); }
+.tabstrip-close:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tabstrip-adder { position: relative; flex: none; }
+.tabstrip-new {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 3px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.tabstrip-new:hover { background: var(--bg-hover); color: var(--text); }
+
+.tabstrip-pop {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 60;
+  min-width: 260px;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+  padding: 4px; max-height: 340px; overflow-y: auto;
+  transform-origin: top left;
+  animation: popIn var(--dur-2) var(--ease-spring) both;
+}
+.tabstrip-pop-list { display: flex; flex-direction: column; gap: 1px; }
+.tabstrip-pop-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 7px 8px; border-radius: 8px; cursor: pointer;
+  background: none; border: none; color: var(--text); font-family: var(--font);
+}
+.tabstrip-pop-item:hover { background: var(--bg-hover); }
+.tabstrip-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tabstrip-pop-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabstrip-pop-path { font-size: 10px; color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabstrip-pop-empty { padding: 10px 8px; font-size: 11.5px; color: var(--text-3); }
+.tabstrip-pop-manage {
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  margin-top: 4px; padding: 8px; cursor: pointer;
+  background: none; border: none; border-top: 1px solid var(--sep);
+  color: var(--text-2); font-family: var(--font); font-size: 11.5px; font-weight: 600;
+}
+.tabstrip-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
+
+/* 스트립의 남는 폭 — 창을 잡아 옮기는 자리. */
+.tabstrip-drag { flex: 1; align-self: stretch; }
+
+/* 탭 본문 — 비활성 탭도 **마운트된 채** 숨는다 (Chrome 처럼 백그라운드에서
+   watcher·PTY·AI 가 계속 돈다). 그래서 언마운트가 아니라 display:none 이다. */
+.tabpanes { flex: 1 1 auto; position: relative; min-height: 0; }
+.tabpane { position: absolute; inset: 0; }
+.tabpane[hidden] { display: none; }
+
+/* 스트립이 신호등 자리를 책임지므로 사이드바는 상단 여백을 비운다
+   (ShellV2 가 macTopInset 을 0 으로 넘긴다 — 여긴 그 전제의 기록). */
+.winroot .app { height: 100%; }
+/* tablist 는 tab 만 품는다 (a11y) — `+` 와 드래그 리전은 스트립 직계 자식. */
+.tabstrip-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; }
+/* 탭 본체(role="tab") — 닫기 버튼은 형제라 위젯 중첩이 없다 (a11y). */
+.tabstrip-label {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1; min-width: 0; height: 100%;
+  border-radius: 9px 9px 0 0;
+  outline-offset: -2px;
+}
+
+/* 시작 탭은 프로젝트가 없으므로 색도 없다 — 중성색으로 남는다. */
+.tabstrip-tab.is-start .tabstrip-icon { color: var(--text-3); }
+
+/* 세션 활동 점 — 백그라운드 탭에서 에이전트가 도는 중이라는 신호. */
+/* 헤일로(0 0 0 3px)는 뺐다 — 작은 점 하나에 광원을 두르면 그 자체가
+   장식이 되고, 여러 탭에서 동시에 켜지면 스트립이 번져 보인다. */
+.tabstrip-busy {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: tabPulse 2s var(--ease-out) infinite;
+}
+/* 사인에 가까운 감쇠 — 두 지점만 두면 선형 페이드가 되어 '깜빡임' 으로
+   읽힌다. 중간 키프레임으로 숨쉬는 곡선을 만든다. */
+@keyframes tabPulse {
+  0%, 100% { opacity: 1; }
+  30% { opacity: 0.62; }
+  50% { opacity: 0.42; }
+  70% { opacity: 0.62; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabstrip-busy { animation: none; }
+}
+
+/* 탭 오버플로 — 탭이 늘어나면 균등하게 줄고, 아이콘만 남을 만큼 좁아지면
+   이름을 감춘다. 가로 스크롤 대신 축소를 택한 이유: 스트립이 스크롤되면
+   "지금 창에 탭이 몇 개인지" 라는 한눈 신호가 사라진다. */
+/* 탭 묶음은 **필요한 만큼만** 차지한다 — 늘려 잡으면 `+` 가 창 오른쪽 끝까지
+   밀려나 마지막 탭과 멀어진다 (Chrome 은 마지막 탭 바로 옆이다). 대신 탭이
+   많아지면 균등하게 줄고, 남는 폭은 드래그 리전이 가져간다. */
+.tabstrip-tabs { flex: 0 1 auto; overflow: hidden; }
+.tabstrip-tab { flex: 1 1 auto; }
+.tabstrip-drag { flex: 1 1 auto; min-width: 0; }
+
+/* 탭 본문은 창의 콘텐츠 면 — 시작 탭(캔버스 없음)에도 배경을 준다.
+   프로젝트 탭의 `.app` 은 자기 배경을 그리므로 덮어써도 무해하다. */
+.tabpane { background: var(--bg-window); color: var(--text); }

@@ -12,7 +12,7 @@ import {
   MessageSquare,
   BookText,
 } from "@/components/Icons";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
 import { commands, type DocsTreeNode, type EntityHit, type Project } from "@/lib/bindings";
@@ -88,7 +88,12 @@ export function CommandPalette({
   projects,
   onSelectProject,
 }: CommandPaletteProps) {
-  const { setUiV2View, state } = useWorkspace();
+  // 런처 창에는 WorkspaceProvider 가 없다 (멀티 창 I2) — 프로젝트에 매인
+  // 항목(화면 이동·세션·재색인)은 아래에서 전부 꺼지고, 프로젝트 열기와
+  // 설정만 남는다.
+  const ws = useOptionalWorkspace();
+  const state = ws?.state ?? null;
+  const currentProjectId = state?.currentProjectId ?? null;
   const [search, setSearch] = useState("");
 
   // Reset query when palette closes — feels less surprising on next open.
@@ -113,7 +118,7 @@ export function CommandPalette({
 
   useEffect(() => {
     const q = search.trim();
-    const pid = state.currentProjectId;
+    const pid = currentProjectId;
     if (!open || pid == null || q.length < 2) {
       setEntityHits([]);
       setDocHits([]);
@@ -154,7 +159,7 @@ export function CommandPalette({
       }
     }, 120);
     return () => window.clearTimeout(timer);
-  }, [open, search, state.currentProjectId]);
+  }, [open, search, currentProjectId]);
 
   const openEntity = (detail: OpenEntityDetail) => {
     onOpenChange(false);
@@ -170,7 +175,7 @@ export function CommandPalette({
   const aliasOf = (key: I18nKey) => tAll(key).join(" ");
 
   const go = (view: UiV2View) => () => {
-    setUiV2View(view);
+    ws?.setUiV2View(view);
     onOpenChange(false);
   };
 
@@ -178,7 +183,7 @@ export function CommandPalette({
     () => [
       // ── 프로젝트 열기 — 대시보드에서만. 프로젝트가 열려 있으면 사이드바의
       // 전환 팝오버(⌘P)가 그 역할을 하므로 중복해서 싣지 않는다.
-      ...(state.currentProjectId === null && projects && onSelectProject
+      ...(currentProjectId === null && projects && onSelectProject
         ? projects.map((p) => ({
             id: `open-project-${p.id}`,
             label: p.name,
@@ -193,7 +198,7 @@ export function CommandPalette({
         : []),
       // ── 이동 — navRegistry 단일 소스에서 파생 (v2 U1). 사이드바의 모든
       // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
-      ...NAV_ENTRIES.map((e) => ({
+      ...(ws ? NAV_ENTRIES : []).map((e) => ({
         id: `view-${e.id}`,
         label: t(e.labelKey),
         // 양 언어 별칭 + 양 언어 라벨을 전부 색인한다 — 영어 모드에서도 "일지",
@@ -206,29 +211,33 @@ export function CommandPalette({
       })),
 
       // ── 액션
-      { id: "switch-project", label: t("palette.switchProject"), alias: aliasOf("palette.switchProject"),
-        group: "actions", icon: FolderGit2, shortcut: "⌘P",
-        onSelect: () => {
-          onOpenChange(false);
-          window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
-        } },
-      { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
-        group: "actions", icon: Sparkles, shortcut: "⌘\\",
-        onSelect: () => { setUiV2View("ai"); onOpenChange(false); } },
+      ...(ws
+        ? [
+            { id: "switch-project", label: t("palette.switchProject"), alias: aliasOf("palette.switchProject"),
+              group: "actions" as const, icon: FolderGit2, shortcut: "⌘P",
+              onSelect: () => {
+                onOpenChange(false);
+                window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
+              } },
+            { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
+              group: "actions" as const, icon: Sparkles, shortcut: "⌘\\",
+              onSelect: () => { ws.setUiV2View("ai"); onOpenChange(false); } },
+          ]
+        : []),
       { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
         group: "actions", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
-      ...(onReindex && state.currentProjectId !== null
+      ...(onReindex && currentProjectId !== null
         ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),
             group: "actions" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]
         : []),
-      ...(onRegenerateOverview && state.currentProjectId !== null
+      ...(onRegenerateOverview && currentProjectId !== null
         ? [{ id: "regen-overview", label: t("palette.regenOverview"), alias: aliasOf("palette.regenOverview"),
             group: "actions" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
         : []),
 
       // ── ocul-pm — W4-PR8
-      ...(state.currentProjectId !== null
+      ...(currentProjectId !== null
         ? [
             {
               id: "oculpm-session-start",
@@ -237,7 +246,7 @@ export function CommandPalette({
               group: "oculpm" as const,
               icon: Flame,
               onSelect: () => {
-                const pid = state.currentProjectId!;
+                const pid = currentProjectId!;
                 onOpenChange(false);
                 oculpmApi
                   .startSessionManual(pid)
@@ -256,9 +265,9 @@ export function CommandPalette({
               group: "oculpm" as const,
               icon: Flame,
               onSelect: () => {
-                const pid = state.currentProjectId!;
+                const pid = currentProjectId!;
                 onOpenChange(false);
-                const sid = state.currentSession?.id;
+                const sid = state?.currentSession?.id;
                 if (!sid) {
                   toast.warning(t("palette.toast.noActiveSession"));
                   return;
@@ -294,7 +303,7 @@ export function CommandPalette({
               group: "oculpm" as const,
               icon: RefreshCw,
               onSelect: () => {
-                const pid = state.currentProjectId!;
+                const pid = currentProjectId!;
                 onOpenChange(false);
                 oculpmApi
                   .syncAgents(pid)
@@ -327,7 +336,7 @@ export function CommandPalette({
     ],
     // `t` 는 언어가 바뀔 때만 아이덴티티가 바뀐다 (useT) — 언어 전환 시
     // 정확히 한 번 재계산되고 평소엔 안정적이다.
-    [t, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, state.currentProjectId, state.currentSession],
+    [t, ws, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, currentProjectId, state?.currentSession],
   );
 
   // Group items by `group` field, preserving the original order so the

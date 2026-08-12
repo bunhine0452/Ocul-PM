@@ -10,7 +10,7 @@ const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 
 function project() {
-  return { id: 1, name: "ai-pm", root_path: "/x/ai-pm", created_at: 0 };
+  return { id: 1, name: "ai-pm", root_path: "/x/ai-pm", created_at: 0, icon: null, color: null };
 }
 
 function entry(over: Record<string, unknown> = {}) {

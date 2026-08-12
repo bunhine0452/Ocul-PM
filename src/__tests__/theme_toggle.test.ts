@@ -25,6 +25,9 @@ vi.mock("@/lib/bindings", () => {
         },
       },
     ),
+    // SettingsProvider 는 설정 변경 브로드캐스트를 구독한다 (창을 가로질러
+    // 테마·언어를 맞추는 경로) — 아무 이벤트나 no-op 구독으로 답한다.
+    events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
   };
 });
 

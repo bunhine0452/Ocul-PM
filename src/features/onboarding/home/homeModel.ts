@@ -2,9 +2,11 @@
  * 메인 화면(프로젝트 선택) 모델 — 순수 함수만. React 의존 0.
  *
  * 화면의 질문은 하나다: **"어디서 이어서 일하지?"**
- * 그 답을 위계로 만드는 것이 이 파일의 일이다 — 오늘 손댄 프로젝트가 가장
- * 크게(사령탑), 최근 것이 그 다음(판), 나머지가 행, 2주 이상 조용한 것은
- * 레일 하단 색인으로 접힌다.
+ * 그 답은 **순위**지 크기가 아니다 (2026-08-12 대격변). 예전에는 1위를
+ * 사령탑 타일로 크게, 2~3위를 판으로, 나머지를 행으로 그렸는데 — 프로젝트가
+ * 9개가 되자 1위 하나가 화면의 절반을 먹고 나머지는 스크롤 아래로 사라졌다.
+ * 이제 전부 같은 크기의 카드 격자에 순위대로 놓고, 1위에는 강조만 준다.
+ * 2주 이상 조용한 것은 뒤로 밀리되 **화면에서 사라지지는 않는다**.
  *
  * 렌더 파일이 계산을 하지 않도록 여기서 전부 끝낸다 — 그래야 랭킹 규칙이
  * 한 곳에 있고 테스트할 수 있다.
@@ -23,11 +25,7 @@ import { bestScore } from "./homeMatch";
 import { getLang, t, type I18nKey } from "@/i18n";
 
 // ── 상수 (매직넘버 금지) ─────────────────────────────────────────────────
-/** 사령탑 타일 수. */
-export const HERO_MAX = 1;
-/** 중간 밀도 "판" 타일 수. */
-export const PANEL_MAX = 2;
-/** 이 일수 이상 활동이 없으면 레일 하단 색인(조용한 프로젝트)으로 접는다. */
+/** 이 일수 이상 활동이 없으면 격자 뒤쪽으로 밀리고 흐리게 그려진다. */
 export const QUIET_DAYS = 14;
 /** 활동 스파크라인 창 — 백엔드 home_brief(days) 와 같아야 한다. */
 export const SPARK_DAYS = 14;
@@ -84,25 +82,29 @@ export interface CommandRowT extends CommandSpec {
 export type HomeRow = ProjectRowT | DraftRowT | CommandRowT;
 
 export interface HomeModel {
-  hero: ProjectRowT | null;
-  panels: ProjectRowT[];
-  rows: ProjectRowT[];
+  /**
+   * 화면에 그릴 프로젝트 **전부**, 순위대로. 활발한 것이 앞, 2주 넘게 조용한
+   * 것이 뒤. 검색 중이면 일치 항목만 점수순.
+   *
+   * 예전의 hero/panels/rows 3티어를 대체한다 — 티어는 크기의 차이였고, 그
+   * 크기가 곧 "9개 중 6개는 안 보인다" 였다.
+   */
+  ranked: ProjectRowT[];
+  /** `ranked` 중 조용한 것들 (뒤쪽 꼬리) — 카드를 흐리게 그리는 데 쓴다. */
   quiet: ProjectRowT[];
   drafts: DraftRowT[];
   commands: CommandRowT[];
   /**
-   * 키보드 커서가 훑는 평면 — **레일 행들만** (rows → quiet → drafts → commands).
+   * 키보드 커서가 훑는 평면 — **화면 순서 그대로** (ranked → drafts → commands).
    *
-   * 벤토 타일(hero/panels)은 여기 넣지 않는다. 타일의 제목 버튼은 평범한
-   * `<button>` 이라 기본 탭 순서에 이미 들어 있고, 로빙 tabindex 로 관리되는
-   * 것은 레일뿐이기 때문이다. 예전에 타일을 이 배열에 섞었더니 `flat[0]` 이
-   * 커서에 등록되지 않은 hero 를 가리켜 **레일의 탭 스톱이 0개가 되고 ↓/↑/Home
-   * 이 전부 죽었다** — 등록된 엘리먼트가 없어 focusRow 가 조용히 반환했다.
+   * 예전에는 벤토 타일을 여기서 빼야 했다(등록되지 않은 hero 가 `flat[0]` 을
+   * 차지하면 로빙 tabindex 의 탭 스톱이 0개가 됐다). 이제 모든 카드가 같은
+   * 격자에 있고 전부 커서에 등록되므로 그 예외가 사라졌다.
    */
   flat: HomeRow[];
   /**
-   * 검색창에서 ⏎ 를 눌렀을 때 열 대상. 검색 중이면 1위 결과, 아니면 사령탑
-   * (= "이어서 일하기"). `flat[0]` 과 다를 수 있으므로 별도 필드로 둔다.
+   * 검색창에서 ⏎ 를 눌렀을 때 열 대상 — 검색 중이면 1위 결과, 아니면 순위
+   * 1위(= "이어서 일하기").
    */
   primary: HomeRow | null;
   dateline: string;
@@ -301,33 +303,27 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
   }));
   const commandRows: CommandRowT[] = commands.map((c) => ({ kind: "command", ...c }));
 
-  let hero: ProjectRowT | null = null;
-  let panels: ProjectRowT[] = [];
-  let rows: ProjectRowT[] = [];
+  let ranked: ProjectRowT[] = [];
   let quiet: ProjectRowT[] = [];
 
   if (searching) {
-    rows = all;
+    // 검색 중에는 점수순 하나뿐 — 조용함은 순위 요소가 아니다.
+    ranked = all;
   } else {
-    // 조용한 것은 티어 배분에서 빠져 레일 하단 색인으로 간다. 다만 **전부**
-    // 조용하면(신규 사용자·백엔드 폴백) 사령탑이 비어 구도가 무너지므로,
-    // 그때는 1위를 끌어올린다.
     const lively = all.filter((r) => !isQuiet(r.snap?.lastAt ?? null, now));
     const sleeping = all.filter((r) => isQuiet(r.snap?.lastAt ?? null, now));
-    const pool = lively.length > 0 ? lively : all;
-    const rest = lively.length > 0 ? sleeping : [];
-
-    hero = pool[0] ?? null;
-    panels = pool.slice(HERO_MAX, HERO_MAX + PANEL_MAX);
-    rows = pool.slice(HERO_MAX + PANEL_MAX);
-    quiet = rest;
+    // 조용한 것도 격자에는 남는다 — 뒤로 밀릴 뿐이다. 접어 버리면 "내 프로젝트
+    // 전부가 한눈에" 라는 이 화면의 약속이 깨진다.
+    ranked = [...lively, ...sleeping];
+    quiet = sleeping;
   }
 
-  // 커서 평면은 레일 행만. 벤토 타일은 기본 탭 순서가 담당한다 (위 주석 참고).
-  const flat: HomeRow[] = [...rows, ...quiet, ...drafts, ...commandRows];
-  const primary: HomeRow | null = hero ?? flat[0] ?? null;
+  // 커서 평면 = 화면 순서 그대로. 이제 모든 카드가 같은 격자에 있으므로
+  // 예전처럼 "타일은 빼고 행만" 이라는 예외가 필요 없다.
+  const flat: HomeRow[] = [...ranked, ...drafts, ...commandRows];
+  const primary: HomeRow | null = flat[0] ?? null;
 
-  const matched = searching ? rows.length : all.length;
+  const matched = ranked.length;
   const liveMessage = searching
     ? matched === 0
       ? t("home.noMatchCommandHint", { q })
@@ -335,9 +331,7 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
     : "";
 
   return {
-    hero,
-    panels,
-    rows,
+    ranked,
     quiet,
     drafts,
     commands: commandRows,

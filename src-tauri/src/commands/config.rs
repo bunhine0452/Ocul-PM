@@ -5,21 +5,40 @@
 //! - **settings**: SQLite (non-secret user prefs like default model).
 
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{AppHandle, Manager, State};
+use tauri_specta::Event;
 
 use crate::db::Db;
 use crate::secrets;
 
 // ---------- Settings (SQLite) ----------
 
+/// 설정이 바뀌었다 — **모든 창**이 다시 읽는다.
+///
+/// 창이 여럿이고(크롬식 탭) 트레이 팝오버는 앱 시작 때 한 번 만들어져
+/// 세션 내내 살아 있다. 각 창의 `SettingsProvider` 는 마운트 때 한 번만
+/// 읽으므로, 이 이벤트가 없으면 한 창에서 테마·언어를 바꿔도 나머지 창과
+/// 상단바(트레이 팝오버)는 예전 값을 그대로 그린다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct SettingsChanged {
+    pub keys: Vec<String>,
+}
+
+fn announce(app: &AppHandle, keys: Vec<String>) {
+    let _ = SettingsChanged { keys }.emit(app);
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn settings_set(
+    app: AppHandle,
     db: State<'_, Db>,
     key: String,
     value: String,
 ) -> Result<(), String> {
-    db.settings_set(key, value).await.map_err(|e| e.to_string())
+    db.settings_set(key.clone(), value).await.map_err(|e| e.to_string())?;
+    announce(&app, vec![key]);
+    Ok(())
 }
 
 #[tauri::command]
@@ -40,12 +59,16 @@ pub async fn settings_get_all(db: State<'_, Db>) -> Result<Vec<(String, String)>
 #[tauri::command]
 #[specta::specta]
 pub async fn settings_set_many(
+    app: AppHandle,
     db: State<'_, Db>,
     entries: Vec<(String, String)>,
 ) -> Result<(), String> {
+    let mut keys = Vec::with_capacity(entries.len());
     for (k, v) in entries {
-        db.settings_set(k, v).await.map_err(|e| e.to_string())?;
+        db.settings_set(k.clone(), v).await.map_err(|e| e.to_string())?;
+        keys.push(k);
     }
+    announce(&app, keys);
     Ok(())
 }
 

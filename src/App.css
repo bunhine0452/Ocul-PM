@@ -13,10 +13,9 @@
 @import "./styles/tokens.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* EB Garamond 는 --font-heading 전용(라틴 제목 3곳)이라 latin-400 서브패스만
-   가져온다. 기본 진입점은 .woff 와 .woff2 를 양쪽 다, 그리고 키릴·그리스·베트남어
-   서브셋까지 14개 파일 304KB 를 방출하는데 그중 쓰이는 건 22KB 하나였다. */
-@import "@fontsource/eb-garamond/latin-400.css";
+/* EB Garamond 는 2026-08-12 폴리시에서 제거했다 — 산세리프 UI 위의 세리프
+   워드마크/제목은 "AI 가 만든 화면" 의 전형이고, 서체가 두 벌이면 그 자체로
+   위계가 흐려진다. 앱 전체가 --font(Pretendard) 한 벌로 간다. */
 @import "highlight.js/styles/github.css";
 
 /* Pretendard Variable — UI 본문 서체 (2026-08-11, SUITE 7종 OTF 에서 교체).
@@ -99,7 +98,7 @@
        (리네임 대안 기각: src/features/graph/graph.css 등 CSS 7파일 35곳이
         --ease-out 을 참조해 일괄 치환이 조용히 새는 곳을 만든다.) */
     --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-    --font-heading: 'EB Garamond', serif;
+
     --font-sans: 'Pretendard Variable', -apple-system, 'Apple SD Gothic Neo', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);

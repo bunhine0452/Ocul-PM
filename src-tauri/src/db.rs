@@ -34,6 +34,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (24, include_str!("../migrations/024_oculpm_discussion.sql")),
     // 25 는 디스크의 025_fts.sql 몫으로 비워 둔다 (v2 U11 — 아직 미등록).
     (26, include_str!("../migrations/026_claude_hooks_inbox.sql")),
+    (27, include_str!("../migrations/027_project_appearance.sql")),
 ];
 
 pub struct Db {
@@ -313,7 +314,8 @@ impl Db {
             .conn
             .call(|c| {
                 let mut stmt = c.prepare(
-                    "SELECT id, name, root_path, created_at FROM projects ORDER BY id DESC",
+                    "SELECT id, name, root_path, created_at, icon, color
+                     FROM projects ORDER BY id DESC",
                 )?;
                 let rows = stmt
                     .query_map([], |r| {
@@ -322,6 +324,8 @@ impl Db {
                             name: r.get(1)?,
                             root_path: r.get(2)?,
                             created_at: r.get::<_, i64>(3)? as u32,
+                            icon: r.get(4)?,
+                            color: r.get(5)?,
                         })
                     })?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -336,7 +340,8 @@ impl Db {
             .conn
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT id, name, root_path, created_at FROM projects WHERE id = ?",
+                    "SELECT id, name, root_path, created_at, icon, color
+                     FROM projects WHERE id = ?",
                 )?;
                 let proj = stmt.query_row([project_id as i64], |r| {
                     Ok(Project {
@@ -344,6 +349,8 @@ impl Db {
                         name: r.get(1)?,
                         root_path: r.get(2)?,
                         created_at: r.get::<_, i64>(3)? as u32,
+                        icon: r.get(4)?,
+                        color: r.get(5)?,
                     })
                 })?;
                 Ok(proj)
@@ -356,6 +363,27 @@ impl Db {
         self.conn
             .call(move |c| {
                 c.execute("DELETE FROM projects WHERE id = ?", [id as i64])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// 겉모습(아이콘·색) 저장. `None` 은 "기본값으로 되돌리기" 다 — 빈 문자열이
+    /// 아니라 NULL 로 써야 프런트의 이름 기반 기본값이 다시 살아난다.
+    pub async fn set_project_appearance(
+        &self,
+        id: u32,
+        icon: Option<String>,
+        color: Option<String>,
+    ) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE projects SET icon = ?1, color = ?2, updated_at = unixepoch()
+                     WHERE id = ?3",
+                    rusqlite::params![icon, color, id as i64],
+                )?;
                 Ok(())
             })
             .await?;
@@ -2608,6 +2636,10 @@ pub struct Project {
     pub name: String,
     pub root_path: String,
     pub created_at: u32,
+    /// 아이콘 id (`"terminal"` 등). `None` 이면 프런트가 이름에서 유도한다.
+    pub icon: Option<String>,
+    /// 색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다).
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]

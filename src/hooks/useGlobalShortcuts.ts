@@ -16,10 +16,17 @@ interface Options {
   onOpenPalette: () => void;
   /** Navigate the ui_v2 shell — ⌘번호 + ⌘, */
   uiV2Nav: (view: UiV2View) => void;
+  /**
+   * 크롬식 탭 — 한 창에 탭이 여럿이고 **비활성 탭도 마운트된 채**라, 게이트가
+   * 없으면 ⌘1 이 탭 수만큼 발화한다. 기본 true 라 런처처럼 탭이 하나뿐인
+   * 곳은 그대로 쓴다.
+   */
+  enabled?: boolean;
 }
 
-export function useGlobalShortcuts({ onOpenPalette, uiV2Nav }: Options) {
+export function useGlobalShortcuts({ onOpenPalette, uiV2Nav, enabled = true }: Options) {
   useEffect(() => {
+    if (!enabled) return;
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
@@ -58,5 +65,5 @@ export function useGlobalShortcuts({ onOpenPalette, uiV2Nav }: Options) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, uiV2Nav]);
+  }, [onOpenPalette, uiV2Nav, enabled]);
 }

@@ -127,7 +127,7 @@ function renderJournal(
   const onOpenDiff = vi.fn();
   const onFocusConsumed = vi.fn();
   const utils = render(
-    <WorkspaceProvider>
+    <WorkspaceProvider projectId={1}>
       <JournalScreenV2
         projectId={1}
         todayKey="20260531"
@@ -144,7 +144,8 @@ function renderJournal(
 
 beforeEach(() => {
   // WorkspaceProvider persists its envelope (incl. journalFilter) to the
-  // `aipm:workspace:v1` localStorage key, so clear it between tests or a chip
+  // per-project `aipm:workspace:v2:p<id>` localStorage key, so clear it between
+  // tests or a chip
   // click in one test leaks into the next. (Allowlisted in
   // scripts/check-no-localstorage.mjs — test-only, same as a11y_screens.)
   localStorage.clear();

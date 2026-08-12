@@ -33,7 +33,15 @@ vi.mock("@/lib/bindings", () => ({
 import { ProjectManager, type ProjectManagerProps } from "@/features/projects/ProjectManager";
 
 function project(over: Partial<ProjectManagerProps["projects"][number]> = {}) {
-  return { id: 1, name: "aurora-web", root_path: "/x/aurora-web", created_at: 0, ...over };
+  return {
+    id: 1,
+    name: "aurora-web",
+    root_path: "/x/aurora-web",
+    created_at: 0,
+    icon: null,
+    color: null,
+    ...over,
+  };
 }
 
 const PROJECTS = [

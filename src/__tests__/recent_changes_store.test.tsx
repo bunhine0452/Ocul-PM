@@ -33,7 +33,7 @@ beforeEach(() => {
 describe("recentChangesStore — 리렌더 격리", () => {
   it("store.push 는 컨텍스트 소비자를 리렌더하지 않는다", () => {
     render(
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <ContextConsumer />
         <StoreConsumer />
       </WorkspaceProvider>,

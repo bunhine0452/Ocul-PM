@@ -180,7 +180,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
 function renderToday(onNavigate = vi.fn()) {
   const utils = render(
-    <WorkspaceProvider>
+    <WorkspaceProvider projectId={1}>
       <TodayScreenV2
         projectId={1}
         projectRoot="/tmp/proj"

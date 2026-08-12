@@ -47,8 +47,16 @@ const FONT_MIN = 9;
 const FONT_MAX = 22;
 const FONT_DEFAULT = 13;
 
-function newId(): string {
-  return Math.random().toString(36).slice(2, 10);
+/**
+ * PTY 세션 id. 창 소유권을 id 에 새긴다 (멀티 창 T4) — 창을 닫을 때 백엔드가
+ * `p<projectId>-` 접두사로 **자기 창의 세션만** 골라 죽여 좀비 셸을 막고, 두
+ * 창이 같은 8자 난수를 뽑아 한쪽 입력이 남의 셸로 가는 사고도 구조적으로
+ * 불가능해진다. 접두사 규격은 `src-tauri/src/commands/window.rs::pty_prefix_for`
+ * 와 짝이다 — 한쪽만 바꾸면 정리가 조용히 실패한다.
+ */
+function newId(projectId: number | null): string {
+  const rand = Math.random().toString(36).slice(2, 10);
+  return projectId == null ? rand : `p${projectId}-${rand}`;
 }
 
 /**
@@ -148,13 +156,13 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // Ensure at least one tab exists.
   useEffect(() => {
     if (terminalTabs.length === 0) {
-      const id = newId();
+      const id = newId(state.currentProjectId);
       const tab: TerminalTab = { id, label: "zsh", shell: "zsh", cwd: projectRoot ?? "" };
       setState((prev) => ({ ...prev, terminalTabs: [tab], terminalActiveId: id }));
     } else if (terminalActiveId == null || !terminalTabs.some((tab) => tab.id === terminalActiveId)) {
       setState((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
     }
-  }, [terminalTabs, terminalActiveId, projectRoot, setState]);
+  }, [terminalTabs, terminalActiveId, projectRoot, state.currentProjectId, setState]);
 
   // 닫힌 세션의 핸들 정리.
   useEffect(() => {
@@ -179,7 +187,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     }));
 
   const addTab = () => {
-    const id = newId();
+    const id = newId(state.currentProjectId);
     const n = terminalTabs.length + 1;
     const tab: TerminalTab = { id, label: `zsh ${n}`, shell: "zsh", cwd: projectRoot ?? "" };
     setState((prev) => ({
@@ -214,7 +222,7 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const splitFocused = (dir: PaneDir) => {
     if (!activeTab) return;
     const sid = focusOfTab(activeTab);
-    const newSid = newId();
+    const newSid = newId(state.currentProjectId);
     patchTab(activeTab.id, (tab) => ({
       ...tab,
       panes: splitPane(panesOfTab(tab), sid, dir, newSid),

@@ -28,6 +28,11 @@ export const commands = {
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
 	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
+	/**
+	 *  카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서
+	 *  유도)으로 되돌아간다.
+	 */
+	setProjectAppearance: (projectId: number, icon: string | null, color: string | null) => typedError<null, string>(__TAURI_INVOKE("set_project_appearance", { projectId, icon, color })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
 	detectStack: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("detect_stack", { projectId })),
 	/**
@@ -166,7 +171,46 @@ export const commands = {
 	recordConversationAction: (conversationId: number, messageIndex: number, status: string | null) => typedError<ConversationAction, string>(__TAURI_INVOKE("record_conversation_action", { conversationId, messageIndex, status })),
 	listConversationActions: (conversationId: number) => typedError<ConversationAction[], string>(__TAURI_INVOKE("list_conversation_actions", { conversationId })),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
-	openTerminalWindow: () => typedError<null, string>(__TAURI_INVOKE("open_terminal_window")),
+	/**
+	 *  프로젝트를 탭으로 연다 — I1 이 여기서 강제된다.
+	 * 
+	 *  - 이미 어딘가 열려 있으면 그 창을 포커스하고 그 탭을 활성화한다.
+	 *  - `window` 가 지정되면 그 창의 마지막 탭으로 붙인다.
+	 *  - 없으면 마지막으로 포커스된 창에 붙이고, 창이 아예 없으면 새 창.
+	 */
+	openProjectTab: (projectId: number, window: string | null) => typedError<null, string>(__TAURI_INVOKE("open_project_tab", { projectId, window })),
+	/**  `+` — 시작 탭(프로젝트 메인 화면)을 연다. Chrome 의 새 탭 페이지. */
+	newStartTab: (window: string | null) => typedError<null, string>(__TAURI_INVOKE("new_start_tab", { window })),
+	/**
+	 *  시작 탭에서 프로젝트를 골랐다 — **그 자리에서** 프로젝트 탭이 된다.
+	 *  단, 그 프로젝트가 이미 다른 탭에 열려 있으면 (I1) 그쪽을 활성화하고
+	 *  시작 탭은 그대로 둔다.
+	 */
+	setTabProject: (tabId: number, projectId: number) => typedError<null, string>(__TAURI_INVOKE("set_tab_project", { tabId, projectId })),
+	/**  탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다). */
+	closeTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("close_tab", { tabId })),
+	activateTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("activate_tab", { tabId })),
+	reorderTabs: (window: string, order: number[]) => typedError<null, string>(__TAURI_INVOKE("reorder_tabs", { window, order })),
+	/**
+	 *  탭을 창 밖으로 떼어낸다 — 화면 좌표(CSS 픽셀)에 새 창을 만든다.
+	 * 
+	 *  새 창에서 셸이 다시 마운트되므로 DOM 상태(스크롤 위치)는 잃지만, 화면·필터·
+	 *  터미널 탭 구성은 프로젝트별 localStorage 에 있고 **PTY 세션은 Rust 에 살아
+	 *  있어** 스크롤백까지 재부착된다 (`pty_prefix_for` 가 프로젝트 기준이라 가능).
+	 */
+	detachTab: (tabId: number, x: number | null, y: number | null) => typedError<null, string>(__TAURI_INVOKE("detach_tab", { tabId, x, y })),
+	/**  창이 마운트 직후 자기 탭 구성을 읽는다 (이후는 이벤트로 갱신). */
+	getWindowTabs: (window: string) => typedError<WindowTabsSnapshot, string>(__TAURI_INVOKE("get_window_tabs", { window })),
+	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
+	listOpenProjectIds: () => typedError<number[], string>(__TAURI_INVOKE("list_open_project_ids")),
+	/**
+	 *  프런트가 해석한 UI 언어를 알려 준다 — 메뉴 라벨을 그 언어로 다시 만든다.
+	 * 
+	 *  Rust 는 프런트의 i18n 사전을 읽지 않고, `language: "system"` 을 OS 로케일로
+	 *  푸는 것도 백엔드에서는 불안정하다 (GUI 프로세스에는 `LANG` 이 없다).
+	 *  **이미 해석을 끝낸 프런트가 결과만 넘겨주는 것**이 가장 정확하다.
+	 */
+	applyMenuLanguage: (lang: string) => typedError<null, string>(__TAURI_INVOKE("apply_menu_language", { lang })),
 	readProjectFile: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("read_project_file", { projectId, relPath })),
 	/**
 	 *  Read an inclusive, 1-indexed line range from a project file. Backs the
@@ -928,7 +972,10 @@ export const events = {
 	oculpmPlanReconciled: makeEvent<OculpmPlanReconciled>("oculpm-plan-reconciled"),
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
+	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
+	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
+	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
 };
 
 /* Types */
@@ -2173,6 +2220,10 @@ export type Project = {
 	name: string,
 	root_path: string,
 	created_at: number,
+	/**  아이콘 id (`"terminal"` 등). `None` 이면 프런트가 이름에서 유도한다. */
+	icon: string | null,
+	/**  색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다). */
+	color: string | null,
 };
 
 export type ProjectBlueprint = {
@@ -2206,6 +2257,11 @@ export type ProjectOverview = {
 export type ProjectStats = {
 	files: number,
 	chunks: number,
+};
+
+/**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지. */
+export type ProjectWindowsChanged = {
+	open: number[],
 };
 
 /**
@@ -2464,6 +2520,18 @@ export type SessionDailyAgg = {
 	narrative_rate: number | null,
 };
 
+/**
+ *  설정이 바뀌었다 — **모든 창**이 다시 읽는다.
+ * 
+ *  창이 여럿이고(크롬식 탭) 트레이 팝오버는 앱 시작 때 한 번 만들어져
+ *  세션 내내 살아 있다. 각 창의 `SettingsProvider` 는 마운트 때 한 번만
+ *  읽으므로, 이 이벤트가 없으면 한 창에서 테마·언어를 바꿔도 나머지 창과
+ *  상단바(트레이 팝오버)는 예전 값을 그대로 그린다.
+ */
+export type SettingsChanged = {
+	keys: string[],
+};
+
 export type Severity = "ok" | "warning" | "critical";
 
 /**  설치 상태. UI 가 "설치 / 제거" 버튼 상태를 정하는 데 쓴다. */
@@ -2603,6 +2671,23 @@ export type SymbolSearchResult = {
 	end_line: number,
 };
 
+/**
+ *  탭 스트립이 그릴 정보. 시작 탭은 `project_id: None` 이고 이름은 프런트가
+ *  사전에서 붙인다 (백엔드가 UI 문자열을 만들지 않는다).
+ */
+export type TabInfo = {
+	tab_id: number,
+	project_id: number | null,
+	name: string,
+	root_path: string,
+	/**
+	 *  프로젝트 겉모습 — 탭도 카드와 같은 아이콘·색으로 그린다. 둘 다 id 이고
+	 *  `None` 이면 프런트가 이름에서 유도한다 (카드와 같은 규칙).
+	 */
+	icon: string | null,
+	color: string | null,
+};
+
 /**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */
 export type TrayNavigate = {
 	view: string,
@@ -2619,6 +2704,22 @@ export type WatcherConfig = {
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";
+
+/**
+ *  한 창의 탭 구성이 바뀌었다 — 그 창의 프런트가 스트립을 다시 그린다.
+ *  이름까지 실어 보내므로 프런트는 후속 조회가 필요 없다.
+ */
+export type WindowTabsChanged = {
+	window: string,
+	tabs: TabInfo[],
+	active: number | null,
+};
+
+export type WindowTabsSnapshot = {
+	window: string,
+	tabs: TabInfo[],
+	active: number | null,
+};
 
 /**
  *  v2 U12 (N3) — Today/저널 타임라인의 단일 집계 응답. 기존에 Today 오픈이

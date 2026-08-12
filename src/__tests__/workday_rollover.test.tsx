@@ -61,14 +61,13 @@ afterEach(() => {
 describe("WorkspaceContext — 자정 workday 롤오버", () => {
   it("경계를 넘기면 workdayKey 가 새 날짜로 갱신된다", async () => {
     const { getByTestId } = render(
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <Harness />
       </WorkspaceProvider>,
     );
 
-    // 프로젝트 오픈 + 초기 status (오늘 = 07-21).
+    // 프로젝트는 창(prop)이 정한다 — 초기 status 만 주입 (오늘 = 07-21).
     act(() => {
-      ctx!.setProject(1, "P", "/p");
       ctx!.setOculpmStatus(statusFor("20260721"));
     });
     expect(getByTestId("wk").textContent).toBe("20260721");
@@ -85,12 +84,11 @@ describe("WorkspaceContext — 자정 workday 롤오버", () => {
 
   it("같은 날 안에서는 상태를 다시 커밋하지 않는다", async () => {
     const { getByTestId } = render(
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <Harness />
       </WorkspaceProvider>,
     );
     act(() => {
-      ctx!.setProject(1, "P", "/p");
       ctx!.setOculpmStatus(statusFor("20260721"));
     });
     const rendersAfterSetup = renderCount;
@@ -105,13 +103,13 @@ describe("WorkspaceContext — 자정 workday 롤오버", () => {
     expect(getByTestId("wk").textContent).toBe("20260721");
   });
 
-  it("프로젝트가 없으면 status 를 조회하지 않는다", async () => {
+  it(".oculpm 이 초기화되지 않았으면 status 를 조회하지 않는다", async () => {
     render(
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <Harness />
       </WorkspaceProvider>,
     );
-    // setProject 를 호출하지 않음 — currentProjectId 는 null.
+    // setOculpmStatus 를 호출하지 않음 — oculpmEnabled 는 false 로 남는다.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(120_000);
     });

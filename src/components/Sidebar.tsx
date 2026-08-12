@@ -25,14 +25,19 @@ interface SidebarProps {
   onNavigate: (view: UiV2View) => void;
   projectName: string | null;
   projectPath: string | null;
-  /** Opens the full main screen (project manage / add / rename / delete). */
+  /** Focuses the launcher window (project manage / add / rename / delete). */
   onOpenProjectSwitcher: () => void;
   /** Projects for the inline quick-switcher popover (Dogfooding 2026-06-14c). */
   projects?: { id: number; name: string; root_path: string }[];
   /** Currently-open project id — highlighted in the switcher. */
   currentProjectId?: number | null;
-  /** Switch to another project in-place (no return to the main screen). */
+  /**
+   * 다른 프로젝트로 이동. 멀티 창(I3) 이후 이건 제자리 전환이 아니라 **그
+   * 프로젝트의 창을 열거나 포커스**하는 동작이다.
+   */
   onSwitchProject?: (id: number) => void;
+  /** 이미 창이 떠 있는 프로젝트 id — 팝오버에 "열림" 표시. */
+  openWindows?: number[];
   isDark: boolean;
   onToggleTheme: () => void;
   /**
@@ -92,6 +97,7 @@ export function Sidebar({
   projects,
   currentProjectId,
   onSwitchProject,
+  openWindows,
   isDark,
   onToggleTheme,
   macTopInset = 0,
@@ -174,6 +180,7 @@ export function Sidebar({
               <div className="proj-pop-list">
                 {projects.map((p) => {
                   const isCurrent = p.id === currentProjectId;
+                  const isOpen = !isCurrent && (openWindows?.includes(p.id) ?? false);
                   return (
                     <button
                       key={p.id}
@@ -191,7 +198,11 @@ export function Sidebar({
                         <span className="proj-pop-name">{p.name}</span>
                         <span className="proj-pop-path">{p.root_path}</span>
                       </span>
-                      {isCurrent ? <span className="proj-pop-cur">{t("sidebar.currentProject")}</span> : null}
+                      {isCurrent ? (
+                        <span className="proj-pop-cur">{t("sidebar.currentProject")}</span>
+                      ) : isOpen ? (
+                        <span className="proj-pop-cur">{t("sidebar.openProject")}</span>
+                      ) : null}
                     </button>
                   );
                 })}

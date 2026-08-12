@@ -3,8 +3,15 @@
  *
  * 원칙:
  * - localStorage 접근은 이 파일 안에서만 (eslint rule로 강제)
- * - 영속화 키: "aipm:workspace:v1" 단일 키 + JSON
- * - 마이그레이션 함수로 기존 12개 키 자동 흡수 후 삭제
+ * - 영속화 키: **프로젝트별** "aipm:workspace:v2:p<id>" + JSON
+ * - 마이그레이션 함수로 기존 12개 키 / 단일 v1 키를 자동 흡수 후 삭제
+ *
+ * 멀티 창 (v2.9.0): 창 하나 = 프로젝트 하나 (I1/I3). 창의 프로젝트는 URL 이
+ * 정하고 런타임에 바뀌지 않으므로 `currentProjectId` 는 프로바이더 prop 에서
+ * 오며 **영속 대상이 아니다** — 저장했다가 다시 읽으면 URL 과 어긋날 수 있는
+ * 중복 진실이다. 키를 프로젝트별로 쪼갠 이유는 창 두 개가 같은 origin 의
+ * localStorage 를 공유하기 때문이다 (단일 키였을 때는 300ms 디바운스 저장이
+ * 서로를 덮어써서 창 B 의 터미널 탭이 창 A 의 탭을 지웠다).
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
@@ -228,8 +235,11 @@ export interface IndexProgress {
  *  - 3 — PR-UI 7. Code Workbench shell removed; the five legacy keys
  *        (codeSubTab / bottomDrawerTab / layoutMode / splitRatio /
  *        sidePanelOpen) are dropped (deletion-only, one-way — §04 §3/§6).
+ *  - 4 — 멀티 프로젝트 창 (v2.9.0). 단일 키가 프로젝트별 키로 쪼개졌고
+ *        (`storageKeyFor`), currentProjectId/Name/Root 는 영속 대상에서
+ *        빠졌다 (창 URL 이 단일 진실). 필드 추가가 아니라 키 분할이라 breaking.
  */
-export const WORKSPACE_SCHEMA_VERSION = 3;
+export const WORKSPACE_SCHEMA_VERSION = 4;
 
 const DEFAULT_STATE: WorkspaceState = {
   currentProjectId: null,
@@ -275,7 +285,14 @@ const DEFAULT_STATE: WorkspaceState = {
   sidebarCollapsed: false,
 };
 
-const STORAGE_KEY = "aipm:workspace:v1";
+/**
+ * 창 하나 = 프로젝트 하나이므로 영속 키도 프로젝트별이다 (멀티 창 T3/R3).
+ * 테스트가 키를 하드코딩하지 않도록 export 한다.
+ */
+export const storageKeyFor = (projectId: number) => `aipm:workspace:v2:p${projectId}`;
+
+/** 단일 키 시절(schema ≤3)의 레코드. 1회 이관 후 삭제한다. */
+const LEGACY_SINGLE_KEY = "aipm:workspace:v1";
 
 /** v2 U3 — 상태 변경 폭주(타이핑·연속 토글) 시 저장을 병합하는 트레일링 디바운스. */
 export const PERSIST_DEBOUNCE_MS = 300;
@@ -438,9 +455,55 @@ export function migrateV2ToV3(state: WorkspaceState): WorkspaceState {
   return { ...state, schemaVersion: 3 };
 }
 
-function loadFromStorage(): WorkspaceState {
-  // Try new format first
-  const stored = localStorage.getItem(STORAGE_KEY);
+/**
+ * schema v3 → v4 (멀티 프로젝트 창). 레코드가 프로젝트별 키 아래로 옮겨지고
+ * `currentProjectId/Name/Root` 가 영속 대상에서 빠진 상태를 표시한다. 키 이동
+ * 자체는 `migrateSingleKeyToPerProject` 가 하므로 여기서는 버전만 찍는다.
+ * 일방향 — v4 → v3 역마이그레이션은 없다. Exported for unit testing.
+ */
+export function migrateV3ToV4(state: WorkspaceState): WorkspaceState {
+  if (state.schemaVersion >= 4) return state;
+  return { ...state, schemaVersion: 4 };
+}
+
+/**
+ * schema v3 → v4 (멀티 창). 단일 키 레코드를 그 안에 적혀 있던
+ * `currentProjectId` 의 프로젝트별 키로 1회 이관하고 원본을 지운다.
+ * `currentProjectId` 가 `null` 이면 이관할 창이 없으므로(런처 상태였다) 버린다.
+ * 멱등 — 원본 키가 없으면 아무 일도 하지 않는다. 반환값은 이관 대상 프로젝트
+ * id (테스트용).
+ */
+export function migrateSingleKeyToPerProject(): number | null {
+  const raw = localStorage.getItem(LEGACY_SINGLE_KEY);
+  if (raw === null) return null;
+  localStorage.removeItem(LEGACY_SINGLE_KEY);
+  try {
+    const parsed = JSON.parse(raw);
+    const pid =
+      typeof parsed?.currentProjectId === "number" ? parsed.currentProjectId : null;
+    if (pid === null) return null;
+    const key = storageKeyFor(pid);
+    // 이미 그 프로젝트의 새 레코드가 있으면 그쪽이 최신 — 덮어쓰지 않는다.
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, raw);
+    return pid;
+  } catch {
+    return null;
+  }
+}
+
+/** v0(12개 개별 키) → v1 단일 키 → v2 프로젝트별 키를 순서대로 흡수. */
+function migrateLegacyRecords(): void {
+  const v0 = migrateV0();
+  if (v0 && v0.currentProjectId != null) {
+    const key = storageKeyFor(v0.currentProjectId);
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(v0));
+  }
+  migrateSingleKeyToPerProject();
+}
+
+function loadFromStorage(projectId: number): WorkspaceState {
+  migrateLegacyRecords();
+  const stored = localStorage.getItem(storageKeyFor(projectId));
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
@@ -479,25 +542,20 @@ function loadFromStorage(): WorkspaceState {
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
+        // I3 — 창의 프로젝트는 URL 이 정한다. 과거 레코드에 남아 있는 값이
+        // 이 창의 프로젝트를 덮어쓰지 못하게 마지막에 못박는다.
+        currentProjectId: projectId,
       };
-      return migrateV2ToV3(migrateV1ToV2(merged));
+      return migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(merged)));
     } catch {
       // Corrupted data, start fresh
     }
   }
 
-  // Try legacy migration
-  const migrated = migrateV0();
-  if (migrated) {
-    const upgraded = migrateV2ToV3(migrateV1ToV2(migrated));
-    persistToStorage(upgraded);
-    return upgraded;
-  }
-
-  return DEFAULT_STATE;
+  return { ...DEFAULT_STATE, currentProjectId: projectId };
 }
 
-function persistToStorage(state: WorkspaceState) {
+function persistToStorage(projectId: number, state: WorkspaceState) {
   // Only persist non-volatile fields
   const {
     indexingProjectId: _ip,
@@ -505,9 +563,13 @@ function persistToStorage(state: WorkspaceState) {
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
+    // I3 — 창 URL 이 단일 진실이라 프로젝트 신원은 영속하지 않는다.
+    currentProjectId: _cpi,
+    currentProjectName: _cpn,
+    currentProjectRoot: _cpr,
     ...persistable
   } = state;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
+  localStorage.setItem(storageKeyFor(projectId), JSON.stringify(persistable));
 }
 
 // ---------- Context ----------
@@ -517,12 +579,16 @@ interface WorkspaceContextValue {
   setState: React.Dispatch<React.SetStateAction<WorkspaceState>>;
 
   // Convenience actions
-  setProject: (id: number | null, name?: string | null, root?: string | null) => void;
+  /**
+   * 창의 프로젝트 **메타데이터**(이름·루트)만 채운다. id 는 창 URL 이 정하고
+   * 런타임에 바뀌지 않으므로(I3) 여기서 바꿀 수 없다 — "프로젝트 전환"은
+   * `commands.openProjectWindow` 로 다른 창을 포커스하는 것이다.
+   */
+  setProjectMeta: (name: string | null, root: string | null) => void;
   /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
   setUiV2View: (view: UiV2View) => void;
   setActiveFile: (file: string | null) => void;
   setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
-  resetWorkspace: () => void;
 
   // .oculpm/ helpers (W3-PR4). Listeners in WorkspaceProvider keep these in
   // sync; screens call them directly when they need to refresh on demand.
@@ -534,8 +600,19 @@ interface WorkspaceContextValue {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WorkspaceState>(loadFromStorage);
+/**
+ * 프로젝트 창 하나의 워크스페이스 상태. `projectId` 는 창 URL 이 정하며
+ * 이 프로바이더의 수명 동안 고정이다 (I3) — 런처는 이 프로바이더를 아예
+ * 마운트하지 않는다 (I2).
+ */
+export function WorkspaceProvider({
+  projectId,
+  children,
+}: {
+  projectId: number;
+  children: ReactNode;
+}) {
+  const [state, setState] = useState<WorkspaceState>(() => loadFromStorage(projectId));
 
   // Keep a ref to the latest state so the event-listener effect and the
   // debounced persist can read fresh state without re-subscribing/re-arming.
@@ -551,15 +628,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
     persistTimer.current = window.setTimeout(() => {
       persistTimer.current = null;
-      persistToStorage(stateRef.current);
+      persistToStorage(projectId, stateRef.current);
     }, PERSIST_DEBOUNCE_MS);
-  }, [state]);
+  }, [state, projectId]);
   useEffect(() => {
     const flush = () => {
       if (persistTimer.current != null) {
         window.clearTimeout(persistTimer.current);
         persistTimer.current = null;
-        persistToStorage(stateRef.current);
+        persistToStorage(projectId, stateRef.current);
       }
     };
     window.addEventListener("beforeunload", flush);
@@ -567,27 +644,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("beforeunload", flush);
       flush();
     };
-  }, []);
+  }, [projectId]);
 
-  const setProject = useCallback(
-    (id: number | null, name?: string | null, root?: string | null) => {
-      // 프로젝트가 실제로 바뀔 때만 watcher 변경 버퍼를 비운다 — 프로젝트 A 의
-      // 변경은 B 의 트리에서 무의미하다 (스토어 분리 후에도 규칙 유지).
-      if (id !== stateRef.current.currentProjectId) recentChangesStore.clear();
-      setState((prev) => {
-        const switched = id !== prev.currentProjectId;
-        return {
-          ...prev,
-          currentProjectId: id,
-          currentProjectName: name ?? null,
-          currentProjectRoot: root ?? null,
-          activeFile: switched ? null : prev.activeFile,
-          fileExplorerExpanded: switched ? {} : prev.fileExplorerExpanded,
-        };
-      });
-    },
-    []
-  );
+  const setProjectMeta = useCallback((name: string | null, root: string | null) => {
+    setState((prev) =>
+      prev.currentProjectName === name && prev.currentProjectRoot === root
+        ? prev
+        : { ...prev, currentProjectName: name, currentProjectRoot: root },
+    );
+  }, []);
 
   const setUiV2View = useCallback((view: UiV2View) => {
     setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
@@ -608,15 +673,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const resetWorkspace = useCallback(() => {
-    recentChangesStore.clear();
-    setState((prev) => ({
-      ...DEFAULT_STATE,
-      // Carry forward the override flag — switching projects shouldn't
-      // re-trigger the "default tab" demotion next launch.
-      defaultTabUserOverride: prev.defaultTabUserOverride,
-    }));
-  }, []);
+  // `resetWorkspace` 는 멀티 창 라운드에서 제거됐다 — 유일한 호출처가
+  // "대시보드로 돌아가기"였는데, I3 하에서 프로젝트 전환이 사라지면서
+  // 창 상태의 수명이 곧 창의 수명이 됐다 (창을 닫으면 끝).
 
   // ── .oculpm/ helpers ────────────────────────────────────────────────────
 
@@ -812,21 +871,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => ({
       state,
       setState,
-      setProject,
+      setProjectMeta,
       setUiV2View,
       setActiveFile,
       setIndexing,
-      resetWorkspace,
       setOculpmStatus,
       setCurrentSession,
     }),
     [
       state,
-      setProject,
+      setProjectMeta,
       setUiV2View,
       setActiveFile,
       setIndexing,
-      resetWorkspace,
       setOculpmStatus,
       setCurrentSession,
     ],
@@ -841,4 +898,13 @@ export function useWorkspace(): WorkspaceContextValue {
     throw new Error("useWorkspace must be used within a WorkspaceProvider");
   }
   return ctx;
+}
+
+/**
+ * 런처 창처럼 워크스페이스가 **없을 수도 있는** 곳에서 쓰는 접근자 (I2).
+ * 두 창에서 함께 렌더되는 공용 컴포넌트(⌘K 팔레트·설정 패널)가 프로젝트에
+ * 매인 기능만 조용히 끄고 나머지는 그대로 동작하게 한다.
+ */
+export function useOptionalWorkspace(): WorkspaceContextValue | null {
+  return useContext(WorkspaceContext);
 }

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { commands } from "@/lib/bindings";
+import { commands, events } from "@/lib/bindings";
+import { safeUnlisten } from "@/lib/unlisten";
 import { resolveLang, setContentLangSetting, setLangSetting } from "@/i18n";
 import {
   DEFAULTS,
@@ -49,6 +50,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     reload();
   }, [reload]);
 
+  // 다른 창(또는 상단바)에서 설정을 바꾸면 여기서도 다시 읽는다.
+  //
+  // 창이 여럿이고(크롬식 탭) 트레이 팝오버는 앱 시작 때 한 번 만들어져 세션
+  // 내내 살아 있다 — 마운트 1회 조회만으로는 한쪽에서 테마·언어를 바꿔도
+  // 나머지가 예전 값을 계속 그린다. 백엔드가 쓰기 직후 쏘는 이벤트로 맞춘다.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void events.settingsChanged.listen(() => void reload()).then((fn) => {
+      off = fn;
+    });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [reload]);
+
   const set = useCallback(
     async <K extends keyof Settings>(field: K, value: Settings[K]) => {
       setSettings((prev) => ({ ...prev, [field]: value }));
@@ -77,7 +93,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setLangSetting(settings.language);
     // Keep <html lang> honest for screen readers + `:lang()` CSS.
-    document.documentElement.lang = resolveLang(settings.language);
+    const resolved = resolveLang(settings.language);
+    document.documentElement.lang = resolved;
+    // 앱 메뉴(⌘W 등)의 라벨은 Rust 가 그린다 — 사전도 OS 로케일도 백엔드에서
+    // 읽을 수 없으므로, **해석을 끝낸 이쪽이** 결과만 넘긴다.
+    void commands.applyMenuLanguage(resolved);
   }, [settings.language]);
 
   // --- AI 작성 언어: 같은 이유로 모듈 스토어에 밀어넣는다. 화면 언어와 **다른

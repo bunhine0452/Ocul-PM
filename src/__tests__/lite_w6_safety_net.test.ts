@@ -21,7 +21,8 @@ import {
   type DiffLine,
 } from "@/features/diff/diffParse";
 import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
-import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace, storageKeyFor } from "@/contexts/WorkspaceContext";
+import React from "react";
 import { renderHook } from "@testing-library/react";
 
 // ─── Lite-W6 frontend safety net ─────────────────────────────────────────
@@ -241,10 +242,10 @@ describe("Lite-W6 PR7 Part 1 — ActiveView migration", () => {
 });
 
 describe("PR-UI 7 — schema v2 → v3 (Code Workbench keys dropped)", () => {
-  it("loadFromStorage drops the five legacy keys + bumps schema to 3", () => {
+  it("loadFromStorage drops the five legacy keys + bumps schema to 4", () => {
     localStorage.clear();
     localStorage.setItem(
-      "aipm:workspace:v1",
+      storageKeyFor(1),
       JSON.stringify({
         schemaVersion: 2,
         activeView: "code",
@@ -257,10 +258,11 @@ describe("PR-UI 7 — schema v2 → v3 (Code Workbench keys dropped)", () => {
       }),
     );
     const { result } = renderHook(() => useWorkspace(), {
-      wrapper: WorkspaceProvider,
+      wrapper: ({ children }) =>
+        React.createElement(WorkspaceProvider, { projectId: 1, children }),
     });
     const s = result.current.state as unknown as Record<string, unknown>;
-    expect(s.schemaVersion).toBe(3);
+    expect(s.schemaVersion).toBe(4);
     expect(s.codeSubTab).toBeUndefined();
     expect(s.layoutMode).toBeUndefined();
     expect(s.splitRatio).toBeUndefined();

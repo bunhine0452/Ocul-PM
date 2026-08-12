@@ -1,11 +1,11 @@
 {
   "name": "ocul-pm",
   "private": true,
-  "version": "2.8.5",
+  "version": "2.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/check-critical-css.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:log": "echo \"===== dev session $(date '+%F %T') =====\" >> /tmp/oculpm-tauri-dev.log && pnpm tauri dev 2>&1 | tee -a /tmp/oculpm-tauri-dev.log",

@@ -26,8 +26,9 @@ import { buildHome, type CommandSpec, type HomeRow } from "./home/homeModel";
 import { useHomeBrief } from "./home/useHomeBrief";
 import { useHomeCursor } from "./home/useHomeCursor";
 import { HomeActionBar, HomeSearchBand, HomeTopRail } from "./home/chrome";
-import { CommandRow, DraftRow, HomeSection, IndexRow, ProjectRow, type RowWiring } from "./home/rows";
-import { AddTile, FlowTile, OnboardingTile, ProjectPanel, ResumeTile } from "./home/tiles";
+import { CommandRow, DraftRow, type RowWiring } from "./home/rows";
+import { AddCard, FlowTile, OnboardingTile } from "./home/tiles";
+import { ProjectCard } from "./home/ProjectCard";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT } from "@/i18n";
 
@@ -39,6 +40,8 @@ import { useT } from "@/i18n";
 export interface StartScreenProps {
   projects: Project[];
   indexingId: number | null;
+  /** 이미 창이 떠 있는 프로젝트 id — 카드에 "열림" 배지 (멀티 창 §5.3). */
+  openWindows: number[];
   error: string | null;
   onSelectProject: (p: Project) => void;
   onAddProject: () => void;
@@ -61,6 +64,7 @@ export function StartScreen(props: StartScreenProps) {
   const {
     projects,
     indexingId,
+    openWindows,
     error,
     onSelectProject,
     onAddProject,
@@ -311,11 +315,12 @@ export function StartScreen(props: StartScreenProps) {
   );
 
   const hasProjects = projects.length > 0;
-  const showBento = !searching;
-  const matchCount = searching ? model.rows.length : projects.length;
+  const matchCount = model.ranked.length;
+  const quietIds = useMemo(() => new Set(model.quiet.map((r) => r.id)), [model.quiet]);
+  const openSet = useMemo(() => new Set(openWindows), [openWindows]);
 
   return (
-    <main className="home scrollbar-thin">
+    <main className="home">
       <div className="home-wrap">
         <HomeTopRail
           isMac={isMac}
@@ -343,173 +348,101 @@ export function StartScreen(props: StartScreenProps) {
         </p>
 
         {error && (
-          <div
-            role="alert"
-            className="mt-4 px-4 py-3 rounded-[var(--radius-m)] text-[12px] font-semibold"
-            style={{
-              background: "var(--t-error-soft)",
-              color: "var(--t-error)",
-              border: "1px solid var(--t-error)",
-            }}
-          >
+          <div role="alert" className="home-alert">
             {error}
           </div>
         )}
 
-        {/* ── 밴드 2 — 벤토 ──────────────────────────────────────── */}
-        {showBento && (
-          <div className="home-bento">
-            {!hasProjects ? (
-              <OnboardingTile onStart={onAddProject} />
-            ) : (
-              <>
-                {model.hero && (
-                  <ResumeTile
-                    row={model.hero}
-                    now={now}
-                    loading={loading}
-                    indexing={indexingId === model.hero.project.id}
-                    onOpen={onSelectProject}
-                    onRename={onRenameProject}
-                    onDelete={onDeleteProject}
-                  />
+        {!hasProjects ? (
+          <OnboardingTile onStart={onAddProject} />
+        ) : (
+          // 두 칸 판 — 왼쪽은 프로젝트 **전부**, 오른쪽은 오늘의 흐름.
+          // 스크롤은 각 칸이 소유한다 (페이지 자체는 스크롤하지 않는다):
+          // 창을 열었을 때 보이는 것이 곧 전부여야 한다.
+          <div className="home-board">
+            <section className="home-pane" aria-labelledby="home-projects-head">
+              <header className="home-panehead">
+                <h2 id="home-projects-head" className="home-eyebrow">
+                  {searching ? t("home.sectionSearch") : t("home.allProjects")}
+                </h2>
+                <span className="home-panecount">{matchCount}</span>
+                {!searching && model.quiet.length > 0 && (
+                  <span className="home-panehint">
+                    {t("home.quietTail", { n: model.quiet.length })}
+                  </span>
                 )}
-                <FlowTile
-                  brief={brief}
-                  projects={projects}
-                  loading={loading}
-                  failed={failed}
-                  onOpenProject={onSelectProject}
-                />
-                {model.panels.map((row) => (
-                  <ProjectPanel
-                    key={row.id}
-                    row={row}
-                    now={now}
-                    indexing={indexingId === row.project.id}
-                    onOpen={onSelectProject}
-                    onRename={onRenameProject}
-                    onDelete={onDeleteProject}
-                  />
-                ))}
-                {/* 판이 2개가 안 되면 격자 아랫줄에 구멍이 남는다 — 추가
-                    슬롯이 남은 칸을 정확히 메운다 (판 0개면 12열, 1개면 6열). */}
-                {model.panels.length < 2 && (
-                  <AddTile
-                    variant={model.panels.length === 0 ? "wide" : "panel"}
-                    onAddExisting={onAddProject}
-                    onStartNew={onStartGreenfield}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        )}
+              </header>
 
-        {/* ── 밴드 3 — 레일 ──────────────────────────────────────── */}
-        {(model.rows.length > 0 ||
-          model.quiet.length > 0 ||
-          model.drafts.length > 0 ||
-          model.commands.length > 0) && (
-          <div className="home-list">
-            {model.rows.length > 0 && (
-              <>
-                <HomeSection
-                  title={searching ? t("home.sectionSearch") : t("home.sectionAll")}
-                  count={model.rows.length}
-                  action={
-                    searching ? undefined : (
-                      <button type="button" className="home-chipbtn" onClick={openManage}>
-                        {t("home.manage")}
-                      </button>
-                    )
-                  }
-                />
-                <ul>
-                  {model.rows.map((row, i) => (
-                    <ProjectRow
+              {matchCount === 0 ? (
+                <div className="home-empty">
+                  <p>{t("home.noMatch", { query })}</p>
+                  <p className="hg-dim">{t("home.noMatchTip")}</p>
+                </div>
+              ) : (
+                <ul className="hg-grid scrollbar-thin">
+                  {model.ranked.map((row, i) => (
+                    <ProjectCard
                       key={row.id}
                       row={row}
                       query={query}
                       now={now}
                       loading={loading}
+                      lead={!searching && i === 0}
+                      quiet={quietIds.has(row.id)}
                       indexing={indexingId === row.project.id}
+                      opened={openSet.has(row.project.id)}
                       wiring={wiringFor(row)}
                       onOpen={onSelectProject}
                       onRename={onRenameProject}
                       onDelete={onDeleteProject}
-                      index={i}
                     />
                   ))}
+                  {!searching && (
+                    <AddCard onAddExisting={onAddProject} onStartNew={onStartGreenfield} />
+                  )}
                 </ul>
-              </>
-            )}
+              )}
+            </section>
 
-            {searching && model.rows.length === 0 && (
-              <div className="px-4 py-6 space-y-1">
-                <p className="text-[13px] text-[var(--text-2)]">
-                  {t("home.noMatch", { query })}
-                </p>
-                <p className="text-[11px] text-[var(--text-3)]">
-                  {t("home.noMatchTip")}
-                </p>
-              </div>
-            )}
-
-            {model.quiet.length > 0 && (
-              <>
-                <HomeSection title={t("home.sectionQuiet")} count={model.quiet.length} />
-                <div className="home-quiet">
-                  {model.quiet.map((row) => (
-                    <IndexRow
-                      key={row.id}
-                      row={row}
-                      query={query}
-                      wiring={wiringFor(row)}
-                      onOpen={onSelectProject}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-
-            {model.drafts.length > 0 && (
-              <>
-                <HomeSection title={t("home.sectionDrafts")} count={model.drafts.length} />
-                <ul>
-                  {model.drafts.map((row) => (
-                    <DraftRow
-                      key={row.id}
-                      row={row}
-                      wiring={wiringFor(row)}
-                      onResume={onResumeBlueprint}
-                      onDiscard={discardBlueprint}
-                    />
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {model.commands.length > 0 && (
-              <>
-                <HomeSection title={t("home.sectionCommands")} count={model.commands.length} />
-                <ul>
-                  {model.commands.map((row, i) => (
-                    <CommandRow key={row.id} row={row} wiring={wiringFor(row)} index={i} />
-                  ))}
-                </ul>
-              </>
-            )}
+            <aside className="home-pane home-side" aria-label={t("home.todayFlow")}>
+              <FlowTile
+                brief={brief}
+                projects={projects}
+                loading={loading}
+                failed={failed}
+                onOpenProject={onSelectProject}
+              />
+            </aside>
           </div>
         )}
 
-        {/* ── 밴드 4 — 액션 바 ───────────────────────────────────── */}
-        {hasProjects && <HomeActionBar row={cursor.row} />}
+        {/* 바닥 띠 — 초안과 명령을 한 줄로 압축한다. 예전에는 각각 섹션이라
+            세로를 먹었고, 정작 프로젝트가 화면 밖으로 밀렸다. */}
+        <footer className="home-foot">
+          {model.drafts.length > 0 && (
+            <ul className="home-foot-list">
+              {model.drafts.map((row) => (
+                <DraftRow
+                  key={row.id}
+                  row={row}
+                  wiring={wiringFor(row)}
+                  onResume={onResumeBlueprint}
+                  onDiscard={discardBlueprint}
+                />
+              ))}
+            </ul>
+          )}
+          {model.commands.length > 0 && (
+            <ul className="home-foot-list">
+              {model.commands.map((row, i) => (
+                <CommandRow key={row.id} row={row} wiring={wiringFor(row)} index={i} />
+              ))}
+            </ul>
+          )}
+          <HomeActionBar row={cursor.row} />
+        </footer>
       </div>
 
-      {/* 프로젝트 관리 — 전체 목록을 평면으로 펼쳐 추가·이름 변경·제거한다.
-          단건 이름 변경/제거는 App 의 다이얼로그를 그대로 재사용하므로 이
-          시트 위(z-110)에 뜬다. */}
       {manageOpen && (
         <ProjectManager
           projects={projects}

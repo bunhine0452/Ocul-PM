@@ -84,7 +84,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 function wrap(node: React.ReactNode) {
   return (
     <SettingsProvider>
-      <WorkspaceProvider>{node}</WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>{node}</WorkspaceProvider>
     </SettingsProvider>
   );
 }

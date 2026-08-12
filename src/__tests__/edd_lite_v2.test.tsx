@@ -160,7 +160,7 @@ describe("EvalTrendPanel (PR-CI6)", () => {
 describe("플래너 완료 소프트 게이트 (PR-CI6)", () => {
   const renderPlanner = () =>
     render(
-      <WorkspaceProvider>
+      <WorkspaceProvider projectId={1}>
         <PlannerScreenV2 projectId={1} onNavigate={() => {}} onOpenJournal={() => {}} />
       </WorkspaceProvider>,
     );

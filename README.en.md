@@ -27,7 +27,14 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.8 — English support · Skill shop · Terminal cleanup
+## 🚀 v2.9 — projects as windows and tabs
+
+- **One window holds several projects as tabs** — just like Chrome. Drag a tab to reorder it, or drag it out to spawn a new window. Each project remembers its own screen, filters and sidebar state, and **terminal sessions are bound to the project**, so they survive a tab moving between windows.
+- **A new tab is a start tab** — `⌘T` opens the project list, and picking one converts that tab **in place**. `⌘W` closes the **tab**, not the window (the window closes when it's the last tab). Close the window with `⇧⌘W`, open a new one with `⇧⌘N`, move between tabs with `⌃Tab` · `⌃⇧Tab` · `⌘⌥←→`.
+- **The start screen was rebuilt** — the three-tier bento is gone; **every registered project** now lays out in a single grid you take in at a glance. Cards open from anywhere on the card, not just the name, and each project takes **one of 8 colors and 10 icons** so tabs stay tellable apart by shape (derived from the name if you don't pick).
+- **The menubar now watches every tracked project** — file watching used to be tied to a tab's lifetime, so **a project without an open tab went unnoticed even when its agent wrote journals**. Fixed alongside: the menubar popover follows your theme, "Open app" opens the project you actually selected, and the icon no longer spins.
+
+## v2.8 — English support · Skill shop · Terminal cleanup
 
 - **The app speaks English (v2.8.5)** — pick your UI language in Settings → Appearance and all 12 screens switch over. Not just labels: **error messages**, the journals, retros and plan items your AI writes, and the `AGENTS.md` planted into new projects follow along. **UI language and AI writing language are separate settings** (English UI, Korean journals is a valid combination), and documents already on disk are never rewritten. The ⌘K palette matches in both languages, so your muscle memory survives the switch.
 - **Skill shop (v2.8.0)** — the **Shop tab** on the Skills screen detects your project's stack (manifest-based — zero LLM, zero network) and recommends from a **catalog of 25 vetted third-party skills** (all MIT, commit-pinned vendored copies, unmodified). Search, filter by tag, preview the body, install into `.claude/skills/` in one click — it's a native Claude Code feature, so it works without the plugin. Full catalog: [oculpm.com/plugin](https://oculpm.com/plugin). Shipping alongside it, a **delivery gate** catches sessions that changed code but wrote no journal, once per session, and tells the agent to record.
@@ -73,7 +80,7 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 - **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails.
 - **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. The **Shop tab** installs vetted third-party skills matched to your stack, 25 of them, in one click.
 
-⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management.
+⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→.
 
 Pick your UI language — **한국어 · English** — in Settings → Appearance. The language your AI writes documents in (journals, retros, plans) is a separate setting that defaults to following the UI.
 

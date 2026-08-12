@@ -24,7 +24,7 @@ import {
   Loader2,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { PROVIDERS, type ColorTheme, type Provider, type Theme } from "@/lib/settings";
 import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting } from "@/i18n";
@@ -866,8 +866,9 @@ function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
 function IndexingTab() {
   const { t } = useT();
   const { settings, set } = useSettings();
-  const { state } = useWorkspace();
-  const projectId = state.currentProjectId;
+  // 런처 창에는 워크스페이스가 없다 (멀티 창 I2) — 재색인 버튼은 프로젝트
+  // 창에서만 활성화된다.
+  const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
   const [reindexing, setReindexing] = useState(false);
 
   const reindex = async () => {
@@ -1741,7 +1742,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     <section className="w-full max-w-4xl rounded-xl border bg-card shadow-sm overflow-hidden">
       <header className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
         <SettingsIcon className="w-4 h-4 text-primary" />
-        <h2 className="text-lg font-heading font-semibold">{t("shell.settings.title")}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t("shell.settings.title")}</h2>
       </header>
       {body}
     </section>
