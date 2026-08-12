@@ -14,6 +14,7 @@ use tauri::State;
 use crate::db::{Db, OpenPlanItem};
 use crate::llm;
 use crate::oculpm::cache::{JournalCache, RangeEntry};
+use crate::oculpm::content_lang::ContentLang;
 
 /// 스탠드업 "오늘 할 일" 로 보여줄 플랜 항목 상한.
 const OPEN_ITEMS_CAP: u32 = 12;
@@ -42,24 +43,24 @@ pub struct GeneratedSummary {
 
 // ─── deterministic generators (pure, testable) ──────────────────────────────
 
-fn type_label(t: &str) -> &'static str {
+fn type_label(t: &str, lang: ContentLang) -> &'static str {
     match t {
-        "feature" => "기능",
-        "bug" => "버그 수정",
-        "refactor" => "리팩토링",
-        "error" => "에러 대응",
-        _ => "기타",
+        "feature" => lang.pick("기능", "Features"),
+        "bug" => lang.pick("버그 수정", "Bug fixes"),
+        "refactor" => lang.pick("리팩토링", "Refactors"),
+        "error" => lang.pick("에러 대응", "Error cycles"),
+        _ => lang.pick("기타", "Other"),
     }
 }
 
-fn group_lines(entries: &[RangeEntry]) -> String {
+fn group_lines(entries: &[RangeEntry], lang: ContentLang) -> String {
     let mut out = String::new();
     for ty in ["feature", "bug", "refactor", "error", "chore"] {
         let group: Vec<&RangeEntry> = entries.iter().filter(|e| e.entry_type == ty).collect();
         if group.is_empty() {
             continue;
         }
-        out.push_str(&format!("**{}**\n", type_label(ty)));
+        out.push_str(&format!("**{}**\n", type_label(ty, lang)));
         for e in &group {
             out.push_str(&format!("- {} ({})\n", e.title, e.workday));
         }
@@ -86,11 +87,11 @@ fn top_files(entries: &[RangeEntry], cap: usize) -> Vec<(String, u32)> {
     v
 }
 
-fn fmt_open_items(items: &[OpenPlanItem], statuses: &[&str]) -> String {
+fn fmt_open_items(items: &[OpenPlanItem], statuses: &[&str], lang: ContentLang) -> String {
     let picked: Vec<&OpenPlanItem> =
         items.iter().filter(|i| statuses.contains(&i.status.as_str())).collect();
     if picked.is_empty() {
-        return "- (없음)\n".to_string();
+        return format!("{}\n", lang.pick("- (없음)", "- (none)"));
     }
     picked
         .iter()
@@ -98,26 +99,37 @@ fn fmt_open_items(items: &[OpenPlanItem], statuses: &[&str]) -> String {
         .collect()
 }
 
+/// LLM 없이 만드는 요약. **키가 없거나 호출이 실패하면 이게 최종 산출물**이라
+/// 프롬프트 지시가 닿지 않는다 — 언어를 직접 갈라야 한다.
+///
+/// 이 마크다운은 사용자가 **복사해 Slack/PR 에 붙여넣는 산출물**이고
+/// `.oculpm` 에 저장되거나 다시 파싱되지 않는다. 그래서 섹션 헤더까지
+/// 번역해도 안전하다 (일지 헤더는 온디스크 규격이라 별개다 — 03-i18n.md §1).
 pub(crate) fn deterministic_markdown(
     style: SummaryStyle,
     since: &str,
     until: &str,
     entries: &[RangeEntry],
     open_items: &[OpenPlanItem],
+    lang: ContentLang,
 ) -> String {
     match style {
         SummaryStyle::Standup => {
-            let mut out = format!("# 스탠드업 — {since} ~ {until}\n\n## 한 일\n");
+            let mut out = format!(
+                "# {} — {since} ~ {until}\n\n## {}\n",
+                lang.pick("스탠드업", "Standup"),
+                lang.pick("한 일", "Done"),
+            );
             if entries.is_empty() {
-                out.push_str("- (기록 없음)\n");
+                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
             } else {
                 out.push('\n');
-                out.push_str(&group_lines(entries));
+                out.push_str(&group_lines(entries, lang));
             }
-            out.push_str("## 오늘 할 일\n");
-            out.push_str(&fmt_open_items(open_items, &["todo", "in_progress"]));
-            out.push_str("\n## 막힘\n");
-            out.push_str(&fmt_open_items(open_items, &["blocked"]));
+            out.push_str(&format!("## {}\n", lang.pick("오늘 할 일", "Today")));
+            out.push_str(&fmt_open_items(open_items, &["todo", "in_progress"], lang));
+            out.push_str(&format!("\n## {}\n", lang.pick("막힘", "Blocked")));
+            out.push_str(&fmt_open_items(open_items, &["blocked"], lang));
             out
         }
         SummaryStyle::PrDescription => {
@@ -125,30 +137,48 @@ pub(crate) fn deterministic_markdown(
                 .iter()
                 .filter(|e| e.entry_type != "chore" || e.status == "done")
                 .collect();
-            let mut out = String::from("## 변경 요약\n");
+            let mut out = format!("## {}\n", lang.pick("변경 요약", "Summary of changes"));
             if shipped.is_empty() {
-                out.push_str("- (기록 없음)\n");
+                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
             } else {
                 for e in &shipped {
-                    out.push_str(&format!("- {} — {}\n", type_label(&e.entry_type), e.title));
+                    out.push_str(&format!("- {} — {}\n", type_label(&e.entry_type, lang), e.title));
                 }
             }
             let files = top_files(entries, FILES_CAP);
             if !files.is_empty() {
-                out.push_str("\n## 주요 변경 파일\n");
+                out.push_str(&format!("\n## {}\n", lang.pick("주요 변경 파일", "Main files changed")));
                 for (path, count) in files {
-                    out.push_str(&format!("- `{path}` ({count}개 작업)\n"));
+                    out.push_str(&format!(
+                        "- `{path}` ({count}{})\n",
+                        lang.pick("개 작업", " entries"),
+                    ));
                 }
             }
             let error_cycles = entries.iter().filter(|e| e.entry_type == "error").count();
-            out.push_str("\n## 검증\n");
+            out.push_str(&format!("\n## {}\n", lang.pick("검증", "Verification")));
+            // `## 검증` 은 **일지 파일의** 섹션 헤더를 가리키는 인용이다 —
+            // 그건 온디스크 규격이라 영어 문장 안에서도 그대로 둔다.
             out.push_str(&format!(
-                "- 작업 단위별 검증은 각 일지의 `## 검증` 참조 (총 {}건{}).\n",
-                entries.len(),
+                "{}{}.\n",
+                match lang {
+                    ContentLang::English => format!(
+                        "- Per-entry verification lives in each journal's `## 검증` ({} entries",
+                        entries.len(),
+                    ),
+                    _ => format!(
+                        "- 작업 단위별 검증은 각 일지의 `## 검증` 참조 (총 {}건",
+                        entries.len(),
+                    ),
+                },
                 if error_cycles > 0 {
-                    format!(", 에러 사이클 {error_cycles}건 포함")
+                    match lang {
+                        ContentLang::English =>
+                            format!(", including {error_cycles} error cycles)"),
+                        _ => format!(", 에러 사이클 {error_cycles}건 포함)"),
+                    }
                 } else {
-                    String::new()
+                    ")".to_string()
                 },
             ));
             out
@@ -165,20 +195,34 @@ pub(crate) fn deterministic_markdown(
                 .iter()
                 .filter(|e| e.entry_type == "error" || e.entry_type == "bug")
                 .count();
-            let mut out = format!(
-                "# 주간 보고 — {since} ~ {until}\n\n총 {}개 작업 기록 · 출시 {}건 · 마찰 {}건\n\n## 하이라이트\n",
-                entries.len(),
-                done,
-                friction,
-            );
+            let mut out = match lang {
+                ContentLang::English => format!(
+                    "# Weekly report — {since} ~ {until}\n\n\
+                     {} entries · {} shipped · {} friction\n\n## Highlights\n",
+                    entries.len(),
+                    done,
+                    friction,
+                ),
+                _ => format!(
+                    "# 주간 보고 — {since} ~ {until}\n\n\
+                     총 {}개 작업 기록 · 출시 {}건 · 마찰 {}건\n\n## 하이라이트\n",
+                    entries.len(),
+                    done,
+                    friction,
+                ),
+            };
             if entries.is_empty() {
-                out.push_str("- (기록 없음)\n");
+                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
             } else {
                 out.push('\n');
-                out.push_str(&group_lines(entries));
+                out.push_str(&group_lines(entries, lang));
             }
-            out.push_str("## 다음 주\n");
-            out.push_str(&fmt_open_items(open_items, &["todo", "in_progress", "blocked"]));
+            out.push_str(&format!("## {}\n", lang.pick("다음 주", "Next week")));
+            out.push_str(&fmt_open_items(
+                open_items,
+                &["todo", "in_progress", "blocked"],
+                lang,
+            ));
             out
         }
     }
@@ -319,11 +363,14 @@ pub async fn oculpm_generate_summary(
         .map_err(|e| e.to_string())?;
 
     let entry_count = entries.len() as u32;
-    let fallback = deterministic_markdown(style, &since, &until, &entries, &open_items);
+    // 폴백도 LLM 경로와 **같은 언어**여야 한다 — 키가 없거나 호출이 실패하면
+    // 이게 최종 산출물이라 여기서 갈리면 사용자가 언어 섞인 결과를 받는다.
+    let content_lang = crate::oculpm::content_lang::current(&db).await;
+    let fallback =
+        deterministic_markdown(style, &since, &until, &entries, &open_items, content_lang);
 
     if let (Some(provider), Some(model)) = (provider, model) {
         let input = fmt_llm_input(&since, &until, &entries, &open_items);
-        let content_lang = crate::oculpm::content_lang::current(&db).await;
         match call_llm(&provider, &model, style, input, content_lang).await {
             Ok(markdown) => {
                 return Ok(GeneratedSummary {
@@ -397,7 +444,7 @@ mod tests {
             item("v2", "workday brief", "in_progress"),
             item("v2", "서명키 발급", "blocked"),
         ];
-        let md = deterministic_markdown(SummaryStyle::Standup, "20260705", "20260706", &entries, &items);
+        let md = deterministic_markdown(SummaryStyle::Standup, "20260705", "20260706", &entries, &items, ContentLang::Unset);
         assert!(md.contains("## 한 일"));
         assert!(md.contains("**기능**"));
         assert!(md.contains("팔레트 점프"));
@@ -416,7 +463,7 @@ mod tests {
             entry("feature", "done", "20260706", "F1", &["src/x.ts", "src/x.ts", "src/y.ts"]),
             entry("refactor", "done", "20260706", "R1", &["src/x.ts"]),
         ];
-        let md = deterministic_markdown(SummaryStyle::PrDescription, "20260706", "20260706", &entries, &[]);
+        let md = deterministic_markdown(SummaryStyle::PrDescription, "20260706", "20260706", &entries, &[], ContentLang::Unset);
         // entry 내 중복은 1회 — x.ts 는 2개 작업.
         assert!(md.contains("`src/x.ts` (2개 작업)"));
         assert!(md.contains("`src/y.ts` (1개 작업)"));
@@ -430,7 +477,7 @@ mod tests {
             entry("error", "done", "20260702", "E1", &[]),
         ];
         let items = vec![item("v2", "남은 일", "todo")];
-        let md = deterministic_markdown(SummaryStyle::WeeklyStatus, "20260630", "20260706", &entries, &items);
+        let md = deterministic_markdown(SummaryStyle::WeeklyStatus, "20260630", "20260706", &entries, &items, ContentLang::Unset);
         assert!(md.contains("총 2개 작업 기록 · 출시 1건 · 마찰 1건"));
         assert!(md.contains("## 다음 주"));
         assert!(md.contains("남은 일"));
@@ -438,8 +485,73 @@ mod tests {
 
     #[test]
     fn empty_range_is_still_valid_markdown() {
-        let md = deterministic_markdown(SummaryStyle::Standup, "20260706", "20260706", &[], &[]);
+        let md = deterministic_markdown(SummaryStyle::Standup, "20260706", "20260706", &[], &[], ContentLang::Unset);
         assert!(md.contains("(기록 없음)"));
         assert!(md.contains("(없음)"));
     }
+
+    // ── 산출물 언어 (English) ────────────────────────────────────────────
+    //
+    // 이 경로는 **LLM 을 안 거친다** — 키가 없거나 호출이 실패했을 때의 최종
+    // 산출물이라 프롬프트 지시가 닿지 않는다. 그래서 여기서 언어가 갈리지
+    // 않으면 영어 사용자가 통째로 한국어 스탠드업을 받는다.
+
+    #[test]
+    fn english_standup_has_no_korean() {
+        let entries = vec![entry("feature", "done", "20260706", "Ship the thing", &["a.rs"])];
+        let items = vec![item("v2", "Next thing", "todo")];
+        let md = deterministic_markdown(
+            SummaryStyle::Standup,
+            "20260705",
+            "20260706",
+            &entries,
+            &items,
+            ContentLang::English,
+        );
+        assert!(md.contains("# Standup"), "{md}");
+        assert!(md.contains("## Done") && md.contains("## Today") && md.contains("## Blocked"), "{md}");
+        assert!(!md.chars().any(is_hangul), "한글이 남았다:\n{md}");
+    }
+
+    #[test]
+    fn english_weekly_and_pr_have_no_korean() {
+        let entries = vec![entry("error", "done", "20260706", "Broken pipe", &["b.rs"])];
+        for style in [SummaryStyle::WeeklyStatus, SummaryStyle::PrDescription] {
+            let md = deterministic_markdown(
+                style,
+                "20260630",
+                "20260706",
+                &entries,
+                &[],
+                ContentLang::English,
+            );
+            // PR 본문은 일지의 `## 검증` 헤더를 **인용**한다 — 그건 온디스크
+            // 규격이라 영어 문장 안에서도 한글로 남는 게 맞다.
+            let without_quote = md.replace("`## 검증`", "");
+            assert!(
+                !without_quote.chars().any(is_hangul),
+                "한글이 남았다 ({style:?}):\n{md}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_english_standup_says_so_in_english() {
+        let md = deterministic_markdown(
+            SummaryStyle::Standup,
+            "20260706",
+            "20260706",
+            &[],
+            &[],
+            ContentLang::English,
+        );
+        assert!(md.contains("(nothing recorded)"), "{md}");
+        assert!(md.contains("(none)"), "{md}");
+        assert!(!md.chars().any(is_hangul), "{md}");
+    }
+
+    fn is_hangul(c: char) -> bool {
+        ('\u{AC00}'..='\u{D7A3}').contains(&c) || ('\u{1100}'..='\u{11FF}').contains(&c)
+    }
+
 }

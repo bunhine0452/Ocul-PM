@@ -21,6 +21,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use regex::Regex;
+
+use crate::oculpm::content_lang::ContentLang;
 use serde::Deserialize;
 use tauri::Manager;
 
@@ -175,7 +177,18 @@ pub fn sanitize_slug(raw: &str, fallback: &str) -> String {
 }
 
 /// 타입별 강제 헤더 (AGENTS.md §4) 를 코드가 조립한다.
-pub fn compose_body(entry_type: EntryType, plan: &DraftPlan, meta_note: &str) -> String {
+/// 타입별 강제 헤더는 **온디스크 규격**(AGENTS.md §4)이라 번역하지 않는다 —
+/// 파서·정직성 감사가 `## 검증` 을 읽고, 기존 일지가 전부 그 모양이다
+/// (03-i18n.md §1: 디스크 산출물은 `schema_version` 범프가 필요한 별도 라운드).
+///
+/// 반면 LLM 이 못 채운 자리를 메우는 **폴백 문구**는 코드가 쓰는 산문이라
+/// 산출물 언어를 따라야 한다 — 영어 일지 한가운데 한국어 한 줄이 남는다.
+pub fn compose_body(
+    entry_type: EntryType,
+    plan: &DraftPlan,
+    meta_note: &str,
+    lang: ContentLang,
+) -> String {
     let (h1, h2) = match entry_type {
         EntryType::Bug | EntryType::Error => (Some("발생 원인"), Some("해결 방법")),
         EntryType::Feature => (Some("추가 기능"), Some("동작 흐름")),
@@ -187,7 +200,7 @@ pub fn compose_body(entry_type: EntryType, plan: &DraftPlan, meta_note: &str) ->
         (Some(h1), Some(h2)) => {
             body.push_str(&format!("## {h1}\n\n{}\n\n", plan.primary.trim()));
             let secondary = if plan.secondary.trim().is_empty() {
-                "(자동 초안 — 내용 미상)"
+                lang.pick("(자동 초안 — 내용 미상)", "(auto draft — content unknown)")
             } else {
                 plan.secondary.trim()
             };
@@ -201,7 +214,10 @@ pub fn compose_body(entry_type: EntryType, plan: &DraftPlan, meta_note: &str) ->
         }
     }
     let verification = if plan.verification.trim().is_empty() {
-        "자동 초안 — transcript 에서 검증 근거를 찾지 못함. 사용자 확인 필요."
+        lang.pick(
+            "자동 초안 — transcript 에서 검증 근거를 찾지 못함. 사용자 확인 필요.",
+            "Auto draft — no verification evidence found in the transcript. Needs your review.",
+        )
     } else {
         plan.verification.trim()
     };
@@ -216,9 +232,10 @@ pub fn compose_degraded_body(
     files: &[FileTouched],
     reason: &str,
     meta_note: &str,
+    lang: ContentLang,
 ) -> String {
     let file_lines = if files.is_empty() {
-        "- (세션 파일 이벤트 없음)".to_string()
+        lang.pick("- (세션 파일 이벤트 없음)", "- (no file events in this session)").to_string()
     } else {
         files
             .iter()
@@ -226,14 +243,37 @@ pub fn compose_degraded_body(
             .collect::<Vec<_>>()
             .join("\n")
     };
+    // `## 검증` · `## 메모` 는 온디스크 규격이라 두 언어에서 동일하다.
+    let (lead, verify) = match lang {
+        ContentLang::English => (
+            format!(
+                "The Claude Code session ended, so this is an automatic record. Summarizing the\n\
+                 transcript failed, so only session metadata is kept (reason: {reason})."
+            ),
+            "Auto-downgraded record — no verification. Fill this in if you need to.".to_string(),
+        ),
+        _ => (
+            format!(
+                "Claude Code 세션이 종료되어 자동 기록을 남긴다. transcript 요약은 실패해 세션\n\
+                 메타만 기록한다 (사유: {reason})."
+            ),
+            "자동 강등 기록 — 검증 없음. 필요하면 사용자가 내용을 보강할 것.".to_string(),
+        ),
+    };
+    let (s_label, f_label) = (
+        lang.pick("세션", "Session"),
+        lang.pick("변경 파일", "Files changed"),
+    );
     format!(
-        "Claude Code 세션이 종료되어 자동 기록을 남긴다. transcript 요약은 실패해 세션\n\
-         메타만 기록한다 (사유: {reason}).\n\n\
-         - 세션: `{}` (시작 {})\n\
-         - 변경 파일:\n{}\n\n\
-         ## 검증\n\n자동 강등 기록 — 검증 없음. 필요하면 사용자가 내용을 보강할 것.\n\n\
+        "{lead}\n\n\
+         - {s_label}: `{}` ({} {})\n\
+         - {f_label}:\n{}\n\n\
+         ## 검증\n\n{verify}\n\n\
          ## 메모\n\n{meta_note}\n",
-        session.id, session.started_at, file_lines
+        session.id,
+        lang.pick("시작", "started"),
+        session.started_at,
+        file_lines
     )
 }
 
@@ -458,12 +498,12 @@ pub async fn draft_for_session(
             } else {
                 p.title.trim().to_string()
             };
-            let body = compose_body(entry_type, p, &meta_note);
+            let body = compose_body(entry_type, p, &meta_note, content_lang);
             (entry_type, slug, title, normalize_difficulty(&p.difficulty), body)
         }
         _ => {
             let reason = degraded_reason.unwrap_or("알 수 없음");
-            let body = compose_degraded_body(&session, &files, reason, &meta_note);
+            let body = compose_degraded_body(&session, &files, reason, &meta_note, content_lang);
             (
                 EntryType::Chore,
                 format!("claude-session-{session_nnn}-auto"),
@@ -566,7 +606,7 @@ mod tests {
 
     #[test]
     fn compose_body_enforces_type_headers() {
-        let body = compose_body(EntryType::Bug, &plan("bug"), "메모줄");
+        let body = compose_body(EntryType::Bug, &plan("bug"), "메모줄", ContentLang::Unset);
         let h_cause = body.find("## 발생 원인").unwrap();
         let h_fix = body.find("## 해결 방법").unwrap();
         let h_verify = body.find("## 검증").unwrap();
@@ -574,13 +614,13 @@ mod tests {
         assert!(body.contains("cargo test 12개 그린"));
         assert!(body.contains("메모줄"));
 
-        let feature = compose_body(EntryType::Feature, &plan("feature"), "m");
+        let feature = compose_body(EntryType::Feature, &plan("feature"), "m", ContentLang::Unset);
         assert!(feature.contains("## 추가 기능") && feature.contains("## 동작 흐름"));
 
         // 검증이 비면 정직한 플레이스홀더.
         let mut p = plan("bug");
         p.verification = String::new();
-        let body = compose_body(EntryType::Bug, &p, "m");
+        let body = compose_body(EntryType::Bug, &p, "m", ContentLang::Unset);
         assert!(body.contains("검증 근거를 찾지 못함"));
     }
 
@@ -641,9 +681,60 @@ mod tests {
             agent_label_guess: None,
             linked_journal_entries: vec![],
         };
-        let body = compose_degraded_body(&session, &[], "LLM 호출 실패", "메모");
+        let body = compose_degraded_body(&session, &[], "LLM 호출 실패", "메모", ContentLang::Unset);
         assert!(body.contains("20260720-003"));
         assert!(body.contains("LLM 호출 실패"));
         assert!(body.contains("## 검증"));
     }
+
+    // ── 산출물 언어 (English) — 헤더는 규격, 폴백 문구는 산문 ─────────────
+
+    #[test]
+    fn english_fallbacks_are_english_but_headers_stay_spec() {
+        // LLM 이 secondary/verification 을 못 채운 최악의 경우.
+        let p = DraftPlan {
+            type_: "bug".into(),
+            slug: "s".into(),
+            title: "t".into(),
+            difficulty: "medium".into(),
+            primary: "Root cause was a stale cache.".into(),
+            secondary: String::new(),
+            verification: String::new(),
+        };
+        let body = compose_body(EntryType::Bug, &p, "note", ContentLang::English);
+
+        // 헤더는 온디스크 규격이라 한국어 그대로다 (03-i18n.md §1).
+        assert!(body.contains("## 발생 원인"), "{body}");
+        assert!(body.contains("## 검증"), "{body}");
+
+        // 폴백 **산문**은 영어여야 한다 — 영어 일지 한가운데 한국어 한 줄이
+        // 남는 게 이 수정 전의 실제 동작이었다.
+        assert!(body.contains("(auto draft — content unknown)"), "{body}");
+        assert!(body.contains("Needs your review."), "{body}");
+        assert!(!body.contains("자동 초안"), "{body}");
+    }
+
+    #[test]
+    fn english_degraded_body_is_english() {
+        let session = Session {
+            id: "s1".into(),
+            started_at: "2026-08-12T00:00:00Z".into(),
+            ended_at: None,
+            ended_reason: None,
+            active_window_ms: 0,
+            file_event_count: 0,
+            files_unique: 0,
+            git_head_at_start: None,
+            git_head_at_end: None,
+            agent_label_guess: None,
+            linked_journal_entries: vec![],
+        };
+        let body =
+            compose_degraded_body(&session, &[], "llm failed", "note", ContentLang::English);
+        assert!(body.contains("Auto-downgraded record"), "{body}");
+        assert!(body.contains("Session:"), "{body}");
+        assert!(body.contains("## 검증"), "규격 헤더는 유지: {body}");
+        assert!(!body.contains("자동 강등"), "{body}");
+    }
+
 }

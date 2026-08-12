@@ -57,6 +57,21 @@ impl ContentLang {
     pub fn apply(self, prompt: &str) -> String {
         format!("{prompt}{}", self.directive())
     }
+
+    /// 두 벌 문구 중 하나를 고른다 — **LLM 을 안 거치는 산출물** 용.
+    ///
+    /// 프롬프트는 지시 한 줄로 끝나지만, 코드가 직접 조립하는 마크다운(결정적
+    /// 요약 · 일지 폴백 문구)은 모델이 손대지 않으므로 여기서 갈라야 한다.
+    /// Rust 에는 사전이 없고 대상이 수십 개뿐이라 사전을 새로 들이지 않는다.
+    ///
+    /// `Unset` 은 한국어 — 설정을 안 건드린 기존 사용자의 산출물이 조용히
+    /// 바뀌면 안 된다.
+    pub fn pick(self, ko: &'static str, en: &'static str) -> &'static str {
+        match self {
+            Self::English => en,
+            _ => ko,
+        }
+    }
 }
 
 /// UI 언어 설정 키 — `content_language` 가 "system" 일 때의 폴백.
