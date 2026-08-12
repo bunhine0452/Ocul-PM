@@ -28,6 +28,32 @@ vi.mock("@/lib/bindings", () => {
           if (prop === "settingsGetAll")
             return () => ok([["language", "en"]] as Array<[string, string]>);
           if (prop === "conversationList") return () => ok([]);
+          // 후보가 없으면 카드가 `null` 을 반환해 아무것도 안 그린다 —
+          // 검사 대상이 렌더되도록 한 건씩 심는다.
+          if (prop === "ruleCandidates")
+            return () =>
+              ok([
+                {
+                  key: "area:src",
+                  area: "src",
+                  entry_count: 2,
+                  kinds: ["bug"],
+                  sample_titles: ["t"],
+                  suggested_paths: [],
+                  last_workday: "20260812",
+                },
+              ]);
+          if (prop === "skillCandidates")
+            return () =>
+              ok([
+                {
+                  tag: "deploy",
+                  slug: "deploy",
+                  count: 3,
+                  last_workday: "20260812",
+                  sample_titles: ["t"],
+                },
+              ]);
           if (prop === "planList") return () => ok([]);
           if (prop === "oculpmListJournalEntries") return () => ok([]);
           if (prop === "oculpmListSessions") return () => ok([]);
@@ -55,6 +81,11 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { ConversationHistoryModal } from "@/features/chat/ConversationHistoryModal";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { PluginDocsTab } from "@/features/skills/PluginDocsTab";
+import { SettingsPanel } from "@/features/settings/SettingsPanel";
+import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
+import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
+import { RuleCandidatesPanel } from "@/features/retro/RuleCandidates";
+import { SkillCandidatesPanel } from "@/features/retro/SkillCandidates";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;
@@ -72,16 +103,25 @@ function Wrap({ children }: { children: React.ReactNode }) {
  * `placeholder` 도 훑는다 — 번역 누락의 상당수가 거기 숨는다(스캐너 실측
  * 기준 aria-label 만 275곳).
  */
+/**
+ * 자기 언어 표기는 예외 — OS 언어 선택 UI 의 관례이고 `i18n.test.ts` 도 같은
+ * 예외를 둔다. 영어 화면에서도 "한국어" 라고 적혀야 고를 수 있다.
+ */
+const SELF_NAMES = new Set(["한국어"]);
+
 function hangulIn(root: HTMLElement): string[] {
   const found: string[] = [];
-  const text = root.textContent ?? "";
-  for (const chunk of text.split(/\s{2,}|\n/)) {
-    if (HANGUL.test(chunk)) found.push(chunk.trim());
+  // `textContent` 를 통째로 쪼개면 페이지 전체가 한 덩어리가 돼 어느 요소가
+  // 범인인지 못 짚는다 — 텍스트 노드를 하나씩 걷는다.
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const v = (n.textContent ?? "").trim();
+    if (v && HANGUL.test(v) && !SELF_NAMES.has(v)) found.push(v);
   }
   for (const el of root.querySelectorAll("[aria-label],[title],[placeholder]")) {
     for (const attr of ["aria-label", "title", "placeholder"]) {
       const v = el.getAttribute(attr);
-      if (v && HANGUL.test(v)) found.push(`${attr}="${v}"`);
+      if (v && HANGUL.test(v) && !SELF_NAMES.has(v)) found.push(`${attr}="${v}"`);
     }
   }
   return [...new Set(found)];
@@ -146,5 +186,54 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
     // 전체 한글 0 을 요구할 수 없다 — chrome 이 영어인지만 확인한다.
     await findByText("Skills & rules");
     await findByText("Suggested flow");
+  });
+
+  it("설정 패널", async () => {
+    const { container, findByText } = render(
+      <Wrap>
+        <SettingsPanel />
+      </Wrap>,
+    );
+    await findByText("Settings");
+    expect(hangulIn(container)).toEqual([]);
+  });
+
+  it("새 프로젝트 마법사", async () => {
+    const { container, findByText } = render(
+      <Wrap>
+        <GreenfieldWizard onClose={() => {}} onComplete={() => {}} />
+      </Wrap>,
+    );
+    await findByText("What are we building?");
+    expect(hangulIn(container)).toEqual([]);
+  });
+
+  it("터미널 화면", async () => {
+    const { container, findByText } = render(
+      <Wrap>
+        <TerminalScreenV2 projectRoot="/tmp/p" />
+      </Wrap>,
+    );
+    await findByText("Terminal");
+    expect(hangulIn(container)).toEqual([]);
+  });
+
+  it("회고 승격 후보 카드 (규칙·스킬)", async () => {
+    const rule = render(
+      <Wrap>
+        <RuleCandidatesPanel projectId={1} since="20260801" until="20260812" />
+      </Wrap>,
+    );
+    await rule.findByText("Rule candidates");
+    expect(hangulIn(rule.container)).toEqual([]);
+    cleanup();
+
+    const skill = render(
+      <Wrap>
+        <SkillCandidatesPanel projectId={1} since="20260801" until="20260812" />
+      </Wrap>,
+    );
+    await skill.findByText("Skill candidates");
+    expect(hangulIn(skill.container)).toEqual([]);
   });
 });

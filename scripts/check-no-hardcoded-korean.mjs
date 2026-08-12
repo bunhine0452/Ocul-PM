@@ -15,8 +15,12 @@
  *  - Phase 2 진척도가 PENDING 길이로 정확히 측정된다 (Phase 0 시딩 시점 130 → 0)
  *  - 이미 끝낸 파일의 회귀가 즉시 잡힌다
  *
- * Phase 2 완료 기준 = PENDING 이 빈 상태 (ALLOWLIST 에 PERMANENT 와
- * DISK_CONTENT 만 남는다 — 둘 다 번역 대상이 아닌 파일들이다).
+ * Phase 2 완료 기준 = **PENDING 이 빈 상태** (2026-08-12 달성). 남은 세 집합은
+ * 전부 번역 대상이 아닌 파일이다 — PERMANENT(i18n 기계 자신) · DISK_CONTENT
+ * (디스크 산출물의 내용) · TESTS(한글이 검사 재료인 테스트).
+ *
+ * 이제 이 게이트의 역할은 "진척 측정" 에서 **"회귀 방지"** 로 바뀐다 — 새
+ * 파일이나 되살아난 한글은 세 집합 어디에도 없으므로 즉시 걸린다.
  *
  * ## 탐지 방식
  *
@@ -90,6 +94,29 @@ const DISK_CONTENT = new Set([
  */
 const PENDING = new Set([
   // @PENDING_START (scripts/gen-i18n-allowlist.mjs 가 생성)
+  // @PENDING_END
+]);
+
+/**
+ * 테스트 파일 — 한글이 **번역 대상 UI 가 아니라 검사 재료**다.
+ *
+ * Phase 0 시딩은 "한글이 있는 파일" 을 전부 PENDING 에 넣었는데, 그건
+ * "미번역 UI" 와 "한국어 UI 를 검사하는 테스트" 를 구분하지 못한 것이다.
+ * 실측하면 이 44파일의 한글 1,062줄은:
+ *
+ *   399줄  `it(...)` / `describe(...)` 설명 — 이 코드베이스의 서술 언어
+ *   343줄  DOM 조회 — 대부분 **픽스처 데이터**("첫 대화" 같은 목 제목)
+ *   220줄  픽스처·샘플 문서 본문 (플랜 제목·AGENTS.md 예시)
+ *   100줄  순수 함수 값 단언
+ *
+ * 전부 한국어여야 의미가 있다. `setup.ts` 가 언어를 `ko` 로 고정하므로 이
+ * 단언들은 **한국어 렌더를 검사하는 유효한 테스트**다.
+ *
+ * 영어 경로 커버리지는 번역이 아니라 별도 스위트가 맡는다 —
+ * `__tests__/i18n_english_render.test.tsx` 가 실제로 영어로 그려서 한글이
+ * 남는지 본다. 이쪽을 넓히는 게 맞고, 이 파일들을 번역하는 건 틀렸다.
+ */
+const TESTS = new Set([
   "__tests__/agent_detect.test.ts",
   "__tests__/ai_context_parts.test.ts",
   "__tests__/ai_history.test.tsx",
@@ -134,10 +161,9 @@ const PENDING = new Set([
   "__tests__/tray_popover.test.tsx",
   "__tests__/update_banner.test.tsx",
   "__tests__/workday_rollover.test.tsx",
-  // @PENDING_END
 ]);
 
-const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...PENDING]);
+const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS, ...PENDING]);
 
 const EXT = new Set([".ts", ".tsx"]);
 const HANGUL = /[가-힣]/;
@@ -305,7 +331,7 @@ async function main() {
     if (ALLOWLIST.has(rel)) {
       // allowlist 에 있는데 이미 깨끗하다 → 번역이 끝났다는 뜻. 목록에서 빼도록
       // 알려 준다 (역방향 게이트가 실제로 줄어들게 만드는 장치).
-      if (hits.length === 0 && !PERMANENT.has(rel) && !DISK_CONTENT.has(rel))
+      if (hits.length === 0 && !PERMANENT.has(rel) && !DISK_CONTENT.has(rel) && !TESTS.has(rel))
         cleanedAllowlisted.push(rel);
       continue;
     }
