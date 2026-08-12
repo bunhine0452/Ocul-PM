@@ -55,15 +55,32 @@ grep -n "2\.8\.5" landing/index.html    # 이전 버전 문자열이 남지 않�
 ```bash
 git add <명시 경로만>          # git add -A 금지 (병렬 세션 WIP 를 쓸어 담은 사고 전례)
 git commit -m "release: vX.Y.Z — <한 줄 요약>"
-git tag vX.Y.Z && git push origin main --tags   # release.yml 이 빌드·서명·릴리스 — 로컬 빌드 금지
+git tag vX.Y.Z
+git push origin main           # 커밋 먼저
+git push origin vX.Y.Z         # 태그는 단독으로 — release.yml 이 빌드·서명·릴리스 (로컬 빌드 금지)
 cd landing && vercel --prod --yes               # 랜딩은 git 연동이 없어 push 로 안 나갑니다
+```
+
+**`--tags` 를 쓰지 않습니다.** 로컬에 원격과 어긋난 옛 태그가 하나라도 있으면 푸시가 **통째로** 거부되고, 그 안에 섞인 새 태그의 push 이벤트까지 함께 묻혀 **워크플로가 아예 돌지 않습니다** (v2.9.0 에서 겪음 — 태그는 원격에 올라갔는데 빌드는 시작되지 않았습니다). 태그를 하나만 밀면 옛 태그의 상태와 무관해집니다.
+
+옛 태그가 어긋나 있다면 (원격이 정본입니다):
+
+```bash
+git fetch --tags --force --prune-tags origin
 ```
 
 ## 6. 확인
 
 ```bash
-gh run list --workflow=release.yml --limit 3
+gh run list --workflow=release.yml --limit 3   # ← 새 태그의 run 이 실제로 떴는지부터
+gh release view vX.Y.Z --json body,assets --jq '{notes: (.body|length), assets: (.assets|length)}'
 curl -s https://oculpm.com/ | grep softwareVersion
 ```
 
-릴리스 노트 본문이 비어 있지 않은지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
+**run 이 안 떴으면** 태그를 지웠다 다시 밀어 push 이벤트를 새로 발생시킵니다 (커밋은 이미 main 에 있어 안전):
+
+```bash
+git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
+```
+
+릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 4개(`.dmg` · `.app.tar.gz` · `.sig` · `latest.json`)인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
