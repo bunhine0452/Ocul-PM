@@ -80,7 +80,7 @@ pub struct AcpState {
     ///
     /// `/usage` 처럼 **우리가 대신 물어보는** 턴의 답을 읽으려고 둔다. 프런트
     /// 채널로는 받을 수 없다 — 사용자가 시작한 프롬프트가 아니기 때문이다.
-    capture: Mutex<Option<String>>,
+    capture: Mutex<Option<(String, String)>>,
     /// **동시 start 직렬화.** 없으면 어댑터가 둘 뜬다 — React StrictMode 가
     /// effect 를 두 번 돌리는 것만으로도 재현됐다(첫 연결 실패 → 재시도하면
     /// 됨). 늦게 뜬 쪽이 레지스트리를 덮고, 먼저 죽는 쪽이 그 등록을 지워
@@ -240,21 +240,37 @@ impl AcpState {
     }
 
     /// 답변 텍스트 갈무리를 시작한다 (이전 내용은 버린다).
-    pub fn start_capture(&self) {
+    /// 이 세션의 답변만 갈무리한다.
+    ///
+    /// 세션을 지정하는 이유: `/usage` 는 **일회용 대화**에서 물어본다(사용자의
+    /// 대화에 "/usage" 가 남지 않도록). 프로젝트 단위로 모으면 그 사이 흐르는
+    /// 진짜 대화의 글자까지 섞여 들어온다.
+    pub fn start_capture(&self, session_id: String) {
         if let Ok(mut slot) = self.capture.lock() {
-            *slot = Some(String::new());
+            *slot = Some((session_id, String::new()));
         }
     }
 
     /// 갈무리를 끝내고 모인 텍스트를 가져온다.
     pub fn take_capture(&self) -> Option<String> {
-        self.capture.lock().ok()?.take()
+        Some(self.capture.lock().ok()?.take()?.1)
     }
 
-    fn push_capture(&self, text: &str) {
+    /// 지금 이 세션을 갈무리 중인가 — 그렇다면 그 알림은 **화면 것이 아니다.**
+    pub fn is_capturing(&self, session_id: &str) -> bool {
+        self.capture
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(|(id, _)| id == session_id))
+            .unwrap_or(false)
+    }
+
+    fn push_capture(&self, session_id: &str, text: &str) {
         if let Ok(mut slot) = self.capture.lock() {
-            if let Some(buffer) = slot.as_mut() {
-                buffer.push_str(text);
+            if let Some((id, buffer)) = slot.as_mut() {
+                if id == session_id {
+                    buffer.push_str(text);
+                }
             }
         }
     }
@@ -423,6 +439,16 @@ pub async fn start(
             .on_receive_notification(
                 async move |notification: SessionNotification, _cx| {
                     let state = notify_app.state::<AcpState>();
+                    // `/usage` 를 물어보는 **일회용 대화**의 알림은 화면 것이
+                    // 아니다 — 그대로 흘리면 사용자가 보고 있는 대화에 남의
+                    // 답변이 끼어든다. 갈무리만 하고 여기서 끊는다.
+                    let from = notification.session_id.0.to_string();
+                    if state.is_capturing(&from) {
+                        if let AcpEvent::Chunk { text } = map_update(&notification.update) {
+                            state.push_capture(&from, &text);
+                        }
+                        return Ok(());
+                    }
                     // 커맨드 목록은 프롬프트 밖(세션 시작 직후)에 오므로 싱크에만
                     // 의존하면 놓친다 — 상태에 갈무리해 두고 UI 가 물어보게 한다.
                     if let Some(commands) = commands_of(&notification.update) {
@@ -441,9 +467,6 @@ pub async fn start(
                     }
                     if let Some(title) = title_of(&notification.update) {
                         state.set_title(project_id, Some(title));
-                    }
-                    if let AcpEvent::Chunk { text } = map_update(&notification.update) {
-                        state.push_capture(&text);
                     }
                     state.emit(project_id, map_update(&notification.update));
                     Ok(())

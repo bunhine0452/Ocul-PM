@@ -66,20 +66,7 @@ function toneOf(utilization: number | null): string {
   return "";
 }
 
-export function AcpUsageMeter({
-  projectId,
-  /**
-   * 대화가 시작됐는가.
-   *
-   * `/usage` 는 결국 **프롬프트로 보내는 것**이라 세션이 필요하고, 아직 아무
-   * 말도 안 한 세션에 보내면 그 세션의 첫 메시지가 `/usage` 가 되어 목록에
-   * "/usage" 라는 대화가 생긴다(실측). 그래서 한 마디라도 오간 뒤에 묻는다.
-   */
-  ready,
-}: {
-  projectId: number;
-  ready: boolean;
-}) {
+export function AcpUsageMeter({ projectId }: { projectId: number }) {
   const { t } = useT();
   const [usage, setUsage] = useState<AcpUsage | null>(null);
   const [open, setOpen] = useState(false);
@@ -126,6 +113,9 @@ export function AcpUsageMeter({
    *
    * **토큰을 쓰지 않는다**(실측 2026-08-15: inputTokens=outputTokens=0). CLI 가
    * 로컬에서 답하는 커맨드라서, 세션·주간·Fable 을 공짜로 한 번에 받아 온다.
+   *
+   * 백엔드가 **일회용 대화**를 파서 묻고 지운다 — 보고 있는 대화에 "/usage" 가
+   * 남지 않는다. 그래서 첫 마디 전에도 물어볼 수 있다.
    */
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -158,11 +148,11 @@ export function AcpUsageMeter({
    */
   const hasLimits = (usage?.limits.length ?? 0) > 0;
   useEffect(() => {
-    if (hasLimits || !ready) return;
+    if (hasLimits) return;
     void refresh();
     const timer = window.setInterval(() => void refresh(), 3_000);
     return () => window.clearInterval(timer);
-  }, [hasLimits, ready, refresh]);
+  }, [hasLimits, refresh]);
 
   useEffect(() => {
     if (!hasLimits) return;

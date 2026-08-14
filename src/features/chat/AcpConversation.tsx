@@ -317,6 +317,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         }
       });
       // 제목은 에이전트가 대화를 보고 **나중에** 붙인다 — 같은 주기로 따라간다.
+      // 아직 안 만든 새 대화(`session_id === null`)에서는 건너뛴다: 백엔드에는
+      // 직전 대화가 남아 있어서 그 제목이 빈 화면에 되살아난다.
+      if (session?.session_id == null) return;
       void commands.acpSessionTitle(projectId).then((res) => {
         if (res.status === "ok") {
           setSession((prev) =>
@@ -328,9 +331,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     const timer = window.setInterval(sync, 4000);
     return () => window.clearInterval(timer);
   }, [projectId, session]);
-
-  /** 이 대화가 한 마디라도 오갔는가 (사용량 계기가 물어볼 시점의 판단). */
-  const started = turns.length > 0 || session?.title != null;
 
   // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
   useEffect(() => {
@@ -500,21 +500,29 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     inputRef.current?.focus();
   }, []);
 
-  const newConversation = useCallback(async () => {
+  /**
+   * 새 대화 — **빈 화면만 연다. 세션은 아직 만들지 않는다.**
+   *
+   * 예전에는 여기서 곧장 `session/new` 를 불렀다. 그런데 아무 말도 안 한 세션은
+   * 어댑터의 목록에 실리지 않아서, 지난 대화 사이드바에는 없는 창이 하나 떠
+   * 있는 상태가 됐다 — 닫으면 사라지고 어디에도 안 남는, 있는 것도 없는 것도
+   * 아닌 대화다.
+   *
+   * `session_id` 를 비우는 것이 곧 "아직 안 만들어진 새 대화"라는 표시다.
+   * 세션 설정(모델·Effort·권한)은 그대로 들고 있어야 컴포저가 살아 있으므로
+   * 나머지 필드는 남긴다. 진짜 생성은 첫 마디를 보낼 때.
+   */
+  const newConversation = useCallback(() => {
     // 진행 중인 로드의 재생분이 새 대화에 쏟아지지 않게 세대를 올린다.
     loadSeqRef.current += 1;
-    const res = await commands.acpNewSession(projectId);
-    if (res.status === "ok") {
-      setSession(res.data);
-      setTurns([]);
-      setAttachments([]);
-      setUsage(null);
-      setPermission(null);
-      setError(null);
-    } else {
-      setError(res.error);
-    }
-  }, [projectId]);
+    setSession((prev) => (prev ? { ...prev, session_id: null, title: null } : prev));
+    setTurns([]);
+    setAttachments([]);
+    setImages([]);
+    setUsage(null);
+    setPermission(null);
+    setError(null);
+  }, []);
 
   /**
    * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
@@ -530,7 +538,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (session?.session_id !== id) return;
       const rest = tabs.filter((tab) => tab.id !== id);
       if (rest.length) void openSession(rest[rest.length - 1].id);
-      else void newConversation();
+      else newConversation();
     },
     [session?.session_id, tabs, openSession, newConversation, setState],
   );
@@ -601,7 +609,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         };
       });
       await refreshHistory();
-      if (session?.session_id === sessionId) await newConversation();
+      if (session?.session_id === sessionId) newConversation();
     },
     [projectId, refreshHistory, session?.session_id, newConversation, setState],
   );
@@ -625,7 +633,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (text === "/clear") {
         setDraft("");
         setSlash(null);
-        void newConversation();
+        newConversation();
         return;
       }
 
@@ -676,10 +684,24 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 보내는 순간부터 이 화면은 새 세대다 — 아직 흐르고 있는 재생분이
       // 내 질문 위에 지난 대화를 덧그리면 안 된다.
       loadSeqRef.current += 1;
+      // 아직 안 만든 새 대화라면 **지금** 만든다 (새 대화 버튼은 화면만 비운다).
+      // 백엔드의 `acp_prompt` 는 세션이 없으면 알아서 하나 파지만, 여기서는
+      // 직전 대화가 아직 등록돼 있어서 그냥 보내면 **그 대화에 이어 붙는다.**
+      let target = session?.session_id ?? null;
+      if (!target) {
+        const opened = await commands.acpNewSession(projectId);
+        if (opened.status !== "ok") {
+          setError(opened.error);
+          return;
+        }
+        setSession(opened.data);
+        target = opened.data.session_id;
+      }
+
       // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
-      if (session?.session_id) {
-        markSpoken(activityRef.current, session.session_id, new Date().toISOString());
-        addTab(session.session_id, session.title);
+      if (target) {
+        markSpoken(activityRef.current, target, new Date().toISOString());
+        addTab(target, session?.title ?? null);
       }
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
@@ -893,7 +915,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         />
       }
     >
-      <AcpUsageMeter projectId={projectId} ready={started} />
+      <AcpUsageMeter projectId={projectId} />
       <button
         type="button"
         className={"btn icon ghost acp-panel-toggle" + (panelOpen ? " active" : "")}
@@ -1228,7 +1250,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         query={historyQuery}
         onQuery={setHistoryQuery}
         onPick={(id) => void openSession(id)}
-        onNew={() => void newConversation()}
+        onNew={newConversation}
         onRename={rename}
         onDelete={remove}
         names={names}

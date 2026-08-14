@@ -599,27 +599,42 @@ pub fn acp_usage(
 #[specta::specta]
 pub async fn acp_refresh_usage(
     app: AppHandle,
+    db: State<'_, Db>,
     project_id: u32,
 ) -> Result<Option<acp::session::AcpUsage>, String> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
-    // **세션을 새로 만들지 않는다.** `ensure_session` 을 쓰면 아직 대화를
-    // 시작하지 않은 상태에서 계기가 스스로 세션을 하나 파고, 그 세션의 첫
-    // 메시지가 `/usage` 라 목록에 "/usage" 라는 대화가 생긴다(실측). 사용량을
-    // 보려고 누른 것이 대화 목록을 어지럽히면 안 된다.
-    let session = app
-        .state::<AcpState>()
-        .session(project_id)
-        .ok_or_else(|| "대화를 시작한 뒤에 볼 수 있습니다".to_string())?;
+    // **일회용 대화에서 묻는다.**
+    //
+    // `/usage` 는 결국 프롬프트라, 보고 있는 대화에 보내면 그 대화의 기록에
+    // "/usage" 가 남는다. 아직 한 마디도 안 한 대화였다면 그것이 **제목**까지
+    // 되어 목록 맨 위에 "/usage" 라는 대화가 생겼다(실측, 두 번 재발).
+    //
+    // 그래서 물어볼 대화를 따로 파고 끝나면 지운다. 그 대화의 알림은 화면으로
+    // 흘리지 않는다(갈무리가 세션을 지정해 두면 핸들러가 걸러 준다).
+    let cwd = project_root(&db, project_id).await?;
+    let scratch = connection
+        .send_request(NewSessionRequest::new(cwd))
+        .block_task()
+        .await
+        .map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?
+        .session_id;
 
-    app.state::<AcpState>().start_capture();
+    app.state::<AcpState>()
+        .start_capture(scratch.0.to_string());
     let outcome = connection
         .send_request(PromptRequest::new(
-            session,
+            scratch.clone(),
             vec![ContentBlock::Text(TextContent::new("/usage".to_string()))],
         ))
+        .block_task()
+        .await;
+
+    // 결과와 상관없이 치운다 — 남기면 목록에 "/usage" 가 쌓인다.
+    let _ = connection
+        .send_request(DeleteSessionRequest::new(scratch))
         .block_task()
         .await;
 
