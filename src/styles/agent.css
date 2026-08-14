@@ -1496,3 +1496,159 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ─── 사용자 발화 = 카드 ──────────────────────────────────────────────────
+   말풍선(우측 정렬 · max-width 85%)을 이 화면에서만 걷어낸다. 여기서 사용자가
+   쓰는 것은 한 줄 대꾸가 아니라 번호 붙은 요구사항 묶음이라, 좁은 풍선에
+   담으면 문장이 계단처럼 꺾이고 오른쪽으로 밀려 읽는 눈이 매 턴 좌우로 뛴다.
+   .msg.user 규칙 자체는 에이전트 화면(AI 패널)이 공유하므로 건드리지 않는다. */
+.acp-layout .msg.user {
+  align-items: stretch;
+}
+.acp-layout .user-card {
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-l);
+  background: var(--bg-card);
+  padding: 11px 13px;
+}
+.acp-layout .user-card-text {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.user-card-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+/* 첨부는 "무엇을 붙였는지" 한 줄이면 된다 — 미리보기를 크게 깔면 정작 지시문이
+   화면 밖으로 밀린다. 그림은 32px 썸네일로만 두고 실물은 눌러서 본다. */
+.user-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 4px 9px 4px 4px;
+  border: 1px solid var(--sep);
+  border-radius: 9px;
+  background: var(--bg-window);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-2);
+}
+.user-file:not(.image) {
+  padding-left: 9px;
+  color: var(--text-3);
+}
+.user-file.image {
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.user-file.image:hover {
+  border-color: var(--sep-strong);
+  background: var(--bg-hover);
+}
+.user-file-thumb {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg-inset);
+}
+.user-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 치수는 곁들이는 정보 — 이름보다 뒤로 물러나야 파일 이름이 먼저 읽힌다. */
+.user-file-dim {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* ─── 크게 보기 ───────────────────────────────────────────────────────────
+   배경을 완전히 검게 덮지 않고 흐림을 섞는다 — 뒤 대화가 어렴풋이 남아야
+   "잠깐 확대해 본 것"이지 다른 화면으로 넘어온 것이 아니라는 감각이 산다. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  backdrop-filter: blur(14px) saturate(120%);
+  animation: lightbox-in var(--dur-2) var(--ease-out) both;
+}
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+}
+.lightbox-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  animation: lightbox-rise var(--dur-3) var(--ease-spring) both;
+}
+@keyframes lightbox-rise {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+}
+.lightbox-img {
+  min-height: 0;
+  max-width: 100%;
+  max-height: calc(100vh - 132px);
+  object-fit: contain;
+  border-radius: var(--radius-l);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.45);
+}
+.lightbox-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.72);
+}
+.lightbox-name {
+  font-weight: 600;
+}
+.lightbox-dim {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgb(255 255 255 / 0.5);
+}
+.lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.lightbox-close:hover {
+  background: rgb(255 255 255 / 0.26);
+}

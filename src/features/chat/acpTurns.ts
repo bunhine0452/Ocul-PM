@@ -21,9 +21,23 @@ export interface AcpToolCall {
   output?: string;
 }
 
+/** 사용자가 함께 보낸 이미지 한 장 — 화면에 그리는 데 필요한 것만. */
+export interface AcpTurnImage {
+  /** `data:` URL. 원본을 그대로 들고 있어야 확대해서 볼 때 다시 못 만드는 일이 없다. */
+  src: string;
+  name: string;
+  /** 원본 픽셀 크기 — 붙여넣은 순간 재서 넣는다. */
+  width: number;
+  height: number;
+}
+
 export interface AcpTurn {
   role: "user" | "agent";
   text: string;
+  /** 이 발화에 딸려 보낸 파일 경로 (사용자 턴에서만). */
+  attachments?: string[];
+  /** 이 발화에 딸려 보낸 이미지 (사용자 턴에서만). */
+  images?: AcpTurnImage[];
   /** 내부 추론(thought) 누적 — UI 는 기본 접어 둔다. */
   thought?: string;
   /** 이 턴에서 일어난 도구 호출 (도착 순). */
@@ -36,9 +50,22 @@ export interface AcpTurn {
   thoughtEnd?: number;
 }
 
-/** 사용자 발화 + 응답을 받을 빈 에이전트 턴을 함께 연다. */
-export function openTurn(turns: readonly AcpTurn[], text: string): AcpTurn[] {
-  return [...turns, { role: "user", text }, { role: "agent", text: "" }];
+/**
+ * 사용자 발화 + 응답을 받을 빈 에이전트 턴을 함께 연다.
+ *
+ * 딸려 보낸 것(파일·이미지)도 사용자 턴에 얹는다 — 컴포저의 칩은 보내는 순간
+ * 사라지므로, 여기 남기지 않으면 "무엇을 같이 보냈더라"를 되짚을 방법이 없다.
+ * 빈 배열은 넣지 않는다: 있는 것과 없는 것을 화면이 구분해야 한다.
+ */
+export function openTurn(
+  turns: readonly AcpTurn[],
+  text: string,
+  extras?: { attachments?: readonly string[]; images?: readonly AcpTurnImage[] },
+): AcpTurn[] {
+  const user: AcpTurn = { role: "user", text };
+  if (extras?.attachments?.length) user.attachments = [...extras.attachments];
+  if (extras?.images?.length) user.images = [...extras.images];
+  return [...turns, user, { role: "agent", text: "" }];
 }
 
 /**

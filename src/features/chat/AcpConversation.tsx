@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Channel } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
@@ -49,7 +50,21 @@ import {
   openTurn,
   type AcpToolCall,
   type AcpTurn,
+  type AcpTurnImage,
 } from "./acpTurns";
+
+/**
+ * 아직 안 보낸 이미지 — 프로토콜 몫(`block`) + 화면 몫(이름·픽셀 크기).
+ *
+ * 이름과 크기를 어댑터에 보낼 자리가 없어서 따로 든다. 화면에는 필요하다:
+ * "image.png 1104×172" 가 있어야 무엇을 붙였는지 열어 보지 않고 안다.
+ */
+interface PendingImage {
+  block: AcpImage;
+  name: string;
+  width: number;
+  height: number;
+}
 import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { withUltracode } from "./ultracode";
@@ -153,7 +168,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 붙여넣은 이미지. 파일과 달리 **내용을 실어 보낸다** — 클립보드 이미지는
    * 디스크에 존재하지도 않아 링크로 줄 수가 없다.
    */
-  const [images, setImages] = useState<AcpImage[]>([]);
+  /**
+   * 보낼 이미지. 프로토콜에 보내는 것(`AcpImage`)보다 **더 들고 있는다** —
+   * 파일 이름과 픽셀 크기는 어댑터에 보낼 자리가 없지만 화면에는 필요하다
+   * ("image.png 1104×172"). 보낼 때 프로토콜 몫만 떼어 낸다.
+   */
+  const [images, setImages] = useState<PendingImage[]>([]);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -346,10 +366,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 어댑터가 base64 로 못 읽는다.
         const comma = result.indexOf(",");
         if (comma < 0) return;
-        setImages((prev) => [
-          ...prev,
-          { mime_type: file.type, data_base64: result.slice(comma + 1) },
-        ]);
+        const block: AcpImage = {
+          mime_type: file.type,
+          data_base64: result.slice(comma + 1),
+        };
+        // 크기는 한 번 그려 봐야 안다. 못 재도 이미지는 보낸다 — 치수는
+        // 곁들이는 정보이지 보낼 수 있느냐의 조건이 아니다.
+        const probe = new Image();
+        const add = (width: number, height: number) =>
+          setImages((prev) => [...prev, { block, name: file.name || "image", width, height }]);
+        probe.onload = () => add(probe.naturalWidth, probe.naturalHeight);
+        probe.onerror = () => add(0, 0);
+        probe.src = result;
       };
       reader.readAsDataURL(file);
     }
@@ -589,13 +617,24 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       const sendingImages = images;
+      const sendingBlocks: AcpImage[] = images.map((image) => image.block);
       setDraft("");
       setAttachments([]);
       setImages([]);
       setMentions(null);
       setSlash(null);
       setError(null);
-      setTurns((prev) => openTurn(prev, text));
+      setTurns((prev) =>
+        openTurn(prev, text, {
+          attachments: sending,
+          images: sendingImages.map((image) => ({
+            src: `data:${image.block.mime_type};base64,${image.block.data_base64}`,
+            name: image.name,
+            width: image.width,
+            height: image.height,
+          })),
+        }),
+      );
       setBusy(true);
 
       const buffer = bufferRef.current;
@@ -648,7 +687,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       };
 
       try {
-        const res = await commands.acpPrompt(projectId, outgoing, sending, sendingImages, channel);
+        const res = await commands.acpPrompt(projectId, outgoing, sending, sendingBlocks, channel);
         if (res.status === "error") setError(res.error);
       } finally {
         flush();
@@ -911,7 +950,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 >
                   <img
                     alt=""
-                    src={`data:${image.mime_type};base64,${image.data_base64}`}
+                    src={`data:${image.block.mime_type};base64,${image.block.data_base64}`}
                   />
                   <span className="image-chip-x">
                     <X size={10} />
@@ -1146,6 +1185,82 @@ function StreamingMarkdown({ text }: { text: string }) {
  * 심해져 "렉 걸린 타자"처럼 보인다. 리듀서가 바뀐 턴만 새 객체로 만들기 때문에
  * 기본 얕은 비교로 충분하다.
  */
+/**
+ * 보낸 이미지 한 장 — 파일 이름과 원본 픽셀 크기를 달고, 누르면 크게 본다.
+ *
+ * 대화에 원본을 그대로 박지 않는 이유: 스크린샷은 대개 대화 폭보다 크고,
+ * 통째로 깔면 그 뒤의 지시문이 화면 밖으로 밀린다. 목록에서는 **무엇을
+ * 붙였는지만** 알면 되고, 실제로 보고 싶을 때는 그때 크게 연다.
+ */
+function ImageAttachment({ image }: { image: AcpTurnImage }) {
+  const { t } = useT();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="user-file image"
+        onClick={() => setOpen(true)}
+        title={t("acp.image.view")}
+      >
+        <img className="user-file-thumb" alt="" src={image.src} />
+        <span className="user-file-name">{image.name}</span>
+        {image.width > 0 ? (
+          <span className="user-file-dim">
+            {image.width}×{image.height}
+          </span>
+        ) : null}
+      </button>
+      {open ? <Lightbox image={image} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+/** 크게 보기. Escape·바깥 클릭으로 닫힌다. */
+function Lightbox({ image, onClose }: { image: AcpTurnImage; onClose: () => void }) {
+  const { t } = useT();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // 대화 화면의 Escape 는 "생성 중단"이다 — 여기까지 내려가면 보던 것을
+        // 닫으려다 작업이 멎는다. 이 창이 떠 있는 동안은 우리가 먹는다.
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="lightbox" role="dialog" aria-modal="true" onClick={onClose}>
+      <figure className="lightbox-frame" onClick={(e) => e.stopPropagation()}>
+        <img className="lightbox-img" alt={image.name} src={image.src} />
+        <figcaption className="lightbox-cap">
+          <span className="lightbox-name">{image.name}</span>
+          {image.width > 0 ? (
+            <span className="lightbox-dim">
+              {image.width}×{image.height}
+            </span>
+          ) : null}
+        </figcaption>
+      </figure>
+      <button
+        type="button"
+        className="lightbox-close"
+        onClick={onClose}
+        aria-label={t("acp.image.close")}
+        title={t("acp.image.close")}
+      >
+        <X size={16} />
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
 const TurnRow = memo(function TurnRow({
   turn,
   live,
@@ -1158,7 +1273,26 @@ const TurnRow = memo(function TurnRow({
   if (turn.role === "user") {
     return (
       <div className="msg user">
-        <div className="msg-bubble">{turn.text}</div>
+        {/* 말풍선이 아니라 **카드**다. 말풍선은 오른쪽으로 밀리고 폭이 좁아
+            긴 지시문이 계단처럼 꺾이는데, 여기서 사용자가 쓰는 것은 한 줄
+            대꾸가 아니라 번호 붙은 요구사항 묶음이다. 딸려 보낸 것도 같은
+            카드 안에 담겨야 "이 지시에 이 사진"이 한 덩어리로 읽힌다. */}
+        <div className="user-card">
+          {turn.images?.length || turn.attachments?.length ? (
+            <div className="user-card-files">
+              {turn.images?.map((image, i) => (
+                <ImageAttachment key={`i${i}`} image={image} />
+              ))}
+              {turn.attachments?.map((path) => (
+                <span key={path} className="user-file" title={path}>
+                  <FileIcon size={12} />
+                  <span className="user-file-name">{path.split("/").pop()}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="user-card-text">{turn.text}</div>
+        </div>
       </div>
     );
   }
