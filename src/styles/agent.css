@@ -870,64 +870,134 @@
 
 /* ─── 사용량 계기 (툴바) ──────────────────────────────────────────────────
    한도가 남아 있는지는 작업을 시작하기 **전에** 알아야 하는 정보라 툴바에
-   상주시킨다. 숫자만으로는 "이제 아껴야 하나"가 안 읽히므로 임계에서 색이
-   바뀐다. */
+   상주시킨다. 숫자만 셋을 늘어놓으면 무엇의 %인지 알 수 없어 짧은 이름을
+   붙이고, 임계에서 색이 바뀐다. */
 .usage-meter {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
+  gap: 10px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--bg-inset);
   cursor: pointer;
-  transition: background-color var(--dur-1) var(--ease-out);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
 }
 .usage-meter:hover,
 .usage-meter.open {
-  background: var(--bg-inset);
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-card);
 }
 .usage-pill {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 650;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.usage-pill-name {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--text-3);
 }
-.usage-pill + .usage-pill::before {
-  content: "·";
-  margin-right: 4px;
-  color: var(--sep-strong);
+.usage-pill-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }
-.usage-pill.warn {
+.usage-pill.warn .usage-pill-value {
   color: #c9821f;
 }
-.usage-pill.danger {
+.usage-pill.danger .usage-pill-value {
   color: var(--t-bug);
 }
 
-.usage-menu {
-  width: 268px;
-  min-width: 268px;
-  left: auto;
+/* ─── 사용량 카드 ─────────────────────────────────────────────────────────
+   레퍼런스는 목록에 가깝다. 여기서는 **읽는 순서**를 만든다: 큰 숫자가 먼저
+   눈에 들어오고, 얇은 트랙이 그 아래에서 비율을 확인시키고, 초기화 시각이
+   맨 밑에서 "언제 풀리나"에 답한다. */
+.usage-card {
+  position: absolute;
+  top: calc(100% + 10px);
   right: 0;
-  /* 툴바에서 여는 메뉴라 아래로 펼친다 (컴포저 것들은 위로). */
-  bottom: auto;
-  top: calc(100% + 8px);
+  z-index: 60;
+  width: 292px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-pop);
+  animation: usage-in var(--dur-2) var(--ease-spring) both;
 }
-.usage-head {
+@keyframes usage-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+}
+.usage-card-head {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 8px 10px 6px 12px;
 }
-.usage-head .settings-group-label {
+.usage-card-title {
   flex: 1;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.usage-refresh {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.usage-refresh:hover:not(:disabled) {
+  background: var(--bg-inset);
+  color: var(--text);
+}
+.usage-refresh.busy svg {
+  animation: usage-spin 900ms linear infinite;
+}
+@keyframes usage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.usage-rows {
+  display: flex;
+  flex-direction: column;
 }
 .usage-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 9px 8px;
+  gap: 7px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radius-m);
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.usage-row:hover {
+  background: var(--bg-hover);
+}
+.usage-row + .usage-row {
+  border-top: 1px solid var(--sep);
 }
 .usage-row-head {
   display: flex;
@@ -940,11 +1010,21 @@
   font-weight: 600;
   color: var(--text);
 }
+/* 숫자를 크게 — 이 카드에서 사용자가 실제로 찾는 것은 이것 하나다. */
 .usage-row-pct {
   font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.usage-row-unit {
+  margin-left: 1px;
   font-size: 11px;
-  font-weight: 650;
-  color: var(--text-2);
+  font-weight: 600;
+  color: var(--text-3);
 }
 .usage-row-pct.warn {
   color: #c9821f;
@@ -953,7 +1033,7 @@
   color: var(--t-bug);
 }
 .usage-bar {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: var(--bg-inset);
   overflow: hidden;
@@ -962,26 +1042,27 @@
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   transition: width var(--dur-3) var(--ease-out);
 }
 .usage-bar-fill.warn {
-  background: #c9821f;
+  background: linear-gradient(90deg, #e5a34d, #c9821f);
 }
 .usage-bar-fill.danger {
-  background: var(--t-bug);
+  background: linear-gradient(90deg, #ef7d76, var(--t-bug));
 }
 .usage-row-reset {
   font-size: 10.5px;
   color: var(--text-3);
 }
-.usage-context {
+.usage-card-foot {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
-  padding: 7px 9px 3px;
-  border-top: 1px solid var(--sep);
+  margin: 2px 4px 4px;
+  padding: 9px 8px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
   font-size: 11px;
   color: var(--text-3);
 }

@@ -49,6 +49,7 @@ import {
 import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
 import { withUltracode } from "./ultracode";
+import { requestUsagePanel } from "./usageBus";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
@@ -344,6 +345,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     async (override?: string) => {
       const text = (override ?? draft).trim();
       if (!text) return;
+
+      // `/usage` 는 대화가 아니라 **계기판**이다. 채팅에 남기면 긴 표가 대화를
+      // 밀어내고, 다시 보려면 스크롤을 거슬러 올라가야 한다 — 위젯으로 보낸다.
+      if (text === "/usage") {
+        setDraft("");
+        setSlash(null);
+        requestUsagePanel();
+        return;
+      }
       if (busy) {
         setQueue((prev) => [...prev, text]);
         setDraft("");
@@ -747,22 +757,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             <span style={{ flex: 1 }} />
             {/* 사용량 표시가 곧 버튼이다 — 숫자를 보다가 "자세히"를 누르고
                 싶어지는 자리가 바로 여기다. */}
-            <button
-              type="button"
-              className="usage-btn"
-              disabled={busy}
-              onClick={() => void send("/usage")}
-              title={t("acp.usageTitle")}
-            >
-              {usage ? (
-                <>
-                  {Math.round((usage.used / Math.max(usage.size, 1)) * 100)}%
-                  {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
-                </>
-              ) : (
-                t("acp.usage")
-              )}
-            </button>
+            {/* 이 대화가 컨텍스트를 얼마나 먹었는지. 계정 한도는 툴바 계기의
+                몫이라 여기서는 **이 대화 이야기만** 한다. */}
+            {usage ? (
+              <button
+                type="button"
+                className="usage-btn"
+                onClick={() => requestUsagePanel()}
+                title={t("acp.usageTitle")}
+              >
+                {Math.round((usage.used / Math.max(usage.size, 1)) * 100)}%
+                {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
+              </button>
+            ) : null}
             {PRIMARY_CONFIG_IDS.map((id) => {
               const option = session.options.find((o) => o.id === id);
               if (!option) return null;
@@ -777,6 +784,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                   onUltracode={(on) =>
                     setState((prev) => ({ ...prev, acpUltracode: on }))
                   }
+                  ultraReady={supportsUltracode(
+                    session.options.find((o) => o.id === "model")?.current,
+                  )}
                 />
               ) : (
                 <ConfigControl key={id} option={option} onChange={setOption} />
@@ -1045,6 +1055,20 @@ const ULTRA_VALUE = "__ultracode__";
 /** 울트라코드가 대응하는 실제 effort 값. */
 const ULTRA_EFFORT = "xhigh";
 
+/**
+ * 울트라코드를 켤 수 있는 모델인가.
+ *
+ * 워크플로는 서브에이전트를 여럿 굴리는 일이라 작은 모델에서는 의미가 없다
+ * (그리고 사용자 관찰상 상위 모델에서만 켜진다). 값 목록을 우리가 들고 있지
+ * 않으므로 **모델 id 로 판정**한다 — 새 상위 모델이 나와도 이름에 opus/fable
+ * 이 들어가면 자동으로 통과한다.
+ */
+function supportsUltracode(model: string | null | undefined): boolean {
+  if (!model) return false;
+  const id = model.toLowerCase();
+  return id.includes("opus") || id.includes("fable") || id === "default";
+}
+
 /** 자주 쓰는 설정 3종은 바깥에 — 나머지는 `⋯` 안으로. */
 const PRIMARY_CONFIG_IDS = ["mode", "model", "effort"] as const;
 
@@ -1129,7 +1153,11 @@ function ConfigControl({
   if (!choices.length) return null;
 
   const current = choices.find((c) => c.value === option.current);
-  const TriggerIcon = CONFIG_ICON[option.id];
+  // 모드는 **고른 값**이 아이콘을 정한다. 항목 id 로 정하면 Auto 를 골라도
+  // 자물쇠(Manual)가 그대로 남는다 — 실제로 그렇게 보였다.
+  const TriggerIcon =
+    (option.id === "mode" ? MODE_ICON[option.current ?? ""] : undefined) ??
+    CONFIG_ICON[option.id];
 
   return (
     <div className="knob-wrap" ref={wrapRef}>
@@ -1372,11 +1400,14 @@ function EffortControl({
   onChange,
   ultracode,
   onUltracode,
+  ultraReady,
 }: {
   option: AcpConfigOption;
   onChange: (configId: string, value: string) => void;
   ultracode: boolean;
   onUltracode: (on: boolean) => void;
+  /** 울트라코드를 켤 수 있는 모델인지 (아니면 마지막 칸이 잠긴다). */
+  ultraReady: boolean;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -1386,6 +1417,9 @@ function EffortControl({
   /** 칸 하나를 고른다. 울트라코드 칸은 effort 를 xhigh 로 두고 키워드를 켠다. */
   const onPick = (value: string) => {
     if (value === ULTRA_VALUE) {
+      // 못 켜는 모델이면 아무 일도 하지 않는다 — 켠 척하면 사용자는 워크플로가
+      // 돌 거라 믿고 기다린다.
+      if (!ultraReady) return;
       onUltracode(true);
       if (option.current !== ULTRA_EFFORT) onChange(option.id, ULTRA_EFFORT);
       return;
@@ -1398,9 +1432,13 @@ function EffortControl({
   const choices = useMemo(
     () => [
       ...option.choices.filter((c) => c.value !== "default"),
-      { value: ULTRA_VALUE, name: t("acp.ultracode"), description: t("acp.ultracodeHint") },
+      {
+        value: ULTRA_VALUE,
+        name: t("acp.ultracode"),
+        description: ultraReady ? t("acp.ultracodeHint") : t("acp.ultracodeNeedsModel"),
+      },
     ],
-    [option.choices, t],
+    [option.choices, t, ultraReady],
   );
   if (choices.length < 2) return null;
 
@@ -1470,8 +1508,10 @@ function EffortControl({
                     (i === index ? " on" : "") +
                     (i < index ? " lit" : "") +
                     // 마지막 칸은 척도의 연장이 아니라 별개의 물건이다.
-                    (choice.value === ULTRA_VALUE ? " top" : "")
+                    (choice.value === ULTRA_VALUE ? " top" : "") +
+                    (choice.value === ULTRA_VALUE && !ultraReady ? " locked" : "")
                   }
+                  disabled={choice.value === ULTRA_VALUE && !ultraReady}
                   aria-label={choice.name}
                   title={choice.description ?? choice.name}
                   onClick={() => onPick(choice.value)}

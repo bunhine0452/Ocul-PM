@@ -3,6 +3,7 @@ import { Check, RefreshCw } from "@/components/Icons";
 import { commands, type AcpUsage } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { useDismiss } from "./useDismiss";
+import { onUsagePanel } from "./usageBus";
 import { relativeTime } from "./relativeTime";
 
 // PR-ACP11 — 툴바의 사용량 계기.
@@ -27,6 +28,30 @@ const LIMIT_LABEL: Readonly<Record<string, string>> = {
   seven_day_fable: "acp.limit.weekFable",
   session: "acp.limit.session",
 };
+
+/**
+ * 툴바에 붙일 **짧은** 이름. 숫자만 셋을 늘어놓으면 무엇의 %인지 알 수 없고,
+ * 그렇다고 "주간 (7일)" 을 다 쓰면 툴바가 넘친다.
+ */
+const LIMIT_SHORT: Readonly<Record<string, string>> = {
+  five_hour: "acp.limit.shortSession",
+  session: "acp.limit.shortSession",
+  seven_day: "acp.limit.shortWeek",
+  seven_day_opus: "acp.limit.shortOpus",
+  seven_day_fable: "acp.limit.shortFable",
+};
+
+/** `/usage` 가 주는 이름은 문장형이라 여기서 짧은 키로 접는다. */
+function shortKeyOf(kind: string): string | undefined {
+  const direct = LIMIT_SHORT[kind];
+  if (direct) return direct;
+  const id = kind.toLowerCase();
+  if (id.startsWith("session")) return "acp.limit.shortSession";
+  if (id.includes("fable")) return "acp.limit.shortFable";
+  if (id.includes("opus")) return "acp.limit.shortOpus";
+  if (id.startsWith("week")) return "acp.limit.shortWeek";
+  return undefined;
+}
 
 function pct(utilization: number | null): number {
   return Math.round(Math.min(1, Math.max(0, utilization ?? 0)) * 100);
@@ -70,6 +95,17 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
     }
   }, [projectId]);
 
+  // `/usage` 나 컴포저 배지에서 열어 달라는 신호. 열면서 값도 새로 읽는다 —
+  // 사용자가 지금 알고 싶은 건 **지금** 숫자다.
+  useEffect(
+    () =>
+      onUsagePanel(() => {
+        setOpen(true);
+        void refresh();
+      }),
+    [refresh],
+  );
+
   // 처음 한 번은 실제로 물어보고(공짜다), 그 뒤로는 상태만 훑는다 —
   // 턴이 돌 때마다 `usage_update` 가 갱신해 주기 때문이다.
   useEffect(() => {
@@ -93,19 +129,25 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
         title={t("acp.usageTitle")}
         onClick={() => setOpen((v) => !v)}
       >
-        {limits.map((limit) => (
-          <span key={limit.kind} className={"usage-pill" + toneOf(limit.utilization)}>
-            {pct(limit.utilization)}%
-          </span>
-        ))}
+        {limits.map((limit) => {
+          const shortKey = shortKeyOf(limit.kind);
+          return (
+            <span key={limit.kind} className={"usage-pill" + toneOf(limit.utilization)}>
+              <span className="usage-pill-name">
+                {shortKey ? t(shortKey as Parameters<typeof t>[0]) : limit.kind}
+              </span>
+              <span className="usage-pill-value">{pct(limit.utilization)}%</span>
+            </span>
+          );
+        })}
       </button>
       {open ? (
-        <div className="settings-menu usage-menu" role="dialog" aria-label={t("acp.usageTitle")}>
-          <div className="usage-head">
-            <span className="settings-group-label">{t("acp.usageTitle")}</span>
+        <div className="usage-card" role="dialog" aria-label={t("acp.usageTitle")}>
+          <header className="usage-card-head">
+            <span className="usage-card-title">{t("acp.usageTitle")}</span>
             <button
               type="button"
-              className="btn icon ghost"
+              className={"usage-refresh" + (refreshing ? " busy" : "")}
               disabled={refreshing}
               onClick={() => void refresh()}
               aria-label={t("acp.usageRefresh")}
@@ -113,48 +155,53 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
             >
               <RefreshCw size={13} />
             </button>
+          </header>
+
+          <div className="usage-rows">
+            {limits.map((limit) => {
+              const labelKey = LIMIT_LABEL[limit.kind];
+              // `/usage` 가 준 문장이 있으면 그대로 — 우리가 시간대를 다시
+              // 계산하다 틀리느니 CLI 가 쓴 표현을 믿는다.
+              const resets =
+                limit.resets_text ??
+                (limit.resets_at
+                  ? relativeTime(new Date(limit.resets_at * 1000).toISOString(), Date.now())
+                  : null);
+              return (
+                <section key={limit.kind} className="usage-row">
+                  <div className="usage-row-head">
+                    <span className="usage-row-name">
+                      {labelKey ? t(labelKey as Parameters<typeof t>[0]) : limit.kind}
+                    </span>
+                    <span className={"usage-row-pct" + toneOf(limit.utilization)}>
+                      {pct(limit.utilization)}
+                      <span className="usage-row-unit">%</span>
+                    </span>
+                  </div>
+                  <div className="usage-bar">
+                    <span
+                      className={"usage-bar-fill" + toneOf(limit.utilization)}
+                      style={{ width: `${pct(limit.utilization)}%` }}
+                    />
+                  </div>
+                  {resets ? (
+                    <span className="usage-row-reset">
+                      {t("acp.usageResets", { at: resets })}
+                    </span>
+                  ) : null}
+                </section>
+              );
+            })}
           </div>
 
-          {limits.map((limit) => {
-            const labelKey = LIMIT_LABEL[limit.kind];
-            // `/usage` 가 준 문장이 있으면 그대로 — 우리가 시간대를 다시
-            // 계산하다 틀리느니 CLI 가 쓴 표현을 믿는다.
-            const resets =
-              limit.resets_text ??
-              (limit.resets_at
-                ? relativeTime(new Date(limit.resets_at * 1000).toISOString(), Date.now())
-                : null);
-            return (
-              <div key={limit.kind} className="usage-row">
-                <div className="usage-row-head">
-                  <span className="usage-row-name">
-                    {labelKey ? t(labelKey as Parameters<typeof t>[0]) : limit.kind}
-                  </span>
-                  <span className={"usage-row-pct" + toneOf(limit.utilization)}>
-                    {pct(limit.utilization)}%
-                  </span>
-                </div>
-                <div className="usage-bar">
-                  <span
-                    className={"usage-bar-fill" + toneOf(limit.utilization)}
-                    style={{ width: `${pct(limit.utilization)}%` }}
-                  />
-                </div>
-                {resets ? (
-                  <span className="usage-row-reset">{t("acp.usageResets", { at: resets })}</span>
-                ) : null}
-              </div>
-            );
-          })}
-
-          {usage ? (
-            <div className="usage-context">
+          {usage && usage.size > 0 ? (
+            <footer className="usage-card-foot">
               <Check size={12} />
               {t("acp.usageContext", {
                 pct: Math.round((usage.used / Math.max(usage.size, 1)) * 100),
                 cost: usage.cost_usd != null ? `$${usage.cost_usd.toFixed(2)}` : "—",
               })}
-            </div>
+            </footer>
           ) : null}
         </div>
       ) : null}
