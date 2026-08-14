@@ -242,6 +242,17 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
             })}
           </div>
 
+          {/* `/usage` 가 덧붙이는 "무엇이 기여했나" 대목 — **원문 그대로** 건다.
+              표로 뜯지 않는 이유는 백엔드 주석에 적었다: 항목이 계속 늘고 문구도
+              CLI 판올림마다 바뀌어서, 파싱해 두면 다음 판에 조용히 빈칸이 된다.
+              공백 정렬까지 살려야 오른쪽 % 열이 줄을 맞춘다. */}
+          {usage?.detail ? (
+            <section className="usage-detail">
+              <span className="usage-detail-title">{t("acp.usageDetail")}</span>
+              <pre className="usage-detail-body">{usage.detail}</pre>
+            </section>
+          ) : null}
+
           {usage && usage.size > 0 ? (
             <footer className="usage-card-foot">
               <Check size={12} />

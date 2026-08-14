@@ -158,7 +158,9 @@ impl AcpState {
                         None => limits.push(limit),
                     }
                 }
-                running.usage = Some(AcpUsage { limits, ..fresh });
+                // 알림에는 기여도 대목이 없다 — 갖고 있던 것을 유지한다.
+                let detail = running.usage.as_ref().and_then(|u| u.detail.clone());
+                running.usage = Some(AcpUsage { limits, detail, ..fresh });
             }
         }
     }
@@ -262,8 +264,15 @@ impl AcpState {
     /// 병합이 아니라 **교체**인 이유: `/usage` 는 세 줄을 한 번에 주는 완전한
     /// 스냅샷이라, 옛 `_meta` 조각과 섞으면 같은 한도가 두 이름으로 두 줄
     /// 보인다(`seven_day` 와 `week (all models)`).
-    pub fn replace_limits(&self, project_id: u32, limits: Vec<AcpRateLimit>) {
-        if limits.is_empty() {
+    pub fn replace_limits(
+        &self,
+        project_id: u32,
+        limits: Vec<AcpRateLimit>,
+        detail: Option<String>,
+    ) {
+        // 둘 다 못 읽었으면 아무 것도 하지 않는다 — 파싱이 실패한 응답으로
+        // 멀쩡한 값을 지우면 카드가 비어 버린다.
+        if limits.is_empty() && detail.is_none() {
             return;
         }
         if let Ok(mut map) = self.running.lock() {
@@ -273,8 +282,15 @@ impl AcpState {
                     size: 0,
                     cost_usd: None,
                     limits: Vec::new(),
+                    detail: None,
                 });
-                running.usage = Some(AcpUsage { limits, ..base });
+                // 기여도 대목은 `/usage` 만 준다 — 이번에 못 받았으면 지난 것을
+                // 남긴다. 지우면 턴이 한 번 돌 때마다 카드가 반쪽이 된다.
+                let detail = detail.or(base.detail.clone());
+                // 한도만 못 읽은 경우도 있다 — 그때 빈 목록으로 갈아 끼우면
+                // 계기가 통째로 사라진다(계기는 한도가 없으면 안 그린다).
+                let limits = if limits.is_empty() { base.limits.clone() } else { limits };
+                running.usage = Some(AcpUsage { limits, detail, ..base });
             }
         }
     }

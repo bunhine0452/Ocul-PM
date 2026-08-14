@@ -192,6 +192,12 @@ pub struct AcpUsage {
     pub size: u32,
     pub cost_usd: Option<f64>,
     pub limits: Vec<AcpRateLimit>,
+    /// `/usage` 가 한도 뒤에 덧붙이는 "무엇이 사용량에 기여했나" 대목 — **원문 그대로**.
+    ///
+    /// 구조를 뜯지 않는 이유: 컨텍스트 길이 경고·스킬·플러그인·MCP 서버처럼
+    /// 항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
+    /// 조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
+    pub detail: Option<String>,
 }
 
 /// `usage_update` 에서 사용량과 한도를 뽑는다. 그 밖의 종류면 `None`.
@@ -219,6 +225,7 @@ pub fn usage_of(update: &SessionUpdate) -> Option<AcpUsage> {
             .filter(|c| c.currency == "USD")
             .map(|c| c.amount),
         limits,
+        detail: None,
     })
 }
 
@@ -312,6 +319,23 @@ pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
         });
     }
     found
+}
+
+/// `/usage` 답변에서 "무엇이 기여했나" 대목만 잘라낸다 (없으면 `None`).
+///
+/// 머리글 줄 자체는 뺀다 — 카드에 이미 제목이 있어 두 번 쓰면 시끄럽다.
+pub fn parse_usage_detail(text: &str) -> Option<String> {
+    let head = text
+        .lines()
+        .position(|line| line.to_lowercase().contains("contributing to your limits usage"))?;
+    let body = text
+        .lines()
+        .skip(head + 1)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string();
+    (!body.is_empty()).then_some(body)
 }
 
 /// 세션 제목 변경 알림에서 제목을 뽑는다.
@@ -799,6 +823,26 @@ mod tests {
 
         assert_eq!(limits[2].kind, "week (Fable)");
         assert!((limits[2].utilization - 0.66).abs() < 1e-9);
+    }
+
+    #[test]
+    fn usage_detail_keeps_the_body_verbatim_without_its_heading() {
+        let report = "Current session: 0% used\n\n             What's contributing to your limits usage?\n\n             91% of your usage was at >150k context\n             Skills                 % of usage\n               /frontend-design       4%\n";
+
+        let detail = parse_usage_detail(report).expect("기여도 대목이 있어야 한다");
+        assert!(detail.starts_with("91% of your usage"), "머리글은 빼고: {detail:?}");
+        assert!(detail.contains("/frontend-design       4%"), "정렬 공백까지 그대로");
+    }
+
+    /// 한도만 오고 대목이 없는 응답도 있다 — 그때 빈 문자열을 만들면 카드에
+    /// 제목만 남은 빈 칸이 생긴다.
+    #[test]
+    fn usage_detail_is_none_when_the_section_is_absent_or_empty() {
+        assert_eq!(parse_usage_detail("Current session: 0% used"), None);
+        assert_eq!(
+            parse_usage_detail("What's contributing to your limits usage?\n\n   \n"),
+            None
+        );
     }
 
     /// 문구가 바뀌면 **못 읽을 뿐 죽지 않아야** 한다 — 호출부가 기존 값을 지킨다.

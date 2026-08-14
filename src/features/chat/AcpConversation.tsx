@@ -123,7 +123,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setState((prev) => {
         const at = prev.acpTabs.findIndex((tab) => tab.id === id);
         if (at === -1) return { ...prev, acpTabs: [...prev.acpTabs, { id, title }] };
-        if (prev.acpTabs[at].title === title) return prev;
+        // "아직 모른다"(null)가 이미 아는 제목을 덮으면 안 된다 — 목록에서
+        // 백필한 제목이 다음 렌더에 도로 지워진다.
+        if (title === null || prev.acpTabs[at].title === title) return prev;
         const next = [...prev.acpTabs];
         next[at] = { id, title };
         return { ...prev, acpTabs: next };
@@ -354,18 +356,40 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [draft],
   );
 
+  /**
+   * 대화 목록을 다시 읽는다. **실패해도 조용하다** — 이 조회는 사용자가 시킨
+   * 것이 아니라 탭 제목을 채우려고 세션이 붙을 때마다 우리가 도는 것이라,
+   * 실패를 대화창에 띄우면 아무 것도 안 했는데 빨간 줄이 뜬다. 목록이 비면
+   * 패널이 자기 빈 상태를 보여 준다.
+   */
   const refreshHistory = useCallback(async () => {
     const res = await commands.acpListSessions(projectId);
     if (res.status === "ok") setHistory(res.data);
-    else setError(res.error);
   }, [projectId]);
 
-  // 패널이 열려 있고 에이전트가 붙어 있으면 목록을 채운다. 세션이 바뀌면
-  // (새 대화·재개) 목록도 다시 읽어 방금 만든 대화가 바로 보이게 한다.
+  // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
+  // 에이전트가 대화를 보고 붙이고 그 알림은 만든 직후 한 번뿐이라, 지난 대화를
+  // 열면 알림이 다시 오지 않아 탭이 영영 "제목 없는 대화"로 남았다. 목록은
+  // 어댑터가 들고 있는 **완성된 제목**을 언제든 준다.
   useEffect(() => {
-    if (!panelOpen || !session) return;
+    if (!session) return;
     void refreshHistory();
-  }, [panelOpen, session, refreshHistory]);
+  }, [session, refreshHistory]);
+
+  // 목록의 제목으로 탭을 메운다 (이름표를 붙인 탭은 건드리지 않는다 — 그쪽이 이긴다).
+  useEffect(() => {
+    if (!history?.length) return;
+    setState((prev) => {
+      let changed = false;
+      const next = prev.acpTabs.map((tab) => {
+        const found = history.find((item) => item.id === tab.id);
+        if (!found?.title || found.title === tab.title) return tab;
+        changed = true;
+        return { ...tab, title: found.title };
+      });
+      return changed ? { ...prev, acpTabs: next } : prev;
+    });
+  }, [history, setState]);
 
   const openSession = useCallback(
     async (sessionId: string) => {
@@ -1559,8 +1583,6 @@ function SessionPanel({
   /** 지금 이름을 고치고 있는 줄. 한 번에 하나만 — 여러 줄이 동시에 열리면
       어느 것을 저장하는지 알 수 없다. */
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
-  /** 지우기는 **한 번 더 묻는다** — 되돌릴 수 없고, X 는 탭 닫기와 생김새가 같다. */
-  const [confirming, setConfirming] = useState<string | null>(null);
   // 목록 전체가 **같은 기준 시각**을 써야 렌더 도중 분이 넘어가며 순서가
   // 흔들리지 않는다.
   const now = useMemo(() => Date.now(), [sessions]);
@@ -1652,41 +1674,24 @@ function SessionPanel({
                   </span>
                 </button>
                 <span className="acp-session-actions">
-                  {confirming === item.id ? (
-                    <button
-                      type="button"
-                      className="acp-session-confirm"
-                      onClick={() => {
-                        setConfirming(null);
-                        onDelete(item.id);
-                      }}
-                      onBlur={() => setConfirming(null)}
-                      autoFocus
-                    >
-                      {t("acp.session.deleteConfirm")}
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="acp-session-act"
-                        onClick={() => setEditing({ id: item.id, value: label })}
-                        aria-label={t("acp.session.rename")}
-                        title={t("acp.session.rename")}
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        className="acp-session-act danger"
-                        onClick={() => setConfirming(item.id)}
-                        aria-label={t("acp.session.delete")}
-                        title={t("acp.session.delete")}
-                      >
-                        <X size={12} />
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    className="acp-session-act"
+                    onClick={() => setEditing({ id: item.id, value: label })}
+                    aria-label={t("acp.session.rename")}
+                    title={t("acp.session.rename")}
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className="acp-session-act danger"
+                    onClick={() => onDelete(item.id)}
+                    aria-label={t("acp.session.delete")}
+                    title={t("acp.session.delete")}
+                  >
+                    <X size={12} />
+                  </button>
                 </span>
               </div>
             );

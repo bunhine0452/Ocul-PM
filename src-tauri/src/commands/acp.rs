@@ -621,7 +621,11 @@ pub async fn acp_refresh_usage(
     let report = state.take_capture().unwrap_or_default();
     outcome.map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?;
 
-    state.replace_limits(project_id, acp::session::parse_usage_report(&report));
+    state.replace_limits(
+        project_id,
+        acp::session::parse_usage_report(&report),
+        acp::session::parse_usage_detail(&report),
+    );
     Ok(state.usage(project_id))
 }
 

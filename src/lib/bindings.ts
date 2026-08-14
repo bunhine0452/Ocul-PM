@@ -1003,6 +1003,14 @@ export const commands = {
 	size: number,
 	cost_usd: number | null,
 	limits: AcpRateLimit[],
+	/**
+	 *  `/usage` 가 한도 뒤에 덧붙이는 "무엇이 사용량에 기여했나" 대목 — **원문 그대로**.
+	 * 
+	 *  구조를 뜯지 않는 이유: 컨텍스트 길이 경고·스킬·플러그인·MCP 서버처럼
+	 *  항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
+	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
+	 */
+	detail: string | null,
 } | null, string>(__TAURI_INVOKE("acp_usage", { projectId })),
 	/**
 	 *  `/usage` 로 한도를 **실제로 새로 읽는다**.
@@ -1020,6 +1028,14 @@ export const commands = {
 	size: number,
 	cost_usd: number | null,
 	limits: AcpRateLimit[],
+	/**
+	 *  `/usage` 가 한도 뒤에 덧붙이는 "무엇이 사용량에 기여했나" 대목 — **원문 그대로**.
+	 * 
+	 *  구조를 뜯지 않는 이유: 컨텍스트 길이 경고·스킬·플러그인·MCP 서버처럼
+	 *  항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
+	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
+	 */
+	detail: string | null,
 } | null, string>(__TAURI_INVOKE("acp_refresh_usage", { projectId })),
 	/**
 	 *  현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
@@ -1320,6 +1336,14 @@ export type AcpUsage = {
 	size: number,
 	cost_usd: number | null,
 	limits: AcpRateLimit[],
+	/**
+	 *  `/usage` 가 한도 뒤에 덧붙이는 "무엇이 사용량에 기여했나" 대목 — **원문 그대로**.
+	 * 
+	 *  구조를 뜯지 않는 이유: 컨텍스트 길이 경고·스킬·플러그인·MCP 서버처럼
+	 *  항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
+	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
+	 */
+	detail: string | null,
 };
 
 export type AgentCount = {

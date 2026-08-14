@@ -1363,14 +1363,35 @@
 /* ─── 지난 대화 줄의 이름바꾸기·삭제 ──────────────────────────────────────
    평소엔 제목과 시각만 보이고, 호버해야 도구가 나온다. 늘 띄워 두면 목록이
    버튼 밭이 되고, 정작 읽어야 할 제목의 자리를 뺏는다. */
+/* 줄 위에 겹쳐 뜨므로 **뒤가 비치면 안 된다** — 반투명이면 제목 글자가 아이콘
+   사이로 새어 나와 X 가 글자와 겹쳐 읽힌다. 왼쪽은 짧게 페이드해서 잘린 제목이
+   아이콘 밑으로 자연스럽게 사라지게 한다. */
 .acp-session-actions {
   position: absolute;
-  right: 6px;
+  right: 4px;
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
+  padding: 0 2px 0 14px;
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--bg-content) 14px,
+    var(--bg-content) 100%
+  );
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
+}
+/* 호버·활성 줄은 배경이 한 겹 밝아진다 — 그 색으로 덮어야 아이콘 뒤가
+   줄과 같은 색이 되어 겹친 티가 안 난다. */
+.acp-session:hover .acp-session-actions,
+.acp-session.active .acp-session-actions {
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--bg-inset) 14px,
+    var(--bg-inset) 100%
+  );
 }
 .acp-session:hover .acp-session-actions,
 .acp-session:focus-within .acp-session-actions {
@@ -1383,28 +1404,16 @@
   height: 22px;
   border: none;
   border-radius: 6px;
-  background: var(--bg-card);
+  background: none;
   color: var(--text-3);
   cursor: pointer;
 }
 .acp-session-act:hover {
-  background: var(--bg-active);
+  background: var(--bg-hover);
   color: var(--text);
 }
 .acp-session-act.danger:hover {
   color: var(--t-bug);
-}
-.acp-session-confirm {
-  height: 22px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 6px;
-  background: var(--t-bug);
-  color: #fff;
-  font-family: var(--font);
-  font-size: 11px;
-  font-weight: 650;
-  cursor: pointer;
 }
 .acp-session-input {
   width: 100%;
@@ -1431,4 +1440,34 @@
 .toolbar-title:has(.acp-tabs) {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* `/usage` 원문 그대로 — 공백 정렬을 살려야 오른쪽 % 열이 줄을 맞춘다.
+   길면 카드가 화면을 넘으므로 이 칸만 스크롤한다. */
+.usage-detail {
+  display: block;
+  margin: 2px 4px 4px;
+  padding: 9px 11px 10px;
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+}
+.usage-detail-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.usage-detail-body {
+  margin: 0;
+  max-height: 216px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
