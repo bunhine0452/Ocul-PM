@@ -208,6 +208,15 @@ export interface WorkspaceState {
   /** Claude Code 화면의 대화 목록 패널이 열려 있는지 (PR-ACP7). */
   acpPanelOpen: boolean;
   /**
+   * 열어 둔 세션 탭 (PR-ACP14).
+   *
+   * 백엔드는 프로젝트당 연결 하나·활성 세션 하나만 안다. 탭은 그 위에 얹은
+   * **프런트 개념**이다 — "내가 오가며 보는 대화들"의 목록이고, 전환은
+   * `session/load` 로 그 세션을 다시 여는 것이다. 그래서 백엔드에 새 개념을
+   * 만들지 않고도 성립한다.
+   */
+  acpTabs: { id: string; title: string | null }[];
+  /**
    * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
    *
    * 어댑터의 effort 값은 `low…max` 다섯 개뿐이고 울트라코드는 그 목록에
@@ -295,6 +304,7 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalFontSize: 13,
   aiActiveModel: null,
   acpPanelOpen: true,
+  acpTabs: [],
   acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,

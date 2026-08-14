@@ -1789,6 +1789,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.thinking.live": "Thinking",
   "acp.thinking.done": "Thought for {sec}s",
   "acp.thinking.tokens": "{n} tokens",
+  "acp.tabs.aria": "Open conversations",
+  "acp.tabs.close": "Close tab",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",

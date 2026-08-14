@@ -344,6 +344,7 @@ fn kind_of(event: &ocul_pm_lib::acp::session::AcpEvent) -> &'static str {
         E::ToolCall { .. } => "tool_call",
         E::ToolUpdate { .. } => "tool_update",
         E::Permission { .. } => "permission",
+        E::ConfigChanged { .. } => "config_changed",
         E::Other { .. } => "other",
         E::Done { .. } => "done",
         E::Failed { .. } => "failed",

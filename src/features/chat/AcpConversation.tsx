@@ -50,6 +50,7 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
+import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { splitMarkdownBlocks } from "./markdownBlocks";
@@ -99,6 +100,23 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const { state, setState } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
   const ultracode = state.acpUltracode;
+  const tabs = state.acpTabs;
+
+  /** 탭 목록을 갱신한다 (없으면 추가, 있으면 제목만 최신으로). */
+  const rememberTab = useCallback(
+    (id: string | null, title: string | null) => {
+      if (!id) return;
+      setState((prev) => {
+        const at = prev.acpTabs.findIndex((tab) => tab.id === id);
+        if (at === -1) return { ...prev, acpTabs: [...prev.acpTabs, { id, title }] };
+        if (prev.acpTabs[at].title === title) return prev;
+        const next = [...prev.acpTabs];
+        next[at] = { id, title };
+        return { ...prev, acpTabs: next };
+      });
+    },
+    [setState],
+  );
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -225,10 +243,23 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
         }
       });
+      // 제목은 에이전트가 대화를 보고 **나중에** 붙인다 — 같은 주기로 따라간다.
+      void commands.acpSessionTitle(projectId).then((res) => {
+        if (res.status === "ok") {
+          setSession((prev) =>
+            prev && prev.title !== res.data ? { ...prev, title: res.data } : prev,
+          );
+        }
+      });
     };
     const timer = window.setInterval(sync, 4000);
     return () => window.clearInterval(timer);
   }, [projectId, session]);
+
+  // 지금 세션을 탭에 등록하고, 제목이 붙으면 따라 갱신한다.
+  useEffect(() => {
+    rememberTab(session?.session_id ?? null, session?.title ?? null);
+  }, [session?.session_id, session?.title, rememberTab]);
 
   // 스트리밍 중에는 계속 맨 아래를 따라간다.
   useEffect(() => {
@@ -607,6 +638,17 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   return (
     <div className="acp-layout">
       <div className="ai-wrap">
+      <AcpSessionTabs
+        tabs={tabs}
+        activeId={session.session_id}
+        onPick={(id) => void openSession(id)}
+        onClose={(id) =>
+          setState((prev) => ({
+            ...prev,
+            acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
+          }))
+        }
+      />
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (

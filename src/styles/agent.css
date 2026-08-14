@@ -440,7 +440,11 @@
 .agent-chip.busy .agent-id-dot {
   animation: ai-pulse 1.2s ease-in-out infinite;
 }
+/* 값이 바뀌어도 **칩 폭이 변하지 않아야** 한다. "Low"→"울트라코드" 로 고칠
+   때마다 하단바 전체가 밀리면 다음에 누르려던 버튼이 손 밑에서 도망간다.
+   그래서 최소 폭을 잡고 가운데 정렬한다. */
 .agent-chip-label {
+  min-width: 62px;
   max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -615,6 +619,8 @@
   width: 232px;
   min-width: 232px;
 }
+/* 값을 옮길 때마다 설명 길이에 따라 팝오버가 늘었다 줄면, 지금 겨냥하던
+   점이 손 밑에서 움직인다. **세 줄 높이로 고정**하고 넘치면 자른다. */
 .effort-hint {
   margin: 2px 4px 4px;
   padding: 8px 9px;
@@ -623,6 +629,11 @@
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-3);
+  height: 66px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 /* 점을 큰 원으로 늘어놓으면 신호등처럼 보인다. 얇은 트랙 위의 **눈금**으로
    낮추고, 지나온 구간은 선으로 채워 "어디쯤"을 먼저 읽게 한다. */
@@ -1226,4 +1237,103 @@
     animation: none;
     clip-path: none;
   }
+}
+
+/* ─── 세션 탭 ─────────────────────────────────────────────────────────────
+   탭이 하나뿐이면 아예 그리지 않는다(컴포넌트에서 걸러낸다) — 고를 것이 없는
+   탭바는 자리만 먹는다. 활성 탭은 위쪽 accent 선으로 표시한다: 배경색만으로
+   구분하면 밝은 테마에서 거의 안 보인다. */
+.acp-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  flex: none;
+  padding: 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg-content);
+}
+.acp-tabs::-webkit-scrollbar {
+  display: none;
+}
+.acp-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 240px;
+  border-radius: 9px 9px 0 0;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.acp-tab:hover {
+  background: var(--bg-hover);
+}
+.acp-tab.active {
+  background: var(--bg-window);
+}
+.acp-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 0;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+}
+.acp-tab-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 4px 0 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-3);
+}
+.acp-tab.active .acp-tab-main {
+  color: var(--text);
+  font-weight: 650;
+}
+.acp-tab-mark {
+  flex: none;
+  color: var(--accent);
+  opacity: 0.55;
+}
+.acp-tab.active .acp-tab-mark {
+  opacity: 1;
+}
+.acp-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 닫기는 활성 탭과 호버에서만 — 늘 보이면 탭마다 X 가 줄지어 시끄럽다. */
+.acp-tab-close {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.acp-tab:hover .acp-tab-close,
+.acp-tab.active .acp-tab-close,
+.acp-tab-close:focus-visible {
+  opacity: 1;
+}
+.acp-tab-close:hover {
+  background: var(--bg-active);
+  color: var(--text);
 }

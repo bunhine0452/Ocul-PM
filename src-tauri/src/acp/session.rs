@@ -314,6 +314,23 @@ pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
     found
 }
 
+/// 세션 제목 변경 알림에서 제목을 뽑는다.
+///
+/// 제목은 에이전트가 대화 내용을 보고 **나중에** 붙인다(처음엔 없다). 그래서
+/// 알림으로 오고, 상단바가 그걸 따라가려면 갈무리해 둬야 한다.
+pub fn title_of(update: &SessionUpdate) -> Option<String> {
+    let SessionUpdate::SessionInfoUpdate(info) = update else {
+        return None;
+    };
+    // `MaybeUndefined` 는 "안 옴"과 "null 로 지움"을 구분한다 — JSON 으로 한 번
+    // 돌려 문자열일 때만 받는다(스키마가 표현을 바꿔도 안 깨진다).
+    serde_json::to_value(&info.title)
+        .ok()?
+        .as_str()
+        .map(str::to_string)
+        .filter(|t| !t.is_empty())
+}
+
 /// 설정 변경 알림에서 새 설정 한 벌을 뽑는다. 그 밖의 종류면 `None`.
 pub fn config_of(update: &SessionUpdate) -> Option<Vec<AcpConfigOption>> {
     match update {

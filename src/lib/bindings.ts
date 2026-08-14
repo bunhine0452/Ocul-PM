@@ -1029,6 +1029,8 @@ export const commands = {
 	 *  으로 되읽어야 "Auto 라 적혀 있는데 실은 Manual" 을 피할 수 있다.
 	 */
 	acpOptions: (projectId: number) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_options", { projectId })),
+	/**  현재 세션 제목. 상단바가 따라가려고 짧은 주기로 읽는다 (로컬 조회). */
+	acpSessionTitle: (projectId: number) => typedError<string | null, string>(__TAURI_INVOKE("acp_session_title", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1283,6 +1285,8 @@ export type AcpSession = {
 	commands: AcpCommand[],
 	/**  현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다. */
 	session_id: string | null,
+	/**  현재 세션 제목 (에이전트가 붙여 준 것. 아직이면 `None`). */
+	title: string | null,
 	/**
 	 *  모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
 	 *  **어댑터가 준 그대로**다 — 우리가 목록을 들고 있지 않는다.

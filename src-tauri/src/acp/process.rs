@@ -30,8 +30,8 @@ use tauri::ipc::Channel;
 use tauri::Manager;
 
 use super::session::{
-    commands_of, config_of, map_update, mode_of, permission_event, usage_of, AcpCommand,
-    AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
+    commands_of, config_of, map_update, mode_of, permission_event, title_of, usage_of,
+    AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
 };
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -64,6 +64,8 @@ struct Running {
     commands: Vec<AcpCommand>,
     /// 마지막으로 본 사용량. 툴바가 프롬프트 밖에서도 보여 줘야 하므로 갈무리.
     usage: Option<AcpUsage>,
+    /// 현재 세션 제목 (에이전트가 나중에 붙인다).
+    title: Option<String>,
 }
 
 /// 프로젝트별 어댑터 레지스트리. v1 은 프로젝트당 1개 (D3).
@@ -120,6 +122,8 @@ impl AcpState {
             if let Some(running) = map.get_mut(&project_id) {
                 running.session = Some(session);
                 running.options = options;
+                // 제목은 세션의 것이다 — 안 지우면 새 대화에 옛 제목이 남는다.
+                running.title = None;
             }
         }
     }
@@ -183,6 +187,18 @@ impl AcpState {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
                 running.options = options;
+            }
+        }
+    }
+
+    pub fn title(&self, project_id: u32) -> Option<String> {
+        self.running.lock().ok()?.get(&project_id)?.title.clone()
+    }
+
+    pub fn set_title(&self, project_id: u32, title: Option<String>) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                running.title = title;
             }
         }
     }
@@ -407,6 +423,9 @@ pub async fn start(
                     if let Some(mode) = mode_of(&notification.update) {
                         state.patch_option(project_id, "mode", &mode);
                     }
+                    if let Some(title) = title_of(&notification.update) {
+                        state.set_title(project_id, Some(title));
+                    }
                     if let AcpEvent::Chunk { text } = map_update(&notification.update) {
                         state.push_capture(&text);
                     }
@@ -471,6 +490,7 @@ pub async fn start(
                         options: Vec::new(),
                         commands: Vec::new(),
                         usage: None,
+                        title: None,
                     },
                 );
                 let _ = ready_tx.send(info);

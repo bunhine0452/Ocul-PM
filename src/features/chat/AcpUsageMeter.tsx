@@ -106,15 +106,27 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
     [refresh],
   );
 
-  // 처음 한 번은 실제로 물어보고(공짜다), 그 뒤로는 상태만 훑는다 —
-  // 턴이 돌 때마다 `usage_update` 가 갱신해 주기 때문이다.
+  /**
+   * 값이 아직 없으면 **계속 다시 시도한다**.
+   *
+   * 이 계기는 툴바에 있어 에이전트가 붙기 **전에** 마운트된다 — 첫 조회는
+   * 거의 항상 "에이전트가 실행 중이 아닙니다" 로 실패한다. 한 번만 부르고
+   * 말면 위젯이 영영 안 뜬다(실제로 그랬다). 값을 얻은 뒤로는 값싼 상태
+   * 조회로 내려간다.
+   */
+  const hasLimits = (usage?.limits.length ?? 0) > 0;
   useEffect(() => {
+    if (hasLimits) return;
     void refresh();
-  }, [refresh]);
+    const timer = window.setInterval(() => void refresh(), 3_000);
+    return () => window.clearInterval(timer);
+  }, [hasLimits, refresh]);
+
   useEffect(() => {
+    if (!hasLimits) return;
     const timer = window.setInterval(() => void read(), 15_000);
     return () => window.clearInterval(timer);
-  }, [read]);
+  }, [hasLimits, read]);
 
   const limits = usage?.limits ?? [];
   if (!limits.length) return null;

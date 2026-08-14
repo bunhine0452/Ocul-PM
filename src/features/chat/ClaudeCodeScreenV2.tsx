@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { PanelLeft } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { commands } from "@/lib/bindings";
 import { AcpConversation } from "./AcpConversation";
 import { AcpUsageMeter } from "./AcpUsageMeter";
 
@@ -18,6 +19,23 @@ import { AcpUsageMeter } from "./AcpUsageMeter";
 export function ClaudeCodeScreenV2({ projectId }: { projectId: number }) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
+  /**
+   * 상단바에는 화면 이름이 아니라 **지금 보고 있는 대화의 제목**을 건다.
+   * 화면 이름은 사이드바가 이미 말하고 있고, 여기서 알고 싶은 건 "무슨 대화를
+   * 열어 뒀나"다. 제목은 에이전트가 나중에 붙이므로 짧은 주기로 따라간다.
+   */
+  const [title, setTitle] = useState<string | null>(null);
+  useEffect(() => {
+    setTitle(null);
+    const read = () => {
+      void commands.acpSessionTitle(projectId).then((res) => {
+        if (res.status === "ok") setTitle(res.data);
+      });
+    };
+    read();
+    const timer = window.setInterval(read, 4000);
+    return () => window.clearInterval(timer);
+  }, [projectId]);
   // 패널 토글은 **툴바에 고정**한다. 스레드 위에 띄우면 열림/닫힘에 따라 위치가
   // 달라져 같은 버튼으로 안 읽힌다.
   const togglePanel = useCallback(
@@ -27,7 +45,7 @@ export function ClaudeCodeScreenV2({ projectId }: { projectId: number }) {
 
   return (
     <>
-      <Toolbar title={t("nav.claudecode")} sub={t("acp.toolbarSub")}>
+      <Toolbar title={title || t("nav.claudecode")} sub={title ? t("nav.claudecode") : t("acp.toolbarSub")}>
         <AcpUsageMeter projectId={projectId} />
         <button
           type="button"

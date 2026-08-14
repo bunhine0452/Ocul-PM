@@ -68,6 +68,8 @@ pub struct AcpSession {
     pub commands: Vec<acp::session::AcpCommand>,
     /// 현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다.
     pub session_id: Option<String>,
+    /// 현재 세션 제목 (에이전트가 붙여 준 것. 아직이면 `None`).
+    pub title: Option<String>,
     /// 모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
     /// **어댑터가 준 그대로**다 — 우리가 목록을 들고 있지 않는다.
     pub options: Vec<acp::session::AcpConfigOption>,
@@ -117,6 +119,7 @@ fn session_snapshot(app: &AppHandle, project_id: u32, agent: AcpAgentInfo) -> Ac
     let state = app.state::<AcpState>();
     AcpSession {
         agent,
+        title: state.title(project_id),
         commands: state.commands(project_id),
         session_id: state.session(project_id).map(|s| s.0.to_string()),
         options: state.options(project_id),
@@ -604,4 +607,14 @@ pub fn acp_options(
     project_id: u32,
 ) -> Result<Vec<acp::session::AcpConfigOption>, String> {
     Ok(state.options(project_id))
+}
+
+/// 현재 세션 제목. 상단바가 따라가려고 짧은 주기로 읽는다 (로컬 조회).
+#[tauri::command]
+#[specta::specta]
+pub fn acp_session_title(
+    state: State<'_, AcpState>,
+    project_id: u32,
+) -> Result<Option<String>, String> {
+    Ok(state.title(project_id))
 }

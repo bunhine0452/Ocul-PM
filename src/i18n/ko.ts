@@ -1760,6 +1760,8 @@ export const ko = {
   "acp.thinking.live": "생각하는 중",
   "acp.thinking.done": "{sec}초 생각함",
   "acp.thinking.tokens": "{n} 토큰",
+  "acp.tabs.aria": "열어 둔 대화",
+  "acp.tabs.close": "탭 닫기",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",
