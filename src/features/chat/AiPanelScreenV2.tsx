@@ -32,6 +32,7 @@ import {
   MESSAGE_OVERHEAD_TOKENS,
 } from "@/lib/tokenEstimate";
 import { AcpConversation } from "./AcpConversation";
+import { useDismiss } from "./useDismiss";
 import { assembleAiContext, type AiContextResult } from "./aiContext";
 import { ActionProposalCard, extractPlannerAction } from "./aiActions";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
@@ -84,25 +85,6 @@ const SUGGESTION_KEYS = [
   "ai.suggestPlannerRisk",
   "ai.suggestCommits",
 ] as const;
-
-/** open 상태의 팝업을 바깥 클릭/Escape 로 닫는 공통 훅. */
-function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, close: () => void) {
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, ref, close]);
-}
 
 /** 어시스턴트 말풍선 하나 — 스트리밍 중이 아닌 행은 memo 로 재파싱을 막는다. */
 const MessageRow = memo(function MessageRow({
@@ -214,15 +196,15 @@ function AiModeToggle({
 }) {
   const { t } = useT();
   return (
-    // 세그먼트 컨트롤용 클래스를 새로 만들지 않고 기존 primitive 두 개
-    // (`primary` = 선택, `ghost` = 비선택)로 표현한다.
-    <div style={{ display: "flex", gap: 4 }} role="tablist" aria-label={t("acp.modeAria")}>
+    // 모드 전환은 "둘 중 하나"이지 "두 개의 액션"이 아니다 — 버튼 두 개가
+    // 아니라 하나의 물체(agent.css `.seg`)로 보이게 한다.
+    <div className="seg" role="tablist" aria-label={t("acp.modeAria")}>
       {(["llm", "acp"] as const).map((it) => (
         <button
           key={it}
           role="tab"
           aria-selected={mode === it}
-          className={"btn sm " + (mode === it ? "primary" : "ghost")}
+          className="seg-item"
           onClick={() => onChange(it)}
         >
           {it === "llm" ? t("acp.modeLlm") : t("acp.modeAcp")}

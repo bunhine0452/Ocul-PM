@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
+  ArrowRight,
   ArrowUp,
+  Check,
+  ChevronDown,
+  Code2,
+  ExternalLink,
+  File as FileIcon,
   Paperclip,
+  Pencil,
+  Search,
+  Sparkles,
   Square,
   SquarePen,
+  Terminal,
+  Trash2,
   TriangleAlert,
-  SparklesIcon,
+  X,
 } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
 import {
@@ -24,15 +35,17 @@ import {
   type AcpTurn,
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
+import { useDismiss } from "./useDismiss";
 
-// PR-ACP2 (docs/acp-panel/00-master-plan.md §5) — ACP 대화면.
+// PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
 //
 // 프로바이더 채팅(AiPanelScreenV2 본체)과 **상태를 공유하지 않는다.** 저쪽은
 // 우리가 히스토리를 들고 매번 통째로 재전송하지만, ACP 는 세션이 에이전트 쪽에
-// 살아 있어 우리는 화면에 그릴 것만 들고 있으면 된다. 두 모델을 한 상태기계에
-// 욱여넣으면 양쪽 다 망가지므로 컴포넌트를 분리했다.
+// 살아 있어 우리는 화면에 그릴 것만 들고 있으면 된다.
 //
-// 이 라운드가 그리는 것은 텍스트뿐이다 — 툴콜·권한 카드·플랜은 PR-ACP3/4.
+// 화면의 성격도 다르다: 채팅이 아니라 **작업 콘솔**이다. 사람의 말과 기계의
+// 행적(도구 호출·승인)이 한 흐름에 섞이므로, 산문은 크게 읽히고 행적은 왼쪽
+// 헤어라인에 묶여 눌린다 (agent.css `.trace`).
 
 interface UsageState {
   used: number;
@@ -42,16 +55,16 @@ interface UsageState {
 
 type PermissionState = Extract<AcpEvent, { kind: "permission" }>;
 
-/** 도구 종류 → 카드에 붙일 글리프. 모르는 종류는 중립 기호로 흘린다. */
-const TOOL_GLYPH: Readonly<Record<string, string>> = {
-  read: "◇",
-  edit: "◆",
-  delete: "✕",
-  move: "→",
-  search: "⌕",
-  execute: "▸",
-  think: "◌",
-  fetch: "↓",
+/** 도구 종류 → 아이콘. 모르는 종류는 중립 아이콘으로 흘린다. */
+const TOOL_ICON: Readonly<Record<string, typeof FileIcon>> = {
+  read: FileIcon,
+  edit: Pencil,
+  delete: Trash2,
+  move: ArrowRight,
+  search: Search,
+  execute: Terminal,
+  think: Sparkles,
+  fetch: ExternalLink,
 };
 
 /** 상태 → i18n 키. 모르는 상태는 원문 그대로 보여 준다(삼키지 않는다). */
@@ -61,14 +74,6 @@ const TOOL_STATUS_KEY = {
   completed: "acp.tool.status.completed",
   failed: "acp.tool.status.failed",
 } as const;
-
-/** 상태 → 색. 실패는 반드시 눈에 띄어야 한다. */
-const TOOL_STATUS_COLOR: Readonly<Record<string, string>> = {
-  pending: "var(--text-dim)",
-  in_progress: "var(--accent)",
-  completed: "var(--t-ok, var(--text-dim))",
-  failed: "var(--t-bug)",
-};
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
@@ -89,6 +94,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const [attachments, setAttachments] = useState<string[]>([]);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -114,8 +120,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     };
   }, [projectId]);
 
-  // `@` 를 치는 동안만 후보를 부른다 — 입력마다 디스크를 걷지 않도록 멘션이
-  // 아닐 땐 즉시 닫는다.
+  // `@` 를 치는 동안만 후보를 부른다 — 멘션이 아닐 땐 즉시 닫아 디스크를
+  // 매 입력마다 걷지 않는다.
   useEffect(() => {
     const mention = findMentionQuery(draft);
     if (!mention) {
@@ -124,7 +130,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
     let cancelled = false;
     void commands.acpListFiles(projectId, mention.query, 8).then((res) => {
-      if (!cancelled) setMentions(res.status === "ok" ? res.data : []);
+      if (cancelled) return;
+      setMentions(res.status === "ok" ? res.data : []);
+      setMentionIndex(0);
     });
     return () => {
       cancelled = true;
@@ -135,7 +143,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [turns]);
+  }, [turns, permission]);
 
   const retry = useCallback(async () => {
     setStarting(true);
@@ -194,56 +202,85 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
   }, [projectId]);
 
-  const send = useCallback(async () => {
-    const text = draft.trim();
-    if (!text || busy) return;
+  const send = useCallback(
+    async (override?: string) => {
+      const text = (override ?? draft).trim();
+      if (!text || busy) return;
 
-    const sending = attachments;
-    setDraft("");
-    setAttachments([]);
-    setMentions(null);
-    setError(null);
-    setTurns((prev) => openTurn(prev, text));
-    setBusy(true);
+      const sending = attachments;
+      setDraft("");
+      setAttachments([]);
+      setMentions(null);
+      setError(null);
+      setTurns((prev) => openTurn(prev, text));
+      setBusy(true);
 
-    const channel = new Channel<AcpEvent>();
-    channel.onmessage = (event) => {
-      // 화면 누적은 순수 리듀서가 담당한다 (acpTurns.ts — 지각 청크 방어 포함).
-      setTurns((prev) => applyAcpEvent(prev, event));
-      if (event.kind === "usage") {
-        setUsage({ used: event.used, size: event.size, costUsd: event.cost_usd });
-      } else if (event.kind === "failed") {
-        setError(event.message);
-      } else if (event.kind === "permission") {
-        setPermission(event);
+      const channel = new Channel<AcpEvent>();
+      channel.onmessage = (event) => {
+        // 화면 누적은 순수 리듀서가 담당한다 (acpTurns.ts — 지각 청크 방어 포함).
+        setTurns((prev) => applyAcpEvent(prev, event));
+        if (event.kind === "usage") {
+          setUsage({ used: event.used, size: event.size, costUsd: event.cost_usd });
+        } else if (event.kind === "failed") {
+          setError(event.message);
+        } else if (event.kind === "permission") {
+          setPermission(event);
+        }
+      };
+
+      try {
+        const res = await commands.acpPrompt(projectId, text, sending, channel);
+        if (res.status === "error") setError(res.error);
+      } finally {
+        // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.
+        // 승인 카드도 함께 치운다: 백엔드가 미결 요청을 취소로 닫았으므로
+        // 남겨 두면 눌러도 아무 일이 안 일어나는 유령 카드가 된다.
+        setTurns(closeTurn);
+        setPermission(null);
+        setBusy(false);
       }
-    };
-
-    try {
-      const res = await commands.acpPrompt(projectId, text, sending, channel);
-      if (res.status === "error") setError(res.error);
-    } finally {
-      // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.
-      // 승인 카드도 함께 치운다: 백엔드가 미결 요청을 취소로 닫았으므로
-      // 남겨 두면 눌러도 아무 일이 안 일어나는 유령 카드가 된다.
-      setTurns(closeTurn);
-      setPermission(null);
-      setBusy(false);
-    }
-  }, [draft, busy, projectId, attachments]);
+    },
+    [draft, busy, projectId, attachments],
+  );
 
   const cancel = useCallback(() => {
     void commands.acpCancel(projectId);
     setPermission(null);
   }, [projectId]);
 
-  const decide = useCallback(
-    (requestId: string, optionId: string | null) => {
-      setPermission(null);
-      void commands.acpPermissionRespond(requestId, optionId);
-    },
-    [],
-  );
+  const decide = useCallback((requestId: string, optionId: string | null) => {
+    setPermission(null);
+    void commands.acpPermissionRespond(requestId, optionId);
+  }, []);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 멘션 목록이 떠 있으면 방향키·엔터는 목록 것이다 — 목록을 두고 전송되면
+    // 사용자가 고르려던 파일 대신 반쯤 쓴 문장이 날아간다.
+    if (mentions?.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => {
+          const next = e.key === "ArrowDown" ? i + 1 : i - 1;
+          return (next + mentions.length) % mentions.length;
+        });
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickMention(mentions[mentionIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentions(null);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void send();
+    }
+  };
 
   if (!session) {
     return (
@@ -252,16 +289,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           <div className="ai-thread-inner">
             <div className="ai-hero">
               <div className="ai-hero-icon">
-                <SparklesIcon size={22} />
+                <Sparkles size={22} />
               </div>
               <div className="ai-hero-title">
                 {starting ? t("acp.starting") : t("acp.offTitle")}
               </div>
               <div className="ai-hero-sub">{t("acp.offSub")}</div>
               {starting ? null : (
-                <button className="btn" onClick={() => void retry()}>
-                  {t("acp.retry")}
-                </button>
+                <div className="ai-suggest">
+                  <button className="ai-suggest-chip" onClick={() => void retry()}>
+                    {t("acp.retry")}
+                  </button>
+                </div>
               )}
               {error && <div className="msg-error">{error}</div>}
             </div>
@@ -271,39 +310,78 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     );
   }
 
+  const agentName = session.agent.title ?? session.agent.name;
+
   return (
     <div className="ai-wrap">
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
-          {turns.map((turn, i) => (
-            <div key={i} className={turn.role === "user" ? "msg user" : "msg assistant"}>
-              <div className="msg-head">
-                <span className="msg-model">
-                  {turn.role === "user" ? t("acp.you") : (session.agent.title ?? session.agent.name)}
-                </span>
+          {turns.length === 0 ? (
+            <div className="ai-hero">
+              <div className="ai-hero-icon">
+                <Sparkles size={22} />
               </div>
-              {turn.thought ? (
-                <details className="msg-md">
-                  <summary>{t("acp.thinking")}</summary>
-                  <Markdown>{turn.thought}</Markdown>
-                </details>
-              ) : null}
-              {turn.tools?.length ? (
-                <div className="msg-md" style={{ display: "grid", gap: 4 }}>
-                  {turn.tools.map((tool) => (
-                    <ToolCallRow key={tool.id} tool={tool} />
-                  ))}
-                </div>
-              ) : null}
-              <div className="msg-md">
-                {turn.text ? (
-                  <Markdown>{turn.text}</Markdown>
-                ) : turn.tools?.length ? null : (
-                  <span>{t("acp.waiting")}</span>
+              <div className="ai-hero-title">{t("acp.readyTitle", { agent: agentName })}</div>
+              <div className="ai-hero-sub">{t("acp.readySub")}</div>
+              <div className="ai-suggest">
+                {(["acp.suggestExplain", "acp.suggestTest", "acp.suggestReview"] as const).map(
+                  (key) => (
+                    <button
+                      key={key}
+                      className="ai-suggest-chip"
+                      onClick={() => void send(t(key))}
+                    >
+                      {t(key)}
+                    </button>
+                  ),
                 )}
               </div>
             </div>
-          ))}
+          ) : (
+            turns.map((turn, i) => (
+              <div key={i} className={turn.role === "user" ? "msg user" : "msg assistant"}>
+                {turn.role === "user" ? (
+                  <div className="msg-bubble">{turn.text}</div>
+                ) : (
+                  <>
+                    <div className="msg-head">
+                      <span className="msg-model">{agentName}</span>
+                      {busy && i === turns.length - 1 ? (
+                        <span className="msg-live">
+                          <span className="msg-live-dot" />
+                          {t("ai.streaming")}
+                        </span>
+                      ) : null}
+                    </div>
+                    {turn.thought ? (
+                      <details className="think">
+                        <summary>
+                          <ChevronDown size={12} /> {t("acp.thinking")}
+                        </summary>
+                        <div className="think-body msg-md">
+                          <Markdown>{turn.thought}</Markdown>
+                        </div>
+                      </details>
+                    ) : null}
+                    {turn.tools?.length ? (
+                      <div className="trace">
+                        {turn.tools.map((tool) => (
+                          <TraceRow key={tool.id} tool={tool} />
+                        ))}
+                      </div>
+                    ) : null}
+                    {turn.text ? (
+                      <div className="msg-md">
+                        <Markdown>{turn.text}</Markdown>
+                      </div>
+                    ) : turn.tools?.length ? null : (
+                      <div className="msg-wait">{t("acp.waiting")}</div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))
+          )}
 
           {permission ? <PermissionCard request={permission} onDecide={decide} /> : null}
 
@@ -315,9 +393,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                   {t("ai.errorLabel")}
                 </span>
               </div>
-              <div className="msg-md">
-                <div className="msg-error">{error}</div>
-              </div>
+              <div className="msg-error">{error}</div>
             </div>
           ) : null}
         </div>
@@ -325,65 +401,79 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
       <div className="ai-compose">
         <div className="composer">
-          {mentions?.length ? (
-            <div className="mb-1 max-h-40 overflow-y-auto rounded border border-border bg-card">
-              {mentions.map((path) => (
-                <button
-                  key={path}
-                  type="button"
-                  className="block w-full truncate px-2 py-1 text-left text-[11px] hover:bg-muted"
-                  onClick={() => pickMention(path)}
-                >
-                  {path}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {attachments.length ? (
-            <div className="mb-1 flex flex-wrap gap-1">
+            <div className="attach-row">
               {attachments.map((path) => (
                 <button
                   key={path}
                   type="button"
-                  className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="attach-chip"
                   title={t("acp.attach.remove")}
                   onClick={() => setAttachments((prev) => prev.filter((p) => p !== path))}
                 >
-                  {path.split("/").pop()} ✕
+                  <span className="attach-chip-name">{path.split("/").pop()}</span>
+                  <X size={11} />
                 </button>
               ))}
             </div>
           ) : null}
 
-          <textarea
-            ref={inputRef}
-            className="composer-input"
-            rows={2}
-            value={draft}
-            placeholder={t("acp.placeholder")}
-            aria-label={t("acp.inputAria")}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-          />
+          <div style={{ position: "relative" }}>
+            {mentions ? (
+              <div className="mention" role="listbox" aria-label={t("acp.mention.aria")}>
+                {mentions.length ? (
+                  mentions.map((path, i) => {
+                    const name = path.split("/").pop() ?? path;
+                    return (
+                      <button
+                        key={path}
+                        type="button"
+                        role="option"
+                        aria-selected={i === mentionIndex}
+                        className={"mention-item" + (i === mentionIndex ? " active" : "")}
+                        onMouseEnter={() => setMentionIndex(i)}
+                        onClick={() => pickMention(path)}
+                      >
+                        <span className="mention-name">{name}</span>
+                        <span>{path}</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="mention-empty">{t("acp.mention.empty")}</div>
+                )}
+              </div>
+            ) : null}
+
+            <textarea
+              ref={inputRef}
+              className="composer-input"
+              rows={2}
+              value={draft}
+              placeholder={t("acp.placeholder")}
+              aria-label={t("acp.inputAria")}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={onKeyDown}
+            />
+          </div>
+
           <div className="composer-foot">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="knobs">
               {session.options.map((option) => (
-                <ConfigSelect key={option.id} option={option} onChange={setOption} />
+                <Knob key={option.id} option={option} onChange={setOption} />
               ))}
+            </div>
+            <span style={{ flex: 1 }} />
+            <span className={"agent-id" + (busy ? " busy" : "")} title={session.agent.name}>
+              <span className="agent-id-dot" />
+              {agentName}
               {usage ? (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="agent-id-meta">
                   {Math.round((usage.used / Math.max(usage.size, 1)) * 100)}%
                   {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
                 </span>
               ) : null}
-            </div>
-            <span style={{ flex: 1 }} />
+            </span>
             <button
               type="button"
               className="btn icon ghost"
@@ -432,33 +522,36 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   );
 }
 
-/** 도구 호출 한 줄 — 무엇을, 어디에, 어디까지 진행됐는지. */
-function ToolCallRow({ tool }: { tool: AcpToolCall }) {
+/** 도구 호출 한 줄 — 무엇을, 어디에, 어디까지. 산문에 종속되어 보이게 눌러 둔다. */
+function TraceRow({ tool }: { tool: AcpToolCall }) {
   const { t } = useT();
-  const glyph = TOOL_GLYPH[tool.kind] ?? "•";
-  const color = TOOL_STATUS_COLOR[tool.status] ?? "var(--text-dim)";
+  const Icon = TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
+  const state =
+    tool.status === "in_progress" ? " running" : tool.status === "failed" ? " failed" : "";
 
   return (
-    <div className="flex items-baseline gap-2 text-[11.5px]">
-      <span style={{ color }}>{glyph}</span>
-      <span className="truncate">{tool.title || t("acp.tool.untitled")}</span>
-      {tool.locations.length ? (
-        <code className="truncate text-[10px] text-muted-foreground">
-          {tool.locations.join(", ")}
-        </code>
-      ) : null}
-      <span style={{ flex: 1 }} />
-      <span className="text-[10px]" style={{ color }}>
-        {statusKey ? t(statusKey) : tool.status}
+    <div className={"trace-row" + state}>
+      <span className="trace-icon">
+        <Icon size={13} />
       </span>
+      <span className="trace-title">{tool.title || t("acp.tool.untitled")}</span>
+      {tool.locations.length ? (
+        <span className="trace-path" title={tool.locations.join("\n")}>
+          {tool.locations[0]}
+        </span>
+      ) : null}
+      {tool.locations.length > 1 ? (
+        <span className="trace-more">+{tool.locations.length - 1}</span>
+      ) : null}
+      <span className="trace-status">{statusKey ? t(statusKey) : tool.status}</span>
     </div>
   );
 }
 
 /**
  * 승인 카드. 응답할 때까지 에이전트가 멈춰 있으므로 **닫기 버튼을 두지 않는다** —
- * 카드를 그냥 없애면 에이전트가 영영 기다린다. 나가는 길은 선택지 또는 거절뿐.
+ * 카드를 그냥 없애면 에이전트가 영영 기다린다. 나가는 길은 선택지뿐.
  */
 function PermissionCard({
   request,
@@ -469,43 +562,42 @@ function PermissionCard({
 }) {
   const { t } = useT();
   // 어댑터는 선택지 순서를 보장하지 않는다 — 실측(2026-08-14)에서 `Deny` 가
-  // **첫 항목**으로 왔다. 그래서 강조는 순서가 아니라 kind 로 고르고, 우리
-  // 폴백 거절 버튼은 어댑터가 거절 선택지를 안 줬을 때만 낸다(중복 방지).
+  // **첫 항목**으로 왔다. 강조는 순서가 아니라 kind 로 고르고, 우리 폴백 거절
+  // 버튼은 어댑터가 거절 선택지를 안 줬을 때만 낸다(중복 방지).
   const hasReject = request.options.some((option) => option.option_kind.startsWith("reject"));
+  const Icon = TOOL_ICON[request.tool_kind] ?? Code2;
 
   return (
-    <div
-      className="msg assistant"
-      style={{ borderLeft: "2px solid var(--accent)" }}
-      role="group"
-      aria-label={t("acp.perm.title")}
-    >
-      <div className="msg-head">
-        <span className="msg-model">{t("acp.perm.title")}</span>
+    <div className="perm" role="group" aria-label={t("acp.perm.title")}>
+      <div className="perm-head">
+        <TriangleAlert size={13} />
+        {t("acp.perm.title")}
       </div>
-      <div className="msg-md">
-        <p className="text-[12px]">
-          {TOOL_GLYPH[request.tool_kind] ?? "•"} {request.title || t("acp.tool.untitled")}
-        </p>
-        <div className="flex flex-wrap gap-2 pt-2">
-          {request.options.map((option) => (
-            <button
-              key={option.id}
-              className={
-                "btn sm " + (option.option_kind.startsWith("allow") ? "primary" : "ghost")
-              }
-              onClick={() => onDecide(request.request_id, option.id)}
-            >
-              {option.name}
-            </button>
-          ))}
-          {/* 어댑터가 거절 선택지를 안 줄 수도 있다 — 빠져나갈 길은 항상 있어야 한다. */}
-          {hasReject ? null : (
-            <button className="btn sm ghost" onClick={() => onDecide(request.request_id, null)}>
-              {t("acp.perm.reject")}
-            </button>
-          )}
-        </div>
+      <div className="perm-what">
+        <Icon size={14} style={{ color: "var(--text-3)", flex: "none" }} />
+        <span className="perm-title">{request.title || t("acp.tool.untitled")}</span>
+        {request.locations.length ? (
+          <span className="perm-path" title={request.locations.join("\n")}>
+            {request.locations[0]}
+            {request.locations.length > 1 ? ` +${request.locations.length - 1}` : ""}
+          </span>
+        ) : null}
+      </div>
+      <div className="perm-actions">
+        {request.options.map((option) => (
+          <button
+            key={option.id}
+            className={"btn sm " + (option.option_kind.startsWith("allow") ? "primary" : "ghost")}
+            onClick={() => onDecide(request.request_id, option.id)}
+          >
+            {option.name}
+          </button>
+        ))}
+        {hasReject ? null : (
+          <button className="btn sm ghost" onClick={() => onDecide(request.request_id, null)}>
+            {t("acp.perm.reject")}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -514,41 +606,71 @@ function PermissionCard({
 /**
  * 세션 설정 하나 (모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …).
  *
- * **선택지를 우리가 들고 있지 않는다** — 어댑터가 `session/new` 로 준 것을 그대로
- * 그린다. Claude Code 가 모델을 추가하면 우리 코드를 고치지 않아도 나타난다.
+ * 네이티브 `<select>` 대신 앱의 팝오버 어휘를 쓴다 — OS 위젯은 이 화면에서
+ * 혼자 다른 물성을 갖는다. **선택지는 우리가 들고 있지 않다**: 어댑터가
+ * `session/new` 로 준 것을 그대로 그리므로, 모델이 추가되면 저절로 나타난다.
  */
-function ConfigSelect({
+function Knob({
   option,
   onChange,
 }: {
   option: AcpConfigOption;
   onChange: (configId: string, value: string) => void;
 }) {
-  // 토글(boolean)도 값이 "true"/"false" 인 select 로 통일한다 — 항목이 늘어도
-  // 렌더 분기가 하나로 유지된다.
-  const choices = option.is_boolean
-    ? [
-        { value: "true", name: "On" },
-        { value: "false", name: "Off" },
-      ]
-    : option.choices;
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const choices = useMemo(
+    () =>
+      option.is_boolean
+        ? [
+            { value: "true", name: "On" },
+            { value: "false", name: "Off" },
+          ]
+        : option.choices,
+    [option],
+  );
+
+  useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
 
   if (!choices.length) return null;
 
+  const current = choices.find((c) => c.value === option.current);
+
   return (
-    <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-      <span>{option.name}</span>
-      <select
-        className="rounded border border-border bg-transparent px-1 py-0.5 text-[10px] text-foreground"
-        value={option.current ?? ""}
-        onChange={(e) => onChange(option.id, e.target.value)}
+    <div className="knob-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={"model-trigger" + (open ? " open" : "")}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title={option.name}
+        onClick={() => setOpen((v) => !v)}
       >
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.name}
-          </option>
-        ))}
-      </select>
-    </label>
+        <span className="knob-label">{option.name}</span>
+        <span className="model-trigger-model">{current?.name ?? option.current}</span>
+      </button>
+      {open ? (
+        <div className="knob-menu" role="listbox" aria-label={option.name}>
+          {choices.map((choice) => (
+            <button
+              key={choice.value}
+              type="button"
+              role="option"
+              aria-selected={choice.value === option.current}
+              className={"model-option" + (choice.value === option.current ? " active" : "")}
+              onClick={() => {
+                setOpen(false);
+                onChange(option.id, choice.value);
+              }}
+            >
+              <span className="model-option-name">{choice.name}</span>
+              <span style={{ flex: 1 }} />
+              {choice.value === option.current ? <Check size={13} /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

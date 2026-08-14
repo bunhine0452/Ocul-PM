@@ -1,0 +1,350 @@
+/* ============================================================
+   agent.css — 에이전트(ACP) 대화면 전용 레이어.
+
+   screens.css 가 아니라 별도 파일인 이유는 둘이다. ① 이 화면은 채팅이 아니라
+   **작업 콘솔**이다 — 사람의 말과 기계의 행적(도구 호출·승인)이 한 흐름에
+   섞이므로, 채팅 어휘(.msg*)를 빌려 쓰되 행적을 위한 어휘가 따로 필요하다.
+   ② screens.css 는 다른 작업이 물려 있는 파일이라 건드리지 않는다.
+
+   토큰은 tokens.css 것만 쓴다 (색·반경·그림자·모션). 새 색을 만들지 않는다 —
+   에이전트 화면이라고 앱과 다른 물성을 가질 이유가 없다.
+   ============================================================ */
+
+/* ─── 툴바 세그먼트 (LLM ↔ Claude Code) ─────────────────────────────────────
+   버튼 두 개를 나란히 놓는 대신 하나의 물체로 보이게 한다 — 모드 전환은
+   "둘 중 하나"이지 "두 개의 액션"이 아니기 때문. */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  background: var(--bg-inset);
+}
+.seg-item {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.seg-item:hover {
+  color: var(--text);
+}
+.seg-item[aria-selected="true"] {
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+/* ─── 에이전트 신원 줄 ────────────────────────────────────────────────────
+   컴포저 바닥에 raw npm 패키지명이 찍혀 있던 자리. 사용자가 알아야 하는 건
+   패키지가 아니라 "누가 살아서 듣고 있는가"다. */
+.agent-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.agent-id-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.agent-id.busy .agent-id-dot {
+  animation: ai-pulse 1.2s ease-in-out infinite;
+}
+.agent-id-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* ─── 기계의 행적 (도구 호출) ──────────────────────────────────────────────
+   산문에 종속되어 보여야 한다: 왼쪽 헤어라인 한 줄로 묶고, 본문보다 작은
+   글자와 흐린 색으로 눌러 둔다. 로그처럼 읽히되 로그처럼 지저분하지 않게. */
+.trace {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 8px;
+  padding-left: 11px;
+  border-left: 1px solid var(--sep);
+}
+.trace-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.trace-icon {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  flex: none;
+  color: var(--text-3);
+}
+.trace-row.running .trace-icon {
+  color: var(--accent);
+  animation: ai-pulse 1.2s ease-in-out infinite;
+}
+.trace-row.failed .trace-icon {
+  color: var(--t-bug);
+}
+.trace-title {
+  font-weight: 550;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+  max-width: 46%;
+}
+/* 경로는 앞이 아니라 **끝(파일명)** 이 살아남아야 한다 — `direction: rtl` +
+   `text-align: left` 가 그 표준 트릭이다. 대신 경로를 여러 개 이어 붙이면
+   구분자가 반대편으로 튀므로, 한 개만 보여 주고 나머지는 `+N` 으로 센다. */
+.trace-path {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  min-width: 0;
+}
+.trace-more {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+.trace-status {
+  margin-left: auto;
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+}
+.trace-row.running .trace-status {
+  color: var(--accent-text);
+}
+.trace-row.failed .trace-status {
+  color: var(--t-bug);
+}
+
+/* 접히는 생각 과정 — 기본은 존재감을 거의 남기지 않는다. */
+.think {
+  margin-bottom: 6px;
+}
+.think > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.think > summary::-webkit-details-marker {
+  display: none;
+}
+.think > summary:hover {
+  color: var(--text-2);
+}
+.think[open] > summary {
+  margin-bottom: 5px;
+}
+.think-body {
+  padding-left: 11px;
+  border-left: 1px solid var(--sep);
+  color: var(--text-2);
+}
+
+/* ─── 승인 카드 ───────────────────────────────────────────────────────────
+   에이전트가 **멈춰서 기다리는** 유일한 순간이라, 화면에서 가장 무거운
+   물체여야 한다. 대화 흐름 안에 두되(무엇을 승인하는지 위에 보여야 하므로)
+   그림자와 accent 링으로 확실히 띄운다. */
+.perm {
+  border: 1px solid var(--accent-ring);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-raise);
+  padding: 13px 14px;
+  animation: perm-in var(--dur-3) var(--ease-spring) both;
+}
+@keyframes perm-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+.perm-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+.perm-what {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+.perm-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.perm-path {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.perm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* ─── 첨부 칩 ─────────────────────────────────────────────────────────── */
+.attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--border-card);
+  border-radius: 7px;
+  background: var(--bg-card);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text-2);
+  max-width: 220px;
+}
+.attach-chip:hover {
+  border-color: var(--t-bug);
+  color: var(--t-bug);
+}
+.attach-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── @ 멘션 팝오버 ───────────────────────────────────────────────────── */
+.mention {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 232px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+}
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.mention-item .mention-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.mention-item:hover,
+.mention-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.mention-empty {
+  padding: 9px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+/* ─── 설정 노브 줄 ────────────────────────────────────────────────────── */
+.knobs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1px;
+  min-width: 0;
+}
+.knob-wrap {
+  position: relative;
+}
+.knob-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  min-width: 210px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+}
+.knob-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}

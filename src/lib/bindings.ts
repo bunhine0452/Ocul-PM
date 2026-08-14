@@ -1133,7 +1133,9 @@ locations: string[] } |
 /**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
 { kind: "tool_update"; id: string; title: string | null; status: string | null } | 
 /**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */
-{ kind: "permission"; request_id: string; title: string; tool_kind: string; options: AcpPermissionOption[] } | 
+{ kind: "permission"; request_id: string; title: string; tool_kind: string; 
+/**  승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다. */
+locations: string[]; options: AcpPermissionOption[] } | 
 /**
  *  아직 UI 가 없는 업데이트 — 종류만 알려 준다.
  *  (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)

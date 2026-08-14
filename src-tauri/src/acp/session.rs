@@ -52,6 +52,8 @@ pub enum AcpEvent {
         request_id: String,
         title: String,
         tool_kind: String,
+        /// 승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다.
+        locations: Vec<String>,
         options: Vec<AcpPermissionOption>,
     },
     /// 아직 UI 가 없는 업데이트 — 종류만 알려 준다.
@@ -262,6 +264,14 @@ pub fn permission_event(
             .as_ref()
             .map(label)
             .unwrap_or_else(|| "other".to_string()),
+        locations: request
+            .tool_call
+            .fields
+            .locations
+            .iter()
+            .flatten()
+            .map(|l| l.path.display().to_string())
+            .collect(),
         options: request
             .options
             .iter()
