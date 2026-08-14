@@ -75,18 +75,12 @@
 /* ─── 기계의 행적 (도구 호출) ──────────────────────────────────────────────
    산문에 종속되어 보여야 한다: 왼쪽 헤어라인 한 줄로 묶고, 본문보다 작은
    글자와 흐린 색으로 눌러 둔다. 로그처럼 읽히되 로그처럼 지저분하지 않게. */
-.trace {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin: 2px 0 8px;
-  padding-left: 11px;
-  border-left: 1px solid var(--sep);
-}
 .trace-item {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* 레일 위 점들이 고르게 놓이도록 단계마다 같은 간격을 준다. */
+  margin: 1px 0;
 }
 .trace-row {
   display: flex;
@@ -1296,7 +1290,8 @@
    어느 것이 열려 있는지가 안 읽힌다. */
 .acp-tab-mark {
   flex: none;
-  color: var(--text-4);
+  color: var(--text-3);
+  opacity: 0.55;
 }
 .acp-tab.active .acp-tab-mark {
   color: #d97757;
@@ -1754,4 +1749,77 @@
 .pending-image-x:hover {
   border-color: var(--t-bug);
   color: var(--t-bug);
+}
+
+/* ─── 진행 레일 ───────────────────────────────────────────────────────────
+   답변 왼쪽을 세로선 하나가 관통하고, 단계마다 점이 찍힌다. 선은 위로 **내
+   지시까지** 이어진다 — 이 단계들이 어느 지시에 딸린 것인지가 선 하나로
+   말해진다. 그렇지 않으면 도구 카드 열 몇 개가 그냥 흩어진 목록으로 보인다.
+
+   선은 에이전트 턴이 그린다. 위로 24px(묶음 간격)만큼 끌어올려 지시 카드
+   밑동에 닿게 하고, 카드는 불투명하므로 붙어 있을 때 선이 그 뒤로 숨는다. */
+.acp-layout .exchange .msg.assistant {
+  position: relative;
+  padding-left: 21px;
+}
+.acp-layout .exchange .msg.assistant::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: -24px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--sep);
+}
+/* 마지막 단계 아래로는 선이 흐려진다 — 딱 끊으면 "여기서 끝"이 아니라
+   "잘렸다"로 읽힌다. */
+.acp-layout .exchange .msg.assistant::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  bottom: -6px;
+  width: 1px;
+  height: 10px;
+  background: linear-gradient(to bottom, var(--sep), transparent);
+}
+
+/* 단계 표시 점. 레일 위에 얹히므로 배경색으로 선을 끊어 준다 — 안 그러면
+   점 뒤로 선이 지나가 점이 아니라 매듭처럼 보인다. */
+.acp-layout .exchange .msg.assistant > .trace-item,
+.acp-layout .exchange .msg.assistant > .msg-md,
+.acp-layout .exchange .msg.assistant > .think {
+  position: relative;
+}
+.acp-layout .exchange .msg.assistant > .trace-item::before,
+.acp-layout .exchange .msg.assistant > .msg-md::before,
+.acp-layout .exchange .msg.assistant > .think::before {
+  content: "";
+  position: absolute;
+  left: -19px;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px var(--bg-content);
+}
+/* 도구가 도는 동안은 그 단계의 점이 살아 있다. */
+.acp-layout .exchange .msg.assistant > .trace-item:has(.trace-row.running)::before {
+  background: var(--accent);
+  animation: rail-pulse 1.4s ease-in-out infinite;
+}
+@keyframes rail-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* 생각은 곁가지다 — 점도 한 톤 물러난다. */
+.acp-layout .exchange .msg.assistant > .think::before {
+  background: var(--sep-strong);
+}
+/* 첫 줄(진행 점)은 레일의 시작이므로 자기 점을 그리지 않는다. */
+.acp-layout .exchange .msg.assistant > .msg-head {
+  position: relative;
+  margin-left: -19px;
+  padding-left: 19px;
 }
