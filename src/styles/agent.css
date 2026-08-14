@@ -415,20 +415,19 @@
 .composer.agent .composer-foot > .btn.icon {
   flex: none;
 }
-/* 가운데 노브 묶음만 가로로 도망간다. 스크롤바는 숨긴다 — 트랙패드/휠로 민다. */
+/* 가운데 노브 묶음.
+   처음엔 `overflow-x: auto` 로 가로 스크롤을 시켰는데, 그러면 **이 안의 팝오버가
+   통째로 잘린다** — 노브를 눌러도 아무 것도 안 뜨는 것처럼 보였다(사용량 카드가
+   툴바에서 잘렸던 것과 똑같은 함정). 스크롤 대신 **줄바꿈**으로 좁은 폭을
+   받는다: 두 줄이 되더라도 눌리는 버튼이 낫다. */
 .composer-knobs {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
   min-width: 0;
   flex: 0 1 auto;
-  overflow-x: auto;
-  scrollbar-width: none;
-  /* 포커스 링이 잘리지 않게 아주 약간 */
-  padding: 2px 0;
-}
-.composer-knobs::-webkit-scrollbar {
-  display: none;
 }
 .composer-knobs > * {
   flex: none;
