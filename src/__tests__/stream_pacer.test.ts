@@ -45,3 +45,27 @@ describe("splitAt", () => {
     expect(shown + rest).toBe(text);
   });
 });
+
+describe("splitAt word boundaries", () => {
+  /** 반쪽 낱말이 한 프레임 스치면 눈이 매번 읽기를 다시 시작한다 — 흐르는 게
+      아니라 덜컹거리는 느낌의 정체다. */
+  it("backs up to a space instead of cutting a word in half", () => {
+    const [shown, rest] = splitAt("hello production ready", 12);
+    expect(shown).toBe("hello ");
+    expect(rest).toBe("production ready");
+  });
+
+  /** 너무 멀리 물러나면 아무것도 안 나가는 프레임이 생긴다 — 포기하고 자른다. */
+  it("gives up when the word is far longer than the lookback", () => {
+    const long = "a".repeat(60);
+    const [shown, rest] = splitAt(long, 20);
+    expect(shown).toHaveLength(20);
+    expect(shown + rest).toBe(long);
+  });
+
+  it("cuts cleanly when the boundary already lands on a space", () => {
+    const [shown, rest] = splitAt("one two three", 4);
+    expect(shown).toBe("one ");
+    expect(rest).toBe("two three");
+  });
+});

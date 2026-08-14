@@ -21,10 +21,10 @@ describe("applyAcpEvent", () => {
     turns = applyAcpEvent(turns, chunk(" total"));
 
     // Assert
-    expect(turns).toEqual<AcpTurn[]>([
-      { role: "user", text: "2 + 2 ?" },
-      { role: "agent", text: "4 total" },
-    ]);
+    expect(turns[0]).toEqual<AcpTurn>({ role: "user", text: "2 + 2 ?" });
+    expect(turns[1].text).toBe("4 total");
+    // 화면은 조각을 그린다 — 이어진 글은 한 조각으로 합쳐진다.
+    expect(turns[1].blocks).toEqual([{ kind: "text", text: "4 total" }]);
   });
 
   it("keeps thoughts separate from the answer", () => {
@@ -33,7 +33,10 @@ describe("applyAcpEvent", () => {
     turns = applyAcpEvent(turns, thought("hmm"));
     turns = applyAcpEvent(turns, chunk("answer"));
 
-    expect(turns[1]).toEqual({ role: "agent", text: "answer", thought: "hmm" });
+    expect(turns[1].text).toBe("answer");
+    expect(turns[1].thought).toBe("hmm");
+    // 생각은 조각에 섞이지 않는다 — 접힌 영역에서 따로 보여 준다.
+    expect(turns[1].blocks).toEqual([{ kind: "text", text: "answer" }]);
   });
 
   /** 늦게 도착한 청크가 다음 질문의 답에 섞이면 대화가 조용히 오염된다. */
@@ -322,5 +325,73 @@ describe("tool_call arriving twice", () => {
     turns = applyAcpEvent(turns, { ...base, id: "a" });
     turns = applyAcpEvent(turns, { ...base, id: "b" });
     expect(turns[1].tools).toHaveLength(2);
+  });
+});
+
+describe("blocks keep arrival order", () => {
+  /** 도구를 전부 위에, 글을 전부 아래에 모으면 도구 사이사이의 설명이 맨 밑에
+      줄줄이 붙어 서로 다른 대목의 문장이 한 문단처럼 이어져 보인다. */
+  it("interleaves text and tool calls as they arrived", () => {
+    const call = (id: string): AcpEvent => ({
+      kind: "tool_call",
+      id,
+      title: id,
+      name: "Bash",
+      subtitle: null,
+      tool_kind: "execute",
+      status: "pending",
+      locations: [],
+      input: null,
+      output: null,
+    });
+
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, chunk("먼저 살펴봅니다.")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, call("a"));
+    turns = applyAcpEvent(turns, chunk("이제 고칩니다.")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, call("b"));
+
+    expect(turns[1].blocks).toEqual([
+      { kind: "text", text: "먼저 살펴봅니다." }, // i18n-ignore -- 테스트 고정값
+      { kind: "tool", call: expect.objectContaining({ id: "a" }) },
+      { kind: "text", text: "이제 고칩니다." }, // i18n-ignore -- 테스트 고정값
+      { kind: "tool", call: expect.objectContaining({ id: "b" }) },
+    ]);
+  });
+
+  /** 갱신은 **그 자리에서** 바뀌어야 한다 — 뒤로 밀리면 카드가 문장을 건너뛴다. */
+  it("updates a tool block in place", () => {
+    const base: AcpEvent = {
+      kind: "tool_call",
+      id: "a",
+      title: "a",
+      name: "Bash",
+      subtitle: null,
+      tool_kind: "execute",
+      status: "pending",
+      locations: [],
+      input: null,
+      output: null,
+    };
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, base);
+    turns = applyAcpEvent(turns, chunk("설명")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, {
+      kind: "tool_update",
+      id: "a",
+      name: null,
+      subtitle: null,
+      title: null,
+      status: "completed",
+      input: null,
+      output: "done",
+    });
+
+    const blocks = turns[1].blocks ?? [];
+    expect(blocks.map((b) => b.kind)).toEqual(["tool", "text"]);
+    expect(blocks[0]).toEqual({
+      kind: "tool",
+      call: expect.objectContaining({ status: "completed", output: "done" }),
+    });
   });
 });

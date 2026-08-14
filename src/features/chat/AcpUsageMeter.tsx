@@ -117,12 +117,19 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
    * 백엔드가 **일회용 대화**를 파서 묻고 지운다 — 보고 있는 대화에 "/usage" 가
    * 남지 않는다. 그래서 첫 마디 전에도 물어볼 수 있다.
    */
+  const inFlight = useRef(false);
   const refresh = useCallback(async () => {
+    // **한 번에 하나만.** 이 조회는 일회용 대화를 하나 파므로, 겹쳐 돌면 그만큼
+    // 대화가 생긴다 — 처음 들어갔을 때 "/usage" 가 두 개 생기던 것이 이것이다
+    // (StrictMode 이중 마운트 + 재시도 루프가 겹쳤다).
+    if (inFlight.current) return;
+    inFlight.current = true;
     setRefreshing(true);
     try {
       const res = await commands.acpRefreshUsage(projectId);
       if (res.status === "ok") setUsage(res.data);
     } finally {
+      inFlight.current = false;
       setRefreshing(false);
     }
   }, [projectId]);
@@ -139,26 +146,20 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
   );
 
   /**
-   * 값이 아직 없으면 **계속 다시 시도한다**.
+   * **시작하자마자 묻지 않는다.**
    *
-   * 이 계기는 툴바에 있어 에이전트가 붙기 **전에** 마운트된다 — 첫 조회는
-   * 거의 항상 "에이전트가 실행 중이 아닙니다" 로 실패한다. 한 번만 부르고
-   * 말면 위젯이 영영 안 뜬다(실제로 그랬다). 값을 얻은 뒤로는 값싼 상태
-   * 조회로 내려간다.
+   * 이 조회는 일회용 대화를 파고 지우는 일이라 공짜가 아니다. 예전엔 값이 없으면
+   * 3초마다 다시 시도했는데, Claude Code 에 처음 들어가는 것만으로 대화가 두 개씩
+   * 생겼다. 한도는 대화가 한 번 돌면 알림(`usage_update`)으로 저절로 채워지고,
+   * 그 전에 알고 싶으면 사용자가 계기를 누르거나 `/usage` 를 치면 된다.
+   *
+   * 그래서 주기 조회는 **상태 읽기**뿐이다 — 왕복도 대화 생성도 없다.
    */
-  const hasLimits = (usage?.limits.length ?? 0) > 0;
   useEffect(() => {
-    if (hasLimits) return;
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 3_000);
+    void read();
+    const timer = window.setInterval(() => void read(), 8_000);
     return () => window.clearInterval(timer);
-  }, [hasLimits, refresh]);
-
-  useEffect(() => {
-    if (!hasLimits) return;
-    const timer = window.setInterval(() => void read(), 15_000);
-    return () => window.clearInterval(timer);
-  }, [hasLimits, read]);
+  }, [read]);
 
   const limits = usage?.limits ?? [];
   if (!limits.length) return null;

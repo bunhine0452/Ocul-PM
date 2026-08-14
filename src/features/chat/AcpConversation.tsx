@@ -48,6 +48,7 @@ import {
   applyAcpEvent,
   closeTurn,
   openTurn,
+  type AcpBlock,
   type AcpToolCall,
   groupTurns,
   type AcpTurn,
@@ -227,6 +228,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 올라가서, 그대로 쓰면 "최근에 이야기한 순서"가 "눌러 본 순서"가 된다.
    */
   const activityRef = useRef<ActivityLedger>(new Map());
+  /** 우리가 지운 대화 — 어댑터 목록이 따라오기 전까지 다시 보이지 않게. */
+  const removedRef = useRef<Set<string>>(new Set());
   /** 이 화면이 실제로 보이는지 판정할 뿌리 (⌘W 사슬이 읽는다). */
   const rootRef = useRef<HTMLDivElement | null>(null);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
@@ -447,7 +450,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const refreshHistory = useCallback(async () => {
     const res = await commands.acpListSessions(projectId);
-    if (res.status === "ok") setHistory(stabilizeHistory(res.data, activityRef.current));
+    if (res.status === "ok") {
+      setHistory(stabilizeHistory(res.data, activityRef.current, removedRef.current));
+    }
   }, [projectId]);
 
   // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
@@ -633,6 +638,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setError(res.error);
         return;
       }
+      // 어댑터 목록은 잠깐 더 이 대화를 들고 있다 — 우리 쪽에서 못 박아 둔다.
+      removedRef.current.add(sessionId);
       setState((prev) => {
         const names = { ...prev.acpNames };
         delete names[sessionId];
@@ -1520,6 +1527,10 @@ const TurnRow = memo(function TurnRow({
 
   if (turn.role === "user") return <UserTurn turn={turn} />;
 
+  // 옛 기록(블록 이전)도 그려야 한다 — 글 한 덩어리로 폴백한다.
+  const blocks: AcpBlock[] =
+    turn.blocks ?? (turn.text ? [{ kind: "text", text: turn.text }] : []);
+
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
       {/* 이름을 적지 않는다 — 답이 하나뿐인 화면에서 매 턴 "Claude Agent" 를
@@ -1540,27 +1551,36 @@ const TurnRow = memo(function TurnRow({
           </div>
         </details>
       ) : null}
-      {turn.tools?.length ? (
-        <div className="trace">
-          {turn.tools.map((tool) => (
-            <TraceRow key={tool.id} tool={tool} />
-          ))}
-        </div>
-      ) : null}
-      {turn.text ? (
-        <div className="msg-md">
-          {/* 스트리밍 중에도 **서식이 바로 보인다.** 평문으로 뒀다 끝에
-              포맷하면 점프가 생기고, 매 프레임 전체를 파싱하면 끊긴다 —
-              둘 다 겪었다. 블록으로 쪼개면 완성된 블록은 문자열이 안 바뀌어
-              memo 가 재파싱을 건너뛰고, 매번 다시 파싱되는 건 마지막 블록
-              하나뿐이라 비용이 문단 길이에 묶인다. */}
-          {live ? <StreamingMarkdown text={turn.text} /> : <Markdown>{turn.text}</Markdown>}
-        </div>
-      ) : turn.tools?.length ? null : live ? (
-        <AgentWord />
-      ) : (
-        <div className="msg-wait">{t("acp.waiting")}</div>
+      {/* 글과 도구를 **온 순서 그대로** 그린다. 예전엔 도구를 전부 위에, 글을
+          전부 아래에 모아 그려서 — 도구 사이사이에 한 줄씩 하던 설명이 맨
+          아래에 줄줄이 붙어 서로 다른 대목의 문장이 한 문단처럼 이어졌다. */}
+      {blocks.map((block, i) =>
+        block.kind === "tool" ? (
+          <TraceRow key={block.call.id} tool={block.call} />
+        ) : (
+          <div className="msg-md" key={`t${i}`}>
+            {/* 스트리밍 중에도 **서식이 바로 보인다.** 평문으로 뒀다 끝에
+                포맷하면 점프가 생기고, 매 프레임 전체를 파싱하면 끊긴다 —
+                둘 다 겪었다. 블록으로 쪼개면 완성된 블록은 문자열이 안 바뀌어
+                memo 가 재파싱을 건너뛰고, 매번 다시 파싱되는 건 마지막 블록
+                하나뿐이라 비용이 문단 길이에 묶인다.
+
+                **마지막 조각만** 스트리밍 취급한다 — 앞의 것들은 이미 끝났다. */}
+            {live && i === blocks.length - 1 ? (
+              <StreamingMarkdown text={block.text} />
+            ) : (
+              <Markdown>{block.text}</Markdown>
+            )}
+          </div>
+        ),
       )}
+      {blocks.length === 0 ? (
+        live ? (
+          <AgentWord />
+        ) : (
+          <div className="msg-wait">{t("acp.waiting")}</div>
+        )
+      ) : null}
     </div>
   );
 });

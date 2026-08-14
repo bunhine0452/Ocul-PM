@@ -57,3 +57,23 @@ describe("stabilizeHistory", () => {
     expect(input.map((s) => s.id)).toEqual(["a", "b"]);
   });
 });
+
+describe("stabilizeHistory with tombstones", () => {
+  /** session/delete 가 성공해도 어댑터 목록에는 잠깐 더 남는다 — 그래서 지운
+      줄이 사라졌다가 다음 조회에 되살아났다. */
+  it("hides sessions we already deleted", () => {
+    const ledger: ActivityLedger = new Map();
+    const out = stabilizeHistory(
+      [at("gone", "2026-08-10T00:00:00Z"), at("kept", "2026-08-01T00:00:00Z")],
+      ledger,
+      new Set(["gone"]),
+    );
+    expect(out.map((s) => s.id)).toEqual(["kept"]);
+  });
+
+  it("behaves as before when nothing was deleted", () => {
+    const ledger: ActivityLedger = new Map();
+    const out = stabilizeHistory([at("a", "2026-08-01T00:00:00Z")], ledger, new Set());
+    expect(out.map((s) => s.id)).toEqual(["a"]);
+  });
+});

@@ -35,9 +35,27 @@ export interface AcpTurnImage {
   height: number;
 }
 
+/**
+ * 에이전트 턴의 조각 하나 — **일어난 순서 그대로**.
+ *
+ * 예전에는 글은 `text` 한 덩어리로, 도구는 `tools` 배열로 따로 모았다. 그러면
+ * 화면이 "도구 전부 → 글 전부"로 그려져 **순서가 무너진다**: 도구 사이사이에
+ * 한 줄씩 하던 설명이 맨 아래에 줄줄이 붙어, 서로 다른 대목의 문장이 한 문단인
+ * 것처럼 이어져 보였다. 조각을 순서대로 들면 그대로 그리기만 하면 된다.
+ */
+export type AcpBlock =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; call: AcpToolCall };
+
 export interface AcpTurn {
   role: "user" | "agent";
+  /**
+   * 사용자 발화의 본문. 에이전트 턴에서는 `blocks` 가 진짜이고 이 값은 전체를
+   * 이어 붙인 것 — 복사·길이 계산처럼 순서가 필요 없는 곳에서만 쓴다.
+   */
   text: string;
+  /** 에이전트 턴의 조각들 (글·도구가 섞여 온 순서 그대로). */
+  blocks?: AcpBlock[];
   /** 이 발화에 딸려 보낸 파일 경로 (사용자 턴에서만). */
   attachments?: string[];
   /** 이 발화에 딸려 보낸 이미지 (사용자 턴에서만). */
@@ -138,6 +156,7 @@ export function applyAcpEvent(
       next[index] = {
         ...last,
         text: last.text + event.text,
+        blocks: appendText(last.blocks, event.text),
         // 첫 답변 조각이 오는 순간 생각은 끝난 것이다. 이미 찍혔으면 둔다 —
         // 답변 중간에 다시 생각해도 처음 구간이 "생각한 시간"이다.
         thoughtEnd:
@@ -177,16 +196,42 @@ export function applyAcpEvent(
           at === -1
             ? [...tools, fresh]
             : tools.map((tool, i) => (i === at ? fresh : tool)),
+        blocks: putTool(last.blocks, fresh),
       };
       break;
     }
-    case "tool_update":
-      next[index] = { ...last, tools: patchTool(last.tools, event) };
+    case "tool_update": {
+      const tools = patchTool(last.tools, event);
+      const patched = tools.find((tool) => tool.id === event.id);
+      next[index] = {
+        ...last,
+        tools,
+        blocks: patched ? putTool(last.blocks, patched) : last.blocks,
+      };
       break;
+    }
     default:
       next[index] = { ...last, closed: true };
   }
   return next;
+}
+
+/** 마지막 조각이 글이면 이어 붙이고, 아니면 새 글 조각을 연다. */
+function appendText(blocks: readonly AcpBlock[] | undefined, text: string): AcpBlock[] {
+  const list = blocks ?? [];
+  const last = list[list.length - 1];
+  if (last?.kind === "text") {
+    return [...list.slice(0, -1), { kind: "text", text: last.text + text }];
+  }
+  return [...list, { kind: "text", text }];
+}
+
+/** 같은 id 의 도구 조각이 있으면 **그 자리에서** 바꾸고, 없으면 뒤에 붙인다. */
+function putTool(blocks: readonly AcpBlock[] | undefined, call: AcpToolCall): AcpBlock[] {
+  const list = blocks ?? [];
+  const at = list.findIndex((block) => block.kind === "tool" && block.call.id === call.id);
+  if (at === -1) return [...list, { kind: "tool", call }];
+  return list.map((block, i) => (i === at ? { kind: "tool", call } : block));
 }
 
 /**

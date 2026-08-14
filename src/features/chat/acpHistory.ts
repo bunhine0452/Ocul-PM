@@ -24,11 +24,21 @@ export type ActivityLedger = Map<string, string | null>;
 export function stabilizeHistory(
   items: readonly AcpSessionSummary[],
   ledger: ActivityLedger,
+  /**
+   * 우리가 지운 대화들.
+   *
+   * `session/delete` 가 성공해도 어댑터의 목록에는 잠깐 더 남는다 — 그래서 지운
+   * 줄이 사라졌다가 다음 조회 때 되살아났고, 한 번 더 지워야 진짜로 없어졌다.
+   * 지웠다는 사실은 우리가 아는 것이므로 우리가 든다.
+   */
+  removed?: ReadonlySet<string>,
 ): AcpSessionSummary[] {
-  const stamped = items.map((item) => {
-    if (!ledger.has(item.id)) ledger.set(item.id, item.updated_at);
-    return { ...item, updated_at: ledger.get(item.id) ?? null };
-  });
+  const stamped = items
+    .filter((item) => !removed?.has(item.id))
+    .map((item) => {
+      if (!ledger.has(item.id)) ledger.set(item.id, item.updated_at);
+      return { ...item, updated_at: ledger.get(item.id) ?? null };
+    });
 
   return stamped.sort((a, b) => {
     if (a.updated_at === b.updated_at) return 0;

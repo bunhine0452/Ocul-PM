@@ -50,5 +50,18 @@ export function splitAt(text: string, count: number): [string, string] {
   const code = text.charCodeAt(at - 1);
   // 앞 글자가 서로게이트 쌍의 앞짝이면 뒷짝까지 데려간다.
   if (code >= 0xd800 && code <= 0xdbff) at += 1;
+
+  // **낱말 한가운데서 끊지 않는다.**
+  //
+  // 글자 수로만 자르면 "produc" 이 한 프레임 떴다가 "tion" 이 붙는다. 사람 눈은
+  // 낱말 단위로 읽어서, 반쪽 낱말이 스치면 매번 읽기를 다시 시작하게 된다 —
+  // 흐르는 것이 아니라 덜컹거리는 느낌의 정체가 이것이다. 조금 앞으로 물러나
+  // 공백에서 끊되, 너무 멀면(긴 코드·URL) 포기하고 그냥 자른다.
+  const LOOKBACK = 12;
+  if (at < text.length && !/\s/.test(text[at])) {
+    for (let back = at; back > at - LOOKBACK && back > 0; back -= 1) {
+      if (/\s/.test(text[back - 1])) return [text.slice(0, back), text.slice(back)];
+    }
+  }
   return [text.slice(0, at), text.slice(at)];
 }
