@@ -83,14 +83,80 @@
   padding-left: 11px;
   border-left: 1px solid var(--sep);
 }
+.trace-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .trace-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   min-width: 0;
-  padding: 3px 0;
+  padding: 3px 4px 3px 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-family: var(--font);
   font-size: 12px;
   color: var(--text-2);
+  cursor: pointer;
+}
+.trace-row:disabled {
+  cursor: default;
+}
+.trace-row:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+.trace-caret {
+  flex: none;
+  color: var(--text-3);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.trace-item.open .trace-caret {
+  transform: rotate(180deg);
+}
+
+/* 펼친 본문 — 로그는 등폭으로, 그리고 **자기 안에서만** 스크롤한다. 페이지를
+   늘리면 정작 읽어야 할 답변이 아래로 밀려난다. */
+.trace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 8px;
+  padding: 8px 9px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+}
+.trace-io {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.trace-io-tag {
+  flex: none;
+  width: 26px;
+  padding-top: 1px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+.trace-io pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .trace-icon {
   display: grid;
@@ -515,14 +581,23 @@
   outline: none;
 }
 .effort-label {
+  flex: 1;
+  text-align: right;
   font-size: 12px;
   font-weight: 650;
   color: var(--text);
 }
-/* 트랙 하나만 든 팝오버라 넓힐 이유가 없다 — 내용에 맞춘다. */
+/* 최상위 단계는 이름도 색도 다르다 — 트랙의 마지막 점과 같은 신호. */
+.effort-label.top {
+  color: #8b5cf6;
+}
+/* 폭을 내용에 맞추면 "Low"→"Ultracode" 로 고를 때마다 팝오버가 커졌다
+   작아지며 **누른 자리가 움직인다.** 고정 폭 + 오른쪽 정렬로 못 박는다. */
 .effort-menu {
-  min-width: 0;
-  width: max-content;
+  width: 232px;
+  min-width: 232px;
+  left: auto;
+  right: 0;
 }
 .effort-hint {
   padding: 0 9px 2px;
@@ -789,35 +864,121 @@
   cursor: default;
 }
 
-/* ─── 울트라코드 토글 ─────────────────────────────────────────────────────
-   에이전트를 여럿 띄우는 비싼 모드다. **켜져 있다는 사실이 계속 보여야** 하고,
-   앱의 초록 accent 와 다른 색이어야 "평소와 다른 상태"로 읽힌다 (Effort 최상위
-   점과 같은 보라를 쓴다 — 둘 다 "여기부터는 다른 물건"이라는 신호다). */
-.ultra-chip {
+
+/* ─── 사용량 계기 (툴바) ──────────────────────────────────────────────────
+   한도가 남아 있는지는 작업을 시작하기 **전에** 알아야 하는 정보라 툴바에
+   상주시킨다. 숫자만으로는 "이제 아껴야 하나"가 안 읽히므로 임계에서 색이
+   바뀐다. */
+.usage-meter {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 26px;
-  padding: 0 9px;
-  border: 1px solid transparent;
+  padding: 0 8px;
+  border: none;
   border-radius: 9px;
   background: transparent;
   cursor: pointer;
-  font-family: var(--font);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-3);
-  transition:
-    background-color var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out),
-    border-color var(--dur-1) var(--ease-out);
+  transition: background-color var(--dur-1) var(--ease-out);
 }
-.ultra-chip:hover {
+.usage-meter:hover,
+.usage-meter.open {
   background: var(--bg-inset);
+}
+.usage-pill {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--text-3);
+}
+.usage-pill + .usage-pill::before {
+  content: "·";
+  margin-right: 4px;
+  color: var(--sep-strong);
+}
+.usage-pill.warn {
+  color: #c9821f;
+}
+.usage-pill.danger {
+  color: var(--t-bug);
+}
+
+.usage-menu {
+  width: 268px;
+  min-width: 268px;
+  left: auto;
+  right: 0;
+  /* 툴바에서 여는 메뉴라 아래로 펼친다 (컴포저 것들은 위로). */
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.usage-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.usage-head .settings-group-label {
+  flex: 1;
+}
+.usage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 9px 8px;
+}
+.usage-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.usage-row-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.usage-row-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 650;
   color: var(--text-2);
 }
-.ultra-chip.on {
-  background: rgba(139, 92, 246, 0.12);
-  border-color: rgba(139, 92, 246, 0.42);
-  color: #8b5cf6;
+.usage-row-pct.warn {
+  color: #c9821f;
+}
+.usage-row-pct.danger {
+  color: var(--t-bug);
+}
+.usage-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+.usage-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--dur-3) var(--ease-out);
+}
+.usage-bar-fill.warn {
+  background: #c9821f;
+}
+.usage-bar-fill.danger {
+  background: var(--t-bug);
+}
+.usage-row-reset {
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.usage-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 7px 9px 3px;
+  border-top: 1px solid var(--sep);
+  font-size: 11px;
+  color: var(--text-3);
 }

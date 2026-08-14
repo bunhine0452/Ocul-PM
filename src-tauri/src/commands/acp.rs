@@ -521,3 +521,17 @@ pub fn acp_commands(
 ) -> Result<Vec<acp::session::AcpCommand>, String> {
     Ok(state.commands(project_id))
 }
+
+/// 마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`.
+///
+/// 새로 **불러오지 않는다** — ACP 에 사용량 조회 메서드가 없다. 숫자는 턴이
+/// 돌 때마다 오는 `usage_update` 로 갱신되므로, 최신을 원하면 `/usage` 를
+/// 한 번 보내면 된다(그것도 결국 한 턴이다).
+#[tauri::command]
+#[specta::specta]
+pub fn acp_usage(
+    state: State<'_, AcpState>,
+    project_id: u32,
+) -> Result<Option<acp::session::AcpUsage>, String> {
+    Ok(state.usage(project_id))
+}

@@ -4,6 +4,7 @@ import { PanelLeft } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AcpConversation } from "./AcpConversation";
+import { AcpUsageMeter } from "./AcpUsageMeter";
 
 // PR-ACP6 — Claude Code 구동면.
 //
@@ -27,6 +28,7 @@ export function ClaudeCodeScreenV2({ projectId }: { projectId: number }) {
   return (
     <>
       <Toolbar title={t("nav.claudecode")} sub={t("acp.toolbarSub")}>
+        <AcpUsageMeter projectId={projectId} />
         <button
           type="button"
           className={"btn icon ghost acp-panel-toggle" + (state.acpPanelOpen ? " active" : "")}

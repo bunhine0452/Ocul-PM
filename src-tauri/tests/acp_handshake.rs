@@ -338,6 +338,7 @@ fn kind_of(event: &ocul_pm_lib::acp::session::AcpEvent) -> &'static str {
     use ocul_pm_lib::acp::session::AcpEvent as E;
     match event {
         E::Chunk { .. } => "chunk",
+        E::UserChunk { .. } => "user_chunk",
         E::Thought { .. } => "thought",
         E::Usage { .. } => "usage",
         E::ToolCall { .. } => "tool_call",

@@ -997,6 +997,19 @@ export const commands = {
 	 *  `/` 를 칠 때 물어보는 편이 항상 최신이다.
 	 */
 	acpCommands: (projectId: number) => typedError<AcpCommand[], string>(__TAURI_INVOKE("acp_commands", { projectId })),
+	/**
+	 *  마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`.
+	 * 
+	 *  새로 **불러오지 않는다** — ACP 에 사용량 조회 메서드가 없다. 숫자는 턴이
+	 *  돌 때마다 오는 `usage_update` 로 갱신되므로, 최신을 원하면 `/usage` 를
+	 *  한 번 보내면 된다(그것도 결국 한 턴이다).
+	 */
+	acpUsage: (projectId: number) => typedError<{
+	used: number,
+	size: number,
+	cost_usd: number | null,
+	limits: AcpRateLimit[],
+} | null, string>(__TAURI_INVOKE("acp_usage", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1175,9 +1188,18 @@ tool_kind: string;
 /**  `pending` · `in_progress` · `completed` · `failed`. */
 status: string; 
 /**  이 호출이 건드리는 파일들 (절대경로). */
-locations: string[] } | 
+locations: string[]; 
+/**  도구에 들어간 것 (명령줄·인자). 카드의 `IN`. */
+input: string | null; 
+/**
+ *  도구가 내놓은 것. 카드의 `OUT`. 시작 시점엔 대개 비어 있고
+ *  `tool_update` 로 채워진다.
+ */
+output: string | null } | 
 /**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
-{ kind: "tool_update"; id: string; title: string | null; status: string | null } | 
+{ kind: "tool_update"; id: string; title: string | null; status: string | null; 
+/**  온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다. */
+input: string | null; output: string | null } | 
 /**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */
 { kind: "permission"; request_id: string; title: string; tool_kind: string; 
 /**  승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다. */
@@ -1200,6 +1222,18 @@ export type AcpPermissionOption = {
 	option_kind: string,
 };
 
+/**  한도 하나 (5시간 세션 · 주간 · 주간 Fable …). */
+export type AcpRateLimit = {
+	/**  어댑터가 준 종류 문자열 (`seven_day` 등) — 우리가 이름을 지어내지 않는다. */
+	kind: string,
+	/**  0.0~1.0. */
+	utilization: number | null,
+	/**  epoch 초. 표시용 문자열로 바꾸는 건 프런트 몫. */
+	resets_at: number | null,
+	/**  `allowed` · `allowed_warning` … (경고 색을 고르는 열쇠). */
+	status: string | null,
+};
+
 /**  실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목. */
 export type AcpSession = {
 	agent: AcpAgentInfo,
@@ -1220,6 +1254,14 @@ export type AcpSessionSummary = {
 	title: string | null,
 	/**  ISO 8601 문자열 (어댑터가 주는 그대로 — 우리가 파싱해 다시 쓰지 않는다). */
 	updated_at: string | null,
+};
+
+/**  마지막으로 본 사용량 한 벌. */
+export type AcpUsage = {
+	used: number,
+	size: number,
+	cost_usd: number | null,
+	limits: AcpRateLimit[],
 };
 
 export type AgentCount = {

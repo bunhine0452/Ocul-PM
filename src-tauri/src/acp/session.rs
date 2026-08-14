@@ -43,12 +43,20 @@ pub enum AcpEvent {
         status: String,
         /// 이 호출이 건드리는 파일들 (절대경로).
         locations: Vec<String>,
+        /// 도구에 들어간 것 (명령줄·인자). 카드의 `IN`.
+        input: Option<String>,
+        /// 도구가 내놓은 것. 카드의 `OUT`. 시작 시점엔 대개 비어 있고
+        /// `tool_update` 로 채워진다.
+        output: Option<String>,
     },
     /// 진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다.
     ToolUpdate {
         id: String,
         title: Option<String>,
         status: Option<String>,
+        /// 온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다.
+        input: Option<String>,
+        output: Option<String>,
     },
     /// 사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다.
     Permission {
@@ -153,6 +161,97 @@ pub fn map_config_options(
         .collect()
 }
 
+/// 한도 하나 (5시간 세션 · 주간 · 주간 Fable …).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct AcpRateLimit {
+    /// 어댑터가 준 종류 문자열 (`seven_day` 등) — 우리가 이름을 지어내지 않는다.
+    pub kind: String,
+    /// 0.0~1.0.
+    pub utilization: f64,
+    /// epoch 초. 표시용 문자열로 바꾸는 건 프런트 몫.
+    pub resets_at: Option<f64>,
+    /// `allowed` · `allowed_warning` … (경고 색을 고르는 열쇠).
+    pub status: Option<String>,
+}
+
+/// 마지막으로 본 사용량 한 벌.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct AcpUsage {
+    pub used: u32,
+    pub size: u32,
+    pub cost_usd: Option<f64>,
+    pub limits: Vec<AcpRateLimit>,
+}
+
+/// `usage_update` 에서 사용량과 한도를 뽑는다. 그 밖의 종류면 `None`.
+///
+/// 한도는 `_meta._claude/rateLimit` 에 실려 오는데 **한 번에 하나씩** 온다 —
+/// 그래서 호출부가 종류별로 누적해야 세 줄(세션·주간·Fable)이 다 모인다.
+pub fn usage_of(update: &SessionUpdate) -> Option<AcpUsage> {
+    let SessionUpdate::UsageUpdate(usage) = update else {
+        return None;
+    };
+
+    let limits = usage
+        .meta
+        .as_ref()
+        .and_then(|meta| serde_json::to_value(meta).ok())
+        .map(|meta| collect_limits(&meta))
+        .unwrap_or_default();
+
+    Some(AcpUsage {
+        used: saturate(usage.used),
+        size: saturate(usage.size),
+        cost_usd: usage
+            .cost
+            .as_ref()
+            .filter(|c| c.currency == "USD")
+            .map(|c| c.amount),
+        limits,
+    })
+}
+
+/// `_meta` 어디에 있든 `utilization` 을 가진 객체를 한도로 본다.
+///
+/// 키 이름(`_claude/rateLimit`)에 기대지 않는 이유: `_meta` 는 확장 지점이라
+/// 벤더가 자리를 옮기거나 늘릴 수 있다. 모양으로 찾으면 그때도 살아남는다.
+fn collect_limits(value: &serde_json::Value) -> Vec<AcpRateLimit> {
+    let mut found = Vec::new();
+    walk_limits(value, &mut found);
+    found
+}
+
+fn walk_limits(value: &serde_json::Value, out: &mut Vec<AcpRateLimit>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(utilization) = map.get("utilization").and_then(serde_json::Value::as_f64) {
+                out.push(AcpRateLimit {
+                    kind: map
+                        .get("rateLimitType")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    utilization,
+                    resets_at: map.get("resetsAt").and_then(serde_json::Value::as_f64),
+                    status: map
+                        .get("status")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_string),
+                });
+            }
+            for nested in map.values() {
+                walk_limits(nested, out);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                walk_limits(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// 슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct AcpCommand {
@@ -212,6 +311,56 @@ fn saturate(value: u64) -> u32 {
     u32::try_from(value).unwrap_or(u32::MAX)
 }
 
+/// 카드에 실을 최대 길이. 도구 출력은 수 MB 도 나온다 — 화면에도 IPC 에도
+/// 통째로 올릴 이유가 없다. 잘렸다는 사실은 꼬리표로 남긴다.
+const TOOL_TEXT_CAP: usize = 20_000;
+
+/// `raw_input`/`raw_output` 을 사람이 읽을 문자열로.
+///
+/// 문자열이면 그대로, 그 밖의 JSON 이면 예쁘게 찍는다 — Bash 의 `{"command":
+/// "ls -la"}` 를 한 줄 JSON 으로 보여 주면 카드가 읽히지 않는다.
+fn raw_text(value: Option<&serde_json::Value>) -> Option<String> {
+    let value = value?;
+    let text = match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Null => return None,
+        other => serde_json::to_string_pretty(other).ok()?,
+    };
+    Some(clamp(text))
+}
+
+/// 도구 결과(content 블록)를 텍스트로. 텍스트가 아닌 블록은 종류만 남긴다.
+fn content_text(content: &[agent_client_protocol::schema::v1::ToolCallContent]) -> Option<String> {
+    use agent_client_protocol::schema::v1::ToolCallContent;
+
+    let joined = content
+        .iter()
+        .filter_map(|item| match item {
+            ToolCallContent::Content(inner) => block_text(&inner.content).map(str::to_string),
+            ToolCallContent::Diff(_) => Some("[diff]".to_string()),
+            ToolCallContent::Terminal(_) => Some("[terminal]".to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    (!joined.is_empty()).then(|| clamp(joined))
+}
+
+/// 상한을 넘으면 자르고 잘렸음을 밝힌다 (조용히 자르면 출력이 거짓말이 된다).
+fn clamp(text: String) -> String {
+    if text.len() <= TOOL_TEXT_CAP {
+        return text;
+    }
+    let cut = text
+        .char_indices()
+        .map(|(i, _)| i)
+        .take_while(|&i| i <= TOOL_TEXT_CAP)
+        .last()
+        .unwrap_or(0);
+    format!("{}\n… (truncated)", &text[..cut])
+}
+
 /// 텍스트 블록의 본문. 이미지·오디오 등은 이 라운드에서 그리지 않는다.
 fn block_text(block: &ContentBlock) -> Option<&str> {
     match block {
@@ -266,11 +415,20 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .iter()
                 .map(|l| l.path.display().to_string())
                 .collect(),
+            input: raw_text(call.raw_input.as_ref()),
+            output: content_text(&call.content).or_else(|| raw_text(call.raw_output.as_ref())),
         },
         SessionUpdate::ToolCallUpdate(update) => AcpEvent::ToolUpdate {
             id: update.tool_call_id.0.to_string(),
             title: update.fields.title.clone(),
             status: update.fields.status.as_ref().map(label),
+            input: raw_text(update.fields.raw_input.as_ref()),
+            output: update
+                .fields
+                .content
+                .as_deref()
+                .and_then(content_text)
+                .or_else(|| raw_text(update.fields.raw_output.as_ref())),
         },
         SessionUpdate::Plan(_) => AcpEvent::Other {
             update: "plan".to_string(),
@@ -416,6 +574,7 @@ mod tests {
             tool_kind,
             status,
             locations,
+            ..
         } = map_update(&SessionUpdate::ToolCall(call))
         else {
             panic!("ToolCall 이벤트여야 한다");
@@ -440,8 +599,9 @@ mod tests {
         fields.status = Some(ToolCallStatus::Completed);
         let update = ToolCallUpdate::new(ToolCallId::new("call-1"), fields);
 
-        let AcpEvent::ToolUpdate { id, title, status } =
-            map_update(&SessionUpdate::ToolCallUpdate(update))
+        let AcpEvent::ToolUpdate {
+            id, title, status, ..
+        } = map_update(&SessionUpdate::ToolCallUpdate(update))
         else {
             panic!("ToolUpdate 이벤트여야 한다");
         };
@@ -449,6 +609,79 @@ mod tests {
         assert_eq!(id, "call-1");
         assert_eq!(title, None, "제목은 안 왔으니 None 이어야 한다");
         assert_eq!(status.as_deref(), Some("completed"));
+    }
+
+    /// Bash 의 `{"command":"ls -la"}` 를 한 줄 JSON 으로 보여 주면 카드가
+    /// 읽히지 않는다 — 문자열은 그대로, 객체는 예쁘게.
+    #[test]
+    fn tool_input_renders_strings_raw_and_objects_pretty() {
+        use agent_client_protocol::schema::v1::{ToolCall, ToolCallId};
+
+        let mut call = ToolCall::new(ToolCallId::new("c1"), "Bash".to_string());
+        call.raw_input = Some(serde_json::json!({ "command": "ls -la" }));
+
+        let AcpEvent::ToolCall { input, .. } = map_update(&SessionUpdate::ToolCall(call)) else {
+            panic!("ToolCall 이어야 한다");
+        };
+        let input = input.expect("입력이 실려야 한다");
+        assert!(input.contains("\"command\""), "객체는 예쁘게 찍혀야 한다: {input}");
+        assert!(input.contains('\n'), "여러 줄로 펼쳐져야 한다");
+
+        let mut plain = ToolCall::new(ToolCallId::new("c2"), "Bash".to_string());
+        plain.raw_input = Some(serde_json::json!("ls -la"));
+        let AcpEvent::ToolCall { input, .. } = map_update(&SessionUpdate::ToolCall(plain)) else {
+            panic!("ToolCall 이어야 한다");
+        };
+        assert_eq!(input.as_deref(), Some("ls -la"), "문자열은 그대로여야 한다");
+    }
+
+    /// 조용히 자르면 출력이 거짓말이 된다 — 잘렸다는 사실이 남아야 한다.
+    #[test]
+    fn oversized_tool_output_is_clamped_with_a_marker() {
+        use agent_client_protocol::schema::v1::{ToolCall, ToolCallId};
+
+        let mut call = ToolCall::new(ToolCallId::new("c3"), "Bash".to_string());
+        call.raw_output = Some(serde_json::json!("x".repeat(60_000)));
+
+        let AcpEvent::ToolCall { output, .. } = map_update(&SessionUpdate::ToolCall(call)) else {
+            panic!("ToolCall 이어야 한다");
+        };
+        let output = output.expect("출력이 실려야 한다");
+        assert!(output.len() < 60_000, "상한을 넘겨서는 안 된다");
+        assert!(output.ends_with("(truncated)"), "잘렸음을 밝혀야 한다");
+    }
+
+    /// `_meta` 는 확장 지점이라 벤더가 자리를 옮길 수 있다 — 키 이름이 아니라
+    /// **모양**(utilization 을 가진 객체)으로 찾는지 본다.
+    #[test]
+    fn rate_limits_are_found_wherever_they_sit_in_meta() {
+        use agent_client_protocol::schema::v1::UsageUpdate;
+
+        let mut usage = UsageUpdate::new(52_243, 1_000_000);
+        usage.meta = serde_json::from_value(serde_json::json!({
+            "_claude/rateLimit": {
+                "status": "allowed_warning",
+                "resetsAt": 1_786_824_000_i64,
+                "rateLimitType": "seven_day",
+                "utilization": 0.83
+            },
+            "vendor": { "nested": { "rateLimitType": "five_hour", "utilization": 0.1 } }
+        }))
+        .expect("meta");
+
+        let found = usage_of(&SessionUpdate::UsageUpdate(usage)).expect("Usage 여야 한다");
+        let kinds: Vec<&str> = found.limits.iter().map(|l| l.kind.as_str()).collect();
+        assert!(kinds.contains(&"seven_day"), "관측: {kinds:?}");
+        assert!(kinds.contains(&"five_hour"), "중첩된 것도 찾아야 한다: {kinds:?}");
+        assert_eq!(found.used, 52_243);
+    }
+
+    #[test]
+    fn usage_without_meta_yields_no_limits() {
+        use agent_client_protocol::schema::v1::UsageUpdate;
+        let found = usage_of(&SessionUpdate::UsageUpdate(UsageUpdate::new(1, 2)))
+            .expect("Usage 여야 한다");
+        assert!(found.limits.is_empty());
     }
 
     #[test]

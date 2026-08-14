@@ -29,7 +29,10 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::Manager;
 
-use super::session::{commands_of, map_update, permission_event, AcpCommand, AcpConfigOption, AcpEvent};
+use super::session::{
+    commands_of, map_update, permission_event, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
+    AcpUsage,
+};
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
 const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
@@ -59,6 +62,8 @@ struct Running {
     /// 슬래시 커맨드 목록. **프롬프트 밖에서** 도착하므로(세션 시작 직후)
     /// 싱크에 흘려보내는 것만으로는 잡을 수 없어 여기에 갈무리한다.
     commands: Vec<AcpCommand>,
+    /// 마지막으로 본 사용량. 툴바가 프롬프트 밖에서도 보여 줘야 하므로 갈무리.
+    usage: Option<AcpUsage>,
 }
 
 /// 프로젝트별 어댑터 레지스트리. v1 은 프로젝트당 1개 (D3).
@@ -120,6 +125,31 @@ impl AcpState {
             if let Some(running) = map.get_mut(&project_id) {
                 running.session = None;
                 running.options = Vec::new();
+            }
+        }
+    }
+
+    pub fn usage(&self, project_id: u32) -> Option<AcpUsage> {
+        self.running.lock().ok()?.get(&project_id)?.usage.clone()
+    }
+
+    /// 한도는 한 번에 한 종류씩 온다 — 종류별로 **누적**해야 세션·주간·Fable
+    /// 세 줄이 다 모인다. 덮어쓰면 마지막 한 줄만 남는다.
+    fn merge_usage(&self, project_id: u32, fresh: AcpUsage) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                let mut limits = running
+                    .usage
+                    .as_ref()
+                    .map(|u| u.limits.clone())
+                    .unwrap_or_default();
+                for limit in fresh.limits {
+                    match limits.iter_mut().find(|l| l.kind == limit.kind) {
+                        Some(existing) => *existing = limit,
+                        None => limits.push(limit),
+                    }
+                }
+                running.usage = Some(AcpUsage { limits, ..fresh });
             }
         }
     }
@@ -307,6 +337,9 @@ pub async fn start(
                     if let Some(commands) = commands_of(&notification.update) {
                         state.set_commands(project_id, commands);
                     }
+                    if let Some(usage) = usage_of(&notification.update) {
+                        state.merge_usage(project_id, usage);
+                    }
                     state.emit(project_id, map_update(&notification.update));
                     Ok(())
                 },
@@ -367,6 +400,7 @@ pub async fn start(
                         session: None,
                         options: Vec::new(),
                         commands: Vec::new(),
+                        usage: None,
                     },
                 );
                 let _ = ready_tx.send(info);

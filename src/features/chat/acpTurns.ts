@@ -15,6 +15,10 @@ export interface AcpToolCall {
   /** `pending` · `in_progress` · `completed` · `failed`. */
   status: string;
   locations: string[];
+  /** 도구에 들어간 것 (명령줄·인자). */
+  input?: string;
+  /** 도구가 내놓은 것. 진행 중에는 없다가 갱신으로 채워진다. */
+  output?: string;
 }
 
 export interface AcpTurn {
@@ -104,6 +108,8 @@ export function applyAcpEvent(
             kind: event.tool_kind,
             status: event.status,
             locations: event.locations,
+            input: event.input ?? undefined,
+            output: event.output ?? undefined,
           },
         ],
       };
@@ -134,6 +140,10 @@ function patchTool(
           ...tool,
           title: event.title ?? tool.title,
           status: event.status ?? tool.status,
+          // `null` 은 "안 왔다"이지 "비었다"가 아니다 — 이미 받은 것을 지우면
+          // 완료된 카드의 출력이 사라진다.
+          input: event.input ?? tool.input,
+          output: event.output ?? tool.output,
         }
       : tool,
   );

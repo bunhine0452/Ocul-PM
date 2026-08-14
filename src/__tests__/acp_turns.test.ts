@@ -91,6 +91,8 @@ const toolCall = (id: string, title: string): AcpEvent => ({
   tool_kind: "edit",
   status: "pending",
   locations: ["/repo/a.ts"],
+  input: null,
+  output: null,
 });
 
 describe("tool calls", () => {
@@ -113,6 +115,8 @@ describe("tool calls", () => {
       id: "t1",
       title: null,
       status: "completed",
+      input: null,
+      output: null,
     });
 
     expect(turns[1].tools?.[0]).toMatchObject({ title: "Edit a.ts", status: "completed" });
@@ -126,6 +130,8 @@ describe("tool calls", () => {
       id: "ghost",
       title: "ghost",
       status: "failed",
+      input: null,
+      output: null,
     });
 
     expect(turns[1].tools).toHaveLength(1);
@@ -192,5 +198,43 @@ describe("replay (session/load)", () => {
     expect(turns).toHaveLength(2);
     expect(turns[1].tools?.map((t) => t.id)).toEqual(["t1"]);
     expect(turns[1].text).toBe("done");
+  });
+});
+
+
+describe("tool input/output", () => {
+  const call: AcpEvent = {
+    kind: "tool_call",
+    id: "t1",
+    title: "Bash",
+    tool_kind: "execute",
+    status: "in_progress",
+    locations: [],
+    input: "ls -la",
+    output: null,
+  };
+
+  it("carries the input from the initial call", () => {
+    const turns = applyAcpEvent(openTurn([], "run it"), call);
+    expect(turns[1].tools?.[0]).toMatchObject({ input: "ls -la", output: undefined });
+  });
+
+  /** null 은 "안 왔다"이지 "비었다"가 아니다 — 이미 받은 걸 지우면 안 된다. */
+  it("keeps an earlier input when a later update omits it", () => {
+    let turns = applyAcpEvent(openTurn([], "run it"), call);
+    turns = applyAcpEvent(turns, {
+      kind: "tool_update",
+      id: "t1",
+      title: null,
+      status: "completed",
+      input: null,
+      output: "total 8",
+    });
+
+    expect(turns[1].tools?.[0]).toMatchObject({
+      input: "ls -la",
+      output: "total 8",
+      status: "completed",
+    });
   });
 });

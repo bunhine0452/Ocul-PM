@@ -207,13 +207,6 @@ export interface WorkspaceState {
   aiActiveModel: string | null;
   /** Claude Code 화면의 대화 목록 패널이 열려 있는지 (PR-ACP7). */
   acpPanelOpen: boolean;
-  /**
-   * 울트라코드 옵트인 (PR-ACP10). 켜면 보내는 프롬프트에 키워드가 붙고 effort
-   * 가 xhigh 로 올라간다 — 에이전트를 여럿 띄우는 비싼 모드라 **켠 사실이
-   * 화면에서 계속 보여야** 하고, 그래서 상태를 영속한다(모르는 새 꺼져
-   * 있거나 켜져 있으면 둘 다 사고다).
-   */
-  acpUltracode: boolean;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
@@ -292,7 +285,6 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalFontSize: 13,
   aiActiveModel: null,
   acpPanelOpen: true,
-  acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,
   discussionActiveId: null,

@@ -92,9 +92,8 @@ const TOOL_STATUS_KEY = {
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
+  const { state } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
-  const ultracode = state.acpUltracode;
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -230,19 +229,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [projectId],
   );
 
-  const toggleUltracode = useCallback(() => {
-    const next = !ultracode;
-    setState((prev) => ({ ...prev, acpUltracode: next }));
-    // "Ultracode = xhigh + workflows" 라 effort 를 함께 올린다 — 키워드만
-    // 켜고 effort 를 낮게 두면 이름과 실제가 어긋난다.
-    if (next) {
-      const effort = session?.options.find((o) => o.id === "effort");
-      if (effort && effort.current !== "xhigh" && effort.current !== "max") {
-        void setOption("effort", "xhigh");
-      }
-    }
-  }, [ultracode, setState, session, setOption]);
-
   const attach = useCallback(async () => {
     const res = await commands.acpPickFiles(projectId);
     if (res.status === "ok" && res.data.length) {
@@ -332,8 +318,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
-      // 화면에는 사용자가 친 그대로 남기고, 에이전트에게만 키워드를 붙인다.
-      const outgoing = withUltracode(text, ultracode);
+      // 최상위 effort(=Ultracode)를 고른 상태면 키워드도 함께 보낸다.
+      //
+      // 둘은 경쟁하는 스위치가 아니라 **같은 것의 두 경로**다: effort 값은
+      // 프로토콜로, 키워드는 CLI 의 opt-in 게이트로 간다(어댑터가 우리 턴을
+      // human 으로 스탬프하므로 자격이 있다). 어느 쪽이 실제로 먹는지 우리가
+      // 단정할 수 없으니 둘 다 보낸다 — 키워드는 멱등이라 손해가 없다.
+      const effortNow = session?.options.find((o) => o.id === "effort")?.current;
+      const outgoing = withUltracode(text, effortNow === TOP_EFFORT);
       const sending = attachments;
       setDraft("");
       setAttachments([]);
@@ -402,7 +394,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, ultracode],
+    [draft, busy, projectId, attachments, session],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -689,16 +681,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 싶어지는 자리가 바로 여기다. */}
             <button
               type="button"
-              className={"ultra-chip" + (ultracode ? " on" : "")}
-              aria-pressed={ultracode}
-              onClick={toggleUltracode}
-              title={t("acp.ultracodeHint")}
-            >
-              <Rocket size={13} />
-              {t("acp.ultracode")}
-            </button>
-            <button
-              type="button"
               className="usage-btn"
               disabled={busy}
               onClick={() => void send("/usage")}
@@ -855,29 +837,64 @@ const TurnRow = memo(function TurnRow({
   );
 });
 
-/** 도구 호출 한 줄 — 무엇을, 어디에, 어디까지. 산문에 종속되어 보이게 눌러 둔다. */
+/**
+ * 도구 호출 한 줄 — 무엇을, 어디에, 어디까지. 산문에 종속되어 보이게 눌러 둔다.
+ *
+ * 눌러서 펼치면 들어간 것(IN)과 나온 것(OUT)이 보인다. **기본은 접힘**이다:
+ * 도구 출력은 수백 줄이 예사라 다 펼쳐 두면 정작 읽어야 할 답변이 아래로
+ * 밀려난다.
+ */
 function TraceRow({ tool }: { tool: AcpToolCall }) {
   const { t } = useT();
+  const [open, setOpen] = useState(false);
   const Icon = TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
   const state =
     tool.status === "in_progress" ? " running" : tool.status === "failed" ? " failed" : "";
+  const expandable = Boolean(tool.input || tool.output);
 
   return (
-    <div className={"trace-row" + state}>
-      <span className="trace-icon">
-        <Icon size={13} />
-      </span>
-      <span className="trace-title">{tool.title || t("acp.tool.untitled")}</span>
-      {tool.locations.length ? (
-        <span className="trace-path" title={tool.locations.join("\n")}>
-          {tool.locations[0]}
+    <div className={"trace-item" + (open ? " open" : "")}>
+      <button
+        type="button"
+        className={"trace-row" + state}
+        disabled={!expandable}
+        aria-expanded={expandable ? open : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="trace-icon">
+          <Icon size={13} />
         </span>
+        <span className="trace-title">{tool.title || t("acp.tool.untitled")}</span>
+        {tool.locations.length ? (
+          <span className="trace-path" title={tool.locations.join("\n")}>
+            {tool.locations[0]}
+          </span>
+        ) : null}
+        {tool.locations.length > 1 ? (
+          <span className="trace-more">+{tool.locations.length - 1}</span>
+        ) : null}
+        <span className="trace-status">{statusKey ? t(statusKey) : tool.status}</span>
+        {expandable ? (
+          <ChevronDown size={12} className="trace-caret" />
+        ) : null}
+      </button>
+      {open ? (
+        <div className="trace-body">
+          {tool.input ? (
+            <div className="trace-io">
+              <span className="trace-io-tag">IN</span>
+              <pre>{tool.input}</pre>
+            </div>
+          ) : null}
+          {tool.output ? (
+            <div className="trace-io">
+              <span className="trace-io-tag">OUT</span>
+              <pre>{tool.output}</pre>
+            </div>
+          ) : null}
+        </div>
       ) : null}
-      {tool.locations.length > 1 ? (
-        <span className="trace-more">+{tool.locations.length - 1}</span>
-      ) : null}
-      <span className="trace-status">{statusKey ? t(statusKey) : tool.status}</span>
     </div>
   );
 }
@@ -935,6 +952,13 @@ function PermissionCard({
     </div>
   );
 }
+
+/**
+ * 최상위 effort 값. 사용자 쪽 Claude Code 는 이 자리를 **"Ultracode"** 라
+ * 부르고 "xhigh + workflows" 로 설명한다 — 어댑터는 `max` 라는 이름만 주므로
+ * 라벨을 우리가 맞춘다.
+ */
+const TOP_EFFORT = "max";
 
 /** 자주 쓰는 설정 3종은 바깥에 — 나머지는 `⋯` 안으로. */
 const PRIMARY_CONFIG_IDS = ["mode", "model", "effort"] as const;
@@ -1224,8 +1248,12 @@ function EffortControl({
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
 
   const choices = useMemo(
-    () => option.choices.filter((c) => c.value !== "default"),
-    [option.choices],
+    () =>
+      option.choices
+        .filter((c) => c.value !== "default")
+        // 최상위는 어댑터가 "Max" 라 부르지만 사용자가 아는 이름은 Ultracode 다.
+        .map((c) => (c.value === TOP_EFFORT ? { ...c, name: t("acp.ultracode") } : c)),
+    [option.choices, t],
   );
   if (!choices.length) return null;
 
@@ -1295,9 +1323,15 @@ function EffortControl({
                 />
               ))}
             </span>
-            <span className="effort-label">{current?.name ?? currentValue}</span>
+            <span
+              className={"effort-label" + (currentValue === TOP_EFFORT ? " top" : "")}
+            >
+              {current?.name ?? currentValue}
+            </span>
           </div>
-          <div className="effort-hint">{t("acp.effortHint")}</div>
+          <div className="effort-hint">
+            {currentValue === TOP_EFFORT ? t("acp.ultracodeHint") : t("acp.effortHint")}
+          </div>
         </div>
       ) : null}
     </div>
