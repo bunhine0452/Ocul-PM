@@ -1740,6 +1740,8 @@ export const ko = {
   "acp.limit.week": "주간 (7일)",
   "acp.limit.weekOpus": "주간 Opus",
   "acp.limit.weekFable": "주간 Fable",
+  "acp.user.more": "펼치기",
+  "acp.user.less": "접기",
   "acp.image.view": "크게 보기",
   "acp.image.close": "닫기",
   "acp.image.remove": "이미지 빼기",

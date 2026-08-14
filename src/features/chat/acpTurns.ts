@@ -226,3 +226,23 @@ export function closeTurn(turns: readonly AcpTurn[]): AcpTurn[] {
   next[index] = { ...last, closed: true };
   return next;
 }
+
+/**
+ * 턴 목록을 **주고받은 묶음**(사용자 지시 + 그에 대한 답)으로 나눈다.
+ *
+ * 화면이 이 묶음을 실제 요소로 그려야 지시문 sticky 가 성립한다. 평평하게
+ * 늘어놓으면 모든 사용자 카드의 컨테이닝 블록이 스레드 전체가 되어, 스크롤을
+ * 내릴수록 카드가 **하나도 안 놓이고 top 에 겹겹이 쌓인다**(실제로 그랬다).
+ * 묶음 안에 가두면 자기 답변이 끝나는 순간 자연히 자리를 비운다.
+ *
+ * 사용자 발화에서 새 묶음이 열린다. 재생으로 복원한 대화는 에이전트 턴이 먼저
+ * 올 수 있어 첫 묶음은 사용자 없이 시작할 수도 있다.
+ */
+export function groupTurns(turns: readonly AcpTurn[]): AcpTurn[][] {
+  const groups: AcpTurn[][] = [];
+  for (const turn of turns) {
+    if (turn.role === "user" || groups.length === 0) groups.push([turn]);
+    else groups[groups.length - 1].push(turn);
+  }
+  return groups;
+}

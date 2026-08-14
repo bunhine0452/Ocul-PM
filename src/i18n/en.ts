@@ -1769,6 +1769,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.limit.week": "Weekly (7 day)",
   "acp.limit.weekOpus": "Weekly Opus",
   "acp.limit.weekFable": "Weekly Fable",
+  "acp.user.more": "Show more",
+  "acp.user.less": "Show less",
   "acp.image.view": "View full size",
   "acp.image.close": "Close",
   "acp.image.remove": "Remove image",

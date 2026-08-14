@@ -1481,21 +1481,72 @@
    그래서 배경이 **불투명**해야 한다: 반투명이면 밑으로 지나가는 답변 글자가
    지시문에 겹쳐 둘 다 못 읽는다. */
 .acp-layout .user-card {
+  position: relative;
   border: 1px solid var(--sep);
   border-radius: var(--radius-l);
   background: var(--bg-card);
-  padding: 11px 13px;
+  padding: 9px 13px 10px;
   box-shadow: 0 6px 16px -12px rgb(0 0 0 / 0.35);
 }
-/* sticky 는 **턴 전체**에 건다. 카드에 걸면 컨테이닝 블록이 카드 자신이라
-   붙어 있을 구간이 카드 높이뿐이고 — 즉 아무 일도 안 일어난다. 턴에 걸면
-   컨테이닝 블록이 스레드 전체가 되어 답변이 지나가는 내내 붙어 있는다.
-   다음 지시가 올라오면 같은 top 에서 겹치며 자리를 넘겨받는다 (뒤 DOM 이
-   위로 그려진다). 위로 되감으면 앞 지시가 제자리로 돌아온다. */
-.acp-layout .msg.user {
+/* 접혀 있으면 카드를 눌러 펼친다 — 작은 버튼을 겨냥할 필요가 없다. */
+.acp-layout .user-card.clipped {
+  cursor: pointer;
+}
+.acp-layout .user-card-text {
+  overflow: hidden;
+}
+/* 잘린 곳을 페이드로 알린다. 칼로 자른 듯 끊으면 문장이 원래 거기서 끝나는지
+   더 있는지 알 수 없다. */
+.acp-layout .user-card.clipped .user-card-text {
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+.user-card-more {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  padding: 3px 9px;
+  border: 1px solid var(--sep);
+  border-radius: 999px;
+  background: var(--bg-window);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.user-card-more:hover {
+  border-color: var(--sep-strong);
+  color: var(--text);
+}
+/* sticky 는 **묶음 안에서** 건다.
+   - 카드에 걸면 컨테이닝 블록이 카드 자신이라 붙어 있을 구간이 카드 높이뿐 —
+     즉 아무 일도 안 일어난다.
+   - 스레드 전체에 걸면 반대로 **영영 안 놓인다**: 스크롤을 내릴수록 지난
+     지시가 하나도 안 비켜나고 top 에 겹겹이 쌓였다(실제로 그랬다).
+   묶음(지시 + 그 답)이 컨테이닝 블록이면 자기 답변이 끝나는 순간 자연히
+   자리를 비우고, 다음 지시가 그 자리를 넘겨받는다. */
+.acp-layout .exchange {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.acp-layout .exchange .msg.user {
   position: sticky;
-  top: 0;
+  /* 0 이면 스레드 맨 위 테두리에 딱 붙어 카드가 창을 뚫고 나온 것처럼 보인다. */
+  top: 6px;
   z-index: 2;
+  padding-bottom: 2px;
+}
+/* 펼친 지시문은 붙이지 않는다 — 길어서 펼친 것을 화면 위에 고정하면 정작
+   보려던 출력을 통째로 덮는다. */
+.acp-layout .exchange .msg.user.expanded {
+  position: relative;
+  top: auto;
 }
 .acp-layout .user-card-text {
   font-size: 13.5px;

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Channel } from "@tauri-apps/api/core";
 import {
@@ -49,6 +49,7 @@ import {
   closeTurn,
   openTurn,
   type AcpToolCall,
+  groupTurns,
   type AcpTurn,
   type AcpTurnImage,
 } from "./acpTurns";
@@ -69,6 +70,7 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
+import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
@@ -176,6 +178,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const [images, setImages] = useState<PendingImage[]>([]);
   /** 지금 화면이 그리는 대화의 세대 — 지난 로드의 재생분을 걸러 내는 표. */
   const loadSeqRef = useRef(0);
+  /**
+   * 목록 순서를 잡아 두는 원장 — 어댑터의 `updated_at` 은 대화를 **열기만 해도**
+   * 올라가서, 그대로 쓰면 "최근에 이야기한 순서"가 "눌러 본 순서"가 된다.
+   */
+  const activityRef = useRef<ActivityLedger>(new Map());
   /** 이 화면이 실제로 보이는지 판정할 뿌리 (⌘W 사슬이 읽는다). */
   const rootRef = useRef<HTMLDivElement | null>(null);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
@@ -407,7 +414,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const refreshHistory = useCallback(async () => {
     const res = await commands.acpListSessions(projectId);
-    if (res.status === "ok") setHistory(res.data);
+    if (res.status === "ok") setHistory(stabilizeHistory(res.data, activityRef.current));
   }, [projectId]);
 
   // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
@@ -641,6 +648,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 보내는 순간부터 이 화면은 새 세대다 — 아직 흐르고 있는 재생분이
       // 내 질문 위에 지난 대화를 덧그리면 안 된다.
       loadSeqRef.current += 1;
+      // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
+      if (session?.session_id) {
+        markSpoken(activityRef.current, session.session_id, new Date().toISOString());
+      }
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       const sendingImages = images;
@@ -922,8 +933,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               <div className="ai-hero-sub">{t("acp.readySub")}</div>
             </div>
           ) : (
-            turns.map((turn, i) => (
-              <TurnRow key={i} turn={turn} live={busy && i === turns.length - 1} />
+            /* 묶음(지시 + 그 답)을 **실제 요소로** 그린다 — 지시문 sticky 의
+               컨테이닝 블록이 이 묶음이어야 자기 답변이 끝날 때 자리를 비운다.
+               평평하게 늘어놓았더니 카드가 top 에 겹겹이 쌓였다. */
+            groupTurns(turns).map((group, gi, all) => (
+              <section className="exchange" key={gi}>
+                {group.map((turn, i) => (
+                  <TurnRow
+                    key={i}
+                    turn={turn}
+                    live={busy && gi === all.length - 1 && i === group.length - 1}
+                  />
+                ))}
+              </section>
             ))
           )}
 
@@ -1293,6 +1315,80 @@ function Lightbox({ image, onClose }: { image: AcpTurnImage; onClose: () => void
   );
 }
 
+/** 지시문을 몇 줄까지 접어 둘지 — 넘으면 "펼치기"가 붙는다. */
+const USER_CLAMP_LINES = 6;
+
+/**
+ * 사용자 지시 한 덩어리.
+ *
+ * 말풍선이 아니라 **카드**다. 말풍선은 오른쪽으로 밀리고 폭이 좁아 긴 지시문이
+ * 계단처럼 꺾이는데, 여기서 쓰는 것은 한 줄 대꾸가 아니라 번호 붙은 요구사항
+ * 묶음이다. 딸려 보낸 것도 같은 카드에 담겨야 "이 지시에 이 사진"이 한
+ * 덩어리로 읽힌다.
+ *
+ * 길면 접는다. 지시문이 길수록 답도 길어서, 안 접으면 화면 위쪽을 지시문이 다
+ * 먹고 정작 보려던 출력이 밀려난다.
+ */
+function UserTurn({ turn }: { turn: AcpTurn }) {
+  const { t } = useT();
+  const [expanded, setExpanded] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const textRef = useRef<HTMLDivElement | null>(null);
+
+  // 접힌 상태에서만 잰다 — 펼친 뒤에는 넘칠 것이 없어 `false` 가 되고,
+  // 그러면 "접기" 버튼이 스스로 사라져 되돌릴 방법이 없어진다.
+  useLayoutEffect(() => {
+    if (expanded) return;
+    const el = textRef.current;
+    if (el) setClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [expanded, turn.text]);
+
+  return (
+    <div className={"msg user" + (expanded ? " expanded" : "")}>
+      <div
+        className={"user-card" + (clipped && !expanded ? " clipped" : "")}
+        // 펼치기는 **본문 어디를 눌러도** 된다 (작은 버튼을 겨냥할 필요 없이).
+        // 접기는 버튼으로만 — 본문 클릭으로 접으면 긴 글을 읽다가 스크롤 대신
+        // 잘못 눌렀을 때 읽던 자리가 통째로 사라진다.
+        onClick={clipped && !expanded ? () => setExpanded(true) : undefined}
+      >
+        {turn.images?.length || turn.attachments?.length ? (
+          <div className="user-card-files">
+            {turn.images?.map((image, i) => (
+              <ImageAttachment key={`i${i}`} image={image} />
+            ))}
+            {turn.attachments?.map((path) => (
+              <span key={path} className="user-file" title={path}>
+                <FileIcon size={12} />
+                <span className="user-file-name">{path.split("/").pop()}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <div
+          ref={textRef}
+          className="user-card-text"
+          style={expanded ? undefined : { maxHeight: `calc(${USER_CLAMP_LINES} * 1.65em)` }}
+        >
+          {turn.text}
+        </div>
+        {clipped ? (
+          <button
+            type="button"
+            className="user-card-more"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
+          >
+            {expanded ? t("acp.user.less") : t("acp.user.more")}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 const TurnRow = memo(function TurnRow({
   turn,
   live,
@@ -1302,36 +1398,7 @@ const TurnRow = memo(function TurnRow({
 }) {
   const { t } = useT();
 
-  if (turn.role === "user") {
-    return (
-      <div className="msg user">
-        {/* 말풍선이 아니라 **카드**다. 말풍선은 오른쪽으로 밀리고 폭이 좁아
-            긴 지시문이 계단처럼 꺾이는데, 여기서 사용자가 쓰는 것은 한 줄
-            대꾸가 아니라 번호 붙은 요구사항 묶음이다. 딸려 보낸 것도 같은
-            카드 안에 담겨야 "이 지시에 이 사진"이 한 덩어리로 읽힌다. */}
-        {/* 답이 길어지면 **무엇을 시켰는지**가 화면 밖으로 밀려난다. 스크롤을
-            내리는 동안 이 카드가 위에 붙어 있어야 지금 보고 있는 출력이 어느
-            지시에 대한 것인지 알 수 있고, 더 올리면 앞 지시가 자리를 넘겨받는다
-            (position: sticky 가 그대로 이 동작이다). */}
-        <div className="user-card">
-          {turn.images?.length || turn.attachments?.length ? (
-            <div className="user-card-files">
-              {turn.images?.map((image, i) => (
-                <ImageAttachment key={`i${i}`} image={image} />
-              ))}
-              {turn.attachments?.map((path) => (
-                <span key={path} className="user-file" title={path}>
-                  <FileIcon size={12} />
-                  <span className="user-file-name">{path.split("/").pop()}</span>
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <div className="user-card-text">{turn.text}</div>
-        </div>
-      </div>
-    );
-  }
+  if (turn.role === "user") return <UserTurn turn={turn} />;
 
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
