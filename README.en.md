@@ -27,7 +27,17 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.9 — projects as windows and tabs
+## 🚀 v2.10 — Claude Code runs inside the app
+
+The AI panel used to be just a chat bolted onto an LLM provider — actual coding all happened in a terminal CLI, and the app only picked up the trail through file watching and hooks. There's now a new screen, **Claude Code**, in the sidebar. Ask it to do something there and a real `claude` runs inside the app — editing files, calling tools, asking for approval (via the Agent Client Protocol). It reuses your existing subscription login, and the adapter installs itself on first run.
+
+- **Session tabs · tool cards** — the top bar becomes a row of conversation tabs. Tool calls like file edits and command runs arrive as collapsible cards, and permission requests before a tool runs show up as cards too.
+- **Effort and permission mode on one track** — pick thinking effort and permission mode (manual approval · auto-accept edits · plan · unrestricted) together. The top tier, **ultracode**, turns out to be a prompt keyword, not a setting.
+- **Image paste · model-switch dividers · a widget for `/usage`** — paste a screenshot straight in, get a divider line in the conversation when you switch models, and `/usage` now opens a dedicated dashboard instead of crowding the conversation.
+- **A terminal escape hatch** — features that live only in the CLI's own interactive screen, like `/remote-control`, get launched as a real `claude` in a terminal tab instead. The terminal screen also lets you type an exact font size in px now.
+- **Updates no longer cut the conversation short** — the restart is deferred, and when the app reopens you're back in the conversation you were having.
+
+## v2.9 — projects as windows and tabs
 
 - **One window holds several projects as tabs** — just like Chrome. Drag a tab to reorder it, or drag it out to spawn a new window. Each project remembers its own screen, filters and sidebar state, and **terminal sessions are bound to the project**, so they survive a tab moving between windows.
 - **A new tab is a start tab** — `⌘T` opens the project list, and picking one converts that tab **in place**. `⌘W` closes the **tab**, not the window (the window closes when it's the last tab). Close the window with `⇧⌘W`, open a new one with `⇧⌘N`, move between tabs with `⌃Tab` · `⌃⇧Tab` · `⌘⌥←→`.
@@ -76,8 +86,9 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 - **Code search** — three modes: semantic (local embeddings), symbol (AST), and full-text (FTS5).
 - **Code map** — a dependency graph that goes beyond imports to calls, inheritance, and implementations. Pick a file and see "changing this affects N files" first.
 - **Docs** — browse your project's `docs/` folder like a wiki.
-- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over.
-- **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails.
+- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
+- **Claude Code** — runs a real `claude` inside the app as an agent (Agent Client Protocol). Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.
+- **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails. This is the screen where you ask it things.
 - **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. The **Shop tab** installs vetted third-party skills matched to your stack, 25 of them, in one click.
 
 ⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→.
@@ -90,6 +101,7 @@ Anything that can read `AGENTS.md` works.
 
 - Zero setup: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
 - Enable their rules file in Settings → Agents: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
+- **Claude Code · Claude Desktop** go one step further — hooks (precise session detection) and MCP tools (structured recording, plan queries) integrate directly (v2.2.0). Claude Code also runs as an in-app agent from the **Claude Code screen** (v2.10.0, Agent Client Protocol).
 
 Git backfill tells agents apart by commit signatures.
 
