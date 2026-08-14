@@ -1,3 +1,4 @@
+pub mod acp;
 pub mod claude_hooks;
 pub mod config;
 pub mod conversation;
@@ -28,6 +29,7 @@ pub mod summary;
 pub mod window;
 pub mod terminal;
 
+pub use acp::*;
 pub use claude_hooks::*;
 pub use config::*;
 pub use conversation::*;

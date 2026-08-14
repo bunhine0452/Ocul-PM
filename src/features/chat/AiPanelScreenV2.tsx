@@ -31,6 +31,7 @@ import {
   formatTokenCount,
   MESSAGE_OVERHEAD_TOKENS,
 } from "@/lib/tokenEstimate";
+import { AcpConversation } from "./AcpConversation";
 import { assembleAiContext, type AiContextResult } from "./aiContext";
 import { ActionProposalCard, extractPlannerAction } from "./aiActions";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
@@ -200,10 +201,45 @@ interface AiPanelScreenV2Props {
   projectId: number;
 }
 
+/**
+ * PR-ACP2 — 프로바이더 채팅 ↔ ACP(Claude Code 구동) 전환. 툴바에 둔 이유는
+ * 이게 대화 옵션이 아니라 **화면의 성격**을 바꾸는 스위치이기 때문이다.
+ */
+function AiModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "llm" | "acp";
+  onChange: (next: "llm" | "acp") => void;
+}) {
+  const { t } = useT();
+  return (
+    // 세그먼트 컨트롤용 클래스를 새로 만들지 않고 기존 primitive 두 개
+    // (`primary` = 선택, `ghost` = 비선택)로 표현한다.
+    <div style={{ display: "flex", gap: 4 }} role="tablist" aria-label={t("acp.modeAria")}>
+      {(["llm", "acp"] as const).map((it) => (
+        <button
+          key={it}
+          role="tab"
+          aria-selected={mode === it}
+          className={"btn sm " + (mode === it ? "primary" : "ghost")}
+          onClick={() => onChange(it)}
+        >
+          {it === "llm" ? t("acp.modeLlm") : t("acp.modeAcp")}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   const { t } = useT();
   const { state, setState, setUiV2View } = useWorkspace();
   const { settings } = useSettings();
+  const setAiMode = useCallback(
+    (next: "llm" | "acp") => setState((prev) => ({ ...prev, aiMode: next })),
+    [setState],
+  );
 
   const initialProvider = (state.aiActiveModel as Provider | null) ?? settings.defaultProvider;
   const [provider, setProvider] = useState<Provider>(
@@ -665,9 +701,23 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
   const activeModel = providerModel(settings, provider);
 
+  // PR-ACP2 — ACP 모드는 상태기계가 완전히 다르다(세션이 에이전트 쪽에 산다).
+  // 한 트리에 욱여넣지 않고 여기서 갈라 각자 온전히 살게 둔다.
+  if (state.aiMode === "acp") {
+    return (
+      <>
+        <Toolbar title={t("ai.title")} sub={t("acp.toolbarSub")}>
+          <AiModeToggle mode="acp" onChange={setAiMode} />
+        </Toolbar>
+        <AcpConversation projectId={projectId} />
+      </>
+    );
+  }
+
   return (
     <>
       <Toolbar title={t("ai.title")} sub={t("ai.toolbarSub")}>
+        <AiModeToggle mode="llm" onChange={setAiMode} />
         <button
           className="btn"
           onClick={() => void handleNewThread()}

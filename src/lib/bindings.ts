@@ -903,6 +903,72 @@ export const commands = {
 	 *  프런트의 `skills_save` 승인 경로 전담).
 	 */
 	skillDraftGenerate: (projectId: number, since: string, until: string, tag: string, provider: string, model: string) => typedError<SkillDraft, string>(__TAURI_INVOKE("skill_draft_generate", { projectId, since, until, tag, provider, model })),
+	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
+	acpDiagnose: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_diagnose")),
+	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */
+	acpInstallAdapter: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_install_adapter")),
+	/**
+	 *  어댑터를 띄우고 `initialize` + `session/new` 까지 마친다 (이미 떠 있으면 그대로).
+	 * 
+	 *  PR-ACP4 에서 세션 생성을 여기로 당겼다. 설정 항목(모델·Effort…)은
+	 *  `session/new` 응답에만 실려 오는데, 첫 프롬프트까지 미루면 그때까지 셀렉터를
+	 *  그릴 수 없기 때문이다. cwd 는 프로젝트 루트로 이미 확정돼 있다.
+	 */
+	acpStart: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_start", { projectId })),
+	/**  어댑터를 내린다. 떠 있지 않았으면 `false`. */
+	acpStop: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("acp_stop", { projectId })),
+	/**  현재 떠 있는 어댑터 정보 (없으면 `None`). */
+	acpStatus: (projectId: number) => typedError<{
+	name: string,
+	title: string | null,
+	version: string,
+	/**
+	 *  `authMethods` 가 비어 있지 않으면 별도 인증 흐름이 필요하다는 뜻 —
+	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
+	 */
+	auth_required: boolean,
+} | null, string>(__TAURI_INVOKE("acp_status", { projectId })),
+	/**
+	 *  프롬프트를 보내고 턴이 끝날 때까지 이벤트를 `on_event` 로 흘린다.
+	 * 
+	 *  `attachments` 는 함께 보낼 파일의 절대경로다. 내용을 우리가 읽어 넣지 않고
+	 *  **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
+	 *  읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
+	 */
+	acpPrompt: (projectId: number, text: string, attachments: string[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, text, attachments, onEvent })),
+	/**
+	 *  진행 중인 턴을 취소한다. 세션이 없으면 `false`.
+	 * 
+	 *  취소는 알림(fire-and-forget)이라 즉시 끊기지 않는다 — 에이전트가
+	 *  `stopReason: cancelled` 로 턴을 닫아 주면 그때 `Done` 이 온다.
+	 */
+	acpCancel: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("acp_cancel", { projectId })),
+	/**  권한 카드의 선택을 전달한다. `option_id` 가 `None` 이면 거절(취소)로 닫는다. */
+	acpPermissionRespond: (requestId: string, optionId: string | null) => typedError<boolean, string>(__TAURI_INVOKE("acp_permission_respond", { requestId, optionId })),
+	/**
+	 *  세션 설정을 바꾼다 (모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …).
+	 * 
+	 *  값 목록을 우리가 검증하지 않는 게 의도다 — 어댑터가 준 선택지를 그대로
+	 *  돌려보내므로, Claude Code 가 모델을 추가해도 우리 코드는 그대로다.
+	 */
+	acpSetConfigOption: (projectId: number, configId: string, value: string) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_set_config_option", { projectId, configId, value })),
+	/**  파일 선택 대화상자 (다중 선택, 프로젝트 루트에서 시작). 취소하면 빈 배열. */
+	acpPickFiles: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("acp_pick_files", { projectId })),
+	/**
+	 *  `@` 멘션 자동완성용 프로젝트 파일 목록.
+	 * 
+	 *  인덱스(DB)가 아니라 **디스크를 직접 걷는다** — 인덱싱 전이거나 방금 만든
+	 *  파일도 멘션할 수 있어야 하기 때문이다. `ignore` 크레이트라 .gitignore 를
+	 *  존중한다(node_modules/target 이 딸려오지 않는다).
+	 */
+	acpListFiles: (projectId: number, query: string, limit: number) => typedError<string[], string>(__TAURI_INVOKE("acp_list_files", { projectId, query, limit })),
+	/**
+	 *  대화를 비운다 — 새 세션을 만들고 기존 세션을 버린다.
+	 * 
+	 *  ACP 에 "메시지 N 으로 되감기"는 없다(`session/fork` 는 되감을 지점을 받지
+	 *  않는다). 그래서 확장의 Rewind 대신 **새로 시작**만 제공한다.
+	 */
+	acpNewSession: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_new_session", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -979,6 +1045,123 @@ export const events = {
 };
 
 /* Types */
+/**  핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다. */
+export type AcpAgentInfo = {
+	name: string,
+	title: string | null,
+	version: string,
+	/**
+	 *  `authMethods` 가 비어 있지 않으면 별도 인증 흐름이 필요하다는 뜻 —
+	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
+	 */
+	auth_required: boolean,
+};
+
+/**  세션 설정 항목의 선택지 하나. */
+export type AcpConfigChoice = {
+	value: string,
+	name: string,
+};
+
+/**
+ *  세션 설정 항목 (모델·Effort·Fast mode·권한 모드·서브에이전트 …).
+ * 
+ *  목록을 우리가 하드코딩하지 않는 게 핵심이다 — 어댑터가 `session/new` 응답으로
+ *  실제 선택지를 통째로 준다. Claude Code 가 모델을 추가하면 우리 코드를 고치지
+ *  않아도 셀렉터에 나타난다.
+ */
+export type AcpConfigOption = {
+	id: string,
+	name: string,
+	/**  `mode` · `model` · `thought_level` … (UI 정렬·아이콘용, 없을 수 있다). */
+	category: string | null,
+	/**  현재 값. select 면 value id, boolean 이면 `"true"`/`"false"`. */
+	current: string | null,
+	/**  select 의 선택지. boolean 항목은 빈 배열. */
+	choices: AcpConfigChoice[],
+	/**  true 면 토글, false 면 select. */
+	is_boolean: boolean,
+};
+
+/**
+ *  에이전트 화면이 뜨기 전에 무엇이 없는지 알려주기 위한 진단.
+ * 
+ *  실패를 "안 됨" 하나로 뭉치지 않는 이유: 사용자가 할 수 있는 조치가 각각
+ *  다르다 — Node 설치 / Claude Code 로그인 / 어댑터 설치 버튼.
+ */
+export type AcpDiagnostics = {
+	node_path: string | null,
+	node_version: string | null,
+	/**  Node 가 최소 버전 이상인가. */
+	node_ok: boolean,
+	node_min_major: number,
+	/**  node 를 어디서 찾았는지 (로그인 셸에서 찾았다면 진단에 그대로 표시). */
+	path_source: PathSource | null,
+	npm_path: string | null,
+	/**  어댑터가 구동할 Claude Code CLI. 없으면 핸드셰이크는 되도 프롬프트가 죽는다. */
+	claude_path: string | null,
+	adapter_version: string | null,
+	adapter_expected: string,
+	/**  설치돼 있고 고정 버전과 일치하는가. */
+	adapter_ok: boolean,
+	/**  전부 충족 — 에이전트를 띄울 수 있다. */
+	ready: boolean,
+};
+
+/**  에이전트 화면이 받는 스트리밍 이벤트. */
+export type AcpEvent = 
+/**  답변 조각. */
+{ kind: "chunk"; text: string } | 
+/**  내부 추론 조각 (UI 는 기본 접어 둔다). */
+{ kind: "thought"; text: string } | 
+/**
+ *  컨텍스트 사용량·누적 비용.
+ * 
+ *  토큰 수가 `u32` 인 건 specta 가 정밀도 손실을 이유로 64비트 정수 내보내기를
+ *  막기 때문이다 — 컨텍스트 창은 백만 단위라 `u32` 로 충분하고, 넘치면
+ *  포화시킨다(잘못된 작은 수보다 최대값이 덜 거짓말이다).
+ */
+{ kind: "usage"; used: number; size: number; cost_usd: number | null } | 
+/**  도구 호출이 시작됐다. */
+{ kind: "tool_call"; id: string; title: string; 
+/**  `read` · `edit` · `execute` … (아이콘 선택용). */
+tool_kind: string; 
+/**  `pending` · `in_progress` · `completed` · `failed`. */
+status: string; 
+/**  이 호출이 건드리는 파일들 (절대경로). */
+locations: string[] } | 
+/**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
+{ kind: "tool_update"; id: string; title: string | null; status: string | null } | 
+/**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */
+{ kind: "permission"; request_id: string; title: string; tool_kind: string; options: AcpPermissionOption[] } | 
+/**
+ *  아직 UI 가 없는 업데이트 — 종류만 알려 준다.
+ *  (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)
+ */
+{ kind: "other"; update: string } | 
+/**  턴 종료. */
+{ kind: "done"; stop_reason: string } | 
+/**  턴이 오류로 끝났다. */
+{ kind: "failed"; message: string };
+
+/**  권한 요청의 선택지 하나. */
+export type AcpPermissionOption = {
+	id: string,
+	name: string,
+	/**  `allow_once` · `allow_always` · `reject_once` … (버튼 강조에 쓴다). */
+	option_kind: string,
+};
+
+/**  실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목. */
+export type AcpSession = {
+	agent: AcpAgentInfo,
+	/**
+	 *  모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
+	 *  **어댑터가 준 그대로**다 — 우리가 목록을 들고 있지 않는다.
+	 */
+	options: AcpConfigOption[],
+};
+
 export type AgentCount = {
 	agent_id: string,
 	entry_count: number,
@@ -2109,6 +2292,16 @@ export type OpenPlanItem = {
 	/**  todo | in_progress | blocked */
 	status: string,
 };
+
+/**
+ *  바이너리를 어느 PATH 에서 찾았는지 — 진단 UI 가 "로그인 셸에서 찾았다"를
+ *  보여줘야 사용자가 왜 터미널에선 되는데 앱에선 안 되는지 이해한다.
+ */
+export type PathSource = 
+/**  앱 프로세스가 물려받은 PATH. */
+"process" | 
+/**  로그인 셸을 띄워 받아온 PATH. */
+"login-shell";
 
 /**  Recent plan activity across all plans — drives the Today "계획 업데이트" block. */
 export type PlanActivityDto = {

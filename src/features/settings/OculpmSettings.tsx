@@ -31,6 +31,7 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   commands,
+  type AcpDiagnostics,
   type AgentDetection,
   type ClaudeHooksStatus,
   type DesktopRegistrationStatus,
@@ -580,6 +581,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
       >
         <ClaudeHooksBlock projectId={projectId} />
         <McpServerBlock projectId={projectId} />
+        <AcpRuntimeBlock />
         <ShellIntegrationBlock />
       </Section>
       )}
@@ -1140,6 +1142,145 @@ function LogsSection() {
 }
 
 // ─── shared bits ────────────────────────────────────────────────────────────
+
+/**
+ * PR-ACP1 (docs/acp-panel/00-master-plan.md D2) — ACP 에이전트 런타임 블록.
+ *
+ * 에이전트 화면이 Claude Code 를 구동하려면 세 가지가 갖춰져야 한다: Node 18+,
+ * `claude` CLI, 그리고 버전 고정된 ACP 어댑터. 셋을 "안 됨" 하나로 뭉치지 않고
+ * 따로 보여주는 이유는 사용자가 할 수 있는 조치가 각각 다르기 때문이다.
+ *
+ * `path_source` 를 노출하는 것도 같은 이유다 — 패키징된 `.app` 은 PATH 가
+ * 빈약해서 "터미널에선 되는데 앱에선 안 되는" 상황이 생기는데, 로그인 셸에서
+ * 찾았다는 사실이 보이면 사용자가 그 차이를 이해할 수 있다.
+ *
+ * 프로젝트가 아니라 머신 단위 설정이라 `projectId` 를 받지 않는다.
+ */
+export function AcpRuntimeBlock() {
+  const { t } = useT();
+  const [diag, setDiag] = useState<AcpDiagnostics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(() => {
+    void commands.acpDiagnose().then((res) => {
+      if (res.status === "ok") {
+        setDiag(res.data);
+        setError(null);
+      } else {
+        setError(res.error);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      const res = await commands.acpInstallAdapter();
+      if (res.status === "ok") {
+        setDiag(res.data);
+        setError(null);
+        toast.info(t("op.acp.installed"));
+      } else {
+        setError(res.error);
+        toast.destructive(t("op.acp.installFailed", { error: res.error }));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const badge = error
+    ? { label: t("op.st.configError"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    : !diag
+      ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
+      : diag.ready
+        ? { label: t("op.acp.ready"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        : { label: t("op.acp.setupNeeded"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          {t("op.acp.title")}
+        </Label>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+          {badge.label}
+        </span>
+        <div className="ml-auto">
+          <Button
+            size="sm"
+            variant={diag?.adapter_ok ? "outline" : "default"}
+            disabled={busy || !diag}
+            onClick={() => void install()}
+          >
+            {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            {diag?.adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
+          </Button>
+        </div>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
+
+      {diag && (
+        <div className="space-y-1 pt-1">
+          <AcpRow
+            label={t("op.acp.node")}
+            ok={diag.node_ok}
+            value={
+              diag.node_version
+                ? `${diag.node_version}${diag.path_source === "login-shell" ? ` · ${t("op.acp.viaLoginShell")}` : ""}`
+                : t("op.acp.missing")
+            }
+            hint={!diag.node_ok ? t("op.acp.needVersion", { n: diag.node_min_major }) : undefined}
+          />
+          <AcpRow
+            label={t("op.acp.claude")}
+            ok={!!diag.claude_path}
+            value={diag.claude_path ?? t("op.acp.missing")}
+            hint={!diag.claude_path ? t("op.acp.claudeHint") : undefined}
+          />
+          <AcpRow
+            label={t("op.acp.adapter")}
+            ok={diag.adapter_ok}
+            value={diag.adapter_version ?? t("op.acp.missing")}
+            hint={
+              diag.adapter_ok
+                ? undefined
+                : t("op.acp.adapterExpected", { version: diag.adapter_expected })
+            }
+          />
+        </div>
+      )}
+
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+function AcpRow({
+  label,
+  value,
+  ok,
+  hint,
+}: {
+  label: string;
+  value: string;
+  ok: boolean;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+      <span className={ok ? "text-emerald-400" : "text-amber-400"}>{ok ? "●" : "○"}</span>
+      <span className="text-muted-foreground">{label}</span>
+      <code className="truncate text-[10px] text-foreground/80">{value}</code>
+      {hint && <span className="text-[10px] text-muted-foreground">— {hint}</span>}
+    </div>
+  );
+}
 
 function Section({
   title,

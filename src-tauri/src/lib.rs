@@ -1,3 +1,5 @@
+// PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.
+pub mod acp;
 mod ast;
 mod commands;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
@@ -185,6 +187,10 @@ use crate::commands::{
     rule_candidates, rule_draft_generate,
     // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
     skill_candidates, skill_draft_generate,
+    // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
+    acp_diagnose, acp_install_adapter, acp_start, acp_stop, acp_status, acp_prompt, acp_cancel,
+    acp_permission_respond, acp_set_config_option,
+    acp_pick_files, acp_list_files, acp_new_session,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
@@ -399,6 +405,19 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // 반복 절차→스킬 승격 (CI4 미러)
         skill_candidates,
         skill_draft_generate,
+        // PR-ACP1 — ACP 어댑터 런타임
+        acp_diagnose,
+        acp_install_adapter,
+        acp_start,
+        acp_stop,
+        acp_status,
+        acp_prompt,
+        acp_cancel,
+        acp_permission_respond,
+        acp_set_config_option,
+        acp_pick_files,
+        acp_list_files,
+        acp_new_session,
         // PR-CI0 — Claude Code 훅 브리지
         claude_hooks_status,
         claude_hooks_install,
@@ -493,6 +512,8 @@ pub fn run() {
             let embed_cache = app_data.join("fastembed_cache");
             app.manage(Embedder::new(app.handle().clone(), embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
+            // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
+            app.manage(crate::acp::AcpState::default());
             // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)

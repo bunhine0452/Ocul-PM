@@ -40,7 +40,7 @@ sqlite-vec = "0.1.9"
 thiserror = "2.0.18"
 tracing = "0.1.44"
 directories = "6.0.0"
-tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time"] }
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time", "process"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2"
 keyring = { version = "3.6", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service"] }
@@ -81,6 +81,11 @@ chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.8"
 toml = "0.8"
 uuid = { version = "1", features = ["v4"] }
+
+# PR-ACP0 — ACP(Agent Client Protocol) 클라이언트. 어댑터 서브프로세스 spawn 과
+# JSON-RPC 트랜스포트를 크레이트가 함께 담당한다 (`AcpAgent` 가 ConnectTo 구현).
+# 설계 SSOT: docs/acp-panel/00-master-plan.md
+agent-client-protocol = "2"
 
 [dev-dependencies]
 # Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).

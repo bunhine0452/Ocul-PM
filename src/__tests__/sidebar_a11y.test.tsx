@@ -76,7 +76,7 @@ describe("PR-UI 1 — Sidebar navigation", () => {
       "코드 검색",
       "코드 맵",
       "터미널",
-      "AI 패널",
+      "에이전트",
       "다크 모드",
       "설정",
     ]) {
@@ -87,7 +87,7 @@ describe("PR-UI 1 — Sidebar navigation", () => {
   it("clicking a main/tool slot navigates", () => {
     const { getByText, calls } = renderSidebar();
     fireEvent.click(getByText("변경 diff"));
-    fireEvent.click(getByText("AI 패널"));
+    fireEvent.click(getByText("에이전트"));
     fireEvent.click(getByText("설정"));
     expect(calls).toEqual(["diff", "ai", "settings"]);
   });

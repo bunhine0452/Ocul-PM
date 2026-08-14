@@ -200,8 +200,14 @@ export interface WorkspaceState {
   terminalActiveId: string | null;
   /** 터미널 글자 크기 (⌘+/⌘- 로 조절, 2026-07-20). */
   terminalFontSize: number;
-  /** AI 패널 활성 모델 id. */
+  /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
+  /**
+   * 에이전트 화면 모드 (PR-ACP2). `"llm"` 은 프로바이더 채팅, `"acp"` 는
+   * Claude Code 를 앱 안에서 구동하는 ACP 대화. 화면을 오갈 때 모드가
+   * 초기화되면 안 되므로 영속한다.
+   */
+  aiMode: "llm" | "acp";
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
@@ -279,6 +285,7 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalActiveId: null,
   terminalFontSize: 13,
   aiActiveModel: null,
+  aiMode: "llm",
   aiThreadId: null,
   docsActivePath: null,
   discussionActiveId: null,

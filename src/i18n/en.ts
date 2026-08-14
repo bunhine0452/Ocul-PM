@@ -28,7 +28,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.graph": "Code Map",
   "nav.docs": "Docs",
   "nav.terminal": "Terminal",
-  "nav.ai": "AI Panel",
+  "nav.ai": "Agent",
   "nav.skills": "Skills & Rules",
   "nav.aria.main": "Main navigation",
 
@@ -46,7 +46,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.graph.alias": "graph map dependency code",
   "nav.docs.alias": "docs wiki markdown documentation",
   "nav.terminal.alias": "terminal shell console",
-  "nav.ai.alias": "ai panel chat llm assistant",
+  "nav.ai.alias": "agent chat llm assistant",
   "nav.skills.alias": "skills rules hooks claude agent prompt cursor",
 
   // ── Settings → Appearance → Language ────────────────────────────────────
@@ -106,7 +106,7 @@ export const en: Record<keyof typeof ko, string> = {
   "palette.group.actions": "Actions",
   "palette.group.oculpm": "ocul-pm",
   "palette.switchProject": "Switch project",
-  "palette.openAiPanel": "Open AI panel",
+  "palette.openAiPanel": "Open agent",
   "palette.openSettings": "Open settings",
   "palette.reindex": "Reindex project",
   "palette.regenOverview": "Regenerate overview",
@@ -762,6 +762,24 @@ export const en: Record<keyof typeof ko, string> = {
   "op.st.unsupportedShell": "Unsupported shell",
   "op.st.rcBroken": "rc block damaged",
   "op.st.on": "On",
+  // PR-ACP1 — ACP agent runtime diagnostics
+  "op.acp.title": "Agent runtime (ACP)",
+  "op.acp.desc":
+    "Runs Claude Code inside the app on the Agent screen. Requires Node.js, the Claude Code CLI, and the ACP adapter.",
+  "op.acp.ready": "Ready",
+  "op.acp.setupNeeded": "Setup needed",
+  "op.acp.node": "Node.js",
+  "op.acp.claude": "Claude Code CLI",
+  "op.acp.adapter": "ACP adapter",
+  "op.acp.missing": "Not found",
+  "op.acp.needVersion": "Node.js {n}+ required",
+  "op.acp.claudeHint": "Install Claude Code and sign in",
+  "op.acp.adapterExpected": "pinned to {version}",
+  "op.acp.viaLoginShell": "found via login shell PATH",
+  "op.acp.install": "Install adapter",
+  "op.acp.reinstall": "Reinstall",
+  "op.acp.installed": "ACP adapter installed",
+  "op.acp.installFailed": "Adapter install failed: {error}",
   "op.shell.title": "Terminal shell integration",
   "op.shell.desc1": "Lets the built-in terminal see when commands start and finish, their exit codes, and the working directory.",
   "op.shell.desc2": "gets one added line, and that line only does anything in a terminal ocul-pm launched — in iTerm2, Terminal.app, and the rest it does nothing at all. Content outside the block is preserved, and turning it off reverts it completely.",
@@ -1690,7 +1708,36 @@ export const en: Record<keyof typeof ko, string> = {
   "tray.settings": "Settings",
 
   // ── AI panel screen ─────────────────────────────────────────────────────
-  "ai.title": "AI panel",
+  // PR-ACP2 — ACP conversation mode
+  "acp.modeAria": "Agent mode",
+  "acp.modeLlm": "LLM chat",
+  "acp.modeAcp": "Claude Code",
+  "acp.toolbarSub": "Run Claude Code inside the app",
+  "acp.offTitle": "The agent is off",
+  "acp.offSub":
+    "Runs Claude Code inside the app. Check the runtime status under Settings → Integrations.",
+  "acp.retry": "Retry",
+  "acp.start": "Start agent",
+  "acp.starting": "Starting…",
+  "acp.you": "You",
+  "acp.thinking": "Thinking",
+  "acp.waiting": "Waiting for a response…",
+  "acp.placeholder": "What should the agent do?  ⏎ send · ⇧⏎ newline",
+  "acp.inputAria": "Agent instruction input",
+  // PR-ACP3 — tool call cards + permission approval
+  "acp.tool.untitled": "Unnamed tool",
+  "acp.tool.status.pending": "Pending",
+  "acp.tool.status.inProgress": "Running",
+  "acp.tool.status.completed": "Done",
+  "acp.tool.status.failed": "Failed",
+  "acp.perm.title": "Approval needed",
+  "acp.perm.reject": "Reject",
+  "acp.attach.add": "Attach file",
+  "acp.attach.remove": "Remove attachment",
+  "acp.newConversation": "New conversation",
+  "acp.send": "Send",
+  "acp.cancel": "Stop",
+  "ai.title": "Agent",
   "ai.toolbarSub": "Ask several LLMs with the same context",
   "ai.newThread": "New chat",
   "ai.newThreadTitle": "Start a new chat",
@@ -1702,7 +1749,7 @@ export const en: Record<keyof typeof ko, string> = {
   // writes it as a display label — not AI-authored content — so it follows the
   // UI language ("AI writing language" governs journals/planner/retro). It is
   // frozen at creation time and the user can rename it.
-  "ai.threadTitle": "AI panel",
+  "ai.threadTitle": "Agent",
   "ai.errorLabel": "Error",
   "ai.scrollBottom": "Scroll to bottom",
   "ai.noApiKey": "No API key for {vendor}. Add one in Settings.",
@@ -1829,6 +1876,8 @@ export const en: Record<keyof typeof ko, string> = {
     "⌘T new tab · ⌘D split · ⇧⌘D split down · ⌘F find · ⌘L clear · ⌘W close",
   "term.fontSmaller": "Smaller text (⌘-)",
   "term.fontLarger": "Larger text (⌘+)",
+  "term.fontSizeInput": "Font size (px)",
+  "term.fontSizeHint": "Font size {min}–{max}px — type a value or use ⌘+/⌘- (⇧⌘0 resets)",
   "term.openEditorFailed": "Could not open editor: {error}",
   "term.shellOn":
     "Shell integration on — command boundaries, exit codes, and working directory are tracked",
