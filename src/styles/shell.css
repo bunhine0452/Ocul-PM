@@ -90,12 +90,16 @@
   width: 10px;
   z-index: 40;
 }
-/* macOS traffic lights float over the top-left (titleBarStyle Overlay). When
-   the sidebar is collapsed the content reaches x=0, so the toolbar title would
-   sit under the lights — reserve their width. */
-.app.is-mac.sidebar-collapsed .toolbar {
-  padding-left: 84px;
-}
+/* 예전에는 사이드바를 접으면 툴바가 창 최상단 x=0 에 닿아 macOS 신호등 밑으로
+   들어갔다(titleBarStyle Overlay). 그래서 `.app.is-mac.sidebar-collapsed .toolbar`
+   에 padding-left: 84px 를 뒀었다.
+
+   크롬식 탭(v2.9.0) 이후로는 **탭 스트립이 최상단을 차지하고 신호등 자리를
+   책임진다** — 셸은 ShellV2 로만 마운트되고 그 위에는 늘 스트립이 있다
+   (tabs.css §신호등, 같은 이유로 사이드바 상단 인셋도 이미 0 이다). 툴바는
+   신호등과 만날 일이 없어졌는데 인셋만 남아, 사이드바를 접으면 세션 탭 줄
+   왼쪽에 84px 빈 칸이 생겼다. 규칙을 지운 자리에 이유만 남긴다 — 안 그러면
+   "신호등에 겹치겠는데?" 하고 다시 넣게 된다. */
 
 /* Collapse toggle button in the brand row. */
 .side-collapse-btn {
