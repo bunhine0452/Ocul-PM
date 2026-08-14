@@ -10,8 +10,12 @@
 //! CI 게이트에 넣지 않는다. 수동 실행:
 //!
 //! ```bash
-//! cargo test --test acp_handshake -- --ignored --nocapture
+//! cargo test --test acp_handshake -- --ignored --nocapture --test-threads=1
 //! ```
+//!
+//! `--test-threads=1` 이 필요하다: 각 테스트가 어댑터(=Claude Code 세션)를 하나씩
+//! 띄우므로 병렬로 돌리면 6개가 동시에 뜬다. 레이트리밋에 걸려 **본 변경과
+//! 무관한 실패**가 나온다 (실측: 병렬 1건 실패 → 단독 재실행 통과).
 
 use std::time::Duration;
 

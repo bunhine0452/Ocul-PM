@@ -107,6 +107,9 @@ async fn ensure_session(
     project_id: u32,
 ) -> Result<agent_client_protocol::schema::v1::SessionId, String> {
     let state = app.state::<AcpState>();
+    // 세션 생성도 한 번에 하나만 — `acp_start` 와 `acp_prompt` 가 겹쳐 들어오면
+    // 세션이 둘 만들어지고 하나는 에이전트 쪽에 남아 샌다.
+    let _guard = state.session_lock.lock().await;
     if let Some(existing) = state.session(project_id) {
         return Ok(existing);
     }

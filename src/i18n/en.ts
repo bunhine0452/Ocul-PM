@@ -1742,6 +1742,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.suggestReview": "Review my uncommitted changes",
   "acp.mention.aria": "Project file suggestions",
   "acp.mention.empty": "No matching files",
+  "acp.settings": "Session settings",
+  "acp.usageTitle": "Context usage · running cost",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",

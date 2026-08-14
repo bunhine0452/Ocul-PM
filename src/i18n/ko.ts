@@ -1713,6 +1713,8 @@ export const ko = {
   "acp.suggestReview": "커밋되지 않은 변경을 리뷰해줘",
   "acp.mention.aria": "프로젝트 파일 후보",
   "acp.mention.empty": "일치하는 파일이 없어요",
+  "acp.settings": "세션 설정",
+  "acp.usageTitle": "컨텍스트 사용률 · 누적 비용",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",

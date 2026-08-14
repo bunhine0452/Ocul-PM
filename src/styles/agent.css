@@ -313,38 +313,99 @@
   color: var(--text-3);
 }
 
-/* ─── 설정 노브 줄 ────────────────────────────────────────────────────── */
-.knobs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1px;
-  min-width: 0;
+/* ─── 컴포저 ──────────────────────────────────────────────────────────────
+   Claude Desktop 을 레퍼런스로: 스레드와 입력 사이의 **경계선을 없앤다.**
+   구분선은 "여기서부터 다른 영역"이라고 선언하는데, 실제로는 같은 대화의
+   연속이다. 대신 입력 카드 자체의 반경·그림자로만 층을 만든다. */
+.ai-compose.agent {
+  border-top: none;
+  background: transparent;
+  padding: 4px 22px 20px;
 }
+.composer.agent {
+  border-radius: 20px;
+  padding: 12px 14px 8px;
+  gap: 4px;
+  box-shadow: var(--shadow-sheet);
+}
+/* 포커스 링을 accent 3px 로 두르면 입력창이 "경고"처럼 보인다 — 테두리만
+   또렷하게, 링은 아주 옅게. */
+.composer.agent:focus-within {
+  border-color: var(--sep-strong);
+  box-shadow: var(--shadow-sheet);
+}
+.composer.agent .composer-foot {
+  gap: 4px;
+}
+
+/* ─── 설정 칩 (모델 + 세션 설정 전부) ───────────────────────────────────── */
 .knob-wrap {
   position: relative;
 }
-.knob-menu {
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.agent-chip:hover,
+.agent-chip.open {
+  background: var(--bg-inset);
+  color: var(--text);
+}
+.agent-chip.busy .agent-id-dot {
+  animation: ai-pulse 1.2s ease-in-out infinite;
+}
+.agent-chip-label {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-menu {
   position: absolute;
   bottom: calc(100% + 8px);
-  left: 0;
+  right: 0;
   z-index: 60;
-  min-width: 210px;
-  max-height: 300px;
+  min-width: 250px;
+  max-height: 380px;
   overflow-y: auto;
-  padding: 4px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop);
 }
-.knob-label {
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.settings-group + .settings-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sep);
+}
+.settings-group-label {
+  padding: 3px 9px 4px;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-3);
 }

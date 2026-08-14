@@ -15,6 +15,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use agent_client_protocol::schema::v1::{
@@ -30,6 +31,9 @@ use tauri::Manager;
 
 use super::session::{map_update, permission_event, AcpConfigOption, AcpEvent};
 
+/// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
+const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// 핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct AcpAgentInfo {
@@ -42,6 +46,8 @@ pub struct AcpAgentInfo {
 }
 
 struct Running {
+    /// 이 연결의 세대. 죽는 연결이 **더 새 연결의 등록을 지우는 것**을 막는다.
+    epoch: u64,
     connection: ConnectionTo<Agent>,
     /// drop 만으로도 클로저의 `stop_rx.await` 가 풀린다 — 명시 send 는 선택.
     _stop: oneshot::Sender<()>,
@@ -60,6 +66,15 @@ pub struct AcpState {
     sinks: Mutex<HashMap<u32, Channel<AcpEvent>>>,
     /// 사용자 응답을 기다리는 권한 요청 (우리가 만든 request_id → 결정 채널).
     pending: Mutex<HashMap<String, PendingPermission>>,
+    /// **동시 start 직렬화.** 없으면 어댑터가 둘 뜬다 — React StrictMode 가
+    /// effect 를 두 번 돌리는 것만으로도 재현됐다(첫 연결 실패 → 재시도하면
+    /// 됨). 늦게 뜬 쪽이 레지스트리를 덮고, 먼저 죽는 쪽이 그 등록을 지워
+    /// `session/new` 가 "oneshot canceled" 로 떨어졌다.
+    start_lock: tokio::sync::Mutex<()>,
+    /// `session/new` 직렬화 — 두 커맨드가 동시에 세션을 만들면 하나가 덮이고
+    /// 덮인 쪽은 에이전트에 남아 새는 세션이 된다.
+    pub session_lock: tokio::sync::Mutex<()>,
+    next_epoch: AtomicU64,
 }
 
 /// 아직 결정되지 않은 권한 요청.
@@ -206,6 +221,17 @@ impl AcpState {
         }
     }
 
+    /// 자기 세대일 때만 지운다 — 이미 새 연결이 들어와 있으면 건드리지 않는다.
+    fn remove_if(&self, project_id: u32, epoch: u64) -> bool {
+        match self.running.lock() {
+            Ok(mut map) => match map.get(&project_id) {
+                Some(running) if running.epoch == epoch => map.remove(&project_id).is_some(),
+                _ => false,
+            },
+            Err(_) => false,
+        }
+    }
+
     fn remove(&self, project_id: u32) -> bool {
         self.running
             .lock()
@@ -225,9 +251,14 @@ pub async fn start(
     entry: &Path,
     path_env: &str,
 ) -> Result<AcpAgentInfo, String> {
-    if let Some(existing) = app.state::<AcpState>().info(project_id) {
+    // 시작은 한 번에 하나만. 두 번째 호출자는 여기서 기다렸다가 위 조기반환으로
+    // 같은 어댑터를 공유한다 (프런트가 몇 번 부르든 프로세스는 하나다).
+    let state = app.state::<AcpState>();
+    let _start_guard = state.start_lock.lock().await;
+    if let Some(existing) = state.info(project_id) {
         return Ok(existing);
     }
+    let epoch = state.next_epoch.fetch_add(1, Ordering::Relaxed);
 
     let config = AcpAgentConfig::new(node)
         .arg(entry.to_string_lossy().to_string())
@@ -306,6 +337,7 @@ pub async fn start(
                 register_app.state::<AcpState>().insert(
                     project_id,
                     Running {
+                        epoch,
                         connection: cx.clone(),
                         _stop: stop_tx,
                         info: info.clone(),
@@ -323,8 +355,8 @@ pub async fn start(
 
         // 여기 도달 = 어댑터가 죽었거나 우리가 껐다. 어느 쪽이든 등록 해제.
         let state = task_app.state::<AcpState>();
-        if state.remove(project_id) {
-            tracing::info!(project_id, "ACP 어댑터 연결 종료");
+        if state.remove_if(project_id, epoch) {
+            tracing::info!(project_id, epoch, "ACP 어댑터 연결 종료");
         }
         state.clear_sink(project_id);
         // 연결이 끊겼으면 대기 중인 승인 카드도 의미가 없다.
@@ -334,9 +366,13 @@ pub async fn start(
         }
     });
 
-    ready_rx
-        .await
-        .map_err(|_| "어댑터 핸드셰이크에 실패했습니다 (로그를 확인하세요)".to_string())
+    // 타임아웃이 있어야 하는 이유: 이 함수는 start_lock 을 쥐고 있다. 어댑터가
+    // 응답 없이 매달리면 락이 영원히 잡혀 **재시도 버튼까지 막힌다**.
+    match tokio::time::timeout(HANDSHAKE_TIMEOUT, ready_rx).await {
+        Ok(Ok(info)) => Ok(info),
+        Ok(Err(_)) => Err("어댑터 핸드셰이크에 실패했습니다 (로그를 확인하세요)".to_string()),
+        Err(_) => Err("어댑터가 응답하지 않습니다 (핸드셰이크 시간 초과)".to_string()),
+    }
 }
 
 /// 어댑터를 내린다. 떠 있지 않았으면 `false`.
