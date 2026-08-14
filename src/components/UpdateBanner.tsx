@@ -29,7 +29,7 @@ export function isNewerVersion(latest: string, current: string): boolean {
 
 export function UpdateBanner() {
   const { t } = useT();
-  const { status, check, install } = useUpdater();
+  const { status, check, install, restartNow } = useUpdater();
   const [dismissed, setDismissed] = useState(false);
   // Once we've seen an available update we keep showing the banner through its
   // install / failure transitions. A *check* error (offline, private repo) never
@@ -48,12 +48,16 @@ export function UpdateBanner() {
 
   const installing = status.kind === "installing";
   const failed = status.kind === "error";
+  // 새 버전은 이미 깔렸고 재시작만 남았다 — 끊으면 안 되는 일이 끝나기를 기다린다.
+  const awaiting = status.kind === "awaiting" ? status.reason : null;
 
   return (
     <div className="update-banner" role="status">
       <Download size={16} />
       <div className="update-banner-text">
-        {failed ? (
+        {awaiting ? (
+          <>{t("update.awaiting", { reason: awaiting })}</>
+        ) : failed ? (
           <>{t("update.failed")}</>
         ) : (
           <>
@@ -64,10 +68,14 @@ export function UpdateBanner() {
       <button
         type="button"
         className="update-banner-cta"
-        onClick={() => void install()}
+        onClick={() => void (awaiting ? restartNow() : install())}
         disabled={installing}
       >
-        {installing ? t("update.installing") : t("update.now")}
+        {awaiting
+          ? t("update.restartNow")
+          : installing
+            ? t("update.installing")
+            : t("update.now")}
       </button>
       <button
         type="button"

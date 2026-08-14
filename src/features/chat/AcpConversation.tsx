@@ -74,6 +74,7 @@ import { requestUsagePanel } from "./usageBus";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
+import { registerBusy } from "@/lib/busyGuard";
 import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -354,11 +355,27 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     return () => window.clearInterval(timer);
   }, [projectId, session]);
 
+
+  // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
+  useEffect(() => {
+    const id = session?.session_id ?? null;
+    setState((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
+  }, [session?.session_id, setState]);
+
   // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
   useEffect(() => {
     renameTab(session?.session_id ?? null, session?.title ?? null);
   }, [session?.session_id, session?.title, renameTab]);
 
+
+  /**
+   * 답변이 도는 동안은 **업데이트 재시작을 막는다.**
+   *
+   * 재시작은 우리가 띄운 어댑터를 같이 죽이고, 그때 흐르던 답변은 아직 디스크에
+   * 없어 그대로 사라진다. 새 번들을 까는 것까지는 언제든 해도 된다 — 기다리는
+   * 것은 마지막 한 걸음뿐이다.
+   */
+  useEffect(() => registerBusy(() => (busy ? t("acp.busyReason") : null)), [busy, t]);
 
   // 스트리밍 중에는 계속 맨 아래를 따라간다.
   useEffect(() => {
@@ -532,6 +549,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [projectId, addTab, editTurns, transcripts, tabs],
   );
 
+
+  /**
+   * 다시 띄운 뒤 **하던 대화로 돌아간다** (업데이트 재시작이 이 길을 탄다).
+   *
+   * 어댑터는 새 프로세스라 대화가 없지만 대화 자체는 디스크에 남아 있다. 목록에
+   * 그 id 가 아직 있으면 도로 연다. 이미 지웠거나 없으면 조용히 빈 화면 — 없는
+   * 대화를 열려다 오류를 띄우는 것보다 낫다.
+   *
+   * **한 번만** 시도한다: 사용자가 그 뒤로 다른 대화를 골랐는데 이게 다시 끼어들면
+   * 화면이 제 마음대로 움직이는 것처럼 보인다.
+   */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current || !session || !history) return;
+    restoredRef.current = true;
+    const last = state.acpLastSession;
+    if (!last || last === session.session_id) return;
+    if (!history.some((item) => item.id === last)) return;
+    void openSession(last);
+  }, [session, history, state.acpLastSession, openSession]);
 
   const pickCommand = useCallback((command: AcpCommand) => {
     setDraft(applyCommand(command));

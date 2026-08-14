@@ -2001,5 +2001,8 @@ export const en: Record<keyof typeof ko, string> = {
   "update.failed": "Update failed — try again in a moment",
   "update.installing": "Installing…",
   "update.now": "Update now",
+  "acp.busyReason": "Claude Code is working",
+  "update.awaiting": "{reason} — will restart automatically when it finishes",
+  "update.restartNow": "Restart now",
   "update.dismiss": "Dismiss",
 };

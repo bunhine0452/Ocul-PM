@@ -1970,5 +1970,8 @@ export const ko = {
   "update.failed": "업데이트 실패 — 잠시 후 다시 시도해 주세요",
   "update.installing": "설치 중…",
   "update.now": "지금 업데이트",
+  "acp.busyReason": "Claude Code 가 작업 중",
+  "update.awaiting": "{reason} — 끝나면 자동으로 재시작합니다",
+  "update.restartNow": "지금 재시작",
   "update.dismiss": "알림 닫기",
 } as const;

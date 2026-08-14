@@ -225,6 +225,14 @@ export interface WorkspaceState {
    */
   acpNames: Record<string, string>;
   /**
+   * 마지막으로 보고 있던 대화의 id.
+   *
+   * 앱을 다시 띄우면(업데이트 재시작 포함) 어댑터는 새 프로세스라 대화가 없다 —
+   * 하지만 대화 자체는 디스크에 남아 있다. 이 값이 있으면 그 대화를 도로 열어
+   * "하던 곳"으로 돌아간다. 없거나 이미 지워졌으면 빈 화면으로 시작한다.
+   */
+  acpLastSession: string | null;
+  /**
    * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
    *
    * 어댑터의 effort 값은 `low…max` 다섯 개뿐이고 울트라코드는 그 목록에
@@ -314,6 +322,7 @@ const DEFAULT_STATE: WorkspaceState = {
   acpPanelOpen: true,
   acpTabs: [],
   acpNames: {},
+  acpLastSession: null,
   acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,

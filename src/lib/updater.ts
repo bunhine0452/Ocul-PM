@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { busyReason, onBusyChange } from "./busyGuard";
 
 // Shared self-update plumbing (benchmarked from the uvws/PySpace setup). The
 // Tauri updater plugin checks the GitHub `latest.json` endpoint and verifies the
@@ -17,6 +18,8 @@ export type UpdaterStatus =
   | { kind: "uptodate" }
   | { kind: "available"; version: string; notes: string | null }
   | { kind: "installing" }
+  /** 새 버전은 깔렸고, **끊으면 안 되는 일**이 끝나기를 기다리는 중. */
+  | { kind: "awaiting"; reason: string }
   | { kind: "error"; message: string };
 
 function errMessage(e: unknown): string {
@@ -69,18 +72,48 @@ export function useUpdater() {
     }
   }, []);
 
-  /** Download + install the pending update in place, then relaunch. No-op if no
-   *  update is pending. */
+  /**
+   * 새 버전을 깔고 다시 띄운다. 대기 중인 업데이트가 없으면 아무 일도 안 한다.
+   *
+   * **재시작만 미룬다.** 번들을 디스크에 까는 것은 언제 해도 안전하다 — 도는
+   * 프로세스는 메모리의 옛 코드를 계속 쓴다. 위험한 것은 재시작이다: 우리가
+   * 띄운 ACP 어댑터가 같이 죽고, 그때 흐르던 답변은 아직 디스크에 없어 그대로
+   * 사라진다. 그래서 끊으면 안 되는 일이 있으면 깔아만 두고 기다린다.
+   */
   const install = useCallback(async () => {
     if (!update) return;
     setStatus({ kind: "installing" });
     try {
       await update.downloadAndInstall();
-      await relaunch();
     } catch (e) {
       setStatus({ kind: "error", message: errMessage(e) });
+      return;
     }
+
+    const why = busyReason();
+    if (!why) {
+      await relaunch();
+      return;
+    }
+
+    setStatus({ kind: "awaiting", reason: why });
+    // 일이 끝나는 순간 띄운다. 구독을 안 걸고 폴링하면 끝난 뒤에도 최대 한
+    // 주기만큼 멍하니 기다리게 된다.
+    const off = onBusyChange(() => {
+      const still = busyReason();
+      if (still) {
+        setStatus({ kind: "awaiting", reason: still });
+        return;
+      }
+      off();
+      void relaunch();
+    });
   }, [update]);
 
-  return { status, update, check, install };
+  /** 기다리지 않고 **지금** 띄운다 (사용자가 그러기로 했을 때). */
+  const restartNow = useCallback(async () => {
+    await relaunch();
+  }, []);
+
+  return { status, update, check, install, restartNow };
 }
