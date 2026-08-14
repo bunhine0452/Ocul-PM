@@ -56,3 +56,24 @@ describe("applyCommand", () => {
     expect(applyCommand(cmd("plugin", "", "name"))).toBe("/plugin ");
   });
 });
+
+describe("filterCommands — pinned commands", () => {
+  const all = [cmd("zebra"), cmd("compact"), cmd("alpha"), cmd("usage"), cmd("plugin")];
+
+  /** `/` 만 쳤을 때 알파벳순이면 자주 쓰는 것이 백 개 아래 묻힌다. */
+  it("pins the common commands to the top for an empty query", () => {
+    expect(filterCommands(all, "").slice(0, 3).map((c) => c.name)).toEqual([
+      "usage",
+      "compact",
+      "plugin",
+    ]);
+  });
+
+  it("keeps the adapter order among unpinned commands", () => {
+    expect(filterCommands(all, "").slice(3).map((c) => c.name)).toEqual(["zebra", "alpha"]);
+  });
+
+  it("does not pin once the user starts typing", () => {
+    expect(filterCommands(all, "alph")[0].name).toBe("alpha");
+  });
+});

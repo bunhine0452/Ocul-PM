@@ -22,7 +22,6 @@ import {
   Search,
   Sparkles,
   Square,
-  SquarePen,
   Terminal,
   Trash2,
   TriangleAlert,
@@ -668,23 +667,25 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             >
               <Paperclip size={14} />
             </button>
+            <span style={{ flex: 1 }} />
+            {/* 사용량 표시가 곧 버튼이다 — 숫자를 보다가 "자세히"를 누르고
+                싶어지는 자리가 바로 여기다. */}
             <button
               type="button"
-              className="btn icon ghost"
+              className="usage-btn"
               disabled={busy}
-              onClick={() => void newConversation()}
-              aria-label={t("acp.newConversation")}
-              title={t("acp.newConversation")}
+              onClick={() => void send("/usage")}
+              title={t("acp.usageTitle")}
             >
-              <SquarePen size={14} />
+              {usage ? (
+                <>
+                  {Math.round((usage.used / Math.max(usage.size, 1)) * 100)}%
+                  {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
+                </>
+              ) : (
+                t("acp.usage")
+              )}
             </button>
-            <span style={{ flex: 1 }} />
-            {usage ? (
-              <span className="agent-id-meta" title={t("acp.usageTitle")}>
-                {Math.round((usage.used / Math.max(usage.size, 1)) * 100)}%
-                {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
-              </span>
-            ) : null}
             {PRIMARY_CONFIG_IDS.map((id) => {
               const option = session.options.find((o) => o.id === id);
               if (!option) return null;
@@ -728,17 +729,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       </div>
       </div>
 
-      {panelOpen ? (
-        <SessionPanel
-          sessions={history ?? []}
-          currentId={session.session_id}
-          query={historyQuery}
-          onQuery={setHistoryQuery}
-          onPick={(id) => void openSession(id)}
-          onNew={() => void newConversation()}
-          busy={busy}
-        />
-      ) : null}
+      {/* 열고 닫을 때 **언마운트하지 않는다** — 사라졌다 나타나면 전이가
+          불가능하고, 스크롤 위치와 검색어도 매번 날아간다. */}
+      <SessionPanel
+        open={panelOpen}
+        sessions={history ?? []}
+        currentId={session.session_id}
+        query={historyQuery}
+        onQuery={setHistoryQuery}
+        onPick={(id) => void openSession(id)}
+        onNew={() => void newConversation()}
+        busy={busy}
+      />
 
     </div>
   );
@@ -1091,6 +1093,7 @@ function MoreSettings({
  * 닫는" 동작이 아니라 **옆에 두고 오가는** 동작이다.
  */
 function SessionPanel({
+  open,
   sessions,
   currentId,
   query,
@@ -1099,6 +1102,7 @@ function SessionPanel({
   onNew,
   busy,
 }: {
+  open: boolean;
   sessions: AcpSessionSummary[];
   currentId: string | null;
   query: string;
@@ -1117,7 +1121,13 @@ function SessionPanel({
     : sessions;
 
   return (
-    <aside className="acp-panel" aria-label={t("acp.history")}>
+    <aside
+      className={"acp-panel" + (open ? "" : " closed")}
+      aria-label={t("acp.history")}
+      aria-hidden={!open}
+      inert={!open}
+    >
+      <div className="acp-panel-inner">
       <div className="acp-panel-head">
         <span className="acp-panel-title">{t("acp.history")}</span>
       </div>
@@ -1158,6 +1168,7 @@ function SessionPanel({
             {sessions.length ? t("acp.history.noMatch") : t("acp.history.empty")}
           </div>
         )}
+      </div>
       </div>
     </aside>
   );
@@ -1245,7 +1256,11 @@ function EffortControl({
                   key={choice.value}
                   type="button"
                   className={
-                    "effort-dot" + (i === index ? " on" : "") + (i < index ? " lit" : "")
+                    "effort-dot" +
+                    (i === index ? " on" : "") +
+                    (i < index ? " lit" : "") +
+                    // 마지막 단계는 척도의 연장이 아니라 별개의 물건이다.
+                    (i === choices.length - 1 ? " top" : "")
                   }
                   aria-label={choice.name}
                   title={choice.description ?? choice.name}

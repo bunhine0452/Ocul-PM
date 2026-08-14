@@ -25,13 +25,32 @@ export function findSlashQuery(text: string): SlashQuery | null {
 }
 
 /**
+ * 목록 맨 위에 고정할 명령들.
+ *
+ * 어댑터가 주는 순서는 알파벳순이라 자주 쓰는 것이 백 개 아래 묻힌다.
+ * `/` 만 쳤을 때 바로 보여야 하는 것들을 앞으로 끌어올린다.
+ */
+const PINNED = ["usage", "compact", "clear", "plugin"] as const;
+
+/**
  * 이름·설명으로 거른 뒤 **이름이 앞에서 일치**하는 것을 위로 올린다.
  * `/plugin` 을 치는데 설명에 "plugin" 이 들어간 다른 명령이 먼저 오면
  * 엔터가 엉뚱한 것을 고른다.
+ *
+ * 질의가 비어 있을 때(= 방금 `/` 를 쳤을 때)는 자주 쓰는 것부터 보여 준다.
  */
 export function filterCommands(commands: readonly AcpCommand[], query: string): AcpCommand[] {
   const needle = query.toLowerCase();
-  if (!needle) return [...commands];
+  if (!needle) {
+    const pinRank = (name: string) => {
+      const at = PINNED.indexOf(name as (typeof PINNED)[number]);
+      return at === -1 ? PINNED.length : at;
+    };
+    return [...commands].sort((a, b) => {
+      const byPin = pinRank(a.name) - pinRank(b.name);
+      return byPin !== 0 ? byPin : 0;
+    });
+  }
 
   const matched = commands.filter(
     (command) =>
