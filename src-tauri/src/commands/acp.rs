@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
-    CancelNotification, ContentBlock, NewSessionRequest, PromptRequest, ResourceLink,
-    SessionConfigOptionValue, SetSessionConfigOptionRequest, TextContent,
+    CancelNotification, ContentBlock, ListSessionsRequest, NewSessionRequest, PromptRequest,
+    ResourceLink, ResumeSessionRequest, SessionConfigOptionValue, SetSessionConfigOptionRequest,
+    TextContent,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
@@ -53,6 +54,8 @@ pub async fn acp_install_adapter(app: AppHandle) -> Result<AcpDiagnostics, Strin
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 pub struct AcpSession {
     pub agent: AcpAgentInfo,
+    /// 현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다.
+    pub session_id: Option<String>,
     /// 모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
     /// **어댑터가 준 그대로**다 — 우리가 목록을 들고 있지 않는다.
     pub options: Vec<acp::session::AcpConfigOption>,
@@ -94,10 +97,17 @@ pub async fn acp_start(
     let agent = acp::process::start(app.clone(), project_id, &node, &entry, &path_env).await?;
     ensure_session(&app, &db, project_id).await?;
 
-    Ok(AcpSession {
+    Ok(session_snapshot(&app, project_id, agent))
+}
+
+/// 프런트에 돌려줄 현재 상태 한 벌.
+fn session_snapshot(app: &AppHandle, project_id: u32, agent: AcpAgentInfo) -> AcpSession {
+    let state = app.state::<AcpState>();
+    AcpSession {
         agent,
-        options: app.state::<AcpState>().options(project_id),
-    })
+        session_id: state.session(project_id).map(|s| s.0.to_string()),
+        options: state.options(project_id),
+    }
 }
 
 /// 세션이 없으면 만든다 (있으면 그대로). 설정 항목도 함께 갈무리한다.
@@ -386,8 +396,88 @@ pub async fn acp_new_session(
     state.clear_session(project_id);
     ensure_session(&app, &db, project_id).await?;
 
-    Ok(AcpSession {
-        agent,
-        options: app.state::<AcpState>().options(project_id),
-    })
+    Ok(session_snapshot(&app, project_id, agent))
+}
+
+/// 과거 대화 하나 (에이전트가 보관한다 — 우리가 저장하지 않는다).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct AcpSessionSummary {
+    pub id: String,
+    pub title: Option<String>,
+    /// ISO 8601 문자열 (어댑터가 주는 그대로 — 우리가 파싱해 다시 쓰지 않는다).
+    pub updated_at: Option<String>,
+}
+
+/// 이 프로젝트의 과거 대화 목록.
+///
+/// **우리가 저장하지 않는다** — Claude Code 가 이미 자기 세션 스토어를 갖고
+/// 있고, ACP `session/list` 가 그걸 그대로 열어 준다. 여기에 사본을 두면
+/// 터미널에서 연 세션과 앱에서 연 세션이 갈라진다.
+#[tauri::command]
+#[specta::specta]
+pub async fn acp_list_sessions(
+    app: AppHandle,
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<AcpSessionSummary>, String> {
+    let connection = app
+        .state::<AcpState>()
+        .connection(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    let cwd = project_root(&db, project_id).await?;
+
+    let mut request = ListSessionsRequest::new();
+    request.cwd = Some(cwd);
+
+    let response = connection
+        .send_request(request)
+        .block_task()
+        .await
+        .map_err(|e| format!("대화 목록을 불러오지 못했습니다: {e}"))?;
+
+    Ok(response
+        .sessions
+        .into_iter()
+        .map(|info| AcpSessionSummary {
+            id: info.session_id.0.to_string(),
+            title: info.title,
+            updated_at: info.updated_at,
+        })
+        .collect())
+}
+
+/// 과거 대화를 이어서 연다.
+#[tauri::command]
+#[specta::specta]
+pub async fn acp_resume_session(
+    app: AppHandle,
+    db: State<'_, Db>,
+    project_id: u32,
+    session_id: String,
+) -> Result<AcpSession, String> {
+    let state = app.state::<AcpState>();
+    let agent = state
+        .info(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    let connection = state
+        .connection(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+
+    // 지금 세션에 매인 승인 카드는 무효가 된다.
+    state.cancel_pending_permissions(project_id);
+    let cwd = project_root(&db, project_id).await?;
+
+    let resumed = connection
+        .send_request(ResumeSessionRequest::new(session_id.clone(), cwd))
+        .block_task()
+        .await
+        .map_err(|e| format!("대화를 이어 열지 못했습니다: {e}"))?;
+
+    let state = app.state::<AcpState>();
+    state.set_session(
+        project_id,
+        session_id.into(),
+        acp::session::map_config_options(resumed.config_options.as_deref().unwrap_or_default()),
+    );
+    Ok(session_snapshot(&app, project_id, agent))
 }

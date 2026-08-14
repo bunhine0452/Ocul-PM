@@ -26,6 +26,9 @@ const TerminalScreenV2 = lazy(() =>
 const AiPanelScreenV2 = lazy(() =>
   import("@/features/chat/AiPanelScreenV2").then((m) => ({ default: m.AiPanelScreenV2 })),
 );
+const ClaudeCodeScreenV2 = lazy(() =>
+  import("@/features/chat/ClaudeCodeScreenV2").then((m) => ({ default: m.ClaudeCodeScreenV2 })),
+);
 const DocsScreenV2 = lazy(() =>
   import("@/features/docs/DocsScreenV2").then((m) => ({ default: m.DocsScreenV2 })),
 );
@@ -63,7 +66,7 @@ import "@/styles/index.css";
 /** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
 const KNOWN_VIEWS: UiV2View[] = [
   "today", "journal", "diff", "planner", "discussion", "retro", "search",
-  "terminal", "ai", "graph", "docs", "skills", "settings",
+  "terminal", "ai", "graph", "docs", "skills", "claudecode", "settings",
 ];
 
 interface ShellV2Props {
@@ -408,6 +411,8 @@ export default function ShellV2({
           <SearchScreenV2 projectId={projectId} />
         ) : view === "terminal" ? (
           <TerminalScreenV2 projectRoot={projectRoot} />
+        ) : view === "claudecode" ? (
+          <ClaudeCodeScreenV2 projectId={projectId} />
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
         ) : view === "docs" ? (

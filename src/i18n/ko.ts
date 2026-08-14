@@ -25,6 +25,7 @@ export const ko = {
   "nav.docs": "문서",
   "nav.terminal": "터미널",
   "nav.ai": "에이전트",
+  "nav.claudecode": "Claude Code",
   "nav.skills": "스킬·규칙",
   "nav.aria.main": "메인 내비게이션",
 
@@ -43,6 +44,7 @@ export const ko = {
   "nav.docs.alias": "문서 위키 마크다운",
   "nav.terminal.alias": "터미널 셸",
   "nav.ai.alias": "에이전트 채팅 대화",
+  "nav.claudecode.alias": "클로드 코드 에이전트 acp 구동",
   "nav.skills.alias": "스킬 규칙 훅 에이전트 프롬프트",
 
   // ── 설정 → 모양 → 언어 ──────────────────────────────────────────────────
@@ -1715,6 +1717,13 @@ export const ko = {
   "acp.mention.empty": "일치하는 파일이 없어요",
   "acp.settings": "세션 설정",
   "acp.usageTitle": "컨텍스트 사용률 · 누적 비용",
+  "acp.history": "지난 대화",
+  "acp.history.empty": "지난 대화가 없어요",
+  "acp.untitledSession": "제목 없는 대화",
+  "acp.placeholderBusy": "작업 중 — 다음에 보낼 말을 미리 쳐 두세요",
+  "acp.queueSend": "대기열에 추가",
+  "acp.queue.remove": "대기열에서 빼기",
+  "acp.cancelEsc": "중단 (Esc)",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",

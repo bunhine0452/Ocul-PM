@@ -70,6 +70,9 @@ pub enum AcpEvent {
 pub struct AcpConfigChoice {
     pub value: String,
     pub name: String,
+    /// 어댑터가 주는 한 줄 설명 ("Standard behavior, prompts for dangerous
+    /// operations" 같은). 메뉴를 두 줄로 그릴 때 쓴다 — 우리가 지어내지 않는다.
+    pub description: Option<String>,
 }
 
 /// 세션 설정 항목 (모델·Effort·Fast mode·권한 모드·서브에이전트 …).
@@ -97,6 +100,16 @@ pub fn map_config_options(
 ) -> Vec<AcpConfigOption> {
     use agent_client_protocol::schema::v1::{SessionConfigKind, SessionConfigSelectOptions};
 
+    fn choice(
+        option: &agent_client_protocol::schema::v1::SessionConfigSelectOption,
+    ) -> AcpConfigChoice {
+        AcpConfigChoice {
+            value: option.value.0.to_string(),
+            name: option.name.clone(),
+            description: option.description.clone(),
+        }
+    }
+
     options
         .iter()
         .map(|option| {
@@ -104,21 +117,12 @@ pub fn map_config_options(
                 SessionConfigKind::Select(select) => {
                     // 그룹형도 평평하게 편다 — 우리 셀렉터는 한 겹이다.
                     let flat: Vec<AcpConfigChoice> = match &select.options {
-                        SessionConfigSelectOptions::Ungrouped(list) => list
-                            .iter()
-                            .map(|o| AcpConfigChoice {
-                                value: o.value.0.to_string(),
-                                name: o.name.clone(),
-                            })
-                            .collect(),
-                        SessionConfigSelectOptions::Grouped(groups) => groups
-                            .iter()
-                            .flat_map(|g| g.options.iter())
-                            .map(|o| AcpConfigChoice {
-                                value: o.value.0.to_string(),
-                                name: o.name.clone(),
-                            })
-                            .collect(),
+                        SessionConfigSelectOptions::Ungrouped(list) => {
+                            list.iter().map(choice).collect()
+                        }
+                        SessionConfigSelectOptions::Grouped(groups) => {
+                            groups.iter().flat_map(|g| g.options.iter()).map(choice).collect()
+                        }
                         // 스키마가 표현을 늘려도 셀렉터가 통째로 사라지지 않게.
                         #[allow(unreachable_patterns)]
                         _ => Vec::new(),

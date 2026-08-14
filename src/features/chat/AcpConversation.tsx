@@ -1,13 +1,21 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
+  AlertTriangle,
   ArrowRight,
   ArrowUp,
   Check,
   ChevronDown,
   Code2,
+  ClipboardCheck,
+  Clock,
   ExternalLink,
   File as FileIcon,
+  Flame,
+  Lock,
+  Play,
+  Rocket,
+  Settings,
   Paperclip,
   Pencil,
   Search,
@@ -25,6 +33,7 @@ import {
   type AcpConfigOption,
   type AcpEvent,
   type AcpSession,
+  type AcpSessionSummary,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import {
@@ -67,12 +76,6 @@ const TOOL_ICON: Readonly<Record<string, typeof FileIcon>> = {
   fetch: ExternalLink,
 };
 
-/**
- * 청크를 모았다 반영하는 간격(ms). 프로바이더 채팅과 같은 문턱을 쓴다 —
- * 더 짧으면 재파싱이 잦아 끊겨 보이고, 더 길면 타자 느낌이 사라진다.
- */
-const STREAM_FLUSH_MS = 45;
-
 /** 상태 → i18n 키. 모르는 상태는 원문 그대로 보여 준다(삼키지 않는다). */
 const TOOL_STATUS_KEY = {
   pending: "acp.tool.status.pending",
@@ -101,6 +104,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  /** 과거 대화 목록. `null` 이면 아직 안 열어 본 상태. */
+  const [history, setHistory] = useState<AcpSessionSummary[] | null>(null);
+  /**
+   * 에이전트가 도는 동안 사용자가 친 메시지. 턴이 끝나면 차례로 나간다.
+   *
+   * 클라이언트에서 줄 세우는 이유: 어댑터가 `promptQueueing` 을 광고하긴
+   * 하지만, 그쪽에 맡기면 큐가 **화면에 안 보이고 취소도 못 한다**. 여기서
+   * 들고 있으면 대기 중인 문장을 보여 주고 빼낼 수 있다.
+   */
+  const [queue, setQueue] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /**
@@ -108,10 +121,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 마크다운이 매번 재파싱돼 **스트리밍이 렉처럼 끊겨 보인다**. 프로바이더
    * 채팅이 이미 같은 이유로 스로틀을 쓴다 — 여기도 같은 문턱을 쓴다.
    */
-  const bufferRef = useRef<{ text: string; thought: string; timer: number | null }>({
+  const bufferRef = useRef<{ text: string; thought: string; frame: number | null }>({
     text: "",
     thought: "",
-    timer: null,
+    frame: null,
   });
 
   // 사용자가 "시작"을 누르게 하지 않는다 — 화면에 들어오면 붙는다.
@@ -204,7 +217,34 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [draft],
   );
 
+  const openHistory = useCallback(async () => {
+    const res = await commands.acpListSessions(projectId);
+    if (res.status === "ok") setHistory(res.data);
+    else setError(res.error);
+  }, [projectId]);
+
+  const resume = useCallback(
+    async (sessionId: string) => {
+      setHistory(null);
+      const res = await commands.acpResumeSession(projectId, sessionId);
+      if (res.status === "ok") {
+        setSession(res.data);
+        // 과거 턴을 우리가 되살리지는 못한다 — 에이전트는 세션을 이어 주지만
+        // 지난 메시지를 다시 흘려보내 주지는 않는다. 화면은 비우고, 이어지는
+        // 대화는 그 세션의 문맥 위에서 진행된다.
+        setTurns([]);
+        setUsage(null);
+        setPermission(null);
+        setError(null);
+      } else {
+        setError(res.error);
+      }
+    },
+    [projectId],
+  );
+
   const newConversation = useCallback(async () => {
+    setHistory(null);
     const res = await commands.acpNewSession(projectId);
     if (res.status === "ok") {
       setSession(res.data);
@@ -221,7 +261,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const send = useCallback(
     async (override?: string) => {
       const text = (override ?? draft).trim();
-      if (!text || busy) return;
+      if (!text) return;
+      if (busy) {
+        setQueue((prev) => [...prev, text]);
+        setDraft("");
+        return;
+      }
 
       const sending = attachments;
       setDraft("");
@@ -233,9 +278,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
       const buffer = bufferRef.current;
       const flush = () => {
-        if (buffer.timer !== null) {
-          window.clearTimeout(buffer.timer);
-          buffer.timer = null;
+        if (buffer.frame !== null) {
+          cancelAnimationFrame(buffer.frame);
+          buffer.frame = null;
         }
         const { text, thought } = buffer;
         buffer.text = "";
@@ -255,8 +300,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         if (event.kind === "chunk" || event.kind === "thought") {
           if (event.kind === "chunk") buffer.text += event.text;
           else buffer.thought += event.text;
-          if (buffer.timer === null) {
-            buffer.timer = window.setTimeout(flush, STREAM_FLUSH_MS);
+          // **프레임에 맞춰** 한 번만 반영한다. 타이머(45ms)는 화면 갱신과
+          // 어긋나 글자가 뭉텅이로 튀어 보였다 — rAF 는 브라우저가 그리는
+          // 리듬과 같아서 같은 양의 글자라도 흐르듯 나온다.
+          if (buffer.frame === null) {
+            buffer.frame = requestAnimationFrame(flush);
           }
           return;
         }
@@ -290,10 +338,40 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [draft, busy, projectId, attachments],
   );
 
+  // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
+  // 넣으면 사용자가 중간에서 멈출 수 없다.
+  //
+  // `drainingRef` 가 필요한 이유: 이 effect 는 `send` 의 아이덴티티(=입력할
+  // 때마다 바뀐다)에도 걸려 있고 StrictMode 는 effect 를 두 번 돌린다. 가드가
+  // 없으면 같은 문장이 두 번 나갈 수 있다.
+  const drainingRef = useRef(false);
+  useEffect(() => {
+    if (busy || !queue.length || drainingRef.current) return;
+    drainingRef.current = true;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void send(next).finally(() => {
+      drainingRef.current = false;
+    });
+  }, [busy, queue, send]);
+
   const cancel = useCallback(() => {
     void commands.acpCancel(projectId);
     setPermission(null);
   }, [projectId]);
+
+  // ESC 로 중단. 화면 어디에 포커스가 있든 먹어야 해서 document 에 건다 —
+  // 진행 중일 때만 등록하므로 다른 화면의 ESC(팝오버 닫기 등)를 뺏지 않는다.
+  useEffect(() => {
+    if (!busy) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      cancel();
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [busy, cancel]);
 
   const decide = useCallback((requestId: string, optionId: string | null) => {
     setPermission(null);
@@ -386,12 +464,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             </div>
           ) : (
             turns.map((turn, i) => (
-              <TurnRow
-                key={i}
-                turn={turn}
-                agentName={agentName}
-                live={busy && i === turns.length - 1}
-              />
+              <TurnRow key={i} turn={turn} live={busy && i === turns.length - 1} />
             ))
           )}
 
@@ -413,6 +486,24 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
       <div className="ai-compose agent">
         <div className="composer agent">
+          {queue.length ? (
+            <div className="queue-row">
+              {queue.map((text, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="queue-chip"
+                  title={t("acp.queue.remove")}
+                  onClick={() => setQueue((prev) => prev.filter((_, at) => at !== i))}
+                >
+                  <Clock size={11} />
+                  <span className="queue-chip-text">{text}</span>
+                  <X size={11} />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {attachments.length ? (
             <div className="attach-row">
               {attachments.map((path) => (
@@ -464,7 +555,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               ref={inputRef}
               rows={2}
               value={draft}
-              placeholder={t("acp.placeholder")}
+              placeholder={busy ? t("acp.placeholderBusy") : t("acp.placeholder")}
               aria-label={t("acp.inputAria")}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
@@ -492,6 +583,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             >
               <SquarePen size={14} />
             </button>
+            <SessionHistory
+              open={history !== null}
+              sessions={history ?? []}
+              currentId={session.session_id}
+              onOpen={() => void openHistory()}
+              onClose={() => setHistory(null)}
+              onPick={(id) => void resume(id)}
+            />
             <span style={{ flex: 1 }} />
             {usage ? (
               <span className="agent-id-meta" title={t("acp.usageTitle")}>
@@ -499,29 +598,39 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 {usage.costUsd != null ? ` · $${usage.costUsd.toFixed(2)}` : ""}
               </span>
             ) : null}
-            <SettingsMenu options={session.options} onChange={setOption} busy={busy} />
+            {PRIMARY_CONFIG_IDS.map((id) => {
+              const option = session.options.find((o) => o.id === id);
+              return option ? (
+                <ConfigControl key={id} option={option} onChange={setOption} />
+              ) : null;
+            })}
+            <MoreSettings
+              options={session.options.filter(
+                (o) => !PRIMARY_CONFIG_IDS.includes(o.id as (typeof PRIMARY_CONFIG_IDS)[number]),
+              )}
+              onChange={setOption}
+            />
             {busy ? (
               <button
                 type="button"
                 className="btn icon composer-stop"
                 onClick={cancel}
-                aria-label={t("acp.cancel")}
-                title={t("acp.cancel")}
+                aria-label={t("acp.cancelEsc")}
+                title={t("acp.cancelEsc")}
               >
                 <Square size={13} fill="currentColor" />
               </button>
-            ) : (
-              <button
-                type="button"
-                className="btn icon composer-send"
-                disabled={!draft.trim()}
-                onClick={() => void send()}
-                aria-label={t("acp.send")}
-                title={t("acp.send")}
-              >
-                <ArrowUp size={13} />
-              </button>
-            )}
+            ) : null}
+            <button
+              type="button"
+              className="btn icon composer-send"
+              disabled={!draft.trim()}
+              onClick={() => void send()}
+              aria-label={busy ? t("acp.queueSend") : t("acp.send")}
+              title={busy ? t("acp.queueSend") : t("acp.send")}
+            >
+              <ArrowUp size={13} />
+            </button>
           </div>
         </div>
       </div>
@@ -537,11 +646,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
  */
 const TurnRow = memo(function TurnRow({
   turn,
-  agentName,
   live,
 }: {
   turn: AcpTurn;
-  agentName: string;
   live: boolean;
 }) {
   const { t } = useT();
@@ -556,15 +663,13 @@ const TurnRow = memo(function TurnRow({
 
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
-      <div className="msg-head">
-        <span className="msg-model">{agentName}</span>
-        {live ? (
-          <span className="msg-live">
-            <span className="msg-live-dot" />
-            {t("ai.streaming")}
-          </span>
-        ) : null}
-      </div>
+      {/* 이름을 적지 않는다 — 답이 하나뿐인 화면에서 매 턴 "Claude Agent" 를
+          반복하면 정보가 아니라 소음이다. 진행 중임은 점 하나로 족하다. */}
+      {live ? (
+        <div className="msg-head">
+          <span className="msg-live-dot" />
+        </div>
+      ) : null}
       {turn.thought ? (
         <details className="think">
           <summary>
@@ -584,7 +689,12 @@ const TurnRow = memo(function TurnRow({
       ) : null}
       {turn.text ? (
         <div className="msg-md">
-          <Markdown>{turn.text}</Markdown>
+          {/* 스트리밍 중에는 **마크다운을 파싱하지 않는다.** 매 프레임마다
+              누적 전체를 다시 파싱하고 코드블록을 재하이라이트하는 것이
+              "렉 걸린 타자"의 진짜 원인이었다. 턴이 끝나면 리치 렌더로
+              승격된다 — Markdown 의 Suspense 폴백과 같은 모양이라 전환이
+              눈에 띄지 않는다. */}
+          {live ? <div className="msg-stream">{turn.text}</div> : <Markdown>{turn.text}</Markdown>}
         </div>
       ) : turn.tools?.length ? null : (
         <div className="msg-wait">{t("acp.waiting")}</div>
@@ -674,43 +784,128 @@ function PermissionCard({
   );
 }
 
+/** 자주 쓰는 설정 3종은 바깥에 — 나머지는 `⋯` 안으로. */
+const PRIMARY_CONFIG_IDS = ["mode", "model", "effort"] as const;
+
+/** 컨트롤 트리거에 붙일 아이콘. */
+const CONFIG_ICON: Readonly<Record<string, typeof Lock>> = {
+  mode: Lock,
+  model: Sparkles,
+  effort: Flame,
+};
+
 /**
- * 세션 설정 전부를 담는 하나의 칩.
- *
- * 처음엔 항목마다 대문자 라벨을 늘어놓았는데(`MODE Manual  MODEL Sonnet …`),
- * 컴포저 바닥이 계기판처럼 시끄러워졌다. Claude Desktop 처럼 **평소엔 모델
- * 이름 하나만** 보이고, 누르면 전부 펼친다.
- *
- * **선택지는 우리가 들고 있지 않다**: 어댑터가 `session/new` 로 준 것을 그대로
- * 그리므로, 모델이 추가되면 우리 코드를 고치지 않아도 나타난다.
+ * 권한 모드 선택지별 아이콘. 모드는 **무엇을 허용하는가**라서 이름만으로는
+ * 구분이 느리다 — 자물쇠/코드/계획/로켓이 훨씬 빨리 읽힌다.
  */
-function SettingsMenu({
+const MODE_ICON: Readonly<Record<string, typeof Lock>> = {
+  default: Lock,
+  acceptEdits: Code2,
+  plan: ClipboardCheck,
+  auto: Rocket,
+  dontAsk: Play,
+  bypassPermissions: AlertTriangle,
+};
+
+function choicesOf(option: AcpConfigOption) {
+  return option.is_boolean
+    ? [
+        { value: "true", name: "On", description: null },
+        { value: "false", name: "Off", description: null },
+      ]
+    : option.choices;
+}
+
+/**
+ * 설정 하나를 여는 컨트롤.
+ *
+ * 메뉴 행은 **아이콘 + 이름 + 설명** 두 줄이다. 설명은 우리가 지어내지 않고
+ * 어댑터가 준 것을 그대로 쓴다("Standard behavior, prompts for dangerous
+ * operations"). 모드처럼 결과가 위험할 수 있는 선택은 이름만으로 부족하다.
+ */
+function ConfigControl({
+  option,
+  onChange,
+  compact,
+}: {
+  option: AcpConfigOption;
+  onChange: (configId: string, value: string) => void;
+  /** true 면 트리거에 값 텍스트 없이 아이콘만 (오버플로 안에서 쓸 때). */
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
+
+  const choices = choicesOf(option);
+  if (!choices.length) return null;
+
+  const current = choices.find((c) => c.value === option.current);
+  const TriggerIcon = CONFIG_ICON[option.id];
+
+  return (
+    <div className="knob-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={"agent-chip" + (open ? " open" : "")}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={option.name}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {TriggerIcon ? <TriggerIcon size={13} /> : null}
+        {compact ? null : (
+          <span className="agent-chip-label">{current?.name ?? option.current}</span>
+        )}
+      </button>
+      {open ? (
+        <div className="settings-menu" role="menu" aria-label={option.name}>
+          <div className="settings-group-label">{option.name}</div>
+          {choices.map((choice) => {
+            const RowIcon = option.id === "mode" ? MODE_ICON[choice.value] : undefined;
+            return (
+              <button
+                key={choice.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={choice.value === option.current}
+                className={"settings-row" + (choice.value === option.current ? " active" : "")}
+                onClick={() => {
+                  setOpen(false);
+                  onChange(option.id, choice.value);
+                }}
+              >
+                <span className="settings-row-icon">
+                  {RowIcon ? <RowIcon size={15} /> : null}
+                </span>
+                <span className="settings-row-body">
+                  <span className="settings-row-name">{choice.name}</span>
+                  {choice.description ? (
+                    <span className="settings-row-desc">{choice.description}</span>
+                  ) : null}
+                </span>
+                {choice.value === option.current ? <Check size={14} /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 자주 쓰지 않는 나머지 설정(Fast mode·서브에이전트 …). */
+function MoreSettings({
   options,
   onChange,
-  busy,
 }: {
   options: AcpConfigOption[];
   onChange: (configId: string, value: string) => void;
-  busy: boolean;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
-
-  const choicesOf = (option: AcpConfigOption) =>
-    option.is_boolean
-      ? [
-          { value: "true", name: "On" },
-          { value: "false", name: "Off" },
-        ]
-      : option.choices;
-
-  // 칩에 띄울 한 줄 — 모델이 있으면 모델, 없으면 첫 항목.
-  const headline = options.find((o) => o.id === "model") ?? options[0];
-  const label = headline
-    ? (choicesOf(headline).find((c) => c.value === headline.current)?.name ?? headline.current)
-    : t("acp.settings");
 
   if (!options.length) return null;
 
@@ -718,15 +913,13 @@ function SettingsMenu({
     <div className="knob-wrap" ref={wrapRef}>
       <button
         type="button"
-        className={"agent-chip" + (open ? " open" : "") + (busy ? " busy" : "")}
+        className={"agent-chip" + (open ? " open" : "")}
         aria-haspopup="menu"
         aria-expanded={open}
         title={t("acp.settings")}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="agent-id-dot" />
-        <span className="agent-chip-label">{label}</span>
-        <ChevronDown size={12} />
+        <Settings size={13} />
       </button>
       {open ? (
         <div className="settings-menu" role="menu" aria-label={t("acp.settings")}>
@@ -739,21 +932,94 @@ function SettingsMenu({
                   type="button"
                   role="menuitemradio"
                   aria-checked={choice.value === option.current}
-                  className={
-                    "model-option" + (choice.value === option.current ? " active" : "")
-                  }
+                  className={"settings-row" + (choice.value === option.current ? " active" : "")}
                   onClick={() => {
                     setOpen(false);
                     onChange(option.id, choice.value);
                   }}
                 >
-                  <span className="model-option-name">{choice.name}</span>
-                  <span style={{ flex: 1 }} />
-                  {choice.value === option.current ? <Check size={13} /> : null}
+                  <span className="settings-row-icon" />
+                  <span className="settings-row-body">
+                    <span className="settings-row-name">{choice.name}</span>
+                    {choice.description ? (
+                      <span className="settings-row-desc">{choice.description}</span>
+                    ) : null}
+                  </span>
+                  {choice.value === option.current ? <Check size={14} /> : null}
                 </button>
               ))}
             </section>
           ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 과거 대화 목록.
+ *
+ * **우리가 저장하지 않는다** — Claude Code 가 이미 자기 세션 스토어를 갖고
+ * 있고 ACP `session/list` 가 그걸 열어 준다. 사본을 두면 터미널에서 연 세션과
+ * 앱에서 연 세션이 갈라진다.
+ */
+function SessionHistory({
+  open,
+  sessions,
+  currentId,
+  onOpen,
+  onClose,
+  onPick,
+}: {
+  open: boolean;
+  sessions: AcpSessionSummary[];
+  currentId: string | null;
+  onOpen: () => void;
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const { t } = useT();
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useDismiss(open, wrapRef, onClose);
+
+  return (
+    <div className="knob-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={"btn icon ghost" + (open ? " active" : "")}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => (open ? onClose() : onOpen())}
+        aria-label={t("acp.history")}
+        title={t("acp.history")}
+      >
+        <Clock size={14} />
+      </button>
+      {open ? (
+        <div className="settings-menu history-menu" role="menu" aria-label={t("acp.history")}>
+          <div className="settings-group-label">{t("acp.history")}</div>
+          {sessions.length ? (
+            sessions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                className={"settings-row" + (item.id === currentId ? " active" : "")}
+                onClick={() => onPick(item.id)}
+              >
+                <span className="settings-row-icon" />
+                <span className="settings-row-body">
+                  <span className="settings-row-name">{item.title || t("acp.untitledSession")}</span>
+                  {item.updated_at ? (
+                    <span className="settings-row-desc">{item.updated_at.slice(0, 16).replace("T", " ")}</span>
+                  ) : null}
+                </span>
+                {item.id === currentId ? <Check size={14} /> : null}
+              </button>
+            ))
+          ) : (
+            <div className="mention-empty">{t("acp.history.empty")}</div>
+          )}
         </div>
       ) : null}
     </div>

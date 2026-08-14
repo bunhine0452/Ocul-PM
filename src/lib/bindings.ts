@@ -969,6 +969,16 @@ export const commands = {
 	 *  않는다). 그래서 확장의 Rewind 대신 **새로 시작**만 제공한다.
 	 */
 	acpNewSession: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_new_session", { projectId })),
+	/**
+	 *  이 프로젝트의 과거 대화 목록.
+	 * 
+	 *  **우리가 저장하지 않는다** — Claude Code 가 이미 자기 세션 스토어를 갖고
+	 *  있고, ACP `session/list` 가 그걸 그대로 열어 준다. 여기에 사본을 두면
+	 *  터미널에서 연 세션과 앱에서 연 세션이 갈라진다.
+	 */
+	acpListSessions: (projectId: number) => typedError<AcpSessionSummary[], string>(__TAURI_INVOKE("acp_list_sessions", { projectId })),
+	/**  과거 대화를 이어서 연다. */
+	acpResumeSession: (projectId: number, sessionId: string) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_resume_session", { projectId, sessionId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1061,6 +1071,11 @@ export type AcpAgentInfo = {
 export type AcpConfigChoice = {
 	value: string,
 	name: string,
+	/**
+	 *  어댑터가 주는 한 줄 설명 ("Standard behavior, prompts for dangerous
+	 *  operations" 같은). 메뉴를 두 줄로 그릴 때 쓴다 — 우리가 지어내지 않는다.
+	 */
+	description: string | null,
 };
 
 /**
@@ -1157,11 +1172,21 @@ export type AcpPermissionOption = {
 /**  실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목. */
 export type AcpSession = {
 	agent: AcpAgentInfo,
+	/**  현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다. */
+	session_id: string | null,
 	/**
 	 *  모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
 	 *  **어댑터가 준 그대로**다 — 우리가 목록을 들고 있지 않는다.
 	 */
 	options: AcpConfigOption[],
+};
+
+/**  과거 대화 하나 (에이전트가 보관한다 — 우리가 저장하지 않는다). */
+export type AcpSessionSummary = {
+	id: string,
+	title: string | null,
+	/**  ISO 8601 문자열 (어댑터가 주는 그대로 — 우리가 파싱해 다시 쓰지 않는다). */
+	updated_at: string | null,
 };
 
 export type AgentCount = {

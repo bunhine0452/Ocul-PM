@@ -29,6 +29,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.docs": "Docs",
   "nav.terminal": "Terminal",
   "nav.ai": "Agent",
+  "nav.claudecode": "Claude Code",
   "nav.skills": "Skills & Rules",
   "nav.aria.main": "Main navigation",
 
@@ -47,6 +48,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.docs.alias": "docs wiki markdown documentation",
   "nav.terminal.alias": "terminal shell console",
   "nav.ai.alias": "agent chat llm assistant",
+  "nav.claudecode.alias": "claude code agent acp run",
   "nav.skills.alias": "skills rules hooks claude agent prompt cursor",
 
   // ── Settings → Appearance → Language ────────────────────────────────────
@@ -1744,6 +1746,13 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.mention.empty": "No matching files",
   "acp.settings": "Session settings",
   "acp.usageTitle": "Context usage · running cost",
+  "acp.history": "Past conversations",
+  "acp.history.empty": "No past conversations",
+  "acp.untitledSession": "Untitled conversation",
+  "acp.placeholderBusy": "Working — queue your next message",
+  "acp.queueSend": "Add to queue",
+  "acp.queue.remove": "Remove from queue",
+  "acp.cancelEsc": "Stop (Esc)",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",

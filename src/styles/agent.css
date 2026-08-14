@@ -409,3 +409,106 @@
   text-transform: uppercase;
   color: var(--text-3);
 }
+
+/* ─── 스트리밍 중 본문 ────────────────────────────────────────────────────
+   마크다운으로 승격되기 전의 원문. `Markdown` 의 Suspense 폴백과 **같은 모양**
+   이라 턴이 끝나며 리치 렌더로 바뀔 때 눈에 띄는 점프가 없다. */
+.msg-stream {
+  font-size: 13.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
+/* ─── 설정 메뉴 행 (아이콘 + 이름 + 설명) ─────────────────────────────────
+   모드처럼 결과가 위험할 수 있는 선택은 이름만으로 부족하다 — 어댑터가 주는
+   한 줄 설명을 함께 싣는다. */
+.settings-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  color: var(--text);
+}
+.settings-row:hover {
+  background: var(--bg-hover);
+}
+.settings-row.active {
+  background: var(--bg-inset);
+}
+.settings-row-icon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  flex: none;
+  padding-top: 1px;
+  color: var(--text-3);
+}
+.settings-row.active .settings-row-icon {
+  color: var(--accent-text);
+}
+.settings-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.settings-row-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.settings-row-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+
+/* 지난 대화 목록은 항목이 많다 — 조금 더 길게 열되 폭은 유지. */
+.history-menu {
+  min-width: 300px;
+  max-height: 420px;
+}
+
+/* ─── 대기열 ──────────────────────────────────────────────────────────────
+   에이전트가 도는 동안 친 말. 보이지 않는 큐는 사용자가 통제할 수 없으므로
+   **칩으로 드러내고 눌러서 뺄 수 있게** 한다. */
+.queue-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+.queue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px dashed var(--sep-strong);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--text-3);
+  text-align: left;
+}
+.queue-chip:hover {
+  border-color: var(--t-bug);
+  color: var(--t-bug);
+}
+.queue-chip-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
