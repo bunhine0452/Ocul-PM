@@ -47,6 +47,7 @@ import {
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
+import { withUltracode } from "./ultracode";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
@@ -91,8 +92,9 @@ const TOOL_STATUS_KEY = {
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
-  const { state } = useWorkspace();
+  const { state, setState } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
+  const ultracode = state.acpUltracode;
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -228,6 +230,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [projectId],
   );
 
+  const toggleUltracode = useCallback(() => {
+    const next = !ultracode;
+    setState((prev) => ({ ...prev, acpUltracode: next }));
+    // "Ultracode = xhigh + workflows" 라 effort 를 함께 올린다 — 키워드만
+    // 켜고 effort 를 낮게 두면 이름과 실제가 어긋난다.
+    if (next) {
+      const effort = session?.options.find((o) => o.id === "effort");
+      if (effort && effort.current !== "xhigh" && effort.current !== "max") {
+        void setOption("effort", "xhigh");
+      }
+    }
+  }, [ultracode, setState, session, setOption]);
+
   const attach = useCallback(async () => {
     const res = await commands.acpPickFiles(projectId);
     if (res.status === "ok" && res.data.length) {
@@ -317,6 +332,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
+      // 화면에는 사용자가 친 그대로 남기고, 에이전트에게만 키워드를 붙인다.
+      const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       setDraft("");
       setAttachments([]);
@@ -373,7 +390,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       };
 
       try {
-        const res = await commands.acpPrompt(projectId, text, sending, channel);
+        const res = await commands.acpPrompt(projectId, outgoing, sending, channel);
         if (res.status === "error") setError(res.error);
       } finally {
         flush();
@@ -385,7 +402,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments],
+    [draft, busy, projectId, attachments, ultracode],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -670,6 +687,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             <span style={{ flex: 1 }} />
             {/* 사용량 표시가 곧 버튼이다 — 숫자를 보다가 "자세히"를 누르고
                 싶어지는 자리가 바로 여기다. */}
+            <button
+              type="button"
+              className={"ultra-chip" + (ultracode ? " on" : "")}
+              aria-pressed={ultracode}
+              onClick={toggleUltracode}
+              title={t("acp.ultracodeHint")}
+            >
+              <Rocket size={13} />
+              {t("acp.ultracode")}
+            </button>
             <button
               type="button"
               className="usage-btn"

@@ -1760,6 +1760,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.slash.aria": "Slash commands",
   "acp.slash.empty": "No matching commands",
   "acp.usage": "Usage",
+  "acp.ultracode": "Ultracode",
+  "acp.ultracodeHint": "Runs multiple agents for a more exhaustive answer — raises effort to xhigh. Uses a lot of tokens.",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",

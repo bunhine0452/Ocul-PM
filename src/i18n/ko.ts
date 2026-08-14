@@ -1731,6 +1731,8 @@ export const ko = {
   "acp.slash.aria": "슬래시 커맨드",
   "acp.slash.empty": "일치하는 커맨드가 없어요",
   "acp.usage": "사용량",
+  "acp.ultracode": "울트라코드",
+  "acp.ultracodeHint": "여러 에이전트를 동시에 굴려 더 철저하게 — effort 를 xhigh 로 올립니다. 토큰을 많이 씁니다.",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",
