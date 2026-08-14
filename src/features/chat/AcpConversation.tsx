@@ -71,6 +71,7 @@ import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from 
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
+import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
@@ -78,6 +79,12 @@ import { estimateTokens } from "@/lib/tokenEstimate";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
+
+/** 아직 안 만든 새 대화의 기록이 머무는 자리 (`session_id` 가 아직 없다). */
+const SLATE = "";
+
+/** 빈 기록의 **한 개짜리** 배열 — 매 렌더 새 배열을 만들면 memo 가 다 깨진다. */
+const EMPTY_TURNS: AcpTurn[] = [];
 
 // PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
 //
@@ -172,7 +179,24 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [setState],
   );
   const [session, setSession] = useState<AcpSession | null>(null);
-  const [turns, setTurns] = useState<AcpTurn[]>([]);
+  /**
+   * 대화별 기록. **화면이 아니라 대화가 턴을 소유한다.**
+   *
+   * 예전엔 화면이 `turns` 하나를 들고 있어서, 답변 도중 다른 대화로 넘어가면
+   * 흐르던 글자가 **그 대화 화면에 쓰였다**. 반대로 돌아오면 `session/load` 가
+   * 디스크에서 다시 읽는데 아직 안 끝난 답은 디스크에 없어 통째로 사라졌다.
+   * 대화 id 로 갈라 두면 둘 다 저절로 없어진다 — 스트리밍은 자기 대화에
+   * 계속 쌓이고, 돌아오면 그 자리에 그대로 있다.
+   */
+  const [transcripts, setTranscripts] = useState<Record<string, AcpTurn[]>>({});
+  const editTurns = useCallback(
+    (id: string, update: (prev: AcpTurn[]) => AcpTurn[]) => {
+      setTranscripts((prev) => ({ ...prev, [id]: update(prev[id] ?? []) }));
+    },
+    [],
+  );
+  const activeId = session?.session_id ?? SLATE;
+  const turns = transcripts[activeId] ?? EMPTY_TURNS;
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -229,11 +253,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 마크다운이 매번 재파싱돼 **스트리밍이 렉처럼 끊겨 보인다**. 프로바이더
    * 채팅이 이미 같은 이유로 스로틀을 쓴다 — 여기도 같은 문턱을 쓴다.
    */
-  const bufferRef = useRef<{ text: string; thought: string; frame: number | null }>({
-    text: "",
-    thought: "",
-    frame: null,
-  });
 
   // 사용자가 "시작"을 누르게 하지 않는다 — 화면에 들어오면 붙는다.
   // `acp_start` 는 멱등이라(이미 떠 있으면 그대로) 재진입 비용이 거의 없다.
@@ -465,17 +484,32 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       //
       // 지난 세대의 이벤트와 응답은 통째로 버린다.
       const seq = ++loadSeqRef.current;
-      setTurns([]);
       setUsage(null);
       setPermission(null);
       setError(null);
+
+      // 이미 이 창에서 본 대화면 **다시 읽지 않는다.**
+      //
+      // 우리 기록이 디스크보다 최신이다 — 아직 흐르고 있는 답은 디스크에 없다.
+      // `session/load` 로 갈아타면 그 답을 놓칠 뿐 아니라, 그 대화에 물려 있는
+      // 스트림의 자리를 잠깐 빼앗아 아예 멎게 만든다. 장부만 바꾼다.
+      if (transcripts[sessionId]?.length) {
+        const title = tabs.find((tab) => tab.id === sessionId)?.title ?? null;
+        const picked = await commands.acpSelectSession(projectId, sessionId, title);
+        if (loadSeqRef.current !== seq) return;
+        if (picked.status === "ok") setSession(picked.data);
+        else setError(picked.error);
+        return;
+      }
+
+      editTurns(sessionId, () => []);
 
       // `session/load` 는 지난 대화를 session/update 로 **되흘려보낸다**.
       // 그 이벤트를 replay 모드로 리듀서에 먹여 화면을 복원한다.
       const channel = new Channel<AcpEvent>();
       channel.onmessage = (event) => {
         if (loadSeqRef.current !== seq) return;
-        setTurns((prev) => applyAcpEvent(prev, event, true));
+        editTurns(sessionId, (prev) => applyAcpEvent(prev, event, true));
       };
 
       const res = await commands.acpLoadSession(projectId, sessionId, channel);
@@ -485,12 +519,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         addTab(sessionId, res.data.title);
         // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
         // 지난 답변 꼬리에 붙는다.
-        setTurns(closeTurn);
+        editTurns(sessionId, closeTurn);
       } else {
         setError(res.error);
       }
     },
-    [projectId, addTab],
+    [projectId, addTab, editTurns, transcripts, tabs],
   );
 
 
@@ -516,13 +550,13 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     // 진행 중인 로드의 재생분이 새 대화에 쏟아지지 않게 세대를 올린다.
     loadSeqRef.current += 1;
     setSession((prev) => (prev ? { ...prev, session_id: null, title: null } : prev));
-    setTurns([]);
+    editTurns(SLATE, () => []);
     setAttachments([]);
     setImages([]);
     setUsage(null);
     setPermission(null);
     setError(null);
-  }, []);
+  }, [editTurns]);
 
   /**
    * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
@@ -696,13 +730,23 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         }
         setSession(opened.data);
         target = opened.data.session_id;
+        // 빈 자리에 있던 기록은 이제 이 대화의 것이다.
+        if (target) {
+          const id = target;
+          setTranscripts((prev) => ({ ...prev, [id]: prev[SLATE] ?? [], [SLATE]: [] }));
+        }
       }
+      // 여기까지 왔는데 id 가 없으면 보낼 곳이 없다 — 조용히 나가면 입력만
+      // 사라지고 아무 일도 안 일어난 것처럼 보인다.
+      if (!target) {
+        setError(t("acp.sendNoSession"));
+        return;
+      }
+      const into = target;
 
       // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
-      if (target) {
-        markSpoken(activityRef.current, target, new Date().toISOString());
-        addTab(target, session?.title ?? null);
-      }
+      markSpoken(activityRef.current, into, new Date().toISOString());
+      addTab(into, session?.title ?? null);
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       const sendingImages = images;
@@ -713,7 +757,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setMentions(null);
       setSlash(null);
       setError(null);
-      setTurns((prev) =>
+      editTurns(into, (prev) =>
         openTurn(prev, text, {
           attachments: sending,
           images: sendingImages.map((image) => ({
@@ -726,44 +770,74 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       );
       setBusy(true);
 
-      const buffer = bufferRef.current;
-      const flush = () => {
-        if (buffer.frame !== null) {
-          cancelAnimationFrame(buffer.frame);
-          buffer.frame = null;
-        }
-        const { text, thought } = buffer;
-        buffer.text = "";
-        buffer.thought = "";
-        if (!text && !thought) return;
-        // 모아 둔 것을 **한 번의 상태 갱신**으로 반영한다.
-        setTurns((prev) => {
+      /**
+       * **도착과 표시를 끊는다.**
+       *
+       * 예전에는 프레임마다 "그 사이 도착한 것"을 통째로 얹었다. 그래서 화면의
+       * 리듬이 곧 네트워크의 리듬이었다 — 한 덩어리가 오면 한 덩어리가 툭
+       * 튀어나오고 조용하면 화면도 멈춘다. rAF 는 *언제* 그릴지만 골랐지
+       * *얼마나* 그릴지는 안 골랐다.
+       *
+       * 이제 도착분은 대기줄에 쌓고, 매 프레임 대기줄에서 **자기 속도로** 꺼내
+       * 쓴다. 밀릴수록 빨라지므로 뒤처지지도 않는다 (streamPacer.ts).
+       */
+      const queue = { text: "", thought: "", frame: null as number | null, done: false };
+
+      const pump = () => {
+        queue.frame = null;
+        const takeText = queue.done ? queue.text.length : revealCount(queue.text.length);
+        const takeThought = queue.done ? queue.thought.length : revealCount(queue.thought.length);
+        if (!takeText && !takeThought) return;
+
+        const [shownText, restText] = splitAt(queue.text, takeText);
+        const [shownThought, restThought] = splitAt(queue.thought, takeThought);
+        queue.text = restText;
+        queue.thought = restThought;
+
+        editTurns(into, (prev) => {
           let next = prev;
           const now = Date.now();
-          if (text) next = applyAcpEvent(next, { kind: "chunk", text }, false, now);
-          if (thought) next = applyAcpEvent(next, { kind: "thought", text: thought }, false, now);
+          if (shownText) next = applyAcpEvent(next, { kind: "chunk", text: shownText }, false, now);
+          if (shownThought) {
+            next = applyAcpEvent(next, { kind: "thought", text: shownThought }, false, now);
+          }
           return next;
         });
+
+        // 남았으면 계속 돈다 — 도착이 멎어도 대기줄이 빌 때까지 흐른다.
+        if (queue.text || queue.thought) queue.frame = requestAnimationFrame(pump);
+      };
+
+      const schedule = () => {
+        if (queue.frame === null) queue.frame = requestAnimationFrame(pump);
+      };
+
+      /** 남은 것을 즉시 다 내보낸다 (순서가 중요한 사건 앞·턴 종료). */
+      const drain = () => {
+        if (queue.frame !== null) {
+          cancelAnimationFrame(queue.frame);
+          queue.frame = null;
+        }
+        queue.done = true;
+        if (queue.text || queue.thought) pump();
+        queue.done = false;
       };
 
       const channel = new Channel<AcpEvent>();
       channel.onmessage = (event) => {
+        // 이미 다른 대화로 넘어갔어도 **이 대화의 기록에는 계속 쌓인다** —
+        // `target` 이 고정돼 있어서, 돌아오면 그 자리에 그대로 있다.
         if (event.kind === "chunk" || event.kind === "thought") {
-          if (event.kind === "chunk") buffer.text += event.text;
-          else buffer.thought += event.text;
-          // **프레임에 맞춰** 한 번만 반영한다. 타이머(45ms)는 화면 갱신과
-          // 어긋나 글자가 뭉텅이로 튀어 보였다 — rAF 는 브라우저가 그리는
-          // 리듬과 같아서 같은 양의 글자라도 흐르듯 나온다.
-          if (buffer.frame === null) {
-            buffer.frame = requestAnimationFrame(flush);
-          }
+          if (event.kind === "chunk") queue.text += event.text;
+          else queue.thought += event.text;
+          schedule();
           return;
         }
 
-        // 텍스트가 아닌 사건(툴콜·승인·종료)은 순서가 중요하다 — 모아 둔
-        // 글자를 먼저 내보내고 나서 적용해야 카드가 문장 앞으로 튀지 않는다.
-        flush();
-        setTurns((prev) => applyAcpEvent(prev, event, false, Date.now()));
+        // 텍스트가 아닌 사건(툴콜·승인·종료)은 순서가 중요하다 — 대기줄을 먼저
+        // 비우고 나서 적용해야 카드가 문장 앞으로 튀지 않는다.
+        drain();
+        editTurns(into, (prev) => applyAcpEvent(prev, event, false, Date.now()));
         if (event.kind === "usage") {
           setUsage({ used: event.used, size: event.size, costUsd: event.cost_usd });
         } else if (event.kind === "failed") {
@@ -779,16 +853,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         const res = await commands.acpPrompt(projectId, outgoing, sending, sendingBlocks, channel);
         if (res.status === "error") setError(res.error);
       } finally {
-        flush();
+        drain();
         // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.
         // 승인 카드도 함께 치운다: 백엔드가 미결 요청을 취소로 닫았으므로
         // 남겨 두면 눌러도 아무 일이 안 일어나는 유령 카드가 된다.
-        setTurns(closeTurn);
+        editTurns(into, closeTurn);
         setPermission(null);
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, t],
+    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, editTurns, t],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어

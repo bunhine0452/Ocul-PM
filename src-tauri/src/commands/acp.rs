@@ -201,7 +201,8 @@ pub async fn acp_prompt(
 
     // 알림 핸들러는 연결 생성 시점에 한 번 등록돼 있다 — 여기서는 "지금 누가
     // 듣는지"만 바꿔 끼운다.
-    app.state::<AcpState>().set_sink(project_id, on_event.clone());
+    app.state::<AcpState>()
+        .set_sink(project_id, session.0.to_string(), on_event.clone());
 
     let mut blocks = vec![ContentBlock::Text(TextContent::new(text))];
 
@@ -239,11 +240,11 @@ pub async fn acp_prompt(
     }
 
     let outcome = connection
-        .send_request(PromptRequest::new(session, blocks))
+        .send_request(PromptRequest::new(session.clone(), blocks))
         .block_task()
         .await;
 
-    app.state::<AcpState>().clear_sink(project_id);
+    app.state::<AcpState>().clear_sink(project_id, &session.0);
 
     match outcome {
         Ok(response) => {
@@ -484,6 +485,33 @@ pub async fn acp_list_sessions(
         .collect())
 }
 
+/// 보고 있는 대화를 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
+///
+/// 화면이 이미 그 대화의 기록을 들고 있을 때 쓴다. `session/load` 로 갈아타면
+/// 지난 대화를 통째로 되받는 비용이 들고, 더 나쁜 것은 그 대화에 **아직 흐르고
+/// 있는 답변**의 자리를 잠깐 빼앗는다는 점이다(돌아왔더니 답이 멎어 있다).
+///
+/// 제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub fn acp_select_session(
+    app: AppHandle,
+    project_id: u32,
+    session_id: String,
+    title: Option<String>,
+) -> Result<AcpSession, String> {
+    let state = app.state::<AcpState>();
+    let agent = state
+        .info(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    state.select_session(
+        project_id,
+        agent_client_protocol::schema::v1::SessionId::new(session_id),
+        title,
+    );
+    Ok(session_snapshot(&app, project_id, agent))
+}
+
 /// 대화를 **영구 삭제**한다 (`session/delete`).
 ///
 /// 프로토콜에 이름을 바꾸는 방법은 없다 — 목록의 제목은 에이전트가 붙인 것이고
@@ -543,7 +571,8 @@ pub async fn acp_load_session(
     state.cancel_pending_permissions(project_id);
     let cwd = project_root(&db, project_id).await?;
 
-    app.state::<AcpState>().set_sink(project_id, on_event);
+    app.state::<AcpState>()
+        .set_sink(project_id, session_id.clone(), on_event);
 
     let loaded = connection
         .send_request(LoadSessionRequest::new(session_id.clone(), cwd))
@@ -551,7 +580,7 @@ pub async fn acp_load_session(
         .await;
 
     let state = app.state::<AcpState>();
-    state.clear_sink(project_id);
+    state.clear_sink(project_id, &session_id);
 
     let loaded = loaded.map_err(|e| format!("대화를 열지 못했습니다: {e}"))?;
     state.set_session(

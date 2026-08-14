@@ -1059,6 +1059,16 @@ export const commands = {
 	 *  화면의 판단이다(새 대화가 자연스럽다).
 	 */
 	acpDeleteSession: (projectId: number, sessionId: string) => typedError<boolean, string>(__TAURI_INVOKE("acp_delete_session", { projectId, sessionId })),
+	/**
+	 *  보고 있는 대화를 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
+	 * 
+	 *  화면이 이미 그 대화의 기록을 들고 있을 때 쓴다. `session/load` 로 갈아타면
+	 *  지난 대화를 통째로 되받는 비용이 들고, 더 나쁜 것은 그 대화에 **아직 흐르고
+	 *  있는 답변**의 자리를 잠깐 빼앗는다는 점이다(돌아왔더니 답이 멎어 있다).
+	 * 
+	 *  제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
+	 */
+	acpSelectSession: (projectId: number, sessionId: string, title: string | null) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_select_session", { projectId, sessionId, title })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */

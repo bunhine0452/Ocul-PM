@@ -73,7 +73,13 @@ struct Running {
 pub struct AcpState {
     running: Mutex<HashMap<u32, Running>>,
     /// 진행 중인 프롬프트의 이벤트 싱크.
-    sinks: Mutex<HashMap<u32, Channel<AcpEvent>>>,
+    /// 이벤트를 흘려보낼 곳 — **(프로젝트, 대화)** 단위다.
+    ///
+    /// 프로젝트 단위였을 때는 대화를 하나 열 때마다 그 하나뿐인 자리를 빼앗아,
+    /// 답변이 흐르는 중에 다른 대화로 넘어가면 **진행 중이던 스트림이 그
+    /// 자리에서 끊겼다**(돌아와도 그 답은 영영 안 온다). 대화마다 자리를 주면
+    /// 서로 밀어내지 않는다.
+    sinks: Mutex<HashMap<(u32, String), Channel<AcpEvent>>>,
     /// 사용자 응답을 기다리는 권한 요청 (우리가 만든 request_id → 결정 채널).
     pending: Mutex<HashMap<String, PendingPermission>>,
     /// 켜져 있으면 에이전트 답변 텍스트를 여기에 모은다.
@@ -124,6 +130,21 @@ impl AcpState {
                 running.options = options;
                 // 제목은 세션의 것이다 — 안 지우면 새 대화에 옛 제목이 남는다.
                 running.title = None;
+            }
+        }
+    }
+
+    /// 보고 있는 대화만 바꾼다 — **설정은 그대로 둔다.**
+    ///
+    /// `session/prompt` 는 대화 id 를 인자로 받으므로 "활성 대화"는 우리 쪽
+    /// 장부일 뿐이다. 화면이 이미 그 대화의 기록을 들고 있어 다시 읽을 필요가
+    /// 없을 때, `session/load` 를 부르지 않고 이것만 바꾼다 (재생 트래픽도,
+    /// 그 대화에 물려 있는 스트림을 건드릴 일도 없다).
+    pub fn select_session(&self, project_id: u32, session: SessionId, title: Option<String>) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                running.session = Some(session);
+                running.title = title;
             }
         }
     }
@@ -227,15 +248,22 @@ impl AcpState {
         }
     }
 
-    pub fn set_sink(&self, project_id: u32, sink: Channel<AcpEvent>) {
+    pub fn set_sink(&self, project_id: u32, session_id: String, sink: Channel<AcpEvent>) {
         if let Ok(mut map) = self.sinks.lock() {
-            map.insert(project_id, sink);
+            map.insert((project_id, session_id), sink);
         }
     }
 
-    pub fn clear_sink(&self, project_id: u32) {
+    pub fn clear_sink(&self, project_id: u32, session_id: &str) {
         if let Ok(mut map) = self.sinks.lock() {
-            map.remove(&project_id);
+            map.remove(&(project_id, session_id.to_string()));
+        }
+    }
+
+    /// 이 프로젝트의 모든 자리를 치운다 (어댑터가 죽거나 멈출 때).
+    pub fn clear_sinks(&self, project_id: u32) {
+        if let Ok(mut map) = self.sinks.lock() {
+            map.retain(|(pid, _), _| *pid != project_id);
         }
     }
 
@@ -312,9 +340,9 @@ impl AcpState {
     }
 
     /// 진행 중인 프롬프트가 있으면 이벤트를 흘린다. 없으면 버린다.
-    pub fn emit(&self, project_id: u32, event: AcpEvent) {
+    pub fn emit(&self, project_id: u32, session_id: &str, event: AcpEvent) {
         let sink = match self.sinks.lock() {
-            Ok(map) => map.get(&project_id).cloned(),
+            Ok(map) => map.get(&(project_id, session_id.to_string())).cloned(),
             Err(_) => None,
         };
         if let Some(sink) = sink {
@@ -468,7 +496,7 @@ pub async fn start(
                     if let Some(title) = title_of(&notification.update) {
                         state.set_title(project_id, Some(title));
                     }
-                    state.emit(project_id, map_update(&notification.update));
+                    state.emit(project_id, &from, map_update(&notification.update));
                     Ok(())
                 },
                 agent_client_protocol::on_receive_notification!(),
@@ -484,7 +512,9 @@ pub async fn start(
 
                     let state = permission_app.state::<AcpState>();
                     state.park_permission(request_id.clone(), project_id, decide_tx);
-                    state.emit(project_id, permission_event(request_id, &request));
+                    // 권한 요청은 **그 대화의 화면**이 받아야 한다.
+                    let asking = request.session_id.0.to_string();
+                    state.emit(project_id, &asking, permission_event(request_id, &request));
 
                     cx.spawn(async move {
                         let outcome = match decide_rx.await {
@@ -545,7 +575,7 @@ pub async fn start(
         if state.remove_if(project_id, epoch) {
             tracing::info!(project_id, epoch, "ACP 어댑터 연결 종료");
         }
-        state.clear_sink(project_id);
+        state.clear_sinks(project_id);
         // 연결이 끊겼으면 대기 중인 승인 카드도 의미가 없다.
         state.cancel_pending_permissions(project_id);
         if let Err(e) = outcome {
@@ -567,7 +597,7 @@ pub fn stop(app: &tauri::AppHandle, project_id: u32) -> bool {
     // Running 을 드롭하면 stop sender 가 함께 떨어져 클로저가 풀리고,
     // 백그라운드 태스크가 어댑터 프로세스를 정리한다.
     let state = app.state::<AcpState>();
-    state.clear_sink(project_id);
+    state.clear_sinks(project_id);
     state.cancel_pending_permissions(project_id);
     state.remove(project_id)
 }
