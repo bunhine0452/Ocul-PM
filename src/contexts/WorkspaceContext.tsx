@@ -205,6 +205,8 @@ export interface WorkspaceState {
   terminalFontSize: number;
   /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
+  /** Claude Code 화면의 왼쪽 대화 목록 패널이 열려 있는지 (PR-ACP7). */
+  acpPanelOpen: boolean;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
@@ -282,6 +284,7 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalActiveId: null,
   terminalFontSize: 13,
   aiActiveModel: null,
+  acpPanelOpen: true,
   aiThreadId: null,
   docsActivePath: null,
   discussionActiveId: null,

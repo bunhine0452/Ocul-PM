@@ -427,7 +427,7 @@ pub async fn acp_list_sessions(
     let cwd = project_root(&db, project_id).await?;
 
     let mut request = ListSessionsRequest::new();
-    request.cwd = Some(cwd);
+    request.cwd = Some(cwd.clone());
 
     let response = connection
         .send_request(request)
@@ -435,9 +435,19 @@ pub async fn acp_list_sessions(
         .await
         .map_err(|e| format!("대화 목록을 불러오지 못했습니다: {e}"))?;
 
+    // `cwd` 를 요청에 실었지만 **우리가 다시 거른다.** 필터는 어댑터의 선의에
+    // 기대는 부분이고, 남의 프로젝트 대화가 목록에 섞이면 열어 보기 전까지
+    // 알 수 없다. 경로 비교는 정규화 후 — 심볼릭 링크로 들어온 루트와
+    // 어댑터가 돌려준 실경로가 다를 수 있다.
+    let root = std::fs::canonicalize(&cwd).unwrap_or(cwd);
     Ok(response
         .sessions
         .into_iter()
+        .filter(|info| {
+            std::fs::canonicalize(&info.cwd)
+                .unwrap_or_else(|_| info.cwd.clone())
+                == root
+        })
         .map(|info| AcpSessionSummary {
             id: info.session_id.0.to_string(),
             title: info.title,

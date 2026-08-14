@@ -410,17 +410,6 @@
   color: var(--text-3);
 }
 
-/* ─── 스트리밍 중 본문 ────────────────────────────────────────────────────
-   마크다운으로 승격되기 전의 원문. `Markdown` 의 Suspense 폴백과 **같은 모양**
-   이라 턴이 끝나며 리치 렌더로 바뀔 때 눈에 띄는 점프가 없다. */
-.msg-stream {
-  font-size: 13.5px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--text);
-}
-
 /* ─── 설정 메뉴 행 (아이콘 + 이름 + 설명) ─────────────────────────────────
    모드처럼 결과가 위험할 수 있는 선택은 이름만으로 부족하다 — 어댑터가 주는
    한 줄 설명을 함께 싣는다. */
@@ -511,4 +500,202 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ─── Effort 슬라이더 ─────────────────────────────────────────────────────
+   값에 순서가 있는 유일한 설정이라 목록이 아니라 트랙으로 그린다 — 점의
+   위치가 곧 강도다. 채워진 점으로 "여기까지 왔다"를 읽게 한다. */
+.effort {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 9px;
+  cursor: default;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.effort:hover,
+.effort:focus-visible {
+  background: var(--bg-inset);
+  color: var(--text);
+  outline: none;
+}
+.effort-icon {
+  flex: none;
+  color: var(--text-3);
+}
+.effort-label {
+  min-width: 44px;
+}
+.effort-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+}
+.effort-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--sep-strong);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    transform var(--dur-2) var(--ease-spring);
+}
+.effort-dot.lit {
+  background: var(--accent);
+}
+.effort-dot.on {
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.effort-dot:hover {
+  transform: scale(1.25);
+}
+
+/* ─── 지난 대화 패널 ──────────────────────────────────────────────────────
+   팝오버가 아니라 접히는 사이드 패널인 이유: 대화를 고르는 일은 "잠깐 열어
+   보고 닫는" 동작이 아니라 옆에 두고 오가는 동작이다. */
+.acp-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.acp-panel {
+  width: 236px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px;
+  gap: 7px;
+  border-right: 1px solid var(--sep);
+  background: var(--bg-content);
+}
+.acp-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 8px;
+}
+.acp-panel-title {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.acp-panel-new {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-s);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.acp-panel-new:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+.acp-panel-new:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.acp-panel-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  color: var(--text-3);
+}
+.acp-panel-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+}
+.acp-panel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.acp-session {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+}
+.acp-session:hover {
+  background: var(--bg-hover);
+}
+.acp-session.active {
+  background: var(--bg-inset);
+}
+.acp-session-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acp-session.active .acp-session-title {
+  color: var(--accent-text);
+}
+.acp-session-time {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+.acp-panel-empty {
+  padding: 12px 9px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+/* 패널을 접었을 때 다시 여는 손잡이 — 스레드 위에 겹쳐 띄운다. */
+.acp-panel-open {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+}
+.ai-wrap {
+  position: relative;
 }

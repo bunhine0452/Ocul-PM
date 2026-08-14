@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
   Play,
   Rocket,
   Settings,
+  PanelLeft,
   Paperclip,
   Pencil,
   Search,
@@ -36,6 +37,7 @@ import {
   type AcpSessionSummary,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   applyAcpEvent,
   closeTurn,
@@ -44,6 +46,7 @@ import {
   type AcpTurn,
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
+import { splitMarkdownBlocks } from "./markdownBlocks";
 import { useDismiss } from "./useDismiss";
 
 // PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
@@ -86,6 +89,12 @@ const TOOL_STATUS_KEY = {
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
+  const { state, setState } = useWorkspace();
+  const panelOpen = state.acpPanelOpen;
+  const setPanelOpen = useCallback(
+    (open: boolean) => setState((prev) => ({ ...prev, acpPanelOpen: open })),
+    [setState],
+  );
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -104,8 +113,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
-  /** 과거 대화 목록. `null` 이면 아직 안 열어 본 상태. */
+  /** 과거 대화 목록. `null` 이면 아직 안 불러온 상태. */
   const [history, setHistory] = useState<AcpSessionSummary[] | null>(null);
+  const [historyQuery, setHistoryQuery] = useState("");
   /**
    * 에이전트가 도는 동안 사용자가 친 메시지. 턴이 끝나면 차례로 나간다.
    *
@@ -217,15 +227,21 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [draft],
   );
 
-  const openHistory = useCallback(async () => {
+  const refreshHistory = useCallback(async () => {
     const res = await commands.acpListSessions(projectId);
     if (res.status === "ok") setHistory(res.data);
     else setError(res.error);
   }, [projectId]);
 
+  // 패널이 열려 있고 에이전트가 붙어 있으면 목록을 채운다. 세션이 바뀌면
+  // (새 대화·재개) 목록도 다시 읽어 방금 만든 대화가 바로 보이게 한다.
+  useEffect(() => {
+    if (!panelOpen || !session) return;
+    void refreshHistory();
+  }, [panelOpen, session, refreshHistory]);
+
   const resume = useCallback(
     async (sessionId: string) => {
-      setHistory(null);
       const res = await commands.acpResumeSession(projectId, sessionId);
       if (res.status === "ok") {
         setSession(res.data);
@@ -244,7 +260,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   );
 
   const newConversation = useCallback(async () => {
-    setHistory(null);
     const res = await commands.acpNewSession(projectId);
     if (res.status === "ok") {
       setSession(res.data);
@@ -438,7 +453,32 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const agentName = session.agent.title ?? session.agent.name;
 
   return (
-    <div className="ai-wrap">
+    <div className="acp-layout">
+      {panelOpen ? (
+        <SessionPanel
+          sessions={history ?? []}
+          currentId={session.session_id}
+          query={historyQuery}
+          onQuery={setHistoryQuery}
+          onPick={(id) => void resume(id)}
+          onNew={() => void newConversation()}
+          onClose={() => setPanelOpen(false)}
+          busy={busy}
+        />
+      ) : null}
+
+      <div className="ai-wrap">
+      {panelOpen ? null : (
+        <button
+          type="button"
+          className="acp-panel-open btn icon ghost"
+          onClick={() => setPanelOpen(true)}
+          aria-label={t("acp.history")}
+          title={t("acp.history")}
+        >
+          <PanelLeft size={14} />
+        </button>
+      )}
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (
@@ -583,14 +623,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             >
               <SquarePen size={14} />
             </button>
-            <SessionHistory
-              open={history !== null}
-              sessions={history ?? []}
-              currentId={session.session_id}
-              onOpen={() => void openHistory()}
-              onClose={() => setHistory(null)}
-              onPick={(id) => void resume(id)}
-            />
             <span style={{ flex: 1 }} />
             {usage ? (
               <span className="agent-id-meta" title={t("acp.usageTitle")}>
@@ -600,9 +632,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             ) : null}
             {PRIMARY_CONFIG_IDS.map((id) => {
               const option = session.options.find((o) => o.id === id);
-              return option ? (
+              if (!option) return null;
+              // Effort 만 슬라이더다 — 값에 **순서**가 있기 때문. 순서 있는
+              // 값을 목록으로 고르게 하면 "지금이 어느 정도인지"가 안 보인다.
+              return id === "effort" ? (
+                <EffortSlider key={id} option={option} onChange={setOption} />
+              ) : (
                 <ConfigControl key={id} option={option} onChange={setOption} />
-              ) : null;
+              );
             })}
             <MoreSettings
               options={session.options.filter(
@@ -634,7 +671,25 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           </div>
         </div>
       </div>
+      </div>
     </div>
+  );
+}
+
+/** 완성된 블록 하나 — 문자열이 그대로면 다시 파싱하지 않는다. */
+const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
+  return <Markdown>{text}</Markdown>;
+});
+
+/** 스트리밍 중 본문 — 블록 단위로 그린다 (markdownBlocks.ts 참고). */
+function StreamingMarkdown({ text }: { text: string }) {
+  const blocks = useMemo(() => splitMarkdownBlocks(text), [text]);
+  return (
+    <>
+      {blocks.map((block, i) => (
+        <MarkdownBlock key={i} text={block} />
+      ))}
+    </>
   );
 }
 
@@ -689,12 +744,12 @@ const TurnRow = memo(function TurnRow({
       ) : null}
       {turn.text ? (
         <div className="msg-md">
-          {/* 스트리밍 중에는 **마크다운을 파싱하지 않는다.** 매 프레임마다
-              누적 전체를 다시 파싱하고 코드블록을 재하이라이트하는 것이
-              "렉 걸린 타자"의 진짜 원인이었다. 턴이 끝나면 리치 렌더로
-              승격된다 — Markdown 의 Suspense 폴백과 같은 모양이라 전환이
-              눈에 띄지 않는다. */}
-          {live ? <div className="msg-stream">{turn.text}</div> : <Markdown>{turn.text}</Markdown>}
+          {/* 스트리밍 중에도 **서식이 바로 보인다.** 평문으로 뒀다 끝에
+              포맷하면 점프가 생기고, 매 프레임 전체를 파싱하면 끊긴다 —
+              둘 다 겪었다. 블록으로 쪼개면 완성된 블록은 문자열이 안 바뀌어
+              memo 가 재파싱을 건너뛰고, 매번 다시 파싱되는 건 마지막 블록
+              하나뿐이라 비용이 문단 길이에 묶인다. */}
+          {live ? <StreamingMarkdown text={turn.text} /> : <Markdown>{turn.text}</Markdown>}
         </div>
       ) : turn.tools?.length ? null : (
         <div className="msg-wait">{t("acp.waiting")}</div>
@@ -957,71 +1012,164 @@ function MoreSettings({
 }
 
 /**
- * 과거 대화 목록.
+ * 지난 대화 패널.
  *
  * **우리가 저장하지 않는다** — Claude Code 가 이미 자기 세션 스토어를 갖고
  * 있고 ACP `session/list` 가 그걸 열어 준다. 사본을 두면 터미널에서 연 세션과
- * 앱에서 연 세션이 갈라진다.
+ * 앱에서 연 세션이 갈라진다. 목록은 **이 프로젝트 경로의 것만** 들어온다
+ * (백엔드가 cwd 로 한 번 더 거른다).
+ *
+ * 팝오버가 아니라 접히는 패널인 이유: 대화를 고르는 일은 "잠깐 열어 보고
+ * 닫는" 동작이 아니라 **옆에 두고 오가는** 동작이다.
  */
-function SessionHistory({
-  open,
+function SessionPanel({
   sessions,
   currentId,
-  onOpen,
-  onClose,
+  query,
+  onQuery,
   onPick,
+  onNew,
+  onClose,
+  busy,
 }: {
-  open: boolean;
   sessions: AcpSessionSummary[];
   currentId: string | null;
-  onOpen: () => void;
-  onClose: () => void;
+  query: string;
+  onQuery: (next: string) => void;
   onPick: (id: string) => void;
+  onNew: () => void;
+  onClose: () => void;
+  busy: boolean;
 }) {
   const { t } = useT();
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  useDismiss(open, wrapRef, onClose);
+  const needle = query.trim().toLowerCase();
+  const shown = needle
+    ? sessions.filter((s) => (s.title ?? "").toLowerCase().includes(needle))
+    : sessions;
 
   return (
-    <div className="knob-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={"btn icon ghost" + (open ? " active" : "")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => (open ? onClose() : onOpen())}
-        aria-label={t("acp.history")}
-        title={t("acp.history")}
-      >
-        <Clock size={14} />
+    <aside className="acp-panel" aria-label={t("acp.history")}>
+      <div className="acp-panel-head">
+        <span className="acp-panel-title">{t("acp.history")}</span>
+        <button
+          type="button"
+          className="btn icon ghost"
+          onClick={onClose}
+          aria-label={t("acp.panel.hide")}
+          title={t("acp.panel.hide")}
+        >
+          <PanelLeft size={14} />
+        </button>
+      </div>
+
+      <button type="button" className="acp-panel-new" disabled={busy} onClick={onNew}>
+        <SquarePen size={13} />
+        {t("acp.newConversation")}
       </button>
-      {open ? (
-        <div className="settings-menu history-menu" role="menu" aria-label={t("acp.history")}>
-          <div className="settings-group-label">{t("acp.history")}</div>
-          {sessions.length ? (
-            sessions.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className={"settings-row" + (item.id === currentId ? " active" : "")}
-                onClick={() => onPick(item.id)}
-              >
-                <span className="settings-row-icon" />
-                <span className="settings-row-body">
-                  <span className="settings-row-name">{item.title || t("acp.untitledSession")}</span>
-                  {item.updated_at ? (
-                    <span className="settings-row-desc">{item.updated_at.slice(0, 16).replace("T", " ")}</span>
-                  ) : null}
+
+      <div className="acp-panel-search">
+        <Search size={12} />
+        <input
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={t("acp.searchSessions")}
+          aria-label={t("acp.searchSessions")}
+        />
+      </div>
+
+      <div className="acp-panel-list">
+        {shown.length ? (
+          shown.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={"acp-session" + (item.id === currentId ? " active" : "")}
+              onClick={() => onPick(item.id)}
+            >
+              <span className="acp-session-title">
+                {item.title || t("acp.untitledSession")}
+              </span>
+              {item.updated_at ? (
+                <span className="acp-session-time">
+                  {item.updated_at.slice(0, 16).replace("T", " ")}
                 </span>
-                {item.id === currentId ? <Check size={14} /> : null}
-              </button>
-            ))
-          ) : (
-            <div className="mention-empty">{t("acp.history.empty")}</div>
-          )}
-        </div>
-      ) : null}
+              ) : null}
+            </button>
+          ))
+        ) : (
+          <div className="acp-panel-empty">
+            {sessions.length ? t("acp.history.noMatch") : t("acp.history.empty")}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+/**
+ * Effort 슬라이더 — 좌우로 강도를 고른다.
+ *
+ * 다른 설정과 달리 값에 **순서**가 있다(low → max). 순서 있는 값을 드롭다운
+ * 목록으로 주면 "지금이 어느 정도인지"가 한눈에 안 들어온다. 점 트랙으로
+ * 그리면 위치가 곧 강도다. 키보드(←/→)로도 움직인다.
+ */
+function EffortSlider({
+  option,
+  onChange,
+}: {
+  option: AcpConfigOption;
+  onChange: (configId: string, value: string) => void;
+}) {
+  const { t } = useT();
+  const choices = option.choices;
+  if (!choices.length) return null;
+
+  const index = Math.max(
+    0,
+    choices.findIndex((c) => c.value === option.current),
+  );
+  const current = choices[index];
+
+  const move = (delta: number) => {
+    const next = Math.min(choices.length - 1, Math.max(0, index + delta));
+    if (next !== index) onChange(option.id, choices[next].value);
+  };
+
+  return (
+    <div
+      className="effort"
+      role="slider"
+      tabIndex={0}
+      aria-label={option.name}
+      aria-valuemin={0}
+      aria-valuemax={choices.length - 1}
+      aria-valuenow={index}
+      aria-valuetext={current?.name}
+      title={`${option.name} — ${current?.name ?? ""} · ${t("acp.effortHint")}`}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+          e.preventDefault();
+          move(1);
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+          e.preventDefault();
+          move(-1);
+        }
+      }}
+    >
+      <Flame size={13} className="effort-icon" />
+      <span className="effort-label">{current?.name ?? option.current}</span>
+      <span className="effort-track">
+        {choices.map((choice, i) => (
+          <button
+            key={choice.value}
+            type="button"
+            className={"effort-dot" + (i === index ? " on" : "") + (i < index ? " lit" : "")}
+            aria-label={choice.name}
+            title={choice.description ?? choice.name}
+            onClick={() => onChange(option.id, choice.value)}
+          />
+        ))}
+      </span>
     </div>
   );
 }
