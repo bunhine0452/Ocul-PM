@@ -174,6 +174,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * ("image.png 1104×172"). 보낼 때 프로토콜 몫만 떼어 낸다.
    */
   const [images, setImages] = useState<PendingImage[]>([]);
+  /** 지금 화면이 그리는 대화의 세대 — 지난 로드의 재생분을 걸러 내는 표. */
+  const loadSeqRef = useRef(0);
+  /** 이 화면이 실제로 보이는지 판정할 뿌리 (⌘W 사슬이 읽는다). */
+  const rootRef = useRef<HTMLDivElement | null>(null);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -432,6 +436,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
   const openSession = useCallback(
     async (sessionId: string) => {
+      // 이 화면이 지금 무엇을 그리고 있는지의 **세대**. 탭을 빠르게 두 번 누르면
+      // load 가 두 개 뜨는데, 백엔드의 이벤트 싱크는 프로젝트당 하나라 나중
+      // 것이 앞 것을 밀어낸다 — 그런데 앞 로드의 재생분은 이미 흐르고 있어서
+      // 두 대화가 한 화면에 섞였다("클릭하지 않은 세션이 보인다", 그리고 같은
+      // 도구 카드가 두 번 그려지며 React 가 key 중복을 외쳤다).
+      //
+      // 지난 세대의 이벤트와 응답은 통째로 버린다.
+      const seq = ++loadSeqRef.current;
       setTurns([]);
       setUsage(null);
       setPermission(null);
@@ -441,10 +453,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 그 이벤트를 replay 모드로 리듀서에 먹여 화면을 복원한다.
       const channel = new Channel<AcpEvent>();
       channel.onmessage = (event) => {
+        if (loadSeqRef.current !== seq) return;
         setTurns((prev) => applyAcpEvent(prev, event, true));
       };
 
       const res = await commands.acpLoadSession(projectId, sessionId, channel);
+      if (loadSeqRef.current !== seq) return;
       if (res.status === "ok") {
         setSession(res.data);
         // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
@@ -466,6 +480,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(
     () =>
       registerCloseHandler(() => {
+        // **안 보이는 화면은 받지 않는다.** 프로젝트 탭은 배경에서도 마운트된
+        // 채 남으므로(Chrome 처럼 watcher·PTY 가 계속 돈다) 창에 Claude Code
+        // 화면이 둘 이상 살아 있을 수 있다. 사슬은 나중에 등록한 것부터 묻는데
+        // 그게 배경 탭이면, 보이는 화면은 그대로인 채 남의 세션 탭이 닫힌다
+        // ("⌘W 해도 안 사라질 때가 있다"의 정체).
+        //
+        // display:none 안의 요소는 레이아웃 상자가 없다 — 그것으로 가른다.
+        if (!rootRef.current?.getClientRects().length) return false;
         const current = session?.session_id;
         if (!current || !tabs.some((tab) => tab.id === current)) return false;
         setState((prev) => ({
@@ -488,6 +510,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, []);
 
   const newConversation = useCallback(async () => {
+    // 진행 중인 로드의 재생분이 새 대화에 쏟아지지 않게 세대를 올린다.
+    loadSeqRef.current += 1;
     const res = await commands.acpNewSession(projectId);
     if (res.status === "ok") {
       setSession(res.data);
@@ -614,6 +638,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
       // 울트라코드 칸이 켜져 있으면 키워드를 함께 보낸다 — 어댑터가 우리
       // 턴을 human 으로 스탬프하므로 CLI 의 opt-in 게이트를 통과한다.
+      // 보내는 순간부터 이 화면은 새 세대다 — 아직 흐르고 있는 재생분이
+      // 내 질문 위에 지난 대화를 덧그리면 안 된다.
+      loadSeqRef.current += 1;
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       const sendingImages = images;
@@ -881,7 +908,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   return (
     <>
     {toolbar}
-    <div className="acp-layout">
+    <div className="acp-layout" ref={rootRef}>
       <div className="ai-wrap">
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">

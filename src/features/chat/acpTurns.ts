@@ -149,23 +149,31 @@ export function applyAcpEvent(
         thoughtStart: now != null ? (last.thoughtStart ?? now) : last.thoughtStart,
       };
       break;
-    case "tool_call":
+    case "tool_call": {
+      // 도구 호출 id 는 세션 안에서 유일하다 — 같은 id 가 또 오면 **새 카드가
+      // 아니라 같은 카드**다. 그냥 밀어 넣으면 화면에 카드가 두 장 생기고,
+      // React 가 "두 자식이 같은 key" 라며 하나를 지우거나 겹쳐 그린다.
+      // (같은 세션을 두 번 재생하면 실제로 이렇게 됐다.)
+      const fresh: AcpToolCall = {
+        id: event.id,
+        title: event.title,
+        kind: event.tool_kind,
+        status: event.status,
+        locations: event.locations,
+        input: event.input ?? undefined,
+        output: event.output ?? undefined,
+      };
+      const tools = last.tools ?? [];
+      const at = tools.findIndex((tool) => tool.id === event.id);
       next[index] = {
         ...last,
-        tools: [
-          ...(last.tools ?? []),
-          {
-            id: event.id,
-            title: event.title,
-            kind: event.tool_kind,
-            status: event.status,
-            locations: event.locations,
-            input: event.input ?? undefined,
-            output: event.output ?? undefined,
-          },
-        ],
+        tools:
+          at === -1
+            ? [...tools, fresh]
+            : tools.map((tool, i) => (i === at ? fresh : tool)),
       };
       break;
+    }
     case "tool_update":
       next[index] = { ...last, tools: patchTool(last.tools, event) };
       break;

@@ -269,3 +269,44 @@ describe("thinking timing", () => {
     expect(turns[1].thoughtEnd).toBeUndefined();
   });
 });
+
+describe("tool_call arriving twice", () => {
+  /** 같은 세션을 두 번 재생하면 실제로 이렇게 됐다 — React 가 "두 자식이 같은
+      key" 라며 카드를 지우거나 겹쳐 그렸다. */
+  it("updates the existing card instead of adding a second one with the same id", () => {
+    const call = {
+      kind: "tool_call" as const,
+      id: "toolu_01",
+      title: "Read",
+      tool_kind: "read",
+      status: "pending",
+      locations: [],
+      input: null,
+      output: null,
+    };
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, call);
+    turns = applyAcpEvent(turns, { ...call, status: "completed", output: "done" });
+
+    const tools = turns[1].tools ?? [];
+    expect(tools).toHaveLength(1);
+    expect(tools[0].status).toBe("completed");
+    expect(tools[0].output).toBe("done");
+  });
+
+  it("still keeps distinct ids apart", () => {
+    const base = {
+      kind: "tool_call" as const,
+      title: "Read",
+      tool_kind: "read",
+      status: "pending",
+      locations: [],
+      input: null,
+      output: null,
+    };
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, { ...base, id: "a" });
+    turns = applyAcpEvent(turns, { ...base, id: "b" });
+    expect(turns[1].tools).toHaveLength(2);
+  });
+});
