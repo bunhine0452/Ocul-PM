@@ -638,19 +638,23 @@
 }
 /* 값을 옮길 때마다 설명 길이에 따라 팝오버가 늘었다 줄면, 지금 겨냥하던
    점이 손 밑에서 움직인다. **세 줄 높이로 고정**하고 넘치면 자른다. */
+/* 한 줄로 고정한다.
+   높이를 고정한 이유는 값을 옮길 때마다 패널이 늘었다 줄어 겨냥하던 점이
+   달아나기 때문인데, 3줄을 잡아 뒀더니 여섯 칸 중 다섯 칸은 한 줄짜리 문구를
+   위해 두 줄만큼의 빈 칸을 이고 있었다 — 울트라코드 설명 하나 때문에 나머지가
+   전부 헐렁했다. 한 줄이면 흔들림도 없고 여백도 없다. 넘치면 말줄임하고
+   전문은 title 로 남긴다. */
 .effort-hint {
   margin: 2px 4px 4px;
-  padding: 8px 9px;
+  padding: 6px 9px;
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-3);
-  height: 66px;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
 }
 /* 점을 큰 원으로 늘어놓으면 신호등처럼 보인다. 얇은 트랙 위의 **눈금**으로
    낮추고, 지나온 구간은 선으로 채워 "어디쯤"을 먼저 읽게 한다. */
@@ -1848,4 +1852,14 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
+}
+
+/* 울트라코드 이름 옆의 준말 풀이 — 이름보다 물러나야 이름이 먼저 읽힌다. */
+.effort-label-note {
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-3);
 }

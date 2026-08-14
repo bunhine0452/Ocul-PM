@@ -70,7 +70,7 @@ interface PendingImage {
 }
 import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
-import { withUltracode } from "./ultracode";
+import { nextIndex, withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { revealCount, splitAt } from "./streamPacer";
@@ -2275,8 +2275,13 @@ function EffortControl({
   const current = choices[index];
 
   const move = (delta: number) => {
-    const next = Math.min(choices.length - 1, Math.max(0, index + delta));
-    if (next !== index) onPick(choices[next].value);
+    const at = nextIndex(
+      index,
+      delta,
+      choices.length,
+      (i) => choices[i].value === ULTRA_VALUE && !ultraReady,
+    );
+    if (at !== index) onPick(choices[at].value);
   };
 
   return (
@@ -2331,6 +2336,12 @@ function EffortControl({
               className={"effort-label" + (currentValue === ULTRA_VALUE ? " top" : "")}
             >
               {current?.name ?? currentValue}
+              {/* 울트라코드가 "무엇의 준말인지"를 이름 옆에 붙여 둔다 — 여섯 칸
+                  중 유일하게 척도의 연장이 아니라 별개의 물건이라, 설명 없이는
+                  max 다음의 더 센 칸으로 오해된다. */}
+              {currentValue === ULTRA_VALUE ? (
+                <span className="effort-label-note">{t("acp.ultracodeSub")}</span>
+              ) : null}
             </span>
             <span className="effort-track">
               {/* 지나온 구간을 선으로 먼저 깔면 "어디쯤"이 점을 세기 전에
@@ -2361,7 +2372,11 @@ function EffortControl({
               ))}
             </span>
           </div>
-          <div className="effort-hint">
+          {/* 한 줄만 보이고 넘치면 잘린다 — 전문은 title 에 남겨 둔다. */}
+          <div
+            className="effort-hint"
+            title={currentValue === ULTRA_VALUE ? t("acp.ultracodeFull") : undefined}
+          >
             {currentValue === ULTRA_VALUE ? t("acp.ultracodeHint") : t("acp.effortHint")}
           </div>
         </div>

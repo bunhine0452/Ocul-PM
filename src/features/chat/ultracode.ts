@@ -27,3 +27,27 @@ export function withUltracode(text: string, enabled: boolean): string {
   if (!body || mentionsUltracode(body)) return text;
   return `${KEYWORD}\n\n${body}`;
 }
+
+/**
+ * Effort 트랙에서 다음으로 갈 칸. **끝에서 멈추지 않고 돌아간다.**
+ *
+ * 양 끝에서 막히면 "안 눌리는 건가" 하고 한 번 더 누르게 되고, 반대편으로 가려면
+ * 지나온 칸을 도로 되짚어야 한다. 여섯 칸짜리 척도에서는 도는 편이 늘 가깝다.
+ *
+ * 잠긴 칸(모델이 안 되는데 울트라코드)은 **건너뛴다** — 거기서 멎으면 끝에서
+ * 막히는 것과 똑같은 막다른 길이다. 갈 곳이 없으면 제자리(`index`)를 돌려준다.
+ */
+export function nextIndex(
+  index: number,
+  delta: number,
+  count: number,
+  isLocked: (at: number) => boolean = () => false,
+): number {
+  if (count <= 0) return index;
+  const step = delta > 0 ? 1 : -1;
+  for (let hop = 1; hop <= count; hop += 1) {
+    const at = (((index + step * hop) % count) + count) % count;
+    if (!isLocked(at)) return at;
+  }
+  return index;
+}
