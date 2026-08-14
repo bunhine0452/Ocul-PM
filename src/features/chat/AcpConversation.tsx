@@ -1606,12 +1606,12 @@ const TurnRow = memo(function TurnRow({
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
       {/* 이름을 적지 않는다 — 답이 하나뿐인 화면에서 매 턴 "Claude Agent" 를
-          반복하면 정보가 아니라 소음이다. 진행 중임은 점 하나로 족하다. */}
-      {live ? (
-        <div className="msg-head">
-          <span className="msg-live-dot" />
-        </div>
-      ) : null}
+          반복하면 정보가 아니라 소음이다.
+
+          진행 표시용 점도 따로 두지 않는다. 레일이 이미 단계마다 점을 찍고 그
+          중 도는 것은 맥박이 뛴다 — 위에 점 하나를 더 얹으면 점이 두 개가 되고,
+          "빚는 중…" 같은 상태 문구와 **줄이 갈라진다**. 점은 그 문구의 줄에
+          있어야 둘이 한 말로 읽힌다. */}
       {turn.thought ? (
         <details className="think">
           <summary>
@@ -2289,6 +2289,9 @@ function EffortControl({
       <button
         type="button"
         className={"agent-chip" + (open ? " open" : "")}
+        // 단계를 **데이터로** 실어 색은 CSS 가 고른다 — 값 목록이 어댑터에서
+        // 오므로, 색 표를 JS 에 두면 값이 하나 늘 때 두 곳을 고쳐야 한다.
+        data-effort={currentValue}
         aria-haspopup="dialog"
         aria-expanded={open}
         title={option.name}
@@ -2334,6 +2337,7 @@ function EffortControl({
                 "어디쯤"을 본다. 나란히 놓으면 둘이 서로를 밀어낸다. */}
             <span
               className={"effort-label" + (currentValue === ULTRA_VALUE ? " top" : "")}
+              data-effort={currentValue}
             >
               {current?.name ?? currentValue}
               {/* 울트라코드가 "무엇의 준말인지"를 이름 옆에 붙여 둔다 — 여섯 칸

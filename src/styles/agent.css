@@ -626,9 +626,47 @@
   letter-spacing: -0.015em;
   color: var(--text);
 }
+/* ─── 단계마다 색 ────────────────────────────────────────────────────────
+   숫자도 눈금도 없는 값이라 이름만으로는 "지금 어느 정도인지"가 안 읽힌다.
+   차가운 쪽에서 뜨거운 쪽으로 옮겨 가게 해서, 칩만 흘깃 봐도 알게 한다.
+
+   울트라코드만 이 흐름 밖의 색(보라)이다 — 척도의 연장이 아니라 별개의
+   물건이라는 뜻을, 트랙의 마지막 점과 같은 신호로 말한다.
+
+   색은 **칩에 한 번만** 건다. 라벨도 아이콘(currentColor)도 상속하므로,
+   라벨만 물들이고 아이콘이 남처럼 떠 있는 일이 없다.
+
+   값 목록은 어댑터가 준다. 모르는 값이 오면 아무 규칙도 안 걸려 기본색으로
+   남는다 — 빠뜨린 값에 엉뚱한 색을 입히는 것보다 정직하다. */
+.agent-chip[data-effort="low"],
+.effort-label[data-effort="low"] {
+  color: var(--t-chore);
+}
+.agent-chip[data-effort="medium"],
+.effort-label[data-effort="medium"] {
+  color: var(--t-feature);
+}
+.agent-chip[data-effort="high"],
+.effort-label[data-effort="high"] {
+  color: var(--t-error);
+}
+/* high(호박)와 max(빨강) 사이 — 하드코딩 대신 두 토큰을 섞어 테마를 따라간다. */
+.agent-chip[data-effort="xhigh"],
+.effort-label[data-effort="xhigh"] {
+  color: color-mix(in oklab, var(--t-error) 45%, var(--t-bug));
+}
+.agent-chip[data-effort="max"],
+.effort-label[data-effort="max"] {
+  color: var(--t-bug);
+}
+.agent-chip[data-effort="__ultracode__"],
+.effort-label[data-effort="__ultracode__"] {
+  color: var(--t-refactor);
+}
+
 /* 최상위 단계는 이름도 색도 다르다 — 트랙의 마지막 점과 같은 신호. */
 .effort-label.top {
-  color: #8b5cf6;
+  color: var(--t-refactor);
 }
 /* 폭을 내용에 맞추면 "Low"→"Ultracode" 로 고를 때마다 팝오버가 커졌다
    작아지며 **누른 자리가 움직인다.** 고정 폭 + 오른쪽 정렬로 못 박는다. */
@@ -687,7 +725,7 @@
     background-color var(--dur-2) var(--ease-out);
 }
 .effort-fill.top {
-  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  background: linear-gradient(90deg, var(--accent), var(--t-refactor));
 }
 .effort-dot {
   position: relative;
@@ -727,11 +765,11 @@
 /* 최상위 티어는 다른 색 — 같은 척도의 연장이 아니라 "여기부터는 다른 물건"
    이라는 신호다 (레퍼런스도 마지막 점만 색을 달리한다). */
 .effort-dot.top {
-  background: color-mix(in oklab, var(--sep-strong) 55%, #8b5cf6);
+  background: color-mix(in oklab, var(--sep-strong) 55%, var(--t-refactor));
 }
 .effort-dot.top.lit,
 .effort-dot.top.on {
-  background: #8b5cf6;
+  background: var(--t-refactor);
 }
 .effort-dot.top.on {
   box-shadow:
@@ -1791,11 +1829,15 @@
    점 뒤로 선이 지나가 점이 아니라 매듭처럼 보인다. */
 .acp-layout .exchange .msg.assistant > .trace-item,
 .acp-layout .exchange .msg.assistant > .msg-md,
+.acp-layout .exchange .msg.assistant > .agent-word,
+.acp-layout .exchange .msg.assistant > .msg-wait,
 .acp-layout .exchange .msg.assistant > .think {
   position: relative;
 }
 .acp-layout .exchange .msg.assistant > .trace-item::before,
 .acp-layout .exchange .msg.assistant > .msg-md::before,
+.acp-layout .exchange .msg.assistant > .agent-word::before,
+.acp-layout .exchange .msg.assistant > .msg-wait::before,
 .acp-layout .exchange .msg.assistant > .think::before {
   content: "";
   position: absolute;
@@ -1807,7 +1849,9 @@
   background: var(--text-3);
   box-shadow: 0 0 0 3px var(--bg-content);
 }
-/* 도구가 도는 동안은 그 단계의 점이 살아 있다. */
+/* 도는 동안은 그 단계의 점이 살아 있다 — 상태 문구("빚는 중…")의 점도 같다.
+   문구와 **같은 줄**에 있어야 둘이 한 말로 읽힌다. */
+.acp-layout .exchange .msg.assistant > .agent-word::before,
 .acp-layout .exchange .msg.assistant > .trace-item:has(.trace-row.running)::before {
   background: var(--accent);
   animation: rail-pulse 1.4s ease-in-out infinite;
@@ -1820,12 +1864,6 @@
 /* 생각은 곁가지다 — 점도 한 톤 물러난다. */
 .acp-layout .exchange .msg.assistant > .think::before {
   background: var(--sep-strong);
-}
-/* 첫 줄(진행 점)은 레일의 시작이므로 자기 점을 그리지 않는다. */
-.acp-layout .exchange .msg.assistant > .msg-head {
-  position: relative;
-  margin-left: -19px;
-  padding-left: 19px;
 }
 
 /* ─── 대화에 일어난 일 (모델 교체 …) ─────────────────────────────────────
