@@ -145,6 +145,12 @@
   letter-spacing: 0.04em;
   color: var(--text-3);
 }
+/* IN 과 OUT 사이에 얇은 선 — 보낸 것과 받은 것이 한 덩어리로 뭉치면 어디까지가
+   내 명령인지 읽기 어렵다. */
+.trace-io + .trace-io {
+  padding-top: 6px;
+  border-top: 1px solid var(--sep);
+}
 .trace-io pre {
   flex: 1;
   min-width: 0;
@@ -440,10 +446,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 앵커는 **왼쪽**이다. `right: 0` 이면 칩에서 왼쪽으로 250px 펼쳐지는데,
+   설정 칩들은 컴포저 왼쪽에 모여 있어 화면 밖으로 나가 잘렸다(사이드바를
+   열면 더 심했다). 오른쪽에 있는 메뉴(사용량)만 따로 뒤집는다. */
 .settings-menu {
   position: absolute;
   bottom: calc(100% + 8px);
-  right: 0;
+  left: 0;
+  right: auto;
+  /* 어떤 앵커든 화면을 넘지 않는다. */
+  max-width: calc(100vw - 32px);
   z-index: 60;
   min-width: 250px;
   max-height: 380px;
@@ -602,8 +614,6 @@
 .effort-menu {
   width: 232px;
   min-width: 232px;
-  left: auto;
-  right: 0;
 }
 .effort-hint {
   margin: 2px 4px 4px;
@@ -1154,4 +1164,66 @@
   text-transform: none;
   letter-spacing: 0;
   color: var(--text-3);
+}
+
+/* ─── 생각 줄 ────────────────────────────────────────────────────────────── */
+.think-live {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+/* 점 세 개가 차례로 켜진다 — "멈춘 게 아니라 도는 중"을 글자 없이 말한다. */
+.think-dots::after {
+  content: "···";
+  letter-spacing: 1px;
+  animation: think-dots 1.4s steps(4, end) infinite;
+  clip-path: inset(0 100% 0 0);
+}
+@keyframes think-dots {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.think-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.think-meta::before {
+  content: "· ";
+}
+
+/* ─── 작업 중 상태 단어 ───────────────────────────────────────────────────
+   스피너는 기다림을 초조함으로 준다. 한 글자씩 찍히는 말은 같은 시간을
+   진행으로 읽히게 한다. */
+.agent-word {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--text-2);
+}
+.agent-word-caret {
+  display: inline-block;
+  width: 2px;
+  height: 13px;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: agent-caret 1s steps(2, end) infinite;
+}
+@keyframes agent-caret {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .think-dots::after,
+  .agent-word-caret {
+    animation: none;
+    clip-path: none;
+  }
 }

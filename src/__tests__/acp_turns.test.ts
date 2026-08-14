@@ -238,3 +238,34 @@ describe("tool input/output", () => {
     });
   });
 });
+
+// ─── 생각 시간 ──────────────────────────────────────────────────────────────
+
+describe("thinking timing", () => {
+  const thought = (text: string): AcpEvent => ({ kind: "thought", text });
+
+  it("stamps the start on the first thought and the end on the first answer", () => {
+    let turns = applyAcpEvent(openTurn([], "ask"), thought("hmm"), false, 1_000);
+    turns = applyAcpEvent(turns, thought(" more"), false, 3_000);
+    turns = applyAcpEvent(turns, chunk("answer"), false, 19_000);
+
+    expect(turns[1].thoughtStart).toBe(1_000);
+    expect(turns[1].thoughtEnd).toBe(19_000);
+  });
+
+  /** 답변 중간에 다시 생각해도 "생각한 시간"은 처음 구간이다. */
+  it("does not move the end once it is stamped", () => {
+    let turns = applyAcpEvent(openTurn([], "ask"), thought("a"), false, 1_000);
+    turns = applyAcpEvent(turns, chunk("x"), false, 5_000);
+    turns = applyAcpEvent(turns, thought("b"), false, 8_000);
+    turns = applyAcpEvent(turns, chunk("y"), false, 9_000);
+
+    expect(turns[1].thoughtEnd).toBe(5_000);
+  });
+
+  it("leaves both unset when the agent never thinks out loud", () => {
+    const turns = applyAcpEvent(openTurn([], "ask"), chunk("answer"), false, 5_000);
+    expect(turns[1].thoughtStart).toBeUndefined();
+    expect(turns[1].thoughtEnd).toBeUndefined();
+  });
+});

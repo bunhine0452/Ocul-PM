@@ -30,6 +30,10 @@ export interface AcpTurn {
   tools?: AcpToolCall[];
   /** 턴이 닫혔는지 (done/failed 이후 도착한 이벤트를 거절하는 근거). */
   closed?: boolean;
+  /** 첫 생각 조각이 온 시각(ms). 생각이 없었으면 없다. */
+  thoughtStart?: number;
+  /** 생각이 끝난 시각(ms) — 첫 답변 조각이 온 순간. 아직이면 없다. */
+  thoughtEnd?: number;
 }
 
 /** 사용자 발화 + 응답을 받을 빈 에이전트 턴을 함께 연다. */
@@ -53,6 +57,14 @@ export function applyAcpEvent(
   turns: readonly AcpTurn[],
   event: AcpEvent,
   replay = false,
+  /**
+   * 지금 시각(ms). 생각에 걸린 시간을 재는 데만 쓴다 — 인자로 받는 이유는
+   * 리듀서를 순수하게 두기 위해서다(테스트가 시계를 고정할 수 있다).
+   *
+   * **안 넘기면 아예 안 찍는다.** 기본값 0 을 찍으면 "0초 생각함"처럼 보여
+   * 시계를 안 넘긴 호출부의 실수가 화면에서는 정상처럼 보인다.
+   */
+  now?: number,
 ): AcpTurn[] {
   // 사용자 발화는 재생에서만 의미가 있다 — 라이브에서는 우리가 이미 그렸다.
   if (event.kind === "user_chunk") {
@@ -92,10 +104,23 @@ export function applyAcpEvent(
   const next = [...base];
   switch (event.kind) {
     case "chunk":
-      next[index] = { ...last, text: last.text + event.text };
+      next[index] = {
+        ...last,
+        text: last.text + event.text,
+        // 첫 답변 조각이 오는 순간 생각은 끝난 것이다. 이미 찍혔으면 둔다 —
+        // 답변 중간에 다시 생각해도 처음 구간이 "생각한 시간"이다.
+        thoughtEnd:
+          now != null && last.thoughtStart != null
+            ? (last.thoughtEnd ?? now)
+            : last.thoughtEnd,
+      };
       break;
     case "thought":
-      next[index] = { ...last, thought: (last.thought ?? "") + event.text };
+      next[index] = {
+        ...last,
+        thought: (last.thought ?? "") + event.text,
+        thoughtStart: now != null ? (last.thoughtStart ?? now) : last.thoughtStart,
+      };
       break;
     case "tool_call":
       next[index] = {

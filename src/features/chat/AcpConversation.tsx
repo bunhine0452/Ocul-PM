@@ -50,6 +50,8 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
+import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
@@ -417,8 +419,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 모아 둔 것을 **한 번의 상태 갱신**으로 반영한다.
         setTurns((prev) => {
           let next = prev;
-          if (text) next = applyAcpEvent(next, { kind: "chunk", text });
-          if (thought) next = applyAcpEvent(next, { kind: "thought", text: thought });
+          const now = Date.now();
+          if (text) next = applyAcpEvent(next, { kind: "chunk", text }, false, now);
+          if (thought) next = applyAcpEvent(next, { kind: "thought", text: thought }, false, now);
           return next;
         });
       };
@@ -440,7 +443,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 텍스트가 아닌 사건(툴콜·승인·종료)은 순서가 중요하다 — 모아 둔
         // 글자를 먼저 내보내고 나서 적용해야 카드가 문장 앞으로 튀지 않는다.
         flush();
-        setTurns((prev) => applyAcpEvent(prev, event));
+        setTurns((prev) => applyAcpEvent(prev, event, false, Date.now()));
         if (event.kind === "usage") {
           setUsage({ used: event.used, size: event.size, costUsd: event.cost_usd });
         } else if (event.kind === "failed") {
@@ -925,7 +928,8 @@ const TurnRow = memo(function TurnRow({
       {turn.thought ? (
         <details className="think">
           <summary>
-            <ChevronDown size={12} /> {t("acp.thinking")}
+            <ChevronDown size={12} />
+            <ThinkingLabel turn={turn} live={live} />
           </summary>
           <div className="think-body msg-md">
             <Markdown>{turn.thought}</Markdown>
@@ -948,7 +952,9 @@ const TurnRow = memo(function TurnRow({
               하나뿐이라 비용이 문단 길이에 묶인다. */}
           {live ? <StreamingMarkdown text={turn.text} /> : <Markdown>{turn.text}</Markdown>}
         </div>
-      ) : turn.tools?.length ? null : (
+      ) : turn.tools?.length ? null : live ? (
+        <AgentWord />
+      ) : (
         <div className="msg-wait">{t("acp.waiting")}</div>
       )}
     </div>
@@ -964,7 +970,14 @@ const TurnRow = memo(function TurnRow({
  */
 function TraceRow({ tool }: { tool: AcpToolCall }) {
   const { t } = useT();
-  const [open, setOpen] = useState(false);
+  const running = tool.status === "in_progress" || tool.status === "pending";
+  /**
+   * 접힘/펼침은 사용자가 정하되, **기본값은 진행 중이면 펼침**이다. 돌고 있는
+   * 동안에는 "무엇을 시켰는지"가 곧 진행 상황이고, 끝나고 나면 결과만 한 줄로
+   * 남는 편이 대화를 덜 밀어낸다. `null` 은 "아직 사용자가 안 건드림".
+   */
+  const [choice, setChoice] = useState<boolean | null>(null);
+  const open = choice ?? running;
   const Icon = TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
   const state =
@@ -978,7 +991,7 @@ function TraceRow({ tool }: { tool: AcpToolCall }) {
         className={"trace-row" + state}
         disabled={!expandable}
         aria-expanded={expandable ? open : undefined}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setChoice(!open)}
       >
         <span className="trace-icon">
           <Icon size={13} />
@@ -1582,6 +1595,79 @@ function EffortControl({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 생각 줄 — 도는 동안은 "생각하는 중 · N 토큰", 끝나면 "18초 생각함".
+ *
+ * 토큰 수는 **추정치**다(생각 텍스트 길이 기반). 프로토콜이 생각 토큰을 따로
+ * 주지 않으므로 정확한 값을 만들어 낼 수 없다 — 진행 감각을 주는 것이 목적이고,
+ * 끝난 뒤에는 추정 대신 **실제로 잰 시간**을 보여 준다.
+ */
+function ThinkingLabel({ turn, live }: { turn: AcpTurn; live: boolean }) {
+  const { t } = useT();
+  const [, tick] = useState(0);
+
+  const thinking = live && turn.thought != null && turn.thoughtEnd == null;
+
+  // 도는 동안은 1초마다 다시 그린다 — 숫자가 멈춰 있으면 멈춘 것처럼 보인다.
+  useEffect(() => {
+    if (!thinking) return;
+    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [thinking]);
+
+  if (thinking) {
+    return (
+      <span className="think-live">
+        {t("acp.thinking.live")}
+        <span className="think-dots" aria-hidden="true" />
+        <span className="think-meta">
+          {t("acp.thinking.tokens", { n: estimateTokens(turn.thought ?? "") })}
+        </span>
+      </span>
+    );
+  }
+
+  if (turn.thoughtStart != null && turn.thoughtEnd != null) {
+    const sec = Math.max(1, Math.round((turn.thoughtEnd - turn.thoughtStart) / 1000));
+    return <span>{t("acp.thinking.done", { sec })}</span>;
+  }
+  return <span>{t("acp.thinking")}</span>;
+}
+
+/**
+ * 작업 중 상태 단어 — 한 글자씩 찍히고, 다 찍히면 잠시 머물다 다음 말로 넘어간다.
+ *
+ * 스피너 대신 쓰는 이유는 agentWords.ts 에 적었다: 기다림을 초조함이 아니라
+ * 진행으로 읽히게 하려는 것이다.
+ */
+function AgentWord() {
+  const { t } = useT();
+  const [tickIndex, setTickIndex] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+
+  const word = t(wordKeyAt(tickIndex));
+  const total = word.length;
+
+  useEffect(() => {
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      const ms = Date.now() - started;
+      setElapsed(ms);
+      if (ms >= wordDurationMs(total)) {
+        setTickIndex((n) => n + 1);
+      }
+    }, 55);
+    return () => window.clearInterval(timer);
+  }, [total, tickIndex]);
+
+  return (
+    <div className="agent-word" aria-live="polite">
+      {word.slice(0, typedLength(elapsed, total))}
+      <span className="agent-word-caret" aria-hidden="true" />
     </div>
   );
 }
