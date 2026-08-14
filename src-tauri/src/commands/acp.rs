@@ -513,6 +513,68 @@ pub async fn acp_list_sessions(
         .collect())
 }
 
+/// 원격 조종을 켠 채로 **새 대화**를 연다 (`claude --remote-control`).
+///
+/// 앞서 "ACP 로는 불가능"이라고 적었는데 틀렸다. 어댑터는 `session/new` 의
+/// `_meta.claudeCode.options.extraArgs` 를 SDK 질의의 `extraArgs` 로 그대로
+/// 흘려보내고, 그것은 CLI 플래그가 된다. CLI 에는 `--remote-control` 이 있고
+/// 바이너리 안에 `remote-control-sdk` 라는 출처 표식도 있다 — 즉 통로가 있다.
+///
+/// **켜져 있는 대화에 붙이는 것은 안 된다.** 질의를 만들 때 정해지는 값이라
+/// 도중에 못 바꾼다. 그래서 새 대화를 연다.
+///
+/// 실패하면 **원래 대화를 되돌려 놓는다.** 이 길은 실측이 아니라 코드를 읽고
+/// 낸 추론이라, 안 먹혔을 때 사용자가 대화를 잃으면 안 된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn acp_start_remote_control(
+    app: AppHandle,
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<AcpSession, String> {
+    let state = app.state::<AcpState>();
+    let agent = state
+        .info(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    let connection = state
+        .connection(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    let cwd = project_root(&db, project_id).await?;
+
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        "claudeCode".to_string(),
+        serde_json::json!({ "options": { "extraArgs": { "remote-control": "" } } }),
+    );
+
+    let previous = state.session(project_id);
+    let created = connection
+        .send_request(NewSessionRequest::new(cwd).meta(meta))
+        .block_task()
+        .await;
+
+    match created {
+        Ok(created) => {
+            state.cancel_pending_permissions(project_id);
+            state.set_session(
+                project_id,
+                created.session_id.clone(),
+                acp::session::map_config_options(
+                    created.config_options.as_deref().unwrap_or_default(),
+                ),
+            );
+            Ok(session_snapshot(&app, project_id, agent))
+        }
+        Err(e) => {
+            // 되돌린다 — 실패한 시도 때문에 보던 대화를 잃으면 안 된다.
+            if let Some(session) = previous {
+                state.select_session(project_id, session, None);
+            }
+            Err(format!("원격 조종을 켜지 못했습니다: {e}"))
+        }
+    }
+}
+
 /// 보고 있는 대화를 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
 ///
 /// 화면이 이미 그 대화의 기록을 들고 있을 때 쓴다. `session/load` 로 갈아타면

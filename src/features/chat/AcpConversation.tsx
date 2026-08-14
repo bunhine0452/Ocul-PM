@@ -766,16 +766,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
-      // `/remote-control` (`/rc`) — 어댑터가 주는 명령이 아니다.
+      // `/remote-control` (`/rc`) — 어댑터가 광고하는 명령은 아니지만 통로는 있다.
       //
-      // 원격 조종은 CLI 가 계정과 짝을 맺는 기능이라 ACP 에는 대응하는 요청이
-      // 없다. 그냥 보내면 Claude 가 이 줄을 **평문으로 읽고** 원격 조종에 대해
-      // 설명하기 시작한다 — 명령을 친 사람이 가장 원하지 않는 결과다. 그래서
-      // 여기서 잡아 진짜로 되는 곳(내장 터미널의 `claude`)으로 안내한다.
+      // 어댑터가 `session/new` 의 `_meta.claudeCode.options.extraArgs` 를 CLI
+      // 플래그로 그대로 흘려보내고, CLI 에 `--remote-control` 이 있다. 다만
+      // 질의를 만들 때 정해지는 값이라 **켜져 있는 대화에는 못 붙인다** — 새
+      // 대화를 열어야 한다. 실패하면 백엔드가 원래 대화를 되돌려 놓는다.
       if (text === "/remote-control" || text === "/rc") {
         setDraft("");
         setSlash(null);
-        setError(t("acp.remoteControlHint"));
+        void (async () => {
+          const res = await commands.acpStartRemoteControl(projectId);
+          if (res.status !== "ok") {
+            setError(res.error);
+            return;
+          }
+          loadSeqRef.current += 1;
+          setSession(res.data);
+          editTurns(res.data.session_id ?? SLATE, () => []);
+          setError(t("acp.remoteControlStarted"));
+        })();
         return;
       }
       if (busy) {

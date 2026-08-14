@@ -1069,6 +1069,21 @@ export const commands = {
 	 *  제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
 	 */
 	acpSelectSession: (projectId: number, sessionId: string, title: string | null) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_select_session", { projectId, sessionId, title })),
+	/**
+	 *  원격 조종을 켠 채로 **새 대화**를 연다 (`claude --remote-control`).
+	 * 
+	 *  앞서 "ACP 로는 불가능"이라고 적었는데 틀렸다. 어댑터는 `session/new` 의
+	 *  `_meta.claudeCode.options.extraArgs` 를 SDK 질의의 `extraArgs` 로 그대로
+	 *  흘려보내고, 그것은 CLI 플래그가 된다. CLI 에는 `--remote-control` 이 있고
+	 *  바이너리 안에 `remote-control-sdk` 라는 출처 표식도 있다 — 즉 통로가 있다.
+	 * 
+	 *  **켜져 있는 대화에 붙이는 것은 안 된다.** 질의를 만들 때 정해지는 값이라
+	 *  도중에 못 바꾼다. 그래서 새 대화를 연다.
+	 * 
+	 *  실패하면 **원래 대화를 되돌려 놓는다.** 이 길은 실측이 아니라 코드를 읽고
+	 *  낸 추론이라, 안 먹혔을 때 사용자가 대화를 잃으면 안 된다.
+	 */
+	acpStartRemoteControl: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_start_remote_control", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
