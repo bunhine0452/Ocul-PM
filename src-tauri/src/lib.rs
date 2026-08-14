@@ -571,12 +571,46 @@ pub fn run() {
     // shutdown. RAII via `LockGuard::drop` is the safety net if the
     // best-effort sync drain here loses a race.
     app.run(|app_handle, event| {
-        if let tauri::RunEvent::ExitRequested { .. } = event {
-            if let Some(manager) = app_handle
-                .try_state::<crate::oculpm::manager::OculpmManager>()
-            {
-                manager.shutdown_all_blocking();
+        match event {
+            tauri::RunEvent::ExitRequested { .. } => {
+                if let Some(manager) =
+                    app_handle.try_state::<crate::oculpm::manager::OculpmManager>()
+                {
+                    manager.shutdown_all_blocking();
+                }
             }
+            // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
+            //
+            // 창을 다 닫아도 앱은 살아 있는데(트레이·메뉴바가 있으므로 종료하지
+            // 않는다), 이 이벤트를 안 받으면 Dock 을 눌러도 **아무 일도 안 난다** —
+            // 사용자 눈에는 앱이 죽은 것이고, 메뉴바로 들어가는 길밖에 안 남는다.
+            //
+            // 창이 하나라도 살아 있으면 앞으로 가져오기만 하고, 하나도 없으면
+            // 새로 연다 (macOS 의 표준 동작).
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => {
+                use tauri::Manager as _;
+                let existing: Vec<_> = app_handle
+                    .webview_windows()
+                    .into_iter()
+                    .filter(|(label, _)| crate::commands::window::is_app_window(label))
+                    .map(|(_, window)| window)
+                    .collect();
+
+                if existing.is_empty() {
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = crate::commands::window::new_window_inner(&handle).await;
+                    });
+                } else {
+                    for window in existing {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+            _ => {}
         }
     });
 }
