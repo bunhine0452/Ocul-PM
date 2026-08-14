@@ -32,6 +32,7 @@ import {
   commands,
   type AcpConfigOption,
   type AcpEvent,
+  type AcpImage,
   type AcpCommand,
   type AcpSession,
   type AcpSessionSummary,
@@ -92,8 +93,9 @@ const TOOL_STATUS_KEY = {
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
-  const { state } = useWorkspace();
+  const { state, setState } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
+  const ultracode = state.acpUltracode;
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -109,6 +111,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const [permission, setPermission] = useState<PermissionState | null>(null);
   /** 이번 프롬프트에 함께 보낼 파일 (상대·절대 섞여도 백엔드가 맞춘다). */
   const [attachments, setAttachments] = useState<string[]>([]);
+  /**
+   * 붙여넣은 이미지. 파일과 달리 **내용을 실어 보낸다** — 클립보드 이미지는
+   * 디스크에 존재하지도 않아 링크로 줄 수가 없다.
+   */
+  const [images, setImages] = useState<AcpImage[]>([]);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -236,6 +243,31 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
   }, [projectId]);
 
+  /** 클립보드에서 이미지를 받는다. 텍스트 붙여넣기는 기본 동작 그대로. */
+  const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(e.clipboardData.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (!files.length) return;
+    e.preventDefault();
+
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result ?? "");
+        // `data:image/png;base64,AAA…` 에서 본문만 — 접두사를 그대로 보내면
+        // 어댑터가 base64 로 못 읽는다.
+        const comma = result.indexOf(",");
+        if (comma < 0) return;
+        setImages((prev) => [
+          ...prev,
+          { mime_type: file.type, data_base64: result.slice(comma + 1) },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
   const pickMention = useCallback(
     (relPath: string) => {
       const mention = findMentionQuery(draft);
@@ -318,17 +350,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
-      // 최상위 effort(=Ultracode)를 고른 상태면 키워드도 함께 보낸다.
-      //
-      // 둘은 경쟁하는 스위치가 아니라 **같은 것의 두 경로**다: effort 값은
-      // 프로토콜로, 키워드는 CLI 의 opt-in 게이트로 간다(어댑터가 우리 턴을
-      // human 으로 스탬프하므로 자격이 있다). 어느 쪽이 실제로 먹는지 우리가
-      // 단정할 수 없으니 둘 다 보낸다 — 키워드는 멱등이라 손해가 없다.
-      const effortNow = session?.options.find((o) => o.id === "effort")?.current;
-      const outgoing = withUltracode(text, effortNow === TOP_EFFORT);
+      // 울트라코드 칸이 켜져 있으면 키워드를 함께 보낸다 — 어댑터가 우리
+      // 턴을 human 으로 스탬프하므로 CLI 의 opt-in 게이트를 통과한다.
+      const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
+      const sendingImages = images;
       setDraft("");
       setAttachments([]);
+      setImages([]);
       setMentions(null);
       setSlash(null);
       setError(null);
@@ -382,7 +411,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       };
 
       try {
-        const res = await commands.acpPrompt(projectId, outgoing, sending, channel);
+        const res = await commands.acpPrompt(projectId, outgoing, sending, sendingImages, channel);
         if (res.status === "error") setError(res.error);
       } finally {
         flush();
@@ -394,7 +423,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, session],
+    [draft, busy, projectId, attachments, images, ultracode],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -437,7 +466,23 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     void commands.acpPermissionRespond(requestId, optionId);
   }, []);
 
+  /** ⇧Tab — 안전한 모드들을 순환한다. */
+  const cycleMode = useCallback(() => {
+    const mode = session?.options.find((o) => o.id === "mode");
+    if (!mode) return;
+    const at = CYCLE_MODES.indexOf(mode.current as (typeof CYCLE_MODES)[number]);
+    // 목록 밖(dontAsk·bypass)에 있었다면 처음으로 되돌린다 — 순환에서 빠져
+    // 나오는 길이 없으면 갇힌다.
+    const next = CYCLE_MODES[(at + 1) % CYCLE_MODES.length];
+    void setOption(mode.id, next);
+  }, [session, setOption]);
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab" && e.shiftKey && !slash?.length && !mentions?.length) {
+      e.preventDefault();
+      cycleMode();
+      return;
+    }
     if (slash?.length) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
@@ -572,6 +617,28 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             </div>
           ) : null}
 
+          {images.length ? (
+            <div className="image-row">
+              {images.map((image, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="image-chip"
+                  title={t("acp.image.remove")}
+                  onClick={() => setImages((prev) => prev.filter((_, at) => at !== i))}
+                >
+                  <img
+                    alt=""
+                    src={`data:${image.mime_type};base64,${image.data_base64}`}
+                  />
+                  <span className="image-chip-x">
+                    <X size={10} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {attachments.length ? (
             <div className="attach-row">
               {attachments.map((path) => (
@@ -662,6 +729,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               aria-label={t("acp.inputAria")}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
+              onPaste={onPaste}
             />
             </div>
           </div>
@@ -701,7 +769,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               // Effort 만 슬라이더다 — 값에 **순서**가 있기 때문. 순서 있는
               // 값을 목록으로 고르게 하면 "지금이 어느 정도인지"가 안 보인다.
               return id === "effort" ? (
-                <EffortControl key={id} option={option} onChange={setOption} />
+                <EffortControl
+                  key={id}
+                  option={option}
+                  onChange={setOption}
+                  ultracode={ultracode}
+                  onUltracode={(on) =>
+                    setState((prev) => ({ ...prev, acpUltracode: on }))
+                  }
+                />
               ) : (
                 <ConfigControl key={id} option={option} onChange={setOption} />
               );
@@ -954,11 +1030,20 @@ function PermissionCard({
 }
 
 /**
- * 최상위 effort 값. 사용자 쪽 Claude Code 는 이 자리를 **"Ultracode"** 라
- * 부르고 "xhigh + workflows" 로 설명한다 — 어댑터는 `max` 라는 이름만 주므로
- * 라벨을 우리가 맞춘다.
+ * 울트라코드 칸의 가상 값.
+ *
+ * 어댑터의 effort 목록은 `low·medium·high·xhigh·max` 다섯 개이고 울트라코드는
+ * **거기 없다** — 사용자 쪽 Claude Code 는 `max` **다음** 칸에 두고 "xhigh +
+ * workflows" 라 설명한다. 즉 effort 값이 아니라 키워드로 켜지는 상태다.
+ *
+ * 그래서 트랙에 칸 하나를 덧대고, 고르면 effort 는 `xhigh` 로 두고 키워드를
+ * 켠다. (앞선 라운드에 `max` 를 울트라코드로 이름만 바꿔 놓았는데, 그러면
+ * max 가 사라져 실제로 고를 수 없었다.)
  */
-const TOP_EFFORT = "max";
+const ULTRA_VALUE = "__ultracode__";
+
+/** 울트라코드가 대응하는 실제 effort 값. */
+const ULTRA_EFFORT = "xhigh";
 
 /** 자주 쓰는 설정 3종은 바깥에 — 나머지는 `⋯` 안으로. */
 const PRIMARY_CONFIG_IDS = ["mode", "model", "effort"] as const;
@@ -982,6 +1067,32 @@ const MODE_ICON: Readonly<Record<string, typeof Lock>> = {
   dontAsk: Play,
   bypassPermissions: AlertTriangle,
 };
+
+/**
+ * 모드별 색.
+ *
+ * 권한 모드는 **틀리면 대가가 큰** 설정이라, 지금 무엇인지가 글자를 읽기 전에
+ * 보여야 한다. 위험이 커질수록 차가운 색에서 뜨거운 색으로 간다 — 자물쇠(회색)
+ * → 편집 허용(초록) → 계획(파랑) → 자동(보라) → 안 묻기(주황) → 전면 우회(빨강).
+ */
+const MODE_COLOR: Readonly<Record<string, string>> = {
+  default: "var(--text-2)",
+  acceptEdits: "var(--accent)",
+  plan: "#3b82f6",
+  auto: "#8b5cf6",
+  dontAsk: "#c9821f",
+  bypassPermissions: "var(--t-bug)",
+};
+
+/**
+ * ⇧Tab 이 도는 모드들 — 안전한 넷만.
+ *
+ * 어댑터는 여섯을 주지만 `dontAsk` 와 `bypassPermissions` 는 **되돌릴 수 없는
+ * 일을 묻지 않고 하는** 모드다. 키 하나를 연타하다 거기 착지하면 사고다.
+ * 메뉴에서는 여전히 고를 수 있다 — 명시적으로 고르는 것과 실수로 지나가는
+ * 것은 다르다. (VS Code 확장이 넷만 보여 주는 것도 같은 이유로 읽힌다.)
+ */
+const CYCLE_MODES = ["default", "acceptEdits", "plan", "auto"] as const;
 
 function choicesOf(option: AcpConfigOption) {
   return option.is_boolean
@@ -1009,6 +1120,7 @@ function ConfigControl({
   /** true 면 트리거에 값 텍스트 없이 아이콘만 (오버플로 안에서 쓸 때). */
   compact?: boolean;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
@@ -1029,14 +1141,29 @@ function ConfigControl({
         title={option.name}
         onClick={() => setOpen((v) => !v)}
       >
-        {TriggerIcon ? <TriggerIcon size={13} /> : null}
+        {TriggerIcon ? (
+          <TriggerIcon
+            size={13}
+            style={option.id === "mode" ? { color: MODE_COLOR[option.current ?? ""] } : undefined}
+          />
+        ) : null}
         {compact ? null : (
-          <span className="agent-chip-label">{current?.name ?? option.current}</span>
+          <span
+            className="agent-chip-label"
+            style={option.id === "mode" ? { color: MODE_COLOR[option.current ?? ""] } : undefined}
+          >
+            {current?.name ?? option.current}
+          </span>
         )}
       </button>
       {open ? (
         <div className="settings-menu" role="menu" aria-label={option.name}>
-          <div className="settings-group-label">{option.name}</div>
+          <div className="settings-group-label">
+            {option.name}
+            {option.id === "mode" ? (
+              <span className="settings-group-hint">{t("acp.modeCycleHint")}</span>
+            ) : null}
+          </div>
           {choices.map((choice) => {
             const RowIcon = option.id === "mode" ? MODE_ICON[choice.value] : undefined;
             return (
@@ -1051,7 +1178,12 @@ function ConfigControl({
                   onChange(option.id, choice.value);
                 }}
               >
-                <span className="settings-row-icon">
+                <span
+                  className="settings-row-icon"
+                  style={
+                    option.id === "mode" ? { color: MODE_COLOR[choice.value] } : undefined
+                  }
+                >
                   {RowIcon ? <RowIcon size={15} /> : null}
                 </span>
                 <span className="settings-row-body">
@@ -1238,27 +1370,43 @@ function SessionPanel({
 function EffortControl({
   option,
   onChange,
+  ultracode,
+  onUltracode,
 }: {
   option: AcpConfigOption;
   onChange: (configId: string, value: string) => void;
+  ultracode: boolean;
+  onUltracode: (on: boolean) => void;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
 
+  /** 칸 하나를 고른다. 울트라코드 칸은 effort 를 xhigh 로 두고 키워드를 켠다. */
+  const onPick = (value: string) => {
+    if (value === ULTRA_VALUE) {
+      onUltracode(true);
+      if (option.current !== ULTRA_EFFORT) onChange(option.id, ULTRA_EFFORT);
+      return;
+    }
+    onUltracode(false);
+    onChange(option.id, value);
+  };
+
+  // 어댑터 값 뒤에 울트라코드 칸을 덧댄다 — max 는 그대로 남는다.
   const choices = useMemo(
-    () =>
-      option.choices
-        .filter((c) => c.value !== "default")
-        // 최상위는 어댑터가 "Max" 라 부르지만 사용자가 아는 이름은 Ultracode 다.
-        .map((c) => (c.value === TOP_EFFORT ? { ...c, name: t("acp.ultracode") } : c)),
+    () => [
+      ...option.choices.filter((c) => c.value !== "default"),
+      { value: ULTRA_VALUE, name: t("acp.ultracode"), description: t("acp.ultracodeHint") },
+    ],
     [option.choices, t],
   );
-  if (!choices.length) return null;
+  if (choices.length < 2) return null;
 
   // 현재 값이 `default` 로 와도 사용자에게는 실제 동작인 xhigh 로 보인다.
-  const currentValue = option.current === "default" ? "xhigh" : option.current;
+  const effortValue = option.current === "default" ? ULTRA_EFFORT : option.current;
+  const currentValue = ultracode ? ULTRA_VALUE : effortValue;
   const index = Math.max(
     0,
     choices.findIndex((c) => c.value === currentValue),
@@ -1267,7 +1415,7 @@ function EffortControl({
 
   const move = (delta: number) => {
     const next = Math.min(choices.length - 1, Math.max(0, index + delta));
-    if (next !== index) onChange(option.id, choices[next].value);
+    if (next !== index) onPick(choices[next].value);
   };
 
   return (
@@ -1305,6 +1453,13 @@ function EffortControl({
               }
             }}
           >
+            {/* 값이 위, 트랙이 아래 — 눈이 "지금 무엇"을 먼저 읽고 그 다음
+                "어디쯤"을 본다. 나란히 놓으면 둘이 서로를 밀어낸다. */}
+            <span
+              className={"effort-label" + (currentValue === ULTRA_VALUE ? " top" : "")}
+            >
+              {current?.name ?? currentValue}
+            </span>
             <span className="effort-track">
               {choices.map((choice, i) => (
                 <button
@@ -1314,23 +1469,18 @@ function EffortControl({
                     "effort-dot" +
                     (i === index ? " on" : "") +
                     (i < index ? " lit" : "") +
-                    // 마지막 단계는 척도의 연장이 아니라 별개의 물건이다.
-                    (i === choices.length - 1 ? " top" : "")
+                    // 마지막 칸은 척도의 연장이 아니라 별개의 물건이다.
+                    (choice.value === ULTRA_VALUE ? " top" : "")
                   }
                   aria-label={choice.name}
                   title={choice.description ?? choice.name}
-                  onClick={() => onChange(option.id, choice.value)}
+                  onClick={() => onPick(choice.value)}
                 />
               ))}
             </span>
-            <span
-              className={"effort-label" + (currentValue === TOP_EFFORT ? " top" : "")}
-            >
-              {current?.name ?? currentValue}
-            </span>
           </div>
           <div className="effort-hint">
-            {currentValue === TOP_EFFORT ? t("acp.ultracodeHint") : t("acp.effortHint")}
+            {currentValue === ULTRA_VALUE ? t("acp.ultracodeHint") : t("acp.effortHint")}
           </div>
         </div>
       ) : null}

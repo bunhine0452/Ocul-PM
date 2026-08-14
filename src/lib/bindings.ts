@@ -935,7 +935,7 @@ export const commands = {
 	 *  **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
 	 *  읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
 	 */
-	acpPrompt: (projectId: number, text: string, attachments: string[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, text, attachments, onEvent })),
+	acpPrompt: (projectId: number, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, text, attachments, images, onEvent })),
 	/**
 	 *  진행 중인 턴을 취소한다. 세션이 없으면 `false`.
 	 * 
@@ -1224,6 +1224,14 @@ locations: string[]; options: AcpPermissionOption[] } |
 { kind: "done"; stop_reason: string } | 
 /**  턴이 오류로 끝났다. */
 { kind: "failed"; message: string };
+
+/**  프롬프트에 함께 보낼 이미지 하나 (붙여넣기·드롭). */
+export type AcpImage = {
+	/**  `image/png` 등. */
+	mime_type: string,
+	/**  data URI 접두사(`data:image/png;base64,`) 없이 **본문만**. */
+	data_base64: string,
+};
 
 /**  권한 요청의 선택지 하나. */
 export type AcpPermissionOption = {

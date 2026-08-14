@@ -572,19 +572,21 @@
    값에 순서가 있는 유일한 설정이라 목록이 아니라 트랙으로 그린다 — 점의
    위치가 곧 강도다. 채워진 점으로 "여기까지 왔다"를 읽게 한다. */
 /* 팝오버 안에서만 펼쳐지는 트랙 — 평소 컴포저 바닥에는 값 하나만 남는다. */
+/* 값이 위, 트랙이 아래 — 눈이 "지금 무엇"을 먼저 읽고 그 다음 "어디쯤"을
+   본다. 나란히 놓으면 둘이 서로를 밀어낸다. */
 .effort {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 9px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 4px 9px 6px;
   border-radius: 9px;
   outline: none;
 }
 .effort-label {
-  flex: 1;
-  text-align: right;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--text);
 }
 /* 최상위 단계는 이름도 색도 다르다 — 트랙의 마지막 점과 같은 신호. */
@@ -607,8 +609,9 @@
 .effort-track {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 9px;
   border-radius: 999px;
   background: var(--bg-inset);
 }
@@ -980,5 +983,53 @@
   padding: 7px 9px 3px;
   border-top: 1px solid var(--sep);
   font-size: 11px;
+  color: var(--text-3);
+}
+
+/* 붙여넣은 이미지 — 썸네일 자체가 버튼이고, 호버하면 X 가 뜬다. */
+.image-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.image-chip {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  background: var(--bg-inset);
+  cursor: pointer;
+}
+.image-chip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.image-chip-x {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(20, 16, 10, 0.55);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.image-chip:hover .image-chip-x,
+.image-chip:focus-visible .image-chip-x {
+  opacity: 1;
+}
+
+/* 그룹 라벨 옆의 보조 안내 (⇧Tab 등). */
+.settings-group-hint {
+  float: right;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-3);
 }

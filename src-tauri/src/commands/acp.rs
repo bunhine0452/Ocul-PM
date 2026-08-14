@@ -8,7 +8,8 @@ use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
     CancelNotification, ContentBlock, ListSessionsRequest, NewSessionRequest, PromptRequest,
-    LoadSessionRequest, ResourceLink, SessionConfigOptionValue, SetSessionConfigOptionRequest,
+    ImageContent, LoadSessionRequest, ResourceLink, SessionConfigOptionValue,
+    SetSessionConfigOptionRequest,
     TextContent,
 };
 use tauri::ipc::Channel;
@@ -48,6 +49,15 @@ pub async fn acp_install_adapter(app: AppHandle) -> Result<AcpDiagnostics, Strin
 
     acp::adapter::install(&dir, &npm, &path_env).await?;
     Ok(acp::diagnose(&dir).await)
+}
+
+/// 프롬프트에 함께 보낼 이미지 하나 (붙여넣기·드롭).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct AcpImage {
+    /// `image/png` 등.
+    pub mime_type: String,
+    /// data URI 접두사(`data:image/png;base64,`) 없이 **본문만**.
+    pub data_base64: String,
 }
 
 /// 실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목.
@@ -173,6 +183,7 @@ pub async fn acp_prompt(
     project_id: u32,
     text: String,
     attachments: Vec<String>,
+    images: Vec<AcpImage>,
     on_event: Channel<AcpEvent>,
 ) -> Result<String, String> {
     let connection = app
@@ -189,6 +200,16 @@ pub async fn acp_prompt(
     app.state::<AcpState>().set_sink(project_id, on_event.clone());
 
     let mut blocks = vec![ContentBlock::Text(TextContent::new(text))];
+
+    // 이미지는 **내용을 실어 보낸다**(파일과 달리 링크로는 못 준다 — 클립보드
+    // 이미지는 디스크에 존재하지도 않는다). 어댑터가 `promptCapabilities.image`
+    // 를 광고하므로 base64 그대로 넘긴다.
+    for image in &images {
+        blocks.push(ContentBlock::Image(ImageContent::new(
+            image.data_base64.clone(),
+            image.mime_type.clone(),
+        )));
+    }
     if !attachments.is_empty() {
         // `@` 멘션은 상대경로로, 파일 대화상자는 절대경로로 온다 — 여기서 한
         // 모양으로 맞춘다. ACP 는 모든 경로가 절대여야 한다고 못 박는다.

@@ -1740,6 +1740,8 @@ export const ko = {
   "acp.limit.week": "주간 (7일)",
   "acp.limit.weekOpus": "주간 Opus",
   "acp.limit.weekFable": "주간 Fable",
+  "acp.image.remove": "이미지 빼기",
+  "acp.modeCycleHint": "⇧Tab 으로 전환",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",

@@ -207,6 +207,16 @@ export interface WorkspaceState {
   aiActiveModel: string | null;
   /** Claude Code 화면의 대화 목록 패널이 열려 있는지 (PR-ACP7). */
   acpPanelOpen: boolean;
+  /**
+   * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
+   *
+   * 어댑터의 effort 값은 `low…max` 다섯 개뿐이고 울트라코드는 그 목록에
+   * 없다 — 사용자 쪽 Claude Code 는 `max` 다음 칸에 두고 "xhigh + workflows"
+   * 라 설명한다. 즉 **값이 아니라 키워드로 켜지는 상태**라서 우리가 따로
+   * 들고 있어야 한다. 비싼 모드이므로 켠 사실이 계속 보여야 하고, 그래서
+   * 영속한다.
+   */
+  acpUltracode: boolean;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
@@ -285,6 +295,7 @@ const DEFAULT_STATE: WorkspaceState = {
   terminalFontSize: 13,
   aiActiveModel: null,
   acpPanelOpen: true,
+  acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,
   discussionActiveId: null,
