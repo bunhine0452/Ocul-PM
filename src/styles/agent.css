@@ -1823,3 +1823,29 @@
   margin-left: -19px;
   padding-left: 19px;
 }
+
+/* ─── 대화에 일어난 일 (모델 교체 …) ─────────────────────────────────────
+   사람도 에이전트도 한 말이 아니므로 말풍선·카드가 아니라 **구분선**이다.
+   `~~~~~ Switched to X ~~~~~` 의 뜻을 그대로 두되 물결표 대신 실선으로 — 폭이
+   어떻든 좌우가 정확히 맞고, 글자가 아니라 선이라 읽을 것으로 착각하지 않는다. */
+.turn-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0;
+  color: var(--text-3);
+}
+.turn-notice::before,
+.turn-notice::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--sep);
+}
+.turn-notice-label {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}

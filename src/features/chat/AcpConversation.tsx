@@ -47,10 +47,11 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   applyAcpEvent,
   closeTurn,
+  groupTurns,
+  insertNotice,
   openTurn,
   type AcpBlock,
   type AcpToolCall,
-  groupTurns,
   type AcpTurn,
   type AcpTurnImage,
 } from "./acpTurns";
@@ -361,6 +362,32 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     const id = session?.session_id ?? null;
     setState((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
   }, [session?.session_id, setState]);
+
+  /**
+   * 모델이 바뀌면 대화에 **구분선 한 줄**을 남긴다.
+   *
+   * 안 남기면 나중에 스크롤을 올렸을 때 어디까지가 어느 모델의 답인지 알 수 없다 —
+   * 특히 답의 결이 달라졌을 때 "왜 갑자기 이러지"의 답이 여기 있다.
+   *
+   * **대화별로** 마지막 값을 기억한다: 다른 대화를 열면 그쪽 모델로 갈아끼워지는데,
+   * 세션 구분 없이 보면 그것까지 "바꿨다"로 잘못 읽는다. 처음 본 값도 조용히
+   * 기록만 한다 — 시작 모델은 바뀐 것이 아니다.
+   */
+  const modelSeenRef = useRef<{ session: string; model: string } | null>(null);
+  useEffect(() => {
+    const id = session?.session_id;
+    const model = session?.options.find((o) => o.id === "model")?.current;
+    if (!id || !model) return;
+
+    const seen = modelSeenRef.current;
+    modelSeenRef.current = { session: id, model };
+    if (!seen || seen.session !== id || seen.model === model) return;
+
+    const label = session?.options
+      .find((o) => o.id === "model")
+      ?.choices.find((choice) => choice.value === model)?.name;
+    editTurns(id, (prev) => insertNotice(prev, label || model));
+  }, [session?.session_id, session?.options, editTurns]);
 
   // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
   useEffect(() => {
@@ -1563,6 +1590,14 @@ const TurnRow = memo(function TurnRow({
   const { t } = useT();
 
   if (turn.role === "user") return <UserTurn turn={turn} />;
+
+  if (turn.role === "notice") {
+    return (
+      <div className="turn-notice" role="separator">
+        <span className="turn-notice-label">{t("acp.switchedTo", { model: turn.text })}</span>
+      </div>
+    );
+  }
 
   // 옛 기록(블록 이전)도 그려야 한다 — 글 한 덩어리로 폴백한다.
   const blocks: AcpBlock[] =

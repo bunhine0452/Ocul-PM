@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AcpEvent } from "@/lib/bindings";
-import { applyAcpEvent, closeTurn, openTurn, type AcpTurn } from "@/features/chat/acpTurns";
+import { applyAcpEvent, closeTurn, insertNotice, openTurn, type AcpTurn } from "@/features/chat/acpTurns";
 
 // PR-ACP2 — ACP 스트리밍 누적 리듀서.
 //
@@ -393,5 +393,30 @@ describe("blocks keep arrival order", () => {
       kind: "tool",
       call: expect.objectContaining({ status: "completed", output: "done" }),
     });
+  });
+});
+
+describe("insertNotice", () => {
+  it("appends when no turn is open", () => {
+    const turns = insertNotice([], "Opus");
+    expect(turns).toEqual([{ role: "notice", text: "Opus" }]);
+  });
+
+  /** 맨 뒤에 붙이면 "마지막 턴이 받는 중인 턴"이라는 규칙이 깨져, 그 뒤
+      도착하는 청크가 갈 곳을 잃고 조용히 버려진다. */
+  it("slips in before the open agent turn so streaming keeps working", () => {
+    let turns = openTurn([], "ask");
+    turns = insertNotice(turns, "Opus");
+    expect(turns.map((t) => t.role)).toEqual(["user", "notice", "agent"]);
+
+    turns = applyAcpEvent(turns, chunk("answer"));
+    expect(turns[2].text).toBe("answer");
+  });
+
+  it("appends after a closed turn", () => {
+    let turns = applyAcpEvent(openTurn([], "ask"), chunk("done"));
+    turns = applyAcpEvent(turns, done);
+    turns = insertNotice(turns, "Opus");
+    expect(turns[turns.length - 1]).toEqual({ role: "notice", text: "Opus" });
   });
 });

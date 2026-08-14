@@ -48,7 +48,11 @@ export type AcpBlock =
   | { kind: "tool"; call: AcpToolCall };
 
 export interface AcpTurn {
-  role: "user" | "agent";
+  /**
+   * `notice` 는 대화가 아니라 **대화에 일어난 일**이다 (모델 교체 같은).
+   * 사람도 에이전트도 한 말이 아니므로 말풍선·카드가 아니라 구분선으로 그린다.
+   */
+  role: "user" | "agent" | "notice";
   /**
    * 사용자 발화의 본문. 에이전트 턴에서는 `blocks` 가 진짜이고 이 값은 전체를
    * 이어 붙인 것 — 복사·길이 계산처럼 순서가 필요 없는 곳에서만 쓴다.
@@ -290,4 +294,20 @@ export function groupTurns(turns: readonly AcpTurn[]): AcpTurn[][] {
     else groups[groups.length - 1].push(turn);
   }
   return groups;
+}
+
+/**
+ * "대화에 일어난 일" 한 줄을 끼운다 (모델을 바꿨다 …).
+ *
+ * **열려 있는 에이전트 턴 앞에** 넣는다. 리듀서는 "마지막 턴이 곧 받는 중인
+ * 턴"이라는 규칙으로 도는데, 맨 뒤에 붙이면 그 규칙이 깨져 그 뒤 도착하는
+ * 청크가 갈 곳을 잃는다(조용히 버려진다).
+ */
+export function insertNotice(turns: readonly AcpTurn[], text: string): AcpTurn[] {
+  const notice: AcpTurn = { role: "notice", text };
+  const last = turns[turns.length - 1];
+  if (last?.role === "agent" && !last.closed) {
+    return [...turns.slice(0, -1), notice, last];
+  }
+  return [...turns, notice];
 }

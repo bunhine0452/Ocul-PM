@@ -1807,6 +1807,7 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.tabs.aria": "Open conversations",
   "acp.tabs.close": "Close tab",
   "acp.sendNoSession": "Could not start a conversation. Try again.",
+  "acp.switchedTo": "Switched to {model}",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",
