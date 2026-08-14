@@ -66,6 +66,12 @@ struct Running {
     usage: Option<AcpUsage>,
     /// 현재 세션 제목 (에이전트가 나중에 붙인다).
     title: Option<String>,
+    /// `/usage` 를 물어보는 **전용 대화** — 어댑터가 살아 있는 동안 하나만 쓴다.
+    ///
+    /// 물어볼 때마다 파고 지우려 했더니, 지우기와 어댑터의 전사 기록이 경합해
+    /// 가끔 살아남아 목록에 "/usage" 가 쌓였다. 하나만 두고 **목록에서 감춘다** —
+    /// 지우기가 실패해도 사용자 눈에는 없다. 어댑터가 죽으면 같이 사라진다.
+    scratch: Option<SessionId>,
 }
 
 /// 프로젝트별 어댑터 레지스트리. v1 은 프로젝트당 1개 (D3).
@@ -130,6 +136,19 @@ impl AcpState {
                 running.options = options;
                 // 제목은 세션의 것이다 — 안 지우면 새 대화에 옛 제목이 남는다.
                 running.title = None;
+            }
+        }
+    }
+
+    /// `/usage` 전용 대화의 id (있으면).
+    pub fn scratch(&self, project_id: u32) -> Option<SessionId> {
+        self.running.lock().ok()?.get(&project_id)?.scratch.clone()
+    }
+
+    pub fn set_scratch(&self, project_id: u32, session: SessionId) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                running.scratch = Some(session);
             }
         }
     }
@@ -560,6 +579,7 @@ pub async fn start(
                         commands: Vec::new(),
                         usage: None,
                         title: None,
+                        scratch: None,
                     },
                 );
                 let _ = ready_tx.send(info);

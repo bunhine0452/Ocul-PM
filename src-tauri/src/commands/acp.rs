@@ -469,9 +469,18 @@ pub async fn acp_list_sessions(
     // 알 수 없다. 경로 비교는 정규화 후 — 심볼릭 링크로 들어온 루트와
     // 어댑터가 돌려준 실경로가 다를 수 있다.
     let root = std::fs::canonicalize(&cwd).unwrap_or(cwd);
+    // `/usage` 전용 대화는 우리가 판 것이지 사용자의 대화가 아니다 — 감춘다.
+    //
+    // id 로 거르는 것은 **이번 실행분**만 잡는다. 앱이 죽으면 그 대화는 디스크에
+    // 남고 다음 실행에서는 우리가 그 id 를 모른다 — 그래서 제목으로도 한 번 더
+    // 거른다. 첫 메시지가 `/usage` 인 대화는 우리가 판 것뿐이다(사용자가 치는
+    // `/usage` 는 프롬프트로 나가지 않고 화면에서 위젯을 연다).
+    let scratch = app.state::<AcpState>().scratch(project_id);
     Ok(response
         .sessions
         .into_iter()
+        .filter(|info| scratch.as_ref() != Some(&info.session_id))
+        .filter(|info| info.title.as_deref() != Some("/usage"))
         .filter(|info| {
             std::fs::canonicalize(&info.cwd)
                 .unwrap_or_else(|_| info.cwd.clone())
@@ -635,35 +644,37 @@ pub async fn acp_refresh_usage(
         .state::<AcpState>()
         .connection(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
-    // **일회용 대화에서 묻는다.**
+    // **전용 대화 하나에서 묻는다.**
     //
     // `/usage` 는 결국 프롬프트라, 보고 있는 대화에 보내면 그 대화의 기록에
     // "/usage" 가 남는다. 아직 한 마디도 안 한 대화였다면 그것이 **제목**까지
-    // 되어 목록 맨 위에 "/usage" 라는 대화가 생겼다(실측, 두 번 재발).
+    // 되어 목록 맨 위에 "/usage" 라는 대화가 생겼다.
     //
-    // 그래서 물어볼 대화를 따로 파고 끝나면 지운다. 그 대화의 알림은 화면으로
-    // 흘리지 않는다(갈무리가 세션을 지정해 두면 핸들러가 걸러 준다).
-    let cwd = project_root(&db, project_id).await?;
-    let scratch = connection
-        .send_request(NewSessionRequest::new(cwd))
-        .block_task()
-        .await
-        .map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?
-        .session_id;
+    // 그래서 물어볼 대화를 따로 둔다. 물어볼 때마다 파고 지우는 것도 해 봤는데
+    // 지우기와 어댑터의 전사 기록이 경합해 가끔 살아남았다 — 어댑터가 사는 동안
+    // **하나만** 두고 목록에서 감추는 편이 확실하다(`acp_list_sessions` 가 뺀다).
+    let state = app.state::<AcpState>();
+    let scratch = match state.scratch(project_id) {
+        Some(existing) => existing,
+        None => {
+            let cwd = project_root(&db, project_id).await?;
+            let created = connection
+                .send_request(NewSessionRequest::new(cwd))
+                .block_task()
+                .await
+                .map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?
+                .session_id;
+            state.set_scratch(project_id, created.clone());
+            created
+        }
+    };
 
-    app.state::<AcpState>()
-        .start_capture(scratch.0.to_string());
+    state.start_capture(scratch.0.to_string());
     let outcome = connection
         .send_request(PromptRequest::new(
-            scratch.clone(),
+            scratch,
             vec![ContentBlock::Text(TextContent::new("/usage".to_string()))],
         ))
-        .block_task()
-        .await;
-
-    // 결과와 상관없이 치운다 — 남기면 목록에 "/usage" 가 쌓인다.
-    let _ = connection
-        .send_request(DeleteSessionRequest::new(scratch))
         .block_task()
         .await;
 

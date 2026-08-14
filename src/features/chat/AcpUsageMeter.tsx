@@ -146,17 +146,31 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
   );
 
   /**
-   * **시작하자마자 묻지 않는다.**
+   * 값이 없으면 한 번 물어본다 (에이전트가 붙을 때까지 몇 번 다시 시도).
    *
-   * 이 조회는 일회용 대화를 파고 지우는 일이라 공짜가 아니다. 예전엔 값이 없으면
-   * 3초마다 다시 시도했는데, Claude Code 에 처음 들어가는 것만으로 대화가 두 개씩
-   * 생겼다. 한도는 대화가 한 번 돌면 알림(`usage_update`)으로 저절로 채워지고,
-   * 그 전에 알고 싶으면 사용자가 계기를 누르거나 `/usage` 를 치면 된다.
+   * 예전에 이 자리에서 대화가 쌓였던 것은 **물어볼 때마다 대화를 팠기** 때문이고,
+   * 지금은 어댑터가 사는 동안 전용 대화 하나만 쓰고 그것도 목록에서 감춘다.
+   * 그래서 다시 물어봐도 된다 — 안 물어보면 첫 대화 전까지 계기가 안 뜬다.
    *
-   * 그래서 주기 조회는 **상태 읽기**뿐이다 — 왕복도 대화 생성도 없다.
+   * 값이 생기면 멈추고, 그 뒤로는 **상태 읽기**만 한다(왕복 없음).
    */
+  const hasLimits = (usage?.limits.length ?? 0) > 0;
   useEffect(() => {
-    void read();
+    if (hasLimits) return;
+    let tries = 0;
+    const ask = () => {
+      tries += 1;
+      void refresh();
+      // 에이전트가 아직 안 붙었으면 실패한다 — 몇 번만 다시 본다. 무한히
+      // 두드리면 어댑터가 영영 안 뜨는 상황에서 조용히 계속 돈다.
+      if (tries >= 5) window.clearInterval(timer);
+    };
+    const timer = window.setInterval(ask, 4_000);
+    ask();
+    return () => window.clearInterval(timer);
+  }, [hasLimits, refresh]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => void read(), 8_000);
     return () => window.clearInterval(timer);
   }, [read]);
