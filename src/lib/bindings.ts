@@ -1214,6 +1214,13 @@ export type AcpDiagnostics = {
 	npm_path: string | null,
 	/**  어댑터가 구동할 Claude Code CLI. 없으면 핸드셰이크는 되도 프롬프트가 죽는다. */
 	claude_path: string | null,
+	/**
+	 *  그 CLI 를 **어댑터가 들고 온 것**인가 (시스템 설치가 아니라).
+	 * 
+	 *  사용자에게 할 말이 달라진다: 딸려 온 것이면 따로 설치할 게 없고, 시스템
+	 *  것이면 그쪽 버전이 오르내리는 것을 우리가 못 막는다.
+	 */
+	claude_bundled: boolean,
 	adapter_version: string | null,
 	adapter_expected: string,
 	/**  설치돼 있고 고정 버전과 일치하는가. */

@@ -1059,7 +1059,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 <ClaudeMark size={26} style={{ color: CLAUDE_ORANGE }} />
               </div>
               <div className="ai-hero-title">
-                {starting ? t("acp.starting") : t("acp.offTitle")}
+                {starting ? t("acp.preparing") : t("acp.offTitle")}
               </div>
               <div className="ai-hero-sub">{t("acp.offSub")}</div>
               {starting ? null : (

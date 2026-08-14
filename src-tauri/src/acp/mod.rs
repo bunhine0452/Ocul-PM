@@ -38,6 +38,11 @@ pub struct AcpDiagnostics {
     pub npm_path: Option<String>,
     /// 어댑터가 구동할 Claude Code CLI. 없으면 핸드셰이크는 되도 프롬프트가 죽는다.
     pub claude_path: Option<String>,
+    /// 그 CLI 를 **어댑터가 들고 온 것**인가 (시스템 설치가 아니라).
+    ///
+    /// 사용자에게 할 말이 달라진다: 딸려 온 것이면 따로 설치할 게 없고, 시스템
+    /// 것이면 그쪽 버전이 오르내리는 것을 우리가 못 막는다.
+    pub claude_bundled: bool,
     pub adapter_version: Option<String>,
     pub adapter_expected: String,
     /// 설치돼 있고 고정 버전과 일치하는가.
@@ -59,10 +64,21 @@ pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
         .is_some_and(|major| major >= env::MIN_NODE_MAJOR);
 
     let npm = env::resolve_binary("npm").await;
-    let claude = env::resolve_binary("claude").await;
 
     let adapter_version = adapter::installed_version(app_data);
     let adapter_ok = adapter_version.as_deref() == Some(adapter::PINNED_VERSION);
+
+    // **어댑터가 들고 온 것을 먼저 본다.** 어댑터가 실제로 그걸 쓰기 때문이다
+    // (`CLAUDE_CODE_EXECUTABLE` 이 없으면 SDK 옆의 네이티브 바이너리를 집는다).
+    // 시스템 `claude` 를 먼저 보면, 딸려 온 것으로 멀쩡히 도는 사용자에게
+    // "Claude Code 를 설치하세요" 라고 거짓말을 하게 된다.
+    let bundled = adapter::bundled_claude(app_data);
+    let claude = match bundled {
+        Some(path) => Some((path, true)),
+        None => env::resolve_binary("claude")
+            .await
+            .map(|(path, _)| (path, false)),
+    };
 
     AcpDiagnostics {
         node_path: node.as_ref().map(|(p, _)| p.display().to_string()),
@@ -72,6 +88,7 @@ pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
         path_source: node.as_ref().map(|(_, src)| *src),
         npm_path: npm.as_ref().map(|(p, _)| p.display().to_string()),
         claude_path: claude.as_ref().map(|(p, _)| p.display().to_string()),
+        claude_bundled: claude.as_ref().is_some_and(|(_, bundled)| *bundled),
         adapter_version,
         adapter_expected: adapter::PINNED_VERSION.to_string(),
         adapter_ok,

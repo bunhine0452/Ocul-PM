@@ -89,7 +89,10 @@ pub async fn acp_start(
     project_id: u32,
 ) -> Result<AcpSession, String> {
     let dir = app_data_dir(&app)?;
-    let diagnostics = acp::diagnose(&dir).await;
+    let mut diagnostics = acp::diagnose(&dir).await;
+
+    // Node 는 우리가 대신 깔지 않는다. 런타임을 말없이 시스템에 심는 것은
+    // 사용자의 nvm/fnm 설정과 부딪히고, 무엇보다 물어보지 않고 할 일이 아니다.
     if !diagnostics.node_ok {
         return Err(format!(
             "Node.js {}+ 가 필요합니다 (현재: {})",
@@ -97,8 +100,24 @@ pub async fn acp_start(
             diagnostics.node_version.as_deref().unwrap_or("없음")
         ));
     }
+
+    // 어댑터는 **우리 것**이다 — 앱 데이터 안에만 깔리고 시스템을 건드리지 않는다.
+    // 그래서 없으면 물어보지 않고 깐다. 여기서 깔면 Claude Code CLI 도 같이 온다
+    // (SDK 의 플랫폼별 네이티브 바이너리) — 사용자가 따로 설치할 것은 Node 뿐이다.
+    //
+    // 첫 실행에 몇십 초가 걸릴 수 있지만 "설정에 가서 설치하세요" 라고 돌려보내는
+    // 것보다 낫다 — 그 버튼을 찾아 누르는 것 말고 선택지가 없는 안내였다.
     if !diagnostics.adapter_ok {
-        return Err("ACP 어댑터가 설치되지 않았습니다 — 설정에서 설치하세요".to_string());
+        let (npm, _) = acp::env::resolve_binary("npm")
+            .await
+            .ok_or_else(|| "npm 을 찾을 수 없습니다 — Node.js 를 설치하세요".to_string())?;
+        acp::adapter::install(&dir, &npm, &acp::env::effective_path().await).await?;
+        diagnostics = acp::diagnose(&dir).await;
+        if !diagnostics.adapter_ok {
+            return Err(
+                "ACP 어댑터 설치에 실패했습니다 — 설정 → 통합에서 다시 시도하세요".to_string(),
+            );
+        }
     }
 
     let node = PathBuf::from(

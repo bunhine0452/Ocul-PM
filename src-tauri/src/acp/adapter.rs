@@ -40,6 +40,33 @@ pub fn entry_path(app_data: &Path) -> PathBuf {
     package_dir(app_data).join("dist").join("index.js")
 }
 
+/// 어댑터가 **함께 들고 오는** Claude Code CLI.
+///
+/// 이걸 안 보고 있었다. `claude` 는 시스템에 따로 깔아야 하는 줄 알고 PATH 만
+/// 뒤졌는데, 실은 `@anthropic-ai/claude-agent-sdk` 의 플랫폼별 선택적 의존성으로
+/// **네이티브 바이너리가 딸려 온다**. 즉 어댑터를 깔면 Claude Code 도 함께 깔린다 —
+/// 사용자가 따로 설치할 것은 Node 뿐이다.
+///
+/// (어댑터도 `CLAUDE_CODE_EXECUTABLE` → 이 경로 순으로 찾는다. 우리가 여기서
+/// 같은 경로를 계산하는 것은 **진단을 정직하게** 하기 위해서다.)
+pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
+    let ext = if cfg!(target_os = "windows") { ".exe" } else { "" };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    let path = install_dir(app_data)
+        .join("node_modules")
+        .join("@anthropic-ai")
+        .join(format!(
+            "claude-agent-sdk-{}-{arch}",
+            std::env::consts::OS
+        ))
+        .join(format!("claude{ext}"));
+    path.is_file().then_some(path)
+}
+
 /// 설치된 버전. 미설치·손상은 `None`.
 pub fn installed_version(app_data: &Path) -> Option<String> {
     if !entry_path(app_data).is_file() {

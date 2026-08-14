@@ -1237,10 +1237,19 @@ export function AcpRuntimeBlock() {
             }
             hint={!diag.node_ok ? t("op.acp.needVersion", { n: diag.node_min_major }) : undefined}
           />
+          {/* 딸려 온 것과 시스템 것을 구분해 보여 준다 — 사용자가 할 일이
+              다르다. 딸려 온 것이면 따로 설치할 게 없고, 시스템 것이면 그쪽
+              버전이 오르내리는 것을 우리가 못 막는다. */}
           <AcpRow
             label={t("op.acp.claude")}
             ok={!!diag.claude_path}
-            value={diag.claude_path ?? t("op.acp.missing")}
+            value={
+              diag.claude_path
+                ? diag.claude_bundled
+                  ? t("op.acp.claudeBundled")
+                  : diag.claude_path
+                : t("op.acp.missing")
+            }
             hint={!diag.claude_path ? t("op.acp.claudeHint") : undefined}
           />
           <AcpRow
