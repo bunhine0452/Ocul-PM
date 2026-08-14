@@ -458,3 +458,42 @@ describe("plan (TODO list)", () => {
     expect(turns[1].plan).toBeUndefined();
   });
 });
+
+describe("session failures", () => {
+  const failure = (id: string, title: string, revisionTitle?: string): AcpEvent => ({
+    kind: "failure",
+    id,
+    category: "limit",
+    severity: "error",
+    title: revisionTitle ?? title,
+    details: null,
+  });
+
+  /** 스펙: 같은 id 의 더 높은 revision 은 그 줄을 제자리에서 고치는 것이지 새
+      줄이 아니다. 밀어 넣으면 재시도마다 같은 사고가 여러 줄 쌓인다. */
+  it("updates the same incident in place instead of stacking", () => {
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, failure("t1:error", "rate limited"));
+    turns = applyAcpEvent(turns, failure("t1:error", "", "retrying in 30s"));
+
+    const blocks = turns[1].blocks ?? [];
+    expect(blocks.filter((b) => b.kind === "failure")).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({ kind: "failure", title: "retrying in 30s" });
+  });
+
+  /** 다른 id 는 다른 사건이다 — 제목이 같아도 합치지 않는다(스펙). */
+  it("keeps distinct incidents apart even with identical text", () => {
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, failure("t1:error", "rate limited"));
+    turns = applyAcpEvent(turns, failure("t2:error", "rate limited"));
+    expect((turns[1].blocks ?? []).filter((b) => b.kind === "failure")).toHaveLength(2);
+  });
+
+  /** 일어난 자리가 정보다 — 어느 도구 뒤에 걸렸는지가 순서로 읽힌다. */
+  it("sits where it happened in the block order", () => {
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, chunk("작업 중")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, failure("t1:error", "rate limited"));
+    expect((turns[1].blocks ?? []).map((b) => b.kind)).toEqual(["text", "failure"]);
+  });
+});

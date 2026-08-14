@@ -30,7 +30,8 @@ use tauri::ipc::Channel;
 use tauri::Manager;
 
 use super::session::{
-    commands_of, config_of, map_update, mode_of, permission_event, title_of, usage_of,
+    commands_of, config_of, failure_of, map_update, mode_of, permission_event, title_of,
+    usage_of,
     AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
 };
 
@@ -531,6 +532,11 @@ pub async fn start(
                     if let Some(title) = title_of(&notification.update) {
                         state.set_title(project_id, Some(title));
                     }
+                    // 세션 실패·경고는 **제목 알림과 같은 봉투**에 실려 온다.
+                    // 먼저 흘려보내고 나서 아래 일반 매핑으로 넘어간다.
+                    if let Some(failure) = failure_of(&notification.update) {
+                        state.emit(project_id, &from, failure);
+                    }
                     state.emit(project_id, &from, map_update(&notification.update));
                     Ok(())
                 },
@@ -568,8 +574,29 @@ pub async fn start(
                 agent_client_protocol::on_receive_request!(),
             )
             .connect_with(agent, move |cx: ConnectionTo<Agent>| async move {
+                // 세션 실패 확장을 켠다 (opt-in).
+                //
+                // 안 켜면 한도 초과·인증 실패·모델 폴백 같은 것이 **평범한 오류
+                // 문자열이나 침묵**으로 온다. 켜면 종류(`limit`·`access`·…)와
+                // 심각도가 붙은 기록으로 와서 대화에 그대로 남길 수 있다 —
+                // 특히 "모델이 조용히 폴백됐다"는 안 알려 주면 알 길이 없다.
+                //
+                // 네임스페이스가 `jetbrains.air` 인 것은 이 확장을 그쪽이 먼저
+                // 정의했기 때문이다(어댑터 문서 그대로). 우리가 고를 수 없다.
+                let mut caps_meta = serde_json::Map::new();
+                caps_meta.insert(
+                    "jetbrains".to_string(),
+                    serde_json::json!({
+                        "air": { "version": 1, "capabilities": ["sessionFailure"] }
+                    }),
+                );
                 let init = cx
-                    .send_request(InitializeRequest::new(ProtocolVersion::V1))
+                    .send_request(
+                        InitializeRequest::new(ProtocolVersion::V1).client_capabilities(
+                            agent_client_protocol::schema::v1::ClientCapabilities::new()
+                                .meta(caps_meta),
+                        ),
+                    )
                     .block_task()
                     .await?;
 

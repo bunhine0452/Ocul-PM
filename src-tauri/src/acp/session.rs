@@ -81,6 +81,20 @@ pub enum AcpEvent {
     /// 버리면 UI 는 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가 된다 —
     /// 사용자가 자동 승인될 거라 믿는 순간이라 안전 문제다.
     ConfigChanged { options: Vec<AcpConfigOption> },
+    /// 세션에 일어난 일 — 한도 초과·인증 실패·모델 폴백 …
+    ///
+    /// 안 받으면 이런 것이 평범한 오류 문자열이나 **침묵**으로 온다. 특히 모델
+    /// 폴백(`warning`)은 알려 주지 않으면 알 길이 없다.
+    Failure {
+        /// 같은 사건의 갱신을 알아보는 표 — 같은 `id` 는 새 줄이 아니라 갱신이다.
+        id: String,
+        /// `connection` · `access` · `limit` · `request` · `service` · `unknown`.
+        category: String,
+        /// `warning` 또는 `error`.
+        severity: String,
+        title: String,
+        details: Option<String>,
+    },
     /// 에이전트의 할 일 목록 (TodoWrite).
     ///
     /// **매번 전체가 온다** — 스펙이 "갱신할 때는 모든 항목을 현재 상태와 함께
@@ -349,6 +363,33 @@ pub fn parse_usage_detail(text: &str) -> Option<String> {
         .trim()
         .to_string();
     (!body.is_empty()).then_some(body)
+}
+
+/// `session_info_update` 에 실려 오는 세션 실패 기록.
+///
+/// 자리는 `_meta.jetbrains.air.sessionFailure` — 그 확장을 그쪽이 먼저 정의해서
+/// 이름이 그렇다. `initialize` 에서 켠 클라이언트에게만 온다.
+pub fn failure_of(update: &SessionUpdate) -> Option<AcpEvent> {
+    let SessionUpdate::SessionInfoUpdate(info) = update else {
+        return None;
+    };
+    let record = serde_json::to_value(info.meta.as_ref()?)
+        .ok()?
+        .get("jetbrains")?
+        .get("air")?
+        .get("sessionFailure")?
+        .clone();
+
+    let text = |key: &str| record.get(key).and_then(|v| v.as_str()).map(str::to_string);
+    Some(AcpEvent::Failure {
+        id: text("id")?,
+        // 종류를 못 읽어도 버리지 않는다 — 제목만 있어도 사용자에게는 쓸모가
+        // 있고, 조용히 삼키는 것이 가장 나쁘다.
+        category: text("category").unwrap_or_else(|| "unknown".to_string()),
+        severity: text("severity").unwrap_or_else(|| "error".to_string()),
+        title: text("title")?,
+        details: text("details"),
+    })
 }
 
 /// 할 일 하나.

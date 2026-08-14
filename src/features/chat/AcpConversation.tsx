@@ -1658,6 +1658,31 @@ function PlanList({ entries }: { entries: readonly AcpPlanEntry[] }) {
   );
 }
 
+/**
+ * 세션에 일어난 일 — 한도 초과·인증 실패·모델 폴백.
+ *
+ * 어시스턴트가 쓴 글이 아니고 지나가는 배너도 아니다. **대화에 남는 기록**이라
+ * (스펙의 표현 그대로) 일어난 자리에 그대로 둔다.
+ */
+function FailureRow({
+  block,
+}: {
+  block: Extract<AcpBlock, { kind: "failure" }>;
+}) {
+  const warning = block.severity === "warning";
+  return (
+    <div className={"failure" + (warning ? " warning" : "")} role="status">
+      <span className="failure-icon">
+        {warning ? <AlertTriangle size={13} /> : <TriangleAlert size={13} />}
+      </span>
+      <span className="failure-body">
+        <span className="failure-title">{block.title}</span>
+        {block.details ? <span className="failure-details">{block.details}</span> : null}
+      </span>
+    </div>
+  );
+}
+
 const TurnRow = memo(function TurnRow({
   turn,
   live,
@@ -1710,6 +1735,8 @@ const TurnRow = memo(function TurnRow({
       {blocks.map((block, i) =>
         block.kind === "tool" ? (
           <TraceRow key={block.call.id} tool={block.call} />
+        ) : block.kind === "failure" ? (
+          <FailureRow key={block.id} block={block} />
         ) : (
           <div className="msg-md" key={`t${i}`}>
             {/* 스트리밍 중에도 **서식이 바로 보인다.** 평문으로 뒀다 끝에

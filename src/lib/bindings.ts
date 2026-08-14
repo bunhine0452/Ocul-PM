@@ -1288,6 +1288,19 @@ locations: string[]; options: AcpPermissionOption[] } |
  */
 { kind: "config_changed"; options: AcpConfigOption[] } | 
 /**
+ *  세션에 일어난 일 — 한도 초과·인증 실패·모델 폴백 …
+ * 
+ *  안 받으면 이런 것이 평범한 오류 문자열이나 **침묵**으로 온다. 특히 모델
+ *  폴백(`warning`)은 알려 주지 않으면 알 길이 없다.
+ */
+{ kind: "failure"; 
+/**  같은 사건의 갱신을 알아보는 표 — 같은 `id` 는 새 줄이 아니라 갱신이다. */
+id: string; 
+/**  `connection` · `access` · `limit` · `request` · `service` · `unknown`. */
+category: string; 
+/**  `warning` 또는 `error`. */
+severity: string; title: string; details: string | null } | 
+/**
  *  에이전트의 할 일 목록 (TodoWrite).
  * 
  *  **매번 전체가 온다** — 스펙이 "갱신할 때는 모든 항목을 현재 상태와 함께

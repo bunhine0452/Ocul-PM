@@ -16,7 +16,7 @@ pub const PKG_NAME: &str = "claude-agent-acp";
 
 /// 고정 버전. 올릴 때는 스파이크(docs/acp-panel/spike/acp_spike.py)를 다시 돌려
 /// `session/update` 종류가 늘거나 바뀌지 않았는지 확인한다.
-pub const PINNED_VERSION: &str = "0.67.0";
+pub const PINNED_VERSION: &str = "0.68.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
 const INSTALL_SUBDIR: &str = "acp";

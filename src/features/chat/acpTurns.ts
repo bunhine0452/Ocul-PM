@@ -47,7 +47,15 @@ export interface AcpTurnImage {
  */
 export type AcpBlock =
   | { kind: "text"; text: string }
-  | { kind: "tool"; call: AcpToolCall };
+  | { kind: "tool"; call: AcpToolCall }
+  /**
+   * 세션에 일어난 일 (한도 초과·인증 실패·모델 폴백 …).
+   *
+   * 조각으로 두는 이유: **일어난 자리**가 정보다. 한도가 어느 도구 호출 뒤에
+   * 걸렸는지, 폴백이 어느 대목에서 났는지가 순서로 읽힌다. 맨 위나 맨 아래로
+   * 모으면 그게 사라진다.
+   */
+  | { kind: "failure"; id: string; category: string; severity: string; title: string; details?: string };
 
 export interface AcpTurn {
   /**
@@ -142,6 +150,7 @@ export function applyAcpEvent(
   }
 
   const handled =
+    event.kind === "failure" ||
     event.kind === "plan" ||
     event.kind === "chunk" ||
     event.kind === "thought" ||
@@ -225,6 +234,9 @@ export function applyAcpEvent(
       };
       break;
     }
+    case "failure":
+      next[index] = { ...last, blocks: putFailure(last.blocks, event) };
+      break;
     case "plan":
       // 합치지 않고 **대체**한다 — 갱신은 언제나 전체 목록이다.
       next[index] = { ...last, plan: event.entries };
@@ -243,6 +255,30 @@ function appendText(blocks: readonly AcpBlock[] | undefined, text: string): AcpB
     return [...list.slice(0, -1), { kind: "text", text: last.text + text }];
   }
   return [...list, { kind: "text", text }];
+}
+
+/**
+ * 같은 `id` 의 실패 조각이 있으면 **그 자리에서** 갱신한다.
+ *
+ * 스펙: 같은 id 의 더 높은 revision 은 "그 줄을 제자리에서 고치는 것"이지 새
+ * 줄이 아니다. 밀어 넣으면 재시도가 진행될 때마다 같은 사고가 여러 줄 쌓인다.
+ */
+function putFailure(
+  blocks: readonly AcpBlock[] | undefined,
+  event: Extract<AcpEvent, { kind: "failure" }>,
+): AcpBlock[] {
+  const fresh: AcpBlock = {
+    kind: "failure",
+    id: event.id,
+    category: event.category,
+    severity: event.severity,
+    title: event.title,
+    details: event.details ?? undefined,
+  };
+  const list = blocks ?? [];
+  const at = list.findIndex((block) => block.kind === "failure" && block.id === event.id);
+  if (at === -1) return [...list, fresh];
+  return list.map((block, i) => (i === at ? fresh : block));
 }
 
 /** 같은 id 의 도구 조각이 있으면 **그 자리에서** 바꾸고, 없으면 뒤에 붙인다. */

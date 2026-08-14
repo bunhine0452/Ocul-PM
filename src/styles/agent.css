@@ -1985,3 +1985,51 @@
   text-decoration: line-through;
   text-decoration-color: var(--sep-strong);
 }
+
+/* ─── 세션에 일어난 일 ────────────────────────────────────────────────────
+   한도 초과·인증 실패·모델 폴백. 어시스턴트가 쓴 글도, 지나가는 배너도 아니다 —
+   **대화에 남는 기록**이라 일어난 자리에 그대로 둔다.
+
+   경고와 오류를 색으로만 가른다. 아이콘 옆에 "경고:" 를 덧붙이면 제목이 이미
+   하는 말을 두 번 하는 셈이다. */
+.failure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--t-bug) 30%, transparent);
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--t-bug) 7%, transparent);
+  color: var(--text-2);
+}
+.failure.warning {
+  border-color: color-mix(in srgb, var(--t-error) 32%, transparent);
+  background: color-mix(in srgb, var(--t-error) 8%, transparent);
+}
+.failure-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--t-bug);
+}
+.failure.warning .failure-icon {
+  color: var(--t-error);
+}
+.failure-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.failure-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+.failure-details {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  white-space: pre-wrap;
+}
