@@ -47,6 +47,12 @@ const FONT_MIN = 9;
 const FONT_MAX = 22;
 const FONT_DEFAULT = 13;
 
+/** 글자 크기(px)를 허용 범위로 자른다 — 정수가 아닌 입력은 기본값으로. */
+function clampFont(px: number): number {
+  if (!Number.isFinite(px)) return FONT_DEFAULT;
+  return Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(px)));
+}
+
 /**
  * PTY 세션 id. 창 소유권을 id 에 새긴다 (멀티 창 T4) — 창을 닫을 때 백엔드가
  * `p<projectId>-` 접두사로 **자기 창의 세션만** 골라 죽여 좀비 셸을 막고, 두
@@ -103,6 +109,8 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
   // (드래그 매 프레임 전역 상태를 흔들지 않기 위해).
   const [drag, setDrag] = useState<{ tabId: string; path: string; ratio: number } | null>(null);
+  // 글자 크기 px 직접 입력 — 타이핑 중 초안(null = 편집 중 아님).
+  const [fontDraft, setFontDraft] = useState<string | null>(null);
 
   // sid → xterm 핸들 (검색/포커스 제어). onReady 로 채워진다.
   const regRef = useRef(new Map<string, TerminalHandles>());
@@ -268,15 +276,22 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     patchTab(tabId, (tab) => ({ ...tab, focusSid: sid }));
   };
 
+  const setFont = (px: number) =>
+    setState((prev) => ({ ...prev, terminalFontSize: clampFont(px) }));
   const fontDelta = (d: number) =>
     setState((prev) => ({
       ...prev,
-      terminalFontSize: Math.min(
-        FONT_MAX,
-        Math.max(FONT_MIN, (prev.terminalFontSize || FONT_DEFAULT) + d),
-      ),
+      terminalFontSize: clampFont((prev.terminalFontSize || FONT_DEFAULT) + d),
     }));
   const fontReset = () => setState((prev) => ({ ...prev, terminalFontSize: FONT_DEFAULT }));
+
+  /** px 입력 커밋 — 빈 값·범위 밖은 현재 값으로 되돌린다. */
+  const commitFontDraft = () => {
+    if (fontDraft === null) return;
+    const parsed = Number.parseInt(fontDraft, 10);
+    if (Number.isFinite(parsed)) setFont(parsed);
+    setFontDraft(null);
+  };
 
   const focusedHandles = () =>
     activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined;
@@ -711,7 +726,39 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
             >
               A−
             </button>
-            <span className="ts-font">{fontSize}px</span>
+            <span className="ts-font">
+              <input
+                type="number"
+                className="ts-font-input"
+                min={FONT_MIN}
+                max={FONT_MAX}
+                step={1}
+                value={fontDraft ?? String(fontSize)}
+                aria-label={t("term.fontSizeInput")}
+                title={t("term.fontSizeHint", { min: FONT_MIN, max: FONT_MAX })}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setFontDraft(raw);
+                  // 범위 안 값만 즉시 반영 — "1"(→18 을 치는 중)이 9 로 튀지 않게
+                  // 클램프 없이 통과시킨다. 범위 밖·빈 값은 blur 에서 정리.
+                  const parsed = Number.parseInt(raw, 10);
+                  if (parsed >= FONT_MIN && parsed <= FONT_MAX) setFont(parsed);
+                }}
+                onBlur={commitFontDraft}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitFontDraft();
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setFontDraft(null);
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+              px
+            </span>
             <button
               type="button"
               className="ts-btn"
