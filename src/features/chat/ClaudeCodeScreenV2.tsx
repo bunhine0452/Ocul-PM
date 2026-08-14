@@ -1,11 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { Toolbar } from "@/components/Toolbar";
-import { PanelLeft } from "@/components/Icons";
-import { useT } from "@/i18n";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { commands } from "@/lib/bindings";
 import { AcpConversation } from "./AcpConversation";
-import { AcpUsageMeter } from "./AcpUsageMeter";
 
 // PR-ACP6 — Claude Code 구동면.
 //
@@ -13,52 +6,10 @@ import { AcpUsageMeter } from "./AcpUsageMeter";
 // 저쪽은 물어보는 곳이고 여기는 시키는 곳이다 — 한 화면에서 토글로 오가면
 // 사용자가 "지금 어느 쪽에 말하고 있는가"를 매번 확인해야 한다.
 //
-// 대화 상태는 전부 AcpConversation 이 들고 있고, 이 파일은 툴바만 얹는다
-// (각 화면이 자기 Toolbar 를 그린다 — ui_v2 규약).
+// 툴바까지 AcpConversation 이 그린다. 상단바가 **세션 탭 줄**이 되면서 필요한
+// 것(대화 목록·현재 세션·열기·새로 만들기)이 전부 저쪽 상태가 됐고, 여기서
+// 그리려면 그 상태를 통째로 끌어올리거나 신호선을 새로 놓아야 했다.
 
 export function ClaudeCodeScreenV2({ projectId }: { projectId: number }) {
-  const { t } = useT();
-  const { state, setState } = useWorkspace();
-  /**
-   * 상단바에는 화면 이름이 아니라 **지금 보고 있는 대화의 제목**을 건다.
-   * 화면 이름은 사이드바가 이미 말하고 있고, 여기서 알고 싶은 건 "무슨 대화를
-   * 열어 뒀나"다. 제목은 에이전트가 나중에 붙이므로 짧은 주기로 따라간다.
-   */
-  const [title, setTitle] = useState<string | null>(null);
-  useEffect(() => {
-    setTitle(null);
-    const read = () => {
-      void commands.acpSessionTitle(projectId).then((res) => {
-        if (res.status === "ok") setTitle(res.data);
-      });
-    };
-    read();
-    const timer = window.setInterval(read, 4000);
-    return () => window.clearInterval(timer);
-  }, [projectId]);
-  // 패널 토글은 **툴바에 고정**한다. 스레드 위에 띄우면 열림/닫힘에 따라 위치가
-  // 달라져 같은 버튼으로 안 읽힌다.
-  const togglePanel = useCallback(
-    () => setState((prev) => ({ ...prev, acpPanelOpen: !prev.acpPanelOpen })),
-    [setState],
-  );
-
-  return (
-    <>
-      <Toolbar title={title || t("nav.claudecode")} sub={title ? t("nav.claudecode") : t("acp.toolbarSub")}>
-        <AcpUsageMeter projectId={projectId} />
-        <button
-          type="button"
-          className={"btn icon ghost acp-panel-toggle" + (state.acpPanelOpen ? " active" : "")}
-          onClick={togglePanel}
-          aria-pressed={state.acpPanelOpen}
-          aria-label={t("acp.history")}
-          title={t("acp.history")}
-        >
-          <PanelLeft size={15} />
-        </button>
-      </Toolbar>
-      <AcpConversation projectId={projectId} />
-    </>
-  );
+  return <AcpConversation projectId={projectId} />;
 }

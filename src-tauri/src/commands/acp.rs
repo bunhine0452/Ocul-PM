@@ -7,7 +7,8 @@
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
-    CancelNotification, ContentBlock, ListSessionsRequest, NewSessionRequest, PromptRequest,
+    CancelNotification, ContentBlock, DeleteSessionRequest, ListSessionsRequest,
+    NewSessionRequest, PromptRequest,
     ImageContent, LoadSessionRequest, ResourceLink, SessionConfigOptionValue,
     SetSessionConfigOptionRequest,
     TextContent,
@@ -481,6 +482,35 @@ pub async fn acp_list_sessions(
             updated_at: info.updated_at,
         })
         .collect())
+}
+
+/// 대화를 **영구 삭제**한다 (`session/delete`).
+///
+/// 프로토콜에 이름을 바꾸는 방법은 없다 — 목록의 제목은 에이전트가 붙인 것이고
+/// 우리가 고칠 수 있는 자리가 아니다. 그래서 이름표는 앱이 따로 들고(프런트),
+/// **지우기만** 어댑터에 맡긴다. 어댑터가 이 기능을 광고하지 않으면 오류로
+/// 되돌아오므로 우리가 미리 막지 않는다.
+///
+/// 지금 열려 있는 대화를 지우는 것도 막지 않는다 — 지운 뒤 무엇을 열지는
+/// 화면의 판단이다(새 대화가 자연스럽다).
+#[tauri::command]
+#[specta::specta]
+pub async fn acp_delete_session(
+    app: AppHandle,
+    project_id: u32,
+    session_id: String,
+) -> Result<bool, String> {
+    let connection = app
+        .state::<AcpState>()
+        .connection(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+
+    connection
+        .send_request(DeleteSessionRequest::new(session_id))
+        .block_task()
+        .await
+        .map_err(|e| format!("대화를 지우지 못했습니다: {e}"))?;
+    Ok(true)
 }
 
 /// 과거 대화를 연다 — **지난 메시지까지 화면에 되살린다**.

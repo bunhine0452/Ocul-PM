@@ -25,12 +25,50 @@ export function findSlashQuery(text: string): SlashQuery | null {
 }
 
 /**
+ * **앱이 직접 처리하는** 명령들.
+ *
+ * 어댑터가 광고하는 목록에는 없다 — `/clear` 는 어댑터가 대놓고 걸러 내고
+ * (그쪽 UX 가 CLI 터미널에 있다), `/continue` 와 `/remote-control` 은 애초에
+ * ACP 요청이 없다. 그래도 사용자는 CLI 에서 쓰던 이름을 그대로 친다.
+ *
+ * 목록에 넣지 않으면 `/` 를 눌러도 안 보이고, 쳐 봐야 아무 일도 안 일어난 것처럼
+ * 보인다. 그래서 **여기 한 곳**에 적고 메뉴와 처리기가 같은 목록을 본다.
+ */
+export const LOCAL_COMMANDS = [
+  { name: "usage", descriptionKey: "acp.cmd.usage" },
+  { name: "clear", descriptionKey: "acp.cmd.clear" },
+  { name: "continue", descriptionKey: "acp.cmd.continue" },
+  { name: "remote-control", descriptionKey: "acp.cmd.remoteControl" },
+] as const;
+
+/**
+ * 어댑터 목록에 앱 명령을 얹는다. **어댑터가 이긴다** — 언젠가 같은 이름을
+ * 광고하기 시작하면 그쪽이 진짜이므로, 우리 설명이 남아 거짓말을 하면 안 된다.
+ *
+ * 설명 문구는 부르는 쪽이 번역해 넘긴다 (이 모듈은 순수하게 둔다).
+ */
+export function withLocalCommands(
+  commands: readonly AcpCommand[],
+  describe: (key: string) => string,
+): AcpCommand[] {
+  const known = new Set(commands.map((command) => command.name));
+  return [
+    ...commands,
+    ...LOCAL_COMMANDS.filter((command) => !known.has(command.name)).map((command) => ({
+      name: command.name,
+      description: describe(command.descriptionKey),
+      hint: null,
+    })),
+  ];
+}
+
+/**
  * 목록 맨 위에 고정할 명령들.
  *
  * 어댑터가 주는 순서는 알파벳순이라 자주 쓰는 것이 백 개 아래 묻힌다.
  * `/` 만 쳤을 때 바로 보여야 하는 것들을 앞으로 끌어올린다.
  */
-const PINNED = ["usage", "compact", "clear", "plugin"] as const;
+const PINNED = ["usage", "continue", "clear", "compact", "plugin"] as const;
 
 /**
  * 이름·설명으로 거른 뒤 **이름이 앞에서 일치**하는 것을 위로 올린다.

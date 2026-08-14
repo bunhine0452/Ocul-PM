@@ -1031,6 +1031,18 @@ export const commands = {
 	acpOptions: (projectId: number) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_options", { projectId })),
 	/**  현재 세션 제목. 상단바가 따라가려고 짧은 주기로 읽는다 (로컬 조회). */
 	acpSessionTitle: (projectId: number) => typedError<string | null, string>(__TAURI_INVOKE("acp_session_title", { projectId })),
+	/**
+	 *  대화를 **영구 삭제**한다 (`session/delete`).
+	 * 
+	 *  프로토콜에 이름을 바꾸는 방법은 없다 — 목록의 제목은 에이전트가 붙인 것이고
+	 *  우리가 고칠 수 있는 자리가 아니다. 그래서 이름표는 앱이 따로 들고(프런트),
+	 *  **지우기만** 어댑터에 맡긴다. 어댑터가 이 기능을 광고하지 않으면 오류로
+	 *  되돌아오므로 우리가 미리 막지 않는다.
+	 * 
+	 *  지금 열려 있는 대화를 지우는 것도 막지 않는다 — 지운 뒤 무엇을 열지는
+	 *  화면의 판단이다(새 대화가 자연스럽다).
+	 */
+	acpDeleteSession: (projectId: number, sessionId: string) => typedError<boolean, string>(__TAURI_INVOKE("acp_delete_session", { projectId, sessionId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */

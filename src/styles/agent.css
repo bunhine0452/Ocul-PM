@@ -837,6 +837,14 @@
 /* 제목과 시각을 **한 줄**에. 두 줄로 두면 목록이 두 배로 길어지는데 정작
    추가로 얻는 정보는 없다 — 목록에서 알고 싶은 건 "얼마나 오래됐나"뿐이다. */
 .acp-session {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+}
+.acp-session-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -983,11 +991,11 @@
    레퍼런스는 목록에 가깝다. 여기서는 **읽는 순서**를 만든다: 큰 숫자가 먼저
    눈에 들어오고, 얇은 트랙이 그 아래에서 비율을 확인시키고, 초기화 시각이
    맨 밑에서 "언제 풀리나"에 답한다. */
+/* 툴바 액션 묶음의 overflow 를 벗어나려고 body 로 띄운다 — 그래서 fixed 이고
+   위치(top/right)는 컴포넌트가 버튼을 재어 인라인으로 넣는다. */
 .usage-card {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 60;
+  position: fixed;
+  z-index: 300;
   width: 292px;
   padding: 4px;
   background: var(--bg-card);
@@ -1239,20 +1247,18 @@
   }
 }
 
-/* ─── 세션 탭 ─────────────────────────────────────────────────────────────
-   탭이 하나뿐이면 아예 그리지 않는다(컴포넌트에서 걸러낸다) — 고를 것이 없는
-   탭바는 자리만 먹는다. 활성 탭은 위쪽 accent 선으로 표시한다: 배경색만으로
-   구분하면 밝은 테마에서 거의 안 보인다. */
+/* ─── 세션 탭 = 상단바 ────────────────────────────────────────────────────
+   이 줄이 곧 화면 제목이다. 그래서 툴바 안에 얹히고, 탭이 하나뿐이어도 그린다
+   (지우면 헤더가 빈다). 활성 탭은 배경색이 아니라 **밑줄**로 — 툴바 배경과
+   카드 배경의 차이가 밝은 테마에서는 거의 안 보인다. */
 .acp-tabs {
   display: flex;
-  align-items: stretch;
-  gap: 1px;
-  flex: none;
-  padding: 0 8px;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
-  border-bottom: 1px solid var(--sep);
-  background: var(--bg-content);
 }
 .acp-tabs::-webkit-scrollbar {
   display: none;
@@ -1261,67 +1267,61 @@
   position: relative;
   display: flex;
   align-items: center;
-  max-width: 240px;
-  border-radius: 9px 9px 0 0;
+  flex: none;
+  max-width: 220px;
+  height: 28px;
+  border-radius: 8px;
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .acp-tab:hover {
   background: var(--bg-hover);
 }
 .acp-tab.active {
-  background: var(--bg-window);
-}
-.acp-tab.active::after {
-  content: "";
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 0;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--accent);
+  background: var(--bg-active);
 }
 .acp-tab-main {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  height: 34px;
-  padding: 0 4px 0 10px;
+  height: 100%;
+  padding: 0 4px 0 9px;
   border: none;
   background: none;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
+  letter-spacing: -0.01em;
   color: var(--text-3);
 }
 .acp-tab.active .acp-tab-main {
   color: var(--text);
   font-weight: 650;
 }
+/* 마크는 활성 탭에서만 제 색을 낸다 — 모든 탭에 주황 별이 켜져 있으면
+   어느 것이 열려 있는지가 안 읽힌다. */
 .acp-tab-mark {
   flex: none;
-  color: var(--accent);
-  opacity: 0.55;
+  color: var(--text-4);
 }
 .acp-tab.active .acp-tab-mark {
-  opacity: 1;
+  color: #d97757;
 }
 .acp-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 닫기는 활성 탭과 호버에서만 — 늘 보이면 탭마다 X 가 줄지어 시끄럽다. */
+/* 닫기는 호버·활성에서만. 늘 보이면 탭마다 X 가 줄지어 시끄럽다. */
 .acp-tab-close {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  margin-right: 6px;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -1334,6 +1334,101 @@
   opacity: 1;
 }
 .acp-tab-close:hover {
+  background: var(--bg-card);
+  color: var(--text);
+}
+.acp-tab-new {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.acp-tab-new:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.acp-tab-new:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── 지난 대화 줄의 이름바꾸기·삭제 ──────────────────────────────────────
+   평소엔 제목과 시각만 보이고, 호버해야 도구가 나온다. 늘 띄워 두면 목록이
+   버튼 밭이 되고, 정작 읽어야 할 제목의 자리를 뺏는다. */
+.acp-session-actions {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.acp-session:hover .acp-session-actions,
+.acp-session:focus-within .acp-session-actions {
+  opacity: 1;
+}
+.acp-session-act {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-3);
+  cursor: pointer;
+}
+.acp-session-act:hover {
   background: var(--bg-active);
   color: var(--text);
+}
+.acp-session-act.danger:hover {
+  color: var(--t-bug);
+}
+.acp-session-confirm {
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--t-bug);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.acp-session-input {
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.acp-session.editing {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+
+/* 시작 화면의 브랜드 마크 — 여기서는 로고를 로고답게 (제 색으로) 보인다. */
+.ai-hero-icon.claude {
+  background: color-mix(in srgb, #d97757 14%, transparent);
+  border-color: color-mix(in srgb, #d97757 26%, transparent);
+}
+
+.toolbar-title:has(.acp-tabs) {
+  flex: 1 1 auto;
+  min-width: 0;
 }

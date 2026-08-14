@@ -28,6 +28,10 @@ import {
   X,
 } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
+import { Toolbar } from "@/components/Toolbar";
+import { PanelLeft } from "@/components/Icons";
+import { ClaudeMark, CLAUDE_ORANGE } from "@/components/ClaudeMark";
+import { AcpUsageMeter } from "./AcpUsageMeter";
 import {
   commands,
   type AcpConfigOption,
@@ -47,7 +51,7 @@ import {
   type AcpTurn,
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
-import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
+import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
 import { AcpSessionTabs } from "./AcpSessionTabs";
@@ -99,6 +103,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
+  /**
+   * 사용자가 붙인 이름표. **우리 쪽에만 있다** — 프로토콜에 제목을 고치는
+   * 요청이 없어서(있는 것은 지우기뿐) 에이전트의 제목은 그대로 두고 화면에서만
+   * 우리 이름이 이긴다. 그래서 이 이름은 이 컴퓨터를 벗어나지 않는다.
+   */
+  const names = state.acpNames;
+  const nameOf = useCallback(
+    (id: string | null, fallback: string | null) => (id ? (names[id] ?? fallback) : fallback),
+    [names],
+  );
   const ultracode = state.acpUltracode;
   const tabs = state.acpTabs;
 
@@ -206,7 +220,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     return () => {
       cancelled = true;
     };
-  }, [draft, projectId]);
+  }, [draft, projectId, t]);
 
   // `/` 로 시작할 때만 커맨드 목록을 부른다. 목록은 세션 시작 **알림**으로
   // 오므로 시작 응답 스냅샷은 비어 있을 수 있다 — 칠 때 묻는 편이 항상 최신이다.
@@ -219,7 +233,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     let cancelled = false;
     void commands.acpCommands(projectId).then((res) => {
       if (cancelled) return;
-      setSlash(res.status === "ok" ? filterCommands(res.data, typed.query) : []);
+      // 어댑터 목록 + 앱이 직접 처리하는 명령(`/clear`·`/continue`·`/rc` …).
+      // 어댑터가 못 주는 것까지 합쳐야 `/` 를 눌렀을 때 실제로 되는 것이 다 보인다.
+      const all = withLocalCommands(res.status === "ok" ? res.data : [], (key) =>
+        t(key as Parameters<typeof t>[0]),
+      );
+      setSlash(filterCommands(all, typed.query));
       setSlashIndex(0);
     });
     return () => {
@@ -395,6 +414,52 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
   }, [projectId]);
 
+  /**
+   * 이름표를 붙인다(빈 문자열이면 뗀다). 에이전트에게는 보내지 않는다 —
+   * 프로토콜에 제목을 고치는 요청이 없다.
+   */
+  const rename = useCallback(
+    (sessionId: string, next: string) => {
+      const label = next.trim();
+      setState((prev) => {
+        const names = { ...prev.acpNames };
+        if (label) names[sessionId] = label;
+        else delete names[sessionId];
+        return { ...prev, acpNames: names };
+      });
+    },
+    [setState],
+  );
+
+  /**
+   * 대화를 **영구 삭제**한다 (`session/delete`).
+   *
+   * 지금 보고 있는 대화를 지웠으면 새 대화를 연다 — 지워진 대화를 계속 띄워
+   * 두면 다음 질문이 없는 세션으로 날아간다. 이름표와 탭도 같이 치운다
+   * (안 치우면 열 수 없는 탭이 남는다).
+   */
+  const remove = useCallback(
+    async (sessionId: string) => {
+      const res = await commands.acpDeleteSession(projectId, sessionId);
+      if (res.status !== "ok") {
+        setError(res.error);
+        return;
+      }
+      setState((prev) => {
+        const names = { ...prev.acpNames };
+        delete names[sessionId];
+        return {
+          ...prev,
+          acpNames: names,
+          acpTabs: prev.acpTabs.filter((tab) => tab.id !== sessionId),
+        };
+      });
+      await refreshHistory();
+      if (session?.session_id === sessionId) await newConversation();
+    },
+    [projectId, refreshHistory, session?.session_id, newConversation, setState],
+  );
+
   const send = useCallback(
     async (override?: string) => {
       const text = (override ?? draft).trim();
@@ -415,6 +480,43 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setDraft("");
         setSlash(null);
         void newConversation();
+        return;
+      }
+
+      // `/continue` — CLI 의 `--continue` 와 같은 뜻: 최근 대화로 돌아간다.
+      //
+      // **지금 열려 있는 것은 후보에서 뺀다.** 이 명령을 치는 이유가 "여기 말고
+      // 아까 거기"이기 때문이다. 앱을 켜면 빈 세션이 자동으로 열리는데, 그것이
+      // 목록에 실리든 안 실리든 이 규칙이면 둘 다 원하는 결과가 나온다.
+      if (text === "/continue") {
+        setDraft("");
+        setSlash(null);
+        void (async () => {
+          const res = await commands.acpListSessions(projectId);
+          if (res.status !== "ok") {
+            setError(res.error);
+            return;
+          }
+          const previous = res.data.filter((item) => item.id !== session?.session_id);
+          if (!previous.length) {
+            setError(t("acp.continueNone"));
+            return;
+          }
+          await openSession(previous[0].id);
+        })();
+        return;
+      }
+
+      // `/remote-control` (`/rc`) — 어댑터가 주는 명령이 아니다.
+      //
+      // 원격 조종은 CLI 가 계정과 짝을 맺는 기능이라 ACP 에는 대응하는 요청이
+      // 없다. 그냥 보내면 Claude 가 이 줄을 **평문으로 읽고** 원격 조종에 대해
+      // 설명하기 시작한다 — 명령을 친 사람이 가장 원하지 않는 결과다. 그래서
+      // 여기서 잡아 진짜로 되는 곳(내장 터미널의 `claude`)으로 안내한다.
+      if (text === "/remote-control" || text === "/rc") {
+        setDraft("");
+        setSlash(null);
+        setError(t("acp.remoteControlHint"));
         return;
       }
       if (busy) {
@@ -499,7 +601,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode],
+    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, openSession, newConversation, t],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -607,14 +709,56 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
   };
 
+  /**
+   * 상단바는 **탭 줄이 곧 제목**이다.
+   *
+   * 원래 ClaudeCodeScreenV2 가 그렸는데 이리로 내렸다: 탭이 필요로 하는 것
+   * (세션 목록·현재 세션·열기·새로 만들기)이 전부 이 컴포넌트 안에 있어서,
+   * 위에서 그리려면 그 상태를 통째로 밖으로 끌어내거나 신호선을 새로 놓아야
+   * 했다. 툴바를 내리는 쪽이 상태도 신호선도 안 늘린다.
+   */
+  const toolbar = (
+    <Toolbar
+      title={
+        <AcpSessionTabs
+          tabs={tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) }))}
+          activeId={session?.session_id ?? null}
+          onPick={(id) => void openSession(id)}
+          onClose={(id) =>
+            setState((prev) => ({
+              ...prev,
+              acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
+            }))
+          }
+          onNew={() => void newConversation()}
+          busy={busy || !session}
+        />
+      }
+    >
+      <AcpUsageMeter projectId={projectId} />
+      <button
+        type="button"
+        className={"btn icon ghost acp-panel-toggle" + (panelOpen ? " active" : "")}
+        onClick={() => setState((prev) => ({ ...prev, acpPanelOpen: !prev.acpPanelOpen }))}
+        aria-pressed={panelOpen}
+        aria-label={t("acp.history")}
+        title={t("acp.history")}
+      >
+        <PanelLeft size={15} />
+      </button>
+    </Toolbar>
+  );
+
   if (!session) {
     return (
+      <>
+      {toolbar}
       <div className="ai-wrap">
         <div className="ai-thread">
           <div className="ai-thread-inner">
             <div className="ai-hero">
-              <div className="ai-hero-icon">
-                <Sparkles size={22} />
+              <div className="ai-hero-icon claude">
+                <ClaudeMark size={26} style={{ color: CLAUDE_ORANGE }} />
               </div>
               <div className="ai-hero-title">
                 {starting ? t("acp.starting") : t("acp.offTitle")}
@@ -632,23 +776,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    {toolbar}
     <div className="acp-layout">
       <div className="ai-wrap">
-      <AcpSessionTabs
-        tabs={tabs}
-        activeId={session.session_id}
-        onPick={(id) => void openSession(id)}
-        onClose={(id) =>
-          setState((prev) => ({
-            ...prev,
-            acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
-          }))
-        }
-      />
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (
@@ -656,8 +792,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                고르는 화면이 되고, 정작 하려던 말을 밀어낸다. 마크 하나와 두
                줄이면 충분하다 (Claude Code 시작 화면 벤치마크). */
             <div className="ai-hero acp-hero">
-              <div className="ai-hero-icon">
-                <Sparkles size={22} />
+              <div className="ai-hero-icon claude">
+                <ClaudeMark size={26} style={{ color: CLAUDE_ORANGE }} />
               </div>
               <div className="ai-hero-title">{t("acp.readyTitle")}</div>
               <div className="ai-hero-sub">{t("acp.readySub")}</div>
@@ -911,10 +1047,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         onQuery={setHistoryQuery}
         onPick={(id) => void openSession(id)}
         onNew={() => void newConversation()}
+        onRename={rename}
+        onDelete={remove}
+        names={names}
         busy={busy}
       />
 
     </div>
+    </>
   );
 }
 
@@ -1398,6 +1538,9 @@ function SessionPanel({
   onQuery,
   onPick,
   onNew,
+  onRename,
+  onDelete,
+  names,
   busy,
 }: {
   open: boolean;
@@ -1407,15 +1550,26 @@ function SessionPanel({
   onQuery: (next: string) => void;
   onPick: (id: string) => void;
   onNew: () => void;
+  onRename: (id: string, next: string) => void;
+  onDelete: (id: string) => void;
+  names: Readonly<Record<string, string>>;
   busy: boolean;
 }) {
   const { t } = useT();
+  /** 지금 이름을 고치고 있는 줄. 한 번에 하나만 — 여러 줄이 동시에 열리면
+      어느 것을 저장하는지 알 수 없다. */
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  /** 지우기는 **한 번 더 묻는다** — 되돌릴 수 없고, X 는 탭 닫기와 생김새가 같다. */
+  const [confirming, setConfirming] = useState<string | null>(null);
   // 목록 전체가 **같은 기준 시각**을 써야 렌더 도중 분이 넘어가며 순서가
   // 흔들리지 않는다.
   const now = useMemo(() => Date.now(), [sessions]);
   const needle = query.trim().toLowerCase();
+  const titleOf = (item: AcpSessionSummary) => names[item.id] ?? item.title ?? "";
+  // 이름표를 붙인 대화는 **그 이름으로** 찾을 수 있어야 한다 — 붙여 놓고 원래
+  // 제목으로만 검색되면 이름표가 반쪽이다.
   const shown = needle
-    ? sessions.filter((s) => (s.title ?? "").toLowerCase().includes(needle))
+    ? sessions.filter((item) => titleOf(item).toLowerCase().includes(needle))
     : sessions;
 
   return (
@@ -1447,20 +1601,96 @@ function SessionPanel({
 
       <div className="acp-panel-list">
         {shown.length ? (
-          shown.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={"acp-session" + (item.id === currentId ? " active" : "")}
-              onClick={() => onPick(item.id)}
-              title={item.title ?? undefined}
-            >
-              <span className="acp-session-title">
-                {item.title || t("acp.untitledSession")}
-              </span>
-              <span className="acp-session-time">{relativeTime(item.updated_at, now)}</span>
-            </button>
-          ))
+          shown.map((item) => {
+            const label = titleOf(item);
+            if (editing?.id === item.id) {
+              // 고치는 중에는 줄 전체가 입력칸이 된다 — 좁은 패널에서 인라인
+              // 입력칸을 따로 끼워 넣으면 제목이 두 글자만 남는다.
+              const commit = () => {
+                onRename(item.id, editing.value);
+                setEditing(null);
+              };
+              return (
+                <div key={item.id} className="acp-session editing">
+                  <input
+                    className="acp-session-input"
+                    autoFocus
+                    value={editing.value}
+                    aria-label={t("acp.session.rename")}
+                    onChange={(e) => setEditing({ id: item.id, value: e.target.value })}
+                    onBlur={commit}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commit();
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditing(null);
+                      }
+                    }}
+                  />
+                </div>
+              );
+            }
+            return (
+              <div
+                key={item.id}
+                className={"acp-session" + (item.id === currentId ? " active" : "")}
+              >
+                <button
+                  type="button"
+                  className="acp-session-main"
+                  onClick={() => onPick(item.id)}
+                  title={label || undefined}
+                >
+                  <span className="acp-session-title">
+                    {label || t("acp.untitledSession")}
+                  </span>
+                  <span className="acp-session-time">
+                    {relativeTime(item.updated_at, now)}
+                  </span>
+                </button>
+                <span className="acp-session-actions">
+                  {confirming === item.id ? (
+                    <button
+                      type="button"
+                      className="acp-session-confirm"
+                      onClick={() => {
+                        setConfirming(null);
+                        onDelete(item.id);
+                      }}
+                      onBlur={() => setConfirming(null)}
+                      autoFocus
+                    >
+                      {t("acp.session.deleteConfirm")}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="acp-session-act"
+                        onClick={() => setEditing({ id: item.id, value: label })}
+                        aria-label={t("acp.session.rename")}
+                        title={t("acp.session.rename")}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="acp-session-act danger"
+                        onClick={() => setConfirming(item.id)}
+                        aria-label={t("acp.session.delete")}
+                        title={t("acp.session.delete")}
+                      >
+                        <X size={12} />
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+          })
         ) : (
           <div className="acp-panel-empty">
             {sessions.length ? t("acp.history.noMatch") : t("acp.history.empty")}

@@ -11,11 +11,21 @@ export function useDismiss(
   open: boolean,
   ref: React.RefObject<HTMLElement | null>,
   close: () => void,
+  /**
+   * `ref` 바깥에 있지만 **안으로 쳐야 하는** 조각.
+   *
+   * 포털로 body 에 띄운 팝오버가 그렇다 — DOM 상으로는 남남이라 그 안을 눌러도
+   * "바깥 클릭"으로 읽혀 자기가 자기를 닫는다(카드 안 새로고침 버튼이 안 먹는다).
+   */
+  alsoInside?: React.RefObject<HTMLElement | null>,
 ) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (alsoInside?.current?.contains(target)) return;
+      close();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -26,5 +36,5 @@ export function useDismiss(
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, ref, close]);
+  }, [open, ref, close, alsoInside]);
 }

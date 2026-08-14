@@ -217,6 +217,14 @@ export interface WorkspaceState {
    */
   acpTabs: { id: string; title: string | null }[];
   /**
+   * 사용자가 대화에 붙인 이름표 (세션 id → 이름).
+   *
+   * 에이전트에게 못 보낸다 — ACP 에는 제목을 고치는 요청이 없다(지우기는 있다).
+   * 그래서 이 이름은 **이 컴퓨터 안에서만** 유효하고, 다른 기기나 CLI 에서 같은
+   * 대화를 열면 에이전트가 붙인 원래 제목이 보인다.
+   */
+  acpNames: Record<string, string>;
+  /**
    * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
    *
    * 어댑터의 effort 값은 `low…max` 다섯 개뿐이고 울트라코드는 그 목록에
@@ -305,6 +313,7 @@ const DEFAULT_STATE: WorkspaceState = {
   aiActiveModel: null,
   acpPanelOpen: true,
   acpTabs: [],
+  acpNames: {},
   acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,

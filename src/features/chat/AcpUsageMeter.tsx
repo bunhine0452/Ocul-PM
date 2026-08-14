@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, RefreshCw } from "@/components/Icons";
 import { commands, type AcpUsage } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -71,7 +72,35 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useDismiss(open, wrapRef, useCallback(() => setOpen(false), []), cardRef);
+
+  /**
+   * 카드는 **document.body 로 띄운다**.
+   *
+   * 이 계기는 툴바 액션 묶음(`.toolbar-actions`) 안에 있는데, 거기엔 좁은 창
+   * 방어용 `overflow-x: auto / overflow-y: hidden` 이 걸려 있다. 그 안에서
+   * `position: absolute` 로 아래에 펼치면 **통째로 잘려 아무 것도 안 보인다** —
+   * 눌러도 반응이 없는 것처럼 느껴졌던 것이 이것이었다(상태는 멀쩡히 바뀌고
+   * 있었다). 부모 클리핑을 벗어나려면 포털밖에 없다.
+   */
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    };
+    place();
+    // 창 크기·스크롤이 바뀌면 앵커도 따라간다 — 포털은 부모를 따라 움직이지
+    // 않으므로 우리가 다시 재어 줘야 카드가 버튼 밑에 붙어 있는다.
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   /** 상태에 갈무리된 값 읽기 — 왕복이 없다. */
   const read = useCallback(async () => {
@@ -153,8 +182,15 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
           );
         })}
       </button>
-      {open ? (
-        <div className="usage-card" role="dialog" aria-label={t("acp.usageTitle")}>
+      {open && anchor
+        ? createPortal(
+        <div
+          ref={cardRef}
+          className="usage-card"
+          role="dialog"
+          aria-label={t("acp.usageTitle")}
+          style={{ top: anchor.top, right: anchor.right }}
+        >
           <header className="usage-card-head">
             <span className="usage-card-title">{t("acp.usageTitle")}</span>
             <button
@@ -215,8 +251,10 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
               })}
             </footer>
           ) : null}
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+        )
+        : null}
     </div>
   );
 }

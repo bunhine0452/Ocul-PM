@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AcpCommand } from "@/lib/bindings";
-import { applyCommand, filterCommands, findSlashQuery } from "@/features/chat/acpSlash";
+import {
+  applyCommand,
+  filterCommands,
+  findSlashQuery,
+  withLocalCommands,
+} from "@/features/chat/acpSlash";
 
 // PR-ACP9 — `/` 슬래시 커맨드.
 
@@ -75,5 +80,27 @@ describe("filterCommands — pinned commands", () => {
 
   it("does not pin once the user starts typing", () => {
     expect(filterCommands(all, "alph")[0].name).toBe("alpha");
+  });
+});
+
+describe("withLocalCommands", () => {
+  const describe_ = (key: string) => `desc:${key}`;
+
+  it("adds the app-handled commands the adapter never advertises", () => {
+    const names = withLocalCommands([], describe_).map((c) => c.name);
+    expect(names).toEqual(
+      expect.arrayContaining(["usage", "clear", "continue", "remote-control"]),
+    );
+  });
+
+  /** 어댑터가 언젠가 같은 이름을 주기 시작하면 그쪽이 진짜다 — 우리 설명이
+      남으면 실제 동작과 다른 문장을 보여 주게 된다. */
+  it("lets the adapter win when a name collides, without duplicating it", () => {
+    const merged = withLocalCommands(
+      [{ name: "continue", description: "from the adapter", hint: null }],
+      describe_,
+    );
+    expect(merged.filter((c) => c.name === "continue")).toHaveLength(1);
+    expect(merged[0].description).toBe("from the adapter");
   });
 });
