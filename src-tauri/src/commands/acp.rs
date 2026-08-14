@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
     CancelNotification, ContentBlock, ListSessionsRequest, NewSessionRequest, PromptRequest,
-    ResourceLink, ResumeSessionRequest, SessionConfigOptionValue, SetSessionConfigOptionRequest,
+    LoadSessionRequest, ResourceLink, SessionConfigOptionValue, SetSessionConfigOptionRequest,
     TextContent,
 };
 use tauri::ipc::Channel;
@@ -456,14 +456,23 @@ pub async fn acp_list_sessions(
         .collect())
 }
 
-/// 과거 대화를 이어서 연다.
+/// 과거 대화를 연다 — **지난 메시지까지 화면에 되살린다**.
+///
+/// `session/resume` 이 아니라 `session/load` 를 쓴다. 스펙이 둘을 명확히
+/// 가른다: resume 은 "대화를 재생하지 **말아야** 한다", load 는 "전체 대화를
+/// `session/update` 로 재생해야 한다". 처음에 resume 을 골라서 세션은 이어지는데
+/// 화면은 빈 채로 남았다.
+///
+/// 재생분이 `on_event` 로 흐르도록 요청 **전에** 싱크를 꽂는다 — 알림 핸들러는
+/// 싱크가 없으면 조용히 버리므로, 순서가 뒤집히면 지난 대화가 통째로 사라진다.
 #[tauri::command]
 #[specta::specta]
-pub async fn acp_resume_session(
+pub async fn acp_load_session(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
     session_id: String,
+    on_event: Channel<AcpEvent>,
 ) -> Result<AcpSession, String> {
     let state = app.state::<AcpState>();
     let agent = state
@@ -477,17 +486,21 @@ pub async fn acp_resume_session(
     state.cancel_pending_permissions(project_id);
     let cwd = project_root(&db, project_id).await?;
 
-    let resumed = connection
-        .send_request(ResumeSessionRequest::new(session_id.clone(), cwd))
+    app.state::<AcpState>().set_sink(project_id, on_event);
+
+    let loaded = connection
+        .send_request(LoadSessionRequest::new(session_id.clone(), cwd))
         .block_task()
-        .await
-        .map_err(|e| format!("대화를 이어 열지 못했습니다: {e}"))?;
+        .await;
 
     let state = app.state::<AcpState>();
+    state.clear_sink(project_id);
+
+    let loaded = loaded.map_err(|e| format!("대화를 열지 못했습니다: {e}"))?;
     state.set_session(
         project_id,
         session_id.into(),
-        acp::session::map_config_options(resumed.config_options.as_deref().unwrap_or_default()),
+        acp::session::map_config_options(loaded.config_options.as_deref().unwrap_or_default()),
     );
     Ok(session_snapshot(&app, project_id, agent))
 }

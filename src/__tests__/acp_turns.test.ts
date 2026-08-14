@@ -140,3 +140,57 @@ describe("tool calls", () => {
     expect(turns[1].tools).toBeUndefined();
   });
 });
+
+// ─── PR-ACP8 — session/load 재생으로 지난 대화 복원 ──────────────────────────
+//
+// `session/load` 는 스펙상 지난 대화를 session/update 로 통째로 되흘려보낸다.
+// 리듀서가 **빈 목록에서** 그 이벤트만으로 대화를 세울 수 있어야 한다.
+
+const userChunk = (text: string): AcpEvent => ({ kind: "user_chunk", text });
+
+describe("replay (session/load)", () => {
+  it("rebuilds an alternating transcript from scratch", () => {
+    let turns: AcpTurn[] = [];
+    for (const event of [
+      userChunk("first ask"),
+      chunk("first answer"),
+      userChunk("second ask"),
+      chunk("second answer"),
+    ]) {
+      turns = applyAcpEvent(turns, event, true);
+    }
+
+    expect(turns.map((t) => [t.role, t.text])).toEqual([
+      ["user", "first ask"],
+      ["agent", "first answer"],
+      ["user", "second ask"],
+      ["agent", "second answer"],
+    ]);
+  });
+
+  it("merges consecutive chunks of the same message", () => {
+    let turns = applyAcpEvent([], userChunk("ask "), true);
+    turns = applyAcpEvent(turns, userChunk("more"), true);
+    turns = applyAcpEvent(turns, chunk("ans"), true);
+    turns = applyAcpEvent(turns, chunk("wer"), true);
+
+    expect(turns.map((t) => t.text)).toEqual(["ask more", "answer"]);
+  });
+
+  /** 라이브에서는 사용자 발화를 우리가 이미 그렸다 — 반향이 오면 무시해야 한다. */
+  it("ignores user chunks outside replay so live turns are not duplicated", () => {
+    const turns = applyAcpEvent(openTurn([], "ask"), userChunk("ask"));
+
+    expect(turns.map((t) => t.role)).toEqual(["user", "agent"]);
+  });
+
+  it("keeps tool calls attached to the agent turn it opened", () => {
+    let turns = applyAcpEvent([], userChunk("fix it"), true);
+    turns = applyAcpEvent(turns, toolCall("t1", "Edit a.ts"), true);
+    turns = applyAcpEvent(turns, chunk("done"), true);
+
+    expect(turns).toHaveLength(2);
+    expect(turns[1].tools?.map((t) => t.id)).toEqual(["t1"]);
+    expect(turns[1].text).toBe("done");
+  });
+});

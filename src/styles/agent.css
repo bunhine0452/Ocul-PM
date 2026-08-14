@@ -597,16 +597,17 @@
   text-transform: uppercase;
   color: var(--text-3);
 }
+/* 목록의 일부처럼 가볍게 — 테두리 두른 상자로 두면 이 패널에서 가장 무거운
+   물체가 돼서, 정작 고르러 온 대화 목록이 뒤로 밀린다. */
 .acp-panel-new {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-s);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
+  padding: 0 9px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   cursor: pointer;
   font-family: var(--font);
   font-size: 12.5px;
@@ -650,11 +651,13 @@
   flex-direction: column;
   gap: 1px;
 }
+/* 제목과 시각을 **한 줄**에. 두 줄로 두면 목록이 두 배로 길어지는데 정작
+   추가로 얻는 정보는 없다 — 목록에서 알고 싶은 건 "얼마나 오래됐나"뿐이다. */
 .acp-session {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 9px;
   border: none;
   border-radius: 8px;
   background: none;
@@ -669,17 +672,24 @@
   background: var(--bg-inset);
 }
 .acp-session-title {
+  flex: 1;
+  min-width: 0;
   font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 550;
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.acp-session:hover .acp-session-title {
+  color: var(--text);
+}
 .acp-session.active .acp-session-title {
   color: var(--accent-text);
+  font-weight: 650;
 }
 .acp-session-time {
+  flex: none;
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-3);
@@ -704,4 +714,10 @@
 }
 .ai-wrap {
   position: relative;
+}
+
+/* 시작 화면은 스레드 한가운데 — 기본 .ai-hero 의 14vh 여백은 패널이 붙은
+   좁은 폭에서 너무 위로 붙는다. */
+.acp-hero {
+  margin-top: 20vh;
 }

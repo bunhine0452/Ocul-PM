@@ -190,7 +190,7 @@ use crate::commands::{
     // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
     acp_diagnose, acp_install_adapter, acp_start, acp_stop, acp_status, acp_prompt, acp_cancel,
     acp_permission_respond, acp_set_config_option,
-    acp_pick_files, acp_list_files, acp_new_session, acp_list_sessions, acp_resume_session,
+    acp_pick_files, acp_list_files, acp_new_session, acp_list_sessions, acp_load_session,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status, claude_hooks_install, claude_hooks_uninstall,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
@@ -419,7 +419,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         acp_list_files,
         acp_new_session,
         acp_list_sessions,
-        acp_resume_session,
+        acp_load_session,
         // PR-CI0 — Claude Code 훅 브리지
         claude_hooks_status,
         claude_hooks_install,

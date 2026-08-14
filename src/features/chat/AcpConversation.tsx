@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Paperclip,
   Pencil,
+  Plus,
   Search,
   Sparkles,
   Square,
@@ -47,6 +48,7 @@ import {
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
 import { splitMarkdownBlocks } from "./markdownBlocks";
+import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
 
 // PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
@@ -240,18 +242,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     void refreshHistory();
   }, [panelOpen, session, refreshHistory]);
 
-  const resume = useCallback(
+  const openSession = useCallback(
     async (sessionId: string) => {
-      const res = await commands.acpResumeSession(projectId, sessionId);
+      setTurns([]);
+      setUsage(null);
+      setPermission(null);
+      setError(null);
+
+      // `session/load` 는 지난 대화를 session/update 로 **되흘려보낸다**.
+      // 그 이벤트를 replay 모드로 리듀서에 먹여 화면을 복원한다.
+      const channel = new Channel<AcpEvent>();
+      channel.onmessage = (event) => {
+        setTurns((prev) => applyAcpEvent(prev, event, true));
+      };
+
+      const res = await commands.acpLoadSession(projectId, sessionId, channel);
       if (res.status === "ok") {
         setSession(res.data);
-        // 과거 턴을 우리가 되살리지는 못한다 — 에이전트는 세션을 이어 주지만
-        // 지난 메시지를 다시 흘려보내 주지는 않는다. 화면은 비우고, 이어지는
-        // 대화는 그 세션의 문맥 위에서 진행된다.
-        setTurns([]);
-        setUsage(null);
-        setPermission(null);
-        setError(null);
+        // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
+        // 지난 답변 꼬리에 붙는다.
+        setTurns(closeTurn);
       } else {
         setError(res.error);
       }
@@ -450,8 +460,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     );
   }
 
-  const agentName = session.agent.title ?? session.agent.name;
-
   return (
     <div className="acp-layout">
       <div className="ai-wrap">
@@ -469,25 +477,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (
-            <div className="ai-hero">
+            /* 시작 화면은 조용해야 한다 — 칩을 늘어놓으면 "무엇을 시킬까"를
+               고르는 화면이 되고, 정작 하려던 말을 밀어낸다. 마크 하나와 두
+               줄이면 충분하다 (Claude Code 시작 화면 벤치마크). */
+            <div className="ai-hero acp-hero">
               <div className="ai-hero-icon">
                 <Sparkles size={22} />
               </div>
-              <div className="ai-hero-title">{t("acp.readyTitle", { agent: agentName })}</div>
+              <div className="ai-hero-title">{t("acp.readyTitle")}</div>
               <div className="ai-hero-sub">{t("acp.readySub")}</div>
-              <div className="ai-suggest">
-                {(["acp.suggestExplain", "acp.suggestTest", "acp.suggestReview"] as const).map(
-                  (key) => (
-                    <button
-                      key={key}
-                      className="ai-suggest-chip"
-                      onClick={() => void send(t(key))}
-                    >
-                      {t(key)}
-                    </button>
-                  ),
-                )}
-              </div>
             </div>
           ) : (
             turns.map((turn, i) => (
@@ -666,7 +664,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           currentId={session.session_id}
           query={historyQuery}
           onQuery={setHistoryQuery}
-          onPick={(id) => void resume(id)}
+          onPick={(id) => void openSession(id)}
           onNew={() => void newConversation()}
           onClose={() => setPanelOpen(false)}
           busy={busy}
@@ -1043,6 +1041,9 @@ function SessionPanel({
   busy: boolean;
 }) {
   const { t } = useT();
+  // 목록 전체가 **같은 기준 시각**을 써야 렌더 도중 분이 넘어가며 순서가
+  // 흔들리지 않는다.
+  const now = useMemo(() => Date.now(), [sessions]);
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? sessions.filter((s) => (s.title ?? "").toLowerCase().includes(needle))
@@ -1064,7 +1065,7 @@ function SessionPanel({
       </div>
 
       <button type="button" className="acp-panel-new" disabled={busy} onClick={onNew}>
-        <SquarePen size={13} />
+        <Plus size={14} />
         {t("acp.newConversation")}
       </button>
 
@@ -1086,15 +1087,12 @@ function SessionPanel({
               type="button"
               className={"acp-session" + (item.id === currentId ? " active" : "")}
               onClick={() => onPick(item.id)}
+              title={item.title ?? undefined}
             >
               <span className="acp-session-title">
                 {item.title || t("acp.untitledSession")}
               </span>
-              {item.updated_at ? (
-                <span className="acp-session-time">
-                  {item.updated_at.slice(0, 16).replace("T", " ")}
-                </span>
-              ) : null}
+              <span className="acp-session-time">{relativeTime(item.updated_at, now)}</span>
             </button>
           ))
         ) : (

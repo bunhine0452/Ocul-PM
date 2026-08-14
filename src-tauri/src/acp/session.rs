@@ -18,6 +18,9 @@ use serde::{Deserialize, Serialize};
 pub enum AcpEvent {
     /// 답변 조각.
     Chunk { text: String },
+    /// 사용자 발화 조각. 평소엔 우리가 이미 그린 것이라 무시되지만,
+    /// `session/load` 의 **대화 재생**에서는 이걸로 지난 질문을 복원한다.
+    UserChunk { text: String },
     /// 내부 추론 조각 (UI 는 기본 접어 둔다).
     Thought { text: String },
     /// 컨텍스트 사용량·누적 비용.
@@ -209,9 +212,13 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .filter(|c| c.currency == "USD")
                 .map(|c| c.amount),
         },
-        // 사용자 메시지 반향은 우리가 이미 그린 것이라 UI 가 무시한다.
-        SessionUpdate::UserMessageChunk(_) => AcpEvent::Other {
-            update: "user_message_chunk".to_string(),
+        SessionUpdate::UserMessageChunk(chunk) => match block_text(&chunk.content) {
+            Some(text) => AcpEvent::UserChunk {
+                text: text.to_string(),
+            },
+            None => AcpEvent::Other {
+                update: "user_message_chunk:non_text".to_string(),
+            },
         },
         SessionUpdate::ToolCall(call) => AcpEvent::ToolCall {
             id: call.tool_call_id.0.to_string(),

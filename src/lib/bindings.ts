@@ -977,8 +977,18 @@ export const commands = {
 	 *  터미널에서 연 세션과 앱에서 연 세션이 갈라진다.
 	 */
 	acpListSessions: (projectId: number) => typedError<AcpSessionSummary[], string>(__TAURI_INVOKE("acp_list_sessions", { projectId })),
-	/**  과거 대화를 이어서 연다. */
-	acpResumeSession: (projectId: number, sessionId: string) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_resume_session", { projectId, sessionId })),
+	/**
+	 *  과거 대화를 연다 — **지난 메시지까지 화면에 되살린다**.
+	 * 
+	 *  `session/resume` 이 아니라 `session/load` 를 쓴다. 스펙이 둘을 명확히
+	 *  가른다: resume 은 "대화를 재생하지 **말아야** 한다", load 는 "전체 대화를
+	 *  `session/update` 로 재생해야 한다". 처음에 resume 을 골라서 세션은 이어지는데
+	 *  화면은 빈 채로 남았다.
+	 * 
+	 *  재생분이 `on_event` 로 흐르도록 요청 **전에** 싱크를 꽂는다 — 알림 핸들러는
+	 *  싱크가 없으면 조용히 버리므로, 순서가 뒤집히면 지난 대화가 통째로 사라진다.
+	 */
+	acpLoadSession: (projectId: number, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_load_session", { projectId, sessionId, onEvent })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1127,6 +1137,11 @@ export type AcpDiagnostics = {
 export type AcpEvent = 
 /**  답변 조각. */
 { kind: "chunk"; text: string } | 
+/**
+ *  사용자 발화 조각. 평소엔 우리가 이미 그린 것이라 무시되지만,
+ *  `session/load` 의 **대화 재생**에서는 이걸로 지난 질문을 복원한다.
+ */
+{ kind: "user_chunk"; text: string } | 
 /**  내부 추론 조각 (UI 는 기본 접어 둔다). */
 { kind: "thought"; text: string } | 
 /**

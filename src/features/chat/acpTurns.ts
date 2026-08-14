@@ -36,10 +36,32 @@ export function openTurn(turns: readonly AcpTurn[], text: string): AcpTurn[] {
 /**
  * 이벤트 하나를 반영한 **새 배열**을 돌려준다 (입력은 변경하지 않는다).
  *
- * 열려 있는 마지막 에이전트 턴에만 붙인다 — 없으면 그대로 둔다. 늦게 온
- * 이벤트를 버리는 쪽이 엉뚱한 턴에 섞어 넣는 것보다 낫다.
+ * 두 경로가 이 함수를 공유한다.
+ *  - **라이브**: `openTurn` 이 이미 사용자/에이전트 턴 쌍을 열어 둔 상태.
+ *  - **재생**(`session/load`): 빈 목록에서 시작해 이벤트만으로 대화를 복원한다.
+ *    스펙상 load 는 지난 대화를 `session/update` 로 통째로 다시 흘려보낸다.
+ *
+ * 그래서 `replay` 를 켜면 필요한 턴을 **직접 연다**. 끄면 열려 있는 마지막
+ * 에이전트 턴에만 붙이고 나머지는 버린다 — 턴이 끝난 뒤 늦게 도착한 청크를
+ * 엉뚱한 곳에 섞는 것보다 버리는 편이 낫다.
  */
-export function applyAcpEvent(turns: readonly AcpTurn[], event: AcpEvent): AcpTurn[] {
+export function applyAcpEvent(
+  turns: readonly AcpTurn[],
+  event: AcpEvent,
+  replay = false,
+): AcpTurn[] {
+  // 사용자 발화는 재생에서만 의미가 있다 — 라이브에서는 우리가 이미 그렸다.
+  if (event.kind === "user_chunk") {
+    if (!replay) return [...turns];
+    const tail = turns[turns.length - 1];
+    if (tail?.role === "user") {
+      const merged = [...turns];
+      merged[turns.length - 1] = { ...tail, text: tail.text + event.text };
+      return merged;
+    }
+    return [...turns, { role: "user", text: event.text }];
+  }
+
   const handled =
     event.kind === "chunk" ||
     event.kind === "thought" ||
@@ -48,11 +70,22 @@ export function applyAcpEvent(turns: readonly AcpTurn[], event: AcpEvent): AcpTu
     event.kind === "tool_update";
   if (!handled) return [...turns];
 
-  const index = turns.length - 1;
-  const last = turns[index];
-  if (!last || last.role !== "agent" || last.closed) return [...turns];
+  // 재생 중에 받을 턴이 없으면 연다 (사용자 발화 바로 뒤가 그 자리다).
+  const base: readonly AcpTurn[] =
+    replay &&
+    event.kind !== "done" &&
+    (() => {
+      const tail = turns[turns.length - 1];
+      return !tail || tail.role !== "agent" || tail.closed === true;
+    })()
+      ? [...turns, { role: "agent", text: "" }]
+      : turns;
 
-  const next = [...turns];
+  const index = base.length - 1;
+  const last = base[index];
+  if (!last || last.role !== "agent" || last.closed) return [...base];
+
+  const next = [...base];
   switch (event.kind) {
     case "chunk":
       next[index] = { ...last, text: last.text + event.text };
