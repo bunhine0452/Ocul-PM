@@ -391,8 +391,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     const label = session?.options
       .find((o) => o.id === "model")
       ?.choices.find((choice) => choice.value === model)?.name;
-    editTurns(id, (prev) => insertNotice(prev, label || model));
-  }, [session?.session_id, session?.options, editTurns]);
+    editTurns(id, (prev) => insertNotice(prev, t("acp.switchedTo", { model: label || model })));
+  }, [session?.session_id, session?.options, editTurns, t]);
 
   // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
   useEffect(() => {
@@ -833,8 +833,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           }
           loadSeqRef.current += 1;
           setSession(res.data);
-          editTurns(res.data.session_id ?? SLATE, () => []);
-          setError(t("acp.remoteControlTrying"));
+          // 오류가 아니라 **일어난 일**이다 — 빨간 줄로 띄우면 실패한 것처럼
+          // 읽힌다(실제로 그렇게 보였다).
+          editTurns(res.data.session_id ?? SLATE, () => [
+            { role: "notice", text: t("acp.remoteControlTrying") },
+          ]);
         })();
         return;
       }
@@ -1664,10 +1667,13 @@ const TurnRow = memo(function TurnRow({
 
   if (turn.role === "user") return <UserTurn turn={turn} />;
 
+  // 구분선은 **받은 문장을 그대로** 건다. 예전엔 여기서 "…로 전환"을 붙였는데,
+  // 그러면 모델 교체 말고는 아무 것도 이 자리에 못 넣는다 — 대화에 일어나는
+  // 일은 그것만이 아니다.
   if (turn.role === "notice") {
     return (
       <div className="turn-notice" role="separator">
-        <span className="turn-notice-label">{t("acp.switchedTo", { model: turn.text })}</span>
+        <span className="turn-notice-label">{turn.text}</span>
       </div>
     );
   }
