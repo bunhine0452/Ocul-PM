@@ -135,15 +135,35 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const tabs = state.acpTabs;
 
   /** 탭 목록을 갱신한다 (없으면 추가, 있으면 제목만 최신으로). */
-  const rememberTab = useCallback(
+  /**
+   * 탭을 **명시적으로** 연다.
+   *
+   * 예전에는 "턴이 생겼고 세션이 있으면 등록" 하는 효과로 자동 등록했는데,
+   * `session` 이 로드보다 **늦게** 갱신되는 순간이 있다: 다른 대화를 여는
+   * 동안 재생분이 먼저 들어와 턴이 차는데 `session` 은 아직 앞 대화다. 그때
+   * 방금 닫은 탭이 되살아났다("닫아도 다시 뜨고, 다른 세션을 열면 앞 세션까지
+   * 같이 붙는다"). 어느 대화인지 **확실히 아는 두 순간**에만 연다:
+   * 말을 걸 때와, 대화를 열어 성공했을 때.
+   */
+  const addTab = useCallback(
     (id: string | null, title: string | null) => {
       if (!id) return;
+      setState((prev) =>
+        prev.acpTabs.some((tab) => tab.id === id)
+          ? prev
+          : { ...prev, acpTabs: [...prev.acpTabs, { id, title }] },
+      );
+    },
+    [setState],
+  );
+
+  /** 제목만 갱신 — **없는 탭을 만들지 않는다**(그게 되살아남의 통로였다). */
+  const renameTab = useCallback(
+    (id: string | null, title: string | null) => {
+      if (!id || title === null) return;
       setState((prev) => {
         const at = prev.acpTabs.findIndex((tab) => tab.id === id);
-        if (at === -1) return { ...prev, acpTabs: [...prev.acpTabs, { id, title }] };
-        // "아직 모른다"(null)가 이미 아는 제목을 덮으면 안 된다 — 목록에서
-        // 백필한 제목이 다음 렌더에 도로 지워진다.
-        if (title === null || prev.acpTabs[at].title === title) return prev;
+        if (at === -1 || prev.acpTabs[at].title === title) return prev;
         const next = [...prev.acpTabs];
         next[at] = { id, title };
         return { ...prev, acpTabs: next };
@@ -309,19 +329,13 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     return () => window.clearInterval(timer);
   }, [projectId, session]);
 
-  /**
-   * 지금 세션을 탭에 등록하고, 제목이 붙으면 따라 갱신한다.
-   *
-   * **아직 아무 말도 안 한 대화는 등록하지 않는다.** 앱을 켜면 빈 세션이 하나
-   * 자동으로 열리는데, 그것까지 걸면 처음 보는 화면에 "제목 없는 대화" 탭
-   * 하나가 덩그러니 떠 있다 — 닫을 수도 없고(마지막 탭) 가리키는 것도 없다.
-   * 한 마디라도 하면 그때 탭이 생기고, 제목은 곧 따라온다.
-   */
+  /** 이 대화가 한 마디라도 오갔는가 (사용량 계기가 물어볼 시점의 판단). */
   const started = turns.length > 0 || session?.title != null;
+
+  // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
   useEffect(() => {
-    if (!started) return;
-    rememberTab(session?.session_id ?? null, session?.title ?? null);
-  }, [started, session?.session_id, session?.title, rememberTab]);
+    renameTab(session?.session_id ?? null, session?.title ?? null);
+  }, [session?.session_id, session?.title, renameTab]);
 
 
   // 스트리밍 중에는 계속 맨 아래를 따라간다.
@@ -468,6 +482,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (loadSeqRef.current !== seq) return;
       if (res.status === "ok") {
         setSession(res.data);
+        addTab(sessionId, res.data.title);
         // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
         // 지난 답변 꼬리에 붙는다.
         setTurns(closeTurn);
@@ -475,40 +490,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setError(res.error);
       }
     },
-    [projectId],
+    [projectId, addTab],
   );
 
-  /**
-   * ⌘W — 세션 탭을 **먼저** 닫는다.
-   *
-   * 브라우저와 같은 기대다: 안쪽에 열어 둔 것이 있으면 그것부터. 여기서 받지
-   * 않으면(열어 둔 대화가 없으면) 창 쪽이 프로젝트 탭을 닫는다.
-   */
-  useEffect(
-    () =>
-      registerCloseHandler(() => {
-        // **안 보이는 화면은 받지 않는다.** 프로젝트 탭은 배경에서도 마운트된
-        // 채 남으므로(Chrome 처럼 watcher·PTY 가 계속 돈다) 창에 Claude Code
-        // 화면이 둘 이상 살아 있을 수 있다. 사슬은 나중에 등록한 것부터 묻는데
-        // 그게 배경 탭이면, 보이는 화면은 그대로인 채 남의 세션 탭이 닫힌다
-        // ("⌘W 해도 안 사라질 때가 있다"의 정체).
-        //
-        // display:none 안의 요소는 레이아웃 상자가 없다 — 그것으로 가른다.
-        if (!rootRef.current?.getClientRects().length) return false;
-        const current = session?.session_id;
-        if (!current || !tabs.some((tab) => tab.id === current)) return false;
-        setState((prev) => ({
-          ...prev,
-          acpTabs: prev.acpTabs.filter((tab) => tab.id !== current),
-        }));
-        // 남은 탭이 있으면 그리로 옮겨 간다 — 안 그러면 닫은 대화가 그대로
-        // 화면에 남아 "닫았는데 그대로"가 된다.
-        const rest = tabs.filter((tab) => tab.id !== current);
-        if (rest.length) void openSession(rest[rest.length - 1].id);
-        return true;
-      }),
-    [session?.session_id, tabs, openSession, setState],
-  );
 
   const pickCommand = useCallback((command: AcpCommand) => {
     setDraft(applyCommand(command));
@@ -531,6 +515,50 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setError(res.error);
     }
   }, [projectId]);
+
+  /**
+   * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
+   * 없는데 그 대화가 화면에 그대로 남고, 그 상태에서 말을 걸면 방금 닫은 탭이
+   * 되살아난다("닫아도 안 닫힌다"의 정체).
+   */
+  const closeTab = useCallback(
+    (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
+      }));
+      if (session?.session_id !== id) return;
+      const rest = tabs.filter((tab) => tab.id !== id);
+      if (rest.length) void openSession(rest[rest.length - 1].id);
+      else void newConversation();
+    },
+    [session?.session_id, tabs, openSession, newConversation, setState],
+  );
+
+  /**
+   * ⌘W — 세션 탭을 **먼저** 닫는다.
+   *
+   * 브라우저와 같은 기대다: 안쪽에 열어 둔 것이 있으면 그것부터. 여기서 받지
+   * 않으면(열어 둔 대화가 없으면) 창 쪽이 프로젝트 탭을 닫는다.
+   */
+  useEffect(
+    () =>
+      registerCloseHandler(() => {
+        // **안 보이는 화면은 받지 않는다.** 프로젝트 탭은 배경에서도 마운트된
+        // 채 남으므로(Chrome 처럼 watcher·PTY 가 계속 돈다) 창에 Claude Code
+        // 화면이 둘 이상 살아 있을 수 있다. 사슬은 나중에 등록한 것부터 묻는데
+        // 그게 배경 탭이면, 보이는 화면은 그대로인 채 남의 세션 탭이 닫힌다
+        // ("⌘W 해도 안 사라질 때가 있다"의 정체).
+        //
+        // display:none 안의 요소는 레이아웃 상자가 없다 — 그것으로 가른다.
+        if (!rootRef.current?.getClientRects().length) return false;
+        const current = session?.session_id;
+        if (!current || !tabs.some((tab) => tab.id === current)) return false;
+        closeTab(current);
+        return true;
+      }),
+    [session?.session_id, tabs, closeTab],
+  );
 
   /**
    * 이름표를 붙인다(빈 문자열이면 뗀다). 에이전트에게는 보내지 않는다 —
@@ -651,6 +679,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
       if (session?.session_id) {
         markSpoken(activityRef.current, session.session_id, new Date().toISOString());
+        addTab(session.session_id, session.title);
       }
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
@@ -737,7 +766,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, openSession, newConversation, t],
+    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, t],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -860,12 +889,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           tabs={tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) }))}
           activeId={session?.session_id ?? null}
           onPick={(id) => void openSession(id)}
-          onClose={(id) =>
-            setState((prev) => ({
-              ...prev,
-              acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
-            }))
-          }
+          onClose={closeTab}
         />
       }
     >

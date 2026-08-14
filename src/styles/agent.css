@@ -1484,7 +1484,7 @@
   border: 1px solid var(--sep);
   border-radius: var(--radius-l);
   background: var(--bg-card);
-  padding: 9px 13px 10px;
+  padding: 7px 13px 9px;
   box-shadow: 0 6px 16px -12px rgb(0 0 0 / 0.35);
 }
 /* 접혀 있으면 카드를 눌러 펼친다 — 작은 버튼을 겨냥할 필요가 없다. */
@@ -1534,12 +1534,30 @@
   flex-direction: column;
   gap: 24px;
 }
+/* sticky 의 기준선은 스크롤 상자의 **패딩 박스 위쪽 모서리**다 — 스레드에 걸린
+   위쪽 여백(26px)은 처음 자리를 잡아 줄 뿐 붙는 위치를 밀어 주지 않는다. 그래서
+   카드가 스크롤할수록 그 여백 구간까지 **기어 올라가** 툴바를 뚫고 나온 것처럼
+   보였다.
+
+   여백을 스크롤 상자에서 안쪽 내용으로 옮긴다. 그러면 붙는 자리가 곧 내용이
+   시작하는 자리라 카드가 더 올라갈 데가 없고, 지나가는 글은 카드 **밑으로**만
+   흐른다. */
+.acp-layout .ai-thread {
+  padding-top: 0;
+  /* 붙은 카드에 가려 안 보이는 곳으로 스크롤되지 않게. */
+  scroll-padding-top: 74px;
+}
+.acp-layout .ai-thread-inner {
+  padding-top: 14px;
+}
 .acp-layout .exchange .msg.user {
   position: sticky;
-  /* 0 이면 스레드 맨 위 테두리에 딱 붙어 카드가 창을 뚫고 나온 것처럼 보인다. */
-  top: 6px;
+  top: 0;
   z-index: 2;
-  padding-bottom: 2px;
+  /* 카드 위아래에 숨 쉴 틈. 이 띠가 **불투명**해야 한다 — 투명하면 밑으로
+     지나가는 글자가 띠 사이로 비쳐, 카드가 위로 삐져나온 것처럼 보인다. */
+  padding: 10px 0 4px;
+  background: var(--bg-content);
 }
 /* 펼친 지시문은 붙이지 않는다 — 길어서 펼친 것을 화면 위에 고정하면 정작
    보려던 출력을 통째로 덮는다. */
