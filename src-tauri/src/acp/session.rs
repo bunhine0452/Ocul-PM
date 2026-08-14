@@ -67,6 +67,13 @@ pub enum AcpEvent {
         locations: Vec<String>,
         options: Vec<AcpPermissionOption>,
     },
+    /// 세션 설정이 **에이전트 쪽에서** 바뀌었다.
+    ///
+    /// 우리가 바꾼 것만이 아니다: 모델을 바꾸면 새 모델이 지원하지 않는 권한
+    /// 모드는 어댑터가 조용히 `default` 로 내린다(소스 확인). 이 이벤트를
+    /// 버리면 UI 는 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가 된다 —
+    /// 사용자가 자동 승인될 거라 믿는 순간이라 안전 문제다.
+    ConfigChanged { options: Vec<AcpConfigOption> },
     /// 아직 UI 가 없는 업데이트 — 종류만 알려 준다.
     /// (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)
     Other { update: String },
@@ -307,6 +314,25 @@ pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
     found
 }
 
+/// 설정 변경 알림에서 새 설정 한 벌을 뽑는다. 그 밖의 종류면 `None`.
+pub fn config_of(update: &SessionUpdate) -> Option<Vec<AcpConfigOption>> {
+    match update {
+        SessionUpdate::ConfigOptionUpdate(list) => Some(map_config_options(&list.config_options)),
+        _ => None,
+    }
+}
+
+/// 모드 변경 알림에서 새 모드 id 를 뽑는다.
+///
+/// `config_option_update` 와 별개로 오는 이유가 있다 — 모델 교체가 모드를
+/// 무효화하면 어댑터가 모드만 따로 내린다.
+pub fn mode_of(update: &SessionUpdate) -> Option<String> {
+    match update {
+        SessionUpdate::CurrentModeUpdate(update) => Some(update.current_mode_id.0.to_string()),
+        _ => None,
+    }
+}
+
 /// 슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct AcpCommand {
@@ -491,11 +517,11 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
         SessionUpdate::AvailableCommandsUpdate(_) => AcpEvent::Other {
             update: "available_commands_update".to_string(),
         },
-        SessionUpdate::CurrentModeUpdate(_) => AcpEvent::Other {
-            update: "current_mode_update".to_string(),
+        SessionUpdate::CurrentModeUpdate(update) => AcpEvent::Other {
+            update: format!("current_mode_update:{}", update.current_mode_id.0),
         },
-        SessionUpdate::ConfigOptionUpdate(_) => AcpEvent::Other {
-            update: "config_option_update".to_string(),
+        SessionUpdate::ConfigOptionUpdate(update) => AcpEvent::ConfigChanged {
+            options: map_config_options(&update.config_options),
         },
         SessionUpdate::SessionInfoUpdate(_) => AcpEvent::Other {
             update: "session_info_update".to_string(),

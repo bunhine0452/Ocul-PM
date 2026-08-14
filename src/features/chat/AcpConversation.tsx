@@ -207,6 +207,27 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     };
   }, [draft, projectId]);
 
+  /**
+   * 설정을 주기적으로 되읽는다.
+   *
+   * 모델을 바꾸면 어댑터가 **권한 모드를 조용히 내릴 수 있다**(새 모델이 그
+   * 모드를 지원하지 않을 때). 그 사실은 우리 요청의 응답이 아니라 알림으로
+   * 오므로, 되읽지 않으면 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가
+   * 된다 — 사용자가 자동 승인될 거라 믿는 순간이라 그냥 두면 안 된다.
+   */
+  useEffect(() => {
+    if (!session) return;
+    const sync = () => {
+      void commands.acpOptions(projectId).then((res) => {
+        if (res.status === "ok" && res.data.length) {
+          setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
+        }
+      });
+    };
+    const timer = window.setInterval(sync, 4000);
+    return () => window.clearInterval(timer);
+  }, [projectId, session]);
+
   // 스트리밍 중에는 계속 맨 아래를 따라간다.
   useEffect(() => {
     const el = scrollRef.current;
@@ -354,6 +375,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         requestUsagePanel();
         return;
       }
+
+      // `/clear` 를 그냥 보내면 CLI 쪽 문맥만 비고 **화면은 그대로** 남아 둘이
+      // 어긋난다. 우리 쪽에서 세션을 새로 여는 것이 같은 의도의 정확한 실행이다.
+      if (text === "/clear") {
+        setDraft("");
+        setSlash(null);
+        void newConversation();
+        return;
+      }
       if (busy) {
         setQueue((prev) => [...prev, text]);
         setDraft("");
@@ -417,6 +447,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           setError(event.message);
         } else if (event.kind === "permission") {
           setPermission(event);
+        } else if (event.kind === "config_changed") {
+          setSession((prev) => (prev ? { ...prev, options: event.options } : prev));
         }
       };
 
@@ -1412,7 +1444,14 @@ function EffortControl({
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const sliderRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
+
+  // 열리면 슬라이더로 포커스를 옮긴다 — 그래야 방향키·Tab 이 **값**을 움직인다.
+  // 안 옮기면 Tab 이 포커스를 팝오버 밖으로 던져 버린다.
+  useEffect(() => {
+    if (open) sliderRef.current?.focus();
+  }, [open]);
 
   /** 칸 하나를 고른다. 울트라코드 칸은 effort 를 xhigh 로 두고 키워드를 켠다. */
   const onPick = (value: string) => {
@@ -1474,6 +1513,7 @@ function EffortControl({
           <div className="settings-group-label">{option.name}</div>
           <div
             className="effort"
+            ref={sliderRef}
             role="slider"
             tabIndex={0}
             aria-label={option.name}
@@ -1482,12 +1522,22 @@ function EffortControl({
             aria-valuenow={index}
             aria-valuetext={current?.name}
             onKeyDown={(e) => {
+              // 팝오버가 열려 있는 동안 Tab 은 포커스 이동이 아니라 **값 이동**
+              // 이다 — 이 순간 사용자가 하려는 일은 그것뿐이다.
+              if (e.key === "Tab") {
+                e.preventDefault();
+                move(e.shiftKey ? -1 : 1);
+                return;
+              }
               if (e.key === "ArrowRight" || e.key === "ArrowUp") {
                 e.preventDefault();
                 move(1);
               } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
                 e.preventDefault();
                 move(-1);
+              } else if (e.key === "Enter" || e.key === "Escape") {
+                e.preventDefault();
+                setOpen(false);
               }
             }}
           >
@@ -1499,6 +1549,14 @@ function EffortControl({
               {current?.name ?? currentValue}
             </span>
             <span className="effort-track">
+              {/* 지나온 구간을 선으로 먼저 깔면 "어디쯤"이 점을 세기 전에
+                  읽힌다. 점은 그 위의 눈금이다. */}
+              <span
+                className={"effort-fill" + (currentValue === ULTRA_VALUE ? " top" : "")}
+                style={{
+                  width: `${choices.length > 1 ? (index / (choices.length - 1)) * 100 : 0}%`,
+                }}
+              />
               {choices.map((choice, i) => (
                 <button
                   key={choice.value}

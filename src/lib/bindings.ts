@@ -1021,6 +1021,14 @@ export const commands = {
 	cost_usd: number | null,
 	limits: AcpRateLimit[],
 } | null, string>(__TAURI_INVOKE("acp_refresh_usage", { projectId })),
+	/**
+	 *  현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
+	 * 
+	 *  별도 커맨드인 이유: 모델을 바꾸면 어댑터가 권한 모드를 조용히 내릴 수 있고,
+	 *  그 사실은 우리가 보낸 요청의 **응답이 아니라 알림**으로 온다. UI 가 주기적
+	 *  으로 되읽어야 "Auto 라 적혀 있는데 실은 Manual" 을 피할 수 있다.
+	 */
+	acpOptions: (projectId: number) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_options", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1215,6 +1223,15 @@ input: string | null; output: string | null } |
 { kind: "permission"; request_id: string; title: string; tool_kind: string; 
 /**  승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다. */
 locations: string[]; options: AcpPermissionOption[] } | 
+/**
+ *  세션 설정이 **에이전트 쪽에서** 바뀌었다.
+ * 
+ *  우리가 바꾼 것만이 아니다: 모델을 바꾸면 새 모델이 지원하지 않는 권한
+ *  모드는 어댑터가 조용히 `default` 로 내린다(소스 확인). 이 이벤트를
+ *  버리면 UI 는 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가 된다 —
+ *  사용자가 자동 승인될 거라 믿는 순간이라 안전 문제다.
+ */
+{ kind: "config_changed"; options: AcpConfigOption[] } | 
 /**
  *  아직 UI 가 없는 업데이트 — 종류만 알려 준다.
  *  (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)

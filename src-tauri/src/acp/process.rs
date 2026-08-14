@@ -30,8 +30,8 @@ use tauri::ipc::Channel;
 use tauri::Manager;
 
 use super::session::{
-    commands_of, map_update, permission_event, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
-    AcpRateLimit, AcpUsage,
+    commands_of, config_of, map_update, mode_of, permission_event, usage_of, AcpCommand,
+    AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
 };
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -171,6 +171,18 @@ impl AcpState {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
                 running.commands = commands;
+            }
+        }
+    }
+
+    /// 설정 한 벌을 통째로 갈아 끼운다 (에이전트가 보내 준 것).
+    pub fn set_options(&self, project_id: u32, options: Vec<AcpConfigOption>) {
+        if options.is_empty() {
+            return;
+        }
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                running.options = options;
             }
         }
     }
@@ -386,6 +398,14 @@ pub async fn start(
                     }
                     if let Some(usage) = usage_of(&notification.update) {
                         state.merge_usage(project_id, usage);
+                    }
+                    // 에이전트 쪽에서 바뀐 설정을 따라간다 — 모델 교체가 권한
+                    // 모드를 내리는 경우가 있어 이걸 놓치면 UI 가 거짓말을 한다.
+                    if let Some(options) = config_of(&notification.update) {
+                        state.set_options(project_id, options);
+                    }
+                    if let Some(mode) = mode_of(&notification.update) {
+                        state.patch_option(project_id, "mode", &mode);
                     }
                     if let AcpEvent::Chunk { text } = map_update(&notification.update) {
                         state.push_capture(&text);

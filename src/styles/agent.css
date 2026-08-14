@@ -577,16 +577,20 @@
 .effort {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 4px 9px 6px;
+  align-items: stretch;
+  gap: 9px;
+  padding: 2px 10px 8px;
   border-radius: 9px;
   outline: none;
 }
+/* 키보드로 들어왔을 때만 테두리 — 마우스로 열 때는 조용해야 한다. */
+.effort:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
 .effort-label {
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: 14px;
+  font-weight: 660;
+  letter-spacing: -0.015em;
   color: var(--text);
 }
 /* 최상위 단계는 이름도 색도 다르다 — 트랙의 마지막 점과 같은 신호. */
@@ -602,29 +606,56 @@
   right: 0;
 }
 .effort-hint {
-  padding: 0 9px 2px;
-  font-size: 10.5px;
+  margin: 2px 4px 4px;
+  padding: 8px 9px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-3);
 }
+/* 점을 큰 원으로 늘어놓으면 신호등처럼 보인다. 얇은 트랙 위의 **눈금**으로
+   낮추고, 지나온 구간은 선으로 채워 "어디쯤"을 먼저 읽게 한다. */
 .effort-track {
-  display: inline-flex;
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: space-between;
   width: 100%;
-  padding: 6px 9px;
+  height: 18px;
+  padding: 0 3px;
+}
+.effort-track::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  height: 3px;
   border-radius: 999px;
   background: var(--bg-inset);
 }
+.effort-fill {
+  position: absolute;
+  left: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  transition:
+    width var(--dur-2) var(--ease-spring),
+    background-color var(--dur-2) var(--ease-out);
+}
+.effort-fill.top {
+  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+}
 .effort-dot {
-  width: 8px;
-  height: 8px;
+  position: relative;
+  width: 6px;
+  height: 6px;
   padding: 0;
   border: none;
   border-radius: 50%;
   background: var(--sep-strong);
   cursor: pointer;
-  /* 크기까지 전이시켜야 점이 "옮겨 가는" 것처럼 읽힌다 — 색만 바뀌면 툭툭
-     끊긴다. */
   transition:
     width var(--dur-2) var(--ease-spring),
     height var(--dur-2) var(--ease-spring),
@@ -634,26 +665,36 @@
 .effort-dot.lit {
   background: var(--accent);
 }
+/* 현재 위치만 손잡이처럼 — 흰 테두리로 트랙에서 떠 보이게 한다. */
 .effort-dot.on {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow:
+    0 0 0 3px var(--bg-card),
+    0 1px 3px rgba(24, 20, 12, 0.22);
 }
 .effort-dot:hover:not(.on) {
   background: var(--accent-strong);
+  transform: scale(1.4);
+}
+.effort-dot.locked {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 /* 최상위 티어는 다른 색 — 같은 척도의 연장이 아니라 "여기부터는 다른 물건"
    이라는 신호다 (레퍼런스도 마지막 점만 색을 달리한다). */
 .effort-dot.top {
-  background: color-mix(in oklab, var(--accent) 35%, #8b5cf6);
+  background: color-mix(in oklab, var(--sep-strong) 55%, #8b5cf6);
 }
 .effort-dot.top.lit,
 .effort-dot.top.on {
   background: #8b5cf6;
 }
 .effort-dot.top.on {
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+  box-shadow:
+    0 0 0 3px var(--bg-card),
+    0 1px 3px rgba(88, 40, 180, 0.3);
 }
 
 /* ─── 지난 대화 패널 ──────────────────────────────────────────────────────

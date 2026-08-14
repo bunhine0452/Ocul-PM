@@ -591,3 +591,17 @@ pub async fn acp_refresh_usage(
     state.replace_limits(project_id, acp::session::parse_usage_report(&report));
     Ok(state.usage(project_id))
 }
+
+/// 현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
+///
+/// 별도 커맨드인 이유: 모델을 바꾸면 어댑터가 권한 모드를 조용히 내릴 수 있고,
+/// 그 사실은 우리가 보낸 요청의 **응답이 아니라 알림**으로 온다. UI 가 주기적
+/// 으로 되읽어야 "Auto 라 적혀 있는데 실은 Manual" 을 피할 수 있다.
+#[tauri::command]
+#[specta::specta]
+pub fn acp_options(
+    state: State<'_, AcpState>,
+    project_id: u32,
+) -> Result<Vec<acp::session::AcpConfigOption>, String> {
+    Ok(state.options(project_id))
+}
