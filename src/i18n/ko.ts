@@ -1728,6 +1728,8 @@ export const ko = {
   "acp.panel.hide": "목록 접기",
   "acp.searchSessions": "대화 검색…",
   "acp.history.noMatch": "검색 결과가 없어요",
+  "acp.slash.aria": "슬래시 커맨드",
+  "acp.slash.empty": "일치하는 커맨드가 없어요",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",

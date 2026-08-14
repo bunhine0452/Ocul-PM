@@ -1757,6 +1757,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.panel.hide": "Hide list",
   "acp.searchSessions": "Search conversations…",
   "acp.history.noMatch": "No matches",
+  "acp.slash.aria": "Slash commands",
+  "acp.slash.empty": "No matching commands",
   "acp.send": "Send",
   "acp.cancel": "Stop",
   "ai.title": "Agent",

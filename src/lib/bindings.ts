@@ -989,6 +989,14 @@ export const commands = {
 	 *  싱크가 없으면 조용히 버리므로, 순서가 뒤집히면 지난 대화가 통째로 사라진다.
 	 */
 	acpLoadSession: (projectId: number, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_load_session", { projectId, sessionId, onEvent })),
+	/**
+	 *  슬래시 커맨드 목록.
+	 * 
+	 *  별도 커맨드인 이유: 목록은 `session/new` **응답이 아니라** 그 직후의 알림으로
+	 *  온다. `acp_start` 가 돌려주는 스냅샷에는 아직 비어 있을 수 있으므로, 사용자가
+	 *  `/` 를 칠 때 물어보는 편이 항상 최신이다.
+	 */
+	acpCommands: (projectId: number) => typedError<AcpCommand[], string>(__TAURI_INVOKE("acp_commands", { projectId })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1075,6 +1083,14 @@ export type AcpAgentInfo = {
 	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
 	 */
 	auth_required: boolean,
+};
+
+/**  슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다. */
+export type AcpCommand = {
+	name: string,
+	description: string,
+	/**  인자 힌트 (있으면 입력창에 무엇을 더 쳐야 하는지 알려 준다). */
+	hint: string | null,
 };
 
 /**  세션 설정 항목의 선택지 하나. */
@@ -1187,6 +1203,8 @@ export type AcpPermissionOption = {
 /**  실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목. */
 export type AcpSession = {
 	agent: AcpAgentInfo,
+	/**  슬래시 커맨드 목록 (`/plugin` 등) — 어댑터가 준 그대로. */
+	commands: AcpCommand[],
 	/**  현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다. */
 	session_id: string | null,
 	/**

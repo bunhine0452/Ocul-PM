@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::Manager;
 
-use super::session::{map_update, permission_event, AcpConfigOption, AcpEvent};
+use super::session::{commands_of, map_update, permission_event, AcpCommand, AcpConfigOption, AcpEvent};
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
 const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
@@ -56,6 +56,9 @@ struct Running {
     session: Option<SessionId>,
     /// 그 세션이 제공하는 설정 항목 (모델·Effort·모드 …).
     options: Vec<AcpConfigOption>,
+    /// 슬래시 커맨드 목록. **프롬프트 밖에서** 도착하므로(세션 시작 직후)
+    /// 싱크에 흘려보내는 것만으로는 잡을 수 없어 여기에 갈무리한다.
+    commands: Vec<AcpCommand>,
 }
 
 /// 프로젝트별 어댑터 레지스트리. v1 은 프로젝트당 1개 (D3).
@@ -117,6 +120,22 @@ impl AcpState {
             if let Some(running) = map.get_mut(&project_id) {
                 running.session = None;
                 running.options = Vec::new();
+            }
+        }
+    }
+
+    pub fn commands(&self, project_id: u32) -> Vec<AcpCommand> {
+        self.running
+            .lock()
+            .ok()
+            .and_then(|m| m.get(&project_id).map(|r| r.commands.clone()))
+            .unwrap_or_default()
+    }
+
+    fn set_commands(&self, project_id: u32, commands: Vec<AcpCommand>) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                running.commands = commands;
             }
         }
     }
@@ -282,9 +301,13 @@ pub async fn start(
             .name("ocul-pm")
             .on_receive_notification(
                 async move |notification: SessionNotification, _cx| {
-                    notify_app
-                        .state::<AcpState>()
-                        .emit(project_id, map_update(&notification.update));
+                    let state = notify_app.state::<AcpState>();
+                    // 커맨드 목록은 프롬프트 밖(세션 시작 직후)에 오므로 싱크에만
+                    // 의존하면 놓친다 — 상태에 갈무리해 두고 UI 가 물어보게 한다.
+                    if let Some(commands) = commands_of(&notification.update) {
+                        state.set_commands(project_id, commands);
+                    }
+                    state.emit(project_id, map_update(&notification.update));
                     Ok(())
                 },
                 agent_client_protocol::on_receive_notification!(),
@@ -343,6 +366,7 @@ pub async fn start(
                         info: info.clone(),
                         session: None,
                         options: Vec::new(),
+                        commands: Vec::new(),
                     },
                 );
                 let _ = ready_tx.send(info);

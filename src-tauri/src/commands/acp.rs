@@ -54,6 +54,8 @@ pub async fn acp_install_adapter(app: AppHandle) -> Result<AcpDiagnostics, Strin
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 pub struct AcpSession {
     pub agent: AcpAgentInfo,
+    /// 슬래시 커맨드 목록 (`/plugin` 등) — 어댑터가 준 그대로.
+    pub commands: Vec<acp::session::AcpCommand>,
     /// 현재 대화 세션 id — 목록에서 어느 것이 열려 있는지 표시하는 데 쓴다.
     pub session_id: Option<String>,
     /// 모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …
@@ -105,6 +107,7 @@ fn session_snapshot(app: &AppHandle, project_id: u32, agent: AcpAgentInfo) -> Ac
     let state = app.state::<AcpState>();
     AcpSession {
         agent,
+        commands: state.commands(project_id),
         session_id: state.session(project_id).map(|s| s.0.to_string()),
         options: state.options(project_id),
     }
@@ -503,4 +506,18 @@ pub async fn acp_load_session(
         acp::session::map_config_options(loaded.config_options.as_deref().unwrap_or_default()),
     );
     Ok(session_snapshot(&app, project_id, agent))
+}
+
+/// 슬래시 커맨드 목록.
+///
+/// 별도 커맨드인 이유: 목록은 `session/new` **응답이 아니라** 그 직후의 알림으로
+/// 온다. `acp_start` 가 돌려주는 스냅샷에는 아직 비어 있을 수 있으므로, 사용자가
+/// `/` 를 칠 때 물어보는 편이 항상 최신이다.
+#[tauri::command]
+#[specta::specta]
+pub fn acp_commands(
+    state: State<'_, AcpState>,
+    project_id: u32,
+) -> Result<Vec<acp::session::AcpCommand>, String> {
+    Ok(state.commands(project_id))
 }

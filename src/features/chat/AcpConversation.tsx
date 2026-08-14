@@ -16,7 +16,6 @@ import {
   Play,
   Rocket,
   Settings,
-  PanelLeft,
   Paperclip,
   Pencil,
   Plus,
@@ -34,6 +33,7 @@ import {
   commands,
   type AcpConfigOption,
   type AcpEvent,
+  type AcpCommand,
   type AcpSession,
   type AcpSessionSummary,
 } from "@/lib/bindings";
@@ -47,6 +47,7 @@ import {
   type AcpTurn,
 } from "./acpTurns";
 import { applyMention, findMentionQuery } from "./acpMention";
+import { applyCommand, filterCommands, findSlashQuery } from "./acpSlash";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
 import { useDismiss } from "./useDismiss";
@@ -91,12 +92,8 @@ const TOOL_STATUS_KEY = {
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
+  const { state } = useWorkspace();
   const panelOpen = state.acpPanelOpen;
-  const setPanelOpen = useCallback(
-    (open: boolean) => setState((prev) => ({ ...prev, acpPanelOpen: open })),
-    [setState],
-  );
   const [session, setSession] = useState<AcpSession | null>(null);
   const [turns, setTurns] = useState<AcpTurn[]>([]);
   const [draft, setDraft] = useState("");
@@ -115,6 +112,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  /** `/` 커맨드 후보. `null` 이면 닫힌 상태. */
+  const [slash, setSlash] = useState<AcpCommand[] | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
   /** 과거 대화 목록. `null` 이면 아직 안 불러온 상태. */
   const [history, setHistory] = useState<AcpSessionSummary[] | null>(null);
   const [historyQuery, setHistoryQuery] = useState("");
@@ -174,6 +174,25 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (cancelled) return;
       setMentions(res.status === "ok" ? res.data : []);
       setMentionIndex(0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft, projectId]);
+
+  // `/` 로 시작할 때만 커맨드 목록을 부른다. 목록은 세션 시작 **알림**으로
+  // 오므로 시작 응답 스냅샷은 비어 있을 수 있다 — 칠 때 묻는 편이 항상 최신이다.
+  useEffect(() => {
+    const typed = findSlashQuery(draft);
+    if (!typed) {
+      setSlash(null);
+      return;
+    }
+    let cancelled = false;
+    void commands.acpCommands(projectId).then((res) => {
+      if (cancelled) return;
+      setSlash(res.status === "ok" ? filterCommands(res.data, typed.query) : []);
+      setSlashIndex(0);
     });
     return () => {
       cancelled = true;
@@ -269,6 +288,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [projectId],
   );
 
+  const pickCommand = useCallback((command: AcpCommand) => {
+    setDraft(applyCommand(command));
+    setSlash(null);
+    inputRef.current?.focus();
+  }, []);
+
   const newConversation = useCallback(async () => {
     const res = await commands.acpNewSession(projectId);
     if (res.status === "ok") {
@@ -297,6 +322,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setDraft("");
       setAttachments([]);
       setMentions(null);
+      setSlash(null);
       setError(null);
       setTurns((prev) => openTurn(prev, text));
       setBusy(true);
@@ -404,6 +430,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, []);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slash?.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((i) => {
+          const next = e.key === "ArrowDown" ? i + 1 : i - 1;
+          return (next + slash.length) % slash.length;
+        });
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickCommand(slash[slashIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSlash(null);
+        return;
+      }
+    }
     // 멘션 목록이 떠 있으면 방향키·엔터는 목록 것이다 — 목록을 두고 전송되면
     // 사용자가 고르려던 파일 대신 반쯤 쓴 문장이 날아간다.
     if (mentions?.length) {
@@ -463,17 +509,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   return (
     <div className="acp-layout">
       <div className="ai-wrap">
-      {panelOpen ? null : (
-        <button
-          type="button"
-          className="acp-panel-open btn icon ghost"
-          onClick={() => setPanelOpen(true)}
-          aria-label={t("acp.history")}
-          title={t("acp.history")}
-        >
-          <PanelLeft size={14} />
-        </button>
-      )}
       <div className="ai-thread" ref={scrollRef}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (
@@ -547,6 +582,41 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           ) : null}
 
           <div style={{ position: "relative" }}>
+            {slash ? (
+              <div className="mention" role="listbox" aria-label={t("acp.slash.aria")}>
+                {slash.length ? (
+                  slash.map((command, i) => (
+                    <button
+                      key={command.name}
+                      type="button"
+                      role="option"
+                      aria-selected={i === slashIndex}
+                      className={"settings-row" + (i === slashIndex ? " active" : "")}
+                      onMouseEnter={() => setSlashIndex(i)}
+                      onClick={() => pickCommand(command)}
+                    >
+                      <span className="settings-row-icon">
+                        <Terminal size={13} />
+                      </span>
+                      <span className="settings-row-body">
+                        <span className="settings-row-name">
+                          /{command.name}
+                          {command.hint ? (
+                            <span className="slash-hint"> {command.hint}</span>
+                          ) : null}
+                        </span>
+                        {command.description ? (
+                          <span className="settings-row-desc">{command.description}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="mention-empty">{t("acp.slash.empty")}</div>
+                )}
+              </div>
+            ) : null}
+
             {mentions ? (
               <div className="mention" role="listbox" aria-label={t("acp.mention.aria")}>
                 {mentions.length ? (
@@ -621,7 +691,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               // Effort 만 슬라이더다 — 값에 **순서**가 있기 때문. 순서 있는
               // 값을 목록으로 고르게 하면 "지금이 어느 정도인지"가 안 보인다.
               return id === "effort" ? (
-                <EffortSlider key={id} option={option} onChange={setOption} />
+                <EffortControl key={id} option={option} onChange={setOption} />
               ) : (
                 <ConfigControl key={id} option={option} onChange={setOption} />
               );
@@ -666,7 +736,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           onQuery={setHistoryQuery}
           onPick={(id) => void openSession(id)}
           onNew={() => void newConversation()}
-          onClose={() => setPanelOpen(false)}
           busy={busy}
         />
       ) : null}
@@ -1028,7 +1097,6 @@ function SessionPanel({
   onQuery,
   onPick,
   onNew,
-  onClose,
   busy,
 }: {
   sessions: AcpSessionSummary[];
@@ -1037,7 +1105,6 @@ function SessionPanel({
   onQuery: (next: string) => void;
   onPick: (id: string) => void;
   onNew: () => void;
-  onClose: () => void;
   busy: boolean;
 }) {
   const { t } = useT();
@@ -1053,15 +1120,6 @@ function SessionPanel({
     <aside className="acp-panel" aria-label={t("acp.history")}>
       <div className="acp-panel-head">
         <span className="acp-panel-title">{t("acp.history")}</span>
-        <button
-          type="button"
-          className="btn icon ghost"
-          onClick={onClose}
-          aria-label={t("acp.panel.hide")}
-          title={t("acp.panel.hide")}
-        >
-          <PanelLeft size={14} />
-        </button>
       </div>
 
       <button type="button" className="acp-panel-new" disabled={busy} onClick={onNew}>
@@ -1106,13 +1164,16 @@ function SessionPanel({
 }
 
 /**
- * Effort 슬라이더 — 좌우로 강도를 고른다.
+ * Effort — 평소엔 **현재 값만** 보이고, 누르면 트랙이 열린다.
  *
- * 다른 설정과 달리 값에 **순서**가 있다(low → max). 순서 있는 값을 드롭다운
- * 목록으로 주면 "지금이 어느 정도인지"가 한눈에 안 들어온다. 점 트랙으로
- * 그리면 위치가 곧 강도다. 키보드(←/→)로도 움직인다.
+ * 트랙을 항상 펼쳐 두면 컴포저 바닥에서 가장 시끄러운 물체가 되는데, 정작
+ * 자주 바꾸는 값은 아니다. 값에 순서가 있으므로 열렸을 때는 목록이 아니라
+ * 트랙으로 — 위치가 곧 강도다.
+ *
+ * `default` 선택지는 뺀다. 실제 기본이 `xhigh` 라 "Default" 와 "Xhigh" 가
+ * 같은 것을 두 이름으로 부르는 꼴이고, 고르면 무엇이 되는지 알 수 없다.
  */
-function EffortSlider({
+function EffortControl({
   option,
   onChange,
 }: {
@@ -1120,12 +1181,21 @@ function EffortSlider({
   onChange: (configId: string, value: string) => void;
 }) {
   const { t } = useT();
-  const choices = option.choices;
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
+
+  const choices = useMemo(
+    () => option.choices.filter((c) => c.value !== "default"),
+    [option.choices],
+  );
   if (!choices.length) return null;
 
+  // 현재 값이 `default` 로 와도 사용자에게는 실제 동작인 xhigh 로 보인다.
+  const currentValue = option.current === "default" ? "xhigh" : option.current;
   const index = Math.max(
     0,
-    choices.findIndex((c) => c.value === option.current),
+    choices.findIndex((c) => c.value === currentValue),
   );
   const current = choices[index];
 
@@ -1135,40 +1205,59 @@ function EffortSlider({
   };
 
   return (
-    <div
-      className="effort"
-      role="slider"
-      tabIndex={0}
-      aria-label={option.name}
-      aria-valuemin={0}
-      aria-valuemax={choices.length - 1}
-      aria-valuenow={index}
-      aria-valuetext={current?.name}
-      title={`${option.name} — ${current?.name ?? ""} · ${t("acp.effortHint")}`}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-          e.preventDefault();
-          move(1);
-        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-          e.preventDefault();
-          move(-1);
-        }
-      }}
-    >
-      <Flame size={13} className="effort-icon" />
-      <span className="effort-label">{current?.name ?? option.current}</span>
-      <span className="effort-track">
-        {choices.map((choice, i) => (
-          <button
-            key={choice.value}
-            type="button"
-            className={"effort-dot" + (i === index ? " on" : "") + (i < index ? " lit" : "")}
-            aria-label={choice.name}
-            title={choice.description ?? choice.name}
-            onClick={() => onChange(option.id, choice.value)}
-          />
-        ))}
-      </span>
+    <div className="knob-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={"agent-chip" + (open ? " open" : "")}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={option.name}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Flame size={13} />
+        <span className="agent-chip-label">{current?.name ?? currentValue}</span>
+      </button>
+      {open ? (
+        <div className="settings-menu effort-menu" role="dialog" aria-label={option.name}>
+          <div className="settings-group-label">{option.name}</div>
+          <div
+            className="effort"
+            role="slider"
+            tabIndex={0}
+            aria-label={option.name}
+            aria-valuemin={0}
+            aria-valuemax={choices.length - 1}
+            aria-valuenow={index}
+            aria-valuetext={current?.name}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                e.preventDefault();
+                move(1);
+              } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                e.preventDefault();
+                move(-1);
+              }
+            }}
+          >
+            <span className="effort-track">
+              {choices.map((choice, i) => (
+                <button
+                  key={choice.value}
+                  type="button"
+                  className={
+                    "effort-dot" + (i === index ? " on" : "") + (i < index ? " lit" : "")
+                  }
+                  aria-label={choice.name}
+                  title={choice.description ?? choice.name}
+                  onClick={() => onChange(option.id, choice.value)}
+                />
+              ))}
+            </span>
+            <span className="effort-label">{current?.name ?? currentValue}</span>
+          </div>
+          <div className="effort-hint">{t("acp.effortHint")}</div>
+        </div>
+      ) : null}
     </div>
   );
 }

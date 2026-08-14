@@ -505,31 +505,27 @@
 /* ─── Effort 슬라이더 ─────────────────────────────────────────────────────
    값에 순서가 있는 유일한 설정이라 목록이 아니라 트랙으로 그린다 — 점의
    위치가 곧 강도다. 채워진 점으로 "여기까지 왔다"를 읽게 한다. */
+/* 팝오버 안에서만 펼쳐지는 트랙 — 평소 컴포저 바닥에는 값 하나만 남는다. */
 .effort {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 9px;
+  gap: 10px;
+  padding: 6px 9px 4px;
   border-radius: 9px;
-  cursor: default;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-2);
-  transition: background-color var(--dur-1) var(--ease-out);
-}
-.effort:hover,
-.effort:focus-visible {
-  background: var(--bg-inset);
-  color: var(--text);
   outline: none;
 }
-.effort-icon {
-  flex: none;
-  color: var(--text-3);
-}
 .effort-label {
-  min-width: 44px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+.effort-menu {
+  min-width: 210px;
+}
+.effort-hint {
+  padding: 2px 9px 4px;
+  font-size: 10.5px;
+  color: var(--text-3);
 }
 .effort-track {
   display: inline-flex;
@@ -571,6 +567,12 @@
   display: flex;
   height: 100%;
   min-height: 0;
+}
+/* 패널이 닫히면 대화가 남은 폭을 **전부** 가져가야 한다. 이게 없으면 컬럼이
+   원래 폭에 머물러 오른쪽에 빈 땅이 남는다. */
+.acp-layout > .ai-wrap {
+  flex: 1;
+  min-width: 0;
 }
 .acp-panel {
   width: 236px;
@@ -699,17 +701,10 @@
   font-size: 11.5px;
   color: var(--text-3);
 }
-/* 패널을 접었을 때 다시 여는 손잡이 — 스레드 위에 겹쳐 띄운다.
-   패널이 오른쪽이므로 손잡이도 오른쪽이고, 아이콘은 좌우를 뒤집어 "이쪽이
-   열린다"는 방향을 맞춘다 (PanelLeft 한 종류만 있다). */
-.acp-panel-open {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 5;
-}
-.acp-panel-open svg,
-.acp-panel .acp-panel-head .btn.icon svg {
+/* 패널 토글은 툴바에 고정한다. 스레드 위에 떠 있으면 열림/닫힘에 따라 위치가
+   달라져 "같은 버튼"으로 안 읽힌다. 아이콘은 좌우를 뒤집어 오른쪽 패널임을
+   나타낸다 (PanelLeft 한 종류만 있다). */
+.acp-panel-toggle svg {
   transform: scaleX(-1);
 }
 .ai-wrap {
@@ -720,4 +715,10 @@
    좁은 폭에서 너무 위로 붙는다. */
 .acp-hero {
   margin-top: 20vh;
+}
+
+/* 슬래시 커맨드의 인자 힌트 — 이름 뒤에 흐리게 붙어 "뭘 더 쳐야 하는지" 만 알린다. */
+.slash-hint {
+  font-weight: 500;
+  color: var(--text-3);
 }

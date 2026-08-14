@@ -153,6 +153,42 @@ pub fn map_config_options(
         .collect()
 }
 
+/// 슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct AcpCommand {
+    pub name: String,
+    pub description: String,
+    /// 인자 힌트 (있으면 입력창에 무엇을 더 쳐야 하는지 알려 준다).
+    pub hint: Option<String>,
+}
+
+/// `available_commands_update` 에서 커맨드 목록을 뽑는다. 그 밖의 종류면 `None`.
+pub fn commands_of(update: &SessionUpdate) -> Option<Vec<AcpCommand>> {
+    let SessionUpdate::AvailableCommandsUpdate(list) = update else {
+        return None;
+    };
+    Some(
+        list.available_commands
+            .iter()
+            .map(|command| AcpCommand {
+                name: command.name.clone(),
+                description: command.description.clone(),
+                hint: command.input.as_ref().and_then(input_hint),
+            })
+            .collect(),
+    )
+}
+
+/// 인자 힌트는 표현이 여러 가지라 JSON 으로 한 번 돌려 `hint` 만 집는다 —
+/// 스키마가 변형을 늘려도 컴파일이 깨지지 않는다.
+fn input_hint(input: &agent_client_protocol::schema::v1::AvailableCommandInput) -> Option<String> {
+    serde_json::to_value(input)
+        .ok()?
+        .get("hint")?
+        .as_str()
+        .map(str::to_string)
+}
+
 /// 권한 요청의 선택지 하나.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct AcpPermissionOption {
