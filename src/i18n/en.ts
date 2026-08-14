@@ -1801,8 +1801,6 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.cmd.usage": "Show remaining usage",
   "acp.cmd.clear": "Clear the conversation and start a new session",
   "acp.cmd.continue": "Reopen the most recent conversation",
-  "acp.cmd.remoteControlAcp": "Try remote control inside ACP (experiment)",
-  "acp.remoteControlTrying": "Opened a new conversation with remote control via ACP. If no pairing prompt appears here, open the log folder from Settings → Diagnostics and look for `[adapter]` lines.",
   "acp.cmd.remoteControl": "Remote control — opens in the Terminal",
   "acp.continueNone": "There is no earlier conversation to continue.",
   "acp.usageDetail": "What contributed",

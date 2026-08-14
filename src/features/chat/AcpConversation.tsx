@@ -804,10 +804,13 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 대화를 열어야 한다. 실패하면 백엔드가 원래 대화를 되돌려 놓는다.
       // `/remote-control` (`/rc`) — **터미널로 보낸다.**
       //
-      // 어댑터가 `_meta` 로 CLI 플래그를 넘길 수 있어서 그 길도 열어 뒀지만
-      // (`acp_start_remote_control`), 짝짓기 안내가 CLI 의 화면 출력이라 이
-      // 화면까지 올라오지 않는다 — 켜져도 쓸 수가 없다. 터미널에서는 그 출력이
-      // 곧 화면이므로 그냥 된다.
+      // ACP 안에서도 해 봤다(2026-08-15): `_meta.claudeCode.options.extraArgs` 로
+      // `--remote-control` 을 넘기면 어댑터가 CLI 플래그로 흘려 주고, 세션은
+      // 오류 없이 열린다. 그런데 **짝짓기 안내가 어디에도 안 나온다** — 대화에도,
+      // 어댑터 stderr(앱 로그)에도. 그 안내는 CLI 가 자기 화면에 그리는 것이라
+      // 프로토콜로 옮겨질 데이터가 애초에 없다.
+      //
+      // 터미널에서는 그 화면이 곧 우리 화면이라 그냥 된다.
       if (text === "/remote-control" || text === "/rc") {
         setDraft("");
         setSlash(null);
@@ -815,32 +818,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
-      // 실험: **ACP 안에서** 원격 조종을 켤 수 있는지 한 번 본다.
-      //
-      // 어댑터가 `_meta.claudeCode.options.extraArgs` 를 CLI 플래그로 넘겨
-      // 주므로 통로는 있다. 앞서 실패한 것은 값을 `""` 로 보내 플래그 뒤에 빈
-      // 인자가 붙었기 때문이고(SDK 는 `null` 일 때만 값 없는 플래그를 만든다)
-      // 그건 고쳤다 — 다만 짝짓기 안내가 어디로 나오는지는 아직 모른다.
-      // 어댑터 stderr 는 이제 앱 로그로 흐르니 거기 찍히면 보인다.
-      if (text === "/remote-control-acp") {
-        setDraft("");
-        setSlash(null);
-        void (async () => {
-          const res = await commands.acpStartRemoteControl(projectId);
-          if (res.status !== "ok") {
-            setError(res.error);
-            return;
-          }
-          loadSeqRef.current += 1;
-          setSession(res.data);
-          // 오류가 아니라 **일어난 일**이다 — 빨간 줄로 띄우면 실패한 것처럼
-          // 읽힌다(실제로 그렇게 보였다).
-          editTurns(res.data.session_id ?? SLATE, () => [
-            { role: "notice", text: t("acp.remoteControlTrying") },
-          ]);
-        })();
-        return;
-      }
       if (busy) {
         setQueue((prev) => [...prev, text]);
         setDraft("");
