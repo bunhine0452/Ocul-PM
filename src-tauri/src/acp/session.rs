@@ -37,6 +37,11 @@ pub enum AcpEvent {
     ToolCall {
         id: String,
         title: String,
+        /// 도구 이름 (`Bash` · `Read` · `Grep` …). 어댑터가 `_meta.claudeCode`
+        /// 로만 알려 준다 — 프로토콜 본문에는 없다.
+        name: Option<String>,
+        /// 한 줄 설명. Bash 는 모델이 적어 준 `description` 이 여기 온다.
+        subtitle: Option<String>,
         /// `read` · `edit` · `execute` … (아이콘 선택용).
         tool_kind: String,
         /// `pending` · `in_progress` · `completed` · `failed`.
@@ -52,6 +57,8 @@ pub enum AcpEvent {
     /// 진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다.
     ToolUpdate {
         id: String,
+        name: Option<String>,
+        subtitle: Option<String>,
         title: Option<String>,
         status: Option<String>,
         /// 온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다.
@@ -437,10 +444,67 @@ fn saturate(value: u64) -> u32 {
 /// 통째로 올릴 이유가 없다. 잘렸다는 사실은 꼬리표로 남긴다.
 const TOOL_TEXT_CAP: usize = 20_000;
 
+/// 도구 입력에서 **핵심 한 가지**를 뽑는다.
+///
+/// 통째로 예쁘게 찍으면 Bash 카드에 `{ "command": "...", "description": "..." }`
+/// 가 그대로 뜬다 — 읽고 싶은 건 명령 한 줄인데 JSON 껍데기가 시야를 다 먹는다.
+/// 아는 이름이 있으면 그 값만, 없으면 통째로 (모르는 도구의 입력을 숨기는 것보다
+/// 지저분하게라도 보이는 편이 낫다).
+fn primary_input(value: Option<&serde_json::Value>) -> Option<String> {
+    const PRIMARY: [&str; 8] = [
+        "command",
+        "pattern",
+        "file_path",
+        "path",
+        "query",
+        "url",
+        "prompt",
+        "content",
+    ];
+    let object = value?.as_object()?;
+    PRIMARY
+        .iter()
+        .find_map(|key| object.get(*key)?.as_str())
+        .map(|text| clamp(text.to_string()))
+}
+
+/// 통째로 마크다운 코드펜스에 싸여 온 출력의 펜스를 벗긴다.
+///
+/// 어댑터는 명령 출력을 ```` ```console … ``` ```` 로 감싸 준다. 우리는 이걸
+/// `<pre>` 에 평문으로 그리므로 펜스 기호가 내용인 척 그대로 보인다.
+/// **전체가 하나의 펜스일 때만** 벗긴다 — 중간에 낀 코드블록은 내용이다.
+pub fn strip_fence(text: &str) -> &str {
+    let trimmed = text.trim();
+    let Some(rest) = trimmed.strip_prefix("```") else {
+        return text;
+    };
+    let Some(body) = rest.split_once('\n').map(|(_lang, body)| body) else {
+        return text;
+    };
+    let Some(inner) = body.strip_suffix("```").map(str::trim_end) else {
+        return text;
+    };
+    // 안쪽에 또 펜스가 있으면 통짜 한 덩어리가 아니다 — 건드리지 않는다.
+    if inner.contains("```") {
+        return text;
+    }
+    inner
+}
+
 /// `raw_input`/`raw_output` 을 사람이 읽을 문자열로.
 ///
 /// 문자열이면 그대로, 그 밖의 JSON 이면 예쁘게 찍는다 — Bash 의 `{"command":
 /// "ls -la"}` 를 한 줄 JSON 으로 보여 주면 카드가 읽히지 않는다.
+/// `_meta.claudeCode` 의 문자열 항목 하나.
+fn claude_meta<T: Serialize>(meta: Option<&T>, key: &str) -> Option<String> {
+    serde_json::to_value(meta?)
+        .ok()?
+        .get("claudeCode")?
+        .get(key)?
+        .as_str()
+        .map(str::to_string)
+}
+
 fn raw_text(value: Option<&serde_json::Value>) -> Option<String> {
     let value = value?;
     let text = match value {
@@ -466,7 +530,7 @@ fn content_text(content: &[agent_client_protocol::schema::v1::ToolCallContent]) 
         .collect::<Vec<_>>()
         .join("\n");
 
-    (!joined.is_empty()).then(|| clamp(joined))
+    (!joined.is_empty()).then(|| clamp(strip_fence(&joined).to_string()))
 }
 
 /// 상한을 넘으면 자르고 잘렸음을 밝힌다 (조용히 자르면 출력이 거짓말이 된다).
@@ -530,6 +594,8 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
         SessionUpdate::ToolCall(call) => AcpEvent::ToolCall {
             id: call.tool_call_id.0.to_string(),
             title: call.title.clone(),
+            name: claude_meta(call.meta.as_ref(), "toolName"),
+            subtitle: claude_meta(call.meta.as_ref(), "title"),
             tool_kind: label(&call.kind),
             status: label(&call.status),
             locations: call
@@ -537,14 +603,18 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .iter()
                 .map(|l| l.path.display().to_string())
                 .collect(),
-            input: raw_text(call.raw_input.as_ref()),
+            input: primary_input(call.raw_input.as_ref())
+                .or_else(|| raw_text(call.raw_input.as_ref())),
             output: content_text(&call.content).or_else(|| raw_text(call.raw_output.as_ref())),
         },
         SessionUpdate::ToolCallUpdate(update) => AcpEvent::ToolUpdate {
             id: update.tool_call_id.0.to_string(),
             title: update.fields.title.clone(),
+            name: claude_meta(update.meta.as_ref(), "toolName"),
+            subtitle: claude_meta(update.meta.as_ref(), "title"),
             status: update.fields.status.as_ref().map(label),
-            input: raw_text(update.fields.raw_input.as_ref()),
+            input: primary_input(update.fields.raw_input.as_ref())
+                .or_else(|| raw_text(update.fields.raw_input.as_ref())),
             output: update
                 .fields
                 .content
@@ -733,21 +803,32 @@ mod tests {
         assert_eq!(status.as_deref(), Some("completed"));
     }
 
-    /// Bash 의 `{"command":"ls -la"}` 를 한 줄 JSON 으로 보여 주면 카드가
-    /// 읽히지 않는다 — 문자열은 그대로, 객체는 예쁘게.
+    /// 예전에는 객체를 통째로 예쁘게 찍었는데, 그러면 Bash 카드에
+    /// `{ "command": …, "description": … }` 껍데기가 그대로 떠서 정작 읽고 싶은
+    /// 명령 한 줄이 묻힌다. 아는 모양이면 알맹이만 꺼낸다.
     #[test]
-    fn tool_input_renders_strings_raw_and_objects_pretty() {
+    fn tool_input_pulls_the_command_out_instead_of_dumping_json() {
         use agent_client_protocol::schema::v1::{ToolCall, ToolCallId};
 
         let mut call = ToolCall::new(ToolCallId::new("c1"), "Bash".to_string());
-        call.raw_input = Some(serde_json::json!({ "command": "ls -la" }));
+        call.raw_input =
+            Some(serde_json::json!({ "command": "ls -la", "description": "list" }));
 
         let AcpEvent::ToolCall { input, .. } = map_update(&SessionUpdate::ToolCall(call)) else {
             panic!("ToolCall 이어야 한다");
         };
-        let input = input.expect("입력이 실려야 한다");
-        assert!(input.contains("\"command\""), "객체는 예쁘게 찍혀야 한다: {input}");
-        assert!(input.contains('\n'), "여러 줄로 펼쳐져야 한다");
+        assert_eq!(input.as_deref(), Some("ls -la"), "JSON 껍데기가 남으면 안 된다");
+
+        // 모르는 모양은 통째로라도 보인다 — 숨기면 카드가 거짓말을 한다.
+        let mut odd = ToolCall::new(ToolCallId::new("c3"), "Odd".to_string());
+        odd.raw_input = Some(serde_json::json!({ "whatever": 3 }));
+        let AcpEvent::ToolCall { input, .. } = map_update(&SessionUpdate::ToolCall(odd)) else {
+            panic!("ToolCall 이어야 한다");
+        };
+        assert!(
+            input.as_deref().unwrap_or_default().contains("whatever"),
+            "모르는 입력도 보여야 한다"
+        );
 
         let mut plain = ToolCall::new(ToolCallId::new("c2"), "Bash".to_string());
         plain.raw_input = Some(serde_json::json!("ls -la"));
@@ -823,6 +904,39 @@ mod tests {
 
         assert_eq!(limits[2].kind, "week (Fable)");
         assert!((limits[2].utilization - 0.66).abs() < 1e-9);
+    }
+
+    #[test]
+    fn primary_input_picks_the_one_field_worth_reading() {
+        let bash = serde_json::json!({ "command": "pnpm test", "description": "Run tests" });
+        assert_eq!(primary_input(Some(&bash)).as_deref(), Some("pnpm test"));
+
+        let read = serde_json::json!({ "file_path": "src/lib.rs", "offset": 1 });
+        assert_eq!(primary_input(Some(&read)).as_deref(), Some("src/lib.rs"));
+    }
+
+    /// 모르는 도구의 입력을 숨기면 카드가 거짓말을 한다 — 통짜로라도 보인다.
+    #[test]
+    fn primary_input_gives_up_on_shapes_it_does_not_know() {
+        let odd = serde_json::json!({ "whatever": 3 });
+        assert_eq!(primary_input(Some(&odd)), None);
+        assert_eq!(primary_input(Some(&serde_json::json!("plain"))), None);
+    }
+
+    #[test]
+    fn strip_fence_unwraps_a_whole_fenced_block() {
+        assert_eq!(strip_fence("```console\nhello\nworld\n```"), "hello\nworld");
+        assert_eq!(strip_fence("```\nbare\n```"), "bare");
+    }
+
+    /// 중간에 낀 코드블록은 **내용**이다 — 벗기면 글이 망가진다.
+    #[test]
+    fn strip_fence_leaves_anything_that_is_not_one_whole_block() {
+        let mixed = "설명\n```rs\nlet x = 1;\n```\n뒷말";
+        assert_eq!(strip_fence(mixed), mixed);
+        assert_eq!(strip_fence("no fence at all"), "no fence at all");
+        let two = "```a\none\n```\n```b\ntwo\n```";
+        assert_eq!(strip_fence(two), two);
     }
 
     #[test]

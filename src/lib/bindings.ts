@@ -1233,6 +1233,13 @@ export type AcpEvent =
 { kind: "usage"; used: number; size: number; cost_usd: number | null } | 
 /**  도구 호출이 시작됐다. */
 { kind: "tool_call"; id: string; title: string; 
+/**
+ *  도구 이름 (`Bash` · `Read` · `Grep` …). 어댑터가 `_meta.claudeCode`
+ *  로만 알려 준다 — 프로토콜 본문에는 없다.
+ */
+name: string | null; 
+/**  한 줄 설명. Bash 는 모델이 적어 준 `description` 이 여기 온다. */
+subtitle: string | null; 
 /**  `read` · `edit` · `execute` … (아이콘 선택용). */
 tool_kind: string; 
 /**  `pending` · `in_progress` · `completed` · `failed`. */
@@ -1247,7 +1254,7 @@ input: string | null;
  */
 output: string | null } | 
 /**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
-{ kind: "tool_update"; id: string; title: string | null; status: string | null; 
+{ kind: "tool_update"; id: string; name: string | null; subtitle: string | null; title: string | null; status: string | null; 
 /**  온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다. */
 input: string | null; output: string | null } | 
 /**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */

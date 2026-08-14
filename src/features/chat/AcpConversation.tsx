@@ -855,8 +855,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
             }))
           }
-          onNew={() => void newConversation()}
-          busy={busy || !session}
         />
       }
     >
@@ -967,22 +965,29 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
           {images.length ? (
             <div className="image-row">
+              {/* 보낸 뒤 대화에 남는 칩과 **같은 모양**이다 — 붙일 때와 보낸
+                  뒤가 다르게 생기면 같은 것인지 매번 다시 확인해야 한다.
+                  누르면 크게 보이고, 지우기는 호버해야 나오는 X 로. */}
               {images.map((image, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className="image-chip"
-                  title={t("acp.image.remove")}
-                  onClick={() => setImages((prev) => prev.filter((_, at) => at !== i))}
-                >
-                  <img
-                    alt=""
-                    src={`data:${image.block.mime_type};base64,${image.block.data_base64}`}
+                <span key={i} className="pending-image">
+                  <ImageAttachment
+                    image={{
+                      src: `data:${image.block.mime_type};base64,${image.block.data_base64}`,
+                      name: image.name,
+                      width: image.width,
+                      height: image.height,
+                    }}
                   />
-                  <span className="image-chip-x">
-                    <X size={10} />
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="pending-image-x"
+                    aria-label={t("acp.image.remove")}
+                    title={t("acp.image.remove")}
+                    onClick={() => setImages((prev) => prev.filter((_, at) => at !== i))}
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
               ))}
             </div>
           ) : null}
@@ -1304,6 +1309,10 @@ const TurnRow = memo(function TurnRow({
             긴 지시문이 계단처럼 꺾이는데, 여기서 사용자가 쓰는 것은 한 줄
             대꾸가 아니라 번호 붙은 요구사항 묶음이다. 딸려 보낸 것도 같은
             카드 안에 담겨야 "이 지시에 이 사진"이 한 덩어리로 읽힌다. */}
+        {/* 답이 길어지면 **무엇을 시켰는지**가 화면 밖으로 밀려난다. 스크롤을
+            내리는 동안 이 카드가 위에 붙어 있어야 지금 보고 있는 출력이 어느
+            지시에 대한 것인지 알 수 있고, 더 올리면 앞 지시가 자리를 넘겨받는다
+            (position: sticky 가 그대로 이 동작이다). */}
         <div className="user-card">
           {turn.images?.length || turn.attachments?.length ? (
             <div className="user-card-files">
@@ -1404,7 +1413,11 @@ function TraceRow({ tool }: { tool: AcpToolCall }) {
         <span className="trace-icon">
           <Icon size={13} />
         </span>
-        <span className="trace-title">{tool.title || t("acp.tool.untitled")}</span>
+        {/* 이름과 설명을 가른다. 예전엔 명령줄 전체가 제목 자리에 들어가서,
+            줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. 이름은 짧고
+            늘 같은 자리에 있어야 훑을 때 걸린다 (Claude Code 벤치마크). */}
+        <span className="trace-name">{tool.name || t("acp.tool.untitled")}</span>
+        <span className="trace-title">{tool.subtitle || tool.title}</span>
         {tool.locations.length ? (
           <span className="trace-path" title={tool.locations.join("\n")}>
             {tool.locations[0]}

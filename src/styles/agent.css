@@ -1169,37 +1169,6 @@
   gap: 6px;
   margin-bottom: 7px;
 }
-.image-chip {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  padding: 0;
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-s);
-  overflow: hidden;
-  background: var(--bg-inset);
-  cursor: pointer;
-}
-.image-chip img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.image-chip-x {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: rgba(20, 16, 10, 0.55);
-  opacity: 0;
-  transition: opacity var(--dur-1) var(--ease-out);
-}
-.image-chip:hover .image-chip-x,
-.image-chip:focus-visible .image-chip-x {
-  opacity: 1;
-}
 
 /* 그룹 라벨 옆의 보조 안내 (⇧Tab 등). */
 .settings-group-hint {
@@ -1505,11 +1474,28 @@
 .acp-layout .msg.user {
   align-items: stretch;
 }
+/* 답이 길어지면 "무엇을 시켰는지"가 화면 밖으로 밀려난다. 스크롤 내내 위에
+   붙어 있어야 지금 보는 출력이 어느 지시에 대한 것인지 알 수 있고, 더 올리면
+   앞 지시가 자리를 넘겨받는다 — sticky 가 정확히 그 동작이다.
+
+   그래서 배경이 **불투명**해야 한다: 반투명이면 밑으로 지나가는 답변 글자가
+   지시문에 겹쳐 둘 다 못 읽는다. */
 .acp-layout .user-card {
   border: 1px solid var(--sep);
   border-radius: var(--radius-l);
   background: var(--bg-card);
   padding: 11px 13px;
+  box-shadow: 0 6px 16px -12px rgb(0 0 0 / 0.35);
+}
+/* sticky 는 **턴 전체**에 건다. 카드에 걸면 컨테이닝 블록이 카드 자신이라
+   붙어 있을 구간이 카드 높이뿐이고 — 즉 아무 일도 안 일어난다. 턴에 걸면
+   컨테이닝 블록이 스레드 전체가 되어 답변이 지나가는 내내 붙어 있는다.
+   다음 지시가 올라오면 같은 top 에서 겹치며 자리를 넘겨받는다 (뒤 DOM 이
+   위로 그려진다). 위로 되감으면 앞 지시가 제자리로 돌아온다. */
+.acp-layout .msg.user {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 .acp-layout .user-card-text {
   font-size: 13.5px;
@@ -1651,4 +1637,53 @@
 }
 .lightbox-close:hover {
   background: rgb(255 255 255 / 0.26);
+}
+
+/* ─── 도구 카드 머리 ──────────────────────────────────────────────────────
+   이름은 짧고 늘 같은 자리에 있어야 훑을 때 걸린다. 예전엔 명령줄 전체가
+   제목 자리에 들어가서, 줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. */
+.trace-name {
+  flex: none;
+  font-weight: 700;
+  color: var(--text);
+}
+.trace-row .trace-title {
+  min-width: 0;
+  font-weight: 500;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── 컴포저의 보낼 이미지 ────────────────────────────────────────────────
+   보낸 뒤 대화에 남는 칩과 같은 모양을 쓰고, 지우기 X 만 얹는다. X 는 호버할
+   때만 — 늘 떠 있으면 붙인 것마다 삭제 버튼이 줄지어 시끄럽다. */
+.pending-image {
+  position: relative;
+  display: inline-flex;
+}
+.pending-image-x {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--sep);
+  border-radius: 50%;
+  background: var(--bg-window);
+  color: var(--text-2);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.pending-image:hover .pending-image-x,
+.pending-image-x:focus-visible {
+  opacity: 1;
+}
+.pending-image-x:hover {
+  border-color: var(--t-bug);
+  color: var(--t-bug);
 }

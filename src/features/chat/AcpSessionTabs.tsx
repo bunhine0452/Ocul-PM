@@ -1,4 +1,4 @@
-import { Plus, X } from "@/components/Icons";
+import { X } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import { useT } from "@/i18n";
 
@@ -26,15 +26,11 @@ export function AcpSessionTabs({
   activeId,
   onPick,
   onClose,
-  onNew,
-  busy,
 }: {
   tabs: readonly AcpTab[];
   activeId: string | null;
   onPick: (id: string) => void;
   onClose: (id: string) => void;
-  onNew: () => void;
-  busy: boolean;
 }) {
   const { t } = useT();
 
@@ -72,16 +68,6 @@ export function AcpSessionTabs({
           </div>
         );
       })}
-      <button
-        type="button"
-        className="acp-tab-new"
-        onClick={onNew}
-        disabled={busy}
-        aria-label={t("acp.newConversation")}
-        title={t("acp.newConversation")}
-      >
-        <Plus size={13} />
-      </button>
     </div>
   );
 }

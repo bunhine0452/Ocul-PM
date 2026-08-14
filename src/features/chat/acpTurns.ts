@@ -10,6 +10,10 @@ import type { AcpEvent } from "@/lib/bindings";
 export interface AcpToolCall {
   id: string;
   title: string;
+  /** 도구 이름 (`Bash` · `Read` …). 어댑터가 `_meta` 로만 준다 — 없을 수 있다. */
+  name?: string;
+  /** 한 줄 설명 — Bash 는 모델이 적어 준 `description`. */
+  subtitle?: string;
   /** `read` · `edit` · `execute` … (아이콘 선택용). */
   kind: string;
   /** `pending` · `in_progress` · `completed` · `failed`. */
@@ -157,6 +161,8 @@ export function applyAcpEvent(
       const fresh: AcpToolCall = {
         id: event.id,
         title: event.title,
+        name: event.name ?? undefined,
+        subtitle: event.subtitle ?? undefined,
         kind: event.tool_kind,
         status: event.status,
         locations: event.locations,
@@ -199,6 +205,8 @@ function patchTool(
       ? {
           ...tool,
           title: event.title ?? tool.title,
+          name: event.name ?? tool.name,
+          subtitle: event.subtitle ?? tool.subtitle,
           status: event.status ?? tool.status,
           // `null` 은 "안 왔다"이지 "비었다"가 아니다 — 이미 받은 것을 지우면
           // 완료된 카드의 출력이 사라진다.

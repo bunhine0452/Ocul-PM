@@ -88,6 +88,8 @@ const toolCall = (id: string, title: string): AcpEvent => ({
   kind: "tool_call",
   id,
   title,
+  name: null,
+  subtitle: null,
   tool_kind: "edit",
   status: "pending",
   locations: ["/repo/a.ts"],
@@ -112,6 +114,8 @@ describe("tool calls", () => {
 
     turns = applyAcpEvent(turns, {
       kind: "tool_update",
+      name: null,
+      subtitle: null,
       id: "t1",
       title: null,
       status: "completed",
@@ -127,6 +131,8 @@ describe("tool calls", () => {
 
     turns = applyAcpEvent(turns, {
       kind: "tool_update",
+      name: null,
+      subtitle: null,
       id: "ghost",
       title: "ghost",
       status: "failed",
@@ -205,6 +211,8 @@ describe("replay (session/load)", () => {
 describe("tool input/output", () => {
   const call: AcpEvent = {
     kind: "tool_call",
+    name: null,
+    subtitle: null,
     id: "t1",
     title: "Bash",
     tool_kind: "execute",
@@ -224,6 +232,8 @@ describe("tool input/output", () => {
     let turns = applyAcpEvent(openTurn([], "run it"), call);
     turns = applyAcpEvent(turns, {
       kind: "tool_update",
+      name: null,
+      subtitle: null,
       id: "t1",
       title: null,
       status: "completed",
@@ -278,6 +288,8 @@ describe("tool_call arriving twice", () => {
       kind: "tool_call" as const,
       id: "toolu_01",
       title: "Read",
+      name: "Read",
+      subtitle: null,
       tool_kind: "read",
       status: "pending",
       locations: [],
@@ -298,6 +310,8 @@ describe("tool_call arriving twice", () => {
     const base = {
       kind: "tool_call" as const,
       title: "Read",
+      name: "Read",
+      subtitle: null,
       tool_kind: "read",
       status: "pending",
       locations: [],
