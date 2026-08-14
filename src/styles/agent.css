@@ -580,7 +580,7 @@
   min-height: 0;
   padding: 10px 8px;
   gap: 7px;
-  border-right: 1px solid var(--sep);
+  border-left: 1px solid var(--sep);
   background: var(--bg-content);
 }
 .acp-panel-head {
@@ -689,12 +689,18 @@
   font-size: 11.5px;
   color: var(--text-3);
 }
-/* 패널을 접었을 때 다시 여는 손잡이 — 스레드 위에 겹쳐 띄운다. */
+/* 패널을 접었을 때 다시 여는 손잡이 — 스레드 위에 겹쳐 띄운다.
+   패널이 오른쪽이므로 손잡이도 오른쪽이고, 아이콘은 좌우를 뒤집어 "이쪽이
+   열린다"는 방향을 맞춘다 (PanelLeft 한 종류만 있다). */
 .acp-panel-open {
   position: absolute;
   top: 10px;
-  left: 10px;
+  right: 10px;
   z-index: 5;
+}
+.acp-panel-open svg,
+.acp-panel .acp-panel-head .btn.icon svg {
+  transform: scaleX(-1);
 }
 .ai-wrap {
   position: relative;

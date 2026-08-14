@@ -454,19 +454,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
   return (
     <div className="acp-layout">
-      {panelOpen ? (
-        <SessionPanel
-          sessions={history ?? []}
-          currentId={session.session_id}
-          query={historyQuery}
-          onQuery={setHistoryQuery}
-          onPick={(id) => void resume(id)}
-          onNew={() => void newConversation()}
-          onClose={() => setPanelOpen(false)}
-          busy={busy}
-        />
-      ) : null}
-
       <div className="ai-wrap">
       {panelOpen ? null : (
         <button
@@ -672,6 +659,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         </div>
       </div>
       </div>
+
+      {panelOpen ? (
+        <SessionPanel
+          sessions={history ?? []}
+          currentId={session.session_id}
+          query={historyQuery}
+          onQuery={setHistoryQuery}
+          onPick={(id) => void resume(id)}
+          onNew={() => void newConversation()}
+          onClose={() => setPanelOpen(false)}
+          busy={busy}
+        />
+      ) : null}
+
     </div>
   );
 }
