@@ -81,6 +81,12 @@ pub enum AcpEvent {
     /// 버리면 UI 는 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가 된다 —
     /// 사용자가 자동 승인될 거라 믿는 순간이라 안전 문제다.
     ConfigChanged { options: Vec<AcpConfigOption> },
+    /// 에이전트의 할 일 목록 (TodoWrite).
+    ///
+    /// **매번 전체가 온다** — 스펙이 "갱신할 때는 모든 항목을 현재 상태와 함께
+    /// 보내고, 클라이언트는 통째로 갈아 끼운다"고 못 박는다. 그래서 합치지 않고
+    /// 받은 것으로 대체한다.
+    Plan { entries: Vec<AcpPlanEntry> },
     /// 아직 UI 가 없는 업데이트 — 종류만 알려 준다.
     /// (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)
     Other { update: String },
@@ -343,6 +349,16 @@ pub fn parse_usage_detail(text: &str) -> Option<String> {
         .trim()
         .to_string();
     (!body.is_empty()).then_some(body)
+}
+
+/// 할 일 하나.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct AcpPlanEntry {
+    pub content: String,
+    /// `pending` · `in_progress` · `completed`.
+    pub status: String,
+    /// `high` · `medium` · `low`.
+    pub priority: String,
 }
 
 /// 세션 제목 변경 알림에서 제목을 뽑는다.
@@ -622,8 +638,16 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .and_then(content_text)
                 .or_else(|| raw_text(update.fields.raw_output.as_ref())),
         },
-        SessionUpdate::Plan(_) => AcpEvent::Other {
-            update: "plan".to_string(),
+        SessionUpdate::Plan(plan) => AcpEvent::Plan {
+            entries: plan
+                .entries
+                .iter()
+                .map(|entry| AcpPlanEntry {
+                    content: entry.content.clone(),
+                    status: label(&entry.status),
+                    priority: label(&entry.priority),
+                })
+                .collect(),
         },
         SessionUpdate::AvailableCommandsUpdate(_) => AcpEvent::Other {
             update: "available_commands_update".to_string(),

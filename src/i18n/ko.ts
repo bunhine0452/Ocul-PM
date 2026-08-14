@@ -1781,6 +1781,8 @@ export const ko = {
   "acp.tabs.close": "탭 닫기",
   "acp.sendNoSession": "대화를 시작하지 못했어요. 다시 시도해 주세요.",
   "acp.switchedTo": "{model} 로 전환",
+  "acp.plan.title": "할 일",
+  "acp.plan.count": "{done}/{total}",
   "acp.send": "보내기",
   "acp.cancel": "중지",
   "ai.title": "에이전트",

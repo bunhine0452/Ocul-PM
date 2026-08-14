@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
     CancelNotification, ContentBlock, DeleteSessionRequest, ListSessionsRequest,
-    NewSessionRequest, PromptRequest,
+    McpServer, McpServerStdio, NewSessionRequest, PromptRequest,
     ImageContent, LoadSessionRequest, ResourceLink, SessionConfigOptionValue,
     SetSessionConfigOptionRequest,
     TextContent,
@@ -146,6 +146,23 @@ fn session_snapshot(app: &AppHandle, project_id: u32, agent: AcpAgentInfo) -> Ac
     }
 }
 
+/// 이 세션에 물려 줄 MCP 서버들.
+///
+/// **우리 것 하나**다: `oculpm-mcp`. 그러면 앱 안의 Claude Code 가 `journal_write`
+/// ·`plan_update` 같은 도구를 그대로 쓸 수 있다 — 프로젝트에 `.mcp.json` 을
+/// 등록해 두지 않았어도. (이 앱은 자기 자신을 추적한다. 에이전트가 일지를 못
+/// 쓰는 것이 기본값이면 그 전제가 반쪽이 된다.)
+///
+/// 바이너리를 못 찾으면 **아무 것도 안 넘긴다** — 없는 명령을 서버라고 넘기면
+/// 어댑터가 매 세션마다 그것을 띄우려다 실패한다. 개발 중에는
+/// `cargo build --bin oculpm-mcp` 전까지 그 상태다.
+fn client_mcp_servers() -> Vec<McpServer> {
+    let Some(binary) = crate::oculpm::mcp::register::resolve_binary_path() else {
+        return Vec::new();
+    };
+    vec![McpServer::Stdio(McpServerStdio::new("oculpm", binary))]
+}
+
 /// 세션이 없으면 만든다 (있으면 그대로). 설정 항목도 함께 갈무리한다.
 async fn ensure_session(
     app: &AppHandle,
@@ -166,7 +183,7 @@ async fn ensure_session(
     let cwd = project_root(db, project_id).await?;
 
     let created = connection
-        .send_request(NewSessionRequest::new(cwd))
+        .send_request(NewSessionRequest::new(cwd).mcp_servers(client_mcp_servers()))
         .block_task()
         .await
         .map_err(|e| format!("세션을 만들지 못했습니다: {e}"))?;
@@ -677,6 +694,8 @@ pub async fn acp_refresh_usage(
         Some(existing) => existing,
         None => {
             let cwd = project_root(&db, project_id).await?;
+            // MCP 서버는 안 물린다 — 이 대화는 `/usage` 한 줄을 묻고 마는
+            // 일회용이다. 서버를 띄우면 그만큼 느려지고, 쓸 일도 없다.
             let created = connection
                 .send_request(NewSessionRequest::new(cwd))
                 .block_task()

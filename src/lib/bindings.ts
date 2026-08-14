@@ -1288,6 +1288,14 @@ locations: string[]; options: AcpPermissionOption[] } |
  */
 { kind: "config_changed"; options: AcpConfigOption[] } | 
 /**
+ *  에이전트의 할 일 목록 (TodoWrite).
+ * 
+ *  **매번 전체가 온다** — 스펙이 "갱신할 때는 모든 항목을 현재 상태와 함께
+ *  보내고, 클라이언트는 통째로 갈아 끼운다"고 못 박는다. 그래서 합치지 않고
+ *  받은 것으로 대체한다.
+ */
+{ kind: "plan"; entries: AcpPlanEntry[] } | 
+/**
  *  아직 UI 가 없는 업데이트 — 종류만 알려 준다.
  *  (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)
  */
@@ -1311,6 +1319,15 @@ export type AcpPermissionOption = {
 	name: string,
 	/**  `allow_once` · `allow_always` · `reject_once` … (버튼 강조에 쓴다). */
 	option_kind: string,
+};
+
+/**  할 일 하나. */
+export type AcpPlanEntry = {
+	content: string,
+	/**  `pending` · `in_progress` · `completed`. */
+	status: string,
+	/**  `high` · `medium` · `low`. */
+	priority: string,
 };
 
 /**  한도 하나 (5시간 세션 · 주간 · 주간 Fable …). */

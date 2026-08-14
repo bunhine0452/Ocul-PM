@@ -51,6 +51,7 @@ import {
   insertNotice,
   openTurn,
   type AcpBlock,
+  type AcpPlanEntry,
   type AcpToolCall,
   type AcpTurn,
   type AcpTurnImage,
@@ -1633,6 +1634,30 @@ function UserTurn({ turn }: { turn: AcpTurn }) {
   );
 }
 
+/** 할 일 목록 — 진행 중인 것 하나가 눈에 먼저 들어와야 한다. */
+function PlanList({ entries }: { entries: readonly AcpPlanEntry[] }) {
+  const { t } = useT();
+  const done = entries.filter((entry) => entry.status === "completed").length;
+
+  return (
+    <details className="plan" open>
+      <summary>
+        <ChevronDown size={12} />
+        <span className="plan-title">{t("acp.plan.title")}</span>
+        <span className="plan-count">{t("acp.plan.count", { done, total: entries.length })}</span>
+      </summary>
+      <ul className="plan-list">
+        {entries.map((entry, i) => (
+          <li key={i} className={"plan-item " + entry.status}>
+            <span className="plan-mark" aria-hidden="true" />
+            <span className="plan-text">{entry.content}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 const TurnRow = memo(function TurnRow({
   turn,
   live,
@@ -1702,6 +1727,10 @@ const TurnRow = memo(function TurnRow({
           </div>
         ),
       )}
+      {/* 할 일 목록은 조각 흐름 **위**에 하나로 둔다 — 진행 상황을 훑는 물건이라
+          글 사이에 끼면 매번 찾아야 한다. 매 갱신에 전체가 새로 오므로 이
+          자리에서 통째로 바뀐다. */}
+      {turn.plan?.length ? <PlanList entries={turn.plan} /> : null}
       {blocks.length === 0 ? (
         live ? (
           <AgentWord />

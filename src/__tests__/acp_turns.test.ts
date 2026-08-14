@@ -420,3 +420,41 @@ describe("insertNotice", () => {
     expect(turns[turns.length - 1]).toEqual({ role: "notice", text: "Opus" });
   });
 });
+
+describe("plan (TODO list)", () => {
+  const plan = (entries: { content: string; status: string }[]): AcpEvent => ({
+    kind: "plan",
+    entries: entries.map((e) => ({ ...e, priority: "medium" })),
+  });
+
+  /** 스펙: 갱신은 언제나 **전체 목록**이고 클라이언트가 통째로 갈아 끼운다.
+      합치면 같은 항목이 갱신될 때마다 화면에 여러 벌 쌓인다. */
+  it("replaces the list wholesale instead of merging", () => {
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, plan([{ content: "a", status: "pending" }]));
+    turns = applyAcpEvent(
+      turns,
+      plan([
+        { content: "a", status: "completed" },
+        { content: "b", status: "in_progress" },
+      ]),
+    );
+
+    expect(turns[1].plan).toHaveLength(2);
+    expect(turns[1].plan?.[0].status).toBe("completed");
+  });
+
+  /** 목록은 턴에 하나다 — 조각 순서에 끼면 갱신마다 새 카드가 생긴다. */
+  it("does not add itself to the ordered blocks", () => {
+    let turns = openTurn([], "go");
+    turns = applyAcpEvent(turns, chunk("설명")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, plan([{ content: "a", status: "pending" }]));
+    expect(turns[1].blocks?.map((b) => b.kind)).toEqual(["text"]);
+  });
+
+  it("is dropped once the turn closed", () => {
+    let turns = applyAcpEvent(openTurn([], "go"), done);
+    turns = applyAcpEvent(turns, plan([{ content: "late", status: "pending" }]));
+    expect(turns[1].plan).toBeUndefined();
+  });
+});

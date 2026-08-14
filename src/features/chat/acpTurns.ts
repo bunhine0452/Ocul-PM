@@ -1,4 +1,6 @@
-import type { AcpEvent } from "@/lib/bindings";
+import type { AcpEvent, AcpPlanEntry } from "@/lib/bindings";
+
+export type { AcpPlanEntry };
 
 // PR-ACP2/3 — ACP 스트리밍 이벤트를 화면 턴 목록에 누적하는 순수 리듀서.
 //
@@ -60,6 +62,14 @@ export interface AcpTurn {
   text: string;
   /** 에이전트 턴의 조각들 (글·도구가 섞여 온 순서 그대로). */
   blocks?: AcpBlock[];
+  /**
+   * 에이전트의 할 일 목록.
+   *
+   * 조각(`blocks`)이 아니라 턴에 **하나만** 둔다 — 매번 전체가 새로 오고
+   * 클라이언트가 통째로 갈아 끼우는 값이라(스펙), 순서대로 쌓으면 같은 목록이
+   * 갱신될 때마다 화면에 여러 벌 쌓인다.
+   */
+  plan?: AcpPlanEntry[];
   /** 이 발화에 딸려 보낸 파일 경로 (사용자 턴에서만). */
   attachments?: string[];
   /** 이 발화에 딸려 보낸 이미지 (사용자 턴에서만). */
@@ -132,6 +142,7 @@ export function applyAcpEvent(
   }
 
   const handled =
+    event.kind === "plan" ||
     event.kind === "chunk" ||
     event.kind === "thought" ||
     event.kind === "done" ||
@@ -214,6 +225,10 @@ export function applyAcpEvent(
       };
       break;
     }
+    case "plan":
+      // 합치지 않고 **대체**한다 — 갱신은 언제나 전체 목록이다.
+      next[index] = { ...last, plan: event.entries };
+      break;
     default:
       next[index] = { ...last, closed: true };
   }

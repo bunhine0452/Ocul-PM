@@ -1901,3 +1901,87 @@
   letter-spacing: -0.01em;
   color: var(--text-3);
 }
+
+/* ─── 할 일 목록 ──────────────────────────────────────────────────────────
+   에이전트가 스스로 세운 계획이다. 진행 상황을 **훑는** 물건이라 글 사이에
+   끼우지 않고 답변 위에 한 덩어리로 둔다. 기본 펼침 — 접어 두면 세운 줄도
+   모른다. */
+.plan {
+  margin: 2px 0 8px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+}
+.plan > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.plan > summary::-webkit-details-marker {
+  display: none;
+}
+.plan > summary svg {
+  flex: none;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.plan[open] > summary svg {
+  transform: rotate(180deg);
+}
+.plan-title {
+  font-weight: 650;
+  color: var(--text-2);
+}
+.plan-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.plan-list {
+  margin: 0;
+  padding: 0 10px 9px 10px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plan-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+/* 표식은 상태를 색과 채움으로 말한다 — 글자로 "완료"를 덧붙이면 목록이 두 배로
+   길어지고, 정작 훑을 때 필요한 것은 어디까지 왔는지뿐이다. */
+.plan-mark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 1px;
+  border: 1.5px solid var(--sep-strong);
+  border-radius: 50%;
+}
+.plan-item.in_progress .plan-mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: rail-pulse 1.4s ease-in-out infinite;
+}
+.plan-item.in_progress .plan-text {
+  color: var(--text);
+  font-weight: 600;
+}
+.plan-item.completed .plan-mark {
+  border-color: var(--t-feature);
+  background: var(--t-feature);
+}
+.plan-item.completed .plan-text {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--sep-strong);
+}
