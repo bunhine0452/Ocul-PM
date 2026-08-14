@@ -6,6 +6,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
+import { takeBootCommand } from "./terminalLaunch";
 import { commands } from "@/lib/bindings";
 import { oculpmLog } from "@/lib/oculpmLog";
 // 모듈 t() — 이 두 문구는 PTY 이벤트 시점에 터미널 버퍼로 **써 넣는** 것이라
@@ -330,6 +331,11 @@ export default function TerminalInstanceImpl({
             return;
           }
           nonceRef.current = res.data.nonce;
+          // **갓 뜬 셸에만** 첫 명령을 친다. 재접속 갈래(위 `attachPtySession`
+          // 성공)에서는 건드리지 않는다 — 사용자는 셸을 이어 쓰려고 돌아온
+          // 것이지 `claude` 를 또 띄우려는 것이 아니다.
+          const boot = takeBootCommand(sessionId);
+          if (boot) void commands.writeToPty(sessionId, `${boot}\r`);
         }
         attached = true;
         for (const chunk of queued) {

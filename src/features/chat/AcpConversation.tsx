@@ -76,6 +76,11 @@ import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory"
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { registerBusy } from "@/lib/busyGuard";
+import {
+  claudeCommand,
+  newPtySessionId,
+  stageBootCommand,
+} from "@/features/terminal/terminalLaunch";
 import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -628,6 +633,31 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, [editTurns]);
 
   /**
+   * 같은 프로젝트에서 진짜 `claude` 를 터미널에 띄운다.
+   *
+   * 여기(ACP)로 못 닿는 기능이 있을 때의 탈출구다. 새 셸을 열고 첫 명령을
+   * 등록해 두면, 그 셸이 뜨는 순간 `TerminalInstance` 가 한 번만 쳐 준다.
+   */
+  const openInTerminal = useCallback((prefill?: string) => {
+    const id = newPtySessionId(state.currentProjectId);
+    stageBootCommand(id, claudeCommand(prefill));
+    setState((prev) => ({
+      ...prev,
+      terminalTabs: [
+        ...prev.terminalTabs,
+        {
+          id,
+          label: "Claude Code",
+          shell: "",
+          cwd: prev.currentProjectRoot ?? "",
+        },
+      ],
+      terminalActiveId: id,
+      uiV2View: "terminal",
+    }));
+  }, [state.currentProjectId, setState]);
+
+  /**
    * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
    * 없는데 그 대화가 화면에 그대로 남고, 그 상태에서 말을 걸면 방금 닫은 탭이
    * 되살아난다("닫아도 안 닫힌다"의 정체).
@@ -772,20 +802,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 플래그로 그대로 흘려보내고, CLI 에 `--remote-control` 이 있다. 다만
       // 질의를 만들 때 정해지는 값이라 **켜져 있는 대화에는 못 붙인다** — 새
       // 대화를 열어야 한다. 실패하면 백엔드가 원래 대화를 되돌려 놓는다.
+      // `/remote-control` (`/rc`) — **터미널로 보낸다.**
+      //
+      // 어댑터가 `_meta` 로 CLI 플래그를 넘길 수 있어서 그 길도 열어 뒀지만
+      // (`acp_start_remote_control`), 짝짓기 안내가 CLI 의 화면 출력이라 이
+      // 화면까지 올라오지 않는다 — 켜져도 쓸 수가 없다. 터미널에서는 그 출력이
+      // 곧 화면이므로 그냥 된다.
       if (text === "/remote-control" || text === "/rc") {
         setDraft("");
         setSlash(null);
-        void (async () => {
-          const res = await commands.acpStartRemoteControl(projectId);
-          if (res.status !== "ok") {
-            setError(res.error);
-            return;
-          }
-          loadSeqRef.current += 1;
-          setSession(res.data);
-          editTurns(res.data.session_id ?? SLATE, () => []);
-          setError(t("acp.remoteControlStarted"));
-        })();
+        openInTerminal("/remote-control");
         return;
       }
       if (busy) {
@@ -943,7 +969,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, editTurns, t],
+    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, editTurns, openInTerminal, t],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -1071,6 +1097,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       }
     >
       <AcpUsageMeter projectId={projectId} />
+      {/* 터미널로 나가는 문.
+          어댑터는 CLI 가 가진 것 중 **자기가 노출하기로 한 것만** 준다 —
+          `/remote-control`·`/login` 처럼 CLI 의 대화형 UI 에 사는 기능은 이
+          화면에서 못 닿는다. 그럴 때 같은 프로젝트에서 진짜 `claude` 를 띄운다. */}
+      <button
+        type="button"
+        className="btn icon ghost"
+        onClick={() => openInTerminal()}
+        aria-label={t("acp.openInTerminal")}
+        title={t("acp.openInTerminal")}
+      >
+        <Terminal size={15} />
+      </button>
       <button
         type="button"
         className={"btn icon ghost acp-panel-toggle" + (panelOpen ? " active" : "")}

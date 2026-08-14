@@ -468,7 +468,20 @@ pub async fn start(
         // 어댑터는 내부에서 `claude` 바이너리를 다시 찾는다 — 우리가 해석한
         // PATH 를 물려주지 않으면 패키징된 앱에서만 조용히 실패한다.
         .env("PATH", path_env);
-    let agent = AcpAgent::new(config);
+    /// 어댑터의 stderr 를 앱 로그로 옮긴다.
+    ///
+    /// 지금까지 이걸 안 보고 있었다. 어댑터 너머의 CLI 가 화면에 찍는 것들 —
+    /// 원격 조종 짝짓기 링크, 시작 실패 사유, 플래그를 못 알아들었다는 불평 —
+    /// 은 프로토콜 메시지가 아니라 **stderr 로 나간다.** 안 읽으면 "아무 일도
+    /// 안 일어난 것처럼 보이는" 상태가 되고, 실제로 그랬다.
+    ///
+    /// stdin/stdout(프로토콜 본문)은 흘린다 — 대화 내용이 통째로 로그에 남는
+    /// 것은 로그가 아니라 사본이고, 거기엔 소스 코드도 비밀도 섞인다.
+    let agent = AcpAgent::new(config).with_debug(|line, direction| {
+        if direction == agent_client_protocol::LineDirection::Stderr {
+            tracing::info!(target: "oculpm::acp", "[adapter] {line}");
+        }
+    });
 
     let (ready_tx, ready_rx) = oneshot::channel::<AcpAgentInfo>();
     let (stop_tx, stop_rx) = oneshot::channel::<()>();

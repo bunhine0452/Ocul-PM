@@ -541,10 +541,19 @@ pub async fn acp_start_remote_control(
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
     let cwd = project_root(&db, project_id).await?;
 
+    // 값은 **`null`** 이어야 한다. SDK 가 argv 를 이렇게 편다:
+    //
+    //   if (value === null) push(`--${key}`);   // 값 없는 플래그
+    //   else                push(`--${key}`, String(value));
+    //
+    // 처음에 `""` 을 넣었더니 `--remote-control` 뒤에 **빈 문자열이 인자로**
+    // 따라붙었다. CLI 는 그것을 플래그의 값(또는 빈 프롬프트)으로 삼았고,
+    // 원격 조종은 켜지지 않았는데 오류도 안 났다 — "새 대화만 열리고 아무 일도
+    // 안 일어난" 것의 정체.
     let mut meta = serde_json::Map::new();
     meta.insert(
         "claudeCode".to_string(),
-        serde_json::json!({ "options": { "extraArgs": { "remote-control": "" } } }),
+        serde_json::json!({ "options": { "extraArgs": { "remote-control": null } } }),
     );
 
     let previous = state.session(project_id);
