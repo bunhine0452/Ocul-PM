@@ -262,6 +262,21 @@ pub struct WindowTabsChanged {
     pub active: Option<u32>,
 }
 
+/// ⌘W 가 눌렸다 — **닫을 대상을 프런트가 고른다**.
+///
+/// 예전에는 Rust 가 곧장 탭을 닫았다. 그런데 화면 안에 또 닫을 것이 생겼다
+/// (Claude Code 의 세션 탭): 사용자는 브라우저처럼 "안쪽부터" 닫히기를 기대한다.
+/// 무엇이 열려 있는지는 프런트만 아는 사실이라 판단도 그쪽이 한다.
+///
+/// 프런트가 안 듣고 있으면 ⌘W 는 아무 일도 하지 않는다 — 창을 닫는 길은
+/// ⇧⌘W(Close Window)에 그대로 남아 있고, 그쪽은 Rust 가 직접 처리한다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct CloseIntent {
+    pub window: String,
+    /// 프런트가 아무 것도 소비하지 않으면 닫을 탭.
+    pub tab: Option<u32>,
+}
+
 /// 어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct ProjectWindowsChanged {

@@ -22,6 +22,7 @@ import StartTab from "@/windows/StartTab";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { safeUnlisten } from "@/lib/unlisten";
+import { runCloseIntent } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 
@@ -94,6 +95,29 @@ export default function TabbedWindow({
       if (off) safeUnlisten(off);
     };
   }, [windowLabel, refreshTabs]);
+
+  /**
+   * ⌘W — **안쪽부터** 닫는다.
+   *
+   * Rust 는 더 이상 직접 닫지 않고 이 이벤트만 보낸다. 화면 안에 또 닫을 것이
+   * 있을 수 있어서다(Claude Code 의 세션 탭). 아무도 안 받으면 그때 탭을 닫고,
+   * 마지막 탭이면 `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
+   */
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void events.closeIntent
+      .listen(({ payload }) => {
+        if (payload.window !== windowLabel) return;
+        if (runCloseIntent()) return;
+        if (payload.tab != null) void commands.closeTab(payload.tab);
+      })
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [windowLabel]);
 
   // 어디든 열려 있는 프로젝트 — 시작 탭의 "열림" 배지 + `+` 팝오버 필터.
   useEffect(() => {

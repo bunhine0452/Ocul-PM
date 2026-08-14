@@ -408,6 +408,30 @@
 }
 .composer.agent .composer-foot {
   gap: 4px;
+  /* 좁아져도 **줄이 넘치지 않게**. min-width:0 이 없으면 flex 자식이 자기
+     내용만큼 버티다가 카드 밖으로 밀려난다 (보내기 버튼이 밖으로 나갔던 원인). */
+  min-width: 0;
+}
+.composer.agent .composer-foot > .btn.icon {
+  flex: none;
+}
+/* 가운데 노브 묶음만 가로로 도망간다. 스크롤바는 숨긴다 — 트랙패드/휠로 민다. */
+.composer-knobs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* 포커스 링이 잘리지 않게 아주 약간 */
+  padding: 2px 0;
+}
+.composer-knobs::-webkit-scrollbar {
+  display: none;
+}
+.composer-knobs > * {
+  flex: none;
 }
 
 /* ─── 설정 칩 (모델 + 세션 설정 전부) ───────────────────────────────────── */
@@ -914,6 +938,7 @@
 
 /* 사용량 표시 겸 `/usage` 버튼. */
 .usage-btn {
+  white-space: nowrap;
   height: 26px;
   padding: 0 8px;
   border: none;

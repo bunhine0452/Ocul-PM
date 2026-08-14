@@ -54,6 +54,7 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
+import { registerCloseHandler } from "@/lib/closeIntent";
 import { AcpSessionTabs } from "./AcpSessionTabs";
 import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -277,10 +278,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     return () => window.clearInterval(timer);
   }, [projectId, session]);
 
-  // 지금 세션을 탭에 등록하고, 제목이 붙으면 따라 갱신한다.
+  /**
+   * 지금 세션을 탭에 등록하고, 제목이 붙으면 따라 갱신한다.
+   *
+   * **아직 아무 말도 안 한 대화는 등록하지 않는다.** 앱을 켜면 빈 세션이 하나
+   * 자동으로 열리는데, 그것까지 걸면 처음 보는 화면에 "제목 없는 대화" 탭
+   * 하나가 덩그러니 떠 있다 — 닫을 수도 없고(마지막 탭) 가리키는 것도 없다.
+   * 한 마디라도 하면 그때 탭이 생기고, 제목은 곧 따라온다.
+   */
+  const started = turns.length > 0 || session?.title != null;
   useEffect(() => {
+    if (!started) return;
     rememberTab(session?.session_id ?? null, session?.title ?? null);
-  }, [session?.session_id, session?.title, rememberTab]);
+  }, [started, session?.session_id, session?.title, rememberTab]);
+
 
   // 스트리밍 중에는 계속 맨 아래를 따라간다.
   useEffect(() => {
@@ -416,6 +427,30 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       }
     },
     [projectId],
+  );
+
+  /**
+   * ⌘W — 세션 탭을 **먼저** 닫는다.
+   *
+   * 브라우저와 같은 기대다: 안쪽에 열어 둔 것이 있으면 그것부터. 여기서 받지
+   * 않으면(열어 둔 대화가 없으면) 창 쪽이 프로젝트 탭을 닫는다.
+   */
+  useEffect(
+    () =>
+      registerCloseHandler(() => {
+        const current = session?.session_id;
+        if (!current || !tabs.some((tab) => tab.id === current)) return false;
+        setState((prev) => ({
+          ...prev,
+          acpTabs: prev.acpTabs.filter((tab) => tab.id !== current),
+        }));
+        // 남은 탭이 있으면 그리로 옮겨 간다 — 안 그러면 닫은 대화가 그대로
+        // 화면에 남아 "닫았는데 그대로"가 된다.
+        const rest = tabs.filter((tab) => tab.id !== current);
+        if (rest.length) void openSession(rest[rest.length - 1].id);
+        return true;
+      }),
+    [session?.session_id, tabs, openSession, setState],
   );
 
   const pickCommand = useCallback((command: AcpCommand) => {
@@ -759,7 +794,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         />
       }
     >
-      <AcpUsageMeter projectId={projectId} />
+      <AcpUsageMeter projectId={projectId} ready={started} />
       <button
         type="button"
         className={"btn icon ghost acp-panel-toggle" + (panelOpen ? " active" : "")}
@@ -992,6 +1027,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               <Paperclip size={14} />
             </button>
             <span style={{ flex: 1 }} />
+            {/* 노브 묶음은 **한 덩어리로 접힌다**.
+                창을 좁히면 이 줄이 압착되면서 "7% · $0.30" 이 두 줄로 꺾이고
+                보내기 버튼이 카드 밖으로 밀려났다. 클립·중지·보내기는 자리를
+                지키고, 가운데만 가로로 도망가게 한다 (툴바와 같은 수법). */}
+            <div className="composer-knobs">
             {/* 사용량 표시가 곧 버튼이다 — 숫자를 보다가 "자세히"를 누르고
                 싶어지는 자리가 바로 여기다. */}
             {/* 이 대화가 컨텍스트를 얼마나 먹었는지. 계정 한도는 툴바 계기의
@@ -1035,6 +1075,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
               )}
               onChange={setOption}
             />
+            </div>
             {busy ? (
               <button
                 type="button"

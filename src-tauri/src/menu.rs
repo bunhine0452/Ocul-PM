@@ -171,17 +171,17 @@ pub fn handle_event(app: &AppHandle, id: &str) {
     let handle = app.clone();
     match id {
         CLOSE_TAB => {
+            // 여기서 닫지 않고 **프런트에 넘긴다**. 화면 안에 또 닫을 것이
+            // 있을 수 있어서다(Claude Code 의 세션 탭) — 사용자는 브라우저처럼
+            // 안쪽부터 닫히기를 기대하고, 무엇이 열려 있는지는 프런트만 안다.
+            //
             // 탭이 하나뿐이면 그 탭을 닫는 것이 곧 창을 닫는 것이다 —
-            // `close_tab` 이 빈 창을 스스로 닫으므로 여기서 분기하지 않는다
-            // (Chrome 도 마지막 탭에서 ⌘W 가 창을 닫는다).
-            tauri::async_runtime::spawn(async move {
-                let Some(label) = win::focused_app_window(&handle) else {
-                    return;
-                };
-                if let Some(tab_id) = win::active_tab_of(&handle, &label) {
-                    let _ = win::close_tab_inner(&handle, tab_id).await;
-                }
-            });
+            // `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
+            use tauri_specta::Event as _;
+            if let Some(window) = win::focused_app_window(app) {
+                let tab = win::active_tab_of(app, &window);
+                let _ = win::CloseIntent { window, tab }.emit(app);
+            }
         }
         CLOSE_WINDOW => {
             if let Some(label) = win::focused_app_window(app) {

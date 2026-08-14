@@ -468,6 +468,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::tray::TrayNavigate,
         // 크롬식 탭 — 창별 탭 구성 + 런처의 "열림" 배지
         crate::commands::window::WindowTabsChanged,
+        crate::commands::window::CloseIntent,
         crate::commands::window::ProjectWindowsChanged,
         // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
         crate::commands::config::SettingsChanged,

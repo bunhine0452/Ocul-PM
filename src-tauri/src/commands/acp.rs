@@ -599,14 +599,20 @@ pub fn acp_usage(
 #[specta::specta]
 pub async fn acp_refresh_usage(
     app: AppHandle,
-    db: State<'_, Db>,
     project_id: u32,
 ) -> Result<Option<acp::session::AcpUsage>, String> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
-    let session = ensure_session(&app, &db, project_id).await?;
+    // **세션을 새로 만들지 않는다.** `ensure_session` 을 쓰면 아직 대화를
+    // 시작하지 않은 상태에서 계기가 스스로 세션을 하나 파고, 그 세션의 첫
+    // 메시지가 `/usage` 라 목록에 "/usage" 라는 대화가 생긴다(실측). 사용량을
+    // 보려고 누른 것이 대화 목록을 어지럽히면 안 된다.
+    let session = app
+        .state::<AcpState>()
+        .session(project_id)
+        .ok_or_else(|| "대화를 시작한 뒤에 볼 수 있습니다".to_string())?;
 
     app.state::<AcpState>().start_capture();
     let outcome = connection
