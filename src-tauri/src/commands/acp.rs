@@ -522,16 +522,51 @@ pub fn acp_commands(
     Ok(state.commands(project_id))
 }
 
-/// 마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`.
-///
-/// 새로 **불러오지 않는다** — ACP 에 사용량 조회 메서드가 없다. 숫자는 턴이
-/// 돌 때마다 오는 `usage_update` 로 갱신되므로, 최신을 원하면 `/usage` 를
-/// 한 번 보내면 된다(그것도 결국 한 턴이다).
+/// 마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`. 읽기 전용.
 #[tauri::command]
 #[specta::specta]
 pub fn acp_usage(
     state: State<'_, AcpState>,
     project_id: u32,
 ) -> Result<Option<acp::session::AcpUsage>, String> {
+    Ok(state.usage(project_id))
+}
+
+/// `/usage` 로 한도를 **실제로 새로 읽는다**.
+///
+/// 이게 성립하는 근거는 실측이다(2026-08-15): `/usage` 는 CLI 가 로컬에서
+/// 답하는 커맨드라 `inputTokens = outputTokens = 0` 이다. 즉 토큰을 쓰지 않고,
+/// `usage_update` 의 `_meta` 가 한 종류씩 흘려 주는 것과 달리 세션·주간·Fable
+/// 을 **한 번에** 준다. 그래서 새로고침 버튼이 진짜 새로고침일 수 있다.
+///
+/// 사용자가 시작한 턴이 아니라 답을 프런트 채널로 받을 수 없으므로, 상태에
+/// 갈무리 버퍼를 켜 두고 답변 텍스트를 모아 파싱한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn acp_refresh_usage(
+    app: AppHandle,
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Option<acp::session::AcpUsage>, String> {
+    let connection = app
+        .state::<AcpState>()
+        .connection(project_id)
+        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+    let session = ensure_session(&app, &db, project_id).await?;
+
+    app.state::<AcpState>().start_capture();
+    let outcome = connection
+        .send_request(PromptRequest::new(
+            session,
+            vec![ContentBlock::Text(TextContent::new("/usage".to_string()))],
+        ))
+        .block_task()
+        .await;
+
+    let state = app.state::<AcpState>();
+    let report = state.take_capture().unwrap_or_default();
+    outcome.map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?;
+
+    state.replace_limits(project_id, acp::session::parse_usage_report(&report));
     Ok(state.usage(project_id))
 }

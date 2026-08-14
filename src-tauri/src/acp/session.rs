@@ -170,6 +170,10 @@ pub struct AcpRateLimit {
     pub utilization: f64,
     /// epoch 초. 표시용 문자열로 바꾸는 건 프런트 몫.
     pub resets_at: Option<f64>,
+    /// `/usage` 가 준 사람이 읽는 초기화 시각 ("Aug 16 at 4:59am (Asia/Seoul)").
+    /// epoch 보다 **덜 정확하지만 더 정직하다** — 우리가 시간대를 다시 계산하다
+    /// 틀리느니 CLI 가 쓴 문장을 그대로 보여 준다.
+    pub resets_text: Option<String>,
     /// `allowed` · `allowed_warning` … (경고 색을 고르는 열쇠).
     pub status: Option<String>,
 }
@@ -233,6 +237,7 @@ fn walk_limits(value: &serde_json::Value, out: &mut Vec<AcpRateLimit>) {
                         .to_string(),
                     utilization,
                     resets_at: map.get("resetsAt").and_then(serde_json::Value::as_f64),
+                    resets_text: None,
                     status: map
                         .get("status")
                         .and_then(serde_json::Value::as_str)
@@ -250,6 +255,56 @@ fn walk_limits(value: &serde_json::Value, out: &mut Vec<AcpRateLimit>) {
         }
         _ => {}
     }
+}
+
+/// `/usage` 응답 본문에서 한도를 읽는다.
+///
+/// **왜 텍스트를 파싱하나**: `/usage` 는 CLI 가 로컬에서 답하는 커맨드라
+/// 토큰을 쓰지 않는다(실측: inputTokens=outputTokens=0). 반면 `usage_update`
+/// 의 `_meta` 한도는 턴이 돌 때 한 종류씩만 온다. 즉 이쪽이 **공짜이면서 더
+/// 완전하다** — 세션·주간·Fable 을 한 번에 준다.
+///
+/// 파싱은 방어적이다. 문구가 바뀌면 못 읽을 뿐 죽지 않고, 못 읽은 줄은
+/// 조용히 빠진다(호출부가 기존 값을 유지한다).
+///
+/// 읽는 모양:
+/// ```text
+/// Current session: 0% used
+/// Current week (all models): 83% used · resets Aug 16 at 4:59am (Asia/Seoul)
+/// ```
+pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
+    let mut found = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("Current ") else {
+            continue;
+        };
+        let Some((label, tail)) = rest.split_once(':') else {
+            continue;
+        };
+        let tail = tail.trim();
+        let Some((percent, after)) = tail.split_once("% used") else {
+            continue;
+        };
+        let Ok(percent) = percent.trim().parse::<f64>() else {
+            continue;
+        };
+
+        // "· resets Aug 16 at 4:59am (Asia/Seoul)" 에서 뒤쪽만.
+        let resets_text = after
+            .split_once("resets")
+            .map(|(_, when)| when.trim().to_string())
+            .filter(|when| !when.is_empty());
+
+        found.push(AcpRateLimit {
+            kind: label.trim().to_string(),
+            utilization: (percent / 100.0).clamp(0.0, 1.0),
+            resets_at: None,
+            resets_text,
+            status: None,
+        });
+    }
+    found
 }
 
 /// 슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다.
@@ -674,6 +729,41 @@ mod tests {
         assert!(kinds.contains(&"seven_day"), "관측: {kinds:?}");
         assert!(kinds.contains(&"five_hour"), "중첩된 것도 찾아야 한다: {kinds:?}");
         assert_eq!(found.used, 52_243);
+    }
+
+    /// 실측 응답(2026-08-15) 그대로 — 문구가 바뀌면 여기서 먼저 깨진다.
+    #[test]
+    fn usage_report_parses_the_three_lines() {
+        let report = "You are currently using your subscription to power your Claude Code usage\n\n\
+             Current session: 0% used\n\
+             Current week (all models): 83% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\
+             Current week (Fable): 66% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\n\
+             What's contributing to your limits usage?";
+
+        let limits = parse_usage_report(report);
+        assert_eq!(limits.len(), 3, "관측: {limits:?}");
+
+        assert_eq!(limits[0].kind, "session");
+        assert_eq!(limits[0].utilization, 0.0);
+        assert_eq!(limits[0].resets_text, None, "초기화 시각이 없는 줄도 있다");
+
+        assert_eq!(limits[1].kind, "week (all models)");
+        assert!((limits[1].utilization - 0.83).abs() < 1e-9);
+        assert_eq!(
+            limits[1].resets_text.as_deref(),
+            Some("Aug 16 at 4:59am (Asia/Seoul)")
+        );
+
+        assert_eq!(limits[2].kind, "week (Fable)");
+        assert!((limits[2].utilization - 0.66).abs() < 1e-9);
+    }
+
+    /// 문구가 바뀌면 **못 읽을 뿐 죽지 않아야** 한다 — 호출부가 기존 값을 지킨다.
+    #[test]
+    fn usage_report_ignores_lines_it_does_not_understand() {
+        assert!(parse_usage_report("Usage: 없음").is_empty());
+        assert!(parse_usage_report("Current session: unknown used").is_empty());
+        assert!(parse_usage_report("").is_empty());
     }
 
     #[test]

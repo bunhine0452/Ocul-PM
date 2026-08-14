@@ -31,7 +31,7 @@ use tauri::Manager;
 
 use super::session::{
     commands_of, map_update, permission_event, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
-    AcpUsage,
+    AcpRateLimit, AcpUsage,
 };
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -74,6 +74,11 @@ pub struct AcpState {
     sinks: Mutex<HashMap<u32, Channel<AcpEvent>>>,
     /// 사용자 응답을 기다리는 권한 요청 (우리가 만든 request_id → 결정 채널).
     pending: Mutex<HashMap<String, PendingPermission>>,
+    /// 켜져 있으면 에이전트 답변 텍스트를 여기에 모은다.
+    ///
+    /// `/usage` 처럼 **우리가 대신 물어보는** 턴의 답을 읽으려고 둔다. 프런트
+    /// 채널로는 받을 수 없다 — 사용자가 시작한 프롬프트가 아니기 때문이다.
+    capture: Mutex<Option<String>>,
     /// **동시 start 직렬화.** 없으면 어댑터가 둘 뜬다 — React StrictMode 가
     /// effect 를 두 번 돌리는 것만으로도 재현됐다(첫 연결 실패 → 재시도하면
     /// 됨). 늦게 뜬 쪽이 레지스트리를 덮고, 먼저 죽는 쪽이 그 등록을 지워
@@ -201,6 +206,48 @@ impl AcpState {
     pub fn clear_sink(&self, project_id: u32) {
         if let Ok(mut map) = self.sinks.lock() {
             map.remove(&project_id);
+        }
+    }
+
+    /// 답변 텍스트 갈무리를 시작한다 (이전 내용은 버린다).
+    pub fn start_capture(&self) {
+        if let Ok(mut slot) = self.capture.lock() {
+            *slot = Some(String::new());
+        }
+    }
+
+    /// 갈무리를 끝내고 모인 텍스트를 가져온다.
+    pub fn take_capture(&self) -> Option<String> {
+        self.capture.lock().ok()?.take()
+    }
+
+    fn push_capture(&self, text: &str) {
+        if let Ok(mut slot) = self.capture.lock() {
+            if let Some(buffer) = slot.as_mut() {
+                buffer.push_str(text);
+            }
+        }
+    }
+
+    /// `/usage` 가 준 한도로 갈아 끼운다.
+    ///
+    /// 병합이 아니라 **교체**인 이유: `/usage` 는 세 줄을 한 번에 주는 완전한
+    /// 스냅샷이라, 옛 `_meta` 조각과 섞으면 같은 한도가 두 이름으로 두 줄
+    /// 보인다(`seven_day` 와 `week (all models)`).
+    pub fn replace_limits(&self, project_id: u32, limits: Vec<AcpRateLimit>) {
+        if limits.is_empty() {
+            return;
+        }
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&project_id) {
+                let base = running.usage.clone().unwrap_or(AcpUsage {
+                    used: 0,
+                    size: 0,
+                    cost_usd: None,
+                    limits: Vec::new(),
+                });
+                running.usage = Some(AcpUsage { limits, ..base });
+            }
         }
     }
 
@@ -339,6 +386,9 @@ pub async fn start(
                     }
                     if let Some(usage) = usage_of(&notification.update) {
                         state.merge_usage(project_id, usage);
+                    }
+                    if let AcpEvent::Chunk { text } = map_update(&notification.update) {
+                        state.push_capture(&text);
                     }
                     state.emit(project_id, map_update(&notification.update));
                     Ok(())

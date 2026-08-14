@@ -12,12 +12,20 @@ import { relativeTime } from "./relativeTime";
 // 턴이 몇 번 돌아야 하므로, 아직 못 본 줄은 그리지 않는다 — 0% 로 그리면
 // "여유롭다"는 거짓말이 된다.
 
-/** 어댑터가 주는 종류 문자열 → 사람이 읽는 이름. 모르는 종류는 원문 그대로. */
+/**
+ * 한도 종류 → 사람이 읽는 이름. 모르는 종류는 **원문 그대로** 보여 준다.
+ *
+ * 두 출처의 어휘가 다르다: `_meta` 는 `seven_day` 같은 기계 이름을, `/usage`
+ * 는 `week (all models)` 같은 문장을 준다. 후자는 이미 읽을 만하므로 굳이
+ * 번역하지 않는다 — 우리가 지어낸 이름이 CLI 가 쓴 이름과 어긋나는 편이 더
+ * 나쁘다.
+ */
 const LIMIT_LABEL: Readonly<Record<string, string>> = {
   five_hour: "acp.limit.session",
   seven_day: "acp.limit.week",
   seven_day_opus: "acp.limit.weekOpus",
   seven_day_fable: "acp.limit.weekFable",
+  session: "acp.limit.session",
 };
 
 function pct(utilization: number | null): number {
@@ -40,23 +48,37 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
 
+  /** 상태에 갈무리된 값 읽기 — 왕복이 없다. */
+  const read = useCallback(async () => {
+    const res = await commands.acpUsage(projectId);
+    if (res.status === "ok") setUsage(res.data);
+  }, [projectId]);
+
+  /**
+   * 진짜 새로고침 — `/usage` 를 보낸다.
+   *
+   * **토큰을 쓰지 않는다**(실측 2026-08-15: inputTokens=outputTokens=0). CLI 가
+   * 로컬에서 답하는 커맨드라서, 세션·주간·Fable 을 공짜로 한 번에 받아 온다.
+   */
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await commands.acpUsage(projectId);
+      const res = await commands.acpRefreshUsage(projectId);
       if (res.status === "ok") setUsage(res.data);
     } finally {
       setRefreshing(false);
     }
   }, [projectId]);
 
-  // 턴이 끝날 때마다 바뀌므로 주기적으로 읽는다. 로컬 상태 조회라 값싸다
-  // (네트워크도 에이전트 왕복도 없다).
+  // 처음 한 번은 실제로 물어보고(공짜다), 그 뒤로는 상태만 훑는다 —
+  // 턴이 돌 때마다 `usage_update` 가 갱신해 주기 때문이다.
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 15_000);
-    return () => window.clearInterval(timer);
   }, [refresh]);
+  useEffect(() => {
+    const timer = window.setInterval(() => void read(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [read]);
 
   const limits = usage?.limits ?? [];
   if (!limits.length) return null;
@@ -95,9 +117,13 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
 
           {limits.map((limit) => {
             const labelKey = LIMIT_LABEL[limit.kind];
-            const resets = limit.resets_at
-              ? relativeTime(new Date(limit.resets_at * 1000).toISOString(), Date.now())
-              : null;
+            // `/usage` 가 준 문장이 있으면 그대로 — 우리가 시간대를 다시
+            // 계산하다 틀리느니 CLI 가 쓴 표현을 믿는다.
+            const resets =
+              limit.resets_text ??
+              (limit.resets_at
+                ? relativeTime(new Date(limit.resets_at * 1000).toISOString(), Date.now())
+                : null);
             return (
               <div key={limit.kind} className="usage-row">
                 <div className="usage-row-head">
