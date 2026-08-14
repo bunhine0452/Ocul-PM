@@ -39,6 +39,9 @@ export const LOCAL_COMMANDS = [
   { name: "clear", descriptionKey: "acp.cmd.clear" },
   { name: "continue", descriptionKey: "acp.cmd.continue" },
   { name: "remote-control", descriptionKey: "acp.cmd.remoteControl" },
+  // 한 번 시험해 보려고 둔 것 — 결과에 따라 지우거나 `/remote-control` 을
+  // 이쪽으로 되돌린다. 이름을 길게 둔 이유는 실수로 눌리지 않게.
+  { name: "remote-control-acp", descriptionKey: "acp.cmd.remoteControlAcp" },
 ] as const;
 
 /**

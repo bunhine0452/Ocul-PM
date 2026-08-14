@@ -814,6 +814,30 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         openInTerminal("/remote-control");
         return;
       }
+
+      // 실험: **ACP 안에서** 원격 조종을 켤 수 있는지 한 번 본다.
+      //
+      // 어댑터가 `_meta.claudeCode.options.extraArgs` 를 CLI 플래그로 넘겨
+      // 주므로 통로는 있다. 앞서 실패한 것은 값을 `""` 로 보내 플래그 뒤에 빈
+      // 인자가 붙었기 때문이고(SDK 는 `null` 일 때만 값 없는 플래그를 만든다)
+      // 그건 고쳤다 — 다만 짝짓기 안내가 어디로 나오는지는 아직 모른다.
+      // 어댑터 stderr 는 이제 앱 로그로 흐르니 거기 찍히면 보인다.
+      if (text === "/remote-control-acp") {
+        setDraft("");
+        setSlash(null);
+        void (async () => {
+          const res = await commands.acpStartRemoteControl(projectId);
+          if (res.status !== "ok") {
+            setError(res.error);
+            return;
+          }
+          loadSeqRef.current += 1;
+          setSession(res.data);
+          editTurns(res.data.session_id ?? SLATE, () => []);
+          setError(t("acp.remoteControlTrying"));
+        })();
+        return;
+      }
       if (busy) {
         setQueue((prev) => [...prev, text]);
         setDraft("");

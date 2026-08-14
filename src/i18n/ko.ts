@@ -1772,6 +1772,8 @@ export const ko = {
   "acp.cmd.usage": "남은 사용량 보기",
   "acp.cmd.clear": "대화를 비우고 새 세션 시작",
   "acp.cmd.continue": "최근 대화 이어서 열기",
+  "acp.cmd.remoteControlAcp": "원격 조종을 ACP 안에서 시도 (실험)",
+  "acp.remoteControlTrying": "ACP 로 원격 조종을 켠 새 대화를 열었어요. 짝짓기 안내가 여기 안 뜨면 설정 → 진단에서 로그 폴더를 열어 `[adapter]` 줄을 확인해 주세요.",
   "acp.cmd.remoteControl": "원격 조종 — 터미널에서 열기",
   "acp.continueNone": "이어서 열 지난 대화가 없어요.",
   "acp.usageDetail": "무엇이 기여했나",
