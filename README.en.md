@@ -27,7 +27,17 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.10 — Claude Code runs inside the app
+## 🚀 v2.10.1 — a terminal on every screen
+
+To see a shell you had to leave for the Terminal screen, then leave again to read a journal entry or a plan. Now **⌘J** opens a terminal right on top of whatever you are looking at.
+
+- **Pick where it docks** — **bottom** (wide) or **left** (tall). Drag the edge to resize; it remembers where and how big you left it.
+- **Detach it into its own window** — the **shell keeps running, scrollback and all**. The app keeps a placeholder telling you where it went, with a button to bring it back.
+- **Terminal font size in Settings, in px** — Settings → Appearance now has a slider, a px field, and a **preview drawn in the actual terminal font**. The Terminal screen, the dock, and detached windows all share one value.
+- **Claude Code's to-do list shows up** — the plan the agent builds now appears once per turn, and Claude Code inside the app **writes work journal entries itself** (wired to ocul-pm's journaling tools).
+- **Hitting a limit — or a model swap — is recorded in the conversation** — usage limits, auth failures, provider overload, and **model fallbacks** used to be silent.
+
+## v2.10 — Claude Code runs inside the app
 
 The AI panel used to be just a chat bolted onto an LLM provider — actual coding all happened in a terminal CLI, and the app only picked up the trail through file watching and hooks. There's now a new screen, **Claude Code**, in the sidebar. Ask it to do something there and a real `claude` runs inside the app — editing files, calling tools, asking for approval (via the Agent Client Protocol). It reuses your existing subscription login, and the adapter installs itself on first run.
 
@@ -86,7 +96,7 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 - **Code search** — three modes: semantic (local embeddings), symbol (AST), and full-text (FTS5).
 - **Code map** — a dependency graph that goes beyond imports to calls, inheritance, and implementations. Pick a file and see "changing this affects N files" first.
 - **Docs** — browse your project's `docs/` folder like a wiki.
-- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
+- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. **⌘J docks it onto any screen (bottom or left), and it detaches into its own window** without dropping the shell. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
 - **Claude Code** — runs a real `claude` inside the app as an agent (Agent Client Protocol). Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.
 - **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails. This is the screen where you ask it things.
 - **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. The **Shop tab** installs vetted third-party skills matched to your stack, 25 of them, in one click.
