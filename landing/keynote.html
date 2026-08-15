@@ -509,94 +509,6 @@
   </div>
 </section>
 
-<!-- ══════════════ 부록 · 홍보 킷 ══════════════ -->
-<section class="kit">
-  <div class="kit-inner">
-    <h2>부록 — 바로 붙여넣는 홍보 킷</h2>
-    <p>채널별로 다듬어 둔 카피입니다. 복사 버튼으로 그대로 가져가세요.</p>
-
-    <div class="kit-block">
-      <div class="kit-head"><h3>X / Twitter 스레드 (한국어)</h3><button data-copy="tw-ko">복사</button></div>
-      <pre id="tw-ko">어제 당신의 에이전트는 코드 3,000줄을 고쳤습니다.
-당신이 설명할 수 있는 건 몇 줄인가요?
-
-에이전트 시대에 우리는 속도를 얻고 기억을 잃었습니다.
-그래서 만들었습니다 — Ocul-PM. 🧵
-
-1/ 기록은 공짜여야 합니다.
-에이전트가 일을 마치면 작업 일지가 이미 쓰여 있습니다.
-무엇을 왜 고쳤는지, 어느 모델이 했는지 — 전부 내 폴더의 마크다운으로.
-
-2/ 아침에 열면 어제가 정리되어 있습니다.
-스탠드업은 복사 버튼 하나. 기록은 PR 본문·주간 보고·회고가 됩니다.
-백미러가 핸들이 됩니다.
-
-3/ 믿지 말고 보세요.
-커밋 전에 앱 안에서 diff 로 확인하고,
-코드 맵이 "이 파일 바꾸면 12개 파일에 영향"을 미리 알려 줍니다.
-
-4/ 그리고 에이전트를 앱 안으로 들였습니다.
-진짜 Claude Code 가 앱 안에서 구동됩니다.
-v2.11 — 고치는 내용(diff)이 카드에 그대로 보이고,
-승인 카드에는 실행될 명령이 실립니다. 블라인드 승인의 끝.
-
-5/ 계정 없음. 서버 없음. 텔레메트리 없음.
-전부 .oculpm/ 폴더의 마크다운 — 앱을 지워도 기록은 당신 것.
-
-무료입니다. macOS.
-→ oculpm.com</pre>
-    </div>
-
-    <div class="kit-block">
-      <div class="kit-head"><h3>X / Twitter thread (English)</h3><button data-copy="tw-en">Copy</button></div>
-      <pre id="tw-en">Yesterday your coding agent changed 3,000 lines.
-How many can you explain?
-
-We gained speed and lost memory.
-So I built Ocul-PM — a local-first AI project manager for the agent era. 🧵
-
-1/ Journaling should be free.
-The moment your agent finishes, the work journal is already written —
-what changed, why, which agent, which model. Plain markdown, in your repo.
-
-2/ Open the app in the morning and yesterday is already organized.
-Standup is one copy button. Your history becomes PR bodies, weekly reports, retros.
-
-3/ Don't trust. Verify.
-Review every change as a local diff before you commit.
-The code map warns you: "touch this file, 12 files feel it."
-
-4/ And we put the agent inside.
-Real Claude Code runs in-app. v2.11 renders every edit as a diff card,
-and approval cards show the exact command before you allow it.
-No more blind approvals.
-
-5/ No account. No server. No telemetry.
-Everything lives in .oculpm/ as markdown. Delete the app — your memory stays.
-
-Free. macOS.
-→ oculpm.com</pre>
-    </div>
-
-    <div class="kit-block">
-      <div class="kit-head"><h3>GeekNews / 커뮤니티 소개글</h3><button data-copy="gn">복사</button></div>
-      <pre id="gn">Ocul-PM — 에이전트가 한 일을 기억하는 로컬-우선 AI 프로젝트 매니저 (무료 · macOS)
-
-Claude Code·Codex·Cursor 로 코딩하다 보면 코드는 빨라지는데 "왜 이렇게 됐더라"가 사라집니다. Ocul-PM 은 그 기억을 자동으로 남기는 데스크톱 앱입니다.
-
-- 자동 작업 일지: 에이전트가 작업을 끝내면 일지가 이미 쓰여 있음 (분류·모델·파일, 마크다운)
-- Today 브리프: 어제 작업·커밋을 한 장으로, 스탠드업은 복사 버튼 하나
-- 로컬 diff 검증 + 코드 맵: 커밋 전 확인, "바꾸면 몇 개 파일에 영향"을 미리
-- 앱 속 Claude Code: 진짜 claude 가 앱 안에서 구동. v2.11 부터 편집 diff 가 카드에 그대로 보이고 승인 카드에 실행될 명령·변경 내용이 실림
-- ⌘J 터미널: 어느 화면에서나 도크로, 창으로 분리해도 셸 유지
-- 로컬-우선: 계정·서버·텔레메트리 없음. 전부 .oculpm/ 폴더의 마크다운
-
-무료입니다: https://oculpm.com
-GitHub: https://github.com/bunhine0452/Ocul-PM</pre>
-    </div>
-  </div>
-</section>
-
 <script>
   // 스크롤 리빌 — 모션 최소화 설정이면 CSS 가 이미 꺼 둔다.
   const io = new IntersectionObserver(
@@ -605,19 +517,6 @@ GitHub: https://github.com/bunhine0452/Ocul-PM</pre>
   );
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
-  // 홍보 킷 복사 버튼.
-  document.querySelectorAll("[data-copy]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const src = document.getElementById(btn.dataset.copy);
-      if (!src) return;
-      try {
-        await navigator.clipboard.writeText(src.textContent.trim());
-        const was = btn.textContent;
-        btn.textContent = "복사됨 ✓";
-        setTimeout(() => (btn.textContent = was), 1400);
-      } catch {}
-    });
-  });
 </script>
 
 <!-- Vercel Web Analytics -->
