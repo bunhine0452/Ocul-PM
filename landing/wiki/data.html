@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>데이터와 파일 구조 — Ocul-PM 위키</title>
+<meta name="description" content=".oculpm 폴더의 구조, 백업과 이동, 로컬-우선이 실제로 뜻하는 것." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/data" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:title" content="데이터와 파일 구조 — Ocul-PM 위키" />
+<meta property="og:description" content=".oculpm 폴더의 구조, 백업과 이동, 로컬-우선이 실제로 뜻하는 것." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.11.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki/">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link on" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>데이터와 파일 구조</h1>
+      <p class="wk-updated">마지막 수정 2026-08-16</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</a><a href="#oculpm-구조">`.oculpm/` 구조</a><a href="#백업과-이동">백업과 이동</a><a href="#무엇이-어디에-있나">무엇이 어디에 있나</a><a href="#밖으로-나가는-것">밖으로 나가는 것</a></nav>
+      <h2 id="원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</h2>
+<p>Ocul-PM 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다. 그래서:</p>
+<ul><li>앱을 지워도 기록은 남습니다</li><li>기록을 git 에 커밋해 팀과 나눌 수도 있습니다</li><li>에디터로 직접 읽고 고칠 수 있습니다 (평범한 마크다운입니다)</li></ul>
+<h2 id="oculpm-구조"><code>.oculpm/</code> 구조</h2>
+<pre class="wk-code"><code>.oculpm/
+├─ journal/      작업 일지 — 날짜/분류별 .md
+│  └─ 20260816/
+│     ├─ Features_to_add/
+│     ├─ Bugs/
+│     └─ …
+├─ planner/      살아있는 계획 문서 .md
+├─ discussion/   결정 전 토의 문서 .md
+├─ agents/       에이전트 기록 규칙의 마스터 템플릿
+└─ index/        앱이 관리하는 캐시 (직접 수정 금지)</code></pre>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p><code>index/</code> 만은 앱이 관리합니다 — 직접 고치거나 지우지 마세요. 나머지는 전부 여러분의 파일입니다.</p></div></div>
+<h2 id="백업과-이동">백업과 이동</h2>
+<p>폴더를 복사하면 끝입니다. <code>.oculpm/</code> 를 통째로 다른 컴퓨터의 같은 프로젝트에 옮기면 앱이 읽어서 캐시를 다시 만듭니다. git 에 포함해 두는 것이 가장 간단한 백업입니다.</p>
+<h2 id="무엇이-어디에-있나">무엇이 어디에 있나</h2>
+<div class="wk-table"><table><thead><tr><th>데이터</th><th>위치</th><th>성격</th></tr></thead><tbody><tr><td>일지·계획·토의</td><td>프로젝트 <code>.oculpm/</code></td><td>원본 (마크다운)</td></tr><tr><td>AGENTS.md 기록 규칙</td><td>프로젝트 루트</td><td>원본</td></tr><tr><td>화면용 캐시·검색 인덱스</td><td>앱 데이터 폴더 (SQLite)</td><td>파생 — 재생성 가능</td></tr><tr><td>LLM API 키</td><td>macOS 키체인</td><td>앱 DB·파일에 저장하지 않음</td></tr><tr><td>앱 설정</td><td>앱 데이터 폴더</td><td>—</td></tr></tbody></table></div>
+<h2 id="밖으로-나가는-것">밖으로 나가는 것</h2>
+<p>셋뿐입니다: ① 여러분이 직접 설정한 LLM API 호출, ② 새 버전 확인(업데이트 체크), ③ 앱 안 Claude Code 를 쓸 때의 Anthropic 통신 (여러분의 구독 자격으로). 그 외 텔레메트리·분석·계정 서버는 없습니다. 임베딩(코드 검색)도 로컬에서 계산됩니다.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/troubleshooting"><span>← 이전</span><b>문제 해결</b></a>
+<a class="wk-pg next" href="/wiki/shortcuts"><span>다음 →</span><b>단축키</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

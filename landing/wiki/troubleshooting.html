@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>문제 해결 — Ocul-PM 위키</title>
+<meta name="description" content="일지가 안 쌓일 때, 앱 안 Claude Code 가 이상할 때, 그 밖의 자주 겪는 불편 모음." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/troubleshooting" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:title" content="문제 해결 — Ocul-PM 위키" />
+<meta property="og:description" content="일지가 안 쌓일 때, 앱 안 Claude Code 가 이상할 때, 그 밖의 자주 겪는 불편 모음." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.11.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki/">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link on" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>문제 해결</h1>
+      <p class="wk-updated">마지막 수정 2026-08-16</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#일지가-안-쌓여요">일지가 안 쌓여요</a><a href="#앱-안-claude-code-에서-plugin-mcp-login-이-안-돼요">앱 안 Claude Code 에서 `/plugin` `/mcp` `/login` 이 안 돼요</a><a href="#런타임-준비-중-이-오래-걸려요">"런타임 준비 중"이 오래 걸려요</a><a href="#앱-안-claude-code-가-로그인이-안-된대요">앱 안 Claude Code 가 로그인이 안 된대요</a><a href="#승인을-기다리는-줄-몰랐어요">승인을 기다리는 줄 몰랐어요</a><a href="#사용량이-걱정돼요">사용량이 걱정돼요</a><a href="#업데이트했더니-하던-대화가-끊겼어요">업데이트했더니 하던 대화가 끊겼어요</a><a href="#claude-code-프로세스가-죽었대요">Claude Code 프로세스가 죽었대요</a><a href="#코드-검색-코드-맵이-처음에-느려요">코드 검색·코드 맵이 처음에 느려요</a><a href="#새-대화가-지난-대화-목록에-없어요">새 대화가 지난 대화 목록에 없어요</a><a href="#여기-없는-문제라면">여기 없는 문제라면</a></nav>
+      <h2 id="일지가-안-쌓여요">일지가 안 쌓여요</h2>
+<p>순서대로 확인하세요:</p>
+<ol><li><b>추적 중인 프로젝트인가요?</b> 프로젝트 루트에 <code>.oculpm/</code> 폴더와 <code>AGENTS.md</code> 가 있어야 합니다. 없다면 시작 화면에서 폴더를 다시 불러오세요.</li><li><b>터미널 Claude Code 인가요?</b> AGENTS.md 만으로는 모델이 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인(훅 브리지)을 설치</a>하면 자동이 됩니다.</li><li><b>규칙이 오래됐나요?</b> 설정 → ocul-pm → 에이전트 탭에서 <b>규칙 다시 보내기</b>로 AGENTS.md 를 최신 규격으로 갱신할 수 있습니다.</li><li><b>다른 에이전트(Cursor 등)인가요?</b> 설정에서 해당 에이전트의 규칙 파일을 켜야 합니다. AGENTS.md 를 읽는 에이전트라면 그대로 동작합니다.</li></ol>
+<h2 id="앱-안-claude-code-에서-plugin-mcp-login-이-안-돼요">앱 안 Claude Code 에서 <code>/plugin</code> <code>/mcp</code> <code>/login</code> 이 안 돼요</h2>
+<p>정상입니다 — ACP 프로토콜은 CLI 의 대화형 명령을 나르지 못합니다. Claude Code 화면 우상단 <b>터미널 버튼</b>으로 진짜 <code>claude</code> 를 열어 거기서 실행하세요. 자세한 이유는 <a href="/wiki/claude-code">Claude Code 연동</a>에.</p>
+<h2 id="런타임-준비-중-이-오래-걸려요">"런타임 준비 중"이 오래 걸려요</h2>
+<p>첫 실행에만 어댑터를 자동 설치합니다 (npm, 고정 버전 — 수 분). 그 뒤로는 바로 붙습니다. 상태는 설정 → ocul-pm → 연동에서 확인할 수 있습니다.</p>
+<h2 id="앱-안-claude-code-가-로그인이-안-된대요">앱 안 Claude Code 가 로그인이 안 된대요</h2>
+<p>앱에는 로그인 화면이 없습니다 — 어댑터가 인증 흐름을 제공하지 않아서입니다. 터미널에서 <code>claude</code> 를 실행해 한 번 로그인하면, 앱이 그 자격을 그대로 씁니다.</p>
+<h2 id="승인을-기다리는-줄-몰랐어요">승인을 기다리는 줄 몰랐어요</h2>
+<p>에이전트가 승인 대기로 멈추면 <b>사이드바 Claude Code 줄에 깜빡이는 배지</b>가 붙습니다 (v2.11). 다른 화면에 있어도 보입니다. 승인 카드에는 실행될 명령·바뀔 내용이 그대로 실려 있으니 읽고 누르면 됩니다.</p>
+<h2 id="사용량이-걱정돼요">사용량이 걱정돼요</h2>
+<p>Claude Code 화면 툴바의 계기가 <b>오늘 · 주간 · 모델별</b> 사용률을 보여 줍니다. 누르면 초기화 시각까지 나오고, <code>/usage</code> 를 입력해도 같은 위젯이 열립니다. 이 조회는 토큰을 쓰지 않습니다.</p>
+<h2 id="업데이트했더니-하던-대화가-끊겼어요">업데이트했더니 하던 대화가 끊겼어요</h2>
+<p>업데이트 재시작은 앱과 함께 어댑터 프로세스도 새로 띄웁니다. <b>대화 자체는 디스크에 있어 그대로 돌아오지만</b>, 재시작 순간에 흐르고 있던 답변 하나는 잃습니다. 그래서 앱은 답변이 도는 동안에는 업데이트 재시작을 미룹니다.</p>
+<h2 id="claude-code-프로세스가-죽었대요">Claude Code 프로세스가 죽었대요</h2>
+<p>드물게 어댑터가 종료되면 배너가 뜹니다 (v2.11). 「다시 연결」을 누르면 어댑터를 다시 띄우고 보던 대화를 그대로 되살립니다.</p>
+<h2 id="코드-검색-코드-맵이-처음에-느려요">코드 검색·코드 맵이 처음에 느려요</h2>
+<p>처음 한 번은 로컬 임베딩 모델을 내려받고 프로젝트를 인덱싱합니다. 이후에는 변경분만 갱신해서 빠릅니다. 전부 로컬 계산이라 코드는 밖으로 나가지 않습니다.</p>
+<h2 id="새-대화가-지난-대화-목록에-없어요">새 대화가 지난 대화 목록에 없어요</h2>
+<p>한 마디도 하지 않은 새 대화는 목록에 실리지 않습니다 — 첫 마디를 보내는 순간 진짜 세션이 만들어지고 목록에 나타납니다.</p>
+<h2 id="여기-없는-문제라면">여기 없는 문제라면</h2>
+<p><a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요. 설정 → 진단의 정보를 함께 붙이면 빠르게 잡을 수 있습니다.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/claude-code"><span>← 이전</span><b>Claude Code 연동</b></a>
+<a class="wk-pg next" href="/wiki/data"><span>다음 →</span><b>데이터와 파일 구조</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocul-PM 위키 — Ocul-PM 위키</title>
+<meta name="description" content="Ocul-PM 사용 설명서 — 시작하기, Claude Code 연동, 문제 해결, 데이터 구조, 단축키." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:title" content="Ocul-PM 위키 — Ocul-PM 위키" />
+<meta property="og:description" content="Ocul-PM 사용 설명서 — 시작하기, Claude Code 연동, 문제 해결, 데이터 구조, 단축키." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.11.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link on" href="/wiki/">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Ocul-PM 위키</h1>
+      <p class="wk-updated">마지막 수정 2026-08-16</p>
+      
+      <p>Ocul-PM 을 쓰다 막히는 지점들을 모아 둔 설명서입니다. 짧게 쓰고, 자주 고칩니다. (v2.11 기준)</p>
+<h2 id="문서">문서</h2>
+<ul><li><b><a href="/wiki/getting-started">시작하기</a></b> — 설치, 프로젝트 추가, 첫 일지가 쌓이기까지</li><li><b><a href="/wiki/claude-code">Claude Code 연동</a></b> — 앱 안에서 쓰기 vs 터미널에서 쓰기, 플러그인 설치, <code>/plugin</code>·<code>/mcp</code> 가 앱 안에서 안 되는 이유</li><li><b><a href="/wiki/troubleshooting">문제 해결</a></b> — 자주 겪는 불편과 해법 모음</li><li><b><a href="/wiki/data">데이터와 파일 구조</a></b> — <code>.oculpm/</code> 폴더, 백업과 이동, 로컬-우선의 실제 의미</li><li><b><a href="/wiki/shortcuts">단축키</a></b> — 화면 이동부터 Claude Code 화면 전용 키까지</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>문서에서 틀린 곳을 찾으셨나요? 왼쪽 아래 "이 문서 고치기"로 소스를 바로 열 수 있고, <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주셔도 됩니다.</p></div></div>
+    </article>
+    <footer class="wk-pager"><span></span>
+<a class="wk-pg next" href="/wiki/getting-started"><span>다음 →</span><b>시작하기</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
