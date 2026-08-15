@@ -43,7 +43,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.10.3",
+  "softwareVersion": "2.11.0",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -58,7 +58,7 @@
     "⌘K 커맨드 팔레트 (일지·계획·문서 바로가기)",
     "내장 PTY 터미널 (⌘J 도크 — 아래·왼쪽·오른쪽 · 별도 창으로 분리 · 세션 유지)",
     "멀티-LLM AI 패널 (Anthropic·OpenAI·Gemini·OpenRouter + 폴백 체인)",
-    "Claude Code 를 앱 안에서 에이전트로 구동 (Agent Client Protocol — 도구 카드 · 권한 승인 · Effort/모드 · 세션 탭)",
+    "Claude Code 를 앱 안에서 에이전트로 구동 (Agent Client Protocol — 편집 diff 인라인 · 승인 카드에 명령/변경 내용 · 도구 카드 · Effort/모드 · 세션 탭 · 턴 영수증)",
     "Claude Code · Claude Desktop 직접 연동 (MCP 서버 · 공식 훅 · transcript 일지 초안)",
     "Claude Code 플러그인 (/plugin 두 줄 설치 — 훅 브리지 · MCP 도구 5종 · 스킬 5종)",
     "플래너 ▶실행 디스패치 (계획 항목 → 터미널 프리필 → 에이전트 실세션)",
@@ -88,7 +88,7 @@
     {
       "@type": "Question",
       "name": "Claude Code 를 앱 안에서 직접 쓸 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "네. v2.10.0 부터 사이드바의 Claude Code 화면에서 진짜 claude 가 앱 안에서 에이전트로 구동됩니다(Agent Client Protocol). 파일 수정·명령 실행 같은 도구 호출과 권한 승인이 대화 안 카드로 오고, 사고 강도(Effort)와 권한 모드를 한 트랙에서 고릅니다. 기존 구독 로그인을 그대로 쓰고 어댑터는 첫 실행에 자동 설치됩니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "네. v2.10.0 부터 사이드바의 Claude Code 화면에서 진짜 claude 가 앱 안에서 에이전트로 구동됩니다(Agent Client Protocol). 파일 수정·명령 실행 같은 도구 호출과 권한 승인이 대화 안 카드로 오고, v2.11.0 부터는 편집 diff(지운 줄·넣은 줄)가 카드에 그대로 그려지고 승인 카드에도 실행될 명령·변경 내용이 실립니다. 사고 강도(Effort)와 권한 모드를 한 트랙에서 고르고, 턴이 끝나면 무엇을 얼마나 했는지 한 줄 영수증이 남습니다. 기존 구독 로그인을 그대로 쓰고 어댑터는 첫 실행에 자동 설치됩니다." }
     },
     {
       "@type": "Question",
@@ -177,7 +177,7 @@
     <div class="hero-grid">
       <div class="hero-copy">
         <a class="announce-pill reveal" href="#update">
-          <span class="ap-new">NEW</span> v2.10.3 — 더블클릭은 창 크기만
+          <span class="ap-new">NEW</span> v2.11.0 — 에이전트가 고치는 내용이 보인다
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
         </a>
         <span class="eyebrow on-dark reveal">로컬-우선 AI 프로젝트 매니저</span>
@@ -291,10 +291,12 @@
           기록은 시작일 뿐이었습니다. <b>Claude Code 플러그인</b>이 설치 문턱을 두 줄로 낮추고,
           플래너의 <b>▶실행</b> 버튼이 계획 항목을 곧바로 에이전트 실세션으로 만듭니다 —
           백미러가 핸들이 되는 흐름. v2.8 은 여기에 <b>스킬 샵</b> · <b>영어 지원</b>을, v2.9 는 <b>창과 탭</b>을,
-          v2.10 은 <b>Claude Code 자체를 앱 안 에이전트로</b>, v2.10.1~2 는 <b>어느 화면에서나 쓰는 터미널</b>을 더했습니다.
+          v2.10 은 <b>Claude Code 자체를 앱 안 에이전트로</b>, v2.10.1~2 는 <b>어느 화면에서나 쓰는 터미널</b>을,
+          v2.11 은 <b>편집 diff 와 내용이 보이는 승인 카드</b>를 더했습니다.
         </p>
         <ul class="update-points">
-          <li class="reveal d1"><b>v2.10.3 — 더블클릭은 창 크기만, 그리고 빈 화면의 끝</b> · 창 위쪽 <b>빈 곳을 더블클릭</b>하면 창 크기 조절과 함께 <b>새 탭이 하나씩 늘어나던</b> 문제를 고쳤습니다 — 그 자리는 곧 타이틀바라 더블클릭은 창 크기만 조절해야 합니다(새 탭은 <span class="mono">+</span> · <span class="mono">⌘T</span>). 프로젝트를 열기 전 <b>시작 탭의 설정 → ocul-pm</b> 으로 들어가면 <b>창 전체가 하얗게 비어</b> 재시작밖에 길이 없던 것도 고쳤습니다. 나아가 화면 한 조각에서 오류가 나도 <b>그 조각에만 갇히고</b> 그 자리에 「다시 시도」가 뜹니다 — 다른 탭과 탭 줄은 그대로 쓸 수 있어, 무엇이 잘못되든 앱을 다시 켜는 것으로 몰리지 않습니다.</li>
+          <li class="reveal d1"><b>v2.11.0 — 에이전트가 고치는 내용이 보인다, 블라인드 승인의 끝</b> · Claude Code 가 파일을 편집하면 그 <b>변경(diff)이 도구 카드에 그대로</b> 그려집니다 — 지운 줄은 빨강, 넣은 줄은 초록, 줄에는 <span class="mono">+12 −3</span> 규모. 승인 카드에는 <b>실행될 명령·바뀔 내용이 카드 안에</b> 실려 제목만 보고 허용을 누르던 일이 끝났습니다. 승인 대기는 <b>사이드바 배지</b>로 알리고, <b>한글 조합 중 Enter 가 문장을 전송하던 버그</b>도 고쳤습니다. 입력창 자동 확장 · ↑/↓ 지시 되부르기 · 파일 드래그&amp;드롭 · 턴 영수증("도구 7 · 파일 3 · 1분 12초") · 답변 복사 · 죽은 프로세스 감지와 「다시 연결」까지 — 대화면의 마찰을 한꺼번에 걷어냈습니다.</li>
+          <li class="reveal d2"><b>v2.10.3 — 더블클릭은 창 크기만, 그리고 빈 화면의 끝</b> · 창 위쪽 <b>빈 곳을 더블클릭</b>하면 창 크기 조절과 함께 <b>새 탭이 하나씩 늘어나던</b> 문제를 고쳤습니다 — 그 자리는 곧 타이틀바라 더블클릭은 창 크기만 조절해야 합니다(새 탭은 <span class="mono">+</span> · <span class="mono">⌘T</span>). 프로젝트를 열기 전 <b>시작 탭의 설정 → ocul-pm</b> 으로 들어가면 <b>창 전체가 하얗게 비어</b> 재시작밖에 길이 없던 것도 고쳤습니다. 나아가 화면 한 조각에서 오류가 나도 <b>그 조각에만 갇히고</b> 그 자리에 「다시 시도」가 뜹니다 — 다른 탭과 탭 줄은 그대로 쓸 수 있어, 무엇이 잘못되든 앱을 다시 켜는 것으로 몰리지 않습니다.</li>
           <li class="reveal d2"><b>v2.10.2 — 도크는 오른쪽에도, 분리 창은 끌어서 이동</b> · 자리 바꾸기 버튼이 <b>아래 → 왼쪽 → 오른쪽</b> 으로 한 바퀴 돕니다(세로 두 자리는 폭을 함께 기억). 떼어낸 터미널 창은 타이틀바가 없는 모양이라 창을 잡는 자리를 앱이 직접 내줘야 하는데 그게 빠져 있어 <b>창을 아예 움직일 수 없었습니다</b> — 이제 탭 줄의 빈 곳을 끌면 따라옵니다. 그리고 <b>macOS 창 분할 단축키(⌃⌥←→↑↓)</b> 가 이 앱에서만 안 되던 문제: 그건 시스템 전역 키가 아니라 「창」 메뉴 안 <b>「이동 및 크기 조절」</b> 항목의 단축키인데, <span class="mono">⌘W</span> 를 되찾으려 메뉴를 직접 구성하면서 어느 것이 창 메뉴인지 알려 주지 않아 그 항목이 아예 없었습니다.</li>
           <li class="reveal d2"><b>v2.10.1 — 어느 화면에서나 터미널</b> · 셸을 보려면 터미널 화면으로 들어가야 했고, 일지나 플래너를 보려면 다시 나와야 했습니다. 이제 <b>⌘J</b> 로 지금 보고 있는 화면 위에 터미널이 열립니다. 붙이는 자리는 <b>아래</b>(가로로 넓게) 또는 <b>왼쪽</b>(세로로 길게) 중에 고르고, 경계를 끌어 크기를 맞춥니다. <b>창으로 떼어내도 셸은 끊기지 않고</b> 스크롤백까지 따라옵니다. 설정 → 모양에서 <b>터미널 글자 크기를 px 로</b> 정하고 실제 글꼴 미리보기로 확인합니다. 함께: <b>Claude Code 의 할 일 목록</b>이 보이고 앱 안 Claude Code 가 <b>작업 일지를 직접 씁니다</b>, 사용 한도·인증 실패·<b>모델 폴백</b>이 대화에 기록으로 남습니다, 부팅 화면이 앱 아이콘이 그려지는 모션으로 바뀌었습니다.</li>
           <li class="reveal d2"><b>v2.10.0 — Claude Code 를 앱 안에서 직접 구동</b> · 사이드바에 새 화면 <b>Claude Code</b>. 여기서 시키면 진짜 <span class="mono">claude</span> 가 앱 안에서 파일을 고치고 도구를 쓰고 승인을 구합니다(Agent Client Protocol). 도구 호출·권한 승인이 대화 안 <b>카드</b>로 오고, 상단바는 <b>세션 탭</b> 줄이 됩니다. <b>Effort · 권한 모드</b>를 한 트랙에서 고르고, 최상위 단계 <b>울트라코드</b>는 설정이 아니라 프롬프트 키워드입니다. 이미지 붙여넣기, 모델 전환 구분선, 위젯형 <span class="mono">/usage</span> 도 함께. CLI 자신의 화면에만 사는 기능(<span class="mono">/remote-control</span> 등)은 진짜 터미널 탭에서 <span class="mono">claude</span> 를 띄우는 <b>터미널 탈출구</b>로 처리합니다. 업데이트해도 대화가 안 끊기고, 기존 구독 로그인을 그대로 씁니다.</li>
@@ -314,7 +316,7 @@
         </ul>
         <div class="update-cta reveal d4">
           <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-            <span><span class="lg">v2.10.3 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
+            <span><span class="lg">v2.11.0 받기</span><span class="sub">기존 사용자는 자동 업데이트</span></span>
           </a>
           <a class="update-notes" href="https://github.com/bunhine0452/Ocul-PM/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">전체 변경 이력 →</a>
         </div>
@@ -479,13 +481,14 @@
       <!-- 도구 카드 · 권한 승인 -->
       <div class="cell c-span2 reveal d1">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5"/><path d="m8.5 17 2 2 4-4"/></svg></div>
-        <span class="cell-tag">세션 탭 · 도구 카드</span>
-        <h3>도구 호출이 카드로</h3>
-        <p>파일 수정·명령 실행이 접고 펼 수 있는 카드로 오고, 도구를 쓰기 전 승인 요청도 대화 안 카드로 옵니다. 상단바는 세션마다 탭이 되어 여러 대화를 나란히 둡니다.</p>
+        <span class="cell-tag">v2.11 · diff · 승인 카드</span>
+        <h3>고치는 내용이 카드로</h3>
+        <p>파일 편집은 <b>변경(diff)이 카드에 그대로</b> 그려지고, 승인 요청에는 실행될 명령·바뀔 내용이 함께 실립니다 — 제목만 보고 허용을 누르지 않습니다. 턴이 끝나면 한 줄 영수증이 남습니다.</p>
         <div class="cell-visual">
           <div class="mini-report">
             <div class="rr"><span class="rl">Edit workday.ts</span><span class="rv">+12 −4</span><span class="rc">완료</span></div>
             <div class="rr"><span class="rl">Bash: pnpm test</span><span class="rv">853 passed</span><span class="rc">완료</span></div>
+            <div class="rr"><span class="rl">턴 영수증</span><span class="rv">도구 7 · 파일 3</span><span class="rc">1분 12초</span></div>
           </div>
         </div>
       </div>
@@ -679,7 +682,7 @@
       <!-- 내장 터미널 -->
       <div class="cell c-span2 reveal d2">
         <div class="cell-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="4" width="19" height="16" rx="3"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
-        <span class="cell-tag">v2.10.3 · ⌘J 도크 · 창 분리</span>
+        <span class="cell-tag">⌘J 도크 · 창 분리 · 세션 유지</span>
         <h3>내장 터미널</h3>
         <p>⌘J 로 어느 화면에서나 아래·왼쪽·오른쪽에 띄우고, 창으로 떼어내도 셸은 그대로 이어집니다.</p>
         <div class="cell-visual">
@@ -900,7 +903,7 @@
 <section class="cta" id="download">
   <svg class="cta-arc" viewBox="0 0 760 760" aria-hidden="true"><use href="#arc-motif"/></svg>
   <div class="wrap">
-    <span class="eyebrow on-dark reveal">v2.10.3 — 지금 다운로드 · macOS (Apple Silicon)</span>
+    <span class="eyebrow on-dark reveal">v2.11.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
     <h2 class="reveal d1">AI에게 빼앗긴 <em>"왜 이걸 만들었더라"</em>의<br/>답을 다시 손에 쥐세요.</h2>
     <p class="cta-sub reveal d2">설치하고, 프로젝트 폴더를 열고, 에이전트를 부르세요. 나머지는 Ocul-PM이 기록합니다.</p>
     <div class="cta-btns reveal d2">

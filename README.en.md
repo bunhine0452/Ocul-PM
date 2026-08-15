@@ -27,7 +27,15 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.10.3 — double-click resizes the window, and no more blank screens
+## 🚀 v2.11.0 — see what it changes, no more blind approvals
+
+- **Edit diffs on screen** — when Claude Code edits a file, the diff renders right in the tool card (removed lines in red, added in green) with a `+12 −3` badge on the row. This information used to be dropped entirely.
+- **Approval cards show the payload** — the diff for edits, the exact command for executions, inside the card. No more approving on a title alone. Execute/delete approvals wear a different face.
+- **Waiting-for-approval badge in the sidebar** — a blinking badge tells you the agent is blocked on *you*, even from another screen.
+- **Korean IME Enter fix** — the Enter that commits a Hangul composition no longer sends the message.
+- **A pile of friction removed** — auto-growing composer · ↑/↓ prompt recall · drag & drop file attachments · per-conversation drafts · queue delivery pinned to its conversation · turn receipts ("7 tools · 3 files · 1m 12s") · copy buttons for responses and tool output · "Send again" on errors · dead-process detection with one-click reconnect.
+
+## v2.10.3 — double-click resizes the window, and no more blank screens
 
 - **Double-clicking the empty strip at the top of the window** — that strip is the title bar, but "double-click = new tab" was layered on top of it, so one double-click **resized the window and opened a tab at the same time.** Now it only resizes (new tabs are still `+` and `⌘T`).
 - **Start tab → Settings → ocul-pm** — opening it before any project was picked turned **the entire window blank**, with a restart as the only way out. Now it just says to pick a project first.
