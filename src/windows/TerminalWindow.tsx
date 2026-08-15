@@ -76,7 +76,7 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
 
   return (
     <div className={"term-window" + (isMac ? " is-mac" : "")}>
-      {ready ? <TerminalSurface projectRoot={root} /> : null}
+      {ready ? <TerminalSurface projectRoot={root} dragRegion /> : null}
     </div>
   );
 }

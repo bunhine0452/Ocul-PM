@@ -111,6 +111,15 @@ export interface TerminalSurfaceProps {
   headerActions?: React.ReactNode;
   /** 포커스된 페인의 셸 통합이 켜져 있는지 — 화면 툴바 부제에 쓴다. */
   onShellActiveChange?: (active: boolean) => void;
+  /**
+   * 탭 줄의 빈 자리를 **창 드래그 영역**으로 쓴다 (분리 터미널 창 전용).
+   *
+   * 그 창은 `titleBarStyle: Overlay` 라 잡을 타이틀바가 없고, 탭 스트립도
+   * 툴바도 없어 탭 줄이 유일한 상단 크롬이다 — 여기에 리전을 안 주면 창을
+   * **아예 옮길 수 없다**. 도크·터미널 화면에서는 켜면 안 된다: 그쪽 탭 줄을
+   * 끌면 앱 창 전체가 따라 움직인다.
+   */
+  dragRegion?: boolean;
 }
 
 export function TerminalSurface({
@@ -119,6 +128,7 @@ export function TerminalSurface({
   keyboardScope = "always",
   headerActions,
   onShellActiveChange,
+  dragRegion = false,
 }: TerminalSurfaceProps) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
@@ -569,7 +579,15 @@ export function TerminalSurface({
 
   return (
     <div className={"term-wrap" + (compact ? " compact" : "")} ref={rootRef}>
-      <div className="term-tabs" role="tablist" aria-label={t("term.tablist")}>
+      {/* Tauri 는 클릭된 엘리먼트 **자신**의 속성만 본다 (조상을 타고 오르지
+          않는다) — 그래서 컨테이너와 빈 스페이서에 각각 붙이고, 탭·버튼에는
+          일부러 붙이지 않아 클릭이 그대로 산다. */}
+      <div
+        className="term-tabs"
+        role="tablist"
+        aria-label={t("term.tablist")}
+        data-tauri-drag-region={dragRegion || undefined}
+      >
         {terminalTabs.map((tab) => (
           <div
             key={tab.id}
@@ -639,7 +657,7 @@ export function TerminalSurface({
 
         {/* 도구 묶음 — 예전엔 화면 툴바에만 있어서 도크에서는 쓸 수 없었다.
             탭 줄로 옮기니 세 면(화면·도크·분리 창)이 같은 조작을 갖는다. */}
-        <span className="term-tabs-spacer" />
+        <span className="term-tabs-spacer" data-tauri-drag-region={dragRegion || undefined} />
         <div className="term-tools">
           <button
             type="button"

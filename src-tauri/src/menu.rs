@@ -11,7 +11,7 @@
 //! (실행 취소·잘라내기·복사·붙여넣기·전체 선택)가 빠지면 웹뷰 안 텍스트
 //! 입력에서 `⌘C`/`⌘V` 가 통째로 죽는다. 아래 Edit 서브메뉴는 장식이 아니다.
 
-use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
 use tauri::{AppHandle, Manager};
 
 pub const NEW_TAB: &str = "menu:new-tab";
@@ -105,7 +105,13 @@ fn labels(lang: &str) -> &'static Labels {
     }
 }
 
-pub fn build(app: &AppHandle, lang: &str) -> tauri::Result<Menu<tauri::Wry>> {
+/// 메뉴 트리를 만든다. 반환값에 **창 서브메뉴가 함께 오는 이유**는 macOS 가
+/// 그것을 따로 지정받아야 "이동 및 크기 조절"(창 분할 단축키)을 넣어 주기
+/// 때문이다 — `apply` 를 쓰면 그 단계까지 자동이다.
+pub fn build(
+    app: &AppHandle,
+    lang: &str,
+) -> tauri::Result<(Menu<tauri::Wry>, Submenu<tauri::Wry>)> {
     let l = labels(lang);
 
     // ① 앱 메뉴 — macOS 는 첫 서브메뉴를 앱 이름으로 대체한다.
@@ -159,9 +165,38 @@ pub fn build(app: &AppHandle, lang: &str) -> tauri::Result<Menu<tauri::Wry>> {
         .minimize_with_text(l.minimize)
         .build()?;
 
-    MenuBuilder::new(app)
+    let menu = MenuBuilder::new(app)
         .items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
-        .build()
+        .build()?;
+    Ok((menu, window_menu))
+}
+
+/// 메뉴를 만들고 붙인다 — **창 메뉴 지정까지 여기서 끝낸다.**
+///
+/// macOS 의 창 분할 단축키(⌃⌥←→↑↓)는 시스템 전역 키가 아니라 **"창" 메뉴 안
+/// "이동 및 크기 조절" 항목의 액셀러레이터**다. AppKit 은 그 항목들을
+/// `NSApp.windowsMenu` 로 지정된 서브메뉴에만 끼워 넣는다. 우리는 ⌘W 를
+/// 되찾으려고 메뉴를 직접 구성했는데(파일 메뉴), 그러면서 어느 것이 창
+/// 메뉴인지 알려 주지 않아 그 항목들이 아예 생기지 않았다 — 사용자 눈에는
+/// "이 앱에서만 창 분할 단축키가 안 먹는" 것으로 보인다.
+///
+/// 언어를 바꾸면 서브메뉴를 새로 만들므로 지정도 매번 다시 해야 한다. 그래서
+/// 빌드와 지정을 한 함수로 묶는다 — 호출처가 하나를 빼먹을 수 없게.
+pub fn apply(app: &AppHandle, lang: &str) -> tauri::Result<()> {
+    let (menu, window_menu) = build(app, lang)?;
+    app.set_menu(menu)?;
+    // 메인 메뉴에 붙인 **뒤에** 지정한다 — 순서가 뒤바뀌면 AppKit 이 아직
+    // 메뉴바에 없는 NSMenu 를 창 메뉴로 잡는다.
+    #[cfg(target_os = "macos")]
+    {
+        // 지정 실패가 앱을 못 뜨게 할 이유는 없다 — 단축키 하나를 잃을 뿐이다.
+        if let Err(e) = window_menu.set_as_windows_menu_for_nsapp() {
+            tracing::warn!(target: "menu", error = %e, "창 메뉴 지정 실패 — ⌃⌥ 창 분할이 안 먹을 수 있다");
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = window_menu;
+    Ok(())
 }
 
 /// 메뉴 이벤트 → 탭 커맨드. 메뉴에는 대상 창이 실려 오지 않으므로 여기서
@@ -219,6 +254,27 @@ pub fn handle_event(app: &AppHandle, id: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 창 메뉴 지정을 잃지 않게 하는 소스 가드.
+    ///
+    /// macOS 의 창 분할 단축키(⌃⌥←→↑↓)는 `NSApp.windowsMenu` 로 지정된
+    /// 서브메뉴에만 AppKit 이 끼워 넣는다. `set_menu` 를 직접 부르는 새 경로가
+    /// 생기면 그 창에서만 조용히 단축키가 사라진다 — 화면으로는 티가 안 나고
+    /// 사용자가 "이 앱만 창 분할이 안 된다" 고 느낄 뿐이다. 그래서 붙이는 길을
+    /// `apply` 하나로 강제한다.
+    #[test]
+    fn set_menu_is_reached_only_through_apply() {
+        for (name, src) in [
+            ("lib.rs", include_str!("lib.rs")),
+            ("commands/window.rs", include_str!("commands/window.rs")),
+        ] {
+            assert!(
+                !src.contains("set_menu("),
+                "{name} 이 set_menu 를 직접 부른다 — menu::apply 를 쓰세요 \
+                 (창 메뉴 지정이 빠지면 ⌃⌥ 창 분할 단축키가 죽습니다)"
+            );
+        }
+    }
 
     #[test]
     fn language_picks_label_set() {

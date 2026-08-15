@@ -558,11 +558,8 @@ pub fn run() {
             // 언어를 `apply_menu_language` 로 알려 주면 다시 만든다 (Rust 는
             // 프런트의 i18n 사전도 OS 로케일도 읽지 않는다).
             let handle = app.handle().clone();
-            match crate::menu::build(&handle, "ko") {
-                Ok(m) => {
-                    let _ = handle.set_menu(m);
-                }
-                Err(e) => tracing::warn!(target: "menu", error = %e, "메뉴 생성 실패"),
+            if let Err(e) = crate::menu::apply(&handle, "ko") {
+                tracing::warn!(target: "menu", error = %e, "메뉴 생성 실패");
             }
             handle.on_menu_event(|app, event| {
                 crate::menu::handle_event(app, event.id().as_ref());

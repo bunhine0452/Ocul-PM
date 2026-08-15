@@ -674,8 +674,9 @@ pub async fn get_window_tabs(app: AppHandle, window: String) -> Result<WindowTab
 #[tauri::command]
 #[specta::specta]
 pub async fn apply_menu_language(app: AppHandle, lang: String) -> Result<(), String> {
-    let menu = crate::menu::build(&app, &lang).map_err(|e| e.to_string())?;
-    app.set_menu(menu).map_err(|e| e.to_string())?;
+    // `apply` 가 창 메뉴 지정(macOS ⌃⌥ 창 분할)까지 함께 한다 — 언어를 바꿀
+    // 때마다 서브메뉴를 새로 만들므로 지정도 매번 다시 해야 한다.
+    crate::menu::apply(&app, &lang).map_err(|e| e.to_string())?;
     Ok(())
 }
 
