@@ -348,6 +348,10 @@ fn kind_of(event: &ocul_pm_lib::acp::session::AcpEvent) -> &'static str {
         E::Other { .. } => "other",
         E::Done { .. } => "done",
         E::Failed { .. } => "failed",
+        // e883dd7 이 추가한 두 갈래. 와일드카드로 덮지 않는다 — 이 match 가
+        // 비망라라서 컴파일이 깨지는 것이 새 이벤트를 놓치지 않게 하는 장치다.
+        E::Failure { .. } => "failure",
+        E::Plan { .. } => "plan",
     }
 }
 
