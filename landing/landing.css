@@ -39,7 +39,9 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-img { max-width: 100%; display: block; }
+/* height 속성은 CLS 방지용 — 가로가 컨테이너에 눌리면 세로도 비율을
+   따라와야 한다. auto 가 없으면 세로가 속성값에 고정돼 사진이 늘어난다. */
+img { max-width: 100%; height: auto; display: block; }
 a { color: inherit; }
 .mono { font-family: var(--mono); font-size: 0.92em; }
 b, strong { font-weight: 700; color: var(--ink); }
