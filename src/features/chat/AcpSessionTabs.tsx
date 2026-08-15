@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { X } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import { useT } from "@/i18n";
@@ -21,7 +22,12 @@ export interface AcpTab {
   title: string | null;
 }
 
-export function AcpSessionTabs({
+/**
+ * 답이 흐르는 동안 대화 화면은 초당 수십 번 다시 그려진다 — 탭 줄은 그 리듬과
+ * 아무 상관이 없다. props 가 그대로면 여기서 멈춘다 (부모가 `tabs` 배열과
+ * 콜백을 안정적으로 넘겨 준다).
+ */
+export const AcpSessionTabs = memo(function AcpSessionTabs({
   tabs,
   activeId,
   onPick,
@@ -70,4 +76,4 @@ export function AcpSessionTabs({
       })}
     </div>
   );
-}
+});

@@ -247,6 +247,28 @@
   padding: 1px 7px; border-radius: 9px; min-width: 20px; text-align: center;
 }
 .nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: inherit; }
+/* 작업 중 표시 (2026-08-16) — 화면을 옮겨도 에이전트는 돈다. 숫자는 몇 개인지,
+   도는 고리는 "지금 이 순간"인지를 말한다. 색은 Claude 주황 고정: 프리셋 테마가
+   무엇이든 이 신호만은 같은 색이어야 눈이 바로 찾는다. */
+.nav-badge.working { background: rgba(203, 123, 93, 0.16); color: #cb7b5d; }
+.nav-item.active .nav-badge.working { background: rgba(255,255,255,0.25); color: inherit; }
+.nav-ico.working { position: relative; }
+.nav-ico.working::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: #cb7b5d;
+  animation: nav-working-spin 0.9s linear infinite;
+}
+.nav-item.active .nav-ico.working::after { border-top-color: currentColor; }
+@keyframes nav-working-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  /* 도는 대신 숨을 쉰다 — 움직임에 민감한 사용자에게도 "살아 있음"은 전해야 한다. */
+  .nav-ico.working::after { animation: nav-working-pulse 1.6s ease-in-out infinite; }
+  @keyframes nav-working-pulse { 50% { opacity: 0.25; } }
+}
 /* v2 U1 — ⌘번호 힌트. 상시 노출은 소음이라 hover 시에만 보인다. */
 .nav-kbd {
   margin-left: auto; font-size: 10px; font-family: var(--mono);

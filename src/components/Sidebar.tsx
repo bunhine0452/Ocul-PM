@@ -10,6 +10,7 @@ import {
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
+import { useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
@@ -67,31 +68,46 @@ function NavRow({
   active,
   index,
   onNavigate,
+  working = 0,
 }: {
   slot: NavEntry;
   active: boolean;
   /** 셸 진입 캐스케이드(--i) 순번 — shell.css .nav-item 의 animation-delay. */
   index: number;
   onNavigate: (view: UiV2View) => void;
+  /**
+   * 이 화면에서 **지금 돌고 있는** 일의 수 (0 이면 아무 표시도 없다).
+   * 화면을 옮겨도 에이전트는 계속 도는데, 떠난 뒤로는 아무 기별이 없었다.
+   */
+  working?: number;
 }) {
   const Icon = slot.icon;
   const shortcut = navShortcutLabel(slot.id);
   const { t } = useT();
   const label = t(slot.labelKey);
+  const busy = working > 0;
   return (
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
       style={{ "--i": index } as React.CSSProperties}
       aria-current={active ? "page" : undefined}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      title={busy ? `${label} — ${t("nav.working", { n: working })}` : shortcut ? `${label} (${shortcut})` : label}
       onClick={() => onNavigate(slot.id)}
     >
-      <span className="nav-ico">
+      {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
+          "지금 일하는 중"인지 구분되지 않는다. */}
+      <span className={"nav-ico" + (busy ? " working" : "")}>
         <Icon size={17} strokeWidth={active ? 2 : 1.8} />
       </span>
       <span>{label}</span>
-      {shortcut ? <kbd className="nav-kbd">{shortcut}</kbd> : null}
+      {busy ? (
+        <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
+          {working}
+        </span>
+      ) : shortcut ? (
+        <kbd className="nav-kbd">{shortcut}</kbd>
+      ) : null}
     </button>
   );
 }
@@ -117,6 +133,8 @@ export function Sidebar({
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
+  /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
+  const acpWorking = useAcpWorkingCount();
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -245,6 +263,7 @@ export function Sidebar({
           active={view === slot.id}
           index={MAIN_NAV.length + i}
           onNavigate={onNavigate}
+          working={slot.id === "claudecode" ? acpWorking : 0}
         />
       ))}
 

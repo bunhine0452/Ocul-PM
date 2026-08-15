@@ -120,6 +120,7 @@ const TESTS = new Set([
   // 양 언어 a11y — ko 마커("설정")와 한국어 테스트 이름이 검사 재료다.
   "__tests__/a11y_screens.test.tsx",
   "__tests__/agent_detect.test.ts",
+  "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",
   "__tests__/ai_history.test.tsx",
   "__tests__/app_dialog.test.tsx",
@@ -131,6 +132,8 @@ const TESTS = new Set([
   "__tests__/docs_resolve.test.ts",
   "__tests__/edd_lite_v2.test.tsx",
   "__tests__/error_boundary.test.tsx",
+  "__tests__/external_links.test.ts",
+  "__tests__/trace_preview.test.ts",
   "__tests__/file_links.test.ts",
   "__tests__/home_match.test.ts",
   "__tests__/home_model.test.ts",

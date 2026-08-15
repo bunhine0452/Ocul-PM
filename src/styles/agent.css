@@ -104,10 +104,18 @@
 .trace-row:not(:disabled):hover {
   background: var(--bg-hover);
 }
+/* 화살표는 **오른쪽 끝에 열을 이룬다.** 제목 길이를 따라 들쭉날쭉하면 스무
+   줄을 훑을 때 눈이 매번 그것을 찾아야 한다. 상태나 줄 수가 이미 오른쪽으로
+   밀고 나갔으면 그 옆에 붙는다 (auto 여백이 둘이면 자리를 반씩 나눠 갖는다). */
 .trace-caret {
   flex: none;
+  margin-left: auto;
   color: var(--text-3);
   transition: transform var(--dur-2) var(--ease-out);
+}
+.trace-status + .trace-caret,
+.trace-count + .trace-caret {
+  margin-left: 6px;
 }
 .trace-item.open .trace-caret {
   transform: rotate(180deg);
@@ -158,6 +166,85 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* 접혀 있을 때의 결과 미리보기 (2026-08-16).
+   본문(`.trace-body`)과 **같은 재질**이되 한 톤 더 눌러 둔다 — 펼친 것과
+   미리보기가 똑같이 생기면 지금 전부를 보고 있는지 머리만 보고 있는지 모른다.
+   테두리 대신 왼쪽 한 줄만: 카드가 하나 더 생기면 레일 위 단계가 카드 무더기가
+   된다. */
+.trace-peek {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 1px 0 7px;
+  padding: 5px 9px;
+  border-left: 2px solid var(--sep);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: var(--bg-inset);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.trace-peek:hover {
+  border-left-color: var(--sep-strong);
+  background: var(--bg-hover);
+}
+/* 펼친 본문과 **같은 짜임**(IN/OUT 두 칸)이라 눈이 다시 배울 것이 없다. 다른
+   것은 왼쪽 막대와 아래 페이드뿐 — 그 둘이 "여기는 머리만"이라고 말한다. */
+.trace-peek .trace-io pre {
+  max-height: none;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.trace-peek .trace-io + .trace-io {
+  padding-top: 5px;
+}
+/* 잘렸으면 아래를 흐린다. 칼로 자른 듯 끊으면 출력이 원래 거기서 끝나는지
+   더 있는지 알 수 없다 (지시문 카드와 같은 수법). */
+.trace-peek.clipped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+/* 실패한 단계의 출력은 대개 **왜 실패했는지**다 — 회색 스무 줄 사이에서 이것만은
+   찾을 수 있어야 한다. 페이드도 걷는다: 실패 사유가 흐려지면 안 된다. */
+.trace-peek.failed {
+  border-left-color: var(--t-bug);
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.trace-peek.failed .trace-io pre {
+  color: var(--text);
+}
+
+/* 눈에는 없고 읽어 주는 기계에는 있는 글 (끝난 단계의 "완료"). */
+.trace-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 접힌 채로 "얼마나 더 있는지" — 펼칠 가치를 판단할 유일한 근거다. */
+.trace-count {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+/* 실패해서 상태 글자가 이미 오른쪽으로 밀고 나갔으면, 줄 수는 그 옆에 붙는다.
+   auto 여백이 둘이면 flex 가 남는 자리를 **반씩 나눠** 상태가 한복판에 선다. */
+.trace-status + .trace-count {
+  margin-left: 8px;
+}
+
 .trace-icon {
   display: grid;
   place-items: center;
@@ -387,6 +474,11 @@
   border-top: none;
   background: transparent;
   padding: 4px 22px 20px;
+  /* 아래 노브 줄이 **창이 아니라 자기 폭**을 보고 접는다 — 지난 대화 패널이
+     열리면 창은 그대로인데 컴포저만 좁아진다. 컨테이너 쿼리를 모르는 웹뷰에서는
+     기본 규칙(줄임표)만 남는데, 그것만으로도 두 줄로는 안 꺾인다. */
+  container-type: inline-size;
+  container-name: composer;
 }
 .composer.agent {
   border-radius: 20px;
@@ -412,19 +504,59 @@
 /* 가운데 노브 묶음.
    처음엔 `overflow-x: auto` 로 가로 스크롤을 시켰는데, 그러면 **이 안의 팝오버가
    통째로 잘린다** — 노브를 눌러도 아무 것도 안 뜨는 것처럼 보였다(사용량 카드가
-   툴바에서 잘렸던 것과 똑같은 함정). 스크롤 대신 **줄바꿈**으로 좁은 폭을
-   받는다: 두 줄이 되더라도 눌리는 버튼이 낫다. */
+   툴바에서 잘렸던 것과 똑같은 함정).
+
+   그래서 줄바꿈으로 바꿨는데, 이번엔 창을 조금만 좁혀도 **하단바가 두 줄이 됐다**
+   (2026-08-16). 클립과 보내기 사이에 두 층이 생기면서 컴포저가 그때마다 위아래로
+   뛴다 — 접힘은 예외 상황의 방어여야지 평소 모습이 되면 안 된다.
+
+   이제는 **한 줄을 지키고 글자를 줄인다**: 좁아지면 값 이름이 줄임표로 눌리고,
+   더 좁아지면 아이콘만 남는다 (아이콘 자체가 값을 말한다 — 권한 모드는 색과
+   모양, effort 는 불꽃). 무엇이 선택돼 있는지는 title 과 팝오버가 여전히 말해
+   준다. 자를 수 없는 것(클립·중지·보내기)만 자리를 지킨다. */
 .composer-knobs {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 4px;
   min-width: 0;
   flex: 0 1 auto;
 }
+/* 줄지 않게 버티되(내용만큼), 자리가 모자라면 순서대로 눌린다. */
 .composer-knobs > * {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* 접는 순서는 **아이콘이 값을 얼마나 말해 주는가**로 정한다.
+   모드는 색과 모양이 곧 값이고(자물쇠→로켓, 회색→빨강), effort 도 불꽃 색이
+   단계다. 모델만은 아이콘이 반짝이 하나뿐이라 이름이 사라지면 무엇으로 돌고
+   있는지 알 길이 없다 — 그래서 모델 이름이 마지막까지 남는다. */
+
+/* 1단계 — 이름의 최소폭을 놓아 준다. "Opus (1M context)" 가 "Opus (1M…" 이 된다. */
+@container composer (max-width: 620px) {
+  .composer-knobs .agent-chip-label { min-width: 0; }
+}
+/* 2단계 — 모드·effort 는 아이콘만. (실측: 스크린샷의 두 줄 짜리 컴포저가 이 대역) */
+@container composer (max-width: 500px) {
+  .composer-knobs .agent-chip[data-config="mode"] .agent-chip-label,
+  .composer-knobs .agent-chip[data-config="effort"] .agent-chip-label {
+    display: none;
+  }
+  .composer-knobs .agent-chip[data-config="mode"],
+  .composer-knobs .agent-chip[data-config="effort"] {
+    padding: 0 6px;
+  }
+}
+/* 3단계 — 사용량(%·$)을 접는다. 툴바 계기가 같은 값을 들고 있어 길이 끊기지 않는다. */
+@container composer (max-width: 430px) {
+  .composer-knobs .usage-btn { display: none; }
+}
+/* 4단계 — 모델 이름까지 접는다. 여기까지 좁히면 남길 수 있는 건 누를 자리뿐이다. */
+@container composer (max-width: 370px) {
+  .composer-knobs .agent-chip-label { display: none; }
+  .composer-knobs .agent-chip { padding: 0 6px; }
 }
 
 /* ─── 설정 칩 (모델 + 세션 설정 전부) ───────────────────────────────────── */
@@ -436,6 +568,10 @@
   align-items: center;
   gap: 6px;
   height: 28px;
+  /* 감싼 자리가 좁아지면 칩도 같이 줄어야 한다 — min-width 를 안 놓으면 flex
+     자식은 자기 내용만큼 버티고, 그 버팀이 하단바를 두 줄로 밀어냈다. */
+  min-width: 0;
+  max-width: 100%;
   padding: 0 8px;
   border: none;
   border-radius: 9px;

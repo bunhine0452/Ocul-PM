@@ -50,6 +50,8 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.ai.alias": "agent chat llm assistant",
   "nav.claudecode.alias": "claude code agent acp run",
   "nav.skills.alias": "skills rules hooks claude agent prompt cursor",
+  /** Sidebar working badge — how many sessions keep running after you navigate away. */
+  "nav.working": "{n} working",
 
   // ── Settings → Appearance → Language ────────────────────────────────────
   "settings.language.system": "System",
@@ -1810,6 +1812,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.thinking.live": "Thinking",
   "acp.thinking.done": "Thought for {sec}s",
   "acp.thinking.tokens": "{n} tokens",
+  /** Lines the tool-output preview had to leave out. */
+  "acp.tool.moreLines": "+{n} lines",
   "acp.cmd.usage": "Show remaining usage",
   "acp.cmd.clear": "Clear the conversation and start a new session",
   "acp.cmd.continue": "Reopen the most recent conversation",

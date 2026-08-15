@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, RefreshCw } from "@/components/Icons";
 import { commands, type AcpUsage } from "@/lib/bindings";
@@ -66,7 +66,14 @@ function toneOf(utilization: number | null): string {
   return "";
 }
 
-export function AcpUsageMeter({ projectId }: { projectId: number }) {
+/**
+ * 계기는 **부모가 다시 그려도 그대로 있어야 한다.**
+ *
+ * 이 위젯은 대화 화면의 툴바에 산다. 답이 흐르는 동안 그 화면은 초당 수십 번
+ * 다시 그려지는데, 계기가 같이 딸려 그려질 이유가 없다 — 프로젝트 id 말고는
+ * 밖에서 오는 것이 없고, 숫자는 자기 타이머가 갱신한다.
+ */
+export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projectId: number }) {
   const { t } = useT();
   const [usage, setUsage] = useState<AcpUsage | null>(null);
   const [open, setOpen] = useState(false);
@@ -286,4 +293,4 @@ export function AcpUsageMeter({ projectId }: { projectId: number }) {
         : null}
     </div>
   );
-}
+});

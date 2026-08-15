@@ -3,6 +3,11 @@ import ReactDOM from "react-dom/client";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
+import { installExternalLinkGuard } from "./lib/externalLinks";
+
+// 바깥 링크 → 기본 브라우저. 세 갈래 창 어디서 눌러도 같아야 하므로 갈림길
+// **위**에서 한 번 건다 (externalLinks.ts 참고).
+installExternalLinkGuard();
 
 // 리로드 원인 캡처 (dev 전용 — 2026-07-20 "ai-pm 선택 직후 웹뷰 리로드" 수사).
 // Vite 클라이언트가 전체 리로드를 명령하는 순간과 사유(payload)를 콘솔로 남기면

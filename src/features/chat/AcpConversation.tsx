@@ -73,6 +73,7 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { nextIndex, withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
+import { acpWorkingKey, setAcpWorking } from "./acpBusyBus";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
@@ -87,6 +88,7 @@ import { typedLength, wordDurationMs, wordKeyAt } from "./agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { splitMarkdownBlocks } from "./markdownBlocks";
 import { relativeTime } from "./relativeTime";
+import { PEEK_IN_LINES, PEEK_OUT_LINES, peekLines } from "./tracePreview";
 import { useDismiss } from "./useDismiss";
 
 /** 아직 안 만든 새 대화의 기록이 머무는 자리 (`session_id` 가 아직 없다). */
@@ -94,6 +96,17 @@ const SLATE = "";
 
 /** 빈 기록의 **한 개짜리** 배열 — 매 렌더 새 배열을 만들면 memo 가 다 깨진다. */
 const EMPTY_TURNS: AcpTurn[] = [];
+
+/** 같은 이유의 빈 목록 (아직 대화 목록을 못 읽었을 때). */
+const EMPTY_SESSIONS: AcpSessionSummary[] = [];
+
+/**
+ * "바닥에 있다"로 볼 여유 (px).
+ *
+ * 정확히 0 을 요구하면 안 된다 — 글이 흐르는 동안 마지막 줄이 자라면서 몇 px
+ * 씩 어긋나고, 그때마다 따라가기가 꺼져 버린다.
+ */
+const STICK_SLACK_PX = 64;
 
 // PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
 //
@@ -204,8 +217,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     },
     [],
   );
+  /**
+   * 같은 값의 **읽기 전용 사본**.
+   *
+   * `openSession` 이 "이미 본 대화인가"를 판단하려고 `transcripts` 를 읽는데,
+   * 의존성에 넣으면 **글자 한 덩어리 올 때마다** openSession 이 새로 만들어진다.
+   * 그 아이덴티티는 `send` → 큐 배출 effect → 툴바 탭까지 줄줄이 타고 흘러서,
+   * 스트리밍 중 초당 수십 번 헛도는 일감이 됐다. 판단에는 최신값만 있으면 된다.
+   */
+  const transcriptsRef = useRef(transcripts);
+  useEffect(() => {
+    transcriptsRef.current = transcripts;
+  }, [transcripts]);
   const activeId = session?.session_id ?? SLATE;
   const turns = transcripts[activeId] ?? EMPTY_TURNS;
+  /**
+   * 묶음 나누기는 렌더마다 하지 않는다 — 스트리밍 중에는 초당 수십 번 렌더되고,
+   * 그때마다 전체 기록을 다시 훑어 새 배열을 만들면 아래의 `TurnRow` memo 도
+   * 통째로 무의미해진다 (props 배열이 매번 새 객체라서).
+   */
+  const groups = useMemo(() => groupTurns(turns), [turns]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -240,6 +271,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const removedRef = useRef<Set<string>>(new Set());
   /** 이 화면이 실제로 보이는지 판정할 뿌리 (⌘W 사슬이 읽는다). */
   const rootRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * 지금 눈에 보이는가.
+   *
+   * 이 화면은 **다른 화면으로 옮겨도 마운트된 채 남는다** (ShellV2 의 keep-alive
+   * — 안 그러면 돌던 턴이 화면과 함께 죽는다). 그래서 "보이는가"와 "살아 있는가"
+   * 가 갈라졌고, 문서 전역에 거는 것들(ESC)과 주기 조회는 **보일 때만** 자기
+   * 일을 해야 한다. display:none 안의 요소는 레이아웃 상자가 없다 — ⌘W 사슬이
+   * 쓰던 것과 같은 잣대다.
+   */
+  const isVisible = useCallback(() => !!rootRef.current?.getClientRects().length, []);
   /** `@` 자동완성 후보. `null` 이면 닫힌 상태. */
   const [mentions, setMentions] = useState<string[] | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -341,6 +382,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(() => {
     if (!session) return;
     const sync = () => {
+      // 안 보이는 동안에는 되읽지 않는다 — 이 값들은 **화면에만** 쓰이고,
+      // 화면이 keep-alive 로 살아 있는 한 이 타이머는 영원히 돈다. 돌아오면
+      // 다음 tick(≤4초)이 알아서 따라잡는다.
+      if (!isVisible()) return;
       void commands.acpOptions(projectId).then((res) => {
         if (res.status === "ok" && res.data.length) {
           setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
@@ -360,7 +405,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     };
     const timer = window.setInterval(sync, 4000);
     return () => window.clearInterval(timer);
-  }, [projectId, session]);
+  }, [projectId, session, isVisible]);
 
 
   // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
@@ -410,10 +455,58 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   useEffect(() => registerBusy(() => (busy ? t("acp.busyReason") : null)), [busy, t]);
 
-  // 스트리밍 중에는 계속 맨 아래를 따라간다.
+  /**
+   * 사이드바에 "몇 개가 돌고 있는지"를 알린다.
+   *
+   * 이 화면을 떠나도 턴은 계속 돈다 — 그런데 떠난 순간부터 **아무 표시도 없다**.
+   * 다 됐는지 보려고 되돌아오는 일이 반복됐다. 언마운트(창을 닫거나 프로젝트
+   * 탭을 접을 때)에도 반드시 지운다: 안 지우면 끝나지 않는 유령이 남는다.
+   */
   useEffect(() => {
+    const key = acpWorkingKey(projectId, session?.session_id ?? null);
+    setAcpWorking(key, busy);
+    return () => setAcpWorking(key, false);
+  }, [busy, projectId, session?.session_id]);
+
+  /**
+   * 스트리밍 중에는 맨 아래를 따라간다 — **사용자가 바닥에 있을 때만.**
+   *
+   * 예전에는 턴이 바뀔 때마다 무조건 바닥으로 끌어내렸다. 그래서 답이 흐르는
+   * 동안 위로 올려 앞의 도구 카드를 읽는 것이 불가능했다 — 올리자마자 다시
+   * 내려갔다. 바닥 근처에 있었으면 따라가고, 일부러 올라가 있으면 그 자리를
+   * 지킨다 (다시 바닥까지 내리면 따라가기가 저절로 켜진다).
+   */
+  const stickRef = useRef(true);
+  const onThreadScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_SLACK_PX;
+  }, []);
+
+  /**
+   * 스크롤러를 붙잡는 ref — 크기 변화도 함께 듣는다.
+   *
+   * 이 화면은 keep-alive 라 다른 화면에 가 있는 동안에도 글이 쌓이는데, 그때는
+   * `display:none` 이라 레이아웃이 없어 `scrollTop` 을 써도 0 에 머문다. 돌아오면
+   * 맨 위가 보였다. 크기가 0 → 실제로 돌아오는 순간이 곧 "다시 보인다"라서,
+   * 그때 바닥을 다시 잡는다.
+   */
+  const threadResizeRef = useRef<ResizeObserver | null>(null);
+  const attachThread = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    threadResizeRef.current?.disconnect();
+    threadResizeRef.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickRef.current && el.clientHeight > 0) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el);
+    threadResizeRef.current = observer;
+  }, []);
+  useEffect(() => () => threadResizeRef.current?.disconnect(), []);
+
+  useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
   }, [turns, permission]);
 
   const retry = useCallback(async () => {
@@ -539,6 +632,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       //
       // 지난 세대의 이벤트와 응답은 통째로 버린다.
       const seq = ++loadSeqRef.current;
+      // 다른 대화를 열면 그 대화의 **끝**부터 본다 — 앞 대화에서 위로 올려 두었던
+      // 것이 새 대화의 스크롤 정책으로 새어 나가면 안 된다.
+      stickRef.current = true;
       setUsage(null);
       setPermission(null);
       setError(null);
@@ -548,7 +644,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 우리 기록이 디스크보다 최신이다 — 아직 흐르고 있는 답은 디스크에 없다.
       // `session/load` 로 갈아타면 그 답을 놓칠 뿐 아니라, 그 대화에 물려 있는
       // 스트림의 자리를 잠깐 빼앗아 아예 멎게 만든다. 장부만 바꾼다.
-      if (transcripts[sessionId]?.length) {
+      if (transcriptsRef.current[sessionId]?.length) {
         const title = tabs.find((tab) => tab.id === sessionId)?.title ?? null;
         const picked = await commands.acpSelectSession(projectId, sessionId, title);
         if (loadSeqRef.current !== seq) return;
@@ -579,7 +675,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setError(res.error);
       }
     },
-    [projectId, addTab, editTurns, transcripts, tabs],
+    [projectId, addTab, editTurns, tabs],
   );
 
 
@@ -624,6 +720,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const newConversation = useCallback(() => {
     // 진행 중인 로드의 재생분이 새 대화에 쏟아지지 않게 세대를 올린다.
     loadSeqRef.current += 1;
+    stickRef.current = true;
     setSession((prev) => (prev ? { ...prev, session_id: null, title: null } : prev));
     editTurns(SLATE, () => []);
     setAttachments([]);
@@ -880,6 +977,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           })),
         }),
       );
+      // 내가 방금 말을 걸었다 — 어디를 보고 있었든 이제 바닥이 관심사다.
+      stickRef.current = true;
       setBusy(true);
 
       /**
@@ -1005,12 +1104,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     if (!busy) return;
     const onEsc = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // **보이는 화면만 받는다.** 이 화면은 다른 화면으로 옮겨도 살아 있으므로
+      // (keep-alive), 안 가리면 오늘 현황에서 팝오버를 닫으려고 누른 ESC 가
+      // 뒤에서 돌던 턴을 중단시킨다.
+      if (!isVisible()) return;
       e.preventDefault();
       cancel();
     };
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
-  }, [busy, cancel]);
+  }, [busy, cancel, isVisible]);
 
   const decide = useCallback((requestId: string, optionId: string | null) => {
     setPermission(null);
@@ -1083,6 +1186,24 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   };
 
   /**
+   * 탭 줄과 지난 대화 패널이 받는 것들 — **스트리밍 중에도 그대로여야 한다.**
+   *
+   * 둘 다 memo 인데, 여기서 매 렌더 새 배열·새 함수를 만들면 memo 는 한 번도
+   * 걸리지 않는다. 특히 패널은 닫혀 있어도 마운트된 채라(전이·스크롤 보존)
+   * 목록 전체가 글자마다 다시 조정되고 있었다.
+   */
+  const tabItems = useMemo(
+    () => tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) })),
+    [tabs, nameOf],
+  );
+  const pickSession = useCallback(
+    (id: string) => {
+      void openSession(id);
+    },
+    [openSession],
+  );
+
+  /**
    * 상단바는 **탭 줄이 곧 제목**이다.
    *
    * 원래 ClaudeCodeScreenV2 가 그렸는데 이리로 내렸다: 탭이 필요로 하는 것
@@ -1094,9 +1215,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     <Toolbar
       title={
         <AcpSessionTabs
-          tabs={tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) }))}
+          tabs={tabItems}
           activeId={session?.session_id ?? null}
-          onPick={(id) => void openSession(id)}
+          onPick={pickSession}
           onClose={closeTab}
         />
       }
@@ -1164,7 +1285,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     {toolbar}
     <div className="acp-layout" ref={rootRef}>
       <div className="ai-wrap">
-      <div className="ai-thread" ref={scrollRef}>
+      <div className="ai-thread" ref={attachThread} onScroll={onThreadScroll}>
         <div className="ai-thread-inner">
           {turns.length === 0 ? (
             /* 시작 화면은 조용해야 한다 — 칩을 늘어놓으면 "무엇을 시킬까"를
@@ -1181,7 +1302,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             /* 묶음(지시 + 그 답)을 **실제 요소로** 그린다 — 지시문 sticky 의
                컨테이닝 블록이 이 묶음이어야 자기 답변이 끝날 때 자리를 비운다.
                평평하게 늘어놓았더니 카드가 top 에 겹겹이 쌓였다. */
-            groupTurns(turns).map((group, gi, all) => (
+            groups.map((group, gi, all) => (
               <section className="exchange" key={gi}>
                 {group.map((turn, i) => (
                   <TurnRow
@@ -1444,11 +1565,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           불가능하고, 스크롤 위치와 검색어도 매번 날아간다. */}
       <SessionPanel
         open={panelOpen}
-        sessions={history ?? []}
+        sessions={history ?? EMPTY_SESSIONS}
         currentId={session.session_id}
         query={historyQuery}
         onQuery={setHistoryQuery}
-        onPick={(id) => void openSession(id)}
+        onPick={pickSession}
         onNew={newConversation}
         onRename={rename}
         onDelete={remove}
@@ -1770,27 +1891,54 @@ const TurnRow = memo(function TurnRow({
 });
 
 /**
- * 도구 호출 한 줄 — 무엇을, 어디에, 어디까지. 산문에 종속되어 보이게 눌러 둔다.
+ * 도구 호출 한 단계 — 무엇을 시켰고, 무엇이 나왔나.
  *
- * 눌러서 펼치면 들어간 것(IN)과 나온 것(OUT)이 보인다. **기본은 접힘**이다:
- * 도구 출력은 수백 줄이 예사라 다 펼쳐 두면 정작 읽어야 할 답변이 아래로
- * 밀려난다.
+ * 예전에는 끝나면 한 줄로 접혀서, 스무 번 도구를 쓴 대화가 **똑같이 생긴 스무
+ * 줄**이 됐다. 무엇이 나왔는지는 하나씩 펼쳐야 알 수 있었고, 그래서 아무도
+ * 안 펼쳤다. 반대로 전문을 다 펼치면 수백 줄짜리 출력이 답변을 화면 밖으로
+ * 밀어낸다.
+ *
+ * 그 사이를 고른다: **결과의 머리 몇 줄을 항상 보여 주고**(tracePreview.ts),
+ * 아래를 페이드로 잘라 더 있음을 알린다. 누르면 들어간 것(IN)과 나온 것(OUT)
+ * 전문이 열린다. 훑기만 해도 흐름이 읽히고, 파고들 때만 자리를 내준다.
  */
-function TraceRow({ tool }: { tool: AcpToolCall }) {
+const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
   const { t } = useT();
   const running = tool.status === "in_progress" || tool.status === "pending";
+  const failed = tool.status === "failed";
   /**
    * 접힘/펼침은 사용자가 정하되, **기본값은 진행 중이면 펼침**이다. 돌고 있는
-   * 동안에는 "무엇을 시켰는지"가 곧 진행 상황이고, 끝나고 나면 결과만 한 줄로
-   * 남는 편이 대화를 덜 밀어낸다. `null` 은 "아직 사용자가 안 건드림".
+   * 동안에는 "무엇을 시켰는지"가 곧 진행 상황이다. `null` 은 "아직 안 건드림".
    */
   const [choice, setChoice] = useState<boolean | null>(null);
   const open = choice ?? running;
   const Icon = TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
-  const state =
-    tool.status === "in_progress" ? " running" : tool.status === "failed" ? " failed" : "";
+  const state = running ? " running" : failed ? " failed" : "";
   const expandable = Boolean(tool.input || tool.output);
+
+  /**
+   * 미리보기 — 명령(IN)의 머리 두 줄과 결과(OUT)의 머리 네 줄.
+   *
+   * **IN 은 명령을 실행한 단계에서만** 보여 준다. 줄에 적히는 제목은 모델이
+   * 쓴 설명("ACP 백엔드의 취소 경로 찾기")이라 실제로 무엇이 돌았는지는 여기
+   * 말고는 볼 데가 없다. 반대로 읽기·편집은 대상 경로가 이미 줄에 있어서
+   * 같은 것을 두 번 적는 꼴이 된다 — 그 자리는 결과에 내준다.
+   */
+  const peek = useMemo(() => {
+    const wantsInput = Boolean(tool.input) && (tool.kind === "execute" || !tool.output);
+    const input = wantsInput ? peekLines(tool.input ?? "", PEEK_IN_LINES) : null;
+    const output = tool.output ? peekLines(tool.output, PEEK_OUT_LINES) : null;
+    return {
+      input,
+      output,
+      empty: !input?.text && !output?.text,
+      truncated: Boolean(input?.truncated || output?.truncated),
+      hidden: (input?.hiddenLines ?? 0) + (output?.hiddenLines ?? 0),
+    };
+  }, [tool.output, tool.input, tool.kind]);
+
+  const status = statusKey ? t(statusKey) : tool.status;
 
   return (
     <div className={"trace-item" + (open ? " open" : "")}>
@@ -1817,10 +1965,22 @@ function TraceRow({ tool }: { tool: AcpToolCall }) {
         {tool.locations.length > 1 ? (
           <span className="trace-more">+{tool.locations.length - 1}</span>
         ) : null}
-        <span className="trace-status">{statusKey ? t(statusKey) : tool.status}</span>
-        {expandable ? (
-          <ChevronDown size={12} className="trace-caret" />
+        {/* 상태 글자는 **말할 것이 있을 때만**. 스무 줄에 "완료"가 스무 번
+            적혀 있으면 그건 정보가 아니라 벽지다 — 끝난 단계는 아무 말도 하지
+            않는 것이 곧 "잘 끝났다"이고, 눈은 그 사이의 빨강만 찾으면 된다.
+            눈에서 지우는 것과 **없애는 것**은 다르다: 읽어 주는 기계에는 늘
+            남는다 (`.trace-sr`). */}
+        {running || failed ? (
+          <span className="trace-status">{status}</span>
+        ) : (
+          <span className="trace-sr">{status}</span>
+        )}
+        {/* 접혀 있고 더 있으면 얼마나 더 있는지. 펼치기 전에 "이걸 펼칠 가치가
+            있나"를 판단할 유일한 근거다. */}
+        {!open && peek.hidden > 0 ? (
+          <span className="trace-count">{t("acp.tool.moreLines", { n: peek.hidden })}</span>
         ) : null}
+        {expandable ? <ChevronDown size={12} className="trace-caret" /> : null}
       </button>
       {open ? (
         <div className="trace-body">
@@ -1837,10 +1997,36 @@ function TraceRow({ tool }: { tool: AcpToolCall }) {
             </div>
           ) : null}
         </div>
-      ) : null}
+      ) : peek.empty ? null : (
+        // 미리보기도 누르면 펼쳐진다 — 잘린 글을 보고 손이 가는 자리가 여기다.
+        // 줄과 **같은 동작**을 하므로 보조기기에는 하나만 보이게 감춘다.
+        <div
+          className={"trace-peek" + (peek.truncated ? " clipped" : "") + (failed ? " failed" : "")}
+          aria-hidden="true"
+          // 글자를 끌어 고르고 손을 뗀 것도 클릭이다 — 오류 메시지를 복사하려던
+          // 참에 블록이 펼쳐지며 자리가 밀리면 고른 것이 어디 갔는지 잃는다.
+          onClick={() => {
+            if (window.getSelection()?.toString()) return;
+            setChoice(true);
+          }}
+        >
+          {peek.input?.text ? (
+            <div className="trace-io">
+              <span className="trace-io-tag">IN</span>
+              <pre>{peek.input.text}</pre>
+            </div>
+          ) : null}
+          {peek.output?.text ? (
+            <div className="trace-io">
+              <span className="trace-io-tag">OUT</span>
+              <pre>{peek.output.text}</pre>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
-}
+});
 
 /**
  * 승인 카드. 응답할 때까지 에이전트가 멈춰 있으므로 **닫기 버튼을 두지 않는다** —
@@ -2021,6 +2207,10 @@ function ConfigControl({
       <button
         type="button"
         className={"agent-chip" + (open ? " open" : "")}
+        // 좁아질 때 **무엇부터 접을지**를 CSS 가 고를 수 있게 종류를 실어 둔다
+        // (agent.css 의 컨테이너 쿼리). 모드와 effort 는 아이콘이 색·모양으로
+        // 값을 말하지만, 모델은 아이콘이 하나뿐이라 이름이 마지막까지 남아야 한다.
+        data-config={option.id}
         aria-haspopup="menu"
         aria-expanded={open}
         title={option.name}
@@ -2160,7 +2350,7 @@ function MoreSettings({
  * 팝오버가 아니라 접히는 패널인 이유: 대화를 고르는 일은 "잠깐 열어 보고
  * 닫는" 동작이 아니라 **옆에 두고 오가는** 동작이다.
  */
-function SessionPanel({
+const SessionPanel = memo(function SessionPanel({
   open,
   sessions,
   currentId,
@@ -2311,7 +2501,7 @@ function SessionPanel({
       </div>
     </aside>
   );
-}
+});
 
 /**
  * Effort — 평소엔 **현재 값만** 보이고, 누르면 트랙이 열린다.
@@ -2404,6 +2594,7 @@ function EffortControl({
         // 단계를 **데이터로** 실어 색은 CSS 가 고른다 — 값 목록이 어댑터에서
         // 오므로, 색 표를 JS 에 두면 값이 하나 늘 때 두 곳을 고쳐야 한다.
         data-effort={currentValue}
+        data-config="effort"
         aria-haspopup="dialog"
         aria-expanded={open}
         title={option.name}

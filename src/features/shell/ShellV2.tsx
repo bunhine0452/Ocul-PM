@@ -110,6 +110,18 @@ export default function ShellV2({
   const view = state.uiV2View;
   const isDark = resolvedTheme === "dark";
 
+  /**
+   * Claude Code 화면을 한 번이라도 열었는가.
+   *
+   * 열기 전에는 마운트하지 않고(어댑터 기동 비용), 한 번 열면 이 탭이 사는 동안
+   * 계속 마운트해 둔다 — 돌던 턴이 화면을 옮겼다고 끊기면 안 된다. 라우터 아래의
+   * keep-alive 블록에 그 이유를 자세히 적어 두었다.
+   */
+  const [claudeMounted, setClaudeMounted] = useState(view === "claudecode");
+  useEffect(() => {
+    if (view === "claudecode") setClaudeMounted(true);
+  }, [view]);
+
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
   // cleared when the cursor leaves the floating sidebar.
@@ -476,8 +488,6 @@ export default function ShellV2({
           ) : (
             <TerminalScreenV2 projectRoot={projectRoot} />
           )
-        ) : view === "claudecode" ? (
-          <ClaudeCodeScreenV2 projectId={projectId} />
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
         ) : view === "docs" ? (
@@ -492,6 +502,26 @@ export default function ShellV2({
           <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
         ) : view === "skills" ? (
           <SkillsScreenV2 projectId={projectId} />
+        ) : null}
+
+        {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).
+            다른 화면으로 옮기면 화면이 헐리면서 돌던 턴의 스트림이 끊기고,
+            돌아올 때 `session/load` 로 디스크에서 다시 읽으므로 아직 안 끝난
+            답이 통째로 사라졌다 — 대화에는 "[Request interrupted by user]" 만
+            남았다. 다른 화면들은 상태가 디스크에 있어 다시 읽으면 그만이지만
+            여기는 **지금 벌어지는 일**이라 다시 읽을 원본이 없다.
+
+            처음 들어가기 전에는 마운트하지 않는다 — 안 쓰는 사용자에게 어댑터
+            기동(`acp_start`) 비용을 지우지 않는다. `display:contents` 라 화면이
+            직접 그린 것과 레이아웃이 같고, 숨길 때의 `none` 은 ⌘W·ESC 사슬이
+            "안 보인다"를 판정하는 잣대와도 맞물린다. */}
+        {claudeMounted && projectId != null ? (
+          <div
+            className="screen-keepalive"
+            style={{ display: view === "claudecode" ? "contents" : "none" }}
+          >
+            <ClaudeCodeScreenV2 projectId={projectId} />
+          </div>
         ) : null}
         </Suspense>
         </div>

@@ -48,17 +48,22 @@ pub async fn open_in_editor(
     spawn_detached(&cmd_str).map_err(|e| format!("Failed to launch editor: {e}"))
 }
 
-/// Open an http(s) URL in the user's default browser. Used by the Today commit
-/// graph to jump to a commit on GitHub. We shell out to the OS opener
+/// Open an external URL in the user's default app (browser / mail client). Used
+/// by the Today commit graph to jump to a commit on GitHub, and by the app-wide
+/// link guard (`src/lib/externalLinks.ts`) for any anchor an agent answer or a
+/// rendered document puts on screen. We shell out to the OS opener
 /// (`open` / `xdg-open` / `cmd start`) rather than the opener plugin so no
 /// path/url scope config is needed (mirrors `oculpm_open_entry_in_editor`).
-/// Only http/https is allowed — never a local path or arbitrary scheme.
+/// Only http/https/mailto is allowed — never a local path or arbitrary scheme.
 #[tauri::command]
 #[specta::specta]
 pub async fn open_url(url: String) -> Result<(), String> {
     let trimmed = url.trim();
-    if !(trimmed.starts_with("https://") || trimmed.starts_with("http://")) {
-        return Err("Only http(s) URLs can be opened.".to_string());
+    if !(trimmed.starts_with("https://")
+        || trimmed.starts_with("http://")
+        || trimmed.starts_with("mailto:"))
+    {
+        return Err("Only http(s)/mailto URLs can be opened.".to_string());
     }
     #[cfg(target_os = "macos")]
     let mut cmd = {

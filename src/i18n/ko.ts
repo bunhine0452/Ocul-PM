@@ -46,6 +46,8 @@ export const ko = {
   "nav.ai.alias": "에이전트 채팅 대화",
   "nav.claudecode.alias": "클로드 코드 에이전트 acp 구동",
   "nav.skills.alias": "스킬 규칙 훅 에이전트 프롬프트",
+  /** 사이드바 작업 중 배지 — 화면을 옮겨도 도는 세션이 몇 개인지. */
+  "nav.working": "{n}개 작업 중",
 
   // ── 설정 → 모양 → 언어 ──────────────────────────────────────────────────
   "settings.language.system": "시스템",
@@ -1780,6 +1782,8 @@ export const ko = {
   "acp.thinking.live": "생각하는 중",
   "acp.thinking.done": "{sec}초 생각함",
   "acp.thinking.tokens": "{n} 토큰",
+  /** 도구 출력 미리보기에서 잘려 나간 줄 수. */
+  "acp.tool.moreLines": "+{n}줄",
   "acp.cmd.usage": "남은 사용량 보기",
   "acp.cmd.clear": "대화를 비우고 새 세션 시작",
   "acp.cmd.continue": "최근 대화 이어서 열기",
