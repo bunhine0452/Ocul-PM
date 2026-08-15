@@ -656,6 +656,25 @@
 }
 .term-tab-add:hover { background: var(--bg-hover); color: var(--text); }
 
+/* 탭 줄 오른쪽의 도구 묶음 (2026-08-15) — 검색·분할, 그리고 도크의 자리
+   바꾸기·분리·닫기. 예전엔 화면 툴바에만 있어서 도크에서는 쓸 수 없었다.
+   `.term-tabs` 가 `overflow-x: auto` 라 스페이서로 밀어 두면 탭이 많아졌을 때
+   같이 흘러간다 — sticky 로 오른쪽 끝에 붙여 둔다. */
+.term-tabs-spacer { flex: 1; min-width: 8px; }
+.term-tools {
+  display: flex; align-items: center; gap: 2px; flex: none;
+  position: sticky; right: 0; margin-bottom: 5px; padding-left: 6px;
+  background: var(--term-chrome);
+}
+.term-tool {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px;
+  border: none; background: transparent; color: var(--text-3); cursor: pointer;
+}
+.term-tool:hover { background: var(--bg-hover); color: var(--text); }
+.term-tool-sep {
+  width: 1px; height: 15px; margin: 0 4px; flex: none; background: var(--sep-strong);
+}
+
 /* 페인 캔버스 — 탭당 하나, 분할 트리를 담는다. */
 .term-body { flex: 1; min-height: 0; position: relative; display: flex; background: var(--term-bg); }
 .term-canvas { flex: 1; min-width: 0; min-height: 0; }
@@ -680,6 +699,50 @@
 .term-pane .pane-close:hover { color: var(--text); background: var(--bg-active); }
 
 .term-screen { flex: 1; width: 100%; min-height: 0; height: 100%; background: var(--term-bg); overflow: hidden; padding: 8px 10px; }
+
+/* ── 터미널 도크 (2026-08-15) ─────────────────────────────────────────────
+   어느 화면에서나 뜨는 셸. 콘텐츠 시트 **안**에 살아서 시트의 라운드·그림자를
+   함께 쓰고, 화면 쪽과는 실선 한 줄로만 나뉜다 (도크가 또 하나의 떠 있는
+   카드가 되면 시트가 두 겹으로 보인다).
+   크기는 인라인 style 로 들어온다 — 드래그가 매 프레임 바꾸는 값이라
+   CSS 변수로 왕복시키지 않는다. */
+.term-dock {
+  flex: none; position: relative; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--term-chrome);
+}
+.term-dock.pos-bottom { border-top: 1px solid var(--sep-strong); }
+.term-dock.pos-left { border-right: 1px solid var(--sep-strong); }
+/* compact 모드에서는 탭 줄·상태바를 한 단계 낮춰 셸에 자리를 더 준다. */
+.term-dock .term-tabs { padding-top: 5px; }
+.term-dock .term-status { padding: 4px 10px; gap: 10px; }
+.term-dock .term-screen { padding: 6px 8px; }
+
+/* 크기 조절 손잡이 — 경계 위에 4px 띠로 얹는다 (레이아웃을 차지하지 않아
+   도크의 실제 크기가 손잡이 두께만큼 어긋나지 않는다). */
+.term-dock-grip { position: absolute; z-index: 5; background: transparent; }
+.term-dock-grip.bottom { top: -2px; left: 0; right: 0; height: 5px; cursor: row-resize; }
+.term-dock-grip.left { top: 0; bottom: 0; right: -2px; width: 5px; cursor: col-resize; }
+.term-dock-grip:hover, .term-dock-grip:active { background: var(--accent); }
+
+/* 분리 창에 나가 있을 때의 자리표시자. 빈 화면만 남기면 터미널이 고장 난
+   것처럼 보이므로, 어디로 갔는지와 되돌리는 길을 함께 둔다. */
+.term-dock-away {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px; text-align: center;
+}
+.term-dock-away p { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.term-dock-away span { font-size: 12px; color: var(--text-3); max-width: 42ch; line-height: 1.5; }
+.term-dock-away .btn { margin-top: 6px; }
+
+/* ── 분리 터미널 창 ──────────────────────────────────────────────────────
+   창 전체가 터미널이다. macOS 는 titleBarStyle Overlay 라 신호등이 왼쪽 위에
+   떠 있으므로, 탭 줄 왼쪽에 그만큼 비워 준다 (탭 스트립이 없는 창이라 이
+   인셋을 대신 져 줄 것이 없다). */
+.term-window { height: 100vh; display: flex; flex-direction: column; background: var(--term-chrome); }
+.term-window .term-wrap { flex: 1; min-height: 0; }
+.term-window.is-mac .term-tabs { padding-left: 82px; }
 
 /* 한글 IME 조합 미리보기용 오버레이는 두지 않는다 (2026-07-30).
    커서 위치에 DOM 을 얹는 방식은 앞 글자의 커서 전진이 셸 에코를 기다리는

@@ -95,6 +95,8 @@ export interface TerminalTab {
 }
 /** 터미널 분할 트리 — 실제 정의는 `@/lib/termPanes` (여기선 영속 타입만 재수출). */
 export type TerminalPaneNode = import("@/lib/termPanes").PaneNode;
+/** 터미널 도크를 붙이는 자리 (2026-08-15). */
+export type TerminalDockPos = "bottom" | "left";
 
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
@@ -201,8 +203,35 @@ export interface WorkspaceState {
   terminalTabs: TerminalTab[];
   /** 활성 터미널 탭 id. */
   terminalActiveId: string | null;
-  /** 터미널 글자 크기 (⌘+/⌘- 로 조절, 2026-07-20). */
-  terminalFontSize: number;
+  // (terminalFontSize 는 2026-08-15 에 앱 전역 설정으로 나갔다 — SQLite
+  //  `terminal_font_size`. 프로젝트마다 다를 이유가 없는 개인 취향이고, 설정
+  //  화면은 프로젝트가 없을 때도 열리며, 창을 여러 개 띄워도 한 값이어야
+  //  한다. 과거 레코드의 키는 loadFromStorage 에서 일방향 삭제된다.)
+  /**
+   * 터미널 도크 (2026-08-15) — 어느 화면에서나 ⌘J 로 여는 터미널 패널.
+   *
+   * 세션은 터미널 **화면과 같은 것**을 쓴다 (위 `terminalTabs` 를 공유). 같은
+   * PTY 에 xterm 두 개가 동시에 붙으면 리사이즈가 서로 싸우므로, 한 번에 한
+   * 면만 마운트한다 — 소유권 판정은 `ShellV2` 가 한다 (분리 창 > 터미널 화면
+   * > 도크).
+   */
+  terminalDockOpen: boolean;
+  /** 도크를 붙이는 자리 — 하단(가로 폭 우선)/왼쪽(세로 길이 우선). */
+  terminalDockPos: TerminalDockPos;
+  /** 하단 도크 높이(px) — 자리마다 크기를 따로 기억한다. */
+  terminalDockHeight: number;
+  /** 왼쪽 도크 폭(px). */
+  terminalDockWidth: number;
+  /**
+   * 이 프로젝트의 터미널이 **분리 창**에 나가 있다.
+   *
+   * 휘발성이다 — 진실은 창의 존재 여부이고, 백엔드
+   * (`TerminalWindowsChanged`)가 알려 주는 것을 미러링만 한다. 나가 있는
+   * 동안 이 창은 터미널 세션 필드를 디스크에 쓰지 않는다: 두 창이 같은
+   * 영속 키를 공유하는데, 여기서 낡은 탭 목록을 덮어쓰면 분리 창에서 만든
+   * 탭이 되돌아올 때 증발한다.
+   */
+  terminalDetached: boolean;
   /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
   /** Claude Code 화면의 대화 목록 패널이 열려 있는지 (PR-ACP7). */
@@ -317,7 +346,11 @@ const DEFAULT_STATE: WorkspaceState = {
   searchRecent: [],
   terminalTabs: [],
   terminalActiveId: null,
-  terminalFontSize: 13,
+  terminalDockOpen: false,
+  terminalDockPos: "bottom",
+  terminalDockHeight: 300,
+  terminalDockWidth: 460,
+  terminalDetached: false,
   aiActiveModel: null,
   acpPanelOpen: true,
   acpTabs: [],
@@ -361,6 +394,25 @@ export const SIDE_PANEL_DEFAULT_WIDTH = 260;
 
 export function effectiveSidePanelMaxWidth(mode: SidePanelMode): number {
   return mode === "diff" ? SIDE_PANEL_MAX_WIDTH_DIFF : SIDE_PANEL_MAX_WIDTH;
+}
+
+/**
+ * 터미널 도크 크기 하한 — 이보다 얇으면 xterm 이 한 줄도 못 그려 "열려 있는데
+ * 아무것도 없는" 상태가 된다.
+ */
+export const TERMINAL_DOCK_MIN = 120;
+/** 남는 화면이 이만큼은 있어야 한다 — 도크가 콘텐츠를 완전히 밀어내지 못하게. */
+export const TERMINAL_DOCK_MIN_REST = 160;
+
+/**
+ * 드래그·영속값을 쓸 수 있는 범위로 자른다. `container` 는 도크가 놓인 축의
+ * 전체 길이(px)로, 0 이하(아직 레이아웃 전)면 하한만 적용한다.
+ */
+export function clampDockSize(px: number, container: number): number {
+  const wanted = Number.isFinite(px) ? Math.round(px) : TERMINAL_DOCK_MIN;
+  if (!(container > 0)) return Math.max(TERMINAL_DOCK_MIN, wanted);
+  const max = Math.max(TERMINAL_DOCK_MIN, container - TERMINAL_DOCK_MIN_REST);
+  return Math.min(max, Math.max(TERMINAL_DOCK_MIN, wanted));
 }
 
 export function migrateSidePanelWidth(raw: unknown): number {
@@ -574,6 +626,8 @@ function loadFromStorage(projectId: number): WorkspaceState {
       parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
       // AI 오버레이 은퇴 (감사 2026-07-16): 오버레이 관련 영속 키는 전부
       // 일방향 삭제 — ⌘\ 는 이제 AI 패널 화면으로 이동한다.
+      // 터미널 글자 크기는 앱 전역 설정으로 나갔다 (2026-08-15) — 일방향.
+      delete parsed.terminalFontSize;
       delete parsed.aiWorkbenchOpen;
       delete parsed.aiOverlayOpen;
       delete parsed.aiWorkbenchMode;
@@ -587,6 +641,9 @@ function loadFromStorage(projectId: number): WorkspaceState {
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
+        // 분리 창의 존재 여부는 백엔드가 알려 준다 — 지난 실행의 값을 믿고
+        // 시작하면 창이 없는데 자리표시자만 뜬 상태로 굳는다.
+        terminalDetached: false,
         // I3 — 창의 프로젝트는 URL 이 정한다. 과거 레코드에 남아 있는 값이
         // 이 창의 프로젝트를 덮어쓰지 못하게 마지막에 못박는다.
         currentProjectId: projectId,
@@ -600,7 +657,47 @@ function loadFromStorage(projectId: number): WorkspaceState {
   return { ...DEFAULT_STATE, currentProjectId: projectId };
 }
 
-function persistToStorage(projectId: number, state: WorkspaceState) {
+interface TerminalSessionFields {
+  terminalTabs: TerminalTab[];
+  terminalActiveId: string | null;
+}
+
+/** 디스크에 있는 레코드 (파싱 실패·부재는 `null`). */
+function readRecord(projectId: number): Record<string, unknown> | null {
+  const stored = localStorage.getItem(storageKeyFor(projectId));
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 영속 레코드에서 터미널 세션 필드만 떼어 온다 (없으면 `null`). */
+function readTerminalSessions(projectId: number): TerminalSessionFields | null {
+  const parsed = readRecord(projectId);
+  if (!parsed || !Array.isArray(parsed.terminalTabs)) return null;
+  return {
+    terminalTabs: parsed.terminalTabs as TerminalTab[],
+    terminalActiveId: (parsed.terminalActiveId ?? null) as string | null,
+  };
+}
+
+/**
+ * 이 프로바이더가 영속 레코드의 **어디까지를 소유하는가**.
+ *
+ * 분리 터미널 창(2026-08-15)이 생기면서 한 프로젝트의 레코드를 창 둘이 함께
+ * 쓰게 됐다. 둘 다 통째로 쓰면 나중에 저장한 쪽이 상대의 변경을 지운다 —
+ * 그래서 각자 자기 몫만 쓰고 나머지는 **디스크에 있는 값을 그대로 남긴다.**
+ *
+ *  - `full`     : 앱 창. 단, 터미널이 나가 있으면(`terminalDetached`) 터미널
+ *                 세션 필드는 건드리지 않는다.
+ *  - `terminal` : 분리 터미널 창. 터미널 세션 필드만 쓴다.
+ */
+export type PersistScope = "full" | "terminal";
+
+function persistToStorage(projectId: number, state: WorkspaceState, scope: PersistScope) {
   // Only persist non-volatile fields
   const {
     indexingProjectId: _ip,
@@ -608,13 +705,32 @@ function persistToStorage(projectId: number, state: WorkspaceState) {
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
+    // 분리 창의 존재 여부는 백엔드가 소유한다 (창이 살아 있는지가 진실).
+    terminalDetached: _td,
     // I3 — 창 URL 이 단일 진실이라 프로젝트 신원은 영속하지 않는다.
     currentProjectId: _cpi,
     currentProjectName: _cpn,
     currentProjectRoot: _cpr,
     ...persistable
   } = state;
-  localStorage.setItem(storageKeyFor(projectId), JSON.stringify(persistable));
+
+  let record: Record<string, unknown> = persistable;
+  if (scope === "terminal") {
+    // 터미널 창은 셸만 안다. 화면·필터 같은 나머지는 앱 창이 계속 바꾸고
+    // 있으므로, 우리가 마운트할 때 읽은 스냅샷으로 되돌리면 안 된다.
+    const disk = readRecord(projectId);
+    record = {
+      ...(disk ?? persistable),
+      terminalTabs: state.terminalTabs,
+      terminalActiveId: state.terminalActiveId,
+    };
+  } else if (state.terminalDetached) {
+    // 반대쪽 — 지금 셸의 주인은 분리 창이다. 여기서 우리 메모리의 낡은 탭
+    // 목록을 얹으면 분리 창이 방금 만든 탭이 조용히 사라진다.
+    const held = readTerminalSessions(projectId);
+    if (held) record = { ...persistable, ...held };
+  }
+  localStorage.setItem(storageKeyFor(projectId), JSON.stringify(record));
 }
 
 // ---------- Context ----------
@@ -632,6 +748,11 @@ interface WorkspaceContextValue {
   setProjectMeta: (name: string | null, root: string | null) => void;
   /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
   setUiV2View: (view: UiV2View) => void;
+  /**
+   * 분리 터미널 창의 존재 여부 반영 (백엔드 이벤트 미러링). 돌아올 때
+   * 디스크의 터미널 세션 목록을 다시 읽어 들인다.
+   */
+  setTerminalDetached: (detached: boolean) => void;
   setActiveFile: (file: string | null) => void;
   setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
 
@@ -652,9 +773,15 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
  */
 export function WorkspaceProvider({
   projectId,
+  persistScope = "full",
   children,
 }: {
   projectId: number;
+  /**
+   * 이 창이 영속 레코드의 어디까지를 소유하는가 (`PersistScope`). 분리 터미널
+   * 창만 `"terminal"` 을 쓴다 — 앱 창과 레코드를 공유하기 때문이다.
+   */
+  persistScope?: PersistScope;
   children: ReactNode;
 }) {
   const [state, setState] = useState<WorkspaceState>(() => loadFromStorage(projectId));
@@ -673,15 +800,15 @@ export function WorkspaceProvider({
     if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
     persistTimer.current = window.setTimeout(() => {
       persistTimer.current = null;
-      persistToStorage(projectId, stateRef.current);
+      persistToStorage(projectId, stateRef.current, persistScope);
     }, PERSIST_DEBOUNCE_MS);
-  }, [state, projectId]);
+  }, [state, projectId, persistScope]);
   useEffect(() => {
     const flush = () => {
       if (persistTimer.current != null) {
         window.clearTimeout(persistTimer.current);
         persistTimer.current = null;
-        persistToStorage(projectId, stateRef.current);
+        persistToStorage(projectId, stateRef.current, persistScope);
       }
     };
     window.addEventListener("beforeunload", flush);
@@ -689,7 +816,7 @@ export function WorkspaceProvider({
       window.removeEventListener("beforeunload", flush);
       flush();
     };
-  }, [projectId]);
+  }, [projectId, persistScope]);
 
   const setProjectMeta = useCallback((name: string | null, root: string | null) => {
     setState((prev) =>
@@ -702,6 +829,25 @@ export function WorkspaceProvider({
   const setUiV2View = useCallback((view: UiV2View) => {
     setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
   }, []);
+
+  /**
+   * 분리 터미널 창의 존재 여부를 반영한다 (백엔드 이벤트가 유일한 출처).
+   *
+   * 돌아오는 순간(true → false)에는 디스크에서 터미널 세션 필드를 다시 읽는다
+   * — 나가 있는 동안 탭을 만들고 지운 것은 분리 창 쪽이고, 이 창의 메모리에
+   * 있는 목록은 떠날 때의 스냅샷이라 그대로 쓰면 그 작업이 사라진다.
+   */
+  const setTerminalDetached = useCallback(
+    (detached: boolean) => {
+      setState((prev) => {
+        if (prev.terminalDetached === detached) return prev;
+        if (detached) return { ...prev, terminalDetached: true };
+        const held = readTerminalSessions(projectId);
+        return { ...prev, terminalDetached: false, ...(held ?? {}) };
+      });
+    },
+    [projectId],
+  );
 
   const setActiveFile = useCallback((file: string | null) => {
     setState((prev) => ({ ...prev, activeFile: file }));
@@ -918,6 +1064,7 @@ export function WorkspaceProvider({
       setState,
       setProjectMeta,
       setUiV2View,
+      setTerminalDetached,
       setActiveFile,
       setIndexing,
       setOculpmStatus,
@@ -927,6 +1074,7 @@ export function WorkspaceProvider({
       state,
       setProjectMeta,
       setUiV2View,
+      setTerminalDetached,
       setActiveFile,
       setIndexing,
       setOculpmStatus,

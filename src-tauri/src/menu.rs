@@ -178,13 +178,24 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             // 탭이 하나뿐이면 그 탭을 닫는 것이 곧 창을 닫는 것이다 —
             // `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
             use tauri_specta::Event as _;
+            // 분리 터미널 창에는 탭이 없다 — ⌘W 는 그 창을 닫는 것이다. 먼저
+            // 물어보지 않으면 `focused_app_window` 가 "마지막으로 포커스된 탭
+            // 창"으로 떨어져 **남의 창의 탭**을 닫는다.
+            if let Some(label) = win::focused_terminal_window(app) {
+                if let Some(w) = app.get_webview_window(&label) {
+                    let _ = w.close();
+                }
+                return;
+            }
             if let Some(window) = win::focused_app_window(app) {
                 let tab = win::active_tab_of(app, &window);
                 let _ = win::CloseIntent { window, tab }.emit(app);
             }
         }
         CLOSE_WINDOW => {
-            if let Some(label) = win::focused_app_window(app) {
+            if let Some(label) =
+                win::focused_terminal_window(app).or_else(|| win::focused_app_window(app))
+            {
                 if let Some(w) = app.get_webview_window(&label) {
                     let _ = w.close();
                 }

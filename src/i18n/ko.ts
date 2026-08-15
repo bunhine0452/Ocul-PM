@@ -82,6 +82,7 @@ export const ko = {
   "sidebar.openProject": "열림",
   "sidebar.manageProjects": "시작 화면 열기 · 프로젝트 관리…",
   "sidebar.toolsSection": "도구",
+  "sidebar.terminalDock": "터미널",
   "sidebar.lightMode": "라이트 모드",
   "sidebar.darkMode": "다크 모드",
   "sidebar.settings": "설정",
@@ -203,6 +204,16 @@ export const ko = {
   "settings.scale.default": "기본",
   "settings.scale.large": "크게",
   "settings.scale.xlarge": "더 크게",
+
+  // 터미널 글자 크기 — 앱 배율과 별개 (터미널은 고정폭 격자라 px 가 정확하다)
+  "settings.termFont.title": "터미널 글자 크기",
+  "settings.termFont.desc":
+    "터미널의 글자 크기를 px 로 직접 정합니다. 터미널 화면·도크·분리 창에 모두 적용됩니다.",
+  "settings.termFont.field": "크기 — {px}px",
+  "settings.termFont.input": "터미널 글자 크기 (px)",
+  "settings.termFont.range": "{min}~{max}px",
+  "settings.termFont.preview": "$ git status --short\n M src/main.rs   한글 미리보기 ✓",
+  "settings.termFont.hint": "터미널 안에서는 ⌘+ / ⌘− 로 조절하고 ⇧⌘0 으로 되돌립니다.",
   "settings.tray.title": "메뉴바 (v2.3.0)",
   "settings.tray.desc": "RunCat 처럼 상단바에서 에이전트 활동을 보여주고, 클릭하면 오늘의 상태 팝오버가 열립니다.",
   "settings.tray.showIcon": "메뉴바 아이콘 표시",
@@ -1960,6 +1971,25 @@ export const ko = {
   "term.agentFinishedIn": "{agent} 실행이 끝났습니다 ({duration})",
   "term.agentJournalPrompt": "작업 일지를 남기시겠어요?",
   "term.agentJournalAction": "일지 남기기",
+
+  // ── 터미널 도크 (2026-08-15) — 어느 화면에서나 뜨는 셸 + 창으로 분리 ──
+  "term.dock.region": "터미널 도크",
+  "term.dock.resize": "도크 크기 조절",
+  "term.dock.move": "도크로 내리기",
+  "term.dock.moveHint": "이 터미널을 도크로 내려 다른 화면과 함께 봅니다 (⌘J)",
+  "term.dock.toLeft": "왼쪽에 붙이기",
+  "term.dock.toLeftHint": "터미널을 왼쪽 패널로 옮깁니다",
+  "term.dock.toBottom": "아래에 붙이기",
+  "term.dock.toBottomHint": "터미널을 하단 패널로 옮깁니다",
+  "term.dock.detach": "창으로 분리",
+  "term.dock.detachHint": "터미널을 별도 창으로 떼어냅니다 — 셸은 그대로 이어집니다",
+  "term.dock.detachFailed": "터미널 창을 열지 못했습니다: {error}",
+  "term.dock.close": "도크 닫기",
+  "term.dock.closeHint": "도크를 닫습니다 (⌘J) — 셸은 계속 살아 있습니다",
+  "term.dock.awayTitle": "터미널이 별도 창에 있습니다",
+  "term.dock.awayHint": "같은 셸이 그 창에서 돌고 있습니다. 되돌리면 여기서 이어서 씁니다.",
+  "term.dock.reattach": "앱으로 되돌리기",
+  "term.window.title": "{project} — 터미널",
 
   // ── 임베딩 모델 배너 ────────────────────────────────────────────────────
   "embed.failed": "임베딩 모델 다운로드 실패 — 인터넷 연결 확인 후 다시 시도해 주세요",

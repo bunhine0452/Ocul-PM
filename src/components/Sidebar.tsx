@@ -6,6 +6,7 @@ import {
   FolderGit2,
   ChevronsUpDown,
   PanelLeft,
+  SquareTerminal,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
@@ -46,6 +47,13 @@ interface SidebarProps {
    * top inset so the brand clears the lights; the strip is a drag region.
    */
   macTopInset?: number;
+  /**
+   * 터미널 도크 토글 (2026-08-15). 화면 이동이 아니라 **지금 화면 위에**
+   * 셸을 여는 것이라 nav 목록이 아니라 발밑(side-foot)에 둔다 — 목록에 끼면
+   * ⌘번호가 밀리고 "다른 화면으로 간다"는 신호가 되어버린다.
+   */
+  terminalDockOpen?: boolean;
+  onToggleTerminalDock?: () => void;
   /** Collapse the sidebar off-screen (hover-to-reveal). Dogfooding 2026-06-07. */
   onToggleCollapse?: () => void;
   /** True when the sidebar is currently collapsed (button shown in the overlay). */
@@ -101,6 +109,8 @@ export function Sidebar({
   isDark,
   onToggleTheme,
   macTopInset = 0,
+  terminalDockOpen = false,
+  onToggleTerminalDock,
   onToggleCollapse,
   collapsed = false,
   onMouseLeave,
@@ -241,6 +251,20 @@ export function Sidebar({
       <div className="side-spacer" />
 
       <div className="side-foot">
+        {onToggleTerminalDock ? (
+          <button
+            type="button"
+            className={"nav-item" + (terminalDockOpen ? " active" : "")}
+            aria-pressed={terminalDockOpen}
+            onClick={onToggleTerminalDock}
+          >
+            <span className="nav-ico">
+              <SquareTerminal size={17} strokeWidth={terminalDockOpen ? 2 : 1.8} />
+            </span>
+            <span>{t("sidebar.terminalDock")}</span>
+            <kbd className="nav-kbd">⌘J</kbd>
+          </button>
+        ) : null}
         <button type="button" className="nav-item" onClick={onToggleTheme}>
           <span className="nav-ico">
             {isDark ? <SunIcon size={17} strokeWidth={1.8} /> : <MoonIcon size={17} strokeWidth={1.8} />}

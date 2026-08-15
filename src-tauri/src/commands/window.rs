@@ -16,7 +16,7 @@
 //! 라벨에서 프로젝트를 읽을 수 없으므로 **이 모듈이 레지스트리를 소유**한다.
 //! 프런트는 `WindowTabsChanged` 로 미러링만 한다.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,13 @@ const WINDOW_H: f64 = 780.0;
 const WINDOW_MIN_W: f64 = 960.0;
 const WINDOW_MIN_H: f64 = 640.0;
 
+/// 분리 터미널 창 — 셸 하나가 편한 크기. 탭 창보다 훨씬 작아도 된다
+/// (사이드바도 탭 스트립도 없다).
+const TERM_WINDOW_W: f64 = 820.0;
+const TERM_WINDOW_H: f64 = 520.0;
+const TERM_WINDOW_MIN_W: f64 = 380.0;
+const TERM_WINDOW_MIN_H: f64 = 240.0;
+
 pub fn window_label(n: u32) -> String {
     format!("{WINDOW_PREFIX}{n}")
 }
@@ -50,9 +57,25 @@ pub fn is_app_window(label: &str) -> bool {
 
 /// PTY 세션 id 접두사. **프로젝트** 기준이라 탭이 창을 옮겨 다녀도 유효하다 —
 /// 그래서 떼어낸 탭의 셸이 죽지 않는다. 끝의 `-` 덕분에 `p1-` 이 `p12-…` 를
-/// 잡아먹지 않는다. 프런트의 `TerminalScreenV2.newId` 와 짝이다.
+/// 잡아먹지 않는다. 프런트의 `TerminalSurface.newId` 와 짝이다.
 pub fn pty_prefix_for(project_id: u32) -> String {
     format!("p{project_id}-")
+}
+
+/// 분리한 **터미널 전용 창**의 라벨 접두사 (2026-08-15 터미널 도크).
+///
+/// 탭을 물지 않는 창이라 `is_app_window` 가 일부러 false 를 준다 — 탭
+/// 레지스트리·⌘W·"마지막 창" 판정이 이 창을 탭 창으로 오해하면 안 된다.
+/// 프로젝트당 하나이므로 라벨에 프로젝트 id 를 박는다 (I1 과 같은 규율).
+pub const TERM_WINDOW_PREFIX: &str = "term-";
+
+pub fn terminal_window_label(project_id: u32) -> String {
+    format!("{TERM_WINDOW_PREFIX}{project_id}")
+}
+
+/// 라벨이 터미널 창이면 그 프로젝트 id. 아니면 `None`.
+pub fn terminal_window_project(label: &str) -> Option<u32> {
+    label.strip_prefix(TERM_WINDOW_PREFIX)?.parse().ok()
 }
 
 // ─── 레지스트리 ──────────────────────────────────────────────────────────────
@@ -74,6 +97,9 @@ pub struct WindowState {
 #[derive(Debug, Default)]
 pub struct Registry {
     windows: HashMap<String, WindowState>,
+    /// 터미널을 창으로 떼어낸 프로젝트 (2026-08-15). 탭과 **함께** PTY 의
+    /// 소유자를 이룬다 — 둘 다 없어져야 셸을 죽인다 (`release_project`).
+    terminal_windows: HashSet<u32>,
     /// 새 탭이 어느 창에 붙을지 결정한다. 창이 포커스될 때마다 갱신.
     last_focused: Option<String>,
     next_window: u32,
@@ -211,6 +237,22 @@ impl Registry {
         }
     }
 
+    /// 터미널 창이 떠 있는 프로젝트 (정렬). 프런트의 자리표시자 판정에 쓴다.
+    pub fn terminal_window_projects(&self) -> Vec<u32> {
+        let mut ids: Vec<u32> = self.terminal_windows.iter().copied().collect();
+        ids.sort_unstable();
+        ids
+    }
+
+    /// 이 프로젝트의 PTY 를 아직 쓰고 있는 곳이 있는가 — 탭이든 터미널 창이든.
+    ///
+    /// PTY 정리의 유일한 판정이다. 탭만 보고 죽이던 시절에는, 터미널을 창으로
+    /// 떼어낸 뒤 프로젝트 탭을 닫으면 분리 창 안의 셸이 통째로 사라졌다.
+    fn project_in_use(&self, project_id: u32) -> bool {
+        self.terminal_windows.contains(&project_id)
+            || self.locate_project(project_id).is_some()
+    }
+
     /// 새 탭이 붙을 창 — 마지막으로 포커스된 창.
     fn preferred_window(&self) -> Option<String> {
         self.last_focused
@@ -283,6 +325,16 @@ pub struct ProjectWindowsChanged {
     pub open: Vec<u32>,
 }
 
+/// 터미널을 창으로 떼어낸 프로젝트 집합이 바뀌었다 (2026-08-15).
+///
+/// 셸의 도크·터미널 화면은 이걸 듣고 자리표시자로 바뀐다. 사용자가 분리 창을
+/// OS 의 닫기 버튼으로 닫아도 같은 길로 되돌아온다 — 프런트가 자기 상태를
+/// 진실로 삼지 않는 이유다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TerminalWindowsChanged {
+    pub open: Vec<u32>,
+}
+
 async fn snapshot(app: &AppHandle, label: &str) -> WindowTabsSnapshot {
     let (order, active) = {
         let state = app.state::<WindowTabs>();
@@ -324,6 +376,11 @@ async fn broadcast(app: &AppHandle, label: &str) {
 fn emit_open_projects(app: &AppHandle) {
     let open = app.state::<WindowTabs>().lock().all_open_projects();
     let _ = ProjectWindowsChanged { open }.emit(app);
+}
+
+fn emit_terminal_windows(app: &AppHandle) {
+    let open = app.state::<WindowTabs>().lock().terminal_window_projects();
+    let _ = TerminalWindowsChanged { open }.emit(app);
 }
 
 // ─── 커맨드 ──────────────────────────────────────────────────────────────────
@@ -631,6 +688,130 @@ pub async fn list_open_project_ids(app: AppHandle) -> Result<Vec<u32>, String> {
     Ok(ids)
 }
 
+// ─── 분리 터미널 창 (2026-08-15) ─────────────────────────────────────────────
+
+/// 이 프로젝트의 터미널을 **자기 창**으로 떼어낸다 (도크의 ⇱).
+///
+/// 탭이 아니라 별개의 경량 창이다 (`index.html?term=<id>`) — 사이드바도
+/// 탭 스트립도 없이 터미널만 그린다. 세션은 옮겨가지 않고 **그대로 이어진다**:
+/// PTY 는 Rust 에 살아 있고 sid 가 프로젝트 기준(`pty_prefix_for`)이라, 새 창의
+/// xterm 이 같은 sid 로 attach 하면 스크롤백까지 복원된다.
+///
+/// 이미 떠 있으면 새로 만들지 않고 그 창을 앞으로 가져온다 (프로젝트당 하나).
+#[tauri::command]
+#[specta::specta]
+pub async fn open_terminal_window(app: AppHandle, project_id: u32) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
+    let label = terminal_window_label(project_id);
+    if app.get_webview_window(&label).is_some() {
+        // 레지스트리에서 빠져 있는데 웹뷰만 남아 있을 수 있다 (닫기 훅이 못 돈
+        // 경우) — 다시 등록해 두어야 프런트의 자리표시자와 어긋나지 않는다.
+        {
+            let state = app.state::<WindowTabs>();
+            state.lock().terminal_windows.insert(project_id);
+        }
+        focus_window(&app, &label);
+        emit_terminal_windows(&app);
+        return Ok(());
+    }
+
+    let title = {
+        let db = app.state::<crate::db::Db>();
+        db.get_project(project_id).await.map(|p| p.name).unwrap_or_else(|_| "Ocul-PM".to_string())
+    };
+
+    let url = format!("index.html?term={project_id}");
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+        .title(title)
+        .hidden_title(true)
+        .inner_size(TERM_WINDOW_W, TERM_WINDOW_H)
+        .min_inner_size(TERM_WINDOW_MIN_W, TERM_WINDOW_MIN_H)
+        .resizable(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::TitleBarStyle;
+        let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
+    }
+
+    {
+        let state = app.state::<WindowTabs>();
+        state.lock().terminal_windows.insert(project_id);
+    }
+    attach_terminal_window_hooks(&app, &window, project_id);
+    emit_terminal_windows(&app);
+    Ok(())
+}
+
+/// 분리한 터미널을 앱으로 되돌린다 — 창만 닫으면 된다. 셸을 죽이지 않는 것은
+/// 닫기 훅이 "탭이 아직 이 프로젝트를 쓰는가"를 보고 판단하기 때문이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn close_terminal_window(app: AppHandle, project_id: u32) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(&terminal_window_label(project_id)) {
+        win.close().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    // 창이 이미 사라졌는데 레지스트리에만 남은 경우 — 프런트가 자리표시자에
+    // 갇히지 않도록 여기서 정리하고 알린다.
+    let stale = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.terminal_windows.remove(&project_id)
+    };
+    if stale {
+        emit_terminal_windows(&app);
+    }
+    Ok(())
+}
+
+/// 마운트 직후 1회 조회 (이후는 `TerminalWindowsChanged` 로 갱신).
+#[tauri::command]
+#[specta::specta]
+pub async fn list_terminal_windows(app: AppHandle) -> Result<Vec<u32>, String> {
+    let state = app.state::<WindowTabs>();
+    let ids = state.lock().terminal_window_projects();
+    Ok(ids)
+}
+
+/// 터미널 창의 닫기 훅 — 레지스트리에서 빼고, **탭도 없으면** 셸을 정리한다.
+///
+/// 프런트의 언마운트에 맡기지 않는 이유는 탭 창과 같다: 강제 종료·크래시에서는
+/// 돌지 않는다.
+fn attach_terminal_window_hooks(
+    app: &AppHandle,
+    window: &tauri::WebviewWindow,
+    project_id: u32,
+) {
+    let handle = app.clone();
+    window.on_window_event(move |ev| {
+        if let tauri::WindowEvent::CloseRequested { .. } = ev {
+            let still_used = {
+                let state = handle.state::<WindowTabs>();
+                let mut reg = state.lock();
+                reg.terminal_windows.remove(&project_id);
+                reg.project_in_use(project_id)
+            };
+            if !still_used {
+                if let Some(pty) = handle.try_state::<crate::commands::terminal::PtyState>() {
+                    let killed = pty.kill_with_prefix(&pty_prefix_for(project_id));
+                    if killed > 0 {
+                        tracing::info!(
+                            target: "window", project_id, killed,
+                            "terminal window closed — PTY sessions killed"
+                        );
+                    }
+                }
+            }
+            emit_terminal_windows(&handle);
+        }
+    });
+}
+
 // ─── 창 생성·정리 ────────────────────────────────────────────────────────────
 
 fn focus_window(app: &AppHandle, label: &str) {
@@ -804,10 +985,17 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
         return false;
     }
 
+    // 분리 터미널 창은 탭 창이 아니지만 **앱이 아직 하는 일**이다. 남아 있는데
+    // 여기서 종료·상주 전환을 밟으면, 방금 떼어낸 터미널이 통째로 사라진다.
+    let detached = app.state::<WindowTabs>().lock().terminal_window_projects();
+    if !detached.is_empty() {
+        return false;
+    }
+
     // 마지막 창 — 어떤 PTY 도 주인이 없다. 접두사 없는 레거시 sid(멀티 창
     // 이전에 저장된 터미널 탭)까지 여기서 회수한다.
     if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
-        pty.kill_with_prefix("");
+        pty.kill_except(&[]);
     }
     crate::tray::handle_last_window_closed(app, label)
 }
@@ -819,6 +1007,12 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
 /// **앱 프로세스**에 묶인다 — 여기서 멈추면 탭을 닫는 순간 그 프로젝트가
 /// 상단바에서 다시 사라진다. 종료 시 정리는 `shutdown_all_blocking` 이 한다.
 fn release_project(app: &AppHandle, project_id: u32) {
+    // 2026-08-15 — 터미널을 창으로 떼어냈으면 **그 창이 아직 셸의 주인**이다.
+    // 탭만 보고 죽이면, 분리 창을 띄워 둔 채 프로젝트 탭을 닫는 순간 그 안의
+    // 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
+    if app.state::<WindowTabs>().lock().project_in_use(project_id) {
+        return;
+    }
     if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
         let killed = pty.kill_with_prefix(&pty_prefix_for(project_id));
         if killed > 0 {
@@ -842,6 +1036,20 @@ pub fn focused_app_window(app: &AppHandle) -> Option<String> {
         let reg = state.lock();
         reg.preferred_window()
     })
+}
+
+/// 지금 포커스된 **분리 터미널 창**의 라벨.
+///
+/// ⌘W/⇧⌘W 처리에 반드시 먼저 물어봐야 한다: `focused_app_window` 는 터미널
+/// 창을 앱 창으로 치지 않아 "마지막으로 포커스된 탭 창"으로 떨어지고, 그러면
+/// 터미널 창에서 누른 ⌘W 가 **다른 창의 탭**을 닫아 버린다.
+pub fn focused_terminal_window(app: &AppHandle) -> Option<String> {
+    app.webview_windows()
+        .into_iter()
+        .find(|(label, w)| {
+            terminal_window_project(label).is_some() && w.is_focused().unwrap_or(false)
+        })
+        .map(|(label, _)| label)
 }
 
 /// 그 창에서 지금 보이고 있는 탭.
@@ -962,6 +1170,43 @@ mod tests {
         let p1 = pty_prefix_for(1);
         assert!("p1-a1b2c3d4".starts_with(&p1));
         assert!(!"p12-a1b2c3d4".starts_with(&p1));
+    }
+
+    /// 터미널 창은 탭을 물지 않는다 — 탭 레지스트리·⌘W·"마지막 창" 판정이
+    /// 이 라벨을 앱 창으로 오해하면 남의 탭을 닫거나 앱을 종료시킨다.
+    #[test]
+    fn terminal_windows_are_not_app_windows() {
+        assert!(!is_app_window("term-3"));
+        assert_eq!(terminal_window_label(3), "term-3");
+        assert_eq!(terminal_window_project("term-3"), Some(3));
+        assert_eq!(terminal_window_project("win-3"), None);
+        assert_eq!(terminal_window_project("term-"), None);
+        assert_eq!(terminal_window_project("term-abc"), None);
+    }
+
+    /// PTY 정리의 유일한 판정 — 탭이든 터미널 창이든 **하나라도 남아 있으면**
+    /// 셸을 죽이지 않는다. 탭만 보던 시절에는, 터미널을 창으로 떼어낸 뒤
+    /// 프로젝트 탭을 닫는 순간 분리 창 안의 셸이 전부 사라졌다.
+    #[test]
+    fn a_detached_terminal_window_keeps_the_project_in_use() {
+        let mut reg = reg_with(&[("main", &[Some(3)])]);
+        let tab = ids(&reg, "main")[0];
+
+        assert!(reg.project_in_use(3), "탭이 있으니 쓰는 중");
+        reg.terminal_windows.insert(3);
+        reg.remove_tab(tab);
+        assert!(reg.project_in_use(3), "탭은 닫혔지만 터미널 창이 남았다");
+
+        reg.terminal_windows.remove(&3);
+        assert!(!reg.project_in_use(3), "둘 다 없으면 그때 정리한다");
+    }
+
+    #[test]
+    fn terminal_window_projects_are_sorted() {
+        let mut reg = Registry::default();
+        reg.terminal_windows.insert(9);
+        reg.terminal_windows.insert(2);
+        assert_eq!(reg.terminal_window_projects(), vec![2, 9]);
     }
 
     #[test]

@@ -7,6 +7,7 @@ import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
+import { TerminalAway } from "@/features/terminal/TerminalAway";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
@@ -45,6 +46,11 @@ const SkillsScreenV2 = lazy(() =>
 );
 const SettingsPanel = lazy(() =>
   import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
+);
+// 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
+// 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
+const TerminalDock = lazy(() =>
+  import("@/features/terminal/TerminalDock").then((m) => ({ default: m.TerminalDock })),
 );
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
@@ -98,7 +104,7 @@ export default function ShellV2({
   active = true,
 }: ShellV2Props) {
   const { t } = useT();
-  const { state, setUiV2View, setState } = useWorkspace();
+  const { state, setUiV2View, setState, setTerminalDetached } = useWorkspace();
   const { resolvedTheme, setTheme } = useTheme();
   const view = state.uiV2View;
   const isDark = resolvedTheme === "dark";
@@ -221,6 +227,36 @@ export default function ShellV2({
     if (id !== projectId) onOpenProject(id);
   };
 
+  // 분리 터미널 창이 이 프로젝트에 떠 있는가 — 창의 존재 여부가 진실이고
+  // 백엔드가 알려 준다. 사용자가 그 창을 OS 버튼으로 닫아도 여기로 돌아온다.
+  useEffect(() => {
+    void commands.listTerminalWindows().then((res) => {
+      if (res.status === "ok" && projectId != null) {
+        setTerminalDetached(res.data.includes(projectId));
+      }
+    });
+    let off: (() => void) | undefined;
+    void events.terminalWindowsChanged
+      .listen(({ payload }) => {
+        if (projectId != null) setTerminalDetached(payload.open.includes(projectId));
+      })
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [projectId, setTerminalDetached]);
+
+  // 도크 소유권 (2026-08-15): 같은 PTY 에 xterm 두 개가 붙으면 서로의 fit() 을
+  // 되돌려 화면이 떨린다. 그래서 터미널을 **그리는** 면은 언제나 하나다 —
+  // 분리 창 > 터미널 화면 > 도크 순으로 양보한다.
+  //
+  // 도크 자체는 분리 중에도 열려 있다: 자리표시자가 "어디로 갔는지 + 되돌리는
+  // 길"을 들고 있어야 하기 때문이다 (TerminalAway).
+  const detached = state.terminalDetached;
+  const dockVisible = projectId != null && state.terminalDockOpen && view !== "terminal";
+
   // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
   useEffect(() => {
@@ -310,11 +346,22 @@ export default function ShellV2({
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
         macTopInset={0}
+        terminalDockOpen={state.terminalDockOpen}
+        onToggleTerminalDock={() =>
+          setState((prev) => ({ ...prev, terminalDockOpen: !prev.terminalDockOpen }))
+        }
         onToggleCollapse={toggleSidebar}
         collapsed={collapsed}
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}
       />
       <main className="content">
+        <div className={"content-body" + (dockVisible ? ` with-dock dock-${state.terminalDockPos}` : "")}>
+        {dockVisible && projectId != null && state.terminalDockPos === "left" ? (
+          <Suspense fallback={<div className="term-dock pos-left" style={{ width: state.terminalDockWidth }} />}>
+            <TerminalDock projectId={projectId} projectRoot={projectRoot} />
+          </Suspense>
+        ) : null}
+        <div className="content-main">
         {/* v2 U6 — lazy 화면 공용 fallback: 툴바 자리 + 콘텐츠 스켈레톤.
             스피너 대신 콘텐츠 형태를 유지해 화면 전환 점프를 줄인다. */}
         <Suspense
@@ -410,7 +457,20 @@ export default function ShellV2({
         ) : view === "search" ? (
           <SearchScreenV2 projectId={projectId} />
         ) : view === "terminal" ? (
-          <TerminalScreenV2 projectRoot={projectRoot} />
+          // 터미널이 분리 창에 나가 있으면 여기서 또 그리지 않는다 — 같은 PTY
+          // 를 두 뷰가 잡으면 리사이즈가 서로를 되돌린다. 되돌리는 길만 남긴다.
+          detached ? (
+            <>
+              <Toolbar title={t("term.title")} sub={t("term.dock.awayTitle")} />
+              <div className="scroll">
+                <div className="page fade-in">
+                  <TerminalAway projectId={projectId} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <TerminalScreenV2 projectRoot={projectRoot} />
+          )
         ) : view === "claudecode" ? (
           <ClaudeCodeScreenV2 projectId={projectId} />
         ) : view === "ai" ? (
@@ -429,6 +489,13 @@ export default function ShellV2({
           <SkillsScreenV2 projectId={projectId} />
         ) : null}
         </Suspense>
+        </div>
+        {dockVisible && projectId != null && state.terminalDockPos === "bottom" ? (
+          <Suspense fallback={<div className="term-dock pos-bottom" style={{ height: state.terminalDockHeight }} />}>
+            <TerminalDock projectId={projectId} projectRoot={projectRoot} />
+          </Suspense>
+        ) : null}
+        </div>
       </main>
     </div>
   );

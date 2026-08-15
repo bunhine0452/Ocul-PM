@@ -277,6 +277,20 @@
   from { opacity: 0; transform: translateY(10px) scale(0.992); }
   to { opacity: 1; transform: none; }
 }
+
+/* ── 터미널 도크 배치 (2026-08-15) ─────────────────────────────────────────
+   시트 안을 두 칸으로 나눈다. 도크가 없으면 예전과 완전히 같은 세로 흐름이고
+   (툴바 + 스크롤), 도크가 붙으면 자리에 따라 방향만 바뀐다. 화면 쪽은 언제나
+   `.content-main` 안에서 자기 툴바를 그리므로 화면 코드는 손대지 않는다. */
+.content-body {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.content-body.dock-left { flex-direction: row; }
+.content-main {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
 .toolbar {
   height: 52px; flex: none;
   display: flex; align-items: center; gap: 12px;

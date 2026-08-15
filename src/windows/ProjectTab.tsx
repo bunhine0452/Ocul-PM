@@ -45,7 +45,8 @@ export default function ProjectTab({
   onDeepLinkConsumed,
 }: ProjectTabProps) {
   const { t } = useT();
-  const { state, setProjectMeta, setUiV2View, setIndexing, setOculpmStatus } = useWorkspace();
+  const { state, setState, setProjectMeta, setUiV2View, setIndexing, setOculpmStatus } =
+    useWorkspace();
   const {
     currentProjectName: projectName,
     currentProjectRoot: projectRoot,
@@ -68,6 +69,10 @@ export default function ProjectTab({
       }
       setUiV2View(v);
     },
+    // ⌘J — 어느 화면에서나 터미널 도크. 셸이 아니라 여기서 다는 이유는 이
+    // 훅이 이미 "활성 탭만" 게이트를 들고 있어서다 (탭 수만큼 발화 방지).
+    onToggleTerminalDock: () =>
+      setState((prev) => ({ ...prev, terminalDockOpen: !prev.terminalDockOpen })),
   });
 
   // 딥링크는 활성 탭이 마운트되며 한 번 소비한다.

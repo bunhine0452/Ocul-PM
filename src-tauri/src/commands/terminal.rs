@@ -80,6 +80,14 @@ pub struct PtyState {
     pub sessions: Arc<Mutex<HashMap<String, PtySession>>>,
 }
 
+/// 이 세션이 살려 둘 접두사에 속하는가 (`kill_except` 의 판정).
+///
+/// 접두사에 `-` 가 붙어 있어야 `p1-` 이 `p12-…` 를 함께 살리지 않는다 —
+/// `window.rs::pty_prefix_for` 가 그 규격을 만든다.
+fn is_protected(sid: &str, keep: &[String]) -> bool {
+    keep.iter().any(|p| sid.starts_with(p))
+}
+
 impl PtyState {
     /// 창 하나가 소유한 세션 전량 종료 (멀티 창 T4). sid 는 프런트가
     /// `p<projectId>-` 접두사와 함께 만들고, 창의 CloseRequested 훅이 이
@@ -96,6 +104,25 @@ impl PtyState {
             .collect();
         for key in &doomed {
             // PtySession 이 여기서 drop → master 가 닫히며 자식에 SIGHUP.
+            sessions.remove(key);
+        }
+        doomed.len()
+    }
+
+    /// 지정한 접두사들**만 남기고** 전량 종료 (2026-08-15 터미널 도크).
+    ///
+    /// 마지막 앱 창이 닫힐 때의 총정리에 쓴다. 예전에는 `kill_with_prefix("")`
+    /// 로 전부 죽였는데, 터미널을 창으로 떼어낸 뒤(분리 창) 본 창을 닫으면
+    /// 그 셸까지 함께 죽었다 — 분리 창은 살아 있는데 안의 셸만 사라지는 셈.
+    /// `keep` 이 비어 있으면 예전과 동일하게 전량 종료다.
+    pub fn kill_except(&self, keep: &[String]) -> usize {
+        let mut sessions = match self.sessions.lock() {
+            Ok(s) => s,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let doomed: Vec<String> =
+            sessions.keys().filter(|k| !is_protected(k, keep)).cloned().collect();
+        for key in &doomed {
             sessions.remove(key);
         }
         doomed.len()
@@ -473,5 +500,19 @@ mod tests {
         assert!(text.ends_with("tail"));
         assert!(text.len() <= SCROLLBACK_CAP_BYTES + 4);
         assert_eq!(text.matches('x').count(), big.len());
+    }
+
+    /// 마지막 앱 창을 닫을 때의 총정리에서, 분리 터미널 창의 셸만 살아남는다.
+    /// `keep` 이 비면 예전(`kill_with_prefix("")`)과 같이 전량 대상이다.
+    #[test]
+    fn kill_except_protects_only_the_listed_prefixes() {
+        let keep = vec!["p1-".to_string()];
+        assert!(is_protected("p1-abc", &keep));
+        assert!(!is_protected("p2-abc", &keep));
+        // 접두사의 `-` 가 없으면 p1 이 p12 를 잡아먹는다 — 규격이 지켜지는지.
+        assert!(!is_protected("p12-abc", &keep));
+        // 멀티 창 이전에 저장된 접두사 없는 레거시 sid 도 보호되지 않는다.
+        assert!(!is_protected("a1b2c3d4", &keep));
+        assert!(!is_protected("p1-abc", &[]));
     }
 }

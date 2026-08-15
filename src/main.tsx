@@ -21,12 +21,27 @@ if (import.meta.hot) {
   import.meta.hot.on("vite:ws:connect", diag("ws-connect"));
 }
 
-// 두 갈래 (크롬식 탭 §2) — 트레이 팝오버냐, 탭을 문 앱 창이냐. 어느 갈래인지는
-// URL 이 정하고 런타임에 바뀌지 않는다. "런처 전용 창" 은 시작 탭이 대체했다.
+// 세 갈래 (크롬식 탭 §2 + 2026-08-15 터미널 도크) — 트레이 팝오버냐, 떼어낸
+// 터미널이냐, 탭을 문 앱 창이냐. 어느 갈래인지는 URL 이 정하고 런타임에 바뀌지
+// 않는다. "런처 전용 창" 은 시작 탭이 대체했다.
 const route = parseWindowRoute(window.location.search);
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
-if (route.kind === "tray") {
+if (route.kind === "terminal") {
+  // 분리 터미널 창 — 셸 하나만 사는 경량 진입점. 설정(테마·편집기 명령)은
+  // 필요하므로 SettingsProvider 는 그대로 두른다.
+  const TerminalWindow = React.lazy(() => import("./windows/TerminalWindow"));
+  root.render(
+    <React.StrictMode>
+      <SettingsProvider>
+        <React.Suspense fallback={null}>
+          <TerminalWindow projectId={route.projectId} />
+        </React.Suspense>
+        <Toaster />
+      </SettingsProvider>
+    </React.StrictMode>,
+  );
+} else if (route.kind === "tray") {
   // v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`). 본 앱 셸·워크스페이스를
   // 로드하지 않는 경량 진입점.
   const TrayApp = React.lazy(() => import("./features/tray/TrayApp"));

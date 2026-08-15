@@ -2,6 +2,7 @@
 // Settings are persisted in the SQLite `settings` table via Tauri commands.
 
 import type { LangSetting } from "@/i18n";
+import { TERM_FONT_DEFAULT } from "@/features/terminal/fontSize";
 
 export type Theme =
   | "light"
@@ -27,6 +28,11 @@ export const KEYS = {
   theme: "theme",
   colorTheme: "color_theme",
   uiScale: "ui_scale",
+  // 터미널 글자 크기(px). 2026-08-15 에 프로젝트별 워크스페이스(localStorage)
+  // 에서 여기로 옮겼다 — 프로젝트마다 다를 이유가 없는 개인 취향이고, 도크·
+  // 터미널 화면·분리 창이 **같은 값**을 봐야 하기 때문이다 (SQLite 라 창을
+  // 여러 개 띄워도 한 값이다).
+  terminalFontSize: "terminal_font_size",
   // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
   // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
   language: "language",
@@ -81,6 +87,11 @@ export interface Settings {
   /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
    *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
   uiScale: number;
+  /**
+   * 터미널 글자 크기 (px). 범위·클램프는 `@/features/terminal/fontSize`.
+   * ⌘+/⌘−/⇧⌘0 과 터미널 상태바의 px 입력, 설정 화면이 모두 이 한 값을 쓴다.
+   */
+  terminalFontSize: number;
   /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
   language: LangSetting;
   /**
@@ -140,6 +151,7 @@ export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
   uiScale: 1,
+  terminalFontSize: TERM_FONT_DEFAULT,
   language: "system",
   contentLanguage: "system",
 
@@ -178,6 +190,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiScale]: "uiScale",
+  [KEYS.terminalFontSize]: "terminalFontSize",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.defaultProvider]: "defaultProvider",

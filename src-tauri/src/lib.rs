@@ -134,6 +134,7 @@ use crate::commands::{
     apply_menu_language,
     open_devtools, open_project_tab, new_start_tab, set_tab_project, close_tab,
     activate_tab, reorder_tabs, detach_tab, get_window_tabs, list_open_project_ids,
+    open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
@@ -282,6 +283,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         detach_tab,
         get_window_tabs,
         list_open_project_ids,
+        // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
+        open_terminal_window,
+        close_terminal_window,
+        list_terminal_windows,
         // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
         apply_menu_language,
         read_project_file,
@@ -472,6 +477,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::commands::window::WindowTabsChanged,
         crate::commands::window::CloseIntent,
         crate::commands::window::ProjectWindowsChanged,
+        crate::commands::window::TerminalWindowsChanged,
         // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
         crate::commands::config::SettingsChanged,
     ])

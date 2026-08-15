@@ -74,6 +74,25 @@ describe("창 라우팅", () => {
   it("tray 가 win 보다 우선한다", () => {
     expect(parseWindowRoute("?tray=1&win=win-2")).toEqual({ kind: "tray" });
   });
+
+  /** 도크에서 떼어낸 터미널 전용 창 (2026-08-15). */
+  it("?term=3 은 분리 터미널 갈래", () => {
+    expect(parseWindowRoute("?term=3")).toEqual({ kind: "terminal", projectId: 3 });
+  });
+
+  /**
+   * 판독 불가능한 프로젝트 id 로 터미널 갈래에 들어가면 프로젝트 없는
+   * 워크스페이스를 마운트하게 된다 — 평범한 탭 창으로 떨어지는 편이 안전하다.
+   */
+  it("판독 불가능한 term 값은 터미널 갈래로 가지 않는다", () => {
+    for (const bad of ["?term=", "?term=abc", "?term=-1", "?term=1.5", "?term=1x"]) {
+      expect(parseWindowRoute(bad)).toMatchObject({ kind: "window", label: FIRST_WINDOW });
+    }
+  });
+
+  it("tray 가 term 보다 우선한다", () => {
+    expect(parseWindowRoute("?tray=1&term=3")).toEqual({ kind: "tray" });
+  });
 });
 
 // ─── 탭 드래그 산술 (01b §4.1) ────────────────────────────────────────────

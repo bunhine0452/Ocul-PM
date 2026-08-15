@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { canAutoRename, shellTitleToTabLabel } from "@/features/terminal/tabTitle";
-import { formatMatchCount } from "@/features/terminal/TerminalScreenV2";
+// 2026-08-15 — 터미널 본체가 `TerminalSurface` 로 분리되면서 함께 옮겨왔다
+// (도크·분리 창이 같은 컴포넌트를 쓴다).
+import { formatMatchCount } from "@/features/terminal/TerminalSurface";
 import { readSearchDecorations, readTerminalTheme } from "@/features/terminal/termTheme";
 
 // 2026-07-30 터미널 품질 라운드 — 순수 로직 회귀 방지.

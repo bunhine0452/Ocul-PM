@@ -56,6 +56,10 @@ const ALLOWLIST = new Set([
   // 저장소를 직접 들여다봐야 한다. 이 스위트가 곧 그 계약의 회귀 방지선이다.
   // Test-only.
   "__tests__/multi_window.test.tsx",
+  // 터미널 도크 (2026-08-15) — 앱 창과 분리 터미널 창이 **같은 영속 레코드를
+  // 나눠 소유**한다. 그 계약("각자 자기 몫만 쓰고 나머지는 디스크 값을 남긴다")은
+  // 다른 창의 저장을 흉내 내야 검증되므로 저장소를 직접 만진다. Test-only.
+  "__tests__/terminal_dock.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

@@ -86,6 +86,7 @@ export const en: Record<keyof typeof ko, string> = {
   "sidebar.openProject": "Open",
   "sidebar.manageProjects": "Open start screen · manage projects…",
   "sidebar.toolsSection": "Tools",
+  "sidebar.terminalDock": "Terminal",
   "sidebar.lightMode": "Light mode",
   "sidebar.darkMode": "Dark mode",
   "sidebar.settings": "Settings",
@@ -210,6 +211,17 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.scale.default": "Default",
   "settings.scale.large": "Large",
   "settings.scale.xlarge": "Larger",
+
+  // Terminal font size — separate from app scale (a terminal is a fixed-width
+  // grid, so an exact px value is the right control).
+  "settings.termFont.title": "Terminal font size",
+  "settings.termFont.desc":
+    "Set the terminal's font size in px. Applies to the terminal screen, the dock, and detached windows.",
+  "settings.termFont.field": "Size — {px}px",
+  "settings.termFont.input": "Terminal font size (px)",
+  "settings.termFont.range": "{min}–{max}px",
+  "settings.termFont.preview": "$ git status --short\n M src/main.rs   preview ✓",
+  "settings.termFont.hint": "Inside the terminal use ⌘+ / ⌘− to adjust and ⇧⌘0 to reset.",
   "settings.tray.title": "Menu bar (v2.3.0)",
   "settings.tray.desc": "Shows agent activity in the menu bar (RunCat-style); click for today's status popover.",
   "settings.tray.showIcon": "Show menu bar icon",
@@ -1991,6 +2003,25 @@ export const en: Record<keyof typeof ko, string> = {
   "term.agentFinishedIn": "{agent} finished in {duration}",
   "term.agentJournalPrompt": "Write a work journal entry?",
   "term.agentJournalAction": "Write entry",
+
+  // ── Terminal dock (2026-08-15) — a shell on every screen + detach to a window ──
+  "term.dock.region": "Terminal dock",
+  "term.dock.resize": "Resize dock",
+  "term.dock.move": "Move to dock",
+  "term.dock.moveHint": "Dock this terminal so you can use it alongside other screens (⌘J)",
+  "term.dock.toLeft": "Dock to the left",
+  "term.dock.toLeftHint": "Move the terminal to the left panel",
+  "term.dock.toBottom": "Dock to the bottom",
+  "term.dock.toBottomHint": "Move the terminal to the bottom panel",
+  "term.dock.detach": "Open in a window",
+  "term.dock.detachHint": "Detach the terminal into its own window — the shell keeps running",
+  "term.dock.detachFailed": "Couldn't open the terminal window: {error}",
+  "term.dock.close": "Close dock",
+  "term.dock.closeHint": "Close the dock (⌘J) — the shell keeps running",
+  "term.dock.awayTitle": "This terminal is in a separate window",
+  "term.dock.awayHint": "The same shell is running over there. Bring it back to continue here.",
+  "term.dock.reattach": "Bring back to the app",
+  "term.window.title": "{project} — Terminal",
 
   // ── Embedding model banner ──────────────────────────────────────────────
   "embed.failed": "Couldn't download the embedding model — check your connection and try again",

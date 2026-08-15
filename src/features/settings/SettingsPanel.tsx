@@ -27,6 +27,14 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { PROVIDERS, type ColorTheme, type Provider, type Theme } from "@/lib/settings";
+// 상수·클램프만 있는 모듈이다 — TerminalSurface 에서 가져오면 설정 청크가
+// xterm 을 통째로 끌고 온다.
+import {
+  TERM_FONT_MIN,
+  TERM_FONT_MAX,
+  TERM_FONT_DEFAULT,
+  clampTermFont,
+} from "@/features/terminal/fontSize";
 import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting } from "@/i18n";
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
@@ -499,8 +507,103 @@ function AppearanceTab() {
         </div>
       </Section>
 
+      <TerminalFontSection />
+
       <MenubarSection />
     </>
+  );
+}
+
+/**
+ * 터미널 글자 크기 (2026-08-15).
+ *
+ * 앱 배율(`uiScale`)과 별개다 — 터미널은 고정폭 격자라 배율로 키우면 셀 폭과
+ * 폰트가 어긋나 줄이 밀린다. px 를 직접 정하는 편이 정확하고, 사용자가 원한
+ * 것도 그것이다. 값은 SQLite 라 도크·터미널 화면·분리 창이 전부 같이 움직인다.
+ */
+function TerminalFontSection() {
+  const { t } = useT();
+  const { settings, set } = useSettings();
+  const px = clampTermFont(settings.terminalFontSize || TERM_FONT_DEFAULT);
+  // 타이핑 중 초안 — "1"(18 을 치는 중)이 곧장 9 로 튀지 않게 커밋을 미룬다.
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    if (draft === null) return;
+    const parsed = Number.parseInt(draft, 10);
+    if (Number.isFinite(parsed)) void set("terminalFontSize", clampTermFont(parsed));
+    setDraft(null);
+  };
+
+  return (
+    <Section title={t("settings.termFont.title")} description={t("settings.termFont.desc")}>
+      <Field label={t("settings.termFont.field", { px })}>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            aria-label={t("settings.termFont.title")}
+            min={TERM_FONT_MIN}
+            max={TERM_FONT_MAX}
+            step={1}
+            value={px}
+            onChange={(e) => void set("terminalFontSize", clampTermFont(Number(e.target.value)))}
+            className="flex-1 accent-[color:var(--primary)]"
+          />
+          <input
+            type="number"
+            min={TERM_FONT_MIN}
+            max={TERM_FONT_MAX}
+            step={1}
+            value={draft ?? String(px)}
+            aria-label={t("settings.termFont.input")}
+            title={t("settings.termFont.range", { min: TERM_FONT_MIN, max: TERM_FONT_MAX })}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setDraft(raw);
+              const parsed = Number.parseInt(raw, 10);
+              // 범위 안 값만 즉시 반영. 범위 밖·빈 값은 blur/Enter 에서 정리.
+              if (parsed >= TERM_FONT_MIN && parsed <= TERM_FONT_MAX) {
+                void set("terminalFontSize", parsed);
+              }
+            }}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setDraft(null);
+                e.currentTarget.blur();
+              }
+            }}
+            className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-mono tabular-nums text-right text-foreground"
+          />
+          <span className="text-xs text-muted-foreground">px</span>
+        </div>
+      </Field>
+
+      {/* 실제 터미널 폰트로 그린 미리보기 — 슬라이더만 있으면 "9px 이 얼마나
+          작은지"를 터미널 화면에 가서야 알게 된다. */}
+      <div
+        className="rounded-lg border border-border bg-[color:var(--term-bg)] px-3 py-2.5 overflow-x-auto"
+        aria-hidden="true"
+      >
+        <pre
+          className="m-0 text-[color:var(--term-fg)]"
+          style={{
+            fontSize: px,
+            lineHeight: 1.2,
+            fontFamily: 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace',
+          }}
+        >
+          {t("settings.termFont.preview")}
+        </pre>
+      </div>
+
+      <p className="text-xs text-muted-foreground">{t("settings.termFont.hint")}</p>
+    </Section>
   );
 }
 

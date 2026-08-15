@@ -204,6 +204,24 @@ export const commands = {
 	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
 	listOpenProjectIds: () => typedError<number[], string>(__TAURI_INVOKE("list_open_project_ids")),
 	/**
+	 *  이 프로젝트의 터미널을 **자기 창**으로 떼어낸다 (도크의 ⇱).
+	 * 
+	 *  탭이 아니라 별개의 경량 창이다 (`index.html?term=<id>`) — 사이드바도
+	 *  탭 스트립도 없이 터미널만 그린다. 세션은 옮겨가지 않고 **그대로 이어진다**:
+	 *  PTY 는 Rust 에 살아 있고 sid 가 프로젝트 기준(`pty_prefix_for`)이라, 새 창의
+	 *  xterm 이 같은 sid 로 attach 하면 스크롤백까지 복원된다.
+	 * 
+	 *  이미 떠 있으면 새로 만들지 않고 그 창을 앞으로 가져온다 (프로젝트당 하나).
+	 */
+	openTerminalWindow: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("open_terminal_window", { projectId })),
+	/**
+	 *  분리한 터미널을 앱으로 되돌린다 — 창만 닫으면 된다. 셸을 죽이지 않는 것은
+	 *  닫기 훅이 "탭이 아직 이 프로젝트를 쓰는가"를 보고 판단하기 때문이다.
+	 */
+	closeTerminalWindow: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("close_terminal_window", { projectId })),
+	/**  마운트 직후 1회 조회 (이후는 `TerminalWindowsChanged` 로 갱신). */
+	listTerminalWindows: () => typedError<number[], string>(__TAURI_INVOKE("list_terminal_windows")),
+	/**
 	 *  프런트가 해석한 UI 언어를 알려 준다 — 메뉴 라벨을 그 언어로 다시 만든다.
 	 * 
 	 *  Rust 는 프런트의 i18n 사전을 읽지 않고, `language: "system"` 을 OS 로케일로
@@ -1141,6 +1159,7 @@ export const events = {
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
+	terminalWindowsChanged: makeEvent<TerminalWindowsChanged>("terminal-windows-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
 	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
 };
@@ -3134,6 +3153,17 @@ export type TabInfo = {
 	 */
 	icon: string | null,
 	color: string | null,
+};
+
+/**
+ *  터미널을 창으로 떼어낸 프로젝트 집합이 바뀌었다 (2026-08-15).
+ * 
+ *  셸의 도크·터미널 화면은 이걸 듣고 자리표시자로 바뀐다. 사용자가 분리 창을
+ *  OS 의 닫기 버튼으로 닫아도 같은 길로 되돌아온다 — 프런트가 자기 상태를
+ *  진실로 삼지 않는 이유다.
+ */
+export type TerminalWindowsChanged = {
+	open: number[],
 };
 
 /**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */

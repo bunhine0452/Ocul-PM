@@ -528,6 +528,11 @@ export {
   // 터미널 개편 — 가로/세로 분할.
   Columns2,
   Rows2,
+  // 터미널 도크 (2026-08-15) — 붙이는 자리(하단/왼쪽) + 창으로 분리.
+  // `PanelLeft` 는 이 파일 위쪽에 손으로 쓴 같은 도형이 있어 별칭으로 받는다.
+  PanelBottom,
+  PanelLeft as PanelLeftDock,
+  SquareArrowOutUpRight,
   // i18n Phase 0 — 설정 → 모양 → 언어.
   Languages,
   // 프로젝트 아이덴티티 글리프 10종 (시작 화면 카드 · 탭).

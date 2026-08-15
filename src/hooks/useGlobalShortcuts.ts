@@ -10,12 +10,15 @@ import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
 //   ⌘, : 설정 화면.
 //   ⌘\ : AI 패널 화면 (감사 2026-07-16 — 별도 오버레이 스택을 은퇴하고
 //        단축키는 유지: 기존 손버릇이 그대로 새 정본으로 간다).
+//   ⌘J : 터미널 도크 (2026-08-15) — VS Code·iTerm 의 관습 그대로.
 // Mac ⌘ 과 Win/Linux Ctrl 동일 취급; 입력 필드 안에서도 동작 (기존 정책 유지).
 
 interface Options {
   onOpenPalette: () => void;
   /** Navigate the ui_v2 shell — ⌘번호 + ⌘, */
   uiV2Nav: (view: UiV2View) => void;
+  /** ⌘J — 어느 화면에서나 터미널 도크를 여닫는다. */
+  onToggleTerminalDock?: () => void;
   /**
    * 크롬식 탭 — 한 창에 탭이 여럿이고 **비활성 탭도 마운트된 채**라, 게이트가
    * 없으면 ⌘1 이 탭 수만큼 발화한다. 기본 true 라 런처처럼 탭이 하나뿐인
@@ -24,7 +27,12 @@ interface Options {
   enabled?: boolean;
 }
 
-export function useGlobalShortcuts({ onOpenPalette, uiV2Nav, enabled = true }: Options) {
+export function useGlobalShortcuts({
+  onOpenPalette,
+  uiV2Nav,
+  onToggleTerminalDock,
+  enabled = true,
+}: Options) {
   useEffect(() => {
     if (!enabled) return;
     function onKey(e: KeyboardEvent) {
@@ -35,6 +43,12 @@ export function useGlobalShortcuts({ onOpenPalette, uiV2Nav, enabled = true }: O
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
         onOpenPalette();
+        return;
+      }
+      // ⌘J — 터미널 도크. ⇧⌘J 는 넘긴다 (브라우저·OS 조합과 겹치지 않게).
+      if (e.key.toLowerCase() === "j" && !e.shiftKey && onToggleTerminalDock) {
+        e.preventDefault();
+        onToggleTerminalDock();
         return;
       }
       // ⌘P — 프로젝트 전환 (사이드바 팝오버)
@@ -65,5 +79,5 @@ export function useGlobalShortcuts({ onOpenPalette, uiV2Nav, enabled = true }: O
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, uiV2Nav, enabled]);
+  }, [onOpenPalette, uiV2Nav, onToggleTerminalDock, enabled]);
 }
