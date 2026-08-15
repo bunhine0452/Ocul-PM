@@ -27,7 +27,13 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.10.1 — a terminal on every screen
+## 🚀 v2.10.2 — dock on the right, drag the detached window
+
+- **Three dock positions** — the move button cycles **bottom → left → right → bottom**. The two vertical positions share one remembered width.
+- **Drag the detached terminal window by its top strip** — that window has no title bar, so the app has to offer the grab area itself; it was missing, which left the window **impossible to move.**
+- **macOS window tiling shortcuts (⌃⌥←→↑↓)** — they worked everywhere except here. Reclaiming `⌘W` meant building the menu by hand, and **macOS was never told which submenu is the Window menu**, so the "Move & Resize" items were never created.
+
+## v2.10.1 — a terminal on every screen
 
 To see a shell you had to leave for the Terminal screen, then leave again to read a journal entry or a plan. Now **⌘J** opens a terminal right on top of whatever you are looking at.
 
@@ -96,7 +102,7 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 - **Code search** — three modes: semantic (local embeddings), symbol (AST), and full-text (FTS5).
 - **Code map** — a dependency graph that goes beyond imports to calls, inheritance, and implementations. Pick a file and see "changing this affects N files" first.
 - **Docs** — browse your project's `docs/` folder like a wiki.
-- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. **⌘J docks it onto any screen (bottom or left), and it detaches into its own window** without dropping the shell. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
+- **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. **⌘J docks it onto any screen (bottom, left, or right), and it detaches into its own window** without dropping the shell. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
 - **Claude Code** — runs a real `claude` inside the app as an agent (Agent Client Protocol). Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.
 - **AI panel** — chat that knows your code search, journal, planner, and git context. Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails. This is the screen where you ask it things.
 - **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) per project. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. The **Shop tab** installs vetted third-party skills matched to your stack, 25 of them, in one click.
