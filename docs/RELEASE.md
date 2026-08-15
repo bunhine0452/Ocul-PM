@@ -11,13 +11,17 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 
 네 개 모두 exit 0 인지 **직접 확인**합니다 (통과했겠거니 하지 않기).
 
-## 1. 버전 — 3파일 (같은 값)
+## 1. 버전 — 5파일 (같은 값)
 
 | 파일 | 위치 |
 | --- | --- |
 | `package.json` | `"version"` |
 | `src-tauri/tauri.conf.json` | `"version"` |
 | `src-tauri/Cargo.toml` | `version` |
+| `plugin/oculpm/.claude-plugin/plugin.json` | `"version"` |
+| `.claude-plugin/marketplace.json` | `plugins[0].version` |
+
+아래 두 개는 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (v2.10.3 에서 이 문서가 3파일만 적어 두어 §0 게이트가 두 번 붉게 났습니다). 세 번째 파일을 고친 뒤 게이트를 다시 돌리면 잡히니, 순서는 **버전 5곳 → 게이트** 가 편합니다.
 
 ## 2. CHANGELOG.md — 맨 위에 `## vX.Y.Z` 섹션
 

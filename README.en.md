@@ -27,7 +27,13 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
-## 🚀 v2.10.2 — dock on the right, drag the detached window
+## 🚀 v2.10.3 — double-click resizes the window, and no more blank screens
+
+- **Double-clicking the empty strip at the top of the window** — that strip is the title bar, but "double-click = new tab" was layered on top of it, so one double-click **resized the window and opened a tab at the same time.** Now it only resizes (new tabs are still `+` and `⌘T`).
+- **Start tab → Settings → ocul-pm** — opening it before any project was picked turned **the entire window blank**, with a restart as the only way out. Now it just says to pick a project first.
+- **One broken piece no longer takes the window with it** — an error is confined to that piece, which shows a "Try again" button in place. Other tabs and the tab strip keep working.
+
+## v2.10.2 — dock on the right, drag the detached window
 
 - **Three dock positions** — the move button cycles **bottom → left → right → bottom**. The two vertical positions share one remembered width.
 - **Drag the detached terminal window by its top strip** — that window has no title bar, so the app has to offer the grab area itself; it was missing, which left the window **impossible to move.**
