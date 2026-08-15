@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import {
   commands,
   type AcpDiagnostics,
@@ -78,8 +78,12 @@ const KNOWN_AGENTS = [
 
 export function OculpmSettings() {
   const { t } = useT();
-  const { state } = useWorkspace();
-  const projectId = state.currentProjectId;
+  // 시작 탭(런처)에는 `WorkspaceProvider` 가 없다 — 설정 오버레이는 두 탭에서
+  // **같은** 패널을 띄우므로 `useWorkspace()` 를 쓰면 시작 탭에서 예외가 나고,
+  // 경계가 없어 React 가 창 트리를 통째로 언마운트해 창 전체가 빈 화면이 됐다.
+  // 프로젝트가 없으면 조용히 빈 상태만 보여준다 (SettingsPanel 의 색인 탭과
+  // 같은 접근자 — WorkspaceContext `useOptionalWorkspace` 주석 I2).
+  const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
 
   if (projectId == null) {
     return (

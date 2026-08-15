@@ -284,9 +284,13 @@ describe("탭 스트립 — 시작 탭 · 활동 점", () => {
     expect(screen.queryByLabelText("ai-pm — 세션 진행 중")).toBeNull();
   });
 
-  it("빈 스트립을 더블클릭하면 새 탭", () => {
+  /**
+   * 드래그 리전은 곧 타이틀바다 — 더블클릭은 Tauri 가 창 확대/복원으로 쓴다.
+   * 여기에 "새 탭"을 겹쳐 걸면 창 크기를 조절할 때마다 탭이 하나씩 늘어난다.
+   */
+  it("빈 스트립 더블클릭은 탭을 만들지 않는다 (창 확대는 Tauri 몫)", () => {
     const { props, container } = renderStrip();
     fireEvent.doubleClick(container.querySelector(".tabstrip-drag")!);
-    expect(props.onNewTab).toHaveBeenCalled();
+    expect(props.onNewTab).not.toHaveBeenCalled();
   });
 });

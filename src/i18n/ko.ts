@@ -2013,4 +2013,12 @@ export const ko = {
   "update.awaiting": "{reason} — 끝나면 자동으로 재시작합니다",
   "update.restartNow": "지금 재시작",
   "update.dismiss": "알림 닫기",
+
+  // ── 렌더 경계 (components/ErrorBoundary.tsx) ─────────────────────────────
+  // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구. 터미널은
+  // "세션은 살아 있다" 는 고유한 안내가 필요해 term.crash* 를 따로 쓴다.
+  "crash.title": "이 부분을 그리지 못했어요",
+  "crash.body":
+    "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → ocul-pm → 로그의 oculpm.log 를 보내주세요.",
+  "crash.retry": "다시 시도",
 } as const;

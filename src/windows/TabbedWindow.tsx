@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commands, events, type Project, type TabInfo } from "@/lib/bindings";
 
 import { BootSplash } from "@/components/BootSplash";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
 import { TabStrip } from "@/features/shell/TabStrip";
@@ -274,21 +275,28 @@ export default function TabbedWindow({
               aria-labelledby={`tab-t${tb.tab_id}`}
               hidden={!active}
             >
-              {tb.project_id == null ? (
-                <StartTab tabId={tb.tab_id} active={active} openProjects={openProjects} />
-              ) : (
-                <WorkspaceProvider projectId={tb.project_id}>
-                  <ProjectTab
-                    projectId={tb.project_id}
-                    windowLabel={windowLabel}
-                    active={active}
-                    projects={projects}
-                    initialView={active ? (deepLink?.view ?? null) : null}
-                    initialEntryPath={active ? (deepLink?.entry ?? null) : null}
-                    onDeepLinkConsumed={() => setDeepLink(null)}
-                  />
-                </WorkspaceProvider>
-              )}
+              {/* 탭 하나의 예외가 **창 전체**를 언마운트하지 못하게 막는
+                  바깥 경계. React 는 경계가 없으면 루트까지 언마운트하므로,
+                  경계가 없던 시절엔 한 화면의 버그가 탭 스트립까지 지워
+                  재시작 말고는 길이 없었다 (터미널 2026-07-31 · 시작 탭 설정
+                  2026-08-16). 여기서 잡히면 다른 탭과 탭 스트립은 멀쩡하다. */}
+              <ErrorBoundary label={tb.project_id == null ? "start-tab" : "project-tab"}>
+                {tb.project_id == null ? (
+                  <StartTab tabId={tb.tab_id} active={active} openProjects={openProjects} />
+                ) : (
+                  <WorkspaceProvider projectId={tb.project_id}>
+                    <ProjectTab
+                      projectId={tb.project_id}
+                      windowLabel={windowLabel}
+                      active={active}
+                      projects={projects}
+                      initialView={active ? (deepLink?.view ?? null) : null}
+                      initialEntryPath={active ? (deepLink?.entry ?? null) : null}
+                      onDeepLinkConsumed={() => setDeepLink(null)}
+                    />
+                  </WorkspaceProvider>
+                )}
+              </ErrorBoundary>
             </div>
           );
         })}

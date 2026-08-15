@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -387,7 +388,11 @@ export default function ShellV2({
             <Toolbar title={t("shell.settings.title")} sub={t("shell.settings.sub")} />
             <div className="scroll">
               <div className="page fade-in">
-                <SettingsPanel embedded />
+                {/* 오버레이 진입점과 같은 경계 — 설정 탭 하나의 예외가 셸
+                    전체를 언마운트하지 못하게 한다 (SettingsOverlay 참고). */}
+                <ErrorBoundary label="settings">
+                  <SettingsPanel embedded />
+                </ErrorBoundary>
               </div>
             </div>
           </>

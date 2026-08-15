@@ -130,6 +130,7 @@ const TESTS = new Set([
   "__tests__/discussion_v2.test.tsx",
   "__tests__/docs_resolve.test.ts",
   "__tests__/edd_lite_v2.test.tsx",
+  "__tests__/error_boundary.test.tsx",
   "__tests__/file_links.test.ts",
   "__tests__/home_match.test.ts",
   "__tests__/home_model.test.ts",

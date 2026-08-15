@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { useT } from "@/i18n";
 
@@ -43,8 +44,13 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
             (ShellV2 는 `.page` 로 감싼다 — ShellV2.tsx). 이 모달은 그동안
             패딩 없는 div 로 감싸고 있어서 탭·입력·카드가 전부 카드 가장자리에
             붙어 있었다. 헤더의 px-6 과 같은 좌우 여백을 준다. */}
+        {/* 설정 탭 하나가 던져도 창 전체가 죽지 않게 — 시작 탭에서 ocul-pm
+            탭이 예외를 올려 창이 통째로 빈 화면이 된 적이 있다 (2026-08-16).
+            원인은 고쳤지만, 이 패널은 탭이 8개라 같은 실패의 표면이 넓다. */}
         <div className="overflow-y-auto scrollbar-thin px-6 pt-5">
-          <SettingsPanel embedded />
+          <ErrorBoundary label="settings">
+            <SettingsPanel embedded />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

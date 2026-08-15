@@ -2045,4 +2045,12 @@ export const en: Record<keyof typeof ko, string> = {
   "update.awaiting": "{reason} — will restart automatically when it finishes",
   "update.restartNow": "Restart now",
   "update.dismiss": "Dismiss",
+
+  // ── Render boundary (components/ErrorBoundary.tsx) ───────────────────────
+  // Tells the user one piece failed while the window itself is fine. The
+  // terminal keeps its own term.crash* copy ("the session is still alive").
+  "crash.title": "This part failed to render",
+  "crash.body":
+    "The rest of the window still works. If retrying doesn't help, send us oculpm.log from Settings → ocul-pm → Logs.",
+  "crash.retry": "Try again",
 };
