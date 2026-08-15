@@ -15,6 +15,11 @@
   <rect x="81.5" y="81.5" width="861" height="861" rx="202.5" stroke="#fff" stroke-opacity="0.1" stroke-width="3"></rect>
 
   
+  <!-- 마크 확대 (2026-08-15): 타일 여백이 과해 보여 동심 아크를 중심 기준
+       1.4배 균일 확대했다. 반지름·대시·회전값은 원본 그대로 두고 그룹
+       변환만 얹어, 아크 간격·선폭 비례가 설계 그대로 유지된다.
+       마크 지름 420 → 588 (타일 864 의 48.6% → 68%). -->
+  <g transform="translate(512 512) scale(1.4) translate(-512 -512)">
   <g filter="url(#ar-sh)" fill="none" stroke-linecap="round">
     
     <circle cx="512" cy="512" r="190" stroke="#0c9061" stroke-width="40" stroke-dasharray="970 224" transform="rotate(125 512 512)"></circle>
@@ -26,4 +31,5 @@
 
   
   <circle cx="512" cy="512" r="22" fill="#ffffff"></circle>
+  </g>
 </svg>

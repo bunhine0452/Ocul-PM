@@ -15,12 +15,14 @@
   <!-- brand mark, centered -->
   <g transform="translate(480,300) scale(0.234)">
     <rect x="80" y="80" width="864" height="864" rx="204" fill="#0d4a37"/>
+    <g transform="translate(512 512) scale(1.4) translate(-512 -512)">
     <g fill="none" stroke-linecap="round">
       <circle cx="512" cy="512" r="190" stroke="#0c9061" stroke-width="40" stroke-dasharray="970 224" transform="rotate(125 512 512)"/>
       <circle cx="512" cy="512" r="132" stroke="#2bc88a" stroke-width="40" stroke-dasharray="640 190" transform="rotate(-40 512 512)"/>
       <circle cx="512" cy="512" r="74" stroke="#ffffff" stroke-width="40" stroke-dasharray="330 135" transform="rotate(70 512 512)"/>
     </g>
     <circle cx="512" cy="512" r="22" fill="#ffffff"/>
+    </g>
   </g>
 
   <g font-family="-apple-system, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif" text-anchor="middle">

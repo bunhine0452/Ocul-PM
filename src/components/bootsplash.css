@@ -1,5 +1,12 @@
-/* 부트 스플래시 — 전역(shadcn) 토큰만 사용한다: ui_v2 tokens.css 는 셸 청크와
-   함께 늦게 오지만 이 오버레이는 첫 페인트에 있어야 하기 때문. */
+/* 부트 스플래시 — 아이콘의 동심 아크 마크가 "그려지는" 모션.
+   아크 3개가 바깥→안으로 서로 반대 방향으로 호를 쓸며 제자리 각도에 정착하고,
+   중앙 초점이 맞으면 파문이 한 번 퍼진다. 무한 반복 없음 — 해결되고 끝난다.
+
+   토큰: 전역(shadcn) 이름만 쓴다 — --background/--foreground/--primary/
+   --muted-foreground. 넷 다 App.css :root 와 [data-theme]/[data-preset] 에
+   정의돼 있어 어떤 테마·프리셋에서도 풀린다. (ui_v2 의 --accent 는 --primary
+   가 이미 따라간다.) 폴백 값은 CSS 가 먼저 오고 토큰이 늦는 최악의 순간에도
+   흰 화면이 아니라 브랜드 색으로 칠하기 위한 것. */
 
 .boot-splash {
   position: fixed;
@@ -7,67 +14,99 @@
   z-index: 200;
   display: grid;
   place-items: center;
-  background: var(--background);
+  background: var(--background, #f1eee6);
   pointer-events: none;
-  animation: bootOut 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) 0.55s forwards;
+  animation: bootOut 0.26s cubic-bezier(0.4, 0, 1, 1) 0.78s forwards;
 }
 
 .boot-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 4px;
 }
 
-.boot-center {
-  position: relative;
-  width: 56px;
-  height: 56px;
-}
-
+/* 1024 뷰박스 안에서 마크가 차지하는 지름은 약 41% — 200px 로 그리면 실제
+   보이는 마크는 ~82px 이고, 남는 여백은 파문이 퍼질 자리다. */
 .boot-mark {
-  position: relative;
-  z-index: 1;
-  animation: bootMarkIn 0.5s cubic-bezier(0.34, 1.4, 0.4, 1) backwards;
+  width: 200px;
+  height: 200px;
+  display: block;
+  opacity: 0;
+  transform: scale(0.93);
+  animation: bootMarkIn 0.44s cubic-bezier(0.22, 0.8, 0.24, 1) forwards;
 }
 
-/* 아이콘(동심원 눈)의 에코 — 라운드 사각 링 두 겹이 퍼지며 사라진다. */
-.boot-ring {
-  position: absolute;
-  inset: -6px;
-  border-radius: 20px;
-  border: 1.5px solid var(--primary);
+/* 아크 — 대시 길이를 0 에서 아이콘 값까지 키우면서(=호가 그려지면서) 최종
+   각도로 쓸어 들어온다. 안으로 갈수록 대비가 세지는 아이콘의 위계를 보존. */
+.boot-arc {
+  transform-box: fill-box;
+  transform-origin: center;
+  /* 기본값을 최종 상태로 둔다 — 혹시 dasharray 보간이 안 먹는 엔진이라도
+     아크가 사라지는 대신 아이콘 그대로 남는다. */
+  stroke-dasharray: var(--dash) var(--gap);
+  transform: rotate(var(--from));
   opacity: 0;
-  animation: bootRing 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: bootArcDraw 0.4s cubic-bezier(0.22, 0.8, 0.24, 1) var(--d) forwards;
 }
-.boot-r1 { animation-delay: 0.16s; }
-.boot-r2 { animation-delay: 0.34s; }
+.boot-a1 { stroke: color-mix(in srgb, var(--primary, #0e8a60) 42%, transparent); }
+.boot-a2 { stroke: var(--primary, #0e8a60); }
+.boot-a3 { stroke: var(--foreground, #211e18); }
+
+/* 초점 — 마지막에 딱 맺힌다. */
+.boot-pupil {
+  fill: var(--foreground, #211e18);
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  transform: scale(0.3);
+  animation: bootPupil 0.28s cubic-bezier(0.34, 1.6, 0.5, 1) 0.38s forwards;
+}
+
+/* 파문 — 초점이 맺힌 직후 한 번. 맥박이 아니라 마침표다. */
+.boot-ripple {
+  fill: none;
+  stroke: var(--primary, #0e8a60);
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: bootRipple 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.44s forwards;
+}
 
 .boot-name {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  font-weight: 650;
   text-transform: uppercase;
-  color: var(--foreground);
+  /* 자간의 마지막 한 칸이 오른쪽에 남아 가운데 정렬이 틀어지는 걸 보정. */
+  text-indent: 0.3em;
+  color: var(--muted-foreground, #6d675c);
   opacity: 0;
-  animation: bootNameIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) 0.22s forwards;
+  animation: bootNameIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) 0.4s forwards;
 }
 
 @keyframes bootMarkIn {
-  from { opacity: 0; transform: scale(0.76); }
   to { opacity: 1; transform: scale(1); }
 }
-@keyframes bootRing {
-  0% { opacity: 0.5; transform: scale(0.92); }
-  100% { opacity: 0; transform: scale(1.55); }
+@keyframes bootArcDraw {
+  0% { opacity: 0; stroke-dasharray: 0 var(--len); transform: rotate(var(--from)); }
+  22% { opacity: 1; }
+  100% { opacity: 1; stroke-dasharray: var(--dash) var(--gap); transform: rotate(var(--rot)); }
+}
+@keyframes bootPupil {
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes bootRipple {
+  0% { opacity: 0.34; transform: scale(0.86); }
+  100% { opacity: 0; transform: scale(1.42); }
 }
 @keyframes bootNameIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 0.85; transform: none; }
+  from { opacity: 0; letter-spacing: 0.5em; transform: translateY(5px); }
+  to { opacity: 0.7; letter-spacing: 0.3em; transform: none; }
 }
+/* 초점이 맞은 뒤, 마크가 한 뼘 다가서며 앱이 드러난다. */
 @keyframes bootOut {
   from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.02); }
+  to { opacity: 0; transform: scale(1.05); }
 }
 
 /* 컴포넌트가 matchMedia 로도 거르지만, CSS 단에서도 이중 안전망. */
