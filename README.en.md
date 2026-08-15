@@ -13,7 +13,7 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[oculpm.com](https://oculpm.com) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
+[oculpm.com](https://oculpm.com) · [Keynote](https://oculpm.com/keynote) · [Wiki](https://oculpm.com/wiki) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
 
 [한국어](README.md) · English
 
@@ -27,6 +27,35 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
 
+
+<img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
+<p align="center"><i>A real screen — Claude Code inside the app edited a file, showed the diff, and wrote its own work journal.</i></p>
+
+## It looks like three tools. It's one app.
+
+### 📓 The journal — recording should be free
+
+The moment an agent finishes, the journal entry is already written — classified as bug/feature/refactor, stamped with which agent ran on which model. The morning Today brief organizes yesterday, and standups, PR bodies, weekly reports and retros are each one button. The rear-view mirror becomes a steering wheel.
+
+<img src="landing/shots/02-journal.jpg" alt="Automatic work journal — a timeline of entries by agent and model" />
+
+### 🔍 The verifier — don't trust, look
+
+Review what agents changed as a line-level local diff before you commit — side by side with the journal, so you compare "what it said" with "what actually changed". The code map warns you "changing this file affects N files" before you touch it.
+
+<img src="landing/shots/03-diff.jpg" alt="Change diff — line-level local diff of agent-made changes" />
+
+### 🖥️ The console — the agent, inside
+
+A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as cards, edit diffs render right in them, and approval cards carry the exact command and the change being approved — no more allowing on a title alone. When a turn ends, a receipt remains: "4 tools · 2m 14s".
+
+<img src="landing/shots/s2.jpg" alt="Approval card — the diff of the change visible inside the card" />
+
+<table><tr>
+<td width="50%"><img src="landing/shots/04-graph.jpg" alt="Code map — dependency graph with change impact" /><p align="center"><i>Code map — visible dependencies shrink fear</i></p></td>
+<td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
+</tr></table>
+
 ## 🚀 v2.11.0 — see what it changes, no more blind approvals
 
 - **Edit diffs on screen** — when Claude Code edits a file, the diff renders right in the tool card (removed lines in red, added in green) with a `+12 −3` badge on the row. This information used to be dropped entirely.
@@ -35,75 +64,20 @@ There is no server. Your data lives in the project's `.oculpm/` folder and a loc
 - **Korean IME Enter fix** — the Enter that commits a Hangul composition no longer sends the message.
 - **A pile of friction removed** — auto-growing composer · ↑/↓ prompt recall · drag & drop file attachments · per-conversation drafts · queue delivery pinned to its conversation · turn receipts ("7 tools · 3 files · 1m 12s") · copy buttons for responses and tool output · "Send again" on errors · dead-process detection with one-click reconnect.
 
-## v2.10.3 — double-click resizes the window, and no more blank screens
+<details>
+<summary><b>Highlights from earlier versions</b> — v2.5 through v2.10.3</summary>
 
-- **Double-clicking the empty strip at the top of the window** — that strip is the title bar, but "double-click = new tab" was layered on top of it, so one double-click **resized the window and opened a tab at the same time.** Now it only resizes (new tabs are still `+` and `⌘T`).
-- **Start tab → Settings → ocul-pm** — opening it before any project was picked turned **the entire window blank**, with a restart as the only way out. Now it just says to pick a project first.
-- **One broken piece no longer takes the window with it** — an error is confined to that piece, which shows a "Try again" button in place. Other tabs and the tab strip keep working.
+- **v2.10.3** — double-clicking the title strip only resizes · one broken piece no longer blanks the whole window (universal render boundary)
+- **v2.10.2** — right-side terminal dock · draggable detached window · macOS tiling shortcuts (⌃⌥←→↑↓) restored
+- **v2.10.1** — ⌘J terminal dock · detach into a window with the shell intact · Claude Code's to-do list · limits and model fallbacks recorded in the conversation
+- **v2.10.0** — Claude Code runs inside the app (Agent Client Protocol)
+- **v2.9** — projects as windows and tabs — Chrome-style tabs · tear-off · per-project state
+- **v2.8** — English UI · Skill shop (25 vetted third-party skills) · terminal cleanup
+- **v2.6 – v2.7** — the start screen becomes a cross-project cockpit · the Retro screen (7/14/30-day signals)
+- **v2.5** — the Claude Code plugin (section below) · planner ▶Run dispatch · 3-level plans · the project-inception skill · a 60% AGENTS.md token diet
+- Menubar residency (v2.3) · direct Claude integration (v2.2) — full history in the [CHANGELOG](CHANGELOG.md)
 
-## v2.10.2 — dock on the right, drag the detached window
-
-- **Three dock positions** — the move button cycles **bottom → left → right → bottom**. The two vertical positions share one remembered width.
-- **Drag the detached terminal window by its top strip** — that window has no title bar, so the app has to offer the grab area itself; it was missing, which left the window **impossible to move.**
-- **macOS window tiling shortcuts (⌃⌥←→↑↓)** — they worked everywhere except here. Reclaiming `⌘W` meant building the menu by hand, and **macOS was never told which submenu is the Window menu**, so the "Move & Resize" items were never created.
-
-## v2.10.1 — a terminal on every screen
-
-To see a shell you had to leave for the Terminal screen, then leave again to read a journal entry or a plan. Now **⌘J** opens a terminal right on top of whatever you are looking at.
-
-- **Pick where it docks** — **bottom** (wide) or **left** (tall). Drag the edge to resize; it remembers where and how big you left it.
-- **Detach it into its own window** — the **shell keeps running, scrollback and all**. The app keeps a placeholder telling you where it went, with a button to bring it back.
-- **Terminal font size in Settings, in px** — Settings → Appearance now has a slider, a px field, and a **preview drawn in the actual terminal font**. The Terminal screen, the dock, and detached windows all share one value.
-- **Claude Code's to-do list shows up** — the plan the agent builds now appears once per turn, and Claude Code inside the app **writes work journal entries itself** (wired to ocul-pm's journaling tools).
-- **Hitting a limit — or a model swap — is recorded in the conversation** — usage limits, auth failures, provider overload, and **model fallbacks** used to be silent.
-
-## v2.10 — Claude Code runs inside the app
-
-The AI panel used to be just a chat bolted onto an LLM provider — actual coding all happened in a terminal CLI, and the app only picked up the trail through file watching and hooks. There's now a new screen, **Claude Code**, in the sidebar. Ask it to do something there and a real `claude` runs inside the app — editing files, calling tools, asking for approval (via the Agent Client Protocol). It reuses your existing subscription login, and the adapter installs itself on first run.
-
-- **Session tabs · tool cards** — the top bar becomes a row of conversation tabs. Tool calls like file edits and command runs arrive as collapsible cards, and permission requests before a tool runs show up as cards too.
-- **Effort and permission mode on one track** — pick thinking effort and permission mode (manual approval · auto-accept edits · plan · unrestricted) together. The top tier, **ultracode**, turns out to be a prompt keyword, not a setting.
-- **Image paste · model-switch dividers · a widget for `/usage`** — paste a screenshot straight in, get a divider line in the conversation when you switch models, and `/usage` now opens a dedicated dashboard instead of crowding the conversation.
-- **A terminal escape hatch** — features that live only in the CLI's own interactive screen, like `/remote-control`, get launched as a real `claude` in a terminal tab instead. The terminal screen also lets you type an exact font size in px now.
-- **Updates no longer cut the conversation short** — the restart is deferred, and when the app reopens you're back in the conversation you were having.
-
-## v2.9 — projects as windows and tabs
-
-- **One window holds several projects as tabs** — just like Chrome. Drag a tab to reorder it, or drag it out to spawn a new window. Each project remembers its own screen, filters and sidebar state, and **terminal sessions are bound to the project**, so they survive a tab moving between windows.
-- **A new tab is a start tab** — `⌘T` opens the project list, and picking one converts that tab **in place**. `⌘W` closes the **tab**, not the window (the window closes when it's the last tab). Close the window with `⇧⌘W`, open a new one with `⇧⌘N`, move between tabs with `⌃Tab` · `⌃⇧Tab` · `⌘⌥←→`.
-- **The start screen was rebuilt** — the three-tier bento is gone; **every registered project** now lays out in a single grid you take in at a glance. Cards open from anywhere on the card, not just the name, and each project takes **one of 8 colors and 10 icons** so tabs stay tellable apart by shape (derived from the name if you don't pick).
-- **The menubar now watches every tracked project** — file watching used to be tied to a tab's lifetime, so **a project without an open tab went unnoticed even when its agent wrote journals**. Fixed alongside: the menubar popover follows your theme, "Open app" opens the project you actually selected, and the icon no longer spins.
-
-## v2.8 — English support · Skill shop · Terminal cleanup
-
-- **The app speaks English (v2.8.5)** — pick your UI language in Settings → Appearance and all 12 screens switch over. Not just labels: **error messages**, the journals, retros and plan items your AI writes, and the `AGENTS.md` planted into new projects follow along. **UI language and AI writing language are separate settings** (English UI, Korean journals is a valid combination), and documents already on disk are never rewritten. The ⌘K palette matches in both languages, so your muscle memory survives the switch.
-- **Skill shop (v2.8.0)** — the **Shop tab** on the Skills screen detects your project's stack (manifest-based — zero LLM, zero network) and recommends from a **catalog of 25 vetted third-party skills** (all MIT, commit-pinned vendored copies, unmodified). Search, filter by tag, preview the body, install into `.claude/skills/` in one click — it's a native Claude Code feature, so it works without the plugin. Full catalog: [oculpm.com/plugin](https://oculpm.com/plugin). Shipping alongside it, a **delivery gate** catches sessions that changed code but wrote no journal, once per session, and tells the agent to record.
-- **Project management screen (v2.8.1)** — `⌘⇧M` lays every registered project out as a **flat table**: search by name/path, sort by last activity, entry count or name, and **remove several at once** via checkboxes. Whether to also delete the folder's `.oculpm` · `AGENTS.md` is a separate opt-in at the confirmation step (off by default — the project only leaves your workspace).
-- **Terminal Korean input & paste fixes (v2.8.2 · v2.8.3)** — Korean glyphs rendering larger than Latin ones, characters and spaces being delivered twice while a Korean IME was active, and pasted text arriving twice — where the second copy skipped bracketed paste and could **execute each line as a command**.
-- **Typography and speed (v2.8.4)** — the body typeface is now **Pretendard**, and 96 places where the designed font weight wasn't actually rendering are fixed. The diff screen loads its syntax-highlighting data only when you open it (266KB → 125KB right after opening a project), and the first code indexing batches its chunk writes.
-
-## v2.6 – v2.7 — the first screen, and retros
-
-- **Bento cockpit home** — the resume tile gathers your next tasks (active plan), latest entry, a 14-day activity sparkline, and the last agent + model in one place; the flow tile streams today's journals across all projects. Type anywhere to search (Korean initial-consonant matching included), `↓↑⏎` to move and open, `⌘O` folder · `⌘N` new project · `⌘E` rename · `⌘⌫` remove.
-- **Unrecorded-session signal** — Claude Code sessions that end without a journal are detected and surfaced as a Today card (auto-resolved once recorded), plus a statusline badge and `/oculpm:inception` · `/oculpm:next` commands.
-- **[Via Claude Code] retro generation** — a terminal session writes the retro to `.oculpm/retro/` markdown, no API key or billing. Recurring tags surface as **skill candidates** to promote into `.claude/skills/`, and `project_init` starts tracking a new project with the plugin alone (explicit confirmation required).
-
-## v2.5 — Claude Code plugin, and plans that drive implementation
-
-**Recording starts without the app.** Two lines in Claude Code:
-
-```
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
-```
-
-One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **5 MCP tools** (`journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos (the sole exception: `project_init`, which starts tracking only after you explicitly ask and confirm) — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
-
-**The planner becomes a steering wheel**: press **▶Run** on a plan item and a prompt assembled from the item, its linked journals and update instructions is prefilled into the terminal — one Enter starts a real Claude Code session on it. Plans now nest sub-tasks (parent status rolls up from children), and the **project-inception** skill turns an idea into a problem statement → 3-level plan → `EVALS.md` done-criteria → starter `.claude/rules`, researching the stack landscape first, then settling the optimal spec with you through research-backed choices.
-
-**60% agent-token diet** — the always-injected rules file (AGENTS.md v7) went from ≈2,900 to ≈1,150 tokens with every compliance-critical rule intact.
-
-> Menubar residency (v2.3), direct Claude integration (v2.2) and the full history: [CHANGELOG](CHANGELOG.md).
+</details>
 
 ## Screens
 
@@ -135,6 +109,19 @@ Anything that can read `AGENTS.md` works.
 
 Git backfill tells agents apart by commit signatures.
 
+## The Claude Code plugin — start without the app
+
+Two lines in your terminal's Claude Code and recording begins:
+
+```
+/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm
+```
+
+One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **5 MCP tools** (`journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
+
+> The in-app **Claude Code screen** records without this plugin — the app attaches its journaling tools (MCP) to every session directly. Interactive CLI commands like `/plugin` and `/mcp` don't work inside in-app ACP sessions, so install the plugin from a terminal. The distinction is written up in the [wiki's Claude Code guide](https://oculpm.com/wiki/claude-code) (Korean).
+
 ## Install
 
 Grab `Ocul-PM_x.y.z_aarch64.dmg` from the [latest release](https://github.com/bunhine0452/Ocul-PM/releases/latest) and drag it into `Applications`. It's built for macOS (Apple Silicon), and once installed it auto-updates in place.
@@ -146,6 +133,8 @@ xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
 ```
 
 The first semantic search downloads an embedding model (~135MB) once. After that it works offline.
+
+Stuck on something? The [wiki](https://oculpm.com/wiki) collects common problems and fixes (Korean).
 
 ## Where your data lives
 
