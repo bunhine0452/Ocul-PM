@@ -17,10 +17,10 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
   - [x] 공존 가부 판정 → 설계 확정 또는 폴백 경로 문서화 {#acp0-verdict}
 
 ## 프로세스·세션 기반 {#runtime}
-- [~] PR-ACP1 — 어댑터 프로세스 수명(spawn/health/종료) + Node 조달(로그인 셸 PATH) + 버전 고정 설치 {#acp1-process}
+- [x] PR-ACP1 — 어댑터 프로세스 수명(spawn/health/종료) + Node 조달(로그인 셸 PATH) + 버전 고정 설치 {#acp1-process}
   - [x] 로그인 셸로 PATH 해석해 node 탐색, 앱 데이터 디렉터리에 어댑터 버전 고정 설치 {#acp1-node}
   - [x] Node/claude 부재 진단 카드 (설정 → 에이전트) {#acp1-diag}
-  - [ ] 패키징된 .app 에서 동작 확인 (Finder 실행 PATH 함정) {#acp1-pkg}
+  - [x] 패키징된 .app 에서 동작 확인 (Finder 실행 PATH 함정) {#acp1-pkg}
 - [~] PR-ACP2 — 세션 생성 + 프롬프트 텍스트 스트리밍(agent_message_chunk → Channel<AcpEvent>) + 취소 {#acp2-stream}
   - [x] commands/acp.rs: acp_start / acp_prompt / acp_cancel / acp_stop {#acp2-cmds}
   - [x] AI 패널에 ACP 모드 — 라이브 마크다운 렌더 + stopReason 처리 {#acp2-ui}
@@ -45,4 +45,5 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 | 2026-08-14T20:47:32+09:00 | #acp2-ui | claude-code | ☐→x | .oculpm/journal/20260814/Features_to_add/2047_feature_acp2-session-streaming.md | AcpConversation 분리 + 툴바 모드 전환(aiMode 영속). 누적은 순수 리듀서 acpTurns |
 | 2026-08-14T21:03:54+09:00 | #acp3-tools | claude-code | ☐→x | .oculpm/journal/20260814/Features_to_add/2103_feature_acp3-tool-calls-permission.md | 툴콜 카드 + 인라인 승인. spawn 으로 dispatch 루프 해제, 미결 요청은 항상 취소로 닫힘 |
 | 2026-08-14T21:24:42+09:00 | #acp4-config | claude-code | ☐→x | .oculpm/journal/20260814/Features_to_add/2124_feature_acp4-auto-start-config-options.md | configOptions 5종 셀렉터 + usage 배지 + 자동 시작. 세션 생성을 acp_start 로 당김. 플랜 카드는 미구현 |
+| 2026-08-16T03:44:14+09:00 | #acp1-pkg | claude-code | ☐→x | .oculpm/journal/20260816/Chores/0344_chore_v2-11-release-verify-and-promo-kit.md | v2.11.0 릴리스 아티팩트를 /Applications 교체 후 LaunchServices(open -a) 실행 — 어댑터 스폰·세션·스트리밍 전부 동작, 빈약 PATH 조건 실증 |
 <!-- oculpm:plan-log end -->
