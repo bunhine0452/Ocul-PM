@@ -53,6 +53,9 @@ pub enum AcpEvent {
         /// 도구가 내놓은 것. 카드의 `OUT`. 시작 시점엔 대개 비어 있고
         /// `tool_update` 로 채워진다.
         output: Option<String>,
+        /// 편집 도구가 실어 온 파일 변경 — 예전엔 `"[diff]"` 문자열로 버렸다.
+        /// 무엇이 어떻게 바뀌는지는 이 화면의 핵심 정보라 구조 그대로 넘긴다.
+        diffs: Vec<AcpToolDiff>,
     },
     /// 진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다.
     ToolUpdate {
@@ -64,6 +67,8 @@ pub enum AcpEvent {
         /// 온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다.
         input: Option<String>,
         output: Option<String>,
+        /// `None` 은 "content 가 안 왔다" — 이미 받은 diff 를 지우면 안 된다.
+        diffs: Option<Vec<AcpToolDiff>>,
     },
     /// 사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다.
     Permission {
@@ -73,6 +78,11 @@ pub enum AcpEvent {
         /// 승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다.
         locations: Vec<String>,
         options: Vec<AcpPermissionOption>,
+        /// 승인 대상 변경 내용. 편집 승인에서 이것이 없으면 **무엇을 허용하는지
+        /// 못 본 채** 허용을 누르게 된다.
+        diffs: Vec<AcpToolDiff>,
+        /// 도구에 들어갈 것 (실행 승인이면 명령줄) — diff 와 같은 이유로 싣는다.
+        input: Option<String>,
     },
     /// 세션 설정이 **에이전트 쪽에서** 바뀌었다.
     ///
@@ -392,6 +402,20 @@ pub fn failure_of(update: &SessionUpdate) -> Option<AcpEvent> {
     })
 }
 
+/// 편집 도구가 만드는 파일 변경 하나 (`ToolCallContent::Diff`).
+///
+/// 원문(old/new) 그대로 넘기고 줄 비교는 프런트가 한다 — 여기서 통합 diff 를
+/// 만들어 버리면 화면이 접기·색·통계를 다시 파싱해야 한다.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct AcpToolDiff {
+    /// 바뀌는 파일의 절대경로.
+    pub path: String,
+    /// 바뀌기 전 내용. `None` 이면 새 파일.
+    pub old_text: Option<String>,
+    /// 바뀐 뒤 내용.
+    pub new_text: String,
+}
+
 /// 할 일 하나.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct AcpPlanEntry {
@@ -580,7 +604,9 @@ fn content_text(content: &[agent_client_protocol::schema::v1::ToolCallContent]) 
         .iter()
         .filter_map(|item| match item {
             ToolCallContent::Content(inner) => block_text(&inner.content).map(str::to_string),
-            ToolCallContent::Diff(_) => Some("[diff]".to_string()),
+            // diff 는 `content_diffs` 가 구조 그대로 나른다 — 여기 자리표를 남기면
+            // 같은 변경이 "[diff]" 와 diff 뷰로 두 번 보인다.
+            ToolCallContent::Diff(_) => None,
             ToolCallContent::Terminal(_) => Some("[terminal]".to_string()),
             _ => None,
         })
@@ -588,6 +614,28 @@ fn content_text(content: &[agent_client_protocol::schema::v1::ToolCallContent]) 
         .join("\n");
 
     (!joined.is_empty()).then(|| clamp(strip_fence(&joined).to_string()))
+}
+
+/// 도구 결과(content 블록)에서 파일 변경만 뽑는다.
+///
+/// 양쪽 본문을 각각 상한으로 자른다 — Write 도구는 파일 전체를 실어 오는데,
+/// 화면도 IPC 도 수 MB 를 받을 이유가 없다.
+fn content_diffs(
+    content: &[agent_client_protocol::schema::v1::ToolCallContent],
+) -> Vec<AcpToolDiff> {
+    use agent_client_protocol::schema::v1::ToolCallContent;
+
+    content
+        .iter()
+        .filter_map(|item| match item {
+            ToolCallContent::Diff(diff) => Some(AcpToolDiff {
+                path: diff.path.display().to_string(),
+                old_text: diff.old_text.clone().map(clamp),
+                new_text: clamp(diff.new_text.clone()),
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 /// 상한을 넘으면 자르고 잘렸음을 밝힌다 (조용히 자르면 출력이 거짓말이 된다).
@@ -663,6 +711,7 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
             input: primary_input(call.raw_input.as_ref())
                 .or_else(|| raw_text(call.raw_input.as_ref())),
             output: content_text(&call.content).or_else(|| raw_text(call.raw_output.as_ref())),
+            diffs: content_diffs(&call.content),
         },
         SessionUpdate::ToolCallUpdate(update) => AcpEvent::ToolUpdate {
             id: update.tool_call_id.0.to_string(),
@@ -678,6 +727,8 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .as_deref()
                 .and_then(content_text)
                 .or_else(|| raw_text(update.fields.raw_output.as_ref())),
+            // content 자체가 안 왔으면 `None` — 이미 받은 diff 를 지우지 않는다.
+            diffs: update.fields.content.as_deref().map(content_diffs),
         },
         SessionUpdate::Plan(plan) => AcpEvent::Plan {
             entries: plan
@@ -743,6 +794,17 @@ pub fn permission_event(
                 option_kind: label(&option.kind),
             })
             .collect(),
+        // 편집 승인이면 변경 내용이 여기 실려 온다 — 카드에 diff 가 보여야
+        // "무엇을 허용하는가"에 답할 수 있다.
+        diffs: request
+            .tool_call
+            .fields
+            .content
+            .as_deref()
+            .map(content_diffs)
+            .unwrap_or_default(),
+        input: primary_input(request.tool_call.fields.raw_input.as_ref())
+            .or_else(|| raw_text(request.tool_call.fields.raw_input.as_ref())),
     }
 }
 
@@ -901,6 +963,93 @@ mod tests {
             panic!("ToolCall 이어야 한다");
         };
         assert_eq!(input.as_deref(), Some("ls -la"), "문자열은 그대로여야 한다");
+    }
+
+    /// 편집 도구의 변경은 구조 그대로 흘러야 한다 — 예전엔 "[diff]" 문자열로
+    /// 버려서, 승인 카드도 도구 카드도 무엇이 바뀌는지 보여 줄 수 없었다.
+    #[test]
+    fn tool_call_carries_structured_diffs_not_a_placeholder() {
+        use agent_client_protocol::schema::v1::{
+            Diff, ToolCall, ToolCallContent, ToolCallId,
+        };
+
+        let mut call = ToolCall::new(ToolCallId::new("c1"), "Edit".to_string());
+        call.content = vec![ToolCallContent::Diff(
+            Diff::new("/repo/src/lib.rs", "let x = 2;").old_text("let x = 1;".to_string()),
+        )];
+
+        let AcpEvent::ToolCall { diffs, output, .. } =
+            map_update(&SessionUpdate::ToolCall(call))
+        else {
+            panic!("ToolCall 이어야 한다");
+        };
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "/repo/src/lib.rs");
+        assert_eq!(diffs[0].old_text.as_deref(), Some("let x = 1;"));
+        assert_eq!(diffs[0].new_text, "let x = 2;");
+        assert_eq!(output, None, "\"[diff]\" 자리표가 남으면 같은 변경이 두 번 보인다");
+    }
+
+    /// content 가 안 온 갱신에서 diffs 는 `None` 이어야 한다 — `Some(vec![])` 로
+    /// 오면 UI 가 이미 받은 diff 를 빈 것으로 덮어쓴다.
+    #[test]
+    fn tool_update_distinguishes_no_content_from_empty_diffs() {
+        use agent_client_protocol::schema::v1::{
+            Diff, ToolCallContent, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+        };
+
+        let update = ToolCallUpdate::new(ToolCallId::new("c1"), ToolCallUpdateFields::new());
+        let AcpEvent::ToolUpdate { diffs, .. } =
+            map_update(&SessionUpdate::ToolCallUpdate(update))
+        else {
+            panic!("ToolUpdate 여야 한다");
+        };
+        assert_eq!(diffs, None, "content 가 안 왔으면 None");
+
+        let mut fields = ToolCallUpdateFields::new();
+        fields.content = Some(vec![ToolCallContent::Diff(Diff::new("/a", "b"))]);
+        let update = ToolCallUpdate::new(ToolCallId::new("c1"), fields);
+        let AcpEvent::ToolUpdate { diffs, .. } =
+            map_update(&SessionUpdate::ToolCallUpdate(update))
+        else {
+            panic!("ToolUpdate 여야 한다");
+        };
+        assert_eq!(diffs.map(|d| d.len()), Some(1));
+    }
+
+    /// 편집 승인 카드에는 변경 내용이 실려야 한다 — 없으면 무엇을 허용하는지
+    /// 못 본 채 허용을 누르게 된다.
+    #[test]
+    fn permission_event_carries_the_diff_being_approved() {
+        use agent_client_protocol::schema::v1::{
+            Diff, PermissionOption, PermissionOptionId, PermissionOptionKind,
+            RequestPermissionRequest, SessionId, ToolCallContent, ToolCallId, ToolCallUpdate,
+            ToolCallUpdateFields,
+        };
+
+        let mut fields = ToolCallUpdateFields::new();
+        fields.content = Some(vec![ToolCallContent::Diff(
+            Diff::new("/repo/a.ts", "new").old_text("old".to_string()),
+        )]);
+        fields.raw_input = Some(serde_json::json!({ "command": "rm -rf build" }));
+        let request = RequestPermissionRequest::new(
+            SessionId::new("s1"),
+            ToolCallUpdate::new(ToolCallId::new("c1"), fields),
+            vec![PermissionOption::new(
+                PermissionOptionId::new("allow"),
+                "허용".to_string(),
+                PermissionOptionKind::AllowOnce,
+            )],
+        );
+
+        let AcpEvent::Permission { diffs, input, .. } =
+            permission_event("r1".to_string(), &request)
+        else {
+            panic!("Permission 이어야 한다");
+        };
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].path, "/repo/a.ts");
+        assert_eq!(input.as_deref(), Some("rm -rf build"), "실행 승인은 명령이 보여야 한다");
     }
 
     /// 조용히 자르면 출력이 거짓말이 된다 — 잘렸다는 사실이 남아야 한다.

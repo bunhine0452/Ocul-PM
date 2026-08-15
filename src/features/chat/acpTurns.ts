@@ -1,6 +1,6 @@
-import type { AcpEvent, AcpPlanEntry } from "@/lib/bindings";
+import type { AcpEvent, AcpPlanEntry, AcpToolDiff } from "@/lib/bindings";
 
-export type { AcpPlanEntry };
+export type { AcpPlanEntry, AcpToolDiff };
 
 // PR-ACP2/3 — ACP 스트리밍 이벤트를 화면 턴 목록에 누적하는 순수 리듀서.
 //
@@ -25,6 +25,10 @@ export interface AcpToolCall {
   input?: string;
   /** 도구가 내놓은 것. 진행 중에는 없다가 갱신으로 채워진다. */
   output?: string;
+  /** 편집 도구의 파일 변경 — 있으면 카드가 diff 뷰를 그린다. */
+  diffs?: AcpToolDiff[];
+  /** 호출이 시작된 시각(ms) — "실행 중 · 12s" 의 근거. 재생에는 없다. */
+  startedAt?: number;
 }
 
 /** 사용자가 함께 보낸 이미지 한 장 — 화면에 그리는 데 필요한 것만. */
@@ -92,6 +96,47 @@ export interface AcpTurn {
   thoughtStart?: number;
   /** 생각이 끝난 시각(ms) — 첫 답변 조각이 온 순간. 아직이면 없다. */
   thoughtEnd?: number;
+  /** 이 턴이 열린 시각(ms). 사용자 턴에서는 "언제 시켰나", 에이전트 턴에서는
+      영수증의 소요 시간 계산에 쓴다. 재생으로 복원한 턴에는 없다. */
+  at?: number;
+  /** 에이전트 턴이 닫힌 시각(ms) — 영수증의 소요 시간의 끝. */
+  endedAt?: number;
+}
+
+/** 턴 영수증 — 끝난 턴의 "무엇을 얼마나 했나" 한 줄. */
+export interface TurnReceipt {
+  /** 도구 호출 수. */
+  tools: number;
+  /** 손댄 파일 수 (편집·삭제·이동의 경로, 중복 제거). */
+  files: number;
+  /** 실행한 명령 수. */
+  commands: number;
+  /** 걸린 시간(초). 시각이 없으면(재생) `null`. */
+  seconds: number | null;
+}
+
+/** 파일을 실제로 바꾸는 도구 종류 — 읽기·검색은 "손댄 파일"이 아니다. */
+const MUTATING_KINDS = new Set(["edit", "delete", "move"]);
+
+/**
+ * 끝난 에이전트 턴의 영수증. **도구를 쓴 턴에만** 있다 — 말로만 답한 턴에
+ * "도구 0" 영수증을 붙이면 정보가 아니라 소음이다.
+ */
+export function turnReceipt(turn: AcpTurn): TurnReceipt | null {
+  if (turn.role !== "agent" || !turn.closed || !turn.tools?.length) return null;
+  const files = new Set<string>();
+  let commands = 0;
+  for (const tool of turn.tools) {
+    if (MUTATING_KINDS.has(tool.kind)) {
+      for (const location of tool.locations) files.add(location);
+    }
+    if (tool.kind === "execute") commands += 1;
+  }
+  const seconds =
+    turn.at != null && turn.endedAt != null && turn.endedAt > turn.at
+      ? Math.round((turn.endedAt - turn.at) / 1000)
+      : null;
+  return { tools: turn.tools.length, files: files.size, commands, seconds };
 }
 
 /**
@@ -105,11 +150,16 @@ export function openTurn(
   turns: readonly AcpTurn[],
   text: string,
   extras?: { attachments?: readonly string[]; images?: readonly AcpTurnImage[] },
+  /** 지금 시각(ms). 안 넘기면 시각을 안 찍는다 (재생·테스트). */
+  now?: number,
 ): AcpTurn[] {
   const user: AcpTurn = { role: "user", text };
   if (extras?.attachments?.length) user.attachments = [...extras.attachments];
   if (extras?.images?.length) user.images = [...extras.images];
-  return [...turns, user, { role: "agent", text: "" }];
+  if (now != null) user.at = now;
+  const agent: AcpTurn = { role: "agent", text: "" };
+  if (now != null) agent.at = now;
+  return [...turns, user, agent];
 }
 
 /**
@@ -211,7 +261,9 @@ export function applyAcpEvent(
         locations: event.locations,
         input: event.input ?? undefined,
         output: event.output ?? undefined,
+        diffs: event.diffs.length ? event.diffs : undefined,
       };
+      if (now != null) fresh.startedAt = now;
       const tools = last.tools ?? [];
       const at = tools.findIndex((tool) => tool.id === event.id);
       next[index] = {
@@ -242,7 +294,8 @@ export function applyAcpEvent(
       next[index] = { ...last, plan: event.entries };
       break;
     default:
-      next[index] = { ...last, closed: true };
+      next[index] =
+        now != null ? { ...last, closed: true, endedAt: last.endedAt ?? now } : { ...last, closed: true };
   }
   return next;
 }
@@ -312,18 +365,22 @@ function patchTool(
           // 완료된 카드의 출력이 사라진다.
           input: event.input ?? tool.input,
           output: event.output ?? tool.output,
+          diffs: event.diffs?.length ? event.diffs : tool.diffs,
         }
       : tool,
   );
 }
 
 /** 턴을 강제로 닫는다 (커맨드가 오류로 끝났을 때). */
-export function closeTurn(turns: readonly AcpTurn[]): AcpTurn[] {
+export function closeTurn(turns: readonly AcpTurn[], now?: number): AcpTurn[] {
   const index = turns.length - 1;
   const last = turns[index];
   if (!last || last.role !== "agent") return [...turns];
   const next = [...turns];
-  next[index] = { ...last, closed: true };
+  next[index] =
+    now != null && !last.closed
+      ? { ...last, closed: true, endedAt: last.endedAt ?? now }
+      : { ...last, closed: true };
   return next;
 }
 

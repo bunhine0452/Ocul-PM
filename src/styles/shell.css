@@ -252,6 +252,15 @@
    무엇이든 이 신호만은 같은 색이어야 눈이 바로 찾는다. */
 .nav-badge.working { background: rgba(203, 123, 93, 0.16); color: #cb7b5d; }
 .nav-item.active .nav-badge.working { background: rgba(255,255,255,0.25); color: inherit; }
+/* 승인 대기 (2026-08-16) — 작업 중과 다르다: 기다린다고 안 풀리고 **사용자가
+   눌러야** 풀린다. 그래서 도는 고리와 달리 깜빡여서 부른다 — 에이전트가 승인
+   대기로 멈춘 걸 모른 채 다른 화면에서 기다리다 몇 분을 잃던 것의 답. */
+.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-blink 1.2s ease-in-out infinite; }
+.nav-item.active .nav-badge.attention { background: rgba(255,255,255,0.25); color: inherit; }
+@keyframes nav-attention-blink { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .nav-badge.attention { animation: none; }
+}
 .nav-ico.working { position: relative; }
 .nav-ico.working::after {
   content: "";

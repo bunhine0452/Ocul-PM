@@ -827,6 +827,9 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
+                  // 한글 조합을 확정하는 Enter 가 문장을 전송하면 안 된다
+                  // (isComposing 을 늦게 세팅하는 엔진이 있어 keyCode 229 도 본다).
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     void send();

@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Sidebar";
 import {
   acpWorkingKey,
   resetAcpWorking,
+  setAcpAttention,
   setAcpWorking,
 } from "@/features/chat/acpBusyBus";
 
@@ -73,5 +74,31 @@ describe("사이드바 작업 중 표시", () => {
     const badge = document.querySelector(".nav-badge.working");
     const row = badge?.closest(".nav-item");
     expect(row?.textContent).toContain("Claude Code");
+  });
+});
+
+describe("사이드바 승인 대기 표시", () => {
+  /** 승인 대기는 기다린다고 안 풀린다 — 작업 배지보다 우선해 보여야 한다. */
+  it("승인 대기가 뜨면 작업 배지 대신 주의 배지가 붙는다", () => {
+    renderSidebar();
+
+    act(() => {
+      setAcpWorking(acpWorkingKey(1, "s-1"), true);
+      setAcpAttention(acpWorkingKey(1, "s-1"), true);
+    });
+    expect(document.querySelector(".nav-badge.attention")?.textContent).toBe("1");
+    expect(document.querySelector(".nav-badge.working")).toBeNull();
+
+    act(() => setAcpAttention(acpWorkingKey(1, "s-1"), false));
+    expect(document.querySelector(".nav-badge.attention")).toBeNull();
+    // 승인이 풀리면 작업 배지가 돌아온다 — 턴은 계속 도는 중이다.
+    expect(document.querySelector(".nav-badge.working")?.textContent).toBe("1");
+  });
+
+  it("리셋은 승인 대기도 같이 비운다", () => {
+    renderSidebar();
+    act(() => setAcpAttention(acpWorkingKey(1, "s-1"), true));
+    act(() => resetAcpWorking());
+    expect(document.querySelector(".nav-badge.attention")).toBeNull();
   });
 });

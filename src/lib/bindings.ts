@@ -1290,15 +1290,29 @@ input: string | null;
  *  도구가 내놓은 것. 카드의 `OUT`. 시작 시점엔 대개 비어 있고
  *  `tool_update` 로 채워진다.
  */
-output: string | null } | 
+output: string | null; 
+/**
+ *  편집 도구가 실어 온 파일 변경 — 예전엔 `"[diff]"` 문자열로 버렸다.
+ *  무엇이 어떻게 바뀌는지는 이 화면의 핵심 정보라 구조 그대로 넘긴다.
+ */
+diffs: AcpToolDiff[] } | 
 /**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
 { kind: "tool_update"; id: string; name: string | null; subtitle: string | null; title: string | null; status: string | null; 
 /**  온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다. */
-input: string | null; output: string | null } | 
+input: string | null; output: string | null; 
+/**  `None` 은 "content 가 안 왔다" — 이미 받은 diff 를 지우면 안 된다. */
+diffs: AcpToolDiff[] | null } | 
 /**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */
 { kind: "permission"; request_id: string; title: string; tool_kind: string; 
 /**  승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다. */
-locations: string[]; options: AcpPermissionOption[] } | 
+locations: string[]; options: AcpPermissionOption[]; 
+/**
+ *  승인 대상 변경 내용. 편집 승인에서 이것이 없으면 **무엇을 허용하는지
+ *  못 본 채** 허용을 누르게 된다.
+ */
+diffs: AcpToolDiff[]; 
+/**  도구에 들어갈 것 (실행 승인이면 명령줄) — diff 와 같은 이유로 싣는다. */
+input: string | null } | 
 /**
  *  세션 설정이 **에이전트 쪽에서** 바뀌었다.
  * 
@@ -1404,6 +1418,21 @@ export type AcpSessionSummary = {
 	title: string | null,
 	/**  ISO 8601 문자열 (어댑터가 주는 그대로 — 우리가 파싱해 다시 쓰지 않는다). */
 	updated_at: string | null,
+};
+
+/**
+ *  편집 도구가 만드는 파일 변경 하나 (`ToolCallContent::Diff`).
+ * 
+ *  원문(old/new) 그대로 넘기고 줄 비교는 프런트가 한다 — 여기서 통합 diff 를
+ *  만들어 버리면 화면이 접기·색·통계를 다시 파싱해야 한다.
+ */
+export type AcpToolDiff = {
+	/**  바뀌는 파일의 절대경로. */
+	path: string,
+	/**  바뀌기 전 내용. `None` 이면 새 파일. */
+	old_text: string | null,
+	/**  바뀐 뒤 내용. */
+	new_text: string,
 };
 
 /**  마지막으로 본 사용량 한 벌. */

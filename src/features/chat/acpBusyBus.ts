@@ -15,6 +15,14 @@ type Listener = () => void;
 
 /** 도는 중인 턴의 키 (`projectId:sessionId`). 프로젝트 탭이 여럿이면 여럿 찬다. */
 const working = new Set<string>();
+/**
+ * **승인을 기다리며 멈춰 있는** 세션의 키.
+ *
+ * "작업 중"과 다르다: 작업 중은 기다리면 되지만, 승인 대기는 **사용자가 눌러야**
+ * 풀린다. 다른 화면에 가 있는 동안 이 상태가 안 보이면, 에이전트가 일하는 줄
+ * 알고 기다리다 몇 분을 통째로 잃는다.
+ */
+const attention = new Set<string>();
 const listeners = new Set<Listener>();
 
 /**
@@ -22,6 +30,7 @@ const listeners = new Set<Listener>();
  * 를 매번 읽어도 숫자라 안전하지만, 캐시해 두면 구독자 수만큼의 Set 조회가 없다.
  */
 let count = 0;
+let attentionCount = 0;
 
 export function acpWorkingKey(projectId: number, sessionId: string | null): string {
   return `${projectId}:${sessionId ?? "new"}`;
@@ -33,6 +42,15 @@ export function setAcpWorking(key: string, on: boolean): void {
   if (on) working.add(key);
   else working.delete(key);
   count = working.size;
+  for (const listener of [...listeners]) listener();
+}
+
+/** 승인 대기 시작/해소를 알린다. 같은 상태면 아무 일도 하지 않는다. */
+export function setAcpAttention(key: string, on: boolean): void {
+  if (on === attention.has(key)) return;
+  if (on) attention.add(key);
+  else attention.delete(key);
+  attentionCount = attention.size;
   for (const listener of [...listeners]) listener();
 }
 
@@ -52,9 +70,20 @@ export function useAcpWorkingCount(): number {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
+function attentionSnapshot(): number {
+  return attentionCount;
+}
+
+/** 승인을 기다리며 멈춰 있는 세션 수. 0 이 아니면 사용자가 눌러야 풀린다. */
+export function useAcpAttentionCount(): number {
+  return useSyncExternalStore(subscribe, attentionSnapshot, attentionSnapshot);
+}
+
 /** 테스트 전용 — 창을 새로 여는 것과 같은 상태로 되돌린다. */
 export function resetAcpWorking(): void {
   working.clear();
+  attention.clear();
   count = 0;
+  attentionCount = 0;
   for (const listener of [...listeners]) listener();
 }

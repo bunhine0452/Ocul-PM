@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { AcpEvent } from "@/lib/bindings";
-import { applyAcpEvent, closeTurn, insertNotice, openTurn, type AcpTurn } from "@/features/chat/acpTurns";
+import {
+  applyAcpEvent,
+  closeTurn,
+  insertNotice,
+  openTurn,
+  turnReceipt,
+  type AcpTurn,
+} from "@/features/chat/acpTurns";
 
 // PR-ACP2 — ACP 스트리밍 누적 리듀서.
 //
@@ -98,6 +105,7 @@ const toolCall = (id: string, title: string): AcpEvent => ({
   locations: ["/repo/a.ts"],
   input: null,
   output: null,
+  diffs: [],
 });
 
 describe("tool calls", () => {
@@ -124,6 +132,7 @@ describe("tool calls", () => {
       status: "completed",
       input: null,
       output: null,
+      diffs: null,
     });
 
     expect(turns[1].tools?.[0]).toMatchObject({ title: "Edit a.ts", status: "completed" });
@@ -141,6 +150,7 @@ describe("tool calls", () => {
       status: "failed",
       input: null,
       output: null,
+      diffs: null,
     });
 
     expect(turns[1].tools).toHaveLength(1);
@@ -223,6 +233,7 @@ describe("tool input/output", () => {
     locations: [],
     input: "ls -la",
     output: null,
+    diffs: [],
   };
 
   it("carries the input from the initial call", () => {
@@ -242,6 +253,7 @@ describe("tool input/output", () => {
       status: "completed",
       input: null,
       output: "total 8",
+      diffs: null,
     });
 
     expect(turns[1].tools?.[0]).toMatchObject({
@@ -298,6 +310,7 @@ describe("tool_call arriving twice", () => {
       locations: [],
       input: null,
       output: null,
+      diffs: [],
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, call);
@@ -320,6 +333,7 @@ describe("tool_call arriving twice", () => {
       locations: [],
       input: null,
       output: null,
+      diffs: [],
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, { ...base, id: "a" });
@@ -343,6 +357,7 @@ describe("blocks keep arrival order", () => {
       locations: [],
       input: null,
       output: null,
+      diffs: [],
     });
 
     let turns = openTurn([], "go");
@@ -372,6 +387,7 @@ describe("blocks keep arrival order", () => {
       locations: [],
       input: null,
       output: null,
+      diffs: [],
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, base);
@@ -385,6 +401,7 @@ describe("blocks keep arrival order", () => {
       status: "completed",
       input: null,
       output: "done",
+      diffs: null,
     });
 
     const blocks = turns[1].blocks ?? [];
@@ -495,5 +512,78 @@ describe("session failures", () => {
     turns = applyAcpEvent(turns, chunk("작업 중")); // i18n-ignore -- 테스트 고정값
     turns = applyAcpEvent(turns, failure("t1:error", "rate limited"));
     expect((turns[1].blocks ?? []).map((b) => b.kind)).toEqual(["text", "failure"]);
+  });
+});
+
+// ─── 턴 영수증 ──────────────────────────────────────────────────────────────
+
+describe("turnReceipt", () => {
+  const edit = (id: string, path: string): AcpEvent => ({
+    kind: "tool_call",
+    id,
+    title: "Edit",
+    name: "Edit",
+    subtitle: null,
+    tool_kind: "edit",
+    status: "completed",
+    locations: [path],
+    input: null,
+    output: null,
+    diffs: [],
+  });
+  const bash = (id: string): AcpEvent => ({
+    kind: "tool_call",
+    id,
+    title: "Bash",
+    name: "Bash",
+    subtitle: null,
+    tool_kind: "execute",
+    status: "completed",
+    locations: [],
+    input: "pnpm test",
+    output: null,
+    diffs: [],
+  });
+
+  it("summarizes tools, touched files and commands of a closed turn", () => {
+    let turns = openTurn([], "고쳐줘", undefined, 1_000); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, edit("e1", "/repo/a.ts"));
+    turns = applyAcpEvent(turns, edit("e2", "/repo/a.ts")); // 같은 파일 — 한 번만 센다.
+    turns = applyAcpEvent(turns, bash("b1"));
+    turns = closeTurn(turns, 73_000);
+
+    expect(turnReceipt(turns[1])).toEqual({
+      tools: 3,
+      files: 1,
+      commands: 1,
+      seconds: 72,
+    });
+  });
+
+  /** 말로만 답한 턴에 "도구 0" 영수증을 붙이면 정보가 아니라 소음이다. */
+  it("is null for open turns and tool-less turns", () => {
+    let turns = openTurn([], "ask", undefined, 1_000);
+    turns = applyAcpEvent(turns, edit("e1", "/repo/a.ts"));
+    expect(turnReceipt(turns[1])).toBeNull(); // 아직 안 닫힘.
+
+    let talk = openTurn([], "ask", undefined, 1_000);
+    talk = closeTurn(talk, 5_000);
+    expect(turnReceipt(talk[1])).toBeNull(); // 도구 없음.
+  });
+
+  /** 재생으로 복원한 턴에는 시각이 없다 — 없는 시간을 지어내면 안 된다. */
+  it("omits duration when the turn has no timestamps", () => {
+    let turns = openTurn([], "ask"); // now 없음 (재생과 같은 조건)
+    turns = applyAcpEvent(turns, bash("b1"));
+    turns = closeTurn(turns);
+    expect(turnReceipt(turns[1])?.seconds).toBeNull();
+  });
+
+  /** done 이벤트로 닫혀도 끝 시각이 찍힌다 — 영수증의 소요 시간이 여기서 나온다. */
+  it("stamps endedAt when the done event closes the turn", () => {
+    let turns = openTurn([], "ask", undefined, 1_000);
+    turns = applyAcpEvent(turns, bash("b1"));
+    turns = applyAcpEvent(turns, done, false, 31_000);
+    expect(turnReceipt(turns[1])?.seconds).toBe(30);
   });
 });

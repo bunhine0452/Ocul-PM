@@ -88,6 +88,7 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
+  min-height: 24px; /* 히트 타깃 하한 — 22px 줄은 겨냥이 빗나간다. */
   padding: 3px 4px 3px 0;
   border: none;
   border-radius: 6px;
@@ -114,8 +115,15 @@
   transition: transform var(--dur-2) var(--ease-out);
 }
 .trace-status + .trace-caret,
-.trace-count + .trace-caret {
+.trace-count + .trace-caret,
+/* diffstat 과 캐럿 사이에는 보이지 않는 .trace-sr 이 끼므로 `+` 가 아니라 `~`. */
+.trace-diffstat ~ .trace-caret {
   margin-left: 6px;
+}
+/* 펼칠 것이 없는 줄도 캐럿 **자리**는 지킨다 — 유무에 따라 오른쪽 열이
+   들쭉날쭉하면 스무 줄이 줄맞춤을 잃는다. */
+.trace-caret.ghost {
+  visibility: hidden;
 }
 .trace-item.open .trace-caret {
   transform: rotate(180deg);
@@ -131,8 +139,17 @@
   padding: 8px 9px;
   border-radius: var(--radius-s);
   background: var(--bg-inset);
+  /* 승인·사용량 카드와 같은 진입 결 — 하드 컷은 이 화면에서 이것뿐이었다. */
+  animation: trace-in var(--dur-2) var(--ease-out) both;
+}
+@keyframes trace-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
 }
 .trace-io {
+  position: relative; /* 호버 복사 버튼의 기준. */
   display: flex;
   gap: 8px;
   min-width: 0;
@@ -142,10 +159,39 @@
   width: 26px;
   padding-top: 1px;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-3);
+}
+/* 도구 출력은 이 화면에서 가장 자주 **다른 곳으로 가져가는** 글이다 —
+   긁어 고르기가 유일한 길이면 안 된다. */
+.trace-io-copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--sep);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.trace-io:hover .trace-io-copy,
+.trace-io-copy:focus-visible {
+  opacity: 1;
+}
+.trace-io-copy:hover {
+  color: var(--text);
+}
+.trace-io-copy.done {
+  color: var(--t-feature);
+  opacity: 1;
 }
 /* IN 과 OUT 사이에 얇은 선 — 보낸 것과 받은 것이 한 덩어리로 뭉치면 어디까지가
    내 명령인지 읽기 어렵다. */
@@ -231,13 +277,37 @@
   border: 0;
 }
 
-/* 접힌 채로 "얼마나 더 있는지" — 펼칠 가치를 판단할 유일한 근거다. */
+/* 접힌 채로 "얼마나 더 있는지" — 펼칠 가치를 판단할 유일한 근거다.
+   정보성 마이크로 텍스트는 --text-2 — text-3 은 10px 대에서 대비 미달이다. */
 .trace-count {
   margin-left: auto;
   flex: none;
   font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text-3);
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+/* 변경 규모 "+12 −3" — 편집 단계의 핵심 숫자라 접혀 있어도 줄에서 읽힌다. */
+.trace-diffstat {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.trace-diffstat ~ .trace-status,
+.trace-diffstat ~ .trace-count {
+  margin-left: 8px;
+}
+.trace-diffstat .add,
+.diffv-add {
+  color: var(--t-feature);
+}
+.trace-diffstat .del,
+.diffv-del {
+  color: var(--t-bug);
 }
 /* 실패해서 상태 글자가 이미 오른쪽으로 밀고 나갔으면, 줄 수는 그 옆에 붙는다.
    auto 여백이 둘이면 flex 가 남는 자리를 **반씩 나눠** 상태가 한복판에 선다. */
@@ -259,42 +329,40 @@
 .trace-row.failed .trace-icon {
   color: var(--t-bug);
 }
-.trace-title {
-  font-weight: 550;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: none;
-  max-width: 46%;
-}
 /* 경로는 앞이 아니라 **끝(파일명)** 이 살아남아야 한다 — `direction: rtl` +
-   `text-align: left` 가 그 표준 트릭이다. 대신 경로를 여러 개 이어 붙이면
-   구분자가 반대편으로 튀므로, 한 개만 보여 주고 나머지는 `+N` 으로 센다. */
+   `text-align: left` 가 그 표준 트릭이다. `unicode-bidi: plaintext` 가 선행
+   구두점(`../`)이 반대편으로 튀는 bidi 부작용을 눌러 준다. 대신 경로를 여러 개
+   이어 붙이면 구분자가 틀어지므로, 한 개만 보여 주고 나머지는 `+N` 으로 센다. */
 .trace-path {
   font-family: var(--mono);
   font-size: 10.5px;
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   direction: rtl;
+  unicode-bidi: plaintext;
   text-align: left;
   min-width: 0;
 }
 .trace-more {
   flex: none;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--text-3);
 }
 .trace-status {
   margin-left: auto;
   flex: none;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-3);
+}
+.trace-elapsed {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .trace-row.running .trace-status {
   color: var(--accent-text);
@@ -330,6 +398,8 @@
   padding-left: 11px;
   border-left: 1px solid var(--sep);
   color: var(--text-2);
+  /* 곁가지는 본문(13.5px)보다 물러난다 — 같은 크기면 접어 둔 의도가 없다. */
+  font-size: 12.5px;
 }
 
 /* ─── 승인 카드 ───────────────────────────────────────────────────────────
@@ -343,6 +413,30 @@
   box-shadow: var(--shadow-raise);
   padding: 13px 14px;
   animation: perm-in var(--dur-3) var(--ease-spring) both;
+}
+/* 명령 실행·삭제 승인은 낯빛이 달라야 한다 — 파일 읽기와 `rm -rf` 가 같은
+   얼굴이면 손이 같은 속도로 움직인다. */
+.perm.danger {
+  border-color: color-mix(in srgb, var(--t-error) 45%, transparent);
+}
+.perm.danger .perm-head {
+  color: var(--t-error);
+}
+/* 승인 대상 본문 — 실행이면 명령, 편집이면 diff. 이것 없이는 블라인드 승인이다. */
+.perm-payload {
+  margin-bottom: 12px;
+  padding: 8px 9px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+}
+/* "항상 허용"은 영구 권한 부여 — 1회 허용(primary)과 같은 무게로 빛나면 안 된다. */
+.btn.perm-always {
+  border: 1px solid var(--accent-ring);
+  background: transparent;
+  color: var(--accent-text);
+}
+.btn.perm-always:hover {
+  background: var(--accent-soft);
 }
 @keyframes perm-in {
   from {
@@ -435,6 +529,8 @@
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop);
+  animation: menu-in var(--dur-2) var(--ease-out) both;
+  transform-origin: bottom left;
 }
 .mention-item {
   display: flex;
@@ -481,16 +577,40 @@
   container-name: composer;
 }
 .composer.agent {
+  position: relative; /* 드롭 오버레이의 기준. */
   border-radius: 20px;
   padding: 12px 14px 8px;
   gap: 4px;
   box-shadow: var(--shadow-sheet);
 }
 /* 포커스 링을 accent 3px 로 두르면 입력창이 "경고"처럼 보인다 — 테두리만
-   또렷하게, 링은 아주 옅게. */
+   또렷하게, 링은 **정말로** 옅게 (없으면 포커스가 어디 있는지 흐리다). */
 .composer.agent:focus-within {
   border-color: var(--sep-strong);
-  box-shadow: var(--shadow-sheet);
+  box-shadow:
+    var(--shadow-sheet),
+    0 0 0 3px color-mix(in srgb, var(--accent-ring) 45%, transparent);
+}
+/* 파일을 끌고 들어온 동안 — 놓을 자리가 여기라는 표시. pointer-events 를
+   끊어야 드롭 이벤트(Tauri)와 겹치지 않는다. */
+.composer.agent.dropping {
+  border-color: var(--accent);
+}
+.composer-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1.5px dashed var(--accent);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+  color: var(--accent-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  pointer-events: none;
 }
 .composer.agent .composer-foot {
   gap: 4px;
@@ -602,6 +722,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center; /* 주석의 약속 — "Low"→"High" 전환에 시각 중심이 안 흔들린다. */
 }
 /* 앵커는 **왼쪽**이다. `right: 0` 이면 칩에서 왼쪽으로 250px 펼쳐지는데,
    설정 칩들은 컴포저 왼쪽에 모여 있어 화면 밖으로 나가 잘렸다(사이드바를
@@ -625,6 +746,16 @@
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop);
+  /* 승인·사용량 카드와 같은 진입 결 — 팝오버 반은 스프링, 반은 하드 컷이면
+     같은 계열 물체가 다른 물성으로 갈린다. 아래서 위로 열리므로 from 은 +4px. */
+  animation: menu-in var(--dur-2) var(--ease-out) both;
+  transform-origin: bottom left;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
 }
 .settings-group {
   display: flex;
@@ -711,23 +842,19 @@
   gap: 4px;
   margin-bottom: 7px;
 }
+/* 칩 전체가 삭제 버튼이던 것을 갈랐다 — 공들여 친 문장이 오클릭 한 번에
+   증발했다. 본문 클릭 = 입력창으로 회수, X 만 폐기. */
 .queue-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 0 2px 0 8px;
   border: 1px dashed var(--sep-strong);
   border-radius: 9px;
   background: transparent;
-  cursor: pointer;
   font-family: var(--font);
   font-size: 11.5px;
   color: var(--text-3);
-  text-align: left;
-}
-.queue-chip:hover {
-  border-color: var(--t-bug);
-  color: var(--t-bug);
 }
 .queue-chip-text {
   flex: 1;
@@ -735,6 +862,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 5px 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.queue-chip-text:hover {
+  color: var(--text);
+}
+.queue-chip-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.queue-chip-x:hover {
+  color: var(--t-bug);
 }
 
 /* ─── Effort 슬라이더 ─────────────────────────────────────────────────────
@@ -860,6 +1012,23 @@
     width var(--dur-2) var(--ease-spring),
     background-color var(--dur-2) var(--ease-out);
 }
+/* 지나온 구간의 색이 라벨의 온도를 따라간다 — 라벨은 호박인데 트랙이 초록이면
+   "여기까지 왔다"의 온도가 어긋난다. */
+.effort-fill[data-effort="low"] {
+  background: var(--t-chore);
+}
+.effort-fill[data-effort="medium"] {
+  background: var(--t-feature);
+}
+.effort-fill[data-effort="high"] {
+  background: var(--t-error);
+}
+.effort-fill[data-effort="xhigh"] {
+  background: color-mix(in oklab, var(--t-error) 45%, var(--t-bug));
+}
+.effort-fill[data-effort="max"] {
+  background: var(--t-bug);
+}
 .effort-fill.top {
   background: linear-gradient(90deg, var(--accent), var(--t-refactor));
 }
@@ -877,6 +1046,13 @@
     height var(--dur-2) var(--ease-spring),
     background-color var(--dur-2) var(--ease-out),
     box-shadow var(--dur-2) var(--ease-out);
+}
+/* 6px 점을 그대로 겨냥하게 하지 않는다 — 보이는 크기는 눈금, 누르는 크기는
+   보이지 않는 24px 히트박스. */
+.effort-dot::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
 }
 .effort-dot.lit {
   background: var(--accent);
@@ -1072,13 +1248,13 @@
 }
 .acp-session.active .acp-session-title {
   color: var(--accent-text);
-  font-weight: 650;
+  font-weight: 600;
 }
 .acp-session-time {
   flex: none;
   font-family: var(--mono);
   font-size: 10px;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 .acp-panel-empty {
   padding: 12px 9px;
@@ -1177,7 +1353,7 @@
   font-variant-numeric: tabular-nums;
 }
 .usage-pill.warn .usage-pill-value {
-  color: #c9821f;
+  color: var(--t-error);
 }
 .usage-pill.danger .usage-pill-value {
   color: var(--t-bug);
@@ -1293,7 +1469,7 @@
   color: var(--text-3);
 }
 .usage-row-pct.warn {
-  color: #c9821f;
+  color: var(--t-error);
 }
 .usage-row-pct.danger {
   color: var(--t-bug);
@@ -1312,7 +1488,11 @@
   transition: width var(--dur-3) var(--ease-out);
 }
 .usage-bar-fill.warn {
-  background: linear-gradient(90deg, #e5a34d, #c9821f);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--t-error) 70%, #fff),
+    var(--t-error)
+  );
 }
 .usage-bar-fill.danger {
   background: linear-gradient(90deg, #ef7d76, var(--t-bug));
@@ -1444,6 +1624,17 @@
 .acp-tab.active {
   background: var(--bg-active);
 }
+/* 주석이 약속한 밑줄 — 배경색 차이는 밝은 테마에서 거의 안 보인다. */
+.acp-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
 .acp-tab-main {
   display: flex;
   align-items: center;
@@ -1460,9 +1651,10 @@
   letter-spacing: -0.01em;
   color: var(--text-3);
 }
+/* 굵기 점프를 한 단(550→600)으로 — 650 은 글자 폭이 변해 탭 줄 전체가 밀렸다. */
 .acp-tab.active .acp-tab-main {
   color: var(--text);
-  font-weight: 650;
+  font-weight: 600;
 }
 /* 마크는 활성 탭에서만 제 색을 낸다 — 모든 탭에 주황 별이 켜져 있으면
    어느 것이 열려 있는지가 안 읽힌다. */
@@ -1483,9 +1675,9 @@
 .acp-tab-close {
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 5px;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
   border: none;
   border-radius: 5px;
   background: none;
@@ -1566,8 +1758,8 @@
 .acp-session-act {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 6px;
   background: none;
@@ -1580,6 +1772,43 @@
 }
 .acp-session-act.danger:hover {
   color: var(--t-bug);
+}
+/* 삭제 2단계 — 같은 자리에서 "정말 삭제?"로 바뀌었다 2.5초면 돌아온다.
+   영구 삭제가 오클릭 사거리 안에 있으면 안 된다. */
+.acp-session-confirm {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 6px;
+  background: var(--t-bug);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.acp-session-confirm:hover {
+  filter: brightness(1.07);
+}
+/* 검색을 비우는 한 번의 길 — 전체 선택-삭제를 시키지 않는다. */
+.acp-search-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.acp-search-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .acp-session-input {
   width: 100%;
@@ -1701,11 +1930,14 @@
      지시가 하나도 안 비켜나고 top 에 겹겹이 쌓였다(실제로 그랬다).
    묶음(지시 + 그 답)이 컨테이닝 블록이면 자기 답변이 끝나는 순간 자연히
    자리를 비우고, 다음 지시가 그 자리를 넘겨받는다. */
+/* 묶음 **안**(지시↔답)은 좁게, 묶음 **사이**는 넓게 — 안팎이 같은 간격이면
+   어느 답이 어느 지시의 것인지 간격만으로는 읽히지 않는다 (아래
+   .ai-thread-inner 의 36px 와 짝). */
 .acp-layout .exchange {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
 }
 /* sticky 의 기준선은 스크롤 상자의 **패딩 박스 위쪽 모서리**다 — 스레드에 걸린
    위쪽 여백(26px)은 처음 자리를 잡아 줄 뿐 붙는 위치를 밀어 주지 않는다. 그래서
@@ -1722,6 +1954,7 @@
 }
 .acp-layout .ai-thread-inner {
   padding-top: 14px;
+  gap: 36px; /* 묶음 사이 — 안(14px)보다 확실히 넓어야 묶음이 눈에 잡힌다. */
 }
 .acp-layout .exchange .msg.user {
   position: sticky;
@@ -1888,7 +2121,11 @@
   font-weight: 700;
   color: var(--text);
 }
+/* (윗동네의 옛 `.trace-title` 블록과 이중 정의였던 것을 여기로 합쳤다 —
+   살아남던 선언은 flex·max-width 뿐이었다.) */
 .trace-row .trace-title {
+  flex: none;
+  max-width: 46%;
   min-width: 0;
   font-weight: 500;
   color: var(--text-3);
@@ -1906,12 +2143,12 @@
 }
 .pending-image-x {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -7px;
+  right: -7px;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--sep);
   border-radius: 50%;
   background: var(--bg-window);
@@ -1944,7 +2181,7 @@
   content: "";
   position: absolute;
   left: 5px;
-  top: -24px;
+  top: -14px; /* 묶음 안 간격(.exchange gap)과 같은 값 — 지시 카드 밑동에 닿는다. */
   bottom: 2px;
   width: 1px;
   background: var(--sep);
@@ -2116,10 +2353,10 @@
   border-color: var(--t-feature);
   background: var(--t-feature);
 }
+/* 취소선은 긋지 않는다 — 열 개 중 일곱이 줄 그어진 목록은 훑는 눈에 소음이다.
+   채워진 초록 점 + 물러난 색이면 "끝났다"는 이미 전해졌다. */
 .plan-item.completed .plan-text {
   color: var(--text-3);
-  text-decoration: line-through;
-  text-decoration-color: var(--sep-strong);
 }
 
 /* ─── 세션에 일어난 일 ────────────────────────────────────────────────────
@@ -2168,4 +2405,211 @@
   line-height: 1.55;
   color: var(--text-3);
   white-space: pre-wrap;
+}
+/* 배너에 실리는 행동 버튼 (어댑터 재연결 등) — 글과 같은 줄, 오른쪽 끝. */
+.failure .failure-act {
+  margin-left: auto;
+  flex: none;
+  align-self: center;
+}
+
+/* ─── 편집 diff 뷰 ────────────────────────────────────────────────────────
+   도구 카드와 승인 카드가 함께 쓴다. 예전엔 어댑터의 diff 가 "[diff]" 라는
+   자리표로 버려져 — 편집 승인이 사실상 블라인드였다. 색은 저장소의 diff
+   화면과 같은 토큰(초록=추가, 빨강=삭제)이라 눈이 다시 배울 것이 없다. */
+.diffv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.diffv-file {
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.diffv-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 9px;
+  background: var(--bg-inset);
+}
+.diffv-name {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+.diffv-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  unicode-bidi: plaintext;
+  text-align: left;
+}
+.diffv-stat {
+  flex: none;
+  display: inline-flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.diffv-new {
+  color: var(--t-feature);
+  font-weight: 600;
+}
+.diffv-body {
+  max-height: 320px;
+  overflow: auto;
+  padding: 4px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.diffv-line {
+  display: flex;
+  min-width: 0;
+  padding: 0 9px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-2);
+}
+.diffv-line.add {
+  background: color-mix(in srgb, var(--t-feature) 10%, transparent);
+  color: var(--text);
+}
+.diffv-line.del {
+  background: color-mix(in srgb, var(--t-bug) 9%, transparent);
+}
+/* 부호는 복사에 안 딸려 간다 — diff 를 긁어 코드로 붙여 넣는 자리다. */
+.diffv-sign {
+  flex: none;
+  width: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+  color: var(--text-3);
+}
+.diffv-line.add .diffv-sign {
+  color: var(--t-feature);
+}
+.diffv-line.del .diffv-sign {
+  color: var(--t-bug);
+}
+.diffv-text {
+  flex: 1;
+  min-width: 0;
+}
+.diffv-more {
+  padding: 2px 9px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+/* 접힌 카드의 미리보기 자리에서는 상자를 벗는다 — trace-peek 이 이미 왼쪽
+   막대와 배경으로 "여기는 머리만"을 말하고 있다. 상자 속 상자는 소음이다. */
+.trace-peek .diffv-file {
+  border: none;
+  background: transparent;
+}
+.trace-peek .diffv-head {
+  padding: 0 0 3px;
+  background: transparent;
+}
+.trace-peek .diffv-body {
+  max-height: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* ─── 턴 영수증 ───────────────────────────────────────────────────────────
+   끝난 턴의 "무엇을 얼마나 했나" 한 줄 — 일지 제품의 DNA 를 대화 표면에
+   남기는 자리다. 기록의 결이므로 등폭·낮은 채도. */
+.turn-receipt {
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+/* ─── 답변 전체 복사 ─────────────────────────────────────────────────────── */
+.turn-copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--sep);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.acp-layout .exchange .msg.assistant:hover .turn-copy,
+.turn-copy:focus-visible {
+  opacity: 1;
+}
+.turn-copy:hover {
+  color: var(--text);
+}
+.turn-copy.done {
+  color: var(--t-feature);
+  opacity: 1;
+}
+
+/* ─── 지시 카드의 시각 ────────────────────────────────────────────────────
+   "언제 시켰나"는 작업 콘솔의 기본 정보인데 어디에도 없었다. 호버에만 —
+   상시 노출은 카드마다 숫자 벽지가 된다. */
+.user-card-time {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+  pointer-events: none;
+}
+.user-card:hover .user-card-time {
+  opacity: 1;
+}
+
+/* ─── 오류 줄의 행동 ─────────────────────────────────────────────────────
+   오류의 답이 "복사해서 다시 치기"면 안 된다 — 다시 보내기와 닫기. */
+.msg-error-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--sep);
+  border-radius: 7px;
+  background: var(--bg-card);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.msg-error-act:hover {
+  color: var(--text);
+  border-color: var(--sep-strong);
 }

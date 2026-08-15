@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Channel } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
+  ArrowDown,
   ArrowRight,
   ArrowUp,
   Check,
@@ -10,6 +11,7 @@ import {
   Code2,
   ClipboardCheck,
   Clock,
+  Copy,
   ExternalLink,
   File as FileIcon,
   Flame,
@@ -50,6 +52,7 @@ import {
   groupTurns,
   insertNotice,
   openTurn,
+  turnReceipt,
   type AcpBlock,
   type AcpPlanEntry,
   type AcpToolCall,
@@ -73,7 +76,10 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { nextIndex, withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
-import { acpWorkingKey, setAcpWorking } from "./acpBusyBus";
+import { acpWorkingKey, setAcpAttention, setAcpWorking } from "./acpBusyBus";
+import { recallBack, recallForward, type RecallState } from "./promptHistory";
+import { AcpDiffView } from "./AcpDiffView";
+import { diffLines, diffStats } from "./lineDiff";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
@@ -237,6 +243,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 통째로 무의미해진다 (props 배열이 매번 새 객체라서).
    */
   const groups = useMemo(() => groupTurns(turns), [turns]);
+  /** 이 대화에서 보낸 지시들 — ↑ 되부르기의 원장. */
+  const userPrompts = useMemo(
+    () => turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
+    [turns],
+  );
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -296,10 +307,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 클라이언트에서 줄 세우는 이유: 어댑터가 `promptQueueing` 을 광고하긴
    * 하지만, 그쪽에 맡기면 큐가 **화면에 안 보이고 취소도 못 한다**. 여기서
    * 들고 있으면 대기 중인 문장을 보여 주고 빼낼 수 있다.
+   *
+   * **어느 대화의 것인지 함께 든다.** 세션 없이 문장만 들면, A 대화가 도는
+   * 동안 줄 세운 말이 B 대화로 전환한 순간 **B 로 배달된다** — 턴이 끝나는
+   * 순간의 화면이 수신자가 되는 오배송이다.
    */
-  const [queue, setQueue] = useState<string[]>([]);
+  const [queue, setQueue] = useState<{ text: string; sessionId: string | null }[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  /** 바닥에서 떨어져 있는가 — FAB("맨 아래로")를 보일지의 근거. */
+  const [awayFromBottom, setAwayFromBottom] = useState(false);
+  /** ↑/↓ 프롬프트 되부르기의 현재 위치 (promptHistory.ts). */
+  const recallRef = useRef<RecallState | null>(null);
+  /** 파일을 끌어와 얹으려는 중 — 컴포저에 놓을 자리를 그린다. */
+  const [dropActive, setDropActive] = useState(false);
+  /** 마지막으로 보낸(보내려던) 지시 — 오류 뒤 "다시 보내기"가 쓴다. */
+  const lastSentRef = useRef<string | null>(null);
+  /** 어댑터 프로세스가 죽은 것을 감지했다 — 배너와 다시 연결 버튼의 근거. */
+  const [agentGone, setAgentGone] = useState(false);
+  /** 살아 있는 것을 한 번이라도 봤는가 — "죽었다"는 살아 있던 것만 말할 수 있다. */
+  const aliveRef = useRef(false);
   /**
    * 청크 합치기 버퍼. 토큰 하나마다 setState 하면 스레드 전체가 다시 그려지고
    * 마크다운이 매번 재파싱돼 **스트리밍이 렉처럼 끊겨 보인다**. 프로바이더
@@ -329,7 +356,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, [projectId]);
 
   // `@` 를 치는 동안만 후보를 부른다 — 멘션이 아닐 땐 즉시 닫아 디스크를
-  // 매 입력마다 걷지 않는다.
+  // 매 입력마다 걷지 않는다. 짧은 디바운스: 이 조회는 키 하나마다 디스크를
+  // 걷는 일이라, 빠르게 치는 동안은 마지막 한 번만 나가면 된다.
   useEffect(() => {
     const mention = findMentionQuery(draft);
     if (!mention) {
@@ -337,13 +365,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       return;
     }
     let cancelled = false;
-    void commands.acpListFiles(projectId, mention.query, 8).then((res) => {
-      if (cancelled) return;
-      setMentions(res.status === "ok" ? res.data : []);
-      setMentionIndex(0);
-    });
+    const timer = window.setTimeout(() => {
+      void commands.acpListFiles(projectId, mention.query, 8).then((res) => {
+        if (cancelled) return;
+        setMentions(res.status === "ok" ? res.data : []);
+        setMentionIndex(0);
+      });
+    }, 120);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [draft, projectId, t]);
 
@@ -372,6 +403,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, [draft, projectId]);
 
   /**
+   * 입력창이 내용을 따라 자란다 (최대 180px — 프로바이더 채팅과 같은 상한).
+   *
+   * 없으면 두 줄 고정 칸 안에서 긴 지시문을 **안경 구멍으로** 쓰게 된다 —
+   * 번호 매긴 요구사항 대여섯 줄이 이 화면의 평범한 입력이다.
+   */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 180) + "px";
+  }, [draft]);
+
+  /**
    * 설정을 주기적으로 되읽는다.
    *
    * 모델을 바꾸면 어댑터가 **권한 모드를 조용히 내릴 수 있다**(새 모델이 그
@@ -386,6 +430,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 화면이 keep-alive 로 살아 있는 한 이 타이머는 영원히 돈다. 돌아오면
       // 다음 tick(≤4초)이 알아서 따라잡는다.
       if (!isVisible()) return;
+      // 어댑터 생사부터 본다. 다른 조회는 백엔드 상태의 **로컬 읽기**라
+      // 프로세스가 죽어도 마지막 값을 돌려준다 — 죽음이 화면에 안 보였다.
+      void commands.acpStatus(projectId).then((res) => {
+        if (res.status !== "ok") return;
+        if (res.data) {
+          aliveRef.current = true;
+          setAgentGone(false);
+        } else if (aliveRef.current) {
+          aliveRef.current = false;
+          setAgentGone(true);
+        }
+      });
       void commands.acpOptions(projectId).then((res) => {
         if (res.status === "ok" && res.data.length) {
           setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
@@ -413,6 +469,83 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     const id = session?.session_id ?? null;
     setState((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
   }, [session?.session_id, setState]);
+
+  /**
+   * 쓰다 만 글은 **대화를 따라간다.**
+   *
+   * 입력창이 화면에 하나뿐이라, 탭 A 에서 쓰다 탭 B 로 가면 반쯤 쓴 지시문이
+   * B 의 입력창에 따라붙었다 — B 에서 지우면 A 의 글이 사라진 것이다. 대화를
+   * 옮기는 순간 쓰던 글을 그 대화 몫으로 재워 두고, 돌아오면 꺼낸다.
+   */
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  const draftsRef = useRef<Record<string, string>>({});
+  const prevSessionRef = useRef(activeId);
+  useEffect(() => {
+    const prev = prevSessionRef.current;
+    if (prev === activeId) return;
+    draftsRef.current = { ...draftsRef.current, [prev]: draftRef.current };
+    prevSessionRef.current = activeId;
+    setDraft(draftsRef.current[activeId] ?? "");
+    recallRef.current = null;
+  }, [activeId]);
+
+  /**
+   * 승인 대기를 사이드바에 알린다 — 작업 중과 **다른 신호**다. 작업 중은
+   * 기다리면 되지만 승인 대기는 사용자가 눌러야 풀린다. 이 표시가 없으면
+   * 다른 화면에서 "아직 도는 중"으로 믿고 기다리다 몇 분을 잃는다.
+   */
+  useEffect(() => {
+    const key = acpWorkingKey(projectId, session?.session_id ?? null);
+    setAcpAttention(key, permission != null);
+    return () => setAcpAttention(key, false);
+  }, [permission, projectId, session?.session_id]);
+
+  /**
+   * 파일 드래그&드롭 → 첨부.
+   *
+   * HTML 드롭은 Tauri 가 가로채므로(웹뷰 기본) OS 드롭은 **Tauri 이벤트**로만
+   * 받을 수 있다. 이 화면이 보일 때만 받는다 — keep-alive 로 배경에 살아 있는
+   * 다른 프로젝트 탭이 드롭을 삼키면 안 된다.
+   */
+  const projectRoot = state.currentProjectRoot;
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        const off = await getCurrentWebview().onDragDropEvent((event) => {
+          if (!isVisible()) return;
+          const payload = event.payload;
+          if (payload.type === "enter" || payload.type === "over") {
+            setDropActive(true);
+            return;
+          }
+          setDropActive(false);
+          if (payload.type !== "drop" || !payload.paths.length) return;
+          // 프로젝트 안의 파일이면 상대경로로 — 칩과 프롬프트가 짧게 읽힌다.
+          const rel = payload.paths.map((path) =>
+            projectRoot && path.startsWith(projectRoot + "/")
+              ? path.slice(projectRoot.length + 1)
+              : path,
+          );
+          setAttachments((prev) => [...new Set([...prev, ...rel])]);
+          inputRef.current?.focus();
+        });
+        if (disposed) off();
+        else unlisten = off;
+      } catch {
+        // 웹뷰 밖(테스트·브라우저)에서는 이 API 가 없다 — 드롭만 없는 채로 산다.
+      }
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [isVisible, projectRoot]);
 
   /**
    * 모델이 바뀌면 대화에 **구분선 한 줄**을 남긴다.
@@ -479,7 +612,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const stickRef = useRef(true);
   const onThreadScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_SLACK_PX;
+    const stick = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_SLACK_PX;
+    stickRef.current = stick;
+    // FAB 의 근거 — ref 와 달리 화면이 알아야 하는 값이라 상태로도 든다.
+    setAwayFromBottom(!stick);
+  }, []);
+
+  /** "맨 아래로" — 위에서 읽다 돌아오는 한 번의 길. 누르면 따라가기도 다시 켜진다. */
+  const jumpToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickRef.current = true;
+    setAwayFromBottom(false);
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
   /**
@@ -635,6 +780,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 다른 대화를 열면 그 대화의 **끝**부터 본다 — 앞 대화에서 위로 올려 두었던
       // 것이 새 대화의 스크롤 정책으로 새어 나가면 안 된다.
       stickRef.current = true;
+      setAwayFromBottom(false);
       setUsage(null);
       setPermission(null);
       setError(null);
@@ -680,6 +826,38 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
 
   /**
+   * 죽은 어댑터를 다시 띄우고 **보던 대화로 돌아간다.**
+   *
+   * 새 프로세스는 지난 대화를 모른다 — 우리 화면에 기록이 남아 있어도
+   * `session/load` 로 어댑터에 다시 실어야 이어서 말을 걸 수 있다. 그래서
+   * 메모리 기록을 비우고 로드 경로를 강제한다 (안 비우면 openSession 이
+   * "이미 본 대화" 지름길을 타서 어댑터는 여전히 모르는 채가 된다).
+   */
+  const reconnect = useCallback(async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await commands.acpStart(projectId);
+      if (res.status !== "ok") {
+        setError(res.error);
+        return;
+      }
+      aliveRef.current = true;
+      setAgentGone(false);
+      const previous = session?.session_id ?? null;
+      setSession(res.data);
+      await refreshHistory();
+      if (previous) {
+        setTranscripts((prev) => ({ ...prev, [previous]: [] }));
+        transcriptsRef.current = { ...transcriptsRef.current, [previous]: [] };
+        await openSession(previous);
+      }
+    } finally {
+      setStarting(false);
+    }
+  }, [projectId, session?.session_id, refreshHistory, openSession]);
+
+  /**
    * 다시 띄운 뒤 **하던 대화로 돌아간다** (업데이트 재시작이 이 길을 탄다).
    *
    * 어댑터는 새 프로세스라 대화가 없지만 대화 자체는 디스크에 남아 있다. 목록에
@@ -721,6 +899,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     // 진행 중인 로드의 재생분이 새 대화에 쏟아지지 않게 세대를 올린다.
     loadSeqRef.current += 1;
     stickRef.current = true;
+    setAwayFromBottom(false);
     setSession((prev) => (prev ? { ...prev, session_id: null, title: null } : prev));
     editTurns(SLATE, () => []);
     setAttachments([]);
@@ -728,6 +907,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     setUsage(null);
     setPermission(null);
     setError(null);
+    // 새 대화를 연 다음 할 일은 하나뿐이다 — 입력. 클릭 한 번을 아껴 준다.
+    inputRef.current?.focus();
   }, [editTurns]);
 
   /**
@@ -917,8 +1098,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       }
 
       if (busy) {
-        setQueue((prev) => [...prev, text]);
+        setQueue((prev) => [...prev, { text, sessionId: session?.session_id ?? null }]);
         setDraft("");
+        recallRef.current = null;
         return;
       }
 
@@ -960,6 +1142,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       const sending = attachments;
       const sendingImages = images;
       const sendingBlocks: AcpImage[] = images.map((image) => image.block);
+      lastSentRef.current = text;
+      recallRef.current = null;
       setDraft("");
       setAttachments([]);
       setImages([]);
@@ -967,15 +1151,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setSlash(null);
       setError(null);
       editTurns(into, (prev) =>
-        openTurn(prev, text, {
-          attachments: sending,
-          images: sendingImages.map((image) => ({
-            src: `data:${image.block.mime_type};base64,${image.block.data_base64}`,
-            name: image.name,
-            width: image.width,
-            height: image.height,
-          })),
-        }),
+        openTurn(
+          prev,
+          text,
+          {
+            attachments: sending,
+            images: sendingImages.map((image) => ({
+              src: `data:${image.block.mime_type};base64,${image.block.data_base64}`,
+              name: image.name,
+              width: image.width,
+              height: image.height,
+            })),
+          },
+          Date.now(),
+        ),
       );
       // 내가 방금 말을 걸었다 — 어디를 보고 있었든 이제 바닥이 관심사다.
       stickRef.current = true;
@@ -1068,7 +1257,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.
         // 승인 카드도 함께 치운다: 백엔드가 미결 요청을 취소로 닫았으므로
         // 남겨 두면 눌러도 아무 일이 안 일어나는 유령 카드가 된다.
-        editTurns(into, closeTurn);
+        editTurns(into, (prev) => closeTurn(prev, Date.now()));
         setPermission(null);
         setBusy(false);
       }
@@ -1084,14 +1273,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   // 없으면 같은 문장이 두 번 나갈 수 있다.
   const drainingRef = useRef(false);
   useEffect(() => {
-    if (busy || !queue.length || drainingRef.current) return;
+    if (busy || drainingRef.current) return;
+    // **지금 열려 있는 대화의 것만** 나간다 — 다른 대화 몫은 그 대화로 돌아올
+    // 때까지 기다린다. 큐에 남아 있는 한 화면(그 대화의 컴포저)에 계속 보인다.
+    const at = queue.findIndex((item) => (item.sessionId ?? SLATE) === activeId);
+    if (at === -1) return;
     drainingRef.current = true;
-    const [next, ...rest] = queue;
-    setQueue(rest);
-    void send(next).finally(() => {
+    const next = queue[at];
+    setQueue((prev) => prev.filter((_, i) => i !== at));
+    void send(next.text).finally(() => {
       drainingRef.current = false;
     });
-  }, [busy, queue, send]);
+  }, [busy, queue, send, activeId]);
 
   const cancel = useCallback(() => {
     void commands.acpCancel(projectId);
@@ -1132,10 +1325,42 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, [session, setOption]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 한글 조합 중의 Enter/방향키는 **IME 의 것**이다. 안 거르면 조합을 확정하는
+    // Enter 가 문장을 그대로 전송한다 — 한글로 쓰는 사용자가 매일 밟는 지뢰.
+    // (일부 엔진이 isComposing 을 늦게 세팅해 keyCode 229 도 같이 본다.)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Tab" && e.shiftKey && !slash?.length && !mentions?.length) {
       e.preventDefault();
       cycleMode();
       return;
+    }
+    // ↑/↓ — 보냈던 지시 되부르기. 팝오버가 열려 있으면 그쪽 것이고, 커서가
+    // 텍스트 한가운데면 **줄 이동**이다 — 맨 앞(↑)·맨 끝(↓)에서만 받는다.
+    if (!slash?.length && !mentions?.length) {
+      const el = e.currentTarget;
+      if (e.key === "ArrowUp" && el.selectionStart === 0 && el.selectionEnd === 0) {
+        const step = recallBack(userPrompts, recallRef.current, draft);
+        if (step) {
+          e.preventDefault();
+          recallRef.current = step.state;
+          setDraft(step.text);
+        }
+        return;
+      }
+      if (
+        e.key === "ArrowDown" &&
+        recallRef.current &&
+        el.selectionStart === el.value.length &&
+        el.selectionEnd === el.value.length
+      ) {
+        const step = recallForward(userPrompts, recallRef.current);
+        if (step) {
+          e.preventDefault();
+          recallRef.current = step.state;
+          setDraft(step.text);
+        }
+        return;
+      }
     }
     if (slash?.length) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -1317,6 +1542,28 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
           {permission ? <PermissionCard request={permission} onDecide={decide} /> : null}
 
+          {agentGone ? (
+            /* 어댑터 프로세스가 죽었다. 이 배너가 없으면 마지막 상태가 그대로
+               남아 **아무 일도 없는 척**한다 — 보내면 그때서야 오류가 난다. */
+            <div className="failure" role="status">
+              <span className="failure-icon">
+                <TriangleAlert size={13} />
+              </span>
+              <span className="failure-body">
+                <span className="failure-title">{t("acp.agentGone")}</span>
+                <span className="failure-details">{t("acp.agentGoneSub")}</span>
+              </span>
+              <button
+                type="button"
+                className="btn sm primary failure-act"
+                disabled={starting}
+                onClick={() => void reconnect()}
+              >
+                {t("acp.reconnect")}
+              </button>
+            </div>
+          ) : null}
+
           {error ? (
             <div className="msg assistant">
               <div className="msg-head">
@@ -1324,30 +1571,92 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 <span className="msg-model" style={{ color: "var(--t-bug)" }}>
                   {t("ai.errorLabel")}
                 </span>
+                <span style={{ flex: 1 }} />
+                {/* 같은 지시를 다시 보내는 길 — 오류의 답이 "복사해서 다시 치기"
+                    면 안 된다. 닫기는 오류를 읽었다는 표시다. */}
+                {!busy && lastSentRef.current ? (
+                  <button
+                    type="button"
+                    className="msg-error-act"
+                    onClick={() => {
+                      setError(null);
+                      void send(lastSentRef.current ?? undefined);
+                    }}
+                  >
+                    {t("acp.retrySend")}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="msg-error-act"
+                  aria-label={t("acp.errorDismiss")}
+                  title={t("acp.errorDismiss")}
+                  onClick={() => setError(null)}
+                >
+                  <X size={12} />
+                </button>
               </div>
               <div className="msg-error">{error}</div>
             </div>
           ) : null}
         </div>
+        {awayFromBottom ? (
+          /* 위에서 앞 카드를 읽는 것은 허용된 동작이다 (stickRef) — 그렇다면
+             돌아오는 길도 한 번의 클릭이어야 한다. */
+          <button
+            type="button"
+            className="ai-scroll-fab"
+            onClick={jumpToBottom}
+            aria-label={t("ai.scrollBottom")}
+            title={t("ai.scrollBottom")}
+          >
+            <ArrowDown size={15} />
+          </button>
+        ) : null}
       </div>
 
       <div className="ai-compose agent">
-        <div className="composer agent">
+        <div className={"composer agent" + (dropActive ? " dropping" : "")}>
+          {dropActive ? (
+            <div className="composer-drop" aria-hidden="true">
+              <Paperclip size={14} />
+              {t("acp.dropHint")}
+            </div>
+          ) : null}
           {queue.length ? (
             <div className="queue-row">
-              {queue.map((text, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className="queue-chip"
-                  title={t("acp.queue.remove")}
-                  onClick={() => setQueue((prev) => prev.filter((_, at) => at !== i))}
-                >
-                  <Clock size={11} />
-                  <span className="queue-chip-text">{text}</span>
-                  <X size={11} />
-                </button>
-              ))}
+              {/* 이 대화 몫만 보인다 — 다른 대화의 대기분이 여기 떠 있으면
+                  "내가 보낸 적 없는 문장"이 붙어 있는 것처럼 읽힌다. */}
+              {queue.map((item, i) =>
+                (item.sessionId ?? SLATE) !== activeId ? null : (
+                  <span key={i} className="queue-chip">
+                    <Clock size={11} />
+                    {/* 본문 클릭 = **입력창으로 회수** — 잘못 큐에 넣었을 때의
+                        정답은 삭제가 아니라 이어서 고치는 것이다. X 만 폐기. */}
+                    <button
+                      type="button"
+                      className="queue-chip-text"
+                      title={t("acp.queue.restore")}
+                      onClick={() => {
+                        setQueue((prev) => prev.filter((_, at) => at !== i));
+                        setDraft((prev) => (prev.trim() ? prev : item.text));
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      {item.text}
+                    </button>
+                    <button
+                      type="button"
+                      className="queue-chip-x"
+                      aria-label={t("acp.queue.remove")}
+                      title={t("acp.queue.remove")}
+                      onClick={() => setQueue((prev) => prev.filter((_, at) => at !== i))}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ),
+              )}
             </div>
           ) : null}
 
@@ -1464,11 +1773,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
             <div className="composer-input">
             <textarea
               ref={inputRef}
-              rows={2}
+              rows={1}
               value={draft}
               placeholder={busy ? t("acp.placeholderBusy") : t("acp.placeholder")}
               aria-label={t("acp.inputAria")}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                // 손으로 고치기 시작하면 되부르기는 끝난 것이다 — 다음 ↑ 는
+                // 다시 가장 최근부터.
+                recallRef.current = null;
+                setDraft(e.target.value);
+              }}
               onKeyDown={onKeyDown}
               onPaste={onPaste}
             />
@@ -1574,7 +1888,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         onRename={rename}
         onDelete={remove}
         names={names}
-        busy={busy}
       />
 
     </div>
@@ -1718,6 +2031,14 @@ function UserTurn({ turn }: { turn: AcpTurn }) {
         // 잘못 눌렀을 때 읽던 자리가 통째로 사라진다.
         onClick={clipped && !expanded ? () => setExpanded(true) : undefined}
       >
+        {/* 언제 시켰나 — 작업 콘솔인데 시각이 어디에도 없었다. 호버에만 보인다
+            (상시 노출은 카드마다 숫자 벽지가 된다). 재생으로 복원한 턴에는
+            시각이 없어 조용히 빠진다. */}
+        {turn.at != null ? (
+          <span className="user-card-time">
+            {new Date(turn.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        ) : null}
         {turn.images?.length || turn.attachments?.length ? (
           <div className="user-card-files">
             {turn.images?.map((image, i) => (
@@ -1830,6 +2151,8 @@ const TurnRow = memo(function TurnRow({
   const blocks: AcpBlock[] =
     turn.blocks ?? (turn.text ? [{ kind: "text", text: turn.text }] : []);
 
+  const receipt = turnReceipt(turn);
+
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
       {/* 이름을 적지 않는다 — 답이 하나뿐인 화면에서 매 턴 "Claude Agent" 를
@@ -1839,6 +2162,9 @@ const TurnRow = memo(function TurnRow({
           중 도는 것은 맥박이 뛴다 — 위에 점 하나를 더 얹으면 점이 두 개가 되고,
           "빚는 중…" 같은 상태 문구와 **줄이 갈라진다**. 점은 그 문구의 줄에
           있어야 둘이 한 말로 읽힌다. */}
+      {/* 답 전체 복사 — 코드펜스에는 이미 복사가 있지만 "답을 통째로"는
+          긁어서 고르는 수밖에 없었다. 끝난 턴에만 — 흐르는 글의 복사는 반쪽이다. */}
+      {!live && turn.text.trim() ? <TurnCopy text={turn.text} /> : null}
       {turn.thought ? (
         <details className="think">
           <summary>
@@ -1850,6 +2176,10 @@ const TurnRow = memo(function TurnRow({
           </div>
         </details>
       ) : null}
+      {/* 할 일 목록은 조각 흐름 **위**에 하나로 둔다 — 진행 상황을 훑는 물건이라
+          글·도구 더미 아래에 두면 긴 턴에서 매번 스크롤로 찾아야 한다. 매 갱신에
+          전체가 새로 오므로 이 자리에서 통째로 바뀐다. */}
+      {turn.plan?.length ? <PlanList entries={turn.plan} /> : null}
       {/* 글과 도구를 **온 순서 그대로** 그린다. 예전엔 도구를 전부 위에, 글을
           전부 아래에 모아 그려서 — 도구 사이사이에 한 줄씩 하던 설명이 맨
           아래에 줄줄이 붙어 서로 다른 대목의 문장이 한 문단처럼 이어졌다. */}
@@ -1875,10 +2205,29 @@ const TurnRow = memo(function TurnRow({
           </div>
         ),
       )}
-      {/* 할 일 목록은 조각 흐름 **위**에 하나로 둔다 — 진행 상황을 훑는 물건이라
-          글 사이에 끼면 매번 찾아야 한다. 매 갱신에 전체가 새로 오므로 이
-          자리에서 통째로 바뀐다. */}
-      {turn.plan?.length ? <PlanList entries={turn.plan} /> : null}
+      {/* 턴 영수증 — 이 턴이 실제로 무엇을 했는지 한 줄. 일지 제품의 DNA 를
+          대화 표면에 남기는 자리다. 도구를 쓴 턴에만 — "도구 0" 은 소음이다. */}
+      {receipt ? (
+        <div className="turn-receipt">
+          {[
+            t("acp.receipt.tools", { n: receipt.tools }),
+            receipt.files ? t("acp.receipt.files", { n: receipt.files }) : null,
+            receipt.commands ? t("acp.receipt.commands", { n: receipt.commands }) : null,
+            receipt.seconds == null
+              ? null
+              : receipt.seconds < 60
+                ? t("acp.receipt.sec", { s: receipt.seconds })
+                : receipt.seconds % 60 === 0
+                  ? t("acp.receipt.min", { m: Math.floor(receipt.seconds / 60) })
+                  : t("acp.receipt.minSec", {
+                      m: Math.floor(receipt.seconds / 60),
+                      s: receipt.seconds % 60,
+                    }),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+      ) : null}
       {blocks.length === 0 ? (
         live ? (
           <AgentWord />
@@ -1889,6 +2238,32 @@ const TurnRow = memo(function TurnRow({
     </div>
   );
 });
+
+/** 끝난 답변의 전체 복사 버튼 — 호버에만 보인다 (상시 노출은 벽지가 된다). */
+function TurnCopy({ text }: { text: string }) {
+  const { t } = useT();
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* 클립보드가 없는 환경 — 조용히 지나간다 */
+    }
+  }, [text]);
+  return (
+    <button
+      type="button"
+      className={"turn-copy" + (copied ? " done" : "")}
+      onClick={() => void copy()}
+      aria-label={t("acp.copyTurn")}
+      title={t("acp.copyTurn")}
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+}
 
 /**
  * 도구 호출 한 단계 — 무엇을 시켰고, 무엇이 나왔나.
@@ -1915,7 +2290,23 @@ const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
   const Icon = TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
   const state = running ? " running" : failed ? " failed" : "";
-  const expandable = Boolean(tool.input || tool.output);
+  const expandable = Boolean(tool.input || tool.output || tool.diffs?.length);
+
+  /**
+   * 변경 규모("+12 −3") — 펼치기 전에 줄에서 바로 읽힌다. 어떤 파일을 몇 줄
+   * 고쳤는지가 이 카드의 핵심 정보인데, 예전엔 펼쳐야만 보였다.
+   */
+  const diffTotals = useMemo(() => {
+    if (!tool.diffs?.length) return null;
+    let added = 0;
+    let removed = 0;
+    for (const diff of tool.diffs) {
+      const stats = diffStats(diffLines(diff.old_text, diff.new_text));
+      added += stats.added;
+      removed += stats.removed;
+    }
+    return { added, removed };
+  }, [tool.diffs]);
 
   /**
    * 미리보기 — 명령(IN)의 머리 두 줄과 결과(OUT)의 머리 네 줄.
@@ -1965,13 +2356,26 @@ const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
         {tool.locations.length > 1 ? (
           <span className="trace-more">+{tool.locations.length - 1}</span>
         ) : null}
+        {/* 변경 규모는 상태와 무관하게 늘 보인다 — "무엇을 얼마나 고쳤나"가
+            이 줄의 존재 이유다. */}
+        {diffTotals ? (
+          <span className="trace-diffstat">
+            {diffTotals.added ? <span className="add">+{diffTotals.added}</span> : null}
+            {diffTotals.removed ? <span className="del">−{diffTotals.removed}</span> : null}
+          </span>
+        ) : null}
         {/* 상태 글자는 **말할 것이 있을 때만**. 스무 줄에 "완료"가 스무 번
             적혀 있으면 그건 정보가 아니라 벽지다 — 끝난 단계는 아무 말도 하지
             않는 것이 곧 "잘 끝났다"이고, 눈은 그 사이의 빨강만 찾으면 된다.
             눈에서 지우는 것과 **없애는 것**은 다르다: 읽어 주는 기계에는 늘
             남는다 (`.trace-sr`). */}
         {running || failed ? (
-          <span className="trace-status">{status}</span>
+          <span className="trace-status">
+            {status}
+            {/* 도는 단계는 경과가 붙는다 — 30초째 도는 Bash 와 방금 시작한
+                Bash 가 같은 얼굴이면 멈춘 것인지 판단할 근거가 없다. */}
+            {running ? <TraceElapsed since={tool.startedAt} /> : null}
+          </span>
         ) : (
           <span className="trace-sr">{status}</span>
         )}
@@ -1980,22 +2384,29 @@ const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
         {!open && peek.hidden > 0 ? (
           <span className="trace-count">{t("acp.tool.moreLines", { n: peek.hidden })}</span>
         ) : null}
-        {expandable ? <ChevronDown size={12} className="trace-caret" /> : null}
+        {/* 캐럿은 없어도 **자리는 지킨다** — 캐럿 유무에 따라 오른쪽 열이
+            들쭉날쭉하면 스무 줄이 줄맞춤을 잃는다. */}
+        <ChevronDown size={12} className={"trace-caret" + (expandable ? "" : " ghost")} />
       </button>
       {open ? (
         <div className="trace-body">
-          {tool.input ? (
-            <div className="trace-io">
-              <span className="trace-io-tag">IN</span>
-              <pre>{tool.input}</pre>
-            </div>
-          ) : null}
-          {tool.output ? (
-            <div className="trace-io">
-              <span className="trace-io-tag">OUT</span>
-              <pre>{tool.output}</pre>
-            </div>
-          ) : null}
+          {tool.input ? <TraceIo tag="IN" text={tool.input} /> : null}
+          {/* 편집 도구의 본론 — 무엇이 어떻게 바뀌었나. */}
+          {tool.diffs?.length ? <AcpDiffView diffs={tool.diffs} /> : null}
+          {tool.output ? <TraceIo tag="OUT" text={tool.output} /> : null}
+        </div>
+      ) : tool.diffs?.length ? (
+        // 접힌 편집 카드는 diff 머리를 보여 준다 — 텍스트 미리보기와 같은 이유,
+        // 같은 동작(누르면 펼침).
+        <div
+          className="trace-peek"
+          aria-hidden="true"
+          onClick={() => {
+            if (window.getSelection()?.toString()) return;
+            setChoice(true);
+          }}
+        >
+          <AcpDiffView diffs={tool.diffs} compact />
         </div>
       ) : peek.empty ? null : (
         // 미리보기도 누르면 펼쳐진다 — 잘린 글을 보고 손이 가는 자리가 여기다.
@@ -2028,6 +2439,56 @@ const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
   );
 });
 
+/** 도는 단계의 경과 초 — 1초마다 다시 그린다 (그 단계가 도는 동안만). */
+function TraceElapsed({ since }: { since?: number }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (since == null) return;
+    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [since]);
+  if (since == null) return null;
+  const sec = Math.max(0, Math.round((Date.now() - since) / 1000));
+  // 첫 1~2초는 적지 않는다 — 모든 단계에 "· 0s" 가 붙으면 벽지가 된다.
+  if (sec < 3) return null;
+  return <span className="trace-elapsed"> · {sec}s</span>;
+}
+
+/**
+ * 펼친 본문의 IN/OUT 한 칸 — 호버에 복사가 뜬다.
+ *
+ * 도구 출력은 이 화면에서 가장 자주 **다른 곳으로 가져가는** 글이다(오류
+ * 메시지를 검색하고, 명령을 다시 치고). 긁어 고르기가 유일한 길이면 안 된다.
+ */
+function TraceIo({ tag, text }: { tag: string; text: string }) {
+  const { t } = useT();
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* 클립보드가 없는 환경 */
+    }
+  }, [text]);
+  return (
+    <div className="trace-io">
+      <span className="trace-io-tag">{tag}</span>
+      <pre>{text}</pre>
+      <button
+        type="button"
+        className={"trace-io-copy" + (copied ? " done" : "")}
+        onClick={() => void copy()}
+        aria-label={t("acp.copyIo")}
+        title={t("acp.copyIo")}
+      >
+        {copied ? <Check size={11} /> : <Copy size={11} />}
+      </button>
+    </div>
+  );
+}
+
 /**
  * 승인 카드. 응답할 때까지 에이전트가 멈춰 있으므로 **닫기 버튼을 두지 않는다** —
  * 카드를 그냥 없애면 에이전트가 영영 기다린다. 나가는 길은 선택지뿐.
@@ -2045,9 +2506,19 @@ function PermissionCard({
   // 버튼은 어댑터가 거절 선택지를 안 줬을 때만 낸다(중복 방지).
   const hasReject = request.options.some((option) => option.option_kind.startsWith("reject"));
   const Icon = TOOL_ICON[request.tool_kind] ?? Code2;
+  // 명령 실행·삭제는 편집보다 대가가 크다 — 카드의 낯빛이 달라야 손이 느려진다.
+  const risky = request.tool_kind === "execute" || request.tool_kind === "delete";
 
   return (
-    <div className="perm" role="group" aria-label={t("acp.perm.title")}>
+    <div
+      className={"perm" + (risky ? " danger" : "")}
+      role="group"
+      aria-label={t("acp.perm.title")}
+      // 승인 카드는 에이전트가 **멈추는 유일한 순간**이다 — 읽어 주는 기계에도
+      // 도착이 알려져야 한다. 포커스는 뺏지 않는다: 컴포저에 치던 Enter 가
+      // 허용 버튼 위에서 눌리는 사고가 더 나쁘다.
+      aria-live="polite"
+    >
       <div className="perm-head">
         <TriangleAlert size={13} />
         {t("acp.perm.title")}
@@ -2062,11 +2533,36 @@ function PermissionCard({
           </span>
         ) : null}
       </div>
+      {/* **무엇을 허용하는지가 카드 안에 있다.** 예전엔 제목과 경로뿐이라
+          내용을 보려면 위의 도구 카드를 스스로 찾아 펼쳐야 했다 — 사실상
+          블라인드 승인이었다. 실행이면 명령을, 편집이면 diff 를 그대로 보인다. */}
+      {request.input ? (
+        <div className="perm-payload">
+          <div className="trace-io">
+            <span className="trace-io-tag">IN</span>
+            <pre>{request.input}</pre>
+          </div>
+        </div>
+      ) : null}
+      {request.diffs.length ? (
+        <div className="perm-payload">
+          <AcpDiffView diffs={request.diffs} />
+        </div>
+      ) : null}
       <div className="perm-actions">
         {request.options.map((option) => (
           <button
             key={option.id}
-            className={"btn sm " + (option.option_kind.startsWith("allow") ? "primary" : "ghost")}
+            // "이번만 허용"만 초록이다. "항상 허용"은 영구 권한 부여라 1회
+            // 허용과 같은 무게로 빛나면 안 된다.
+            className={
+              "btn sm " +
+              (option.option_kind === "allow_once"
+                ? "primary"
+                : option.option_kind.startsWith("allow")
+                  ? "perm-always"
+                  : "ghost")
+            }
             onClick={() => onDecide(request.request_id, option.id)}
           >
             {option.name}
@@ -2142,12 +2638,14 @@ const MODE_ICON: Readonly<Record<string, typeof Lock>> = {
  * 보여야 한다. 위험이 커질수록 차가운 색에서 뜨거운 색으로 간다 — 자물쇠(회색)
  * → 편집 허용(초록) → 계획(파랑) → 자동(보라) → 안 묻기(주황) → 전면 우회(빨강).
  */
+// 색은 전부 토큰을 지난다 — 생 hex 는 다크·프리셋 테마에서 채도 보정을 못
+// 받아 홀로 이질적으로 뜬다 (파랑=회청 토큰, 보라=리팩터 토큰이 의미도 맞다).
 const MODE_COLOR: Readonly<Record<string, string>> = {
   default: "var(--text-2)",
   acceptEdits: "var(--accent)",
-  plan: "#3b82f6",
-  auto: "#8b5cf6",
-  dontAsk: "#c9821f",
+  plan: "var(--t-chore)",
+  auto: "var(--t-refactor)",
+  dontAsk: "var(--t-error)",
   bypassPermissions: "var(--t-bug)",
 };
 
@@ -2361,7 +2859,6 @@ const SessionPanel = memo(function SessionPanel({
   onRename,
   onDelete,
   names,
-  busy,
 }: {
   open: boolean;
   sessions: AcpSessionSummary[];
@@ -2373,12 +2870,24 @@ const SessionPanel = memo(function SessionPanel({
   onRename: (id: string, next: string) => void;
   onDelete: (id: string) => void;
   names: Readonly<Record<string, string>>;
-  busy: boolean;
 }) {
   const { t } = useT();
   /** 지금 이름을 고치고 있는 줄. 한 번에 하나만 — 여러 줄이 동시에 열리면
       어느 것을 저장하는지 알 수 없다. */
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  /**
+   * 삭제 대기 중인 줄 — **두 번 눌러야 지워진다.**
+   *
+   * 삭제는 영구인데(어댑터의 `session/delete`) 22px 버튼이 이름 바꾸기 바로
+   * 옆에 있었다. 오클릭 한 번 = 대화 소실. 모달은 과하다 — 같은 자리에서 잠깐
+   * "삭제?"로 바뀌었다 2.5초면 돌아오는 것으로 충분하다.
+   */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
   // 목록 전체가 **같은 기준 시각**을 써야 렌더 도중 분이 넘어가며 순서가
   // 흔들리지 않는다.
   const now = useMemo(() => Date.now(), [sessions]);
@@ -2402,7 +2911,9 @@ const SessionPanel = memo(function SessionPanel({
         <span className="acp-panel-title">{t("acp.history")}</span>
       </div>
 
-      <button type="button" className="acp-panel-new" disabled={busy} onClick={onNew}>
+      {/* busy 로 잠그지 않는다 — 다른 대화가 도는 동안에도 새 대화는 열 수
+          있어야 한다 (기록은 대화별로 갈라져 있고, 전송은 큐가 줄 세운다). */}
+      <button type="button" className="acp-panel-new" onClick={onNew}>
         <Plus size={14} />
         {t("acp.newConversation")}
       </button>
@@ -2415,6 +2926,17 @@ const SessionPanel = memo(function SessionPanel({
           placeholder={t("acp.searchSessions")}
           aria-label={t("acp.searchSessions")}
         />
+        {query ? (
+          <button
+            type="button"
+            className="acp-search-clear"
+            aria-label={t("acp.searchClear")}
+            title={t("acp.searchClear")}
+            onClick={() => onQuery("")}
+          >
+            <X size={11} />
+          </button>
+        ) : null}
       </div>
 
       <div className="acp-panel-list">
@@ -2470,24 +2992,41 @@ const SessionPanel = memo(function SessionPanel({
                   </span>
                 </button>
                 <span className="acp-session-actions">
-                  <button
-                    type="button"
-                    className="acp-session-act"
-                    onClick={() => setEditing({ id: item.id, value: label })}
-                    aria-label={t("acp.session.rename")}
-                    title={t("acp.session.rename")}
-                  >
-                    <Pencil size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="acp-session-act danger"
-                    onClick={() => onDelete(item.id)}
-                    aria-label={t("acp.session.delete")}
-                    title={t("acp.session.delete")}
-                  >
-                    <X size={12} />
-                  </button>
+                  {confirming === item.id ? (
+                    <button
+                      type="button"
+                      className="acp-session-confirm"
+                      onClick={() => {
+                        setConfirming(null);
+                        onDelete(item.id);
+                      }}
+                    >
+                      {t("acp.session.confirmDelete")}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="acp-session-act"
+                        onClick={() => setEditing({ id: item.id, value: label })}
+                        aria-label={t("acp.session.rename")}
+                        title={t("acp.session.rename")}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      {/* X 는 "닫기"로 읽힌다 (탭의 X 가 실제로 그렇다) — 영구
+                          삭제는 쓰레기통이어야 한다. */}
+                      <button
+                        type="button"
+                        className="acp-session-act danger"
+                        onClick={() => setConfirming(item.id)}
+                        aria-label={t("acp.session.delete")}
+                        title={t("acp.session.delete")}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </>
+                  )}
                 </span>
               </div>
             );
@@ -2655,6 +3194,7 @@ function EffortControl({
                   읽힌다. 점은 그 위의 눈금이다. */}
               <span
                 className={"effort-fill" + (currentValue === ULTRA_VALUE ? " top" : "")}
+                data-effort={currentValue}
                 style={{
                   width: `${choices.length > 1 ? (index / (choices.length - 1)) * 100 : 0}%`,
                 }}
@@ -2757,10 +3297,17 @@ function AgentWord() {
     return () => window.clearInterval(timer);
   }, [total, tickIndex]);
 
+  const typed = typedLength(elapsed, total);
+
   return (
-    <div className="agent-word" aria-live="polite">
-      {word.slice(0, typedLength(elapsed, total))}
+    <div className="agent-word">
+      {/* 타이핑되는 글자에 라이브 리전을 걸면 읽어 주는 기계가 "빚", "빚는",
+          "빚는 중"을 연타로 읽는다 — 완성된 단어만 따로 한 번 알린다. */}
+      <span aria-hidden="true">{word.slice(0, typed)}</span>
       <span className="agent-word-caret" aria-hidden="true" />
+      <span className="trace-sr" aria-live="polite">
+        {typed >= total ? word : ""}
+      </span>
     </div>
   );
 }

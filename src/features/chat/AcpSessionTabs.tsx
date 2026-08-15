@@ -40,8 +40,21 @@ export const AcpSessionTabs = memo(function AcpSessionTabs({
 }) {
   const { t } = useT();
 
+  /**
+   * ←/→ 로 탭을 오간다 (ARIA tabs 관례). 활성 탭만 Tab 키 순서에 남긴다 —
+   * 탭이 여덟이면 Tab 을 여덟 번 눌러야 지나갈 수 있었다.
+   */
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const at = tabs.findIndex((tab) => tab.id === activeId);
+    if (at === -1 || tabs.length < 2) return;
+    e.preventDefault();
+    const next = (at + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    onPick(tabs[next].id);
+  };
+
   return (
-    <div className="acp-tabs" role="tablist" aria-label={t("acp.tabs.aria")}>
+    <div className="acp-tabs" role="tablist" aria-label={t("acp.tabs.aria")} onKeyDown={onKeyDown}>
       {tabs.map((tab) => {
         const active = tab.id === activeId;
         const label = tab.title || t("acp.untitledSession");
@@ -51,6 +64,7 @@ export const AcpSessionTabs = memo(function AcpSessionTabs({
               type="button"
               role="tab"
               aria-selected={active}
+              tabIndex={active ? 0 : -1}
               className="acp-tab-main"
               onClick={() => onPick(tab.id)}
               title={label}

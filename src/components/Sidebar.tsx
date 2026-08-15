@@ -10,7 +10,7 @@ import {
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
-import { useAcpWorkingCount } from "@/features/chat/acpBusyBus";
+import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
@@ -69,6 +69,7 @@ function NavRow({
   index,
   onNavigate,
   working = 0,
+  attention = 0,
 }: {
   slot: NavEntry;
   active: boolean;
@@ -80,19 +81,32 @@ function NavRow({
    * 화면을 옮겨도 에이전트는 계속 도는데, 떠난 뒤로는 아무 기별이 없었다.
    */
   working?: number;
+  /**
+   * **승인을 기다리며 멈춰 있는** 일의 수. 작업 중과 다르다 — 이건 기다린다고
+   * 안 풀리고 사용자가 눌러야 풀린다. 그래서 작업 배지보다 우선해 보인다.
+   */
+  attention?: number;
 }) {
   const Icon = slot.icon;
   const shortcut = navShortcutLabel(slot.id);
   const { t } = useT();
   const label = t(slot.labelKey);
   const busy = working > 0;
+  const waiting = attention > 0;
+  const title = waiting
+    ? `${label} — ${t("nav.attention", { n: attention })}`
+    : busy
+      ? `${label} — ${t("nav.working", { n: working })}`
+      : shortcut
+        ? `${label} (${shortcut})`
+        : label;
   return (
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
       style={{ "--i": index } as React.CSSProperties}
       aria-current={active ? "page" : undefined}
-      title={busy ? `${label} — ${t("nav.working", { n: working })}` : shortcut ? `${label} (${shortcut})` : label}
+      title={title}
       onClick={() => onNavigate(slot.id)}
     >
       {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
@@ -101,7 +115,11 @@ function NavRow({
         <Icon size={17} strokeWidth={active ? 2 : 1.8} />
       </span>
       <span>{label}</span>
-      {busy ? (
+      {waiting ? (
+        <span className="nav-badge attention" aria-label={t("nav.attention", { n: attention })}>
+          {attention}
+        </span>
+      ) : busy ? (
         <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
           {working}
         </span>
@@ -135,6 +153,8 @@ export function Sidebar({
   const switcherRef = useRef<HTMLDivElement>(null);
   /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
   const acpWorking = useAcpWorkingCount();
+  /** 승인을 기다리며 멈춰 있는 세션 수 — 작업 배지보다 우선해 보인다. */
+  const acpAttention = useAcpAttentionCount();
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -264,6 +284,7 @@ export function Sidebar({
           index={MAIN_NAV.length + i}
           onNavigate={onNavigate}
           working={slot.id === "claudecode" ? acpWorking : 0}
+          attention={slot.id === "claudecode" ? acpAttention : 0}
         />
       ))}
 
