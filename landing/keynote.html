@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocul-PM 키노트 — 에이전트 시대의 기억</title>
+<meta name="description" content="어제, 당신의 에이전트는 코드 3,000줄을 고쳤습니다. 당신이 설명할 수 있는 건 몇 줄입니까? — Ocul-PM 의 전 기능을 실제 화면과 함께 키노트로 봅니다. 자동 작업 일지 · 로컬 diff · 앱 속 Claude Code · 로컬-우선." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/keynote" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:url" content="https://oculpm.com/keynote" />
+<meta property="og:title" content="Ocul-PM 키노트 — 에이전트 시대의 기억" />
+<meta property="og:description" content="에이전트는 코드를 쓰고, 당신은 기억을 갖습니다. 5분짜리 제품 키노트." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="icon.svg" />
+<style>
+  /* 키노트 위 얇은 귀환 바 — 무대를 가리지 않는다. */
+  .kn-back {
+    position: fixed; top: 16px; left: 16px; z-index: 200;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 15px; border-radius: 999px;
+    border: 1px solid rgba(242,239,230,0.16);
+    background: rgba(10,15,12,0.72);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    color: #9aa69c; font-size: 12.5px; font-weight: 600; text-decoration: none;
+  }
+  .kn-back:hover { color: #f2efe6; border-color: rgba(242,239,230,0.32); }
+</style>
+</head>
+<body>
+<a class="kn-back" href="/">← oculpm.com</a>
+<style>
+  /* ── 무대 ─────────────────────────────────────────────
+     키노트는 단일 조명이다 — 테마 분기 없이 무대 하나로 커밋한다.
+     초록은 앱의 것(#12a06b 계열), 종이빛 글자, 그 외엔 어둠. */
+  :root {
+    --stage: #0a0f0c;
+    --stage-2: #111a14;
+    --ink: #f2efe6;
+    --ink-dim: #98a49a;
+    --ink-faint: #5c675e;
+    --green: #1db981;
+    --green-deep: #12a06b;
+    --orange: #d97757;
+    --red: #f1685f;
+    --hairline: rgba(242, 239, 230, 0.1);
+    --font: "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, -apple-system, "Noto Sans KR", sans-serif;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--stage);
+    color: var(--ink);
+    font-family: var(--font);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── 슬라이드 ── */
+  .slide {
+    position: relative;
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 96px 24px;
+    text-align: center;
+  }
+  .slide-inner { max-width: 880px; width: 100%; margin: 0 auto; }
+
+  .eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 28px;
+  }
+  h1, h2 {
+    margin: 0 0 20px;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.22;
+    text-wrap: balance;
+  }
+  h1 { font-size: clamp(40px, 7.2vw, 84px); }
+  h2 { font-size: clamp(30px, 5.2vw, 60px); }
+  .dim { color: var(--ink-dim); font-weight: 300; }
+  .lead {
+    max-width: 620px;
+    margin: 0 auto;
+    font-size: clamp(15px, 1.9vw, 19px);
+    line-height: 1.85;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .lead b, .lead strong { color: var(--ink); font-weight: 700; }
+  .punch {
+    margin-top: 34px;
+    font-size: clamp(20px, 3vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .green { color: var(--green); }
+  .orange { color: var(--orange); }
+
+  /* 동심원 — 앱 아이콘의 링 모티프. 타이틀과 클로즈에서만 은은하게. */
+  .rings {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .rings span {
+    position: absolute;
+    border: 1px solid rgba(29, 185, 129, 0.14);
+    border-radius: 50%;
+  }
+  .rings span:nth-child(1) { width: 340px; height: 340px; }
+  .rings span:nth-child(2) { width: 620px; height: 620px; border-color: rgba(29,185,129,0.09); }
+  .rings span:nth-child(3) { width: 980px; height: 980px; border-color: rgba(29,185,129,0.055); }
+  .rings span:nth-child(4) { width: 1420px; height: 1420px; border-color: rgba(29,185,129,0.03); }
+
+  /* ── 콜드 오픈 숫자 ── */
+  .bignum {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: clamp(18px, 4vw, 44px);
+    margin: 40px 0 8px;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .bignum .n { font-size: clamp(56px, 10vw, 130px); font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .bignum .vs { font-size: clamp(18px, 3vw, 30px); color: var(--ink-faint); }
+  .bignum .lbl { display: block; margin-top: 14px; font-family: var(--font); font-size: 13px; letter-spacing: 0.06em; color: var(--ink-dim); }
+
+  /* ── 셋 = 하나 ── */
+  .three {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 44px auto 40px;
+    max-width: 560px;
+    text-align: left;
+    counter-reset: item;
+  }
+  .three .item {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    background: var(--stage-2);
+    font-size: clamp(16px, 2.2vw, 21px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .three .item::before {
+    counter-increment: item;
+    content: counter(item);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--green);
+  }
+  .three .item small { display: block; font-weight: 400; font-size: 13px; color: var(--ink-dim); letter-spacing: 0; }
+
+  .one-name {
+    margin-top: 26px;
+    font-size: clamp(52px, 9vw, 110px);
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+    background: linear-gradient(180deg, var(--ink) 55%, var(--green) 140%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── 제품 샷 ── */
+  .shot {
+    margin: 48px auto 0;
+    max-width: 980px;
+    width: 100%;
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+    border: 1px solid rgba(242, 239, 230, 0.14);
+    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0,0,0,0.4);
+  }
+  .shot figcaption {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .shot figcaption b { color: var(--ink); }
+  .shot-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    max-width: 1080px;
+    margin: 48px auto 0;
+  }
+  .shot-row .shot { margin: 0; }
+  @media (max-width: 760px) { .shot-row { grid-template-columns: 1fr; } }
+
+  /* 막 사이 소제목 리듬 */
+  .beat {
+    margin: 72px auto 0;
+    max-width: 640px;
+  }
+  .beat h3 {
+    margin: 0 0 12px;
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .beat p { margin: 0; font-size: 15.5px; line-height: 1.85; color: var(--ink-dim); }
+  .beat p b { color: var(--ink); }
+
+  /* ── one more thing: 셋 없음 + 파일 트리 ── */
+  .nones {
+    display: flex;
+    justify-content: center;
+    gap: clamp(20px, 5vw, 64px);
+    margin: 44px 0;
+  }
+  .none b { display: block; font-size: clamp(22px, 3.4vw, 34px); font-weight: 800; letter-spacing: -0.02em; }
+  .none span { font-size: 13px; color: var(--ink-faint); letter-spacing: 0.08em; }
+  .tree {
+    max-width: 420px;
+    margin: 40px auto 0;
+    padding: 22px 26px;
+    text-align: left;
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    background: var(--stage-2);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+    color: var(--ink-dim);
+    overflow-x: auto;
+  }
+  .tree b { color: var(--green); font-weight: 600; }
+  .tree i { color: var(--ink); font-style: normal; }
+
+  /* ── 클로즈 ── */
+  .price {
+    font-size: clamp(56px, 10vw, 128px);
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 1;
+    margin: 30px 0 10px;
+    color: var(--green);
+  }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 44px; }
+  .cta {
+    display: inline-block;
+    padding: 15px 30px;
+    border-radius: 999px;
+    font-size: 15.5px;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+  }
+  .cta.solid { background: var(--green-deep); color: #06110c; }
+  .cta.solid:hover { background: var(--green); }
+  .cta.line { border: 1px solid var(--hairline); color: var(--ink); }
+  .cta.line:hover { border-color: var(--ink-dim); }
+  .fine { margin-top: 20px; font-size: 12.5px; color: var(--ink-faint); }
+  .closing-line {
+    margin-top: 80px;
+    font-size: clamp(17px, 2.4vw, 23px);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink-dim);
+  }
+  .closing-line b { color: var(--ink); }
+
+  /* ── 부록: 홍보 킷 ── */
+  .kit {
+    border-top: 1px solid var(--hairline);
+    background: var(--stage-2);
+    padding: 80px 24px 100px;
+  }
+  .kit-inner { max-width: 820px; margin: 0 auto; }
+  .kit h2 { font-size: 26px; text-align: left; }
+  .kit > .kit-inner > p { color: var(--ink-dim); font-size: 14.5px; margin: 0 0 36px; }
+  .kit-block { margin-bottom: 40px; }
+  .kit-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .kit-head h3 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+  .kit-head button {
+    margin-left: auto;
+    padding: 6px 14px;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-dim);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .kit-head button:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .kit-head button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .kit pre {
+    margin: 0;
+    padding: 20px 22px;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    background: var(--stage);
+    font-family: var(--font);
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--ink-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+
+  /* ── 리빌 ── */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal.on { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+</style>
+
+<!-- ══════════════ S0 · 타이틀 ══════════════ -->
+<section class="slide">
+  <div class="rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div class="slide-inner">
+    <span class="eyebrow reveal">Ocul-PM Keynote · v2.11</span>
+    <h1 class="reveal">에이전트 시대의<br />기억.</h1>
+    <p class="lead reveal">2026년 8월 · macOS · <span class="green">oculpm.com</span></p>
+  </div>
+</section>
+
+<!-- ══════════════ S1 · 콜드 오픈 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <h2 class="reveal">어제, 당신의 에이전트는<br />코드 3,000줄을 고쳤습니다.</h2>
+    <div class="bignum reveal" aria-hidden="true">
+      <span><span class="n">3,000</span><span class="lbl">에이전트가 고친 줄</span></span>
+      <span class="vs">vs</span>
+      <span><span class="n dim">0</span><span class="lbl">당신이 설명할 수 있는 줄</span></span>
+    </div>
+    <p class="lead reveal">
+      우리는 에이전트에게 코드를 맡기는 법을 배웠습니다. 그러자 이상한 일이 생겼습니다 —
+      코드는 그 어느 때보다 <b>빨라졌는데</b>, 이해는 그 어느 때보다 <b>느려졌습니다</b>.
+      속도를 얻고, 기억을 잃었습니다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════ S2 · 셋 = 하나 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <h2 class="reveal">오늘, 세 가지를 발표합니다.</h2>
+    <div class="three">
+      <div class="item reveal">에이전트의 모든 작업을 스스로 적는 <span class="green">기록장</span></div>
+      <div class="item reveal">모든 변경을 그 자리에서 보여 주는 <span class="green">검증대</span></div>
+      <div class="item reveal">에이전트 그 자체를 품은 <span class="green">콘솔</span></div>
+    </div>
+    <p class="punch reveal">기록장. 검증대. 콘솔.<br /><span class="dim">눈치채셨습니까 —</span></p>
+    <p class="punch reveal">이건 세 개의 제품이 아닙니다. 하나입니다.</p>
+    <div class="one-name reveal">Ocul-PM</div>
+  </div>
+</section>
+
+<!-- ══════════════ S3 · Act 1 기록 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <span class="eyebrow reveal">첫 번째 · 기록장</span>
+    <h2 class="reveal">기록은 공짜여야 합니다.</h2>
+    <p class="lead reveal">
+      에이전트가 일을 마치는 순간, 일지는 <b>이미 쓰여 있습니다.</b>
+      무엇을 왜 고쳤는지, 어느 에이전트가 어느 모델로 했는지, 어떤 파일이 움직였는지 —
+      버그·기능·리팩토링·에러·잡일로 분류되어, 사람이 읽는 마크다운으로.
+    </p>
+    <figure class="shot reveal">
+      <img src="shots/02-journal.jpg" alt="자동 작업 일지 화면 — 에이전트가 작성한 일지가 날짜·분류별로 쌓인 모습" />
+      <figcaption><b>자동 작업 일지.</b> 당신이 한 일이 아니라, 에이전트가 한 일이 적힙니다 — 스스로.</figcaption>
+    </figure>
+    <div class="beat reveal">
+      <h3>아침에 열면, 어제가 정리되어 있습니다.</h3>
+      <p>오늘 화면이 어제의 작업·커밋·계획을 한 장으로 브리핑합니다. 스탠드업은 <b>복사 버튼 하나</b>입니다.</p>
+    </div>
+    <figure class="shot reveal">
+      <img src="shots/01-today.jpg" alt="Today 일일 브리프 화면 — 어제의 작업 요약과 커밋 그래프" />
+      <figcaption><b>Today 브리프.</b> 그리고 기록은 산출물이 됩니다 — PR 본문, 주간 보고, AI 회고. 전부 버튼 하나.</figcaption>
+    </figure>
+    <p class="punch reveal">백미러가, 핸들이 됩니다.</p>
+  </div>
+</section>
+
+<!-- ══════════════ S4 · Act 2 검증 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <span class="eyebrow reveal">두 번째 · 검증대</span>
+    <h2 class="reveal">믿지 마십시오.<br />보십시오.</h2>
+    <p class="lead reveal">
+      에이전트가 만졌다는 파일 — 커밋하기 전에, 앱 안에서 diff 로 확인합니다.
+      키보드만으로 넘기며 검토합니다.
+    </p>
+    <figure class="shot reveal">
+      <img src="shots/03-diff.jpg" alt="로컬 diff 검증 화면 — 변경 파일의 줄 단위 diff" />
+      <figcaption><b>변경 diff.</b> 일지와 나란히 — "말한 것"과 "실제로 바뀐 것"을 붙여 놓고 봅니다.</figcaption>
+    </figure>
+    <div class="beat reveal">
+      <h3>고치기 전에, 여파를 압니다.</h3>
+      <p>코드 맵이 import·호출·상속을 그래프로 폅니다. 파일 하나를 고르면 — <b>"바꾸면 12개 파일에 영향"</b>이 먼저 보입니다. 검색은 세 가지 방식입니다: 의미로, 심볼로, 텍스트로. 임베딩은 로컬에서 계산됩니다. <b>코드는 한 글자도 밖으로 나가지 않습니다.</b></p>
+    </div>
+    <figure class="shot reveal">
+      <img src="shots/04-graph.jpg" alt="코드 맵 화면 — 의존성 그래프와 변경 영향 분석" />
+      <figcaption><b>코드 맵.</b> 의존이 보이면, 두려움이 줄어듭니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════ S5 · Act 3 콘솔 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <span class="eyebrow reveal">세 번째 · 콘솔</span>
+    <h2 class="reveal">그래서, 에이전트를<br />안으로 들였습니다.</h2>
+    <p class="lead reveal">
+      진짜 <span class="orange">Claude Code</span> 가 앱 안에서 구동됩니다.
+      파일을 읽고, 고치고, 명령을 돌리는 매 단계가 <b>카드</b>로 흐릅니다.
+      그리고 v2.11 — <b>고치는 내용이 보입니다.</b> 지운 줄은 빨강, 넣은 줄은 초록.
+    </p>
+    <figure class="shot reveal">
+      <img src="shots/s2.jpg" alt="승인 카드 — 실행될 명령과 변경 내용(diff)이 카드 안에 보이는 모습" />
+      <figcaption><b>보이는 승인.</b> 무엇을 허용하는지 카드 안에 있습니다 — 제목만 보고 누르던 시대의 끝.</figcaption>
+    </figure>
+    <figure class="shot reveal">
+      <img src="shots/08-receipt.jpg" alt="완료된 도구 카드와 턴 영수증 — 도구·파일·명령 수와 소요 시간 한 줄 요약" />
+      <figcaption><b>턴 영수증.</b> 턴이 끝나면 한 줄이 남습니다 — 도구 7 · 파일 3 · 1분 12초. 기록하는 앱답게.</figcaption>
+    </figure>
+    <div class="beat reveal">
+      <h3>그리고 ⌘J.</h3>
+      <p>어느 화면에서든 터미널이 올라옵니다 — 아래로, 왼쪽으로, 오른쪽으로, 아예 창으로. <b>셸은 끊기지 않습니다.</b></p>
+    </div>
+    <figure class="shot reveal">
+      <img src="shots/05-terminal.jpg" alt="터미널 도크 — 다른 화면 위에 터미널이 도크로 열린 모습" />
+      <figcaption><b>내장 터미널.</b> 일지를 읽다가, 계획을 보다가 — 화면을 떠나지 않고.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════ S6 · One more thing ══════════════ -->
+<section class="slide">
+  <div class="rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div class="slide-inner">
+    <span class="eyebrow reveal">One more thing…</span>
+    <h2 class="reveal">당신의 데이터는,<br />어디에 있습니까?</h2>
+    <div class="nones reveal">
+      <span class="none"><b>없음</b><span>계정</span></span>
+      <span class="none"><b>없음</b><span>서버</span></span>
+      <span class="none"><b>없음</b><span>텔레메트리</span></span>
+    </div>
+    <p class="lead reveal">
+      전부 당신 프로젝트의 <b>폴더 하나</b>에 있습니다 — 사람이 읽는 마크다운으로.
+      앱을 지워도 기억은 남습니다. <b>당신의 것이니까요.</b>
+    </p>
+    <div class="tree reveal" role="img" aria-label=".oculpm 폴더 구조">
+<b>.oculpm/</b>
+├─ journal/    <i>작업 일지 — 날짜·분류별 .md</i>
+├─ planner/    <i>살아있는 계획 .md</i>
+├─ discussion/ <i>결정 전 토의 .md</i>
+└─ agents/     <i>에이전트 기록 규칙</i>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ S7 · 클로즈 ══════════════ -->
+<section class="slide">
+  <div class="slide-inner">
+    <h2 class="reveal">시작하는 데 필요한 것은 —</h2>
+    <div class="price reveal">없습니다.</div>
+    <p class="lead reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다. macOS (Apple Silicon).</p>
+    <div class="cta-row reveal">
+      <a class="cta solid" href="https://oculpm.com" target="_blank" rel="noopener noreferrer">oculpm.com 에서 받기</a>
+      <a class="cta line" href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+    <p class="fine">Claude Code 사용자라면 플러그인 두 줄로도 시작할 수 있습니다.</p>
+    <p class="closing-line reveal">빨리 가는 개발자는 많습니다.<br /><b>기억하며 가는 개발자가, 멀리 갑니다.</b></p>
+  </div>
+</section>
+
+<!-- ══════════════ 부록 · 홍보 킷 ══════════════ -->
+<section class="kit">
+  <div class="kit-inner">
+    <h2>부록 — 바로 붙여넣는 홍보 킷</h2>
+    <p>채널별로 다듬어 둔 카피입니다. 복사 버튼으로 그대로 가져가세요.</p>
+
+    <div class="kit-block">
+      <div class="kit-head"><h3>X / Twitter 스레드 (한국어)</h3><button data-copy="tw-ko">복사</button></div>
+      <pre id="tw-ko">어제 당신의 에이전트는 코드 3,000줄을 고쳤습니다.
+당신이 설명할 수 있는 건 몇 줄인가요?
+
+에이전트 시대에 우리는 속도를 얻고 기억을 잃었습니다.
+그래서 만들었습니다 — Ocul-PM. 🧵
+
+1/ 기록은 공짜여야 합니다.
+에이전트가 일을 마치면 작업 일지가 이미 쓰여 있습니다.
+무엇을 왜 고쳤는지, 어느 모델이 했는지 — 전부 내 폴더의 마크다운으로.
+
+2/ 아침에 열면 어제가 정리되어 있습니다.
+스탠드업은 복사 버튼 하나. 기록은 PR 본문·주간 보고·회고가 됩니다.
+백미러가 핸들이 됩니다.
+
+3/ 믿지 말고 보세요.
+커밋 전에 앱 안에서 diff 로 확인하고,
+코드 맵이 "이 파일 바꾸면 12개 파일에 영향"을 미리 알려 줍니다.
+
+4/ 그리고 에이전트를 앱 안으로 들였습니다.
+진짜 Claude Code 가 앱 안에서 구동됩니다.
+v2.11 — 고치는 내용(diff)이 카드에 그대로 보이고,
+승인 카드에는 실행될 명령이 실립니다. 블라인드 승인의 끝.
+
+5/ 계정 없음. 서버 없음. 텔레메트리 없음.
+전부 .oculpm/ 폴더의 마크다운 — 앱을 지워도 기록은 당신 것.
+
+무료입니다. macOS.
+→ oculpm.com</pre>
+    </div>
+
+    <div class="kit-block">
+      <div class="kit-head"><h3>X / Twitter thread (English)</h3><button data-copy="tw-en">Copy</button></div>
+      <pre id="tw-en">Yesterday your coding agent changed 3,000 lines.
+How many can you explain?
+
+We gained speed and lost memory.
+So I built Ocul-PM — a local-first AI project manager for the agent era. 🧵
+
+1/ Journaling should be free.
+The moment your agent finishes, the work journal is already written —
+what changed, why, which agent, which model. Plain markdown, in your repo.
+
+2/ Open the app in the morning and yesterday is already organized.
+Standup is one copy button. Your history becomes PR bodies, weekly reports, retros.
+
+3/ Don't trust. Verify.
+Review every change as a local diff before you commit.
+The code map warns you: "touch this file, 12 files feel it."
+
+4/ And we put the agent inside.
+Real Claude Code runs in-app. v2.11 renders every edit as a diff card,
+and approval cards show the exact command before you allow it.
+No more blind approvals.
+
+5/ No account. No server. No telemetry.
+Everything lives in .oculpm/ as markdown. Delete the app — your memory stays.
+
+Free. macOS.
+→ oculpm.com</pre>
+    </div>
+
+    <div class="kit-block">
+      <div class="kit-head"><h3>GeekNews / 커뮤니티 소개글</h3><button data-copy="gn">복사</button></div>
+      <pre id="gn">Ocul-PM — 에이전트가 한 일을 기억하는 로컬-우선 AI 프로젝트 매니저 (무료 · macOS)
+
+Claude Code·Codex·Cursor 로 코딩하다 보면 코드는 빨라지는데 "왜 이렇게 됐더라"가 사라집니다. Ocul-PM 은 그 기억을 자동으로 남기는 데스크톱 앱입니다.
+
+- 자동 작업 일지: 에이전트가 작업을 끝내면 일지가 이미 쓰여 있음 (분류·모델·파일, 마크다운)
+- Today 브리프: 어제 작업·커밋을 한 장으로, 스탠드업은 복사 버튼 하나
+- 로컬 diff 검증 + 코드 맵: 커밋 전 확인, "바꾸면 몇 개 파일에 영향"을 미리
+- 앱 속 Claude Code: 진짜 claude 가 앱 안에서 구동. v2.11 부터 편집 diff 가 카드에 그대로 보이고 승인 카드에 실행될 명령·변경 내용이 실림
+- ⌘J 터미널: 어느 화면에서나 도크로, 창으로 분리해도 셸 유지
+- 로컬-우선: 계정·서버·텔레메트리 없음. 전부 .oculpm/ 폴더의 마크다운
+
+무료입니다: https://oculpm.com
+GitHub: https://github.com/bunhine0452/Ocul-PM</pre>
+    </div>
+  </div>
+</section>
+
+<script>
+  // 스크롤 리빌 — 모션 최소화 설정이면 CSS 가 이미 꺼 둔다.
+  const io = new IntersectionObserver(
+    (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("on")),
+    { threshold: 0.18 }
+  );
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // 홍보 킷 복사 버튼.
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const src = document.getElementById(btn.dataset.copy);
+      if (!src) return;
+      try {
+        await navigator.clipboard.writeText(src.textContent.trim());
+        const was = btn.textContent;
+        btn.textContent = "복사됨 ✓";
+        setTimeout(() => (btn.textContent = was), 1400);
+      } catch {}
+    });
+  });
+</script>
+
+<!-- Vercel Web Analytics -->
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
