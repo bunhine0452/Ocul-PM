@@ -95,8 +95,19 @@ export interface TerminalTab {
 }
 /** 터미널 분할 트리 — 실제 정의는 `@/lib/termPanes` (여기선 영속 타입만 재수출). */
 export type TerminalPaneNode = import("@/lib/termPanes").PaneNode;
-/** 터미널 도크를 붙이는 자리 (2026-08-15). */
-export type TerminalDockPos = "bottom" | "left";
+/** 터미널 도크를 붙이는 자리 (2026-08-15, 오른쪽 추가 2026-08-16). */
+export type TerminalDockPos = "bottom" | "left" | "right";
+
+/**
+ * 자리 바꾸기 버튼의 다음 자리 — 아래 → 왼쪽 → 오른쪽 → 아래.
+ *
+ * 버튼 하나로 도는 이유는 자리가 셋뿐이고, 세그먼티드 컨트롤을 놓기엔 도크
+ * 헤더가 좁기 때문이다 (탭 줄을 탭에게서 뺏는다). 아래에서 시작하는 것은
+ * 터미널이 가장 자주 놓이는 자리라서다.
+ */
+export function nextDockPos(pos: TerminalDockPos): TerminalDockPos {
+  return pos === "bottom" ? "left" : pos === "left" ? "right" : "bottom";
+}
 
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";

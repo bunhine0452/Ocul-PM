@@ -2013,6 +2013,8 @@ export const en: Record<keyof typeof ko, string> = {
   "term.dock.toLeftHint": "Move the terminal to the left panel",
   "term.dock.toBottom": "Dock to the bottom",
   "term.dock.toBottomHint": "Move the terminal to the bottom panel",
+  "term.dock.toRight": "Dock to the right",
+  "term.dock.toRightHint": "Move the terminal to the right panel",
   "term.dock.detach": "Open in a window",
   "term.dock.detachHint": "Detach the terminal into its own window — the shell keeps running",
   "term.dock.detachFailed": "Couldn't open the terminal window: {error}",

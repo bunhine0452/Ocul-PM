@@ -713,6 +713,7 @@
 }
 .term-dock.pos-bottom { border-top: 1px solid var(--sep-strong); }
 .term-dock.pos-left { border-right: 1px solid var(--sep-strong); }
+.term-dock.pos-right { border-left: 1px solid var(--sep-strong); }
 /* compact 모드에서는 탭 줄·상태바를 한 단계 낮춰 셸에 자리를 더 준다. */
 .term-dock .term-tabs { padding-top: 5px; }
 .term-dock .term-status { padding: 4px 10px; gap: 10px; }
@@ -723,6 +724,7 @@
 .term-dock-grip { position: absolute; z-index: 5; background: transparent; }
 .term-dock-grip.bottom { top: -2px; left: 0; right: 0; height: 5px; cursor: row-resize; }
 .term-dock-grip.left { top: 0; bottom: 0; right: -2px; width: 5px; cursor: col-resize; }
+.term-dock-grip.right { top: 0; bottom: 0; left: -2px; width: 5px; cursor: col-resize; }
 .term-dock-grip:hover, .term-dock-grip:active { background: var(--accent); }
 
 /* 분리 창에 나가 있을 때의 자리표시자. 빈 화면만 남기면 터미널이 고장 난

@@ -532,6 +532,7 @@ export {
   // `PanelLeft` 는 이 파일 위쪽에 손으로 쓴 같은 도형이 있어 별칭으로 받는다.
   PanelBottom,
   PanelLeft as PanelLeftDock,
+  PanelRight,
   SquareArrowOutUpRight,
   // i18n Phase 0 — 설정 → 모양 → 언어.
   Languages,

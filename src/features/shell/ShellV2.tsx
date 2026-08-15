@@ -490,8 +490,22 @@ export default function ShellV2({
         ) : null}
         </Suspense>
         </div>
-        {dockVisible && projectId != null && state.terminalDockPos === "bottom" ? (
-          <Suspense fallback={<div className="term-dock pos-bottom" style={{ height: state.terminalDockHeight }} />}>
+        {dockVisible && projectId != null && state.terminalDockPos !== "left" ? (
+          // 아래·오른쪽은 둘 다 콘텐츠 **뒤**에 온다 — 방향은 CSS 가 정한다
+          // (dock-bottom = column, dock-right = row). DOM 순서가 화면 순서와
+          // 같아야 탭 이동도 눈에 보이는 차례대로 간다.
+          <Suspense
+            fallback={
+              <div
+                className={"term-dock pos-" + state.terminalDockPos}
+                style={
+                  state.terminalDockPos === "bottom"
+                    ? { height: state.terminalDockHeight }
+                    : { width: state.terminalDockWidth }
+                }
+              />
+            }
+          >
             <TerminalDock projectId={projectId} projectRoot={projectRoot} />
           </Suspense>
         ) : null}

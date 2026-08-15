@@ -1,9 +1,14 @@
 import { useRef } from "react";
-import { PanelBottom, PanelLeftDock, SquareArrowOutUpRight, X } from "@/components/Icons";
+import { PanelBottom, PanelLeftDock, PanelRight, SquareArrowOutUpRight, X } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
-import { useT } from "@/i18n";
-import { clampDockSize, useWorkspace, type TerminalDockPos } from "@/contexts/WorkspaceContext";
+import { useT, type I18nKey } from "@/i18n";
+import {
+  clampDockSize,
+  nextDockPos,
+  useWorkspace,
+  type TerminalDockPos,
+} from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "./TerminalSurface";
 import { TerminalAway } from "./TerminalAway";
 
@@ -19,6 +24,26 @@ import { TerminalAway } from "./TerminalAway";
 // 분리 창이 떠 있는 동안에는 여기에 자리표시자만 남는다 — 하나의 PTY 에
 // xterm 두 개가 붙으면 서로의 fit() 을 되돌려 화면이 떨리기 때문이다.
 
+/**
+ * 다음 자리별 아이콘·문구. 세 자리를 삼항 두 겹으로 쓰면 읽기 어렵고, 네
+ * 번째 자리가 생겼을 때 세 군데를 따로 고쳐야 한다.
+ */
+const NEXT_ICON: Record<TerminalDockPos, React.ReactNode> = {
+  bottom: <PanelBottom size={14} />,
+  left: <PanelLeftDock size={14} />,
+  right: <PanelRight size={14} />,
+};
+const MOVE_LABEL = {
+  bottom: "term.dock.toBottom",
+  left: "term.dock.toLeft",
+  right: "term.dock.toRight",
+} as const satisfies Record<TerminalDockPos, I18nKey>;
+const MOVE_HINT = {
+  bottom: "term.dock.toBottomHint",
+  left: "term.dock.toLeftHint",
+  right: "term.dock.toRightHint",
+} as const satisfies Record<TerminalDockPos, I18nKey>;
+
 interface TerminalDockProps {
   projectId: number;
   projectRoot: string | null;
@@ -31,11 +56,13 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
   const detached = state.terminalDetached;
   const rootRef = useRef<HTMLElement | null>(null);
 
+  // 세로 두 자리(왼쪽·오른쪽)는 폭을 함께 쓴다 — 좌↔우로 옮길 때 폭이
+  // 유지되는 편이 자연스럽고, 자리마다 따로 기억할 값이 아니다.
   const size = pos === "bottom" ? state.terminalDockHeight : state.terminalDockWidth;
 
   const close = () => setState((prev) => ({ ...prev, terminalDockOpen: false }));
-  const setPos = (next: TerminalDockPos) =>
-    setState((prev) => ({ ...prev, terminalDockPos: next }));
+  const cyclePos = () =>
+    setState((prev) => ({ ...prev, terminalDockPos: nextDockPos(prev.terminalDockPos) }));
 
   const detach = () => {
     void commands.openTerminalWindow(projectId).then((r) => {
@@ -55,7 +82,9 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
     const calc = (ev: PointerEvent) =>
       pos === "bottom"
         ? clampDockSize(rect.bottom - ev.clientY, rect.height)
-        : clampDockSize(ev.clientX - rect.left, rect.width);
+        : pos === "left"
+          ? clampDockSize(ev.clientX - rect.left, rect.width)
+          : clampDockSize(rect.right - ev.clientX, rect.width);
     const move = (ev: PointerEvent) => {
       const next = calc(ev);
       setState((prev) =>
@@ -72,17 +101,20 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
     window.addEventListener("pointerup", up);
   };
 
+  // 버튼은 **다음** 자리를 가리킨다 (아이콘·문구 모두) — 지금 자리를 그리면
+  // "누르면 어디로 가는지"를 매번 추론해야 한다.
+  const next = nextDockPos(pos);
   const headerActions = (
     <>
       <span className="term-tool-sep" aria-hidden="true" />
       <button
         type="button"
         className="term-tool"
-        onClick={() => setPos(pos === "bottom" ? "left" : "bottom")}
-        title={pos === "bottom" ? t("term.dock.toLeftHint") : t("term.dock.toBottomHint")}
-        aria-label={pos === "bottom" ? t("term.dock.toLeft") : t("term.dock.toBottom")}
+        onClick={cyclePos}
+        title={t(MOVE_HINT[next])}
+        aria-label={t(MOVE_LABEL[next])}
       >
-        {pos === "bottom" ? <PanelLeftDock size={14} /> : <PanelBottom size={14} />}
+        {NEXT_ICON[next]}
       </button>
       <button
         type="button"

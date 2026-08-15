@@ -14,6 +14,7 @@ import {
   useWorkspace,
   storageKeyFor,
   clampDockSize,
+  nextDockPos,
   TERMINAL_DOCK_MIN,
   TERMINAL_DOCK_MIN_REST,
   type TerminalTab,
@@ -66,6 +67,22 @@ describe("터미널 글자 크기", () => {
     expect((ctx!.state as unknown as Record<string, unknown>).terminalFontSize).toBeUndefined();
     r.unmount();
     expect(JSON.parse(localStorage.getItem(storageKeyFor(3))!).terminalFontSize).toBeUndefined();
+  });
+});
+
+describe("도크 자리 순환", () => {
+  /** 버튼 하나로 도는 자리 — 아래 → 왼쪽 → 오른쪽 → 아래. */
+  it("세 자리를 한 바퀴 돈다", () => {
+    expect(nextDockPos("bottom")).toBe("left");
+    expect(nextDockPos("left")).toBe("right");
+    expect(nextDockPos("right")).toBe("bottom");
+  });
+
+  /** 세 번 누르면 제자리 — 어느 자리에서 시작해도 마찬가지다. */
+  it("세 번이면 제자리로 돌아온다", () => {
+    for (const start of ["bottom", "left", "right"] as const) {
+      expect(nextDockPos(nextDockPos(nextDockPos(start)))).toBe(start);
+    }
   });
 });
 

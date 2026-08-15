@@ -1981,6 +1981,8 @@ export const ko = {
   "term.dock.toLeftHint": "터미널을 왼쪽 패널로 옮깁니다",
   "term.dock.toBottom": "아래에 붙이기",
   "term.dock.toBottomHint": "터미널을 하단 패널로 옮깁니다",
+  "term.dock.toRight": "오른쪽에 붙이기",
+  "term.dock.toRightHint": "터미널을 오른쪽 패널로 옮깁니다",
   "term.dock.detach": "창으로 분리",
   "term.dock.detachHint": "터미널을 별도 창으로 떼어냅니다 — 셸은 그대로 이어집니다",
   "term.dock.detachFailed": "터미널 창을 열지 못했습니다: {error}",
