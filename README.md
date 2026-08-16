@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bunhine0452/Ocul-PM/main/landing/og.png" alt="Ocul-PM" width="440" />
-
-<h1>Ocul-PM</h1>
+<img src="landing/banner.png" alt="Ocul-PM — 에이전트는 코드를 쓰고, 당신은 기억을 갖습니다" width="100%" />
 
 <p><b>AI 코딩 에이전트가 코드를 쓰는 동안, 그 기록은 Ocul-PM 이 남깁니다.</b><br/>
 Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저</p>
