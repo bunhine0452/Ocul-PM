@@ -54,17 +54,17 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.11.0 — see what it changes, no more blind approvals
+## 🚀 v2.12.0 — change diff, code map, and code search, all leveled up
 
-- **Edit diffs on screen** — when Claude Code edits a file, the diff renders right in the tool card (removed lines in red, added in green) with a `+12 −3` badge on the row. This information used to be dropped entirely.
-- **Approval cards show the payload** — the diff for edits, the exact command for executions, inside the card. No more approving on a title alone. Execute/delete approvals wear a different face.
-- **Waiting-for-approval badge in the sidebar** — a blinking badge tells you the agent is blocked on *you*, even from another screen.
-- **Korean IME Enter fix** — the Enter that commits a Hangul composition no longer sends the message.
-- **A pile of friction removed** — auto-growing composer · ↑/↓ prompt recall · drag & drop file attachments · per-conversation drafts · queue delivery pinned to its conversation · turn receipts ("7 tools · 3 files · 1m 12s") · copy buttons for responses and tool output · "Send again" on errors · dead-process detection with one-click reconnect.
+- **Images diff as images** — when a picture changes you see before/after side by side (checkerboard backing · size delta) instead of garbled text; fonts, DBs and other binaries get a size card. The endless "Reading the file…" hang on new images is gone too.
+- **Diff fundamentals** — the gutter now shows real file line numbers (no more per-hunk counting from 1) · a `+12 −4` summary next to the file name · fixed Korean-heavy diffs blowing the transfer budget by up to 4×.
+- **Code map redesign** — floating edges + direction arrows (A → B: A uses B) kill the spaghetti; node cards are re-drawn with the language color soaked in, hubs wear a "hub" tag. Fixed search-Enter producing a blank canvas.
+- **Code search** — results grouped per file · snippets trimmed to the lines around the match · highlighter marks on hits · jump straight to that line in your editor · recent queries · "more results" · symbol-kind filter. Fixed a race where a slow response overwrote newer results.
 
 <details>
-<summary><b>Highlights from earlier versions</b> — v2.5 through v2.10.3</summary>
+<summary><b>Highlights from earlier versions</b> — v2.5 through v2.11.0</summary>
 
+- **v2.11.0** — Claude Code edit diffs inline · approval cards carry the command/diff payload · waiting-for-approval sidebar badge · Korean IME Enter fix · a pile of chat-screen friction removed (auto-grow, recall, drag & drop, turn receipts, reconnect)
 - **v2.10.3** — double-clicking the title strip only resizes · one broken piece no longer blanks the whole window (universal render boundary)
 - **v2.10.2** — right-side terminal dock · draggable detached window · macOS tiling shortcuts (⌃⌥←→↑↓) restored
 - **v2.10.1** — ⌘J terminal dock · detach into a window with the shell intact · Claude Code's to-do list · limits and model fallbacks recorded in the conversation
