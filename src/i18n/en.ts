@@ -1314,6 +1314,7 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.layout.forceTitle": "Force-directed — spreads out",
   "graph.layout.cluster": "Clustered",
   "graph.layout.clusterTitle": "Force-directed + community clusters — tightly grouped",
+  "graph.arrowHint": "Arrow = usage direction (A → B: A uses B)",
   "graph.toolbarSub": "{n}{cap} {unit} · {edges} relations{focus}",
   "graph.focusSuffix": " · focused",
   "graph.groupAria": "Grouping",

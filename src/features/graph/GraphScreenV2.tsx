@@ -15,9 +15,11 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   Panel,
+  MarkerType,
   type Node,
   type Edge,
   type NodeMouseHandler,
@@ -30,6 +32,7 @@ import { commands, type SymbolDef, type SymbolCall } from "@/lib/bindings";
 import { useSettings } from "@/contexts/SettingsContext";
 import { OculSpinner } from "@/components/OculSpinner";
 import { FileNode, type GraphNodeData, type Lod } from "./FileNode";
+import { FloatingEdge } from "./FloatingEdge";
 import { GraphInspector } from "./GraphInspector";
 import { dagreLayout, forceLayout, sizeForDegree, type NodeSize } from "./layout";
 import { langColor } from "./palette";
@@ -50,6 +53,8 @@ import { useT, type I18nKey } from "@/i18n";
 import "./graph.css";
 
 const nodeTypes = { fileNode: FileNode };
+// 플로팅 엣지 — 노드 경계 교차점끼리 최단 방향으로 잇는다 (헤어볼 해소의 핵심).
+const edgeTypes = { floating: FloatingEdge };
 type Mode = "dir" | "file";
 // 계층 = dagre / 유기형 = force spread / 묶음 = force + Louvain 클러스터
 type Layout = "dagre" | "force" | "cluster";
@@ -163,6 +168,7 @@ export function GraphScreenV2({
       pos: new Map<string, { x: number; y: number }>(),
       map: new Map<string, GNode>(),
       sizes: new Map<string, NodeSize>(),
+      all: [] as GNode[],
       total: 0,
       capped: false,
     };
@@ -184,13 +190,26 @@ export function GraphScreenV2({
         inCount: 0,
         outCount: 0,
       }));
-      gedges = edges.map((e) => ({
-        source: `f${e.source}`,
-        target: `f${e.target}`,
-        type: e.type,
-        estimated: e.estimated,
-        weight: 1,
-      }));
+      // 같은 (타입, 소스, 타깃) 엣지는 weight 로 합친다 — 중복 DOM 패스와
+      // 겹쳐 그리는 잉크를 없애고, id 도 자연히 유일해진다.
+      const fileAgg = new Map<string, GEdge>();
+      edges.forEach((e) => {
+        const k = `${e.type}|f${e.source}|f${e.target}`;
+        const cur = fileAgg.get(k);
+        if (cur) {
+          cur.weight += 1;
+          cur.estimated = cur.estimated && e.estimated;
+        } else {
+          fileAgg.set(k, {
+            source: `f${e.source}`,
+            target: `f${e.target}`,
+            type: e.type,
+            estimated: e.estimated,
+            weight: 1,
+          });
+        }
+      });
+      gedges = [...fileAgg.values()];
     } else {
       const dirs = new Map<string, FileRow[]>();
       graph.nodes.forEach((n) => {
@@ -293,7 +312,8 @@ export function GraphScreenV2({
         ? dagreLayout(ids, fedges, sizes)
         : forceLayout(ids, fedges, layout === "cluster", sizes);
     const map = new Map(kept.map((n) => [n.id, n]));
-    return { nodes: kept, edges: fedges, pos, map, sizes, total: keptAll.length, capped };
+    // `all` = 캡 적용 전 전체 — 검색이 컷된 노드도 찾을 수 있게 노출한다.
+    return { nodes: kept, edges: fedges, pos, map, sizes, all: keptAll, total: keptAll.length, capped };
   }, [graph, mode, layout, enabled, showAll, settings.graphShowIsolated]);
 
   // Light stage — apply the path-search filter to the already-laid-out graph. No
@@ -337,15 +357,22 @@ export function GraphScreenV2({
     return Math.max(4, p85);
   }, [laidOut.nodes]);
 
+  // 인접 사전 — 선택/호버 이웃 계산이 전 엣지 순회 대신 O(1) 조회가 되도록
+  // 그래프 구조가 바뀔 때 한 번만 만든다. 검색 필터와 무관한 **구조적** 인접
+  // (laidOut 기준)이라, 포커스 이웃이 검색어에 오염되지 않는다.
+  const adjacency = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    laidOut.edges.forEach((e) => {
+      (m.get(e.source) ?? m.set(e.source, new Set()).get(e.source)!).add(e.target);
+      (m.get(e.target) ?? m.set(e.target, new Set()).get(e.target)!).add(e.source);
+    });
+    return m;
+  }, [laidOut.edges]);
+
   const connected = useMemo(() => {
     if (selected == null) return null;
-    const set = new Set<string>([selected]);
-    built.edges.forEach((e) => {
-      if (e.source === selected) set.add(e.target);
-      if (e.target === selected) set.add(e.source);
-    });
-    return set;
-  }, [selected, built.edges]);
+    return new Set<string>([selected, ...(adjacency.get(selected) ?? [])]);
+  }, [selected, adjacency]);
 
   // 호버 이웃 — 선택 없이도 관계를 미리 본다. 선택 중이거나 노드가 아주 많을
   // 땐(호버마다 전 노드 리렌더 비용) 비활성.
@@ -353,13 +380,8 @@ export function GraphScreenV2({
   const hoverSet = useMemo(() => {
     if (hovered == null || selected != null) return null;
     if (built.visible.length > HOVER_LIMIT) return null;
-    const set = new Set<string>([hovered]);
-    built.edges.forEach((e) => {
-      if (e.source === hovered) set.add(e.target);
-      if (e.target === hovered) set.add(e.source);
-    });
-    return set;
-  }, [hovered, selected, built.visible.length, built.edges]);
+    return new Set<string>([hovered, ...(adjacency.get(hovered) ?? [])]);
+  }, [hovered, selected, built.visible.length, adjacency]);
 
   // Focus active = a node is selected AND focus culling is on → render only the
   // neighbourhood. Positions are kept (no relayout) so spatial memory survives.
@@ -378,8 +400,12 @@ export function GraphScreenV2({
   }, [focusActive, connected]);
 
   const displayNodes = useMemo<Node[]>(() => {
-    return built.visible
-      .filter((n) => !focusActive || connected!.has(n.id))
+    // 포커스는 **구조적** 이웃 전체를 보여준다 — 검색 필터가 이웃을 반쯤
+    // 숨겨 "혼자 뜬 노드"가 되던 문제(검색 Enter → 포커스 조합)의 수정.
+    const src = focusActive
+      ? laidOut.nodes.filter((n) => connected!.has(n.id))
+      : built.visible;
+    return src
       .map((n) => {
         const size = built.sizes.get(n.id) ?? sizeForDegree(n.inCount + n.outCount);
         const deg = n.inCount + n.outCount;
@@ -424,7 +450,7 @@ export function GraphScreenV2({
           } satisfies GraphNodeData as unknown as Record<string, unknown>,
         };
       });
-  }, [built.visible, built.pos, built.sizes, selected, connected, hoverSet, focusActive, lod, hubThreshold]);
+  }, [laidOut.nodes, built.visible, built.pos, built.sizes, selected, connected, hoverSet, focusActive, lod, hubThreshold]);
 
   // 초대형 그래프 엣지 상한 — 가중치 상위만 상시 표시하고, 선택/호버 인접
   // 엣지는 언제나 살린다 (헤어볼의 잉크량 자체를 줄이는 안전판).
@@ -437,43 +463,62 @@ export function GraphScreenV2({
   const displayEdges = useMemo<Edge[]>(() => {
     const hot = selected ?? hovered;
     // 줌 아웃할수록 엣지 잉크를 줄인다 — far 에선 노드 라벨이 주인공.
-    const baseOpacity = lod === "far" ? 0.3 : lod === "mid" ? 0.55 : 0.72;
-    return built.edges
-      // In focus mode only keep edges incident to the selected node.
-      .filter((e) => !focusActive || e.source === selected || e.target === selected)
+    const baseOpacity = lod === "far" ? 0.32 : lod === "mid" ? 0.55 : 0.72;
+    // 포커스는 구조적 엣지에서 (검색 필터 무시), 평상시는 필터된 엣지에서.
+    const list = focusActive
+      ? laidOut.edges.filter((e) => e.source === selected || e.target === selected)
+      : built.edges;
+    return list
       .filter(
         (e) =>
           edgeKeep == null ||
           edgeKeep.has(e) ||
           (hot != null && (e.source === hot || e.target === hot)),
       )
-      .map((e, i) => {
+      .map((e) => {
         const active = hot != null && (e.source === hot || e.target === hot);
+        // 포커스 안에선 전부 인접 엣지 — 액센트로 통일하는 대신 타입 색을
+        // 유지해 관계 종류가 읽히게 한다. 강조(액센트+애니메이션)는 평상시
+        // 호버/선택에만.
+        const emphasize = active && !focusActive;
+        const base = EDGE_META[e.type]?.color ?? "#8b93a1";
         const dimHard = !focusActive && connected != null && !active;
         const dimSoft = !dimHard && hoverSet != null && !active;
-        const base = EDGE_META[e.type]?.color ?? "var(--sep-strong)";
         return {
-          id: `e${i}-${e.type}-${e.source}-${e.target}`,
+          // 안정 id (타입|소스|타깃) — 필터 토글 때 인덱스가 밀리며 전체 엣지
+          // DOM 이 재생성되던 것을 막는다. dedupe 후라 유일성이 보장된다.
+          id: `${e.type}|${e.source}|${e.target}`,
           source: e.source,
           target: e.target,
-          animated: active,
+          type: "floating",
+          animated: emphasize,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 13,
+            height: 13,
+            color: base,
+          },
           style: {
-            stroke: active ? "var(--accent)" : base,
-            strokeWidth: active ? 2.2 : Math.min(3, 1.2 + Math.log2(e.weight)),
+            stroke: emphasize ? "var(--accent)" : base,
+            strokeWidth: emphasize
+              ? 2.2
+              : Math.min(3, (focusActive ? 1.4 : 1.2) + Math.log2(e.weight)),
             strokeDasharray: e.estimated ? "5 3" : undefined,
             opacity: dimHard
-              ? 0.06
+              ? 0.05
               : dimSoft
-                ? 0.12
-                : active
+                ? 0.1
+                : emphasize
                   ? 0.95
-                  : e.estimated
-                    ? baseOpacity * 0.75
-                    : baseOpacity,
+                  : focusActive
+                    ? 0.85
+                    : e.estimated
+                      ? baseOpacity * 0.75
+                      : baseOpacity,
           },
         };
       });
-  }, [built.edges, edgeKeep, connected, hoverSet, selected, hovered, focusActive, lod]);
+  }, [laidOut.edges, built.edges, edgeKeep, connected, hoverSet, selected, hovered, focusActive, lod]);
 
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelected((prev) => (prev === node.id ? null : node.id));
@@ -498,10 +543,12 @@ export function GraphScreenV2({
 
   // 검색 Enter — 가장 그럴듯한 매치(이름 시작 > 중심성)를 선택 + 프레이밍.
   // deferredQuery 가 아니라 현재 query 로 직접 거른다 (Enter 시점 지연 회피).
+  // 후보는 캡 적용 **전** 전체(laidOut.all)에서 찾는다 — 예전엔 상위 N 에서
+  // 잘린 노드를 고르면 존재하지 않는 id 가 선택돼 포커스가 빈 화면이 됐다.
   const focusFirstMatch = useCallback(() => {
     const q = query.trim().toLowerCase();
     if (!q) return;
-    const pool = laidOut.nodes.filter((n) => n.path.toLowerCase().includes(q));
+    const pool = laidOut.all.filter((n) => n.path.toLowerCase().includes(q));
     if (pool.length === 0) return;
     pool.sort(
       (a, b) =>
@@ -509,13 +556,15 @@ export function GraphScreenV2({
         b.inCount + b.outCount - (a.inCount + a.outCount),
     );
     const id = pool[0].id;
+    // 컷된 노드면 전체 표시로 승격해 실제로 화면에 존재하게 만든다.
+    if (!laidOut.map.has(id)) setShowAll(true);
     setSelected(id);
     if (!focusMode) {
       window.setTimeout(() => {
         flowRef.current?.fitView({ nodes: [{ id }], padding: 0.4, maxZoom: 1.15, duration: 300 });
       }, 30);
     }
-  }, [query, laidOut.nodes, focusMode]);
+  }, [query, laidOut.all, laidOut.map, focusMode]);
 
   const onMove = useCallback((_: unknown, vp: Viewport) => {
     const next = lodForZoom(vp.zoom);
@@ -573,7 +622,8 @@ export function GraphScreenV2({
     if (!sel) return { out: [] as NeighborRel[], incoming: [] as NeighborRel[] };
     const collect = (pickKey: (e: GEdge) => string | null) => {
       const m = new Map<string, NeighborRel>();
-      for (const e of built.edges) {
+      // 구조적 엣지(laidOut) 기준 — 인스펙터 이웃 목록이 검색어에 잘리지 않는다.
+      for (const e of laidOut.edges) {
         const otherId = pickKey(e);
         if (otherId == null) continue;
         const other = built.map.get(otherId);
@@ -594,7 +644,7 @@ export function GraphScreenV2({
       out: collect((e) => (e.source === sel.id ? e.target : null)),
       incoming: collect((e) => (e.target === sel.id ? e.source : null)),
     };
-  }, [sel, built.edges, built.map]);
+  }, [sel, laidOut.edges, built.map]);
 
   const legend = useMemo(() => {
     const set = new Map<string, string>();
@@ -720,6 +770,7 @@ export function GraphScreenV2({
               nodes={displayNodes}
               edges={displayEdges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               onNodeMouseEnter={onNodeHover}
@@ -740,7 +791,7 @@ export function GraphScreenV2({
               onlyRenderVisibleElements
               proOptions={{ hideAttribution: true }}
             >
-              <Background gap={22} color="var(--sep)" />
+              <Background variant={BackgroundVariant.Dots} gap={26} size={1.5} color="var(--sep-strong)" />
               <Controls showInteractive={false} />
               <MiniMap
                 pannable
@@ -755,18 +806,26 @@ export function GraphScreenV2({
               />
               {legend.length > 0 ? (
                 <Panel position="top-left">
-                  <div className="gr-panel">
-                    {legend.map(([lang, color]) => (
-                      <span key={lang} className="gr-legend-item">
-                        <span className="sw" style={{ background: color }} />
-                        {lang}
+                  <div className="gr-panel gr-legend">
+                    <div className="gr-legend-row">
+                      {legend.map(([lang, color]) => (
+                        <span key={lang} className="gr-legend-item">
+                          <span className="sw" style={{ background: color }} />
+                          {lang}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="gr-legend-row">
+                      {/* 방향 화살표 도입에 맞춘 읽는 법 — A → B = A 가 B 를 사용 */}
+                      <span className="gr-legend-item" style={{ opacity: 0.8 }}>
+                        {t("graph.arrowHint")}
                       </span>
-                    ))}
-                    {mode === "dir" ? (
-                      <span className="gr-legend-item" style={{ opacity: 0.75 }}>
-                        {t("graph.drilldownHint")}
-                      </span>
-                    ) : null}
+                      {mode === "dir" ? (
+                        <span className="gr-legend-item" style={{ opacity: 0.8 }}>
+                          {t("graph.drilldownHint")}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </Panel>
               ) : null}

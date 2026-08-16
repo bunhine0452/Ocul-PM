@@ -1307,6 +1307,7 @@ export const ko = {
   "graph.layout.forceTitle": "유기형(force) — 넓게 펼침",
   "graph.layout.cluster": "묶음",
   "graph.layout.clusterTitle": "유기형 + 커뮤니티 클러스터 — 촘촘하게 묶음",
+  "graph.arrowHint": "화살표 = 사용 방향 (A → B: A 가 B 를 사용)",
   "graph.toolbarSub": "{n}{cap} {unit} · {edges} 관계{focus}",
   "graph.focusSuffix": " · 포커스",
   "graph.groupAria": "묶음 단위",

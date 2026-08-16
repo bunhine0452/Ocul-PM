@@ -59,11 +59,15 @@
   fill: var(--gr-mask);
 }
 .gr-wrap .react-flow__edge-path {
+  stroke-linecap: round;
   transition: opacity var(--dur-2) var(--ease-out), stroke var(--dur-2) var(--ease-out);
 }
 
-/* ── 노드 카드 (.gn) ─────────────────────────────────────── */
+/* ── 노드 카드 (.gn) — 2026-08-16 리디자인 ─────────────────
+   언어 색(--gn-tint)이 카드 전체에 스며든다: 배경 워시 + 틴트 테두리 + 글리프.
+   크기 tier(.t0~.t4)가 타이포 스케일을 정한다 — 인라인 px 제거. */
 .gn {
+  --gn-tint: var(--text-3);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -71,41 +75,55 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: 11px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--gn-tint) 9%, transparent), transparent 58%),
+    var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--gn-tint) 26%, var(--border-card));
+  border-radius: 12px;
   box-shadow: var(--shadow-card);
-  padding: 0 10px 0 13px;
+  padding: 0 10px 0 11px;
   transition:
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out),
     opacity var(--dur-2) var(--ease-out);
 }
 .gn:hover {
-  border-color: var(--sep-strong);
+  border-color: color-mix(in srgb, var(--gn-tint) 55%, var(--border-card));
   box-shadow: var(--shadow-raise);
 }
 .gn.hub {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-card));
+  border-color: color-mix(in srgb, var(--gn-tint) 60%, var(--border-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-tint) 30%, transparent), var(--shadow-card);
 }
 .gn.sel {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-raise);
 }
-.gn.dim-soft { opacity: 0.32; }
-.gn.dim-hard { opacity: 0.1; }
+.gn.dim-soft { opacity: 0.3; }
+.gn.dim-hard { opacity: 0.08; }
 
-.gn-stripe {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
+/* tier → 타이포 스케일 */
+.gn .gn-name { font-size: 11px; }
+.gn.t1 .gn-name { font-size: 11.5px; }
+.gn.t2 .gn-name { font-size: 12px; }
+.gn.t3 .gn-name { font-size: 13px; }
+.gn.t4 .gn-name { font-size: 14px; }
+
+/* 글리프 — 폴더는 둥근 사각, 파일은 원. 언어 색을 명시적으로 보여준다. */
+.gn-glyph {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  background: var(--gn-tint);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
 }
+.gn-glyph.dir { border-radius: 3px; }
+.gn-glyph.file { border-radius: 50%; }
+
 .gn-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 .gn-name {
@@ -119,6 +137,7 @@
 }
 .gn-sub {
   margin-top: 1px;
+  padding-left: 17px;
   font-size: 10px;
   color: var(--text-3);
   overflow: hidden;
@@ -127,11 +146,23 @@
 }
 .gn-cnt {
   margin-top: 3px;
+  padding-left: 17px;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: 10px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+.gn-hubtag {
+  margin-left: auto;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--gn-tint) 72%, var(--text));
+  background: color-mix(in srgb, var(--gn-tint) 14%, transparent);
 }
 .gn-badge {
   flex: none;
@@ -153,8 +184,8 @@
 /* 폴더 노드의 언어 구성 미니 바 (near LOD 전용). */
 .gn-mix {
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: 11px;
+  right: 11px;
   bottom: 4px;
   height: 3px;
   border-radius: 2px;
@@ -176,11 +207,11 @@
   padding: 0 10px;
   border-radius: 999px;
 }
-.gn-dot {
+.gn.far.t3 .gn-name { font-size: 13px; }
+.gn.far.t4 .gn-name { font-size: 13px; }
+.gn.far .gn-glyph {
   width: 8px;
   height: 8px;
-  border-radius: 3px;
-  flex: none;
 }
 
 /* ── 툴바 컨트롤 (.gr-*) ─────────────────────────────────── */
@@ -299,6 +330,17 @@
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-card);
+}
+.gr-legend {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.gr-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
 }
 .gr-legend-item {
   display: inline-flex;

@@ -48,7 +48,9 @@ export function dagreLayout(
 ): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 30, ranksep: 96, marginx: 24, marginy: 24 });
+  // 플로팅 엣지 도입에 맞춘 간격 — rank 간 여백을 키워 화살표가 숨 쉴 자리를
+  // 주고, 같은 rank 안은 살짝 조인다 (edgesep 는 엣지 라우팅 간섭 완화).
+  g.setGraph({ rankdir: "LR", nodesep: 26, ranksep: 128, edgesep: 16, marginx: 24, marginy: 24 });
   nodeIds.forEach((id) => {
     const s = sizeOf(sizes, id);
     g.setNode(id, { width: s.w, height: s.h });
