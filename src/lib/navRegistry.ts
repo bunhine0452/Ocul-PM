@@ -11,6 +11,7 @@ import {
   SquareTerminal,
   SparklesIcon,
   Puzzle,
+  FileCode,
 } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
@@ -63,6 +64,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "tools" },
   // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
   { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "tools" },
+  // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
+  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

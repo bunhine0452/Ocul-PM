@@ -1,5 +1,6 @@
 pub mod acp;
 pub mod claude_hooks;
+pub mod code;
 pub mod config;
 pub mod conversation;
 pub mod diagnostics;
@@ -31,6 +32,7 @@ pub mod terminal;
 
 pub use acp::*;
 pub use claude_hooks::*;
+pub use code::*;
 pub use config::*;
 pub use conversation::*;
 pub use diagnostics::*;

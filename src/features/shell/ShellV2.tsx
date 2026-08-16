@@ -48,6 +48,11 @@ const SkillsScreenV2 = lazy(() =>
 const SettingsPanel = lazy(() =>
   import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
 );
+// 코드 화면 (docs/code-editor/00-master-plan.md) — CodeMirror 를 통째로 실은
+// 청크라 lazy 가 필수다. 안 여는 사용자에게 에디터 비용을 지우지 않는다.
+const CodeScreenV2 = lazy(() =>
+  import("@/features/code/CodeScreenV2").then((m) => ({ default: m.CodeScreenV2 })),
+);
 // 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
 // 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
 const TerminalDock = lazy(() =>
@@ -73,7 +78,7 @@ import "@/styles/index.css";
 /** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
 const KNOWN_VIEWS: UiV2View[] = [
   "today", "journal", "diff", "planner", "discussion", "retro", "search",
-  "terminal", "ai", "graph", "docs", "skills", "claudecode", "settings",
+  "terminal", "ai", "graph", "docs", "skills", "claudecode", "code", "settings",
 ];
 
 interface ShellV2Props {
@@ -145,6 +150,20 @@ export default function ShellV2({
   // as shell-local ephemeral state (focus is not persisted; it's a single
   // event, mirroring the diffActivePath one-shot handoff in DiffScreenV2).
   const [journalFocus, setJournalFocus] = useState<string | null>(null);
+
+  // 검색·코드맵 → 코드 화면 열기 목표 (one-shot, journalFocus 와 같은 패턴).
+  // nonce 로 같은 파일·같은 라인의 연속 점프도 구분한다.
+  const [codeTarget, setCodeTarget] = useState<
+    { path: string; line: number | null; nonce: number } | null
+  >(null);
+  const openInCode = useCallback(
+    (path: string, line: number | null) => {
+      setCodeTarget((prev) => ({ path, line, nonce: (prev?.nonce ?? 0) + 1 }));
+      setUiV2View("code");
+    },
+    [setUiV2View],
+  );
+  const clearCodeTarget = useCallback(() => setCodeTarget(null), []);
 
   // Planner 📓 → open a specific journal entry's detail view directly. Distinct
   // from `journalFocus` (timeline ring-highlight): this resolves the entry by
@@ -472,7 +491,18 @@ export default function ShellV2({
         ) : view === "retro" ? (
           <RetroScreenV2 projectId={projectId} onNavigate={setUiV2View} />
         ) : view === "search" ? (
-          <SearchScreenV2 projectId={projectId} projectRoot={projectRoot} />
+          <SearchScreenV2
+            projectId={projectId}
+            projectRoot={projectRoot}
+            onOpenInCode={openInCode}
+          />
+        ) : view === "code" ? (
+          <CodeScreenV2
+            projectId={projectId}
+            projectRoot={projectRoot}
+            openTarget={codeTarget}
+            onOpenTargetConsumed={clearCodeTarget}
+          />
         ) : view === "terminal" ? (
           // 터미널이 분리 창에 나가 있으면 여기서 또 그리지 않는다 — 같은 PTY
           // 를 두 뷰가 잡으면 리사이즈가 서로를 되돌린다. 되돌리는 길만 남긴다.
@@ -499,7 +529,11 @@ export default function ShellV2({
             onNavigate={setUiV2View}
           />
         ) : view === "graph" ? (
-          <GraphScreenV2 projectId={projectId} projectRoot={projectRoot} />
+          <GraphScreenV2
+            projectId={projectId}
+            projectRoot={projectRoot}
+            onOpenInCode={openInCode}
+          />
         ) : view === "skills" ? (
           <SkillsScreenV2 projectId={projectId} />
         ) : null}

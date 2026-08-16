@@ -49,6 +49,9 @@ const ALLOWLIST = new Set([
   // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
   // Test-only.
   "__tests__/tools_v2.test.tsx",
+  // 코드 화면 — persisted codeActivePath 가 테스트 간 새지 않도록 마운트
+  // 사이에 비운다 (journal_v2 와 같은 이유). Test-only.
+  "__tests__/code_screen.test.tsx",
   // 자정 롤오버 테스트 — 각 테스트가 default state 에서 마운트되도록 persisted
   // 워크스페이스 레코드(aipm:workspace:v2:p<id>)를 비운다. Test-only.
   "__tests__/workday_rollover.test.tsx",

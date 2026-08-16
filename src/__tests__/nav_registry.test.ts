@@ -15,10 +15,10 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 6 + tools 7 = 13개 화면을 커버한다", () => {
+  it("main 6 + tools 8 = 14개 화면을 커버한다", () => {
     expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(6);
-    // PR-ACP6 에서 "Claude Code" 가 tools 에 추가됐다 (프로바이더 채팅과 분리).
-    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(7);
+    // PR-ACP6 에서 "Claude Code", 코드 에디터 라운드에서 "코드" 가 tools 에 추가.
+    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(8);
   });
 
   it("⌘번호는 배열(=사이드바 표시) 순서를 그대로 따른다", () => {
@@ -36,6 +36,7 @@ describe("navRegistry", () => {
     expect(navShortcutLabel("skills")).toBeUndefined();
     // 새 화면은 **끝에** 붙여 기존 ⌘번호를 밀지 않는다는 계약의 회귀 방지.
     expect(navShortcutLabel("claudecode")).toBeUndefined();
+    expect(navShortcutLabel("code")).toBeUndefined();
     expect(navShortcutLabel("docs")).toBe("⌘9");
   });
 

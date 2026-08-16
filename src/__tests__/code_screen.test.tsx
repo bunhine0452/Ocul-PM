@@ -1,0 +1,202 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { axe } from "vitest-axe";
+import type { AxeResults, Result } from "axe-core";
+import type { CodeTree, CodeFileContent, CodeWriteOutcome } from "@/lib/bindings";
+
+// 코드 화면 — 트리/선택/저장/충돌의 상태 흐름. CodeMirror 는 jsdom 에서
+// 측정 API 가 없어 렌더가 불안정하므로 편집 신호를 흉내내는 목으로 바꾼다.
+
+const summarizeAxe = (r: AxeResults) =>
+  r.violations.map((v: Result) => ({ id: v.id, help: v.help, nodes: v.nodes.length }));
+const AXE_OPTIONS = {
+  rules: { "color-contrast": { enabled: false }, region: { enabled: false } },
+} as const;
+
+const fx: {
+  tree: CodeTree;
+  read: Record<string, CodeFileContent>;
+  writeResult: CodeWriteOutcome;
+  writeCalls: { relPath: string; content: string; baseHash: string }[];
+} = {
+  tree: { nodes: [], file_count: 0, truncated: false },
+  read: {},
+  writeResult: { kind: "saved", hash: "h2" },
+  writeCalls: [],
+};
+
+function textFile(content: string, hash = "h1"): CodeFileContent {
+  return { content, hash, bytes: content.length, binary: false, too_large: false };
+}
+
+vi.mock("@/lib/bindings", () => {
+  const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
+  return {
+    commands: new Proxy(
+      {},
+      {
+        get: (_t, prop) => {
+          switch (prop) {
+            case "codeTree":
+              return () => ok(fx.tree);
+            case "codeRead":
+              return (_pid: number, relPath: string) =>
+                ok(fx.read[relPath] ?? textFile("// missing fixture"));
+            case "codeWrite":
+              return (_pid: number, relPath: string, content: string, baseHash: string) => {
+                fx.writeCalls.push({ relPath, content, baseHash });
+                return ok(fx.writeResult);
+              };
+            case "settingsGetAll":
+              return () => ok([]);
+            default:
+              return () => ok(null);
+          }
+        },
+      },
+    ),
+    events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
+  };
+});
+
+// CM 목 — initialText 를 그대로 보여 주고, 편집(onChange)·⌘S(onSave)를
+// 버튼으로 흉내낸다.
+vi.mock("@/features/code/CodeEditor", () => ({
+  CodeEditor: ({
+    initialText,
+    onChange,
+    onSave,
+  }: {
+    initialText: string;
+    onChange: (t: string) => void;
+    onSave: () => void;
+  }) => (
+    <div data-testid="editor">
+      <span data-testid="editor-text">{initialText}</span>
+      <button data-testid="mutate" onClick={() => onChange(initialText + "!")} />
+      <button data-testid="dosave" onClick={() => onSave()} />
+    </div>
+  ),
+}));
+
+import { CodeScreenV2 } from "@/features/code/CodeScreenV2";
+import { _resetBuffers } from "@/features/code/codeBuffers";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
+import { t } from "@/i18n";
+
+function wrap(node: React.ReactNode) {
+  return (
+    <SettingsProvider>
+      <WorkspaceProvider projectId={1}>{node}</WorkspaceProvider>
+    </SettingsProvider>
+  );
+}
+
+function screenEl(over: Partial<React.ComponentProps<typeof CodeScreenV2>> = {}) {
+  return (
+    <CodeScreenV2
+      projectId={1}
+      projectRoot="/tmp/proj"
+      openTarget={null}
+      onOpenTargetConsumed={() => {}}
+      {...over}
+    />
+  );
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  _resetBuffers();
+  fx.tree = {
+    nodes: [
+      {
+        name: "src",
+        relative_path: "src",
+        is_dir: true,
+        children: [
+          { name: "main.rs", relative_path: "src/main.rs", is_dir: false, children: [] },
+        ],
+      },
+      { name: "README.md", relative_path: "README.md", is_dir: false, children: [] },
+    ],
+    file_count: 2,
+    truncated: false,
+  };
+  fx.read = {
+    "README.md": textFile("# hello"),
+    "src/main.rs": textFile("fn main() {}"),
+  };
+  fx.writeResult = { kind: "saved", hash: "h2" };
+  fx.writeCalls = [];
+});
+afterEach(cleanup);
+
+describe("CodeScreenV2", () => {
+  it("renders the tree and an empty state until a file is picked", async () => {
+    const { findByText, findByRole } = render(wrap(screenEl()));
+    await findByRole("tree");
+    await findByText("README.md");
+    await findByText(t("code.empty.title"));
+  });
+
+  it("opens a file from the tree into the editor", async () => {
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    const text = await findByTestId("editor-text");
+    expect(text.textContent).toBe("# hello");
+    // 상태줄 — 깨끗한 상태.
+    await findByText(t("code.savedState"));
+  });
+
+  it("marks the buffer dirty on edit and saves through code_write", async () => {
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    await findByText(t("code.dirty"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.savedState"));
+    expect(fx.writeCalls).toHaveLength(1);
+    expect(fx.writeCalls[0]).toMatchObject({
+      relPath: "README.md",
+      content: "# hello!",
+      baseHash: "h1",
+    });
+  });
+
+  it("shows the conflict banner when the save reports a stale disk", async () => {
+    fx.writeResult = { kind: "conflict", disk_hash: "other" };
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.conflict.title"));
+    await findByText(t("code.conflict.reload"));
+    await findByText(t("code.conflict.overwrite"));
+  });
+
+  it("shows the unopenable state for binary files", async () => {
+    fx.read["README.md"] = { content: "", hash: "hb", bytes: 9999, binary: true, too_large: false };
+    const { findByText } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    await findByText(t("code.binary"));
+    await findByText(t("code.openExternal"));
+  });
+
+  it("jumps straight to a handoff target from another screen", async () => {
+    const consumed = vi.fn();
+    const { findByTestId } = render(
+      wrap(screenEl({ openTarget: { path: "src/main.rs", line: 1, nonce: 1 }, onOpenTargetConsumed: consumed })),
+    );
+    const text = await findByTestId("editor-text");
+    expect(text.textContent).toBe("fn main() {}");
+    expect(consumed).toHaveBeenCalled();
+  });
+
+  it("has no basic a11y violations", async () => {
+    const { container, findByRole } = render(wrap(screenEl()));
+    await findByRole("tree");
+    const results = await axe(container, AXE_OPTIONS);
+    expect(summarizeAxe(results)).toEqual([]);
+  });
+});

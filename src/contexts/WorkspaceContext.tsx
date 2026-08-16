@@ -73,6 +73,8 @@ export type UiV2View =
   // PR-ACP6 — Claude Code 구동면. "ai"(프로바이더 채팅)와 성격이 달라 화면을
   // 나눴다: 저쪽은 물어보는 곳, 이쪽은 시키는 곳이다.
   | "claudecode"
+  // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
+  | "code"
   | "settings";
 export type JournalFilter =
   | "all"
@@ -286,6 +288,8 @@ export interface WorkspaceState {
   aiThreadId: string | null;
   /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
   docsActivePath: string | null;
+  /** 코드 화면에서 마지막으로 열었던 파일의 프로젝트-루트 기준 경로. */
+  codeActivePath: string | null;
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**
@@ -370,6 +374,7 @@ const DEFAULT_STATE: WorkspaceState = {
   acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,
+  codeActivePath: null,
   discussionActiveId: null,
   sidebarCollapsed: false,
 };

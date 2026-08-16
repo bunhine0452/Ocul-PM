@@ -9,6 +9,7 @@ import { toast } from "@/lib/toast";
 import {
   X,
   ExternalLink,
+  FileCode,
   Eye,
   AlertTriangle,
   ArrowRight,
@@ -67,6 +68,8 @@ interface Props {
   callGroups: { from: string; list: { kind: string; callee: string; target_path: string | null; estimated: boolean }[] }[];
   hubThreshold: number;
   externalEditorCommand: string;
+  /** 인앱 코드 화면으로 열기 (ShellV2 → GraphScreenV2 경유). */
+  onOpenInCode?: (path: string, line: number | null) => void;
   onPick: (id: string) => void;
   onOpenFileNode: (fileId: number) => void;
   onClose: () => void;
@@ -84,6 +87,7 @@ export function GraphInspector({
   callGroups,
   hubThreshold,
   externalEditorCommand,
+  onOpenInCode,
   onPick,
   onOpenFileNode,
   onClose,
@@ -201,6 +205,14 @@ export function GraphInspector({
         {/* ── Actions (file only) ── */}
         {node.kind === "file" ? (
           <div className="flex items-center gap-2">
+            {onOpenInCode ? (
+              <button
+                onClick={() => onOpenInCode(node.path, null)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:border-primary/50 cursor-pointer"
+              >
+                <FileCode size={13} /> {t("code.openInCode")}
+              </button>
+            ) : null}
             <button
               onClick={() => void onOpenEditor()}
               disabled={!projectRoot}

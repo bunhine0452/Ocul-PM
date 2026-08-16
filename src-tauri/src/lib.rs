@@ -136,6 +136,8 @@ use crate::commands::{
     activate_tab, reorder_tabs, detach_tab, get_window_tabs, list_open_project_ids,
     open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
+    // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
+    code_tree, code_read, code_write,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
     // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
@@ -291,6 +293,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         apply_menu_language,
         read_project_file,
         read_file_range,
+        // 코드 화면 — 파일 트리 + 읽기/쓰기
+        code_tree,
+        code_read,
+        code_write,
         // 문서(docs) 뷰어
         docs_tree,
         docs_read,

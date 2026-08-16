@@ -205,7 +205,8 @@ fn pin_rank(name: &str) -> u8 {
 
 /// 자연 정렬: 숫자 런은 수치로, 나머지는 소문자 사전식으로 비교.
 /// 예: `2-x.md` < `10-x.md` (사전식이면 `10` < `2` 가 되는 문제를 피한다).
-fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+/// 코드 화면 트리(code.rs)도 같은 정렬을 쓴다 — pub(crate).
+pub(crate) fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let a = a.to_lowercase();
     let b = b.to_lowercase();

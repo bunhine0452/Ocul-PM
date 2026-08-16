@@ -237,6 +237,15 @@ export const commands = {
 	 *  every result with content. Out-of-range bounds clamp to the file.
 	 */
 	readFileRange: (projectId: number, relPath: string, startLine: number, endLine: number) => typedError<string, string>(__TAURI_INVOKE("read_file_range", { projectId, relPath, startLine, endLine })),
+	/**  프로젝트의 코드 파일 트리. gitignore·hidden 을 존중한다 (인덱서와 같은 시야). */
+	codeTree: (projectId: number) => typedError<CodeTree, string>(__TAURI_INVOKE("code_tree", { projectId })),
+	/**  단일 파일 본문 + 해시. 바이너리/대용량은 본문 없이 플래그만 세운다. */
+	codeRead: (projectId: number, relPath: string) => typedError<CodeFileContent, string>(__TAURI_INVOKE("code_read", { projectId, relPath })),
+	/**
+	 *  파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라
+	 *  트리와 어긋난 유령 경로 생성을 막는다.
+	 */
+	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
 	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
 	docsTree: (projectId: number) => typedError<DocsTree, string>(__TAURI_INVOKE("docs_tree", { projectId })),
 	/**  단일 문서의 마크다운 본문을 읽는다. `rel_path` 는 프로젝트 루트 기준 (`docs/...`). */
@@ -1682,10 +1691,48 @@ export type CloseIntent = {
 	tab: number | null,
 };
 
+/**
+ *  `code_read` 응답. `binary`/`too_large` 면 `content` 는 빈 문자열이고
+ *  UI 는 "외부 에디터로 열기" 안내를 그린다.
+ */
+export type CodeFileContent = {
+	content: string,
+	/**  blake3(원본 바이트) hex — 저장 시 `base_hash` 로 되돌려 보내는 토큰. */
+	hash: string,
+	bytes: number,
+	binary: boolean,
+	too_large: boolean,
+};
+
 export type CodeGraph = {
 	nodes: GraphNodeDto[],
 	edges: GraphEdgeDto[],
 };
+
+/**  `code_tree` 응답. */
+export type CodeTree = {
+	nodes: CodeTreeNode[],
+	file_count: number,
+	/**  [`MAX_TREE_FILES`] 상한에 걸려 잘렸다 — UI 가 배지로 알린다. */
+	truncated: boolean,
+};
+
+/**
+ *  코드 트리 한 노드. `relative_path` 는 프로젝트 루트 기준 슬래시 경로 —
+ *  그대로 `code_read`/`code_write` 인자로 쓴다 (docs 뷰어와 같은 계약).
+ */
+export type CodeTreeNode = {
+	name: string,
+	relative_path: string,
+	is_dir: boolean,
+	children: CodeTreeNode[],
+};
+
+/**
+ *  `code_write` 결과 — 충돌은 오류가 아니라 정상 분기라 Err 로 보내지 않는다
+ *  (프런트가 배너로 병합 선택지를 그려야 한다).
+ */
+export type CodeWriteOutcome = { kind: "saved"; hash: string } | { kind: "conflict"; disk_hash: string };
 
 export type Conversation = {
 	id: number,

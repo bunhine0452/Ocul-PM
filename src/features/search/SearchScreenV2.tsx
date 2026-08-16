@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronDown,
   ExternalLink,
+  FileCode,
   X,
   TriangleAlert,
 } from "@/components/Icons";
@@ -65,9 +66,11 @@ interface SearchScreenV2Props {
   projectId: number;
   /** 절대 프로젝트 루트 — 에디터 라인 점프(open_in_editor)에 필요. */
   projectRoot: string | null;
+  /** 결과를 인앱 코드 화면으로 여는 핸드오프 (ShellV2 가 내려준다). */
+  onOpenInCode?: (path: string, line: number | null) => void;
 }
 
-export function SearchScreenV2({ projectId, projectRoot }: SearchScreenV2Props) {
+export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchScreenV2Props) {
   useT();
   const { state, setState } = useWorkspace();
   const { settings } = useSettings();
@@ -361,6 +364,9 @@ export function SearchScreenV2({ projectId, projectRoot }: SearchScreenV2Props) 
                   query={results!.query}
                   canOpen={!!projectRoot}
                   onOpen={() => void openAt(r.file_path, r.start_line)}
+                  onOpenApp={
+                    onOpenInCode ? () => onOpenInCode(r.file_path, r.start_line) : undefined
+                  }
                 />
               ))}
             </div>
@@ -380,6 +386,16 @@ export function SearchScreenV2({ projectId, projectRoot }: SearchScreenV2Props) 
                     <span className="sresult-path">{path}</span>
                     <span className="sym-kind">{t("search.hitsInFile", { n: items.length })}</span>
                     <span className="sresult-lines">
+                      {onOpenInCode ? (
+                        <button
+                          type="button"
+                          className="sresult-open"
+                          title={t("code.openInCode")}
+                          onClick={() => onOpenInCode(path, items[0].start_line)}
+                        >
+                          <FileCode size={13} />
+                        </button>
+                      ) : null}
                       {projectRoot ? (
                         <button
                           type="button"
@@ -399,6 +415,9 @@ export function SearchScreenV2({ projectId, projectRoot }: SearchScreenV2Props) 
                       query={results!.query}
                       canOpen={!!projectRoot}
                       onOpen={(line) => void openAt(r.file_path, line)}
+                      onOpenApp={
+                        onOpenInCode ? (line) => onOpenInCode(r.file_path, line) : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -441,6 +460,16 @@ export function SearchScreenV2({ projectId, projectRoot }: SearchScreenV2Props) 
                     <span className="sresult-path">{r.file_path}</span>
                     <span className="sresult-lines">
                       L{r.start_line}–{r.end_line}
+                      {onOpenInCode ? (
+                        <button
+                          type="button"
+                          className="sresult-open"
+                          title={t("code.openInCode")}
+                          onClick={() => onOpenInCode(r.file_path, r.start_line)}
+                        >
+                          <FileCode size={13} />
+                        </button>
+                      ) : null}
                       {projectRoot ? (
                         <button
                           type="button"
@@ -483,11 +512,13 @@ function TextHit({
   query,
   canOpen,
   onOpen,
+  onOpenApp,
 }: {
   r: ChunkSearchResult;
   query: string;
   canOpen: boolean;
   onOpen: (line: number) => void;
+  onOpenApp?: (line: number) => void;
 }) {
   useT();
   const [full, setFull] = useState(false);
@@ -507,6 +538,16 @@ function TextHit({
           </button>
         ) : null}
         <span style={{ flex: 1 }} />
+        {onOpenApp ? (
+          <button
+            type="button"
+            className="sresult-open"
+            title={t("code.openInCode")}
+            onClick={() => onOpenApp(matchL)}
+          >
+            <FileCode size={13} />
+          </button>
+        ) : null}
         {canOpen ? (
           <button
             type="button"
@@ -537,12 +578,14 @@ function SymbolResult({
   query,
   canOpen,
   onOpen,
+  onOpenApp,
 }: {
   projectId: number;
   r: SymbolSearchResult;
   query: string;
   canOpen: boolean;
   onOpen: () => void;
+  onOpenApp?: () => void;
 }) {
   useT();
   const [open, setOpen] = useState(false);
@@ -590,6 +633,16 @@ function SymbolResult({
             {r.file_path} · L{r.start_line}–{r.end_line}
           </span>
         </button>
+        {onOpenApp ? (
+          <button
+            type="button"
+            className="sresult-open"
+            title={t("code.openInCode")}
+            onClick={onOpenApp}
+          >
+            <FileCode size={13} />
+          </button>
+        ) : null}
         {canOpen ? (
           <button
             type="button"

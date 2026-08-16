@@ -81,9 +81,12 @@ type FlowApi = {
 export function GraphScreenV2({
   projectId,
   projectRoot,
+  onOpenInCode,
 }: {
   projectId: number;
   projectRoot: string | null;
+  /** 파일 노드를 인앱 코드 화면으로 여는 핸드오프 (ShellV2 가 내려준다). */
+  onOpenInCode?: (path: string, line: number | null) => void;
 }) {
   const { t } = useT();
   const { settings } = useSettings();
@@ -881,6 +884,7 @@ export function GraphScreenV2({
             callGroups={callGroups}
             hubThreshold={hubThreshold}
             externalEditorCommand={settings.externalEditorCommand}
+            onOpenInCode={onOpenInCode}
             onPick={setSelected}
             onOpenFileNode={(fid) => {
               setMode("file");
