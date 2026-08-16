@@ -36,6 +36,10 @@ const GIT_PATCH = [
 
 // Mutable per-test: which DiffResult computeDiff returns for a path.
 const diffByPath: Record<string, unknown> = {};
+// Mutable per-test: diffBinaryPreview payload per path (이미지 프리뷰).
+const previewByPath: Record<string, unknown> = {};
+// Mutable per-test: readProjectFile 을 실패시킬지 (무한 "읽는 중…" 버그 가드).
+let readFileFails = false;
 
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
@@ -52,9 +56,19 @@ vi.mock("@/lib/bindings", () => {
                   source: { source: "git", patch: GIT_PATCH },
                 },
               );
+          if (prop === "diffBinaryPreview")
+            return (_pid: number, path: string) =>
+              ok(previewByPath[path] ?? { old: null, new: null });
           if (prop === "openInEditor") return () => ok(null);
           if (prop === "settingsGetAll") return () => ok([] as Array<[string, string]>);
-          if (prop === "readProjectFile") return () => ok("새 파일 첫 줄\n새 파일 둘째 줄");
+          if (prop === "readProjectFile")
+            return () =>
+              readFileFails
+                ? Promise.resolve({
+                    status: "error" as const,
+                    error: "Failed to read file: permission denied",
+                  })
+                : ok("새 파일 첫 줄\n새 파일 둘째 줄");
           return () => ok(null);
         },
       },
@@ -130,6 +144,8 @@ beforeEach(() => {
   localStorage.clear();
   recentChangesStore.clear(); // v2 U3 — 모듈 스코프 스토어는 테스트 간 공유된다
   for (const k of Object.keys(diffByPath)) delete diffByPath[k];
+  for (const k of Object.keys(previewByPath)) delete previewByPath[k];
+  readFileFails = false;
 });
 afterEach(() => cleanup());
 
@@ -240,6 +256,87 @@ describe("PR-UI 4 — Diff screen", () => {
     // The active file row is src/b.ts (handoff wins over most-recent default).
     const active = container.querySelector(".dfile.active .dfile-name");
     expect(active?.textContent).toBe("src/b.ts");
+  });
+});
+
+describe("바이너리/이미지 diff — 파일 카드 렌더", () => {
+  it("이미지 파일은 텍스트 diff 대신 이전/현재 프리뷰 카드를 그린다", async () => {
+    seedRecentChanges([{ path: "assets/logo.png", op: "M" }]);
+    diffByPath["assets/logo.png"] = {
+      path: "assets/logo.png",
+      source: { source: "binary", is_image: true, old_size: 1024, new_size: 2048 },
+    };
+    previewByPath["assets/logo.png"] = {
+      old: { mime: "image/png", base64: "QUFB", size: 1024 },
+      new: { mime: "image/png", base64: "QkJC", size: 2048 },
+    };
+    const { container, findByText } = renderDiff();
+    expect(await findByText("이미지 파일")).toBeInTheDocument();
+    // 이전/현재 프리뷰 두 장이 data URI 로 붙는다.
+    await waitFor(() => {
+      const imgs = Array.from(container.querySelectorAll(".diff-binary-img img"));
+      expect(imgs).toHaveLength(2);
+      expect((imgs[0] as HTMLImageElement).src).toBe("data:image/png;base64,QUFB");
+      expect((imgs[1] as HTMLImageElement).src).toBe("data:image/png;base64,QkJC");
+    }, BODY_WAIT);
+    // 사이즈 요약 (1.0 KB → 2.0 KB) + 증가 delta.
+    expect(container.textContent).toContain("1.0 KB");
+    expect(container.textContent).toContain("2.0 KB");
+    // 텍스트 diff 행은 없어야 한다.
+    expect(container.querySelector(".dl")).toBeNull();
+  });
+
+  it("기타 바이너리는 사이즈 카드만 (프리뷰 없음, 신규 파일 old=—)", async () => {
+    seedRecentChanges([{ path: "db/cache.db", op: "A" }]);
+    diffByPath["db/cache.db"] = {
+      path: "db/cache.db",
+      source: { source: "binary", is_image: false, old_size: null, new_size: 500 },
+    };
+    const { container, findByText } = renderDiff();
+    expect(await findByText("바이너리 파일")).toBeInTheDocument();
+    expect(container.textContent).toContain("500 B");
+    expect(container.querySelector(".diff-binary-img")).toBeNull();
+    expect(container.querySelector(".dl")).toBeNull();
+  });
+
+  it("readProjectFile 실패 시 '읽는 중…' 에 갇히지 않고 안내를 띄운다", async () => {
+    seedRecentChanges([{ path: "locked.ts", op: "A" }]);
+    diffByPath["locked.ts"] = {
+      path: "locked.ts",
+      source: { source: "snapshots_unavailable" },
+    };
+    readFileFails = true;
+    const { findByText, queryByText } = renderDiff();
+    expect(await findByText(/파일을 읽을 수 없어요/)).toBeInTheDocument();
+    expect(queryByText(/파일을 읽는 중/)).toBeNull();
+  });
+});
+
+describe("diff 라인 번호 — @@ 헤더 기반 실제 번호", () => {
+  it("unified 거터가 hunk 시작 오프셋을 반영한다", async () => {
+    seedRecentChanges([{ path: "src/off.ts", op: "M" }]);
+    diffByPath["src/off.ts"] = {
+      path: "src/off.ts",
+      source: {
+        source: "git",
+        patch: [
+          "diff --git a/src/off.ts b/src/off.ts",
+          "--- a/src/off.ts",
+          "+++ b/src/off.ts",
+          "@@ -40,3 +40,3 @@",
+          " context line",
+          "-old line",
+          "+new line",
+        ].join("\n"),
+      },
+    };
+    const { container } = renderDiff();
+    await waitFor(() => expect(container.textContent).toContain("new line"), BODY_WAIT);
+    const guts = Array.from(container.querySelectorAll(".dl .dl-gut")).map(
+      (el) => el.textContent,
+    );
+    // context = new 쪽 40, deletion = old 쪽 41, addition = new 쪽 41.
+    expect(guts).toEqual(["40", "41", "41"]);
   });
 });
 

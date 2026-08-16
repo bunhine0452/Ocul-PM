@@ -592,6 +592,15 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.footerWorking": "This diff is against {base} — check the changes before you commit.",
   "diff.baseSnapshotLong": "the local snapshot",
   "diff.baseHeadLong": "git HEAD",
+  "diff.statsTitle": "Lines added / removed",
+  "diff.binaryImage": "Image file",
+  "diff.binaryFile": "Binary file",
+  "diff.binaryNote": "This file can't be shown as a text diff, so here's the file itself. Open it in your editor to inspect the contents.",
+  "diff.imageOld": "Before",
+  "diff.imageNew": "After",
+  "diff.previewLoading": "Preparing the preview…",
+  "diff.previewUnavailable": "The preview can't be shown (file too large or unsupported format)",
+  "diff.readFailed": "Couldn't read the file.",
 
   // ── Planner ─────────────────────────────────────────────────────────────
   "plan.status.todo": "To do",

@@ -120,6 +120,14 @@ export const File = (props: IconProps) => (
   </IconWrapper>
 );
 
+export const ImageFileIcon = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="m21 15-5-5L5 21" />
+  </IconWrapper>
+);
+
 export const ChevronRight = (props: IconProps) => (
   <IconWrapper {...props}>
     <polyline points="9 18 15 12 9 6" />

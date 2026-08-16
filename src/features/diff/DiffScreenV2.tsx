@@ -20,6 +20,7 @@ import {
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
+import { BinaryFileView } from "./BinaryFileView";
 import { langFromPath } from "./diffParse";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -189,6 +190,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // content rendered as an all-additions patch — so changes show immediately
   // instead of the "no baseline" prompt.
   const [newFilePatch, setNewFilePatch] = useState<string | null>(null);
+  // readProjectFile 실패 사유 — 이게 없으면 읽기 실패 시 "파일을 읽는 중…" 에
+  // 영원히 갇힌다 (예: 권한 문제. 바이너리는 이제 백엔드가 미리 걸러준다).
+  const [newFileError, setNewFileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const consumedHandoff = useRef(false);
@@ -251,6 +255,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     if (!selected) {
       setDiff(null);
       setNewFilePatch(null);
+      setNewFileError(null);
       setError(null);
       return;
     }
@@ -258,6 +263,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     setLoading(true);
     setError(null);
     setNewFilePatch(null);
+    setNewFileError(null);
     commands
       .computeDiff(projectId, selected, DIFF_MAX_BYTES, baseline === "last_commit" ? "last_commit" : null)
       .then(async (res) => {
@@ -281,11 +287,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           } else {
             const fileRes = await commands.readProjectFile(projectId, selected);
             if (cancelled) return;
-            setNewFilePatch(
-              fileRes.status === "ok"
-                ? fileRes.data.split("\n").map((l) => "+" + l).join("\n")
-                : null,
-            );
+            if (fileRes.status === "ok") {
+              setNewFilePatch(
+                fileRes.data.split("\n").map((l) => "+" + l).join("\n"),
+              );
+            } else {
+              // 읽기 실패를 상태로 남겨 "읽는 중…" 무한 대기 대신 안내를 띄운다.
+              setNewFileError(tError(fileRes.error));
+            }
           }
         }
       })
@@ -398,6 +407,16 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const [matchPos, setMatchPos] = useState<{ idx: number; total: number } | null>(null);
   const matchIdxRef = useRef(-1);
 
+  // 프로젝트 전환 시 화면-로컬 상태 리셋. 사이드바 인라인 전환은 이 컴포넌트를
+  // 리마운트하지 않으므로, 이전 프로젝트의 baseline pin·검색어·직전 커밋
+  // 정보가 새 프로젝트 위에 그대로 남는 누수를 막는다.
+  useEffect(() => {
+    setBaselinePinned(null);
+    setDiffQuery("");
+    setGitChanges([]);
+    setLastCommit(null);
+  }, [projectId]);
+
   // 매치는 렌더된 diff 라인(.dl)의 textContent 로 그때그때 수집한다 — PatchView
   // 내부(하이라이트된 HTML)를 건드리지 않는 최소 침습 접점.
   const jumpMatch = useCallback(
@@ -470,6 +489,23 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
   const cur = changes.find((c) => c.path === selected) ?? null;
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
+
+  // 현재 파일의 +N/−M 요약 — 패치 텍스트에서 직접 센다 (바이너리는 패치가
+  // 없으므로 자연히 숨는다). +++/--- 파일 헤더는 제외.
+  const stats = useMemo(() => {
+    const src = diff?.source;
+    const patch =
+      src?.source === "git" || src?.source === "snapshot" ? src.patch : newFilePatch;
+    if (!patch) return null;
+    let add = 0;
+    let del = 0;
+    for (const line of patch.split("\n")) {
+      if (line.startsWith("+++") || line.startsWith("---")) continue;
+      if (line.startsWith("+")) add++;
+      else if (line.startsWith("-")) del++;
+    }
+    return add === 0 && del === 0 ? null : { add, del };
+  }, [diff, newFilePatch]);
   const allReviewed =
     changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
 
@@ -717,6 +753,12 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   {cur.op === "A" ? t("diff.opAdded") : cur.op === "D" ? t("diff.opDeleted") : t("diff.opModified")}
                 </span>
               ) : null}
+              {stats ? (
+                <span className="diff-stat" title={t("diff.statsTitle")}>
+                  <span className="add">+{stats.add}</span>
+                  <span className="del">−{stats.del}</span>
+                </span>
+              ) : null}
               <span style={{ flex: 1 }} />
               {/* v2 U8 — in-diff 검색. Enter/n=다음, Shift+Enter/N=이전, Esc=해제 */}
               <div className="diff-search">
@@ -771,8 +813,10 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   result={diff}
                   mode={diffMode}
                   newFilePatch={newFilePatch}
+                  newFileError={newFileError}
                   deleted={cur?.op === "D"}
                   baseline={baseline}
+                  projectId={projectId}
                 />
               ) : (
                 <div className="empty-hint">{t("diff.pickFile")}</div>
@@ -791,16 +835,33 @@ function DiffBody({
   result,
   mode,
   newFilePatch,
+  newFileError,
   deleted,
   baseline,
+  projectId,
 }: {
   result: DiffResult;
   mode: DiffMode;
   newFilePatch: string | null;
+  newFileError: string | null;
   deleted: boolean;
   baseline: DiffBaseline;
+  projectId: number;
 }) {
   const { t } = useT();
+  // 이미지/기타 바이너리 — 텍스트 diff 대신 파일 카드(+이미지 프리뷰).
+  if (result.source.source === "binary") {
+    return (
+      <BinaryFileView
+        projectId={projectId}
+        path={result.path}
+        isImage={result.source.is_image}
+        oldSize={result.source.old_size}
+        newSize={result.source.new_size}
+        baseline={baseline}
+      />
+    );
+  }
   if (result.source.source === "snapshots_unavailable") {
     // A deleted file with no baseline — nothing to diff, but don't error.
     if (deleted) {
@@ -819,7 +880,17 @@ function DiffBody({
     if (newFilePatch == null) {
       return (
         <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
-          {t("diff.readingFile")}
+          {newFileError ? (
+            <>
+              {t("diff.readFailed")}
+              <br />
+              <span className="text-muted-foreground" style={{ fontSize: 11 }}>
+                {newFileError}
+              </span>
+            </>
+          ) : (
+            t("diff.readingFile")
+          )}
         </div>
       );
     }

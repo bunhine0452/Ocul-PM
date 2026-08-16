@@ -585,6 +585,15 @@ export const ko = {
   "diff.footerWorking": "이 diff는 {base} 기준입니다. 커밋 전 변경분을 검증하세요.",
   "diff.baseSnapshotLong": "로컬 스냅샷",
   "diff.baseHeadLong": "git HEAD",
+  "diff.statsTitle": "추가/삭제된 줄 수",
+  "diff.binaryImage": "이미지 파일",
+  "diff.binaryFile": "바이너리 파일",
+  "diff.binaryNote": "텍스트 diff 로 표시할 수 없는 파일이라 파일 정보로 보여드려요. 내용은 에디터에서 여세요.",
+  "diff.imageOld": "이전",
+  "diff.imageNew": "현재",
+  "diff.previewLoading": "미리보기 준비 중…",
+  "diff.previewUnavailable": "미리보기를 표시할 수 없어요 (파일이 너무 크거나 지원되지 않는 포맷)",
+  "diff.readFailed": "파일을 읽을 수 없어요.",
 
   // ── 플래너 ──────────────────────────────────────────────────────────────
   "plan.status.todo": "할 일",

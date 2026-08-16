@@ -18,6 +18,7 @@ import {
   classifyDiffLines,
   groupIntoHunks,
   pairDiffLines,
+  parseHunkHeader,
   type DiffLine,
 } from "@/features/diff/diffParse";
 import { effectiveSidePanelMaxWidth } from "@/contexts/WorkspaceContext";
@@ -162,6 +163,25 @@ describe("Lite-W6 PR6.3 — classifyDiffLines", () => {
       { kind: "context", text: " unchanged" },
       { kind: "context", text: " no-prefix" },
     ]);
+  });
+});
+
+describe("diff line numbers — parseHunkHeader", () => {
+  it("parses old/new start lines from a standard @@ header", () => {
+    expect(parseHunkHeader("@@ -10,7 +12,6 @@ fn main() {")).toEqual({
+      oldStart: 10,
+      newStart: 12,
+    });
+  });
+
+  it("handles count-less single-line hunks (@@ -3 +4 @@)", () => {
+    expect(parseHunkHeader("@@ -3 +4 @@")).toEqual({ oldStart: 3, newStart: 4 });
+  });
+
+  it("returns null for non-header text (preamble fallback)", () => {
+    expect(parseHunkHeader("diff --git a/x b/x")).toBeNull();
+    expect(parseHunkHeader("+@@ -1 +1 @@ quoted inside a diff line")).toBeNull();
+    expect(parseHunkHeader("")).toBeNull();
   });
 });
 

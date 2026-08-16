@@ -38,6 +38,20 @@ export function langFromPath(path: string | null | undefined): string | null {
 }
 
 /**
+ * Parse a `@@ -oldStart[,n] +newStart[,m] @@ …` hunk header into the 1-based
+ * starting line numbers of each side, so the gutters can show REAL file line
+ * numbers instead of per-hunk 1-based counters. Returns null for the preamble
+ * sentinel / malformed headers (renderer falls back to per-hunk numbering).
+ */
+export function parseHunkHeader(
+  text: string,
+): { oldStart: number; newStart: number } | null {
+  const m = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+  if (!m) return null;
+  return { oldStart: Number(m[1]), newStart: Number(m[2]) };
+}
+
+/**
  * Classify each line of a git unified diff. Exported (pure) for unit
  * testing of the renderer's coloring rules.
  */

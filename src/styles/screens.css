@@ -309,6 +309,31 @@
 .dl.del .dl-gut { background: color-mix(in srgb, var(--diff-del-bg) 80%, transparent); color: var(--diff-del-line); }
 .dl.split .dl-x.empty { background: var(--bg-inset); opacity: 0.4; }
 .diff-foot { padding: 14px 16px; color: var(--text-3); font-family: var(--font); font-size: 12px; border-top: 1px solid var(--sep); display: flex; align-items: center; gap: 7px; }
+
+/* +N/−M 라인 요약 (diff-bar) */
+.diff-stat { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11.5px; font-weight: 650; font-variant-numeric: tabular-nums; flex: none; }
+.diff-stat .add { color: var(--diff-add-line); }
+.diff-stat .del { color: var(--diff-del-line); }
+
+/* 바이너리/이미지 파일 뷰 — 텍스트 diff 대신 파일 카드 + (이미지) 이전/현재 프리뷰 */
+.diff-binary { padding: 18px; display: flex; flex-direction: column; gap: 14px; font-family: var(--font); }
+.diff-binary-card { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-card); border-radius: 10px; padding: 14px 16px; background: var(--bg-inset); }
+.diff-binary-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.diff-binary-kind { font-size: 12.5px; font-weight: 650; }
+.diff-binary-size { font-family: var(--mono); font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.diff-binary-arrow { color: var(--text-3); }
+.diff-binary-delta { font-weight: 650; }
+.diff-binary-delta.add { color: var(--diff-add-line); }
+.diff-binary-delta.del { color: var(--diff-del-line); }
+.diff-binary-panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.diff-binary-pane { margin: 0; border: 1px solid var(--border-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.diff-binary-pane.dim .diff-binary-img img { opacity: 0.72; }
+.diff-binary-pane-head { padding: 6px 10px; font-size: 11px; font-weight: 650; color: var(--text-2); border-bottom: 1px solid var(--sep); display: flex; justify-content: space-between; gap: 8px; font-family: var(--font); }
+.diff-binary-pane-head .mono { color: var(--text-3); font-weight: 500; }
+/* 투명 PNG 가 배경과 섞이지 않게 체커보드 밑판 */
+.diff-binary-img { display: grid; place-items: center; padding: 14px; min-height: 120px; background: repeating-conic-gradient(var(--bg-inset) 0% 25%, var(--bg-window) 0% 50%) 0 0 / 16px 16px; }
+.diff-binary-img img { max-width: 100%; max-height: 420px; object-fit: contain; }
+.diff-binary-broken { font-size: 11.5px; color: var(--text-3); font-family: var(--font); }
 .diff-mode-toggle { display: flex; border: 1px solid var(--border-card); border-radius: 7px; overflow: hidden; }
 .diff-mode-toggle button { border-radius: 0; }
 

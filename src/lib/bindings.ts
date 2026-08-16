@@ -410,9 +410,17 @@ export const commands = {
 	/**
 	 *  Hybrid diff: tries git first, falls back to the captured snapshot when git
 	 *  can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
-	 *  — never bubbles `fatal: bad revision 'HEAD'` to the UI.
+	 *  — never bubbles `fatal: bad revision 'HEAD'` to the UI. 이미지/바이너리는
+	 *  텍스트 diff 대신 `DiffSource::Binary` 로 내려간다 (파일 카드 렌더).
 	 */
 	computeDiff: (projectId: number, path: string, maxBytes: number, baseline: string | null) => typedError<DiffResult, string>(__TAURI_INVOKE("compute_diff", { projectId, path, maxBytes, baseline })),
+	/**
+	 *  변경 diff 화면의 이미지 프리뷰 payload. `compute_diff` 가
+	 *  `DiffSource::Binary { is_image: true }` 를 내려준 파일에 대해 호출된다.
+	 *    - working baseline: 이전 = `HEAD` 블롭(없으면 스냅샷), 현재 = 디스크.
+	 *    - `last_commit`: 이전 = `HEAD~1`, 현재 = `HEAD`.
+	 */
+	diffBinaryPreview: (projectId: number, path: string, baseline: string | null) => typedError<BinaryPreview, string>(__TAURI_INVOKE("diff_binary_preview", { projectId, path, baseline })),
 	/**
 	 *  PR6.6 — re-capture snapshots for the supplied paths from disk content.
 	 *  Powers the LocalDiffView "비우기" action: after the user acknowledges a
@@ -1553,6 +1561,25 @@ export type BackfillReport = {
 };
 
 /**
+ *  `diff_binary_preview` 응답 — baseline 기준 이전/현재 바이트. 없는 쪽(신규의
+ *  이전, 삭제의 현재)이나 16MB 초과 쪽은 `None` (프론트는 사이즈 카드만 표시).
+ */
+export type BinaryPreview = {
+	old: BinarySide | null,
+	new: BinarySide | null,
+};
+
+/**
+ *  바이너리 diff 프리뷰의 한 쪽(이전/현재). 프론트가 `data:{mime};base64,…`
+ *  URI 로 조립해 `<img>` 로 그린다.
+ */
+export type BinarySide = {
+	mime: string,
+	base64: string,
+	size: number,
+};
+
+/**
  *  A group of changed files attributed to one journal entry (Dogfooding #3).
  *  `entry_path == None` is the trailing "미기록 변경" bucket for files no
  *  journal entry recorded.
@@ -1774,6 +1801,12 @@ export type DiffSource =
  *  returned an empty patch but the file changed on disk after indexing.
  */
 { source: "snapshot"; patch: string } | 
+/**
+ *  이미지/기타 바이너리 파일 — 텍스트 diff 는 의미가 없어(깨진 문자 나열)
+ *  파일 카드(이미지는 이전/현재 프리뷰 포함)로 렌더한다. 사이즈는 선택한
+ *  baseline 기준 이전/현재 바이트 수; `None` 쪽은 존재하지 않음(신규/삭제).
+ */
+{ source: "binary"; is_image: boolean; old_size: number | null; new_size: number | null } | 
 /**
  *  The file has neither a git baseline nor a captured snapshot. UI prompts
  *  the user to run a partial reindex first.

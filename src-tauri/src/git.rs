@@ -844,6 +844,42 @@ pub fn diff_patch(
     Ok(truncate_patch(text, max_bytes))
 }
 
+/// Size in bytes of the blob at `<rev>:<path>` (`git cat-file -s`). `None`
+/// when the path isn't in that rev, the rev doesn't exist (unborn HEAD, root
+/// commit's `HEAD~1`), or the file isn't inside any repo. Nested-repo aware.
+pub fn blob_size(root: &Path, file_path: &str, rev: &str) -> Option<u64> {
+    let abs = root.join(file_path);
+    let repo = repo_root_for(&abs)?;
+    let rel = repo_relative(&repo, &abs)?;
+    let out = run_git(&repo, &["cat-file", "-s", &format!("{rev}:{rel}")]).ok()?;
+    out.trim().parse().ok()
+}
+
+/// Raw bytes of `<rev>:<path>` via `git show` — binary-safe, unlike `run_git`
+/// which funnels stdout through a lossy UTF-8 conversion. Powers the 변경 diff
+/// 화면's image "이전" preview. `None` when the blob doesn't exist at that rev
+/// or exceeds `max_bytes` (the caller renders a size-only card instead).
+pub fn show_file_bytes(
+    root: &Path,
+    file_path: &str,
+    rev: &str,
+    max_bytes: usize,
+) -> Option<Vec<u8>> {
+    let abs = root.join(file_path);
+    let repo = repo_root_for(&abs)?;
+    let rel = repo_relative(&repo, &abs)?;
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(&repo)
+        .args(["show", &format!("{rev}:{rel}")])
+        .output()
+        .ok()?;
+    if !out.status.success() || out.stdout.len() > max_bytes {
+        return None;
+    }
+    Some(out.stdout)
+}
+
 /// Whether `file_path` exists in the repo's `HEAD` commit.
 ///   - `None`        — the path isn't inside any git repo.
 ///   - `Some(true)`  — tracked and present in `HEAD`.
@@ -867,15 +903,28 @@ pub fn path_in_head(root: &Path, file_path: &str) -> Option<bool> {
 /// a runaway generated file from bloating callers (sidecars, IPC payloads).
 fn truncate_patch(text: String, max_bytes: usize) -> String {
     if text.len() > max_bytes {
-        let truncated: String = text.chars().take(max_bytes).collect();
         format!(
             "{}\n\n... (truncated, {} bytes total)",
-            truncated,
+            truncate_at_char_boundary(&text, max_bytes),
             text.len()
         )
     } else {
         text
     }
+}
+
+/// Longest prefix of `text` that fits in `max_bytes` *bytes* without splitting
+/// a UTF-8 char. The old `chars().take(max_bytes)` counted characters, so a
+/// multibyte (한글) patch blew the budget by up to 4× before truncating.
+pub(crate) fn truncate_at_char_boundary(text: &str, max_bytes: usize) -> &str {
+    if text.len() <= max_bytes {
+        return text;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
 }
 
 /// Reconstruct the diff a journal entry described *after* the work was already

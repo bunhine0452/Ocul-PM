@@ -148,7 +148,7 @@ use crate::commands::{
     // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
     shell_integration_status, shell_integration_install, shell_integration_uninstall,
     git_log, git_graph, git_status, git_head_status_brief,
-    reindex_paths, compute_diff, resnapshot_paths, git_uncommitted_changes,
+    reindex_paths, compute_diff, diff_binary_preview, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
     // G2 — Project Overview + Daily Brief
     get_project_overview, generate_project_overview, refresh_project_overview_if_stale,
@@ -327,6 +327,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // Lite-W6 PR6 — LocalDiffView backend
         reindex_paths,
         compute_diff,
+        diff_binary_preview,
         resnapshot_paths,
         git_uncommitted_changes,
         git_last_commit_changes,

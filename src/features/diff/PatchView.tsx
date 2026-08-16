@@ -3,6 +3,7 @@ import {
   classifyDiffLines,
   groupIntoHunks,
   pairDiffLines,
+  parseHunkHeader,
   type DiffLine,
 } from "./diffParse";
 import type { DiffMode } from "@/contexts/WorkspaceContext";
@@ -118,13 +119,18 @@ export function Hunk({
   // in `lines`); render the body lines after it. Skip header/hunk-kind lines
   // in the row grid since the .hunk-head shows the @@ context.
   const body = lines.filter((l) => l.kind !== "hunk" && l.kind !== "header");
+  // Real file line numbers from the @@ header; preamble/new-file patches
+  // (no header) fall back to 1-based counting, which is correct for them.
+  const start = header ? parseHunkHeader(header) : null;
+  const startOld = start?.oldStart ?? 1;
+  const startNew = start?.newStart ?? 1;
   return (
     <div>
       {header ? <div className="hunk-head">{header}</div> : null}
       {mode === "split" ? (
-        <SplitRows lines={body} lang={lang} hljs={hljs} />
+        <SplitRows lines={body} lang={lang} hljs={hljs} startOld={startOld} startNew={startNew} />
       ) : (
-        <UnifiedRows lines={body} lang={lang} hljs={hljs} />
+        <UnifiedRows lines={body} lang={lang} hljs={hljs} startOld={startOld} startNew={startNew} />
       )}
     </div>
   );
@@ -134,17 +140,20 @@ function UnifiedRows({
   lines,
   lang,
   hljs,
+  startOld,
+  startNew,
 }: {
   lines: DiffLine[];
   lang: string | null;
   hljs: Hljs | null;
+  startOld: number;
+  startNew: number;
 }) {
   // Single gutter: additions show the new-side number, deletions the old-side,
-  // context advances both and shows the new number. The actual base offsets
-  // come from the @@ header, which we don't parse here — these are 1-based
-  // within the hunk, matching the mockup's per-hunk numbering.
-  let oldNo = 0;
-  let newNo = 0;
+  // context advances both and shows the new number. Offsets come from the @@
+  // hunk header so the numbers match the actual file.
+  let oldNo = startOld - 1;
+  let newNo = startNew - 1;
   return (
     <>
       {lines.map((l, i) => {
@@ -189,40 +198,64 @@ function SplitRows({
   lines,
   lang,
   hljs,
+  startOld,
+  startNew,
 }: {
   lines: DiffLine[];
   lang: string | null;
   hljs: Hljs | null;
+  startOld: number;
+  startNew: number;
 }) {
   const rows = pairDiffLines(lines);
+  // Per-side line numbers: the left gutter counts the old file (context +
+  // deletions), the right counts the new (context + additions). Context rows
+  // advance both. Same @@ offsets as the unified view.
+  let oldNo = startOld - 1;
+  let newNo = startNew - 1;
   return (
     <>
-      {rows.map((row, i) => (
-        <div className="dl split" key={i}>
-          <span className="dl-gut">{row.left ? "·" : ""}</span>
-          <span
-            className={"dl-x" + (row.left ? "" : " empty")}
-            style={
-              row.left?.kind === "deletion"
-                ? { background: "var(--diff-del-bg)", color: "var(--diff-del-text)" }
-                : undefined
-            }
-          >
-            {row.left ? <CodeInner text={row.left.text} lang={lang} hljs={hljs} /> : ""}
-          </span>
-          <span className="dl-gut">{row.right ? "·" : ""}</span>
-          <span
-            className={"dl-x" + (row.right ? "" : " empty")}
-            style={
-              row.right?.kind === "addition"
-                ? { background: "var(--diff-add-bg)", color: "var(--diff-add-text)" }
-                : undefined
-            }
-          >
-            {row.right ? <CodeInner text={row.right.text} lang={lang} hljs={hljs} /> : ""}
-          </span>
-        </div>
-      ))}
+      {rows.map((row, i) => {
+        let leftGut = "";
+        let rightGut = "";
+        if (row.left) {
+          oldNo++;
+          leftGut = String(oldNo);
+        }
+        if (row.right) {
+          // A context/header row is the SAME DiffLine object on both sides —
+          // it advances the new counter too; paired del/add rows each advance
+          // only their own side.
+          newNo++;
+          rightGut = String(newNo);
+        }
+        return (
+          <div className="dl split" key={i}>
+            <span className="dl-gut">{leftGut}</span>
+            <span
+              className={"dl-x" + (row.left ? "" : " empty")}
+              style={
+                row.left?.kind === "deletion"
+                  ? { background: "var(--diff-del-bg)", color: "var(--diff-del-text)" }
+                  : undefined
+              }
+            >
+              {row.left ? <CodeInner text={row.left.text} lang={lang} hljs={hljs} /> : ""}
+            </span>
+            <span className="dl-gut">{rightGut}</span>
+            <span
+              className={"dl-x" + (row.right ? "" : " empty")}
+              style={
+                row.right?.kind === "addition"
+                  ? { background: "var(--diff-add-bg)", color: "var(--diff-add-text)" }
+                  : undefined
+              }
+            >
+              {row.right ? <CodeInner text={row.right.text} lang={lang} hljs={hljs} /> : ""}
+            </span>
+          </div>
+        );
+      })}
     </>
   );
 }
