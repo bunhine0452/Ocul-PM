@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatCode, isFormattable } from "./formatCode";
+import { markMatchesInHtml } from "./searchUtils";
 import { loadHljs } from "@/lib/hljs";
 
 // A code-search result body: optionally pretty-printed (formatCode) and always
@@ -14,6 +15,8 @@ interface CodeSnippetProps {
   content: string;
   /** When true, run the snippet through the language formatter before display. */
   formatted: boolean;
+  /** 정확/심볼 검색의 쿼리 — 하이라이트된 HTML 안 매치를 <mark> 로 표시. */
+  highlightQuery?: string | null;
 }
 
 // Extension → highlight.js language id. Unknown extensions fall back to
@@ -42,7 +45,7 @@ async function highlightCode(code: string, path: string): Promise<string> {
   return hljs.highlightAuto(code).value;
 }
 
-export function CodeSnippet({ path, content, formatted }: CodeSnippetProps) {
+export function CodeSnippet({ path, content, formatted, highlightQuery }: CodeSnippetProps) {
   const [html, setHtml] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,7 +56,10 @@ export function CodeSnippet({ path, content, formatted }: CodeSnippetProps) {
         formatted && isFormattable(path) ? await formatCode(content, path) : content;
       if (cancelled) return;
       try {
-        const highlighted = await highlightCode(text, path);
+        let highlighted = await highlightCode(text, path);
+        if (highlightQuery?.trim()) {
+          highlighted = markMatchesInHtml(highlighted, highlightQuery);
+        }
         if (!cancelled) setHtml(highlighted);
       } catch {
         // highlight failed — fall through to the raw render below.
@@ -62,7 +68,7 @@ export function CodeSnippet({ path, content, formatted }: CodeSnippetProps) {
     return () => {
       cancelled = true;
     };
-  }, [path, content, formatted]);
+  }, [path, content, formatted, highlightQuery]);
 
   if (html != null) {
     return <div className="scode hljs" dangerouslySetInnerHTML={{ __html: html }} />;

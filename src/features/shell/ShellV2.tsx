@@ -472,7 +472,7 @@ export default function ShellV2({
         ) : view === "retro" ? (
           <RetroScreenV2 projectId={projectId} onNavigate={setUiV2View} />
         ) : view === "search" ? (
-          <SearchScreenV2 projectId={projectId} />
+          <SearchScreenV2 projectId={projectId} projectRoot={projectRoot} />
         ) : view === "terminal" ? (
           // 터미널이 분리 창에 나가 있으면 여기서 또 그리지 않는다 — 같은 PTY
           // 를 두 뷰가 잡으면 리사이즈가 서로를 되돌린다. 되돌리는 길만 남긴다.

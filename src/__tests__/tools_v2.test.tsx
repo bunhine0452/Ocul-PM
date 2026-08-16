@@ -326,7 +326,7 @@ describe("PR-PLN 3 — Planner", () => {
 describe("PR-UI 5 — Search", () => {
   it("runs semantic search on submit + renders results", async () => {
     fx.chunks = [chunk({ file_path: "src/lib/workday.ts" })];
-    const { getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} />));
+    const { getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />));
     const input = getByLabelText("코드 검색");
     fireEvent.change(input, { target: { value: "롤오버" } });
     fireEvent.submit(input.closest("form")!);
@@ -337,21 +337,27 @@ describe("PR-UI 5 — Search", () => {
     fx.symbols = [
       { name: "rolloverAt", kind: "function", file_path: "src/lib/workday.ts", start_line: 42, end_line: 58 },
     ];
-    const { getByText, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} />));
+    const { container, getByText, getByLabelText, findByText } = render(
+      wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />),
+    );
     expect(getByText("심볼").closest("button")).not.toBeDisabled();
     expect(getByText("정확히 일치").closest("button")).not.toBeDisabled();
     fireEvent.click(getByText("심볼"));
     const input = getByLabelText("코드 검색");
     fireEvent.change(input, { target: { value: "rollover" } });
     fireEvent.submit(input.closest("form")!);
-    expect(await findByText("rolloverAt")).toBeInTheDocument();
     expect(await findByText(/1개 심볼/)).toBeInTheDocument();
+    // 이름은 매치 하이라이트(<mark>)로 쪼개져 렌더된다 — textContent 로 확인.
+    await waitFor(() => {
+      expect(container.querySelector(".sresult-symrow strong")?.textContent).toBe("rolloverAt");
+      expect(container.querySelector(".sresult-symrow mark.s-hit")?.textContent).toBe("rollover");
+    });
   });
 
   it("정확히 일치 scope — searchText 결과 (점수 막대 없음) (PR-R1b A2)", async () => {
     fx.chunks = [chunk({ file_path: "src/lib/exact.ts" })];
     const { getByText, getByLabelText, findByText, container } = render(
-      wrap(<SearchScreenV2 projectId={1} />),
+      wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />),
     );
     fireEvent.click(getByText("정확히 일치"));
     const input = getByLabelText("코드 검색");
@@ -364,7 +370,7 @@ describe("PR-UI 5 — Search", () => {
 
   it("empty query shows the hint; no results shows the retry hint", async () => {
     fx.chunks = [];
-    const { getByText, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} />));
+    const { getByText, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />));
     expect(getByText(/검색어를 입력하면/)).toBeInTheDocument();
     const input = getByLabelText("코드 검색");
     fireEvent.change(input, { target: { value: "없는키워드" } });
@@ -374,7 +380,7 @@ describe("PR-UI 5 — Search", () => {
 
   it("has no axe violations with results", async () => {
     fx.chunks = [chunk()];
-    const { container, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} />));
+    const { container, getByLabelText, findByText } = render(wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />));
     const input = getByLabelText("코드 검색");
     fireEvent.change(input, { target: { value: "x" } });
     fireEvent.submit(input.closest("form")!);

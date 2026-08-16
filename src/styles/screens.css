@@ -648,6 +648,52 @@
 .scode .ln { color: var(--text-3); display: inline-block; width: 30px; user-select: none; }
 .scode .hl { background: var(--accent-soft); border-radius: 3px; }
 
+/* ── 검색 업그레이드 (2026-08-16) ──────────────────────────── */
+/* 스니펫/심볼 이름 안 매치 하이라이트 */
+mark.s-hit {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+/* 최근 검색 칩 줄 (검색 히어로 아래) */
+.search-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+}
+.search-recent-label { font-size: 11px; color: var(--text-3); font-weight: 600; }
+/* 결과 헤더 줄 (개수 + 우측 컨트롤) */
+.search-results-bar { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.search-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
+.scope-chip.sm { height: 22px; padding: 0 9px; font-size: 10.5px; }
+/* 정확 검색 — 파일 그룹 카드 안의 개별 히트 블록 */
+.sresult-hit { border-top: 1px solid var(--sep); }
+.sresult-hit:first-of-type { border-top: none; }
+.sresult-hit-bar { display: flex; align-items: center; gap: 10px; padding: 7px 16px 0; }
+.sresult-hit-bar .lnk {
+  border: none; background: none; padding: 0; cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--accent-text);
+}
+.sresult-hit-bar .lnk:hover { text-decoration: underline; }
+/* 라인 점프 아이콘 버튼 — 카드 헤더/히트 바 공용 */
+.sresult-open {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-left: 6px; border-radius: 6px;
+  border: none; background: transparent; color: var(--text-3); cursor: pointer;
+}
+.sresult-open:hover { background: var(--bg-hover); color: var(--accent-text); }
+/* 심볼 행 — 펼침 버튼이 헤더 전체를 차지하고 열기 버튼만 우측 분리 */
+.sresult-symrow {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px;
+  padding: 11px 0 11px 16px; border: none; background: transparent;
+  font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
+}
+.sresult-symrow .sresult-lines { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* --- Terminal — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 톤) ---
    2026-07-30: 하드코딩 다크(#101014/#16161c/#26262e)를 전부 걷어내고 테마
    토큰으로 옮겼다. 예전엔 라이트/Solarized/Sepia 를 골라도 터미널 화면만
