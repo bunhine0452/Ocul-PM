@@ -54,16 +54,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.12.0 — change diff, code map, and code search, all leveled up
+## 🚀 v2.13.0 — the new Code screen: open and edit code right inside the app
 
-- **Images diff as images** — when a picture changes you see before/after side by side (checkerboard backing · size delta) instead of garbled text; fonts, DBs and other binaries get a size card. The endless "Reading the file…" hang on new images is gone too.
-- **Diff fundamentals** — the gutter now shows real file line numbers (no more per-hunk counting from 1) · a `+12 −4` summary next to the file name · fixed Korean-heavy diffs blowing the transfer budget by up to 4×.
-- **Code map redesign** — floating edges + direction arrows (A → B: A uses B) kill the spaghetti; node cards are re-drawn with the language color soaked in, hubs wear a "hub" tag. Fixed search-Enter producing a blank canvas.
-- **Code search** — results grouped per file · snippets trimmed to the lines around the match · highlighter marks on hits · jump straight to that line in your editor · recent queries · "more results" · symbol-kind filter. Fixed a race where a slow response overwrote newer results.
+- **An in-app code editor** — open any file from a filterable tree, edit with syntax highlighting (12 languages), save with ⌘S. Search results and the code map grow an "Open in the Code screen" button that jumps to the exact line.
+- **Safe to share files with your agents** — if the disk changed while you were editing, saving never overwrites: a banner asks which version to keep. If an agent touches a file you have open, a clean buffer silently refreshes; a dirty one gets the same banner.
+- **Unsaved edits survive** — switch files or screens and your edits stay, marked by a green dot in the tree. The editor follows the app theme (light/dark · all 6 accent palettes) and ⌘F search is localized.
 
 <details>
-<summary><b>Highlights from earlier versions</b> — v2.5 through v2.11.0</summary>
+<summary><b>Highlights from earlier versions</b> — v2.5 through v2.12.0</summary>
 
+- **v2.12.0** — image previews in the change diff (before/after side by side) · real file line numbers · code map redesign with floating edges + direction arrows · code search grouped per file with match highlights and line jump
 - **v2.11.0** — Claude Code edit diffs inline · approval cards carry the command/diff payload · waiting-for-approval sidebar badge · Korean IME Enter fix · a pile of chat-screen friction removed (auto-grow, recall, drag & drop, turn receipts, reconnect)
 - **v2.10.3** — double-clicking the title strip only resizes · one broken piece no longer blanks the whole window (universal render boundary)
 - **v2.10.2** — right-side terminal dock · draggable detached window · macOS tiling shortcuts (⌃⌥←→↑↓) restored
@@ -87,6 +87,7 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 - **Retro** — what shipped and where you got stuck over the last 7/14/30 days, plus effort hotspots. AI-generated retrospectives, PR bodies and weekly reports, and `.md` export live here.
 - **Code search** — three modes: semantic (local embeddings), symbol (AST), and full-text (FTS5).
 - **Code map** — a dependency graph that goes beyond imports to calls, inheritance, and implementations. Pick a file and see "changing this affects N files" first.
+- **Code** — an in-app code viewer and editor. Jump straight to a line from search or the code map, make a quick edit with syntax highlighting, save with ⌘S. A conflict banner protects you when an agent edits the same file, and unsaved edits survive screen switches. For heavy editing, "Open in external editor" hands off with the cursor line.
 - **Docs** — browse your project's `docs/` folder like a wiki.
 - **Terminal** — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. **⌘J docks it onto any screen (bottom, left, or right), and it detaches into its own window** without dropping the shell. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
 - **Claude Code** — runs a real `claude` inside the app as an agent (Agent Client Protocol). Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.

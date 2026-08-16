@@ -25,7 +25,7 @@ owner: claude-code
 
 ## PR-CODE3 — 품질 {#quality}
 - [x] vitest — codeLang·treeUtils·codeBuffers·화면 상태(mocked CM) + a11y {#code-tests}
-- [ ] typecheck/test/lint/build + cargo test 전부 exit 0 확인 후 커밋·일지 {#code-gates}
+- [x] typecheck/test/lint/build + cargo test 전부 exit 0 확인 후 커밋·일지 {#code-gates}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -38,4 +38,5 @@ owner: claude-code
 | 2026-08-16T18:58:06+09:00 | #code-from-search | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | 3 scope 전부 라인 점프 버튼 |
 | 2026-08-16T18:58:07+09:00 | #code-from-graph | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | 인스펙터 액션 버튼 |
 | 2026-08-16T18:58:09+09:00 | #code-tests | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | vitest 4파일 + axe, Rust 7개 |
+| 2026-08-16T18:58:39+09:00 | #code-gates | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | 4대 게이트 + cargo 풀 exit 0 → 4ce3262 커밋 |
 <!-- oculpm:plan-log end -->
