@@ -73,6 +73,26 @@ export function classifyDiffLines(patch: string): DiffLine[] {
 }
 
 /**
+ * Count the +N/−M summary of a real unified diff. Header lines are excluded
+ * by POSITION (only lines inside `@@` hunks count), not by prefix — deleting
+ * a `---` content line (YAML front-matter, Markdown rule) yields `----`,
+ * which a startsWith("---") check misclassifies as a file header and drops.
+ * Exported (pure) for unit testing.
+ */
+export function countPatchStats(patch: string): { add: number; del: number } {
+  let add = 0;
+  let del = 0;
+  let inHunk = false;
+  for (const line of patch.split("\n")) {
+    if (line.startsWith("diff ")) inHunk = false;
+    else if (line.startsWith("@@")) inHunk = true;
+    else if (inHunk && line.startsWith("+")) add++;
+    else if (inHunk && line.startsWith("-")) del++;
+  }
+  return { add, del };
+}
+
+/**
  * Lite-W6 PR6.5: split a classified line stream into hunks. Each `@@` line
  * starts a new hunk; lines before the first `@@` (file header) flow into a
  * sentinel "preamble" hunk with no header so the renderer can show them

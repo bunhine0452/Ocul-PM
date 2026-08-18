@@ -21,7 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
 import { BinaryFileView } from "./BinaryFileView";
-import { langFromPath } from "./diffParse";
+import { countPatchStats, langFromPath } from "./diffParse";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 
@@ -491,20 +491,18 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
 
   // 현재 파일의 +N/−M 요약 — 패치 텍스트에서 직접 센다 (바이너리는 패치가
-  // 없으므로 자연히 숨는다). +++/--- 파일 헤더는 제외.
+  // 없으므로 자연히 숨는다). 헤더 제외는 countPatchStats 가 위치 기반으로
+  // 처리한다 — startsWith("---") 식 접두 검사는 `---` 내용 줄 삭제(`----`)를
+  // 헤더로 오인해 빠뜨린다.
   const stats = useMemo(() => {
     const src = diff?.source;
-    const patch =
-      src?.source === "git" || src?.source === "snapshot" ? src.patch : newFilePatch;
-    if (!patch) return null;
-    let add = 0;
-    let del = 0;
-    for (const line of patch.split("\n")) {
-      if (line.startsWith("+++") || line.startsWith("---")) continue;
-      if (line.startsWith("+")) add++;
-      else if (line.startsWith("-")) del++;
+    if (src?.source === "git" || src?.source === "snapshot") {
+      const { add, del } = countPatchStats(src.patch);
+      return add === 0 && del === 0 ? null : { add, del };
     }
-    return add === 0 && del === 0 ? null : { add, del };
+    // 신규 파일의 합성 패치: 헤더 없이 전 줄이 +내용 이므로 줄 수가 곧 +N.
+    if (newFilePatch) return { add: newFilePatch.split("\n").length, del: 0 };
+    return null;
   }, [diff, newFilePatch]);
   const allReviewed =
     changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
