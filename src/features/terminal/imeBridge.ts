@@ -74,6 +74,25 @@ const NBSP = / /g;
  */
 const XTERM_ECHO_WINDOW_MS = 250;
 
+/**
+ * 조합이 아닐 때(!imeKey) 부기 기준선을 리셋해야 하는 키. Backspace·Delete 는
+ * xterm 이 셸에서 지우는데 textarea 는 그대로라서, 커서 이동·Escape 는 셸
+ * 커서가 echoed 의 끝에서 떠나 이후 DEL 이 엉뚱한 글자를 지울 수 있어서다.
+ */
+const SESSION_END_KEYS = new Set([
+  "Backspace",
+  "Delete",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+  "Escape",
+]);
+
 /** 개발 빌드에서만 이벤트 흐름을 남긴다 (`<app_data>/logs/oculpm.log.*`). */
 const TRACE = import.meta.env.DEV;
 
@@ -210,8 +229,14 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       // 비우면 IME 는 아직 같은 조합을 붙들고 있는데 우리 기준만 "" 이 돼,
       // 다음 교체분(`차`)이 DEL 없이 통째로 다시 나간다 → 화면에 `ㅊ차`.
       // 한글 문장을 길게 치며 오타를 지울 때마다 글자가 두 번 남던 원인이다.
+      //
+      // 커서 이동 키·Escape(2026-08-19)도 같은 이유로 세션을 끊는다 — macOS
+      // 입력기는 화살표·Home/End 에서 조합을 확정하는데, 여기서 기준선을
+      // 리셋하지 않으면 echoed 가 이동 전 위치 기준으로 남아, 다음 조합의
+      // DEL 이 커서 옆의 엉뚱한 글자를 지울 수 있다. 조합 내비게이션으로
+      // 쓰이는 키는 229(imeKey)로 오므로 !imeKey 가드가 그대로 지켜준다.
       if (event.key === "Enter" || event.key === "Tab") endSession();
-      else if ((event.key === "Backspace" || event.key === "Delete") && !imeKey) endSession();
+      else if (SESSION_END_KEYS.has(event.key) && !imeKey) endSession();
 
       // 조합 중인 키만 xterm 에서 걷어낸다. 조합 이벤트를 쏘지 않는 웹뷰라
       // keyCode 229 가 유일하게 믿을 수 있는 신호다 (트레이스의 input→keydown

@@ -210,4 +210,35 @@ describe("imeBridge", () => {
     expect(fireKeydown(h, { key: "Backspace", keyCode: 8 })).toBe(true);
     expect(h.textarea.value).toBe(""); // xterm 이 DEL 을 보내 셸에서 지운다
   });
+
+  // ── 커서 이동 키 (2026-08-19) ─────────────────────────────────────────────
+  // macOS 입력기는 화살표·Home/End 에서 조합을 확정한다. 세션을 리셋하지
+  // 않으면 echoed 가 이동 전 위치 기준으로 남아, 다음 조합의 DEL 이 커서
+  // 옆의 엉뚱한 글자를 지운다. 조합 내비게이션 키는 229 로 오므로 여기서
+  // 다루는 건 비조합(!imeKey) 커서 키뿐이다.
+  test("조합이 아닌 화살표 키는 부기를 리셋한다 — 다음 조합이 DEL 없이 새로 시작한다", () => {
+    fireInput(h, "가");
+    expect(h.sent).toEqual(["가"]);
+
+    expect(fireKeydown(h, { key: "ArrowLeft", keyCode: 37 })).toBe(true); // xterm 이 ESC[D 전송
+    expect(h.textarea.value).toBe("");
+
+    fireInput(h, "ㄴ"); // 새 조합 — 이동 전 "가" 를 지우는 DEL 이 붙으면 안 된다
+    expect(h.sent).toEqual(["가", "ㄴ"]);
+  });
+
+  test("조합 중(229) 화살표 키는 세션을 유지한 채 xterm 에서 걷어낸다", () => {
+    fireInput(h, "가");
+    expect(fireKeydown(h, { key: "ArrowLeft", keyCode: 229 })).toBe(false);
+    expect(h.textarea.value).toBe("가"); // 조합이 살아 있으므로 버퍼 유지
+
+    fireInput(h, "간", "insertReplacementText");
+    expect(h.sent.join("")).toBe(`가${DEL}간`); // 기준선이 살아 있어 DEL 로 교체된다
+  });
+
+  test("조합이 아닌 Escape 는 부기를 리셋한다 (vim 등에서 한글 입력 직후 Esc)", () => {
+    fireInput(h, "가");
+    expect(fireKeydown(h, { key: "Escape", keyCode: 27 })).toBe(true); // xterm 이 ESC 전송
+    expect(h.textarea.value).toBe("");
+  });
 });
