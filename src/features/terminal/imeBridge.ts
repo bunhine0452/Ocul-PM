@@ -93,6 +93,21 @@ const SESSION_END_KEYS = new Set([
   "Escape",
 ]);
 
+// ── 2026-08-19: 조합 중 스페이스가 이전 글자를 반복시키던 문제 ─────────────
+// 실측 트레이스로 확인한 사실: IME 의 **내용을 바꾸는 교체 input** 은 keydown
+// 보다 60~250ms 늦게 온다 (최대 242.7ms: `침여`→`침ㅇ`).
+//
+// 그 지연 창 안에 스페이스를 치면 순서가 이렇게 뒤집힌다:
+//
+//   echoed="드"                     (PTY 줄: "드")
+//   keydown ' ' → xterm 이 즉시 전송  (PTY 줄: "드 ")   ← 브리지 밖에서 끼어든다
+//   input "든 " (뒤늦은 교체분)       → 브리지는 echoed="드" 기준으로 DEL+"든 "
+//   PTY 줄: "드 " -DEL→ "드" +"든 " = "드든 "            ← 이전 글자가 남는다
+//
+// DEL 은 조합 글자를 되돌리려던 것인데 방금 나간 **스페이스**를 지운다. 원인은
+// 부기가 아니라 **소유권**이다 — 조합이 열려 있는 동안 PTY 로 나가는 바이트는
+// 전부 브리지의 한 경로(syncEcho)를 지나야 순서가 보장된다.
+
 /** 개발 빌드에서만 이벤트 흐름을 남긴다 (`<app_data>/logs/oculpm.log.*`). */
 const TRACE = import.meta.env.DEV;
 
@@ -150,6 +165,29 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     if (removals === 0 && takeXtermEcho(addition)) return;
     term.input(DEL.repeat(removals) + addition, true);
   };
+
+  /**
+   * 조합이 열려 있는 동안(echoed 비어 있지 않음) 찍힌 인쇄 가능 키인가.
+   * 그렇다면 xterm 이 아니라 **브리지가** 내보내야 한다 (위 2026-08-19 주석).
+   * echoed 는 조합 대상이 아닌 글자에서 매번 비워지므로, 비어 있지 않다는 건
+   * 곧 한글 조합이 진행 중이라는 뜻 — 그 상태에선 모든 인쇄 키가 IME 를 거쳐
+   * input 으로 올라온다(실측). Enter·Tab·화살표 등은 key.length > 1 이라
+   * 여기 걸리지 않고 종전대로 xterm 이 보낸다.
+   */
+  const bridgeOwnsKey = (event: KeyboardEvent): boolean =>
+    echoed !== "" &&
+    event.key.length === 1 &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey;
+
+  /**
+   * 방금 keydown 에서 브리지가 가져간 키. 뒤따르는 keypress 를 막는 데 쓴다 —
+   * keydown 에서 preventDefault 를 하지 않으므로 keypress 가 올 수 있고, 넘기면
+   * xterm 이 같은 글자를 또 보낸다. `echoed` 로 다시 판정하지 않는 건 그 사이
+   * input 이 먼저 와서 세션이 끝났을 수 있어서다 (그때 echoed 는 이미 "").
+   */
+  let ownedKeydown: string | null = null;
 
   /** 조합 세션을 끝낸다 — 버퍼를 비우고 다음 세션을 새로 시작하게 한다. */
   const endSession = () => {
@@ -243,6 +281,15 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       // 287건이 전부 229). 여기서 preventDefault 하면 IME 가 조합을 못 잇는다.
       if (imeKey) return false;
 
+      // 조합이 열려 있으면 인쇄 가능 키도 xterm 에게 넘기지 않는다 — 뒤이어 올
+      // IME 의 input 이 syncEcho 를 타고 **교체분 뒤에** 나가야 순서가 맞는다.
+      // (여기서 preventDefault 는 하지 않으므로 IME 는 조합을 그대로 잇는다.)
+      if (bridgeOwnsKey(event)) {
+        ownedKeydown = event.key;
+        return false;
+      }
+      ownedKeydown = null;
+
       // xterm 이 이 키의 글자를 PTY 로 보낸다. 입력기가 켜져 있으면 곧이어 같은
       // 글자가 input 으로도 올라오므로, 그 에코를 걸러내려고 기록해둔다.
       if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
@@ -252,6 +299,12 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     }
 
     if (imeKey) return false;
+    // keydown 에서 preventDefault 를 하지 않았으므로 keypress 가 뒤따른다 —
+    // 여기서 넘기면 xterm 이 같은 글자를 또 보낸다.
+    if (event.type === "keypress" && ownedKeydown === event.key) {
+      ownedKeydown = null;
+      return false;
+    }
     return true;
   });
 

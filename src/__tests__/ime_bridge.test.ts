@@ -26,6 +26,8 @@ function applyDel(sent: string[]): string {
 interface Harness {
   /** 브리지가 PTY 로 보낸 문자열 (= term.input 인자). */
   sent: string[];
+  /** 브리지 + xterm 을 합쳐 **PTY 가 받는 순서 그대로** 기록한 스트림. */
+  stream: string[];
   handler: (event: KeyboardEvent) => boolean;
   textarea: HTMLTextAreaElement;
   dispose(): void;
@@ -38,10 +40,14 @@ function setup(): Harness {
   document.body.appendChild(container);
 
   const sent: string[] = [];
+  const stream: string[] = [];
   let handler: (event: KeyboardEvent) => boolean = () => true;
   const term = {
     textarea,
-    input: (data: string) => sent.push(data),
+    input: (data: string) => {
+      sent.push(data);
+      stream.push(data);
+    },
     attachCustomKeyEventHandler: (fn: (event: KeyboardEvent) => boolean) => {
       handler = fn;
     },
@@ -50,6 +56,7 @@ function setup(): Harness {
   const bridge = attachImeBridge(term, container);
   return {
     sent,
+    stream,
     get handler() {
       return handler;
     },
@@ -74,6 +81,20 @@ function fireKeydown(h: Harness, init: KeyboardEventInit): boolean {
   return h.handler(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
 }
 
+/**
+ * keydown 을 흘리되, 브리지가 xterm 에게 넘긴(true) 인쇄 가능 키는 **xterm 이
+ * keydown 에서 곧장 PTY 로 보낸다**는 사실까지 스트림에 반영한다. 기존 테스트가
+ * 가정만 하던 부분 — 실제 xterm `_keyDown` 은 여기서 동기 전송한다.
+ */
+function fireKeydownThroughXterm(h: Harness, init: KeyboardEventInit): boolean {
+  const pass = fireKeydown(h, init);
+  const key = init.key ?? "";
+  if (pass && key.length === 1 && !init.ctrlKey && !init.altKey && !init.metaKey) {
+    h.stream.push(key);
+  }
+  return pass;
+}
+
 describe("imeBridge", () => {
   let h: Harness;
   beforeEach(() => {
@@ -95,14 +116,17 @@ describe("imeBridge", () => {
     expect(h.sent).toEqual([]);
   });
 
-  test("조합 뒤 스페이스: 앞 글자는 유지하고 공백만 에코로 걸러낸다", () => {
+  test("조합 뒤 스페이스: 앞 글자는 유지하고 공백은 정확히 한 번만 나간다", () => {
     fireInput(h, "ㅏ");
     expect(fireKeydown(h, { key: "ㅏ", keyCode: 229 })).toBe(false);
     expect(h.sent).toEqual(["ㅏ"]);
 
-    expect(fireKeydown(h, { key: " ", keyCode: 32 })).toBe(true); // xterm 이 ' ' 전송
+    // 조합이 열려 있는 동안의 스페이스는 **브리지가** 내보낸다 (2026-08-19).
+    // xterm 이 keydown 에서 먼저 쏘면 뒤늦은 교체분의 DEL 이 그 스페이스를
+    // 지워 이전 글자가 남는다 — 그래서 여기서 xterm 에게 넘기지 않는다.
+    expect(fireKeydownThroughXterm(h, { key: " ", keyCode: 32 })).toBe(false);
     fireInput(h, `ㅏ${NBSP}`);
-    expect(h.sent).toEqual(["ㅏ"]); // 브리지는 공백을 더 보내지 않는다
+    expect(applyDel(h.stream)).toBe("ㅏ "); // 공백 1회, NBSP 아닌 보통 공백
   });
 
   test("한글 조합: xterm 에 넘기지 않고 브리지가 교체분만 보낸다", () => {
@@ -234,6 +258,56 @@ describe("imeBridge", () => {
 
     fireInput(h, "간", "insertReplacementText");
     expect(h.sent.join("")).toBe(`가${DEL}간`); // 기준선이 살아 있어 DEL 로 교체된다
+  });
+
+  // ── 조합 중 스페이스 (2026-08-19) ─────────────────────────────────────────
+  // IME 의 **내용을 바꾸는 교체 input** 은 keydown 보다 60~250ms 늦게 온다
+  // (실측 트레이스: 최대 242.7ms). 그 창 안에 스페이스를 치면 xterm 이
+  // keydown 에서 스페이스를 먼저 PTY 로 쏘고, 뒤늦게 도착한 교체분의 DEL 이
+  // 조합 글자가 아니라 **그 스페이스**를 지운다 → 이전 글자가 남고 스페이스는
+  // 사라진다 ("드든 ").
+  test("조합 중 스페이스: 뒤늦은 교체분이 스페이스를 먹고 이전 글자를 남기지 않는다", () => {
+    fireInput(h, "ㄷ");
+    fireKeydownThroughXterm(h, { key: "ㄷ", keyCode: 229 });
+    fireInput(h, "드", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "ㅡ", keyCode: 229 });
+
+    // 교체분(든)이 오기 전에 스페이스를 친다.
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, "든 ", "insertReplacementText");
+
+    expect(applyDel(h.stream)).toBe("든 ");
+  });
+
+  test("조합 중 스페이스: 교체분이 두 번에 나눠 와도 결과가 같다", () => {
+    fireInput(h, "ㄷ");
+    fireKeydownThroughXterm(h, { key: "ㄷ", keyCode: 229 });
+    fireInput(h, "드", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "ㅡ", keyCode: 229 });
+
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, "든", "insertReplacementText"); // 교체분 먼저
+    fireInput(h, "든 ");                          // 그 다음 스페이스 확정
+
+    expect(applyDel(h.stream)).toBe("든 ");
+  });
+
+  test("조합이 없을 때 스페이스는 종전대로 xterm 이 보낸다 (두 번 찍히지 않음)", () => {
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, NBSP);
+    expect(applyDel(h.stream)).toBe(" ");
+  });
+
+  test("조합 중 스페이스: 뒤따르는 keypress 로 xterm 이 다시 보내지 않는다", () => {
+    fireInput(h, "ㅏ");
+    fireKeydown(h, { key: "ㅏ", keyCode: 229 });
+    expect(fireKeydownThroughXterm(h, { key: " ", keyCode: 32 })).toBe(false);
+    // input 이 keypress 보다 먼저 와 세션이 끝난 경우까지 포함해 막아야 한다.
+    fireInput(h, `ㅏ${NBSP}`);
+    const keypress = h.handler(
+      new KeyboardEvent("keypress", { key: " ", keyCode: 32, bubbles: true, cancelable: true }),
+    );
+    expect(keypress).toBe(false); // xterm 이 ' ' 를 또 보내면 두 칸이 된다
   });
 
   test("조합이 아닌 Escape 는 부기를 리셋한다 (vim 등에서 한글 입력 직후 Esc)", () => {
