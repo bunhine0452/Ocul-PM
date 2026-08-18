@@ -153,6 +153,8 @@ export function CodeEditor({
               onSaveRef.current();
               return true;
             },
+            // 화면 레벨 ⌘S 리스너(window)까지 버블되면 저장이 두 번 나간다.
+            stopPropagation: true,
           },
           indentWithTab,
         ]),

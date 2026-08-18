@@ -32,10 +32,13 @@ import { ancestorDirs, collectDirs, collectFiles, filterTree, formatBytes } from
 import {
   bufferKey,
   deleteBuffer,
+  detectEol,
   getBuffer,
   isDirty as bufferIsDirty,
   listDirtyPaths,
+  normalizeEol,
   putBuffer,
+  restoreEol,
   type CodeBuffer,
 } from "./codeBuffers";
 import "./code.css";
@@ -99,10 +102,19 @@ export function CodeScreenV2({
 
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  // watcher 가 "파일이 사라졌다" 토스트를 같은 파일에 반복하지 않기 위한 부기.
+  const goneNotifiedRef = useRef<string | null>(null);
 
   const refreshDirtyPaths = useCallback(() => {
     setDirtyPaths(listDirtyPaths(projectId));
   }, [projectId]);
+
+  // putBuffer 가 dirty 버퍼를 밀어냈으면(상한 초과) 조용한 유실 대신 알린다.
+  const notifyIfEvicted = useCallback((evictedKey: string | null) => {
+    if (!evictedKey) return;
+    const path = evictedKey.slice(evictedKey.indexOf(":") + 1);
+    toast.warning(t("code.bufferEvicted", { path }));
+  }, []);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
   const loadTree = useCallback(() => {
@@ -169,16 +181,21 @@ export function CodeScreenV2({
         setDirty(true);
         if (data.hash !== cached.baseHash) setConflict({ diskHash: data.hash });
       } else {
-        const fresh: CodeBuffer = { text: data.content, baseText: data.content, baseHash: data.hash };
+        // CM 은 어떤 줄바꿈이든 LF 로 합치므로, 원본 줄바꿈을 기억해 두고
+        // 버퍼는 LF 로 정규화한다 — CRLF 파일이 저장 한 번에 전부 LF 로
+        // 바뀌는 것을 막는다.
+        const eol = detectEol(data.content);
+        const text = normalizeEol(data.content);
+        const fresh: CodeBuffer = { text, baseText: text, baseHash: data.hash, eol };
         bufferRef.current = fresh;
-        putBuffer(key, fresh);
+        notifyIfEvicted(putBuffer(key, fresh));
         setDirty(false);
       }
       refreshDirtyPaths();
       setFileView({ kind: "editor", bytes: data.bytes });
       setEditorEpoch((n) => n + 1);
     },
-    [projectId, refreshDirtyPaths],
+    [projectId, refreshDirtyPaths, notifyIfEvicted],
   );
 
   useEffect(() => {
@@ -245,18 +262,23 @@ export function CodeScreenV2({
     [projectId, refreshDirtyPaths],
   );
 
+  // ⌘S 는 CM 키맵과 화면 레벨 리스너 양쪽에 걸릴 수 있는데, `saving` state 는
+  // 같은 틱의 두 번째 호출에 아직 낡은 값이라 재진입을 못 막는다 — 같은
+  // base_hash 로 codeWrite 가 두 번 나가면 두 번째가 가짜 충돌 배너를 띄운다.
+  const savingRef = useRef(false);
   const save = useCallback(
     async (baseHashOverride?: string) => {
       const buf = bufferRef.current;
       const path = selectedRef.current;
-      if (!buf || !path || saving) return;
+      if (!buf || !path || savingRef.current) return;
       if (buf.text === buf.baseText && !baseHashOverride) return; // no-op
+      savingRef.current = true;
       setSaving(true);
       try {
         const res = await commands.codeWrite(
           projectId,
           path,
-          buf.text,
+          restoreEol(buf.text, buf.eol),
           baseHashOverride ?? buf.baseHash,
         );
         if (res.status === "error") {
@@ -269,10 +291,11 @@ export function CodeScreenV2({
           setConflict({ diskHash: res.data.disk_hash });
         }
       } finally {
+        savingRef.current = false;
         setSaving(false);
       }
     },
-    [projectId, saving, applySaved],
+    [projectId, applySaved],
   );
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -281,6 +304,9 @@ export function CodeScreenV2({
   // 키맵이 먼저 먹는다). 검색 화면의 ⌘F 와 같은 화면-로컬 패턴.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // CM 키맵이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
+      // 같은 base_hash 로 저장이 두 번 나간다.
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         e.stopPropagation();
@@ -311,17 +337,25 @@ export function CodeScreenV2({
       if (!path || payload.event.path !== path) return;
       void (async () => {
         const res = await commands.codeRead(projectId, path);
-        if (res.status !== "ok" || selectedRef.current !== path) return;
+        if (selectedRef.current !== path) return;
+        if (res.status !== "ok") {
+          // 외부에서 파일이 지워지거나 이동됐다 — 조용히 삼키면 사용자는
+          // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다.
+          if (goneNotifiedRef.current !== path) {
+            goneNotifiedRef.current = path;
+            toast.warning(t("code.fileGone", { path }));
+          }
+          return;
+        }
+        goneNotifiedRef.current = null;
         const buf = bufferRef.current;
         if (!buf || res.data.binary || res.data.too_large) return;
         if (res.data.hash === buf.baseHash) return; // 자기 저장의 에코
         if (buf.text === buf.baseText) {
           // 깨끗한 버퍼 — 조용히 최신화하되 읽던 줄은 유지한다.
-          const fresh: CodeBuffer = {
-            text: res.data.content,
-            baseText: res.data.content,
-            baseHash: res.data.hash,
-          };
+          const eol = detectEol(res.data.content);
+          const text = normalizeEol(res.data.content);
+          const fresh: CodeBuffer = { text, baseText: text, baseHash: res.data.hash, eol };
           bufferRef.current = fresh;
           putBuffer(bufferKey(projectId, path), fresh);
           setPendingJump(cursorRef.current.line);

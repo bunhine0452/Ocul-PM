@@ -1256,6 +1256,8 @@ export const en: Record<keyof typeof ko, string> = {
   "code.openInCode": "Open in the Code screen",
   "code.save": "Save",
   "code.saveFailed": "Couldn't save: {error}",
+  "code.bufferEvicted": "Too many unsaved files — dropped the oldest unsaved edits: {path}",
+  "code.fileGone": "The open file was deleted or moved on disk: {path}",
   "code.dirty": "Modified",
   "code.savedState": "Saved",
   "code.conflict.title": "The file changed on disk",

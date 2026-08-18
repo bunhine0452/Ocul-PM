@@ -27,6 +27,12 @@ owner: claude-code
 - [x] vitest — codeLang·treeUtils·codeBuffers·화면 상태(mocked CM) + a11y {#code-tests}
 - [x] typecheck/test/lint/build + cargo test 전부 exit 0 확인 후 커밋·일지 {#code-gates}
 
+## PR-CODE4 — 버그 헌팅 라운드 보강 {#hardening}
+- [x] CRLF 파일 저장 시 줄바꿈 보존 — 로드 정규화 + 저장 복원 {#code-crlf-preserve}
+- [x] code_read/code_write 심링크 루트 이탈 차단 (canonical_within_root) {#code-symlink-guard}
+- [x] 이중 ⌘S 가드 3중 + 백엔드 WRITE_LOCK 저장 직렬화 {#code-double-save}
+- [x] dirty 버퍼 축출·외부 삭제 토스트 — 조용한 유실 제거 {#code-loss-notices}
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -39,4 +45,8 @@ owner: claude-code
 | 2026-08-16T18:58:07+09:00 | #code-from-graph | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | 인스펙터 액션 버튼 |
 | 2026-08-16T18:58:09+09:00 | #code-tests | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | vitest 4파일 + axe, Rust 7개 |
 | 2026-08-16T18:58:39+09:00 | #code-gates | claude-code | ☐→x | .oculpm/journal/20260816/Features_to_add/1857_feature_code-editor-screen.md | 4대 게이트 + cargo 풀 exit 0 → 4ce3262 커밋 |
+| 2026-08-19T07:26:00+09:00 | #code-crlf-preserve | claude-code | ☐→x | .oculpm/journal/20260819/Bugs/0725_bug_code-screen-save-hardening.md | detectEol 다수결 + LF 정규화/복원, CRLF 왕복 테스트 |
+| 2026-08-19T07:26:05+09:00 | #code-symlink-guard | claude-code | ☐→x | .oculpm/journal/20260819/Bugs/0725_bug_code-screen-save-hardening.md | canonicalize 포함 검사, 루트 안 심링크는 대상으로 해석 |
+| 2026-08-19T07:26:10+09:00 | #code-double-save | claude-code | ☐→x | .oculpm/journal/20260819/Bugs/0725_bug_code-screen-save-hardening.md | stopPropagation+defaultPrevented+savingRef, 전역 뮤텍스 |
+| 2026-08-19T07:26:15+09:00 | #code-loss-notices | claude-code | ☐→x | .oculpm/journal/20260819/Bugs/0725_bug_code-screen-save-hardening.md | putBuffer 축출 키 반환→토스트, watcher 실패 경로당 1회 |
 <!-- oculpm:plan-log end -->

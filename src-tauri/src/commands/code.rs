@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::State;
@@ -92,6 +93,7 @@ pub async fn code_read(
 ) -> Result<CodeFileContent, String> {
     let root = project_root(&db, project_id).await?;
     let full = secure_join(&root, &rel_path)?;
+    let full = canonical_within_root(&root, &full)?;
     let meta = tokio::fs::metadata(&full)
         .await
         .map_err(|e| format!("Failed to read file: {e}"))?;
@@ -153,9 +155,12 @@ pub async fn code_write(
 ) -> Result<CodeWriteOutcome, String> {
     let root = project_root(&db, project_id).await?;
     let full = secure_join(&root, &rel_path)?;
-    tauri::async_runtime::spawn_blocking(move || write_with_lock(&full, &content, &base_hash))
-        .await
-        .map_err(|e| format!("Failed to save file: {e}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = canonical_within_root(&root, &full)?;
+        write_with_lock(&full, &content, &base_hash)
+    })
+    .await
+    .map_err(|e| format!("Failed to save file: {e}"))?
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -167,6 +172,22 @@ async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
 
 fn looks_binary(bytes: &[u8]) -> bool {
     bytes[..bytes.len().min(BINARY_PROBE_BYTES)].contains(&0)
+}
+
+/// [`secure_join`] 은 어휘적 검사만 한다 — 경로에 심링크가 끼어 있으면 루트
+/// 밖 파일이 열린다 (예: 프로젝트 안 `leak → ~/.ssh/id_rsa`. 트리 걸음은
+/// 심링크를 안 따라가지만 `rel_path` 는 임의의 IPC 인자다). 실존 경로로
+/// 해석해 루트 안인지 다시 확인하고, 해석된 경로를 돌려준다 — 루트 안을
+/// 가리키는 심링크는 그 대상으로 저장되므로 링크 자체도 깨지지 않는다.
+fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
+    let canon_root = std::fs::canonicalize(root)
+        .map_err(|e| format!("Failed to resolve project root: {e}"))?;
+    let canon = std::fs::canonicalize(full).map_err(|e| format!("Failed to read file: {e}"))?;
+    if canon.starts_with(&canon_root) {
+        Ok(canon)
+    } else {
+        Err("Path escapes the project root".to_string())
+    }
 }
 
 /// 걸음(파일 목록) → 중첩 트리. 폴더 우선 + 자연 정렬은 [`sort_nodes`] 가 맡고,
@@ -262,9 +283,15 @@ fn sort_nodes(nodes: &mut [CodeTreeNode]) {
     });
 }
 
+/// 저장 직렬화 — 같은 파일에 저장이 동시에 두 건 들어오면 둘 다 해시 검사를
+/// 통과한 뒤 서로를 덮어써, 둘 다 Saved 를 돌려주면서 한쪽 편집이 조용히
+/// 사라진다. 저장은 드물고 짧아 경로별이 아닌 전역 뮤텍스로 충분하다.
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
 /// 해시 대조 → 같은 디렉터리 임시 파일 → 권한 복사 → rename. 동기 IO 라
 /// spawn_blocking 안에서 부른다.
 fn write_with_lock(full: &Path, content: &str, base_hash: &str) -> Result<CodeWriteOutcome, String> {
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let disk = std::fs::read(full).map_err(|e| format!("Failed to read file before save: {e}"))?;
     let disk_hash = blake3::hash(&disk).to_hex().to_string();
     if disk_hash != base_hash {
@@ -284,7 +311,11 @@ fn write_with_lock(full: &Path, content: &str, base_hash: &str) -> Result<CodeWr
     // rename 은 inode 를 갈아끼우므로 원본 권한(실행 비트 등)을 임시 파일에
     // 먼저 옮겨 둬야 저장 후에도 유지된다.
     if let Ok(meta) = std::fs::metadata(full) {
-        let _ = std::fs::set_permissions(&tmp, meta.permissions());
+        // 실패해도 저장은 계속하지만(내용 보존이 우선), 실행 비트가 조용히
+        // 사라지는 종류의 회귀라 진단 가능하게 남긴다.
+        if let Err(e) = std::fs::set_permissions(&tmp, meta.permissions()) {
+            tracing::warn!(path = %full.display(), error = %e, "failed to preserve permissions on save");
+        }
     }
     if let Err(e) = std::fs::rename(&tmp, full) {
         let _ = std::fs::remove_file(&tmp);
@@ -403,6 +434,42 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let out = write_with_lock(&tmp.path().join("nope.txt"), "x", "hash");
         assert!(out.is_err(), "새 파일 생성은 v1 스코프 밖");
+    }
+
+    #[test]
+    fn canonical_allows_regular_file_in_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "a.txt", b"x");
+        let p = canonical_within_root(root, &root.join("a.txt")).unwrap();
+        assert!(p.ends_with("a.txt"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn canonical_rejects_symlink_escaping_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(tmp.path().join("secret.txt"), b"top secret").unwrap();
+        std::os::unix::fs::symlink(tmp.path().join("secret.txt"), root.join("leak.txt")).unwrap();
+
+        let err = canonical_within_root(&root, &root.join("leak.txt")).unwrap_err();
+        assert!(err.contains("escapes"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn canonical_resolves_symlink_within_root() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("real.txt"), b"x").unwrap();
+        std::os::unix::fs::symlink(root.join("real.txt"), root.join("alias.txt")).unwrap();
+
+        // 루트 안 심링크는 허용 — 대상 경로로 해석돼 저장해도 링크가 안 깨진다.
+        let p = canonical_within_root(&root, &root.join("alias.txt")).unwrap();
+        assert!(p.ends_with("real.txt"), "{p:?}");
     }
 
     #[cfg(unix)]

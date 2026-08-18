@@ -164,6 +164,34 @@ describe("CodeScreenV2", () => {
     });
   });
 
+  it("preserves CRLF line endings through the edit-save round trip", async () => {
+    // CM 은 줄바꿈을 LF 로 합치므로, 정규화→복원이 없으면 CRLF 파일이 저장
+    // 한 번에 통째로 LF 가 된다 (회귀 방지).
+    fx.read["README.md"] = textFile("line1\r\nline2\r\n");
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    const text = await findByTestId("editor-text");
+    expect(text.textContent).toBe("line1\nline2\n"); // 에디터에는 LF 정규화본
+    fireEvent.click(await findByTestId("mutate"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.savedState"));
+    expect(fx.writeCalls[0].content).toBe("line1\r\nline2\r\n!");
+  });
+
+  it("re-entrant save in the same tick issues only one code_write", async () => {
+    // ⌘S 가 CM 키맵과 화면 레벨 리스너 양쪽에 걸리면 같은 base_hash 로 저장이
+    // 두 번 나가 두 번째가 가짜 충돌 배너를 띄운다 (회귀 방지).
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    await findByText(t("code.dirty"));
+    const btn = await findByTestId("dosave");
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await findByText(t("code.savedState"));
+    expect(fx.writeCalls).toHaveLength(1);
+  });
+
   it("shows the conflict banner when the save reports a stale disk", async () => {
     fx.writeResult = { kind: "conflict", disk_hash: "other" };
     const { findByText, findByTestId } = render(wrap(screenEl()));

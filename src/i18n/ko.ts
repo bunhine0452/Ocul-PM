@@ -1249,6 +1249,8 @@ export const ko = {
   "code.openInCode": "코드 화면에서 열기",
   "code.save": "저장",
   "code.saveFailed": "저장하지 못했습니다: {error}",
+  "code.bufferEvicted": "미저장 파일이 너무 많아 가장 오래된 편집을 내려놨습니다: {path}",
+  "code.fileGone": "열려 있는 파일이 디스크에서 삭제되거나 이동됐습니다: {path}",
   "code.dirty": "수정됨",
   "code.savedState": "저장됨",
   "code.conflict.title": "디스크에서 파일이 바뀌었습니다",
