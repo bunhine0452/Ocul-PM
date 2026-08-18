@@ -54,7 +54,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.1 — Korean text no longer typed twice in the terminal
+## 🚀 v2.13.2 — Korean input and save-path rough edges
+
+- **Space mid-composition** — typing Korean quickly and hitting space repeated the previous letter and swallowed the space (`안뜨` → `안뜨뜬`). The IME's "rewrite that letter" signal arrives up to 0.24s after the keystroke; the space went out first, and the late rewrite deleted that space instead of the composing letter. During composition every keystroke now leaves through a single ordered path.
+- **Cursor keys** — moving the caret with arrows / Home / End / Esc mid-Korean no longer lets the next letter erase the wrong character.
+- **Code screen saves** — CRLF files no longer get rewritten to LF on save; a symlink inside the project can no longer open a file outside it; one ⌘S no longer fires two saves (and a bogus "conflict" banner); silently dropped unsaved edits and externally deleted open files now warn.
+- **Diff badge** — content lines starting with `---` / `+++` (front-matter rules, for instance) were mistaken for file headers, making the `+N −M` badge vanish entirely.
+
+## v2.13.1 — Korean text no longer typed twice in the terminal
 
 - **Backspace mid-composition** — writing a long Korean prompt to Claude Code in the terminal and hitting backspace left the deleted letter on screen: `차` became `ㅊ차`, and two backspaces turned `호` into `하ㅎ호`. In a Korean IME, a backspace during composition is not a delete key — it steps the syllable back one stage. The app read that as "input finished" and dropped the composition state, so the next completed letter landed beside the old one instead of replacing it. The two cases are now told apart.
 
