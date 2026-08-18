@@ -13,6 +13,16 @@ import { attachImeBridge } from "@/features/terminal/imeBridge";
 
 const NBSP = " ";
 
+/** readline/ZLE 의 backward-delete-char — 브리지가 조합 교체분 앞에 붙인다. */
+const DEL = "\u007f";
+
+/** 브리지가 보낸 순서대로 DEL 을 적용해, 받는 쪽 입력줄에 남는 문자열을 얻는다. */
+function applyDel(sent: string[]): string {
+  let line = "";
+  for (const ch of sent.join("")) line = ch === DEL ? line.slice(0, -1) : line + ch;
+  return line;
+}
+
 interface Harness {
   /** 브리지가 PTY 로 보낸 문자열 (= term.input 인자). */
   sent: string[];
@@ -154,5 +164,50 @@ describe("imeBridge", () => {
     expect(fireKeydown(h, { key: "v", keyCode: 86, metaKey: true })).toBe(true);
     fireInput(h, "v"); // 붙여넣기 등으로 올라온 'v' 는 에코가 아니라 실제 입력
     expect(h.sent).toEqual(["v"]);
+  });
+
+  // ── 조합 중 Backspace (2026-08-18) ────────────────────────────────────────
+  // 한글 입력기에서 조합 중에 누른 Backspace 는 "글자를 지우는" 키가 아니라
+  // 음절을 한 단계 분해하는 IME 동작이라 keyCode 229 로 온다 (트레이스 확인:
+  // `keydown Backspace keyCode=229 imeKey=true`). 분해 결과는 바로 앞 input 이
+  // 이미 syncEcho 로 맞춰 놓은 뒤라, 여기서 부기를 비우면 IME 는 아직 같은
+  // 조합을 붙들고 있는데 우리 기준만 "" 이 된다. 그러면 다음 교체분이 DEL 없이
+  // 통째로 나가 앞 글자가 화면에 그대로 남는다 — 한글이 두 번 찍히던 원인.
+  test("조합 중 Backspace(229) 뒤에도 교체분은 DEL 을 달고 나간다", () => {
+    fireInput(h, "ㅊ");
+    fireKeydown(h, { key: "ㅊ", keyCode: 229 });
+    fireInput(h, "치", "insertReplacementText");
+    fireKeydown(h, { key: "ㅣ", keyCode: 229 });
+
+    fireInput(h, "ㅊ", "insertReplacementText"); // 치 → ㅊ 분해
+    expect(fireKeydown(h, { key: "Backspace", keyCode: 229 })).toBe(false);
+    expect(h.textarea.value).toBe("ㅊ"); // 조합이 살아 있으므로 버퍼를 비우지 않는다
+
+    fireInput(h, "차", "insertReplacementText");
+    expect(h.sent[h.sent.length - 1]).toBe(`${DEL}차`); // DEL 없이 "차" 만 나가면 화면은 "ㅊ차"
+  });
+
+  test("조합 중 Backspace 를 두 번 눌러도 앞 글자가 남지 않는다", () => {
+    fireInput(h, "ㅎ");
+    fireKeydown(h, { key: "ㅎ", keyCode: 229 });
+    fireInput(h, "하", "insertReplacementText");
+    fireKeydown(h, { key: "ㅏ", keyCode: 229 });
+    fireInput(h, "한", "insertReplacementText");
+    fireKeydown(h, { key: "ㄴ", keyCode: 229 });
+
+    fireInput(h, "하", "insertReplacementText"); // 한 → 하
+    fireKeydown(h, { key: "Backspace", keyCode: 229 });
+    fireInput(h, "ㅎ", "insertReplacementText"); // 하 → ㅎ
+    fireKeydown(h, { key: "Backspace", keyCode: 229 });
+
+    fireInput(h, "호", "insertReplacementText");
+    // 셸이 받은 순서대로 DEL 을 적용하면 정확히 "호" 하나만 남아야 한다.
+    expect(applyDel(h.sent)).toBe("호");
+  });
+
+  test("조합이 아닌 Backspace(8) 는 여전히 부기를 리셋한다", () => {
+    fireInput(h, "가");
+    expect(fireKeydown(h, { key: "Backspace", keyCode: 8 })).toBe(true);
+    expect(h.textarea.value).toBe(""); // xterm 이 DEL 을 보내 셸에서 지운다
   });
 });

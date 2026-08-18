@@ -202,8 +202,16 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       // Backspace·Delete 는 xterm 이 셸에 지우라고 보내는데 textarea 는 그대로라,
       // 세션을 끊지 않으면 부기가 어긋난 채 계속 자란다(트레이스에서 30자 넘게
       // 누적된 채 남아 있었다). 다음 조합은 빈 상태에서 새로 시작하게 한다.
+      //
+      // 단 **조합 중인 Backspace 는 예외**다 (2026-08-18). 한글 입력기에서
+      // 조합 중에 누른 Backspace 는 "글자를 지우는" 키가 아니라 음절을 한 단계
+      // 분해하는 IME 동작이라 keyCode 229 로 온다 — 게다가 바로 앞 input 이
+      // 분해 결과(`치`→`ㅊ`)를 이미 syncEcho 로 맞춰 놓은 뒤다. 여기서 부기를
+      // 비우면 IME 는 아직 같은 조합을 붙들고 있는데 우리 기준만 "" 이 돼,
+      // 다음 교체분(`차`)이 DEL 없이 통째로 다시 나간다 → 화면에 `ㅊ차`.
+      // 한글 문장을 길게 치며 오타를 지울 때마다 글자가 두 번 남던 원인이다.
       if (event.key === "Enter" || event.key === "Tab") endSession();
-      else if (event.key === "Backspace" || event.key === "Delete") endSession();
+      else if ((event.key === "Backspace" || event.key === "Delete") && !imeKey) endSession();
 
       // 조합 중인 키만 xterm 에서 걷어낸다. 조합 이벤트를 쏘지 않는 웹뷰라
       // keyCode 229 가 유일하게 믿을 수 있는 신호다 (트레이스의 input→keydown

@@ -54,7 +54,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.0 — the new Code screen: open and edit code right inside the app
+## 🚀 v2.13.1 — Korean text no longer typed twice in the terminal
+
+- **Backspace mid-composition** — writing a long Korean prompt to Claude Code in the terminal and hitting backspace left the deleted letter on screen: `차` became `ㅊ차`, and two backspaces turned `호` into `하ㅎ호`. In a Korean IME, a backspace during composition is not a delete key — it steps the syllable back one stage. The app read that as "input finished" and dropped the composition state, so the next completed letter landed beside the old one instead of replacing it. The two cases are now told apart.
+
+## v2.13.0 — the new Code screen: open and edit code right inside the app
 
 - **An in-app code editor** — open any file from a filterable tree, edit with syntax highlighting (12 languages), save with ⌘S. Search results and the code map grow an "Open in the Code screen" button that jumps to the exact line.
 - **Safe to share files with your agents** — if the disk changed while you were editing, saving never overwrites: a banner asks which version to keep. If an agent touches a file you have open, a clean buffer silently refreshes; a dirty one gets the same banner.
