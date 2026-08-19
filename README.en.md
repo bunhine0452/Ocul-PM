@@ -54,7 +54,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.2 — Korean input and save-path rough edges
+## 🚀 v2.13.3 — the previous syllable reappearing after a space
+
+- **Stale composition after commit** — typing `안녕` then space produced `안녕 녕`. Space commits the composition and the app clears its input buffer; if the IME is still holding that syllable, it re-inserts it into the now-empty buffer, and the app mistook it for fresh input. Late input with nothing to replace is now recognised as a leftover and dropped. The cause is the **opposite** of the previous version's space fix (too early vs. too late), which is why that one didn't catch it.
+- **Why release builds only** — dev builds are slowed by diagnostic logging and dev tooling, which kept this window closed. It is a timing-sensitive race, so only the fast build exposed it.
+
+## v2.13.2 — Korean input and save-path rough edges
 
 - **Space mid-composition** — typing Korean quickly and hitting space repeated the previous letter and swallowed the space (`안뜨` → `안뜨뜬`). The IME's "rewrite that letter" signal arrives up to 0.24s after the keystroke; the space went out first, and the late rewrite deleted that space instead of the composing letter. During composition every keystroke now leaves through a single ordered path.
 - **Cursor keys** — moving the caret with arrows / Home / End / Esc mid-Korean no longer lets the next letter erase the wrong character.
