@@ -30,7 +30,8 @@ use tauri::ipc::Channel;
 use tauri::Manager;
 
 use super::session::{
-    commands_of, config_of, failure_of, map_update, mode_of, permission_event, title_of,
+    commands_of, config_of, failure_of, file_change_report_of, map_update, mode_of,
+    permission_event, title_of,
     usage_of,
     AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
 };
@@ -537,6 +538,10 @@ pub async fn start(
                     if let Some(failure) = failure_of(&notification.update) {
                         state.emit(project_id, &from, failure);
                     }
+                    // 파일 변경 감사도 같은 봉투(`session_info_update`)로 온다.
+                    if let Some(report) = file_change_report_of(&notification.update) {
+                        state.emit(project_id, &from, report);
+                    }
                     state.emit(project_id, &from, map_update(&notification.update));
                     Ok(())
                 },
@@ -587,7 +592,15 @@ pub async fn start(
                 caps_meta.insert(
                     "jetbrains".to_string(),
                     serde_json::json!({
-                        "air": { "version": 1, "capabilities": ["sessionFailure"] }
+                        // `agentFileChangeReport` 는 0.70.0 신규 — 이번 턴에
+                        // 바꾼 파일을 에이전트가 직접 신고한다. 우리는 파일
+                        // 변경을 watcher·git 으로 추론해 왔는데, 이건 1차
+                        // 출처이고 자식 프로세스가 바꾼 것까지 포함한다.
+                        // 광고하지 않으면 어댑터가 감사 자체를 켜지 않는다.
+                        "air": {
+                            "version": 1,
+                            "capabilities": ["sessionFailure", "agentFileChangeReport"]
+                        }
                     }),
                 );
                 let init = cx

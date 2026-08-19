@@ -30,6 +30,10 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 - [x] PR-ACP3 — 툴콜 카드(tool_call/tool_call_update) + 권한 승인 인라인 카드(session/request_permission) {#acp3-tools}
 - [x] PR-ACP4 — configOptions 그대로 렌더(모드·모델 셀렉터) + 플랜 카드 + usage/cost·레이트리밋 배지 {#acp4-config}
 
+## 어댑터 추종 {#adapter-track}
+- [x] 어댑터 0.68.0 → 0.70.0 상향 (스파이크 재실행으로 session/update 불변 확인) {#acp-bump-070}
+- [x] 파일 변경 감사(agentFileChangeReport) 연동 — 능력 광고·requestId·파싱·교차 검증 표시 {#acp-file-change-audit}
+
 ## 기록 결합 {#record}
 - [ ] PR-ACP5 — 턴 종료 → 일지 초안, agent_id 분리(claude-code:acp)로 훅 브리지와 이중 기록 방지, usage_update 비용 텔레메트리 적재(#cost-telemetry 흡수) {#acp5-journal}
 
@@ -46,4 +50,6 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 | 2026-08-14T21:03:54+09:00 | #acp3-tools | claude-code | ☐→x | .oculpm/journal/20260814/Features_to_add/2103_feature_acp3-tool-calls-permission.md | 툴콜 카드 + 인라인 승인. spawn 으로 dispatch 루프 해제, 미결 요청은 항상 취소로 닫힘 |
 | 2026-08-14T21:24:42+09:00 | #acp4-config | claude-code | ☐→x | .oculpm/journal/20260814/Features_to_add/2124_feature_acp4-auto-start-config-options.md | configOptions 5종 셀렉터 + usage 배지 + 자동 시작. 세션 생성을 acp_start 로 당김. 플랜 카드는 미구현 |
 | 2026-08-16T03:44:14+09:00 | #acp1-pkg | claude-code | ☐→x | .oculpm/journal/20260816/Chores/0344_chore_v2-11-release-verify-and-promo-kit.md | v2.11.0 릴리스 아티팩트를 /Applications 교체 후 LaunchServices(open -a) 실행 — 어댑터 스폰·세션·스트리밍 전부 동작, 빈약 PATH 조건 실증 |
+| 2026-08-19T09:43:00+09:00 | #acp-bump-070 | claude-code | ☐→x | .oculpm/journal/20260819/Features_to_add/0942_feature_acp-file-change-audit.md | 스파이크 재실행 — session/update 불변. 번들 Claude Code 는 그대로(sdk 0.3.232) |
+| 2026-08-19T09:43:05+09:00 | #acp-file-change-audit | claude-code | ☐→x | .oculpm/journal/20260819/Features_to_add/0942_feature_acp-file-change-audit.md | 신규 스파이크 3으로 계약 실측. 추론 영수증과 어긋날 때만 표시 |
 <!-- oculpm:plan-log end -->

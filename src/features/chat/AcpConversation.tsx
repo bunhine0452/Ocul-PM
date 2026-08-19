@@ -53,6 +53,7 @@ import {
   insertNotice,
   openTurn,
   turnReceipt,
+  fileChangeDiscrepancy,
   type AcpBlock,
   type AcpPlanEntry,
   type AcpToolCall,
@@ -2152,6 +2153,8 @@ const TurnRow = memo(function TurnRow({
     turn.blocks ?? (turn.text ? [{ kind: "text", text: turn.text }] : []);
 
   const receipt = turnReceipt(turn);
+  // 에이전트가 신고한 파일 변경이 추론 영수증과 어긋날 때만 한 줄 더 붙인다.
+  const discrepancy = fileChangeDiscrepancy(turn);
 
   return (
     <div className={"msg assistant" + (live ? " streaming" : "")}>
@@ -2226,6 +2229,26 @@ const TurnRow = memo(function TurnRow({
           ]
             .filter(Boolean)
             .join(" · ")}
+        </div>
+      ) : null}
+      {/* 에이전트가 직접 신고한 파일 변경 — 도구 흔적으로 센 영수증과 다를
+          때만 나온다. 같은 수를 두 번 적으면 소음이라, 어긋남 자체가 정보다.
+          (명령이나 자식 프로세스가 바꾼 파일은 편집 도구 호출로 안 잡힌다.) */}
+      {discrepancy ? (
+        <div className="turn-receipt turn-receipt-audit" title={t("acp.audit.why")}>
+          {discrepancy.kind === "extra"
+            ? t("acp.audit.extra", {
+                declared: discrepancy.declared,
+                inferred: discrepancy.inferred,
+              })
+            : discrepancy.kind === "partial"
+              ? discrepancy.uncertainty
+                ? t("acp.audit.partialWhy", {
+                    n: discrepancy.declared,
+                    why: discrepancy.uncertainty,
+                  })
+                : t("acp.audit.partial", { n: discrepancy.declared })
+              : t("acp.audit.missing", { reason: discrepancy.reason })}
         </div>
       ) : null}
       {blocks.length === 0 ? (

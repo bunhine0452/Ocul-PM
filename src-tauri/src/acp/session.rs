@@ -111,6 +111,33 @@ pub enum AcpEvent {
     /// 보내고, 클라이언트는 통째로 갈아 끼운다"고 못 박는다. 그래서 합치지 않고
     /// 받은 것으로 대체한다.
     Plan { entries: Vec<AcpPlanEntry> },
+    /// 이번 턴에 에이전트가 **자기 입으로 신고한** 파일 변경 목록
+    /// (어댑터 0.70.0 의 `agentFileChangeReport`).
+    ///
+    /// watcher·git diff 로 *추론*하는 것과 출처가 다르다: 턴이 끝나기 직전
+    /// 어댑터가 숨은 continuation 으로 "이번 턴에 바꾼 워크스페이스 파일을
+    /// 전부 신고하라"를 시키고, 그 답이 이 이벤트다. 명령·제너레이터·자식
+    /// 프로세스가 바꾼 것까지 포함하라고 지시하므로 watcher 가 놓치거나 다른
+    /// 창의 작업과 뒤섞이던 것을 교차 검증할 수 있다.
+    ///
+    /// **믿되 검증한다** — 모델이 적어 주는 목록이라 틀릴 수 있다. 그래서
+    /// `complete`/`uncertainty` 를 그대로 실어 보낸다(모델이 스스로 "불완전할
+    /// 수 있다"고 말한 것을 우리가 숨기면 안 된다).
+    FileChangeReport {
+        /// 우리가 프롬프트에 실어 보낸 요청 표 — 어느 턴의 보고인지 잇는다.
+        request_id: String,
+        /// 바뀐 파일들의 절대경로. `status != "reported"` 면 빈 목록이다.
+        paths: Vec<String>,
+        /// 모델이 "이게 전부다"라고 선언했는가.
+        complete: bool,
+        /// 어댑터가 한도(1024개·256KB)로 잘랐는가.
+        truncated: bool,
+        /// 모델이 적어 준 불확실성 사유.
+        uncertainty: Option<String>,
+        /// 보고를 못 받은 사유 — `cancelled`·`timeout`·`invalidOutput`·
+        /// `notReported`·`providerError`. 받았으면 `None`.
+        unavailable: Option<String>,
+    },
     /// 아직 UI 가 없는 업데이트 — 종류만 알려 준다.
     /// (필드 이름이 `kind` 가 아닌 건 내부 태그와 충돌하기 때문이다.)
     Other { update: String },
@@ -399,6 +426,80 @@ pub fn failure_of(update: &SessionUpdate) -> Option<AcpEvent> {
         severity: text("severity").unwrap_or_else(|| "error".to_string()),
         title: text("title")?,
         details: text("details"),
+    })
+}
+
+/// `session_info_update` 에 실려 오는 **파일 변경 감사 보고**
+/// (어댑터 0.70.0, `_meta.jetbrains.air.agentFileChangeReport`).
+///
+/// `sessionFailure` 와 같은 봉투·같은 확장 네임스페이스다. `initialize` 에서
+/// 능력을 광고하고 프롬프트에 requestId 를 실은 클라이언트에게만 온다.
+///
+/// 실측 페이로드(스파이크 3):
+/// ```json
+/// {"version":1,"requestId":"…","status":"reported",
+///  "paths":["/abs/path"],"declaredComplete":true,"truncated":false}
+/// ```
+pub fn file_change_report_of(update: &SessionUpdate) -> Option<AcpEvent> {
+    let SessionUpdate::SessionInfoUpdate(info) = update else {
+        return None;
+    };
+    let record = serde_json::to_value(info.meta.as_ref()?)
+        .ok()?
+        .get("jetbrains")?
+        .get("air")?
+        .get("agentFileChangeReport")?
+        .clone();
+
+    // requestId 가 없으면 어느 턴의 보고인지 이을 수 없다 — 버린다.
+    let request_id = record.get("requestId")?.as_str()?.to_string();
+    let status = record.get("status").and_then(|v| v.as_str()).unwrap_or("");
+
+    // 못 받은 경우도 **이벤트로 남긴다**. 조용히 삼키면 "보고가 없다"와
+    // "보고를 못 받았다"를 구분할 수 없고, 그 둘은 의미가 다르다.
+    if status != "reported" {
+        return Some(AcpEvent::FileChangeReport {
+            request_id,
+            paths: Vec::new(),
+            complete: false,
+            truncated: false,
+            uncertainty: None,
+            unavailable: Some(
+                record
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("providerError")
+                    .to_string(),
+            ),
+        });
+    }
+
+    let paths = record
+        .get("paths")
+        .and_then(|v| v.as_array())
+        .map(|list| {
+            list.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Some(AcpEvent::FileChangeReport {
+        request_id,
+        paths,
+        complete: record
+            .get("declaredComplete")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+        truncated: record
+            .get("truncated")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+        uncertainty: record
+            .get("uncertainty")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        unavailable: None,
     })
 }
 
@@ -825,6 +926,117 @@ mod tests {
 
     fn text_chunk(body: &str) -> ContentChunk {
         ContentChunk::new(ContentBlock::Text(TextContent::new(body.to_string())))
+    }
+
+    /// 어댑터가 보내는 `session_info_update` 봉투를 그대로 만든다.
+    fn info_update(air: serde_json::Value) -> SessionUpdate {
+        let mut meta = serde_json::Map::new();
+        meta.insert("jetbrains".to_string(), serde_json::json!({ "air": air }));
+        SessionUpdate::SessionInfoUpdate(
+            agent_client_protocol::schema::v1::SessionInfoUpdate::new().meta(meta),
+        )
+    }
+
+    // ── 파일 변경 감사 (어댑터 0.70.0) ─────────────────────────────────────
+    // 페이로드는 스파이크 3(docs/acp-panel/spike/acp_file_change_audit_spike.py)
+    // 에서 실제 어댑터로 관측한 것을 그대로 쓴다.
+
+    #[test]
+    fn file_change_report_carries_paths_and_completeness() {
+        let event = file_change_report_of(&info_update(serde_json::json!({
+            "agentFileChangeReport": {
+                "version": 1,
+                "requestId": "req-1",
+                "status": "reported",
+                "paths": ["/tmp/a.txt", "/tmp/b.rs"],
+                "declaredComplete": true,
+                "truncated": false
+            }
+        })));
+        assert_eq!(
+            event,
+            Some(AcpEvent::FileChangeReport {
+                request_id: "req-1".to_string(),
+                paths: vec!["/tmp/a.txt".to_string(), "/tmp/b.rs".to_string()],
+                complete: true,
+                truncated: false,
+                uncertainty: None,
+                unavailable: None,
+            })
+        );
+    }
+
+    #[test]
+    fn file_change_report_keeps_the_models_own_uncertainty() {
+        // 모델이 "불완전할 수 있다"고 말한 것을 숨기면 일지가 거짓말을 한다.
+        let event = file_change_report_of(&info_update(serde_json::json!({
+            "agentFileChangeReport": {
+                "version": 1,
+                "requestId": "req-2",
+                "status": "reported",
+                "paths": ["/tmp/a.txt"],
+                "declaredComplete": false,
+                "truncated": true,
+                "uncertainty": "빌드 스크립트가 만든 파일은 확인하지 못했습니다"
+            }
+        })));
+        let Some(AcpEvent::FileChangeReport {
+            complete,
+            truncated,
+            uncertainty,
+            ..
+        }) = event
+        else {
+            panic!("보고가 아니다: {event:?}");
+        };
+        assert!(!complete);
+        assert!(truncated);
+        assert_eq!(
+            uncertainty.as_deref(),
+            Some("빌드 스크립트가 만든 파일은 확인하지 못했습니다")
+        );
+    }
+
+    #[test]
+    fn file_change_report_surfaces_unavailable_reason() {
+        // "보고가 없다"와 "보고를 못 받았다"는 다르다 — 후자도 이벤트로 남긴다.
+        let event = file_change_report_of(&info_update(serde_json::json!({
+            "agentFileChangeReport": {
+                "version": 1,
+                "requestId": "req-3",
+                "status": "unavailable",
+                "reason": "timeout"
+            }
+        })));
+        assert_eq!(
+            event,
+            Some(AcpEvent::FileChangeReport {
+                request_id: "req-3".to_string(),
+                paths: Vec::new(),
+                complete: false,
+                truncated: false,
+                uncertainty: None,
+                unavailable: Some("timeout".to_string()),
+            })
+        );
+    }
+
+    #[test]
+    fn file_change_report_ignores_other_air_extensions() {
+        // 같은 봉투로 오는 sessionFailure 를 파일 변경으로 오인하면 안 된다.
+        assert_eq!(
+            file_change_report_of(&info_update(serde_json::json!({
+                "sessionFailure": { "id": "f1", "title": "한도 초과" }
+            }))),
+            None
+        );
+        // requestId 가 없으면 어느 턴인지 이을 수 없어 버린다.
+        assert_eq!(
+            file_change_report_of(&info_update(serde_json::json!({
+                "agentFileChangeReport": { "version": 1, "status": "reported", "paths": [] }
+            }))),
+            None
+        );
     }
 
     #[test]

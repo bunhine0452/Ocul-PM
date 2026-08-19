@@ -16,7 +16,14 @@ pub const PKG_NAME: &str = "claude-agent-acp";
 
 /// 고정 버전. 올릴 때는 스파이크(docs/acp-panel/spike/acp_spike.py)를 다시 돌려
 /// `session/update` 종류가 늘거나 바뀌지 않았는지 확인한다.
-pub const PINNED_VERSION: &str = "0.68.0";
+///
+/// 0.68.0 → 0.70.0 (2026-08-19): `session/update` 종류는 그대로고, 신규는
+/// **파일 변경 감사**(`agentFileChangeReport`) 하나다 — 턴이 끝나기 직전
+/// 어댑터의 Stop 훅이 숨은 continuation 으로 "이번 턴에 바꾼 파일을 전부
+/// 신고하라"를 시키고, 그 결과가 `session_info_update` 의 `_meta` 로 온다
+/// (`super::session::file_change_report_of`). 번들되는 Claude Code 는
+/// 그대로다 — 세 버전 모두 `claude-agent-sdk@0.3.232`.
+pub const PINNED_VERSION: &str = "0.70.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
 const INSTALL_SUBDIR: &str = "acp";

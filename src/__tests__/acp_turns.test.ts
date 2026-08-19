@@ -6,6 +6,7 @@ import {
   insertNotice,
   openTurn,
   turnReceipt,
+  fileChangeDiscrepancy,
   type AcpTurn,
 } from "@/features/chat/acpTurns";
 
@@ -585,5 +586,101 @@ describe("turnReceipt", () => {
     turns = applyAcpEvent(turns, bash("b1"));
     turns = applyAcpEvent(turns, done, false, 31_000);
     expect(turnReceipt(turns[1])?.seconds).toBe(30);
+  });
+});
+
+// ── 파일 변경 감사 (어댑터 0.70.0) ──────────────────────────────────────────
+// 에이전트가 턴 끝에 직접 신고하는 목록. 도구 흔적으로 센 영수증과 출처가
+// 달라서, 어긋날 때가 정보다.
+
+const report = (over: Partial<Extract<AcpEvent, { kind: "file_change_report" }>> = {}): AcpEvent => ({
+  kind: "file_change_report",
+  request_id: "req-1",
+  paths: ["/w/a.ts"],
+  complete: true,
+  truncated: false,
+  uncertainty: null,
+  unavailable: null,
+  ...over,
+});
+
+describe("file change audit", () => {
+  it("attaches to the last agent turn even after it closed", () => {
+    // 어댑터는 Stop 훅에서 보고를 만들어 done 과 순서가 뒤집힐 수 있다.
+    let turns = openTurn([], "fix it");
+    turns = applyAcpEvent(turns, chunk("done"));
+    turns = applyAcpEvent(turns, done, false, 1000);
+    expect(turns[turns.length - 1].closed).toBe(true);
+
+    turns = applyAcpEvent(turns, report({ paths: ["/w/a.ts", "/w/b.ts"] }));
+
+    expect(turns[turns.length - 1].fileChanges?.paths).toEqual(["/w/a.ts", "/w/b.ts"]);
+  });
+
+  it("stays silent when the report agrees with the inferred receipt", () => {
+    // 같은 수를 두 번 적으면 정보가 아니라 소음이다.
+    const turn: AcpTurn = {
+      role: "agent",
+      text: "",
+      closed: true,
+      tools: [{ id: "1", title: "Edit", kind: "edit", status: "completed", locations: ["/w/a.ts"] }],
+      fileChanges: { requestId: "r", paths: ["/w/a.ts"], complete: true, truncated: false },
+    };
+    expect(fileChangeDiscrepancy(turn)).toBeNull();
+  });
+
+  it("flags files the tool trace never showed", () => {
+    // 명령·자식 프로세스가 바꾼 파일은 편집 도구 호출로 안 잡힌다 — 이게 핵심 가치다.
+    const turn: AcpTurn = {
+      role: "agent",
+      text: "",
+      closed: true,
+      tools: [{ id: "1", title: "Bash", kind: "execute", status: "completed", locations: [] }],
+      fileChanges: {
+        requestId: "r",
+        paths: ["/w/gen.ts", "/w/gen.d.ts"],
+        complete: true,
+        truncated: false,
+      },
+    };
+    expect(fileChangeDiscrepancy(turn)).toEqual({ kind: "extra", declared: 2, inferred: 0 });
+  });
+
+  it("surfaces the agent's own uncertainty rather than hiding it", () => {
+    const turn: AcpTurn = {
+      role: "agent",
+      text: "",
+      closed: true,
+      fileChanges: {
+        requestId: "r",
+        paths: ["/w/a.ts"],
+        complete: false,
+        truncated: false,
+        uncertainty: "could not verify files created by the build",
+      },
+    };
+    expect(fileChangeDiscrepancy(turn)).toEqual({
+      kind: "partial",
+      declared: 1,
+      uncertainty: "could not verify files created by the build",
+    });
+  });
+
+  it("distinguishes no report from a report that never arrived", () => {
+    expect(fileChangeDiscrepancy({ role: "agent", text: "", closed: true })).toBeNull();
+    expect(
+      fileChangeDiscrepancy({
+        role: "agent",
+        text: "",
+        closed: true,
+        fileChanges: {
+          requestId: "r",
+          paths: [],
+          complete: false,
+          truncated: false,
+          unavailable: "timeout",
+        },
+      }),
+    ).toEqual({ kind: "missing", reason: "timeout" });
   });
 });

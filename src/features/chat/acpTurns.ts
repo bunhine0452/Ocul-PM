@@ -61,6 +61,29 @@ export type AcpBlock =
    */
   | { kind: "failure"; id: string; category: string; severity: string; title: string; details?: string };
 
+/**
+ * 이번 턴에 에이전트가 **자기 입으로 신고한** 파일 변경 (어댑터 0.70.0).
+ *
+ * 영수증의 "손댄 파일"과 출처가 다르다: 그쪽은 편집 도구 호출의 경로를
+ * 세어 **추론**한 것이고, 이쪽은 턴이 끝나기 직전 에이전트가 직접 적어 낸
+ * 목록이라 **명령·제너레이터·자식 프로세스가 바꾼 것까지** 들어간다.
+ * 그래서 둘이 어긋나면 그 자체가 신호다.
+ */
+export interface AcpFileChanges {
+  /** 우리가 프롬프트에 실어 보낸 요청 표. */
+  requestId: string;
+  /** 바뀐 파일들의 절대경로. */
+  paths: string[];
+  /** 에이전트가 "이게 전부다"라고 선언했는가. */
+  complete: boolean;
+  /** 어댑터 한도(1024개·256KB)에 걸려 잘렸는가. */
+  truncated: boolean;
+  /** 에이전트가 적어 준 불확실성 사유. */
+  uncertainty?: string;
+  /** 보고를 못 받은 사유 (`timeout`·`notReported` …). 받았으면 없다. */
+  unavailable?: string;
+}
+
 export interface AcpTurn {
   /**
    * `notice` 는 대화가 아니라 **대화에 일어난 일**이다 (모델 교체 같은).
@@ -82,6 +105,13 @@ export interface AcpTurn {
    * 갱신될 때마다 화면에 여러 벌 쌓인다.
    */
   plan?: AcpPlanEntry[];
+  /**
+   * 에이전트가 신고한 이번 턴의 파일 변경.
+   *
+   * 조각이 아니라 턴에 하나만 둔다 — 턴 전체를 요약하는 값이고, 어댑터가
+   * 턴이 끝나는 순간에 한 번만 만든다.
+   */
+  fileChanges?: AcpFileChanges;
   /** 이 발화에 딸려 보낸 파일 경로 (사용자 턴에서만). */
   attachments?: string[];
   /** 이 발화에 딸려 보낸 이미지 (사용자 턴에서만). */
@@ -113,6 +143,45 @@ export interface TurnReceipt {
   commands: number;
   /** 걸린 시간(초). 시각이 없으면(재생) `null`. */
   seconds: number | null;
+}
+
+/** 마지막 에이전트 턴의 인덱스 (닫혔어도 센다). 없으면 -1. */
+function lastAgentIndex(turns: readonly AcpTurn[]): number {
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    if (turns[i].role === "agent") return i;
+  }
+  return -1;
+}
+
+/**
+ * 신고 목록과 추론 영수증이 **어긋나는가**.
+ *
+ * 일치하면 아무것도 돌려주지 않는다 — 같은 수를 두 번 적으면 정보가 아니라
+ * 소음이다. 드러낼 값어치가 있는 건 세 가지뿐이다:
+ *   - `extra`   도구 흔적보다 더 많이 신고했다 (명령·자식 프로세스가 바꾼 것)
+ *   - `partial` 에이전트가 스스로 "전부가 아니다"라고 했거나 목록이 잘렸다
+ *   - `missing` 보고를 아예 못 받았다
+ */
+export type FileChangeDiscrepancy =
+  | { kind: "extra"; declared: number; inferred: number }
+  | { kind: "partial"; declared: number; uncertainty?: string }
+  | { kind: "missing"; reason: string };
+
+export function fileChangeDiscrepancy(turn: AcpTurn): FileChangeDiscrepancy | null {
+  const report = turn.fileChanges;
+  if (!report) return null;
+  if (report.unavailable) return { kind: "missing", reason: report.unavailable };
+  if (!report.complete || report.truncated) {
+    return {
+      kind: "partial",
+      declared: report.paths.length,
+      ...(report.uncertainty ? { uncertainty: report.uncertainty } : {}),
+    };
+  }
+  const inferred = turnReceipt(turn)?.files ?? 0;
+  return report.paths.length > inferred
+    ? { kind: "extra", declared: report.paths.length, inferred }
+    : null;
 }
 
 /** 파일을 실제로 바꾸는 도구 종류 — 읽기·검색은 "손댄 파일"이 아니다. */
@@ -197,6 +266,28 @@ export function applyAcpEvent(
       return merged;
     }
     return [...turns, { role: "user", text: event.text }];
+  }
+
+  // 파일 변경 감사는 **턴이 닫힌 뒤에 올 수 있다** — 어댑터가 Stop 훅에서
+  // 만들기 때문에 `done` 과 순서가 뒤집힐 수 있다(어댑터 소스: 보고 도구와
+  // Stop 훅과 취소가 경합한다). 아래 closed 검사에 걸려 버려지면 안 되므로
+  // 여기서 먼저, 마지막 에이전트 턴에 붙인다.
+  if (event.kind === "file_change_report") {
+    const at = lastAgentIndex(turns);
+    if (at < 0) return [...turns];
+    const merged = [...turns];
+    merged[at] = {
+      ...turns[at],
+      fileChanges: {
+        requestId: event.request_id,
+        paths: event.paths,
+        complete: event.complete,
+        truncated: event.truncated,
+        ...(event.uncertainty ? { uncertainty: event.uncertainty } : {}),
+        ...(event.unavailable ? { unavailable: event.unavailable } : {}),
+      },
+    };
+    return merged;
   }
 
   const handled =

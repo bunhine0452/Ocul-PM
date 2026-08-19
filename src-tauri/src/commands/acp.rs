@@ -275,8 +275,30 @@ pub async fn acp_prompt(
         }
     }
 
+    // 이번 턴의 **파일 변경 감사**를 요청한다 (어댑터 0.70.0).
+    //
+    // 이걸 실어야 어댑터가 턴 끝에 숨은 continuation 을 넣어 "이번 턴에 바꾼
+    // 워크스페이스 파일을 전부 신고하라"를 시키고, 그 답이
+    // `session_info_update` 로 돌아온다(`acp::session::file_change_report_of`).
+    // 키는 정확히 `version`·`requestId` 둘뿐이어야 하고 requestId 는
+    // `[A-Za-z0-9._:-]{1,128}` 이어야 한다 — 어댑터가 그렇게 검사한다(실측).
+    // 세션 안에서 같은 requestId 를 두 번 쓰면 두 번째는 무시되므로 매 턴 새로 만든다.
+    //
+    // `/usage` 같은 내부 프롬프트에는 일부러 붙이지 않는다 — 파일을 바꿀 일이
+    // 없는데 숨은 턴만 한 번 더 도는 비용이다.
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let mut prompt_meta = serde_json::Map::new();
+    prompt_meta.insert(
+        "jetbrains".to_string(),
+        serde_json::json!({
+            "air": {
+                "agentFileChangeReportRequest": { "version": 1, "requestId": request_id }
+            }
+        }),
+    );
+
     let outcome = connection
-        .send_request(PromptRequest::new(session.clone(), blocks))
+        .send_request(PromptRequest::new(session.clone(), blocks).meta(prompt_meta))
         .block_task()
         .await;
 

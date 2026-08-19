@@ -352,6 +352,8 @@ fn kind_of(event: &ocul_pm_lib::acp::session::AcpEvent) -> &'static str {
         // 비망라라서 컴파일이 깨지는 것이 새 이벤트를 놓치지 않게 하는 장치다.
         E::Failure { .. } => "failure",
         E::Plan { .. } => "plan",
+        // 어댑터 0.70.0 의 파일 변경 감사.
+        E::FileChangeReport { .. } => "file_change_report",
     }
 }
 
