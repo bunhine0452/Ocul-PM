@@ -108,6 +108,26 @@ const SESSION_END_KEYS = new Set([
 // 부기가 아니라 **소유권**이다 — 조합이 열려 있는 동안 PTY 로 나가는 바이트는
 // 전부 브리지의 한 경로(syncEcho)를 지나야 순서가 보장된다.
 
+// ── 2026-08-19(2): 스페이스 뒤 앞 음절이 다시 찍히던 문제 (프로덕션 전용) ──
+// 증상: "안녕" 뒤 스페이스 → "안녕 녕". dev 빌드에서는 재현되지 않고 **릴리스
+// 빌드에서만** 났다. 터미널 경로의 dev/prod 차이는 두 가지뿐인데(이벤트마다
+// IPC 로그를 하는 TRACE, dev 전용 React.StrictMode) 둘 다 dev 를 느리게 만든다
+// — 즉 빠른 쪽에서만 드러나는 **타이밍 경합**이다.
+//
+// 경로: 스페이스로 조합이 확정되면 꼬리가 조합 대상이 아니므로 endSession() 이
+// textarea 를 비운다. 그런데 입력기가 아직 확정분을 붙들고 있으면, 비워진
+// 버퍼에 **조합 잔여분을 다시 올린다**. 그때 우리 기준은 이미 "" 라 그 잔여분이
+// 새 입력으로 보여 DEL 없이 통째로 나간다 → 앞 음절이 스페이스 뒤에 재등장.
+//
+//   echoed="안녕" → 스페이스 → " " 전송 → endSession(textarea="")
+//   input "녕"(잔여분) → echoed="" 기준 → "녕" 전송 → "안녕 녕"
+//
+// 세션이 없는 상태(echoed === "")에서 올라온 **조합 잔여분은 되돌릴 대상이
+// 없으므로 정의상 stale** 이다 — 흘리지 않고 버린다.
+
+/** 확정 직후 잔여 조합으로 인정하는 시간 창. */
+const STALE_COMMIT_WINDOW_MS = 400;
+
 /** 개발 빌드에서만 이벤트 흐름을 남긴다 (`<app_data>/logs/oculpm.log.*`). */
 const TRACE = import.meta.env.DEV;
 
@@ -189,10 +209,32 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
    */
   let ownedKeydown: string | null = null;
 
+  /** 방금 확정해 셸로 내보낸 문자열과 그 시각 — 잔여 조합 판별용. */
+  let lastCommitted = "";
+  let lastCommittedAt = 0;
+
   /** 조합 세션을 끝낸다 — 버퍼를 비우고 다음 세션을 새로 시작하게 한다. */
   const endSession = () => {
     if (textarea) textarea.value = "";
     echoed = "";
+  };
+
+  /**
+   * 세션이 없는데(`echoed === ""`) 올라온 **입력기의 잔여 조합**인가.
+   * 되돌릴 기준이 없으므로 그대로 흘리면 앞 음절이 다시 찍힌다(위 주석).
+   *
+   * 두 가지로 가린다:
+   *   1. `insertReplacementText` — 교체할 대상이 없는 교체는 정의상 stale.
+   *   2. 방금 확정한 문자열의 **한글 꼬리**와 같은 값 — 예: "안녕 " 확정 직후의
+   *      "녕". 새 조합은 언제나 낱자("ㄴ")로 시작하므로 완성형 음절이 첫 input
+   *      으로 오는 일은 정상 타이핑에 없다.
+   */
+  const isStaleCommitEcho = (inputType: string, value: string): boolean => {
+    if (echoed !== "" || !value) return false;
+    if (Date.now() - lastCommittedAt > STALE_COMMIT_WINDOW_MS) return false;
+    if (!isComposable(value.slice(-1))) return false;
+    if (inputType === "insertReplacementText") return true;
+    return lastCommitted.trimEnd().endsWith(value);
   };
 
   /**
@@ -216,15 +258,25 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     // IME 는 공백을 NBSP 로 넣는다. 정규화한 값을 부기 기준으로 삼아야 셸에
     // NBSP 가 나가지 않고, xterm 이 보낸 ' ' 와 에코 대조도 성립한다.
     const value = (textarea?.value ?? "").replace(NBSP, " ");
-    trace("input", {
-      inputType: (event as InputEvent).inputType ?? "",
-      data: (event as InputEvent).data,
-      value,
-    });
+    const inputType = (event as InputEvent).inputType ?? "";
+    trace("input", { inputType, data: (event as InputEvent).data, value });
+
+    // 확정 직후 입력기가 비워진 버퍼에 다시 올린 잔여 조합 — 흘리면 앞 음절이
+    // 스페이스 뒤에 재등장한다. 버퍼만 다시 비우고 버린다.
+    if (isStaleCommitEcho(inputType, value)) {
+      trace("stale-commit-echo", { inputType, value });
+      endSession();
+      return;
+    }
+
     syncEcho(value);
     // 버퍼가 무한정 자라면 공통 접두사 비교가 길어지기만 한다. 조합이 끝나
     // 더 바뀔 일이 없는 상태(꼬리가 조합 대상이 아님)면 세션을 끊는다.
-    if (!value || !isComposable(value.slice(-1))) endSession();
+    if (!value || !isComposable(value.slice(-1))) {
+      lastCommitted = value;
+      lastCommittedAt = Date.now();
+      endSession();
+    }
   };
 
   // 조합 이벤트를 쏘는 엔진(Chromium 등)에서는 확정 문자열도 결국 textarea 에

@@ -310,6 +310,67 @@ describe("imeBridge", () => {
     expect(keypress).toBe(false); // xterm 이 ' ' 를 또 보내면 두 칸이 된다
   });
 
+  // ── 확정 직후 잔여 조합 (2026-08-19, 프로덕션 전용) ───────────────────────
+  // "안녕" 뒤 스페이스가 "안녕 녕" 이 되던 문제. 스페이스로 확정되면 endSession
+  // 이 textarea 를 비우는데, 입력기가 아직 확정분을 붙들고 있으면 비워진 버퍼에
+  // 조합 잔여분을 다시 올린다. 그때 우리 기준은 이미 "" 라 잔여분이 새 입력으로
+  // 보여 DEL 없이 통째로 나갔다. dev 는 TRACE·StrictMode 오버헤드로 느려 이
+  // 창이 닫혀 있었고, 빠른 릴리스 빌드에서만 드러났다.
+  const typeAnnyeong = () => {
+    fireInput(h, "\u3147");
+    fireKeydownThroughXterm(h, { key: "\u3147", keyCode: 229 });
+    fireInput(h, "\uc544", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "\u314f", keyCode: 229 });
+    fireInput(h, "\uc548", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "\u3134", keyCode: 229 });
+    fireInput(h, "\uc548\u3134");
+    fireKeydownThroughXterm(h, { key: "\u3134", keyCode: 229 });
+    fireInput(h, "\uc548\ub140", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "\u3155", keyCode: 229 });
+    fireInput(h, "\uc548\ub155", "insertReplacementText");
+    fireKeydownThroughXterm(h, { key: "\u3147", keyCode: 229 });
+  };
+
+  test("스페이스 확정 뒤 올라온 잔여 조합(교체)은 흘리지 않는다", () => {
+    typeAnnyeong();
+    expect(applyDel(h.stream)).toBe("\uc548\ub155");
+
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uc548\ub155${NBSP}`);
+    // 확정 직후, 비워진 버퍼에 입력기가 잔여분을 다시 올린다.
+    fireInput(h, "\ub155", "insertReplacementText");
+
+    expect(applyDel(h.stream)).toBe("\uc548\ub155 "); // "안녕 녕" 이면 회귀
+    expect(h.textarea.value).toBe(""); // 잔여분이 버퍼에 남아 다음 입력과 섞이면 안 된다
+  });
+
+  test("확정한 문자열의 한글 꼬리가 첫 input 으로 다시 와도 흘리지 않는다", () => {
+    typeAnnyeong();
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uc548\ub155${NBSP}`);
+    fireInput(h, "\ub155"); // insertText 로 오는 잔여분
+
+    expect(applyDel(h.stream)).toBe("\uc548\ub155 ");
+  });
+
+  test("확정 뒤 새로 시작하는 조합(낱자)은 정상 통과한다", () => {
+    typeAnnyeong();
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uc548\ub155${NBSP}`);
+    // 새 조합은 언제나 낱자로 시작한다 — 잔여분으로 오인하면 글자를 삼킨다.
+    fireInput(h, "\u3148");
+    expect(applyDel(h.stream)).toBe("\uc548\ub155 \u3148");
+  });
+
+  test("확정 뒤 영문/기호는 잔여 판정 대상이 아니다", () => {
+    fireInput(h, "\uac00");
+    fireKeydownThroughXterm(h, { key: "\u3131", keyCode: 229 });
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uac00${NBSP}`);
+    fireInput(h, "a"); // 한글이 아니므로 그대로 나가야 한다
+    expect(applyDel(h.stream)).toBe("\uac00 a");
+  });
+
   test("조합이 아닌 Escape 는 부기를 리셋한다 (vim 등에서 한글 입력 직후 Esc)", () => {
     fireInput(h, "가");
     expect(fireKeydown(h, { key: "Escape", keyCode: 27 })).toBe(true); // xterm 이 ESC 전송
