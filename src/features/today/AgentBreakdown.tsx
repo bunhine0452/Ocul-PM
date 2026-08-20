@@ -11,7 +11,7 @@ export function AgentBreakdown({ agents }: { agents: AgentContribution[] }) {
   const { t } = useT();
   const total = Math.max(1, agents.reduce((s, a) => s + a.count, 0));
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card">
       <div className="panel-head">
         <Bot size={16} color="var(--text-2)" />
         <h3>{t("today.agents.title")}</h3>

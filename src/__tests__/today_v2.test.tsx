@@ -319,3 +319,40 @@ describe("PR-R1 (A1) — Today 다음 할 일", () => {
     ).toBeTruthy();
   });
 });
+
+describe("Today 2단 균형 — 짧은 열 아래 빈 배경", () => {
+  // 오른쪽 열이 주간+에이전트+다음 할 일로 늘 길어 왼쪽 열 아래로 페이지
+  // 배경이 드러났다. 에이전트 카드를 "오늘" 묶음(왼쪽)으로 옮기고, 남는
+  // 높이는 각 열의 마지막 카드가 흡수한다(.grid-2-fill).
+  it("에이전트 카드가 왼쪽 열에, 주간/다음 할 일이 오른쪽 열에 놓인다", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
+    const { container, findByText } = renderToday();
+    await findByText(/1건/);
+
+    const grid = container.querySelector(".grid-2");
+    expect(grid?.classList.contains("grid-2-fill")).toBe(true);
+
+    const cols = Array.from(container.querySelectorAll(".g2col"));
+    expect(cols).toHaveLength(2);
+    const [left, right] = cols as HTMLElement[];
+
+    expect(left.textContent).toContain("오늘의 하이라이트");
+    expect(left.textContent).toContain("에이전트별 기여");
+    expect(left.textContent).toContain("어제 마무리한 작업");
+    expect(right.textContent).toContain("이번 주 작업량");
+    expect(right.textContent).toContain("다음 할 일");
+    expect(right.textContent).not.toContain("에이전트별 기여");
+  });
+
+  it("각 열의 마지막 카드가 남는 높이를 흡수한다 (직계 .card 로 끝난다)", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a" })];
+    const { container, findByText } = renderToday();
+    await findByText(/1건/);
+
+    // CSS 규칙은 `.g2col > .card:last-child` 를 늘린다 — 열의 마지막 직계
+    // 자식이 실제로 카드여야 규칙이 걸린다 (래퍼가 끼면 무효).
+    for (const col of Array.from(container.querySelectorAll(".g2col"))) {
+      expect(col.lastElementChild?.classList.contains("card")).toBe(true);
+    }
+  });
+});

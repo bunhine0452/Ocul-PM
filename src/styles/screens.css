@@ -58,6 +58,15 @@
 .stat.has-tip:hover .stat-tip { display: block; }
 
 .grid-2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; align-items: start; }
+
+/* Today 대시보드 — 두 열의 카드 스택 높이가 제각각이라 짧은 쪽 아래로 페이지
+   배경이 그대로 드러났다. 열을 flex 스택으로 두고, 마지막 카드가 남는 높이를
+   흡수하게 해서 두 열이 항상 같은 선에서 끝나게 한다. 카드 간격은 인라인
+   margin 대신 열의 gap 이 책임진다 (마지막 카드만 stretch 되도록). */
+.grid-2-fill { align-items: stretch; }
+.grid-2-fill > .g2col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.grid-2-fill > .g2col > .card:last-child { flex: 1 1 auto; display: flex; flex-direction: column; }
+.grid-2-fill > .g2col > .card:last-child > .panel-body { flex: 1 1 auto; }
 .panel-head {
   display: flex; align-items: center; gap: 9px; padding: 14px 18px;
   border-bottom: 1px solid var(--sep);

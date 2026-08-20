@@ -70,6 +70,9 @@ function weekdayLabels(lang: string): string[] {
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(1970, 0, 4 + i))));
 }
 const MAX_NEXT_TASKS = 5;
+/** 어제 마무리한 작업 표시 상한 — 왼쪽 열이 오른쪽(다음 할 일 5줄)과 비슷한
+ *  분량을 갖도록 "다음 할 일"과 같은 5로 맞춘다. */
+const MAX_YESTERDAY_DONE = 5;
 
 /** Shift a YYYYMMDD key by `delta` calendar days (local time). */
 function shiftWorkday(workday: string, delta: number): string {
@@ -193,7 +196,7 @@ export function useTodayBrief(
 
         setBrief({
           today,
-          yesterdayDone: yesterdayDone.slice(0, 3),
+          yesterdayDone: yesterdayDone.slice(0, MAX_YESTERDAY_DONE),
           changedToday: today.length,
           filesTouched,
           linesAdded: res.data.lines_added,

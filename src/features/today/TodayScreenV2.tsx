@@ -278,10 +278,12 @@ export function TodayScreenV2({
               </div>
             </div>
           ) : (
-            <div className="grid-2">
-              {/* LEFT: highlights + yesterday */}
-              <div>
-                <div className="card" style={{ marginBottom: 16 }}>
+            <div className="grid-2 grid-2-fill">
+              {/* LEFT: 오늘 하이라이트 → 오늘의 에이전트 → 어제 마무리
+                  (에이전트는 오른쪽 열에 있었다 — 오른쪽만 길어져 왼쪽 아래로
+                  빈 배경이 드러나던 걸 같은 "오늘" 묶음으로 옮겨 균형을 맞춘다) */}
+              <div className="g2col">
+                <div className="card">
                   <div className="panel-head">
                     <Star size={16} color="var(--accent-text)" />
                     <h3>{t("today.highlights")}</h3>
@@ -305,6 +307,8 @@ export function TodayScreenV2({
                   </div>
                 </div>
 
+                {brief ? <AgentBreakdown agents={brief.agents} /> : null}
+
                 <div className="card">
                   <div className="panel-head">
                     <History size={16} color="var(--text-2)" />
@@ -323,10 +327,9 @@ export function TodayScreenV2({
                 </div>
               </div>
 
-              {/* RIGHT: week + agents + next */}
-              <div>
+              {/* RIGHT: 흐름(주간)과 앞으로(다음 할 일) */}
+              <div className="g2col">
                 {brief ? <WeekChart week={brief.week} /> : null}
-                {brief ? <AgentBreakdown agents={brief.agents} /> : null}
                 <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
               </div>
             </div>

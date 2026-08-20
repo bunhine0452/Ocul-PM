@@ -9,7 +9,7 @@ export function WeekChart({ week }: { week: WeekBar[] }) {
   const { t } = useT();
   const max = Math.max(1, ...week.map((w) => w.count));
   return (
-    <div className="card card-pad" style={{ marginBottom: 16 }}>
+    <div className="card card-pad">
       <div className="section-title" style={{ marginBottom: 12 }}>
         {t("today.week.title")}
       </div>
