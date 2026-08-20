@@ -13,6 +13,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 // 리렌더와 무관하다. 이미 쓰인 줄은 언어를 바꿔도 소급되지 않는 게 맞다.
 import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
+import { nextRevealState, resyncViewport } from "./viewportResync";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
   initialShellState,
@@ -284,6 +285,33 @@ export default function TerminalInstanceImpl({
     });
     if (container) ro.observe(container);
 
+    // 다시 보이게 된 순간의 뷰포트 되맞춤 (viewportResync.ts 에 근거를 적어 뒀다).
+    // ResizeObserver 로는 못 잡는다 — 다른 프로젝트 탭에 갔다 오면 **같은
+    // 크기**로 돌아오므로 리사이즈가 아예 일어나지 않고, `fit()` 은 같은 치수에서
+    // 아무 일도 하지 않는다. 그래서 xterm 과 같은 잣대(가시성)로 판정한다.
+    let wasVisible = true;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const last = entries[entries.length - 1];
+        if (!last) return;
+        const { visible, revealed } = nextRevealState(wasVisible, last);
+        wasVisible = visible;
+        if (!revealed || !openedRef.current || !container) return;
+        if (container.clientWidth === 0 || container.clientHeight === 0) return;
+        try {
+          // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
+          // 크기가 그대로여도 어긋난 스크롤 기하는 반드시 되맞춘다.
+          fit.fit();
+          void commands.resizePty(sessionId, term.rows, term.cols);
+          resyncViewport(term);
+        } catch {
+          /* renderer not ready — ignore */
+        }
+      },
+      { threshold: 0 },
+    );
+    if (container) io.observe(container);
+
     // 페인 포커스 추적 — xterm textarea 로 들어오는 focusin 을 컨테이너에서 수신.
     const handleFocusIn = () => onFocusInRef.current?.();
     container?.addEventListener("focusin", handleFocusIn);
@@ -355,6 +383,7 @@ export default function TerminalInstanceImpl({
     return () => {
       isMounted = false;
       ro.disconnect();
+      io.disconnect();
       stopThemeWatch();
       container?.removeEventListener("focusin", handleFocusIn);
       if (unlistenData) unlistenData();
