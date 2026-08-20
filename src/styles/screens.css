@@ -226,7 +226,7 @@
 .tag::before { content: "#"; opacity: 0.6; }
 
 /* --- Diff (PR-UI 4) --- */
-.diff-screen { display: grid; grid-template-columns: 260px 1fr; height: 100%; min-height: 0; }
+.diff-screen { display: grid; grid-template-columns: 284px 1fr; height: 100%; min-height: 0; }
 /* 작업 일지 항목 디테일 뷰 (Dogfooding 2026-06-07 — 모달 대체). */
 /* Prominent "작성 날짜" chip in the entry header sub-line. Accent pill so the
    written date reads at a glance when arriving from the planner. */
@@ -249,11 +249,77 @@
 }
 .entry-detail-notice, .entry-detail-tags { flex: none; }
 .entry-detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.diff-files { border-right: 1px solid var(--sep); background: var(--bg-window); overflow-y: auto; padding: 10px 8px; }
+/* ── 변경 diff 왼쪽 pane — 변경된 파일 목록 ────────────────────────────────
+   2026-08-20: 일지가 쌓이면 그룹이 전부 펼쳐진 채 세로로 이어 붙어 끝없이
+   길어졌고, 경로는 폭이 모자라 끝에서 잘려 파일명이 사라졌다. pane 을 세 층
+   (머리글 · 스크롤 본문 · 키 힌트)으로 갈라 머리글/힌트는 제자리에 두고,
+   본문만 스크롤한다 — 그룹 머리글은 sticky 라 어느 일지 안인지 늘 보인다. */
+.diff-files {
+  border-right: 1px solid var(--sep); background: var(--bg-window);
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
 .diff-files-head { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); padding: 6px 8px 10px; display: flex; align-items: center; gap: 8px; }
-/* v2 U8 — 키보드 힌트 + in-diff 검색 */
-.diff-kbd-hint { margin-left: auto; font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 10px; color: var(--text-3); display: inline-flex; align-items: center; gap: 3px; }
-.diff-kbd-hint kbd { font-family: var(--mono); font-size: 9px; border: 1px solid var(--sep-strong); border-radius: 4px; padding: 0 3px; background: var(--bg-inset); }
+.dfl-head { flex: none; padding: 12px 12px 8px; gap: 6px; }
+.dfl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 개수 배지 — 목록 길이를 접힌 상태에서도 알려 준다. */
+.dfl-count {
+  flex: none; margin-left: auto; font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0; color: var(--text-3); background: var(--bg-inset);
+  border: 1px solid var(--sep); border-radius: 999px; padding: 0 6px; line-height: 16px;
+}
+/* 머리글에선 제목이 남은 폭을 먹으므로 배지는 제자리, 접기 버튼이 오른쪽 끝. */
+.dfl-head .dfl-count { margin-left: 0; }
+.dfl-foldall {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  flex: none; margin-left: auto; padding: 0 2px; cursor: pointer;
+  font-family: var(--font); font-size: 10px; font-weight: 600;
+  letter-spacing: 0; text-transform: none; color: var(--text-3);
+}
+.dfl-foldall:hover { color: var(--accent-text); text-decoration: underline; }
+
+/* 파일 필터 — 목록이 길어지면 스크롤 대신 이름으로 찾는다 (`f`). */
+.dfl-filter {
+  flex: none; display: flex; align-items: center; gap: 6px;
+  margin: 0 12px 8px; padding: 0 6px 0 8px; height: 26px; border-radius: 999px;
+  background: var(--bg-inset); border: 1px solid var(--sep); color: var(--text-3);
+}
+.dfl-filter:focus-within { border-color: var(--accent); color: var(--text-2); }
+.dfl-filter input {
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent; padding: 0;
+  font-family: var(--font); font-size: 11.5px; color: var(--text);
+}
+.dfl-filter input::placeholder { color: var(--text-3); }
+.dfl-filter-clear {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  padding: 0; width: 16px; height: 16px; flex: none; border-radius: 999px;
+  display: grid; place-items: center; cursor: pointer; color: var(--text-3);
+}
+.dfl-filter-clear:hover { background: var(--bg-hover); color: var(--text); }
+
+.dfl-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 10px; }
+.dfl-empty { padding: 12px 10px; font-size: 11.5px; color: var(--text-3); }
+
+/* 키 힌트는 목록에서 떼어내 바닥에 고정 — 머리글 폭을 두고 제목과 다투지 않는다. */
+.dfl-foot {
+  flex: none; display: flex; align-items: center; gap: 3px; flex-wrap: wrap;
+  padding: 6px 12px; border-top: 1px solid var(--sep);
+  font-size: 10px; color: var(--text-3);
+}
+.dfl-foot kbd { font-family: var(--mono); font-size: 9px; border: 1px solid var(--sep-strong); border-radius: 4px; padding: 0 3px; background: var(--bg-inset); }
+
+/* 영향 받는 파일 — 목록 맨 아래, 접을 수 있는 부록. */
+.dfl-impact { border-top: 1px solid var(--sep); margin-top: 10px; padding-top: 6px; }
+.dfl-impact-head {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px;
+  cursor: pointer; font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--text-2);
+}
+.dfl-impact-head:hover { color: var(--text); }
+.dfl-impact-list { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px; }
+.dfl-impact-more { padding: 3px 8px; font-size: 11px; color: var(--text-3); }
+.dstatus.hop { background: transparent; border: 1px solid var(--sep); color: var(--text-3); width: 17px; font-size: 9px; font-weight: 700; }
+.dstatus.hop.near { color: var(--accent-uncommitted, #c4922f); }
+
 .diff-search { display: flex; align-items: center; gap: 6px; }
 .diff-search input {
   width: 170px; height: 24px; padding: 0 8px;
@@ -276,9 +342,34 @@
 .dfile.active .dfile-name { color: var(--accent-text); font-weight: 600; }
 .dfile-stat { font-family: var(--mono); font-size: 10.5px; font-weight: 600; display: flex; gap: 5px; }
 .dfile-read { margin-left: 4px; color: var(--accent-text); display: grid; place-items: center; flex: none; }
+/* 경로는 디렉터리 + 파일명 두 조각이다 — 폭이 모자라면 **디렉터리부터** 줄고
+   파일명은 끝까지 남는다. 전체 경로를 한 덩어리로 흘리면 `WorkspaceCont…` 처럼
+   정작 알아야 할 쪽이 먼저 잘려 나간다. */
+.diff-files .dfile-name { display: flex; align-items: baseline; }
+.diff-files .dfile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+.diff-files .dfile-base { flex: none; }
+.diff-files .dfile.active .dfile-base { color: var(--accent-text); font-weight: 600; }
 /* Change groups (Dogfooding #3) — files bucketed under their journal entry. */
 .diff-group { margin-bottom: 10px; }
-.diff-group-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; }
+.diff-group.folded { margin-bottom: 2px; }
+/* 스크롤 중에도 "지금 어느 일지 안인지" 를 잃지 않게. */
+.diff-files .diff-group-head {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-window); border-radius: var(--radius-s);
+}
+.diff-group-head { display: flex; align-items: center; gap: 5px; padding: 8px 8px 4px; }
+.dfl-fold {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  flex: none; padding: 0; width: 16px; height: 16px; border-radius: 4px;
+  display: grid; place-items: center; cursor: pointer; color: var(--text-3);
+}
+.dfl-fold:hover { background: var(--bg-hover); color: var(--text); }
+.dfl-type { flex: none; display: grid; place-items: center; }
+.dfl-type.t-bugfix { color: var(--t-bug); }
+.dfl-type.t-feature { color: var(--t-feature); }
+.dfl-type.t-refactor { color: var(--t-refactor); }
+.dfl-type.t-error { color: var(--t-error); }
+.dfl-type.t-chore { color: var(--t-chore); }
 .diff-group-title {
   flex: 1; min-width: 0; text-align: left; font-size: 11.5px; font-weight: 650;
   color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -288,9 +379,27 @@
 .diff-group-title:hover:not(:disabled) { color: var(--accent-text); text-decoration: underline; }
 .diff-group-title:disabled { cursor: default; }
 .diff-group-title.muted { color: var(--text-3); font-weight: 600; }
+/* 접힌 그룹이 스스로 말해 주는 값 — 파일 수, 그리고 검토가 걸쳐 있으면 진행도. */
+.dfl-progress {
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; line-height: 15px;
+  color: var(--text-3); background: var(--bg-inset);
+  border: 1px solid var(--sep); border-radius: 999px; padding: 0 5px;
+}
+.dfl-progress.done { color: var(--accent-text); background: var(--accent-soft); border-color: transparent; padding: 0 4px; }
 .diff-group-time { font-size: 10.5px; color: var(--text-3); flex: none; font-family: var(--mono); }
 .diff-group-plans { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; }
-.diff-group-plans .tag { display: inline-flex; align-items: center; gap: 3px; }
+/* 플랜 참조는 이미 ◎ 아이콘을 달고 있다 — 해시태그용 `#` 접두는 지운다. */
+.diff-group-plans .tag {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  font-size: 10.5px; line-height: 17px; padding: 0 7px;
+  background: var(--bg-inset); border: 1px solid var(--sep); border-radius: 999px;
+}
+.diff-group-plans .tag::before { content: none; }
+/* 플랜 제목은 한 줄로 — 예전엔 긴 제목이 칩 안에서 서너 줄로 접혀 파일보다
+   자리를 더 먹었다. */
+.dfl-plan-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dfl-plan-n { flex: none; opacity: 0.6; }
 .dstatus { width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; font-weight: 800; flex: none; color: #fff; }
 .dstatus.M { background: var(--t-error); }
 .dstatus.A { background: var(--accent); }
