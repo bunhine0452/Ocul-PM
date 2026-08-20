@@ -55,7 +55,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.5 — the syllable after a space, and diagnostics to end the recurrence
+## 🚀 v2.14.0 — conversations running side by side, and the end of honesty-audit false positives
+
+- **Several Claude Code conversations at once, in one project** — tabs already opened, but anything you typed in a second conversation queued up while the first one was answering: the tab you happened to be looking at decided where a message went. A message now names the conversation it belongs to. You can open a new conversation while A is still answering and speak to it immediately, and switching tabs no longer misroutes the reply. **Permission cards are per-conversation too**, so pressing ESC in one conversation no longer rejects the approval waiting in another.
+- **Honesty-audit false positives** — 60 files a day were flagged "unrecorded · severe" when only 3 genuinely were. The session label the app assigns and the one agents write into journals are different dialects, so the two sets never intersected. The verdict is now based on **whole-workday coverage**, which is immune to the label dialect, and macOS sandbox temp files plus other projects' generated artifacts are filtered out.
+- **Session ↔ journal linkage** — journals are written *after* the work they describe, but only journals falling inside the session window were counted, so matched/overlap were always 0. A journal is now attributed to **the last session that started before it was written** (measured overlap: 0.73–0.93).
+- **Terminal viewport** — leaving an agent running in the dock and returning from another project tab left the view frozen mid-output while the conversation kept flowing. While hidden, the terminal believed its own height was 0; it now re-measures and snaps to the last line the moment the tab becomes visible again.
+- **File lists in Diff and journal entries** — with four or five journals the groups all sat expanded end to end, and paths were truncated from the right, hiding the filename itself. Groups now collapse (with three or more, only the one you're looking at opens), directories shrink before filenames do, and a filter appears past eight files. The "chip wall" in the journal screen is replaced by a single line for the file you have open.
+- **Today and the sidebar** — the ring's "line change" was always 0 (nothing ever filled it) and 0 rendered as a single dot, reading as broken rather than quiet; it now carries real changed-line counts. The page background showing through below the shorter column in the two-column layout is gone, the top bar no longer steps where the terminal is docked left or right, and sidebar collapse is no longer remembered per project tab.
+
+## v2.13.5 — the syllable after a space, and diagnostics to end the recurrence
 
 - **Two remaining paths** — `안녕` followed by space producing `안녕 녕` was fixed in v2.13.3, but two routes survived. An **empty input landing between the commit and the leftover** wiped the evidence (the string we had just sent), and a leftover that **dragged the space along** (`녕 `) never even reached the check. The check is wider now, so the tests also cover the opposite failure: that it doesn't swallow legitimate input.
 - **Input traces that survive release builds** — this bug has recurred four times and was fixed without a trace every time. Turning logging on slows the app enough that the bug stops reproducing (it is a timing race), so the diagnostic changed what it was measuring. Input flow now accumulates in an **in-memory ring buffer only** (one array slot write — it does not shift the timing), and **⌃⌥⇧I** in the terminal writes the preceding flow to `oculpm.log`. It also dumps automatically when the app forwards input that looks like a leftover.
@@ -66,21 +75,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 - **Titles chasing the last prompt** — as a conversation went on, the tab name kept changing to whatever you had just typed. Until Claude Code generates a title, the most recent prompt stands in as one. The app now recognises that stand-in, keeps the opening message, and switches only when a real title arrives.
 - **"What's contributing" in the usage card** — crammed into a narrow card in a monospace block, sentences wrapped four lines deep and the rest was cut off. The card is wider now, shares render as a bar with a number, and lists like "Top skills" become chips. Lines the app doesn't recognise are still shown verbatim, so nothing disappears as the report grows.
 
-## v2.13.3 — the previous syllable reappearing after a space
+## v2.13.1–v2.13.3 — Korean terminal input and Code-screen saves
 
-- **Stale composition after commit** — typing `안녕` then space produced `안녕 녕`. Space commits the composition and the app clears its input buffer; if the IME is still holding that syllable, it re-inserts it into the now-empty buffer, and the app mistook it for fresh input. Late input with nothing to replace is now recognised as a leftover and dropped. The cause is the **opposite** of the previous version's space fix (too early vs. too late), which is why that one didn't catch it.
-- **Why release builds only** — dev builds are slowed by diagnostic logging and dev tooling, which kept this window closed. It is a timing-sensitive race, so only the fast build exposed it.
-
-## v2.13.2 — Korean input and save-path rough edges
-
-- **Space mid-composition** — typing Korean quickly and hitting space repeated the previous letter and swallowed the space (`안뜨` → `안뜨뜬`). The IME's "rewrite that letter" signal arrives up to 0.24s after the keystroke; the space went out first, and the late rewrite deleted that space instead of the composing letter. During composition every keystroke now leaves through a single ordered path.
+- **Space and backspace mid-composition** — typing Korean quickly and hitting space repeated the previous letter (`안뜨` → `안뜨뜬`), and backspacing a typo left the deleted letter on screen (`차` → `ㅊ차`). The IME's "rewrite that letter" signal arrives up to 0.24s after the keystroke, and a backspace during composition steps the syllable back rather than deleting — the app had read it as "input finished". Leftover compositions arriving just after a commit (`안녕 녕`) are dropped too. Dev builds are slow enough to keep the window closed, so this only ever appeared in **release builds**.
 - **Cursor keys** — moving the caret with arrows / Home / End / Esc mid-Korean no longer lets the next letter erase the wrong character.
 - **Code screen saves** — CRLF files no longer get rewritten to LF on save; a symlink inside the project can no longer open a file outside it; one ⌘S no longer fires two saves (and a bogus "conflict" banner); silently dropped unsaved edits and externally deleted open files now warn.
 - **Diff badge** — content lines starting with `---` / `+++` (front-matter rules, for instance) were mistaken for file headers, making the `+N −M` badge vanish entirely.
-
-## v2.13.1 — Korean text no longer typed twice in the terminal
-
-- **Backspace mid-composition** — writing a long Korean prompt to Claude Code in the terminal and hitting backspace left the deleted letter on screen: `차` became `ㅊ차`, and two backspaces turned `호` into `하ㅎ호`. In a Korean IME, a backspace during composition is not a delete key — it steps the syllable back one stage. The app read that as "input finished" and dropped the composition state, so the next completed letter landed beside the old one instead of replacing it. The two cases are now told apart.
 
 ## v2.13.0 — the new Code screen: open and edit code right inside the app
 

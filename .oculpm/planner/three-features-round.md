@@ -78,7 +78,7 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
   - [ ] ISP CGNAT 회귀 테스트 — (100.90.1.2, /32, bcast=None) 채택 AND (100.90.1.2, /24, bcast=Some) 거부 {#mob-bind-isp-test}
   - [ ] 후보 0개→None, 후보 여럿→결정적 선택. CLI 부재 시 (a)+(b) 통과, CLI 불일치 시 None {#mob-bind-edge-test}
 - [ ] src-tauri/src/mobile/ 모듈 + axum/tower-http/if-addrs 의존성 + MobileServer 관리 상태 + ExitRequested graceful shutdown {#mob-server}
-- [ ] 페어링 코드(6자리·TTL 5분·1회용) → 베어러 토큰. 마이그레이션 028_mobile_devices.sql (027 은 project_appearance 가 선점), 토큰은 blake3 해시로만 저장 {#mob-auth}
+- [ ] 페어링 코드(6자리·TTL 5분·1회용) → 베어러 토큰. 마이그레이션 029_mobile_devices.sql (028 은 journal_file_lines 가 선점), 토큰은 blake3 해시로만 저장 {#mob-auth}
 - [ ] 읽기 전용 API 8종 — 커맨드에서 순수 로직 분리해 axum 핸들러와 공유. 반드시 OculpmManager/JournalCache 경유 (디스크 직독 금지 — R6) {#mob-api}
 - [ ] mobile.html 별도 Vite 엔트리 + src/mobile/ 화면 (Tauri 의존 0). 토큰 CSS 만 재사용, 레이아웃은 모바일 전용 {#mob-bundle}
 - [ ] resource_dir 기반 ServeDir 정적 서빙 + 경로 탈출 차단 (commands/docs.rs 의 secure_docs_join 패턴 참고) + dev 폴백 {#mob-assets}
