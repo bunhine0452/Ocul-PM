@@ -324,7 +324,7 @@
   display: flex; flex-direction: column;
 }
 .toolbar {
-  height: 52px; flex: none;
+  height: var(--toolbar-h); flex: none;
   display: flex; align-items: center; gap: 12px;
   padding: 0 22px;
   border-bottom: 1px solid var(--sep);

@@ -1000,6 +1000,12 @@ mark.s-hit {
 .term-dock.pos-right { border-left: 1px solid var(--sep-strong); }
 /* compact 모드에서는 탭 줄·상태바를 한 단계 낮춰 셸에 자리를 더 준다. */
 .term-dock .term-tabs { padding-top: 5px; }
+/* 다만 왼쪽·오른쪽 도크는 화면 툴바와 **어깨를 나란히** 선다 — 낮춰 두면
+   시트 맨 위에서 두 헤더의 아랫선이 15px 어긋나 계단처럼 보였다 (2026-08-21).
+   탭은 `align-items: flex-end` 라 늘어난 높이만큼 위쪽 크롬이 생기고 활성 탭은
+   그대로 본체에 붙는다. 아래 도크는 툴바와 나란히 서지 않으므로 그대로 둔다. */
+.term-dock.pos-left .term-tabs,
+.term-dock.pos-right .term-tabs { min-height: var(--toolbar-h); }
 .term-dock .term-status { padding: 4px 10px; gap: 10px; }
 .term-dock .term-screen { padding: 6px 8px; }
 

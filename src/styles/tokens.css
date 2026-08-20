@@ -90,6 +90,11 @@
   --radius-l: 14px;
   --radius-xl: 20px;
 
+  /* 시트 상단 줄의 키 (2026-08-21) — 화면 툴바와 세로 도크(왼쪽·오른쪽)의 탭
+     줄이 나란히 서므로 둘의 아랫선이 한 줄로 이어져야 한다. 한쪽만 고치면
+     다시 어긋나기 때문에 값을 여기 한 곳에 둔다. */
+  --toolbar-h: 52px;
+
   /* Pretendard Variable 은 App.css 가 로컬 @font-face 로 전역 번들 —
      대시보드(Tailwind font-sans)와 셸 타이포를 한 서체로 통일한다
      (오프라인, 네트워크 페치 없음). App.css 의 --font-sans 와 스택을 맞출 것. */
