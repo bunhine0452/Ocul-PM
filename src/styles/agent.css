@@ -1368,7 +1368,8 @@
 .usage-card {
   position: fixed;
   z-index: 300;
-  width: 292px;
+  width: 344px;
+  max-width: calc(100vw - 24px);
   padding: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border-card);
@@ -1671,6 +1672,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 아직 안 만든 대화 — 이름이 "새로운 세션" 이라는 라벨일 뿐 대화를 가리키지
+   않으므로, 실선 탭들 사이에서 **점선으로** 구별한다. 첫 마디를 보내는 순간
+   같은 자리에서 실선이 된다. */
+.acp-tab.pending {
+  outline: 1px dashed color-mix(in oklab, var(--text-3) 45%, transparent);
+  outline-offset: -1px;
+}
+.acp-tab.pending .acp-tab-main {
+  font-style: italic;
+}
+
 /* 닫기는 호버·활성에서만. 늘 보이면 탭마다 X 가 줄지어 시끄럽다. */
 .acp-tab-close {
   display: grid;
@@ -1837,8 +1849,8 @@
   min-width: 0;
 }
 
-/* `/usage` 원문 그대로 — 공백 정렬을 살려야 오른쪽 % 열이 줄을 맞춘다.
-   길면 카드가 화면을 넘으므로 이 칸만 스크롤한다. */
+/* `/usage` 의 "무엇이 기여했나" 대목. 길면 카드가 화면을 넘으므로 이 칸만
+   스크롤한다. */
 .usage-detail {
   display: block;
   margin: 2px 4px 4px;
@@ -1856,9 +1868,111 @@
   color: var(--text-3);
 }
 .usage-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 0;
-  max-height: 216px;
+  max-height: 300px;
   overflow: auto;
+}
+
+/* 맨 앞의 단서 문장 — 숫자가 아니라 "이 숫자를 어디까지 믿을지"를 말한다.
+   고정폭으로 두면 한 문장이 다섯 줄로 접혀 정작 아래 숫자를 밀어냈다. */
+.usage-note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* "Last 7d · 4704 requests · 44 sessions" — 아래 비율들이 무엇에 대한
+   비율인지를 정하는 줄이라 제목처럼 읽혀야 한다. */
+.usage-stat {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-2);
+}
+
+.usage-share {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.usage-share-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.usage-share-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.usage-share-pct {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+/* 위쪽 한도 막대와 트랙 색이 같으면 안 된다 — 이 칸의 배경이 곧 그 색이라
+   (`--bg-inset`) 채워지지 않은 부분이 통째로 사라져 막대가 떠 보인다. */
+.usage-detail .usage-bar {
+  height: 3px;
+  background: color-mix(in oklab, var(--text-3) 22%, transparent);
+}
+
+.usage-top {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.usage-top-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.usage-top-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* 이름이 길다(`plugin:oculpm:oculpm`). 칩이 줄을 넘기지 않게 자르고, 자른 것은
+   `title` 로 돌려준다 — 여기서 넘치면 옆의 % 가 밀려 나가 아무 것도 안 읽힌다. */
+.usage-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid var(--border-card);
+  border-radius: 999px;
+  background: var(--bg-card);
+  font-size: 10.5px;
+  color: var(--text-2);
+}
+.usage-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usage-chip-pct {
+  flex: none;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 못 알아본 줄 — 예전과 똑같이. 공백 정렬을 살려야 표의 % 열이 줄을 맞춘다. */
+.usage-raw {
+  margin: 0;
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.55;

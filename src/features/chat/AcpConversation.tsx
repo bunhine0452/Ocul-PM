@@ -82,6 +82,7 @@ import { recallBack, recallForward, type RecallState } from "./promptHistory";
 import { AcpDiffView } from "./AcpDiffView";
 import { diffLines, diffStats } from "./lineDiff";
 import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
+import { resolveTitle, titleFromPrompt } from "./acpTitle";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { registerBusy } from "@/lib/busyGuard";
@@ -236,7 +237,27 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(() => {
     transcriptsRef.current = transcripts;
   }, [transcripts]);
+  /**
+   * 이 대화에 **우리가 보낸 지시문**, 보낸 순서대로.
+   *
+   * 제목을 거르는 데 쓴다 (acpTitle.ts): 어댑터가 주는 제목은 AI 가 진짜 제목을
+   * 붙이기 전까지 **마지막 지시문**이라, 대화를 이어 갈수록 탭이 방금 친 말로
+   * 계속 바뀌었다. 무엇을 보냈는지 알면 그 메아리를 가려낼 수 있다.
+   *
+   * 기록에서 바로 읽는다 — 따로 장부를 두면 지난 대화를 다시 열었을 때(재생분
+   * 으로만 채워지는 경우) 그 장부가 비어 있다. **효과 안에서만** 부른다:
+   * `transcriptsRef` 는 렌더가 아니라 커밋 뒤에 최신이 된다.
+   */
+  const promptsOf = useCallback(
+    (id: string): string[] =>
+      (transcriptsRef.current[id] ?? [])
+        .filter((turn) => turn.role === "user")
+        .map((turn) => turn.text),
+    [],
+  );
   const activeId = session?.session_id ?? SLATE;
+  /** 어댑터는 붙었는데 대화는 아직 안 만든 상태 — 곧 "새 세션을 누른 직후". */
+  const pending = session != null && session.session_id == null;
   const turns = transcripts[activeId] ?? EMPTY_TURNS;
   /**
    * 묶음 나누기는 렌더마다 하지 않는다 — 스트리밍 중에는 초당 수십 번 렌더되고,
@@ -575,9 +596,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   }, [session?.session_id, session?.options, editTurns, t]);
 
   // 제목이 붙으면 열려 있는 탭에 반영한다 (없는 탭은 만들지 않는다).
+  // **받은 그대로 쓰지 않는다** — 지시문의 메아리를 걸러 낸다 (acpTitle.ts).
   useEffect(() => {
-    renameTab(session?.session_id ?? null, session?.title ?? null);
-  }, [session?.session_id, session?.title, renameTab]);
+    const id = session?.session_id;
+    if (!id) return;
+    renameTab(id, resolveTitle(session?.title ?? null, promptsOf(id)));
+  }, [session?.session_id, session?.title, renameTab, promptsOf]);
 
 
   /**
@@ -740,9 +764,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const refreshHistory = useCallback(async () => {
     const res = await commands.acpListSessions(projectId);
     if (res.status === "ok") {
-      setHistory(stabilizeHistory(res.data, activityRef.current, removedRef.current));
+      // 목록의 제목도 어댑터가 준 그대로다 — 탭과 같은 잣대로 거른다. 안 그러면
+      // 같은 대화가 탭에서는 제 이름으로, 옆 패널에서는 방금 친 말로 보인다.
+      const stable = stabilizeHistory(res.data, activityRef.current, removedRef.current);
+      setHistory(
+        stable.map((item) => ({ ...item, title: resolveTitle(item.title, promptsOf(item.id)) })),
+      );
     }
-  }, [projectId]);
+  }, [projectId, promptsOf]);
 
   // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
   // 에이전트가 대화를 보고 붙이고 그 알림은 만든 직후 한 번뿐이라, 지난 대화를
@@ -944,6 +973,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const closeTab = useCallback(
     (id: string) => {
+      // 아직 안 만든 대화는 `acpTabs` 에 없다 — 닫는다는 것은 곧 하던 대화로
+      // 돌아가는 것이다. (돌아갈 곳이 없으면 닫기 버튼 자체가 안 뜬다.)
+      if (id === SLATE) {
+        if (tabs.length) void openSession(tabs[tabs.length - 1].id);
+        return;
+      }
       setState((prev) => ({
         ...prev,
         acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
@@ -974,11 +1009,18 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // display:none 안의 요소는 레이아웃 상자가 없다 — 그것으로 가른다.
         if (!rootRef.current?.getClientRects().length) return false;
         const current = session?.session_id;
-        if (!current || !tabs.some((tab) => tab.id === current)) return false;
+        // 아직 안 만든 대화도 닫는다 — 돌아갈 대화가 있을 때만(빈 화면 하나만
+        // 남기고 창을 붙잡고 있으면 ⌘W 가 영영 안 먹는 것처럼 보인다).
+        if (!current) {
+          if (!pending || !tabs.length) return false;
+          closeTab(SLATE);
+          return true;
+        }
+        if (!tabs.some((tab) => tab.id === current)) return false;
         closeTab(current);
         return true;
       }),
-    [session?.session_id, tabs, closeTab],
+    [session?.session_id, pending, tabs, closeTab],
   );
 
   /**
@@ -1138,7 +1180,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
       // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
       markSpoken(activityRef.current, into, new Date().toISOString());
-      addTab(into, session?.title ?? null);
+      // 어댑터의 제목은 턴이 끝난 뒤에야 온다. 그때까지 "제목 없는 대화"로 두지
+      // 않는다 — 첫 마디가 곧 그 대화가 무엇인지다(CLI 도 그렇게 연다). 이미
+      // 있는 탭은 `addTab` 이 건드리지 않으므로, 이어 가는 대화의 이름은 그대로다.
+      addTab(into, titleFromPrompt(text));
       const outgoing = withUltracode(text, ultracode);
       const sending = attachments;
       const sendingImages = images;
@@ -1263,7 +1308,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setBusy(false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, session?.title, openSession, newConversation, addTab, editTurns, openInTerminal, t],
+    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, openSession, newConversation, addTab, editTurns, openInTerminal, t],
   );
 
   // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
@@ -1418,12 +1463,26 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 걸리지 않는다. 특히 패널은 닫혀 있어도 마운트된 채라(전이·스크롤 보존)
    * 목록 전체가 글자마다 다시 조정되고 있었다.
    */
-  const tabItems = useMemo(
-    () => tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) })),
-    [tabs, nameOf],
-  );
+  /**
+   * 새 세션을 누르면 **탭 줄에도 그 자리가 생긴다.**
+   *
+   * 세션은 첫 마디를 보낼 때 비로소 만들어진다(`newConversation` 은 화면만
+   * 비운다). 그런데 탭 줄은 `acpTabs` 만 그렸으니, 눌러도 상단바는 방금 떠나온
+   * 대화를 그대로 가리키고 있었다 — 새 창이 열린 표시가 어디에도 없었다.
+   *
+   * `acpTabs` 에 넣지 않고 **여기서만 붙인다**: 그 목록은 디스크에 남는데,
+   * 아직 아무것도 아닌 대화가 거기 남으면 다음에 앱을 켰을 때 열 수 없는 탭이
+   * 하나 뜬다. 첫 마디와 함께 진짜 탭이 같은 자리(맨 끝)에 들어서므로 바뀌는
+   * 순간에도 줄이 흔들리지 않는다.
+   */
+  const tabItems = useMemo(() => {
+    const named = tabs.map((tab) => ({ ...tab, title: nameOf(tab.id, tab.title) }));
+    return pending ? [...named, { id: SLATE, title: null, pending: true }] : named;
+  }, [tabs, nameOf, pending]);
   const pickSession = useCallback(
     (id: string) => {
+      // 아직 안 만든 대화에는 열 것이 없다 (이미 그 자리에 있다).
+      if (id === SLATE) return;
       void openSession(id);
     },
     [openSession],
@@ -1442,7 +1501,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       title={
         <AcpSessionTabs
           tabs={tabItems}
-          activeId={session?.session_id ?? null}
+          activeId={activeId}
           onPick={pickSession}
           onClose={closeTab}
         />

@@ -4,7 +4,7 @@ id: acp-agent-panel
 title: "ACP 에이전트 패널 — AI 패널에서 Claude Code 구동"
 status: active
 created: 2026-08-14
-updated: 2026-08-14
+updated: 2026-08-20
 owner: claude-code
 ---
 
@@ -34,6 +34,11 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 - [x] 어댑터 0.68.0 → 0.70.0 상향 (스파이크 재실행으로 session/update 불변 확인) {#acp-bump-070}
 - [x] 파일 변경 감사(agentFileChangeReport) 연동 — 능력 광고·requestId·파싱·교차 검증 표시 {#acp-file-change-audit}
 
+## 도그푸딩 — 대화 UX {#dogfood-ux}
+- [x] 새 세션을 누르면 탭 줄에도 자리가 생긴다 (임시 탭, 첫 마디에 진짜 탭으로) {#acp-pending-tab}
+- [x] 제목이 마지막 지시문을 따라다니지 않게 — 어댑터 제목의 메아리 걸러내기 {#acp-title-echo}
+- [x] 사용량 카드의 "무엇이 기여했나" 를 읽을 수 있게 (모르는 줄은 원문 유지) {#acp-usage-detail-read}
+
 ## 기록 결합 {#record}
 - [ ] PR-ACP5 — 턴 종료 → 일지 초안, agent_id 분리(claude-code:acp)로 훅 브리지와 이중 기록 방지, usage_update 비용 텔레메트리 적재(#cost-telemetry 흡수) {#acp5-journal}
 
@@ -52,4 +57,7 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 | 2026-08-16T03:44:14+09:00 | #acp1-pkg | claude-code | ☐→x | .oculpm/journal/20260816/Chores/0344_chore_v2-11-release-verify-and-promo-kit.md | v2.11.0 릴리스 아티팩트를 /Applications 교체 후 LaunchServices(open -a) 실행 — 어댑터 스폰·세션·스트리밍 전부 동작, 빈약 PATH 조건 실증 |
 | 2026-08-19T09:43:00+09:00 | #acp-bump-070 | claude-code | ☐→x | .oculpm/journal/20260819/Features_to_add/0942_feature_acp-file-change-audit.md | 스파이크 재실행 — session/update 불변. 번들 Claude Code 는 그대로(sdk 0.3.232) |
 | 2026-08-19T09:43:05+09:00 | #acp-file-change-audit | claude-code | ☐→x | .oculpm/journal/20260819/Features_to_add/0942_feature_acp-file-change-audit.md | 신규 스파이크 3으로 계약 실측. 추론 영수증과 어긋날 때만 표시 |
+| 2026-08-20T20:54:00+09:00 | #acp-pending-tab | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2054_bug_new-session-has-no-tab.md | acpTabs 에 넣지 않고 tabItems 에서만 붙인다 — 디스크에 못 여는 탭이 남지 않게 |
+| 2026-08-20T20:55:00+09:00 | #acp-title-echo | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2055_bug_title-follows-last-prompt.md | SDK summary = customTitle→aiTitle→lastPrompt 순. 지시문 메아리를 가려 첫 지시문을 지킨다 |
+| 2026-08-20T20:56:00+09:00 | #acp-usage-detail-read | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2056_bug_usage-detail-unreadable.md | 네 모양만 뜯고 모르는 줄은 원문 그대로 — 판올림에 빈칸이 되지 않게 |
 <!-- oculpm:plan-log end -->

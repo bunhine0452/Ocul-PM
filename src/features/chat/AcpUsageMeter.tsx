@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, RefreshCw } from "@/components/Icons";
 import { commands, type AcpUsage } from "@/lib/bindings";
@@ -6,6 +6,7 @@ import { useT } from "@/i18n";
 import { useDismiss } from "./useDismiss";
 import { onUsagePanel } from "./usageBus";
 import { relativeTime } from "./relativeTime";
+import { parseUsageDetail } from "./usageDetail";
 
 // PR-ACP11 — 툴바의 사용량 계기.
 //
@@ -182,6 +183,12 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projec
     return () => window.clearInterval(timer);
   }, [read]);
 
+  /** 원문을 모양별로 뜯어 둔다 — 문자열이 그대로면 다시 뜯지 않는다. */
+  const detail = useMemo(
+    () => (usage?.detail ? parseUsageDetail(usage.detail) : []),
+    [usage?.detail],
+  );
+
   const limits = usage?.limits ?? [];
   if (!limits.length) return null;
 
@@ -267,14 +274,74 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projec
             })}
           </div>
 
-          {/* `/usage` 가 덧붙이는 "무엇이 기여했나" 대목 — **원문 그대로** 건다.
-              표로 뜯지 않는 이유는 백엔드 주석에 적었다: 항목이 계속 늘고 문구도
-              CLI 판올림마다 바뀌어서, 파싱해 두면 다음 판에 조용히 빈칸이 된다.
-              공백 정렬까지 살려야 오른쪽 % 열이 줄을 맞춘다. */}
-          {usage?.detail ? (
+          {/* `/usage` 가 덧붙이는 "무엇이 기여했나" 대목.
+              모양별로 뜯어 그린다 — 원문을 통째로 `<pre>` 에 걸었더니 좁은
+              카드에서 한 문장이 네 줄로 접히고 그 아래가 잘려, 정보가 있는데
+              읽히지 않았다. **모르는 줄은 예전 그대로** 고정폭 원문으로 남는다
+              (usageDetail.ts) — 파서가 CLI 판올림을 앞질러 빈칸을 만들지 않게. */}
+          {detail.length ? (
             <section className="usage-detail">
               <span className="usage-detail-title">{t("acp.usageDetail")}</span>
-              <pre className="usage-detail-body">{usage.detail}</pre>
+              <div className="usage-detail-body">
+                {detail.map((block, at) => {
+                  const key = `${block.kind}-${at}`;
+                  if (block.kind === "note") {
+                    return (
+                      <p key={key} className="usage-note">
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  if (block.kind === "stat") {
+                    return (
+                      <p key={key} className="usage-stat">
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  if (block.kind === "share") {
+                    return (
+                      <div key={key} className="usage-share">
+                        <div className="usage-share-head">
+                          <span className="usage-share-text">{block.text}</span>
+                          <span className="usage-share-pct">
+                            {block.pct}
+                            <span className="usage-row-unit">%</span>
+                          </span>
+                        </div>
+                        <div className="usage-bar">
+                          <span
+                            className="usage-bar-fill"
+                            style={{ width: `${Math.min(100, block.pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (block.kind === "top") {
+                    return (
+                      <div key={key} className="usage-top">
+                        <span className="usage-top-label">{block.label}</span>
+                        <div className="usage-top-items">
+                          {block.items.map((item) => (
+                            <span key={item.name} className="usage-chip" title={item.name}>
+                              <span className="usage-chip-name">{item.name}</span>
+                              {item.pct != null ? (
+                                <span className="usage-chip-pct">{item.pct}%</span>
+                              ) : null}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <pre key={key} className="usage-raw">
+                      {block.text}
+                    </pre>
+                  );
+                })}
+              </div>
             </section>
           ) : null}
 

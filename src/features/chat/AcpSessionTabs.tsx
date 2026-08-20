@@ -20,6 +20,16 @@ import { useT } from "@/i18n";
 export interface AcpTab {
   id: string;
   title: string | null;
+  /**
+   * **아직 안 만들어진** 대화 (새 세션 버튼을 누른 직후).
+   *
+   * 세션은 첫 마디를 보낼 때 비로소 생긴다 — 그전까지는 백엔드에도 지난 대화
+   * 목록에도 없다. 그런데 탭 줄이 그것까지 없는 셈 치니, 새 세션을 눌러도
+   * 상단바는 방금 떠나온 대화를 그대로 가리키고 있었다("눌러도 아무 일도 안
+   * 일어난다"). 이 탭은 그 사이를 메우는 표시이고, 첫 마디와 함께 진짜 탭이
+   * 된다 (그래서 목록에 저장하지 않는다 — 화면에서만 산다).
+   */
+  pending?: boolean;
 }
 
 /**
@@ -57,9 +67,14 @@ export const AcpSessionTabs = memo(function AcpSessionTabs({
     <div className="acp-tabs" role="tablist" aria-label={t("acp.tabs.aria")} onKeyDown={onKeyDown}>
       {tabs.map((tab) => {
         const active = tab.id === activeId;
-        const label = tab.title || t("acp.untitledSession");
+        const label = tab.pending
+          ? t("acp.newConversation")
+          : tab.title || t("acp.untitledSession");
         return (
-          <div key={tab.id} className={"acp-tab" + (active ? " active" : "")}>
+          <div
+            key={tab.id}
+            className={"acp-tab" + (active ? " active" : "") + (tab.pending ? " pending" : "")}
+          >
             <button
               type="button"
               role="tab"
