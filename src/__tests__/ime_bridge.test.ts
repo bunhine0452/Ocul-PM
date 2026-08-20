@@ -353,6 +353,39 @@ describe("imeBridge", () => {
     expect(applyDel(h.stream)).toBe("\uc548\ub155 ");
   });
 
+  // ── v2.13.3 뒤에도 남아 있던 두 경로 (2026-08-20) ────────────────────────
+
+  test("확정과 잔여분 사이에 낀 빈 input 이 판별 근거를 지우지 않는다", () => {
+    typeAnnyeong();
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uc548\ub155${NBSP}`); // 확정 — lastCommitted="안녕 "
+    // 입력기가 확정분을 놓으며 버퍼를 한 번 비운다. 아무 일도 아닌 이벤트인데
+    // 이게 lastCommitted 를 "" 로 덮으면 다음 줄의 잔여분이 대조에 안 걸린다.
+    fireInput(h, "");
+    fireInput(h, "\ub155");
+
+    expect(applyDel(h.stream)).toBe("\uc548\ub155 "); // "안녕 녕" 이면 회귀
+  });
+
+  test("잔여분이 확정한 공백까지 끌고 와도 흘리지 않는다", () => {
+    typeAnnyeong();
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uc548\ub155${NBSP}`);
+    // 꼬리가 공백이라 예전에는 조합 검사에서 튕겨 판별을 시작조차 못 했다.
+    fireInput(h, `\ub155${NBSP}`);
+
+    expect(applyDel(h.stream)).toBe("\uc548\ub155 ");
+  });
+
+  test("빈 input 이 진짜 삭제일 때는 기록을 갱신한다", () => {
+    fireInput(h, "\uac00");
+    fireInput(h, ""); // 조합 중이던 "가" 를 통째로 지웠다 — 지울 것이 있었다
+    expect(applyDel(h.stream)).toBe("");
+    // 그 뒤 "가" 가 새로 올라오면 잔여분이 아니라 새 입력이다.
+    fireInput(h, "\uac00");
+    expect(applyDel(h.stream)).toBe("\uac00");
+  });
+
   test("확정 뒤 새로 시작하는 조합(낱자)은 정상 통과한다", () => {
     typeAnnyeong();
     fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });

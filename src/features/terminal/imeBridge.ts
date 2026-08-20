@@ -1,5 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 import { oculpmLog } from "@/lib/oculpmLog";
+import { dumpImeTrace, pushImeTrace } from "./imeTrace";
 
 // WKWebView 한글/CJK 입력 브리지 (2026-07-30)
 //
@@ -125,10 +126,30 @@ const SESSION_END_KEYS = new Set([
 // 세션이 없는 상태(echoed === "")에서 올라온 **조합 잔여분은 되돌릴 대상이
 // 없으므로 정의상 stale** 이다 — 흘리지 않고 버린다.
 
+// ── 2026-08-20: 같은 증상이 v2.13.3 뒤에도 남아 있었다 ────────────────────
+// 위 판별에 구멍이 둘 있었다. 둘 다 "확정과 잔여분 사이"에서 벌어진다.
+//
+// (1) **빈 input 한 건이 근거를 지웠다.** 확정 처리는 `lastCommitted` 에 방금
+//     내보낸 문자열을 적어 두고, 잔여분이 오면 그 꼬리와 대조한다. 그런데
+//     기록하는 자리가 `if (!value || 조합 아님)` 안이라 **value 가 빈 문자열일
+//     때도 덮어썼다**. 확정 직후 입력기가 버퍼를 한 번 비우고("") 나서 잔여분을
+//     올리면, 그 빈 건이 `lastCommitted` 를 "" 로 만들어 뒤이은 "녕" 이 대조에
+//     걸리지 않는다 → 그대로 나간다.
+//
+//       input "안녕 " → 확정, lastCommitted="안녕 "
+//       input ""      → lastCommitted="" 로 덮임          ← 근거 소실
+//       input "녕"    → "".endsWith("녕") = false → 전송 → "안녕 녕"
+//
+// (2) **잔여분이 확정한 공백까지 끌고 오면** 꼬리가 " " 라 `isComposable` 검사에
+//     걸려 판별 자체를 시작하지 못했다 ("녕 " 형태). 끝의 공백은 떼고 본다.
+
+/** 잔여 조합이 확정한 공백까지 끌고 올 때 떼어내는 꼬리 (NBSP 포함). */
+const TRAILING_SPACE = /\s+$/;
+
 /** 확정 직후 잔여 조합으로 인정하는 시간 창. */
 const STALE_COMMIT_WINDOW_MS = 400;
 
-/** 개발 빌드에서만 이벤트 흐름을 남긴다 (`<app_data>/logs/oculpm.log.*`). */
+/** 개발 빌드에서만 IPC 로그까지 태운다 — 링 버퍼는 릴리스에서도 항상 돈다. */
 const TRACE = import.meta.env.DEV;
 
 export interface ImeBridgeHandle {
@@ -166,6 +187,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   };
 
   const trace = (event: string, detail: Record<string, unknown>) => {
+    // 링은 릴리스에서도 돈다 (imeTrace.ts) — 배열 한 칸 쓰기라 경합을 안 바꾼다.
+    pushImeTrace(event, { ...detail, echoed, textarea: textarea?.value ?? null });
     if (!TRACE) return;
     oculpmLog.info("ime", event, { ...detail, echoed, textarea: textarea?.value ?? null });
   };
@@ -229,12 +252,17 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
    *      "녕". 새 조합은 언제나 낱자("ㄴ")로 시작하므로 완성형 음절이 첫 input
    *      으로 오는 일은 정상 타이핑에 없다.
    */
+  const sinceCommit = () => Date.now() - lastCommittedAt;
+
   const isStaleCommitEcho = (inputType: string, value: string): boolean => {
     if (echoed !== "" || !value) return false;
-    if (Date.now() - lastCommittedAt > STALE_COMMIT_WINDOW_MS) return false;
-    if (!isComposable(value.slice(-1))) return false;
+    if (sinceCommit() > STALE_COMMIT_WINDOW_MS) return false;
+    // 잔여분이 확정한 공백까지 끌고 오는 일이 있다("녕 "). 그대로 보면 꼬리가
+    // 공백이라 조합 검사에서 튕겨 나가 판별을 시작조차 못 한다.
+    const tail = value.replace(TRAILING_SPACE, "");
+    if (!tail || !isComposable(tail.slice(-1))) return false;
     if (inputType === "insertReplacementText") return true;
-    return lastCommitted.trimEnd().endsWith(value);
+    return lastCommitted.trimEnd().endsWith(tail);
   };
 
   /**
@@ -269,12 +297,32 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       return;
     }
 
+    // 위 판별을 빠져나왔는데 **모양은 잔여분** — 놓친 경로일 수 있다.
+    //
+    // 네 번 재발한 버그가 지나간 자리다. 지나갈 때마다 그때까지의 흐름을 통째로
+    // 로그에 남겨 두면, 다음에 또 새더라도 추측이 아니라 트레이스로 시작한다.
+    //
+    // "모양은 잔여분" 을 좁게 잡는 것이 중요하다 — 확정 직후라는 조건만으로는
+    // **낱말 사이마다** 걸린다(스페이스 뒤 새 조합의 첫 낱자). 새 조합은 언제나
+    // 낱자(ㅈ)로 시작하므로, **완성형 음절만으로 이루어진 값**은 정상 타이핑에
+    // 첫 input 으로 오지 않는다. 그것만 남긴다.
+    if (isLeftoverShaped(value) && echoed === "" && sinceCommit() <= STALE_COMMIT_WINDOW_MS) {
+      trace("post-commit-passthrough", { inputType, value, lastCommitted });
+      dumpImeTrace("post-commit-passthrough");
+    }
+
+    const had = echoed;
     syncEcho(value);
     // 버퍼가 무한정 자라면 공통 접두사 비교가 길어지기만 한다. 조합이 끝나
     // 더 바뀔 일이 없는 상태(꼬리가 조합 대상이 아님)면 세션을 끊는다.
     if (!value || !isComposable(value.slice(-1))) {
-      lastCommitted = value;
-      lastCommittedAt = Date.now();
+      // **빈 값으로는 확정 기록을 덮지 않는다.** 실어 나를 것이 없었던(had === "")
+      // 빈 input 은 아무 일도 아닌데, 그 한 건이 잔여분을 가려낼 근거를 지웠다
+      // (위 (1)). 지울 것이 있었던 빈 값은 진짜 삭제이므로 그대로 기록한다.
+      if (value || had) {
+        lastCommitted = value;
+        lastCommittedAt = Date.now();
+      }
       endSession();
     }
   };
@@ -300,6 +348,14 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     const imeKey = event.isComposing || event.keyCode === 229 || event.key === "Process";
 
     if (event.type === "keydown") {
+      // ⌃⌥⇧I — 그때까지의 입력 흐름을 로그 파일로 비운다. 한글 입력이 이상하게
+      // 동작한 **직후** 눌러 달라고 안내하면, 릴리스 빌드에서도 재현 순간의
+      // 트레이스를 그대로 받을 수 있다 (imeTrace.ts).
+      if (event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyI") {
+        const count = dumpImeTrace("manual");
+        oculpmLog.info("ime", `[IME-DUMP] manual dump requested — ${count} events`);
+        return false;
+      }
       trace("keydown", {
         key: event.key,
         keyCode: event.keyCode,
@@ -369,6 +425,18 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       textarea?.removeEventListener("blur", onBlur);
     },
   };
+}
+
+/**
+ * 확정 잔여분의 **모양**인가 — 완성형 음절만으로 이루어졌는가.
+ *
+ * 새 조합은 언제나 낱자(`ㅈ`)로 시작하므로 완성형만 든 값이 조합의 첫 input 으로
+ * 오는 일은 정상 타이핑에 없다. 진단 기록을 좁히는 데만 쓴다(전송 판단 아님).
+ */
+function isLeftoverShaped(value: string): boolean {
+  const tail = value.replace(TRAILING_SPACE, "");
+  // i18n-ignore-next-line -- 한글 완성형 음절 범위 (표시 문자열이 아니라 모양 판정용)
+  return tail.length > 0 && /^[가-힣]+$/.test(tail);
 }
 
 /** 아직 교체될 수 있는 글자인가 — 한글 자모·완성형이면 조합이 이어질 수 있다. */

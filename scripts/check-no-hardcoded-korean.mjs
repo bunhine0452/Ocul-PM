@@ -142,6 +142,7 @@ const TESTS = new Set([
   "__tests__/home_match.test.ts",
   "__tests__/home_model.test.ts",
   "__tests__/ime_bridge.test.ts",
+  "__tests__/ime_trace.test.ts",
   "__tests__/journal_v2.test.tsx",
   "__tests__/mcp_settings.test.tsx",
   "__tests__/multi_window.test.tsx",
