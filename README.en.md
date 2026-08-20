@@ -54,7 +54,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.3 — the previous syllable reappearing after a space
+## 🚀 v2.13.4 — three fixes in the Claude Code screen
+
+- **A tab for the new session** — clicking "New session" showed nothing in the tab strip, so you couldn't tell whether it had registered. A session is only created when you send the first message, so there was nothing to list until then. A dashed placeholder tab now holds that spot and becomes the real tab in place once you speak (closable, ⌘W included).
+- **Titles chasing the last prompt** — as a conversation went on, the tab name kept changing to whatever you had just typed. Until Claude Code generates a title, the most recent prompt stands in as one. The app now recognises that stand-in, keeps the opening message, and switches only when a real title arrives.
+- **"What's contributing" in the usage card** — crammed into a narrow card in a monospace block, sentences wrapped four lines deep and the rest was cut off. The card is wider now, shares render as a bar with a number, and lists like "Top skills" become chips. Lines the app doesn't recognise are still shown verbatim, so nothing disappears as the report grows.
+
+## v2.13.3 — the previous syllable reappearing after a space
 
 - **Stale composition after commit** — typing `안녕` then space produced `안녕 녕`. Space commits the composition and the app clears its input buffer; if the IME is still holding that syllable, it re-inserts it into the now-empty buffer, and the app mistook it for fresh input. Late input with nothing to replace is now recognised as a leftover and dropped. The cause is the **opposite** of the previous version's space fix (too early vs. too late), which is why that one didn't catch it.
 - **Why release builds only** — dev builds are slowed by diagnostic logging and dev tooling, which kept this window closed. It is a timing-sensitive race, so only the fast build exposed it.
