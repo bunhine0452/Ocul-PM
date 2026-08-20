@@ -54,7 +54,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.13.4 — three fixes in the Claude Code screen
+## 🚀 v2.13.5 — the syllable after a space, and diagnostics to end the recurrence
+
+- **Two remaining paths** — `안녕` followed by space producing `안녕 녕` was fixed in v2.13.3, but two routes survived. An **empty input landing between the commit and the leftover** wiped the evidence (the string we had just sent), and a leftover that **dragged the space along** (`녕 `) never even reached the check. The check is wider now, so the tests also cover the opposite failure: that it doesn't swallow legitimate input.
+- **Input traces that survive release builds** — this bug has recurred four times and was fixed without a trace every time. Turning logging on slows the app enough that the bug stops reproducing (it is a timing race), so the diagnostic changed what it was measuring. Input flow now accumulates in an **in-memory ring buffer only** (one array slot write — it does not shift the timing), and **⌃⌥⇧I** in the terminal writes the preceding flow to `oculpm.log`. It also dumps automatically when the app forwards input that looks like a leftover.
+
+## v2.13.4 — three fixes in the Claude Code screen
 
 - **A tab for the new session** — clicking "New session" showed nothing in the tab strip, so you couldn't tell whether it had registered. A session is only created when you send the first message, so there was nothing to list until then. A dashed placeholder tab now holds that spot and becomes the real tab in place once you speak (closable, ⌘W included).
 - **Titles chasing the last prompt** — as a conversation went on, the tab name kept changing to whatever you had just typed. Until Claude Code generates a title, the most recent prompt stands in as one. The app now recognises that stand-in, keeps the opening message, and switches only when a real title arrives.
