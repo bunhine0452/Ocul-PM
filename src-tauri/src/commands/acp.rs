@@ -212,6 +212,12 @@ pub fn acp_status(state: State<'_, AcpState>, project_id: u32) -> Result<Option<
 
 /// 프롬프트를 보내고 턴이 끝날 때까지 이벤트를 `on_event` 로 흘린다.
 ///
+/// `session_id` 로 **어느 대화에 말을 거는지 화면이 지정한다.** 예전에는 백엔드
+/// 장부의 "활성 대화"로 보냈는데, 그래서 대화를 나란히 돌릴 수가 없었다 — 탭을
+/// 옮기는 순간 장부가 바뀌어, 뒤에서 돌던 대화에 보내려던 말이 방금 연 대화로
+/// 갔다. `None` 이면 예전처럼 장부를 따르고, 없으면 만든다 (어댑터가 죽었다
+/// 살아난 뒤의 첫 프롬프트가 이 길을 탄다).
+///
 /// `attachments` 는 함께 보낼 파일의 절대경로다. 내용을 우리가 읽어 넣지 않고
 /// **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
 /// 읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
@@ -221,6 +227,7 @@ pub async fn acp_prompt(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
+    session_id: Option<String>,
     text: String,
     attachments: Vec<String>,
     images: Vec<AcpImage>,
@@ -231,9 +238,12 @@ pub async fn acp_prompt(
         .connection(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
 
-    // 보통은 `acp_start` 가 이미 만들어 뒀다 — 여기 폴백이 남아 있는 건
-    // 어댑터가 죽었다 살아난 뒤의 첫 프롬프트를 위해서다.
-    let session = ensure_session(&app, &db, project_id).await?;
+    // 화면이 대화를 짚어 줬으면 그대로 간다. 안 짚었을 때만 장부를 보고,
+    // 그것도 없으면 만든다 (어댑터가 죽었다 살아난 뒤의 첫 프롬프트).
+    let session = match session_id {
+        Some(id) => id.into(),
+        None => ensure_session(&app, &db, project_id).await?,
+    };
 
     // 알림 핸들러는 연결 생성 시점에 한 번 등록돼 있다 — 여기서는 "지금 누가
     // 듣는지"만 바꿔 끼운다.
@@ -326,19 +336,33 @@ pub async fn acp_prompt(
 ///
 /// 취소는 알림(fire-and-forget)이라 즉시 끊기지 않는다 — 에이전트가
 /// `stopReason: cancelled` 로 턴을 닫아 주면 그때 `Done` 이 온다.
+///
+/// `session_id` 는 **멈출 대화**다. 프롬프트와 같은 이유로 인자로 받는다 —
+/// 옆에서 돌던 대화까지 함께 멈추면 ESC 한 번에 남의 턴이 죽는다.
 #[tauri::command]
 #[specta::specta]
-pub fn acp_cancel(app: AppHandle, project_id: u32) -> Result<bool, String> {
+pub fn acp_cancel(
+    app: AppHandle,
+    project_id: u32,
+    session_id: Option<String>,
+) -> Result<bool, String> {
     let state = app.state::<AcpState>();
-    let (Some(connection), Some(session)) = (state.connection(project_id), state.session(project_id))
-    else {
+    let Some(connection) = state.connection(project_id) else {
         return Ok(false);
     };
+    let session = match session_id {
+        Some(id) => id.into(),
+        None => match state.session(project_id) {
+            Some(session) => session,
+            None => return Ok(false),
+        },
+    };
 
-    // 프로토콜 요구사항 — 취소한 클라이언트는 미결 권한 요청에 전부 취소로
-    // 응답해야 한다. 순서가 중요하다: 먼저 풀어 줘야 에이전트가 취소를 처리할
-    // 수 있는 상태가 된다.
-    state.cancel_pending_permissions(project_id);
+    // 프로토콜 요구사항 — 취소한 클라이언트는 **그 대화의** 미결 권한 요청에
+    // 취소로 응답해야 한다. 순서가 중요하다: 먼저 풀어 줘야 에이전트가 취소를
+    // 처리할 수 있는 상태가 된다.
+    let cancelled = session.0.to_string();
+    state.cancel_pending_permissions(project_id, Some(&cancelled));
 
     connection
         .send_notification(CancelNotification::new(session))
@@ -478,8 +502,10 @@ pub async fn acp_new_session(
         .info(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
 
-    // 미결 승인 카드는 지금 세션에 매인 것이므로 먼저 닫는다.
-    state.cancel_pending_permissions(project_id);
+    // 미결 승인 카드는 **건드리지 않는다.** 새 대화를 여는 것은 하던 대화를
+    // 버리는 것이 아니다 — 그 대화는 탭에 그대로 남아 계속 돌고, 답을 기다리는
+    // 카드도 돌아가면 그 자리에 있어야 한다. (예전에는 여기서 전부 닫았다.
+    // 대화가 하나뿐이던 시절의 잔재다.)
     state.clear_session(project_id);
     ensure_session(&app, &db, project_id).await?;
 
@@ -634,8 +660,9 @@ pub async fn acp_load_session(
         .connection(project_id)
         .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
 
-    // 지금 세션에 매인 승인 카드는 무효가 된다.
-    state.cancel_pending_permissions(project_id);
+    // 다시 읽는 그 대화의 승인 카드만 무효가 된다 — 재생이 지난 상태를
+    // 덮어쓰기 때문이다. 옆 대화 것은 그대로 둔다.
+    state.cancel_pending_permissions(project_id, Some(&session_id));
     let cwd = project_root(&db, project_id).await?;
 
     app.state::<AcpState>()

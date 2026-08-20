@@ -968,18 +968,27 @@ export const commands = {
 	/**
 	 *  프롬프트를 보내고 턴이 끝날 때까지 이벤트를 `on_event` 로 흘린다.
 	 * 
+	 *  `session_id` 로 **어느 대화에 말을 거는지 화면이 지정한다.** 예전에는 백엔드
+	 *  장부의 "활성 대화"로 보냈는데, 그래서 대화를 나란히 돌릴 수가 없었다 — 탭을
+	 *  옮기는 순간 장부가 바뀌어, 뒤에서 돌던 대화에 보내려던 말이 방금 연 대화로
+	 *  갔다. `None` 이면 예전처럼 장부를 따르고, 없으면 만든다 (어댑터가 죽었다
+	 *  살아난 뒤의 첫 프롬프트가 이 길을 탄다).
+	 * 
 	 *  `attachments` 는 함께 보낼 파일의 절대경로다. 내용을 우리가 읽어 넣지 않고
 	 *  **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
 	 *  읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
 	 */
-	acpPrompt: (projectId: number, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, text, attachments, images, onEvent })),
+	acpPrompt: (projectId: number, sessionId: string | null, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, sessionId, text, attachments, images, onEvent })),
 	/**
 	 *  진행 중인 턴을 취소한다. 세션이 없으면 `false`.
 	 * 
 	 *  취소는 알림(fire-and-forget)이라 즉시 끊기지 않는다 — 에이전트가
 	 *  `stopReason: cancelled` 로 턴을 닫아 주면 그때 `Done` 이 온다.
+	 * 
+	 *  `session_id` 는 **멈출 대화**다. 프롬프트와 같은 이유로 인자로 받는다 —
+	 *  옆에서 돌던 대화까지 함께 멈추면 ESC 한 번에 남의 턴이 죽는다.
 	 */
-	acpCancel: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("acp_cancel", { projectId })),
+	acpCancel: (projectId: number, sessionId: string | null) => typedError<boolean, string>(__TAURI_INVOKE("acp_cancel", { projectId, sessionId })),
 	/**  권한 카드의 선택을 전달한다. `option_id` 가 `None` 이면 거절(취소)로 닫는다. */
 	acpPermissionRespond: (requestId: string, optionId: string | null) => typedError<boolean, string>(__TAURI_INVOKE("acp_permission_respond", { requestId, optionId })),
 	/**

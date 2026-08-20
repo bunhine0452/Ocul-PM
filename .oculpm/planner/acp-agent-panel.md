@@ -38,6 +38,7 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 - [x] 새 세션을 누르면 탭 줄에도 자리가 생긴다 (임시 탭, 첫 마디에 진짜 탭으로) {#acp-pending-tab}
 - [x] 제목이 마지막 지시문을 따라다니지 않게 — 어댑터 제목의 메아리 걸러내기 {#acp-title-echo}
 - [x] 사용량 카드의 "무엇이 기여했나" 를 읽을 수 있게 (모르는 줄은 원문 유지) {#acp-usage-detail-read}
+- [x] 한 프로젝트에서 대화 여러 개를 동시에 굴린다 — prompt/cancel 이 세션을 인자로 받고, 화면 상태(작업 중·승인·사용량·오류)를 대화별로 분리 {#acp-parallel-sessions}
 
 ## 기록 결합 {#record}
 - [ ] PR-ACP5 — 턴 종료 → 일지 초안, agent_id 분리(claude-code:acp)로 훅 브리지와 이중 기록 방지, usage_update 비용 텔레메트리 적재(#cost-telemetry 흡수) {#acp5-journal}
@@ -60,4 +61,5 @@ AI 패널을 ACP(Agent Client Protocol) 클라이언트로 만들어 Claude Code
 | 2026-08-20T20:54:00+09:00 | #acp-pending-tab | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2054_bug_new-session-has-no-tab.md | acpTabs 에 넣지 않고 tabItems 에서만 붙인다 — 디스크에 못 여는 탭이 남지 않게 |
 | 2026-08-20T20:55:00+09:00 | #acp-title-echo | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2055_bug_title-follows-last-prompt.md | SDK summary = customTitle→aiTitle→lastPrompt 순. 지시문 메아리를 가려 첫 지시문을 지킨다 |
 | 2026-08-20T20:56:00+09:00 | #acp-usage-detail-read | claude-code | ☐→x | .oculpm/journal/20260820/Bugs/2056_bug_usage-detail-unreadable.md | 네 모양만 뜯고 모르는 줄은 원문 그대로 — 판올림에 빈칸이 되지 않게 |
+| 2026-08-20T22:30:00+09:00 | #acp-parallel-sessions | claude-code | ☐→x | .oculpm/journal/20260820/Features_to_add/2230_feature_parallel-acp-sessions.md | 스파이크 4 로 어댑터 동시 세션 확인(스트림 교차) 후 구현. acp_prompt/acp_cancel 에 session_id, PendingPermission 세션 스코프, 프런트 busy/error/usage/permission 세션별 분리 |
 <!-- oculpm:plan-log end -->

@@ -134,6 +134,31 @@ interface UsageState {
 
 type PermissionState = Extract<AcpEvent, { kind: "permission" }>;
 
+/** 대화별 칸의 빈 초기값 — 렌더마다 새로 만들지 않는다. */
+const NO_SESSIONS: ReadonlySet<string> = new Set();
+const NOTHING_BY_SESSION: Readonly<Record<string, never>> = {};
+
+/**
+ * 대화별 칸 하나를 채우거나(값) 비운다(null).
+ *
+ * 바뀐 것이 없으면 **같은 객체를 돌려준다** — 답이 흐르는 동안 초당 수십 번
+ * 불리는 자리라, 매번 새 객체를 만들면 화면 전체가 그만큼 다시 그려진다.
+ */
+function assignBySession<T>(
+  prev: Readonly<Record<string, T>>,
+  id: string,
+  value: T | null,
+): Readonly<Record<string, T>> {
+  if (value === null) {
+    if (!(id in prev)) return prev;
+    const next = { ...prev };
+    delete next[id];
+    return next;
+  }
+  if (prev[id] === value) return prev;
+  return { ...prev, [id]: value };
+}
+
 /** 도구 종류 → 아이콘. 모르는 종류는 중립 아이콘으로 흘린다. */
 const TOOL_ICON: Readonly<Record<string, typeof FileIcon>> = {
   read: FileIcon,
@@ -271,16 +296,83 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     [turns],
   );
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [usage, setUsage] = useState<UsageState | null>(null);
+  /**
+   * **대화별로 갈라 두는 것들.**
+   *
+   * 하나로 두면 옆 대화의 일이 이 화면에 나타난다. 대화를 나란히 돌릴 수 있게
+   * 되면서 갈랐다 — 특히 승인 카드가 그렇다: 뒤에서 돌던 대화가 물어본 것을
+   * 보고 있던 대화에 띄우면 **무엇을 허용하는지 못 본 채** 허용을 누르게 된다.
+   * 작업 중 표시도 마찬가지다. 하나뿐이면 A 가 도는 동안 B 의 입력이 잠긴다 —
+   * 그것이 곧 "멀티 세션이 안 된다"의 정체였다.
+   */
+  const [busySessions, setBusySessions] = useState<ReadonlySet<string>>(NO_SESSIONS);
+  const [errors, setErrors] =
+    useState<Readonly<Record<string, string>>>(NOTHING_BY_SESSION);
+  const [usages, setUsages] =
+    useState<Readonly<Record<string, UsageState>>>(NOTHING_BY_SESSION);
+  const [permissions, setPermissions] =
+    useState<Readonly<Record<string, PermissionState>>>(NOTHING_BY_SESSION);
+
+  /** 지금 보고 있는 대화의 몫 — 화면의 나머지는 예전처럼 이 이름들만 본다. */
+  const busy = busySessions.has(activeId);
+  const error = errors[activeId] ?? null;
+  const usage = usages[activeId] ?? null;
   /**
    * 승인 대기 중인 권한 요청. 응답할 때까지 **에이전트는 멈춰 있다** — 그래서
    * 카드를 모달이 아니라 대화 흐름에 인라인으로 둔다(D4). 모달로 가리면
    * 무엇을 승인하는지 보여 주는 도구 카드가 함께 가려진다.
    */
-  const [permission, setPermission] = useState<PermissionState | null>(null);
+  const permission = permissions[activeId] ?? null;
+
+  /** 이 대화가 도는 중인가를 켜고 끈다. */
+  const markBusy = useCallback((id: string, on: boolean) => {
+    setBusySessions((prev) => {
+      if (prev.has(id) === on) return prev;
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const putError = useCallback(
+    (id: string, message: string | null) => setErrors((prev) => assignBySession(prev, id, message)),
+    [],
+  );
+  const putUsage = useCallback(
+    (id: string, value: UsageState | null) => setUsages((prev) => assignBySession(prev, id, value)),
+    [],
+  );
+  const putPermission = useCallback(
+    (id: string, value: PermissionState | null) =>
+      setPermissions((prev) => assignBySession(prev, id, value)),
+    [],
+  );
+
+  /**
+   * 지금 보고 있는 대화 — 비동기 콜백이 "그때 화면이 어디였나"를 묻는 자리.
+   * (렌더 중에 쓰지 않는다. 커밋된 뒤의 값만 읽는다.)
+   */
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  /**
+   * 보고 있는 대화에 붙이는 것들. 화면 곳곳의 호출부는 예전 이름 그대로 쓴다.
+   *
+   * **턴 안에서는 쓰지 않는다** — 답이 흐르는 동안 사용자가 탭을 옮기면 남의
+   * 대화에 적히기 때문이다. `send` 는 자기가 향한 대화를 직접 짚는다.
+   */
+  const setError = useCallback(
+    (message: string | null) => putError(activeIdRef.current, message),
+    [putError],
+  );
+  const setPermission = useCallback(
+    (value: PermissionState | null) => putPermission(activeIdRef.current, value),
+    [putPermission],
+  );
   /** 이번 프롬프트에 함께 보낼 파일 (상대·절대 섞여도 백엔드가 맞춘다). */
   const [attachments, setAttachments] = useState<string[]>([]);
   /**
@@ -324,7 +416,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const [history, setHistory] = useState<AcpSessionSummary[] | null>(null);
   const [historyQuery, setHistoryQuery] = useState("");
   /**
-   * 에이전트가 도는 동안 사용자가 친 메시지. 턴이 끝나면 차례로 나간다.
+   * **그 대화가** 도는 동안 사용자가 친 메시지. 턴이 끝나면 차례로 나간다.
+   * (옆 대화가 도는 것은 상관없다 — 그쪽은 그쪽대로 간다.)
    *
    * 클라이언트에서 줄 세우는 이유: 어댑터가 `promptQueueing` 을 광고하긴
    * 하지만, 그쪽에 맡기면 큐가 **화면에 안 보이고 취소도 못 한다**. 여기서
@@ -520,10 +613,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 다른 화면에서 "아직 도는 중"으로 믿고 기다리다 몇 분을 잃는다.
    */
   useEffect(() => {
-    const key = acpWorkingKey(projectId, session?.session_id ?? null);
-    setAcpAttention(key, permission != null);
-    return () => setAcpAttention(key, false);
-  }, [permission, projectId, session?.session_id]);
+    const keys = Object.keys(permissions).map((id) =>
+      acpWorkingKey(projectId, id === SLATE ? null : id),
+    );
+    keys.forEach((key) => setAcpAttention(key, true));
+    return () => keys.forEach((key) => setAcpAttention(key, false));
+  }, [permissions, projectId]);
 
   /**
    * 파일 드래그&드롭 → 첨부.
@@ -611,7 +706,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 없어 그대로 사라진다. 새 번들을 까는 것까지는 언제든 해도 된다 — 기다리는
    * 것은 마지막 한 걸음뿐이다.
    */
-  useEffect(() => registerBusy(() => (busy ? t("acp.busyReason") : null)), [busy, t]);
+  useEffect(
+    // 보고 있는 대화가 아니어도 잡는다 — 뒤에서 도는 턴도 재시작이면 함께 죽는다.
+    () => registerBusy(() => (busySessions.size ? t("acp.busyReason") : null)),
+    [busySessions, t],
+  );
 
   /**
    * 사이드바에 "몇 개가 돌고 있는지"를 알린다.
@@ -621,10 +720,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 탭을 접을 때)에도 반드시 지운다: 안 지우면 끝나지 않는 유령이 남는다.
    */
   useEffect(() => {
-    const key = acpWorkingKey(projectId, session?.session_id ?? null);
-    setAcpWorking(key, busy);
-    return () => setAcpWorking(key, false);
-  }, [busy, projectId, session?.session_id]);
+    const keys = [...busySessions].map((id) => acpWorkingKey(projectId, id === SLATE ? null : id));
+    keys.forEach((key) => setAcpWorking(key, true));
+    return () => keys.forEach((key) => setAcpWorking(key, false));
+  }, [busySessions, projectId]);
 
   /**
    * 스트리밍 중에는 맨 아래를 따라간다 — **사용자가 바닥에 있을 때만.**
@@ -811,9 +910,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 것이 새 대화의 스크롤 정책으로 새어 나가면 안 된다.
       stickRef.current = true;
       setAwayFromBottom(false);
-      setUsage(null);
-      setPermission(null);
-      setError(null);
 
       // 이미 이 창에서 본 대화면 **다시 읽지 않는다.**
       //
@@ -825,11 +921,17 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         const picked = await commands.acpSelectSession(projectId, sessionId, title);
         if (loadSeqRef.current !== seq) return;
         if (picked.status === "ok") setSession(picked.data);
-        else setError(picked.error);
+        else putError(sessionId, picked.error);
         return;
       }
 
       editTurns(sessionId, () => []);
+      // 다시 읽는 **그 대화의 것만** 지운다 — 재생이 지난 상태를 덮어쓰기
+      // 때문이다(백엔드도 이 대화의 승인 카드만 취소로 닫는다). 옆 대화가 들고
+      // 있는 카드·사용량은 그대로 둔다.
+      putUsage(sessionId, null);
+      putPermission(sessionId, null);
+      putError(sessionId, null);
 
       // `session/load` 는 지난 대화를 session/update 로 **되흘려보낸다**.
       // 그 이벤트를 replay 모드로 리듀서에 먹여 화면을 복원한다.
@@ -848,10 +950,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 지난 답변 꼬리에 붙는다.
         editTurns(sessionId, closeTurn);
       } else {
-        setError(res.error);
+        putError(sessionId, res.error);
       }
     },
-    [projectId, addTab, editTurns, tabs],
+    [projectId, addTab, editTurns, tabs, putUsage, putPermission, putError],
   );
 
 
@@ -934,12 +1036,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     editTurns(SLATE, () => []);
     setAttachments([]);
     setImages([]);
-    setUsage(null);
-    setPermission(null);
-    setError(null);
+    // 빈 자리의 몫만 지운다 — 방금 떠나온 대화는 계속 돌고 있을 수 있고,
+    // 그 대화의 승인 카드는 돌아갔을 때 그 자리에 있어야 한다.
+    putUsage(SLATE, null);
+    putPermission(SLATE, null);
+    putError(SLATE, null);
     // 새 대화를 연 다음 할 일은 하나뿐이다 — 입력. 클릭 한 번을 아껴 준다.
     inputRef.current?.focus();
-  }, [editTurns]);
+  }, [editTurns, putUsage, putPermission, putError]);
 
   /**
    * 같은 프로젝트에서 진짜 `claude` 를 터미널에 띄운다.
@@ -1072,9 +1176,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   );
 
   const send = useCallback(
-    async (override?: string) => {
+    /**
+     * `target` 은 **말을 걸 대화**다. 생략하면 지금 보고 있는 대화.
+     *
+     * 대기줄이 이걸 쓴다 — 뒤에 있는 대화의 줄이 풀릴 때 그 순간 화면이 어디를
+     * 보고 있든 제 대화로 가야 한다. 예전에는 백엔드의 "활성 대화" 장부로
+     * 보냈기 때문에 **턴이 끝나는 순간의 화면**이 수신자였다.
+     */
+    async (override?: string, target?: string) => {
       const text = (override ?? draft).trim();
       if (!text) return;
+      /** 이 전송이 향하는 대화. `SLATE` 면 아직 만들지 않은 새 대화다. */
+      const aim = target ?? activeId;
+      /** 입력창에서 곧장 보내는가 — 스크롤·첨부·초안은 그때만 건드린다. */
+      const fromComposer = override === undefined;
 
       // `/usage` 는 대화가 아니라 **계기판**이다. 채팅에 남기면 긴 표가 대화를
       // 밀어내고, 다시 보려면 스크롤을 거슬러 올라가야 한다 — 위젯으로 보낸다.
@@ -1140,43 +1255,50 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return;
       }
 
-      if (busy) {
-        setQueue((prev) => [...prev, { text, sessionId: session?.session_id ?? null }]);
-        setDraft("");
+      // **그 대화가** 도는 중일 때만 줄을 선다. 옆 대화가 도는 것은 상관없다 —
+      // 예전에는 화면에 하나뿐인 표시를 봤기 때문에, A 가 도는 동안 B 에 친 말이
+      // A 가 끝날 때까지 멎어 있었다.
+      if (busySessions.has(aim)) {
+        setQueue((prev) => [...prev, { text, sessionId: aim === SLATE ? null : aim }]);
+        if (fromComposer) setDraft("");
         recallRef.current = null;
         return;
       }
 
-      // 울트라코드 칸이 켜져 있으면 키워드를 함께 보낸다 — 어댑터가 우리
-      // 턴을 human 으로 스탬프하므로 CLI 의 opt-in 게이트를 통과한다.
-      // 보내는 순간부터 이 화면은 새 세대다 — 아직 흐르고 있는 재생분이
-      // 내 질문 위에 지난 대화를 덧그리면 안 된다.
-      loadSeqRef.current += 1;
+      // 보내는 순간부터 이 화면은 새 세대다 — 아직 흐르고 있는 재생분이 내
+      // 질문 위에 지난 대화를 덧그리면 안 된다. **보고 있는 대화일 때만** 올린다:
+      // 뒤에 있는 대화의 대기줄이 풀린 것이라면, 지금 화면에서 읽고 있는 대화의
+      // `session/load` 재생을 남의 사정으로 끊는 셈이 된다.
+      if (aim === activeId) loadSeqRef.current += 1;
       // 아직 안 만든 새 대화라면 **지금** 만든다 (새 대화 버튼은 화면만 비운다).
-      // 백엔드의 `acp_prompt` 는 세션이 없으면 알아서 하나 파지만, 여기서는
-      // 직전 대화가 아직 등록돼 있어서 그냥 보내면 **그 대화에 이어 붙는다.**
-      let target = session?.session_id ?? null;
-      if (!target) {
+      // 만들어야만 보낼 id 가 생긴다 — `acp_prompt` 는 이제 대화를 인자로 받고,
+      // 인자가 없으면 백엔드 장부를 따르는데 그 장부는 **직전 대화**를 가리킨다.
+      let resolved: string | null = aim === SLATE ? null : aim;
+      if (!resolved) {
+        // 세션을 만드는 동안에도 이 자리는 이미 "보내는 중"이다 — 표시가 없으면
+        // 사용자가 한 번 더 누른다.
+        markBusy(SLATE, true);
         const opened = await commands.acpNewSession(projectId);
+        markBusy(SLATE, false);
         if (opened.status !== "ok") {
-          setError(opened.error);
+          putError(SLATE, opened.error);
           return;
         }
         setSession(opened.data);
-        target = opened.data.session_id;
+        resolved = opened.data.session_id;
         // 빈 자리에 있던 기록은 이제 이 대화의 것이다.
-        if (target) {
-          const id = target;
+        if (resolved) {
+          const id = resolved;
           setTranscripts((prev) => ({ ...prev, [id]: prev[SLATE] ?? [], [SLATE]: [] }));
         }
       }
       // 여기까지 왔는데 id 가 없으면 보낼 곳이 없다 — 조용히 나가면 입력만
       // 사라지고 아무 일도 안 일어난 것처럼 보인다.
-      if (!target) {
-        setError(t("acp.sendNoSession"));
+      if (!resolved) {
+        putError(SLATE, t("acp.sendNoSession"));
         return;
       }
-      const into = target;
+      const into = resolved;
 
       // 이 대화에 실제로 말을 걸었다 — 이제 진짜로 가장 최근이다.
       markSpoken(activityRef.current, into, new Date().toISOString());
@@ -1185,17 +1307,21 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 있는 탭은 `addTab` 이 건드리지 않으므로, 이어 가는 대화의 이름은 그대로다.
       addTab(into, titleFromPrompt(text));
       const outgoing = withUltracode(text, ultracode);
-      const sending = attachments;
-      const sendingImages = images;
-      const sendingBlocks: AcpImage[] = images.map((image) => image.block);
+      // 첨부는 **입력창의 것**이다 — 대기줄에서 꺼낸 문장에 지금 얹혀 있는 파일을
+      // 딸려 보내면, 다른 대화에 붙여 두었던 것이 엉뚱한 대화로 간다.
+      const sending = fromComposer ? attachments : [];
+      const sendingImages = fromComposer ? images : [];
+      const sendingBlocks: AcpImage[] = sendingImages.map((image) => image.block);
       lastSentRef.current = text;
       recallRef.current = null;
-      setDraft("");
-      setAttachments([]);
-      setImages([]);
-      setMentions(null);
-      setSlash(null);
-      setError(null);
+      if (fromComposer) {
+        setDraft("");
+        setAttachments([]);
+        setImages([]);
+        setMentions(null);
+        setSlash(null);
+      }
+      putError(into, null);
       editTurns(into, (prev) =>
         openTurn(
           prev,
@@ -1212,9 +1338,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           Date.now(),
         ),
       );
-      // 내가 방금 말을 걸었다 — 어디를 보고 있었든 이제 바닥이 관심사다.
-      stickRef.current = true;
-      setBusy(true);
+      // 내가 방금 말을 걸었다 — 이제 바닥이 관심사다. 단 **보고 있는 대화일
+      // 때만**: 뒤에 있는 대화의 대기줄이 풀린 것이라면, 화면에 있지도 않은
+      // 대화 때문에 지금 읽던 자리가 바닥으로 끌려간다.
+      if (aim === activeId) stickRef.current = true;
+      markBusy(into, true);
 
       /**
        * **도착과 표시를 끊는다.**
@@ -1285,57 +1413,75 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         drain();
         editTurns(into, (prev) => applyAcpEvent(prev, event, false, Date.now()));
         if (event.kind === "usage") {
-          setUsage({ used: event.used, size: event.size, costUsd: event.cost_usd });
+          putUsage(into, { used: event.used, size: event.size, costUsd: event.cost_usd });
         } else if (event.kind === "failed") {
-          setError(event.message);
+          putError(into, event.message);
         } else if (event.kind === "permission") {
-          setPermission(event);
+          putPermission(into, event);
         } else if (event.kind === "config_changed") {
-          setSession((prev) => (prev ? { ...prev, options: event.options } : prev));
+          // 설정은 **그 대화의 것**이다 — 뒤에서 도는 대화가 모델을 바꿨다고
+          // 보고 있던 대화의 셀렉터를 갈아 끼우면 화면이 거짓을 말한다.
+          setSession((prev) =>
+            prev && (prev.session_id ?? SLATE) === into ? { ...prev, options: event.options } : prev,
+          );
         }
       };
 
       try {
-        const res = await commands.acpPrompt(projectId, outgoing, sending, sendingBlocks, channel);
-        if (res.status === "error") setError(res.error);
+        const res = await commands.acpPrompt(
+          projectId,
+          into,
+          outgoing,
+          sending,
+          sendingBlocks,
+          channel,
+        );
+        if (res.status === "error") putError(into, res.error);
       } finally {
         drain();
         // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.
         // 승인 카드도 함께 치운다: 백엔드가 미결 요청을 취소로 닫았으므로
         // 남겨 두면 눌러도 아무 일이 안 일어나는 유령 카드가 된다.
         editTurns(into, (prev) => closeTurn(prev, Date.now()));
-        setPermission(null);
-        setBusy(false);
+        putPermission(into, null);
+        markBusy(into, false);
       }
     },
-    [draft, busy, projectId, attachments, images, ultracode, session?.session_id, openSession, newConversation, addTab, editTurns, openInTerminal, t],
+    [draft, busySessions, projectId, attachments, images, ultracode, activeId, session?.session_id, openSession, newConversation, addTab, editTurns, openInTerminal, markBusy, putError, putUsage, putPermission, t],
   );
 
-  // 턴이 끝나면 큐의 맨 앞을 꺼내 보낸다. **한 번에 하나씩** — 한꺼번에 밀어
-  // 넣으면 사용자가 중간에서 멈출 수 없다.
+  // 턴이 끝나면 그 대화의 큐에서 맨 앞을 꺼내 보낸다. **대화마다 하나씩** —
+  // 한 대화 안에서 한꺼번에 밀어 넣으면 사용자가 중간에서 멈출 수 없다.
   //
-  // `drainingRef` 가 필요한 이유: 이 effect 는 `send` 의 아이덴티티(=입력할
+  // 예전에는 "지금 열려 있는 대화의 것만" 나갔다. 대화가 하나만 돌던 때는 그게
+  // 유일하게 안전한 규칙이었다 — 보낼 곳을 백엔드 장부가 정했으니 다른 대화
+  // 몫을 꺼내면 오배송이었다. 이제 `send` 가 대화를 직접 짚으므로, 뒤에 있는
+  // 대화도 제 턴이 끝나는 대로 줄이 풀린다.
+  //
+  // `drainingRef` 가 대화별 집합인 이유: 이 effect 는 `send` 의 아이덴티티(=입력할
   // 때마다 바뀐다)에도 걸려 있고 StrictMode 는 effect 를 두 번 돌린다. 가드가
-  // 없으면 같은 문장이 두 번 나갈 수 있다.
-  const drainingRef = useRef(false);
+  // 없으면 같은 문장이 두 번 나간다.
+  const drainingRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (busy || drainingRef.current) return;
-    // **지금 열려 있는 대화의 것만** 나간다 — 다른 대화 몫은 그 대화로 돌아올
-    // 때까지 기다린다. 큐에 남아 있는 한 화면(그 대화의 컴포저)에 계속 보인다.
-    const at = queue.findIndex((item) => (item.sessionId ?? SLATE) === activeId);
-    if (at === -1) return;
-    drainingRef.current = true;
-    const next = queue[at];
-    setQueue((prev) => prev.filter((_, i) => i !== at));
-    void send(next.text).finally(() => {
-      drainingRef.current = false;
-    });
-  }, [busy, queue, send, activeId]);
+    for (const item of queue) {
+      const id = item.sessionId ?? SLATE;
+      // 아직 만들지 않은 대화(빈 자리)의 줄은 **그 화면을 보고 있을 때만** 푼다 —
+      // 안 보는 사이에 세션이 생기고 화면이 그리로 끌려가면 안 된다.
+      if (id === SLATE && activeId !== SLATE) continue;
+      if (busySessions.has(id) || drainingRef.current.has(id)) continue;
+      drainingRef.current.add(id);
+      setQueue((prev) => prev.filter((queued) => queued !== item));
+      void send(item.text, id).finally(() => {
+        drainingRef.current.delete(id);
+      });
+    }
+  }, [busySessions, queue, send, activeId]);
 
+  /** 보고 있는 대화만 멈춘다 — 옆에서 돌던 것은 계속 간다. */
   const cancel = useCallback(() => {
-    void commands.acpCancel(projectId);
-    setPermission(null);
-  }, [projectId]);
+    void commands.acpCancel(projectId, activeId === SLATE ? null : activeId);
+    putPermission(activeId, null);
+  }, [projectId, activeId, putPermission]);
 
   // ESC 로 중단. 화면 어디에 포커스가 있든 먹어야 해서 document 에 건다 —
   // 진행 중일 때만 등록하므로 다른 화면의 ESC(팝오버 닫기 등)를 뺏지 않는다.
@@ -2993,8 +3139,9 @@ const SessionPanel = memo(function SessionPanel({
         <span className="acp-panel-title">{t("acp.history")}</span>
       </div>
 
-      {/* busy 로 잠그지 않는다 — 다른 대화가 도는 동안에도 새 대화는 열 수
-          있어야 한다 (기록은 대화별로 갈라져 있고, 전송은 큐가 줄 세운다). */}
+      {/* busy 로 잠그지 않는다 — 다른 대화가 도는 동안에도 새 대화를 열고
+          **곧장 말을 걸 수 있어야** 한다. 기록도 작업 중 표시도 대화별로
+          갈라져 있으므로 서로 기다릴 이유가 없다. */}
       <button type="button" className="acp-panel-new" onClick={onNew}>
         <Plus size={14} />
         {t("acp.newConversation")}

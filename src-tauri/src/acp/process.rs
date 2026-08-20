@@ -57,7 +57,11 @@ struct Running {
     /// drop 만으로도 클로저의 `stop_rx.await` 가 풀린다 — 명시 send 는 선택.
     _stop: oneshot::Sender<()>,
     info: AcpAgentInfo,
-    /// `session/new` 로 받은 대화 세션.
+    /// **화면이 지금 보고 있는** 대화.
+    ///
+    /// "활성 세션"이 아니다. 프롬프트·취소는 대화 id 를 인자로 받으므로 여러
+    /// 대화가 동시에 돌 수 있고, 이 칸은 그중 어느 것을 화면이 띄우고 있는지의
+    /// 장부일 뿐이다 — 설정 항목처럼 "보고 있는 대화"에 걸리는 것들이 쓴다.
     session: Option<SessionId>,
     /// 그 세션이 제공하는 설정 항목 (모델·Effort·모드 …).
     options: Vec<AcpConfigOption>,
@@ -109,6 +113,11 @@ pub struct AcpState {
 /// 아직 결정되지 않은 권한 요청.
 struct PendingPermission {
     project_id: u32,
+    /// **어느 대화의 승인인가.**
+    ///
+    /// 프로젝트 단위로만 알고 있었을 때는 한 대화를 취소하면 나란히 돌던 옆
+    /// 대화의 승인 카드까지 함께 닫혔다 — 누르지도 않았는데 거절된 것이다.
+    session_id: String,
     decide: oneshot::Sender<Option<PermissionOptionId>>,
 }
 
@@ -377,10 +386,18 @@ impl AcpState {
         &self,
         request_id: String,
         project_id: u32,
+        session_id: String,
         decide: oneshot::Sender<Option<PermissionOptionId>>,
     ) {
         if let Ok(mut map) = self.pending.lock() {
-            map.insert(request_id, PendingPermission { project_id, decide });
+            map.insert(
+                request_id,
+                PendingPermission {
+                    project_id,
+                    session_id,
+                    decide,
+                },
+            );
         }
     }
 
@@ -396,17 +413,22 @@ impl AcpState {
         }
     }
 
-    /// 프로젝트의 미결 권한 요청을 전부 취소로 닫는다.
+    /// 미결 권한 요청을 취소로 닫는다.
     ///
     /// 프로토콜 요구사항이다 — `session/cancel` 을 보낸 클라이언트는 진행 중인
     /// 모든 `session/request_permission` 에 취소로 응답해야 한다. 안 하면
     /// 에이전트가 영영 우리를 기다린다.
-    pub fn cancel_pending_permissions(&self, project_id: u32) -> usize {
+    ///
+    /// `session` 이 `Some` 이면 **그 대화 것만** 닫는다. 대화 여럿이 나란히
+    /// 도는 지금은 이쪽이 기본이어야 한다 — 프로젝트를 통째로 닫는 것은
+    /// 어댑터가 죽었을 때처럼 정말 전부가 무효인 경우뿐이다.
+    pub fn cancel_pending_permissions(&self, project_id: u32, session: Option<&str>) -> usize {
         let taken: Vec<PendingPermission> = match self.pending.lock() {
             Ok(mut map) => {
                 let ids: Vec<String> = map
                     .iter()
                     .filter(|(_, p)| p.project_id == project_id)
+                    .filter(|(_, p)| session.is_none_or(|want| p.session_id == want))
                     .map(|(id, _)| id.clone())
                     .collect();
                 ids.iter().filter_map(|id| map.remove(id)).collect()
@@ -557,9 +579,14 @@ pub async fn start(
                     let (decide_tx, decide_rx) = oneshot::channel();
 
                     let state = permission_app.state::<AcpState>();
-                    state.park_permission(request_id.clone(), project_id, decide_tx);
                     // 권한 요청은 **그 대화의 화면**이 받아야 한다.
                     let asking = request.session_id.0.to_string();
+                    state.park_permission(
+                        request_id.clone(),
+                        project_id,
+                        asking.clone(),
+                        decide_tx,
+                    );
                     state.emit(project_id, &asking, permission_event(request_id, &request));
 
                     cx.spawn(async move {
@@ -652,8 +679,9 @@ pub async fn start(
             tracing::info!(project_id, epoch, "ACP 어댑터 연결 종료");
         }
         state.clear_sinks(project_id);
-        // 연결이 끊겼으면 대기 중인 승인 카드도 의미가 없다.
-        state.cancel_pending_permissions(project_id);
+        // 연결이 끊겼으면 대기 중인 승인 카드도 의미가 없다 — 대화를 가리지
+        // 않고 전부.
+        state.cancel_pending_permissions(project_id, None);
         if let Err(e) = outcome {
             tracing::warn!(project_id, error = %e, "ACP 연결이 오류로 끝났다");
         }
@@ -674,7 +702,7 @@ pub fn stop(app: &tauri::AppHandle, project_id: u32) -> bool {
     // 백그라운드 태스크가 어댑터 프로세스를 정리한다.
     let state = app.state::<AcpState>();
     state.clear_sinks(project_id);
-    state.cancel_pending_permissions(project_id);
+    state.cancel_pending_permissions(project_id, None);
     state.remove(project_id)
 }
 
@@ -688,7 +716,7 @@ mod tests {
     fn resolving_a_parked_permission_delivers_the_choice() {
         let state = AcpState::default();
         let (tx, rx) = oneshot::channel();
-        state.park_permission("req-1".to_string(), 7, tx);
+        state.park_permission("req-1".to_string(), 7, "s1".to_string(), tx);
 
         assert!(state.resolve_permission("req-1", Some(PermissionOptionId::new("allow"))));
 
@@ -700,7 +728,7 @@ mod tests {
     fn resolving_twice_is_reported_as_unknown_the_second_time() {
         let state = AcpState::default();
         let (tx, _rx) = oneshot::channel();
-        state.park_permission("req-1".to_string(), 7, tx);
+        state.park_permission("req-1".to_string(), 7, "s1".to_string(), tx);
 
         assert!(state.resolve_permission("req-1", None));
         assert!(
@@ -716,15 +744,36 @@ mod tests {
         let state = AcpState::default();
         let (tx_a, rx_a) = oneshot::channel();
         let (tx_b, rx_b) = oneshot::channel();
-        state.park_permission("a".to_string(), 1, tx_a);
-        state.park_permission("b".to_string(), 2, tx_b);
+        state.park_permission("a".to_string(), 1, "s1".to_string(), tx_a);
+        state.park_permission("b".to_string(), 2, "s2".to_string(), tx_b);
 
-        assert_eq!(state.cancel_pending_permissions(1), 1);
+        assert_eq!(state.cancel_pending_permissions(1, None), 1);
 
         assert_eq!(futures::executor::block_on(rx_a), Ok(None), "취소로 닫혀야 한다");
         assert!(
             state.resolve_permission("b", None),
             "다른 프로젝트 요청은 그대로 살아 있어야 한다"
+        );
+        drop(rx_b);
+    }
+
+    /// **같은 프로젝트의 다른 대화**도 마찬가지다. 대화 여럿을 나란히 돌리는
+    /// 지금, 한 대화의 취소가 옆 대화의 승인 카드를 닫으면 사용자는 누르지도
+    /// 않은 거절을 당한다 — 프로젝트 경계보다 이쪽이 훨씬 자주 밟힌다.
+    #[test]
+    fn cancelling_one_conversation_leaves_its_neighbour_alone() {
+        let state = AcpState::default();
+        let (tx_a, rx_a) = oneshot::channel();
+        let (tx_b, rx_b) = oneshot::channel();
+        state.park_permission("a".to_string(), 1, "sess-a".to_string(), tx_a);
+        state.park_permission("b".to_string(), 1, "sess-b".to_string(), tx_b);
+
+        assert_eq!(state.cancel_pending_permissions(1, Some("sess-a")), 1);
+
+        assert_eq!(futures::executor::block_on(rx_a), Ok(None), "취소로 닫혀야 한다");
+        assert!(
+            state.resolve_permission("b", None),
+            "옆 대화의 승인 카드는 그대로 살아 있어야 한다"
         );
         drop(rx_b);
     }
