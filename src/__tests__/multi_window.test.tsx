@@ -22,6 +22,7 @@ import {
   storageKeyFor,
   migrateSingleKeyToPerProject,
   WORKSPACE_SCHEMA_VERSION,
+  SIDEBAR_KEY,
 } from "@/contexts/WorkspaceContext";
 
 beforeEach(() => localStorage.clear());
@@ -273,5 +274,65 @@ describe("WorkspaceProvider(projectId)", () => {
       </WorkspaceProvider>,
     );
     expect(r.getByTestId("view").textContent).toBe("9:retro");
+  });
+});
+
+// ─── 사이드바 접힘 — 격리의 예외 ──────────────────────────────────────────
+//
+// 나머지 워크스페이스 상태와 정반대다: 프로젝트마다 달라야 하는 게 아니라
+// 탭·창을 가로질러 **하나여야** 한다. 프로젝트별 레코드에 있던 시절엔 탭을
+// 옮길 때마다 사이드바가 제멋대로 열리고 닫혔다.
+
+function SidebarProbe({ id }: { id: number }) {
+  const { state, setState } = useWorkspace();
+  return (
+    <button
+      data-testid={`sb-${id}`}
+      onClick={() => setState((p) => ({ ...p, sidebarCollapsed: !p.sidebarCollapsed }))}
+    >
+      {state.sidebarCollapsed ? "collapsed" : "open"}
+    </button>
+  );
+}
+
+describe("사이드바 접힘 (탭·창 공유)", () => {
+  it("한 탭에서 접으면 같은 창의 다른 탭도 즉시 접힌다", () => {
+    const r = render(
+      <>
+        <WorkspaceProvider projectId={1}><SidebarProbe id={1} /></WorkspaceProvider>
+        <WorkspaceProvider projectId={2}><SidebarProbe id={2} /></WorkspaceProvider>
+      </>,
+    );
+    expect(r.getByTestId("sb-2").textContent).toBe("open");
+    act(() => r.getByTestId("sb-1").click());
+    expect(r.getByTestId("sb-1").textContent).toBe("collapsed");
+    expect(r.getByTestId("sb-2").textContent).toBe("collapsed");
+  });
+
+  it("나중에 연 탭도 저장된 취향으로 시작한다", () => {
+    const a = render(<WorkspaceProvider projectId={1}><SidebarProbe id={1} /></WorkspaceProvider>);
+    act(() => a.getByTestId("sb-1").click());
+    a.unmount();
+
+    const b = render(<WorkspaceProvider projectId={7}><SidebarProbe id={7} /></WorkspaceProvider>);
+    expect(b.getByTestId("sb-7").textContent).toBe("collapsed");
+  });
+
+  it("프로젝트별 레코드에는 남기지 않는다 — 다시 갈라지지 않게", () => {
+    const r = render(<WorkspaceProvider projectId={3}><SidebarProbe id={3} /></WorkspaceProvider>);
+    act(() => r.getByTestId("sb-3").click());
+    r.unmount(); // 디바운스 저장 flush
+    expect(JSON.parse(localStorage.getItem(storageKeyFor(3))!).sidebarCollapsed).toBeUndefined();
+    expect(localStorage.getItem(SIDEBAR_KEY)).toBe("1");
+  });
+
+  it("전역 취향이 없으면 예전 레코드의 값을 한 번 승격시킨다", () => {
+    localStorage.setItem(
+      storageKeyFor(4),
+      JSON.stringify({ schemaVersion: WORKSPACE_SCHEMA_VERSION, sidebarCollapsed: true }),
+    );
+    const r = render(<WorkspaceProvider projectId={4}><SidebarProbe id={4} /></WorkspaceProvider>);
+    expect(r.getByTestId("sb-4").textContent).toBe("collapsed");
+    expect(localStorage.getItem(SIDEBAR_KEY)).toBe("1");
   });
 });

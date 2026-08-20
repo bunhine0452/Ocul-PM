@@ -385,6 +385,48 @@ const DEFAULT_STATE: WorkspaceState = {
  */
 export const storageKeyFor = (projectId: number) => `aipm:workspace:v2:p${projectId}`;
 
+// ---------- 사이드바 접힘 — 창/탭을 가로지르는 단일 취향 ----------
+//
+// 접힘 상태는 프로젝트별 레코드 안에 있었다. 탭 하나 = 프로바이더 하나이므로
+// 탭을 옮길 때마다 사이드바가 제 마음대로 열리고 닫혔다 — 프로젝트의 속성이
+// 아니라 **사람의 취향**인데 프로젝트에 매여 있었던 것. 전용 키 하나로 빼고,
+// 같은 창의 다른 탭에는 구독자 집합으로, 다른 창에는 `storage` 이벤트로
+// 전파한다 (`storage` 는 값을 쓴 문서 자신에겐 발화하지 않는다).
+export const SIDEBAR_KEY = "aipm:ui:sidebar-collapsed:v1";
+
+type SidebarListener = (collapsed: boolean) => void;
+const sidebarListeners = new Set<SidebarListener>();
+
+/** 저장된 취향 (한 번도 정한 적 없으면 `null`). */
+function readSidebarCollapsed(): boolean | null {
+  const raw = localStorage.getItem(SIDEBAR_KEY);
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return null;
+}
+
+/** 취향을 기록하고 같은 창의 다른 탭에 알린다. 값이 그대로면 아무것도 안 한다. */
+function writeSidebarCollapsed(collapsed: boolean) {
+  if (readSidebarCollapsed() === collapsed) return;
+  localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  sidebarListeners.forEach((fn) => fn(collapsed));
+}
+
+/** 다른 탭·다른 창의 변경 구독. 반환값은 해지 함수. */
+function subscribeSidebar(fn: SidebarListener): () => void {
+  sidebarListeners.add(fn);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key !== SIDEBAR_KEY) return;
+    const next = readSidebarCollapsed();
+    if (next !== null) fn(next);
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    sidebarListeners.delete(fn);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 /** 단일 키 시절(schema ≤3)의 레코드. 1회 이관 후 삭제한다. */
 const LEGACY_SINGLE_KEY = "aipm:workspace:v1";
 
@@ -616,6 +658,7 @@ function migrateLegacyRecords(): void {
 
 function loadFromStorage(projectId: number): WorkspaceState {
   migrateLegacyRecords();
+  const globalSidebar = readSidebarCollapsed();
   const stored = localStorage.getItem(storageKeyFor(projectId));
   if (stored) {
     try {
@@ -663,14 +706,23 @@ function loadFromStorage(projectId: number): WorkspaceState {
         // I3 — 창의 프로젝트는 URL 이 정한다. 과거 레코드에 남아 있는 값이
         // 이 창의 프로젝트를 덮어쓰지 못하게 마지막에 못박는다.
         currentProjectId: projectId,
+        // 사이드바 접힘은 전역 키가 진실이다. 전역 값이 아직 없으면 이 레코드에
+        // 남아 있는 예전 값을 한 번 승격시킨다 (탭마다 다르면 먼저 연 탭이
+        // 이긴다 — 어차피 다음 토글이 전역으로 통일한다).
+        sidebarCollapsed: globalSidebar ?? parsed.sidebarCollapsed ?? DEFAULT_STATE.sidebarCollapsed,
       };
+      if (globalSidebar === null) writeSidebarCollapsed(merged.sidebarCollapsed);
       return migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(merged)));
     } catch {
       // Corrupted data, start fresh
     }
   }
 
-  return { ...DEFAULT_STATE, currentProjectId: projectId };
+  return {
+    ...DEFAULT_STATE,
+    currentProjectId: projectId,
+    sidebarCollapsed: globalSidebar ?? DEFAULT_STATE.sidebarCollapsed,
+  };
 }
 
 interface TerminalSessionFields {
@@ -727,6 +779,9 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
     currentProjectId: _cpi,
     currentProjectName: _cpn,
     currentProjectRoot: _cpr,
+    // 사이드바 접힘은 프로젝트가 아니라 사람에게 딸린 취향이다 — 전용 전역 키가
+    // 소유한다 (`SIDEBAR_KEY`). 레코드에 남기면 탭마다 다시 갈라진다.
+    sidebarCollapsed: _sc,
     ...persistable
   } = state;
 
@@ -833,6 +888,22 @@ export function WorkspaceProvider({
       flush();
     };
   }, [projectId, persistScope]);
+
+  // 사이드바 접힘 — 전역 키에 쓰고, 다른 탭/창의 변경을 받아 반영한다.
+  // 디바운스 없이 즉시 쓴다: 토글은 사람 손이라 드물고, 옆 탭이 바로 따라와야
+  // "탭마다 따로 논다" 는 인상이 사라진다.
+  useEffect(() => {
+    writeSidebarCollapsed(state.sidebarCollapsed);
+  }, [state.sidebarCollapsed]);
+  useEffect(
+    () =>
+      subscribeSidebar((collapsed) =>
+        setState((prev) =>
+          prev.sidebarCollapsed === collapsed ? prev : { ...prev, sidebarCollapsed: collapsed },
+        ),
+      ),
+    [],
+  );
 
   const setProjectMeta = useCallback((name: string | null, root: string | null) => {
     setState((prev) =>
