@@ -316,9 +316,59 @@ pub fn read_entry_diffs(root: &Path, entry_rel: &str) -> Vec<EntryFileDiff> {
     }
 }
 
+/// One file's `+`/`-` line counts, derived from its recorded patch.
+pub struct FileLineCounts {
+    pub path: String,
+    pub added: u32,
+    pub removed: u32,
+}
+
+/// Count added/removed lines in a unified diff. Header lines (`+++`/`---`),
+/// hunk markers (`@@`) and the no-newline marker (`\`) are not content, so only
+/// single `+`/`-` prefixed lines count.
+pub fn count_patch_lines(patch: &str) -> (u32, u32) {
+    let mut added = 0u32;
+    let mut removed = 0u32;
+    for line in patch.lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        match line.as_bytes().first() {
+            Some(b'+') => added += 1,
+            Some(b'-') => removed += 1,
+            _ => {}
+        }
+    }
+    (added, removed)
+}
+
+/// Per-file line churn for an entry, from its durable diff sidecar. Empty when
+/// the entry has no sidecar — the caller leaves the cache columns NULL so a
+/// later sweep can fill them once a diff is captured.
+pub fn line_counts(root: &Path, entry_rel: &str) -> Vec<FileLineCounts> {
+    read_entry_diffs(root, entry_rel)
+        .into_iter()
+        .map(|d| {
+            let (added, removed) = count_patch_lines(&d.patch);
+            FileLineCounts { path: d.path, added, removed }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn count_patch_lines_counts_content_not_headers() {
+        let patch = "--- a/src/x.rs\n+++ b/src/x.rs\n@@ -1,3 +1,4 @@\n ctx\n-gone\n+new one\n+new two\n\\ No newline at end of file\n";
+        assert_eq!(count_patch_lines(patch), (2, 1));
+    }
+
+    #[test]
+    fn count_patch_lines_is_zero_for_an_empty_patch() {
+        assert_eq!(count_patch_lines(""), (0, 0));
+    }
 
     #[test]
     fn sidecar_path_flattens_and_rejects_traversal() {

@@ -883,6 +883,56 @@ impl OculpmManager {
         Ok(captured)
     }
 
+    /// Fill in per-file line churn (Today 히어로의 「라인 변화」) for entries whose
+    /// cache rows don't have it yet, counting `+`/`-` lines in the entry's diff
+    /// sidecar. Run right after [`Self::backfill_entry_diffs`] so a sidecar
+    /// captured in that pass is counted in the same project-open.
+    ///
+    /// Idempotent and cheap: the work-list is a single indexed query, and each
+    /// entry drops off it once counted. Entries with no sidecar stay on the list
+    /// (one `read` attempt each) — they have no recorded diff to count, and get
+    /// picked up whenever one is finally captured. Returns the entries counted.
+    pub async fn backfill_line_counts(
+        &self,
+        db: &Db,
+        project_id: u32,
+    ) -> Result<u32, OculpmError> {
+        use crate::oculpm::entry_diffs;
+        let root = self.project_root(project_id).await?;
+        let cache = JournalCache::new(db);
+        let mut counted = 0u32;
+        for relative_path in cache.entries_missing_line_counts(project_id).await? {
+            let root2 = root.clone();
+            let rel2 = relative_path.clone();
+            let counts =
+                match tokio::task::spawn_blocking(move || entry_diffs::line_counts(&root2, &rel2))
+                    .await
+                {
+                    Ok(c) => c,
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "oculpm::manager",
+                            project_id, path = %relative_path, error = %e,
+                            "line-count backfill: blocking read panicked"
+                        );
+                        continue;
+                    }
+                };
+            if counts.is_empty() {
+                continue;
+            }
+            match cache.set_line_counts(project_id, &relative_path, counts).await {
+                Ok(()) => counted += 1,
+                Err(e) => tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id, path = %relative_path, error = %e,
+                    "line-count backfill: cache update failed"
+                ),
+            }
+        }
+        Ok(counted)
+    }
+
     /// Read an entry's recorded diffs, lazily reconstructing them on a cache miss.
     ///
     /// `oculpm_get_entry_diffs` used to be a pure sidecar read, so an entry whose

@@ -601,10 +601,14 @@ impl<'a> JournalCache<'a> {
         Ok(rows)
     }
 
-    /// v2 U12 — 한 워크데이의 bytes_added/removed 합. Today 히어로가 엔트리마다
-    /// `get_journal_entry` 를 N 회 부르던 것을 SUM 한 방으로 대체한다
-    /// (bytes 는 인덱싱 시 `oculpm_journal_files` 에 이미 캐시됨).
-    pub async fn workday_bytes(
+    /// v2 U12 — 한 워크데이의 라인 증감 합. Today 히어로가 엔트리마다
+    /// `get_journal_entry` 를 N 회 부르던 것을 SUM 한 방으로 대체한다.
+    ///
+    /// `lines_*` 는 프론트매터가 아니라 diff 사이드카에서 파생된 값이다
+    /// ([`set_line_counts`]). 예전엔 프론트매터의 `bytes_*` 를 합했는데, 그
+    /// 필드를 채우는 쓰기 경로가 하나도 없어서(에이전트가 손으로 적어야 했다)
+    /// 링이 늘 0 이었다.
+    pub async fn workday_lines(
         &self,
         project_id: u32,
         workday: &str,
@@ -616,7 +620,7 @@ impl<'a> JournalCache<'a> {
             .conn()
             .call(move |c| {
                 c.query_row(
-                    "SELECT COALESCE(SUM(f.bytes_added), 0), COALESCE(SUM(f.bytes_removed), 0)
+                    "SELECT COALESCE(SUM(f.lines_added), 0), COALESCE(SUM(f.lines_removed), 0)
                      FROM oculpm_journal_files f
                      JOIN oculpm_journal j
                        ON j.project_id = f.project_id
@@ -630,6 +634,67 @@ impl<'a> JournalCache<'a> {
             .await
             .map_err(map_sqlite_err)?;
         Ok((sums.0.max(0) as u32, sums.1.max(0) as u32))
+    }
+
+    /// Store the per-file line churn derived from an entry's diff sidecar. Rows
+    /// are matched by `file_path`; a path in the sidecar that is no longer in
+    /// `files_touched` simply updates nothing.
+    pub async fn set_line_counts(
+        &self,
+        project_id: u32,
+        relative_path: &str,
+        counts: Vec<crate::oculpm::entry_diffs::FileLineCounts>,
+    ) -> Result<(), OculpmError> {
+        if counts.is_empty() {
+            return Ok(());
+        }
+        let pid = project_id as i64;
+        let rp = relative_path.to_string();
+        self.db
+            .conn()
+            .call(move |c| {
+                let tx = c.transaction()?;
+                for f in &counts {
+                    tx.execute(
+                        "UPDATE oculpm_journal_files
+                            SET lines_added = ?1, lines_removed = ?2
+                          WHERE project_id = ?3 AND relative_path = ?4 AND file_path = ?5",
+                        params![f.added, f.removed, pid, &rp, &f.path],
+                    )?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(map_sqlite_err)
+    }
+
+    /// Entries with at least one file row whose line churn is still unknown —
+    /// the work-list for the backfill sweep. An entry re-indexed after its
+    /// sidecar was written comes back here (the upsert re-inserts file rows with
+    /// NULL columns), which is exactly how it gets refilled.
+    pub async fn entries_missing_line_counts(
+        &self,
+        project_id: u32,
+    ) -> Result<Vec<String>, OculpmError> {
+        let pid = project_id as i64;
+        let rows = self
+            .db
+            .conn()
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT DISTINCT relative_path
+                       FROM oculpm_journal_files
+                      WHERE project_id = ?1 AND lines_added IS NULL",
+                )?;
+                let collected: rusqlite::Result<Vec<String>> = stmt
+                    .query_map(params![pid], |r| r.get::<_, String>(0))?
+                    .collect();
+                collected
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(rows)
     }
 
     /// v2 U12 — 프로젝트 전체 일지 수. Today 가 365일 히트맵 전체를 받아
@@ -2159,6 +2224,50 @@ mod tests {
         format!(
             "schema_version: 1\ntype: bug\nslug: {slug}\nstatus: done\ndifficulty: medium\ncreated_at: \"2026-05-24T09:25:13+09:00\"\nsession_id: \"20260524-001\"\nagent: {{ id: claude-code }}\nlanguage: ko\nfiles_touched:\n  - path: \"src/a.rs\"\n    op: update\ntags: [\"alpha\", \"beta\"]"
         )
+    }
+
+    /// Today 히어로의 「라인 변화」 경로: 인덱싱 직후엔 값이 없고(사이드카를
+    /// 아직 안 셌다), 세어 넣으면 워크데이 합에 잡히며 work-list 에서 빠진다.
+    #[tokio::test]
+    async fn line_counts_fill_the_workday_sum_and_clear_the_work_list() {
+        use crate::oculpm::entry_diffs::FileLineCounts;
+        let (db, dir) = fresh_db().await;
+        let cache = JournalCache::new(&db);
+        let journal_root = dir.path().join("journal");
+        let rel = "20260524/Bugs/0925_bug_a.md";
+        write_entry(
+            &journal_root,
+            rel,
+            &standard_frontmatter("bug-a"),
+            "[x] Title A\n\n## body\n",
+        );
+        cache.reindex_full(1, &journal_root).await.unwrap();
+
+        // Freshly indexed → churn unknown (NULL), so the ring reads 0 and the
+        // entry is on the backfill work-list.
+        assert_eq!(cache.workday_lines(1, "20260524").await.unwrap(), (0, 0));
+        assert_eq!(
+            cache.entries_missing_line_counts(1).await.unwrap(),
+            vec![rel.to_string()]
+        );
+
+        cache
+            .set_line_counts(
+                1,
+                rel,
+                vec![
+                    FileLineCounts { path: "src/a.rs".into(), added: 40, removed: 10 },
+                    // a path that isn't in files_touched updates nothing
+                    FileLineCounts { path: "src/gone.rs".into(), added: 99, removed: 99 },
+                ],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(cache.workday_lines(1, "20260524").await.unwrap(), (40, 10));
+        assert!(cache.entries_missing_line_counts(1).await.unwrap().is_empty());
+        // another workday is unaffected
+        assert_eq!(cache.workday_lines(1, "20260525").await.unwrap(), (0, 0));
     }
 
     #[tokio::test]

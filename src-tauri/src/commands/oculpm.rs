@@ -159,6 +159,26 @@ pub async fn oculpm_init(
             "[FLOW] step 2.6 FAILED — entry-diff backfill errored (non-fatal)"
         ),
     }
+
+    // Count the recorded diffs into per-file line churn so Today's 「라인 변화」
+    // ring has real numbers. Runs after 2.6 so sidecars captured in that pass
+    // are counted in the same open; each entry drops off the work-list once
+    // counted, so repeat opens are near-free.
+    match manager.backfill_line_counts(&db, project_id).await {
+        Ok(n) if n > 0 => tracing::info!(
+            target: "oculpm::commands",
+            project_id,
+            counted = n,
+            "[FLOW] step 2.7 OK — backfilled line churn from diff sidecars"
+        ),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(
+            target: "oculpm::commands",
+            project_id,
+            error = %e,
+            "[FLOW] step 2.7 FAILED — line-count backfill errored (non-fatal)"
+        ),
+    }
     Ok(report)
 }
 
@@ -361,9 +381,10 @@ pub struct WorkdayBucket {
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct WorkdayBrief {
     pub days: Vec<WorkdayBucket>,
-    /// `bytes_workday` 로 지정한 워크데이의 bytes 합 (미지정 시 0/0).
-    pub bytes_added: u32,
-    pub bytes_removed: u32,
+    /// `lines_workday` 로 지정한 워크데이의 라인 증감 합 (미지정 시 0/0).
+    /// diff 사이드카에서 파생된 값 — 프론트매터 `bytes_*` 가 아니다.
+    pub lines_added: u32,
+    pub lines_removed: u32,
     /// 활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유.
     pub open_plan_items: Vec<crate::db::OpenPlanItem>,
     /// 프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라).
@@ -380,7 +401,7 @@ pub async fn oculpm_workday_brief(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     workdays: Vec<String>,
-    bytes_workday: Option<String>,
+    lines_workday: Option<String>,
 ) -> Result<WorkdayBrief, String> {
     let cache = crate::oculpm::cache::JournalCache::new(&db);
 
@@ -393,9 +414,9 @@ pub async fn oculpm_workday_brief(
         days.push(WorkdayBucket { workday: wd, entries });
     }
 
-    let (bytes_added, bytes_removed) = match &bytes_workday {
+    let (lines_added, lines_removed) = match &lines_workday {
         Some(wd) => cache
-            .workday_bytes(project_id, wd)
+            .workday_lines(project_id, wd)
             .await
             .map_err(|e| e.to_string())?,
         None => (0, 0),
@@ -412,8 +433,8 @@ pub async fn oculpm_workday_brief(
 
     Ok(WorkdayBrief {
         days,
-        bytes_added,
-        bytes_removed,
+        lines_added,
+        lines_removed,
         open_plan_items,
         total_entries,
     })

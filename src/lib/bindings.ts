@@ -691,7 +691,7 @@ export const commands = {
 	 *  총 일지 수를 IPC 1회에. 서버측 fan-in — SQL 비용은 기존과 동일하고
 	 *  왕복(직렬화·스케줄링)만 제거된다.
 	 */
-	oculpmWorkdayBrief: (projectId: number, workdays: string[], bytesWorkday: string | null) => typedError<WorkdayBrief, string>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, bytesWorkday })),
+	oculpmWorkdayBrief: (projectId: number, workdays: string[], linesWorkday: string | null) => typedError<WorkdayBrief, string>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, linesWorkday })),
 	/**
 	 *  Rebuild the journal cache from disk. Drops every cached row for the
 	 *  project and re-walks `.oculpm/journal/`. Use after manual sqlite
@@ -3356,9 +3356,12 @@ export type WindowTabsSnapshot = {
  */
 export type WorkdayBrief = {
 	days: WorkdayBucket[],
-	/**  `bytes_workday` 로 지정한 워크데이의 bytes 합 (미지정 시 0/0). */
-	bytes_added: number,
-	bytes_removed: number,
+	/**
+	 *  `lines_workday` 로 지정한 워크데이의 라인 증감 합 (미지정 시 0/0).
+	 *  diff 사이드카에서 파생된 값 — 프론트매터 `bytes_*` 가 아니다.
+	 */
+	lines_added: number,
+	lines_removed: number,
 	/**  활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유. */
 	open_plan_items: OpenPlanItem[],
 	/**  프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라). */

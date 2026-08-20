@@ -3,7 +3,8 @@ import { t } from "@/i18n";
 
 // Advanced Today UI — a live "aperture" of today's activity. Three concentric,
 // independently-hoverable arcs each encode one of today's metrics (work
-// journals / changed files / line churn); the center shows today's recorded-work
+// journals / changed files / line churn — the churn is counted from the
+// per-entry diff sidecars, not frontmatter); the center shows today's recorded-work
 // count with an error-cycle badge. **Each time a new entry is recorded** (the
 // journal count increments) the ring replays a ripple so the brand motif
 // visibly "reacts" to the agent working. Idle: static (no distracting spin).
@@ -18,9 +19,9 @@ interface TodayActivityRingProps {
   changedToday: number;
   /** Σ files touched across today's entries (brief.filesTouched). */
   filesTouched: number;
-  /** Σ bytes added / removed across today's entries. */
-  bytesAdded: number;
-  bytesRemoved: number;
+  /** Σ lines added / removed across today's entries (from the diff sidecars). */
+  linesAdded: number;
+  linesRemoved: number;
   /** Count of today's error-cycle entries (brief.errorCycles). */
   errorCycles: number;
   size?: number;
@@ -38,8 +39,8 @@ function fillFraction(value: number, k: number): number {
 export function TodayActivityRing({
   changedToday,
   filesTouched,
-  bytesAdded,
-  bytesRemoved,
+  linesAdded,
+  linesRemoved,
   errorCycles,
   size = 128,
 }: TodayActivityRingProps) {
@@ -56,7 +57,7 @@ export function TodayActivityRing({
     prev.current = changedToday;
   }, [changedToday]);
 
-  const lineChurn = bytesAdded + bytesRemoved;
+  const lineChurn = linesAdded + linesRemoved;
 
   // Outer → inner. r/sw are in the 0–100 viewBox; arcs start at 12 o'clock via
   // the group rotate(-90).
@@ -88,9 +89,9 @@ export function TodayActivityRing({
       id: "lines",
       r: 22,
       cls: "i",
-      fraction: fillFraction(lineChurn, 160),
+      fraction: fillFraction(lineChurn, 400),
       label: t("today.ring.lines"),
-      value: `+${bytesAdded} / −${bytesRemoved}`,
+      value: `+${linesAdded} / −${linesRemoved}`,
     },
   ];
 
@@ -100,7 +101,7 @@ export function TodayActivityRing({
     <div
       className="today-ring"
       style={{ width: size, height: size }}
-      aria-label={t("today.ring.aria", { entries: changedToday, files: filesTouched, added: bytesAdded, removed: bytesRemoved })}
+      aria-label={t("today.ring.aria", { entries: changedToday, files: filesTouched, added: linesAdded, removed: linesRemoved })}
     >
       {pulse > 0 ? <span key={`ripple-${pulse}`} className="today-ring-ripple" /> : null}
       <svg viewBox="0 0 100 100" className="today-ring-svg" fill="none" aria-hidden="true">
@@ -109,16 +110,22 @@ export function TodayActivityRing({
             <g key={ring.id}>
               {/* faint full-circle track */}
               <circle className="tr-track" cx="50" cy="50" r={ring.r} strokeWidth={7} />
-              {/* value arc — dash encodes the fraction (pathLength 100) */}
-              <circle
-                className={"tr-arc " + ring.cls + (hover === ring.id ? " on" : "")}
-                cx="50"
-                cy="50"
-                r={ring.r}
-                strokeWidth={7}
-                pathLength={100}
-                strokeDasharray={`${ring.fraction * 100} 100`}
-              />
+              {/* value arc — dash encodes the fraction (pathLength 100).
+                  Skipped entirely at zero: a zero-length dash under the group's
+                  round linecap renders as a *dot* (the SVG dotted-line trick),
+                  which read as a stray artifact floating at 12 o'clock on any
+                  metric that was 0. Nothing is the honest zero. */}
+              {ring.fraction > 0 ? (
+                <circle
+                  className={"tr-arc " + ring.cls + (hover === ring.id ? " on" : "")}
+                  cx="50"
+                  cy="50"
+                  r={ring.r}
+                  strokeWidth={7}
+                  pathLength={100}
+                  strokeDasharray={`${ring.fraction * 100} 100`}
+                />
+              ) : null}
               {/* wide transparent hit area so the whole band is hoverable. No
                   <title> here — the custom .today-ring-tip carries hover detail
                   and the container aria-label covers screen readers; a <title>

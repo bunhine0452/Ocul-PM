@@ -171,8 +171,8 @@ export function TodayScreenV2({
                 <TodayActivityRing
                   changedToday={brief.changedToday}
                   filesTouched={brief.filesTouched}
-                  bytesAdded={brief.bytesAdded}
-                  bytesRemoved={brief.bytesRemoved}
+                  linesAdded={brief.linesAdded}
+                  linesRemoved={brief.linesRemoved}
                   errorCycles={brief.errorCycles}
                 />
               ) : null}
@@ -230,8 +230,8 @@ export function TodayScreenV2({
               sub={
                 brief ? (
                   <span className="mono">
-                    <span className="diff-add">+{brief.bytesAdded}</span>{" "}
-                    <span className="diff-del">−{brief.bytesRemoved}</span> {t("today.unit.bytes")}
+                    <span className="diff-add">+{brief.linesAdded}</span>{" "}
+                    <span className="diff-del">−{brief.linesRemoved}</span> {t("today.unit.lines")}
                   </span>
                 ) : null
               }

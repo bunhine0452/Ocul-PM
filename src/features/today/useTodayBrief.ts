@@ -6,9 +6,9 @@ import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
 //
-// v2 U12 (N3): 이전엔 요일당 list 7회 + 오늘 엔트리당 get 1회(bytes 합산용)로
+// v2 U12 (N3): 이전엔 요일당 list 7회 + 오늘 엔트리당 get 1회(증감 합산용)로
 // Today 오픈이 7+N 회 IPC 를 유발했다. 이제 단일 `oculpm_workday_brief` 가
-// 7일 버킷 + 오늘 bytes 합(SQL SUM) + 미완 플랜 항목("다음 할 일") + 총 일지
+// 7일 버킷 + 오늘 라인 증감 합(SQL SUM) + 미완 플랜 항목("다음 할 일") + 총 일지
 // 수를 한 번에 내려준다 — 집계는 계속 프런트에서 (주간 차트/하이라이트 랭킹).
 
 export interface AgentContribution {
@@ -43,9 +43,9 @@ export interface TodayBrief {
   yesterdayDone: JournalEntrySummary[];
   changedToday: number;
   filesTouched: number;
-  /** Σ bytes_added across today's entries (proxy for "lines added"). */
-  bytesAdded: number;
-  bytesRemoved: number;
+  /** Σ lines added across today's entries, counted from the diff sidecars. */
+  linesAdded: number;
+  linesRemoved: number;
   /** Count of today's `error` (에러 사이클) entries. */
   errorCycles: number;
   agents: AgentContribution[];
@@ -196,8 +196,8 @@ export function useTodayBrief(
           yesterdayDone: yesterdayDone.slice(0, 3),
           changedToday: today.length,
           filesTouched,
-          bytesAdded: res.data.bytes_added,
-          bytesRemoved: res.data.bytes_removed,
+          linesAdded: res.data.lines_added,
+          linesRemoved: res.data.lines_removed,
           errorCycles,
           agents,
           week,

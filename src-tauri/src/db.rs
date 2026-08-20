@@ -35,6 +35,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     // 25 는 디스크의 025_fts.sql 몫으로 비워 둔다 (v2 U11 — 아직 미등록).
     (26, include_str!("../migrations/026_claude_hooks_inbox.sql")),
     (27, include_str!("../migrations/027_project_appearance.sql")),
+    (28, include_str!("../migrations/028_journal_file_lines.sql")),
 ];
 
 pub struct Db {

@@ -16,8 +16,8 @@ function props(changedToday: number) {
   return {
     changedToday,
     filesTouched: 3,
-    bytesAdded: 40,
-    bytesRemoved: 10,
+    linesAdded: 40,
+    linesRemoved: 10,
     errorCycles: 0,
   };
 }
@@ -45,6 +45,25 @@ describe("TodayActivityRing", () => {
     await waitFor(() => {
       expect(container.querySelector(".today-ring-ripple")).toBeNull();
     });
+  });
+
+  it("draws one arc per non-zero metric, and none for a zero one", () => {
+    // A zero metric used to still emit its arc <circle> with a zero-length
+    // dash — under the group's round linecap SVG renders that as a dot, so a
+    // day with no recorded line churn showed a stray dot at 12 o'clock.
+    const { container, rerender } = render(<TodayActivityRing {...props(2)} />);
+    expect(container.querySelectorAll(".tr-arc")).toHaveLength(3);
+
+    rerender(<TodayActivityRing {...props(2)} linesAdded={0} linesRemoved={0} />);
+    expect(container.querySelectorAll(".tr-arc")).toHaveLength(2);
+    // the faint tracks + hit areas stay — only the value arc goes away.
+    expect(container.querySelectorAll(".tr-track")).toHaveLength(3);
+    expect(container.querySelectorAll(".tr-hit")).toHaveLength(3);
+
+    rerender(
+      <TodayActivityRing {...props(0)} filesTouched={0} linesAdded={0} linesRemoved={0} />,
+    );
+    expect(container.querySelectorAll(".tr-arc")).toHaveLength(0);
   });
 
   it("shows an error badge only when there are error cycles", () => {

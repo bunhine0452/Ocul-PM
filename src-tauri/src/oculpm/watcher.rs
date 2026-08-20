@@ -1077,6 +1077,10 @@ impl WatcherInner {
                         &format!("변경 diff에서 비밀로 보이는 값 {redacted_spans}건을 가렸습니다."),
                     );
                 }
+                // Count the captured patch into the cache so Today's 「라인 변화」
+                // ring reflects this entry immediately — without waiting for the
+                // next project-open backfill sweep.
+                self.store_line_counts(cache, entry_rel).await;
             }
             Ok(Err(e)) => tracing::warn!(
                 target: "oculpm::watcher",
@@ -1092,6 +1096,40 @@ impl WatcherInner {
                 error = %e,
                 "entry-diff capture: blocking task panicked"
             ),
+        }
+    }
+
+    /// Derive per-file line churn from the entry's freshly-written diff sidecar
+    /// and store it in the cache. Best-effort — a missing sidecar just leaves
+    /// the columns NULL for the backfill sweep to retry.
+    async fn store_line_counts(&self, cache: &JournalCache<'_>, entry_rel: &str) {
+        let root = self.root.clone();
+        let rel = entry_rel.to_string();
+        let counts = match tokio::task::spawn_blocking(move || {
+            crate::oculpm::entry_diffs::line_counts(&root, &rel)
+        })
+        .await
+        {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "line-count capture: blocking read panicked"
+                );
+                return;
+            }
+        };
+        if let Err(e) = cache.set_line_counts(self.project_id, entry_rel, counts).await {
+            tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "line-count capture: cache update failed"
+            );
         }
     }
 
