@@ -2500,7 +2500,13 @@ export type LayerComparison = {
 	 */
 	journal_files: string[],
 	matched: string[],
-	/**  In the index but not the journal — likely *missing narrative*. */
+	/**
+	 *  In the index but not the journal **of this exact session**.
+	 * 
+	 *  Only meaningful when the agent stamps the watcher's own `session_id`
+	 *  scheme. Agents that mint their own (`manual-20260820-205400`) make this
+	 *  equal to `index_files` — use [`Self::unrecorded`] to judge honesty.
+	 */
 	only_in_index: string[],
 	/**  In the journal but not the index — likely *hallucinated path*. */
 	only_in_journal: string[],
@@ -2510,6 +2516,18 @@ export type LayerComparison = {
 	 *  trivially in sync — no activity, nothing to disagree on).
 	 */
 	jaccard_index: number | null,
+	/**
+	 *  Changed in this session and named by **no journal entry anywhere in
+	 *  the workday** — the honest "미기록" set, immune to session-id dialect
+	 *  mismatches. This is what 정직성 감사 renders.
+	 */
+	unrecorded: string[],
+	/**
+	 *  Severity of [`Self::unrecorded`], bucketed from the share of this
+	 *  session's changed files that *are* covered by some journal entry.
+	 *  `Ok` when the session changed nothing.
+	 */
+	unrecorded_severity: Severity,
 };
 
 export type LocalDiffReindexReport = {

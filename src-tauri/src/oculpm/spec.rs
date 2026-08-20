@@ -313,7 +313,11 @@ pub struct LayerComparison {
     /// this session, after the same forbidden / redacted strip.
     pub journal_files: Vec<String>,
     pub matched: Vec<String>,
-    /// In the index but not the journal — likely *missing narrative*.
+    /// In the index but not the journal **of this exact session**.
+    ///
+    /// Only meaningful when the agent stamps the watcher's own `session_id`
+    /// scheme. Agents that mint their own (`manual-20260820-205400`) make this
+    /// equal to `index_files` — use [`Self::unrecorded`] to judge honesty.
     pub only_in_index: Vec<String>,
     /// In the journal but not the index — likely *hallucinated path*.
     pub only_in_journal: Vec<String>,
@@ -321,6 +325,14 @@ pub struct LayerComparison {
     /// `|matched| / |union|`. `1.0` when both sets are empty (treated as
     /// trivially in sync — no activity, nothing to disagree on).
     pub jaccard_index: f32,
+    /// Changed in this session and named by **no journal entry anywhere in
+    /// the workday** — the honest "미기록" set, immune to session-id dialect
+    /// mismatches. This is what 정직성 감사 renders.
+    pub unrecorded: Vec<String>,
+    /// Severity of [`Self::unrecorded`], bucketed from the share of this
+    /// session's changed files that *are* covered by some journal entry.
+    /// `Ok` when the session changed nothing.
+    pub unrecorded_severity: Severity,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

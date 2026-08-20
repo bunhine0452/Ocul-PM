@@ -43,6 +43,7 @@ use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
+use crate::oculpm::paths;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
@@ -408,7 +409,18 @@ impl WatcherInner {
         }
 
         // 5. Skip directories — we only track files.
-        if path.is_dir() {
+        //
+        // `is_dir()` answers about the path *now*, so it returns false for a
+        // directory that was just deleted and the folder event sailed through
+        // as a phantom file (dogfooding 2026-08-20: `docs/acp-panel/spike/.oculpm`
+        // landed in the ndjson and then in 정직성 감사). notify carries the
+        // answer in the event itself — `RemoveKind::Folder`, which the macOS
+        // FSEvents backend sets from `kFSEventStreamEventFlagItemIsDir` — so
+        // trust the event when the filesystem can no longer be asked.
+        //
+        // Deleting a directory also emits a Remove per file inside it, so
+        // dropping the folder event loses no per-file history.
+        if path.is_dir() || is_directory_event(&ev.event.kind) {
             self.bump_ignored();
             return;
         }
@@ -1329,8 +1341,20 @@ fn is_self_suppressed(rel_str: &str) -> bool {
     {
         return true;
     }
+    // Dogfooding (2026-08-20) — the checks above are root-anchored, so a
+    // *nested* `.oculpm/` (a spike fixture, a vendored sample project) walked
+    // straight past them into the ndjson and then into 정직성 감사 as
+    // `docs/acp-panel/spike/.oculpm/hooks/claude-events.jsonl`. That tree is
+    // another project's bookkeeping — never this project's tracked source.
+    if paths::is_nested_oculpm_path(rel_str) {
+        return true;
+    }
     // Atomic-write temp files.
     if rel_str.ends_with(".tmp") || rel_str.contains(".tmp.") {
+        return true;
+    }
+    // macOS sandbox atomic writes — `<name>.sb-<hex>-<rand>`.
+    if paths::is_macos_sandbox_temp(rel_str) {
         return true;
     }
     // Vim swap / backup.
@@ -1360,21 +1384,29 @@ fn is_self_suppressed(rel_str: &str) -> bool {
 /// also write peer files outside their declared adapter_path
 /// (`.claude/settings.json`, `.cursor/history/*`, `.agent/sessions.json`)
 /// — those are agent internal state, not user code.
+/// True when the event explicitly describes a *directory* rather than a file.
+///
+/// Only trusts what notify states outright. Platforms that collapse a folder
+/// remove into `RemoveKind::Any` stay ambiguous here — we deliberately do not
+/// guess from the path shape, because extension-less source files
+/// (`Makefile`, `LICENSE`, `Dockerfile`) are common and wrongly dropping a
+/// real deletion is worse than the phantom row this catches.
+fn is_directory_event(kind: &EventKind) -> bool {
+    use notify::event::{CreateKind, RemoveKind};
+    matches!(
+        kind,
+        EventKind::Remove(RemoveKind::Folder) | EventKind::Create(CreateKind::Folder)
+    )
+}
+
 fn is_agent_state_path(rel_str: &str) -> bool {
-    const AGENT_STATE_DIRS: &[&str] = &[
-        ".claude/",
-        ".cursor/",
-        ".gemini/",
-        ".codeium/",
-        ".aider/",
-        ".windsurf/",
-        ".copilot/",
-        ".continue/",
-        ".agent/",
-        ".qodo/",
-        ".antigravity/",
-    ];
-    AGENT_STATE_DIRS.iter().any(|d| rel_str.starts_with(d))
+    paths::AGENT_STATE_DIRS
+        .iter()
+        .any(|d| rel_str.starts_with(d))
+        // Dogfooding (2026-08-20) — monorepos and fixture trees put agent
+        // state below the root (`packages/web/.claude/settings.json`); the
+        // root-prefix check alone let those through.
+        || paths::is_nested_agent_state_path(rel_str)
 }
 
 /// Map a notify [`FileOp`] + disk-existence into a [`PathChangeKind`] that

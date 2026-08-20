@@ -35,11 +35,11 @@ use crate::oculpm::frontmatter::{
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{LockAcquisition, LockGuard};
 use crate::oculpm::markdown::parse_body;
-use crate::oculpm::paths::WorkdayResolver;
+use crate::oculpm::paths::{self, WorkdayResolver};
 use crate::oculpm::redact::{
     build_forbidden_matcher, compile_redact_patterns, is_forbidden_path, redact_text,
 };
-use crate::oculpm::session::SessionActor;
+use crate::oculpm::session::{self, SessionActor};
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, BackfillReport, CommentStyle, EndedReason, EntryStatus, EntryType,
     FileChangeEvent, FileOp, FileTouched, JournalEntry, JournalEntrySummary, JournalFrontmatter,
@@ -723,15 +723,21 @@ impl OculpmManager {
     /// List sessions for a given workday (or today if None).
     pub async fn list_sessions(
         &self,
+        db: &Db,
         project_id: u32,
         workday: Option<String>,
     ) -> Result<Vec<Session>, OculpmError> {
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        let wd = workday.unwrap_or_else(|| entry.resolver.workday_of(chrono::Utc::now()));
-        entry.index_writer.list_sessions(&wd).await
+        let (writer, wd) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            let wd = workday.unwrap_or_else(|| entry.resolver.workday_of(chrono::Utc::now()));
+            (entry.index_writer.clone(), wd)
+        };
+        let mut sessions = writer.list_sessions(&wd).await?;
+        attach_journal_links(db, project_id, &wd, &mut sessions).await;
+        Ok(sessions)
     }
 
     /// Get file changes for a workday, optionally filtered by session_id.
@@ -1413,6 +1419,13 @@ impl OculpmManager {
     /// the comparison so they never count as mismatches (a `.env` change is
     /// excluded from the index per W4-PR3 and can't appear in a journal
     /// either; symmetry keeps jaccard from artificially tanking).
+    ///
+    /// Two sets come out, and they answer different questions:
+    /// - `only_in_index` / `jaccard_index` — session-exact. Precise, but only
+    ///   when the agent speaks the watcher's `session_id` dialect.
+    /// - `unrecorded` / `unrecorded_severity` — workday-scoped coverage. This
+    ///   is the honest "no journal mentions this file" set and what 정직성
+    ///   감사 renders (dogfooding 2026-08-20).
     pub async fn compare_layers(
         &self,
         db: &Db,
@@ -1459,7 +1472,34 @@ impl OculpmManager {
             .collect();
 
         let cache = JournalCache::new(db);
-        let journal_paths = cache.files_for_session(project_id, session_id).await?;
+        // Session attribution, in two additive arms:
+        //
+        // 1. Exact `session_id` match — deliberately workday-free (a watcher id
+        //    is globally unique, and requiring the caller to know the *cache
+        //    row's* workday would drift whenever frontmatter workday and the
+        //    id prefix disagree). Unchanged from W4-PR5.
+        // 2. Synthetic ids (`manual-…` / `mcp-…`) resolved by `created_at`.
+        //    Agents that write the file directly can't know the watcher's
+        //    session number, so before this arm `matched` / `only_in_journal` /
+        //    `jaccard_index` were dead numbers — every entry on 2026-08-20
+        //    carried a `manual-…` id and the join matched nothing.
+        let mut journal_paths = cache.files_for_session(project_id, session_id).await?;
+        let sessions = writer.list_sessions(&workday).await?;
+        let resolved_entries: Vec<String> = cache
+            .entries_for_workday_attribution(project_id, &workday)
+            .await?
+            .into_iter()
+            .filter(|(_, sid, created_at)| {
+                // Arm 1 already covered real ids; only synthetic ones need
+                // resolving, and a synthetic id must never steal an entry that
+                // truthfully names a different session.
+                !session::is_watcher_session_id(sid)
+                    && session::resolve_session_for_timestamp(&sessions, created_at).as_deref()
+                        == Some(session_id)
+            })
+            .map(|(rel, _, _)| rel)
+            .collect();
+        journal_paths.extend(cache.files_for_entry_paths(project_id, &resolved_entries).await?);
         let journal_set: std::collections::BTreeSet<String> = journal_paths
             .into_iter()
             .filter(|p| !is_excluded(p))
@@ -1477,6 +1517,31 @@ impl OculpmManager {
         };
         let severity = severity_from_jaccard(jaccard, union_count);
 
+        // Dogfooding (2026-08-20) — the honesty question is "did *any* entry
+        // today write this file down?", so it is judged against the whole
+        // workday. Joining on session_id alone made the audit unusable: agents
+        // stamp their own ids (`manual-20260820-205400`) that never equal the
+        // watcher's (`20260820-002`), so `journal_set` was empty and all 65
+        // changed files were reported as 미기록 when only 3 actually were.
+        let workday_paths = cache.files_for_workday(project_id, &workday).await?;
+        let workday_journal_set: std::collections::BTreeSet<String> = workday_paths
+            .into_iter()
+            .filter(|p| !is_excluded(p))
+            .collect();
+        let unrecorded: Vec<String> = index_set
+            .difference(&workday_journal_set)
+            .cloned()
+            .collect();
+        // Coverage, not jaccard: entries legitimately mention files this
+        // session never touched, so the journal side must not count against us.
+        let covered = index_set.len().saturating_sub(unrecorded.len());
+        let coverage = if index_set.is_empty() {
+            1.0
+        } else {
+            covered as f32 / index_set.len() as f32
+        };
+        let unrecorded_severity = severity_from_jaccard(coverage, index_set.len());
+
         Ok(LayerComparison {
             session_id: session_id.to_string(),
             workday,
@@ -1487,6 +1552,8 @@ impl OculpmManager {
             only_in_journal,
             mismatch_severity: severity,
             jaccard_index: jaccard,
+            unrecorded,
+            unrecorded_severity,
         })
     }
 
@@ -1963,29 +2030,70 @@ fn is_noise_path(p: &str) -> bool {
     if p.ends_with(".swp") || p.ends_with(".swo") || p.ends_with('~') {
         return true;
     }
+    // macOS sandbox atomic writes — `<name>.sb-<hex>-<rand>`.
+    if paths::is_macos_sandbox_temp(p) {
+        return true;
+    }
     let basename = p.rsplit('/').next().unwrap_or(p);
     if basename == ".DS_Store" || basename == "Thumbs.db" || basename.starts_with("._") {
         return true;
     }
-    const AGENT_STATE_DIRS: &[&str] = &[
-        ".claude/",
-        ".cursor/",
-        ".gemini/",
-        ".codeium/",
-        ".aider/",
-        ".windsurf/",
-        ".copilot/",
-        ".continue/",
-        ".agent/",
-        ".qodo/",
-        ".antigravity/",
-    ];
+    // A nested `.oculpm/` is another project's bookkeeping (see
+    // `paths::is_nested_oculpm_path`). The root `.oculpm/` never reaches the
+    // ndjson at all — the watcher routes it at steps 1-4.
+    if paths::is_nested_oculpm_path(p) {
+        return true;
+    }
     // An adapter file itself (e.g., `.claude/CLAUDE.md`) lives in one of these
     // dirs — but adapters never enter the ndjson pipeline (watcher returns at
     // step 4.5), so any path that DID reach the index from inside `.claude/`
     // is by definition not the adapter file. Filtering the whole prefix is
     // safe and intentionally symmetric with the watcher.
-    AGENT_STATE_DIRS.iter().any(|d| p.starts_with(d))
+    paths::AGENT_STATE_DIRS.iter().any(|d| p.starts_with(d))
+        || paths::is_nested_agent_state_path(p)
+}
+
+/// Fill each session's `linked_journal_entries` from the cache, using the same
+/// attribution `compare_layers` uses (explicit id wins; synthetic ids resolve
+/// by `created_at`).
+///
+/// **Derived on read, never persisted.** `sessions.json` is read-modify-written
+/// by the SessionActor (`upsert_session` / `finalize_session` /
+/// `unfinalize_session`), all from that project's single actor task. A second
+/// writer on the watcher's journal path would race it and silently drop session
+/// state on a lost update. Computing here is race-free, always fresh, and can
+/// never drift from the audit — do not "optimize" this into a disk write.
+///
+/// Best-effort: a cache error leaves the lists empty rather than failing the
+/// whole session listing, which several screens depend on.
+async fn attach_journal_links(db: &Db, project_id: u32, workday: &str, sessions: &mut [Session]) {
+    if sessions.is_empty() {
+        return;
+    }
+    let cache = JournalCache::new(db);
+    let Ok(rows) = cache
+        .entries_for_workday_attribution(project_id, workday)
+        .await
+    else {
+        return;
+    };
+    // Snapshot before mutating — resolution must see every session's
+    // `started_at`, not a half-updated slice.
+    let snapshot: Vec<Session> = sessions.to_vec();
+    for session in sessions.iter_mut() {
+        session.linked_journal_entries = rows
+            .iter()
+            .filter(|(_, sid, created_at)| {
+                if session::is_watcher_session_id(sid) {
+                    sid == &session.id
+                } else {
+                    session::resolve_session_for_timestamp(&snapshot, created_at).as_deref()
+                        == Some(session.id.as_str())
+                }
+            })
+            .map(|(rel, _, _)| rel.clone())
+            .collect();
+    }
 }
 
 /// W4-PR5 — bucket jaccard into the three-level severity. `union_count == 0`
@@ -3568,6 +3676,347 @@ mod tests {
                 .create_manual_journal_entry(db, 7, draft_with_files(slug, paths))
                 .await
                 .expect("seed journal");
+        }
+
+        /// The workday `create_manual_journal_entry` will stamp — it uses
+        /// `Utc::now()`, so a fixture that wants its journal entry and its
+        /// watcher session to share a workday must derive the session id from
+        /// this rather than hard-coding one.
+        async fn today_workday(manager: &OculpmManager) -> String {
+            let resolver = manager.projects.read().await.get(&7).unwrap().resolver.clone();
+            resolver.workday_of(chrono::Utc::now())
+        }
+
+        async fn append_index_events_for(
+            manager: &OculpmManager,
+            session_id: &str,
+            paths: &[&str],
+        ) {
+            let writer = writer(manager).await;
+            for p in paths {
+                let ev = FileChangeEvent {
+                    ts: "2026-05-24T10:00:00+00:00".to_string(),
+                    session_id: session_id.to_string(),
+                    op: FileOp::Update,
+                    path: (*p).to_string(),
+                    hash_before: None,
+                    hash_after: None,
+                    bytes: 10,
+                };
+                writer.append_file_change(&ev).await.expect("append");
+            }
+        }
+
+        async fn seed_journal_with_session(
+            manager: &OculpmManager,
+            db: &Db,
+            slug: &str,
+            session_id: &str,
+            paths: &[&str],
+        ) {
+            let mut draft = draft_with_files(slug, paths);
+            draft.session_id = Some(session_id.to_string());
+            manager
+                .create_manual_journal_entry(db, 7, draft)
+                .await
+                .expect("seed journal");
+        }
+
+        /// Record a real watcher session in `sessions.json` so timestamp-based
+        /// attribution has something to resolve against.
+        async fn seed_session(manager: &OculpmManager, id: &str, started_at: &str) {
+            let writer = writer(manager).await;
+            writer
+                .upsert_session(&crate::oculpm::spec::Session {
+                    id: id.to_string(),
+                    started_at: started_at.to_string(),
+                    ended_at: None,
+                    ended_reason: None,
+                    active_window_ms: 0,
+                    file_event_count: 0,
+                    files_unique: 0,
+                    git_head_at_start: None,
+                    git_head_at_end: None,
+                    agent_label_guess: None,
+                    linked_journal_entries: Vec::new(),
+                })
+                .await
+                .expect("seed session");
+        }
+
+        /// Dogfooding regression (2026-08-20) — the audit's headline bug.
+        ///
+        /// Agents mint their own `session_id` (`manual-<workday>-<hhmmss>`),
+        /// which never equals the watcher's `<workday>-NNN`. The session-exact
+        /// join therefore saw an empty journal set and reported *every* changed
+        /// file as 미기록. `unrecorded` must judge by workday coverage instead
+        /// and report exactly the one file no entry mentions.
+        ///
+        /// Note: no `sessions.json` record here, so timestamp attribution has
+        /// nothing to resolve against — this pins the workday-coverage arm on
+        /// its own. `foreign_session_id_is_resolved_by_timestamp` covers the
+        /// case where a session record exists.
+        #[tokio::test]
+        async fn foreign_session_id_does_not_fake_unrecorded_files() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let watcher_session = format!("{workday}-002");
+
+            let index = ["src/a.rs", "src/b.rs", "src/c.rs", "src/d.rs"];
+            append_index_events_for(&manager, &watcher_session, &index).await;
+
+            // Two entries, both stamped with the agent's own dialect, together
+            // covering 3 of the 4 changed files. `src/d.rs` is the real miss.
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "agent-dialect-one",
+                &format!("manual-{workday}-205400"),
+                &["src/a.rs", "src/b.rs"],
+            )
+            .await;
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "agent-dialect-two",
+                &format!("manual-{workday}-205500"),
+                &["src/c.rs"],
+            )
+            .await;
+
+            let cmp = manager
+                .compare_layers(&db, 7, &watcher_session)
+                .await
+                .unwrap();
+
+            // Session-exact view still reports the dialect mismatch verbatim —
+            // that field's contract is unchanged.
+            assert_eq!(cmp.only_in_index.len(), 4);
+            assert!(cmp.journal_files.is_empty());
+
+            // The honest view: only the genuinely unjournaled file.
+            assert_eq!(cmp.unrecorded, vec!["src/d.rs".to_string()]);
+            // 3 of 4 covered = 0.75 → Warning (not Critical).
+            assert_eq!(cmp.unrecorded_severity, Severity::Warning);
+        }
+
+        /// The follow-up fix: with a real session record on disk, a
+        /// foreign-dialect entry is attributed by its `created_at`, so the
+        /// session-exact numbers (`matched` / `journal_files` / `jaccard_index`)
+        /// come back to life instead of reading as a total mismatch.
+        #[tokio::test]
+        async fn foreign_session_id_is_resolved_by_timestamp() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let watcher_session = format!("{workday}-002");
+
+            // Session opened well before the entry is written — the entry
+            // trails it, exactly as a real journal write does.
+            seed_session(
+                &manager,
+                &watcher_session,
+                &chrono::Utc::now()
+                    .checked_sub_signed(chrono::Duration::hours(1))
+                    .unwrap()
+                    .fixed_offset()
+                    .to_rfc3339(),
+            )
+            .await;
+
+            let index = ["src/a.rs", "src/b.rs", "src/c.rs"];
+            append_index_events_for(&manager, &watcher_session, &index).await;
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "resolved-by-time",
+                &format!("manual-{workday}-205400"),
+                &index,
+            )
+            .await;
+
+            let cmp = manager
+                .compare_layers(&db, 7, &watcher_session)
+                .await
+                .unwrap();
+
+            // Before the fix these were 0 / empty / 0.0 respectively.
+            assert_eq!(cmp.matched.len(), 3, "{:?}", cmp.matched);
+            assert_eq!(cmp.journal_files.len(), 3);
+            assert!(cmp.only_in_index.is_empty(), "{:?}", cmp.only_in_index);
+            assert!((cmp.jaccard_index - 1.0).abs() < f32::EPSILON);
+            assert_eq!(cmp.mismatch_severity, Severity::Ok);
+            assert!(cmp.unrecorded.is_empty());
+        }
+
+        /// A synthetic id must never steal an entry that truthfully names a
+        /// *different* watcher session — arm 2 only ever adds, never reassigns.
+        #[tokio::test]
+        async fn truthful_session_ids_are_not_reattributed_by_time() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let older = format!("{workday}-001");
+            let newer = format!("{workday}-002");
+            let now = chrono::Utc::now();
+
+            seed_session(
+                &manager,
+                &older,
+                &now.checked_sub_signed(chrono::Duration::hours(3))
+                    .unwrap()
+                    .fixed_offset()
+                    .to_rfc3339(),
+            )
+            .await;
+            seed_session(
+                &manager,
+                &newer,
+                &now.checked_sub_signed(chrono::Duration::hours(1))
+                    .unwrap()
+                    .fixed_offset()
+                    .to_rfc3339(),
+            )
+            .await;
+
+            append_index_events_for(&manager, &newer, &["src/only_newer.rs"]).await;
+            // Entry is written NOW (so time-resolution would point at `newer`)
+            // but it explicitly names `older`. The explicit claim wins.
+            seed_journal_with_session(&manager, &db, "explicit", &older, &["src/claimed.rs"]).await;
+
+            let cmp = manager.compare_layers(&db, 7, &newer).await.unwrap();
+            assert!(
+                !cmp.journal_files.contains(&"src/claimed.rs".to_string()),
+                "entry naming {older} must not be attributed to {newer}: {:?}",
+                cmp.journal_files
+            );
+
+            let older_cmp = manager.compare_layers(&db, 7, &older).await.unwrap();
+            assert_eq!(older_cmp.journal_files, vec!["src/claimed.rs".to_string()]);
+        }
+
+        /// `linked_journal_entries` was written as `Vec::new()` everywhere and
+        /// read by nobody — a permanently empty field in a documented on-disk
+        /// shape. It is now derived on read from the same attribution, so a
+        /// foreign-dialect entry still lands on its session.
+        #[tokio::test]
+        async fn list_sessions_derives_journal_links() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let now = chrono::Utc::now();
+            let early = format!("{workday}-001");
+            let late = format!("{workday}-002");
+
+            seed_session(
+                &manager,
+                &early,
+                &(now - chrono::Duration::hours(3)).fixed_offset().to_rfc3339(),
+            )
+            .await;
+            seed_session(
+                &manager,
+                &late,
+                &(now - chrono::Duration::hours(1)).fixed_offset().to_rfc3339(),
+            )
+            .await;
+
+            // Written now → resolves to the later session.
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "linked-by-time",
+                &format!("manual-{workday}-235959"),
+                &["src/a.rs"],
+            )
+            .await;
+            // Explicitly claims the earlier one.
+            seed_journal_with_session(&manager, &db, "linked-explicit", &early, &["src/b.rs"]).await;
+
+            let sessions = manager
+                .list_sessions(&db, 7, Some(workday.clone()))
+                .await
+                .unwrap();
+
+            let by_id = |id: &str| -> Vec<String> {
+                sessions
+                    .iter()
+                    .find(|s| s.id == id)
+                    .expect("session present")
+                    .linked_journal_entries
+                    .clone()
+            };
+            let late_links = by_id(&late);
+            assert_eq!(late_links.len(), 1, "{late_links:?}");
+            assert!(late_links[0].contains("linked-by-time"), "{late_links:?}");
+
+            let early_links = by_id(&early);
+            assert_eq!(early_links.len(), 1, "{early_links:?}");
+            assert!(early_links[0].contains("linked-explicit"), "{early_links:?}");
+        }
+
+        /// Full coverage across foreign-dialect entries → nothing to report,
+        /// which is what makes the card stay hidden on an honest day.
+        #[tokio::test]
+        async fn fully_journaled_session_reports_nothing_unrecorded() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let watcher_session = format!("{workday}-003");
+
+            let index = ["src/a.rs", "src/b.rs"];
+            append_index_events_for(&manager, &watcher_session, &index).await;
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "covered",
+                &format!("manual-{workday}-210000"),
+                &index,
+            )
+            .await;
+
+            let cmp = manager
+                .compare_layers(&db, 7, &watcher_session)
+                .await
+                .unwrap();
+            assert!(cmp.unrecorded.is_empty(), "{:?}", cmp.unrecorded);
+            assert_eq!(cmp.unrecorded_severity, Severity::Ok);
+        }
+
+        /// Noise classes fixed alongside the session-id bug must never reach
+        /// `unrecorded` — no journal could ever list them.
+        #[tokio::test]
+        async fn noise_paths_never_count_as_unrecorded() {
+            let (manager, db, _dir, _root) = fresh().await;
+            let workday = today_workday(&manager).await;
+            let watcher_session = format!("{workday}-004");
+
+            append_index_events_for(
+                &manager,
+                &watcher_session,
+                &[
+                    "src/real.rs",
+                    // macOS sandbox atomic-write temp.
+                    "landing/shots/03-diff.jpg.sb-0aaecef3-EzZZ48",
+                    // Nested `.oculpm/` — another project's bookkeeping.
+                    "docs/acp-panel/spike/.oculpm/hooks/claude-events.jsonl",
+                    "docs/acp-panel/spike/.oculpm",
+                    // Nested agent state.
+                    "packages/web/.claude/settings.json",
+                ],
+            )
+            .await;
+            seed_journal_with_session(
+                &manager,
+                &db,
+                "only-real",
+                &format!("manual-{workday}-211500"),
+                &["src/real.rs"],
+            )
+            .await;
+
+            let cmp = manager
+                .compare_layers(&db, 7, &watcher_session)
+                .await
+                .unwrap();
+            assert!(cmp.unrecorded.is_empty(), "{:?}", cmp.unrecorded);
+            assert_eq!(cmp.index_files, vec!["src/real.rs".to_string()]);
         }
 
         /// Both empty → trivially `Ok` with jaccard 1.0 (treated as "no

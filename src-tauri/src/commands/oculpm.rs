@@ -276,11 +276,12 @@ pub async fn oculpm_end_session_manual(
 #[specta::specta]
 pub async fn oculpm_list_sessions(
     manager: State<'_, OculpmManager>,
+    db: State<'_, Db>,
     project_id: u32,
     workday: Option<String>,
 ) -> Result<Vec<Session>, String> {
     manager
-        .list_sessions(project_id, workday)
+        .list_sessions(&db, project_id, workday)
         .await
         .map_err(|e| e.to_string())
 }

@@ -15,6 +15,8 @@ use serde_json::{json, Value};
 
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::frontmatter::write_frontmatter_and_body;
+use crate::oculpm::index::read_sessions_sync;
+use crate::oculpm::session::resolve_session_for_timestamp;
 use crate::oculpm::manager::{category_subdir, entry_type_filename_token, pick_nonconflicting_path};
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
@@ -484,12 +486,31 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         difficulty,
         created_at: local.to_rfc3339_opts(SecondsFormat::Secs, false),
         updated_at: None,
-        session_id: arg_str(args, "session_id").map(str::to_string).unwrap_or_else(|| {
-            format!(
-                "mcp-{workday}-{:02}{:02}{:02}",
-                local.hour(), local.minute(), local.second()
-            )
-        }),
+        // Session id, best first: an explicit argument, then the watcher's own
+        // live session read off `sessions.json`, then a synthetic fallback.
+        //
+        // The middle arm is the point (dogfooding 2026-08-20): a synthetic id
+        // can never join against a real session, so entries stamped `mcp-…`
+        // left `matched` / `jaccard_index` dead and made the honesty audit
+        // report every changed file as unrecorded. We run out-of-process and
+        // can't ask the SessionActor, but `sessions.json` is on disk — so read
+        // it and attribute by write time. Empty (app not running / no activity
+        // yet) falls through to the synthetic id as before.
+        session_id: arg_str(args, "session_id")
+            .map(str::to_string)
+            .or_else(|| {
+                let sessions = read_sessions_sync(root, &resolver, &workday);
+                resolve_session_for_timestamp(
+                    &sessions,
+                    &local.to_rfc3339_opts(SecondsFormat::Secs, false),
+                )
+            })
+            .unwrap_or_else(|| {
+                format!(
+                    "mcp-{workday}-{:02}{:02}{:02}",
+                    local.hour(), local.minute(), local.second()
+                )
+            }),
         agent: AgentRef {
             id: arg_str(args, "agent_id").unwrap_or("claude-code").to_string(),
             version: arg_str(args, "agent_version").map(str::to_string),
@@ -1132,8 +1153,115 @@ mod tests {
         assert_eq!(fm.agent.version.as_deref(), Some("Opus 4.8"));
         assert!(!fm.verified_by_user);
         assert!(fm.tags.iter().any(|t| t == "mcp-tool"));
+        // No sessions.json (app not running) → synthetic fallback stands.
         assert!(fm.session_id.starts_with("mcp-"));
         assert!(body.trim_start().starts_with("[x] 캐시 무효화 수정"));
+    }
+
+    /// Dogfooding follow-up (2026-08-20) — when the app *is* running, the
+    /// watcher's live session is on disk and the entry must adopt it. A
+    /// synthetic `mcp-…` id can never join against a real session, which is
+    /// what left `matched` / `jaccard_index` dead.
+    #[test]
+    fn journal_write_adopts_the_live_watcher_session() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+
+        // Stage a sessions.json the way the watcher would, opened an hour ago.
+        let cfg = load_config(root);
+        let resolver = resolver_of(&cfg);
+        let now = Utc::now();
+        let workday = resolver.workday_of(now);
+        let started = (now - chrono::Duration::hours(1))
+            .with_timezone(&resolver.tz)
+            .to_rfc3339_opts(SecondsFormat::Secs, false);
+        let index_dir = resolver.index_dir(root, &workday);
+        std::fs::create_dir_all(&index_dir).unwrap();
+        std::fs::write(
+            index_dir.join("sessions.json"),
+            serde_json::json!({
+                "schema_version": 1,
+                "sessions": [{
+                    "id": format!("{workday}-002"),
+                    "started_at": started,
+                    "ended_at": null,
+                    "ended_reason": null,
+                    "active_window_ms": 0,
+                    "file_event_count": 0,
+                    "files_unique": 0,
+                    "git_head_at_start": null,
+                    "git_head_at_end": null,
+                    "agent_label_guess": "claude-code",
+                    "linked_journal_entries": []
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let out = call_tool(
+            root,
+            "journal_write",
+            &serde_json::json!({
+                "type": "bug",
+                "slug": "live-session",
+                "title": "라이브 세션 채택",
+                "body_markdown": "## 발생 원인\n\nx\n\n## 해결 방법\n\ny\n\n## 검증\n\nz",
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(out["session_id"].as_str().unwrap(), format!("{workday}-002"));
+        let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
+        let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
+        assert_eq!(fm.session_id, format!("{workday}-002"));
+    }
+
+    /// An explicit `session_id` argument still wins over the disk lookup —
+    /// callers that know better must not be overridden.
+    #[test]
+    fn journal_write_explicit_session_id_beats_disk_lookup() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+        let cfg = load_config(root);
+        let resolver = resolver_of(&cfg);
+        let workday = resolver.workday_of(Utc::now());
+        let index_dir = resolver.index_dir(root, &workday);
+        std::fs::create_dir_all(&index_dir).unwrap();
+        std::fs::write(
+            index_dir.join("sessions.json"),
+            serde_json::json!({
+                "schema_version": 1,
+                "sessions": [{
+                    "id": format!("{workday}-002"),
+                    "started_at": (Utc::now() - chrono::Duration::hours(1))
+                        .with_timezone(&resolver.tz)
+                        .to_rfc3339_opts(SecondsFormat::Secs, false),
+                    "ended_at": null, "ended_reason": null,
+                    "active_window_ms": 0, "file_event_count": 0, "files_unique": 0,
+                    "git_head_at_start": null, "git_head_at_end": null,
+                    "agent_label_guess": null, "linked_journal_entries": []
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let out = call_tool(
+            root,
+            "journal_write",
+            &serde_json::json!({
+                "type": "chore",
+                "slug": "explicit-sid",
+                "title": "명시 세션",
+                "body_markdown": "본문\n\n## 검증\n\nok",
+                "session_id": "caller-knows-best",
+            }),
+        )
+        .unwrap();
+        assert_eq!(out["session_id"].as_str().unwrap(), "caller-knows-best");
     }
 
     #[test]

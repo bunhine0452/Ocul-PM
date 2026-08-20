@@ -462,6 +462,26 @@ impl IndexWriter {
     }
 }
 
+/// Read a workday's sessions **without** an [`IndexWriter`], synchronously.
+///
+/// The MCP tool server runs out-of-process (the plugin shuttle), so it has no
+/// `OculpmManager`, no `SessionActor`, and no tokio runtime to await
+/// [`IndexWriter::list_sessions`] on — but `sessions.json` is right there on
+/// disk. This gives `journal_write` the session list it needs to stamp a real
+/// `session_id` instead of a synthetic one (dogfooding 2026-08-20).
+///
+/// A missing or unparseable file yields an empty list: the caller's fallback
+/// (a synthetic id) is strictly better than failing the journal write.
+pub fn read_sessions_sync(root: &Path, resolver: &WorkdayResolver, workday: &str) -> Vec<Session> {
+    let path = resolver.index_dir(root, workday).join("sessions.json");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    serde_json::from_str::<SessionsFile>(&text)
+        .map(|f| f.sessions)
+        .unwrap_or_default()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // internals
 // ─────────────────────────────────────────────────────────────────────────────

@@ -206,6 +206,94 @@ impl WorkdayResolver {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared path-noise predicates
+//
+// The watcher (`is_self_suppressed`) and the layer comparison
+// (`manager::is_noise_path`) both need these, and the two must stay
+// symmetric: a path the watcher drops at capture time must also be dropped
+// from historical ndjson written before the rule existed, or 정직성 감사
+// reports a "누락" that no journal could ever have recorded.
+//
+// Dogfooding (2026-08-20) — 정직성 감사 flagged 65 paths, of which 3 were
+// real. Two of the noise classes are fixed here; the third (session-id
+// dialect mismatch) is fixed in `manager::compare_layers`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// True when `rel_str` has `segment` as a full path segment anywhere *below*
+/// the root — i.e. `a/b/<segment>/c` or a trailing `a/b/<segment>`.
+///
+/// Root-level occurrences return `false` on purpose: callers already handle
+/// their own `.oculpm/` / `.claude/` with dedicated prefix routing, and a
+/// root `.oculpm/journal/**` is real user content that must NOT be suppressed.
+fn has_nested_segment(rel_str: &str, segment: &str) -> bool {
+    let mut needle = String::with_capacity(segment.len() + 2);
+    needle.push('/');
+    needle.push_str(segment);
+    // `/.oculpm/…` — something inside a nested copy.
+    if rel_str.contains(&format!("{needle}/")) {
+        return true;
+    }
+    // `…/.oculpm` — the nested directory itself (shows up as a bare path on
+    // directory-delete events, where `is_dir()` can no longer confirm it).
+    rel_str.ends_with(&needle)
+}
+
+/// A nested `.oculpm/` belongs to some *other* oculpm project (a fixture, a
+/// spike, a vendored sample). Its index / hooks / journals are that project's
+/// machine-generated bookkeeping, never this project's tracked source, and no
+/// journal here will ever list them.
+pub fn is_nested_oculpm_path(rel_str: &str) -> bool {
+    has_nested_segment(rel_str, ".oculpm")
+}
+
+/// Known LLM-agent state directories nested below the root
+/// (`packages/web/.claude/settings.json`). The root-level case is handled by
+/// the callers' own prefix checks; this closes the monorepo / fixture hole.
+pub fn is_nested_agent_state_path(rel_str: &str) -> bool {
+    AGENT_STATE_DIRS
+        .iter()
+        .any(|d| has_nested_segment(rel_str, d.trim_end_matches('/')))
+}
+
+/// Directories that LLM agents use for their own bookkeeping. Shared by the
+/// watcher's root-prefix filter and the nested-segment filter above so the
+/// list is maintained in exactly one place.
+pub const AGENT_STATE_DIRS: &[&str] = &[
+    ".claude/",
+    ".cursor/",
+    ".gemini/",
+    ".codeium/",
+    ".aider/",
+    ".windsurf/",
+    ".copilot/",
+    ".continue/",
+    ".agent/",
+    ".qodo/",
+    ".antigravity/",
+];
+
+/// macOS sandbox atomic-write temp files: `<name>.sb-<8 hex>-<6 alnum>`.
+///
+/// Produced by sandboxed apps (Preview, sips, Finder-driven copies) when they
+/// rewrite a file in place. They exist for milliseconds, never reach git, and
+/// are never journaled — but the existing `.tmp` / `.swp` rules don't match
+/// their shape, so they surfaced as `landing/shots/03-diff.jpg.sb-0aaecef3-EzZZ48`.
+pub fn is_macos_sandbox_temp(rel_str: &str) -> bool {
+    let basename = rel_str.rsplit('/').next().unwrap_or(rel_str);
+    let Some(idx) = basename.rfind(".sb-") else {
+        return false;
+    };
+    let tail = &basename[idx + ".sb-".len()..];
+    let Some((hex, suffix)) = tail.split_once('-') else {
+        return false;
+    };
+    !hex.is_empty()
+        && hex.chars().all(|c| c.is_ascii_hexdigit())
+        && !suffix.is_empty()
+        && suffix.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests — see `docs/major_update/oculpm/W1/PR3-workday-resolver.md` for the
 // full case matrix.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -410,5 +498,55 @@ mod tests {
             PathBuf::from("/p/.oculpm/.schema-version")
         );
         assert_eq!(r.config_path(root), PathBuf::from("/p/.oculpm/config.toml"));
+    }
+
+    // ─── Shared path-noise predicates (dogfooding 2026-08-20) ───────────────
+
+    #[test]
+    fn nested_oculpm_is_noise_but_root_oculpm_is_not() {
+        // The exact paths 정직성 감사 mis-flagged.
+        assert!(is_nested_oculpm_path(
+            "docs/acp-panel/spike/.oculpm/hooks/claude-events.jsonl"
+        ));
+        // The nested directory itself — how a folder-delete event arrives.
+        assert!(is_nested_oculpm_path("docs/acp-panel/spike/.oculpm"));
+
+        // Root `.oculpm/` is this project's own SSOT: journals are real user
+        // content and the watcher routes them deliberately. Never suppress.
+        assert!(!is_nested_oculpm_path(".oculpm/journal/20260820/Bugs/x.md"));
+        assert!(!is_nested_oculpm_path(".oculpm/index/20260820/sessions.json"));
+
+        // A file merely *named* like the segment must not match.
+        assert!(!is_nested_oculpm_path("src/oculpm.rs"));
+        assert!(!is_nested_oculpm_path("docs/my.oculpm.notes/readme.md"));
+    }
+
+    #[test]
+    fn nested_agent_state_dirs_are_noise() {
+        assert!(is_nested_agent_state_path("packages/web/.claude/settings.json"));
+        assert!(is_nested_agent_state_path("fixtures/proj/.cursor/history.json"));
+        assert!(is_nested_agent_state_path("a/b/.antigravity"));
+
+        // Root-level is the callers' own prefix check, not this one.
+        assert!(!is_nested_agent_state_path(".claude/settings.json"));
+        // Real source must survive.
+        assert!(!is_nested_agent_state_path("src/features/chat/AcpUsageMeter.tsx"));
+    }
+
+    #[test]
+    fn macos_sandbox_temps_are_noise() {
+        // The exact paths 정직성 감사 mis-flagged.
+        assert!(is_macos_sandbox_temp(
+            "landing/shots/03-diff.jpg.sb-0aaecef3-EzZZ48"
+        ));
+        assert!(is_macos_sandbox_temp(
+            "landing/shots/05-terminal.jpeg.sb-0aaecef3-qKtIY7"
+        ));
+
+        // Real files — including ones with adjacent-looking names.
+        assert!(!is_macos_sandbox_temp("landing/shots/03-diff.jpg"));
+        assert!(!is_macos_sandbox_temp("src/sb-utils.ts"));
+        assert!(!is_macos_sandbox_temp("docs/a.sb-notes.md")); // no `-<suffix>`
+        assert!(!is_macos_sandbox_temp("docs/a.sb-zzzz-Ab12")); // non-hex body
     }
 }

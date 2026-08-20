@@ -24,11 +24,16 @@ const SEV_LABEL: Record<string, I18nKey> = {
 
 /**
  * F2 — 정직성 감사. For each of the day's sessions, compares the watcher's
- * ground-truth file changes (`file_changes.ndjson`) against the union of the
- * journal's `files_touched`, and surfaces `only_in_index`: files an agent
- * actually changed but never recorded in a journal entry. Read-only; the card
- * only renders when there is at least one unrecorded change (no noise on clean
- * days). Reuses the already-complete `oculpm_compare_layers` backend (F2).
+ * ground-truth file changes (`file_changes.ndjson`) against the journal's
+ * `files_touched`, and surfaces `unrecorded`: files an agent actually changed
+ * but that no journal entry anywhere in the workday records. Read-only; the
+ * card only renders when there is at least one unrecorded change (no noise on
+ * clean days). Reuses the `oculpm_compare_layers` backend (F2).
+ *
+ * Reads `unrecorded`, NOT `only_in_index` (dogfooding 2026-08-20). The latter
+ * joins on an exact `session_id`, and agents stamp their own dialect
+ * (`manual-20260820-205400`) that never matches the watcher's
+ * (`20260820-002`) — so it reported every changed file as 미기록.
  */
 export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps) {
   const { t } = useT();
@@ -53,7 +58,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
         if (!cancelled) {
           setRows(
             cmps.filter(
-              (c): c is LayerComparison => !!c && c.only_in_index.length > 0,
+              (c): c is LayerComparison => !!c && c.unrecorded.length > 0,
             ),
           );
         }
@@ -70,7 +75,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
 
   if (!enabled || loading || rows.length === 0) return null;
 
-  const totalMissed = rows.reduce((n, r) => n + r.only_in_index.length, 0);
+  const totalMissed = rows.reduce((n, r) => n + r.unrecorded.length, 0);
 
   return (
     <section
@@ -110,12 +115,12 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: SEV_COLOR[r.mismatch_severity] ?? "var(--text-2)",
+              color: SEV_COLOR[r.unrecorded_severity] ?? "var(--text-2)",
               marginBottom: 2,
             }}
           >
-            {t("today.honesty.session")} {r.session_id} · {SEV_LABEL[r.mismatch_severity] ? t(SEV_LABEL[r.mismatch_severity]) : r.mismatch_severity} ·{" "}
-            {t("today.honesty.count", { n: r.only_in_index.length })}
+            {t("today.honesty.session")} {r.session_id} · {SEV_LABEL[r.unrecorded_severity] ? t(SEV_LABEL[r.unrecorded_severity]) : r.unrecorded_severity} ·{" "}
+            {t("today.honesty.count", { n: r.unrecorded.length })}
           </div>
           <ul
             style={{
@@ -125,12 +130,12 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
               color: "var(--text-2)",
             }}
           >
-            {r.only_in_index.slice(0, 12).map((p) => (
+            {r.unrecorded.slice(0, 12).map((p) => (
               <li key={p}>{p}</li>
             ))}
-            {r.only_in_index.length > 12 ? (
+            {r.unrecorded.length > 12 ? (
               <li style={{ color: "var(--text-3)" }}>
-                {t("today.honesty.more", { n: r.only_in_index.length - 12 })}
+                {t("today.honesty.more", { n: r.unrecorded.length - 12 })}
               </li>
             ) : null}
           </ul>

@@ -847,6 +847,59 @@ fn workday_from_id(session_id: &str) -> Option<String> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Session attribution by timestamp
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// True when `session_id` follows the watcher's own `YYYYMMDD-NNN` scheme.
+///
+/// Anything else — `manual-20260820-205400` (agent writing the file directly
+/// per AGENTS.md §2), `mcp-20260820-205400` (the out-of-process MCP tool with
+/// no app running) — is a *synthetic* id that can never join against a real
+/// session and must be resolved by timestamp instead.
+pub fn is_watcher_session_id(session_id: &str) -> bool {
+    let Some((head, tail)) = session_id.split_once('-') else {
+        return false;
+    };
+    head.len() == 8
+        && head.bytes().all(|b| b.is_ascii_digit())
+        && !tail.is_empty()
+        && tail.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Which watcher session a journal entry written at `ts` belongs to.
+///
+/// Returns the id of the **last session that had started by `ts`**, not the
+/// session whose `[started_at, ended_at]` window strictly contains it. A
+/// journal entry is written *after* the work it describes, so it routinely
+/// lands past its session's end: on 2026-08-20 session `-002` closed at
+/// 20:53:50 on an inactivity timeout and its three entries were written at
+/// 20:54, 20:55 and 20:56. A containment test drops all three; "last session
+/// started at or before" keeps them with the work they actually describe.
+///
+/// `sessions` must be sorted by `started_at` ASC — [`IndexWriter::list_sessions`]
+/// guarantees this. Returns `None` when no session had started yet (an entry
+/// written before the day's first agent activity, e.g. hand-authored notes).
+pub fn resolve_session_for_timestamp(sessions: &[Session], ts: &str) -> Option<String> {
+    let ts = DateTime::parse_from_rfc3339(ts).ok()?;
+    sessions
+        .iter()
+        .filter(|s| {
+            DateTime::parse_from_rfc3339(&s.started_at)
+                .map(|started| started <= ts)
+                .unwrap_or(false)
+        })
+        // `sessions` is sorted, but re-select by max so a caller passing an
+        // unsorted slice still gets the right answer rather than a silent
+        // mis-attribution.
+        .max_by_key(|s| {
+            DateTime::parse_from_rfc3339(&s.started_at)
+                .map(|d| d.timestamp_millis())
+                .unwrap_or(i64::MIN)
+        })
+        .map(|s| s.id.clone())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests — see `docs/major_update/oculpm/W2/PR2-session-actor.md` §5.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1326,5 +1379,111 @@ mod tests {
             session.file_event_count, 2,
             "both activities must be recorded"
         );
+    }
+
+    // ─── Session attribution by timestamp (dogfooding 2026-08-20) ───────────
+
+    fn sess(id: &str, started: &str, ended: Option<&str>) -> Session {
+        Session {
+            id: id.to_string(),
+            started_at: started.to_string(),
+            ended_at: ended.map(str::to_string),
+            ended_reason: None,
+            active_window_ms: 0,
+            file_event_count: 0,
+            files_unique: 0,
+            git_head_at_start: None,
+            git_head_at_end: None,
+            agent_label_guess: None,
+            linked_journal_entries: Vec::new(),
+        }
+    }
+
+    /// The real 2026-08-20 timeline that exposed the bug.
+    fn aug20() -> Vec<Session> {
+        vec![
+            sess("20260820-002", "2026-08-20T20:40:22+09:00", Some("2026-08-20T20:53:50+09:00")),
+            sess("20260820-003", "2026-08-20T21:37:52+09:00", Some("2026-08-20T21:37:52+09:00")),
+            sess("20260820-004", "2026-08-20T21:45:08+09:00", Some("2026-08-20T22:03:18+09:00")),
+            sess("20260820-005", "2026-08-20T22:10:51+09:00", None),
+        ]
+    }
+
+    #[test]
+    fn entry_written_after_its_session_closed_still_belongs_to_it() {
+        let s = aug20();
+        // Session -002 closed at 20:53:50; its three entries were written at
+        // 20:54/20:55/20:56. A containment test would drop all three.
+        for ts in [
+            "2026-08-20T20:54:00+09:00",
+            "2026-08-20T20:55:00+09:00",
+            "2026-08-20T20:56:00+09:00",
+        ] {
+            assert_eq!(
+                resolve_session_for_timestamp(&s, ts).as_deref(),
+                Some("20260820-002"),
+                "ts {ts}"
+            );
+        }
+    }
+
+    #[test]
+    fn entry_resolves_to_the_session_that_did_the_work() {
+        let s = aug20();
+        // 22:02 — inside -004's window (21:45..22:03). Its files really are
+        // -004's (Today ring / line churn).
+        assert_eq!(
+            resolve_session_for_timestamp(&s, "2026-08-20T22:02:00+09:00").as_deref(),
+            Some("20260820-004")
+        );
+        // 23:37 — after -005 opened and never closed.
+        assert_eq!(
+            resolve_session_for_timestamp(&s, "2026-08-20T23:37:00+09:00").as_deref(),
+            Some("20260820-005")
+        );
+    }
+
+    #[test]
+    fn entry_before_the_first_session_has_no_owner() {
+        let s = aug20();
+        assert_eq!(
+            resolve_session_for_timestamp(&s, "2026-08-20T09:00:00+09:00"),
+            None
+        );
+        assert_eq!(resolve_session_for_timestamp(&[], "2026-08-20T22:00:00+09:00"), None);
+    }
+
+    #[test]
+    fn resolution_compares_instants_not_strings_across_offsets() {
+        let s = aug20();
+        // 13:54 UTC == 22:54 KST — must land on -005, not on -002 (which a
+        // lexicographic string compare would pick, "13:54" < "20:40").
+        assert_eq!(
+            resolve_session_for_timestamp(&s, "2026-08-20T13:54:00+00:00").as_deref(),
+            Some("20260820-005")
+        );
+    }
+
+    #[test]
+    fn unsorted_input_still_resolves_correctly() {
+        let mut s = aug20();
+        s.reverse();
+        assert_eq!(
+            resolve_session_for_timestamp(&s, "2026-08-20T22:02:00+09:00").as_deref(),
+            Some("20260820-004")
+        );
+    }
+
+    #[test]
+    fn watcher_ids_are_distinguished_from_synthetic_ones() {
+        assert!(is_watcher_session_id("20260820-002"));
+        assert!(is_watcher_session_id("20260820-1"));
+        // The dialects that broke the join.
+        assert!(!is_watcher_session_id("manual-20260820-205400"));
+        assert!(!is_watcher_session_id("mcp-20260820-205400"));
+        // Synthetic index-writer form (`<workday>-mNN`) is not a real session.
+        assert!(!is_watcher_session_id("20260820-m01"));
+        assert!(!is_watcher_session_id("20260820"));
+        assert!(!is_watcher_session_id(""));
     }
 }

@@ -224,8 +224,17 @@ export const oculpmApi = {
   /**
    * W4-PR5 — diff a session's index ndjson against the union of journal
    * `files_touched` paths. Backend strips forbidden + redacted entries from
-   * both sides so callers can render `matched / only_in_index / only_in_journal`
-   * directly. See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
+   * both sides so callers can render the result directly.
+   * See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
+   *
+   * Two views come back and they answer different questions:
+   * - `matched` / `only_in_index` / `only_in_journal` / `jaccard_index` join on
+   *   an **exact `session_id`** — precise only when the agent stamps the
+   *   watcher's own scheme.
+   * - `unrecorded` / `unrecorded_severity` measure **workday coverage** — the
+   *   honest "no journal mentions this file" answer, immune to agents that
+   *   mint their own ids (`manual-20260820-205400`). Use these for anything
+   *   user-facing (dogfooding 2026-08-20).
    */
   compareLayers: (projectId: number, sessionId: string) =>
     unwrap<LayerComparison>(
