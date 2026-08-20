@@ -7,9 +7,8 @@ import {
   CheckMark,
   Loader,
   TriangleAlert,
-  TargetIcon,
 } from "@/components/Icons";
-import { commands, type DiffResult, type ChangeGroup, type ChangePlanRef, type ImpactReport } from "@/lib/bindings";
+import { commands, type DiffResult, type ChangeGroup, type ImpactReport } from "@/lib/bindings";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import {
   recentChangesStore,
@@ -22,6 +21,7 @@ import { toast } from "@/lib/toast";
 import { PatchView } from "./PatchView";
 import { BinaryFileView } from "./BinaryFileView";
 import { countPatchStats, langFromPath } from "./diffParse";
+import { DiffFileList } from "./DiffFileList";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 
@@ -50,10 +50,6 @@ interface LastCommit {
   changes: { path: string; op: string }[];
 }
 
-function badgeLetter(op: ChangeOp): "A" | "M" | "D" {
-  return op;
-}
-
 /** Merge the persistent git-uncommitted list (survives app restarts / project
  *  switches) with the live file-watcher buffer. Deduped by path; the watcher
  *  entry wins since it carries the freshest op + a real timestamp. git entries
@@ -64,31 +60,6 @@ function mergeChanges(git: RecentChange[], watcher: RecentChange[]): RecentChang
   for (const c of git) byPath.set(c.path, c);
   for (const c of watcher) byPath.set(c.path, c);
   return [...byPath.values()].sort((a, b) => a.ts - b.ts || a.path.localeCompare(b.path));
-}
-
-/** Month/day for a change-group header (entries may span days). */
-function groupDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
-}
-
-/** Collapse plan refs to one chip per plan. The backend returns one
- *  ChangePlanRef per advanced *item*, so an entry that moved many items of the
- *  same plan would otherwise render the (identical) plan title once per item —
- *  e.g. 11 look-alike rows. We keep insertion order and stash the item titles
- *  for the chip's tooltip + a `·N` count. */
-export function collapsePlanRefs(
-  refs: ChangePlanRef[],
-): { planId: string; title: string; items: string[] }[] {
-  const byPlan = new Map<string, { planId: string; title: string; items: string[] }>();
-  for (const pr of refs) {
-    const e = byPlan.get(pr.plan_id);
-    if (e) e.items.push(pr.item_title);
-    else byPlan.set(pr.plan_id, { planId: pr.plan_id, title: pr.plan_title, items: [pr.item_title] });
-  }
-  return [...byPlan.values()];
 }
 
 interface DiffScreenV2Props {
@@ -356,7 +327,6 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // GR4 — change impact: files that (transitively) import a changed file, found
   // by reverse-dependency BFS. Flags review-worthy files the diff doesn't show.
   const [impact, setImpact] = useState<ImpactReport | null>(null);
-  const [impactOpen, setImpactOpen] = useState(true);
   useEffect(() => {
     if (changesRef.current.length === 0) {
       setImpact(null);
@@ -388,19 +358,8 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   );
 
   // ── v2 U8 (docs/20260706_v2/01-ux-spec.md §3) — 키보드 diff 검토 ──────────
-  // j/k = 파일 이동(선택 즉시 diff 로드), `/` = in-diff 검색, n/N = 매치 이동.
-  // 입력 필드 포커스 중엔 무시. 리스트 표시 순서(그룹/평면)를 그대로 따른다.
-  const orderedPaths = useMemo(
-    () =>
-      groups
-        ? groups.flatMap((g) => g.files)
-        : changes
-            .slice()
-            .reverse()
-            .map((c) => c.path),
-    [groups, changes],
-  );
-
+  // `/` = in-diff 검색, n/N = 매치 이동. 파일 이동 키(j/k/f)는 표시 순서를
+  // 아는 DiffFileList 가 소유한다.
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const diffCodeRef = useRef<HTMLDivElement | null>(null);
   const [diffQuery, setDiffQuery] = useState("");
@@ -457,16 +416,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      if (e.key === "j" || e.key === "k") {
-        e.preventDefault();
-        if (orderedPaths.length === 0) return;
-        const cur = selected ? orderedPaths.indexOf(selected) : -1;
-        const next =
-          e.key === "j"
-            ? Math.min(cur + 1, orderedPaths.length - 1)
-            : Math.max(cur - 1, 0);
-        setSelected(orderedPaths[next]);
-      } else if (e.key === "/") {
+      if (e.key === "/") {
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
@@ -477,15 +427,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [orderedPaths, selected, diffQuery, jumpMatch]);
-
-  // 키보드 이동 시 활성 행이 리스트 뷰포트를 벗어나지 않게.
-  useEffect(() => {
-    if (!selected) return;
-    document
-      .querySelector(".diff-files .dfile.active")
-      ?.scrollIntoView?.({ block: "nearest" });
-  }, [selected]);
+  }, [diffQuery, jumpMatch]);
 
   const cur = changes.find((c) => c.path === selected) ?? null;
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
@@ -506,29 +448,6 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   }, [diff, newFilePatch]);
   const allReviewed =
     changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
-
-  // One file row in the left list (shared by the grouped + flat renders).
-  const renderFile = (path: string) => {
-    const op: ChangeOp = changes.find((c) => c.path === path)?.op ?? "M";
-    const isReviewed = diffReadPaths.includes(path);
-    return (
-      <button
-        type="button"
-        key={path}
-        className={"dfile" + (path === selected ? " active" : "")}
-        onClick={() => setSelected(path)}
-        aria-current={path === selected ? "true" : undefined}
-      >
-        <span className={"dstatus " + badgeLetter(op)}>{op}</span>
-        <span className="dfile-name">{path}</span>
-        {isReviewed ? (
-          <span className="dfile-read" title={t("diff.reviewed")}>
-            <CheckMark size={12} />
-          </span>
-        ) : null}
-      </button>
-    );
-  };
 
   return (
     <>
@@ -620,126 +539,18 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       ) : (
         <div className="diff-screen">
           {/* Left: file list — grouped by the journal entry / plan that
-              recorded each change (Dogfooding #3), with a flat fallback. */}
-          <div className="diff-files">
-            <div className="diff-files-head">
-              {t("diff.changedFiles")}
-              <span className="diff-kbd-hint" aria-hidden="true">
-                <kbd>j</kbd>
-                <kbd>k</kbd> {t("diff.navHint")} <kbd>/</kbd> {t("diff.searchHint")}
-              </span>
-            </div>
-            {groups
-              ? groups.map((g) => (
-                  <div className="diff-group" key={g.entry_path ?? "__untracked"}>
-                    <div className="diff-group-head">
-                      {g.entry_path ? (
-                        <button
-                          type="button"
-                          className="diff-group-title"
-                          onClick={() => onOpenEntry?.(g.entry_path!)}
-                          disabled={!onOpenEntry}
-                          title={g.entry_title ?? g.entry_path}
-                        >
-                          {g.entry_title || g.entry_path}
-                        </button>
-                      ) : (
-                        <span className="diff-group-title muted">{t("diff.untracked")}</span>
-                      )}
-                      {g.created_at ? (
-                        <span className="diff-group-time">{groupDate(g.created_at)}</span>
-                      ) : null}
-                    </div>
-                    {g.plan_refs.length > 0 ? (
-                      <div className="diff-group-plans">
-                        {collapsePlanRefs(g.plan_refs).map((p) => (
-                          <span
-                            className="tag"
-                            key={p.planId}
-                            title={
-                              p.items.length > 1
-                                ? `${p.title}\n· ${p.items.join("\n· ")}`
-                                : `${p.title} · ${p.items[0]}`
-                            }
-                          >
-                            <TargetIcon size={10} /> {p.title}
-                            {p.items.length > 1 ? (
-                              <span style={{ opacity: 0.6 }}> ·{p.items.length}</span>
-                            ) : null}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    {g.files.map((p) => renderFile(p))}
-                  </div>
-                ))
-              : changes
-                  .slice()
-                  .reverse()
-                  .map((c) => renderFile(c.path))}
-
-            {impact && impact.affected.length > 0 ? (
-              <div style={{ borderTop: "1px solid var(--sep)", marginTop: 8, paddingTop: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => setImpactOpen((o) => !o)}
-                  title={t("diff.impactTitle")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    width: "100%",
-                    padding: "4px 10px",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-2)",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  <GitBranchIcon size={11} />
-                  {t("diff.impact")}
-                  <span style={{ marginLeft: "auto", color: "var(--text-3)" }}>
-                    {impact.affected.length}
-                  </span>
-                </button>
-                {impactOpen ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 1, padding: "2px 6px 6px" }}>
-                    {impact.affected.slice(0, 60).map((n) => (
-                      <button
-                        key={n.file_id}
-                        type="button"
-                        className="dfile"
-                        onClick={() => onOpenAffected(n.path)}
-                        title={t("diff.impactHop", { path: n.path, n: n.depth })}
-                      >
-                        <span
-                          className="dstatus"
-                          style={{
-                            background: "transparent",
-                            color: n.depth === 1 ? "var(--accent-uncommitted, #c4922f)" : "var(--text-3)",
-                            border: "1px solid var(--sep)",
-                            minWidth: 16,
-                            fontSize: 9,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {n.depth}
-                        </span>
-                        <span className="dfile-name">{n.path}</span>
-                      </button>
-                    ))}
-                    {impact.affected.length > 60 ? (
-                      <span style={{ padding: "3px 6px", fontSize: 11, color: "var(--text-3)" }}>
-                        {t("diff.impactMore", { n: impact.affected.length - 60 })}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+              recorded each change (Dogfooding #3), with a flat fallback.
+              접힘 · 필터 · 경로 접기는 DiffFileList 가 소유한다. */}
+          <DiffFileList
+            changes={changes}
+            groups={groups}
+            selected={selected}
+            reviewedPaths={diffReadPaths}
+            impact={impact}
+            onSelect={setSelected}
+            onOpenEntry={onOpenEntry}
+            onOpenAffected={onOpenAffected}
+          />
 
           {/* Right: diff body */}
           <div className="diff-main">
