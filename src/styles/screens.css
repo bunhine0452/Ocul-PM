@@ -238,9 +238,17 @@
 }
 
 .entry-detail { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; height: 100%; min-height: 0; }
-.entry-detail-side { border-right: 1px solid var(--sep); background: var(--bg-window); overflow: auto; padding: 18px 18px 48px; }
+/* 왼쪽 pane 은 두 영역이다 — 위쪽(메타 + 변경 파일)은 제자리에 남고, 일지
+   서술만 스크롤한다. 예전처럼 pane 전체가 하나로 스크롤하면 서술을 읽으려고
+   내리는 순간 파일 목록이 화면 밖으로 밀려나, 파일이 많을수록 다음 파일을
+   열려면 매번 위로 되돌아가야 했다. */
+.entry-detail-side {
+  border-right: 1px solid var(--sep); background: var(--bg-window);
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  padding: 18px 18px 0;
+}
+.entry-detail-notice, .entry-detail-tags { flex: none; }
 .entry-detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.entry-detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--sep); flex: none; }
 .diff-files { border-right: 1px solid var(--sep); background: var(--bg-window); overflow-y: auto; padding: 10px 8px; }
 .diff-files-head { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); padding: 6px 8px 10px; display: flex; align-items: center; gap: 8px; }
 /* v2 U8 — 키보드 힌트 + in-diff 검색 */
@@ -287,6 +295,93 @@
 .dstatus.M { background: var(--t-error); }
 .dstatus.A { background: var(--accent); }
 .dstatus.D { background: var(--t-bug); }
+
+/* ── 작업 일지 디테일 — 변경 파일 내비게이션 ──────────────────────────────
+   파일이 스무 개쯤 되면 오른쪽 위 '칩 벽'(줄바꿈되는 파일 버튼 무더기)이
+   diff 위를 서너 줄씩 차지하면서, 왼쪽 목록과 똑같은 내용을 두 번 보여줬다.
+   칩을 걷어내고 역할을 갈랐다 — 왼쪽 목록이 유일한 파일 내비게이션(필터 ·
+   자체 스크롤 · 경로 접기), 오른쪽은 지금 열린 파일 한 줄.
+   선택자는 전부 `.entry-filelist*` / `.efb-*` 로 가둔다 — `.dfile*` 기본형은
+   변경 diff 화면과 공유하는 표면이라 여기서 건드리지 않는다. */
+/* 목록은 필요한 만큼만 차지하고 남는 높이는 서술에 넘긴다 — 대신 pane 의
+   절반을 넘지 않는다. */
+.entry-filelist-block {
+  flex: 0 1 auto; min-height: 0; max-height: 52%;
+  display: flex; flex-direction: column; margin-bottom: 16px;
+}
+.entry-filelist-head { padding: 0 0 8px; justify-content: space-between; flex: none; }
+.entry-filelist-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry-filelist-filter {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  height: 23px; padding: 0 4px 0 7px; border-radius: 999px;
+  background: var(--bg-inset); border: 1px solid var(--sep); color: var(--text-3);
+}
+.entry-filelist-filter:focus-within { border-color: var(--accent); color: var(--text-2); }
+.entry-filelist-filter input {
+  width: 92px; border: none; outline: none; background: transparent; padding: 0;
+  font-family: var(--font); font-size: 11px; font-weight: 500;
+  color: var(--text); letter-spacing: 0; text-transform: none;
+}
+.entry-filelist-filter input::placeholder { color: var(--text-3); font-weight: 500; }
+.entry-filelist-clear {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  padding: 0; width: 15px; height: 15px; flex: none; border-radius: 999px;
+  display: grid; place-items: center; cursor: pointer; color: var(--text-3);
+}
+.entry-filelist-clear:hover { background: var(--bg-hover); color: var(--text); }
+
+.entry-filelist {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+}
+/* macOS 오버레이 스크롤바는 손대기 전엔 보이지 않는다 — 목록이 확실히 잘리는
+   길이부터는 위아래 실선이 "여기서 끝난 게 아니라 잘렸다" 를 대신 말해준다
+   (변경 diff 의 가로 스크롤이 같은 이유로 안 보였던 전례). */
+.entry-filelist.capped {
+  border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep);
+  padding: 5px 4px 5px 0;
+}
+/* `flex: none` — 세로 flex 안에서 행이 눌려 납작해지지 않게. */
+.entry-filelist .dfile { padding: 6px 8px; flex: none; }
+.entry-filelist .dfile:disabled { cursor: default; }
+.entry-filelist .dfile:disabled:hover { background: transparent; }
+.entry-filelist .dfile.muted .dstatus { opacity: 0.5; }
+.entry-filelist .dfile-name { display: flex; align-items: baseline; }
+.entry-filelist .dfile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+/* 파일명은 절대 줄지 않는다 — 좁아지면 앞쪽 디렉터리부터 잘린다. */
+.entry-filelist .dfile-base { flex: none; }
+.entry-filelist .dfile.muted .dfile-base { color: var(--text-2); }
+.entry-filelist .dfile.active .dfile-base { color: var(--accent-text); font-weight: 600; }
+.entry-filelist .dfile-note {
+  flex: none; font-size: 10px; font-weight: 600; line-height: 1.5;
+  color: var(--text-3); background: var(--bg-inset);
+  border: 1px solid var(--sep); border-radius: 999px; padding: 0 6px; white-space: nowrap;
+}
+.entry-filelist-empty { padding: 10px 8px; font-size: 11.5px; color: var(--text-3); }
+
+/* 오른쪽 pane 머리 — 지금 열린 파일 한 줄 (경로 · 앞뒤 이동 · 위치). */
+.entry-file-bar {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-bottom: 1px solid var(--sep); background: var(--bg-window);
+}
+.efb-steps { display: flex; gap: 3px; flex: none; }
+.efb-step {
+  appearance: none; -webkit-appearance: none; padding: 0;
+  width: 24px; height: 24px; display: grid; place-items: center;
+  border: 1px solid var(--sep); border-radius: var(--radius-s);
+  background: var(--bg-inset); color: var(--text-2); cursor: pointer;
+}
+.efb-step:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
+.efb-step:disabled { opacity: 0.35; cursor: default; }
+.efb-path { display: flex; align-items: baseline; flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; }
+.efb-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+.efb-base { flex: none; color: var(--text); font-weight: 600; }
+.efb-count {
+  flex: none; font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  color: var(--text-3); background: var(--bg-inset); border: 1px solid var(--sep);
+  border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+}
+.efb-count-sep { opacity: 0.45; margin: 0 3px; }
 
 .diff-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg-window); }
 .diff-bar { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--sep); }
@@ -1127,6 +1222,7 @@ mark.s-hit {
 .entry-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .entry-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .entry-err { font-size: 11px; color: var(--t-bug); }
+/* 수동 일지 모달의 후보 파일 칩 행 — 디테일 뷰의 `.entry-filelist` 와 다른 것. */
 .entry-files { display: flex; flex-wrap: wrap; gap: 6px; max-height: 108px; overflow-y: auto;
   border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-inset); padding: 8px; }
 .entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: 9px 12px; border-radius: var(--radius-m);
@@ -1195,6 +1291,8 @@ mark.s-hit {
 /* EntryDetailView narrative pane (Dogfooding 2026-06-07) — readable Markdown
    reader, contained in the narrow left column. */
 .entry-narrative { color: var(--text-2); font-size: 13px; line-height: 1.72; word-break: break-word; }
+/* 디테일 뷰 안에서만 — 서술이 왼쪽 pane 의 스크롤 영역을 맡는다. */
+.entry-detail-side > .entry-narrative { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 48px; }
 .entry-narrative > :first-child { margin-top: 0; }
 .entry-narrative h1 { font-size: 16px; }
 .entry-narrative h2 { font-size: 14.5px; padding-bottom: 4px; border-bottom: 1px solid var(--sep); }
@@ -1239,13 +1337,6 @@ mark.s-hit {
 .entry-narrative table { border-collapse: collapse; margin: 10px 0; font-size: 12px; }
 .entry-narrative th, .entry-narrative td { border: 1px solid var(--sep); padding: 4px 8px; text-align: left; }
 .entry-narrative th { background: var(--bg-inset); font-weight: 600; }
-
-/* 작업 일지 항목 디테일 — 고정 파일경로 바 (가로 스크롤해도 안 짤림). */
-.entry-detail-fname {
-  flex: none; padding: 7px 16px; font-family: var(--mono); font-size: 12px;
-  color: var(--text-2); background: var(--bg-inset); border-bottom: 1px solid var(--sep);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
 
 /* Today 커밋 그래프 — 클릭 가능한 행 hover (GitHub 열기). */
 .git-graph-row:hover { background: var(--bg-inset); }

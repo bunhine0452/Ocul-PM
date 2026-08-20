@@ -1,6 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { AlertTriangle, ArrowLeft, Bot, Calendar, GitCompareArrows } from "@/components/Icons";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  GitCompareArrows,
+  Search,
+  X,
+} from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -10,6 +20,7 @@ import { Markdown } from "@/components/Markdown";
 import { TriggerBadge } from "./triggerMeta";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
+import { commonRoot, splitPath } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
 import { useT, getLang } from "@/i18n";
 
@@ -58,33 +69,19 @@ function dateLabel(createdAt: string, workday: string): string {
   return `${y}.${mo}.${d} (${weekdays()[dt.getDay()] ?? ""})`;
 }
 
-/**
- * Minimal distinguishing label per path: basename, unless two paths share a
- * basename (e.g. `adelie/config.py` vs `adelie/commands/config.py`), in which
- * case enough trailing segments are kept to disambiguate. Dogfooding #5.
- */
-function disambiguateLabels(paths: string[]): Record<string, string> {
-  const byBase = new Map<string, string[]>();
-  for (const p of paths) {
-    const base = p.split("/").pop() ?? p;
-    const list = byBase.get(base) ?? [];
-    list.push(p);
-    byBase.set(base, list);
-  }
-  const out: Record<string, string> = {};
-  for (const [base, group] of byBase) {
-    if (group.length === 1) {
-      out[group[0]] = base;
-      continue;
-    }
-    for (const p of group) {
-      const twoSeg = p.split("/").slice(-2).join("/");
-      const collides = group.filter((q) => q.split("/").slice(-2).join("/") === twoSeg).length > 1;
-      out[p] = collides ? p : twoSeg;
-    }
-  }
-  return out;
+/** A row of the changed-file list: the entry's `files_touched` ∪ recorded diffs. */
+interface FileRow {
+  path: string;
+  op: ReturnType<typeof mapFileOpToChangeOp>;
+  /** Whether a patch was recorded for this path (⇒ the row is selectable). */
+  hasDiff: boolean;
+  /** Short muted reason shown when there's no patch to open. */
+  note: string | null;
 }
+
+/** Show the filter box / cap the list height only once the list is actually long. */
+const FILTER_FROM = 8;
+const SCROLL_FROM = 12;
 
 /**
  * The journal body's first non-blank line is the entry title (with a `[ ]`/`[x]`
@@ -115,15 +112,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
   const [diffs, setDiffs] = useState<EntryFileDiff[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-
-  // Esc → back to the list.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onBack();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onBack]);
+  const [filter, setFilter] = useState("");
+  const filterRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,6 +137,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
     setDiffs(null);
     setError(null);
     setSelected(null);
+    setFilter("");
     oculpmApi
       .getEntryDiffs(projectId, entry.relative_path)
       .then((d) => {
@@ -162,15 +154,87 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
 
   const files = detail?.frontmatter.files_touched ?? [];
   const recorded = useMemo(() => new Set((diffs ?? []).map((d) => d.path)), [diffs]);
-  const labels = useMemo(() => {
-    const all = new Set<string>([...files.map((f) => f.path), ...(diffs ?? []).map((d) => d.path)]);
-    return disambiguateLabels([...all]);
-  }, [files, diffs]);
+
+  // One list, path-sorted, covering both sides: the entry's declared
+  // `files_touched` plus any recorded patch whose path the frontmatter didn't
+  // list (otherwise that patch would have no way to be opened at all).
+  const rows = useMemo<FileRow[]>(() => {
+    const seen = new Set<string>();
+    const out: FileRow[] = [];
+    for (const f of files) {
+      seen.add(f.path);
+      const hasDiff = recorded.has(f.path);
+      out.push({
+        path: f.path,
+        op: mapFileOpToChangeOp(f.op),
+        hasDiff,
+        note: hasDiff ? null : f.op === "delete" ? t("entry.deleted") : t("entry.noRecord"),
+      });
+    }
+    for (const d of diffs ?? []) {
+      if (seen.has(d.path)) continue;
+      out.push({ path: d.path, op: "M", hasDiff: true, note: null });
+    }
+    return out.sort((a, b) => a.path.localeCompare(b.path));
+  }, [files, diffs, recorded, t]);
+
+  const root = useMemo(() => commonRoot(rows.map((r) => r.path)), [rows]);
+  const orderedPaths = useMemo(
+    () => rows.filter((r) => r.hasDiff).map((r) => r.path),
+    [rows],
+  );
+
+  const shown = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    return q ? rows.filter((r) => r.path.toLowerCase().includes(q)) : rows;
+  }, [rows, filter]);
 
   const active = useMemo(() => {
     if (!diffs || diffs.length === 0) return null;
-    return diffs.find((d) => d.path === selected) ?? diffs[0];
-  }, [diffs, selected]);
+    return (
+      diffs.find((d) => d.path === selected) ??
+      diffs.find((d) => d.path === orderedPaths[0]) ??
+      diffs[0]
+    );
+  }, [diffs, selected, orderedPaths]);
+  const activeIdx = active ? orderedPaths.indexOf(active.path) : -1;
+
+  // Esc → back to the list. j/k step through the recorded files and `/` jumps
+  // to the filter — same keys as the 변경 diff screen, so the two file lists
+  // are driven identically.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (e.key === "Escape") {
+        if (!typing) onBack();
+        return;
+      }
+      if (typing) return;
+      if (e.key === "j" || e.key === "k") {
+        if (orderedPaths.length === 0) return;
+        e.preventDefault();
+        const cur = Math.max(0, activeIdx);
+        const next =
+          e.key === "j" ? Math.min(cur + 1, orderedPaths.length - 1) : Math.max(cur - 1, 0);
+        setSelected(orderedPaths[next]);
+      } else if (e.key === "/" && filterRef.current) {
+        e.preventDefault();
+        filterRef.current.focus();
+        filterRef.current.select();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onBack, orderedPaths, activeIdx]);
+
+  // Keyboard stepping must not leave the active row outside the (now scrollable)
+  // list viewport.
+  useEffect(() => {
+    listRef.current?.querySelector(".dfile.active")?.scrollIntoView?.({ block: "nearest" });
+  }, [active?.path]);
 
   const narrative = useMemo(
     () => (detail ? stripLeadingTitle(detail.body_markdown, entry.title || entry.slug) : ""),
@@ -272,6 +336,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
         <aside className="entry-detail-side">
           {parseWarnings.length > 0 ? (
             <div
+              className="entry-detail-notice"
               style={{
                 marginBottom: 14,
                 padding: "8px 10px",
@@ -339,7 +404,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
           ) : null}
 
           {entry.tags.length > 0 ? (
-            <div className="flex flex-wrap gap-1" style={{ marginBottom: 14 }}>
+            <div className="entry-detail-tags flex flex-wrap gap-1" style={{ marginBottom: 14 }}>
               {entry.tags.map((t) => (
                 <span className="tag" key={t}>
                   {t}
@@ -348,37 +413,77 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
             </div>
           ) : null}
 
-          {files.length > 0 ? (
-            <div style={{ marginBottom: 16 }}>
-              <div className="diff-files-head" style={{ padding: "0 0 8px" }}>
-                {t("entry.filesChanged", { n: files.length })}
+          {rows.length > 0 ? (
+            <section className="entry-filelist-block">
+              <div className="diff-files-head entry-filelist-head">
+                <span className="entry-filelist-title">
+                  {t("entry.filesChanged", { n: rows.length })}
+                </span>
+                {rows.length >= FILTER_FROM ? (
+                  <span className="entry-filelist-filter">
+                    <Search size={12} />
+                    <input
+                      ref={filterRef}
+                      type="text"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Escape") return;
+                        e.stopPropagation();
+                        if (filter) setFilter("");
+                        else e.currentTarget.blur();
+                      }}
+                      placeholder={t("entry.filterFiles")}
+                      aria-label={t("entry.filterFiles")}
+                      spellCheck={false}
+                    />
+                    {filter ? (
+                      <button
+                        type="button"
+                        className="entry-filelist-clear"
+                        onClick={() => setFilter("")}
+                        aria-label={t("entry.filterClear")}
+                      >
+                        <X size={11} />
+                      </button>
+                    ) : null}
+                  </span>
+                ) : null}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {files.map((f) => {
-                  const op = mapFileOpToChangeOp(f.op);
-                  const hasDiff = recorded.has(f.path);
+              <div
+                ref={listRef}
+                className={"entry-filelist" + (rows.length > SCROLL_FROM ? " capped" : "")}
+              >
+                {shown.map((r) => {
+                  const { dir, base } = splitPath(r.path, root);
                   return (
                     <button
-                      key={f.path}
+                      key={r.path}
                       type="button"
-                      onClick={() => hasDiff && setSelected(f.path)}
-                      disabled={!hasDiff}
-                      title={f.path}
-                      className={"dfile" + (active?.path === f.path ? " active" : "")}
-                      style={{ cursor: hasDiff ? "pointer" : "default", opacity: hasDiff ? 1 : 0.75 }}
+                      onClick={() => r.hasDiff && setSelected(r.path)}
+                      disabled={!r.hasDiff}
+                      title={r.path}
+                      aria-current={active?.path === r.path ? "true" : undefined}
+                      className={
+                        "dfile" +
+                        (active?.path === r.path ? " active" : "") +
+                        (r.hasDiff ? "" : " muted")
+                      }
                     >
-                      <span className={"dstatus " + op}>{op}</span>
-                      <span className="dfile-name">{labels[f.path] ?? f.path}</span>
-                      {!hasDiff ? (
-                        <span style={{ fontSize: 10, color: "var(--text-3)", flex: "none" }}>
-                          {f.op === "delete" ? t("entry.deleted") : t("entry.noRecord")}
-                        </span>
-                      ) : null}
+                      <span className={"dstatus " + r.op}>{r.op}</span>
+                      <span className="dfile-name">
+                        {dir ? <span className="dfile-dir">{dir}</span> : null}
+                        <span className="dfile-base">{base}</span>
+                      </span>
+                      {r.note ? <span className="dfile-note">{r.note}</span> : null}
                     </button>
                   );
                 })}
+                {shown.length === 0 ? (
+                  <div className="entry-filelist-empty">{t("entry.noFileMatch")}</div>
+                ) : null}
               </div>
-            </div>
+            </section>
           ) : null}
 
           <div className="entry-narrative">
@@ -396,34 +501,53 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
           </div>
         </aside>
 
-        {/* Right: recorded diff */}
+        {/* Right: recorded diff. The file list lives entirely in the left pane —
+            this bar only says which file is open and steps between them. */}
         <section className="entry-detail-main">
-          {diffs && diffs.length > 0 ? (
-            <div className="entry-detail-tabs">
-              {diffs.map((d) => {
-                const isActive = active?.path === d.path;
-                return (
-                  <button
-                    key={d.path}
-                    type="button"
-                    onClick={() => setSelected(d.path)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-mono border transition-colors cursor-pointer ${
-                      isActive
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/40"
-                    }`}
-                    title={d.path}
-                  >
-                    {labels[d.path] ?? d.path.split("/").pop()}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
           {active ? (
-            <div className="entry-detail-fname" title={active.path}>
-              {active.path}
+            <div className="entry-file-bar">
+              {orderedPaths.length > 1 ? (
+                <div className="efb-steps">
+                  <button
+                    type="button"
+                    className="efb-step"
+                    onClick={() => setSelected(orderedPaths[activeIdx - 1])}
+                    disabled={activeIdx <= 0}
+                    aria-label={t("entry.prevFile")}
+                    title={`${t("entry.prevFile")} (k)`}
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="efb-step"
+                    onClick={() => setSelected(orderedPaths[activeIdx + 1])}
+                    disabled={activeIdx < 0 || activeIdx >= orderedPaths.length - 1}
+                    aria-label={t("entry.nextFile")}
+                    title={`${t("entry.nextFile")} (j)`}
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              ) : null}
+              <div className="efb-path" title={active.path}>
+                {(() => {
+                  const { dir, base } = splitPath(active.path, "", Infinity);
+                  return (
+                    <>
+                      {dir ? <span className="efb-dir">{dir}</span> : null}
+                      <span className="efb-base">{base}</span>
+                    </>
+                  );
+                })()}
+              </div>
+              {orderedPaths.length > 1 ? (
+                <span className="efb-count">
+                  {Math.max(activeIdx, 0) + 1}
+                  <span className="efb-count-sep">/</span>
+                  {orderedPaths.length}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="diff-code">
