@@ -4,7 +4,7 @@ use std::sync::Once;
 use rusqlite::params;
 use rusqlite::OptionalExtension;
 use tokio_rusqlite::Connection;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::error::Result;
 
@@ -36,6 +36,44 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (26, include_str!("../migrations/026_claude_hooks_inbox.sql")),
     (27, include_str!("../migrations/027_project_appearance.sql")),
     (28, include_str!("../migrations/028_journal_file_lines.sql")),
+];
+
+/// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
+/// (테이블, 컬럼, 선언). 마이그레이션 러너가 그 파일을 건너뛴 DB 를 [`Db::heal_columns`]
+/// 가 이걸로 메운다.
+///
+/// 왜 필요한가: 적용 이력이 `PRAGMA user_version` 정수 하나뿐이라, **번호가
+/// 재사용되면** 러너가 새 파일을 영영 실행하지 않는다. 실제로 그렇게 됐다 —
+/// 병합되지 않은 브랜치가 028 로 `oculpm_journal` 에 컬럼을 더했고, 그 빌드를
+/// 돌린 DB 는 user_version 이 28 이 된 채 main 의 **다른** 028
+/// (`oculpm_journal_files.lines_added/removed`) 을 건너뛰었다. 결과가 Today 마다
+/// 뜨던 `no such column: f.lines_added` 다. 마이그레이션 파일을 고쳐도 이미
+/// 28 을 지나온 DB 는 스스로 낫지 못한다.
+///
+/// 컬럼 추가는 멱등하고(있으면 건너뛴다) 데이터가 사라지지 않으므로, 어떤
+/// 경로로 어긋났든(번호 충돌·수동 편집·부분 복구) 여기서 결과가 같아진다.
+/// 새 `ADD COLUMN` 마이그레이션을 쓸 때는 이 목록에도 한 줄 추가한다 —
+/// `every_added_column_is_declared_for_healing` 테스트가 누락을 막는다.
+// oculpm-defer: 그물이 덮는 건 ADD COLUMN 뿐 — 같은 번호 충돌로 CREATE TABLE
+// 마이그레이션이 통째로 건너뛰어지면 못 잡는다; 그 사고가 한 번이라도 나면 적용
+// 이력을 정수 하나에서 (버전, sql 해시) 원장으로 바꾼다.
+const ADDITIVE_COLUMNS: &[(&str, &str, &str)] = &[
+    (
+        "file_changes",
+        "entry_id",
+        "INTEGER REFERENCES changelog_entries(id) ON DELETE SET NULL",
+    ),
+    ("symbol_relations", "from_symbol", "TEXT"),
+    ("oculpm_journal", "agent_version", "TEXT"),
+    (
+        "oculpm_journal",
+        "coercion_version",
+        "INTEGER NOT NULL DEFAULT 0",
+    ),
+    ("projects", "icon", "TEXT"),
+    ("projects", "color", "TEXT"),
+    ("oculpm_journal_files", "lines_added", "INTEGER"),
+    ("oculpm_journal_files", "lines_removed", "INTEGER"),
 ];
 
 pub struct Db {
@@ -134,6 +172,54 @@ impl Db {
                         tx.commit()?;
                         info!(version, "migration applied");
                     }
+                }
+                Ok(())
+            })
+            .await?;
+        self.heal_columns().await?;
+        Ok(())
+    }
+
+    /// [`ADDITIVE_COLUMNS`] 중 실제 스키마에 없는 것을 다시 더한다 — 러너가
+    /// 번호 때문에 건너뛴 마이그레이션의 **결과만** 복구하는 안전망이다.
+    ///
+    /// 없는 테이블은 건너뛴다 (그 마이그레이션 자체가 아직인 DB — 신규 설치
+    /// 도중이거나 미래에 테이블이 사라진 경우). 한 컬럼이 실패해도 나머지는
+    /// 계속 시도하지 않는다: ADD COLUMN 이 실패하는 상황은 스키마가 예상과
+    /// 다르다는 뜻이라 조용히 넘기면 안 된다.
+    async fn heal_columns(&self) -> Result<()> {
+        self.conn
+            .call(|c| {
+                for (table, column, decl) in ADDITIVE_COLUMNS {
+                    let table_exists: bool = c
+                        .query_row(
+                            "SELECT 1 FROM sqlite_master
+                              WHERE type = 'table' AND name = ?1",
+                            [table],
+                            |_| Ok(true),
+                        )
+                        .optional()?
+                        .unwrap_or(false);
+                    if !table_exists {
+                        continue;
+                    }
+
+                    let column_exists: bool = c
+                        .query_row(
+                            "SELECT 1 FROM pragma_table_info(?1) WHERE name = ?2",
+                            params![table, column],
+                            |_| Ok(true),
+                        )
+                        .optional()?
+                        .unwrap_or(false);
+                    if column_exists {
+                        continue;
+                    }
+
+                    // 식별자는 바인딩할 수 없다 — 값은 전부 이 파일의 상수라
+                    // 외부 입력이 섞이지 않는다.
+                    c.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))?;
+                    warn!(table, column, "schema drift healed — column re-added");
                 }
                 Ok(())
             })
@@ -2939,4 +3025,113 @@ pub struct ProjectBlueprint {
     pub wizard_step: u32,
     pub created_at: u32,
     pub updated_at: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    /// 러너가 건너뛴 마이그레이션의 결과를 다음 실행이 스스로 메운다.
+    ///
+    /// 재현: main 의 028 이 더한 두 컬럼을 지우되 `user_version` 은 28 로 둔다 —
+    /// 병합되지 않은 브랜치가 같은 번호를 먼저 써 버린 DB 와 같은 상태다. 예전엔
+    /// 이 DB 에서 Today 를 열 때마다 `no such column: f.lines_added` 가 났다.
+    #[tokio::test]
+    async fn heals_a_column_a_reused_migration_number_skipped() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("ocul-pm.db");
+
+        let db = Db::open(path.clone()).await.unwrap();
+        db.conn()
+            .call(|c| -> Result<()> {
+                c.execute_batch(
+                    "ALTER TABLE oculpm_journal_files DROP COLUMN lines_added;
+                     ALTER TABLE oculpm_journal_files DROP COLUMN lines_removed;",
+                )?;
+                Ok(())
+            })
+            .await
+            .unwrap();
+        let version: i64 = db
+            .conn()
+            .call(|c| -> Result<i64> {
+                let v = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+                Ok(v)
+            })
+            .await
+            .unwrap();
+        assert_eq!(version, 28, "user_version 은 그대로여야 재현이 성립한다");
+        drop(db);
+
+        let db = Db::open(path).await.unwrap();
+        let sums: (i64, i64) = db
+            .conn()
+            .call(|c| -> Result<(i64, i64)> {
+                let v = c.query_row(
+                    "SELECT COALESCE(SUM(f.lines_added), 0), COALESCE(SUM(f.lines_removed), 0)
+                       FROM oculpm_journal_files f
+                       JOIN oculpm_journal j
+                         ON j.project_id = f.project_id
+                        AND j.relative_path = f.relative_path
+                      WHERE j.project_id = ?1 AND j.workday = ?2",
+                    params![1_i64, "20260821"],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )?;
+                Ok(v)
+            })
+            .await
+            .unwrap();
+        assert_eq!(sums, (0, 0), "Today 의 워크데이 합 질의가 다시 돌아야 한다");
+    }
+
+    /// 이미 컬럼이 있는 DB 를 두 번 열어도 아무 일도 없어야 한다 (멱등).
+    #[tokio::test]
+    async fn healing_is_a_no_op_on_an_intact_schema() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("ocul-pm.db");
+        drop(Db::open(path.clone()).await.unwrap());
+        let db = Db::open(path).await.unwrap();
+
+        let count: i64 = db
+            .conn()
+            .call(|c| -> Result<i64> {
+                let v = c.query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info('oculpm_journal_files')
+                      WHERE name IN ('lines_added', 'lines_removed')",
+                    [],
+                    |r| r.get(0),
+                )?;
+                Ok(v)
+            })
+            .await
+            .unwrap();
+        assert_eq!(count, 2);
+    }
+
+    /// 새 `ADD COLUMN` 마이그레이션을 쓰면서 [`ADDITIVE_COLUMNS`] 에 적는 걸
+    /// 잊으면, 그 컬럼만 안전망 밖에 남는다 — 여기서 막는다.
+    #[test]
+    fn every_added_column_is_declared_for_healing() {
+        for (version, sql) in MIGRATIONS {
+            for line in sql.lines() {
+                let line = line.trim();
+                let Some(rest) = line.strip_prefix("ALTER TABLE ") else {
+                    continue;
+                };
+                let mut words = rest.split_whitespace();
+                let table = words.next().unwrap_or_default();
+                if words.next() != Some("ADD") || words.next() != Some("COLUMN") {
+                    continue;
+                }
+                let column = words.next().unwrap_or_default();
+                assert!(
+                    ADDITIVE_COLUMNS
+                        .iter()
+                        .any(|(t, c, _)| *t == table && *c == column),
+                    "마이그레이션 {version} 의 {table}.{column} 이 ADDITIVE_COLUMNS 에 없다"
+                );
+            }
+        }
+    }
 }
