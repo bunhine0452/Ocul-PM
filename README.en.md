@@ -10,6 +10,7 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
 
 [oculpm.com](https://oculpm.com) · [Keynote](https://oculpm.com/keynote) · [Wiki](https://oculpm.com/wiki) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
 
@@ -201,6 +202,12 @@ Requires Node 18+, pnpm, Rust stable, and Xcode Command Line Tools on macOS.
 ## One more thing
 
 This repository is itself tracked by Ocul-PM. Open `.oculpm/journal/` and you'll find the actual journals agents wrote while building this app. Bugs and ideas go to [issues](https://github.com/bunhine0452/Ocul-PM/issues) — and if you like it, a star helps more than you'd think.
+
+## Support
+
+Ocul-PM is built and maintained by one person. The app stays free, but building it costs time and money. If it has been useful, you can [buy me a coffee on Ko-fi](https://ko-fi.com/beachcombers) — one-off or monthly.
+
+Supporting changes nothing about what you get. The promise below holds either way.
 
 ## License & promise
 
