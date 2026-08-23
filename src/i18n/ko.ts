@@ -174,6 +174,8 @@ export const ko = {
   "watcher.takeOver": "이 창에서 감시하기",
   "watcher.tookOver": "이 창이 이 프로젝트를 감시합니다",
   "watcher.takeOverFailed": "가져오기 실패: {error}",
+  "watcher.offlineTitle": "실시간 갱신이 꺼져 있습니다",
+  "watcher.offline": "다른 ocul-pm 인스턴스가 이 프로젝트를 쓰고 있어요. 1분마다 자동으로 다시 시도합니다 — 그동안 변경은 화면을 새로 열 때 보입니다.",
   "agents.upgrade.title": "에이전트 규칙(AGENTS.md) 업데이트가 있어요",
   "agents.upgrade.version": "규칙 템플릿 v{from} → v{to}",
   "agents.upgrade.action": "업데이트",

@@ -31,6 +31,7 @@ use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
     new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
+use futures::future::FutureExt;
 use regex::Regex;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -171,7 +172,24 @@ impl ProjectWatcher {
                 match result {
                     Ok(events) => {
                         for ev in events {
-                            inner.handle_event(ev).await;
+                            // 이벤트 **하나**의 패닉이 루프를 죽이면 그 프로젝트의
+                            // 실시간 갱신이 앱을 다시 켤 때까지 조용히 사라진다 —
+                            // `debouncer` 는 그대로 `Some` 이라 상태는 "Running",
+                            // `watcher_start` 는 "이미 돌고 있음" 으로 no-op 이다.
+                            // 도그푸딩 2026-08-23 에서 실제로 겪은 실패라, 여기서
+                            // 삼키고 **크게 남긴 뒤** 다음 이벤트로 넘어간다.
+                            let path = ev.event.paths.first().cloned();
+                            let caught = std::panic::AssertUnwindSafe(inner.handle_event(ev))
+                                .catch_unwind()
+                                .await;
+                            if caught.is_err() {
+                                tracing::error!(
+                                    target: "oculpm::watcher",
+                                    project_id,
+                                    path = ?path,
+                                    "[FLOW] handle_event panicked — 이 이벤트만 버리고 계속한다"
+                                );
+                            }
                         }
                     }
                     Err(errs) => {
@@ -179,7 +197,14 @@ impl ProjectWatcher {
                     }
                 }
             }
-            tracing::info!(target: "oculpm::watcher", "[FLOW] watcher receive loop exited (stop() called)");
+            // 여기 도달 = 송신측(debouncer)이 사라졌다. 정상 종료(`stop()`)일
+            // 수도, 워커 스레드가 죽은 것일 수도 있다 — 예전 문구는 전자라고
+            // 단정해 후자를 은폐했다. 감독관(`supervisor`)이 재무장한다.
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id,
+                "[FLOW] watcher receive loop ended (debouncer dropped — stop() 이거나 워커 사망)"
+            );
         });
 
         tracing::info!(
@@ -215,6 +240,32 @@ impl ProjectWatcher {
 
     pub fn project_id(&self) -> u32 {
         self.project_id
+    }
+
+    /// 이 워처가 **아직 이벤트를 처리할 수 있는가**.
+    ///
+    /// `debouncer` 가 `Some` 인 것만으로는 부족하다 — 처리 태스크가 죽어도
+    /// 그 필드는 그대로 남는다. 그 상태를 "돌고 있음" 으로 읽는 바람에
+    /// `watcher_start` 가 no-op 을 돌려주고, 실시간 갱신이 앱 재시작까지
+    /// 돌아오지 않았다 (도그푸딩 2026-08-23).
+    pub fn is_alive(&self) -> bool {
+        self.debouncer.is_some() && !self.join_handle.is_finished()
+    }
+
+    /// 지금까지 이 워처의 처리 루프에 **도달한** 이벤트 수 (필터 이전).
+    /// 감독관의 생존 프로브가 이 값의 증가를 본다.
+    pub fn events_seen(&self) -> u32 {
+        self.stats.read().map(|s| s.events_seen_total).unwrap_or(0)
+    }
+
+    /// 응답 없는 워처를 **기다리지 않고** 끊는다.
+    ///
+    /// `stop()` 은 처리 태스크의 종료를 `await` 하므로, 그 태스크가 어딘가에서
+    /// 멈춰 있으면 영원히 돌아오지 않는다 — 되살리려는 감독관이 거기서 함께
+    /// 멈추면 안 된다.
+    pub fn abort(mut self) {
+        self.debouncer.take();
+        self.join_handle.abort();
     }
 
     pub fn status(&self) -> WatcherStatus {
@@ -1345,7 +1396,7 @@ impl WatcherInner {
 /// and `.DS_Store` as `journal 누락`, tanking jaccard. Real-world atomic
 /// writes use `<dest>.tmp.<rand>` or `<dest>.<rand>.tmp`, so an exact
 /// `.tmp` ending isn't enough — we also catch `.tmp.` infix.
-fn is_self_suppressed(rel_str: &str) -> bool {
+pub(crate) fn is_self_suppressed(rel_str: &str) -> bool {
     if rel_str.starts_with(".oculpm/index/")
         || rel_str == ".oculpm/.lock"
         || rel_str == ".oculpm/oculpm.log"

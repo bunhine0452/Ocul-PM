@@ -182,7 +182,11 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
         .expect("second acquire call");
     match second {
         LockAcquisition::Held { .. } => { /* expected — first guard still alive */ }
-        LockAcquisition::Acquired(_) | LockAcquisition::Recovered { .. } => {
+        // `acquire` 는 양보 정책이다 — 가져오기(`TakeOver`)는 앱이 새로 뜰 때만
+        // 쓰는 별도 경로이므로 여기서 나오면 정책이 뒤집힌 것이다.
+        LockAcquisition::Acquired(_)
+        | LockAcquisition::Recovered { .. }
+        | LockAcquisition::TakenOver { .. } => {
             panic!("second LockGuard::acquire must see Held while first lives");
         }
     }

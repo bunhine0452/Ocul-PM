@@ -16,7 +16,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 
-import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
+import { commands, events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import type { CodeTabsState } from "@/features/code/codeTabs";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
@@ -1039,6 +1039,32 @@ export function WorkspaceProvider({
         title: t("ws.reconciledTitle"),
         dedupKey: `reconciled:${planId}`,
         dedupWindowMs: 5_000,
+      });
+    }).then((off) => offFns.push(off));
+
+    // 다른 ocul-pm 인스턴스가 이 프로젝트를 가져갔다 (2026-08-23). 이 창은
+    // 실시간 갱신을 놓았으므로 **말해 줘야 한다** — 예전에는 화면이 조용히
+    // 굳고, 사용자는 새로고침을 반복하는 것 말고 알 방법이 없었다.
+    void events.oculpmWatchYielded.listen((evt) => {
+      const pid = currentProjectId();
+      if (evt.payload.project_id !== pid || pid == null) return;
+      toast.warning(t("ws.watchYielded"), {
+        title: t("ws.watchYieldedTitle"),
+        dedupKey: `watch-yielded:${pid}`,
+        dedupWindowMs: 60_000,
+        durationMs: 0,
+        actions: [
+          {
+            label: t("watcher.takeOver"),
+            onClick: () => {
+              void (async () => {
+                const r = await commands.oculpmWatcherTakeOver(pid);
+                if (r.status === "ok") toast.info(t("watcher.tookOver"));
+                else toast.destructive(t("watcher.takeOverFailed", { error: r.error }));
+              })();
+            },
+          },
+        ],
       });
     }).then((off) => offFns.push(off));
 

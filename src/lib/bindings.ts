@@ -623,6 +623,20 @@ export const commands = {
 	shell_integration: boolean,
 } | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
+	/**
+	 *  이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄. 셸이 입력을
+	 *  기다리는 중이면 셸 자신(`-zsh`)이 나오고, 알아낼 수 없으면 `None`.
+	 * 
+	 *  디스패치 프리필(IN2)이 "셸에 한 줄 명령을 쓸지" 아니면 "이미 돌고 있는
+	 *  코딩 에이전트에 프롬프트를 그대로 붙여넣을지" 고르는 근거다. 셸 통합
+	 *  (OSC 133)이 꺼져 있어도 답할 수 있어야 해서 tty 의 포그라운드 프로세스
+	 *  그룹(`tcgetpgrp`)을 직접 본다 — iTerm2·VS Code 가 쓰는 것과 같은 신호이고,
+	 *  사용자가 rc 에 아무것도 설치하지 않아도 참이다.
+	 * 
+	 *  판정(어떤 에이전트인가)은 프런트의 `agentDetect.ts` 가 한다 — 셸 통합
+	 *  경로와 **같은 규칙**을 쓰기 위해서다. 여기서는 원문만 실어 보낸다.
+	 */
+	ptyForegroundCommand: (sessionId: string) => typedError<string | null, string>(__TAURI_INVOKE("pty_foreground_command", { sessionId })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
 	/**  현재 설치 상태를 읽는다. 파일을 만들거나 고치지 않는다. */
@@ -2409,6 +2423,12 @@ export type DispatchPrompt = {
 	file_rel: string,
 	/**  터미널에 프리필할 한 줄 명령 (`claude "$(cat '…')"`). 실행은 사용자가. */
 	command: string,
+	/**
+	 *  조립된 프롬프트 **본문**. 터미널에서 이미 코딩 에이전트가 돌고 있으면
+	 *  프런트가 한 줄 명령 대신 이걸 그대로 붙여넣는다 — 돌던 세션을 끊고
+	 *  `claude` 를 또 띄우는 대신, 하던 대화에 이어 붙이기 위해서다.
+	 */
+	prompt: string,
 	item_title: string,
 };
 

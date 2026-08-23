@@ -33,7 +33,7 @@ use crate::oculpm::frontmatter::{
     backfill_tz_offset, parse_frontmatter_and_body, write_frontmatter_and_body,
 };
 use crate::oculpm::index::IndexWriter;
-use crate::oculpm::lock::{LockAcquisition, LockGuard};
+use crate::oculpm::lock::{AcquirePolicy, LockAcquisition, LockGuard};
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::{self, WorkdayResolver};
 use crate::oculpm::redact::{
@@ -98,6 +98,10 @@ pub struct OculpmManager {
     /// so concurrent writers can't clobber each other (last-writer-wins lost
     /// updates). Lazily created per project.
     plan_write_locks: RwLock<HashMap<u32, Arc<tokio::sync::Mutex<()>>>>,
+    /// 이 프로세스가 쥔 락 하나가 **다른 인스턴스에게 인계당한** 순간 깨어난다.
+    /// 감독관이 여기서 깨어나 그 프로젝트의 감시를 즉시 접는다 — 다음 정기
+    /// 틱까지 기다리면 두 인스턴스가 같은 프로젝트를 함께 감시한다.
+    lock_evicted: Arc<tokio::sync::Notify>,
 }
 
 /// Cloned view of a project's lazy-loaded state. Used by `overview_stats`
@@ -227,10 +231,15 @@ impl OculpmManager {
         // 5. Acquire the lock. Storing the guard in `ProjectEntry` keeps the
         //    heartbeat task alive for the duration of the project being open.
         let lock_path = resolver.lock_path(root);
-        let acq = LockGuard::acquire(&lock_path).await?;
+        let acq =
+            LockGuard::acquire_with(&lock_path, AcquirePolicy::Polite, self.lock_evicted.clone())
+                .await?;
         let (guard, lock_state) = match acq {
             LockAcquisition::Acquired(g) => (Some(g), LockStateView::Healthy),
             LockAcquisition::Recovered { guard, .. } => (Some(guard), LockStateView::Recovered),
+            // init 은 언제나 양보한다 — 가져오기는 앱 시작의 `watcher_start`
+            // 가 정책으로 결정한다 (한 곳에서만 결정해야 예측 가능하다).
+            LockAcquisition::TakenOver { guard, .. } => (Some(guard), LockStateView::Recovered),
             LockAcquisition::Held { .. } => (None, LockStateView::HeldByOther),
         };
         report.lock_state = lock_state;
@@ -498,25 +507,88 @@ impl OculpmManager {
         project_id: u32,
         app_handle: Option<tauri::AppHandle>,
     ) -> Result<(), OculpmError> {
+        self.watcher_start_with(project_id, app_handle, AcquirePolicy::Polite).await
+    }
+
+    /// 락 정책을 지정해 감시를 시작한다.
+    ///
+    /// `TakeOver` 는 **앱이 새로 뜰 때만** 쓴다 — "가장 최근에 연 인스턴스가
+    /// 주인" 규칙이라야 사용자가 결과를 예측할 수 있다. 재시도 경로가 이걸
+    /// 쓰면 두 인스턴스가 60초마다 서로를 쫓아내며 무한히 주고받는다.
+    pub async fn watcher_start_with(
+        &self,
+        project_id: u32,
+        app_handle: Option<tauri::AppHandle>,
+        policy: AcquirePolicy,
+    ) -> Result<(), OculpmError> {
         let mut projects = self.projects.write().await;
         let entry = projects
             .get_mut(&project_id)
             .ok_or(OculpmError::NotInitialized(project_id))?;
 
-        if entry.lock.is_none() {
-            return Err(OculpmError::InvalidConfig(
-                "read-only mode: lock held by another instance".to_string(),
-            ));
+        // 인계당한 가드는 더 이상 권한이 없다 — 들고 있어 봐야 남의 락이다.
+        // 여기서 놓아야 아래 재시도가 정직하게 "지금 누가 주인인가" 를 묻는다.
+        if entry.lock.as_ref().is_some_and(|l| l.is_evicted()) {
+            entry.lock = None;
         }
 
-        // Idempotent: already running.
-        if entry.watcher.is_some() {
-            tracing::debug!(
+        // 읽기 전용으로 떨어져 있었다면 **락을 다시 노려본다**.
+        //
+        // 락은 `init_project` 에서 한 번만 잡았고, 그 시점에 다른 인스턴스가
+        // 쥐고 있었으면 이 프로세스는 그 프로젝트를 영영 감시하지 못했다 —
+        // 저쪽이 진작 끝났어도. 개발 빌드와 설치본을 같이 띄우는 흔한 상황에서
+        // 나중에 뜬 쪽이 **모든 프로젝트의 실시간 갱신을 잃는** 원인이었다
+        // (도그푸딩 2026-08-23). 재시도는 여기가 옳다: 워처를 켜려는 순간이
+        // 곧 "쓰기 주인이 필요해진" 순간이다.
+        if entry.lock.is_none() {
+            let lock_path = entry.resolver.lock_path(&entry.root);
+            match LockGuard::acquire_with(&lock_path, policy, self.lock_evicted.clone()).await? {
+                LockAcquisition::Acquired(g) | LockAcquisition::Recovered { guard: g, .. } => {
+                    tracing::info!(
+                        target: "oculpm::manager",
+                        project_id,
+                        "[FLOW] read-only 였던 프로젝트가 락을 회수했다 — 감시를 시작한다"
+                    );
+                    entry.lock = Some(g);
+                }
+                LockAcquisition::TakenOver { guard, previous_pid, previous_exe } => {
+                    tracing::info!(
+                        target: "oculpm::manager",
+                        project_id,
+                        previous_pid,
+                        previous_exe = previous_exe.as_deref().unwrap_or("?"),
+                        "[FLOW] 살아 있는 인스턴스에게서 락을 가져왔다 — 이 앱이 감시한다"
+                    );
+                    entry.lock = Some(guard);
+                }
+                LockAcquisition::Held { by_pid, holder_exe, .. } => {
+                    return Err(OculpmError::InvalidConfig(format!(
+                        "read-only mode: lock held by another instance (pid {by_pid}{})",
+                        holder_exe.map(|e| format!(", {e}")).unwrap_or_default()
+                    )));
+                }
+            }
+        }
+
+        // Idempotent: already running — **살아 있을 때만**. 처리 태스크가 죽은
+        // 워처를 "돌고 있음" 으로 읽으면 되살릴 길이 없어진다 (재기동이 유일한
+        // 치료였다). 죽었으면 기다리지 않고 끊고 새로 무장한다.
+        if let Some(w) = entry.watcher.take() {
+            if w.is_alive() {
+                entry.watcher = Some(w);
+                tracing::debug!(
+                    target: "oculpm::manager",
+                    project_id,
+                    "watcher_start: already running, no-op"
+                );
+                return Ok(());
+            }
+            tracing::warn!(
                 target: "oculpm::manager",
                 project_id,
-                "watcher_start: already running, no-op"
+                "[FLOW] 죽은 워처 발견 — 끊고 다시 무장한다 (실시간 갱신 복구)"
             );
-            return Ok(());
+            w.abort();
         }
 
         // Reuse the existing session actor if one survived a prior
@@ -601,6 +673,86 @@ impl OculpmManager {
             "[FLOW] watcher_stop: watcher halted, session actor kept alive (will end via inactivity timer if user doesn't return)"
         );
         Ok(())
+    }
+
+    /// 이 프로세스의 락 하나가 인계당하면 깨어나는 채널 (감독관이 기다린다).
+    pub fn lock_evicted_signal(&self) -> Arc<tokio::sync::Notify> {
+        self.lock_evicted.clone()
+    }
+
+    /// 인계당한 락을 **놓는다** — 그 프로젝트의 감시를 접고 읽기 전용이 된다.
+    ///
+    /// 두 인스턴스가 같은 프로젝트를 동시에 감시하면 세션 활동이 이중으로
+    /// 기록된다. 락을 가져간 쪽이 주인이고, 이쪽은 즉시 물러나는 게 맞다.
+    /// 되찾기는 감독관의 정기 재시도가 맡는다 (저쪽이 끝나면 자동 복귀).
+    ///
+    /// 놓은 프로젝트 id 를 돌려준다 — 호출측이 사용자에게 알리기 위해.
+    pub async fn yield_evicted_locks(&self) -> Vec<u32> {
+        let evicted: Vec<u32> = {
+            let projects = self.projects.read().await;
+            projects
+                .iter()
+                .filter(|(_, e)| e.lock.as_ref().is_some_and(|l| l.is_evicted()))
+                .map(|(&id, _)| id)
+                .collect()
+        };
+        for &project_id in &evicted {
+            // 감시부터 끊는다 — 응답을 기다리지 않는다 (인계는 이미 끝났고,
+            // 여기서 멈추면 이중 감시가 그만큼 길어진다).
+            let mut projects = self.projects.write().await;
+            if let Some(entry) = projects.get_mut(&project_id) {
+                if let Some(watcher) = entry.watcher.take() {
+                    watcher.abort();
+                }
+                // 가드를 놓는다. 인계당한 가드는 락 파일을 지우지 않는다
+                // (`LockGuard::owns_file_on_disk`) — 지금 그 파일은 남의 것이다.
+                entry.lock = None;
+            }
+            tracing::warn!(
+                target: "oculpm::manager",
+                project_id,
+                "[FLOW] 락을 인계당해 감시를 접는다 — 이 프로젝트는 읽기 전용"
+            );
+        }
+        evicted
+    }
+
+    /// 감독관(`oculpm::supervisor`)용 스냅샷 — 추적 중인 프로젝트별 감시 상태.
+    pub async fn watcher_health(&self) -> Vec<WatcherHealth> {
+        let projects = self.projects.read().await;
+        projects
+            .iter()
+            .map(|(&project_id, entry)| WatcherHealth {
+                project_id,
+                root: entry.root.clone(),
+                has_lock: entry.lock.is_some(),
+                events_seen: entry
+                    .watcher
+                    .as_ref()
+                    .filter(|w| w.is_alive())
+                    .map(|w| w.events_seen()),
+            })
+            .collect()
+    }
+
+    /// **살아 있는 것처럼 보이지만 귀가 먹은** 워처를 끊는다 (다음
+    /// `watcher_start` 가 새로 무장한다).
+    ///
+    /// `watcher_stop` 과 달리 처리 태스크의 종료를 기다리지 않는다 — 애초에
+    /// "응답이 없다" 가 이 함수를 부르는 이유라, 기다리면 감독관이 함께 멈춘다.
+    pub async fn watcher_drop_unresponsive(&self, project_id: u32) {
+        let mut projects = self.projects.write().await;
+        let Some(entry) = projects.get_mut(&project_id) else {
+            return;
+        };
+        if let Some(watcher) = entry.watcher.take() {
+            tracing::warn!(
+                target: "oculpm::manager",
+                project_id,
+                "[FLOW] 응답 없는 워처를 끊는다 — 프로브가 처리 루프에 닿지 않았다"
+            );
+            watcher.abort();
+        }
     }
 
     /// Watcher status. Safe to call before init — returns Stopped + 0 counters.
@@ -2283,6 +2435,18 @@ fn reindex_report_to_spec(project_id: u32, r: CacheReindexReport) -> ReindexRepo
     }
 }
 
+/// 프로젝트 하나의 "실시간 갱신이 살아 있는가" 스냅샷.
+#[derive(Debug, Clone)]
+pub struct WatcherHealth {
+    pub project_id: u32,
+    pub root: PathBuf,
+    /// 이 프로세스가 쓰기 주인인가. 아니면 감시를 켤 수 없다 (읽기 전용).
+    pub has_lock: bool,
+    /// 살아 있는 워처가 지금까지 처리 루프로 받은 이벤트 수. 워처가 없거나
+    /// 태스크가 죽었으면 `None` — 그대로 재무장 대상이다.
+    pub events_seen: Option<u32>,
+}
+
 fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
     match guard {
         Some(_) => LockStateView::Healthy,
@@ -2480,6 +2644,132 @@ mod tests {
         assert!(gi.contains("# oculpm:end"));
         // Block-only file must not start with a blank line.
         assert!(gi.starts_with("# oculpm:begin v1"));
+    }
+
+    /// 락을 남이 쥐고 있어 read-only 로 시작한 프로젝트도, 그 인스턴스가
+    /// 사라지면 **다음 `watcher_start` 에서 회수**해 감시를 시작해야 한다.
+    ///
+    /// 예전에는 락을 `init_project` 에서 한 번만 잡았다 — 그래서 앱을 두 개
+    /// 띄운 뒤 하나를 꺼도, 남은 쪽은 프로세스가 끝날 때까지 모든 프로젝트의
+    /// 실시간 갱신을 잃은 채였다 (도그푸딩 2026-08-23).
+    #[tokio::test]
+    async fn watcher_start_reclaims_a_lock_that_was_held_at_init() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+        // 살아 있는 pid(= 이 테스트 프로세스) + 방금 찍은 하트비트 →
+        // `LockGuard::acquire` 가 Held 를 돌려주는 조건.
+        let lock_path = dir.path().join(".oculpm/.lock");
+        let now = chrono::Utc::now().to_rfc3339();
+        std::fs::write(
+            &lock_path,
+            format!(
+                r#"{{"schema_version":1,"pid":{},"hostname":"test","started_at":"{now}","heartbeat_at":"{now}"}}"#,
+                std::process::id()
+            ),
+        )
+        .unwrap();
+
+        let manager = OculpmManager::new();
+        let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
+        assert!(
+            matches!(report.lock_state, LockStateView::HeldByOther),
+            "남이 쥔 락은 read-only 로 시작해야 한다"
+        );
+
+        // 저쪽이 아직 살아 있는 동안에는 켜지지 않는다 (계약 유지).
+        assert!(manager.watcher_start(1, None).await.is_err());
+
+        // 저쪽 인스턴스가 끝났다 → 다음 시도에서 회수하고 감시가 시작된다.
+        std::fs::remove_file(&lock_path).unwrap();
+        manager.watcher_start(1, None).await.unwrap();
+
+        let health = manager.watcher_health().await;
+        let me = health.iter().find(|h| h.project_id == 1).unwrap();
+        assert!(me.has_lock, "회수한 락을 들고 있어야 한다");
+        assert!(me.events_seen.is_some(), "살아 있는 워처가 붙어 있어야 한다");
+    }
+
+    /// 앱이 새로 뜰 때의 경로 — 살아 있는 소유자에게서 락을 **가져와** 감시를
+    /// 시작한다. 양보 정책은 같은 상황에서 물러난다 (그래야 재시도가 서로를
+    /// 무한히 쫓아내지 않는다).
+    #[tokio::test]
+    async fn take_over_policy_starts_watching_despite_a_live_holder() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+        let lock_path = dir.path().join(".oculpm/.lock");
+        let now = chrono::Utc::now().to_rfc3339();
+        std::fs::write(
+            &lock_path,
+            format!(
+                r#"{{"schema_version":1,"pid":{},"hostname":"test","started_at":"{now}","heartbeat_at":"{now}"}}"#,
+                std::process::id()
+            ),
+        )
+        .unwrap();
+
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
+
+        // 양보 정책은 물러난다.
+        assert!(manager.watcher_start(1, None).await.is_err());
+
+        // 가져오기 정책은 감시를 시작한다.
+        manager
+            .watcher_start_with(1, None, AcquirePolicy::TakeOver)
+            .await
+            .unwrap();
+        let health = manager.watcher_health().await;
+        assert!(health[0].has_lock);
+        assert!(health[0].events_seen.is_some());
+    }
+
+    /// 인계당한 락이 없으면 놓을 것도 없다 (감독관이 매 틱 부르는 경로라
+    /// 조용한 no-op 이어야 한다).
+    #[tokio::test]
+    async fn yield_evicted_locks_is_a_noop_while_we_still_own_them() {
+        let dir = tempdir().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
+        manager.watcher_start(1, None).await.unwrap();
+
+        assert!(manager.yield_evicted_locks().await.is_empty());
+        assert!(manager.watcher_health().await[0].events_seen.is_some());
+    }
+
+    /// 살아 있는 워처에 대한 재호출은 종전대로 no-op 이고, `watcher_health` 는
+    /// 그 사실을 감독관에게 그대로 알려 준다.
+    #[tokio::test]
+    async fn watcher_start_is_a_noop_while_the_watcher_is_alive() {
+        let dir = tempdir().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
+
+        manager.watcher_start(1, None).await.unwrap();
+        manager.watcher_start(1, None).await.unwrap();
+
+        let health = manager.watcher_health().await;
+        assert_eq!(health.len(), 1);
+        assert!(health[0].has_lock);
+        assert!(health[0].events_seen.is_some());
+    }
+
+    /// 응답 없는 워처는 **기다리지 않고** 끊는다 — 끊고 나면 감독관이 보는
+    /// 상태는 "워처 없음" 이고, 다음 `watcher_start` 가 새로 무장한다.
+    #[tokio::test]
+    async fn dropping_an_unresponsive_watcher_clears_it_for_rearming() {
+        let dir = tempdir().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
+        manager.watcher_start(1, None).await.unwrap();
+
+        manager.watcher_drop_unresponsive(1).await;
+        assert!(
+            manager.watcher_health().await[0].events_seen.is_none(),
+            "끊긴 워처는 감독관에게 '없음' 으로 보여야 한다"
+        );
+
+        manager.watcher_start(1, None).await.unwrap();
+        assert!(manager.watcher_health().await[0].events_seen.is_some());
     }
 
     /// PR8 case 2 — pre-existing `.gitignore` → our block is appended with

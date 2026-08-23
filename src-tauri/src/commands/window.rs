@@ -1111,7 +1111,23 @@ pub fn start_background_watchers(app: &AppHandle) {
                 );
                 continue;
             }
-            if let Err(e) = manager.watcher_start(project.id, Some(handle.clone())).await {
+            // **앱이 새로 뜰 때만** 살아 있는 다른 인스턴스에게서 락을 가져온다
+            // (2026-08-23). "가장 최근에 연 인스턴스가 주인" 이라는 규칙이라야
+            // 사용자가 결과를 예측할 수 있다 — 예전엔 먼저 뜬 쪽이 영원히
+            // 이겨서, 설치본을 띄워 둔 채 개발 빌드를 돌리면 개발 빌드가 어떤
+            // 프로젝트도 감시하지 못했다. 쫓겨난 쪽은 하트비트가 그 사실을
+            // 발견해 5초 안에 감시를 접는다 (`oculpm::lock`).
+            //
+            // 재시도(감독관)는 이 정책을 쓰지 않는다 — 두 인스턴스가 60초마다
+            // 서로를 쫓아내며 무한히 주고받는다.
+            if let Err(e) = manager
+                .watcher_start_with(
+                    project.id,
+                    Some(handle.clone()),
+                    crate::oculpm::lock::AcquirePolicy::TakeOver,
+                )
+                .await
+            {
                 tracing::warn!(
                     target: "oculpm::bootstrap",
                     project_id = project.id, error = %e, "watcher 시작 실패"

@@ -180,6 +180,8 @@ export const en: Record<keyof typeof ko, string> = {
   "watcher.takeOver": "Watch from this window",
   "watcher.tookOver": "This window is now watching the project",
   "watcher.takeOverFailed": "Take over failed: {error}",
+  "watcher.offlineTitle": "Live refresh is off",
+  "watcher.offline": "Another ocul-pm instance is using this project. Retrying every minute — until then, changes show up when you reopen the screen.",
   "agents.upgrade.title": "There's an update to the agent rules (AGENTS.md)",
   "agents.upgrade.version": "Rules template v{from} → v{to}",
   "agents.upgrade.action": "Update",

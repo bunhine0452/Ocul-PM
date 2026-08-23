@@ -654,6 +654,14 @@ pub struct OculpmPlanReconciled {
     pub applied: u32,
 }
 
+/// 다른 ocul-pm 인스턴스가 이 프로젝트의 락을 가져가, 이 창은 실시간 갱신을
+/// 놓았다 (2026-08-23). 예전에는 이런 일이 로그에만 남아, 사용자는 화면이 왜
+/// 안 바뀌는지 알 길이 없었다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct OculpmWatchYielded {
+    pub project_id: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 pub struct OculpmAgentDrift {
     pub project_id: u32,

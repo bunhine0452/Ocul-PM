@@ -163,7 +163,8 @@ use crate::commands::{
     discussion_rename, discussion_delete,
     discussion_attach, discussion_attach_via_dialog, discussion_asset, discussion_detach,
     discussion_promote_to_plan,
-    start_pty_session, attach_pty_session, write_to_pty, resize_pty, kill_pty_session,
+    start_pty_session, attach_pty_session, write_to_pty, pty_foreground_command,
+    resize_pty, kill_pty_session,
     // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
     shell_integration_status, shell_integration_install, shell_integration_uninstall,
     git_log, git_graph, git_status, git_head_status_brief, git_line_changes,
@@ -179,7 +180,7 @@ use crate::commands::{
     oculpm_init, oculpm_get_status, oculpm_get_config, oculpm_set_config,
     oculpm_start_session_manual, oculpm_end_session_manual, oculpm_agent_run_signal,
     oculpm_list_sessions, oculpm_get_file_changes,
-    oculpm_watcher_start, oculpm_watcher_stop,
+    oculpm_watcher_start, oculpm_watcher_stop, oculpm_watcher_take_over,
     oculpm_list_journal_entries, oculpm_get_journal_entry, oculpm_get_entry_diffs,
     oculpm_group_changes, oculpm_set_journal_verified, oculpm_search_entities,
     oculpm_workday_brief,
@@ -372,6 +373,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         start_pty_session,
         attach_pty_session,
         write_to_pty,
+        pty_foreground_command,
         resize_pty,
         kill_pty_session,
         // 터미널 셸 통합 (OSC 133/7)
@@ -419,6 +421,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         oculpm_get_file_changes,
         oculpm_watcher_start,
         oculpm_watcher_stop,
+        oculpm_watcher_take_over,
         oculpm_list_journal_entries,
         oculpm_get_journal_entry,
         oculpm_get_entry_diffs,
@@ -533,6 +536,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmJournalUpdated,
         crate::oculpm::spec::OculpmIntegrityWarning,
         crate::oculpm::spec::OculpmPlanReconciled,
+        crate::oculpm::spec::OculpmWatchYielded,
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
@@ -625,6 +629,13 @@ pub fn run() {
             // 에이전트가 일해도 세션이 생성조차 되지 않았다 — 상단바가
             // "하나만 감지" 하던 이유. 백그라운드에서 순차·간격 시작한다.
             crate::commands::window::start_background_watchers(app.handle());
+
+            // 그 감시가 **조용히 죽는 것**을 막는 감독관 (2026-08-23). 워처는
+            // 락 경합(다른 인스턴스)으로 아예 못 뜨거나, 처리 루프가 죽어도
+            // "돌고 있음" 으로 남을 수 있었다 — 둘 다 사용자에게는 "AI 가 일지를
+            // 써도 화면이 안 바뀐다" 로 똑같이 보이고, 앱 재시작 말고는 복구가
+            // 없었다. 감독관이 1분마다 확인하고 되살린다.
+            crate::oculpm::supervisor::spawn(app.handle());
 
             // 앱 메뉴 — `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는다.
             // 기본 언어(ko)로 먼저 세우고, 프런트가 마운트하면서 해석된 UI

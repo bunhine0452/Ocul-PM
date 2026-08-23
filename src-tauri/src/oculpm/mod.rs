@@ -39,6 +39,7 @@ pub mod skill_promotion;
 pub mod shell_integration;
 pub mod spec;
 pub mod stack_detect;
+pub mod supervisor;
 pub mod transcript;
 pub mod watcher;
 

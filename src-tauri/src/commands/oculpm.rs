@@ -335,6 +335,28 @@ pub async fn oculpm_watcher_start(
     }
 }
 
+/// 살아 있는 다른 인스턴스에게서 이 프로젝트의 락을 **가져와** 감시를 시작한다.
+///
+/// 사용자가 명시적으로 누를 때만 부른다 ("이 창에서 감시하기"). 자동 경로는
+/// 언제나 양보한다 — 두 창이 서로를 계속 쫓아내면 아무도 일을 못 한다.
+/// 쫓겨난 쪽은 하트비트가 인계를 발견해 5초 안에 감시를 접는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_watcher_take_over(
+    app_handle: tauri::AppHandle,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<(), String> {
+    manager
+        .watcher_start_with(
+            project_id,
+            Some(app_handle),
+            crate::oculpm::lock::AcquirePolicy::TakeOver,
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Stop the filesystem watcher. Idempotent.
 #[tauri::command]
 #[specta::specta]

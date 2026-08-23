@@ -113,6 +113,27 @@ export default function ProjectTab({
       if (cancelled) return;
       if (wsRes.status === "error") {
         oculpmLog.error("watcher", `watcherStart failed: ${wsRes.error}`, { projectId });
+        // 예전엔 로그 한 줄이 전부였다 — 그래서 "AI 가 일지를 써도 화면이 안
+        // 바뀐다" 를 겪은 사람에게 원인을 알려 줄 방법이 없었고, 웹뷰를 직접
+        // 새로고침하는 것만이 유일한 대처가 됐다 (도그푸딩 2026-08-23).
+        // 감독관이 1분마다 되살리므로 문구는 "복구 중" 이지 "실패" 가 아니다.
+        toast.warning(t("watcher.offline"), {
+          title: t("watcher.offlineTitle"),
+          dedupKey: `watcher-offline-${projectId}`,
+          durationMs: 0, // 사용자가 판단해 누를 버튼이 달려 있다
+          actions: [
+            {
+              label: t("watcher.takeOver"),
+              onClick: () => {
+                void (async () => {
+                  const r = await commands.oculpmWatcherTakeOver(projectId);
+                  if (r.status === "ok") toast.info(t("watcher.tookOver"));
+                  else toast.destructive(t("watcher.takeOverFailed", { error: r.error }));
+                })();
+              },
+            },
+          ],
+        });
       } else {
         oculpmLog.flow("step 3 OK — watcher running", { projectId });
       }
