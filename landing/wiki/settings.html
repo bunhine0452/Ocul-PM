@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>설정 — Ocul-PM 위키</title>
+<meta name="description" content="테마와 프리셋, 글자 크기, API 키와 폴백 체인, 인덱싱·RAG, 그래프, Notion, 진단과 업데이트." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/settings" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/settings" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/settings" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="설정 — Ocul-PM 위키" />
+<meta property="og:description" content="테마와 프리셋, 글자 크기, API 키와 폴백 체인, 인덱싱·RAG, 그래프, Notion, 진단과 업데이트." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link on" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/settings">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>설정</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#모양">모양</a><a href="#llm">LLM</a><a href="#인덱싱-rag">인덱싱 &amp; RAG</a><a href="#그래프">그래프</a><a href="#notion-내보내기">Notion 내보내기</a><a href="#진단-업데이트">진단 · 업데이트</a><a href="#ocul-pm">ocul-pm</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p><code>⌘,</code> 로 엽니다. 탭이 여덟 개인데, 처음 한 번 손볼 것과 평생 안 열어도 되는 것이 섞여 있습니다.</p>
+<div class="wk-table"><table><thead><tr><th>탭</th><th>언제 여나</th></tr></thead><tbody><tr><td><b>모양</b></td><td>처음 한 번 — 테마·글자 크기·메뉴바</td></tr><tr><td><b>LLM</b></td><td>AI 기능을 쓸 때만 — 키·모델·폴백</td></tr><tr><td><b>ocul-pm</b></td><td>에이전트 규칙 관리, 플러그인 설치 안내</td></tr><tr><td><b>인덱싱 &amp; RAG</b></td><td>검색이 기대와 다를 때</td></tr><tr><td><b>그래프</b></td><td>코드 맵이 너무 빽빽하거나 성길 때</td></tr><tr><td><b>데이터</b></td><td>내보내기·정리</td></tr><tr><td><b>진단</b></td><td>문제를 신고할 때</td></tr><tr><td><b>업데이트</b></td><td>수동 확인·과거 패치노트</td></tr></tbody></table></div>
+<h2 id="모양">모양</h2>
+<h3 id="테마">테마</h3>
+<p><b>밝게 / 어둡게 / OS 설정</b> 위에 <b>프리셋 테마</b>를 얹는 2층 구조입니다.</p>
+<ul><li>프리셋 5종 — Solarized · Sepia · Nord · Dracula · High Contrast</li><li>액센트 컬러 6종 — 그린(기본) · 블루 · 퍼플 · 오렌지 · 로즈 · 틸</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p><b>프리셋을 고르면 액센트 선택이 비활성화됩니다.</b> 프리셋은 자체 색 체계를 통째로 들고 오기 때문입니다. 액센트만 바꾸고 싶다면 프리셋 없이 밝게/어둡게/OS 테마를 쓰세요.</p></div></div>
+<h3 id="글자-크기-둘">글자 크기 둘</h3>
+<p><b>앱 배율</b>과 <b>터미널 글자 크기</b>는 별개입니다.</p>
+<div class="wk-table"><table><thead><tr><th></th><th>단위</th><th>적용 범위</th></tr></thead><tbody><tr><td>글자 크기</td><td>배율 (%)</td><td>앱 전체 — 브라우저 확대/축소처럼</td></tr><tr><td>터미널 글자 크기</td><td>px</td><td>터미널 화면·도크·분리 창</td></tr></tbody></table></div>
+<p>터미널이 px 인 이유는 고정폭 격자라 배율보다 px 가 정확해서입니다. 터미널 안에서는 <code>⌘+</code> / <code>⌘−</code> 로 바로 조절하고 <code>⇧⌘0</code> 으로 되돌립니다.</p>
+<h3 id="언어-둘">언어 둘</h3>
+<p><b>UI 언어</b>(화면 텍스트)와 <b>AI 작성 언어</b>(AI 가 만드는 일지·플래너·회고의 언어)가 따로입니다. 영어 화면으로 쓰면서 기록은 한국어로 남길 수 있습니다. 이미 기록된 문서는 바뀌지 않습니다.</p>
+<h3 id="메뉴바-외부-에디터">메뉴바 · 외부 에디터</h3>
+<p>메뉴바 상주와 외부 에디터 연결은 <a href="/wiki/workspace">창·탭·터미널·코드</a>에서 다룹니다.</p>
+<h2 id="llm">LLM</h2>
+<p>AI 기능(회고 서술 생성, AI 패널 대화)을 쓸 때만 필요합니다. <b>기록 자체에는 키가 필요 없습니다.</b></p>
+<h3 id="api-키">API 키</h3>
+<p><b>OS 키체인에만 저장됩니다</b> — 앱 DB 나 파일에는 들어가지 않습니다. 상태(저장됨/미설정)는 로컬에 캐시되므로 설정을 열 때마다 키체인 프롬프트가 뜨지 않고, 정말로 대조하고 싶을 때만 「키체인 대조 확인」을 누릅니다.</p>
+<h3 id="프로바이더와-모델">프로바이더와 모델</h3>
+<p>기본 프로바이더를 고르고, 원하면 프로바이더별 모델을 덮어씁니다. 비우면 내장 기본값을 씁니다.</p>
+<ul><li><b>OpenRouter</b> — 수백 개 모델을 OpenAI 호환으로. 모델 id 예: <code>openai/gpt-4o</code></li><li><b>NIM</b> — <code>integrate.api.nvidia.com</code> 의 OpenAI 호환 엔드포인트</li></ul>
+<h3 id="폴백-체인">폴백 체인</h3>
+<p>기본 모델 호출이 실패하면 위에서부터 차례로 재시도합니다. 한 줄에 하나씩 <code>provider:model</code> 형식입니다.</p>
+<pre class="wk-code"><code>openai:gpt-4o-mini
+anthropic:claude-3.5-haiku-latest
+openrouter:openai/gpt-4o</code></pre>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>레이트리밋이 잦은 시간대에 회고를 돌린다면 폴백 체인이 실질적인 차이를 만듭니다.</p></div></div>
+<h3 id="생성">생성</h3>
+<p>Temperature(낮을수록 집중, 높을수록 창의적), 최대 출력 토큰, 그리고 모든 채팅 앞에 붙는 시스템 프롬프트를 정합니다.</p>
+<h2 id="인덱싱-rag">인덱싱 &amp; RAG</h2>
+<p>코드 검색이 기대와 다를 때 여는 탭입니다.</p>
+<ul><li><b>변경 시 자동 인덱싱</b> — 파일이 바뀌면 바뀐 파일만 곧바로 인덱싱합니다. 처음부터 다시 만들려면 <b>인덱스 재구축</b></li><li><b>청킹</b> — 청크가 <b>클수록</b> 스니펫당 맥락이 풍부하고, <b>작을수록</b> 검색 정밀도가 높습니다. 오버랩은 청크 크기보다 작아야 합니다</li><li><b>RAG 컨텍스트</b> — 채팅 메시지마다 모델에 넘길 상위 청크 수</li><li><b>AI 작업 맥락</b> — 최근 작업 일지와 AGENTS 규칙을 채팅에 자동 주입해, 세션·모델이 바뀌어도 작업 방향이 유지됩니다. 주입할 일지 수가 많을수록 맥락은 풍부하지만 토큰을 더 씁니다 (0 이면 규칙만)</li><li><b>파일 스캔</b> — 최대 파일 크기, 추가 제외 패턴(gitignore 스타일, <code>.gitignore</code> 위에 적용)</li></ul>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>스캔 설정 변경은 <b>다음 재인덱싱 때</b> 적용됩니다. 바로 반영하려면 인덱스를 재구축하세요.</p></div></div>
+<h2 id="그래프">그래프</h2>
+<p>코드 맵의 기본값입니다 — 고립된 파일을 기본으로 보일지, 그리고 <b>자동 그룹 임계값</b>(이 개수 이상의 파일을 가진 디렉터리는 접을 수 있는 그룹이 됩니다).</p>
+<p>큰 저장소에서 맵이 빽빽하면 임계값을 낮추고, 너무 뭉뚱그려지면 올립니다.</p>
+<h2 id="notion-내보내기">Notion 내보내기</h2>
+<p>회고·산출물을 지정한 부모 페이지 아래 새 페이지로 내보냅니다. 브라우저에서 계정으로 연결하거나 internal token 을 직접 넣습니다. <b>토큰도 OS 키체인에만</b> 저장됩니다.</p>
+<h2 id="진단-업데이트">진단 · 업데이트</h2>
+<ul><li><b>진단</b> — 문제를 신고할 때 붙일 정보. DevTools 도 여기서 엽니다</li><li><b>업데이트</b> — 수동 확인과 과거 패치노트(GitHub releases). 평소에는 앱이 알아서 업데이트합니다</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>업데이트 재시작은 앱과 함께 Claude Code 어댑터도 새로 띄웁니다. 그래서 답변이 흐르는 동안에는 재시작을 미룹니다 — 대화는 디스크에 있어 돌아오지만 그 순간의 답변 하나는 잃기 때문입니다.</p></div></div>
+<h2 id="ocul-pm">ocul-pm</h2>
+<p>에이전트 규칙을 관리하는 탭입니다 — 어떤 에이전트의 규칙 파일을 깔지 고르고, 규격이 올라갔을 때 <b>「규칙 다시 보내기」</b> 로 갱신하고, <b>「감지」</b> 로 이 프로젝트에서 쓰이는 것 같은 에이전트를 추립니다. 플러그인 설치 명령과 Claude Desktop 용 MCP 스니펫도 복사 버튼과 함께 여기 있습니다. (<a href="/wiki/agents">자세히</a>)</p>
+<h2 id="다음-걸음">다음 걸음</h2>
+<ul><li>규칙 파일과 어댑터 → <a href="/wiki/agents">다른 에이전트 연동</a></li><li>데이터가 어디 저장되는지 → <a href="/wiki/data">데이터와 파일 구조</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/workspace"><span>← 이전</span><b>창 · 탭 · 터미널 · 코드</b></a>
+<a class="wk-pg next" href="/wiki/troubleshooting"><span>다음 →</span><b>문제 해결</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>플래너 — Ocul-PM 위키</title>
+<meta name="description" content="에이전트가 스스로 갱신하는 계획 문서 — 글리프, 항목 id, 변경 로그, 결정, 잠금." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/planner" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/planner" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/planner" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="플래너 — Ocul-PM 위키" />
+<meta property="og:description" content="에이전트가 스스로 갱신하는 계획 문서 — 글리프, 항목 id, 변경 로그, 결정, 잠금." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link on" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/planner">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>플래너</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#계획-한-편의-모양">계획 한 편의 모양</a><a href="#글리프-여섯-개">글리프 여섯 개</a><a href="#변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</a><a href="#결정-잠그기">결정 잠그기</a><a href="#상태와-잠금">상태와 잠금</a><a href="#플래너-화면에서-할-수-있는-것">플래너 화면에서 할 수 있는 것</a><a href="#새-계획은-누가-만드나">새 계획은 누가 만드나</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p>일지가 <i>지나간 일</i>이라면 플래너는 <b>지금의 계획</b>입니다. 다른 점이 하나 있습니다 — 사람이 관리하는 할 일 목록이 아니라, <b>에이전트가 일을 마칠 때마다 스스로 갱신하는 문서</b>입니다.</p>
+<p>파일은 <code>.oculpm/planner/*.md</code>, 역시 평범한 마크다운입니다.</p>
+<h2 id="계획-한-편의-모양">계획 한 편의 모양</h2>
+<pre class="wk-code"><code>---
+oculpm_plan: v1
+id: session-attribution
+title: "세션 귀속 정리"
+status: active
+owner: claude-code
+---
+
+## Phase 기반 다지기 {#foundation}
+- [x] 타임스탬프 귀속 함수 {#resolve-by-time}
+- [~] MCP 도구가 라이브 세션을 채택 {#mcp-adopt}
+  - [x] sessions.json 동기 읽기 {#sync-read}
+  - [ ] 폴백 경로 테스트 {#fallback-test}
+- [ ] 링크 파생 {#derive-links}</code></pre>
+<ul><li><b>Phase</b> 는 <code>##</code> 헤딩으로 묶는 단계입니다. 글리프가 없습니다 — 진척은 하위 항목에서 자동 계산됩니다</li><li><b>항목</b>은 한 줄, 끝에 <code>{#안정적인-id}</code> 가 붙습니다</li><li><b>중첩은 한 단계까지</b>. 하위가 있는 부모의 글리프는 하위에서 굴러 올라오므로 직접 건드리지 않습니다</li></ul>
+<h2 id="글리프-여섯-개">글리프 여섯 개</h2>
+<div class="wk-table"><table><thead><tr><th>글리프</th><th>뜻</th></tr></thead><tbody><tr><td><code>[ ]</code></td><td>할 일</td></tr><tr><td><code>[~]</code></td><td>진행중</td></tr><tr><td><code>[x]</code></td><td>완료</td></tr><tr><td><code>[!]</code></td><td>막힘</td></tr><tr><td><code>[&gt;]</code></td><td>이월</td></tr><tr><td><code>[-]</code></td><td>폐기</td></tr></tbody></table></div>
+<p><b>지금 상태의 정답은 본문 글리프</b>입니다. 아래의 변경 로그는 이력이고요.</p>
+<h2 id="변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</h2>
+<p>계획 문서 맨 아래에는 표가 하나 붙습니다. 에이전트는 항목을 옮길 때마다 여기에 <b>한 줄을 덧붙이기만</b> 합니다 (기존 행은 절대 고치지 않습니다):</p>
+<pre class="wk-code"><code>| 시각 | #항목id | 에이전트 | 이전→새 글리프 | 일지 경로 | 짧은 메모 |</code></pre>
+<p>일지 경로가 함께 적히므로 <b>계획의 한 줄에서 그 일을 설명하는 일지로 바로 건너갈 수 있습니다.</b> 계획에 일지 내용을 복사해 넣지 않는 것이 규칙입니다 — 참조만 합니다.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>"이 항목이 왜 폐기됐지?" 가 궁금할 때, 로그의 그 줄에 달린 일지를 열면 당시 판단이 그대로 남아 있습니다.</p></div></div>
+<h2 id="결정-잠그기">결정 잠그기</h2>
+<p>되돌리기 어려운 선택은 <code>## 결정</code> 섹션에 블록으로 못 박습니다:</p>
+<pre class="wk-code"><code>### Decision 3 — SQLite 캐시를 파생으로 유지 {#dec-cache-derived}
+잠금: 2026-08-21 · claude-code
+근거: 디스크 마크다운이 SSOT. 캐시를 정본으로 삼으면 …
+영향: #resolve-by-time, #derive-links</code></pre>
+<p>나중에 "왜 이렇게 했더라" 를 다시 논쟁하지 않기 위한 장치입니다.</p>
+<h2 id="상태와-잠금">상태와 잠금</h2>
+<p>계획 문서 자체도 상태를 가집니다.</p>
+<div class="wk-table"><table><thead><tr><th>status</th><th>뜻</th><th>에이전트가 고칠 수 있나</th></tr></thead><tbody><tr><td><code>active</code></td><td>진행 중</td><td>예</td></tr><tr><td><code>done</code></td><td>끝남</td><td><b>아니오</b></td></tr><tr><td><code>archived</code></td><td>보관</td><td><b>아니오</b></td></tr></tbody></table></div>
+<p><code>done</code> 이나 <code>archived</code> 인 계획은 <b>에이전트가 수정하지 않습니다.</b> 끝난 계획이 슬금슬금 되살아나 이력이 흐려지는 것을 막기 위해서고, 이어서 할 일이 생기면 새 계획을 만듭니다. 사이드바에서는 「완료·잠금」으로 표시됩니다.</p>
+<h2 id="플래너-화면에서-할-수-있는-것">플래너 화면에서 할 수 있는 것</h2>
+<ul><li><b>정렬</b> — 최근순 · 진척순 · 남은 일 순 · 이름순</li><li><b>묶기</b> — 상태별 · 최근활동별 · 작성자별</li><li><b>멈춘 계획 표시</b> — <code>12일째 멈춤</code> 처럼, 손 놓은 계획이 눈에 띕니다</li><li><b>검색</b> — 계획 이름으로 좁히기</li></ul>
+<h2 id="새-계획은-누가-만드나">새 계획은 누가 만드나</h2>
+<p>보통은 에이전트에게 시키는 게 편합니다 — "이 작업들 계획으로 정리해줘" 라고 하면 규격에 맞는 파일을 만듭니다. 직접 만들어도 됩니다. 위의 머리말 + Phase 헤딩 + 항목 줄 + 빈 로그 블록 순서면 앱이 읽습니다.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>항목 줄을 쓸 때 <code>{#id}</code> 는 <b>반드시 줄 끝</b>에 두고 줄바꿈하지 마세요. 둘째 줄로 넘어간 <code>{#id}</code> 는 파서가 읽지 못합니다.</p></div></div>
+<h2 id="다음-걸음">다음 걸음</h2>
+<ul><li>계획과 짝이 되는 기록 → <a href="/wiki/journal">작업 일지</a></li><li>결정 전에 옵션부터 비교하고 싶다면 → <a href="/wiki/screens">화면 둘러보기</a>의 문제 해결</li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/journal"><span>← 이전</span><b>작업 일지</b></a>
+<a class="wk-pg next" href="/wiki/retro"><span>다음 →</span><b>회고</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

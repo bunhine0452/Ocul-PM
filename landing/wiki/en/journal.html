@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Work Journal — Ocul-PM Wiki</title>
+<meta name="description" content="When and how entries accumulate, the file layout, change diffs, sessions, and the honesty audit." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/journal" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/journal" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/journal" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Work Journal — Ocul-PM Wiki" />
+<meta property="og:description" content="When and how entries accumulate, the file layout, change diffs, sessions, and the honesty audit." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link on" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/journal">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Work Journal</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#when-entries-happen-five-moments">When entries happen — five moments</a><a href="#file-layout">File layout</a><a href="#what-s-in-an-entry">What's in an entry</a><a href="#change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</a><a href="#sessions-how-entries-are-grouped">Sessions — how entries are grouped</a><a href="#honesty-audit">Honesty audit</a><a href="#working-with-entries">Working with entries</a><a href="#next-steps">Next steps</a></nav>
+      <p>The work journal is why this app exists. It records what an agent did and why, as <b>markdown a human reads</b>. Longer than a commit message, shorter than meeting minutes.</p>
+<h2 id="when-entries-happen-five-moments">When entries happen — five moments</h2>
+<p>Agents record every time they finish a unit of work. The <code>AGENTS.md</code> rules define five moments:</p>
+<div class="wk-table"><table><thead><tr><th>Trigger</th><th>When</th></tr></thead><tbody><tr><td><b>bug</b></td><td>A reproducible defect is confirmed fixed</td></tr><tr><td><b>feature</b></td><td>A new feature's first happy path works</td></tr><tr><td><b>refactor</b></td><td>A batch that changed structure but not behavior lands, tests green</td></tr><tr><td><b>error</b></td><td>One diagnose-and-fix cycle — <b>recorded even when it failed</b></td></tr><tr><td><b>chore</b></td><td>A non-functional change (config, docs) is done</td></tr></tbody></table></div>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><code>error</code> recording failures is the point. "What was tried and why it didn't work" has to survive, or the next session's agent walks into the same wall.</p></div></div>
+<h2 id="file-layout">File layout</h2>
+<pre class="wk-code"><code>.oculpm/journal/20260821/Bugs/0010_bug_session-attribution.md
+                └ workday  └ category └ time └ type └ name</code></pre>
+<p>There are five category folders — <code>Bugs</code> · <code>Features_to_add</code> · <code>Errors</code> · <code>Refactors</code> · <code>Chores</code>.</p>
+<h2 id="what-s-in-an-entry">What's in an entry</h2>
+<p>Frontmatter holds facts a machine reads; the body holds prose a human reads.</p>
+<pre class="wk-code"><code>---
+type: bug
+status: done
+difficulty: high
+created_at: "2026-08-21T00:10:14+09:00"
+session_id: "20260821-002"
+agent:
+  id: claude-code
+  version: claude-opus-5
+files_touched:
+  - path: "src/cache.rs"
+    op: update
+related: []
+tags: [dogfooding]
+---
+
+[x] One-line title
+
+## Root cause
+…
+## Fix
+…
+## Verification
+1–3 lines on how it was confirmed</code></pre>
+<ul><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> through <code>superhigh</code> (optional)</li><li><b>Body headings are fixed per type</b>: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required <b>Verification</b> section.</li></ul>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." It gives whoever reads the entry later, human or agent, a thread to re-verify.</p></div></div>
+<h2 id="change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</h2>
+<p>Every entry <b>keeps the git diff from that moment</b>. Open an entry in the Work Journal screen and you get narrative on the left, changed files and line-level diff on the right.</p>
+<p>However many times that file changes later, <b>the diff attached to the entry stays as it was</b>. Changes spread across several commits are gathered into one entry.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>If you see "no recorded changes for this entry," it's usually one of two things — it isn't a git repository, or the recorded paths weren't found in git history. In that case you can inspect current changes from the panel below.</p></div></div>
+<h2 id="sessions-how-entries-are-grouped">Sessions — how entries are grouped</h2>
+<p>The app watches file changes and <b>opens a session</b> when an agent starts working, closing it after things go quiet. A session is roughly "one sitting" and is named by date and sequence, like <code>20260821-002</code>.</p>
+<p>Entries are grouped by which session produced them. Even when an agent can't know the session number (writing the file directly from a terminal, say), the app <b>attributes it by write time</b>, so there's nothing for you to manage.</p>
+<h2 id="honesty-audit">Honesty audit</h2>
+<p>A card that occasionally appears near the bottom of <b>Today</b> (<code>⌘1</code>). It reconciles the file changes the app observed against <code>files_touched</code> in entries and shows <b>changes no entry anywhere records</b>.</p>
+<ul><li>If everything changed today is recorded somewhere, <b>the card doesn't appear at all</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>80%+ coverage reads <b>Minor</b>, 50%+ <b>Warning</b>, below that <b>Critical</b></li></ul>
+<p>If this card shows up often, <a href="/wiki/en/claude-code">installing the plugin (hook bridge)</a> is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."</p>
+<h2 id="working-with-entries">Working with entries</h2>
+<ul><li><b>Verified</b> — entries a human read and confirmed can be filtered with the Verified toggle</li><li><b>Edit directly</b> — it's plain markdown; save and the app re-reads it</li><li><b>Export</b> — pick a period on the Retro screen and export entries as one <code>.md</code></li></ul>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>.oculpm/index/</code> is an app-managed cache — don't edit it. Everything else (<code>journal/</code>, <code>planner/</code>, <code>discussion/</code>) is yours.</p></div></div>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>How the planning side works → <a href="/wiki/en/planner">Planner</a></li><li>Looking back over accumulated entries → <a href="/wiki/en/retro">Retro</a></li><li>Nothing being recorded → <a href="/wiki/en/troubleshooting">Troubleshooting</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/today"><span>← Previous</span><b>Today</b></a>
+<a class="wk-pg next" href="/wiki/en/planner"><span>Next →</span><b>Planner</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

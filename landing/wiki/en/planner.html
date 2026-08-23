@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planner — Ocul-PM Wiki</title>
+<meta name="description" content="A plan document agents keep current — glyphs, item ids, the change log, decisions, and locking." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/planner" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/planner" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/planner" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Planner — Ocul-PM Wiki" />
+<meta property="og:description" content="A plan document agents keep current — glyphs, item ids, the change log, decisions, and locking." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link on" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/planner">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Planner</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#what-a-plan-looks-like">What a plan looks like</a><a href="#six-glyphs">Six glyphs</a><a href="#the-change-log-who-moved-what-when-why">The change log — who moved what, when, why</a><a href="#locking-decisions">Locking decisions</a><a href="#status-and-locking">Status and locking</a><a href="#what-the-planner-screen-offers">What the Planner screen offers</a><a href="#who-creates-a-new-plan">Who creates a new plan</a><a href="#next-steps">Next steps</a></nav>
+      <p>If the journal is <i>what happened</i>, the planner is <b>the current plan</b>. With one difference: it isn't a to-do list you maintain, it's <b>a document agents update themselves every time they finish something</b>.</p>
+<p>Files live at <code>.oculpm/planner/*.md</code> — plain markdown again.</p>
+<h2 id="what-a-plan-looks-like">What a plan looks like</h2>
+<pre class="wk-code"><code>---
+oculpm_plan: v1
+id: session-attribution
+title: "Session attribution cleanup"
+status: active
+owner: claude-code
+---
+
+## Phase Foundations {#foundation}
+- [x] Timestamp attribution function {#resolve-by-time}
+- [~] MCP tool adopts the live session {#mcp-adopt}
+  - [x] Synchronous sessions.json read {#sync-read}
+  - [ ] Fallback path tests {#fallback-test}
+- [ ] Derive links {#derive-links}</code></pre>
+<ul><li><b>Phases</b> are <code>##</code> headings. They carry no glyph — progress rolls up from their children</li><li><b>Items</b> are one line, ending with <code>{#a-stable-id}</code></li><li><b>Nesting goes one level deep.</b> A parent with children takes its glyph from them, so nobody edits it directly</li></ul>
+<h2 id="six-glyphs">Six glyphs</h2>
+<div class="wk-table"><table><thead><tr><th>Glyph</th><th>Meaning</th></tr></thead><tbody><tr><td><code>[ ]</code></td><td>To do</td></tr><tr><td><code>[~]</code></td><td>In progress</td></tr><tr><td><code>[x]</code></td><td>Done</td></tr><tr><td><code>[!]</code></td><td>Blocked</td></tr><tr><td><code>[&gt;]</code></td><td>Deferred</td></tr><tr><td><code>[-]</code></td><td>Dropped</td></tr></tbody></table></div>
+<p><b>The glyph in the body is the truth about current state.</b> The change log below is history.</p>
+<h2 id="the-change-log-who-moved-what-when-why">The change log — who moved what, when, why</h2>
+<p>A table sits at the bottom of each plan. Every time an agent moves an item it <b>appends one row</b> and never edits existing ones:</p>
+<pre class="wk-code"><code>| time | #item-id | agent | old→new glyph | entry path | short note |</code></pre>
+<p>Because the entry path is right there, <b>you can jump from a line in the plan to the entry that explains that work.</b> The rule is to reference entries, never to paste their contents into the plan.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>When you wonder "why was this dropped?", open the entry linked on that log row — the reasoning at the time is preserved.</p></div></div>
+<h2 id="locking-decisions">Locking decisions</h2>
+<p>Choices that are hard to reverse get pinned in a <code>## Decisions</code> section:</p>
+<pre class="wk-code"><code>### Decision 3 — Keep the SQLite cache derived {#dec-cache-derived}
+Locked: 2026-08-21 · claude-code
+Rationale: on-disk markdown is the SSOT. Treating the cache as canonical would …
+Affects: #resolve-by-time, #derive-links</code></pre>
+<p>It exists so you don't re-litigate "why did we do it this way" later.</p>
+<h2 id="status-and-locking">Status and locking</h2>
+<p>The plan document itself has a status.</p>
+<div class="wk-table"><table><thead><tr><th>status</th><th>Meaning</th><th>Can agents edit it?</th></tr></thead><tbody><tr><td><code>active</code></td><td>In progress</td><td>Yes</td></tr><tr><td><code>done</code></td><td>Finished</td><td><b>No</b></td></tr><tr><td><code>archived</code></td><td>Archived</td><td><b>No</b></td></tr></tbody></table></div>
+<p>Agents <b>will not modify</b> a <code>done</code> or <code>archived</code> plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. The sidebar marks these <b>Locked</b>.</p>
+<h2 id="what-the-planner-screen-offers">What the Planner screen offers</h2>
+<ul><li><b>Sort</b> — recent · progress · remaining work · name</li><li><b>Group</b> — by status · by recent activity · by author</li><li><b>Stalled plans</b> — "stalled for 12 days" makes abandoned plans visible</li><li><b>Search</b> — narrow by plan name</li></ul>
+<h2 id="who-creates-a-new-plan">Who creates a new plan</h2>
+<p>Usually it's easiest to ask an agent — "turn these into a plan" and you get a spec-conforming file. You can also write one by hand: frontmatter, phase headings, item lines, and an empty log block, in that order.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>When writing item lines, <code>{#id}</code> must sit at the <b>end of the line</b> with no wrapping. An <code>{#id}</code> that spills onto a second line won't be read by the parser.</p></div></div>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>The record that pairs with plans → <a href="/wiki/en/journal">Work Journal</a></li><li>Want to compare options before deciding → Discussions, in the <a href="/wiki/en/screens">Screen Tour</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/journal"><span>← Previous</span><b>Work Journal</b></a>
+<a class="wk-pg next" href="/wiki/en/retro"><span>Next →</span><b>Retro</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

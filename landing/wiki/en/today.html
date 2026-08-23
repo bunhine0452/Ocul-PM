@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Today — Ocul-PM Wiki</title>
+<meta name="description" content="The screen you land on — activity rings, commit graph, agent contributions, honesty audit, standup copy." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/today" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/today" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/today" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Today — Ocul-PM Wiki" />
+<meta property="og:description" content="The screen you land on — activity rings, commit graph, agent contributions, honesty audit, standup copy." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link on" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/today">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Today</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#activity-rings">Activity rings</a><a href="#the-monitor">The monitor</a><a href="#this-week-s-output">This week's output</a><a href="#commit-graph">Commit graph</a><a href="#agent-contributions">Agent contributions</a><a href="#next-up-plan-updates-awaiting-a-decision">Next up · Plan updates · Awaiting a decision</a><a href="#where-records-leak-two-cards">Where records leak — two cards</a><a href="#copy-standup">Copy standup</a><a href="#code-search-bar">Code search bar</a><a href="#next-steps">Next steps</a></nav>
+      <p><code>⌘1</code> is what you see when the app opens. It gathers <b>what happened today</b> onto one page — and it fills in without you recording anything.</p>
+<h2 id="activity-rings">Activity rings</h2>
+<p>Three concentric rings in the middle.</p>
+<div class="wk-table"><table><thead><tr><th>Ring</th><th>What it counts</th></tr></thead><tbody><tr><td><b>Entries</b></td><td>Journal entries written today</td></tr><tr><td><b>Files changed</b></td><td>Distinct files the app observed</td></tr><tr><td><b>Line delta</b></td><td>Lines added / removed</td></tr></tbody></table></div>
+<p>If there were error cycles, they're shown too — how many walls you hit today.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><b>Line delta</b> is computed from the <b>change diff attached to each entry</b>, not from the entry's frontmatter. In other words, it doesn't rely on agents writing the numbers down themselves.</p></div></div>
+<h2 id="the-monitor">The monitor</h2>
+<p>The small numbers beside the rings. If the rings are the <i>result</i>, these are the <i>state</i>.</p>
+<ul><li><b>Active time · N sessions</b> — how long agents actually worked today</li><li><b>Total entries</b> — cumulative for this project</li><li><b>Commits today</b> / <b>Uncommitted changes</b> — whether anything is waiting to be committed</li></ul>
+<h2 id="this-week-s-output">This week's output</h2>
+<p>Seven days of bars. It surfaces the rhythm a single day can't show — the bursts and the gaps.</p>
+<h2 id="commit-graph">Commit graph</h2>
+<p>Today's commits, drawn as lanes. Click a commit and <b>it opens on GitHub</b>.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>If this isn't a git repository the card turns into a hint (a repo has to exist at the root or in a subfolder). Without a GitHub remote the graph still draws, but commits won't open in a browser.</p></div></div>
+<h2 id="agent-contributions">Agent contributions</h2>
+<p>When you mix several agents, this splits out who did what. With a single agent it's a card you can ignore.</p>
+<h2 id="next-up-plan-updates-awaiting-a-decision">Next up · Plan updates · Awaiting a decision</h2>
+<p>Three cards that point <b>forward</b> rather than back.</p>
+<ul><li><b>Next up</b> — unfinished planner items, in-progress ones first</li><li><b>Plan updates</b> — planner items that moved today</li><li><b>Awaiting a decision</b> — discussion documents with no conclusion yet</li></ul>
+<h2 id="where-records-leak-two-cards">Where records leak — two cards</h2>
+<p>Both are <b>hidden most of the time</b>. They only appear when there's a problem, so a clean day stays quiet.</p>
+<h3 id="sessions-that-ended-with-no-entry">Sessions that ended with no entry</h3>
+<p>Cases in the last 7 days where <b>a session opened but no entry was written</b>. Even with rules and tools in place, short sessions can skip the write-up.</p>
+<p>Turn on <b>auto journal draft</b> (<code>auto_journal_draft</code>) in Settings and a draft is left automatically when a session ends. You can enable it straight from the card.</p>
+<h3 id="honesty-audit">Honesty audit</h3>
+<p>Compares the file changes the app observed against the <code>files_touched</code> recorded in entries, and shows <b>changes no entry mentions</b>. More in <a href="/wiki/en/journal">Work Journal</a>.</p>
+<h2 id="copy-standup">Copy standup</h2>
+<p>Turns yesterday-and-today's entries into <b>one shareable block</b> on your clipboard. Good for pasting into a morning standup.</p>
+<p>With an API key the AI polishes it; without one you get a <b>plain template</b> with the bones. Both work.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>For longer periods (weekly, PR descriptions) use the <a href="/wiki/en/retro">Retro</a> screen. Standup is the shortcut for "yesterday and today."</p></div></div>
+<h2 id="code-search-bar">Code search bar</h2>
+<p>Jumps straight to code search from this screen. The <b>All entries</b> link goes to Work Journal (<code>⌘2</code>).</p>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>How the records the rings count pile up → <a href="/wiki/en/journal">Work Journal</a></li><li>Where "Next up" comes from → <a href="/wiki/en/planner">Planner</a></li><li>Looking back over longer periods → <a href="/wiki/en/retro">Retro</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/screens"><span>← Previous</span><b>Screen Tour</b></a>
+<a class="wk-pg next" href="/wiki/en/journal"><span>Next →</span><b>Work Journal</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

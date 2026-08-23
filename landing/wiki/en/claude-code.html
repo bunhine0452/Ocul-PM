@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claude Code — Ocul-PM Wiki</title>
+<meta name="description" content="In-app Claude Code vs terminal Claude Code, installing the plugin (hook bridge), and why /plugin and /mcp don't work in-app." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/claude-code" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/claude-code" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/claude-code" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Claude Code — Ocul-PM Wiki" />
+<meta property="og:description" content="In-app Claude Code vs terminal Claude Code, installing the plugin (hook bridge), and why /plugin and /mcp don't work in-app." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link on" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/claude-code">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Claude Code</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#in-app-claude-code-records-with-no-setup">In-app Claude Code — records with no setup</a><a href="#why-don-t-plugin-and-mcp-work-in-app">Why don't `/plugin` and `/mcp` work in-app?</a><a href="#terminal-claude-code-install-the-plugin">Terminal Claude Code — install the plugin</a><a href="#summary-what-do-i-need-to-install">Summary — what do I need to install?</a></nav>
+      <p>There are <b>two</b> ways to use Claude Code with Ocul-PM. Understand the split and everything else follows.</p>
+<div class="wk-table"><table><thead><tr><th></th><th>In-app Claude Code (sidebar)</th><th>Terminal Claude Code</th></tr></thead><tbody><tr><td>How it runs</td><td>ACP (Agent Client Protocol)</td><td>The CLI as-is</td></tr><tr><td>Journaling</td><td><b>Automatic</b> — built-in MCP tools attached to the session</td><td>AGENTS.md rules (automatic once the plugin is installed)</td></tr><tr><td><code>/plugin</code> <code>/mcp</code> <code>/login</code></td><td><b>Not available</b> (see below)</td><td>Available</td></tr><tr><td>Login</td><td>Reuses credentials from a one-time terminal login</td><td>Run <code>claude</code> and log in</td></tr></tbody></table></div>
+<h2 id="in-app-claude-code-records-with-no-setup">In-app Claude Code — records with no setup</h2>
+<p>The <b>Claude Code</b> screen in the sidebar runs the real <code>claude</code> inside the app. Two things are handled for you:</p>
+<ul><li><b>ocul-pm's recording tools (MCP)</b> are attached to every session — the agent can call <code>journal_write</code> and update the planner</li><li>the project's <b>AGENTS.md rules</b> tell it to record when work is done</li></ul>
+<p>So <b>as long as you work in the app, there's nothing to install.</b> You just wait out the few minutes on first launch while the adapter is installed (npm, pinned version).</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>The app has no login screen. On a machine that has never logged into Claude Code, run <code>claude</code> in a terminal first and log in — the app reuses those credentials. (You can open one right from the terminal button in the toolbar.)</p></div></div>
+<h2 id="why-don-t-plugin-and-mcp-work-in-app">Why don't <code>/plugin</code> and <code>/mcp</code> work in-app?</h2>
+<p>In-app Claude Code talks over a protocol called ACP. That protocol carries <b>agent work</b> — prompts, tool calls, approvals — but it cannot carry <b>interactive commands the CLI draws on its own screen (TUI)</b> like <code>/plugin</code>, <code>/mcp</code>, <code>/login</code>, <code>/remote-control</code>. Their UI exists only in a terminal.</p>
+<p>So the app provides an <b>escape hatch</b>: the terminal button at the top right of the Claude Code screen opens a real <code>claude</code> in the same project. Run CLI-only commands there. (Type <code>/remote-control</code> and the app forwards you to the terminal automatically.)</p>
+<h2 id="terminal-claude-code-install-the-plugin">Terminal Claude Code — install the plugin</h2>
+<p>If you mostly use Claude Code in a terminal, the situation is different. AGENTS.md rules alone will produce entries, but only <b>as far as the model follows them</b> — it can forget at the end of a long session. Installing the <b>oculpm plugin</b> attaches a hook bridge so recording becomes <b>structural</b> rather than a matter of rules.</p>
+<p>Two lines inside <code>claude</code> in your terminal:</p>
+<pre class="wk-code"><code>/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm</code></pre>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>These are also in the app under <b>Settings → ocul-pm → Integration</b> with copy buttons. The MCP snippet for Claude Desktop is copied from the same place.</p></div></div>
+<p>Once installed you get:</p>
+<ul><li><b>Hook bridge</b> — official hooks wired so a record is left when a session ends</li><li><b>5 MCP tools</b> — <code>journal_write</code> · <code>plan_status</code> · <code>plan_update</code> · <code>plan_create</code> · <code>project_init</code></li><li><b>5 skills</b> — workflow skills like <code>/oculpm:standup</code> and <code>/oculpm:next</code></li></ul>
+<p>Everything is configured globally under <code>~/.claude</code>, so it works <b>in every project</b>. You can even use the plugin before the app — records pile up as <code>.oculpm/</code> markdown, and the app reads them whenever you install it. More on the <a href="/plugin">plugin page</a>.</p>
+<h2 id="summary-what-do-i-need-to-install">Summary — what do I need to install?</h2>
+<ul><li><b>In-app only</b> → nothing. Just confirm you're logged in.</li><li><b>Terminal too</b> → the two lines above. Skip it and terminal sessions may go unrecorded.</li><li><b>Claude Desktop as well</b> → copy the MCP snippet from Settings → ocul-pm → Integration.</li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/retro"><span>← Previous</span><b>Retro</b></a>
+<a class="wk-pg next" href="/wiki/en/agents"><span>Next →</span><b>Other Agents</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

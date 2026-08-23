@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>화면 둘러보기 — Ocul-PM 위키</title>
+<meta name="description" content="사이드바의 화면들이 각각 무엇을 하는지 — 오늘 현황부터 코드 에디터까지 한 장으로." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/screens" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/screens" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/screens" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="화면 둘러보기 — Ocul-PM 위키" />
+<meta property="og:description" content="사이드바의 화면들이 각각 무엇을 하는지 — 오늘 현황부터 코드 에디터까지 한 장으로." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link on" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/screens">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>화면 둘러보기</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#기록">기록</a><a href="#도구">도구</a><a href="#코드-검색-세-모드의-차이">코드 검색 — 세 모드의 차이</a><a href="#코드-맵-무엇에-쓰나">코드 맵 — 무엇에 쓰나</a><a href="#문서-저장소의-docs-읽기">문서 — 저장소의 `./docs` 읽기</a><a href="#문제-해결-토의">문제 해결 (토의)</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p>Ocul-PM 은 화면이 많아 보이지만, 실은 <b>두 덩어리</b>입니다. 위쪽 「기록」은 에이전트가 무엇을 했는지 쌓이는 곳이고, 아래쪽 「도구」는 그 기록 옆에서 코드를 뒤지고 돌려보는 곳입니다.</p>
+<p>사이드바 순서 = <code>⌘</code> 번호 순서입니다. 앞 10개에만 번호가 붙습니다.</p>
+<h2 id="기록">기록</h2>
+<div class="wk-table"><table><thead><tr><th>화면</th><th>키</th><th>하는 일</th></tr></thead><tbody><tr><td><b>오늘 현황</b></td><td><code>⌘1</code></td><td>오늘 하루의 요약 — 활동 링, 커밋 그래프, 에이전트별 기여, 정직성 감사</td></tr><tr><td><b>작업 일지</b></td><td><code>⌘2</code></td><td>쌓인 일지의 타임라인. 날짜별로 접히고, 각 일지는 서술 + 변경 diff 2단</td></tr><tr><td><b>문제 해결</b></td><td><code>⌘3</code></td><td>결정 전에 옵션을 늘어놓고 비교하는 토의 문서</td></tr><tr><td><b>플래너</b></td><td><code>⌘4</code></td><td>지금의 계획. 에이전트가 스스로 갱신하는 살아있는 문서</td></tr><tr><td><b>변경 diff</b></td><td><code>⌘5</code></td><td>지금 작업 트리의 변경을 줄 단위로. 일지·계획별로 묶어서도 볼 수 있음</td></tr><tr><td><b>회고</b></td><td><code>⌘6</code></td><td>7·14·30일 구간의 신호를 모아 되돌아보기. 스탠드업·PR 본문 생성까지</td></tr></tbody></table></div>
+<p>일지와 플래너는 이 앱의 두 기둥입니다 — 각각 <a href="/wiki/journal">작업 일지</a>와 <a href="/wiki/planner">플래너</a>에서 자세히 다룹니다.</p>
+<h2 id="도구">도구</h2>
+<div class="wk-table"><table><thead><tr><th>화면</th><th>키</th><th>하는 일</th></tr></thead><tbody><tr><td><b>코드 검색</b></td><td><code>⌘7</code></td><td>의미 검색 · 심볼 · 정확히 일치 — 세 가지 모드</td></tr><tr><td><b>코드 맵</b></td><td><code>⌘8</code></td><td>파일·심볼 의존 그래프. 변경이 어디까지 번지는지</td></tr><tr><td><b>문서</b></td><td><code>⌘9</code></td><td>저장소의 <code>./docs</code> 폴더를 위키처럼 읽기</td></tr><tr><td><b>터미널</b></td><td><code>⌘0</code></td><td>프로젝트 폴더에 붙은 진짜 셸</td></tr><tr><td><b>에이전트</b></td><td>—</td><td>여러 LLM 제공자와의 대화. 계획 반영 같은 액션 제안까지</td></tr><tr><td><b>스킬·규칙</b></td><td>—</td><td>에이전트에게 주입되는 스킬·규칙·훅을 한자리에서</td></tr><tr><td><b>Claude Code</b></td><td>—</td><td>앱 안에서 도는 Claude Code (<a href="/wiki/claude-code">연동 문서</a>)</td></tr><tr><td><b>코드</b></td><td>—</td><td>앱 안 코드 뷰어·에디터</td></tr></tbody></table></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p><code>⌘J</code> 는 어느 화면 위에서든 <b>터미널 도크</b>를 띄웁니다. 터미널 화면(<code>⌘0</code>)으로 이동하지 않아도 되니, 일지를 보면서 명령을 치기 좋습니다.</p></div></div>
+<h2 id="코드-검색-세-모드의-차이">코드 검색 — 세 모드의 차이</h2>
+<div class="wk-table"><table><thead><tr><th>모드</th><th>언제</th><th>어떻게 찾나</th></tr></thead><tbody><tr><td><b>의미 검색</b></td><td>"로그인 실패를 어디서 처리하지?"</td><td>로컬 임베딩으로 뜻이 가까운 조각을 찾습니다</td></tr><tr><td><b>심볼</b></td><td>함수·클래스 이름을 알 때</td><td>tree-sitter 로 뽑아 둔 심볼 표에서</td></tr><tr><td><b>정확히 일치</b></td><td>오타·상수·문자열 추적</td><td>문자열 그대로</td></tr></tbody></table></div>
+<p>의미 검색의 인덱싱은 <b>전부 로컬</b>입니다 — 코드가 밖으로 나가지 않습니다. 프로젝트를 처음 열 때 한 번 인덱싱하고, 그 뒤로는 바뀐 파일만 갱신합니다. 기본값은 코드만 훑지만 「문서 포함」을 켜면 <code>.md</code>·<code>.txt</code> 도 결과에 들어옵니다.</p>
+<h2 id="코드-맵-무엇에-쓰나">코드 맵 — 무엇에 쓰나</h2>
+<p>파일과 심볼이 서로 무엇을 부르는지 그린 그래프입니다. 세 가지 쓸모가 있습니다:</p>
+<ul><li><b>처음 보는 저장소 파악</b> — 덩어리(모듈)가 자동으로 묶여 보입니다</li><li><b>호출 관계 추적</b> — 한 파일이 실제로 어떤 함수를 부르는지 심볼 단위로</li><li><b>변경 영향 범위</b> — 지금 고친 파일에서 거꾸로 타고 올라가 "이걸 바꾸면 어디가 흔들리나"</li></ul>
+<h2 id="문서-저장소의-docs-읽기">문서 — 저장소의 <code>./docs</code> 읽기</h2>
+<p>프로젝트 루트에 <code>docs/</code> 폴더가 있으면 그 안의 마크다운을 <b>위키처럼 탐색하며 읽습니다.</b> 문서끼리의 상대 링크를 따라가고, 이미지도 그려집니다. 읽기 전용입니다 — 고치는 건 코드 화면이나 평소 쓰는 에디터로.</p>
+<p>폴더가 없으면 만들라고 안내만 뜹니다. 설계 문서를 저장소에 두는 팀이면 앱을 나가지 않고 볼 수 있습니다.</p>
+<h2 id="문제-해결-토의">문제 해결 (토의)</h2>
+<p>일지가 <i>회고</i>고 플래너가 <i>현재 계획</i>이라면, 토의는 <b>결정 직전</b>입니다. 옵션 A·B·C 를 늘어놓고 장단점을 적어 고르는 문서고, <code>.oculpm/discussion/&lt;이름&gt;/discussion.md</code> 에 남습니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>에이전트는 여러분이 "옵션을 비교하자 / 이 문제를 정리하자" 고 <b>명시적으로 요청할 때만</b> 토의 문서를 만듭니다. 평범한 작업에는 일지와 플래너면 충분하기 때문입니다.</p></div></div>
+<h2 id="다음-걸음">다음 걸음</h2>
+<ul><li>일지가 어떻게 생겼고 무엇을 담는지 → <a href="/wiki/journal">작업 일지</a></li><li>계획이 스스로 갱신된다는 게 무슨 뜻인지 → <a href="/wiki/planner">플래너</a></li><li>단축키 전체 목록 → <a href="/wiki/shortcuts">단축키</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/faq"><span>← 이전</span><b>자주 묻는 질문</b></a>
+<a class="wk-pg next" href="/wiki/today"><span>다음 →</span><b>오늘 현황</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

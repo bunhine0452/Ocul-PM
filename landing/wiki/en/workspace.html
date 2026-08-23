@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Windows, Tabs, Terminal, Code — Ocul-PM Wiki</title>
+<meta name="description" content="Running several projects at once, the terminal dock and splits, the in-app code viewer and editor." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/workspace" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/workspace" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/workspace" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Windows, Tabs, Terminal, Code — Ocul-PM Wiki" />
+<meta property="og:description" content="Running several projects at once, the terminal dock and splits, the in-app code viewer and editor." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link on" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/workspace">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Windows, Tabs, Terminal, Code</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#tabs-and-windows">Tabs and windows</a><a href="#living-in-the-menu-bar">Living in the menu bar</a><a href="#terminal">Terminal</a><a href="#code-screen">Code screen</a><a href="#next-steps">Next steps</a></nav>
+      <p><i>What</i> the screens show is in the <a href="/wiki/en/screens">Screen Tour</a>. This page is about <b>how you arrange and drive them</b>.</p>
+<h2 id="tabs-and-windows">Tabs and windows</h2>
+<p>One tab per project. Same feel as a browser.</p>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘T</code></td><td>New project tab</td></tr><tr><td><code>⌘W</code></td><td>Close tab</td></tr><tr><td><code>⇧⌘N</code></td><td>New window</td></tr><tr><td><code>⌘P</code></td><td>Switch project (sidebar popover)</td></tr></tbody></table></div>
+<ul><li><b>Each tab has its own state</b> — read entries in project A and keep a terminal open in B without interference</li><li><b>Tabs you haven't visited load lazily</b> — opening a window doesn't initialize N projects at once</li><li><b>A dot appears when an agent is working in a background tab</b>, so it's visible while you're in another project</li></ul>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Multiple windows let you put projects side by side on a monitor. Windows are independent too, so heavy indexing in one doesn't affect the other.</p></div></div>
+<h2 id="living-in-the-menu-bar">Living in the menu bar</h2>
+<p>Turn these on in Settings → Appearance → Menu bar.</p>
+<ul><li><b>Show menu bar icon</b> — a status icon in the top bar that animates while an agent session is alive. Click it for a Today popover</li><li><b>Closing the window minimizes to the menu bar</b> — the app survives so session detection and recording continue. Quit via right-click on the tray icon → Quit</li><li><b>Hide Dock icon while resident</b> — disappears from the Dock while minimized</li><li><b>New entry notifications</b> — a macOS notification when an agent leaves an entry. Capped at 3 per 10 seconds when they arrive in bursts (backfills, say)</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The app has to be alive to keep observing. "Minimize to the menu bar" is the compromise that gets the window out of the way while observation continues.</p></div></div>
+<h2 id="terminal">Terminal</h2>
+<p>A <b>real shell</b> rooted in the project folder. Two shapes:</p>
+<ul><li><b>Full screen</b> — <code>⌘0</code></li><li><b>Dock</b> — <code>⌘J</code>, overlaid on any screen. Good for typing commands while reading an entry</li></ul>
+<p>The dock cycles position <b>bottom → left → right</b> (the reposition button), and the <b>detach button</b> turns it into a separate window containing only the terminal — with the shell intact.</p>
+<h3 id="sessions-and-splits">Sessions and splits</h3>
+<p>These apply when focus is inside the terminal:</p>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘T</code></td><td>New session (tab)</td></tr><tr><td><code>⌘W</code></td><td>Close pane</td></tr><tr><td><code>⌘D</code></td><td>Split horizontally · <code>⇧⌘D</code> split vertically</td></tr><tr><td><code>⌘F</code></td><td>Search scrollback (<code>Enter</code> next · <code>⇧Enter</code> previous · <code>Esc</code> close)</td></tr><tr><td><code>⌘L</code></td><td>Clear screen</td></tr><tr><td><code>⌘+</code> / <code>⌘−</code></td><td>Font size · <code>⇧⌘0</code> to reset</td></tr></tbody></table></div>
+<p>Session tabs are <b>renamed by double-clicking</b>.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>⌘T</code> and <code>⌘W</code> exist both globally (project tabs) and in the terminal (sessions and panes). The terminal only wins <b>when focus is inside it</b> — even with the dock overlaid on another screen, <code>⌘F</code> won't open terminal search while you're reading an entry.</p></div></div>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><code>⌘L</code> clears the screen because the global command palette claims <code>⌘K</code> first. The shell's own <code>Ctrl+L</code> still works as normal.</p></div></div>
+<h3 id="terminal-font-size-is-separate">Terminal font size is separate</h3>
+<p>It's set in px, <b>independently</b> of the app-wide scale (Settings → Appearance → Text size), because a terminal is a fixed-width grid where px is more precise than a percentage. The value applies to the terminal screen, the dock, and detached windows alike.</p>
+<h2 id="code-screen">Code screen</h2>
+<p>Where you <b>view and edit</b> files inside the app. Open a file from the tree on the left, edit on the right, save.</p>
+<ul><li><b>Jump in</b> — "Open in Code" from code search or code map results brings you straight here</li><li><b>Filter</b> — narrow the tree by filename from the input above it</li><li><b>Unsaved marker</b> — edited files are marked <b>Modified</b></li><li><b>Open in external editor</b> — hand serious editing to your usual editor</li></ul>
+<p>The limits are explicit:</p>
+<div class="wk-table"><table><thead><tr><th>Situation</th><th>Behavior</th></tr></thead><tbody><tr><td>Over 2MB</td><td>Won't open</td></tr><tr><td>Binary</td><td>Says it can't be previewed</td></tr><tr><td>Too many files</td><td>Shows part of the tree</td></tr><tr><td>Too many unsaved files</td><td>Evicts the oldest edit and tells you</td></tr><tr><td>An open file disappears from disk</td><td>Tells you</td></tr></tbody></table></div>
+<h3 id="wiring-an-external-editor">Wiring an external editor</h3>
+<p>Set the command template in Settings → Appearance → External editor. <code>%path</code> is replaced with the absolute path.</p>
+<pre class="wk-code"><code>code "%path"          VS Code
+cursor "%path"        Cursor
+subl "%path"          Sublime Text</code></pre>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>macOS GUI apps don't inherit your shell's <code>PATH</code>. If <code>code</code> alone doesn't work, use an absolute path — e.g. <code>/usr/local/bin/code "%path"</code>.</p></div></div>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>Themes, text size, API keys, indexing → <a href="/wiki/en/settings">Settings</a></li><li>The full key list → <a href="/wiki/en/shortcuts">Shortcuts</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/ai-panel"><span>← Previous</span><b>Agent Panel</b></a>
+<a class="wk-pg next" href="/wiki/en/settings"><span>Next →</span><b>Settings</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Retro — Ocul-PM Wiki</title>
+<meta name="description" content="Gathering signals over 7/14/30 days, the deferred-shortcut ledger, generating standups and PR descriptions, exporting." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/retro" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/retro" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/retro" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Retro — Ocul-PM Wiki" />
+<meta property="og:description" content="Gathering signals over 7/14/30 days, the deferred-shortcut ledger, generating standups and PR descriptions, exporting." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link on" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/retro">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Retro</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#four-numbers-first">Four numbers first</a><a href="#signal-cards">Signal cards</a><a href="#the-deferred-shortcut-ledger">The deferred-shortcut ledger</a><a href="#generating-artifacts">Generating artifacts</a><a href="#exporting">Exporting</a><a href="#eval-trend">Eval trend</a><a href="#when-to-open-it">When to open it</a><a href="#next-steps">Next steps</a></nav>
+      <p>Once entries pile up they become material. Pick a period on the Retro screen (<code>⌘6</code>) and it pulls <b>deterministically computed signals</b> out of that period's records — shown before any AI is involved, with narrative layered on top only if you want it.</p>
+<p>Periods are <b>Last 7 days · 14 days · 30 days</b>.</p>
+<h2 id="four-numbers-first">Four numbers first</h2>
+<div class="wk-table"><table><thead><tr><th>Metric</th><th>Meaning</th></tr></thead><tbody><tr><td><b>Entries</b></td><td>Records left in the period</td></tr><tr><td><b>Shipped</b></td><td>Completed feature-side work</td></tr><tr><td><b>Resistance</b></td><td>Bugs and error cycles — how much wall you hit</td></tr><tr><td><b>Agents</b></td><td>How many agents contributed</td></tr></tbody></table></div>
+<p>The ratio of Shipped to Resistance characterizes the period. A week where resistance spikes usually means the design wobbled or you were in unfamiliar territory.</p>
+<h2 id="signal-cards">Signal cards</h2>
+<ul><li><b>What shipped / What pushed back</b> — which work fell on each side</li><li><b>Files that came up again and again</b> — if the same file keeps appearing in bug and error entries, that file is the problem</li><li><b>Where the effort went</b> — files that took the most work, overlaid with dependency fan-out from the code map. A file flagged <b>Core hub</b> is <i>heavily edited and heavily depended on</i> — the most dangerous place to touch</li><li><b>Agent contributions</b> — who did what, if you run several</li></ul>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>"Files that came up again and again" is the fastest way to pick refactor candidates. Not by instinct, but by how many times that file actually cost you time.</p></div></div>
+<h2 id="the-deferred-shortcut-ledger">The deferred-shortcut ledger</h2>
+<p>Leave a comment like this in code and the retro harvests it into one place:</p>
+<pre class="wk-code"><code>// oculpm-defer: &lt;ceiling&gt;; &lt;revisit trigger&gt;</code></pre>
+<ul><li><b>Ceiling</b> — how far this shortcut holds (e.g. "up to 1000 items")</li><li><b>Revisit trigger</b> — when to look again (e.g. "when pagination lands")</li></ul>
+<p>A marker with no trigger is flagged <b>No trigger</b>, because a shortcut without a revisit condition quietly rots — write a trigger, or promote it to a planner item outright.</p>
+<h2 id="generating-artifacts">Generating artifacts</h2>
+<p>Turns collected entries into something shareable. Three formats:</p>
+<div class="wk-table"><table><thead><tr><th>Kind</th><th>Use</th></tr></thead><tbody><tr><td><b>Standup</b></td><td>What I did yesterday / what's next</td></tr><tr><td><b>PR description</b></td><td>Explaining this period's changes on a PR</td></tr><tr><td><b>Weekly status</b></td><td>A week summarized</td></tr></tbody></table></div>
+<p>Two ways to produce them:</p>
+<ul><li><b>Generate</b> — uses the default AI provider and model from Settings (your API key, your billing)</li><li><b>With Claude Code</b> — hands it to a terminal Claude Code session. <b>No API key and no extra billing</b> — it runs on your subscription, and you watch it work in the terminal</li></ul>
+<p>Even without AI, the <b>plain template</b> gives you the bones. Generated artifacts show how many entries they came from and whether they were AI-written or templated.</p>
+<h2 id="exporting">Exporting</h2>
+<ul><li><b>Export <code>.md</code></b> — the period's entries as a single markdown file</li><li><b>Copy to clipboard</b> — paste the artifact straight out</li><li><b>To Notion</b> — creates a page and opens it in a new window</li></ul>
+<h2 id="eval-trend">Eval trend</h2>
+<p>Record scores from a test suite and the retro draws a trend. With no records the card says it's empty — log scores with the <code>run-evals</code> skill and it starts filling in.</p>
+<h2 id="when-to-open-it">When to open it</h2>
+<ul><li><b>Friday afternoon</b> — build the weekly status and check "files that came up again and again"</li><li><b>Right before opening a PR</b> — pull a PR description as your draft</li><li><b>Starting a new sprint</b> — pick what to repay from the deferred-shortcut ledger</li></ul>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>How the raw material accumulates → <a href="/wiki/en/journal">Work Journal</a></li><li>Promoting what you picked into a plan → <a href="/wiki/en/planner">Planner</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/planner"><span>← Previous</span><b>Planner</b></a>
+<a class="wk-pg next" href="/wiki/en/claude-code"><span>Next →</span><b>Claude Code</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

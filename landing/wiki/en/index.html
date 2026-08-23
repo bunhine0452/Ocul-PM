@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocul-PM Wiki — Ocul-PM Wiki</title>
+<meta name="description" content="Ocul-PM user guide — getting started, screens and concepts, agent integration, troubleshooting, data layout, shortcuts." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Ocul-PM Wiki — Ocul-PM Wiki" />
+<meta property="og:description" content="Ocul-PM user guide — getting started, screens and concepts, agent integration, troubleshooting, data layout, shortcuts." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link on" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Ocul-PM Wiki</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#start-here">Start here</a><a href="#concepts-what-accumulates">Concepts — what accumulates</a><a href="#agent-integration">Agent integration</a><a href="#running-it">Running it</a><a href="#everything-else">Everything else</a></nav>
+      <p>The manual for the places people get stuck. Short, and updated often. (As of v2.14)</p>
+<h2 id="start-here">Start here</h2>
+<ul><li><b><a href="/wiki/en/getting-started">Getting Started</a></b> — install, add a project, and see your first journal entry</li><li><b><a href="/wiki/en/faq">FAQ</a></b> — who writes the entries, does it cost money, should I commit <code>.oculpm/</code>, what is a workday</li><li><b><a href="/wiki/en/screens">Screen Tour</a></b> — what every screen in the sidebar is for, on one page</li></ul>
+<h2 id="concepts-what-accumulates">Concepts — what accumulates</h2>
+<ul><li><b><a href="/wiki/en/today">Today</a></b> — the screen you land on. Activity rings, commit graph, standup copy</li><li><b><a href="/wiki/en/journal">Work Journal</a></b> — how entries pile up, change diffs, sessions, the honesty audit</li><li><b><a href="/wiki/en/planner">Planner</a></b> — a plan document agents keep current. Glyphs and the change log</li><li><b><a href="/wiki/en/retro">Retro</a></b> — period signals, the deferred-shortcut ledger, standup and PR descriptions</li></ul>
+<h2 id="agent-integration">Agent integration</h2>
+<ul><li><b><a href="/wiki/en/claude-code">Claude Code</a></b> — in-app vs terminal, installing the plugin, why <code>/plugin</code> and <code>/mcp</code> don't work in-app</li><li><b><a href="/wiki/en/agents">Other Agents</a></b> — Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — plus the Skills &amp; Rules hub</li><li><b><a href="/wiki/en/ai-panel">Agent Panel</a></b> — ask several LLMs with the same context, token badge, planner action proposals</li></ul>
+<h2 id="running-it">Running it</h2>
+<ul><li><b><a href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a></b> — several projects at once, the terminal dock and splits, in-app editing</li><li><b><a href="/wiki/en/settings">Settings</a></b> — themes and presets, text size, API keys and fallbacks, indexing and RAG</li></ul>
+<h2 id="everything-else">Everything else</h2>
+<ul><li><b><a href="/wiki/en/troubleshooting">Troubleshooting</a></b> — common friction and how to clear it</li><li><b><a href="/wiki/en/data">Data &amp; File Layout</a></b> — the <code>.oculpm/</code> folder, backup and moving, what local-first actually means</li><li><b><a href="/wiki/en/shortcuts">Shortcuts</a></b> — navigation, tabs and windows, terminal keys, Claude Code screen keys</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Found something wrong? "Edit this page" in the lower left opens the source, or tell us in a <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub issue</a>.</p></div></div>
+    </article>
+    <footer class="wk-pager"><span></span>
+<a class="wk-pg next" href="/wiki/en/getting-started"><span>Next →</span><b>Getting Started</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

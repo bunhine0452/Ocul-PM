@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Screen Tour — Ocul-PM Wiki</title>
+<meta name="description" content="What each screen in the sidebar does — from Today to the code editor, on one page." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/screens" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/screens" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/screens" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Screen Tour — Ocul-PM Wiki" />
+<meta property="og:description" content="What each screen in the sidebar does — from Today to the code editor, on one page." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link on" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/screens">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Screen Tour</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#record">Record</a><a href="#tools">Tools</a><a href="#code-search-the-three-modes">Code Search — the three modes</a><a href="#code-map-what-it-s-for">Code Map — what it's for</a><a href="#docs-reading-the-repo-s-docs">Docs — reading the repo's `./docs`</a><a href="#discussions">Discussions</a><a href="#next-steps">Next steps</a></nav>
+      <p>Ocul-PM looks like a lot of screens, but it's really <b>two groups</b>. The upper "record" group is where what agents did piles up; the lower "tools" group is for digging through code alongside those records.</p>
+<p>Sidebar order = <code>⌘</code> number order. Only the first ten get numbers.</p>
+<h2 id="record">Record</h2>
+<div class="wk-table"><table><thead><tr><th>Screen</th><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td><b>Today</b></td><td><code>⌘1</code></td><td>The day at a glance — activity rings, commit graph, agent contributions, honesty audit</td></tr><tr><td><b>Work Journal</b></td><td><code>⌘2</code></td><td>A timeline of entries. Collapses by date; each entry is narrative + change diff, side by side</td></tr><tr><td><b>Discussions</b></td><td><code>⌘3</code></td><td>Lay out options and compare them before deciding</td></tr><tr><td><b>Planner</b></td><td><code>⌘4</code></td><td>The current plan — a living document agents keep up to date</td></tr><tr><td><b>Changes</b></td><td><code>⌘5</code></td><td>Your working tree, line by line. Can also group by entry or plan</td></tr><tr><td><b>Retro</b></td><td><code>⌘6</code></td><td>Gather signals over 7/14/30 days. Generates standups and PR descriptions</td></tr></tbody></table></div>
+<p>Journal and Planner are the two pillars — see <a href="/wiki/en/journal">Work Journal</a> and <a href="/wiki/en/planner">Planner</a>.</p>
+<h2 id="tools">Tools</h2>
+<div class="wk-table"><table><thead><tr><th>Screen</th><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td><b>Code Search</b></td><td><code>⌘7</code></td><td>Semantic · Symbols · Exact match — three modes</td></tr><tr><td><b>Code Map</b></td><td><code>⌘8</code></td><td>File and symbol dependency graph. How far a change reaches</td></tr><tr><td><b>Docs</b></td><td><code>⌘9</code></td><td>Read the repo's <code>./docs</code> folder like a wiki</td></tr><tr><td><b>Terminal</b></td><td><code>⌘0</code></td><td>A real shell rooted in the project</td></tr><tr><td><b>Agent</b></td><td>—</td><td>Chat with several LLM providers, including planner action proposals</td></tr><tr><td><b>Skills &amp; Rules</b></td><td>—</td><td>Everything injected into agents, in one place</td></tr><tr><td><b>Claude Code</b></td><td>—</td><td>Claude Code running inside the app (<a href="/wiki/en/claude-code">integration</a>)</td></tr><tr><td><b>Code</b></td><td>—</td><td>In-app code viewer and editor</td></tr></tbody></table></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p><code>⌘J</code> pops the <b>terminal dock</b> over whatever screen you're on. No need to navigate to Terminal (<code>⌘0</code>) — handy for typing commands while reading an entry.</p></div></div>
+<h2 id="code-search-the-three-modes">Code Search — the three modes</h2>
+<div class="wk-table"><table><thead><tr><th>Mode</th><th>When</th><th>How it finds things</th></tr></thead><tbody><tr><td><b>Semantic</b></td><td>"Where do we handle login failure?"</td><td>Local embeddings find passages close in meaning</td></tr><tr><td><b>Symbols</b></td><td>You know the function or class name</td><td>From the symbol table extracted by tree-sitter</td></tr><tr><td><b>Exact match</b></td><td>Chasing a typo, constant, or string</td><td>The literal string</td></tr></tbody></table></div>
+<p>Semantic indexing is <b>entirely local</b> — code never leaves the machine. A project is indexed once when first opened, then only changed files are refreshed. By default it scans code only; turn on <b>Include docs</b> to pull <code>.md</code> and <code>.txt</code> into results.</p>
+<h2 id="code-map-what-it-s-for">Code Map — what it's for</h2>
+<p>A graph of what calls what, across files and symbols. Three uses:</p>
+<ul><li><b>Understanding an unfamiliar repo</b> — modules cluster automatically</li><li><b>Tracing calls</b> — which functions a file actually calls, at symbol granularity</li><li><b>Blast radius</b> — walk backwards from a file you just changed to see what might wobble</li></ul>
+<h2 id="docs-reading-the-repo-s-docs">Docs — reading the repo's <code>./docs</code></h2>
+<p>If the project root has a <code>docs/</code> folder, its markdown is <b>browsable like a wiki</b>. Relative links between documents work, and images render. Read-only — edit in the Code screen or your usual editor.</p>
+<p>If the folder doesn't exist, you just get a hint to create one. Handy if your team keeps design docs in the repo.</p>
+<h2 id="discussions">Discussions</h2>
+<p>If the journal is <i>retrospect</i> and the planner is <i>the current plan</i>, discussions are <b>the moment before deciding</b>. You lay out options A/B/C with pros and cons and choose, and it's saved to <code>.oculpm/discussion/&lt;name&gt;/discussion.md</code>.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Agents only create a discussion document when you <b>explicitly ask</b> — "let's compare options," "let's write this problem up." Ordinary work is covered by entries and the planner.</p></div></div>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>What an entry looks like and holds → <a href="/wiki/en/journal">Work Journal</a></li><li>What "the plan updates itself" means → <a href="/wiki/en/planner">Planner</a></li><li>The full key list → <a href="/wiki/en/shortcuts">Shortcuts</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/faq"><span>← Previous</span><b>FAQ</b></a>
+<a class="wk-pg next" href="/wiki/en/today"><span>Next →</span><b>Today</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

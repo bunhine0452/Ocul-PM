@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>자주 묻는 질문 — Ocul-PM 위키</title>
+<meta name="description" content="처음 쓰는 사람이 가장 자주 막히는 지점 — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/faq" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/faq" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/faq" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="자주 묻는 질문 — Ocul-PM 위키" />
+<meta property="og:description" content="처음 쓰는 사람이 가장 자주 막히는 지점 — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link on" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/faq">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>자주 묻는 질문</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#이게-뭘-해주나요">이게 뭘 해주나요</a><a href="#돈과-프라이버시">돈과 프라이버시</a><a href="#git-과-팀">git 과 팀</a><a href="#개념이-헷갈려요">개념이 헷갈려요</a><a href="#쓰다-보면">쓰다 보면</a><a href="#여기-없는-질문이라면">여기 없는 질문이라면</a></nav>
+      <p>처음 며칠 동안 실제로 자주 나오는 질문들입니다. 개념이 헷갈리는 것과 겁나는 것을 먼저 풀었습니다.</p>
+<h2 id="이게-뭘-해주나요">이게 뭘 해주나요</h2>
+<h3 id="한-줄로">한 줄로</h3>
+<p><b>AI 에이전트가 여러분의 코드에 무슨 짓을 했는지, 사람이 읽을 수 있는 기록으로 남깁니다.</b></p>
+<p>커밋 메시지는 <i>무엇이 바뀌었나</i>만 말합니다. Ocul-PM 은 <i>왜 그렇게 했고, 무엇을 시도했다 실패했고, 어떻게 확인했는지</i>를 남깁니다.</p>
+<h3 id="일지는-제가-써야-하나요">일지는 제가 써야 하나요?</h3>
+<p><b>아니요. 에이전트가 씁니다.</b> 여러분은 읽기만 하면 됩니다.</p>
+<p>프로젝트를 추가하면 루트에 <code>AGENTS.md</code> 라는 규칙 파일이 생기고, Claude Code·Cursor·Gemini CLI 같은 에이전트가 이 파일을 읽습니다. "작업 하나를 끝내면 일지를 남겨라" 가 그 규칙입니다. 여러분이 시킬 필요조차 없습니다.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>직접 쓰고 싶다면 쓸 수도 있습니다 — 그냥 마크다운 파일이니까요. 하지만 그게 목적인 앱은 아닙니다.</p></div></div>
+<h3 id="ai-를-대신-실행해-주는-앱인가요">AI 를 대신 실행해 주는 앱인가요?</h3>
+<p>둘 다 됩니다. 앱 안에 Claude Code 를 띄워 쓸 수도 있고, <b>평소처럼 터미널에서 쓰면서 기록만 받을 수도</b> 있습니다. 앱을 켜 두기만 하면 터미널에서 한 작업도 잡힙니다.</p>
+<h2 id="돈과-프라이버시">돈과 프라이버시</h2>
+<h3 id="돈이-드나요">돈이 드나요?</h3>
+<p>앱은 무료고, <b>기록 기능 자체는 API 키가 필요 없습니다.</b> 파일 변경을 관측하고 에이전트가 쓴 마크다운을 읽는 게 전부라 비용이 0입니다.</p>
+<p>돈이 드는 건 <b>AI 가 새 글을 쓰는 기능</b>뿐입니다:</p>
+<div class="wk-table"><table><thead><tr><th>기능</th><th>비용</th></tr></thead><tbody><tr><td>일지·플래너 기록, 검색, 코드 맵, 회고 지표</td><td><b>무료</b> — 전부 로컬</td></tr><tr><td>회고 서술 생성, AI 패널 대화</td><td>여러분의 API 키·과금</td></tr><tr><td>앱 안 Claude Code</td><td>여러분의 Claude 구독 자격 (별도 과금 없음)</td></tr></tbody></table></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>회고의 <b>「Claude Code 로」</b> 버튼은 터미널 Claude Code 세션에 일을 넘깁니다 — API 키 없이 구독 자격으로 돌아서, 별도 과금 없이 회고를 만들 수 있습니다.</p></div></div>
+<h3 id="제-코드가-어디로-나가나요">제 코드가 어디로 나가나요?</h3>
+<p>기본적으로 <b>아무 데도 안 나갑니다.</b> 코드 검색의 임베딩도 로컬에서 계산합니다. 밖으로 나가는 건 셋뿐입니다 — 여러분이 설정한 LLM 호출, 새 버전 확인, 앱 안 Claude Code 를 쓸 때의 Anthropic 통신. 계정 서버도 텔레메트리도 없습니다. (<a href="/wiki/data">자세히</a>)</p>
+<h3 id="인터넷-없이-되나요">인터넷 없이 되나요?</h3>
+<p>됩니다. 기록·타임라인·변경 diff·코드 검색·코드 맵·회고 지표는 전부 로컬입니다. AI 호출과 업데이트 확인만 안 됩니다.</p>
+<h3 id="windows-linux-는요">Windows / Linux 는요?</h3>
+<p>지금은 <b>macOS (Apple Silicon) 전용</b>입니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>단, <code>.oculpm/</code> 기록은 그냥 마크다운이라 어느 OS 에서든 읽힙니다. 팀에 Windows 사용자가 있어도 저장소에 커밋된 일지를 읽는 데는 문제가 없습니다.</p></div></div>
+<h2 id="git-과-팀">git 과 팀</h2>
+<h3 id="oculpm-을-git-에-커밋해야-하나요"><code>.oculpm/</code> 을 git 에 커밋해야 하나요?</h3>
+<p><b>네, 커밋하는 걸 권합니다</b> — 그리고 <b>앱이 알아서 준비해 둡니다.</b></p>
+<p>프로젝트를 추가하면 <code>.gitignore</code> 에 관리 블록이 하나 붙어서, 캐시성 파일만 제외합니다:</p>
+<pre class="wk-code"><code># oculpm:begin v1
+.oculpm/index/
+.oculpm/hooks/
+.oculpm/.lock
+.oculpm/.schema-version
+.oculpm/oculpm.log
+.oculpm.backup-*/
+# oculpm:end</code></pre>
+<p>그래서 <b>일지·플래너·토의·규칙은 커밋되고, 앱이 다시 만들 수 있는 것은 빠집니다.</b> 여러분이 손댈 일이 없습니다.</p>
+<h3 id="팀원과-공유되나요">팀원과 공유되나요?</h3>
+<p>커밋해서 push 하면 그대로 공유됩니다. 팀원은 앱이 없어도 GitHub 에서 마크다운으로 읽을 수 있고, 앱을 설치하면 그 기록이 화면에 그려집니다.</p>
+<h3 id="충돌나지-않나요">충돌나지 않나요?</h3>
+<p>일지는 <b>파일 하나에 작업 하나</b>고 이름에 시각이 들어가서(<code>2337_fix_...md</code>) 서로 겹칠 일이 거의 없습니다. 플래너는 한 파일을 여럿이 고칠 수 있는데, 변경 로그가 <b>덧붙이기 전용</b>이라 충돌이 나도 양쪽 줄을 다 남기면 끝입니다.</p>
+<h3 id="남의-저장소에-일지를-남기고-싶지-않으면요">남의 저장소에 일지를 남기고 싶지 않으면요?</h3>
+<p><code>.gitignore</code> 에 <code>.oculpm/</code> 을 통째로 넣으면 로컬에만 쌓입니다. 앱 동작에는 아무 영향이 없습니다.</p>
+<h2 id="개념이-헷갈려요">개념이 헷갈려요</h2>
+<h3 id="워크데이-가-뭔가요">「워크데이」가 뭔가요?</h3>
+<p><b>하루의 경계를 여러분이 정하는 것</b>입니다. 기본은 자정이지만, 새벽까지 코딩하는 사람에게 자정 경계는 불편합니다 — 새벽 2시에 한 일이 "내일" 로 넘어가 버리니까요.</p>
+<p>프로젝트의 <code>.oculpm/config.toml</code> 에서 <code>day_starts_at = "03:00"</code> 처럼 바꾸면, 새벽 3시 전의 작업은 전날 폴더에 쌓입니다.</p>
+<h3 id="세션-이-뭔가요">「세션」이 뭔가요?</h3>
+<p>앱이 파일 변경을 지켜보다가 <b>에이전트가 일하기 시작하면 열고, 한동안 조용하면 닫는</b> 단위입니다. 대략 "한 번 앉아서 한 일" 에 해당하고 <code>20260821-002</code> 처럼 불립니다. 일지가 어느 세션의 산물인지 자동으로 묶입니다.</p>
+<h3 id="일지-플래너-문제-해결-뭐가-다른가요">일지 · 플래너 · 문제 해결, 뭐가 다른가요?</h3>
+<p>시간축이 다릅니다:</p>
+<div class="wk-table"><table><thead><tr><th></th><th>언제</th><th>무엇</th></tr></thead><tbody><tr><td><b>문제 해결</b> (토의)</td><td>결정 <b>전</b></td><td>옵션 A·B·C 를 늘어놓고 고르기</td></tr><tr><td><b>플래너</b></td><td><b>지금</b></td><td>현재 계획. 항목이 진행되며 글리프가 바뀜</td></tr><tr><td><b>작업 일지</b></td><td>일이 끝난 <b>후</b></td><td>무엇을 왜 어떻게 했는지 회고</td></tr></tbody></table></div>
+<h3 id="ui-언어-와-ai-작성-언어-가-따로-있던데요">「UI 언어」와 「AI 작성 언어」가 따로 있던데요?</h3>
+<p>다릅니다. <b>UI 언어</b>는 화면에 보이는 텍스트고, <b>AI 작성 언어</b>는 AI 가 새로 만드는 일지·플래너 항목·회고의 언어입니다.</p>
+<p>영어 화면으로 쓰면서 기록은 한국어로 남기는 게 가능합니다. 이미 기록된 문서는 언어를 바꿔도 그대로입니다.</p>
+<h2 id="쓰다-보면">쓰다 보면</h2>
+<h3 id="일지가-안-쌓여요">일지가 안 쌓여요</h3>
+<p>가장 흔한 원인은 <b>터미널에서 에이전트를 쓰는데 플러그인을 안 깐 경우</b>입니다. <code>AGENTS.md</code> 규칙만으로는 모델이 긴 세션 끝에 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인을 설치</a>하면 세션 종료 훅이 걸려 구조적으로 남습니다.</p>
+<p>빠진 게 있는지는 <b>오늘 현황의 정직성 감사</b>가 알려 줍니다 — 관측된 변경 중 어느 일지에도 안 적힌 파일을 보여 줍니다. (<a href="/wiki/troubleshooting">자세히</a>)</p>
+<h3 id="일지를-고쳐도-되나요">일지를 고쳐도 되나요?</h3>
+<p>됩니다. 평범한 마크다운이고, 고치면 앱이 알아서 다시 읽습니다. 다만 <b>에이전트에게는 기존 일지를 고치지 말라</b>고 규칙이 걸려 있습니다 — 이력이 조용히 바뀌면 신뢰할 수 없게 되니까요. 에이전트는 새 일지를 쓰고 <code>related</code> 로 잇습니다.</p>
+<h3 id="일지가-너무-많아지면요">일지가 너무 많아지면요?</h3>
+<p>날짜별로 접히고, 검색·필터가 있고, 회고가 구간별로 요약해 줍니다. <b>「검증됨」</b> 으로 걸러 사람이 확인한 것만 볼 수도 있습니다. 그리고 일지는 지워도 됩니다 — 그냥 파일입니다.</p>
+<h3 id="앱을-지우면-기록은요">앱을 지우면 기록은요?</h3>
+<p><b>남습니다.</b> 기록은 전부 프로젝트 폴더 안의 마크다운이고, 앱의 데이터베이스는 화면을 빠르게 그리기 위한 캐시일 뿐입니다.</p>
+<h3 id="여러-프로젝트를-동시에-쓸-수-있나요">여러 프로젝트를 동시에 쓸 수 있나요?</h3>
+<p>됩니다. <code>⌘T</code> 로 프로젝트 탭을 열고 <code>⌘P</code> 로 전환합니다. 창을 여러 개 띄워도 됩니다. (<a href="/wiki/workspace">자세히</a>)</p>
+<h3 id="에이전트를-여러-개-섞어-써도-되나요">에이전트를 여러 개 섞어 써도 되나요?</h3>
+<p>됩니다. 일지에 누가 어느 모델로 했는지 함께 적히고, 회고의 <b>「에이전트 기여」</b> 가 분포를 보여 줍니다. (<a href="/wiki/agents">자세히</a>)</p>
+<h3 id="agents-md-를-지워도-되나요"><code>AGENTS.md</code> 를 지워도 되나요?</h3>
+<p>지우면 <b>에이전트가 기록 규칙을 못 봅니다</b> — 일지가 끊깁니다. 이미 여러분이 쓰던 <code>AGENTS.md</code> 가 있었다면 걱정 마세요, 앱은 <code>&lt;!-- oculpm:begin --&gt;</code> 블록만 소유하고 나머지는 건드리지 않습니다.</p>
+<h3 id="앱을-항상-켜-둬야-하나요">앱을 항상 켜 둬야 하나요?</h3>
+<p>파일 변경을 관측하려면 켜져 있어야 합니다. 설정에서 <b>「창 닫기 = 메뉴바로 최소화」</b> 를 켜면 창을 닫아도 메뉴바에 남아 계속 관측합니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>앱이 꺼져 있어도 에이전트는 일지를 씁니다 (규칙은 <code>AGENTS.md</code> 에 있으니까요). 앱이 놓치는 건 <i>파일 변경 관측</i>과 그에 딸린 변경 diff·정직성 감사입니다.</p></div></div>
+<h2 id="여기-없는-질문이라면">여기 없는 질문이라면</h2>
+<p><a href="/wiki/troubleshooting">문제 해결</a>을 먼저 보시고, 그래도 없으면 <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/getting-started"><span>← 이전</span><b>시작하기</b></a>
+<a class="wk-pg next" href="/wiki/screens"><span>다음 →</span><b>화면 둘러보기</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

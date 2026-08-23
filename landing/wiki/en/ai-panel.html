@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent Panel — Ocul-PM Wiki</title>
+<meta name="description" content="Ask several LLMs with the same context — context chips, the token badge, planner action proposals." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/ai-panel" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/ai-panel" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/ai-panel" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Agent Panel — Ocul-PM Wiki" />
+<meta property="og:description" content="Ask several LLMs with the same context — context chips, the token badge, planner action proposals." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link on" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/ai-panel">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Agent Panel</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#what-s-different-context-comes-along">What's different — context comes along</a><a href="#token-badge-see-the-cost-before-you-send">Token badge — see the cost before you send</a><a href="#planner-action-proposals">Planner action proposals</a><a href="#picking-models-and-history">Picking models and history</a><a href="#automatic-work-context">Automatic work context</a><a href="#how-this-differs-from-in-app-claude-code">How this differs from in-app Claude Code</a><a href="#next-steps">Next steps</a></nav>
+      <p><b>Agent</b> in the sidebar (<code>⌘\</code>) is where you talk to several LLM providers. If in-app Claude Code is where code gets <i>changed</i>, this is where things get <i>asked and sorted out</i>.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>This screen calls providers <b>directly with your API key</b>. Without a key you get a prompt to add one instead of the chat — add it in <a href="/wiki/en/settings">Settings</a>. Journaling itself needs no key.</p></div></div>
+<h2 id="what-s-different-context-comes-along">What's different — context comes along</h2>
+<p>There's one difference from a generic chatbot. <b>You can attach this project's context to the question.</b></p>
+<p>Toggle it with the chips above the input:</p>
+<div class="wk-table"><table><thead><tr><th>Chip</th><th>What it attaches</th></tr></thead><tbody><tr><td><b>Code</b></td><td>Code passages semantically near your question (chosen by local search)</td></tr><tr><td><b>Journal</b></td><td>Recent entries</td></tr><tr><td><b>Planner</b></td><td>Current plan items and their status</td></tr><tr><td><b>git</b></td><td>Recent commit flow</td></tr></tbody></table></div>
+<p>Which is why these questions actually get answered:</p>
+<ul><li>"Summarize this project's structure at a glance"</li><li>"Based on recent entries, suggest what to do next"</li><li>"Summarize planner progress and call out the risks"</li><li>"Review the recent commit flow"</li></ul>
+<p>Those four sit on the first screen as buttons.</p>
+<h2 id="token-badge-see-the-cost-before-you-send">Token badge — see the cost before you send</h2>
+<p>An <b>estimated input token</b> count sits beside the input. Click it and you get a per-item breakdown — system prompt, N code passages, journal, planner, action protocol.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><b>Every send re-transmits the context plus the entire conversation history.</b> The longer a conversation runs, the more each send costs. When the subject changes, starting a new conversation is cheaper.</p></div></div>
+<p>The badge is a heuristic estimate (±30%). It's for <i>calibration</i>, not an exact bill.</p>
+<h2 id="planner-action-proposals">Planner action proposals</h2>
+<p>This is what makes the screen special. When something in the conversation warrants a change to the plan, the model emits a <b>proposal card</b>:</p>
+<div class="wk-table"><table><thead><tr><th>Proposal</th><th>Meaning</th></tr></thead><tbody><tr><td>🗂 Create plan</td><td>A new planner document</td></tr><tr><td>➕ Add items</td><td>Add work to an existing plan</td></tr><tr><td>✅ Change status</td><td>Move an item's glyph</td></tr><tr><td>✏️ Rename item</td><td></td></tr><tr><td>🗑 Remove item</td><td></td></tr></tbody></table></div>
+<p><b>Nothing happens until you approve.</b> Click and it's actually applied to the planner file, and the card flips to <b>✓ Applied</b>. The model does not rewrite your plan on its own.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Ask something like "look at what I did this week and draft next sprint's items" and it reads the journal context and proposes plan items. Approve only the ones you like.</p></div></div>
+<h2 id="picking-models-and-history">Picking models and history</h2>
+<ul><li><b>Model select</b> — switch per message, beside the input. Only providers you have keys for appear</li><li><b>New conversation / History</b> — reopen past conversations</li><li><b>Stop</b> — cut off a long answer</li><li><code>⏎</code> sends · <code>⇧⏎</code> newline</li></ul>
+<h2 id="automatic-work-context">Automatic work context</h2>
+<p>Turn on <b>"Inject journal and rules automatically"</b> under Settings → Indexing &amp; RAG and recent entries plus the AGENTS rules go into every conversation without touching the chips. Change sessions or models and the direction of work carries over.</p>
+<p>The number of entries injected is adjustable — more context, more tokens. Set it to 0 to inject rules only.</p>
+<h2 id="how-this-differs-from-in-app-claude-code">How this differs from in-app Claude Code</h2>
+<div class="wk-table"><table><thead><tr><th></th><th>Agent panel</th><th>In-app Claude Code</th></tr></thead><tbody><tr><td>Purpose</td><td>Asking and sorting out</td><td>Actually changing code</td></tr><tr><td>Cost</td><td>Your API key</td><td>Claude subscription</td></tr><tr><td>Providers</td><td>Several (Anthropic, OpenAI, Gemini, OpenRouter, NIM)</td><td>Claude</td></tr><tr><td>Edits files</td><td>No (planner proposals only after approval)</td><td>Yes</td></tr></tbody></table></div>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>To actually have code changed → <a href="/wiki/en/claude-code">Claude Code</a></li><li>Keys, models, fallback chains → <a href="/wiki/en/settings">Settings</a></li><li>Where proposals land → <a href="/wiki/en/planner">Planner</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/agents"><span>← Previous</span><b>Other Agents</b></a>
+<a class="wk-pg next" href="/wiki/en/workspace"><span>Next →</span><b>Windows, Tabs, Terminal, Code</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

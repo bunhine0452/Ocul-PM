@@ -1,7 +1,7 @@
 ---
 title: 문제 해결
 desc: 일지가 안 쌓일 때, 앱 안 Claude Code 가 이상할 때, 그 밖의 자주 겪는 불편 모음.
-order: 3
+order: 13
 updated: 2026-08-16
 ---
 

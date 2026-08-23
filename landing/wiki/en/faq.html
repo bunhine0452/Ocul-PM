@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FAQ — Ocul-PM Wiki</title>
+<meta name="description" content="Where first-time users actually get stuck — who writes the entries, does it cost money, should I commit .oculpm, what is a workday." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/faq" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/faq" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/faq" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="FAQ — Ocul-PM Wiki" />
+<meta property="og:description" content="Where first-time users actually get stuck — who writes the entries, does it cost money, should I commit .oculpm, what is a workday." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link on" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/faq">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>FAQ</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#what-does-this-do">What does this do</a><a href="#money-and-privacy">Money and privacy</a><a href="#git-and-teams">Git and teams</a><a href="#concepts-i-find-confusing">Concepts I find confusing</a><a href="#as-you-use-it">As you use it</a><a href="#not-answered-here">Not answered here?</a></nav>
+      <p>The questions that actually come up in the first few days. The confusing parts and the scary parts first.</p>
+<h2 id="what-does-this-do">What does this do</h2>
+<h3 id="in-one-line">In one line</h3>
+<p><b>It records what AI agents did to your code, in a form a human can read.</b></p>
+<p>A commit message tells you <i>what changed</i>. Ocul-PM records <i>why it was done that way, what was tried and failed, and how it was verified</i>.</p>
+<h3 id="do-i-have-to-write-the-entries">Do I have to write the entries?</h3>
+<p><b>No. Agents write them.</b> You just read.</p>
+<p>Adding a project creates an <code>AGENTS.md</code> rules file at the root, and agents like Claude Code, Cursor, and Gemini CLI read it. The rule is: "when you finish a unit of work, leave an entry." You don't even have to ask.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>You <i>can</i> write entries by hand — they're just markdown. But that isn't what the app is for.</p></div></div>
+<h3 id="is-this-a-tool-that-runs-the-ai-for-me">Is this a tool that runs the AI for me?</h3>
+<p>Either way works. You can run Claude Code inside the app, or <b>keep using your terminal exactly as you do now and just receive the records</b>. As long as the app is open, work done in a terminal gets picked up too.</p>
+<h2 id="money-and-privacy">Money and privacy</h2>
+<h3 id="does-it-cost-anything">Does it cost anything?</h3>
+<p>The app is free, and <b>journaling itself needs no API key</b>. It watches file changes and reads markdown that agents wrote — that costs nothing.</p>
+<p>The only thing that costs money is <b>AI writing new prose</b>:</p>
+<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code map, retro metrics</td><td><b>Free</b> — all local</td></tr><tr><td>Retro narrative generation, Agent panel chat</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The retro's <b>"With Claude Code"</b> button hands the job to a terminal Claude Code session — it runs on your subscription with no API key, so you can produce a retro at no extra cost.</p></div></div>
+<h3 id="where-does-my-code-go">Where does my code go?</h3>
+<p>By default, <b>nowhere</b>. Even code-search embeddings are computed locally. Only three things leave the machine: LLM calls you configured, the update check, and Anthropic traffic when you use Claude Code in the app. No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
+<h3 id="does-it-work-offline">Does it work offline?</h3>
+<p>Yes. Records, timeline, change diffs, code search, code map, and retro metrics are all local. Only AI calls and the update check need the network.</p>
+<h3 id="what-about-windows-linux">What about Windows / Linux?</h3>
+<p>Right now it's <b>macOS (Apple Silicon) only</b>.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>That said, <code>.oculpm/</code> records are plain markdown and read fine anywhere. If you have Windows teammates, they can read committed entries without trouble.</p></div></div>
+<h2 id="git-and-teams">Git and teams</h2>
+<h3 id="should-i-commit-oculpm">Should I commit <code>.oculpm/</code>?</h3>
+<p><b>Yes, we recommend it — and the app sets it up for you.</b></p>
+<p>Adding a project appends a managed block to <code>.gitignore</code> that excludes only the cache-like files:</p>
+<pre class="wk-code"><code># oculpm:begin v1
+.oculpm/index/
+.oculpm/hooks/
+.oculpm/.lock
+.oculpm/.schema-version
+.oculpm/oculpm.log
+.oculpm.backup-*/
+# oculpm:end</code></pre>
+<p>So <b>entries, plans, discussions, and rules get committed; anything the app can rebuild does not.</b> Nothing for you to do.</p>
+<h3 id="do-teammates-see-it">Do teammates see it?</h3>
+<p>Commit and push and it's shared. Teammates can read the markdown on GitHub without the app; install the app and the same records render as screens.</p>
+<h3 id="won-t-it-cause-merge-conflicts">Won't it cause merge conflicts?</h3>
+<p>Entries are <b>one file per unit of work</b> with a timestamp in the name (<code>2337_fix_….md</code>), so they rarely collide. The planner is one file several people may touch, but its change log is <b>append-only</b> — if it does conflict, keeping both lines is the correct resolution.</p>
+<h3 id="what-if-i-don-t-want-entries-in-someone-else-s-repo">What if I don't want entries in someone else's repo?</h3>
+<p>Put <code>.oculpm/</code> in <code>.gitignore</code> wholesale and it stays local. The app doesn't care.</p>
+<h2 id="concepts-i-find-confusing">Concepts I find confusing</h2>
+<h3 id="what-s-a-workday">What's a "workday"?</h3>
+<p><b>You decide where the day boundary is.</b> The default is midnight, but that's awkward if you code into the small hours — work at 2am rolls into "tomorrow."</p>
+<p>Set <code>day_starts_at = "03:00"</code> in the project's <code>.oculpm/config.toml</code> and anything before 3am files under the previous day.</p>
+<h3 id="what-s-a-session">What's a "session"?</h3>
+<p>The app watches file changes and <b>opens a session when an agent starts working, closing it after things go quiet</b>. Roughly "one sitting." It's named like <code>20260821-002</code>, and entries are grouped by which session produced them.</p>
+<h3 id="journal-vs-planner-vs-discussions-what-s-the-difference">Journal vs Planner vs Discussions — what's the difference?</h3>
+<p>Different points on the timeline:</p>
+<div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Discussions</b></td><td><b>Before</b> deciding</td><td>Lay out options A/B/C and pick</td></tr><tr><td><b>Planner</b></td><td><b>Now</b></td><td>The current plan. Glyphs move as items progress</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why, and how it was verified</td></tr></tbody></table></div>
+<h3 id="why-are-there-two-language-settings">Why are there two language settings?</h3>
+<p>They're different. <b>UI language</b> is the text on screen; <b>AI writing language</b> is the language of entries, planner items, and retros the AI produces.</p>
+<p>You can run an English UI and keep records in Korean. Already-written documents don't change when you switch.</p>
+<h2 id="as-you-use-it">As you use it</h2>
+<h3 id="nothing-is-being-recorded">Nothing is being recorded</h3>
+<p>The most common cause is <b>using an agent in a terminal without the plugin installed</b>. <code>AGENTS.md</code> rules alone can be forgotten at the end of a long session. <a href="/wiki/en/claude-code">Install the plugin</a> and a session-end hook makes it structural.</p>
+<p>The <b>honesty audit on Today</b> tells you if anything slipped — it lists observed changes that no entry mentions. (<a href="/wiki/en/journal">Details</a>)</p>
+<h3 id="can-i-edit-entries">Can I edit entries?</h3>
+<p>Yes. They're plain markdown and the app re-reads them when you save. Note that <b>agents are told not to edit existing entries</b> — history that quietly changes can't be trusted. They write a new entry and link it with <code>related</code>.</p>
+<h3 id="what-if-there-are-too-many-entries">What if there are too many entries?</h3>
+<p>They collapse by date, there's search and filtering, and the retro summarizes by period. You can filter to <b>Verified</b> to see only what a human confirmed. And entries can be deleted — they're just files.</p>
+<h3 id="if-i-uninstall-the-app-do-i-lose-the-records">If I uninstall the app, do I lose the records?</h3>
+<p><b>No.</b> Everything lives as markdown inside the project folder; the app's database is only a cache for drawing screens quickly.</p>
+<h3 id="can-i-work-on-several-projects-at-once">Can I work on several projects at once?</h3>
+<p>Yes. <code>⌘T</code> opens a project tab, <code>⌘P</code> switches. Multiple windows work too. (<a href="/wiki/en/workspace">Details</a>)</p>
+<h3 id="can-i-mix-several-agents">Can I mix several agents?</h3>
+<p>Yes. Each entry records who did it with which model, and the retro's <b>Agent contributions</b> card shows the split. (<a href="/wiki/en/agents">Details</a>)</p>
+<h3 id="can-i-delete-agents-md">Can I delete <code>AGENTS.md</code>?</h3>
+<p>Delete it and <b>agents no longer see the journaling rules</b> — entries stop. If you already had your own <code>AGENTS.md</code>, don't worry: the app owns only the <code>&lt;!-- oculpm:begin --&gt;</code> block and leaves the rest alone.</p>
+<h3 id="does-the-app-have-to-stay-open">Does the app have to stay open?</h3>
+<p>To observe file changes, yes. Turn on <b>"Closing the window minimizes to the menu bar"</b> in Settings and it keeps watching after you close the window.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Agents still write entries when the app is closed — the rules live in <code>AGENTS.md</code>. What the app misses is <i>file-change observation</i>, and with it the change diffs and the honesty audit.</p></div></div>
+<h2 id="not-answered-here">Not answered here?</h2>
+<p>Check <a href="/wiki/en/troubleshooting">Troubleshooting</a> first, then open a <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub issue</a>.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/getting-started"><span>← Previous</span><b>Getting Started</b></a>
+<a class="wk-pg next" href="/wiki/en/screens"><span>Next →</span><b>Screen Tour</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

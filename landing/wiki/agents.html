@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>다른 에이전트 연동 — Ocul-PM 위키</title>
+<meta name="description" content="Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조와 규칙 파일 목록." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/agents" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/agents" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/agents" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="다른 에이전트 연동 — Ocul-PM 위키" />
+<meta property="og:description" content="Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조와 규칙 파일 목록." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link on" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/agents">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>다른 에이전트 연동</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</a><a href="#지원하는-규칙-파일">지원하는 규칙 파일</a><a href="#여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</a><a href="#규칙-원본-고치기">규칙 원본 고치기</a><a href="#규칙이-오래됐을-때">규칙이 오래됐을 때</a><a href="#자동-기록의-등급">자동 기록의 등급</a><a href="#여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</a><a href="#스킬-규칙-허브">스킬·규칙 허브</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p>Ocul-PM 은 Claude Code 전용이 아닙니다. <b><code>AGENTS.md</code> 를 읽는 에이전트라면 무엇이든</b> 일지를 남길 수 있고, 그 파일을 안 읽는 에이전트를 위해서는 각자의 규칙 파일에 얇은 위임 stub 을 깔아 둡니다.</p>
+<h2 id="왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</h2>
+<p>프로젝트를 추가하면 루트에 <code>AGENTS.md</code> 가 생깁니다. 여기에 기록 규칙 <b>본문 전체</b>가 들어갑니다 — 언제 기록하는지, 파일을 어디에 어떤 이름으로 두는지, 머리말에 무엇이 필요한지.</p>
+<p>Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 파일을 <b>네이티브로</b> 읽습니다. 그래서 별도 설치 없이도 규칙이 전달됩니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>초기에는 규칙 원본을 <code>.oculpm/agents/_template.md</code> 에만 두었는데, 외부 LLM 들이 그 파일을 자발적으로 읽지 않는다는 것이 도그푸딩에서 드러났습니다. 그래서 루트 <code>AGENTS.md</code> 를 1차 표면으로 삼고, 나머지 어댑터는 <code>@AGENTS.md</code> 를 가리키는 stub 으로 줄였습니다.</p></div></div>
+<h2 id="지원하는-규칙-파일">지원하는 규칙 파일</h2>
+<p>설정 → ocul-pm → 에이전트 탭에서 켜고 끕니다. 켜면 해당 경로에 파일이 생기고, 규칙이 바뀌면 함께 갱신됩니다.</p>
+<div class="wk-table"><table><thead><tr><th>에이전트</th><th>규칙 파일</th></tr></thead><tbody><tr><td>공용 (Claude Code · Codex CLI 등)</td><td><code>AGENTS.md</code></td></tr><tr><td>Claude Code</td><td><code>.claude/CLAUDE.md</code></td></tr><tr><td>Cursor</td><td><code>.cursor/rules/ocul-pm.mdc</code></td></tr><tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr><tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code></td></tr><tr><td>Windsurf</td><td><code>.windsurf/rules/ocul-pm.md</code></td></tr><tr><td>Cline</td><td><code>.clinerules/ocul-pm.md</code></td></tr><tr><td>Zed</td><td><code>.rules</code></td></tr><tr><td>aider</td><td><code>CONVENTIONS.md</code></td></tr><tr><td>Antigravity</td><td><code>.agent/rules/ocul-pm.md</code></td></tr></tbody></table></div>
+<h2 id="여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</h2>
+<p>규칙 파일 중에는 <b>여러분도 같이 쓰는 파일</b>이 있습니다 — <code>AGENTS.md</code>, <code>.claude/CLAUDE.md</code>, <code>GEMINI.md</code>, <code>.github/copilot-instructions.md</code>, <code>CONVENTIONS.md</code>, <code>.rules</code> 가 그렇습니다.</p>
+<p>이 파일들에서 앱은 <b>마커로 감싼 블록만 소유</b>합니다:</p>
+<pre class="wk-code"><code>&lt;!-- oculpm:begin v1 --&gt;
+… 앱이 관리하는 규칙 …
+&lt;!-- oculpm:end --&gt;</code></pre>
+<p>블록 <b>바깥</b>에 적은 내용은 규칙을 갱신해도 그대로 보존됩니다. 여러분의 코딩 컨벤션과 앱의 기록 규칙이 한 파일에서 공존할 수 있습니다.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>반대로 <code>.cursor/rules/ocul-pm.mdc</code> · <code>.windsurf/rules/ocul-pm.md</code> · <code>.clinerules/ocul-pm.md</code> · <code>.agent/rules/ocul-pm.md</code> 는 앱 전용 파일이라 <b>통째로 덮어씁니다.</b> 이 경로에는 개인 규칙을 적지 마세요.</p></div></div>
+<h2 id="규칙-원본-고치기">규칙 원본 고치기</h2>
+<p>규칙 문구 자체를 바꾸고 싶다면 <code>.oculpm/agents/_template.md</code> 를 고칩니다. 이게 마스터고, 저장하면 켜 둔 어댑터 전부로 자동 전파됩니다 — 한 곳만 고치면 Cursor 도 Claude Code 도 새 규칙을 받습니다.</p>
+<p>특정 에이전트에게만 다른 문구를 주려면 <code>.oculpm/agents/per-agent/</code> 아래에 그 에이전트용 파일을 두면 됩니다.</p>
+<h2 id="규칙이-오래됐을-때">규칙이 오래됐을 때</h2>
+<p>앱을 업데이트하면 규칙 규격이 올라갈 수 있습니다. 설정 → ocul-pm → 에이전트 탭의 <b>「규칙 다시 보내기」</b> 로 최신 규격을 다시 깔 수 있습니다. 감지 버튼을 누르면 이 프로젝트에서 쓰이는 것으로 보이는 에이전트를 추려 줍니다.</p>
+<h2 id="자동-기록의-등급">자동 기록의 등급</h2>
+<p>같은 "일지를 남긴다" 라도 확실성이 다릅니다:</p>
+<div class="wk-table"><table><thead><tr><th>방식</th><th>확실성</th></tr></thead><tbody><tr><td>앱 안 Claude Code</td><td><b>높음</b> — 기록 도구(MCP)가 세션에 직접 물려 있음</td></tr><tr><td>터미널 Claude Code + 플러그인</td><td><b>높음</b> — 세션 종료 훅이 구조적으로 걸림</td></tr><tr><td>그 외 에이전트 (규칙 파일만)</td><td><b>보통</b> — 모델이 규칙을 기억해 주는 만큼</td></tr></tbody></table></div>
+<p>세 번째 등급이라면 <b>오늘 현황의 <a href="/wiki/journal">정직성 감사</a></b> 를 가끔 확인하세요. 빠뜨린 변경이 있으면 거기 뜹니다.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>Claude Code 를 쓴다면 플러그인 설치가 가장 큰 차이를 만듭니다 — <a href="/wiki/claude-code">Claude Code 연동</a>의 두 줄이면 끝납니다.</p></div></div>
+<h2 id="여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</h2>
+<p>문제 없습니다. 일지 머리말에 <code>agent.id</code> 와 모델명이 함께 적히므로, 나중에 누가 무엇을 했는지 구분됩니다. 회고의 <b>「에이전트 기여」</b> 카드가 그 분포를 보여 줍니다.</p>
+<h2 id="스킬-규칙-허브">스킬·규칙 허브</h2>
+<p>사이드바의 <b>스킬·규칙</b> 화면은 위의 내용을 앱 안에서 만지는 곳입니다. 탭이 다섯입니다.</p>
+<h3 id="스킬">스킬</h3>
+<p><code>SKILL.md</code> 파일 하나가 스킬 하나입니다. 에이전트가 상황에 맞는 스킬을 <b>스스로 발동</b>하는데, 그 기준이 되는 것이 frontmatter 의 <code>description</code> 입니다 — 그래서 설명을 잘 쓰는 게 중요합니다.</p>
+<ul><li><b>프로젝트 / 전역</b> — 이 프로젝트에만(<code>.claude/skills/</code>) 둘지, 모든 프로젝트에서 쓸지(<code>~/.claude/skills/</code>). 서로 복사할 수 있습니다</li><li><b>비활성화</b> — <code>.claude/skills/.disabled/</code> 로 옮겨 로드에서 뺍니다. <b>파일은 지워지지 않습니다</b></li><li><b>편집</b> — 앱 안에서 바로 고치고 <code>⌘S</code> 로 저장</li><li><b>새 스킬</b> — 빈 스킬을 만들어 시작</li></ul>
+<h3 id="샵-추천-스킬">샵 (추천 스킬)</h3>
+<p>검증 습관을 만들어 주는 스킬을 <b>원클릭으로 설치</b>합니다. <code>self-audit</code> 처럼 에이전트가 스스로를 점검하게 하는 것들입니다.</p>
+<h3 id="규칙">규칙</h3>
+<p>앞에서 다룬 어댑터별 규칙 파일을 켜고 끄고, 원본을 고치는 탭입니다.</p>
+<h3 id="훅">훅</h3>
+<p>Claude Code 훅 연동입니다. <b>훅이 켜지면 세션의 시작·종료가 휴리스틱이 아니라 실측 신호로 기록됩니다</b> — 앱이 "파일이 조용해졌으니 끝났나 보다" 하고 추측하는 대신, 에이전트가 직접 알려 줍니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>세션 종료 시의 <b>일지 자동 초안</b>(과금 있음)과 MCP 도구 등록은 이 탭이 아니라 설정 → ocul-pm → 에이전트 연동에서 관리합니다.</p></div></div>
+<h3 id="플러그인">플러그인</h3>
+<p>플러그인이 무엇을 깔아 주는지 — 커맨드·도구·스킬 목록을 확인합니다.</p>
+<h2 id="다음-걸음">다음 걸음</h2>
+<ul><li>Claude Code 를 쓴다면 → <a href="/wiki/claude-code">Claude Code 연동</a></li><li>규칙이 잘 도는지 확인하려면 → <a href="/wiki/journal">작업 일지</a>의 정직성 감사</li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/claude-code"><span>← 이전</span><b>Claude Code 연동</b></a>
+<a class="wk-pg next" href="/wiki/ai-panel"><span>다음 →</span><b>에이전트 패널</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings — Ocul-PM Wiki</title>
+<meta name="description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/settings" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/settings" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/settings" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Settings — Ocul-PM Wiki" />
+<meta property="og:description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link on" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/settings">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Settings</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#appearance">Appearance</a><a href="#llm">LLM</a><a href="#indexing-rag">Indexing &amp; RAG</a><a href="#graph">Graph</a><a href="#notion-export">Notion export</a><a href="#diagnostics-updates">Diagnostics · Updates</a><a href="#ocul-pm">ocul-pm</a><a href="#next-steps">Next steps</a></nav>
+      <p><code>⌘,</code> opens it. Eight tabs, mixing things you set once with things you may never open.</p>
+<div class="wk-table"><table><thead><tr><th>Tab</th><th>When to open it</th></tr></thead><tbody><tr><td><b>Appearance</b></td><td>Once — theme, text size, menu bar</td></tr><tr><td><b>LLM</b></td><td>Only for AI features — keys, models, fallbacks</td></tr><tr><td><b>ocul-pm</b></td><td>Managing agent rules, plugin install instructions</td></tr><tr><td><b>Indexing &amp; RAG</b></td><td>When search isn't behaving as expected</td></tr><tr><td><b>Graph</b></td><td>When the code map is too dense or too sparse</td></tr><tr><td><b>Data</b></td><td>Export and cleanup</td></tr><tr><td><b>Diagnostics</b></td><td>When reporting a problem</td></tr><tr><td><b>Updates</b></td><td>Manual check, past release notes</td></tr></tbody></table></div>
+<h2 id="appearance">Appearance</h2>
+<h3 id="theme">Theme</h3>
+<p>A two-layer system: <b>Light / Dark / System</b>, with <b>preset themes</b> on top.</p>
+<ul><li>5 presets — Solarized · Sepia · Nord · Dracula · High Contrast</li><li>6 accent colors — Green (default) · Blue · Purple · Orange · Rose · Teal</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><b>Choosing a preset disables accent selection.</b> Presets bring a whole color system of their own. To change only the accent, stay on Light/Dark/System without a preset.</p></div></div>
+<h3 id="two-text-sizes">Two text sizes</h3>
+<p><b>App scale</b> and <b>terminal font size</b> are separate.</p>
+<div class="wk-table"><table><thead><tr><th></th><th>Unit</th><th>Applies to</th></tr></thead><tbody><tr><td>Text size</td><td>Scale (%)</td><td>The whole app — like browser zoom</td></tr><tr><td>Terminal font size</td><td>px</td><td>Terminal screen, dock, detached windows</td></tr></tbody></table></div>
+<p>The terminal is in px because a fixed-width grid needs px precision more than a percentage. Inside the terminal, <code>⌘+</code> / <code>⌘−</code> adjust it and <code>⇧⌘0</code> resets.</p>
+<h3 id="two-languages">Two languages</h3>
+<p><b>UI language</b> (on-screen text) and <b>AI writing language</b> (the language of entries, planner items, and retros the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.</p>
+<h3 id="menu-bar-external-editor">Menu bar · external editor</h3>
+<p>Menu bar residency and external editor wiring are covered in <a href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>.</p>
+<h2 id="llm">LLM</h2>
+<p>Needed only for AI features (retro narrative generation, Agent panel chat). <b>Journaling itself needs no key.</b></p>
+<h3 id="api-keys">API keys</h3>
+<p><b>Stored only in the OS keychain</b> — never in the app database or a file. The status (set / unset) is cached locally, so opening Settings doesn't trigger a keychain prompt; press <b>Verify against keychain</b> only when you really want to check.</p>
+<h3 id="providers-and-models">Providers and models</h3>
+<p>Pick a default provider, and optionally override the model per provider. Leave it blank to use the built-in default.</p>
+<ul><li><b>OpenRouter</b> — hundreds of models over an OpenAI-compatible API. Model id example: <code>openai/gpt-4o</code></li><li><b>NIM</b> — the OpenAI-compatible endpoint at <code>integrate.api.nvidia.com</code></li></ul>
+<h3 id="fallback-chain">Fallback chain</h3>
+<p>When the default model call fails, these are retried top to bottom. One <code>provider:model</code> per line.</p>
+<pre class="wk-code"><code>openai:gpt-4o-mini
+anthropic:claude-3.5-haiku-latest
+openrouter:openai/gpt-4o</code></pre>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you run retros during hours when rate limits bite, a fallback chain makes a real difference.</p></div></div>
+<h3 id="generation">Generation</h3>
+<p>Temperature (lower is focused, higher is creative), max output tokens, and a system prompt prepended to every chat.</p>
+<h2 id="indexing-rag">Indexing &amp; RAG</h2>
+<p>The tab to open when code search isn't behaving.</p>
+<ul><li><b>Auto-index on change</b> — when files change, only the changed files are indexed. To rebuild from scratch, use <b>Rebuild index</b></li><li><b>Chunking</b> — <b>larger</b> chunks mean richer context per snippet, <b>smaller</b> ones mean sharper search. Overlap has to be smaller than the chunk size</li><li><b>RAG context</b> — how many top chunks go to the model per chat message</li><li><b>Work context</b> — automatically inject recent entries and the AGENTS rules into chat so direction survives a change of session or model. More entries means richer context but more tokens (0 injects rules only)</li><li><b>File scan</b> — max file size, extra exclude patterns (gitignore-style, applied on top of <code>.gitignore</code>)</li></ul>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>Scan setting changes take effect <b>at the next reindex</b>. Rebuild the index to apply them now.</p></div></div>
+<h2 id="graph">Graph</h2>
+<p>Defaults for the code map — whether isolated files show by default, and the <b>auto-group threshold</b> (directories with at least this many files become collapsible groups).</p>
+<p>In a big repo, lower the threshold when the map is too dense; raise it when everything is lumped together.</p>
+<h2 id="notion-export">Notion export</h2>
+<p>Exports retros and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. <b>That token also lives only in the OS keychain.</b></p>
+<h2 id="diagnostics-updates">Diagnostics · Updates</h2>
+<ul><li><b>Diagnostics</b> — the information to attach when reporting a problem. DevTools opens from here too</li><li><b>Updates</b> — manual check and past release notes (GitHub releases). Normally the app updates itself</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>An update restart relaunches the Claude Code adapter along with the app. That's why restarts are deferred while an answer is streaming — the conversation is on disk and comes back, but the answer in flight at that moment is lost.</p></div></div>
+<h2 id="ocul-pm">ocul-pm</h2>
+<p>The tab for managing agent rules — choose which agents' rules files to install, use <b>Resend rules</b> when the spec has moved, and <b>Detect</b> to narrow to agents that appear to be in use here. The plugin install commands and the Claude Desktop MCP snippet live here too, with copy buttons. (<a href="/wiki/en/agents">Details</a>)</p>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>Rules files and adapters → <a href="/wiki/en/agents">Other Agents</a></li><li>Where data is stored → <a href="/wiki/en/data">Data &amp; File Layout</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/workspace"><span>← Previous</span><b>Windows, Tabs, Terminal, Code</b></a>
+<a class="wk-pg next" href="/wiki/en/troubleshooting"><span>Next →</span><b>Troubleshooting</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

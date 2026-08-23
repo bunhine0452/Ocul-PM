@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>작업 일지 — Ocul-PM 위키</title>
+<meta name="description" content="일지가 언제 어떻게 쌓이는지, 파일 구조, 변경 diff, 세션, 그리고 정직성 감사." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/journal" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/journal" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/journal" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:title" content="작업 일지 — Ocul-PM 위키" />
+<meta property="og:description" content="일지가 언제 어떻게 쌓이는지, 파일 구조, 변경 diff, 세션, 그리고 정직성 감사." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">기능</a>
+      <a href="/keynote">키노트</a>
+      <a href="/wiki" style="color: var(--ink);">위키</a>
+      <a href="/plugin">플러그인</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki">위키</a></div>
+    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
+    <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
+    <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
+    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link on" href="/wiki/journal">작업 일지</a>
+    <a class="wk-side-link" href="/wiki/planner">플래너</a>
+    <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
+    <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
+    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/settings">설정</a>
+    <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
+    <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
+    <a class="wk-side-link" href="/wiki/shortcuts">단축키</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/en/journal">English →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src" target="_blank" rel="noreferrer">이 문서 고치기 →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>작업 일지</h1>
+      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#언제-쌓이나-다섯-순간">언제 쌓이나 — 다섯 순간</a><a href="#파일-구조">파일 구조</a><a href="#일지-한-편에-들어가는-것">일지 한 편에 들어가는 것</a><a href="#변경-diff-그때-실제로-바뀐-것">변경 diff — 그때 실제로 바뀐 것</a><a href="#세션-일지를-묶는-단위">세션 — 일지를 묶는 단위</a><a href="#정직성-감사">정직성 감사</a><a href="#일지를-다루는-법">일지를 다루는 법</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p>작업 일지는 이 앱의 존재 이유입니다. 에이전트가 무엇을 왜 했는지를 <b>사람이 읽는 마크다운</b>으로 남깁니다. 커밋 메시지보다 길고, 회의록보다 짧습니다.</p>
+<h2 id="언제-쌓이나-다섯-순간">언제 쌓이나 — 다섯 순간</h2>
+<p>에이전트는 작업 하나가 끝날 때마다 기록합니다. <code>AGENTS.md</code> 규칙이 정의하는 순간은 다섯입니다:</p>
+<div class="wk-table"><table><thead><tr><th>트리거</th><th>언제</th></tr></thead><tbody><tr><td><b>bug</b></td><td>재현되던 결함이 해소된 것을 직접 확인했을 때</td></tr><tr><td><b>feature</b></td><td>새 기능의 첫 happy-path 가 동작할 때</td></tr><tr><td><b>refactor</b></td><td>기능은 그대로 두고 구조를 바꾼 묶음이 끝나고 테스트가 그린일 때</td></tr><tr><td><b>error</b></td><td>진단·수정 사이클 한 번 — <b>실패해도 기록합니다</b></td></tr><tr><td><b>chore</b></td><td>설정·문서 등 비기능 변경이 끝났을 때</td></tr></tbody></table></div>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p><code>error</code> 가 실패까지 기록하는 게 핵심입니다. "무엇을 시도했고 왜 안 됐는가" 가 남아야 다음 세션의 에이전트가 같은 벽에 다시 부딪히지 않습니다.</p></div></div>
+<h2 id="파일-구조">파일 구조</h2>
+<pre class="wk-code"><code>.oculpm/journal/20260821/Bugs/0010_bug_session-attribution.md
+                └ 워크데이  └ 분류   └ 시각 └ 종류 └ 이름</code></pre>
+<p>분류 폴더는 다섯 가지입니다 — <code>Bugs</code> · <code>Features_to_add</code> · <code>Errors</code> · <code>Refactors</code> · <code>Chores</code>.</p>
+<h2 id="일지-한-편에-들어가는-것">일지 한 편에 들어가는 것</h2>
+<p>머리말(frontmatter)에 기계가 읽는 사실이, 본문에 사람이 읽는 서술이 들어갑니다.</p>
+<pre class="wk-code"><code>---
+type: bug
+status: done
+difficulty: high
+created_at: "2026-08-21T00:10:14+09:00"
+session_id: "20260821-002"
+agent:
+  id: claude-code
+  version: claude-opus-5
+files_touched:
+  - path: "src/cache.rs"
+    op: update
+related: []
+tags: [dogfooding]
+---
+
+[x] 제목 한 줄
+
+## 발생 원인
+…
+## 해결 방법
+…
+## 검증
+어떻게 확인했는지 1~3줄</code></pre>
+<ul><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> ~ <code>superhigh</code> (선택)</li><li><b>본문 헤더 순서</b>는 종류마다 고정입니다: bug·error 는 <code>발생 원인</code> → <code>해결 방법</code>, refactor 는 <code>동기</code> → <code>변경 요약</code>, feature 는 <code>추가 기능</code> → <code>동작 흐름</code>. 공통으로 끝에 <b><code>## 검증</code></b> 이 필수입니다.</li></ul>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p><code>## 검증</code> 이 강제인 이유는 하나입니다 — "고쳤습니다" 와 "고쳤고 이렇게 확인했습니다" 의 신뢰도 차이가 크기 때문입니다. 나중에 그 일지를 읽는 사람(혹은 에이전트)이 재확인할 실마리가 됩니다.</p></div></div>
+<h2 id="변경-diff-그때-실제로-바뀐-것">변경 diff — 그때 실제로 바뀐 것</h2>
+<p>일지마다 <b>그 시점의 git diff 가 함께 보관</b>됩니다. 작업 일지 화면에서 일지를 열면 왼쪽에 서술, 오른쪽에 변경 파일 목록과 줄 단위 diff 가 뜹니다.</p>
+<p>나중에 그 파일이 몇 번 더 바뀌어도 <b>일지에 붙은 diff 는 그때 그대로</b>입니다. 커밋 여러 개에 흩어진 변경도 일지 하나로 묶여 보입니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p><code>이 일지에는 기록된 변경이 없어요</code> 가 뜬다면 대개 둘 중 하나입니다 — git 저장소가 아니거나, 적힌 파일 경로를 git 이력에서 못 찾은 경우. 그때는 화면 아래에서 현재 변경을 직접 확인할 수 있습니다.</p></div></div>
+<h2 id="세션-일지를-묶는-단위">세션 — 일지를 묶는 단위</h2>
+<p>앱은 파일이 바뀌는 것을 지켜보다 <b>세션</b>을 엽니다. 에이전트가 일하기 시작하면 열리고, 한동안 조용하면 닫힙니다. 세션 하나는 보통 "한 번 앉아서 한 일" 에 해당하고, <code>20260821-002</code> 처럼 날짜와 순번으로 불립니다.</p>
+<p>일지는 어느 세션의 산물인지로 묶입니다. 에이전트가 세션 번호를 직접 알 수 없는 경우(터미널에서 파일을 직접 쓰는 등)에도 앱이 <b>작성 시각으로 알아서 귀속</b>시키므로, 여러분이 신경 쓸 것은 없습니다.</p>
+<h2 id="정직성-감사">정직성 감사</h2>
+<p><b>오늘 현황</b>(<code>⌘1</code>) 화면 아래쪽에 가끔 뜨는 카드입니다. 앱이 실제로 관측한 파일 변경과, 일지에 적힌 <code>files_touched</code> 를 맞춰 보고 <b>어느 일지에도 안 적힌 변경</b>을 보여 줍니다.</p>
+<ul><li>오늘 바뀐 파일이 전부 어딘가에 기록돼 있으면 <b>카드가 아예 안 뜹니다</b> — 깨끗한 날에 소음을 내지 않습니다</li><li>임시 파일·에디터 부산물·에이전트 내부 상태 파일은 애초에 세지 않습니다</li><li>커버리지 80% 이상이면 「경미」, 50% 이상 「주의」, 그 아래 「심각」</li></ul>
+<p>이 카드가 자주 뜬다면 <a href="/wiki/claude-code">플러그인(훅 브리지)을 설치</a>하는 게 가장 확실한 해법입니다. 기록이 "모델이 규칙을 기억해 주는 만큼" 에서 "세션이 끝나면 구조적으로" 로 바뀝니다.</p>
+<h2 id="일지를-다루는-법">일지를 다루는 법</h2>
+<ul><li><b>검증 표시</b> — 사람이 읽고 맞다고 확인한 일지는 「검증됨」으로 걸러 볼 수 있습니다</li><li><b>직접 고치기</b> — 평범한 마크다운입니다. 에디터로 열어 고치면 앱이 알아서 다시 읽습니다</li><li><b>내보내기</b> — 회고 화면에서 구간을 골라 <code>.md</code> 로 묶어 내보낼 수 있습니다</li></ul>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p><code>.oculpm/index/</code> 안은 앱이 관리하는 캐시입니다 — 직접 고치지 마세요. 나머지(<code>journal/</code>·<code>planner/</code>·<code>discussion/</code>)는 전부 여러분의 파일입니다.</p></div></div>
+<h2 id="다음-걸음">다음 걸음</h2>
+<ul><li>계획 쪽은 어떻게 도는지 → <a href="/wiki/planner">플래너</a></li><li>쌓인 일지로 되돌아보기 → <a href="/wiki/retro">회고</a></li><li>일지가 안 쌓일 때 → <a href="/wiki/troubleshooting">문제 해결</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/today"><span>← 이전</span><b>오늘 현황</b></a>
+<a class="wk-pg next" href="/wiki/planner"><span>다음 →</span><b>플래너</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

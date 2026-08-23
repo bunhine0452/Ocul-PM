@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data &amp; File Layout — Ocul-PM Wiki</title>
+<meta name="description" content="The structure of the .oculpm folder, backup and moving, and what local-first actually means." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/data" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/data" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/data" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Data &amp; File Layout — Ocul-PM Wiki" />
+<meta property="og:description" content="The structure of the .oculpm folder, backup and moving, and what local-first actually means." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link on" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/data">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Data &amp; File Layout</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#the-principle-files-are-the-truth">The principle — files are the truth</a><a href="#oculpm-structure">`.oculpm/` structure</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
+      <h2 id="the-principle-files-are-the-truth">The principle — files are the truth</h2>
+<p>Every record Ocul-PM keeps is a <b>markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can be rebuilt from the files at any time. Which means:</p>
+<ul><li>delete the app and the records remain</li><li>you can commit records to git and share them with your team</li><li>you can read and edit them in an editor (they're ordinary markdown)</li></ul>
+<h2 id="oculpm-structure"><code>.oculpm/</code> structure</h2>
+<pre class="wk-code"><code>.oculpm/
+├─ journal/      work journal — .md by date and category
+│  └─ 20260816/
+│     ├─ Features_to_add/
+│     ├─ Bugs/
+│     └─ …
+├─ planner/      living plan documents .md
+├─ discussion/   pre-decision discussion documents .md
+├─ agents/       master template for the agent journaling rules
+└─ index/        app-managed cache (do not edit)</code></pre>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>index/</code> alone is the app's — don't edit or delete it by hand. Everything else is yours.</p></div></div>
+<h2 id="backup-and-moving">Backup and moving</h2>
+<p>Copy the folder. That's it. Move <code>.oculpm/</code> wholesale to the same project on another machine and the app reads it and rebuilds the cache. Including it in git is the simplest backup there is.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Adding a project also appends a managed block to <code>.gitignore</code> that excludes the cache-like paths (<code>index/</code>, <code>hooks/</code>, <code>.lock</code>, <code>.schema-version</code>, <code>oculpm.log</code>), so committing <code>.oculpm/</code> does the right thing with no setup.</p></div></div>
+<h2 id="what-lives-where">What lives where</h2>
+<div class="wk-table"><table><thead><tr><th>Data</th><th>Location</th><th>Nature</th></tr></thead><tbody><tr><td>Entries, plans, discussions</td><td>Project <code>.oculpm/</code></td><td>Source of truth (markdown)</td></tr><tr><td>AGENTS.md journaling rules</td><td>Project root</td><td>Source of truth</td></tr><tr><td>Screen cache, search index</td><td>App data folder (SQLite)</td><td>Derived — rebuildable</td></tr><tr><td>LLM API keys</td><td>macOS keychain</td><td>Never in the app DB or files</td></tr><tr><td>App settings</td><td>App data folder</td><td>—</td></tr></tbody></table></div>
+<h2 id="what-leaves-the-machine">What leaves the machine</h2>
+<p>Three things: ① LLM calls you configured yourself, ② the new-version check, ③ Anthropic traffic when you use in-app Claude Code (on your subscription). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/troubleshooting"><span>← Previous</span><b>Troubleshooting</b></a>
+<a class="wk-pg next" href="/wiki/en/shortcuts"><span>Next →</span><b>Shortcuts</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

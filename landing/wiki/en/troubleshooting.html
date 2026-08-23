@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Troubleshooting — Ocul-PM Wiki</title>
+<meta name="description" content="Nothing is being recorded, in-app Claude Code acting up, and the rest of the common friction." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/troubleshooting" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/troubleshooting" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/troubleshooting" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Troubleshooting — Ocul-PM Wiki" />
+<meta property="og:description" content="Nothing is being recorded, in-app Claude Code acting up, and the rest of the common friction." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link on" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/troubleshooting">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Troubleshooting</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#nothing-is-being-recorded">Nothing is being recorded</a><a href="#plugin-mcp-login-don-t-work-in-in-app-claude-code">`/plugin`, `/mcp`, `/login` don't work in in-app Claude Code</a><a href="#preparing-runtime-takes-a-long-time">"Preparing runtime" takes a long time</a><a href="#in-app-claude-code-says-i-m-not-logged-in">In-app Claude Code says I'm not logged in</a><a href="#i-didn-t-notice-it-was-waiting-for-approval">I didn't notice it was waiting for approval</a><a href="#i-m-worried-about-usage">I'm worried about usage</a><a href="#an-update-cut-off-the-conversation-i-was-having">An update cut off the conversation I was having</a><a href="#it-says-the-claude-code-process-died">It says the Claude Code process died</a><a href="#code-search-and-code-map-are-slow-at-first">Code search and code map are slow at first</a><a href="#a-new-conversation-isn-t-in-the-history-list">A new conversation isn't in the history list</a><a href="#not-listed-here">Not listed here?</a></nav>
+      <h2 id="nothing-is-being-recorded">Nothing is being recorded</h2>
+<p>Check in order:</p>
+<ol><li><b>Is the project actually tracked?</b> The project root needs a <code>.oculpm/</code> folder and <code>AGENTS.md</code>. If not, re-open the folder from the start screen.</li><li><b>Is this terminal Claude Code?</b> AGENTS.md alone can be forgotten by the model. <a href="/wiki/en/claude-code">Install the plugin (hook bridge)</a> and it becomes automatic.</li><li><b>Are the rules stale?</b> Use <b>Resend rules</b> in Settings → ocul-pm → Agents to reinstall the current spec.</li><li><b>Is it a different agent (Cursor, etc.)?</b> Enable that agent's rules file in Settings. Agents that read AGENTS.md work as-is.</li></ol>
+<h2 id="plugin-mcp-login-don-t-work-in-in-app-claude-code"><code>/plugin</code>, <code>/mcp</code>, <code>/login</code> don't work in in-app Claude Code</h2>
+<p>That's expected — the ACP protocol can't carry the CLI's interactive commands. Use the <b>terminal button</b> at the top right of the Claude Code screen to open a real <code>claude</code> and run them there. Full reasoning in <a href="/wiki/en/claude-code">Claude Code</a>.</p>
+<h2 id="preparing-runtime-takes-a-long-time">"Preparing runtime" takes a long time</h2>
+<p>The adapter is auto-installed on first launch only (npm, pinned version — a few minutes). After that it attaches immediately. Check status in Settings → ocul-pm → Integration.</p>
+<h2 id="in-app-claude-code-says-i-m-not-logged-in">In-app Claude Code says I'm not logged in</h2>
+<p>The app has no login screen — the adapter doesn't provide an auth flow. Run <code>claude</code> in a terminal and log in once; the app reuses those credentials.</p>
+<h2 id="i-didn-t-notice-it-was-waiting-for-approval">I didn't notice it was waiting for approval</h2>
+<p>When an agent stops for approval, a <b>blinking badge appears on the Claude Code row in the sidebar</b> (v2.11). You'll see it from any screen. The approval card shows the exact command to run or the content that will change, so you can read before clicking.</p>
+<h2 id="i-m-worried-about-usage">I'm worried about usage</h2>
+<p>The gauge in the Claude Code toolbar shows <b>today, weekly, and per-model</b> usage. Click it for reset times; typing <code>/usage</code> opens the same widget. This lookup costs no tokens.</p>
+<h2 id="an-update-cut-off-the-conversation-i-was-having">An update cut off the conversation I was having</h2>
+<p>An update restart relaunches the adapter process along with the app. <b>The conversation itself is on disk and comes back</b>, but the one answer streaming at that instant is lost. That's why the app defers update restarts while an answer is in flight.</p>
+<h2 id="it-says-the-claude-code-process-died">It says the Claude Code process died</h2>
+<p>Rarely the adapter exits and a banner appears (v2.11). <b>Reconnect</b> relaunches it and restores the conversation you were looking at.</p>
+<h2 id="code-search-and-code-map-are-slow-at-first">Code search and code map are slow at first</h2>
+<p>The first run downloads a local embedding model and indexes the project. After that only changes are refreshed, so it's fast. It's all local computation — your code doesn't leave the machine.</p>
+<h2 id="a-new-conversation-isn-t-in-the-history-list">A new conversation isn't in the history list</h2>
+<p>A conversation with no messages isn't listed — the moment you send the first message a real session is created and it appears.</p>
+<h2 id="not-listed-here">Not listed here?</h2>
+<p>Tell us in a <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub issue</a>. Attaching the information from Settings → Diagnostics helps us fix it faster.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/settings"><span>← Previous</span><b>Settings</b></a>
+<a class="wk-pg next" href="/wiki/en/data"><span>Next →</span><b>Data &amp; File Layout</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

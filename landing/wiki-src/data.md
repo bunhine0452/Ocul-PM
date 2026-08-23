@@ -1,7 +1,7 @@
 ---
 title: 데이터와 파일 구조
 desc: .oculpm 폴더의 구조, 백업과 이동, 로컬-우선이 실제로 뜻하는 것.
-order: 4
+order: 14
 updated: 2026-08-16
 ---
 

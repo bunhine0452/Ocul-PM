@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Other Agents — Ocul-PM Wiki</title>
+<meta name="description" content="Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills &amp; Rules hub." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/agents" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/agents" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/agents" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Other Agents — Ocul-PM Wiki" />
+<meta property="og:description" content="Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills &amp; Rules hub." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link on" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/agents">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Other Agents</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#why-agents-md-is-the-center">Why AGENTS.md is the center</a><a href="#supported-rules-files">Supported rules files</a><a href="#your-own-content-is-preserved">Your own content is preserved</a><a href="#editing-the-rules-themselves">Editing the rules themselves</a><a href="#when-the-rules-go-stale">When the rules go stale</a><a href="#degrees-of-automatic-recording">Degrees of automatic recording</a><a href="#mixing-several-agents">Mixing several agents</a><a href="#skills-rules-hub">Skills &amp; Rules hub</a><a href="#next-steps">Next steps</a></nav>
+      <p>Ocul-PM isn't Claude Code only. <b>Any agent that reads <code>AGENTS.md</code></b> can leave entries, and for agents that don't, a thin delegating stub is placed in their own rules file.</p>
+<h2 id="why-agents-md-is-the-center">Why AGENTS.md is the center</h2>
+<p>Adding a project creates <code>AGENTS.md</code> at the root. The <b>entire body</b> of the journaling rules lives there — when to record, where files go and what they're named, what the frontmatter needs.</p>
+<p>Claude Code, Codex CLI, Gemini CLI and many others read this file <b>natively</b>. That's how the rules arrive with no extra install.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Originally the rules only lived in <code>.oculpm/agents/_template.md</code>, and dogfooding showed external LLMs don't go read that file on their own. So the root <code>AGENTS.md</code> became the primary surface, and other adapters were reduced to stubs pointing at <code>@AGENTS.md</code>.</p></div></div>
+<h2 id="supported-rules-files">Supported rules files</h2>
+<p>Toggle these in Settings → ocul-pm → Agents. Turning one on creates the file at that path and keeps it updated as rules change.</p>
+<div class="wk-table"><table><thead><tr><th>Agent</th><th>Rules file</th></tr></thead><tbody><tr><td>Shared (Claude Code, Codex CLI, …)</td><td><code>AGENTS.md</code></td></tr><tr><td>Claude Code</td><td><code>.claude/CLAUDE.md</code></td></tr><tr><td>Cursor</td><td><code>.cursor/rules/ocul-pm.mdc</code></td></tr><tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr><tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code></td></tr><tr><td>Windsurf</td><td><code>.windsurf/rules/ocul-pm.md</code></td></tr><tr><td>Cline</td><td><code>.clinerules/ocul-pm.md</code></td></tr><tr><td>Zed</td><td><code>.rules</code></td></tr><tr><td>aider</td><td><code>CONVENTIONS.md</code></td></tr><tr><td>Antigravity</td><td><code>.agent/rules/ocul-pm.md</code></td></tr></tbody></table></div>
+<h2 id="your-own-content-is-preserved">Your own content is preserved</h2>
+<p>Some of these are files <b>you write in too</b> — <code>AGENTS.md</code>, <code>.claude/CLAUDE.md</code>, <code>GEMINI.md</code>, <code>.github/copilot-instructions.md</code>, <code>CONVENTIONS.md</code>, <code>.rules</code>.</p>
+<p>In those, the app <b>owns only the marked block</b>:</p>
+<pre class="wk-code"><code>&lt;!-- oculpm:begin v1 --&gt;
+… app-managed rules …
+&lt;!-- oculpm:end --&gt;</code></pre>
+<p>Anything <b>outside</b> the block survives a rules refresh. Your coding conventions and the app's journaling rules can share one file.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>By contrast <code>.cursor/rules/ocul-pm.mdc</code>, <code>.windsurf/rules/ocul-pm.md</code>, <code>.clinerules/ocul-pm.md</code>, and <code>.agent/rules/ocul-pm.md</code> are app-owned files and are <b>overwritten wholesale</b>. Don't put personal rules at those paths.</p></div></div>
+<h2 id="editing-the-rules-themselves">Editing the rules themselves</h2>
+<p>To change the wording, edit <code>.oculpm/agents/_template.md</code>. That's the master; saving propagates to every adapter you've enabled — fix it once and Cursor and Claude Code both get the new rules.</p>
+<p>To give one agent different wording, put a file for it under <code>.oculpm/agents/per-agent/</code>.</p>
+<h2 id="when-the-rules-go-stale">When the rules go stale</h2>
+<p>App updates can raise the rules spec. <b>Resend rules</b> in Settings → ocul-pm → Agents reinstalls the current spec. The detect button narrows the list to agents that appear to be in use in this project.</p>
+<h2 id="degrees-of-automatic-recording">Degrees of automatic recording</h2>
+<p>"Leaves entries" comes in different strengths:</p>
+<div class="wk-table"><table><thead><tr><th>Approach</th><th>Confidence</th></tr></thead><tbody><tr><td>In-app Claude Code</td><td><b>High</b> — recording tools (MCP) attached directly to the session</td></tr><tr><td>Terminal Claude Code + plugin</td><td><b>High</b> — a session-end hook fires structurally</td></tr><tr><td>Any other agent (rules file only)</td><td><b>Medium</b> — as much as the model remembers the rules</td></tr></tbody></table></div>
+<p>On that third tier, check the <b><a href="/wiki/en/journal">honesty audit</a></b> on Today now and then. Anything missed shows up there.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you use Claude Code, installing the plugin makes the biggest difference — two lines, in <a href="/wiki/en/claude-code">Claude Code</a>.</p></div></div>
+<h2 id="mixing-several-agents">Mixing several agents</h2>
+<p>No problem. Each entry's frontmatter records <code>agent.id</code> and the model name, so you can tell later who did what. The retro's <b>Agent contributions</b> card shows the distribution.</p>
+<h2 id="skills-rules-hub">Skills &amp; Rules hub</h2>
+<p>The <b>Skills &amp; Rules</b> screen in the sidebar is where you work all of the above from inside the app. It has five tabs.</p>
+<h3 id="skills">Skills</h3>
+<p>One <code>SKILL.md</code> file is one skill. Agents <b>invoke skills on their own</b> based on the <code>description</code> in the frontmatter — which is why writing a good description matters.</p>
+<ul><li><b>Project / Global</b> — keep it to this project (<code>.claude/skills/</code>) or make it available everywhere (<code>~/.claude/skills/</code>). You can copy between them</li><li><b>Disable</b> — moves it to <code>.claude/skills/.disabled/</code> so it isn't loaded. <b>The file is not deleted</b></li><li><b>Edit</b> — change it in the app and save with <code>⌘S</code></li><li><b>New skill</b> — start from an empty one</li></ul>
+<h3 id="shop">Shop</h3>
+<p>Install curated skills that build verification habits with one click — things like <code>self-audit</code>, which makes agents check their own work.</p>
+<h3 id="rules">Rules</h3>
+<p>Toggle the per-adapter rules files covered above, and edit the master.</p>
+<h3 id="hooks">Hooks</h3>
+<p>Claude Code hook integration. <b>With hooks on, session start and end are recorded from real signals instead of heuristics</b> — rather than the app guessing "files went quiet, must be done," the agent says so.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The <b>auto journal draft</b> at session end (which costs money) and MCP tool registration are managed in Settings → ocul-pm → Integration, not this tab.</p></div></div>
+<h3 id="plugin">Plugin</h3>
+<p>Shows what the plugin installs — the list of commands, tools, and skills.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>Using Claude Code → <a href="/wiki/en/claude-code">Claude Code</a></li><li>Checking that the rules are working → the honesty audit in <a href="/wiki/en/journal">Work Journal</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/claude-code"><span>← Previous</span><b>Claude Code</b></a>
+<a class="wk-pg next" href="/wiki/en/ai-panel"><span>Next →</span><b>Agent Panel</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

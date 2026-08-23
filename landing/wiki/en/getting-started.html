@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getting Started — Ocul-PM Wiki</title>
+<meta name="description" content="From installing Ocul-PM to your first work journal entry — about five minutes of setup." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/getting-started" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/getting-started" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/getting-started" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Getting Started — Ocul-PM Wiki" />
+<meta property="og:description" content="From installing Ocul-PM to your first work journal entry — about five minutes of setup." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link on" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/getting-started">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Getting Started</h1>
+      <p class="wk-updated">Last updated 2026-08-21</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#install">Install</a><a href="#add-a-project-and-start-tracking">Add a project and start tracking</a><a href="#see-your-first-entry">See your first entry</a><a href="#next-steps">Next steps</a></nav>
+      <h2 id="install">Install</h2>
+<ol><li>Grab the <code>.dmg</code> from <a href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">GitHub Releases</a> and drop it in Applications. macOS (Apple Silicon) only.</li><li>If macOS shows a confirmation dialog on first launch, click <b>Open</b>.</li><li>After that the app updates itself (Settings → Updates also has a manual check).</li></ol>
+<p>There's no account to create — open the app and you're at the start screen.</p>
+<h2 id="add-a-project-and-start-tracking">Add a project and start tracking</h2>
+<p>On the start screen, <b>Open an existing folder</b> and pick a folder with code in it. Tracking starts immediately, and two things appear inside the project:</p>
+<ul><li><code>.oculpm/</code> — where journal entries, plans, and discussions accumulate (all markdown)</li><li><code>AGENTS.md</code> — the journaling rules that tell agents "write an entry when you finish a unit of work"</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><code>AGENTS.md</code> is a file most agents read natively — Claude Code, Codex CLI, Gemini CLI, and others. When an agent works in a project that has one, it starts leaving entries with no further setup.</p></div></div>
+<h2 id="see-your-first-entry">See your first entry</h2>
+<p>Give an agent any task — in the app's Claude Code screen or in your terminal. When it finishes:</p>
+<ul><li>a new entry shows up in <b>Work Journal</b> (<code>⌘2</code>)</li><li>it lands in the flow on <b>Today</b> (<code>⌘1</code>)</li><li>and you can read the change line by line in <b>Changes</b> (<code>⌘5</code>)</li></ul>
+<p>Nothing showing up? Start with the first item in <a href="/wiki/en/troubleshooting">Troubleshooting</a>.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>Mostly use Claude Code in a terminal? → install the plugin (hook bridge) from <a href="/wiki/en/claude-code">Claude Code</a>. Journaling goes from "whatever the model remembers to do" to automatic.</li><li>Curious where and how data is stored? → <a href="/wiki/en/data">Data &amp; File Layout</a></li><li>Want the lay of the land first? → <a href="/wiki/en/screens">Screen Tour</a></li></ul>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en"><span>← Previous</span><b>Ocul-PM Wiki</b></a>
+<a class="wk-pg next" href="/wiki/en/faq"><span>Next →</span><b>FAQ</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
