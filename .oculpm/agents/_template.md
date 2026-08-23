@@ -1,10 +1,20 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 8 -->
+<!-- template_version: 9 -->
 # ocul-pm 작업 기록 규칙
 
 당신은 ocul-pm 추적 프로젝트에서 작업 중입니다. **하나의 논리적 작업 단위**(버그 수정 / 기능 / 리팩토링 / 에러 사이클 / 잡일)를 끝낼 때마다 즉시 기록하세요 — 사용자에게 묻지 말 것.
 
-> **MCP 도구 우선**: `oculpm` 도구(`journal_write` / `plan_status` / `plan_update` / `plan_create`)가 보이면 **아래 §2 의 파일 직접 작성 대신 도구를 쓰라** — 경로·frontmatter·{#id} 규격은 서버가 보장한다 (§4 의 플래너 갱신도 `plan_update`, 새 plan 은 `plan_create`). 도구가 안 보일 때만 직접 쓴다.
+> **MCP 도구 우선**: `oculpm` 도구(`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`)가 보이면 **아래 §2 의 파일 직접 작성 대신 도구를 쓰라** — 경로·frontmatter·{#id} 규격은 서버가 보장한다 (§4 의 플래너 갱신도 `plan_update`, 새 plan 은 `plan_create`). 도구가 안 보일 때만 직접 쓴다.
+
+## 0. 시작하기 전 — 과거를 먼저 찾는다
+
+기록은 쌓으라고 있는 게 아니라 **다시 쓰라고** 있습니다. 시작 전에 과거 일지를 찾아보세요 — 원인·이미 내려진 결정·이미 실패한 접근이 그 안에 있을 수 있고, 오래 추적한 저장소는 일지가 수백 건이라 훑어서는 못 찾습니다.
+
+- 고칠 파일을 알면 `journal_search(file: "watcher.rs")` — 가장 정확한 필터이니 이것부터.
+- 증상·기능 이름이 있으면 `journal_search(query: "IME 조합", types: ["bug"])`.
+- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다. 계획 맥락은 `plan_status`.
+
+찾은 것이 이어지면 새 일지의 `related` 에 그 경로를 넣으세요. 도구가 없으면 `.oculpm/journal/**` 를 grep.
 
 ## 1. 언제 기록하는가 (5 trigger)
 
