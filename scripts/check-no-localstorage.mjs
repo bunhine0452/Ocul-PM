@@ -63,6 +63,11 @@ const ALLOWLIST = new Set([
   // 나눠 소유**한다. 그 계약("각자 자기 몫만 쓰고 나머지는 디스크 값을 남긴다")은
   // 다른 창의 저장을 흉내 내야 검증되므로 저장소를 직접 만진다. Test-only.
   "__tests__/terminal_dock.test.tsx",
+  // 코드 화면 탭 (2026-08-23, ide-completion #tabs-persist) — 마운트 사이에
+  // 비우고, "열어 둔 탭이 다음 실행에 되살아난다" 를 검증하려면 **저장이 실제로
+  // 나갔는지**를 봐야 한다 (영속은 디바운스라 다시 마운트만 해서는 경쟁이 된다).
+  // Test-only.
+  "__tests__/code_screen_tabs.test.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

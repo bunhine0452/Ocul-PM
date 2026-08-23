@@ -222,6 +222,107 @@ pub async fn code_write(
     .map_err(|e| format!("Failed to save file: {e}"))?
 }
 
+/// 파일/폴더를 만들거나 옮긴 결과. 프런트가 그대로 열거나 탭 경로를 갈아끼운다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodePathResult {
+    /// 프로젝트 루트 기준 슬래시 경로 — `code_read`/`code_write` 인자와 같은 계약.
+    pub relative_path: String,
+    pub is_dir: bool,
+}
+
+/// 빈 파일 생성. 없는 중간 폴더는 같이 만든다 (VS Code 의 "새 파일" 과 같이
+/// `a/b/c.ts` 를 한 번에 받는다). 이미 있으면 **덮어쓰지 않고** 오류다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_create(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<CodePathResult, String> {
+    let root = project_root(&db, project_id).await?;
+    let rel = normalize_rel(&rel_path)?;
+    let full = secure_join(&root, &rel)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = resolve_for_mutation(&root, &full)?;
+        create_file(&full)?;
+        Ok(CodePathResult { relative_path: rel, is_dir: false })
+    })
+    .await
+    .map_err(|e| format!("Failed to create the file: {e}"))?
+}
+
+/// 폴더 생성. 중간 폴더도 같이 만들되, 대상이 **이미 있으면 오류** —
+/// `create_dir_all` 의 조용한 성공은 트리에 아무 변화가 없어 사용자를 헷갈리게 한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_mkdir(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<CodePathResult, String> {
+    let root = project_root(&db, project_id).await?;
+    let rel = normalize_rel(&rel_path)?;
+    let full = secure_join(&root, &rel)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = resolve_for_mutation(&root, &full)?;
+        create_dir(&full)?;
+        Ok(CodePathResult { relative_path: rel, is_dir: true })
+    })
+    .await
+    .map_err(|e| format!("Failed to create the folder: {e}"))?
+}
+
+/// 이름 바꾸기 겸 이동 — 트리의 드래그 이동도 이 하나를 쓴다 (둘은 같은 연산이다:
+/// 목적지의 부모가 다르면 이동, 같으면 이름 바꾸기).
+///
+/// 대상이 이미 있으면 오류다. `fs::rename` 은 파일을 말없이 덮어쓰므로 반드시
+/// 먼저 막는다 — 이름 오타 한 번에 남의 파일이 사라지면 안 된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_rename(
+    db: State<'_, Db>,
+    project_id: u32,
+    from_rel: String,
+    to_rel: String,
+) -> Result<CodePathResult, String> {
+    let root = project_root(&db, project_id).await?;
+    let from = normalize_rel(&from_rel)?;
+    let to = normalize_rel(&to_rel)?;
+    let from_full = secure_join(&root, &from)?;
+    let to_full = secure_join(&root, &to)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let from_full = resolve_for_mutation(&root, &from_full)?;
+        let to_full = resolve_for_mutation(&root, &to_full)?;
+        let is_dir = rename_path(&from_full, &to_full)?;
+        Ok(CodePathResult { relative_path: to, is_dir })
+    })
+    .await
+    .map_err(|e| format!("Failed to rename: {e}"))?
+}
+
+/// 삭제 — **OS 휴지통으로 보낸다**, 영구 삭제가 아니다.
+///
+/// 폴더 삭제는 재귀라 한 번의 오조작으로 잃는 것이 크다. 앱이 되돌릴 수 없는
+/// 삭제를 만들지 않는 것이 원칙이고, 되돌리기는 OS 가 이미 잘한다. 휴지통이
+/// 실패하면 **영구 삭제로 물러서지 않고** 오류를 그대로 알린다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_delete(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<(), String> {
+    let root = project_root(&db, project_id).await?;
+    let rel = normalize_rel(&rel_path)?;
+    let full = secure_join(&root, &rel)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = resolve_for_mutation(&root, &full)?;
+        delete_to_trash(&full)
+    })
+    .await
+    .map_err(|e| format!("Failed to delete: {e}"))?
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
@@ -247,6 +348,140 @@ fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
     } else {
         Err("Path escapes the project root".to_string())
     }
+}
+
+/// 조작 대상 상대 경로 정리 — 앞뒤 공백·중복 슬래시·양끝 슬래시를 없애고
+/// 사람이 실수로 넣기 쉬운 것들을 여기서 잘라 낸다.
+///
+/// [`secure_join`] 의 어휘적 검사는 `..` 탈출만 본다. 그 앞에서 **빈 경로**(=
+/// 프로젝트 루트 자신)와 구간 하나짜리 `.` / `..` 을 막아, 루트를 지우거나
+/// 이름을 바꾸는 요청이 애초에 만들어지지 않게 한다.
+fn normalize_rel(rel: &str) -> Result<String, String> {
+    let normalized = rel.replace('\\', "/");
+    let segments: Vec<&str> = normalized
+        .split('/')
+        .map(str::trim)
+        .filter(|seg| !seg.is_empty())
+        .collect();
+    if segments.is_empty() {
+        return Err("Path is empty".to_string());
+    }
+    if segments.iter().any(|seg| *seg == "." || *seg == "..") {
+        return Err("Path may not contain . or ..".to_string());
+    }
+    Ok(segments.join("/"))
+}
+
+/// 조작(생성·이름 바꾸기·삭제) 대상 경로의 심링크 가드.
+///
+/// [`canonical_within_root`] 와 두 가지가 다르다.
+///
+/// 1. **마지막 구간을 풀지 않는다.** 전체를 canonical 로 풀면 대상이 심링크일 때
+///    링크가 아니라 *그 대상*을 가리킨다. 읽기·저장에서는 그게 옳지만(링크를 따라
+///    실제 파일을 편집), 삭제·이름 바꾸기에서는 링크 자체를 다뤄야 한다 — 안 그러면
+///    "루트 안의 링크를 지운다" 가 "루트 밖의 원본을 지운다" 가 된다.
+/// 2. **아직 없는 경로도 받는다.** 생성은 정의상 없는 경로를 대상으로 한다.
+///    실존하는 가장 깊은 조상까지만 풀어 루트 안인지 보고, 아직 없는 나머지 구간을
+///    이어 붙인다 — 없는 구간은 심링크일 수 없으므로 같은 보장이 유지된다.
+///
+/// 존재 판정은 `symlink_metadata` 로 한다. `exists()` 는 링크를 따라가므로 **깨진
+/// 심링크**를 "없음" 으로 보고, 그 자리에 파일을 만들면 커널이 링크를 따라가 루트
+/// 밖에 쓴다.
+fn resolve_for_mutation(root: &Path, full: &Path) -> Result<PathBuf, String> {
+    let canon_root = std::fs::canonicalize(root)
+        .map_err(|e| format!("Failed to resolve project root: {e}"))?;
+    let file_name = full
+        .file_name()
+        .ok_or_else(|| "Invalid path".to_string())?
+        .to_os_string();
+    let parent = full
+        .parent()
+        .ok_or_else(|| "Invalid path".to_string())?
+        .to_path_buf();
+
+    // 실존하는 가장 깊은 조상까지 내려가며, 지나온 (아직 없는) 구간을 모은다.
+    let mut existing = parent;
+    let mut missing: Vec<std::ffi::OsString> = Vec::new();
+    while existing.symlink_metadata().is_err() {
+        let name = existing
+            .file_name()
+            .ok_or_else(|| "Path escapes the project root".to_string())?
+            .to_os_string();
+        missing.push(name);
+        existing = existing
+            .parent()
+            .ok_or_else(|| "Path escapes the project root".to_string())?
+            .to_path_buf();
+    }
+
+    let canon = std::fs::canonicalize(&existing)
+        .map_err(|e| format!("Failed to resolve path: {e}"))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("Path escapes the project root".to_string());
+    }
+    let mut out = canon;
+    for seg in missing.iter().rev() {
+        out.push(seg);
+    }
+    out.push(file_name);
+    Ok(out)
+}
+
+/// 빈 파일 생성. 중간 폴더는 만들되 대상이 이미 있으면 오류 — 깨진 심링크도
+/// "있음" 이라 [`resolve_for_mutation`] 의 가드와 짝을 이룬다.
+fn create_file(full: &Path) -> Result<(), String> {
+    if full.symlink_metadata().is_ok() {
+        return Err("A file or folder with that name already exists".to_string());
+    }
+    if let Some(parent) = full.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create the folder: {e}"))?;
+    }
+    // create_new = 만들어져 있으면 실패. 위의 검사와 생성 사이 경쟁을 커널이 막는다.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(full)
+        .map(|_| ())
+        .map_err(|e| format!("Failed to create the file: {e}"))
+}
+
+/// 폴더 생성. `create_dir_all` 은 이미 있어도 성공하는데, 그러면 트리에 아무
+/// 변화가 없어 사용자는 만들어진 줄 안다 — 먼저 막는다.
+fn create_dir(full: &Path) -> Result<(), String> {
+    if full.symlink_metadata().is_ok() {
+        return Err("A file or folder with that name already exists".to_string());
+    }
+    std::fs::create_dir_all(full).map_err(|e| format!("Failed to create the folder: {e}"))
+}
+
+/// 이름 바꾸기/이동. 돌려주는 bool 은 옮긴 것이 폴더였는지 (프런트가 탭 경로를
+/// 하나만 갈아끼울지, 접두사 전체를 갈아끼울지 정하는 데 쓴다).
+fn rename_path(from: &Path, to: &Path) -> Result<bool, String> {
+    let meta = from
+        .symlink_metadata()
+        .map_err(|e| format!("Failed to read the source path: {e}"))?;
+    if to.symlink_metadata().is_ok() {
+        return Err("A file or folder with that name already exists".to_string());
+    }
+    // 폴더를 자기 후손으로 옮기면 `fs::rename` 이 EINVAL 을 내거나 (플랫폼에 따라)
+    // 가지를 통째로 잃는다 — 드래그 이동에서 실제로 일어나는 실수라 먼저 막는다.
+    if meta.is_dir() && to.starts_with(from) {
+        return Err("Cannot move a folder into itself".to_string());
+    }
+    if let Some(parent) = to.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create the folder: {e}"))?;
+    }
+    std::fs::rename(from, to).map_err(|e| format!("Failed to rename: {e}"))?;
+    Ok(meta.is_dir())
+}
+
+/// 휴지통으로. 영구 삭제로 물러서지 않는다 — 휴지통이 안 되는 환경(네트워크
+/// 볼륨 등)에서는 조용히 지우는 것보다 실패를 말하는 쪽이 옳다.
+fn delete_to_trash(full: &Path) -> Result<(), String> {
+    if full.symlink_metadata().is_err() {
+        return Err("That path no longer exists".to_string());
+    }
+    trash::delete(full).map_err(|e| format!("Failed to move to the Trash: {e}"))
 }
 
 /// 걸음(파일 목록) → 중첩 트리. 폴더 우선 + 자연 정렬은 [`sort_nodes`] 가 맡고,
@@ -683,6 +918,166 @@ mod tests {
         // 루트 안 심링크는 허용 — 대상 경로로 해석돼 저장해도 링크가 안 깨진다.
         let p = canonical_within_root(&root, &root.join("alias.txt")).unwrap();
         assert!(p.ends_with("real.txt"), "{p:?}");
+    }
+
+    // ─── 파일 조작 ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn normalize_rel_cleans_and_rejects_dangerous_paths() {
+        assert_eq!(normalize_rel("src/main.rs").unwrap(), "src/main.rs");
+        assert_eq!(normalize_rel("/src//main.rs/").unwrap(), "src/main.rs");
+        assert_eq!(normalize_rel("src\\lib.rs").unwrap(), "src/lib.rs");
+        assert_eq!(normalize_rel("  a / b  ").unwrap(), "a/b");
+        // 루트 자신을 가리키는 요청은 만들어질 수 없다.
+        assert!(normalize_rel("").is_err());
+        assert!(normalize_rel("   ").is_err());
+        assert!(normalize_rel("/").is_err());
+        assert!(normalize_rel(".").is_err());
+        assert!(normalize_rel("../escape").is_err());
+        assert!(normalize_rel("src/../../etc").is_err());
+    }
+
+    #[test]
+    fn create_makes_file_with_missing_parents() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let target = resolve_for_mutation(root, &root.join("a/b/c.ts")).unwrap();
+
+        create_file(&target).unwrap();
+        assert!(root.join("a/b/c.ts").is_file());
+        assert_eq!(fs::read_to_string(root.join("a/b/c.ts")).unwrap(), "");
+    }
+
+    #[test]
+    fn create_refuses_to_clobber() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "a.txt", b"precious");
+        let target = resolve_for_mutation(root, &root.join("a.txt")).unwrap();
+
+        let err = create_file(&target).unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert_eq!(fs::read_to_string(root.join("a.txt")).unwrap(), "precious");
+    }
+
+    #[test]
+    fn mkdir_creates_and_then_refuses() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let target = resolve_for_mutation(root, &root.join("x/y")).unwrap();
+
+        create_dir(&target).unwrap();
+        assert!(root.join("x/y").is_dir());
+        // 두 번째는 조용히 성공하지 않는다 — 트리에 변화가 없으면 사용자가 헷갈린다.
+        let err = create_dir(&target).unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+    }
+
+    #[test]
+    fn rename_moves_file_and_refuses_to_clobber() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "src/a.rs", b"content");
+        write(root, "dst/taken.rs", b"someone else");
+
+        let from = resolve_for_mutation(root, &root.join("src/a.rs")).unwrap();
+        let to = resolve_for_mutation(root, &root.join("dst/b.rs")).unwrap();
+        assert!(!rename_path(&from, &to).unwrap(), "파일이므로 is_dir=false");
+        assert!(!root.join("src/a.rs").exists());
+        assert_eq!(fs::read_to_string(root.join("dst/b.rs")).unwrap(), "content");
+
+        // 이미 있는 이름으로는 못 옮긴다 — fs::rename 은 말없이 덮어쓴다.
+        write(root, "src/c.rs", b"c");
+        let from2 = resolve_for_mutation(root, &root.join("src/c.rs")).unwrap();
+        let taken = resolve_for_mutation(root, &root.join("dst/taken.rs")).unwrap();
+        let err = rename_path(&from2, &taken).unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert_eq!(fs::read_to_string(root.join("dst/taken.rs")).unwrap(), "someone else");
+    }
+
+    #[test]
+    fn rename_reports_directories_and_blocks_moving_into_self() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "pkg/inner/file.rs", b"x");
+
+        let from = resolve_for_mutation(root, &root.join("pkg")).unwrap();
+        let into_self = resolve_for_mutation(root, &root.join("pkg/inner/pkg")).unwrap();
+        let err = rename_path(&from, &into_self).unwrap_err();
+        assert!(err.contains("into itself"), "{err}");
+        assert!(root.join("pkg/inner/file.rs").is_file(), "가지가 남아 있어야 한다");
+
+        // 정상 이름 바꾸기는 폴더임을 알린다 (프런트가 탭 접두사를 갈아끼운다).
+        let to = resolve_for_mutation(root, &root.join("renamed")).unwrap();
+        assert!(rename_path(&from, &to).unwrap(), "폴더이므로 is_dir=true");
+        assert!(root.join("renamed/inner/file.rs").is_file());
+    }
+
+    #[test]
+    fn delete_reports_missing_path() {
+        let tmp = TempDir::new().unwrap();
+        // 실제 휴지통 이동은 테스트하지 않는다 — 사용자의 휴지통을 더럽히지
+        // 않으려고 (`cargo test` 는 자주 돈다). 여기서는 휴지통을 부르기 전에
+        // 서는 가드만 확인한다.
+        let err = delete_to_trash(&tmp.path().join("nope.txt")).unwrap_err();
+        assert!(err.contains("no longer exists"), "{err}");
+    }
+
+    #[test]
+    fn resolve_for_mutation_accepts_paths_that_do_not_exist_yet() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let canon_root = fs::canonicalize(root).unwrap();
+
+        let out = resolve_for_mutation(root, &root.join("brand/new/file.ts")).unwrap();
+        assert_eq!(out, canon_root.join("brand/new/file.ts"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_for_mutation_rejects_escape_through_symlinked_parent() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(tmp.path().join("outside")).unwrap();
+        std::os::unix::fs::symlink(tmp.path().join("outside"), root.join("link")).unwrap();
+
+        let err = resolve_for_mutation(&root, &root.join("link/planted.txt")).unwrap_err();
+        assert!(err.contains("escapes"), "{err}");
+    }
+
+    /// 대상이 심링크면 **링크 자체**를 다뤄야 한다. 경로 전체를 canonical 로
+    /// 풀면 "루트 안의 링크를 지운다" 가 "루트 밖의 원본을 지운다" 가 된다.
+    #[cfg(unix)]
+    #[test]
+    fn resolve_for_mutation_keeps_the_link_itself() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(tmp.path().join("secret.txt"), b"top secret").unwrap();
+        std::os::unix::fs::symlink(tmp.path().join("secret.txt"), root.join("leak.txt")).unwrap();
+
+        let out = resolve_for_mutation(&root, &root.join("leak.txt")).unwrap();
+        assert!(out.ends_with("leak.txt"), "{out:?}");
+        assert!(out.starts_with(fs::canonicalize(&root).unwrap()));
+    }
+
+    /// 깨진 심링크는 `exists()` 로 보면 "없음" 이라, 그 자리에 파일을 만들면
+    /// 커널이 링크를 따라가 **루트 밖에** 쓴다. symlink_metadata 로 막는다.
+    #[cfg(unix)]
+    #[test]
+    fn create_refuses_to_write_through_a_dangling_symlink() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        fs::create_dir_all(&root).unwrap();
+        let outside = tmp.path().join("outside.txt");
+        std::os::unix::fs::symlink(&outside, root.join("bait.txt")).unwrap();
+        assert!(!root.join("bait.txt").exists(), "깨진 링크 — exists() 는 false");
+
+        let target = resolve_for_mutation(&root, &root.join("bait.txt")).unwrap();
+        let err = create_file(&target).unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert!(!outside.exists(), "루트 밖에 아무것도 만들어지지 않았다");
     }
 
     #[cfg(unix)]

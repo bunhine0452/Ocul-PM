@@ -1,0 +1,178 @@
+// 탭·분할 상태의 계약. 이 모듈이 따로 있는 이유는 **파일이 디스크에서 움직일 때
+// 탭이 따라 움직이는 규칙** 이고, 거기가 가장 조용히 깨지는 자리다.
+import { describe, expect, it } from "vitest";
+import {
+  activateTab,
+  allOpenPaths,
+  closeOpenPath,
+  closeOthers,
+  closeTab,
+  emptyTabs,
+  focusPane,
+  focusedPath,
+  moveTabToOtherPane,
+  openFile,
+  openPathsUnder,
+  renameOpenPath,
+  sanitizeTabs,
+  splitEditor,
+  unsplitEditor,
+  type CodeTabsState,
+} from "@/features/code/codeTabs";
+
+/** `a|b|[c]` — `[]` 가 활성. 창은 `//` 로 나누고, 포커스된 창은 `*` 로 시작한다. */
+function show(state: CodeTabsState): string {
+  return state.panes
+    .map((pane, i) => {
+      const body = pane.tabs.map((p) => (p === pane.active ? `[${p}]` : p)).join("|");
+      return (state.focused === i ? "*" : "") + body;
+    })
+    .join(" // ");
+}
+
+function withTabs(...paths: string[]): CodeTabsState {
+  return paths.reduce((acc, p) => openFile(acc, p), emptyTabs());
+}
+
+describe("codeTabs — 열기·닫기", () => {
+  it("연 파일이 활성이 되고, 이미 열려 있으면 다시 열지 않는다", () => {
+    let s = withTabs("a.ts", "b.ts");
+    expect(show(s)).toBe("*a.ts|[b.ts]");
+    s = openFile(s, "a.ts");
+    expect(show(s)).toBe("*[a.ts]|b.ts");
+    expect(allOpenPaths(s)).toEqual(["a.ts", "b.ts"]);
+  });
+
+  it("닫으면 오른쪽 이웃이, 없으면 왼쪽이 올라온다", () => {
+    let s = activateTab(withTabs("a", "b", "c"), 0, "b");
+    s = closeTab(s, 0, "b");
+    expect(show(s)).toBe("*a|[c]"); // 오른쪽
+    s = closeTab(s, 0, "c");
+    expect(show(s)).toBe("*[a]"); // 왼쪽밖에 없다
+  });
+
+  it("활성이 아닌 탭을 닫아도 보고 있던 파일은 그대로다", () => {
+    const s = closeTab(withTabs("a", "b", "c"), 0, "a");
+    expect(show(s)).toBe("*b|[c]");
+  });
+
+  it("다른 탭 닫기는 고른 것만 남긴다", () => {
+    expect(show(closeOthers(withTabs("a", "b", "c"), 0, "b"))).toBe("*[b]");
+  });
+
+  it("전부 닫아도 창은 남는다 (단일 창일 때)", () => {
+    let s = withTabs("a");
+    s = closeTab(s, 0, "a");
+    expect(s.panes).toHaveLength(1);
+    expect(focusedPath(s)).toBeNull();
+  });
+});
+
+describe("codeTabs — 분할", () => {
+  it("분할하면 보고 있던 파일이 새 창에 실리고 포커스가 옮겨간다", () => {
+    const s = splitEditor(withTabs("a", "b"));
+    expect(show(s)).toBe("a|[b] // *[b]");
+  });
+
+  it("이미 분할이면 분할 버튼은 반대쪽으로 포커스만 옮긴다", () => {
+    const split = splitEditor(withTabs("a"));
+    expect(splitEditor(split).focused).toBe(0);
+    expect(splitEditor(split).panes).toHaveLength(2);
+  });
+
+  it("한쪽 창의 마지막 탭을 닫으면 분할이 접힌다", () => {
+    let s = splitEditor(withTabs("a", "b")); // a|[b] // *[b]
+    s = closeTab(s, 1, "b");
+    expect(s.panes).toHaveLength(1);
+    expect(show(s)).toBe("*a|[b]");
+  });
+
+  it("분할 해제는 양쪽 탭을 합치고 보던 파일을 유지한다", () => {
+    let s = splitEditor(withTabs("a", "b")); // *[b] 가 오른쪽 창
+    s = openFile(s, "c"); // 오른쪽 창에 c 추가
+    expect(show(s)).toBe("a|[b] // *b|[c]");
+    s = unsplitEditor(s);
+    // 중복(b)은 접히고, 포커스가 있던 쪽에서 보던 c 를 계속 본다.
+    expect(show(s)).toBe("*a|b|[c]");
+  });
+
+  it("탭을 반대쪽 창으로 보내면 원래 창에서는 사라진다", () => {
+    let s = withTabs("a", "b");
+    s = moveTabToOtherPane(s, 0, "a"); // 분할되면서 이동
+    expect(show(s)).toBe("[b] // *[a]");
+    s = moveTabToOtherPane(s, 1, "a"); // 되돌리면 오른쪽 창이 비어 접힌다
+    expect(s.panes).toHaveLength(1);
+    expect(allOpenPaths(s).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("codeTabs — 파일 조작과의 정합", () => {
+  it("파일 이름이 바뀌면 그 탭이 새 경로를 가리킨다", () => {
+    const s = renameOpenPath(withTabs("src/a.ts", "src/b.ts"), "src/a.ts", "src/z.ts", false);
+    expect(show(s)).toBe("*src/z.ts|[src/b.ts]");
+  });
+
+  it("폴더 이름이 바뀌면 그 아래 열린 탭이 전부 따라온다", () => {
+    let s = withTabs("src/a.ts", "src/deep/b.ts", "docs/c.md");
+    s = renameOpenPath(s, "src", "lib", true);
+    expect(allOpenPaths(s)).toEqual(["lib/a.ts", "lib/deep/b.ts", "docs/c.md"]);
+    // 활성 탭도 따라온다 — 안 그러면 저장할 수 없는 유령 탭이 된다.
+    expect(focusedPath(s)).toBe("docs/c.md");
+    s = activateTab(s, 0, "lib/a.ts");
+    expect(focusedPath(s)).toBe("lib/a.ts");
+  });
+
+  it("접두사가 겹치는 형제 폴더는 건드리지 않는다", () => {
+    // `src` 이름 바꾸기가 `src-old/` 까지 끌고 가면 안 된다.
+    const s = renameOpenPath(withTabs("src/a.ts", "src-old/a.ts"), "src", "lib", true);
+    expect(allOpenPaths(s)).toEqual(["lib/a.ts", "src-old/a.ts"]);
+  });
+
+  it("삭제된 파일의 탭은 닫히고, 오른쪽 이웃이 올라온다", () => {
+    let s = activateTab(withTabs("a", "b", "c"), 0, "b");
+    s = closeOpenPath(s, "b", false);
+    expect(show(s)).toBe("*a|[c]");
+  });
+
+  it("삭제된 폴더 아래 탭이 전부 닫히고, 남는 것이 없으면 분할도 접힌다", () => {
+    let s = withTabs("src/a.ts", "README.md");
+    s = moveTabToOtherPane(s, 0, "src/a.ts"); // README // *src/a.ts
+    expect(openPathsUnder(s, "src", true)).toEqual(["src/a.ts"]);
+    s = closeOpenPath(s, "src", true);
+    expect(s.panes).toHaveLength(1);
+    expect(show(s)).toBe("*[README.md]");
+  });
+
+  it("열려 있지 않은 경로의 삭제는 상태를 그대로 둔다 (동일 참조)", () => {
+    const s = withTabs("a", "b");
+    expect(closeOpenPath(s, "c", false)).toBe(s);
+    expect(renameOpenPath(s, "c", "d", false)).toBe(s);
+  });
+});
+
+describe("codeTabs — 영속 복원", () => {
+  it("망가진 값에서도 그릴 수 있는 모양을 만든다", () => {
+    expect(sanitizeTabs(null)).toEqual(emptyTabs());
+    expect(sanitizeTabs({ panes: [], focused: 9 })).toEqual(emptyTabs());
+    // 활성이 목록에 없으면 첫 탭으로, 중복은 접히고, 창은 둘까지.
+    const s = sanitizeTabs({
+      panes: [
+        { tabs: ["a", "a", "b"], active: "gone" },
+        { tabs: ["c"], active: "c" },
+        { tabs: ["d"], active: "d" },
+      ],
+      focused: 1,
+    });
+    expect(show(s)).toBe("[a]|b // *[c]");
+  });
+
+  it("두 번째 창이 비어 저장됐으면 단일 창으로 접어서 되살린다", () => {
+    const s = sanitizeTabs({ panes: [{ tabs: ["a"], active: "a" }, { tabs: [], active: null }], focused: 1 });
+    expect(s.panes).toHaveLength(1);
+    expect(s.focused).toBe(0);
+  });
+
+  it("포커스가 범위를 벗어나면 첫 창으로 되돌린다", () => {
+    expect(focusPane(sanitizeTabs({ panes: [{ tabs: ["a"], active: "a" }], focused: 5 }), 3).focused).toBe(0);
+  });
+});

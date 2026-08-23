@@ -23,6 +23,12 @@ function setup(map: Map<string, CodeDirEntry[]>, expanded: string[] = [], loadin
       selected={null}
       expanded={new Set(expanded)}
       dirtyPaths={new Set()}
+      openPaths={new Set()}
+      draft={null}
+      onDraftSubmit={vi.fn()}
+      onDraftCancel={vi.fn()}
+      onContextMenu={vi.fn()}
+      onMove={vi.fn()}
       onToggle={onToggle}
       onSelect={onSelect}
     />,
@@ -53,6 +59,12 @@ describe("CodeTree — 지연 로딩", () => {
         selected={null}
         expanded={new Set()}
         dirtyPaths={new Set()}
+        openPaths={new Set()}
+        draft={null}
+        onDraftSubmit={vi.fn()}
+        onDraftCancel={vi.fn()}
+        onContextMenu={vi.fn()}
+        onMove={vi.fn()}
         onToggle={vi.fn()}
         onSelect={vi.fn()}
       />,

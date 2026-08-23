@@ -1,0 +1,742 @@
+// 편집 창(pane) 하나 — 탭 바 + CodeMirror + 상태줄. 분할하면 이것이 둘 뜬다.
+//
+// 왜 화면에서 떼어냈나: 좌우 분할은 "에디터를 두 번 그리는 것" 이 아니라
+// **편집 상태를 두 벌 갖는 것**이다 (버퍼·커서·충돌·LSP 수명이 창마다 따로다).
+// 화면이 그걸 배열로 들고 있으면 모든 상태가 인덱스로 갈라져 읽을 수 없게 된다.
+// 창을 컴포넌트로 두면 React 가 그 갈래를 대신 들어 준다.
+//
+// 창이 소유하는 것: 활성 파일의 버퍼·저장·충돌·커서·LSP·watcher 반응.
+// 부모가 소유하는 것: 탭 목록 자체(어떤 파일이 어느 창에 열렸는가)·트리·파일 조작.
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import { commands, events, type LspCodeAction } from "@/lib/bindings";
+import { useSettings } from "@/contexts/SettingsContext";
+import { safeUnlistenPromise } from "@/lib/unlisten";
+import { toast } from "@/lib/toast";
+import { t, useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
+import { AppDialog } from "@/components/ui/AppDialog";
+import { AlertTriangle, ExternalLink, FileCode } from "@/components/Icons";
+
+import { CodeEditor } from "./CodeEditor";
+import { CodeTabsBar } from "./CodeTabsBar";
+import { useLsp } from "./useLsp";
+import { langIdForPath, langLabel } from "./codeLang";
+import { formatBytes } from "./treeUtils";
+import {
+  bufferKey,
+  deleteBuffer,
+  detectEol,
+  getBuffer,
+  isDirty as bufferIsDirty,
+  normalizeEol,
+  putBuffer,
+  restoreEol,
+  type CodeBuffer,
+} from "./codeBuffers";
+
+type FileView =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "binary"; bytes: number }
+  | { kind: "tooLarge"; bytes: number }
+  | { kind: "editor"; bytes: number };
+
+/** 부모(툴바)가 이 창에 지시하는 창구 — 툴바는 포커스된 창 하나만 겨눈다. */
+export interface CodePaneHandle {
+  save: () => void;
+  openExternal: () => void;
+}
+
+export interface CodePaneProps {
+  projectId: number;
+  projectRoot: string | null;
+  paneIndex: number;
+  tabs: string[];
+  activePath: string | null;
+  isFocused: boolean;
+  isSplit: boolean;
+  /**
+   * 이 창이 언어 서버를 몰아도 되는가.
+   *
+   * 백엔드는 (프로젝트, 파일) 로 문서를 하나만 연다 — 같은 파일이 양쪽 창에
+   * 열리면 didOpen 이 두 번 나가고, 한쪽을 닫을 때 아직 보고 있는 쪽의 문서까지
+   * 닫힌다. 그래서 **같은 파일일 때는 왼쪽 창만** 서버를 붙인다.
+   */
+  lspEnabled: boolean;
+  /** 부모가 지시한 줄 점프 (검색·코드맵·정의로 이동). nonce 로 재발화. */
+  jump: { line: number; nonce: number } | null;
+  /** 이 프로젝트에서 미저장인 경로들 — 탭 배지 + LSP 쓰기 동작의 게이트. */
+  dirtyPaths: Set<string>;
+  onFocus: () => void;
+  onActivate: (path: string) => void;
+  onClose: (path: string) => void;
+  onCloseOthers: (path: string) => void;
+  onSplit: () => void;
+  onUnsplit: () => void;
+  onMoveToOtherPane: (path: string) => void;
+  /** 탭을 다른 창에서 이 창으로 끌어다 놓았다. */
+  onDropTab: (fromPane: number, path: string) => void;
+  /** 버퍼 캐시가 바뀌었다 — 부모가 dirty 배지를 다시 계산한다. */
+  onBuffersChanged: () => void;
+  /** 정의가 다른 파일에 있다 — 부모가 탭을 열어 준다. */
+  onOpenPath: (path: string, line: number | null) => void;
+}
+
+export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodePane(
+  {
+    projectId,
+    projectRoot,
+    paneIndex,
+    tabs,
+    activePath,
+    isFocused,
+    isSplit,
+    lspEnabled,
+    jump,
+    dirtyPaths,
+    onFocus,
+    onActivate,
+    onClose,
+    onCloseOthers,
+    onSplit,
+    onUnsplit,
+    onMoveToOtherPane,
+    onDropTab,
+    onBuffersChanged,
+    onOpenPath,
+  },
+  ref,
+) {
+  useT();
+  const { settings } = useSettings();
+
+  const [fileView, setFileView] = useState<FileView>({ kind: "idle" });
+  // 버퍼는 ref — 키 입력마다 화면 state 를 바꾸면 트리까지 리렌더된다.
+  // 화면에 보여야 하는 파생값(dirty·커서)만 state 로 승격한다.
+  const bufferRef = useRef<CodeBuffer | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [cursor, setCursor] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
+  const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] = useState<{ diskHash: string } | null>(null);
+  // 에디터 재마운트 스위치 — 파일 전환·디스크 리로드가 올린다.
+  const [editorEpoch, setEditorEpoch] = useState(0);
+  const [pendingJump, setPendingJump] = useState<number | null>(null);
+
+  const pathRef = useRef(activePath);
+  pathRef.current = activePath;
+
+  // 언어 서버 — `editorEpoch` 를 같이 넘긴다. 파일을 고른 순간이 아니라 **내용이
+  // 실제로 로드된 순간**에 didOpen 이 나가야 서버가 빈 문서를 보고 엉뚱한 진단을
+  // 내지 않는다 (에디터 재마운트와 같은 신호를 쓴다).
+  const lsp = useLsp(
+    projectId,
+    lspEnabled ? activePath : null,
+    bufferRef.current?.text ?? "",
+    editorEpoch,
+  );
+  // watcher 가 "파일이 사라졌다" 토스트를 같은 파일에 반복하지 않기 위한 부기.
+  const goneNotifiedRef = useRef<string | null>(null);
+
+  // putBuffer 가 dirty 버퍼를 밀어냈으면(상한 초과) 조용한 유실 대신 알린다.
+  const notifyIfEvicted = useCallback((evictedKey: string | null) => {
+    if (!evictedKey) return;
+    const path = evictedKey.slice(evictedKey.indexOf(":") + 1);
+    toast.warning(t("code.bufferEvicted", { path }));
+  }, []);
+
+  // ── 파일 로드 ──────────────────────────────────────────────────────────
+  const loadFile = useCallback(
+    async (path: string, opts?: { discardBuffer?: boolean }) => {
+      setFileView({ kind: "loading" });
+      setConflict(null);
+      const key = bufferKey(projectId, path);
+      if (opts?.discardBuffer) deleteBuffer(key);
+      const res = await commands.codeRead(projectId, path);
+      if (pathRef.current !== path) return; // 그 사이 다른 파일로 이동
+      if (res.status === "error") {
+        setFileView({ kind: "error", message: tError(res.error) });
+        return;
+      }
+      const data = res.data;
+      if (data.too_large) {
+        setFileView({ kind: "tooLarge", bytes: data.bytes });
+        return;
+      }
+      if (data.binary) {
+        setFileView({ kind: "binary", bytes: data.bytes });
+        return;
+      }
+      const cached = getBuffer(key);
+      if (cached && bufferIsDirty(cached)) {
+        // 미저장 편집이 살아 있다 — 버퍼를 유지하고, 그 사이 디스크가 더
+        // 나아갔는지만 확인한다.
+        bufferRef.current = cached;
+        setDirty(true);
+        if (data.hash !== cached.baseHash) setConflict({ diskHash: data.hash });
+      } else {
+        // CM 은 어떤 줄바꿈이든 LF 로 합치므로, 원본 줄바꿈을 기억해 두고
+        // 버퍼는 LF 로 정규화한다 — CRLF 파일이 저장 한 번에 전부 LF 로
+        // 바뀌는 것을 막는다.
+        const eol = detectEol(data.content);
+        const text = normalizeEol(data.content);
+        const fresh: CodeBuffer = { text, baseText: text, baseHash: data.hash, eol };
+        bufferRef.current = fresh;
+        notifyIfEvicted(putBuffer(key, fresh));
+        setDirty(false);
+      }
+      onBuffersChanged();
+      setFileView({ kind: "editor", bytes: data.bytes });
+      setEditorEpoch((n) => n + 1);
+    },
+    [projectId, onBuffersChanged, notifyIfEvicted],
+  );
+
+  useEffect(() => {
+    if (!activePath) {
+      setFileView({ kind: "idle" });
+      bufferRef.current = null;
+      setDirty(false);
+      setConflict(null);
+      return;
+    }
+    void loadFile(activePath);
+  }, [activePath, loadFile]);
+
+  // 부모가 지시한 줄 점프. 같은 파일·같은 줄의 연속 점프도 다시 돌도록 nonce 로 건다.
+  useEffect(() => {
+    if (jump) setPendingJump(jump.line);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jump?.nonce]);
+
+  // ── 정의로 이동 (F12 · ⌘클릭) ──────────────────────────────────────────
+  //
+  // 세 갈래다. 셋 다 **말은 한다** — 조용히 아무 일도 안 하면 사용자는 기능이
+  // 고장난 줄 안다.
+  const goToDefinition = useCallback(
+    (line: number, character: number) => {
+      void (async () => {
+        const loc = await lsp.definition(line, character);
+        if (!loc) {
+          toast.info(t("code.lsp.noDefinition"));
+          return;
+        }
+        if (!loc.path) {
+          // 표준 라이브러리·의존성 — 코드 화면은 프로젝트 안만 연다.
+          toast.info(t("code.lsp.definitionOutside", { file: loc.display }));
+          return;
+        }
+        // jumpLine 은 1-based, LSP 는 0-based.
+        if (loc.path === pathRef.current) setPendingJump(loc.line + 1);
+        else onOpenPath(loc.path, loc.line + 1);
+      })();
+    },
+    [lsp, onOpenPath],
+  );
+
+  // ── 이름 바꾸기 (F2) ───────────────────────────────────────────────────
+  //
+  // 이 창에서 유일하게 **여러 파일을 한꺼번에 고치는** 동작이다. 백엔드가
+  // 전부-아니면-전무로 적용하지만, 그 전에 프런트가 막아야 하는 것이 하나 있다:
+  // **미저장 버퍼**. 서버는 didChange 로 받은 버퍼 내용을 보고 편집을 계산하는데
+  // 백엔드는 디스크에 적용하므로, 둘이 다르면 엉뚱한 자리를 덮어쓴다.
+  const [renameAt, setRenameAt] = useState<{ line: number; character: number } | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const startRename = useCallback(
+    (line: number, character: number, word: string) => {
+      if (dirtyPaths.size > 0) {
+        toast.warning(t("code.lsp.renameNeedsSave"));
+        return;
+      }
+      setRenameName(word);
+      setRenameAt({ line, character });
+    },
+    [dirtyPaths],
+  );
+
+  const submitRename = useCallback(() => {
+    const at = renameAt;
+    const next = renameName.trim();
+    const path = pathRef.current;
+    if (!at || !next || !path || renaming) return;
+    setRenaming(true);
+    void (async () => {
+      const res = await commands.lspRename(projectId, path, at.line, at.character, next);
+      setRenaming(false);
+      if (res.status === "error") {
+        toast.destructive(tError(res.error));
+        return;
+      }
+      setRenameAt(null);
+      toast.info(
+        t("code.lsp.renameDone", { files: res.data.files.length, edits: res.data.total_edits }),
+      );
+      // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
+      void loadFile(path, { discardBuffer: true });
+      setEditorEpoch((n) => n + 1);
+    })();
+  }, [renameAt, renameName, renaming, projectId, loadFile]);
+
+  // ── 코드 액션 (⌘.) ─────────────────────────────────────────────────────
+  //
+  // 이름 바꾸기와 같은 이유로 미저장 게이트를 건다 — 서버는 버퍼를, 백엔드는
+  // 디스크를 본다.
+  const [actions, setActions] = useState<LspCodeAction[] | null>(null);
+  const [actionsBusy, setActionsBusy] = useState(false);
+
+  const openCodeActions = useCallback(
+    (sl: number, sc: number, el: number, ec: number) => {
+      if (dirtyPaths.size > 0) {
+        toast.warning(t("code.lsp.renameNeedsSave"));
+        return;
+      }
+      setActionsBusy(true);
+      setActions([]);
+      void (async () => {
+        const list = await lsp.codeActions(sl, sc, el, ec);
+        setActionsBusy(false);
+        if (list.length === 0) {
+          setActions(null);
+          toast.info(t("code.lsp.noActions"));
+          return;
+        }
+        setActions(list);
+      })();
+    },
+    [dirtyPaths, lsp],
+  );
+
+  const runCodeAction = useCallback(
+    (index: number) => {
+      const path = pathRef.current;
+      if (!path || actionsBusy) return;
+      setActionsBusy(true);
+      void (async () => {
+        try {
+          const res = await lsp.applyCodeAction(index);
+          setActions(null);
+          if (res) {
+            toast.info(
+              t("code.lsp.renameDone", { files: res.files.length, edits: res.total_edits }),
+            );
+            // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
+            void loadFile(path, { discardBuffer: true });
+            setEditorEpoch((n) => n + 1);
+          }
+        } catch (e) {
+          toast.destructive(tError(e instanceof Error ? e.message : String(e)));
+        } finally {
+          setActionsBusy(false);
+        }
+      })();
+    },
+    [actionsBusy, lsp, loadFile],
+  );
+
+  // ── 편집·저장 ──────────────────────────────────────────────────────────
+  const handleChange = useCallback(
+    (text: string) => {
+      const buf = bufferRef.current;
+      const path = pathRef.current;
+      if (!buf || !path) return;
+      const next = { ...buf, text };
+      bufferRef.current = next;
+      putBuffer(bufferKey(projectId, path), next);
+      const nowDirty = text !== next.baseText;
+      setDirty((prev) => (prev === nowDirty ? prev : nowDirty));
+      if (nowDirty !== dirtyPaths.has(path)) onBuffersChanged();
+      // 저장을 기다리지 않고 서버에 밀어 넣는다 — 진단은 미저장 상태에서
+      // 가장 쓸모 있다 (내부에서 디바운스).
+      lsp.pushText(text);
+    },
+    [projectId, dirtyPaths, onBuffersChanged, lsp],
+  );
+
+  const applySaved = useCallback(
+    (path: string, hash: string) => {
+      const buf = bufferRef.current;
+      if (!buf) return;
+      const next = { ...buf, baseText: buf.text, baseHash: hash };
+      bufferRef.current = next;
+      putBuffer(bufferKey(projectId, path), next);
+      setDirty(false);
+      setConflict(null);
+      onBuffersChanged();
+    },
+    [projectId, onBuffersChanged],
+  );
+
+  // ⌘S 는 CM 키맵과 화면 레벨 리스너 양쪽에 걸릴 수 있는데, `saving` state 는
+  // 같은 틱의 두 번째 호출에 아직 낡은 값이라 재진입을 못 막는다 — 같은
+  // base_hash 로 codeWrite 가 두 번 나가면 두 번째가 가짜 충돌 배너를 띄운다.
+  const savingRef = useRef(false);
+  const save = useCallback(
+    async (baseHashOverride?: string) => {
+      const buf = bufferRef.current;
+      const path = pathRef.current;
+      if (!buf || !path || savingRef.current) return;
+      if (buf.text === buf.baseText && !baseHashOverride) return; // no-op
+      savingRef.current = true;
+      setSaving(true);
+      try {
+        const res = await commands.codeWrite(
+          projectId,
+          path,
+          restoreEol(buf.text, buf.eol),
+          baseHashOverride ?? buf.baseHash,
+        );
+        if (res.status === "error") {
+          toast.destructive(t("code.saveFailed", { error: tError(res.error) }));
+          return;
+        }
+        if (res.data.kind === "saved") {
+          applySaved(path, res.data.hash);
+        } else {
+          setConflict({ diskHash: res.data.disk_hash });
+        }
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    },
+    [projectId, applySaved],
+  );
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  const externalRef = useRef<() => void>(() => {});
+  useImperativeHandle(
+    ref,
+    () => ({
+      save: () => void saveRef.current(),
+      openExternal: () => externalRef.current(),
+    }),
+    [],
+  );
+
+  // 창 레벨 ⌘S — 트리/필터에 포커스가 있어도 저장된다 (CM 포커스는 CM 키맵이
+  // 먼저 먹는다). 분할 중이면 **포커스된 창만** 반응한다 — 안 그러면 한 번의
+  // ⌘S 가 양쪽에서 저장을 쏜다.
+  const focusedRef = useRef(isFocused);
+  focusedRef.current = isFocused;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // CM 키맵이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
+      // 같은 base_hash 로 저장이 두 번 나간다.
+      if (e.defaultPrevented || !focusedRef.current) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        void saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // ── 충돌 해소 ──────────────────────────────────────────────────────────
+  const reloadFromDisk = useCallback(() => {
+    const path = pathRef.current;
+    if (!path) return;
+    void loadFile(path, { discardBuffer: true });
+  }, [loadFile]);
+
+  const overwriteDisk = useCallback(() => {
+    if (!conflict) return;
+    void save(conflict.diskHash);
+  }, [conflict, save]);
+
+  // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
+  useEffect(() => {
+    const un = events.oculpmFileChanged.listen(({ payload }) => {
+      if (payload.project_id !== projectId) return;
+      const path = pathRef.current;
+      if (!path || payload.event.path !== path) return;
+      void (async () => {
+        const res = await commands.codeRead(projectId, path);
+        if (pathRef.current !== path) return;
+        if (res.status !== "ok") {
+          // 외부에서 파일이 지워지거나 이동됐다 — 조용히 삼키면 사용자는
+          // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다.
+          if (goneNotifiedRef.current !== path) {
+            goneNotifiedRef.current = path;
+            toast.warning(t("code.fileGone", { path }));
+          }
+          return;
+        }
+        goneNotifiedRef.current = null;
+        const buf = bufferRef.current;
+        if (!buf || res.data.binary || res.data.too_large) return;
+        if (res.data.hash === buf.baseHash) return; // 자기 저장의 에코
+        if (buf.text === buf.baseText) {
+          // 깨끗한 버퍼 — 조용히 최신화하되 읽던 줄은 유지한다.
+          const eol = detectEol(res.data.content);
+          const text = normalizeEol(res.data.content);
+          const fresh: CodeBuffer = { text, baseText: text, baseHash: res.data.hash, eol };
+          bufferRef.current = fresh;
+          putBuffer(bufferKey(projectId, path), fresh);
+          setPendingJump(cursorRef.current.line);
+          setEditorEpoch((n) => n + 1);
+        } else {
+          setConflict({ diskHash: res.data.hash });
+        }
+      })();
+    });
+    return () => safeUnlistenPromise(un);
+  }, [projectId]);
+
+  // ── 외부 에디터 ────────────────────────────────────────────────────────
+  const openExternal = useCallback(async () => {
+    const path = pathRef.current;
+    if (!projectRoot || !path) return;
+    const res = await commands.openInEditor(
+      projectRoot,
+      path,
+      settings.externalEditorCommand,
+      cursorRef.current.line,
+    );
+    if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
+  }, [projectRoot, settings.externalEditorCommand]);
+  externalRef.current = () => void openExternal();
+
+  const langId = activePath ? langIdForPath(activePath) : null;
+  const buf = bufferRef.current;
+
+  // 서버 상태를 한 낱말로. **"인덱싱 중" 을 밝히는 것이 요점** — rust-analyzer 는
+  // 첫 기동에 수십 초를 쓰는데, 그동안 진단이 안 오는 것을 "안 붙었다" 와
+  // 구별할 수 없으면 사용자는 고장으로 읽는다.
+  const lspLabel = useMemo((): string | null => {
+    switch (lsp.status.state) {
+      case "indexing":
+        return t("code.lsp.indexing");
+      case "ready":
+        return t("code.lsp.ready");
+      case "starting":
+        return t("code.lsp.starting");
+      case "missing":
+        return t("code.lsp.missing");
+      case "failed":
+        return t("code.lsp.failed");
+      default:
+        return null;
+    }
+  }, [lsp.status.state]);
+
+  return (
+    <div
+      className={"code-pane" + (isFocused && isSplit ? " focused" : "")}
+      // 캡처 단계 — 탭·에디터 어디를 눌러도 이 창이 먼저 포커스를 가져간다.
+      onMouseDownCapture={onFocus}
+      onFocusCapture={onFocus}
+      data-pane={paneIndex}
+    >
+      <CodeTabsBar
+        paneIndex={paneIndex}
+        tabs={tabs}
+        active={activePath}
+        dirtyPaths={dirtyPaths}
+        isSplit={isSplit}
+        onActivate={onActivate}
+        onClose={onClose}
+        onCloseOthers={onCloseOthers}
+        onSplit={onSplit}
+        onUnsplit={onUnsplit}
+        onMoveToOtherPane={onMoveToOtherPane}
+        onDropTab={onDropTab}
+      />
+
+      {conflict ? (
+        <div className="code-conflict" role="alert">
+          <AlertTriangle size={15} className="code-conflict-ico" />
+          <div className="code-conflict-text">
+            <strong>{t("code.conflict.title")}</strong>
+            <span>{t("code.conflict.desc")}</span>
+          </div>
+          <button type="button" className="btn ghost sm" onClick={reloadFromDisk}>
+            {t("code.conflict.reload")}
+          </button>
+          <button
+            type="button"
+            className="btn sm code-conflict-overwrite"
+            onClick={overwriteDisk}
+            disabled={saving}
+          >
+            {t("code.conflict.overwrite")}
+          </button>
+        </div>
+      ) : null}
+
+      {fileView.kind === "idle" ? (
+        <CodeEmptyState />
+      ) : fileView.kind === "loading" ? (
+        <div className="code-center-hint">{t("common.loading")}</div>
+      ) : fileView.kind === "error" ? (
+        <div className="code-center-hint">
+          {t("code.readFailed")}
+          <br />
+          {fileView.message}
+        </div>
+      ) : fileView.kind === "binary" || fileView.kind === "tooLarge" ? (
+        <div className="code-center-hint code-unopenable">
+          <FileCode size={30} strokeWidth={1.5} />
+          <div className="code-unopenable-title">
+            {fileView.kind === "binary" ? t("code.binary") : t("code.tooLarge")}
+          </div>
+          <div className="code-unopenable-desc">{formatBytes(fileView.bytes)}</div>
+          {projectRoot ? (
+            <button type="button" className="btn sm" onClick={() => void openExternal()}>
+              <ExternalLink size={13} /> {t("code.openExternal")}
+            </button>
+          ) : null}
+        </div>
+      ) : buf ? (
+        <>
+          <div className="code-editor-wrap">
+            <CodeEditor
+              key={`${activePath}:${editorEpoch}`}
+              initialText={buf.text}
+              path={activePath ?? ""}
+              onChange={handleChange}
+              diagnostics={lsp.diagnostics}
+              onComplete={lsp.complete}
+              onHover={lsp.hover}
+              onGoToDefinition={goToDefinition}
+              onRename={startRename}
+              onCodeActions={openCodeActions}
+              onSave={() => void saveRef.current()}
+              onCursor={(line, col) => setCursor({ line, col })}
+              jumpLine={pendingJump}
+              onJumpConsumed={() => setPendingJump(null)}
+            />
+          </div>
+          <div className="code-statusbar">
+            <span className={"code-status-dirty" + (dirty ? " on" : "")}>
+              {dirty ? t("code.dirty") : t("code.savedState")}
+            </span>
+            <span className="code-status-sep" />
+            <span>
+              Ln {cursor.line}, Col {cursor.col}
+            </span>
+            <span className="code-status-right">
+              {lspLabel ? (
+                <span
+                  className={"code-status-lsp " + (lsp.status.state ?? "")}
+                  title={lsp.status.detail ?? undefined}
+                >
+                  {lspLabel}
+                </span>
+              ) : null}
+              <span>{langLabel(langId)}</span>
+              <span>{formatBytes(fileView.bytes)}</span>
+            </span>
+          </div>
+        </>
+      ) : null}
+
+      <AppDialog
+        open={renameAt != null}
+        onClose={() => setRenameAt(null)}
+        label={t("code.lsp.renameTitle")}
+        width={420}
+        initialFocusRef={renameInputRef}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitRename();
+          }}
+          style={{ padding: "18px 20px 16px" }}
+        >
+          <label
+            htmlFor="code-rename-input"
+            style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8 }}
+          >
+            {t("code.lsp.renameTitle")}
+          </label>
+          <input
+            id="code-rename-input"
+            ref={renameInputRef}
+            className="input"
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            disabled={renaming}
+            spellCheck={false}
+            autoComplete="off"
+            style={{ width: "100%", fontFamily: "var(--mono)" }}
+          />
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+            {t("code.lsp.renameHint")}
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <button type="button" className="btn sm" onClick={() => setRenameAt(null)} disabled={renaming}>
+              {t("common.cancel")}
+            </button>
+            <button type="submit" className="btn sm primary" disabled={renaming || !renameName.trim()}>
+              {renaming ? t("code.lsp.renaming") : t("code.lsp.renameApply")}
+            </button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        open={actions != null && actions.length > 0}
+        onClose={() => setActions(null)}
+        label={t("code.lsp.actionsTitle")}
+        width={460}
+      >
+        <div style={{ padding: "16px 20px 18px" }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>
+            {t("code.lsp.actionsTitle")}
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(actions ?? []).map((a) => (
+              <button
+                key={a.index}
+                type="button"
+                className="btn sm"
+                disabled={actionsBusy}
+                onClick={() => runCodeAction(a.index)}
+                style={{ justifyContent: "flex-start", textAlign: "left", gap: 8 }}
+              >
+                {/* 서버가 "이걸 먼저" 라고 표시한 것 — 대개 진짜 고치려던 fix 다. */}
+                {a.preferred ? <span style={{ color: "var(--accent-text)" }}>★</span> : null}
+                <span style={{ flex: 1 }}>{a.title}</span>
+                {a.kind ? (
+                  <span style={{ fontSize: 11, color: "var(--text-3)" }}>{a.kind}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+            {t("code.lsp.renameHint")}
+          </p>
+        </div>
+      </AppDialog>
+    </div>
+  );
+});
+
+function CodeEmptyState() {
+  useT();
+  return (
+    <div className="code-center-hint code-empty">
+      <FileCode size={32} strokeWidth={1.5} className="code-empty-ico" />
+      <div className="code-empty-title">{t("code.empty.title")}</div>
+      <p className="code-empty-desc">{t("code.empty.desc")}</p>
+    </div>
+  );
+}

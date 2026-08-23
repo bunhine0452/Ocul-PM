@@ -18,6 +18,7 @@ import { safeUnlisten } from "@/lib/unlisten";
 
 import { events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
+import type { CodeTabsState } from "@/features/code/codeTabs";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
 import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
@@ -292,6 +293,15 @@ export interface WorkspaceState {
   docsActivePath: string | null;
   /** 코드 화면에서 마지막으로 열었던 파일의 프로젝트-루트 기준 경로. */
   codeActivePath: string | null;
+  /**
+   * 코드 화면의 탭·분할 상태 (Phase 1 #tabs-persist). 열어 둔 파일 목록은
+   * 편집기에서 **작업 중인 자리** 그 자체라, 앱을 껐다 켜면 되살아나야 한다.
+   *
+   * 미저장 편집 자체는 여기 없다 — 버퍼는 의도적으로 영속하지 않는다
+   * (codeBuffers 의 주석: 디스크와 다른 유령 버퍼가 되살아나는 쪽이 더 위험).
+   * 즉 되살아나는 것은 "무엇을 열어 뒀는가" 뿐이고, 내용은 디스크에서 다시 읽는다.
+   */
+  codeTabs: CodeTabsState | null;
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**
@@ -382,6 +392,7 @@ const DEFAULT_STATE: WorkspaceState = {
   aiThreadId: null,
   docsActivePath: null,
   codeActivePath: null,
+  codeTabs: null,
   discussionActiveId: null,
   discussionEditorMode: "split",
   sidebarCollapsed: false,

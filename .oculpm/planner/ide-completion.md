@@ -31,6 +31,31 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 
 영향: #tree-backend #tree-frontend #tree-dim
 
+### Decision 2 — 삭제는 휴지통으로 보낸다 {#delete-to-trash}
+
+잠금 2026-08-23 · claude-code.
+
+폴더 삭제는 재귀라 한 번의 오조작으로 잃는 것이 크고, 확인 창 하나로 감당할 무게가
+아니다. 앱이 되돌릴 수 없는 삭제를 만들지 않는 것이 원칙이고 되돌리기는 OS 가 이미
+잘한다 — `trash` 크레이트로 OS 휴지통에 보낸다. 휴지통이 실패하는 환경(네트워크
+볼륨 등)에서는 **영구 삭제로 물러서지 않고** 오류를 그대로 알린다.
+
+영향: #file-ops-backend #file-ops-ui
+
+### Decision 3 — 편집 창을 컴포넌트로 떼어낸다 {#pane-component}
+
+잠금 2026-08-23 · claude-code.
+
+좌우 분할은 "에디터를 두 번 그리는 것"이 아니라 **편집 상태를 두 벌 갖는 것**이다
+(버퍼·커서·충돌·LSP 수명이 창마다 따로). 화면이 그것을 배열로 들면 모든 상태가
+인덱스로 갈라져 읽을 수 없게 된다. 창을 `CodePane` 으로 두면 React 가 그 갈래를
+대신 든다 — `CodeScreenV2` 925줄 → 741(화면) + 742(창).
+
+곁가지 제약: 백엔드 LSP 는 (프로젝트, 파일)로 문서를 하나만 연다. 같은 파일이 양쪽
+창에 열리면 **왼쪽 창만** 서버를 붙인다.
+
+영향: #tabs-split #tabs-bar
+
 ## Phase 0 — 지연 로딩 트리 {#p0-tree}
 - [x] 숨김 파일 표시 + `.git` 예외 (v2.15.0 선행분) {#hidden-done}
 - [x] `code_dir` — 디렉터리 한 단계만. 무시 여부는 손으로 판정하지 않고 `max_depth(1)` 걸음이 살려 둔 집합과 대조해 얻는다 (판정 주체를 하나로) {#tree-backend}
@@ -40,12 +65,13 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 - [x] 인앱 육안 확인 — 큰 폴더 펼침 반응성 · 흐린 표시의 가독성 {#tree-verify}
 
 ## Phase 1 — 탭과 파일 조작 {#p1-tabs}
-- [ ] 탭 바 — 여러 파일 동시 열기. 버퍼 캐시(`codeBuffers`, 20개 상한)는 이미 있으니 UI 만 {#tabs-bar}
-- [ ] 탭 상태 영속 — `WorkspaceContext` 경유 (직접 localStorage 금지) {#tabs-persist}
-- [ ] 분할 화면 — 좌우 2분할 {#tabs-split}
-- [ ] `code_create` / `code_mkdir` / `code_rename` / `code_delete` — 커맨드가 아예 없다. `secure_join` 가드·심링크 이탈 방지는 `code_read` 경로 재사용 {#file-ops-backend}
-- [ ] 트리 컨텍스트 메뉴 + 인라인 이름 입력 · 삭제 확인 · 열린 버퍼와의 정합(삭제/이름변경된 파일이 탭에 열려 있을 때) {#file-ops-ui}
-- [ ] 드래그로 이동 {#file-ops-dnd}
+- [x] 탭 바 — 여러 파일 동시 열기. 버퍼 캐시(`codeBuffers`, 20개 상한)는 이미 있으니 UI 만 {#tabs-bar}
+- [x] 탭 상태 영속 — `WorkspaceContext` 경유 (직접 localStorage 금지) {#tabs-persist}
+- [x] 분할 화면 — 좌우 2분할 {#tabs-split}
+- [x] `code_create` / `code_mkdir` / `code_rename` / `code_delete` — 커맨드가 아예 없다. `secure_join` 가드·심링크 이탈 방지는 `code_read` 경로 재사용 {#file-ops-backend}
+- [x] 트리 컨텍스트 메뉴 + 인라인 이름 입력 · 삭제 확인 · 열린 버퍼와의 정합(삭제/이름변경된 파일이 탭에 열려 있을 때) {#file-ops-ui}
+- [x] 드래그로 이동 {#file-ops-dnd}
+- [ ] 인앱 육안 확인 — 드래그 이동 · 우클릭 메뉴 위치 · 분할 폭 (jsdom 이 못 보는 축) {#p1-verify}
 
 ## Phase 2 — LSP 나머지 창구 {#p2-lsp-rest}
 - [ ] 참조 찾기 (`textDocument/references`) — 결과 패널 {#lsp-references}
@@ -83,4 +109,11 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T12:35:02+09:00 | #tree-dim | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | opacity .45 + title · reduced-motion 대응 |
 | 2026-08-23T12:35:03+09:00 | #tree-filter | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | 전량 걸음 유지로 결정. 무시된 파일이 검색 안 되는 것은 남음 |
 | 2026-08-23T13:05:00+09:00 | #tree-verify | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | 사용자가 앱에서 확인 |
+| 2026-08-23T15:30:00+09:00 | #file-ops-backend | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | code_create/mkdir/rename/delete · resolve_for_mutation 심링크 가드 · 삭제=휴지통 · 테스트 10 |
+| 2026-08-23T15:30:01+09:00 | #tabs-bar | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | CodeTabsBar + CodePane 추출. 가운데클릭·× ·우클릭 메뉴 |
+| 2026-08-23T15:30:02+09:00 | #tabs-persist | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | WorkspaceContext.codeTabs. 버퍼는 여전히 비영속 — 여는 목록만 되살린다 |
+| 2026-08-23T15:30:03+09:00 | #tabs-split | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 창=상태 한 벌. 창 간 탭 드래그 · 빈 창 자동 접힘 · 같은 파일이면 왼쪽만 LSP |
+| 2026-08-23T15:30:04+09:00 | #file-ops-ui | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 인라인 입력칸 · 삭제 확인이 함께 닫히는 탭·미저장을 먼저 열거 · 버퍼 재키잉 |
+| 2026-08-23T15:30:05+09:00 | #file-ops-dnd | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 트리 행 → 폴더/루트 드롭. 자기 후손으로는 프런트에서 먼저 막는다 |
+| 2026-08-23T15:30:06+09:00 | #p1-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 신규 — 드래그·메뉴 위치·분할 폭은 사용자 확인 필요 |
 <!-- oculpm:plan-log end -->

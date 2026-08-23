@@ -93,6 +93,54 @@ export function listDirtyPaths(projectId: number): Set<string> {
   return out;
 }
 
+/**
+ * 이름이 바뀐(옮겨진) 경로의 버퍼를 새 키로 옮긴다 — **미저장 편집을 보존**하려고.
+ *
+ * 이것이 없으면 파일을 옮기는 순간 편집 중이던 내용이 조용히 사라진다: 탭은
+ * 새 경로를 가리키는데 버퍼는 옛 키에 남아, 새 경로로 다시 읽으면 디스크 내용이
+ * 올라온다. `isDir` 이면 그 아래 전부를 접두사로 옮긴다.
+ */
+export function renameBufferPath(
+  projectId: number,
+  from: string,
+  to: string,
+  isDir: boolean,
+): void {
+  const prefix = `${projectId}:`;
+  const moves: Array<[string, string, CodeBuffer]> = [];
+  for (const [key, buf] of buffers) {
+    if (!key.startsWith(prefix)) continue;
+    const path = key.slice(prefix.length);
+    if (path === from) moves.push([key, bufferKey(projectId, to), buf]);
+    else if (isDir && path.startsWith(from + "/")) {
+      moves.push([key, bufferKey(projectId, to + path.slice(from.length)), buf]);
+    }
+  }
+  for (const [oldKey, newKey, buf] of moves) {
+    buffers.delete(oldKey);
+    // 목적지 키에 뭔가 있었다면 이번 이동이 이긴다 — 방금 옮긴 파일이 진실이다.
+    buffers.delete(newKey);
+    buffers.set(newKey, buf);
+  }
+}
+
+/**
+ * 지워진 경로(폴더면 그 아래 전부)의 버퍼를 버린다.
+ * 버린 것 중 **미저장이었던** 경로를 돌려준다 — 호출자가 무엇이 사라졌는지 말한다.
+ */
+export function dropBuffersUnder(projectId: number, path: string, isDir: boolean): string[] {
+  const prefix = `${projectId}:`;
+  const lost: string[] = [];
+  for (const [key, buf] of [...buffers]) {
+    if (!key.startsWith(prefix)) continue;
+    const rel = key.slice(prefix.length);
+    if (rel !== path && !(isDir && rel.startsWith(path + "/"))) continue;
+    if (isDirty(buf)) lost.push(rel);
+    buffers.delete(key);
+  }
+  return lost;
+}
+
 /** 테스트 전용 — 상태 초기화. */
 export function _resetBuffers(): void {
   buffers.clear();

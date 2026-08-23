@@ -262,6 +262,32 @@ export const commands = {
 	 *  트리와 어긋난 유령 경로 생성을 막는다.
 	 */
 	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
+	/**
+	 *  빈 파일 생성. 없는 중간 폴더는 같이 만든다 (VS Code 의 "새 파일" 과 같이
+	 *  `a/b/c.ts` 를 한 번에 받는다). 이미 있으면 **덮어쓰지 않고** 오류다.
+	 */
+	codeCreate: (projectId: number, relPath: string) => typedError<CodePathResult, string>(__TAURI_INVOKE("code_create", { projectId, relPath })),
+	/**
+	 *  폴더 생성. 중간 폴더도 같이 만들되, 대상이 **이미 있으면 오류** —
+	 *  `create_dir_all` 의 조용한 성공은 트리에 아무 변화가 없어 사용자를 헷갈리게 한다.
+	 */
+	codeMkdir: (projectId: number, relPath: string) => typedError<CodePathResult, string>(__TAURI_INVOKE("code_mkdir", { projectId, relPath })),
+	/**
+	 *  이름 바꾸기 겸 이동 — 트리의 드래그 이동도 이 하나를 쓴다 (둘은 같은 연산이다:
+	 *  목적지의 부모가 다르면 이동, 같으면 이름 바꾸기).
+	 * 
+	 *  대상이 이미 있으면 오류다. `fs::rename` 은 파일을 말없이 덮어쓰므로 반드시
+	 *  먼저 막는다 — 이름 오타 한 번에 남의 파일이 사라지면 안 된다.
+	 */
+	codeRename: (projectId: number, fromRel: string, toRel: string) => typedError<CodePathResult, string>(__TAURI_INVOKE("code_rename", { projectId, fromRel, toRel })),
+	/**
+	 *  삭제 — **OS 휴지통으로 보낸다**, 영구 삭제가 아니다.
+	 * 
+	 *  폴더 삭제는 재귀라 한 번의 오조작으로 잃는 것이 크다. 앱이 되돌릴 수 없는
+	 *  삭제를 만들지 않는 것이 원칙이고, 되돌리기는 OS 가 이미 잘한다. 휴지통이
+	 *  실패하면 **영구 삭제로 물러서지 않고** 오류를 그대로 알린다.
+	 */
+	codeDelete: (projectId: number, relPath: string) => typedError<null, string>(__TAURI_INVOKE("code_delete", { projectId, relPath })),
 	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
 	lspStatus: (projectId: number) => typedError<LspServerInfo[], string>(__TAURI_INVOKE("lsp_status", { projectId })),
 	/**
@@ -1871,6 +1897,13 @@ export type CodeFileContent = {
 export type CodeGraph = {
 	nodes: GraphNodeDto[],
 	edges: GraphEdgeDto[],
+};
+
+/**  파일/폴더를 만들거나 옮긴 결과. 프런트가 그대로 열거나 탭 경로를 갈아끼운다. */
+export type CodePathResult = {
+	/**  프로젝트 루트 기준 슬래시 경로 — `code_read`/`code_write` 인자와 같은 계약. */
+	relative_path: string,
+	is_dir: boolean,
 };
 
 /**  `code_tree` 응답. */

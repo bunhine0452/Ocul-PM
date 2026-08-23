@@ -86,6 +86,10 @@ uuid = { version = "1", features = ["v4"] }
 # JSON-RPC 트랜스포트를 크레이트가 함께 담당한다 (`AcpAgent` 가 ConnectTo 구현).
 # 설계 SSOT: docs/acp-panel/00-master-plan.md
 agent-client-protocol = "2"
+# 코드 화면의 파일 삭제 — 영구 삭제 대신 OS 휴지통으로 보낸다. IDE 안에서
+# 되돌릴 수 없는 삭제는 만들지 않는다 (폴더 삭제는 재귀라 더더욱).
+# default-features off = chrono 를 끌어오는 휴지통 메타데이터 기능 제외.
+trash = { version = "5.2.6", default-features = false }
 
 [dev-dependencies]
 # Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).
