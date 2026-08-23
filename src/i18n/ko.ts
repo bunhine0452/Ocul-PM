@@ -731,6 +731,9 @@ export const ko = {
   "plan.itemDelete": "항목 삭제",
 
   // ── ocul-pm 설정 (OculpmSettings) ───────────────────────────────────────
+  // 연동 탭 섹션 머리 — HEAD 의 OculpmSettings 가 참조 (릴리스 빌드 수복)
+  "op.claude.title": "Claude 연동",
+  "op.claude.desc": "훅 · MCP 서버 · 인앱 에이전트 런타임 · 셸 통합 — 이 프로젝트가 Claude Code 와 이어지는 창구입니다.",
   "op.tab.record": "기록",
   "op.tab.agents": "에이전트",
   "op.tab.automation": "자동화",

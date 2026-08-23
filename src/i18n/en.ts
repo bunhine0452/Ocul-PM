@@ -738,6 +738,9 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.itemDelete": "Delete item",
 
   // ── ocul-pm settings (OculpmSettings) ───────────────────────────────────
+  // 연동 탭 섹션 머리 — HEAD 의 OculpmSettings 가 참조 (릴리스 빌드 수복)
+  "op.claude.title": "Claude integration",
+  "op.claude.desc": "Hooks, the MCP server, the in-app agent runtime, and shell integration — how this project connects to Claude Code.",
   "op.tab.record": "Recording",
   "op.tab.agents": "Agents",
   "op.tab.automation": "Automation",
