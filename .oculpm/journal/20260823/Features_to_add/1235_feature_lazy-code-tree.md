@@ -10,7 +10,7 @@ agent:
   id: claude-code
   version: claude-opus-5
 language: ko
-verified_by_user: false
+verified_by_user: true
 files_touched:
   - path: "src-tauri/src/commands/code.rs"
     op: update
@@ -113,8 +113,9 @@ ignored: !kept.contains(&name_os)
 - 기존 `code_screen.test.tsx` 는 트리가 지연 로딩이 되며 9건이 전부 깨졌다 —
   픽스처 전량 트리에서 해당 단계를 잘라 주는 `code_dir` 목을 더해 복구.
 - `pnpm typecheck` · `pnpm lint` · `pnpm build` 각각 exit 0.
+- 사용자가 앱에서 육안 확인 (2026-08-23) — 큰 폴더 펼침 반응성과 흐린 표시의
+  가독성 포함.
 - 정직하게: **전체 `pnpm test` 를 깨끗하게 통과시키지 못했다.** 아래 메모 참조.
-  인앱 육안 확인도 아직 안 했다.
 
 ## 메모
 

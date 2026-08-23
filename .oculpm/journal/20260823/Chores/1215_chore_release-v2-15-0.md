@@ -2,7 +2,7 @@
 schema_version: 1
 type: chore
 slug: release-v2-15-0
-status: in_progress
+status: done
 difficulty: medium
 created_at: "2026-08-23T12:15:00+09:00"
 session_id: "manual-20260823-121500"
@@ -10,7 +10,7 @@ agent:
   id: claude-code
   version: claude-opus-5
 language: ko
-verified_by_user: false
+verified_by_user: true
 files_touched:
   - path: "package.json"
     op: update
@@ -40,7 +40,7 @@ related:
 tags: [release, landing, vercel, lsp, ide]
 ---
 
-[~] v2.15.0 릴리스 — 밀려 있던 라운드 넷을 풀어서 한 번에 냈다
+[x] v2.15.0 릴리스 — 밀려 있던 라운드 넷을 풀어서 한 번에 냈다
 
 ## 작업 내용
 
@@ -103,6 +103,10 @@ FAQ 는 **새로 넣은 게 아니라 고쳐야 했다.** 기존 「앱 안에�
 - 랜딩 `vercel --prod --yes` (git 연동이 없어 push 로 안 나간다) →
   `oculpm.com` alias 완료. `curl` 로 `"softwareVersion": "2.15.0"` 과
   「v2.15.0 받기」 확인, 새 위키 `/wiki/today` 200 · 영문 `/wiki/en/` 200.
+- release.yml run 32614336662 **26분 만에 success**. 에셋 4종
+  (`Ocul-PM_2.15.0_aarch64.dmg` · `.app.tar.gz` · `.sig` · `latest.json`),
+  릴리스 노트 본문 1,769자(비어 있지 않음 = §2 헤더가 태그와 맞았다).
+- 사용자가 앱에서 육안 확인 (2026-08-23).
 
 ## 메모
 

@@ -37,7 +37,7 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 - [x] 프런트 — `childrenOf(경로)` 조회. `undefined`(미로드)와 `[]`(빈 폴더)를 구별하는 것이 요점 {#tree-frontend}
 - [x] gitignore 항목은 흐리게 + title 로 이유 {#tree-dim}
 - [~] 필터는 **전량 걸음을 그대로 남겨** 쓰기로 결정 — 안 읽은 가지의 매치는 지연 로딩으로 못 찾는다. 렌더러는 `flattenToDirMap` 으로 하나 유지. 남은 것: 무시된 파일은 이름으로도 검색되지 않는다 {#tree-filter}
-- [ ] 인앱 육안 확인 — 큰 폴더 펼침 반응성 · 흐린 표시의 가독성 {#tree-verify}
+- [x] 인앱 육안 확인 — 큰 폴더 펼침 반응성 · 흐린 표시의 가독성 {#tree-verify}
 
 ## Phase 1 — 탭과 파일 조작 {#p1-tabs}
 - [ ] 탭 바 — 여러 파일 동시 열기. 버퍼 캐시(`codeBuffers`, 20개 상한)는 이미 있으니 UI 만 {#tabs-bar}
@@ -82,4 +82,5 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T12:35:01+09:00 | #tree-frontend | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | childrenOf 조회 · 미로드/빈폴더 구별 · 새로고침이 캐시도 버림 |
 | 2026-08-23T12:35:02+09:00 | #tree-dim | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | opacity .45 + title · reduced-motion 대응 |
 | 2026-08-23T12:35:03+09:00 | #tree-filter | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | 전량 걸음 유지로 결정. 무시된 파일이 검색 안 되는 것은 남음 |
+| 2026-08-23T13:05:00+09:00 | #tree-verify | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | 사용자가 앱에서 확인 |
 <!-- oculpm:plan-log end -->

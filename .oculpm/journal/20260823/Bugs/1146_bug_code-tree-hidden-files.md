@@ -10,7 +10,7 @@ agent:
   id: claude-code
   version: claude-opus-5
 language: ko
-verified_by_user: false
+verified_by_user: true
 files_touched:
   - path: "src-tauri/src/commands/code.rs"
     op: update
@@ -84,9 +84,8 @@ global · git exclude · **hidden**. 의도한 것은 앞의 셋(빌드 산출�
   각각 exit 0.
 - 실제 저장소 기준 트리 883 → 1,253 파일. 새로 보이는 최상위 항목:
   `.oculpm` · `.github` · `.vscode` · `.claude-plugin` · `.gitignore`.
-- 정직하게: 인앱 육안 확인은 아직 안 했다 (백엔드 걸음만 바꿨고 프런트는 받은
-  트리를 그대로 그린다). 트리는 기본 접힘이라 `.oculpm` 이 폴더 하나로 서지,
-  수백 건이 펼쳐지지는 않는다.
+- 사용자가 앱에서 육안 확인 (2026-08-23). 트리는 기본 접힘이라 `.oculpm` 이
+  폴더 하나로 서지, 수백 건이 펼쳐지지는 않는다.
 
 ## 메모
 
