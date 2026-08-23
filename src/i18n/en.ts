@@ -1448,6 +1448,13 @@ export const en: Record<keyof typeof ko, string> = {
   "code.debug.startFailed": "Could not start debugging — {error}",
   "code.debug.adapterMissing": "No {language} debug adapter — install with: {hint}",
   "code.debug.noAdapter": "This file cannot be debugged (Rust · Python · Go)",
+  // Production polish round (2026-08-23) — breadcrumbs, filter, empty-state keys
+  "code.crumbs.aria": "File path",
+  "code.filter.clear": "Clear filter",
+  "code.empty.kPalette": "Symbols & commands",
+  "code.empty.kDef": "Go to definition",
+  "code.empty.kRefs": "Find references",
+  "code.empty.kFormat": "Format",
   "code.conflict.title": "The file changed on disk",
   "code.conflict.desc": "Another program (an agent) modified this file. Choose which version to keep.",
   "code.conflict.reload": "Load the disk version",

@@ -24,7 +24,8 @@ import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { AlertTriangle, ExternalLink, FileCode } from "@/components/Icons";
+import { AlertTriangle, ChevronRight, ExternalLink, FileCode } from "@/components/Icons";
+import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
 import type { ReferencesQuery } from "./CodeReferences";
@@ -109,6 +110,8 @@ export interface CodePaneProps {
   unverifiedFor: (path: string) => number[];
   /** 거터 클릭 — 디버그 가능한 파일에만 거터가 붙는다. */
   onToggleBreakpoint: (path: string, line: number) => void;
+  /** 브레드크럼의 폴더 조각 클릭 — 트리에서 그 폴더를 펼쳐 보여 준다. */
+  onRevealDir: (dir: string) => void;
 }
 
 export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodePane(
@@ -138,6 +141,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     breakpointsFor,
     unverifiedFor,
     onToggleBreakpoint,
+    onRevealDir,
   },
   ref,
 ) {
@@ -702,6 +706,32 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         onDropTab={onDropTab}
       />
 
+      {/* 브레드크럼 — 어느 폴더의 파일인지 탭 이름만으로는 모른다 (같은 이름의
+          파일이 흔하다: mod.rs·index.ts). 폴더 조각을 누르면 트리에서 펼친다. */}
+      {activePath ? (
+        <nav className="code-crumbs" aria-label={t("code.crumbs.aria")}>
+          {activePath.split("/").map((seg, i, all) => {
+            const isLast = i === all.length - 1;
+            const dir = all.slice(0, i + 1).join("/");
+            return (
+              <span key={dir} className="code-crumb-seg">
+                {i > 0 ? <ChevronRight size={11} className="code-crumb-sep" aria-hidden /> : null}
+                {isLast ? (
+                  <span className="code-crumb current">
+                    <FileIcon name={seg} size={13} />
+                    {seg}
+                  </span>
+                ) : (
+                  <button type="button" className="code-crumb" onClick={() => onRevealDir(dir)}>
+                    {seg}
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </nav>
+      ) : null}
+
       {conflict ? (
         <div className="code-conflict" role="alert">
           <AlertTriangle size={15} className="code-conflict-ico" />
@@ -783,24 +813,28 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             />
           </div>
           <div className="code-statusbar">
-            <span className={"code-status-dirty" + (dirty ? " on" : "")}>
-              {dirty ? t("code.dirty") : t("code.savedState")}
+            <span className={"code-status-item code-status-dirty" + (dirty ? " on" : "")}>
+              <span aria-hidden>{dirty ? "●" : "○"}</span>
+              <span>{dirty ? t("code.dirty") : t("code.savedState")}</span>
             </span>
-            <span className="code-status-sep" />
-            <span>
+            <span className="code-status-item">
               Ln {cursor.line}, Col {cursor.col}
             </span>
             <span className="code-status-right">
               {lspLabel ? (
                 <span
-                  className={"code-status-lsp " + (lsp.status.state ?? "")}
+                  className={"code-status-item code-status-lsp " + (lsp.status.state ?? "")}
                   title={lsp.status.detail ?? undefined}
                 >
+                  {/* 상태를 색점으로 — 낱말을 읽기 전에 색이 먼저 답한다. */}
+                  <span className="code-status-led" aria-hidden />
                   {lspLabel}
                 </span>
               ) : null}
-              <span>{langLabel(langId)}</span>
-              <span>{formatBytes(fileView.bytes)}</span>
+              {/* 줄바꿈 종류 — CRLF 파일을 모르고 고치면 diff 가 전체 줄로 물든다. */}
+              <span className="code-status-item">{buf.eol === "\r\n" ? "CRLF" : "LF"}</span>
+              <span className="code-status-item">{langLabel(langId)}</span>
+              <span className="code-status-item">{formatBytes(fileView.bytes)}</span>
             </span>
           </div>
         </>
@@ -889,13 +923,29 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   );
 });
 
-function CodeEmptyState() {
+/** 빈 상태 — 화면(모든 탭 닫힘)과 창(파일 미선택)이 공유한다. */
+export function CodeEmptyState() {
   useT();
+  const keys: Array<[string, string]> = [
+    ["⌘K", t("code.empty.kPalette")],
+    ["F12", t("code.empty.kDef")],
+    ["⇧F12", t("code.empty.kRefs")],
+    ["⇧⌥F", t("code.empty.kFormat")],
+  ];
   return (
     <div className="code-center-hint code-empty">
       <FileCode size={32} strokeWidth={1.5} className="code-empty-ico" />
       <div className="code-empty-title">{t("code.empty.title")}</div>
       <p className="code-empty-desc">{t("code.empty.desc")}</p>
+      {/* 단축키 표 — 빈 화면이 곧 치트시트다 (VS Code 와 같은 관례). */}
+      <div className="code-empty-keys">
+        {keys.map(([combo, label]) => (
+          <span key={combo} className="code-empty-key">
+            <kbd>{combo}</kbd>
+            <span>{label}</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

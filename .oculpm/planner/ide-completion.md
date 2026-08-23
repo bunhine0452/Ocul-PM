@@ -149,6 +149,20 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 - [ ] debugpy · dlv 왕복 검증 — 이 기계에 없어 조달 경로만 넣고 실제 세션은 못 돌렸다 (docs/dap PR-DAP1) {#dap-more-adapters}
 - [ ] 인앱 육안 확인 — 거터 클릭 반응 · 패널 높이 · 변수 트리 펼침 {#p3-verify}
 
+## Phase 4 — 프로덕션급 다듬기 {#p4-polish}
+
+사용자 요청 (2026-08-23): "각 파일 확장자에 맞게 아이콘 + 아마추어 같은
+디자인·UX 를 cursor·vscode 급으로."
+
+- [x] 확장자별 파일 아이콘 — 언어=브랜드색 모노그램 배지, 성질 파일=아이콘+색. 트리·탭·참조·브레드크럼 공유 {#file-icons}
+- [x] 트리 정렬·가이드 — 파일 행 캐럿 자리 확보(라벨 정렬), VS Code 식 들여쓰기 가이드, 폴더 열림/닫힘 아이콘 {#tree-polish}
+- [x] 탭 다듬기 — 활성 탭을 편집면과 한 몸으로(같은 바탕+상단 액센트), 미저장 점/닫기 × 한 슬롯 {#tabs-polish}
+- [x] 브레드크럼 — 경로 조각 클릭 → 트리에서 펼침 {#breadcrumbs}
+- [x] 상태줄 — LSP 색점 · EOL(LF/CRLF) · 세그먼트화 {#statusbar-polish}
+- [x] 잔손질 — 툴바 고스트 버튼 · 가는 스크롤바 · 필터 지우기 · 빈 상태 단축키 치트시트 · 메뉴 마감 {#chrome-polish}
+- [ ] 패널 드래그 리사이즈 — 참조·디버그 패널 높이 조절 (다음 후보) {#panel-resize}
+- [ ] 인앱 육안 확인 — 배지 색 라이트/다크 가독성 · 가이드 선 정렬 · 활성 탭 모양 {#p4-verify}
+
 ## 하지 않는 것
 
 - **확장 호스트** — 포크를 접은 이유와 같다.
@@ -186,4 +200,11 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T21:30:04+09:00 | #dap-config | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | launch 최소형만. attach·구성 영속은 미구현 |
 | 2026-08-23T21:30:05+09:00 | #dap-more-adapters | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 신규 — debugpy·dlv 미설치라 왕복 미검증 |
 | 2026-08-23T21:30:06+09:00 | #p3-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 신규 — 거터 클릭·패널 높이·변수 펼침은 사용자 확인 필요 |
+| 2026-08-23T23:05:00+09:00 | #file-icons | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | FileIcon.tsx — 판정 순수함수(파일명>확장자) + 테스트 6 |
+| 2026-08-23T23:05:01+09:00 | #tree-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 캐럿 자리 확보로 라벨 정렬 · 가이드 gradient · 폴더 열림 상태 |
+| 2026-08-23T23:05:02+09:00 | #tabs-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | bg-content 연결 + 상단 액센트 + 점/× 슬롯 |
+| 2026-08-23T23:05:03+09:00 | #breadcrumbs | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 폴더 조각 → revealDir(필터 걷고 조상 펼침) |
+| 2026-08-23T23:05:04+09:00 | #statusbar-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | LSP 색점(펄스는 reduced-motion 대응) · EOL 표시 |
+| 2026-08-23T23:05:05+09:00 | #chrome-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 고스트 툴바 · 오버레이 스크롤바 · 빈 상태 치트시트 |
+| 2026-08-23T23:05:06+09:00 | #p4-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 신규 — 배지 색·가이드·탭 모양은 눈이 판정 |
 <!-- oculpm:plan-log end -->

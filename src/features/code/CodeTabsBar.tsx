@@ -3,6 +3,7 @@
 import { memo, useState } from "react";
 
 import { X, Columns2, Minimize2 } from "@/components/Icons";
+import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
 
 import { CodeContextMenu } from "./CodeContextMenu";
@@ -102,21 +103,25 @@ export const CodeTabsBar = memo(function CodeTabsBar({
                 setMenu({ x: e.clientX, y: e.clientY, path });
               }}
             >
+              <FileIcon name={name} size={15} className="code-tab-ico" />
               <span className="code-tab-name">{name}</span>
-              {/* 미저장 표시와 닫기 버튼이 같은 자리를 쓴다 — 평소엔 점, 호버하면 ×
-                  (VS Code 와 같다). 점만 있고 × 가 없으면 실수로 닫는 일이 준다. */}
-              <button
-                type="button"
-                className="code-tab-close"
-                aria-label={t("code.tabs.closeAria", { name })}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose(path);
-                }}
-              >
-                <X size={12} strokeWidth={2.5} />
-              </button>
-              {isDirty ? <span className="code-tab-dot" aria-label={t("code.dirty")} /> : null}
+              {/* 미저장 점과 닫기 ×가 **한 슬롯**을 쓴다 (VS Code 와 같다):
+                  dirty 는 점, 탭에 호버하면 × 로 바뀐다 — 점만 있으면 닫을 수
+                  없고, × 만 있으면 미저장을 모른 채 닫는다. 전환은 CSS 가 한다. */}
+              <span className="code-tab-slot">
+                {isDirty ? <span className="code-tab-dot" aria-label={t("code.dirty")} /> : null}
+                <button
+                  type="button"
+                  className="code-tab-close"
+                  aria-label={t("code.tabs.closeAria", { name })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose(path);
+                  }}
+                >
+                  <X size={12} strokeWidth={2.5} />
+                </button>
+              </span>
             </div>
           );
         })}

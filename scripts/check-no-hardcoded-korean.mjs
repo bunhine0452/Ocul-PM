@@ -160,6 +160,7 @@ const TESTS = new Set([
   "__tests__/nav_registry.test.ts",
   "__tests__/notion_export_v2.test.tsx",
   "__tests__/code_dir_map.test.ts",
+  "__tests__/code_file_icons.test.ts",
   "__tests__/code_file_ops.test.ts",
   "__tests__/code_gutter_outline.test.ts",
   "__tests__/code_debug.test.ts",

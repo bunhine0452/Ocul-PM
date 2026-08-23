@@ -64,7 +64,8 @@ export function useDebug(projectId: number): UseDebugResult {
       if (!cancelled && res.status === "ok") setSession(res.data);
     });
     void commands.dapAllBreakpoints(projectId).then((res) => {
-      if (cancelled || res.status !== "ok") return;
+      // 배열 가드 — 비-Tauri 환경(테스트 목)은 알 수 없는 커맨드에 null 을 준다.
+      if (cancelled || res.status !== "ok" || !Array.isArray(res.data)) return;
       setBreakpoints(new Map(res.data.map((f) => [f.path, f.lines])));
     });
     return () => {

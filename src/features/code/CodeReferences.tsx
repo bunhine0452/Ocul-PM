@@ -5,7 +5,8 @@
 // 의미가 사라진다 (VS Code 도 같은 이유로 아래에 둔다).
 import { memo, useState } from "react";
 
-import { X, ChevronRight, FileCode2 } from "@/components/Icons";
+import { X, ChevronRight } from "@/components/Icons";
+import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
 import type { LspReferenceFile } from "@/lib/bindings";
 
@@ -79,7 +80,7 @@ export const CodeReferences = memo(function CodeReferences({
                 }
               >
                 <ChevronRight size={12} className={"code-tree-caret" + (open ? " open" : "")} />
-                <FileCode2 size={13} className="code-refs-ico" />
+                <FileIcon name={file.display.slice(file.display.lastIndexOf("/") + 1)} size={14} className="code-refs-ico" />
                 <span className="code-refs-path">{file.display}</span>
                 <span className="code-refs-count">{file.hits.length}</span>
                 {/* 프로젝트 밖(의존성·표준 라이브러리)은 열 수 없다 — 목록에는

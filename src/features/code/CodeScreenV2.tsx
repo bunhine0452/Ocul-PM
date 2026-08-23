@@ -14,7 +14,6 @@ import { Toolbar } from "@/components/Toolbar";
 import {
   RefreshCw,
   Save,
-  FileCode,
   ExternalLink,
   Search,
   FilePlus,
@@ -31,7 +30,7 @@ import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 
 import { CodeTree, type TreeDraft } from "./CodeTree";
-import { CodePane, type CodePaneHandle } from "./CodePane";
+import { CodePane, CodeEmptyState, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
 import { CodeOutline } from "./CodeOutline";
 import { CodeDebugPanel } from "./CodeDebugPanel";
@@ -575,6 +574,24 @@ export function CodeScreenV2({
     return new Set(collectDirs(filteredNodes));
   }, [filtering, expanded, filteredNodes]);
 
+  /**
+   * 브레드크럼의 폴더 조각 → 트리에서 그 자리를 펼쳐 보여 준다.
+   * 필터 중이면 필터를 걷는다 — 필터된 트리에는 그 폴더가 없을 수 있다.
+   */
+  const revealDir = useCallback(
+    (dir: string) => {
+      setFilter("");
+      const dirs = [...ancestorDirs(dir + "/x"), dir];
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        for (const d of dirs) next.add(d);
+        return next;
+      });
+      for (const d of dirs) loadDir(d);
+    },
+    [loadDir],
+  );
+
   const toggleDir = useCallback(
     (path: string) => {
       setExpanded((prev) => {
@@ -699,6 +716,17 @@ export function CodeScreenV2({
                   aria-label={t("code.filter")}
                   spellCheck={false}
                 />
+                {filter ? (
+                  <button
+                    type="button"
+                    className="code-filter-clear"
+                    onClick={() => setFilter("")}
+                    aria-label={t("code.filter.clear")}
+                    title={t("code.filter.clear")}
+                  >
+                    ×
+                  </button>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -790,9 +818,10 @@ export function CodeScreenV2({
                 breakpointsFor={debug.breakpointsFor}
                 unverifiedFor={debug.unverifiedFor}
                 onToggleBreakpoint={debug.toggleBreakpoint}
+                onRevealDir={revealDir}
               />
             ))}
-              {tabs.panes.length === 0 ? <CodeNoTabs /> : null}
+              {tabs.panes.length === 0 ? <CodeEmptyState /> : null}
             </div>
             {/* 참조와 디버그는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
                 남지 않는다. 디버그가 이긴다 (멈춰 있는 동안이 더 급하다). */}
@@ -970,14 +999,3 @@ export function CodeScreenV2({
   );
 }
 
-/** 모든 탭을 닫았을 때 — 창 자체가 사라지지 않도록 자리를 지킨다. */
-function CodeNoTabs() {
-  useT();
-  return (
-    <div className="code-center-hint code-empty">
-      <FileCode size={32} strokeWidth={1.5} className="code-empty-ico" />
-      <div className="code-empty-title">{t("code.empty.title")}</div>
-      <p className="code-empty-desc">{t("code.empty.desc")}</p>
-    </div>
-  );
-}

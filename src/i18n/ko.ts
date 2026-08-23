@@ -1445,6 +1445,13 @@ export const ko = {
   "code.debug.startFailed": "디버그를 시작하지 못했어요 — {error}",
   "code.debug.adapterMissing": "{language} 디버그 어댑터가 없습니다 — 설치: {hint}",
   "code.debug.noAdapter": "이 파일은 디버그를 지원하지 않습니다 (Rust · Python · Go)",
+  // 프로덕션 다듬기 라운드 (2026-08-23) — 브레드크럼·필터·빈 상태 치트시트
+  "code.crumbs.aria": "파일 경로",
+  "code.filter.clear": "필터 지우기",
+  "code.empty.kPalette": "심볼·명령 팔레트",
+  "code.empty.kDef": "정의로 이동",
+  "code.empty.kRefs": "참조 찾기",
+  "code.empty.kFormat": "포맷",
   "code.conflict.title": "디스크에서 파일이 바뀌었습니다",
   "code.conflict.desc": "다른 프로그램(에이전트)이 이 파일을 수정했습니다. 어느 쪽을 유지할지 선택하세요.",
   "code.conflict.reload": "디스크 버전 불러오기",

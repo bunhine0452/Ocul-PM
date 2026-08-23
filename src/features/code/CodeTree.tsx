@@ -8,7 +8,8 @@
 // React.memo — 에디터 타이핑마다 화면이 리렌더돼도 prop 이 같으면 건너뛴다.
 import { memo, useEffect, useRef, useState } from "react";
 import type { CodeEntry } from "./treeUtils";
-import { ChevronRight, Folder, FileCode2 } from "@/components/Icons";
+import { ChevronRight } from "@/components/Icons";
+import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
 
 /** 트리 안에서 드래그되는 경로의 mime — 탭 드래그와 섞이지 않게 따로 둔다. */
@@ -47,6 +48,26 @@ interface CodeTreeProps {
   ) => void;
   /** 드래그로 옮기기. `toDir` 은 목적지 폴더 (`""` = 프로젝트 루트). */
   onMove: (from: string, toDir: string) => void;
+}
+
+/** 한 단계의 들여쓰기 폭 (px). 가이드 선·자리 계산이 전부 이 값에서 나온다. */
+const INDENT = 14;
+
+/**
+ * VS Code 식 들여쓰기 가이드 — depth 만큼 세로선 칸을 그린다.
+ *
+ * paddingLeft 로만 들여쓰면 깊은 트리에서 어느 줄이 어느 폴더의 자식인지
+ * 눈으로 따라갈 수 없다. 선은 CSS gradient (`.code-tree-guide`)가 그린다.
+ */
+function Guides({ depth }: { depth: number }) {
+  if (depth === 0) return null;
+  return (
+    <>
+      {Array.from({ length: depth }, (_, i) => (
+        <span key={i} className="code-tree-guide" aria-hidden />
+      ))}
+    </>
+  );
 }
 
 export const CodeTree = memo(function CodeTree(props: CodeTreeProps) {
@@ -103,10 +124,10 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
   if (nodes === undefined) {
     // 아직 안 읽은 가지. 펼쳤는데 아무 것도 안 나오는 것과 "읽는 중"은 반드시
     // 구별돼야 한다 — 안 그러면 빈 폴더로 읽힌다.
-    return <div className="code-tree-loading" style={{ paddingLeft: 8 + depth * 14 }}>{t("code.tree.loading")}</div>;
+    return <div className="code-tree-loading" style={{ paddingLeft: 6 + depth * INDENT + 19 }}>{t("code.tree.loading")}</div>;
   }
   if (nodes.length === 0 && depth > 0 && !creatingHere) {
-    return <div className="code-tree-loading" style={{ paddingLeft: 8 + depth * 14 }}>{t("code.tree.emptyDir")}</div>;
+    return <div className="code-tree-loading" style={{ paddingLeft: 6 + depth * INDENT + 19 }}>{t("code.tree.emptyDir")}</div>;
   }
 
   return (
@@ -121,7 +142,6 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
         />
       ) : null}
       {nodes.map((node) => {
-        const indent = { paddingLeft: 8 + depth * 14 };
         if (draft?.kind === "rename" && draft.path === node.relative_path) {
           return (
             <DraftRow
@@ -161,7 +181,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
                 node={node}
                 open={open}
                 dim={dim}
-                indent={indent}
+                depth={depth}
                 loading={loadingDirs.has(node.relative_path)}
                 onToggle={onToggle}
                 onMove={onMove}
@@ -185,13 +205,16 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
               (isSel ? " on" : "") +
               (openPaths.has(node.relative_path) ? " open" : "")
             }
-            style={indent}
             onClick={() => onSelect(node.relative_path)}
             title={node.ignored ? t("code.tree.ignoredHint") : undefined}
             {...dragProps}
             {...menuProps}
           >
-            <FileCode2 size={14} className="code-tree-ico" />
+            <Guides depth={depth} />
+            {/* 캐럿 자리 확보 — 이게 없으면 파일 라벨이 폴더 라벨보다 왼쪽에
+                서서 같은 깊이가 다른 깊이처럼 보인다. */}
+            <span className="code-tree-caret-pad" aria-hidden />
+            <FileIcon name={node.name} size={16} className="code-tree-ico" />
             <span className="code-tree-label">{node.name}</span>
             {dirtyPaths.has(node.relative_path) ? (
               <span className="code-tree-dirty" title={t("code.dirty")} aria-label={t("code.dirty")} />
@@ -208,7 +231,7 @@ function DirRow({
   node,
   open,
   dim,
-  indent,
+  depth,
   loading,
   onToggle,
   onMove,
@@ -218,7 +241,7 @@ function DirRow({
   node: CodeEntry;
   open: boolean;
   dim: string;
-  indent: React.CSSProperties;
+  depth: number;
   loading: boolean;
   onToggle: (path: string) => void;
   onMove: (from: string, toDir: string) => void;
@@ -230,7 +253,6 @@ function DirRow({
     <button
       type="button"
       className={"code-tree-row code-tree-dir" + dim + (over ? " dropover" : "")}
-      style={indent}
       onClick={() => onToggle(node.relative_path)}
       title={node.ignored ? t("code.tree.ignoredHint") : undefined}
       onDragOver={(e) => {
@@ -252,8 +274,9 @@ function DirRow({
       {...dragProps}
       {...menuProps}
     >
+      <Guides depth={depth} />
       <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
-      <Folder size={14} className="code-tree-ico" />
+      <FileIcon name={node.name} isDir open={open} size={16} className="code-tree-ico" />
       <span className="code-tree-label">{node.name}</span>
       {loading ? <span className="code-tree-spin" aria-hidden /> : null}
     </button>
@@ -302,12 +325,10 @@ function DraftRow({
   };
 
   return (
-    <div className="code-tree-row code-tree-draft" style={{ paddingLeft: 8 + depth * 14 }}>
-      {isDir ? (
-        <Folder size={14} className="code-tree-ico" />
-      ) : (
-        <FileCode2 size={14} className="code-tree-ico" />
-      )}
+    <div className="code-tree-row code-tree-draft">
+      <Guides depth={depth} />
+      <span className="code-tree-caret-pad" aria-hidden />
+      <FileIcon name={isDir ? "" : value || initial} isDir={isDir} size={16} className="code-tree-ico" />
       <input
         ref={ref}
         className="code-tree-draft-input"
