@@ -73,7 +73,10 @@ pub enum CodeWriteOutcome {
     Conflict { disk_hash: String },
 }
 
-/// 프로젝트의 코드 파일 트리. gitignore·hidden 을 존중한다 (인덱서와 같은 시야).
+/// 프로젝트의 코드 파일 트리. gitignore 는 존중하되 **숨김 파일은 보여 준다** —
+/// `.oculpm/` · `.claude/` · `.github/` · `.env` 처럼 실제로 편집하는 것들이
+/// 전부 점 파일이라, 숨기면 이 화면이 IDE 로서 반쪽이 된다 (VS Code 탐색기도
+/// 점 파일을 보여 준다). 인덱서와는 이 축에서만 시야가 다르다.
 #[tauri::command]
 #[specta::specta]
 pub async fn code_tree(db: State<'_, Db>, project_id: u32) -> Result<CodeTree, String> {
@@ -197,6 +200,13 @@ fn build_code_tree(root: &Path, max_files: usize) -> CodeTree {
     let mut truncated = false;
     for entry in ignore::WalkBuilder::new(root)
         .standard_filters(true)
+        // 숨김 필터만 끈다 — gitignore 는 그대로 둔다 (node_modules·target 까지
+        // 걸으면 상한을 즉시 넘겨 트리가 통째로 잘린다).
+        .hidden(false)
+        // `.git` 만은 예외로 막는다. 저장소 객체 DB 는 수만 파일이라 이것 하나로
+        // 상한을 다 먹고, 사람이 여기서 편집할 것은 하나도 없다. (ripgrep 도
+        // `--hidden` 에 같은 예외를 둔다.) 중첩 저장소가 있으므로 깊이 무관하게.
+        .filter_entry(|e| e.file_name() != ".git")
         .build()
         .flatten()
     {
@@ -355,7 +365,6 @@ mod tests {
         write(root, "README.md", b"# hi");
         write(root, "node_modules/pkg/index.js", b"ignored");
         write(root, "dist/out.js", b"ignored");
-        write(root, ".hidden/secret.txt", b"hidden skipped");
 
         let tree = build_code_tree(root, MAX_TREE_FILES);
         let top = names(&tree.nodes);
@@ -363,7 +372,6 @@ mod tests {
         assert!(top.contains(&"README.md".to_string()), "{top:?}");
         assert!(!top.contains(&"node_modules".to_string()), "gitignore: {top:?}");
         assert!(!top.contains(&"dist".to_string()), "gitignore: {top:?}");
-        assert!(!top.contains(&".hidden".to_string()), "hidden: {top:?}");
         assert!(!tree.truncated);
         // 폴더 우선 정렬 + 중첩 경로.
         assert!(tree.nodes[0].is_dir, "dirs first: {top:?}");
@@ -372,6 +380,33 @@ mod tests {
         let lib = src.children.iter().find(|n| n.name == "lib.rs").unwrap();
         assert_eq!(lib.relative_path, "src/lib.rs");
         assert!(!lib.is_dir);
+    }
+
+    /// 숨김 파일은 보여 주되 `.git` 객체 DB 는 막는다 — 이 화면에서 실제로
+    /// 편집하는 것이 대부분 점 파일(.oculpm·.claude·.env)이기 때문이다.
+    #[test]
+    fn tree_shows_hidden_files_but_never_dot_git() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join(".git")).unwrap();
+        write(root, ".gitignore", b"secret-ignored/\n");
+        write(root, ".env", b"KEY=1");
+        write(root, ".oculpm/journal/20260823/note.md", b"# hi");
+        write(root, ".git/objects/ab/cdef", b"blob");
+        write(root, "nested/.git/objects/12/3456", b"blob");
+        write(root, "secret-ignored/.env", b"still ignored");
+
+        let tree = build_code_tree(root, MAX_TREE_FILES);
+        let top = names(&tree.nodes);
+        assert!(top.contains(&".env".to_string()), "hidden file: {top:?}");
+        assert!(top.contains(&".gitignore".to_string()), "hidden file: {top:?}");
+        assert!(top.contains(&".oculpm".to_string()), "hidden dir: {top:?}");
+        assert!(!top.contains(&".git".to_string()), "dot-git: {top:?}");
+        // 숨김을 켜도 gitignore 는 여전히 이긴다.
+        assert!(!top.contains(&"secret-ignored".to_string()), "gitignore: {top:?}");
+        // 중첩 저장소의 .git 도 깊이와 무관하게 막힌다.
+        let nested = tree.nodes.iter().find(|n| n.name == "nested");
+        assert!(nested.is_none(), "nested holds only .git: {top:?}");
     }
 
     #[test]
