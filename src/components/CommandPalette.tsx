@@ -11,11 +11,18 @@ import {
   TargetIcon,
   MessageSquare,
   BookText,
+  Code2,
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
-import { commands, type DocsTreeNode, type EntityHit, type Project } from "@/lib/bindings";
+import {
+  commands,
+  type DocsTreeNode,
+  type EntityHit,
+  type LspWorkspaceSymbol,
+  type Project,
+} from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -107,11 +114,20 @@ export function CommandPalette({
   const [entityHits, setEntityHits] = useState<EntityHit[]>([]);
   const [docHits, setDocHits] = useState<{ path: string; name: string }[]>([]);
   const docsFlatRef = useRef<{ path: string; name: string }[] | null>(null);
+  /**
+   * 워크스페이스 심볼 (ide-completion #lsp-workspace-symbol).
+   *
+   * **이미 떠 있는 언어 서버에만** 묻는다 (백엔드 `running_clients`) — 팔레트에
+   * 글자를 칠 때마다 rust-analyzer 가 기동하면 안 된다. 그래서 코드 화면에서
+   * 그 언어의 파일을 한 번도 안 열었다면 결과가 비는 것이 정상이다.
+   */
+  const [symbolHits, setSymbolHits] = useState<LspWorkspaceSymbol[]>([]);
 
   useEffect(() => {
     if (!open) {
       setEntityHits([]);
       setDocHits([]);
+      setSymbolHits([]);
       docsFlatRef.current = null;
     }
   }, [open]);
@@ -122,11 +138,15 @@ export function CommandPalette({
     if (!open || pid == null || q.length < 2) {
       setEntityHits([]);
       setDocHits([]);
+      setSymbolHits([]);
       return;
     }
     const timer = window.setTimeout(() => {
       void commands.oculpmSearchEntities(pid, q, 8).then((res) => {
         setEntityHits(res.status === "ok" ? res.data : []);
+      });
+      void commands.lspWorkspaceSymbols(pid, q).then((res) => {
+        setSymbolHits(res.status === "ok" ? res.data.slice(0, 8) : []);
       });
       const lower = q.toLowerCase();
       const filterDocs = (files: { path: string; name: string }[]) =>
@@ -416,6 +436,39 @@ export function CommandPalette({
                   <span className="flex-1 truncate">{doc.name}</span>
                   <span className="text-[10px] text-muted-foreground shrink-0 truncate max-w-[40%]">
                     {doc.path}
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
+          {symbolHits.length > 0 ? (
+            <Command.Group
+              heading={t("palette.group.symbols")}
+              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
+            >
+              {symbolHits.map((sym, i) => (
+                <Command.Item
+                  key={`sym:${sym.display}:${sym.line}:${sym.name}:${i}`}
+                  value={`sym:${sym.display}:${sym.line}:${sym.name}:${i}`}
+                  // 언어 서버가 이미 매칭했다 — cmdk 필터를 항상 통과시킨다.
+                  keywords={[search]}
+                  // 프로젝트 밖 심볼(의존성·표준 라이브러리)은 코드 화면이 열 수
+                  // 없다. 목록에 남기되 누르면 아무 일도 안 하는 대신 아예 끈다.
+                  disabled={sym.path == null}
+                  onSelect={() =>
+                    sym.path && openEntity({ kind: "code", id: sym.path, line: sym.line })
+                  }
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80 data-[disabled=true]:opacity-50"
+                >
+                  <Code2 className="w-4 h-4 text-muted-foreground" />
+                  <span className="flex-1 truncate">
+                    {sym.name}
+                    {sym.container ? (
+                      <span className="text-muted-foreground"> · {sym.container}</span>
+                    ) : null}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground shrink-0 truncate max-w-[45%]">
+                    {sym.display}:{sym.line + 1}
                   </span>
                 </Command.Item>
               ))}

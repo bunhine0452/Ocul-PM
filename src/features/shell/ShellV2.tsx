@@ -203,11 +203,15 @@ export default function ShellV2({
         setState((prev) => ({ ...prev, docsActivePath: detail.id }));
         setJumpNonce((n) => n + 1);
         setUiV2View("docs");
+      } else if (detail.kind === "code") {
+        // 워크스페이스 심볼(⌘K) — 코드 화면의 기존 열기 핸드오프를 그대로 탄다.
+        // LSP 는 0-based, jumpLine 은 1-based.
+        openInCode(detail.id, detail.line == null ? null : detail.line + 1);
       }
     };
     window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setState, setUiV2View, active]);
+  }, [setState, setUiV2View, openInCode, active]);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in

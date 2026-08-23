@@ -88,11 +88,17 @@ impl LspState {
     pub async fn ensure_for_file(
         &self,
         app: &AppHandle,
+        db: &crate::db::Db,
         project_id: u32,
         project_root: &Path,
         file: &Path,
     ) -> Result<Option<Arc<LspClient>>, String> {
         let Some(spec) = spec_for_path(file) else { return Ok(None) };
+        // 사용자가 이 언어를 껐다 (#lsp-settings-screen). 이미 떠 있는 서버까지
+        // 여기서 죽이지는 않는다 — 설정 화면이 "서버 다시 시작" 으로 정리한다.
+        if is_language_disabled(db, spec.language_id).await {
+            return Ok(None);
+        }
         let Some(root) = find_root(spec, file, project_root) else {
             // 루트를 모르면 안 띄운다 — 엉뚱한 루트로 뜬 서버는 조용히 빈
             // 진단을 내며 고장처럼 보인다. 왜 안 붙었는지 말해 준다.
@@ -133,6 +139,7 @@ impl LspState {
             app,
             project_id,
             spec,
+            command_override(db, spec.language_id).await.as_deref(),
             &root,
             project_root,
             self.raw_diagnostics.clone(),
@@ -255,6 +262,26 @@ impl LspState {
         out
     }
 
+    /// 지금 **떠 있는** 서버들. 워크스페이스 심볼처럼 파일에 매이지 않은 요청이
+    /// 쓴다 — 새로 띄우지 않는 것이 요점이다. 팔레트에 글자를 칠 때마다
+    /// rust-analyzer 가 기동하면 안 된다.
+    pub async fn running_clients(&self, project_id: u32) -> Vec<Arc<LspClient>> {
+        let slots: Vec<_> = {
+            let map = self.servers.lock().await;
+            map.iter()
+                .filter(|(k, _)| k.project_id == project_id)
+                .map(|(_, slot)| slot.clone())
+                .collect()
+        };
+        let mut out = Vec::new();
+        for slot in slots {
+            if let Some(client) = slot.lock().await.client.clone() {
+                out.push(client);
+            }
+        }
+        out
+    }
+
     /// 프로젝트의 서버를 전부 정리한다 (프로젝트 닫기 / 앱 종료).
     pub async fn stop_project(&self, project_id: u32) {
         let slots: Vec<_> = {
@@ -276,6 +303,33 @@ impl LspState {
     }
 }
 
+/// 언어별 끄기 설정 키 (`code_lsp_off_rust` 등).
+///
+/// 타입 있는 `Settings` 객체에 넣지 않는 이유: 지원 언어가 늘 때마다 필드를
+/// 늘려야 하고, 그건 레지스트리(`SERVERS`)와 두 벌의 진실이 된다. 언어 id 로
+/// 파생되는 키가 레지스트리 하나만 보게 한다.
+pub fn disabled_key(language_id: &str) -> String {
+    format!("code_lsp_off_{language_id}")
+}
+
+/// 언어별 실행 명령 오버라이드 키 (`code_lsp_cmd_rust` 등).
+pub fn command_key(language_id: &str) -> String {
+    format!("code_lsp_cmd_{language_id}")
+}
+
+async fn is_language_disabled(db: &crate::db::Db, language_id: &str) -> bool {
+    matches!(
+        db.settings_get(disabled_key(language_id)).await,
+        Ok(Some(v)) if v == "true"
+    )
+}
+
+async fn command_override(db: &crate::db::Db, language_id: &str) -> Option<String> {
+    let raw = db.settings_get(command_key(language_id)).await.ok()??;
+    let trimmed = raw.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
 /// 바이너리를 찾고 프로세스를 띄운다. 실패는 (상태, 사람이 읽는 이유)로 돌려
 /// 호출자가 그대로 사용자에게 전달할 수 있게 한다.
 #[allow(clippy::too_many_arguments)]
@@ -283,19 +337,21 @@ async fn start_server(
     app: &AppHandle,
     project_id: u32,
     spec: &'static ServerSpec,
+    // `override_command` — 설정 화면의 경로 오버라이드. PATH 에 없거나 여러
+    // 버전을 쓰는 사용자용 (인자에는 doc comment 를 달 수 없다).
+    override_command: Option<&str>,
     root: &Path,
     project_root: &Path,
     raw_diagnostics: RawDiagnostics,
 ) -> Result<Arc<LspClient>, (LspServerState, String)> {
     // 조달은 ACP 와 같은 기계 — 로그인 셸 PATH (패키징된 .app 은 Finder 의
-    // 빈약한 PATH 로 뜬다는 그 함정).
-    let Some((binary, _source)) = crate::acp::env::resolve_binary(spec.command).await else {
+    // 빈약한 PATH 로 뜬다는 그 함정). 오버라이드도 같은 경로로 푼다: 절대경로면
+    // 그대로 쓰이고, 이름이면 PATH 에서 찾는다.
+    let wanted = override_command.unwrap_or(spec.command);
+    let Some((binary, _source)) = crate::acp::env::resolve_binary(wanted).await else {
         return Err((
             LspServerState::Missing,
-            format!(
-                "{} 를 PATH 에서 찾지 못했습니다. 설치한 뒤 다시 열면 붙습니다.",
-                spec.command
-            ),
+            format!("{wanted} 를 PATH 에서 찾지 못했습니다. 설치한 뒤 다시 열면 붙습니다."),
         ));
     };
     let path_env = crate::acp::env::effective_path().await;

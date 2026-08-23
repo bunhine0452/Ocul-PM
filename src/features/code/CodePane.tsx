@@ -17,7 +17,7 @@ import {
   useState,
 } from "react";
 
-import { commands, events, type LspCodeAction } from "@/lib/bindings";
+import { commands, events, type GitLineChange, type LspCodeAction } from "@/lib/bindings";
 import { useSettings } from "@/contexts/SettingsContext";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
@@ -27,6 +27,7 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { AlertTriangle, ExternalLink, FileCode } from "@/components/Icons";
 
 import { CodeEditor } from "./CodeEditor";
+import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
@@ -43,6 +44,9 @@ import {
   type CodeBuffer,
 } from "./codeBuffers";
 
+/** 거터 갱신 디바운스. 타자마다 `git show` 를 부를 수는 없다. */
+const GUTTER_DEBOUNCE_MS = 500;
+
 type FileView =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -55,6 +59,7 @@ type FileView =
 export interface CodePaneHandle {
   save: () => void;
   openExternal: () => void;
+  format: () => void;
 }
 
 export interface CodePaneProps {
@@ -90,6 +95,13 @@ export interface CodePaneProps {
   onBuffersChanged: () => void;
   /** 정의가 다른 파일에 있다 — 부모가 탭을 열어 준다. */
   onOpenPath: (path: string, line: number | null) => void;
+  /**
+   * ⇧F12 결과. 패널은 **화면**이 그린다 — 편집 영역 전체 폭에 걸쳐야 하고,
+   * 분할 중에도 하나만 떠야 한다.
+   */
+  onReferences: (query: ReferencesQuery) => void;
+  /** 커서가 있는 줄(1-based). 사이드바 아웃라인이 지금 위치를 표시한다. */
+  onCursorLine: (line: number) => void;
 }
 
 export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodePane(
@@ -114,6 +126,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onDropTab,
     onBuffersChanged,
     onOpenPath,
+    onReferences,
+    onCursorLine,
   },
   ref,
 ) {
@@ -155,6 +169,38 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     const path = evictedKey.slice(evictedKey.indexOf(":") + 1);
     toast.warning(t("code.bufferEvicted", { path }));
   }, []);
+
+  // ── git 거터 (#git-gutter) ─────────────────────────────────────────────
+  //
+  // 저장이 아니라 **버퍼**를 기준으로 본다 — 고치는 즉시 거터가 따라와야
+  // 쓸모가 있다. 타자마다 git 을 부를 수는 없으므로 디바운스한다.
+  const [gitChanges, setGitChanges] = useState<GitLineChange[]>([]);
+  const gutterTimerRef = useRef<number | null>(null);
+  const refreshGutter = useCallback(
+    (text: string, immediate = false) => {
+      const path = pathRef.current;
+      if (!path) return;
+      if (gutterTimerRef.current != null) window.clearTimeout(gutterTimerRef.current);
+      const run = () => {
+        gutterTimerRef.current = null;
+        void commands.gitLineChanges(projectId, path, text).then((res) => {
+          // 그 사이 다른 파일로 옮겼으면 버린다 — 늦게 온 응답이 남의 파일
+          // 거터를 그리면 줄이 통째로 어긋나 보인다.
+          if (pathRef.current !== path) return;
+          setGitChanges(res.status === "ok" ? res.data : []);
+        });
+      };
+      if (immediate) run();
+      else gutterTimerRef.current = window.setTimeout(run, GUTTER_DEBOUNCE_MS);
+    },
+    [projectId],
+  );
+  useEffect(
+    () => () => {
+      if (gutterTimerRef.current != null) window.clearTimeout(gutterTimerRef.current);
+    },
+    [],
+  );
 
   // ── 파일 로드 ──────────────────────────────────────────────────────────
   const loadFile = useCallback(
@@ -199,8 +245,10 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       onBuffersChanged();
       setFileView({ kind: "editor", bytes: data.bytes });
       setEditorEpoch((n) => n + 1);
+      // 파일을 연 순간은 기다릴 이유가 없다 — 거터가 늦게 뜨면 깜빡인다.
+      refreshGutter(bufferRef.current?.text ?? "", true);
     },
-    [projectId, onBuffersChanged, notifyIfEvicted],
+    [projectId, onBuffersChanged, notifyIfEvicted, refreshGutter],
   );
 
   useEffect(() => {
@@ -209,6 +257,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       bufferRef.current = null;
       setDirty(false);
       setConflict(null);
+      setGitChanges([]);
       return;
     }
     void loadFile(activePath);
@@ -347,6 +396,21 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [actionsBusy, lsp, loadFile],
   );
 
+  // ── 참조 찾기 (⇧F12) ───────────────────────────────────────────────────
+  //
+  // 결과는 창이 아니라 **화면**이 그린다 — 편집 영역 전체 폭이 필요하고,
+  // 분할 중에도 패널은 하나여야 한다.
+  const findReferences = useCallback(
+    (line: number, character: number, word: string) => {
+      const symbol = word || (pathRef.current ?? "");
+      onReferences({ symbol, status: "loading", files: [] });
+      void lsp.references(line, character).then((files) => {
+        onReferences({ symbol, status: "ready", files });
+      });
+    },
+    [lsp, onReferences],
+  );
+
   // ── 편집·저장 ──────────────────────────────────────────────────────────
   const handleChange = useCallback(
     (text: string) => {
@@ -362,8 +426,32 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       // 저장을 기다리지 않고 서버에 밀어 넣는다 — 진단은 미저장 상태에서
       // 가장 쓸모 있다 (내부에서 디바운스).
       lsp.pushText(text);
+      refreshGutter(text);
     },
-    [projectId, dirtyPaths, onBuffersChanged, lsp],
+    [projectId, dirtyPaths, onBuffersChanged, lsp, refreshGutter],
+  );
+
+  /**
+   * 버퍼 본문을 통째로 갈아끼운다 (포맷팅). 에디터는 언컨트롤드라 `key` 로
+   * 재마운트해야 새 본문이 실리고, 그러면 커서가 맨 위로 가므로 보던 줄을
+   * 점프로 복원한다 — watcher 리로드가 쓰는 것과 같은 수법.
+   */
+  const replaceBufferText = useCallback(
+    (text: string) => {
+      const buf = bufferRef.current;
+      const path = pathRef.current;
+      if (!buf || !path) return;
+      const next = { ...buf, text };
+      bufferRef.current = next;
+      putBuffer(bufferKey(projectId, path), next);
+      setDirty(text !== next.baseText);
+      onBuffersChanged();
+      lsp.pushText(text);
+      refreshGutter(text);
+      setPendingJump(cursorRef.current.line);
+      setEditorEpoch((n) => n + 1);
+    },
+    [projectId, onBuffersChanged, lsp, refreshGutter],
   );
 
   const applySaved = useCallback(
@@ -380,19 +468,61 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [projectId, onBuffersChanged],
   );
 
+  // ── 포맷팅 (⇧⌥F) ──────────────────────────────────────────────────────
+  //
+  // 이름 바꾸기·코드 액션과 정반대다: 그것들은 디스크를 고치므로 미저장을
+  // 금지했지만, 포맷은 **지금 버퍼**를 다듬어 돌려받아 그대로 실는다. 저장을
+  // 강요하지 않고, 결과를 저장할지는 여전히 사용자가 정한다.
+  const [formatting, setFormatting] = useState(false);
+  const format = useCallback(
+    async (silent = false): Promise<boolean> => {
+      const buf = bufferRef.current;
+      if (!buf || formatting) return false;
+      setFormatting(true);
+      try {
+        const next = await lsp.format(buf.text, settings.codeTabSize, settings.codeInsertSpaces);
+        if (next == null) {
+          // 서버가 없거나·지원하지 않거나·이미 정돈됐다. 저장 시 포맷처럼
+          // 사람이 부르지 않은 호출은 조용히 지나간다.
+          if (!silent) toast.info(t("code.format.noChange"));
+          return false;
+        }
+        replaceBufferText(next);
+        if (!silent) toast.info(t("code.format.done"));
+        return true;
+      } catch (e) {
+        toast.destructive(
+          t("code.format.failed", { error: tError(e instanceof Error ? e.message : String(e)) }),
+        );
+        return false;
+      } finally {
+        setFormatting(false);
+      }
+    },
+    [formatting, lsp, settings.codeTabSize, settings.codeInsertSpaces, replaceBufferText],
+  );
+  const formatRef = useRef(format);
+  formatRef.current = format;
+
   // ⌘S 는 CM 키맵과 화면 레벨 리스너 양쪽에 걸릴 수 있는데, `saving` state 는
   // 같은 틱의 두 번째 호출에 아직 낡은 값이라 재진입을 못 막는다 — 같은
   // base_hash 로 codeWrite 가 두 번 나가면 두 번째가 가짜 충돌 배너를 띄운다.
   const savingRef = useRef(false);
   const save = useCallback(
     async (baseHashOverride?: string) => {
-      const buf = bufferRef.current;
       const path = pathRef.current;
-      if (!buf || !path || savingRef.current) return;
-      if (buf.text === buf.baseText && !baseHashOverride) return; // no-op
+      if (!bufferRef.current || !path || savingRef.current) return;
+      if (bufferRef.current.text === bufferRef.current.baseText && !baseHashOverride) return; // no-op
       savingRef.current = true;
       setSaving(true);
       try {
+        // 저장 시 포맷 — **쓰기 전에** 다듬는다. 쓴 뒤에 고치면 저장 직후 다시
+        // dirty 가 되어 무엇이 디스크에 있는지 알 수 없다. 조용히(silent) 돌려
+        // 서버가 없거나 이미 정돈된 경우에 토스트를 내지 않는다.
+        if (settings.codeFormatOnSave) await formatRef.current(true);
+        // 포맷이 본문을 갈아끼웠을 수 있으므로 **여기서 다시 읽는다**.
+        const buf = bufferRef.current;
+        if (!buf) return;
         const res = await commands.codeWrite(
           projectId,
           path,
@@ -413,7 +543,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         setSaving(false);
       }
     },
-    [projectId, applySaved],
+    [projectId, applySaved, settings.codeFormatOnSave],
   );
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -424,6 +554,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     () => ({
       save: () => void saveRef.current(),
       openExternal: () => externalRef.current(),
+      format: () => void formatRef.current(),
     }),
     [],
   );
@@ -617,8 +748,17 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onGoToDefinition={goToDefinition}
               onRename={startRename}
               onCodeActions={openCodeActions}
+              onReferences={findReferences}
+              onFormat={() => void formatRef.current()}
+              // 서버가 안 붙은 창에는 확장을 아예 달지 않는다 (CodeEditor 가
+              // prop 유무로 판단하므로 undefined 여야 한다).
+              onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
               onSave={() => void saveRef.current()}
-              onCursor={(line, col) => setCursor({ line, col })}
+              onCursor={(line, col) => {
+                setCursor({ line, col });
+                onCursorLine(line);
+              }}
+              gitChanges={gitChanges}
               jumpLine={pendingJump}
               onJumpConsumed={() => setPendingJump(null)}
             />

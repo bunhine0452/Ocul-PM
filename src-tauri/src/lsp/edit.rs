@@ -155,6 +155,14 @@ fn resolve_edit_uri(uri: &str, project_root: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// `textDocument/formatting` 의 응답 → 편집 목록.
+///
+/// 이름 바꾸기의 `WorkspaceEdit` 과 달리 **한 파일에 대한 배열**이 그대로 온다
+/// (파일이 하나뿐이므로 URI 가 없다). `null` 은 "고칠 것 없음" 이다.
+pub fn text_edits_from_result(result: &Value) -> Vec<TextEdit> {
+    text_edits_from_json(result)
+}
+
 fn text_edits_from_json(edits: &Value) -> Vec<TextEdit> {
     edits
         .as_array()

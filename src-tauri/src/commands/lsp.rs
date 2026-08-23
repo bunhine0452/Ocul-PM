@@ -10,13 +10,22 @@ use tauri::{AppHandle, State};
 
 use crate::db::Db;
 use crate::lsp::spec::{
-    LspCodeAction, LspCompletionItem, LspHover, LspLocation, LspRenameResult, LspServerInfo,
+    LspCodeAction, LspCompletionItem, LspHover, LspLocation, LspReferenceFile, LspRenameResult,
+    LspServerInfo, LspSignatureHelp, LspSymbol, LspWorkspaceSymbol,
 };
 use crate::lsp::state::{position_params, LspState};
 
 /// 완성 항목 상한. rust-analyzer 는 스코프에 따라 수천 개를 준다 — 상한이
 /// 없으면 그대로 IPC 를 타고 넘어와 입력이 끊긴다.
 const COMPLETION_LIMIT: usize = 200;
+
+/// 워크스페이스 심볼 상한. 짧은 질의(`a`)에 서버가 수천 개를 준다 — 팔레트가
+/// 보여줄 수 있는 것보다 많이 받아도 IPC 비용만 든다.
+const WORKSPACE_SYMBOL_LIMIT: usize = 100;
+
+/// 참조 미리보기를 위해 읽는 파일의 상한. 참조가 수백 개면 그만큼 파일을 읽게
+/// 되므로 큰 파일에서 멈춘다 (미리보기가 비는 것이 목록이 안 뜨는 것보다 낫다).
+const PREVIEW_FILE_MAX_BYTES: u64 = 2 * 1024 * 1024;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
@@ -68,7 +77,7 @@ pub async fn lsp_open(
 ) -> Result<bool, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(false);
     };
     let version = lsp.next_version(&file).await;
@@ -91,7 +100,7 @@ pub async fn lsp_change(
 ) -> Result<bool, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(false);
     };
     let version = lsp.next_version(&file).await;
@@ -111,7 +120,7 @@ pub async fn lsp_close(
     let root = project_root(&db, project_id).await?;
     // 이미 지워진 파일도 닫을 수 있어야 하므로 canonicalize 실패를 삼킨다.
     let Ok(file) = resolve_in_root(&root, &path) else { return Ok(()) };
-    if let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? {
+    if let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? {
         let _ = client.did_close(&file).await;
     }
     lsp.forget_document(&file).await;
@@ -135,7 +144,7 @@ pub async fn lsp_completion(
 ) -> Result<Vec<LspCompletionItem>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(Vec::new());
     };
     if !client.supports("completionProvider") {
@@ -162,7 +171,7 @@ pub async fn lsp_hover(
 ) -> Result<Option<LspHover>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(None);
     };
     if !client.supports("hoverProvider") {
@@ -191,7 +200,7 @@ pub async fn lsp_definition(
 ) -> Result<Option<LspLocation>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(None);
     };
     if !client.supports("definitionProvider") {
@@ -204,6 +213,203 @@ pub async fn lsp_definition(
     // 프로젝트 안의 정의까지 "밖" 으로 판정된다.
     let canon_root = std::fs::canonicalize(&root).unwrap_or(root);
     Ok(crate::lsp::spec::definition_from_json(&result, &canon_root))
+}
+
+/// 커서 위치 심볼을 쓰는 모든 곳 (`textDocument/references`).
+///
+/// 정의로 이동이 "한 곳" 이라면 이쪽은 "전부" 다 — 파일별로 묶어서 돌려주고,
+/// 각 줄의 원문을 미리보기로 붙인다(파일을 열지 않고 판단할 수 있게).
+/// 선언 자체도 포함한다(`includeDeclaration`) — 빼면 "쓰는 곳 3군데" 라는
+/// 목록에 정작 정의가 없어 헷갈린다.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_references(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+    line: u32,
+    character: u32,
+) -> Result<Vec<LspReferenceFile>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+        return Ok(Vec::new());
+    };
+    if !client.supports("referencesProvider") {
+        return Ok(Vec::new());
+    }
+    let mut params = position_params(crate::lsp::registry::path_to_uri(&file), line, character);
+    params["context"] = serde_json::json!({ "includeDeclaration": true });
+    let result = client.request("textDocument/references", params).await?;
+
+    // 정의로 이동과 같은 이유로 canonical 루트와 비교한다 — 저장소가 심링크
+    // 아래에 있으면 접두사가 안 맞아 프로젝트 안의 참조까지 "밖" 으로 읽힌다.
+    let canon_root = std::fs::canonicalize(&root).unwrap_or(root);
+    let mut cache: std::collections::HashMap<PathBuf, Option<Vec<String>>> =
+        std::collections::HashMap::new();
+    Ok(crate::lsp::spec::references_from_json(
+        &result,
+        &canon_root,
+        |p| {
+            cache
+                .entry(p.to_path_buf())
+                .or_insert_with(|| read_preview_lines(p))
+                .clone()
+        },
+    ))
+}
+
+/// 파일 안의 구조 (`textDocument/documentSymbol`) — 아웃라인.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_document_symbols(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+) -> Result<Vec<LspSymbol>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+        return Ok(Vec::new());
+    };
+    if !client.supports("documentSymbolProvider") {
+        return Ok(Vec::new());
+    }
+    let params = serde_json::json!({
+        "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) }
+    });
+    let result = client.request("textDocument/documentSymbol", params).await?;
+    Ok(crate::lsp::spec::document_symbols_from_json(&result))
+}
+
+/// 프로젝트 전체 심볼 검색 (`workspace/symbol`) — ⌘K 팔레트가 쓴다.
+///
+/// **어느 서버에 물을지**가 이 커맨드의 문제다. 워크스페이스 심볼은 파일에
+/// 매이지 않으므로 `ensure_for_file` 을 쓸 수 없다 — 지금 떠 있는 서버 전부에
+/// 묻고 합친다. 서버를 새로 띄우지는 않는다: 팔레트에 글자를 칠 때마다
+/// rust-analyzer 가 뜨면 안 된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_workspace_symbols(
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    query: String,
+) -> Result<Vec<LspWorkspaceSymbol>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let root = project_root(&db, project_id).await?;
+    let canon_root = std::fs::canonicalize(&root).unwrap_or(root);
+    let clients = lsp.running_clients(project_id).await;
+
+    let mut out: Vec<LspWorkspaceSymbol> = Vec::new();
+    for client in clients {
+        if !client.supports("workspaceSymbolProvider") {
+            continue;
+        }
+        let params = serde_json::json!({ "query": query });
+        // 한 서버가 느리거나 오류를 내도 나머지 결과는 보여준다 — 팔레트가
+        // 통째로 죽는 것이 가장 나쁘다.
+        let Ok(result) = client.request("workspace/symbol", params).await else {
+            continue;
+        };
+        out.extend(crate::lsp::spec::workspace_symbols_from_json(
+            &result,
+            &canon_root,
+            WORKSPACE_SYMBOL_LIMIT,
+        ));
+    }
+    out.truncate(WORKSPACE_SYMBOL_LIMIT);
+    Ok(out)
+}
+
+/// 인자를 입력하는 동안의 시그니처 힌트 (`textDocument/signatureHelp`).
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_signature_help(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+    line: u32,
+    character: u32,
+) -> Result<Option<LspSignatureHelp>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+        return Ok(None);
+    };
+    if !client.supports("signatureHelpProvider") {
+        return Ok(None);
+    }
+    let params = position_params(crate::lsp::registry::path_to_uri(&file), line, character);
+    let result = client.request("textDocument/signatureHelp", params).await?;
+    Ok(crate::lsp::spec::signature_help_from_json(&result))
+}
+
+/// 포맷팅 — **디스크가 아니라 넘겨받은 텍스트에** 적용해 돌려준다.
+///
+/// 이름 바꾸기·코드 액션과 정반대의 선택이다. 그것들은 열려 있지 않은 파일까지
+/// 고치므로 디스크에 적용하고 미저장 버퍼를 금지했다. 포맷팅은 **지금 편집 중인
+/// 한 파일**이 대상이라, 저장을 강요하는 대신 버퍼를 그대로 다듬어 돌려주는
+/// 것이 맞다 (저장 시 포맷도 이 위에 얹힌다).
+///
+/// 호출 전에 프런트가 `lsp_change` 로 현재 버퍼를 밀어 넣어야 한다 — 서버가
+/// 아는 문서와 여기 넘긴 `text` 가 다르면 편집 오프셋이 어긋난다.
+/// 바뀐 것이 없으면 `None`(서버가 빈 편집을 준 경우 포함).
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_format(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+    text: String,
+    tab_size: u32,
+    insert_spaces: bool,
+) -> Result<Option<String>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+        return Ok(None);
+    };
+    if !client.supports("documentFormattingProvider") {
+        return Ok(None);
+    }
+    let params = serde_json::json!({
+        "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) },
+        "options": {
+            "tabSize": tab_size.clamp(1, 16),
+            "insertSpaces": insert_spaces,
+            "trimTrailingWhitespace": true,
+            "insertFinalNewline": true,
+        },
+    });
+    let result = client.request("textDocument/formatting", params).await?;
+    let edits = crate::lsp::edit::text_edits_from_result(&result);
+    if edits.is_empty() {
+        return Ok(None);
+    }
+    let formatted = crate::lsp::edit::apply_text_edits(&text, &edits)?;
+    Ok((formatted != text).then_some(formatted))
+}
+
+/// 참조 미리보기용 줄 읽기. 큰 파일·바이너리는 건너뛴다 — 미리보기가 비는 것이
+/// 목록이 안 뜨는 것보다 낫다.
+fn read_preview_lines(path: &Path) -> Option<Vec<String>> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.len() > PREVIEW_FILE_MAX_BYTES {
+        return None;
+    }
+    let text = std::fs::read_to_string(path).ok()?;
+    Some(text.lines().map(str::to_string).collect())
 }
 
 /// 이름 바꾸기 — 서버가 준 `WorkspaceEdit` 을 **전부 아니면 전무**로 적용한다.
@@ -241,7 +447,7 @@ pub async fn lsp_rename(
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
     let client = lsp
-        .ensure_for_file(&app, project_id, &root, &file)
+        .ensure_for_file(&app, &db, project_id, &root, &file)
         .await?
         .ok_or("이 파일에는 언어 서버가 붙지 않았습니다")?;
     if !client.supports("renameProvider") {
@@ -278,7 +484,7 @@ pub async fn lsp_code_actions(
 ) -> Result<Vec<LspCodeAction>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, project_id, &root, &file).await? else {
+    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(Vec::new());
     };
     if !client.supports("codeActionProvider") {
@@ -322,7 +528,7 @@ pub async fn lsp_apply_code_action(
         .await
         .ok_or("액션 목록이 오래됐습니다 — 다시 열어 주세요")?;
     let client = lsp
-        .ensure_for_file(&app, project_id, &root, &file)
+        .ensure_for_file(&app, &db, project_id, &root, &file)
         .await?
         .ok_or("이 파일에는 언어 서버가 붙지 않았습니다")?;
 

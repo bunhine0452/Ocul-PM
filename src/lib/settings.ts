@@ -76,6 +76,11 @@ export const KEYS = {
   // --- External editor (Lite-W6 PR8 Part 2) ---
   externalEditorCommand: "external_editor_command",
 
+  // --- 코드 화면 (ide-completion Phase 2) ---
+  codeFormatOnSave: "code_format_on_save",
+  codeTabSize: "code_tab_size",
+  codeInsertSpaces: "code_insert_spaces",
+
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
 
@@ -145,6 +150,17 @@ export interface Settings {
    */
   externalEditorCommand: string;
 
+  /**
+   * 저장할 때 언어 서버로 포맷한다 (⇧⌥F 를 매번 누르지 않게).
+   *
+   * 기본 **꺼짐**: 에이전트가 활발히 고치는 파일에서 저장이 조용히 파일 전체를
+   * 다시 쓰면, 사용자가 만들지 않은 변경이 diff 를 덮는다. 켤지는 사용자가 정한다.
+   */
+  codeFormatOnSave: boolean;
+  /** 포맷 요청에 실어 보내는 들여쓰기 폭 (LSP `FormattingOptions.tabSize`). */
+  codeTabSize: number;
+  /** 탭 대신 공백 (LSP `FormattingOptions.insertSpaces`). */
+  codeInsertSpaces: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -184,6 +200,9 @@ export const DEFAULTS: Settings = {
 
   externalEditorCommand: 'code "%path"',
 
+  codeFormatOnSave: false,
+  codeTabSize: 2,
+  codeInsertSpaces: true,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -215,6 +234,9 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.graphShowIsolated]: "graphShowIsolated",
   [KEYS.graphGroupThreshold]: "graphGroupThreshold",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
+  [KEYS.codeFormatOnSave]: "codeFormatOnSave",
+  [KEYS.codeTabSize]: "codeTabSize",
+  [KEYS.codeInsertSpaces]: "codeInsertSpaces",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

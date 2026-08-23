@@ -15,6 +15,7 @@ import {
   GitBranch,
   Settings as SettingsIcon,
   FileCode,
+  Code2,
   Trash2,
   Copy,
   RefreshCw,
@@ -39,10 +40,12 @@ import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting
 import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
+import { CodeSettings } from "./CodeSettings";
 
 type TabId =
   | "appearance"
   | "llm"
+  | "code"
   | "indexing"
   | "graph"
   | "data"
@@ -55,6 +58,8 @@ const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ cl
   { id: "llm", labelKey: "settings.tab.llm", icon: Sparkles },
   // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
   // 이었고, 로컬 git 은 토큰 없이 동작한다 (git_log/status 는 git CLI).
+  // 코드 화면 — 편집기 동작 + 언어 서버 (ide-completion #lsp-settings-screen).
+  { id: "code", labelKey: "settings.tab.code", icon: Code2 },
   { id: "indexing", labelKey: "settings.tab.indexing", icon: FileCode },
   { id: "graph", labelKey: "settings.tab.graph", icon: GitBranch },
   { id: "data", labelKey: "settings.tab.data", icon: Database },
@@ -1731,6 +1736,10 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <AppearanceTab />;
       case "llm":
         return <LlmTab onError={setError} />;
+      case "code":
+        // 원시 요소는 이 파일이 소유한다 (Section/Field/Toggle) — 새 탭 하나를
+        // 위해 디자인 시스템을 복제하지 않고 그대로 내려 준다.
+        return <CodeSettings Section={Section} Field={Field} Toggle={Toggle} />;
       case "indexing":
         return <IndexingTab />;
       case "graph":

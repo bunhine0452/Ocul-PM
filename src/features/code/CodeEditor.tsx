@@ -12,6 +12,9 @@ import { tags } from "@lezer/highlight";
 import { autocompletion, type CompletionContext } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
 
+import { lspSignatureTooltip } from "./signatureTooltip";
+import { gitGutter, setGitChanges } from "./gitGutter";
+
 import { langExtensionForPath } from "./codeLang";
 import {
   completionStart,
@@ -22,7 +25,13 @@ import {
   toCmCompletions,
   toCmDiagnostics,
 } from "./lspBridge";
-import type { LspCompletionItem, LspDiagnostic, LspHover } from "@/lib/bindings";
+import type {
+  LspCompletionItem,
+  LspDiagnostic,
+  LspHover,
+  LspSignatureHelp,
+  GitLineChange,
+} from "@/lib/bindings";
 import { t, useT } from "@/i18n";
 
 // 테마 — 색은 전부 code.css 의 `--code-*` 변수를 참조한다. 클래스가 var() 를
@@ -216,6 +225,14 @@ interface CodeEditorProps {
     endLine: number,
     endCharacter: number,
   ) => void;
+  /** ⇧F12 — 참조 찾기. `word` 는 커서가 놓인 식별자(패널 제목). */
+  onReferences?: (line: number, character: number, word: string) => void;
+  /** ⇧⌥F — 포맷팅. 문서 치환도 부모가 한다 (버퍼·dirty 계산이 거기 있다). */
+  onFormat?: () => void;
+  /** 인자 입력 중의 시그니처. 없으면 확장을 아예 안 단다. */
+  onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
+  /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
+  gitChanges?: readonly GitLineChange[];
 }
 
 export function CodeEditor({
@@ -232,6 +249,10 @@ export function CodeEditor({
   onGoToDefinition,
   onRename,
   onCodeActions,
+  onReferences,
+  onFormat,
+  onSignatureHelp,
+  gitChanges,
 }: CodeEditorProps) {
   const { lang } = useT();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -256,6 +277,12 @@ export function CodeEditor({
   onRenameRef.current = onRename;
   const onCodeActionsRef = useRef(onCodeActions);
   onCodeActionsRef.current = onCodeActions;
+  const onReferencesRef = useRef(onReferences);
+  onReferencesRef.current = onReferences;
+  const onFormatRef = useRef(onFormat);
+  onFormatRef.current = onFormat;
+  const onSignatureHelpRef = useRef(onSignatureHelp);
+  onSignatureHelpRef.current = onSignatureHelp;
   // 확장을 달지 말지는 **마운트 시점**에만 정한다 (파일마다 재마운트되므로
   // 그 파일에 서버가 있는지와 일치한다). 도중에 켜고 끄면 재구성이 필요하고,
   // 그러면 커서가 튄다.
@@ -335,7 +362,31 @@ export function CodeEditor({
                     return true;
                   },
                 },
+                {
+                  // VS Code 와 같은 키 — 정의로 이동(F12)의 "전부" 판.
+                  key: "Shift-F12",
+                  run: (view) => {
+                    const ask = onReferencesRef.current;
+                    if (!ask) return false;
+                    const head = view.state.selection.main.head;
+                    const { line, character } = positionOf(view.state.doc, head);
+                    const l = view.state.doc.lineAt(head);
+                    ask(line, character, wordAtColumn(l.text, head - l.from));
+                    return true;
+                  },
+                },
+                {
+                  // VS Code 와 같은 키 (macOS ⇧⌥F / 그 밖 ⇧Alt+F).
+                  key: "Shift-Alt-f",
+                  run: () => {
+                    const format = onFormatRef.current;
+                    if (!format) return false;
+                    format();
+                    return true;
+                  },
+                },
               ]),
+              ...(onSignatureHelpRef.current ? lspSignatureTooltip(onSignatureHelpRef) : []),
               EditorView.domEventHandlers({
                 mousedown(event, view) {
                   const go = onGoToDefRef.current;
@@ -352,6 +403,8 @@ export function CodeEditor({
               }),
             ]
           : []),
+        // 거터는 LSP 와 무관하다 — 마크다운·CSS 에서도 무엇을 고쳤는지는 보여야 한다.
+        gitGutter(),
         editorChrome,
         syntaxHighlighting(codeHighlight, { fallback: true }),
         ...(phrases ? [EditorState.phrases.of(phrases)] : []),
@@ -382,6 +435,13 @@ export function CodeEditor({
     if (!view || !hasLspRef.current) return;
     view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostics ?? [])));
   }, [diagnostics]);
+
+  // git 거터 반영 — 진단과 같은 이유로 트랜잭션이다 (편집 도중에도 갱신된다).
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setGitChanges.of(gitChanges ?? []) });
+  }, [gitChanges]);
 
   // 라인 점프 — 마운트 직후(위 effect 가 먼저 실행돼 view 가 있다)와 같은
   // 파일에서의 재점프(prop 변화) 둘 다 여기로 온다.

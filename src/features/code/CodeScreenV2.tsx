@@ -19,8 +19,9 @@ import {
   Search,
   FilePlus,
   FolderPlus,
+  Sparkles,
 } from "@/components/Icons";
-import { commands, type CodeTree as CodeTreeData } from "@/lib/bindings";
+import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
@@ -30,6 +31,8 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { CodeTree, type TreeDraft } from "./CodeTree";
 import { CodePane, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
+import { CodeOutline } from "./CodeOutline";
+import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
 import {
   ancestorDirs,
   collectDirs,
@@ -125,6 +128,19 @@ export function CodeScreenV2({
   const selected = focusedPath(tabs);
   const openPaths = useMemo(() => new Set(allOpenPaths(tabs)), [tabs]);
 
+  // ── Phase 2 — 아웃라인 · 참조 ───────────────────────────────────────────
+  //
+  // 둘 다 **화면**이 소유한다. 아웃라인은 사이드바(트리 아래)에, 참조는 편집
+  // 영역 아래 전체 폭에 앉으므로 창(pane) 바깥이어야 하고, 분할 중에도 하나씩만
+  // 떠야 한다.
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [symbols, setSymbols] = useState<LspSymbol[] | null>(null);
+  const [symbolsLoading, setSymbolsLoading] = useState(false);
+  const [cursorLine, setCursorLine] = useState(1);
+  const [references, setReferences] = useState<ReferencesQuery | null>(null);
+  /** 저장·포맷 뒤 아웃라인을 다시 묻게 하는 신호. */
+  const [symbolEpoch, setSymbolEpoch] = useState(0);
+
   // 탭 상태는 영속된다 (#tabs-persist). `codeTabs` 는 여기서만 쓰기 때문에
   // 되읽기 루프가 없다 — 초기값으로 한 번 읽고, 이후로는 이쪽이 진실이다.
   useEffect(() => {
@@ -138,6 +154,39 @@ export function CodeScreenV2({
   const refreshDirtyPaths = useCallback(() => {
     setDirtyPaths(listDirtyPaths(projectId));
   }, [projectId]);
+
+  /**
+   * 창이 버퍼를 건드렸다.
+   *
+   * **반드시 안정된 신원이어야 한다.** 인라인 화살표로 넘기면 매 렌더마다 새
+   * 함수가 되고, 그것에 매달린 `CodePane.loadFile` 이 재생성되면서 그 effect 가
+   * 파일을 디스크에서 다시 읽는다 — 미저장 편집이 조용히 사라진다.
+   */
+  const handleBuffersChanged = useCallback(() => {
+    refreshDirtyPaths();
+    // 저장·포맷으로 본문이 바뀌면 구조도 바뀐다. 아웃라인이 접혀 있으면
+    // effect 가 조회를 건너뛰므로 여기서 조건을 따지지 않는다.
+    setSymbolEpoch((n) => n + 1);
+  }, [refreshDirtyPaths]);
+
+  // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
+  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다.
+  useEffect(() => {
+    if (!outlineOpen || !selected) {
+      setSymbols(null);
+      return;
+    }
+    let cancelled = false;
+    setSymbolsLoading(true);
+    void commands.lspDocumentSymbols(projectId, selected).then((res) => {
+      if (cancelled) return;
+      setSymbolsLoading(false);
+      setSymbols(res.status === "ok" ? res.data : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [outlineOpen, selected, projectId, symbolEpoch]);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
   /** 디렉터리 한 단계를 읽어 캐시에 넣는다. 이미 읽었거나 읽는 중이면 무시. */
@@ -530,6 +579,17 @@ export function CodeScreenV2({
         {selected ? (
           <button
             type="button"
+            className="code-tool-btn"
+            onClick={() => paneRefs[tabs.focused]?.current?.format()}
+            title={t("code.format") + " (⇧⌥F)"}
+            aria-label={t("code.format")}
+          >
+            <Sparkles size={15} />
+          </button>
+        ) : null}
+        {selected ? (
+          <button
+            type="button"
             className={"code-tool-btn code-save-btn" + (focusedDirty ? " on" : "")}
             onClick={() => paneRefs[tabs.focused]?.current?.save()}
             disabled={!focusedDirty}
@@ -622,9 +682,18 @@ export function CodeScreenV2({
                 onMove={handleMove}
               />
             )}
+            <CodeOutline
+              symbols={symbols}
+              loading={symbolsLoading}
+              open={outlineOpen}
+              cursorLine={cursorLine}
+              onToggleOpen={() => setOutlineOpen((v) => !v)}
+              onJump={(line) => selected && openPath(selected, line + 1)}
+            />
           </aside>
 
-          <div className={"code-main" + (isSplit ? " split" : "")}>
+          <div className="code-editors">
+            <div className={"code-main" + (isSplit ? " split" : "")}>
             {tabs.panes.map((pane, index) => (
               <CodePane
                 key={index}
@@ -655,11 +724,21 @@ export function CodeScreenV2({
                       : closeTab(openFile(prev, path, index), fromPane, path),
                   )
                 }
-                onBuffersChanged={refreshDirtyPaths}
+                onBuffersChanged={handleBuffersChanged}
                 onOpenPath={(path, line) => openPath(path, line, index)}
+                onReferences={setReferences}
+                onCursorLine={setCursorLine}
               />
             ))}
-            {tabs.panes.length === 0 ? <CodeNoTabs /> : null}
+              {tabs.panes.length === 0 ? <CodeNoTabs /> : null}
+            </div>
+            {references ? (
+              <CodeReferences
+                query={references}
+                onClose={() => setReferences(null)}
+                onOpen={(path, line) => openPath(path, line + 1)}
+              />
+            ) : null}
           </div>
         </div>
       )}

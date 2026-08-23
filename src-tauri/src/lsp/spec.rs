@@ -118,6 +118,86 @@ pub struct LspRenameResult {
     pub total_edits: u32,
 }
 
+/// 참조 하나 — 파일 안의 한 자리.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspReferenceHit {
+    /// 0-based, LSP 원본 그대로.
+    pub line: u32,
+    pub character: u32,
+    /// 그 줄의 원문(앞뒤 공백 제거·길이 제한). 목록에서 **무엇이 걸렸는지**를
+    /// 파일을 열지 않고 판단하게 해 준다 — 이게 없으면 경로+줄번호만 남아
+    /// 하나하나 열어 봐야 한다.
+    pub preview: String,
+}
+
+/// 파일 하나에 모인 참조들. 목록이 파일 단위로 접히도록 서버 응답을 묶는다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspReferenceFile {
+    /// 프로젝트 상대 경로. 밖(의존성·표준 라이브러리)이면 `None` — 열 수는
+    /// 없지만 어디서 쓰이는지는 보여 준다.
+    pub path: Option<String>,
+    pub display: String,
+    pub hits: Vec<LspReferenceHit>,
+}
+
+/// 파일 안의 심볼 하나 (아웃라인 한 줄).
+///
+/// 서버는 트리(`DocumentSymbol`)나 평면(`SymbolInformation`) 둘 중 하나로 답한다.
+/// 우리는 **문서 순서의 평면 목록 + `depth`** 로 통일한다 — 아웃라인은 어차피
+/// 들여쓴 목록으로 그리고, 재귀 타입을 IPC 경계로 보내지 않아도 된다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspSymbol {
+    pub name: String,
+    /// 시그니처·타입 등 서버가 준 부가 설명.
+    pub detail: Option<String>,
+    /// `function` · `struct` · `method` … 아이콘·색으로 쓴다.
+    pub kind: String,
+    /// 0-based 중첩 깊이.
+    pub depth: u32,
+    /// 점프 대상 — `selectionRange`(이름 자체) 우선. `range` 는 블록 전체라
+    /// 커서가 함수 위 빈 줄에 떨어진다.
+    pub line: u32,
+    pub character: u32,
+}
+
+/// 워크스페이스 심볼 검색 결과 한 줄.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspWorkspaceSymbol {
+    pub name: String,
+    pub kind: String,
+    /// 담고 있는 것 (클래스·모듈 이름). 서버가 줄 때만.
+    pub container: Option<String>,
+    /// 프로젝트 상대 경로. 밖이면 `None`.
+    pub path: Option<String>,
+    pub display: String,
+    pub line: u32,
+    pub character: u32,
+}
+
+/// 시그니처 라벨 안에서 인자 하나가 차지하는 구간.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspParamSpan {
+    /// `label` 문자열 안의 UTF-16 오프셋 [start, end).
+    pub start: u32,
+    pub end: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspSignature {
+    pub label: String,
+    pub documentation: Option<String>,
+    pub parameters: Vec<LspParamSpan>,
+}
+
+/// `textDocument/signatureHelp` — 인자를 입력하는 동안 뜨는 것.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspSignatureHelp {
+    pub signatures: Vec<LspSignature>,
+    pub active_signature: u32,
+    /// 지금 입력 중인 인자. 범위를 벗어나면 강조하지 않는다.
+    pub active_parameter: u32,
+}
+
 // ─── 변환 ───────────────────────────────────────────────────────────────────
 
 /// `publishDiagnostics` 의 배열을 좁은 타입으로. 읽을 수 없는 항목은 **버린다**
@@ -319,6 +399,295 @@ pub fn definition_from_json(result: &Value, project_root: &std::path::Path) -> O
     })
 }
 
+/// 미리보기 한 줄의 상한 — 목록이 가로로 터지지 않게.
+const PREVIEW_MAX_CHARS: usize = 160;
+
+/// `textDocument/references` 응답 → **파일별로 묶은** 목록.
+///
+/// 미리보기는 호출자가 파일을 읽어 넘긴다(`line_source`) — 여기서 IO 를 하지
+/// 않아야 순수 함수로 테스트된다. 파일을 못 읽으면 미리보기만 비고 자리는 남는다.
+pub fn references_from_json(
+    result: &Value,
+    project_root: &std::path::Path,
+    mut line_source: impl FnMut(&std::path::Path) -> Option<Vec<String>>,
+) -> Vec<LspReferenceFile> {
+    let Value::Array(items) = result else {
+        return Vec::new();
+    };
+    // 서버는 파일 순서를 보장하지 않는다 — 경로로 묶고 정렬해 목록이 안정된다.
+    let mut by_file: std::collections::BTreeMap<std::path::PathBuf, Vec<(u32, u32)>> =
+        std::collections::BTreeMap::new();
+    for item in items {
+        let Some(uri) = item
+            .get("uri")
+            .or_else(|| item.get("targetUri"))
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let Some(start) = item
+            .get("range")
+            .or_else(|| item.get("targetSelectionRange"))
+            .and_then(|r| r.get("start"))
+        else {
+            continue;
+        };
+        let Some(path) = super::registry::uri_to_path(uri) else {
+            continue;
+        };
+        by_file.entry(path).or_default().push((
+            start.get("line").and_then(Value::as_u64).unwrap_or(0) as u32,
+            start.get("character").and_then(Value::as_u64).unwrap_or(0) as u32,
+        ));
+    }
+
+    by_file
+        .into_iter()
+        .map(|(path, mut positions)| {
+            positions.sort_unstable();
+            positions.dedup();
+            let lines = line_source(&path);
+            let rel = path
+                .strip_prefix(project_root)
+                .ok()
+                .map(|p| p.to_string_lossy().replace('\\', "/"));
+            let display = rel.clone().unwrap_or_else(|| {
+                path.file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.to_string_lossy().to_string())
+            });
+            let hits = positions
+                .into_iter()
+                .map(|(line, character)| LspReferenceHit {
+                    line,
+                    character,
+                    preview: lines
+                        .as_ref()
+                        .and_then(|ls| ls.get(line as usize))
+                        .map(|l| clip(l.trim(), PREVIEW_MAX_CHARS))
+                        .unwrap_or_default(),
+                })
+                .collect();
+            LspReferenceFile { path: rel, display, hits }
+        })
+        .collect()
+}
+
+/// `textDocument/documentSymbol` → 문서 순서의 평면 목록 + 깊이.
+///
+/// 두 모양을 다 받는다: 계층형 `DocumentSymbol`(children 있음)과 평면
+/// `SymbolInformation`(location 있음). 후자는 깊이가 없으므로 전부 0 이다.
+pub fn document_symbols_from_json(result: &Value) -> Vec<LspSymbol> {
+    fn walk(items: &[Value], depth: u32, out: &mut Vec<LspSymbol>) {
+        for item in items {
+            let Some(name) = item.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            // 계층형은 selectionRange/range, 평면형은 location.range.
+            let range = item
+                .get("selectionRange")
+                .or_else(|| item.get("range"))
+                .or_else(|| item.get("location").and_then(|l| l.get("range")));
+            let start = range.and_then(|r| r.get("start"));
+            out.push(LspSymbol {
+                name: name.to_string(),
+                detail: item
+                    .get("detail")
+                    .and_then(Value::as_str)
+                    .filter(|d| !d.is_empty())
+                    .map(str::to_string),
+                kind: symbol_kind_name(item.get("kind").and_then(Value::as_u64).unwrap_or(0)),
+                depth,
+                line: start
+                    .and_then(|s| s.get("line"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as u32,
+                character: start
+                    .and_then(|s| s.get("character"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as u32,
+            });
+            if let Some(Value::Array(children)) = item.get("children") {
+                walk(children, depth + 1, out);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    if let Value::Array(items) = result {
+        walk(items, 0, &mut out);
+    }
+    out
+}
+
+/// `workspace/symbol` → 검색 결과. 프로젝트 밖 심볼도 남긴다(열 수는 없지만
+/// 어디 있는지는 말한다 — 정의로 이동과 같은 태도).
+pub fn workspace_symbols_from_json(
+    result: &Value,
+    project_root: &std::path::Path,
+    limit: usize,
+) -> Vec<LspWorkspaceSymbol> {
+    let Value::Array(items) = result else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| {
+            let name = item.get("name").and_then(Value::as_str)?;
+            // WorkspaceSymbol 은 location 이 `{uri}` 만일 수도 있다 (range 없음).
+            let location = item.get("location")?;
+            let uri = location.get("uri").and_then(Value::as_str)?;
+            let start = location.get("range").and_then(|r| r.get("start"));
+            let path = super::registry::uri_to_path(uri)?;
+            let rel = path
+                .strip_prefix(project_root)
+                .ok()
+                .map(|p| p.to_string_lossy().replace('\\', "/"));
+            let display = rel.clone().unwrap_or_else(|| {
+                path.file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_else(|| uri.to_string())
+            });
+            Some(LspWorkspaceSymbol {
+                name: name.to_string(),
+                kind: symbol_kind_name(item.get("kind").and_then(Value::as_u64).unwrap_or(0)),
+                container: item
+                    .get("containerName")
+                    .and_then(Value::as_str)
+                    .filter(|c| !c.is_empty())
+                    .map(str::to_string),
+                path: rel,
+                display,
+                line: start
+                    .and_then(|s| s.get("line"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as u32,
+                character: start
+                    .and_then(|s| s.get("character"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as u32,
+            })
+        })
+        .take(limit)
+        .collect()
+}
+
+/// `textDocument/signatureHelp` → 좁은 타입.
+///
+/// 인자 라벨은 문자열이거나 `[start, end]` 오프셋 쌍이다. 문자열이면 시그니처
+/// 라벨 안에서 **찾아** 구간으로 바꾼다 — 프런트가 강조할 수 있으려면 어느
+/// 쪽이든 구간이어야 하고, 이 변환을 두 군데서 하면 곧 어긋난다.
+pub fn signature_help_from_json(result: &Value) -> Option<LspSignatureHelp> {
+    let Value::Array(sigs) = result.get("signatures")? else {
+        return None;
+    };
+    if sigs.is_empty() {
+        return None;
+    }
+    let signatures: Vec<LspSignature> = sigs
+        .iter()
+        .map(|sig| {
+            let label = sig.get("label").and_then(Value::as_str).unwrap_or("").to_string();
+            let parameters = match sig.get("parameters") {
+                Some(Value::Array(params)) => params
+                    .iter()
+                    .filter_map(|p| param_span(p.get("label")?, &label))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            LspSignature {
+                label,
+                documentation: doc_string(sig.get("documentation")),
+                parameters,
+            }
+        })
+        .collect();
+    Some(LspSignatureHelp {
+        active_signature: result
+            .get("activeSignature")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as u32,
+        active_parameter: result
+            .get("activeParameter")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as u32,
+        signatures,
+    })
+}
+
+/// 인자 라벨(문자열 또는 오프셋 쌍) → 라벨 안의 UTF-16 구간.
+fn param_span(raw: &Value, signature_label: &str) -> Option<LspParamSpan> {
+    if let Value::Array(pair) = raw {
+        let start = pair.first()?.as_u64()? as u32;
+        let end = pair.get(1)?.as_u64()? as u32;
+        return (end > start).then_some(LspParamSpan { start, end });
+    }
+    let needle = raw.as_str()?;
+    if needle.is_empty() {
+        return None;
+    }
+    // 바이트 인덱스로 찾은 뒤 UTF-16 오프셋으로 옮긴다 — 라벨에 한글·이모지가
+    // 있으면 둘이 다르고, 프런트(JS 문자열)는 UTF-16 으로 자른다.
+    let byte_at = signature_label.find(needle)?;
+    let start = signature_label[..byte_at].encode_utf16().count() as u32;
+    Some(LspParamSpan {
+        start,
+        end: start + needle.encode_utf16().count() as u32,
+    })
+}
+
+/// `string | MarkupContent | MarkedString[]` → 평문/마크다운 문자열.
+fn doc_string(raw: Option<&Value>) -> Option<String> {
+    let raw = raw?;
+    let text = match raw {
+        Value::String(s) => s.clone(),
+        Value::Object(_) => raw.get("value").and_then(Value::as_str)?.to_string(),
+        _ => return None,
+    };
+    (!text.trim().is_empty()).then_some(text)
+}
+
+/// 길이 제한 — **문자 단위**로 자른다 (바이트로 자르면 한글 중간에서 깨진다).
+fn clip(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    text.chars().take(max_chars).collect::<String>() + "…"
+}
+
+/// LSP `SymbolKind` (1-26) → 사람이 읽는 이름. 아웃라인 아이콘·색의 근거.
+fn symbol_kind_name(kind: u64) -> String {
+    match kind {
+        1 => "file",
+        2 => "module",
+        3 => "namespace",
+        4 => "package",
+        5 => "class",
+        6 => "method",
+        7 => "property",
+        8 => "field",
+        9 => "constructor",
+        10 => "enum",
+        11 => "interface",
+        12 => "function",
+        13 => "variable",
+        14 => "constant",
+        15 => "string",
+        16 => "number",
+        17 => "boolean",
+        18 => "array",
+        19 => "object",
+        20 => "key",
+        21 => "null",
+        22 => "enum-member",
+        23 => "struct",
+        24 => "event",
+        25 => "operator",
+        26 => "type-parameter",
+        _ => "symbol",
+    }
+    .to_string()
+}
+
 /// LSP `CompletionItemKind` (1-25) → CM6 가 아는 이름.
 fn completion_kind_name(kind: u64) -> String {
     match kind {
@@ -345,6 +714,157 @@ fn completion_kind_name(kind: u64) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // ─── Phase 2 — 참조 · 아웃라인 · 워크스페이스 심볼 · 시그니처 ────────────
+
+    #[test]
+    fn references_group_by_file_and_carry_a_preview() {
+        let raw = json!([
+            { "uri": "file:///w/ai-pm/src/b.rs", "range": { "start": { "line": 2, "character": 4 } } },
+            { "uri": "file:///w/ai-pm/src/a.rs", "range": { "start": { "line": 0, "character": 8 } } },
+            { "uri": "file:///w/ai-pm/src/a.rs", "range": { "start": { "line": 5, "character": 1 } } },
+            // 같은 자리가 두 번 와도 한 줄이다 (서버가 중복을 보낼 수 있다).
+            { "uri": "file:///w/ai-pm/src/a.rs", "range": { "start": { "line": 0, "character": 8 } } },
+        ]);
+        let got = references_from_json(&raw, root(), |p| {
+            if p.ends_with("a.rs") {
+                Some(vec![
+                    "    fn 대상() {}".to_string(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    "  대상();".to_string(),
+                ])
+            } else {
+                None // 못 읽는 파일 — 자리는 남고 미리보기만 빈다
+            }
+        });
+
+        // 파일 경로로 정렬돼 목록이 안정적이다.
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].path.as_deref(), Some("src/a.rs"));
+        assert_eq!(got[1].path.as_deref(), Some("src/b.rs"));
+        assert_eq!(got[0].hits.len(), 2, "중복 제거");
+        assert_eq!(got[0].hits[0].line, 0);
+        assert_eq!(got[0].hits[0].preview, "fn 대상() {}", "앞뒤 공백은 떼고");
+        assert_eq!(got[0].hits[1].preview, "대상();");
+        assert_eq!(got[1].hits[0].preview, "", "못 읽어도 자리는 남는다");
+    }
+
+    #[test]
+    fn references_outside_the_project_keep_a_display_name() {
+        let raw = json!([
+            { "uri": "file:///elsewhere/dep/lib.rs", "range": { "start": { "line": 9, "character": 0 } } },
+        ]);
+        let got = references_from_json(&raw, root(), |_| None);
+        assert_eq!(got.len(), 1);
+        assert!(got[0].path.is_none(), "열 수 없는 파일은 path 가 없다");
+        assert_eq!(got[0].display, "lib.rs", "그래도 어디인지는 말한다");
+    }
+
+    #[test]
+    fn document_symbols_flatten_the_hierarchy_with_depth() {
+        let raw = json!([{
+            "name": "Widget",
+            "kind": 23,
+            "range": { "start": { "line": 10, "character": 0 } },
+            "selectionRange": { "start": { "line": 10, "character": 7 } },
+            "children": [{
+                "name": "draw",
+                "detail": "fn(&self)",
+                "kind": 6,
+                "selectionRange": { "start": { "line": 12, "character": 7 } },
+                "children": [],
+            }],
+        }]);
+        let got = document_symbols_from_json(&raw);
+        assert_eq!(got.len(), 2);
+        assert_eq!((got[0].name.as_str(), got[0].depth, got[0].kind.as_str()), ("Widget", 0, "struct"));
+        // selectionRange 를 쓴다 — range 를 쓰면 커서가 블록 맨 위 빈 줄에 떨어진다.
+        assert_eq!(got[0].character, 7);
+        assert_eq!((got[1].name.as_str(), got[1].depth, got[1].kind.as_str()), ("draw", 1, "method"));
+        assert_eq!(got[1].detail.as_deref(), Some("fn(&self)"));
+    }
+
+    #[test]
+    fn document_symbols_accept_the_flat_shape_too() {
+        // SymbolInformation — children 이 없고 위치가 location.range 안에 있다.
+        let raw = json!([{
+            "name": "main",
+            "kind": 12,
+            "location": { "uri": "file:///w/ai-pm/src/main.rs", "range": { "start": { "line": 3, "character": 3 } } },
+        }]);
+        let got = document_symbols_from_json(&raw);
+        assert_eq!(got.len(), 1);
+        assert_eq!((got[0].kind.as_str(), got[0].depth, got[0].line), ("function", 0, 3));
+    }
+
+    #[test]
+    fn workspace_symbols_keep_container_and_respect_the_limit() {
+        let items: Vec<_> = (0..5)
+            .map(|i| {
+                json!({
+                    "name": format!("sym{i}"),
+                    "kind": 12,
+                    "containerName": "mod_a",
+                    "location": { "uri": "file:///w/ai-pm/src/a.rs", "range": { "start": { "line": i, "character": 0 } } },
+                })
+            })
+            .collect();
+        let got = workspace_symbols_from_json(&json!(items), root(), 3);
+        assert_eq!(got.len(), 3);
+        assert_eq!(got[0].container.as_deref(), Some("mod_a"));
+        assert_eq!(got[0].path.as_deref(), Some("src/a.rs"));
+    }
+
+    #[test]
+    fn signature_help_turns_string_labels_into_spans() {
+        let raw = json!({
+            "signatures": [{
+                "label": "fn 더하기(왼쪽: i32, 오른쪽: i32) -> i32",
+                "documentation": { "kind": "markdown", "value": "둘을 더한다" },
+                "parameters": [{ "label": "왼쪽: i32" }, { "label": "오른쪽: i32" }],
+            }],
+            "activeSignature": 0,
+            "activeParameter": 1,
+        });
+        let got = signature_help_from_json(&raw).unwrap();
+        assert_eq!(got.active_parameter, 1);
+        let sig = &got.signatures[0];
+        assert_eq!(sig.documentation.as_deref(), Some("둘을 더한다"));
+        // 구간은 **UTF-16** 오프셋이어야 한다 — 프런트(JS 문자열)가 그 단위로
+        // 자른다. 바이트로 주면 한글이 든 라벨에서 강조가 어긋난다.
+        let utf16: Vec<u16> = sig.label.encode_utf16().collect();
+        let slice_of = |s: &LspParamSpan| String::from_utf16(&utf16[s.start as usize..s.end as usize]).unwrap();
+        assert_eq!(slice_of(&sig.parameters[0]), "왼쪽: i32");
+        assert_eq!(slice_of(&sig.parameters[1]), "오른쪽: i32");
+    }
+
+    #[test]
+    fn signature_help_accepts_offset_pair_labels() {
+        let raw = json!({
+            "signatures": [{ "label": "add(a, b)", "parameters": [{ "label": [4, 5] }, { "label": [7, 8] }] }],
+        });
+        let got = signature_help_from_json(&raw).unwrap();
+        assert_eq!(got.signatures[0].parameters[0].start, 4);
+        assert_eq!(got.signatures[0].parameters[1].end, 8);
+        // 필드가 없으면 0 으로 — 첫 시그니처·첫 인자.
+        assert_eq!((got.active_signature, got.active_parameter), (0, 0));
+    }
+
+    #[test]
+    fn signature_help_is_none_when_there_is_nothing_to_show() {
+        assert!(signature_help_from_json(&json!({ "signatures": [] })).is_none());
+        assert!(signature_help_from_json(&json!(null)).is_none());
+    }
+
+    #[test]
+    fn preview_clipping_counts_characters_not_bytes() {
+        // 바이트로 자르면 한글 중간에서 깨진다.
+        assert_eq!(clip("가나다라", 2), "가나…");
+        assert_eq!(clip("짧다", 10), "짧다");
+    }
 
     #[test]
     fn reads_a_rust_analyzer_diagnostic_verbatim() {

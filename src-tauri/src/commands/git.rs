@@ -46,6 +46,25 @@ pub async fn git_status(
     Ok(git::status(&root))
 }
 
+/// 에디터 거터 (#git-gutter) — HEAD 대비 **지금 버퍼**의 줄 변경.
+///
+/// `git diff` 가 아니라 버퍼를 받는 이유: 거터는 **저장하기 전에** 무엇을
+/// 고쳤는지 보여야 쓸모가 있다. 저장소 밖 파일은 빈 목록이다 (오류가 아니다 —
+/// 추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
+#[tauri::command]
+#[specta::specta]
+pub async fn git_line_changes(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+    text: String,
+) -> Result<Vec<git::GitLineChange>, String> {
+    let root = project_root(&db, project_id).await?;
+    tauri::async_runtime::spawn_blocking(move || git::line_changes(&root, &rel_path, &text))
+        .await
+        .map_err(|e| format!("Failed to diff the file: {e}"))
+}
+
 /// Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip.
 #[tauri::command]
 #[specta::specta]

@@ -8,7 +8,10 @@ import {
   type LspCodeAction,
   type LspHover,
   type LspLocation,
+  type LspReferenceFile,
   type LspRenameResult,
+  type LspSignatureHelp,
+  type LspSymbol,
   type LspServerState,
 } from "@/lib/bindings";
 import { safeUnlisten } from "@/lib/unlisten";
@@ -47,6 +50,25 @@ export interface UseLspResult {
   applyCodeAction: (index: number) => Promise<LspRenameResult | null>;
   /** 편집이 있을 때마다 호출 — 내부에서 디바운스한다. */
   pushText: (text: string) => void;
+  /**
+   * 디바운스를 건너뛰고 지금 버퍼를 **즉시** 서버에 밀어 넣는다.
+   *
+   * 포맷팅 전에 반드시 이걸 부른다: 서버는 자기가 아는 문서를 기준으로 편집
+   * 오프셋을 계산하는데, 마지막 타자가 아직 디바운스 안에 있으면 그 문서가
+   * 지금 버퍼보다 뒤처져 있어 포맷 결과가 엉뚱한 자리를 건드린다.
+   */
+  flushText: (text: string) => Promise<void>;
+  /** 커서 위치 심볼을 쓰는 모든 곳. 파일별로 묶여서 온다. */
+  references: (line: number, character: number) => Promise<LspReferenceFile[]>;
+  /** 지금 파일의 구조 (아웃라인). */
+  documentSymbols: () => Promise<LspSymbol[]>;
+  /** 인자 입력 중의 시그니처. 보여줄 것이 없으면 null. */
+  signatureHelp: (line: number, character: number) => Promise<LspSignatureHelp | null>;
+  /**
+   * 포맷팅 — 디스크가 아니라 **넘긴 텍스트**를 다듬어 돌려준다. 바뀐 것이
+   * 없으면 null (서버 없음·이미 정돈됨 포함).
+   */
+  format: (text: string, tabSize: number, insertSpaces: boolean) => Promise<string | null>;
 }
 
 /**
@@ -128,6 +150,19 @@ export function useLsp(
     [projectId],
   );
 
+  const flushText = useCallback(
+    async (text: string) => {
+      const p = pathRef.current;
+      if (!p || !attachedRef.current) return;
+      if (timerRef.current != null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      await commands.lspChange(projectId, p, text);
+    },
+    [projectId],
+  );
+
   // ── 이벤트 구독 (마운트 1회) ──────────────────────────────────────────────
   useEffect(() => {
     const offs: Array<() => void> = [];
@@ -205,6 +240,39 @@ export function useLsp(
     [ask, projectId],
   );
 
+  const references = useCallback(
+    async (line: number, character: number) =>
+      (await ask("lspReferences", (p) =>
+        commands.lspReferences(projectId, p, line, character),
+      )) ?? [],
+    [ask, projectId],
+  );
+
+  const documentSymbols = useCallback(
+    async () => (await ask("lspDocumentSymbols", (p) => commands.lspDocumentSymbols(projectId, p))) ?? [],
+    [ask, projectId],
+  );
+
+  const signatureHelp = useCallback(
+    (line: number, character: number) =>
+      ask("lspSignatureHelp", (p) => commands.lspSignatureHelp(projectId, p, line, character)),
+    [ask, projectId],
+  );
+
+  // 포맷팅은 파일을 바꾼다 — 읽기 기능들과 달리 실패를 삼키지 않고 던져서
+  // 호출자가 토스트를 띄우게 한다 (코드 액션 적용과 같은 태도).
+  const format = useCallback(
+    async (text: string, tabSize: number, insertSpaces: boolean) => {
+      const p = pathRef.current;
+      if (!p || !attachedRef.current) return null;
+      await flushText(text);
+      const res = await commands.lspFormat(projectId, p, text, tabSize, insertSpaces);
+      if (res.status === "error") throw new Error(res.error);
+      return res.data;
+    },
+    [projectId, flushText],
+  );
+
   const codeActions = useCallback(
     async (sl: number, sc: number, el: number, ec: number) =>
       (await ask("lspCodeActions", (p) =>
@@ -236,6 +304,11 @@ export function useLsp(
       codeActions,
       applyCodeAction,
       pushText,
+      flushText,
+      references,
+      documentSymbols,
+      signatureHelp,
+      format,
     }),
     [
       diagnostics,
@@ -246,6 +319,11 @@ export function useLsp(
       codeActions,
       applyCodeAction,
       pushText,
+      flushText,
+      references,
+      documentSymbols,
+      signatureHelp,
+      format,
     ],
   );
 }

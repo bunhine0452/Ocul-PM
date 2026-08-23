@@ -8,6 +8,8 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import type { CodeDirEntry, CodeFileContent, CodePathResult } from "@/lib/bindings";
 
 interface Ops {
+  /** `code_read` 호출 횟수 — 재읽기 루프 회귀를 세는 자. */
+  reads: number;
   create: string[];
   mkdir: string[];
   rename: Array<{ from: string; to: string }>;
@@ -18,7 +20,7 @@ const fx: {
   /** 경로 → 내용. 디렉터리는 경로 끝에 "/" 로 표시한다. */
   files: Map<string, string>;
   ops: Ops;
-} = { files: new Map(), ops: { create: [], mkdir: [], rename: [], del: [] } };
+} = { files: new Map(), ops: { reads: 0, create: [], mkdir: [], rename: [], del: [] } };
 
 function textFile(content: string, hash = "h1"): CodeFileContent {
   return { content, hash, bytes: content.length, binary: false, too_large: false };
@@ -99,6 +101,7 @@ vi.mock("@/lib/bindings", () => {
               return (_p: number, rel: string) => ok({ entries: dirEntries(rel), truncated: false });
             case "codeRead":
               return (_p: number, rel: string) => {
+                fx.ops.reads += 1;
                 const hit = fx.files.get(rel);
                 return hit === undefined ? err("Failed to read file") : ok(textFile(hit));
               };
@@ -189,7 +192,7 @@ beforeEach(() => {
     ["src/main.rs", "fn main() {}"],
     ["src/lib.rs", "pub fn x() {}"],
   ]);
-  fx.ops = { create: [], mkdir: [], rename: [], del: [] };
+  fx.ops = { reads: 0, create: [], mkdir: [], rename: [], del: [] };
 });
 afterEach(cleanup);
 
@@ -277,6 +280,31 @@ describe("코드 화면 — 탭", () => {
 
     fireEvent.click(iconButton(container, ".code-tabs-actions", t("code.tabs.unsplit")));
     await waitFor(() => expect(container.querySelectorAll(".code-pane")).toHaveLength(1));
+  });
+
+  it("연 파일을 되풀이해 다시 읽지 않는다", async () => {
+    // 회귀 방지: 화면이 창에 **매 렌더 새 신원의 콜백**을 넘기면 CodePane 의
+    // `loadFile` 이 재생성되고, 그것에 매달린 effect 가 파일을 다시 읽는다.
+    // 그 읽기가 또 상태를 바꿔 렌더를 부르므로 **끝나지 않는 재읽기 루프**가
+    // 된다 — 편집기가 "불러오는 중" 에서 못 빠져나오고 상태줄도 안 뜬다.
+    // (미저장 편집 자체는 버퍼 캐시가 지켜 준다. 깨지는 것은 화면이다.)
+    const { findByText, getByTestId, container } = renderScreen();
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
+    const afterOpen = fx.ops.reads;
+
+    fireEvent.click(getByTestId("mutate"));
+    await waitFor(() => expect(container.querySelector(".code-tab.dirty")).toBeTruthy());
+    // 화면 상태를 여러 번 건드려 리렌더를 강제한다.
+    const filter = container.querySelector(".code-filter input") as HTMLInputElement;
+    for (const v of ["R", "RE", "R", ""]) fireEvent.change(filter, { target: { value: v } });
+    await waitFor(() => expect(container.querySelector(".code-filter input")).toBeTruthy());
+
+    // 편집도 리렌더도 파일을 다시 읽게 하지 않는다.
+    expect(fx.ops.reads).toBe(afterOpen);
+    // 그리고 편집기는 여전히 살아 있다 (루프면 "불러오는 중" 에 갇혀 사라진다).
+    expect(getByTestId("editor-text").textContent).toBe("# hello!");
+    expect(getBuffer(bufferKey(1, "README.md"))?.text).toBe("# hello!");
   });
 
   it("열어 둔 탭은 다시 열었을 때 되살아난다", async () => {

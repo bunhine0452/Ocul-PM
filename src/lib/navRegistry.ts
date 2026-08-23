@@ -93,6 +93,9 @@ export const NAV_BUS = {
 } as const;
 
 export interface OpenEntityDetail {
-  kind: "journal" | "plan" | "plan_item" | "discussion" | "doc";
+  kind: "journal" | "plan" | "plan_item" | "discussion" | "doc" | "code";
+  /** 엔티티 id. `code` 는 프로젝트 상대 파일 경로. */
   id: string;
+  /** `code` 전용 — 0-based 줄. 워크스페이스 심볼이 정확한 자리로 보낸다. */
+  line?: number;
 }

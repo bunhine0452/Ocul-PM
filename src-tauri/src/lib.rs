@@ -144,6 +144,8 @@ use crate::commands::{
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
     lsp_status, lsp_open, lsp_change, lsp_close, lsp_completion, lsp_hover,
     lsp_definition, lsp_rename, lsp_code_actions, lsp_apply_code_action, lsp_stop,
+    // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
+    lsp_references, lsp_document_symbols, lsp_workspace_symbols, lsp_signature_help, lsp_format,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
     // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
@@ -155,7 +157,7 @@ use crate::commands::{
     start_pty_session, attach_pty_session, write_to_pty, resize_pty, kill_pty_session,
     // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
     shell_integration_status, shell_integration_install, shell_integration_uninstall,
-    git_log, git_graph, git_status, git_head_status_brief,
+    git_log, git_graph, git_status, git_head_status_brief, git_line_changes,
     reindex_paths, compute_diff, diff_binary_preview, resnapshot_paths, git_uncommitted_changes,
     git_last_commit_changes, open_in_editor, open_url,
     // G2 — Project Overview + Daily Brief
@@ -319,6 +321,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         lsp_rename,
         lsp_code_actions,
         lsp_apply_code_action,
+        lsp_references,
+        lsp_document_symbols,
+        lsp_workspace_symbols,
+        lsp_signature_help,
+        lsp_format,
         lsp_stop,
         // 문서(docs) 뷰어
         docs_tree,
@@ -353,6 +360,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         git_graph,
         git_status,
         git_head_status_brief,
+        git_line_changes,
         // Lite-W6 PR6 — LocalDiffView backend
         reindex_paths,
         compute_diff,

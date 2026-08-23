@@ -225,8 +225,17 @@
 /* ── 우측 편집 영역 ─────────────────────────────────────────
    `.code-main` 은 이제 **창(pane)들의 컨테이너**다. 단일이면 창 하나가
    전부를, 분할이면 둘이 반씩 나눠 갖는다. 세로 스택은 창 안쪽(.code-pane). */
+/* 편집 영역 전체 — 위: 창들(가로), 아래: 참조 패널(전체 폭). */
+.code-editors {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .code-main {
   flex: 1;
+  min-height: 0;
   min-width: 0;
   display: flex;
   flex-direction: row;
@@ -697,4 +706,340 @@
 .code-delete-open li.dirty {
   color: var(--accent-text);
   font-weight: 600;
+}
+
+
+/* ── 아웃라인 (#lsp-outline) ─────────────────────────────────
+   사이드바 **아래에 붙는다** — 트리가 줄어드는 대신 자리를 나눠 갖는다.
+   접혀 있을 때는 머리글 한 줄만 차지한다. */
+.code-outline {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0 -8px;
+  border-top: 1px solid var(--sep);
+}
+.code-outline.open {
+  /* 열리면 사이드바 높이의 최대 절반까지 — 트리를 완전히 밀어내지 않는다. */
+  flex: 0 1 50%;
+}
+.code-outline-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.code-outline-head:hover {
+  color: var(--text-2);
+}
+.code-outline-title {
+  flex: 1;
+  text-align: left;
+}
+.code-outline-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.code-outline-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+}
+.code-outline-hint {
+  padding: 8px 12px 12px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.code-outline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  text-align: left;
+}
+.code-outline-row:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-outline-row.on {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.code-outline-name {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.code-outline-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-3);
+}
+/* 종류를 아이콘 대신 색점으로 — 26가지 SymbolKind 에 아이콘을 다 주면
+   목록이 시끄러워지고, 실제로 구별해서 쓰는 것은 몇 가지뿐이다. */
+.code-outline-kind {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--text-3);
+}
+.code-outline-kind.k-function,
+.code-outline-kind.k-method,
+.code-outline-kind.k-constructor {
+  background: var(--code-fn);
+}
+.code-outline-kind.k-struct,
+.code-outline-kind.k-class,
+.code-outline-kind.k-interface,
+.code-outline-kind.k-enum {
+  background: var(--code-type);
+}
+.code-outline-kind.k-module,
+.code-outline-kind.k-namespace,
+.code-outline-kind.k-package {
+  background: var(--code-kw);
+}
+.code-outline-kind.k-constant,
+.code-outline-kind.k-enum-member {
+  background: var(--code-num);
+}
+.code-outline-kind.k-property,
+.code-outline-kind.k-field,
+.code-outline-kind.k-variable {
+  background: var(--code-prop);
+}
+
+/* ── 참조 패널 (#lsp-references) ──────────────────────────────
+   편집 영역 **아래**에 전체 폭으로. 사이드바에 넣으면 미리보기가 전부 잘려
+   목록을 훑는 의미가 사라진다. */
+.code-refs {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+  min-height: 0;
+  border-top: 1px solid var(--sep);
+  background: var(--bg-inset);
+}
+.code-refs-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px 12px;
+  border-bottom: 1px solid var(--sep);
+}
+.code-refs-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.code-refs-sub {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.code-refs-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-s);
+  color: var(--text-3);
+  background: none;
+  cursor: pointer;
+}
+.code-refs-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-refs-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0 10px;
+}
+.code-refs-hint {
+  padding: 14px 12px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.code-refs-file-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.code-refs-file-head:hover {
+  background: var(--bg-hover);
+}
+.code-refs-ico {
+  flex: none;
+  color: var(--text-3);
+}
+.code-refs-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+.code-refs-count {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.code-refs-outside {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-3);
+  padding: 1px 5px;
+  border: 1px solid var(--sep);
+  border-radius: 999px;
+}
+.code-refs-hit {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 2px 12px 2px 34px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.code-refs-hit:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-refs-hit:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.code-refs-line {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.code-refs-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+/* ── 시그니처 힌트 (#lsp-signature) ───────────────────────────
+   CM6 툴팁 안쪽이라 화면 스코프 밖에서도 살아야 하는 :root 토큰만 쓴다. */
+.cm-lsp-signature {
+  max-width: 560px;
+  padding: 6px 9px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.cm-lsp-signature-label {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* 지금 치고 있는 인자 — 이 강조가 이 기능의 전부다. */
+.cm-lsp-signature-label strong {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.cm-lsp-signature-doc {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--sep);
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--text-3);
+  white-space: pre-wrap;
+}
+.cm-lsp-signature-count {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── git 거터 (#git-gutter) ───────────────────────────────────
+   줄 번호 왼쪽의 가는 색막대. 저장소 밖 파일에서는 마커가 없어 폭도 안 생긴다
+   (CM6 가 빈 거터를 0폭으로 접는다). diff 화면과 같은 색 토큰을 쓴다. */
+.cm-git-gutter {
+  min-width: 3px;
+  padding: 0;
+}
+.cm-git-gutter-mark {
+  width: 3px;
+  height: 100%;
+  margin-left: 1px;
+}
+.cm-git-gutter-mark.added {
+  background: var(--diff-add-text);
+}
+.cm-git-gutter-mark.modified {
+  background: var(--accent);
+}
+/* 지워진 줄은 화면에 없다 — 남은 줄의 **아래쪽 모서리**에 삼각형처럼 얹어
+   "여기 뭔가 사라졌다" 를 표시한다 (VS Code 와 같은 관용구). */
+.cm-git-gutter-mark.deleted {
+  height: 0;
+  margin-top: auto;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 5px solid var(--diff-del-text);
+  width: 0;
 }

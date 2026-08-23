@@ -373,6 +373,46 @@ export const commands = {
 	 *  겹침 거부, 프로젝트 밖 거부. 미저장 버퍼 게이트도 프런트에서 같이 건다.
 	 */
 	lspApplyCodeAction: (projectId: number, path: string, index: number) => typedError<LspRenameResult, string>(__TAURI_INVOKE("lsp_apply_code_action", { projectId, path, index })),
+	/**
+	 *  커서 위치 심볼을 쓰는 모든 곳 (`textDocument/references`).
+	 * 
+	 *  정의로 이동이 "한 곳" 이라면 이쪽은 "전부" 다 — 파일별로 묶어서 돌려주고,
+	 *  각 줄의 원문을 미리보기로 붙인다(파일을 열지 않고 판단할 수 있게).
+	 *  선언 자체도 포함한다(`includeDeclaration`) — 빼면 "쓰는 곳 3군데" 라는
+	 *  목록에 정작 정의가 없어 헷갈린다.
+	 */
+	lspReferences: (projectId: number, path: string, line: number, character: number) => typedError<LspReferenceFile[], string>(__TAURI_INVOKE("lsp_references", { projectId, path, line, character })),
+	/**  파일 안의 구조 (`textDocument/documentSymbol`) — 아웃라인. */
+	lspDocumentSymbols: (projectId: number, path: string) => typedError<LspSymbol[], string>(__TAURI_INVOKE("lsp_document_symbols", { projectId, path })),
+	/**
+	 *  프로젝트 전체 심볼 검색 (`workspace/symbol`) — ⌘K 팔레트가 쓴다.
+	 * 
+	 *  **어느 서버에 물을지**가 이 커맨드의 문제다. 워크스페이스 심볼은 파일에
+	 *  매이지 않으므로 `ensure_for_file` 을 쓸 수 없다 — 지금 떠 있는 서버 전부에
+	 *  묻고 합친다. 서버를 새로 띄우지는 않는다: 팔레트에 글자를 칠 때마다
+	 *  rust-analyzer 가 뜨면 안 된다.
+	 */
+	lspWorkspaceSymbols: (projectId: number, query: string) => typedError<LspWorkspaceSymbol[], string>(__TAURI_INVOKE("lsp_workspace_symbols", { projectId, query })),
+	/**  인자를 입력하는 동안의 시그니처 힌트 (`textDocument/signatureHelp`). */
+	lspSignatureHelp: (projectId: number, path: string, line: number, character: number) => typedError<{
+	signatures: LspSignature[],
+	active_signature: number,
+	/**  지금 입력 중인 인자. 범위를 벗어나면 강조하지 않는다. */
+	active_parameter: number,
+} | null, string>(__TAURI_INVOKE("lsp_signature_help", { projectId, path, line, character })),
+	/**
+	 *  포맷팅 — **디스크가 아니라 넘겨받은 텍스트에** 적용해 돌려준다.
+	 * 
+	 *  이름 바꾸기·코드 액션과 정반대의 선택이다. 그것들은 열려 있지 않은 파일까지
+	 *  고치므로 디스크에 적용하고 미저장 버퍼를 금지했다. 포맷팅은 **지금 편집 중인
+	 *  한 파일**이 대상이라, 저장을 강요하는 대신 버퍼를 그대로 다듬어 돌려주는
+	 *  것이 맞다 (저장 시 포맷도 이 위에 얹힌다).
+	 * 
+	 *  호출 전에 프런트가 `lsp_change` 로 현재 버퍼를 밀어 넣어야 한다 — 서버가
+	 *  아는 문서와 여기 넘긴 `text` 가 다르면 편집 오프셋이 어긋난다.
+	 *  바뀐 것이 없으면 `None`(서버가 빈 편집을 준 경우 포함).
+	 */
+	lspFormat: (projectId: number, path: string, text: string, tabSize: number, insertSpaces: boolean) => typedError<string | null, string>(__TAURI_INVOKE("lsp_format", { projectId, path, text, tabSize, insertSpaces })),
 	/**  이 프로젝트의 언어 서버를 전부 정리한다. */
 	lspStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("lsp_stop", { projectId })),
 	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
@@ -539,6 +579,14 @@ export const commands = {
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
 	/**  Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip. */
 	gitHeadStatusBrief: (projectId: number) => typedError<GitHeadStatusBrief, string>(__TAURI_INVOKE("git_head_status_brief", { projectId })),
+	/**
+	 *  에디터 거터 (#git-gutter) — HEAD 대비 **지금 버퍼**의 줄 변경.
+	 * 
+	 *  `git diff` 가 아니라 버퍼를 받는 이유: 거터는 **저장하기 전에** 무엇을
+	 *  고쳤는지 보여야 쓸모가 있다. 저장소 밖 파일은 빈 목록이다 (오류가 아니다 —
+	 *  추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
+	 */
+	gitLineChanges: (projectId: number, relPath: string, text: string) => typedError<GitLineChange[], string>(__TAURI_INVOKE("git_line_changes", { projectId, relPath, text })),
 	/**
 	 *  Re-run the indexing pipeline for `paths` (relative to the project root).
 	 *  Mirrors the per-file branch of `commands::project::index_project` so that
@@ -2370,6 +2418,20 @@ export type GitHeadStatusBrief = {
 	uncommitted: number,
 };
 
+/**  에디터 거터에 그릴 한 덩어리의 변경. 줄 번호는 **1-based, 현재 버퍼 기준**. */
+export type GitLineChange = {
+	/**  첫 줄 (포함). */
+	start_line: number,
+	/**
+	 *  마지막 줄 (포함). `deleted` 는 start_line == end_line 이고, 그 줄
+	 *  **다음에** 무언가 지워졌다는 뜻이다 (지워진 줄은 화면에 없으므로).
+	 */
+	end_line: number,
+	kind: GitLineChangeKind,
+};
+
+export type GitLineChangeKind = "added" | "modified" | "deleted";
+
 export type GitRemote = {
 	name: string,
 	url: string,
@@ -2765,6 +2827,37 @@ export type LspLocation = {
 	character: number,
 };
 
+/**  시그니처 라벨 안에서 인자 하나가 차지하는 구간. */
+export type LspParamSpan = {
+	/**  `label` 문자열 안의 UTF-16 오프셋 [start, end). */
+	start: number,
+	end: number,
+};
+
+/**  파일 하나에 모인 참조들. 목록이 파일 단위로 접히도록 서버 응답을 묶는다. */
+export type LspReferenceFile = {
+	/**
+	 *  프로젝트 상대 경로. 밖(의존성·표준 라이브러리)이면 `None` — 열 수는
+	 *  없지만 어디서 쓰이는지는 보여 준다.
+	 */
+	path: string | null,
+	display: string,
+	hits: LspReferenceHit[],
+};
+
+/**  참조 하나 — 파일 안의 한 자리. */
+export type LspReferenceHit = {
+	/**  0-based, LSP 원본 그대로. */
+	line: number,
+	character: number,
+	/**
+	 *  그 줄의 원문(앞뒤 공백 제거·길이 제한). 목록에서 **무엇이 걸렸는지**를
+	 *  파일을 열지 않고 판단하게 해 준다 — 이게 없으면 경로+줄번호만 남아
+	 *  하나하나 열어 봐야 한다.
+	 */
+	preview: string,
+};
+
 export type LspRenameResult = {
 	files: LspRenamedFile[],
 	total_edits: number,
@@ -2808,6 +2901,56 @@ export type LspServerStateChanged = {
 };
 
 export type LspSeverity = "error" | "warning" | "info" | "hint";
+
+export type LspSignature = {
+	label: string,
+	documentation: string | null,
+	parameters: LspParamSpan[],
+};
+
+/**  `textDocument/signatureHelp` — 인자를 입력하는 동안 뜨는 것. */
+export type LspSignatureHelp = {
+	signatures: LspSignature[],
+	active_signature: number,
+	/**  지금 입력 중인 인자. 범위를 벗어나면 강조하지 않는다. */
+	active_parameter: number,
+};
+
+/**
+ *  파일 안의 심볼 하나 (아웃라인 한 줄).
+ * 
+ *  서버는 트리(`DocumentSymbol`)나 평면(`SymbolInformation`) 둘 중 하나로 답한다.
+ *  우리는 **문서 순서의 평면 목록 + `depth`** 로 통일한다 — 아웃라인은 어차피
+ *  들여쓴 목록으로 그리고, 재귀 타입을 IPC 경계로 보내지 않아도 된다.
+ */
+export type LspSymbol = {
+	name: string,
+	/**  시그니처·타입 등 서버가 준 부가 설명. */
+	detail: string | null,
+	/**  `function` · `struct` · `method` … 아이콘·색으로 쓴다. */
+	kind: string,
+	/**  0-based 중첩 깊이. */
+	depth: number,
+	/**
+	 *  점프 대상 — `selectionRange`(이름 자체) 우선. `range` 는 블록 전체라
+	 *  커서가 함수 위 빈 줄에 떨어진다.
+	 */
+	line: number,
+	character: number,
+};
+
+/**  워크스페이스 심볼 검색 결과 한 줄. */
+export type LspWorkspaceSymbol = {
+	name: string,
+	kind: string,
+	/**  담고 있는 것 (클래스·모듈 이름). 서버가 줄 때만. */
+	container: string | null,
+	/**  프로젝트 상대 경로. 밖이면 `None`. */
+	path: string | null,
+	display: string,
+	line: number,
+	character: number,
+};
 
 export type ManualEntryDraft = {
 	type: EntryType,

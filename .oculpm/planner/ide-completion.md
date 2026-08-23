@@ -56,6 +56,31 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 
 영향: #tabs-split #tabs-bar
 
+### Decision 4 — 포맷은 디스크가 아니라 버퍼를 다듬는다 {#format-buffer}
+
+잠금 2026-08-23 · claude-code.
+
+이름 바꾸기·코드 액션은 **열려 있지 않은 파일까지** 고치므로 디스크에 적용하고
+미저장 버퍼를 금지했다. 포맷은 반대다 — 편집 중인 한 파일이 대상이라 저장을
+강요할 이유가 없다. 백엔드가 버퍼 텍스트를 받아 편집을 적용해 돌려주고, 저장
+여부는 여전히 사용자가 정한다 (저장 시 포맷은 그 위에 얹힌다).
+
+전제: 호출 전에 디바운스를 건너뛰고 버퍼를 서버에 밀어 넣어야 한다
+(`flushText`). 서버가 아는 문서가 뒤처져 있으면 편집 오프셋이 어긋난다.
+
+영향: #lsp-format
+
+### Decision 5 — 거터는 git diff 가 아니라 HEAD↔버퍼 비교다 {#gutter-vs-buffer}
+
+잠금 2026-08-23 · claude-code.
+
+`git diff` 는 디스크를 본다. 거터는 **저장하기 전에** 무엇을 고쳤는지 보여야
+쓸모가 있으므로 HEAD 블롭만 git 에서 가져오고 비교는 `similar` 로 한다
+(이미 있는 의존성). 지움+삽입이 붙어 있으면 "수정" 한 덩어리로 접고, 지워진
+줄은 화면에 없으므로 남은 앞 줄에 표식을 붙인다.
+
+영향: #git-gutter
+
 ## Phase 0 — 지연 로딩 트리 {#p0-tree}
 - [x] 숨김 파일 표시 + `.git` 예외 (v2.15.0 선행분) {#hidden-done}
 - [x] `code_dir` — 디렉터리 한 단계만. 무시 여부는 손으로 판정하지 않고 `max_depth(1)` 걸음이 살려 둔 집합과 대조해 얻는다 (판정 주체를 하나로) {#tree-backend}
@@ -74,13 +99,14 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 - [ ] 인앱 육안 확인 — 드래그 이동 · 우클릭 메뉴 위치 · 분할 폭 (jsdom 이 못 보는 축) {#p1-verify}
 
 ## Phase 2 — LSP 나머지 창구 {#p2-lsp-rest}
-- [ ] 참조 찾기 (`textDocument/references`) — 결과 패널 {#lsp-references}
-- [ ] 심볼 아웃라인 (`documentSymbol`) — 파일 내 구조 + 점프 {#lsp-outline}
-- [ ] 워크스페이스 심볼 (`workspace/symbol`) — ⌘K 팔레트에 합류 {#lsp-workspace-symbol}
-- [ ] 시그니처 힌트 (`signatureHelp`) — 인자 입력 중 표시 {#lsp-signature}
-- [ ] 포맷팅 (`formatting` / `rangeFormatting`) + 저장 시 포맷 옵션 {#lsp-format}
-- [ ] 설정 화면 — 언어별 켜기/끄기 · 서버 경로 오버라이드 · 미설치 안내 (lsp-code-intelligence #lsp-settings 를 여기로 이관) {#lsp-settings-screen}
-- [ ] git 거터 — 수정/추가/삭제된 줄을 에디터 안에 (LSP 아님, 기존 diff 백엔드 재사용) {#git-gutter}
+- [x] 참조 찾기 (`textDocument/references`) — 결과 패널 {#lsp-references}
+- [x] 심볼 아웃라인 (`documentSymbol`) — 파일 내 구조 + 점프 {#lsp-outline}
+- [x] 워크스페이스 심볼 (`workspace/symbol`) — ⌘K 팔레트에 합류 {#lsp-workspace-symbol}
+- [x] 시그니처 힌트 (`signatureHelp`) — 인자 입력 중 표시 {#lsp-signature}
+- [~] 포맷팅 — 문서 전체(`formatting`) + 저장 시 포맷 완료. `rangeFormatting`(선택 영역만)은 미구현 {#lsp-format}
+- [x] 설정 화면 — 언어별 켜기/끄기 · 서버 경로 오버라이드 · 미설치 안내 (lsp-code-intelligence #lsp-settings 를 여기로 이관) {#lsp-settings-screen}
+- [x] git 거터 — 수정/추가/삭제된 줄을 에디터 안에 (LSP 아님, 기존 diff 백엔드 재사용) {#git-gutter}
+- [ ] 인앱 육안 확인 — 시그니처 툴팁 위치 · 거터 색 · 참조 패널 높이 · 아웃라인이 트리와 나눠 갖는 비율 {#p2-verify}
 
 ## Phase 3 — 디버거 (DAP) {#p3-dap}
 
@@ -116,4 +142,12 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T15:30:04+09:00 | #file-ops-ui | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 인라인 입력칸 · 삭제 확인이 함께 닫히는 탭·미저장을 먼저 열거 · 버퍼 재키잉 |
 | 2026-08-23T15:30:05+09:00 | #file-ops-dnd | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 트리 행 → 폴더/루트 드롭. 자기 후손으로는 프런트에서 먼저 막는다 |
 | 2026-08-23T15:30:06+09:00 | #p1-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/1530_feature_code-tabs-split-file-ops.md | 신규 — 드래그·메뉴 위치·분할 폭은 사용자 확인 필요 |
+| 2026-08-23T20:45:00+09:00 | #lsp-references | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 파일별 묶음 + 줄 원문 미리보기 · ⇧F12 · 편집 영역 아래 전체 폭 패널 |
+| 2026-08-23T20:45:01+09:00 | #lsp-outline | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 계층/평면 응답을 평면+depth 로 통일 · 사이드바 접이식 · 커서 위치 표시 |
+| 2026-08-23T20:45:02+09:00 | #lsp-workspace-symbol | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | ⌘K 「심볼」 그룹. 이미 떠 있는 서버에만 묻는다(running_clients) |
+| 2026-08-23T20:45:03+09:00 | #lsp-signature | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | CM6 StateField 툴팁. 인자 구간은 UTF-16 오프셋으로 백엔드가 통일 |
+| 2026-08-23T20:45:04+09:00 | #lsp-format | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 문서 전체 + 저장 시 포맷. rangeFormatting 은 미구현 |
+| 2026-08-23T20:45:05+09:00 | #lsp-settings-screen | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 설정 코드 탭 — 상태·켜기/끄기·경로 오버라이드·설치 안내. 바꾸면 서버 정리 |
+| 2026-08-23T20:45:06+09:00 | #git-gutter | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | HEAD 블롭 ↔ 버퍼를 similar 로. 지움+삽입=수정, 삭제는 앞 줄에 |
+| 2026-08-23T20:45:07+09:00 | #p2-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 신규 — 툴팁 위치·거터 색·패널 높이는 사용자 확인 필요 |
 <!-- oculpm:plan-log end -->
