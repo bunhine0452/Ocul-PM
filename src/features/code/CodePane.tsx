@@ -31,6 +31,7 @@ import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
+import { adapterLanguageFor } from "./debugConfig";
 import { formatBytes } from "./treeUtils";
 import {
   bufferKey,
@@ -102,6 +103,12 @@ export interface CodePaneProps {
   onReferences: (query: ReferencesQuery) => void;
   /** 커서가 있는 줄(1-based). 사이드바 아웃라인이 지금 위치를 표시한다. */
   onCursorLine: (line: number) => void;
+  /** 이 파일의 중단점 줄들 (1-based). */
+  breakpointsFor: (path: string) => number[];
+  /** 어댑터가 못 건다고 답한 줄들. */
+  unverifiedFor: (path: string) => number[];
+  /** 거터 클릭 — 디버그 가능한 파일에만 거터가 붙는다. */
+  onToggleBreakpoint: (path: string, line: number) => void;
 }
 
 export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodePane(
@@ -128,6 +135,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onOpenPath,
     onReferences,
     onCursorLine,
+    breakpointsFor,
+    unverifiedFor,
+    onToggleBreakpoint,
   },
   ref,
 ) {
@@ -645,6 +655,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   externalRef.current = () => void openExternal();
 
   const langId = activePath ? langIdForPath(activePath) : null;
+  // 디버그 어댑터가 있는 언어인가 — 중단점 거터를 달지 정한다.
+  const debuggable = adapterLanguageFor(activePath) != null;
   const buf = bufferRef.current;
 
   // 서버 상태를 한 낱말로. **"인덱싱 중" 을 밝히는 것이 요점** — rust-analyzer 는
@@ -759,6 +771,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
                 onCursorLine(line);
               }}
               gitChanges={gitChanges}
+              breakpoints={activePath ? breakpointsFor(activePath) : undefined}
+              unverifiedBreakpoints={activePath ? unverifiedFor(activePath) : undefined}
+              // 디버그 못 하는 파일에는 거터를 아예 안 단다 — 눌러도 안 찍히는
+              // 이유를 그 자리에서 설명할 수 없다 (CodeEditor 가 prop 유무로 판단).
+              onToggleBreakpoint={
+                debuggable ? (line) => onToggleBreakpoint(activePath ?? "", line) : undefined
+              }
               jumpLine={pendingJump}
               onJumpConsumed={() => setPendingJump(null)}
             />

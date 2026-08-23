@@ -1,7 +1,12 @@
-//! LSP 의 base protocol 프레이밍 — `Content-Length` 헤더 + `\r\n\r\n` + 본문.
+//! `Content-Length` 프레이밍 — 헤더 + `\r\n\r\n` + 본문.
 //!
-//! **MCP 의 프레이밍과 다르다.** `oculpm/mcp/protocol.rs` 는 개행 구분 JSON 이라
-//! 한 줄 = 한 메시지지만, LSP 는 HTTP 스타일 헤더로 길이를 먼저 알린다:
+//! **LSP 와 DAP 가 함께 쓴다.** 둘은 봉투(JSON-RPC 2.0 vs `seq`/`request_seq`)가
+//! 다르지만 바깥 프레이밍은 같다 — DAP 가 LSP 의 base protocol 을 그대로 가져다
+//! 썼기 때문이다. 그래서 이 조각만 크레이트 루트로 올려 둔다: `dap` 이 `lsp` 를
+//! 임포트하게 두면 있지도 않은 계층 관계를 암시한다.
+//!
+//! **MCP 의 프레이밍과는 다르다.** `oculpm/mcp/protocol.rs` 는 개행 구분 JSON 이라
+//! 한 줄 = 한 메시지지만, 여기는 HTTP 스타일 헤더로 길이를 먼저 알린다:
 //!
 //! ```text
 //! Content-Length: 123\r\n

@@ -5,9 +5,12 @@ mod commands;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None
 // of the other modules are needed at the integration layer.
+pub mod dap;
 pub mod db;
 mod embedding;
 mod error;
+// LSP·DAP 공용 Content-Length 프레이밍 (docs/dap/00-master-plan.md #framing-shared).
+pub mod framing;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
@@ -146,6 +149,10 @@ use crate::commands::{
     lsp_definition, lsp_rename, lsp_code_actions, lsp_apply_code_action, lsp_stop,
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
     lsp_references, lsp_document_symbols, lsp_workspace_symbols, lsp_signature_help, lsp_format,
+    // 디버거 (DAP) — docs/dap/00-master-plan.md
+    dap_adapters, dap_session, dap_start, dap_stop, dap_control,
+    dap_toggle_breakpoint, dap_breakpoints, dap_all_breakpoints, dap_clear_breakpoints,
+    dap_stack, dap_scopes, dap_variables,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
     // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
@@ -326,6 +333,18 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         lsp_workspace_symbols,
         lsp_signature_help,
         lsp_format,
+        dap_adapters,
+        dap_session,
+        dap_start,
+        dap_stop,
+        dap_control,
+        dap_toggle_breakpoint,
+        dap_breakpoints,
+        dap_all_breakpoints,
+        dap_clear_breakpoints,
+        dap_stack,
+        dap_scopes,
+        dap_variables,
         lsp_stop,
         // 문서(docs) 뷰어
         docs_tree,
@@ -499,6 +518,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
+        // 디버거 (DAP)
+        crate::commands::dap::DapSessionChanged,
+        crate::commands::dap::DapOutputEmitted,
+        crate::commands::dap::DapBreakpointsChanged,
         crate::oculpm::spec::OculpmSessionStarted,
         crate::oculpm::spec::OculpmSessionEnded,
         crate::oculpm::spec::OculpmFileChanged,
@@ -577,6 +600,7 @@ pub fn run() {
             app.manage(crate::acp::AcpState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
             app.manage(crate::lsp::state::LspState::default());
+            app.manage(crate::dap::state::DapState::default());
             // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)

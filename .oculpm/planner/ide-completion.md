@@ -81,6 +81,33 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 
 영향: #git-gutter
 
+### Decision 6 — DAP 는 순서를 가정하지 않는다 {#dap-no-order}
+
+잠금 2026-08-23 · claude-code. 근거는 실측 (docs/dap/00-master-plan.md #no-order).
+
+명세는 `initialize` → `initialized` → 설정 → `configurationDone` 으로 읽히지만,
+`lldb-dap` 을 실제로 띄워 보니 **같은 어댑터가 실행마다 다른 순서로 답했다**
+(`initialized` 가 `launch` 응답 앞에 오기도, 뒤에 오기도 했다). 순차 스크립트로
+짜면 그중 절반에서 영영 멈춘다.
+
+→ 세션은 이벤트 구동 상태 기계다. `launch` 는 응답을 기다리지 않고 보내고,
+`initialized` 는 **이미 왔는지까지 보는 걸쇠**로 기다린다.
+
+영향: #dap-pipe #dap-control
+
+### Decision 7 — 어댑터 조달은 전략을 값으로 든다 {#dap-procurement}
+
+잠금 2026-08-23 · claude-code.
+
+언어 서버는 넷 다 PATH 위 실행 파일이었지만 디버그 어댑터는 그런 것이 오히려
+적다: `lldb-dap` 은 Xcode 툴체인 안(`xcrun -f`), `debugpy` 는 파이썬 모듈,
+`dlv` 는 하위 명령이다. 레지스트리가 `command: &str` 하나로는 부족해
+`Path`/`Xcrun`/`Module`/`Subcommand` 를 값으로 든다.
+
+자동 설치는 여전히 하지 않는다 (LSP 와 같은 결정) — 미설치는 안내로 끝낸다.
+
+영향: #dap-pipe #dap-more-adapters
+
 ## Phase 0 — 지연 로딩 트리 {#p0-tree}
 - [x] 숨김 파일 표시 + `.git` 예외 (v2.15.0 선행분) {#hidden-done}
 - [x] `code_dir` — 디렉터리 한 단계만. 무시 여부는 손으로 판정하지 않고 `max_depth(1)` 걸음이 살려 둔 집합과 대조해 얻는다 (판정 주체를 하나로) {#tree-backend}
@@ -114,11 +141,13 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 (2026-08-23). 가장 큰 덩어리이고, LSP 와 프로토콜이 다르다 — 프레이밍은 같은
 `Content-Length` 지만 수명·상태 모델이 완전히 다르다(중단점·스텝·프레임·스코프).
 
-- [ ] 설계 문서 — docs/dap/00-master-plan.md. 어댑터 조달(언어별 debug adapter)·프로토콜·UI 모델을 먼저 못 박는다 {#dap-design}
-- [ ] dap/ — 프레이밍 · 어댑터 spawn · 요청 상관 · 이벤트 라우팅 {#dap-pipe}
-- [ ] 중단점 — 에디터 거터 토글 + 서버 동기 {#dap-breakpoints}
-- [ ] 실행 제어 — 계속/스텝오버/스텝인/스텝아웃 · 호출 스택 · 변수 스코프 {#dap-control}
-- [ ] 실행 구성 — 무엇을 어떻게 띄울지 (launch/attach) {#dap-config}
+- [x] 설계 문서 — docs/dap/00-master-plan.md. 어댑터 조달(언어별 debug adapter)·프로토콜·UI 모델을 먼저 못 박는다 {#dap-design}
+- [x] dap/ — 프레이밍 · 어댑터 spawn · 요청 상관 · 이벤트 라우팅 {#dap-pipe}
+- [x] 중단점 — 에디터 거터 토글 + 서버 동기 {#dap-breakpoints}
+- [x] 실행 제어 — 계속/스텝오버/스텝인/스텝아웃 · 호출 스택 · 변수 스코프 {#dap-control}
+- [~] 실행 구성 — launch 최소형(언어·실행 파일·인자·첫 줄 정지) 완료. attach 와 구성 영속(launch.json 격)은 미구현 {#dap-config}
+- [ ] debugpy · dlv 왕복 검증 — 이 기계에 없어 조달 경로만 넣고 실제 세션은 못 돌렸다 (docs/dap PR-DAP1) {#dap-more-adapters}
+- [ ] 인앱 육안 확인 — 거터 클릭 반응 · 패널 높이 · 변수 트리 펼침 {#p3-verify}
 
 ## 하지 않는 것
 
@@ -150,4 +179,11 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T20:45:05+09:00 | #lsp-settings-screen | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 설정 코드 탭 — 상태·켜기/끄기·경로 오버라이드·설치 안내. 바꾸면 서버 정리 |
 | 2026-08-23T20:45:06+09:00 | #git-gutter | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | HEAD 블롭 ↔ 버퍼를 similar 로. 지움+삽입=수정, 삭제는 앞 줄에 |
 | 2026-08-23T20:45:07+09:00 | #p2-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2045_feature_lsp-phase2-and-git-gutter.md | 신규 — 툴팁 위치·거터 색·패널 높이는 사용자 확인 필요 |
+| 2026-08-23T21:30:00+09:00 | #dap-design | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | docs/dap/00-master-plan.md — lldb-dap 실측 뒤에 작성 (순서·pathFormat·조달) |
+| 2026-08-23T21:30:01+09:00 | #dap-pipe | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | framing 공용화 + protocol/registry/client/session/state. 실제 lldb-dap 왕복 2건 |
+| 2026-08-23T21:30:02+09:00 | #dap-breakpoints | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 거터 클릭 토글 · 못 거는 줄은 속 빈 원 · 저장소는 세션보다 오래 산다 |
+| 2026-08-23T21:30:03+09:00 | #dap-control | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 계속/스텝3/중지 · 호출 스택(밖 프레임 흐리게) · 변수 지연 트리 · 콘솔 |
+| 2026-08-23T21:30:04+09:00 | #dap-config | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | launch 최소형만. attach·구성 영속은 미구현 |
+| 2026-08-23T21:30:05+09:00 | #dap-more-adapters | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 신규 — debugpy·dlv 미설치라 왕복 미검증 |
+| 2026-08-23T21:30:06+09:00 | #p3-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2130_feature_dap-debugger.md | 신규 — 거터 클릭·패널 높이·변수 펼침은 사용자 확인 필요 |
 <!-- oculpm:plan-log end -->

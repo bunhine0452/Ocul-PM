@@ -162,6 +162,7 @@ const TESTS = new Set([
   "__tests__/code_dir_map.test.ts",
   "__tests__/code_file_ops.test.ts",
   "__tests__/code_gutter_outline.test.ts",
+  "__tests__/code_debug.test.ts",
   "__tests__/code_screen_tabs.test.tsx",
   "__tests__/code_tabs.test.ts",
   "__tests__/code_tree_lazy.test.tsx",

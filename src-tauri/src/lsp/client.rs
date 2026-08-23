@@ -2,7 +2,7 @@
 //!
 //! 구조는 ACP 어댑터와 같은 모양이다: stdin/stdout 파이프를 잡고, 읽기 루프를
 //! tokio 태스크로 돌리며, 요청은 id→oneshot 으로 상관시킨다. 다른 점은
-//! 프레이밍(`super::framing`)과, 서버가 먼저 말을 건다는 것(진단은 요청에 대한
+//! 프레이밍(`crate::framing` — DAP 와 공용)과, 서버가 먼저 말을 건다는 것(진단은 요청에 대한
 //! 응답이 아니라 **알림**으로 온다) 뿐이다.
 
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::{oneshot, Mutex};
 
-use super::framing::{encode_frame, parse_frame, Frame};
+use crate::framing::{encode_frame, parse_frame, Frame};
 use super::registry::{path_to_uri, ServerSpec};
 
 /// 요청 하나가 이 시간을 넘기면 포기한다. rust-analyzer 는 인덱싱 중에 완성

@@ -20,6 +20,8 @@ import {
   FilePlus,
   FolderPlus,
   Sparkles,
+  Bug,
+  Play,
 } from "@/components/Icons";
 import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -32,6 +34,9 @@ import { CodeTree, type TreeDraft } from "./CodeTree";
 import { CodePane, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
 import { CodeOutline } from "./CodeOutline";
+import { CodeDebugPanel } from "./CodeDebugPanel";
+import { useDebug } from "./useDebug";
+import { adapterLanguageFor, defaultProgramFor, toLaunchRequest } from "./debugConfig";
 import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
 import {
   ancestorDirs,
@@ -84,6 +89,19 @@ interface CodeScreenV2Props {
   openTarget: CodeOpenTarget | null;
   onOpenTargetConsumed: () => void;
 }
+
+const LABEL: React.CSSProperties = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 600,
+  marginBottom: 6,
+};
+const HINT: React.CSSProperties = {
+  margin: "6px 0 12px",
+  fontSize: 12,
+  color: "var(--text-3)",
+  lineHeight: 1.6,
+};
 
 /** 삭제 확인에 걸린 대상. 열려 있던 탭·미저장 목록을 같이 들고 있다. */
 interface PendingDelete {
@@ -138,6 +156,19 @@ export function CodeScreenV2({
   const [symbolsLoading, setSymbolsLoading] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
   const [references, setReferences] = useState<ReferencesQuery | null>(null);
+  // 디버그 — 참조 패널과 같은 자리를 쓴다 (둘이 동시에 뜨면 편집 영역이 없어진다).
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [launchOpen, setLaunchOpen] = useState(false);
+  const debug = useDebug(projectId);
+  // 실행 구성 — 영속하지 않는다. v1 은 "이번에 무엇을 띄울지" 만 묻고, 다음
+  // 실행에는 다시 그럴듯한 기본값을 채워 준다 (구성 파일은 Phase 3 밖).
+  const [launchForm, setLaunchForm] = useState({
+    language: "rust",
+    program: "",
+    args: "",
+    stopOnEntry: false,
+  });
+  const [starting, setStarting] = useState(false);
   /** 저장·포맷 뒤 아웃라인을 다시 묻게 하는 신호. */
   const [symbolEpoch, setSymbolEpoch] = useState(0);
 
@@ -576,6 +607,34 @@ export function CodeScreenV2({
             <ExternalLink size={15} />
           </button>
         ) : null}
+        <button
+          type="button"
+          className={"code-tool-btn" + (debugOpen ? " on" : "")}
+          onClick={() => setDebugOpen((v) => !v)}
+          title={t("code.debug.open")}
+          aria-label={t("code.debug.open")}
+        >
+          <Bug size={15} />
+        </button>
+        <button
+          type="button"
+          className="code-tool-btn"
+          onClick={() => {
+            // 지금 파일에서 그럴듯한 첫 값을 채운다 — 대개 그대로 눌러서 되고,
+            // 아니면 고치면 된다 (자동 빌드는 하지 않기로 했다).
+            const language = adapterLanguageFor(selected) ?? launchForm.language;
+            setLaunchForm((prev) => ({
+              ...prev,
+              language,
+              program: prev.program || defaultProgramFor(language, selected, state.currentProjectName),
+            }));
+            setLaunchOpen(true);
+          }}
+          title={t("code.debug.run")}
+          aria-label={t("code.debug.run")}
+        >
+          <Play size={15} />
+        </button>
         {selected ? (
           <button
             type="button"
@@ -728,11 +787,31 @@ export function CodeScreenV2({
                 onOpenPath={(path, line) => openPath(path, line, index)}
                 onReferences={setReferences}
                 onCursorLine={setCursorLine}
+                breakpointsFor={debug.breakpointsFor}
+                unverifiedFor={debug.unverifiedFor}
+                onToggleBreakpoint={debug.toggleBreakpoint}
               />
             ))}
               {tabs.panes.length === 0 ? <CodeNoTabs /> : null}
             </div>
-            {references ? (
+            {/* 참조와 디버그는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
+                남지 않는다. 디버그가 이긴다 (멈춰 있는 동안이 더 급하다). */}
+            {debugOpen ? (
+              <CodeDebugPanel
+                session={debug.session}
+                frames={debug.frames}
+                selectedFrameId={debug.selectedFrameId}
+                scopeRoots={debug.scopeRoots}
+                output={debug.output}
+                onSelectFrame={debug.selectFrame}
+                onControl={debug.control}
+                onStop={debug.stop}
+                onClose={() => setDebugOpen(false)}
+                onClearOutput={debug.clearOutput}
+                onOpenFrame={(path, line) => openPath(path, line)}
+                loadVariables={debug.variables}
+              />
+            ) : references ? (
               <CodeReferences
                 query={references}
                 onClose={() => setReferences(null)}
@@ -752,6 +831,88 @@ export function CodeScreenV2({
           onClose={() => setMenu(null)}
         />
       ) : null}
+
+      <AppDialog
+        open={launchOpen}
+        onClose={() => setLaunchOpen(false)}
+        label={t("code.debug.startTitle")}
+        width={460}
+      >
+        <form
+          style={{ padding: "18px 20px 16px" }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (starting || !launchForm.program.trim()) return;
+            setStarting(true);
+            void debug.start(toLaunchRequest(launchForm)).then((error) => {
+              setStarting(false);
+              if (error) {
+                toast.destructive(t("code.debug.startFailed", { error: tError(error) }));
+                return;
+              }
+              setLaunchOpen(false);
+              setDebugOpen(true);
+            });
+          }}
+        >
+          <h2 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>
+            {t("code.debug.startTitle")}
+          </h2>
+          <label style={LABEL} htmlFor="dap-language">{t("code.debug.language")}</label>
+          <select
+            id="dap-language"
+            className="input"
+            value={launchForm.language}
+            onChange={(e) => setLaunchForm((p) => ({ ...p, language: e.target.value }))}
+            style={{ width: "100%", marginBottom: 12 }}
+          >
+            <option value="rust">rust</option>
+            <option value="python">python</option>
+            <option value="go">go</option>
+          </select>
+
+          <label style={LABEL} htmlFor="dap-program">{t("code.debug.program")}</label>
+          <input
+            id="dap-program"
+            className="input"
+            value={launchForm.program}
+            onChange={(e) => setLaunchForm((p) => ({ ...p, program: e.target.value }))}
+            spellCheck={false}
+            autoComplete="off"
+            style={{ width: "100%", fontFamily: "var(--mono)" }}
+          />
+          <p style={HINT}>{t("code.debug.programHint")}</p>
+
+          <label style={LABEL} htmlFor="dap-args">{t("code.debug.args")}</label>
+          <input
+            id="dap-args"
+            className="input"
+            value={launchForm.args}
+            onChange={(e) => setLaunchForm((p) => ({ ...p, args: e.target.value }))}
+            spellCheck={false}
+            autoComplete="off"
+            style={{ width: "100%", fontFamily: "var(--mono)", marginBottom: 12 }}
+          />
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={launchForm.stopOnEntry}
+              onChange={(e) => setLaunchForm((p) => ({ ...p, stopOnEntry: e.target.checked }))}
+            />
+            {t("code.debug.stopOnEntry")}
+          </label>
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <button type="button" className="btn sm" onClick={() => setLaunchOpen(false)} disabled={starting}>
+              {t("common.cancel")}
+            </button>
+            <button type="submit" className="btn sm primary" disabled={starting || !launchForm.program.trim()}>
+              {t("code.debug.start")}
+            </button>
+          </div>
+        </form>
+      </AppDialog>
 
       <AppDialog
         open={pendingDelete != null}

@@ -14,6 +14,7 @@ import { lintGutter, setDiagnostics } from "@codemirror/lint";
 
 import { lspSignatureTooltip } from "./signatureTooltip";
 import { gitGutter, setGitChanges } from "./gitGutter";
+import { breakpointGutter, setBreakpoints, setUnverified } from "./breakpointGutter";
 
 import { langExtensionForPath } from "./codeLang";
 import {
@@ -233,6 +234,12 @@ interface CodeEditorProps {
   onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
   gitChanges?: readonly GitLineChange[];
+  /** 이 파일의 중단점 줄들 (**1-based** — DAP·CM 공통 규약). */
+  breakpoints?: readonly number[];
+  /** 어댑터가 못 건다고 답한 줄들 — 다르게 그린다. */
+  unverifiedBreakpoints?: readonly number[];
+  /** 거터를 눌렀다. 없으면 중단점 거터를 아예 안 단다 (디버그 불가 언어). */
+  onToggleBreakpoint?: (line: number) => void;
 }
 
 export function CodeEditor({
@@ -253,6 +260,9 @@ export function CodeEditor({
   onFormat,
   onSignatureHelp,
   gitChanges,
+  breakpoints,
+  unverifiedBreakpoints,
+  onToggleBreakpoint,
 }: CodeEditorProps) {
   const { lang } = useT();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -283,6 +293,11 @@ export function CodeEditor({
   onFormatRef.current = onFormat;
   const onSignatureHelpRef = useRef(onSignatureHelp);
   onSignatureHelpRef.current = onSignatureHelp;
+  const onToggleBpRef = useRef(onToggleBreakpoint);
+  onToggleBpRef.current = onToggleBreakpoint;
+  // 중단점 거터를 달지 말지는 **마운트 시점**에 정한다 (자동완성과 같은 규칙) —
+  // 도중에 켜고 끄면 재구성이 필요하고, 그러면 커서가 튄다.
+  const hasBreakpointsRef = useRef(onToggleBreakpoint != null);
   // 확장을 달지 말지는 **마운트 시점**에만 정한다 (파일마다 재마운트되므로
   // 그 파일에 서버가 있는지와 일치한다). 도중에 켜고 끄면 재구성이 필요하고,
   // 그러면 커서가 튄다.
@@ -405,6 +420,9 @@ export function CodeEditor({
           : []),
         // 거터는 LSP 와 무관하다 — 마크다운·CSS 에서도 무엇을 고쳤는지는 보여야 한다.
         gitGutter(),
+        // 중단점 거터는 **디버그 가능한 언어에만**. 붙일 수 없는 파일에서
+        // 눌러지면 찍히지 않는 이유를 설명할 수 없다.
+        ...(hasBreakpointsRef.current ? breakpointGutter(onToggleBpRef) : []),
         editorChrome,
         syntaxHighlighting(codeHighlight, { fallback: true }),
         ...(phrases ? [EditorState.phrases.of(phrases)] : []),
@@ -435,6 +453,19 @@ export function CodeEditor({
     if (!view || !hasLspRef.current) return;
     view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostics ?? [])));
   }, [diagnostics]);
+
+  // 중단점 반영 — 거터와 같은 이유로 트랜잭션이다.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !hasBreakpointsRef.current) return;
+    view.dispatch({ effects: setBreakpoints.of(breakpoints ?? []) });
+  }, [breakpoints]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !hasBreakpointsRef.current) return;
+    view.dispatch({ effects: setUnverified.of(unverifiedBreakpoints ?? []) });
+  }, [unverifiedBreakpoints]);
 
   // git 거터 반영 — 진단과 같은 이유로 트랜잭션이다 (편집 도중에도 갱신된다).
   useEffect(() => {
