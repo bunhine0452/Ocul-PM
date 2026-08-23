@@ -35,7 +35,15 @@ import { CodeEditor } from "./CodeEditor";
 import { useLsp } from "./useLsp";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { langIdForPath, langLabel } from "./codeLang";
-import { ancestorDirs, collectDirs, collectFiles, filterTree, formatBytes } from "./treeUtils";
+import {
+  ancestorDirs,
+  collectDirs,
+  collectFiles,
+  filterTree,
+  flattenToDirMap,
+  formatBytes,
+  type DirMap,
+} from "./treeUtils";
 import {
   bufferKey,
   deleteBuffer,
@@ -84,9 +92,18 @@ export function CodeScreenV2({
   const { state, setState } = useWorkspace();
   const { settings } = useSettings();
 
+  // 트리 소스가 둘이다.
+  //   · `dirCache` — 평소 탐색. `code_dir` 로 **펼친 폴더 한 단계씩** 읽고,
+  //     무시된 항목까지 보여준다(흐리게). 한 번에 다 걷지 않는 이유는 무시를 끄면
+  //     이 저장소만 해도 114,419 파일이라 어떤 상한에도 걸리기 때문.
+  //   · `tree` — 필터 전용. 안 읽은 가지의 매치는 지연 로딩으로 찾을 수 없어서,
+  //     gitignore 를 존중하는 전량 걸음을 그대로 남겨 검색에 쓴다. 선택 경로
+  //     유효성 검사(`fileSet`)도 여기서 나온다.
   const [tree, setTree] = useState<CodeTreeData | null>(null);
   const [treeStatus, setTreeStatus] = useState<"loading" | "ready" | "error">("loading");
   const [treeError, setTreeError] = useState<string | null>(null);
+  const [dirCache, setDirCache] = useState<DirMap>(() => new Map());
+  const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
 
   const [selected, setSelected] = useState<string | null>(null);
   const [fileView, setFileView] = useState<FileView>({ kind: "idle" });
@@ -129,9 +146,49 @@ export function CodeScreenV2({
   }, []);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
+  /** 디렉터리 한 단계를 읽어 캐시에 넣는다. 이미 읽었거나 읽는 중이면 무시. */
+  const loadDir = useCallback(
+    (dirPath: string, force = false) => {
+      if (!force) {
+        let already = false;
+        setDirCache((prev) => {
+          already = prev.has(dirPath);
+          return prev;
+        });
+        if (already) return;
+      }
+      setLoadingDirs((prev) => {
+        if (prev.has(dirPath)) return prev;
+        const next = new Set(prev);
+        next.add(dirPath);
+        return next;
+      });
+      void commands.codeDir(projectId, dirPath).then((res) => {
+        setLoadingDirs((prev) => {
+          const next = new Set(prev);
+          next.delete(dirPath);
+          return next;
+        });
+        if (res.status === "ok") {
+          setDirCache((prev) => new Map(prev).set(dirPath, res.data.entries));
+          if (res.data.truncated) toast.warning(t("code.tree.dirTruncated", { dir: dirPath || "/" }));
+        } else {
+          // 조용히 빈 폴더로 보이게 두지 않는다 — 읽기 실패는 말한다.
+          toast.destructive(t("code.tree.dirFailed", { error: tError(res.error) }));
+          setDirCache((prev) => new Map(prev).set(dirPath, []));
+        }
+      });
+    },
+    [projectId],
+  );
+
   const loadTree = useCallback(() => {
     setTreeStatus("loading");
     setTreeError(null);
+    // 새로고침은 지연 캐시도 버린다 — 안 그러면 디스크가 바뀌어도 이미 펼친
+    // 가지는 옛 목록을 계속 보여준다.
+    setDirCache(new Map());
+    loadDir("", true);
     void commands.codeTree(projectId).then((res) => {
       if (res.status === "ok") {
         setTree(res.data);
@@ -141,7 +198,7 @@ export function CodeScreenV2({
         setTreeStatus("error");
       }
     });
-  }, [projectId]);
+  }, [projectId, loadDir]);
 
   useEffect(() => {
     loadTree();
@@ -227,12 +284,16 @@ export function CodeScreenV2({
     setState((prev) =>
       prev.codeActivePath === selected ? prev : { ...prev, codeActivePath: selected },
     );
+    const ancestors = ancestorDirs(selected);
     setExpanded((prev) => {
       const next = new Set(prev);
-      for (const dir of ancestorDirs(selected)) next.add(dir);
+      for (const dir of ancestors) next.add(dir);
       return next;
     });
-  }, [selected, setState]);
+    // 검색·코드맵에서 건너온 파일은 그 가지가 아직 안 읽혔을 수 있다 —
+    // 펼치기만 하고 읽지 않으면 조상이 "읽는 중" 에서 멈춘다.
+    for (const dir of ancestors) loadDir(dir);
+  }, [selected, setState, loadDir]);
 
   // ── 다른 화면에서 온 열기 목표 ─────────────────────────────────────────
   useEffect(() => {
@@ -524,25 +585,47 @@ export function CodeScreenV2({
   }, [projectRoot, settings.externalEditorCommand]);
 
   // ── 트리 파생값 ────────────────────────────────────────────────────────
-  const visibleNodes = useMemo(() => {
-    if (!tree) return [];
-    return filter.trim() ? filterTree(tree.nodes, filter) : tree.nodes;
-  }, [tree, filter]);
+  const filtering = filter.trim().length > 0;
+
+  const filteredNodes = useMemo(() => {
+    if (!tree || !filtering) return [];
+    return filterTree(tree.nodes, filter);
+  }, [tree, filter, filtering]);
+
+  // 필터 중에는 전량 트리를 지연 캐시와 **같은 모양**으로 펴서 넣는다 — 렌더러가
+  // 하나로 유지되고, "미로드(undefined)" 와 "빈 폴더([])" 의 구별도 그대로 산다.
+  const filteredMap = useMemo(
+    () => (filtering ? flattenToDirMap(filteredNodes) : null),
+    [filtering, filteredNodes],
+  );
+
+  const childrenOf = useCallback(
+    (dirPath: string) => (filteredMap ?? dirCache).get(dirPath),
+    [filteredMap, dirCache],
+  );
+
+  const treeIsEmpty = (childrenOf("") ?? []).length === 0 && !loadingDirs.has("");
 
   // 필터 중엔 매치가 보이도록 전부 펼친다 (사용자 펼침 상태는 건드리지 않음).
   const expandedForRender = useMemo(() => {
-    if (!filter.trim()) return expanded;
-    return new Set(collectDirs(visibleNodes));
-  }, [filter, expanded, visibleNodes]);
+    if (!filtering) return expanded;
+    return new Set(collectDirs(filteredNodes));
+  }, [filtering, expanded, filteredNodes]);
 
-  const toggleDir = useCallback((path: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
-  }, []);
+  const toggleDir = useCallback(
+    (path: string) => {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else {
+          next.add(path);
+          loadDir(path);
+        }
+        return next;
+      });
+    },
+    [loadDir],
+  );
 
   const langId = selected ? langIdForPath(selected) : null;
   const buf = bufferRef.current;
@@ -640,11 +723,12 @@ export function CodeScreenV2({
             {tree?.truncated ? (
               <div className="code-truncated">{t("code.truncated")}</div>
             ) : null}
-            {visibleNodes.length === 0 ? (
-              <div className="code-tree-empty">{t("code.noMatch")}</div>
+            {treeIsEmpty ? (
+              <div className="code-tree-empty">{filtering ? t("code.noMatch") : t("code.tree.empty")}</div>
             ) : (
               <CodeTree
-                nodes={visibleNodes}
+                childrenOf={childrenOf}
+                loadingDirs={loadingDirs}
                 selected={selected}
                 expanded={expandedForRender}
                 dirtyPaths={dirtyPaths}

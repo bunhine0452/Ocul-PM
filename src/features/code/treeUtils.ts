@@ -1,6 +1,48 @@
 // 코드 트리 순수 유틸 — 컴포넌트와 분리해 단위 테스트한다 (docs 의
 // resolveDocsPath 와 같은 원칙).
-import type { CodeTreeNode } from "@/lib/bindings";
+import type { CodeDirEntry, CodeTreeNode } from "@/lib/bindings";
+
+/**
+ * 트리 한 줄이 그려지는 데 필요한 전부. 소스가 둘이라 모양을 하나로 맞춘다 —
+ * 평소에는 `code_dir` 의 지연 로딩 결과가, 필터 중에는 `code_tree` 의 전량 결과가
+ * 들어온다 (아래 [`flattenToDirMap`]).
+ */
+export type CodeEntry = CodeDirEntry;
+
+/**
+ * 부모 경로 → 자식들. 루트의 키는 `""`.
+ *
+ * 지연 트리는 이 모양을 그대로 캐시로 쓰고, 필터 결과는 [`flattenToDirMap`] 이
+ * 같은 모양으로 펴서 넣는다. 덕분에 렌더러가 하나로 유지된다 — 트리를 통째로
+ * 들고 자식을 심는 불변 수술 대신, 조회 한 번이면 된다.
+ */
+export type DirMap = Map<string, CodeEntry[]>;
+
+/**
+ * 필터 결과(중첩 전량 트리)를 [`DirMap`] 으로 편다.
+ *
+ * `code_tree` 는 gitignore 를 존중하므로 여기서 나온 것은 정의상 무시되지 않은
+ * 항목이다 — `ignored: false` 로 고정한다.
+ */
+export function flattenToDirMap(
+  nodes: CodeTreeNode[],
+  parent = "",
+  acc: DirMap = new Map(),
+): DirMap {
+  acc.set(
+    parent,
+    nodes.map((n) => ({
+      name: n.name,
+      relative_path: n.relative_path,
+      is_dir: n.is_dir,
+      ignored: false,
+    })),
+  );
+  for (const n of nodes) {
+    if (n.is_dir) flattenToDirMap(n.children, n.relative_path, acc);
+  }
+  return acc;
+}
 
 /** `src/a/b.rs` → ["src", "src/a"] (파일 자신 제외). 선택 파일 조상 폴더 펼침용. */
 export function ancestorDirs(path: string): string[] {

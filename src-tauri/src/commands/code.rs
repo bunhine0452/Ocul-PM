@@ -24,6 +24,11 @@ use crate::db::Db;
 /// 크기라, 그때는 검색으로 여는 흐름이 맞다.
 const MAX_TREE_FILES: usize = 20_000;
 
+/// 한 디렉터리에서 한 번에 돌려주는 항목 상한. 지연 로딩은 **무시된 것까지**
+/// 보여주므로 `node_modules` 같은 폴더가 그대로 열린다 — 한 단계라 깊이 폭발은
+/// 없지만 폭은 막아 둔다.
+const MAX_DIR_ENTRIES: usize = 5_000;
+
 /// 에디터로 여는 파일의 상한. 이보다 크면 `too_large` — 뷰어가 아니라 로그/
 /// 데이터 파일이라 외부 에디터로 보낸다 (base64 왕복·CM 하이라이트 비용 방어).
 const MAX_EDIT_BYTES: u64 = 2 * 1024 * 1024;
@@ -47,6 +52,25 @@ pub struct CodeTree {
     pub nodes: Vec<CodeTreeNode>,
     pub file_count: u32,
     /// [`MAX_TREE_FILES`] 상한에 걸려 잘렸다 — UI 가 배지로 알린다.
+    pub truncated: bool,
+}
+
+/// 디렉터리 한 단계의 항목. 지연 로딩 트리가 폴더를 펼칠 때마다 이것만 받는다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeDirEntry {
+    pub name: String,
+    pub relative_path: String,
+    pub is_dir: bool,
+    /// 저장소가 무시하도록 정한 항목(gitignore · git exclude · global). 숨기지
+    /// 않고 **흐리게** 그린다 — 디스크에 있는 것은 보이되 성질은 밝힌다.
+    pub ignored: bool,
+}
+
+/// `code_dir` 응답.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeDirListing {
+    pub entries: Vec<CodeDirEntry>,
+    /// [`MAX_DIR_ENTRIES`] 에 걸려 잘렸다 — UI 가 밝힌다.
     pub truncated: bool,
 }
 
@@ -84,6 +108,38 @@ pub async fn code_tree(db: State<'_, Db>, project_id: u32) -> Result<CodeTree, S
     tauri::async_runtime::spawn_blocking(move || build_code_tree(&root, MAX_TREE_FILES))
         .await
         .map_err(|e| format!("Failed to walk the project tree: {e}"))
+}
+
+/// 디렉터리 **한 단계**만 읽는다 — 지연 로딩 트리의 창구.
+///
+/// [`code_tree`] 와 시야가 다르다: 여기서는 `.git` 을 뺀 **디스크에 있는 것 전부**를
+/// 돌려주고, 무시된 항목은 지우는 대신 `ignored` 로 표시한다. 한 번에 전부 걷는
+/// [`code_tree`] 로는 이럴 수 없다 — 이 저장소만 해도 무시를 끄면 114,419 파일이라
+/// 상한에 걸려 트리가 통째로 잘린다. 한 단계씩 읽으면 그 비용이 펼친 폴더에만 든다.
+///
+/// `rel_path` 가 비면 프로젝트 루트.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_dir(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<CodeDirListing, String> {
+    let root = project_root(&db, project_id).await?;
+    let full = if rel_path.is_empty() {
+        root.clone()
+    } else {
+        secure_join(&root, &rel_path)?
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = canonical_within_root(&root, &full)?;
+        if !full.is_dir() {
+            return Err("Not a directory".to_string());
+        }
+        Ok(read_dir_level(&root, &full, MAX_DIR_ENTRIES))
+    })
+    .await
+    .map_err(|e| format!("Failed to read the directory: {e}"))?
 }
 
 /// 단일 파일 본문 + 해시. 바이너리/대용량은 본문 없이 플래그만 세운다.
@@ -283,6 +339,66 @@ fn build_code_tree(root: &Path, max_files: usize) -> CodeTree {
     }
 }
 
+/// 한 디렉터리를 읽어 `ignored` 를 채운다.
+///
+/// 무시 여부는 직접 판정하지 않고 **같은 걸음에 한 번 더 물어서** 얻는다:
+/// `max_depth(1)` 걸음이 살려 둔 이름의 집합을 만들고, `read_dir` 이 본 것 중
+/// 거기 없는 것을 무시된 것으로 본다. gitignore 는 중첩 `.gitignore` · git
+/// exclude · global 까지 얽혀 있어 손으로 다시 판정하면 [`code_tree`] 와 시야가
+/// 어긋나기 시작한다 — 판정 주체를 하나로 둔다.
+fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> CodeDirListing {
+    let mut kept: std::collections::HashSet<std::ffi::OsString> = std::collections::HashSet::new();
+    for entry in ignore::WalkBuilder::new(dir)
+        .standard_filters(true)
+        .hidden(false)
+        .max_depth(Some(1))
+        .filter_entry(|e| e.file_name() != ".git")
+        .build()
+        .flatten()
+    {
+        if entry.depth() == 1 {
+            kept.insert(entry.file_name().to_os_string());
+        }
+    }
+
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return CodeDirListing { entries: Vec::new(), truncated: false };
+    };
+
+    let mut entries: Vec<CodeDirEntry> = Vec::new();
+    let mut truncated = false;
+    for item in read.flatten() {
+        let name_os = item.file_name();
+        if name_os == ".git" {
+            continue;
+        }
+        let name = name_os.to_string_lossy().to_string();
+        // 심링크는 따라가지 않고 링크 자체의 종류로 본다 — 루프와 루트 밖 탈출을
+        // 트리 단계에서부터 막는다 (여는 시점의 canonical 가드와 이중 방어).
+        let Ok(meta) = item.metadata() else { continue };
+        let full = item.path();
+        let Ok(rel) = full.strip_prefix(root) else { continue };
+        let rel = rel.to_string_lossy().replace('\\', "/");
+        if entries.len() >= max_entries {
+            truncated = true;
+            break;
+        }
+        entries.push(CodeDirEntry {
+            name,
+            relative_path: rel,
+            is_dir: meta.is_dir(),
+            ignored: !kept.contains(&name_os),
+        });
+    }
+
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| natural_cmp(&a.name, &b.name))
+    });
+    CodeDirListing { entries, truncated }
+}
+
 /// 폴더 우선, 그다음 자연 정렬 (docs 트리의 `natural_cmp` 재사용 — `10-x` 가
 /// `2-x` 뒤에 오도록).
 fn sort_nodes(nodes: &mut [CodeTreeNode]) {
@@ -407,6 +523,68 @@ mod tests {
         // 중첩 저장소의 .git 도 깊이와 무관하게 막힌다.
         let nested = tree.nodes.iter().find(|n| n.name == "nested");
         assert!(nested.is_none(), "nested holds only .git: {top:?}");
+    }
+
+    /// 지연 로딩의 계약 — 무시된 것도 **보이되** `ignored` 로 표시된다.
+    /// (한 번에 다 걷는 `code_tree` 는 이럴 수 없다: 무시를 끄면 상한에 걸린다.)
+    #[test]
+    fn dir_level_shows_ignored_entries_but_flags_them() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join(".git")).unwrap();
+        write(root, ".gitignore", b"node_modules/\ntarget/\n*.log\n");
+        write(root, "src/main.rs", b"fn main() {}");
+        write(root, "node_modules/pkg/index.js", b"ignored");
+        write(root, "target/debug/bin", b"ignored");
+        write(root, "debug.log", b"ignored");
+        write(root, ".env", b"KEY=1");
+
+        let out = read_dir_level(root, root, MAX_DIR_ENTRIES);
+        let by_name: std::collections::HashMap<&str, &CodeDirEntry> =
+            out.entries.iter().map(|e| (e.name.as_str(), e)).collect();
+
+        assert!(!out.truncated);
+        assert!(by_name.contains_key("node_modules"), "ignored dir must be listed");
+        assert!(by_name["node_modules"].ignored, "and flagged");
+        assert!(by_name["target"].ignored);
+        assert!(by_name["debug.log"].ignored);
+        assert!(!by_name["src"].ignored, "tracked dir is not ignored");
+        assert!(!by_name[".gitignore"].ignored, "hidden but tracked");
+        assert!(!by_name[".env"].ignored, "hidden, not in this .gitignore");
+        assert!(!by_name.contains_key(".git"), "the object DB is never listed");
+        // 한 단계만 읽는다 — 손자는 안 나온다.
+        assert!(!by_name.contains_key("index.js"), "one level only: {:?}", by_name.keys());
+    }
+
+    #[test]
+    fn dir_level_reads_one_level_and_sorts_dirs_first() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "b.txt", b"x");
+        write(root, "a.txt", b"x");
+        write(root, "zdir/inner.txt", b"x");
+        write(root, "adir/inner.txt", b"x");
+
+        let out = read_dir_level(root, root, MAX_DIR_ENTRIES);
+        let names: Vec<&str> = out.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["adir", "zdir", "a.txt", "b.txt"]);
+        // 하위 디렉터리를 직접 물으면 그 단계가 나온다.
+        let sub = read_dir_level(root, &root.join("zdir"), MAX_DIR_ENTRIES);
+        let sub_names: Vec<&str> = sub.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(sub_names, vec!["inner.txt"]);
+        assert_eq!(sub.entries[0].relative_path, "zdir/inner.txt");
+    }
+
+    #[test]
+    fn dir_level_truncates_wide_directories() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        for i in 0..10 {
+            write(root, &format!("f{i}.txt"), b"x");
+        }
+        let out = read_dir_level(root, root, 4);
+        assert!(out.truncated);
+        assert_eq!(out.entries.len(), 4);
     }
 
     #[test]

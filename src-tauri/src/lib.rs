@@ -138,7 +138,7 @@ use crate::commands::{
     open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
-    code_tree, code_read, code_write,
+    code_tree, code_dir, code_read, code_write,
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
     lsp_status, lsp_open, lsp_change, lsp_close, lsp_completion, lsp_hover,
     lsp_definition, lsp_rename, lsp_code_actions, lsp_apply_code_action, lsp_stop,
@@ -299,6 +299,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         read_file_range,
         // 코드 화면 — 파일 트리 + 읽기/쓰기
         code_tree,
+        code_dir,
         code_read,
         code_write,
         lsp_status,

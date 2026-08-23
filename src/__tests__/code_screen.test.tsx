@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
-import type { CodeTree, CodeFileContent, CodeWriteOutcome } from "@/lib/bindings";
+import type {
+  CodeDirEntry,
+  CodeTree,
+  CodeTreeNode,
+  CodeFileContent,
+  CodeWriteOutcome,
+} from "@/lib/bindings";
 
 // 코드 화면 — 트리/선택/저장/충돌의 상태 흐름. CodeMirror 는 jsdom 에서
 // 측정 API 가 없어 렌더가 불안정하므로 편집 신호를 흉내내는 목으로 바꾼다.
@@ -29,6 +35,26 @@ function textFile(content: string, hash = "h1"): CodeFileContent {
   return { content, hash, bytes: content.length, binary: false, too_large: false };
 }
 
+// 트리는 이제 **지연 로딩**이다 — 화면은 `code_dir` 로 한 단계씩 읽는다.
+// 픽스처는 여전히 전량 트리 하나이므로, 그 트리에서 해당 단계를 잘라 돌려준다
+// (백엔드가 하는 일과 같은 계약: 한 단계 · 폴더 우선은 이미 정렬된 픽스처를 따름).
+function dirEntriesOf(nodes: CodeTreeNode[], dirPath: string): CodeDirEntry[] {
+  const toEntry = (n: CodeTreeNode): CodeDirEntry => ({
+    name: n.name,
+    relative_path: n.relative_path,
+    is_dir: n.is_dir,
+    ignored: false,
+  });
+  if (dirPath === "") return nodes.map(toEntry);
+  let cur = nodes;
+  for (const seg of dirPath.split("/")) {
+    const hit = cur.find((n) => n.is_dir && n.name === seg);
+    if (!hit) return [];
+    cur = hit.children;
+  }
+  return cur.map(toEntry);
+}
+
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
   return {
@@ -39,6 +65,9 @@ vi.mock("@/lib/bindings", () => {
           switch (prop) {
             case "codeTree":
               return () => ok(fx.tree);
+            case "codeDir":
+              return (_pid: number, relPath: string) =>
+                ok({ entries: dirEntriesOf(fx.tree.nodes, relPath), truncated: false });
             case "codeRead":
               return (_pid: number, relPath: string) =>
                 ok(fx.read[relPath] ?? textFile("// missing fixture"));

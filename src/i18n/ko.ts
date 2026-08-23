@@ -1261,6 +1261,14 @@ export const ko = {
   "code.saveFailed": "저장하지 못했습니다: {error}",
   "code.bufferEvicted": "미저장 파일이 너무 많아 가장 오래된 편집을 내려놨습니다: {path}",
   "code.fileGone": "열려 있는 파일이 디스크에서 삭제되거나 이동됐습니다: {path}",
+  // 지연 로딩 트리 — "읽는 중"과 "빈 폴더"는 반드시 구별돼야 한다.
+  // 구별이 없으면 안 읽힌 가지가 빈 폴더로 읽힌다.
+  "code.tree.loading": "읽는 중…",
+  "code.tree.emptyDir": "빈 폴더",
+  "code.tree.empty": "표시할 파일이 없습니다",
+  "code.tree.ignoredHint": "저장소가 무시하도록 정한 항목입니다 (검색·인덱싱 대상 아님)",
+  "code.tree.dirTruncated": "{dir} 의 항목이 너무 많아 일부만 보여줍니다",
+  "code.tree.dirFailed": "폴더를 읽지 못했어요 — {error}",
   "code.dirty": "수정됨",
   "code.savedState": "저장됨",
   // 언어 서버 상태 — "인덱싱 중" 을 밝히는 것이 요점이다 (진단이 아직 없는 것과

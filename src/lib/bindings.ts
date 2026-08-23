@@ -244,6 +244,17 @@ export const commands = {
 	 *  점 파일을 보여 준다). 인덱서와는 이 축에서만 시야가 다르다.
 	 */
 	codeTree: (projectId: number) => typedError<CodeTree, string>(__TAURI_INVOKE("code_tree", { projectId })),
+	/**
+	 *  디렉터리 **한 단계**만 읽는다 — 지연 로딩 트리의 창구.
+	 * 
+	 *  [`code_tree`] 와 시야가 다르다: 여기서는 `.git` 을 뺀 **디스크에 있는 것 전부**를
+	 *  돌려주고, 무시된 항목은 지우는 대신 `ignored` 로 표시한다. 한 번에 전부 걷는
+	 *  [`code_tree`] 로는 이럴 수 없다 — 이 저장소만 해도 무시를 끄면 114,419 파일이라
+	 *  상한에 걸려 트리가 통째로 잘린다. 한 단계씩 읽으면 그 비용이 펼친 폴더에만 든다.
+	 * 
+	 *  `rel_path` 가 비면 프로젝트 루트.
+	 */
+	codeDir: (projectId: number, relPath: string) => typedError<CodeDirListing, string>(__TAURI_INVOKE("code_dir", { projectId, relPath })),
 	/**  단일 파일 본문 + 해시. 바이너리/대용량은 본문 없이 플래그만 세운다. */
 	codeRead: (projectId: number, relPath: string) => typedError<CodeFileContent, string>(__TAURI_INVOKE("code_read", { projectId, relPath })),
 	/**
@@ -1823,6 +1834,25 @@ export type CloseIntent = {
 	window: string,
 	/**  프런트가 아무 것도 소비하지 않으면 닫을 탭. */
 	tab: number | null,
+};
+
+/**  디렉터리 한 단계의 항목. 지연 로딩 트리가 폴더를 펼칠 때마다 이것만 받는다. */
+export type CodeDirEntry = {
+	name: string,
+	relative_path: string,
+	is_dir: boolean,
+	/**
+	 *  저장소가 무시하도록 정한 항목(gitignore · git exclude · global). 숨기지
+	 *  않고 **흐리게** 그린다 — 디스크에 있는 것은 보이되 성질은 밝힌다.
+	 */
+	ignored: boolean,
+};
+
+/**  `code_dir` 응답. */
+export type CodeDirListing = {
+	entries: CodeDirEntry[],
+	/**  [`MAX_DIR_ENTRIES`] 에 걸려 잘렸다 — UI 가 밝힌다. */
+	truncated: boolean,
 };
 
 /**
