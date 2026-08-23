@@ -21,6 +21,7 @@ import { useT } from "@/i18n";
 
 const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
 const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
+const AI_NAV = NAV_ENTRIES.filter((e) => e.group === "ai");
 
 interface SidebarProps {
   view: UiV2View;
@@ -282,6 +283,17 @@ export function Sidebar({
           slot={slot}
           active={view === slot.id}
           index={MAIN_NAV.length + i}
+          onNavigate={onNavigate}
+        />
+      ))}
+
+      <div className="nav-section-label">{t("sidebar.aiSection")}</div>
+      {AI_NAV.map((slot, i) => (
+        <NavRow
+          key={slot.id}
+          slot={slot}
+          active={view === slot.id}
+          index={MAIN_NAV.length + TOOL_NAV.length + i}
           onNavigate={onNavigate}
           working={slot.id === "claudecode" ? acpWorking : 0}
           attention={slot.id === "claudecode" ? acpAttention : 0}

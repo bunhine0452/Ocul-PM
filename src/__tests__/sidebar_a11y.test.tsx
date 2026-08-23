@@ -71,12 +71,12 @@ describe("PR-UI 1 — Sidebar navigation", () => {
     for (const label of [
       "오늘 현황",
       "작업 일지",
-      "변경 diff",
+      "Diff",
       "플래너",
       "코드 검색",
       "코드 맵",
       "터미널",
-      "에이전트",
+      "AI 대화",
       "다크 모드",
       "설정",
     ]) {
@@ -86,8 +86,8 @@ describe("PR-UI 1 — Sidebar navigation", () => {
 
   it("clicking a main/tool slot navigates", () => {
     const { getByText, calls } = renderSidebar();
-    fireEvent.click(getByText("변경 diff"));
-    fireEvent.click(getByText("에이전트"));
+    fireEvent.click(getByText("Diff"));
+    fireEvent.click(getByText("AI 대화"));
     fireEvent.click(getByText("설정"));
     expect(calls).toEqual(["diff", "ai", "settings"]);
   });

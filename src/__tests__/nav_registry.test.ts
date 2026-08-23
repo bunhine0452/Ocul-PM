@@ -15,10 +15,11 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 6 + tools 8 = 14개 화면을 커버한다", () => {
+  it("main 6 + tools 5 + ai 3 = 14개 화면을 커버한다", () => {
     expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(6);
-    // PR-ACP6 에서 "Claude Code", 코드 에디터 라운드에서 "코드" 가 tools 에 추가.
-    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(8);
+    // 2026-08-24 — AI 면(Claude Code · AI 대화 · 스킬·규칙)을 tools 에서 분리.
+    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(5);
+    expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(3);
   });
 
   it("⌘번호는 배열(=사이드바 표시) 순서를 그대로 따른다", () => {
@@ -34,10 +35,12 @@ describe("navRegistry", () => {
   it("11번째 이후 항목은 번호가 없다 (ai 는 ⌘\\ 오버레이가 보조 통로)", () => {
     expect(navShortcutLabel("ai")).toBeUndefined();
     expect(navShortcutLabel("skills")).toBeUndefined();
-    // 새 화면은 **끝에** 붙여 기존 ⌘번호를 밀지 않는다는 계약의 회귀 방지.
+    // 11번째 이후는 번호가 없으므로 **그들끼리는** 재배치해도 ⌘번호가 안 밀린다
+    // (2026-08-24 — 코드를 도구 곁으로, AI 면을 뒤로). 앞 10개의 번호는 불변.
     expect(navShortcutLabel("claudecode")).toBeUndefined();
     expect(navShortcutLabel("code")).toBeUndefined();
     expect(navShortcutLabel("docs")).toBe("⌘9");
+    expect(navShortcutLabel("terminal")).toBe("⌘0");
   });
 
   it("번호 없는 키 입력은 undefined (⌘\\ 등 다른 핸들러로 폴스루)", () => {

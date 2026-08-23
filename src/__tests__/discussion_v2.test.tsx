@@ -125,7 +125,7 @@ describe("DiscussionScreenV2", () => {
   it("shows an empty state when there are no discussions", async () => {
     fx.list = [];
     const { findByText } = render(wrap(<DiscussionScreenV2 projectId={1} onNavigate={vi.fn()} />));
-    await findByText(/아직 문제 해결 문서가 없어요/);
+    await findByText(/아직 논의 문서가 없어요/);
   });
 
   it("‘프롬프트 복사’ 는 문서 경로와 규격 경로를 담은 지시문을 클립보드에 넣는다", async () => {

@@ -1,7 +1,7 @@
 import {
   Sunrise,
   NotebookText,
-  MessageSquare,
+  MessagesSquare,
   TargetIcon,
   GitCompareArrows,
   History,
@@ -44,13 +44,14 @@ export interface NavEntry {
    */
   aliasKey: I18nKey;
   icon: NavIcon;
-  group: "main" | "tools";
+  /** 사이드바 섹션. main = 코어 루프 · tools = 코드 작업면 · ai = AI 면. */
+  group: "main" | "tools" | "ai";
 }
 
 export const NAV_ENTRIES: NavEntry[] = [
   { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, group: "main" },
   { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
-  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessageSquare, group: "main" },
+  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, group: "main" },
   { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
   { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
   { id: "retro", labelKey: "nav.retro", aliasKey: "nav.retro.alias", icon: History, group: "main" },
@@ -58,14 +59,17 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
   { id: "docs", labelKey: "nav.docs", aliasKey: "nav.docs.alias", icon: BookText, group: "tools" },
   { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
-  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: SparklesIcon, group: "tools" },
-  // 11번째 이후는 ⌘번호가 없다 — 기존 화면의 번호를 밀지 않도록 끝에 추가.
-  // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
-  { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "tools" },
-  // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
-  { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "tools" },
+  // ── 11번째 이후는 ⌘번호가 없다 — 여기서부터는 번호를 밀지 않고 자유롭게
+  // 배치한다 (위 10개의 순서만 ⌘1~⌘0 계약).
   // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
+  // 코드 작업면(검색·맵·문서·터미널) 곁에 둔다.
   { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
+  // ── AI 면 — 구동면(Claude Code) · 대화(프로바이더 채팅) · 그 규칙(스킬).
+  // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
+  { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
+  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: SparklesIcon, group: "ai" },
+  // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
+  { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

@@ -502,6 +502,9 @@ export const ClipboardCheck = (props: IconProps) => (
 export {
   Sunrise,
   NotebookText,
+  // 논의(discussion) 사이드바 슬롯 — 말풍선 둘(=토론). 단수 MessageSquare 는
+  // 위의 수제 레거시와 이름이 겹쳐 채팅 쪽이 계속 쓴다.
+  MessagesSquare,
   GitCompareArrows,
   Target as TargetIcon,
   SquareTerminal,
