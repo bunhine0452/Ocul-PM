@@ -154,12 +154,13 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 사용자 요청 (2026-08-23): "각 파일 확장자에 맞게 아이콘 + 아마추어 같은
 디자인·UX 를 cursor·vscode 급으로."
 
-- [x] 확장자별 파일 아이콘 — 언어=브랜드색 모노그램 배지, 성질 파일=아이콘+색. 트리·탭·참조·브레드크럼 공유 {#file-icons}
+- [x] 확장자별 파일 아이콘 — v2: 공식 로고(TS/JS 사각형·파이썬 뱀·리액트 원자·러스트 기어·Vue·MD) + 상자 없는 색 글자 + 성질 아이콘. 모노그램 배지는 사용자 피드백으로 폐기 {#file-icons}
 - [x] 트리 정렬·가이드 — 파일 행 캐럿 자리 확보(라벨 정렬), VS Code 식 들여쓰기 가이드, 폴더 열림/닫힘 아이콘 {#tree-polish}
 - [x] 탭 다듬기 — 활성 탭을 편집면과 한 몸으로(같은 바탕+상단 액센트), 미저장 점/닫기 × 한 슬롯 {#tabs-polish}
 - [x] 브레드크럼 — 경로 조각 클릭 → 트리에서 펼침 {#breadcrumbs}
 - [x] 상태줄 — LSP 색점 · EOL(LF/CRLF) · 세그먼트화 {#statusbar-polish}
 - [x] 잔손질 — 툴바 고스트 버튼 · 가는 스크롤바 · 필터 지우기 · 빈 상태 단축키 치트시트 · 메뉴 마감 {#chrome-polish}
+- [x] 에이전트 변경 가시화 — 일지 칩(파일→일지 역조회) + 인라인 비교(HEAD/일지별, unifiedMergeView + 패치 역적용) {#agent-diff}
 - [ ] 패널 드래그 리사이즈 — 참조·디버그 패널 높이 조절 (다음 후보) {#panel-resize}
 - [ ] 인앱 육안 확인 — 배지 색 라이트/다크 가독성 · 가이드 선 정렬 · 활성 탭 모양 {#p4-verify}
 
@@ -207,4 +208,6 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T23:05:04+09:00 | #statusbar-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | LSP 색점(펄스는 reduced-motion 대응) · EOL 표시 |
 | 2026-08-23T23:05:05+09:00 | #chrome-polish | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 고스트 툴바 · 오버레이 스크롤바 · 빈 상태 치트시트 |
 | 2026-08-23T23:05:06+09:00 | #p4-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 신규 — 배지 색·가이드·탭 모양은 눈이 판정 |
+| 2026-08-23T23:35:00+09:00 | #file-icons | claude-code | x→x | .oculpm/journal/20260823/Features_to_add/2335_feature_real-icons-and-agent-diff.md | v2 재작성 — 배지 폐기, 공식 로고+Seti 글자. 판정 테스트 8 |
+| 2026-08-23T23:35:01+09:00 | #agent-diff | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2335_feature_real-icons-and-agent-diff.md | 일지 칩·인라인 비교(HEAD/일지). 역적용은 엄격 실패. 테스트 19 |
 <!-- oculpm:plan-log end -->

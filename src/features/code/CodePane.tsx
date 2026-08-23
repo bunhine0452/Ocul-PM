@@ -17,14 +17,30 @@ import {
   useState,
 } from "react";
 
-import { commands, events, type GitLineChange, type LspCodeAction } from "@/lib/bindings";
+import {
+  commands,
+  events,
+  type FileJournalEntry,
+  type GitLineChange,
+  type LspCodeAction,
+} from "@/lib/bindings";
+import { NAV_BUS } from "@/lib/navRegistry";
+import { reverseApplyPatch } from "./patchReverse";
 import { useSettings } from "@/contexts/SettingsContext";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { AlertTriangle, ChevronRight, ExternalLink, FileCode } from "@/components/Icons";
+import {
+  AlertTriangle,
+  ChevronRight,
+  ExternalLink,
+  FileCode,
+  GitCompareArrows,
+  NotebookText,
+  X,
+} from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
@@ -160,6 +176,19 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const [conflict, setConflict] = useState<{ diskHash: string } | null>(null);
   // 에디터 재마운트 스위치 — 파일 전환·디스크 리로드가 올린다.
   const [editorEpoch, setEditorEpoch] = useState(0);
+  // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
+  // original 이 있으면 에디터가 그 텍스트와의 차이를 본문 안에 그린다.
+  // 두 원본이 있다: HEAD(마지막 커밋 이후 = 지금 에이전트가 한 일 전부)와
+  // 특정 일지(그 작업 단위가 바꾼 것만 — 사이드카 패치를 거꾸로 물려 얻는다).
+  const [diffMode, setDiffMode] = useState<
+    | { kind: "head" }
+    | { kind: "entry"; title: string; journalPath: string }
+    | null
+  >(null);
+  const [diffOriginal, setDiffOriginal] = useState<string | null>(null);
+  // 이 파일을 files_touched 로 만진 일지들 — 브레드크럼의 일지 칩.
+  const [fileEntries, setFileEntries] = useState<FileJournalEntry[]>([]);
+  const [entriesOpen, setEntriesOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState<number | null>(null);
 
   const pathRef = useRef(activePath);
@@ -266,16 +295,80 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   );
 
   useEffect(() => {
+    setDiffMode(null);
+    setDiffOriginal(null);
+    setEntriesOpen(false);
     if (!activePath) {
       setFileView({ kind: "idle" });
       bufferRef.current = null;
       setDirty(false);
       setConflict(null);
       setGitChanges([]);
+      setFileEntries([]);
       return;
     }
     void loadFile(activePath);
-  }, [activePath, loadFile]);
+    // 이 파일을 만진 일지들 — 실패는 빈 목록으로 접는다 (칩이 안 뜰 뿐).
+    void commands.codeFileEntries(projectId, activePath).then((res) => {
+      if (pathRef.current !== activePath) return;
+      setFileEntries(res.status === "ok" && Array.isArray(res.data) ? res.data : []);
+    });
+  }, [activePath, loadFile, projectId]);
+
+  // ── 비교 모드 들고 나기 — 에디터는 key 재마운트로 갈아탄다 ──────────────
+  const enterHeadDiff = useCallback(async () => {
+    const path = pathRef.current;
+    const buf = bufferRef.current;
+    if (!path || !buf) return;
+    const res = await commands.codeHeadContent(projectId, path);
+    if (pathRef.current !== path) return;
+    if (res.status !== "ok" || res.data == null) {
+      toast.info(t("code.diff.noHead"));
+      return;
+    }
+    setDiffOriginal(normalizeEol(res.data));
+    setDiffMode({ kind: "head" });
+    setPendingJump(cursorRef.current.line);
+    setEditorEpoch((n) => n + 1);
+  }, [projectId]);
+
+  const enterEntryDiff = useCallback(
+    async (entry: FileJournalEntry) => {
+      const path = pathRef.current;
+      const buf = bufferRef.current;
+      if (!path || !buf) return;
+      const res = await commands.oculpmGetEntryDiffs(projectId, entry.journal_path);
+      if (pathRef.current !== path) return;
+      const filePatch =
+        res.status === "ok" ? res.data.find((d) => d.path === path)?.patch : undefined;
+      const before = filePatch ? reverseApplyPatch(buf.text, filePatch) : null;
+      if (before == null) {
+        // 파일이 그 일지 이후로 더 바뀌어 문맥이 안 맞는다 — 거짓 비교 대신
+        // 일지 화면의 diff 모달로 안내한다.
+        toast.info(t("code.diff.entryStale"));
+        return;
+      }
+      setDiffOriginal(before);
+      setDiffMode({ kind: "entry", title: entry.title, journalPath: entry.journal_path });
+      setPendingJump(cursorRef.current.line);
+      setEditorEpoch((n) => n + 1);
+    },
+    [projectId],
+  );
+
+  const exitDiff = useCallback(() => {
+    setDiffMode(null);
+    setDiffOriginal(null);
+    setPendingJump(cursorRef.current.line);
+    setEditorEpoch((n) => n + 1);
+  }, []);
+
+  /** 일지 화면으로 점프 — 팔레트와 같은 전역 버스를 쓴다 (화면 결합 없음). */
+  const openJournal = useCallback((journalPath: string) => {
+    window.dispatchEvent(
+      new CustomEvent(NAV_BUS.openEntity, { detail: { kind: "journal", id: journalPath } }),
+    );
+  }, []);
 
   // 부모가 지시한 줄 점프. 같은 파일·같은 줄의 연속 점프도 다시 돌도록 nonce 로 건다.
   useEffect(() => {
@@ -729,7 +822,96 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               </span>
             );
           })}
+          <span className="code-crumbs-actions">
+            {/* 이 파일을 만진 일지 — 에이전트가 여기에 무슨 일을 했는지. */}
+            {fileEntries.length > 0 ? (
+              <button
+                type="button"
+                className={"code-crumb-act" + (entriesOpen ? " on" : "")}
+                onClick={() => setEntriesOpen((v) => !v)}
+                title={t("code.jrnl.chipTitle", { count: fileEntries.length })}
+                aria-label={t("code.jrnl.chipTitle", { count: fileEntries.length })}
+                aria-expanded={entriesOpen}
+              >
+                <NotebookText size={13} />
+                <span className="code-crumb-act-n">{fileEntries.length}</span>
+              </button>
+            ) : null}
+            {fileView.kind === "editor" ? (
+              <button
+                type="button"
+                className={"code-crumb-act" + (diffMode?.kind === "head" ? " on" : "")}
+                onClick={() => (diffMode ? exitDiff() : void enterHeadDiff())}
+                title={t("code.diff.head")}
+                aria-label={t("code.diff.head")}
+              >
+                <GitCompareArrows size={13} />
+              </button>
+            ) : null}
+          </span>
         </nav>
+      ) : null}
+
+      {/* 일지 팝오버 — 항목 클릭은 일지 화면으로, diff 버튼은 인라인 비교로. */}
+      {entriesOpen ? (
+        <div className="code-jrnl-pop" role="menu" aria-label={t("code.jrnl.title")}>
+          <div className="code-jrnl-pop-head">{t("code.jrnl.title")}</div>
+          {fileEntries.map((entry) => (
+            <div key={entry.journal_path} className="code-jrnl-row">
+              <button
+                type="button"
+                className="code-jrnl-open"
+                onClick={() => {
+                  setEntriesOpen(false);
+                  openJournal(entry.journal_path);
+                }}
+                title={t("code.jrnl.open")}
+              >
+                <span className={"code-jrnl-type t-" + entry.entry_type} aria-hidden />
+                <span className="code-jrnl-title">{entry.title}</span>
+                <span className="code-jrnl-meta">
+                  {entry.agent_id} · {entry.created_at.slice(5, 16).replace("T", " ")} · {entry.op}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="code-jrnl-diff"
+                onClick={() => {
+                  setEntriesOpen(false);
+                  void enterEntryDiff(entry);
+                }}
+                title={t("code.jrnl.diff")}
+                aria-label={t("code.jrnl.diff")}
+              >
+                <GitCompareArrows size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* 비교 모드 배너 — 지금 무엇과 비교 중인지, 나가는 길. */}
+      {diffMode ? (
+        <div className="code-diffbar" role="status">
+          <GitCompareArrows size={13} className="code-diffbar-ico" />
+          <span className="code-diffbar-label">
+            {diffMode.kind === "head"
+              ? t("code.diff.banner.head")
+              : t("code.diff.banner.entry", { title: diffMode.title })}
+          </span>
+          {diffMode.kind === "entry" ? (
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => openJournal(diffMode.journalPath)}
+            >
+              {t("code.jrnl.open")}
+            </button>
+          ) : null}
+          <button type="button" className="code-diffbar-exit" onClick={exitDiff} aria-label={t("code.diff.exit")} title={t("code.diff.exit")}>
+            <X size={13} strokeWidth={2.5} />
+          </button>
+        </div>
       ) : null}
 
       {conflict ? (
@@ -801,6 +983,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
                 onCursorLine(line);
               }}
               gitChanges={gitChanges}
+              diffOriginal={diffOriginal}
               breakpoints={activePath ? breakpointsFor(activePath) : undefined}
               unverifiedBreakpoints={activePath ? unverifiedFor(activePath) : undefined}
               // 디버그 못 하는 파일에는 거터를 아예 안 단다 — 눌러도 안 찍히는

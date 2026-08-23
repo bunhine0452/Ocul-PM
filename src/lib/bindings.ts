@@ -288,6 +288,20 @@ export const commands = {
 	 *  실패하면 **영구 삭제로 물러서지 않고** 오류를 그대로 알린다.
 	 */
 	codeDelete: (projectId: number, relPath: string) => typedError<null, string>(__TAURI_INVOKE("code_delete", { projectId, relPath })),
+	/**
+	 *  이 파일을 `files_touched` 로 만진 일지들 — 에디터 브레드크럼의 일지 칩.
+	 * 
+	 *  에이전트가 이 파일에 무슨 일을 했는지가 **편집 중에** 보이는 창구다. 클릭은
+	 *  일지 화면으로 점프하고, diff 사이드카가 있으면 인라인 비교의 원본이 된다.
+	 */
+	codeFileEntries: (projectId: number, relPath: string) => typedError<FileJournalEntry[], string>(__TAURI_INVOKE("code_file_entries", { projectId, relPath })),
+	/**
+	 *  HEAD 시점의 파일 내용 — 인라인 비교("HEAD 와 비교")의 원본.
+	 * 
+	 *  `None` = HEAD 에 없다(새 파일·저장소 밖) 또는 바이너리. 오류가 아니다 —
+	 *  비교할 기준이 없다는 것도 답이다.
+	 */
+	codeHeadContent: (projectId: number, relPath: string) => typedError<string | null, string>(__TAURI_INVOKE("code_head_content", { projectId, relPath })),
 	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
 	lspStatus: (projectId: number) => typedError<LspServerInfo[], string>(__TAURI_INVOKE("lsp_status", { projectId })),
 	/**
@@ -2453,11 +2467,6 @@ export type EntityHit = {
 	subtitle: string,
 };
 
-/**
- *  v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
- *  히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
- *  plan=plan_id, plan_item="plan_id#item_id", discussion=discussion_id.
- */
 export type EntityKind = "journal" | "plan" | "plan_item" | "discussion";
 
 /**
@@ -2534,6 +2543,27 @@ export type FileChangeEvent = {
 	 *  (`tags: ["large-file-hash-skipped"]`) so the value will be clamped.
 	 */
 	bytes: number,
+};
+
+/**
+ *  v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
+ *  히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
+ *  plan=plan_id, plan_item="plan_id#item_id", discussion=discussion_id.
+ *  코드 화면 — "이 파일을 고친 일지" 역조회 한 줄
+ *  (`oculpm_journal_files` × `oculpm_journal`). 에디터 브레드크럼의 일지 칩이
+ *  소비한다: 에이전트가 이 파일에 무슨 일을 했는지가 편집 중에 보인다.
+ */
+export type FileJournalEntry = {
+	/**  일지 캐시 키 (`20260823/Bugs/….md`) — 그대로 일지 화면 점프에 쓴다. */
+	journal_path: string,
+	title: string,
+	/**  bug | feature | error | refactor | chore. */
+	entry_type: string,
+	agent_id: string,
+	/**  RFC3339 (frontmatter created_at). */
+	created_at: string,
+	/**  그 일지에서 이 파일에 한 일 — create | update | delete | rename | correct. */
+	op: string,
 };
 
 export type FileOp = "create" | "update" | "delete" | "rename" | "correct";

@@ -6,18 +6,28 @@ import { describe, expect, it } from "vitest";
 import { iconSpecFor } from "@/features/code/FileIcon";
 
 describe("iconSpecFor — 판정 규칙", () => {
-  it("주요 언어는 브랜드색 배지다", () => {
-    expect(iconSpecFor("main.rs")).toMatchObject({ kind: "badge", label: "RS" });
-    expect(iconSpecFor("app.ts")).toMatchObject({ kind: "badge", label: "TS" });
-    expect(iconSpecFor("script.py")).toMatchObject({ kind: "badge", label: "PY" });
-    expect(iconSpecFor("main.go")).toMatchObject({ kind: "badge", label: "GO" });
-    expect(iconSpecFor("README.md")).toMatchObject({ kind: "badge", label: "MD" });
+  it("도형 로고가 있는 언어는 로고다 — 색상자 모노그램이 아니라", () => {
+    expect(iconSpecFor("main.rs")).toEqual({ kind: "logo", logo: "rust" });
+    expect(iconSpecFor("script.py")).toEqual({ kind: "logo", logo: "python" });
+    expect(iconSpecFor("README.md")).toEqual({ kind: "logo", logo: "markdown" });
+    expect(iconSpecFor("App.vue")).toEqual({ kind: "logo", logo: "vue" });
+  });
+
+  it("TS/JS 는 공식 로고 그대로 — 모서리 글자 사각형", () => {
+    expect(iconSpecFor("app.ts")).toMatchObject({ kind: "corner", label: "TS", bg: "#3178C6" });
+    expect(iconSpecFor("app.js")).toMatchObject({ kind: "corner", label: "JS", bg: "#F7DF1E" });
   });
 
   it("jsx/tsx 는 리액트 원자다 (ts 와 갈려야 컴포넌트 파일이 한눈에 띈다)", () => {
-    expect(iconSpecFor("App.tsx")).toEqual({ kind: "react" });
-    expect(iconSpecFor("index.jsx")).toEqual({ kind: "react" });
-    expect(iconSpecFor("util.ts").kind).toBe("badge");
+    expect(iconSpecFor("App.tsx")).toEqual({ kind: "logo", logo: "react" });
+    expect(iconSpecFor("index.jsx")).toEqual({ kind: "logo", logo: "react" });
+    expect(iconSpecFor("util.ts").kind).toBe("corner");
+  });
+
+  it("로고가 없는 언어는 상자 없는 색 글자다", () => {
+    expect(iconSpecFor("main.go")).toMatchObject({ kind: "letter", label: "Go" });
+    expect(iconSpecFor("data.json")).toMatchObject({ kind: "letter", label: "{}" });
+    expect(iconSpecFor("style.css")).toMatchObject({ kind: "letter", label: "#" });
   });
 
   it("정확한 파일명이 확장자보다 먼저다", () => {

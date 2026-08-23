@@ -20,7 +20,16 @@ const fx: {
   /** 경로 → 내용. 디렉터리는 경로 끝에 "/" 로 표시한다. */
   files: Map<string, string>;
   ops: Ops;
-} = { files: new Map(), ops: { reads: 0, create: [], mkdir: [], rename: [], del: [] } };
+  /** 파일 → 그 파일을 만진 일지들 (#agent-diff 칩). */
+  entries: Map<string, unknown[]>;
+  /** HEAD 시점 내용 (null = HEAD 에 없음). */
+  head: Map<string, string>;
+} = {
+  files: new Map(),
+  ops: { reads: 0, create: [], mkdir: [], rename: [], del: [] },
+  entries: new Map(),
+  head: new Map(),
+};
 
 function textFile(content: string, hash = "h1"): CodeFileContent {
   return { content, hash, bytes: content.length, binary: false, too_large: false };
@@ -133,6 +142,10 @@ vi.mock("@/lib/bindings", () => {
                 }
                 return ok(null);
               };
+            case "codeFileEntries":
+              return (_p: number, rel: string) => ok(fx.entries.get(rel) ?? []);
+            case "codeHeadContent":
+              return (_p: number, rel: string) => ok(fx.head.get(rel) ?? null);
             case "settingsGetAll":
               return () => ok([]);
             default:
@@ -193,6 +206,8 @@ beforeEach(() => {
     ["src/lib.rs", "pub fn x() {}"],
   ]);
   fx.ops = { reads: 0, create: [], mkdir: [], rename: [], del: [] };
+  fx.entries = new Map();
+  fx.head = new Map();
 });
 afterEach(cleanup);
 
@@ -415,5 +430,91 @@ describe("코드 화면 — 파일 조작", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: t("common.cancel") }));
     await waitFor(() => expect(fx.ops.del).toEqual([]));
     expect(fx.files.has("README.md")).toBe(true);
+  });
+});
+
+describe("코드 화면 — 에이전트 변경 가시화 (#agent-diff)", () => {
+  const entry = {
+    journal_path: "20260823/Bugs/0900_bug_fix.md",
+    title: "널 가드 추가",
+    entry_type: "bug",
+    agent_id: "claude-code",
+    created_at: "2026-08-23T09:00:00+09:00",
+    op: "update",
+  };
+
+  it("이 파일을 만진 일지가 있으면 브레드크럼에 칩이 뜨고, 클릭하면 목록이 열린다", async () => {
+    fx.entries.set("README.md", [entry]);
+    const { findByText, container } = renderScreen();
+    fireEvent.click(await findByText("README.md"));
+
+    const chip = await waitFor(() => {
+      const el = container.querySelector(".code-crumbs-actions .code-crumb-act");
+      if (!el) throw new Error("칩 없음");
+      return el as HTMLElement;
+    });
+    expect(chip.textContent).toContain("1");
+    fireEvent.click(chip);
+    await findByText("널 가드 추가");
+    await findByText(t("code.jrnl.title"));
+  });
+
+  it("일지 항목을 클릭하면 일지 화면 점프 이벤트가 나간다", async () => {
+    fx.entries.set("README.md", [entry]);
+    const seen: unknown[] = [];
+    const listen = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener("oculpm:open-entity", listen);
+    try {
+      const { findByText, container } = renderScreen();
+      fireEvent.click(await findByText("README.md"));
+      await waitFor(() => {
+        if (!container.querySelector(".code-crumb-act")) throw new Error("칩 없음");
+      });
+      fireEvent.click(container.querySelector(".code-crumb-act") as HTMLElement);
+      fireEvent.click(await findByText("널 가드 추가"));
+      expect(seen).toEqual([{ kind: "journal", id: entry.journal_path }]);
+    } finally {
+      window.removeEventListener("oculpm:open-entity", listen);
+    }
+  });
+
+  it("만진 일지가 없으면 칩 자체가 없다", async () => {
+    const { findByText, getByTestId, container } = renderScreen();
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
+    expect(container.querySelector(".code-crumbs-actions .code-crumb-act-n")).toBeNull();
+  });
+
+  it("HEAD 비교를 켜면 배너가 뜨고, 끄면 사라진다", async () => {
+    fx.head.set("README.md", "# 옛 내용");
+    const { findByText, getByTestId, container, queryByText } = renderScreen();
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
+
+    const toggle = container.querySelector(
+      `.code-crumbs-actions button[aria-label="${t("code.diff.head")}"]`,
+    ) as HTMLElement;
+    expect(toggle).toBeTruthy();
+    fireEvent.click(toggle);
+    await findByText(t("code.diff.banner.head"));
+
+    fireEvent.click(
+      container.querySelector(`button[aria-label="${t("code.diff.exit")}"]`) as HTMLElement,
+    );
+    await waitFor(() => expect(queryByText(t("code.diff.banner.head"))).toBeNull());
+  });
+
+  it("HEAD 에 없는 파일은 비교 대신 이유를 말한다", async () => {
+    // head 픽스처 없음 = codeHeadContent 가 null.
+    const { findByText, getByTestId, container, queryByText } = renderScreen();
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
+    fireEvent.click(
+      container.querySelector(
+        `.code-crumbs-actions button[aria-label="${t("code.diff.head")}"]`,
+      ) as HTMLElement,
+    );
+    // 배너는 안 뜬다 (토스트는 전역 스택이라 여기선 부재만 단언).
+    await waitFor(() => expect(queryByText(t("code.diff.banner.head"))).toBeNull());
   });
 });

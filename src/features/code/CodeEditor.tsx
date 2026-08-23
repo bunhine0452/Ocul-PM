@@ -11,6 +11,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { autocompletion, type CompletionContext } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
+import { unifiedMergeView } from "@codemirror/merge";
 
 import { lspSignatureTooltip } from "./signatureTooltip";
 import { gitGutter, setGitChanges } from "./gitGutter";
@@ -234,6 +235,12 @@ interface CodeEditorProps {
   onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
   gitChanges?: readonly GitLineChange[];
+  /**
+   * 인라인 비교 원본 (Cursor 식 diff-in-editor). null 이 아니면 이 텍스트와의
+   * 차이를 본문 안에 그린다 — 지워진 줄은 빨간 블록으로 끼어들고, 청크마다
+   * 되돌리기 버튼이 붙는다. **마운트 시점에만** 읽는다 (모드 전환 = 재마운트).
+   */
+  diffOriginal?: string | null;
   /** 이 파일의 중단점 줄들 (**1-based** — DAP·CM 공통 규약). */
   breakpoints?: readonly number[];
   /** 어댑터가 못 건다고 답한 줄들 — 다르게 그린다. */
@@ -260,6 +267,7 @@ export function CodeEditor({
   onFormat,
   onSignatureHelp,
   gitChanges,
+  diffOriginal,
   breakpoints,
   unverifiedBreakpoints,
   onToggleBreakpoint,
@@ -298,6 +306,8 @@ export function CodeEditor({
   // 중단점 거터를 달지 말지는 **마운트 시점**에 정한다 (자동완성과 같은 규칙) —
   // 도중에 켜고 끄면 재구성이 필요하고, 그러면 커서가 튄다.
   const hasBreakpointsRef = useRef(onToggleBreakpoint != null);
+  // 비교 모드도 마운트 시점 고정 — 부모가 모드를 바꿀 때 key 로 재마운트한다.
+  const diffOriginalRef = useRef(diffOriginal);
   // 확장을 달지 말지는 **마운트 시점**에만 정한다 (파일마다 재마운트되므로
   // 그 파일에 서버가 있는지와 일치한다). 도중에 켜고 끄면 재구성이 필요하고,
   // 그러면 커서가 튄다.
@@ -417,6 +427,11 @@ export function CodeEditor({
                 },
               }),
             ]
+          : []),
+        // 인라인 비교 — 지워진 줄이 본문 사이에 빨간 블록으로 끼어들고,
+        // 청크마다 되돌리기가 붙는다 (되돌리기는 보통 편집으로 흘러 dirty→저장).
+        ...(diffOriginalRef.current != null
+          ? [unifiedMergeView({ original: diffOriginalRef.current, mergeControls: true })]
           : []),
         // 거터는 LSP 와 무관하다 — 마크다운·CSS 에서도 무엇을 고쳤는지는 보여야 한다.
         gitGutter(),

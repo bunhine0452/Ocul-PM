@@ -272,6 +272,7 @@
   overflow: hidden;
 }
 .code-pane {
+  position: relative; /* 일지 팝오버의 기준 */
   flex: 1 1 0;
   /* 0 이 없으면 CodeMirror 의 긴 줄이 창 폭을 밀어 분할 비율이 무너진다. */
   min-width: 0;
@@ -1564,4 +1565,210 @@
 /* 참조 패널의 파일 아이콘 — 배지가 캐럿과 시각적으로 맞물리게. */
 .code-refs-ico {
   flex: none;
+}
+
+/* ── 에이전트 변경 가시화 (#agent-diff) ──────────────────────── */
+
+/* 브레드크럼 오른쪽 액션 — 일지 칩 · HEAD 비교. */
+.code-crumbs-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.code-crumb-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  font-size: 11px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.code-crumb-act:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-crumb-act.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.code-crumb-act-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* 일지 팝오버 — 브레드크럼 바로 아래, 오른쪽 정렬. */
+.code-jrnl-pop {
+  position: absolute;
+  top: 58px; /* 탭(34) + 크럼(24) */
+  right: 8px;
+  z-index: 30;
+  width: min(380px, calc(100% - 16px));
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 5px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+}
+.code-jrnl-pop-head {
+  padding: 5px 9px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.code-jrnl-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.code-jrnl-open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 1px;
+  align-items: center;
+  padding: 6px 9px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.code-jrnl-open:hover {
+  background: var(--bg-hover);
+}
+.code-jrnl-type {
+  grid-row: 1 / 3;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+/* 일지 타입색 — 타임라인과 같은 토큰 계열. */
+.code-jrnl-type.t-bug { background: #e0524b; }
+.code-jrnl-type.t-feature { background: var(--accent); }
+.code-jrnl-type.t-error { background: #d9822b; }
+.code-jrnl-type.t-refactor { background: #7c6fd0; }
+.code-jrnl-type.t-chore { background: #8a97a8; }
+.code-jrnl-title {
+  font-size: 12.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-jrnl-meta {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-jrnl-diff {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.code-jrnl-diff:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* 비교 모드 배너 — 충돌 배너와 같은 자리·다른 온도 (정보이지 경고가 아니다). */
+.code-diffbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--sep);
+}
+.code-diffbar-ico {
+  flex: none;
+  color: var(--accent-text);
+}
+.code-diffbar-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-diffbar-exit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.code-diffbar-exit:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* 인라인 비교(unifiedMergeView) — diff 화면과 같은 색 토큰. */
+.code-editor-host .cm-changedLine {
+  background: var(--diff-add-bg) !important;
+}
+.code-editor-host .cm-changedLineGutter {
+  background: var(--diff-add-bg);
+}
+.code-editor-host .cm-changedText {
+  background: color-mix(in srgb, var(--diff-add-line) 26%, transparent);
+}
+.code-editor-host .cm-deletedChunk {
+  background: var(--diff-del-bg);
+  border-left: 3px solid var(--diff-del-line);
+  padding-left: 6px;
+}
+.code-editor-host .cm-deletedChunk .cm-deletedText,
+.code-editor-host .cm-deletedChunk del {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--diff-del-line) 18%, transparent);
+}
+/* 청크 되돌리기 버튼 — CM 기본은 브라우저 버튼 그대로다. */
+.code-editor-host .cm-chunkButtons button,
+.code-editor-host .cm-deletedChunk button {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border: 1px solid var(--sep);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.code-editor-host .cm-chunkButtons button:hover,
+.code-editor-host .cm-deletedChunk button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }

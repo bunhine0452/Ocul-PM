@@ -323,6 +323,42 @@ pub async fn code_delete(
     .map_err(|e| format!("Failed to delete: {e}"))?
 }
 
+/// 이 파일을 `files_touched` 로 만진 일지들 — 에디터 브레드크럼의 일지 칩.
+///
+/// 에이전트가 이 파일에 무슨 일을 했는지가 **편집 중에** 보이는 창구다. 클릭은
+/// 일지 화면으로 점프하고, diff 사이드카가 있으면 인라인 비교의 원본이 된다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_file_entries(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<Vec<crate::db::FileJournalEntry>, String> {
+    db.oculpm_journal_for_file(project_id, rel_path, 20)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// HEAD 시점의 파일 내용 — 인라인 비교("HEAD 와 비교")의 원본.
+///
+/// `None` = HEAD 에 없다(새 파일·저장소 밖) 또는 바이너리. 오류가 아니다 —
+/// 비교할 기준이 없다는 것도 답이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_head_content(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<Option<String>, String> {
+    let root = project_root(&db, project_id).await?;
+    Ok(tauri::async_runtime::spawn_blocking(move || {
+        let bytes = crate::git::show_file_bytes(&root, &rel_path, "HEAD", MAX_EDIT_BYTES as usize)?;
+        String::from_utf8(bytes).ok()
+    })
+    .await
+    .map_err(|e| format!("Failed to read HEAD content: {e}"))?)
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {

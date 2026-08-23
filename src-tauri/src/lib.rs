@@ -144,6 +144,8 @@ use crate::commands::{
     code_tree, code_dir, code_read, code_write,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
     code_create, code_mkdir, code_rename, code_delete,
+    // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
+    code_file_entries, code_head_content,
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
     lsp_status, lsp_open, lsp_change, lsp_close, lsp_completion, lsp_hover,
     lsp_definition, lsp_rename, lsp_code_actions, lsp_apply_code_action, lsp_stop,
@@ -318,6 +320,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         code_mkdir,
         code_rename,
         code_delete,
+        code_file_entries,
+        code_head_content,
         lsp_status,
         lsp_open,
         lsp_change,
