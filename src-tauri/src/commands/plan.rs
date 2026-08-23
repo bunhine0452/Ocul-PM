@@ -535,6 +535,10 @@ pub struct DispatchPrompt {
     pub file_rel: String,
     /// 터미널에 프리필할 한 줄 명령 (`claude "$(cat '…')"`). 실행은 사용자가.
     pub command: String,
+    /// 조립된 프롬프트 **본문**. 터미널에서 이미 코딩 에이전트가 돌고 있으면
+    /// 프런트가 한 줄 명령 대신 이걸 그대로 붙여넣는다 — 돌던 세션을 끊고
+    /// `claude` 를 또 띄우는 대신, 하던 대화에 이어 붙이기 위해서다.
+    pub prompt: String,
     pub item_title: String,
 }
 
@@ -574,6 +578,7 @@ pub async fn plan_dispatch_prompt(
     Ok(DispatchPrompt {
         file_rel: format!(".oculpm/index/dispatch/{file_name}"),
         command: shell_command_for(&abs),
+        prompt: built.prompt,
         item_title: built.item_title,
     })
 }

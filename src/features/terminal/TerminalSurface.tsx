@@ -17,7 +17,6 @@ import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
   leaf,
   collectSids,
-  firstSid,
   splitPane,
   removePane,
   setRatio,
@@ -31,7 +30,14 @@ import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 import { summarizeShell } from "./shellStatus";
 import { useAgentRuns } from "./useAgentRuns";
-import { consumePendingDispatch, hasPendingDispatch, peekPendingDispatch } from "./dispatchBus";
+import {
+  consumePendingDispatch,
+  hasPendingDispatch,
+  peekPendingDispatch,
+  subscribePendingDispatch,
+} from "./dispatchBus";
+import { writeDispatchTo } from "./dispatchTarget";
+import { focusOfTab, panesOfTab } from "./activePane";
 import {
   TERM_FONT_MIN as FONT_MIN,
   TERM_FONT_MAX as FONT_MAX,
@@ -80,16 +86,6 @@ export function formatMatchCount(
   if (matches.count === 0) return t("term.matchNone");
   if (matches.index < 0) return t("term.matchCount", { n: matches.count });
   return `${matches.index + 1}/${matches.count}`;
-}
-
-function panesOfTab(tab: TerminalTab): PaneNode {
-  return tab.panes ?? leaf(tab.id);
-}
-
-function focusOfTab(tab: TerminalTab): string {
-  const panes = panesOfTab(tab);
-  const sids = collectSids(panes);
-  return tab.focusSid && sids.includes(tab.focusSid) ? tab.focusSid : firstSid(panes);
 }
 
 export interface TerminalSurfaceProps {
@@ -158,37 +154,51 @@ export function TerminalSurface({
   // sid → 셸 통합 상태(OSC 133). 통합이 설치되지 않은 세션은 여기 안 들어온다.
   const [shellStates, setShellStates] = useState<Record<string, ShellState>>({});
 
-  // IN2 — 플래너 디스패치 프리필: 대기 중 명령을 활성 페인 PTY 에 써 둔다
-  // (개행 없음 — 실행은 사용자가 Enter 로). 마운트 1회 루프 + sid 는 ref 로
-  // 최신을 읽는다 — 종전엔 deps 재실행(탭 생성·라벨 갱신)이 재시도 체인을
-  // 취소한 뒤 이미 consume 된 상태라 프리필이 조용히 증발했다. consume 은
-  // 쓰기 **성공 후에만**.
+  // IN2 — 디스패치 프리필: 대기 중인 건을 활성 페인 PTY 에 써 둔다 (개행 없음
+  // — 실행은 사용자가 Enter 로). sid 는 ref 로 최신을 읽는다 — deps 재실행(탭
+  // 생성·라벨 갱신)이 재시도 체인을 취소하면 이미 consume 된 상태라 프리필이
+  // 조용히 증발했었다. consume 은 쓰기 **성공 후에만**.
+  //
+  // 여기까지 오는 건 "생산자가 썼을 때 아직 셸이 없었다" 는 경우뿐이다 —
+  // 살아있는 셸이면 생산자(`handoffDispatch`)가 그 자리에 직접 꽂는다. 그래서
+  // 마운트 시점 한 번 + **대기열 구독** 둘 다 필요하다: 도크를 열어 둔 채
+  // 셸이 뜨기 전에 디스패치하면 마운트는 이미 지나가 있다.
   const dispatchSidRef = useRef<string | null>(null);
+  const dispatchBusyRef = useRef(false);
   useEffect(() => {
-    if (!hasPendingDispatch()) return;
     let disposed = false;
-    let tries = 0;
-    const tick = () => {
-      if (disposed || !hasPendingDispatch()) return;
-      const sid = dispatchSidRef.current;
-      const cmd = peekPendingDispatch();
-      if (!sid || !cmd) {
+    const pump = () => {
+      if (disposed || dispatchBusyRef.current || !hasPendingDispatch()) return;
+      dispatchBusyRef.current = true;
+      let tries = 0;
+      const stop = () => {
+        dispatchBusyRef.current = false;
+      };
+      const retry = () => {
         if (tries++ < 50) setTimeout(tick, 300);
-        return;
-      }
-      void commands
-        .writeToPty(sid, cmd)
-        .then((r) => {
-          if (r.status === "ok") consumePendingDispatch();
-          else if (tries++ < 50) setTimeout(tick, 300);
-        })
-        .catch(() => {
-          if (tries++ < 50) setTimeout(tick, 300);
-        });
+        else stop();
+      };
+      const tick = () => {
+        if (disposed) return stop();
+        const pending = peekPendingDispatch();
+        const sid = dispatchSidRef.current;
+        if (!pending) return stop();
+        if (!sid) return retry();
+        void writeDispatchTo(sid, pending)
+          .then((done) => {
+            if (!done) return retry();
+            consumePendingDispatch();
+            stop();
+          })
+          .catch(retry);
+      };
+      tick();
     };
-    tick();
+    pump();
+    const off = subscribePendingDispatch(pump);
     return () => {
       disposed = true;
+      off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

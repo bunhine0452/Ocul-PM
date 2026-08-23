@@ -750,6 +750,7 @@ pub async fn retro_dispatch_prompt(
     Ok(crate::commands::plan::DispatchPrompt {
         file_rel: format!(".oculpm/index/dispatch/{file_name}"),
         command: crate::oculpm::planner::dispatch::shell_command_for(&abs),
+        prompt,
         item_title: format!("회고 {}", signals.range_key),
     })
 }

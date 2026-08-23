@@ -27,8 +27,8 @@ import { RuleCandidatesPanel } from "./RuleCandidates";
 import { SkillCandidatesPanel } from "./SkillCandidates";
 import { EvalTrendPanel } from "./EvalTrend";
 import { DeferLedgerPanel } from "./DeferLedger";
-import { setPendingDispatch } from "@/features/terminal/dispatchBus";
-import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import {
   consumeRetroGenDone,
   getRetroGenRunning,
@@ -77,10 +77,15 @@ export function RetroScreenV2({
   onNavigate,
 }: {
   projectId: number;
-  /** #retro-cc-generate — 디스패치 후 터미널 화면으로 이동 (플래너와 동일 결). */
+  /**
+   * #retro-cc-generate — 디스패치 후 터미널 화면으로 이동 (플래너와 동일 결).
+   * 터미널이 이미 보이고 있으면 부르지 않는다.
+   */
   onNavigate?: (view: UiV2View) => void;
 }) {
   const { t } = useT();
+  // 디스패치를 어느 셸에 꽂을지 알아야 한다 (활성 탭·포커스 페인).
+  const { state } = useWorkspace();
   const [days, setDays] = useState(7);
   const { since, until, rangeKey } = useMemo(() => {
     const u = new Date();
@@ -188,17 +193,28 @@ export function RetroScreenV2({
     setDispatchBusy(true);
     try {
       const res = await commands.retroDispatchPrompt(projectId, since, until);
-      if (res.status === "ok") {
-        setPendingDispatch(res.data.command);
-        toast.info(t("retro.dispatchReady", { title: res.data.item_title }));
-        onNavigate?.("terminal");
-      } else {
+      if (res.status !== "ok") {
         toast.destructive(t("retro.dispatchFailed", { error: res.error }));
+        return;
       }
+      // 플래너 ▶실행과 같은 핸드오프 — 돌고 있는 에이전트가 있으면 본문을
+      // 붙여넣고, 터미널이 이미 보이면 화면을 빼앗지 않는다.
+      const onScreen = terminalOnScreen(state);
+      const done = await handoffDispatch(
+        { command: res.data.command, prompt: res.data.prompt },
+        state.terminalTabs,
+        state.terminalActiveId,
+      );
+      toast.info(
+        done.kind === "pasted"
+          ? t("retro.dispatchPasted", { title: res.data.item_title, agent: done.agent })
+          : t("retro.dispatchReady", { title: res.data.item_title }),
+      );
+      if (!onScreen) onNavigate?.("terminal");
     } finally {
       setDispatchBusy(false);
     }
-  }, [dispatchBusy, projectId, since, until, onNavigate]);
+  }, [dispatchBusy, projectId, since, until, onNavigate, state]);
 
   // C2 — export the range's journal entries to a shareable .md (native save
   // dialog + write happen in the backend; we just toast the result).

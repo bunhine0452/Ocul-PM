@@ -387,6 +387,71 @@ pub fn write_to_pty(
     Ok(())
 }
 
+/// 이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄. 셸이 입력을
+/// 기다리는 중이면 셸 자신(`-zsh`)이 나오고, 알아낼 수 없으면 `None`.
+///
+/// 디스패치 프리필(IN2)이 "셸에 한 줄 명령을 쓸지" 아니면 "이미 돌고 있는
+/// 코딩 에이전트에 프롬프트를 그대로 붙여넣을지" 고르는 근거다. 셸 통합
+/// (OSC 133)이 꺼져 있어도 답할 수 있어야 해서 tty 의 포그라운드 프로세스
+/// 그룹(`tcgetpgrp`)을 직접 본다 — iTerm2·VS Code 가 쓰는 것과 같은 신호이고,
+/// 사용자가 rc 에 아무것도 설치하지 않아도 참이다.
+///
+/// 판정(어떤 에이전트인가)은 프런트의 `agentDetect.ts` 가 한다 — 셸 통합
+/// 경로와 **같은 규칙**을 쓰기 위해서다. 여기서는 원문만 실어 보낸다.
+#[tauri::command]
+#[specta::specta]
+pub fn pty_foreground_command(
+    state: State<'_, PtyState>,
+    session_id: String,
+) -> Result<Option<String>, String> {
+    // 락은 pid 를 꺼낼 때까지만 — 아래 `ps` 호출은 세션 맵과 무관하고,
+    // 그동안 다른 페인의 키 입력을 막을 이유가 없다.
+    let leader = {
+        let sessions = state.sessions.lock().unwrap();
+        let Some(session) = sessions.get(&session_id) else {
+            return Err(format!("unknown pty session: {session_id}"));
+        };
+        process_group_leader_of(session)
+    };
+    Ok(leader.and_then(command_line_of))
+}
+
+#[cfg(unix)]
+fn process_group_leader_of(session: &PtySession) -> Option<i32> {
+    session.master.process_group_leader()
+}
+
+/// Windows 콘솔에는 대응하는 개념이 없다 — 모른다고 답하고 호출측이 기존
+/// 동작(셸에 한 줄 명령)으로 되돌아가게 한다.
+#[cfg(not(unix))]
+fn process_group_leader_of(_session: &PtySession) -> Option<i32> {
+    None
+}
+
+/// pid → 명령줄. 의존성을 늘리지 않으려고 `ps` 를 쓴다 (한 번의 디스패치마다
+/// 한 번 호출되는 경로라 비용이 문제되지 않는다). 실패는 전부 `None`.
+#[cfg(unix)]
+fn command_line_of(pid: i32) -> Option<String> {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "args=", "-p", &pid.to_string()])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let line = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if line.is_empty() {
+        None
+    } else {
+        Some(line)
+    }
+}
+
+#[cfg(not(unix))]
+fn command_line_of(_pid: i32) -> Option<String> {
+    None
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn resize_pty(
@@ -426,6 +491,26 @@ pub fn kill_pty_session(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `ps` 로 명령줄을 읽는 배관이 이 플랫폼에서 실제로 동작하는가.
+    ///
+    /// 판정(에이전트인가)은 프런트가 하므로 여기서 볼 것은 "빈손으로 돌아오지
+    /// 않는가" 뿐이다 — 이게 무너지면 디스패치는 조용히 옛 동작(한 줄 명령)으로
+    /// 되돌아가고, 아무도 눈치채지 못한다.
+    #[cfg(unix)]
+    #[test]
+    fn reads_own_command_line() {
+        let me = command_line_of(std::process::id() as i32);
+        assert!(me.is_some_and(|line| !line.trim().is_empty()));
+    }
+
+    /// 없는 pid 는 에러가 아니라 "모른다".
+    #[cfg(unix)]
+    #[test]
+    fn unknown_pid_is_none() {
+        // 존재하지 않는 pid — `ps` 는 비어 있는 출력 + 실패 상태를 준다.
+        assert!(command_line_of(i32::MAX).is_none());
+    }
 
     /// 청크 경계에 걸린 한글(3바이트)이 이월 후 온전히 복원된다.
     #[test]

@@ -349,7 +349,10 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             tc("gf.kickoffLead") +
             tc("gf.kickoffIdea", { idea }) +
             (who ? tc("gf.kickoffWho", { who }) : "");
-          setPendingDispatch(`claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`);
+          setPendingDispatch({
+            command: `claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`,
+            prompt: kickoff,
+          });
         }
 
         // Seed the file-based Planner (S1 / planner-unify) — one "초기 계획"
