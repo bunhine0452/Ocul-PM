@@ -41,26 +41,10 @@ pub fn find_plan_path(planner_root: &Path, plan_id: &str) -> Option<PathBuf> {
     None
 }
 
-/// ASCII slug from a title; falls back to `"plan"` when nothing ASCII remains
-/// (e.g. a purely Korean title).
+/// 제목 → 플랜 파일 이름. 한글도 살아남는다 — 구현과 근거는
+/// [`crate::oculpm::frontmatter::slug_from_title`] 한 곳에 있다.
 pub fn slug_for(title: &str) -> String {
-    let mut out = String::new();
-    let mut dash = false;
-    for c in title.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-            dash = false;
-        } else if !out.is_empty() && !dash {
-            out.push('-');
-            dash = true;
-        }
-    }
-    let s = out.trim_matches('-').to_string();
-    if s.is_empty() {
-        "plan".to_string()
-    } else {
-        s
-    }
+    crate::oculpm::frontmatter::slug_from_title(title, "plan")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

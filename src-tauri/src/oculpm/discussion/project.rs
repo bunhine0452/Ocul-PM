@@ -51,26 +51,11 @@ pub fn find_discussion_path(discussion_root: &Path, discussion_id: &str) -> Opti
     None
 }
 
-/// ASCII slug from a title; falls back to `"discussion"` when nothing ASCII
-/// remains (e.g. a purely Korean title).
+/// 제목 → 논의 폴더 이름. 한글도 살아남는다 — 구현과 근거는
+/// [`crate::oculpm::frontmatter::slug_from_title`] 한 곳에 있다 (플랜 쪽과
+/// 갈라져 있다가 한글 제목이 전부 `discussion` 으로 떨어지는 버그를 낳았다).
 pub fn slug_for(title: &str) -> String {
-    let mut out = String::new();
-    let mut dash = false;
-    for c in title.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-            dash = false;
-        } else if !out.is_empty() && !dash {
-            out.push('-');
-            dash = true;
-        }
-    }
-    let s = out.trim_matches('-').to_string();
-    if s.is_empty() {
-        "discussion".to_string()
-    } else {
-        s
-    }
+    crate::oculpm::frontmatter::slug_from_title(title, "discussion")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -562,6 +547,45 @@ impl<'a> DiscussionCache<'a> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    /// 한글 폴더 이름이 **디스크에서 실제로 왕복하는지**. slug 를 유니코드로
+    /// 연 변경의 진짜 위험 지점이라 순수 함수 단언이 아니라 파일을 만든다
+    /// (APFS 는 이름을 정규화해 비교하므로 만든 이름과 읽은 이름이 다를 수 있다).
+    #[test]
+    fn hangul_folder_name_survives_a_real_filesystem_round_trip() {
+        let tmp = tempdir().unwrap();
+        let root = discussion_root(tmp.path());
+        let slug = slug_for("사용자가 찾은 버그들");
+        assert_eq!(slug, "사용자가-찾은-버그들");
+
+        let dir = root.join(&slug);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("discussion.md"), DISC).unwrap();
+
+        // 이름으로 다시 읽힌다.
+        let listed: Vec<String> = std::fs::read_dir(&root)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        assert!(listed.iter().any(|n| n == &slug), "listed: {listed:?}");
+
+        // 조회는 폴더 이름이 아니라 frontmatter id 로 하므로 그것도 확인.
+        let found = find_discussion_path(&root, "demo-topic").expect("found by id");
+        assert_eq!(found, dir.join("discussion.md"));
+
+        // 투영도 통과한다 (파싱이 한글 경로에서 깨지지 않는다).
+        let all = load_all_discussions(&root);
+        assert_eq!(all.len(), 1, "loaded: {}", all.len());
+    }
+
+    /// 제목이 달라도 폴더가 이미 있으면 `-2` 가 붙는 기존 규칙은 그대로여야 한다.
+    /// (한글을 열었다고 충돌 처리가 사라지면 조용히 덮어쓰게 된다.)
+    #[test]
+    fn hangul_slugs_still_collide_into_distinct_names() {
+        assert_eq!(slug_for("같은 제목"), slug_for("같은 제목"));
+        assert_ne!(slug_for("같은 제목"), slug_for("다른 제목"));
+    }
 
     const DISC: &str = r#"---
 oculpm_discussion: v1

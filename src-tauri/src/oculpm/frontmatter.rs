@@ -181,6 +181,39 @@ pub fn backfill_tz_offset(s: &str, tz: Tz) -> Option<String> {
     Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false))
 }
 
+/// 제목 → 디스크 이름으로 쓸 kebab slug. **유니코드 alphanumeric 을 살린다** —
+/// 한글 제목이 `discussion` · `plan` 같은 상수로 뭉개지지 않게.
+///
+/// 이 함수가 [`normalize_slug`] 와 짝인 이유: v1.19.0 이 frontmatter `slug:` 규약을
+/// 유니코드로 옮겼는데, **디스크 이름을 만드는 쪽은 그 이전 ASCII 규칙에 남아**
+/// 있었다. 일지는 파일명이 시각 접두사(`1146_bug_…`)로 유일해 증상이 안 났지만,
+/// 논의 폴더와 플랜 파일은 **이름이 곧 정체성**이라 한글 제목이 전부 같은 이름으로
+/// 떨어져 `-2`·`-3` 만 붙었다 (「사용자가 찾은 버그들」 → `discussion`).
+///
+/// `fallback` 은 정말로 남는 글자가 없을 때만 쓴다 (구두점만 있는 제목 등).
+/// 60자에서 자르는 것은 경로 길이 방어다.
+pub fn slug_from_title(title: &str, fallback: &str) -> String {
+    let mut out = String::new();
+    let mut prev_hyphen = true; // 선행 하이픈 방지
+    for c in title.chars() {
+        if c.is_alphanumeric() {
+            // `to_ascii_lowercase` 는 A–Z 만 낮추고 한글·숫자·악센트는 그대로 둔다.
+            out.push(c.to_ascii_lowercase());
+            prev_hyphen = false;
+        } else if !prev_hyphen {
+            out.push('-');
+            prev_hyphen = true;
+        }
+    }
+    let s: String = out.trim_matches('-').chars().take(60).collect();
+    let s = s.trim_matches('-').to_string();
+    if s.is_empty() {
+        fallback.to_string()
+    } else {
+        s
+    }
+}
+
 /// Normalize a slug to kebab-case for display: lowercase ASCII letters, keep
 /// any Unicode *alphanumeric* (so Hangul / other scripts survive intact), and
 /// collapse every run of other characters into a single `-` (leading/trailing
@@ -730,6 +763,49 @@ fn file_op_str(op: FileOp) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── 제목 → 디스크 이름 slug ────────────────────────────────────────────
+
+    /// 이 버그의 본체 — 한글만 있는 제목이 상수 폴백으로 뭉개지던 것.
+    /// 논의·플랜은 **이름이 곧 정체성**이라 전부 같은 이름이 되고 `-2`·`-3` 만
+    /// 붙었다 (실제로 「사용자가 찾은 버그들」 → `discussion`).
+    #[test]
+    fn slug_from_title_keeps_hangul_instead_of_collapsing_to_the_fallback() {
+        assert_eq!(
+            slug_from_title("사용자가 찾은 버그들", "discussion"),
+            "사용자가-찾은-버그들"
+        );
+        assert_eq!(slug_from_title("코드 화면 개편", "plan"), "코드-화면-개편");
+        // 섞여 있으면 양쪽 다 산다 (ASCII 만 남기던 옛 규칙은 한글을 버렸다).
+        assert_eq!(slug_from_title("버그 FIX 라운드", "plan"), "버그-fix-라운드");
+    }
+
+    #[test]
+    fn slug_from_title_matches_the_old_ascii_behaviour_for_ascii_titles() {
+        // 기존 폴더 이름이 흔들리지 않는다는 뜻이라 회귀 방어로 중요하다.
+        assert_eq!(slug_from_title("Claude Plugin Strategy", "plan"), "claude-plugin-strategy");
+        assert_eq!(slug_from_title("  pricing / open-core!! ", "plan"), "pricing-open-core");
+        assert_eq!(slug_from_title("v2 Release", "plan"), "v2-release");
+    }
+
+    #[test]
+    fn slug_from_title_falls_back_only_when_nothing_survives() {
+        assert_eq!(slug_from_title("!!! ??? ---", "discussion"), "discussion");
+        assert_eq!(slug_from_title("", "plan"), "plan");
+        assert_eq!(slug_from_title("   ", "plan"), "plan");
+    }
+
+    #[test]
+    fn slug_from_title_caps_length_and_never_ends_on_a_hyphen() {
+        let long = "가".repeat(80);
+        let out = slug_from_title(&long, "plan");
+        assert_eq!(out.chars().count(), 60);
+        // 자른 자리가 하이픈이어도 끝에 남기지 않는다.
+        let words = "ab ".repeat(40);
+        let out2 = slug_from_title(&words, "plan");
+        assert!(!out2.ends_with('-'), "{out2}");
+        assert!(!out2.starts_with('-'), "{out2}");
+    }
 
     // ─── F7a-B read-time coercion helpers ───────────────────────────────────
 
