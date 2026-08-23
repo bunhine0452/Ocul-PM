@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ocul-PM 플러그인 문서 — 커맨드 · MCP 도구 · 스킬</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 5종, 스킬 5종. 설치 두 줄부터 프로젝트 시작→설계→구현 루프까지." />
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 7종, 스킬 5종. 설치 두 줄부터 프로젝트 시작→설계→구현 루프까지." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0f5b43" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -119,17 +119,19 @@
 
       <div class="doc-card">
         <h3><code>/oculpm:help</code><span class="when">뭐가 있는지 잊었을 때</span></h3>
-        <p>플러그인 표면 전체(커맨드 5·MCP 도구 5·스킬 5·훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
+        <p>플러그인 표면 전체(커맨드 5·MCP 도구 7·스킬 5·훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
       </div>
     </section>
 
     <section class="docs-sec" id="tools">
-      <span class="eyebrow">MCP 도구 5종</span>
-      <h2 class="sec-title">에이전트가 기록에 쓰는 구조화 도구</h2>
-      <p class="docs-note">에이전트가 마크다운 규격을 흉내 내는 대신 도구로 기록합니다 — 경로·frontmatter·항목 id 규격은 서버가 보장합니다. 모든 도구는 <code>.oculpm/</code> 이 있는 추적 프로젝트에서만 동작합니다 (유일한 예외: <code>project_init</code>).</p>
+      <span class="eyebrow">MCP 도구 7종</span>
+      <h2 class="sec-title">에이전트가 기록을 읽고 쓰는 구조화 도구</h2>
+      <p class="docs-note">에이전트가 마크다운 규격을 흉내 내는 대신 도구로 기록하고, 쌓인 기록을 도구로 되찾습니다 — 경로·frontmatter·항목 id 규격은 서버가 보장합니다. 모든 도구는 <code>.oculpm/</code> 이 있는 추적 프로젝트에서만 동작합니다 (유일한 예외: <code>project_init</code>).</p>
       <table class="doc-table">
         <thead><tr><th>도구</th><th>하는 일</th></tr></thead>
         <tbody>
+          <tr><td>journal_search</td><td>과거 일지 검색 — 질의(제목·본문·태그)에 더해 <b>그 파일을 건드린 일지</b>·종류·상태·기간·태그로 좁힘. 본문 전문 대신 압축 히트 목록을 돌려주고, 매치 강도순(제목&gt;태그&gt;본문)으로 정렬. 작업 <b>시작 전</b> 호출이 규칙.</td></tr>
+          <tr><td>journal_read</td><td>검색이 고른 일지 1건의 본문 전체. 목록을 훑는 용도가 아니라, 읽을 값어치가 있다고 판단한 뒤에만.</td></tr>
           <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록.</td></tr>
           <tr><td>plan_status</td><td>활성 플랜의 항목·상태를 조회 — "지금 어디까지 됐나"의 근거.</td></tr>
           <tr><td>plan_update</td><td>플랜 항목의 상태를 갱신하고 plan-log 를 남김. 하위를 가진 부모는 롤업 자동이라 직접 갱신 거부.</td></tr>

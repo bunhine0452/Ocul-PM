@@ -61,7 +61,7 @@
     "멀티-LLM AI 패널 (Anthropic·OpenAI·Gemini·OpenRouter + 폴백 체인)",
     "Claude Code 를 앱 안에서 에이전트로 구동 (Agent Client Protocol — 편집 diff 인라인 · 승인 카드에 명령/변경 내용 · 도구 카드 · Effort/모드 · 세션 탭 · 대화 여러 개 동시 진행 · 턴 영수증)",
     "Claude Code · Claude Desktop 직접 연동 (MCP 서버 · 공식 훅 · transcript 일지 초안)",
-    "Claude Code 플러그인 (/plugin 두 줄 설치 — 훅 브리지 · MCP 도구 5종 · 스킬 5종)",
+    "Claude Code 플러그인 (/plugin 두 줄 설치 — 훅 브리지 · MCP 도구 7종 · 스킬 5종)",
     "플래너 ▶실행 디스패치 (계획 항목 → 터미널 프리필 → 에이전트 실세션)",
     "3단계 계획 (하위 작업 중첩 · 부모 상태 자동 롤업)",
     "project-inception 스킬 (웹 리서치 → 근거 실린 대화 → 설계 시드)",
@@ -124,7 +124,7 @@
     {
       "@type": "Question",
       "name": "앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 5종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 7종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다." }
     },
     {
       "@type": "Question",
@@ -296,7 +296,7 @@
     <div class="cell c-span2 reveal"><span class="cell-tag">⌘K · ⌘1~0</span><h3>커맨드 팔레트</h3><p>화면 이동은 물론 일지·계획·토의·문서를 제목으로 검색해 바로 엽니다. diff 검토도 계획 토글도 <b>키보드로 끝</b>납니다.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">멀티 프로젝트</span><h3>창과 탭</h3><p>한 창이 프로젝트 여럿을 크롬식 탭으로 뭅니다. 끌어서 순서 바꾸고, 떼어내 새 창으로 — 터미널 세션은 <b>끊기지 않습니다.</b></p></div>
     <div class="cell c-span2 reveal d2"><span class="cell-tag">스킬 샵</span><h3>검증된 스킬 25종</h3><p>스택을 자동 감지해 맞는 제3자 스킬을 원클릭 설치합니다. 전부 MIT · 커밋 고정.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">/plugin 두 줄</span><h3>Claude Code 플러그인</h3><p>앱 없이도 시작할 수 있습니다 — 훅 브리지 · MCP 도구 5종 · 스킬 5종이 두 줄로 설치됩니다.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">/plugin 두 줄</span><h3>Claude Code 플러그인</h3><p>앱 없이도 시작할 수 있습니다 — 훅 브리지 · MCP 도구 7종 · 스킬 5종이 두 줄로 설치됩니다.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">메뉴바 상주</span><h3>맥 메뉴바에서</h3><p>세션 상태 아이콘과 팝오버 브리핑 — 앱을 열지 않아도 새 일지가 도착한 것을 압니다.</p></div>
     <div class="cell c-span2 reveal d2"><span class="cell-tag">한국어 · English</span><h3>화면 언어 선택</h3><p>UI 는 한국어·영어 중 고르고, AI 가 쓰는 일지의 언어는 따로 정합니다.</p></div>
     <div class="cell c-span2 reveal"><span class="cell-tag">코드 화면</span><h3>앱 안 코드 에디터</h3><p>파일 트리에서 열어 문법 하이라이트와 함께 바로 고치고 <b>⌘S 로 저장</b>합니다. 12개 언어, 테마도 앱을 따라갑니다.</p></div>
@@ -352,7 +352,7 @@
       <li class=""><b>v2.8.0 — 스킬 샵</b> · 프로젝트 스택을 감지(매니페스트 기반, LLM 0)해 <b>검증된 제3자 스킬 25종</b>(MIT·커밋 고정 사본)을 추천 — 검색·미리보기 후 원클릭 설치. 배달 게이트가 "코드 변경 있는데 일지 없음"을 세션당 1회 잡아 에이전트에게 일지를 시킵니다.</li>
       <li class=""><b>v2.7.0 — 벤토 콕핏 홈</b> · 첫 화면의 <b>이어서 일하기</b> 타일이 다음 할 일·최근 기록·14일 활동 추이·마지막 에이전트를 한눈에. 일지 없이 끝난 세션은 Today 가 알려줍니다.</li>
       <li class=""><b>v2.6.0 — 회고도 Claude Code 가</b> · 회고 화면 [Claude Code 로] 버튼 = 프롬프트 프리필→세션이 회고 파일 작성. 반복 태그는 <b>스킬 후보</b>로 승격 제안, <span class="mono">project_init</span> 로 앱 없이 새 프로젝트 추적 시작.</li>
-      <li class=""><b>Claude Code 플러그인</b> — <span class="mono">/plugin</span> 두 줄이면 훅 브리지 · MCP 도구 5종 · 스킬 5종이 전 프로젝트에. 앱이 없어도 기록이 시작됩니다.</li>
+      <li class=""><b>Claude Code 플러그인</b> — <span class="mono">/plugin</span> 두 줄이면 훅 브리지 · MCP 도구 7종 · 스킬 5종이 전 프로젝트에. 앱이 없어도 기록이 시작됩니다.</li>
       <li class=""><b>▶실행 디스패치</b> — 플랜 항목을 누르면 항목+연결 일지+갱신 지시가 조립된 프롬프트가 터미널에 프리필. Enter 한 번으로 실세션이 그 항목을 잡습니다.</li>
       <li class=""><b>3단계 계획 + project-inception</b> — 하위 작업 중첩(부모 상태는 자동 롤업), 아이디어는 웹 리서치→근거 실린 대화로 사양을 확정해 설계 산출물 4종으로 시드.</li>
       <li class=""><b>에이전트 토큰 60% 다이어트</b> — 상시 주입 규칙이 ≈2,900→≈1,150 토큰. 준수를 담보하던 규칙은 전부 유지.</li>
@@ -396,7 +396,7 @@
     <details><summary>어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?</summary><p>Claude Code, Codex CLI, Gemini CLI, Antigravity, pi 는 별도 설정 없이 동작하고, Cursor, Windsurf, GitHub Copilot, aider, Cline, Zed 는 설정에서 규칙 파일을 켜면 됩니다. AGENTS.md 를 읽는 에이전트라면 무엇이든 함께 쓸 수 있어 특정 도구에 묶이지 않습니다.</p></details>
     <details><summary>기록만 남기나요? 산출물도 만들어 주나요?</summary><p>쌓인 작업 일지로 스탠드업 텍스트, PR 본문, 주간 보고를 생성하고, 기간별 회고와 일지 .md 내보내기도 지원합니다. AI 를 설정하면 AI 가 다듬고, 설정이 없어도 기본 형식으로 항상 동작합니다.</p></details>
     <details><summary>내 코드나 데이터가 외부로 나가나요?</summary><p>아니요. 모든 데이터는 프로젝트의 .oculpm/ 폴더와 로컬 SQLite 에 머뭅니다. 외부로 나가는 건 사용자가 직접 호출한 LLM API 와, 새 버전 확인을 위한 업데이트 체크뿐입니다.</p></details>
-    <details><summary>앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?</summary><p>네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 5종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다.</p></details>
+    <details><summary>앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?</summary><p>네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 7종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다.</p></details>
     <details><summary>팀·회사 도입이나 제휴(파트너십)를 문의할 수 있나요?</summary><p>네. Ocul-PM 은 로컬-우선이라 팀에 도입해도 코드와 기록이 밖으로 나가지 않습니다. 기업(Enterprise) 도입, 팀 단위 도입, 제휴·파트너십 제안은 <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> 으로 보내 주세요 — 만든 사람이 직접 읽고 답합니다.</p></details>
     <details><summary>영어(English)도 지원하나요?</summary><p>네. v2.8.5 부터 설정 → 모양에서 화면 언어를 한국어 · English 중에 고르면 12개 화면 전체와 오류 메시지가 함께 바뀝니다. AI 가 쓰는 작업 일지·회고·플래너 항목의 언어는 따로 지정할 수 있어 화면은 영어, 기록은 한국어로 남기는 것도 가능하고, 이미 기록된 문서는 다시 쓰지 않습니다.</p></details>
     <details><summary>지금 다운로드할 수 있나요?</summary><p>네. macOS(Apple Silicon) 빌드를 GitHub Releases 에서 무료로 다운로드할 수 있습니다. Intel · Windows 는 추후 업데이트 예정이며, 이후 버전은 앱 안에서 자동으로 업데이트됩니다.</p></details>

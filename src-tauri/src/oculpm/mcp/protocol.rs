@@ -187,7 +187,15 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            vec!["journal_write", "plan_status", "plan_update", "plan_create", "project_init"]
+            vec![
+                "journal_write",
+                "journal_search",
+                "journal_read",
+                "plan_status",
+                "plan_update",
+                "plan_create",
+                "project_init"
+            ]
         );
 
         let req = json!({

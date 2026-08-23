@@ -78,8 +78,13 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
 
 export type PluginToolDoc = { name: string; desc: string };
 
-/** MCP 도구 5종 — 이름은 동기 테스트가 서버 소스(tools.rs)와 대조한다. */
+/** MCP 도구 7종 — 이름은 동기 테스트가 서버 소스(tools.rs)와 대조한다. */
 export const PLUGIN_TOOLS: readonly PluginToolDoc[] = [
+  {
+    name: "journal_search",
+    desc: "과거 일지 검색 — 그 파일을 건드린 일지·질의·종류·기간으로. 작업 시작 전 호출이 규칙",
+  },
+  { name: "journal_read", desc: "검색이 고른 일지 1건의 본문 전체 — 목록 훑기용이 아님" },
   { name: "journal_write", desc: "작업 단위가 끝날 때마다 일지 1건을 규격대로 기록" },
   { name: "plan_status", desc: "활성 플랜의 항목·상태 조회 — \"지금 어디까지 됐나\"" },
   { name: "plan_update", desc: "플랜 항목 상태 갱신 + plan-log (부모는 하위 롤업 자동)" },

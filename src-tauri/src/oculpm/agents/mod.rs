@@ -800,20 +800,31 @@ mod tests {
     /// TK1 — 템플릿 다이어트 회귀 가드. v5 는 8,031 chars(≈2,900 tok)가 전
     /// 추적 프로젝트의 전 세션에 상시 주입됐다 — 다시 자라면 그 비용이
     /// 그대로 돌아온다. 언어 변형은 버전·핵심 포인터가 항상 패리티여야 한다.
+    ///
+    /// 상한 이력 — 이 숫자는 **예산**이지 물리 한계가 아니다. 올릴 때는 무엇을
+    /// 샀는지 여기 적는다 (조용히 올리면 가드가 무의미해진다):
+    /// - v9 (2026-08-21): en 5,200 → 5,800. §0 "시작 전 과거를 먼저 찾는다"
+    ///   (`journal_search`/`journal_read` 안내)를 샀다. 도구만 있고 규칙이
+    ///   없으면 에이전트가 부르지 않아, 읽기 도구 추가의 절반은 이 문단이다.
+    ///   ko 는 상한 그대로 두고도 들어갔다 (같은 내용에 영어가 문자를 더 쓴다).
     #[test]
     fn master_templates_stay_lean_and_in_parity() {
         let ko = MASTER_KO.chars().count();
         let en = MASTER_EN.chars().count();
         assert!(ko <= 4_800, "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)");
-        assert!(en <= 5_200, "en 마스터 {en} chars — 상한 5,200");
+        assert!(en <= 5_800, "en 마스터 {en} chars — 상한 5,800");
         assert_eq!(
             template_version(MASTER_KO),
             template_version(MASTER_EN),
             "ko/en 템플릿 버전은 항상 함께 bump"
         );
         for (name, t) in [("ko", MASTER_KO), ("en", MASTER_EN)] {
-            assert!(t.contains("plan_create"), "{name}: MCP 도구 4종 안내 누락");
+            assert!(t.contains("plan_create"), "{name}: MCP 쓰기 도구 안내 누락");
             assert!(t.contains("discussion-spec.md"), "{name}: §5 on-demand 포인터 누락");
+            // 읽기 도구는 "있다" 로 부족하고 **언제 부르는지** 가 있어야 실제로
+            // 불린다 — §0 이 그 자리다.
+            assert!(t.contains("journal_search"), "{name}: §0 과거 검색 안내 누락");
+            assert!(t.contains("journal_read"), "{name}: journal_read 안내 누락");
         }
         // wrapper 는 import 금지 — @import 를 확장하는 런타임에서 마스터가
         // 2중 주입되던 위험(v5)의 재발 방지.

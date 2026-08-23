@@ -1,10 +1,20 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 8 -->
+<!-- template_version: 9 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
 
-> **MCP tools first**: when the `oculpm` tools (`journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, **use them instead of writing the files in §2 yourself** — the server guarantees paths, frontmatter and `{#id}` conventions (planner updates in §4 go through `plan_update`, new plans through `plan_create`). Only write files directly when the tools are unavailable.
+> **MCP tools first**: when the `oculpm` tools (`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, **use them instead of writing the files in §2 yourself** — the server guarantees paths, frontmatter and `{#id}` conventions (planner updates in §4 go through `plan_update`, new plans through `plan_create`). Only write files directly when the tools are unavailable.
+
+## 0. Before you start — search the past first
+
+The journal exists to be **re-read**. A long-tracked repo holds hundreds of entries; the cause, the decision, or the approach that already failed may be in there.
+
+- Know the file you'll change? `journal_search(file: "watcher.rs")` — most precise filter; start here.
+- Have a symptom? `journal_search(query: "IME composition", types: ["bug"])`.
+- Expand only what's worth reading: `journal_read(path: …)`. Plan context: `plan_status`.
+
+Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 
 ## 1. When to record (5 triggers)
 

@@ -284,8 +284,16 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         let cmd = format!("/oculpm:{base}");
         assert!(page.contains(&cmd), "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라");
     }
-    // MCP 도구 5종 — tools/list 계약(protocol 테스트)과 같은 목록.
-    for tool in ["journal_write", "plan_status", "plan_update", "plan_create", "project_init"] {
+    // MCP 도구 7종 — tools/list 계약(protocol 테스트)과 같은 목록.
+    for tool in [
+        "journal_write",
+        "journal_search",
+        "journal_read",
+        "plan_status",
+        "plan_update",
+        "plan_create",
+        "project_init",
+    ] {
         assert!(page.contains(tool), "landing/plugin.html 에 MCP 도구 {tool} 문서 누락");
     }
     // 스킬 5종 — 갤러리/매니페스트와 같은 목록.
