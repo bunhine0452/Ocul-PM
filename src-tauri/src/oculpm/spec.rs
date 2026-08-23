@@ -674,3 +674,25 @@ pub struct OculpmJournalPathChanged {
     pub relative_path: String,
     pub op: FileOp,
 }
+
+/// `.oculpm/` 안에서 일지가 **아닌** 데이터 영역이 디스크에서 바뀌었음을 알린다
+/// (계획 · 논의). 이 영역들은 읽을 때마다 파일에서 다시 투영되므로 캐시 무효화가
+/// 필요 없고, UI 가 "다시 읽어라" 신호만 받으면 된다.
+///
+/// 이 이벤트가 없던 동안 계획/논의 화면은 마운트 때 한 번만 읽었다 — 에이전트가
+/// `.oculpm/planner/*.md` 를 고쳐도 사용자가 직접 새로고침하기 전까지 화면은
+/// 옛 내용을 그대로 보여줬다 (도그푸딩 2026-08-21).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum OculpmDataArea {
+    Planner,
+    Discussion,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct OculpmDataChanged {
+    pub project_id: u32,
+    pub area: OculpmDataArea,
+    pub relative_path: String,
+    pub op: FileOp,
+}

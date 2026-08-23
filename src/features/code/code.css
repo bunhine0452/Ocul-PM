@@ -225,6 +225,85 @@
   gap: 12px;
 }
 
+/* 언어 서버 상태 칩. 색은 상태 자체가 아니라 **주의를 요구하는지** 로 정한다 —
+   분석 중/완료는 배경 정보라 흐리게, 없음/오류만 눈에 띈다. */
+.code-status-lsp {
+  color: var(--text-3);
+}
+.code-status-lsp.indexing,
+.code-status-lsp.starting {
+  color: var(--text-2);
+}
+.code-status-lsp.missing,
+.code-status-lsp.failed {
+  color: var(--warn-text, var(--text-2));
+  cursor: help;
+}
+
+/* 진단 밑줄 — CM6 lint 의 기본 색은 앱 토큰과 따로 논다. 물결선을 쓰지 않고
+   실선 밑줄로 두는 이유는 13px 모노 본문에서 물결이 글자와 뭉개져서다. */
+.cm-lintRange-error {
+  background: none;
+  border-bottom: 1.5px solid var(--danger-text, #e5484d);
+}
+.cm-lintRange-warning {
+  background: none;
+  border-bottom: 1.5px dashed var(--warn-text, #d9822b);
+}
+.cm-lintRange-info,
+.cm-lintRange-hint {
+  background: none;
+  border-bottom: 1px dotted var(--text-3);
+}
+.cm-tooltip.cm-tooltip-lint {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  color: var(--text-1);
+  font-size: 12.5px;
+  max-width: 420px;
+}
+.cm-diagnostic {
+  border-left: none;
+  padding: 6px 10px;
+}
+.cm-diagnosticSource {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+/* 호버 툴팁 — 시그니처(고정폭)와 문서(본문체)를 눈으로 구별되게. 폭을 묶는
+   이유는 rust-analyzer 의 문서가 길면 툴팁이 화면을 가로지르기 때문이다. */
+.cm-lsp-hover {
+  max-width: 480px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.cm-lsp-hover pre {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--code-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cm-lsp-hover p {
+  margin: 0 0 6px;
+  color: var(--text-2);
+}
+.cm-lsp-hover > :last-child {
+  margin-bottom: 0;
+}
+/* 시그니처와 문서 사이 옅은 경계 — 마크다운 `---` 를 버린 자리를 대신한다. */
+.cm-lsp-hover pre + p {
+  padding-top: 6px;
+  border-top: 1px solid var(--sep);
+}
+
 /* 충돌 배너 */
 .code-conflict {
   flex: none;

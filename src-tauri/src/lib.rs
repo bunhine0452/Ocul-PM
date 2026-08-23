@@ -14,6 +14,7 @@ pub mod git;
 pub mod home;
 mod indexer;
 mod llm;
+pub mod lsp;
 mod notion;
 pub mod oculpm;
 mod secrets;
@@ -138,6 +139,9 @@ use crate::commands::{
     read_project_file, read_file_range,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
     code_tree, code_read, code_write,
+    // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
+    lsp_status, lsp_open, lsp_change, lsp_close, lsp_completion, lsp_hover,
+    lsp_definition, lsp_rename, lsp_code_actions, lsp_apply_code_action, lsp_stop,
     // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
     docs_tree, docs_read, docs_asset,
     // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
@@ -297,6 +301,17 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         code_tree,
         code_read,
         code_write,
+        lsp_status,
+        lsp_open,
+        lsp_change,
+        lsp_close,
+        lsp_completion,
+        lsp_hover,
+        lsp_definition,
+        lsp_rename,
+        lsp_code_actions,
+        lsp_apply_code_action,
+        lsp_stop,
         // 문서(docs) 뷰어
         docs_tree,
         docs_read,
@@ -478,6 +493,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::oculpm::spec::OculpmAgentDrift,
         crate::oculpm::spec::OculpmAgentsTemplateChanged,
         crate::oculpm::spec::OculpmJournalPathChanged,
+        // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
+        crate::oculpm::spec::OculpmDataChanged,
         // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
         crate::tray::TrayNavigate,
         // 크롬식 탭 — 창별 탭 구성 + 런처의 "열림" 배지
@@ -485,6 +502,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::commands::window::CloseIntent,
         crate::commands::window::ProjectWindowsChanged,
         crate::commands::window::TerminalWindowsChanged,
+        // 코드 인텔리전스 — 진단·서버 상태 (docs/lsp/00-master-plan.md)
+        crate::lsp::state::LspDiagnosticsPublished,
+        crate::lsp::state::LspServerStateChanged,
         // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
         crate::commands::config::SettingsChanged,
     ])
@@ -539,6 +559,8 @@ pub fn run() {
             app.manage(crate::commands::terminal::PtyState::default());
             // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
             app.manage(crate::acp::AcpState::default());
+            // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
+            app.manage(crate::lsp::state::LspState::default());
             // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)

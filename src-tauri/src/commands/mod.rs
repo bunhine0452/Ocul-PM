@@ -14,6 +14,7 @@ pub mod graph;
 pub mod greenfield;
 pub mod home;
 pub mod llm;
+pub mod lsp;
 pub mod mcp;
 pub mod notion;
 pub mod oculpm;
@@ -46,6 +47,7 @@ pub use graph::*;
 pub use greenfield::*;
 pub use home::*;
 pub use llm::*;
+pub use lsp::*;
 pub use mcp::*;
 pub use notion::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.

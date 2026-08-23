@@ -237,7 +237,12 @@ export const commands = {
 	 *  every result with content. Out-of-range bounds clamp to the file.
 	 */
 	readFileRange: (projectId: number, relPath: string, startLine: number, endLine: number) => typedError<string, string>(__TAURI_INVOKE("read_file_range", { projectId, relPath, startLine, endLine })),
-	/**  프로젝트의 코드 파일 트리. gitignore·hidden 을 존중한다 (인덱서와 같은 시야). */
+	/**
+	 *  프로젝트의 코드 파일 트리. gitignore 는 존중하되 **숨김 파일은 보여 준다** —
+	 *  `.oculpm/` · `.claude/` · `.github/` · `.env` 처럼 실제로 편집하는 것들이
+	 *  전부 점 파일이라, 숨기면 이 화면이 IDE 로서 반쪽이 된다 (VS Code 탐색기도
+	 *  점 파일을 보여 준다). 인덱서와는 이 축에서만 시야가 다르다.
+	 */
 	codeTree: (projectId: number) => typedError<CodeTree, string>(__TAURI_INVOKE("code_tree", { projectId })),
 	/**  단일 파일 본문 + 해시. 바이너리/대용량은 본문 없이 플래그만 세운다. */
 	codeRead: (projectId: number, relPath: string) => typedError<CodeFileContent, string>(__TAURI_INVOKE("code_read", { projectId, relPath })),
@@ -246,6 +251,93 @@ export const commands = {
 	 *  트리와 어긋난 유령 경로 생성을 막는다.
 	 */
 	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
+	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
+	lspStatus: (projectId: number) => typedError<LspServerInfo[], string>(__TAURI_INVOKE("lsp_status", { projectId })),
+	/**
+	 *  파일을 열었다고 알린다 (필요하면 서버를 띄운다).
+	 * 
+	 *  반환 `false` = 이 파일은 LSP 대상이 아니거나 서버가 없다. **오류가 아니다** —
+	 *  css·md 를 열 때마다 오류 토스트가 뜨면 안 된다. 왜 안 붙었는지는
+	 *  `LspServerStateChanged` 이벤트가 따로 말한다.
+	 */
+	lspOpen: (projectId: number, path: string, text: string) => typedError<boolean, string>(__TAURI_INVOKE("lsp_open", { projectId, path, text })),
+	/**
+	 *  편집 내용을 서버에 밀어 넣는다 (full sync — 설계 SSOT §문서 동기).
+	 * 
+	 *  프런트가 디바운스해서 부른다. 서버가 없으면 조용히 no-op.
+	 */
+	lspChange: (projectId: number, path: string, text: string) => typedError<boolean, string>(__TAURI_INVOKE("lsp_change", { projectId, path, text })),
+	lspClose: (projectId: number, path: string) => typedError<null, string>(__TAURI_INVOKE("lsp_close", { projectId, path })),
+	/**
+	 *  커서 위치의 자동완성.
+	 * 
+	 *  `line`/`character` 는 **0-based UTF-16** — 프런트가 만든 값을 그대로 넘긴다.
+	 *  여기서 다시 세면 한글이 있는 줄에서 어긋난다 (설계 SSOT §위치 인코딩).
+	 */
+	lspCompletion: (projectId: number, path: string, line: number, character: number) => typedError<LspCompletionItem[], string>(__TAURI_INVOKE("lsp_completion", { projectId, path, line, character })),
+	/**
+	 *  커서 위치의 타입·문서 (호버).
+	 * 
+	 *  `None` = 보여줄 것이 없다 (서버 없음 · 그 자리에 심볼 없음). 오류가 아니다.
+	 */
+	lspHover: (projectId: number, path: string, line: number, character: number) => typedError<{
+	/**  마크다운 원문. 프런트가 코드 블록과 산문으로 갈라 렌더한다. */
+	contents: string,
+} | null, string>(__TAURI_INVOKE("lsp_hover", { projectId, path, line, character })),
+	/**
+	 *  커서 위치 심볼의 정의.
+	 * 
+	 *  프로젝트 **밖**(표준 라이브러리·의존성)을 가리키면 `path` 가 `None` 인
+	 *  위치를 돌려준다 — 코드 화면은 열 수 없지만, 조용히 아무 일도 안 하는 대신
+	 *  어디로 가려 했는지 말할 수 있다.
+	 */
+	lspDefinition: (projectId: number, path: string, line: number, character: number) => typedError<{
+	/**
+	 *  프로젝트 상대 경로. 프로젝트 **밖**(의존성 소스·표준 라이브러리)이면
+	 *  `None` — 코드 화면이 열 수 없는 파일이다. 조용히 아무 일도 안 하는
+	 *  대신 어디로 가려 했는지 말해 주기 위해 `display` 를 함께 준다.
+	 */
+	path: string | null,
+	/**  사람에게 보여줄 이름 (프로젝트 안이면 상대 경로, 밖이면 파일명). */
+	display: string,
+	/**  0-based, LSP 원본 그대로. */
+	line: number,
+	character: number,
+} | null, string>(__TAURI_INVOKE("lsp_definition", { projectId, path, line, character })),
+	/**
+	 *  이름 바꾸기 — 서버가 준 `WorkspaceEdit` 을 **전부 아니면 전무**로 적용한다.
+	 * 
+	 *  이 라운드의 읽기 기능들과 달리 실패 모드가 파괴적이라 순서가 곧 안전장치다
+	 *  (설계 SSOT §이름 바꾸기):
+	 * 
+	 *  1. 모든 파일의 새 내용을 **메모리에서 먼저** 만든다.
+	 *  2. 하나라도 실패하면 아무것도 쓰지 않고 오류를 돌려준다.
+	 *  3. 전부 성공했을 때만 원자적으로 쓴다.
+	 * 
+	 *  되돌리기는 없다 — 다중 파일 undo 스택 대신 git 에 맡긴다(변경 diff 화면이
+	 *  이미 있다). 대신 무엇을 바꿨는지 파일·건수로 보고한다.
+	 * 
+	 *  **미저장 버퍼가 있으면 프런트가 먼저 막는다.** 서버는 `didChange` 로 받은
+	 *  버퍼 내용을 보고 편집을 계산하는데 우리는 디스크에 적용하므로, 둘이 다르면
+	 *  오프셋이 어긋나 엉뚱한 자리를 덮어쓴다.
+	 */
+	lspRename: (projectId: number, path: string, line: number, character: number, newName: string) => typedError<LspRenameResult, string>(__TAURI_INVOKE("lsp_rename", { projectId, path, line, character, newName })),
+	/**
+	 *  커서(또는 선택 범위)에서 쓸 수 있는 코드 액션 목록.
+	 * 
+	 *  진단을 `context` 에 실어 보내는 것이 요점이다 — 서버가 준 **원본** 객체를
+	 *  그대로 돌려줘야 자기 `data` 를 알아보고 quick fix 를 내놓는다.
+	 */
+	lspCodeActions: (projectId: number, path: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number) => typedError<LspCodeAction[], string>(__TAURI_INVOKE("lsp_code_actions", { projectId, path, startLine, startCharacter, endLine, endCharacter })),
+	/**
+	 *  코드 액션 하나를 적용한다.
+	 * 
+	 *  편집 적용은 **이름 바꾸기와 같은 경로**를 쓴다 — 전부-아니면-전무, 뒤에서부터,
+	 *  겹침 거부, 프로젝트 밖 거부. 미저장 버퍼 게이트도 프런트에서 같이 건다.
+	 */
+	lspApplyCodeAction: (projectId: number, path: string, index: number) => typedError<LspRenameResult, string>(__TAURI_INVOKE("lsp_apply_code_action", { projectId, path, index })),
+	/**  이 프로젝트의 언어 서버를 전부 정리한다. */
+	lspStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("lsp_stop", { projectId })),
 	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
 	docsTree: (projectId: number) => typedError<DocsTree, string>(__TAURI_INVOKE("docs_tree", { projectId })),
 	/**  단일 문서의 마크다운 본문을 읽는다. `rel_path` 는 프로젝트 루트 기준 (`docs/...`). */
@@ -1175,8 +1267,11 @@ export const commands = {
 /** Events */
 export const events = {
 	closeIntent: makeEvent<CloseIntent>("close-intent"),
+	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
+	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmAgentsTemplateChanged: makeEvent<OculpmAgentsTemplateChanged>("oculpm-agents-template-changed"),
+	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
 	oculpmIntegrityWarning: makeEvent<OculpmIntegrityWarning>("oculpm-integrity-warning"),
 	oculpmJournalAdded: makeEvent<OculpmJournalAdded>("oculpm-journal-added"),
@@ -2540,6 +2635,117 @@ export type LocalDiffReindexReport = {
 
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";
 
+export type LspCodeAction = {
+	/**
+	 *  마지막 목록에서의 자리. 적용할 때 이 번호로 되짚는다 — 서버별 `data` 가
+	 *  붙은 원본 객체를 프런트로 왕복시키지 않기 위해서다.
+	 */
+	index: number,
+	title: string,
+	/**  `quickfix` · `refactor` · `source` … 없을 수도 있다. */
+	kind: string | null,
+	/**  서버가 "이걸 먼저" 라고 표시한 것 (대개 가장 그럴듯한 fix). */
+	preferred: boolean,
+};
+
+export type LspCompletionItem = {
+	label: string,
+	/**  타입/시그니처 — 목록 오른쪽에 흐리게. */
+	detail: string | null,
+	/**  `function` · `variable` · `struct` … CM6 아이콘으로 매핑된다. */
+	kind: string | null,
+	/**  라벨과 실제로 넣을 텍스트가 다를 때만 (`insertText`/`textEdit`). */
+	insert_text: string | null,
+	/**  정렬용 — 서버가 준 순서를 존중한다. CM6 가 자체 정렬하지 않게 한다. */
+	sort_text: string | null,
+};
+
+export type LspDiagnostic = {
+	/**  0-based, LSP 원본 그대로 (UTF-16 코드 유닛). */
+	start_line: number,
+	start_character: number,
+	end_line: number,
+	end_character: number,
+	severity: LspSeverity,
+	message: string,
+	/**  `rustc` · `clippy` · `ts` 등. 어느 도구가 한 말인지 밝힌다. */
+	source: string | null,
+};
+
+/**
+ *  진단이 갱신됐다. 창을 가리지 않고 전역으로 나가고, 코드 화면이
+ *  `project_id` + `path` 로 거른다 (OculpmFileChanged 와 같은 방식).
+ */
+export type LspDiagnosticsPublished = {
+	project_id: number,
+	/**  프로젝트 상대 경로. */
+	path: string,
+	diagnostics: LspDiagnostic[],
+};
+
+export type LspHover = {
+	/**  마크다운 원문. 프런트가 코드 블록과 산문으로 갈라 렌더한다. */
+	contents: string,
+};
+
+export type LspLocation = {
+	/**
+	 *  프로젝트 상대 경로. 프로젝트 **밖**(의존성 소스·표준 라이브러리)이면
+	 *  `None` — 코드 화면이 열 수 없는 파일이다. 조용히 아무 일도 안 하는
+	 *  대신 어디로 가려 했는지 말해 주기 위해 `display` 를 함께 준다.
+	 */
+	path: string | null,
+	/**  사람에게 보여줄 이름 (프로젝트 안이면 상대 경로, 밖이면 파일명). */
+	display: string,
+	/**  0-based, LSP 원본 그대로. */
+	line: number,
+	character: number,
+};
+
+export type LspRenameResult = {
+	files: LspRenamedFile[],
+	total_edits: number,
+};
+
+export type LspRenamedFile = {
+	/**  프로젝트 상대 경로. */
+	path: string,
+	edit_count: number,
+};
+
+export type LspServerInfo = {
+	language_id: string,
+	command: string,
+	state: LspServerState,
+	/**  서버 루트 (프로젝트 상대). 모노레포에서 어느 워크스페이스에 붙었는지. */
+	root: string | null,
+	detail: string | null,
+};
+
+export type LspServerState = 
+/**  프로세스는 떴고 initialize 진행 중. */
+"starting" | 
+/**
+ *  인덱싱 중 — 진단이 아직 안 올 수 있다. 이 상태를 밝히지 않으면
+ *  사용자가 "고장" 으로 읽는다.
+ */
+"indexing" | "ready" | 
+/**  바이너리가 PATH 에 없다. 조용히 실패하지 않고 이 사실을 말한다. */
+"missing" | "failed" | "stopped";
+
+/**
+ *  서버 상태가 바뀌었다. 상태줄이 이걸 읽는다 — "인덱싱 중" 을 밝히지 않으면
+ *  진단이 안 오는 동안 사용자는 고장으로 읽는다.
+ */
+export type LspServerStateChanged = {
+	project_id: number,
+	language_id: string,
+	state: LspServerState,
+	detail: string | null,
+};
+
+export type LspSeverity = "error" | "warning" | "info" | "hint";
+
 export type ManualEntryDraft = {
 	type: EntryType,
 	slug: string,
@@ -2641,6 +2847,24 @@ export type OculpmConfig = {
 	git: GitConfig,
 	watcher: WatcherConfig,
 	agents: AgentsConfig,
+};
+
+/**
+ *  `.oculpm/` 안에서 일지가 **아닌** 데이터 영역이 디스크에서 바뀌었음을 알린다
+ *  (계획 · 논의). 이 영역들은 읽을 때마다 파일에서 다시 투영되므로 캐시 무효화가
+ *  필요 없고, UI 가 "다시 읽어라" 신호만 받으면 된다.
+ * 
+ *  이 이벤트가 없던 동안 계획/논의 화면은 마운트 때 한 번만 읽었다 — 에이전트가
+ *  `.oculpm/planner/*.md` 를 고쳐도 사용자가 직접 새로고침하기 전까지 화면은
+ *  옛 내용을 그대로 보여줬다 (도그푸딩 2026-08-21).
+ */
+export type OculpmDataArea = "planner" | "discussion";
+
+export type OculpmDataChanged = {
+	project_id: number,
+	area: OculpmDataArea,
+	relative_path: string,
+	op: FileOp,
 };
 
 export type OculpmFileChanged = {

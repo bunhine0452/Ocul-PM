@@ -17,7 +17,12 @@ import {
   AlertTriangle,
   Search,
 } from "@/components/Icons";
-import { commands, events, type CodeTree as CodeTreeData } from "@/lib/bindings";
+import {
+  commands,
+  events,
+  type CodeTree as CodeTreeData,
+  type LspCodeAction,
+} from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { safeUnlistenPromise } from "@/lib/unlisten";
@@ -27,6 +32,8 @@ import { tError } from "@/i18n/errors";
 
 import { CodeTree } from "./CodeTree";
 import { CodeEditor } from "./CodeEditor";
+import { useLsp } from "./useLsp";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { langIdForPath, langLabel } from "./codeLang";
 import { ancestorDirs, collectDirs, collectFiles, filterTree, formatBytes } from "./treeUtils";
 import {
@@ -102,6 +109,11 @@ export function CodeScreenV2({
 
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+
+  // 언어 서버 — `editorEpoch` 를 같이 넘긴다. 파일을 고른 순간이 아니라 **내용이
+  // 실제로 로드된 순간**에 didOpen 이 나가야 서버가 빈 문서를 보고 엉뚱한 진단을
+  // 내지 않는다 (에디터 재마운트와 같은 신호를 쓴다).
+  const lsp = useLsp(projectId, selected, bufferRef.current?.text ?? "", editorEpoch);
   // watcher 가 "파일이 사라졌다" 토스트를 같은 파일에 반복하지 않기 위한 부기.
   const goneNotifiedRef = useRef<string | null>(null);
 
@@ -232,6 +244,133 @@ export function CodeScreenV2({
     onOpenTargetConsumed();
   }, [openTarget, onOpenTargetConsumed]);
 
+  // ── 정의로 이동 (F12 · ⌘클릭) ──────────────────────────────────────────
+  //
+  // 세 갈래다. 셋 다 **말은 한다** — 조용히 아무 일도 안 하면 사용자는 기능이
+  // 고장난 줄 안다.
+  const goToDefinition = useCallback(
+    (line: number, character: number) => {
+      void (async () => {
+        const loc = await lsp.definition(line, character);
+        if (!loc) {
+          toast.info(t("code.lsp.noDefinition"));
+          return;
+        }
+        if (!loc.path) {
+          // 표준 라이브러리·의존성 — 코드 화면은 프로젝트 안만 연다.
+          toast.info(t("code.lsp.definitionOutside", { file: loc.display }));
+          return;
+        }
+        // jumpLine 은 1-based, LSP 는 0-based.
+        setPendingJump(loc.line + 1);
+        setSelected(loc.path);
+      })();
+    },
+    [lsp, t],
+  );
+
+  // ── 이름 바꾸기 (F2) ───────────────────────────────────────────────────
+  //
+  // 이 화면에서 유일하게 **여러 파일을 한꺼번에 고치는** 동작이다. 백엔드가
+  // 전부-아니면-전무로 적용하지만, 그 전에 프런트가 막아야 하는 것이 하나 있다:
+  // **미저장 버퍼**. 서버는 didChange 로 받은 버퍼 내용을 보고 편집을 계산하는데
+  // 백엔드는 디스크에 적용하므로, 둘이 다르면 엉뚱한 자리를 덮어쓴다.
+  const [renameAt, setRenameAt] = useState<{ line: number; character: number } | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const startRename = useCallback(
+    (line: number, character: number, word: string) => {
+      if (dirtyPaths.size > 0) {
+        toast.warning(t("code.lsp.renameNeedsSave"));
+        return;
+      }
+      setRenameName(word);
+      setRenameAt({ line, character });
+    },
+    [dirtyPaths, t],
+  );
+
+  const submitRename = useCallback(() => {
+    const at = renameAt;
+    const next = renameName.trim();
+    const path = selectedRef.current;
+    if (!at || !next || !path || renaming) return;
+    setRenaming(true);
+    void (async () => {
+      const res = await commands.lspRename(projectId, path, at.line, at.character, next);
+      setRenaming(false);
+      if (res.status === "error") {
+        toast.destructive(tError(res.error));
+        return;
+      }
+      setRenameAt(null);
+      toast.info(
+        t("code.lsp.renameDone", { files: res.data.files.length, edits: res.data.total_edits }),
+      );
+      // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
+      void loadFile(path, { discardBuffer: true });
+      setEditorEpoch((n) => n + 1);
+    })();
+  }, [renameAt, renameName, renaming, projectId, t, loadFile]);
+
+  // ── 코드 액션 (⌘.) ─────────────────────────────────────────────────────
+  //
+  // 이름 바꾸기와 같은 이유로 미저장 게이트를 건다 — 서버는 버퍼를, 백엔드는
+  // 디스크를 본다.
+  const [actions, setActions] = useState<LspCodeAction[] | null>(null);
+  const [actionsBusy, setActionsBusy] = useState(false);
+
+  const openCodeActions = useCallback(
+    (sl: number, sc: number, el: number, ec: number) => {
+      if (dirtyPaths.size > 0) {
+        toast.warning(t("code.lsp.renameNeedsSave"));
+        return;
+      }
+      setActionsBusy(true);
+      setActions([]);
+      void (async () => {
+        const list = await lsp.codeActions(sl, sc, el, ec);
+        setActionsBusy(false);
+        if (list.length === 0) {
+          setActions(null);
+          toast.info(t("code.lsp.noActions"));
+          return;
+        }
+        setActions(list);
+      })();
+    },
+    [dirtyPaths, lsp, t],
+  );
+
+  const runCodeAction = useCallback(
+    (index: number) => {
+      const path = selectedRef.current;
+      if (!path || actionsBusy) return;
+      setActionsBusy(true);
+      void (async () => {
+        try {
+          const res = await lsp.applyCodeAction(index);
+          setActions(null);
+          if (res) {
+            toast.info(
+              t("code.lsp.renameDone", { files: res.files.length, edits: res.total_edits }),
+            );
+            // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
+            void loadFile(path, { discardBuffer: true });
+            setEditorEpoch((n) => n + 1);
+          }
+        } catch (e) {
+          toast.destructive(tError(e instanceof Error ? e.message : String(e)));
+        } finally {
+          setActionsBusy(false);
+        }
+      })();
+    },
+    [actionsBusy, lsp, t, loadFile],
+  );
+
   // ── 편집·저장 ──────────────────────────────────────────────────────────
   const handleChange = useCallback(
     (text: string) => {
@@ -244,8 +383,11 @@ export function CodeScreenV2({
       const nowDirty = text !== next.baseText;
       setDirty((prev) => (prev === nowDirty ? prev : nowDirty));
       if (nowDirty !== dirtyPaths.has(path)) refreshDirtyPaths();
+      // 저장을 기다리지 않고 서버에 밀어 넣는다 — 진단은 미저장 상태에서
+      // 가장 쓸모 있다 (내부에서 디바운스).
+      lsp.pushText(text);
     },
-    [projectId, dirtyPaths, refreshDirtyPaths],
+    [projectId, dirtyPaths, refreshDirtyPaths, lsp],
   );
 
   const applySaved = useCallback(
@@ -405,6 +547,26 @@ export function CodeScreenV2({
   const langId = selected ? langIdForPath(selected) : null;
   const buf = bufferRef.current;
 
+  // 서버 상태를 한 낱말로. **"인덱싱 중" 을 밝히는 것이 요점** — rust-analyzer 는
+  // 첫 기동에 수십 초를 쓰는데, 그동안 진단이 안 오는 것을 "안 붙었다" 와
+  // 구별할 수 없으면 사용자는 고장으로 읽는다.
+  const lspLabel = ((): string | null => {
+    switch (lsp.status.state) {
+      case "indexing":
+        return t("code.lsp.indexing");
+      case "ready":
+        return t("code.lsp.ready");
+      case "starting":
+        return t("code.lsp.starting");
+      case "missing":
+        return t("code.lsp.missing");
+      case "failed":
+        return t("code.lsp.failed");
+      default:
+        return null;
+    }
+  })();
+
   return (
     <>
       <Toolbar
@@ -545,6 +707,12 @@ export function CodeScreenV2({
                     initialText={buf.text}
                     path={selected ?? ""}
                     onChange={handleChange}
+                    diagnostics={lsp.diagnostics}
+                    onComplete={lsp.complete}
+                    onHover={lsp.hover}
+                    onGoToDefinition={goToDefinition}
+                    onRename={startRename}
+                    onCodeActions={openCodeActions}
                     onSave={() => void saveRef.current()}
                     onCursor={(line, col) => setCursor({ line, col })}
                     jumpLine={pendingJump}
@@ -560,6 +728,14 @@ export function CodeScreenV2({
                     Ln {cursor.line}, Col {cursor.col}
                   </span>
                   <span className="code-status-right">
+                    {lspLabel ? (
+                      <span
+                        className={"code-status-lsp " + (lsp.status.state ?? "")}
+                        title={lsp.status.detail ?? undefined}
+                      >
+                        {lspLabel}
+                      </span>
+                    ) : null}
                     <span>{langLabel(langId)}</span>
                     <span>{formatBytes(fileView.bytes)}</span>
                   </span>
@@ -569,6 +745,86 @@ export function CodeScreenV2({
           </div>
         </div>
       )}
+
+      <AppDialog
+        open={renameAt != null}
+        onClose={() => setRenameAt(null)}
+        label={t("code.lsp.renameTitle")}
+        width={420}
+        initialFocusRef={renameInputRef}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitRename();
+          }}
+          style={{ padding: "18px 20px 16px" }}
+        >
+          <label
+            htmlFor="code-rename-input"
+            style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8 }}
+          >
+            {t("code.lsp.renameTitle")}
+          </label>
+          <input
+            id="code-rename-input"
+            ref={renameInputRef}
+            className="input"
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            disabled={renaming}
+            spellCheck={false}
+            autoComplete="off"
+            style={{ width: "100%", fontFamily: "var(--mono)" }}
+          />
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+            {t("code.lsp.renameHint")}
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <button type="button" className="btn sm" onClick={() => setRenameAt(null)} disabled={renaming}>
+              {t("common.cancel")}
+            </button>
+            <button type="submit" className="btn sm primary" disabled={renaming || !renameName.trim()}>
+              {renaming ? t("code.lsp.renaming") : t("code.lsp.renameApply")}
+            </button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        open={actions != null && actions.length > 0}
+        onClose={() => setActions(null)}
+        label={t("code.lsp.actionsTitle")}
+        width={460}
+      >
+        <div style={{ padding: "16px 20px 18px" }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>
+            {t("code.lsp.actionsTitle")}
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(actions ?? []).map((a) => (
+              <button
+                key={a.index}
+                type="button"
+                className="btn sm"
+                disabled={actionsBusy}
+                onClick={() => runCodeAction(a.index)}
+                style={{ justifyContent: "flex-start", textAlign: "left", gap: 8 }}
+              >
+                {/* 서버가 "이걸 먼저" 라고 표시한 것 — 대개 진짜 고치려던 fix 다. */}
+                {a.preferred ? <span style={{ color: "var(--accent-text)" }}>★</span> : null}
+                <span style={{ flex: 1 }}>{a.title}</span>
+                {a.kind ? (
+                  <span style={{ fontSize: 11, color: "var(--text-3)" }}>{a.kind}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+            {t("code.lsp.renameHint")}
+          </p>
+        </div>
+      </AppDialog>
     </>
   );
 }
