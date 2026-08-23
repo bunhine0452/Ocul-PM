@@ -55,7 +55,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.16.0 — tabs, splits, a debugger, and agent edits visible inside the editor
+## 🚀 v2.17.0 — live refresh now heals itself
+
+- **Self-healing file watching** — agents could edit journals and plans and the screen wouldn't follow until you right-clicked → reload. The watcher died silently in two ways; the app now **probes every minute that events actually flow** and revives a deaf watcher on the spot, and a failed start says "recovering" instead of staying quiet. Running two instances no longer leaves the newer window read-only forever — **the most recently opened window wins** the project lock.
+- **Dispatch stops stealing your screen** — if a terminal is already visible (⌘J dock, detached window), ▶Run prefills **in place**; and if an agent like Claude Code is mid-conversation in the target pane, the prompt is **pasted into that conversation** instead of nuking its context. Enter is always yours to press.
+- **Keyboard-first code tabs** — ⌘W closes the code tab first (the project tab only when none are left), ⌃Tab · ⇧⌘]·[ cycle tabs, ⇧⌘T reopens a closed tab, ⌘N creates a file in the current folder. Shortcut hints in the tab menu and a bigger empty-state cheat sheet.
+- **Sidebar cleanup** — Discussions gets its real name and icon, "Changes" becomes **Diff**, "Agent" becomes **AI Chat** (no more collision with Claude Code, the actual agent surface), a new **AI section** groups them, and Code moves next to the other code tools. ⌘K still finds everything by the old names. The integration settings tab now separates per-project from machine-wide scope.
+
+## v2.16.0 — tabs, splits, a debugger, and agent edits visible inside the editor
 
 - **Tabs, split view, file operations** — open several files as tabs, split the editor to see two side by side. Right-click the tree to create and rename, drag to move, and deletion goes to the **Trash** (recoverable even if you nuke a folder). If a renamed or deleted file is open, its tab and unsaved edits follow along.
 - **The rest of the LSP surface** — ⇧F12 **find references** (with source previews), an **outline** in the sidebar, **workspace symbols in ⌘K**, **signature help** while typing arguments, ⇧⌥F **formatting** (selection-only too, plus format-on-save), and a **git gutter**. Settings → Code turns servers off or points them at a binary.
