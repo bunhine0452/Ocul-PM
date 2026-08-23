@@ -33,10 +33,11 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 
 ## Phase 0 — 지연 로딩 트리 {#p0-tree}
 - [x] 숨김 파일 표시 + `.git` 예외 (v2.15.0 선행분) {#hidden-done}
-- [ ] `code_dir` — 디렉터리 한 단계만 읽는 커맨드 (파일/폴더 · 크기 · gitignore 여부). 기존 `code_tree` 는 필터 검색용으로 남길지 함께 판단 {#tree-backend}
-- [ ] 프런트 — 펼침 시 로드 · 로딩 표시 · 이미 읽은 단계 캐시 · 접었다 펴도 재요청 안 함 {#tree-frontend}
-- [ ] gitignore 항목은 흐리게(dim) 구분 — 보이되 "이건 저장소가 무시한다" 를 밝힌다 {#tree-dim}
-- [ ] 필터 입력이 지연 로딩과 어긋나지 않게 — 안 읽은 가지의 매치를 어떻게 찾을지 결정 {#tree-filter}
+- [x] `code_dir` — 디렉터리 한 단계만. 무시 여부는 손으로 판정하지 않고 `max_depth(1)` 걸음이 살려 둔 집합과 대조해 얻는다 (판정 주체를 하나로) {#tree-backend}
+- [x] 프런트 — `childrenOf(경로)` 조회. `undefined`(미로드)와 `[]`(빈 폴더)를 구별하는 것이 요점 {#tree-frontend}
+- [x] gitignore 항목은 흐리게 + title 로 이유 {#tree-dim}
+- [~] 필터는 **전량 걸음을 그대로 남겨** 쓰기로 결정 — 안 읽은 가지의 매치는 지연 로딩으로 못 찾는다. 렌더러는 `flattenToDirMap` 으로 하나 유지. 남은 것: 무시된 파일은 이름으로도 검색되지 않는다 {#tree-filter}
+- [ ] 인앱 육안 확인 — 큰 폴더 펼침 반응성 · 흐린 표시의 가독성 {#tree-verify}
 
 ## Phase 1 — 탭과 파일 조작 {#p1-tabs}
 - [ ] 탭 바 — 여러 파일 동시 열기. 버퍼 캐시(`codeBuffers`, 20개 상한)는 이미 있으니 UI 만 {#tabs-bar}
@@ -72,3 +73,13 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 - **확장 호스트** — 포크를 접은 이유와 같다.
 - **서버·어댑터 자동 설치** — 조용히 네트워크를 타고 바이너리를 받는 것은 로컬 우선
   원칙과 맞지 않는다. 미설치는 설치 방법 안내로 끝낸다.
+
+<!-- oculpm:plan-log begin v1 -->
+| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
+|---|---|---|---|---|---|
+| 2026-08-23T11:50:00+09:00 | #hidden-done | claude-code | ☐→x | .oculpm/journal/20260823/Bugs/1146_bug_code-tree-hidden-files.md | v2.15.0 선행분 — 숨김 축만, gitignore 축은 지연 로딩 전제 |
+| 2026-08-23T12:35:00+09:00 | #tree-backend | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | code_dir + 무시 판정을 같은 걸음에 위임 · 테스트 3 |
+| 2026-08-23T12:35:01+09:00 | #tree-frontend | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | childrenOf 조회 · 미로드/빈폴더 구별 · 새로고침이 캐시도 버림 |
+| 2026-08-23T12:35:02+09:00 | #tree-dim | claude-code | ☐→x | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | opacity .45 + title · reduced-motion 대응 |
+| 2026-08-23T12:35:03+09:00 | #tree-filter | claude-code | ☐→~ | .oculpm/journal/20260823/Features_to_add/1235_feature_lazy-code-tree.md | 전량 걸음 유지로 결정. 무시된 파일이 검색 안 되는 것은 남음 |
+<!-- oculpm:plan-log end -->
