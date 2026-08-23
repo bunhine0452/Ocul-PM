@@ -144,3 +144,32 @@ describe("ClaudeHooksBlock (PR-CI0)", () => {
     expect(summarize(results)).toEqual([]);
   });
 });
+
+// ─── 플러그인 겹침 고지 ────────────────────────────────────────────────────
+//
+// 머신 전역 플러그인이 같은 SessionStart/Stop/SessionEnd 훅을 건다. 경고가
+// 플러그인 블록에만 있으면 프로젝트 섹션까지 스크롤한 사용자는 못 본다.
+
+describe("ClaudeHooksBlock — 플러그인 겹침", () => {
+  it("훅 꺼짐: 켤 필요 없다는 정보 (경고 색 아님)", async () => {
+    const r = render(<ClaudeHooksBlock projectId={20} pluginInstalled />);
+    await waitFor(() => expect(r.getByText("꺼짐")).toBeTruthy());
+    const note = r.getByText(/또 켤 필요가 없습니다/);
+    expect(note.className).not.toContain("text-amber-400");
+  });
+
+  it("훅 켜짐: 이중 적재 경고로 문구·색이 바뀐다", async () => {
+    fx.status = status({ installed: true });
+    const r = render(<ClaudeHooksBlock projectId={21} pluginInstalled />);
+    await waitFor(() => expect(r.getByText("연동됨")).toBeTruthy());
+    const warn = r.getByText(/두 번 적재됩니다/);
+    expect(warn.className).toContain("text-amber-400");
+  });
+
+  it("플러그인 미설치면 고지가 안 뜬다", async () => {
+    fx.status = status({ installed: true });
+    const r = render(<ClaudeHooksBlock projectId={22} />);
+    await waitFor(() => expect(r.getByText("연동됨")).toBeTruthy());
+    expect(r.queryByText(/플러그인/)).toBeNull();
+  });
+});

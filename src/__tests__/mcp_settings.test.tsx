@@ -85,7 +85,7 @@ vi.mock("@/lib/bindings", () => {
   };
 });
 
-import { McpServerBlock } from "@/features/settings/OculpmSettings";
+import { ClaudePluginBlock, McpServerBlock } from "@/features/settings/OculpmSettings";
 
 beforeEach(() => {
   fx.status = status();
@@ -179,5 +179,97 @@ describe("McpServerBlock (PR-CI2)", () => {
     await waitFor(() => expect(r.getByText("바이너리 없음")).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
+  });
+
+  // ─── 적용 범위 표시 ──────────────────────────────────────────────────────
+  //
+  // 이 블록의 두 등록은 **프로젝트별**이다. 머신 전역인 플러그인·ACP·셸과
+  // 한 카드에 섞여 있어 "등록됨" 배지가 어느 범위를 말하는지 알 수 없었다.
+  // 섹션 머리말은 스크롤하면 사라지므로 칩이 블록 안에 남아야 한다.
+
+  it("MCP·Desktop 헤더가 각각 프로젝트 범위 칩을 단다", async () => {
+    const r = render(<McpServerBlock projectId={8} />);
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    expect(r.getByText("이 프로젝트")).toBeTruthy();
+    // Desktop 은 설정 파일이 머신에 하나지만 키가 프로젝트별이라 문구가 다르다.
+    expect(r.getByText("이 프로젝트 키")).toBeTruthy();
+  });
+
+  it("플러그인 파트가 이 블록에서 빠졌다 (머신 전역 섹션으로 이사)", async () => {
+    const r = render(<McpServerBlock projectId={8} />);
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    expect(r.queryByRole("button", { name: "설치 명령 복사" })).toBeNull();
+    expect(r.queryByText("이 머신 전체")).toBeNull();
+  });
+});
+
+describe("ClaudePluginBlock (머신 전역)", () => {
+  it("머신 범위 칩 + 미설치 배지 — projectId 없이 렌더된다", () => {
+    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null }} />);
+    expect(r.getByText("미설치")).toBeTruthy();
+    expect(r.getByText("이 머신 전체")).toBeTruthy();
+    expect(r.queryByText("이 프로젝트")).toBeNull();
+  });
+
+  it("설치됨: 이중 설정 경고가 프로젝트 섹션 이름으로 안내한다", () => {
+    const r = render(
+      <ClaudePluginBlock plugin={{ installed: true, path: "/home/u/.claude/plugins/oculpm" }} />,
+    );
+    expect(r.getByText("설치됨")).toBeTruthy();
+    // 블록이 이사했으므로 "아래" 같은 위치 표현은 더 이상 참이 아니다.
+    const warn = r.getByText(/이벤트가 이중 적재/);
+    expect(warn.textContent).toContain("이 프로젝트에만 적용");
+    expect(warn.textContent).not.toContain("아래");
+  });
+
+  it("상태 미확인(null): 확인 중 배지", () => {
+    const r = render(<ClaudePluginBlock plugin={null} />);
+    expect(r.getByText("확인 중…")).toBeTruthy();
+  });
+
+  it("설치 명령을 클립보드에 복사한다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null }} />);
+    fireEvent.click(r.getByRole("button", { name: "설치 명령 복사" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith("/plugin marketplace add bunhine0452/Ocul-PM"),
+    );
+  });
+});
+
+// ─── 플러그인 겹침 고지 (프로젝트 섹션 쪽) ────────────────────────────────
+//
+// 경고가 플러그인 블록에만 붙어 있으면 프로젝트 섹션까지 스크롤한 사용자는
+// 못 본다. 켜져 있으면 실제 이중 적재라 경고, 꺼져 있으면 "켤 필요 없다" 는
+// 정보 — 문구가 상태에 따라 갈리는 것이 이 고지의 핵심이다.
+
+describe("플러그인 겹침 고지", () => {
+  it("MCP 미등록: 등록할 필요 없다는 정보 (경고 아님)", async () => {
+    const r = render(<McpServerBlock projectId={10} pluginInstalled />);
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    expect(r.getByText(/또 등록할 필요가 없습니다/)).toBeTruthy();
+    expect(r.queryByText(/도구가 2벌 노출됩니다/)).toBeNull();
+  });
+
+  it("MCP 등록됨: 실제 겹침 경고로 문구가 바뀐다", async () => {
+    fx.status = status({ registered: true });
+    const r = render(<McpServerBlock projectId={11} pluginInstalled />);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    const warn = r.getByText(/도구가 2벌 노출됩니다/);
+    expect(warn.className).toContain("text-amber-400");
+  });
+
+  it("Desktop 은 플러그인이 안 덮는다고 따로 안내한다", async () => {
+    const r = render(<McpServerBlock projectId={12} pluginInstalled />);
+    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    expect(r.getByText(/Claude Desktop 은 겹치지 않으니/)).toBeTruthy();
+  });
+
+  it("플러그인 미설치면 고지가 아예 안 뜬다", async () => {
+    fx.status = status({ registered: true });
+    const r = render(<McpServerBlock projectId={13} />);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    expect(r.queryByText(/플러그인/)).toBeNull();
   });
 });
