@@ -57,7 +57,7 @@ LSP `Position.character` 는 UTF-16 코드 유닛이고 JS 문자열도 UTF-16 �
 - [x] 코드 액션 — quick fix 적용 {#lsp-code-action}
 
 ## Phase 3 — 설정 {#p3-config}
-- [ ] 설정 화면 — 언어별 켜기/끄기·서버 경로 오버라이드·미설치 안내 {#lsp-settings}
+- [ ] 설정 화면 — 언어별 켜기/끄기·서버 경로 오버라이드·미설치 안내. **[ide-completion](ide-completion.md) #lsp-settings-screen 으로 이관** (2026-08-23) — 남은 LSP 창구와 한 라운드에 묶는 편이 낫다 {#lsp-settings}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -76,4 +76,5 @@ LSP `Position.character` 는 UTF-16 코드 유닛이고 JS 문자열도 UTF-16 �
 | 2026-08-21T22:05:00+09:00 | #lsp-verify | claude-code | ~→x | .oculpm/journal/20260821/Features_to_add/2201_feature_lsp-hover-and-definition.md | 사용자가 앱에서 육안 확인 |
 | 2026-08-21T22:16:00+09:00 | #lsp-rename | claude-code | ☐→x | .oculpm/journal/20260821/Features_to_add/2216_feature_lsp-rename.md | 전부-아니면-전무 적용 · UTF-16→바이트 변환을 edit.rs 한 곳에 · 실서버로 3곳+한글 검증 |
 | 2026-08-21T22:26:00+09:00 | #lsp-code-action | claude-code | ☐→x | .oculpm/journal/20260821/Features_to_add/2226_feature_lsp-code-actions.md | 원본 진단을 context 로 · command 전용 제외 · 적용은 rename 과 공용 경로 |
+| 2026-08-23T12:20:00+09:00 | #lsp-settings | claude-code | ☐→☐ | .oculpm/journal/20260823/Chores/1215_chore_release-v2-15-0.md | ide-completion #lsp-settings-screen 으로 이관 — Phase 0~2 는 v2.15.0 으로 출시됨 |
 <!-- oculpm:plan-log end -->
