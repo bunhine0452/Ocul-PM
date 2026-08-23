@@ -81,6 +81,11 @@ const DISK_CONTENT = new Set([
   "features/skills/rulesModel.ts",
   // 같음 (.claude/skills/<name>/SKILL.md).
   "features/skills/skillsModel.ts",
+  // 문제 해결 문서의 시작 템플릿 본문 + 파서가 인식하는 `## ` 섹션 제목.
+  // `.oculpm/discussion/<slug>/discussion.md` 에 그대로 기록되는 내용이고,
+  // 축도 UI 언어가 아니라 작성 언어(`getContentLang()`)라 ko/en 두 벌을 이
+  // 파일이 직접 들고 있다.
+  "features/discussion/discussionTemplates.ts",
   // 플러그인 실표면(plugin/oculpm/**)의 **거울**. `plugin_docs_sync.test.ts` 가
   // `description` 을 커맨드 .md 의 frontmatter 와 글자 단위로 일치시킨다 —
   // 여기만 번역하면 그 게이트가 깨지고, 앱이 플러그인의 실제 문구를 잘못
@@ -134,6 +139,8 @@ const TESTS = new Set([
   "__tests__/defer_ledger_v2.test.tsx",
   "__tests__/diff_v2.test.tsx",
   "__tests__/discussion_v2.test.tsx",
+  "__tests__/discussion_edit.test.ts",
+  "__tests__/discussion_editor.test.tsx",
   "__tests__/docs_resolve.test.ts",
   "__tests__/edd_lite_v2.test.tsx",
   "__tests__/error_boundary.test.tsx",

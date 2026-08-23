@@ -1,60 +1,59 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
-import { Markdown } from "@/components/Markdown";
 import { OculSpinner } from "@/components/OculSpinner";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Check,
-  Paperclip,
-  X,
-  Save,
-  ArrowRight,
-  TargetIcon,
-  RotateCcw,
-} from "@/components/Icons";
+import { AppDialog } from "@/components/ui/AppDialog";
+import { Plus, Pencil, Check, ArrowRight, TargetIcon, Clipboard, ClipboardCheck } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
-import {
-  commands,
-  type DiscussionSummary,
-  type DiscussionDetail,
-  type DiscussionAttachmentDto,
-} from "@/lib/bindings";
+import { commands, type DiscussionSummary, type DiscussionDetail } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
 import "./discussion.css";
 import { tError } from "@/i18n/errors";
+import type { EditorMode } from "./DiscussionEditor";
+import { DiscussionView } from "./DiscussionView";
+import { shortDate, statusMeta } from "./discussionFormat";
+import { appendLogRowOp, localIsoWithOffset } from "./mdEdit";
+import { buildDiscussionPrompt, promptKindFor } from "./discussionPrompt";
+import { logColumns, sectionHeadings, TEMPLATE_IDS, templateBody, type TemplateId } from "./discussionTemplates";
 
 interface Props {
   projectId: number;
   onNavigate: (view: UiV2View) => void;
 }
 
-const STATUS_META: Record<string, { labelKey: I18nKey; cls: string }> = {
-  open: { labelKey: "disc.status.open", cls: "open" },
-  resolved: { labelKey: "disc.status.resolved", cls: "resolved" },
-  archived: { labelKey: "disc.status.archived", cls: "archived" },
+/** 토의 로그에 사용자가 직접 남기는 메모의 작성자 (규격 §3). */
+const SELF_AUTHOR = "user";
+
+/**
+ * 편집기는 CodeMirror 를 끌고 온다 — 읽기만 하러 들어온 사람이 그 값을 치르지
+ * 않게 [편집] 을 누르는 순간 내려받는다 (`Markdown` 과 같은 처리, v2 U6).
+ */
+const DiscussionEditor = lazy(() =>
+  import("./DiscussionEditor").then((m) => ({ default: m.DiscussionEditor })),
+);
+
+const TEMPLATE_NAME: Record<TemplateId, I18nKey> = {
+  blank: "disc.tpl.blank",
+  decision: "disc.tpl.decision",
+  kickoff: "disc.tpl.kickoff",
+  migration: "disc.tpl.migration",
 };
-
-/** 알 수 없는 상태는 원문을 그대로 보여준다 — 사전 키가 없으므로 rawLabel 로. */
-function statusMeta(s: string): { labelKey?: I18nKey; rawLabel?: string; cls: string } {
-  return STATUS_META[s] ?? { rawLabel: s, cls: "resolved" };
-}
-
-/** Short YYYY-MM-DD slice of an ISO/date string. */
-function shortDate(s: string): string {
-  return s ? s.slice(0, 10) : "";
-}
+const TEMPLATE_DESC: Record<TemplateId, I18nKey> = {
+  blank: "disc.tpl.blank.desc",
+  decision: "disc.tpl.decision.desc",
+  kickoff: "disc.tpl.kickoff.desc",
+  migration: "disc.tpl.migration.desc",
+};
 
 export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
   const selectedId = state.discussionActiveId;
+  const editorMode = state.discussionEditorMode;
 
   const [list, setList] = useState<DiscussionSummary[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -64,9 +63,15 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newTemplate, setNewTemplate] = useState<TemplateId>("decision");
+  const newTitleRef = useRef<HTMLInputElement>(null);
+  /** 방금 만든 문서는 곧바로 편집기로 — 선택 전이가 `editing` 을 되돌리므로 ref 로 넘긴다. */
+  const pendingEditRef = useRef<string | null>(null);
+
   const [renaming, setRenaming] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [promoting, setPromoting] = useState(false);
@@ -81,6 +86,10 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const select = useCallback(
     (id: string | null) => setState((prev) => ({ ...prev, discussionActiveId: id })),
+    [setState],
+  );
+  const setEditorMode = useCallback(
+    (m: EditorMode) => setState((prev) => ({ ...prev, discussionEditorMode: m })),
     [setState],
   );
 
@@ -124,12 +133,31 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     [projectId],
   );
 
+  const startEdit = useCallback(
+    async (id: string) => {
+      const res = await commands.discussionReadRaw(projectId, id);
+      if (res.status === "ok") {
+        setDraft(res.data);
+        setEditing(true);
+      } else toast.destructive(t("disc.editorFailed", { error: res.error }));
+    },
+    [projectId, t],
+  );
+
   useEffect(() => {
     setEditing(false);
     setRenaming(false);
-    if (selectedId) void loadDetail(selectedId);
-    else setDetail(null);
-  }, [selectedId, loadDetail]);
+    setCopied(false);
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    void loadDetail(selectedId);
+    if (pendingEditRef.current === selectedId) {
+      pendingEditRef.current = null;
+      void startEdit(selectedId);
+    }
+  }, [selectedId, loadDetail, startEdit]);
 
   // 에이전트(또는 다른 창)가 `.oculpm/discussion/**` 을 건드리면 즉시 다시 읽는다.
   //
@@ -144,34 +172,41 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   // ── actions ────────────────────────────────────────────────────────────────
 
+  const openCreate = () => {
+    setNewTitle("");
+    setNewTemplate("decision");
+    setCreating(true);
+  };
+
   const submitCreate = async () => {
     // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다.
     const trimmedTitle = newTitle.trim();
     if (!trimmedTitle) return;
     setBusy(true);
     const res = await commands.discussionCreate(projectId, trimmedTitle);
+    if (res.status !== "ok") {
+      setBusy(false);
+      toast.destructive(t("disc.createFailed", { error: res.error }));
+      return;
+    }
+    const id = res.data.discussion_id;
+    // 템플릿은 골격 위에 본문만 덮어쓴다 ("빈 문서" 면 그대로 둔다).
+    const body = templateBody(newTemplate);
+    if (body) {
+      const w = await commands.discussionWrite(projectId, id, body);
+      if (w.status !== "ok") toast.destructive(t("disc.saveFailed", { error: w.error }));
+    }
     setBusy(false);
-    if (res.status === "ok") {
-      setCreating(false);
-      setNewTitle("");
-      await loadList();
-      select(res.data.discussion_id);
-    } else toast.destructive(t("disc.createFailed", { error: res.error }));
+    setCreating(false);
+    await loadList();
+    pendingEditRef.current = id;
+    select(id);
   };
 
-  const startEdit = async () => {
-    if (!selectedId) return;
-    const res = await commands.discussionReadRaw(projectId, selectedId);
-    if (res.status === "ok") {
-      setDraft(res.data);
-      setEditing(true);
-    } else toast.destructive(t("disc.editorFailed", { error: res.error }));
-  };
-
-  const saveBody = async () => {
+  const saveBody = async (text: string) => {
     if (!selectedId) return;
     setBusy(true);
-    const res = await commands.discussionWrite(projectId, selectedId, draft);
+    const res = await commands.discussionWrite(projectId, selectedId, text);
     setBusy(false);
     if (res.status === "ok") {
       setEditing(false);
@@ -179,6 +214,56 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       void loadList();
       toast.info(t("disc.saved"));
     } else toast.destructive(t("disc.saveFailed", { error: res.error }));
+  };
+
+  /** 이 문서를 읽고 논의를 시작하라는 지시문을 클립보드로. */
+  const copyPrompt = async () => {
+    if (!detail) return;
+    const text = buildDiscussionPrompt(detail);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+      toast.info(t("disc.promptCopied"));
+    } catch {
+      toast.destructive(t("disc.promptCopyFailed"));
+    }
+  };
+
+  const copyPath = async () => {
+    if (!detail) return;
+    try {
+      await navigator.clipboard.writeText(detail.discussion.file_path);
+      toast.info(t("disc.pathCopied"));
+    } catch {
+      toast.destructive(t("disc.promptCopyFailed"));
+    }
+  };
+
+  /** 편집기를 열지 않고 토의 로그에 한 줄 append (규격 §3: 기존 행 불변). */
+  const addNote = async (body: string) => {
+    if (!selectedId) return false;
+    const raw = await commands.discussionReadRaw(projectId, selectedId);
+    if (raw.status !== "ok") {
+      toast.destructive(t("disc.editorFailed", { error: raw.error }));
+      return false;
+    }
+    const op = appendLogRowOp(raw.data, {
+      author: SELF_AUTHOR,
+      ts: localIsoWithOffset(new Date()),
+      body,
+      heading: sectionHeadings().log,
+      columns: logColumns(),
+    });
+    const next = raw.data.slice(0, op.from) + op.insert + raw.data.slice(op.to);
+    const res = await commands.discussionWrite(projectId, selectedId, next);
+    if (res.status !== "ok") {
+      toast.destructive(t("disc.saveFailed", { error: res.error }));
+      return false;
+    }
+    setDetail(res.data);
+    void loadList();
+    return true;
   };
 
   const changeStatus = async (status: string) => {
@@ -289,14 +374,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         title={t("nav.discussion")}
         sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
       >
-        <button
-          type="button"
-          className="disc-btn primary"
-          onClick={() => {
-            setCreating(true);
-            setNewTitle("");
-          }}
-        >
+        <button type="button" className="disc-btn primary" onClick={openCreate}>
           <Plus size={14} /> {t("disc.new")}
         </button>
       </Toolbar>
@@ -310,32 +388,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
           </div>
         </div>
       ) : (
-        <div className="disc-body">
+        <div className={`disc-body${editing ? " editing" : ""}`}>
           <aside className="disc-list">
-            {creating ? (
-              <div className="disc-new-row">
-                <input
-                  aria-label={t("disc.newTitleAria")}
-                  autoFocus
-                  value={newTitle}
-                  placeholder={t("disc.newTitlePlaceholder")}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void submitCreate();
-                    if (e.key === "Escape") setCreating(false);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="disc-btn primary"
-                  disabled={busy || !newTitle.trim()}
-                  onClick={() => void submitCreate()}
-                >
-                  {t("disc.create")}
-                </button>
-              </div>
-            ) : null}
-
             {listError ? (
               <div className="empty-hint">{t("disc.listFailed", { error: listError })}</div>
             ) : list.length === 0 ? (
@@ -366,6 +420,31 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
               </div>
             ) : !detail ? (
               <div className="empty-hint">{t("disc.docFailed")}</div>
+            ) : editing ? (
+              <div className="disc-edit-shell">
+                <div className="disc-edit-head">
+                  <span className="disc-edit-title">{detail.discussion.title}</span>
+                  <span className="disc-edit-path">{detail.discussion.file_path}</span>
+                </div>
+                <Suspense
+                  fallback={
+                    <div className="grid place-items-center py-20">
+                      <OculSpinner size={22} label={t("common.loading")} />
+                    </div>
+                  }
+                >
+                  <DiscussionEditor
+                    key={selectedId}
+                    initialText={draft}
+                    mode={editorMode}
+                    onModeChange={setEditorMode}
+                    onSave={(text) => void saveBody(text)}
+                    onCancel={() => setEditing(false)}
+                    busy={busy}
+                    author={SELF_AUTHOR}
+                  />
+                </Suspense>
+              </div>
             ) : (
               <div className="disc-doc fade-in">
                 {/* ── 헤더 ── */}
@@ -400,139 +479,161 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                     style={{ background: agentColor(detail.discussion.owner) }}
                   />
                   {agentLabel(detail.discussion.owner)} · {shortDate(detail.discussion.updated_at)}
+                  <button
+                    type="button"
+                    className="disc-path"
+                    title={t("disc.copyPath")}
+                    onClick={() => void copyPath()}
+                  >
+                    {detail.discussion.file_path}
+                  </button>
                 </div>
 
                 {/* ── 액션 ── */}
-                {editing ? (
-                  <div className="disc-actions">
+                <div className="disc-actions">
+                  <button
+                    type="button"
+                    className="disc-btn primary"
+                    title={t(`disc.promptHint.${promptKindFor(detail)}` as I18nKey)}
+                    onClick={() => void copyPrompt()}
+                  >
+                    {copied ? <ClipboardCheck size={14} /> : <Clipboard size={14} />}{" "}
+                    {t("disc.copyPrompt")}
+                  </button>
+                  {!locked ? (
                     <button
                       type="button"
-                      className="disc-btn primary"
-                      disabled={busy}
-                      onClick={() => void saveBody()}
+                      className="disc-btn"
+                      onClick={() => void startEdit(detail.discussion.discussion_id)}
                     >
-                      <Save size={14} /> {t("common.save")}
+                      <Pencil size={14} /> {t("disc.edit")}
                     </button>
-                    <button type="button" className="disc-btn" onClick={() => setEditing(false)}>
-                      {t("common.cancel")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="disc-actions">
-                    {!locked ? (
-                      <button type="button" className="disc-btn" onClick={() => void startEdit()}>
-                        <Pencil size={14} /> {t("disc.edit")}
-                      </button>
-                    ) : null}
-                    {!locked ? (
-                      <button type="button" className="disc-btn" onClick={() => void attach()}>
-                        <Paperclip size={14} /> {t("disc.attach")}
-                      </button>
-                    ) : null}
-                    {!locked ? (
-                      <button
-                        type="button"
-                        className="disc-btn"
-                        onClick={() => {
-                          setRenameTitle(detail.discussion.title);
-                          setRenaming(true);
-                        }}
-                      >
-                        {t("disc.rename")}
-                      </button>
-                    ) : null}
-                    {detail.discussion.status === "open" ? (
-                      <button
-                        type="button"
-                        className="disc-btn primary"
-                        disabled={busy || detail.next_steps.length === 0}
-                        title={
-                          detail.next_steps.length === 0
-                            ? t("disc.promoteNeedSteps")
-                            : t("disc.promoteTitle")
-                        }
-                        onClick={() => setPromoting(true)}
-                      >
-                        <TargetIcon size={14} /> {t("disc.promote")}
-                      </button>
-                    ) : null}
-                    {detail.discussion.status !== "open" ? (
-                      <button
-                        type="button"
-                        className="disc-btn"
-                        disabled={busy}
-                        onClick={() => void changeStatus("open")}
-                      >
-                        <RotateCcw size={14} /> {t("disc.reopen")}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="disc-btn"
-                        disabled={busy}
-                        onClick={() => void changeStatus("resolved")}
-                      >
-                        <Check size={14} /> {t("disc.close")}
-                      </button>
-                    )}
-                    {detail.discussion.status !== "archived" ? (
-                      <button
-                        type="button"
-                        className="disc-btn"
-                        disabled={busy}
-                        onClick={() => void changeStatus("archived")}
-                      >
-                        {t("disc.archive")}
-                      </button>
-                    ) : null}
+                  ) : null}
+                  {detail.discussion.status === "open" ? (
                     <button
                       type="button"
-                      className="disc-btn danger"
-                      disabled={busy}
-                      onClick={() => void remove()}
+                      className="disc-btn"
+                      disabled={busy || detail.next_steps.length === 0}
+                      title={
+                        detail.next_steps.length === 0
+                          ? t("disc.promoteNeedSteps")
+                          : t("disc.promoteTitle")
+                      }
+                      onClick={() => setPromoting(true)}
                     >
-                      <Trash2 size={14} /> {t("common.delete")}
+                      <TargetIcon size={14} /> {t("disc.promote")}
                     </button>
-                    {detail.resolution_plan_id ? (
-                      <button
-                        type="button"
-                        className="disc-reslink"
-                        onClick={() => {
-                          setState((prev) => ({ ...prev, plannerPlanId: detail.resolution_plan_id }));
-                          onNavigate("planner");
-                        }}
-                      >
-                        <TargetIcon size={13} /> {t("disc.viewPlan", { id: detail.resolution_plan_id })}
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* ── 본문 ── */}
-                {editing ? (
-                  <div className="disc-editor">
-                    <textarea
-                      aria-label={t("disc.bodyAria")}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                    />
-                    <div className="disc-editor-preview">
-                      <Markdown>{draft || t("disc.preview")}</Markdown>
-                    </div>
-                  </div>
-                ) : (
-                  <DiscussionView
-                    projectId={projectId}
-                    detail={detail}
-                    locked={locked}
-                    onDetach={detach}
+                  ) : null}
+                  <MoreMenu
+                    label={t("disc.more")}
+                    items={[
+                      ...(!locked
+                        ? [{ key: "attach", label: t("disc.attach"), run: () => void attach() }]
+                        : []),
+                      ...(!locked
+                        ? [
+                            {
+                              key: "rename",
+                              label: t("disc.rename"),
+                              run: () => {
+                                setRenameTitle(detail.discussion.title);
+                                setRenaming(true);
+                              },
+                            },
+                          ]
+                        : []),
+                      detail.discussion.status !== "open"
+                        ? { key: "reopen", label: t("disc.reopen"), run: () => void changeStatus("open") }
+                        : { key: "close", label: t("disc.close"), run: () => void changeStatus("resolved") },
+                      ...(detail.discussion.status !== "archived"
+                        ? [
+                            {
+                              key: "archive",
+                              label: t("disc.archive"),
+                              run: () => void changeStatus("archived"),
+                            },
+                          ]
+                        : []),
+                      { key: "delete", label: t("common.delete"), danger: true, run: () => void remove() },
+                    ]}
                   />
-                )}
+                  {detail.resolution_plan_id ? (
+                    <button
+                      type="button"
+                      className="disc-reslink"
+                      onClick={() => {
+                        setState((prev) => ({ ...prev, plannerPlanId: detail.resolution_plan_id }));
+                        onNavigate("planner");
+                      }}
+                    >
+                      <TargetIcon size={13} /> {t("disc.viewPlan", { id: detail.resolution_plan_id })}
+                    </button>
+                  ) : null}
+                </div>
+
+                <DiscussionView
+                  projectId={projectId}
+                  detail={detail}
+                  locked={locked}
+                  onDetach={detach}
+                  onAddNote={addNote}
+                />
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* ── 새 문제 (제목 + 시작 템플릿) ── */}
+      <AppDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        label={t("disc.new")}
+        width={640}
+        initialFocusRef={newTitleRef}
+      >
+        <div className="disc-new">
+          <h2>{t("disc.new")}</h2>
+          <p className="disc-modal-sub">{t("disc.newSub")}</p>
+          <input
+            ref={newTitleRef}
+            aria-label={t("disc.newTitleAria")}
+            value={newTitle}
+            placeholder={t("disc.newTitlePlaceholder")}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submitCreate();
+            }}
+          />
+          <div className="disc-tpl-grid" role="group" aria-label={t("disc.tplAria")}>
+            {TEMPLATE_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={`disc-tpl${newTemplate === id ? " on" : ""}`}
+                aria-pressed={newTemplate === id}
+                onClick={() => setNewTemplate(id)}
+              >
+                <span className="disc-tpl-name">{t(TEMPLATE_NAME[id])}</span>
+                <span className="disc-tpl-desc">{t(TEMPLATE_DESC[id])}</span>
+              </button>
+            ))}
+          </div>
+          <div className="disc-modal-foot">
+            <button type="button" className="disc-btn" onClick={() => setCreating(false)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="disc-btn primary"
+              disabled={busy || !newTitle.trim()}
+              onClick={() => void submitCreate()}
+            >
+              {t("disc.create")}
+            </button>
+          </div>
+        </div>
+      </AppDialog>
 
       {promoting && detail ? (
         <div className="disc-modal-scrim" onClick={() => setPromoting(false)}>
@@ -578,169 +679,69 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   );
 }
 
-// ── view (read mode) ──────────────────────────────────────────────────────────
+// ── 넘침 메뉴 ─────────────────────────────────────────────────────────────────
 
-function DiscussionView({
-  projectId,
-  detail,
-  locked,
-  onDetach,
-}: {
-  projectId: number;
-  detail: DiscussionDetail;
-  locked: boolean;
-  onDetach: (relPath: string) => void;
-}) {
-  const { t } = useT();
-  return (
-    <>
-      {detail.warnings.length > 0 ? (
-        <div className="disc-section">
-          <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
-            {/* U+FE0E — ⚠ 는 기본이 컬러 이모지라 텍스트 표현으로 고정해야
-                주변 텍스트와 같은 색·무게로 그려진다. */}
-            {t("disc.parseWarn", { list: detail.warnings.join(" · ") })}
-          </div>
-        </div>
-      ) : null}
-
-      <section className="disc-section">
-        <div className="disc-section-title">{t("disc.sec.problem")}</div>
-        {detail.problem.trim() ? (
-          <Markdown>{detail.problem}</Markdown>
-        ) : (
-          <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
-            {t("disc.sec.problemEmpty")}
-          </div>
-        )}
-      </section>
-
-      {detail.options.length > 0 ? (
-        <section className="disc-section">
-          <div className="disc-section-title">{t("disc.sec.options")}</div>
-          {detail.options.map((o) => (
-            <div className="disc-option-card" key={o.option_id}>
-              <div className="disc-option-title">{o.title}</div>
-              {o.body.trim() ? <Markdown>{o.body}</Markdown> : null}
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {detail.background.trim() || detail.attachments.length > 0 ? (
-        <section className="disc-section">
-          <div className="disc-section-title">{t("disc.sec.background")}</div>
-          {detail.background.trim() ? <Markdown>{detail.background}</Markdown> : null}
-          {detail.attachments.length > 0 ? (
-            <div className="disc-attach-rail">
-              {detail.attachments.map((a) => (
-                <AttachmentChip
-                  key={a.rel_path}
-                  projectId={projectId}
-                  discussionId={detail.discussion.discussion_id}
-                  att={a}
-                  locked={locked}
-                  onDetach={onDetach}
-                />
-              ))}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {detail.log.length > 0 ? (
-        <section className="disc-section">
-          <div className="disc-section-title">{t("disc.sec.notes")}</div>
-          {detail.log.map((l, i) => (
-            <div className="disc-log-row" key={`${l.ts}-${i}`}>
-              <span className="disc-log-author">
-                <span className="disc-log-dot" style={{ background: agentColor(l.author) }} />
-                {agentLabel(l.author)}
-              </span>
-              <span className="disc-log-body">
-                {l.body}
-                {l.ts ? <span className="disc-log-ts"> · {shortDate(l.ts)}</span> : null}
-              </span>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {detail.conclusion.trim() ? (
-        <section className="disc-section">
-          <div className="disc-section-title">{t("disc.sec.conclusion")}</div>
-          <Markdown>{detail.conclusion}</Markdown>
-        </section>
-      ) : null}
-
-      {detail.next_steps.length > 0 ? (
-        <section className="disc-section">
-          <div className="disc-section-title">{t("disc.sec.next")}</div>
-          <div className="disc-next">
-            {detail.next_steps.map((s) => (
-              <div key={s.step_id} className={`disc-next-item${s.done ? " done" : ""}`}>
-                <span className={`disc-next-box${s.done ? " done" : ""}`}>
-                  {s.done ? <Check size={11} /> : null}
-                </span>
-                {s.title}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </>
-  );
+interface MenuItem {
+  key: string;
+  label: string;
+  danger?: boolean;
+  run: () => void;
 }
 
-// ── attachment chip (lazy-loads image bytes) ───────────────────────────────────
-
-function AttachmentChip({
-  projectId,
-  discussionId,
-  att,
-  locked,
-  onDetach,
-}: {
-  projectId: number;
-  discussionId: string;
-  att: DiscussionAttachmentDto;
-  locked: boolean;
-  onDetach: (relPath: string) => void;
-}) {
-  const { t } = useT();
-  const [uri, setUri] = useState<string | null>(null);
-  const name = att.rel_path.replace(/^attachments\//, "");
+/**
+ * 부차 동작(첨부·이름 변경·닫기·보관·삭제)을 접어 두는 작은 메뉴. 헤더에
+ * 회색 버튼 일곱 개가 늘어서 있으면 정작 자주 쓰는 세 개가 안 보인다.
+ */
+function MoreMenu({ label, items }: { label: string; items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (att.kind !== "image") return;
-    let alive = true;
-    void commands.discussionAsset(projectId, discussionId, att.rel_path).then((res) => {
-      if (alive && res.status === "ok") {
-        setUri(`data:${res.data.mime};base64,${res.data.base64}`);
-      }
-    });
-    return () => {
-      alive = false;
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!hostRef.current?.contains(e.target as Node)) setOpen(false);
     };
-  }, [projectId, discussionId, att.rel_path, att.kind]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
-    <div className="disc-attach">
-      {att.kind === "image" && uri ? <img src={uri} alt={name} /> : null}
-      <div className="disc-attach-name">
-        <Paperclip size={12} />
-        <span title={name}>{name}</span>
-        {!locked ? (
-          <button
-            type="button"
-            className="disc-attach-x"
-            aria-label={t("disc.deleteAttachment", { name })}
-            onClick={() => onDetach(att.rel_path)}
-          >
-            <X size={13} />
-          </button>
-        ) : null}
-      </div>
+    <div className="disc-more" ref={hostRef}>
+      <button
+        type="button"
+        className="disc-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span aria-hidden="true">···</span>
+      </button>
+      {open ? (
+        <div className="disc-menu right" role="menu" aria-label={label}>
+          {items.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              role="menuitem"
+              className={`disc-menu-item${it.danger ? " danger" : ""}`}
+              onClick={() => {
+                setOpen(false);
+                it.run();
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

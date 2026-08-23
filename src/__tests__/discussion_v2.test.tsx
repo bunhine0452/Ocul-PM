@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 import type { DiscussionSummary, DiscussionDetail } from "@/lib/bindings";
@@ -48,9 +48,16 @@ function detail(): DiscussionDetail {
   };
 }
 
-const fx: { list: DiscussionSummary[]; detail: DiscussionDetail | null } = {
+const fx: {
+  list: DiscussionSummary[];
+  detail: DiscussionDetail | null;
+  raw: string;
+  written: string[];
+} = {
   list: [],
   detail: null,
+  raw: "",
+  written: [],
 };
 
 vi.mock("@/lib/bindings", () => {
@@ -65,6 +72,13 @@ vi.mock("@/lib/bindings", () => {
               return () => ok(fx.list);
             case "discussionGet":
               return () => ok(fx.detail);
+            case "discussionReadRaw":
+              return () => ok(fx.raw);
+            case "discussionWrite":
+              return (_p: number, _id: string, body: string) => {
+                fx.written.push(body);
+                return ok(fx.detail);
+              };
             case "settingsGetAll":
               return () => ok([]);
             default:
@@ -92,6 +106,8 @@ function wrap(node: React.ReactNode) {
 beforeEach(() => {
   fx.list = [];
   fx.detail = null;
+  fx.raw = "";
+  fx.written = [];
 });
 afterEach(cleanup);
 
@@ -110,6 +126,51 @@ describe("DiscussionScreenV2", () => {
     fx.list = [];
     const { findByText } = render(wrap(<DiscussionScreenV2 projectId={1} onNavigate={vi.fn()} />));
     await findByText(/아직 문제 해결 문서가 없어요/);
+  });
+
+  it("‘프롬프트 복사’ 는 문서 경로와 규격 경로를 담은 지시문을 클립보드에 넣는다", async () => {
+    // 이 버튼의 값은 "에이전트가 이 파일을 바로 읽게 만드는가" 하나다 —
+    // 경로가 빠지면 붙여넣어도 아무 일도 안 일어난다.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fx.list = [summary()];
+    fx.detail = detail();
+
+    const { findByRole } = render(wrap(<DiscussionScreenV2 projectId={1} onNavigate={vi.fn()} />));
+    fireEvent.click(await findByRole("button", { name: /프롬프트 복사/ }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const prompt = writeText.mock.calls[0][0] as string;
+    expect(prompt).toContain(".oculpm/discussion/cache-strategy/discussion.md");
+    expect(prompt).toContain(".oculpm/agents/discussion-spec.md");
+    expect(prompt).toContain("캐시 전략 결정");
+  });
+
+  it("메모 한 줄은 편집기를 열지 않고 managed block 에 append 된다", async () => {
+    fx.list = [summary()];
+    fx.detail = detail();
+    fx.raw = [
+      "## 문제 정의",
+      "x",
+      "",
+      "## 토의 / 메모",
+      "",
+      "<!-- oculpm:discussion-log begin v1 -->",
+      "<!-- oculpm:discussion-log end -->",
+      "",
+    ].join("\n");
+
+    const { findByLabelText, getByRole } = render(
+      wrap(<DiscussionScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    const input = await findByLabelText("토의 메모 한 줄");
+    fireEvent.change(input, { target: { value: "A 로 가자" } });
+    fireEvent.click(getByRole("button", { name: "메모 추가" }));
+
+    await waitFor(() => expect(fx.written).toHaveLength(1));
+    const body = fx.written[0];
+    expect(body).toContain("| user | A 로 가자 |");
+    expect(body.indexOf("A 로 가자")).toBeLessThan(body.indexOf("discussion-log end"));
   });
 
   it("has no axe violations with data", async () => {

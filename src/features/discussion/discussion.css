@@ -25,22 +25,6 @@
   gap: 2px;
 }
 
-.disc-new-row {
-  display: flex;
-  gap: 6px;
-  padding: 4px 4px 10px;
-}
-.disc-new-row input {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  padding: 6px 8px;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--sep);
-  background: var(--bg-inset);
-  color: var(--text);
-}
-
 .disc-item {
   display: flex;
   flex-direction: column;
@@ -129,6 +113,13 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* 편집 중엔 스크롤 주체가 편집기/프리뷰 각각이다 — 바깥이 같이 스크롤되면
+   툴바가 위로 밀려 올라간다. */
+.disc-body.editing .disc-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .disc-doc {
   max-width: 860px;
   margin: 0 auto;
@@ -162,11 +153,13 @@
 .disc-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin: 10px 0 22px;
+  margin: 12px 0 22px;
 }
 .disc-owner {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   font-size: 11.5px;
@@ -361,35 +354,324 @@
   color: #e5484d;
 }
 
-/* ── 편집기 ────────────────────────────────────────────────── */
-.disc-editor {
+/* ── 편집기 ────────────────────────────────────────────────────
+   편집 중에는 좌측 목록을 접는다. 이 문서는 "긴 글" 이고, 288px 짜리 기둥이
+   옆에 서 있으면 본문 폭이 계속 모자란다 — 나가는 길은 편집 바의 [취소] 다. */
+.disc-body.editing .disc-list {
+  display: none;
+}
+
+.disc-edit-shell {
+  flex: 1;
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  min-height: 0;
+}
+.disc-edit-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid var(--sep);
+}
+.disc-edit-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-edit-path {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disc-edit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 서식 툴바 — 좁은 폭에서는 줄바꿈되도록 (버튼을 잘라 숨기지 않는다). */
+.disc-edit-bar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg-inset);
+}
+.disc-tool-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.disc-tool-group + .disc-tool-group::before {
+  content: "";
+  width: 1px;
+  height: 16px;
+  margin-right: 8px;
+  background: var(--sep);
+}
+.disc-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  min-width: 26px;
+  justify-content: center;
+  padding: 0 5px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.disc-tool.wide {
+  padding: 0 9px;
+}
+.disc-tool:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* 보기 모드 세그먼트 */
+.disc-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-s);
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+}
+.disc-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: none;
+  border-radius: calc(var(--radius-s) - 1px);
+  background: none;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.disc-seg-btn.on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.disc-seg-btn:hover:not(.on) {
+  color: var(--text);
+}
+
+.disc-edit-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.disc-dirty {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.disc-dirty.on {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* 파서가 모르는 제목 경고 — 저장 후 사라질 본문을 미리 알린다. */
+.disc-edit-warn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 18px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: color-mix(in srgb, #e5a13d 14%, transparent);
+  border-bottom: 1px solid var(--sep);
+}
+
+.disc-edit-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   align-items: stretch;
 }
-.disc-editor textarea {
+.disc-edit-cm {
   flex: 1;
   min-width: 0;
-  min-height: 60vh;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.6;
-  padding: 12px 14px;
-  border-radius: var(--radius-m);
-  border: 1px solid var(--sep);
-  background: var(--bg-inset);
-  color: var(--text);
-  resize: none;
+  overflow: hidden;
 }
-.disc-editor-preview {
+.disc-edit-panes.preview .disc-edit-cm {
+  display: none;
+}
+.disc-edit-preview {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  max-height: 70vh;
+  padding: 18px 24px 40vh;
+  border-left: 1px solid var(--sep);
+}
+.disc-edit-panes.preview .disc-edit-preview {
+  border-left: none;
+}
+.disc-doc-prose {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* ── 삽입 / 넘침 메뉴 ──────────────────────────────────────── */
+.disc-more {
+  position: relative;
+  display: inline-flex;
+}
+.disc-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  min-width: 178px;
+  padding: 4px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  background: var(--bg-content);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+}
+.disc-menu.right {
+  left: auto;
+  right: 0;
+}
+.disc-menu-item {
+  text-align: left;
+  padding: 6px 9px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.disc-menu-item:hover {
+  background: var(--bg-hover);
+}
+.disc-menu-item.danger {
+  color: #e5484d;
+}
+
+/* ── 문서 경로 칩 ──────────────────────────────────────────── */
+.disc-path {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border: 1px solid var(--sep);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  cursor: pointer;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-path:hover {
+  color: var(--text-2);
+  background: var(--bg-hover);
+}
+
+/* ── 메모 한 줄 입력 ───────────────────────────────────────── */
+.disc-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 10px;
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
-  padding: 4px 16px;
+  background: var(--bg-inset);
+  color: var(--text-3);
+}
+.disc-note input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ── 새 문제 대화상자 ──────────────────────────────────────── */
+.disc-new {
+  padding: 20px 22px;
+  overflow-y: auto;
+}
+.disc-new h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.disc-new input {
+  width: 100%;
+  font-size: 14px;
+  padding: 9px 11px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--sep);
+  background: var(--bg-inset);
+  color: var(--text);
+}
+.disc-tpl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.disc-tpl {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
   background: var(--bg-card);
+  cursor: pointer;
+}
+.disc-tpl:hover {
+  background: var(--bg-hover);
+}
+.disc-tpl.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.disc-tpl-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.disc-tpl.on .disc-tpl-name {
+  color: var(--accent-text);
+}
+.disc-tpl-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-3);
 }
 
 /* ── 승격 미리보기 모달 ────────────────────────────────────── */
