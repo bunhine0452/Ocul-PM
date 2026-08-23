@@ -253,14 +253,16 @@ export function CodeScreenV2({
 
   // ── 열기 ────────────────────────────────────────────────────────────────
   const openPath = useCallback((path: string, line: number | null, pane?: number) => {
-    setTabs((prev) => {
-      const next = openFile(prev, path, pane);
-      if (line != null) {
-        jumpSeq.current += 1;
-        setJump({ pane: next.focused, line, nonce: jumpSeq.current });
-      }
-      return next;
-    });
+    // 갱신 함수 안에서 setJump 를 부르지 않는다 — StrictMode 는 갱신 함수를 두 번
+    // 부르므로 그 안의 부수효과는 두 번 난다. 대신 다음 상태를 밖에서 계산하고,
+    // `tabsRef` 를 즉시 앞당겨 같은 틱의 연속 호출도 앞의 결과 위에서 쌓이게 한다.
+    const next = openFile(tabsRef.current, path, pane);
+    tabsRef.current = next;
+    setTabs(next);
+    if (line != null) {
+      jumpSeq.current += 1;
+      setJump({ pane: next.focused, line, nonce: jumpSeq.current });
+    }
   }, []);
 
   // 다른 화면(검색·코드맵)에서 온 열기 목표.
