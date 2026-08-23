@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmApi } from "@/api/oculpm";
 import { commands, events, type GitCommit } from "@/lib/bindings";
-import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
+import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
 
 // Today monitoring extras — surfaces data the backend already exposes but Today
 // didn't show: active work time (sessions) + git status / today's commits.

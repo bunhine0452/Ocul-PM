@@ -25,6 +25,7 @@ import {
   type PlanEditOp,
 } from "@/lib/bindings";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
@@ -202,17 +203,28 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     setState((prev) => (prev.plannerPlanId === selectedId ? prev : { ...prev, plannerPlanId: selectedId }));
   }, [selectedId, setState]);
 
-  const refreshDetail = useCallback(async () => {
+  // `silent` — 스켈레톤 없이 조용히 다시 읽는다. 디스크 변경(에이전트가 계획을
+  // 고침)으로 도는 갱신은 사용자가 요청한 적이 없으므로, 읽고 있던 내용이
+  // 로딩 뼈대로 깜빡이면 안 된다.
+  const refreshDetail = useCallback(async (silent = false) => {
     if (selectedId == null) {
       setDetail(null);
       return;
     }
-    setLoadingDetail(true);
+    if (!silent) setLoadingDetail(true);
     const res = await commands.planGet(projectId, selectedId);
-    setLoadingDetail(false);
+    if (!silent) setLoadingDetail(false);
     if (res.status === "ok") setDetail(res.data);
     else setError(tError(res.error));
   }, [projectId, selectedId]);
+
+  // 에이전트(또는 다른 창)가 `.oculpm/planner/*.md` 를 건드리면 즉시 다시 읽는다.
+  // 이 구독이 없던 동안 계획 화면은 마운트 때 읽은 내용에 그대로 머물렀다.
+  const refreshFromDisk = useCallback(() => {
+    void refreshPlans();
+    void refreshDetail(true);
+  }, [refreshPlans, refreshDetail]);
+  useOculpmDataEvents("planner", projectId, true, refreshFromDisk);
 
   useEffect(() => {
     void refreshPlans();

@@ -48,8 +48,9 @@ use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
     FileChangeEvent, FileOp, IntegrityWarning, OculpmAgentDrift, OculpmAgentsTemplateChanged,
-    OculpmConfig, OculpmFileChanged, OculpmIntegrityWarning, OculpmJournalAdded,
-    OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView, WatcherStatus,
+    OculpmConfig, OculpmDataArea, OculpmDataChanged, OculpmFileChanged, OculpmIntegrityWarning,
+    OculpmJournalAdded, OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView,
+    WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -326,11 +327,12 @@ impl WatcherInner {
             return;
         }
 
-        // 3. .oculpm/journal/** — emit Tauri event AND invalidate the SQLite
-        //    cache so list/get queries see the change without waiting for a
-        //    manual reindex. Before this wire-up, the watcher only emitted
-        //    the event and the frontend's refetch hit a stale cache (file
-        //    deletes never disappeared from Today UI). See dogfooding F-2.
+        // 3. .oculpm/journal/** — invalidate the SQLite cache so list/get
+        //    queries see the change without waiting for a manual reindex,
+        //    THEN emit the Tauri event. Before this wire-up, the watcher only
+        //    emitted the event and the frontend's refetch hit a stale cache
+        //    (file deletes never disappeared from Today UI). See dogfooding
+        //    F-2, and the emit-ordering note below.
         if rel_str.starts_with(".oculpm/journal/") {
             let op = classify_journal_op(&ev.event.kind);
             tracing::info!(
@@ -340,38 +342,34 @@ impl WatcherInner {
                 ?op,
                 "[FLOW] journal fs event detected"
             );
-            self.emit_journal_path_changed(&rel_str, op);
             self.apply_journal_cache_invalidation(&rel_str, op).await;
+            // 캐시를 갱신한 **뒤에** 알린다. 이 순서가 뒤집혀 있던 동안 프런트의
+            // (디바운스된) 재조회가 아직 옛 행이 남은 SQLite 를 읽고 그대로 굳었다
+            // — 특히 삭제는 `apply_path_change` 가 outcome `None` 을 돌려줘
+            // journal-added/updated 가 안 나가므로 이 이벤트가 유일한 신호였고,
+            // 레이스에 지면 사용자가 직접 새로고침할 때까지 지워진 일지가 계속
+            // 보였다 (도그푸딩 2026-08-21).
+            self.emit_journal_path_changed(&rel_str, op);
             return;
         }
 
-        // 3.5 .oculpm/planner/** — AI-maintained Plan SSOT (Planner Upgrade).
-        //     The projection rebuilds from the file on read (plan_* commands
-        //     reproject), so we short-circuit here to keep plan edits out of
-        //     the code-change ndjson pipeline. The live-push event for the
-        //     Planner UI lands in PR-PLN 3.
-        if rel_str.starts_with(".oculpm/planner/") {
+        // 3.5 .oculpm/planner/** (계획 SSOT) · .oculpm/discussion/** (논의 SSOT).
+        //     둘 다 읽을 때 파일에서 다시 투영하므로(plan_* / discussion_* 커맨드)
+        //     코드 변경 ndjson 파이프라인에는 넣지 않는다. 대신 "다시 읽어라"
+        //     신호만 내보낸다 — 이게 없던 동안 두 화면은 마운트 때 읽은 내용에
+        //     그대로 머물러서, 에이전트가 계획을 고쳐도 사용자가 직접
+        //     새로고침해야 보였다 (도그푸딩 2026-08-21).
+        if let Some(area) = data_area_for_path(&rel_str) {
+            let op = classify_journal_op(&ev.event.kind);
             tracing::debug!(
                 target: "oculpm::watcher",
                 project_id = self.project_id,
                 path = %rel_str,
-                "[FLOW] planner fs event (handled by projection on read)"
+                ?area,
+                ?op,
+                "[FLOW] oculpm data fs event (projection on read + live refresh)"
             );
-            return;
-        }
-
-        // 3.6 .oculpm/discussion/** — problem-solving (Discussion) SSOT.
-        //     Like planner, the projection rebuilds from disk on read
-        //     (discussion_* commands reproject), so short-circuit here to keep
-        //     discussion edits out of the code-change ndjson pipeline. The
-        //     live-push event for the UI lands in PR-DISC 3.
-        if rel_str.starts_with(".oculpm/discussion/") {
-            tracing::debug!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %rel_str,
-                "[FLOW] discussion fs event (handled by projection on read)"
-            );
+            self.emit_data_changed(area, &rel_str, op);
             return;
         }
 
@@ -830,6 +828,19 @@ impl WatcherInner {
             let _ = OculpmAgentsTemplateChanged {
                 project_id: self.project_id,
                 relative_path: relative_path.to_string(),
+            }
+            .emit(handle);
+        }
+    }
+
+    fn emit_data_changed(&self, area: OculpmDataArea, relative_path: &str, op: FileOp) {
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = OculpmDataChanged {
+                project_id: self.project_id,
+                area,
+                relative_path: relative_path.to_string(),
+                op,
             }
             .emit(handle);
         }
@@ -1453,6 +1464,22 @@ fn is_journal_entry_path(entry_rel: &str) -> bool {
     true
 }
 
+/// `.oculpm/` 안에서 "읽을 때 투영" 하는 데이터 영역을 가려낸다.
+///
+/// 디렉터리 접두사만 보고 판정한다 — 어떤 파일이 실제 계획/논의 문서인지는
+/// 투영 단계(`plan_*` / `discussion_*`)가 이미 판단하므로, 워처는 그 트리에
+/// 무슨 일이 났다는 사실만 전달하면 된다. 접두사에 `/` 를 포함시켜
+/// `.oculpm/planner-backup/` 같은 이웃 디렉터리를 삼키지 않게 한다.
+fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
+    if rel_str.starts_with(".oculpm/planner/") {
+        return Some(OculpmDataArea::Planner);
+    }
+    if rel_str.starts_with(".oculpm/discussion/") {
+        return Some(OculpmDataArea::Discussion);
+    }
+    None
+}
+
 fn classify_journal_op(kind: &EventKind) -> FileOp {
     match kind {
         EventKind::Create(_) => FileOp::Create,
@@ -1942,5 +1969,25 @@ mod tests {
         assert!(!is_journal_entry_path("20260524/Bugs/.draft.md"));
         assert!(!is_journal_entry_path("20260524/Bugs/0925_bug_a.txt"));
         assert!(!is_journal_entry_path("20260524/Bugs/"));
+    }
+
+    #[test]
+    fn data_area_for_path_routes_planner_and_discussion_only() {
+        assert_eq!(
+            data_area_for_path(".oculpm/planner/post-1.17-round.md"),
+            Some(OculpmDataArea::Planner)
+        );
+        assert_eq!(
+            data_area_for_path(".oculpm/discussion/live-refresh/doc.md"),
+            Some(OculpmDataArea::Discussion)
+        );
+
+        // 일지는 캐시 무효화 경로가 따로 있어 여기로 오면 안 된다.
+        assert_eq!(data_area_for_path(".oculpm/journal/20260821/Bugs/a.md"), None);
+        // 접두사에 `/` 를 넣은 이유 — 이웃 디렉터리를 삼키지 않는다.
+        assert_eq!(data_area_for_path(".oculpm/planner-backup/old.md"), None);
+        assert_eq!(data_area_for_path(".oculpm/discussions.md"), None);
+        // 프로젝트 소스에 같은 이름의 디렉터리가 있어도 무관해야 한다.
+        assert_eq!(data_area_for_path("src/planner/index.ts"), None);
     }
 }

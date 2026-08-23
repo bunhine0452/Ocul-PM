@@ -18,6 +18,7 @@ import {
 import { toast } from "@/lib/toast";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import {
   commands,
@@ -108,13 +109,14 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     setState((prev) => (prev.discussionActiveId === first ? prev : { ...prev, discussionActiveId: first }));
   }, [list, selectedId, setState]);
 
+  // `silent` — 스피너 없이 조용히 다시 읽는다 (디스크 변경으로 도는 갱신용).
   const loadDetail = useCallback(
-    async (id: string) => {
-      setDetailLoading(true);
+    async (id: string, silent = false) => {
+      if (!silent) setDetailLoading(true);
       const res = await commands.discussionGet(projectId, id);
-      setDetailLoading(false);
+      if (!silent) setDetailLoading(false);
       if (res.status === "ok") setDetail(res.data);
-      else {
+      else if (!silent) {
         setDetail(null);
         toast.destructive(t("disc.loadDocFailed", { error: res.error }));
       }
@@ -128,6 +130,17 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     if (selectedId) void loadDetail(selectedId);
     else setDetail(null);
   }, [selectedId, loadDetail]);
+
+  // 에이전트(또는 다른 창)가 `.oculpm/discussion/**` 을 건드리면 즉시 다시 읽는다.
+  //
+  // 편집 중에는 본문을 다시 읽지 않는다 — `draft` 는 열 때의 본문에서 갈라져
+  // 나온 사용자의 작업본이고, 그 아래 `detail` 을 갈아끼우면 저장 시 무엇을
+  // 덮어쓰는지가 사용자 눈에 보이던 것과 달라진다. 목록은 편집 중에도 안전하다.
+  const refreshFromDisk = useCallback(() => {
+    void loadList();
+    if (!editing && selectedId) void loadDetail(selectedId, true);
+  }, [loadList, loadDetail, editing, selectedId]);
+  useOculpmDataEvents("discussion", projectId, true, refreshFromDisk);
 
   // ── actions ────────────────────────────────────────────────────────────────
 

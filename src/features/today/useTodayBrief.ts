@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
-import { useJournalEvents } from "@/features/oculpm/useJournalEvents";
+import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { getLang } from "@/i18n";
 import { tError } from "@/i18n/errors";
 
@@ -131,6 +131,9 @@ export function useTodayBrief(
   // Live refresh when the watcher indexes a journal change for this project
   // (PR-UI 8b follow-up — Today reflects new entries without a remount).
   useJournalEvents(projectId, enabled, refresh);
+  // brief 는 `open_plan_items` 도 담는다 — "다음 할 일" 이 에이전트가 항목을
+  // 닫은 뒤에도 그대로 남아 있으면 안 된다.
+  useOculpmDataEvents("planner", projectId, enabled, refresh);
 
   // The 7 workday keys we chart, oldest → newest.
   const weekKeys = useMemo(() => {

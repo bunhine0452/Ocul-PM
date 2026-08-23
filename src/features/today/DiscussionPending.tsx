@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquare, ArrowRight } from "@/components/Icons";
 import { commands, type DiscussionSummary } from "@/lib/bindings";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useT } from "@/i18n";
 
 // Today block (Discussion feature, PR-DISC 4) — open problem-solving documents
@@ -17,18 +18,29 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
   const { t } = useT();
   const [items, setItems] = useState<DiscussionSummary[] | null>(null);
 
+  const alive = useRef(true);
   useEffect(() => {
-    let cancelled = false;
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const load = useCallback(() => {
     void (async () => {
       const r = await commands.discussionList(projectId);
-      if (!cancelled && r.status === "ok") {
+      if (alive.current && r.status === "ok") {
         setItems((r.data ?? []).filter((d) => d.status === "open"));
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [projectId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+  // 논의가 열리거나 해결되면 이 카드도 따라간다 — 대시보드가 지난 내용을
+  // 붙들고 있으면 "결정 대기" 라는 주장 자체가 거짓이 된다.
+  useOculpmDataEvents("discussion", projectId, true, load);
 
   // No open discussions → don't take up dashboard space.
   if (items != null && items.length === 0) return null;

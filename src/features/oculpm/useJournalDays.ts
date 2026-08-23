@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { commands, type EntryFilters, type JournalEntrySummary } from "@/lib/bindings";
-import { useJournalEvents } from "./useJournalEvents";
+import { useJournalEvents } from "./useOculpmLive";
 import { t } from "@/i18n";
 
 // Final UI Update (ui_v2) — fetch journal entries and group them by day for the
