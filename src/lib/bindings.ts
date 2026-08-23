@@ -414,19 +414,12 @@ export const commands = {
 	/**  지금 입력 중인 인자. 범위를 벗어나면 강조하지 않는다. */
 	active_parameter: number,
 } | null, string>(__TAURI_INVOKE("lsp_signature_help", { projectId, path, line, character })),
-	/**
-	 *  포맷팅 — **디스크가 아니라 넘겨받은 텍스트에** 적용해 돌려준다.
-	 * 
-	 *  이름 바꾸기·코드 액션과 정반대의 선택이다. 그것들은 열려 있지 않은 파일까지
-	 *  고치므로 디스크에 적용하고 미저장 버퍼를 금지했다. 포맷팅은 **지금 편집 중인
-	 *  한 파일**이 대상이라, 저장을 강요하는 대신 버퍼를 그대로 다듬어 돌려주는
-	 *  것이 맞다 (저장 시 포맷도 이 위에 얹힌다).
-	 * 
-	 *  호출 전에 프런트가 `lsp_change` 로 현재 버퍼를 밀어 넣어야 한다 — 서버가
-	 *  아는 문서와 여기 넘긴 `text` 가 다르면 편집 오프셋이 어긋난다.
-	 *  바뀐 것이 없으면 `None`(서버가 빈 편집을 준 경우 포함).
-	 */
-	lspFormat: (projectId: number, path: string, text: string, tabSize: number, insertSpaces: boolean) => typedError<string | null, string>(__TAURI_INVOKE("lsp_format", { projectId, path, text, tabSize, insertSpaces })),
+	lspFormat: (projectId: number, path: string, text: string, tabSize: number, insertSpaces: boolean, range: {
+	start_line: number,
+	start_character: number,
+	end_line: number,
+	end_character: number,
+} | null) => typedError<string | null, string>(__TAURI_INVOKE("lsp_format", { projectId, path, text, tabSize, insertSpaces, range })),
 	/**  어댑터 일람 — 어느 언어를 디버그할 수 있는지, 없으면 어떻게 까는지. */
 	dapAdapters: () => typedError<DapAdapterInfo[], string>(__TAURI_INVOKE("dap_adapters")),
 	/**  지금 세션 (없으면 `None`). */
@@ -850,6 +843,14 @@ export const commands = {
 	oculpmWatcherStart: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_start", { projectId })),
 	/**  Stop the filesystem watcher. Idempotent. */
 	oculpmWatcherStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_stop", { projectId })),
+	/**
+	 *  살아 있는 다른 인스턴스에게서 이 프로젝트의 락을 **가져와** 감시를 시작한다.
+	 * 
+	 *  사용자가 명시적으로 누를 때만 부른다 ("이 창에서 감시하기"). 자동 경로는
+	 *  언제나 양보한다 — 두 창이 서로를 계속 쫓아내면 아무도 일을 못 한다.
+	 *  쫓겨난 쪽은 하트비트가 인계를 발견해 5초 안에 감시를 접는다.
+	 */
+	oculpmWatcherTakeOver: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_take_over", { projectId })),
 	/**
 	 *  List cached journal entries for a workday (or today if None) with filters.
 	 *  Returns `[]` for uninitialised projects so the UI can render EmptyToday
@@ -1435,6 +1436,7 @@ export const events = {
 	oculpmPlanReconciled: makeEvent<OculpmPlanReconciled>("oculpm-plan-reconciled"),
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
+	oculpmWatchYielded: makeEvent<OculpmWatchYielded>("oculpm-watch-yielded"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	terminalWindowsChanged: makeEvent<TerminalWindowsChanged>("terminal-windows-changed"),
@@ -3033,6 +3035,26 @@ export type LspDiagnosticsPublished = {
 	diagnostics: LspDiagnostic[],
 };
 
+/**
+ *  포맷팅 — **디스크가 아니라 넘겨받은 텍스트에** 적용해 돌려준다.
+ * 
+ *  이름 바꾸기·코드 액션과 정반대의 선택이다. 그것들은 열려 있지 않은 파일까지
+ *  고치므로 디스크에 적용하고 미저장 버퍼를 금지했다. 포맷팅은 **지금 편집 중인
+ *  한 파일**이 대상이라, 저장을 강요하는 대신 버퍼를 그대로 다듬어 돌려주는
+ *  것이 맞다 (저장 시 포맷도 이 위에 얹힌다).
+ * 
+ *  호출 전에 프런트가 `lsp_change` 로 현재 버퍼를 밀어 넣어야 한다 — 서버가
+ *  아는 문서와 여기 넘긴 `text` 가 다르면 편집 오프셋이 어긋난다.
+ *  바뀐 것이 없으면 `None`(서버가 빈 편집을 준 경우 포함).
+ *  ⇧⌥F 의 선택 범위 (0-based UTF-16 — 다른 LSP 좌표와 같은 규약).
+ */
+export type LspFormatRange = {
+	start_line: number,
+	start_character: number,
+	end_line: number,
+	end_character: number,
+};
+
 export type LspHover = {
 	/**  마크다운 원문. 프런트가 코드 블록과 산문으로 갈라 렌더한다. */
 	contents: string,
@@ -3373,6 +3395,15 @@ export type OculpmStatus = {
 	lock_state: LockStateView,
 	current_workday: string,
 	watcher_state: WatcherStateView,
+};
+
+/**
+ *  다른 ocul-pm 인스턴스가 이 프로젝트의 락을 가져가, 이 창은 실시간 갱신을
+ *  놓았다 (2026-08-23). 예전에는 이런 일이 로그에만 남아, 사용자는 화면이 왜
+ *  안 바뀌는지 알 길이 없었다.
+ */
+export type OculpmWatchYielded = {
+	project_id: number,
 };
 
 /**

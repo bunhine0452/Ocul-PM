@@ -582,12 +582,24 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   // 강요하지 않고, 결과를 저장할지는 여전히 사용자가 정한다.
   const [formatting, setFormatting] = useState(false);
   const format = useCallback(
-    async (silent = false): Promise<boolean> => {
+    async (silent = false, range?: import("./CodeEditor").FormatRange): Promise<boolean> => {
       const buf = bufferRef.current;
       if (!buf || formatting) return false;
       setFormatting(true);
       try {
-        const next = await lsp.format(buf.text, settings.codeTabSize, settings.codeInsertSpaces);
+        const next = await lsp.format(
+          buf.text,
+          settings.codeTabSize,
+          settings.codeInsertSpaces,
+          range
+            ? {
+                start_line: range.startLine,
+                start_character: range.startCharacter,
+                end_line: range.endLine,
+                end_character: range.endCharacter,
+              }
+            : null,
+        );
         if (next == null) {
           // 서버가 없거나·지원하지 않거나·이미 정돈됐다. 저장 시 포맷처럼
           // 사람이 부르지 않은 호출은 조용히 지나간다.
@@ -973,7 +985,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onRename={startRename}
               onCodeActions={openCodeActions}
               onReferences={findReferences}
-              onFormat={() => void formatRef.current()}
+              onFormat={(range) => void formatRef.current(false, range)}
               // 서버가 안 붙은 창에는 확장을 아예 달지 않는다 (CodeEditor 가
               // prop 유무로 판단하므로 undefined 여야 한다).
               onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}

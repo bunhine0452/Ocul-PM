@@ -302,6 +302,12 @@ export interface WorkspaceState {
    * 즉 되살아나는 것은 "무엇을 열어 뒀는가" 뿐이고, 내용은 디스크에서 다시 읽는다.
    */
   codeTabs: CodeTabsState | null;
+  /**
+   * 코드 화면 하단 패널(참조·디버그)의 높이 px (#panel-resize). 두 패널이
+   * 같은 자리를 쓰므로 높이도 하나다 — 패널마다 따로 기억하면 참조에서 디버그로
+   * 넘어갈 때마다 바닥이 널뛴다.
+   */
+  codePanelHeight: number;
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**
@@ -393,6 +399,7 @@ const DEFAULT_STATE: WorkspaceState = {
   docsActivePath: null,
   codeActivePath: null,
   codeTabs: null,
+  codePanelHeight: 240,
   discussionActiveId: null,
   discussionEditorMode: "split",
   sidebarCollapsed: false,

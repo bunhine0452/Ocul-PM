@@ -363,6 +363,15 @@ pub async fn lsp_signature_help(
 /// 호출 전에 프런트가 `lsp_change` 로 현재 버퍼를 밀어 넣어야 한다 — 서버가
 /// 아는 문서와 여기 넘긴 `text` 가 다르면 편집 오프셋이 어긋난다.
 /// 바뀐 것이 없으면 `None`(서버가 빈 편집을 준 경우 포함).
+/// ⇧⌥F 의 선택 범위 (0-based UTF-16 — 다른 LSP 좌표와 같은 규약).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct LspFormatRange {
+    pub start_line: u32,
+    pub start_character: u32,
+    pub end_line: u32,
+    pub end_character: u32,
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn lsp_format(
@@ -374,25 +383,42 @@ pub async fn lsp_format(
     text: String,
     tab_size: u32,
     insert_spaces: bool,
+    // 선택 범위 — 있으면 `rangeFormatting`: 남의 코드가 섞인 파일에서 전체
+    // 포맷은 diff 를 통째로 물들이므로 선택만 다듬는 길이 필요하다. 서버가
+    // range 를 모르면 전체로 접는다 (없는 것보단 낫다).
+    range: Option<LspFormatRange>,
 ) -> Result<Option<String>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
     let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
         return Ok(None);
     };
-    if !client.supports("documentFormattingProvider") {
-        return Ok(None);
-    }
-    let params = serde_json::json!({
-        "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) },
-        "options": {
-            "tabSize": tab_size.clamp(1, 16),
-            "insertSpaces": insert_spaces,
-            "trimTrailingWhitespace": true,
-            "insertFinalNewline": true,
-        },
+    let options = serde_json::json!({
+        "tabSize": tab_size.clamp(1, 16),
+        "insertSpaces": insert_spaces,
+        "trimTrailingWhitespace": true,
+        "insertFinalNewline": true,
     });
-    let result = client.request("textDocument/formatting", params).await?;
+    let uri = crate::lsp::registry::path_to_uri(&file);
+    let (method, params) = match range {
+        Some(r) if client.supports("documentRangeFormattingProvider") => (
+            "textDocument/rangeFormatting",
+            serde_json::json!({
+                "textDocument": { "uri": uri },
+                "range": {
+                    "start": { "line": r.start_line, "character": r.start_character },
+                    "end": { "line": r.end_line, "character": r.end_character },
+                },
+                "options": options,
+            }),
+        ),
+        _ if client.supports("documentFormattingProvider") => (
+            "textDocument/formatting",
+            serde_json::json!({ "textDocument": { "uri": uri }, "options": options }),
+        ),
+        _ => return Ok(None),
+    };
+    let result = client.request(method, params).await?;
     let edits = crate::lsp::edit::text_edits_from_result(&result);
     if edits.is_empty() {
         return Ok(None);

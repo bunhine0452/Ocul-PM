@@ -4,6 +4,7 @@ import {
   commands,
   events,
   type LspCompletionItem,
+  type LspFormatRange,
   type LspDiagnostic,
   type LspCodeAction,
   type LspHover,
@@ -66,9 +67,14 @@ export interface UseLspResult {
   signatureHelp: (line: number, character: number) => Promise<LspSignatureHelp | null>;
   /**
    * 포맷팅 — 디스크가 아니라 **넘긴 텍스트**를 다듬어 돌려준다. 바뀐 것이
-   * 없으면 null (서버 없음·이미 정돈됨 포함).
+   * 없으면 null (서버 없음·이미 정돈됨 포함). `range` 가 있으면 그 범위만.
    */
-  format: (text: string, tabSize: number, insertSpaces: boolean) => Promise<string | null>;
+  format: (
+    text: string,
+    tabSize: number,
+    insertSpaces: boolean,
+    range?: LspFormatRange | null,
+  ) => Promise<string | null>;
 }
 
 /**
@@ -262,11 +268,16 @@ export function useLsp(
   // 포맷팅은 파일을 바꾼다 — 읽기 기능들과 달리 실패를 삼키지 않고 던져서
   // 호출자가 토스트를 띄우게 한다 (코드 액션 적용과 같은 태도).
   const format = useCallback(
-    async (text: string, tabSize: number, insertSpaces: boolean) => {
+    async (
+      text: string,
+      tabSize: number,
+      insertSpaces: boolean,
+      range?: LspFormatRange | null,
+    ) => {
       const p = pathRef.current;
       if (!p || !attachedRef.current) return null;
       await flushText(text);
-      const res = await commands.lspFormat(projectId, p, text, tabSize, insertSpaces);
+      const res = await commands.lspFormat(projectId, p, text, tabSize, insertSpaces, range ?? null);
       if (res.status === "error") throw new Error(res.error);
       return res.data;
     },

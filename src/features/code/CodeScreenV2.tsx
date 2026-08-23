@@ -610,6 +610,49 @@ export function CodeScreenV2({
   const isSplit = tabs.panes.length > 1;
   const focusedDirty = selected != null && dirtyPaths.has(selected);
 
+  // ── 하단 패널 높이 (#panel-resize) ─────────────────────────────────────
+  // 드래그 중에는 로컬 값으로만 그리고, 놓는 순간 영속한다 — 매 이동마다
+  // 컨텍스트를 통과시키면 창 전체가 60fps 로 리렌더된다.
+  const persistedPanelHeight = state.codePanelHeight;
+  const [livePanelHeight, setLivePanelHeight] = useState<number | null>(null);
+  const panelHeight = livePanelHeight ?? persistedPanelHeight;
+  const panelDragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  const clampPanelHeight = (h: number) => Math.min(560, Math.max(140, Math.round(h)));
+
+  const persistPanelHeight = useCallback(
+    (h: number) => {
+      setLivePanelHeight(null);
+      setState((prev) =>
+        prev.codePanelHeight === h ? prev : { ...prev, codePanelHeight: h },
+      );
+    },
+    [setState],
+  );
+
+  const onResizerPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      panelDragRef.current = { startY: e.clientY, startH: panelHeight };
+    },
+    [panelHeight],
+  );
+  const onResizerPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = panelDragRef.current;
+    if (!drag) return;
+    // 위로 끌면 커진다 (패널은 아래에 붙어 있다).
+    setLivePanelHeight(clampPanelHeight(drag.startH + (drag.startY - e.clientY)));
+  }, []);
+  const onResizerPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const drag = panelDragRef.current;
+      if (!drag) return;
+      panelDragRef.current = null;
+      persistPanelHeight(clampPanelHeight(drag.startH + (drag.startY - e.clientY)));
+    },
+    [persistPanelHeight],
+  );
+
   return (
     <>
       <Toolbar title={t("nav.code")} sub={selected ? selected + (focusedDirty ? " ●" : "") : undefined}>
@@ -825,27 +868,49 @@ export function CodeScreenV2({
             </div>
             {/* 참조와 디버그는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
                 남지 않는다. 디버그가 이긴다 (멈춰 있는 동안이 더 급하다). */}
+            {debugOpen || references ? (
+              <div
+                className="code-panel-resizer"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={t("code.panel.resize")}
+                tabIndex={0}
+                onPointerDown={onResizerPointerDown}
+                onPointerMove={onResizerPointerMove}
+                onPointerUp={onResizerPointerUp}
+                onKeyDown={(e) => {
+                  // 키보드로도 조절된다 — 드래그만 있으면 separator 는 장식이다.
+                  if (e.key === "ArrowUp") persistPanelHeight(clampPanelHeight(panelHeight + 24));
+                  else if (e.key === "ArrowDown")
+                    persistPanelHeight(clampPanelHeight(panelHeight - 24));
+                }}
+              />
+            ) : null}
             {debugOpen ? (
-              <CodeDebugPanel
-                session={debug.session}
-                frames={debug.frames}
-                selectedFrameId={debug.selectedFrameId}
-                scopeRoots={debug.scopeRoots}
-                output={debug.output}
-                onSelectFrame={debug.selectFrame}
-                onControl={debug.control}
-                onStop={debug.stop}
-                onClose={() => setDebugOpen(false)}
-                onClearOutput={debug.clearOutput}
-                onOpenFrame={(path, line) => openPath(path, line)}
-                loadVariables={debug.variables}
-              />
+              <div className="code-panel-slot" style={{ height: panelHeight }}>
+                <CodeDebugPanel
+                  session={debug.session}
+                  frames={debug.frames}
+                  selectedFrameId={debug.selectedFrameId}
+                  scopeRoots={debug.scopeRoots}
+                  output={debug.output}
+                  onSelectFrame={debug.selectFrame}
+                  onControl={debug.control}
+                  onStop={debug.stop}
+                  onClose={() => setDebugOpen(false)}
+                  onClearOutput={debug.clearOutput}
+                  onOpenFrame={(path, line) => openPath(path, line)}
+                  loadVariables={debug.variables}
+                />
+              </div>
             ) : references ? (
-              <CodeReferences
-                query={references}
-                onClose={() => setReferences(null)}
-                onOpen={(path, line) => openPath(path, line + 1)}
-              />
+              <div className="code-panel-slot" style={{ height: panelHeight }}>
+                <CodeReferences
+                  query={references}
+                  onClose={() => setReferences(null)}
+                  onOpen={(path, line) => openPath(path, line + 1)}
+                />
+              </div>
             ) : null}
           </div>
         </div>

@@ -171,6 +171,9 @@ export const ko = {
   "settings.closeEsc": "닫기 (Esc)",
 
   // ── AGENTS.md 템플릿 업그레이드 토스트 ──────────────────────────────────
+  "watcher.takeOver": "이 창에서 감시하기",
+  "watcher.tookOver": "이 창이 이 프로젝트를 감시합니다",
+  "watcher.takeOverFailed": "가져오기 실패: {error}",
   "agents.upgrade.title": "에이전트 규칙(AGENTS.md) 업데이트가 있어요",
   "agents.upgrade.version": "규칙 템플릿 v{from} → v{to}",
   "agents.upgrade.action": "업데이트",
@@ -1463,6 +1466,9 @@ export const ko = {
   "code.diff.exit": "비교 끝내기",
   "code.diff.noHead": "HEAD 에 이 파일이 없어 비교할 수 없어요 (새 파일이거나 저장소 밖)",
   "code.diff.entryStale": "그 일지 이후로 파일이 더 바뀌어 에디터에서 겹쳐 볼 수 없어요 — 일지를 열면 기록된 diff 를 볼 수 있습니다",
+  "code.cm.accept": "받아들이기",
+  "code.cm.reject": "되돌리기",
+  "code.panel.resize": "패널 높이 조절",
   "code.conflict.title": "디스크에서 파일이 바뀌었습니다",
   "code.conflict.desc": "다른 프로그램(에이전트)이 이 파일을 수정했습니다. 어느 쪽을 유지할지 선택하세요.",
   "code.conflict.reload": "디스크 버전 불러오기",
@@ -1666,6 +1672,8 @@ export const ko = {
   "ws.reconciled": "AI 가 계획 항목 {n}개를 자동 갱신했어요",
   "ws.reconciledTitle": "자동 화해",
   "ws.driftBody": "{agent} 규칙 파일이 외부에서 수정되었습니다.",
+  "ws.watchYieldedTitle": "다른 ocul-pm 창이 이 프로젝트를 가져갔습니다",
+  "ws.watchYielded": "이 창은 실시간 갱신을 멈췄습니다. 저쪽을 닫으면 자동으로 돌아옵니다.",
   "ws.driftTitle": "어댑터 drift 감지",
   "ws.driftSync": "동기화",
   "ws.driftSynced": "동기화 완료 ({n} 어댑터 갱신)",

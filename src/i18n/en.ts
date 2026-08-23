@@ -177,6 +177,9 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.closeEsc": "Close (Esc)",
 
   // ── AGENTS.md template upgrade toast ────────────────────────────────────
+  "watcher.takeOver": "Watch from this window",
+  "watcher.tookOver": "This window is now watching the project",
+  "watcher.takeOverFailed": "Take over failed: {error}",
   "agents.upgrade.title": "There's an update to the agent rules (AGENTS.md)",
   "agents.upgrade.version": "Rules template v{from} → v{to}",
   "agents.upgrade.action": "Update",
@@ -1466,6 +1469,9 @@ export const en: Record<keyof typeof ko, string> = {
   "code.diff.exit": "Stop comparing",
   "code.diff.noHead": "This file is not in HEAD, so there is nothing to compare (new file or outside the repo)",
   "code.diff.entryStale": "The file changed further after that entry, so its diff cannot be overlaid — open the entry to see the recorded diff",
+  "code.cm.accept": "Accept",
+  "code.cm.reject": "Reject",
+  "code.panel.resize": "Resize panel",
   "code.conflict.title": "The file changed on disk",
   "code.conflict.desc": "Another program (an agent) modified this file. Choose which version to keep.",
   "code.conflict.reload": "Load the disk version",
@@ -1671,6 +1677,8 @@ export const en: Record<keyof typeof ko, string> = {
   "ws.reconciled": "AI updated {n} plan items automatically",
   "ws.reconciledTitle": "Auto-reconcile",
   "ws.driftBody": "The {agent} rule file was modified outside the app.",
+  "ws.watchYieldedTitle": "Another ocul-pm window took this project",
+  "ws.watchYielded": "Live refresh stopped in this window. It comes back automatically when that one closes.",
   "ws.driftTitle": "Adapter drift detected",
   "ws.driftSync": "Sync",
   "ws.driftSynced": "Synced ({n} adapters updated)",

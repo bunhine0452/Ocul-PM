@@ -121,6 +121,9 @@ function koPhrases(): Record<string, string> {
     close: t("code.cm.close"),
     "Go to line": t("code.cm.goToLine"),
     go: t("code.cm.go"),
+    // 인라인 비교(unifiedMergeView)의 청크 버튼.
+    Accept: t("code.cm.accept"),
+    Reject: t("code.cm.reject"),
   };
 }
 
@@ -198,6 +201,14 @@ function lspHoverTooltip(onHoverRef: React.MutableRefObject<CodeEditorProps["onH
   );
 }
 
+/** ⇧⌥F 선택 범위 — 0-based UTF-16 (다른 LSP 좌표와 같은 규약). */
+export interface FormatRange {
+  startLine: number;
+  startCharacter: number;
+  endLine: number;
+  endCharacter: number;
+}
+
 interface CodeEditorProps {
   /** 마운트 시점의 문서 텍스트 (이후엔 언컨트롤드 — 재마운트는 부모의 key). */
   initialText: string;
@@ -229,8 +240,9 @@ interface CodeEditorProps {
   ) => void;
   /** ⇧F12 — 참조 찾기. `word` 는 커서가 놓인 식별자(패널 제목). */
   onReferences?: (line: number, character: number, word: string) => void;
-  /** ⇧⌥F — 포맷팅. 문서 치환도 부모가 한다 (버퍼·dirty 계산이 거기 있다). */
-  onFormat?: () => void;
+  /** ⇧⌥F — 포맷팅. 선택이 있으면 그 범위만 (`rangeFormatting`). 문서 치환도
+   *  부모가 한다 (버퍼·dirty 계산이 거기 있다). */
+  onFormat?: (range?: FormatRange) => void;
   /** 인자 입력 중의 시그니처. 없으면 확장을 아예 안 단다. */
   onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
@@ -402,11 +414,25 @@ export function CodeEditor({
                 },
                 {
                   // VS Code 와 같은 키 (macOS ⇧⌥F / 그 밖 ⇧Alt+F).
+                  // 선택이 있으면 그 범위만 다듬는다 — 남의 코드가 섞인 파일에서
+                  // 전체 포맷은 diff 를 통째로 물들인다.
                   key: "Shift-Alt-f",
-                  run: () => {
+                  run: (view) => {
                     const format = onFormatRef.current;
                     if (!format) return false;
-                    format();
+                    const sel = view.state.selection.main;
+                    if (sel.empty) {
+                      format();
+                    } else {
+                      const from = positionOf(view.state.doc, sel.from);
+                      const to = positionOf(view.state.doc, sel.to);
+                      format({
+                        startLine: from.line,
+                        startCharacter: from.character,
+                        endLine: to.line,
+                        endCharacter: to.character,
+                      });
+                    }
                     return true;
                   },
                 },

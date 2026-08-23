@@ -123,17 +123,17 @@ VS Code 탐색기가 gitignore 된 파일을 보여줄 수 있는 것은 **폴�
 - [x] `code_create` / `code_mkdir` / `code_rename` / `code_delete` — 커맨드가 아예 없다. `secure_join` 가드·심링크 이탈 방지는 `code_read` 경로 재사용 {#file-ops-backend}
 - [x] 트리 컨텍스트 메뉴 + 인라인 이름 입력 · 삭제 확인 · 열린 버퍼와의 정합(삭제/이름변경된 파일이 탭에 열려 있을 때) {#file-ops-ui}
 - [x] 드래그로 이동 {#file-ops-dnd}
-- [ ] 인앱 육안 확인 — 드래그 이동 · 우클릭 메뉴 위치 · 분할 폭 (jsdom 이 못 보는 축) {#p1-verify}
+- [x] 인앱 육안 확인 — 드래그 이동 · 우클릭 메뉴 위치 · 분할 폭 (jsdom 이 못 보는 축) {#p1-verify}
 
 ## Phase 2 — LSP 나머지 창구 {#p2-lsp-rest}
 - [x] 참조 찾기 (`textDocument/references`) — 결과 패널 {#lsp-references}
 - [x] 심볼 아웃라인 (`documentSymbol`) — 파일 내 구조 + 점프 {#lsp-outline}
 - [x] 워크스페이스 심볼 (`workspace/symbol`) — ⌘K 팔레트에 합류 {#lsp-workspace-symbol}
 - [x] 시그니처 힌트 (`signatureHelp`) — 인자 입력 중 표시 {#lsp-signature}
-- [~] 포맷팅 — 문서 전체(`formatting`) + 저장 시 포맷 완료. `rangeFormatting`(선택 영역만)은 미구현 {#lsp-format}
+- [x] 포맷팅 — 문서 전체 + 저장 시 포맷 + 선택 영역(`rangeFormatting`, ⇧⌥F 에 선택이 있을 때) {#lsp-format}
 - [x] 설정 화면 — 언어별 켜기/끄기 · 서버 경로 오버라이드 · 미설치 안내 (lsp-code-intelligence #lsp-settings 를 여기로 이관) {#lsp-settings-screen}
 - [x] git 거터 — 수정/추가/삭제된 줄을 에디터 안에 (LSP 아님, 기존 diff 백엔드 재사용) {#git-gutter}
-- [ ] 인앱 육안 확인 — 시그니처 툴팁 위치 · 거터 색 · 참조 패널 높이 · 아웃라인이 트리와 나눠 갖는 비율 {#p2-verify}
+- [x] 인앱 육안 확인 — 시그니처 툴팁 위치 · 거터 색 · 참조 패널 높이 · 아웃라인이 트리와 나눠 갖는 비율 {#p2-verify}
 
 ## Phase 3 — 디버거 (DAP) {#p3-dap}
 
@@ -147,7 +147,7 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 - [x] 실행 제어 — 계속/스텝오버/스텝인/스텝아웃 · 호출 스택 · 변수 스코프 {#dap-control}
 - [~] 실행 구성 — launch 최소형(언어·실행 파일·인자·첫 줄 정지) 완료. attach 와 구성 영속(launch.json 격)은 미구현 {#dap-config}
 - [ ] debugpy · dlv 왕복 검증 — 이 기계에 없어 조달 경로만 넣고 실제 세션은 못 돌렸다 (docs/dap PR-DAP1) {#dap-more-adapters}
-- [ ] 인앱 육안 확인 — 거터 클릭 반응 · 패널 높이 · 변수 트리 펼침 {#p3-verify}
+- [x] 인앱 육안 확인 — 거터 클릭 반응 · 패널 높이 · 변수 트리 펼침 {#p3-verify}
 
 ## Phase 4 — 프로덕션급 다듬기 {#p4-polish}
 
@@ -161,8 +161,8 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 - [x] 상태줄 — LSP 색점 · EOL(LF/CRLF) · 세그먼트화 {#statusbar-polish}
 - [x] 잔손질 — 툴바 고스트 버튼 · 가는 스크롤바 · 필터 지우기 · 빈 상태 단축키 치트시트 · 메뉴 마감 {#chrome-polish}
 - [x] 에이전트 변경 가시화 — 일지 칩(파일→일지 역조회) + 인라인 비교(HEAD/일지별, unifiedMergeView + 패치 역적용) {#agent-diff}
-- [ ] 패널 드래그 리사이즈 — 참조·디버그 패널 높이 조절 (다음 후보) {#panel-resize}
-- [ ] 인앱 육안 확인 — 배지 색 라이트/다크 가독성 · 가이드 선 정렬 · 활성 탭 모양 {#p4-verify}
+- [x] 패널 드래그 리사이즈 — 참조·디버그 패널 높이 조절 (다음 후보) {#panel-resize}
+- [x] 인앱 육안 확인 — 배지 색 라이트/다크 가독성 · 가이드 선 정렬 · 활성 탭 모양 {#p4-verify}
 
 ## 하지 않는 것
 
@@ -210,4 +210,10 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-23T23:05:06+09:00 | #p4-verify | claude-code | →☐ | .oculpm/journal/20260823/Features_to_add/2305_feature_code-ide-visual-polish.md | 신규 — 배지 색·가이드·탭 모양은 눈이 판정 |
 | 2026-08-23T23:35:00+09:00 | #file-icons | claude-code | x→x | .oculpm/journal/20260823/Features_to_add/2335_feature_real-icons-and-agent-diff.md | v2 재작성 — 배지 폐기, 공식 로고+Seti 글자. 판정 테스트 8 |
 | 2026-08-23T23:35:01+09:00 | #agent-diff | claude-code | →x | .oculpm/journal/20260823/Features_to_add/2335_feature_real-icons-and-agent-diff.md | 일지 칩·인라인 비교(HEAD/일지). 역적용은 엄격 실패. 테스트 19 |
+| 2026-08-24T00:20:00+09:00 | #p1-verify | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 사용자가 앱에서 확인 (2026-08-24) |
+| 2026-08-24T00:20:01+09:00 | #p2-verify | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 사용자가 앱에서 확인 |
+| 2026-08-24T00:20:02+09:00 | #p3-verify | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 사용자가 앱에서 확인 |
+| 2026-08-24T00:20:03+09:00 | #p4-verify | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 사용자가 앱에서 확인 (아이콘 v2 포함) |
+| 2026-08-24T00:20:04+09:00 | #panel-resize | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 드래그+키보드, codePanelHeight 영속. 드래그 중 로컬/놓으면 영속 |
+| 2026-08-24T00:20:05+09:00 | #lsp-format | claude-code | ~→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | rangeFormatting — 선택 있으면 범위만. specta 인자 한계로 구조체 파라미터 |
 <!-- oculpm:plan-log end -->
