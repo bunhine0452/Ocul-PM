@@ -1367,6 +1367,7 @@ export const en: Record<keyof typeof ko, string> = {
   "code.tabs.unsplit": "Unsplit editor",
   "code.tabs.moveOther": "Move to the other pane",
   "code.tabs.openBeside": "Open to the side",
+  "code.tabs.reopen": "Reopen closed tab",
   "code.ops.newFile": "New file",
   "code.ops.newFolder": "New folder",
   "code.ops.rename": "Rename",
@@ -1462,6 +1463,10 @@ export const en: Record<keyof typeof ko, string> = {
   "code.empty.kDef": "Go to definition",
   "code.empty.kRefs": "Find references",
   "code.empty.kFormat": "Format",
+  "code.empty.kNewFile": "New file",
+  "code.empty.kClose": "Close tab",
+  "code.empty.kReopen": "Reopen closed tab",
+  "code.empty.kCycle": "Cycle tabs",
   // Agent-change visibility (#agent-diff) — journal chip + inline compare
   "code.jrnl.title": "Journal entries that touched this file",
   "code.jrnl.chipTitle": "{count} journal entries touched this file",

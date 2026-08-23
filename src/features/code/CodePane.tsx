@@ -104,6 +104,10 @@ export interface CodePaneProps {
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onCloseOthers: (path: string) => void;
+  /** ⇧⌘T — 마지막으로 닫은 탭을 되살린다 (탭 우클릭 메뉴에도 있다). */
+  onReopenClosed: () => void;
+  /** 되살릴 닫은 탭이 있는가 — 메뉴 항목의 disabled 게이트. */
+  canReopen: boolean;
   onSplit: () => void;
   onUnsplit: () => void;
   onMoveToOtherPane: (path: string) => void;
@@ -146,6 +150,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onActivate,
     onClose,
     onCloseOthers,
+    onReopenClosed,
+    canReopen,
     onSplit,
     onUnsplit,
     onMoveToOtherPane,
@@ -805,6 +811,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         onActivate={onActivate}
         onClose={onClose}
         onCloseOthers={onCloseOthers}
+        onReopenClosed={onReopenClosed}
+        canReopen={canReopen}
         onSplit={onSplit}
         onUnsplit={onUnsplit}
         onMoveToOtherPane={onMoveToOtherPane}
@@ -1126,6 +1134,10 @@ export function CodeEmptyState() {
     ["F12", t("code.empty.kDef")],
     ["⇧F12", t("code.empty.kRefs")],
     ["⇧⌥F", t("code.empty.kFormat")],
+    ["⌘N", t("code.empty.kNewFile")],
+    ["⌘W", t("code.empty.kClose")],
+    ["⇧⌘T", t("code.empty.kReopen")],
+    ["⌃Tab", t("code.empty.kCycle")],
   ];
   return (
     <div className="code-center-hint code-empty">

@@ -163,6 +163,7 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 - [x] 에이전트 변경 가시화 — 일지 칩(파일→일지 역조회) + 인라인 비교(HEAD/일지별, unifiedMergeView + 패치 역적용) {#agent-diff}
 - [x] 패널 드래그 리사이즈 — 참조·디버그 패널 높이 조절 (다음 후보) {#panel-resize}
 - [x] 인앱 육안 확인 — 배지 색 라이트/다크 가독성 · 가이드 선 정렬 · 활성 탭 모양 {#p4-verify}
+- [x] 탭 키보드 UX — ⌘W 탭 닫기(닫기 사슬 합류) · ⌃Tab/⇧⌘]·[ 순환 · ⇧⌘T 재열기 · ⌘N 새 파일 · 메뉴 단축키 힌트 {#tab-keys}
 
 ## 하지 않는 것
 
@@ -216,4 +217,5 @@ lsp-code-intelligence 에서 **의도적으로 제외**했던 결정을 사용�
 | 2026-08-24T00:20:03+09:00 | #p4-verify | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 사용자가 앱에서 확인 (아이콘 v2 포함) |
 | 2026-08-24T00:20:04+09:00 | #panel-resize | claude-code | ☐→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | 드래그+키보드, codePanelHeight 영속. 드래그 중 로컬/놓으면 영속 |
 | 2026-08-24T00:20:05+09:00 | #lsp-format | claude-code | ~→x | .oculpm/journal/20260824/Features_to_add/0020_feature_ide-finishing-round.md | rangeFormatting — 선택 있으면 범위만. specta 인자 한계로 구조체 파라미터 |
+| 2026-08-24T01:35:00+09:00 | #tab-keys | claude-code | →x | .oculpm/journal/20260824/Features_to_add/0135_feature_code-tab-keyboard-ux.md | 신규 완료 — ⌘W 는 closeIntent 사슬, 나머지는 화면 keydown. 테스트 11 |
 <!-- oculpm:plan-log end -->

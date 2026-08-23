@@ -1364,6 +1364,7 @@ export const ko = {
   "code.tabs.unsplit": "분할 해제",
   "code.tabs.moveOther": "반대쪽 창으로 보내기",
   "code.tabs.openBeside": "옆에 나란히 열기",
+  "code.tabs.reopen": "닫은 탭 다시 열기",
   "code.ops.newFile": "새 파일",
   "code.ops.newFolder": "새 폴더",
   "code.ops.rename": "이름 바꾸기",
@@ -1459,6 +1460,10 @@ export const ko = {
   "code.empty.kDef": "정의로 이동",
   "code.empty.kRefs": "참조 찾기",
   "code.empty.kFormat": "포맷",
+  "code.empty.kNewFile": "새 파일",
+  "code.empty.kClose": "탭 닫기",
+  "code.empty.kReopen": "닫은 탭 다시 열기",
+  "code.empty.kCycle": "탭 전환",
   // 에이전트 변경 가시화 (#agent-diff) — 일지 칩 + 인라인 비교
   "code.jrnl.title": "이 파일을 고친 일지",
   "code.jrnl.chipTitle": "이 파일을 고친 일지 {count}건",

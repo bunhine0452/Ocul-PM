@@ -7,6 +7,7 @@ import {
   closeOpenPath,
   closeOthers,
   closeTab,
+  cycleTab,
   emptyTabs,
   focusPane,
   focusedPath,
@@ -65,6 +66,35 @@ describe("codeTabs — 열기·닫기", () => {
     s = closeTab(s, 0, "a");
     expect(s.panes).toHaveLength(1);
     expect(focusedPath(s)).toBeNull();
+  });
+});
+
+describe("codeTabs — 탭 순환 (⌃Tab · ⇧⌘]/[)", () => {
+  it("오른쪽으로 돌고, 끝에서는 처음으로 감는다", () => {
+    let s = withTabs("a", "b", "c"); // 활성 c (마지막에 연 것)
+    s = cycleTab(s, 1);
+    expect(show(s)).toBe("*[a]|b|c");
+    s = cycleTab(s, 1);
+    expect(show(s)).toBe("*a|[b]|c");
+  });
+
+  it("왼쪽으로도 감는다", () => {
+    const s = cycleTab(activateTab(withTabs("a", "b", "c"), 0, "a"), -1);
+    expect(show(s)).toBe("*a|b|[c]");
+  });
+
+  it("탭이 하나뿐이거나 없으면 아무 일도 없다", () => {
+    const one = withTabs("a");
+    expect(cycleTab(one, 1)).toBe(one);
+    const none = emptyTabs();
+    expect(cycleTab(none, -1)).toBe(none);
+  });
+
+  it("분할 중에는 포커스된 창 안에서만 돈다", () => {
+    let s = splitEditor(withTabs("a", "b")); // 오른쪽 창 [b], 포커스 1
+    s = openFile(s, "c"); // 오른쪽 창 b|[c]
+    s = cycleTab(s, 1);
+    expect(show(s)).toBe("a|[b] // *[b]|c"); // 왼쪽 창은 그대로
   });
 });
 

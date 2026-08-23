@@ -806,7 +806,10 @@
   box-shadow: var(--shadow-pop);
 }
 .code-ctxmenu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   width: 100%;
   padding: 6px 10px;
   text-align: left;
@@ -817,6 +820,13 @@
   border-radius: var(--radius-s);
   cursor: pointer;
   white-space: nowrap;
+}
+/* 단축키 힌트 — 라벨과 겨루지 않게 흐리고 작게, 오른쪽 끝에. */
+.code-ctxmenu-hint {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.03em;
 }
 .code-ctxmenu-item:hover:not(:disabled) {
   background: var(--bg-hover);

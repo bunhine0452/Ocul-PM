@@ -13,6 +13,8 @@ export interface CodeMenuItem {
   disabled?: boolean;
   /** 이 항목 위에 구분선. */
   separatorBefore?: boolean;
+  /** 오른쪽 끝에 흐리게 붙는 단축키 힌트 (예: "⌘W"). 번역하지 않는다. */
+  hint?: string;
 }
 
 interface CodeContextMenuProps {
@@ -91,7 +93,8 @@ export function CodeContextMenu({ x, y, items, label, onClose }: CodeContextMenu
             item.onSelect();
           }}
         >
-          {item.label}
+          <span>{item.label}</span>
+          {item.hint ? <kbd className="code-ctxmenu-hint">{item.hint}</kbd> : null}
         </button>
       ))}
     </div>,

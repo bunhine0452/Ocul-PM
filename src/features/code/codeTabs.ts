@@ -111,6 +111,18 @@ export function closeTab(state: CodeTabsState, pane: number, path: string): Code
   });
 }
 
+/**
+ * 포커스된 창의 활성 탭을 좌우 이웃으로 옮긴다 (⌃Tab · ⇧⌘]/[). 끝에서는
+ * 반대쪽 끝으로 감아 돈다 — 브라우저 탭 순환과 같은 관례다.
+ */
+export function cycleTab(state: CodeTabsState, delta: 1 | -1): CodeTabsState {
+  const pane = state.panes[state.focused];
+  if (!pane || pane.tabs.length < 2 || pane.active == null) return state;
+  const at = pane.tabs.indexOf(pane.active);
+  const next = pane.tabs[(at + delta + pane.tabs.length) % pane.tabs.length];
+  return activateTab(state, state.focused, next);
+}
+
 /** 이 창의 다른 탭을 전부 닫는다. */
 export function closeOthers(state: CodeTabsState, pane: number, path: string): CodeTabsState {
   const index = clampPane(state, pane);

@@ -4,7 +4,7 @@
 // 로직이 실제 화면에서 백엔드 호출과 함께 옳게 엮이는가다 — 특히 이름을
 // 바꾸거나 지운 파일이 탭에 열려 있을 때.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import type { CodeDirEntry, CodeFileContent, CodePathResult } from "@/lib/bindings";
 
 interface Ops {
@@ -178,6 +178,7 @@ vi.mock("@/features/code/CodeEditor", () => ({
 
 import { CodeScreenV2 } from "@/features/code/CodeScreenV2";
 import { _resetBuffers, bufferKey, getBuffer } from "@/features/code/codeBuffers";
+import { runCloseIntent } from "@/lib/closeIntent";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { t } from "@/i18n";
@@ -332,6 +333,142 @@ describe("코드 화면 — 탭", () => {
 
     const again = renderScreen();
     await waitFor(() => expect(tabNames(again.container)).toEqual(["README.md"]));
+  });
+});
+
+describe("코드 화면 — 탭 키보드 UX (#tab-keys)", () => {
+  /** jsdom 은 레이아웃이 없어 getClientRects 가 늘 빈 목록이다 — "보이는 화면"
+   *  가드를 통과시키려면 상자 하나를 흉내내야 한다. */
+  let rects: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    rects = vi
+      .spyOn(HTMLElement.prototype, "getClientRects")
+      .mockReturnValue([{ x: 0, y: 0, width: 800, height: 600 }] as unknown as DOMRectList);
+  });
+  afterEach(() => {
+    rects.mockRestore();
+  });
+
+  /** 지금 활성인 탭의 파일 이름. */
+  function activeTab(container: HTMLElement): string | null {
+    return container.querySelector(".code-tab.on .code-tab-name")?.textContent ?? null;
+  }
+
+  async function openTwo(r: ReturnType<typeof renderScreen>) {
+    fireEvent.click(await r.findByText("README.md"));
+    fireEvent.click(await r.findByText("src"));
+    fireEvent.click(await r.findByText("main.rs"));
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md", "main.rs"]));
+  }
+
+  it("⌘W(닫기 사슬)가 활성 탭부터 닫고, 탭이 다 떨어지면 창 차례로 넘긴다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+
+    let handled = false;
+    act(() => {
+      handled = runCloseIntent();
+    });
+    expect(handled).toBe(true);
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md"]));
+
+    act(() => {
+      handled = runCloseIntent();
+    });
+    expect(handled).toBe(true);
+    await waitFor(() => expect(tabNames(r.container)).toEqual([]));
+
+    // 더 닫을 코드 탭이 없다 — 사슬을 받지 않아야 프로젝트 탭이 닫힌다.
+    act(() => {
+      handled = runCloseIntent();
+    });
+    expect(handled).toBe(false);
+  });
+
+  it("안 보이는 화면(배경 프로젝트 탭)은 ⌘W 를 받지 않는다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+    // display:none 흉내 — 레이아웃 상자가 사라진다.
+    rects.mockReturnValue([] as unknown as DOMRectList);
+
+    let handled = true;
+    act(() => {
+      handled = runCloseIntent();
+    });
+    expect(handled).toBe(false);
+    expect(tabNames(r.container)).toEqual(["README.md", "main.rs"]);
+  });
+
+  it("⌃Tab · ⇧⌘] 가 탭을 순환한다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+    expect(activeTab(r.container)).toBe("main.rs");
+
+    fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+    await waitFor(() => expect(activeTab(r.container)).toBe("README.md"));
+
+    fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(activeTab(r.container)).toBe("main.rs"));
+
+    fireEvent.keyDown(window, { key: "]", code: "BracketRight", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(activeTab(r.container)).toBe("README.md"));
+  });
+
+  it("⇧⌘T 가 마지막으로 닫은 탭을 되살린다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+    act(() => {
+      runCloseIntent(); // main.rs 닫힘
+    });
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md"]));
+
+    fireEvent.keyDown(window, { key: "T", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md", "main.rs"]));
+    expect(activeTab(r.container)).toBe("main.rs");
+  });
+
+  it("닫은 사이 디스크에서 사라진 파일은 되살리지 않는다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+    act(() => {
+      runCloseIntent();
+    });
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md"]));
+
+    fx.files.delete("src/main.rs");
+    const readsBefore = fx.ops.reads;
+    fireEvent.keyDown(window, { key: "T", metaKey: true, shiftKey: true });
+    // 깨진 탭을 열어 두는 대신 아무 일도 없어야 한다 (토스트는 전역 스택).
+    await waitFor(() => expect(fx.ops.reads).toBeGreaterThan(readsBefore));
+    expect(tabNames(r.container)).toEqual(["README.md"]);
+  });
+
+  it("탭 우클릭 메뉴의 「닫은 탭 다시 열기」가 같은 일을 한다", async () => {
+    const r = renderScreen();
+    await openTwo(r);
+    // × 로 닫아도 기억된다.
+    fireEvent.click(r.container.querySelectorAll(".code-tab .code-tab-close")[1]);
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md"]));
+
+    fireEvent.contextMenu(r.container.querySelector(".code-tab") as HTMLElement);
+    const item = [...document.querySelectorAll(".code-ctxmenu-item")].find((el) =>
+      el.textContent?.startsWith(t("code.tabs.reopen")),
+    ) as HTMLButtonElement;
+    expect(item).toBeTruthy();
+    expect(item.disabled).toBe(false);
+    fireEvent.click(item);
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md", "main.rs"]));
+  });
+
+  it("⌘N 이 보고 있던 파일의 폴더에 새 파일 입력을 연다", async () => {
+    const r = renderScreen();
+    fireEvent.click(await r.findByText("src"));
+    fireEvent.click(await r.findByText("main.rs"));
+    await waitFor(() => expect(tabNames(r.container)).toEqual(["main.rs"]));
+
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
+    typeAndCommit(draftInput(r.container), "util.rs");
+    await waitFor(() => expect(fx.ops.create).toEqual(["src/util.rs"]));
   });
 });
 

@@ -20,6 +20,9 @@ interface CodeTabsBarProps {
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onCloseOthers: (path: string) => void;
+  /** 마지막으로 닫은 탭 되살리기 (⇧⌘T 와 같은 동작). */
+  onReopenClosed: () => void;
+  canReopen: boolean;
   onSplit: () => void;
   onUnsplit: () => void;
   onMoveToOtherPane: (path: string) => void;
@@ -35,6 +38,8 @@ export const CodeTabsBar = memo(function CodeTabsBar({
   onActivate,
   onClose,
   onCloseOthers,
+  onReopenClosed,
+  canReopen,
   onSplit,
   onUnsplit,
   onMoveToOtherPane,
@@ -146,11 +151,17 @@ export const CodeTabsBar = memo(function CodeTabsBar({
           label={t("code.tabs.aria")}
           onClose={() => setMenu(null)}
           items={[
-            { label: t("code.tabs.closeTab"), onSelect: () => onClose(menu.path) },
+            { label: t("code.tabs.closeTab"), onSelect: () => onClose(menu.path), hint: "⌘W" },
             {
               label: t("code.tabs.closeOthers"),
               onSelect: () => onCloseOthers(menu.path),
               disabled: tabs.length < 2,
+            },
+            {
+              label: t("code.tabs.reopen"),
+              onSelect: onReopenClosed,
+              disabled: !canReopen,
+              hint: "⇧⌘T",
             },
             {
               label: isSplit ? t("code.tabs.moveOther") : t("code.tabs.openBeside"),

@@ -24,6 +24,7 @@ import {
 } from "@/components/Icons";
 import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { registerCloseHandler } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -51,6 +52,7 @@ import {
   closeOpenPath,
   closeOthers,
   closeTab,
+  cycleTab,
   focusPane,
   focusedPath,
   moveTabToOtherPane,
@@ -101,6 +103,9 @@ const HINT: React.CSSProperties = {
   color: "var(--text-3)",
   lineHeight: 1.6,
 };
+
+/** ⇧⌘T 로 되살릴 수 있는 "닫은 탭" 기억의 상한 — 무한히 쌓을 이유가 없다. */
+const CLOSED_STACK_MAX = 20;
 
 /** 삭제 확인에 걸린 대상. 열려 있던 탭·미저장 목록을 같이 들고 있다. */
 interface PendingDelete {
@@ -351,6 +356,76 @@ export function CodeScreenV2({
     onOpenTargetConsumed();
   }, [openTarget, onOpenTargetConsumed, openPath]);
 
+  // ── 탭 키보드 UX (#tab-keys) ────────────────────────────────────────────
+  //
+  // 가시성 앵커. 프로젝트 탭은 배경에서도 마운트된 채라(Chrome 식) 이 화면이
+  // 창에 여럿 살아 있을 수 있다 — 레이아웃 상자가 있는 쪽만 입력을 받는다
+  // (AcpConversation 의 ⌘W 처리와 같은 잣대).
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const isVisible = useCallback(() => (rootRef.current?.getClientRects().length ?? 0) > 0, []);
+
+  /** UI 로 닫은 탭의 최근 순 목록 — ⇧⌘T 가 하나씩 되살린다. 삭제·외부 소실로
+   *  닫힌 것은 넣지 않는다 (되살릴 파일이 없다). */
+  const closedStackRef = useRef<string[]>([]);
+  const rememberClosed = useCallback((...paths: string[]) => {
+    const stack = closedStackRef.current.filter((p) => !paths.includes(p));
+    stack.push(...paths);
+    closedStackRef.current = stack.slice(-CLOSED_STACK_MAX);
+  }, []);
+
+  const closeTabTracked = useCallback(
+    (pane: number, path: string) => {
+      rememberClosed(path);
+      setTabs((prev) => closeTab(prev, pane, path));
+    },
+    [rememberClosed],
+  );
+
+  const closeOthersTracked = useCallback(
+    (pane: number, path: string) => {
+      const others = tabsRef.current.panes[pane]?.tabs.filter((p) => p !== path) ?? [];
+      if (others.length > 0) rememberClosed(...others);
+      setTabs((prev) => closeOthers(prev, pane, path));
+    },
+    [rememberClosed],
+  );
+
+  const reopenClosedTab = useCallback(() => {
+    const open = new Set(allOpenPaths(tabsRef.current));
+    let path: string | undefined;
+    while ((path = closedStackRef.current.pop()) !== undefined) {
+      if (!open.has(path)) break;
+    }
+    if (path === undefined) return;
+    const target = path;
+    // 닫은 사이 디스크에서 사라졌을 수 있다 — 깨진 탭을 열어 두는 대신 말한다.
+    void commands.codeRead(projectId, target).then((res) => {
+      if (res.status === "error") {
+        toast.warning(t("code.fileGone", { path: target }));
+        return;
+      }
+      openPath(target, null);
+    });
+  }, [projectId, openPath]);
+
+  // ⌘W — 코드 탭을 **먼저** 닫는다.
+  //
+  // macOS 는 메뉴 액셀러레이터가 웹뷰 keydown 보다 먼저 ⌘W 를 소비하므로,
+  // 여기는 keydown 이 아니라 "안쪽부터 닫기" 사슬(lib/closeIntent)로 온다.
+  // 열린 탭이 없으면 받지 않는다 — 그때의 ⌘W 는 프로젝트 탭을 닫는 것이 맞다.
+  useEffect(
+    () =>
+      registerCloseHandler(() => {
+        if (!isVisible()) return false;
+        const path = focusedPath(tabsRef.current);
+        if (path == null) return false;
+        rememberClosed(path);
+        setTabs((prev) => closeTab(prev, prev.focused, path));
+        return true;
+      }),
+    [isVisible, rememberClosed],
+  );
+
   // ── 파일 조작 ───────────────────────────────────────────────────────────
   const [draft, setDraft] = useState<TreeDraft | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -381,6 +456,43 @@ export function CodeScreenV2({
   const startRename = useCallback((path: string, isDir: boolean) => {
     setDraft({ kind: "rename", path, isDir, initial: baseName(path) });
   }, []);
+
+  // 화면 단축키 — 이 화면이 보일 때만.
+  //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
+  //   ⇧⌘T : 닫은 탭 다시 열기
+  //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
+  // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
+  // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !isVisible()) return;
+      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
+        e.preventDefault();
+        setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      // 괄호 키는 `key` 가 아니라 `code` 로 본다 — ⇧ 조합·비영어 자판에서
+      // `key` 값이 갈라진다.
+      if (e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
+        e.preventDefault();
+        setTabs((prev) => cycleTab(prev, e.code === "BracketRight" ? 1 : -1));
+        return;
+      }
+      if (e.shiftKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        reopenClosedTab();
+        return;
+      }
+      if (!e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        const current = focusedPath(tabsRef.current);
+        startCreate(current != null ? parentDir(current) : "", false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isVisible, reopenClosedTab, startCreate]);
 
   /** 이름 바꾸기·이동의 공통 뒤처리 — 탭·버퍼·펼침 상태가 새 경로를 따라간다. */
   const applyRenamed = useCallback(
@@ -730,13 +842,13 @@ export function CodeScreenV2({
       </Toolbar>
 
       {treeStatus === "loading" ? (
-        <div className="scroll">
+        <div className="scroll" ref={rootRef}>
           <div className="page">
             <div className="empty-hint">{t("code.loading")}</div>
           </div>
         </div>
       ) : treeStatus === "error" ? (
-        <div className="scroll">
+        <div className="scroll" ref={rootRef}>
           <div className="page">
             <div className="empty-hint">
               {t("code.listFailed")}
@@ -746,7 +858,7 @@ export function CodeScreenV2({
           </div>
         </div>
       ) : (
-        <div className="code-body">
+        <div className="code-body" ref={rootRef}>
           <aside className="code-sidebar">
             <div className="code-sidebar-head">
               <div className="code-filter">
@@ -842,8 +954,10 @@ export function CodeScreenV2({
                 dirtyPaths={dirtyPaths}
                 onFocus={() => setTabs((prev) => focusPane(prev, index))}
                 onActivate={(path) => setTabs((prev) => activateTab(prev, index, path))}
-                onClose={(path) => setTabs((prev) => closeTab(prev, index, path))}
-                onCloseOthers={(path) => setTabs((prev) => closeOthers(prev, index, path))}
+                onClose={(path) => closeTabTracked(index, path)}
+                onCloseOthers={(path) => closeOthersTracked(index, path)}
+                onReopenClosed={reopenClosedTab}
+                canReopen={closedStackRef.current.length > 0}
                 onSplit={() => setTabs(splitEditor)}
                 onUnsplit={() => setTabs(unsplitEditor)}
                 onMoveToOtherPane={(path) => setTabs((prev) => moveTabToOtherPane(prev, index, path))}
