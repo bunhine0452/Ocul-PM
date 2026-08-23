@@ -559,12 +559,12 @@
   font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
 }
 .goal-title { font-size: 15px; font-weight: 660; letter-spacing: -0.01em; }
-.goal-due { font-size: 11.5px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
+.goal-due { font-size: 11.5px; color: var(--text-3); display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .goal-prog-wrap { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .prog-track { width: 110px; height: 7px; background: var(--bg-inset); border-radius: 5px; overflow: hidden; }
 .prog-track > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); border-radius: 5px; }
-.prog-pct { font-size: 12px; font-weight: 650; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
-.goal-status { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; }
+.prog-pct { font-size: 12px; font-weight: 650; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; flex: none; white-space: nowrap; }
+.goal-status { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; white-space: nowrap; flex: none; }
 .goal-status.active { background: var(--accent-soft); color: var(--accent-text); }
 .goal-status.planned { background: var(--bg-inset); color: var(--text-3); }
 .subtask {
@@ -576,17 +576,62 @@
 .sub-check { width: 19px; height: 19px; border-radius: 6px; flex: none; display: grid; place-items: center; border: 1.6px solid var(--sep-strong); }
 .sub-check.done { background: var(--accent); border-color: var(--accent); color: #fff; }
 .sub-check.active { border-color: var(--accent); border-style: dashed; }
-.sub-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 520; }
+.sub-title { font-size: 13px; font-weight: 520; }
 .sub-title.done { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
 .sub-entries { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
 .sub-active-pill { font-size: 10px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ── 항목 행: 좁아지면 자르지 말고 접는다 (2026-08-23) ──────────────────────
+   예전 행은 「제목(flex:1) + 실행 + 에이전트 + 액션」이 한 줄 고정이었고,
+   뒤 셋이 전부 flex-shrink:0 이라 폭이 모자라면 **제목만** 0 으로 눌렸다.
+   한국어는 어디서나 줄바꿈이 되므로 눌린 제목은 한 글자씩 세로로 섰다.
+
+   이제 제목 묶음에 flex-basis(200px) 를 준다 — 그만큼도 못 받는 폭이면
+   메타 묶음이 통째로 아래 줄로 내려가고, 제목은 온전한 폭을 되찾는다.
+   글자는 하나도 줄이지 않는다. 넓을 때의 모양은 예전과 같다. */
+.subtask.pln-item {
+  align-items: flex-start; gap: 10px; cursor: default;
+  padding-left: calc(14px + var(--pln-indent, 0px));
+}
+.pln-item-glyph {
+  flex: none; width: 22px; padding: 0; background: none; border: none;
+  font-size: 16px; line-height: 20px; text-align: left; font-family: var(--font);
+}
+.pln-item-main { flex: 1; min-width: 0; }
+.pln-item-line { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 10px; }
+/* `min-width: 0` + `overflow-wrap: anywhere` = 긴 식별자(`flattenToDirMap`)도
+   칸을 밀어내지 않고 안에서 끊긴다. */
+.pln-item-text { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.pln-item-text .jref-wrap { margin-left: 6px; }
+.pln-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.pln-item-note { font-size: 12px; color: var(--text-3); margin-left: 6px; }
+.pln-done-hint {
+  margin-left: 6px; padding: 1px 8px; border-radius: 99px; cursor: pointer;
+  background: var(--accent-ring); border: 1px solid var(--accent); color: var(--accent);
+  font-family: var(--font); font-size: 11px; white-space: nowrap;
+}
+.pln-item-agent {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0;
+  background: none; border: none; cursor: pointer; white-space: nowrap;
+  font-family: var(--font); font-size: 11px; color: var(--text-3);
+}
+.pln-agent-time { color: var(--text-3); }
+.pln-agent-dot { width: 8px; height: 8px; border-radius: 99px; flex: none; }
+.pln-item-history { margin-top: 6px; font-size: 12px; color: var(--text-2); }
+.pln-hist-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0; }
+
+/* 계획 헤더 — 제목과 액션 묶음도 같은 규칙으로 접힌다. */
+.pln-plan-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.pln-plan-headtitle { flex: 1 1 220px; min-width: 0; }
+.pln-plan-headactions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pln-plan-title { font-size: 17px; }
 
 /* Planner CRUD polish — inline in-place editing + hover-revealed row actions +
    phase rename/reorder/delete (goal-title 인라인 편집 라운드 2026-06-17). */
 
 /* Phase header row (replaces the old single-button `.goal-head`). The collapse
    toggle, the inline-rename input, the hover actions and the % share one row. */
-.goal-head-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; }
+.goal-head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 13px 16px; }
 .goal-head-toggle {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0;
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
@@ -595,7 +640,7 @@
 .goal-head-edit { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .goal-glyph { font-size: 13px; line-height: 1; flex-shrink: 0; }
 .goal-title-clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.phase-agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+.phase-agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); flex-shrink: 0; white-space: nowrap; }
 
 /* Seamless title inputs — look like the heading they replace. */
 .goal-title-input {
@@ -642,7 +687,7 @@
 
 /* Reusable planner buttons. */
 .pln-iconbtn {
-  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0; flex: none;
   border-radius: 7px; border: 1px solid transparent; background: transparent;
   color: var(--text-3); cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
@@ -652,6 +697,7 @@
 .pln-iconbtn:disabled { opacity: 0.32; cursor: default; background: transparent; color: var(--text-3); }
 .pln-textbtn {
   appearance: none; -webkit-appearance: none; background: none; border: none; cursor: pointer;
+  white-space: nowrap; flex: none;
   padding: 3px 7px; border-radius: 6px; font-family: var(--font); font-size: 11.5px; font-weight: 600;
   color: var(--text-3); transition: background 0.12s ease, color 0.12s ease;
 }
@@ -688,7 +734,14 @@
 
    규격은 Discussion 의 `.disc-body`/`.disc-list`/`.disc-main` 을 따른다.
    `.scope-chip` 은 검색/일지/AI패널/Planner 툴바가 공유하므로 손대지 않았다. */
-.pln-body { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+/* 폭 기준은 **뷰포트가 아니라 이 칸**이다 (2026-08-23): 앱 사이드바나 터미널
+   패널을 열면 창 크기는 그대로인데 플래너만 좁아진다 — `@media` 는 그걸 못 본다.
+   `.pln-body` 를 컨테이너로 선언해 아래 규칙들이 실제 남은 폭에 반응하게 한다.
+   (모달 `AppDialog` 는 이 칸 **밖**에 있어 containment 영향을 받지 않는다.) */
+.pln-body {
+  flex: 1; min-height: 0; display: flex; align-items: stretch;
+  container-type: inline-size; container-name: plnbody;
+}
 
 /* 레일은 캔버스(--bg-sidebar)가 아니라 **콘텐츠 시트에 속한다**.
    시트와 같은 표면 위에 얇은 구분선만 두면, 앱 사이드바 옆에 같은 색 기둥이
@@ -703,14 +756,25 @@
   padding: 14px 14px 40px 10px;
   display: flex; flex-direction: column; gap: 1px;
 }
-/* 좁은 창(최소 960px)에서는 본문이 먼저다 — 레일을 줄여 문서 폭을 지킨다. */
-@media (max-width: 1120px) {
+/* 좁아지면 본문이 먼저다 — 레일을 줄여 문서 폭을 지키고, 더 좁아지면 문서
+   여백까지 걷어낸다. 글자를 자르는 대신 껍데기를 먼저 내준다. */
+@container plnbody (max-width: 900px) {
   .pln-rail { width: 194px; min-width: 194px; padding-right: 10px; }
+}
+@container plnbody (max-width: 700px) {
+  .pln-rail { width: 168px; min-width: 168px; }
 }
 .pln-rail.is-collapsed { display: none; }
 
 .pln-main { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; }
 .pln-doc { padding: 24px 28px 60px; max-width: 880px; margin: 0 auto; width: 100%; }
+@container plnbody (max-width: 760px) {
+  .pln-doc { padding: 16px 14px 48px; }
+  .subtask.pln-item { padding-left: calc(12px + var(--pln-indent, 0px)); padding-right: 12px; }
+  /* 좁을 땐 자르는 것보다 두 줄로 흐르는 편이 낫다. */
+  .plan-title-btn .goal-title,
+  .goal-title-clip { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+}
 
 .pln-rail-controls { display: flex; flex-direction: column; gap: 6px; padding: 0 2px 12px; }
 /* 시트 위에 얹히는 컨트롤이라 --bg-inset 대신 옅은 테두리로 존재만 알린다. */
@@ -809,6 +873,8 @@
    easier to click; the icon and label are vertically centered. */
 .jref-btn {
   display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  /* 라벨이라 꺾이지 않는다 (좁은 폭 방어 2026-08-23). */
+  white-space: nowrap; flex: none;
   min-height: 24px; padding: 3px 10px; border-radius: 7px; cursor: pointer;
   background: var(--bg-inset); border: 1px solid var(--border-card);
   color: var(--text-2); font-family: var(--font); font-size: 11.5px; font-weight: 550;

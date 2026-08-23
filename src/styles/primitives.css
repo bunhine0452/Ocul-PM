@@ -63,6 +63,11 @@
   height: 22px; padding: 0 9px; border-radius: 7px;
   font-size: 11.5px; font-weight: 600;
   background: var(--bg-inset); color: var(--text-2);
+  /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
+     기본 min-width:auto + 한국어(어디서나 줄바꿈 가능) 조합이면 폭이 좁아질 때
+     min-content 가 '한 글자'까지 내려가 「수정됨」이 세로로 선다. 줄이지 말고
+     밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
+  white-space: nowrap; flex: none;
 }
 .kbd {
   font-family: var(--mono); font-size: 11px; font-weight: 600;
@@ -91,6 +96,8 @@
   display: inline-flex; align-items: center; gap: 5px;
   height: 21px; padding: 0 8px 0 6px; border-radius: 6px;
   font-size: 11px; font-weight: 650; letter-spacing: 0.01em;
+  /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
+  white-space: nowrap; flex: none;
 }
 .tbadge .dot { width: 6px; height: 6px; border-radius: 50%; }
 .t-bugfix { background: var(--t-bug-soft); color: var(--t-bug); }
@@ -116,3 +123,17 @@
 
 /* empty-state hint (shared by placeholder + future screens) */
 .empty-hint { color: var(--text-3); font-size: 12px; text-align: center; padding: 60px 30px; }
+
+/* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
+   제목·메모 같은 **한 줄** 텍스트에 쓰는 최소 강조. 블록 문서는 Markdown.tsx.
+   크기는 전부 `em` 기준이라 13px 항목 제목이든 17px 계획 제목이든 따라간다. */
+.imd-strong { font-weight: 700; }
+.imd-del { color: var(--text-3); }
+.imd-code {
+  font-family: var(--mono); font-size: 0.92em;
+  background: var(--bg-inset); border-radius: 4px; padding: 0.05em 0.35em;
+  /* 좁은 칸에서 긴 식별자가 줄을 밀어내지 않게 안에서 끊는다. */
+  overflow-wrap: anywhere;
+}
+.imd-link { color: var(--accent-text); text-decoration: none; }
+.imd-link:hover { text-decoration: underline; }

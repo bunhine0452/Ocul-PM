@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   Plus,
@@ -31,6 +31,7 @@ import { toast } from "@/lib/toast";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
+import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRail } from "./PlanRail";
 import {
@@ -846,8 +847,8 @@ function PlanBody(props: PlanBodyProps) {
     <>
       {/* Header */}
       <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="pln-plan-head">
+          <div className="pln-plan-headtitle">
             {renaming ? (
               <input
                 autoFocus
@@ -868,7 +869,7 @@ function PlanBody(props: PlanBodyProps) {
                 }}
               />
             ) : locked ? (
-              <div className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</div>
+              <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} />
             ) : (
               <button
                 type="button"
@@ -877,7 +878,7 @@ function PlanBody(props: PlanBodyProps) {
                 disabled={busy}
                 title={t("plan.renameTitle")}
               >
-                <span className="goal-title" style={{ fontSize: 17 }}>{detail.plan.title}</span>
+                <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} linkable={false} />
                 <span className="plan-title-pen"><Pencil size={13} /></span>
               </button>
             )}
@@ -895,27 +896,31 @@ function PlanBody(props: PlanBodyProps) {
               {t("plan.doneOf", { done: detail.plan.done_count, total: detail.plan.item_count })}
             </div>
           </div>
-          <button
-            className="btn sm"
-            onClick={() => onToggleLock(!locked)}
-            disabled={busy}
-            title={locked ? t("plan.unlockTitle") : t("plan.lockTitle")}
-          >
-            {locked ? t("plan.unlock") : t("plan.locked")}
-          </button>
-          {confirmDelete ? (
-            <>
-              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title={t("plan.deleteConfirmTitle")}>
-                {t("plan.deleteConfirm")}
-              </button>
-              <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>{t("common.cancel")}</button>
-            </>
-          ) : (
-            <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title={t("plan.deleteTitle")}>
-              <Trash2 size={14} />
+          {/* 액션은 한 덩어리다 — 좁아지면 제목 아래로 통째로 내려간다
+              (버튼이 하나씩 흩어져 접히면 어디가 어딘지 안 보인다). */}
+          <div className="pln-plan-headactions">
+            <button
+              className="btn sm"
+              onClick={() => onToggleLock(!locked)}
+              disabled={busy}
+              title={locked ? t("plan.unlockTitle") : t("plan.lockTitle")}
+            >
+              {locked ? t("plan.unlock") : t("plan.locked")}
             </button>
-          )}
-          <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={14} /></button>
+            {confirmDelete ? (
+              <>
+                <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title={t("plan.deleteConfirmTitle")}>
+                  {t("plan.deleteConfirm")}
+                </button>
+                <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>{t("common.cancel")}</button>
+              </>
+            ) : (
+              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title={t("plan.deleteTitle")}>
+                <Trash2 size={14} />
+              </button>
+            )}
+            <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={14} /></button>
+          </div>
         </div>
         {locked ? (
           <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
@@ -1078,9 +1083,11 @@ function PhaseCard(props: PhaseCardProps) {
           <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
             {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
             <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
-            <span className="goal-title goal-title-clip">
-              {phase === NO_PHASE ? t("plan.noPhase") : phase}
-            </span>
+            <InlineMarkdown
+              className="goal-title goal-title-clip"
+              text={phase === NO_PHASE ? t("plan.noPhase") : phase}
+              linkable={false}
+            />
             {meta?.last_agent ? (
               <span
                 className="phase-agent"
@@ -1208,9 +1215,10 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
   const suggestDone =
     !locked && !isParent && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
   return (
-    <div className="subtask" style={{ alignItems: "flex-start", paddingLeft: 14 + indent, cursor: "default" }}>
+    <div className="subtask pln-item" style={{ "--pln-indent": `${indent}px` } as CSSProperties}>
       <button
         type="button"
+        className="pln-item-glyph"
         onClick={() => onSetStatus(item, NEXT_STATUS[item.status] ?? "in_progress")}
         disabled={busy || locked || isParent}
         title={
@@ -1220,97 +1228,155 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
               ? t("plan.statusLocked", { label: t(meta.labelKey) })
               : t("plan.statusClick", { label: t(meta.labelKey) })
         }
-        style={{
-          background: "none", border: "none", cursor: busy || locked || isParent ? "default" : "pointer",
-          color: meta.color, fontSize: 16, lineHeight: "20px", padding: 0, width: 22, flexShrink: 0,
-        }}
+        style={{ color: meta.color, cursor: busy || locked || isParent ? "default" : "pointer" }}
       >
         {meta.glyph}
       </button>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {editing ? (
-          <input
-            autoFocus
-            className="sub-title-input"
-            defaultValue={item.title}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onRename(item, (e.target as HTMLInputElement).value);
-                setEditing(false);
-              }
-              if (e.key === "Escape") setEditing(false);
-            }}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v && v !== item.title) onRename(item, v);
-              setEditing(false);
-            }}
-          />
-        ) : (
-          <span className={"sub-title" + (item.status === "done" ? " done" : "")}>{item.title}</span>
-        )}
-        {item.note ? <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>— {item.note}</span> : null}
-        {linked.length > 0 ? (
-          <span className="jref-wrap" ref={jrefWrap} style={{ marginLeft: 8 }}>
-            <button
-              type="button"
-              className="jref-btn"
-              onClick={handleJournalBtn}
-              title={multiLinked ? t("plan.linkedMulti", { n: linked.length }) : t("plan.linkedOne")}
-              aria-haspopup={multiLinked ? "menu" : undefined}
-              aria-expanded={multiLinked ? pickerOpen : undefined}
-            >
-              <NotebookText size={13} strokeWidth={2} />
-              <span>{t("plan.entryLabel")}{multiLinked ? ` ${linked.length}` : ""}</span>
-              {multiLinked ? <ChevronDown size={12} /> : null}
-            </button>
-            {multiLinked && pickerOpen ? (
-              <div className="jref-pop" role="menu">
-                {refMetas == null ? (
-                  <div className="jref-pop-loading">{t("common.loading")}</div>
-                ) : (
-                  refMetas.map((m) => (
-                    <button
-                      key={m.ref}
-                      type="button"
-                      role="menuitem"
-                      className="jref-pop-item"
-                      onClick={() => {
-                        setPickerOpen(false);
-                        onOpenJournalRef(m.ref);
-                      }}
-                    >
-                      <span className="jref-pop-date">{fmtWorkday(m.workday)}</span>
-                      <span className="jref-pop-title">{m.title}</span>
+      <div className="pln-item-main">
+        {/* 제목 묶음과 메타 묶음은 **한 줄에서 시작해 좁아지면 접힌다** —
+            `.pln-item-line` 이 wrap 이고 제목 쪽에 flex-basis 가 있어서, 남는
+            폭이 그 아래로 내려가면 실행/에이전트/액션이 통째로 다음 줄로
+            빠진다. 예전처럼 제목만 0px 로 눌려 세로로 서는 일이 없다. */}
+        <div className="pln-item-line">
+          <div className="pln-item-text">
+            {editing ? (
+              <input
+                autoFocus
+                className="sub-title-input"
+                defaultValue={item.title}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onRename(item, (e.target as HTMLInputElement).value);
+                    setEditing(false);
+                  }
+                  if (e.key === "Escape") setEditing(false);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== item.title) onRename(item, v);
+                  setEditing(false);
+                }}
+              />
+            ) : (
+              // 제목은 `.oculpm/planner/*.md` 에서 온 마크다운이다 — `**강조**`
+              // 와 `` `코드` `` 를 기호째 노출하지 않고 렌더한다.
+              <InlineMarkdown className={"sub-title" + (item.status === "done" ? " done" : "")} text={item.title} />
+            )}
+            {item.note ? (
+              <InlineMarkdown className="pln-item-note" text={`— ${item.note}`} />
+            ) : null}
+            {linked.length > 0 ? (
+              <span className="jref-wrap" ref={jrefWrap}>
+                <button
+                  type="button"
+                  className="jref-btn"
+                  onClick={handleJournalBtn}
+                  title={multiLinked ? t("plan.linkedMulti", { n: linked.length }) : t("plan.linkedOne")}
+                  aria-haspopup={multiLinked ? "menu" : undefined}
+                  aria-expanded={multiLinked ? pickerOpen : undefined}
+                >
+                  <NotebookText size={13} strokeWidth={2} />
+                  <span>{t("plan.entryLabel")}{multiLinked ? ` ${linked.length}` : ""}</span>
+                  {multiLinked ? <ChevronDown size={12} /> : null}
+                </button>
+                {multiLinked && pickerOpen ? (
+                  <div className="jref-pop" role="menu">
+                    {refMetas == null ? (
+                      <div className="jref-pop-loading">{t("common.loading")}</div>
+                    ) : (
+                      refMetas.map((m) => (
+                        <button
+                          key={m.ref}
+                          type="button"
+                          role="menuitem"
+                          className="jref-pop-item"
+                          onClick={() => {
+                            setPickerOpen(false);
+                            onOpenJournalRef(m.ref);
+                          }}
+                        >
+                          <span className="jref-pop-date">{fmtWorkday(m.workday)}</span>
+                          <span className="jref-pop-title">{m.title}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </span>
+            ) : null}
+            {suggestDone ? (
+              <button
+                type="button"
+                className="pln-done-hint"
+                onClick={() => onSetStatus(item, "done")}
+                title={t("plan.markDoneTitle")}
+              >
+                {t("plan.markDone")}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="pln-item-meta">
+            {!locked && !["done", "dropped"].includes(item.status) ? (
+              <button
+                type="button"
+                className="jref-btn"
+                onClick={() => onDispatch(item)}
+                title={t("plan.dispatchTitle")}
+              >
+                <Play size={12} strokeWidth={2} />
+                <span>{t("plan.dispatch")}</span>
+              </button>
+            ) : null}
+            {item.last_agent ? (
+              <button
+                type="button"
+                className="pln-item-agent"
+                onClick={() => onToggleHistory(item.item_id)}
+                title={t("plan.history")}
+              >
+                <span className="pln-agent-dot" style={{ background: agentColor(item.last_agent) }} />
+                <span className="pln-agent-name">{agentLabel(item.last_agent)}</span>
+                <span className="pln-agent-time">· {relativeTime(item.last_update)}</span>
+                <Clock size={11} />
+              </button>
+            ) : null}
+
+            {!locked && !editing ? (
+              <div className={"item-actions" + (confirmDel ? " is-active" : "")}>
+                {confirmDel ? (
+                  <>
+                    <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title={t("plan.itemDeleteConfirm")}>
+                      {t("plan.itemDeleteConfirm")}
                     </button>
-                  ))
+                    <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title={t("plan.itemRename")}>
+                      <Pencil size={12} />
+                    </button>
+                    <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title={t("plan.itemDelete")}>
+                      <Trash2 size={12} />
+                    </button>
+                  </>
                 )}
               </div>
             ) : null}
-          </span>
-        ) : null}
-        {suggestDone ? (
-          <button
-            type="button"
-            onClick={() => onSetStatus(item, "done")}
-            title={t("plan.markDoneTitle")}
-            style={{ marginLeft: 8, background: "var(--accent-ring)", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: 99, fontSize: 11, padding: "1px 8px", cursor: "pointer" }}
-          >
-            {t("plan.markDone")}
-          </button>
-        ) : null}
+          </div>
+        </div>
 
         {historyOpen ? (
-          <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-2)" }}>
+          <div className="pln-item-history">
             {history == null ? (
               <span style={{ color: "var(--text-3)" }}>{t("plan.historyLoading")}</span>
             ) : history.length === 0 ? (
               <span style={{ color: "var(--text-3)" }}>{t("plan.noHistory")}</span>
             ) : (
               history.map((u, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(u.agent_id), flexShrink: 0 }} />
+                <div key={i} className="pln-hist-row">
+                  <span className="pln-agent-dot" style={{ background: agentColor(u.agent_id) }} />
                   <span>{agentLabel(u.agent_id)}</span>
                   <span style={{ color: "var(--text-3)" }}>
                     {u.from_status ?? "?"}→{u.to_status ?? "?"} · {relativeTime(u.ts)}
@@ -1332,57 +1398,6 @@ function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, on
           </div>
         ) : null}
       </div>
-
-      {!locked && !["done", "dropped"].includes(item.status) ? (
-        <button
-          type="button"
-          className="jref-btn"
-          onClick={() => onDispatch(item)}
-          title={t("plan.dispatchTitle")}
-          style={{ flexShrink: 0 }}
-        >
-          <Play size={12} strokeWidth={2} />
-          <span>{t("plan.dispatch")}</span>
-        </button>
-      ) : null}
-      {item.last_agent ? (
-        <button
-          type="button"
-          onClick={() => onToggleHistory(item.item_id)}
-          title={t("plan.history")}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none",
-            cursor: "pointer", fontSize: 11, color: "var(--text-3)", flexShrink: 0, padding: 0,
-          }}
-        >
-          <span style={{ width: 8, height: 8, borderRadius: 99, background: agentColor(item.last_agent) }} />
-          {agentLabel(item.last_agent)}
-          <span style={{ color: "var(--text-3)" }}>· {relativeTime(item.last_update)}</span>
-          <Clock size={11} />
-        </button>
-      ) : null}
-
-      {!locked && !editing ? (
-        <div className={"item-actions" + (confirmDel ? " is-active" : "")}>
-          {confirmDel ? (
-            <>
-              <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title={t("plan.itemDeleteConfirm")}>
-                {t("plan.itemDeleteConfirm")}
-              </button>
-              <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title={t("plan.itemRename")}>
-                <Pencil size={12} />
-              </button>
-              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title={t("plan.itemDelete")}>
-                <Trash2 size={12} />
-              </button>
-            </>
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }

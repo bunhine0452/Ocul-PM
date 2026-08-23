@@ -151,6 +151,8 @@ const TESTS = new Set([
   "__tests__/home_model.test.ts",
   "__tests__/ime_bridge.test.ts",
   "__tests__/ime_trace.test.ts",
+  // 한국어 제목의 인라인 마크다운 파싱 — 한글 줄바꿈 성질이 검사 재료다.
+  "__tests__/inline_markdown.test.tsx",
   "__tests__/journal_v2.test.tsx",
   "__tests__/mcp_settings.test.tsx",
   "__tests__/multi_window.test.tsx",

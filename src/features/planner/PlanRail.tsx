@@ -11,6 +11,7 @@ import {
   type PlanSort,
 } from "./planList";
 import { useT } from "@/i18n";
+import { stripInlineMarkdown } from "@/lib/inlineMarkdown";
 
 /**
  * Planner 좌측 계획 레일 — 계획 목록을 '선택기' 에서 '포트폴리오 뷰' 로 올린다.
@@ -241,7 +242,9 @@ const PlanRailRow = memo(function PlanRailRow({
       onClick={() => onSelect(plan.plan_id)}
     >
       <span className="pln-row-top">
-        <span className="pln-row-title">{plan.title}</span>
+        {/* 행 전체가 버튼이라 앵커/강조 요소를 넣지 않는다 — 마크다운 기호만
+            걷어낸 평문. 목차에는 `**` 노이즈가 없는 편이 읽기 좋다. */}
+        <span className="pln-row-title">{stripInlineMarkdown(plan.title)}</span>
         {locked ? <Lock size={11} className="pln-row-lock" aria-label={t("plan.locked")} /> : null}
       </span>
       {/* 진행 바는 meta 줄 안에 짧게 둔다. 제목 바로 밑에 전폭으로 깔면
