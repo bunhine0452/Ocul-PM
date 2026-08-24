@@ -44,6 +44,13 @@ export const Check = (props: IconProps) => (
   </IconWrapper>
 );
 
+export const Smartphone = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+    <path d="M12 18h.01" />
+  </IconWrapper>
+);
+
 export const CheckIcon = Check;
 
 export const Loader2 = ({ className = "", ...props }: IconProps) => (

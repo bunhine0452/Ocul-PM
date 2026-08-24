@@ -55,7 +55,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.17.0 — live refresh now heals itself
+## 🚀 v2.18.0 — Ocul-PM on your phone · mobile access (beta)
+
+You no longer go blind the moment you step away from the Mac. Turn the server on in Settings → Mobile, scan the QR with your phone, and **today's journal, the planner, discussions and AI chat open in your phone's browser over your own Tailscale network** — read and write journal entries, check off plan items, leave discussion notes, and stream answers from the AI configured on your Mac. Add it to the home screen and it behaves like an app, carrying over the theme and accent you picked on the desktop. **Your data still never leaves the Mac** — the server binds only to your Tailscale private network, phones pair once with a 6-digit code, and API keys stay in the Mac's keychain. It's a beta: search, retro and the Code screen remain desktop-only for now.
+
+## v2.17.0 — live refresh now heals itself
 
 - **Self-healing file watching** — agents could edit journals and plans and the screen wouldn't follow until you right-clicked → reload. The watcher died silently in two ways; the app now **probes every minute that events actually flow** and revives a deaf watcher on the spot, and a failed start says "recovering" instead of staying quiet. Running two instances no longer leaves the newer window read-only forever — **the most recently opened window wins** the project lock.
 - **Dispatch stops stealing your screen** — if a terminal is already visible (⌘J dock, detached window), ▶Run prefills **in place**; and if an agent like Claude Code is mid-conversation in the target pane, the prompt is **pasted into that conversation** instead of nuking its context. Enter is always yours to press.

@@ -4,11 +4,11 @@ id: three-features-round
 title: "세 기능 라운드 — 멀티 창 · 모바일(Tailscale) · 영어화"
 status: active
 created: 2026-08-11
-updated: 2026-08-12
+updated: 2026-08-24
 owner: claude-code
 ---
 
-docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 → i18n 본 추출 → 모바일. 범위: 창은 메인=런처 전용 모델, 모바일은 읽기 전용, 영어화는 UI+백엔드 에러+LLM 프롬프트(디스크 산출물 제외).
+docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 → i18n 본 추출. 범위: 창은 메인=런처 전용 모델, 영어화는 UI+백엔드 에러+LLM 프롬프트(디스크 산출물 제외). **모바일(구 Phase 3)은 2026-08-24 [mobile-bridge](mobile-bridge.md) 로 이관** — 3조건 바인드·페어링 코드·정적 서빙 가드·검증 게이트 결정은 이관처가 흡수했고, 설계 문서 02-mobile-tailscale.md 는 참조로 남긴다.
 
 ## Phase 0 — i18n 뼈대 (v2.9.0 동승) {#p0-i18n-skeleton}
 - [x] src/i18n/{index,ko,en}.ts + useT() 훅 — en 을 typeof ko 로 제약해 키 누락이 typecheck 에러가 되게 {#i18n-core}
@@ -68,22 +68,6 @@ docs/20260811_three-features/ 가 SSOT. 순서는 i18n 뼈대 → 멀티 창 →
 - [x] 묶음9b LLM 프롬프트 12파일 — 출력 언어 지시 파라미터화. 본문은 한국어 유지(드리프트 방지), 단 plan_dispatch_prompt 는 사용자 산출물이라 본문도 번역 {#i18n-rust-prompts}
 - [ ] 영어 모드 12화면 순회 — 248px 사이드바/툴바 칩 오버플로 잡기 + a11y 스위트 양 언어 실행 {#i18n-overflow}
 - [ ] 완료 게이트 — check-no-hardcoded-korean allowlist 가 빈 배열 {#i18n-gate}
-
-## Phase 3 — Tailscale 모바일 읽기 전용 (v2.11.0) {#p3-mobile}
-- [ ] Tailscale 바인딩 — 대역만 보면 안 됨(100.64/10 은 ISP CGNAT 도 씀). (a)100.64.0.0/10 + (b)/32·broadcast 없음(점대점 터널) + (c)tailscale CLI 교차검증(있을 때만, 불일치면 미기동) 3조건 (R5·R5b) {#mob-bind}
-  - [ ] TailscaleBindAddr newtype — private 필드 + 유일 생성자 detect(). serve() 가 SocketAddr 대신 이걸 받아 0.0.0.0/127.0.0.1 폴백이 컴파일 에러가 되게 {#mob-bind-newtype}
-  - [ ] 바인딩 후 local_addr() 되읽기 검증 — 불일치면 리스너 폐기·미기동 {#mob-bind-readback}
-  - [ ] 심층 방어 — axum 미들웨어에서 요청 출발지 IP 가 100.64.0.0/10 밖이면 거부 {#mob-bind-peer}
-  - [ ] 대역 경계 단위 테스트 — 100.64.0.0/100.127.255.255 참, 100.63.255.255/100.128.0.0/10.x/192.168.x/172.16.x 거짓 {#mob-bind-test}
-  - [ ] ISP CGNAT 회귀 테스트 — (100.90.1.2, /32, bcast=None) 채택 AND (100.90.1.2, /24, bcast=Some) 거부 {#mob-bind-isp-test}
-  - [ ] 후보 0개→None, 후보 여럿→결정적 선택. CLI 부재 시 (a)+(b) 통과, CLI 불일치 시 None {#mob-bind-edge-test}
-- [ ] src-tauri/src/mobile/ 모듈 + axum/tower-http/if-addrs 의존성 + MobileServer 관리 상태 + ExitRequested graceful shutdown {#mob-server}
-- [ ] 페어링 코드(6자리·TTL 5분·1회용) → 베어러 토큰. 마이그레이션 029_mobile_devices.sql (028 은 journal_file_lines 가 선점), 토큰은 blake3 해시로만 저장 {#mob-auth}
-- [ ] 읽기 전용 API 8종 — 커맨드에서 순수 로직 분리해 axum 핸들러와 공유. 반드시 OculpmManager/JournalCache 경유 (디스크 직독 금지 — R6) {#mob-api}
-- [ ] mobile.html 별도 Vite 엔트리 + src/mobile/ 화면 (Tauri 의존 0). 토큰 CSS 만 재사용, 레이아웃은 모바일 전용 {#mob-bundle}
-- [ ] resource_dir 기반 ServeDir 정적 서빙 + 경로 탈출 차단 (commands/docs.rs 의 secure_docs_join 패턴 참고) + dev 폴백 {#mob-assets}
-- [ ] 설정 '모바일' 탭 — 토글·상태·주소 복사·포트·QR·페어링 코드·연결 기기 목록/해제 {#mob-settings}
-- [ ] 검증 게이트 — 폰(tailnet)에서 접속 성공 AND 같은 LAN 비-tailnet 기기에서 접속 실패 확인 (R5) {#mob-verify}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |

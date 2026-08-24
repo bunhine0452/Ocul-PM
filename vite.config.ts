@@ -1,5 +1,6 @@
 import { createLogger, defineConfig } from "vite";
 import path from "node:path";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
@@ -60,9 +61,26 @@ export default defineConfig(async () => ({
   },
 
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    // 모바일 브리지 전송 셤 (mobile-bridge 플랜 D3 #invoke-mirror):
+    // 앱·플러그인의 @tauri-apps/api/core·event 임포트를 src/lib/transport/ 로
+    // 돌린다. 셤 자신(transport/ 안)의 임포트만 진짜 모듈로 — 그래야 셤이
+    // 웹뷰에서 원본에 위임할 수 있다. vitest 는 vitest.config.ts(별도, alias
+    // 없음)라 테스트에는 영향이 없다.
+    alias: [
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      ...(["core", "event"] as const).map((mod) => {
+        const shim = path.resolve(__dirname, `./src/lib/transport/${mod}.ts`);
+        const real = createRequire(import.meta.url).resolve(`@tauri-apps/api/${mod}`);
+        const transportDir = path.resolve(__dirname, "./src/lib/transport");
+        return {
+          find: new RegExp(`^@tauri-apps/api/${mod}$`),
+          replacement: shim,
+          customResolver(_source: string, importer: string | undefined) {
+            return importer?.startsWith(transportDir) ? real : shim;
+          },
+        };
+      }),
+    ],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

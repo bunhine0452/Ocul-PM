@@ -12,6 +12,7 @@ import {
   KeyRound,
   Sparkles,
   Database,
+  Smartphone,
   GitBranch,
   Settings as SettingsIcon,
   FileCode,
@@ -41,6 +42,7 @@ import { useUpdater, releaseHighlights } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { OculpmSettings } from "./OculpmSettings";
 import { CodeSettings } from "./CodeSettings";
+import { MobileSettings } from "./MobileSettings";
 
 type TabId =
   | "appearance"
@@ -50,6 +52,7 @@ type TabId =
   | "graph"
   | "data"
   | "oculpm"
+  | "mobile"
   | "diagnostics"
   | "update";
 
@@ -64,6 +67,8 @@ const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ cl
   { id: "graph", labelKey: "settings.tab.graph", icon: GitBranch },
   { id: "data", labelKey: "settings.tab.data", icon: Database },
   { id: "oculpm", labelKey: "settings.tab.oculpm", icon: FileCode },
+  // 모바일 브리지 — Tailscale 폰 접근 (mobile-bridge #mb0-settings-ui).
+  { id: "mobile", labelKey: "settings.tab.mobile", icon: Smartphone },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
   { id: "diagnostics", labelKey: "settings.tab.diagnostics", icon: SettingsIcon },
   // Update surfaced out of the buried 데이터 section into its own tab below 진단.
@@ -1748,6 +1753,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <DataTab onError={setError} />;
       case "oculpm":
         return <OculpmSettings />;
+      case "mobile":
+        return <MobileSettings Section={Section} Field={Field} />;
       case "diagnostics":
         return <DiagnosticsTab onError={setError} />;
       case "update":

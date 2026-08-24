@@ -1429,6 +1429,17 @@ export const commands = {
 	trayHidePopover: () => typedError<null, string>(__TAURI_INVOKE("tray_hide_popover")),
 	/**  설정 UI 가 토글 저장 직후 호출 — 아이콘 표시/숨김 즉시 반영. */
 	trayApplySettings: () => typedError<null, string>(__TAURI_INVOKE("tray_apply_settings")),
+	/**  서버 기동 (멱등). 실패 사유(Tailscale 미탐지 등)는 설정 화면에 그대로 노출된다. */
+	mobileBridgeStart: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_start")),
+	/**  graceful 중지 (멱등). */
+	mobileBridgeStop: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_stop")),
+	mobileBridgeStatus: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_status")),
+	/**  페어링 세션 시작 — 6자리 코드·TTL 5분·1회용. 기존 세션은 대체된다. */
+	mobileBridgePairingBegin: () => typedError<PairingInfo, string>(__TAURI_INVOKE("mobile_bridge_pairing_begin")),
+	/**  페어링된 기기 목록 (설정 '모바일' 탭). */
+	mobileBridgeDevices: () => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_devices")),
+	/**  기기 해제 — DB 와 인증 미들웨어의 메모리 집합 양쪽에서 제거 (즉시 실효). */
+	mobileBridgeRevokeDevice: (id: number) => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_revoke_device", { id })),
 };
 
 /** Events */
@@ -3291,6 +3302,21 @@ export type MirrorWriteResult = {
 	mirror_rel: string,
 };
 
+/**  프런트에 주는 상태 스냅샷 (설정 '모바일' 탭이 소비). */
+export type MobileBridgeStatus = {
+	running: boolean,
+	/**  "100.x.y.z:port" — running 일 때만. */
+	addr: string | null,
+};
+
+/**  페어링된 모바일 기기 (설정 '모바일' 탭 목록). */
+export type MobileDevice = {
+	id: number,
+	name: string,
+	created_at: string,
+	last_seen_at: string | null,
+};
+
 export type NotionStatus = {
 	/**
 	 *  키체인에 internal integration token 이 있는가 — 없으면 UI 는 내보내기
@@ -3439,6 +3465,13 @@ export type OpenPlanItem = {
 	phase: string | null,
 	/**  todo | in_progress | blocked */
 	status: string,
+};
+
+/**  `mobile_bridge_pairing_begin` 응답 — 설정 화면이 코드·QR 을 그린다. */
+export type PairingInfo = {
+	code: string,
+	url: string,
+	expires_in_secs: number,
 };
 
 /**

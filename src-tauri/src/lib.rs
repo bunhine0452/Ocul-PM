@@ -20,6 +20,7 @@ mod llm;
 pub mod lsp;
 mod notion;
 pub mod oculpm;
+mod mobile_bridge;
 mod secrets;
 mod menu;
 mod tray;
@@ -223,6 +224,9 @@ use crate::commands::{
     claude_plugin_status, mcp_desktop_status, mcp_desktop_register, mcp_desktop_unregister,
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
     notion_status, notion_verify_token, notion_oauth_start, notion_set_parent, notion_export,
+    // 모바일 브리지 (.oculpm/planner/mobile-bridge.md #mb0-axum)
+    mobile_bridge_start, mobile_bridge_stop, mobile_bridge_status,
+    mobile_bridge_pairing_begin, mobile_bridge_devices, mobile_bridge_revoke_device,
 };
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::tray::{tray_apply_settings, tray_hide_popover, tray_open_main};
@@ -522,6 +526,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         tray_open_main,
         tray_hide_popover,
         tray_apply_settings,
+        // 모바일 브리지 (#mb0-axum)
+        mobile_bridge_start,
+        mobile_bridge_stop,
+        mobile_bridge_status,
+        mobile_bridge_pairing_begin,
+        mobile_bridge_devices,
+        mobile_bridge_revoke_device,
     ])
     .events(collect_events![
         // .oculpm/ subsystem (W1-PR2)
@@ -613,6 +624,7 @@ pub fn run() {
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
+            app.manage(crate::mobile_bridge::server::MobileBridgeState::default());
 
             // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
             // 설정 조회가 Db state 를 쓴다).
@@ -664,6 +676,12 @@ pub fn run() {
                     app_handle.try_state::<crate::oculpm::manager::OculpmManager>()
                 {
                     manager.shutdown_all_blocking();
+                }
+                // 모바일 브리지 — oneshot 만 보내면 axum 이 graceful 로 내려간다.
+                if let Some(bridge) =
+                    app_handle.try_state::<crate::mobile_bridge::server::MobileBridgeState>()
+                {
+                    bridge.stop();
                 }
             }
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".

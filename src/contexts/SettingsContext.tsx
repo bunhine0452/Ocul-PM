@@ -26,7 +26,7 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 // existing `[data-theme="dark"]` rule (code editor, hljs, scrollbars, glass)
 // keeps working — while `data-preset` repaints the surfaces + accent on top
 // (tokens.css / App.css). Plain light/dark/system set no `data-preset`.
-const PRESET_FAMILY: Record<string, "light" | "dark"> = {
+export const PRESET_FAMILY: Record<string, "light" | "dark"> = {
   solarized: "light",
   sepia: "light",
   nord: "dark",

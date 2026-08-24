@@ -1,7 +1,7 @@
 {
   "name": "ocul-pm",
   "private": true,
-  "version": "2.17.0",
+  "version": "2.18.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -71,7 +71,8 @@
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.7.0",
     "tailwind-merge": "^3.6.0",
-    "tw-animate-css": "^1.4.0"
+    "tw-animate-css": "^1.4.0",
+    "uqr": "^0.1.3"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",

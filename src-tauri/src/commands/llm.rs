@@ -82,14 +82,15 @@ pub async fn chat(
     Err(last_err)
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn chat_stream(
+/// 스트리밍 본체 — 싱크가 mpsc 라 IPC Channel(데스크톱)과 SSE(모바일 브리지
+/// #mb4-chat-sse)가 같은 폴백·부분응답 로직을 공유한다. 계약은 기존 그대로:
+/// Delta 가 한 번이라도 나가면 폴백하지 않고, 종료는 Done 또는 Error 정확히 1회.
+pub async fn run_chat_stream(
     provider: String,
     messages: Vec<Message>,
     options: ChatOptions,
     fallbacks: Vec<ProviderModel>,
-    on_event: Channel<ChatEvent>,
+    sink: tokio::sync::mpsc::Sender<ChatEvent>,
 ) -> Result<(), String> {
     let attempts = build_attempts(&provider, &options.model, &fallbacks);
     let n = attempts.len();
@@ -117,14 +118,14 @@ pub async fn chat_stream(
         // Track whether any text reached the UI: once it has, a later failure
         // can't be cleanly retried (the user already sees a partial answer).
         let emitted = Arc::new(AtomicBool::new(false));
-        let forwarder_channel = on_event.clone();
+        let sink_fwd = sink.clone();
         let emitted_fwd = emitted.clone();
         let forward = tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 if matches!(event, ChatEvent::Delta { .. }) {
                     emitted_fwd.store(true, Ordering::SeqCst);
                 }
-                if forwarder_channel.send(event).is_err() {
+                if sink_fwd.send(event).await.is_err() {
                     break;
                 }
             }
@@ -135,7 +136,7 @@ pub async fn chat_stream(
 
         match result {
             Ok(()) => {
-                let _ = on_event.send(ChatEvent::Done);
+                let _ = sink.send(ChatEvent::Done).await;
                 return Ok(());
             }
             Err(e) => {
@@ -143,9 +144,11 @@ pub async fn chat_stream(
                 // Fail over only if nothing was streamed yet and another
                 // attempt remains; otherwise surface the error.
                 if emitted.load(Ordering::SeqCst) || i + 1 == n {
-                    let _ = on_event.send(ChatEvent::Error {
-                        message: msg.clone(),
-                    });
+                    let _ = sink
+                        .send(ChatEvent::Error {
+                            message: msg.clone(),
+                        })
+                        .await;
                     return Err(msg);
                 }
                 last_err = msg;
@@ -153,8 +156,33 @@ pub async fn chat_stream(
         }
     }
 
-    let _ = on_event.send(ChatEvent::Error {
-        message: last_err.clone(),
-    });
+    let _ = sink
+        .send(ChatEvent::Error {
+            message: last_err.clone(),
+        })
+        .await;
     Err(last_err)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn chat_stream(
+    provider: String,
+    messages: Vec<Message>,
+    options: ChatOptions,
+    fallbacks: Vec<ProviderModel>,
+    on_event: Channel<ChatEvent>,
+) -> Result<(), String> {
+    // 본체는 run_chat_stream — 여기서는 mpsc → IPC Channel 로 나르기만 한다.
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<ChatEvent>(32);
+    let forward = tokio::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            if on_event.send(event).is_err() {
+                break;
+            }
+        }
+    });
+    let result = run_chat_stream(provider, messages, options, fallbacks, tx).await;
+    let _ = forward.await;
+    result
 }

@@ -1,0 +1,220 @@
+/* 모바일 셸 — 데스크톱 토큰(tokens.css)만으로 구성한 컴포넌트 층.
+   Atelier Ivory 캔버스/시트/카드 위계·트리거 색·액센트·프리셋이 폰에서도
+   데스크톱과 같은 값을 쓴다 (#mb3 리스킨 라운드). 레이아웃만 tailwind. */
+
+.mob-root {
+  background: var(--bg-content);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* ── 헤더 — 데스크톱 툴바의 축약: 브랜드 점 + 프로젝트 ─────────────── */
+.mob-header {
+  background: color-mix(in srgb, var(--bg-window) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sep);
+}
+.mob-brand {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+.mob-header-title { color: var(--text); }
+.mob-header-caret { color: var(--text-3); }
+.mob-beta {
+  margin-left: 2px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+/* ── 카드 — 데스크톱 카드 문법 그대로 (border 가 경계, 그림자가 깊이) ── */
+.mob-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-card);
+  transition: background var(--dur-1, 90ms);
+}
+.mob-card:active { background: var(--bg-hover); }
+
+.mob-sec-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 7px;
+}
+.mob-text-2 { color: var(--text-2); }
+.mob-text-3 { color: var(--text-3); }
+
+/* ── 일지 타입 칩 — 데스크톱 트리거 색(--t-*) 그대로 ─────────────── */
+.mob-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 1px 8px;
+  line-height: 1.7;
+  flex-shrink: 0;
+}
+.mob-chip.t-feature { color: var(--t-feature); background: var(--t-feature-soft); }
+.mob-chip.t-bug { color: var(--t-bug); background: var(--t-bug-soft); }
+.mob-chip.t-error { color: var(--t-error); background: var(--t-error-soft); }
+.mob-chip.t-refactor { color: var(--t-refactor); background: var(--t-refactor-soft); }
+.mob-chip.t-chore { color: var(--t-chore); background: var(--t-chore-soft); }
+
+/* 에이전트 스와치 — agentColor() 인라인 색을 받는 점 */
+.mob-agent-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.mob-verified { color: var(--accent-text); }
+
+/* ── 하단탭 — 사이드바 활성 문법(soft pill + accent 텍스트) ─────────── */
+.mob-tabbar {
+  background: color-mix(in srgb, var(--bg-window) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--sep);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.mob-tab { color: var(--text-3); transition: color var(--dur-1, 90ms); }
+.mob-tab .mob-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 24px;
+  border-radius: 8px;
+  transition: background var(--dur-2, 190ms);
+}
+.mob-tab[aria-current="page"] { color: var(--accent-text); }
+.mob-tab[aria-current="page"] .mob-tab-icon { background: var(--accent-soft); }
+
+/* ── 버튼·입력 ────────────────────────────────────────────────────── */
+.mob-btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-m);
+  font-weight: 600;
+  transition: background var(--dur-1, 90ms);
+}
+.mob-btn-primary:active { background: var(--accent-strong); }
+.mob-btn-primary:disabled { opacity: 0.4; }
+.mob-btn-soft {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: var(--radius-s);
+  font-weight: 500;
+}
+.mob-btn-ghost {
+  background: var(--bg-inset);
+  color: var(--text-2);
+  border-radius: var(--radius-s);
+}
+.mob-link { color: var(--accent-text); font-weight: 500; }
+.mob-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-m);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--dur-1, 90ms), box-shadow var(--dur-1, 90ms);
+}
+.mob-input::placeholder { color: var(--text-3); }
+.mob-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.mob-danger { color: var(--t-bug); }
+
+/* ── 플래너 — 글리프·진행 바 ──────────────────────────────────────── */
+.mob-glyph { font-size: 15px; line-height: 20px; }
+.mob-glyph.done { color: var(--accent); }
+.mob-glyph.in_progress { color: var(--accent); } /* 데스크톱 STATUS_META 동일 */
+.mob-glyph.todo { color: var(--text-3); }
+.mob-item-done { color: var(--text-3); text-decoration: line-through; }
+.mob-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+.mob-progress > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* ── 논의 상태 칩 ─────────────────────────────────────────────────── */
+.mob-status { border-radius: 999px; font-size: 10.5px; font-weight: 650; padding: 1px 8px; }
+.mob-status.open { color: var(--accent-text); background: var(--accent-soft); }
+.mob-status.resolved { color: var(--text-2); background: var(--bg-inset); }
+.mob-status.archived { color: var(--text-3); background: var(--bg-inset); }
+.mob-log-row { background: var(--bg-inset); border-radius: var(--radius-s); }
+
+/* ── AI 말풍선 ────────────────────────────────────────────────────── */
+.mob-bubble-user {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-l);
+  border-bottom-right-radius: var(--radius-s);
+}
+.mob-bubble-ai {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text);
+  border-radius: var(--radius-l);
+  border-bottom-left-radius: var(--radius-s);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 날짜 바 (일지) ───────────────────────────────────────────────── */
+.mob-datebar-label { color: var(--text); font-weight: 600; }
+.mob-datebar-label.is-today { color: var(--accent-text); }
+
+/* ── 오늘 요약 스트립 ─────────────────────────────────────────────── */
+.mob-hero {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-sheet);
+}
+.mob-hero-num { color: var(--accent-text); font-weight: 700; }
+
+/* ── 마크다운 본문 ────────────────────────────────────────────────── */
+.mob-md h1, .mob-md h2, .mob-md h3 { font-weight: 600; margin: 1em 0 0.4em; color: var(--text); }
+.mob-md h2 { font-size: 15px; }
+.mob-md h3 { font-size: 14px; }
+.mob-md p, .mob-md ul, .mob-md ol { margin: 0.4em 0; }
+.mob-md ul { padding-left: 1.2em; list-style: disc; }
+.mob-md ol { padding-left: 1.2em; list-style: decimal; }
+.mob-md code {
+  font-family: "D2Coding", ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--bg-inset);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.mob-md pre {
+  overflow-x: auto;
+  background: var(--bg-inset);
+  border-radius: var(--radius-s);
+  padding: 10px;
+  margin: 0.6em 0;
+}
+.mob-md pre code { background: none; padding: 0; }
+.mob-md table { font-size: 12px; border-collapse: collapse; display: block; overflow-x: auto; }
+.mob-md th, .mob-md td { border: 1px solid var(--sep); padding: 3px 8px; }
+.mob-md a { color: var(--accent-text); }
+.mob-md blockquote { border-left: 3px solid var(--sep-strong); padding-left: 10px; color: var(--text-2); }

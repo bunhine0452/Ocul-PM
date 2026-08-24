@@ -17,6 +17,7 @@ pub mod home;
 pub mod llm;
 pub mod lsp;
 pub mod mcp;
+pub mod mobile;
 pub mod notion;
 pub mod oculpm;
 pub mod overview;
@@ -51,6 +52,7 @@ pub use home::*;
 pub use llm::*;
 pub use lsp::*;
 pub use mcp::*;
+pub use mobile::*;
 pub use notion::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.
 pub use oculpm::*;

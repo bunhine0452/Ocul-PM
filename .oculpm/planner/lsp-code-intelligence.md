@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: lsp-code-intelligence
 title: "코드 인텔리전스 — 코드 화면에 LSP"
-status: active
+status: done
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-24
 owner: claude-code
 ---
 

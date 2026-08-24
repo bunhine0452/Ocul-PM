@@ -21,6 +21,16 @@ const ROOT = new URL("../src", import.meta.url).pathname;
 // short and aim for the empty state.
 const ALLOWLIST = new Set([
   "contexts/WorkspaceContext.tsx", // Owns persistence + legacy-key migration.
+  // mobile-bridge #mb2-shim — 폰 브라우저의 Bearer 토큰. React/WorkspaceContext
+  // 가 뜨기 전(첫 invoke 전)에 필요해 컨텍스트 경유가 성립하지 않는 유일한 축.
+  "lib/transport/http.ts",
+  // mobile-bridge #mb3-tabs — 폰의 "마지막 프로젝트". 폰 브라우저에는
+  // WorkspaceContext 를 올리지 않는다 (다른 기기의 다른 상태).
+  "mobile/storage.ts",
+  // 같은 축의 테스트 — 토큰 왕복을 검증하려면 마운트 사이에 비워야 한다. Test-only.
+  "__tests__/mobile_transport.test.ts",
+  // mobile-bridge #mb3 — 모바일 셸 테스트도 토큰/프로젝트 시드가 필요. Test-only.
+  "__tests__/mobile_shell.test.tsx",
   // (ChatPanel 항목은 감사 2026-07-16 에서 제거 — 파일이 오버레이 스택과 함께 은퇴.)
   // PR-UI 8a — the W3-scope ocul-pm UI-state files that used to be allowlisted
   // here (OculpmOnboardingModal / SessionCard / filters / TodayScreen /
