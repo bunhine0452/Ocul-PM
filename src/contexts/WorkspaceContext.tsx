@@ -308,6 +308,12 @@ export interface WorkspaceState {
    * 넘어갈 때마다 바닥이 널뛴다.
    */
   codePanelHeight: number;
+  /**
+   * 코드 화면 파일 트리를 붙이는 쪽 (2026-08-24). 왼쪽이 기본 — 오른손
+   * 마우스로 트리를 쓰거나 편집면을 왼쪽 끝에 붙이고 싶은 사람이 옮긴다.
+   * 알 수 없는 값은 소비처가 왼쪽으로 취급한다.
+   */
+  codeSidebarSide: "left" | "right";
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**
@@ -400,6 +406,7 @@ const DEFAULT_STATE: WorkspaceState = {
   codeActivePath: null,
   codeTabs: null,
   codePanelHeight: 240,
+  codeSidebarSide: "left",
   discussionActiveId: null,
   discussionEditorMode: "split",
   sidebarCollapsed: false,

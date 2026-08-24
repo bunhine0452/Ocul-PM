@@ -45,7 +45,7 @@
   --code-search-current: color-mix(in srgb, #e5c07b 45%, transparent);
 }
 
-/* ── 좌측 트리 ─────────────────────────────────────────────── */
+/* ── 트리 사이드바 (기본 왼쪽 · #sidebar-side 로 오른쪽 이동 가능) ── */
 .code-sidebar {
   flex: none;
   width: 264px;
@@ -56,6 +56,11 @@
   border-right: 1px solid var(--sep);
   background: transparent;
   padding: 10px 8px 0;
+}
+/* 오른쪽에 붙으면 경계선도 반대쪽으로 — 선이 양쪽에 서면 두 줄로 보인다. */
+.code-sidebar.on-right {
+  border-right: none;
+  border-left: 1px solid var(--sep);
 }
 
 .code-filter {

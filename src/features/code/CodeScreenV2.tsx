@@ -21,6 +21,8 @@ import {
   Sparkles,
   Bug,
   Play,
+  PanelLeft,
+  PanelRight,
 } from "@/components/Icons";
 import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -722,6 +724,16 @@ export function CodeScreenV2({
   const isSplit = tabs.panes.length > 1;
   const focusedDirty = selected != null && dirtyPaths.has(selected);
 
+  // ── 트리 사이드바 좌/우 (#sidebar-side) ────────────────────────────────
+  // 알 수 없는 영속값은 왼쪽으로 — 렌더는 "right" 하나만 특별 취급한다.
+  const sidebarOnRight = state.codeSidebarSide === "right";
+  const toggleSidebarSide = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      codeSidebarSide: prev.codeSidebarSide === "right" ? "left" : "right",
+    }));
+  }, [setState]);
+
   // ── 하단 패널 높이 (#panel-resize) ─────────────────────────────────────
   // 드래그 중에는 로컬 값으로만 그리고, 놓는 순간 영속한다 — 매 이동마다
   // 컨텍스트를 통과시키면 창 전체가 60fps 로 리렌더된다.
@@ -763,6 +775,95 @@ export function CodeScreenV2({
       persistPanelHeight(clampPanelHeight(drag.startH + (drag.startY - e.clientY)));
     },
     [persistPanelHeight],
+  );
+
+  // 트리 사이드바 — 좌/우 어느 쪽이든 **DOM 순서를 화면 순서와 같게** 두 자리
+  // 중 한 곳에 렌더한다 (터미널 도크와 같은 원칙: row-reverse 로 뒤집으면
+  // Tab 이동이 눈에 보이는 차례와 어긋난다).
+  const sidebarEl = (
+    <aside className={"code-sidebar" + (sidebarOnRight ? " on-right" : "")}>
+      <div className="code-sidebar-head">
+        <div className="code-filter">
+          <Search size={13} className="code-filter-ico" />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={t("code.filter")}
+            aria-label={t("code.filter")}
+            spellCheck={false}
+          />
+          {filter ? (
+            <button
+              type="button"
+              className="code-filter-clear"
+              onClick={() => setFilter("")}
+              aria-label={t("code.filter.clear")}
+              title={t("code.filter.clear")}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="code-tool-btn sm"
+          onClick={() => startCreate("", false)}
+          title={t("code.ops.newFile")}
+          aria-label={t("code.ops.newFile")}
+        >
+          <FilePlus size={14} />
+        </button>
+        <button
+          type="button"
+          className="code-tool-btn sm"
+          onClick={() => startCreate("", true)}
+          title={t("code.ops.newFolder")}
+          aria-label={t("code.ops.newFolder")}
+        >
+          <FolderPlus size={14} />
+        </button>
+        <button
+          type="button"
+          className="code-tool-btn sm"
+          onClick={toggleSidebarSide}
+          title={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
+          aria-label={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
+        >
+          {sidebarOnRight ? <PanelLeft size={14} /> : <PanelRight size={14} />}
+        </button>
+      </div>
+      {tree?.truncated ? <div className="code-truncated">{t("code.truncated")}</div> : null}
+      {treeIsEmpty ? (
+        <div className="code-tree-empty">
+          {filtering ? t("code.noMatch") : t("code.tree.empty")}
+        </div>
+      ) : (
+        <CodeTree
+          childrenOf={childrenOf}
+          loadingDirs={loadingDirs}
+          selected={selected}
+          expanded={expandedForRender}
+          dirtyPaths={dirtyPaths}
+          openPaths={openPaths}
+          draft={draft}
+          onToggle={toggleDir}
+          onSelect={(path) => openPath(path, null)}
+          onDraftSubmit={submitDraft}
+          onDraftCancel={() => setDraft(null)}
+          onContextMenu={openTreeMenu}
+          onMove={handleMove}
+        />
+      )}
+      <CodeOutline
+        symbols={symbols}
+        loading={symbolsLoading}
+        open={outlineOpen}
+        cursorLine={cursorLine}
+        onToggleOpen={() => setOutlineOpen((v) => !v)}
+        onJump={(line) => selected && openPath(selected, line + 1)}
+      />
+    </aside>
   );
 
   return (
@@ -859,80 +960,7 @@ export function CodeScreenV2({
         </div>
       ) : (
         <div className="code-body" ref={rootRef}>
-          <aside className="code-sidebar">
-            <div className="code-sidebar-head">
-              <div className="code-filter">
-                <Search size={13} className="code-filter-ico" />
-                <input
-                  type="text"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder={t("code.filter")}
-                  aria-label={t("code.filter")}
-                  spellCheck={false}
-                />
-                {filter ? (
-                  <button
-                    type="button"
-                    className="code-filter-clear"
-                    onClick={() => setFilter("")}
-                    aria-label={t("code.filter.clear")}
-                    title={t("code.filter.clear")}
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                className="code-tool-btn sm"
-                onClick={() => startCreate("", false)}
-                title={t("code.ops.newFile")}
-                aria-label={t("code.ops.newFile")}
-              >
-                <FilePlus size={14} />
-              </button>
-              <button
-                type="button"
-                className="code-tool-btn sm"
-                onClick={() => startCreate("", true)}
-                title={t("code.ops.newFolder")}
-                aria-label={t("code.ops.newFolder")}
-              >
-                <FolderPlus size={14} />
-              </button>
-            </div>
-            {tree?.truncated ? <div className="code-truncated">{t("code.truncated")}</div> : null}
-            {treeIsEmpty ? (
-              <div className="code-tree-empty">
-                {filtering ? t("code.noMatch") : t("code.tree.empty")}
-              </div>
-            ) : (
-              <CodeTree
-                childrenOf={childrenOf}
-                loadingDirs={loadingDirs}
-                selected={selected}
-                expanded={expandedForRender}
-                dirtyPaths={dirtyPaths}
-                openPaths={openPaths}
-                draft={draft}
-                onToggle={toggleDir}
-                onSelect={(path) => openPath(path, null)}
-                onDraftSubmit={submitDraft}
-                onDraftCancel={() => setDraft(null)}
-                onContextMenu={openTreeMenu}
-                onMove={handleMove}
-              />
-            )}
-            <CodeOutline
-              symbols={symbols}
-              loading={symbolsLoading}
-              open={outlineOpen}
-              cursorLine={cursorLine}
-              onToggleOpen={() => setOutlineOpen((v) => !v)}
-              onJump={(line) => selected && openPath(selected, line + 1)}
-            />
-          </aside>
+          {sidebarOnRight ? null : sidebarEl}
 
           <div className="code-editors">
             <div className={"code-main" + (isSplit ? " split" : "")}>
@@ -1027,6 +1055,8 @@ export function CodeScreenV2({
               </div>
             ) : null}
           </div>
+
+          {sidebarOnRight ? sidebarEl : null}
         </div>
       )}
 

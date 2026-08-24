@@ -472,6 +472,34 @@ describe("코드 화면 — 탭 키보드 UX (#tab-keys)", () => {
   });
 });
 
+describe("코드 화면 — 트리 사이드바 좌/우 (#sidebar-side)", () => {
+  const isSidebar = (el: Element | null) => el?.classList.contains("code-sidebar") ?? false;
+
+  it("토글이 트리를 오른쪽으로 옮기고(영속), 다시 왼쪽으로 되돌린다", async () => {
+    const { findByText, container } = renderScreen();
+    await findByText("README.md");
+    const body = () => container.querySelector(".code-body") as HTMLElement;
+    // 기본: 왼쪽 — DOM 순서도 화면 순서와 같다 (사이드바가 첫 자식).
+    expect(isSidebar(body().firstElementChild)).toBe(true);
+
+    fireEvent.click(
+      container.querySelector(`button[aria-label="${t("code.sidebar.toRight")}"]`) as HTMLElement,
+    );
+    await waitFor(() => expect(isSidebar(body().lastElementChild)).toBe(true));
+    expect(isSidebar(body().firstElementChild)).toBe(false);
+    expect(body().querySelector(".code-sidebar.on-right")).toBeTruthy();
+    // 워크스페이스에 영속된다 (디바운스 — 실제 저장까지 기다린다).
+    await waitFor(() =>
+      expect(localStorage.getItem("aipm:workspace:v2:p1")).toContain('"codeSidebarSide":"right"'),
+    );
+
+    fireEvent.click(
+      container.querySelector(`button[aria-label="${t("code.sidebar.toLeft")}"]`) as HTMLElement,
+    );
+    await waitFor(() => expect(isSidebar(body().firstElementChild)).toBe(true));
+  });
+});
+
 describe("코드 화면 — 파일 조작", () => {
   /** 트리 행을 우클릭해 메뉴를 띄우고, 라벨로 항목을 누른다. */
   function pickMenu(container: HTMLElement, rowName: string, itemLabel: string) {
