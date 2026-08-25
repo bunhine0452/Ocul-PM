@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import type { AcpEvent, AcpSession } from "@/lib/bindings";
 
@@ -111,6 +111,12 @@ function emit(event: AcpEvent) {
 
 const newConversation = (container: HTMLElement) =>
   fireEvent.click(container.querySelector(".acp-panel-new") as HTMLElement);
+
+// CI(ubuntu 러너)는 이 머신보다 느리다. 첫 테스트가 실제로 1,145ms 걸려
+// testing-library 기본 1,000ms 를 넘겨 붉게 났다 — 화면이 뜨고, 세션이 열리고,
+// 첫 프롬프트가 나가기까지가 한 번에 일어나는 구간이라 콜드 스타트에서 특히 길다.
+// 제품 동작이 아니라 대기 한도의 문제이므로 이 파일의 한도만 넉넉히 올린다.
+configure({ asyncUtilTimeout: 5_000 });
 
 beforeEach(() => {
   channels = [];
