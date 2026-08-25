@@ -263,6 +263,34 @@ export const commands = {
 	 */
 	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
 	/**
+	 *  프로젝트 전역 텍스트 검색 (VS Code 검색 사이드바의 백엔드).
+	 * 
+	 *  시야는 [`code_tree`] 와 같다: gitignore 존중 + 숨김 파일 포함 + `.git` 제외.
+	 *  트리에 보이는 것만 검색된다 — 두 창구의 시야가 어긋나면 "트리에 없는 파일이
+	 *  검색에 나온다" 류의 혼란이 생긴다. SQLite 인덱스를 쓰는 의미/정확 검색과
+	 *  달리 **디스크를 직접 읽는다** — 인덱싱 여부·신선도와 무관하게 지금 상태다.
+	 */
+	codeSearch: (projectId: number, query: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean) => typedError<CodeSearchResult, string>(__TAURI_INVOKE("code_search", { projectId, query, caseSensitive, wholeWord, isRegex })),
+	/**
+	 *  검색 조건과 같은 패턴으로 파일들 안의 매치를 치환한다.
+	 * 
+	 *  `target` 이 있으면 **그 한 매치만** (paths 는 무시), 없으면 `paths` 의 모든
+	 *  매치를 바꾼다. 매치는 디스크의 **지금 내용**에서 다시 찾는다 — 검색 결과가
+	 *  낡았어도 "지금 매치되는 것을 바꾼다" 는 계약은 깨지지 않는다. 쓰기는
+	 *  [`write_with_lock`] 을 그대로 타서 원자적이고, 치환 도중 파일이 또 바뀌면
+	 *  그 파일만 오류로 모은다.
+	 * 
+	 *  정규식 모드에서는 치환문의 `$1`/`${name}` 그룹 참조를 펼치고, 일반 모드에서는
+	 *  문자 그대로 넣는다 (VS Code 와 같은 규칙).
+	 */
+	codeSearchReplace: (projectId: number, query: string, replacement: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean, paths: string[], target: {
+	path: string,
+	/**  1-based 줄 번호. */
+	line: number,
+	/**  줄 안 매치 시작 (UTF-16, 0-based). */
+	col: number,
+} | null) => typedError<CodeReplaceOutcome, string>(__TAURI_INVOKE("code_search_replace", { projectId, query, replacement, caseSensitive, wholeWord, isRegex, paths, target })),
+	/**
 	 *  빈 파일 생성. 없는 중간 폴더는 같이 만든다 (VS Code 의 "새 파일" 과 같이
 	 *  `a/b/c.ts` 를 한 번에 받는다). 이미 있으면 **덮어쓰지 않고** 오류다.
 	 */
@@ -2049,6 +2077,57 @@ export type CodePathResult = {
 	/**  프로젝트 루트 기준 슬래시 경로 — `code_read`/`code_write` 인자와 같은 계약. */
 	relative_path: string,
 	is_dir: boolean,
+};
+
+/**
+ *  `code_search_replace` 결과. 파일 단위 실패는 전체를 멈추지 않고 `errors` 로
+ *  모은다 — 100개 파일 중 1개가 그 사이 바뀌었다고 99개를 포기할 이유가 없다.
+ */
+export type CodeReplaceOutcome = {
+	files_changed: number,
+	hits_replaced: number,
+	errors: string[],
+};
+
+/**  한 매치만 바꿀 때의 좌표 — `code_search` 가 준 그 좌표를 그대로 되돌려 받는다. */
+export type CodeReplaceTarget = {
+	path: string,
+	/**  1-based 줄 번호. */
+	line: number,
+	/**  줄 안 매치 시작 (UTF-16, 0-based). */
+	col: number,
+};
+
+/**  한 파일의 매치 묶음. `path` 는 다른 code_* 커맨드와 같은 루트 기준 슬래시 경로. */
+export type CodeSearchFile = {
+	path: string,
+	hits: CodeSearchHit[],
+};
+
+/**
+ *  전역 검색의 매치 하나. `col`/`len` 은 **UTF-16 단위** — CodeMirror 의 문서
+ *  오프셋과 JS 문자열 인덱스가 그 단위라, 여기서 변환해 주면 프런트는 그대로
+ *  선택 범위로 쓴다 (바이트 오프셋을 넘기면 한글에서 어긋난다).
+ */
+export type CodeSearchHit = {
+	/**  1-based 줄 번호. */
+	line: number,
+	/**  줄 안 매치 시작 (UTF-16, 0-based). */
+	col: number,
+	/**  매치 길이 (UTF-16). */
+	len: number,
+	/**  매치 주변 한 줄 미리보기 — 들여쓰기와 먼 앞부분은 잘라 낸다. */
+	preview: string,
+	/**  `preview` 안에서의 매치 시작 (UTF-16) — 목록의 하이라이트용. */
+	preview_col: number,
+};
+
+/**  `code_search` 응답. */
+export type CodeSearchResult = {
+	files: CodeSearchFile[],
+	total_hits: number,
+	/**  [`MAX_SEARCH_HITS`] 상한에 걸려 잘렸다 — UI 가 "더 좁혀라" 로 알린다. */
+	truncated: boolean,
 };
 
 /**  `code_tree` 응답. */

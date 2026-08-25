@@ -96,8 +96,9 @@ export interface CodePaneProps {
    * 닫힌다. 그래서 **같은 파일일 때는 왼쪽 창만** 서버를 붙인다.
    */
   lspEnabled: boolean;
-  /** 부모가 지시한 줄 점프 (검색·코드맵·정의로 이동). nonce 로 재발화. */
-  jump: { line: number; nonce: number } | null;
+  /** 부모가 지시한 줄 점프 (검색·코드맵·정의로 이동). nonce 로 재발화.
+   *  `ch`/`len` (UTF-16) 이 있으면 그 범위를 선택한다 — 전역 검색의 매치 표시. */
+  jump: { line: number; ch?: number; len?: number; nonce: number } | null;
   /** 이 프로젝트에서 미저장인 경로들 — 탭 배지 + LSP 쓰기 동작의 게이트. */
   dirtyPaths: Set<string>;
   onFocus: () => void;
@@ -195,7 +196,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   // 이 파일을 files_touched 로 만진 일지들 — 브레드크럼의 일지 칩.
   const [fileEntries, setFileEntries] = useState<FileJournalEntry[]>([]);
   const [entriesOpen, setEntriesOpen] = useState(false);
-  const [pendingJump, setPendingJump] = useState<number | null>(null);
+  const [pendingJump, setPendingJump] = useState<{
+    line: number;
+    ch?: number;
+    len?: number;
+  } | null>(null);
 
   const pathRef = useRef(activePath);
   pathRef.current = activePath;
@@ -334,7 +339,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     }
     setDiffOriginal(normalizeEol(res.data));
     setDiffMode({ kind: "head" });
-    setPendingJump(cursorRef.current.line);
+    setPendingJump({ line: cursorRef.current.line });
     setEditorEpoch((n) => n + 1);
   }, [projectId]);
 
@@ -356,7 +361,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       }
       setDiffOriginal(before);
       setDiffMode({ kind: "entry", title: entry.title, journalPath: entry.journal_path });
-      setPendingJump(cursorRef.current.line);
+      setPendingJump({ line: cursorRef.current.line });
       setEditorEpoch((n) => n + 1);
     },
     [projectId],
@@ -365,7 +370,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const exitDiff = useCallback(() => {
     setDiffMode(null);
     setDiffOriginal(null);
-    setPendingJump(cursorRef.current.line);
+    setPendingJump({ line: cursorRef.current.line });
     setEditorEpoch((n) => n + 1);
   }, []);
 
@@ -378,7 +383,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // 부모가 지시한 줄 점프. 같은 파일·같은 줄의 연속 점프도 다시 돌도록 nonce 로 건다.
   useEffect(() => {
-    if (jump) setPendingJump(jump.line);
+    if (jump) setPendingJump({ line: jump.line, ch: jump.ch, len: jump.len });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump?.nonce]);
 
@@ -400,7 +405,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           return;
         }
         // jumpLine 은 1-based, LSP 는 0-based.
-        if (loc.path === pathRef.current) setPendingJump(loc.line + 1);
+        if (loc.path === pathRef.current) setPendingJump({ line: loc.line + 1 });
         else onOpenPath(loc.path, loc.line + 1);
       })();
     },
@@ -561,7 +566,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       onBuffersChanged();
       lsp.pushText(text);
       refreshGutter(text);
-      setPendingJump(cursorRef.current.line);
+      setPendingJump({ line: cursorRef.current.line });
       setEditorEpoch((n) => n + 1);
     },
     [projectId, onBuffersChanged, lsp, refreshGutter],
@@ -745,7 +750,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           const fresh: CodeBuffer = { text, baseText: text, baseHash: res.data.hash, eol };
           bufferRef.current = fresh;
           putBuffer(bufferKey(projectId, path), fresh);
-          setPendingJump(cursorRef.current.line);
+          setPendingJump({ line: cursorRef.current.line });
           setEditorEpoch((n) => n + 1);
         } else {
           setConflict({ diskHash: res.data.hash });
@@ -1011,7 +1016,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onToggleBreakpoint={
                 debuggable ? (line) => onToggleBreakpoint(activePath ?? "", line) : undefined
               }
-              jumpLine={pendingJump}
+              jump={pendingJump}
               onJumpConsumed={() => setPendingJump(null)}
             />
           </div>

@@ -23,6 +23,7 @@ import {
   Play,
   PanelLeft,
   PanelRight,
+  TextSearch,
 } from "@/components/Icons";
 import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -40,6 +41,7 @@ import { CodeDebugPanel } from "./CodeDebugPanel";
 import { useDebug } from "./useDebug";
 import { adapterLanguageFor, defaultProgramFor, toLaunchRequest } from "./debugConfig";
 import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
+import { CodeSearchPanel } from "./CodeSearchPanel";
 import {
   ancestorDirs,
   collectDirs,
@@ -145,12 +147,29 @@ export function CodeScreenV2({
   tabsRef.current = tabs;
   const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set());
   // 창별 줄 점프 지시 — nonce 로 같은 줄의 연속 점프도 다시 발화시킨다.
-  const [jump, setJump] = useState<{ pane: number; line: number; nonce: number } | null>(null);
+  // ch/len (UTF-16) 이 있으면 그 범위를 선택한다 (전역 검색의 매치 표시).
+  const [jump, setJump] = useState<{
+    pane: number;
+    line: number;
+    ch?: number;
+    len?: number;
+    nonce: number;
+  } | null>(null);
   const jumpSeq = useRef(0);
   const paneRefs = [useRef<CodePaneHandle>(null), useRef<CodePaneHandle>(null)];
 
   const selected = focusedPath(tabs);
   const openPaths = useMemo(() => new Set(allOpenPaths(tabs)), [tabs]);
+
+  // ── 전역 검색 (#project-search) ─────────────────────────────────────────
+  // 사이드바 자리를 파일 트리와 나눠 쓴다 (VS Code 의 액티비티 바 전환처럼).
+  // 모드는 휘발 — 재시작 후 검색 패널이 빈 채로 살아나는 것보다 트리가 낫다.
+  const [sidebarMode, setSidebarMode] = useState<"files" | "search">("files");
+  const [searchFocusSeq, setSearchFocusSeq] = useState(0);
+  const openSearch = useCallback(() => {
+    setSidebarMode("search");
+    setSearchFocusSeq((n) => n + 1);
+  }, []);
 
   // ── Phase 2 — 아웃라인 · 참조 ───────────────────────────────────────────
   //
@@ -338,18 +357,21 @@ export function CodeScreenV2({
   }, [selected, loadDir]);
 
   // ── 열기 ────────────────────────────────────────────────────────────────
-  const openPath = useCallback((path: string, line: number | null, pane?: number) => {
-    // 갱신 함수 안에서 setJump 를 부르지 않는다 — StrictMode 는 갱신 함수를 두 번
-    // 부르므로 그 안의 부수효과는 두 번 난다. 대신 다음 상태를 밖에서 계산하고,
-    // `tabsRef` 를 즉시 앞당겨 같은 틱의 연속 호출도 앞의 결과 위에서 쌓이게 한다.
-    const next = openFile(tabsRef.current, path, pane);
-    tabsRef.current = next;
-    setTabs(next);
-    if (line != null) {
-      jumpSeq.current += 1;
-      setJump({ pane: next.focused, line, nonce: jumpSeq.current });
-    }
-  }, []);
+  const openPath = useCallback(
+    (path: string, line: number | null, pane?: number, sel?: { ch: number; len: number }) => {
+      // 갱신 함수 안에서 setJump 를 부르지 않는다 — StrictMode 는 갱신 함수를 두 번
+      // 부르므로 그 안의 부수효과는 두 번 난다. 대신 다음 상태를 밖에서 계산하고,
+      // `tabsRef` 를 즉시 앞당겨 같은 틱의 연속 호출도 앞의 결과 위에서 쌓이게 한다.
+      const next = openFile(tabsRef.current, path, pane);
+      tabsRef.current = next;
+      setTabs(next);
+      if (line != null) {
+        jumpSeq.current += 1;
+        setJump({ pane: next.focused, line, ch: sel?.ch, len: sel?.len, nonce: jumpSeq.current });
+      }
+    },
+    [],
+  );
 
   // 다른 화면(검색·코드맵)에서 온 열기 목표.
   useEffect(() => {
@@ -462,6 +484,7 @@ export function CodeScreenV2({
   // 화면 단축키 — 이 화면이 보일 때만.
   //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
   //   ⇧⌘T : 닫은 탭 다시 열기
+  //   ⇧⌘F : 전역 검색 (사이드바를 검색 패널로 전환 + 입력 포커스)
   //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
   // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
   // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
@@ -486,6 +509,11 @@ export function CodeScreenV2({
         reopenClosedTab();
         return;
       }
+      if (e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
       if (!e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         const current = focusedPath(tabsRef.current);
@@ -494,7 +522,7 @@ export function CodeScreenV2({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate]);
+  }, [isVisible, reopenClosedTab, startCreate, openSearch]);
 
   /** 이름 바꾸기·이동의 공통 뒤처리 — 탭·버퍼·펼침 상태가 새 경로를 따라간다. */
   const applyRenamed = useCallback(
@@ -780,8 +808,21 @@ export function CodeScreenV2({
   // 트리 사이드바 — 좌/우 어느 쪽이든 **DOM 순서를 화면 순서와 같게** 두 자리
   // 중 한 곳에 렌더한다 (터미널 도크와 같은 원칙: row-reverse 로 뒤집으면
   // Tab 이동이 눈에 보이는 차례와 어긋난다).
+  // 검색 모드에서는 같은 자리를 검색 패널이 통째로 가져간다.
   const sidebarEl = (
     <aside className={"code-sidebar" + (sidebarOnRight ? " on-right" : "")}>
+      {sidebarMode === "search" ? (
+        <CodeSearchPanel
+          projectId={projectId}
+          opts={state.codeSearchOpts}
+          onOptsChange={(next) => setState((prev) => ({ ...prev, codeSearchOpts: next }))}
+          dirtyPaths={dirtyPaths}
+          onOpenHit={(path, line, ch, len) => openPath(path, line, undefined, { ch, len })}
+          onClose={() => setSidebarMode("files")}
+          focusSeq={searchFocusSeq}
+        />
+      ) : (
+        <>
       <div className="code-sidebar-head">
         <div className="code-filter">
           <Search size={13} className="code-filter-ico" />
@@ -805,6 +846,15 @@ export function CodeScreenV2({
             </button>
           ) : null}
         </div>
+        <button
+          type="button"
+          className="code-tool-btn sm"
+          onClick={openSearch}
+          title={t("code.search.open")}
+          aria-label={t("code.search.open")}
+        >
+          <TextSearch size={14} />
+        </button>
         <button
           type="button"
           className="code-tool-btn sm"
@@ -863,6 +913,8 @@ export function CodeScreenV2({
         onToggleOpen={() => setOutlineOpen((v) => !v)}
         onJump={(line) => selected && openPath(selected, line + 1)}
       />
+        </>
+      )}
     </aside>
   );
 
@@ -978,7 +1030,11 @@ export function CodeScreenV2({
                 // 백엔드는 (프로젝트, 파일) 로 문서를 하나만 연다 — 같은 파일이
                 // 양쪽에 열리면 오른쪽 창은 서버를 붙이지 않는다 (CodePane 주석).
                 lspEnabled={index === 0 || pane.active !== tabs.panes[0].active}
-                jump={jump && jump.pane === index ? { line: jump.line, nonce: jump.nonce } : null}
+                jump={
+                  jump && jump.pane === index
+                    ? { line: jump.line, ch: jump.ch, len: jump.len, nonce: jump.nonce }
+                    : null
+                }
                 dirtyPaths={dirtyPaths}
                 onFocus={() => setTabs((prev) => focusPane(prev, index))}
                 onActivate={(path) => setTabs((prev) => activateTab(prev, index, path))}

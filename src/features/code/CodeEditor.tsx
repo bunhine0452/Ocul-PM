@@ -218,8 +218,12 @@ interface CodeEditorProps {
   /** ⌘S. CM 이 포커스를 쥔 동안의 저장 경로 (화면 레벨 리스너와 이중). */
   onSave: () => void;
   onCursor?: (line: number, col: number) => void;
-  /** 1-based 라인 점프 (one-shot) — 소비 후 onJumpConsumed 를 부른다. */
-  jumpLine?: number | null;
+  /**
+   * 1-based 라인 점프 (one-shot) — 소비 후 onJumpConsumed 를 부른다.
+   * `ch`/`len` (UTF-16, 0-based) 이 있으면 그 범위를 선택한다 — 전역 검색이
+   * 매치 자리를 하이라이트하는 창구. 매번 새 객체라 같은 줄 재점프도 발화한다.
+   */
+  jump?: { line: number; ch?: number; len?: number } | null;
   onJumpConsumed?: () => void;
   /** 언어 서버가 준 진단. 바뀔 때마다 트랜잭션으로 반영한다 (재구성 없음). */
   diagnostics?: readonly LspDiagnostic[];
@@ -267,7 +271,7 @@ export function CodeEditor({
   onChange,
   onSave,
   onCursor,
-  jumpLine = null,
+  jump = null,
   onJumpConsumed,
   diagnostics,
   onComplete,
@@ -519,16 +523,20 @@ export function CodeEditor({
   // 파일에서의 재점프(prop 변화) 둘 다 여기로 온다.
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || jumpLine == null) return;
-    const line = Math.max(1, Math.min(jumpLine, view.state.doc.lines));
-    const pos = view.state.doc.line(line).from;
+    if (!view || jump == null) return;
+    const line = Math.max(1, Math.min(jump.line, view.state.doc.lines));
+    const info = view.state.doc.line(line);
+    // ch/len 은 UTF-16 단위 = CM 문서 오프셋 단위. 줄 길이로 죄어 파일이 그
+    // 사이 바뀌었어도 범위 밖 selection 예외가 나지 않게 한다.
+    const anchor = info.from + Math.max(0, Math.min(jump.ch ?? 0, info.length));
+    const head = jump.len ? Math.min(anchor + jump.len, info.to) : anchor;
     view.dispatch({
-      selection: { anchor: pos },
-      effects: EditorView.scrollIntoView(pos, { y: "center" }),
+      selection: { anchor, head },
+      effects: EditorView.scrollIntoView(anchor, { y: "center" }),
     });
     view.focus();
     onJumpConsumedRef.current?.();
-  }, [jumpLine]);
+  }, [jump]);
 
   return <div ref={hostRef} className="code-editor-host" aria-label={t("code.editorAria")} />;
 }

@@ -314,6 +314,11 @@ export interface WorkspaceState {
    * 알 수 없는 값은 소비처가 왼쪽으로 취급한다.
    */
   codeSidebarSide: "left" | "right";
+  /**
+   * 코드 화면 전역 검색의 매칭 토글 (#project-search). 검색어·결과는 휘발이지만
+   * 대소문자·단어·정규식 습관은 사람에게 붙는 설정이라 여기 남긴다.
+   */
+  codeSearchOpts: { caseSensitive: boolean; wholeWord: boolean; regex: boolean };
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**
@@ -407,6 +412,7 @@ const DEFAULT_STATE: WorkspaceState = {
   codeTabs: null,
   codePanelHeight: 240,
   codeSidebarSide: "left",
+  codeSearchOpts: { caseSensitive: false, wholeWord: false, regex: false },
   discussionActiveId: null,
   discussionEditorMode: "split",
   sidebarCollapsed: false,

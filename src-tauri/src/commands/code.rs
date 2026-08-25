@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::commands::docs::natural_cmp;
@@ -35,6 +35,15 @@ const MAX_EDIT_BYTES: u64 = 2 * 1024 * 1024;
 
 /// 바이너리 판정 프로브 크기 — 선두 8KB 에 NUL 이 있으면 바이너리로 본다.
 const BINARY_PROBE_BYTES: usize = 8192;
+
+/// 전역 검색의 총 매치 상한. 이보다 많으면 `truncated` — 그 크기의 결과 목록은
+/// 훑는 물건이 아니라 좁히라는 신호다 (VS Code 도 같은 이유로 잘라 알린다).
+const MAX_SEARCH_HITS: usize = 2_000;
+
+/// 미리보기 창 — 매치 앞뒤로 남기는 글자 수. 사이드바 폭에서 의미 있는 문맥은
+/// 앞 몇십 자뿐이고, 뒤는 CSS 말줄임이 알아서 자른다.
+const PREVIEW_BEFORE_CHARS: usize = 40;
+const PREVIEW_AFTER_CHARS: usize = 200;
 
 /// 코드 트리 한 노드. `relative_path` 는 프로젝트 루트 기준 슬래시 경로 —
 /// 그대로 `code_read`/`code_write` 인자로 쓴다 (docs 뷰어와 같은 계약).
@@ -359,6 +368,137 @@ pub async fn code_head_content(
     .map_err(|e| format!("Failed to read HEAD content: {e}"))?)
 }
 
+/// 전역 검색의 매치 하나. `col`/`len` 은 **UTF-16 단위** — CodeMirror 의 문서
+/// 오프셋과 JS 문자열 인덱스가 그 단위라, 여기서 변환해 주면 프런트는 그대로
+/// 선택 범위로 쓴다 (바이트 오프셋을 넘기면 한글에서 어긋난다).
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeSearchHit {
+    /// 1-based 줄 번호.
+    pub line: u32,
+    /// 줄 안 매치 시작 (UTF-16, 0-based).
+    pub col: u32,
+    /// 매치 길이 (UTF-16).
+    pub len: u32,
+    /// 매치 주변 한 줄 미리보기 — 들여쓰기와 먼 앞부분은 잘라 낸다.
+    pub preview: String,
+    /// `preview` 안에서의 매치 시작 (UTF-16) — 목록의 하이라이트용.
+    pub preview_col: u32,
+}
+
+/// 한 파일의 매치 묶음. `path` 는 다른 code_* 커맨드와 같은 루트 기준 슬래시 경로.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeSearchFile {
+    pub path: String,
+    pub hits: Vec<CodeSearchHit>,
+}
+
+/// `code_search` 응답.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeSearchResult {
+    pub files: Vec<CodeSearchFile>,
+    pub total_hits: u32,
+    /// [`MAX_SEARCH_HITS`] 상한에 걸려 잘렸다 — UI 가 "더 좁혀라" 로 알린다.
+    pub truncated: bool,
+}
+
+/// 한 매치만 바꿀 때의 좌표 — `code_search` 가 준 그 좌표를 그대로 되돌려 받는다.
+#[derive(Debug, Clone, Deserialize, specta::Type)]
+pub struct CodeReplaceTarget {
+    pub path: String,
+    /// 1-based 줄 번호.
+    pub line: u32,
+    /// 줄 안 매치 시작 (UTF-16, 0-based).
+    pub col: u32,
+}
+
+/// `code_search_replace` 결과. 파일 단위 실패는 전체를 멈추지 않고 `errors` 로
+/// 모은다 — 100개 파일 중 1개가 그 사이 바뀌었다고 99개를 포기할 이유가 없다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeReplaceOutcome {
+    pub files_changed: u32,
+    pub hits_replaced: u32,
+    pub errors: Vec<String>,
+}
+
+/// 프로젝트 전역 텍스트 검색 (VS Code 검색 사이드바의 백엔드).
+///
+/// 시야는 [`code_tree`] 와 같다: gitignore 존중 + 숨김 파일 포함 + `.git` 제외.
+/// 트리에 보이는 것만 검색된다 — 두 창구의 시야가 어긋나면 "트리에 없는 파일이
+/// 검색에 나온다" 류의 혼란이 생긴다. SQLite 인덱스를 쓰는 의미/정확 검색과
+/// 달리 **디스크를 직접 읽는다** — 인덱싱 여부·신선도와 무관하게 지금 상태다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_search(
+    db: State<'_, Db>,
+    project_id: u32,
+    query: String,
+    case_sensitive: bool,
+    whole_word: bool,
+    is_regex: bool,
+) -> Result<CodeSearchResult, String> {
+    if query.is_empty() {
+        return Ok(CodeSearchResult { files: Vec::new(), total_hits: 0, truncated: false });
+    }
+    let re = build_search_regex(&query, case_sensitive, whole_word, is_regex)?;
+    let root = project_root(&db, project_id).await?;
+    tauri::async_runtime::spawn_blocking(move || search_project(&root, &re, MAX_SEARCH_HITS))
+        .await
+        .map_err(|e| format!("Failed to search the project: {e}"))
+}
+
+/// 검색 조건과 같은 패턴으로 파일들 안의 매치를 치환한다.
+///
+/// `target` 이 있으면 **그 한 매치만** (paths 는 무시), 없으면 `paths` 의 모든
+/// 매치를 바꾼다. 매치는 디스크의 **지금 내용**에서 다시 찾는다 — 검색 결과가
+/// 낡았어도 "지금 매치되는 것을 바꾼다" 는 계약은 깨지지 않는다. 쓰기는
+/// [`write_with_lock`] 을 그대로 타서 원자적이고, 치환 도중 파일이 또 바뀌면
+/// 그 파일만 오류로 모은다.
+///
+/// 정규식 모드에서는 치환문의 `$1`/`${name}` 그룹 참조를 펼치고, 일반 모드에서는
+/// 문자 그대로 넣는다 (VS Code 와 같은 규칙).
+#[tauri::command]
+#[specta::specta]
+#[allow(clippy::too_many_arguments)]
+pub async fn code_search_replace(
+    db: State<'_, Db>,
+    project_id: u32,
+    query: String,
+    replacement: String,
+    case_sensitive: bool,
+    whole_word: bool,
+    is_regex: bool,
+    paths: Vec<String>,
+    target: Option<CodeReplaceTarget>,
+) -> Result<CodeReplaceOutcome, String> {
+    if query.is_empty() {
+        return Ok(CodeReplaceOutcome { files_changed: 0, hits_replaced: 0, errors: Vec::new() });
+    }
+    let re = build_search_regex(&query, case_sensitive, whole_word, is_regex)?;
+    let root = project_root(&db, project_id).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let scope: Vec<(String, Option<(u32, u32)>)> = match &target {
+            Some(t) => vec![(t.path.clone(), Some((t.line, t.col)))],
+            None => paths.into_iter().map(|p| (p, None)).collect(),
+        };
+        let mut files_changed = 0u32;
+        let mut hits_replaced = 0u32;
+        let mut errors = Vec::new();
+        for (rel, at) in scope {
+            match replace_in_file(&root, &rel, &re, &replacement, is_regex, at) {
+                Ok(0) => {}
+                Ok(n) => {
+                    files_changed += 1;
+                    hits_replaced += n;
+                }
+                Err(e) => errors.push(format!("{rel}: {e}")),
+            }
+        }
+        Ok(CodeReplaceOutcome { files_changed, hits_replaced, errors })
+    })
+    .await
+    .map_err(|e| format!("Failed to replace: {e}"))?
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
@@ -678,6 +818,258 @@ fn sort_nodes(nodes: &mut [CodeTreeNode]) {
             .cmp(&a.is_dir)
             .then_with(|| natural_cmp(&a.name, &b.name))
     });
+}
+
+// ─── 전역 검색 · 치환 ───────────────────────────────────────────────────────
+
+/// 검색 조건 → 정규식. 일반 모드는 통째로 이스케이프하고, 단어 단위는
+/// `\b(?:…)\b` 로 감싼다 — 비캡처 그룹이라 정규식 모드의 `$1` 번호가 밀리지
+/// 않는다. regex 크레이트는 선형 시간이라 사용자 패턴으로 역추적 폭발이 없다.
+fn build_search_regex(
+    query: &str,
+    case_sensitive: bool,
+    whole_word: bool,
+    is_regex: bool,
+) -> Result<regex::Regex, String> {
+    let base = if is_regex { query.to_string() } else { regex::escape(query) };
+    let pattern = if whole_word { format!(r"\b(?:{base})\b") } else { base };
+    regex::RegexBuilder::new(&pattern)
+        .case_insensitive(!case_sensitive)
+        .build()
+        .map_err(|e| format!("Invalid pattern: {e}"))
+}
+
+fn utf16_len(s: &str) -> u32 {
+    s.encode_utf16().count() as u32
+}
+
+/// UTF-16 열 → 바이트 오프셋. 좌표가 문자 경계와 안 맞으면(그 사이 파일이
+/// 바뀌었으면) None — 엉뚱한 자리를 바꾸는 것보다 그 매치를 포기하는 쪽이 옳다.
+fn utf16_col_to_byte(line: &str, col: u32) -> Option<usize> {
+    if col == 0 {
+        return Some(0);
+    }
+    let mut units = 0u32;
+    for (i, ch) in line.char_indices() {
+        if units == col {
+            return Some(i);
+        }
+        units += ch.len_utf16() as u32;
+    }
+    (units == col).then_some(line.len())
+}
+
+/// 매치 하나 → 좌표 + 미리보기. 들여쓰기는 잘라 내되 매치 자체는 항상 창 안에
+/// 온전히 남긴다 (창 상한은 글자 수 기준이라 UTF-8 경계가 깨질 일이 없다).
+fn make_hit(line_no: u32, line: &str, mstart: usize, mend: usize) -> CodeSearchHit {
+    let indent = line.len() - line.trim_start().len();
+    let vis_start = indent.min(mstart);
+    let win_start = line[vis_start..mstart]
+        .char_indices()
+        .rev()
+        .nth(PREVIEW_BEFORE_CHARS - 1)
+        .map(|(i, _)| vis_start + i)
+        .unwrap_or(vis_start);
+    let win_end = line[mend..]
+        .char_indices()
+        .nth(PREVIEW_AFTER_CHARS)
+        .map(|(i, _)| mend + i)
+        .unwrap_or(line.len());
+    CodeSearchHit {
+        line: line_no,
+        col: utf16_len(&line[..mstart]),
+        len: utf16_len(&line[mstart..mend]),
+        preview: line[win_start..win_end].to_string(),
+        preview_col: utf16_len(&line[win_start..mstart]),
+    }
+}
+
+/// 한 파일 본문의 매치들. 줄 단위로 찾는다 — `^`/`$` 가 자연스럽게 줄 경계가
+/// 되고, 패턴이 줄을 넘을 수 없다는 것이 검색·치환 양쪽의 공통 계약이다.
+/// 빈 매치(`a*` 류)는 버린다 — 글자 사이마다 잡히는 결과는 목록으로서 무의미하다.
+fn search_content(re: &regex::Regex, content: &str, budget: usize) -> (Vec<CodeSearchHit>, bool) {
+    let mut hits = Vec::new();
+    for (idx, line) in content.lines().enumerate() {
+        for m in re.find_iter(line) {
+            if m.start() == m.end() {
+                continue;
+            }
+            if hits.len() >= budget {
+                return (hits, true);
+            }
+            hits.push(make_hit(idx as u32 + 1, line, m.start(), m.end()));
+        }
+    }
+    (hits, false)
+}
+
+/// 트리와 같은 시야로 걷는 전역 검색. 에디터가 못 여는 파일(바이너리·2MB 초과·
+/// 비 UTF-8)은 건너뛴다 — 결과를 눌러도 열 수 없는 매치는 목록에 둘 이유가 없다.
+fn search_project(root: &Path, re: &regex::Regex, max_hits: usize) -> CodeSearchResult {
+    let mut files: Vec<CodeSearchFile> = Vec::new();
+    let mut total: usize = 0;
+    let mut truncated = false;
+    for entry in ignore::WalkBuilder::new(root)
+        .standard_filters(true)
+        .hidden(false)
+        .filter_entry(|e| e.file_name() != ".git")
+        .build()
+        .flatten()
+    {
+        if !entry.file_type().is_some_and(|t| t.is_file()) {
+            continue;
+        }
+        let path = entry.path();
+        let Ok(meta) = entry.metadata() else { continue };
+        if meta.len() > MAX_EDIT_BYTES {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(path) else { continue };
+        if looks_binary(&bytes) {
+            continue;
+        }
+        let Ok(content) = String::from_utf8(bytes) else { continue };
+        let (hits, over) = search_content(re, &content, max_hits - total);
+        if !hits.is_empty() {
+            let Ok(rel) = path.strip_prefix(root) else { continue };
+            total += hits.len();
+            files.push(CodeSearchFile {
+                path: rel.to_string_lossy().replace('\\', "/"),
+                hits,
+            });
+        }
+        if over {
+            truncated = true;
+            break;
+        }
+    }
+    files.sort_by(|a, b| natural_cmp(&a.path, &b.path));
+    CodeSearchResult { files, total_hits: total as u32, truncated }
+}
+
+/// 한 줄 안의 치환. `only_at` 이 있으면 그 바이트에서 시작하는 매치만 바꾼다.
+/// 빈 매치는 검색과 같은 이유로 건너뛴다. 바뀐 것이 없으면 None.
+fn replace_line(
+    re: &regex::Regex,
+    line: &str,
+    replacement: &str,
+    expand: bool,
+    only_at: Option<usize>,
+) -> Option<(String, u32)> {
+    let mut out = String::with_capacity(line.len());
+    let mut last = 0usize;
+    let mut count = 0u32;
+    for caps in re.captures_iter(line) {
+        let m = caps.get(0).expect("group 0 always exists");
+        if m.start() == m.end() {
+            continue;
+        }
+        if only_at.is_some_and(|b| b != m.start()) {
+            continue;
+        }
+        out.push_str(&line[last..m.start()]);
+        if expand {
+            caps.expand(replacement, &mut out);
+        } else {
+            out.push_str(replacement);
+        }
+        last = m.end();
+        count += 1;
+    }
+    if count == 0 {
+        return None;
+    }
+    out.push_str(&line[last..]);
+    Some((out, count))
+}
+
+/// 본문 전체의 치환 — 줄 종결자(`\n`/`\r\n`·마지막 줄의 부재)를 **그대로 보존**
+/// 한다. 줄로 갈랐다 다시 합치는 방식은 CRLF 파일을 통째로 LF 로 만드는 회귀가
+/// 있어, 종결자를 본문에서 떼어 두었다가 그대로 되붙인다.
+fn replace_in_content(
+    content: &str,
+    re: &regex::Regex,
+    replacement: &str,
+    expand: bool,
+    target: Option<(u32, u32)>,
+) -> Option<(String, u32)> {
+    let mut out = String::with_capacity(content.len());
+    let mut total = 0u32;
+    for (idx, raw) in content.split_inclusive('\n').enumerate() {
+        let line_no = idx as u32 + 1;
+        let body_len = raw.len()
+            - if raw.ends_with("\r\n") {
+                2
+            } else {
+                usize::from(raw.ends_with('\n'))
+            };
+        let (body, term) = raw.split_at(body_len);
+        let only_at = match target {
+            Some((l, _)) if l != line_no => {
+                out.push_str(raw);
+                continue;
+            }
+            Some((_, col)) => match utf16_col_to_byte(body, col) {
+                Some(b) => Some(b),
+                None => {
+                    out.push_str(raw);
+                    continue;
+                }
+            },
+            None => None,
+        };
+        match replace_line(re, body, replacement, expand, only_at) {
+            Some((new_body, n)) => {
+                total += n;
+                out.push_str(&new_body);
+                out.push_str(term);
+            }
+            None => out.push_str(raw),
+        }
+    }
+    if total == 0 {
+        None
+    } else {
+        Some((out, total))
+    }
+}
+
+/// 파일 하나의 치환 — 읽기와 같은 경로 가드를 지나 [`write_with_lock`] 으로
+/// 원자적으로 쓴다. 바꿀 매치가 없으면 0 (오류가 아니다 — 검색 후 파일이
+/// 바뀌었을 수 있고, 그때 "지금은 매치가 없다" 는 정답이다).
+fn replace_in_file(
+    root: &Path,
+    rel: &str,
+    re: &regex::Regex,
+    replacement: &str,
+    expand: bool,
+    target: Option<(u32, u32)>,
+) -> Result<u32, String> {
+    let full = secure_join(root, rel)?;
+    let full = canonical_within_root(root, &full)?;
+    let meta = std::fs::metadata(&full).map_err(|e| format!("Failed to read file: {e}"))?;
+    if !meta.is_file() {
+        return Err("Not a file".to_string());
+    }
+    if meta.len() > MAX_EDIT_BYTES {
+        return Err("File is too large to edit".to_string());
+    }
+    let bytes = std::fs::read(&full).map_err(|e| format!("Failed to read file: {e}"))?;
+    if looks_binary(&bytes) {
+        return Err("Binary file".to_string());
+    }
+    let base_hash = blake3::hash(&bytes).to_hex().to_string();
+    let content = String::from_utf8(bytes).map_err(|_| "Not a UTF-8 text file".to_string())?;
+    let Some((new_content, count)) = replace_in_content(&content, re, replacement, expand, target)
+    else {
+        return Ok(0);
+    };
+    match write_with_lock(&full, &new_content, &base_hash)? {
+        CodeWriteOutcome::Saved { .. } => Ok(count),
+        CodeWriteOutcome::Conflict { .. } => {
+            Err("File changed on disk during the replace".to_string())
+        }
+    }
 }
 
 /// 저장 직렬화 — 같은 파일에 저장이 동시에 두 건 들어오면 둘 다 해시 검사를
@@ -1130,5 +1522,167 @@ mod tests {
         write_with_lock(&p, "#!/bin/sh\necho bye", &base).unwrap();
         let mode = fs::metadata(&p).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o755, "실행 비트가 저장 후에도 유지돼야 한다");
+    }
+
+    // ─── 전역 검색 · 치환 ──────────────────────────────────────────────────
+
+    fn re(query: &str, case: bool, word: bool, regex: bool) -> regex::Regex {
+        build_search_regex(query, case, word, regex).unwrap()
+    }
+
+    #[test]
+    fn search_regex_escapes_literals_and_wraps_words() {
+        // 일반 모드 — 메타문자가 문자 그대로다.
+        let r = re("a.b(", false, false, false);
+        assert!(r.is_match("xa.b(y"));
+        assert!(!r.is_match("aXb("));
+        // 대소문자.
+        assert!(re("foo", false, false, false).is_match("FOO"));
+        assert!(!re("foo", true, false, false).is_match("FOO"));
+        // 단어 단위 — 비캡처 그룹이라 정규식 모드의 그룹 번호가 안 밀린다.
+        let w = re("foo", false, true, false);
+        assert!(w.is_match("a foo b"));
+        assert!(!w.is_match("foobar"));
+        // 정규식 모드의 문법 오류는 조용히 빈 결과가 아니라 오류다.
+        assert!(build_search_regex("foo(", false, false, true).is_err());
+    }
+
+    #[test]
+    fn search_content_reports_utf16_columns_and_previews() {
+        let content = "let x = 1;\n한글 앞 match 뒤\nmatch match\n";
+        let (hits, over) = search_content(&re("match", false, false, false), content, 100);
+        assert!(!over);
+        assert_eq!(hits.len(), 3);
+        // 한글은 UTF-8 로 3바이트지만 UTF-16 으로 1단위 — "한글 앞 " = 5단위.
+        assert_eq!((hits[0].line, hits[0].col, hits[0].len), (2, 5, 5));
+        assert_eq!(hits[0].preview, "한글 앞 match 뒤");
+        assert_eq!(hits[0].preview_col, 5);
+        // 한 줄의 두 매치는 각각 나온다.
+        assert_eq!((hits[1].line, hits[1].col), (3, 0));
+        assert_eq!((hits[2].line, hits[2].col), (3, 6));
+    }
+
+    #[test]
+    fn search_content_anchors_apply_per_line_and_skips_empty_matches() {
+        let content = "foo bar\nbar foo\n";
+        let (hits, _) = search_content(&re("^foo", false, false, true), content, 100);
+        assert_eq!(hits.len(), 1, "^ 는 각 줄의 시작이다");
+        assert_eq!(hits[0].line, 1);
+        // `a*` 류의 빈 매치는 버린다.
+        let (hits, _) = search_content(&re("z*", false, false, true), content, 100);
+        assert!(hits.is_empty());
+    }
+
+    #[test]
+    fn search_content_trims_indent_but_keeps_the_match_in_preview() {
+        let content = format!("{}needle end\n", " ".repeat(120));
+        let (hits, _) = search_content(&re("needle", false, false, false), &content, 100);
+        assert_eq!(hits[0].preview, "needle end", "들여쓰기는 미리보기에서 잘린다");
+        assert_eq!(hits[0].preview_col, 0);
+        assert_eq!(hits[0].col, 120, "본문 좌표는 줄 기준 그대로");
+    }
+
+    #[test]
+    fn search_project_respects_tree_visibility_and_caps() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join(".git")).unwrap();
+        write(root, ".gitignore", b"dist/\n");
+        write(root, "src/a.ts", b"needle one\nneedle two\n");
+        write(root, ".env", b"needle hidden\n");
+        write(root, "dist/out.js", b"needle ignored\n");
+        write(root, "blob.bin", b"needle\x00binary\n");
+
+        let out = search_project(root, &re("needle", false, false, false), 100);
+        let paths: Vec<&str> = out.files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(paths, vec![".env", "src/a.ts"], "정렬 + 시야: {paths:?}");
+        assert_eq!(out.total_hits, 3);
+        assert!(!out.truncated);
+
+        // 상한 — 자르고 알린다.
+        let capped = search_project(root, &re("needle", false, false, false), 2);
+        assert_eq!(capped.total_hits, 2);
+        assert!(capped.truncated);
+    }
+
+    #[test]
+    fn replace_in_content_replaces_all_and_preserves_line_endings() {
+        let content = "foo a\r\nfoo b\nno hit\nfoo";
+        let (out, n) =
+            replace_in_content(content, &re("foo", false, false, false), "bar", false, None)
+                .unwrap();
+        assert_eq!(n, 3);
+        assert_eq!(out, "bar a\r\nbar b\nno hit\nbar", "CRLF·마지막 줄 무종결 보존");
+        // 매치가 없으면 None — 쓰기 자체를 건너뛴다.
+        assert!(replace_in_content("clean\n", &re("foo", false, false, false), "bar", false, None)
+            .is_none());
+    }
+
+    #[test]
+    fn replace_in_content_single_target_uses_utf16_coordinates() {
+        let content = "한글 foo 뒤 foo\nfoo\n";
+        // 첫 줄의 **두 번째** foo — "한글 foo 뒤 " = 3+1+3+1+1+1 = ... UTF-16 로 col 9.
+        let col = utf16_len("한글 foo 뒤 ");
+        let (out, n) = replace_in_content(
+            content,
+            &re("foo", false, false, false),
+            "bar",
+            false,
+            Some((1, col)),
+        )
+        .unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(out, "한글 foo 뒤 bar\nfoo\n");
+        // 좌표가 매치 시작과 안 맞으면 아무것도 안 바꾼다.
+        assert!(replace_in_content(
+            content,
+            &re("foo", false, false, false),
+            "bar",
+            false,
+            Some((1, col + 1)),
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn replace_expands_groups_only_in_regex_mode() {
+        let content = "name: kim\n";
+        // 정규식 모드 — $1 이 캡처로 펼쳐진다.
+        let (out, _) = replace_in_content(
+            content,
+            &re(r"name: (\w+)", false, false, true),
+            "user: $1",
+            true,
+            None,
+        )
+        .unwrap();
+        assert_eq!(out, "user: kim\n");
+        // 일반 모드 — $1 은 문자 그대로다.
+        let (out, _) =
+            replace_in_content(content, &re("kim", false, false, false), "$1", false, None)
+                .unwrap();
+        assert_eq!(out, "name: $1\n");
+    }
+
+    #[test]
+    fn replace_in_file_writes_atomically_and_reports_count() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write(root, "src/a.ts", b"foo\nfoo bar\n");
+
+        let n =
+            replace_in_file(root, "src/a.ts", &re("foo", false, false, false), "baz", false, None)
+                .unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(fs::read_to_string(root.join("src/a.ts")).unwrap(), "baz\nbaz bar\n");
+        // 매치 없음 = 0, 오류 아님.
+        let n =
+            replace_in_file(root, "src/a.ts", &re("foo", false, false, false), "baz", false, None)
+                .unwrap();
+        assert_eq!(n, 0);
+        // 루트 밖 경로는 여전히 막힌다.
+        assert!(
+            replace_in_file(root, "../x", &re("a", false, false, false), "b", false, None).is_err()
+        );
     }
 }
