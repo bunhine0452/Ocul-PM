@@ -28,6 +28,7 @@ owner: claude-code
 - [x] Rust 잡 — **macos-latest 고정**(tauri `macos-private-api` feature + `cfg(target_os="macos")` 9개 파일 → ubuntu 는 webkit2gtk 의존에 미검증), swatinem/rust-cache 워밍, `cargo test` {#ci-rust-job}
 - [x] bindings 신선도 게이트 — Rust 잡에서 `cargo test` 직후 `git diff --exit-code src/lib/bindings.ts`. 커맨드만 고치고 bindings 재생성을 빠뜨린 커밋을 잡는다(이 저장소 고유의 구조적 실수 경로) {#ci-bindings-drift}
 - [x] 문서·배지 — README ko/en 에 CI 배지, docs/RELEASE.md 릴리스 절차에 "태그 푸시 전 CI 그린 확인" 한 줄 {#ci-docs}
+- [ ] 스킵 가드 보강 — `tests/lsp_rust_analyzer.rs` 의 `rust_analyzer()` 가 PATH 의 **파일 존재**만 봐서 rustup shim 에 속는다(컴포넌트 없이도 가드 통과 → 실행 시 사망). `--version` 기동 확인으로 바꿔 컴포넌트 없는 로컬에서도 진짜로 건너뛰게 한다 — CI 첫 실행이 잡아낸 잠복 버그 {#ra-guard-hardening}
 - [ ] 실측·조정 — 콜드/웜 소요시간 기록. Rust 잡 웜이 5분을 넘으면 `cargo test --lib` 와 통합 테스트 분리 검토 {#ci-timing}
 
 ## Phase 2 — 백엔드 모듈 경계 {#p2-backend}

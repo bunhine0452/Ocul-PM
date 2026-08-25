@@ -65,8 +65,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # rust-analyzer 컴포넌트가 필요합니다. tests/lsp_rust_analyzer.rs 의 스킵
+      # 가드는 PATH 에서 `rust-analyzer` **파일 존재**만 보는데, rustup 은 항상
+      # 같은 이름의 shim 을 깔아 둡니다 — 가드는 통과하고 실행 시 "Unknown binary
+      # 'rust-analyzer' in official toolchain" 으로 죽습니다. 픽스처가 의존성 없는
+      # 최소 크레이트라 컴포넌트만 있으면 몇 초에 진짜로 돕니다(스킵보다 낫습니다).
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-analyzer
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
