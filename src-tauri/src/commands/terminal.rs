@@ -1,71 +1,24 @@
-use std::collections::{HashMap, VecDeque};
-use std::io::Write;
-use std::sync::{Arc, Mutex};
+//! 터미널 커맨드 — PTY 호스트의 얇은 클라이언트 (#pty-host, 2026-08-25).
+//!
+//! PTY 세션은 이제 이 프로세스가 아니라 **분리된 호스트 프로세스**
+//! (`ptyhost/`)가 소유한다 — 앱이 업데이트로 재시작해도 셸이 죽지 않게.
+//! 여기 커맨드들은 소켓 너머로 요청을 전달하고, 호스트의 출력 이벤트를
+//! tauri 이벤트(`pty-data-{sid}` / `pty-exit-{sid}`)로 재방출할 뿐이다.
+//! 프런트엔드 계약(idempotent start · attach 스냅샷 · seq 중복 제거 ·
+//! unknown sid 의 write 오류)은 전부 호스트가 그대로 지킨다.
+//!
+//! 셸·환경·nonce 계산은 여전히 **앱이** 한다 — 통합 스크립트 실체화가 앱
+//! 데이터 경로(tauri 핸들)를 필요로 하기 때문이고, 호스트는 받은 대로 띄운다.
 
-use portable_pty::{CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
+use std::sync::Arc;
+
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::oculpm::shell_integration;
-
-// 터미널 개편 (2026-07-20):
-//  - PTY 출력을 청크별 `from_utf8_lossy` 로 디코딩하던 것을 스트리밍 디코드로
-//    교체. 한글(3B)·박스문자(3B)·이모지(4B)가 read(2) 청크 경계에 걸리면
-//    U+FFFD 로 깨지던 버그 수정 — `drain_utf8` 이 미완성 시퀀스를 다음 read
-//    로 이월한다.
-//  - 세션별 스크롤백 링버퍼 + 단조 seq. 화면을 떠나도 PTY 가 살아있고
-//    (`kill` 은 탭 닫기에서만), 재마운트 시 `attach_pty_session` 스냅샷을
-//    리플레이한 뒤 seq 로 중복 이벤트를 걸러 이어붙인다.
-
-/// 재접속 리플레이용 스크롤백 상한 (bytes, 청크 단위로 앞에서 버림).
-const SCROLLBACK_CAP_BYTES: usize = 200_000;
-
-#[derive(Default)]
-pub struct SessionBuf {
-    chunks: VecDeque<String>,
-    bytes: usize,
-    seq: u32,
-}
-
-impl SessionBuf {
-    fn push(&mut self, text: &str) -> u32 {
-        self.seq += 1;
-        self.bytes += text.len();
-        self.chunks.push_back(text.to_string());
-        while self.bytes > SCROLLBACK_CAP_BYTES {
-            match self.chunks.pop_front() {
-                Some(front) => self.bytes -= front.len(),
-                None => break,
-            }
-        }
-        self.seq
-    }
-
-    fn snapshot(&self) -> (String, u32) {
-        (self.chunks.iter().map(String::as_str).collect(), self.seq)
-    }
-}
-
-pub struct PtySession {
-    pub writer: Box<dyn Write + Send>,
-    pub master: Box<dyn MasterPty + Send>,
-    pub buf: Arc<Mutex<SessionBuf>>,
-    /// 이 세션의 OSC 위조 방지 nonce (`OCULPM_NONCE` 로 셸에 심은 값).
-    pub nonce: String,
-    /// 통합 스크립트를 환경에 실어 보냈다. 사용자가 rc 설치를 안 했으면 셸은
-    /// 이 값을 무시하므로 "실제로 켜졌는지"는 첫 OSC 133 수신으로만 알 수 있다.
-    pub shell_integration: bool,
-}
-
-impl PtySession {
-    fn info(&self) -> PtySessionInfo {
-        PtySessionInfo {
-            nonce: self.nonce.clone(),
-            shell_integration: self.shell_integration,
-        }
-    }
-}
+use crate::ptyhost::client::{connect_or_spawn, socket_path, PtyHostClient};
+use crate::ptyhost::protocol::{Event, Request, Response};
 
 /// `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보.
 #[derive(Clone, Serialize, specta::Type)]
@@ -73,67 +26,6 @@ pub struct PtySessionInfo {
     /// 이 값이 실려 있지 않은 OSC 133 페이로드는 신뢰하지 않는다.
     pub nonce: String,
     pub shell_integration: bool,
-}
-
-#[derive(Default)]
-pub struct PtyState {
-    pub sessions: Arc<Mutex<HashMap<String, PtySession>>>,
-}
-
-/// 이 세션이 살려 둘 접두사에 속하는가 (`kill_except` 의 판정).
-///
-/// 접두사에 `-` 가 붙어 있어야 `p1-` 이 `p12-…` 를 함께 살리지 않는다 —
-/// `window.rs::pty_prefix_for` 가 그 규격을 만든다.
-fn is_protected(sid: &str, keep: &[String]) -> bool {
-    keep.iter().any(|p| sid.starts_with(p))
-}
-
-impl PtyState {
-    /// 창 하나가 소유한 세션 전량 종료 (멀티 창 T4). sid 는 프런트가
-    /// `p<projectId>-` 접두사와 함께 만들고, 창의 CloseRequested 훅이 이
-    /// 접두사로 자기 세션만 골라 죽인다. 반환값은 죽인 개수.
-    pub fn kill_with_prefix(&self, prefix: &str) -> usize {
-        let mut sessions = match self.sessions.lock() {
-            Ok(s) => s,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let doomed: Vec<String> = sessions
-            .keys()
-            .filter(|k| k.starts_with(prefix))
-            .cloned()
-            .collect();
-        for key in &doomed {
-            // PtySession 이 여기서 drop → master 가 닫히며 자식에 SIGHUP.
-            sessions.remove(key);
-        }
-        doomed.len()
-    }
-
-    /// 지정한 접두사들**만 남기고** 전량 종료 (2026-08-15 터미널 도크).
-    ///
-    /// 마지막 앱 창이 닫힐 때의 총정리에 쓴다. 예전에는 `kill_with_prefix("")`
-    /// 로 전부 죽였는데, 터미널을 창으로 떼어낸 뒤(분리 창) 본 창을 닫으면
-    /// 그 셸까지 함께 죽었다 — 분리 창은 살아 있는데 안의 셸만 사라지는 셈.
-    /// `keep` 이 비어 있으면 예전과 동일하게 전량 종료다.
-    pub fn kill_except(&self, keep: &[String]) -> usize {
-        let mut sessions = match self.sessions.lock() {
-            Ok(s) => s,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let doomed: Vec<String> =
-            sessions.keys().filter(|k| !is_protected(k, keep)).cloned().collect();
-        for key in &doomed {
-            sessions.remove(key);
-        }
-        doomed.len()
-    }
-}
-
-/// `pty-data-{id}` 이벤트 페이로드. `seq` 는 attach 스냅샷과의 중복 제거용.
-#[derive(Clone, Serialize)]
-pub struct PtyChunk {
-    pub seq: u32,
-    pub text: String,
 }
 
 #[derive(Clone, Serialize, specta::Type)]
@@ -148,36 +40,97 @@ pub struct PtyAttach {
     pub shell_integration: bool,
 }
 
-/// `pending` 에서 디코딩 가능한 최장 prefix 를 뽑아 반환하고, 청크 경계에
-/// 걸린 미완성 UTF-8 시퀀스(≤3바이트)는 `pending` 에 남겨 다음 read 로
-/// 이월한다. 진짜 잘못된 바이트는 U+FFFD 로 치환하고 계속 진행한다.
-fn drain_utf8(pending: &mut Vec<u8>) -> String {
-    let mut out = String::new();
-    loop {
-        match std::str::from_utf8(pending) {
-            Ok(s) => {
-                out.push_str(s);
-                pending.clear();
-                return out;
+/// `pty-data-{id}` 이벤트 페이로드. `seq` 는 attach 스냅샷과의 중복 제거용.
+#[derive(Clone, Serialize)]
+pub struct PtyChunk {
+    pub seq: u32,
+    pub text: String,
+}
+
+/// 호스트 클라이언트 핸들. 세션 자체는 호스트에 있고, 여기는 접속만 쥔다.
+#[derive(Default)]
+pub struct PtyState {
+    client: tokio::sync::Mutex<Option<Arc<PtyHostClient>>>,
+}
+
+impl PtyState {
+    /// 살아있는 클라이언트를 얻는다 — 없으면 접속하고, `spawn` 이면 호스트를
+    /// 띄운다. `Ok(None)` = 호스트가 없다 (= 세션도 없다).
+    async fn client(
+        &self,
+        app: &tauri::AppHandle,
+        spawn: bool,
+    ) -> Result<Option<Arc<PtyHostClient>>, String> {
+        let mut slot = self.client.lock().await;
+        if let Some(c) = slot.as_ref() {
+            if c.is_alive() {
+                return Ok(Some(c.clone()));
             }
-            Err(e) => {
-                let valid = e.valid_up_to();
-                // valid_up_to 까지는 항상 유효 — unwrap 안전.
-                out.push_str(std::str::from_utf8(&pending[..valid]).unwrap());
-                match e.error_len() {
-                    Some(len) => {
-                        out.push('\u{FFFD}');
-                        pending.drain(..valid + len);
-                    }
-                    None => {
-                        // 미완성 tail — 이월하고 여기서 멈춘다.
-                        pending.drain(..valid);
-                        return out;
+            *slot = None;
+        }
+        let socket = socket_path_for(app)?;
+        let emitter = app.clone();
+        // 호스트 이벤트 → tauri 이벤트 재방출. app.emit 은 전역 브로드캐스트라
+        // 예전 in-process 경로와 프런트가 보는 모양이 완전히 같다.
+        let on_event = move |ev: Event| match ev {
+            Event::Data { sid, seq, text } => {
+                let _ = emitter.emit(&format!("pty-data-{sid}"), PtyChunk { seq, text });
+            }
+            Event::Exit { sid } => {
+                let _ = emitter.emit(&format!("pty-exit-{sid}"), ());
+            }
+        };
+        match connect_or_spawn(&socket, spawn, on_event).await? {
+            Some(c) => {
+                let c = Arc::new(c);
+                *slot = Some(c.clone());
+                Ok(Some(c))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// 창 하나가 소유한 세션 전량 종료 (멀티 창 T4).
+    pub fn kill_with_prefix(&self, app: &tauri::AppHandle, prefix: &str) {
+        blocking_kill(app, Request::KillPrefix { prefix: prefix.to_string() });
+    }
+
+    /// 지정한 접두사들**만 남기고** 전량 종료 (마지막 앱 창 닫힘의 총정리).
+    pub fn kill_except(&self, app: &tauri::AppHandle, keep: &[String]) {
+        blocking_kill(app, Request::KillExcept { keep: keep.to_vec() });
+    }
+}
+
+/// kill 계열의 공통 배관 — 호스트가 없으면 (= 세션이 없으면) 조용히 끝.
+///
+/// 창 이벤트 훅(메인 스레드, 동기)에서 불리는데, **마지막 창 닫힘 경로는 이
+/// 직후 앱이 종료될 수 있다** — spawn 으로 띄우면 종료와 경주해 kill 이
+/// 유실되고 셸이 산다. 그래서 짧은 상한을 걸고 완료를 기다린다. 정상 왕복은
+/// 밀리초 단위고, 호스트가 이상하면 상한이 UI 를 지킨다.
+fn blocking_kill(app: &tauri::AppHandle, req: Request) {
+    let app = app.clone();
+    tauri::async_runtime::block_on(async move {
+        let work = async {
+            let state = app.state::<PtyState>();
+            if let Ok(Some(client)) = state.client(&app, false).await {
+                if let Ok(Response::Count { n }) = client.request(req).await {
+                    if n > 0 {
+                        tracing::info!(target: "terminal", killed = n, "PTY sessions killed");
                     }
                 }
             }
-        }
-    }
+        };
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(800), work).await;
+    });
+}
+
+fn socket_path_for(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("failed to resolve the app data dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create the app data dir: {e}"))?;
+    Ok(socket_path(&dir))
 }
 
 #[tauri::command]
@@ -190,135 +143,57 @@ pub async fn start_pty_session(
     rows: u16,
     cols: u16,
 ) -> Result<PtySessionInfo, String> {
-    // 이미 살아있는 세션이면 그대로 재사용 (attach 경로와의 경합 방어).
-    // nonce 는 세션에 고정된 값이므로 새로 뽑지 말고 기존 것을 돌려준다.
-    if let Some(existing) = state.sessions.lock().unwrap().get(&session_id) {
-        return Ok(existing.info());
-    }
-
-    let pty_system = NativePtySystem::default();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| format!("Failed to open PTY: {e}"))?;
-
     let shell = shell_integration::current_shell();
 
-    let mut cmd = CommandBuilder::new(&shell);
-    cmd.env("TERM", "xterm-256color");
-    // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록 광고.
-    cmd.env("COLORTERM", "truecolor");
+    let mut env: Vec<(String, String)> = vec![
+        ("TERM".into(), "xterm-256color".into()),
+        // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록.
+        ("COLORTERM".into(), "truecolor".into()),
+    ];
     // 한국어 입력 fix (2026-07-16): Finder 로 실행된 .app 은 LANG 이 비어 셸이
-    // C 로케일로 뜬다 — zsh ZLE 가 멀티바이트(한글) 입력을 바이트 단위로 다뤄
-    // 조합·백스페이스·에코가 깨진다. 기존 값은 존중하고 없을 때만 UTF-8 보장.
+    // C 로케일로 뜬다 — 기존 값은 존중하고 없을 때만 UTF-8 보장. (호스트는 이
+    // 앱이 띄우므로 같은 env 를 물려받지만, 판정은 계약대로 앱 쪽에서 한다.)
     if std::env::var("LANG").map(|v| v.trim().is_empty()).unwrap_or(true) {
-        cmd.env("LANG", "en_US.UTF-8");
+        env.push(("LANG".into(), "en_US.UTF-8".into()));
     }
     if std::env::var("LC_ALL").is_err() && std::env::var("LC_CTYPE").is_err() {
-        cmd.env("LC_CTYPE", "UTF-8");
-    }
-    if !cwd.is_empty() {
-        cmd.cwd(cwd);
+        env.push(("LC_CTYPE".into(), "UTF-8".into()));
     }
 
     // 셸 통합 (OSC 133/7). 사용자 rc 에 심긴 **비활성 한 줄**이 아래 변수를
-    // 보고서야 스크립트를 source 한다 — 설치 전이면 이 env 들은 아무 일도
-    // 하지 않는다(설정에서 옵인). 실패는 전부 삼킨다: 통합이 안 켜지는 것보다
-    // 터미널이 안 뜨는 쪽이 훨씬 나쁘다.
+    // 보고서야 스크립트를 source 한다. 실패는 전부 삼킨다: 통합이 안 켜지는
+    // 것보다 터미널이 안 뜨는 쪽이 훨씬 나쁘다.
     let nonce = Uuid::new_v4().simple().to_string();
     let script = materialize_integration_script(&app, &shell);
-    cmd.env("OCULPM_TERM", "1");
-    cmd.env("OCULPM_NONCE", &nonce);
+    env.push(("OCULPM_TERM".into(), "1".into()));
+    env.push(("OCULPM_NONCE".into(), nonce.clone()));
     if let Some(path) = script.as_deref() {
-        cmd.env("OCULPM_SHELL_INTEGRATION", path);
+        env.push(("OCULPM_SHELL_INTEGRATION".into(), path.to_string()));
     }
 
-    let _child = pair
-        .slave
-        .spawn_command(cmd)
-        .map_err(|e| format!("Failed to spawn shell: {e}"))?;
-
-    let reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| format!("Failed to clone PTY reader: {e}"))?;
-
-    let writer = pair
-        .master
-        .take_writer()
-        .map_err(|e| format!("Failed to take PTY writer: {e}"))?;
-
-    let buf = Arc::new(Mutex::new(SessionBuf::default()));
-    let session = PtySession {
-        writer,
-        master: pair.master,
-        buf: buf.clone(),
-        nonce,
-        shell_integration: script.is_some(),
-    };
-    let info = session.info();
-
-    {
-        let mut sessions = state.sessions.lock().unwrap();
-        if let Some(winner) = sessions.get(&session_id) {
-            // 동시 start 경합에서 진 쪽 — 방금 띄운 pair/child 는 여기서 drop
-            // 되며 정리된다 (덮어쓰기로 승자 세션을 유령으로 만들지 않는다).
-            // 반환하는 nonce 도 승자의 것이어야 한다. 진 쪽 nonce 를 돌려주면
-            // 프런트가 살아있는 셸의 OSC 를 전부 위조로 판정해 버린다.
-            return Ok(winner.info());
-        }
-        sessions.insert(session_id.clone(), session);
-    }
-
-    let session_id_clone = session_id.clone();
-    tauri::async_runtime::spawn(async move {
-        let _ = tokio::task::spawn_blocking(move || {
-            let mut reader = reader;
-            let mut local_buf = [0u8; 8192];
-            let mut pending: Vec<u8> = Vec::new();
-            loop {
-                match reader.read(&mut local_buf) {
-                    Ok(0) => break, // EOF
-                    Ok(n) => {
-                        pending.extend_from_slice(&local_buf[..n]);
-                        let text = drain_utf8(&mut pending);
-                        if text.is_empty() {
-                            continue;
-                        }
-                        let seq = buf.lock().unwrap().push(&text);
-                        let _ = app.emit(
-                            &format!("pty-data-{session_id_clone}"),
-                            PtyChunk { seq, text },
-                        );
-                    }
-                    Err(_) => break,
-                }
-            }
-            // EOF 시점에 이월분이 남아있으면 (비정상 스트림) lossy 로 마감.
-            if !pending.is_empty() {
-                let text = String::from_utf8_lossy(&pending).into_owned();
-                let seq = buf.lock().unwrap().push(&text);
-                let _ = app.emit(
-                    &format!("pty-data-{session_id_clone}"),
-                    PtyChunk { seq, text },
-                );
-            }
-            // 셸이 스스로 종료(exit)한 세션은 맵에서 걷어낸다 — 다음 마운트의
-            // attach 가 죽은 세션 대신 None 을 받아 새 셸을 시작하게.
-            {
-                let st = app.state::<PtyState>();
-                st.sessions.lock().unwrap().remove(&session_id_clone);
-            }
-            let _ = app.emit(&format!("pty-exit-{session_id_clone}"), ());
+    let client = state
+        .client(&app, true)
+        .await?
+        .ok_or_else(|| "pty-host unavailable".to_string())?;
+    match client
+        .request(Request::Start {
+            sid: session_id,
+            cwd,
+            rows,
+            cols,
+            shell,
+            env,
+            nonce,
+            shell_integration: script.is_some(),
         })
-        .await;
-    });
-
-    Ok(info)
+        .await?
+    {
+        Response::Session { nonce, shell_integration } => {
+            Ok(PtySessionInfo { nonce, shell_integration })
+        }
+        Response::Error { message } => Err(message),
+        other => Err(format!("unexpected pty-host response: {other:?}")),
+    }
 }
 
 /// 이 셸용 통합 스크립트를 앱 데이터에 실체화하고 절대경로를 돌려준다.
@@ -343,261 +218,99 @@ fn materialize_integration_script(app: &tauri::AppHandle, shell: &str) -> Option
 }
 
 /// 살아있는 세션의 스크롤백 스냅샷을 반환한다 (없으면 None). 화면 재마운트가
-/// `start` 대신 이걸 먼저 불러 세션을 이어받는다.
+/// `start` 대신 이걸 먼저 불러 세션을 이어받는다 — **앱 재시작 후에도** 호스트가
+/// 살아 있으면 여기서 세션이 되살아난다.
 #[tauri::command]
 #[specta::specta]
-pub fn attach_pty_session(
+pub async fn attach_pty_session(
+    app: tauri::AppHandle,
     state: State<'_, PtyState>,
     session_id: String,
 ) -> Result<Option<PtyAttach>, String> {
-    let sessions = state.sessions.lock().unwrap();
-    Ok(sessions.get(&session_id).map(|s| {
-        let (text, seq) = s.buf.lock().unwrap().snapshot();
-        PtyAttach {
-            text,
-            seq,
-            nonce: s.nonce.clone(),
-            shell_integration: s.shell_integration,
-        }
-    }))
+    let Some(client) = state.client(&app, false).await? else {
+        return Ok(None);
+    };
+    match client.request(Request::Attach { sid: session_id }).await {
+        Ok(Response::Attach { attach }) => Ok(attach.map(|a| PtyAttach {
+            text: a.text,
+            seq: a.seq,
+            nonce: a.nonce,
+            shell_integration: a.shell_integration,
+        })),
+        // 접속이 그 사이 죽었다 — "세션 없음" 과 같은 답이 맞다 (start 로 진행).
+        Err(_) => Ok(None),
+        Ok(other) => Err(format!("unexpected pty-host response: {other:?}")),
+    }
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn write_to_pty(
+pub async fn write_to_pty(
+    app: tauri::AppHandle,
     state: State<'_, PtyState>,
     session_id: String,
     data: String,
 ) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().unwrap();
-    let Some(session) = sessions.get_mut(&session_id) else {
-        // 종전엔 미지의 세션도 Ok(()) — "조용한 성공" 때문에 디스패치 프리필이
-        // 세션 기동 전에 소비되고 증발했다 (A0d). 호출측이 재시도를 판단할 수
-        // 있게 명시적 에러로 (키 입력 경로는 envelope 를 무시하므로 무해).
+    let Some(client) = state.client(&app, false).await? else {
+        // 종전과 같은 계약 — 미지의 세션에 "조용한 성공" 을 주지 않는다 (A0d).
         return Err(format!("unknown pty session: {session_id}"));
     };
-    session
-        .writer
-        .write_all(data.as_bytes())
-        .map_err(|e| format!("Failed to write to PTY: {e}"))?;
-    session
-        .writer
-        .flush()
-        .map_err(|e| format!("Failed to flush PTY: {e}"))?;
-    Ok(())
+    match client.request(Request::Write { sid: session_id, data }).await? {
+        Response::Ok => Ok(()),
+        Response::Error { message } => Err(message),
+        other => Err(format!("unexpected pty-host response: {other:?}")),
+    }
 }
 
-/// 이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄. 셸이 입력을
-/// 기다리는 중이면 셸 자신(`-zsh`)이 나오고, 알아낼 수 없으면 `None`.
-///
-/// 디스패치 프리필(IN2)이 "셸에 한 줄 명령을 쓸지" 아니면 "이미 돌고 있는
-/// 코딩 에이전트에 프롬프트를 그대로 붙여넣을지" 고르는 근거다. 셸 통합
-/// (OSC 133)이 꺼져 있어도 답할 수 있어야 해서 tty 의 포그라운드 프로세스
-/// 그룹(`tcgetpgrp`)을 직접 본다 — iTerm2·VS Code 가 쓰는 것과 같은 신호이고,
-/// 사용자가 rc 에 아무것도 설치하지 않아도 참이다.
-///
-/// 판정(어떤 에이전트인가)은 프런트의 `agentDetect.ts` 가 한다 — 셸 통합
-/// 경로와 **같은 규칙**을 쓰기 위해서다. 여기서는 원문만 실어 보낸다.
+/// 이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄 — 디스패치
+/// 프리필(IN2)의 근거. 판정(어떤 에이전트인가)은 프런트 `agentDetect.ts` 가
+/// 한다. tcgetpgrp + `ps` 는 호스트가 수행한다 (PTY 가 거기 있으므로).
 #[tauri::command]
 #[specta::specta]
-pub fn pty_foreground_command(
+pub async fn pty_foreground_command(
+    app: tauri::AppHandle,
     state: State<'_, PtyState>,
     session_id: String,
 ) -> Result<Option<String>, String> {
-    // 락은 pid 를 꺼낼 때까지만 — 아래 `ps` 호출은 세션 맵과 무관하고,
-    // 그동안 다른 페인의 키 입력을 막을 이유가 없다.
-    let leader = {
-        let sessions = state.sessions.lock().unwrap();
-        let Some(session) = sessions.get(&session_id) else {
-            return Err(format!("unknown pty session: {session_id}"));
-        };
-        process_group_leader_of(session)
+    let Some(client) = state.client(&app, false).await? else {
+        return Err(format!("unknown pty session: {session_id}"));
     };
-    Ok(leader.and_then(command_line_of))
-}
-
-#[cfg(unix)]
-fn process_group_leader_of(session: &PtySession) -> Option<i32> {
-    session.master.process_group_leader()
-}
-
-/// Windows 콘솔에는 대응하는 개념이 없다 — 모른다고 답하고 호출측이 기존
-/// 동작(셸에 한 줄 명령)으로 되돌아가게 한다.
-#[cfg(not(unix))]
-fn process_group_leader_of(_session: &PtySession) -> Option<i32> {
-    None
-}
-
-/// pid → 명령줄. 의존성을 늘리지 않으려고 `ps` 를 쓴다 (한 번의 디스패치마다
-/// 한 번 호출되는 경로라 비용이 문제되지 않는다). 실패는 전부 `None`.
-#[cfg(unix)]
-fn command_line_of(pid: i32) -> Option<String> {
-    let out = std::process::Command::new("ps")
-        .args(["-o", "args=", "-p", &pid.to_string()])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
+    match client.request(Request::Foreground { sid: session_id }).await? {
+        Response::Foreground { command } => Ok(command),
+        Response::Error { message } => Err(message),
+        other => Err(format!("unexpected pty-host response: {other:?}")),
     }
-    let line = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if line.is_empty() {
-        None
-    } else {
-        Some(line)
-    }
-}
-
-#[cfg(not(unix))]
-fn command_line_of(_pid: i32) -> Option<String> {
-    None
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn resize_pty(
+pub async fn resize_pty(
+    app: tauri::AppHandle,
     state: State<'_, PtyState>,
     session_id: String,
     rows: u16,
     cols: u16,
 ) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.get_mut(&session_id) {
-        session
-            .master
-            .resize(PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|e| format!("Failed to resize PTY: {e}"))?;
+    let Some(client) = state.client(&app, false).await? else {
+        // 미지의 세션 resize 는 종전에도 조용한 no-op 였다.
+        return Ok(());
+    };
+    match client.request(Request::Resize { sid: session_id, rows, cols }).await {
+        Ok(Response::Error { message }) => Err(message),
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn kill_pty_session(
+pub async fn kill_pty_session(
+    app: tauri::AppHandle,
     state: State<'_, PtyState>,
     session_id: String,
 ) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().unwrap();
-    if let Some(_session) = sessions.remove(&session_id) {
-        // PtySession dropped here: master will close, sending SIGHUP/SIGKILL to child.
-    }
+    let Some(client) = state.client(&app, false).await? else {
+        return Ok(());
+    };
+    let _ = client.request(Request::Kill { sid: session_id }).await;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `ps` 로 명령줄을 읽는 배관이 이 플랫폼에서 실제로 동작하는가.
-    ///
-    /// 판정(에이전트인가)은 프런트가 하므로 여기서 볼 것은 "빈손으로 돌아오지
-    /// 않는가" 뿐이다 — 이게 무너지면 디스패치는 조용히 옛 동작(한 줄 명령)으로
-    /// 되돌아가고, 아무도 눈치채지 못한다.
-    #[cfg(unix)]
-    #[test]
-    fn reads_own_command_line() {
-        let me = command_line_of(std::process::id() as i32);
-        assert!(me.is_some_and(|line| !line.trim().is_empty()));
-    }
-
-    /// 없는 pid 는 에러가 아니라 "모른다".
-    #[cfg(unix)]
-    #[test]
-    fn unknown_pid_is_none() {
-        // 존재하지 않는 pid — `ps` 는 비어 있는 출력 + 실패 상태를 준다.
-        assert!(command_line_of(i32::MAX).is_none());
-    }
-
-    /// 청크 경계에 걸린 한글(3바이트)이 이월 후 온전히 복원된다.
-    #[test]
-    fn drain_utf8_carries_split_hangul() {
-        let bytes = "안녕".as_bytes(); // 6 bytes
-        let mut pending = bytes[..4].to_vec(); // "안" + '녕' 의 선두 1바이트
-        let first = drain_utf8(&mut pending);
-        assert_eq!(first, "안");
-        assert_eq!(pending.len(), 1);
-        pending.extend_from_slice(&bytes[4..]);
-        assert_eq!(drain_utf8(&mut pending), "녕");
-        assert!(pending.is_empty());
-    }
-
-    /// 스크린샷 재현 케이스 — 박스 문자(─ U+2500, 3바이트)가 4096 경계에서
-    /// 쪼개져 U+FFFD 두 개로 보이던 것: 이월 디코드에서는 깨지지 않는다.
-    #[test]
-    fn drain_utf8_carries_split_box_drawing() {
-        let line = "─".repeat(3); // 9 bytes
-        let bytes = line.as_bytes();
-        let mut pending = bytes[..7].to_vec(); // 두 번째 ─ 뒤 + 세 번째 ─ 의 1바이트
-        let first = drain_utf8(&mut pending);
-        assert_eq!(first, "──");
-        pending.extend_from_slice(&bytes[7..]);
-        assert_eq!(drain_utf8(&mut pending), "─");
-    }
-
-    /// 4바이트 이모지가 1+3 으로 쪼개져도 복원된다.
-    #[test]
-    fn drain_utf8_carries_split_emoji() {
-        let bytes = "🚀".as_bytes();
-        let mut pending = bytes[..1].to_vec();
-        assert_eq!(drain_utf8(&mut pending), "");
-        pending.extend_from_slice(&bytes[1..]);
-        assert_eq!(drain_utf8(&mut pending), "🚀");
-    }
-
-    /// 진짜 잘못된 바이트는 U+FFFD 로 치환하고, 뒤따르는 유효 텍스트와
-    /// 미완성 tail 처리는 계속 동작한다 (교착 없음).
-    #[test]
-    fn drain_utf8_replaces_invalid_and_continues() {
-        let mut pending = vec![b'a', 0xFF, b'b'];
-        assert_eq!(drain_utf8(&mut pending), "a\u{FFFD}b");
-        assert!(pending.is_empty());
-
-        // invalid + 유효 한글 + 미완성 tail 혼합.
-        let mut mixed = vec![0xFF];
-        mixed.extend_from_slice("한".as_bytes());
-        mixed.extend_from_slice(&"글".as_bytes()[..2]);
-        assert_eq!(drain_utf8(&mut mixed), "\u{FFFD}한");
-        assert_eq!(mixed.len(), 2);
-    }
-
-    /// ASCII 는 그대로 통과.
-    #[test]
-    fn drain_utf8_ascii_passthrough() {
-        let mut pending = b"hello $ ".to_vec();
-        assert_eq!(drain_utf8(&mut pending), "hello $ ");
-        assert!(pending.is_empty());
-    }
-
-    /// 링버퍼 — 상한 초과 시 앞 청크부터 버리고 seq 는 단조 증가.
-    #[test]
-    fn session_buf_caps_and_sequences() {
-        let mut buf = SessionBuf::default();
-        let big = "x".repeat(SCROLLBACK_CAP_BYTES / 2 + 1);
-        assert_eq!(buf.push(&big), 1);
-        assert_eq!(buf.push(&big), 2);
-        assert_eq!(buf.push("tail"), 3); // 첫 big 이 밀려난다
-        let (text, seq) = buf.snapshot();
-        assert_eq!(seq, 3);
-        assert!(text.ends_with("tail"));
-        assert!(text.len() <= SCROLLBACK_CAP_BYTES + 4);
-        assert_eq!(text.matches('x').count(), big.len());
-    }
-
-    /// 마지막 앱 창을 닫을 때의 총정리에서, 분리 터미널 창의 셸만 살아남는다.
-    /// `keep` 이 비면 예전(`kill_with_prefix("")`)과 같이 전량 대상이다.
-    #[test]
-    fn kill_except_protects_only_the_listed_prefixes() {
-        let keep = vec!["p1-".to_string()];
-        assert!(is_protected("p1-abc", &keep));
-        assert!(!is_protected("p2-abc", &keep));
-        // 접두사의 `-` 가 없으면 p1 이 p12 를 잡아먹는다 — 규격이 지켜지는지.
-        assert!(!is_protected("p12-abc", &keep));
-        // 멀티 창 이전에 저장된 접두사 없는 레거시 sid 도 보호되지 않는다.
-        assert!(!is_protected("a1b2c3d4", &keep));
-        assert!(!is_protected("p1-abc", &[]));
-    }
 }

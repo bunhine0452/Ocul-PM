@@ -636,7 +636,8 @@ export const commands = {
 	startPtySession: (sessionId: string, cwd: string, rows: number, cols: number) => typedError<PtySessionInfo, string>(__TAURI_INVOKE("start_pty_session", { sessionId, cwd, rows, cols })),
 	/**
 	 *  살아있는 세션의 스크롤백 스냅샷을 반환한다 (없으면 None). 화면 재마운트가
-	 *  `start` 대신 이걸 먼저 불러 세션을 이어받는다.
+	 *  `start` 대신 이걸 먼저 불러 세션을 이어받는다 — **앱 재시작 후에도** 호스트가
+	 *  살아 있으면 여기서 세션이 되살아난다.
 	 */
 	attachPtySession: (sessionId: string) => typedError<{
 	/**  지금까지의 스크롤백 (상한 내). xterm 에 그대로 write 해 리플레이한다. */
@@ -652,17 +653,9 @@ export const commands = {
 } | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	/**
-	 *  이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄. 셸이 입력을
-	 *  기다리는 중이면 셸 자신(`-zsh`)이 나오고, 알아낼 수 없으면 `None`.
-	 * 
-	 *  디스패치 프리필(IN2)이 "셸에 한 줄 명령을 쓸지" 아니면 "이미 돌고 있는
-	 *  코딩 에이전트에 프롬프트를 그대로 붙여넣을지" 고르는 근거다. 셸 통합
-	 *  (OSC 133)이 꺼져 있어도 답할 수 있어야 해서 tty 의 포그라운드 프로세스
-	 *  그룹(`tcgetpgrp`)을 직접 본다 — iTerm2·VS Code 가 쓰는 것과 같은 신호이고,
-	 *  사용자가 rc 에 아무것도 설치하지 않아도 참이다.
-	 * 
-	 *  판정(어떤 에이전트인가)은 프런트의 `agentDetect.ts` 가 한다 — 셸 통합
-	 *  경로와 **같은 규칙**을 쓰기 위해서다. 여기서는 원문만 실어 보낸다.
+	 *  이 PTY 에서 **지금 화면을 잡고 있는 프로그램**의 명령줄 — 디스패치
+	 *  프리필(IN2)의 근거. 판정(어떤 에이전트인가)은 프런트 `agentDetect.ts` 가
+	 *  한다. tcgetpgrp + `ps` 는 호스트가 수행한다 (PTY 가 거기 있으므로).
 	 */
 	ptyForegroundCommand: (sessionId: string) => typedError<string | null, string>(__TAURI_INVOKE("pty_foreground_command", { sessionId })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),

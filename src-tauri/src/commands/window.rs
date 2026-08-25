@@ -799,13 +799,8 @@ fn attach_terminal_window_hooks(
             };
             if !still_used {
                 if let Some(pty) = handle.try_state::<crate::commands::terminal::PtyState>() {
-                    let killed = pty.kill_with_prefix(&pty_prefix_for(project_id));
-                    if killed > 0 {
-                        tracing::info!(
-                            target: "window", project_id, killed,
-                            "terminal window closed — PTY sessions killed"
-                        );
-                    }
+                    // fire-and-forget — 죽인 개수 로그는 terminal.rs 안에서 남는다.
+                    pty.kill_with_prefix(&handle, &pty_prefix_for(project_id));
                 }
             }
             emit_terminal_windows(&handle);
@@ -996,7 +991,7 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
     // 마지막 창 — 어떤 PTY 도 주인이 없다. 접두사 없는 레거시 sid(멀티 창
     // 이전에 저장된 터미널 탭)까지 여기서 회수한다.
     if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
-        pty.kill_except(&[]);
+        pty.kill_except(app, &[]);
     }
     crate::tray::handle_last_window_closed(app, label)
 }
@@ -1015,10 +1010,8 @@ fn release_project(app: &AppHandle, project_id: u32) {
         return;
     }
     if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
-        let killed = pty.kill_with_prefix(&pty_prefix_for(project_id));
-        if killed > 0 {
-            tracing::info!(target: "window", project_id, killed, "tab closed — PTY sessions killed");
-        }
+        // fire-and-forget — 죽인 개수 로그는 terminal.rs 안에서 남는다.
+        pty.kill_with_prefix(app, &pty_prefix_for(project_id));
     }
 }
 

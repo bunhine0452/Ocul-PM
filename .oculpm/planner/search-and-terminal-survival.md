@@ -22,10 +22,11 @@ owner: claude-code
 - [x] 게이트 — Rust 12종 + vitest 8종 추가, typecheck/test/lint/build 그린 {#search-gates}
 
 ## Phase 2 — 터미널 세션 생존 (PTY 호스트) {#p2-pty-host}
-- [ ] 프로토콜 + 호스트 코어 — 같은 실행파일 `--pty-host` 모드, Unix 소켓, 세션·스크롤백·nonce 소유 {#pty-host-core}
-- [ ] 앱 쪽 클라이언트 — terminal.rs 커맨드를 호스트 호출로, 이벤트 중계(pty-data/exit 재방출) {#pty-client}
-- [ ] 호스트 생명주기 — detach 스폰(setsid)·소켓 경쟁/묵은 소켓 정리·유휴 종료·창 닫힘 kill 의미 유지 {#pty-lifecycle}
-- [ ] 재접속 검증 — 앱 재시작 후 attach 성공(스크롤백·nonce·seq 연속), 통합 테스트 {#pty-reattach}
+- [x] 프로토콜 + 호스트 코어 — 같은 실행파일 `--pty-host` 모드, Unix 소켓, 세션·스크롤백·nonce 소유 {#pty-host-core}
+- [x] 앱 쪽 클라이언트 — terminal.rs 커맨드를 호스트 호출로, 이벤트 중계(pty-data/exit 재방출) {#pty-client}
+- [x] 호스트 생명주기 — detach 스폰(process_group 0)·소켓 경쟁/묵은 소켓 정리·유휴 종료·창 닫힘 kill 의미 유지(800ms block) {#pty-lifecycle}
+- [x] 재접속 검증 — 클라이언트 교체 후 attach 성공(스크롤백·nonce·seq 연속), 실 PTY 통합 테스트 2종 {#pty-reattach}
+- [ ] 인앱 육안 확인 — 실제 앱 ⌘Q→재실행·업데이트 재시작에서 셸/Claude Code 유지, OSC 상태줄 연속, 분리 창 시나리오 {#pty-manual-verify}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | agent | 전이 | 일지 | 메모 |
@@ -35,4 +36,9 @@ owner: claude-code
 | 2026-08-25T11:13:08+09:00 | #search-panel | claude-code | →☐→[x] | 20260825/Features_to_add/1113_feature_project-search-replace.md | 사이드바 전환 패널 |
 | 2026-08-25T11:13:08+09:00 | #jump-selection | claude-code | →☐→[x] | 20260825/Features_to_add/1113_feature_project-search-replace.md | jump ch/len |
 | 2026-08-25T11:13:08+09:00 | #search-gates | claude-code | →☐→[x] | 20260825/Features_to_add/1113_feature_project-search-replace.md | 전 게이트 그린 |
+| 2026-08-25T11:30:00+09:00 | #pty-host-core | claude-code | ☐→[x] | 20260825/Features_to_add/1130_feature_pty-host-survive-restart.md | ptyhost/{protocol,host} |
+| 2026-08-25T11:30:00+09:00 | #pty-client | claude-code | ☐→[x] | 20260825/Features_to_add/1130_feature_pty-host-survive-restart.md | client + terminal.rs 재작성 |
+| 2026-08-25T11:30:00+09:00 | #pty-lifecycle | claude-code | ☐→[x] | 20260825/Features_to_add/1130_feature_pty-host-survive-restart.md | 스폰·경쟁·유휴·kill 의미 |
+| 2026-08-25T11:30:00+09:00 | #pty-reattach | claude-code | ☐→[x] | 20260825/Features_to_add/1130_feature_pty-host-survive-restart.md | 실 PTY 재접속 테스트 그린 |
+| 2026-08-25T11:30:00+09:00 | #pty-manual-verify | claude-code | →☐ | 20260825/Features_to_add/1130_feature_pty-host-survive-restart.md | 실기기 육안 확인 남음 |
 <!-- oculpm:plan-log end -->
