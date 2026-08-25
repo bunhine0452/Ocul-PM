@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 
 // Advanced Today UI — the concentric-arc activity ring pulses (ripple) only
 // when today's recorded-work count *increments* (a new entry recorded), not on
@@ -45,6 +45,46 @@ describe("TodayActivityRing", () => {
     await waitFor(() => {
       expect(container.querySelector(".today-ring-ripple")).toBeNull();
     });
+  });
+
+
+  // 2026-08-25 — salvaged from fix/today-ring-line-delta-and-audit. That branch
+  // was abandoned when main redid the line-delta work on a different schema
+  // (69b1cc5); these four findings landed in neither.
+
+  it("names itself with role=img — aria-label is ignored on a bare div", () => {
+    const { container } = render(<TodayActivityRing {...props(2)} />);
+    const ring = container.querySelector(".today-ring");
+    // `aria-label` is prohibited on the implicit `generic` role, so without an
+    // explicit role the whole widget is silent: the svg is aria-hidden and the
+    // tooltip is mouse-only. axe does not flag the bare-div case.
+    expect(ring?.getAttribute("role")).toBe("img");
+    expect(ring?.getAttribute("aria-label")).toBeTruthy();
+  });
+
+  it("keeps the hover tooltip out of the a11y tree (not a live region)", () => {
+    const { container } = render(<TodayActivityRing {...props(2)} />);
+    fireEvent.mouseEnter(container.querySelectorAll(".tr-hit")[0]);
+    const tip = container.querySelector(".today-ring-tip");
+    expect(tip).not.toBeNull();
+    // As role="status" this announced on every pointer sweep across the ring.
+    expect(tip?.getAttribute("role")).toBeNull();
+    expect(tip?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  // The ripple's animationend unmount is NOT covered here. jsdom runs no CSS
+  // animations so animationend never fires naturally, and a synthesized one
+  // never reaches React 19's onAnimationEnd (measured: fireEvent default,
+  // fireEvent with bubbles:true, and a manual dispatchEvent all invoked the
+  // handler zero times). The implementation is onAnimationEnd → setPulse(null)
+  // in TodayActivityRing; only a real browser can verify it.
+
+  it("groups thousands in the hover values", () => {
+    const { container, getByText } = render(
+      <TodayActivityRing {...props(2)} linesAdded={12345} linesRemoved={6789} />,
+    );
+    fireEvent.mouseEnter(container.querySelectorAll(".tr-hit")[2]); // outer → inner: lines last
+    expect(getByText("+12,345 / −6,789")).toBeInTheDocument();
   });
 
   it("draws one arc per non-zero metric, and none for a zero one", () => {

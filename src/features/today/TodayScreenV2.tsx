@@ -169,6 +169,11 @@ export function TodayScreenV2({
             <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
               {oculpmReady && brief ? (
                 <TodayActivityRing
+                  // 프로젝트가 바뀌면 새 인스턴스로. 링은 changedToday 가 늘면
+                  // "새 일지가 기록됐다"로 읽고 물결을 치는데, 프로젝트 전환은
+                  // 그냥 다른 프로젝트의 수치일 뿐이다 (2건 → 9건이 새 기록으로
+                  // 오인됨). key 로 ref 를 리셋해 헛 리플을 없앤다.
+                  key={projectId}
                   changedToday={brief.changedToday}
                   filesTouched={brief.filesTouched}
                   linesAdded={brief.linesAdded}
@@ -230,8 +235,9 @@ export function TodayScreenV2({
               sub={
                 brief ? (
                   <span className="mono">
-                    <span className="diff-add">+{brief.linesAdded}</span>{" "}
-                    <span className="diff-del">−{brief.linesRemoved}</span> {t("today.unit.lines")}
+                    <span className="diff-add">+{brief.linesAdded.toLocaleString()}</span>{" "}
+                    <span className="diff-del">−{brief.linesRemoved.toLocaleString()}</span>{" "}
+                    {t("today.unit.lines")}
                   </span>
                 ) : null
               }
