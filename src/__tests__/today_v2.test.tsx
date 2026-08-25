@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent, within, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
+// 타입 전용 — brief mock 을 생성된 DTO 에 `satisfies` 로 못 박는다. 백엔드
+// 필드가 개명돼도 mock 이 조용히 낡아 있지 않도록.
+import type { WorkdayBrief } from "@/lib/bindings";
 
 // ─── PR-UI 2 — Today 6-block dashboard ────────────────────────────────────
 //
@@ -80,8 +83,8 @@ vi.mock("@/lib/bindings", () => ({
   commands: {
     // v2 U12 — Today/타임라인의 단일 집계 커맨드. fixtures 를 그대로 버킷팅하고
     // bytes 는 구 per-entry 하이드레이션 mock 과 동일한 수치(엔트리당 15/3)로.
-    oculpmWorkdayBrief: (_pid: number, workdays: string[], bytesWorkday: string | null) => {
-      const todayCount = bytesWorkday ? (fixtures.byWorkday[bytesWorkday] ?? []).length : 0;
+    oculpmWorkdayBrief: (_pid: number, workdays: string[], linesWorkday: string | null) => {
+      const todayCount = linesWorkday ? (fixtures.byWorkday[linesWorkday] ?? []).length : 0;
       const openItems = nextFx.plans
         .filter((p) => p.status === "active")
         .flatMap((p) =>
@@ -103,15 +106,18 @@ vi.mock("@/lib/bindings", () => ({
       return Promise.resolve({
         status: "ok",
         data: {
+          // 배열 둘은 픽스처가 느슨하게 타이핑돼 있어 캐스트로 인정한다. 정작
+          // 조용히 낡았던 건 스칼라 쪽이라(bytes_* → lines_*), 그건 아래 satisfies
+          // 가 진짜로 검사한다.
           days: workdays.map((wd) => ({
             workday: wd,
             entries: fixtures.byWorkday[wd] ?? [],
-          })),
-          bytes_added: todayCount * 15,
-          bytes_removed: todayCount * 3,
-          open_plan_items: openItems,
+          })) as unknown as WorkdayBrief["days"],
+          lines_added: todayCount * 15,
+          lines_removed: todayCount * 3,
+          open_plan_items: openItems as WorkdayBrief["open_plan_items"],
           total_entries: 0,
-        },
+        } satisfies WorkdayBrief,
       });
     },
     planList: () => Promise.resolve({ status: "ok", data: nextFx.plans }),

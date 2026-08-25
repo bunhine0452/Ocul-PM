@@ -45,19 +45,25 @@ export function TodayActivityRing({
   size = 128,
 }: TodayActivityRingProps) {
   const prev = useRef<number | null>(null);
-  // Bumped on every increment → re-keys the ripple so its one-shot CSS
-  // animation replays (a new record = a fresh ripple).
-  const [pulse, setPulse] = useState(0);
+  // Monotonic sequence → a fresh `key` per pulse so the one-shot CSS animation
+  // replays. `pulse` is cleared on animationend so the span actually leaves the
+  // DOM instead of lingering forever at opacity 0 (animation-fill-mode:
+  // forwards). Under prefers-reduced-motion the span is `display: none`, so no
+  // animationend fires and it stays mounted-but-hidden — harmless.
+  const seq = useRef(0);
+  const [pulse, setPulse] = useState<number | null>(null);
   const [hover, setHover] = useState<RingId | null>(null);
 
   useEffect(() => {
     if (prev.current !== null && changedToday > prev.current) {
-      setPulse((p) => p + 1);
+      seq.current += 1;
+      setPulse(seq.current);
     }
     prev.current = changedToday;
   }, [changedToday]);
 
   const lineChurn = linesAdded + linesRemoved;
+  const n = (v: number) => v.toLocaleString();
 
   // Outer → inner. r/sw are in the 0–100 viewBox; arcs start at 12 o'clock via
   // the group rotate(-90).
@@ -75,7 +81,7 @@ export function TodayActivityRing({
       cls: "o",
       fraction: fillFraction(changedToday, 4),
       label: t("today.ring.entries"),
-      value: `${changedToday}`,
+      value: n(changedToday),
     },
     {
       id: "files",
@@ -83,7 +89,7 @@ export function TodayActivityRing({
       cls: "m",
       fraction: fillFraction(filesTouched, 8),
       label: t("today.ring.files"),
-      value: `${filesTouched}`,
+      value: n(filesTouched),
     },
     {
       id: "lines",
@@ -91,7 +97,7 @@ export function TodayActivityRing({
       cls: "i",
       fraction: fillFraction(lineChurn, 400),
       label: t("today.ring.lines"),
-      value: `+${linesAdded} / −${linesRemoved}`,
+      value: `+${n(linesAdded)} / −${n(linesRemoved)}`,
     },
   ];
 
@@ -101,9 +107,22 @@ export function TodayActivityRing({
     <div
       className="today-ring"
       style={{ width: size, height: size }}
+      /* `role="img"` is load-bearing, not decoration: `aria-label` is *prohibited*
+         on a bare <div> (implicit role `generic`), so without it the whole ring —
+         svg aria-hidden, tooltip mouse-only — is silent to a screen reader. axe
+         does not flag the bare-div case, which is why this slipped through a
+         green a11y suite. `img` also prunes the descendants, so the label below
+         is the single announced string for the widget. */
+      role="img"
       aria-label={t("today.ring.aria", { entries: changedToday, files: filesTouched, added: linesAdded, removed: linesRemoved })}
     >
-      {pulse > 0 ? <span key={`ripple-${pulse}`} className="today-ring-ripple" /> : null}
+      {pulse !== null ? (
+        <span
+          key={`ripple-${pulse}`}
+          className="today-ring-ripple"
+          onAnimationEnd={() => setPulse(null)}
+        />
+      ) : null}
       <svg viewBox="0 0 100 100" className="today-ring-svg" fill="none" aria-hidden="true">
         <g transform="rotate(-90 50 50)" strokeLinecap="round" fill="none">
           {rings.map((ring) => (
@@ -153,8 +172,12 @@ export function TodayActivityRing({
         ) : null}
       </span>
 
+      {/* Mouse-only detail — `role="status"` made this a live region, so merely
+          sweeping the pointer across the ring fired a screen reader
+          announcement. The numbers reach assistive tech through the container's
+          aria-label (and again as text in the stat row below). */}
       {active ? (
-        <div className="today-ring-tip" role="status">
+        <div className="today-ring-tip" aria-hidden="true">
           <span className="today-ring-tip-label">{active.label}</span>
           <span className="today-ring-tip-value">{active.value}</span>
         </div>
