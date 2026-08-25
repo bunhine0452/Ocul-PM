@@ -75,10 +75,14 @@ jobs:
         with:
           components: rust-analyzer
 
+      # cache-on-failure: 붉은 실행도 캐시를 남깁니다. 기본값(false)이면 테스트가
+      # 깨진 실행은 캐시를 안 남겨, 고치고 다시 밀 때도 콜드 빌드를 또 합니다
+      # (실측: 첫 실행 실패 → 두 번째도 콜드 10분31초).
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          cache-on-failure: true
 
       # 프런트 산출물(dist/)이 없어도 `cargo test` 는 빌드됩니다 — 번들 단계가
       # 아니라서 frontendDist 존재를 요구하지 않고, 사이드카 플레이스홀더는

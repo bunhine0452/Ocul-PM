@@ -29,14 +29,14 @@ owner: claude-code
 - [x] bindings 신선도 게이트 — Rust 잡에서 `cargo test` 직후 `git diff --exit-code src/lib/bindings.ts`. 커맨드만 고치고 bindings 재생성을 빠뜨린 커밋을 잡는다(이 저장소 고유의 구조적 실수 경로) {#ci-bindings-drift}
 - [x] 문서·배지 — README ko/en 에 CI 배지, docs/RELEASE.md 릴리스 절차에 "태그 푸시 전 CI 그린 확인" 한 줄 {#ci-docs}
 - [ ] 스킵 가드 보강 — `tests/lsp_rust_analyzer.rs` 의 `rust_analyzer()` 가 PATH 의 **파일 존재**만 봐서 rustup shim 에 속는다(컴포넌트 없이도 가드 통과 → 실행 시 사망). `--version` 기동 확인으로 바꿔 컴포넌트 없는 로컬에서도 진짜로 건너뛰게 한다 — CI 첫 실행이 잡아낸 잠복 버그 {#ra-guard-hardening}
-- [ ] 실측·조정 — 콜드/웜 소요시간 기록. Rust 잡 웜이 5분을 넘으면 `cargo test --lib` 와 통합 테스트 분리 검토 {#ci-timing}
+- [x] 실측·조정 — 콜드/웜 소요시간 기록. Rust 잡 웜이 5분을 넘으면 `cargo test --lib` 와 통합 테스트 분리 검토 {#ci-timing}
 
 ## Phase 2 — 백엔드 모듈 경계 {#p2-backend}
 48개 메서드가 **단일 `impl OculpmManager` 블록**(manager.rs:129~)에 몰려 있다.
 Rust 는 같은 크레이트 안에서 고유 impl 을 여러 파일로 나눌 수 있으므로, 이 작업은
 **공개 API·호출부 무변경의 순수 파일 이동**이다. 한 파일씩, 커밋도 한 번씩.
 - [x] manager 분할 — `manager/mod.rs`(구조체·new·공유 상태) + `journal.rs`(일지 CRUD/검증/메타·13개) + `indexing.rs`(reindex·backfill·entry_diffs·8개) + `lifecycle.rs`(init/status/config/watcher/lock·15개) + `agents_sync.rs`(sync/upgrade/drift/compare·7개) + `session.rs`(세션·5개) {#mgr-split}
-- [ ] db.rs 분할 — 실코드 기준 최대(3,184줄/76 fn). 마이그레이션 러너 / 저널·플래너 쿼리 / 인덱스·임베딩(sqlite-vec) / 설정·기타로 분리 {#db-split}
+- [x] db.rs 분할 — 실코드 기준 최대(3,184줄/76 fn). 마이그레이션 러너 / 저널·플래너 쿼리 / 인덱스·임베딩(sqlite-vec) / 설정·기타로 분리 {#db-split}
 - [ ] cache.rs 분할 — 2,318줄/23 fn. 읽기 경로와 쓰기·무효화 경로 기준 {#cache-split}
 - [ ] 무변경 검증 — 각 분할 후 `pub` 시그니처 집합 diff 가 비어 있음을 확인하고 cargo test 그린. 로직 수정은 이 Phase 에서 **금지**(눈에 띄면 별도 항목으로 적기만) {#backend-no-behavior-change}
 
@@ -70,4 +70,6 @@ AcpConversation.tsx 의 진짜 문제는 파일 3,542줄이 아니라 **본체 �
 | 2026-08-25T19:52:00+09:00 | #ci-bindings-drift | claude-code | ☐→x | 20260825/Chores/1952_chore_ci-test-gate.md | cargo test 후 git diff --exit-code src/lib/bindings.ts |
 | 2026-08-25T19:52:00+09:00 | #ci-docs | claude-code | ☐→x | 20260825/Chores/1952_chore_ci-test-gate.md | README ko/en CI 배지 + RELEASE.md §0 에 태그 전 그린 확인 |
 | 2026-08-25T20:21:00+09:00 | #mgr-split | claude-code | ☐→x | 20260825/Refactors/2021_refactor_manager-module-split.md | manager.rs 4,514줄 → 7파일(구현 최대 571줄). 순수 이동 — 시그니처 56개·테스트 888/0/7 동일 |
+| 2026-08-25T20:47:00+09:00 | #db-split | claude-code | ☐→x | 20260825/Refactors/2047_refactor_db-module-split.md | db.rs 3,292줄 → 9파일(최대 690줄). 시그니처 107개·테스트 888/0/7 동일 |
+| 2026-08-25T20:47:00+09:00 | #ci-timing | claude-code | ☐→x | 20260825/Refactors/2047_refactor_db-module-split.md | 콜드 실측 프런트 2m36s·Rust 10m31s. cache-on-failure 추가(실패 실행도 캐시 저장) |
 <!-- oculpm:plan-log end -->
