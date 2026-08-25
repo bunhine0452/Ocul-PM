@@ -46,7 +46,7 @@ AcpConversation.tsx 의 진짜 문제는 파일 3,542줄이 아니라 **본체 �
 서 있어 옮기기만 하면 된다 — 그쪽부터 걷어내야 본체가 드러난다.
 - [x] 하위 컴포넌트 추출 — TurnRow·TraceRow·UserTurn·PermissionCard·SessionPanel·ConfigControl·EffortControl·MarkdownBlock 등을 `features/chat/conversation/` 로 이동(로직 무변경) {#acp-extract-children}
 - [ ] 본체 훅 추출 — 남은 1,922줄 본체에서 세션 구독·스트리밍 상태·스크롤 스틱(STICK_SLACK_PX)·이미지 첨부·권한 흐름을 커스텀 훅으로 분리, 본체는 조립만 {#acp-extract-hooks}
-- [ ] SettingsPanel 탭 분리 — Appearance·Llm·Indexing·Graph·Notion·Data·Diagnostics·Update 8개 탭 함수를 `features/settings/tabs/` 로. TABS 레지스트리는 유지 {#settings-split}
+- [x] SettingsPanel 탭 분리 — Appearance·Llm·Indexing·Graph·Notion·Data·Diagnostics·Update 8개 탭 함수를 `features/settings/tabs/` 로. TABS 레지스트리는 유지 {#settings-split}
 - [ ] 회귀 방어 — 분해 전 AcpConversation 렌더/상호작용 테스트가 얇으면 먼저 보강(추출은 그 다음). vitest 그린 유지 {#frontend-regression}
 
 ## Phase 4 — 커맨드 표면 정리 {#p4-commands}
@@ -75,4 +75,5 @@ AcpConversation.tsx 의 진짜 문제는 파일 3,542줄이 아니라 **본체 �
 | 2026-08-25T21:02:00+09:00 | #cache-split | claude-code | ☐→x | 20260825/Refactors/2102_refactor_cache-module-split.md | cache.rs 3,435줄 → 8파일(최대 642줄). 시그니처 34개·888/0/7 동일 |
 | 2026-08-25T21:02:00+09:00 | #backend-no-behavior-change | claude-code | ☐→x | 20260825/Refactors/2102_refactor_cache-module-split.md | 3파일 모두 시그니처 정렬비교 diff 없음(56·107·34) · 테스트수 불변 · bindings 클린 |
 | 2026-08-25T20:52:00+09:00 | #acp-extract-children | claude-code | ☐→x | 20260825/Refactors/2052_refactor_acp-conversation-children.md | 하위 29선언 → conversation/ 8파일. 3,542→2,059줄, 선언 42개·테스트 1,303 동일 |
+| 2026-08-25T20:56:00+09:00 | #settings-split | claude-code | ☐→x | 20260825/Refactors/2056_refactor_settings-panel-tabs.md | SettingsPanel 1,871→264줄, tabs/ 8파일. 선언 29개·테스트 1,303 동일. NotionSection 재수출로 표면 유지 |
 <!-- oculpm:plan-log end -->
