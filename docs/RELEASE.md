@@ -11,6 +11,11 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 
 네 개 모두 exit 0 인지 **직접 확인**합니다 (통과했겠거니 하지 않기).
 
+이 게이트는 `.github/workflows/ci.yml` 이 PR 과 main 푸시에서도 자동으로 돌립니다
+(프런트 잡 = typecheck·test·lint·build / Rust 잡 = `cargo test --locked` + bindings 신선도).
+**태그를 밀기 전에 main 의 CI 가 그린인지 확인하세요** — release.yml 은 테스트를 돌리지
+않고 번들만 굽기 때문에, 붉은 main 에 태그를 밀면 깨진 빌드가 그대로 릴리스로 나갑니다.
+
 ## 1. 버전 — 5파일 (같은 값)
 
 | 파일 | 위치 |
