@@ -56,7 +56,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.19.0 — terminals survive updates · project-wide search in the Code screen
+## 🚀 v2.19.1 — screen readers can read the Today ring
+
+- **The activity ring was silent to screen readers.** Its label sat on an element that cannot carry one, the inner graphic is hidden, and the number tooltip is mouse-only — so nothing reached assistive tech at all. The ring now announces itself as a single image: "N entries · N files · +N/−N lines". Conversely, that tooltip no longer **fires an announcement every time the pointer sweeps past** — the same numbers sit as text in the card right below it.
+- **Three smaller ring fixes** — a ripple that fired on project switch as if a new entry had landed, a ripple that stayed on screen after it finished, and four-digit numbers without thousands separators (12345 → 12,345).
+- **The repository now runs its checks automatically.** Every change has to pass typecheck, tests, lint and build before it lands. Nothing changes on screen, but the builds you receive from here on break less.
+
+## v2.19.0 — terminals survive updates · project-wide search in the Code screen
 
 - **Updating the app no longer kills your terminal sessions.** Terminal sessions are now owned by a process separate from the app, so after an update — or quitting and relaunching — your terminal tabs come back **exactly where they were**: scrollback, the program that was running (including a live Claude Code session), status line and all. Closing a terminal tab or a project tab still cleans its sessions up, as before.
 - **Project-wide search & replace (⇧⌘F).** The Code screen's sidebar turns into a VS Code-style search panel. It greps the **current contents on disk** (not an index), with match-case / whole-word / regex toggles; clicking a result opens the file with that match selected. Replace works per match, per file, or across everything (behind a confirmation), with `$1` group references in regex mode — files with unsaved edits are skipped and reported instead of overwritten.
