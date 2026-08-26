@@ -34,6 +34,8 @@ import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 
 import { CodeTree, type TreeDraft } from "./CodeTree";
+import { useCodeImport } from "./useCodeImport";
+import type { TreeHit } from "./importTarget";
 import { CodePane, CodeEmptyState, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
 import { CodeOutline } from "./CodeOutline";
@@ -477,9 +479,36 @@ export function CodeScreenV2({
     [loadDir],
   );
 
+  /**
+   * 트리에서 마지막으로 손댄 자리 — 커서가 없는 ⌘V 의 기준이다.
+   *
+   * 폴더는 눌러도 "선택"이 되지 않고 펼쳐지기만 한다(탭이 열리는 것은 파일뿐).
+   * 그래서 `assets/` 를 누르고 ⌘V 를 치면 열려 있던 파일의 폴더로 들어가 버린다 —
+   * 눌러 둔 곳이 아니라. 그 어긋남만 여기서 메운다.
+   */
+  const [treeAnchor, setTreeAnchor] = useState<TreeHit | null>(null);
+
   const startRename = useCallback((path: string, isDir: boolean) => {
     setDraft({ kind: "rename", path, isDir, initial: baseName(path) });
   }, []);
+
+  // Finder → 트리 파일 들여오기 (드래그 드롭 · ⌘V). 가져온 자리를 펼쳐 두는
+  // 것까지가 한 동작이다 — 어디에 들어갔는지 눈으로 확인되지 않으면 반쪽이다.
+  const handleImported = useCallback(
+    (destDir: string) => {
+      if (destDir) setExpanded((prev) => (prev.has(destDir) ? prev : new Set(prev).add(destDir)));
+      reloadAfterOp(destDir);
+    },
+    [reloadAfterOp],
+  );
+  const { dropDir, pasteFiles } = useCodeImport({
+    projectId,
+    isVisible,
+    // 트리에서 누른 자리가 우선, 없으면 보고 있는 파일의 폴더.
+    selected: treeAnchor ?? (selected ? { path: selected, isDir: false } : null),
+    rootName: projectRoot ? baseName(projectRoot) : "",
+    onImported: handleImported,
+  });
 
   // 화면 단축키 — 이 화면이 보일 때만.
   //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
@@ -514,6 +543,13 @@ export function CodeScreenV2({
         openSearch();
         return;
       }
+      if (!e.shiftKey && e.key.toLowerCase() === "v") {
+        // 에디터·입력칸의 ⌘V 는 글자 붙여넣기다 — 가로채면 타이핑이 망가진다.
+        const el = e.target as HTMLElement | null;
+        if (el?.closest?.(".cm-editor, input, textarea, [contenteditable='true']")) return;
+        pasteFiles();
+        return;
+      }
       if (!e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         const current = focusedPath(tabsRef.current);
@@ -522,7 +558,7 @@ export function CodeScreenV2({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate, openSearch]);
+  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteFiles]);
 
   /** 이름 바꾸기·이동의 공통 뒤처리 — 탭·버퍼·펼침 상태가 새 경로를 따라간다. */
   const applyRenamed = useCallback(
@@ -736,6 +772,7 @@ export function CodeScreenV2({
 
   const toggleDir = useCallback(
     (path: string) => {
+      setTreeAnchor({ path, isDir: true });
       setExpanded((prev) => {
         const next = new Set(prev);
         if (next.has(path)) next.delete(path);
@@ -898,11 +935,15 @@ export function CodeScreenV2({
           openPaths={openPaths}
           draft={draft}
           onToggle={toggleDir}
-          onSelect={(path) => openPath(path, null)}
+          onSelect={(path) => {
+            setTreeAnchor({ path, isDir: false });
+            openPath(path, null);
+          }}
           onDraftSubmit={submitDraft}
           onDraftCancel={() => setDraft(null)}
           onContextMenu={openTreeMenu}
           onMove={handleMove}
+          dropDir={dropDir}
         />
       )}
       <CodeOutline

@@ -145,7 +145,7 @@ use crate::commands::{
     open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
-    code_tree, code_dir, code_read, code_asset, code_write,
+    code_tree, code_dir, code_read, code_asset, code_write, code_import, code_clipboard_files,
     // 코드 화면 — 전역 검색·치환 (#project-search)
     code_search, code_search_replace,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
@@ -326,6 +326,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         code_read,
         code_asset,
         code_write,
+        code_import,
+        code_clipboard_files,
         // 코드 화면 — 전역 검색·치환
         code_search,
         code_search_replace,

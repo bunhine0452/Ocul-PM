@@ -271,6 +271,25 @@ export const commands = {
 	 */
 	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
 	/**
+	 *  외부 파일·폴더를 프로젝트 안으로 **복사**한다 (원본은 그대로 둔다).
+	 * 
+	 *  드롭과 ⌘V 가 같이 쓰는 창구다. 두 입력 모두 결국 OS 절대경로 목록이라
+	 *  여기 하나로 모인다.
+	 * 
+	 *  `dest_dir` 은 프로젝트 루트 기준 폴더 경로(`""` = 루트). 파일 경로가 오면
+	 *  **그 부모 폴더**로 읽는다 — 트리에서 파일 위에 떨어뜨리는 것은 "그 옆에
+	 *  놓아 달라"는 뜻이지 그 파일을 폴더로 쓰겠다는 뜻이 아니다.
+	 */
+	codeImport: (projectId: number, destDir: string, sources: string[]) => typedError<CodeImportResult, string>(__TAURI_INVOKE("code_import", { projectId, destDir, sources })),
+	/**
+	 *  클립보드에 담긴 **파일 경로들**. 없으면 빈 목록 (오류가 아니다 — 글자를
+	 *  복사해 둔 상태에서 ⌘V 를 누른 것도 정상이다).
+	 * 
+	 *  macOS 밖에서는 항상 비어 있다. 이 앱은 macOS 전용으로 배포되지만, 커맨드가
+	 *  사라지면 프런트가 갈라져야 하므로 계약은 모든 플랫폼에서 유지한다.
+	 */
+	codeClipboardFiles: () => typedError<string[], string>(__TAURI_INVOKE("code_clipboard_files")),
+	/**
 	 *  프로젝트 전역 텍스트 검색 (VS Code 검색 사이드바의 백엔드).
 	 * 
 	 *  시야는 [`code_tree`] 와 같다: gitignore 존중 + 숨김 파일 포함 + `.git` 제외.
@@ -2082,6 +2101,19 @@ export type CodeFileContent = {
 export type CodeGraph = {
 	nodes: GraphNodeDto[],
 	edges: GraphEdgeDto[],
+};
+
+/**
+ *  `code_import` 결과. 건너뛴 것은 이유를 묶어 **개수만** 돌려준다 — 한 번에
+ *  수백 개가 건너뛰어질 수 있어 목록을 그대로 토스트에 부으면 읽히지 않는다.
+ */
+export type CodeImportResult = {
+	/**  새로 생긴 것들의 프로젝트 루트 기준 경로 (트리를 다시 읽고 열 자리). */
+	imported: string[],
+	/**  가져오지 못한 원본의 **이름**들 (경로가 아니라 이름 — 토스트용). */
+	skipped: string[],
+	/**  상한에 걸려 중간에 멈췄다. */
+	truncated: boolean,
 };
 
 /**  파일/폴더를 만들거나 옮긴 결과. 프런트가 그대로 열거나 탭 경로를 갈아끼운다. */

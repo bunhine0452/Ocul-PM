@@ -11,6 +11,7 @@ import type { CodeEntry } from "./treeUtils";
 import { ChevronRight } from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
+import { TREE_DIR_ATTR, TREE_PATH_ATTR } from "./useCodeImport";
 
 /** 트리 안에서 드래그되는 경로의 mime — 탭 드래그와 섞이지 않게 따로 둔다. */
 export const PATH_DND_MIME = "application/x-oculpm-code-path";
@@ -48,6 +49,13 @@ interface CodeTreeProps {
   ) => void;
   /** 드래그로 옮기기. `toDir` 은 목적지 폴더 (`""` = 프로젝트 루트). */
   onMove: (from: string, toDir: string) => void;
+  /**
+   * Finder 에서 끌고 온 파일이 지금 놓이면 들어갈 폴더 (`null` = 그런 드래그 중이 아님).
+   *
+   * OS 드롭은 웹뷰의 dragover 를 타지 않아(Tauri 가 가로챈다) 행 스스로는 알 수
+   * 없다 — 화면이 좌표로 풀어 준 답을 받아 그 자리만 밝힌다.
+   */
+  dropDir: string | null;
 }
 
 /** 한 단계의 들여쓰기 폭 (px). 가이드 선·자리 계산이 전부 이 값에서 나온다. */
@@ -75,7 +83,7 @@ export const CodeTree = memo(function CodeTree(props: CodeTreeProps) {
   const [rootDrop, setRootDrop] = useState(false);
   return (
     <div
-      className={"code-tree" + (rootDrop ? " droproot" : "")}
+      className={"code-tree" + (rootDrop || props.dropDir === "" ? " droproot" : "")}
       role="tree"
       aria-label={t("code.treeAria")}
       onContextMenu={(e) => {
@@ -157,7 +165,11 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
         // 저장소가 무시하도록 정한 것은 **숨기지 않고 흐리게** — 디스크에 있는
         // 것은 보이되, 왜 검색·인덱싱에 안 걸리는지가 눈으로 설명된다.
         const dim = node.ignored ? " ignored" : "";
+        // 좌표→행 되찾기용 표식. OS 드롭은 `elementFromPoint` 말고는 어느 행
+        // 위인지 알 방법이 없다 (dragover 가 웹뷰까지 오지 않는다).
         const dragProps = {
+          [TREE_PATH_ATTR]: node.relative_path,
+          [TREE_DIR_ATTR]: node.is_dir ? "1" : "0",
           draggable: true,
           onDragStart: (e: React.DragEvent) => {
             e.stopPropagation();
@@ -185,6 +197,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
                 loading={loadingDirs.has(node.relative_path)}
                 onToggle={onToggle}
                 onMove={onMove}
+                extDrop={props.dropDir === node.relative_path}
                 dragProps={dragProps}
                 menuProps={menuProps}
               />
@@ -235,6 +248,7 @@ function DirRow({
   loading,
   onToggle,
   onMove,
+  extDrop,
   dragProps,
   menuProps,
 }: {
@@ -245,6 +259,8 @@ function DirRow({
   loading: boolean;
   onToggle: (path: string) => void;
   onMove: (from: string, toDir: string) => void;
+  /** Finder 드래그가 지금 이 폴더 위에 있다. */
+  extDrop: boolean;
   dragProps: object;
   menuProps: object;
 }) {
@@ -252,7 +268,7 @@ function DirRow({
   return (
     <button
       type="button"
-      className={"code-tree-row code-tree-dir" + dim + (over ? " dropover" : "")}
+      className={"code-tree-row code-tree-dir" + dim + (over || extDrop ? " dropover" : "")}
       onClick={() => onToggle(node.relative_path)}
       title={node.ignored ? t("code.tree.ignoredHint") : undefined}
       onDragOver={(e) => {

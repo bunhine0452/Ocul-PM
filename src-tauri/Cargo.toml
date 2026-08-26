@@ -1,6 +1,6 @@
 [package]
 name = "ocul-pm"
-version = "2.20.0"
+version = "2.21.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"
@@ -95,6 +95,18 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 tower-http = { version = "0.6", features = ["fs"] }
 if-addrs = "0.13"
 tower = { version = "0.5", features = ["util"] }
+
+# ⌘V 로 Finder 가 복사한 파일을 받기 위한 최소 표면 — OS pasteboard 읽기.
+#
+# 웹뷰의 paste 이벤트로는 안 된다: 파일 하나는 `File` 로 실려 오지만 **폴더는
+# 아무것도 실리지 않고**, 실려 온 바이트를 base64 로 IPC 에 태우면 큰 파일에서
+# 그대로 비용이 된다. pasteboard 의 `public.file-url` 을 직접 읽으면 드롭
+# (Tauri 가 절대경로를 준다)과 **같은 모양의 경로 목록**이 되어 창구가 하나로 모인다.
+# 세 크레이트 모두 이미 tao/wry 를 통해 의존 그래프에 있다 (새 다운로드 없음).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
+objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL"] }
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
