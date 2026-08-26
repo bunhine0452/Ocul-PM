@@ -253,7 +253,9 @@ fn take_digits(it: &mut std::iter::Peekable<std::str::Chars>) -> String {
     s
 }
 
-fn mime_for(path: &Path) -> String {
+/// 확장자 → MIME. docs 인라인 이미지와 코드 화면 미리보기(`code_asset`)가 함께 쓴다
+/// — 브라우저가 Blob/데이터 URI 를 어떻게 그릴지는 이 값 하나로 갈린다.
+pub(crate) fn mime_for(path: &Path) -> String {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -267,6 +269,7 @@ fn mime_for(path: &Path) -> String {
         Some("avif") => "image/avif",
         Some("bmp") => "image/bmp",
         Some("ico") => "image/x-icon",
+        Some("pdf") => "application/pdf",
         _ => "application/octet-stream",
     }
     .to_string()
@@ -361,6 +364,9 @@ mod tests {
         assert_eq!(mime_for(Path::new("a/b.png")), "image/png");
         assert_eq!(mime_for(Path::new("a/b.JPG")), "image/jpeg");
         assert_eq!(mime_for(Path::new("a/b.svg")), "image/svg+xml");
+        // PDF — 코드 화면 미리보기가 이 값으로 웹뷰 내장 뷰어를 깨운다.
+        // 틀리면 iframe 이 빈 채로 뜨고 이유가 화면 어디에도 안 남는다.
+        assert_eq!(mime_for(Path::new("a/spec.pdf")), "application/pdf");
         assert_eq!(mime_for(Path::new("a/b.unknown")), "application/octet-stream");
     }
 }

@@ -1389,6 +1389,9 @@ export const ko = {
   "code.binary": "미리볼 수 없는 파일입니다",
   "code.tooLarge": "파일이 너무 커서 열 수 없습니다 (2MB 제한)",
   "code.openExternal": "외부 에디터로 열기",
+  "code.preview.failed": "미리보기를 불러오지 못했습니다",
+  "code.preview.fit": "창에 맞추기",
+  "code.preview.actual": "실제 크기",
   "code.openInCode": "코드 화면에서 열기",
   "code.save": "저장",
   "code.saveFailed": "저장하지 못했습니다: {error}",
@@ -1931,6 +1934,7 @@ export const ko = {
   // Rust 는 영어만 반환하고 여기서 되돌린다 (§4.4). 표에 없으면 영어 원문이
   // 그대로 보이므로, 자주 보는 것부터 늘려 가면 된다.
   "err.noApiKey": "{provider} API 키가 설정되지 않았습니다",
+  "err.previewTooLarge": "파일이 너무 커서 미리볼 수 없습니다 (16MB 제한)",
   "err.enterTitle": "제목을 입력하세요.",
   "err.enterPhaseName": "단계 이름을 입력하세요.",
   "err.enterToken": "토큰을 입력하세요",

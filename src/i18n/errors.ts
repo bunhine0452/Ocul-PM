@@ -28,6 +28,7 @@ import { getLang, t, type I18nKey } from "./index";
  */
 const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^No API key configured for (?<provider>.+)$/, "err.noApiKey"],
+  [/^File is too large to preview \(over 16MB\)$/, "err.previewTooLarge"],
   [/^Enter a title\.$/, "err.enterTitle"],
   [/^Enter a phase name\.$/, "err.enterPhaseName"],
   [/^Enter a token$/, "err.enterToken"],

@@ -44,8 +44,10 @@ import {
 import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
+import { CodePreview } from "./CodePreview";
 import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
+import { previewKindFor, type PreviewKind } from "./previewKind";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
 import { adapterLanguageFor } from "./debugConfig";
@@ -71,6 +73,8 @@ type FileView =
   | { kind: "error"; message: string }
   | { kind: "binary"; bytes: number }
   | { kind: "tooLarge"; bytes: number }
+  /** 이미지·PDF — 편집은 못 하지만 볼 수는 있다. 크기는 미리보기가 직접 알린다. */
+  | { kind: "preview"; preview: PreviewKind }
   | { kind: "editor"; bytes: number };
 
 /** 부모(툴바)가 이 창에 지시하는 창구 — 툴바는 포커스된 창 하나만 겨눈다. */
@@ -183,6 +187,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const [conflict, setConflict] = useState<{ diskHash: string } | null>(null);
   // 에디터 재마운트 스위치 — 파일 전환·디스크 리로드가 올린다.
   const [editorEpoch, setEditorEpoch] = useState(0);
+  // 같은 것의 미리보기 판(版) — 워처가 자산을 다시 읽게 만드는 유일한 손잡이다.
+  const [previewEpoch, setPreviewEpoch] = useState(0);
   // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
   // original 이 있으면 에디터가 그 텍스트와의 차이를 본문 안에 그린다.
   // 두 원본이 있다: HEAD(마지막 커밋 이후 = 지금 에이전트가 한 일 전부)와
@@ -263,6 +269,21 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       setConflict(null);
       const key = bufferKey(projectId, path);
       if (opts?.discardBuffer) deleteBuffer(key);
+      // 편집할 수 없는 파일로 넘어갈 때는 **앞 파일의 버퍼를 반드시 놓는다**.
+      // 들고 있으면 이 상태에서 누른 ⌘S 가 남의 본문을 이 경로에 쓰려 들고,
+      // 해시가 안 맞아 애먼 "충돌" 배너로 위장된다.
+      const showUneditable = (view: FileView) => {
+        bufferRef.current = null;
+        setDirty(false);
+        setFileView(view);
+      };
+      // 이미지·PDF 는 텍스트 창구를 아예 타지 않는다. 태웠자 2MB 편집 상한과
+      // 바이너리 판정에 걸려 "열 수 없음" 이 될 뿐이다.
+      const preview = previewKindFor(path);
+      if (preview) {
+        showUneditable({ kind: "preview", preview });
+        return;
+      }
       const res = await commands.codeRead(projectId, path);
       if (pathRef.current !== path) return; // 그 사이 다른 파일로 이동
       if (res.status === "error") {
@@ -271,11 +292,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       }
       const data = res.data;
       if (data.too_large) {
-        setFileView({ kind: "tooLarge", bytes: data.bytes });
+        showUneditable({ kind: "tooLarge", bytes: data.bytes });
         return;
       }
       if (data.binary) {
-        setFileView({ kind: "binary", bytes: data.bytes });
+        showUneditable({ kind: "binary", bytes: data.bytes });
         return;
       }
       const cached = getBuffer(key);
@@ -728,6 +749,12 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       const path = pathRef.current;
       if (!path || payload.event.path !== path) return;
       void (async () => {
+        // 미리보기 파일은 본문이 아니라 자산을 다시 읽는다 — 에이전트가 스크린샷을
+        // 갈아 끼우면 화면도 따라가야 한다.
+        if (previewKindFor(path)) {
+          setPreviewEpoch((n) => n + 1);
+          return;
+        }
         const res = await commands.codeRead(projectId, path);
         if (pathRef.current !== path) return;
         if (res.status !== "ok") {
@@ -970,6 +997,15 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           <br />
           {fileView.message}
         </div>
+      ) : fileView.kind === "preview" ? (
+        <CodePreview
+          projectId={projectId}
+          path={activePath ?? ""}
+          kind={fileView.preview}
+          epoch={previewEpoch}
+          canOpenExternal={Boolean(projectRoot)}
+          onOpenExternal={() => void openExternal()}
+        />
       ) : fileView.kind === "binary" || fileView.kind === "tooLarge" ? (
         <div className="code-center-hint code-unopenable">
           <FileCode size={30} strokeWidth={1.5} />

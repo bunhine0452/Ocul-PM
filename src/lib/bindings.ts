@@ -258,6 +258,14 @@ export const commands = {
 	/**  단일 파일 본문 + 해시. 바이너리/대용량은 본문 없이 플래그만 세운다. */
 	codeRead: (projectId: number, relPath: string) => typedError<CodeFileContent, string>(__TAURI_INVOKE("code_read", { projectId, relPath })),
 	/**
+	 *  이미지·PDF 를 미리보기용 바이트로 읽는다.
+	 * 
+	 *  [`code_read`] 와 **같은 경로 가드**를 쓰되(프로젝트 루트 밖 탈출 불가), 텍스트가
+	 *  아니므로 해시·바이너리 판정 없이 통째로 싣는다. 편집 대상이 아니라 저장 창구가
+	 *  없고, 그래서 낙관적 잠금 토큰(blake3)도 필요 없다.
+	 */
+	codeAsset: (projectId: number, relPath: string) => typedError<CodeAsset, string>(__TAURI_INVOKE("code_asset", { projectId, relPath })),
+	/**
 	 *  파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라
 	 *  트리와 어긋난 유령 경로 생성을 막는다.
 	 */
@@ -2026,6 +2034,17 @@ export type CloseIntent = {
 	window: string,
 	/**  프런트가 아무 것도 소비하지 않으면 닫을 탭. */
 	tab: number | null,
+};
+
+/**
+ *  `code_asset` 응답 — 이미지/PDF 바이트를 base64 + MIME 으로. 웹뷰는 임의 파일
+ *  경로를 `<img src>` 로 직접 못 읽으므로, 프런트가 이걸 Blob 으로 되돌려 문다
+ *  (docs 뷰어의 `docs_asset` 과 같은 계약).
+ */
+export type CodeAsset = {
+	mime: string,
+	base64: string,
+	bytes: number,
 };
 
 /**  디렉터리 한 단계의 항목. 지연 로딩 트리가 폴더를 펼칠 때마다 이것만 받는다. */

@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -32,6 +33,11 @@ const MAX_DIR_ENTRIES: usize = 5_000;
 /// 에디터로 여는 파일의 상한. 이보다 크면 `too_large` — 뷰어가 아니라 로그/
 /// 데이터 파일이라 외부 에디터로 보낸다 (base64 왕복·CM 하이라이트 비용 방어).
 const MAX_EDIT_BYTES: u64 = 2 * 1024 * 1024;
+
+/// 미리보기(이미지·PDF)로 실어 나르는 파일의 상한. 편집 상한([`MAX_EDIT_BYTES`])
+/// 보다 크게 잡는다 — 스크린샷 한 장이 2MB 를 넘는 일은 흔해서, 같은 값을 쓰면
+/// 정작 미리보기가 필요한 파일에서만 "너무 큼" 이 뜨는 꼴이 된다. docs 뷰어와 같은 값.
+const MAX_PREVIEW_BYTES: u64 = 16 * 1024 * 1024;
 
 /// 바이너리 판정 프로브 크기 — 선두 8KB 에 NUL 이 있으면 바이너리로 본다.
 const BINARY_PROBE_BYTES: usize = 8192;
@@ -93,6 +99,16 @@ pub struct CodeFileContent {
     pub bytes: u32,
     pub binary: bool,
     pub too_large: bool,
+}
+
+/// `code_asset` 응답 — 이미지/PDF 바이트를 base64 + MIME 으로. 웹뷰는 임의 파일
+/// 경로를 `<img src>` 로 직접 못 읽으므로, 프런트가 이걸 Blob 으로 되돌려 문다
+/// (docs 뷰어의 `docs_asset` 과 같은 계약).
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct CodeAsset {
+    pub mime: String,
+    pub base64: String,
+    pub bytes: u32,
 }
 
 /// `code_write` 결과 — 충돌은 오류가 아니라 정상 분기라 Err 로 보내지 않는다
@@ -208,6 +224,41 @@ pub async fn code_read(
             too_large: false,
         }),
     }
+}
+
+/// 이미지·PDF 를 미리보기용 바이트로 읽는다.
+///
+/// [`code_read`] 와 **같은 경로 가드**를 쓰되(프로젝트 루트 밖 탈출 불가), 텍스트가
+/// 아니므로 해시·바이너리 판정 없이 통째로 싣는다. 편집 대상이 아니라 저장 창구가
+/// 없고, 그래서 낙관적 잠금 토큰(blake3)도 필요 없다.
+#[tauri::command]
+#[specta::specta]
+pub async fn code_asset(
+    db: State<'_, Db>,
+    project_id: u32,
+    rel_path: String,
+) -> Result<CodeAsset, String> {
+    let root = project_root(&db, project_id).await?;
+    let full = secure_join(&root, &rel_path)?;
+    let full = canonical_within_root(&root, &full)?;
+    let meta = tokio::fs::metadata(&full)
+        .await
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    if !meta.is_file() {
+        return Err("Not a file".to_string());
+    }
+    if meta.len() > MAX_PREVIEW_BYTES {
+        return Err("File is too large to preview (over 16MB)".to_string());
+    }
+    let bytes = tokio::fs::read(&full)
+        .await
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    let len = bytes.len() as u32;
+    Ok(CodeAsset {
+        mime: crate::commands::docs::mime_for(&full),
+        base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
+        bytes: len,
+    })
 }
 
 /// 파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라

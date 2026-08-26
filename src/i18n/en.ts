@@ -1396,6 +1396,9 @@ export const en: Record<keyof typeof ko, string> = {
   "code.binary": "This file can't be previewed",
   "code.tooLarge": "File is too large to open (2MB limit)",
   "code.openExternal": "Open in external editor",
+  "code.preview.failed": "Couldn't load the preview",
+  "code.preview.fit": "Fit to window",
+  "code.preview.actual": "Actual size",
   "code.openInCode": "Open in the Code screen",
   "code.save": "Save",
   "code.saveFailed": "Couldn't save: {error}",
@@ -1945,6 +1948,7 @@ export const en: Record<keyof typeof ko, string> = {
   // tError short-circuits, so these values exist purely for key completeness
   // and must stay identical to what Rust emits.
   "err.noApiKey": "No API key configured for {provider}",
+  "err.previewTooLarge": "File is too large to preview (over 16MB)",
   "err.enterTitle": "Enter a title.",
   "err.enterPhaseName": "Enter a phase name.",
   "err.enterToken": "Enter a token",

@@ -2076,3 +2076,87 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ── 이미지·PDF 미리보기 ─────────────────────────────────────────────────
+   편집 창을 그대로 대체한다 (탭 바 아래 · 상태줄 자리까지). 그래서 자기 정보를
+   위쪽 바에 스스로 적는다 — 상태줄은 버퍼가 있는 파일만 갖는 물건이다. */
+.code-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-inset);
+}
+.code-preview-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.code-preview-bar-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.code-preview-meta {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 체커보드 — 투명 PNG 의 배경이 테마 색과 섞여 "흰 그림" 으로 보이는 것을 막는다.
+   아이콘 작업에서는 그 구분이 곧 정보다. */
+.code-preview-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  background-color: var(--bg-inset);
+  background-image:
+    linear-gradient(45deg, var(--sep) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--sep) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--sep) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--sep) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+.code-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  /* 스프라이트·아이콘을 확대할 때 흐려지지 않게 — 픽셀을 픽셀로 보여 준다. */
+  image-rendering: -webkit-optimize-contrast;
+  box-shadow: 0 1px 12px rgb(0 0 0 / 0.18);
+}
+/* 실제 크기 — 줄이지 않고, 넘치면 스크롤한다.
+   가운데 정렬을 `align-items: center` 로 하면 안 된다: 넘치는 항목이 위쪽으로
+   잘려 스크롤해도 그림 꼭대기에 닿을 수 없다. flex 항목의 `margin: auto` 는
+   가운데로 밀되 넘칠 때는 0 으로 접혀 그 함정이 없다. */
+.code-preview-stage.actual {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.code-preview-stage.actual .code-preview-img {
+  max-width: none;
+  max-height: none;
+  flex: none;
+  margin: auto;
+}
+.code-preview-pdf {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: var(--bg-inset);
+}
