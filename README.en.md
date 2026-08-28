@@ -56,7 +56,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.22.0 — a vertical session rail, drag to split, move tabs between windows
+## 🚀 v2.23.0 — see which agent is waiting for you, and give every command a place
+
+- **Waiting-agent detection** — with three or four Claude Code sessions open you had to click through them to find which one was thinking and which was waiting on you. The shell only reports "a command is running", and an agent stays the same command for hours. Now when an agent rings for attention (terminal bell) that session turns **amber** and a "N waiting" badge appears above the list — click it to jump there, click again to cycle through the rest.
+- **A guess is labelled a guess** — a bell is the program asking for you, so it is certain. "Quiet for 20 seconds" is a guess (it might just be thinking). Painting both with the same badge would make the whole signal untrustworthy, so the wording differs.
+- **Command blocks** — after a few noisy commands the scrollback is one undifferentiated river. Every command now gets a **status bar in the gutter** (green pass, red fail, pulsing while running), and the right-hand strip marks **where things failed** across the whole scrollback so you can spot it from the scrollbar alone. **⌘↑ / ⌘↓** jump between commands, and while you scroll long output the command it belongs to stays pinned at the top.
+- **Turn terminal work into a journal entry in place** — clicking a status bar offers copy command / copy output / fill the prompt, plus **"Write a journal entry"** and **"Attach to a plan"**. The composer does not open empty: the command, exit code, duration and the **last 40 lines of output** are already filled in. For plans, pick a plan and a phase and the command becomes an item.
+- **There is deliberately no re-run** — running a command picked out of scrollback without looking at it is the easiest way to execute something dangerous twice. It **fills the prompt** instead; you press Enter.
+- **Nothing unknown is painted green** — with shell integration off nothing is coloured at all, and a command whose exit code the shell never reported is grey rather than green. Painting it as success would hide real failures.
+
+## v2.22.0 — a vertical session rail, drag to split, move tabs between windows
 
 - **Vertical session rail** — the horizontal tab row is gone. Past five tabs the names collapsed to `cla…` and there was nowhere to put status. Each card now carries **a status dot, the agent, the name, elapsed time, and the last command**, and adding sessions flows downward instead of squeezing. A header button collapses it to icons.
 - **Status you read at a glance** — running and failed panes wear a colored edge; the pane your typing is *not* going to recedes. The bottom bar is now left = where you are, center = what is happening (refreshed each second), right = controls. A new density setting (roomy/standard/compact) moves line height and padding together, separately from font size.

@@ -99,7 +99,12 @@ function wrap(node: React.ReactNode) {
 async function ask(text: string) {
   const input = await screen.findByLabelText("에이전트 지시 입력");
   fireEvent.change(input, { target: { value: text } });
-  fireEvent.click(screen.getByLabelText(/보내기|대기열에 추가/));
+  // **`보내기` 일 때만 누른다.** 같은 버튼이 대기 중에는 `대기열에 추가` 가 되고,
+  // 그때 누르면 메시지가 큐에 들어가 새 채널이 열리지 않는다 — 테스트는 오지 않을
+  // 채널을 기다리다 시간초과로 죽는다. 예전 정규식(`/보내기|대기열에 추가/`)은 둘 다
+  // 받아 주어서, 세션이 아직 뜨는 중인 느린 순간에만 **다른 코드 경로**를 눌렀다.
+  // (2026-08-28: 병렬 실행 부하에서만 재현되던 flake 의 정체.)
+  fireEvent.click(await screen.findByLabelText("보내기"));
 }
 
 /** 마지막으로 열린 채널에 에이전트 사건을 밀어 넣는다. */
