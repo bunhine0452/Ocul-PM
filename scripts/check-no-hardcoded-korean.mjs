@@ -193,6 +193,7 @@ const TESTS = new Set([
   "__tests__/term_panes.test.ts",
   "__tests__/terminal_dock.test.tsx",
   "__tests__/terminal_agent_mode.test.ts",
+  "__tests__/terminal_command_blocks.test.ts",
   "__tests__/terminal_quality_round.test.ts",
   "__tests__/terminal_rail.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Terminal } from "@xterm/xterm";
+import { Terminal, type IDecoration, type IMarker } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -20,10 +20,18 @@ import {
   parseOsc133,
   parseOsc7,
   reduceShellState,
+  type Osc133Event,
   type ShellState,
 } from "./oscShell";
 import { scanFileRefs } from "./fileLinks";
 import { emptyPaneSignal, type PaneSignal } from "./agentMode";
+import {
+  blockAt,
+  blockOutputRange,
+  blockTone,
+  type BlockTone,
+  type CommandBlock,
+} from "./commandBlocks";
 
 // Shared PTY-backed terminal instance — used by the full 터미널 화면
 // (TerminalScreenV2, 탭+분할 페인) and the Today 빠른 터미널 (TodayTerminal).
@@ -58,9 +66,31 @@ const TERM_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
 
 const SCROLLBACK_LINES = 20000;
 
+/**
+ * 명령 블록 조작 — 마커·장식은 이 컴포넌트가 소유하고, 화면은 이 손잡이로만
+ * 만진다 (블록 목록을 React 상태로 올리면 스크롤마다 페인 트리가 재렌더된다).
+ */
+export interface BlockApi {
+  /** 현재 스냅샷. 줄 오름차순. */
+  list(): CommandBlock[];
+  /** 뷰포트 기준 이전/다음 블록으로 스크롤. 못 가면 `null`. */
+  goto(dir: "prev" | "next"): CommandBlock | null;
+  /** 이 블록의 출력 텍스트. 없으면 빈 문자열. */
+  outputOf(id: number): string;
+}
+
 export interface TerminalHandles {
   term: Terminal;
   search: SearchAddon;
+  blocks: BlockApi;
+}
+
+/** 거터 캡슐을 눌렀을 때 화면이 받는 것 — 팝오버를 띄울 자리와 재료. */
+export interface BlockActivation {
+  block: CommandBlock;
+  /** 캡슐의 화면 좌표 (팝오버 앵커). */
+  rect: { top: number; left: number; bottom: number; right: number };
+  output: string;
 }
 
 interface TerminalInstanceProps {
@@ -98,6 +128,8 @@ interface TerminalInstanceProps {
    * 1초를 미루면 "기다린다"는 표시가 늦게 뜬다.
    */
   onSignal?: (signal: PaneSignal) => void;
+  /** 거터의 명령 캡슐을 눌렀다 — 화면이 블록 액션 팝오버를 띄운다. */
+  onBlockActivate?: (activation: BlockActivation) => void;
   /**
    * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
    * (프로젝트가 없는 세션에서 열 곳이 없으므로).
@@ -118,6 +150,7 @@ export default function TerminalInstanceImpl({
   onTitleChange,
   onShellState,
   onSignal,
+  onBlockActivate,
   onOpenFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +172,10 @@ export default function TerminalInstanceImpl({
   const onTitleChangeRef = useRef(onTitleChange);
   const onShellStateRef = useRef(onShellState);
   const onSignalRef = useRef(onSignal);
+  const onBlockActivateRef = useRef(onBlockActivate);
+  // 블록 손잡이 — onReady 로 화면에 넘긴다. 목록을 React 상태로 올리면
+  // 스크롤·명령마다 페인 트리가 재렌더된다.
+  const blockApiRef = useRef<BlockApi | null>(null);
   const onOpenFileRefRef = useRef(onOpenFileRef);
   // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
   // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
@@ -157,6 +194,7 @@ export default function TerminalInstanceImpl({
     onTitleChangeRef.current = onTitleChange;
     onShellStateRef.current = onShellState;
     onSignalRef.current = onSignal;
+    onBlockActivateRef.current = onBlockActivate;
     onOpenFileRefRef.current = onOpenFileRef;
   }, [
     cwd,
@@ -167,6 +205,7 @@ export default function TerminalInstanceImpl({
     onTitleChange,
     onShellState,
     onSignal,
+    onBlockActivate,
     onOpenFileRef,
   ]);
 
@@ -192,6 +231,10 @@ export default function TerminalInstanceImpl({
       drawBoldTextInBrightColors: true,
       minimumContrastRatio: 1.5,
       smoothScrollDuration: 80,
+      // 스크롤백 전체의 실패 지점을 오른쪽 띠에 점으로 찍는다 (명령 블록).
+      // **생성 시 한 번만** 정한다 — 나중에 켜면 폭이 줄며 cols 가 바뀌고,
+      // 셸이 그 크기로 화면을 다시 그린다.
+      overviewRulerWidth: 10,
       cols: 80,
       rows: 24,
     });
@@ -225,6 +268,204 @@ export default function TerminalInstanceImpl({
     // 그 시퀀스에서 멈춰 터미널 출력 전체가 정지한다. 그래서 소비처 콜백은
     // microtask 로 밀어 파서 밖에서 돌린다 — 소비처가 던지는 예외가 파서를
     // 오염시키지 않게 하려는 목적도 있다.
+    // ── 명령 블록 (Phase 3) ────────────────────────────────────────────
+    // 마커는 스크롤을 따라다니는 버퍼 앵커고, 장식은 그 줄에 붙는 DOM 이다.
+    // 둘 다 xterm 이 소유하므로 여기서 만들고 여기서 정리한다.
+    interface Tracked {
+      block: CommandBlock;
+      marker: IMarker;
+      decoration: IDecoration | undefined;
+    }
+    const tracked: Tracked[] = [];
+    let nextBlockId = 1;
+    /** `A` 로 잡아 둔 앵커. `C` 가 와야 블록이 된다. */
+    let pendingAnchor: { marker: IMarker; startedAt: number } | null = null;
+
+    /**
+     * 스티키 헤더 — 긴 출력을 스크롤하는 동안 "지금 보는 게 어느 명령의
+     * 출력인가"를 위에 고정한다.
+     *
+     * **React 를 쓰지 않는다.** 스크롤마다 상태를 올리면 초당 수십 번 페인
+     * 트리가 재렌더된다. 여기서는 textContent 만 바꾼다.
+     */
+    const sticky = document.createElement("div");
+    sticky.className = "term-block-sticky";
+    sticky.hidden = true;
+    containerRef.current?.appendChild(sticky);
+
+    const updateSticky = () => {
+      // 전체화면 TUI 에서는 블록 자체가 의미 없다 (→ agentMode 주석).
+      if (term.buffer.active.type === "alternate") {
+        sticky.hidden = true;
+        return;
+      }
+      const top = term.buffer.active.viewportY;
+      let current: CommandBlock | null = null;
+      for (const block of snapshot()) {
+        if (block.line < top) current = block;
+        else break;
+      }
+      if (!current) {
+        sticky.hidden = true;
+        return;
+      }
+      sticky.hidden = false;
+      sticky.dataset.tone = blockTone(current);
+      sticky.textContent = current.command;
+    };
+
+    /** 거터 캡슐 색 — 터미널 팔레트에서 읽어 캔버스와 같은 색을 쓴다. */
+    const toneColor = (tone: BlockTone): string => {
+      const theme = readTerminalTheme();
+      if (tone === "ok") return theme.green ?? "#22a163";
+      if (tone === "fail") return theme.red ?? "#c5322b";
+      if (tone === "running") return theme.cursor ?? "#0e8a60";
+      return theme.brightBlack ?? "#7b8085";
+    };
+
+    /**
+     * 장식을 (다시) 그린다. 상태가 바뀌면(실행 중 → 성공/실패) 색이 달라지고,
+     * overview ruler 점도 함께 옮겨야 하므로 통째로 새로 만든다 — xterm 은
+     * 등록된 장식의 색을 바꾸는 API 를 주지 않는다.
+     */
+    const paint = (entry: Tracked) => {
+      entry.decoration?.dispose();
+      const tone = blockTone(entry.block);
+      const color = toneColor(tone);
+      const decoration = term.registerDecoration({
+        marker: entry.marker,
+        x: 0,
+        width: 1,
+        // 스크롤백 전체를 훑는 미니맵. 실패한 자리가 어디쯤인지 한눈에 보인다.
+        overviewRulerOptions: { color, position: "right" },
+      });
+      entry.decoration = decoration ?? undefined;
+      decoration?.onRender((el) => {
+        // onRender 는 스크롤·리사이즈마다 다시 불린다 — 반드시 멱등해야 한다.
+        el.className = "term-block-mark";
+        el.dataset.tone = tone;
+        el.style.setProperty("--block-tone", color);
+        el.title = entry.block.command || "";
+        if (el.dataset.wired === "1") return;
+        el.dataset.wired = "1";
+        el.addEventListener("mousedown", (ev) => {
+          // 캔버스로 흘러가면 셸 선택이 시작된다.
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+        el.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const box = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+          onBlockActivateRef.current?.({
+            block: { ...entry.block },
+            rect: { top: box.top, left: box.left, bottom: box.bottom, right: box.right },
+            output: readOutput(entry.block.id),
+          });
+        });
+      });
+    };
+
+    /** 블록의 출력 텍스트 — 명령줄 다음 줄부터 다음 블록 직전까지. */
+    const readOutput = (id: number): string => {
+      const buffer = term.buffer.active;
+      const range = blockOutputRange(
+        tracked.map((entry) => entry.block),
+        id,
+        buffer.length - 1,
+      );
+      if (!range) return "";
+      const lines: string[] = [];
+      for (let y = range.from; y <= range.to; y += 1) {
+        lines.push(buffer.getLine(y)?.translateToString(true) ?? "");
+      }
+      return lines.join("\n").replace(/\s+$/, "");
+    };
+
+    /** 죽은 마커(스크롤백에서 밀려남)를 장부에서 걷어낸다. */
+    const reapBlocks = () => {
+      for (let i = tracked.length - 1; i >= 0; i -= 1) {
+        if (tracked[i].marker.isDisposed) {
+          tracked[i].decoration?.dispose();
+          tracked.splice(i, 1);
+        }
+      }
+    };
+
+    /** 장부를 현재 마커 줄로 동기화한 스냅샷. */
+    const snapshot = (): CommandBlock[] => {
+      reapBlocks();
+      return tracked.map((entry) => ({ ...entry.block, line: entry.marker.line }));
+    };
+
+    const blockApi: BlockApi = {
+      list: snapshot,
+      goto: (dir) => {
+        const blocks = snapshot();
+        const target = blockAt(blocks, term.buffer.active.viewportY, dir);
+        if (!target) return null;
+        term.scrollToLine(Math.max(0, target.line));
+        return target;
+      },
+      outputOf: readOutput,
+    };
+    blockApiRef.current = blockApi;
+
+    /**
+     * OSC 133 하나를 장부에 반영한다.
+     *
+     * 앵커는 `A`(프롬프트 시작)에서 잡되 **`C`(실행)가 와야 블록이 된다** —
+     * 빈 프롬프트에서 Enter 만 쳐도 A 는 오므로, 그때마다 캡슐을 그리면 거터가
+     * 아무 의미 없는 점으로 채워진다. `A` 를 놓친 경우(리플레이 중간부터 붙은
+     * 세션)에는 줄을 지어내지 않고 그 명령을 건너뛴다.
+     */
+    const trackBlock = (event: Osc133Event, now: number) => {
+      if (event.kind === "prompt-start") {
+        pendingAnchor?.marker.dispose();
+        const marker = term.registerMarker(0);
+        pendingAnchor = marker ? { marker, startedAt: now } : null;
+        return;
+      }
+      if (event.kind === "exec") {
+        const anchor = pendingAnchor;
+        pendingAnchor = null;
+        if (!anchor || !event.command.trim()) {
+          anchor?.marker.dispose();
+          return;
+        }
+        const entry: Tracked = {
+          block: {
+            id: nextBlockId,
+            line: anchor.marker.line,
+            command: event.command,
+            startedAt: now,
+          },
+          marker: anchor.marker,
+          decoration: undefined,
+        };
+        nextBlockId += 1;
+        tracked.push(entry);
+        // 스크롤백에서 밀려나면 마커가 죽는다 — 장식도 함께 걷는다.
+        anchor.marker.onDispose(() => {
+          const at = tracked.indexOf(entry);
+          if (at < 0) return;
+          entry.decoration?.dispose();
+          tracked.splice(at, 1);
+        });
+        paint(entry);
+        updateSticky();
+        return;
+      }
+      if (event.kind === "exit") {
+        const entry = tracked[tracked.length - 1];
+        if (!entry || entry.block.exitCode !== undefined) return;
+        entry.block.exitCode = event.exitCode;
+        entry.block.durationMs = Math.max(0, now - entry.block.startedAt);
+        paint(entry);
+        updateSticky();
+      }
+    };
+
     const publishShellState = (next: ShellState) => {
       if (next === shellStateRef.current) return;
       shellStateRef.current = next;
@@ -281,11 +522,25 @@ export default function TerminalInstanceImpl({
       term.onBell(() => {
         publishSignal({ ...signalRef.current, bellAt: Date.now() });
       }),
+      // 스티키 헤더는 스크롤과 버퍼 전환을 따라간다.
+      term.onScroll(() => updateSticky()),
+      term.buffer.onBufferChange(() => updateSticky()),
       term.parser.registerOscHandler(133, (payload) => {
         const event = parseOsc133(payload, nonceRef.current);
         // 위조/미검증 신호는 조용히 버리되, 마커 자체는 계속 소비한다 —
         // 화면에 이스케이프 잔해가 찍히지 않게.
-        if (event) publishShellState(reduceShellState(shellStateRef.current, event, Date.now()));
+        if (event) {
+          const now = Date.now();
+          publishShellState(reduceShellState(shellStateRef.current, event, now));
+          // 장부 갱신은 예외가 새도 셸 상태를 막지 않아야 한다 — 장식 하나
+          // 못 그리는 것으로 파서를 멈출 이유가 없다.
+          try {
+            trackBlock(event, now);
+          } catch (err) {
+            // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+            oculpmLog.error("terminal", `명령 블록 갱신 실패 (무시): ${String(err)}`);
+          }
+        }
         return true;
       }),
       term.parser.registerOscHandler(7, (payload) => {
@@ -475,6 +730,17 @@ export default function TerminalInstanceImpl({
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
       for (const d of oscDisposables) d.dispose();
+      // 블록 장부 — 장식·마커·스티키 헤더. term.dispose() 가 마커를 걷어가지만
+      // 순서를 보장받지 못하므로 여기서 먼저 정리한다.
+      for (const entry of tracked) {
+        entry.decoration?.dispose();
+        entry.marker.dispose();
+      }
+      tracked.length = 0;
+      pendingAnchor?.marker.dispose();
+      pendingAnchor = null;
+      blockApiRef.current = null;
+      sticky.remove();
       // 묶어 두었던 출력 신호 발행 — 언마운트된 소비처를 깨우지 않게 취소한다.
       if (signalTimerRef.current !== null) {
         window.clearTimeout(signalTimerRef.current);
@@ -564,7 +830,8 @@ export default function TerminalInstanceImpl({
         }
         try {
           const search = searchRef.current;
-          if (search) onReadyRef.current?.({ term, search });
+          const blocks = blockApiRef.current;
+          if (search && blocks) onReadyRef.current?.({ term, search, blocks });
         } catch (err) {
           // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
           oculpmLog.error("terminal", `onReady 핸들 등록 실패: ${String(err)}`);

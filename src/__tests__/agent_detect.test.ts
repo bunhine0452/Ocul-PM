@@ -75,9 +75,9 @@ describe("journalCompose one-shot", () => {
 
   it("리스너가 붙기 전에 온 요청도 마운트 시 회수된다", () => {
     requestManualEntry();
-    expect(consumeManualEntryRequest()).toBe(true);
+    expect(consumeManualEntryRequest()).toEqual({});
     // 소비형 — 두 번 열리지 않는다.
-    expect(consumeManualEntryRequest()).toBe(false);
+    expect(consumeManualEntryRequest()).toBeNull();
   });
 
   it("이미 구독 중이면 즉시 콜백이 돌고 대기분은 남지 않는다", () => {
@@ -85,7 +85,7 @@ describe("journalCompose one-shot", () => {
     const off = onManualEntryRequest(fn);
     requestManualEntry();
     expect(fn).toHaveBeenCalledTimes(1);
-    expect(consumeManualEntryRequest()).toBe(false);
+    expect(consumeManualEntryRequest()).toBeNull();
     off();
   });
 
@@ -97,6 +97,6 @@ describe("journalCompose one-shot", () => {
   });
 
   it("요청이 없으면 회수는 false", () => {
-    expect(consumeManualEntryRequest()).toBe(false);
+    expect(consumeManualEntryRequest()).toBeNull();
   });
 });

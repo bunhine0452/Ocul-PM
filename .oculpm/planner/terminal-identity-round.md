@@ -34,12 +34,14 @@ buffer)는 블록, 에이전트 모드(alt-screen)는 관제탑. 판정 신호�
 - [x] 레일 배지 — "N개가 기다립니다" → 다음 대기로 순환. **정렬은 하지 않는다**(결정 3) {#rail-attention}
 - [x] 에이전트 표시 — 페인 위 떠 있는 알약(이름·상태·경과). 크롬 교체는 안 한다(결정 4) {#agent-card}
 - [x] 실행 종료 인라인 카드 — 세션 카드 안 "일지 남기기" 손잡이. 토스트는 **승격이 아니라 병행**(다른 화면에 닿는 알림) {#finish-card}
+- [ ] 실기기 확인 — Claude Code 가 실제로 BEL 을 울리는지, 20초 유휴 문턱이 적당한지 {#p2-manual-verify}
 
 ## Phase 3 — 블록 레이어 (Warp) {#p3-blocks}
-- [ ] 명령 마커 — registerMarker/registerDecoration 으로 거터 상태 캡슐 {#block-gutter}
-- [ ] overview ruler — 스크롤백 전체의 실패 지점을 미니맵 점으로 {#block-ruler}
-- [ ] ⌘↑/⌘↓ 블록 점프 + 스티키 헤더 {#block-nav}
-- [ ] 블록 액션 — 복사/출력 복사/재실행 + **일지로 남기기**·**플래너에 붙이기** {#block-actions}
+- [x] 명령 마커 — registerMarker/registerDecoration 으로 거터 상태 캡슐. `exitCode === null` 은 초록이 아니라 회색 {#block-gutter}
+- [x] overview ruler — 스크롤백 전체의 실패 지점을 미니맵 점으로 (폭은 생성 시 1회 고정) {#block-ruler}
+- [x] ⌘↑/⌘↓ 블록 점프 + 스티키 헤더 (스크롤 갱신은 React 를 안 거친다) {#block-nav}
+- [x] 블록 액션 — 복사/출력 복사/**프롬프트에 채우기**(재실행 아님, 결정 5) + **일지로 남기기**(씨앗 프리필)·**플래너에 붙이기**(계획→단계) {#block-actions}
+- [ ] 실기기 확인 — 마커가 스크롤백을 따라 정확히 붙는지, overview ruler 10px 가독성, 캡슐 클릭 히트영역 {#p3-manual-verify}
 
 ## 결정
 
@@ -73,6 +75,14 @@ refit 하고 → PTY 가 resize 된다. 에이전트가 뜨고 질 때마다 전
 흔들리지 않는다. 덮는 폭을 줄이려 평소엔 아이콘 + 경과 시간만 남긴다.
 영향: #agent-card
 
+### Decision 5 — 블록에서 "재실행"하지 않는다 {#d5-fill-not-rerun}
+
+2026-08-28 · claude-code · 계획 항목에는 "재실행"이 있었으나 넣지 않았다.
+스크롤백에서 고른 명령을 눈으로 확인하지 않고 바로 돌리는 것이 `rm -rf` 를 두 번
+하는 방법이다. 프롬프트에 **채우기만** 하고 Enter 는 사람이 친다 — 디스패치
+프리필과 같은 규약이고, 라벨도 "프롬프트에 채우기"로 적어 오해가 없게 한다.
+영향: #block-actions
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | agent | 전이 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -96,4 +106,10 @@ refit 하고 → PTY 가 resize 된다. 에이전트가 뜨고 질 때마다 전
 | 2026-08-28T21:11:10+09:00 | #rail-attention | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 배지+순환. 정렬은 결정 3 으로 폐기 |
 | 2026-08-28T21:11:10+09:00 | #agent-card | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 떠 있는 알약 (결정 4) |
 | 2026-08-28T21:11:10+09:00 | #finish-card | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 세션 카드 안 손잡이, 토스트와 병행 |
+| 2026-08-28T21:30:56+09:00 | #block-gutter | claude-code | ☐→[x] | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 마커+장식, A는 앵커·C에서 블록 |
+| 2026-08-28T21:30:56+09:00 | #block-ruler | claude-code | ☐→[x] | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | overviewRulerWidth 생성 시 고정 |
+| 2026-08-28T21:30:56+09:00 | #block-nav | claude-code | ☐→[x] | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 스티키는 DOM 직접 갱신 |
+| 2026-08-28T21:30:56+09:00 | #block-actions | claude-code | ☐→[x] | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 일지 씨앗 + plan add_item. 재실행은 결정 5 |
+| 2026-08-28T21:30:56+09:00 | #p2-manual-verify | claude-code | →☐ | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 앱 꺼진 뒤 몰아서 |
+| 2026-08-28T21:30:56+09:00 | #p3-manual-verify | claude-code | →☐ | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 앱 꺼진 뒤 몰아서 |
 <!-- oculpm:plan-log end -->

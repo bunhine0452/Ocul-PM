@@ -68,6 +68,8 @@ import {
 import { TerminalRail } from "./TerminalRail";
 import { TerminalAgentPill } from "./TerminalAgentPill";
 import type { PaneSignal } from "./agentMode";
+import { TerminalBlockMenu } from "./TerminalBlockMenu";
+import type { BlockActivation } from "./TerminalInstanceImpl";
 import { TerminalShellStatus } from "./TerminalShellStatus";
 import { formatCwdCrumb } from "./railModel";
 
@@ -237,6 +239,8 @@ export function TerminalSurface({
   // sid → 페인 신호(alt-screen · BEL · 마지막 출력). 셸 통합과 **독립**으로
   // 온다 — 둘을 합쳐 "에이전트가 나를 기다리는가"를 판정한다 (→ agentMode).
   const [paneSignals, setPaneSignals] = useState<Record<string, PaneSignal>>({});
+  // 거터 캡슐을 눌러 연 블록 액션 팝오버. 한 번에 하나만 뜬다.
+  const [blockMenu, setBlockMenu] = useState<BlockActivation | null>(null);
 
   // IN2 — 디스패치 프리필: 대기 중인 건을 활성 페인 PTY 에 써 둔다 (개행 없음
   // — 실행은 사용자가 Enter 로). sid 는 ref 로 최신을 읽는다 — deps 재실행(탭
@@ -593,6 +597,20 @@ export function TerminalSurface({
     else h.search.findPrevious(query, searchOptions());
   };
 
+  /**
+   * ⌘↑/⌘↓ — 명령 블록 사이를 건너뛴다. 300줄 뱉은 빌드 로그에서 다음
+   * 프롬프트까지 스크롤바를 끌지 않아도 된다.
+   *
+   * 셸 통합이 없으면 블록이 하나도 없다 — 조용히 아무 일도 안 하는 대신
+   * **왜 안 되는지** 말한다 (기능이 고장 난 것처럼 보이지 않게).
+   */
+  const gotoBlock = (dir: "prev" | "next") => {
+    const h = focusedHandles();
+    if (!h) return;
+    const target = h.blocks.goto(dir);
+    if (!target && h.blocks.list().length === 0) toast.info(t("term.block.none"));
+  };
+
   /** ⌘L — 스크롤백을 비우고 현재 줄만 남긴다 (Terminal.app 의 ⌘K 자리). */
   const clearScreen = () => {
     const h = focusedHandles();
@@ -609,6 +627,7 @@ export function TerminalSurface({
     openSearch,
     closeSearch,
     clearScreen,
+    gotoBlock,
     fontDelta,
     fontReset,
     searchOpen,
@@ -621,6 +640,7 @@ export function TerminalSurface({
     openSearch,
     closeSearch,
     clearScreen,
+    gotoBlock,
     fontDelta,
     fontReset,
     searchOpen,
@@ -658,6 +678,11 @@ export function TerminalSurface({
           e.preventDefault();
           e.stopPropagation();
           a.clearScreen();
+        } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          // 셸 자체의 히스토리(↑/↓)와 겹치지 않는다 — 저쪽은 수식어가 없다.
+          e.preventDefault();
+          e.stopPropagation();
+          a.gotoBlock(e.key === "ArrowUp" ? "prev" : "next");
         } else if (e.key === "=" || e.key === "+") {
           e.preventDefault();
           a.fontDelta(1);
@@ -826,6 +851,7 @@ export function TerminalSurface({
                 prev[node.sid] === signal ? prev : { ...prev, [node.sid]: signal },
               )
             }
+            onBlockActivate={setBlockMenu}
             onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
           {/* 에이전트 표시 — 판정과 1초 시계를 이 컴포넌트 안에 가둔다.
@@ -1055,6 +1081,24 @@ export function TerminalSurface({
         ) : null}
         </div>
       </div>
+
+      {blockMenu ? (
+        <TerminalBlockMenu
+          activation={blockMenu}
+          projectId={state.currentProjectId}
+          onClose={() => setBlockMenu(null)}
+          onFill={(command) => {
+            const sid = activeTab ? focusOfTab(activeTab) : null;
+            if (!sid) return;
+            // 개행 없이 그대로 쓴다 — 실행은 사람이 Enter 로 (디스패치 프리필과
+            // 같은 규약). `writeDispatchTo` 는 안 쓴다: 저쪽은 전경 프로세스를
+            // 보고 에이전트면 프롬프트로 붙여넣는 다른 계약이다.
+            void commands.writeToPty(sid, command).then((res) => {
+              if (res.status === "error") toast.destructive(res.error);
+            });
+          }}
+        />
+      ) : null}
 
       <div className="term-status">
         {/* 왼쪽 = 어디에 있는가. 절대 경로는 좁은 줄에서 앞이 잘려 아무 정보도

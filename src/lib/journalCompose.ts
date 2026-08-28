@@ -12,33 +12,47 @@
 
 const EVENT = "oculpm:request-manual-entry";
 
+/**
+ * 작성기를 미리 채울 재료 (2026-08-28). 터미널 명령 블록의 "일지로 남기기"가
+ * 명령줄·종료코드·출력 꼬리를 실어 보낸다 — 빈 작성기를 열고 사용자가 방금 본
+ * 것을 손으로 옮겨 적게 하면 아무도 안 쓴다.
+ *
+ * 씨앗은 **초기값일 뿐**이다. 작성기가 열린 뒤에는 사용자가 전부 고칠 수 있고,
+ * 저장 전까지 디스크에 닿지 않는다.
+ */
+export interface ManualEntrySeed {
+  title?: string;
+  body?: string;
+}
+
 /** 아직 아무 화면도 회수하지 않은 요청이 있는가. */
-let pending = false;
+let pending: ManualEntrySeed | null = null;
 
 /**
  * 작성기를 열어달라고 요청한다. 이미 떠 있는 화면은 이벤트로 즉시 반응하고,
  * 아직 마운트되지 않은 화면은 마운트 시 플래그로 회수한다.
  */
-export function requestManualEntry(): void {
-  pending = true;
-  window.dispatchEvent(new CustomEvent(EVENT));
+export function requestManualEntry(seed?: ManualEntrySeed): void {
+  pending = seed ?? {};
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: pending }));
 }
 
 /**
- * 대기 중인 요청을 회수한다 (있으면 `true`, 그리고 플래그는 지워진다).
- * 화면 마운트 시 한 번 부른다 — 두 번 열리지 않도록 소비형이다.
+ * 대기 중인 요청을 회수한다 — 있으면 씨앗(없이 요청했으면 빈 객체), 없으면
+ * `null`. 화면 마운트 시 한 번 부른다 (두 번 열리지 않도록 소비형이다).
  */
-export function consumeManualEntryRequest(): boolean {
+export function consumeManualEntryRequest(): ManualEntrySeed | null {
   const had = pending;
-  pending = false;
+  pending = null;
   return had;
 }
 
 /** 이미 마운트된 화면용 구독. 콜백 실행 전에 플래그를 소비한다. */
-export function onManualEntryRequest(fn: () => void): () => void {
-  const handler = () => {
-    pending = false;
-    fn();
+export function onManualEntryRequest(fn: (seed: ManualEntrySeed) => void): () => void {
+  const handler = (event: Event) => {
+    const seed = (event as CustomEvent<ManualEntrySeed>).detail ?? {};
+    pending = null;
+    fn(seed);
   };
   window.addEventListener(EVENT, handler);
   return () => window.removeEventListener(EVENT, handler);
@@ -46,5 +60,5 @@ export function onManualEntryRequest(fn: () => void): () => void {
 
 /** 테스트 전용 — 모듈 스코프 플래그를 초기화한다. */
 export function _resetManualEntryRequest(): void {
-  pending = false;
+  pending = null;
 }
