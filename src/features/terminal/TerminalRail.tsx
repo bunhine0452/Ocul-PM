@@ -1,10 +1,10 @@
-import { useMemo } from "react";
-import { Bot, Plus, SquareTerminal, X } from "@/components/Icons";
+import { BellRing, Bot, NotebookPen, Plus, SquareTerminal, X } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 import { collectSids } from "@/lib/termPanes";
 import { focusOfTab, panesOfTab } from "./activePane";
-import { anyRunning, buildRailItem, formatElapsed, type RailTone } from "./railModel";
+import { buildRailItem, formatElapsed, waitingItems, type RailTone } from "./railModel";
+import { deriveAgentState, emptyPaneSignal, type PaneSignal } from "./agentMode";
 import { useSecondTick } from "./useSecondTick";
 import type { ShellState } from "./oscShell";
 
@@ -20,6 +20,7 @@ import type { ShellState } from "./oscShell";
 
 const TONE_LABEL: Record<RailTone, I18nKey> = {
   running: "term.tone.running",
+  waiting: "term.tone.waiting",
   ok: "term.tone.ok",
   fail: "term.tone.fail",
   idle: "term.tone.idle",
@@ -30,6 +31,15 @@ export interface TerminalRailProps {
   tabs: TerminalTab[];
   /** sid → 셸 상태. 통합이 없는 세션은 여기 없다. */
   shellStates: Record<string, ShellState>;
+  /** sid → 페인 신호(alt-screen·BEL·마지막 출력). 에이전트 기다림 판정 재료. */
+  paneSignals: Record<string, PaneSignal>;
+  /**
+   * 방금 끝난 에이전트 실행 — 탭 id → 표시할 것. 카드 안에 인라인으로 뜬다
+   * (토스트는 화면을 떠나면 사라지지만 이건 남는다).
+   */
+  finished?: Record<string, { agentLabel: string; duration: string } | undefined>;
+  onJournalFromRun?: (id: string) => void;
+  onDismissFinished?: (id: string) => void;
   activeId: string | null;
   /** 아이콘만 남긴 좁은 모드. */
   collapsed: boolean;
@@ -65,6 +75,10 @@ export interface RailDrag {
 export function TerminalRail({
   tabs,
   shellStates,
+  paneSignals,
+  finished,
+  onJournalFromRun,
+  onDismissFinished,
   activeId,
   collapsed,
   renaming,
@@ -79,27 +93,40 @@ export function TerminalRail({
 }: TerminalRailProps) {
   const { t } = useT();
 
-  // 카드 재료는 시계와 무관하게 만들고(탭·셸 상태가 바뀔 때만), 시계는 경과
-  // 시간을 그릴 때만 쓴다 — 1초마다 `detectAgent` 를 전 탭에 다시 돌릴 이유가
-  // 없다.
-  const base = useMemo(
-    () =>
-      tabs.map((tab) =>
-        buildRailItem(
-          {
-            id: tab.id,
-            label: tab.label,
-            shell: shellStates[focusOfTab(tab)],
-            paneCount: collectSids(panesOfTab(tab)).length,
-          },
-          0,
-        ),
-      ),
-    [tabs, shellStates],
-  );
-  // `base` 는 now=0 으로 만들었으므로 실행 중인 카드의 elapsedMs 는 0(=null 아님)
-  // 이다 — 시계를 켤지 판단하는 데는 그것으로 충분하다.
-  const now = useSecondTick(anyRunning(base));
+  // 시계를 켤지는 셸 상태만 보고 정한다 — 카드 재료가 시계에 의존하므로
+  // 카드에서 되물으면 순환이 된다.
+  //
+  // 예전엔 카드 재료를 memo 로 묶었는데, 기다림 판정이 **시간이 흐르는
+  // 것만으로** 바뀌게 되면서(출력이 멎은 지 얼마나 됐나) 고정된 now 로는
+  // 계산할 수 없다. 탭 수는 한 자리라 매초 다시 만드는 비용은 무시할 만하다.
+  const live = tabs.some((tab) => shellStates[focusOfTab(tab)]?.running != null);
+  const now = useSecondTick(live);
+  const base = tabs.map((tab) => {
+    const sid = focusOfTab(tab);
+    const shell = shellStates[sid];
+    return buildRailItem(
+      {
+        id: tab.id,
+        label: tab.label,
+        shell,
+        agentState: deriveAgentState(shell, paneSignals[sid] ?? emptyPaneSignal, now),
+        paneCount: collectSids(panesOfTab(tab)).length,
+      },
+      now,
+    );
+  });
+  const waiting = waitingItems(base);
+
+  /**
+   * 다음 대기 세션으로. **정렬하지 않는 이유**: 카드가 스스로 순서를 바꾸면
+   * 누르려던 자리에 다른 세션이 와 있게 된다. 목록은 그대로 두고 "가는 길"만
+   * 준다 — 여러 개가 기다리면 누를 때마다 다음 것으로 돈다.
+   */
+  const jumpToWaiting = () => {
+    if (waiting.length === 0) return;
+    const at = waiting.findIndex((item) => item.id === activeId);
+    onSelect(waiting[(at + 1) % waiting.length].id);
+  };
 
   return (
     <div
@@ -112,12 +139,28 @@ export function TerminalRail({
       aria-label={t("term.rail.region")}
       data-collapsed={collapsed || undefined}
     >
+      {waiting.length > 0 ? (
+        <button
+          type="button"
+          className="term-rail-alert"
+          onClick={jumpToWaiting}
+          title={t("term.wait.jump", { n: waiting.length })}
+          aria-label={t("term.wait.jump", { n: waiting.length })}
+        >
+          <BellRing size={13} aria-hidden="true" />
+          {collapsed ? (
+            <span className="tra-n">{waiting.length}</span>
+          ) : (
+            <span>{t("term.wait.badge", { n: waiting.length })}</span>
+          )}
+        </button>
+      ) : null}
       <div className="term-rail-list">
         {base.map((item, index) => {
           const tab = tabs[index];
-          const startedAt = shellStates[focusOfTab(tab)]?.running?.startedAt ?? null;
-          const elapsed = startedAt === null ? null : Math.max(0, now - startedAt);
+          const elapsed = item.elapsedMs;
           const active = item.id === activeId;
+          const done = finished?.[item.id];
           const toneText = t(TONE_LABEL[item.tone]);
           return (
             <div
@@ -126,6 +169,7 @@ export function TerminalRail({
               className={
                 "term-sess" +
                 (active ? " active" : "") +
+                (item.waiting ? " waiting" : "") +
                 (drag?.movingId === item.id ? " dragging" : "")
               }
               data-tone={item.tone}
@@ -193,6 +237,46 @@ export function TerminalRail({
                       <span className="ts-panes">{t("term.paneCount", { n: item.paneCount })}</span>
                     ) : null}
                     {item.detail}
+                  </span>
+                ) : null}
+                {/* 방금 끝난 에이전트 실행 — 여기서 바로 일지로 잇는다.
+                    터미널 실행은 요약할 transcript 가 없으므로 **쓰지 않고
+                    묻기만** 한다 (작성기를 열 뿐이다). */}
+                {done && !collapsed ? (
+                  <span className="ts-done">
+                    <span className="tsd-text">
+                      {t("term.agentFinishedCard", {
+                        agent: done.agentLabel,
+                        duration: done.duration,
+                      })}
+                    </span>
+                    <span className="tsd-row">
+                      <button
+                        type="button"
+                        className="tsd-go"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onJournalFromRun?.(item.id);
+                        }}
+                      >
+                        <NotebookPen size={11} aria-hidden="true" />
+                        {t("term.agentJournalAction")}
+                      </button>
+                      <button
+                        type="button"
+                        className="tsd-x"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDismissFinished?.(item.id);
+                        }}
+                        aria-label={t("term.agentDismiss")}
+                        title={t("term.agentDismiss")}
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
                   </span>
                 ) : null}
               </span>

@@ -29,11 +29,11 @@ buffer)는 블록, 에이전트 모드(alt-screen)는 관제탑. 판정 신호�
 - [ ] 실제 앱 육안 확인 — xterm 캔버스와 함께, 밀도 전환 시 fit/PTY resize 왕복 {#p1-manual-verify}
 
 ## Phase 2 — 에이전트 관제탑 (cmux) {#p2-control-room}
-- [ ] alt-screen 감지 — buffer.onBufferChange + detectAgent 로 "에이전트 모드" 판정 {#alt-screen-detect}
-- [ ] "내 입력 대기" 신호 — term.onBell + 출력 무변화 타이머, 추정임을 정직하게 표시 {#waiting-signal}
-- [ ] 레일 정렬·배지 — 입력 대기 세션 우선, 창 알림 옵션 {#rail-attention}
-- [ ] 에이전트 카드 — 실행 중 페인 크롬을 이름·경과·브랜치·상태로 교체 {#agent-card}
-- [ ] 실행 종료 인라인 카드 — 기존 제안 토스트를 승격, 일지/변경 diff 로 잇기 {#finish-card}
+- [x] alt-screen 감지 — buffer.onBufferChange + detectAgent 로 "에이전트 모드" 판정 {#alt-screen-detect}
+- [x] "내 입력 대기" 신호 — term.onBell + 출력 무변화 타이머, 추정임을 정직하게 표시 {#waiting-signal}
+- [x] 레일 배지 — "N개가 기다립니다" → 다음 대기로 순환. **정렬은 하지 않는다**(결정 3) {#rail-attention}
+- [x] 에이전트 표시 — 페인 위 떠 있는 알약(이름·상태·경과). 크롬 교체는 안 한다(결정 4) {#agent-card}
+- [x] 실행 종료 인라인 카드 — 세션 카드 안 "일지 남기기" 손잡이. 토스트는 **승격이 아니라 병행**(다른 화면에 닿는 알림) {#finish-card}
 
 ## Phase 3 — 블록 레이어 (Warp) {#p3-blocks}
 - [ ] 명령 마커 — registerMarker/registerDecoration 으로 거터 상태 캡슐 {#block-gutter}
@@ -57,6 +57,22 @@ TUI 에이전트(Claude Code 등)와 정면 충돌한다.
 가로 탭으로 되돌리지 않는다 — 두 벌을 유지하면 조작이 갈라진다.
 영향: #rail
 
+### Decision 3 — 대기 세션을 위로 정렬하지 않는다 {#d3-no-reorder}
+
+2026-08-28 · claude-code · 계획 항목은 "입력 대기 세션 우선"이었으나 구현하며
+바꿨다. 목록이 스스로 순서를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다 —
+특히 대기는 **비동기로 발생**하므로 손이 움직이는 도중에 재정렬될 수 있다.
+순서는 그대로 두고 "가는 길"(대기 배지 → 다음 대기로 순환)만 준다.
+영향: #rail-attention
+
+### Decision 4 — 에이전트 표시는 레이아웃을 건드리지 않는다 {#d4-no-reflow}
+
+2026-08-28 · claude-code · 페인 위 헤더 줄로 만들면 페인 높이가 줄고 → xterm 이
+refit 하고 → PTY 가 resize 된다. 에이전트가 뜨고 질 때마다 전체화면 TUI 가 통째로
+다시 그려진다는 뜻이다. 절대 위치 알약으로 간다 — 몇 글자를 덮지만 화면이
+흔들리지 않는다. 덮는 폭을 줄이려 평소엔 아이콘 + 경과 시간만 남긴다.
+영향: #agent-card
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | agent | 전이 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -75,4 +91,9 @@ TUI 에이전트(Claude Code 등)와 정면 충돌한다.
 | 2026-08-28T19:49:15+09:00 | #block-ruler | claude-code | →☐ | 20260828/Features_to_add/1949_feature_terminal-visual-identity.md | Phase 3 미착수 |
 | 2026-08-28T19:49:15+09:00 | #block-nav | claude-code | →☐ | 20260828/Features_to_add/1949_feature_terminal-visual-identity.md | Phase 3 미착수 |
 | 2026-08-28T19:49:15+09:00 | #block-actions | claude-code | →☐ | 20260828/Features_to_add/1949_feature_terminal-visual-identity.md | 일지·플래너 연결 고리 |
+| 2026-08-28T21:11:10+09:00 | #alt-screen-detect | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | agentMode.ts + PaneSignal 배선 |
+| 2026-08-28T21:11:10+09:00 | #waiting-signal | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 벨=확실 / 20초 유휴=추정, 문구 분리 |
+| 2026-08-28T21:11:10+09:00 | #rail-attention | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 배지+순환. 정렬은 결정 3 으로 폐기 |
+| 2026-08-28T21:11:10+09:00 | #agent-card | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 떠 있는 알약 (결정 4) |
+| 2026-08-28T21:11:10+09:00 | #finish-card | claude-code | ☐→[x] | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 세션 카드 안 손잡이, 토스트와 병행 |
 <!-- oculpm:plan-log end -->

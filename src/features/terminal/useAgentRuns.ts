@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { oculpmLog } from "@/lib/oculpmLog";
@@ -26,6 +26,13 @@ import type { ShellState } from "./oscShell";
  *
  * 터미널에서 띄운 에이전트는 transcript 가 없어 요약할 재료가 없다. 그래서
  * 몰래 쓰는 대신 **제안만** 한다 — 사용자가 누르면 작성기가 열린다.
+ *
+ * # 토스트와 카드를 둘 다 남기는 이유 (2026-08-28)
+ *
+ * 토스트는 **다른 화면에 있을 때** 닿는다. 세션 카드는 터미널로 돌아왔을 때
+ * **아직 거기 있다**. 둘은 경쟁하지 않는다 — 하나는 알림이고 하나는 손잡이다.
+ * 토스트만 두면 자리를 비운 사이에 사라지고, 카드만 두면 도크를 닫아 둔 사람
+ * 에게는 아무 일도 일어나지 않는다.
  */
 
 /** 이 시간 이상 살아 있어야 "에이전트 실행"으로 친다. */
@@ -42,15 +49,30 @@ interface TrackedRun {
   signaled: boolean;
 }
 
+/** 방금 끝난 실행 — 세션 카드가 "일지 남기기" 손잡이를 그리는 재료. */
+export interface FinishedRun {
+  agentLabel: string;
+  /** 이미 사람이 읽는 형태로 포맷된 소요 시간. 빈 문자열이면 1초 미만. */
+  duration: string;
+}
+
+export interface AgentRunsResult {
+  /** sid → 방금 끝난 실행. 같은 페인에서 다음 명령이 시작하면 사라진다. */
+  finished: Record<string, FinishedRun>;
+  /** 사용자가 카드를 치웠다. */
+  dismiss: (sid: string) => void;
+}
+
 /**
- * @param shellStates sid → 셸 상태 (TerminalScreenV2 가 페인별로 모은 것)
+ * @param shellStates sid → 셸 상태 (TerminalSurface 가 페인별로 모은 것)
  * @param projectId 현재 프로젝트. 없으면 신호를 보내지 않는다.
  */
 export function useAgentRuns(
   shellStates: Record<string, ShellState>,
   projectId: number | null,
-): void {
+): AgentRunsResult {
   const runsRef = useRef(new Map<string, TrackedRun>());
+  const [finished, setFinished] = useState<Record<string, FinishedRun>>({});
   const projectIdRef = useRef(projectId);
   projectIdRef.current = projectId;
 
@@ -81,11 +103,25 @@ export function useAgentRuns(
         if (tracked.signaled) {
           signal(false, tracked.agent);
           proposeJournalEntry(tracked.agent, state);
+          const last = state.last;
+          if (last && last.durationMs >= PROPOSE_AFTER_MS) {
+            setFinished((prev) => ({
+              ...prev,
+              [sid]: { agentLabel: tracked.agent.label, duration: formatDuration(last.durationMs) },
+            }));
+          }
         }
         runs.delete(sid);
       }
 
       if (!runningAgent) continue;
+      // 같은 페인에서 새 명령이 시작했다 — 지난 실행의 카드는 이제 과거다.
+      setFinished((prev) => {
+        if (!(sid in prev)) return prev;
+        const next = { ...prev };
+        delete next[sid];
+        return next;
+      });
       const entry: TrackedRun = { agent: runningAgent, timer: null, signaled: false };
       entry.timer = window.setTimeout(() => {
         entry.timer = null;
@@ -103,7 +139,25 @@ export function useAgentRuns(
       if (tracked.timer !== null) window.clearTimeout(tracked.timer);
       runs.delete(sid);
     }
+
+    // 사라진 페인의 카드도 회수한다 — 안 그러면 맵이 무한정 자란다.
+    setFinished((prev) => {
+      const stale = Object.keys(prev).filter((sid) => !(sid in shellStates));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      for (const sid of stale) delete next[sid];
+      return next;
+    });
   }, [shellStates]);
+
+  const dismiss = useCallback((sid: string) => {
+    setFinished((prev) => {
+      if (!(sid in prev)) return prev;
+      const next = { ...prev };
+      delete next[sid];
+      return next;
+    });
+  }, []);
 
   // 언마운트 — 대기 중인 타이머만 정리한다.
   useEffect(() => {
@@ -115,6 +169,8 @@ export function useAgentRuns(
       runs.clear();
     };
   }, []);
+
+  return { finished, dismiss };
 }
 
 /**

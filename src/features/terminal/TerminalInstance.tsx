@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { useT } from "@/i18n";
 import type { TerminalHandles } from "./TerminalInstanceImpl";
 import type { ShellState } from "./oscShell";
+import type { PaneSignal } from "./agentMode";
 import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
 
 // v2 U6 — xterm(+addons, css) 은 TerminalInstanceImpl 로 분리해 lazy 로드.
@@ -30,11 +31,13 @@ interface TerminalInstanceProps {
   onTitleChange?: (title: string) => void;
   /** 셸 통합(OSC 133/7) 상태 — 미설치 세션에서는 한 번도 불리지 않는다. */
   onShellState?: (state: ShellState) => void;
+  /** alt-screen · BEL · 마지막 출력 시각 (에이전트 모드 판정 재료). */
+  onSignal?: (signal: PaneSignal) => void;
   /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */
   onOpenFileRef?: (path: string, line: number | null) => void;
 }
 
-export type { TerminalHandles, ShellState };
+export type { TerminalHandles, ShellState, PaneSignal };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
   const { t } = useT();

@@ -607,4 +607,7 @@ export {
   Donut,
   Fish,
   Gem,
+  // 에이전트가 사람을 부를 때 (터미널 관제탑) — 벨은 "기다린다"의 확실한 근거다.
+  BellRing,
+  NotebookPen,
 } from "lucide-react";

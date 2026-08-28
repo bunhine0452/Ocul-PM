@@ -23,6 +23,7 @@ import {
   type ShellState,
 } from "./oscShell";
 import { scanFileRefs } from "./fileLinks";
+import { emptyPaneSignal, type PaneSignal } from "./agentMode";
 
 // Shared PTY-backed terminal instance — used by the full 터미널 화면
 // (TerminalScreenV2, 탭+분할 페인) and the Today 빠른 터미널 (TodayTerminal).
@@ -88,6 +89,16 @@ interface TerminalInstanceProps {
    */
   onShellState?: (state: ShellState) => void;
   /**
+   * 페인이 xterm 에서 직접 관찰한 신호 — alt-screen 진입/이탈, BEL, 마지막
+   * 출력 시각 (2026-08-28). 셸 통합과 **독립**이다: 통합이 꺼져 있어도 오고,
+   * 소비처(`agentMode.deriveAgentState`)가 둘을 합쳐 판정한다.
+   *
+   * 출력 시각은 청크마다 부르면 초당 수백 번이 되므로 1초로 묶어 보낸다.
+   * alt-screen 전환과 벨은 **즉시** 보낸다 — 그 둘이 상태를 뒤집는 사건이라
+   * 1초를 미루면 "기다린다"는 표시가 늦게 뜬다.
+   */
+  onSignal?: (signal: PaneSignal) => void;
+  /**
    * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
    * (프로젝트가 없는 세션에서 열 곳이 없으므로).
    */
@@ -106,6 +117,7 @@ export default function TerminalInstanceImpl({
   onFocusIn,
   onTitleChange,
   onShellState,
+  onSignal,
   onOpenFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -126,11 +138,16 @@ export default function TerminalInstanceImpl({
   const onFocusInRef = useRef(onFocusIn);
   const onTitleChangeRef = useRef(onTitleChange);
   const onShellStateRef = useRef(onShellState);
+  const onSignalRef = useRef(onSignal);
   const onOpenFileRefRef = useRef(onOpenFileRef);
   // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
   // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
   const nonceRef = useRef("");
   const shellStateRef = useRef<ShellState>(initialShellState);
+  // 페인 신호(alt-screen · BEL · 마지막 출력) — 출력 시각은 청크마다 갱신되고
+  // 발행만 1초로 묶는다. 예약된 타이머 id 는 정리를 위해 따로 든다.
+  const signalRef = useRef<PaneSignal>(emptyPaneSignal);
+  const signalTimerRef = useRef<number | null>(null);
   useEffect(() => {
     cwdRef.current = cwd;
     persistentRef.current = persistent;
@@ -139,8 +156,19 @@ export default function TerminalInstanceImpl({
     onFocusInRef.current = onFocusIn;
     onTitleChangeRef.current = onTitleChange;
     onShellStateRef.current = onShellState;
+    onSignalRef.current = onSignal;
     onOpenFileRefRef.current = onOpenFileRef;
-  }, [cwd, persistent, autoFocus, onReady, onFocusIn, onTitleChange, onShellState, onOpenFileRef]);
+  }, [
+    cwd,
+    persistent,
+    autoFocus,
+    onReady,
+    onFocusIn,
+    onTitleChange,
+    onShellState,
+    onSignal,
+    onOpenFileRef,
+  ]);
 
   // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
   // buffers in xterm until the first open() once the tab is visible.
@@ -209,7 +237,50 @@ export default function TerminalInstanceImpl({
         }
       });
     };
+    /** 신호 발행 — 상태를 뒤집는 사건(alt-screen·벨)은 즉시. */
+    const publishSignal = (next: PaneSignal) => {
+      signalRef.current = next;
+      if (signalTimerRef.current !== null) {
+        window.clearTimeout(signalTimerRef.current);
+        signalTimerRef.current = null;
+      }
+      try {
+        onSignalRef.current?.(next);
+      } catch (err) {
+        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+        oculpmLog.error("terminal", `페인 신호 콜백 실패: ${String(err)}`);
+      }
+    };
+
+    /**
+     * 출력이 흘렀다. 청크마다 부르면 초당 수백 번이라 **1초로 묶어** 보낸다 —
+     * 이 값은 "얼마나 조용한가"를 재는 데만 쓰이므로 1초 해상도면 충분하다.
+     */
+    const markOutput = () => {
+      signalRef.current = { ...signalRef.current, lastOutputAt: Date.now() };
+      if (signalTimerRef.current !== null) return;
+      signalTimerRef.current = window.setTimeout(() => {
+        signalTimerRef.current = null;
+        try {
+          onSignalRef.current?.(signalRef.current);
+        } catch (err) {
+          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+          oculpmLog.error("terminal", `페인 신호 콜백 실패: ${String(err)}`);
+        }
+      }, 1000);
+    };
+
     const oscDisposables = [
+      // alt-screen 진입/이탈 — 전체화면 TUI(에이전트·less·vim) 구간의 경계.
+      term.buffer.onBufferChange((buffer) => {
+        const altScreen = buffer.type === "alternate";
+        if (altScreen === signalRef.current.altScreen) return;
+        publishSignal({ ...signalRef.current, altScreen });
+      }),
+      // BEL — 프로그램이 사람을 부른 것. "기다린다"의 유일한 확실한 근거다.
+      term.onBell(() => {
+        publishSignal({ ...signalRef.current, bellAt: Date.now() });
+      }),
       term.parser.registerOscHandler(133, (payload) => {
         const event = parseOsc133(payload, nonceRef.current);
         // 위조/미검증 신호는 조용히 버리되, 마커 자체는 계속 소비한다 —
@@ -342,7 +413,10 @@ export default function TerminalInstanceImpl({
           (e) => {
             if (!isMounted) return;
             if (!attached) queued.push(e.payload);
-            else term.write(e.payload.text);
+            else {
+              term.write(e.payload.text);
+              markOutput();
+            }
           },
         );
         if (!isMounted) return;
@@ -376,7 +450,10 @@ export default function TerminalInstanceImpl({
         }
         attached = true;
         for (const chunk of queued) {
-          if (chunk.seq > lastSeq) term.write(chunk.text);
+          if (chunk.seq > lastSeq) {
+            term.write(chunk.text);
+            markOutput();
+          }
         }
         queued.length = 0;
 
@@ -398,6 +475,11 @@ export default function TerminalInstanceImpl({
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
       for (const d of oscDisposables) d.dispose();
+      // 묶어 두었던 출력 신호 발행 — 언마운트된 소비처를 깨우지 않게 취소한다.
+      if (signalTimerRef.current !== null) {
+        window.clearTimeout(signalTimerRef.current);
+        signalTimerRef.current = null;
+      }
       imeRef.current?.dispose();
       imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.
