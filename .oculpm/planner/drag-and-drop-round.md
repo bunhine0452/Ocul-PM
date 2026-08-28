@@ -40,6 +40,11 @@ owner: claude-code
 - [x] vitest 27건 {#p2-tests}
 
 ## Phase 3 — 남은 것 {#p3-followup}
+
+실기기 확인은 **설치본 `ocul-pm.app` 이 안 돌 때** 해야 한다 (2026-08-28 보류).
+dev 빌드는 번들 id 가 같아 app-data·SQLite·`.oculpm` 락을 설치본과 다툰다 — 살아 있는
+ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄울 때 아래 두 항목을 본다.
+
 - [ ] 실기기 확인 — 창 두 개를 띄워 스트립 사이로 끌어 보기. 특히 앱 배율(⌘+/-)을 바꾼 상태와 배율이 다른 외부 모니터 {#manual-verify-windows}
 - [ ] 실기기 확인 — 살아 있는 에이전트 세션을 끌어 분할했을 때 xterm fit/PTY resize 왕복 {#manual-verify-terminal}
 - [ ] 키보드 등가물 — 지금 창 간 이동은 포인터 전용이다. "이 탭을 다른 창으로" 명령(⌘K 팔레트)이 있어야 접근성이 닫힌다 {#keyboard-move-tab}
