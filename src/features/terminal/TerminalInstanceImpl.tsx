@@ -67,6 +67,11 @@ interface TerminalInstanceProps {
   cwd: string;
   visible: boolean;
   fontSize?: number;
+  /**
+   * 줄 높이 배수 — 밀도 프리셋(`density.ts`)이 정한다. 글자 크기와 다른 축이라
+   * 따로 받는다: 크기는 "읽히는가", 줄 높이는 "숨 쉴 자리가 있는가".
+   */
+  lineHeight?: number;
   /** true 면 unmount 시 PTY 를 유지 (탭/페인 닫기에서만 명시적으로 kill). */
   persistent?: boolean;
   /** visible 전환 시 자동 포커스 여부 (분할 페인에선 포커스 페인만 true). */
@@ -94,6 +99,7 @@ export default function TerminalInstanceImpl({
   cwd,
   visible,
   fontSize = 13,
+  lineHeight = 1.25,
   persistent = false,
   autoFocus = true,
   onReady,
@@ -143,11 +149,14 @@ export default function TerminalInstanceImpl({
       cursorBlink: true,
       cursorStyle: "bar",
       cursorWidth: 2,
+      // 포커스가 없는 페인의 커서는 속을 비운다 (2026-08-28). 분할·다중 세션에서
+      // 채워진 커서가 여러 개 깜빡이면 어디에 타이핑되는지 매번 확인해야 한다.
+      cursorInactiveStyle: "outline",
       allowProposedApi: true,
       fontFamily: TERM_FONT,
       fontSize,
       fontWeightBold: "600",
-      lineHeight: 1.2,
+      lineHeight,
       letterSpacing: 0,
       theme: readTerminalTheme(),
       scrollback: SCROLLBACK_LINES,
@@ -416,11 +425,18 @@ export default function TerminalInstanceImpl({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // fontSize 라이브 반영 (⌘+/⌘-) — 열린 뒤엔 refit + PTY resize 까지.
+  // fontSize·lineHeight 라이브 반영 (⌘+/⌘- · 밀도 프리셋) — 열린 뒤엔 refit +
+  // PTY resize 까지. 둘 다 셀 크기를 바꾸므로 한 이펙트에서 처리한다: 따로 두면
+  // 밀도와 크기를 연달아 바꿀 때 fit 이 두 번 돌며 PTY 에 중간 크기가 한 번
+  // 새어 나간다 (셸이 그 크기로 다시 그린다).
   useEffect(() => {
     const term = termRef.current;
-    if (!term || term.options.fontSize === fontSize) return;
-    term.options.fontSize = fontSize;
+    if (!term) return;
+    const sizeChanged = term.options.fontSize !== fontSize;
+    const heightChanged = term.options.lineHeight !== lineHeight;
+    if (!sizeChanged && !heightChanged) return;
+    if (sizeChanged) term.options.fontSize = fontSize;
+    if (heightChanged) term.options.lineHeight = lineHeight;
     if (openedRef.current) {
       try {
         fitRef.current?.fit();
@@ -429,7 +445,7 @@ export default function TerminalInstanceImpl({
         /* ignore */
       }
     }
-  }, [fontSize, sessionId]);
+  }, [fontSize, lineHeight, sessionId]);
 
   // Open (once) + fit + focus when visible — guarantees real dimensions so
   // xterm measures the font and renders (the blank-terminal fix).

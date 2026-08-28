@@ -1,8 +1,13 @@
 /**
  * 탭 스트립 — 크롬식 탭 (01b-chrome-tabs.md §4).
  *
- * 1차 범위: 클릭 전환 · 닫기 · 드래그 순서 변경 · **창 밖으로 떼어내기**.
- * 다른 창의 스트립에 드롭해서 합치는 건 2차 (Rust 화면좌표 히트테스트 필요).
+ * 클릭 전환 · 닫기 · 드래그 순서 변경 · **창 밖으로 떼어내기** · **다른 창의
+ * 스트립에 떨어뜨려 다시 붙이기** (2026-08-28).
+ *
+ * 창 간 드래그의 몫은 셋으로 나뉜다 — 이 파일은 ②와 그리기만 한다.
+ *   ① 어느 창 위인가: Rust (`tab_drag_over`, 창 기하는 Rust 만 안다)
+ *   ② 어느 탭 **사이**인가: 받는 창의 이 컴포넌트 (탭 폭은 CSS 가 정한다)
+ *   ③ 실제 이동: Rust (`attach_tab`)
  *
  * 산술(삽입 인덱스·재배열·떼어내기 판정)은 전부 `tabOrder.ts` 의 순수 함수라
  * 여기서는 포인터를 그쪽에 넘기는 배선만 한다.
@@ -38,6 +43,27 @@ interface TabStripProps {
   onDetach: (tabId: number, screenX: number, screenY: number) => void;
   onNewTab: () => void;
   onOpenProject: (projectId: number) => void;
+  /**
+   * 다른 창에서 끌려온 탭이 지금 이 스트립 위에 있다 — 창 안쪽 CSS x.
+   * `null` 이면 없다. (논리 px → CSS px 환산은 창이 한다 — 웹뷰 줌을 아는 쪽.)
+   */
+  incomingX?: number | null;
+  /** 위 x 로 계산한 삽입 자리를 되돌려 준다 — 백엔드가 기억했다가 놓을 때 쓴다. */
+  onIncomingIndex?: (index: number) => void;
+  /**
+   * 드래그가 스트립 밖으로 나갔다 — 다른 창을 겨누는지 물어봐 달라.
+   * `stripHeight` 는 이 스트립의 CSS 높이 (창이 줌을 곱해 논리 px 로 바꾼다).
+   */
+  onDragHover?: (tabId: number, stripHeight: number) => void;
+  /**
+   * 손을 놓았다. 다른 창에 붙었으면 `true` — 그때는 떼어내기도 재배열도 하지
+   * 않는다 (탭은 이미 남의 창에 있다).
+   */
+  onDragDrop?: (tabId: number) => Promise<boolean>;
+  /** 드래그가 스트립 안으로 돌아왔거나 취소됐다 — 겨누던 캐럿을 지운다. */
+  onDragCleanup?: () => void;
+  /** 지금 겨누는 다른 창이 있다 — 스트립을 "넘겨주는 중" 으로 그린다. */
+  handingOff?: boolean;
 }
 
 interface DragState {
@@ -61,12 +87,28 @@ export function TabStrip({
   onDetach,
   onNewTab,
   onOpenProject,
+  incomingX = null,
+  onIncomingIndex,
+  onDragHover,
+  onDragDrop,
+  onDragCleanup,
+  handingOff = false,
 }: TabStripProps) {
   const { t } = useT();
   const stripRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [drag, setDrag] = useState<DragState | null>(null);
   const [adderOpen, setAdderOpen] = useState(false);
+  /**
+   * 받는 쪽 — 끌려온 탭이 꽂힐 자리와 캐럿을 그릴 x (스트립 기준 CSS px).
+   *
+   * 캐럿은 탭 **사이**에 끼우지 않고 절대 위치로 띄운다: `role="tablist"` 는
+   * `role="tab"` 만 직계 자식으로 받으므로(axe `aria-required-children`), 사이에
+   * 끼우면 접근성 구조가 깨진다.
+   */
+  const [caret, setCaret] = useState<{ index: number; left: number } | null>(null);
+  /** 같은 인덱스를 반복해 보고하지 않기 위한 직전 값. */
+  const reportedRef = useRef<number | null>(null);
 
   // 드래그 중에는 로컬 순서로 그려 즉각 반응하게 하고, 놓을 때 백엔드에 커밋한다.
   const order = drag?.order ?? tabs.map((tb) => tb.tab_id);
@@ -82,6 +124,33 @@ export function TabStrip({
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [adderOpen]);
+
+  /**
+   * 받는 쪽 — 끌려온 x 를 자기 탭 기하로 재서 삽입 자리를 정하고 백엔드에
+   * 되돌려 준다. 여기서 계산하는 이유는 하나다: 탭 폭은 CSS 가 정하므로
+   * (이름 길이에 따라 96~200px) DOM 을 가진 쪽만 답을 알 수 있다.
+   */
+  useEffect(() => {
+    if (incomingX == null) {
+      setCaret(null);
+      reportedRef.current = null;
+      return;
+    }
+    const rects = order.map((id) => tabRefs.current.get(id)?.getBoundingClientRect() ?? null);
+    const centers = rects.map((r) => (r ? r.left + r.width / 2 : Number.POSITIVE_INFINITY));
+    const index = tabDropIndex(centers, incomingX);
+    const strip = stripRef.current?.getBoundingClientRect();
+    // 캐럿은 그 자리 탭의 **왼쪽 모서리**, 맨 뒤면 마지막 탭의 오른쪽 모서리.
+    const edge = rects[index]?.left ?? rects[rects.length - 1]?.right ?? strip?.left ?? 0;
+    setCaret({ index, left: edge - (strip?.left ?? 0) });
+    if (reportedRef.current !== index) {
+      reportedRef.current = index;
+      onIncomingIndex?.(index);
+    }
+    // `order` 는 매 렌더 새 배열이라 의존성에 넣으면 무한 루프가 된다 —
+    // 탭 기하는 ref 로 그때그때 읽으므로 x 만 보면 충분하다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingX, tabs.length]);
 
   const beginDrag = (tabId: number) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -109,8 +178,13 @@ export function TabStrip({
     // 삽입 위치를 계산해 봐야 의미가 없고 화면만 요동친다.
     if (detaching) {
       setDrag({ ...drag, moved, detaching });
+      // 창 밖으로 나간 동안만 물어본다 — 스트립 안에서는 물어볼 이유가 없고,
+      // 매 프레임 IPC 를 때리면 재배열이 뚝뚝 끊긴다.
+      onDragHover?.(drag.tabId, strip?.height ?? 0);
       return;
     }
+    // 스트립 안으로 돌아왔다 — 남의 창에 남겨 둔 캐럿을 지운다.
+    if (drag.detaching) onDragCleanup?.();
 
     const centers = drag.order.map((id) => {
       const rect = tabRefs.current.get(id)?.getBoundingClientRect();
@@ -124,15 +198,29 @@ export function TabStrip({
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!drag) return;
     const state = drag;
+    // 비동기 경계를 넘으므로 좌표는 지금 붙잡아 둔다.
+    const { screenX, screenY } = e;
     setDrag(null);
     if (!state.moved) {
       onActivate(state.tabId);
       return;
     }
+    // 스트립 밖에서 놓았다 — **다른 창에 붙이기가 먼저**다. 겨누는 창이 있으면
+    // 그리로 합치고, 없을 때만 새 창으로 떼어낸다. 순서를 뒤집으면 남의 창 위에
+    // 정확히 떨어뜨려도 새 창이 하나 더 생긴다.
     if (state.detaching) {
-      onDetach(state.tabId, e.screenX, e.screenY);
+      if (!onDragDrop) {
+        onDetach(state.tabId, screenX, screenY);
+        return;
+      }
+      void onDragDrop(state.tabId)
+        .catch(() => false)
+        .then((attached) => {
+          if (!attached) onDetach(state.tabId, screenX, screenY);
+        });
       return;
     }
+    onDragCleanup?.();
     const before = tabs.map((tb) => tb.tab_id);
     if (state.order.join() !== before.join()) onReorder(state.order);
   };
@@ -140,7 +228,12 @@ export function TabStrip({
   return (
     <div
       ref={stripRef}
-      className={"tabstrip" + (drag?.detaching ? " is-detaching" : "")}
+      className={
+        "tabstrip" +
+        (drag?.detaching ? " is-detaching" : "") +
+        (drag?.detaching && handingOff ? " is-handoff" : "") +
+        (caret ? " is-receiving" : "")
+      }
       style={isMac ? { paddingLeft: TRAFFIC_LIGHT_INSET } : undefined}
     >
       {/* `role="tablist"` 는 `tab` 만 자식으로 가져야 한다 — `+` 버튼과 드래그
@@ -301,6 +394,12 @@ export function TabStrip({
           </div>
         )}
       </div>
+
+      {/* 다른 창에서 끌려온 탭이 꽂힐 자리. 탭 사이에 끼우면 tablist 의 자식
+          구조가 깨지므로(axe `aria-required-children`) 절대 위치로 띄운다. */}
+      {caret ? (
+        <span className="tabstrip-caret" aria-hidden="true" style={{ left: caret.left }} />
+      ) : null}
 
       {/* 남는 공간은 창 드래그 리전 — 무장식 타이틀바의 잡는 자리를 대신한다.
           더블클릭에는 **아무것도 붙이지 않는다**: 여기가 곧 타이틀바라

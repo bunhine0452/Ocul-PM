@@ -55,6 +55,21 @@ pub fn is_app_window(label: &str) -> bool {
             .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
 }
 
+/// 창 위쪽 어디까지를 "탭 스트립" 으로 볼지 넘어서는 여유 (논리 px).
+///
+/// 창 테두리 바로 위까지 끌고 갔을 때도 놓을 수 있어야 한다 — 크롬도 스트립
+/// 위쪽으로 한 뼘 넘어간 커서를 받아 준다. 아래로는 여유를 주지 않는다:
+/// 스트립 밑은 콘텐츠라 거기서 놓이면 "어디에 붙었지?" 가 된다.
+pub const STRIP_OVERSHOOT: f64 = 10.0;
+
+/// 창 안쪽 좌표(논리 px)가 탭 스트립 띠 안인가.
+///
+/// `band` 는 스트립 높이(논리 px)로, 프런트가 자기 CSS 높이 × 웹뷰 줌으로 재서
+/// 넘겨준다 — Rust 가 CSS 를 알 필요도, 줌을 추적할 필요도 없다.
+pub fn hits_tab_strip(local_x: f64, local_y: f64, width: f64, band: f64) -> bool {
+    local_x >= 0.0 && local_x <= width && local_y >= -STRIP_OVERSHOOT && local_y <= band
+}
+
 /// PTY 세션 id 접두사. **프로젝트** 기준이라 탭이 창을 옮겨 다녀도 유효하다 —
 /// 그래서 떼어낸 탭의 셸이 죽지 않는다. 끝의 `-` 덕분에 `p1-` 이 `p12-…` 를
 /// 잡아먹지 않는다. 프런트의 `TerminalSurface.newId` 와 짝이다.
@@ -102,6 +117,12 @@ pub struct Registry {
     terminal_windows: HashSet<u32>,
     /// 새 탭이 어느 창에 붙을지 결정한다. 창이 포커스될 때마다 갱신.
     last_focused: Option<String>,
+    /// 창 **간** 드래그가 지금 겨누는 자리 — (대상 창, 삽입 인덱스).
+    ///
+    /// 인덱스는 대상 창의 프런트가 자기 탭 기하를 보고 계산해 되돌려 준다
+    /// (Rust 는 탭 폭을 모른다 — CSS 가 정한다). 아직 안 왔으면 `None` = 맨 뒤.
+    /// 드래그가 끝나거나 스트립을 벗어나면 지워진다.
+    drop_hint: Option<(String, Option<usize>)>,
     next_window: u32,
     next_tab: u32,
 }
@@ -197,6 +218,76 @@ impl Registry {
             self.windows.remove(&label);
         }
         Some((label, gone.project_id, empty))
+    }
+
+    /// 탭을 **다른 창으로** 옮긴다 (창 간 드래그 = 다시 붙이기).
+    ///
+    /// `remove_tab` + `append` 로는 안 되는 이유가 둘 있다: ① 인덱스를 지정해
+    /// 끼워야 하고(크롬은 커서 자리에 꽂는다), ② 원래 창이 비어도 **프로젝트를
+    /// 놓아주면 안 된다** — 탭은 살아서 다른 창에 있으므로 PTY·워처가 그대로여야
+    /// 한다. `close_tab` 경로를 재사용하면 그 자리에서 `release_project` 가 돌아
+    /// 셸이 죽는다.
+    ///
+    /// 반환값은 (원래 창, 그 창이 비었는가). 같은 창으로 옮기는 것은 순서
+    /// 변경과 같으므로 여기서도 성립한다.
+    fn move_tab(&mut self, tab_id: u32, target: &str, index: usize) -> Option<(String, bool)> {
+        // 대상 창이 닫히는 중일 수 있다 — 없으면 탭을 건드리지 않는다.
+        if !self.windows.contains_key(target) {
+            return None;
+        }
+        let source = self.locate_tab(tab_id)?;
+        let st = self.windows.get_mut(&source)?;
+        let pos = st.order.iter().position(|t| t.id == tab_id)?;
+        let tab = st.order.remove(pos);
+        if st.active == Some(tab_id) {
+            st.active = st.order.get(pos).or_else(|| st.order.last()).map(|t| t.id);
+        }
+        // 같은 창 안의 이동이면 곧바로 다시 넣으므로 "비었다" 가 아니다.
+        let emptied = st.order.is_empty() && source != target;
+        if emptied {
+            self.windows.remove(&source);
+        }
+        let dst = self.windows.get_mut(target)?;
+        let at = index.min(dst.order.len());
+        dst.order.insert(at, tab);
+        dst.active = Some(tab_id);
+        self.last_focused = Some(target.to_string());
+        Some((source, emptied))
+    }
+
+    /// 드래그가 이 창의 스트립 위에 있다고 기록한다. 대상이 바뀌면 인덱스는
+    /// 버린다 (남의 창에서 잰 값이라 의미가 없다). 반환값은 **직전 대상** —
+    /// 바뀌었을 때만 `Some` 이라, 떠난 창에만 정확히 한 번 알릴 수 있다.
+    fn hover(&mut self, target: &str) -> Option<String> {
+        match self.drop_hint.take() {
+            Some((prev, index)) if prev == target => {
+                self.drop_hint = Some((prev, index));
+                None
+            }
+            prev => {
+                self.drop_hint = Some((target.to_string(), None));
+                prev.map(|(label, _)| label)
+            }
+        }
+    }
+
+    /// 스트립을 벗어났다 — 겨누던 창을 알려 준다 (캐럿을 지우게).
+    fn unhover(&mut self) -> Option<String> {
+        self.drop_hint.take().map(|(label, _)| label)
+    }
+
+    /// 대상 창이 계산한 삽입 인덱스. 겨누는 창이 아니면 무시한다 — 늦게 도착한
+    /// 보고가 다음 대상의 자리를 덮어쓰지 못하게.
+    fn note_drop_index(&mut self, window: &str, index: usize) {
+        if let Some((label, slot)) = self.drop_hint.as_mut() {
+            if label == window {
+                *slot = Some(index);
+            }
+        }
+    }
+
+    fn take_drop_hint(&mut self) -> Option<(String, Option<usize>)> {
+        self.drop_hint.take()
     }
 
     fn activate(&mut self, tab_id: u32) -> Option<String> {
@@ -333,6 +424,25 @@ pub struct ProjectWindowsChanged {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct TerminalWindowsChanged {
     pub open: Vec<u32>,
+}
+
+/// 다른 창에서 끌고 온 탭이 **이 창의 스트립 위**에 있다 (창 간 드래그).
+///
+/// `x` 는 창 안쪽 왼쪽 위 기준 **논리 px**. 받는 쪽이 웹뷰 줌으로 나눠 CSS px 로
+/// 바꾼 뒤, 자기 탭 기하로 삽입 자리를 계산해 캐럿을 그리고 그 인덱스를
+/// `tab_drop_hint` 로 되돌려 준다 — Rust 는 탭 폭을 모르기 때문이다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TabDragOver {
+    pub window: String,
+    pub x: f64,
+    /// 끌려오는 탭. 자기 탭이면(같은 창 되돌아오기) 무시할 수 있게 실어 보낸다.
+    pub tab_id: u32,
+}
+
+/// 그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TabDragLeave {
+    pub window: String,
 }
 
 async fn snapshot(app: &AppHandle, label: &str) -> WindowTabsSnapshot {
@@ -657,6 +767,156 @@ pub async fn detach_tab(app: AppHandle, tab_id: u32, x: f64, y: f64) -> Result<(
     };
     broadcast(&app, &source).await;
     create_window(&app, project_id, None, Some((x, y))).await
+}
+
+// ─── 창 간 탭 드래그 (다시 붙이기) ──────────────────────────────────────────
+//
+// 떼어내기(`detach_tab`)의 반대편. 크롬처럼 **다른 창의 스트립에 떨어뜨려**
+// 탭을 합친다. 세 몫으로 나뉜다.
+//
+//   ① 어느 창 위인가 — Rust. 창 기하는 Rust 만 안다. 커서는 OS 에게 직접
+//      묻는다(`cursor_position`, 물리 px): 웹뷰 줌이 걸려 있어도 흔들리지 않는
+//      유일한 좌표계다.
+//   ② 어느 탭 **사이**인가 — 대상 창의 프런트. 탭 폭은 CSS 가 정하므로 DOM 만
+//      알 수 있다. 계산 결과를 `tab_drop_hint` 로 되돌려 준다.
+//   ③ 실제 이동 — Rust (`attach_tab`). 레지스트리가 SSOT 다.
+//
+// 손을 놓는 순간에 ②를 물어보면 왕복 한 번이 늦으므로, 드래그 **내내** 미리
+// 주고받아 둔다. 그래서 놓는 순간은 레지스트리를 읽는 것으로 끝난다.
+
+/// 지금 커서가 다른 앱 창의 탭 스트립 위인가. 대상 창 라벨을 돌려준다.
+///
+/// 드래그 중 포인터가 움직일 때마다 호출된다 — 대상이 바뀌면 떠난 창에
+/// `TabDragLeave`, 새 창에 `TabDragOver` 를 보내 캐럿을 옮긴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn tab_drag_over(
+    app: AppHandle,
+    tab_id: u32,
+    band: f64,
+) -> Result<Option<String>, String> {
+    let source = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        reg.locate_tab(tab_id)
+    };
+    let hit = source.as_deref().and_then(|src| strip_under_cursor(&app, src, band));
+
+    let (left, entered) = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        match &hit {
+            Some((label, _)) => (reg.hover(label), Some(label.clone())),
+            None => (reg.unhover(), None),
+        }
+    };
+    if let Some(prev) = left {
+        let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
+    }
+    if let Some((label, x)) = hit {
+        let _ = TabDragOver { window: label.clone(), x, tab_id }.emit_to(&app, &label);
+    }
+    Ok(entered)
+}
+
+/// 대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②).
+#[tauri::command]
+#[specta::specta]
+pub async fn tab_drop_hint(app: AppHandle, window: String, index: u32) -> Result<(), String> {
+    let state = app.state::<WindowTabs>();
+    state.lock().note_drop_index(&window, index as usize);
+    Ok(())
+}
+
+/// 겨누던 창으로 탭을 옮긴다 — 창 간 드래그의 마무리. 옮겼으면 `true`.
+///
+/// 원래 창의 **마지막** 탭이어도 옮긴다 (그 창은 닫힌다). 떼어내기가 마지막 탭을
+/// 거부하는 것과 다른데, 여기서는 창이 하나 줄어드는 것이 사용자가 바란 결과이기
+/// 때문이다 — 크롬도 그렇게 동작한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn attach_tab(app: AppHandle, tab_id: u32) -> Result<bool, String> {
+    let moved = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        let Some((target, index)) = reg.take_drop_hint() else {
+            return Ok(false);
+        };
+        // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다
+        // 낫다 (스트립에 막 들어선 순간에 손을 놓으면 생길 수 있다).
+        let at = index.unwrap_or(usize::MAX);
+        reg.move_tab(tab_id, &target, at).map(|(source, emptied)| (source, emptied, target))
+    };
+    let Some((source, emptied, target)) = moved else {
+        return Ok(false);
+    };
+    // 대상 창은 항상 다시 그린다. 원래 창은 살아 있을 때만 (비었으면 닫는다).
+    broadcast(&app, &target).await;
+    let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
+    if emptied {
+        if let Some(win) = app.get_webview_window(&source) {
+            let _ = win.close();
+        }
+    } else if source != target {
+        broadcast(&app, &source).await;
+    }
+    focus_window(&app, &target);
+    Ok(true)
+}
+
+/// 드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다.
+#[tauri::command]
+#[specta::specta]
+pub async fn tab_drag_end(app: AppHandle) -> Result<(), String> {
+    let left = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.unhover()
+    };
+    if let Some(prev) = left {
+        let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
+    }
+    Ok(())
+}
+
+/// 커서 밑에 있는 **다른** 앱 창의 스트립 — (라벨, 창 안쪽 x·논리 px).
+///
+/// 커서는 OS 에서 물리 px 로 받아 창마다 그 창의 배율로 나눈다. 모니터마다
+/// 배율이 다른 환경에서도 맞는 유일한 변환이다.
+fn strip_under_cursor(app: &AppHandle, source: &str, band: f64) -> Option<(String, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    let known: Vec<String> = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        let mut labels: Vec<String> =
+            reg.windows.keys().filter(|l| l.as_str() != source).cloned().collect();
+        // 겹친 창의 앞뒤는 알 수 없다 — 포커스된 창을 먼저 보고, 나머지는 라벨
+        // 순으로 본다. 어느 쪽이든 **같은 상황에서 같은 답**이 나와야 한다.
+        labels.sort();
+        labels
+    };
+    let mut fallback = None;
+    for label in known {
+        let Some(win) = app.get_webview_window(&label) else { continue };
+        if !win.is_visible().unwrap_or(false) || win.is_minimized().unwrap_or(false) {
+            continue;
+        }
+        let (Ok(pos), Ok(size), Ok(sf)) =
+            (win.inner_position(), win.inner_size(), win.scale_factor())
+        else {
+            continue;
+        };
+        let lx = (cursor.x - pos.x as f64) / sf;
+        let ly = (cursor.y - pos.y as f64) / sf;
+        if !hits_tab_strip(lx, ly, size.width as f64 / sf, band) {
+            continue;
+        }
+        if win.is_focused().unwrap_or(false) {
+            return Some((label, lx));
+        }
+        fallback.get_or_insert((label, lx));
+    }
+    fallback
 }
 
 /// 창이 마운트 직후 자기 탭 구성을 읽는다 (이후는 이벤트로 갱신).
@@ -1322,6 +1582,86 @@ mod tests {
     }
 
     /// 새 탭은 마지막으로 포커스된 창에 붙는다.
+    #[test]
+    fn move_tab_inserts_at_the_requested_index_of_the_target_window() {
+        let mut reg = reg_with(&[("win-1", &[Some(1), Some(2)]), ("win-2", &[Some(3)])]);
+        let moving = reg.get("win-1").unwrap().order[1].id;
+        let out = reg.move_tab(moving, "win-2", 0);
+        assert_eq!(out, Some(("win-1".into(), false)));
+        assert_eq!(projects(&reg, "win-2"), vec![Some(2), Some(3)]);
+        assert_eq!(projects(&reg, "win-1"), vec![Some(1)]);
+        // 옮겨간 탭이 대상 창의 활성 탭이 된다 — 사용자가 방금 손에 들고 있었다.
+        assert_eq!(reg.get("win-2").unwrap().active, Some(moving));
+    }
+
+    #[test]
+    fn moving_the_last_tab_reports_the_source_window_as_emptied() {
+        let mut reg = reg_with(&[("win-1", &[Some(1)]), ("win-2", &[Some(2)])]);
+        let moving = reg.get("win-1").unwrap().order[0].id;
+        assert_eq!(reg.move_tab(moving, "win-2", 9), Some(("win-1".into(), true)));
+        assert!(reg.get("win-1").is_none());
+        assert_eq!(projects(&reg, "win-2"), vec![Some(2), Some(1)]);
+        // 창은 비었어도 프로젝트는 **여전히 열려 있다** — 탭이 옮겨갔을 뿐이다.
+        assert_eq!(reg.all_open_projects(), vec![1, 2]);
+    }
+
+    #[test]
+    fn move_tab_into_its_own_window_is_a_reorder() {
+        let mut reg = reg_with(&[("win-1", &[Some(1), Some(2), Some(3)])]);
+        let moving = reg.get("win-1").unwrap().order[2].id;
+        assert_eq!(reg.move_tab(moving, "win-1", 0), Some(("win-1".into(), false)));
+        assert_eq!(projects(&reg, "win-1"), vec![Some(3), Some(1), Some(2)]);
+    }
+
+    #[test]
+    fn move_tab_to_a_missing_window_leaves_everything_alone() {
+        let mut reg = reg_with(&[("win-1", &[Some(1), Some(2)])]);
+        let moving = reg.get("win-1").unwrap().order[0].id;
+        assert_eq!(reg.move_tab(moving, "win-9", 0), None);
+        assert_eq!(projects(&reg, "win-1"), vec![Some(1), Some(2)]);
+    }
+
+    #[test]
+    fn hovering_a_new_window_reports_the_one_being_left() {
+        let mut reg = Registry::default();
+        assert_eq!(reg.hover("win-1"), None);
+        // 같은 창을 계속 겨누면 떠난 창은 없다 (캐럿을 지우면 안 된다).
+        assert_eq!(reg.hover("win-1"), None);
+        reg.note_drop_index("win-1", 2);
+        assert_eq!(reg.hover("win-2"), Some("win-1".into()));
+        // 대상이 바뀌면 인덱스는 버려진다 — 남의 창에서 잰 값이다.
+        assert_eq!(reg.take_drop_hint(), Some(("win-2".into(), None)));
+    }
+
+    #[test]
+    fn a_late_index_report_from_a_stale_window_is_ignored() {
+        let mut reg = Registry::default();
+        reg.hover("win-2");
+        reg.note_drop_index("win-1", 5);
+        assert_eq!(reg.take_drop_hint(), Some(("win-2".into(), None)));
+    }
+
+    #[test]
+    fn unhover_clears_the_hint_once() {
+        let mut reg = Registry::default();
+        reg.hover("win-1");
+        assert_eq!(reg.unhover(), Some("win-1".into()));
+        assert_eq!(reg.unhover(), None);
+    }
+
+    #[test]
+    fn strip_band_accepts_above_the_window_but_never_below_the_strip() {
+        // 스트립 안.
+        assert!(hits_tab_strip(10.0, 4.0, 900.0, 38.0));
+        // 창 테두리 위로 살짝 — 받아 준다.
+        assert!(hits_tab_strip(10.0, -6.0, 900.0, 38.0));
+        // 너무 위 · 스트립 아래(콘텐츠) · 창 가로 밖.
+        assert!(!hits_tab_strip(10.0, -40.0, 900.0, 38.0));
+        assert!(!hits_tab_strip(10.0, 60.0, 900.0, 38.0));
+        assert!(!hits_tab_strip(-2.0, 10.0, 900.0, 38.0));
+        assert!(!hits_tab_strip(950.0, 10.0, 900.0, 38.0));
+    }
+
     #[test]
     fn preferred_window_follows_focus() {
         let mut reg = reg_with(&[("main", &[Some(3)]), ("win-1", &[Some(7)])]);

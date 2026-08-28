@@ -3,6 +3,7 @@
 
 import type { LangSetting } from "@/i18n";
 import { TERM_FONT_DEFAULT } from "@/features/terminal/fontSize";
+import { TERM_DENSITY_DEFAULT, type TermDensity } from "@/features/terminal/density";
 
 export type Theme =
   | "light"
@@ -33,6 +34,11 @@ export const KEYS = {
   // 터미널 화면·분리 창이 **같은 값**을 봐야 하기 때문이다 (SQLite 라 창을
   // 여러 개 띄워도 한 값이다).
   terminalFontSize: "terminal_font_size",
+  // 터미널 밀도 프리셋(줄 높이·페인 여백). 글자 크기와 다른 축이라 따로 산다
+  // — 크기는 "읽히는가", 밀도는 "숨 쉴 자리가 있는가" 다.
+  terminalDensity: "terminal_density",
+  // 세로 세션 레일을 아이콘만 남기고 접었는가.
+  terminalRailCollapsed: "terminal_rail_collapsed",
   // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
   // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
   language: "language",
@@ -97,6 +103,13 @@ export interface Settings {
    * ⌘+/⌘−/⇧⌘0 과 터미널 상태바의 px 입력, 설정 화면이 모두 이 한 값을 쓴다.
    */
   terminalFontSize: number;
+  /**
+   * 터미널 밀도 프리셋. 값·줄 높이·여백은 `@/features/terminal/density`.
+   * 모르는 문자열이 들어와도 읽는 쪽이 `clampTermDensity` 로 되돌린다.
+   */
+  terminalDensity: TermDensity;
+  /** 세로 세션 레일을 접어 아이콘만 남긴다 (좁은 도크에서 자리를 아낀다). */
+  terminalRailCollapsed: boolean;
   /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
   language: LangSetting;
   /**
@@ -168,6 +181,8 @@ export const DEFAULTS: Settings = {
   colorTheme: "green",
   uiScale: 1,
   terminalFontSize: TERM_FONT_DEFAULT,
+  terminalDensity: TERM_DENSITY_DEFAULT,
+  terminalRailCollapsed: false,
   language: "system",
   contentLanguage: "system",
 
@@ -210,6 +225,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiScale]: "uiScale",
   [KEYS.terminalFontSize]: "terminalFontSize",
+  [KEYS.terminalDensity]: "terminalDensity",
+  [KEYS.terminalRailCollapsed]: "terminalRailCollapsed",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.defaultProvider]: "defaultProvider",

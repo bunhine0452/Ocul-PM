@@ -31,6 +31,36 @@ export function clampRatio(r: number): number {
   return Math.min(RATIO_MAX, Math.max(RATIO_MIN, r));
 }
 
+/**
+ * target leaf 를 split(기존 leaf, `incoming`) 로 치환한다. target 이 없으면
+ * 원본 그대로 (참조까지 동일 — 재렌더를 아낀다).
+ *
+ * `incoming` 이 **서브트리**여도 된다: 분할이 있는 터미널 탭을 통째로 다른 탭의
+ * 페인에 끌어다 붙일 때 그 탭의 트리가 그대로 들어온다 (2026-08-28 드래그 분할).
+ * `before` 면 끌려온 쪽이 위/왼쪽에 놓인다 — 사용자가 겨눈 가장자리가 곧
+ * 새 페인이 앉을 자리이므로, 이 방향을 못 정하면 왼쪽에 놓으려던 것이 늘
+ * 오른쪽에 붙는다.
+ */
+export function splitPaneWith(
+  node: PaneNode,
+  target: string,
+  dir: PaneDir,
+  incoming: PaneNode,
+  before = false,
+): PaneNode {
+  if (node.type === "leaf") {
+    if (node.sid !== target) return node;
+    return before
+      ? { type: "split", dir, ratio: 0.5, a: incoming, b: node }
+      : { type: "split", dir, ratio: 0.5, a: node, b: incoming };
+  }
+  const a = splitPaneWith(node.a, target, dir, incoming, before);
+  if (a !== node.a) return { ...node, a };
+  const b = splitPaneWith(node.b, target, dir, incoming, before);
+  if (b !== node.b) return { ...node, b };
+  return node;
+}
+
 /** target leaf 를 split(기존 leaf, 새 leaf) 로 치환. target 이 없으면 원본 그대로. */
 export function splitPane(
   node: PaneNode,
@@ -38,15 +68,7 @@ export function splitPane(
   dir: PaneDir,
   newSid: string,
 ): PaneNode {
-  if (node.type === "leaf") {
-    if (node.sid !== target) return node;
-    return { type: "split", dir, ratio: 0.5, a: node, b: leaf(newSid) };
-  }
-  const a = splitPane(node.a, target, dir, newSid);
-  if (a !== node.a) return { ...node, a };
-  const b = splitPane(node.b, target, dir, newSid);
-  if (b !== node.b) return { ...node, b };
-  return node;
+  return splitPaneWith(node, target, dir, leaf(newSid));
 }
 
 /** target leaf 를 제거 — 형제 서브트리가 그 자리를 차지한다. 루트까지 비면 null. */

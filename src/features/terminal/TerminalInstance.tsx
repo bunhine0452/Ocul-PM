@@ -18,6 +18,8 @@ interface TerminalInstanceProps {
   cwd: string;
   visible: boolean;
   fontSize?: number;
+  /** 줄 높이 배수 — 밀도 프리셋(`density.ts`). */
+  lineHeight?: number;
   /** true 면 unmount 시 PTY 유지 — 터미널 화면(탭/분할)이 사용. 기본 false. */
   persistent?: boolean;
   /** visible 전환 시 자동 포커스 (분할 페인에선 포커스 페인만 true). */
