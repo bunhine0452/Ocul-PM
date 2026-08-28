@@ -49,7 +49,8 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 - [ ] 실기기 확인 — 살아 있는 에이전트 세션을 끌어 분할했을 때 xterm fit/PTY resize 왕복 {#manual-verify-terminal}
 - [x] 키보드 등가물 — 탭 컨텍스트 메뉴(우클릭 · Shift+F10 · 메뉴 키)로 창을 골라 옮긴다. ⌘K 팔레트가 아니라 메뉴로 간 이유는 결정 4 {#keyboard-move-tab}
 - [ ] 터미널 세션을 **창 밖으로** 떼어내기 — 분리 터미널 창이 프로젝트당 하나(`term-<id>`)라 그 규약부터 바꿔야 한다 {#session-to-window}
-- [ ] 탭이 많아 스트립이 넘칠 때의 드래그 — 지금은 스트립이 스크롤되지 않아 폭이 줄어든다. 스크롤이 들어오면 드래그 중 자동 스크롤이 필요하다 {#strip-overflow-drag}
+- [x] 탭이 많아 스트립이 넘칠 때 — **전제가 틀렸다.** 폭이 줄어드는 게 아니라 96px 에서 멈추고 나머지가 잘려 닿지 않는 탭이 생겼다. 하한을 68px 로 내려 주석이 약속한 축소를 실제로 성립시켰다 {#strip-overflow-drag}
+  - [ ] 붐비는 스트립 육안 확인 — 탭 10개 이상에서 아이콘·활동 점·닫기가 겹치지 않는지 {#crowded-strip-verify}
 
 ## 결정
 
@@ -132,4 +133,6 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 | 2026-08-28T20:05:00+09:00 | #d3-edge-by-ratio | claude-code | →☐ | 20260828/Features_to_add/2005_feature_drag-tabs-across-windows-and-panes.md | 결정 잠금 |
 | 2026-08-28T20:22:00+09:00 | #keyboard-move-tab | claude-code | [ ]→[x] | 20260828/Features_to_add/2022_feature_tab-context-menu-keyboard.md | 메뉴가 대상 모호함을 없앤다 |
 | 2026-08-28T20:22:00+09:00 | #d4-menu-over-palette | claude-code | →☐ | 20260828/Features_to_add/2022_feature_tab-context-menu-keyboard.md | 결정 잠금 |
+| 2026-08-28T20:38:00+09:00 | #strip-overflow-drag | claude-code | [ ]→[x] | 20260828/Bugs/2038_bug_tab-strip-clips-tabs.md | 전제가 틀렸다 — 잘림이 문제 |
+| 2026-08-28T20:38:00+09:00 | #crowded-strip-verify | claude-code | →☐ | 20260828/Bugs/2038_bug_tab-strip-clips-tabs.md | 육안 미확인 |
 <!-- oculpm:plan-log end -->

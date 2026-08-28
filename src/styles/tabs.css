@@ -76,7 +76,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 96px;
+  /* 하한은 "아이콘 + 활동 점 + 닫기" 가 겹치지 않는 최소치다
+     (10 + 13 + 6 + 6 + 6 + 18 + 6 = 65px → 68). 이름은 `min-width: 0` 이라
+     그 아래에서 0 폭으로 접히고 아이콘만 남는다 — Chrome 과 같은 거동이다.
+     예전 96px 은 **축소를 막았다**: 탭이 여덟 개쯤 되면 더 줄지 않고 아홉째
+     탭부터 `overflow: hidden` 에 그대로 잘려, 클릭도 드래그도 우클릭도 닿지
+     않는 탭이 생겼다 (스트립은 스크롤되지 않는다 — 아래 오버플로 주석 참고). */
+  min-width: 68px;
   max-width: 200px;
   height: 32px;
   padding: 0 6px 0 10px;
@@ -255,13 +261,10 @@
 .winroot .app { height: 100%; }
 /* tablist 는 tab 만 품는다 (a11y) — `+` 와 드래그 리전은 스트립 직계 자식. */
 .tabstrip-tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; }
-/* 탭 본체(role="tab") — 닫기 버튼은 형제라 위젯 중첩이 없다 (a11y). */
-.tabstrip-label {
-  display: flex; align-items: center; gap: 6px;
-  flex: 1; min-width: 0; height: 100%;
-  border-radius: 9px 9px 0 0;
-  outline-offset: -2px;
-}
+/* (`.tabstrip-label` 규칙이 여기 있었다 — 닫기 버튼이 탭의 **형제**이던 시절의
+   것이다. 지금은 닫기가 탭 안에 있고 보조기술에서만 감춰지므로 그 엘리먼트는
+   렌더되지 않는다. 구조를 잘못 적은 주석이 남아 있으면 다음 사람이 없는 것을
+   찾게 되므로 규칙과 함께 걷어냈다.) */
 
 /* 시작 탭은 프로젝트가 없으므로 색도 없다 — 중성색으로 남는다. */
 .tabstrip-tab.is-start .tabstrip-icon { color: var(--text-3); }
