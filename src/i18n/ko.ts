@@ -135,6 +135,12 @@ export const ko = {
   "tabs.sessionActive": "{name} — 세션 진행 중",
   "tabs.allOpen": "모든 프로젝트가 이미 열려 있습니다.",
   "tabs.openLauncher": "런처 열기 · 프로젝트 관리…",
+  // 탭 컨텍스트 메뉴 (2026-08-28) — 창 간 드래그의 키보드·메뉴 등가물.
+  "tabs.menu.label": "탭 메뉴",
+  "tabs.menu.moveTo": "「{name}」 창으로 옮기기",
+  "tabs.menu.detach": "새 창으로 떼어내기",
+  "tabs.menu.close": "탭 닫기",
+  "tabs.menu.noOtherWindow": "옮길 다른 창이 없습니다.",
   "project.openWindowFailed": "탭을 열지 못했습니다: {error}",
   "project.opened": "열림",
   "project.edit.title": "프로젝트 편집",

@@ -47,7 +47,7 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 
 - [ ] 실기기 확인 — 창 두 개를 띄워 스트립 사이로 끌어 보기. 특히 앱 배율(⌘+/-)을 바꾼 상태와 배율이 다른 외부 모니터 {#manual-verify-windows}
 - [ ] 실기기 확인 — 살아 있는 에이전트 세션을 끌어 분할했을 때 xterm fit/PTY resize 왕복 {#manual-verify-terminal}
-- [ ] 키보드 등가물 — 지금 창 간 이동은 포인터 전용이다. "이 탭을 다른 창으로" 명령(⌘K 팔레트)이 있어야 접근성이 닫힌다 {#keyboard-move-tab}
+- [x] 키보드 등가물 — 탭 컨텍스트 메뉴(우클릭 · Shift+F10 · 메뉴 키)로 창을 골라 옮긴다. ⌘K 팔레트가 아니라 메뉴로 간 이유는 결정 4 {#keyboard-move-tab}
 - [ ] 터미널 세션을 **창 밖으로** 떼어내기 — 분리 터미널 창이 프로젝트당 하나(`term-<id>`)라 그 규약부터 바꿔야 한다 {#session-to-window}
 - [ ] 탭이 많아 스트립이 넘칠 때의 드래그 — 지금은 스트립이 스크롤되지 않아 폭이 줄어든다. 스크롤이 들어오면 드래그 중 자동 스크롤이 필요하다 {#strip-overflow-drag}
 
@@ -89,6 +89,20 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 
 영향: #pane-drop-pure
 
+### Decision 4 — 키보드 등가물은 팔레트가 아니라 탭 메뉴 {#d4-menu-over-palette}
+잠금: 2026-08-28 · claude-code
+
+"이 탭을 다른 창으로" 를 ⌘K 팔레트가 아니라 **탭 컨텍스트 메뉴**로 넣는다
+(우클릭 · Shift+F10 · 메뉴 키 셋 다 같은 메뉴를 연다).
+
+근거: 팔레트는 **어느 탭**이 대상인지 말할 방법이 없다 — 활성 탭으로 고정하면
+"배경 탭을 옮기고 싶다" 를 못 하고, 탭까지 고르게 하면 2단이 된다. 메뉴는 연 자리가
+곧 대상이라 그 모호함이 없다. 덤으로 포인터 사용자에게도 길이 하나 는다: 창이
+겹쳐 있으면 드래그로 조준하는 것보다 메뉴가 빠르다. 팔레트에는 나중에 "활성 탭을 …"
+형태로 얹을 수 있고, 그때도 이 메뉴가 실제 동작의 정본이다.
+
+영향: #keyboard-move-tab
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | agent | 전이 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -116,4 +130,6 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 | 2026-08-28T20:05:00+09:00 | #d1-split-responsibility | claude-code | →☐ | 20260828/Features_to_add/2005_feature_drag-tabs-across-windows-and-panes.md | 결정 잠금 |
 | 2026-08-28T20:05:00+09:00 | #d2-cursor-from-os | claude-code | →☐ | 20260828/Features_to_add/2005_feature_drag-tabs-across-windows-and-panes.md | 결정 잠금 |
 | 2026-08-28T20:05:00+09:00 | #d3-edge-by-ratio | claude-code | →☐ | 20260828/Features_to_add/2005_feature_drag-tabs-across-windows-and-panes.md | 결정 잠금 |
+| 2026-08-28T20:22:00+09:00 | #keyboard-move-tab | claude-code | [ ]→[x] | 20260828/Features_to_add/2022_feature_tab-context-menu-keyboard.md | 메뉴가 대상 모호함을 없앤다 |
+| 2026-08-28T20:22:00+09:00 | #d4-menu-over-palette | claude-code | →☐ | 20260828/Features_to_add/2022_feature_tab-context-menu-keyboard.md | 결정 잠금 |
 <!-- oculpm:plan-log end -->

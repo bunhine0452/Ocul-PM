@@ -379,6 +379,15 @@ pub struct TabInfo {
     pub color: Option<String>,
 }
 
+/// 탭을 옮길 수 있는 창 하나 (메뉴용). 이름은 프런트가 붙인다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct AppWindowInfo {
+    pub label: String,
+    /// 그 창에서 지금 보이는 탭의 프로젝트. 시작 탭이면 `None`.
+    pub active_project_id: Option<u32>,
+    pub tab_count: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct WindowTabsSnapshot {
     pub window: String,
@@ -746,7 +755,12 @@ pub async fn reorder_tabs(app: AppHandle, window: String, order: Vec<u32>) -> Re
 /// 있어** 스크롤백까지 재부착된다 (`pty_prefix_for` 가 프로젝트 기준이라 가능).
 #[tauri::command]
 #[specta::specta]
-pub async fn detach_tab(app: AppHandle, tab_id: u32, x: f64, y: f64) -> Result<(), String> {
+pub async fn detach_tab(
+    app: AppHandle,
+    tab_id: u32,
+    x: Option<f64>,
+    y: Option<f64>,
+) -> Result<(), String> {
     let removed = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
@@ -766,7 +780,13 @@ pub async fn detach_tab(app: AppHandle, tab_id: u32, x: f64, y: f64) -> Result<(
         return Ok(());
     };
     broadcast(&app, &source).await;
-    create_window(&app, project_id, None, Some((x, y))).await
+    // 좌표는 **포인터로 떼어냈을 때만** 있다. 메뉴·키보드로 부르면 창을 커서
+    // 밑에 놓을 이유가 없으므로 OS 의 기본 자리에 맡긴다.
+    let at = match (x, y) {
+        (Some(x), Some(y)) => Some((x, y)),
+        _ => None,
+    };
+    create_window(&app, project_id, None, at).await
 }
 
 // ─── 창 간 탭 드래그 (다시 붙이기) ──────────────────────────────────────────
@@ -836,32 +856,92 @@ pub async fn tab_drop_hint(app: AppHandle, window: String, index: u32) -> Result
 #[tauri::command]
 #[specta::specta]
 pub async fn attach_tab(app: AppHandle, tab_id: u32) -> Result<bool, String> {
+    let Some((target, index)) = ({
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.take_drop_hint()
+    }) else {
+        return Ok(false);
+    };
+    // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다
+    // 낫다 (스트립에 막 들어선 순간에 손을 놓으면 생길 수 있다).
+    let moved = commit_move(&app, tab_id, &target, index.unwrap_or(usize::MAX)).await;
+    if moved {
+        let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
+    }
+    Ok(moved)
+}
+
+/// 탭을 `target` 창의 `index` 자리로 옮기고 양쪽 창을 다시 그린다.
+///
+/// 드래그(`attach_tab`)와 메뉴(`move_tab_to_window`)가 **같은 길**을 쓴다 —
+/// 나뉘어 있으면 한쪽만 고쳐져 "끌면 되는데 메뉴로는 안 되는" 종류의 어긋남이
+/// 생긴다. 옮겼으면 `true`.
+async fn commit_move(app: &AppHandle, tab_id: u32, target: &str, index: usize) -> bool {
     let moved = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
-        let Some((target, index)) = reg.take_drop_hint() else {
-            return Ok(false);
-        };
-        // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다
-        // 낫다 (스트립에 막 들어선 순간에 손을 놓으면 생길 수 있다).
-        let at = index.unwrap_or(usize::MAX);
-        reg.move_tab(tab_id, &target, at).map(|(source, emptied)| (source, emptied, target))
+        reg.move_tab(tab_id, target, index)
     };
-    let Some((source, emptied, target)) = moved else {
-        return Ok(false);
+    let Some((source, emptied)) = moved else {
+        return false;
     };
     // 대상 창은 항상 다시 그린다. 원래 창은 살아 있을 때만 (비었으면 닫는다).
-    broadcast(&app, &target).await;
-    let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
+    broadcast(app, target).await;
     if emptied {
         if let Some(win) = app.get_webview_window(&source) {
             let _ = win.close();
         }
     } else if source != target {
-        broadcast(&app, &source).await;
+        broadcast(app, &source).await;
     }
-    focus_window(&app, &target);
-    Ok(true)
+    focus_window(app, target);
+    true
+}
+
+/// 탭을 **이름으로 지정한** 창으로 옮긴다 — 드래그의 키보드·메뉴 등가물.
+///
+/// 끌어다 놓기는 포인터가 있어야만 성립한다. 창이 겹쳐 있거나 화면이 좁아
+/// 조준이 어려울 때도, 보조기술로 조작할 때도 같은 일을 할 수 있어야 한다.
+/// 자리는 맨 뒤다 — 메뉴에는 겨눈 지점이 없으므로 지어내지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn move_tab_to_window(
+    app: AppHandle,
+    tab_id: u32,
+    window: String,
+) -> Result<bool, String> {
+    Ok(commit_move(&app, tab_id, &window, usize::MAX).await)
+}
+
+/// 탭을 옮길 수 있는 창 목록 (메뉴가 그린다).
+///
+/// 창 **이름**은 싣지 않는다 — 백엔드는 UI 문자열을 만들지 않는다는 규율이
+/// 있고, 프런트는 이미 프로젝트 목록을 들고 있어 id 하나면 스트립과 **같은**
+/// 이름·아이콘을 붙일 수 있다.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_app_windows(app: AppHandle) -> Result<Vec<AppWindowInfo>, String> {
+    let state = app.state::<WindowTabs>();
+    let reg = state.lock();
+    let mut out: Vec<AppWindowInfo> = reg
+        .windows
+        .iter()
+        // 웹뷰가 이미 사라진 창은 뺀다 — 닫히는 중인 창으로 탭을 보내면
+        // 그 탭이 함께 사라진다.
+        .filter(|(label, _)| app.get_webview_window(label).is_some())
+        .map(|(label, st)| AppWindowInfo {
+            label: label.clone(),
+            active_project_id: st
+                .active
+                .and_then(|id| st.order.iter().find(|t| t.id == id))
+                .and_then(|t| t.project_id),
+            tab_count: st.order.len() as u32,
+        })
+        .collect();
+    // 라벨 순 — 메뉴 항목이 열 때마다 뒤바뀌면 손이 자리를 못 외운다.
+    out.sort_by(|a, b| a.label.cmp(&b.label));
+    Ok(out)
 }
 
 /// 드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다.

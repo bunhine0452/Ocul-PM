@@ -139,6 +139,12 @@ export const en: Record<keyof typeof ko, string> = {
   "tabs.sessionActive": "{name} — session running",
   "tabs.allOpen": "Every project is already open.",
   "tabs.openLauncher": "Open launcher · manage projects…",
+  // Tab context menu (2026-08-28) — the keyboard/menu equivalent of the drag.
+  "tabs.menu.label": "Tab menu",
+  "tabs.menu.moveTo": "Move to \u201c{name}\u201d window",
+  "tabs.menu.detach": "Move to a new window",
+  "tabs.menu.close": "Close tab",
+  "tabs.menu.noOtherWindow": "No other window to move to.",
   "project.openWindowFailed": "Couldn't open the tab: {error}",
   "project.opened": "Open",
   "project.edit.title": "Edit project",
