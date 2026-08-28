@@ -143,6 +143,7 @@ use crate::commands::{
     open_devtools, open_project_tab, new_start_tab, set_tab_project, close_tab,
     activate_tab, reorder_tabs, detach_tab, get_window_tabs, list_open_project_ids,
     tab_drag_over, tab_drop_hint, attach_tab, tab_drag_end,
+    move_tab_to_window, list_app_windows,
     open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
@@ -316,6 +317,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         tab_drop_hint,
         attach_tab,
         tab_drag_end,
+        // 드래그의 키보드·메뉴 등가물 — 창을 골라 옮기기
+        move_tab_to_window,
+        list_app_windows,
         get_window_tabs,
         list_open_project_ids,
         // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)

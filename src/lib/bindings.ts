@@ -218,6 +218,22 @@ export const commands = {
 	attachTab: (tabId: number) => typedError<boolean, string>(__TAURI_INVOKE("attach_tab", { tabId })),
 	/**  드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다. */
 	tabDragEnd: () => typedError<null, string>(__TAURI_INVOKE("tab_drag_end")),
+	/**
+	 *  탭을 **이름으로 지정한** 창으로 옮긴다 — 드래그의 키보드·메뉴 등가물.
+	 * 
+	 *  끌어다 놓기는 포인터가 있어야만 성립한다. 창이 겹쳐 있거나 화면이 좁아
+	 *  조준이 어려울 때도, 보조기술로 조작할 때도 같은 일을 할 수 있어야 한다.
+	 *  자리는 맨 뒤다 — 메뉴에는 겨눈 지점이 없으므로 지어내지 않는다.
+	 */
+	moveTabToWindow: (tabId: number, window: string) => typedError<boolean, string>(__TAURI_INVOKE("move_tab_to_window", { tabId, window })),
+	/**
+	 *  탭을 옮길 수 있는 창 목록 (메뉴가 그린다).
+	 * 
+	 *  창 **이름**은 싣지 않는다 — 백엔드는 UI 문자열을 만들지 않는다는 규율이
+	 *  있고, 프런트는 이미 프로젝트 목록을 들고 있어 id 하나면 스트립과 **같은**
+	 *  이름·아이콘을 붙일 수 있다.
+	 */
+	listAppWindows: () => typedError<AppWindowInfo[], string>(__TAURI_INVOKE("list_app_windows")),
 	/**  창이 마운트 직후 자기 탭 구성을 읽는다 (이후는 이벤트로 갱신). */
 	getWindowTabs: (window: string) => typedError<WindowTabsSnapshot, string>(__TAURI_INVOKE("get_window_tabs", { window })),
 	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
@@ -1941,6 +1957,14 @@ export type AppInfo = {
 	app_data_dir: string,
 	secrets_store: string,
 	version: string,
+};
+
+/**  탭을 옮길 수 있는 창 하나 (메뉴용). 이름은 프런트가 붙인다. */
+export type AppWindowInfo = {
+	label: string,
+	/**  그 창에서 지금 보이는 탭의 프로젝트. 시작 탭이면 `None`. */
+	active_project_id: number | null,
+	tab_count: number,
 };
 
 /**

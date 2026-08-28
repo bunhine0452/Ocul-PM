@@ -40,7 +40,11 @@ interface TabStripProps {
   onActivate: (tabId: number) => void;
   onClose: (tabId: number) => void;
   onReorder: (order: number[]) => void;
-  onDetach: (tabId: number, screenX: number, screenY: number) => void;
+  /**
+   * 새 창으로 떼어낸다. 좌표는 **포인터로 떼어냈을 때만** 있다 — 메뉴에서
+   * 부르면 겨눈 지점이 없으므로 `null` 을 주고 창 자리는 OS 에 맡긴다.
+   */
+  onDetach: (tabId: number, screenX: number | null, screenY: number | null) => void;
   onNewTab: () => void;
   onOpenProject: (projectId: number) => void;
   /**
@@ -64,6 +68,24 @@ interface TabStripProps {
   onDragCleanup?: () => void;
   /** 지금 겨누는 다른 창이 있다 — 스트립을 "넘겨주는 중" 으로 그린다. */
   handingOff?: boolean;
+  /**
+   * 탭을 보낼 수 있는 **다른** 창들 (이 창은 빠져 있다). 컨텍스트 메뉴가 그린다.
+   *
+   * 드래그만으로는 닫히지 않는 구멍이 둘 있다: 키보드·보조기술 사용자에게는
+   * 길이 아예 없고, 창이 겹쳐 있으면 포인터로도 조준이 어렵다.
+   */
+  windowChoices?: WindowChoice[];
+  /** 메뉴가 열렸다 — 목록을 새로 읽어 달라 (창은 언제든 늘고 준다). */
+  onMenuOpen?: () => void;
+  onMoveToWindow?: (tabId: number, window: string) => void;
+}
+
+export interface WindowChoice {
+  /** 창 라벨 (`win-3` 등) — 백엔드가 아는 이름. */
+  label: string;
+  /** 사람이 읽는 이름 — 그 창에서 지금 보이는 탭의 이름. */
+  name: string;
+  tabCount: number;
 }
 
 interface DragState {
@@ -93,12 +115,21 @@ export function TabStrip({
   onDragDrop,
   onDragCleanup,
   handingOff = false,
+  windowChoices = [],
+  onMenuOpen,
+  onMoveToWindow,
 }: TabStripProps) {
   const { t } = useT();
   const stripRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [drag, setDrag] = useState<DragState | null>(null);
   const [adderOpen, setAdderOpen] = useState(false);
+  /**
+   * 탭 컨텍스트 메뉴 — 드래그의 **등가물**이다 (우클릭 · Shift+F10 · 메뉴 키).
+   * `left` 는 스트립 기준 x 라 탭이 스크롤·리사이즈로 움직여도 그 자리에 열린다.
+   */
+  const [menu, setMenu] = useState<{ tabId: number; left: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   /**
    * 받는 쪽 — 끌려온 탭이 꽂힐 자리와 캐럿을 그릴 x (스트립 기준 CSS px).
    *
@@ -151,6 +182,54 @@ export function TabStrip({
     // 탭 기하는 ref 로 그때그때 읽으므로 x 만 보면 충분하다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingX, tabs.length]);
+
+  // 메뉴 바깥 클릭 · Escape 로 닫기. 닫을 때 포커스를 원래 탭으로 되돌린다 —
+  // 안 되돌리면 키보드 사용자가 메뉴를 닫는 순간 문서 맨 앞으로 튕긴다.
+  const closeMenu = (restoreFocus = true) => {
+    const tabId = menu?.tabId;
+    setMenu(null);
+    if (restoreFocus && tabId != null) tabRefs.current.get(tabId)?.focus();
+  };
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".tabstrip-menu")) setMenu(null);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [menu]);
+
+  // 열리면 첫 항목으로 포커스를 옮긴다 (WAI-ARIA menu 규약).
+  useEffect(() => {
+    if (!menu) return;
+    menuRef.current?.querySelector<HTMLButtonElement>("[role='menuitem']")?.focus();
+  }, [menu]);
+
+  const openMenu = (tabId: number, anchor: HTMLElement | null) => {
+    const strip = stripRef.current?.getBoundingClientRect();
+    const rect = anchor?.getBoundingClientRect();
+    setMenu({ tabId, left: (rect?.left ?? strip?.left ?? 0) - (strip?.left ?? 0) });
+    onMenuOpen?.();
+  };
+
+  /** 메뉴 안 위아래 이동 — 끝에서 감싼다 (WAI-ARIA menu). */
+  const onMenuKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeMenu();
+      return;
+    }
+    const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>("[role='menuitem']") ?? [],
+    );
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    items[((at < 0 ? 0 : at) + step + items.length) % items.length].focus();
+  };
 
   const beginDrag = (tabId: number) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -283,7 +362,19 @@ export function TabStrip({
                 // 가운데 버튼 = 닫기 (브라우저 관습).
                 if (e.button === 1) onClose(tb.tab_id);
               }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                openMenu(tb.tab_id, e.currentTarget);
+              }}
               onKeyDown={(e) => {
+                // 컨텍스트 메뉴의 **키보드 등가물** (WAI-ARIA 권고). 창 간
+                // 이동이 포인터 전용으로 남지 않게 하는 유일한 길이다 — 이게
+                // 없으면 드래그를 못 하는 사용자에게는 기능 자체가 없다.
+                if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+                  e.preventDefault();
+                  openMenu(tb.tab_id, e.currentTarget);
+                  return;
+                }
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onActivate(tb.tab_id);
@@ -394,6 +485,67 @@ export function TabStrip({
           </div>
         )}
       </div>
+
+      {/* 탭 컨텍스트 메뉴 — 드래그 없이 같은 일을 하는 길. `role="tablist"` 는
+          `tab` 만 자식으로 받으므로 목록 **바깥**에 둔다. */}
+      {menu ? (
+        <div
+          ref={menuRef}
+          className="tabstrip-menu"
+          role="menu"
+          aria-label={t("tabs.menu.label")}
+          style={{ left: menu.left }}
+          onKeyDown={onMenuKey}
+        >
+          {windowChoices.length > 0 ? (
+            windowChoices.map((w) => (
+              <button
+                key={w.label}
+                type="button"
+                role="menuitem"
+                className="tabstrip-menu-item"
+                onClick={() => {
+                  closeMenu(false);
+                  onMoveToWindow?.(menu.tabId, w.label);
+                }}
+              >
+                {t("tabs.menu.moveTo", { name: w.name })}
+              </button>
+            ))
+          ) : (
+            // 창이 하나뿐이라 보낼 곳이 없다. 항목을 감추는 대신 이유를 적는다
+            // — 비어 있는 메뉴는 "고장" 으로 읽힌다.
+            <p className="tabstrip-menu-empty">{t("tabs.menu.noOtherWindow")}</p>
+          )}
+          {/* 마지막 탭은 떼어낼 수 없다 (원래 창이 닫히고 같은 내용의 새 창이
+              뜰 뿐이라 순수 손해) — 백엔드도 거절하므로 아예 안 그린다. */}
+          {tabs.length > 1 ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="tabstrip-menu-item"
+              onClick={() => {
+                closeMenu(false);
+                onDetach(menu.tabId, null, null);
+              }}
+            >
+              {t("tabs.menu.detach")}
+            </button>
+          ) : null}
+          <span className="tabstrip-menu-sep" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            className="tabstrip-menu-item"
+            onClick={() => {
+              closeMenu(false);
+              onClose(menu.tabId);
+            }}
+          >
+            {t("tabs.menu.close")}
+          </button>
+        </div>
+      ) : null}
 
       {/* 다른 창에서 끌려온 탭이 꽂힐 자리. 탭 사이에 끼우면 tablist 의 자식
           구조가 깨지므로(axe `aria-required-children`) 절대 위치로 띄운다. */}

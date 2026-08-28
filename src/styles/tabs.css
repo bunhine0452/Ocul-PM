@@ -147,6 +147,57 @@
 .tabstrip-close:hover { background: var(--bg-hover); color: var(--text); }
 .tabstrip-close:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* ── 탭 컨텍스트 메뉴 (2026-08-28) ────────────────────────────────────────
+   드래그의 등가물. 우클릭·Shift+F10·메뉴 키로 열리고, 창을 골라 탭을 보낸다.
+   `+` 팝오버와 같은 판을 쓰되 위치만 탭에 맞춘다 — 같은 스트립에서 두 메뉴가
+   서로 다른 모양이면 어느 쪽이 무엇인지 매번 다시 읽어야 한다. */
+.tabstrip-menu {
+  position: absolute;
+  top: 34px;
+  z-index: 40;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 10px;
+  background: var(--bg-content);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-pop);
+}
+.tabstrip-menu-item {
+  appearance: none;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tabstrip-menu-item:hover { background: var(--bg-hover); }
+.tabstrip-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--bg-hover);
+}
+.tabstrip-menu-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--sep);
+}
+.tabstrip-menu-empty {
+  margin: 0;
+  padding: 7px 9px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
 .tabstrip-adder { position: relative; flex: none; }
 .tabstrip-new {
   display: grid;

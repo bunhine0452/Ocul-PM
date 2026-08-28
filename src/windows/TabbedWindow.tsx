@@ -16,7 +16,7 @@ import { BootSplash } from "@/components/BootSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
-import { TabStrip } from "@/features/shell/TabStrip";
+import { TabStrip, type WindowChoice } from "@/features/shell/TabStrip";
 import ProjectTab from "@/windows/ProjectTab";
 import StartTab from "@/windows/StartTab";
 
@@ -293,6 +293,34 @@ export default function TabbedWindow({
     return res.status === "ok" && res.data;
   }, []);
 
+  /**
+   * 탭 메뉴가 그릴 **다른 창** 목록.
+   *
+   * 열 때마다 새로 읽는다 — 다른 창이 새로 뜨는 것은 이 창에 이벤트로 오지
+   * 않는다 (`WindowTabsChanged` 는 창별로만 배달되고, 시작 탭만 있는 창은
+   * 열린 프로젝트 집합도 안 바꾼다). 이벤트를 늘리는 대신 메뉴가 열리는
+   * 그 한 번만 물어보는 쪽이 싸고 항상 옳다.
+   */
+  const [windowChoices, setWindowChoices] = useState<WindowChoice[]>([]);
+  const refreshWindows = useCallback(async () => {
+    const res = await commands.listAppWindows();
+    if (res.status !== "ok") return;
+    const byId = new Map(projects.map((p) => [p.id, p.name]));
+    setWindowChoices(
+      res.data
+        .filter((w) => w.label !== windowLabel)
+        .map((w) => ({
+          label: w.label,
+          // 스트립과 **같은** 이름 규칙 — 시작 탭만 있는 창은 "새 탭" 이다.
+          name:
+            w.active_project_id == null
+              ? t("tabs.startTab")
+              : (byId.get(w.active_project_id) ?? `#${w.active_project_id}`),
+          tabCount: w.tab_count,
+        })),
+    );
+  }, [windowLabel, projects, t]);
+
   const closedProjects = useMemo(() => {
     const open = new Set(openProjects);
     return projects.filter((p) => !open.has(p.id));
@@ -334,6 +362,13 @@ export default function TabbedWindow({
         onDragDrop={dropOnOtherWindow}
         onDragCleanup={endDrag}
         handingOff={handingOff}
+        windowChoices={windowChoices}
+        onMenuOpen={() => void refreshWindows()}
+        onMoveToWindow={(id, target) => {
+          void commands.moveTabToWindow(id, target).then((r) => {
+            if (r.status === "error") fail(r.error);
+          });
+        }}
       />
 
       <div className="tabpanes">

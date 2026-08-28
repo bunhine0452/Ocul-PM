@@ -338,6 +338,116 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
   });
 });
 
+describe("탭 스트립 — 탭 메뉴 (드래그의 등가물)", () => {
+  const choices = [
+    { label: "win-2", name: "saju", tabCount: 2 },
+    { label: "win-3", name: "landing", tabCount: 1 },
+  ];
+
+  it("우클릭으로 열리고 다른 창 목록을 그린다 — 열 때 목록을 새로 읽는다", () => {
+    const onMenuOpen = vi.fn();
+    renderStrip({ windowChoices: choices, onMenuOpen });
+    fireEvent.contextMenu(screen.getAllByRole("tab")[1]);
+    expect(onMenuOpen).toHaveBeenCalled();
+    expect(screen.getByRole("menu", { name: "탭 메뉴" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "「saju」 창으로 옮기기" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "「landing」 창으로 옮기기" })).toBeInTheDocument();
+  });
+
+  /**
+   * 이게 이 메뉴의 존재 이유다 — 드래그는 포인터가 있어야만 성립한다.
+   * `ContextMenu` 키와 Shift+F10 은 WAI-ARIA 가 권하는 등가 제스처다.
+   */
+  it("Shift+F10 · 메뉴 키로도 열린다", () => {
+    renderStrip({ windowChoices: choices });
+    fireEvent.keyDown(screen.getAllByRole("tab")[0], { key: "F10", shiftKey: true });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    fireEvent.keyDown(screen.getAllByRole("tab")[0], { key: "ContextMenu" });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("창을 고르면 그 창으로 옮긴다", () => {
+    const onMoveToWindow = vi.fn();
+    renderStrip({ windowChoices: choices, onMoveToWindow });
+    fireEvent.contextMenu(screen.getAllByRole("tab")[1]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "「landing」 창으로 옮기기" }));
+    expect(onMoveToWindow).toHaveBeenCalledWith(102, "win-3");
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  /** 메뉴에는 겨눈 지점이 없다 — 좌표를 지어내지 않고 null 을 준다. */
+  it("떼어내기는 좌표 없이 부른다", () => {
+    const { props } = renderStrip({ windowChoices: choices });
+    fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "새 창으로 떼어내기" }));
+    expect(props.onDetach).toHaveBeenCalledWith(101, null, null);
+  });
+
+  it("마지막 탭에는 떼어내기를 안 그린다 — 백엔드도 거절한다", () => {
+    renderStrip({ tabs: [tab(1, "ai-pm")], activeId: 101, windowChoices: choices });
+    fireEvent.contextMenu(screen.getByRole("tab"));
+    expect(screen.queryByRole("menuitem", { name: "새 창으로 떼어내기" })).toBeNull();
+    // 옮기기와 닫기는 남는다.
+    expect(screen.getByRole("menuitem", { name: "탭 닫기" })).toBeInTheDocument();
+  });
+
+  it("보낼 창이 없으면 비우지 않고 이유를 적는다", () => {
+    renderStrip({ windowChoices: [] });
+    fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
+    expect(screen.getByText("옮길 다른 창이 없습니다.")).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /창으로 옮기기/ })).toBeNull();
+  });
+
+  it("위아래 화살표가 항목을 돌고, 열리면 첫 항목이 포커스를 받는다", () => {
+    renderStrip({ windowChoices: choices });
+    fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
+    const items = screen.getAllByRole("menuitem");
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(items[1]);
+    // 끝에서 감싼다.
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it("Escape 로 닫으면 포커스가 원래 탭으로 돌아온다", () => {
+    renderStrip({ windowChoices: choices });
+    const target = screen.getAllByRole("tab")[1];
+    fireEvent.contextMenu(target);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(document.activeElement).toBe(target);
+  });
+
+  it("axe 위반이 없다 (메뉴가 열린 채로)", async () => {
+    const { container } = render(
+      <>
+        <TabStrip
+          tabs={[tab(1, "ai-pm"), tab(2, "saju")]}
+          activeId={101}
+          isMac={false}
+          busyProjects={new Set()}
+          closedProjects={[]}
+          onActivate={vi.fn()}
+          onClose={vi.fn()}
+          onReorder={vi.fn()}
+          onDetach={vi.fn()}
+          onNewTab={vi.fn()}
+          onOpenProject={vi.fn()}
+          windowChoices={choices}
+        />
+        <div role="tabpanel" id="tabpanel-t101" aria-labelledby="tab-t101" />
+        <div role="tabpanel" id="tabpanel-t102" aria-labelledby="tab-t102" hidden />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
+    expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+});
+
 describe("탭 스트립 — 새 탭", () => {
   /** Chrome 과 같다 — `+` 는 곧바로 시작 탭을 연다 (메뉴를 거치지 않는다). */
   it("+ 클릭은 새 시작 탭", () => {
