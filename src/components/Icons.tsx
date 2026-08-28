@@ -564,6 +564,8 @@ export {
   // 터미널 개편 — 가로/세로 분할.
   Columns2,
   Rows2,
+  // 터미널 드래그-분할 (2026-08-28) — 페인을 집는 손잡이.
+  GripVertical,
   // 코드 화면 — 프로젝트 전역 검색 (#project-search). TextSearch 는 파일명
   // 필터(돋보기)와 구별되는 "내용 검색" 글리프.
   TextSearch,

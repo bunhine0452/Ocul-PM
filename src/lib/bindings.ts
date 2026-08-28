@@ -199,6 +199,25 @@ export const commands = {
 	 *  있어** 스크롤백까지 재부착된다 (`pty_prefix_for` 가 프로젝트 기준이라 가능).
 	 */
 	detachTab: (tabId: number, x: number | null, y: number | null) => typedError<null, string>(__TAURI_INVOKE("detach_tab", { tabId, x, y })),
+	/**
+	 *  지금 커서가 다른 앱 창의 탭 스트립 위인가. 대상 창 라벨을 돌려준다.
+	 * 
+	 *  드래그 중 포인터가 움직일 때마다 호출된다 — 대상이 바뀌면 떠난 창에
+	 *  `TabDragLeave`, 새 창에 `TabDragOver` 를 보내 캐럿을 옮긴다.
+	 */
+	tabDragOver: (tabId: number, band: number | null) => typedError<string | null, string>(__TAURI_INVOKE("tab_drag_over", { tabId, band })),
+	/**  대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②). */
+	tabDropHint: (window: string, index: number) => typedError<null, string>(__TAURI_INVOKE("tab_drop_hint", { window, index })),
+	/**
+	 *  겨누던 창으로 탭을 옮긴다 — 창 간 드래그의 마무리. 옮겼으면 `true`.
+	 * 
+	 *  원래 창의 **마지막** 탭이어도 옮긴다 (그 창은 닫힌다). 떼어내기가 마지막 탭을
+	 *  거부하는 것과 다른데, 여기서는 창이 하나 줄어드는 것이 사용자가 바란 결과이기
+	 *  때문이다 — 크롬도 그렇게 동작한다.
+	 */
+	attachTab: (tabId: number) => typedError<boolean, string>(__TAURI_INVOKE("attach_tab", { tabId })),
+	/**  드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다. */
+	tabDragEnd: () => typedError<null, string>(__TAURI_INVOKE("tab_drag_end")),
 	/**  창이 마운트 직후 자기 탭 구성을 읽는다 (이후는 이벤트로 갱신). */
 	getWindowTabs: (window: string) => typedError<WindowTabsSnapshot, string>(__TAURI_INVOKE("get_window_tabs", { window })),
 	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
@@ -1512,6 +1531,8 @@ export const events = {
 	oculpmWatchYielded: makeEvent<OculpmWatchYielded>("oculpm-watch-yielded"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
+	tabDragLeave: makeEvent<TabDragLeave>("tab-drag-leave"),
+	tabDragOver: makeEvent<TabDragOver>("tab-drag-over"),
 	terminalWindowsChanged: makeEvent<TerminalWindowsChanged>("terminal-windows-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
 	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
@@ -4166,6 +4187,25 @@ export type SymbolSearchResult = {
 	file_path: string,
 	start_line: number,
 	end_line: number,
+};
+
+/**  그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다. */
+export type TabDragLeave = {
+	window: string,
+};
+
+/**
+ *  다른 창에서 끌고 온 탭이 **이 창의 스트립 위**에 있다 (창 간 드래그).
+ * 
+ *  `x` 는 창 안쪽 왼쪽 위 기준 **논리 px**. 받는 쪽이 웹뷰 줌으로 나눠 CSS px 로
+ *  바꾼 뒤, 자기 탭 기하로 삽입 자리를 계산해 캐럿을 그리고 그 인덱스를
+ *  `tab_drop_hint` 로 되돌려 준다 — Rust 는 탭 폭을 모르기 때문이다.
+ */
+export type TabDragOver = {
+	window: string,
+	x: number | null,
+	/**  끌려오는 탭. 자기 탭이면(같은 창 되돌아오기) 무시할 수 있게 실어 보낸다. */
+	tab_id: number,
 };
 
 /**

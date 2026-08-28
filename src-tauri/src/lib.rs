@@ -142,6 +142,7 @@ use crate::commands::{
     apply_menu_language,
     open_devtools, open_project_tab, new_start_tab, set_tab_project, close_tab,
     activate_tab, reorder_tabs, detach_tab, get_window_tabs, list_open_project_ids,
+    tab_drag_over, tab_drop_hint, attach_tab, tab_drag_end,
     open_terminal_window, close_terminal_window, list_terminal_windows,
     read_project_file, read_file_range,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
@@ -310,6 +311,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         activate_tab,
         reorder_tabs,
         detach_tab,
+        // 창 간 탭 드래그 (다시 붙이기) — 겨누기 · 인덱스 회신 · 이동 · 정리
+        tab_drag_over,
+        tab_drop_hint,
+        attach_tab,
+        tab_drag_end,
         get_window_tabs,
         list_open_project_ids,
         // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
@@ -571,6 +577,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         crate::commands::window::CloseIntent,
         crate::commands::window::ProjectWindowsChanged,
         crate::commands::window::TerminalWindowsChanged,
+        crate::commands::window::TabDragOver,
+        crate::commands::window::TabDragLeave,
         // 코드 인텔리전스 — 진단·서버 상태 (docs/lsp/00-master-plan.md)
         crate::lsp::state::LspDiagnosticsPublished,
         crate::lsp::state::LspServerStateChanged,

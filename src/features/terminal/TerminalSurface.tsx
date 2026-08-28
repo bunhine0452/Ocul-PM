@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SquareTerminal,
-  Bot,
-  Plus,
   X,
   Search,
   Columns2,
   Rows2,
+  PanelLeftDock,
+  GripVertical,
 } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -38,12 +38,35 @@ import {
 } from "./dispatchBus";
 import { writeDispatchTo } from "./dispatchTarget";
 import { focusOfTab, panesOfTab } from "./activePane";
+import { contains, dropEdge, previewBox, type Box, type DropEdge } from "./paneDrop";
+import {
+  reorderTerminalTabs,
+  mergeTabIntoPane,
+  movePaneToEdge,
+  extractPaneToTab,
+  sidsOf,
+  type TabsState,
+} from "./dragOps";
+// 재배열 산술은 창 탭 스트립과 **같은 순수 함수**를 쓴다. 축을 모르는 함수라
+// (중심 좌표 배열 + 포인터 좌표) 세로 레일에 그대로 통한다 — 두 탭 줄이 서로
+// 다르게 반응하면 "어느 탭 줄이냐"에 따라 손이 달라져야 한다.
+import { tabDropIndex, DRAG_START_PX } from "@/features/shell/tabOrder";
 import {
   TERM_FONT_MIN as FONT_MIN,
   TERM_FONT_MAX as FONT_MAX,
   TERM_FONT_DEFAULT as FONT_DEFAULT,
   clampTermFont as clampFont,
 } from "./fontSize";
+import {
+  TERM_DENSITIES,
+  TERM_DENSITY_LABEL,
+  clampTermDensity,
+  termLineHeight,
+  termPanePad,
+} from "./density";
+import { TerminalRail } from "./TerminalRail";
+import { TerminalShellStatus } from "./TerminalShellStatus";
+import { formatCwdCrumb } from "./railModel";
 
 // 터미널 본체 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -53,6 +76,11 @@ import {
 //  - 탭: 더블클릭 리네임, 호버 닫기, ⌘T/⌘W.
 //  - 검색 오버레이(⌘F, addon-search), 글자 크기(⌘+/⌘-/⇧⌘0, 영속),
 //    하단 상태바(탭·페인·단축키 힌트·글자크기·.oculpm 감시).
+//
+// 2026-08-28 — **시각 정체성 라운드**. 가로 탭 줄을 세로 세션 레일로 바꾸고
+// (→ TerminalRail), 밀도 프리셋·앰비언트 페인 테두리·비활성 페인 디밍·라이브
+// 경과 시간을 넣었다. 에이전트를 서너 개 띄워 놓고 몇 시간을 보는 화면이라
+// "지금 어디에 타이핑되는가 · 무엇이 돌고 있는가"를 곁눈질로 알 수 있어야 한다.
 //
 // 2026-08-15 — **여러 면이 함께 쓰는 컴포넌트로 분리**했다 (예전엔 터미널
 // 화면 파일 안에 붙어 있었다). 지금 이걸 그리는 곳은 셋이다:
@@ -87,6 +115,29 @@ export function formatMatchCount(
   if (matches.index < 0) return t("term.matchCount", { n: matches.count });
   return `${matches.index + 1}/${matches.count}`;
 }
+
+/** 세션 옮기기 드래그의 진행 상태. `sid` 는 페인을 집었을 때만 있다. */
+interface Moving {
+  kind: "tab" | "pane";
+  /** 집은 것이 속한 탭. */
+  tabId: string;
+  sid?: string;
+  startX: number;
+  startY: number;
+  /** DRAG_START_PX 를 넘기 전에는 클릭으로 본다. */
+  moved: boolean;
+  /** 레일 위 — 카드 사이 삽입 자리와 캐럿을 그릴 y (레일 기준). */
+  rail: { index: number; top: number } | null;
+  /** 페인 위 — 겨눈 페인과 가장자리. */
+  pane: { sid: string; edge: DropEdge } | null;
+}
+
+const toBox = (r: DOMRect): Box => ({
+  left: r.left,
+  top: r.top,
+  width: r.width,
+  height: r.height,
+});
 
 export interface TerminalSurfaceProps {
   projectRoot: string | null;
@@ -133,6 +184,11 @@ export function TerminalSurface({
   // 앱 전역 설정에서 읽는다 (2026-08-15) — 설정 화면·상태바·⌘± 가 한 값을
   // 공유하고, 창을 여러 개 띄워도 SQLite 라 전부 같은 크기가 된다.
   const fontSize = clampFont(settings.terminalFontSize || FONT_DEFAULT);
+  // 밀도도 같은 이유로 앱 전역 설정이다 — 도크·터미널 화면·분리 창이 같은
+  // 값을 봐야 창을 옮길 때 줄 간격이 튀지 않는다.
+  const density = clampTermDensity(settings.terminalDensity);
+  const lineHeight = termLineHeight(density);
+  const railCollapsed = settings.terminalRailCollapsed;
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -142,11 +198,33 @@ export function TerminalSurface({
   // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
   // (드래그 매 프레임 전역 상태를 흔들지 않기 위해).
   const [drag, setDrag] = useState<{ tabId: string; path: string; ratio: number } | null>(null);
+  /**
+   * 세션 옮기기 드래그 (2026-08-28) — 레일 카드나 페인을 집어 **다른 자리**로
+   * 옮긴다. 위 `drag`(분할 비율 조절)와 이름이 비슷하지만 완전히 다른 조작이다.
+   *
+   *  - 레일 카드 → 페인 가장자리 : 두 세션을 나란히 (드래그 분할)
+   *  - 레일 카드 → 레일          : 순서 바꾸기
+   *  - 페인 그립 → 페인 가장자리 : 분할 안에서 자리 바꾸기
+   *  - 페인 그립 → 레일          : 페인을 독립 세션으로 빼내기 (분할의 반대)
+   */
+  const [moving, setMoving] = useState<Moving | null>(null);
   // 글자 크기 px 직접 입력 — 타이핑 중 초안(null = 편집 중 아님).
   const [fontDraft, setFontDraft] = useState<string | null>(null);
 
   // 단축키 스코프 판정용 — 이 면의 루트.
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // 드롭 판정에 필요한 기하 — 전부 ref 다. 드래그 중 매 프레임 읽으므로 상태로
+  // 들고 있으면 재렌더가 자기 자신을 다시 재게 만든다.
+  const railElRef = useRef<HTMLElement | null>(null);
+  const cardElsRef = useRef(new Map<string, HTMLElement>());
+  const bodyElRef = useRef<HTMLDivElement | null>(null);
+  const paneElsRef = useRef(new Map<string, HTMLElement>());
+  /**
+   * 방금 드래그로 끝난 포인터인가 — 레일 카드의 `click` 이 뒤따라 오는데,
+   * 그때 이미 사라진 세션을 고르면 활성 탭이 엉뚱한 데로 튄다 (합치기로 탭이
+   * 하나 없어진 직후가 정확히 그 경우다).
+   */
+  const justMovedRef = useRef(false);
 
   // sid → xterm 핸들 (검색/포커스 제어). onReady 로 채워진다.
   const regRef = useRef(new Map<string, TerminalHandles>());
@@ -208,7 +286,6 @@ export function TerminalSurface({
   useAgentRuns(shellStates, state.currentProjectId);
 
   const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
-  const paneCount = activeTab ? collectSids(panesOfTab(activeTab)).length : 0;
   dispatchSidRef.current = activeTab ? focusOfTab(activeTab) : null;
 
   // Ensure at least one tab exists.
@@ -324,6 +401,138 @@ export function TerminalSurface({
     const tab = terminalTabs.find((candidate) => candidate.id === tabId);
     if (!tab || tab.focusSid === sid) return;
     patchTab(tabId, (tab) => ({ ...tab, focusSid: sid }));
+  };
+
+  // ── 세션 옮기기 드래그 ────────────────────────────────────────────────────
+  //
+  // 판정은 전부 순수 함수(`paneDrop`)와 상태 변형(`dragOps`)에 있고, 여기서는
+  // 포인터와 기하를 그쪽에 넘기는 배선만 한다. 포인터 캡처를 쓰므로 커서가
+  // xterm 캔버스 위로 지나가도 move/up 을 계속 받는다 — 안 그러면 터미널이
+  // 이벤트를 삼켜 드래그가 페인 위에서 끊긴다.
+
+  /** 탭 목록 전체를 한 번에 바꾼다. 바뀐 게 없으면 상태를 건드리지 않는다. */
+  const applyMove = (fn: (state: TabsState) => TabsState) =>
+    setState((prev) => {
+      const next = fn({ tabs: prev.terminalTabs, activeId: prev.terminalActiveId });
+      if (next.tabs === prev.terminalTabs && next.activeId === prev.terminalActiveId) return prev;
+      return { ...prev, terminalTabs: next.tabs, terminalActiveId: next.activeId };
+    });
+
+  const beginMove = (kind: "tab" | "pane", tabId: string, sid?: string) =>
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return;
+      justMovedRef.current = false;
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      // 페인 그립은 뒤에 있는 터미널로 이벤트가 새면 안 된다 (선택·포커스 이동).
+      if (kind === "pane") e.stopPropagation();
+      setMoving({
+        kind,
+        tabId,
+        sid,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        rail: null,
+        pane: null,
+      });
+    };
+
+  /**
+   * 커서 밑의 페인과 그 가장자리. 자기 자신(또는 자기 탭 전체)은 건너뛴다 —
+   * 자기 옆에 자기를 붙일 수는 없다.
+   *
+   * 숨은 탭의 페인은 `display:none` 이라 rect 가 0 이므로 자연히 제외된다.
+   */
+  const hitPane = (m: Moving, x: number, y: number) => {
+    const skip = new Set<string>();
+    if (m.kind === "pane") {
+      skip.add(m.sid as string);
+    } else {
+      // 탭을 끌 때는 그 탭의 **모든** 페인이 제외된다. 지금 보이는 탭을 스스로
+      // 끌고 있다면 대상이 하나도 안 남는데, 그게 옳다 — 자기 자신과 나란히
+      // 놓을 수는 없다.
+      const own = terminalTabs.find((tab) => tab.id === m.tabId);
+      if (own) for (const sid of sidsOf(own)) skip.add(sid);
+    }
+    for (const [sid, el] of paneElsRef.current) {
+      if (skip.has(sid)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      const box = toBox(rect);
+      if (!contains(box, x, y)) continue;
+      const edge = dropEdge(box, x, y);
+      return edge === "center" ? null : { sid, edge };
+    }
+    return null;
+  };
+
+  /** 레일 위 삽입 자리 — 세로 목록이라 카드 **중심 y** 로 잰다. */
+  const hitRail = (y: number) => {
+    const railRect = railElRef.current?.getBoundingClientRect();
+    if (!railRect) return null;
+    const rects = terminalTabs.map(
+      (tab) => cardElsRef.current.get(tab.id)?.getBoundingClientRect() ?? null,
+    );
+    const centers = rects.map((r) => (r ? r.top + r.height / 2 : Number.POSITIVE_INFINITY));
+    const index = tabDropIndex(centers, y);
+    // 캐럿은 그 자리 카드의 위 모서리, 맨 뒤면 마지막 카드의 아래 모서리.
+    const edge = rects[index]?.top ?? rects[rects.length - 1]?.bottom ?? railRect.top;
+    return { index, top: edge - railRect.top };
+  };
+
+  const onMovePointer = (e: React.PointerEvent<HTMLElement>) => {
+    if (!moving) return;
+    const moved =
+      moving.moved ||
+      Math.abs(e.clientX - moving.startX) > DRAG_START_PX ||
+      Math.abs(e.clientY - moving.startY) > DRAG_START_PX;
+    if (!moved) return;
+
+    const railRect = railElRef.current?.getBoundingClientRect();
+    if (railRect && contains(toBox(railRect), e.clientX, e.clientY)) {
+      setMoving({ ...moving, moved, pane: null, rail: hitRail(e.clientY) });
+      return;
+    }
+    setMoving({ ...moving, moved, rail: null, pane: hitPane(moving, e.clientX, e.clientY) });
+  };
+
+  const endMovePointer = () => {
+    const m = moving;
+    if (!m) return;
+    setMoving(null);
+    if (!m.moved) return; // 클릭이다 — 선택/포커스는 각 요소의 onClick 이 한다.
+    justMovedRef.current = true;
+
+    if (m.pane) {
+      const { sid: target, edge } = m.pane;
+      applyMove((prev) =>
+        m.kind === "tab"
+          ? mergeTabIntoPane(prev, m.tabId, target, edge)
+          : movePaneToEdge(prev, m.tabId, m.sid as string, target, edge),
+      );
+      return;
+    }
+    const drop = m.rail;
+    if (!drop) return;
+    // 새 탭 id 는 리듀서 **밖에서** 만든다 — 안에서 만들면 StrictMode 이중
+    // 호출이 서로 다른 id 를 뽑아 어느 쪽이 남을지 알 수 없게 된다.
+    const bornId = newId(state.currentProjectId);
+    applyMove((prev) =>
+      m.kind === "tab"
+        ? reorderTerminalTabs(prev, m.tabId, drop.index)
+        : extractPaneToTab(prev, m.tabId, m.sid as string, drop.index, bornId),
+    );
+  };
+
+  const cancelMove = () => setMoving(null);
+
+  /** 드래그로 끝난 포인터의 뒤따르는 click 은 무시한다 (사라진 세션 선택 방지). */
+  const selectFromRail = (id: string) => {
+    if (justMovedRef.current) {
+      justMovedRef.current = false;
+      return;
+    }
+    selectTab(id);
   };
 
   const setFont = (px: number) => void setSetting("terminalFontSize", clampFont(px));
@@ -504,9 +713,10 @@ export function TerminalSurface({
     [projectRoot, settings.externalEditorCommand],
   );
 
-  // 포커스된 페인의 셸 통합 상태 — 상태바/툴바 문구가 여기서 나온다.
+  // 포커스된 페인의 셸 통합 상태 — 상태바(cwd·라이브 명령)와 툴바 부제가
+  // 여기서 나온다. 요약 문구는 `TerminalShellStatus` 가 직접 만든다 (시계를
+  // 그 안에 가두기 위해).
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
-  const shellSummary = focusedShell ? summarizeShell(focusedShell) : null;
   const shellActive = focusedShell?.active === true;
   useEffect(() => {
     onShellActiveChange?.(shellActive);
@@ -523,19 +733,60 @@ export function TerminalSurface({
   const watchColor =
     watcher === "running" ? "#57c98a" : watcher === "error" ? "var(--t-bug)" : "var(--text-3)";
 
+  /**
+   * 놓기 전에 보여 줄 상자 — `.term-body` 기준 좌표. 겨눈 페인의 **실제** 화면
+   * 상자에서 계산하므로 여백·손잡이 폭이 이미 반영돼 있다.
+   */
+  const dropPreview = (() => {
+    const target = moving?.pane;
+    const body = bodyElRef.current;
+    if (!target || !body) return null;
+    const el = paneElsRef.current.get(target.sid);
+    if (!el) return null;
+    const box = previewBox(toBox(el.getBoundingClientRect()), target.edge);
+    if (!box) return null;
+    const base = body.getBoundingClientRect();
+    return {
+      left: box.left - base.left,
+      top: box.top - base.top,
+      width: box.width,
+      height: box.height,
+    };
+  })();
+
   const renderPane = (tab: TerminalTab, node: PaneNode, path: string): React.ReactNode => {
     const isActiveTab = tab.id === terminalActiveId;
     if (node.type === "leaf") {
       const focusSid = focusOfTab(tab);
       const count = collectSids(panesOfTab(tab)).length;
       const focused = count > 1 && node.sid === focusSid;
+      // 앰비언트 상태 테두리 — 페인이 스스로 무슨 상태인지 말한다. 셸 통합이
+      // 없으면 "off" 라 아무 색도 입지 않는다 (모르는 걸 초록으로 칠하지 않는다).
+      const shell = shellStates[node.sid];
+      const tone = (shell ? summarizeShell(shell)?.tone : null) ?? "off";
+      const dropping = moving?.pane?.sid === node.sid;
       return (
-        <div className={"term-pane" + (focused ? " focused" : "")}>
+        <div
+          // 드롭 판정은 페인의 실제 화면 상자로 한다 — 트리를 따라 계산하면
+          // 여백·분할 손잡이 폭만큼 어긋나 "가장자리를 겨눴는데 안 잡힌다".
+          ref={(el) => {
+            if (el) paneElsRef.current.set(node.sid, el);
+            else paneElsRef.current.delete(node.sid);
+          }}
+          className={
+            "term-pane" +
+            (focused ? " focused" : "") +
+            (count > 1 && !focused ? " dim" : "") +
+            (dropping ? " dropping" : "")
+          }
+          data-tone={tone}
+        >
           <TerminalInstance
             sessionId={node.sid}
             cwd={tab.cwd || projectRoot || ""}
             visible={isActiveTab}
             fontSize={fontSize}
+            lineHeight={lineHeight}
             persistent
             autoFocus={node.sid === focusSid}
             onReady={(h) => {
@@ -554,15 +805,33 @@ export function TerminalSurface({
             onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
           {count > 1 ? (
-            <button
-              type="button"
-              className="pane-close"
-              onClick={() => closePane(node.sid)}
-              aria-label={t("term.closePane")}
-              title={t("term.closePaneHint")}
-            >
-              <X size={11} />
-            </button>
+            <>
+              {/* 페인을 집는 손잡이. 마우스 전용 어포던스라 보조기술에는 감춘다
+                  — 키보드 등가물은 ⌘D/⇧⌘D(분할)와 ⌘W(닫기)가 이미 있다.
+                  캔버스 위에 직접 포인터를 걸면 셸 선택·드래그와 싸우므로,
+                  잡는 자리를 따로 둔다 (iTerm2 도 페인은 손잡이로 옮긴다). */}
+              <span
+                className="pane-grip"
+                role="presentation"
+                aria-hidden="true"
+                title={t("term.dragPaneHint")}
+                onPointerDown={beginMove("pane", tab.id, node.sid)}
+                onPointerMove={onMovePointer}
+                onPointerUp={endMovePointer}
+                onPointerCancel={cancelMove}
+              >
+                <GripVertical size={11} />
+              </span>
+              <button
+                type="button"
+                className="pane-close"
+                onClick={() => closePane(node.sid)}
+                aria-label={t("term.closePane")}
+                title={t("term.closePaneHint")}
+              >
+                <X size={11} />
+              </button>
+            </>
           ) : null}
         </div>
       );
@@ -588,86 +857,29 @@ export function TerminalSurface({
   };
 
   return (
-    <div className={"term-wrap" + (compact ? " compact" : "")} ref={rootRef}>
-      {/* Tauri 는 클릭된 엘리먼트 **자신**의 속성만 본다 (조상을 타고 오르지
-          않는다) — 그래서 컨테이너와 빈 스페이서에 각각 붙이고, 탭·버튼에는
-          일부러 붙이지 않아 클릭이 그대로 산다. */}
-      <div
-        className="term-tabs"
-        role="tablist"
-        aria-label={t("term.tablist")}
-        data-tauri-drag-region={dragRegion || undefined}
-      >
-        {terminalTabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={"term-tab" + (tab.id === terminalActiveId ? " active" : "")}
-            onClick={() => selectTab(tab.id)}
-            onDoubleClick={() => setRenaming({ id: tab.id, draft: tab.label })}
-            role="tab"
-            aria-selected={tab.id === terminalActiveId}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") selectTab(tab.id);
-            }}
-            title={t("term.renameHint")}
-          >
-            {tab.label.includes("claude") || tab.label.includes("cursor") ? (
-              <Bot size={14} />
-            ) : (
-              <SquareTerminal size={14} />
-            )}
-            {renaming?.id === tab.id ? (
-              <input
-                className="term-tab-rename"
-                autoFocus
-                value={renaming.draft}
-                onChange={(e) => setRenaming({ id: tab.id, draft: e.target.value })}
-                onBlur={commitRename}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename();
-                  else if (e.key === "Escape") setRenaming(null);
-                  e.stopPropagation();
-                }}
-                aria-label={t("term.renameLabel")}
-              />
-            ) : (
-              <span className="term-tab-label">{tab.label}</span>
-            )}
-            <span
-              className="term-tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                closeTab(tab.id);
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label={t("term.closeTab", { label: tab.label })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  closeTab(tab.id);
-                }
-              }}
-            >
-              <X size={12} />
-            </span>
-          </div>
-        ))}
+    <div
+      className={"term-wrap" + (compact ? " compact" : "")}
+      ref={rootRef}
+      style={{ "--term-pane-pad": `${termPanePad(density)}px` } as React.CSSProperties}
+    >
+      {/* 얇은 머리줄 — 레일 토글과 도구만 둔다 (2026-08-28). 세션 목록은 아래
+          세로 레일이 맡는다.
+
+          Tauri 는 클릭된 엘리먼트 **자신**의 속성만 본다 (조상을 타고 오르지
+          않는다) — 그래서 컨테이너와 빈 스페이서에 각각 drag-region 을 붙이고,
+          버튼에는 일부러 붙이지 않아 클릭이 그대로 산다. */}
+      <div className="term-head" data-tauri-drag-region={dragRegion || undefined}>
         <button
           type="button"
-          className="term-tab-add"
-          onClick={addTab}
-          aria-label={t("term.newSessionHint")}
-          title={t("term.newSessionHint")}
+          className="term-tool"
+          onClick={() => void setSetting("terminalRailCollapsed", !railCollapsed)}
+          title={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
+          aria-label={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
+          aria-pressed={!railCollapsed}
         >
-          <Plus size={14} />
+          <PanelLeftDock size={14} />
         </button>
-
-        {/* 도구 묶음 — 예전엔 화면 툴바에만 있어서 도크에서는 쓸 수 없었다.
-            탭 줄로 옮기니 세 면(화면·도크·분리 창)이 같은 조작을 갖는다. */}
-        <span className="term-tabs-spacer" data-tauri-drag-region={dragRegion || undefined} />
+        <span className="term-head-spacer" data-tauri-drag-region={dragRegion || undefined} />
         <div className="term-tools">
           <button
             type="button"
@@ -700,7 +912,38 @@ export function TerminalSurface({
         </div>
       </div>
 
-      <div className="term-body">
+      <div className="term-main">
+        <TerminalRail
+          tabs={terminalTabs}
+          shellStates={shellStates}
+          activeId={terminalActiveId}
+          collapsed={railCollapsed}
+          renaming={renaming}
+          onSelect={selectFromRail}
+          onClose={closeTab}
+          onAdd={addTab}
+          drag={{
+            movingId: moving?.moved ? (moving.kind === "tab" ? moving.tabId : null) : null,
+            caretTop: moving?.moved ? (moving.rail?.top ?? null) : null,
+            registerRail: (el) => {
+              railElRef.current = el;
+            },
+            registerCard: (id, el) => {
+              if (el) cardElsRef.current.set(id, el);
+              else cardElsRef.current.delete(id);
+            },
+            onPointerDown: (id, e) => beginMove("tab", id)(e),
+            onPointerMove: onMovePointer,
+            onPointerUp: endMovePointer,
+            onPointerCancel: cancelMove,
+          }}
+          onRenameStart={(id, label) => setRenaming({ id, draft: label })}
+          onRenameChange={(draft) => setRenaming((prev) => (prev ? { ...prev, draft } : prev))}
+          onRenameCommit={commitRename}
+          onRenameCancel={() => setRenaming(null)}
+        />
+
+      <div className="term-body" ref={bodyElRef}>
         {terminalTabs.map((tab) => (
           <div
             key={tab.id}
@@ -710,6 +953,11 @@ export function TerminalSurface({
             {renderPane(tab, panesOfTab(tab), "")}
           </div>
         ))}
+        {/* 놓으면 차지할 자리. 페인의 `::before`(상태 띠 z=4)·`::after`(포커스 링
+            z=3)·`.pane-close`(z=5) 위에 와야 하므로 z-index 6 이다. */}
+        {dropPreview ? (
+          <div className="term-drop" style={dropPreview} aria-hidden="true" />
+        ) : null}
         {searchOpen ? (
           <div className="term-search">
             <Search size={13} />
@@ -767,23 +1015,39 @@ export function TerminalSurface({
             </button>
           </div>
         ) : null}
+        </div>
       </div>
 
       <div className="term-status">
-        <span className="ts-seg">
+        {/* 왼쪽 = 어디에 있는가. 절대 경로는 좁은 줄에서 앞이 잘려 아무 정보도
+            주지 못하므로 프로젝트 루트 기준 상대 경로로 접는다. 셸 통합이 없어
+            cwd 를 모르면 세션 이름으로 물러선다. */}
+        <span className="ts-seg ts-crumb" title={focusedShell?.cwd ?? undefined}>
           <SquareTerminal size={12} />
-          {activeTab?.label ?? "—"}
-          {paneCount > 1 ? ` · ${t("term.paneCount", { n: paneCount })}` : ""}
-        </span>
-        {shellSummary ? (
-          <span className="ts-seg" title={focusedShell?.cwd ?? undefined} aria-live="polite">
-            <span className={"ts-dot tone-" + shellSummary.tone} />
-            {shellSummary.text}
+          <span className="ts-crumb-text">
+            {formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
           </span>
-        ) : null}
+        </span>
+        {/* 가운데 = 지금 무슨 일이 일어나는가 (실행 중이면 1초마다 갱신). */}
+        <TerminalShellStatus shell={focusedShell} />
         {/* 좁은 도크에서는 단축키 힌트가 다른 정보를 밀어낸다 — 넓을 때만. */}
         {compact ? null : <span className="ts-hint">{t("term.shortcuts")}</span>}
         <span style={{ flex: 1 }} />
+        <label className="ts-seg ts-density" title={t("term.density.hint")}>
+          {compact ? null : <span>{t("term.density.label")}</span>}
+          <select
+            className="ts-select"
+            value={density}
+            onChange={(e) => void setSetting("terminalDensity", clampTermDensity(e.target.value))}
+            aria-label={t("term.density.label")}
+          >
+            {TERM_DENSITIES.map((preset) => (
+              <option key={preset} value={preset}>
+                {t(TERM_DENSITY_LABEL[preset])}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="ts-seg">
           <button
             type="button"

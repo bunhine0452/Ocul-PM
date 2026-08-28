@@ -6,7 +6,7 @@
  * 틀려도 타입이 잡아주지 않는 자리다.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -241,6 +241,100 @@ describe("탭 스트립 — 포인터", () => {
     fireEvent.click(screen.getByTitle("saju 탭 닫기"));
     expect(props.onClose).toHaveBeenCalledWith(102);
     expect(props.onActivate).not.toHaveBeenCalled();
+  });
+});
+
+describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
+  /**
+   * 내보내는 쪽. 스트립 밖으로 나간 동안에만 "다른 창 위인가"를 묻는다 —
+   * 안에서 물으면 IPC 만 태우고 재배열이 끊긴다.
+   */
+  it("스트립 밖에서만 대상 창을 물어본다 — 스트립 높이를 함께 넘긴다", () => {
+    const onDragHover = vi.fn();
+    const { props } = renderStrip({ onDragHover });
+    const tabs = stubGeometry();
+    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
+    // 스트립 안 — 묻지 않는다.
+    fireEvent.pointerMove(tabs[1], { clientX: 220, clientY: 20 });
+    expect(onDragHover).not.toHaveBeenCalled();
+    // 밖 — 묻는다. 높이는 스트립 rect 그대로(6..44 = 38).
+    fireEvent.pointerMove(tabs[1], { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 });
+    expect(onDragHover).toHaveBeenCalledWith(102, 38);
+    expect(props.onDetach).not.toHaveBeenCalled();
+  });
+
+  it("다른 창이 받으면 새 창을 만들지 않는다", async () => {
+    const onDragDrop = vi.fn().mockResolvedValue(true);
+    const { props } = renderStrip({ onDragDrop, handingOff: true });
+    const tabs = stubGeometry();
+    const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
+    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
+    fireEvent.pointerMove(tabs[1], far);
+    fireEvent.pointerUp(tabs[1], { ...far, screenX: 900, screenY: 500 });
+    await waitFor(() => expect(onDragDrop).toHaveBeenCalledWith(102));
+    expect(props.onDetach).not.toHaveBeenCalled();
+    expect(props.onReorder).not.toHaveBeenCalled();
+  });
+
+  it("받는 창이 없으면 그대로 떼어낸다 — 화면 좌표는 그대로 살아 있다", async () => {
+    const onDragDrop = vi.fn().mockResolvedValue(false);
+    const { props } = renderStrip({ onDragDrop });
+    const tabs = stubGeometry();
+    const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
+    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
+    fireEvent.pointerMove(tabs[1], far);
+    fireEvent.pointerUp(tabs[1], { ...far, screenX: 900, screenY: 500 });
+    await waitFor(() => expect(props.onDetach).toHaveBeenCalledWith(102, 900, 500));
+  });
+
+  it("스트립으로 돌아오면 남의 창에 남긴 캐럿을 지운다", () => {
+    const onDragCleanup = vi.fn();
+    renderStrip({ onDragCleanup });
+    const tabs = stubGeometry();
+    fireEvent.pointerDown(tabs[0], { button: 0, clientX: 50, clientY: 20 });
+    fireEvent.pointerMove(tabs[0], { clientX: 60, clientY: 300 });
+    expect(onDragCleanup).not.toHaveBeenCalled();
+    fireEvent.pointerMove(tabs[0], { clientX: 260, clientY: 20 });
+    expect(onDragCleanup).toHaveBeenCalled();
+  });
+
+  /**
+   * 받는 쪽. 탭 폭은 CSS 가 정하므로 삽입 자리는 **이 컴포넌트만** 계산할 수
+   * 있다 — 백엔드는 그 답을 받아 두었다가 놓는 순간에 쓴다.
+   */
+  it("끌려온 x 로 삽입 자리를 계산해 알리고 캐럿을 그 자리에 세운다", async () => {
+    const onIncomingIndex = vi.fn();
+    const { props, rerender } = renderStrip({ onIncomingIndex });
+    stubGeometry();
+    // 탭 중심은 50 / 150 / 250 — 두 번째 탭 중심 바로 앞이면 자리는 1.
+    rerender(<TabStrip {...props} incomingX={140} />);
+    await waitFor(() => expect(onIncomingIndex).toHaveBeenCalledWith(1));
+    const caret = document.querySelector<HTMLElement>(".tabstrip-caret");
+    expect(caret).not.toBeNull();
+    // 캐럿은 그 자리 탭의 왼쪽 모서리에 선다.
+    expect(caret?.style.left).toBe("100px");
+
+    // 맨 뒤로 가면 마지막 탭의 오른쪽 모서리.
+    rerender(<TabStrip {...props} incomingX={390} />);
+    await waitFor(() => expect(onIncomingIndex).toHaveBeenLastCalledWith(3));
+    expect(document.querySelector<HTMLElement>(".tabstrip-caret")?.style.left).toBe("300px");
+
+    // 커서가 떠나면 캐럿도 사라진다.
+    rerender(<TabStrip {...props} incomingX={null} />);
+    await waitFor(() => expect(document.querySelector(".tabstrip-caret")).toBeNull());
+  });
+
+  it("같은 자리를 계속 겨누면 중복 보고하지 않는다", async () => {
+    const onIncomingIndex = vi.fn();
+    const { props, rerender } = renderStrip({ onIncomingIndex });
+    stubGeometry();
+    rerender(<TabStrip {...props} incomingX={140} />);
+    await waitFor(() => expect(onIncomingIndex).toHaveBeenCalledTimes(1));
+    rerender(<TabStrip {...props} incomingX={145} />);
+    await waitFor(() =>
+      expect(document.querySelector<HTMLElement>(".tabstrip-caret")?.style.left).toBe("100px"),
+    );
+    expect(onIncomingIndex).toHaveBeenCalledTimes(1);
   });
 });
 

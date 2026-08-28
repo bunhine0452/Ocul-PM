@@ -31,6 +31,46 @@
 }
 /* 탭을 떼어내는 중 — 스트립 전체를 흐리게 해 "이 창에서 빠진다"를 알린다. */
 .tabstrip.is-detaching { opacity: 0.55; }
+/* 다른 창의 스트립을 겨누는 중 — "새 창" 이 아니라 "저기로 합쳐진다" 는 뜻이라
+   더 흐리게 물러난다. 두 상태를 같은 농도로 두면 손을 놓기 전에는 어느 쪽인지
+   알 수 없다. */
+.tabstrip.is-handoff { opacity: 0.32; }
+
+/* ── 받는 쪽 — 다른 창에서 탭이 끌려오는 중 ────────────────────────────────
+   테두리로 "여기에 놓인다"를 알리고, 캐럿이 **어디에** 놓이는지를 알린다.
+   둘 다 필요하다: 테두리만 있으면 순서를 모르고, 캐럿만 있으면 창이 대상인지
+   모른다. */
+.tabstrip.is-receiving::after {
+  content: "";
+  position: absolute;
+  inset: 2px 3px 0;
+  border-radius: 10px 10px 0 0;
+  box-shadow: inset 0 0 0 2px var(--accent-ring, var(--accent));
+  pointer-events: none;
+  animation: tabstrip-receive var(--dur-1, 140ms) var(--ease-out, ease-out);
+}
+@keyframes tabstrip-receive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* 삽입 캐럿 — 탭 사이에 꽂힐 자리. `left` 는 컴포넌트가 인라인으로 준다. */
+.tabstrip-caret {
+  position: absolute;
+  bottom: 0;
+  width: 3px;
+  height: 30px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  pointer-events: none;
+  z-index: 3;
+  transition: left var(--dur-1, 140ms) var(--ease-out, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabstrip-caret { transition: none; }
+  .tabstrip.is-receiving::after { animation: none; }
+}
 
 .tabstrip-tab {
   display: flex;

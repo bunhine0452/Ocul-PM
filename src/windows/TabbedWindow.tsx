@@ -21,6 +21,7 @@ import ProjectTab from "@/windows/ProjectTab";
 import StartTab from "@/windows/StartTab";
 
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { safeUnlisten } from "@/lib/unlisten";
 import { runCloseIntent } from "@/lib/closeIntent";
@@ -44,6 +45,7 @@ export default function TabbedWindow({
   initialEntryPath = null,
 }: TabbedWindowProps) {
   const { t } = useT();
+  const { settings } = useSettings();
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -223,6 +225,74 @@ export default function TabbedWindow({
     return () => window.removeEventListener("keydown", onKey);
   }, [activate, newTab]);
 
+  // ── 창 간 탭 드래그 (다시 붙이기) ──────────────────────────────────────
+  //
+  // 이 창은 두 역할을 **동시에** 한다: 탭을 내보내는 쪽(hover/drop 을 백엔드에
+  // 물어본다)이자 받는 쪽(`TabDragOver` 를 듣고 캐럿을 그린다). 창 하나에 두
+  // 배선이 다 필요한 이유는 어느 창이 어느 역할일지 미리 알 수 없어서다.
+
+  /** 받는 쪽 — 끌려온 커서의 창 안쪽 x (CSS px). null = 지금은 없다. */
+  const [incomingX, setIncomingX] = useState<number | null>(null);
+  /** 내보내는 쪽 — 지금 겨누는 다른 창이 있다 (스트립을 흐리게 그린다). */
+  const [handingOff, setHandingOff] = useState(false);
+  /**
+   * 웹뷰 줌. 화면·창 기하는 **논리 px**, `getBoundingClientRect` 는 **CSS px** 라
+   * 둘을 오갈 때 이 값으로 곱하고 나눈다. 줌은 앱 전역 설정(SQLite)이라 두 창이
+   * 늘 같은 값을 본다 — 그래서 보내는 쪽이 잰 스트립 높이를 받는 쪽에 그대로
+   * 쓸 수 있다.
+   */
+  const zoom = Math.min(1.6, Math.max(0.7, settings.uiScale || 1));
+
+  useEffect(() => {
+    const offs: Array<() => void> = [];
+    void events.tabDragOver
+      .listen(({ payload }) => {
+        if (payload.window !== windowLabel) return;
+        // `f64` 는 바인딩에서 nullable 로 나온다 (NaN 표현 때문) — 방어한다.
+        setIncomingX(payload.x == null ? null : payload.x / zoom);
+      })
+      .then((fn) => offs.push(fn));
+    void events.tabDragLeave
+      .listen(({ payload }) => {
+        if (payload.window !== windowLabel) return;
+        setIncomingX(null);
+      })
+      .then((fn) => offs.push(fn));
+    return () => offs.forEach(safeUnlisten);
+  }, [windowLabel, zoom]);
+
+  /**
+   * 겨누기 질의는 **한 번에 하나만** 띄운다. 포인터는 초당 수십 번 움직이는데
+   * 그때마다 IPC 를 걸면 왕복이 밀려 캐럿이 커서를 못 따라온다 — 답이 온 뒤
+   * 다음 것을 보내면 항상 최신 위치 한 건만 흐른다.
+   */
+  const hoverBusy = useRef(false);
+  // 콜백은 리스너 재등록을 피하려고 줌을 ref 로 읽는다 (값은 매 렌더 최신).
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const askDropTarget = useCallback((tabId: number, stripHeight: number) => {
+    if (hoverBusy.current) return;
+    hoverBusy.current = true;
+    void commands
+      .tabDragOver(tabId, stripHeight * zoomRef.current)
+      .then((r) => setHandingOff(r.status === "ok" && r.data != null))
+      .catch(() => setHandingOff(false))
+      .finally(() => {
+        hoverBusy.current = false;
+      });
+  }, []);
+
+  const endDrag = useCallback(() => {
+    setHandingOff(false);
+    void commands.tabDragEnd();
+  }, []);
+
+  const dropOnOtherWindow = useCallback(async (tabId: number) => {
+    setHandingOff(false);
+    const res = await commands.attachTab(tabId);
+    return res.status === "ok" && res.data;
+  }, []);
+
   const closedProjects = useMemo(() => {
     const open = new Set(openProjects);
     return projects.filter((p) => !open.has(p.id));
@@ -258,6 +328,12 @@ export default function TabbedWindow({
             if (r.status === "error") fail(r.error);
           });
         }}
+        incomingX={incomingX}
+        onIncomingIndex={(index) => void commands.tabDropHint(windowLabel, index)}
+        onDragHover={askDropTarget}
+        onDragDrop={dropOnOtherWindow}
+        onDragCleanup={endDrag}
+        handingOff={handingOff}
       />
 
       <div className="tabpanes">
