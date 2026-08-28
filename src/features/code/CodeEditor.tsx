@@ -53,7 +53,10 @@ const editorChrome = EditorView.theme({
   ".cm-content": { caretColor: "var(--code-fg)", paddingBottom: "40vh" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--code-fg)" },
   ".cm-gutters": {
-    backgroundColor: "transparent",
+    // 거터는 position:sticky 라 가로 스크롤 때 제자리에 남는다 — 배경이
+    // 투명하면 긴 줄이 줄번호 밑으로 비쳐 겹쳐 보인다. 편집면(.code-pane)
+    // 과 같은 불투명 바탕을 깔아 코드가 뒤로 지나가게 한다.
+    backgroundColor: "var(--bg-content)",
     color: "var(--text-3)",
     border: "none",
     borderRight: "1px solid var(--sep)",

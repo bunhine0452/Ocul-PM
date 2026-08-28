@@ -78,6 +78,10 @@ const ALLOWLIST = new Set([
   // 나갔는지**를 봐야 한다 (영속은 디바운스라 다시 마운트만 해서는 경쟁이 된다).
   // Test-only.
   "__tests__/code_screen_tabs.test.tsx",
+  // Node 26+ 가 jsdom 의 localStorage/sessionStorage 를 가리는 문제를 막는
+  // 테스트 전용 셰임. 전역이 비어 있을 때만 메모리 Storage 를 깐다 —
+  // 앱 상태를 읽고 쓰는 코드가 아니라 스토리지 자체를 세우는 자리다. Test-only.
+  "__tests__/storageShim.ts",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

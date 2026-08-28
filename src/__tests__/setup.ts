@@ -1,3 +1,7 @@
+// ⚠ 첫 import — Node 26+ 에서 가려지는 localStorage/sessionStorage 를 되살린다.
+// (이유는 storageShim.ts 주석. 다른 import 보다 먼저 실행돼야 한다.)
+import "./storageShim";
+
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 

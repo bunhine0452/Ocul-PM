@@ -56,7 +56,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.21.0 — drag from Finder, paste with ⌘V
+## 🚀 v2.21.1 — code no longer bleeds through the line numbers
+
+- **Horizontal scrolling drew code on top of the gutter.** The line-number column stays put while you scroll sideways, but it had no background of its own — so long lines sliding past showed straight through the digits and the two read as one tangle. It only appeared in files with lines wide enough to scroll. The gutter now paints the same background as the editing surface, and code passes behind it — in every theme and colour preset.
+
+## v2.21.0 — drag from Finder, paste with ⌘V
 
 - **Drag from Finder into the code tree.** No more leaving the app to drop a screenshot, a reference PDF, or a folder into your project. While you drag, **the folder it will land in lights up**; when you drop, that folder expands and the app tells you where things went. Drop onto a file and it lands *next to* it.
 - **⌘V.** Copy files or folders in Finder with ⌘C and paste them straight into the app — they go into the folder you last clicked in the tree. ⌘V inside the editor still pastes text, as before.

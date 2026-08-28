@@ -4,7 +4,7 @@ id: ci-and-module-boundaries
 title: "CI 게이트 · 모듈 경계 정리 — 외부 코드리뷰 피드백 4건 대응"
 status: active
 created: 2026-08-25
-updated: 2026-08-25
+updated: 2026-08-28
 owner: claude-code
 ---
 
@@ -29,6 +29,7 @@ owner: claude-code
 - [x] bindings 신선도 게이트 — Rust 잡에서 `cargo test` 직후 `git diff --exit-code src/lib/bindings.ts`. 커맨드만 고치고 bindings 재생성을 빠뜨린 커밋을 잡는다(이 저장소 고유의 구조적 실수 경로) {#ci-bindings-drift}
 - [x] 문서·배지 — README ko/en 에 CI 배지, docs/RELEASE.md 릴리스 절차에 "태그 푸시 전 CI 그린 확인" 한 줄 {#ci-docs}
 - [ ] 스킵 가드 보강 — `tests/lsp_rust_analyzer.rs` 의 `rust_analyzer()` 가 PATH 의 **파일 존재**만 봐서 rustup shim 에 속는다(컴포넌트 없이도 가드 통과 → 실행 시 사망). `--version` 기동 확인으로 바꿔 컴포넌트 없는 로컬에서도 진짜로 건너뛰게 한다 — CI 첫 실행이 잡아낸 잠복 버그 {#ra-guard-hardening}
+- [x] 로컬 테스트 게이트 복구 — Node 26 의 실험적 `globalThis.localStorage`(`--localstorage-file` 없으면 `undefined`)가 jsdom 의 것을 가려 `localStorage.clear()` 를 쓰는 스위트 19파일/201건이 로컬에서만 죽는다. CI 는 `node-version: 22` 라 초록이어서 안 보인다 — setup.ts 에서 jsdom 의 `window.localStorage` 를 globalThis 에 다시 심거나 Node 를 고정한다 {#node26-localstorage-shadow}
 - [x] 실측·조정 — 콜드/웜 소요시간 기록. Rust 잡 웜이 5분을 넘으면 `cargo test --lib` 와 통합 테스트 분리 검토 {#ci-timing}
 
 ## Phase 2 — 백엔드 모듈 경계 {#p2-backend}
@@ -78,4 +79,6 @@ AcpConversation.tsx 의 진짜 문제는 파일 3,542줄이 아니라 **본체 �
 | 2026-08-25T20:56:00+09:00 | #settings-split | claude-code | ☐→x | 20260825/Refactors/2056_refactor_settings-panel-tabs.md | SettingsPanel 1,871→264줄, tabs/ 8파일. 선언 29개·테스트 1,303 동일. NotionSection 재수출로 표면 유지 |
 | 2026-08-25T21:00:00+09:00 | #frontend-regression | claude-code | ☐→x | 20260825/Features_to_add/2100_feature_acp-characterization-tests.md | acp_conversation_seams 5건 — 기록·실패·탭·초안 분리를 못 박음. 렌더 커버리지 2→7건 |
 | 2026-08-25T21:03:00+09:00 | #acp-extract-hooks | claude-code | ☐→☐ | 20260825/Refactors/2103_refactor_acp-use-session-maps.md | useSessionMaps 추출(1/5). 패턴 검증됨 — 1,308 테스트 그린. 탭은 closeTab 동반 필요 |
+| 2026-08-28T16:27:00+09:00 | #node26-localstorage-shadow | claude-code | →☐ | 20260828/Bugs/1627_bug_code-gutter-transparent-on-hscroll.md | 코드 거터 버그 고치다 발견 — 클린 트리(5aab5e3)에서도 동일 실패, 선재 결함 |
+| 2026-08-28T16:40:00+09:00 | #node26-localstorage-shadow | claude-code | ☐→x | 20260828/Bugs/1637_bug_node26-localstorage-shadow.md | setup.ts 첫 import 로 메모리 Storage 셰임. 201실패 → 1,327건 전건 통과 |
 <!-- oculpm:plan-log end -->
