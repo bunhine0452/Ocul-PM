@@ -10,6 +10,7 @@ import {
 } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
+import { requestManualEntry } from "@/lib/journalCompose";
 // 모듈 t() 는 `formatMatchCount`(순수·테스트 대상) 용, useT() 는 컴포넌트 용.
 import { t, useT } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -65,6 +66,8 @@ import {
   termPanePad,
 } from "./density";
 import { TerminalRail } from "./TerminalRail";
+import { TerminalAgentPill } from "./TerminalAgentPill";
+import type { PaneSignal } from "./agentMode";
 import { TerminalShellStatus } from "./TerminalShellStatus";
 import { formatCwdCrumb } from "./railModel";
 
@@ -231,6 +234,9 @@ export function TerminalSurface({
 
   // sid → 셸 통합 상태(OSC 133). 통합이 설치되지 않은 세션은 여기 안 들어온다.
   const [shellStates, setShellStates] = useState<Record<string, ShellState>>({});
+  // sid → 페인 신호(alt-screen · BEL · 마지막 출력). 셸 통합과 **독립**으로
+  // 온다 — 둘을 합쳐 "에이전트가 나를 기다리는가"를 판정한다 (→ agentMode).
+  const [paneSignals, setPaneSignals] = useState<Record<string, PaneSignal>>({});
 
   // IN2 — 디스패치 프리필: 대기 중인 건을 활성 페인 PTY 에 써 둔다 (개행 없음
   // — 실행은 사용자가 Enter 로). sid 는 ref 로 최신을 읽는다 — deps 재실행(탭
@@ -283,7 +289,10 @@ export function TerminalSurface({
 
   // 명령 경계에서 코딩 에이전트 실행을 추적 → 세션 신호 + 일지 제안.
   // 셸 통합이 꺼져 있으면 shellStates 가 비어 있어 자동으로 no-op 이다.
-  useAgentRuns(shellStates, state.currentProjectId);
+  const { finished: finishedRuns, dismiss: dismissFinishedRun } = useAgentRuns(
+    shellStates,
+    state.currentProjectId,
+  );
 
   const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
   dispatchSidRef.current = activeTab ? focusOfTab(activeTab) : null;
@@ -306,13 +315,15 @@ export function TerminalSurface({
       if (!alive.has(sid)) regRef.current.delete(sid);
     }
     // 셸 상태도 같이 회수 — 안 그러면 탭을 여닫을 때마다 맵이 무한정 자란다.
-    setShellStates((prev) => {
+    const reap = <T,>(prev: Record<string, T>): Record<string, T> => {
       const stale = Object.keys(prev).filter((sid) => !alive.has(sid));
       if (stale.length === 0) return prev;
       const next = { ...prev };
       for (const sid of stale) delete next[sid];
       return next;
-    });
+    };
+    setShellStates(reap);
+    setPaneSignals(reap);
   }, [terminalTabs]);
 
   const patchTab = (id: string, fn: (tab: TerminalTab) => TerminalTab) =>
@@ -754,6 +765,14 @@ export function TerminalSurface({
     };
   })();
 
+  // 끝난 실행은 sid 로 오고 레일은 탭 단위로 그린다 — 여기서 옮긴다.
+  // 탭 수가 한 자리라 매 렌더 다시 만드는 비용은 무시할 만하다.
+  const finishedByTab: Record<string, { agentLabel: string; duration: string } | undefined> = {};
+  for (const tab of terminalTabs) {
+    const run = finishedRuns[focusOfTab(tab)];
+    if (run) finishedByTab[tab.id] = run;
+  }
+
   const renderPane = (tab: TerminalTab, node: PaneNode, path: string): React.ReactNode => {
     const isActiveTab = tab.id === terminalActiveId;
     if (node.type === "leaf") {
@@ -802,8 +821,16 @@ export function TerminalSurface({
             onShellState={(shell) =>
               setShellStates((prev) => (prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell }))
             }
+            onSignal={(signal) =>
+              setPaneSignals((prev) =>
+                prev[node.sid] === signal ? prev : { ...prev, [node.sid]: signal },
+              )
+            }
             onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
+          {/* 에이전트 표시 — 판정과 1초 시계를 이 컴포넌트 안에 가둔다.
+              여기서 하면 매초 페인 트리 전체가 다시 그려진다. */}
+          <TerminalAgentPill shell={shell} signal={paneSignals[node.sid]} />
           {count > 1 ? (
             <>
               {/* 페인을 집는 손잡이. 마우스 전용 어포던스라 보조기술에는 감춘다
@@ -916,6 +943,17 @@ export function TerminalSurface({
         <TerminalRail
           tabs={terminalTabs}
           shellStates={shellStates}
+          paneSignals={paneSignals}
+          finished={finishedByTab}
+          onJournalFromRun={(id) => {
+            requestManualEntry();
+            const tab = terminalTabs.find((candidate) => candidate.id === id);
+            if (tab) dismissFinishedRun(focusOfTab(tab));
+          }}
+          onDismissFinished={(id) => {
+            const tab = terminalTabs.find((candidate) => candidate.id === id);
+            if (tab) dismissFinishedRun(focusOfTab(tab));
+          }}
           activeId={terminalActiveId}
           collapsed={railCollapsed}
           renaming={renaming}

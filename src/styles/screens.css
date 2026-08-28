@@ -1090,12 +1090,27 @@ mark.s-hit {
   background: var(--tone, var(--text-3));
 }
 .term-sess[data-tone="running"] { --tone: var(--accent); }
+/* 기다림은 노랑이다. 실행 중(액센트)·완료(초록)와 색상환에서 멀리 떨어져
+   있어야 여러 카드 사이에서 하나만 튄다. */
+.term-sess[data-tone="waiting"] { --tone: var(--term-yellow); }
 .term-sess[data-tone="ok"] { --tone: var(--term-green); }
 .term-sess[data-tone="fail"] { --tone: var(--term-red); }
 .term-sess[data-tone="idle"] { --tone: var(--text-3); }
 /* 셸 통합이 없어 아무것도 모르는 세션 — 속 빈 점. 모르는 걸 색으로 칠하지 않는다. */
 .term-sess[data-tone="off"] .ts-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .term-sess[data-tone="running"] .ts-dot { animation: term-pulse 1.6s ease-in-out infinite; }
+/* 기다리는 카드는 점만이 아니라 **카드 전체**가 신호다 — 곁눈질로 잡히려면
+   6px 점 하나로는 부족하다. 다만 배경까지 물들이면 목록이 시끄러워지므로
+   왼쪽 테두리와 옅은 바탕까지만. */
+.term-sess.waiting {
+  background: color-mix(in srgb, var(--term-yellow) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--term-yellow);
+}
+.term-sess.waiting.active {
+  background: color-mix(in srgb, var(--term-yellow) 16%, var(--term-bg));
+  box-shadow: inset 2px 0 0 var(--term-yellow), inset 0 0 0 1px var(--accent-ring);
+}
+.term-sess[data-tone="waiting"] .ts-dot { animation: term-pulse 1.6s ease-in-out infinite; }
 @keyframes term-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 .term-sess .ts-icon { display: grid; place-items: center; flex: none; color: var(--tone, currentColor); }
@@ -1137,6 +1152,46 @@ mark.s-hit {
 .term-rail[data-collapsed] .ts-x,
 .term-rail[data-collapsed] .term-rail-add span { display: none; }
 
+/* "N개가 기다립니다" — 목록을 **재정렬하지 않고** 가는 길만 준다. 카드가
+   스스로 자리를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다. */
+.term-rail-alert {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin: 6px 6px 0; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--term-yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--term-yellow) 14%, transparent);
+  color: var(--term-yellow); cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+}
+.term-rail-alert:hover { background: color-mix(in srgb, var(--term-yellow) 24%, transparent); }
+.term-rail-alert .tra-n { font-variant-numeric: tabular-nums; }
+.term-rail[data-collapsed] .term-rail-alert { margin: 5px 5px 0; padding: 6px 0; gap: 3px; }
+
+/* 방금 끝난 에이전트 실행 — 카드 안에 남는 손잡이. 토스트는 자리를 비운
+   사이에 사라지지만 이건 돌아왔을 때 아직 거기 있다. */
+/* 210px 안에 "이름 · 소요시간 + 버튼 + 닫기"를 한 줄로 넣으면 이름이 `C…` 로
+   뭉개진다. 두 줄로 나눈다 — 위는 무엇이 끝났는지, 아래는 무엇을 할지. */
+.term-sess .ts-done {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-top: 4px;
+  padding: 5px 6px; border-radius: 6px;
+  background: var(--bg-inset); font-size: 10px; color: var(--text-3);
+}
+.ts-done .tsd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-done .tsd-go {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  border: none; border-radius: 5px; padding: 3px 6px; cursor: pointer;
+  background: var(--accent); color: var(--text-on-accent);
+  font-family: var(--font); font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.ts-done .tsd-go:hover { filter: brightness(1.08); }
+/* 아래 줄 — 버튼이 남는 폭을 먹고 닫기는 끝에 붙는다. */
+.ts-done .tsd-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ts-done .tsd-row .tsd-go { flex: 1; min-width: 0; }
+.ts-done .tsd-x {
+  display: grid; place-items: center; width: 18px; height: 18px; flex: none;
+  border: none; border-radius: 4px; background: transparent; color: var(--text-3); cursor: pointer;
+}
+.ts-done .tsd-x:hover { background: var(--bg-active); color: var(--text); }
+
 .term-rail-add {
   flex: none; display: flex; align-items: center; justify-content: center; gap: 6px;
   margin: 0 6px 6px; padding: 7px 8px; border-radius: 9px;
@@ -1145,7 +1200,47 @@ mark.s-hit {
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .term-rail-add:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
-.term-rail[data-collapsed] .term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
+.term-rail[data-collapsed] /* "N개가 기다립니다" — 목록을 **재정렬하지 않고** 가는 길만 준다. 카드가
+   스스로 자리를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다. */
+.term-rail-alert {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin: 6px 6px 0; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--term-yellow) 45%, transparent);
+  background: color-mix(in srgb, var(--term-yellow) 14%, transparent);
+  color: var(--term-yellow); cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+}
+.term-rail-alert:hover { background: color-mix(in srgb, var(--term-yellow) 24%, transparent); }
+.term-rail-alert .tra-n { font-variant-numeric: tabular-nums; }
+.term-rail[data-collapsed] .term-rail-alert { margin: 5px 5px 0; padding: 6px 0; gap: 3px; }
+
+/* 방금 끝난 에이전트 실행 — 카드 안에 남는 손잡이. 토스트는 자리를 비운
+   사이에 사라지지만 이건 돌아왔을 때 아직 거기 있다. */
+/* 210px 안에 "이름 · 소요시간 + 버튼 + 닫기"를 한 줄로 넣으면 이름이 `C…` 로
+   뭉개진다. 두 줄로 나눈다 — 위는 무엇이 끝났는지, 아래는 무엇을 할지. */
+.term-sess .ts-done {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-top: 4px;
+  padding: 5px 6px; border-radius: 6px;
+  background: var(--bg-inset); font-size: 10px; color: var(--text-3);
+}
+.ts-done .tsd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-done .tsd-go {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  border: none; border-radius: 5px; padding: 3px 6px; cursor: pointer;
+  background: var(--accent); color: var(--text-on-accent);
+  font-family: var(--font); font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.ts-done .tsd-go:hover { filter: brightness(1.08); }
+/* 아래 줄 — 버튼이 남는 폭을 먹고 닫기는 끝에 붙는다. */
+.ts-done .tsd-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ts-done .tsd-row .tsd-go { flex: 1; min-width: 0; }
+.ts-done .tsd-x {
+  display: grid; place-items: center; width: 18px; height: 18px; flex: none;
+  border: none; border-radius: 4px; background: transparent; color: var(--text-3); cursor: pointer;
+}
+.ts-done .tsd-x:hover { background: var(--bg-active); color: var(--text); }
+
+.term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
 
 /* ── 페인 캔버스 ────────────────────────────────────────────────────────
    페인은 떠 있는 카드다 (Warp/cmux 톤). 여백을 주고 모서리를 둥글리면 분할이
@@ -1219,6 +1314,54 @@ mark.s-hit {
 .term-pane:hover .pane-close { opacity: 1; }
 .term-pane .pane-close:hover { color: var(--text); background: var(--bg-active); }
 
+/* 페인 위 에이전트 알약 (2026-08-28) — **레이아웃을 건드리지 않는다.**
+   헤더 줄로 만들면 페인 높이가 줄어 xterm 이 refit 하고 PTY 가 resize 되어,
+   에이전트가 뜨고 질 때마다 전체화면 TUI 가 통째로 다시 그려진다. */
+.term-agent-pill {
+  position: absolute; top: 6px; left: 8px; z-index: 5;
+  display: flex; align-items: center; gap: 5px; max-width: calc(100% - 60px);
+  padding: 3px 8px; border-radius: 999px; pointer-events: none;
+  background: color-mix(in srgb, var(--term-bg) 82%, var(--term-chrome));
+  box-shadow: inset 0 0 0 1px var(--sep-strong);
+  color: var(--text-3); font-family: var(--font); font-size: 10.5px; font-weight: 600;
+  opacity: 0.72; transition: opacity 0.16s ease;
+}
+.term-pane:hover .term-agent-pill,
+.term-pane.focused .term-agent-pill { opacity: 1; }
+.term-agent-pill .tap-name { color: var(--text-2); }
+.term-agent-pill .tap-sep { opacity: 0.5; }
+.term-agent-pill .tap-phase { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 평소엔 아이콘 + 경과 시간만. 알약은 출력 위에 떠 있으므로 폭이 곧 가리는
+   글자 수다 — 아무 일도 없을 때까지 넓게 자리를 차지할 이유가 없다.
+   포커스·호버·기다림에서 펼친다 (기다림은 지금 읽어야 하는 순간이다). */
+.term-agent-pill .tap-name,
+.term-agent-pill .tap-sep,
+.term-agent-pill .tap-phase { display: none; }
+.term-pane:hover .term-agent-pill .tap-name,
+.term-pane:hover .term-agent-pill .tap-sep,
+.term-pane:hover .term-agent-pill .tap-phase,
+.term-agent-pill.waiting .tap-name,
+.term-agent-pill.waiting .tap-sep,
+.term-agent-pill.waiting .tap-phase { display: inline; }
+.term-agent-pill .tap-elapsed {
+  font-family: var(--mono); font-variant-numeric: tabular-nums; opacity: 0.85;
+}
+/* 기다리는 중에는 알약이 먼저 눈에 들어와야 한다 — 흐려 두지 않는다. */
+.term-agent-pill.waiting {
+  opacity: 1;
+  color: var(--term-yellow);
+  background: color-mix(in srgb, var(--term-yellow) 16%, var(--term-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--term-yellow) 55%, transparent);
+}
+.term-agent-pill.waiting .tap-name { color: var(--term-yellow); }
+/* 셸 상태에서 파생된 `data-tone` 띠 위에 덧그린다 (판정을 위로 올리면
+   1초 재렌더가 페인 트리로 돌아온다 — TerminalAgentPill 주석 참고). */
+.term-agent-band {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 5;
+  background: var(--term-yellow); pointer-events: none;
+  animation: term-pulse 1.6s ease-in-out infinite;
+}
+
 .term-screen {
   flex: 1; width: 100%; min-height: 0; height: 100%;
   background: var(--term-bg); overflow: hidden; padding: var(--term-pane-pad);
@@ -1227,6 +1370,8 @@ mark.s-hit {
 /* 움직임을 줄이도록 설정한 사용자에게는 맥동을 끈다 — 색은 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
   .term-sess[data-tone="running"] .ts-dot,
+  .term-sess[data-tone="waiting"] .ts-dot,
+  .term-agent-band,
   .term-pane[data-tone="running"]::before { animation: none; }
   .term-rail { transition: none; }
 }

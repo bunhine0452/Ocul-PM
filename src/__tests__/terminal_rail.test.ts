@@ -1,10 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
-  anyRunning,
   buildRailItem,
   formatCwdCrumb,
   formatElapsed,
-  type RailItem,
 } from "@/features/terminal/railModel";
 import {
   TERM_DENSITIES,
@@ -79,14 +77,6 @@ describe("buildRailItem", () => {
     expect(item.tone).toBe("fail");
     expect(item.elapsedMs).toBeNull();
     expect(item.paneCount).toBe(2);
-  });
-});
-
-describe("anyRunning", () => {
-  test("elapsedMs 가 0 이어도 실행 중으로 센다 (null 만 정지)", () => {
-    const items = [{ elapsedMs: 0 }, { elapsedMs: null }] as RailItem[];
-    expect(anyRunning(items)).toBe(true);
-    expect(anyRunning([{ elapsedMs: null }] as RailItem[])).toBe(false);
   });
 });
 

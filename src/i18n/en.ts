@@ -2373,6 +2373,15 @@ export const en: Record<keyof typeof ko, string> = {
   "term.tone.fail": "Failed",
   "term.tone.idle": "Idle",
   "term.tone.off": "Shell integration off",
+  "term.tone.waiting": "Waiting for you",
+
+  // Agent control room (2026-08-28 Phase 2)
+  "term.wait.bell": "Waiting for your input",
+  "term.wait.guess": "Looks idle — probably waiting",
+  "term.wait.badge": "{n} waiting",
+  "term.wait.jump": "Go to a waiting session ({n})",
+  "term.agentFinishedCard": "{agent} · {duration}",
+  "term.agentDismiss": "Dismiss",
   "term.density.label": "Density",
   "term.density.hint": "Line spacing and pane padding — roomier is easier on long sessions",
   "term.density.comfortable": "Roomy",

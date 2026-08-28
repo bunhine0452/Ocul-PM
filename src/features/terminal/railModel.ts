@@ -12,10 +12,16 @@
 import { detectAgent, type AgentRun } from "./agentDetect";
 import { summarizeShell } from "./shellStatus";
 import type { ShellState } from "./oscShell";
+import type { AgentState } from "./agentMode";
 import { canAutoRename } from "./tabTitle";
+import { t } from "@/i18n";
 
-/** 카드 좌측 점·테두리 색을 고르는 값. `off` = 셸 통합이 없는 세션. */
-export type RailTone = "running" | "ok" | "fail" | "idle" | "off";
+/**
+ * 카드 좌측 점·테두리 색을 고르는 값. `off` = 셸 통합이 없는 세션.
+ * `waiting` = 에이전트가 **나를 기다린다** — 다른 무엇보다 먼저 눈에 띄어야
+ * 하는 유일한 상태다 (→ `agentMode`).
+ */
+export type RailTone = "running" | "waiting" | "ok" | "fail" | "idle" | "off";
 
 export interface RailItem {
   id: string;
@@ -30,6 +36,10 @@ export interface RailItem {
   elapsedMs: number | null;
   /** 이 탭의 분할 페인 수. 1 이면 표시하지 않는다. */
   paneCount: number;
+  /** 에이전트가 내 입력을 기다리는가. */
+  waiting: boolean;
+  /** 그 판단이 추정인가 (출력이 멎었다 = 추정, 벨 = 확실). */
+  waitingGuess: boolean;
 }
 
 export interface RailInput {
@@ -37,6 +47,12 @@ export interface RailInput {
   label: string;
   /** 이 탭의 **포커스된 페인**의 셸 상태. 통합이 없으면 `undefined`. */
   shell: ShellState | undefined;
+  /**
+   * 같은 페인에서 파생한 에이전트 상태 (→ `agentMode.deriveAgentState`).
+   * 넘기지 않으면 기다림을 판정하지 않는다 — 아이콘용 에이전트 식별은 이
+   * 값 없이도 명령줄만으로 된다.
+   */
+  agentState?: AgentState | null;
   paneCount: number;
 }
 
@@ -72,29 +88,48 @@ function basename(path: string): string {
  * 규칙과 같은 판정이다 — 두 곳이 갈라지면 이름이 오락가락한다).
  */
 export function buildRailItem(input: RailInput, now: number): RailItem {
-  const { id, label, shell, paneCount } = input;
+  const { id, label, shell, paneCount, agentState = null } = input;
   const summary = shell ? summarizeShell(shell) : null;
   const agent = shell?.running ? detectAgent(shell.running.command) : null;
 
   if (!summary) {
     // 셸 통합이 없는 세션 — cwd 조차 모른다. 이름만 그린다.
-    return { id, label, tone: "off", agent: null, detail: "", elapsedMs: null, paneCount };
+    return {
+      id,
+      label,
+      tone: "off",
+      agent: null,
+      detail: "",
+      elapsedMs: null,
+      paneCount,
+      waiting: false,
+      waitingGuess: false,
+    };
   }
 
+  const waiting = agentState?.waiting === true;
   return {
     id,
     label: agent && canAutoRename(label) ? agent.label : label,
-    tone: summary.tone,
+    // 기다림은 실행 중을 **덮는다**. 둘 다 참일 때 "실행 중"을 보여주면 정작
+    // 사람이 필요한 순간이 다른 초록 점들 사이에 묻힌다.
+    tone: waiting ? "waiting" : summary.tone,
     agent,
-    detail: summary.text,
+    detail: waiting
+      ? agentState?.guess
+        ? t("term.wait.guess")
+        : t("term.wait.bell")
+      : summary.text,
     elapsedMs: shell?.running ? Math.max(0, now - shell.running.startedAt) : null,
     paneCount,
+    waiting,
+    waitingGuess: waiting && agentState?.guess === true,
   };
 }
 
-/** 하나라도 돌고 있으면 레일이 1초 타이머를 켠다 — 아니면 끈다. */
-export function anyRunning(items: readonly RailItem[]): boolean {
-  return items.some((item) => item.elapsedMs !== null);
+/** 지금 기다리는 카드들 — 레일 배지와 "다음 대기로" 이동에 쓴다. */
+export function waitingItems(items: readonly RailItem[]): RailItem[] {
+  return items.filter((item) => item.waiting);
 }
 
 /**

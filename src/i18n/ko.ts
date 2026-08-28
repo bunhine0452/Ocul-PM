@@ -2346,6 +2346,17 @@ export const ko = {
   "term.tone.fail": "실패",
   "term.tone.idle": "대기",
   "term.tone.off": "셸 통합 꺼짐",
+  "term.tone.waiting": "입력 대기",
+
+  // 에이전트 관제탑 (2026-08-28 Phase 2)
+  // 벨과 추정을 **다른 말로** 적는다 — 둘을 같은 문구로 그리면 "기다린다"는
+  // 표시 전체를 아무도 안 믿게 된다.
+  "term.wait.bell": "입력을 기다립니다",
+  "term.wait.guess": "입력 대기로 보입니다 (추정)",
+  "term.wait.badge": "{n}개가 기다립니다",
+  "term.wait.jump": "기다리는 세션으로 이동 ({n}개)",
+  "term.agentFinishedCard": "{agent} · {duration}",
+  "term.agentDismiss": "치우기",
   "term.density.label": "밀도",
   "term.density.hint": "줄 간격과 페인 여백 — 오래 들여다볼수록 넉넉한 쪽이 편합니다",
   "term.density.comfortable": "넉넉",
