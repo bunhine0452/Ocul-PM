@@ -255,7 +255,10 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
     // 줄바꿈되던 칩 무더기는 더 이상 렌더되지 않는다.
     expect(container.querySelector(".entry-detail-tabs")).toBeNull();
     expect(container.querySelector(".entry-file-bar")).not.toBeNull();
-    expect(container.querySelector(".efb-count")?.textContent).toBe("1/16");
+    // 위와 같은 이유로 **기다린다** — 파일 바는 diff 보다 먼저 그려질 수 있다.
+    await waitFor(() =>
+      expect(container.querySelector(".efb-count")?.textContent).toBe("1/16"),
+    );
     expect(dirOf(container)).toBe("ioreum/app/api/g00/");
     expect(container.querySelector(".efb-base")?.textContent).toBe("route.ts");
 
@@ -273,6 +276,15 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
       patch: `@@ -1 +1 @@\n-const v = 0;\n+const v = ${i};\n`,
     }));
     const { container } = await openDetail();
+
+    // **오갈 목록이 실제로 채워질 때까지 기다린다.** 파일 바는 `files_touched`
+    // 로 먼저 그려지지만 j/k 가 도는 `orderedPaths` 는 diff 가 도착해야 생기고,
+    // 그 전에는 핸들러가 `orderedPaths.length === 0` 에서 조용히 돌아간다.
+    // 눌러도 아무 일이 없으니 증상은 "j 가 안 먹는다" 로 나타나고, 느린 러너
+    // (CI ubuntu)에서만 재현됐다. `1/3` 은 orderedPaths 가 3개라는 직접 증거다.
+    await waitFor(() =>
+      expect(container.querySelector(".efb-count")?.textContent).toBe("1/3"),
+    );
 
     fireEvent.keyDown(window, { key: "j" });
     await waitFor(() => expect(dirOf(container)).toBe("ioreum/app/api/g01/"));
