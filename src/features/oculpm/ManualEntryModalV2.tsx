@@ -31,6 +31,12 @@ interface ManualEntryModalV2Props {
   projectId: number;
   /** YYYYMMDD — file-change autofill source + sentinel hint. */
   workday: string;
+  /**
+   * 미리 채울 재료 (2026-08-28) — 터미널 명령 블록의 "일지로 남기기"가 넘긴다.
+   * **초기값일 뿐**이라 열린 뒤에는 전부 고칠 수 있다.
+   */
+  seedTitle?: string;
+  seedBody?: string;
   /** Called after a successful create with the hydrated entry. */
   onCreated: (entry: JournalEntry) => void;
   onClose: () => void;
@@ -39,6 +45,8 @@ interface ManualEntryModalV2Props {
 export function ManualEntryModalV2({
   projectId,
   workday,
+  seedTitle,
+  seedBody,
   onCreated,
   onClose,
 }: ManualEntryModalV2Props) {
@@ -46,12 +54,12 @@ export function ManualEntryModalV2({
   const titleId = useId();
   const [type, setType] = useState<EntryType>("feature");
   const [slug, setSlug] = useState("");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(seedTitle ?? "");
   const [difficulty, setDifficulty] = useState<Difficulty | null>("medium");
   const [status, setStatus] = useState<EntryStatus>("planned");
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [bodyMarkdown, setBodyMarkdown] = useState("");
+  const [bodyMarkdown, setBodyMarkdown] = useState(seedBody ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);

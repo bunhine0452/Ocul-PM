@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useT } from "@/i18n";
-import type { TerminalHandles } from "./TerminalInstanceImpl";
+import type { BlockActivation, TerminalHandles } from "./TerminalInstanceImpl";
 import type { ShellState } from "./oscShell";
 import type { PaneSignal } from "./agentMode";
 import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
@@ -33,11 +33,13 @@ interface TerminalInstanceProps {
   onShellState?: (state: ShellState) => void;
   /** alt-screen · BEL · 마지막 출력 시각 (에이전트 모드 판정 재료). */
   onSignal?: (signal: PaneSignal) => void;
+  /** 거터의 명령 캡슐을 눌렀다 — 화면이 블록 액션 팝오버를 띄운다. */
+  onBlockActivate?: (activation: BlockActivation) => void;
   /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */
   onOpenFileRef?: (path: string, line: number | null) => void;
 }
 
-export type { TerminalHandles, ShellState, PaneSignal };
+export type { TerminalHandles, ShellState, PaneSignal, BlockActivation };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
   const { t } = useT();

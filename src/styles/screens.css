@@ -1362,17 +1362,100 @@ mark.s-hit {
   animation: term-pulse 1.6s ease-in-out infinite;
 }
 
+/* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
+   블록이 생길 때 padding 을 늘리면 cols 가 바뀌며 셸이 화면을 다시 그린다. */
 .term-screen {
   flex: 1; width: 100%; min-height: 0; height: 100%;
-  background: var(--term-bg); overflow: hidden; padding: var(--term-pane-pad);
+  background: var(--term-bg); overflow: hidden;
+  padding: var(--term-pane-pad) var(--term-pane-pad) var(--term-pane-pad)
+    calc(var(--term-pane-pad) + 7px);
 }
+
+/* ── 명령 블록 (2026-08-28 Phase 3) ────────────────────────────────────── */
+
+/* 거터 캡슐. xterm 장식은 셀 좌표(x:0)에 놓이므로 왼쪽 여백으로 끌어낸다 —
+   그러지 않으면 출력 첫 글자를 덮는다. */
+.term-block-mark {
+  width: 3px !important;
+  margin-left: -7px;
+  border-radius: 2px;
+  background: var(--block-tone, var(--text-3));
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.term-block-mark:hover {
+  transform: scaleX(2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--block-tone, var(--text-3)) 30%, transparent);
+}
+/* 실행 중은 맥동, 종료코드를 모르는 것은 흐리게 — 모르는 것을 초록으로
+   칠하지 않는다는 규칙이 거터에도 그대로 적용된다. */
+.term-block-mark[data-tone="running"] { animation: term-pulse 1.6s ease-in-out infinite; }
+.term-block-mark[data-tone="unknown"] { opacity: 0.5; }
+
+/* 스티키 헤더 — 긴 출력을 스크롤하는 동안 "어느 명령의 출력인가"를 고정한다.
+   React 를 거치지 않고 DOM 으로 갱신된다 (TerminalInstanceImpl 주석 참고). */
+.term-block-sticky {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+  padding: 3px 10px 3px calc(var(--term-pane-pad) + 7px);
+  background: color-mix(in srgb, var(--term-bg) 88%, var(--term-chrome));
+  border-bottom: 1px solid var(--sep);
+  box-shadow: inset 3px 0 0 var(--tone, var(--text-3));
+  color: var(--text-2); font-family: var(--mono); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+.term-block-sticky[data-tone="ok"] { --tone: var(--term-green); }
+.term-block-sticky[data-tone="fail"] { --tone: var(--term-red); }
+.term-block-sticky[data-tone="running"] { --tone: var(--accent); }
+.term-block-sticky[data-tone="unknown"] { --tone: var(--text-3); }
+/* 에이전트 알약과 겹치는 자리라 — 알약을 스티키 아래로 내린다. */
+.term-pane:has(.term-block-sticky:not([hidden])) .term-agent-pill { top: 28px; }
+
+/* 블록 액션 팝오버. 마지막 두 줄(일지·플래너)이 ocul-pm 것이다. */
+.term-block-menu {
+  position: fixed; z-index: 40;
+  display: flex; flex-direction: column; gap: 1px; padding: 5px;
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px;
+  box-shadow: var(--shadow-pop); font-family: var(--font);
+}
+.tbm-head {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 4px 7px 6px; color: var(--text-3); font-size: 10.5px;
+  border-bottom: 1px solid var(--sep); margin-bottom: 3px;
+}
+.tbm-head .tbm-cmd {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); color: var(--text-2);
+}
+.tbm-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  padding: 6px 8px; border: none; border-radius: 7px; background: transparent;
+  color: var(--text-2); cursor: pointer; text-align: left;
+  font-family: var(--font); font-size: 12px;
+}
+.tbm-item:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
+.tbm-item:disabled { opacity: 0.45; cursor: default; }
+.tbm-item.accent { color: var(--accent-text); font-weight: 600; }
+.tbm-item .tbm-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbm-item .tbm-more { margin-left: auto; opacity: 0.6; }
+.tbm-sep { height: 1px; margin: 4px 2px; background: var(--sep); }
+.tbm-back {
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  padding: 4px 7px 6px; margin-bottom: 3px; border: none; border-bottom: 1px solid var(--sep);
+  background: transparent; color: var(--text-3); cursor: pointer;
+  font-family: var(--font); font-size: 10.5px; text-align: left;
+}
+.tbm-back:hover { color: var(--text); }
+.tbm-empty { padding: 10px 8px; color: var(--text-3); font-size: 11.5px; text-align: center; }
 
 /* 움직임을 줄이도록 설정한 사용자에게는 맥동을 끈다 — 색은 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
   .term-sess[data-tone="running"] .ts-dot,
   .term-sess[data-tone="waiting"] .ts-dot,
   .term-agent-band,
+  .term-block-mark[data-tone="running"],
   .term-pane[data-tone="running"]::before { animation: none; }
+  .term-block-mark { transition: none; }
   .term-rail { transition: none; }
 }
 

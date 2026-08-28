@@ -10,7 +10,11 @@ import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
 import { toast } from "@/lib/toast";
-import { consumeManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
+import {
+  consumeManualEntryRequest,
+  onManualEntryRequest,
+  type ManualEntrySeed,
+} from "@/lib/journalCompose";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useT, type I18nKey } from "@/i18n";
 
@@ -85,7 +89,10 @@ export function JournalScreenV2({
   const [unfinishedOnly, setUnfinishedOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
+  // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
+  // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
+  const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
+  const manualOpen = manualSeed !== null;
   const [backfilling, setBackfilling] = useState(false);
 
   // F3 — debounce the search so the all-period backend query (below) isn't
@@ -175,7 +182,7 @@ export function JournalScreenV2({
       } else if (k === "n") {
         e.preventDefault();
         e.stopPropagation();
-        setManualOpen(true);
+        setManualSeed({});
       }
     };
     window.addEventListener("keydown", onKey);
@@ -187,8 +194,9 @@ export function JournalScreenV2({
   // 언마운트돼 있어 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
   // (팔레트는 예전부터 이 이벤트를 쏘고 있었지만 듣는 곳이 없어 무동작이었다.)
   useEffect(() => {
-    if (consumeManualEntryRequest()) setManualOpen(true);
-    return onManualEntryRequest(() => setManualOpen(true));
+    const pending = consumeManualEntryRequest();
+    if (pending) setManualSeed(pending);
+    return onManualEntryRequest((seed) => setManualSeed(seed));
   }, []);
 
   // Apply the one-shot focus once the matching entry is in the list.
@@ -375,7 +383,7 @@ export function JournalScreenV2({
         <button
           type="button"
           className="btn primary"
-          onClick={() => setManualOpen(true)}
+          onClick={() => setManualSeed({})}
           disabled={!todayKey}
           title={todayKey ? t("journal.newTitle") : t("journal.newDisabled")}
         >
@@ -507,11 +515,13 @@ export function JournalScreenV2({
         <ManualEntryModalV2
           projectId={projectId}
           workday={todayKey}
+          seedTitle={manualSeed?.title}
+          seedBody={manualSeed?.body}
           onCreated={(entry) => {
             void refresh();
             toast.info(t("journal.written", { title: entry.title }));
           }}
-          onClose={() => setManualOpen(false)}
+          onClose={() => setManualSeed(null)}
         />
       ) : null}
     </>
