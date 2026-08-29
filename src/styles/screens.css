@@ -1048,12 +1048,29 @@ mark.s-hit {
    끌고 갈 때(=분할) 목록이 요동치면 어디로 가는지 더 헷갈리기 때문이다. */
 .term-sess.dragging { opacity: 0.4; }
 .term-rail.receiving .term-rail-list { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+/* 캐럿에는 전환을 걸지 않는다. 위치 지시자는 "지금 어디에 놓이는가"를 말하는데,
+   0.12s 를 두면 커서는 이미 다음 칸이고 표시만 뒤에서 미끄러져 온다 — 고무줄에
+   묶인 느낌이 정확히 여기서 났다. 따라오는 것은 고스트 하나로 충분하다. */
 .term-rail-caret {
   position: absolute; left: 6px; right: 6px; height: 3px; margin-top: -1px;
   border-radius: 2px; background: var(--accent); pointer-events: none; z-index: 3;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
-  transition: top 0.12s var(--ease-out, ease-out);
 }
+
+/* 손에 들린 것 — 끌리는 동안 커서를 따라다니는 유일한 물체.
+   `left/top` 은 0 에 두고 위치는 `transform` 으로만 준다 (합성 단계라 레이아웃을
+   더럽히지 않는다). 좌표는 컴포넌트가 rAF 안에서 직접 쓴다. */
+.term-ghost {
+  position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none;
+  display: flex; align-items: center; gap: 6px; max-width: 220px;
+  margin: 10px 0 0 12px; padding: 5px 9px; border-radius: 8px;
+  background: var(--term-bg); color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent-ring), var(--shadow-pop, 0 8px 20px rgb(0 0 0 / 0.28));
+  font-family: var(--font); font-size: 11.5px; font-weight: 600;
+}
+.term-ghost .tg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 끄는 동안은 면 전체가 "쥐고 있음"이다 — 커서가 자리마다 바뀌면 손이 흔들린다. */
+.term-wrap.is-moving, .term-wrap.is-moving * { cursor: grabbing !important; }
 
 /* 페인을 집는 손잡이 — 닫기 버튼 왼쪽. 캔버스 위에 포인터를 직접 걸면 셸의
    텍스트 선택과 싸우므로 잡는 자리를 따로 둔다. */
@@ -1071,16 +1088,14 @@ mark.s-hit {
 .term-pane.dropping { box-shadow: inset 0 0 0 1px var(--accent-ring); }
 
 /* 놓으면 차지할 자리. z-index 6 — 페인의 상태 띠(4)·포커스 링(3)·닫기(5) 위. */
+/* 여기도 전환 없음 — 같은 이유다 (위 `.term-rail-caret` 주석). 특히 이 상자는
+   페인 사이를 건너뛸 때 화면을 가로질러 미끄러져서, 겨눈 곳보다 지나온 자취가
+   더 크게 보였다. 나타남/사라짐만 알아채면 되므로 페이드도 두지 않는다. */
 .term-drop {
   position: absolute; z-index: 6; pointer-events: none;
   border-radius: var(--term-pane-radius);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   box-shadow: inset 0 0 0 2px var(--accent);
-  transition: left 0.1s var(--ease-out, ease-out), top 0.1s var(--ease-out, ease-out),
-    width 0.1s var(--ease-out, ease-out), height 0.1s var(--ease-out, ease-out);
-}
-@media (prefers-reduced-motion: reduce) {
-  .term-drop, .term-rail-caret { transition: none; }
 }
 
 /* 상태 점 — 색의 출처는 터미널 팔레트다 (앱 액센트/초록/빨강이 캔버스 안의
@@ -1146,11 +1161,35 @@ mark.s-hit {
 .term-sess:hover .ts-x, .term-sess.active .ts-x { opacity: 0.55; }
 .term-sess .ts-x:hover { opacity: 1; background: var(--bg-active); }
 
-/* 접힌 레일 — 아이콘과 상태 점만. 이름은 title 로 남는다. */
-.term-rail[data-collapsed] .term-sess { justify-content: center; padding: 8px 0; gap: 5px; }
+/* 접힌 레일 — 카드가 **아이콘 한 개**로 읽혀야 한다. 이름은 title 로 남는다.
+   예전엔 6px 점과 14px 아이콘을 나란히 뒀는데, 카드 폭이 32px(44 − 리스트
+   패딩 12)이라 좌우에 3.5px 밖에 안 남았다. 크기가 다른 글리프 둘이 그 간격으로
+   붙어 있으면 "상태가 붙은 터미널"이 아니라 정체 모를 두 덩어리로 보인다.
+   점은 아이콘 모서리에 얹는 배지로 내리고, 상태색은 아이콘 자신이 입는다. */
+.term-rail[data-collapsed] .term-sess {
+  position: relative; justify-content: center; padding: 7px 0; gap: 0;
+}
 .term-rail[data-collapsed] .ts-main,
 .term-rail[data-collapsed] .ts-x,
 .term-rail[data-collapsed] .term-rail-add span { display: none; }
+/* 배지는 카드 배경색 링을 둘러 "아이콘 위에 얹혀 있음"을 만든다 — 링이 없으면
+   아이콘 획과 붙어 다시 두 덩어리가 된다. */
+.term-rail[data-collapsed] .ts-dot {
+  position: absolute; top: 4px; right: 4px; width: 7px; height: 7px;
+  box-shadow: 0 0 0 2px var(--term-chrome);
+}
+.term-rail[data-collapsed] .term-sess.active .ts-dot { box-shadow: 0 0 0 2px var(--term-bg); }
+/* 페인의 상태 띠와 **같은 규칙**: 평상시에 늘 켜져 있는 색은 신호가 아니다.
+   44px 에서는 더욱 그렇다 — 모든 카드에 회색 점이 붙으면 하나도 안 튄다. */
+.term-rail[data-collapsed] .term-sess[data-tone="ok"] .ts-dot,
+.term-rail[data-collapsed] .term-sess[data-tone="idle"] .ts-dot,
+.term-rail[data-collapsed] .term-sess[data-tone="off"] .ts-dot { display: none; }
+/* 왼쪽 띠는 배지와 겹치는 신호다. 32px 폭에서 2px 를 더 먹으면 아이콘 중심이
+   눈에 띄게 밀리므로 접힘에서는 바탕색만 남긴다. */
+.term-rail[data-collapsed] .term-sess.waiting { box-shadow: none; }
+.term-rail[data-collapsed] .term-sess.waiting.active {
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
 
 /* "N개가 기다립니다" — 목록을 **재정렬하지 않고** 가는 길만 준다. 카드가
    스스로 자리를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다. */
@@ -1200,47 +1239,7 @@ mark.s-hit {
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .term-rail-add:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
-.term-rail[data-collapsed] /* "N개가 기다립니다" — 목록을 **재정렬하지 않고** 가는 길만 준다. 카드가
-   스스로 자리를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다. */
-.term-rail-alert {
-  flex: none; display: flex; align-items: center; justify-content: center; gap: 6px;
-  margin: 6px 6px 0; padding: 6px 8px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--term-yellow) 45%, transparent);
-  background: color-mix(in srgb, var(--term-yellow) 14%, transparent);
-  color: var(--term-yellow); cursor: pointer;
-  font-family: var(--font); font-size: 11px; font-weight: 700;
-}
-.term-rail-alert:hover { background: color-mix(in srgb, var(--term-yellow) 24%, transparent); }
-.term-rail-alert .tra-n { font-variant-numeric: tabular-nums; }
-.term-rail[data-collapsed] .term-rail-alert { margin: 5px 5px 0; padding: 6px 0; gap: 3px; }
-
-/* 방금 끝난 에이전트 실행 — 카드 안에 남는 손잡이. 토스트는 자리를 비운
-   사이에 사라지지만 이건 돌아왔을 때 아직 거기 있다. */
-/* 210px 안에 "이름 · 소요시간 + 버튼 + 닫기"를 한 줄로 넣으면 이름이 `C…` 로
-   뭉개진다. 두 줄로 나눈다 — 위는 무엇이 끝났는지, 아래는 무엇을 할지. */
-.term-sess .ts-done {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-top: 4px;
-  padding: 5px 6px; border-radius: 6px;
-  background: var(--bg-inset); font-size: 10px; color: var(--text-3);
-}
-.ts-done .tsd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ts-done .tsd-go {
-  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  border: none; border-radius: 5px; padding: 3px 6px; cursor: pointer;
-  background: var(--accent); color: var(--text-on-accent);
-  font-family: var(--font); font-size: 10px; font-weight: 700; white-space: nowrap;
-}
-.ts-done .tsd-go:hover { filter: brightness(1.08); }
-/* 아래 줄 — 버튼이 남는 폭을 먹고 닫기는 끝에 붙는다. */
-.ts-done .tsd-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.ts-done .tsd-row .tsd-go { flex: 1; min-width: 0; }
-.ts-done .tsd-x {
-  display: grid; place-items: center; width: 18px; height: 18px; flex: none;
-  border: none; border-radius: 4px; background: transparent; color: var(--text-3); cursor: pointer;
-}
-.ts-done .tsd-x:hover { background: var(--bg-active); color: var(--text); }
-
-.term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
+.term-rail[data-collapsed] .term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
 
 /* ── 페인 캔버스 ────────────────────────────────────────────────────────
    페인은 떠 있는 카드다 (Warp/cmux 톤). 여백을 주고 모서리를 둥글리면 분할이

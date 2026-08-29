@@ -2398,6 +2398,7 @@ export const ko = {
   "term.closePaneHint": "페인 닫기 (⌘W)",
   // 드래그 분할 (2026-08-28) — 세션을 끌어 나란히 놓거나, 페인을 빼내 세션으로.
   "term.dragPaneHint": "끌어서 옮기기 — 다른 페인 가장자리에 놓으면 자리를 바꾸고, 세션 목록에 놓으면 따로 떼어냅니다",
+  "term.dragGhostPane": "{label} 의 페인",
   "term.dragSessionHint": "끌어서 나란히 — 화면 가장자리에 놓으면 분할되고, 목록 안에서 놓으면 순서가 바뀝니다",
   "term.splitRow": "가로 분할",
   "term.splitRowHint": "가로 분할 (⌘D)",

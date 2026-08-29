@@ -104,3 +104,68 @@ export function contains(box: Box, x: number, y: number): boolean {
     x >= box.left && x <= box.left + box.width && y >= box.top && y <= box.top + box.height
   );
 }
+
+/**
+ * 점에서 상자까지의 거리 — 안에 있으면 0. 축별 초과분의 유클리드 거리라
+ * 모서리 바깥에서도 대각선 거리가 제대로 나온다.
+ */
+export function distanceToBox(box: Box, x: number, y: number): number {
+  const dx = Math.max(box.left - x, 0, x - (box.left + box.width));
+  const dy = Math.max(box.top - y, 0, y - (box.top + box.height));
+  return Math.hypot(dx, dy);
+}
+
+/** 점을 상자 안으로 끌어당긴다 — 가장자리 판정을 상자 밖에서도 쓰기 위한 것. */
+export function clampToBox(box: Box, x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(Math.max(x, box.left), box.left + box.width),
+    y: Math.min(Math.max(y, box.top), box.top + box.height),
+  };
+}
+
+/**
+ * 틈에서도 놓을 수 있게 하는 흡착 폭 (px).
+ *
+ * 페인 **사이**에는 8px 분할 손잡이가, 캔버스 둘레에는 8px 여백이 있다. 상자
+ * "안"만 대상으로 보면 페인에서 페인으로 커서를 옮기는 동안 미리보기가 꺼졌다
+ * 켜지고(= 뻑뻑함), 하필 그 틈에서 손을 놓으면 조용히 아무 일도 안 일어난다.
+ * 양쪽 여백(8+8)을 덮고도 남게 잡되, 캔버스 한복판의 빈자리까지 끌어당기지는
+ * 않을 만큼만 — 20px 이 그 지점이다.
+ */
+export const SNAP_PX = 20;
+
+/** 후보 페인 하나 — 화면 상자와 그 주인. */
+export interface PaneBox {
+  sid: string;
+  box: Box;
+}
+
+/**
+ * 커서가 겨누는 페인과 가장자리.
+ *
+ * 안에 든 상자가 있으면 그것이 이기고(겹칠 일은 없다), 없으면 `SNAP_PX` 안의
+ * 가장 가까운 상자로 흡착한다. 어느 쪽이든 판정은 **상자 안으로 끌어당긴 점**
+ * 으로 하므로 틈에 있는 커서는 자연히 그 변을 가리킨다.
+ *
+ * 상자 **안**인데 한가운데면 `null` — 취소는 그대로 살아 있어야 한다.
+ */
+export function pickDropTarget(
+  panes: PaneBox[],
+  x: number,
+  y: number,
+  snap: number = SNAP_PX,
+): { sid: string; edge: DropEdge } | null {
+  let best: PaneBox | null = null;
+  let min = Number.POSITIVE_INFINITY;
+  for (const pane of panes) {
+    const d = distanceToBox(pane.box, x, y);
+    if (d < min) {
+      min = d;
+      best = pane;
+    }
+  }
+  if (!best || min > snap) return null;
+  const at = clampToBox(best.box, x, y);
+  const edge = dropEdge(best.box, at.x, at.y);
+  return edge === "center" ? null : { sid: best.sid, edge };
+}

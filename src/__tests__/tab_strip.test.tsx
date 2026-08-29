@@ -6,7 +6,7 @@
  * 틀려도 타입이 잡아주지 않는 자리다.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -15,6 +15,22 @@ import { DETACH_THRESHOLD_PX } from "@/features/shell/tabOrder";
 import type { Project, TabInfo } from "@/lib/bindings";
 
 afterEach(() => cleanup());
+
+/**
+ * 포인터 이동 한 번 + 프레임 한 번.
+ *
+ * 드래그 판정은 rAF 로 묶여 있다 (2026-08-29). 포인터는 초당 60~120 번 오는데
+ * 그때마다 모든 탭의 rect 를 읽고 상태를 갈아 끼우면 재배열이 손을 못 따라온다
+ * — 프레임당 한 번만 판정하고, 겨눈 자리가 그대로면 상태를 건드리지 않는다.
+ * 그래서 배선의 결과를 보려면 여기서도 프레임을 한 번 돌려야 한다.
+ */
+const movePointer = async (el: Element, init: Record<string, number>) => {
+  fireEvent.pointerMove(el, init);
+  await act(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+};
+
 
 // a11y_screens 와 같은 방식 — 커스텀 matcher 대신 위반 목록을 평평하게 비교해
 // 실패 시 어떤 규칙이 몇 노드에서 깨졌는지 그대로 보인다.
@@ -198,22 +214,22 @@ describe("탭 스트립 — 포인터", () => {
     expect(props.onDetach).not.toHaveBeenCalled();
   });
 
-  it("스트립 안에서 끌면 순서가 바뀐다", () => {
+  it("스트립 안에서 끌면 순서가 바뀐다", async () => {
     const { props } = renderStrip();
     const tabs = stubGeometry();
     // 첫 탭(중심 50)을 세 번째 탭 중심(250) 너머로 끈다.
     fireEvent.pointerDown(tabs[0], { button: 0, clientX: 50, clientY: 20 });
-    fireEvent.pointerMove(tabs[0], { clientX: 260, clientY: 20 });
+    await movePointer(tabs[0], { clientX: 260, clientY: 20 });
     fireEvent.pointerUp(tabs[0], { clientX: 260, clientY: 20 });
     expect(props.onReorder).toHaveBeenCalledWith([102, 103, 101]);
     expect(props.onDetach).not.toHaveBeenCalled();
   });
 
-  it("스트립 밖으로 충분히 끌면 떼어내기 — 화면 좌표를 넘긴다", () => {
+  it("스트립 밖으로 충분히 끌면 떼어내기 — 화면 좌표를 넘긴다", async () => {
     const { props } = renderStrip();
     const tabs = stubGeometry();
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
-    fireEvent.pointerMove(tabs[1], {
+    await movePointer(tabs[1], {
       clientX: 170,
       clientY: 44 + DETACH_THRESHOLD_PX + 30,
       screenX: 900,
@@ -224,12 +240,12 @@ describe("탭 스트립 — 포인터", () => {
     expect(props.onReorder).not.toHaveBeenCalled();
   });
 
-  it("떼어내다 스트립으로 돌아오면 다시 순서 변경이다", () => {
+  it("떼어내다 스트립으로 돌아오면 다시 순서 변경이다", async () => {
     const { props } = renderStrip();
     const tabs = stubGeometry();
     fireEvent.pointerDown(tabs[0], { button: 0, clientX: 50, clientY: 20 });
-    fireEvent.pointerMove(tabs[0], { clientX: 60, clientY: 300 });
-    fireEvent.pointerMove(tabs[0], { clientX: 260, clientY: 20 });
+    await movePointer(tabs[0], { clientX: 60, clientY: 300 });
+    await movePointer(tabs[0], { clientX: 260, clientY: 20 });
     fireEvent.pointerUp(tabs[0], { clientX: 260, clientY: 20 });
     expect(props.onDetach).not.toHaveBeenCalled();
     expect(props.onReorder).toHaveBeenCalledWith([102, 103, 101]);
@@ -249,16 +265,16 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
    * 내보내는 쪽. 스트립 밖으로 나간 동안에만 "다른 창 위인가"를 묻는다 —
    * 안에서 물으면 IPC 만 태우고 재배열이 끊긴다.
    */
-  it("스트립 밖에서만 대상 창을 물어본다 — 스트립 높이를 함께 넘긴다", () => {
+  it("스트립 밖에서만 대상 창을 물어본다 — 스트립 높이를 함께 넘긴다", async () => {
     const onDragHover = vi.fn();
     const { props } = renderStrip({ onDragHover });
     const tabs = stubGeometry();
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
     // 스트립 안 — 묻지 않는다.
-    fireEvent.pointerMove(tabs[1], { clientX: 220, clientY: 20 });
+    await movePointer(tabs[1], { clientX: 220, clientY: 20 });
     expect(onDragHover).not.toHaveBeenCalled();
     // 밖 — 묻는다. 높이는 스트립 rect 그대로(6..44 = 38).
-    fireEvent.pointerMove(tabs[1], { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 });
+    await movePointer(tabs[1], { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 });
     expect(onDragHover).toHaveBeenCalledWith(102, 38);
     expect(props.onDetach).not.toHaveBeenCalled();
   });
@@ -269,7 +285,7 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
     const tabs = stubGeometry();
     const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
-    fireEvent.pointerMove(tabs[1], far);
+    await movePointer(tabs[1], far);
     fireEvent.pointerUp(tabs[1], { ...far, screenX: 900, screenY: 500 });
     await waitFor(() => expect(onDragDrop).toHaveBeenCalledWith(102));
     expect(props.onDetach).not.toHaveBeenCalled();
@@ -282,19 +298,19 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
     const tabs = stubGeometry();
     const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
-    fireEvent.pointerMove(tabs[1], far);
+    await movePointer(tabs[1], far);
     fireEvent.pointerUp(tabs[1], { ...far, screenX: 900, screenY: 500 });
     await waitFor(() => expect(props.onDetach).toHaveBeenCalledWith(102, 900, 500));
   });
 
-  it("스트립으로 돌아오면 남의 창에 남긴 캐럿을 지운다", () => {
+  it("스트립으로 돌아오면 남의 창에 남긴 캐럿을 지운다", async () => {
     const onDragCleanup = vi.fn();
     renderStrip({ onDragCleanup });
     const tabs = stubGeometry();
     fireEvent.pointerDown(tabs[0], { button: 0, clientX: 50, clientY: 20 });
-    fireEvent.pointerMove(tabs[0], { clientX: 60, clientY: 300 });
+    await movePointer(tabs[0], { clientX: 60, clientY: 300 });
     expect(onDragCleanup).not.toHaveBeenCalled();
-    fireEvent.pointerMove(tabs[0], { clientX: 260, clientY: 20 });
+    await movePointer(tabs[0], { clientX: 260, clientY: 20 });
     expect(onDragCleanup).toHaveBeenCalled();
   });
 

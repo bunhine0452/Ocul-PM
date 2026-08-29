@@ -2422,6 +2422,7 @@ export const en: Record<keyof typeof ko, string> = {
   "term.closePaneHint": "Close pane (⌘W)",
   // Drag-to-split (2026-08-28) — drag a session side by side, or pull a pane out.
   "term.dragPaneHint": "Drag to move — drop on another pane's edge to rearrange, or on the session list to pull it out",
+  "term.dragGhostPane": "Pane of {label}",
   "term.dragSessionHint": "Drag to place side by side — drop on a screen edge to split, or inside the list to reorder",
   "term.splitRow": "Split horizontally",
   "term.splitRowHint": "Split horizontally (⌘D)",

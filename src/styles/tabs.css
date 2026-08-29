@@ -65,10 +65,10 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   pointer-events: none;
   z-index: 3;
-  transition: left var(--dur-1, 140ms) var(--ease-out, ease-out);
+  /* 전환 없음 — 캐럿은 "지금 여기에 놓인다"를 말하는 표시다. 140ms 를 두면
+     커서는 이미 다음 칸이고 캐럿만 뒤에서 미끄러져 온다. */
 }
 @media (prefers-reduced-motion: reduce) {
-  .tabstrip-caret { transition: none; }
   .tabstrip.is-receiving::after { animation: none; }
 }
 
@@ -103,8 +103,13 @@
   box-shadow: 0 -1px 0 var(--border-card) inset, 1px 0 0 var(--border-card) inset,
     -1px 0 0 var(--border-card) inset;
 }
-/* 드래그 중인 탭은 손에 들린 것처럼 살짝 뜬다. */
-.tabstrip-tab.dragging { box-shadow: var(--shadow-pop); z-index: 2; }
+/* 드래그 중인 탭은 손에 들린 것처럼 뜨고, **커서를 따라간다** (`transform` 은
+   컴포넌트가 프레임마다 직접 쓴다 — Chrome 탭과 같은 거동이다).
+   그림자만 얹고 제자리에 두면, 손은 움직이는데 물체는 가만히 있고 이웃 탭만
+   한 칸씩 툭툭 자리를 바꾼다 — 그게 "뻑뻑하다"의 정체였다.
+   `transition` 을 걸면 안 된다: 매 프레임 새 값이 들어오므로 전환이 항상 도중에
+   끊겨 오히려 커서 뒤로 처진다. */
+.tabstrip-tab.dragging { box-shadow: var(--shadow-pop); z-index: 2; cursor: grabbing; }
 .tabstrip-tab.detaching { opacity: 0.7; transform: translateY(-2px); }
 
 /* 아이콘은 프로젝트 색으로 — 카드와 같은 팔레트다 (home.css 의 `[data-pc]`

@@ -10,7 +10,11 @@ import {
   edgeToSplit,
   previewBox,
   contains,
+  distanceToBox,
+  clampToBox,
+  pickDropTarget,
   EDGE_BAND,
+  SNAP_PX,
   type Box,
 } from "@/features/terminal/paneDrop";
 import { leaf, splitPaneWith, removePane, collectSids } from "@/lib/termPanes";
@@ -59,6 +63,58 @@ describe("paneDrop — 가장자리 판정", () => {
 
   it("납작한 상자에서도 0 으로 나누지 않는다", () => {
     expect(dropEdge({ left: 0, top: 0, width: 0, height: 0 }, 0, 0)).toBe("left");
+  });
+});
+
+describe("paneDrop — 틈에서의 흡착", () => {
+  /**
+   * 페인 **사이**에는 8px 분할 손잡이가, 캔버스 둘레에는 8px 여백이 있다. 예전엔
+   * 상자 "안"만 대상으로 봐서, 그 틈을 지나는 동안 미리보기가 꺼졌다 켜지고
+   * 하필 거기서 손을 놓으면 조용히 아무 일도 안 일어났다 — "붙였는데 안 붙는다".
+   */
+  const left: Box = { left: 0, top: 0, width: 200, height: 100 };
+  const right: Box = { left: 208, top: 0, width: 200, height: 100 }; // 8px 손잡이
+  const panes = [
+    { sid: "L", box: left },
+    { sid: "R", box: right },
+  ];
+
+  it("안에 있으면 그 페인이 이긴다", () => {
+    expect(pickDropTarget(panes, 10, 50)).toEqual({ sid: "L", edge: "left" });
+    expect(pickDropTarget(panes, 400, 50)).toEqual({ sid: "R", edge: "right" });
+  });
+
+  it("두 페인 사이 손잡이 위에서도 놓을 자리가 있다 — 가까운 쪽의 맞닿은 변", () => {
+    // 손잡이 한복판(x=204)은 왼쪽 페인 오른쪽 끝에 더 가깝다.
+    expect(pickDropTarget(panes, 203, 50)).toEqual({ sid: "L", edge: "right" });
+    expect(pickDropTarget(panes, 205, 50)).toEqual({ sid: "R", edge: "left" });
+  });
+
+  it("캔버스 둘레 여백에서도 붙는다", () => {
+    expect(pickDropTarget(panes, -6, 50)).toEqual({ sid: "L", edge: "left" });
+    expect(pickDropTarget(panes, 100, -6)).toEqual({ sid: "L", edge: "top" });
+  });
+
+  it("흡착 폭 밖은 그대로 없음이다 — 빈 곳까지 끌어당기지 않는다", () => {
+    expect(pickDropTarget(panes, -(SNAP_PX + 5), 50)).toBeNull();
+  });
+
+  it("상자 **안**의 한가운데는 여전히 취소다", () => {
+    expect(pickDropTarget(panes, 100, 50)).toBeNull();
+  });
+
+  it("후보가 없으면 없음이다", () => {
+    expect(pickDropTarget([], 10, 10)).toBeNull();
+  });
+
+  it("거리는 안이면 0, 모서리 밖은 대각선이다", () => {
+    expect(distanceToBox(left, 10, 50)).toBe(0);
+    expect(distanceToBox(left, -3, -4)).toBe(5);
+  });
+
+  it("점을 상자 안으로 끌어당긴다", () => {
+    expect(clampToBox(left, -10, 500)).toEqual({ x: 0, y: 100 });
+    expect(clampToBox(left, 10, 50)).toEqual({ x: 10, y: 50 });
   });
 });
 

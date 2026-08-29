@@ -4,7 +4,7 @@ id: drag-and-drop-round
 title: "끌어서 옮기기 라운드 — 탭을 창 사이로 · 세션을 페인으로"
 status: active
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-29
 owner: claude-code
 ---
 
@@ -51,6 +51,21 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 - [ ] 터미널 세션을 **창 밖으로** 떼어내기 — 분리 터미널 창이 프로젝트당 하나(`term-<id>`)라 그 규약부터 바꿔야 한다 {#session-to-window}
 - [x] 탭이 많아 스트립이 넘칠 때 — **전제가 틀렸다.** 폭이 줄어드는 게 아니라 96px 에서 멈추고 나머지가 잘려 닿지 않는 탭이 생겼다. 하한을 68px 로 내려 주석이 약속한 축소를 실제로 성립시켰다 {#strip-overflow-drag}
   - [ ] 붐비는 스트립 육안 확인 — 탭 10개 이상에서 아이콘·활동 점·닫기가 겹치지 않는지 {#crowded-strip-verify}
+
+## Phase 4 — 손맛 (2026-08-29) {#p4-feel}
+
+사용자 보고: "드래그해서 창 붙여넣기 하는 게 자연스럽지 않고 뻑뻑하게 느껴져."
+Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는 물체가 커서를 따라오지
+않았고(직접 조작의 전제), 유일한 지시자에는 전환이 걸려 있었으며, 페인 사이 틈은
+놓을 수 없는 죽은 자리였다.
+
+- [x] 커서를 따라오는 물체 — 터미널은 고스트(`.term-ghost`, 레일이 `overflow: hidden` 이라 카드 자신은 못 나간다) · 창 탭은 탭 자신이 `translateX` (재배열 시 제자리 재측정 보정 포함) {#drag-follows-cursor}
+- [x] 위치 지시자에서 전환 제거 — `.term-drop` · `.term-rail-caret` · `.tabstrip-caret`. 따라오는 것은 하나로 충분하고 지시자는 스냅이 정답 {#no-indicator-lag}
+- [x] 틈까지 흡착 — `pickDropTarget`/`distanceToBox`/`clampToBox` (순수), `SNAP_PX` 20px 로 8px 손잡이와 8px 캔버스 여백을 덮는다. 상자 안 한가운데는 그대로 취소 {#snap-to-nearest-pane}
+- [x] 포인터를 rAF 로 묶고, 겨눈 자리가 그대로면 setState 생략 — 예전엔 move 마다 살아 있는 xterm 페인 전부를 다시 그리고 모든 rect 를 다시 읽었다 {#raf-coalesce-drag}
+- [x] 접힌 레일을 아이콘 한 개로 — 점은 모서리 배지, `ok`/`idle`/`off` 는 안 그린다 (페인 상태 띠와 같은 규칙) {#collapsed-rail-single-glyph}
+- [x] 깨진 CSS 복원 — `.term-rail[data-collapsed]` 셀렉터 중간에 41줄이 복붙돼 `.term-rail-add` 의 접힘 스코프가 전역으로 샜다 {#collapsed-css-paste-bug}
+- [ ] 실기기 확인 — 고스트가 레일 밖·페인 위·창 밖에서 제대로 따라오는지, 탭 `translateX` 가 재배열 순간에 안 튀는지 {#feel-manual-verify}
 
 ## 결정
 
@@ -135,4 +150,11 @@ ACP 세션이 있으면 그쪽이 먼저 깨진다. 다음에 앱을 직접 띄�
 | 2026-08-28T20:22:00+09:00 | #d4-menu-over-palette | claude-code | →☐ | 20260828/Features_to_add/2022_feature_tab-context-menu-keyboard.md | 결정 잠금 |
 | 2026-08-28T20:38:00+09:00 | #strip-overflow-drag | claude-code | [ ]→[x] | 20260828/Bugs/2038_bug_tab-strip-clips-tabs.md | 전제가 틀렸다 — 잘림이 문제 |
 | 2026-08-28T20:38:00+09:00 | #crowded-strip-verify | claude-code | →☐ | 20260828/Bugs/2038_bug_tab-strip-clips-tabs.md | 육안 미확인 |
+| 2026-08-29T14:40:00+09:00 | #drag-follows-cursor | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 직접 조작의 전제 — 뻑뻑함의 8할 |
+| 2026-08-29T14:40:00+09:00 | #no-indicator-lag | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 지시자는 스냅 |
+| 2026-08-29T14:40:00+09:00 | #snap-to-nearest-pane | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | SNAP_PX 20 · 순수 테스트 8건 |
+| 2026-08-29T14:40:00+09:00 | #raf-coalesce-drag | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 동일 결과면 setState 생략 |
+| 2026-08-29T14:40:00+09:00 | #collapsed-rail-single-glyph | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 점은 모서리 배지로 |
+| 2026-08-29T14:40:00+09:00 | #collapsed-css-paste-bug | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 41줄 복붙이 셀렉터를 반토막 냈다 |
+| 2026-08-29T14:40:00+09:00 | #feel-manual-verify | claude-code | →☐ | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 설치본 꺼진 뒤 육안 확인 |
 <!-- oculpm:plan-log end -->

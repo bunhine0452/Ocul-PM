@@ -123,6 +123,21 @@ export function TabStrip({
   const stripRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [drag, setDrag] = useState<DragState | null>(null);
+  /**
+   * 포인터 처리를 rAF 로 묶기 위한 그림자 상태.
+   *
+   * 예전엔 `pointermove` 마다 곧장 `setDrag` 를 했다 — 항상 새 객체라 순서가
+   * 그대로여도 스트립 전체가 다시 그려졌고, 그 직전에 **모든 탭**의 rect 를
+   * 읽어 레이아웃을 강제로 다시 계산했다. rAF 한 번으로 몰고, 순서가 안 바뀌면
+   * 상태를 건드리지 않는다.
+   */
+  const dragRef = useRef<DragState | null>(null);
+  dragRef.current = drag;
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const rafRef = useRef<number | null>(null);
+  /** 끌린 탭의 드래그 시작 시점 화면 x, 그리고 지금 걸어 둔 이동량. */
+  const homeXRef = useRef(0);
+  const appliedDxRef = useRef(0);
   const [adderOpen, setAdderOpen] = useState(false);
   /**
    * 탭 컨텍스트 메뉴 — 드래그의 **등가물**이다 (우클릭 · Shift+F10 · 메뉴 키).
@@ -236,49 +251,114 @@ export function TabStrip({
     // 포인터 캡처 — 커서가 창 밖으로 나가도 move/up 을 계속 받아야
     // "떼어내기"를 판정할 수 있다.
     e.currentTarget.setPointerCapture(e.pointerId);
-    setDrag({
+    const born: DragState = {
       tabId,
       startX: e.clientX,
       moved: false,
       order: tabs.map((tb) => tb.tab_id),
       detaching: false,
-    });
+    };
+    pointerRef.current = { x: e.clientX, y: e.clientY };
+    homeXRef.current = e.currentTarget.getBoundingClientRect().left;
+    appliedDxRef.current = 0;
+    // 첫 pointermove 가 이 렌더보다 먼저 올 수 있다 — ref 를 먼저 채운다.
+    dragRef.current = born;
+    setDrag(born);
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag) return;
-    const moved = drag.moved || Math.abs(e.clientX - drag.startX) > DRAG_START_PX;
+  /**
+   * 끌리는 탭을 커서에 붙여 둔다 — React 를 거치지 않고 직접 쓴다.
+   *
+   * 이게 없던 시절이 "뻑뻑함"의 본체였다: 손을 움직여도 탭은 제자리에 있고
+   * 그림자만 얹힌 채, 이웃 탭들이 한 칸씩 툭툭 자리를 바꿨다. 직접 조작은 손과
+   * 물체가 붙어 있어야 성립한다 (Chrome 탭이 하는 그대로다).
+   *
+   * 이동량은 탭 줄 안으로 가둔다 — `.tabstrip-tabs` 가 `overflow: hidden` 이라
+   * 밖으로 밀면 잘려서 사라진다. 떼어내기는 스트립 전체가 흐려지는 것으로
+   * 이미 말하고 있으므로 여기서 더 끌 필요가 없다.
+   */
+  const paintDragged = (state: DragState) => {
+    const el = tabRefs.current.get(state.tabId);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // rect 에는 지금 걸린 transform 이 이미 반영돼 있다 — 빼서 "제자리"를 얻는다.
+    // 재배열로 탭이 다른 칸으로 옮겨 가면 이 제자리가 바뀌므로, 시작 위치만
+    // 기억하고 매 프레임 다시 재야 한다 (안 하면 순서가 바뀌는 순간 탭이 한 칸
+    // 폭만큼 튄다).
+    const home = rect.left - appliedDxRef.current;
+    const want = homeXRef.current + (pointerRef.current.x - state.startX);
+    let dx = want - home;
+    const bounds = el.parentElement?.getBoundingClientRect();
+    if (bounds) {
+      dx = Math.min(Math.max(dx, bounds.left - home), bounds.right - rect.width - home);
+    }
+    appliedDxRef.current = dx;
+    el.style.transform = `translateX(${dx}px)`;
+  };
+
+  /** 끌린 탭을 제자리로 돌려놓는다 — 손을 놓거나 취소했을 때. */
+  const clearDragPaint = () => {
+    const id = dragRef.current?.tabId;
+    if (id != null) {
+      const el = tabRefs.current.get(id);
+      if (el) el.style.transform = "";
+    }
+    appliedDxRef.current = 0;
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  const flushDrag = () => {
+    rafRef.current = null;
+    const d = dragRef.current;
+    if (!d) return;
+    const { x, y } = pointerRef.current;
+    const moved = d.moved || Math.abs(x - d.startX) > DRAG_START_PX;
     if (!moved) return;
+    paintDragged(d);
 
     const strip = stripRef.current?.getBoundingClientRect();
-    const detaching = strip ? isDetachGesture(strip, e.clientY) : false;
+    const detaching = strip ? isDetachGesture(strip, y) : false;
 
     // 떼어내는 중에는 자리를 흔들지 않는다 — 커서가 스트립 밖에 있으니
     // 삽입 위치를 계산해 봐야 의미가 없고 화면만 요동친다.
     if (detaching) {
-      setDrag({ ...drag, moved, detaching });
+      if (!d.moved || !d.detaching) setDrag({ ...d, moved, detaching });
       // 창 밖으로 나간 동안만 물어본다 — 스트립 안에서는 물어볼 이유가 없고,
       // 매 프레임 IPC 를 때리면 재배열이 뚝뚝 끊긴다.
-      onDragHover?.(drag.tabId, strip?.height ?? 0);
+      onDragHover?.(d.tabId, strip?.height ?? 0);
       return;
     }
     // 스트립 안으로 돌아왔다 — 남의 창에 남겨 둔 캐럿을 지운다.
-    if (drag.detaching) onDragCleanup?.();
+    if (d.detaching) onDragCleanup?.();
 
-    const centers = drag.order.map((id) => {
+    const centers = d.order.map((id) => {
       const rect = tabRefs.current.get(id)?.getBoundingClientRect();
       return rect ? rect.left + rect.width / 2 : Number.POSITIVE_INFINITY;
     });
-    const from = drag.order.indexOf(drag.tabId);
-    const to = tabDropIndex(centers, e.clientX);
-    setDrag({ ...drag, moved, detaching: false, order: reorderTabs(drag.order, from, to) });
+    const from = d.order.indexOf(d.tabId);
+    const to = tabDropIndex(centers, x);
+    const order = reorderTabs(d.order, from, to);
+    // 순서도 상태도 그대로면 재렌더할 이유가 없다 — 탭은 이미 커서에 붙어 있다.
+    if (d.moved === moved && !d.detaching && order.join() === d.order.join()) return;
+    setDrag({ ...d, moved, detaching: false, order });
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    pointerRef.current = { x: e.clientX, y: e.clientY };
+    if (rafRef.current == null) rafRef.current = requestAnimationFrame(flushDrag);
   };
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag) return;
-    const state = drag;
+    const state = dragRef.current;
+    if (!state) return;
     // 비동기 경계를 넘으므로 좌표는 지금 붙잡아 둔다.
     const { screenX, screenY } = e;
+    clearDragPaint();
+    dragRef.current = null;
     setDrag(null);
     if (!state.moved) {
       onActivate(state.tabId);
@@ -357,7 +437,11 @@ export function TabStrip({
               onPointerDown={beginDrag(tb.tab_id)}
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
-              onPointerCancel={() => setDrag(null)}
+              onPointerCancel={() => {
+                clearDragPaint();
+                dragRef.current = null;
+                setDrag(null);
+              }}
               onAuxClick={(e) => {
                 // 가운데 버튼 = 닫기 (브라우저 관습).
                 if (e.button === 1) onClose(tb.tab_id);
