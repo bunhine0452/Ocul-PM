@@ -96,9 +96,14 @@ function renderStrip(over: Partial<React.ComponentProps<typeof TabStrip>> = {}) 
 
 const rect = (left: number, right: number, top: number, bottom: number) =>
   ({
-    left, right, top, bottom,
-    width: right - left, height: bottom - top,
-    x: left, y: top,
+    left,
+    right,
+    top,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+    x: left,
+    y: top,
     toJSON: () => ({}),
   }) as DOMRect;
 
@@ -111,22 +116,21 @@ const rect = (left: number, right: number, top: number, bottom: number) =>
  * 위젯 중첩을 피하려고 분리했다) — 그래서 여기서도 껍데기를 집는다.
  */
 function stubGeometry(tabWidth = 100, stripTop = 6, stripBottom = 44) {
-  const shells = Array.from(
-    document.querySelectorAll<HTMLElement>(".tabstrip-tab"),
-  );
+  const shells = Array.from(document.querySelectorAll<HTMLElement>(".tabstrip-tab"));
   shells.forEach((el, i) => {
-    el.getBoundingClientRect = () =>
-      rect(i * tabWidth, (i + 1) * tabWidth, stripTop, stripBottom);
+    el.getBoundingClientRect = () => rect(i * tabWidth, (i + 1) * tabWidth, stripTop, stripBottom);
     // 받는 쪽 산술은 `offsetLeft/offsetWidth` 를 본다 — `getBoundingClientRect`
     // 는 transform 이 반영된 값이라, 자리를 벌리려 밀어 둔 탭이 다음 판정으로
     // 되먹임돼 자리가 진동한다. jsdom 은 offset* 도 0 이므로 함께 심는다.
     Object.defineProperty(el, "offsetLeft", { value: i * tabWidth, configurable: true });
     Object.defineProperty(el, "offsetWidth", { value: tabWidth, configurable: true });
-    el.setPointerCapture = () => {};
-    el.releasePointerCapture = () => {};
   });
   const strip = shells[0].closest(".tabstrip") as HTMLElement;
   strip.getBoundingClientRect = () => rect(0, 400, stripTop, stripBottom);
+  // 포인터 캡처는 **스트립**이 쥔다 — 떼어내는 순간 탭은 언마운트되므로 탭에
+  // 걸면 그때 캡처가 함께 사라져 남은 move/up 이 오지 않는다.
+  strip.setPointerCapture = () => {};
+  strip.releasePointerCapture = () => {};
   return shells;
 }
 
@@ -230,23 +234,34 @@ describe("탭 스트립 — 포인터", () => {
   });
 
   /**
-   * 떼어내면서 넘기는 것은 화면 좌표가 아니라 **새 창 안의 앵커**다 — 잡았던
-   * 자리가 커서 밑에 그대로 오도록 하는 지점. 창을 놓는 일은 Rust 가 OS 커서로
-   * 하므로(줌에 안 흔들린다) 프런트는 "무엇을 커서 밑에 둘지" 만 말한다.
+   * 크롬과 같은 규약: 줄을 벗어나는 **그 순간** 탭이 창이 된다 (놓을 때가
+   * 아니다). 넘기는 좌표는 화면 좌표가 아니라 **새 창 안의 앵커** — 잡았던
+   * 자리가 커서 밑에 그대로 오도록 하는 지점이다. 창을 옮기는 일은 Rust 가
+   * OS 커서로 하므로(줌에 안 흔들린다) 프런트는 "무엇을 커서 밑에 둘지" 만 말한다.
    */
-  it("스트립 밖으로 충분히 끌면 떼어내기 — 잡았던 자리를 앵커로 넘긴다", async () => {
-    const { props } = renderStrip();
+  it("스트립 밖으로 충분히 끌면 그 자리에서 창이 된다 — 잡았던 자리가 앵커", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    const { props } = renderStrip({ onTearOff });
     const tabs = stubGeometry();
     // 두 번째 탭(100..200) 의 안쪽 50px, 스트립 위(6) 에서 14px 아래를 잡았다.
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
-    await movePointer(tabs[1], {
-      clientX: 170,
-      clientY: 44 + DETACH_THRESHOLD_PX + 30,
-    });
-    fireEvent.pointerUp(tabs[1], { clientX: 170, clientY: 300 });
+    await movePointer(tabs[1], { clientX: 170, clientY: 44 + DETACH_THRESHOLD_PX + 30 });
     // 새 창에서 이 탭은 첫 자리(offsetLeft 0) 에 앉으므로 앵커는 (0+50, 6+14).
-    expect(props.onDetach).toHaveBeenCalledWith(102, 50, 20);
+    expect(onTearOff).toHaveBeenCalledWith(102, 50, 20);
+    expect(props.onDetach).not.toHaveBeenCalled();
     expect(props.onReorder).not.toHaveBeenCalled();
+  });
+
+  it("한 제스처에 창은 한 번만 만든다", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    renderStrip({ onTearOff });
+    const tabs = stubGeometry();
+    const out = 44 + DETACH_THRESHOLD_PX + 30;
+    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
+    await movePointer(tabs[1], { clientX: 170, clientY: out });
+    await movePointer(tabs[1], { clientX: 240, clientY: out + 40 });
+    await movePointer(tabs[1], { clientX: 300, clientY: out + 80 });
+    expect(onTearOff).toHaveBeenCalledTimes(1);
   });
 
   it("떼어내다 스트립으로 돌아오면 다시 순서 변경이다", async () => {
@@ -283,37 +298,39 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
     await movePointer(tabs[1], { clientX: 220, clientY: 20 });
     expect(onDragHover).not.toHaveBeenCalled();
     // 밖 — 묻는다. 높이는 스트립 rect 그대로(6..44 = 38).
-    await movePointer(tabs[1], {
-      clientX: 220,
-      clientY: 44 + DETACH_THRESHOLD_PX + 30,
-    });
+    await movePointer(tabs[1], { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 });
     expect(onDragHover).toHaveBeenCalledWith(102, 38);
     expect(props.onDetach).not.toHaveBeenCalled();
   });
 
-  it("다른 창이 받으면 새 창을 만들지 않는다", async () => {
-    const onDragDrop = vi.fn().mockResolvedValue(true);
-    const { props } = renderStrip({ onDragDrop, handingOff: true });
-    const tabs = stubGeometry();
-    const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
-    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
-    await movePointer(tabs[1], far);
-    fireEvent.pointerUp(tabs[1], { ...far, screenX: 900, screenY: 500 });
-    await waitFor(() => expect(onDragDrop).toHaveBeenCalledWith(102));
-    expect(props.onDetach).not.toHaveBeenCalled();
-    expect(props.onReorder).not.toHaveBeenCalled();
-  });
-
-  it("받는 창이 없으면 그대로 떼어낸다 — 앵커는 그대로 살아 있다", async () => {
-    const onDragDrop = vi.fn().mockResolvedValue(false);
-    const { props } = renderStrip({ onDragDrop });
+  it("손을 놓으면 백엔드가 마무리한다 — 합치기냐 그 자리 창이냐", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    const onDropTearOff = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderStrip({ onTearOff, onDropTearOff });
     const tabs = stubGeometry();
     const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
     fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
     await movePointer(tabs[1], far);
     fireEvent.pointerUp(tabs[1], far);
-    // 붙이기 판정은 비동기라 앵커는 그 경계를 건너가야 한다 (놓고 나면 잴 수 없다).
-    await waitFor(() => expect(props.onDetach).toHaveBeenCalledWith(102, 50, 20));
+    await waitFor(() => expect(onDropTearOff).toHaveBeenCalled());
+    // 판정은 전부 백엔드 몫이다 — 스트립은 떼어내지도 재배열하지도 않는다.
+    expect(props.onDetach).not.toHaveBeenCalled();
+    expect(props.onReorder).not.toHaveBeenCalled();
+  });
+
+  it("떼어낼 수 없는 창이면(탭 하나) 아무 일도 안 한다", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(false);
+    const onDropTearOff = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderStrip({ onTearOff, onDropTearOff });
+    const tabs = stubGeometry();
+    const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
+    fireEvent.pointerDown(tabs[1], { button: 0, clientX: 150, clientY: 20 });
+    await movePointer(tabs[1], far);
+    await waitFor(() => expect(onTearOff).toHaveBeenCalled());
+    fireEvent.pointerUp(tabs[1], far);
+    expect(onDropTearOff).not.toHaveBeenCalled();
+    expect(props.onDetach).not.toHaveBeenCalled();
+    expect(props.onReorder).not.toHaveBeenCalled();
   });
 
   it("스트립으로 돌아오면 남의 창에 남긴 캐럿을 지운다", async () => {
@@ -377,12 +394,7 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
       <TabStrip
         {...props}
         incomingX={140}
-        incoming={{
-          name: "docs-site",
-          icon: null,
-          color: null,
-          isStart: false,
-        }}
+        incoming={{ name: "docs-site", icon: null, color: null, isStart: false }}
       />,
     );
     await waitFor(() =>
@@ -403,54 +415,85 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
 });
 
 /**
- * 떼어내기의 **모션**. 판정(어느 창·어느 자리)은 위에서 고정했고, 여기서는
- * 손에 잡히는 것이 있는가를 본다 — 스트립 밖으로 나가면 탭 자신은 줄 안에
- * 갇혀(`overflow: hidden`) 있으므로 고스트가 없으면 손에 아무것도 없다.
+ * 떼어내기의 **거동**. 크롬과 같은 규약이라 확인할 것도 크롬과 같다: 줄을
+ * 벗어나는 순간 탭이 이 줄에서 **사라지고**, 무르면 돌아오고, 캡처가 살아남아
+ * 제스처가 끊기지 않는다.
  */
-describe("탭 스트립 — 떼어내는 손맛", () => {
+describe("탭 스트립 — 창으로 떼어내기", () => {
   const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
 
-  it("스트립을 벗어나면 고스트가 뜨고 원래 탭은 자국으로 남는다", async () => {
-    renderStrip({});
+  /**
+   * 크롬은 탭이 줄을 벗어나는 순간 그 자리를 메운다 — 떼어낸 결과가 이미 창이기
+   * 때문이다. 여기서는 백엔드가 탭 목록을 다시 내려 주는 것으로 성립하므로,
+   * 이 테스트가 보는 것은 "그 사이에 옆으로 끌어 둔 자국이 남지 않는가" 다.
+   */
+  it("줄을 벗어나면 탭은 이 줄에서 손을 뗀다", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    renderStrip({ onTearOff });
     const shells = stubGeometry();
     fireEvent.pointerDown(shells[1], { button: 0, clientX: 150, clientY: 20 });
     await movePointer(shells[1], { clientX: 220, clientY: 20 });
-    // 아직 줄 안 — 탭 자신이 손을 따라간다. 고스트는 없다.
-    expect(document.querySelector(".tabstrip-ghost")).toBeNull();
+    // 아직 줄 안 — 탭 자신이 손을 따라간다.
+    expect(shells[1].style.transform).toContain("translateX(");
+    expect(onTearOff).not.toHaveBeenCalled();
 
     await movePointer(shells[1], far);
-    const ghost = document.querySelector<HTMLElement>(".tabstrip-ghost");
-    expect(ghost).not.toBeNull();
-    expect(ghost?.textContent).toContain("saju");
-    expect(shells[1].className).toContain("torn");
-    // 탭은 줄 안 제자리로 — 물체가 둘로 보이면 안 된다.
+    await waitFor(() => expect(onTearOff).toHaveBeenCalled());
+    // 이동량은 지워진다 — 손에 들린 것은 이제 이 줄의 탭이 아니라 창이다.
     expect(shells[1].style.transform).toBe("");
+    expect(shells[1].className).not.toContain("dragging");
   });
 
-  it("놓으면 어떻게 되는지를 고스트가 말한다 — 새 창 / 합치기", async () => {
-    const { props, rerender } = renderStrip({});
+  /**
+   * 떼어낸 탭은 이 창에서 언마운트된다. 포인터 캡처를 그 탭에 걸어 두었다면
+   * 그 순간 캡처가 함께 사라져 남은 move/up 이 오지 않는다 — 창이 손을 놓친 채
+   * 커서만 따라다니게 된다. 그래서 캡처는 스트립에 건다.
+   */
+  it("포인터 캡처는 스트립이 쥔다 — 탭이 사라져도 제스처가 산다", () => {
+    renderStrip({ onTearOff: vi.fn().mockResolvedValue(true) });
+    const shells = stubGeometry();
+    const strip = shells[0].closest(".tabstrip") as HTMLElement;
+    const captured: number[] = [];
+    strip.setPointerCapture = (id: number) => captured.push(id);
+    shells[1].setPointerCapture = () => {
+      throw new Error("탭이 캡처를 쥐면 안 된다");
+    };
+    fireEvent.pointerDown(shells[1], { button: 0, clientX: 150, clientY: 20, pointerId: 7 });
+    expect(captured).toEqual([7]);
+  });
+
+  it("Escape 로 무르면 떼어낸 창을 물린다", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    const onCancelTearOff = vi.fn().mockResolvedValue(undefined);
+    const onDropTearOff = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderStrip({ onTearOff, onCancelTearOff, onDropTearOff });
     const shells = stubGeometry();
     fireEvent.pointerDown(shells[1], { button: 0, clientX: 150, clientY: 20 });
     await movePointer(shells[1], far);
-    expect(document.querySelector(".tabstrip-ghost")?.getAttribute("data-mode")).toBe("new");
-    rerender(<TabStrip {...props} handingOff />);
-    expect(document.querySelector(".tabstrip-ghost")?.getAttribute("data-mode")).toBe("merge");
-  });
+    await waitFor(() => expect(onTearOff).toHaveBeenCalled());
 
-  it("Escape 로 되돌린다 — 창도 순서도 건드리지 않는다", async () => {
-    const onDragCleanup = vi.fn();
-    const { props } = renderStrip({ onDragCleanup });
-    const shells = stubGeometry();
-    fireEvent.pointerDown(shells[1], { button: 0, clientX: 150, clientY: 20 });
-    await movePointer(shells[1], far);
     fireEvent.keyDown(window, { key: "Escape" });
-    await waitFor(() => expect(document.querySelector(".tabstrip-ghost")).toBeNull());
-    expect(onDragCleanup).toHaveBeenCalled();
-    // 놓기가 아니므로 뒤이은 pointerup 이 떼어내기를 부르면 안 된다.
-    fireEvent.pointerUp(shells[1], { ...far, screenX: 900, screenY: 500 });
+    await waitFor(() => expect(onCancelTearOff).toHaveBeenCalled());
+    // 무른 뒤의 pointerup 은 아무 일도 하지 않는다 — 탭이 다시 열리면 안 된다.
+    fireEvent.pointerUp(shells[1], far);
+    expect(onDropTearOff).not.toHaveBeenCalled();
     expect(props.onDetach).not.toHaveBeenCalled();
     expect(props.onReorder).not.toHaveBeenCalled();
     expect(props.onActivate).not.toHaveBeenCalled();
+  });
+
+  it("문턱을 넘기 전에 무르면 창은 만들어지지 않는다", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    const onCancelTearOff = vi.fn().mockResolvedValue(undefined);
+    const onDragCleanup = vi.fn();
+    renderStrip({ onTearOff, onCancelTearOff, onDragCleanup });
+    const shells = stubGeometry();
+    fireEvent.pointerDown(shells[1], { button: 0, clientX: 150, clientY: 20 });
+    await movePointer(shells[1], { clientX: 220, clientY: 20 });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onTearOff).not.toHaveBeenCalled();
+    expect(onCancelTearOff).not.toHaveBeenCalled();
+    expect(onDragCleanup).toHaveBeenCalled();
   });
 
   it("새로 앉은 탭에만 등장 모션이 붙는다 — 첫 렌더는 조용하다", async () => {
@@ -487,10 +530,7 @@ describe("탭 스트립 — 탭 메뉴 (드래그의 등가물)", () => {
    */
   it("Shift+F10 · 메뉴 키로도 열린다", () => {
     renderStrip({ windowChoices: choices });
-    fireEvent.keyDown(screen.getAllByRole("tab")[0], {
-      key: "F10",
-      shiftKey: true,
-    });
+    fireEvent.keyDown(screen.getAllByRole("tab")[0], { key: "F10", shiftKey: true });
     expect(screen.getByRole("menu")).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
@@ -513,15 +553,11 @@ describe("탭 스트립 — 탭 메뉴 (드래그의 등가물)", () => {
     const { props } = renderStrip({ windowChoices: choices });
     fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
     fireEvent.click(screen.getByRole("menuitem", { name: "새 창으로 떼어내기" }));
-    expect(props.onDetach).toHaveBeenCalledWith(101, null, null);
+    expect(props.onDetach).toHaveBeenCalledWith(101);
   });
 
   it("마지막 탭에는 떼어내기를 안 그린다 — 백엔드도 거절한다", () => {
-    renderStrip({
-      tabs: [tab(1, "ai-pm")],
-      activeId: 101,
-      windowChoices: choices,
-    });
+    renderStrip({ tabs: [tab(1, "ai-pm")], activeId: 101, windowChoices: choices });
     fireEvent.contextMenu(screen.getByRole("tab"));
     expect(screen.queryByRole("menuitem", { name: "새 창으로 떼어내기" })).toBeNull();
     // 옮기기와 닫기는 남는다.

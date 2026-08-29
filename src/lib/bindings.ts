@@ -213,16 +213,28 @@ export const commands = {
 	tabDragOver: (tabId: number, band: number | null) => typedError<string | null, string>(__TAURI_INVOKE("tab_drag_over", { tabId, band })),
 	/**  대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②). */
 	tabDropHint: (window: string, index: number) => typedError<null, string>(__TAURI_INVOKE("tab_drop_hint", { window, index })),
-	/**
-	 *  겨누던 창으로 탭을 옮긴다 — 창 간 드래그의 마무리. 옮겼으면 `true`.
-	 * 
-	 *  원래 창의 **마지막** 탭이어도 옮긴다 (그 창은 닫힌다). 떼어내기가 마지막 탭을
-	 *  거부하는 것과 다른데, 여기서는 창이 하나 줄어드는 것이 사용자가 바란 결과이기
-	 *  때문이다 — 크롬도 그렇게 동작한다.
-	 */
-	attachTab: (tabId: number) => typedError<boolean, string>(__TAURI_INVOKE("attach_tab", { tabId })),
 	/**  드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다. */
 	tabDragEnd: () => typedError<null, string>(__TAURI_INVOKE("tab_drag_end")),
+	/**
+	 *  탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
+	 * 
+	 *  `anchor` 는 새 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그
+	 *  라벨을 그대로 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
+	 *  창에 탭이 하나뿐이면 떼어낼 것이 없으므로 `None`.
+	 */
+	beginTearOff: (tabId: number, anchorX: number | null, anchorY: number | null) => typedError<boolean, string>(__TAURI_INVOKE("begin_tear_off", { tabId, anchorX, anchorY })),
+	/**
+	 *  손을 놓았다. 남의 스트립을 겨누고 있었으면 그리로 합치고(`true`), 아니면
+	 *  그 자리에 창으로 남는다(`false`).
+	 */
+	dropTearOff: () => typedError<boolean, string>(__TAURI_INVOKE("drop_tear_off")),
+	/**
+	 *  Escape — 떼어낸 창을 물리고 탭을 **원래 자리로** 돌려놓는다.
+	 * 
+	 *  빈 창은 `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이
+	 *  없으므로 그냥 놓은 것으로 본다.
+	 */
+	cancelTearOff: () => typedError<null, string>(__TAURI_INVOKE("cancel_tear_off")),
 	/**
 	 *  탭을 **이름으로 지정한** 창으로 옮긴다 — 드래그의 키보드·메뉴 등가물.
 	 * 
@@ -1554,6 +1566,7 @@ export const events = {
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	tabDragLeave: makeEvent<TabDragLeave>("tab-drag-leave"),
 	tabDragOver: makeEvent<TabDragOver>("tab-drag-over"),
+	tearOffSettled: makeEvent<TearOffSettled>("tear-off-settled"),
 	terminalWindowsChanged: makeEvent<TerminalWindowsChanged>("terminal-windows-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
 	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
@@ -4277,6 +4290,18 @@ export type TabPreview = {
 	color: string | null,
 	/**  시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다. */
 	is_start: boolean,
+};
+
+/**
+ *  손에 들려 있던 창을 **놓았다** — 이제 평범한 창이다.
+ * 
+ *  떼어내는 동안 그 창은 탭 줄만 그리고 화면 마운트를 붙잡고 있었다
+ *  (`?tearoff=1`). 이 이벤트가 그 손을 놓아 준다 — 프로젝트 init·워처·자동색인이
+ *  그때 비로소 돈다. 끌려다니다 남의 창에 합쳐지면 이 이벤트는 오지 않고 창이
+ *  그대로 닫히므로, 그 전부가 아예 시작되지 않는다.
+ */
+export type TearOffSettled = {
+	window: string,
 };
 
 /**

@@ -145,8 +145,6 @@ export const en: Record<keyof typeof ko, string> = {
   "tabs.menu.detach": "Move to a new window",
   "tabs.menu.close": "Close tab",
   "tabs.menu.noOtherWindow": "No other window to move to.",
-  "tabs.drag.toNewWindow": "Drop for a new window",
-  "tabs.drag.toWindow": "Into another window",
   "tabs.drag.incoming": "Drops here",
   "project.openWindowFailed": "Couldn't open the tab: {error}",
   "project.closeTabFailed": "Couldn't close the tab: {error}",

@@ -87,6 +87,7 @@ if (!isWebview && !window.location.search.includes("desktop=1")) {
             windowLabel={route.label}
             initialView={route.view}
             initialEntryPath={route.entryPath}
+            tearingOff={route.tearoff}
           />
         </React.Suspense>
         <Toaster />

@@ -108,6 +108,26 @@ pub struct WindowState {
     pub active: Option<u32>,
 }
 
+/// 끌려다니는 중인 떼어낸 창.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TearOff {
+    pub label: String,
+    /// 떼어낸 창 **안에서의** 탭 id.
+    ///
+    /// 끌던 것과 **다른 값**이다 — 창을 만들 때 탭이 새로 발급되기 때문이다
+    /// (`reserve` → `register` → `mint`). 프런트가 들고 있던 옛 id 로 마무리를
+    /// 부르면 그 탭은 어디에도 없어 조용히 아무 일도 일어나지 않는다. 그래서
+    /// 놓기·무르기는 id 를 **받지 않고** 여기서 읽는다.
+    pub tab_id: u32,
+    /// 창 좌상단에서 커서까지의 거리 (논리 px) — 매 틱 `cursor - anchor` 로 옮긴다.
+    pub anchor: (f64, f64),
+    /// 나온 창과 그 자리 — Escape 로 되돌릴 때 쓴다.
+    pub source: String,
+    pub index: usize,
+    /// 남의 스트립을 겨누는 중이라 숨겨 두었나 (크롬의 합치기 미리보기).
+    pub hidden: bool,
+}
+
 /// 창 → 탭 집합. 순수 자료구조라 Tauri 런타임 없이 단위 테스트할 수 있다.
 #[derive(Debug, Default)]
 pub struct Registry {
@@ -123,6 +143,12 @@ pub struct Registry {
     /// (Rust 는 탭 폭을 모른다 — CSS 가 정한다). 아직 안 왔으면 `None` = 맨 뒤.
     /// 드래그가 끝나거나 스트립을 벗어나면 지워진다.
     drop_hint: Option<(String, Option<usize>)>,
+    /// 지금 **손에 들려 있는** 창 — 탭을 스트립 밖으로 끌어 떼어낸 진짜 창이다.
+    ///
+    /// 크롬과 같은 규약: 탭이 줄을 벗어나는 순간 창이 되어 커서를 따라오고,
+    /// 남은 탭들은 그 자리에서 줄을 메운다. 놓기 전까지는 되돌릴 수 있어야
+    /// 하므로 어디서 나왔는지(`source`·`index`)를 함께 기억한다.
+    tearing: Option<TearOff>,
     next_window: u32,
     next_tab: u32,
 }
@@ -323,6 +349,26 @@ impl Registry {
         self.drop_hint.take()
     }
 
+    fn tearing(&self) -> Option<TearOff> {
+        self.tearing.clone()
+    }
+
+    fn take_tearing(&mut self) -> Option<TearOff> {
+        self.tearing.take()
+    }
+
+    /// 겨누는 창이 생기면 들고 있는 창을 숨긴다 (크롬의 합치기 미리보기).
+    /// 반환값은 **상태가 바뀌었을 때만** `Some` — 매 틱 hide/show 를 부르면
+    /// 창이 깜빡인다.
+    fn set_tear_hidden(&mut self, hidden: bool) -> Option<bool> {
+        let tear = self.tearing.as_mut()?;
+        if tear.hidden == hidden {
+            return None;
+        }
+        tear.hidden = hidden;
+        Some(hidden)
+    }
+
     fn activate(&mut self, tab_id: u32) -> Option<String> {
         let label = self.locate_tab(tab_id)?;
         self.windows.get_mut(&label)?.active = Some(tab_id);
@@ -503,6 +549,17 @@ pub struct TabPreview {
     pub is_start: bool,
 }
 
+/// 손에 들려 있던 창을 **놓았다** — 이제 평범한 창이다.
+///
+/// 떼어내는 동안 그 창은 탭 줄만 그리고 화면 마운트를 붙잡고 있었다
+/// (`?tearoff=1`). 이 이벤트가 그 손을 놓아 준다 — 프로젝트 init·워처·자동색인이
+/// 그때 비로소 돈다. 끌려다니다 남의 창에 합쳐지면 이 이벤트는 오지 않고 창이
+/// 그대로 닫히므로, 그 전부가 아예 시작되지 않는다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TearOffSettled {
+    pub window: String,
+}
+
 /// 그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct TabDragLeave {
@@ -593,8 +650,14 @@ fn encode_query_value(raw: &str) -> String {
 /// 새 창의 URL. 탭 집합은 프런트가 마운트 직후 `get_window_tabs` 로 읽지만,
 /// 라벨과 딥링크 목적지는 URL 로 실어야 한다 — 갓 만든 창의 프런트는 아직
 /// 리스너를 달기 전이라 `emit` 이 유실된다.
-fn window_url(label: &str, nav: Option<&crate::tray::TrayNavigate>) -> String {
+fn window_url(label: &str, nav: Option<&crate::tray::TrayNavigate>, tearoff: bool) -> String {
     let mut url = format!("index.html?win={}", encode_query_value(label));
+    // 떼어내는 **중**인 창은 탭 줄만 그리고 화면 마운트를 붙잡는다. 끌려다니는
+    // 몇백 ms 동안 프로젝트 init·워처·자동색인을 돌릴 이유가 없고, 도로 남의
+    // 창에 합치면 그 전부가 낭비가 된다.
+    if tearoff {
+        url.push_str("&tearoff=1");
+    }
     if let Some(nav) = nav {
         url.push_str(&format!("&view={}", encode_query_value(&nav.view)));
         if let Some(entry) = nav.entry_path.as_deref() {
@@ -668,7 +731,7 @@ pub async fn open_project_tab_with_nav(
     }
 
     // ③ 새 창.
-    create_window(app, Some(project_id), nav, None).await
+    create_window(app, Some(project_id), nav, None, false).await.map(|_| ())
 }
 
 /// `+` — 시작 탭(프로젝트 메인 화면)을 연다. Chrome 의 새 탭 페이지.
@@ -691,7 +754,7 @@ pub async fn new_start_tab_inner(app: &AppHandle, window: Option<String>) -> Res
             .filter(|l| app.get_webview_window(l).is_some())
     };
     let Some(label) = target else {
-        return create_window(app, None, None, None).await;
+        return create_window(app, None, None, None, false).await.map(|_| ());
     };
     {
         let state = app.state::<WindowTabs>();
@@ -704,7 +767,7 @@ pub async fn new_start_tab_inner(app: &AppHandle, window: Option<String>) -> Res
 
 /// 앱 메뉴의 "새 창" — 언제나 새 창을 만든다 (탭을 붙이지 않는다).
 pub async fn new_window_inner(app: &AppHandle) -> Result<(), String> {
-    create_window(app, None, None, None).await
+    create_window(app, None, None, None, false).await.map(|_| ())
 }
 
 /// 시작 탭에서 프로젝트를 골랐다 — **그 자리에서** 프로젝트 탭이 된다.
@@ -922,7 +985,7 @@ pub async fn detach_tab(
         }
         _ => None,
     };
-    create_window(&app, project_id, None, at).await
+    create_window(&app, project_id, None, at, false).await.map(|_| ())
 }
 
 /// 떼어낸 창의 좌상단 (논리 px) — 잡았던 자리가 커서 밑에 그대로 오도록.
@@ -962,12 +1025,39 @@ pub async fn tab_drag_over(
     tab_id: u32,
     band: f64,
 ) -> Result<Option<String>, String> {
+    // 손에 창이 들려 있으면 그쪽이 기준이다 — 끌던 탭은 이미 그 창의 것이고
+    // **id 도 새로 발급됐다** (프런트가 들고 있는 옛 id 로는 못 찾는다).
+    let tear = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        reg.tearing()
+    };
     let source = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
-        reg.locate_tab(tab_id)
+        reg.locate_tab(tear.as_ref().map_or(tab_id, |t| t.tab_id))
     };
+    // 들고 있는 창은 **먼저 옮긴다** — 히트테스트보다 앞이어야 커서와 창이 같은
+    // 프레임에서 맞는다.
+    if let Some(tear) = &tear {
+        follow_cursor(&app, tear);
+    }
     let hit = source.as_deref().and_then(|src| strip_under_cursor(&app, src, band));
+
+    // 크롬의 합치기 미리보기 — 남의 스트립을 겨누는 순간 들고 있던 창은
+    // **사라지고** 그 창의 줄에 자리가 벌어진다. 놓기 전에 결과가 그대로 보인다.
+    if tear.is_some() {
+        let toggled = {
+            let state = app.state::<WindowTabs>();
+            let mut reg = state.lock();
+            reg.set_tear_hidden(hit.is_some())
+        };
+        if let (Some(hidden), Some(tear)) = (toggled, &tear) {
+            if let Some(win) = app.get_webview_window(&tear.label) {
+                let _ = if hidden { win.hide() } else { win.show() };
+            }
+        }
+    }
 
     let (left, entered, fresh) = {
         let state = app.state::<WindowTabs>();
@@ -985,8 +1075,10 @@ pub async fn tab_drag_over(
     }
     if let Some((label, x)) = hit {
         // 겉모습은 스트립에 **처음 들어선** 프레임에만 싣는다 (DB 조회 1회).
-        let preview = if fresh { tab_preview(&app, tab_id).await } else { None };
-        let _ = TabDragOver { window: label.clone(), x, tab_id, preview }.emit_to(&app, &label);
+        let carried = tear.as_ref().map_or(tab_id, |t| t.tab_id);
+        let preview = if fresh { tab_preview(&app, carried).await } else { None };
+        let _ = TabDragOver { window: label.clone(), x, tab_id: carried, preview }
+            .emit_to(&app, &label);
     }
     Ok(entered)
 }
@@ -1026,30 +1118,6 @@ pub async fn tab_drop_hint(app: AppHandle, window: String, index: u32) -> Result
     let state = app.state::<WindowTabs>();
     state.lock().note_drop_index(&window, index as usize);
     Ok(())
-}
-
-/// 겨누던 창으로 탭을 옮긴다 — 창 간 드래그의 마무리. 옮겼으면 `true`.
-///
-/// 원래 창의 **마지막** 탭이어도 옮긴다 (그 창은 닫힌다). 떼어내기가 마지막 탭을
-/// 거부하는 것과 다른데, 여기서는 창이 하나 줄어드는 것이 사용자가 바란 결과이기
-/// 때문이다 — 크롬도 그렇게 동작한다.
-#[tauri::command]
-#[specta::specta]
-pub async fn attach_tab(app: AppHandle, tab_id: u32) -> Result<bool, String> {
-    let Some((target, index)) = ({
-        let state = app.state::<WindowTabs>();
-        let mut reg = state.lock();
-        reg.take_drop_hint()
-    }) else {
-        return Ok(false);
-    };
-    // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다
-    // 낫다 (스트립에 막 들어선 순간에 손을 놓으면 생길 수 있다).
-    let moved = commit_move(&app, tab_id, &target, index.unwrap_or(usize::MAX)).await;
-    if moved {
-        let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
-    }
-    Ok(moved)
 }
 
 /// 탭을 `target` 창의 `index` 자리로 옮기고 양쪽 창을 다시 그린다.
@@ -1128,14 +1196,167 @@ pub async fn list_app_windows(app: AppHandle) -> Result<Vec<AppWindowInfo>, Stri
 #[tauri::command]
 #[specta::specta]
 pub async fn tab_drag_end(app: AppHandle) -> Result<(), String> {
-    let left = {
+    let (left, stray) = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
-        reg.unhover()
+        (reg.unhover(), reg.take_tearing())
     };
     if let Some(prev) = left {
         let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
     }
+    // 손에 창이 남은 채로 드래그가 끝났다 — 놓은 것으로 본다. 안 그러면 숨겨진
+    // 창이 영영 남고(레지스트리에는 있는데 화면에 없다) 다음 떼어내기도 막힌다.
+    if let Some(tear) = stray {
+        settle_tear_off(&app, &tear);
+    }
+    Ok(())
+}
+
+// ─── 크롬식 떼어내기 — 탭이 줄을 벗어나면 **창이 된다** ──────────────────────
+//
+// 고스트가 아니라 진짜 창이다. 크롬이 그렇게 하는 데는 이유가 있다: 떼어낸
+// 결과가 곧 창이므로, 놓기 전에 그 창을 그대로 보여 주면 사용자는 결과를 미리
+// 보는 게 아니라 **결과를 직접 들고 있는** 것이 된다.
+//
+// 끌려다니는 동안 그 창은 탭 줄만 그리고 화면 마운트를 붙잡는다(`?tearoff=1`) —
+// 남의 창에 도로 합치면 프로젝트 init·워처·자동색인이 아예 시작되지 않는다.
+
+/// 들고 있는 창을 커서 밑으로 옮긴다. 커서는 OS 에서 물리 px 로 받아 그 창의
+/// 배율로 나눈다 (결정 2 — 웹뷰 줌에 흔들리지 않는 유일한 좌표계).
+fn follow_cursor(app: &AppHandle, tear: &TearOff) {
+    let Some(win) = app.get_webview_window(&tear.label) else { return };
+    let Ok(cursor) = app.cursor_position() else { return };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let (x, y) = detached_origin((cursor.x, cursor.y), scale, tear.anchor);
+    let _ = win.set_position(tauri::LogicalPosition::new(x, y));
+}
+
+/// 손을 놓았다 — 평범한 창으로 되돌린다 (다시 보이게 하고, 포커스하고, 프런트의
+/// 마운트 보류를 푼다).
+fn settle_tear_off(app: &AppHandle, tear: &TearOff) {
+    if let Some(win) = app.get_webview_window(&tear.label) {
+        let _ = win.show();
+    }
+    focus_window(app, &tear.label);
+    let _ = TearOffSettled { window: tear.label.clone() }.emit_to(app, &tear.label);
+}
+
+/// 탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
+///
+/// `anchor` 는 새 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그
+/// 라벨을 그대로 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
+/// 창에 탭이 하나뿐이면 떼어낼 것이 없으므로 `None`.
+#[tauri::command]
+#[specta::specta]
+pub async fn begin_tear_off(
+    app: AppHandle,
+    tab_id: u32,
+    anchor_x: f64,
+    anchor_y: f64,
+) -> Result<bool, String> {
+    let held = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        reg.tearing()
+    };
+    if held.is_some() {
+        return Ok(true);
+    }
+
+    let taken = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        let Some(label) = reg.locate_tab(tab_id) else { return Ok(false) };
+        let st = reg.get(&label).ok_or("창을 찾지 못했습니다")?;
+        // 마지막 탭은 떼어내지 않는다 — 원본 창이 닫히고 같은 내용의 새 창이 뜰
+        // 뿐이라 순수 손해다 (크롬도 창 하나짜리 탭은 안 뜯어낸다).
+        if st.order.len() <= 1 {
+            return Ok(false);
+        }
+        let index = st.order.iter().position(|t| t.id == tab_id).unwrap_or(0);
+        reg.remove_tab(tab_id).map(|(source, project_id, _)| (source, project_id, index))
+    };
+    let Some((source, project_id, index)) = taken else { return Ok(false) };
+    broadcast(&app, &source).await;
+
+    let scale = app
+        .get_webview_window(&source)
+        .and_then(|w| w.scale_factor().ok())
+        .unwrap_or(1.0);
+    let at = app
+        .cursor_position()
+        .ok()
+        .map(|c| detached_origin((c.x, c.y), scale, (anchor_x, anchor_y)));
+
+    let label = create_window(&app, project_id, None, at, true).await?;
+    {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        // 새 창 안에서 이 탭은 **새 id** 로 앉아 있다 — 그걸 기억해야 놓기·무르기가
+        // 실제로 그 탭에 가 닿는다.
+        let Some(fresh) = reg.get(&label).and_then(|st| st.order.first()).map(|t| t.id) else {
+            return Ok(false);
+        };
+        reg.tearing = Some(TearOff {
+            label,
+            tab_id: fresh,
+            anchor: (anchor_x, anchor_y),
+            source,
+            index,
+            hidden: false,
+        });
+    }
+    Ok(true)
+}
+
+/// 손을 놓았다. 남의 스트립을 겨누고 있었으면 그리로 합치고(`true`), 아니면
+/// 그 자리에 창으로 남는다(`false`).
+#[tauri::command]
+#[specta::specta]
+pub async fn drop_tear_off(app: AppHandle) -> Result<bool, String> {
+    let Some(tear) = ({
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.take_tearing()
+    }) else {
+        return Ok(false);
+    };
+    let hint = {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.take_drop_hint()
+    };
+    if let Some((target, index)) = hint {
+        // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다 낫다.
+        if commit_move(&app, tear.tab_id, &target, index.unwrap_or(usize::MAX)).await {
+            let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
+            return Ok(true);
+        }
+    }
+    // 못 합쳤다 — 숨겨 두었을 수 있으므로 반드시 되살린다.
+    settle_tear_off(&app, &tear);
+    Ok(false)
+}
+
+/// Escape — 떼어낸 창을 물리고 탭을 **원래 자리로** 돌려놓는다.
+///
+/// 빈 창은 `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이
+/// 없으므로 그냥 놓은 것으로 본다.
+#[tauri::command]
+#[specta::specta]
+pub async fn cancel_tear_off(app: AppHandle) -> Result<(), String> {
+    let Some(tear) = ({
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.unhover();
+        reg.take_tearing()
+    }) else {
+        return Ok(());
+    };
+    if commit_move(&app, tear.tab_id, &tear.source, tear.index).await {
+        return Ok(());
+    }
+    settle_tear_off(&app, &tear);
     Ok(())
 }
 
@@ -1355,7 +1576,7 @@ pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
         focus_window(app, &label);
         return Ok(());
     }
-    create_window(app, None, None, None).await
+    create_window(app, None, None, None, false).await.map(|_| ())
 }
 
 async fn create_window(
@@ -1363,12 +1584,18 @@ async fn create_window(
     project_id: Option<u32>,
     nav: Option<&crate::tray::TrayNavigate>,
     position: Option<(f64, f64)>,
-) -> Result<(), String> {
+    tearoff: bool,
+) -> Result<String, String> {
     // **휴면 창**을 먼저 재사용한다 — 웹뷰는 살아 있는데 레지스트리에는 없는
     // 창. 두 경우에 생긴다: ① 앱 시작 직후의 `main`(아직 편입 전), ② 상주
     // 모드에서 마지막 창을 닫아 숨겨 둔 창. 재사용하지 않으면 숨은 웹뷰가
     // 영원히 남고 매번 새 라벨이 발급된다.
-    let dormant = {
+    // 떼어내는 중인 창은 **반드시 새로** 만든다 — 휴면 창은 이미 평범한 앱 URL 로
+    // 떠 있어서 `?tearoff=1` 이 안 먹고, 그러면 끌려다니는 동안 프로젝트가
+    // 통째로 마운트된다.
+    let dormant = if tearoff {
+        None
+    } else {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
         let mut labels: Vec<String> = app
@@ -1397,7 +1624,7 @@ async fn create_window(
         }
         focus_window(app, &label);
         broadcast(app, &label).await;
-        return Ok(());
+        return Ok(label);
     }
 
     let label = {
@@ -1414,13 +1641,20 @@ async fn create_window(
         None => "Ocul-PM".to_string(),
     };
 
-    let mut builder =
-        WebviewWindowBuilder::new(app, &label, WebviewUrl::App(window_url(&label, nav).into()))
-            .title(title)
-            .hidden_title(true)
-            .inner_size(WINDOW_W, WINDOW_H)
-            .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
-            .resizable(true);
+    let mut builder = WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App(window_url(&label, nav, tearoff).into()),
+    )
+    .title(title)
+    .hidden_title(true)
+    .inner_size(WINDOW_W, WINDOW_H)
+    .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
+    .resizable(true)
+    // 손에 들려 있는 창은 포커스를 뺏지 않는다. 뺏으면 마우스 이벤트를 끌던
+    // 창에서 가로채 갈 위험이 있고(드래그가 그 자리에서 죽는다), 화면상으로도
+    // "아직 놓지 않았다" 가 안 읽힌다.
+    .focused(!tearoff);
     if let Some((x, y)) = position {
         // 이미 "창 좌상단" 으로 계산돼 온다 (`detached_origin`) — 여기서 다시
         // 보정하지 않는다.
@@ -1443,9 +1677,9 @@ async fn create_window(
         let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
     }
 
-    attach_window_hooks(app, &window, label);
+    attach_window_hooks(app, &window, label.clone());
     emit_open_projects(app);
-    Ok(())
+    Ok(label)
 }
 
 /// `tauri.conf.json` 이 만든 첫 창을 레지스트리에 등록하고 훅을 붙인다.
@@ -2050,7 +2284,54 @@ mod tests {
 
     #[test]
     fn plain_window_url_has_only_label() {
-        assert_eq!(window_url("win-2", None), "index.html?win=win-2");
+        assert_eq!(window_url("win-2", None, false), "index.html?win=win-2");
+    }
+
+    /// 끌려다니는 창은 URL 로 자기 처지를 안다 — 프런트가 그걸 보고 화면
+    /// 마운트를 붙잡는다. 이 파라미터가 빠지면 드래그 몇백 ms 마다 프로젝트
+    /// init·워처·자동색인이 통째로 돌고, 합쳐 버리면 전부 낭비가 된다.
+    #[test]
+    fn tearoff_url_tells_the_window_it_is_being_carried() {
+        assert_eq!(window_url("win-3", None, true), "index.html?win=win-3&tearoff=1");
+    }
+
+    /// 떼어낸 창의 탭은 **새 id** 를 받는다 — 이 전제가 `TearOff.tab_id` 의
+    /// 존재 이유다. 프런트가 들고 있던 옛 id 로 놓기·무르기를 부르면 그 탭은
+    /// 어디에도 없어 조용히 아무 일도 일어나지 않는다 (가장 고약한 실패 모양:
+    /// 창은 떴는데 놓아도 합쳐지지 않고, Escape 도 안 먹는다).
+    #[test]
+    fn a_torn_off_window_mints_a_new_tab_id() {
+        let mut reg = reg_with(&[("win-1", &[Some(1), Some(2)])]);
+        let dragged = ids(&reg, "win-1")[1];
+        let (_, project_id, _) = reg.remove_tab(dragged).unwrap();
+        let label = reg.reserve(project_id);
+        let fresh = ids(&reg, &label)[0];
+        assert_ne!(fresh, dragged);
+        assert_eq!(projects(&reg, &label), vec![Some(2)]);
+        // 옛 id 는 이제 어디에도 없다.
+        assert_eq!(reg.locate_tab(dragged), None);
+    }
+
+    /// hide/show 는 **바뀔 때만** 부른다 — 매 틱 부르면 창이 깜빡인다.
+    #[test]
+    fn tear_hidden_reports_only_transitions() {
+        let mut reg = Registry::default();
+        // 들고 있는 창이 없으면 아무 말도 하지 않는다.
+        assert_eq!(reg.set_tear_hidden(true), None);
+        reg.tearing = Some(TearOff {
+            label: "win-9".into(),
+            tab_id: 7,
+            anchor: (86.0, 20.0),
+            source: "win-1".into(),
+            index: 1,
+            hidden: false,
+        });
+        assert_eq!(reg.set_tear_hidden(true), Some(true));
+        assert_eq!(reg.set_tear_hidden(true), None);
+        assert_eq!(reg.set_tear_hidden(false), Some(false));
+        // 손을 놓으면 한 번만 꺼내진다.
+        assert!(reg.take_tearing().is_some());
+        assert!(reg.take_tearing().is_none());
     }
 
     #[test]
@@ -2061,7 +2342,7 @@ mod tests {
             entry_path: Some("journal/20260812/Bugs/0603_bug_a b.md".into()),
         };
         assert_eq!(
-            window_url("win-1", Some(&nav)),
+            window_url("win-1", Some(&nav), false),
             "index.html?win=win-1&view=journal&entry=journal/20260812/Bugs/0603_bug_a%20b.md"
         );
     }

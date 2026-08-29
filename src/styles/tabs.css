@@ -39,15 +39,6 @@
 .tabstrip-tab * {
   -webkit-user-drag: none;
 }
-/* 탭을 떼어내는 중 — 남은 탭 줄을 흐리게 해 "이 창에서 빠진다"를 알린다.
-   **탭 줄에만** 건다: 고스트가 스트립 안에 살기 때문이다(`position: fixed` 는
-   자기 자리를 벗어날 뿐, 조상의 `opacity` 는 그대로 물려받는다). 스트립 전체에
-   걸면 손에 든 물체까지 0.55·0.32 로 흐려져 무엇을 쥐었는지 안 보인다. */
-.tabstrip.is-detaching .tabstrip-tabs { opacity: 0.55; }
-/* 다른 창의 스트립을 겨누는 중 — "새 창" 이 아니라 "저기로 합쳐진다" 는 뜻이라
-   더 흐리게 물러난다. 두 상태를 같은 농도로 두면 손을 놓기 전에는 어느 쪽인지
-   알 수 없다. */
-.tabstrip.is-handoff .tabstrip-tabs { opacity: 0.32; }
 
 /* ── 받는 쪽 — 다른 창에서 탭이 끌려오는 중 ────────────────────────────────
    테두리로 "여기에 놓인다"를 알리고, 캐럿이 **어디에** 놓이는지를 알린다.
@@ -112,71 +103,9 @@
   to { opacity: 1; transform: none; }
 }
 
-/* ── 떼어낸 물체 — 스트립 밖에서 손을 따라다니는 고스트 (2026-08-29) ────────
-   `.tabstrip-tabs` 가 `overflow: hidden` 이고 스트립은 창 맨 위 38px 이라, 탭
-   자신은 줄 밖으로 나갈 수 없다. 그래서 밖으로 끌면 손에 아무것도 없었다.
-   자세(위치·기울기)는 JS 가 매 프레임 transform 으로 쓰므로 등장은 transform 과
-   겹치지 않는 `scale`/`opacity` 로만 준다. */
-.tabstrip-ghost {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 60;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 220px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 9px;
-  background: var(--bg-content);
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 550;
-  box-shadow: inset 0 0 0 1px var(--border-card), var(--shadow-pop);
-  will-change: transform;
-  animation: tabstrip-ghost-in 170ms var(--ease-spring, ease-out);
-}
-@keyframes tabstrip-ghost-in { from { opacity: 0; scale: 0.88; } to { opacity: 1; scale: 1; } }
-/* 놓으면 어떻게 되는지를 물체가 직접 말한다 — 스트립 농도(0.55 / 0.32)만으로는
-   "새 창" 과 "합치기" 를 구분하기 어렵다. 문구는 컴포넌트가 data-hint 로 준다
-   (백엔드도 CSS 도 UI 문자열을 짓지 않는다). */
-.tabstrip-ghost::after {
-  content: attr(data-hint);
-  margin-left: 4px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 10.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  background: color-mix(in srgb, var(--text-3) 16%, transparent);
-  color: var(--text-2);
-}
-.tabstrip-ghost[data-mode="merge"] {
-  box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-pop);
-}
-.tabstrip-ghost[data-mode="merge"]::after {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
-}
-/* 커서가 창 밖이라 가장자리에 붙었다 — 물체는 남되 "여기가 끝" 이 읽혀야 한다. */
-.tabstrip-ghost.pinned { opacity: 0.82; }
-
-/* 떼어내는 중인 원래 탭 — 자국만 남는다. 물체는 고스트가 들고 있고, 이 자리는
-   "취소하면 여기" 를 뜻한다. 폭을 접지 않는 이유가 그것이다 (접으면 되돌릴
-   자리가 사라지고, 되돌아오는 순간 이웃들이 한 번 더 출렁인다). */
-.tabstrip-tab.torn {
-  opacity: 0.22;
-  box-shadow: inset 0 0 0 1px var(--sep);
-  background: transparent;
-}
-.tabstrip-tab.torn:hover { background: transparent; }
-
 @media (prefers-reduced-motion: reduce) {
   .tabstrip.is-receiving::after,
   .tabstrip-slot,
-  .tabstrip-ghost,
   .tabstrip-tab.arriving { animation: none; }
   .tabstrip-tab.shifted { transition: none; }
 }
@@ -223,22 +152,22 @@
 /* 아이콘은 프로젝트 색으로 — 카드와 같은 팔레트다 (home.css 의 `[data-pc]`
    와 값이 같아야 두 화면에서 같은 프로젝트가 같은 색으로 보인다). */
 .tabstrip-icon { flex: none; width: 13px; height: 13px; color: var(--pc, var(--text-3)); }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="slate"]  { --pc: #6b7280; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="green"]  { --pc: #12a06b; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="blue"]   { --pc: #2f7fd8; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="violet"] { --pc: #7c5cd6; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="amber"]  { --pc: #c2891b; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="rose"]   { --pc: #d05470; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="teal"]   { --pc: #0f9a99; }
-:is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="orange"] { --pc: #d2703a; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="slate"]  { --pc: #9aa3b2; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="green"]  { --pc: #4ecb96; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="blue"]   { --pc: #6aa9f0; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="violet"] { --pc: #a68cf0; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="amber"]  { --pc: #e0b155; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="rose"]   { --pc: #ef8ba1; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="teal"]   { --pc: #4ec7c6; }
-[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot, .tabstrip-ghost)[data-pc="orange"] { --pc: #ee9a66; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="slate"]  { --pc: #6b7280; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="green"]  { --pc: #12a06b; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="blue"]   { --pc: #2f7fd8; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="violet"] { --pc: #7c5cd6; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="amber"]  { --pc: #c2891b; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="rose"]   { --pc: #d05470; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="teal"]   { --pc: #0f9a99; }
+:is(.tabstrip-tab, .tabstrip-slot)[data-pc="orange"] { --pc: #d2703a; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="slate"]  { --pc: #9aa3b2; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="green"]  { --pc: #4ecb96; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="blue"]   { --pc: #6aa9f0; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="violet"] { --pc: #a68cf0; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="amber"]  { --pc: #e0b155; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="rose"]   { --pc: #ef8ba1; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="teal"]   { --pc: #4ec7c6; }
+[data-theme="dark"] :is(.tabstrip-tab, .tabstrip-slot)[data-pc="orange"] { --pc: #ee9a66; }
 .tabstrip-name {
   flex: 1;
   min-width: 0;

@@ -56,25 +56,3 @@ export function setDraggingCursor(on: boolean): void {
   // 자리에서 쓰이므로, 매번 Selection 을 건드리면 그 자체가 비용이다.
   if (on) document.getSelection()?.removeAllRanges();
 }
-
-/**
- * 고스트를 창 안에 가둔다 — 커서가 창 밖으로 나가도 물체는 가장자리에 붙어
- * 남는다. 웹뷰는 자기 창 밖에 그릴 수 없으므로, 안 가두면 끌어내는 순간 물체가
- * **사라진다** — 손에 쥔 것이 없어지는 셈이라 떼어내기가 취소된 것처럼 보인다.
- *
- * `outside` 는 실제로 갇혔는가 = 커서가 창 밖인가. 부르는 쪽은 이걸로 "여기서
- * 놓으면 새 창" 을 말한다.
- */
-export function clampGhost(
-  want: { x: number; y: number },
-  size: { w: number; h: number },
-  view: { w: number; h: number },
-  pad: number,
-): { x: number; y: number; outside: boolean } {
-  // 창이 고스트보다 좁을 수 있다(작은 창 + 긴 이름) — 그때는 하한을 이긴다.
-  const maxX = Math.max(pad, view.w - size.w - pad);
-  const maxY = Math.max(pad, view.h - size.h - pad);
-  const x = Math.min(Math.max(want.x, pad), maxX);
-  const y = Math.min(Math.max(want.y, pad), maxY);
-  return { x, y, outside: x !== want.x || y !== want.y };
-}

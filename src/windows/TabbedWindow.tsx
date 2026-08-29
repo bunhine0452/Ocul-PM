@@ -37,12 +37,21 @@ export interface TabbedWindowProps {
   windowLabel: string;
   initialView?: string | null;
   initialEntryPath?: string | null;
+  /**
+   * 이 창은 지금 **손에 들려 끌려다니는 중**이다 (크롬식 떼어내기).
+   *
+   * 탭 줄만 그리고 화면은 마운트하지 않는다 — 끌려다니는 몇백 ms 동안
+   * 프로젝트 init·워처·자동색인을 돌릴 이유가 없고, 도로 남의 창에 합치면 그
+   * 창은 그대로 닫히므로 그 전부가 순수 낭비다. `TearOffSettled` 가 풀어 준다.
+   */
+  tearingOff?: boolean;
 }
 
 export default function TabbedWindow({
   windowLabel,
   initialView = null,
   initialEntryPath = null,
+  tearingOff = false,
 }: TabbedWindowProps) {
   const { t } = useT();
   const { settings } = useSettings();
@@ -65,6 +74,24 @@ export default function TabbedWindow({
 
   const isMac =
     typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+
+  /** 아직 손에 들려 있나 — 놓는 순간 `TearOffSettled` 가 false 로 바꾼다. */
+  const [held, setHeld] = useState(tearingOff);
+  useEffect(() => {
+    if (!held) return;
+    let off: (() => void) | undefined;
+    void events.tearOffSettled
+      .listen(({ payload }) => {
+        if (payload.window !== windowLabel) return;
+        setHeld(false);
+      })
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [held, windowLabel]);
 
   useEffect(() => {
     installConsoleBridge();
@@ -109,7 +136,8 @@ export default function TabbedWindow({
   const closeTab = useCallback(
     (id: number) => {
       void commands.closeTab(id).then((r) => {
-        if (r.status === "error") toast.destructive(t("project.closeTabFailed", { error: r.error }));
+        if (r.status === "error")
+          toast.destructive(t("project.closeTabFailed", { error: r.error }));
       });
     },
     [t],
@@ -255,8 +283,6 @@ export default function TabbedWindow({
    * 들고 있는다.
    */
   const [incoming, setIncoming] = useState<IncomingTab | null>(null);
-  /** 내보내는 쪽 — 지금 겨누는 다른 창이 있다 (스트립을 흐리게 그린다). */
-  const [handingOff, setHandingOff] = useState(false);
   /**
    * 웹뷰 줌. 화면·창 기하는 **논리 px**, `getBoundingClientRect` 는 **CSS px** 라
    * 둘을 오갈 때 이 값으로 곱하고 나눈다. 줌은 앱 전역 설정(SQLite)이라 두 창이
@@ -274,12 +300,7 @@ export default function TabbedWindow({
         setIncomingX(payload.x == null ? null : payload.x / zoom);
         if (payload.preview) {
           const p = payload.preview;
-          setIncoming({
-            name: p.name,
-            icon: p.icon,
-            color: p.color,
-            isStart: p.is_start,
-          });
+          setIncoming({ name: p.name, icon: p.icon, color: p.color, isStart: p.is_start });
         }
       })
       .then((fn) => offs.push(fn));
@@ -294,9 +315,13 @@ export default function TabbedWindow({
   }, [windowLabel, zoom]);
 
   /**
-   * 겨누기 질의는 **한 번에 하나만** 띄운다. 포인터는 초당 수십 번 움직이는데
-   * 그때마다 IPC 를 걸면 왕복이 밀려 캐럿이 커서를 못 따라온다 — 답이 온 뒤
-   * 다음 것을 보내면 항상 최신 위치 한 건만 흐른다.
+   * 드래그 틱 — 백엔드가 이 한 번으로 세 가지를 한다: 들고 있는 창을 커서 밑으로
+   * 옮기고, 남의 스트립을 겨누는지 보고, 겨누면 들고 있는 창을 감춘다(합치기
+   * 미리보기). 커서는 백엔드가 OS 에서 직접 읽으므로 좌표는 안 넘긴다.
+   *
+   * **한 번에 하나만** 띄운다. 포인터는 초당 수십 번 움직이는데 그때마다 IPC 를
+   * 걸면 왕복이 밀려 창이 커서를 못 따라온다 — 답이 온 뒤 다음 것을 보내면
+   * 항상 최신 위치 한 건만 흐른다.
    */
   const hoverBusy = useRef(false);
   // 콜백은 리스너 재등록을 피하려고 줌을 ref 로 읽는다 (값은 매 렌더 최신).
@@ -307,22 +332,14 @@ export default function TabbedWindow({
     hoverBusy.current = true;
     void commands
       .tabDragOver(tabId, stripHeight * zoomRef.current)
-      .then((r) => setHandingOff(r.status === "ok" && r.data != null))
-      .catch(() => setHandingOff(false))
+      .catch(() => {})
       .finally(() => {
         hoverBusy.current = false;
       });
   }, []);
 
   const endDrag = useCallback(() => {
-    setHandingOff(false);
     void commands.tabDragEnd();
-  }, []);
-
-  const dropOnOtherWindow = useCallback(async (tabId: number) => {
-    setHandingOff(false);
-    const res = await commands.attachTab(tabId);
-    return res.status === "ok" && res.data;
   }, []);
 
   /**
@@ -360,8 +377,10 @@ export default function TabbedWindow({
 
   return (
     <div className="winroot">
-      {/* 부트 스플래시 — 창당 1회, 첫 페인트를 브랜드 모션으로 덮는다. */}
-      <BootSplash />
+      {/* 부트 스플래시 — 창당 1회, 첫 페인트를 브랜드 모션으로 덮는다.
+          끌려다니는 동안에는 안 띄운다: 스플래시가 탭 줄을 덮으면 손에 무엇을
+          들었는지가 안 보인다. */}
+      {held ? null : <BootSplash />}
       <TabStrip
         tabs={tabs}
         activeId={activeId}
@@ -378,14 +397,33 @@ export default function TabbedWindow({
           });
           void commands.reorderTabs(windowLabel, order);
         }}
-        onDetach={(id, x, y) => {
-          // 앵커는 스트립이 CSS px 로 준다 — 창 기하는 논리 px 이므로 줌을 곱해
-          // 넘긴다 (`onDragHover` 의 스트립 높이와 같은 규약).
-          void commands
-            .detachTab(id, x == null ? null : x * zoom, y == null ? null : y * zoom)
-            .then((r) => {
-              if (r.status === "error") fail(r.error);
-            });
+        // 메뉴 경로 — 겨눈 지점이 없으므로 창 자리는 OS 에 맡긴다.
+        onDetach={(id) => {
+          void commands.detachTab(id, null, null).then((r) => {
+            if (r.status === "error") fail(r.error);
+          });
+        }}
+        /**
+         * 크롬식 떼어내기 — 탭이 줄을 벗어나는 **그 순간** 창이 된다.
+         *
+         * 앵커는 스트립이 CSS px 로 준다. 창 기하는 논리 px 이므로 줌을 곱해
+         * 넘긴다 (`onDragHover` 의 스트립 높이와 같은 규약).
+         */
+        onTearOff={async (id, x, y) => {
+          const res = await commands.beginTearOff(id, x * zoom, y * zoom);
+          if (res.status === "error") {
+            fail(res.error);
+            return false;
+          }
+          return res.data;
+        }}
+        onDropTearOff={async () => {
+          const res = await commands.dropTearOff();
+          if (res.status === "error") fail(res.error);
+        }}
+        onCancelTearOff={async () => {
+          const res = await commands.cancelTearOff();
+          if (res.status === "error") fail(res.error);
         }}
         onOpenProject={(id) => {
           void commands.openProjectTab(id, windowLabel).then((r) => {
@@ -396,9 +434,7 @@ export default function TabbedWindow({
         incoming={incoming}
         onIncomingIndex={(index) => void commands.tabDropHint(windowLabel, index)}
         onDragHover={askDropTarget}
-        onDragDrop={dropOnOtherWindow}
         onDragCleanup={endDrag}
-        handingOff={handingOff}
         windowChoices={windowChoices}
         onMenuOpen={() => void refreshWindows()}
         onMoveToWindow={(id, target) => {
@@ -409,45 +445,47 @@ export default function TabbedWindow({
       />
 
       <div className="tabpanes">
-        {tabs.map((tb) => {
-          const active = tb.tab_id === activeId;
-          // 한 번도 열린 적 없는 탭은 아직 마운트하지 않는다 — 창을 열자마자
-          // N개 프로젝트의 init·watcher·자동색인이 동시에 터지지 않게.
-          if (!active && !everActive.has(tb.tab_id)) return null;
-          return (
-            <div
-              key={tb.tab_id}
-              className="tabpane"
-              role="tabpanel"
-              id={`tabpanel-t${tb.tab_id}`}
-              aria-labelledby={`tab-t${tb.tab_id}`}
-              hidden={!active}
-            >
-              {/* 탭 하나의 예외가 **창 전체**를 언마운트하지 못하게 막는
+        {held
+          ? null
+          : tabs.map((tb) => {
+              const active = tb.tab_id === activeId;
+              // 한 번도 열린 적 없는 탭은 아직 마운트하지 않는다 — 창을 열자마자
+              // N개 프로젝트의 init·watcher·자동색인이 동시에 터지지 않게.
+              if (!active && !everActive.has(tb.tab_id)) return null;
+              return (
+                <div
+                  key={tb.tab_id}
+                  className="tabpane"
+                  role="tabpanel"
+                  id={`tabpanel-t${tb.tab_id}`}
+                  aria-labelledby={`tab-t${tb.tab_id}`}
+                  hidden={!active}
+                >
+                  {/* 탭 하나의 예외가 **창 전체**를 언마운트하지 못하게 막는
                   바깥 경계. React 는 경계가 없으면 루트까지 언마운트하므로,
                   경계가 없던 시절엔 한 화면의 버그가 탭 스트립까지 지워
                   재시작 말고는 길이 없었다 (터미널 2026-07-31 · 시작 탭 설정
                   2026-08-16). 여기서 잡히면 다른 탭과 탭 스트립은 멀쩡하다. */}
-              <ErrorBoundary label={tb.project_id == null ? "start-tab" : "project-tab"}>
-                {tb.project_id == null ? (
-                  <StartTab tabId={tb.tab_id} active={active} openProjects={openProjects} />
-                ) : (
-                  <WorkspaceProvider projectId={tb.project_id}>
-                    <ProjectTab
-                      projectId={tb.project_id}
-                      windowLabel={windowLabel}
-                      active={active}
-                      projects={projects}
-                      initialView={active ? (deepLink?.view ?? null) : null}
-                      initialEntryPath={active ? (deepLink?.entry ?? null) : null}
-                      onDeepLinkConsumed={() => setDeepLink(null)}
-                    />
-                  </WorkspaceProvider>
-                )}
-              </ErrorBoundary>
-            </div>
-          );
-        })}
+                  <ErrorBoundary label={tb.project_id == null ? "start-tab" : "project-tab"}>
+                    {tb.project_id == null ? (
+                      <StartTab tabId={tb.tab_id} active={active} openProjects={openProjects} />
+                    ) : (
+                      <WorkspaceProvider projectId={tb.project_id}>
+                        <ProjectTab
+                          projectId={tb.project_id}
+                          windowLabel={windowLabel}
+                          active={active}
+                          projects={projects}
+                          initialView={active ? (deepLink?.view ?? null) : null}
+                          initialEntryPath={active ? (deepLink?.entry ?? null) : null}
+                          onDeepLinkConsumed={() => setDeepLink(null)}
+                        />
+                      </WorkspaceProvider>
+                    )}
+                  </ErrorBoundary>
+                </div>
+              );
+            })}
       </div>
 
       {/* 창당 하나면 되는 것들 — 탭 루프 밖. */}

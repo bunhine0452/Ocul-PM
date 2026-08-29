@@ -12,7 +12,7 @@
  * 산술(삽입 인덱스·재배열·떼어내기 판정)은 전부 `tabOrder.ts` 의 순수 함수라
  * 여기서는 포인터를 그쪽에 넘기는 배선만 한다.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, FolderGit2, LayoutGrid } from "lucide-react";
 import type { Project, TabInfo } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -21,8 +21,7 @@ import {
   resolveProjectIcon,
 } from "@/features/onboarding/home/projectAppearance";
 import { tabDropIndex, reorderTabs, isDetachGesture, DRAG_START_PX } from "./tabOrder";
-import { advanceGhost, ghostTransform, wantsReducedMotion } from "@/lib/dragMotion";
-import { clampGhost, setDraggingCursor } from "@/lib/nativeDrag";
+import { setDraggingCursor } from "@/lib/nativeDrag";
 
 /**
  * macOS 신호등이 차지하는 좌측 폭. `TitleBarStyle::Overlay` 라 신호등이
@@ -39,9 +38,6 @@ const TRAFFIC_LIGHT_INSET = 78;
  * 자리가 벌어졌다는 사실만 읽히면 되므로 고정 폭이 싸고 흔들리지 않는다.
  */
 const INCOMING_SLOT_PX = 132;
-
-/** 고스트가 창 가장자리에서 유지하는 여백 (CSS px). */
-const GHOST_EDGE_PX = 10;
 
 /** 새로 온 탭이 자리를 잡는 데 걸리는 시간 — CSS `tabstrip-arrive` 와 같아야 한다. */
 const ARRIVE_MS = 260;
@@ -69,14 +65,29 @@ interface TabStripProps {
   onClose: (tabId: number) => void;
   onReorder: (order: number[]) => void;
   /**
-   * 새 창으로 떼어낸다.
-   *
-   * 좌표는 화면 좌표가 아니라 **새 창 안의 앵커** — 잡았던 자리가 커서 밑에
-   * 그대로 오도록, 새 창 좌상단에서 그 지점까지의 거리(CSS px)다. 창을 놓는
-   * 일은 Rust 가 OS 커서로 하므로(결정 2, 줌에 안 흔들린다) 여기서는 "무엇을
-   * 커서 밑에 둘지" 만 말한다. 메뉴에서 부르면 겨눈 지점이 없어 `null` 이다.
+   * 새 창으로 떼어낸다 — **메뉴 전용** 경로다 (겨눈 지점이 없으므로 창 자리는
+   * OS 에 맡긴다). 포인터로 끄는 길은 `onTearOff` 쪽이다.
    */
-  onDetach: (tabId: number, anchorX: number | null, anchorY: number | null) => void;
+  onDetach: (tabId: number) => void;
+  /**
+   * 탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 달라 (크롬).
+   *
+   * 앵커는 새 창 좌상단에서 커서까지의 거리(CSS px). 잡았던 자리가 커서 밑에
+   * 그대로 오도록 하는 값이고, 창을 옮기는 일은 Rust 가 OS 커서로 한다
+   * (결정 2 — 웹뷰 줌에 안 흔들리는 유일한 좌표계). 떼어낼 수 없으면(탭이
+   * 하나뿐인 창) `false`.
+   */
+  onTearOff?: (tabId: number, anchorX: number, anchorY: number) => Promise<boolean>;
+  /**
+   * 손을 놓았다 — 겨누던 창이 있으면 합치고, 없으면 그 자리에 창으로 남는다.
+   *
+   * 탭 id 를 넘기지 않는 이유: 떼어낸 창 안에서 그 탭은 **새 id** 로 앉아 있고
+   * (창을 만들 때 발급된다), 여기가 아는 것은 옛 id 뿐이다. 마무리는 들고 있는
+   * 쪽(백엔드)이 자기 기록으로 한다.
+   */
+  onDropTearOff?: () => Promise<void>;
+  /** Escape — 떼어낸 창을 물리고 탭을 원래 자리로 돌려놓는다. */
+  onCancelTearOff?: () => Promise<void>;
   onNewTab: () => void;
   onOpenProject: (projectId: number) => void;
   /**
@@ -96,15 +107,8 @@ interface TabStripProps {
    * `stripHeight` 는 이 스트립의 CSS 높이 (창이 줌을 곱해 논리 px 로 바꾼다).
    */
   onDragHover?: (tabId: number, stripHeight: number) => void;
-  /**
-   * 손을 놓았다. 다른 창에 붙었으면 `true` — 그때는 떼어내기도 재배열도 하지
-   * 않는다 (탭은 이미 남의 창에 있다).
-   */
-  onDragDrop?: (tabId: number) => Promise<boolean>;
-  /** 드래그가 스트립 안으로 돌아왔거나 취소됐다 — 겨누던 캐럿을 지운다. */
+  /** 드래그가 끝났거나 취소됐다 — 겨누던 자리를 지운다. */
   onDragCleanup?: () => void;
-  /** 지금 겨누는 다른 창이 있다 — 스트립을 "넘겨주는 중" 으로 그린다. */
-  handingOff?: boolean;
   /**
    * 탭을 보낼 수 있는 **다른** 창들 (이 창은 빠져 있다). 컨텍스트 메뉴가 그린다.
    *
@@ -159,9 +163,10 @@ export function TabStrip({
   incoming = null,
   onIncomingIndex,
   onDragHover,
-  onDragDrop,
+  onTearOff,
+  onDropTearOff,
+  onCancelTearOff,
   onDragCleanup,
-  handingOff = false,
   windowChoices = [],
   onMenuOpen,
   onMoveToWindow,
@@ -180,38 +185,23 @@ export function TabStrip({
    */
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  /**
+   * 이미 창으로 떨어져 나갔나.
+   *
+   * 크롬과 같은 규약: 줄을 벗어나는 순간 탭은 **진짜 창**이 되고, 그 뒤로는 이
+   * 스트립의 일이 아니다. 남은 제스처 동안 여기서는 커서만 백엔드에 알려 주고
+   * (창이 그걸 따라가고 남의 줄을 겨눈다), 재배열 판정은 두 번 다시 하지 않는다.
+   *
+   * `DragState` 가 아니라 별도 ref 인 이유: 바로 위 `dragRef.current = drag` 가
+   * 매 렌더 상태 객체로 덮어쓰므로, 상태에 담으면 떼어낸 직후의 재렌더에서
+   * 플래그가 지워져 **창이 두 번** 만들어진다.
+   */
+  const tornRef = useRef(false);
   const pointerRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
   /** 끌린 탭의 드래그 시작 시점 화면 x, 그리고 지금 걸어 둔 이동량. */
   const homeXRef = useRef(0);
   const appliedDxRef = useRef(0);
-  /**
-   * 스트립을 벗어난 동안 손을 따라다니는 **고스트** (2026-08-29).
-   *
-   * 스트립 안에서는 탭 자신이 움직이면 되지만(크롬), 밖으로 나가는 순간 그 길이
-   * 끊긴다 — `.tabstrip-tabs` 가 `overflow: hidden` 이라 탭은 줄 밖으로 못 나가고
-   * 스트립은 창 맨 위 38px 이다. 그래서 예전엔 창 밖으로 끌어도 손에 아무것도
-   * 없었고, 스트립이 흐려지는 것만이 유일한 신호였다: **무엇을** 떼어내는지도,
-   * 어디로 가는지도 안 보였다.
-   *
-   * 자세는 React 를 거치지 않고 프레임마다 직접 쓴다 (감쇠는 `dragMotion.ts`).
-   */
-  const ghostElRef = useRef<HTMLDivElement | null>(null);
-  const ghostPoseRef = useRef({ x: 0, y: 0, tilt: 0 });
-  const ghostRafRef = useRef<number | null>(null);
-  /** 커서가 창 밖으로 나가 고스트가 가장자리에 붙었나 — 자리표시 문구가 갈린다. */
-  const [ghostPinned, setGhostPinned] = useState(false);
-  /**
-   * 위 값의 그림자. 프레임마다 `setGhostPinned` 를 부르면 값이 그대로여도 스트립이
-   * 다시 그려진다 — 고스트를 React 밖에서 그리는 이유가 그것인데 여기서 도로
-   * 불러들이면 아무 소용이 없다.
-   */
-  const pinnedRef = useRef(false);
-  const markPinned = (on: boolean) => {
-    if (pinnedRef.current === on) return;
-    pinnedRef.current = on;
-    setGhostPinned(on);
-  };
   const [adderOpen, setAdderOpen] = useState(false);
   /**
    * 탭 컨텍스트 메뉴 — 드래그의 **등가물**이다 (우클릭 · Shift+F10 · 메뉴 키).
@@ -362,9 +352,12 @@ export function TabStrip({
 
   const beginDrag = (tabId: number) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    // 포인터 캡처 — 커서가 창 밖으로 나가도 move/up 을 계속 받아야
-    // "떼어내기"를 판정할 수 있다.
-    e.currentTarget.setPointerCapture(e.pointerId);
+    // 포인터 캡처는 **스트립**에 건다 — 탭이 아니라.
+    //
+    // 떼어내는 순간 그 탭은 이 창에서 사라지고(진짜 창이 되었으니까) DOM 에서
+    // 언마운트된다. 캡처를 탭에 걸어 두면 그 순간 캡처가 함께 사라져 남은
+    // move/up 이 오지 않는다 — 창이 손을 놓친 채 커서만 따라다니게 된다.
+    stripRef.current?.setPointerCapture(e.pointerId);
     const rect = e.currentTarget.getBoundingClientRect();
     const born: DragState = {
       tabId,
@@ -383,88 +376,8 @@ export function TabStrip({
     setDrag(born);
   };
 
-  // ── 고스트 (스트립 밖) ──────────────────────────────────────────────────
-
-  /** 이번 프레임 고스트가 있어야 할 자리 — 잡은 오프셋을 물고, 창 안에 가둔다. */
-  const ghostTarget = () => {
-    const d = dragRef.current;
-    const el = ghostElRef.current;
-    const { x, y } = pointerRef.current;
-    const want = { x: x - (d?.grabX ?? 0), y: y - (d?.grabY ?? 0) };
-    if (!el) return { ...want, outside: false };
-    return clampGhost(
-      want,
-      { w: el.offsetWidth, h: el.offsetHeight },
-      { w: window.innerWidth, h: window.innerHeight },
-      GHOST_EDGE_PX,
-    );
-  };
-
-  const writeGhost = () => {
-    const el = ghostElRef.current;
-    if (el) el.style.transform = ghostTransform(ghostPoseRef.current);
-  };
-
-  /** 고스트를 손 밑에 **즉시** 놓는다 — 태어나는 순간과 모션 최소화 설정용. */
-  const snapGhost = () => {
-    const at = ghostTarget();
-    ghostPoseRef.current = { x: at.x, y: at.y, tilt: 0 };
-    writeGhost();
-    markPinned(at.outside);
-  };
-
-  /**
-   * 고스트만 도는 프레임 루프. 판정(`flushDrag`)과 분리한다 — 판정은 커서가
-   * 움직일 때만 필요하지만, 따라붙기는 커서가 멎은 뒤에도 몇 프레임 더 돌아야
-   * 물체가 손 밑으로 들어와 앉는다.
-   */
-  const startGhostLoop = () => {
-    if (ghostRafRef.current != null) return;
-    if (wantsReducedMotion()) {
-      snapGhost();
-      return;
-    }
-    const step = () => {
-      const at = ghostTarget();
-      const { pose, settled } = advanceGhost(ghostPoseRef.current, at);
-      ghostPoseRef.current = pose;
-      writeGhost();
-      markPinned(at.outside);
-      ghostRafRef.current = settled ? null : requestAnimationFrame(step);
-    };
-    ghostRafRef.current = requestAnimationFrame(step);
-  };
-
-  /**
-   * 고스트 엘리먼트를 잡는 ref — **정체성이 고정**돼야 한다.
-   *
-   * 인라인 화살표로 주면 렌더마다 새 함수라 React 가 떼었다 다시 붙이고, 그때마다
-   * `snapGhost` 가 돌아 물체가 커서에 딱 박힌다 — 감쇠가 매번 처음부터 다시
-   * 시작되는 셈이라 "따라온다" 가 끊긴다. 붙는 순간에만 한 번 앉히면 된다.
-   */
-  const snapGhostRef = useRef(() => {});
-  snapGhostRef.current = snapGhost;
-  const attachGhost = useCallback((el: HTMLDivElement | null) => {
-    ghostElRef.current = el;
-    // 태어나는 순간 손 밑에 정확히 놓는다 — 첫 프레임에 (0,0) 에서 날아오면
-    // 떼어낸 게 아니라 어디선가 튀어나온 것으로 보인다.
-    if (el) snapGhostRef.current();
-  }, []);
-
-  const stopGhostLoop = () => {
-    if (ghostRafRef.current == null) return;
-    cancelAnimationFrame(ghostRafRef.current);
-    ghostRafRef.current = null;
-  };
-
-  // 드래그 도중 언마운트(창 닫기·탭 이동)되면 프레임과 전역 커서가 남는다.
-  useEffect(
-    () => () => {
-      stopGhostLoop();
-      setDraggingCursor(false);
-    },
-    [],
-  );
+  // 드래그 도중 언마운트(창 닫기·탭 이동)되면 전역 커서 상태가 남는다.
+  useEffect(() => () => setDraggingCursor(false), []);
 
   /**
    * 끌리는 탭을 커서에 붙여 둔다 — React 를 거치지 않고 직접 쓴다.
@@ -474,8 +387,8 @@ export function TabStrip({
    * 물체가 붙어 있어야 성립한다 (Chrome 탭이 하는 그대로다).
    *
    * 이동량은 탭 줄 안으로 가둔다 — `.tabstrip-tabs` 가 `overflow: hidden` 이라
-   * 밖으로 밀면 잘려서 사라진다. 줄을 벗어나는 동안은 이 함수가 손을 떼고
-   * 고스트가 물체를 넘겨받는다 (`returnDraggedHome` → `startGhostLoop`).
+   * 밖으로 밀면 잘려서 사라진다. 줄을 벗어나면 이 함수의 일은 끝난다: 그때부터
+   * 손에 들리는 것은 **진짜 창**이고, 탭은 이 스트립에서 사라진다.
    */
   const paintDragged = (state: DragState) => {
     const el = tabRefs.current.get(state.tabId);
@@ -496,17 +409,28 @@ export function TabStrip({
     el.style.transform = `translateX(${dx}px)`;
   };
 
-  /**
-   * 끌린 탭을 줄 안 제자리로 되돌린다 — 스트립을 벗어난 동안.
-   *
-   * 고스트가 손을 따라가는 동안 원래 탭까지 옆으로 밀려 있으면 물체가 둘로
-   * 보인다. 제자리에 흐리게 남겨 두면 "취소하면 여기" 가 읽힌다.
-   */
-  const returnDraggedHome = () => {
+  /** 걸어 둔 이동량만 지운다 — 탭을 줄 안 제자리로. */
+  const clearDraggedTransform = () => {
     const id = dragRef.current?.tabId;
     const el = id == null ? null : tabRefs.current.get(id);
     if (el && appliedDxRef.current !== 0) el.style.transform = "";
     appliedDxRef.current = 0;
+  };
+
+  /**
+   * 탭을 **지금** 창으로 떼어낸다 — 크롬식 떼어내기의 그 순간.
+   *
+   * 한 제스처에 한 번만 부른다(`torn`). 응답을 기다리는 동안 다음 프레임이 또
+   * 부르지 못하도록 낙관적으로 먼저 표시하고, 떼어낼 수 없는 창(탭이 하나뿐)
+   * 이면 되돌린다 — 그때는 계속 이 줄의 드래그로 남는다.
+   */
+  const tearOff = (state: DragState) => {
+    if (!onTearOff) return;
+    const anchor = detachAnchor(state);
+    tornRef.current = true;
+    void onTearOff(state.tabId, anchor.x, anchor.y).then((ok) => {
+      if (!ok) tornRef.current = false;
+    });
   };
 
   /** 끌린 탭을 제자리로 돌려놓는다 — 손을 놓거나 취소했을 때. */
@@ -517,22 +441,29 @@ export function TabStrip({
       if (el) el.style.transform = "";
     }
     appliedDxRef.current = 0;
+    tornRef.current = false;
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    stopGhostLoop();
-    markPinned(false);
     setDraggingCursor(false);
   };
 
-  /** 드래그를 되돌린다 — Escape · pointercancel. 순서도 창도 건드리지 않는다. */
+  /**
+   * 드래그를 되돌린다 — Escape · pointercancel.
+   *
+   * 이미 창으로 떨어져 나갔으면 그 창을 물려야 한다 (탭이 원래 자리로 돌아온다).
+   * 여기서 창을 안 물리면 취소했는데 창만 남는다.
+   */
   const cancelDrag = () => {
-    if (!dragRef.current) return;
+    const state = dragRef.current;
+    if (!state) return;
+    const torn = tornRef.current;
     clearDragPaint();
     dragRef.current = null;
     setDrag(null);
-    onDragCleanup?.();
+    if (torn) void onCancelTearOff?.();
+    else onDragCleanup?.();
   };
 
   const flushDrag = () => {
@@ -545,27 +476,22 @@ export function TabStrip({
     setDraggingCursor(true);
 
     const strip = stripRef.current?.getBoundingClientRect();
-    const detaching = strip ? isDetachGesture(strip, y) : false;
+    // 한 번 떨어져 나갔으면 되돌아오지 않는다 — 그 탭은 이제 남의 창(내가 들고
+    // 있는 창)의 것이고, 이 줄로 다시 들어오는 길은 "남의 창에 합치기" 다.
+    const detaching = tornRef.current || (strip ? isDetachGesture(strip, y) : false);
 
-    // 떼어내는 중에는 자리를 흔들지 않는다 — 커서가 스트립 밖에 있으니
-    // 삽입 위치를 계산해 봐야 의미가 없고 화면만 요동친다.
     if (detaching) {
       if (!d.moved || !d.detaching) setDrag({ ...d, moved, detaching });
-      // 탭은 줄 안에 제자리로 돌려놓고(그 자리가 "취소하면 여기") 손을 따라가는
-      // 일은 고스트에 넘긴다.
-      returnDraggedHome();
-      startGhostLoop();
-      // 창 밖으로 나간 동안만 물어본다 — 스트립 안에서는 물어볼 이유가 없고,
-      // 매 프레임 IPC 를 때리면 재배열이 뚝뚝 끊긴다.
+      // 탭은 줄에서 손을 뗀다 — 손에 들리는 것은 여기서 만들어지는 창이다.
+      clearDraggedTransform();
+      if (!tornRef.current) tearOff(d);
+      // 커서를 백엔드에 계속 알린다 — 들고 있는 창이 그걸 따라 움직이고,
+      // 남의 스트립을 겨누면 그쪽에 자리가 벌어진다.
       onDragHover?.(d.tabId, strip?.height ?? 0);
       return;
     }
-    // 스트립 안으로 돌아왔다 — 남의 창에 남겨 둔 캐럿을 지우고 고스트를 접는다.
-    if (d.detaching) {
-      onDragCleanup?.();
-      stopGhostLoop();
-      markPinned(false);
-    }
+    // 문턱을 넘기 전에 줄로 돌아왔다 (아직 창은 안 만들어졌다).
+    if (d.detaching) onDragCleanup?.();
 
     paintDragged(d);
     const centers = d.order.map((id) => {
@@ -624,8 +550,7 @@ export function TabStrip({
   const endDrag = () => {
     const state = dragRef.current;
     if (!state) return;
-    // 비동기 경계를 넘으므로 앵커는 지금 재 둔다 (놓고 나면 탭이 사라진다).
-    const anchor = detachAnchor(state);
+    const torn = tornRef.current;
     clearDragPaint();
     dragRef.current = null;
     setDrag(null);
@@ -633,19 +558,15 @@ export function TabStrip({
       onActivate(state.tabId);
       return;
     }
-    // 스트립 밖에서 놓았다 — **다른 창에 붙이기가 먼저**다. 겨누는 창이 있으면
-    // 그리로 합치고, 없을 때만 새 창으로 떼어낸다. 순서를 뒤집으면 남의 창 위에
-    // 정확히 떨어뜨려도 새 창이 하나 더 생긴다.
+    // 이미 창으로 들려 있다 — 놓는 일은 백엔드가 한다. 겨누던 창이 있으면
+    // 그리로 합치고(들고 있던 창은 닫힌다), 없으면 그 자리에 창으로 남는다.
+    if (torn) {
+      void onDropTearOff?.();
+      return;
+    }
+    // 문턱은 넘었지만 떼어내지 못했다 (탭이 하나뿐인 창) — 아무 일도 없다.
     if (state.detaching) {
-      if (!onDragDrop) {
-        onDetach(state.tabId, anchor.x, anchor.y);
-        return;
-      }
-      void onDragDrop(state.tabId)
-        .catch(() => false)
-        .then((attached) => {
-          if (!attached) onDetach(state.tabId, anchor.x, anchor.y);
-        });
+      onDragCleanup?.();
       return;
     }
     onDragCleanup?.();
@@ -656,22 +577,25 @@ export function TabStrip({
   return (
     <div
       ref={stripRef}
-      className={
-        "tabstrip" +
-        (drag?.detaching ? " is-detaching" : "") +
-        (drag?.detaching && handingOff ? " is-handoff" : "") +
-        (caret ? " is-receiving" : "")
-      }
+      className={"tabstrip" + (caret ? " is-receiving" : "")}
       style={isMac ? { paddingLeft: TRAFFIC_LIGHT_INSET } : undefined}
+      // 포인터 캡처가 여기 걸려 있으므로(beginDrag 참고) move/up 도 여기서
+      // 받는다 — 끌던 탭이 창이 되어 사라져도 제스처가 살아 있다.
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={cancelDrag}
+      // 안전망 — 캡처를 어떤 이유로든 잃으면(OS 가 포인터를 가져가는 경우) 그
+      // 자리에서 놓은 것으로 본다. 없으면 손에 창을 든 채로 제스처만 죽어,
+      // 창이 커서를 영영 따라다니거나 숨은 채 남는다. 정상 경로에서는
+      // `pointerup` 뒤에 오므로 이미 끝난 드래그라 아무 일도 하지 않는다.
+      onLostPointerCapture={endDrag}
     >
       {/* `role="tablist"` 는 `tab` 만 자식으로 가져야 한다 — `+` 버튼과 드래그
           리전은 바깥에 둔다 (안에 두면 aria-required-children 위반). */}
       <div className="tabstrip-tabs" role="tablist" aria-label={t("tabs.stripLabel")}>
         {shown.map((tb, at) => {
           const active = tb.tab_id === activeId;
-          const dragging = drag?.moved && drag.tabId === tb.tab_id;
-          // 떼어내는 중인 탭은 **자국**으로만 남는다 — 물체는 고스트가 들고 있다.
-          const torn = dragging && drag?.detaching;
+          const dragging = drag?.moved && !drag.detaching && drag.tabId === tb.tab_id;
           // 받는 쪽 — 꽂힐 자리 뒤의 탭들이 비켜서서 자리를 벌린다. 자리표시자가
           // 그 틈에 들어앉으므로, 캐럿 한 줄보다 "무엇이 어디에" 가 분명해진다.
           const shifted = caret != null && at >= caret.index;
@@ -713,8 +637,7 @@ export function TabStrip({
                 "tabstrip-tab" +
                 (active ? " on" : "") +
                 (isStart ? " is-start" : "") +
-                (dragging && !torn ? " dragging" : "") +
-                (torn ? " torn" : "") +
+                (dragging ? " dragging" : "") +
                 (shifted ? " shifted" : "") +
                 (arriving.has(tb.tab_id) ? " arriving" : "")
               }
@@ -722,9 +645,6 @@ export function TabStrip({
               // 프레임마다 직접 쓰므로(React 밖) 여기서 겹쳐 쓰면 안 된다.
               style={shifted ? { transform: `translateX(${INCOMING_SLOT_PX}px)` } : undefined}
               onPointerDown={beginDrag(tb.tab_id)}
-              onPointerMove={onPointerMove}
-              onPointerUp={endDrag}
-              onPointerCancel={cancelDrag}
               onAuxClick={(e) => {
                 // 가운데 버튼 = 닫기 (브라우저 관습).
                 if (e.button === 1) onClose(tb.tab_id);
@@ -893,7 +813,7 @@ export function TabStrip({
               className="tabstrip-menu-item"
               onClick={() => {
                 closeMenu(false);
-                onDetach(menu.tabId, null, null);
+                onDetach(menu.tabId);
               }}
             >
               {t("tabs.menu.detach")}
@@ -958,40 +878,6 @@ export function TabStrip({
           두어서 타이틀바를 더블클릭할 때마다 창 크기 조절과 **동시에** 탭이
           하나씩 늘어났다 — 새 탭은 `+` 버튼과 ⌘T 가 담당한다. */}
       <div className="tabstrip-drag" data-tauri-drag-region aria-hidden="true" />
-
-      {/* 스트립을 벗어난 동안 손을 따라다니는 물체. `position: fixed` 라
-        `.tabstrip-tabs` 의 `overflow: hidden` 에 잘리지 않고 창 전체를 쓴다.
-        자세는 JS 가 프레임마다 쓰므로 등장 모션은 transform 과 겹치지 않는
-        `scale`/`opacity` 로만 준다. */}
-      {drag?.detaching && drag.moved ? (
-        <div
-          className={"tabstrip-ghost" + (ghostPinned ? " pinned" : "")}
-          aria-hidden="true"
-          data-mode={handingOff ? "merge" : "new"}
-          data-pc={(() => {
-            const tb = byId.get(drag.tabId);
-            return tb?.project_id == null ? undefined : resolveProjectColor(tb.name, tb.color);
-          })()}
-          data-hint={handingOff ? t("tabs.drag.toWindow") : t("tabs.drag.toNewWindow")}
-          ref={attachGhost}
-        >
-          {(() => {
-            const tb = byId.get(drag.tabId);
-            const isStart = tb?.project_id == null;
-            const GhostIcon = isStart
-              ? LayoutGrid
-              : resolveProjectIcon(tb?.name ?? "", tb?.icon ?? null).Icon;
-            return (
-              <>
-                <GhostIcon strokeWidth={2} className="tabstrip-icon" />
-                <span className="tabstrip-name">
-                  {isStart ? t("tabs.startTab") : (tb?.name ?? "")}
-                </span>
-              </>
-            );
-          })()}
-        </div>
-      ) : null}
     </div>
   );
 }

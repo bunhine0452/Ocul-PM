@@ -29,6 +29,14 @@ export type WindowRoute =
       view: string | null;
       /** 트레이 딥링크가 실어 보낸 `.oculpm` 상대 일지 경로. */
       entryPath: string | null;
+      /**
+       * 지금 **손에 들려 끌려다니는** 창인가 (크롬식 떼어내기).
+       *
+       * 탭 줄만 그리고 화면 마운트는 붙잡는다 — 끌려다니는 몇백 ms 동안
+       * 프로젝트 init·워처·자동색인을 돌릴 이유가 없고, 도로 남의 창에 합치면
+       * 그 전부가 낭비가 된다. 손을 놓으면 `TearOffSettled` 가 풀어 준다.
+       */
+      tearoff: boolean;
     };
 
 /** `src-tauri/src/commands/window.rs::FIRST_WINDOW`. */
@@ -60,5 +68,6 @@ export function parseWindowRoute(search: string): WindowRoute {
     label,
     view: params.get("view"),
     entryPath: params.get("entry"),
+    tearoff: params.get("tearoff") === "1",
   };
 }

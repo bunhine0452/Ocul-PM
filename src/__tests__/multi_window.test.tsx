@@ -41,6 +41,7 @@ describe("창 라우팅", () => {
       label: "win-2",
       view: null,
       entryPath: null,
+      tearoff: false,
     });
   });
 
@@ -52,6 +53,7 @@ describe("창 라우팅", () => {
       label: "win-1",
       view: "journal",
       entryPath: "journal/20260812/Bugs/a.md",
+      tearoff: false,
     });
   });
 
@@ -62,6 +64,22 @@ describe("창 라우팅", () => {
       label: FIRST_WINDOW,
       view: null,
       entryPath: null,
+      tearoff: false,
+    });
+  });
+
+  /**
+   * 크롬식 떼어내기 — 끌려다니는 창은 URL 로 자기 처지를 안다. 이걸 놓치면 그
+   * 창이 곧바로 프로젝트를 통째로 마운트하고(워처·자동색인 포함), 도로 남의
+   * 창에 합쳐 버리면 그 전부가 낭비가 된다.
+   */
+  it("?tearoff=1 은 아직 손에 들려 있는 창", () => {
+    expect(parseWindowRoute("?win=win-3&tearoff=1")).toEqual({
+      kind: "window",
+      label: "win-3",
+      view: null,
+      entryPath: null,
+      tearoff: true,
     });
   });
 

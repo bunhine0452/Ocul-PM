@@ -141,8 +141,6 @@ export const ko = {
   "tabs.menu.detach": "새 창으로 떼어내기",
   "tabs.menu.close": "탭 닫기",
   "tabs.menu.noOtherWindow": "옮길 다른 창이 없습니다.",
-  "tabs.drag.toNewWindow": "놓으면 새 창",
-  "tabs.drag.toWindow": "다른 창으로",
   "tabs.drag.incoming": "여기에 놓입니다",
   "project.openWindowFailed": "탭을 열지 못했습니다: {error}",
   "project.closeTabFailed": "탭을 닫지 못했습니다: {error}",

@@ -111,14 +111,14 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 조작에서 사람이 확인하는 것은 판정 결과가 아니라 손에 무엇이 들려 있고 어디에
 놓이는가다.
 
-- [x] 떼어내면 고스트가 손을 따라온다 — 줄 안에서는 탭 자신, 줄 밖에서는
+- [~] (Phase 9 가 대체) 떼어내면 고스트가 손을 따라온다 — 줄 안에서는 탭 자신, 줄 밖에서는
       `.tabstrip-ghost`(`position: fixed`). 잡은 오프셋을 물어 손가락 아래
       **잡았던 그 자리** 그대로 떨어진다 {#tear-off-ghost}
-- [x] 창 밖으로 나가면 가장자리에 붙는다(`clampGhost`) — 웹뷰는 자기 창 밖에 못
+- [~] (Phase 9 가 대체) 창 밖으로 나가면 가장자리에 붙는다(`clampGhost`) — 웹뷰는 자기 창 밖에 못
       그리므로, 안 가두면 끌어내는 순간 물체가 사라진다 {#ghost-clamp}
-- [x] 놓으면 어떻게 되는지를 물체가 말한다 — `data-mode` new/merge + `data-hint`.
+- [~] (Phase 9 가 대체) 놓으면 어떻게 되는지를 물체가 말한다 — `data-mode` new/merge + `data-hint`.
       스트립 농도(0.55 / 0.32)만으로는 두 결과를 구분하기 어렵다 {#ghost-hint}
-- [x] 원래 탭은 `.torn` 자국으로 남는다 — 폭을 접지 않는다. 그 자리가 "취소하면
+- [~] (Phase 9 가 대체) 원래 탭은 `.torn` 자국으로 남는다 — 폭을 접지 않는다. 그 자리가 "취소하면
       여기" 이고, 접으면 되돌아올 때 이웃이 한 번 더 출렁인다 {#torn-slot}
 - [x] 받는 스트립이 자리를 **벌리고** 자리표시자를 앉힌다 — `TabDragOver.preview`
       (이름·아이콘·색). 3px 캐럿은 자리만 알려 주고 무엇이 오는지는 말하지
@@ -147,6 +147,36 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 - [ ] 실기기 확인 — ① 세손가락 드래그로 탭이 끌리는지(텍스트가 아니라),
       ② 창 두 개 사이 고스트·자리표시자 왕복, ③ 떼어낸 창이 손 밑에 뜨는지
       (앱 배율 ⌘+/- 를 바꾼 상태와 배율이 다른 외부 모니터) {#p8-manual-verify}
+
+## Phase 9 — 크롬과 같은 물건 (2026-08-29) {#p9-real-window}
+
+사용자 지적: "크롬 탭창 분리 이동과 똑같이 만들어달라니까?" Phase 8 이 만든
+것은 **창 안에 갇힌 고스트**였다. 크롬은 줄을 벗어나는 순간 **진짜 창**이 되고
+그 뒤로는 OS 가 옮긴다 — 결과의 미리보기가 아니라 결과를 직접 들고 있는 것이다.
+닮은 것이 아니라 다른 물건이었고, 요청은 처음부터 크롬 쪽이었다.
+
+- [x] `begin_tear_off` — 줄을 벗어나는 그 순간 창을 만들어 손에 들려 준다.
+      원래 줄은 즉시 메워진다 {#tear-off-now}
+- [x] `tab_drag_over` 가 틱 하나로 셋을 한다 — 들고 있는 창을 `cursor − anchor`
+      로 옮기고, 남의 스트립을 히트테스트하고, 겨누면 그 창을 **감춘다**
+      (크롬의 합치기 미리보기). hide/show 는 전이에서만 {#drag-tick}
+- [x] `drop_tear_off` / `cancel_tear_off` — 놓으면 합치거나 그 자리에 남고,
+      Escape 는 원래 자리(`source`·`index`)로 되돌린다 {#tear-off-finish}
+- [x] `?tearoff=1` — 끌려다니는 동안 화면 마운트를 붙잡는다. 몇백 ms 를 위해
+      프로젝트 init·워처·자동색인을 돌릴 이유가 없고, 합쳐 버리면 전부 낭비다.
+      `TearOffSettled` 가 손을 놓아 준다 {#tearoff-hold}
+- [x] 포인터 캡처를 **스트립**이 쥔다 — 떼어낸 탭은 언마운트되므로 탭에 걸면
+      그 순간 캡처가 사라져 남은 move/up 이 안 온다. `lostpointercapture` 안전망
+      {#capture-on-strip}
+- [x] 떼어낸 창의 탭은 **새 id** 를 받는다(`reserve`→`mint`) — 옛 id 로 마무리를
+      부르면 조용히 아무 일도 안 일어난다. `TearOff.tab_id` 에 기록하고 놓기·
+      무르기는 id 를 받지 않는다 {#torn-tab-id}
+- [x] 걷어낸 것 — 고스트·자국·스트립 흐려짐·고스트 문구·`clampGhost`·`attach_tab`
+      {#drop-the-ghost}
+- [x] 테스트 — Rust 3건 + 스트립 배선 6건 {#p9-tests}
+- [ ] 실기기 확인 — ① 포커스 안 뺏는 창이 떠도 원래 창이 계속 move/up 을 받는가,
+      ② 창 생성 지연이 손맛으로 어떤가, ③ 남의 줄 위에서 창이 사라졌다 나타나는
+      전환 {#p9-manual-verify}
 
 ## 결정
 
@@ -185,6 +215,23 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 자리가 사라지고, 0.15 면 좁은 도크에서 겨냥이 불가능해진다.
 
 영향: #pane-drop-pure
+
+### Decision 7 — 떼어낸 것은 고스트가 아니라 **창**이다 {#d7-real-window-not-ghost}
+잠금: 2026-08-29 · claude-code
+
+탭이 줄을 벗어나면 그 자리에서 진짜 창을 만들어 손에 들려 준다. 웹뷰 안에
+그리는 미리보기(고스트)는 쓰지 않는다.
+
+근거: 웹뷰는 자기 창 밖을 그릴 수 없다 — 이 제약은 진짜다. 그래서 Phase 8 은
+고스트를 창 가장자리에 가뒀는데, 그러면 화면 밖·다른 앱 위로 끌 수가 없고 손에
+든 것이 결과가 아니라 결과의 그림이 된다. 제약을 피하는 답은 **그리지 않고
+만드는 것**이었다: 창은 OS 가 옮기므로 어디로든 간다.
+
+대가는 둘이고 둘 다 갚았다. ① 창 생성 비용 — `?tearoff=1` 로 화면 마운트를
+붙잡아 프로젝트 init·워처·자동색인을 놓는 순간까지 미룬다. ② 탭 id 가 새로
+발급된다 — 놓기·무르기가 id 를 받지 않고 백엔드 기록으로 마무리한다.
+
+영향: #tear-off-now #tearoff-hold #torn-tab-id #drop-the-ghost
 
 ### Decision 5 — 네이티브 드래그는 표면이 아니라 창에서 막는다 {#d5-drag-guard-at-window}
 잠금: 2026-08-29 · claude-code
@@ -304,4 +351,14 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 | 2026-08-29T19:10:00+09:00 | #p8-manual-verify | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 실기기 미확인 |
 | 2026-08-29T19:10:00+09:00 | #d5-drag-guard-at-window | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 결정 잠금 |
 | 2026-08-29T19:10:00+09:00 | #d6-preview-in-event | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 결정 잠금 |
+| 2026-08-29T19:49:00+09:00 | #tear-off-now | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 벗어나는 순간 창이 된다 |
+| 2026-08-29T19:49:00+09:00 | #drag-tick | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 틱 하나로 셋 |
+| 2026-08-29T19:49:00+09:00 | #tear-off-finish | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 놓기·무르기 |
+| 2026-08-29T19:49:00+09:00 | #tearoff-hold | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 끌려다니는 동안은 안 마운트 |
+| 2026-08-29T19:49:00+09:00 | #capture-on-strip | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 탭이 사라져도 제스처가 산다 |
+| 2026-08-29T19:49:00+09:00 | #torn-tab-id | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 구현 중 잡은 결함 |
+| 2026-08-29T19:49:00+09:00 | #drop-the-ghost | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 고스트 전량 철거 |
+| 2026-08-29T19:49:00+09:00 | #p9-tests | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | Rust 3 + 배선 6 |
+| 2026-08-29T19:49:00+09:00 | #p9-manual-verify | claude-code | →☐ | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 실기기 미확인 |
+| 2026-08-29T19:49:00+09:00 | #d7-real-window-not-ghost | claude-code | →☐ | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 결정 잠금 — Phase 8 을 대체 |
 <!-- oculpm:plan-log end -->
