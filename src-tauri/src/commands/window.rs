@@ -143,6 +143,32 @@ impl Registry {
         })
     }
 
+    /// 진단용 한 줄 요약 — `win-1:[3(p=7),4(start)]` 꼴.
+    ///
+    /// 닫기가 "아무 일도 안 하는" 증상은 프런트가 든 탭 id 와 레지스트리가 아는
+    /// 것이 어긋났을 때 난다. 그때 알아야 할 것은 **양쪽 값**이라, 로그에 기대는
+    /// 순간 이 요약이 없으면 재현을 또 한 번 시켜야 한다.
+    pub fn summary(&self) -> String {
+        let mut labels: Vec<&String> = self.windows.keys().collect();
+        labels.sort();
+        labels
+            .iter()
+            .map(|label| {
+                let tabs = self.windows[*label]
+                    .order
+                    .iter()
+                    .map(|t| match t.project_id {
+                        Some(pid) => format!("{}(p={pid})", t.id),
+                        None => format!("{}(start)", t.id),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("{label}:[{tabs}]")
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     fn locate_tab(&self, tab_id: u32) -> Option<String> {
         self.windows
             .iter()
@@ -269,6 +295,13 @@ impl Registry {
                 prev.map(|(label, _)| label)
             }
         }
+    }
+
+    /// 지금 겨누고 있는 창 — `hover` 를 부르기 **전**에 물어봐야 "처음 들어섰다"
+    /// 를 알 수 있다. `hover` 의 반환값(직전 대상)만으로는 첫 진입과 제자리
+    /// 유지가 둘 다 `None` 이라 구분되지 않는다.
+    fn hovering(&self) -> Option<&str> {
+        self.drop_hint.as_ref().map(|(label, _)| label.as_str())
     }
 
     /// 스트립을 벗어났다 — 겨누던 창을 알려 준다 (캐럿을 지우게).
@@ -446,6 +479,28 @@ pub struct TabDragOver {
     pub x: f64,
     /// 끌려오는 탭. 자기 탭이면(같은 창 되돌아오기) 무시할 수 있게 실어 보낸다.
     pub tab_id: u32,
+    /// 끌려오는 탭의 겉모습 — **스트립에 처음 들어선 순간에만** 실린다.
+    ///
+    /// 받는 창은 남의 탭 이름을 알 길이 없다(레지스트리도 프로젝트 DB 도 그
+    /// 창의 것이 아니다). 그런데 자리표시자에 이름이 없으면 "무엇이 오는지"는
+    /// 모른 채 "무언가 온다"만 보인다 — 창이 셋이면 그게 곧 오조준이 된다.
+    ///
+    /// 매번 싣지 않는 이유는 값이 DB 조회 한 번이기 때문이다. 포인터는 초당
+    /// 수십 번 움직이지만 **겨누는 창이 바뀌는 일**은 드물다. 받는 쪽은 처음
+    /// 받은 것을 `TabDragLeave` 까지 들고 있으면 된다.
+    pub preview: Option<TabPreview>,
+}
+
+/// 끌려오는 탭을 받는 창이 그리기 위한 최소 정보 — 스트립의 탭과 **같은**
+/// 재료다(이름·아이콘·색). 프로젝트 id 를 안 싣는 이유는 받는 창이 그것으로
+/// 할 수 있는 일이 없어서다: 아직 자기 탭이 아니라 조회해도 남의 것이다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct TabPreview {
+    pub name: String,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    /// 시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다.
+    pub is_start: bool,
 }
 
 /// 그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다.
@@ -687,33 +742,103 @@ pub async fn set_tab_project(
     Ok(())
 }
 
-/// 탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다).
-#[tauri::command]
-#[specta::specta]
-pub async fn close_tab(app: AppHandle, tab_id: u32) -> Result<(), String> {
-    close_tab_inner(&app, tab_id).await
+/// **유령 창**인가 — 웹뷰는 살아 있는데 레지스트리가 모르는 앱 창.
+///
+/// 이 상태의 창은 어떤 조작으로도 닫히지 않는다. 탭 × 는 "모르는 탭" 으로
+/// 떨어지고, ⌘W 는 `active_tab_of` 가 `None` 이라 프런트가 걸러 내며, 남는
+/// 길은 OS 빨간 버튼뿐이다. 판정을 순수 함수로 빼 두면 런타임 없이 못 박을 수
+/// 있다 — 이 조건이 느슨해지면 **멀쩡한 창을 닫는** 반대편 사고가 된다.
+fn ghost_window(reg: &Registry, asking: Option<&str>) -> Option<String> {
+    let label = asking?;
+    // 터미널 창·트레이는 애초에 탭 레지스트리 밖에 산다 — 유령이 아니다.
+    if !is_app_window(label) || reg.get(label).is_some() {
+        return None;
+    }
+    Some(label.to_string())
 }
 
-pub async fn close_tab_inner(app: &AppHandle, tab_id: u32) -> Result<(), String> {
+/// 탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다).
+///
+/// `asking` 은 Tauri 가 주입하는 **호출한 창**이다 (프런트는 안 넘긴다). 요청한
+/// 탭이 레지스트리에 없을 때 그 창이 유령인지 판단하는 데 쓴다 — 아래 참조.
+#[tauri::command]
+#[specta::specta]
+pub async fn close_tab(
+    app: AppHandle,
+    asking: tauri::WebviewWindow,
+    tab_id: u32,
+) -> Result<(), String> {
+    close_tab_from(&app, Some(asking.label()), tab_id).await
+}
+
+async fn close_tab_from(
+    app: &AppHandle,
+    asking: Option<&str>,
+    tab_id: u32,
+) -> Result<(), String> {
     let removed = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
         reg.remove_tab(tab_id)
     };
     let Some((label, project_id, emptied)) = removed else {
+        // 여기가 "닫기 버튼이 안 먹는다" 의 유일하게 남은 조용한 갈래다 (2026-08-29).
+        // 프런트가 든 탭 id 를 레지스트리가 모르면 탭도 창도 건드리지 않고 Ok 를
+        // 냈다 — 화면에는 아무 변화도 아무 메시지도 없다. Err 로 올리지는 않는다:
+        // × 를 두 번 눌렀을 때처럼 **이미 닫힌 탭**을 다시 닫는 정상 경로도 여기로
+        // 오기 때문이다. 대신 양쪽 값을 로그에 남겨 다음 재현에서 갈리게 한다.
+        let (known, ghost) = {
+            let state = app.state::<WindowTabs>();
+            let reg = state.lock();
+            // **유령 창** — 웹뷰는 살아 있는데 레지스트리에서 빠진 창.
+            // 이 상태의 창은 어떤 조작으로도 닫히지 않는다: 탭 × 는 여기(모르는
+            // 탭)로 떨어지고, ⌘W 는 `active_tab_of` 가 None 이라 프런트가 걸러
+            // 내며, 남는 길은 OS 빨간 버튼뿐이다. 사용자가 요청한 일은 "이 창을
+            // 닫는 것" 이고 레지스트리에 지킬 것도 없으니, 그대로 닫아 준다.
+            (reg.summary(), ghost_window(&reg, asking))
+        };
+        tracing::warn!(
+            tab_id,
+            asking = asking.unwrap_or("-"),
+            ghost = ghost.is_some(),
+            registry = %known,
+            "[FLOW] close_tab: 레지스트리에 없는 탭"
+        );
+        if let Some(label) = ghost {
+            let Some(win) = app.get_webview_window(&label) else {
+                return Ok(());
+            };
+            win.close().map_err(|e| format!("유령 창 '{label}' 닫기 실패: {e}"))?;
+            tracing::info!(window = %label, "[FLOW] 레지스트리에서 빠진 창을 닫았다");
+        }
         return Ok(());
     };
     if let Some(pid) = project_id {
-        release_project(app, pid);
+        release_project(app, pid).await;
     }
     if emptied {
         // 마지막 탭을 닫으면 창도 닫힌다 (Chrome 과 같다) — `⌘W` 한 키로
         // "탭 닫기" 와 "창 닫기" 가 자연스럽게 이어지는 지점이다.
         // 창 닫기가 CloseRequested 훅을 돌리지만, 레지스트리에서 이미 빠졌으므로
         // 남은 탭 정리는 no-op 이고 "마지막 창" 판정만 정상적으로 걸린다.
-        if let Some(win) = app.get_webview_window(&label) {
-            let _ = win.close();
+        //
+        // 실패를 삼키지 않는다 (2026-08-29). 예전엔 `let _ = win.close()` 였고
+        // 창을 못 찾은 경우는 아예 조용했다. 그런데 이 지점이 틀어지면 증상은
+        // **탭은 사라졌는데 창이 남는다** — 사용자에게는 "닫기가 안 먹는다" 로
+        // 보이고, 레지스트리에서는 이미 탭이 빠져 나가 되돌릴 수도 없다.
+        // 어느 쪽으로 실패했는지 로그와 반환값 양쪽에 남긴다.
+        let Some(win) = app.get_webview_window(&label) else {
+            tracing::error!(
+                window = %label,
+                "[FLOW] 마지막 탭을 닫았는데 그 창의 웹뷰를 찾지 못했다 — 창이 그대로 남는다"
+            );
+            return Err(format!("창 '{label}' 을 찾을 수 없어 닫지 못했습니다"));
+        };
+        if let Err(e) = win.close() {
+            tracing::error!(window = %label, error = %e, "[FLOW] 마지막 탭을 닫았으나 창 닫기 실패");
+            return Err(format!("창 '{label}' 닫기 실패: {e}"));
         }
+        tracing::info!(window = %label, "[FLOW] 마지막 탭이 닫혀 창도 닫는다");
     } else {
         broadcast(app, &label).await;
     }
@@ -758,8 +883,8 @@ pub async fn reorder_tabs(app: AppHandle, window: String, order: Vec<u32>) -> Re
 pub async fn detach_tab(
     app: AppHandle,
     tab_id: u32,
-    x: Option<f64>,
-    y: Option<f64>,
+    anchor_x: Option<f64>,
+    anchor_y: Option<f64>,
 ) -> Result<(), String> {
     let removed = {
         let state = app.state::<WindowTabs>();
@@ -780,13 +905,35 @@ pub async fn detach_tab(
         return Ok(());
     };
     broadcast(&app, &source).await;
-    // 좌표는 **포인터로 떼어냈을 때만** 있다. 메뉴·키보드로 부르면 창을 커서
-    // 밑에 놓을 이유가 없으므로 OS 의 기본 자리에 맡긴다.
-    let at = match (x, y) {
-        (Some(x), Some(y)) => Some((x, y)),
+    // 앵커는 **포인터로 떼어냈을 때만** 있다 — 새 창 안에서 "잡았던 그 자리"가
+    // 될 지점(창 좌상단 기준 논리 px). 메뉴·키보드로 부르면 겨눈 지점이 없으므로
+    // 창 자리는 OS 에 맡긴다.
+    //
+    // 커서는 이벤트가 아니라 **OS 에서** 받는다 (결정 2). 예전엔 `screenX` 에
+    // 상수 오프셋(-120, -16)을 더해 "타이틀바 근처" 를 노렸는데, 웹뷰 줌이
+    // 걸리면 그 상수가 틀어져 창이 손에서 멀찍이 떨어진 자리에 떴다.
+    let at = match (anchor_x, anchor_y) {
+        (Some(ax), Some(ay)) => {
+            let scale = app
+                .get_webview_window(&source)
+                .and_then(|w| w.scale_factor().ok())
+                .unwrap_or(1.0);
+            app.cursor_position().ok().map(|c| detached_origin((c.x, c.y), scale, (ax, ay)))
+        }
         _ => None,
     };
     create_window(&app, project_id, None, at).await
+}
+
+/// 떼어낸 창의 좌상단 (논리 px) — 잡았던 자리가 커서 밑에 그대로 오도록.
+///
+/// `cursor` 는 OS 가 주는 **물리** px, `anchor` 는 새 창 안에서 커서 밑에 와야
+/// 할 지점(논리 px). 배율이 0 이하로 오면 1 로 본다 — 창이 사라지는 중이면
+/// 배율 조회가 이상한 값을 줄 수 있는데, 그때 창을 화면 밖으로 던지느니 조금
+/// 어긋나는 편이 낫다.
+pub fn detached_origin(cursor: (f64, f64), scale: f64, anchor: (f64, f64)) -> (f64, f64) {
+    let sf = if scale > 0.0 { scale } else { 1.0 };
+    (cursor.0 / sf - anchor.0, cursor.1 / sf - anchor.1)
 }
 
 // ─── 창 간 탭 드래그 (다시 붙이기) ──────────────────────────────────────────
@@ -822,21 +969,54 @@ pub async fn tab_drag_over(
     };
     let hit = source.as_deref().and_then(|src| strip_under_cursor(&app, src, band));
 
-    let (left, entered) = {
+    let (left, entered, fresh) = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
         match &hit {
-            Some((label, _)) => (reg.hover(label), Some(label.clone())),
-            None => (reg.unhover(), None),
+            Some((label, _)) => {
+                let fresh = reg.hovering() != Some(label.as_str());
+                (reg.hover(label), Some(label.clone()), fresh)
+            }
+            None => (reg.unhover(), None, false),
         }
     };
     if let Some(prev) = left {
         let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
     }
     if let Some((label, x)) = hit {
-        let _ = TabDragOver { window: label.clone(), x, tab_id }.emit_to(&app, &label);
+        // 겉모습은 스트립에 **처음 들어선** 프레임에만 싣는다 (DB 조회 1회).
+        let preview = if fresh { tab_preview(&app, tab_id).await } else { None };
+        let _ = TabDragOver { window: label.clone(), x, tab_id, preview }.emit_to(&app, &label);
     }
     Ok(entered)
+}
+
+/// 끌려오는 탭의 겉모습을 읽는다 — 받는 창이 자리표시자를 그릴 재료.
+///
+/// 이름·아이콘·색의 출처는 `snapshot` 과 **같다**. 갈라지면 같은 프로젝트가
+/// 끌려올 때와 앉은 뒤에 다르게 보인다.
+async fn tab_preview(app: &AppHandle, tab_id: u32) -> Option<TabPreview> {
+    let project_id = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        let label = reg.locate_tab(tab_id)?;
+        reg.get(&label)?.order.iter().find(|t| t.id == tab_id)?.project_id
+    };
+    let Some(pid) = project_id else {
+        return Some(TabPreview {
+            name: String::new(),
+            icon: None,
+            color: None,
+            is_start: true,
+        });
+    };
+    let db = app.state::<crate::db::Db>();
+    // 프로젝트가 DB 에서 사라졌어도 자리표시자는 그려야 한다 — 이름만 폴백.
+    let (name, icon, color) = match db.get_project(pid).await {
+        Ok(p) => (p.name, p.icon, p.color),
+        Err(_) => (format!("#{pid}"), None, None),
+    };
+    Some(TabPreview { name, icon, color, is_start: false })
 }
 
 /// 대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②).
@@ -1138,10 +1318,12 @@ fn attach_terminal_window_hooks(
                 reg.project_in_use(project_id)
             };
             if !still_used {
-                if let Some(pty) = handle.try_state::<crate::commands::terminal::PtyState>() {
-                    // fire-and-forget — 죽인 개수 로그는 terminal.rs 안에서 남는다.
-                    pty.kill_with_prefix(&handle, &pty_prefix_for(project_id));
-                }
+                // 죽인 개수 로그는 terminal.rs 안에서 남는다. 창 이벤트 훅이라
+                // 동기판을 쓴다 (terminal.rs 의 "두 갈래인 이유" 참고).
+                crate::commands::terminal::kill_ptys_with_prefix_blocking(
+                    &handle,
+                    &pty_prefix_for(project_id),
+                );
             }
             emit_terminal_windows(&handle);
         }
@@ -1208,6 +1390,11 @@ async fn create_window(
             let state = app.state::<WindowTabs>();
             state.lock().register(&label, project_id);
         }
+        // 떼어내기로 온 것이면 휴면 창도 손 밑으로 옮긴다 — 안 옮기면 끌어낸
+        // 결과가 엉뚱한 자리(직전에 숨은 자리)에서 튀어나온다.
+        if let (Some((x, y)), Some(win)) = (position, app.get_webview_window(&label)) {
+            let _ = win.set_position(tauri::LogicalPosition::new(x, y));
+        }
         focus_window(app, &label);
         broadcast(app, &label).await;
         return Ok(());
@@ -1235,8 +1422,9 @@ async fn create_window(
             .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
             .resizable(true);
     if let Some((x, y)) = position {
-        // 포인터가 새 창의 타이틀바 근처에 오도록 살짝 위·왼쪽으로 당긴다.
-        builder = builder.position(x - 120.0, y - 16.0);
+        // 이미 "창 좌상단" 으로 계산돼 온다 (`detached_origin`) — 여기서 다시
+        // 보정하지 않는다.
+        builder = builder.position(x, y);
     }
 
     let window = match builder.build() {
@@ -1313,7 +1501,7 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
     };
 
     for project_id in closed_tabs {
-        release_project(app, project_id);
+        release_project_blocking(app, project_id);
     }
     emit_open_projects(app);
 
@@ -1330,9 +1518,7 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
 
     // 마지막 창 — 어떤 PTY 도 주인이 없다. 접두사 없는 레거시 sid(멀티 창
     // 이전에 저장된 터미널 탭)까지 여기서 회수한다.
-    if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
-        pty.kill_except(app, &[]);
-    }
+    crate::commands::terminal::kill_ptys_except_blocking(app, &[]);
     crate::tray::handle_last_window_closed(app, label)
 }
 
@@ -1342,17 +1528,34 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
 /// 중인 모든 프로젝트" 로 바뀌면서(2026-08-12), watcher 의 수명은 탭이 아니라
 /// **앱 프로세스**에 묶인다 — 여기서 멈추면 탭을 닫는 순간 그 프로젝트가
 /// 상단바에서 다시 사라진다. 종료 시 정리는 `shutdown_all_blocking` 이 한다.
-fn release_project(app: &AppHandle, project_id: u32) {
-    // 2026-08-15 — 터미널을 창으로 떼어냈으면 **그 창이 아직 셸의 주인**이다.
-    // 탭만 보고 죽이면, 분리 창을 띄워 둔 채 프로젝트 탭을 닫는 순간 그 안의
-    // 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
-    if app.state::<WindowTabs>().lock().project_in_use(project_id) {
+///
+/// 이 비동기판은 **커맨드**(탭 닫기)가 쓴다. 창 이벤트 훅은 아래 동기판이다 —
+/// 왜 나뉘어야 하는지는 `commands/terminal.rs` 의 "두 갈래인 이유" 참고.
+/// 여기서 동기판을 부르면 tokio 가 패닉해 **그 뒤의 창 닫기가 통째로 사라진다**
+/// (2026-08-29, 떼어낸 창이 안 닫히던 뿌리).
+async fn release_project(app: &AppHandle, project_id: u32) {
+    if !releasable(app, project_id) {
         return;
     }
-    if let Some(pty) = app.try_state::<crate::commands::terminal::PtyState>() {
-        // fire-and-forget — 죽인 개수 로그는 terminal.rs 안에서 남는다.
-        pty.kill_with_prefix(app, &pty_prefix_for(project_id));
+    crate::commands::terminal::kill_ptys_with_prefix(app, &pty_prefix_for(project_id)).await;
+}
+
+/// 같은 정리를 창 이벤트 훅(메인 스레드·동기)에서. 여기서는 기다려야 한다 —
+/// 마지막 창 닫힘 직후 앱이 종료될 수 있어 spawn 은 종료와 경주한다.
+fn release_project_blocking(app: &AppHandle, project_id: u32) {
+    if !releasable(app, project_id) {
+        return;
     }
+    crate::commands::terminal::kill_ptys_with_prefix_blocking(app, &pty_prefix_for(project_id));
+}
+
+/// 이 프로젝트의 셸을 정리해도 되는가.
+///
+/// 2026-08-15 — 터미널을 창으로 떼어냈으면 **그 창이 아직 셸의 주인**이다.
+/// 탭만 보고 죽이면, 분리 창을 띄워 둔 채 프로젝트 탭을 닫는 순간 그 안의
+/// 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
+fn releasable(app: &AppHandle, project_id: u32) -> bool {
+    !app.state::<WindowTabs>().lock().project_in_use(project_id)
 }
 
 /// 지금 포커스된 앱 창. 메뉴 이벤트에는 대상 창이 실려 오지 않으므로 여기서
@@ -1685,6 +1888,58 @@ mod tests {
         assert_eq!(reg.all_open_projects(), vec![1, 2]);
     }
 
+    /// 진단 요약은 **양쪽 값**을 담아야 쓸모가 있다 — 시도한 탭 id 와 실제 보유분.
+    #[test]
+    fn summary_shows_which_window_holds_which_tab() {
+        let reg = reg_with(&[("main", &[None, Some(7)]), ("win-1", &[Some(3)])]);
+        // 라벨 정렬 — 로그를 여러 건 나란히 놓고 읽을 때 순서가 흔들리면 안 된다.
+        assert_eq!(reg.summary(), "main:[1(start),2(p=7)] win-1:[3(p=3)]");
+    }
+
+    #[test]
+    fn summary_of_an_empty_registry_is_empty() {
+        assert_eq!(Registry::default().summary(), "");
+    }
+
+    #[test]
+    fn ghost_is_an_app_window_the_registry_forgot() {
+        let reg = reg_with(&[("main", &[None])]);
+        // 레지스트리가 모르는 앱 창 — 유령이다.
+        assert_eq!(ghost_window(&reg, Some("win-1")), Some("win-1".into()));
+        // 알고 있는 창은 아니다 (이미 닫힌 탭을 다시 닫는 정상 경로가 여기로 온다).
+        assert_eq!(ghost_window(&reg, Some("main")), None);
+        // 탭 레지스트리 밖에 사는 창들은 유령 판정 대상이 아니다.
+        assert_eq!(ghost_window(&reg, Some("term-3")), None);
+        assert_eq!(ghost_window(&reg, Some("tray")), None);
+        // 호출한 창을 모르면(내부 경로) 판정하지 않는다.
+        assert_eq!(ghost_window(&reg, None), None);
+    }
+
+    /// 떼어낸 창의 탭을 닫으면 그 창이 닫힌다 — 떼어내기와 닫기가 이어지는 지점.
+    ///
+    /// 두 단계가 각각 맞아도 **이어 붙였을 때** 어긋날 수 있는 자리다: 떼어내기는
+    /// `remove_tab` + `reserve` 로 창을 새로 세우고, 닫기는 그 창이 비었는지를
+    /// `remove_tab` 의 셋째 값으로 판정한다. 가운데의 `reserve` 가 탭을 **하나만**
+    /// 등록한다는 사실에 기대고 있으므로, 거기에 시작 탭이라도 하나 더 붙는 날
+    /// 조용히 "닫아도 창이 남는" 증상이 된다.
+    #[test]
+    fn closing_the_tab_of_a_detached_window_empties_that_window() {
+        let mut reg = reg_with(&[("main", &[None, Some(1)])]);
+        let moving = reg.get("main").unwrap().order[1].id;
+        // detach_tab 이 하는 일: remove_tab → create_window(reserve/register)
+        let removed = reg.remove_tab(moving);
+        assert_eq!(removed.map(|(l, p, e)| (l, p, e)), Some(("main".into(), Some(1), false)));
+        let label = reg.reserve(Some(1));
+        assert_eq!(label, "win-1");
+        let born = reg.get("win-1").unwrap().order[0].id;
+        // 떼어낸 창의 X — close_tab 이 보는 값
+        let out = reg.remove_tab(born);
+        assert_eq!(out, Some(("win-1".into(), Some(1), true)), "emptied 가 true 여야 창이 닫힌다");
+        assert!(reg.get("win-1").is_none());
+        // handle_window_closed 가 보는 값
+        assert_eq!(reg.windows.len(), 1, "main 이 남아 있어야 prevent_close 가 안 걸린다");
+    }
+
     #[test]
     fn move_tab_into_its_own_window_is_a_reorder() {
         let mut reg = reg_with(&[("win-1", &[Some(1), Some(2), Some(3)])]);
@@ -1719,6 +1974,37 @@ mod tests {
         reg.hover("win-2");
         reg.note_drop_index("win-1", 5);
         assert_eq!(reg.take_drop_hint(), Some(("win-2".into(), None)));
+    }
+
+    /// 겉모습(`TabPreview`)은 스트립에 **처음 들어선** 프레임에만 싣는다 —
+    /// 그 판정이 `hovering()` 이다. `hover()` 의 반환값만 보면 첫 진입과 제자리
+    /// 유지가 둘 다 `None` 이라 구분되지 않고, 결과는 둘 중 하나다: 매 프레임
+    /// DB 를 때리거나, 자리표시자가 영영 이름을 못 받거나.
+    /// 떼어낸 창은 **잡았던 자리가 커서 밑에** 오도록 놓인다. 예전 상수
+    /// 오프셋(-120, -16)은 줌이 걸리면 그만큼 틀어졌다.
+    #[test]
+    fn detached_window_lands_under_the_hand() {
+        // 배율 2 인 화면: 물리 (800, 200) = 논리 (400, 100).
+        // 새 창 안 (86, 22) 지점이 그 자리에 와야 하므로 원점은 (314, 78).
+        assert_eq!(detached_origin((800.0, 200.0), 2.0, (86.0, 22.0)), (314.0, 78.0));
+        // 배율 1 은 그대로 뺀다.
+        assert_eq!(detached_origin((500.0, 300.0), 1.0, (86.0, 6.0)), (414.0, 294.0));
+        // 배율이 0 으로 와도 창을 화면 밖으로 던지지 않는다.
+        assert_eq!(detached_origin((500.0, 300.0), 0.0, (0.0, 0.0)), (500.0, 300.0));
+    }
+
+    #[test]
+    fn hovering_tells_first_entry_from_staying() {
+        let mut reg = Registry::default();
+        assert_eq!(reg.hovering(), None);
+        reg.hover("win-1");
+        assert_eq!(reg.hovering(), Some("win-1"));
+        reg.hover("win-1");
+        assert_eq!(reg.hovering(), Some("win-1"));
+        reg.hover("win-2");
+        assert_eq!(reg.hovering(), Some("win-2"));
+        reg.unhover();
+        assert_eq!(reg.hovering(), None);
     }
 
     #[test]

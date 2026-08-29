@@ -1036,25 +1036,52 @@ mark.s-hit {
   display: flex; align-items: center; gap: 8px; min-width: 0; flex: none;
   padding: 7px 6px 7px 9px; border-radius: 9px;
   color: var(--text-3); cursor: pointer; user-select: none;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+/* 탭 스트립과 같은 이유로 네이티브 드래그를 끈다 (tabs.css `.tabstrip-tab` 주석). */
+.term-sess,
+.term-sess * {
+  -webkit-user-drag: none;
 }
 .term-sess:hover { background: var(--bg-hover); color: var(--text-2); }
-.term-sess.active { background: var(--term-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-ring); }
+/* 활성 카드도 액센트로 두르지 않는다 — 페인과 같은 문법으로, 바탕이 올라오고
+   테두리가 액센트 쪽으로 기울 뿐이다. */
+.term-sess.active {
+  background: var(--term-bg); color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--sep-strong));
+}
 .term-sess:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -2px; }
 
 /* ── 세션 옮기기 드래그 (2026-08-28) ──────────────────────────────────────
    끌고 있는 카드는 손에 들린 것처럼 물러나고, 놓일 자리는 캐럿 한 줄로
    말한다. 카드를 실제로 움직여 미리 보여 주지 않는 이유는, 페인 쪽으로
    끌고 갈 때(=분할) 목록이 요동치면 어디로 가는지 더 헷갈리기 때문이다. */
-.term-sess.dragging { opacity: 0.4; }
+/* 들려 나간 자리 — 카드가 살짝 물러나 앉는다 (손에 든 것은 고스트다). */
+.term-sess.dragging { opacity: 0.32; transform: scale(0.98); }
 .term-rail.receiving .term-rail-list { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 /* 캐럿에는 전환을 걸지 않는다. 위치 지시자는 "지금 어디에 놓이는가"를 말하는데,
    0.12s 를 두면 커서는 이미 다음 칸이고 표시만 뒤에서 미끄러져 온다 — 고무줄에
    묶인 느낌이 정확히 여기서 났다. 따라오는 것은 고스트 하나로 충분하다. */
 .term-rail-caret {
-  position: absolute; left: 6px; right: 6px; height: 3px; margin-top: -1px;
-  border-radius: 2px; background: var(--accent); pointer-events: none; z-index: 3;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  position: absolute; left: 8px; right: 8px; height: 2px; margin-top: -1px;
+  border-radius: 2px; pointer-events: none; z-index: 3;
+  /* 실선 한 줄이 아니라 **왼쪽에서 흘러나오는** 줄 — 페인 위 상태 띠와 같은
+     문법이다. 두 곳의 액센트가 같은 재료로 보이면 화면이 한 벌로 읽힌다. */
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 45%, transparent)
+  );
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+/* 시작점의 매듭 — 선만 있으면 "몇 번째 칸인가"를 눈이 한 번 더 훑는다. */
+.term-rail-caret::before {
+  content: ""; position: absolute; left: -2px; top: 50%; width: 5px; height: 5px;
+  transform: translateY(-50%); border-radius: 50%; background: var(--accent);
 }
 
 /* 손에 들린 것 — 끌리는 동안 커서를 따라다니는 유일한 물체.
@@ -1063,11 +1090,18 @@ mark.s-hit {
 .term-ghost {
   position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none;
   display: flex; align-items: center; gap: 6px; max-width: 220px;
-  margin: 10px 0 0 12px; padding: 5px 9px; border-radius: 8px;
+  margin: 10px 0 0 12px; padding: 5px 9px; border-radius: 9px;
   background: var(--term-bg); color: var(--text);
-  box-shadow: 0 0 0 1px var(--accent-ring), var(--shadow-pop, 0 8px 20px rgb(0 0 0 / 0.28));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--sep-strong)),
+    var(--shadow-raise);
   font-family: var(--font); font-size: 11.5px; font-weight: 600;
+  /* 자세(위치·기울기)는 JS 가 매 프레임 transform 으로 쓴다 — 그래서 등장은
+     transform 과 겹치지 않는 `scale`/`opacity` 로만 준다. */
+  will-change: transform;
+  animation: term-ghost-in 170ms var(--ease-spring);
 }
+@keyframes term-ghost-in { from { opacity: 0; scale: 0.88; } to { opacity: 1; scale: 1; } }
 .term-ghost .tg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 끄는 동안은 면 전체가 "쥐고 있음"이다 — 커서가 자리마다 바뀌면 손이 흔들린다. */
 .term-wrap.is-moving, .term-wrap.is-moving * { cursor: grabbing !important; }
@@ -1076,16 +1110,38 @@ mark.s-hit {
    텍스트 선택과 싸우므로 잡는 자리를 따로 둔다. */
 .term-pane .pane-grip {
   position: absolute; top: 6px; right: 32px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
-  background: var(--bg-inset); color: var(--text-3); cursor: grab; opacity: 0;
-  transition: opacity 0.12s ease;
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 7px;
+  color: var(--text-3); cursor: grab;
 }
-.term-pane:hover .pane-grip { opacity: 1; }
-.term-pane .pane-grip:hover { color: var(--text); background: var(--bg-active); }
+.term-pane .pane-grip:hover { color: var(--text); }
 .term-pane .pane-grip:active { cursor: grabbing; }
+
+/* 두 버튼은 알약과 같은 칩이다 — 평소엔 없다가 호버에서 **위에서 내려앉는다**
+   (그냥 나타나면 두 개가 동시에 깜빡여 눈에 걸린다). 키보드 포커스에서도
+   반드시 보여야 한다: 안 그러면 도달은 하는데 어디에 있는지 알 수 없다. */
+.term-pane .pane-grip,
+.term-pane .pane-close {
+  background: color-mix(in srgb, var(--term-bg) 84%, var(--term-chrome));
+  box-shadow: inset 0 0 0 1px var(--sep), 0 1px 2px rgb(0 0 0 / 0.05);
+  opacity: 0; transform: translateY(-3px);
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
+}
+.term-pane:hover .pane-grip,
+.term-pane:hover .pane-close,
+.term-pane .pane-grip:focus-visible,
+.term-pane .pane-close:focus-visible { opacity: 1; transform: none; }
+.term-pane .pane-grip:hover,
+.term-pane .pane-close:hover { background: color-mix(in srgb, var(--term-bg) 62%, var(--term-chrome)); }
 /* 겨눠진 페인 — 어느 페인을 기준으로 갈라지는지 알린다 (미리보기 상자만으로는
-   두 페인 사이에서 어느 쪽이 기준인지 모른다). */
-.term-pane.dropping { box-shadow: inset 0 0 0 1px var(--accent-ring); }
+   두 페인 사이에서 어느 쪽이 기준인지 모른다). 포커스는 요소의 box-shadow 를
+   쓰므로 이쪽은 `::after` 다 — 겨눈 페인에 포커스가 있어도 둘 다 산다. */
+.term-pane.dropping::after {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 58%, transparent);
+}
 
 /* 놓으면 차지할 자리. z-index 6 — 페인의 상태 띠(4)·포커스 링(3)·닫기(5) 위. */
 /* 여기도 전환 없음 — 같은 이유다 (위 `.term-rail-caret` 주석). 특히 이 상자는
@@ -1094,9 +1150,18 @@ mark.s-hit {
 .term-drop {
   position: absolute; z-index: 6; pointer-events: none;
   border-radius: var(--term-pane-radius);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 58%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  /* 자리는 여전히 **즉시** 잡는다. 다만 제자리에서 한 번 부푼다 — 겨눈 자리가
+     바뀔 때마다 요소가 새로 태어나므로(React key) 이 등장이 다시 돈다.
+     `transform` 이 아니라 `scale` 프로퍼티인 이유는 없다 — 여기 transform 을
+     쓰는 코드가 없어 둘 다 되지만, 상자를 옮기는 것과 부풀리는 것을 문법에서도
+     갈라 두면 나중에 위치에 transition 을 다시 붙이는 실수를 막는다. */
+  animation: term-drop-in 150ms var(--ease-spring);
 }
+@keyframes term-drop-in { from { opacity: 0; scale: 0.97; } to { opacity: 1; scale: 1; } }
 
 /* 상태 점 — 색의 출처는 터미널 팔레트다 (앱 액센트/초록/빨강이 캔버스 안의
    같은 색과 어긋나면 두 면이 따로 노는 것처럼 보인다). */
@@ -1123,7 +1188,9 @@ mark.s-hit {
 }
 .term-sess.waiting.active {
   background: color-mix(in srgb, var(--term-yellow) 16%, var(--term-bg));
-  box-shadow: inset 2px 0 0 var(--term-yellow), inset 0 0 0 1px var(--accent-ring);
+  box-shadow:
+    inset 2px 0 0 var(--term-yellow),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--sep-strong));
 }
 .term-sess[data-tone="waiting"] .ts-dot { animation: term-pulse 1.6s ease-in-out infinite; }
 @keyframes term-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -1269,30 +1336,67 @@ mark.s-hit {
 .term-divider.row:hover::before, .term-divider.row:active::before { width: 2px; }
 .term-divider.col:hover::before, .term-divider.col:active::before { height: 2px; }
 
+/* 페인의 가장자리 체계 (2026-08-29 재설계).
+   ────────────────────────────────────────────────────────────────────────
+   예전엔 세 가지가 **전부 액센트 한 색의 실선**이었다: 위쪽 2px 상태 띠,
+   둘레 1px 포커스 링, 겨눔 링. 하나만 켜져도 눈에 띄라고 각각 진하게 잡았는데,
+   실제로는 대개 동시에 켜져 있었다 — 그래서 면이 형광펜으로 그은 상자처럼
+   보였다("테두리가 너무 AI 같다"는 말의 정체가 이것이다).
+
+   이제 셋을 **다른 재료**로 나눈다.
+     · 판의 경계 = 재질 (머리카락 한 줄 + 아주 옅은 들림). 색이 없다.
+     · 포커스   = 그 머리카락 줄이 액센트 쪽으로 기울고, 바깥에 얇은 후광 한 겹.
+     · 상태     = 위 모서리에서 **흘러나오는** 그라디언트 한 줄 (면을 두르지 않는다).
+     · 겨눔     = 드래그 중에만 뜨는 안쪽 링 (아래 `.dropping`).
+   덕분에 넷이 한꺼번에 켜져도 서로 다른 층으로 읽힌다. */
 .term-pane {
   position: relative; flex: 1; min-width: 0; min-height: 0; display: flex;
   background: var(--term-bg); border-radius: var(--term-pane-radius); overflow: hidden;
+  /* 자기 box-shadow 는 자기 overflow 에 잘리지 않는다 — 후광을 여기 둘 수 있는 이유. */
+  box-shadow: 0 0 0 1px var(--sep), var(--shadow-card);
+  transition: box-shadow var(--dur-2) var(--ease-out);
+}
+/* 포커스 — 색을 두르는 대신 **가장자리의 무게**를 옮긴다. 후광은 8px 캔버스
+   여백 안에 앉으므로 옆 페인을 밀거나 잘리지 않는다. */
+.term-pane.focused {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 42%, var(--sep-strong)),
+    0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent),
+    var(--shadow-card);
 }
 /* 앰비언트 상태 띠 — 페인 위 가장자리. 페인이 스스로 무슨 상태인지 말한다.
    서너 개를 띄워 두고 곁눈질만으로 "무엇이 돌고 무엇이 깨졌는지" 알기 위한
-   것이라, 포커스 링과 **다른 축**에 그린다 (둘이 같은 테두리를 다투면 실패한
-   페인에 포커스가 갔을 때 한쪽이 사라진다). */
+   것이라, 포커스와 **다른 축**에 그린다 (둘이 같은 테두리를 다투면 실패한
+   페인에 포커스가 갔을 때 한쪽이 사라진다).
+
+   폭 전체를 균일하게 칠하지 않는다: 왼쪽(거터·프롬프트가 사는 쪽)에서 시작해
+   오른쪽으로 흩어진다. 같은 색이라도 **선**이면 크롬으로, **흘러나오면**
+   신호로 읽힌다. */
 .term-pane::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 4;
-  background: var(--tone, transparent); opacity: 0.9; pointer-events: none;
-  transition: background 0.2s ease;
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1.5px; z-index: 4;
+  background: linear-gradient(
+    90deg,
+    var(--tone, transparent) 0%,
+    color-mix(in srgb, var(--tone, transparent) 42%, transparent) 34%,
+    transparent 78%
+  );
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
 }
 .term-pane[data-tone="running"] { --tone: var(--accent); }
 .term-pane[data-tone="fail"] { --tone: var(--term-red); }
-.term-pane[data-tone="running"]::before { animation: term-pulse 1.6s ease-in-out infinite; }
+/* 맥동은 **숨쉬기**다. 예전 term-pulse(1→0.35, 1.6s)는 깜빡임에 가까워 눈이
+   자꾸 끌려갔다 — 곁눈질용 신호는 알아채되 붙들지 않아야 한다. */
+.term-pane[data-tone="running"]::before { animation: term-breathe 2.4s ease-in-out infinite; }
 /* ok/idle/off 는 띠를 그리지 않는다 — 평상시에 늘 켜져 있는 색은 신호가 아니다. */
+@keyframes term-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
-/* 포커스 링. */
+/* 겨눠진 페인의 안쪽 링 — 드래그 중에만. 포커스가 요소의 box-shadow 로
+   내려갔으므로 이 축은 통째로 비었다. */
 .term-pane::after {
   content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  border-radius: inherit; transition: box-shadow 0.16s ease;
+  border-radius: inherit; transition: box-shadow var(--dur-1) var(--ease-out);
 }
-.term-pane.focused::after { box-shadow: inset 0 0 0 1px var(--accent-ring); }
 
 /* 비활성 페인 디밍 (iTerm2 의 dim inactive panes) — "어디에 타이핑되는가"를
    매번 확인하지 않게 한다.
@@ -1302,16 +1406,18 @@ mark.s-hit {
    에 opacity 를 거는 쪽이 실제로 가라앉는다 — 이미 합성된 레이어에 알파를
    곱하는 것이라 GPU 비용도 사실상 없고, 디밍되는 페인은 정의상 포커스가 없어
    타이핑 중일 수도 없다. */
-.term-pane .term-screen { transition: opacity 0.16s ease; }
+.term-pane .term-screen { transition: opacity var(--dur-2) var(--ease-out); }
 .term-pane.dim .term-screen { opacity: 0.6; }
+/* 지금 손에 들려 있는 페인 — 제자리에 남은 것은 자국일 뿐이라고 말한다.
+   캔버스를 축소하지는 않는다 (xterm 이 다시 그려지고 PTY 가 resize 된다). */
+.term-pane.lifted .term-screen { opacity: 0.32; }
+.term-pane.lifted { box-shadow: 0 0 0 1px var(--sep); }
 .term-pane .pane-close {
   position: absolute; top: 6px; right: 8px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
-  border: none; background: var(--bg-inset); color: var(--text-3); cursor: pointer; opacity: 0;
-  transition: opacity 0.12s ease;
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 7px;
+  border: none; color: var(--text-3); cursor: pointer;
 }
-.term-pane:hover .pane-close { opacity: 1; }
-.term-pane .pane-close:hover { color: var(--text); background: var(--bg-active); }
+.term-pane .pane-close:hover { color: var(--text); }
 
 /* 페인 위 에이전트 알약 (2026-08-28) — **레이아웃을 건드리지 않는다.**
    헤더 줄로 만들면 페인 높이가 줄어 xterm 이 refit 하고 PTY 가 resize 되어,
@@ -1320,10 +1426,13 @@ mark.s-hit {
   position: absolute; top: 6px; left: 8px; z-index: 5;
   display: flex; align-items: center; gap: 5px; max-width: calc(100% - 60px);
   padding: 3px 8px; border-radius: 999px; pointer-events: none;
-  background: color-mix(in srgb, var(--term-bg) 82%, var(--term-chrome));
-  box-shadow: inset 0 0 0 1px var(--sep-strong);
+  /* 떠 있는 크롬(알약·손잡이·닫기)은 한 식구다 — 같은 바탕, 같은 머리카락 줄,
+     같은 옅은 그림자. backdrop-filter 는 쓰지 않는다: 아래가 매 프레임 다시
+     그려지는 터미널 캔버스라 블러를 프레임마다 다시 계산하게 된다. */
+  background: color-mix(in srgb, var(--term-bg) 84%, var(--term-chrome));
+  box-shadow: inset 0 0 0 1px var(--sep), 0 1px 2px rgb(0 0 0 / 0.05);
   color: var(--text-3); font-family: var(--font); font-size: 10.5px; font-weight: 600;
-  opacity: 0.72; transition: opacity 0.16s ease;
+  opacity: 0.72; transition: opacity var(--dur-2) var(--ease-out);
 }
 .term-pane:hover .term-agent-pill,
 .term-pane.focused .term-agent-pill { opacity: 1; }
@@ -1349,16 +1458,24 @@ mark.s-hit {
 .term-agent-pill.waiting {
   opacity: 1;
   color: var(--term-yellow);
-  background: color-mix(in srgb, var(--term-yellow) 16%, var(--term-bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--term-yellow) 55%, transparent);
+  background: color-mix(in srgb, var(--term-yellow) 14%, var(--term-bg));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--term-yellow) 42%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.05);
 }
 .term-agent-pill.waiting .tap-name { color: var(--term-yellow); }
 /* 셸 상태에서 파생된 `data-tone` 띠 위에 덧그린다 (판정을 위로 올리면
    1초 재렌더가 페인 트리로 돌아온다 — TerminalAgentPill 주석 참고). */
 .term-agent-band {
-  position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 5;
-  background: var(--term-yellow); pointer-events: none;
-  animation: term-pulse 1.6s ease-in-out infinite;
+  position: absolute; top: 0; left: 0; right: 0; height: 1.5px; z-index: 5;
+  background: linear-gradient(
+    90deg,
+    var(--term-yellow) 0%,
+    color-mix(in srgb, var(--term-yellow) 42%, transparent) 34%,
+    transparent 78%
+  );
+  pointer-events: none;
+  animation: term-breathe 2.4s ease-in-out infinite;
 }
 
 /* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
@@ -1388,7 +1505,9 @@ mark.s-hit {
 }
 /* 실행 중은 맥동, 종료코드를 모르는 것은 흐리게 — 모르는 것을 초록으로
    칠하지 않는다는 규칙이 거터에도 그대로 적용된다. */
-.term-block-mark[data-tone="running"] { animation: term-pulse 1.6s ease-in-out infinite; }
+/* 거터도 페인 위 띠와 같은 숨쉬기를 쓴다 — 한 화면 안의 "지금 돌고 있다"가
+   서로 다른 박자로 뛰면 어느 쪽을 보라는 것인지 알 수 없다. */
+.term-block-mark[data-tone="running"] { animation: term-breathe 2.4s ease-in-out infinite; }
 .term-block-mark[data-tone="unknown"] { opacity: 0.5; }
 
 /* 스티키 헤더 — 긴 출력을 스크롤하는 동안 "어느 명령의 출력인가"를 고정한다.
@@ -1456,6 +1575,9 @@ mark.s-hit {
   .term-pane[data-tone="running"]::before { animation: none; }
   .term-block-mark { transition: none; }
   .term-rail { transition: none; }
+  /* 드래그 중 등장 연출도 끈다 — 자리는 어차피 즉시 잡으므로 잃는 정보가 없다.
+     (고스트의 따라붙기 자체는 TerminalSurface 가 matchMedia 로 끈다.) */
+  .term-drop, .term-ghost { animation: none; }
 }
 
 /* ── 터미널 도크 (2026-08-15) ─────────────────────────────────────────────

@@ -16,7 +16,7 @@ import { BootSplash } from "@/components/BootSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
-import { TabStrip, type WindowChoice } from "@/features/shell/TabStrip";
+import { TabStrip, type IncomingTab, type WindowChoice } from "@/features/shell/TabStrip";
 import ProjectTab from "@/windows/ProjectTab";
 import StartTab from "@/windows/StartTab";
 
@@ -100,6 +100,22 @@ export default function TabbedWindow({
   }, [windowLabel, refreshTabs]);
 
   /**
+   * 탭 닫기는 **조용히 실패하면 안 된다** (2026-08-29).
+   *
+   * 이 자리만 이웃(`onDetach`·`onOpenProject`)과 달리 결과 봉투를 버리고 있었다.
+   * 그런데 닫기가 실패하는 모양은 하필 "탭은 사라졌는데 창이 남는다" 라서,
+   * 화면에는 아무 말도 없이 **닫기 버튼이 안 먹는 것처럼** 보인다.
+   */
+  const closeTab = useCallback(
+    (id: number) => {
+      void commands.closeTab(id).then((r) => {
+        if (r.status === "error") toast.destructive(t("project.closeTabFailed", { error: r.error }));
+      });
+    },
+    [t],
+  );
+
+  /**
    * ⌘W — **안쪽부터** 닫는다.
    *
    * Rust 는 더 이상 직접 닫지 않고 이 이벤트만 보낸다. 화면 안에 또 닫을 것이
@@ -112,7 +128,7 @@ export default function TabbedWindow({
       .listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         if (runCloseIntent()) return;
-        if (payload.tab != null) void commands.closeTab(payload.tab);
+        if (payload.tab != null) closeTab(payload.tab);
       })
       .then((fn) => {
         off = fn;
@@ -120,7 +136,7 @@ export default function TabbedWindow({
     return () => {
       if (off) safeUnlisten(off);
     };
-  }, [windowLabel]);
+  }, [windowLabel, closeTab]);
 
   // 어디든 열려 있는 프로젝트 — 시작 탭의 "열림" 배지 + `+` 팝오버 필터.
   useEffect(() => {
@@ -233,6 +249,12 @@ export default function TabbedWindow({
 
   /** 받는 쪽 — 끌려온 커서의 창 안쪽 x (CSS px). null = 지금은 없다. */
   const [incomingX, setIncomingX] = useState<number | null>(null);
+  /**
+   * 끌려오는 탭의 겉모습. 백엔드는 스트립에 **처음 들어선** 프레임에만 실어
+   * 보내므로(매 move 마다 DB 를 때리지 않으려고) 받은 것을 `TabDragLeave` 까지
+   * 들고 있는다.
+   */
+  const [incoming, setIncoming] = useState<IncomingTab | null>(null);
   /** 내보내는 쪽 — 지금 겨누는 다른 창이 있다 (스트립을 흐리게 그린다). */
   const [handingOff, setHandingOff] = useState(false);
   /**
@@ -250,12 +272,22 @@ export default function TabbedWindow({
         if (payload.window !== windowLabel) return;
         // `f64` 는 바인딩에서 nullable 로 나온다 (NaN 표현 때문) — 방어한다.
         setIncomingX(payload.x == null ? null : payload.x / zoom);
+        if (payload.preview) {
+          const p = payload.preview;
+          setIncoming({
+            name: p.name,
+            icon: p.icon,
+            color: p.color,
+            isStart: p.is_start,
+          });
+        }
       })
       .then((fn) => offs.push(fn));
     void events.tabDragLeave
       .listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         setIncomingX(null);
+        setIncoming(null);
       })
       .then((fn) => offs.push(fn));
     return () => offs.forEach(safeUnlisten);
@@ -337,7 +369,7 @@ export default function TabbedWindow({
         busyProjects={busyProjects}
         closedProjects={closedProjects}
         onActivate={activate}
-        onClose={(id) => void commands.closeTab(id)}
+        onClose={closeTab}
         onNewTab={newTab}
         onReorder={(order) => {
           setTabs((prev) => {
@@ -347,9 +379,13 @@ export default function TabbedWindow({
           void commands.reorderTabs(windowLabel, order);
         }}
         onDetach={(id, x, y) => {
-          void commands.detachTab(id, x, y).then((r) => {
-            if (r.status === "error") fail(r.error);
-          });
+          // 앵커는 스트립이 CSS px 로 준다 — 창 기하는 논리 px 이므로 줌을 곱해
+          // 넘긴다 (`onDragHover` 의 스트립 높이와 같은 규약).
+          void commands
+            .detachTab(id, x == null ? null : x * zoom, y == null ? null : y * zoom)
+            .then((r) => {
+              if (r.status === "error") fail(r.error);
+            });
         }}
         onOpenProject={(id) => {
           void commands.openProjectTab(id, windowLabel).then((r) => {
@@ -357,6 +393,7 @@ export default function TabbedWindow({
           });
         }}
         incomingX={incomingX}
+        incoming={incoming}
         onIncomingIndex={(index) => void commands.tabDropHint(windowLabel, index)}
         onDragHover={askDropTarget}
         onDragDrop={dropOnOtherWindow}

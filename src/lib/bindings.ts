@@ -187,7 +187,12 @@ export const commands = {
 	 *  시작 탭은 그대로 둔다.
 	 */
 	setTabProject: (tabId: number, projectId: number) => typedError<null, string>(__TAURI_INVOKE("set_tab_project", { tabId, projectId })),
-	/**  탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다). */
+	/**
+	 *  탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다).
+	 * 
+	 *  `asking` 은 Tauri 가 주입하는 **호출한 창**이다 (프런트는 안 넘긴다). 요청한
+	 *  탭이 레지스트리에 없을 때 그 창이 유령인지 판단하는 데 쓴다 — 아래 참조.
+	 */
 	closeTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("close_tab", { tabId })),
 	activateTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("activate_tab", { tabId })),
 	reorderTabs: (window: string, order: number[]) => typedError<null, string>(__TAURI_INVOKE("reorder_tabs", { window, order })),
@@ -198,7 +203,7 @@ export const commands = {
 	 *  터미널 탭 구성은 프로젝트별 localStorage 에 있고 **PTY 세션은 Rust 에 살아
 	 *  있어** 스크롤백까지 재부착된다 (`pty_prefix_for` 가 프로젝트 기준이라 가능).
 	 */
-	detachTab: (tabId: number, x: number | null, y: number | null) => typedError<null, string>(__TAURI_INVOKE("detach_tab", { tabId, x, y })),
+	detachTab: (tabId: number, anchorX: number | null, anchorY: number | null) => typedError<null, string>(__TAURI_INVOKE("detach_tab", { tabId, anchorX, anchorY })),
 	/**
 	 *  지금 커서가 다른 앱 창의 탭 스트립 위인가. 대상 창 라벨을 돌려준다.
 	 * 
@@ -4230,6 +4235,18 @@ export type TabDragOver = {
 	x: number | null,
 	/**  끌려오는 탭. 자기 탭이면(같은 창 되돌아오기) 무시할 수 있게 실어 보낸다. */
 	tab_id: number,
+	/**
+	 *  끌려오는 탭의 겉모습 — **스트립에 처음 들어선 순간에만** 실린다.
+	 * 
+	 *  받는 창은 남의 탭 이름을 알 길이 없다(레지스트리도 프로젝트 DB 도 그
+	 *  창의 것이 아니다). 그런데 자리표시자에 이름이 없으면 "무엇이 오는지"는
+	 *  모른 채 "무언가 온다"만 보인다 — 창이 셋이면 그게 곧 오조준이 된다.
+	 * 
+	 *  매번 싣지 않는 이유는 값이 DB 조회 한 번이기 때문이다. 포인터는 초당
+	 *  수십 번 움직이지만 **겨누는 창이 바뀌는 일**은 드물다. 받는 쪽은 처음
+	 *  받은 것을 `TabDragLeave` 까지 들고 있으면 된다.
+	 */
+	preview: TabPreview | null,
 };
 
 /**
@@ -4247,6 +4264,19 @@ export type TabInfo = {
 	 */
 	icon: string | null,
 	color: string | null,
+};
+
+/**
+ *  끌려오는 탭을 받는 창이 그리기 위한 최소 정보 — 스트립의 탭과 **같은**
+ *  재료다(이름·아이콘·색). 프로젝트 id 를 안 싣는 이유는 받는 창이 그것으로
+ *  할 수 있는 일이 없어서다: 아직 자기 탭이 아니라 조회해도 남의 것이다.
+ */
+export type TabPreview = {
+	name: string,
+	icon: string | null,
+	color: string | null,
+	/**  시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다. */
+	is_start: boolean,
 };
 
 /**

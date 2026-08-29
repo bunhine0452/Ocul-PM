@@ -315,37 +315,48 @@ fn type_label(t: &str) -> &str {
 /// 새 일지 → macOS 알림. git 백필·재인덱싱처럼 일지가 몰릴 때 알림 폭탄을
 /// 막기 위해 10초 창에 3건을 넘으면 조용히 버린다 (제목까지 봤다면 이미
 /// 팝오버·앱이 더 나은 표면이다).
+///
+/// **여기서는 아무것도 기다리지 않는다** (2026-08-29). 이벤트 리스너는
+/// `emit` 한 스레드에서 그대로 도는데, 이 이벤트를 쏘는 것은 워처의 async
+/// 태스크다 — 거기서 `block_on` 을 부르면 tokio 가 패닉하고, 그 패닉은 emit 이
+/// 쥐고 있던 **리스너 뮤텍스를 오염**시켜 이 프로세스의 Rust 쪽 이벤트 리스너가
+/// 전부 조용히 죽는다. 실제로 그랬다: 로그를 보면 세션마다 첫 일지 직후
+/// `handle_event panicked` 한 줄이 찍히고, 그 뒤로 트레이 알림도 활동 표시도
+/// 다시는 오지 않는다. 그래서 설정 조회·프로젝트 조회를 태스크로 넘긴다.
 fn notify_journal_added(app: &AppHandle, state: &Arc<TrayState>, p: JournalAddedPayload) {
-    let db = app.state::<crate::db::Db>();
-    let enabled =
-        tauri::async_runtime::block_on(setting_on(&db, SETTING_NOTIFY_JOURNAL, false));
-    if !enabled {
-        return;
-    }
-    {
-        let Ok(mut times) = state.notified_at.lock() else { return };
-        let now = std::time::Instant::now();
-        times.retain(|t| now.duration_since(*t).as_secs() < 10);
-        if times.len() >= 3 {
+    let (app, state) = (app.clone(), state.clone());
+    tauri::async_runtime::spawn(async move {
+        let db = app.state::<crate::db::Db>();
+        if !setting_on(&db, SETTING_NOTIFY_JOURNAL, false).await {
             return;
         }
-        times.push(now);
-    }
-    let project = tauri::async_runtime::block_on(db.get_project(p.project_id))
-        .map(|pr| pr.name)
-        .unwrap_or_else(|_| "프로젝트".to_string());
-    use tauri_plugin_notification::NotificationExt;
-    let _ = app
-        .notification()
-        .builder()
-        .title(format!("{project} — 새 일지"))
-        .body(format!(
-            "[{}] {} · {}",
-            type_label(&p.summary.entry_type),
-            p.summary.title,
-            p.summary.agent_id
-        ))
-        .show();
+        {
+            let Ok(mut times) = state.notified_at.lock() else { return };
+            let now = std::time::Instant::now();
+            times.retain(|t| now.duration_since(*t).as_secs() < 10);
+            if times.len() >= 3 {
+                return;
+            }
+            times.push(now);
+        }
+        let project = db
+            .get_project(p.project_id)
+            .await
+            .map(|pr| pr.name)
+            .unwrap_or_else(|_| "프로젝트".to_string());
+        use tauri_plugin_notification::NotificationExt;
+        let _ = app
+            .notification()
+            .builder()
+            .title(format!("{project} — 새 일지"))
+            .body(format!(
+                "[{}] {} · {}",
+                type_label(&p.summary.entry_type),
+                p.summary.title,
+                p.summary.agent_id
+            ))
+            .show();
+    });
 }
 
 // ─── 팝오버 창 (D2) ──────────────────────────────────────────────────────────

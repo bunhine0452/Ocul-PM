@@ -224,6 +224,16 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             }
             if let Some(window) = win::focused_app_window(app) {
                 let tab = win::active_tab_of(app, &window);
+                // 활성 탭이 없다 = 이 창이 레지스트리에서 빠졌다(유령 창).
+                // 그대로 `CloseIntent` 를 쏘면 프런트가 `tab == null` 로 걸러
+                // 내고 **아무 일도 일어나지 않는다** — 사용자에게는 ⌘W 가 씹히는
+                // 창이 된다. 지킬 탭이 없으니 창을 닫는 것이 요청의 답이다.
+                if tab.is_none() {
+                    if let Some(w) = app.get_webview_window(&window) {
+                        let _ = w.close();
+                    }
+                    return;
+                }
                 let _ = win::CloseIntent { window, tab }.emit(app);
             }
         }

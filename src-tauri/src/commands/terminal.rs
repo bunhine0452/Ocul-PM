@@ -90,38 +90,82 @@ impl PtyState {
         }
     }
 
-    /// 창 하나가 소유한 세션 전량 종료 (멀티 창 T4).
-    pub fn kill_with_prefix(&self, app: &tauri::AppHandle, prefix: &str) {
-        blocking_kill(app, Request::KillPrefix { prefix: prefix.to_string() });
-    }
-
-    /// 지정한 접두사들**만 남기고** 전량 종료 (마지막 앱 창 닫힘의 총정리).
-    pub fn kill_except(&self, app: &tauri::AppHandle, keep: &[String]) {
-        blocking_kill(app, Request::KillExcept { keep: keep.to_vec() });
-    }
 }
 
-/// kill 계열의 공통 배관 — 호스트가 없으면 (= 세션이 없으면) 조용히 끝.
-///
-/// 창 이벤트 훅(메인 스레드, 동기)에서 불리는데, **마지막 창 닫힘 경로는 이
-/// 직후 앱이 종료될 수 있다** — spawn 으로 띄우면 종료와 경주해 kill 이
-/// 유실되고 셸이 산다. 그래서 짧은 상한을 걸고 완료를 기다린다. 정상 왕복은
-/// 밀리초 단위고, 호스트가 이상하면 상한이 UI 를 지킨다.
-fn blocking_kill(app: &tauri::AppHandle, req: Request) {
-    let app = app.clone();
-    tauri::async_runtime::block_on(async move {
-        let work = async {
-            let state = app.state::<PtyState>();
-            if let Ok(Some(client)) = state.client(&app, false).await {
-                if let Ok(Response::Count { n }) = client.request(req).await {
-                    if n > 0 {
-                        tracing::info!(target: "terminal", killed = n, "PTY sessions killed");
-                    }
+// ─── 세션 종료 (탭·창이 사라질 때) ───────────────────────────────────────────
+//
+// **두 갈래인 이유는 부르는 자리 하나뿐이다** (2026-08-29).
+//
+// 비동기 커맨드(탭 닫기)는 tokio 워커 위에서 돌고, 창 이벤트 훅은 메인
+// 스레드에서 동기로 돈다. 워커 위에서 `block_on` 을 부르면 tokio 는
+// **패닉**한다("Cannot start a runtime from within a runtime") — 그리고 그
+// 패닉은 커맨드 태스크를 통째로 죽여서 **뒤따르는 일이 통째로 사라진다.**
+// 떼어낸 창이 어떤 방법으로도 안 닫히던 버그의 뿌리가 이것이었다: 탭은 이미
+// 레지스트리에서 빠졌는데 `win.close()` 까지 못 갔고, 응답이 없으니 화면에도
+// 아무 말이 없었다.
+
+/// kill 왕복의 상한. 정상 왕복은 밀리초 단위고, 호스트가 이상할 때 이 상한이
+/// 호출자(닫기를 누른 손)를 지킨다.
+const KILL_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(800);
+
+/// 접두사에 걸리는 세션 전량 종료 — **비동기 경로용** (커맨드).
+pub async fn kill_ptys_with_prefix(app: &tauri::AppHandle, prefix: &str) {
+    kill(app, Request::KillPrefix { prefix: prefix.to_string() }).await;
+}
+
+/// 같은 일을 **기다려서** — 창 이벤트 훅(메인 스레드·동기) 전용.
+pub fn kill_ptys_with_prefix_blocking(app: &tauri::AppHandle, prefix: &str) {
+    blocking_kill(app, Request::KillPrefix { prefix: prefix.to_string() });
+}
+
+/// 지정한 접두사들**만 남기고** 전량 종료 (마지막 앱 창 닫힘의 총정리).
+/// 창 이벤트 훅 전용이라 동기다.
+pub fn kill_ptys_except_blocking(app: &tauri::AppHandle, keep: &[String]) {
+    blocking_kill(app, Request::KillExcept { keep: keep.to_vec() });
+}
+
+/// kill 요청 한 건 — 호스트가 없으면 (= 세션이 없으면) 조용히 끝.
+async fn kill(app: &tauri::AppHandle, req: Request) {
+    let work = async {
+        // 여기서 `state()` 대신 `try_state()` 를 쓰는 이유: 이 경로는 종료
+        // 언저리에서도 불린다. 관리 상태가 이미 내려갔다면 죽일 것도 없다.
+        let Some(state) = app.try_state::<PtyState>() else { return };
+        if let Ok(Some(client)) = state.client(app, false).await {
+            if let Ok(Response::Count { n }) = client.request(req).await {
+                if n > 0 {
+                    tracing::info!(target: "terminal", killed = n, "PTY sessions killed");
                 }
             }
-        };
-        let _ = tokio::time::timeout(std::time::Duration::from_millis(800), work).await;
-    });
+        }
+    };
+    let _ = tokio::time::timeout(KILL_TIMEOUT, work).await;
+}
+
+/// 동기 경로용 배관 — **여기서만** `block_on` 이 안전하다.
+///
+/// 기다리는 이유: **마지막 창 닫힘 경로는 이 직후 앱이 종료될 수 있다.**
+/// spawn 으로 띄우면 종료와 경주해 kill 이 유실되고 셸이 산다.
+///
+/// 그럼에도 런타임 위인지 한 번 더 확인한다. 위 주석의 패닉은 태스크를 통째로
+/// 삼켜 **아무 흔적도 남기지 않으므로**, 언젠가 비동기 자리에서 이 함수가
+/// 불리는 날 조용히 기능 하나가 사라지는 것보다 크게 남기고 넘기는 편이 낫다.
+fn blocking_kill(app: &tauri::AppHandle, req: Request) {
+    let app = app.clone();
+    let work = async move { kill(&app, req).await };
+    if inside_async_runtime() {
+        tracing::error!(
+            target: "terminal",
+            "blocking_kill 이 async 컨텍스트에서 불렸다 — kill_ptys_* (비동기)를 쓰세요"
+        );
+        tauri::async_runtime::spawn(work);
+        return;
+    }
+    tauri::async_runtime::block_on(work);
+}
+
+/// 지금 이 스레드가 async 런타임 위인가 — `block_on` 이 패닉하는 조건.
+fn inside_async_runtime() -> bool {
+    tokio::runtime::Handle::try_current().is_ok()
 }
 
 fn socket_path_for(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -313,4 +357,35 @@ pub async fn kill_pty_session(
     };
     let _ = client.request(Request::Kill { sid: session_id }).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **이 파일이 kill 을 두 갈래로 나눠 둔 이유** (2026-08-29).
+    ///
+    /// 비동기 커맨드는 tokio 워커 위에서 돈다. 거기서 `block_on` 을 부르면
+    /// tokio 가 패닉하고, 그 패닉은 커맨드 태스크를 통째로 죽인다 — 프런트로
+    /// 응답도 안 가고(프라미스가 영영 안 풀린다) 뒤따르는 일도 사라진다.
+    /// 이 전제가 깨지는 날에는 갈래를 하나로 합쳐도 된다.
+    #[test]
+    fn block_on_inside_the_async_runtime_panics() {
+        let joined = tauri::async_runtime::block_on(async {
+            tauri::async_runtime::spawn(async {
+                tauri::async_runtime::block_on(async {});
+            })
+            .await
+        });
+        assert!(joined.is_err(), "런타임 위에서 부른 block_on 은 패닉해야 한다");
+    }
+
+    /// 그 조건을 `blocking_kill` 이 알아볼 수 있어야 한다 — 마지막 안전망.
+    #[test]
+    fn runtime_context_is_detectable() {
+        assert!(!inside_async_runtime(), "테스트 스레드는 런타임 밖이다");
+        tauri::async_runtime::block_on(async {
+            assert!(inside_async_runtime(), "block_on 안은 런타임 위다");
+        });
+    }
 }

@@ -592,8 +592,40 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// 패닉을 **로그로 끌어낸다.**
+///
+/// 번들 앱의 stderr 는 아무도 보지 않는다. 그래서 태스크 안에서 터진 패닉은
+/// 흔적 없이 사라졌고, 2026-08-29 에는 그것이 "닫기 버튼이 아무 일도 안 한다"
+/// 로만 보였다 — 비동기 커맨드가 `block_on` 으로 패닉하면 태스크가 죽고,
+/// 프런트의 프라미스는 영영 안 풀리며, 로그에는 한 줄도 남지 않는다.
+///
+/// 기본 훅은 그대로 이어서 부른다 (개발 빌드의 stderr·백트레이스 유지).
+fn install_panic_logger() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "-".to_string());
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(문자열이 아닌 payload)".to_string());
+        tracing::error!(
+            target: "panic",
+            location = %location,
+            thread = %std::thread::current().name().unwrap_or("-"),
+            "[FLOW] 패닉: {message}"
+        );
+        previous(info);
+    }));
+}
+
 pub fn run() {
     setup_logging();
+    install_panic_logger();
 
     let builder = build_specta_builder();
 

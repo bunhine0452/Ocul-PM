@@ -38,6 +38,7 @@ import {
   subscribePendingDispatch,
 } from "./dispatchBus";
 import { writeDispatchTo } from "./dispatchTarget";
+import { registerCloseHandler } from "@/lib/closeIntent";
 import { focusOfTab, panesOfTab } from "./activePane";
 import {
   contains,
@@ -59,6 +60,9 @@ import {
 // (중심 좌표 배열 + 포인터 좌표) 세로 레일에 그대로 통한다 — 두 탭 줄이 서로
 // 다르게 반응하면 "어느 탭 줄이냐"에 따라 손이 달라져야 한다.
 import { tabDropIndex, DRAG_START_PX } from "@/features/shell/tabOrder";
+// 고스트의 감쇠는 창 탭과 **같은 것**을 쓴다 (lib/dragMotion.ts) — 두 물체가
+// 다른 속도로 따라오면 같은 앱에서 손이 두 가지를 배워야 한다.
+import { advanceGhost, ghostTransform, wantsReducedMotion } from "@/lib/dragMotion";
 import {
   TERM_FONT_MIN as FONT_MIN,
   TERM_FONT_MAX as FONT_MAX,
@@ -150,6 +154,33 @@ const toBox = (r: DOMRect): Box => ({
   width: r.width,
   height: r.height,
 });
+
+/**
+ * 드래그 한 번 동안 **굳혀 두는** 기하 (2026-08-29).
+ *
+ * 예전엔 프레임마다 `hitPane` 이 살아 있는 페인 전부의, `hitRail` 이 레일 카드
+ * 전부의 `getBoundingClientRect` 를 다시 읽었다. 그런데 같은 프레임 안에서
+ * `setMoving` 이 렌더를 돌리므로 레이아웃이 무효화된 직후에 다시 재는 꼴이라,
+ * 손이 빠를수록 강제 재계산 비용이 그대로 지연으로 쌓였다 — 커서는 이미 저
+ * 페인인데 미리보기가 한 박자 늦게 따라오는 그 느낌이다.
+ *
+ * 드래그가 도는 동안에는 레이아웃이 움직이지 않는다 (탭 전환도, 분할 비율
+ * 변경도 드래그 중에는 일어나지 않는다). 그래서 집을 때 한 번 재고, **정말로**
+ * 움직였을 때만(창 크기 변경·레일 스크롤) 다시 잰다.
+ */
+interface DragGeometry {
+  /** 흡착 후보 — 숨은 탭의 페인(rect 0)은 애초에 담기지 않는다. */
+  panes: PaneBox[];
+  /** 미리보기 상자 계산용 조회 — `panes` 와 같은 값이다. */
+  boxBySid: Map<string, Box>;
+  rail: Box | null;
+  /** 레일 카드의 중심 y — 삽입 자리 계산용(`tabDropIndex`). */
+  centers: number[];
+  /** 캐럿이 앉을 화면 y — i 번째는 카드 i 의 위 모서리, 마지막은 아래 모서리. */
+  edges: number[];
+  /** `.term-body` — 미리보기 상자를 이 안 좌표로 옮길 때 쓴다. */
+  body: Box | null;
+}
 
 export interface TerminalSurfaceProps {
   projectRoot: string | null;
@@ -446,7 +477,8 @@ export function TerminalSurface({
       return { ...prev, terminalTabs: next.tabs, terminalActiveId: next.activeId };
     });
 
-  const beginMove = (kind: "tab" | "pane", tabId: string, sid?: string) =>
+  const beginMove =
+    (kind: "tab" | "pane", tabId: string, sid?: string) =>
     (e: React.PointerEvent<HTMLElement>) => {
       if (e.button !== 0) return;
       justMovedRef.current = false;
@@ -464,6 +496,10 @@ export function TerminalSurface({
         pane: null,
       };
       pointerRef.current = { x: e.clientX, y: e.clientY };
+      ghostPoseRef.current = { x: e.clientX, y: e.clientY, tilt: 0 };
+      // 판정에 쓸 기하는 **집는 순간** 한 번 잰다 (→ DragGeometry). 이때는 아직
+      // 아무것도 안 움직였으므로 레이아웃이 깨끗하다.
+      measureGeometry();
       // ref 를 **먼저** 채운다 — 첫 pointermove 가 이 렌더보다 먼저 올 수 있고,
       // 그때 ref 가 비어 있으면 그 프레임을 통째로 흘린다.
       movingRef.current = born;
@@ -477,6 +513,8 @@ export function TerminalSurface({
    * 숨은 탭의 페인은 `display:none` 이라 rect 가 0 이므로 자연히 제외된다.
    */
   const hitPane = (m: Moving, x: number, y: number) => {
+    const geom = geomRef.current;
+    if (!geom) return null;
     const skip = new Set<string>();
     if (m.kind === "pane") {
       skip.add(m.sid as string);
@@ -487,13 +525,7 @@ export function TerminalSurface({
       const own = terminalTabs.find((tab) => tab.id === m.tabId);
       if (own) for (const sid of sidsOf(own)) skip.add(sid);
     }
-    const boxes: PaneBox[] = [];
-    for (const [sid, el] of paneElsRef.current) {
-      if (skip.has(sid)) continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) continue;
-      boxes.push({ sid, box: toBox(rect) });
-    }
+    const boxes = skip.size ? geom.panes.filter((pane) => !skip.has(pane.sid)) : geom.panes;
     // 페인 사이 8px 손잡이와 캔버스 둘레 8px 여백까지 흡착한다 — 예전엔 상자
     // "안"만 봐서, 페인에서 페인으로 건너가는 동안 미리보기가 꺼졌다 켜지고
     // 하필 그 틈에서 손을 놓으면 조용히 아무 일도 일어나지 않았다.
@@ -502,17 +534,53 @@ export function TerminalSurface({
 
   /** 레일 위 삽입 자리 — 세로 목록이라 카드 **중심 y** 로 잰다. */
   const hitRail = (y: number) => {
-    const railRect = railElRef.current?.getBoundingClientRect();
-    if (!railRect) return null;
-    const rects = terminalTabs.map(
+    const geom = geomRef.current;
+    const rail = geom?.rail;
+    if (!geom || !rail) return null;
+    const index = tabDropIndex(geom.centers, y);
+    // 캐럿은 그 자리 카드의 위 모서리, 맨 뒤면 마지막 카드의 아래 모서리.
+    const at = geom.edges[index];
+    const last = geom.edges[geom.edges.length - 1];
+    const edge = Number.isFinite(at) ? at : Number.isFinite(last) ? last : rail.top;
+    return { index, top: edge - rail.top };
+  };
+
+  /**
+   * 기하를 다시 잰다 — 드래그를 시작할 때, 그리고 드래그 중 레이아웃이 실제로
+   * 움직였을 때(창 크기·레일 스크롤)만.
+   */
+  const measureGeometry = () => {
+    const panes: PaneBox[] = [];
+    const boxBySid = new Map<string, Box>();
+    for (const [sid, el] of paneElsRef.current) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      const box = toBox(rect);
+      panes.push({ sid, box });
+      boxBySid.set(sid, box);
+    }
+    const railRect = railElRef.current?.getBoundingClientRect() ?? null;
+    const cards = terminalTabs.map(
       (tab) => cardElsRef.current.get(tab.id)?.getBoundingClientRect() ?? null,
     );
-    const centers = rects.map((r) => (r ? r.top + r.height / 2 : Number.POSITIVE_INFINITY));
-    const index = tabDropIndex(centers, y);
-    // 캐럿은 그 자리 카드의 위 모서리, 맨 뒤면 마지막 카드의 아래 모서리.
-    const edge = rects[index]?.top ?? rects[rects.length - 1]?.bottom ?? railRect.top;
-    return { index, top: edge - railRect.top };
+    const centers = cards.map((r) => (r ? r.top + r.height / 2 : Number.POSITIVE_INFINITY));
+    const edges = cards.map((r) => (r ? r.top : Number.NaN));
+    const tail = cards[cards.length - 1];
+    edges.push(tail ? tail.bottom : Number.NaN);
+    const bodyRect = bodyElRef.current?.getBoundingClientRect() ?? null;
+    geomRef.current = {
+      panes,
+      boxBySid,
+      rail: railRect ? toBox(railRect) : null,
+      centers,
+      edges,
+      body: bodyRect ? toBox(bodyRect) : null,
+    };
   };
+  // 리스너는 드래그가 살아 있는 동안만 붙는다 — 아래 이펙트가 렌더 클로저를
+  // 붙들지 않도록 최신 함수를 ref 로 넘긴다.
+  const measureRef = useRef(measureGeometry);
+  measureRef.current = measureGeometry;
 
   /**
    * 포인터를 프레임 단위로 묶는다.
@@ -531,13 +599,78 @@ export function TerminalSurface({
   const rafRef = useRef<number | null>(null);
   /** 커서를 따라다니는 고스트 — 위치는 React 를 거치지 않고 직접 쓴다. */
   const ghostElRef = useRef<HTMLDivElement | null>(null);
+  const geomRef = useRef<DragGeometry | null>(null);
 
-  const paintGhost = () => {
+  /**
+   * 고스트의 자세 — 좌표와 기울기 (2026-08-29).
+   *
+   * 예전엔 `pointermove` 가 올 때마다 고스트를 커서 좌표에 **그대로** 박았다.
+   * 1:1 로 붙긴 하는데, 손이 멈추면 물체도 같은 프레임에 딱 멎어서 종이 조각을
+   * 끄는 게 아니라 커서 모양이 하나 바뀐 것처럼 보였다. 이제 매 프레임 남은
+   * 거리의 일부만 좁히며 따라온다 — 관성이 아니라 **감쇠**라 오버슈트가 없고,
+   * 몇 프레임 안에 손 밑으로 정확히 들어와 앉는다.
+   */
+  const ghostPoseRef = useRef({ x: 0, y: 0, tilt: 0 });
+  const ghostRafRef = useRef<number | null>(null);
+
+  const writeGhost = () => {
     const el = ghostElRef.current;
     if (!el) return;
-    const { x, y } = pointerRef.current;
-    el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    el.style.transform = ghostTransform(ghostPoseRef.current);
   };
+
+  /** 고스트를 손 밑에 **즉시** 놓는다 — 태어나는 순간과 모션 최소화 설정용. */
+  const snapGhost = () => {
+    const { x, y } = pointerRef.current;
+    ghostPoseRef.current = { x, y, tilt: 0 };
+    writeGhost();
+  };
+
+  /**
+   * 고스트만 도는 프레임 루프. 판정(`flushMove`)과 **분리한다**: 판정은 커서가
+   * 움직일 때만 필요하지만, 따라붙기는 커서가 멎은 뒤에도 몇 프레임 더 돌아야
+   * 물체가 손 밑으로 들어와 앉는다.
+   */
+  const startGhostLoop = () => {
+    if (ghostRafRef.current != null) return;
+    if (wantsReducedMotion()) {
+      snapGhost();
+      return;
+    }
+    const step = () => {
+      const { pose, settled } = advanceGhost(ghostPoseRef.current, pointerRef.current);
+      ghostPoseRef.current = pose;
+      writeGhost();
+      // 손 밑에 앉았으면 프레임을 놓는다 — 멈춰 있는 물체를 60fps 로 다시 그릴
+      // 이유가 없다. 다음 `pointermove` 의 `flushMove` 가 도로 켠다.
+      ghostRafRef.current = settled ? null : requestAnimationFrame(step);
+    };
+    ghostRafRef.current = requestAnimationFrame(step);
+  };
+
+  const stopGhostLoop = () => {
+    if (ghostRafRef.current == null) return;
+    cancelAnimationFrame(ghostRafRef.current);
+    ghostRafRef.current = null;
+  };
+
+  // 드래그 중에만 리스너를 단다. 여기서 다시 재지 않으면 스크롤한 레일 위에
+  // 옛 좌표로 캐럿이 뜬다 — 굳힌 기하의 유일한 대가다.
+  const isMoving = moving != null;
+  useEffect(() => {
+    if (!isMoving) return;
+    const remeasure = () => measureRef.current();
+    window.addEventListener("resize", remeasure);
+    // 스크롤은 버블하지 않는다 — 레일 목록의 것을 받으려면 캡처여야 한다.
+    window.addEventListener("scroll", remeasure, true);
+    return () => {
+      window.removeEventListener("resize", remeasure);
+      window.removeEventListener("scroll", remeasure, true);
+    };
+  }, [isMoving]);
+
+  // 드래그 도중 언마운트(창 닫기·화면 전환)되면 프레임이 남는다.
+  useEffect(() => stopGhostLoop, []);
 
   const flushMove = () => {
     rafRef.current = null;
@@ -547,10 +680,11 @@ export function TerminalSurface({
     const moved =
       m.moved || Math.abs(x - m.startX) > DRAG_START_PX || Math.abs(y - m.startY) > DRAG_START_PX;
     if (!moved) return;
-    paintGhost();
+    // 여기서는 루프를 켜기만 한다 — 좌표를 쫓는 일은 그쪽이 맡는다.
+    startGhostLoop();
 
-    const railRect = railElRef.current?.getBoundingClientRect();
-    const onRail = railRect ? contains(toBox(railRect), x, y) : false;
+    const railBox = geomRef.current?.rail ?? null;
+    const onRail = railBox ? contains(railBox, x, y) : false;
     const rail = onRail ? hitRail(y) : null;
     const pane = onRail ? null : hitPane(m, x, y);
 
@@ -584,6 +718,8 @@ export function TerminalSurface({
     const m = movingRef.current;
     if (!m) return;
     dropPendingFrame();
+    stopGhostLoop();
+    geomRef.current = null;
     movingRef.current = null;
     setMoving(null);
     if (!m.moved) return; // 클릭이다 — 선택/포커스는 각 요소의 onClick 이 한다.
@@ -612,6 +748,8 @@ export function TerminalSurface({
 
   const cancelMove = () => {
     dropPendingFrame();
+    stopGhostLoop();
+    geomRef.current = null;
     movingRef.current = null;
     setMoving(null);
   };
@@ -639,8 +777,7 @@ export function TerminalSurface({
     setFontDraft(null);
   };
 
-  const focusedHandles = () =>
-    activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined;
+  const focusedHandles = () => (activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined);
 
   /** 셸이 알려온 제목으로 탭 이름을 갱신 — 사용자가 직접 지은 이름은 보존. */
   const applyShellTitle = (tabId: string, title: string) => {
@@ -721,6 +858,33 @@ export function TerminalSurface({
     searchOpen,
     keyboardScope,
   };
+  /**
+   * ⌘W — **포커스가 터미널 안에 있으면 페인을 닫는다** (2026-08-29).
+   *
+   * 여기는 keydown 이 아니라 "안쪽부터 닫기" 사슬(`lib/closeIntent`)로 온다.
+   * macOS 에서 ⌘W 는 앱 메뉴의 accelerator 라 OS 가 먼저 먹어치우고 웹뷰에는
+   * keydown 이 오지 않는다 — 예전에 여기 있던 ⌘W 분기가 그래서 한 번도 안 돌았고,
+   * 터미널에 타이핑하다 ⌘W 를 눌러도 **프로젝트 탭**이 닫혔다. Rust 는 대신
+   * `CloseIntent` 를 쏘므로, 그 사슬에 들어가는 것이 유일하게 동작하는 길이다.
+   *
+   * scope 를 주는 이유: 도크는 다른 화면 **위에 얹혀** 있어서 등록 순서만으로는
+   * "지금 사용자가 어디에 있는가" 를 알 수 없다. 포커스가 이 면 안에 있을 때만
+   * 우선권을 갖고, 아니면 뒤 화면(코드 탭·세션 탭)이 평소대로 받는다.
+   */
+  useEffect(
+    () =>
+      registerCloseHandler(
+        () => {
+          const root = rootRef.current;
+          if (!root || !root.contains(document.activeElement)) return false;
+          actionsRef.current.closeFocusedPane();
+          return true;
+        },
+        () => rootRef.current,
+      ),
+    [],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const a = actionsRef.current;
@@ -736,10 +900,6 @@ export function TerminalSurface({
           e.preventDefault();
           e.stopPropagation();
           a.addTab();
-        } else if (k === "w" && !e.shiftKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          a.closeFocusedPane();
         } else if (k === "d") {
           e.preventDefault();
           e.stopPropagation();
@@ -819,7 +979,8 @@ export function TerminalSurface({
         settings.externalEditorCommand,
         line,
       );
-      if (res.status === "error") toast.destructive(t("term.openEditorFailed", { error: res.error }));
+      if (res.status === "error")
+        toast.destructive(t("term.openEditorFailed", { error: res.error }));
     },
     [projectRoot, settings.externalEditorCommand],
   );
@@ -850,13 +1011,14 @@ export function TerminalSurface({
    */
   const dropPreview = (() => {
     const target = moving?.pane;
-    const body = bodyElRef.current;
-    if (!target || !body) return null;
-    const el = paneElsRef.current.get(target.sid);
-    if (!el) return null;
-    const box = previewBox(toBox(el.getBoundingClientRect()), target.edge);
+    const geom = geomRef.current;
+    const base = geom?.body;
+    // 상자는 드래그 스냅샷에서 읽는다 — 렌더 도중 rect 를 다시 재면 그 프레임의
+    // 레이아웃을 강제로 계산시키고, 다음 포인터가 또 그 값을 읽는다.
+    const paneBox = target ? geom?.boxBySid.get(target.sid) : undefined;
+    if (!target || !base || !paneBox) return null;
+    const box = previewBox(paneBox, target.edge);
     if (!box) return null;
-    const base = body.getBoundingClientRect();
     return {
       left: box.left - base.left,
       top: box.top - base.top,
@@ -903,6 +1065,8 @@ export function TerminalSurface({
       const shell = shellStates[node.sid];
       const tone = (shell ? summarizeShell(shell)?.tone : null) ?? "off";
       const dropping = moving?.pane?.sid === node.sid;
+      // 지금 손에 들려 있는 페인 — 제자리에 남은 것은 자국일 뿐이라는 표시.
+      const lifted = moving?.moved === true && moving.kind === "pane" && moving.sid === node.sid;
       return (
         <div
           // 드롭 판정은 페인의 실제 화면 상자로 한다 — 트리를 따라 계산하면
@@ -915,6 +1079,7 @@ export function TerminalSurface({
             "term-pane" +
             (focused ? " focused" : "") +
             (count > 1 && !focused ? " dim" : "") +
+            (lifted ? " lifted" : "") +
             (dropping ? " dropping" : "")
           }
           data-tone={tone}
@@ -938,7 +1103,9 @@ export function TerminalSurface({
             onFocusIn={() => focusPane(tab.id, node.sid)}
             onTitleChange={(title) => applyShellTitle(tab.id, title)}
             onShellState={(shell) =>
-              setShellStates((prev) => (prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell }))
+              setShellStates((prev) =>
+                prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell },
+              )
             }
             onSignal={(signal) =>
               setPaneSignals((prev) =>
@@ -983,8 +1150,7 @@ export function TerminalSurface({
         </div>
       );
     }
-    const ratio =
-      drag && drag.tabId === tab.id && drag.path === path ? drag.ratio : node.ratio;
+    const ratio = drag && drag.tabId === tab.id && drag.path === path ? drag.ratio : node.ratio;
     return (
       <div className={"term-split " + node.dir}>
         <div className="term-cell" style={{ flexGrow: ratio }}>
@@ -1005,9 +1171,7 @@ export function TerminalSurface({
 
   return (
     <div
-      className={
-        "term-wrap" + (compact ? " compact" : "") + (moving?.moved ? " is-moving" : "")
-      }
+      className={"term-wrap" + (compact ? " compact" : "") + (moving?.moved ? " is-moving" : "")}
       ref={rootRef}
       style={{ "--term-pane-pad": `${termPanePad(density)}px` } as React.CSSProperties}
     >
@@ -1103,78 +1267,87 @@ export function TerminalSurface({
           onRenameCancel={() => setRenaming(null)}
         />
 
-      <div className="term-body" ref={bodyElRef}>
-        {terminalTabs.map((tab) => (
-          <div
-            key={tab.id}
-            className="term-canvas"
-            style={{ display: tab.id === terminalActiveId ? "flex" : "none" }}
-          >
-            {renderPane(tab, panesOfTab(tab), "")}
-          </div>
-        ))}
-        {/* 놓으면 차지할 자리. 페인의 `::before`(상태 띠 z=4)·`::after`(포커스 링
+        <div className="term-body" ref={bodyElRef}>
+          {terminalTabs.map((tab) => (
+            <div
+              key={tab.id}
+              className="term-canvas"
+              style={{ display: tab.id === terminalActiveId ? "flex" : "none" }}
+            >
+              {renderPane(tab, panesOfTab(tab), "")}
+            </div>
+          ))}
+          {/* 놓으면 차지할 자리. 페인의 `::before`(상태 띠 z=4)·`::after`(포커스 링
             z=3)·`.pane-close`(z=5) 위에 와야 하므로 z-index 6 이다. */}
-        {dropPreview ? (
-          <div className="term-drop" style={dropPreview} aria-hidden="true" />
-        ) : null}
-        {searchOpen ? (
-          <div className="term-search">
-            <Search size={13} />
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => {
-                const next = e.target.value;
-                setQuery(next);
-                const h = focusedHandles();
-                if (!h) return;
-                if (next) h.search.findNext(next, { incremental: true, ...searchOptions() });
-                else {
-                  h.search.clearDecorations();
-                  setMatches(null);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") runSearch(e.shiftKey ? "prev" : "next");
-                else if (e.key === "Escape") closeSearch();
-              }}
-              placeholder={t("term.searchPlaceholder")}
-              aria-label={t("term.searchLabel")}
+          {dropPreview && moving?.pane ? (
+            // key 를 겨눈 자리로 준다 — 자리가 바뀌면 요소가 새로 태어나면서
+            // 등장 애니메이션이 다시 돈다. 위치에 transition 을 거는 것과는
+            // 다르다: 상자는 여전히 **즉시** 그 자리에 있고, 제자리에서 부풀 뿐이라
+            // 화면을 가로질러 미끄러지는 자취가 남지 않는다.
+            <div
+              key={`${moving.pane.sid}:${moving.pane.edge}`}
+              className="term-drop"
+              style={dropPreview}
+              aria-hidden="true"
             />
-            <span
-              className={"ts-count" + (query && matches?.count === 0 ? " empty" : "")}
-              aria-live="polite"
-            >
-              {formatMatchCount(query, matches)}
-            </span>
-            <button
-              type="button"
-              className="ts-btn"
-              onClick={() => runSearch("prev")}
-              title={t("term.prevMatch")}
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              className="ts-btn"
-              onClick={() => runSearch("next")}
-              title={t("term.nextMatch")}
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              className="ts-btn"
-              onClick={closeSearch}
-              aria-label={t("term.closeSearch")}
-              title={t("term.closeSearchHint")}
-            >
-              <X size={12} />
-            </button>
-          </div>
-        ) : null}
+          ) : null}
+          {searchOpen ? (
+            <div className="term-search">
+              <Search size={13} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setQuery(next);
+                  const h = focusedHandles();
+                  if (!h) return;
+                  if (next) h.search.findNext(next, { incremental: true, ...searchOptions() });
+                  else {
+                    h.search.clearDecorations();
+                    setMatches(null);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") runSearch(e.shiftKey ? "prev" : "next");
+                  else if (e.key === "Escape") closeSearch();
+                }}
+                placeholder={t("term.searchPlaceholder")}
+                aria-label={t("term.searchLabel")}
+              />
+              <span
+                className={"ts-count" + (query && matches?.count === 0 ? " empty" : "")}
+                aria-live="polite"
+              >
+                {formatMatchCount(query, matches)}
+              </span>
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={() => runSearch("prev")}
+                title={t("term.prevMatch")}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={() => runSearch("next")}
+                title={t("term.nextMatch")}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={closeSearch}
+                aria-label={t("term.closeSearch")}
+                title={t("term.closeSearchHint")}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1294,8 +1467,9 @@ export function TerminalSurface({
           ref={(el) => {
             ghostElRef.current = el;
             // 첫 프레임부터 커서 위에 있어야 한다 — 기본 위치(0,0)에 한 번
-            // 그려지면 왼쪽 위에서 날아오는 것처럼 보인다.
-            if (el) paintGhost();
+            // 그려지면 왼쪽 위에서 날아오는 것처럼 보인다. 태어날 때만은
+            // 따라붙기(감쇠)를 건너뛰고 손 밑에 바로 놓는다.
+            if (el) snapGhost();
           }}
         >
           <SquareTerminal size={12} />

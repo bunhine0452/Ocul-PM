@@ -690,3 +690,15 @@
 @media (prefers-reduced-motion: reduce) {
   .ocul-spin-arc { animation: none; }
 }
+
+/* ── 포인터 드래그가 도는 동안 (2026-08-29) ───────────────────────────────
+   탭·세션 카드·페인을 끄는 동안은 문서 전체가 "쥐고 있음" 이다. 포인터 캡처가
+   걸려 있어도 웹뷰는 지나는 자리마다 텍스트를 물려 하므로(탭을 끌어 본문 위를
+   지나면 그 아래 문단이 칠해진다), 선택 자체를 끄고 커서를 하나로 고정한다.
+   클래스는 `lib/nativeDrag.ts` 의 `setDraggingCursor` 가 <html> 에 건다. */
+.is-pointer-dragging,
+.is-pointer-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: grabbing !important;
+}

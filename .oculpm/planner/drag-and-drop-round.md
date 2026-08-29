@@ -65,7 +65,88 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 - [x] 포인터를 rAF 로 묶고, 겨눈 자리가 그대로면 setState 생략 — 예전엔 move 마다 살아 있는 xterm 페인 전부를 다시 그리고 모든 rect 를 다시 읽었다 {#raf-coalesce-drag}
 - [x] 접힌 레일을 아이콘 한 개로 — 점은 모서리 배지, `ok`/`idle`/`off` 는 안 그린다 (페인 상태 띠와 같은 규칙) {#collapsed-rail-single-glyph}
 - [x] 깨진 CSS 복원 — `.term-rail[data-collapsed]` 셀렉터 중간에 41줄이 복붙돼 `.term-rail-add` 의 접힘 스코프가 전역으로 샜다 {#collapsed-css-paste-bug}
-- [ ] 실기기 확인 — 고스트가 레일 밖·페인 위·창 밖에서 제대로 따라오는지, 탭 `translateX` 가 재배열 순간에 안 튀는지 {#feel-manual-verify}
+- [x] 네이티브 드래그 차단 — `-webkit-user-drag: none` + `draggable={false}` + `onDragStart` 차단 3겹. `user-select: none` 은 **선택만** 막는다 (세손가락 드래그에서 텍스트가 끌리던 원인) {#block-native-drag}
+- [ ] 실기기 확인 — 고스트가 레일 밖·페인 위·창 밖에서 제대로 따라오는지, 탭 `translateX` 가 재배열 순간에 안 튀는지, 세손가락 드래그로 탭이 끌리는지 {#feel-manual-verify}
+
+## Phase 5 — 닫기가 포커스를 본다 (2026-08-29) {#p5-close-focus}
+
+사용자 요청: "프로젝트 탭을 클릭하고 ⌘W 시 프로젝트 탭이 닫힘. 터미널을 작업중일
+땐 터미널 닫힘 — 포커싱 말이야." 그리고 "분리된 창은 x 를 눌러도 안 닫힘."
+
+- [x] `closeIntent` 사슬에 포커스 우선권 — `scope` 를 준 등록이 그 안에 포커스가 있을 때 순서를 건너뛴다. 도크는 다른 화면 위에 얹혀 있어 등록 순서만으로는 "지금 어디에 있는가" 를 알 수 없다 {#close-intent-focus}
+- [x] 터미널을 사슬에 등록 — 여태 **없었다**. macOS 는 ⌘W 를 메뉴 accelerator 가 먹어 keydown 분기가 한 번도 안 돌았고, 터미널에서 눌러도 프로젝트 탭이 닫혔다 {#terminal-close-handler}
+- [x] 닫기 실패를 삼키지 않는다 — Rust 는 창을 못 찾거나 `close()` 실패 시 로그+`Err`, 프런트는 토스트. 실패 모양이 "탭은 사라졌는데 창이 남는다" 라 조용하면 되돌릴 수도 없다 {#close-failure-visible}
+- [x] 분리 창 × 근본 원인 — 잡혔다. 유령 창은 **원인이 아니라 결과**였다: `close_tab`(async 커맨드) 안의 `block_on` 이 tokio 패닉을 내고, 탭을 지운 뒤 `win.close()` 전에 태스크가 죽는다 {#detached-close-rootcause}
+- [x] 유령 창 회복 — 웹뷰는 살아 있는데 레지스트리가 모르는 창은 × 도 ⌘W 도 안 먹고 OS 빨간 버튼만 통했다. `close_tab` 이 호출한 창을 알게 하고(`WebviewWindow` 주입), ⌘W 는 `active_tab_of == None` 이면 창을 닫는다. 판정은 순수 `ghost_window()` {#ghost-window-recovery}
+- [x] 유령 창 **원인 경로** — `remove_tab` 과 `win.close()` **사이**에서 태스크가 패닉해 죽는다. `handle_window_closed` 의 지우는 순서는 무죄였다 {#ghost-window-rootcause}
+
+## Phase 6 — 손에 붙는 감쇠 · 굳힌 기하 (2026-08-29) {#p6-damping}
+
+사용자 보고: "터미널 창 이동하는 것을 더욱 부드럽게 만들어." Phase 4 는 물체가
+커서를 **따라오게** 했지만 좌표를 매 프레임 커서에 그대로 박았고, 판정은 여전히
+프레임마다 모든 rect 를 다시 읽었다.
+
+- [x] 드래그 한 번 동안 기하를 굳힌다(`DragGeometry`) — 집을 때 한 번 재고, 창 크기·레일 스크롤에서만 다시 잰다(스크롤은 버블 안 하므로 캡처). 렌더 안 `dropPreview` 도 스냅샷을 본다 {#drag-geometry-freeze}
+- [x] 고스트 감쇠 — 매 프레임 남은 거리의 55%, 기울기는 벌어진 거리에서 파생(최대 6°). 앉으면 프레임을 놓고 다음 pointermove 가 켠다. `prefers-reduced-motion` 이면 즉시 박는다 {#ghost-damping}
+- [x] 미리보기는 제자리에서 부푼다 — 위치 전환은 되살리지 않고(#no-indicator-lag 유지) 겨눈 자리를 React key 로 주어 등장만 다시 돈다 {#drop-preview-pop}
+- [x] 들려 나간 것이 물러나 앉는다 — 페인은 `.lifted`(캔버스 opacity만, 축소하면 xterm refit→PTY resize), 레일 카드는 scale(0.98) {#lifted-source}
+
+## Phase 7 — 런타임 위의 block_on (2026-08-29) {#p7-block-on}
+
+사용자 보고(3번째): "분리된 창은 × 도 ⌘W 도 안 먹고 빨간 버튼만 먹힌다."
+회귀 시점은 PTY 호스트 전환(3a75a1a, 2026-08-25) — 그때 `kill_with_prefix` 가
+동기 뮤텍스 조작에서 `block_on` 배관으로 바뀌었다.
+
+- [x] kill 배관을 두 갈래로 — `kill_ptys_with_prefix`(async, 커맨드) / `*_blocking`(창 이벤트 훅). 동기판이 기다리는 이유는 그대로: 마지막 창 닫힘 직후 앱이 종료될 수 있어 spawn 은 종료와 경주한다 {#kill-async-split}
+- [x] `release_project` 도 두 갈래 — `close_tab` 은 `await`, 창 훅은 `_blocking`. 공통 판정은 `releasable()` {#release-project-split}
+- [x] 트레이 알림도 같은 뿌리였다 — emit 스레드(워처 async 태스크)에서 `block_on` → 패닉 → **리스너 뮤텍스 오염** → 세션 첫 일지 이후 Rust 쪽 이벤트 리스너가 전부 죽음. 사용자 로그에 증거 {#tray-notify-async}
+- [x] 안전망 — `blocking_kill` 이 런타임 위인지 확인(`Handle::try_current`)하고 패닉 대신 크게 남기고 넘긴다 + `install_panic_logger` 로 패닉을 로그에 끌어낸다 {#panic-visibility}
+- [x] 회귀 테스트 2건 — 런타임 위 `block_on` 이 정말 패닉하는지(갈래가 존재할 전제), `inside_async_runtime()` 이 그 조건을 알아보는지 {#p7-tests}
+- [ ] 실기기 확인 — 탭을 끌어 창으로 뗀 뒤 × / ⌘W 로 닫기. 터미널이 살아 있는 프로젝트 탭에서도(kill 왕복이 실제로 도는 경로) {#detached-close-verify}
+
+## Phase 8 — 완성된 모션 (2026-08-29) {#p8-motion}
+
+사용자 요청: "창 드래그, 분리, 합치는 모션을 제발 완성시켜줘. 세손가락
+드래그하면 텍스트가 드래그돼." Phase 1~7 은 **판정**을 전부 맞췄지만, 직접
+조작에서 사람이 확인하는 것은 판정 결과가 아니라 손에 무엇이 들려 있고 어디에
+놓이는가다.
+
+- [x] 떼어내면 고스트가 손을 따라온다 — 줄 안에서는 탭 자신, 줄 밖에서는
+      `.tabstrip-ghost`(`position: fixed`). 잡은 오프셋을 물어 손가락 아래
+      **잡았던 그 자리** 그대로 떨어진다 {#tear-off-ghost}
+- [x] 창 밖으로 나가면 가장자리에 붙는다(`clampGhost`) — 웹뷰는 자기 창 밖에 못
+      그리므로, 안 가두면 끌어내는 순간 물체가 사라진다 {#ghost-clamp}
+- [x] 놓으면 어떻게 되는지를 물체가 말한다 — `data-mode` new/merge + `data-hint`.
+      스트립 농도(0.55 / 0.32)만으로는 두 결과를 구분하기 어렵다 {#ghost-hint}
+- [x] 원래 탭은 `.torn` 자국으로 남는다 — 폭을 접지 않는다. 그 자리가 "취소하면
+      여기" 이고, 접으면 되돌아올 때 이웃이 한 번 더 출렁인다 {#torn-slot}
+- [x] 받는 스트립이 자리를 **벌리고** 자리표시자를 앉힌다 — `TabDragOver.preview`
+      (이름·아이콘·색). 3px 캐럿은 자리만 알려 주고 무엇이 오는지는 말하지
+      않았다 {#incoming-slot}
+- [x] 겉모습은 **처음 들어선 프레임에만** 싣는다(`Registry::hovering`) — 창
+      진입당 DB 조회 1회. 포인터는 초당 수십 번 움직이지만 겨누는 창이 바뀌는
+      일은 드물다 {#preview-once}
+- [x] 삽입 자리 산술을 `offsetLeft/offsetWidth` 로 — `getBoundingClientRect` 는
+      transform 이 반영된 값이라, 벌리려 밀어 둔 탭이 다음 판정으로 되먹임돼
+      자리가 진동한다 {#offset-not-rect}
+- [x] 떨어진 창이 손 밑에 놓인다 — 프런트는 **새 창 안의 앵커**를 주고, 창을
+      놓는 일은 Rust 가 OS 커서로 한다(`detached_origin`). 상수 오프셋
+      (-120, -16)은 줌이 걸리면 그만큼 틀어졌다. 휴면 창 재사용 경로도 같이
+      옮긴다 {#detach-under-hand}
+- [x] 네이티브 드래그를 **기본 끄기**로 뒤집는다 — `lib/nativeDrag.ts` 가 창에
+      캡처로 `dragstart` 를 한 번 걸고 `draggable="true"` 만 통과시킨다. 표면마다
+      막는 방식은 다음 드래그 면이 생길 때마다 반드시 한 번 더 샌다 (결정 5)
+      {#native-drag-inverted}
+- [x] Escape 로 되돌린다 — 끄는 조작에는 무르는 길이 있어야 한다 {#drag-escape}
+- [x] 새로 앉은 탭에 등장 모션 — 붙이기·새 탭·프로젝트 열기가 같은 길로 오므로
+      판정도 한 곳(직전 렌더에 없던 id)에서 {#arrive-motion}
+- [x] 감쇠를 하나로 — `lib/dragMotion.ts` 를 터미널 고스트와 창 탭 고스트가 같이
+      쓴다. 두 물체가 다른 속도로 따라오면 손이 두 가지를 배워야 한다
+      {#shared-damping}
+- [x] 테스트 — 순수 13건 + 스트립 배선 6건 + Rust 2건 {#p8-tests}
+- [ ] 실기기 확인 — ① 세손가락 드래그로 탭이 끌리는지(텍스트가 아니라),
+      ② 창 두 개 사이 고스트·자리표시자 왕복, ③ 떼어낸 창이 손 밑에 뜨는지
+      (앱 배율 ⌘+/- 를 바꾼 상태와 배율이 다른 외부 모니터) {#p8-manual-verify}
 
 ## 결정
 
@@ -104,6 +185,36 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 자리가 사라지고, 0.15 면 좁은 도크에서 겨냥이 불가능해진다.
 
 영향: #pane-drop-pure
+
+### Decision 5 — 네이티브 드래그는 표면이 아니라 창에서 막는다 {#d5-drag-guard-at-window}
+잠금: 2026-08-29 · claude-code
+
+`-webkit-user-drag: none` 을 끌 수 있는 표면마다 까는 대신, 창에 캡처 단계로
+`dragstart` 를 한 번 걸어 **기본 차단**하고 `draggable="true"` 인 요소만
+통과시킨다 (코드 탭 바 · 파일 트리).
+
+근거: `-webkit-user-drag` 는 상속되지 않는다. 그래서 표면마다 까는 방식은 끌 수
+있는 면(탭·세션 레일·페인 손잡이·사이드바…)이 늘어날 때마다 한 군데씩 빠뜨리게
+되고, 실제로 두 번 고치고 두 번 다시 샜다. `dragstart` 를 막으면 OS 드래그
+세션이 **열리지 않으므로** `pointercancel` 도 오지 않는다 — CSS 로는 닿지 않던
+뿌리다. 예외를 명시적으로 밝히게 하는 쪽이 유일하게 닫히는 구조다.
+
+영향: #native-drag-inverted
+
+### Decision 6 — 끌려오는 탭의 겉모습은 받는 창에 실어 보낸다 {#d6-preview-in-event}
+잠금: 2026-08-29 · claude-code
+
+`TabDragOver` 에 `preview`(이름·아이콘·색)를 싣되, 스트립에 **처음 들어선**
+프레임에만 싣는다. 받는 쪽은 그것을 `TabDragLeave` 까지 들고 있는다.
+
+근거: 받는 창은 남의 탭 이름을 알 길이 없다 — 레지스트리도 프로젝트 조회도 그
+창의 것이 아니다. 그런데 자리표시자에 이름이 없으면 "무엇이 오는지" 는 모른 채
+"무언가 온다" 만 보이고, 창이 셋이면 그게 곧 오조준이 된다. 매 move 마다 싣지
+않는 이유는 값이 DB 조회 한 번이기 때문이다 — 포인터는 초당 수십 번 움직이지만
+겨누는 창이 바뀌는 일은 드물다. 그 "바뀜" 을 아는 것이 `Registry::hovering()`
+이다 (`hover()` 의 반환값만으로는 첫 진입과 제자리 유지가 둘 다 `None`).
+
+영향: #incoming-slot #preview-once
 
 ### Decision 4 — 키보드 등가물은 팔레트가 아니라 탭 메뉴 {#d4-menu-over-palette}
 잠금: 2026-08-28 · claude-code
@@ -157,4 +268,40 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 | 2026-08-29T14:40:00+09:00 | #collapsed-rail-single-glyph | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 점은 모서리 배지로 |
 | 2026-08-29T14:40:00+09:00 | #collapsed-css-paste-bug | claude-code | →☐→[x] | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 41줄 복붙이 셀렉터를 반토막 냈다 |
 | 2026-08-29T14:40:00+09:00 | #feel-manual-verify | claude-code | →☐ | 20260829/Bugs/1440_bug_drag-feel-and-collapsed-rail.md | 설치본 꺼진 뒤 육안 확인 |
+| 2026-08-29T15:38:00+09:00 | #block-native-drag | claude-code | →☐→[x] | 20260829/Bugs/1537_bug_native-drag-hijacks-tab-drag.md | user-select 는 선택만 막는다 |
+| 2026-08-29T15:38:00+09:00 | #close-intent-focus | claude-code | →☐→[x] | 20260829/Bugs/1538_bug_close-is-not-focus-aware.md | scope 준 등록이 우선 |
+| 2026-08-29T15:38:00+09:00 | #terminal-close-handler | claude-code | →☐→[x] | 20260829/Bugs/1538_bug_close-is-not-focus-aware.md | 메뉴 accelerator 가 keydown 을 먹었다 |
+| 2026-08-29T15:38:00+09:00 | #close-failure-visible | claude-code | →☐→[x] | 20260829/Bugs/1538_bug_close-is-not-focus-aware.md | 로그+Err+토스트 |
+| 2026-08-29T15:38:00+09:00 | #detached-close-rootcause | claude-code | →☐ | 20260829/Bugs/1538_bug_close-is-not-focus-aware.md | 미해결 — 다음 재현 대기 |
+| 2026-08-29T15:51:00+09:00 | #drag-geometry-freeze | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 무효화 직후 다시 재던 것을 걷어냈다 |
+| 2026-08-29T15:51:00+09:00 | #ghost-damping | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 관성이 아니라 감쇠 — 오버슈트 없음 |
+| 2026-08-29T15:51:00+09:00 | #drop-preview-pop | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 자리는 즉시, 등장만 부드럽게 |
+| 2026-08-29T15:51:00+09:00 | #lifted-source | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 제자리에 남은 건 자국 |
+| 2026-08-29T16:41:00+09:00 | #detached-close-rootcause | claude-code | [ ]→[>] | 20260829/Bugs/1641_bug_ghost-window-cannot-be-closed.md | 유령 창 가설로 갈라 이월 |
+| 2026-08-29T16:41:00+09:00 | #ghost-window-recovery | claude-code | →☐→[x] | 20260829/Bugs/1641_bug_ghost-window-cannot-be-closed.md | 빨간 버튼 말고도 닫힌다 |
+| 2026-08-29T16:41:00+09:00 | #ghost-window-rootcause | claude-code | →☐ | 20260829/Bugs/1641_bug_ghost-window-cannot-be-closed.md | 원인 경로 미증명 — 로그 대기 |
+| 2026-08-29T17:23:00+09:00 | #detached-close-rootcause | claude-code | [>]→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 유령 창은 결과였다 |
+| 2026-08-29T17:23:00+09:00 | #ghost-window-rootcause | claude-code | [ ]→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | remove_tab 과 close() 사이의 패닉 |
+| 2026-08-29T17:23:00+09:00 | #kill-async-split | claude-code | →☐→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 부르는 자리로 갈래를 나눴다 |
+| 2026-08-29T17:23:00+09:00 | #release-project-split | claude-code | →☐→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | close_tab 이 await 한다 |
+| 2026-08-29T17:23:00+09:00 | #tray-notify-async | claude-code | →☐→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 리스너 뮤텍스 오염까지 |
+| 2026-08-29T17:23:00+09:00 | #panic-visibility | claude-code | →☐→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 다음엔 로그 한 줄로 갈린다 |
+| 2026-08-29T17:23:00+09:00 | #p7-tests | claude-code | →☐→[x] | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 전제를 못 박는 카나리아 |
+| 2026-08-29T17:23:00+09:00 | #detached-close-verify | claude-code | →☐ | 20260829/Bugs/1723_bug_async-block-on-kills-close-tab.md | 실기기 미확인 |
+| 2026-08-29T19:10:00+09:00 | #tear-off-ghost | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 줄 밖에서는 탭이 따라올 수 없다 |
+| 2026-08-29T19:10:00+09:00 | #ghost-clamp | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 창 밖에 그릴 수 없으므로 가둔다 |
+| 2026-08-29T19:10:00+09:00 | #ghost-hint | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 물체가 결과를 직접 말한다 |
+| 2026-08-29T19:10:00+09:00 | #torn-slot | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 자국은 "취소하면 여기" |
+| 2026-08-29T19:10:00+09:00 | #incoming-slot | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 캐럿 대신 벌어진 자리 |
+| 2026-08-29T19:10:00+09:00 | #preview-once | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 창 진입당 조회 1회 |
+| 2026-08-29T19:10:00+09:00 | #offset-not-rect | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | transform 되먹임 차단 |
+| 2026-08-29T19:10:00+09:00 | #detach-under-hand | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 상수 오프셋은 줌에서 틀어진다 |
+| 2026-08-29T19:10:00+09:00 | #native-drag-inverted | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 표면마다 막으면 반드시 샌다 |
+| 2026-08-29T19:10:00+09:00 | #drag-escape | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 무르는 길 |
+| 2026-08-29T19:10:00+09:00 | #arrive-motion | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 놓은 자리와 앉은 자리 |
+| 2026-08-29T19:10:00+09:00 | #shared-damping | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 손맛은 앱에 하나 |
+| 2026-08-29T19:10:00+09:00 | #p8-tests | claude-code | →☐→[x] | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 순수 13 + 배선 6 + Rust 2 |
+| 2026-08-29T19:10:00+09:00 | #p8-manual-verify | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 실기기 미확인 |
+| 2026-08-29T19:10:00+09:00 | #d5-drag-guard-at-window | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 결정 잠금 |
+| 2026-08-29T19:10:00+09:00 | #d6-preview-in-event | claude-code | →☐ | 20260829/Features_to_add/1910_feature_tear-off-and-merge-motion.md | 결정 잠금 |
 <!-- oculpm:plan-log end -->

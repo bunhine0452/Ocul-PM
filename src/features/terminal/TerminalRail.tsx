@@ -176,6 +176,10 @@ export function TerminalRail({
               role="tab"
               aria-selected={active}
               tabIndex={0}
+              // 탭 스트립과 같은 방어 (TabStrip.tsx 주석) — 네이티브 드래그가
+              // 열리면 카드가 손을 안 따라오고 고스트도 뜨지 않는다.
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
               // 드래그는 눈에 안 보이는 조작이라 카드가 스스로 알려야 한다 —
               // 툴팁 둘째 줄에 넣으면 평소엔 조용하고 필요할 때 읽힌다.
               title={
