@@ -43,7 +43,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.23.0",
+  "softwareVersion": "2.23.1",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -181,7 +181,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.23.0</span>
+    <span class="nav-ver" data-version>v2.23.1</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -198,7 +198,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.23.0 — 어느 에이전트가 기다리는지 · 명령마다 자리를</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.23.1 — 끌면 손을 따라옵니다 · 접힌 목록을 다시</a>
   <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
@@ -207,7 +207,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.23.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v2.23.1 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -367,6 +367,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.23.1 — 끌면 손을 따라옵니다 · 접힌 목록을 다시 그렸습니다</b> · 세션을 가장자리로 끌 때도 탭을 다른 창으로 옮길 때도 정작 <b>끌리는 것 자체는 제자리</b>에 있었습니다 — 손은 움직이는데 물체는 가만히 있고 옆 것들만 툭툭 자리를 바꾸니 뻑뻑하게 끌렸습니다. 이제 세션은 이름표가 <b>손끝에 붙어 따라오고</b>, 창 탭은 크롬처럼 손을 따라 미끄러집니다. 「여기에 놓입니다」 표시도 커서보다 늦게 오지 않게 곧바로 붙습니다. 나뉜 화면 <b>사이 틈에 놓아도</b> 가장 가까운 쪽으로 붙고(한가운데=취소는 그대로), 끄는 동안 살아 있는 터미널을 매번 다시 그리지 않아 <b>화면이 무거워지지 않습니다</b>. 접힌 세션 목록은 <b>아이콘 하나</b>로 읽히고 상태는 모서리의 작은 점으로 얹힙니다 — 평상시에는 그리지 않습니다.</li>
     <li class="reveal"><b>v2.23.0 — 어느 에이전트가 기다리는지 · 명령마다 자리를 갖습니다</b> · Claude Code 를 서너 개 띄우면 어느 창이 <b>내 대답을 기다리는지</b> 하나씩 눌러 봐야 알았습니다. 이제 에이전트가 사람을 부르면 그 세션이 노랗게 서고 목록 위에 「N개가 기다립니다」가 뜹니다 — 벨은 확실, 「20초째 조용하다」는 <b>추정이라고 적습니다</b>. 터미널에는 <b>명령 블록</b>이 생겼습니다: 명령마다 왼쪽에 상태 막대(성공 초록·실패 빨강), 오른쪽 띠에 <b>실패 지점이 점으로</b>, <b>⌘↑/⌘↓</b> 로 명령 사이 점프, 긴 출력을 볼 땐 어느 명령의 출력인지 맨 위에 고정됩니다. 상태 막대를 누르면 복사·프롬프트 채우기와 함께 <b>「일지로 남기기」·「플래너에 붙이기」</b> — 일지는 명령줄·종료코드·걸린 시간·출력 끝 40줄이 채워진 채 열립니다. <b>다시 실행 버튼은 일부러 없습니다</b>(눈으로 확인하지 않은 명령을 바로 돌리지 않게 채우기만 합니다).</li>
     <li class="reveal"><b>v2.22.0 — 터미널이 세로 세션 목록으로 · 끌어서 나란히 · 탭을 창 사이로</b> · 터미널의 가로 탭 줄을 <b>세로 세션 목록</b>으로 바꿨습니다 — 다섯 개가 넘으면 이름이 뭉개지고 상태를 실을 자리가 없었기 때문입니다. 카드 한 장에 상태·에이전트·경과 시간·마지막 명령이 함께 실리고, 실행 중이거나 실패한 화면은 위 가장자리에 색 띠를 두릅니다. <b>세션을 끌어 화면 가장자리에 놓으면 그 자리에 갈라져</b> 둘이 나란히 서고(손잡이 ⠿ 로 자리를 바꾸거나 독립 세션으로 빼냅니다), 탭은 <b>다른 창의 탭 줄에 떨어뜨려 합칠 수 있습니다</b> — 지금까지 떼어내기만 되고 되돌릴 길이 없었습니다. 끌지 않고 <b>우클릭</b>(키보드는 Shift+F10)으로도 같은 일을 합니다. 탭이 아홉 개째부터 잘려 사라지던 것도 고쳤습니다.</li>
     <li class="reveal d1"><b>v2.21.1 — 줄번호와 코드가 겹치지 않습니다</b> · 코드 화면에서 긴 줄을 보려고 옆으로 밀면 <b>코드가 줄번호 위로 겹쳐</b> 지나갔습니다. 줄번호 칸은 가로로 스크롤해도 제자리에 남아야 하는데 그 칸에 바탕색이 빠져 있어, 흘러가는 코드가 숫자 밑으로 비쳐 둘이 뒤엉킨 채 읽혔습니다 — 화면 밖으로 나가는 긴 줄이 있는 파일에서만 나타나던 증상입니다. 이제 줄번호 칸이 편집면과 같은 바탕을 깔아 코드가 그 뒤로 지나갑니다. 테마·색 프리셋을 바꿔도 색이 어긋나지 않습니다.</li>
@@ -460,12 +461,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.23.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.23.1 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.23.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v2.23.1 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

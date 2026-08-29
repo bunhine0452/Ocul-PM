@@ -56,7 +56,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.23.0 — see which agent is waiting for you, and give every command a place
+## 🚀 v2.23.1 — dragging now follows your hand; the collapsed list, redrawn
+
+- **The thing you drag follows the cursor** — dragging a session to a pane edge, or a tab to another window, left **the dragged thing sitting still** (just dimmed, or wearing a shadow). Your hand moved, the object didn't, and only its neighbours jumped a slot at a time — so it felt stiff, never attached to your hand. Now a session carries its name tag under your cursor anywhere on screen, and a window tab slides along with your hand the way Chrome's do.
+- **The drop indicator no longer lags** — the line and box that say "it lands here" had an eased transition, so the cursor was already a slot ahead while the marker slid in behind it. One thing following your hand is enough; the indicator now snaps.
+- **Drops in the gaps land** — the thin gutters between split panes and around the canvas used to flicker the preview off and on, and letting go there did nothing at all. Now it snaps to the touching edge of the nearest pane (dropping in the center still cancels).
+- **Dragging no longer bogs the screen down** — every pointer move redrew every live terminal pane. Now the hit test runs once per frame, and if you're still aiming at the same spot nothing redraws at all.
+- **Collapsed session list** — the status dot and the icon were wedged side by side with 3px to spare. A collapsed card now reads as **a single icon**, with status as a small badge on its corner — and no badge at all in the ordinary states (succeeded, nothing waiting, integration off). The collapsed "+ New session" button no longer looks squashed.
+
+## v2.23.0 — see which agent is waiting for you, and give every command a place
 
 - **Waiting-agent detection** — with three or four Claude Code sessions open you had to click through them to find which one was thinking and which was waiting on you. The shell only reports "a command is running", and an agent stays the same command for hours. Now when an agent rings for attention (terminal bell) that session turns **amber** and a "N waiting" badge appears above the list — click it to jump there, click again to cycle through the rest.
 - **A guess is labelled a guess** — a bell is the program asking for you, so it is certain. "Quiet for 20 seconds" is a guess (it might just be thinking). Painting both with the same badge would make the whole signal untrustworthy, so the wording differs.
