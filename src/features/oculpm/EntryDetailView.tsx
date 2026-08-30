@@ -5,9 +5,11 @@ import {
   ArrowLeft,
   Bot,
   Calendar,
+  Check,
   ChevronLeft,
   ChevronRight,
   GitCompareArrows,
+  Link2,
   Search,
   X,
 } from "@/components/Icons";
@@ -22,7 +24,7 @@ import { agentLabelWithModel } from "@/features/today/agentColor";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot, splitPath } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
-import { useT, getLang } from "@/i18n";
+import { useT, getLang, type I18nKey } from "@/i18n";
 
 // 작업 일지 항목의 풍부한 열람 — 전용 화면(마스터-디테일). Dogfooding 2026-06-07:
 // 모달(오버레이) 대신 콘텐츠 영역을 가득 채우는 디테일 뷰로 교체. 좌 pane 은
@@ -36,7 +38,20 @@ interface EntryDetailViewProps {
   onBack: () => void;
   /** Jump to the LIVE 변경 diff 화면 for this entry. */
   onOpenDiff: (entry: JournalEntrySummary) => void;
+  /**
+   * Open another entry by its `.oculpm/journal/`-relative path — the target of a
+   * frontmatter `related` link. Undefined → links render but don't navigate.
+   */
+  onOpenRelated?: (relativePath: string) => void;
 }
+
+/** i18n keys for the four spec'd `related.kind` values — unknown kinds render as-is. */
+const RELATED_KIND_KEY: Record<string, I18nKey> = {
+  blocks: "entry.relatedKind.blocks",
+  blocked_by: "entry.relatedKind.blocked_by",
+  followup: "entry.relatedKind.followup",
+  duplicate: "entry.relatedKind.duplicate",
+};
 
 /** HH:MM from an ISO 8601 created_at string. */
 function timeLabel(createdAt: string): string {
@@ -104,7 +119,7 @@ function stripLeadingTitle(body: string, title: string): string {
   return rest.join("\n");
 }
 
-export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryDetailViewProps) {
+export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRelated }: EntryDetailViewProps) {
   const { t } = useT();
   const { state } = useWorkspace();
   const diffMode = state.diffMode;
@@ -115,6 +130,30 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  // 검토 루프의 마지막 고리 — `verified_by_user` 는 AGENTS.md 가 에이전트에게
+  // false 로 쓰라고 강제하는 필드인데, 사람이 true 로 바꾸는 자리가 앱 어디에도
+  // 없었다(2026-08-30 감사: 백엔드·필터 칩만 있고 토글 0). 여기서 닫는다.
+  const [verified, setVerified] = useState(entry.verified_by_user);
+  const [verifying, setVerifying] = useState(false);
+  useEffect(() => {
+    setVerified(entry.verified_by_user);
+  }, [entry.relative_path, entry.verified_by_user]);
+  const toggleVerified = useCallback(async () => {
+    if (verifying) return;
+    setVerifying(true);
+    try {
+      await oculpmApi.setJournalVerified(projectId, entry.relative_path, !verified);
+      setVerified(!verified);
+    } catch (e) {
+      toast.destructive(
+        t("entry.verifyFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }),
+      );
+    } finally {
+      setVerifying(false);
+    }
+  }, [verifying, verified, projectId, entry.relative_path, t]);
+  const related = detail?.frontmatter.related ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -328,8 +367,23 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
             ) : null}
           </span>
         }
-      />
-
+      >
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => void toggleVerified()}
+          disabled={verifying}
+          aria-pressed={verified}
+          title={verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
+          style={
+            verified
+              ? { color: "var(--ok, #12a06b)", borderColor: "var(--ok, #12a06b)" }
+              : undefined
+          }
+        >
+          <Check size={13} /> {verified ? t("entry.verified") : t("entry.verify")}
+        </button>
+      </Toolbar>
 
       <div className="entry-detail">
         {/* Left: meta + changed-file list + narrative */}
@@ -400,6 +454,37 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff }: EntryD
                   )}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {related.length > 0 ? (
+            <div className="entry-detail-related" style={{ marginBottom: 14 }}>
+              <div className="entry-filelist-title" style={{ marginBottom: 6 }}>
+                {t("entry.related")}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {related.map((r) => {
+                  const kindKey = RELATED_KIND_KEY[r.kind];
+                  const base = r.ref.split("/").pop() ?? r.ref;
+                  return (
+                    <button
+                      key={`${r.kind}:${r.ref}`}
+                      type="button"
+                      className="tag"
+                      title={r.ref}
+                      onClick={() => onOpenRelated?.(r.ref)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        cursor: onOpenRelated ? "pointer" : "default",
+                      }}
+                    >
+                      <Link2 size={11} /> {kindKey ? t(kindKey) : r.kind} · {base}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
 

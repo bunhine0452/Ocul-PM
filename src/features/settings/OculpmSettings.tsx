@@ -413,14 +413,10 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </Field>
       </Section>
 
+      {/* `git.journal_committed` 토글은 뺐다 — 켜도 아무 동작이 없는 죽은 플래그
+          (git commit 호출 0, 2026-08-30 감사). 설정 파일 키는 스키마 호환을 위해
+          남아 있지만 화면에 보여 주면 "추적되고 있다" 는 거짓 믿음을 준다. */}
       <Section title="Git" description={t("op.git.desc")}>
-        <Toggle
-          label={t("op.git.track")}
-          checked={config.git.journal_committed}
-          onChange={(v) =>
-            update((d) => ({ ...d, git: { ...d.git, journal_committed: v } }))
-          }
-        />
         <PatternList
           label="forbid_journal_for_paths (glob)"
           hint={t("op.git.forbiddenHint")}

@@ -28,7 +28,7 @@ use crate::oculpm::redact::{
 };
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
-    OculpmConfig,
+    OculpmConfig, RelatedRef,
 };
 
 /// MCP `tools/list` 응답의 도구 정의. 스키마는 에이전트가 읽는 계약서다 —
@@ -60,6 +60,19 @@ pub fn tool_definitions() -> Value {
                         }
                     },
                     "tags": { "type": "array", "items": { "type": "string" } },
+                    "related": {
+                        "type": "array",
+                        "description": "이어지는 과거 일지 링크 (journal_search 결과의 path 를 그대로). kind 는 blocks|blocked_by|followup|duplicate, 기본 followup",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "ref": { "type": "string", "description": ".oculpm/journal/ 기준 상대경로 (예: 20260522/Bugs/2050_bug_x.md). 앞의 `.oculpm/journal/` 은 붙여도 된다" },
+                                "kind": { "type": "string", "enum": ["blocks", "blocked_by", "followup", "duplicate"] }
+                            },
+                            "required": ["ref"]
+                        }
+                    },
+                    "session_id": { "type": "string", "description": "훅이 준 세션 id 가 있으면 그대로. 없으면 서버가 실행 중인 세션에 귀속시킨다" },
                     "agent_id": { "type": "string", "description": "호출한 에이전트 id (기본 claude-code)" },
                     "agent_version": { "type": "string", "description": "모델명 (예: Opus 4.8)" }
                 },
@@ -520,10 +533,13 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         }
     }
 
-    // redact — MCP 로 들어온 본문에도 프로젝트 시크릿 패턴을 적용.
+    // redact — MCP 로 들어온 본문에도 프로젝트 시크릿 패턴을 적용. 마스킹이
+    // 일어났으면 응답에 알린다 — AGENTS.md 는 "감지 시 거부" 라 적혀 있었지만
+    // 실제론 조용히 마스킹만 했고, 에이전트는 자기가 무엇을 흘렸는지 몰랐다.
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let (title, _) = redact_text(&title, &patterns);
-    let (body, _) = redact_text(body, &patterns);
+    let (title, title_hits) = redact_text(&title, &patterns);
+    let (body, body_hits) = redact_text(body, &patterns);
+    let redacted = title_hits.len() + body_hits.len();
 
     let mut tags: Vec<String> = args
         .get("tags")
@@ -532,6 +548,47 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         .unwrap_or_default();
     if !tags.iter().any(|t| t == "mcp-tool") {
         tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
+    }
+
+    // related — AGENTS.md §0 이 "찾은 것이 이어지면 related 에 넣으라" 고 하는데
+    // 정작 도구가 인자를 안 받아 늘 빈 배열이었다. 존재하지 않는 참조는 거부하지
+    // 않고 경고로 돌려준다 (오타 하나로 일지 전체가 막히면 안 쓴다).
+    let mut warnings: Vec<String> = Vec::new();
+    let related: Vec<RelatedRef> = args
+        .get("related")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|r| {
+                    let raw = r.get("ref")?.as_str()?.trim();
+                    let ref_path = raw
+                        .trim_start_matches("./")
+                        .trim_start_matches(".oculpm/journal/")
+                        .to_string();
+                    if ref_path.is_empty() {
+                        return None;
+                    }
+                    let kind = match r.get("kind").and_then(Value::as_str).unwrap_or("followup") {
+                        k @ ("blocks" | "blocked_by" | "followup" | "duplicate") => k.to_string(),
+                        other => {
+                            warnings.push(format!(
+                                "related.kind {other:?} 는 blocks|blocked_by|followup|duplicate 중 하나여야 한다 — followup 으로 기록"
+                            ));
+                            "followup".to_string()
+                        }
+                    };
+                    if !root.join(".oculpm").join("journal").join(&ref_path).is_file() {
+                        warnings.push(format!("related 참조가 존재하지 않는다: {ref_path}"));
+                    }
+                    Some(RelatedRef { ref_path, kind })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if redacted > 0 {
+        warnings.push(format!(
+            "시크릿 패턴 {redacted}건이 마스킹됐다 — 일지에 비밀을 적지 말 것 (git.auto_redact_patterns)"
+        ));
     }
 
     let fm = JournalFrontmatter {
@@ -571,10 +628,11 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
             id: arg_str(args, "agent_id").unwrap_or("claude-code").to_string(),
             version: arg_str(args, "agent_version").map(str::to_string),
         },
-        language: "ko".to_string(),
+        // 프로젝트의 AI 작성 언어 — 영문 프로젝트도 "ko" 로 색인되던 것을 바로잡는다.
+        language: cfg.agents.template_language.clone(),
         verified_by_user: false,
         files_touched: files,
-        related: Vec::new(),
+        related,
         tags,
     };
 
@@ -610,7 +668,14 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     // A2 활성화 배선 — 앱 없이 플러그인만으로 기록이 시작된 저장소에도
     // `.oculpm/` 정체를 설명하는 README 가 생기게 한다 (있으면 불변, 실패 무해).
     crate::oculpm::readme::ensure_oculpm_readme(root);
-    Ok(json!({ "path": rel, "session_id": fm.session_id }))
+    Ok(json!({
+        "path": rel,
+        "session_id": fm.session_id,
+        "language": fm.language,
+        "related": fm.related.len(),
+        "redacted": redacted,
+        "warnings": warnings,
+    }))
 }
 
 // ─── journal_search / journal_read ───────────────────────────────────────────
@@ -1575,6 +1640,54 @@ mod tests {
     /// watcher's live session is on disk and the entry must adopt it. A
     /// synthetic `mcp-…` id can never join against a real session, which is
     /// what left `matched` / `jaccard_index` dead.
+    /// `related` 는 AGENTS.md 가 요구하는 인자인데 도구가 안 받아 늘 비어 있었다.
+    /// 접두 `.oculpm/journal/` 은 벗겨 저장하고, 없는 참조·낯선 kind 는 거부 대신
+    /// 경고로 돌려준다. `language` 는 프로젝트 설정을 따른다.
+    #[test]
+    fn journal_write_records_related_and_project_language() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm/journal/20260522/Bugs")).unwrap();
+        std::fs::write(
+            root.join(".oculpm/journal/20260522/Bugs/2050_bug_x.md"),
+            "---\nschema_version: 1\n---\n[x] x\n",
+        )
+        .unwrap();
+        let mut cfg = OculpmConfig::default_for_new_project();
+        cfg.agents.template_language = "en".to_string();
+        cfg.save(&root.join(".oculpm/config.toml")).unwrap();
+        let args = serde_json::json!({
+            "type": "chore",
+            "slug": "link-test",
+            "title": "links",
+            "body_markdown": "body\n\n## Verification\n\nok",
+            "related": [
+                { "ref": ".oculpm/journal/20260522/Bugs/2050_bug_x.md", "kind": "followup" },
+                { "ref": "20260101/Chores/0000_chore_missing.md", "kind": "weird" }
+            ]
+        });
+        let out = call_tool(root, "journal_write", &args).unwrap();
+        assert_eq!(out["related"], 2);
+        assert_eq!(out["language"], "en");
+        let warnings: Vec<String> = out["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|w| w.as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(warnings.iter().any(|w| w.contains("weird")));
+        assert!(warnings.iter().any(|w| w.contains("0000_chore_missing.md")));
+
+        let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
+        let (parsed, _) = parse_frontmatter_and_body(&raw);
+        let fm = parsed.parsed.expect("frontmatter parses");
+        assert_eq!(fm.language, "en");
+        assert_eq!(fm.related.len(), 2);
+        assert_eq!(fm.related[0].ref_path, "20260522/Bugs/2050_bug_x.md", "접두는 벗긴다");
+        assert_eq!(fm.related[1].kind, "followup", "낯선 kind 는 followup 으로");
+    }
+
     #[test]
     fn journal_write_adopts_the_live_watcher_session() {
         let dir = TempDir::new().unwrap();

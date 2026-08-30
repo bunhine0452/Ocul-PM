@@ -32,10 +32,10 @@ owner: claude-code
 - [x] 가산 UPSERT + 직렬화 없음 + rebuild 없음 → 이중 집계 영구 — 프로젝트별 Mutex · 재개점 CAS · 파일 축소 시 행 삭제 · `firing_rebuild` + 「발동 다시 세기」 · mtime 순 스캔 · 부분 계측 표시 (`db/firings.rs`, `commands/firing_ledger.rs`) {#fl-cas-rebuild}
 
 ## Phase 4 — 검토 루프 UI · 죽은 표면 {#review-loop}
-- [ ] `related` 링크 칩 + `verified_by_user` 토글 — EntryDetailView 헤더/카드 (`setJournalVerified` 래퍼만 존재, `related` 렌더 0) {#related-verified-ui}
-- [ ] `journal_committed` 죽은 설정 토글 제거 (`OculpmSettings.tsx`, git commit 호출 0) {#dead-toggle}
-- [ ] 프런트 미호출 커맨드 18개 정리 — `dapAdapters` 는 디버그 패널 빈 상태에 연결, 나머지는 `collect_commands!` 에서 제거 {#dead-commands}
-- [ ] MCP `journal_write` 에 `related`·`session_id` 인자 + `language` 를 config 에서 + 마스킹 발생을 응답으로 알림 (`mcp/tools.rs`, AGENTS.md 가 related 를 요구) {#mcp-journal-write-args}
+- [x] `related` 링크 칩 + `verified_by_user` 토글 — 상세 툴바 「검증」 + 카드 체크 + 칩 클릭 이동(`openByPath` 공유) (`setJournalVerified` 래퍼만 존재, `related` 렌더 0) {#related-verified-ui}
+- [x] `journal_committed` 죽은 설정 토글 제거 (`OculpmSettings.tsx`, git commit 호출 0) {#dead-toggle}
+- [~] 프런트 미호출 커맨드 정리 — `dapAdapters` 디버그 패널 연결 **완료**. 등록 제거는 `chat` 이 모바일 브리지에서 쓰이고 나머지가 Db 메서드·파이프라인 연쇄라 `ci-and-module-boundaries #dead-command-audit` 로 이관 {#dead-commands}
+- [x] MCP `journal_write` 에 `related`·`session_id` 인자 + `language` 를 config 에서 + 마스킹·경고를 응답으로 (`mcp/tools.rs`, AGENTS.md 가 related 를 요구) {#mcp-journal-write-args}
 
 ## Phase 5 — CI·DX {#ci-dx}
 - [ ] `cargo fmt` 1회 정리 + `fmt --check` 게이트 (현재 1,090 hunk) {#fmt-gate}
@@ -66,4 +66,7 @@ owner: claude-code
 | 2026-08-30T10:51:00+09:00 | #reconcile-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_reconcile-error-was-silent.md | result.error + warn + IntegrityWarning(reconcile) 토스트 |
 | 2026-08-30T10:51:00+09:00 | #planner-load-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_usage-meter-polled-while-hidden.md | 미터만 수정. 플래너 쪽은 이미 처리돼 있었음 |
 | 2026-08-30T11:00:00+09:00 | #fl-always-loaded #fl-cas-rebuild | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1100_bug_firing-ledger-double-count-and-false-dormant.md | CAS 적재 + reset 교체 + scan_lock + firing_rebuild(≤20 라운드) + mtime 순 + partial. 배지는 paths 있는 규칙만 |
+| 2026-08-30T11:11:00+09:00 | #related-verified-ui | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1111_feature_verified-toggle-and-related-links.md | 검증 토글(툴바)+카드 체크+related 칩 클릭 이동. openByPath 를 Planner 링크와 공유 |
+| 2026-08-30T11:11:00+09:00 | #mcp-journal-write-args | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1111_feature_mcp-journal-write-related-language-redaction.md | related/session_id 스키마 + language=config + 응답 warnings/redacted. 접두 제거·낯선 kind→followup |
+| 2026-08-30T11:11:00+09:00 | #dead-toggle #dead-commands | claude-code | ☐→[x] / ☐→[~] | .oculpm/journal/20260830/Chores/1111_chore_dead-toggle-and-debug-adapters.md | 토글 제거 + dapAdapters 연결. 등록 제거는 chat(브리지 사용)·연쇄 때문에 #dead-command-audit 로 이관 |
 <!-- oculpm:plan-log end -->

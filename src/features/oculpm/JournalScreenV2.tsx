@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { SearchIcon, TriangleAlert, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
@@ -243,36 +243,50 @@ export function JournalScreenV2({
   // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
   // workday (parsed from the path), so a completed plan's weeks-old journal opens
   // even though it's outside the loaded timeline window. One-shot.
-  useEffect(() => {
-    if (!openEntryPath) return;
-    let cancelled = false;
-    const workday = openEntryPath.split("/")[0];
-    void (async () => {
+  // Resolve a `.oculpm/journal/`-relative path to a summary and open it —
+  // shared by the Planner link (`openEntryPath`) and the detail view's
+  // `related` chips. The workday folder is the lookup key, so an entry outside
+  // the loaded timeline window still resolves. Returns whether it opened.
+  const openByPath = useCallback(
+    async (rawPath: string, fromExternal: boolean, isCancelled: () => boolean): Promise<boolean> => {
+      // Agents often write the prefixed form (`.oculpm/journal/…`) — accept both.
+      const path = rawPath.replace(/^\.\/?/, "").replace(/^\.oculpm\/journal\//, "");
+      const workday = path.split("/")[0];
       try {
         if (!/^\d{8}$/.test(workday)) {
           toast.warning(t("journal.resolveFailed"));
-          return;
+          return false;
         }
         const list = await oculpmApi.listJournalEntries(projectId, workday);
-        if (cancelled) return;
-        const base = openEntryPath.split("/").pop();
+        if (isCancelled()) return false;
+        const base = path.split("/").pop();
         const hit =
-          list.find((e) => e.relative_path === openEntryPath) ??
+          list.find((e) => e.relative_path === path) ??
           list.find((e) => e.relative_path.split("/").pop() === base);
         if (hit) {
-          setDetailFromExternal(true);
+          setDetailFromExternal(fromExternal);
           setDetailEntry(hit);
-        } else toast.warning(t("journal.linkNotFound"));
+          return true;
+        }
+        toast.warning(t("journal.linkNotFound"));
       } catch {
-        if (!cancelled) toast.warning(t("journal.linkOpenFailed"));
-      } finally {
-        if (!cancelled) onOpenEntryConsumed?.();
+        if (!isCancelled()) toast.warning(t("journal.linkOpenFailed"));
       }
-    })();
+      return false;
+    },
+    [projectId],
+  );
+
+  useEffect(() => {
+    if (!openEntryPath) return;
+    let cancelled = false;
+    void openByPath(openEntryPath, true, () => cancelled).finally(() => {
+      if (!cancelled) onOpenEntryConsumed?.();
+    });
     return () => {
       cancelled = true;
     };
-  }, [openEntryPath, projectId, onOpenEntryConsumed]);
+  }, [openEntryPath, openByPath, onOpenEntryConsumed]);
 
   // Date-rail active highlight: mark the top-most day section currently in view.
   useEffect(() => {
@@ -310,6 +324,7 @@ export function JournalScreenV2({
       <EntryDetailView
         projectId={projectId}
         entry={detailEntry}
+        onOpenRelated={(p) => void openByPath(p, false, () => false)}
         onBack={() => {
           // From the Planner → return to it; otherwise back to the timeline.
           if (detailFromExternal && onReturnToOrigin) {

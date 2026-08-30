@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Bot, RotateCcw } from "@/components/Icons";
+import { Bot, Check, RotateCcw } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
@@ -58,6 +58,16 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
               <Bot size={13} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
             <span className="jcard-time">{timeLabel(entry.created_at)}</span>
+            {entry.verified_by_user ? (
+              <span
+                className="jcard-verified"
+                title={t("entry.verified")}
+                aria-label={t("entry.verified")}
+                style={{ display: "inline-flex", color: "var(--ok, #12a06b)" }}
+              >
+                <Check size={12} />
+              </span>
+            ) : null}
           </div>
           <div className="jcard-title">{entry.title || entry.slug}</div>
         </button>

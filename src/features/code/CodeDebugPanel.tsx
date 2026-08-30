@@ -7,7 +7,14 @@ import { memo, useCallback, useEffect, useState } from "react";
 
 import { X, Play, Square, ArrowDown, ArrowRight, ArrowUp, ChevronRight } from "@/components/Icons";
 import { t, useT } from "@/i18n";
-import type { DapFrame, DapOutput, DapSessionInfo, DapVariable } from "@/lib/bindings";
+import {
+  commands,
+  type DapAdapterInfo,
+  type DapFrame,
+  type DapOutput,
+  type DapSessionInfo,
+  type DapVariable,
+} from "@/lib/bindings";
 
 interface CodeDebugPanelProps {
   session: DapSessionInfo | null;
@@ -42,6 +49,26 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
   useT();
   const stopped = session?.state === "stopped";
   const live = session != null && session.state !== "ended" && session.state !== "idle";
+
+  // 어느 언어를 디버그할 수 있고, 없으면 어떻게 까는지 — 백엔드 `dap_adapters`
+  // 는 이 답을 갖고 있었지만 프런트 호출처가 0 이라 사용자는 "왜 안 뜨는지"
+  // 알 길이 없었다(2026-08-30 감사). 세션이 없을 때만 묻는다.
+  const [adapters, setAdapters] = useState<DapAdapterInfo[] | null>(null);
+  useEffect(() => {
+    if (live) return;
+    let alive = true;
+    void commands
+      .dapAdapters()
+      .then((res) => {
+        if (alive && res.status === "ok") setAdapters(res.data);
+      })
+      .catch(() => {
+        /* 보조 정보 — 실패해도 패널은 그대로 */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [live]);
 
   return (
     <div className="code-debug" role="region" aria-label={t("code.debug.title")}>
@@ -99,9 +126,30 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
           <div className="code-debug-colhead">{t("code.debug.stack")}</div>
           <div className="code-debug-scroll">
             {!stopped ? (
-              <p className="code-debug-hint">
-                {live ? t("code.debug.runningHint") : t("code.debug.idleHint")}
-              </p>
+              <>
+                <p className="code-debug-hint">
+                  {live ? t("code.debug.runningHint") : t("code.debug.idleHint")}
+                </p>
+                {!live && adapters && adapters.length > 0 ? (
+                  <ul
+                    className="code-debug-adapters"
+                    aria-label={t("code.debug.adapters")}
+                    style={{ margin: "6px 0 0", paddingLeft: 14, fontSize: 11, color: "var(--text-3)" }}
+                  >
+                    {adapters.map((a) => (
+                      <li key={a.language_id}>
+                        <code>{a.language_id}</code>{" "}
+                        {a.resolved
+                          ? t("code.debug.adapterReady")
+                          : t("code.debug.adapterMissing", {
+                              language: a.language_id,
+                              hint: a.install_hint,
+                            })}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
             ) : frames.length === 0 ? (
               <p className="code-debug-hint">{t("code.debug.noStack")}</p>
             ) : (
