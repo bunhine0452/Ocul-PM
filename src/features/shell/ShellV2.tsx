@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
@@ -126,6 +127,20 @@ export default function ShellV2({
   useEffect(() => {
     if (view === "claudecode") setClaudeMounted(true);
   }, [view]);
+
+  // 터미널 「일지로 남기기」·팔레트 「수동 일지」 는 일지 화면이 마운트돼 있을 때만
+  // 들렸다 — 다른 화면(터미널 ⌘0, 도크 위)에서 누르면 무반응처럼 보이고 일지
+  // 화면에 가야 뒤늦게 모달이 떴다 (2026-08-30 감사). 여기서 요청을 붙들어 두고
+  // 일지 화면으로 옮긴다; 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
+  useEffect(
+    () =>
+      onManualEntryRequest((seed) => {
+        if (view === "journal") return;
+        holdManualEntryRequest(seed);
+        setUiV2View("journal");
+      }),
+    [view, setUiV2View],
+  );
 
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and

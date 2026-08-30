@@ -187,8 +187,14 @@ impl OculpmManager {
                 config_valid: true,
                 lock_state: lock_state_from_guard(&entry.lock),
                 current_workday: entry.resolver.workday_of(chrono::Utc::now()),
-                // W2 swaps this to `Running` once the watcher boots.
-                watcher_state: WatcherStateView::Stopped,
+                // 실제 워처 상태. 예전엔 "W2 가 바꾼다" 는 주석과 함께 `Stopped`
+                // 로 박혀 있어 터미널 상태바가 늘 "감시 꺼짐" 을 그렸다
+                // (2026-08-30 감사) — 워처는 잘 돌고 있었는데도.
+                watcher_state: entry
+                    .watcher
+                    .as_ref()
+                    .map(|w| w.status().state)
+                    .unwrap_or(WatcherStateView::Stopped),
             },
             None => OculpmStatus {
                 initialized: false,

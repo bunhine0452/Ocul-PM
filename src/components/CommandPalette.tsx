@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Flame,
@@ -26,6 +26,7 @@ import {
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
 //
@@ -369,6 +370,13 @@ export function CommandPalette({
     return Object.entries(groups) as Array<[CommandGroup, CommandItem[]]>;
   }, [items]);
 
+  // Esc · Tab 트랩 · 닫힐 때 포커스 복원 — 다른 모달(AppDialog)과 같은 훅.
+  // cmdk 의 `Command` 는 ↑↓/Enter/Home/End 만 처리해 Esc 로 닫히지 않았고,
+  // 닫힌 뒤 포커스가 body 로 떨어져 키보드 사용자는 자리를 잃었다.
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+  useModalBehavior({ open, onClose: close, panelRef });
+
   if (!open) return null;
 
   return (
@@ -380,6 +388,7 @@ export function CommandPalette({
       }}
     >
       <Command
+        ref={panelRef}
         label={t("palette.aria")}
         className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
         // cmdk uses a custom fuzzy match. Provide alias as searchable text so

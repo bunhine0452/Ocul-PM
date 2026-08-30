@@ -2097,7 +2097,7 @@
   font-size: 11.5px;
   color: var(--text-3);
   border-bottom: 1px solid var(--sep);
-  background: var(--bg-2);
+  background: var(--bg-card);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

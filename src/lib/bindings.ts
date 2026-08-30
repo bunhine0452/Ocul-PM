@@ -1956,8 +1956,6 @@ export type AgentsConfig = {
 	 *  (claude-code/cursor/antigravity/gemini-cli/windsurf/copilot/aider/cline/zed).
 	 */
 	active: string[],
-	auto_detect_on_open: boolean,
-	auto_sync_adapters: boolean,
 	/**
 	 *  F1 — when on, the watcher reconciles the single active plan against each
 	 *  newly-written journal entry via a background LLM call (`auto:<provider>`
@@ -2907,7 +2905,6 @@ export type GitCommit = {
 };
 
 export type GitConfig = {
-	journal_committed: boolean,
 	forbid_journal_for_paths: string[],
 	auto_redact_patterns: string[],
 };
@@ -4138,9 +4135,6 @@ export type Session = {
 
 export type SessionConfig = {
 	inactivity_timeout_minutes: number,
-	auto_close_on_workday_boundary: boolean,
-	auto_close_on_app_quit: boolean,
-	crash_recovery_grace_minutes: number,
 	/**
 	 *  W4 dogfooding fix — minutes within which new activity after an
 	 *  InactivityTimeout finalize will REOPEN the most recent
@@ -4411,7 +4405,6 @@ export type WatcherConfig = {
 	ignore: string[],
 	respect_gitignore: boolean,
 	debounce_ms: number,
-	batch_max_events: number,
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";

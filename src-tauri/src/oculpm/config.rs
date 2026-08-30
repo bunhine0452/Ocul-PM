@@ -49,13 +49,9 @@ impl OculpmConfig {
                 // logical sessions into many. 60 min covers most agent gaps;
                 // session_resume_grace handles the remaining tail.
                 inactivity_timeout_minutes: 60,
-                auto_close_on_workday_boundary: true,
-                auto_close_on_app_quit: true,
-                crash_recovery_grace_minutes: 5,
                 session_resume_grace_minutes: 15,
             },
             git: GitConfig {
-                journal_committed: true,
                 forbid_journal_for_paths: default_forbid_paths(),
                 auto_redact_patterns: default_redact_patterns(),
             },
@@ -63,7 +59,6 @@ impl OculpmConfig {
                 ignore: default_watcher_ignore(),
                 respect_gitignore: true,
                 debounce_ms: 500,
-                batch_max_events: 200,
             },
             agents: AgentsConfig {
                 // `agents-md` is the universal surface — always on by default
@@ -71,8 +66,6 @@ impl OculpmConfig {
                 // the user toggles individual adapters. Per-adapter ids stay
                 // empty until detection or Settings picks them.
                 active: vec!["agents-md".into()],
-                auto_detect_on_open: true,
-                auto_sync_adapters: true,
                 // F1 — automatic background LLM reconciliation is opt-in.
                 auto_reconcile: false,
                 // PR-CI1 — hook-session journal drafting is opt-in (billable).
@@ -140,12 +133,6 @@ impl OculpmConfig {
                 "watcher.debounce_ms must be in 1..=10000 (got {})",
                 self.watcher.debounce_ms
             )));
-        }
-
-        if self.watcher.batch_max_events < 1 {
-            return Err(OculpmError::InvalidConfig(
-                "watcher.batch_max_events must be >= 1".into(),
-            ));
         }
 
         for agent_id in &self.agents.active {
@@ -354,10 +341,6 @@ auto_sync_adapters = true
 
         let mut c = OculpmConfig::default_for_new_project();
         c.watcher.debounce_ms = 20_000;
-        assert!(matches!(c.validate(), Err(OculpmError::InvalidConfig(_))));
-
-        let mut c = OculpmConfig::default_for_new_project();
-        c.watcher.batch_max_events = 0;
         assert!(matches!(c.validate(), Err(OculpmError::InvalidConfig(_))));
     }
 

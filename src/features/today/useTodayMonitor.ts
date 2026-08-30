@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmApi } from "@/api/oculpm";
 import { commands, events, type GitCommit } from "@/lib/bindings";
@@ -77,7 +77,6 @@ export function useTodayMonitor(
       }
       const head = headRes.status === "ok" ? headRes.data : null;
       const commits = logRes.status === "ok" ? logRes.data : [];
-      const totalEntries = totalEntriesFromBrief ?? 0;
       const since = startOfTodaySeconds();
 
       setMonitor({
@@ -89,14 +88,16 @@ export function useTodayMonitor(
         uncommitted: head?.uncommitted ?? 0,
         commitsToday: commits.filter((c) => c.timestamp >= since).length,
         latestCommit: commits[0] ?? null,
-        totalEntries,
+        // brief 의 값은 아래에서 합성한다 — 여기 넣으면 brief 가 도착할 때마다
+        // refresh 의 identity 가 바뀌어 git 조회가 두 번 돌았다.
+        totalEntries: 0,
       });
     } catch {
       setMonitor(null);
     } finally {
       setLoading(false);
     }
-  }, [projectId, workday, enabled, totalEntriesFromBrief]);
+  }, [projectId, workday, enabled]);
 
   useEffect(() => {
     void refresh();
@@ -139,5 +140,11 @@ export function useTodayMonitor(
     };
   }, [projectId, enabled, refresh]);
 
-  return { monitor, loading, refresh };
+  // brief 의 일지 수를 렌더 시점에 합성한다 — refresh 의 deps 에서 빼내 brief
+  // 도착이 git 재조회(마운트마다 프로세스 ~15개)를 두 번 돌리지 않게 (2026-08-30).
+  const merged = useMemo(
+    () => (monitor ? { ...monitor, totalEntries: totalEntriesFromBrief ?? 0 } : null),
+    [monitor, totalEntriesFromBrief],
+  );
+  return { monitor: merged, loading, refresh };
 }

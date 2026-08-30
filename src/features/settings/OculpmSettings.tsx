@@ -346,44 +346,9 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             className="w-full"
           />
         </Field>
-        <Toggle
-          label={t("op.session.endAtBoundary")}
-          checked={config.session.auto_close_on_workday_boundary}
-          onChange={(v) =>
-            update((d) => ({
-              ...d,
-              session: { ...d.session, auto_close_on_workday_boundary: v },
-            }))
-          }
-        />
-        <Toggle
-          label={t("op.session.endOnQuit")}
-          checked={config.session.auto_close_on_app_quit}
-          onChange={(v) =>
-            update((d) => ({
-              ...d,
-              session: { ...d.session, auto_close_on_app_quit: v },
-            }))
-          }
-        />
-        <Field label={t("op.session.crashGrace", { n: config.session.crash_recovery_grace_minutes })}>
-          <input
-            type="range"
-            min={1}
-            max={30}
-            value={config.session.crash_recovery_grace_minutes}
-            onChange={(e) =>
-              update((d) => ({
-                ...d,
-                session: {
-                  ...d.session,
-                  crash_recovery_grace_minutes: Number(e.currentTarget.value),
-                },
-              }))
-            }
-            className="w-full"
-          />
-        </Field>
+        {/* 「작업일 경계에서 자동 종료」·「앱 종료 시 자동 종료」·crash grace 는
+            뺐다 — 아무 코드도 읽지 않는 키였고(둘 다 무조건 동작), 끄면 안 닫힐
+            것처럼 보이는 거짓 스위치였다 (2026-08-30 감사). */}
         <Field
           label={t("op.session.resumeGrace", {
             n: config.session.session_resume_grace_minutes ?? 0,
@@ -548,20 +513,8 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             <span className="text-[11px] text-red-400">{syncStatus.message}</span>
           )}
         </div>
-        <Toggle
-          label={t("op.agents.autoDetect")}
-          checked={config.agents.auto_detect_on_open}
-          onChange={(v) =>
-            update((d) => ({ ...d, agents: { ...d.agents, auto_detect_on_open: v } }))
-          }
-        />
-        <Toggle
-          label={t("op.agents.autoSync")}
-          checked={config.agents.auto_sync_adapters}
-          onChange={(v) =>
-            update((d) => ({ ...d, agents: { ...d.agents, auto_sync_adapters: v } }))
-          }
-        />
+        {/* 「프로젝트 열 때 자동 감지」·「config 저장 시 자동 동기화」 토글은 뺐다 —
+            감지와 동기화는 열 때 무조건 돌고 두 키를 읽는 코드가 없었다. */}
       </Section>
       )}
 

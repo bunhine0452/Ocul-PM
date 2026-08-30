@@ -506,14 +506,18 @@ fn render_row(r: &LogRow) -> String {
         r.from.map(|s| s.log_symbol()).unwrap_or(""),
         r.to.map(|s| s.log_symbol()).unwrap_or("")
     );
+    // 자유 텍스트 셀의 `|` 는 열 경계로 읽히므로 이스케이프한다 — 파서
+    // (`parse::split_table_cells`) 가 `\|` 를 글자로 되돌린다. 줄바꿈은 행을
+    // 깨뜨리므로 공백으로.
+    let cell = |s: &str| s.replace('|', "\\|").replace(['\n', '\r'], " ");
     format!(
         "| {} | #{} | {} | {} | {} | {} |",
         r.ts,
         r.item_id,
-        r.agent_id,
+        cell(&r.agent_id),
         change,
-        r.journal_ref.as_deref().unwrap_or(""),
-        r.note.as_deref().unwrap_or(""),
+        cell(r.journal_ref.as_deref().unwrap_or("")),
+        cell(r.note.as_deref().unwrap_or("")),
     )
 }
 

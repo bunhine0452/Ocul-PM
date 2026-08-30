@@ -280,7 +280,32 @@ pub fn graph(root: &Path, limit: u32) -> Result<Vec<GitGraphCommit>, String> {
 /// of the actual repo (nested-repo case); previously only the diff path handled
 /// it and log/status/branch reported "not a git repo". `None` = no repo found.
 fn primary_repo(root: &Path) -> Option<PathBuf> {
-    discover_repos(root).into_iter().next()
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    use std::time::{Duration, Instant};
+
+    // 호출마다 `rev-parse --show-toplevel`(그리고 중첩 저장소면 디렉터리 걷기)을
+    // 다시 돌리고 있었다 — Today 한 화면이 마운트마다 git 프로세스 ~15개를 띄운
+    // 절반이 이 재해석이었다 (2026-08-30 감사). 저장소 루트는 사실상 안 바뀌므로
+    // 짧게 기억한다. TTL 을 두는 이유: 나중에 `git init` 한 프로젝트가 영원히
+    // "저장소 아님" 으로 남지 않게.
+    const TTL: Duration = Duration::from_secs(30);
+    static CACHE: LazyLock<Mutex<HashMap<PathBuf, (Instant, Option<PathBuf>)>>> =
+        LazyLock::new(Default::default);
+
+    let now = Instant::now();
+    if let Ok(cache) = CACHE.lock() {
+        if let Some((at, repo)) = cache.get(root) {
+            if now.duration_since(*at) < TTL {
+                return repo.clone();
+            }
+        }
+    }
+    let repo = discover_repos(root).into_iter().next();
+    if let Ok(mut cache) = CACHE.lock() {
+        cache.insert(root.to_path_buf(), (now, repo.clone()));
+    }
+    repo
 }
 
 /// Recent commits, newest first. Excludes merge commits by default.

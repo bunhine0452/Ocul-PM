@@ -921,9 +921,6 @@ mod tests {
     fn fast_config() -> SessionConfig {
         SessionConfig {
             inactivity_timeout_minutes: 1, // 60s — but tests use force-fire / very short waits
-            auto_close_on_workday_boundary: true,
-            auto_close_on_app_quit: true,
-            crash_recovery_grace_minutes: 5,
             // Disable resume so the existing case-3 test (which asserts
             // sessions[0] and sessions[1] are distinct after InactivityFired)
             // keeps its semantics. Resume behavior is exercised by the
@@ -1233,7 +1230,6 @@ mod tests {
             },
             session: fast_config(),
             git: GitConfig {
-                journal_committed: false,
                 forbid_journal_for_paths: vec![],
                 auto_redact_patterns: vec![],
             },
@@ -1241,12 +1237,9 @@ mod tests {
                 ignore: vec![],
                 respect_gitignore: true,
                 debounce_ms: 500,
-                batch_max_events: 200,
             },
             agents: AgentsConfig {
                 active: vec![],
-                auto_detect_on_open: true,
-                auto_sync_adapters: true,
                 auto_reconcile: false,
                 auto_journal_draft: false,
                 rules_translate: vec![],

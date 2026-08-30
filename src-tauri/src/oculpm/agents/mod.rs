@@ -644,8 +644,6 @@ mod tests {
         let mut cfg = OculpmConfig::default_for_new_project();
         cfg.agents = AgentsConfig {
             active: active.iter().map(|s| s.to_string()).collect(),
-            auto_detect_on_open: false,
-            auto_sync_adapters: false,
             auto_reconcile: false,
             auto_journal_draft: false,
             rules_translate: vec![],

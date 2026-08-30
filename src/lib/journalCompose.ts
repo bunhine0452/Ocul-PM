@@ -47,6 +47,16 @@ export function consumeManualEntryRequest(): ManualEntrySeed | null {
   return had;
 }
 
+/**
+ * 요청을 **이벤트 없이** 다시 붙들어 둔다. 셸이 다른 화면에서 온 요청을 받아
+ * 일지 화면으로 옮길 때 쓴다 — 구독 콜백이 플래그를 이미 소비했으므로, 이걸로
+ * 되돌려 두어야 일지 화면이 마운트되며 `consumeManualEntryRequest` 로 회수한다.
+ * (`requestManualEntry` 를 다시 부르면 이벤트가 또 돌아 셸이 무한히 받는다.)
+ */
+export function holdManualEntryRequest(seed: ManualEntrySeed): void {
+  pending = seed;
+}
+
 /** 이미 마운트된 화면용 구독. 콜백 실행 전에 플래그를 소비한다. */
 export function onManualEntryRequest(fn: (seed: ManualEntrySeed) => void): () => void {
   const handler = (event: Event) => {

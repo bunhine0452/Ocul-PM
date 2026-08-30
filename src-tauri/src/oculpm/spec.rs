@@ -350,9 +350,11 @@ pub struct WorkdayConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SessionConfig {
     pub inactivity_timeout_minutes: u32,
-    pub auto_close_on_workday_boundary: bool,
-    pub auto_close_on_app_quit: bool,
-    pub crash_recovery_grace_minutes: u32,
+    // `auto_close_on_workday_boundary` · `auto_close_on_app_quit` ·
+    // `crash_recovery_grace_minutes` 는 2026-08-30 에 뺐다 — 어떤 코드도 읽지
+    // 않는 키였는데(경계 종료·앱 종료 정리는 무조건 동작) 설정 화면에 토글로
+    // 노출돼 "끄면 안 닫힌다" 는 거짓 믿음을 줬다. 디스크의 옛 키는 무시된다
+    // (미지 키 허용).
     /// W4 dogfooding fix — minutes within which new activity after an
     /// InactivityTimeout finalize will REOPEN the most recent
     /// inactivity-closed session instead of starting a new one. Bounded by
@@ -368,7 +370,8 @@ fn default_session_resume_grace_minutes() -> u32 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct GitConfig {
-    pub journal_committed: bool,
+    // `journal_committed` 는 2026-08-30 에 뺐다 — git commit 을 부르는 코드가 없는
+    // 죽은 플래그였다.
     pub forbid_journal_for_paths: Vec<String>,
     pub auto_redact_patterns: Vec<String>,
 }
@@ -378,7 +381,8 @@ pub struct WatcherConfig {
     pub ignore: Vec<String>,
     pub respect_gitignore: bool,
     pub debounce_ms: u32,
-    pub batch_max_events: u32,
+    // `batch_max_events` 는 2026-08-30 에 뺐다 — 워처 배치는 디바운스 창으로만
+    // 잘리고 이 상한을 읽는 코드가 없었다.
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -386,8 +390,9 @@ pub struct AgentsConfig {
     /// Subset of `config::KNOWN_AGENT_IDS` — `agents-md` + 도구별 어댑터
     /// (claude-code/cursor/antigravity/gemini-cli/windsurf/copilot/aider/cline/zed).
     pub active: Vec<String>,
-    pub auto_detect_on_open: bool,
-    pub auto_sync_adapters: bool,
+    // `auto_detect_on_open` · `auto_sync_adapters` 는 2026-08-30 에 뺐다 — 감지와
+    // 동기화는 프로젝트를 열 때 무조건 돌고(`oculpm_init` 2단계) 두 플래그를
+    // 읽는 코드가 없었다.
     /// F1 — when on, the watcher reconciles the single active plan against each
     /// newly-written journal entry via a background LLM call (`auto:<provider>`
     /// attribution). Opt-in (default `false`): it triggers automatic, billable

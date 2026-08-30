@@ -743,11 +743,7 @@ fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
     if !line.starts_with('|') {
         return None;
     }
-    let cells: Vec<String> = line
-        .trim_matches('|')
-        .split('|')
-        .map(|c| c.trim().to_string())
-        .collect();
+    let cells = split_table_cells(line);
     // Separator row (---|---).
     if cells
         .iter()
@@ -755,11 +751,17 @@ fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
     {
         return None;
     }
-    // Header row.
-    let joined = cells.join(" ");
-    if joined.contains("시각")
-        || joined.contains("에이전트")
-        || joined.to_lowercase().contains("agent")
+    // Header row — the first cell is a label (`시각` / `ts`), never a timestamp.
+    //
+    // 예전 판정은 셀을 합친 문자열에 `agent`·`시각`·`에이전트` 가 있으면 헤더로
+    // 봤다. 일지 경로(`…agent-discipline…`)·메모("agent-client-protocol",
+    // "시각 보정") 에 그 낱말이 흔해 이 저장소에서만 데이터 행 22개가
+    // 항목 이력·귀속에서 조용히 사라졌다 (2026-08-30 감사). 데이터 행은 항상
+    // ISO 시각으로 시작하므로 첫 셀의 첫 글자가 숫자인지로 가른다.
+    if !cells
+        .first()
+        .and_then(|c| c.chars().next())
+        .is_some_and(|ch| ch.is_ascii_digit())
     {
         return None;
     }
@@ -788,6 +790,28 @@ fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
         journal_ref,
         note,
     })
+}
+
+/// Split a markdown table row into trimmed cells, honouring `\|` as a literal
+/// pipe (what `plan_edit::render_row` writes when a note contains `|`).
+/// A bare split would shift every column after the first pipe in a note.
+fn split_table_cells(line: &str) -> Vec<String> {
+    let inner = line.trim_matches('|');
+    let mut cells = Vec::new();
+    let mut cur = String::new();
+    let mut chars = inner.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\\' if chars.peek() == Some(&'|') => {
+                cur.push('|');
+                chars.next();
+            }
+            '|' => cells.push(std::mem::take(&mut cur).trim().to_string()),
+            _ => cur.push(ch),
+        }
+    }
+    cells.push(cur.trim().to_string());
+    cells
 }
 
 /// `~→x` / `☐→☑` / `->` → (from, to) canonical status strings (raw fallback).
@@ -1182,6 +1206,25 @@ owner: claude-code
         assert_eq!(p.items[0].item_id, "wrap-id");
         assert!(p.items[0].title.contains("둘째 줄 계속"));
         assert!(p.warnings.is_empty(), "{:?}", p.warnings);
+    }
+
+    /// 2026-08-30 감사 재현: "agent"·"시각" 이 든 데이터 행이 헤더로 오인돼
+    /// 사라지던 것. 헤더는 첫 셀이 시각이 아닌 행뿐이고, `\|` 는 글자다.
+    #[test]
+    fn log_rows_with_agent_or_sigak_in_cells_are_data_not_header() {
+        let md = "## P\n- [x] a {#a}\n- [x] b {#b}\n\n<!-- oculpm:plan-log begin v1 -->\n| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n|---|---|---|---|---|---|\n| 2026-08-29T17:53:00+09:00 | #a | claude-code | →x | .oculpm/journal/20260829/Chores/1753_chore_agent-discipline-redesign-plan.md | 실측 기준선 |\n| 2026-08-14T20:11:34+09:00 | #b | claude-code | ☐→x | journal/20260814/Features_to_add/2011_feature_acp0.md | agent-client-protocol 2.0 · 시각 보정 a \\| b |\n<!-- oculpm:plan-log end -->\n";
+        let p = parse_plan(md, "x");
+        assert_eq!(p.updates.len(), 2, "{:?}", p.updates);
+        assert_eq!(p.updates[0].item_id, "a");
+        assert_eq!(
+            p.updates[0].journal_ref.as_deref(),
+            Some(".oculpm/journal/20260829/Chores/1753_chore_agent-discipline-redesign-plan.md")
+        );
+        assert_eq!(
+            p.updates[1].note.as_deref(),
+            Some("agent-client-protocol 2.0 · 시각 보정 a | b"),
+            "이스케이프된 파이프는 글자로 복원된다"
+        );
     }
 
     #[test]

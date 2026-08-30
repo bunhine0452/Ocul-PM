@@ -25,7 +25,18 @@ pub async fn git_log(
     limit: u32,
 ) -> Result<Vec<git::GitCommit>, String> {
     let root = project_root(&db, project_id).await?;
-    git::log(&root, limit)
+    // git 은 서브프로세스 — 런타임 워커를 붙잡지 않게 blocking 풀로 (아래 셋도).
+    blocking(move || git::log(&root, limit)).await
+}
+
+/// 동기 git 호출을 blocking 풀에서 돌린다. 예전엔 `async fn` 안에서
+/// `Command::output()` 을 그대로 불러 워커 스레드가 5~80ms 씩 멈췄다.
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("git task failed: {e}"))?
 }
 
 #[tauri::command]
@@ -36,14 +47,14 @@ pub async fn git_graph(
     limit: u32,
 ) -> Result<Vec<git::GitGraphCommit>, String> {
     let root = project_root(&db, project_id).await?;
-    git::graph(&root, limit)
+    blocking(move || git::graph(&root, limit)).await
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn git_status(db: State<'_, Db>, project_id: u32) -> Result<git::GitRepoStatus, String> {
     let root = project_root(&db, project_id).await?;
-    Ok(git::status(&root))
+    blocking(move || Ok(git::status(&root))).await
 }
 
 /// 에디터 거터 (#git-gutter) — HEAD 대비 **지금 버퍼**의 줄 변경.
@@ -73,5 +84,5 @@ pub async fn git_head_status_brief(
     project_id: u32,
 ) -> Result<git::GitHeadStatusBrief, String> {
     let root = project_root(&db, project_id).await?;
-    Ok(git::head_status_brief(&root))
+    blocking(move || Ok(git::head_status_brief(&root))).await
 }
