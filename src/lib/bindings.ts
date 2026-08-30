@@ -1312,6 +1312,12 @@ export const commands = {
 	firingRescan: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rescan", { projectId })),
 	/**  최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다. */
 	firingStats: (projectId: number, days: number) => typedError<FiringOverview, string>(__TAURI_INVOKE("firing_stats", { projectId, days })),
+	/**
+	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
+	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
+	 *  라운드당 96MB 이니 이 저장소 실측 293MB 도 넉넉하다).
+	 */
+	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
 	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
 	acpDiagnose: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_diagnose")),
 	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */

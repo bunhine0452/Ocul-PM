@@ -218,7 +218,7 @@ use crate::commands::{
     // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
     skill_candidates, skill_draft_generate,
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
-    firing_rescan, firing_stats,
+    firing_rescan, firing_stats, firing_rebuild,
     // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
     acp_diagnose, acp_install_adapter, acp_start, acp_stop, acp_status, acp_prompt, acp_cancel,
     acp_permission_respond, acp_set_config_option,
@@ -510,6 +510,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // AD-1 — 발동 원장
         firing_rescan,
         firing_stats,
+        firing_rebuild,
         // PR-ACP1 — ACP 어댑터 런타임
         acp_diagnose,
         acp_install_adapter,

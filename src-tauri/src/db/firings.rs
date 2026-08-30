@@ -39,16 +39,46 @@ impl Db {
 
     /// 한 파일의 스캔 결과를 반영한다 — 집계 행 UPSERT + 재개점 갱신을
     /// 한 트랜잭션으로. 중간에 죽어도 오프셋만 앞서가는 일은 없다.
+    ///
+    /// 가산 UPSERT 가 옳으려면 **같은 청크가 두 번 더해지지 않아야** 한다.
+    /// 그래서 (a) `expected_resume` 로 CAS 한다 — 트랜잭션 안에서 읽은 재개점이
+    /// 기대값과 다르면(다른 스캔이 먼저 앞서갔다) 아무것도 쓰지 않고 `false`,
+    /// (b) `reset`(파일이 줄어 0 부터 다시 읽음) 이면 이 세션 파일의 기존
+    /// 행을 먼저 지운다. 둘 다 없던 2026-08-29 판은 탭 전환마다 재마운트되는
+    /// 훅이 동시에 스캔하면 이중 집계가 영구히 남았다.
     pub async fn firing_apply_scan(
         &self,
         project_id: u32,
         session_file: String,
+        expected_resume: u64,
+        reset: bool,
         bytes_consumed: u64,
         rows: Vec<(String, String, String, u32, u64)>,
-    ) -> Result<()> {
-        self.conn
+    ) -> Result<bool> {
+        let applied = self
+            .conn
             .call(move |c| {
                 let tx = c.transaction()?;
+                let current: Option<i64> = tx
+                    .query_row(
+                        "SELECT bytes_consumed FROM context_firing_scan
+                         WHERE project_id = ?1 AND session_file = ?2",
+                        params![project_id as i64, &session_file],
+                        |r| r.get(0),
+                    )
+                    .optional()?;
+                if current.unwrap_or(0) as u64 != expected_resume {
+                    // 다른 스캔이 이 파일을 먼저 소비했다 — 이 청크는 이미
+                    // 반영됐거나 그쪽 재개점이 정답이다. 조용히 버린다.
+                    return Ok(false);
+                }
+                if reset {
+                    tx.execute(
+                        "DELETE FROM context_firings
+                         WHERE project_id = ?1 AND session_file = ?2",
+                        params![project_id as i64, &session_file],
+                    )?;
+                }
                 for (kind, key, workday, count, bytes) in rows {
                     tx.execute(
                         "INSERT INTO context_firings (
@@ -76,6 +106,27 @@ impl Db {
                         bytes_consumed = excluded.bytes_consumed,
                         scanned_at = excluded.scanned_at",
                     params![project_id as i64, session_file, bytes_consumed as i64],
+                )?;
+                tx.commit()?;
+                Ok(true)
+            })
+            .await?;
+        Ok(applied)
+    }
+
+    /// 원장을 통째로 비운다 — `firing_rebuild` 의 첫 단계. SSOT 는 transcript
+    /// 라 잃는 것이 없고, 이중 집계·낡은 재개점을 되돌릴 유일한 길이다.
+    pub async fn firing_clear(&self, project_id: u32) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                tx.execute(
+                    "DELETE FROM context_firings WHERE project_id = ?1",
+                    params![project_id as i64],
+                )?;
+                tx.execute(
+                    "DELETE FROM context_firing_scan WHERE project_id = ?1",
+                    params![project_id as i64],
                 )?;
                 tx.commit()?;
                 Ok(())

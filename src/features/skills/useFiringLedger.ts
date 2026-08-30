@@ -21,13 +21,21 @@ export interface FiringLedger {
   measured: boolean;
   /** 백그라운드 스캔 진행 중. */
   scanning: boolean;
+  /**
+   * 마지막 스캔이 예산으로 끊겨 남은 transcript 가 있다 — 배지가 아직
+   * 최종이 아니라는 뜻. 숨기면 "안 걸림" 이 확정처럼 읽힌다.
+   */
+  partial: boolean;
   days: number;
   refresh: () => void;
+  /** 원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점의 유일한 복구. */
+  rebuild: () => Promise<void>;
 }
 
 export function useFiringLedger(projectId: number): FiringLedger {
   const [overview, setOverview] = useState<FiringOverview | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [partial, setPartial] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   // 원장은 **보조 신호**다 — 조회·스캔이 어떤 이유로 실패하든(커맨드 부재,
@@ -51,13 +59,16 @@ export function useFiringLedger(projectId: number): FiringLedger {
       setOverview(first);
 
       setScanning(true);
+      let leftover = false;
       for (let round = 0; round < MAX_SCAN_ROUNDS; round++) {
         // 스캔 실패·transcript 부재는 조용히 끝낸다 — 여기서 토스트를 띄우면
         // Claude Code 를 안 쓰는 사용자에게는 소음일 뿐이다.
         let done = true;
+        leftover = false;
         try {
           const scan = await commands.firingRescan(projectId);
           done = scan?.status !== "ok" || scan.data.no_transcripts || scan.data.complete;
+          leftover = scan?.status === "ok" && !scan.data.no_transcripts && !scan.data.complete;
         } catch {
           done = true;
         }
@@ -66,6 +77,7 @@ export function useFiringLedger(projectId: number): FiringLedger {
       }
       if (!alive) return;
       setScanning(false);
+      setPartial(leftover);
 
       const after = await load();
       if (!alive) return;
@@ -78,12 +90,26 @@ export function useFiringLedger(projectId: number): FiringLedger {
 
   const index = useMemo(() => buildFiringIndex(overview?.stats ?? []), [overview]);
 
+  const rebuild = useCallback(async () => {
+    setScanning(true);
+    try {
+      const res = await commands.firingRebuild(projectId);
+      setPartial(res?.status === "ok" && !res.data.no_transcripts && !res.data.complete);
+    } catch {
+      // 조회 실패와 같은 규율 — 원장은 보조 신호라 조용히 넘어간다.
+    }
+    setScanning(false);
+    setOverview(await load());
+  }, [projectId, load]);
+
   return {
     index,
     overview,
     measured: overview != null && overview.last_scan_at != null,
     scanning,
+    partial,
     days: FIRING_WINDOW_DAYS,
     refresh: useCallback(() => setNonce((n) => n + 1), []),
+    rebuild,
   };
 }

@@ -293,6 +293,27 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+/* 툴바 글자 버튼 — 아이콘 버튼과 같은 높이·테두리, 폭은 글자만큼. */
+.sk-textbtn {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-s);
+  font-size: 12px;
+  color: var(--text-2);
+  background: none;
+  border: 1px solid var(--sep);
+  cursor: pointer;
+}
+.sk-textbtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.sk-textbtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 /* 빈 상태 (스킬 0개 / 미선택). */
 .sk-empty {

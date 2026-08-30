@@ -28,8 +28,8 @@ owner: claude-code
 - [>] macOS 혼합 DPI 커서 좌표계 불일치 — 병렬 세션(drag-and-drop-round)의 `window.rs` 작업과 겹쳐 그 라운드로 이월 {#mixed-dpi}
 
 ## Phase 3 — 발동 원장(AD-1/2) 리뷰 수정 {#firing-fixes}
-- [ ] 항상-로드 규칙·CLAUDE.md 를 "한 번도 안 걸림"으로 거짓 표시 — `paths.length===0` 은 "매 세션" 고정 라벨 (`RulesTab.tsx`, nested_memory 는 조건부 규칙만 찍힘) {#fl-always-loaded}
-- [ ] 가산 UPSERT + 직렬화 없음 + rebuild 없음 → 이중 집계 영구 — 프로젝트별 Mutex · 재개점 CAS · 파일 축소 시 행 삭제 · `firing_rebuild` (`db/firings.rs`, `commands/firing_ledger.rs`) {#fl-cas-rebuild}
+- [x] 항상-로드 규칙·CLAUDE.md 를 "한 번도 안 걸림"으로 거짓 표시 — `paths.length===0` 은 배지 없음/「매 세션」 칩, 예산 라벨을 "조건부 규칙" 으로 정정 (`RulesTab.tsx`, nested_memory 는 조건부 규칙만 찍힘) {#fl-always-loaded}
+- [x] 가산 UPSERT + 직렬화 없음 + rebuild 없음 → 이중 집계 영구 — 프로젝트별 Mutex · 재개점 CAS · 파일 축소 시 행 삭제 · `firing_rebuild` + 「발동 다시 세기」 · mtime 순 스캔 · 부분 계측 표시 (`db/firings.rs`, `commands/firing_ledger.rs`) {#fl-cas-rebuild}
 
 ## Phase 4 — 검토 루프 UI · 죽은 표면 {#review-loop}
 - [ ] `related` 링크 칩 + `verified_by_user` 토글 — EntryDetailView 헤더/카드 (`setJournalVerified` 래퍼만 존재, `related` 렌더 0) {#related-verified-ui}
@@ -65,4 +65,5 @@ owner: claude-code
 | 2026-08-30T10:51:00+09:00 | #backfill-marker | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_backfill-reran-git-on-every-open.md | 빈 마커(sidecar_exists=true, is_current=false) + init 2.6/2.7 spawn. 프런트 시그니처 불변 |
 | 2026-08-30T10:51:00+09:00 | #reconcile-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_reconcile-error-was-silent.md | result.error + warn + IntegrityWarning(reconcile) 토스트 |
 | 2026-08-30T10:51:00+09:00 | #planner-load-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_usage-meter-polled-while-hidden.md | 미터만 수정. 플래너 쪽은 이미 처리돼 있었음 |
+| 2026-08-30T11:00:00+09:00 | #fl-always-loaded #fl-cas-rebuild | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1100_bug_firing-ledger-double-count-and-false-dormant.md | CAS 적재 + reset 교체 + scan_lock + firing_rebuild(≤20 라운드) + mtime 순 + partial. 배지는 paths 있는 규칙만 |
 <!-- oculpm:plan-log end -->

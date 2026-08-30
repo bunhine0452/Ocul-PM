@@ -307,7 +307,7 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
       ? `${t("rules.toolbarSub", { p: overview.project_rules.length, g: overview.global_rules.length })}${
           overview.cursor_translate ? t("rules.cursorDeploying") : ""
         }${budgetKb > 0 ? ` · ${t("firing.budget", { kb: budgetKb })}` : ""}${
-          firing.scanning ? ` · ${t("firing.measuring")}` : ""
+          firing.scanning ? ` · ${t("firing.measuring")}` : firing.partial ? ` · ${t("firing.partial")}` : ""
         }`
       : undefined;
 
@@ -315,6 +315,15 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     <>
       <Toolbar title={t("nav.skills")} sub={sub}>
         {tabs}
+        <button
+          type="button"
+          className="sk-textbtn"
+          disabled={firing.scanning}
+          onClick={() => void firing.rebuild()}
+          title={t("firing.rebuildTitle")}
+        >
+          {t("firing.rebuild")}
+        </button>
         <button
           type="button"
           className="sk-iconbtn"
@@ -424,11 +433,17 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                           paths {detail.entry.paths.length}
                         </span>
                       )}
-                      <FiringBadge
-                        stat={firingOf(detail.entry)}
-                        measured={firing.measured}
-                        days={firing.days}
-                      />
+                      {detail.entry.paths.length > 0 ? (
+                        <FiringBadge
+                          stat={firingOf(detail.entry)}
+                          measured={firing.measured}
+                          days={firing.days}
+                        />
+                      ) : (
+                        <span className="sk-chip" title={t("firing.alwaysTitle")}>
+                          {t("firing.always")}
+                        </span>
+                      )}
                       {detail.entry.mirror === "mirrored" ? (
                         <span className="sk-chip" title="Cursor 미러가 배포되어 있습니다">
                           Cursor
@@ -734,7 +749,11 @@ function RulesSection({
                 )}
                 {e.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
                 {e.mirror === "conflict" ? <span className="sk-chip off">{t("rules.conflict")}</span> : null}
-                <FiringBadge stat={firingOf(e)} measured={firing.measured} days={firing.days} />
+                {/* 항상-로드 규칙(paths 없음)은 transcript 에 nested_memory 로 찍히지
+                    않는다 — 원장이 "안 걸림" 이라 말하면 거짓이라 배지를 안 단다. */}
+                {e.paths.length > 0 ? (
+                  <FiringBadge stat={firingOf(e)} measured={firing.measured} days={firing.days} />
+                ) : null}
               </div>
               {e.title ? <div className="sk-row-desc">{e.title}</div> : null}
             </button>

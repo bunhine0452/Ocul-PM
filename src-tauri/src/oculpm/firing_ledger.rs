@@ -266,7 +266,13 @@ pub struct FiringRow {
 #[derive(Debug, Clone)]
 pub struct ScannedFile {
     pub session_file: String,
+    /// 이번 스캔이 읽기 시작한 재개점 — DB 적재 때 CAS 기대값. 다른 스캔이
+    /// 그사이 앞서갔으면 이 청크는 이미 반영된 것이라 버려야 한다.
+    pub started_at: u64,
     pub bytes_consumed: u64,
+    /// 파일이 재개점보다 작아져 0 부터 다시 읽었다 — 회전/재생성. 적재 전에
+    /// 이 세션 파일의 기존 집계 행을 지워야 옛 행 위에 가산되지 않는다.
+    pub reset: bool,
     pub rows: Vec<FiringRow>,
 }
 
@@ -303,11 +309,8 @@ pub fn scan_targets(targets: Vec<ScanTarget>) -> (Vec<ScannedFile>, bool) {
         };
         let size = meta.len();
         // 파일이 줄었으면 회전·재생성으로 보고 처음부터 다시 읽는다.
-        let start = if size < target.bytes_consumed {
-            0
-        } else {
-            target.bytes_consumed
-        };
+        let reset = size < target.bytes_consumed;
+        let start = if reset { 0 } else { target.bytes_consumed };
         if size == start {
             continue;
         }
@@ -321,7 +324,9 @@ pub fn scan_targets(targets: Vec<ScanTarget>) -> (Vec<ScannedFile>, bool) {
         let (firings, consumed) = parse_chunk(&chunk);
         out.push(ScannedFile {
             session_file: target.session_file,
+            started_at: target.bytes_consumed,
             bytes_consumed: start + consumed,
+            reset,
             rows: fold_rows(firings),
         });
     }
@@ -367,7 +372,12 @@ pub fn enumerate_targets(
             });
         }
     }
-    targets.sort_by(|a, b| a.session_file.cmp(&b.session_file));
+    // 최근 세션부터 — 첫 스캔이 예산으로 끊겨도 30일 창이 먼저 채워진다.
+    // (파일명은 UUID 라 이름순은 날짜와 무관했다.) 같은 mtime 이면 이름순.
+    targets.sort_by(|a, b| {
+        let mt = |t: &ScanTarget| std::fs::metadata(&t.abs_path).and_then(|m| m.modified()).ok();
+        mt(b).cmp(&mt(a)).then_with(|| a.session_file.cmp(&b.session_file))
+    });
     targets
 }
 

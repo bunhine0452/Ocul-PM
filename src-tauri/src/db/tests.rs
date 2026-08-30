@@ -150,3 +150,48 @@ async fn health_reports_sizes_and_top_tables() {
     db.compact().await.unwrap();
     assert!(db.health().await.unwrap().db_bytes > 0.0);
 }
+
+/// 발동 원장 적재는 CAS 다 — 같은 청크를 두 번 더하면 배지가 거짓말을 한다.
+/// (a) 낡은 재개점의 적재는 버려지고, (b) 파일이 줄어 0 부터 다시 읽은 적재는
+/// 옛 행을 지운 뒤 들어간다, (c) 비우기는 두 표를 함께 비운다.
+#[tokio::test]
+async fn firing_apply_scan_is_compare_and_swap() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    db.conn()
+        .call(|c| -> Result<()> {
+            c.execute_batch("INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');")?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let row = |n: u32| vec![("rule".to_string(), "/r/a.md".to_string(), "20260830".to_string(), n, 100u64)];
+    async fn count(db: &Db) -> u32 {
+        db.firing_aggregates(1, "20260101".into(), "20261231".into())
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|a| a.count)
+            .sum::<u32>()
+    }
+
+    // 첫 적재: 재개점 0 → 100.
+    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1)).await.unwrap());
+    assert_eq!(count(&db).await, 1);
+    // 같은 청크를 낡은 재개점(0) 으로 또 — 버려진다.
+    assert!(!db.firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1)).await.unwrap());
+    assert_eq!(count(&db).await, 1, "이중 집계가 없어야 한다");
+    // 이어 붙이기: 100 → 250.
+    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 100, false, 250, row(2)).await.unwrap());
+    assert_eq!(count(&db).await, 3);
+    // 회전: 파일이 줄어 0 부터 다시 읽음 — 옛 행을 지우고 새로.
+    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 250, true, 40, row(5)).await.unwrap());
+    assert_eq!(count(&db).await, 5, "reset 은 가산이 아니라 교체");
+    let points = db.firing_scan_points(1).await.unwrap();
+    assert_eq!(points, vec![("s/x.jsonl".to_string(), 40u64)]);
+
+    db.firing_clear(1).await.unwrap();
+    assert_eq!(count(&db).await, 0);
+    assert!(db.firing_scan_points(1).await.unwrap().is_empty());
+    assert!(db.firing_last_scan_at(1).await.unwrap().is_none());
+}
