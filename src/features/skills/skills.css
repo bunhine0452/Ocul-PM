@@ -132,6 +132,20 @@
   border-color: transparent;
 }
 
+/* AD-2 발동 배지 — 걸린 것(live)과 안 걸린 것(dormant)을 색으로 가른다.
+   "측정 안 됨" 은 배지 자체를 그리지 않으므로 여기에 상태가 없다. */
+.sk-chip.live {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.sk-chip.dormant {
+  color: var(--text-3);
+  background: transparent;
+  border-style: dashed;
+}
+
 /* ── 우측 상세 ─────────────────────────────────────────────── */
 .sk-main {
   flex: 1;

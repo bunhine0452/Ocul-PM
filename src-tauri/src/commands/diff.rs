@@ -35,6 +35,8 @@ pub enum ReindexSkipReason {
     NotFound,
     ReadFailed { error: String },
     UpsertFailed { error: String },
+    /// minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다.
+    Generated,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -138,6 +140,9 @@ pub(crate) async fn reindex_single_file(
     }
     let content = fs::read_to_string(&abs_path)
         .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;
+    if !indexer::is_indexable_content(&content) {
+        return Err(ReindexSkipReason::Generated);
+    }
     let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
     let metadata = fs::metadata(&abs_path)
         .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;

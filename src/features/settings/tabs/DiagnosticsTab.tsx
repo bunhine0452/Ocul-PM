@@ -6,9 +6,15 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands, type DbHealth } from "@/lib/bindings";
 import { RefreshCw, Bug, MessageSquare } from "@/components/Icons";
+import { formatBytes } from "@/features/code/treeUtils";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { Section, Stat } from "./ui";
+
+/** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
+function fmtBytes(n: number | null | undefined): string | undefined {
+  return typeof n === "number" ? formatBytes(n) : undefined;
+}
 
 // GitHub repo behind feedback issues + the updater endpoint.
 export const FEEDBACK_REPO = "bunhine0452/Ocul-PM";
@@ -26,6 +32,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
   const { t } = useT();
   const [health, setHealth] = useState<DbHealth | null>(null);
   const [loading, setLoading] = useState(false);
+  const [compacting, setCompacting] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
 
   async function check() {
@@ -39,6 +46,23 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
     }
     setLoading(false);
   }
+
+  // 색인 정리·프로젝트 삭제 뒤에도 파일은 저절로 줄지 않는다 — VACUUM 은 몇 초
+  // 걸리고 그동안 DB 호출이 줄을 서므로 사용자가 직접 누른다.
+  async function compact() {
+    if (compacting) return;
+    setCompacting(true);
+    const res = await commands.dbCompact();
+    if (res.status === "ok") {
+      setHealth(res.data);
+      toast.info(t("settings.db.compactDone", { size: fmtBytes(res.data.db_bytes) ?? "?" }));
+    } else {
+      toast.destructive(t("settings.db.compactFailed", { error: res.error }));
+    }
+    setCompacting(false);
+  }
+
+  const topTables = health?.top_tables ?? [];
 
   useEffect(() => {
     check();
@@ -82,13 +106,39 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
           <Stat label="sqlite-vec" value={health?.vec_version} />
           <Stat label={t("settings.db.schema")} value={health ? `v${health.schema_version}` : undefined} />
         </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Stat label={t("settings.db.size")} value={fmtBytes(health?.db_bytes)} />
+          <Stat label={t("settings.db.wal")} value={fmtBytes(health?.wal_bytes)} />
+          <Stat label={t("settings.db.free")} value={fmtBytes(health?.free_bytes)} />
+        </div>
+        {topTables.length > 0 ? (
+          <div className="space-y-1">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {t("settings.db.topTables")}
+            </div>
+            <ul className="text-[11px] font-mono space-y-0.5">
+              {topTables.map((row) => (
+                <li key={row.name} className="flex justify-between gap-3">
+                  <span className="truncate">{row.name}</span>
+                  <span className="text-muted-foreground tabular-nums">{fmtBytes(row.bytes) ?? "—"}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="text-[11px] font-mono break-all text-muted-foreground">
           {health?.path ?? t("settings.db.noPath")}
         </div>
-        <Button onClick={check} disabled={loading} variant="outline" size="sm">
-          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          {t("settings.db.refresh")}
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={check} disabled={loading} variant="outline" size="sm">
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+            {t("settings.db.refresh")}
+          </Button>
+          <Button onClick={compact} disabled={compacting || !health} variant="outline" size="sm">
+            {compacting ? t("settings.db.compacting") : t("settings.db.compact")}
+          </Button>
+        </div>
+        <div className="text-[11px] text-muted-foreground">{t("settings.db.compactHint")}</div>
       </Section>
 
       <Section

@@ -18,7 +18,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (7, include_str!("../../migrations/007_changelog.sql")),
     (8, include_str!("../../migrations/008_project_overview.sql")),
     (9, include_str!("../../migrations/009_conversation_actions.sql")),
-    (10, include_str!("../../migrations/011_project_blueprints.sql")),
+    // 파일명 번호 그대로 등록한다 — 예전엔 10 으로 등록돼 있었는데, `IF NOT EXISTS`
+    // 라 어느 DB 든 결과가 같다. `migration_registry_matches_disk` 가 파일명↔번호를
+    // 대조하므로 어긋난 채 둘 수 없다.
+    (11, include_str!("../../migrations/011_project_blueprints.sql")),
     (12, include_str!("../../migrations/012_oculpm_journal.sql")),
     (13, include_str!("../../migrations/013_oculpm_agent_state.sql")),
     (14, include_str!("../../migrations/014_oculpm_migrations.sql")),
@@ -32,11 +35,14 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (22, include_str!("../../migrations/022_retro_insights.sql")),
     (23, include_str!("../../migrations/023_coercion_version.sql")),
     (24, include_str!("../../migrations/024_oculpm_discussion.sql")),
-    // 25 는 디스크의 025_fts.sql 몫으로 비워 둔다 (v2 U11 — 아직 미등록).
+    // 25 는 비어 있다 — 025_fts.sql(trigram FTS5) 은 등록된 적 없이 2026-08-30
+    // 에 폐기됐다 (`code_index.rs search_text` 주석). 번호는 재사용하지 않는다.
     (26, include_str!("../../migrations/026_claude_hooks_inbox.sql")),
     (27, include_str!("../../migrations/027_project_appearance.sql")),
     (28, include_str!("../../migrations/028_journal_file_lines.sql")),
     (29, include_str!("../../migrations/029_mobile_devices.sql")),
+    (30, include_str!("../../migrations/030_context_firings.sql")),
+    (31, include_str!("../../migrations/031_purge_index_noise.sql")),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -95,6 +101,7 @@ pub struct ChunkInsert {
 mod changes;
 mod chat;
 mod code_index;
+mod firings;
 mod graph;
 mod planning;
 mod projects;
@@ -129,8 +136,12 @@ impl Db {
                  PRAGMA busy_timeout = 5000;
                  PRAGMA cache_size = -64000;
                  PRAGMA mmap_size = 268435456;
-                 PRAGMA temp_store = MEMORY;",
+                 PRAGMA temp_store = MEMORY;
+                 PRAGMA journal_size_limit = 67108864;",
             )?;
+            // journal_size_limit (2026-08-30): WAL 은 체크포인트 뒤에도 파일을
+            // 줄이지 않아 첫 색인 크기(80MB) 로 눌러앉아 있었다. 64MiB 를 넘긴
+            // 부분만 체크포인트 때 잘라낸다.
             Ok(())
         })
         .await?;
@@ -238,7 +249,10 @@ impl Db {
 
     pub async fn health(&self) -> Result<DbHealth> {
         let path = self.path.display().to_string();
-        let (sqlite_version, vec_version, schema_version) = self
+        let wal_bytes = std::fs::metadata(format!("{path}-wal"))
+            .map(|m| m.len() as f64)
+            .unwrap_or(0.0);
+        let (sqlite_version, vec_version, schema_version, db_bytes, free_bytes, top_tables) = self
             .conn
             .call(|c| {
                 let sqlite_version: String =
@@ -247,7 +261,38 @@ impl Db {
                     c.query_row("SELECT vec_version()", [], |r| r.get(0))?;
                 let schema_version: u32 =
                     c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-                Ok((sqlite_version, vec_version, schema_version))
+                let page_size: u64 = c.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+                let page_count: u64 = c.query_row("PRAGMA page_count", [], |r| r.get(0))?;
+                let freelist: u64 = c.query_row("PRAGMA freelist_count", [], |r| r.get(0))?;
+                // dbstat 은 번들 SQLite 에 켜져 있다(SQLITE_ENABLE_DBSTAT_VTAB) —
+                // 그래도 실패하면 상위 표 없이 나머지만 보고한다. 큰 표 몇 개가
+                // 전체의 대부분이라 8개면 충분히 설명된다.
+                let top_tables = match c.prepare(
+                    "SELECT name, SUM(pgsize) FROM dbstat
+                     GROUP BY name ORDER BY SUM(pgsize) DESC LIMIT 8",
+                ) {
+                    Ok(mut stmt) => stmt
+                        .query_map([], |r| {
+                            Ok(DbTableSize {
+                                name: r.get(0)?,
+                                bytes: r.get::<_, i64>(1)?.max(0) as f64,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                        .unwrap_or_default(),
+                    Err(e) => {
+                        warn!(error = %e, "dbstat unavailable — table sizes omitted");
+                        Vec::new()
+                    }
+                };
+                Ok((
+                    sqlite_version,
+                    vec_version,
+                    schema_version,
+                    (page_size * page_count) as f64,
+                    (page_size * freelist) as f64,
+                    top_tables,
+                ))
             })
             .await?;
         Ok(DbHealth {
@@ -255,7 +300,24 @@ impl Db {
             vec_version,
             schema_version,
             path,
+            db_bytes,
+            wal_bytes,
+            free_bytes,
+            top_tables,
         })
+    }
+
+    /// 빈 페이지를 되돌려주고 WAL 을 잘라낸다 — 색인 정리(031)·프로젝트 삭제 뒤
+    /// 파일 크기는 저절로 줄지 않는다. 사용자가 진단 탭에서 직접 누른다.
+    /// VACUUM 은 트랜잭션 밖이어야 하고 파일 크기만큼 임시 공간을 쓴다.
+    pub async fn compact(&self) -> Result<()> {
+        self.conn
+            .call(|c| {
+                c.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
     }
 }
 
@@ -357,6 +419,21 @@ pub struct DbHealth {
     pub vec_version: String,
     pub schema_version: u32,
     pub path: String,
+    /// 데이터베이스 파일 크기(바이트) — 페이지 수 × 페이지 크기.
+    /// (f64: specta 는 u64 를 내보내지 않는다 — JS number 는 2^53 까지 정확하다.)
+    pub db_bytes: f64,
+    /// WAL 파일 크기(바이트). 체크포인트 전까지 커진다.
+    pub wal_bytes: f64,
+    /// 빈 페이지(바이트) — 삭제 뒤 남은 자리. [`Db::compact`] 가 되찾는다.
+    pub free_bytes: f64,
+    /// 큰 순서로 상위 표·인덱스 8개.
+    pub top_tables: Vec<DbTableSize>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct DbTableSize {
+    pub name: String,
+    pub bytes: f64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]

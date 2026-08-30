@@ -151,6 +151,7 @@ const TESTS = new Set([
   "__tests__/external_links.test.ts",
   "__tests__/trace_preview.test.ts",
   "__tests__/file_links.test.ts",
+  "__tests__/firing_ledger_v2.test.ts",
   "__tests__/home_match.test.ts",
   "__tests__/home_model.test.ts",
   "__tests__/ime_bridge.test.ts",

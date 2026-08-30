@@ -29,6 +29,9 @@ import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, skillTemplate, splitFrontmatter } from "./skillsModel";
 import { GALLERY_SKILLS } from "./skillsGallery";
 import { CATALOG_SKILLS } from "./skillsCatalog";
+import { FiringBadge } from "./FiringBadge";
+import { skillFiring } from "./firingModel";
+import { useFiringLedger, type FiringLedger } from "./useFiringLedger";
 import { RulesTab } from "./RulesTab";
 import { SkillShopTab } from "./SkillShopTab";
 import { t, useT } from "@/i18n";
@@ -114,6 +117,8 @@ function SkillsTabView({
   onOpenShop: () => void;
 }) {
   const { t } = useT();
+  // AD-2 — 발동 원장. 목록·상세가 "이게 실제로 걸리기는 하는가" 를 답한다.
+  const firing = useFiringLedger(projectId);
   const [overview, setOverview] = useState<SkillsOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [listError, setListError] = useState<string | null>(null);
@@ -329,7 +334,8 @@ function SkillsTabView({
 
   const sub =
     status === "ready" && overview
-      ? t("sk.toolbarSub", { p: overview.project.length, g: overview.global.length })
+      ? t("sk.toolbarSub", { p: overview.project.length, g: overview.global.length }) +
+        (firing.scanning ? ` · ${t("firing.measuring")}` : "")
       : undefined;
 
   return (
@@ -383,12 +389,14 @@ function SkillsTabView({
               title={t("rules.scope.project")}
               entries={overview?.project ?? []}
               selected={selected}
+              firing={firing}
               onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
             />
             <ScopeSection
               title={t("rules.scope.global")}
               entries={overview?.global ?? []}
               selected={selected}
+              firing={firing}
               onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
             />
           </aside>
@@ -418,6 +426,11 @@ function SkillsTabView({
                       {detail.entry.name}
                       <span className="sk-chip">{scopeLabel(detail.entry.scope)}</span>
                       {!detail.entry.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
+                      <FiringBadge
+                        stat={skillFiring(firing.index, detail.entry)}
+                        measured={firing.measured}
+                        days={firing.days}
+                      />
                     </div>
                     <div className="sk-head-path" title={detail.skill_md_path}>
                       {detail.entry.display_path}/SKILL.md
@@ -730,11 +743,13 @@ function ScopeSection({
   title,
   entries,
   selected,
+  firing,
   onSelect,
 }: {
   title: string;
   entries: SkillEntry[];
   selected: SelKey;
+  firing: FiringLedger;
   onSelect: (e: SkillEntry) => void;
 }) {
   return (
@@ -759,6 +774,11 @@ function ScopeSection({
                 <span className="sk-row-name">{e.name}</span>
                 {!e.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
                 {e.extra_files > 0 ? <span className="sk-chip">+{e.extra_files}</span> : null}
+                <FiringBadge
+                  stat={skillFiring(firing.index, e)}
+                  measured={firing.measured}
+                  days={firing.days}
+                />
               </div>
               {e.description ? <div className="sk-row-desc">{e.description}</div> : null}
             </button>

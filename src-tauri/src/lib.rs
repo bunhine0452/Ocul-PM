@@ -126,7 +126,7 @@ use crate::commands::{
     conversation_create, conversation_delete, conversation_list, conversation_rename,
     conversation_set_context,
     // W5 — action proposal apply-state
-    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, set_project_appearance, db_health,
+    record_conversation_action, list_conversation_actions, create_project, delete_project, rename_project, set_project_appearance, db_health, db_compact,
     index_project, list_projects, project_stats,
     // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
     detect_stack,
@@ -217,6 +217,8 @@ use crate::commands::{
     rule_candidates, rule_draft_generate,
     // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
     skill_candidates, skill_draft_generate,
+    // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
+    firing_rescan, firing_stats,
     // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
     acp_diagnose, acp_install_adapter, acp_start, acp_stop, acp_status, acp_prompt, acp_cancel,
     acp_permission_respond, acp_set_config_option,
@@ -248,6 +250,7 @@ use crate::embedding::Embedder;
 fn build_specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new().commands(collect_commands![
         db_health,
+        db_compact,
         settings_set,
         settings_get,
         settings_get_all,
@@ -504,6 +507,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         // 반복 절차→스킬 승격 (CI4 미러)
         skill_candidates,
         skill_draft_generate,
+        // AD-1 — 발동 원장
+        firing_rescan,
+        firing_stats,
         // PR-ACP1 — ACP 어댑터 런타임
         acp_diagnose,
         acp_install_adapter,

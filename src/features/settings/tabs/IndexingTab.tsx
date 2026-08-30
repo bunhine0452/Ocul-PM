@@ -24,6 +24,16 @@ export function IndexingTab() {
   const reindex = async () => {
     if (projectId == null || reindexing) return;
     setReindexing(true);
+    // 재구축은 이름 그대로 처음부터다. 색인은 blake3 해시 게이트라 비우지 않으면
+    // 오염된 행(벤더 디렉터리·minified 청크)이 규칙을 고쳐도 그대로 남는다
+    // (improvement-audit-round D1). 그전엔 이 버튼이 증분 색인을 돌리면서
+    // "처음부터" 라고 적혀 있었다.
+    const cleared = await commands.clearProjectIndex(projectId);
+    if (cleared.status === "error") {
+      setReindexing(false);
+      toast.destructive(t("settings.index.reindexFailed", { error: cleared.error }));
+      return;
+    }
     const channel = new Channel<IndexProgress>();
     const res = await commands.indexProject(projectId, channel);
     setReindexing(false);

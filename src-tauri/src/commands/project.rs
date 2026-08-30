@@ -216,6 +216,11 @@ pub async fn index_project(
         let Ok(content) = fs::read_to_string(file_path) else {
             continue;
         };
+        // minified/생성 파일은 행을 남기지 않고 건너뛴다 — 다음 색인 때 다시
+        // 판정되므로 규칙이 바뀌면 스스로 따라온다.
+        if !indexer::is_indexable_content(&content) {
+            continue;
+        }
 
         let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
         let metadata = fs::metadata(file_path).map_err(|e| e.to_string())?;

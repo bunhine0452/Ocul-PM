@@ -103,3 +103,50 @@ fn every_added_column_is_declared_for_healing() {
         }
     }
 }
+
+/// 적용 이력이 `user_version` 정수 하나라, 등록이 어긋나면 마이그레이션이 영영
+/// 안 돈다 — `025_fts.sql` 이 파일만 있고 등록되지 않은 채 v2 릴리스를 통과해
+/// 검색이 넉 달 동안 LIKE 폴백으로만 돌았다(2026-08-30 감사). 등록 번호는
+/// 단조 증가하고, 디스크의 모든 파일이 **파일명 번호 그대로** 등록돼야 한다.
+#[test]
+fn migration_registry_matches_disk() {
+    for w in MIGRATIONS.windows(2) {
+        assert!(w[0].0 < w[1].0, "등록 번호가 단조 증가해야 한다: {} → {}", w[0].0, w[1].0);
+    }
+
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut on_disk: Vec<i64> = std::fs::read_dir(&dir)
+        .expect("migrations/ 디렉터리")
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|n| n.ends_with(".sql"))
+        .map(|n| {
+            let digits: String = n.chars().take_while(|c| c.is_ascii_digit()).collect();
+            digits
+                .parse::<i64>()
+                .unwrap_or_else(|_| panic!("마이그레이션 파일명은 숫자로 시작해야 한다: {n}"))
+        })
+        .collect();
+    on_disk.sort_unstable();
+
+    let registered: Vec<i64> = MIGRATIONS.iter().map(|(v, _)| *v).collect();
+    assert_eq!(
+        on_disk, registered,
+        "migrations/*.sql 과 MIGRATIONS 등록이 다르다 — 파일만 있거나 번호가 어긋난 항목이 있다"
+    );
+}
+
+/// 진단 탭이 보여 줄 크기 지표 — 새 DB 라도 0 이 아니어야 하고, dbstat 상위 표가
+/// 채워져야 한다(번들 SQLite 에 DBSTAT 가 켜져 있다는 사실의 회귀 방지).
+#[tokio::test]
+async fn health_reports_sizes_and_top_tables() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let h = db.health().await.unwrap();
+    assert!(h.db_bytes > 0.0);
+    assert!(!h.top_tables.is_empty(), "dbstat 이 비어 있다");
+    assert!(h.top_tables.windows(2).all(|w| w[0].bytes >= w[1].bytes));
+    // 압축은 빈 DB 에서도 에러 없이 돈다 (VACUUM 은 트랜잭션 밖).
+    db.compact().await.unwrap();
+    assert!(db.health().await.unwrap().db_bytes > 0.0);
+}

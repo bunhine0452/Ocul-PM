@@ -6,6 +6,11 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 /** Commands */
 export const commands = {
 	dbHealth: () => typedError<DbHealth, string>(__TAURI_INVOKE("db_health")),
+	/**
+	 *  빈 페이지 회수 + WAL 절단(VACUUM). 몇 초 걸리고 그동안 다른 DB 호출은
+	 *  줄을 서므로 사용자가 진단 탭에서 직접 누른다. 끝난 뒤의 크기를 돌려준다.
+	 */
+	dbCompact: () => typedError<DbHealth, string>(__TAURI_INVOKE("db_compact")),
 	settingsSet: (key: string, value: string) => typedError<null, string>(__TAURI_INVOKE("settings_set", { key, value })),
 	settingsGet: (key: string) => typedError<string | null, string>(__TAURI_INVOKE("settings_get", { key })),
 	settingsGetAll: () => typedError<([string, string])[], string>(__TAURI_INVOKE("settings_get_all")),
@@ -1299,6 +1304,14 @@ export const commands = {
 	 *  프런트의 `skills_save` 승인 경로 전담).
 	 */
 	skillDraftGenerate: (projectId: number, since: string, until: string, tag: string, provider: string, model: string) => typedError<SkillDraft, string>(__TAURI_INVOKE("skill_draft_generate", { projectId, since, until, tag, provider, model })),
+	/**
+	 *  transcript 를 증분 스캔해 발동 원장을 갱신한다. 첫 호출은 누적 이력을
+	 *  전부 읽으므로 오래 걸릴 수 있고, 예산을 넘기면 `complete=false` 로
+	 *  끊어 돌려준다 (호출자가 반복 호출로 마저 채운다).
+	 */
+	firingRescan: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rescan", { projectId })),
+	/**  최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다. */
+	firingStats: (projectId: number, days: number) => typedError<FiringOverview, string>(__TAURI_INVOKE("firing_stats", { projectId, days })),
 	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
 	acpDiagnose: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_diagnose")),
 	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */
@@ -2448,6 +2461,22 @@ export type DbHealth = {
 	vec_version: string,
 	schema_version: number,
 	path: string,
+	/**
+	 *  데이터베이스 파일 크기(바이트) — 페이지 수 × 페이지 크기.
+	 *  (f64: specta 는 u64 를 내보내지 않는다 — JS number 는 2^53 까지 정확하다.)
+	 */
+	db_bytes: number | null,
+	/**  WAL 파일 크기(바이트). 체크포인트 전까지 커진다. */
+	wal_bytes: number | null,
+	/**  빈 페이지(바이트) — 삭제 뒤 남은 자리. [`Db::compact`] 가 되찾는다. */
+	free_bytes: number | null,
+	/**  큰 순서로 상위 표·인덱스 8개. */
+	top_tables: DbTableSize[],
+};
+
+export type DbTableSize = {
+	name: string,
+	bytes: number | null,
 };
 
 /**  수확된 마커 한 건. */
@@ -2793,6 +2822,53 @@ export type FileTouched = {
 	bytes_added: number | null,
 	bytes_removed: number | null,
 	rename_from: string | null,
+};
+
+/**  발동 통계 창 조회 결과. */
+export type FiringOverview = {
+	stats: FiringStat[],
+	/**  조회 창 (workday, 포함 양끝). */
+	since: string,
+	until: string,
+	/**  창 안에서 발동이 관측된 세션 수. */
+	sessions: number,
+	/**  세션 1건당 규칙 주입 바이트 (컨텍스트 예산 바의 값). */
+	bytes_per_session: number,
+	/**  마지막 스캔 시각 (unix). None = 한 번도 안 돌았다. */
+	last_scan_at: number | null,
+};
+
+/**  한 번의 증분 스캔 결과. */
+export type FiringScanReport = {
+	/**  이번에 새로 읽은 파일 수 (변화 없는 파일은 세지 않는다). */
+	files_scanned: number,
+	/**  이번에 새로 적재한 집계 행 수. */
+	rows_written: number,
+	/**  transcript 폴더를 못 찾았다 (Claude Code 사용 이력 없음 등). */
+	no_transcripts: boolean,
+	/**  false 면 예산이 동나 남은 분량이 있다 — 다시 부르면 이어 간다. */
+	complete: boolean,
+};
+
+/**  프런트가 그대로 그리는 발동 통계 1행. */
+export type FiringStat = {
+	/**  `rule` | `skill`. */
+	kind: string,
+	/**  규칙 절대경로 · 스킬 이름 (조회 키). */
+	key: string,
+	/**  표시용 축약 라벨. */
+	label: string,
+	/**  창 안의 발동 총 횟수. */
+	count: number,
+	/**
+	 *  창 안의 주입 바이트 합 (스킬은 0). specta 가 u64 노출을 막으므로
+	 *  포화 변환한 u32 — 실측 규모(세션당 ~90KB)에서 도달할 수 없는 상한이다.
+	 */
+	bytes: number,
+	/**  발동한 서로 다른 세션 수. */
+	sessions: number,
+	/**  가장 최근 발동 workday. */
+	last_workday: string | null,
 };
 
 export type GeneratedSummary = {
@@ -3872,7 +3948,9 @@ export type ReindexSkip = {
  *  "(skipped: too large)" badge next to the path without re-running
  *  `walk_text_files` filters.
  */
-export type ReindexSkipReason = { kind: "not_found" } | { kind: "read_failed"; error: string } | { kind: "upsert_failed"; error: string };
+export type ReindexSkipReason = { kind: "not_found" } | { kind: "read_failed"; error: string } | { kind: "upsert_failed"; error: string } | 
+/**  minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다. */
+{ kind: "generated" };
 
 export type RelatedRef = {
 	/**  Path relative to `.oculpm/journal/` (e.g. `20260522/Bugs/2050_bug_X.md`). */

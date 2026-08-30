@@ -14,6 +14,7 @@ import { RefreshCw, Plus, Pencil, Trash2, FileCode, X } from "@/components/Icons
 import {
   commands,
   type MirrorWriteResult,
+  type FiringStat,
   type RuleDetail,
   type RuleEntry,
   type RuleScope,
@@ -29,6 +30,9 @@ import {
   ruleTemplate,
   setRulePaths,
 } from "./rulesModel";
+import { FiringBadge } from "./FiringBadge";
+import { ruleAbsPath } from "./firingModel";
+import { useFiringLedger, type FiringLedger } from "./useFiringLedger";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 
@@ -58,6 +62,8 @@ function mirrorSummary(results: MirrorWriteResult[]): string {
 
 export function RulesTab({ projectId, tabs }: RulesTabProps) {
   useT();
+  // AD-2 — 발동 원장. 규칙은 "썼는가" 가 아니라 "걸렸는가" 로 평가된다.
+  const firing = useFiringLedger(projectId);
   const [overview, setOverview] = useState<RulesOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [listError, setListError] = useState<string | null>(null);
@@ -96,6 +102,15 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     setSelected(null);
     void loadList();
   }, [loadList]);
+
+  /**
+   * 규칙 항목의 발동 통계 조회 — 원장 키(절대경로)로 변환해 찾는다.
+   * overview 가 아직 없으면 조회 자체가 불가능하므로 undefined.
+   */
+  const firingOf = useCallback(
+    (entry: RuleEntry) => (overview ? firing.index.rules.get(ruleAbsPath(entry, overview)) : undefined),
+    [overview, firing.index],
+  );
 
   /** 선택 가능한(=실존) 항목의 평탄 목록 — 선택 보정용. */
   const selectable = useMemo(() => {
@@ -285,10 +300,14 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
 
   // ── 렌더 ──────────────────────────────────────────────────────────────────
 
+  // AD-2 — 세션당 규칙 주입량. 규칙 화면에서 유일하게 "비용" 을 말하는 숫자다.
+  const budgetKb = Math.round((firing.overview?.bytes_per_session ?? 0) / 1024);
   const sub =
     status === "ready" && overview
       ? `${t("rules.toolbarSub", { p: overview.project_rules.length, g: overview.global_rules.length })}${
           overview.cursor_translate ? t("rules.cursorDeploying") : ""
+        }${budgetKb > 0 ? ` · ${t("firing.budget", { kb: budgetKb })}` : ""}${
+          firing.scanning ? ` · ${t("firing.measuring")}` : ""
         }`
       : undefined;
 
@@ -337,6 +356,8 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
               onCreate={(e) => void createClaudeMd(e)}
             />
             <RulesSection
+              firing={firing}
+              firingOf={firingOf}
               title={t("rules.projectRules")}
               entries={overview?.project_rules ?? []}
               selected={selected}
@@ -358,6 +379,8 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
               </p>
             </div>
             <RulesSection
+              firing={firing}
+              firingOf={firingOf}
               title="전역 규칙"
               entries={overview?.global_rules ?? []}
               selected={selected}
@@ -401,6 +424,11 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
                           paths {detail.entry.paths.length}
                         </span>
                       )}
+                      <FiringBadge
+                        stat={firingOf(detail.entry)}
+                        measured={firing.measured}
+                        days={firing.days}
+                      />
                       {detail.entry.mirror === "mirrored" ? (
                         <span className="sk-chip" title="Cursor 미러가 배포되어 있습니다">
                           Cursor
@@ -667,11 +695,15 @@ function RulesSection({
   title,
   entries,
   selected,
+  firing,
+  firingOf,
   onSelect,
 }: {
   title: string;
   entries: RuleEntry[];
   selected: SelKey;
+  firing: FiringLedger;
+  firingOf: (e: RuleEntry) => FiringStat | undefined;
   onSelect: (e: RuleEntry) => void;
 }) {
   useT();
@@ -702,6 +734,7 @@ function RulesSection({
                 )}
                 {e.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
                 {e.mirror === "conflict" ? <span className="sk-chip off">{t("rules.conflict")}</span> : null}
+                <FiringBadge stat={firingOf(e)} measured={firing.measured} days={firing.days} />
               </div>
               {e.title ? <div className="sk-row-desc">{e.title}</div> : null}
             </button>

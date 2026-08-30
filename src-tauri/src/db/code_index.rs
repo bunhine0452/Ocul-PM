@@ -212,56 +212,18 @@ impl Db {
     /// coverage as semantic search (the chunk index); `distance` is a sentinel
     /// 0.0 — callers should not show a similarity score for text matches.
     ///
-    /// v2 U11: 3자 이상 쿼리는 FTS5(trigram — LIKE 와 동일한 substring 의미)
-    /// 인덱스를 타고, 3자 미만/FTS 오류는 기존 LIKE 풀스캔으로 폴백한다.
+    /// LIKE 풀스캔이 맞다 (2026-08-30 결정, `improvement-audit-round.md` D2):
+    /// v2 U11 이 설계한 trigram FTS5 는 등록된 적이 없어 항상 이 경로로 폴백돼
+    /// 왔고, 라이브 DB 로 재 보니 트라이그램 색인이 **본문의 2.1배(376MB)** 에
+    /// 첫 적재 15초인 반면 LIKE 는 오염된 178MB 위에서도 132ms 였다. 색인 소음
+    /// (031) 을 걷어내면 프로젝트당 수십 MB — 수십 ms 다. 2배 디스크를 낼 만한
+    /// 차이가 아니라 FTS 파일과 폴백 분기를 함께 걷어냈다.
     pub async fn search_text(
         &self,
         project_id: u32,
         query: String,
         limit: u32,
     ) -> Result<Vec<ChunkSearchResult>> {
-        // trigram 은 3자 미만 토큰을 매치할 수 없다.
-        if query.chars().count() >= 3 {
-            // 사용자 입력을 FTS 쿼리 연산자로 해석하지 않도록 통째로 phrase
-            // 인용한다 (내부 큰따옴표는 SQL 아닌 FTS 규칙대로 2배 이스케이프).
-            let phrase = format!("\"{}\"", query.replace('"', "\"\""));
-            let lim = limit.max(1) as i64;
-            let fts: std::result::Result<Vec<ChunkSearchResult>, tokio_rusqlite::Error> = self
-                .conn
-                .call(move |c| {
-                    let mut stmt = c.prepare(
-                        "SELECT c.id, f.path, c.start_line, c.end_line, c.content
-                         FROM chunk_fts ft
-                         JOIN chunks c ON c.id = ft.rowid
-                         JOIN files f ON f.id = c.file_id
-                         WHERE chunk_fts MATCH ?2 AND f.project_id = ?1
-                         ORDER BY f.path ASC, c.start_line ASC
-                         LIMIT ?3",
-                    )?;
-                    let rows = stmt
-                        .query_map(params![project_id as i64, phrase, lim], |r| {
-                            Ok(ChunkSearchResult {
-                                chunk_id: r.get::<_, i64>(0)? as u32,
-                                file_path: r.get(1)?,
-                                start_line: r.get::<_, i64>(2)? as u32,
-                                end_line: r.get::<_, i64>(3)? as u32,
-                                content: r.get(4)?,
-                                distance: 0.0,
-                            })
-                        })?
-                        .collect::<rusqlite::Result<Vec<_>>>()?;
-                    Ok(rows)
-                })
-                .await;
-            match fts {
-                Ok(rows) => return Ok(rows),
-                Err(e) => {
-                    // 마이그레이션 미적용 등 예외적 상황 — LIKE 로 조용히 폴백.
-                    tracing::warn!(target: "search", "chunk_fts 실패, LIKE 폴백: {e}");
-                }
-            }
-        }
-
         let pattern = format!("%{}%", escape_like(&query));
         let lim = limit.max(1) as i64;
         let results = self

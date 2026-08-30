@@ -1,6 +1,7 @@
 //! Project file walking, line-based chunking, and indexing pipeline.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
+use std::path::{Component, Path, PathBuf};
 
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 
@@ -8,6 +9,46 @@ pub const DEFAULT_MAX_FILE_BYTES: u64 = 500_000; // 500 KB
 pub const DEFAULT_CHUNK_LINES: usize = 30;
 pub const DEFAULT_CHUNK_OVERLAP: usize = 4;
 const MAX_BINARY_PROBE: usize = 1024;
+
+/// 한 줄이 이 길이를 넘는 파일은 minified/생성 파일로 보고 색인하지 않는다.
+///
+/// 근거(2026-08-30 실측): 22줄에 최장 줄이 216KB 인 emscripten 산출물
+/// (`libktx.js`) 하나가 AST 심볼 503개마다 그 줄을 통째로 복제해 청크 104MB 를
+/// 만들었다 — 앱 DB 558MB 의 1/5. 사람이 검색해서 읽을 코드에 4KB 짜리 한 줄은
+/// 없고, 있다면(데이터 URI·번들) 검색 결과로 보여 줄 가치도 없다.
+pub const MAX_LINE_BYTES: usize = 4_096;
+
+/// 청크 하나의 본문 상한. 임베딩 모델은 어차피 앞 512 토큰만 보므로 그 이상은
+/// 저장·전송 비용만 든다. 넘는 범위는 줄 창으로 다시 쪼갠다.
+pub const MAX_CHUNK_BYTES: usize = 16_384;
+
+/// `.gitignore` 와 무관하게 절대 걷지 않는 디렉터리 이름 — 벤더·캐시·빌드
+/// 산출물. `.gitignore` 자체가 없는 프로젝트를 위한 마지막 그물이다. `dist`·
+/// `build`·`out` 은 일부러 뺐다: 소스 폴더로 쓰는 프로젝트가 있고, 산출물이면
+/// `.gitignore` 가 이미 막는다.
+const DENY_DIR_NAMES: &[&str] = &[
+    "node_modules",
+    ".git",
+    "target",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    ".cache",
+    ".tox",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".gradle",
+    "Pods",
+    "DerivedData",
+    "coverage",
+    "bower_components",
+    ".svelte-kit",
+    ".angular",
+    ".parcel-cache",
+];
 
 /// Bug 2 — minimum number of *meaningful* lines a gap between AST symbols must
 /// have to become its own chunk. Gaps below this (a lone `import`, a closing
@@ -66,6 +107,15 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
 
     let mut builder = WalkBuilder::new(root);
     builder.standard_filters(true);
+    // ignore 크레이트는 기본적으로 **git 저장소 안에서만** `.gitignore` 를 적용한다
+    // (`require_git(true)`). `git init` 을 안 한 프로젝트에서 `.gitignore` 에
+    // `node_modules` 가 있는데도 21K 청크·118MB 가 색인된 사고(2026-08-30)의
+    // 원인이다. 워처 쪽(`watcher.rs load_project_gitignore`)은 파일을 직접 읽어
+    // git 유무와 무관하게 적용하므로, 걷기도 같은 의미로 맞춘다.
+    builder.require_git(false);
+    builder.filter_entry(|entry| {
+        !(entry.file_type().is_some_and(|t| t.is_dir()) && is_denied_dir_name(entry.path()))
+    });
 
     // Apply user-supplied glob patterns as gitignore-style overrides.
     if !config.extra_exclude_patterns.is_empty() {
@@ -111,7 +161,7 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
 /// Used by the watcher's incremental reindex so a lock file or binary blob
 /// touched on disk doesn't get embedded.
 pub fn is_indexable_path(path: &Path, config: &IndexConfig) -> bool {
-    if is_skipped_name(path) {
+    if is_skipped_name(path) || has_denied_component(path) {
         return false;
     }
     let Ok(metadata) = std::fs::metadata(path) else {
@@ -121,6 +171,28 @@ pub fn is_indexable_path(path: &Path, config: &IndexConfig) -> bool {
         return false;
     }
     !looks_binary(path)
+}
+
+/// 읽은 내용이 색인할 가치가 있는가 — minified/생성 파일 판정. 경로·크기
+/// 검사([`is_indexable_path`]) 를 통과한 뒤, 본문을 읽은 자리에서 한 번 더
+/// 거른다. 파일 전체를 거부하는 이유: 긴 줄만 빼면 줄 범위 의미가 깨진다.
+pub fn is_indexable_content(content: &str) -> bool {
+    !content.lines().any(|line| line.len() > MAX_LINE_BYTES)
+}
+
+fn is_denied_dir_name(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|name| DENY_DIR_NAMES.contains(&name))
+}
+
+/// 경로 구성 요소 중 하나라도 [`DENY_DIR_NAMES`] 에 있으면 true — 워처처럼
+/// 걷기를 거치지 않고 경로 하나를 판정할 때 쓴다.
+fn has_denied_component(path: &Path) -> bool {
+    path.components().any(|c| {
+        matches!(c, Component::Normal(name)
+            if name.to_str().is_some_and(|n| DENY_DIR_NAMES.contains(&n)))
+    })
 }
 
 fn is_skipped_name(path: &Path) -> bool {
@@ -531,10 +603,20 @@ pub fn chunk_file(
             symbols.sort_by_key(|s| s.start_line);
 
             let mut last_covered_line = 0usize;
+            // 같은 줄 범위의 심볼은 하나만 청크가 된다. 한 줄에 심볼이 수백 개인
+            // 파일(번들·minified)에서 심볼마다 그 줄 전체가 복제되던 것을 막는다 —
+            // `is_indexable_content` 가 앞에서 거르지만, 4KB 안쪽의 빽빽한 줄도
+            // 같은 병리를 작게 반복한다.
+            let mut seen_ranges: HashSet<(u32, u32)> = HashSet::new();
 
             for sym in symbols {
                 let start_idx = (sym.start_line as usize).saturating_sub(1);
                 let end_idx = (sym.end_line as usize).min(lines.len());
+
+                if !seen_ranges.insert((sym.start_line, sym.end_line)) {
+                    last_covered_line = last_covered_line.max(end_idx);
+                    continue;
+                }
 
                 if start_idx > last_covered_line {
                     let uncovered_content = lines[last_covered_line..start_idx].join("\n");
@@ -551,16 +633,30 @@ pub fn chunk_file(
                 if start_idx < end_idx {
                     let body = lines[start_idx..end_idx].join("\n");
                     if !body.trim().is_empty() {
-                        chunks.push(Chunk {
-                            kind: "ast",
-                            start_line: sym.start_line,
-                            end_line: sym.end_line,
-                            content: format!("// AST Symbol: {} ({})\n{}", sym.name, sym.kind, body),
-                        });
+                        let header = format!("// AST Symbol: {} ({})\n", sym.name, sym.kind);
+                        if body.len() <= MAX_CHUNK_BYTES {
+                            chunks.push(Chunk {
+                                kind: "ast",
+                                start_line: sym.start_line,
+                                end_line: sym.end_line,
+                                content: format!("{header}{body}"),
+                            });
+                        } else {
+                            // 거대 심볼(수천 줄 컴포넌트·모듈 단위 클래스)은 창으로
+                            // 쪼개되 머리줄은 각 창에 남겨 임베딩이 소속을 안다.
+                            for window in chunk_lines_with_offset(&body, sym.start_line as usize, config) {
+                                chunks.push(Chunk {
+                                    kind: "ast",
+                                    start_line: window.start_line,
+                                    end_line: window.end_line,
+                                    content: format!("{header}{}", window.content),
+                                });
+                            }
+                        }
                     }
                 }
 
-                last_covered_line = end_idx;
+                last_covered_line = last_covered_line.max(end_idx);
             }
 
             if last_covered_line < lines.len() {
@@ -607,13 +703,19 @@ pub fn chunk_lines_with_offset(
 
     let chunk_lines = config.chunk_lines.max(1);
     let chunk_overlap = config.chunk_overlap.min(chunk_lines.saturating_sub(1));
-    let step = chunk_lines.saturating_sub(chunk_overlap).max(1);
 
     let mut chunks = Vec::new();
     let mut start = 0usize;
 
     while start < lines.len() {
-        let end = (start + chunk_lines).min(lines.len());
+        let mut end = (start + chunk_lines).min(lines.len());
+        // 바이트 상한 — 줄이 길면 창을 줄여 맞춘다 (최소 1줄). 줄 하나가 상한을
+        // 넘는 파일은 `is_indexable_content` 가 앞에서 거르므로 여기선 안 생긴다.
+        let mut bytes: usize = lines[start..end].iter().map(|l| l.len() + 1).sum();
+        while bytes > MAX_CHUNK_BYTES && end - start > 1 {
+            end -= 1;
+            bytes -= lines[end].len() + 1;
+        }
         let body = lines[start..end].join("\n");
         if !body.trim().is_empty() {
             chunks.push(Chunk {
@@ -626,7 +728,8 @@ pub fn chunk_lines_with_offset(
         if end == lines.len() {
             break;
         }
-        start += step;
+        // 겹침은 실제 창 크기 기준 — 창이 줄었어도 줄을 건너뛰지 않고, 항상 전진한다.
+        start += (end - start).saturating_sub(chunk_overlap).max(1);
     }
     chunks
 }
@@ -726,5 +829,124 @@ mod chunk_tests {
         assert!(meaningful_line_count("import a from 'a';") < MIN_GAP_CHUNK_LINES);
         // A real 3-line block clears the bar.
         assert!(meaningful_line_count("a()\nb()\nc()") >= MIN_GAP_CHUNK_LINES);
+    }
+
+    /// 2026-08-30 실측 재현: 한 줄에 심볼 N개인 파일은 청크 N개가 아니라 1개다.
+    /// (libktx.js — 22줄·심볼 503개 → 청크 503개·104MB 이던 병리.)
+    #[test]
+    fn same_line_symbols_collapse_to_one_chunk() {
+        let one_line: String = (0..40)
+            .map(|i| format!("function f{i}() {{ return {i}; }}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let (chunks, analysis) =
+            chunk_file(Path::new("bundle.js"), &one_line, &IndexConfig::default());
+        let symbols = analysis.map(|a| a.symbols.len()).unwrap_or(0);
+        assert!(symbols >= 40, "tree-sitter 가 심볼을 뽑아야 재현이 성립한다: {symbols}");
+        assert_eq!(chunks.len(), 1, "같은 줄 범위는 한 번만: {:?}", chunks.len());
+    }
+
+    /// 거대 심볼(수천 줄 함수)은 하나의 청크가 아니라 상한 안의 창으로 쪼개진다.
+    #[test]
+    fn giant_symbol_is_windowed_under_byte_cap() {
+        let body: String = (0..3000)
+            .map(|i| format!("  const v{i} = {i}; // padding line"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let src = format!("function giant() {{\n{body}\n}}\n");
+        let (chunks, _) = chunk_file(Path::new("giant.js"), &src, &IndexConfig::default());
+        assert!(chunks.len() > 1);
+        for c in &chunks {
+            assert!(
+                c.content.len() <= MAX_CHUNK_BYTES + 64,
+                "청크 {}..{} 가 {}B — 상한 초과",
+                c.start_line,
+                c.end_line,
+                c.content.len()
+            );
+        }
+        // 창들이 본문을 빠짐없이 덮는다 (마지막 창의 끝 = 마지막 줄).
+        let last = chunks.iter().map(|c| c.end_line).max().unwrap();
+        assert_eq!(last as usize, src.lines().count());
+    }
+
+    /// 줄이 길면 창이 줄어든다 — 30줄 × 1KB 는 16KB 안에 못 들어가므로 여러 창.
+    #[test]
+    fn line_windows_shrink_to_byte_cap_without_skipping_lines() {
+        let src: String = (0..30)
+            .map(|i| format!("{i:03}{}", "x".repeat(1000)))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let chunks = chunk_lines_with_offset(&src, 1, &IndexConfig::default());
+        assert!(chunks.len() >= 2);
+        for c in &chunks {
+            assert!(c.content.len() <= MAX_CHUNK_BYTES);
+        }
+        assert_eq!(chunks[0].start_line, 1);
+        assert_eq!(chunks.last().unwrap().end_line, 30);
+        // 겹침(4줄)을 빼고도 다음 창이 이전 창 안에서 시작한다 — 줄을 건너뛰지 않는다.
+        for w in chunks.windows(2) {
+            assert!(w[1].start_line <= w[0].end_line + 1);
+        }
+    }
+
+    #[test]
+    fn minified_content_is_not_indexable() {
+        let minified = format!("var a=1;{}", "b=a+1;".repeat(1000));
+        assert!(minified.len() > MAX_LINE_BYTES);
+        assert!(!is_indexable_content(&minified));
+        assert!(is_indexable_content("fn main() {}\nfn helper() {}\n"));
+    }
+}
+
+#[cfg(test)]
+mod walk_tests {
+    use super::*;
+    use std::fs;
+
+    fn write(root: &Path, rel: &str, body: &str) {
+        let p = root.join(rel);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, body).unwrap();
+    }
+
+    fn rel_paths(root: &Path, config: &IndexConfig) -> Vec<String> {
+        let mut v: Vec<String> = walk_text_files(root, config)
+            .into_iter()
+            .map(|p| p.strip_prefix(root).unwrap().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    }
+
+    /// 2026-08-30 사고 재현: `.git` 이 없어도 `.gitignore` 는 적용돼야 한다.
+    #[test]
+    fn gitignore_is_honored_without_a_git_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(root, ".gitignore", "generated/\n");
+        write(root, "src/a.ts", "export const a = 1;\n");
+        write(root, "generated/big.ts", "export const g = 1;\n");
+        assert!(!root.join(".git").exists());
+        assert_eq!(rel_paths(root, &IndexConfig::default()), vec!["src/a.ts"]);
+    }
+
+    /// `.gitignore` 자체가 없어도 벤더 디렉터리는 절대 걷지 않는다.
+    #[test]
+    fn vendor_dirs_are_denied_without_any_gitignore() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(root, "src/a.ts", "export const a = 1;\n");
+        write(root, "node_modules/pkg/index.js", "module.exports = 1;\n");
+        write(root, "nested/node_modules/pkg/index.js", "module.exports = 1;\n");
+        write(root, "target/debug/build.rs", "fn main() {}\n");
+        write(root, "__pycache__/x.pyc.py", "x = 1\n");
+        assert_eq!(rel_paths(root, &IndexConfig::default()), vec!["src/a.ts"]);
+        // 워처 경로 판정도 같은 그물을 쓴다.
+        assert!(!is_indexable_path(
+            &root.join("node_modules/pkg/index.js"),
+            &IndexConfig::default()
+        ));
+        assert!(is_indexable_path(&root.join("src/a.ts"), &IndexConfig::default()));
     }
 }
