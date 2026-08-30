@@ -6,7 +6,6 @@
 use super::*;
 
 impl<'a> JournalCache<'a> {
-
     // ────────── reindex ──────────
 
     /// Drop every cached row for `project_id` and rebuild from disk. Use
@@ -176,7 +175,11 @@ impl<'a> JournalCache<'a> {
                 )?;
                 let mut out: HashMap<String, (i64, i64)> = HashMap::new();
                 let rows = stmt.query_map(params![pid], |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                    ))
                 })?;
                 for row in rows {
                     let (k, mtime, ver) = row?;

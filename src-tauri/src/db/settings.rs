@@ -6,7 +6,6 @@
 use super::*;
 
 impl Db {
-
     pub async fn settings_set(&self, key: String, value: String) -> Result<()> {
         self.conn
             .call(move |c| {
@@ -114,12 +113,11 @@ impl Db {
         let value = self
             .conn
             .call(move |c| {
-                c.query_row(
-                    "SELECT value FROM settings WHERE key = ?1",
-                    [key],
-                    |r| r.get::<_, String>(0),
-                )
-                .optional()})
+                c.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+                    r.get::<_, String>(0)
+                })
+                .optional()
+            })
             .await?;
         Ok(value)
     }

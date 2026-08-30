@@ -15,10 +15,11 @@ use serde_json::{json, Value};
 
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::frontmatter::{parse_frontmatter_and_body, write_frontmatter_and_body};
-use crate::oculpm::markdown::parse_body;
 use crate::oculpm::index::read_sessions_sync;
-use crate::oculpm::session::resolve_session_for_timestamp;
-use crate::oculpm::manager::{category_subdir, entry_type_filename_token, pick_nonconflicting_path};
+use crate::oculpm::manager::{
+    category_subdir, entry_type_filename_token, pick_nonconflicting_path,
+};
+use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status_rolled, LogRow};
@@ -26,6 +27,7 @@ use crate::oculpm::planner::project::{find_plan_path, planner_dir};
 use crate::oculpm::redact::{
     build_forbidden_matcher, compile_redact_patterns, is_forbidden_path, redact_text,
 };
+use crate::oculpm::session::resolve_session_for_timestamp;
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
     OculpmConfig, RelatedRef,
@@ -220,10 +222,14 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
     // 외부 경로로 심볼릭 링크해 두면 가드를 통과한 쓰기가 프로젝트 밖으로
     // 탈출하므로, 실디렉터리만 인정한다.
     let oculpm_meta = std::fs::symlink_metadata(root.join(".oculpm"));
-    let is_real_dir = oculpm_meta.as_ref().map(|m| m.file_type().is_dir()).unwrap_or(false);
+    let is_real_dir = oculpm_meta
+        .as_ref()
+        .map(|m| m.file_type().is_dir())
+        .unwrap_or(false);
     if !is_real_dir {
-        let is_symlink =
-            oculpm_meta.map(|m| m.file_type().is_symlink()).unwrap_or(false);
+        let is_symlink = oculpm_meta
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false);
         return Err(if is_symlink {
             format!(
                 "The .oculpm in {} is a symlink - for safety a linked .oculpm is \
@@ -257,7 +263,11 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
 /// (AGENTS.md 어댑터·마스터 템플릿·discussion-spec). 락/세션 감지/워처/DB
 /// 캐시는 앱 몫 — 앱을 열면 기존 초기화를 그대로 이어받는다 (idempotent).
 fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
-    if !args.get("confirm").and_then(Value::as_bool).unwrap_or(false) {
+    if !args
+        .get("confirm")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         return Err(
             "project_init may only be called after the user explicitly confirms starting \
              있습니다 — 사용자에게 물어보고 동의를 받은 경우에만 confirm=true 로 다시 호출하세요."
@@ -265,16 +275,21 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
         );
     }
     if !root.is_dir() {
-        return Err(format!("Project root is not a directory: {}", root.display()));
+        return Err(format!(
+            "Project root is not a directory: {}",
+            root.display()
+        ));
     }
     // 폭발 반경 가드 — --root 를 홈/파일시스템 루트로 잘못 고정한 설정 사고가
     // ~/.gitignore(core.excludesFile 관행)·~/AGENTS.md 오염으로 번지지 않게.
     let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     if canonical.parent().is_none() {
-        return Err("The filesystem root cannot be initialized - check your --root setting.".to_string());
+        return Err(
+            "The filesystem root cannot be initialized - check your --root setting.".to_string(),
+        );
     }
     if let Ok(home) = std::env::var("HOME") {
-        if !home.is_empty() && canonical == std::path::PathBuf::from(&home) {
+        if !home.is_empty() && canonical == home {
             return Err(
                 "The home directory cannot be initialized - retry from a project folder \
                  (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
@@ -299,8 +314,7 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
             }
             if !m.file_type().is_dir() {
                 return Err(
-                    ".oculpm exists as a file, not a directory - remove it and retry."
-                        .to_string(),
+                    ".oculpm exists as a file, not a directory - remove it and retry.".to_string(),
                 );
             }
             true
@@ -338,8 +352,9 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
         crate::oculpm::spec::CommentStyle::Hash,
     )
     .map_err(|e| e.to_string())?;
-    let body =
-        crate::oculpm::manager::merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str()));
+    let body = crate::oculpm::manager::merged_gitignore_body(
+        existing.as_ref().map(|b| b.content.as_str()),
+    );
     crate::oculpm::atomic_io::write_managed_block(
         &gitignore,
         "oculpm",
@@ -370,7 +385,10 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
 }
 
 fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
-    args.get(key).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty())
+    args.get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
 }
 
 /// 문자열 배열 인수를 꺼낸다. 없거나 배열이 아니면 빈 벡터 — 호출자는
@@ -407,7 +425,11 @@ fn parse_entry_type(s: &str) -> Result<EntryType, String> {
         "error" => EntryType::Error,
         "refactor" => EntryType::Refactor,
         "chore" => EntryType::Chore,
-        other => return Err(format!("invalid type '{other}' (bug|feature|error|refactor|chore)")),
+        other => {
+            return Err(format!(
+                "invalid type '{other}' (bug|feature|error|refactor|chore)"
+            ))
+        }
     })
 }
 
@@ -456,11 +478,19 @@ fn sanitize_slug(raw: &str) -> Result<String, String> {
         };
         match mapped {
             Some('-') if prev_dash => {}
-            Some('-') => { out.push('-'); prev_dash = true; }
-            Some(c) => { out.push(c); prev_dash = false; }
+            Some('-') => {
+                out.push('-');
+                prev_dash = true;
+            }
+            Some(c) => {
+                out.push(c);
+                prev_dash = false;
+            }
             None => {}
         }
-        if out.len() >= 60 { break; }
+        if out.len() >= 60 {
+            break;
+        }
     }
     let trimmed = out.trim_matches('-').to_string();
     if trimmed.is_empty() {
@@ -473,7 +503,9 @@ fn sanitize_slug(raw: &str) -> Result<String, String> {
 fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let entry_type = parse_entry_type(arg_str(args, "type").ok_or("'type' is required")?)?;
     let slug = sanitize_slug(arg_str(args, "slug").ok_or("'slug' is required")?)?;
-    let title = arg_str(args, "title").ok_or("'title' is required")?.to_string();
+    let title = arg_str(args, "title")
+        .ok_or("'title' is required")?
+        .to_string();
     let body = args
         .get("body_markdown")
         .and_then(Value::as_str)
@@ -506,7 +538,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
             arr.iter()
                 .filter_map(|f| {
                     let path = f.get("path")?.as_str()?.trim().to_string();
-                    if path.is_empty() { return None; }
+                    if path.is_empty() {
+                        return None;
+                    }
                     Some(FileTouched {
                         path,
                         op: parse_file_op(f.get("op").and_then(Value::as_str).unwrap_or("update")),
@@ -544,7 +578,12 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let mut tags: Vec<String> = args
         .get("tags")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|t| t.as_str()).map(str::to_string).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|t| t.as_str())
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default();
     if !tags.iter().any(|t| t == "mcp-tool") {
         tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
@@ -621,11 +660,15 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
             .unwrap_or_else(|| {
                 format!(
                     "mcp-{workday}-{:02}{:02}{:02}",
-                    local.hour(), local.minute(), local.second()
+                    local.hour(),
+                    local.minute(),
+                    local.second()
                 )
             }),
         agent: AgentRef {
-            id: arg_str(args, "agent_id").unwrap_or("claude-code").to_string(),
+            id: arg_str(args, "agent_id")
+                .unwrap_or("claude-code")
+                .to_string(),
             version: arg_str(args, "agent_version").map(str::to_string),
         },
         // 프로젝트의 AI 작성 언어 — 영문 프로젝트도 "ko" 로 색인되던 것을 바로잡는다.
@@ -637,8 +680,13 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     };
 
     // 첫 줄 체크박스 제목 (AGENTS.md §4) — 본문이 이미 체크박스로 시작하면 존중.
-    let marker = if matches!(fm.status, EntryStatus::Done) { "[x]" } else { "[ ]" };
-    let full_body = if body.trim_start().starts_with("[x]") || body.trim_start().starts_with("[ ]") {
+    let marker = if matches!(fm.status, EntryStatus::Done) {
+        "[x]"
+    } else {
+        "[ ]"
+    };
+    let full_body = if body.trim_start().starts_with("[x]") || body.trim_start().starts_with("[ ]")
+    {
         body.trim().to_string()
     } else {
         format!("{marker} {title}\n\n{}", body.trim())
@@ -744,7 +792,8 @@ fn is_safe_entry_rel(rel: &str) -> bool {
     if rel.starts_with('/') || rel.contains(':') {
         return false; // 절대경로 · 윈도우 드라이브
     }
-    rel.split('/').all(|seg| !seg.is_empty() && seg != ".." && !seg.starts_with('.'))
+    rel.split('/')
+        .all(|seg| !seg.is_empty() && seg != ".." && !seg.starts_with('.'))
 }
 
 /// 매치 지점 근방을 한 줄 발췌로 접는다. 줄바꿈·연속 공백을 한 칸으로 눌러
@@ -758,7 +807,10 @@ fn snippet_around(body: &str, match_at: usize) -> String {
         .nth(lead)
         .map(|(i, _)| i)
         .unwrap_or(0);
-    let raw: String = body[start..].split_whitespace().collect::<Vec<_>>().join(" ");
+    let raw: String = body[start..]
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let mut out: String = raw.chars().take(SNIPPET_CHARS).collect();
     if raw.chars().count() > SNIPPET_CHARS {
         out.push('…');
@@ -817,8 +869,15 @@ fn journal_search(root: &Path, args: &Value) -> Result<Value, String> {
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
 
     // (rank, path, workday, type, status, title, why) — rank 는 매치 강도.
-    let mut rows: Vec<(u8, String, String, &'static str, &'static str, String, String)> =
-        Vec::new();
+    let mut rows: Vec<(
+        u8,
+        String,
+        String,
+        &'static str,
+        &'static str,
+        String,
+        String,
+    )> = Vec::new();
     let mut scanned = 0usize;
 
     for rel in &rels {
@@ -837,14 +896,19 @@ fn journal_search(root: &Path, args: &Value) -> Result<Value, String> {
         if !want_types.is_empty() {
             // 토큰을 못 읽는 파일은 거르지 않고 통과시켜 frontmatter 로 판정한다.
             if let Some(tok) = type_token_of_rel(rel) {
-                if !want_types.iter().any(|t| entry_type_filename_token(*t) == tok) {
+                if !want_types
+                    .iter()
+                    .any(|t| entry_type_filename_token(*t) == tok)
+                {
                     continue;
                 }
             }
         }
 
         // ── 파일을 읽어야만 알 수 있는 것 ──────────────────────────────────
-        let Ok(raw) = std::fs::read_to_string(journal_root.join(rel)) else { continue };
+        let Ok(raw) = std::fs::read_to_string(journal_root.join(rel)) else {
+            continue;
+        };
         scanned += 1;
         let (fm, body) = parse_frontmatter_and_body(&raw);
         let parsed = parse_body(&body);
@@ -976,7 +1040,8 @@ fn journal_search(root: &Path, args: &Value) -> Result<Value, String> {
             "일치하는 일지가 없습니다. query 를 짧게 하거나(부분 일치), file 필터를 파일명만으로 좁혀 보세요."
         );
     } else if total > rows.len() {
-        out["note"] = json!("limit 을 넘겼습니다 — 최신순 상위만 실렸습니다. 더 좁히거나 limit 을 올리세요.");
+        out["note"] =
+            json!("limit 을 넘겼습니다 — 최신순 상위만 실렸습니다. 더 좁히거나 limit 을 올리세요.");
     }
     Ok(out)
 }
@@ -1075,7 +1140,8 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         .map(|n| (n as usize).clamp(1, MAX_ITEM_LIMIT))
         .unwrap_or(DEFAULT_ITEM_LIMIT);
     // status 를 지정하면 그것이 뷰보다 강하다 (명시가 기본값을 이긴다).
-    let status_filter: Option<Vec<ItemStatus>> = match args.get("status").and_then(Value::as_array) {
+    let status_filter: Option<Vec<ItemStatus>> = match args.get("status").and_then(Value::as_array)
+    {
         Some(arr) if !arr.is_empty() => Some(
             arr.iter()
                 .filter_map(Value::as_str)
@@ -1106,7 +1172,9 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let mut rows: Vec<(String, String, &'static str, String, String, String)> = Vec::new();
 
     for path in paths {
-        let Ok(md) = std::fs::read_to_string(&path) else { continue };
+        let Ok(md) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
         let parsed = parse_plan(&md, stem);
         if parsed.frontmatter.status.as_str() != "active" {
@@ -1170,7 +1238,11 @@ fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let start = match &cursor {
         Some(c) => match rows.iter().position(|r| &r.1 == c) {
             Some(i) => i,
-            None => return Err(format!("cursor '{c}' not found - call again from the start")),
+            None => {
+                return Err(format!(
+                    "cursor '{c}' not found - call again from the start"
+                ))
+            }
         },
         None => 0,
     };
@@ -1222,18 +1294,23 @@ fn parse_item_status(s: &str) -> Result<ItemStatus, String> {
         "blocked" => ItemStatus::Blocked,
         "deferred" => ItemStatus::Deferred,
         "dropped" => ItemStatus::Dropped,
-        other => return Err(format!(
-            "invalid status '{other}' (todo|in_progress|done|blocked|deferred|dropped)"
-        )),
+        other => {
+            return Err(format!(
+                "invalid status '{other}' (todo|in_progress|done|blocked|deferred|dropped)"
+            ))
+        }
     })
 }
 
 fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
-    let item_id = arg_str(args, "item_id").ok_or("'item_id' is required")?
+    let item_id = arg_str(args, "item_id")
+        .ok_or("'item_id' is required")?
         .trim_start_matches('#');
     let new_status = parse_item_status(arg_str(args, "status").ok_or("'status' is required")?)?;
-    let agent_id = arg_str(args, "agent_id").unwrap_or("claude-code").to_string();
+    let agent_id = arg_str(args, "agent_id")
+        .unwrap_or("claude-code")
+        .to_string();
 
     let planner_root = planner_dir(root);
     let path = find_plan_path(&planner_root, plan_id)
@@ -1286,7 +1363,8 @@ fn valid_kebab(s: &str) -> bool {
         && s.len() <= 40
         && !s.starts_with('-')
         && !s.ends_with('-')
-        && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 /// used 에 없는 id 를 확보한다 (충돌 시 -2, -3 … 접미).
@@ -1310,13 +1388,23 @@ fn claim_unique_id(used: &mut std::collections::HashSet<String>, base: String) -
 fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
     if !valid_kebab(plan_id) {
-        return Err(format!("plan_id '{plan_id}' must be kebab-case, 40 chars or fewer"));
+        return Err(format!(
+            "plan_id '{plan_id}' must be kebab-case, 40 chars or fewer"
+        ));
     }
     let agent_id = arg_str(args, "agent_id").unwrap_or("claude-code");
-    if !agent_id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.')) {
-        return Err(format!("agent_id '{agent_id}' contains disallowed characters"));
+    if !agent_id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.'))
+    {
+        return Err(format!(
+            "agent_id '{agent_id}' contains disallowed characters"
+        ));
     }
-    let phases_in = args.get("phases").and_then(Value::as_array).ok_or("'phases' is required")?;
+    let phases_in = args
+        .get("phases")
+        .and_then(Value::as_array)
+        .ok_or("'phases' is required")?;
     if phases_in.is_empty() || phases_in.len() > MAX_PLAN_PHASES {
         return Err(format!("phases must number 1-{MAX_PLAN_PHASES}"));
     }
@@ -1332,7 +1420,13 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
 
     let cfg = load_config(root);
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let one_line = |s: &str| redact_text(s, &patterns).0.replace(['\n', '\r'], " ").trim().to_string();
+    let one_line = |s: &str| {
+        redact_text(s, &patterns)
+            .0
+            .replace(['\n', '\r'], " ")
+            .trim()
+            .to_string()
+    };
     let title = one_line(arg_str(args, "title").ok_or("'title' is required")?);
 
     let mut used_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -1357,7 +1451,10 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         };
         body.push_str(&format!("\n## {} {{#{pid}}}\n", one_line(ptitle_raw)));
 
-        let items = phase.get("items").and_then(Value::as_array).unwrap_or(&empty);
+        let items = phase
+            .get("items")
+            .and_then(Value::as_array)
+            .unwrap_or(&empty);
         for (ii, item) in items.iter().enumerate() {
             item_count += 1;
             if item_count > MAX_PLAN_ITEMS {
@@ -1393,7 +1490,10 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             body.push_str(&format!("- [ ] {text} {{#{iid}}}\n"));
 
             // 3-depth — 하위 작업 (두 칸 들여쓰기, 최대 1단계).
-            let children = item.get("children").and_then(Value::as_array).unwrap_or(&empty);
+            let children = item
+                .get("children")
+                .and_then(Value::as_array)
+                .unwrap_or(&empty);
             for (ci, child) in children.iter().enumerate() {
                 item_count += 1;
                 if item_count > MAX_PLAN_ITEMS {
@@ -1460,7 +1560,10 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     // 말이 된다. 실패는 구현 버그이므로 파일을 쓰지 않고 에러로 노출한다.
     let parsed = parse_plan(&md, plan_id);
     if !parsed.warnings.is_empty() {
-        return Err(format!("internal: the generated file produced parser warnings - {:?}", parsed.warnings));
+        return Err(format!(
+            "internal: the generated file produced parser warnings - {:?}",
+            parsed.warnings
+        ));
     }
 
     std::fs::create_dir_all(&planner_root).map_err(|e| format!("mkdir failed: {e}"))?;
@@ -1511,7 +1614,9 @@ mod tests {
         assert!(root.join(".oculpm/.schema-version").exists());
         assert!(root.join(".oculpm/agents/_template.md").exists());
         assert!(root.join("AGENTS.md").exists());
-        assert!(std::fs::read_to_string(root.join(".gitignore")).unwrap().contains("oculpm"));
+        assert!(std::fs::read_to_string(root.join(".gitignore"))
+            .unwrap()
+            .contains("oculpm"));
 
         // 3) 초기화 직후 다른 도구가 실제로 동작한다 (플러그인-온리 그린필드 흐름).
         let journal = call_tool(
@@ -1539,7 +1644,9 @@ mod tests {
         assert_eq!(out["initialized"], json!(false));
         assert!(root.join(".oculpm/config.toml").exists());
         assert!(root.join("AGENTS.md").exists());
-        assert!(std::fs::read_to_string(root.join(".gitignore")).unwrap().contains("oculpm"));
+        assert!(std::fs::read_to_string(root.join(".gitignore"))
+            .unwrap()
+            .contains("oculpm"));
     }
 
     #[cfg(unix)]
@@ -1617,7 +1724,10 @@ mod tests {
         let out = call_tool(root, "journal_write", &args).unwrap();
         let rel = out["path"].as_str().unwrap();
         assert!(rel.contains("/Bugs/"), "{rel}");
-        assert!(rel.ends_with("_bug_fix-cache.md"), "slug 는 kebab 강제: {rel}");
+        assert!(
+            rel.ends_with("_bug_fix-cache.md"),
+            "slug 는 kebab 강제: {rel}"
+        );
 
         let raw = std::fs::read_to_string(root.join(rel)).unwrap();
         let (parsed, body) = parse_frontmatter_and_body(&raw);
@@ -1684,7 +1794,10 @@ mod tests {
         let fm = parsed.parsed.expect("frontmatter parses");
         assert_eq!(fm.language, "en");
         assert_eq!(fm.related.len(), 2);
-        assert_eq!(fm.related[0].ref_path, "20260522/Bugs/2050_bug_x.md", "접두는 벗긴다");
+        assert_eq!(
+            fm.related[0].ref_path, "20260522/Bugs/2050_bug_x.md",
+            "접두는 벗긴다"
+        );
         assert_eq!(fm.related[1].kind, "followup", "낯선 kind 는 followup 으로");
     }
 
@@ -1738,7 +1851,10 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(out["session_id"].as_str().unwrap(), format!("{workday}-002"));
+        assert_eq!(
+            out["session_id"].as_str().unwrap(),
+            format!("{workday}-002")
+        );
         let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
         let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
         assert_eq!(fm.session_id, format!("{workday}-002"));
@@ -1891,13 +2007,20 @@ mod tests {
         assert!(!summary["items_tsv"].as_str().unwrap().contains("끝난 항목"));
         assert!(summary["note"].as_str().unwrap().contains("view=\"full\""));
 
-        let full = call_tool(dir.path(), "plan_status", &serde_json::json!({ "view": "full" }))
-            .unwrap();
+        let full = call_tool(
+            dir.path(),
+            "plan_status",
+            &serde_json::json!({ "view": "full" }),
+        )
+        .unwrap();
         assert_eq!(full["total"], 5);
         assert!(full["items_tsv"].as_str().unwrap().contains("끝난 항목"));
         assert!(full.get("note").is_none());
         // 진척은 두 뷰에서 같다 — 필터는 표시만 줄이고 계산을 바꾸지 않는다.
-        assert_eq!(summary["plans"][0]["progress"], full["plans"][0]["progress"]);
+        assert_eq!(
+            summary["plans"][0]["progress"],
+            full["plans"][0]["progress"]
+        );
     }
 
     #[test]
@@ -1927,7 +2050,12 @@ mod tests {
         let dir = TempDir::new().unwrap();
         seed_big_plan(dir.path(), "big", 5);
 
-        let p1 = call_tool(dir.path(), "plan_status", &serde_json::json!({ "limit": 2 })).unwrap();
+        let p1 = call_tool(
+            dir.path(),
+            "plan_status",
+            &serde_json::json!({ "limit": 2 }),
+        )
+        .unwrap();
         assert_eq!(p1["returned"], 2);
         assert_eq!(p1["total"], 5);
         assert_eq!(p1["more"], true);
@@ -1993,7 +2121,9 @@ mod tests {
         let out = call_tool(dir.path(), "plan_status", &serde_json::json!({})).unwrap();
         let warnings = out["warnings"].as_array().expect("warnings 노출");
         assert!(
-            warnings.iter().any(|w| w.as_str().unwrap().starts_with("warn: ")),
+            warnings
+                .iter()
+                .any(|w| w.as_str().unwrap().starts_with("warn: ")),
             "plan_id 로 귀속: {warnings:?}"
         );
     }
@@ -2031,7 +2161,10 @@ mod tests {
 
         let md = std::fs::read_to_string(planner_dir(root).join("test-plan.md")).unwrap();
         assert!(md.contains("- [x] 첫 항목 {#first}"));
-        assert!(md.contains("| #first | claude-code |"), "plan-log append: {md}");
+        assert!(
+            md.contains("| #first | claude-code |"),
+            "plan-log append: {md}"
+        );
         assert!(md.contains("MCP 경유"));
 
         // 잠긴 plan 은 거부.
@@ -2052,7 +2185,10 @@ mod tests {
         });
         call_tool(root, "plan_update", &args).unwrap();
         let md = std::fs::read_to_string(planner_dir(root).join("test-plan.md")).unwrap();
-        assert!(!md.contains("sk-abcdefghijklmnopqrstuvwx"), "시크릿이 plan-log 에 남음");
+        assert!(
+            !md.contains("sk-abcdefghijklmnopqrstuvwx"),
+            "시크릿이 plan-log 에 남음"
+        );
         assert!(md.contains("[REDACTED]"), "{md}");
     }
 
@@ -2085,11 +2221,20 @@ mod tests {
         assert_eq!(out["items"], 4);
 
         let md = std::fs::read_to_string(root.join(".oculpm/planner/token-diet.md")).unwrap();
-        assert!(md.contains("title: \"토큰 \\\"다이어트\\\" 라운드\""), "{md}");
+        assert!(
+            md.contains("title: \"토큰 \\\"다이어트\\\" 라운드\""),
+            "{md}"
+        );
         assert!(md.contains("## Phase 1 — 도구 {#tools}"), "{md}");
-        assert!(md.contains("- [ ] plan_create MCP 도구 {#plan-create}"), "{md}");
+        assert!(
+            md.contains("- [ ] plan_create MCP 도구 {#plan-create}"),
+            "{md}"
+        );
         assert!(md.contains("{#tools-2}"), "한글 항목은 위치 폴백 id: {md}");
-        assert!(md.contains("{#fix-cache-invalidation-bug}"), "영문은 텍스트 유도 id: {md}");
+        assert!(
+            md.contains("{#fix-cache-invalidation-bug}"),
+            "영문은 텍스트 유도 id: {md}"
+        );
         assert!(md.contains("{#p2-1}"), "auto phase id 폴백: {md}");
         assert!(md.contains("<!-- oculpm:plan-log begin v1 -->"), "{md}");
 
@@ -2102,14 +2247,21 @@ mod tests {
         // 재생성 거부 + plan_update 로 항목 갱신 가능(왕복).
         let err = call_tool(root, "plan_create", &args).unwrap_err();
         assert!(err.contains("already exists"), "{err}");
-        call_tool(root, "plan_update", &serde_json::json!({
-            "plan_id": "token-diet", "item_id": "plan-create", "status": "done"
-        }))
+        call_tool(
+            root,
+            "plan_update",
+            &serde_json::json!({
+                "plan_id": "token-diet", "item_id": "plan-create", "status": "done"
+            }),
+        )
         .unwrap();
 
         // 잘못된 id 는 조용한 변형 대신 거부.
-        let bad = serde_json::json!({ "plan_id": "Bad_ID", "title": "t", "phases": [{ "title": "p" }] });
-        assert!(call_tool(root, "plan_create", &bad).unwrap_err().contains("kebab"));
+        let bad =
+            serde_json::json!({ "plan_id": "Bad_ID", "title": "t", "phases": [{ "title": "p" }] });
+        assert!(call_tool(root, "plan_create", &bad)
+            .unwrap_err()
+            .contains("kebab"));
     }
 
     /// 3-depth — plan_create 중첩 생성 → TSV parent 열 → 부모 직접 갱신 거부
@@ -2139,18 +2291,34 @@ mod tests {
         // TSV parent 열: 하위는 부모 id, 부모/최상위는 빈칸.
         let status = call_tool(root, "plan_status", &serde_json::json!({})).unwrap();
         let tsv = status["items_tsv"].as_str().unwrap();
-        assert!(tsv.lines().any(|l| l.starts_with("nested\tkid-a\t") && l.ends_with("\tpapa")), "{tsv}");
-        assert!(tsv.lines().any(|l| l.starts_with("nested\tpapa\t") && l.ends_with("\t")), "{tsv}");
+        assert!(
+            tsv.lines()
+                .any(|l| l.starts_with("nested\tkid-a\t") && l.ends_with("\tpapa")),
+            "{tsv}"
+        );
+        assert!(
+            tsv.lines()
+                .any(|l| l.starts_with("nested\tpapa\t") && l.ends_with("\t")),
+            "{tsv}"
+        );
 
         // 부모 직접 갱신은 거부, 자식 갱신은 부모 글리프를 롤업으로 정규화.
-        let err = call_tool(root, "plan_update", &serde_json::json!({
-            "plan_id": "nested", "item_id": "papa", "status": "done"
-        }))
+        let err = call_tool(
+            root,
+            "plan_update",
+            &serde_json::json!({
+                "plan_id": "nested", "item_id": "papa", "status": "done"
+            }),
+        )
         .unwrap_err();
         assert!(err.contains("하위"), "{err}");
-        call_tool(root, "plan_update", &serde_json::json!({
-            "plan_id": "nested", "item_id": "kid-a", "status": "done"
-        }))
+        call_tool(
+            root,
+            "plan_update",
+            &serde_json::json!({
+                "plan_id": "nested", "item_id": "kid-a", "status": "done"
+            }),
+        )
         .unwrap();
         let md = std::fs::read_to_string(root.join(".oculpm/planner/nested.md")).unwrap();
         assert!(md.contains("- [~] 부모 작업 {#papa}"), "부모 정규화: {md}");
@@ -2161,7 +2329,11 @@ mod tests {
     /// 규격대로 생긴 일지 1건을 디스크에 놓는다 (journal_write 를 거치지 않고
     /// 직접 — 과거 workday 와 깨진 frontmatter 까지 만들 수 있어야 한다).
     fn seed_entry(root: &Path, workday: &str, folder: &str, file: &str, md: &str) {
-        let dir = root.join(".oculpm").join("journal").join(workday).join(folder);
+        let dir = root
+            .join(".oculpm")
+            .join("journal")
+            .join(workday)
+            .join(folder);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join(file), md).unwrap();
     }
@@ -2254,12 +2426,22 @@ mod tests {
         let root = dir.path();
         seed_corpus(root);
 
-        let out = call_tool(root, "journal_search", &serde_json::json!({ "query": "정규화" }))
-            .unwrap();
+        let out = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "query": "정규화" }),
+        )
+        .unwrap();
         assert_eq!(out["total_matched"], 1);
-        assert_eq!(hit_paths(&out), vec!["20260701/Bugs/0900_bug_cache-invalidation.md"]);
+        assert_eq!(
+            hit_paths(&out),
+            vec!["20260701/Bugs/0900_bug_cache-invalidation.md"]
+        );
         let why = out["hits_tsv"].as_str().unwrap().lines().nth(1).unwrap();
-        assert!(why.contains("정규화"), "본문 매치는 발췌를 실어야 한다: {why}");
+        assert!(
+            why.contains("정규화"),
+            "본문 매치는 발췌를 실어야 한다: {why}"
+        );
         // 발췌는 TSV 한 칸이므로 탭·줄바꿈이 없어야 한다.
         assert_eq!(why.split('\t').count(), 6, "열 수가 어긋났다: {why}");
     }
@@ -2271,19 +2453,36 @@ mod tests {
         seed_corpus(root);
 
         // 파일명만으로도 잡힌다 (에이전트가 전체 경로를 모를 때).
-        let out =
-            call_tool(root, "journal_search", &serde_json::json!({ "file": "watcher.rs" })).unwrap();
-        assert_eq!(hit_paths(&out), vec!["20260815/Features_to_add/1400_feature_watcher-events.md"]);
+        let out = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "file": "watcher.rs" }),
+        )
+        .unwrap();
+        assert_eq!(
+            hit_paths(&out),
+            vec!["20260815/Features_to_add/1400_feature_watcher-events.md"]
+        );
         assert!(
-            out["hits_tsv"].as_str().unwrap().contains("file:src/oculpm/watcher.rs"),
+            out["hits_tsv"]
+                .as_str()
+                .unwrap()
+                .contains("file:src/oculpm/watcher.rs"),
             "어느 파일로 걸렸는지 밝혀야 한다"
         );
 
         // 건드린 파일이 없는 일지는 file 필터에 걸리지 않는다.
-        let none = call_tool(root, "journal_search", &serde_json::json!({ "file": "README" }))
-            .unwrap();
+        let none = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "file": "README" }),
+        )
+        .unwrap();
         assert_eq!(none["total_matched"], 0);
-        assert!(none["note"].is_string(), "빈 결과는 다음 수를 알려줘야 한다");
+        assert!(
+            none["note"].is_string(),
+            "빈 결과는 다음 수를 알려줘야 한다"
+        );
     }
 
     #[test]
@@ -2319,7 +2518,10 @@ mod tests {
             &serde_json::json!({ "status": ["in_progress"] }),
         )
         .unwrap();
-        assert_eq!(hit_paths(&out), vec!["20260820/Chores/1100_chore_docs-tidy.md"]);
+        assert_eq!(
+            hit_paths(&out),
+            vec!["20260820/Chores/1100_chore_docs-tidy.md"]
+        );
 
         // tags 는 AND — 둘 다 가진 일지만.
         let both = call_tool(
@@ -2353,7 +2555,15 @@ mod tests {
             "20260820",
             "Chores",
             "1000_chore_noise.md",
-            &entry_md("chore", "noise", "done", "캐시 정리", "mtime 을 비교한다.", &[], &[]),
+            &entry_md(
+                "chore",
+                "noise",
+                "done",
+                "캐시 정리",
+                "mtime 을 비교한다.",
+                &[],
+                &[],
+            ),
         );
         // 그보다 오래됐지만 제목에 그 말이 있다.
         seed_entry(
@@ -2361,7 +2571,15 @@ mod tests {
             "20260610",
             "Bugs",
             "0900_bug_terminal-ime.md",
-            &entry_md("bug", "terminal-ime", "done", "터미널 IME 입력 깨짐", "본문.", &[], &[]),
+            &entry_md(
+                "bug",
+                "terminal-ime",
+                "done",
+                "터미널 IME 입력 깨짐",
+                "본문.",
+                &[],
+                &[],
+            ),
         );
         // 그보다도 오래됐고 태그로 걸린다.
         seed_entry(
@@ -2369,11 +2587,23 @@ mod tests {
             "20260601",
             "Bugs",
             "0900_bug_tagged.md",
-            &entry_md("bug", "tagged", "done", "무관한 제목", "본문.", &[], &["ime"]),
+            &entry_md(
+                "bug",
+                "tagged",
+                "done",
+                "무관한 제목",
+                "본문.",
+                &[],
+                &["ime"],
+            ),
         );
 
-        let out = call_tool(root, "journal_search", &serde_json::json!({ "query": "ime" }))
-            .unwrap();
+        let out = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "query": "ime" }),
+        )
+        .unwrap();
         assert_eq!(out["total_matched"], 3, "셋 다 부분 일치로 걸린다");
         assert_eq!(
             hit_paths(&out),
@@ -2392,8 +2622,14 @@ mod tests {
             &serde_json::json!({ "query": "ime", "limit": 1 }),
         )
         .unwrap();
-        assert_eq!(hit_paths(&top), vec!["20260610/Bugs/0900_bug_terminal-ime.md"]);
-        assert_eq!(top["total_matched"], 3, "잘라도 몇 건인지는 정확히 알려준다");
+        assert_eq!(
+            hit_paths(&top),
+            vec!["20260610/Bugs/0900_bug_terminal-ime.md"]
+        );
+        assert_eq!(
+            top["total_matched"], 3,
+            "잘라도 몇 건인지는 정확히 알려준다"
+        );
     }
 
     #[test]
@@ -2407,13 +2643,23 @@ mod tests {
                 "20260801",
                 "Bugs",
                 &format!("09{i:02}_bug_many-{i}.md"),
-                &entry_md("bug", &format!("many-{i}"), "done", "반복 버그", "본문", &[], &[]),
+                &entry_md(
+                    "bug",
+                    &format!("many-{i}"),
+                    "done",
+                    "반복 버그",
+                    "본문",
+                    &[],
+                    &[],
+                ),
             );
         }
-        let out =
-            call_tool(root, "journal_search", &serde_json::json!({ "limit": 3 })).unwrap();
+        let out = call_tool(root, "journal_search", &serde_json::json!({ "limit": 3 })).unwrap();
         assert_eq!(out["returned"], 3, "실린 것은 limit 까지");
-        assert_eq!(out["total_matched"], 8, "센 것은 전부 — 더 있다는 걸 알아야 한다");
+        assert_eq!(
+            out["total_matched"], 8,
+            "센 것은 전부 — 더 있다는 걸 알아야 한다"
+        );
         assert_eq!(out["more"], true);
     }
 
@@ -2430,8 +2676,12 @@ mod tests {
             "0800_bug_broken.md",
             "---\nthis: is: not: yaml:\n---\n\n[x] 망가진 일지\n\n터미널 IME 문제.\n",
         );
-        let out =
-            call_tool(root, "journal_search", &serde_json::json!({ "query": "IME" })).unwrap();
+        let out = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "query": "IME" }),
+        )
+        .unwrap();
         assert_eq!(out["total_matched"], 1);
         // 파일명 토큰이 종류를 메운다.
         assert!(out["hits_tsv"].as_str().unwrap().contains("\tbug\t"));
@@ -2453,7 +2703,10 @@ mod tests {
         assert_eq!(out["title"], "캐시 무효화가 안 되던 것");
         assert_eq!(out["type"], "bug");
         assert_eq!(out["status"], "done");
-        assert!(out["body_markdown"].as_str().unwrap().contains("키를 정규화하지"));
+        assert!(out["body_markdown"]
+            .as_str()
+            .unwrap()
+            .contains("키를 정규화하지"));
         assert_eq!(out["files_touched"][0], "src/oculpm/cache.rs");
 
         // `.oculpm/journal/` 접두사가 붙어 있어도 같은 결과.
@@ -2509,10 +2762,17 @@ mod tests {
                 &[],
             ),
         );
-        let out = call_tool(root, "journal_search", &serde_json::json!({ "query": "예전 키" }))
-            .unwrap();
+        let out = call_tool(
+            root,
+            "journal_search",
+            &serde_json::json!({ "query": "예전 키" }),
+        )
+        .unwrap();
         let tsv = out["hits_tsv"].as_str().unwrap();
-        assert!(!tsv.contains("sk-ABCDEFGH12345"), "발췌로 시크릿이 샜다: {tsv}");
+        assert!(
+            !tsv.contains("sk-ABCDEFGH12345"),
+            "발췌로 시크릿이 샜다: {tsv}"
+        );
 
         let read = call_tool(
             root,
@@ -2520,14 +2780,23 @@ mod tests {
             &serde_json::json!({ "path": "20260810/Chores/1200_chore_leak.md" }),
         )
         .unwrap();
-        assert!(!read["body_markdown"].as_str().unwrap().contains("sk-ABCDEFGH12345"));
+        assert!(!read["body_markdown"]
+            .as_str()
+            .unwrap()
+            .contains("sk-ABCDEFGH12345"));
     }
 
     #[test]
     fn path_prefilter_helpers_read_the_naming_convention() {
-        assert_eq!(workday_of_rel("20260821/Bugs/1842_bug_a.md"), Some("20260821"));
+        assert_eq!(
+            workday_of_rel("20260821/Bugs/1842_bug_a.md"),
+            Some("20260821")
+        );
         assert_eq!(workday_of_rel("notaday/Bugs/a.md"), None);
-        assert_eq!(type_token_of_rel("20260821/Bugs/1842_bug_a.md"), Some("bug"));
+        assert_eq!(
+            type_token_of_rel("20260821/Bugs/1842_bug_a.md"),
+            Some("bug")
+        );
         assert_eq!(
             type_token_of_rel("20260821/Features_to_add/1000_feature_a.md"),
             Some("feature")

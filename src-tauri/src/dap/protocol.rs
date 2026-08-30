@@ -54,7 +54,10 @@ pub fn parse_incoming(raw: &[u8]) -> Option<Incoming> {
                 .to_string(),
             // 명세상 필수지만 빠뜨리는 어댑터가 있다 — 없으면 성공으로 본다
             // (실패는 반드시 명시된다).
-            success: value.get("success").and_then(Value::as_bool).unwrap_or(true),
+            success: value
+                .get("success")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
             message: value
                 .get("message")
                 .and_then(Value::as_str)
@@ -108,7 +111,13 @@ mod tests {
         let raw = br#"{"seq":7,"type":"response","request_seq":3,"command":"stackTrace",
                        "success":true,"body":{"stackFrames":[]}}"#;
         match parse_incoming(raw).unwrap() {
-            Incoming::Response { request_seq, command, success, message, body } => {
+            Incoming::Response {
+                request_seq,
+                command,
+                success,
+                message,
+                body,
+            } => {
                 // 상관 키는 `id` 가 아니라 `request_seq` 다.
                 assert_eq!(request_seq, 3);
                 assert_eq!(command, "stackTrace");
@@ -125,7 +134,9 @@ mod tests {
         let raw = br#"{"seq":8,"type":"response","request_seq":4,"command":"launch",
                        "success":false,"message":"program not found"}"#;
         match parse_incoming(raw).unwrap() {
-            Incoming::Response { success, message, .. } => {
+            Incoming::Response {
+                success, message, ..
+            } => {
                 assert!(!success);
                 assert_eq!(message.as_deref(), Some("program not found"));
             }
@@ -155,7 +166,8 @@ mod tests {
             }
         );
 
-        let raw = br#"{"seq":10,"type":"request","command":"runInTerminal","arguments":{"args":["x"]}}"#;
+        let raw =
+            br#"{"seq":10,"type":"request","command":"runInTerminal","arguments":{"args":["x"]}}"#;
         match parse_incoming(raw).unwrap() {
             Incoming::ReverseRequest { seq, command, .. } => {
                 assert_eq!((seq, command.as_str()), (10, "runInTerminal"));
@@ -183,8 +195,14 @@ mod tests {
         let bare: Value = serde_json::from_str(&request(3, "configurationDone", None)).unwrap();
         assert!(bare.get("arguments").is_none());
 
-        let resp: Value =
-            serde_json::from_str(&response(4, 10, "runInTerminal", false, "지원하지 않습니다")).unwrap();
+        let resp: Value = serde_json::from_str(&response(
+            4,
+            10,
+            "runInTerminal",
+            false,
+            "지원하지 않습니다",
+        ))
+        .unwrap();
         assert_eq!(resp["request_seq"], 10);
         assert_eq!(resp["success"], false);
         assert_eq!(resp["message"], "지원하지 않습니다");

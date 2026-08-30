@@ -56,7 +56,7 @@ impl McpServer {
         let method = msg.get("method").and_then(Value::as_str).unwrap_or("");
 
         // 알림 (id 없음) — initialized 포함 전부 무응답.
-        let Some(id) = id else { return None };
+        let id = id?;
 
         let response = match method {
             "initialize" => {
@@ -207,7 +207,9 @@ mod tests {
         });
         let resp = call(&s, &req.to_string());
         assert_eq!(resp["result"]["isError"], false);
-        let path = resp["result"]["structuredContent"]["path"].as_str().unwrap();
+        let path = resp["result"]["structuredContent"]["path"]
+            .as_str()
+            .unwrap();
         assert!(dir.path().join(path).exists(), "{path}");
     }
 

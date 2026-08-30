@@ -48,7 +48,12 @@ pub fn parse_ai_edits(text: &str) -> Vec<AiEdit> {
     arr.iter()
         .filter_map(|e| {
             let obj = e.as_object()?;
-            let item_id = obj.get("item_id")?.as_str()?.trim().trim_start_matches('#').to_string();
+            let item_id = obj
+                .get("item_id")?
+                .as_str()?
+                .trim()
+                .trim_start_matches('#')
+                .to_string();
             let status = obj.get("status")?.as_str()?.trim().to_string();
             if item_id.is_empty() || status.is_empty() {
                 return None;
@@ -77,20 +82,36 @@ mod tests {
 
     #[test]
     fn parses_plain_array() {
-        let r = parse_ai_edits(r##"[{"item_id":"abs","status":"done"},{"item_id":"#two","status":"in_progress"}]"##);
+        let r = parse_ai_edits(
+            r##"[{"item_id":"abs","status":"done"},{"item_id":"#two","status":"in_progress"}]"##,
+        );
         assert_eq!(
             r,
             vec![
-                AiEdit { item_id: "abs".into(), status: "done".into() },
-                AiEdit { item_id: "two".into(), status: "in_progress".into() },
+                AiEdit {
+                    item_id: "abs".into(),
+                    status: "done".into()
+                },
+                AiEdit {
+                    item_id: "two".into(),
+                    status: "in_progress".into()
+                },
             ]
         );
     }
 
     #[test]
     fn strips_code_fence_and_prose() {
-        let r = parse_ai_edits("여기 결과:\n```json\n[{\"item_id\":\"x\",\"status\":\"done\"}]\n```\n끝");
-        assert_eq!(r, vec![AiEdit { item_id: "x".into(), status: "done".into() }]);
+        let r = parse_ai_edits(
+            "여기 결과:\n```json\n[{\"item_id\":\"x\",\"status\":\"done\"}]\n```\n끝",
+        );
+        assert_eq!(
+            r,
+            vec![AiEdit {
+                item_id: "x".into(),
+                status: "done".into()
+            }]
+        );
     }
 
     #[test]

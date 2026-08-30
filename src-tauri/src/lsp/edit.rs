@@ -115,7 +115,9 @@ pub fn workspace_edit_from_json(
     if let Some(changes) = edit.get("changes").and_then(Value::as_object) {
         for (uri, edits) in changes {
             let path = resolve_edit_uri(uri, project_root)?;
-            out.entry(path).or_default().extend(text_edits_from_json(edits));
+            out.entry(path)
+                .or_default()
+                .extend(text_edits_from_json(edits));
         }
     }
 
@@ -135,7 +137,9 @@ pub fn workspace_edit_from_json(
             };
             let path = resolve_edit_uri(uri, project_root)?;
             if let Some(edits) = change.get("edits") {
-                out.entry(path).or_default().extend(text_edits_from_json(edits));
+                out.entry(path)
+                    .or_default()
+                    .extend(text_edits_from_json(edits));
             }
         }
     }
@@ -179,7 +183,11 @@ fn text_edit_from_json(e: &Value) -> Option<TextEdit> {
         start_character: start.get("character")?.as_u64()? as u32,
         end_line: end.get("line")?.as_u64()? as u32,
         end_character: end.get("character")?.as_u64()? as u32,
-        new_text: e.get("newText").and_then(Value::as_str).unwrap_or("").to_string(),
+        new_text: e
+            .get("newText")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
     })
 }
 
@@ -270,7 +278,10 @@ mod tests {
             edit(0, 10, 0, 13, "bar"),
             edit(0, 16, 0, 19, "bar"),
         ];
-        assert_eq!(apply_text_edits(text, &edits).unwrap(), "let bar = bar + bar;\n");
+        assert_eq!(
+            apply_text_edits(text, &edits).unwrap(),
+            "let bar = bar + bar;\n"
+        );
     }
 
     /// 길이가 다른 치환이 섞여도 어긋나지 않는다 (짧아지고 길어지는 경우).
@@ -387,8 +398,12 @@ mod tests {
 
     #[test]
     fn empty_edit_yields_no_files() {
-        assert!(workspace_edit_from_json(&json!({}), root()).unwrap().is_empty());
-        assert!(workspace_edit_from_json(&json!(null), root()).unwrap().is_empty());
+        assert!(workspace_edit_from_json(&json!({}), root())
+            .unwrap()
+            .is_empty());
+        assert!(workspace_edit_from_json(&json!(null), root())
+            .unwrap()
+            .is_empty());
         // 편집이 0건인 파일은 목록에 남기지 않는다.
         let e = json!({ "changes": { "file:///w/ai-pm/a.rs": [] }});
         assert!(workspace_edit_from_json(&e, root()).unwrap().is_empty());

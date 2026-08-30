@@ -67,17 +67,13 @@ pub fn parse_marker(line: &str) -> Option<(String, Option<String>)> {
     // contains 검사는 `https://…/oculpm-defer:…` 의 `//` 나 문자열 리터럴 속
     // 주석 문자까지 통과시켜 원장을 오탐으로 채웠다 (적대 리뷰 확정 사례).
     let head = before.trim_end();
-    let in_comment = COMMENT_TOKENS.iter().any(|t| head.ends_with(t))
-        || before.trim() == "*"; // 블록 주석 이어지는 줄 ` * oculpm-defer:`
+    let in_comment = COMMENT_TOKENS.iter().any(|t| head.ends_with(t)) || before.trim() == "*"; // 블록 주석 이어지는 줄 ` * oculpm-defer:`
     if !in_comment {
         return None;
     }
     let rest = line[idx + MARKER.len()..].trim();
     // 블록 주석 닫힘 문자는 본문이 아니다.
-    let rest = rest
-        .trim_end_matches("*/")
-        .trim_end_matches("-->")
-        .trim();
+    let rest = rest.trim_end_matches("*/").trim_end_matches("-->").trim();
     Some(match rest.split_once(';') {
         Some((ceiling, trigger)) => {
             let trigger = trigger.trim();
@@ -209,7 +205,11 @@ mod tests {
     #[test]
     fn parses_three_comment_styles_with_and_without_trigger() {
         // // 스타일 + 트리거 있음
-        let (c, t) = parse_marker(marker_line!("let x = 1; // ", " 전역 락이라 동시 1건; 사용자 100+ 되면 샤딩")).unwrap();
+        let (c, t) = parse_marker(marker_line!(
+            "let x = 1; // ",
+            " 전역 락이라 동시 1건; 사용자 100+ 되면 샤딩"
+        ))
+        .unwrap();
         assert_eq!(c, "전역 락이라 동시 1건");
         assert_eq!(t.as_deref(), Some("사용자 100+ 되면 샤딩"));
 
@@ -224,7 +224,8 @@ mod tests {
         assert!(t.is_none());
 
         // 블록 주석 — 닫힘 문자는 본문에서 떨어진다.
-        let (c, t) = parse_marker(marker_line!("/* ", " 캐시 무효화 없음; TTL 도입되면 */")).unwrap();
+        let (c, t) =
+            parse_marker(marker_line!("/* ", " 캐시 무효화 없음; TTL 도입되면 */")).unwrap();
         assert_eq!(c, "캐시 무효화 없음");
         assert_eq!(t.as_deref(), Some("TTL 도입되면"));
 
@@ -266,9 +267,21 @@ mod tests {
                 marker_line!("// ", " 천장 텍스트; 재방문 조건")
             ),
         );
-        write(root, "ignored.rs", marker_line!("// ", " gitignore 로 제외; 절대 안 보임"));
-        write(root, "node_modules/x.js", marker_line!("// ", " 의존성 내부; 제외"));
-        write(root, "target/y.rs", marker_line!("// ", " 빌드 산출물; 제외"));
+        write(
+            root,
+            "ignored.rs",
+            marker_line!("// ", " gitignore 로 제외; 절대 안 보임"),
+        );
+        write(
+            root,
+            "node_modules/x.js",
+            marker_line!("// ", " 의존성 내부; 제외"),
+        );
+        write(
+            root,
+            "target/y.rs",
+            marker_line!("// ", " 빌드 산출물; 제외"),
+        );
         // NUL 이 앞 8KB 에 있는 파일 — 마커가 있어도 스킵.
         let mut bin = marker_line!("// ", " 바이너리; 스킵").as_bytes().to_vec();
         bin.push(0);
@@ -344,7 +357,11 @@ mod tests {
     #[test]
     fn parse_rejects_non_adjacent_comment_tokens() {
         // URL: `//` 가 마커 직전이 아니다.
-        let url = concat!("let u = \"https://docs.example.com/", "oculpm-defer", ":usage\";");
+        let url = concat!(
+            "let u = \"https://docs.example.com/",
+            "oculpm-defer",
+            ":usage\";"
+        );
         assert!(parse_marker(url).is_none(), "URL 오탐");
         // 마크다운 헤딩 스타일 (# 뒤 텍스트가 끼면 인접 아님).
         let heading = concat!("# 사용법 — ", "oculpm-defer", ": 마커 규칙");
@@ -364,7 +381,11 @@ mod tests {
     fn harvest_excludes_doc_files() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
-        let marker_line = concat!("규칙: `// ", "oculpm-defer", ": <천장>; <트리거>` 를 붙이세요\n");
+        let marker_line = concat!(
+            "규칙: `// ",
+            "oculpm-defer",
+            ": <천장>; <트리거>` 를 붙이세요\n"
+        );
         std::fs::write(root.join("AGENTS.md"), marker_line).unwrap();
         std::fs::write(root.join("guide.tpl"), marker_line).unwrap();
         std::fs::write(

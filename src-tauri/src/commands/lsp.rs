@@ -28,7 +28,10 @@ const WORKSPACE_SYMBOL_LIMIT: usize = 100;
 const PREVIEW_FILE_MAX_BYTES: u64 = 2 * 1024 * 1024;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -77,7 +80,10 @@ pub async fn lsp_open(
 ) -> Result<bool, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(false);
     };
     let version = lsp.next_version(&file).await;
@@ -100,7 +106,10 @@ pub async fn lsp_change(
 ) -> Result<bool, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(false);
     };
     let version = lsp.next_version(&file).await;
@@ -119,8 +128,13 @@ pub async fn lsp_close(
 ) -> Result<(), String> {
     let root = project_root(&db, project_id).await?;
     // 이미 지워진 파일도 닫을 수 있어야 하므로 canonicalize 실패를 삼킨다.
-    let Ok(file) = resolve_in_root(&root, &path) else { return Ok(()) };
-    if let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? {
+    let Ok(file) = resolve_in_root(&root, &path) else {
+        return Ok(());
+    };
+    if let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    {
         let _ = client.did_close(&file).await;
     }
     lsp.forget_document(&file).await;
@@ -144,7 +158,10 @@ pub async fn lsp_completion(
 ) -> Result<Vec<LspCompletionItem>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(Vec::new());
     };
     if !client.supports("completionProvider") {
@@ -152,7 +169,10 @@ pub async fn lsp_completion(
     }
     let params = position_params(crate::lsp::registry::path_to_uri(&file), line, character);
     let result = client.request("textDocument/completion", params).await?;
-    Ok(crate::lsp::spec::completions_from_json(&result, COMPLETION_LIMIT))
+    Ok(crate::lsp::spec::completions_from_json(
+        &result,
+        COMPLETION_LIMIT,
+    ))
 }
 
 /// 커서 위치의 타입·문서 (호버).
@@ -171,7 +191,10 @@ pub async fn lsp_hover(
 ) -> Result<Option<LspHover>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(None);
     };
     if !client.supports("hoverProvider") {
@@ -200,7 +223,10 @@ pub async fn lsp_definition(
 ) -> Result<Option<LspLocation>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(None);
     };
     if !client.supports("definitionProvider") {
@@ -234,7 +260,10 @@ pub async fn lsp_references(
 ) -> Result<Vec<LspReferenceFile>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(Vec::new());
     };
     if !client.supports("referencesProvider") {
@@ -273,7 +302,10 @@ pub async fn lsp_document_symbols(
 ) -> Result<Vec<LspSymbol>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(Vec::new());
     };
     if !client.supports("documentSymbolProvider") {
@@ -282,7 +314,9 @@ pub async fn lsp_document_symbols(
     let params = serde_json::json!({
         "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) }
     });
-    let result = client.request("textDocument/documentSymbol", params).await?;
+    let result = client
+        .request("textDocument/documentSymbol", params)
+        .await?;
     Ok(crate::lsp::spec::document_symbols_from_json(&result))
 }
 
@@ -342,7 +376,10 @@ pub async fn lsp_signature_help(
 ) -> Result<Option<LspSignatureHelp>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(None);
     };
     if !client.supports("signatureHelpProvider") {
@@ -390,7 +427,10 @@ pub async fn lsp_format(
 ) -> Result<Option<String>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(None);
     };
     let options = serde_json::json!({
@@ -510,14 +550,19 @@ pub async fn lsp_code_actions(
 ) -> Result<Vec<LspCodeAction>, String> {
     let root = project_root(&db, project_id).await?;
     let file = resolve_in_root(&root, &path)?;
-    let Some(client) = lsp.ensure_for_file(&app, &db, project_id, &root, &file).await? else {
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
         return Ok(Vec::new());
     };
     if !client.supports("codeActionProvider") {
         return Ok(Vec::new());
     }
 
-    let diagnostics = lsp.diagnostics_overlapping(&file, start_line, end_line).await;
+    let diagnostics = lsp
+        .diagnostics_overlapping(&file, start_line, end_line)
+        .await;
     let params = serde_json::json!({
         "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) },
         "range": {
@@ -636,7 +681,13 @@ mod tests {
         let ok = resolve_in_root(root, "src/a.rs").unwrap();
         assert!(ok.ends_with("src/a.rs"));
 
-        for bad in ["", "   ", "../outside.rs", "src/../../outside.rs", "nope.rs"] {
+        for bad in [
+            "",
+            "   ",
+            "../outside.rs",
+            "src/../../outside.rs",
+            "nope.rs",
+        ] {
             assert!(resolve_in_root(root, bad).is_err(), "통과시켰다: {bad:?}");
         }
     }

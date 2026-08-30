@@ -48,7 +48,10 @@ async fn returns_entries_for_the_file_newest_first() {
     assert_eq!(rows[0].title, "오늘의 기능");
     assert_eq!(rows[0].agent_id, "cursor");
     assert_eq!(rows[0].op, "update");
-    assert_eq!(rows[0].journal_path, "20260823/Features_to_add/1000_feature_new.md");
+    assert_eq!(
+        rows[0].journal_path,
+        "20260823/Features_to_add/1000_feature_new.md"
+    );
     assert_eq!(rows[1].title, "어제의 수정");
 }
 
@@ -56,7 +59,10 @@ async fn returns_entries_for_the_file_newest_first() {
 async fn isolates_projects_and_files() {
     let (_dir, db) = seeded_db().await;
     // 프로젝트 격리 — 2번 프로젝트의 같은 경로가 새어 들어오면 안 된다.
-    let rows = db.oculpm_journal_for_file(2, "src/app.ts".into(), 20).await.unwrap();
+    let rows = db
+        .oculpm_journal_for_file(2, "src/app.ts".into(), 20)
+        .await
+        .unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].title, "남의 프로젝트");
     // 아무 일지도 안 만진 파일은 빈 목록 (칩이 안 뜬다).
@@ -70,7 +76,10 @@ async fn isolates_projects_and_files() {
 #[tokio::test]
 async fn respects_the_limit() {
     let (_dir, db) = seeded_db().await;
-    let rows = db.oculpm_journal_for_file(1, "src/app.ts".into(), 1).await.unwrap();
+    let rows = db
+        .oculpm_journal_for_file(1, "src/app.ts".into(), 1)
+        .await
+        .unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].title, "오늘의 기능", "잘라도 최신이 남는다");
 }

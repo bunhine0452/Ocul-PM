@@ -72,7 +72,10 @@ async fn rust_analyzer_handshakes_and_publishes_diagnostics() {
     assert_eq!(client.root(), root.as_path());
 
     let text = std::fs::read_to_string(&main).unwrap();
-    client.did_open(&main, &text, 1).await.expect("didOpen 실패");
+    client
+        .did_open(&main, &text, 1)
+        .await
+        .expect("didOpen 실패");
 
     // 진단은 알림으로 온다 — 요청 응답이 아니라서 기다려야 한다.
     let deadline = std::time::Instant::now() + Duration::from_secs(60);
@@ -148,13 +151,18 @@ async fn clean_file_yields_no_error_diagnostics() {
         .unwrap()
         .iter()
         .filter_map(|n| match n {
-            ServerNotice::Diagnostics { diagnostics, .. } => Some(diagnostics_from_json(diagnostics)),
+            ServerNotice::Diagnostics { diagnostics, .. } => {
+                Some(diagnostics_from_json(diagnostics))
+            }
             _ => None,
         })
         .flatten()
         .filter(|d| d.severity == LspSeverity::Error)
         .collect();
-    assert!(errors.is_empty(), "깨끗한 파일에 오류 진단이 붙었다: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "깨끗한 파일에 오류 진단이 붙었다: {errors:?}"
+    );
 
     let _ = tokio::time::timeout(Duration::from_secs(15), client.stop()).await;
 }
@@ -209,7 +217,10 @@ async fn hover_and_definition_round_trip() {
             }
         }
         if definition.is_none() {
-            if let Ok(v) = client.request("textDocument/definition", params.clone()).await {
+            if let Ok(v) = client
+                .request("textDocument/definition", params.clone())
+                .await
+            {
                 definition = definition_from_json(&v, &root);
             }
         }
@@ -234,7 +245,10 @@ async fn hover_and_definition_round_trip() {
     // `fn greet` 는 첫 줄(0-based 0)이고, 커서는 정의 블록 맨 위가 아니라
     // **심볼 이름**에 떨어져야 한다 (targetSelectionRange 를 골랐는지 확인).
     assert_eq!(def.line, 0, "{def:?}");
-    assert_eq!(def.character, 3, "`greet` 의 g 가 아니라 줄 머리를 가리킨다: {def:?}");
+    assert_eq!(
+        def.character, 3,
+        "`greet` 의 g 가 아니라 줄 머리를 가리킨다: {def:?}"
+    );
 
     let _ = tokio::time::timeout(Duration::from_secs(15), client.stop()).await;
 }
@@ -297,15 +311,29 @@ async fn rename_applies_a_real_workspace_edit() {
 
     let by_file = by_file.expect("60초 안에 rename 편집이 오지 않았다");
     let edits = by_file.get(&main).expect("main.rs 에 대한 편집이 없다");
-    assert_eq!(edits.len(), 3, "정의 1 + 호출 2 = 3곳이어야 한다: {edits:?}");
+    assert_eq!(
+        edits.len(),
+        3,
+        "정의 1 + 호출 2 = 3곳이어야 한다: {edits:?}"
+    );
 
     let after = apply_text_edits(&before, edits).expect("편집 적용 실패");
     assert!(after.contains("fn hello(name: &str)"), "{after}");
-    assert_eq!(after.matches("hello(").count(), 3, "3곳이 다 안 바뀌었다:\n{after}");
+    assert_eq!(
+        after.matches("hello(").count(),
+        3,
+        "3곳이 다 안 바뀌었다:\n{after}"
+    );
     assert!(!after.contains("greet"), "옛 이름이 남았다:\n{after}");
     // 한글 리터럴이 온전한가 — 오프셋이 어긋났다면 여기가 깨진다.
-    assert!(after.contains("\"안녕하세요, {name}\""), "한글이 깨졌다:\n{after}");
-    assert!(after.contains("hello(\"세상\")") && after.contains("hello(\"친구\")"), "{after}");
+    assert!(
+        after.contains("\"안녕하세요, {name}\""),
+        "한글이 깨졌다:\n{after}"
+    );
+    assert!(
+        after.contains("hello(\"세상\")") && after.contains("hello(\"친구\")"),
+        "{after}"
+    );
 
     let _ = tokio::time::timeout(Duration::from_secs(15), client.stop()).await;
 }
@@ -325,7 +353,10 @@ async fn code_action_request_round_trips_and_indices_stay_consistent() {
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
-    let main = seed_crate(&root, "fn main() {\n    let x = 5;\n    println!(\"{x}\");\n}\n");
+    let main = seed_crate(
+        &root,
+        "fn main() {\n    let x = 5;\n    println!(\"{x}\");\n}\n",
+    );
 
     let sink = Arc::new(|_: ServerNotice| {});
     let spec = spec_for_path(&main).unwrap();
@@ -338,7 +369,10 @@ async fn code_action_request_round_trips_and_indices_stay_consistent() {
     )
     .await
     .expect("initialize 실패");
-    assert!(client.supports("codeActionProvider"), "codeAction 능력 광고 없음");
+    assert!(
+        client.supports("codeActionProvider"),
+        "codeAction 능력 광고 없음"
+    );
 
     let text = std::fs::read_to_string(&main).unwrap();
     client.did_open(&main, &text, 1).await.unwrap();
@@ -359,7 +393,11 @@ async fn code_action_request_round_trips_and_indices_stay_consistent() {
         .expect("codeAction 요청이 오류로 돌아왔다");
 
     let (actions, raw) = code_actions_from_json(&result);
-    assert_eq!(actions.len(), raw.len(), "걸러낸 목록과 원본 개수가 어긋난다");
+    assert_eq!(
+        actions.len(),
+        raw.len(),
+        "걸러낸 목록과 원본 개수가 어긋난다"
+    );
     for (i, a) in actions.iter().enumerate() {
         // 적용은 이 인덱스로 raw 를 되짚는다 — 어긋나면 엉뚱한 액션이 적용된다.
         assert_eq!(a.index as usize, i, "인덱스가 자리와 다르다: {a:?}");
@@ -383,6 +421,10 @@ fn registry_commands_are_plausible_binary_names() {
             "{} 는 PATH 에서 찾을 이름이어야 한다 (경로·인자 금지)",
             spec.command
         );
-        assert!(!spec.root_markers.is_empty(), "{} 에 루트 마커가 없다", spec.language_id);
+        assert!(
+            !spec.root_markers.is_empty(),
+            "{} 에 루트 마커가 없다",
+            spec.language_id
+        );
     }
 }

@@ -230,7 +230,11 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
     // 3-depth — 카운트는 리프 기준 (부모는 파생값: progress() 와 동일 규칙,
     // 아니면 레일이 "1/3 · 100%" 처럼 진척 바와 어긋난 숫자를 보인다).
     let parents = p.parent_ids();
-    let leaves = || p.items.iter().filter(|i| !parents.contains(i.item_id.as_str()));
+    let leaves = || {
+        p.items
+            .iter()
+            .filter(|i| !parents.contains(i.item_id.as_str()))
+    };
     let done = leaves().filter(|i| i.status == ItemStatus::Done).count() as u32;
     let item_count = leaves().count() as u32;
     PlanSummary {
@@ -311,7 +315,10 @@ fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
             // 3-depth — 부모는 파생값이라 제외 (부모+하위를 같이 재면 하위가
             // 이중 가중되고, phase done 수가 부풀려진다).
             let parents = p.parent_ids();
-            for it in in_phase.iter().filter(|i| !parents.contains(i.item_id.as_str())) {
+            for it in in_phase
+                .iter()
+                .filter(|i| !parents.contains(i.item_id.as_str()))
+            {
                 if let Some(w) = it.status.weight() {
                     sum += w;
                     n += 1;
@@ -614,28 +621,30 @@ impl<'a> PlanCache<'a> {
         let item = item_id.to_string();
         self.db
             .conn()
-            .call(move |c| -> Result<Vec<PlanItemUpdateDto>, tokio_rusqlite::Error> {
-                let mut stmt = c.prepare(
-                    "SELECT ts, item_id, agent_id, from_status, to_status, journal_ref, note
+            .call(
+                move |c| -> Result<Vec<PlanItemUpdateDto>, tokio_rusqlite::Error> {
+                    let mut stmt = c.prepare(
+                        "SELECT ts, item_id, agent_id, from_status, to_status, journal_ref, note
                      FROM oculpm_plan_item_updates
                      WHERE project_id = ?1 AND plan_id = ?2 AND item_id = ?3
                      ORDER BY ts",
-                )?;
-                let rows = stmt
-                    .query_map(params![pid, plan, item], |r| {
-                        Ok(PlanItemUpdateDto {
-                            ts: r.get(0)?,
-                            item_id: r.get(1)?,
-                            agent_id: r.get(2)?,
-                            from_status: r.get(3)?,
-                            to_status: r.get(4)?,
-                            journal_ref: r.get(5)?,
-                            note: r.get(6)?,
-                        })
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                Ok(rows)
-            })
+                    )?;
+                    let rows = stmt
+                        .query_map(params![pid, plan, item], |r| {
+                            Ok(PlanItemUpdateDto {
+                                ts: r.get(0)?,
+                                item_id: r.get(1)?,
+                                agent_id: r.get(2)?,
+                                from_status: r.get(3)?,
+                                to_status: r.get(4)?,
+                                journal_ref: r.get(5)?,
+                                note: r.get(6)?,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    Ok(rows)
+                },
+            )
             .await
             .map_err(|e| e.to_string())
     }
@@ -664,9 +673,10 @@ impl<'a> PlanCache<'a> {
         let rows = self
             .db
             .conn()
-            .call(move |c| -> Result<Vec<PlanActivityDto>, tokio_rusqlite::Error> {
-                let mut stmt = c.prepare(
-                    "SELECT u.plan_id, COALESCE(p.title, u.plan_id), u.item_id,
+            .call(
+                move |c| -> Result<Vec<PlanActivityDto>, tokio_rusqlite::Error> {
+                    let mut stmt = c.prepare(
+                        "SELECT u.plan_id, COALESCE(p.title, u.plan_id), u.item_id,
                             COALESCE(it.title, u.item_id), u.agent_id, u.ts,
                             u.from_status, u.to_status, u.note
                      FROM oculpm_plan_item_updates u
@@ -678,24 +688,25 @@ impl<'a> PlanCache<'a> {
                      WHERE u.project_id = ?1
                      ORDER BY u.ts DESC
                      LIMIT ?2",
-                )?;
-                let rows = stmt
-                    .query_map(params![pid, lim], |r| {
-                        Ok(PlanActivityDto {
-                            plan_id: r.get(0)?,
-                            plan_title: r.get(1)?,
-                            item_id: r.get(2)?,
-                            item_title: r.get(3)?,
-                            agent_id: r.get(4)?,
-                            ts: r.get(5)?,
-                            from_status: r.get(6)?,
-                            to_status: r.get(7)?,
-                            note: r.get(8)?,
-                        })
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                Ok(rows)
-            })
+                    )?;
+                    let rows = stmt
+                        .query_map(params![pid, lim], |r| {
+                            Ok(PlanActivityDto {
+                                plan_id: r.get(0)?,
+                                plan_title: r.get(1)?,
+                                item_id: r.get(2)?,
+                                item_title: r.get(3)?,
+                                agent_id: r.get(4)?,
+                                ts: r.get(5)?,
+                                from_status: r.get(6)?,
+                                to_status: r.get(7)?,
+                                note: r.get(8)?,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    Ok(rows)
+                },
+            )
             .await
             .map_err(|e| e.to_string())?;
 

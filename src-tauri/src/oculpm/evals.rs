@@ -85,11 +85,7 @@ pub fn parse_signals(text: &str) -> EvalSignals {
 
 /// `| 날짜 | 스위트 | N/M | 메모 |` 한 행. 헤더/구분선/형식 불일치는 None.
 fn parse_row(line: &str) -> Option<EvalRecord> {
-    let cells: Vec<&str> = line
-        .trim_matches('|')
-        .split('|')
-        .map(str::trim)
-        .collect();
+    let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
     if cells.len() < 3 {
         return None;
     }
@@ -116,7 +112,9 @@ fn is_ymd(s: &str) -> bool {
     b.len() == 10
         && b[4] == b'-'
         && b[7] == b'-'
-        && [0, 1, 2, 3, 5, 6, 8, 9].iter().all(|&i| b[i].is_ascii_digit())
+        && [0, 1, 2, 3, 5, 6, 8, 9]
+            .iter()
+            .all(|&i| b[i].is_ascii_digit())
 }
 
 /// `"8/10"` → (8, 10). 통과가 전체를 넘거나 전체가 0 이면 무효 (부풀린 데이터
@@ -140,11 +138,17 @@ mod tests {
         let s = parse_signals(DOC);
         assert_eq!(s.records.len(), 3, "{:?}", s.records);
         assert_eq!(
-            s.records.iter().map(|r| r.date.as_str()).collect::<Vec<_>>(),
+            s.records
+                .iter()
+                .map(|r| r.date.as_str())
+                .collect::<Vec<_>>(),
             vec!["2026-07-18", "2026-07-19", "2026-07-20"]
         );
         let last = &s.records[2];
-        assert_eq!((last.suite.as_str(), last.passed, last.total), ("frontend", 8, 10));
+        assert_eq!(
+            (last.suite.as_str(), last.passed, last.total),
+            ("frontend", 8, 10)
+        );
         assert_eq!(last.memo, "개선");
         assert_eq!(s.suites, vec!["frontend", "backend"]);
     }

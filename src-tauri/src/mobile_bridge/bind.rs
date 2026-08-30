@@ -155,7 +155,11 @@ mod tests {
     }
 
     fn cand(addr: &str, prefix_len: u8, has_broadcast: bool) -> Candidate {
-        Candidate { ip: ip(addr), prefix_len, has_broadcast }
+        Candidate {
+            ip: ip(addr),
+            prefix_len,
+            has_broadcast,
+        }
     }
 
     // ── (a) 대역 경계 (#mb0-bind-tests) ──────────────────────────────
@@ -196,15 +200,24 @@ mod tests {
 
     #[test]
     fn empty_candidates_is_no_candidate() {
-        assert_eq!(select_candidate(&[], None), Err(BindDetectError::NoCandidate));
+        assert_eq!(
+            select_candidate(&[], None),
+            Err(BindDetectError::NoCandidate)
+        );
     }
 
     #[test]
     fn multiple_candidates_pick_deterministically() {
-        let cands = [cand("100.100.0.2", 32, false), cand("100.64.5.5", 32, false)];
+        let cands = [
+            cand("100.100.0.2", 32, false),
+            cand("100.64.5.5", 32, false),
+        ];
         assert_eq!(select_candidate(&cands, None), Ok(ip("100.64.5.5")));
         // 순서를 바꿔도 같은 결과 — 결정적.
-        let swapped = [cand("100.64.5.5", 32, false), cand("100.100.0.2", 32, false)];
+        let swapped = [
+            cand("100.64.5.5", 32, false),
+            cand("100.100.0.2", 32, false),
+        ];
         assert_eq!(select_candidate(&swapped, None), Ok(ip("100.64.5.5")));
     }
 
@@ -229,7 +242,9 @@ mod tests {
         let cli = [ip("100.70.0.1")];
         assert_eq!(
             select_candidate(&cands, Some(&cli)),
-            Err(BindDetectError::CliMismatch { cli: "100.70.0.1".into() })
+            Err(BindDetectError::CliMismatch {
+                cli: "100.70.0.1".into()
+            })
         );
     }
 
@@ -237,7 +252,10 @@ mod tests {
     fn cli_present_but_no_passed_candidates_is_no_candidate() {
         let cands = [cand("100.90.1.2", 24, true)]; // (b) 탈락
         let cli = [ip("100.90.1.2")];
-        assert_eq!(select_candidate(&cands, Some(&cli)), Err(BindDetectError::NoCandidate));
+        assert_eq!(
+            select_candidate(&cands, Some(&cli)),
+            Err(BindDetectError::NoCandidate)
+        );
     }
 
     // ── netmask → prefix ─────────────────────────────────────────────

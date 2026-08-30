@@ -59,7 +59,11 @@ impl Default for EventHub {
 impl EventHub {
     pub fn publish(&self, event: &str, payload: String) -> u64 {
         let id = self.seq.fetch_add(1, Ordering::SeqCst) + 1;
-        let stored = StoredEvent { id, event: event.to_string(), payload };
+        let stored = StoredEvent {
+            id,
+            event: event.to_string(),
+            payload,
+        };
         {
             let mut buf = self.buffer.lock().expect("event buffer poisoned");
             if buf.len() == BUFFER_CAP {
@@ -74,7 +78,9 @@ impl EventHub {
 
     /// `last_id` 이후의 버퍼 내용 — 재접속 재전송용. `None` 은 처음 접속(재전송 없음).
     pub fn since(&self, last_id: Option<u64>) -> Vec<StoredEvent> {
-        let Some(last) = last_id else { return Vec::new() };
+        let Some(last) = last_id else {
+            return Vec::new();
+        };
         let buf = self.buffer.lock().expect("event buffer poisoned");
         buf.iter().filter(|e| e.id > last).cloned().collect()
     }
@@ -102,7 +108,10 @@ mod tests {
             hub.publish("e", format!("{i}"));
         }
         let replay = hub.since(Some(2));
-        assert_eq!(replay.iter().map(|e| e.id).collect::<Vec<_>>(), vec![3, 4, 5]);
+        assert_eq!(
+            replay.iter().map(|e| e.id).collect::<Vec<_>>(),
+            vec![3, 4, 5]
+        );
         assert!(hub.since(None).is_empty(), "처음 접속은 재전송 없음");
         assert!(hub.since(Some(5)).is_empty(), "놓친 것이 없으면 빈 목록");
     }

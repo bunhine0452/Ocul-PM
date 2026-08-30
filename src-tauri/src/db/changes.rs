@@ -6,7 +6,6 @@
 use super::*;
 
 impl Db {
-
     /// 이 파일을 `files_touched` 로 만진 일지들 — 최신순.
     ///
     /// 코드 화면의 일지 칩이 부른다. 인덱스(`idx_oculpm_journal_files_lookup`)는
@@ -93,7 +92,8 @@ impl Db {
                     params![project_id as i64, agent_id],
                     |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
                 )
-                .optional()})
+                .optional()
+            })
             .await?;
         Ok(row)
     }
@@ -153,11 +153,7 @@ impl Db {
         Ok(())
     }
 
-    pub async fn list_file_changes(
-        &self,
-        project_id: u32,
-        since: i64,
-    ) -> Result<Vec<FileChange>> {
+    pub async fn list_file_changes(&self, project_id: u32, since: i64) -> Result<Vec<FileChange>> {
         let changes = self
             .conn
             .call(move |c| {

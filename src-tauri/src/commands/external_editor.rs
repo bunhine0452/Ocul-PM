@@ -84,7 +84,9 @@ pub async fn open_url(url: String) -> Result<(), String> {
         c.args(["/C", "start", "", trimmed]);
         c
     };
-    cmd.spawn().map(|_| ()).map_err(|e| format!("Failed to open URL: {e}"))
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open URL: {e}"))
 }
 
 /// POSIX 셸에 안전한 인용. **작은따옴표**로 감싸고 내부의 `'` 만 `'\''` 로
@@ -148,11 +150,19 @@ fn substitute_bare_path(template: &str, quoted: &str) -> String {
 fn spawn_detached(command: &str) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd").arg("/C").arg(command).spawn().map(|_| ())
+        Command::new("cmd")
+            .arg("/C")
+            .arg(command)
+            .spawn()
+            .map(|_| ())
     }
     #[cfg(not(target_os = "windows"))]
     {
-        Command::new("sh").arg("-c").arg(command).spawn().map(|_| ())
+        Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .spawn()
+            .map(|_| ())
     }
 }
 

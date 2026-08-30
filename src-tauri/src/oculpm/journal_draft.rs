@@ -239,8 +239,14 @@ pub fn compose_body(
     } else {
         plan.verification.trim()
     };
-    body.push_str(&format!("## {}\n\n{verification}\n\n", lang.pick("검증", "Verification")));
-    body.push_str(&format!("## {}\n\n{meta_note}\n", lang.pick("메모", "Notes")));
+    body.push_str(&format!(
+        "## {}\n\n{verification}\n\n",
+        lang.pick("검증", "Verification")
+    ));
+    body.push_str(&format!(
+        "## {}\n\n{meta_note}\n",
+        lang.pick("메모", "Notes")
+    ));
     body
 }
 
@@ -253,7 +259,11 @@ pub fn compose_degraded_body(
     lang: ContentLang,
 ) -> String {
     let file_lines = if files.is_empty() {
-        lang.pick("- (세션 파일 이벤트 없음)", "- (no file events in this session)").to_string()
+        lang.pick(
+            "- (세션 파일 이벤트 없음)",
+            "- (no file events in this session)",
+        )
+        .to_string()
     } else {
         files
             .iter()
@@ -426,10 +436,11 @@ pub async fn draft_for_session(
             _ => return Ok(DraftOutcome::Skipped("no model configured")),
         },
     };
-    let api_key = match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
-        Some(k) => k,
-        None => return Ok(DraftOutcome::Skipped("no api key for provider")),
-    };
+    let api_key =
+        match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
+            Some(k) => k,
+            None => return Ok(DraftOutcome::Skipped("no api key for provider")),
+        };
 
     // 3. 세션 파일 이벤트 → files_touched.
     let events = index_writer
@@ -450,8 +461,10 @@ pub async fn draft_for_session(
                 d
             }
             Err(_) => {
-                degraded_reason =
-                    Some(content_lang.pick("transcript 파일을 읽지 못함", "could not read the transcript file"));
+                degraded_reason = Some(content_lang.pick(
+                    "transcript 파일을 읽지 못함",
+                    "could not read the transcript file",
+                ));
                 TranscriptDigest::default()
             }
         },
@@ -494,8 +507,7 @@ pub async fn draft_for_session(
             },
             Err(e) => {
                 tracing::warn!(target: "oculpm::journal_draft", error = %e, "draft LLM call failed");
-                degraded_reason =
-                    Some(content_lang.pick("LLM 호출 실패", "LLM call failed"));
+                degraded_reason = Some(content_lang.pick("LLM 호출 실패", "LLM call failed"));
             }
         }
     }
@@ -519,7 +531,13 @@ pub async fn draft_for_session(
                 p.title.trim().to_string()
             };
             let body = compose_body(entry_type, p, &meta_note, content_lang);
-            (entry_type, slug, title, normalize_difficulty(&p.difficulty), body)
+            (
+                entry_type,
+                slug,
+                title,
+                normalize_difficulty(&p.difficulty),
+                body,
+            )
         }
         _ => {
             let reason = degraded_reason.unwrap_or("알 수 없음");
@@ -617,8 +635,14 @@ mod tests {
 
     #[test]
     fn sanitize_slug_forces_ascii_kebab_with_fallback() {
-        assert_eq!(sanitize_slug("Fix Journal Cache!!", "fb"), "fix-journal-cache");
-        assert_eq!(sanitize_slug("한글만있음", "claude-session-003-auto"), "claude-session-003-auto");
+        assert_eq!(
+            sanitize_slug("Fix Journal Cache!!", "fb"),
+            "fix-journal-cache"
+        );
+        assert_eq!(
+            sanitize_slug("한글만있음", "claude-session-003-auto"),
+            "claude-session-003-auto"
+        );
         assert_eq!(sanitize_slug("  --weird__name--  ", "fb"), "weird-name");
         let long = sanitize_slug(&"a".repeat(100), "fb");
         assert!(long.len() <= 40);
@@ -634,7 +658,12 @@ mod tests {
         assert!(body.contains("cargo test 12개 그린"));
         assert!(body.contains("메모줄"));
 
-        let feature = compose_body(EntryType::Feature, &plan("feature"), "m", ContentLang::Unset);
+        let feature = compose_body(
+            EntryType::Feature,
+            &plan("feature"),
+            "m",
+            ContentLang::Unset,
+        );
         assert!(feature.contains("## 추가 기능") && feature.contains("## 동작 흐름"));
 
         // 검증이 비면 정직한 플레이스홀더.
@@ -659,7 +688,11 @@ mod tests {
             ev("20260720-001", "src/a.rs", FileOp::Create),
             ev("20260720-001", "src/a.rs", FileOp::Update),
             ev("20260720-002", "src/other-session.rs", FileOp::Update),
-            ev("20260720-001", "**redacted/sensitive**:abcd", FileOp::Update),
+            ev(
+                "20260720-001",
+                "**redacted/sensitive**:abcd",
+                FileOp::Update,
+            ),
         ];
         let files = files_from_events(&events, "20260720-001");
         assert_eq!(files.len(), 1);
@@ -701,7 +734,8 @@ mod tests {
             agent_label_guess: None,
             linked_journal_entries: vec![],
         };
-        let body = compose_degraded_body(&session, &[], "LLM 호출 실패", "메모", ContentLang::Unset);
+        let body =
+            compose_degraded_body(&session, &[], "LLM 호출 실패", "메모", ContentLang::Unset);
         assert!(body.contains("20260720-003"));
         assert!(body.contains("LLM 호출 실패"));
         assert!(body.contains("## 검증"));
@@ -752,14 +786,12 @@ mod tests {
             agent_label_guess: None,
             linked_journal_entries: vec![],
         };
-        let body =
-            compose_degraded_body(&session, &[], "llm failed", "note", ContentLang::English);
+        let body = compose_degraded_body(&session, &[], "llm failed", "note", ContentLang::English);
         assert!(body.contains("Auto-downgraded record"), "{body}");
         assert!(body.contains("Session:"), "{body}");
         assert!(body.contains("## Verification"), "{body}");
         assert!(!body.contains("자동 강등"), "{body}");
     }
-
 
     #[test]
     fn korean_path_is_byte_identical_to_before() {
@@ -775,5 +807,4 @@ mod tests {
             assert!(!body.contains("Root cause"), "{lang:?}: {body}");
         }
     }
-
 }

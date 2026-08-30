@@ -9,8 +9,8 @@
 //!   UTF-16 이라 프런트와 LSP 는 이미 같은 단위다. Rust 는 통과만 시킨다.
 //! - **서버 조달은 `acp::env` 재사용** — 로그인 셸 PATH (Finder 실행 PATH 함정).
 
-pub mod registry;
 pub mod client;
-pub mod spec;
 pub mod edit;
+pub mod registry;
+pub mod spec;
 pub mod state;

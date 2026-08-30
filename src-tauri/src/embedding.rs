@@ -79,7 +79,11 @@ impl Embedder {
         let poller = if first_download {
             let _ = self.app.emit(
                 DOWNLOAD_EVENT,
-                DownloadProgress { status: "start", downloaded: 0, total: MODEL_EST_BYTES },
+                DownloadProgress {
+                    status: "start",
+                    downloaded: 0,
+                    total: MODEL_EST_BYTES,
+                },
             );
             let app = self.app.clone();
             let dir = self.cache_dir.clone();
@@ -90,7 +94,11 @@ impl Embedder {
                     let total = downloaded.max(MODEL_EST_BYTES);
                     let _ = app.emit(
                         DOWNLOAD_EVENT,
-                        DownloadProgress { status: "progress", downloaded, total },
+                        DownloadProgress {
+                            status: "progress",
+                            downloaded,
+                            total,
+                        },
                     );
                 }
             }))
@@ -121,7 +129,11 @@ impl Embedder {
                 if first_download {
                     let _ = self.app.emit(
                         DOWNLOAD_EVENT,
-                        DownloadProgress { status: "error", downloaded: 0, total: 0 },
+                        DownloadProgress {
+                            status: "error",
+                            downloaded: 0,
+                            total: 0,
+                        },
                     );
                 }
                 return Err(e.to_string());
@@ -130,7 +142,11 @@ impl Embedder {
                 if first_download {
                     let _ = self.app.emit(
                         DOWNLOAD_EVENT,
-                        DownloadProgress { status: "error", downloaded: 0, total: 0 },
+                        DownloadProgress {
+                            status: "error",
+                            downloaded: 0,
+                            total: 0,
+                        },
                     );
                 }
                 return Err(e.to_string());
@@ -180,7 +196,10 @@ fn model_cached(dir: &Path) -> bool {
                 return true;
             }
         } else if p.extension().map(|e| e == "onnx").unwrap_or(false)
-            && entry.metadata().map(|m| m.len() > 1_000_000).unwrap_or(false)
+            && entry
+                .metadata()
+                .map(|m| m.len() > 1_000_000)
+                .unwrap_or(false)
         {
             return true;
         }

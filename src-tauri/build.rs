@@ -6,7 +6,11 @@ fn main() {
     // beforeBuildCommand 의 scripts/build-sidecar.mjs 가 덮어쓴다 (스크립트가
     // 크기 검증으로 플레이스홀더 출하를 차단).
     let triple = std::env::var("TARGET").expect("cargo sets TARGET");
-    let ext = if triple.contains("windows") { ".exe" } else { "" };
+    let ext = if triple.contains("windows") {
+        ".exe"
+    } else {
+        ""
+    };
     let dir = std::path::Path::new("binaries");
     let placeholder = dir.join(format!("oculpm-mcp-{triple}{ext}"));
     if !placeholder.exists() {

@@ -6,7 +6,6 @@
 use super::*;
 
 impl OculpmManager {
-
     // ─── W4-PR2: agent adapter sync + detect ────────────────────────────────
 
     /// Sync every known adapter to disk based on the current
@@ -220,7 +219,11 @@ impl OculpmManager {
             })
             .map(|(rel, _, _)| rel)
             .collect();
-        journal_paths.extend(cache.files_for_entry_paths(project_id, &resolved_entries).await?);
+        journal_paths.extend(
+            cache
+                .files_for_entry_paths(project_id, &resolved_entries)
+                .await?,
+        );
         let journal_set: std::collections::BTreeSet<String> = journal_paths
             .into_iter()
             .filter(|p| !is_excluded(p))
@@ -295,10 +298,7 @@ impl OculpmManager {
     /// Falls back to the embedded `MASTER_KO` if the file is missing — this
     /// lets the UI's "프롬프트 복사" action work even before the first sync
     /// has written the template to disk.
-    pub async fn read_master_template(
-        &self,
-        project_id: u32,
-    ) -> Result<String, OculpmError> {
+    pub async fn read_master_template(&self, project_id: u32) -> Result<String, OculpmError> {
         let root = {
             let projects = self.projects.read().await;
             let entry = projects
@@ -309,9 +309,7 @@ impl OculpmManager {
         let path = root.join(".oculpm").join("agents").join("_template.md");
         match tokio::fs::read_to_string(&path).await {
             Ok(text) => Ok(text),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                Ok(agents::MASTER_KO.to_string())
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(agents::MASTER_KO.to_string()),
             Err(source) => Err(OculpmError::Io { path, source }),
         }
     }

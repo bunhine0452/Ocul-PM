@@ -57,7 +57,11 @@ pub fn entry_path(app_data: &Path) -> PathBuf {
 /// (어댑터도 `CLAUDE_CODE_EXECUTABLE` → 이 경로 순으로 찾는다. 우리가 여기서
 /// 같은 경로를 계산하는 것은 **진단을 정직하게** 하기 위해서다.)
 pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
-    let ext = if cfg!(target_os = "windows") { ".exe" } else { "" };
+    let ext = if cfg!(target_os = "windows") {
+        ".exe"
+    } else {
+        ""
+    };
     let arch = match std::env::consts::ARCH {
         "x86_64" => "x64",
         "aarch64" => "arm64",
@@ -66,10 +70,7 @@ pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
     let path = install_dir(app_data)
         .join("node_modules")
         .join("@anthropic-ai")
-        .join(format!(
-            "claude-agent-sdk-{}-{arch}",
-            std::env::consts::OS
-        ))
+        .join(format!("claude-agent-sdk-{}-{arch}", std::env::consts::OS))
         .join(format!("claude{ext}"));
     path.is_file().then_some(path)
 }
@@ -142,7 +143,9 @@ mod tests {
     #[test]
     fn entry_path_nests_scope_and_name_separately() {
         let entry = entry_path(Path::new("/data"));
-        assert!(entry.ends_with("acp/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"));
+        assert!(
+            entry.ends_with("acp/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js")
+        );
     }
 
     #[test]

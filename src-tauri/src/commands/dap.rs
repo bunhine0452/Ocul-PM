@@ -71,7 +71,10 @@ pub struct DapLaunchRequest {
 }
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -177,9 +180,12 @@ pub async fn dap_start(
     let root = project_root(&db, project_id).await?;
     let spec = adapter_by_id(&request.language_id)
         .ok_or_else(|| format!("{} 는 디버그를 지원하지 않습니다", request.language_id))?;
-    let adapter = resolve_adapter(spec)
-        .await
-        .ok_or_else(|| format!("디버그 어댑터를 찾지 못했습니다. 설치: {}", spec.install_hint))?;
+    let adapter = resolve_adapter(spec).await.ok_or_else(|| {
+        format!(
+            "디버그 어댑터를 찾지 못했습니다. 설치: {}",
+            spec.install_hint
+        )
+    })?;
 
     let config = LaunchConfig {
         language_id: request.language_id.clone(),
@@ -193,13 +199,17 @@ pub async fn dap_start(
         let app = app.clone();
         std::sync::Arc::new(move |signal: SessionSignal| {
             let _ = match signal {
-                SessionSignal::State(session) => {
-                    DapSessionChanged { project_id, session }.emit(&app)
+                SessionSignal::State(session) => DapSessionChanged {
+                    project_id,
+                    session,
                 }
+                .emit(&app),
                 SessionSignal::Output(output) => DapOutputEmitted { project_id, output }.emit(&app),
-                SessionSignal::Breakpoints(breakpoints) => {
-                    DapBreakpointsChanged { project_id, breakpoints }.emit(&app)
+                SessionSignal::Breakpoints(breakpoints) => DapBreakpointsChanged {
+                    project_id,
+                    breakpoints,
                 }
+                .emit(&app),
             };
         })
     };
@@ -239,7 +249,10 @@ pub async fn dap_control(
         "pause" => "pause",
         other => return Err(format!("알 수 없는 실행 제어: {other}")),
     };
-    let session = dap.session(project_id).await.ok_or("디버그 세션이 없습니다")?;
+    let session = dap
+        .session(project_id)
+        .await
+        .ok_or("디버그 세션이 없습니다")?;
     let thread_id = session.thread_id().await.ok_or("멈춘 스레드가 없습니다")?;
     session
         .request(command, Some(serde_json::json!({ "threadId": thread_id })))
@@ -288,7 +301,10 @@ pub async fn dap_scopes(
         return Ok(Vec::new());
     };
     let body = session
-        .request("scopes", Some(serde_json::json!({ "frameId": wire_id(frame_id) })))
+        .request(
+            "scopes",
+            Some(serde_json::json!({ "frameId": wire_id(frame_id) })),
+        )
         .await?;
     Ok(crate::dap::spec::scopes_from_json(&body))
 }

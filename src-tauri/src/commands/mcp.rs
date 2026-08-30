@@ -15,7 +15,10 @@ fn desktop_config_path() -> Result<std::path::PathBuf, String> {
 }
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(std::path::PathBuf::from(project.root_path))
 }
 
@@ -74,7 +77,8 @@ pub async fn mcp_desktop_register(
     let binary = resolve_binary_path().ok_or_else(|| {
         "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
     })?;
-    register::desktop_register_at(&desktop_config_path()?, &root, &binary).map_err(|e| e.to_string())
+    register::desktop_register_at(&desktop_config_path()?, &root, &binary)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -104,8 +108,12 @@ pub struct ClaudePluginStatus {
 #[tauri::command]
 #[specta::specta]
 pub fn claude_plugin_status() -> ClaudePluginStatus {
-    let none = ClaudePluginStatus { installed: false, path: None };
-    let Some(base) = directories::BaseDirs::new().map(|b| b.home_dir().join(".claude").join("plugins"))
+    let none = ClaudePluginStatus {
+        installed: false,
+        path: None,
+    };
+    let Some(base) =
+        directories::BaseDirs::new().map(|b| b.home_dir().join(".claude").join("plugins"))
     else {
         return none;
     };
@@ -114,12 +122,19 @@ pub fn claude_plugin_status() -> ClaudePluginStatus {
     }
     let mut budget = 2_000usize;
     match find_oculpm_plugin(&base, 6, &mut budget) {
-        Some(dir) => ClaudePluginStatus { installed: true, path: Some(dir.display().to_string()) },
+        Some(dir) => ClaudePluginStatus {
+            installed: true,
+            path: Some(dir.display().to_string()),
+        },
         None => none,
     }
 }
 
-fn find_oculpm_plugin(dir: &std::path::Path, depth: u8, budget: &mut usize) -> Option<std::path::PathBuf> {
+fn find_oculpm_plugin(
+    dir: &std::path::Path,
+    depth: u8,
+    budget: &mut usize,
+) -> Option<std::path::PathBuf> {
     if depth == 0 || *budget == 0 {
         return None;
     }
@@ -142,7 +157,10 @@ fn find_oculpm_plugin(dir: &std::path::Path, depth: u8, budget: &mut usize) -> O
         }
         *budget -= 1;
         let path = entry.path();
-        let is_dir = entry.file_type().map(|t| t.is_dir() && !t.is_symlink()).unwrap_or(false);
+        let is_dir = entry
+            .file_type()
+            .map(|t| t.is_dir() && !t.is_symlink())
+            .unwrap_or(false);
         if is_dir {
             if let Some(hit) = find_oculpm_plugin(&path, depth - 1, budget) {
                 return Some(hit);
@@ -151,4 +169,3 @@ fn find_oculpm_plugin(dir: &std::path::Path, depth: u8, budget: &mut usize) -> O
     }
     None
 }
-

@@ -366,10 +366,6 @@ auto_sync_adapters = true
     fn default_forbid_patterns_nonempty() {
         let c = OculpmConfig::default_for_new_project();
         assert!(c.git.forbid_journal_for_paths.len() >= 25);
-        assert!(c
-            .git
-            .forbid_journal_for_paths
-            .iter()
-            .all(|p| !p.is_empty()));
+        assert!(c.git.forbid_journal_for_paths.iter().all(|p| !p.is_empty()));
     }
 }

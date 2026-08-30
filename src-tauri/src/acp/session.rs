@@ -202,9 +202,11 @@ pub fn map_config_options(
                         SessionConfigSelectOptions::Ungrouped(list) => {
                             list.iter().map(choice).collect()
                         }
-                        SessionConfigSelectOptions::Grouped(groups) => {
-                            groups.iter().flat_map(|g| g.options.iter()).map(choice).collect()
-                        }
+                        SessionConfigSelectOptions::Grouped(groups) => groups
+                            .iter()
+                            .flat_map(|g| g.options.iter())
+                            .map(choice)
+                            .collect(),
                         // 스키마가 표현을 늘려도 셀렉터가 통째로 사라지지 않게.
                         #[allow(unreachable_patterns)]
                         _ => Vec::new(),
@@ -389,9 +391,10 @@ pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
 ///
 /// 머리글 줄 자체는 뺀다 — 카드에 이미 제목이 있어 두 번 쓰면 시끄럽다.
 pub fn parse_usage_detail(text: &str) -> Option<String> {
-    let head = text
-        .lines()
-        .position(|line| line.to_lowercase().contains("contributing to your limits usage"))?;
+    let head = text.lines().position(|line| {
+        line.to_lowercase()
+            .contains("contributing to your limits usage")
+    })?;
     let body = text
         .lines()
         .skip(head + 1)
@@ -1078,7 +1081,11 @@ mod tests {
             1.5,
             "EUR".to_string(),
         ));
-        let AcpEvent::Usage { cost_usd, used, size } = map_update(&SessionUpdate::UsageUpdate(usage))
+        let AcpEvent::Usage {
+            cost_usd,
+            used,
+            size,
+        } = map_update(&SessionUpdate::UsageUpdate(usage))
         else {
             panic!("Usage 이벤트여야 한다");
         };
@@ -1150,13 +1157,16 @@ mod tests {
         use agent_client_protocol::schema::v1::{ToolCall, ToolCallId};
 
         let mut call = ToolCall::new(ToolCallId::new("c1"), "Bash".to_string());
-        call.raw_input =
-            Some(serde_json::json!({ "command": "ls -la", "description": "list" }));
+        call.raw_input = Some(serde_json::json!({ "command": "ls -la", "description": "list" }));
 
         let AcpEvent::ToolCall { input, .. } = map_update(&SessionUpdate::ToolCall(call)) else {
             panic!("ToolCall 이어야 한다");
         };
-        assert_eq!(input.as_deref(), Some("ls -la"), "JSON 껍데기가 남으면 안 된다");
+        assert_eq!(
+            input.as_deref(),
+            Some("ls -la"),
+            "JSON 껍데기가 남으면 안 된다"
+        );
 
         // 모르는 모양은 통째로라도 보인다 — 숨기면 카드가 거짓말을 한다.
         let mut odd = ToolCall::new(ToolCallId::new("c3"), "Odd".to_string());
@@ -1181,17 +1191,14 @@ mod tests {
     /// 버려서, 승인 카드도 도구 카드도 무엇이 바뀌는지 보여 줄 수 없었다.
     #[test]
     fn tool_call_carries_structured_diffs_not_a_placeholder() {
-        use agent_client_protocol::schema::v1::{
-            Diff, ToolCall, ToolCallContent, ToolCallId,
-        };
+        use agent_client_protocol::schema::v1::{Diff, ToolCall, ToolCallContent, ToolCallId};
 
         let mut call = ToolCall::new(ToolCallId::new("c1"), "Edit".to_string());
         call.content = vec![ToolCallContent::Diff(
             Diff::new("/repo/src/lib.rs", "let x = 2;").old_text("let x = 1;".to_string()),
         )];
 
-        let AcpEvent::ToolCall { diffs, output, .. } =
-            map_update(&SessionUpdate::ToolCall(call))
+        let AcpEvent::ToolCall { diffs, output, .. } = map_update(&SessionUpdate::ToolCall(call))
         else {
             panic!("ToolCall 이어야 한다");
         };
@@ -1199,7 +1206,10 @@ mod tests {
         assert_eq!(diffs[0].path, "/repo/src/lib.rs");
         assert_eq!(diffs[0].old_text.as_deref(), Some("let x = 1;"));
         assert_eq!(diffs[0].new_text, "let x = 2;");
-        assert_eq!(output, None, "\"[diff]\" 자리표가 남으면 같은 변경이 두 번 보인다");
+        assert_eq!(
+            output, None,
+            "\"[diff]\" 자리표가 남으면 같은 변경이 두 번 보인다"
+        );
     }
 
     /// content 가 안 온 갱신에서 diffs 는 `None` 이어야 한다 — `Some(vec![])` 로
@@ -1211,8 +1221,7 @@ mod tests {
         };
 
         let update = ToolCallUpdate::new(ToolCallId::new("c1"), ToolCallUpdateFields::new());
-        let AcpEvent::ToolUpdate { diffs, .. } =
-            map_update(&SessionUpdate::ToolCallUpdate(update))
+        let AcpEvent::ToolUpdate { diffs, .. } = map_update(&SessionUpdate::ToolCallUpdate(update))
         else {
             panic!("ToolUpdate 여야 한다");
         };
@@ -1221,8 +1230,7 @@ mod tests {
         let mut fields = ToolCallUpdateFields::new();
         fields.content = Some(vec![ToolCallContent::Diff(Diff::new("/a", "b"))]);
         let update = ToolCallUpdate::new(ToolCallId::new("c1"), fields);
-        let AcpEvent::ToolUpdate { diffs, .. } =
-            map_update(&SessionUpdate::ToolCallUpdate(update))
+        let AcpEvent::ToolUpdate { diffs, .. } = map_update(&SessionUpdate::ToolCallUpdate(update))
         else {
             panic!("ToolUpdate 여야 한다");
         };
@@ -1261,7 +1269,11 @@ mod tests {
         };
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0].path, "/repo/a.ts");
-        assert_eq!(input.as_deref(), Some("rm -rf build"), "실행 승인은 명령이 보여야 한다");
+        assert_eq!(
+            input.as_deref(),
+            Some("rm -rf build"),
+            "실행 승인은 명령이 보여야 한다"
+        );
     }
 
     /// 조용히 자르면 출력이 거짓말이 된다 — 잘렸다는 사실이 남아야 한다.
@@ -1301,14 +1313,18 @@ mod tests {
         let found = usage_of(&SessionUpdate::UsageUpdate(usage)).expect("Usage 여야 한다");
         let kinds: Vec<&str> = found.limits.iter().map(|l| l.kind.as_str()).collect();
         assert!(kinds.contains(&"seven_day"), "관측: {kinds:?}");
-        assert!(kinds.contains(&"five_hour"), "중첩된 것도 찾아야 한다: {kinds:?}");
+        assert!(
+            kinds.contains(&"five_hour"),
+            "중첩된 것도 찾아야 한다: {kinds:?}"
+        );
         assert_eq!(found.used, 52_243);
     }
 
     /// 실측 응답(2026-08-15) 그대로 — 문구가 바뀌면 여기서 먼저 깨진다.
     #[test]
     fn usage_report_parses_the_three_lines() {
-        let report = "You are currently using your subscription to power your Claude Code usage\n\n\
+        let report =
+            "You are currently using your subscription to power your Claude Code usage\n\n\
              Current session: 0% used\n\
              Current week (all models): 83% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\
              Current week (Fable): 66% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\n\
@@ -1370,8 +1386,14 @@ mod tests {
         let report = "Current session: 0% used\n\n             What's contributing to your limits usage?\n\n             91% of your usage was at >150k context\n             Skills                 % of usage\n               /frontend-design       4%\n";
 
         let detail = parse_usage_detail(report).expect("기여도 대목이 있어야 한다");
-        assert!(detail.starts_with("91% of your usage"), "머리글은 빼고: {detail:?}");
-        assert!(detail.contains("/frontend-design       4%"), "정렬 공백까지 그대로");
+        assert!(
+            detail.starts_with("91% of your usage"),
+            "머리글은 빼고: {detail:?}"
+        );
+        assert!(
+            detail.contains("/frontend-design       4%"),
+            "정렬 공백까지 그대로"
+        );
     }
 
     /// 한도만 오고 대목이 없는 응답도 있다 — 그때 빈 문자열을 만들면 카드에
@@ -1396,8 +1418,8 @@ mod tests {
     #[test]
     fn usage_without_meta_yields_no_limits() {
         use agent_client_protocol::schema::v1::UsageUpdate;
-        let found = usage_of(&SessionUpdate::UsageUpdate(UsageUpdate::new(1, 2)))
-            .expect("Usage 여야 한다");
+        let found =
+            usage_of(&SessionUpdate::UsageUpdate(UsageUpdate::new(1, 2))).expect("Usage 여야 한다");
         assert!(found.limits.is_empty());
     }
 

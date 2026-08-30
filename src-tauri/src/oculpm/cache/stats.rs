@@ -6,7 +6,6 @@
 use super::*;
 
 impl<'a> JournalCache<'a> {
-
     /// Group changed file paths by the journal entry that most recently touched
     /// each (Dogfooding #3). Each entry group carries the plan items linked to
     /// it (via the plan-log `journal_ref`). Paths no entry recorded fall into a
@@ -115,10 +114,7 @@ impl<'a> JournalCache<'a> {
     /// ASC. Drives `CategoryFilterBar` 's agent dropdown so users can filter
     /// by any agent that has actually written an entry — not just the known
     /// 6 (`claude-code`, `cursor`, ...).
-    pub async fn observed_agent_ids(
-        &self,
-        project_id: u32,
-    ) -> Result<Vec<String>, OculpmError> {
+    pub async fn observed_agent_ids(&self, project_id: u32) -> Result<Vec<String>, OculpmError> {
         let pid = project_id as i64;
         let rows = self
             .db

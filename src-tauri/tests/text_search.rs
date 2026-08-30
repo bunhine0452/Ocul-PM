@@ -49,8 +49,15 @@ async fn like_metacharacters_are_literal() {
     let (_dir, db) = seeded().await;
     // `%` 와 `_` 는 와일드카드가 아니라 글자로 매치돼야 한다.
     assert_eq!(db.search_text(1, "100%".into(), 10).await.unwrap().len(), 1);
-    assert_eq!(db.search_text(1, "_under_".into(), 10).await.unwrap().len(), 1);
-    assert!(db.search_text(1, "100_".into(), 10).await.unwrap().is_empty());
+    assert_eq!(
+        db.search_text(1, "_under_".into(), 10).await.unwrap().len(),
+        1
+    );
+    assert!(db
+        .search_text(1, "100_".into(), 10)
+        .await
+        .unwrap()
+        .is_empty());
     // FTS 연산자처럼 보이는 입력도 그냥 글자다 — 에러 없이 빈 결과.
     for q in ["a AND b", "col:x", "\"quoted\"", "star*"] {
         let res = db.search_text(1, q.to_string(), 10).await;
@@ -71,8 +78,18 @@ async fn reflects_updates_and_deletes_immediately() {
         })
         .await
         .unwrap();
-    assert!(db.search_text(1, "Fallback".into(), 10).await.unwrap().is_empty());
-    assert_eq!(db.search_text(1, "different body".into(), 10).await.unwrap().len(), 1);
+    assert!(db
+        .search_text(1, "Fallback".into(), 10)
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        db.search_text(1, "different body".into(), 10)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 
     db.conn()
         .call(|c| {
@@ -81,7 +98,11 @@ async fn reflects_updates_and_deletes_immediately() {
         })
         .await
         .unwrap();
-    assert!(db.search_text(1, "different body".into(), 10).await.unwrap().is_empty());
+    assert!(db
+        .search_text(1, "different body".into(), 10)
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]

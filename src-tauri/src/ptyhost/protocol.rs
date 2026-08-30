@@ -46,16 +46,33 @@ pub enum Request {
         shell_integration: bool,
     },
     /// 살아있는 세션의 스크롤백 스냅샷 (없으면 None) — 재접속의 관문.
-    Attach { sid: String },
-    Write { sid: String, data: String },
-    Resize { sid: String, rows: u16, cols: u16 },
-    Kill { sid: String },
+    Attach {
+        sid: String,
+    },
+    Write {
+        sid: String,
+        data: String,
+    },
+    Resize {
+        sid: String,
+        rows: u16,
+        cols: u16,
+    },
+    Kill {
+        sid: String,
+    },
     /// 접두사로 골라 죽인다 (창/탭 닫힘 정리 — window.rs 계약 그대로).
-    KillPrefix { prefix: String },
+    KillPrefix {
+        prefix: String,
+    },
     /// 지정 접두사만 남기고 전량 종료 (마지막 앱 창 닫힘).
-    KillExcept { keep: Vec<String> },
+    KillExcept {
+        keep: Vec<String>,
+    },
     /// tty 포그라운드 프로세스 그룹의 명령줄 (디스패치 프리필).
-    Foreground { sid: String },
+    Foreground {
+        sid: String,
+    },
     /// 세션 전량 종료 후 호스트 자신도 내린다 (프로토콜 불일치 복구).
     Shutdown,
 }
@@ -64,13 +81,26 @@ pub enum Request {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Response {
     Ok,
-    Proto { proto: u32 },
+    Proto {
+        proto: u32,
+    },
     /// Start 의 결과 — 프런트 OSC 검증에 필요한 것들.
-    Session { nonce: String, shell_integration: bool },
-    Attach { attach: Option<AttachPayload> },
-    Foreground { command: Option<String> },
-    Count { n: u32 },
-    Error { message: String },
+    Session {
+        nonce: String,
+        shell_integration: bool,
+    },
+    Attach {
+        attach: Option<AttachPayload>,
+    },
+    Foreground {
+        command: Option<String>,
+    },
+    Count {
+        n: u32,
+    },
+    Error {
+        message: String,
+    },
 }
 
 /// [`Request::Attach`] 응답 본문 — 기존 `PtyAttach` 와 같은 모양.
@@ -117,12 +147,18 @@ mod tests {
         assert!(matches!(back.req, Request::Start { .. }));
 
         let ev = HostFrame::Event {
-            ev: Event::Data { sid: "p1-abc".into(), seq: 3, text: "hi".into() },
+            ev: Event::Data {
+                sid: "p1-abc".into(),
+                seq: 3,
+                text: "hi".into(),
+            },
         };
         let json = serde_json::to_string(&ev).unwrap();
         assert!(matches!(
             serde_json::from_str::<HostFrame>(&json).unwrap(),
-            HostFrame::Event { ev: Event::Data { seq: 3, .. } }
+            HostFrame::Event {
+                ev: Event::Data { seq: 3, .. }
+            }
         ));
     }
 

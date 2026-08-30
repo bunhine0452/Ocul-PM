@@ -158,7 +158,10 @@ mod tests {
         let body = r#"{"msg":"한글 주석"}"#;
         let buf = msg(body);
         let header = String::from_utf8(buf[..20].to_vec()).unwrap();
-        assert!(header.starts_with(&format!("Content-Length: {}", body.len())), "{header}");
+        assert!(
+            header.starts_with(&format!("Content-Length: {}", body.len())),
+            "{header}"
+        );
         let Frame::Message { body: got, .. } = parse_frame(&buf) else {
             panic!("한글 본문을 못 읽었다")
         };
@@ -186,7 +189,10 @@ mod tests {
             (b"garbage\r\n\r\n{}", "':' 없는 헤더 줄"),
         ];
         for (raw, why) in cases {
-            assert!(matches!(parse_frame(raw), Frame::Invalid(_)), "{why} 를 통과시켰다");
+            assert!(
+                matches!(parse_frame(raw), Frame::Invalid(_)),
+                "{why} 를 통과시켰다"
+            );
         }
     }
 

@@ -6,7 +6,6 @@
 use super::*;
 
 impl<'a> JournalCache<'a> {
-
     /// W4-PR5 — distinct `files_touched[].path` union across every journal
     /// entry that names `session_id`. Drives `LayerComparison` without
     /// hydrating the full entries. Uses `idx_oculpm_journal_session` for the
@@ -75,7 +74,11 @@ impl<'a> JournalCache<'a> {
                 )?;
                 let collected: rusqlite::Result<Vec<(String, String, String)>> = stmt
                     .query_map(params![pid, &workday], |r| {
-                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, String>(2)?,
+                        ))
                     })?
                     .collect();
                 collected
@@ -102,8 +105,7 @@ impl<'a> JournalCache<'a> {
             .db
             .conn()
             .call(move |c| {
-                let placeholders = std::iter::repeat("?")
-                    .take(owned.len())
+                let placeholders = std::iter::repeat_n("?", owned.len())
                     .collect::<Vec<_>>()
                     .join(",");
                 let sql = format!(
@@ -198,7 +200,6 @@ impl<'a> JournalCache<'a> {
                     params![pid, &workday],
                     |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
                 )
-                .map_err(Into::into)
             })
             .await
             .map_err(map_sqlite_err)?;

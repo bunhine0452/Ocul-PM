@@ -169,11 +169,17 @@ pub fn validate_rel(scope: RuleScope, rel_path: &str) -> Result<RuleKind, String
     }
     let segments: Vec<&str> = inner.split('/').collect();
     if segments.len() > MAX_RULES_DEPTH as usize {
-        return Err(format!("Rule folders may nest at most {MAX_RULES_DEPTH} levels"));
+        return Err(format!(
+            "Rule folders may nest at most {MAX_RULES_DEPTH} levels"
+        ));
     }
     for (i, seg) in segments.iter().enumerate() {
         let is_last = i == segments.len() - 1;
-        let stem = if is_last { seg.strip_suffix(".md").unwrap_or(seg) } else { seg };
+        let stem = if is_last {
+            seg.strip_suffix(".md").unwrap_or(seg)
+        } else {
+            seg
+        };
         if stem.is_empty()
             || stem == "."
             || stem == ".."
@@ -306,7 +312,9 @@ fn build_entry(
         title,
         exists: content.is_some(),
         paths,
-        bytes: content.map(|c| u32::try_from(c.len()).unwrap_or(u32::MAX)).unwrap_or(0),
+        bytes: content
+            .map(|c| u32::try_from(c.len()).unwrap_or(u32::MAX))
+            .unwrap_or(0),
         mirror,
     }
 }
@@ -339,8 +347,16 @@ fn list_scope(scope: RuleScope, scope_root: &Path, project_root: Option<&Path>) 
     rels.sort();
     for inner in rels.into_iter().take(MAX_LISTED_RULES) {
         let rel = format!("{RULES_SUBDIR}/{inner}");
-        let Ok(Some(content)) = read_capped(&scope_root.join(&rel)) else { continue };
-        out.push(build_entry(scope, RuleKind::Rule, &rel, Some(&content), project_root));
+        let Ok(Some(content)) = read_capped(&scope_root.join(&rel)) else {
+            continue;
+        };
+        out.push(build_entry(
+            scope,
+            RuleKind::Rule,
+            &rel,
+            Some(&content),
+            project_root,
+        ));
     }
     out
 }
@@ -349,7 +365,9 @@ fn collect_rule_files(base: &Path, dir: &Path, depth: u8, out: &mut Vec<String>)
     if depth >= MAX_RULES_DEPTH || out.len() >= MAX_LISTED_RULES {
         return;
     }
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         if out.len() >= MAX_LISTED_RULES {
             return;
@@ -375,16 +393,21 @@ fn collect_rule_files(base: &Path, dir: &Path, depth: u8, out: &mut Vec<String>)
 
 /// `rules_list` 본체. `cursor_translate` 는 호출측(commands)이 config 에서 읽어
 /// 넘긴다 — 이 모듈은 config 로딩을 소유하지 않는다.
-pub fn overview(
-    project_root: &Path,
-    home: &Path,
-    cursor_translate: bool,
-) -> RulesOverview {
+pub fn overview(project_root: &Path, home: &Path, cursor_translate: bool) -> RulesOverview {
     let mut claude_md = Vec::new();
-    for (scope, scope_root) in [(RuleScope::Project, project_root), (RuleScope::Global, home)] {
+    for (scope, scope_root) in [
+        (RuleScope::Project, project_root),
+        (RuleScope::Global, home),
+    ] {
         for rel in claude_md_slots(scope) {
             let content = read_capped(&scope_root.join(rel)).ok().flatten();
-            claude_md.push(build_entry(scope, RuleKind::ClaudeMd, rel, content.as_deref(), None));
+            claude_md.push(build_entry(
+                scope,
+                RuleKind::ClaudeMd,
+                rel,
+                content.as_deref(),
+                None,
+            ));
         }
     }
     RulesOverview {
@@ -411,8 +434,8 @@ pub fn read(
             MAX_RULE_BYTES / 1024
         ));
     }
-    let content = std::fs::read_to_string(&abs)
-        .map_err(|e| format!("Could not read the rule file: {e}"))?;
+    let content =
+        std::fs::read_to_string(&abs).map_err(|e| format!("Could not read the rule file: {e}"))?;
     let project_root = (scope == RuleScope::Project).then_some(project_root);
     Ok(RuleDetail {
         entry: build_entry(scope, kind, rel_path, Some(&content), project_root),
@@ -464,7 +487,13 @@ pub fn save(
         write_atomic(&abs, content.as_bytes()).map_err(|e| e.to_string())?;
     }
     let project_root = (scope == RuleScope::Project).then_some(project_root);
-    Ok(build_entry(scope, kind, rel_path, Some(content), project_root))
+    Ok(build_entry(
+        scope,
+        kind,
+        rel_path,
+        Some(content),
+        project_root,
+    ))
 }
 
 /// 문자열에서 oculpm 관리 블록 **본문**을 뽑는다.
@@ -679,7 +708,9 @@ pub fn sync_mirrors(project_root: &Path, enabled: bool) -> Vec<MirrorWriteResult
             if path.extension().and_then(|e| e.to_str()) != Some("mdc") {
                 continue;
             }
-            let Ok(Some(text)) = read_capped(&path) else { continue };
+            let Ok(Some(text)) = read_capped(&path) else {
+                continue;
+            };
             if let Some(src) = mirror_source_of(&text) {
                 marked.push((path, src));
             }
@@ -692,8 +723,8 @@ pub fn sync_mirrors(project_root: &Path, enabled: bool) -> Vec<MirrorWriteResult
         // 고아 정리에 지워져, 1패스 후 미러가 사라지던 비수렴(#a0-review-fixes ②)
         // 을 제거한다. 원본이 살아 있는 미러는 이 단계가 건드리지 않는다.
         for (_, src) in &marked {
-            let orphan = validate_rel(RuleScope::Project, src).is_err()
-                || !project_root.join(src).is_file();
+            let orphan =
+                validate_rel(RuleScope::Project, src).is_err() || !project_root.join(src).is_file();
             if orphan {
                 results.push(remove_mirror(project_root, src));
             }
@@ -758,7 +789,12 @@ mod tests {
         // 블록 밖 편집 → 허용.
         let outside = MANAGED.replace("사용자 영역", "사용자가 고친 영역");
         assert!(save(
-            RuleScope::Project, root, root, ".claude/CLAUDE.md", &outside, false
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/CLAUDE.md",
+            &outside,
+            false
         )
         .is_ok());
         assert!(std::fs::read_to_string(root.join(".claude/CLAUDE.md"))
@@ -768,7 +804,12 @@ mod tests {
         // 블록 **안** 편집 → 거부 (다음 sync 에 조용히 사라질 내용).
         let inside = outside.replace("앱이 관리하는 규칙", "내가 몰래 끼워넣은 규칙");
         let err = save(
-            RuleScope::Project, root, root, ".claude/CLAUDE.md", &inside, false,
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/CLAUDE.md",
+            &inside,
+            false,
         )
         .unwrap_err();
         assert!(err.contains("_template.md"), "행동 가능한 안내: {err}");
@@ -780,7 +821,12 @@ mod tests {
         // 블록 통째 삭제 시도 → 거부.
         let dropped = "# 프로젝트 메모\n\n블록 없앰\n";
         assert!(save(
-            RuleScope::Project, root, root, ".claude/CLAUDE.md", dropped, false
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/CLAUDE.md",
+            dropped,
+            false
         )
         .is_err());
     }
@@ -792,12 +838,12 @@ mod tests {
         // 신규 파일이라 보호할 블록은 없지만, 짝 안 맞는 마커 자체가 어댑터를
         // 영구 에러 상태로 만든다 — 저장 자체를 막아야 한다.
         let orphan = "# 메모\n\n<!-- oculpm:begin v1 -->\n닫히지 않음\n";
-        let err = save(
-            RuleScope::Project, root, root, "CLAUDE.md", orphan, false,
-        )
-        .unwrap_err();
+        let err = save(RuleScope::Project, root, root, "CLAUDE.md", orphan, false).unwrap_err();
         assert!(err.contains("never closed"), "{err}");
-        assert!(!root.join("CLAUDE.md").exists(), "거부 시 파일을 만들지 않는다");
+        assert!(
+            !root.join("CLAUDE.md").exists(),
+            "거부 시 파일을 만들지 않는다"
+        );
     }
 
     // ─── 경로 검증 ──────────────────────────────────────────────────────────
@@ -805,10 +851,22 @@ mod tests {
     #[test]
     fn validate_rel_allowlist_and_traversal() {
         // ClaudeMd 슬롯.
-        assert_eq!(validate_rel(RuleScope::Project, "CLAUDE.md"), Ok(RuleKind::ClaudeMd));
-        assert_eq!(validate_rel(RuleScope::Project, ".claude/CLAUDE.md"), Ok(RuleKind::ClaudeMd));
-        assert_eq!(validate_rel(RuleScope::Project, "CLAUDE.local.md"), Ok(RuleKind::ClaudeMd));
-        assert_eq!(validate_rel(RuleScope::Global, ".claude/CLAUDE.md"), Ok(RuleKind::ClaudeMd));
+        assert_eq!(
+            validate_rel(RuleScope::Project, "CLAUDE.md"),
+            Ok(RuleKind::ClaudeMd)
+        );
+        assert_eq!(
+            validate_rel(RuleScope::Project, ".claude/CLAUDE.md"),
+            Ok(RuleKind::ClaudeMd)
+        );
+        assert_eq!(
+            validate_rel(RuleScope::Project, "CLAUDE.local.md"),
+            Ok(RuleKind::ClaudeMd)
+        );
+        assert_eq!(
+            validate_rel(RuleScope::Global, ".claude/CLAUDE.md"),
+            Ok(RuleKind::ClaudeMd)
+        );
         // 전역 스코프에 루트 CLAUDE.md 슬롯은 없다.
         assert!(validate_rel(RuleScope::Global, "CLAUDE.md").is_err());
         // Rule — 중첩 포함.
@@ -831,7 +889,10 @@ mod tests {
             "src/whatever.md",
             "AGENTS.md",
         ] {
-            assert!(validate_rel(RuleScope::Project, bad).is_err(), "거부돼야: {bad}");
+            assert!(
+                validate_rel(RuleScope::Project, bad).is_err(),
+                "거부돼야: {bad}"
+            );
         }
         // 검증 통과해도 최종 경로는 루트 안 (이중 방어).
         let tmp = TempDir::new().unwrap();
@@ -873,13 +934,27 @@ mod tests {
         let ov = overview(proj.path(), home.path(), false);
         // 고정 슬롯 4개 (프로젝트 3 + 전역 1), exists 반영.
         assert_eq!(ov.claude_md.len(), 4);
-        let root_md = ov.claude_md.iter().find(|e| e.rel_path == "CLAUDE.md").unwrap();
+        let root_md = ov
+            .claude_md
+            .iter()
+            .find(|e| e.rel_path == "CLAUDE.md")
+            .unwrap();
         assert!(root_md.exists);
         assert_eq!(root_md.title, "프로젝트 지침");
-        assert!(!ov.claude_md.iter().find(|e| e.rel_path == "CLAUDE.local.md").unwrap().exists);
+        assert!(
+            !ov.claude_md
+                .iter()
+                .find(|e| e.rel_path == "CLAUDE.local.md")
+                .unwrap()
+                .exists
+        );
 
         let names: Vec<&str> = ov.project_rules.iter().map(|e| e.name.as_str()).collect();
-        assert_eq!(names, vec!["api/validation", "commit"], "재귀 + 이름순: {names:?}");
+        assert_eq!(
+            names,
+            vec!["api/validation", "commit"],
+            "재귀 + 이름순: {names:?}"
+        );
         let api = &ov.project_rules[0];
         assert_eq!(api.rel_path, ".claude/rules/api/validation.md");
         assert_eq!(api.paths.len(), 2);
@@ -892,20 +967,53 @@ mod tests {
         let proj = TempDir::new().unwrap();
         let root = proj.path();
         // create=true 신규 생성.
-        let entry = save(RuleScope::Project, root, root, ".claude/rules/commit.md", ALWAYS_RULE, true)
-            .unwrap();
+        let entry = save(
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/rules/commit.md",
+            ALWAYS_RULE,
+            true,
+        )
+        .unwrap();
         assert_eq!(entry.name, "commit");
         // create=true 중복 거부.
-        assert!(
-            save(RuleScope::Project, root, root, ".claude/rules/commit.md", "x", true).is_err()
-        );
+        assert!(save(
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/rules/commit.md",
+            "x",
+            true
+        )
+        .is_err());
         // 멱등 저장 — mtime 불변.
         let abs = root.join(".claude/rules/commit.md");
         let t1 = fs::metadata(&abs).unwrap().modified().unwrap();
-        save(RuleScope::Project, root, root, ".claude/rules/commit.md", ALWAYS_RULE, false).unwrap();
-        assert_eq!(t1, fs::metadata(&abs).unwrap().modified().unwrap(), "동일 내용 재저장이 파일을 다시 씀");
+        save(
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/rules/commit.md",
+            ALWAYS_RULE,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            t1,
+            fs::metadata(&abs).unwrap().modified().unwrap(),
+            "동일 내용 재저장이 파일을 다시 씀"
+        );
         // CLAUDE.md 슬롯 생성도 save 로 (create).
-        save(RuleScope::Project, root, root, "CLAUDE.md", "# 지침\n", true).unwrap();
+        save(
+            RuleScope::Project,
+            root,
+            root,
+            "CLAUDE.md",
+            "# 지침\n",
+            true,
+        )
+        .unwrap();
         // ClaudeMd 는 삭제 불가, Rule 은 삭제 가능.
         assert!(delete(RuleScope::Project, root, "CLAUDE.md").is_err());
         delete(RuleScope::Project, root, ".claude/rules/commit.md").unwrap();
@@ -928,7 +1036,10 @@ mod tests {
         let rendered = render_mirror(".claude/rules/commit.md", ALWAYS_RULE);
         assert!(rendered.contains("alwaysApply: true"));
         assert!(!rendered.contains("globs:"));
-        assert_eq!(mirror_rel_for(".claude/rules/api/validation.md"), ".cursor/rules/api-validation.mdc");
+        assert_eq!(
+            mirror_rel_for(".claude/rules/api/validation.md"),
+            ".cursor/rules/api-validation.mdc"
+        );
     }
 
     #[test]
@@ -946,7 +1057,11 @@ mod tests {
         assert_eq!(r.action, "unchanged");
 
         // 마커 없는 기존 파일 (사용자/어댑터 소유) → conflict, 원본 불변.
-        seed(root, ".cursor/rules/user-own.mdc", "---\nglobs: [\"*\"]\n---\n사용자 파일\n");
+        seed(
+            root,
+            ".cursor/rules/user-own.mdc",
+            "---\nglobs: [\"*\"]\n---\n사용자 파일\n",
+        );
         let r = write_mirror(root, ".claude/rules/user-own.md", ALWAYS_RULE);
         assert_eq!(r.action, "conflict");
         assert!(fs::read_to_string(root.join(".cursor/rules/user-own.mdc"))
@@ -967,7 +1082,11 @@ mod tests {
         seed(root, ".claude/rules/commit.md", ALWAYS_RULE);
         seed(root, ".claude/rules/api/validation.md", PATHS_RULE);
         // 어댑터/사용자 파일 — 마커 없음, 어느 방향에서도 불변이어야 한다.
-        seed(root, ".cursor/rules/ocul-pm.mdc", "---\nalwaysApply: true\n---\n어댑터 파일\n");
+        seed(
+            root,
+            ".cursor/rules/ocul-pm.mdc",
+            "---\nalwaysApply: true\n---\n어댑터 파일\n",
+        );
 
         let results = sync_mirrors(root, true);
         assert_eq!(results.iter().filter(|r| r.action == "written").count(), 2);
@@ -977,7 +1096,9 @@ mod tests {
         // 원본 하나 삭제 → 재동기화 시 고아 미러 제거.
         fs::remove_file(root.join(".claude/rules/commit.md")).unwrap();
         let results = sync_mirrors(root, true);
-        assert!(results.iter().any(|r| r.action == "removed" && r.source_rel.ends_with("commit.md")));
+        assert!(results
+            .iter()
+            .any(|r| r.action == "removed" && r.source_rel.ends_with("commit.md")));
         assert!(!root.join(".cursor/rules/commit.mdc").exists());
 
         // 끄기 → 마커 미러 전량 제거, 어댑터 파일 보존.
@@ -1067,16 +1188,32 @@ mod tests {
 
         // 관리 블록 가드 — 기존 파일이 상한 초과면 저장 자체를 거부.
         seed(root, ".claude/CLAUDE.md", &big);
-        let err = save(RuleScope::Project, root, root, ".claude/CLAUDE.md", "새 내용", false)
-            .unwrap_err();
+        let err = save(
+            RuleScope::Project,
+            root,
+            root,
+            ".claude/CLAUDE.md",
+            "새 내용",
+            false,
+        )
+        .unwrap_err();
         assert!(err.contains("could not be verified"), "{err}");
 
         // 미러 경로 — 검증 불능 .mdc 는 쓰지도 지우지도 않고 상태는 Conflict.
         seed(root, ".claude/rules/commit.md", ALWAYS_RULE);
         seed(root, ".cursor/rules/commit.mdc", &big);
-        assert_eq!(write_mirror(root, ".claude/rules/commit.md", ALWAYS_RULE).action, "conflict");
-        assert_eq!(remove_mirror(root, ".claude/rules/commit.md").action, "conflict");
-        assert!(root.join(".cursor/rules/commit.mdc").exists(), "검증 불능 파일은 보존");
+        assert_eq!(
+            write_mirror(root, ".claude/rules/commit.md", ALWAYS_RULE).action,
+            "conflict"
+        );
+        assert_eq!(
+            remove_mirror(root, ".claude/rules/commit.md").action,
+            "conflict"
+        );
+        assert!(
+            root.join(".cursor/rules/commit.mdc").exists(),
+            "검증 불능 파일은 보존"
+        );
         assert!(matches!(
             mirror_state(root, ".claude/rules/commit.md"),
             MirrorState::Conflict

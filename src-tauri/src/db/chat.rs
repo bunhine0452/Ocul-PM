@@ -6,7 +6,6 @@
 use super::*;
 
 impl Db {
-
     // ---------- Conversations (chat history) ----------
 
     pub async fn conversation_create(
@@ -22,12 +21,7 @@ impl Db {
                 c.execute(
                     "INSERT INTO conversations (title, provider, model, project_id)
                      VALUES (?1, ?2, ?3, ?4)",
-                    params![
-                        &title,
-                        &provider,
-                        &model,
-                        project_id.map(|id| id as i64),
-                    ],
+                    params![&title, &provider, &model, project_id.map(|id| id as i64),],
                 )?;
                 let id = c.last_insert_rowid();
                 c.query_row(
@@ -36,7 +30,8 @@ impl Db {
                      FROM conversations WHERE id = ?1",
                     [id],
                     conversation_from_row,
-                )})
+                )
+            })
             .await?;
         Ok(conv)
     }
@@ -101,12 +96,7 @@ impl Db {
                     "UPDATE conversations
                      SET provider = ?, model = ?, project_id = ?, updated_at = unixepoch()
                      WHERE id = ?",
-                    params![
-                        &provider,
-                        &model,
-                        project_id.map(|v| v as i64),
-                        id as i64,
-                    ],
+                    params![&provider, &model, project_id.map(|v| v as i64), id as i64,],
                 )?;
                 Ok(())
             })
@@ -140,13 +130,7 @@ impl Db {
                     "INSERT INTO chat_messages
                        (conversation_id, role, content, provider, model)
                      VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![
-                        conversation_id as i64,
-                        &role,
-                        &content,
-                        &provider,
-                        &model,
-                    ],
+                    params![conversation_id as i64, &role, &content, &provider, &model,],
                 )?;
                 let id = tx.last_insert_rowid();
                 tx.execute(
@@ -229,7 +213,8 @@ impl Db {
                             applied_at: r.get::<_, i64>(4)? as u32,
                         })
                     },
-                )})
+                )
+            })
             .await?;
         Ok(row)
     }

@@ -71,10 +71,7 @@ pub enum OculpmError {
     InvalidSessionId(String),
 
     #[error("session '{session_id}' not found in workday '{workday}'")]
-    SessionNotFound {
-        session_id: String,
-        workday: String,
-    },
+    SessionNotFound { session_id: String, workday: String },
 
     // W2-PR2 — SessionActor
     #[error("session actor channel closed")]

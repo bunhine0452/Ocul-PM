@@ -45,7 +45,9 @@ impl Args {
         match body {
             Value::Null => Ok(Self(Map::new())),
             Value::Object(m) => Ok(Self(m)),
-            _ => Err(DispatchError::BadArgs("arguments must be a JSON object".into())),
+            _ => Err(DispatchError::BadArgs(
+                "arguments must be a JSON object".into(),
+            )),
         }
     }
 
@@ -73,44 +75,90 @@ pub async fn dispatch<R: tauri::Runtime>(
 
         // ── Today ───────────────────────────────────────────────────────
         "oculpm_workday_brief" => ok(commands::oculpm_workday_brief(
-            app.state(), app.state(), a.take("projectId")?, a.take("workdays")?, a.take("linesWorkday")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("workdays")?,
+            a.take("linesWorkday")?,
+        )
+        .await?),
         "journal_missing_signals" => ok(commands::journal_missing_signals(
-            app.state(), a.take("projectId")?, a.take("days")?,
-        ).await?),
-        "plan_recent_updates" => ok(commands::plan_recent_updates(
-            app.state(), a.take("projectId")?, a.take("limit")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("days")?,
+        )
+        .await?),
+        "plan_recent_updates" => {
+            ok(
+                commands::plan_recent_updates(app.state(), a.take("projectId")?, a.take("limit")?)
+                    .await?,
+            )
+        }
         "git_status" => ok(commands::git_status(app.state(), a.take("projectId")?).await?),
-        "git_log" => ok(commands::git_log(app.state(), a.take("projectId")?, a.take("limit")?).await?),
-        "git_graph" => ok(commands::git_graph(app.state(), a.take("projectId")?, a.take("limit")?).await?),
+        "git_log" => {
+            ok(commands::git_log(app.state(), a.take("projectId")?, a.take("limit")?).await?)
+        }
+        "git_graph" => {
+            ok(commands::git_graph(app.state(), a.take("projectId")?, a.take("limit")?).await?)
+        }
         "git_head_status_brief" => {
             ok(commands::git_head_status_brief(app.state(), a.take("projectId")?).await?)
         }
         "oculpm_generate_summary" => ok(commands::oculpm_generate_summary(
-            app.state(), a.take("projectId")?, a.take("since")?, a.take("until")?,
-            a.take("style")?, a.take("provider")?, a.take("model")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("since")?,
+            a.take("until")?,
+            a.take("style")?,
+            a.take("provider")?,
+            a.take("model")?,
+        )
+        .await?),
         "oculpm_compare_layers" => ok(commands::oculpm_compare_layers(
-            app.state(), app.state(), a.take("projectId")?, a.take("sessionId")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("sessionId")?,
+        )
+        .await?),
         "oculpm_list_sessions" => ok(commands::oculpm_list_sessions(
-            app.state(), app.state(), a.take("projectId")?, a.take("workday")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("workday")?,
+        )
+        .await?),
 
         // ── 일지 ────────────────────────────────────────────────────────
         "oculpm_list_journal_entries" => ok(commands::oculpm_list_journal_entries(
-            app.state(), app.state(), a.take("projectId")?, a.take("workday")?, a.take("filters")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("workday")?,
+            a.take("filters")?,
+        )
+        .await?),
         "oculpm_get_journal_entry" => ok(commands::oculpm_get_journal_entry(
-            app.state(), app.state(), a.take("projectId")?, a.take("relativePath")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relativePath")?,
+        )
+        .await?),
         "oculpm_get_file_changes" => ok(commands::oculpm_get_file_changes(
-            app.state(), a.take("projectId")?, a.take("workday")?, a.take("sessionId")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("workday")?,
+            a.take("sessionId")?,
+        )
+        .await?),
         "oculpm_get_entry_diffs" => ok(commands::oculpm_get_entry_diffs(
-            app.state(), app.state(), a.take("projectId")?, a.take("relativePath")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relativePath")?,
+        )
+        .await?),
         "oculpm_create_manual_entry" => {
             let manager = app.state::<OculpmManager>();
             let db = app.state::<Db>();
@@ -120,98 +168,215 @@ pub async fn dispatch<R: tauri::Runtime>(
                 .map_err(|e| e.to_string())?)
         }
         "oculpm_update_entry_body" => ok(commands::oculpm_update_entry_body(
-            app.state(), app.state(), a.take("projectId")?, a.take("relativePath")?, a.take("bodyMarkdown")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relativePath")?,
+            a.take("bodyMarkdown")?,
+        )
+        .await?),
         "oculpm_update_entry_meta" => ok(commands::oculpm_update_entry_meta(
-            app.state(), app.state(), a.take("projectId")?, a.take("relativePath")?,
-            a.take("difficultyChange")?, a.take("status")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relativePath")?,
+            a.take("difficultyChange")?,
+            a.take("status")?,
+        )
+        .await?),
         "oculpm_set_journal_verified" => ok(commands::oculpm_set_journal_verified(
-            app.state(), app.state(), a.take("projectId")?, a.take("relativePath")?, a.take("verified")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relativePath")?,
+            a.take("verified")?,
+        )
+        .await?),
 
         // ── 플래너 ──────────────────────────────────────────────────────
         "plan_list" => ok(commands::plan_list(app.state(), a.take("projectId")?).await?),
-        "plan_get" => ok(commands::plan_get(app.state(), a.take("projectId")?, a.take("planId")?).await?),
+        "plan_get" => {
+            ok(commands::plan_get(app.state(), a.take("projectId")?, a.take("planId")?).await?)
+        }
         "plan_item_history" => ok(commands::plan_item_history(
-            app.state(), a.take("projectId")?, a.take("planId")?, a.take("itemId")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("itemId")?,
+        )
+        .await?),
         "plan_apply_edit" => ok(commands::plan_apply_edit(
-            app.state(), app.state(), a.take("projectId")?, a.take("planId")?, a.take("op")?, a.take("agentId")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("op")?,
+            a.take("agentId")?,
+        )
+        .await?),
         "plan_create" => ok(commands::plan_create(
-            app.state(), app.state(), a.take("projectId")?, a.take("title")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("title")?,
+        )
+        .await?),
         "plan_set_status" => ok(commands::plan_set_status(
-            app.state(), app.state(), a.take("projectId")?, a.take("planId")?, a.take("status")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("status")?,
+        )
+        .await?),
         "plan_rename" => ok(commands::plan_rename(
-            app.state(), app.state(), a.take("projectId")?, a.take("planId")?, a.take("title")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("title")?,
+        )
+        .await?),
         "plan_dispatch_prompt" => ok(commands::plan_dispatch_prompt(
-            app.state(), a.take("projectId")?, a.take("planId")?, a.take("itemId")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("itemId")?,
+        )
+        .await?),
         "plan_ai_refresh" => ok(commands::plan_ai_refresh(
-            app.state(), app.state(), a.take("projectId")?, a.take("planId")?,
-            a.take("provider")?, a.take("model")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("planId")?,
+            a.take("provider")?,
+            a.take("model")?,
+        )
+        .await?),
         "settings_get" => ok(commands::settings_get(app.state(), a.take("key")?).await?),
 
         // ── 논의 ────────────────────────────────────────────────────────
-        "discussion_list" => ok(commands::discussion_list(app.state(), a.take("projectId")?).await?),
+        "discussion_list" => {
+            ok(commands::discussion_list(app.state(), a.take("projectId")?).await?)
+        }
         "discussion_get" => ok(commands::discussion_get(
-            app.state(), a.take("projectId")?, a.take("discussionId")?,
-        ).await?),
-        "discussion_create" => ok(commands::discussion_create(
-            app.state(), a.take("projectId")?, a.take("title")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+        )
+        .await?),
+        "discussion_create" => {
+            ok(
+                commands::discussion_create(app.state(), a.take("projectId")?, a.take("title")?)
+                    .await?,
+            )
+        }
         "discussion_write" => ok(commands::discussion_write(
-            app.state(), a.take("projectId")?, a.take("discussionId")?, a.take("bodyMd")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+            a.take("bodyMd")?,
+        )
+        .await?),
         "discussion_set_status" => ok(commands::discussion_set_status(
-            app.state(), a.take("projectId")?, a.take("discussionId")?, a.take("status")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+            a.take("status")?,
+        )
+        .await?),
         "discussion_read_raw" => ok(commands::discussion_read_raw(
-            app.state(), a.take("projectId")?, a.take("discussionId")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+        )
+        .await?),
         "discussion_rename" => ok(commands::discussion_rename(
-            app.state(), a.take("projectId")?, a.take("discussionId")?, a.take("title")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+            a.take("title")?,
+        )
+        .await?),
         "discussion_asset" => ok(commands::discussion_asset(
-            app.state(), a.take("projectId")?, a.take("discussionId")?, a.take("relPath")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+            a.take("relPath")?,
+        )
+        .await?),
         "discussion_promote_to_plan" => ok(commands::discussion_promote_to_plan(
-            app.state(), app.state(), a.take("projectId")?, a.take("discussionId")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("discussionId")?,
+        )
+        .await?),
 
         // ── 검색 ────────────────────────────────────────────────────────
         "search_text" => ok(commands::search_text(
-            app.state(), a.take("projectId")?, a.take("query")?, a.take("limit")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("query")?,
+            a.take("limit")?,
+        )
+        .await?),
         "search_chunks" => ok(commands::search_chunks(
-            app.state(), app.state(), a.take("projectId")?, a.take("query")?,
-            a.take("limit")?, a.take("includeDocs")?,
-        ).await?),
+            app.state(),
+            app.state(),
+            a.take("projectId")?,
+            a.take("query")?,
+            a.take("limit")?,
+            a.take("includeDocs")?,
+        )
+        .await?),
         "search_symbols" => ok(commands::search_symbols(
-            app.state(), a.take("projectId")?, a.take("query")?, a.take("limit")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("query")?,
+            a.take("limit")?,
+        )
+        .await?),
         "read_file_range" => ok(commands::read_file_range(
-            app.state(), a.take("projectId")?, a.take("relPath")?, a.take("startLine")?, a.take("endLine")?,
-        ).await?),
+            app.state(),
+            a.take("projectId")?,
+            a.take("relPath")?,
+            a.take("startLine")?,
+            a.take("endLine")?,
+        )
+        .await?),
 
         // ── AI ──────────────────────────────────────────────────────────
         "chat" => ok(commands::chat(
-            a.take("provider")?, a.take("messages")?, a.take("options")?, a.take("fallbacks")?,
-        ).await?),
+            a.take("provider")?,
+            a.take("messages")?,
+            a.take("options")?,
+            a.take("fallbacks")?,
+        )
+        .await?),
         "conversation_create" => ok(commands::conversation_create(
-            app.state(), a.take("title")?, a.take("provider")?, a.take("model")?, a.take("projectId")?,
-        ).await?),
-        "conversation_list" => ok(commands::conversation_list(app.state(), a.take("projectId")?).await?),
-        "chat_message_list" => ok(commands::chat_message_list(app.state(), a.take("conversationId")?).await?),
+            app.state(),
+            a.take("title")?,
+            a.take("provider")?,
+            a.take("model")?,
+            a.take("projectId")?,
+        )
+        .await?),
+        "conversation_list" => {
+            ok(commands::conversation_list(app.state(), a.take("projectId")?).await?)
+        }
+        "chat_message_list" => {
+            ok(commands::chat_message_list(app.state(), a.take("conversationId")?).await?)
+        }
         "chat_message_append" => ok(commands::chat_message_append(
-            app.state(), a.take("conversationId")?, a.take("role")?, a.take("content")?,
-            a.take("provider")?, a.take("model")?,
-        ).await?),
+            app.state(),
+            a.take("conversationId")?,
+            a.take("role")?,
+            a.take("content")?,
+            a.take("provider")?,
+            a.take("model")?,
+        )
+        .await?),
         "secret_has" => ok(commands::secret_has(app.state(), a.take("name")?).await?),
 
         _ => Err(DispatchError::UnknownCommand),

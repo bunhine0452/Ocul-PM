@@ -6,7 +6,6 @@
 use super::*;
 
 impl Db {
-
     // ---------- Projects ----------
 
     pub async fn create_project(&self, name: String, root_path: String) -> Result<u32> {
@@ -123,9 +122,7 @@ impl Db {
         let files = self
             .conn
             .call(move |c| {
-                let mut stmt = c.prepare(
-                    "SELECT id, path FROM files WHERE project_id = ?"
-                )?;
+                let mut stmt = c.prepare("SELECT id, path FROM files WHERE project_id = ?")?;
                 let rows = stmt
                     .query_map([project_id as i64], |r| {
                         Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))
@@ -142,10 +139,7 @@ impl Db {
     /// Fetches the stored overview for a project. Returns `None` when the row
     /// does not exist yet; callers can then decide whether to trigger
     /// `generate_project_overview`.
-    pub async fn get_project_overview(
-        &self,
-        project_id: u32,
-    ) -> Result<Option<ProjectOverview>> {
+    pub async fn get_project_overview(&self, project_id: u32) -> Result<Option<ProjectOverview>> {
         let overview = self
             .conn
             .call(move |c| {
@@ -156,7 +150,8 @@ impl Db {
                     params![project_id as i64],
                     project_overview_from_row,
                 )
-                .optional()})
+                .optional()
+            })
             .await?;
         Ok(overview)
     }

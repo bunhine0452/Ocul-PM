@@ -56,7 +56,11 @@ pub async fn mobile_bridge_revoke_device(
     state: State<'_, MobileBridgeState>,
     id: u32,
 ) -> Result<Vec<MobileDevice>, String> {
-    if let Some(hash) = db.mobile_device_delete(id).await.map_err(|e| e.to_string())? {
+    if let Some(hash) = db
+        .mobile_device_delete(id)
+        .await
+        .map_err(|e| e.to_string())?
+    {
         state.remove_token_hash(&hash);
     }
     db.mobile_device_list().await.map_err(|e| e.to_string())

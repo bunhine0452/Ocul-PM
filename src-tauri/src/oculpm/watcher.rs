@@ -26,12 +26,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
+use futures::future::FutureExt;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
     new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
-use futures::future::FutureExt;
 use regex::Regex;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -42,8 +42,8 @@ use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
 use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::error::OculpmError;
-use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::index::IndexWriter;
+use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::paths;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
@@ -495,7 +495,11 @@ impl WatcherInner {
         // work is fire-and-forget so the embedding model never stalls the
         // watcher loop. Uses the real relative path before step-8 masking.
         if !self.is_forbidden(&path) {
-            self.schedule_incremental_index(change.path.clone(), change.op, change.hash_after.clone());
+            self.schedule_incremental_index(
+                change.path.clone(),
+                change.op,
+                change.hash_after.clone(),
+            );
         }
 
         // 8. Forbidden-path masking.
@@ -803,7 +807,11 @@ impl WatcherInner {
             let db = handle.state::<Db>();
 
             // Respect the user toggle (treat unset / anything-but-off as on).
-            let auto = db.settings_get("auto_index".to_string()).await.ok().flatten();
+            let auto = db
+                .settings_get("auto_index".to_string())
+                .await
+                .ok()
+                .flatten();
             if matches!(auto.as_deref(), Some("false") | Some("0")) {
                 return;
             }
@@ -832,23 +840,26 @@ impl WatcherInner {
             }
 
             match op {
-                FileOp::Delete => match db.delete_file_by_path(project_id, rel_path.clone()).await {
-                    Ok(()) => tracing::debug!(
-                        target: "oculpm::watcher", project_id, path = %rel_path,
-                        "auto-index: removed deleted file"
-                    ),
-                    Err(e) => tracing::warn!(
-                        target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
-                        "auto-index: delete failed"
-                    ),
-                },
+                FileOp::Delete => {
+                    match db.delete_file_by_path(project_id, rel_path.clone()).await {
+                        Ok(()) => tracing::debug!(
+                            target: "oculpm::watcher", project_id, path = %rel_path,
+                            "auto-index: removed deleted file"
+                        ),
+                        Err(e) => tracing::warn!(
+                            target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                            "auto-index: delete failed"
+                        ),
+                    }
+                }
                 _ => {
                     let settings_map: std::collections::HashMap<String, String> =
                         match db.settings_get_all().await {
                             Ok(v) => v.into_iter().collect(),
                             Err(_) => return,
                         };
-                    let cfg = crate::indexer::config_from_settings(|k| settings_map.get(k).cloned());
+                    let cfg =
+                        crate::indexer::config_from_settings(|k| settings_map.get(k).cloned());
                     let abs = root.join(&rel_path);
                     if !crate::indexer::is_indexable_path(&abs, &cfg) {
                         return;
@@ -915,7 +926,9 @@ impl WatcherInner {
     /// Failures are logged but never escalated; the next `sync_agents` call
     /// (Settings save / next agents edit) will retry.
     async fn cascade_agents_resync(&self) {
-        let Some(handle) = &self.app_handle else { return };
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
         use tauri::Manager;
         let manager: tauri::State<'_, OculpmManager> = handle.state::<OculpmManager>();
         let db: tauri::State<'_, Db> = handle.state::<Db>();
@@ -935,7 +948,9 @@ impl WatcherInner {
     /// bus) skip the check — see `setup_with_config`. Errors are logged but
     /// never escalated; the next sync will recompute the row.
     async fn check_and_emit_agent_drift(&self, relative_path: &str) {
-        let Some(handle) = &self.app_handle else { return };
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
         use tauri::Manager;
         let manager: tauri::State<'_, OculpmManager> = handle.state::<OculpmManager>();
         let db: tauri::State<'_, Db> = handle.state::<Db>();
@@ -997,8 +1012,12 @@ impl WatcherInner {
     /// `.oculpm/journal/`; we strip that prefix to get the cache-key form
     /// (`<workday>/<Category>/<file>.md`).
     async fn apply_journal_cache_invalidation(&self, full_rel_str: &str, op: FileOp) {
-        let Some(handle) = &self.app_handle else { return };
-        let Some(entry_rel) = full_rel_str.strip_prefix(".oculpm/journal/") else { return };
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
+        let Some(entry_rel) = full_rel_str.strip_prefix(".oculpm/journal/") else {
+            return;
+        };
         if !is_journal_entry_path(entry_rel) {
             return;
         }
@@ -1120,8 +1139,7 @@ impl WatcherInner {
             use tauri::Manager;
             let db: tauri::State<'_, Db> = handle.state::<Db>();
             for f in &touched {
-                if let Ok(Some(snap)) =
-                    db.get_file_snapshot(self.project_id, f.path.clone()).await
+                if let Ok(Some(snap)) = db.get_file_snapshot(self.project_id, f.path.clone()).await
                 {
                     snapshots.insert(f.path.clone(), snap.content);
                 }
@@ -1196,7 +1214,10 @@ impl WatcherInner {
                 return;
             }
         };
-        if let Err(e) = cache.set_line_counts(self.project_id, entry_rel, counts).await {
+        if let Err(e) = cache
+            .set_line_counts(self.project_id, entry_rel, counts)
+            .await
+        {
             tracing::warn!(
                 target: "oculpm::watcher",
                 project_id = self.project_id,
@@ -1243,7 +1264,10 @@ impl WatcherInner {
             let db = handle.state::<Db>();
             // N4 — the shared per-project plan-write lock, so reconcile's write
             // serializes against in-app plan writers (not just other reconciles).
-            let plan_lock = handle.state::<OculpmManager>().plan_write_lock(project_id).await;
+            let plan_lock = handle
+                .state::<OculpmManager>()
+                .plan_write_lock(project_id)
+                .await;
             match crate::oculpm::reconcile::reconcile_entry(
                 &db, project_id, &root, &entry_rel, redact, tz, plan_lock,
             )
@@ -1265,10 +1289,7 @@ impl WatcherInner {
                                     warning: crate::oculpm::spec::IntegrityWarning {
                                         kind: "reconcile".to_string(),
                                         path: entry_rel.clone(),
-                                        message: format!(
-                                            "자동 화해 실패 ({}): {}",
-                                            r.plan_id, err
-                                        ),
+                                        message: format!("자동 화해 실패 ({}): {}", r.plan_id, err),
                                     },
                                 }
                                 .emit(&handle);
@@ -1333,7 +1354,9 @@ impl WatcherInner {
         entry_rel: &str,
         outcome: Option<UpsertOutcome>,
     ) {
-        let Some(handle) = &self.app_handle else { return };
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
         let Some(outcome) = outcome else { return };
         let should_emit_added = matches!(outcome, UpsertOutcome::Inserted);
         let should_emit_updated = matches!(outcome, UpsertOutcome::Updated);
@@ -1614,10 +1637,7 @@ mod tests {
     async fn setup_with_config(cfg: OculpmConfig) -> Setup {
         let dir = tempfile::tempdir().unwrap();
         let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
-        let writer = Arc::new(IndexWriter::new(
-            dir.path().to_path_buf(),
-            resolver.clone(),
-        ));
+        let writer = Arc::new(IndexWriter::new(dir.path().to_path_buf(), resolver.clone()));
         let actor = SessionActor::spawn(
             1,
             resolver.clone(),
@@ -1677,8 +1697,7 @@ mod tests {
             .read_file_changes(&today_workday(&s.resolver), None)
             .await
             .unwrap();
-        let paths: std::collections::HashSet<_> =
-            events.iter().map(|e| e.path.as_str()).collect();
+        let paths: std::collections::HashSet<_> = events.iter().map(|e| e.path.as_str()).collect();
         for i in 0..5 {
             assert!(
                 paths.contains(format!("file_{i}.rs").as_str()),
@@ -1698,10 +1717,7 @@ mod tests {
         std::fs::create_dir_all(dir.path().join("node_modules")).unwrap();
 
         let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
-        let writer = Arc::new(IndexWriter::new(
-            dir.path().to_path_buf(),
-            resolver.clone(),
-        ));
+        let writer = Arc::new(IndexWriter::new(dir.path().to_path_buf(), resolver.clone()));
         let cfg = fast_config();
         let actor = SessionActor::spawn(
             1,
@@ -2030,7 +2046,9 @@ mod tests {
     fn is_journal_entry_path_matches_walk_journal_skip_rules() {
         // Real entries — must pass.
         assert!(is_journal_entry_path("20260524/Bugs/0925_bug_a.md"));
-        assert!(is_journal_entry_path("20260524/Features_to_add/1000_feature.md"));
+        assert!(is_journal_entry_path(
+            "20260524/Features_to_add/1000_feature.md"
+        ));
 
         // Skipped by cache::walk_journal — must fail.
         assert!(!is_journal_entry_path("_template.md"));
@@ -2052,7 +2070,10 @@ mod tests {
         );
 
         // 일지는 캐시 무효화 경로가 따로 있어 여기로 오면 안 된다.
-        assert_eq!(data_area_for_path(".oculpm/journal/20260821/Bugs/a.md"), None);
+        assert_eq!(
+            data_area_for_path(".oculpm/journal/20260821/Bugs/a.md"),
+            None
+        );
         // 접두사에 `/` 를 넣은 이유 — 이웃 디렉터리를 삼키지 않는다.
         assert_eq!(data_area_for_path(".oculpm/planner-backup/old.md"), None);
         assert_eq!(data_area_for_path(".oculpm/discussions.md"), None);

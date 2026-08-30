@@ -34,7 +34,11 @@ pub fn build_imported_md(goals: &[ImportGoal], date: &str) -> String {
             };
         } else {
             for (si, s) in g.subtasks.iter().enumerate() {
-                let st = if s.done { ItemStatus::Done } else { ItemStatus::Todo };
+                let st = if s.done {
+                    ItemStatus::Done
+                } else {
+                    ItemStatus::Todo
+                };
                 md = match add_item(&md, &phase, &s.title, &format!("g{gi}-s{si}"), st) {
                     Ok(next) => next,
                     Err(_) => md,
@@ -78,8 +82,14 @@ mod tests {
                 status: "in_progress".into(),
                 progress: 0.5,
                 subtasks: vec![
-                    ImportSubtask { title: "타임존 계산".into(), done: true },
-                    ImportSubtask { title: "DST 처리".into(), done: false },
+                    ImportSubtask {
+                        title: "타임존 계산".into(),
+                        done: true,
+                    },
+                    ImportSubtask {
+                        title: "DST 처리".into(),
+                        done: false,
+                    },
                 ],
             },
             ImportGoal {

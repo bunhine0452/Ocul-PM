@@ -116,7 +116,10 @@ mod tests {
     #[test]
     fn unknown_and_missing_fold_to_unset() {
         // "system" 은 명시적 미지정, 나머지는 깨진 값 — 둘 다 기존 동작 유지.
-        assert_eq!(ContentLang::from_setting(Some("system")), ContentLang::Unset);
+        assert_eq!(
+            ContentLang::from_setting(Some("system")),
+            ContentLang::Unset
+        );
         assert_eq!(ContentLang::from_setting(Some("fr")), ContentLang::Unset);
         assert_eq!(ContentLang::from_setting(None), ContentLang::Unset);
     }

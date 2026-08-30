@@ -26,15 +26,22 @@ fn read_json(rel: &str) -> serde_json::Value {
 #[test]
 fn plugin_json_is_minimal_and_version_synced() {
     let manifest = read_json(".claude-plugin/plugin.json");
-    assert_eq!(manifest["name"], "oculpm", "이름은 짧게 — MCP 자동 도구명 64자 제한");
-    assert!(manifest.get("hooks").is_none(), "hooks 는 자동발견에 위임 (선언 금지)");
-    assert!(manifest.get("mcpServers").is_none(), "mcpServers 는 자동발견에 위임 (선언 금지)");
+    assert_eq!(
+        manifest["name"], "oculpm",
+        "이름은 짧게 — MCP 자동 도구명 64자 제한"
+    );
+    assert!(
+        manifest.get("hooks").is_none(),
+        "hooks 는 자동발견에 위임 (선언 금지)"
+    );
+    assert!(
+        manifest.get("mcpServers").is_none(),
+        "mcpServers 는 자동발견에 위임 (선언 금지)"
+    );
 
     let tauri_conf: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json"),
-        )
-        .unwrap(),
+        &std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json"))
+            .unwrap(),
     )
     .unwrap();
     assert_eq!(
@@ -56,40 +63,90 @@ fn hooks_json_guards_and_consumes_stdin() {
     );
     // 인라인 이벤트 싱크 2종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
     for ev in ["SessionStart", "Stop"] {
-        let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap_or_else(|| panic!("{ev} command"));
+        let cmd = map[ev][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{ev} command"));
         assert!(cmd.contains(".oculpm"), "{ev}: 추적 프로젝트 가드 누락");
-        assert!(cmd.contains("cat > /dev/null"), "{ev}: 비추적에서도 stdin 을 소비해야 한다 (EPIPE)");
+        assert!(
+            cmd.contains("cat > /dev/null"),
+            "{ev}: 비추적에서도 stdin 을 소비해야 한다 (EPIPE)"
+        );
         for banned in ["curl", "wget", "http://", "https://"] {
-            assert!(!cmd.contains(banned), "{ev}: 훅은 로컬 append 만 — 네트워크 금지 계약");
+            assert!(
+                !cmd.contains(banned),
+                "{ev}: 훅은 로컬 append 만 — 네트워크 금지 계약"
+            );
         }
     }
     let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
-    assert!(!stop.contains("echo"), "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)");
+    assert!(
+        !stop.contains("echo"),
+        "Stop 에는 안내를 붙이지 않는다 (매 턴 소음)"
+    );
 
     // 배달 게이트 — Stop 2번째 훅 (ponytail delivery-gate 이식). "코드 변경이
     // 있는데 일지 없음"을 세션당 1회만 차단하는 계약을 잠근다.
     let gate_cmd = map["Stop"][0]["hooks"][1]["command"]
         .as_str()
         .expect("Stop[1] 배달 게이트 훅 누락");
-    assert!(gate_cmd.contains("delivery-gate.sh"), "Stop: delivery-gate.sh 참조");
+    assert!(
+        gate_cmd.contains("delivery-gate.sh"),
+        "Stop: delivery-gate.sh 참조"
+    );
     let gate = std::fs::read_to_string(plugin_root().join("hooks/delivery-gate.sh"))
         .expect("delivery-gate.sh 존재");
-    assert!(gate.contains("payload=$(cat"), "배달 게이트: stdin 즉시 소비");
-    assert!(gate.contains("stop_hook_active"), "배달 게이트: 무한 차단 방지 가드 (공식 플래그)");
-    assert!(gate.contains(".delivery-gate-"), "배달 게이트: 세션당 1회 플래그 파일");
-    assert!(gate.contains(".session-start-"), "배달 게이트: 세션 마커를 판정 기준점으로 공유");
-    assert!(gate.contains("exit 2"), "배달 게이트: 차단은 exit 2 (stderr 가 에이전트에 전달)");
-    assert!(gate.contains("작업 일지가 없습니다"), "배달 게이트: 지시 문구");
-    assert!(gate.contains("계속하세요"), "배달 게이트: 진행 중 세션의 오탐 자기해소 문구");
+    assert!(
+        gate.contains("payload=$(cat"),
+        "배달 게이트: stdin 즉시 소비"
+    );
+    assert!(
+        gate.contains("stop_hook_active"),
+        "배달 게이트: 무한 차단 방지 가드 (공식 플래그)"
+    );
+    assert!(
+        gate.contains(".delivery-gate-"),
+        "배달 게이트: 세션당 1회 플래그 파일"
+    );
+    assert!(
+        gate.contains(".session-start-"),
+        "배달 게이트: 세션 마커를 판정 기준점으로 공유"
+    );
+    assert!(
+        gate.contains("exit 2"),
+        "배달 게이트: 차단은 exit 2 (stderr 가 에이전트에 전달)"
+    );
+    assert!(
+        gate.contains("작업 일지가 없습니다"),
+        "배달 게이트: 지시 문구"
+    );
+    assert!(
+        gate.contains("계속하세요"),
+        "배달 게이트: 진행 중 세션의 오탐 자기해소 문구"
+    );
     // 코드 변경 판정의 3계약 (리뷰 HIGH/MED 회귀 방지):
     // ① 세션 귀속 — 마커보다 새로운 파일만 (기존 WIP·병렬 세션 잔여 제외),
     // ② .oculpm 만의 변경 비발화 (모노레포 하위 프로젝트는 show-prefix 보정),
     // ③ 비ASCII 경로가 8진 이스케이프로 필터를 새지 않게 quotepath off.
-    assert!(gate.contains(r#"-nt "$marker""#), "배달 게이트: 세션 귀속 판정 (마커 mtime 대조)");
-    assert!(gate.contains("show-prefix"), "배달 게이트: 모노레포 하위 디렉터리 경로 보정");
-    assert!(gate.contains(".oculpm/*) continue"), "배달 게이트: .oculpm 만의 변경으로는 발화하지 않는다");
-    assert!(gate.contains("core.quotepath=off"), "배달 게이트: 비ASCII 경로 이스케이프 무력화 방지");
-    assert!(gate.contains("status --porcelain -- ."), "배달 게이트: pathspec 스코프 (이웃 패키지 제외)");
+    assert!(
+        gate.contains(r#"-nt "$marker""#),
+        "배달 게이트: 세션 귀속 판정 (마커 mtime 대조)"
+    );
+    assert!(
+        gate.contains("show-prefix"),
+        "배달 게이트: 모노레포 하위 디렉터리 경로 보정"
+    );
+    assert!(
+        gate.contains(".oculpm/*) continue"),
+        "배달 게이트: .oculpm 만의 변경으로는 발화하지 않는다"
+    );
+    assert!(
+        gate.contains("core.quotepath=off"),
+        "배달 게이트: 비ASCII 경로 이스케이프 무력화 방지"
+    );
+    assert!(
+        gate.contains("status --porcelain -- ."),
+        "배달 게이트: pathspec 스코프 (이웃 패키지 제외)"
+    );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!gate.contains(banned), "배달 게이트: 네트워크 금지");
     }
@@ -107,29 +164,75 @@ fn hooks_json_guards_and_consumes_stdin() {
     let marker_cmd = map["SessionStart"][0]["hooks"][2]["command"]
         .as_str()
         .expect("SessionStart[2] 세션 마커 훅 누락");
-    assert!(marker_cmd.contains("session-marker.sh"), "SessionStart: session-marker.sh 참조");
-    let marker = std::fs::read_to_string(plugin_root().join("hooks/session-marker.sh")).expect("session-marker.sh 존재");
-    assert!(marker.contains("payload=$(cat"), "마커 스크립트: stdin 즉시 소비");
-    assert!(marker.contains(".session-start-"), "마커 스크립트: 세션별 마커 파일");
+    assert!(
+        marker_cmd.contains("session-marker.sh"),
+        "SessionStart: session-marker.sh 참조"
+    );
+    let marker = std::fs::read_to_string(plugin_root().join("hooks/session-marker.sh"))
+        .expect("session-marker.sh 존재");
+    assert!(
+        marker.contains("payload=$(cat"),
+        "마커 스크립트: stdin 즉시 소비"
+    );
+    assert!(
+        marker.contains(".session-start-"),
+        "마커 스크립트: 세션별 마커 파일"
+    );
     // create-only — auto-compact 재발화가 마커를 재터치하면 기록한 세션에
     // 미작성 오탐이 난다 (리뷰 HIGH 회귀 방지).
-    assert!(marker.contains("[ ! -f \"$marker\" ]"), "마커 스크립트: create-only (재터치 금지)");
+    assert!(
+        marker.contains("[ ! -f \"$marker\" ]"),
+        "마커 스크립트: create-only (재터치 금지)"
+    );
     // 마커 백데이팅은 BSD/GNU date 양쪽 폴백 (Linux 에서 조용한 무효 방지 — 리뷰 LOW).
-    assert!(marker.contains("date -d '-2 seconds'"), "마커 스크립트: GNU date 폴백");
+    assert!(
+        marker.contains("date -d '-2 seconds'"),
+        "마커 스크립트: GNU date 폴백"
+    );
 
     // H3 — SessionEnd 는 스크립트로: append + 일지 미작성 판정 + 조건부 안내.
     // (벤치 실측 — 헤드리스 단발 준수 0/12 — 이 신호의 존재 근거다.)
-    let end_cmd = map["SessionEnd"][0]["hooks"][0]["command"].as_str().unwrap();
-    assert!(end_cmd.contains("session-end.sh"), "SessionEnd: session-end.sh 참조");
-    let end = std::fs::read_to_string(plugin_root().join("hooks/session-end.sh")).expect("session-end.sh 존재");
-    assert!(end.contains("payload=$(cat"), "SessionEnd 스크립트: stdin 즉시 소비");
-    assert!(end.contains("claude-events.jsonl"), "SessionEnd 스크립트: 이벤트 인박스 append 유지");
-    assert!(end.contains("journal-missing.jsonl"), "SessionEnd 스크립트: 미작성 신호 파일");
-    assert!(end.contains("journal_missing"), "SessionEnd 스크립트: 신호 kind");
-    assert!(end.contains(">&2"), "SessionEnd 스크립트: stderr 안내 (조건부)");
-    assert!(end.contains("일지 없이 끝났습니다"), "SessionEnd 스크립트: 미작성 경고 문구");
-    assert!(end.contains("-mtime +7 -delete"), "SessionEnd 스크립트: 크래시 잔여 마커 청소 (판정 뒤)");
-    assert!(end.contains("tail -n 100"), "SessionEnd 스크립트: 신호 파일 성장 상한");
+    let end_cmd = map["SessionEnd"][0]["hooks"][0]["command"]
+        .as_str()
+        .unwrap();
+    assert!(
+        end_cmd.contains("session-end.sh"),
+        "SessionEnd: session-end.sh 참조"
+    );
+    let end = std::fs::read_to_string(plugin_root().join("hooks/session-end.sh"))
+        .expect("session-end.sh 존재");
+    assert!(
+        end.contains("payload=$(cat"),
+        "SessionEnd 스크립트: stdin 즉시 소비"
+    );
+    assert!(
+        end.contains("claude-events.jsonl"),
+        "SessionEnd 스크립트: 이벤트 인박스 append 유지"
+    );
+    assert!(
+        end.contains("journal-missing.jsonl"),
+        "SessionEnd 스크립트: 미작성 신호 파일"
+    );
+    assert!(
+        end.contains("journal_missing"),
+        "SessionEnd 스크립트: 신호 kind"
+    );
+    assert!(
+        end.contains(">&2"),
+        "SessionEnd 스크립트: stderr 안내 (조건부)"
+    );
+    assert!(
+        end.contains("일지 없이 끝났습니다"),
+        "SessionEnd 스크립트: 미작성 경고 문구"
+    );
+    assert!(
+        end.contains("-mtime +7 -delete"),
+        "SessionEnd 스크립트: 크래시 잔여 마커 청소 (판정 뒤)"
+    );
+    assert!(
+        end.contains("tail -n 100"),
+        "SessionEnd 스크립트: 신호 파일 성장 상한"
+    );
     // 크로스-언어 계약 — 이 두 문자열이 바뀌면 Rust 파서(claude_hooks)가
     // 전 라인을 skip 해 카드가 무증상으로 죽는다 (리뷰 MED). 파서 쪽에는
     // 동일 템플릿 라인을 실제 파싱하는 테스트가 있다.
@@ -142,16 +245,28 @@ fn hooks_json_guards_and_consumes_stdin() {
         "SessionEnd 스크립트: ts 는 UTC RFC3339 (파서 계약)"
     );
     // B1 — statusline 넛지는 딱 1회 (ponytail 패턴: 반복하면 잔소리).
-    assert!(end.contains(".statusline-nudged"), "SessionEnd 스크립트: 넛지 1회성 플래그");
-    assert!(end.contains("\"statusLine\""), "SessionEnd 스크립트: 미설정일 때만 넛지");
+    assert!(
+        end.contains(".statusline-nudged"),
+        "SessionEnd 스크립트: 넛지 1회성 플래그"
+    );
+    assert!(
+        end.contains("\"statusLine\""),
+        "SessionEnd 스크립트: 미설정일 때만 넛지"
+    );
 
     // B1 — statusline 배지 스크립트: 디스패치 플래그 → 상태줄. 매 렌더
     // 호출되므로 저비용·무네트워크·실패는 기본 출력 낙하 계약.
     let sl = std::fs::read_to_string(plugin_root().join("hooks/oculpm-statusline.sh"))
         .expect("oculpm-statusline.sh 존재");
-    assert!(sl.contains("current.json"), "statusline: 디스패치 플래그 읽기");
+    assert!(
+        sl.contains("current.json"),
+        "statusline: 디스패치 플래그 읽기"
+    );
     assert!(sl.contains("86400"), "statusline: 24h 신선도 컷");
-    assert!(sl.contains("perl -CS"), "statusline: 문자 단위 절단 (바이트 절단은 한글 파괴)");
+    assert!(
+        sl.contains("perl -CS"),
+        "statusline: 문자 단위 절단 (바이트 절단은 한글 파괴)"
+    );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!sl.contains(banned), "statusline: 네트워크 금지");
     }
@@ -173,7 +288,10 @@ fn hooks_json_guards_and_consumes_stdin() {
     {
         use std::os::unix::fs::PermissionsExt;
         for name in ["hooks/session-marker.sh", "hooks/session-end.sh"] {
-            let mode = std::fs::metadata(plugin_root().join(name)).unwrap().permissions().mode();
+            let mode = std::fs::metadata(plugin_root().join(name))
+                .unwrap()
+                .permissions()
+                .mode();
             assert!(mode & 0o111 != 0, "{name} 실행 비트 누락");
         }
     }
@@ -185,29 +303,59 @@ fn hooks_json_guards_and_consumes_stdin() {
         let cmd = map[ev][0]["hooks"][idx]["command"]
             .as_str()
             .unwrap_or_else(|| panic!("{ev}[{idx}] 주입 훅 누락"));
-        assert!(cmd.contains("${CLAUDE_PLUGIN_ROOT}"), "{ev}: 주입은 플러그인 동봉 스크립트로");
-        assert!(cmd.contains("plan-context.sh"), "{ev}: plan-context.sh 참조");
+        assert!(
+            cmd.contains("${CLAUDE_PLUGIN_ROOT}"),
+            "{ev}: 주입은 플러그인 동봉 스크립트로"
+        );
+        assert!(
+            cmd.contains("plan-context.sh"),
+            "{ev}: plan-context.sh 참조"
+        );
     }
     // 주입 스크립트 계약 — 절대 블록 금지·상한·네트워크 금지·JSON 출력.
     let script_path = plugin_root().join("hooks/plan-context.sh");
     let script = std::fs::read_to_string(&script_path).expect("plan-context.sh 존재");
-    assert!(script.contains("payload=$(cat"), "주입 스크립트: stdin 즉시 소비 (블록 금지)");
+    assert!(
+        script.contains("payload=$(cat"),
+        "주입 스크립트: stdin 즉시 소비 (블록 금지)"
+    );
     // plain stdout 은 SubagentStart 에서 버려진다 — JSON additionalContext 만
     // 두 이벤트 모두에 닿는다 (적대 리뷰 HIGH 회귀 방지).
-    assert!(script.contains("hookSpecificOutput"), "주입 스크립트: JSON 출력 계약");
-    assert!(script.contains("additionalContext"), "주입 스크립트: additionalContext 필드");
-    assert!(script.contains("지시가 아님"), "주입 스크립트: 비신뢰 데이터 프레이밍");
+    assert!(
+        script.contains("hookSpecificOutput"),
+        "주입 스크립트: JSON 출력 계약"
+    );
+    assert!(
+        script.contains("additionalContext"),
+        "주입 스크립트: additionalContext 필드"
+    );
+    assert!(
+        script.contains("지시가 아님"),
+        "주입 스크립트: 비신뢰 데이터 프레이밍"
+    );
     // 바이트 컷(head -c)은 한글 멀티바이트를 중간에서 깨뜨린다 — 줄 경계 컷 + 절단 표식.
-    assert!(script.contains("if (n > 1600)"), "주입 스크립트: 컨텍스트 상한 (토큰 예산, 줄 경계)");
-    assert!(script.contains("생략"), "주입 스크립트: 절단 표식 (침묵 절단 금지)");
-    assert!(script.contains("status: active"), "주입 스크립트: 활성 플랜만 (frontmatter 스코프)");
+    assert!(
+        script.contains("if (n > 1600)"),
+        "주입 스크립트: 컨텍스트 상한 (토큰 예산, 줄 경계)"
+    );
+    assert!(
+        script.contains("생략"),
+        "주입 스크립트: 절단 표식 (침묵 절단 금지)"
+    );
+    assert!(
+        script.contains("status: active"),
+        "주입 스크립트: 활성 플랜만 (frontmatter 스코프)"
+    );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!script.contains(banned), "주입 스크립트: 네트워크 금지");
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(&script_path).unwrap().permissions().mode();
+        let mode = std::fs::metadata(&script_path)
+            .unwrap()
+            .permissions()
+            .mode();
         assert!(mode & 0o111 != 0, "plan-context.sh 실행 비트 누락");
     }
 }
@@ -227,7 +375,13 @@ fn bundled_skills_and_commands_stay_within_budget() {
     names.sort();
     assert_eq!(
         names,
-        ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"],
+        [
+            "oculpm-journal",
+            "project-inception",
+            "run-evals",
+            "self-audit",
+            "tdd-workflow"
+        ],
         "동봉 스킬은 5종 고정 — 추가하려면 토큰 예산부터 재계산"
     );
 
@@ -251,7 +405,13 @@ fn bundled_skills_and_commands_stay_within_budget() {
     cmd_names.sort();
     assert_eq!(
         cmd_names,
-        ["help.md", "inception.md", "next.md", "project_init.md", "standup.md"],
+        [
+            "help.md",
+            "inception.md",
+            "next.md",
+            "project_init.md",
+            "standup.md"
+        ],
         "동봉 커맨드 5종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     for name in &cmd_names {
@@ -275,14 +435,23 @@ fn bundled_skills_and_commands_stay_within_budget() {
 #[test]
 fn landing_plugin_docs_page_lists_every_command_and_tool() {
     let page_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../landing/plugin.html");
-    let page = std::fs::read_to_string(&page_path)
-        .unwrap_or_else(|e| panic!("{} 읽기 실패: {e} — 플러그인 문서 페이지가 필요하다", page_path.display()));
+    let page = std::fs::read_to_string(&page_path).unwrap_or_else(|e| {
+        panic!(
+            "{} 읽기 실패: {e} — 플러그인 문서 페이지가 필요하다",
+            page_path.display()
+        )
+    });
 
     for entry in std::fs::read_dir(plugin_root().join("commands")).unwrap() {
         let name = entry.unwrap().file_name().to_string_lossy().to_string();
-        let Some(base) = name.strip_suffix(".md") else { continue };
+        let Some(base) = name.strip_suffix(".md") else {
+            continue;
+        };
         let cmd = format!("/oculpm:{base}");
-        assert!(page.contains(&cmd), "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라");
+        assert!(
+            page.contains(&cmd),
+            "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라"
+        );
     }
     // MCP 도구 7종 — tools/list 계약(protocol 테스트)과 같은 목록.
     for tool in [
@@ -294,11 +463,23 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         "plan_create",
         "project_init",
     ] {
-        assert!(page.contains(tool), "landing/plugin.html 에 MCP 도구 {tool} 문서 누락");
+        assert!(
+            page.contains(tool),
+            "landing/plugin.html 에 MCP 도구 {tool} 문서 누락"
+        );
     }
     // 스킬 5종 — 갤러리/매니페스트와 같은 목록.
-    for skill in ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"] {
-        assert!(page.contains(skill), "landing/plugin.html 에 스킬 {skill} 문서 누락");
+    for skill in [
+        "oculpm-journal",
+        "project-inception",
+        "run-evals",
+        "self-audit",
+        "tdd-workflow",
+    ] {
+        assert!(
+            page.contains(skill),
+            "landing/plugin.html 에 스킬 {skill} 문서 누락"
+        );
     }
 }
 
@@ -330,7 +511,10 @@ fn shuttle_script_is_executable_and_stderr_only() {
     assert!(meta.permissions().mode() & 0o111 != 0, "실행 비트 유실");
     let script = std::fs::read_to_string(&path).unwrap();
     assert!(script.starts_with("#!/bin/sh"), "POSIX sh — bash 의존 금지");
-    assert!(script.contains(">&2"), "안내는 stderr 로 (stdout 은 MCP 프로토콜 전용)");
+    assert!(
+        script.contains(">&2"),
+        "안내는 stderr 로 (stdout 은 MCP 프로토콜 전용)"
+    );
 }
 
 /// A3 — 레포 루트 마켓플레이스: `/plugin marketplace add bunhine0452/Ocul-PM`
@@ -338,7 +522,8 @@ fn shuttle_script_is_executable_and_stderr_only() {
 /// 직접 URL add 는 상대경로를 못 푼다), 버전은 plugin.json 과 동기.
 #[test]
 fn marketplace_points_at_plugin_and_stays_version_synced() {
-    let mkt_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.claude-plugin/marketplace.json");
+    let mkt_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.claude-plugin/marketplace.json");
     let mkt: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&mkt_path).expect("marketplace.json"))
             .expect("marketplace.json 파싱");
@@ -352,4 +537,3 @@ fn marketplace_points_at_plugin_and_stays_version_synced() {
         "marketplace 버전은 plugin.json 과 동기 (build-sidecar 가 스탬프)"
     );
 }
-

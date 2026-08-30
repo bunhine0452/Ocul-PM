@@ -141,7 +141,11 @@ pub fn set_item_status_rolled(
     new: ItemStatus,
 ) -> Result<SetStatusResult, String> {
     let parsed = crate::oculpm::planner::parse::parse_plan(md, "x");
-    if parsed.items.iter().any(|i| i.parent_item.as_deref() == Some(item_id)) {
+    if parsed
+        .items
+        .iter()
+        .any(|i| i.parent_item.as_deref() == Some(item_id))
+    {
         return Err(format!(
             "'{item_id}' is a parent with children - its status is rolled up automatically. \
              하위 항목을 갱신하세요"
@@ -184,7 +188,10 @@ pub fn set_item_status_rolled(
             .collect();
         let roll = crate::oculpm::planner::parse::rollup_status(&siblings);
         if let Ok(normalized) = set_item_status(&result.md, &parent_id, roll) {
-            return Ok(SetStatusResult { md: normalized.md, old_status: result.old_status });
+            return Ok(SetStatusResult {
+                md: normalized.md,
+                old_status: result.old_status,
+            });
         }
     }
     Ok(result)
@@ -303,8 +310,8 @@ pub fn remove_phase(md: &str, phase: &str) -> Result<String, String> {
         .position(|l| phase_heading_name(l).as_deref() == Some(phase.trim()))
         .ok_or_else(|| format!("phase '{phase}' not found"))?;
     let mut end = lines.len();
-    for j in (start + 1)..lines.len() {
-        let t = lines[j].trim_start();
+    for (j, line) in lines.iter().enumerate().skip(start + 1) {
+        let t = line.trim_start();
         if t.starts_with("## ") || t.starts_with("<!-- oculpm:plan-log") {
             end = j;
             break;
@@ -327,7 +334,11 @@ pub fn move_phase(md: &str, phase: &str, up: bool) -> Result<String, String> {
         .unwrap_or(lines.len());
     let dec_idx = lines
         .iter()
-        .position(|l| phase_heading_name(l).map(|n| is_decisions_name(&n)).unwrap_or(false))
+        .position(|l| {
+            phase_heading_name(l)
+                .map(|n| is_decisions_name(&n))
+                .unwrap_or(false)
+        })
         .unwrap_or(lines.len());
     let region_end = log_idx.min(dec_idx);
 
@@ -394,8 +405,8 @@ pub fn add_item(
             // Insert at the end of the phase block — before the next heading or
             // the plan-log block, skipping back over trailing blank lines.
             let mut at = lines.len();
-            for j in (pi + 1)..lines.len() {
-                let t = lines[j].trim_start();
+            for (j, line) in lines.iter().enumerate().skip(pi + 1) {
+                let t = line.trim_start();
                 if t.starts_with("## ")
                     || t.starts_with("### ")
                     || t.starts_with("<!-- oculpm:plan-log")
@@ -602,7 +613,10 @@ mod tests {
         assert_eq!(p.frontmatter.updated.as_deref(), Some("2026-06-07"));
         // round-trip back to active.
         let active = set_plan_status(&locked, "active", "2026-06-08");
-        assert_eq!(parse_plan(&active, "p").frontmatter.status, PlanStatus::Active);
+        assert_eq!(
+            parse_plan(&active, "p").frontmatter.status,
+            PlanStatus::Active
+        );
     }
 
     #[test]
@@ -733,7 +747,11 @@ mod tests {
         let md = add_item(&md, "Phase C", "c1", "c1", ItemStatus::Todo).unwrap();
 
         let names = |m: &str| -> Vec<String> {
-            parse_plan(m, "p").phases.into_iter().map(|p| p.name).collect()
+            parse_plan(m, "p")
+                .phases
+                .into_iter()
+                .map(|p| p.name)
+                .collect()
         };
 
         let up = move_phase(&md, "Phase B", true).unwrap();
@@ -741,7 +759,12 @@ mod tests {
         // items still belong to their (now reordered) phases.
         let p = parse_plan(&up, "p");
         assert_eq!(
-            p.items.iter().find(|i| i.item_id == "a1").unwrap().phase.as_deref(),
+            p.items
+                .iter()
+                .find(|i| i.item_id == "a1")
+                .unwrap()
+                .phase
+                .as_deref(),
             Some("Phase A")
         );
 
@@ -762,7 +785,10 @@ mod tests {
         let up = move_phase(md, "Phase B", true).unwrap();
         let p = parse_plan(&up, "p");
         assert_eq!(
-            p.phases.iter().map(|ph| ph.name.as_str()).collect::<Vec<_>>(),
+            p.phases
+                .iter()
+                .map(|ph| ph.name.as_str())
+                .collect::<Vec<_>>(),
             vec!["Phase B", "Phase A"]
         );
         // decisions survived intact.
@@ -791,7 +817,11 @@ mod tests {
     fn rolled_set_skips_normalization_on_ambiguous_parent_id() {
         let md = "---\noculpm_plan: v1\nid: n\ntitle: \"n\"\nstatus: active\n---\n\n## P {#p}\n- [ ] one {#x}\n- [ ] two {#x}\n  - [ ] kid {#k}\n- [ ] bystander {#x-2}\n\n<!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n";
         let r = set_item_status_rolled(md, "k", ItemStatus::Done).unwrap();
-        assert!(r.md.contains("- [ ] bystander {#x-2}"), "방관자 불가침: {}", r.md);
+        assert!(
+            r.md.contains("- [ ] bystander {#x-2}"),
+            "방관자 불가침: {}",
+            r.md
+        );
         assert!(r.md.contains("  - [x] kid {#k}"));
     }
 
@@ -805,7 +835,11 @@ mod tests {
         assert!(out.contains("\n- [x] b {#b}"));
         let parsed = crate::oculpm::planner::parse::parse_plan(&out, "n");
         let prev = parsed.items.iter().find(|i| i.item_id == "prev").unwrap();
-        assert_eq!(prev.status, ItemStatus::Done, "prev 가 입양으로 파생되면 안 됨");
+        assert_eq!(
+            prev.status,
+            ItemStatus::Done,
+            "prev 가 입양으로 파생되면 안 됨"
+        );
     }
 
     /// 부모 직접 설정은 거부 — 상태는 하위 롤업으로만 움직인다 (phase 와 동일).

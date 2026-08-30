@@ -10,7 +10,10 @@ use crate::db::Db;
 use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus, JournalMissingSignal};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(std::path::PathBuf::from(project.root_path))
 }
 

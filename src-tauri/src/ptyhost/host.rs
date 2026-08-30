@@ -94,7 +94,12 @@ fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
     use std::sync::atomic::Ordering as O;
     session.gone.store(true, O::SeqCst);
     let foreground = process_group_leader_of(&session);
-    let HostSession { writer, master, mut child, .. } = session;
+    let HostSession {
+        writer,
+        master,
+        mut child,
+        ..
+    } = session;
     let shell_pid = child.process_id().map(|p| p as i32);
     // master/writer 를 먼저 닫아야 슬레이브 쪽 read 가 EIO 로 깨어난다.
     drop(writer);
@@ -257,7 +262,12 @@ fn start_session(
 
     let pty_system = NativePtySystem::default();
     let pair = pty_system
-        .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
         .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
     let mut cmd = CommandBuilder::new(&shell);
@@ -323,7 +333,11 @@ fn start_session(
                         continue;
                     }
                     let seq = buf.lock().unwrap_or_else(|p| p.into_inner()).push(&text);
-                    let _ = st.events.send(Event::Data { sid: sid.clone(), seq, text });
+                    let _ = st.events.send(Event::Data {
+                        sid: sid.clone(),
+                        seq,
+                        text,
+                    });
                 }
                 Err(_) => break,
             }
@@ -332,7 +346,11 @@ fn start_session(
         if !pending.is_empty() && !gone.load(std::sync::atomic::Ordering::SeqCst) {
             let text = String::from_utf8_lossy(&pending).into_owned();
             let seq = buf.lock().unwrap_or_else(|p| p.into_inner()).push(&text);
-            let _ = st.events.send(Event::Data { sid: sid.clone(), seq, text });
+            let _ = st.events.send(Event::Data {
+                sid: sid.clone(),
+                seq,
+                text,
+            });
         }
         // Kill 이 지나간 세션은 거기서 정리됐다 — 같은 sid 로 새로 뜬 세션을
         // 여기서 지우면 안 된다. **내 것일 때만**(gone Arc 동일성) 걷어낸다:
@@ -352,15 +370,38 @@ fn start_session(
         }
     });
 
-    Ok(Response::Session { nonce, shell_integration })
+    Ok(Response::Session {
+        nonce,
+        shell_integration,
+    })
 }
 
 fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
     match req {
-        Request::Hello => Response::Proto { proto: PROTO_VERSION },
-        Request::Start { sid, cwd, rows, cols, shell, env, nonce, shell_integration } => {
-            match start_session(state, sid, cwd, rows, cols, shell, env, nonce, shell_integration)
-            {
+        Request::Hello => Response::Proto {
+            proto: PROTO_VERSION,
+        },
+        Request::Start {
+            sid,
+            cwd,
+            rows,
+            cols,
+            shell,
+            env,
+            nonce,
+            shell_integration,
+        } => {
+            match start_session(
+                state,
+                sid,
+                cwd,
+                rows,
+                cols,
+                shell,
+                env,
+                nonce,
+                shell_integration,
+            ) {
                 Ok(resp) => resp,
                 Err(message) => Response::Error { message },
             }
@@ -369,8 +410,7 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             let sessions = state.lock_sessions();
             Response::Attach {
                 attach: sessions.get(&sid).map(|s| {
-                    let (text, seq) =
-                        s.buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
+                    let (text, seq) = s.buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
                     AttachPayload {
                         text,
                         seq,
@@ -384,24 +424,34 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             let mut sessions = state.lock_sessions();
             let Some(session) = sessions.get_mut(&sid) else {
                 // "조용한 성공" 금지 — 호출측(디스패치 프리필)이 재시도를 판단한다.
-                return Response::Error { message: format!("unknown pty session: {sid}") };
+                return Response::Error {
+                    message: format!("unknown pty session: {sid}"),
+                };
             };
             if let Err(e) = session.writer.write_all(data.as_bytes()) {
-                return Response::Error { message: format!("Failed to write to PTY: {e}") };
+                return Response::Error {
+                    message: format!("Failed to write to PTY: {e}"),
+                };
             }
             if let Err(e) = session.writer.flush() {
-                return Response::Error { message: format!("Failed to flush PTY: {e}") };
+                return Response::Error {
+                    message: format!("Failed to flush PTY: {e}"),
+                };
             }
             Response::Ok
         }
         Request::Resize { sid, rows, cols } => {
             let mut sessions = state.lock_sessions();
             if let Some(session) = sessions.get_mut(&sid) {
-                if let Err(e) = session
-                    .master
-                    .resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
-                {
-                    return Response::Error { message: format!("Failed to resize PTY: {e}") };
+                if let Err(e) = session.master.resize(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                }) {
+                    return Response::Error {
+                        message: format!("Failed to resize PTY: {e}"),
+                    };
                 }
             }
             Response::Ok
@@ -434,11 +484,15 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             let leader = {
                 let sessions = state.lock_sessions();
                 let Some(session) = sessions.get(&sid) else {
-                    return Response::Error { message: format!("unknown pty session: {sid}") };
+                    return Response::Error {
+                        message: format!("unknown pty session: {sid}"),
+                    };
                 };
                 process_group_leader_of(session)
             };
-            Response::Foreground { command: leader.and_then(command_line_of) }
+            Response::Foreground {
+                command: leader.and_then(command_line_of),
+            }
         }
         Request::Shutdown => {
             log_line(state, "shutdown requested");
@@ -594,8 +648,7 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
     let idle_state = state.clone();
     tokio::spawn(async move {
         let mut empty_ticks = 0u32;
-        let mut tick =
-            tokio::time::interval(std::time::Duration::from_secs(IDLE_TICK_SECS));
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(IDLE_TICK_SECS));
         tick.tick().await; // 첫 tick 은 즉시 — 건너뛴다.
         loop {
             tick.tick().await;
@@ -672,7 +725,10 @@ mod tests {
         // 포그라운드에 오래 도는 작업을 앉힌다. HUP 을 무시하는 셸 + sleep.
         handle_request(
             &state,
-            Request::Write { sid: sid.clone(), data: "trap '' HUP; sleep 300\n".to_string() },
+            Request::Write {
+                sid: sid.clone(),
+                data: "trap '' HUP; sleep 300\n".to_string(),
+            },
         );
         let (shell_pid, fg) = {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -680,7 +736,10 @@ mod tests {
                 let (shell, fg) = {
                     let sessions = state.lock_sessions();
                     let s = sessions.get(&sid).expect("session present");
-                    (s.child.process_id().map(|p| p as i32), process_group_leader_of(s))
+                    (
+                        s.child.process_id().map(|p| p as i32),
+                        process_group_leader_of(s),
+                    )
                 };
                 // 포그라운드 그룹이 셸에서 sleep 으로 넘어간 순간을 기다린다.
                 if let (Some(shell), Some(fg)) = (shell, fg) {
@@ -688,14 +747,23 @@ mod tests {
                         break (shell, fg);
                     }
                 }
-                assert!(std::time::Instant::now() < deadline, "sleep 이 포그라운드가 안 된다");
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "sleep 이 포그라운드가 안 된다"
+                );
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             }
         };
         assert!(pid_alive(shell_pid) && pid_alive(fg));
 
-        assert!(matches!(handle_request(&state, Request::Kill { sid: sid.clone() }), Response::Ok));
-        assert!(state.lock_sessions().get(&sid).is_none(), "맵에서 즉시 사라진다");
+        assert!(matches!(
+            handle_request(&state, Request::Kill { sid: sid.clone() }),
+            Response::Ok
+        ));
+        assert!(
+            state.lock_sessions().get(&sid).is_none(),
+            "맵에서 즉시 사라진다"
+        );
 
         let deadline = std::time::Instant::now() + KILL_GRACE + std::time::Duration::from_secs(3);
         while std::time::Instant::now() < deadline && (pid_alive(fg) || pid_alive(shell_pid)) {

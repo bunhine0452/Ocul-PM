@@ -209,10 +209,7 @@ impl<'a> JournalCache<'a> {
     /// mtime fast path in [`upsert_entry`][Self::upsert_entry] still holds);
     /// only when a secret is actually replaced does it rebuild a deterministic
     /// `---\n<frontmatter>\n---\n<masked body>` so re-scans stay stable.
-    pub(crate) fn project_text(
-        &self,
-        raw: &str,
-    ) -> (ParsedFrontmatter, ParsedBody, String, usize) {
+    pub(crate) fn project_text(&self, raw: &str) -> (ParsedFrontmatter, ParsedBody, String, usize) {
         let (parsed, body_text) = parse_frontmatter_and_body(raw);
         if self.redact.is_empty() {
             let body = parse_body(&body_text);
@@ -320,7 +317,10 @@ impl CacheRowSnapshot {
         let parse_warnings = if parsed.parse_warnings.is_empty() {
             None
         } else {
-            Some(serde_json::to_string(&parsed.parse_warnings).map_err(OculpmError::JsonSerialize)?)
+            Some(
+                serde_json::to_string(&parsed.parse_warnings)
+                    .map_err(OculpmError::JsonSerialize)?,
+            )
         };
 
         match &parsed.parsed {
@@ -488,8 +488,8 @@ fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySumma
         verified_by_user: r.get::<_, i64>("verified_by_user")? != 0,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
-        tags: Vec::new(),     // filled by list_entries' batch query
-        files_count: 0,       // filled by list_entries' batch query
+        tags: Vec::new(), // filled by list_entries' batch query
+        files_count: 0,   // filled by list_entries' batch query
         parse_ok: r.get::<_, i64>("parse_ok")? != 0,
         parse_warnings: parse_warnings_vec(&r.get::<_, Option<String>>("parse_warnings")?),
     })
@@ -567,10 +567,7 @@ fn build_list_sql(
                 format!("?{}", bound.len())
             })
             .collect();
-        sql.push_str(&format!(
-            " AND difficulty IN ({})",
-            placeholders.join(",")
-        ));
+        sql.push_str(&format!(" AND difficulty IN ({})", placeholders.join(",")));
     }
     if let Some(q) = filters.search.as_ref().filter(|q| !q.trim().is_empty()) {
         let needle = format!("%{}%", q.trim());
@@ -614,9 +611,7 @@ pub(crate) fn walk_journal(journal_root: &Path) -> Vec<(String, i64)> {
         let rel_str = rel.to_string_lossy().replace('\\', "/");
         if rel_str.starts_with('_')
             || rel_str.contains("/_attachments/")
-            || rel_str
-                .split('/')
-                .any(|seg| seg.starts_with('.'))
+            || rel_str.split('/').any(|seg| seg.starts_with('.'))
         {
             continue;
         }

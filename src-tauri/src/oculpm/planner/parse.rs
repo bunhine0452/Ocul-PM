@@ -232,7 +232,10 @@ impl ParsedPlan {
     /// 이므로 모든 집계는 이 집합을 제외한 리프 기준이어야 한다 (진척 바와
     /// done/total 카운트가 갈라지는 것 방지).
     pub fn parent_ids(&self) -> HashSet<&str> {
-        self.items.iter().filter_map(|i| i.parent_item.as_deref()).collect()
+        self.items
+            .iter()
+            .filter_map(|i| i.parent_item.as_deref())
+            .collect()
     }
 
     pub fn progress(&self) -> f64 {
@@ -336,7 +339,11 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
         if let Some(h) = trimmed.strip_prefix("### ") {
             if matches!(section, Section::Decisions) {
                 flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
-                cur_decision = Some(parse_decision_header(h.trim(), &mut seen_ids, &mut warnings));
+                cur_decision = Some(parse_decision_header(
+                    h.trim(),
+                    &mut seen_ids,
+                    &mut warnings,
+                ));
                 decision_lines.clear();
             }
             // 3-depth — 서브 헤딩도 항목 흐름을 끊는다: 헤딩 너머의 들여쓴
@@ -395,7 +402,6 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
             child_statuses.entry(p.clone()).or_default().push(it.status);
         }
     }
-    let mut items = items;
     for it in &mut items {
         if let Some(kids) = child_statuses.get(&it.item_id) {
             it.status = rollup_status(kids);
@@ -416,8 +422,11 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
 /// Dropped), 하나라도 blocked 면 Blocked, 전부 done/todo/deferred 면 그 값,
 /// 그 외 혼합은 InProgress.
 pub fn rollup_status(children: &[ItemStatus]) -> ItemStatus {
-    let live: Vec<ItemStatus> =
-        children.iter().copied().filter(|s| *s != ItemStatus::Dropped).collect();
+    let live: Vec<ItemStatus> = children
+        .iter()
+        .copied()
+        .filter(|s| *s != ItemStatus::Dropped)
+        .collect();
     if live.is_empty() {
         return ItemStatus::Dropped;
     }
@@ -518,7 +527,15 @@ fn fold_wrapped_items(body: &str) -> String {
 /// Strip a leading "Plan — " / "계획: " style prefix from an `# H1` title.
 fn strip_plan_prefix(h1: &str) -> String {
     let t = h1.trim();
-    for p in ["Plan — ", "Plan – ", "Plan - ", "Plan: ", "계획 — ", "계획: ", "계획 - "] {
+    for p in [
+        "Plan — ",
+        "Plan – ",
+        "Plan - ",
+        "Plan: ",
+        "계획 — ",
+        "계획: ",
+        "계획 - ",
+    ] {
         if let Some(rest) = t.strip_prefix(p) {
             let rest = rest.trim();
             if !rest.is_empty() {
@@ -593,7 +610,9 @@ fn parse_item_line(
     let close = rest.find(']')?;
     let token = &rest[1..close];
     let status = ItemStatus::from_token(token).unwrap_or_else(|| {
-        warnings.push(format!("unknown item glyph '[{token}]'; defaulting to todo"));
+        warnings.push(format!(
+            "unknown item glyph '[{token}]'; defaulting to todo"
+        ));
         ItemStatus::Todo
     });
     let mut content = rest[close + 1..].trim().to_string();
@@ -730,12 +749,17 @@ fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
         .map(|c| c.trim().to_string())
         .collect();
     // Separator row (---|---).
-    if cells.iter().all(|c| c.chars().all(|ch| ch == '-' || ch == ':') && !c.is_empty()) {
+    if cells
+        .iter()
+        .all(|c| c.chars().all(|ch| ch == '-' || ch == ':') && !c.is_empty())
+    {
         return None;
     }
     // Header row.
     let joined = cells.join(" ");
-    if joined.contains("시각") || joined.contains("에이전트") || joined.to_lowercase().contains("agent")
+    if joined.contains("시각")
+        || joined.contains("에이전트")
+        || joined.to_lowercase().contains("agent")
     {
         return None;
     }
@@ -951,7 +975,11 @@ owner: claude-code
         assert_eq!(abs.phase.as_deref(), Some("Phase A — 캐시 경로 안정화"));
         assert!(abs.parent_item.is_none());
 
-        let nested = p.items.iter().find(|i| i.item_id == "fresh-machine").unwrap();
+        let nested = p
+            .items
+            .iter()
+            .find(|i| i.item_id == "fresh-machine")
+            .unwrap();
         assert_eq!(nested.parent_item.as_deref(), Some("seed-verify"));
 
         let dl = p.items.iter().find(|i| i.item_id == "dl-ux").unwrap();
@@ -961,7 +989,11 @@ owner: claude-code
         let bundle = p.items.iter().find(|i| i.item_id == "bundle").unwrap();
         assert_eq!(bundle.status, ItemStatus::Deferred);
 
-        let searchscope = p.items.iter().find(|i| i.item_id == "search-scopes").unwrap();
+        let searchscope = p
+            .items
+            .iter()
+            .find(|i| i.item_id == "search-scopes")
+            .unwrap();
         assert_eq!(searchscope.phase.as_deref(), Some("Phase B — 검색 품질"));
         assert_eq!(searchscope.status, ItemStatus::Todo);
 
@@ -982,7 +1014,10 @@ owner: claude-code
         assert_eq!(u0.agent_id, "claude-code");
         assert_eq!(u0.from_status.as_deref(), Some("in_progress"));
         assert_eq!(u0.to_status.as_deref(), Some("done"));
-        assert_eq!(u0.journal_ref.as_deref(), Some("journal/20260607/Bugs/0902_bug_onnx.md"));
+        assert_eq!(
+            u0.journal_ref.as_deref(),
+            Some("journal/20260607/Bugs/0902_bug_onnx.md")
+        );
         let u1 = &p.updates[1];
         assert_eq!(u1.agent_id, "user");
         assert_eq!(u1.from_status.as_deref(), Some("todo"));
@@ -997,7 +1032,11 @@ owner: claude-code
         // Countable leaves: abs-cache(done=1) fresh-machine(todo=0)
         // search-scopes(todo=0). dl-ux(blocked) + bundle(deferred) excluded.
         // (1 + 0 + 0) / 3 = 1/3
-        assert!((p.progress() - 1.0 / 3.0).abs() < 1e-9, "got {}", p.progress());
+        assert!(
+            (p.progress() - 1.0 / 3.0).abs() < 1e-9,
+            "got {}",
+            p.progress()
+        );
     }
 
     /// 3-depth — 하위가 있는 부모의 상태는 롤업이 파일 글리프를 이긴다.
@@ -1006,8 +1045,16 @@ owner: claude-code
     fn parent_status_is_rolled_up_from_children() {
         let p = parse_plan(SAMPLE, "x");
         let parent = p.items.iter().find(|i| i.item_id == "seed-verify").unwrap();
-        assert_eq!(parent.status, ItemStatus::Todo, "글리프 [~] 보다 롤업(하위 todo)이 정답");
-        let leaf = p.items.iter().find(|i| i.item_id == "fresh-machine").unwrap();
+        assert_eq!(
+            parent.status,
+            ItemStatus::Todo,
+            "글리프 [~] 보다 롤업(하위 todo)이 정답"
+        );
+        let leaf = p
+            .items
+            .iter()
+            .find(|i| i.item_id == "fresh-machine")
+            .unwrap();
         assert_eq!(leaf.status, ItemStatus::Todo);
     }
 
@@ -1029,9 +1076,17 @@ owner: claude-code
         assert_eq!(rollup_status(&[Todo, Todo]), Todo);
         assert_eq!(rollup_status(&[Done, Todo]), InProgress);
         assert_eq!(rollup_status(&[Done, InProgress]), InProgress);
-        assert_eq!(rollup_status(&[Done, Blocked, Todo]), Blocked, "blocked 최우선");
+        assert_eq!(
+            rollup_status(&[Done, Blocked, Todo]),
+            Blocked,
+            "blocked 최우선"
+        );
         assert_eq!(rollup_status(&[Dropped, Dropped]), Dropped);
-        assert_eq!(rollup_status(&[Done, Dropped]), Done, "dropped 는 모수 제외");
+        assert_eq!(
+            rollup_status(&[Done, Dropped]),
+            Done,
+            "dropped 는 모수 제외"
+        );
         assert_eq!(rollup_status(&[Deferred, Deferred]), Deferred);
     }
 
@@ -1053,7 +1108,10 @@ owner: claude-code
         let p = parse_plan(md, "p");
 
         assert_eq!(p.items.len(), 2, "items: {:?}", p.items);
-        assert!(p.items.iter().all(|i| i.phase.as_deref() == Some("Phase A — 기록의 결정론화")));
+        assert!(p
+            .items
+            .iter()
+            .all(|i| i.phase.as_deref() == Some("Phase A — 기록의 결정론화")));
         // The genuine decisions heading still opens the decisions section.
         assert_eq!(p.decisions.len(), 1);
         assert_eq!(p.decisions[0].decision_id, "d-a");
@@ -1064,13 +1122,23 @@ owner: claude-code
 
     #[test]
     fn decisions_heading_variants_still_open_the_decisions_section() {
-        for heading in ["## 결정", "## 결정사항", "## Decisions", "## 결정 (Decisions)"] {
+        for heading in [
+            "## 결정",
+            "## 결정사항",
+            "## Decisions",
+            "## 결정 (Decisions)",
+        ] {
             let md = format!(
                 "---\noculpm_plan: v1\nid: p\ntitle: \"t\"\n---\n\
                  ## Phase A\n- [ ] a {{#a}}\n\n{heading}\n### D — t {{#d}}\n본문\n"
             );
             let p = parse_plan(&md, "p");
-            assert_eq!(p.decisions.len(), 1, "heading {heading:?} → {:?}", p.decisions);
+            assert_eq!(
+                p.decisions.len(),
+                1,
+                "heading {heading:?} → {:?}",
+                p.decisions
+            );
             assert_eq!(p.phases.len(), 1, "heading {heading:?} leaked into phases");
         }
     }
@@ -1082,7 +1150,9 @@ owner: claude-code
         assert_eq!(p.frontmatter.id, "my-file");
         // filename id + present title → no frontmatter warnings.
         assert!(
-            !p.warnings.iter().any(|w| w.contains("id missing") || w.contains("title missing")),
+            !p.warnings
+                .iter()
+                .any(|w| w.contains("id missing") || w.contains("title missing")),
             "{:?}",
             p.warnings
         );
@@ -1099,7 +1169,7 @@ owner: claude-code
         let p = parse_plan(md, "autonomy-refactor");
         assert_eq!(p.frontmatter.id, "autonomy-refactor"); // filename
         assert_eq!(p.frontmatter.title, "Lean Autonomous Adelie"); // H1, "Plan — " stripped
-        // phase {#id} stripped from the display name
+                                                                   // phase {#id} stripped from the display name
         assert_eq!(p.items[0].phase.as_deref(), Some("Phase 0 — 안전망"));
         assert!(p.warnings.is_empty(), "{:?}", p.warnings);
     }

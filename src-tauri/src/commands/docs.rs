@@ -109,7 +109,10 @@ pub async fn docs_asset(
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -183,7 +186,7 @@ fn is_markdown(path: &Path) -> bool {
 
 /// README/index 를 각 단계 최상단에 고정하고, 나머지는 자연 정렬(숫자 인지)한다.
 /// docs 의 `00-`, `01-` 접두 컨벤션이 사람이 읽는 순서 그대로 나오도록.
-fn sort_docs(nodes: &mut Vec<DocsTreeNode>) {
+fn sort_docs(nodes: &mut [DocsTreeNode]) {
     nodes.sort_by(|a, b| {
         pin_rank(&a.name)
             .cmp(&pin_rank(&b.name))
@@ -311,8 +314,14 @@ mod tests {
         assert!(top.contains(&"README.md".to_string()));
         assert!(top.contains(&"01-spec.md".to_string()));
         assert!(top.contains(&"sub".to_string()));
-        assert!(!top.contains(&"img".to_string()), "이미지뿐인 폴더는 제외: {top:?}");
-        assert!(!top.contains(&"notes.txt".to_string()), "비마크다운 제외: {top:?}");
+        assert!(
+            !top.contains(&"img".to_string()),
+            "이미지뿐인 폴더는 제외: {top:?}"
+        );
+        assert!(
+            !top.contains(&"notes.txt".to_string()),
+            "비마크다운 제외: {top:?}"
+        );
     }
 
     #[test]
@@ -333,14 +342,26 @@ mod tests {
     fn readme_pinned_then_natural_numeric_order() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
-        for f in ["10-ten.md", "2-two.md", "00-zero.md", "README.md", "alpha.md"] {
+        for f in [
+            "10-ten.md",
+            "2-two.md",
+            "00-zero.md",
+            "README.md",
+            "alpha.md",
+        ] {
             write(root, &format!("docs/{f}"), "x");
         }
         let mut nodes = build_docs_nodes(root, &root.join("docs"));
         sort_docs(&mut nodes);
         assert_eq!(
             names(&nodes),
-            vec!["README.md", "00-zero.md", "2-two.md", "10-ten.md", "alpha.md"],
+            vec![
+                "README.md",
+                "00-zero.md",
+                "2-two.md",
+                "10-ten.md",
+                "alpha.md"
+            ],
         );
     }
 
@@ -367,6 +388,9 @@ mod tests {
         // PDF — 코드 화면 미리보기가 이 값으로 웹뷰 내장 뷰어를 깨운다.
         // 틀리면 iframe 이 빈 채로 뜨고 이유가 화면 어디에도 안 남는다.
         assert_eq!(mime_for(Path::new("a/spec.pdf")), "application/pdf");
-        assert_eq!(mime_for(Path::new("a/b.unknown")), "application/octet-stream");
+        assert_eq!(
+            mime_for(Path::new("a/b.unknown")),
+            "application/octet-stream"
+        );
     }
 }

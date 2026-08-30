@@ -33,8 +33,12 @@ const EMBED_BATCH: usize = 32;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReindexSkipReason {
     NotFound,
-    ReadFailed { error: String },
-    UpsertFailed { error: String },
+    ReadFailed {
+        error: String,
+    },
+    UpsertFailed {
+        error: String,
+    },
     /// minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다.
     Generated,
 }
@@ -89,13 +93,17 @@ pub async fn reindex_paths(
     let mut ast_updated: u32 = 0;
 
     for rel_str in paths {
-        match reindex_single_file(&db, &embedder, project_id, &root, &index_config, &rel_str).await {
+        match reindex_single_file(&db, &embedder, project_id, &root, &index_config, &rel_str).await
+        {
             Ok((emb, ast)) => {
                 embeddings_updated += emb;
                 ast_updated += ast;
                 indexed.push(rel_str);
             }
-            Err(reason) => skipped.push(ReindexSkip { path: rel_str, reason }),
+            Err(reason) => skipped.push(ReindexSkip {
+                path: rel_str,
+                reason,
+            }),
         }
     }
 
@@ -138,14 +146,16 @@ pub(crate) async fn reindex_single_file(
     if !abs_path.exists() {
         return Err(ReindexSkipReason::NotFound);
     }
-    let content = fs::read_to_string(&abs_path)
-        .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;
+    let content = fs::read_to_string(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
+        error: e.to_string(),
+    })?;
     if !indexer::is_indexable_content(&content) {
         return Err(ReindexSkipReason::Generated);
     }
     let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-    let metadata = fs::metadata(&abs_path)
-        .map_err(|e| ReindexSkipReason::ReadFailed { error: e.to_string() })?;
+    let metadata = fs::metadata(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
+        error: e.to_string(),
+    })?;
     let size = metadata.len() as i64;
     let mtime = metadata
         .modified()
@@ -156,9 +166,18 @@ pub(crate) async fn reindex_single_file(
     let language = indexer::language_for(&abs_path).map(String::from);
 
     let (file_id, _changed) = db
-        .upsert_file(project_id, rel_str.to_string(), hash.clone(), size, mtime, language)
+        .upsert_file(
+            project_id,
+            rel_str.to_string(),
+            hash.clone(),
+            size,
+            mtime,
+            language,
+        )
         .await
-        .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+        .map_err(|e| ReindexSkipReason::UpsertFailed {
+            error: e.to_string(),
+        })?;
 
     // PR6.6 — refresh the diff baseline so LocalDiffView's snapshot fallback
     // stays current.
@@ -169,7 +188,9 @@ pub(crate) async fn reindex_single_file(
         hash.clone(),
     )
     .await
-    .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?;
+    .map_err(|e| ReindexSkipReason::UpsertFailed {
+        error: e.to_string(),
+    })?;
 
     let mut embeddings_updated: u32 = 0;
     let mut ast_updated: u32 = 0;
@@ -178,8 +199,9 @@ pub(crate) async fn reindex_single_file(
         ast_updated += db
             .insert_symbol_definitions(file_id, ana.symbols.clone())
             .await
-            .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?
-            as u32;
+            .map_err(|e| ReindexSkipReason::UpsertFailed {
+                error: e.to_string(),
+            })? as u32;
     }
     if !chunks.is_empty() {
         for batch in chunks.chunks(EMBED_BATCH) {
@@ -202,8 +224,9 @@ pub(crate) async fn reindex_single_file(
             embeddings_updated += db
                 .insert_chunks_with_embeddings(file_id, rows)
                 .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e.to_string() })?
-                as u32;
+                .map_err(|e| ReindexSkipReason::UpsertFailed {
+                    error: e.to_string(),
+                })? as u32;
         }
     }
 
@@ -277,8 +300,7 @@ pub async fn compute_diff(
         let result = committed_diff(&root, path, max_bytes)?;
         if let DiffSource::Git { patch } = &result.source {
             if patch_reports_binary(patch) {
-                let source =
-                    binary_source(&db, project_id, &root, &result.path, false, true).await;
+                let source = binary_source(&db, project_id, &root, &result.path, false, true).await;
                 return Ok(DiffResult {
                     path: result.path,
                     source,
@@ -312,6 +334,7 @@ pub async fn compute_diff(
 /// Binary variant 의 이전/현재 사이즈 채우기.
 ///   - working baseline: 이전 = `HEAD` 블롭 (없으면 스냅샷), 현재 = 디스크.
 ///   - `last_commit` baseline: 이전 = `HEAD~1` 블롭, 현재 = `HEAD` 블롭.
+///
 /// 어느 쪽이든 조회 실패는 `None`(존재하지 않음)으로 강등 — 여기서 에러를
 /// 올리면 파일 카드조차 못 그린다.
 async fn binary_source(
@@ -358,7 +381,11 @@ fn clamp_u32(n: u64) -> u32 {
 /// back to the empty tree for a root commit so the first commit's files still
 /// render (as all-additions). Always a `Git` source — no snapshot fallback,
 /// since both sides are committed refs.
-fn committed_diff(root: &std::path::Path, path: String, max_bytes: usize) -> Result<DiffResult, String> {
+fn committed_diff(
+    root: &std::path::Path,
+    path: String,
+    max_bytes: usize,
+) -> Result<DiffResult, String> {
     let patch = match git::diff_patch(root, &path, Some("HEAD~1"), Some("HEAD"), max_bytes) {
         Ok(p) => p,
         Err(e) if is_recoverable_git_failure(&e) => {
@@ -597,7 +624,10 @@ async fn snapshot_diff(
         // additions 로 읽으려다 실패(read_project_file 은 UTF-8 전용)하고
         // "읽는 중…" 에 갇히므로, 여기서 파일 카드로 강등한다.
         if is_binary_on_disk(&abs) {
-            let new_size = fs::metadata(&abs).ok().filter(|m| m.is_file()).map(|m| m.len());
+            let new_size = fs::metadata(&abs)
+                .ok()
+                .filter(|m| m.is_file())
+                .map(|m| m.len());
             return Ok(DiffResult {
                 path,
                 source: DiffSource::Binary {
@@ -625,9 +655,7 @@ async fn snapshot_diff(
 
     // 어느 한쪽이라도 바이너리면 lossy 텍스트 diff(깨진 문자 나열) 대신 파일
     // 카드로. 삭제된 파일(disk `None`)은 new_size = None 으로 내려간다.
-    if is_binary_bytes(&snapshot.content)
-        || disk_content.as_deref().is_some_and(is_binary_bytes)
-    {
+    if is_binary_bytes(&snapshot.content) || disk_content.as_deref().is_some_and(is_binary_bytes) {
         return Ok(DiffResult {
             path,
             source: DiffSource::Binary {
@@ -693,15 +721,11 @@ mod tests {
     #[test]
     fn recoverable_git_failures_cover_fresh_repo_and_non_git() {
         assert!(is_recoverable_git_failure("Not a git repository."));
-        assert!(is_recoverable_git_failure(
-            "fatal: bad revision 'HEAD'"
-        ));
+        assert!(is_recoverable_git_failure("fatal: bad revision 'HEAD'"));
         assert!(is_recoverable_git_failure(
             "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree."
         ));
-        assert!(is_recoverable_git_failure(
-            "fatal: unknown revision 'main'"
-        ));
+        assert!(is_recoverable_git_failure("fatal: unknown revision 'main'"));
         // Real git errors that should bubble up to the user untouched.
         assert!(!is_recoverable_git_failure(
             "fatal: pathspec 'foo' did not match any files"
@@ -718,8 +742,14 @@ mod tests {
             out.starts_with("diff --git a/src/sample.txt b/src/sample.txt\n"),
             "missing diff header: {out}"
         );
-        assert!(out.contains("--- a/src/sample.txt"), "missing --- header: {out}");
-        assert!(out.contains("+++ b/src/sample.txt"), "missing +++ header: {out}");
+        assert!(
+            out.contains("--- a/src/sample.txt"),
+            "missing --- header: {out}"
+        );
+        assert!(
+            out.contains("+++ b/src/sample.txt"),
+            "missing +++ header: {out}"
+        );
         assert!(out.contains("-line b"), "missing - line: {out}");
         assert!(out.contains("+line B"), "missing + line: {out}");
     }
@@ -734,7 +764,11 @@ mod tests {
         }
         let out = render_unified_diff("big.txt", &prev, &next, 1_024);
         assert!(out.contains("... (truncated,"), "missing truncation marker");
-        assert!(out.len() < 1_024 + 512, "truncation budget overshot: {}", out.len());
+        assert!(
+            out.len() < 1_024 + 512,
+            "truncation budget overshot: {}",
+            out.len()
+        );
     }
 
     #[test]
@@ -744,7 +778,11 @@ mod tests {
         let next: String = "다음 줄입니다\n".repeat(2_000);
         let out = render_unified_diff("big-ko.txt", &prev, &next, 1_024);
         assert!(out.contains("... (truncated,"), "missing truncation marker");
-        assert!(out.len() < 1_024 + 128, "byte budget overshot: {}", out.len());
+        assert!(
+            out.len() < 1_024 + 128,
+            "byte budget overshot: {}",
+            out.len()
+        );
     }
 
     #[test]

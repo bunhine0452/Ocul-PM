@@ -331,7 +331,9 @@ pub async fn code_import(
         let dest = if dest.is_dir() {
             dest
         } else {
-            dest.parent().map(Path::to_path_buf).unwrap_or_else(|| root.clone())
+            dest.parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| root.clone())
         };
         import_into(&root, &dest, &sources)
     })
@@ -389,7 +391,11 @@ fn clipboard_file_paths() -> Vec<PathBuf> {
 
 /// 실제 복사. 순수 함수라 테스트가 직접 부른다.
 fn import_into(root: &Path, dest: &Path, sources: &[String]) -> Result<CodeImportResult, String> {
-    let mut budget = Budget { files: 0, bytes: 0, truncated: false };
+    let mut budget = Budget {
+        files: 0,
+        bytes: 0,
+        truncated: false,
+    };
     let mut imported = Vec::new();
     let mut skipped = Vec::new();
 
@@ -398,17 +404,29 @@ fn import_into(root: &Path, dest: &Path, sources: &[String]) -> Result<CodeImpor
             break;
         }
         let src = PathBuf::from(source);
-        let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        let name = src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
         match copy_one(&src, dest, &mut budget) {
             Ok(created) => match created.strip_prefix(root) {
                 Ok(rel) => imported.push(rel.to_string_lossy().replace('\\', "/")),
                 // 루트 밖으로 나갈 수 없는 자리지만, 나갔다면 목록에 넣지 않는다.
                 Err(_) => skipped.push(name),
             },
-            Err(_) => skipped.push(if name.is_empty() { source.clone() } else { name }),
+            Err(_) => skipped.push(if name.is_empty() {
+                source.clone()
+            } else {
+                name
+            }),
         }
     }
-    Ok(CodeImportResult { imported, skipped, truncated: budget.truncated })
+    Ok(CodeImportResult {
+        imported,
+        skipped,
+        truncated: budget.truncated,
+    })
 }
 
 /// 재귀 복사가 함께 쓰는 예산. 상한에 닿으면 그 자리에서 멈춘다.
@@ -494,7 +512,9 @@ fn copy_dir_recursive(src: &Path, dest: &Path, budget: &mut Budget) -> Result<()
             continue;
         }
         let child = entry.path();
-        let Some(name) = child.file_name() else { continue };
+        let Some(name) = child.file_name() else {
+            continue;
+        };
         let target = dest.join(name);
         if ft.is_dir() {
             copy_dir_recursive(&child, &target, budget)?;
@@ -532,7 +552,10 @@ pub async fn code_create(
     tauri::async_runtime::spawn_blocking(move || {
         let full = resolve_for_mutation(&root, &full)?;
         create_file(&full)?;
-        Ok(CodePathResult { relative_path: rel, is_dir: false })
+        Ok(CodePathResult {
+            relative_path: rel,
+            is_dir: false,
+        })
     })
     .await
     .map_err(|e| format!("Failed to create the file: {e}"))?
@@ -553,7 +576,10 @@ pub async fn code_mkdir(
     tauri::async_runtime::spawn_blocking(move || {
         let full = resolve_for_mutation(&root, &full)?;
         create_dir(&full)?;
-        Ok(CodePathResult { relative_path: rel, is_dir: true })
+        Ok(CodePathResult {
+            relative_path: rel,
+            is_dir: true,
+        })
     })
     .await
     .map_err(|e| format!("Failed to create the folder: {e}"))?
@@ -581,7 +607,10 @@ pub async fn code_rename(
         let from_full = resolve_for_mutation(&root, &from_full)?;
         let to_full = resolve_for_mutation(&root, &to_full)?;
         let is_dir = rename_path(&from_full, &to_full)?;
-        Ok(CodePathResult { relative_path: to, is_dir })
+        Ok(CodePathResult {
+            relative_path: to,
+            is_dir,
+        })
     })
     .await
     .map_err(|e| format!("Failed to rename: {e}"))?
@@ -638,12 +667,12 @@ pub async fn code_head_content(
     rel_path: String,
 ) -> Result<Option<String>, String> {
     let root = project_root(&db, project_id).await?;
-    Ok(tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         let bytes = crate::git::show_file_bytes(&root, &rel_path, "HEAD", MAX_EDIT_BYTES as usize)?;
         String::from_utf8(bytes).ok()
     })
     .await
-    .map_err(|e| format!("Failed to read HEAD content: {e}"))?)
+    .map_err(|e| format!("Failed to read HEAD content: {e}"))
 }
 
 /// 전역 검색의 매치 하나. `col`/`len` 은 **UTF-16 단위** — CodeMirror 의 문서
@@ -715,7 +744,11 @@ pub async fn code_search(
     is_regex: bool,
 ) -> Result<CodeSearchResult, String> {
     if query.is_empty() {
-        return Ok(CodeSearchResult { files: Vec::new(), total_hits: 0, truncated: false });
+        return Ok(CodeSearchResult {
+            files: Vec::new(),
+            total_hits: 0,
+            truncated: false,
+        });
     }
     let re = build_search_regex(&query, case_sensitive, whole_word, is_regex)?;
     let root = project_root(&db, project_id).await?;
@@ -749,7 +782,11 @@ pub async fn code_search_replace(
     target: Option<CodeReplaceTarget>,
 ) -> Result<CodeReplaceOutcome, String> {
     if query.is_empty() {
-        return Ok(CodeReplaceOutcome { files_changed: 0, hits_replaced: 0, errors: Vec::new() });
+        return Ok(CodeReplaceOutcome {
+            files_changed: 0,
+            hits_replaced: 0,
+            errors: Vec::new(),
+        });
     }
     let re = build_search_regex(&query, case_sensitive, whole_word, is_regex)?;
     let root = project_root(&db, project_id).await?;
@@ -771,7 +808,11 @@ pub async fn code_search_replace(
                 Err(e) => errors.push(format!("{rel}: {e}")),
             }
         }
-        Ok(CodeReplaceOutcome { files_changed, hits_replaced, errors })
+        Ok(CodeReplaceOutcome {
+            files_changed,
+            hits_replaced,
+            errors,
+        })
     })
     .await
     .map_err(|e| format!("Failed to replace: {e}"))?
@@ -780,7 +821,10 @@ pub async fn code_search_replace(
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -794,8 +838,8 @@ fn looks_binary(bytes: &[u8]) -> bool {
 /// 해석해 루트 안인지 다시 확인하고, 해석된 경로를 돌려준다 — 루트 안을
 /// 가리키는 심링크는 그 대상으로 저장되므로 링크 자체도 깨지지 않는다.
 fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
-    let canon_root = std::fs::canonicalize(root)
-        .map_err(|e| format!("Failed to resolve project root: {e}"))?;
+    let canon_root =
+        std::fs::canonicalize(root).map_err(|e| format!("Failed to resolve project root: {e}"))?;
     let canon = std::fs::canonicalize(full).map_err(|e| format!("Failed to read file: {e}"))?;
     if canon.starts_with(&canon_root) {
         Ok(canon)
@@ -842,8 +886,8 @@ fn normalize_rel(rel: &str) -> Result<String, String> {
 /// 심링크**를 "없음" 으로 보고, 그 자리에 파일을 만들면 커널이 링크를 따라가 루트
 /// 밖에 쓴다.
 fn resolve_for_mutation(root: &Path, full: &Path) -> Result<PathBuf, String> {
-    let canon_root = std::fs::canonicalize(root)
-        .map_err(|e| format!("Failed to resolve project root: {e}"))?;
+    let canon_root =
+        std::fs::canonicalize(root).map_err(|e| format!("Failed to resolve project root: {e}"))?;
     let file_name = full
         .file_name()
         .ok_or_else(|| "Invalid path".to_string())?
@@ -868,8 +912,8 @@ fn resolve_for_mutation(root: &Path, full: &Path) -> Result<PathBuf, String> {
             .to_path_buf();
     }
 
-    let canon = std::fs::canonicalize(&existing)
-        .map_err(|e| format!("Failed to resolve path: {e}"))?;
+    let canon =
+        std::fs::canonicalize(&existing).map_err(|e| format!("Failed to resolve path: {e}"))?;
     if !canon.starts_with(&canon_root) {
         return Err("Path escapes the project root".to_string());
     }
@@ -1051,7 +1095,10 @@ fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> CodeDirListing
     }
 
     let Ok(read) = std::fs::read_dir(dir) else {
-        return CodeDirListing { entries: Vec::new(), truncated: false };
+        return CodeDirListing {
+            entries: Vec::new(),
+            truncated: false,
+        };
     };
 
     let mut entries: Vec<CodeDirEntry> = Vec::new();
@@ -1066,7 +1113,9 @@ fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> CodeDirListing
         // 트리 단계에서부터 막는다 (여는 시점의 canonical 가드와 이중 방어).
         let Ok(meta) = item.metadata() else { continue };
         let full = item.path();
-        let Ok(rel) = full.strip_prefix(root) else { continue };
+        let Ok(rel) = full.strip_prefix(root) else {
+            continue;
+        };
         let rel = rel.to_string_lossy().replace('\\', "/");
         if entries.len() >= max_entries {
             truncated = true;
@@ -1109,8 +1158,16 @@ fn build_search_regex(
     whole_word: bool,
     is_regex: bool,
 ) -> Result<regex::Regex, String> {
-    let base = if is_regex { query.to_string() } else { regex::escape(query) };
-    let pattern = if whole_word { format!(r"\b(?:{base})\b") } else { base };
+    let base = if is_regex {
+        query.to_string()
+    } else {
+        regex::escape(query)
+    };
+    let pattern = if whole_word {
+        format!(r"\b(?:{base})\b")
+    } else {
+        base
+    };
     regex::RegexBuilder::new(&pattern)
         .case_insensitive(!case_sensitive)
         .build()
@@ -1202,14 +1259,20 @@ fn search_project(root: &Path, re: &regex::Regex, max_hits: usize) -> CodeSearch
         if meta.len() > MAX_EDIT_BYTES {
             continue;
         }
-        let Ok(bytes) = std::fs::read(path) else { continue };
+        let Ok(bytes) = std::fs::read(path) else {
+            continue;
+        };
         if looks_binary(&bytes) {
             continue;
         }
-        let Ok(content) = String::from_utf8(bytes) else { continue };
+        let Ok(content) = String::from_utf8(bytes) else {
+            continue;
+        };
         let (hits, over) = search_content(re, &content, max_hits - total);
         if !hits.is_empty() {
-            let Ok(rel) = path.strip_prefix(root) else { continue };
+            let Ok(rel) = path.strip_prefix(root) else {
+                continue;
+            };
             total += hits.len();
             files.push(CodeSearchFile {
                 path: rel.to_string_lossy().replace('\\', "/"),
@@ -1222,7 +1285,11 @@ fn search_project(root: &Path, re: &regex::Regex, max_hits: usize) -> CodeSearch
         }
     }
     files.sort_by(|a, b| natural_cmp(&a.path, &b.path));
-    CodeSearchResult { files, total_hits: total as u32, truncated }
+    CodeSearchResult {
+        files,
+        total_hits: total as u32,
+        truncated,
+    }
 }
 
 /// 한 줄 안의 치환. `only_at` 이 있으면 그 바이트에서 시작하는 매치만 바꾼다.
@@ -1357,7 +1424,11 @@ static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 /// 해시 대조 → 같은 디렉터리 임시 파일 → 권한 복사 → rename. 동기 IO 라
 /// spawn_blocking 안에서 부른다.
-fn write_with_lock(full: &Path, content: &str, base_hash: &str) -> Result<CodeWriteOutcome, String> {
+fn write_with_lock(
+    full: &Path,
+    content: &str,
+    base_hash: &str,
+) -> Result<CodeWriteOutcome, String> {
     let _guard = WRITE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let disk = std::fs::read(full).map_err(|e| format!("Failed to read file before save: {e}"))?;
     let disk_hash = blake3::hash(&disk).to_hex().to_string();
@@ -1419,13 +1490,23 @@ mod tests {
         let outside = TempDir::new().unwrap();
         write(outside.path(), "note.txt", b"new");
         write(root, "dest/note.txt", b"old");
-        let src = outside.path().join("note.txt").to_string_lossy().to_string();
+        let src = outside
+            .path()
+            .join("note.txt")
+            .to_string_lossy()
+            .to_string();
 
-        let out = import_into(root, &root.join("dest"), &[src.clone()]).unwrap();
+        let out = import_into(root, &root.join("dest"), std::slice::from_ref(&src)).unwrap();
         assert_eq!(out.imported, vec!["dest/note-2.txt"]);
         // 원래 있던 파일은 그대로다.
-        assert_eq!(fs::read_to_string(root.join("dest/note.txt")).unwrap(), "old");
-        assert_eq!(fs::read_to_string(root.join("dest/note-2.txt")).unwrap(), "new");
+        assert_eq!(
+            fs::read_to_string(root.join("dest/note.txt")).unwrap(),
+            "old"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("dest/note-2.txt")).unwrap(),
+            "new"
+        );
 
         // 한 번 더 넣으면 -3. 자리를 찾을 때까지 센다.
         let out = import_into(root, &root.join("dest"), &[src]).unwrap();
@@ -1443,16 +1524,25 @@ mod tests {
         write(outside.path(), "pack/deep/b.txt", b"B");
         write(outside.path(), "secret.txt", b"S");
         #[cfg(unix)]
-        std::os::unix::fs::symlink(outside.path().join("secret.txt"), outside.path().join("pack/link.txt"))
-            .unwrap();
+        std::os::unix::fs::symlink(
+            outside.path().join("secret.txt"),
+            outside.path().join("pack/link.txt"),
+        )
+        .unwrap();
 
         let src = outside.path().join("pack").to_string_lossy().to_string();
         let out = import_into(root, root, &[src]).unwrap();
 
         assert_eq!(out.imported, vec!["pack"]);
         assert_eq!(fs::read_to_string(root.join("pack/a.txt")).unwrap(), "A");
-        assert_eq!(fs::read_to_string(root.join("pack/deep/b.txt")).unwrap(), "B");
-        assert!(!root.join("pack/link.txt").exists(), "심볼릭 링크는 복사하지 않는다");
+        assert_eq!(
+            fs::read_to_string(root.join("pack/deep/b.txt")).unwrap(),
+            "B"
+        );
+        assert!(
+            !root.join("pack/link.txt").exists(),
+            "심볼릭 링크는 복사하지 않는다"
+        );
     }
 
     /// 상한에 걸리면 **거기까지 복사된 채로** 멈추고 `truncated` 로 알린다.
@@ -1462,7 +1552,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
         let outside = TempDir::new().unwrap();
-        let mut budget = Budget { files: MAX_IMPORT_FILES - 1, bytes: 0, truncated: false };
+        let mut budget = Budget {
+            files: MAX_IMPORT_FILES - 1,
+            bytes: 0,
+            truncated: false,
+        };
         write(outside.path(), "a.txt", b"A");
         write(outside.path(), "b.txt", b"B");
 
@@ -1479,8 +1573,12 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
         write(root, "pack/a.txt", b"A");
-        let out = import_into(root, &root.join("pack"), &[root.join("pack").to_string_lossy().to_string()])
-            .unwrap();
+        let out = import_into(
+            root,
+            &root.join("pack"),
+            &[root.join("pack").to_string_lossy().to_string()],
+        )
+        .unwrap();
         assert!(out.imported.is_empty());
         assert_eq!(out.skipped, vec!["pack"]);
     }
@@ -1497,7 +1595,11 @@ mod tests {
             root,
             root,
             &[
-                outside.path().join("gone.txt").to_string_lossy().to_string(),
+                outside
+                    .path()
+                    .join("gone.txt")
+                    .to_string_lossy()
+                    .to_string(),
                 outside.path().join("ok.txt").to_string_lossy().to_string(),
             ],
         )
@@ -1523,7 +1625,10 @@ mod tests {
         let top = names(&tree.nodes);
         assert!(top.contains(&"src".to_string()), "{top:?}");
         assert!(top.contains(&"README.md".to_string()), "{top:?}");
-        assert!(!top.contains(&"node_modules".to_string()), "gitignore: {top:?}");
+        assert!(
+            !top.contains(&"node_modules".to_string()),
+            "gitignore: {top:?}"
+        );
         assert!(!top.contains(&"dist".to_string()), "gitignore: {top:?}");
         assert!(!tree.truncated);
         // 폴더 우선 정렬 + 중첩 경로.
@@ -1552,11 +1657,17 @@ mod tests {
         let tree = build_code_tree(root, MAX_TREE_FILES);
         let top = names(&tree.nodes);
         assert!(top.contains(&".env".to_string()), "hidden file: {top:?}");
-        assert!(top.contains(&".gitignore".to_string()), "hidden file: {top:?}");
+        assert!(
+            top.contains(&".gitignore".to_string()),
+            "hidden file: {top:?}"
+        );
         assert!(top.contains(&".oculpm".to_string()), "hidden dir: {top:?}");
         assert!(!top.contains(&".git".to_string()), "dot-git: {top:?}");
         // 숨김을 켜도 gitignore 는 여전히 이긴다.
-        assert!(!top.contains(&"secret-ignored".to_string()), "gitignore: {top:?}");
+        assert!(
+            !top.contains(&"secret-ignored".to_string()),
+            "gitignore: {top:?}"
+        );
         // 중첩 저장소의 .git 도 깊이와 무관하게 막힌다.
         let nested = tree.nodes.iter().find(|n| n.name == "nested");
         assert!(nested.is_none(), "nested holds only .git: {top:?}");
@@ -1581,16 +1692,26 @@ mod tests {
             out.entries.iter().map(|e| (e.name.as_str(), e)).collect();
 
         assert!(!out.truncated);
-        assert!(by_name.contains_key("node_modules"), "ignored dir must be listed");
+        assert!(
+            by_name.contains_key("node_modules"),
+            "ignored dir must be listed"
+        );
         assert!(by_name["node_modules"].ignored, "and flagged");
         assert!(by_name["target"].ignored);
         assert!(by_name["debug.log"].ignored);
         assert!(!by_name["src"].ignored, "tracked dir is not ignored");
         assert!(!by_name[".gitignore"].ignored, "hidden but tracked");
         assert!(!by_name[".env"].ignored, "hidden, not in this .gitignore");
-        assert!(!by_name.contains_key(".git"), "the object DB is never listed");
+        assert!(
+            !by_name.contains_key(".git"),
+            "the object DB is never listed"
+        );
         // 한 단계만 읽는다 — 손자는 안 나온다.
-        assert!(!by_name.contains_key("index.js"), "one level only: {:?}", by_name.keys());
+        assert!(
+            !by_name.contains_key("index.js"),
+            "one level only: {:?}",
+            by_name.keys()
+        );
     }
 
     #[test]
@@ -1671,12 +1792,18 @@ mod tests {
         let out = write_with_lock(&root.join("a.txt"), "my edit", &stale).unwrap();
         match out {
             CodeWriteOutcome::Conflict { disk_hash } => {
-                assert_eq!(disk_hash, blake3::hash(b"disk version").to_hex().to_string());
+                assert_eq!(
+                    disk_hash,
+                    blake3::hash(b"disk version").to_hex().to_string()
+                );
             }
             other => panic!("expected Conflict, got {other:?}"),
         }
         // 덮어쓰지 않았다.
-        assert_eq!(fs::read_to_string(root.join("a.txt")).unwrap(), "disk version");
+        assert_eq!(
+            fs::read_to_string(root.join("a.txt")).unwrap(),
+            "disk version"
+        );
     }
 
     #[test]
@@ -1786,7 +1913,10 @@ mod tests {
         let to = resolve_for_mutation(root, &root.join("dst/b.rs")).unwrap();
         assert!(!rename_path(&from, &to).unwrap(), "파일이므로 is_dir=false");
         assert!(!root.join("src/a.rs").exists());
-        assert_eq!(fs::read_to_string(root.join("dst/b.rs")).unwrap(), "content");
+        assert_eq!(
+            fs::read_to_string(root.join("dst/b.rs")).unwrap(),
+            "content"
+        );
 
         // 이미 있는 이름으로는 못 옮긴다 — fs::rename 은 말없이 덮어쓴다.
         write(root, "src/c.rs", b"c");
@@ -1794,7 +1924,10 @@ mod tests {
         let taken = resolve_for_mutation(root, &root.join("dst/taken.rs")).unwrap();
         let err = rename_path(&from2, &taken).unwrap_err();
         assert!(err.contains("already exists"), "{err}");
-        assert_eq!(fs::read_to_string(root.join("dst/taken.rs")).unwrap(), "someone else");
+        assert_eq!(
+            fs::read_to_string(root.join("dst/taken.rs")).unwrap(),
+            "someone else"
+        );
     }
 
     #[test]
@@ -1807,7 +1940,10 @@ mod tests {
         let into_self = resolve_for_mutation(root, &root.join("pkg/inner/pkg")).unwrap();
         let err = rename_path(&from, &into_self).unwrap_err();
         assert!(err.contains("into itself"), "{err}");
-        assert!(root.join("pkg/inner/file.rs").is_file(), "가지가 남아 있어야 한다");
+        assert!(
+            root.join("pkg/inner/file.rs").is_file(),
+            "가지가 남아 있어야 한다"
+        );
 
         // 정상 이름 바꾸기는 폴더임을 알린다 (프런트가 탭 접두사를 갈아끼운다).
         let to = resolve_for_mutation(root, &root.join("renamed")).unwrap();
@@ -1874,7 +2010,10 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let outside = tmp.path().join("outside.txt");
         std::os::unix::fs::symlink(&outside, root.join("bait.txt")).unwrap();
-        assert!(!root.join("bait.txt").exists(), "깨진 링크 — exists() 는 false");
+        assert!(
+            !root.join("bait.txt").exists(),
+            "깨진 링크 — exists() 는 false"
+        );
 
         let target = resolve_for_mutation(&root, &root.join("bait.txt")).unwrap();
         let err = create_file(&target).unwrap_err();
@@ -1951,7 +2090,10 @@ mod tests {
     fn search_content_trims_indent_but_keeps_the_match_in_preview() {
         let content = format!("{}needle end\n", " ".repeat(120));
         let (hits, _) = search_content(&re("needle", false, false, false), &content, 100);
-        assert_eq!(hits[0].preview, "needle end", "들여쓰기는 미리보기에서 잘린다");
+        assert_eq!(
+            hits[0].preview, "needle end",
+            "들여쓰기는 미리보기에서 잘린다"
+        );
         assert_eq!(hits[0].preview_col, 0);
         assert_eq!(hits[0].col, 120, "본문 좌표는 줄 기준 그대로");
     }
@@ -1986,10 +2128,19 @@ mod tests {
             replace_in_content(content, &re("foo", false, false, false), "bar", false, None)
                 .unwrap();
         assert_eq!(n, 3);
-        assert_eq!(out, "bar a\r\nbar b\nno hit\nbar", "CRLF·마지막 줄 무종결 보존");
+        assert_eq!(
+            out, "bar a\r\nbar b\nno hit\nbar",
+            "CRLF·마지막 줄 무종결 보존"
+        );
         // 매치가 없으면 None — 쓰기 자체를 건너뛴다.
-        assert!(replace_in_content("clean\n", &re("foo", false, false, false), "bar", false, None)
-            .is_none());
+        assert!(replace_in_content(
+            "clean\n",
+            &re("foo", false, false, false),
+            "bar",
+            false,
+            None
+        )
+        .is_none());
     }
 
     #[test]
@@ -2044,19 +2195,40 @@ mod tests {
         let root = tmp.path();
         write(root, "src/a.ts", b"foo\nfoo bar\n");
 
-        let n =
-            replace_in_file(root, "src/a.ts", &re("foo", false, false, false), "baz", false, None)
-                .unwrap();
+        let n = replace_in_file(
+            root,
+            "src/a.ts",
+            &re("foo", false, false, false),
+            "baz",
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(n, 2);
-        assert_eq!(fs::read_to_string(root.join("src/a.ts")).unwrap(), "baz\nbaz bar\n");
+        assert_eq!(
+            fs::read_to_string(root.join("src/a.ts")).unwrap(),
+            "baz\nbaz bar\n"
+        );
         // 매치 없음 = 0, 오류 아님.
-        let n =
-            replace_in_file(root, "src/a.ts", &re("foo", false, false, false), "baz", false, None)
-                .unwrap();
+        let n = replace_in_file(
+            root,
+            "src/a.ts",
+            &re("foo", false, false, false),
+            "baz",
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(n, 0);
         // 루트 밖 경로는 여전히 막힌다.
-        assert!(
-            replace_in_file(root, "../x", &re("a", false, false, false), "b", false, None).is_err()
-        );
+        assert!(replace_in_file(
+            root,
+            "../x",
+            &re("a", false, false, false),
+            "b",
+            false,
+            None
+        )
+        .is_err());
     }
 }

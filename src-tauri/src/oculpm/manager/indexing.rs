@@ -6,7 +6,6 @@
 use super::*;
 
 impl OculpmManager {
-
     /// Backfill per-entry diff sidecars for entries that never got one — written
     /// before this feature shipped, or imported via reindex (app closed when the
     /// entry was authored) rather than seen by the live watcher. Idempotent and
@@ -14,11 +13,7 @@ impl OculpmManager {
     /// work, so this is cheap on every project open after the first pass. The
     /// git-history fallback in [`entry_diffs`] reconstructs diffs even for
     /// already-committed entries. Returns how many sidecars were newly written.
-    pub async fn backfill_entry_diffs(
-        &self,
-        db: &Db,
-        project_id: u32,
-    ) -> Result<u32, OculpmError> {
+    pub async fn backfill_entry_diffs(&self, db: &Db, project_id: u32) -> Result<u32, OculpmError> {
         use crate::oculpm::entry_diffs;
         let root = self.project_root(project_id).await?;
         // R1 — compile redaction once; each diff sidecar is masked at capture.
@@ -82,11 +77,7 @@ impl OculpmManager {
     /// entry drops off it once counted. Entries with no sidecar stay on the list
     /// (one `read` attempt each) — they have no recorded diff to count, and get
     /// picked up whenever one is finally captured. Returns the entries counted.
-    pub async fn backfill_line_counts(
-        &self,
-        db: &Db,
-        project_id: u32,
-    ) -> Result<u32, OculpmError> {
+    pub async fn backfill_line_counts(&self, db: &Db, project_id: u32) -> Result<u32, OculpmError> {
         use crate::oculpm::entry_diffs;
         let root = self.project_root(project_id).await?;
         let cache = JournalCache::new(db);
@@ -111,7 +102,10 @@ impl OculpmManager {
             if counts.is_empty() {
                 continue;
             }
-            match cache.set_line_counts(project_id, &relative_path, counts).await {
+            match cache
+                .set_line_counts(project_id, &relative_path, counts)
+                .await
+            {
                 Ok(()) => counted += 1,
                 Err(e) => tracing::warn!(
                     target: "oculpm::manager",
@@ -250,10 +244,13 @@ impl OculpmManager {
 
         let cap = max_commits.clamp(1, 2000);
         let root2 = root.clone();
-        let commits = tokio::task::spawn_blocking(move || crate::git::commits_for_backfill(&root2, cap))
-            .await
-            .map_err(|e| OculpmError::InvalidConfig(format!("git backfill task panicked: {e}")))?
-            .map_err(OculpmError::InvalidConfig)?;
+        let commits =
+            tokio::task::spawn_blocking(move || crate::git::commits_for_backfill(&root2, cap))
+                .await
+                .map_err(|e| {
+                    OculpmError::InvalidConfig(format!("git backfill task panicked: {e}"))
+                })?
+                .map_err(OculpmError::InvalidConfig)?;
 
         let redact = compile_redact_patterns(&redact_strings);
         let tz = chrono_tz_from(&resolver);
@@ -350,7 +347,14 @@ impl OculpmManager {
             let (parsed, body_text) = parse_frontmatter_and_body(&text);
             let body_parsed = parse_body(&body_text);
             let _ = cache
-                .upsert_entry(project_id, &relative_path, &parsed, &body_parsed, mtime, &text)
+                .upsert_entry(
+                    project_id,
+                    &relative_path,
+                    &parsed,
+                    &body_parsed,
+                    mtime,
+                    &text,
+                )
                 .await;
 
             // Capture this commit's per-file diff (entry_diffs tier-3) + mask.

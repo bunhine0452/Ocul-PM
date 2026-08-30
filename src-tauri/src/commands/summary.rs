@@ -88,8 +88,10 @@ fn top_files(entries: &[RangeEntry], cap: usize) -> Vec<(String, u32)> {
 }
 
 fn fmt_open_items(items: &[OpenPlanItem], statuses: &[&str], lang: ContentLang) -> String {
-    let picked: Vec<&OpenPlanItem> =
-        items.iter().filter(|i| statuses.contains(&i.status.as_str())).collect();
+    let picked: Vec<&OpenPlanItem> = items
+        .iter()
+        .filter(|i| statuses.contains(&i.status.as_str()))
+        .collect();
     if picked.is_empty() {
         return format!("{}\n", lang.pick("- (없음)", "- (none)"));
     }
@@ -121,7 +123,10 @@ pub(crate) fn deterministic_markdown(
                 lang.pick("한 일", "Done"),
             );
             if entries.is_empty() {
-                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
+                out.push_str(&format!(
+                    "{}\n",
+                    lang.pick("- (기록 없음)", "- (nothing recorded)")
+                ));
             } else {
                 out.push('\n');
                 out.push_str(&group_lines(entries, lang));
@@ -139,15 +144,25 @@ pub(crate) fn deterministic_markdown(
                 .collect();
             let mut out = format!("## {}\n", lang.pick("변경 요약", "Summary of changes"));
             if shipped.is_empty() {
-                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
+                out.push_str(&format!(
+                    "{}\n",
+                    lang.pick("- (기록 없음)", "- (nothing recorded)")
+                ));
             } else {
                 for e in &shipped {
-                    out.push_str(&format!("- {} — {}\n", type_label(&e.entry_type, lang), e.title));
+                    out.push_str(&format!(
+                        "- {} — {}\n",
+                        type_label(&e.entry_type, lang),
+                        e.title
+                    ));
                 }
             }
             let files = top_files(entries, FILES_CAP);
             if !files.is_empty() {
-                out.push_str(&format!("\n## {}\n", lang.pick("주요 변경 파일", "Main files changed")));
+                out.push_str(&format!(
+                    "\n## {}\n",
+                    lang.pick("주요 변경 파일", "Main files changed")
+                ));
                 for (path, count) in files {
                     out.push_str(&format!(
                         "- `{path}` ({count}{})\n",
@@ -173,8 +188,7 @@ pub(crate) fn deterministic_markdown(
                 },
                 if error_cycles > 0 {
                     match lang {
-                        ContentLang::English =>
-                            format!(", including {error_cycles} error cycles)"),
+                        ContentLang::English => format!(", including {error_cycles} error cycles)"),
                         _ => format!(", 에러 사이클 {error_cycles}건 포함)"),
                     }
                 } else {
@@ -187,8 +201,7 @@ pub(crate) fn deterministic_markdown(
             let done = entries
                 .iter()
                 .filter(|e| {
-                    (e.entry_type == "feature" || e.entry_type == "refactor")
-                        && e.status == "done"
+                    (e.entry_type == "feature" || e.entry_type == "refactor") && e.status == "done"
                 })
                 .count();
             let friction = entries
@@ -212,7 +225,10 @@ pub(crate) fn deterministic_markdown(
                 ),
             };
             if entries.is_empty() {
-                out.push_str(&format!("{}\n", lang.pick("- (기록 없음)", "- (nothing recorded)")));
+                out.push_str(&format!(
+                    "{}\n",
+                    lang.pick("- (기록 없음)", "- (nothing recorded)")
+                ));
             } else {
                 out.push('\n');
                 out.push_str(&group_lines(entries, lang));
@@ -261,7 +277,10 @@ fn fmt_llm_input(
     entries: &[RangeEntry],
     open_items: &[OpenPlanItem],
 ) -> String {
-    let mut out = format!("기간: {since} ~ {until} (일지 {}개)\n\n[작업 일지]\n", entries.len());
+    let mut out = format!(
+        "기간: {since} ~ {until} (일지 {}개)\n\n[작업 일지]\n",
+        entries.len()
+    );
     for e in entries.iter().take(LLM_ENTRY_CAP) {
         out.push_str(&format!(
             "- ({}, {}) {} / {} / 파일 {}개\n",
@@ -280,7 +299,10 @@ fn fmt_llm_input(
         out.push_str("(없음)\n");
     } else {
         for i in open_items {
-            out.push_str(&format!("- [{}] {} ({})\n", i.plan_title, i.item_title, i.status));
+            out.push_str(&format!(
+                "- [{}] {} ({})\n",
+                i.plan_title, i.item_title, i.status
+            ));
         }
     }
     out
@@ -444,7 +466,14 @@ mod tests {
             item("v2", "workday brief", "in_progress"),
             item("v2", "서명키 발급", "blocked"),
         ];
-        let md = deterministic_markdown(SummaryStyle::Standup, "20260705", "20260706", &entries, &items, ContentLang::Unset);
+        let md = deterministic_markdown(
+            SummaryStyle::Standup,
+            "20260705",
+            "20260706",
+            &entries,
+            &items,
+            ContentLang::Unset,
+        );
         assert!(md.contains("## 한 일"));
         assert!(md.contains("**기능**"));
         assert!(md.contains("팔레트 점프"));
@@ -460,10 +489,23 @@ mod tests {
     #[test]
     fn pr_description_lists_top_files_once_per_entry() {
         let entries = vec![
-            entry("feature", "done", "20260706", "F1", &["src/x.ts", "src/x.ts", "src/y.ts"]),
+            entry(
+                "feature",
+                "done",
+                "20260706",
+                "F1",
+                &["src/x.ts", "src/x.ts", "src/y.ts"],
+            ),
             entry("refactor", "done", "20260706", "R1", &["src/x.ts"]),
         ];
-        let md = deterministic_markdown(SummaryStyle::PrDescription, "20260706", "20260706", &entries, &[], ContentLang::Unset);
+        let md = deterministic_markdown(
+            SummaryStyle::PrDescription,
+            "20260706",
+            "20260706",
+            &entries,
+            &[],
+            ContentLang::Unset,
+        );
         // entry 내 중복은 1회 — x.ts 는 2개 작업.
         assert!(md.contains("`src/x.ts` (2개 작업)"));
         assert!(md.contains("`src/y.ts` (1개 작업)"));
@@ -477,7 +519,14 @@ mod tests {
             entry("error", "done", "20260702", "E1", &[]),
         ];
         let items = vec![item("v2", "남은 일", "todo")];
-        let md = deterministic_markdown(SummaryStyle::WeeklyStatus, "20260630", "20260706", &entries, &items, ContentLang::Unset);
+        let md = deterministic_markdown(
+            SummaryStyle::WeeklyStatus,
+            "20260630",
+            "20260706",
+            &entries,
+            &items,
+            ContentLang::Unset,
+        );
         assert!(md.contains("총 2개 작업 기록 · 출시 1건 · 마찰 1건"));
         assert!(md.contains("## 다음 주"));
         assert!(md.contains("남은 일"));
@@ -485,7 +534,14 @@ mod tests {
 
     #[test]
     fn empty_range_is_still_valid_markdown() {
-        let md = deterministic_markdown(SummaryStyle::Standup, "20260706", "20260706", &[], &[], ContentLang::Unset);
+        let md = deterministic_markdown(
+            SummaryStyle::Standup,
+            "20260706",
+            "20260706",
+            &[],
+            &[],
+            ContentLang::Unset,
+        );
         assert!(md.contains("(기록 없음)"));
         assert!(md.contains("(없음)"));
     }
@@ -498,7 +554,13 @@ mod tests {
 
     #[test]
     fn english_standup_has_no_korean() {
-        let entries = vec![entry("feature", "done", "20260706", "Ship the thing", &["a.rs"])];
+        let entries = vec![entry(
+            "feature",
+            "done",
+            "20260706",
+            "Ship the thing",
+            &["a.rs"],
+        )];
         let items = vec![item("v2", "Next thing", "todo")];
         let md = deterministic_markdown(
             SummaryStyle::Standup,
@@ -509,7 +571,10 @@ mod tests {
             ContentLang::English,
         );
         assert!(md.contains("# Standup"), "{md}");
-        assert!(md.contains("## Done") && md.contains("## Today") && md.contains("## Blocked"), "{md}");
+        assert!(
+            md.contains("## Done") && md.contains("## Today") && md.contains("## Blocked"),
+            "{md}"
+        );
         assert!(!md.chars().any(is_hangul), "한글이 남았다:\n{md}");
     }
 
@@ -553,5 +618,4 @@ mod tests {
     fn is_hangul(c: char) -> bool {
         ('\u{AC00}'..='\u{D7A3}').contains(&c) || ('\u{1100}'..='\u{11FF}').contains(&c)
     }
-
 }

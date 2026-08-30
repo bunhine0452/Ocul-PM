@@ -44,7 +44,11 @@ fn setup_repo() -> (tempfile::TempDir, String) {
 
     let src = root.join("src");
     std::fs::create_dir_all(&src).unwrap();
-    std::fs::write(src.join("main.rs"), "fn main() {\n    println!(\"v1\");\n}\n").unwrap();
+    std::fs::write(
+        src.join("main.rs"),
+        "fn main() {\n    println!(\"v1\");\n}\n",
+    )
+    .unwrap();
     run_git_in(root, &["add", "."]);
     run_git_in(root, &["commit", "-m", "baseline", "--quiet"]);
 
@@ -59,10 +63,22 @@ fn diff_patch_returns_unified_diff_for_a_modified_file() {
     std::fs::write(root.join(&rel), "fn main() {\n    println!(\"v2\");\n}\n").unwrap();
 
     let patch = git::diff_patch(root, &rel, None, None, 65_536).expect("diff_patch ok");
-    assert!(patch.contains("--- a/src/main.rs"), "missing --- header: {patch}");
-    assert!(patch.contains("+++ b/src/main.rs"), "missing +++ header: {patch}");
-    assert!(patch.contains("-    println!(\"v1\");"), "missing - line: {patch}");
-    assert!(patch.contains("+    println!(\"v2\");"), "missing + line: {patch}");
+    assert!(
+        patch.contains("--- a/src/main.rs"),
+        "missing --- header: {patch}"
+    );
+    assert!(
+        patch.contains("+++ b/src/main.rs"),
+        "missing +++ header: {patch}"
+    );
+    assert!(
+        patch.contains("-    println!(\"v1\");"),
+        "missing - line: {patch}"
+    );
+    assert!(
+        patch.contains("+    println!(\"v2\");"),
+        "missing + line: {patch}"
+    );
 }
 
 #[test]

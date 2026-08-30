@@ -14,7 +14,10 @@ use crate::db::Db;
 use crate::oculpm::firing_ledger::{self, FiringStat, KIND_RULE};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -89,15 +92,7 @@ async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, Strin
         let rows = file
             .rows
             .into_iter()
-            .map(|r| {
-                (
-                    r.kind.to_string(),
-                    r.key,
-                    r.workday,
-                    r.count,
-                    r.bytes,
-                )
-            })
+            .map(|r| (r.kind.to_string(), r.key, r.workday, r.count, r.bytes))
             .collect();
         let applied = db
             .firing_apply_scan(
@@ -140,11 +135,16 @@ pub async fn firing_rescan(db: State<'_, Db>, project_id: u32) -> Result<FiringS
 /// 라운드당 96MB 이니 이 저장소 실측 293MB 도 넉넉하다).
 #[tauri::command]
 #[specta::specta]
-pub async fn firing_rebuild(db: State<'_, Db>, project_id: u32) -> Result<FiringScanReport, String> {
+pub async fn firing_rebuild(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<FiringScanReport, String> {
     const MAX_ROUNDS: usize = 20;
     let lock = scan_lock(project_id);
     let _guard = lock.lock().await;
-    db.firing_clear(project_id).await.map_err(|e| e.to_string())?;
+    db.firing_clear(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let mut total = FiringScanReport {
         files_scanned: 0,
         rows_written: 0,

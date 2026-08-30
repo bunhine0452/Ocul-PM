@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde::Serialize;
+use std::path::Path;
 use tree_sitter::{Parser, Query, QueryCursor};
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -201,7 +201,11 @@ pub fn analyze_file(path: &Path, content: &str) -> Option<AstAnalysis> {
 
     let relations = extract_relations(&lang, &tree, content, extension.as_str(), &symbols);
 
-    Some(AstAnalysis { symbols, imports, relations })
+    Some(AstAnalysis {
+        symbols,
+        imports,
+        relations,
+    })
 }
 
 // --- Relation extraction (PR-GR2) ----------------------------------------
@@ -291,7 +295,11 @@ fn extract_relations(
                 }
                 let from_symbol = enclosing_symbol(symbols, cap.node.start_byte());
                 if seen.insert((kind, from_symbol.clone(), name.clone())) {
-                    out.push(RawRelation { kind: kind.to_string(), from_symbol, name });
+                    out.push(RawRelation {
+                        kind: kind.to_string(),
+                        from_symbol,
+                        name,
+                    });
                 }
             }
         }
@@ -370,7 +378,11 @@ fn analyze_java(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_kotlin(content: &str) -> AstAnalysis {
@@ -420,7 +432,11 @@ fn analyze_kotlin(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_c_family(content: &str) -> AstAnalysis {
@@ -473,7 +489,11 @@ fn analyze_c_family(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_ruby(content: &str) -> AstAnalysis {
@@ -519,7 +539,9 @@ fn analyze_ruby(content: &str) -> AstAnalysis {
                     push_symbol(
                         &mut symbols,
                         next.chars()
-                            .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '?' || *c == '!')
+                            .take_while(|c| {
+                                c.is_alphanumeric() || *c == '_' || *c == '?' || *c == '!'
+                            })
                             .collect(),
                         k,
                         line_num,
@@ -529,7 +551,11 @@ fn analyze_ruby(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_php(content: &str) -> AstAnalysis {
@@ -559,12 +585,7 @@ fn analyze_php(content: &str) -> AstAnalysis {
 
         // require/include 'file.php';
         let mut consumed = false;
-        for prefix in &[
-            "require_once ",
-            "require ",
-            "include_once ",
-            "include ",
-        ] {
+        for prefix in &["require_once ", "require ", "include_once ", "include "] {
             if let Some(rest) = trimmed.strip_prefix(prefix) {
                 if let Some(body) = rest.strip_suffix(';') {
                     let inner = body
@@ -604,7 +625,11 @@ fn analyze_php(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_csharp(content: &str) -> AstAnalysis {
@@ -652,7 +677,11 @@ fn analyze_csharp(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 fn analyze_swift(content: &str) -> AstAnalysis {
@@ -668,10 +697,19 @@ fn analyze_swift(content: &str) -> AstAnalysis {
         if let Some(rest) = trimmed.strip_prefix("import ") {
             let rest = rest.trim();
             // optional submodule kind: struct/class/func/protocol/enum/typealias/var/let
-            let stripped = ["struct ", "class ", "func ", "protocol ", "enum ", "typealias ", "var ", "let "]
-                .iter()
-                .find_map(|p| rest.strip_prefix(p))
-                .unwrap_or(rest);
+            let stripped = [
+                "struct ",
+                "class ",
+                "func ",
+                "protocol ",
+                "enum ",
+                "typealias ",
+                "var ",
+                "let ",
+            ]
+            .iter()
+            .find_map(|p| rest.strip_prefix(p))
+            .unwrap_or(rest);
             let imp = stripped.trim();
             if !imp.is_empty() {
                 imports.push(imp.to_string());
@@ -697,7 +735,11 @@ fn analyze_swift(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis { symbols, imports, relations: Vec::new() }
+    AstAnalysis {
+        symbols,
+        imports,
+        relations: Vec::new(),
+    }
 }
 
 // PR-GR2 — validate that each language's relation query compiles AND captures on
@@ -719,12 +761,16 @@ mod relation_tests {
 
     #[test]
     fn rust_calls_and_impl() {
-        let r = rels("t.rs", "trait T {}\nstruct S;\nimpl T for S {}\nfn a() { b(); }\n");
+        let r = rels(
+            "t.rs",
+            "trait T {}\nstruct S;\nimpl T for S {}\nfn a() { b(); }\n",
+        );
         assert!(has(&r, "calls", "b"), "{r:?}");
         assert!(has(&r, "implements", "T"), "{r:?}");
         // caller granularity (PR-GR3): b() is called inside fn a
         assert!(
-            r.iter().any(|x| x.name == "b" && x.from_symbol.as_deref() == Some("a")),
+            r.iter()
+                .any(|x| x.name == "b" && x.from_symbol.as_deref() == Some("a")),
             "from_symbol: {r:?}",
         );
     }
@@ -742,7 +788,10 @@ mod relation_tests {
     }
     #[test]
     fn ts_calls_and_heritage() {
-        let r = rels("t.ts", "class A extends B implements C { m(){ foo(); this.bar(); } }");
+        let r = rels(
+            "t.ts",
+            "class A extends B implements C { m(){ foo(); this.bar(); } }",
+        );
         assert!(has(&r, "calls", "foo"), "{r:?}");
         assert!(has(&r, "inherits", "B"), "{r:?}");
         assert!(has(&r, "implements", "C"), "{r:?}");

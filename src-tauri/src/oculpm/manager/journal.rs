@@ -33,7 +33,6 @@ pub(crate) fn resolve_entry_path(
 }
 
 impl OculpmManager {
-
     // ─── W3-PR3: journal cache + manual entry coordination ──────────────────
 
     /// Resolve a project's `.oculpm/journal/` absolute root. Used by the
@@ -92,7 +91,8 @@ impl OculpmManager {
         // agent-authored entry never reaches the cache (→ AI context). Compiled
         // only on the (rare) miss path, not on the cache-hit fast path above.
         let redact = self.redact_patterns(project_id).await;
-        let redacting = JournalCache::with_redaction(db, redact).with_tz(self.tz_for(project_id).await);
+        let redacting =
+            JournalCache::with_redaction(db, redact).with_tz(self.tz_for(project_id).await);
         redacting
             .apply_path_change(
                 project_id,
@@ -208,9 +208,9 @@ impl OculpmManager {
         cache
             .get_entry(project_id, &relative_path)
             .await?
-            .ok_or_else(|| OculpmError::InvalidConfig(
-                format!("entry vanished after upsert: {relative_path}")
-            ))
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(format!("entry vanished after upsert: {relative_path}"))
+            })
     }
 
     /// F7a-B Unit B — write the tz-offset backfill into the on-disk frontmatter
@@ -332,9 +332,9 @@ impl OculpmManager {
         cache
             .get_entry(project_id, &relative_path)
             .await?
-            .ok_or_else(|| OculpmError::InvalidConfig(
-                format!("entry vanished after upsert: {relative_path}")
-            ))
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(format!("entry vanished after upsert: {relative_path}"))
+            })
     }
 
     /// Resolve a journal-relative path to its absolute on-disk location so

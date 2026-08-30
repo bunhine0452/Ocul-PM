@@ -9,7 +9,10 @@ async fn init_creates_files_and_acquires_lock() {
     let manager = OculpmManager::new();
 
     let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
-    assert!(report.wrote_config, "config.toml must be created on fresh init");
+    assert!(
+        report.wrote_config,
+        "config.toml must be created on fresh init"
+    );
     assert!(matches!(report.lock_state, LockStateView::Healthy));
 
     let p = dir.path();
@@ -110,7 +113,9 @@ async fn shutdown_all_releases_every_lock() {
 #[tokio::test]
 async fn coerce_timestamps_writes_offset_to_disk_once() {
     let dir = tempdir().unwrap();
-    let db = crate::db::Db::open(dir.path().join("test.db")).await.unwrap();
+    let db = crate::db::Db::open(dir.path().join("test.db"))
+        .await
+        .unwrap();
     let manager = OculpmManager::new();
     manager.init_project(1, dir.path(), "ko").await.unwrap();
 
@@ -142,7 +147,10 @@ async fn coerce_timestamps_writes_offset_to_disk_once() {
     let again = manager
         .coerce_journal_entry_timestamps_on_disk(&db, 1, rel.to_string())
         .await;
-    assert!(again.is_err(), "second coerce should error (already offset)");
+    assert!(
+        again.is_err(),
+        "second coerce should error (already offset)"
+    );
 }
 
 /// N4 — the plan-write lock is one shared instance per project (so all
@@ -153,11 +161,20 @@ async fn plan_write_lock_is_shared_per_project() {
     let a1 = manager.plan_write_lock(1).await;
     let a2 = manager.plan_write_lock(1).await;
     let b = manager.plan_write_lock(2).await;
-    assert!(std::sync::Arc::ptr_eq(&a1, &a2), "same project shares one lock");
-    assert!(!std::sync::Arc::ptr_eq(&a1, &b), "different projects differ");
+    assert!(
+        std::sync::Arc::ptr_eq(&a1, &a2),
+        "same project shares one lock"
+    );
+    assert!(
+        !std::sync::Arc::ptr_eq(&a1, &b),
+        "different projects differ"
+    );
     // Held lock blocks the shared handle (real mutual exclusion).
     let _g = a1.lock().await;
-    assert!(a2.try_lock().is_err(), "held lock must block the shared handle");
+    assert!(
+        a2.try_lock().is_err(),
+        "held lock must block the shared handle"
+    );
 }
 
 // ─── W1-PR8 — `.gitignore` managed block ───────────────────────────────
@@ -224,7 +241,10 @@ async fn watcher_start_reclaims_a_lock_that_was_held_at_init() {
     let health = manager.watcher_health().await;
     let me = health.iter().find(|h| h.project_id == 1).unwrap();
     assert!(me.has_lock, "회수한 락을 들고 있어야 한다");
-    assert!(me.events_seen.is_some(), "살아 있는 워처가 붙어 있어야 한다");
+    assert!(
+        me.events_seen.is_some(),
+        "살아 있는 워처가 붙어 있어야 한다"
+    );
 }
 
 /// 앱이 새로 뜰 때의 경로 — 살아 있는 소유자에게서 락을 **가져와** 감시를
@@ -317,11 +337,7 @@ async fn init_appends_block_to_existing_gitignore() {
     let dir = tempdir().unwrap();
     let manager = OculpmManager::new();
 
-    std::fs::write(
-        dir.path().join(".gitignore"),
-        "node_modules/\ndist/\n",
-    )
-    .unwrap();
+    std::fs::write(dir.path().join(".gitignore"), "node_modules/\ndist/\n").unwrap();
 
     let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
     assert!(report.wrote_gitignore);
@@ -346,7 +362,10 @@ async fn init_is_idempotent_for_gitignore() {
     let r2 = manager.init_project(1, dir.path(), "ko").await.unwrap();
     assert!(!r2.wrote_gitignore);
     let after = std::fs::read(dir.path().join(".gitignore")).unwrap();
-    assert_eq!(snapshot, after, ".gitignore must not be rewritten on idempotent init");
+    assert_eq!(
+        snapshot, after,
+        ".gitignore must not be rewritten on idempotent init"
+    );
 }
 
 /// PR8 case 4 — pre-existing orphan `# oculpm:begin v1` (no end marker)
@@ -392,9 +411,19 @@ async fn init_preserves_unknown_lines_in_gitignore_block() {
     manager.init_project(1, dir.path(), "ko").await.unwrap();
 
     let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
-    assert!(gi.contains(".oculpm/some-future-dir/"), "unknown line must survive: {gi}");
-    assert!(gi.contains(".oculpm/hooks/"), "canonical lines must be (re)added: {gi}");
-    assert_eq!(gi.matches("some-future-dir").count(), 1, "no duplication: {gi}");
+    assert!(
+        gi.contains(".oculpm/some-future-dir/"),
+        "unknown line must survive: {gi}"
+    );
+    assert!(
+        gi.contains(".oculpm/hooks/"),
+        "canonical lines must be (re)added: {gi}"
+    );
+    assert_eq!(
+        gi.matches("some-future-dir").count(),
+        1,
+        "no duplication: {gi}"
+    );
 }
 
 /// A0a invariant — the union merge appends unknown lines after the
@@ -405,7 +434,9 @@ async fn init_preserves_unknown_lines_in_gitignore_block() {
 #[test]
 fn gitignore_canonical_body_stays_order_independent() {
     assert!(
-        GITIGNORE_BLOCK_BODY.lines().all(|l| !l.trim_start().starts_with('!')),
+        GITIGNORE_BLOCK_BODY
+            .lines()
+            .all(|l| !l.trim_start().starts_with('!')),
         "negation pattern in GITIGNORE_BLOCK_BODY — union merge reorders lines"
     );
 }
@@ -415,8 +446,15 @@ fn gitignore_canonical_body_stays_order_independent() {
 #[test]
 fn merged_gitignore_body_keeps_lines_verbatim() {
     let merged = merged_gitignore_body(Some("custom\\ \n.oculpm/index/\n"));
-    assert!(merged.contains("custom\\ \n"), "escaped trailing space lost: {merged:?}");
-    assert_eq!(merged.matches(".oculpm/index/").count(), 1, "no duplication");
+    assert!(
+        merged.contains("custom\\ \n"),
+        "escaped trailing space lost: {merged:?}"
+    );
+    assert_eq!(
+        merged.matches(".oculpm/index/").count(),
+        1,
+        "no duplication"
+    );
 }
 
 /// A0a case 7 — a block stamped with a newer version marker is left
@@ -429,7 +467,10 @@ async fn init_leaves_newer_version_gitignore_block_untouched() {
 
     let manager = OculpmManager::new();
     let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
-    assert!(!report.wrote_gitignore, "newer block must not count as written");
+    assert!(
+        !report.wrote_gitignore,
+        "newer block must not count as written"
+    );
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".gitignore")).unwrap(),
         newer,
@@ -443,11 +484,7 @@ async fn init_preserves_crlf_in_gitignore() {
     let dir = tempdir().unwrap();
     let manager = OculpmManager::new();
 
-    std::fs::write(
-        dir.path().join(".gitignore"),
-        "node_modules/\r\ndist/\r\n",
-    )
-    .unwrap();
+    std::fs::write(dir.path().join(".gitignore"), "node_modules/\r\ndist/\r\n").unwrap();
 
     let report = manager.init_project(1, dir.path(), "ko").await.unwrap();
     assert!(report.wrote_gitignore);
@@ -537,10 +574,7 @@ async fn recover_two_zombie_sessions() {
 
     // Yesterday
     writer
-        .upsert_session(&make_zombie_session(
-            "20260522-001",
-            "2026-05-22T09:00:00Z",
-        ))
+        .upsert_session(&make_zombie_session("20260522-001", "2026-05-22T09:00:00Z"))
         .await
         .unwrap();
     writer
@@ -554,10 +588,7 @@ async fn recover_two_zombie_sessions() {
 
     // Today
     writer
-        .upsert_session(&make_zombie_session(
-            "20260523-001",
-            "2026-05-23T14:00:00Z",
-        ))
+        .upsert_session(&make_zombie_session("20260523-001", "2026-05-23T14:00:00Z"))
         .await
         .unwrap();
     writer
@@ -578,19 +609,13 @@ async fn recover_two_zombie_sessions() {
     let sessions_y = writer.list_sessions("20260522").await.unwrap();
     let s1 = &sessions_y[0];
     assert_eq!(s1.ended_at.as_deref(), Some("2026-05-22T10:30:00Z"));
-    assert!(matches!(
-        s1.ended_reason,
-        Some(EndedReason::CrashRecovered)
-    ));
+    assert!(matches!(s1.ended_reason, Some(EndedReason::CrashRecovered)));
 
     // Verify today's session.
     let sessions_t = writer.list_sessions("20260523").await.unwrap();
     let s2 = &sessions_t[0];
     assert_eq!(s2.ended_at.as_deref(), Some("2026-05-23T15:45:00Z"));
-    assert!(matches!(
-        s2.ended_reason,
-        Some(EndedReason::CrashRecovered)
-    ));
+    assert!(matches!(s2.ended_reason, Some(EndedReason::CrashRecovered)));
 }
 
 /// PR4 test 2 — 3-day limit: zombie in a 4-day-old workday is NOT recovered.
@@ -637,10 +662,7 @@ async fn recover_fallback_to_started_at_when_no_events() {
     let writer = make_writer(dir.path());
 
     writer
-        .upsert_session(&make_zombie_session(
-            "20260523-001",
-            "2026-05-23T14:00:00Z",
-        ))
+        .upsert_session(&make_zombie_session("20260523-001", "2026-05-23T14:00:00Z"))
         .await
         .unwrap();
     // No events appended.
@@ -670,10 +692,7 @@ async fn recover_then_list_shows_updated_reason() {
     let writer = make_writer(dir.path());
 
     writer
-        .upsert_session(&make_zombie_session(
-            "20260523-001",
-            "2026-05-23T09:00:00Z",
-        ))
+        .upsert_session(&make_zombie_session("20260523-001", "2026-05-23T09:00:00Z"))
         .await
         .unwrap();
     // Also add a normal (already ended) session to confirm it's untouched.
@@ -714,10 +733,7 @@ async fn recover_is_synchronous_and_flushed() {
     let writer = make_writer(dir.path());
 
     writer
-        .upsert_session(&make_zombie_session(
-            "20260523-001",
-            "2026-05-23T14:00:00Z",
-        ))
+        .upsert_session(&make_zombie_session("20260523-001", "2026-05-23T14:00:00Z"))
         .await
         .unwrap();
 
@@ -730,9 +746,7 @@ async fn recover_is_synchronous_and_flushed() {
 
     // Verify disk flush: read the raw sessions.json and confirm ended_at
     // is populated — no deferred write.
-    let sessions_path = dir
-        .path()
-        .join(".oculpm/index/20260523/sessions.json");
+    let sessions_path = dir.path().join(".oculpm/index/20260523/sessions.json");
     let raw = std::fs::read_to_string(&sessions_path).unwrap();
     assert!(raw.contains("crash_recovered"));
     assert!(raw.contains("2026-05-23T14:00:00Z"));
@@ -750,10 +764,7 @@ async fn list_workdays_order_and_filtering() {
         writer.ensure_workday_dirs(wd).await.unwrap();
     }
     // Create a non-YYYYMMDD dir that should be ignored.
-    std::fs::create_dir_all(
-        dir.path().join(".oculpm/index/not-a-workday"),
-    )
-    .unwrap();
+    std::fs::create_dir_all(dir.path().join(".oculpm/index/not-a-workday")).unwrap();
 
     let workdays = writer.list_workdays().await.unwrap();
     assert_eq!(
@@ -796,17 +807,36 @@ mod journal_w3_pr3 {
         std::fs::create_dir_all(outside.parent().unwrap()).unwrap();
         std::fs::write(&outside, "---\noculpm_plan: v1\n---\n").unwrap();
 
-        for bad in ["../planner/victim.md", "/etc/passwd", "", "20260524/../../planner/victim.md"] {
+        for bad in [
+            "../planner/victim.md",
+            "/etc/passwd",
+            "",
+            "20260524/../../planner/victim.md",
+        ] {
             let read = manager.get_journal_entry(&db, 7, bad.to_string()).await;
-            assert!(matches!(read, Err(OculpmError::InvalidPath(_))), "read {bad:?}: {read:?}");
-            let verify = manager.set_journal_verified(&db, 7, bad.to_string(), true).await;
-            assert!(matches!(verify, Err(OculpmError::InvalidPath(_))), "verify {bad:?}");
+            assert!(
+                matches!(read, Err(OculpmError::InvalidPath(_))),
+                "read {bad:?}: {read:?}"
+            );
+            let verify = manager
+                .set_journal_verified(&db, 7, bad.to_string(), true)
+                .await;
+            assert!(
+                matches!(verify, Err(OculpmError::InvalidPath(_))),
+                "verify {bad:?}"
+            );
             let body = manager
                 .update_journal_entry_body(&db, 7, bad.to_string(), "pwned".to_string())
                 .await;
-            assert!(matches!(body, Err(OculpmError::InvalidPath(_))), "body {bad:?}");
+            assert!(
+                matches!(body, Err(OculpmError::InvalidPath(_))),
+                "body {bad:?}"
+            );
             let abs = manager.resolve_journal_absolute(7, bad).await;
-            assert!(matches!(abs, Err(OculpmError::InvalidPath(_))), "resolve {bad:?}");
+            assert!(
+                matches!(abs, Err(OculpmError::InvalidPath(_))),
+                "resolve {bad:?}"
+            );
         }
         assert_eq!(
             std::fs::read_to_string(&outside).unwrap(),
@@ -883,7 +913,9 @@ mod journal_w3_pr3 {
         assert_eq!(entry.frontmatter.files_touched.len(), 1);
 
         // File exists on disk under journal/<workday>/Bugs/.
-        let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+        let abs = project_root
+            .join(".oculpm/journal")
+            .join(&entry.relative_path);
         assert!(abs.exists(), "file written to {}", abs.display());
 
         // Listed via cache too.
@@ -903,8 +935,7 @@ mod journal_w3_pr3 {
         // clean. Uses the project's default `auto_redact_patterns`.
         let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
         let mut draft = minimal_draft("leaky");
-        draft.body_markdown =
-            "deploy key AKIAABCDEFGHIJKLMNOP do not share\n".to_string();
+        draft.body_markdown = "deploy key AKIAABCDEFGHIJKLMNOP do not share\n".to_string();
         let entry = manager
             .create_manual_journal_entry(&db, 7, draft)
             .await
@@ -917,9 +948,14 @@ mod journal_w3_pr3 {
         );
         assert!(!entry.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
 
-        let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+        let abs = project_root
+            .join(".oculpm/journal")
+            .join(&entry.relative_path);
         let on_disk = std::fs::read_to_string(&abs).unwrap();
-        assert!(on_disk.contains("[REDACTED]"), "disk should be masked: {on_disk}");
+        assert!(
+            on_disk.contains("[REDACTED]"),
+            "disk should be masked: {on_disk}"
+        );
         assert!(
             !on_disk.contains("AKIAABCDEFGHIJKLMNOP"),
             "plaintext key must never reach disk"
@@ -951,7 +987,9 @@ mod journal_w3_pr3 {
             .body_markdown
             .contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
 
-        let abs = project_root.join(".oculpm/journal").join(&entry.relative_path);
+        let abs = project_root
+            .join(".oculpm/journal")
+            .join(&entry.relative_path);
         let on_disk = std::fs::read_to_string(&abs).unwrap();
         assert!(on_disk.contains("[REDACTED]"));
         assert!(!on_disk.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
@@ -1039,7 +1077,10 @@ mod journal_w3_pr3 {
         git(&project_root, &["add", "."]);
         git(&project_root, &["commit", "-qm", "fix: patch a"]);
 
-        let report = manager.backfill_from_git(&db, 7, 50).await.expect("backfill");
+        let report = manager
+            .backfill_from_git(&db, 7, 50)
+            .await
+            .expect("backfill");
         assert_eq!(report.created, 2, "two commits → two entries");
         assert_eq!(report.skipped, 0);
 
@@ -1048,12 +1089,23 @@ mod journal_w3_pr3 {
             .await
             .unwrap();
         assert_eq!(rows.len(), 2);
-        assert!(rows.iter().any(|r| r.entry_type == EntryType::Feature), "feat → Feature");
-        assert!(rows.iter().any(|r| r.entry_type == EntryType::Bug), "fix → Bug");
-        assert!(rows.iter().all(|r| r.tags.contains(&"git-backfill".to_string())));
+        assert!(
+            rows.iter().any(|r| r.entry_type == EntryType::Feature),
+            "feat → Feature"
+        );
+        assert!(
+            rows.iter().any(|r| r.entry_type == EntryType::Bug),
+            "fix → Bug"
+        );
+        assert!(rows
+            .iter()
+            .all(|r| r.tags.contains(&"git-backfill".to_string())));
 
         // Idempotent re-run — nothing new.
-        let report2 = manager.backfill_from_git(&db, 7, 50).await.expect("backfill 2");
+        let report2 = manager
+            .backfill_from_git(&db, 7, 50)
+            .await
+            .expect("backfill 2");
         assert_eq!(report2.created, 0, "re-run creates nothing");
         assert_eq!(report2.skipped, 2);
     }
@@ -1126,9 +1178,12 @@ mod journal_w3_pr3 {
             .set_journal_verified(&db, 7, entry.relative_path.clone(), false)
             .await
             .unwrap();
-        let raw =
-            std::fs::read_to_string(project_root.join(".oculpm/journal").join(&entry.relative_path))
-                .unwrap();
+        let raw = std::fs::read_to_string(
+            project_root
+                .join(".oculpm/journal")
+                .join(&entry.relative_path),
+        )
+        .unwrap();
         assert!(raw.contains("verified_by_user: false"));
 
         let fresh = manager
@@ -1136,7 +1191,10 @@ mod journal_w3_pr3 {
             .await
             .unwrap()
             .unwrap();
-        assert!(!fresh.frontmatter.verified_by_user, "cache reflects new flag");
+        assert!(
+            !fresh.frontmatter.verified_by_user,
+            "cache reflects new flag"
+        );
 
         // Round-trip back to true.
         manager
@@ -1273,9 +1331,12 @@ mod journal_w3_pr3 {
             .create_manual_journal_entry(&db, 7, draft)
             .await
             .unwrap();
-        let raw =
-            std::fs::read_to_string(project_root.join(".oculpm/journal").join(&entry.relative_path))
-                .unwrap();
+        let raw = std::fs::read_to_string(
+            project_root
+                .join(".oculpm/journal")
+                .join(&entry.relative_path),
+        )
+        .unwrap();
         // Body starts with "[ ] Manual entry title"
         assert!(raw.contains("[ ] Manual entry title"), "raw: {raw}");
         assert_eq!(entry.checkbox, Some(false));
@@ -1351,7 +1412,9 @@ mod agent_drift_w4_pr4 {
         entry.config.agents.active = ids.iter().map(|s| s.to_string()).collect();
     }
 
-    async fn fresh_with_active(active: &[&str]) -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
+    async fn fresh_with_active(
+        active: &[&str],
+    ) -> (OculpmManager, Db, tempfile::TempDir, std::path::PathBuf) {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("ocul-pm.db");
         let db = Db::open(db_path).await.expect("open db");
@@ -1409,7 +1472,10 @@ mod agent_drift_w4_pr4 {
             .check_agent_drift(&db, 7, ".claude/CLAUDE.md")
             .await
             .unwrap();
-        assert!(drift.is_none(), "outside-block edit must not be drift, got {drift:?}");
+        assert!(
+            drift.is_none(),
+            "outside-block edit must not be drift, got {drift:?}"
+        );
     }
 
     /// (3) Edit INSIDE the managed block ⇒ drift detected.
@@ -1463,7 +1529,10 @@ mod agent_drift_w4_pr4 {
             .check_agent_drift(&db, 7, ".cursor/rules/ocul-pm.mdc")
             .await
             .unwrap();
-        assert!(drift.is_none(), "after resync no drift expected, got {drift:?}");
+        assert!(
+            drift.is_none(),
+            "after resync no drift expected, got {drift:?}"
+        );
     }
 }
 
@@ -1472,8 +1541,8 @@ mod agent_drift_w4_pr4 {
 mod compare_layers_w4_pr5 {
     use super::*;
     use crate::oculpm::spec::{
-        Difficulty, EntryStatus, EntryType, FileChangeEvent, FileOp, FileTouched,
-        ManualEntryDraft, Severity,
+        Difficulty, EntryStatus, EntryType, FileChangeEvent, FileOp, FileTouched, ManualEntryDraft,
+        Severity,
     };
 
     const SESSION_ID: &str = "20260524-001";
@@ -1491,7 +1560,14 @@ mod compare_layers_w4_pr5 {
     }
 
     async fn writer(manager: &OculpmManager) -> std::sync::Arc<IndexWriter> {
-        manager.projects.read().await.get(&7).unwrap().index_writer.clone()
+        manager
+            .projects
+            .read()
+            .await
+            .get(&7)
+            .unwrap()
+            .index_writer
+            .clone()
     }
 
     async fn append_index_events(manager: &OculpmManager, paths: &[&str]) {
@@ -1547,15 +1623,18 @@ mod compare_layers_w4_pr5 {
     /// watcher session to share a workday must derive the session id from
     /// this rather than hard-coding one.
     async fn today_workday(manager: &OculpmManager) -> String {
-        let resolver = manager.projects.read().await.get(&7).unwrap().resolver.clone();
+        let resolver = manager
+            .projects
+            .read()
+            .await
+            .get(&7)
+            .unwrap()
+            .resolver
+            .clone();
         resolver.workday_of(chrono::Utc::now())
     }
 
-    async fn append_index_events_for(
-        manager: &OculpmManager,
-        session_id: &str,
-        paths: &[&str],
-    ) {
+    async fn append_index_events_for(manager: &OculpmManager, session_id: &str, paths: &[&str]) {
         let writer = writer(manager).await;
         for p in paths {
             let ev = FileChangeEvent {
@@ -1772,13 +1851,17 @@ mod compare_layers_w4_pr5 {
         seed_session(
             &manager,
             &early,
-            &(now - chrono::Duration::hours(3)).fixed_offset().to_rfc3339(),
+            &(now - chrono::Duration::hours(3))
+                .fixed_offset()
+                .to_rfc3339(),
         )
         .await;
         seed_session(
             &manager,
             &late,
-            &(now - chrono::Duration::hours(1)).fixed_offset().to_rfc3339(),
+            &(now - chrono::Duration::hours(1))
+                .fixed_offset()
+                .to_rfc3339(),
         )
         .await;
 
@@ -1813,7 +1896,10 @@ mod compare_layers_w4_pr5 {
 
         let early_links = by_id(&early);
         assert_eq!(early_links.len(), 1, "{early_links:?}");
-        assert!(early_links[0].contains("linked-explicit"), "{early_links:?}");
+        assert!(
+            early_links[0].contains("linked-explicit"),
+            "{early_links:?}"
+        );
     }
 
     /// Full coverage across foreign-dialect entries → nothing to report,
@@ -1944,7 +2030,10 @@ mod compare_layers_w4_pr5 {
         // Journal: 6 matching + 2 hallucinated.
         let journal: Vec<String> = (0..6)
             .map(|i| format!("src/file_{i}.rs"))
-            .chain(["src/hallucinated_a.rs".to_string(), "src/hallucinated_b.rs".to_string()])
+            .chain([
+                "src/hallucinated_a.rs".to_string(),
+                "src/hallucinated_b.rs".to_string(),
+            ])
             .collect();
         let journal_refs: Vec<&str> = journal.iter().map(|s| s.as_str()).collect();
         seed_journal(&manager, &db, "moderate", &journal_refs).await;
@@ -1994,7 +2083,12 @@ mod compare_layers_w4_pr5 {
         // Index has 3 real paths + 1 masked redacted entry (the watcher
         // would produce these for `.env` writes).
         let writer = writer(&manager).await;
-        for p in &["src/a.rs", "src/b.rs", "src/c.rs", "**redacted/sensitive**:abcd1234"] {
+        for p in &[
+            "src/a.rs",
+            "src/b.rs",
+            "src/c.rs",
+            "**redacted/sensitive**:abcd1234",
+        ] {
             let ev = FileChangeEvent {
                 ts: "2026-05-24T10:00:00+00:00".to_string(),
                 session_id: SESSION_ID.to_string(),
@@ -2008,7 +2102,13 @@ mod compare_layers_w4_pr5 {
         }
         // Journal: same 3 real paths only (no forbidden — they'd be
         // reject by create_manual_journal_entry per W4-PR3 anyway).
-        seed_journal(&manager, &db, "stripped", &["src/a.rs", "src/b.rs", "src/c.rs"]).await;
+        seed_journal(
+            &manager,
+            &db,
+            "stripped",
+            &["src/a.rs", "src/b.rs", "src/c.rs"],
+        )
+        .await;
 
         let cmp = manager.compare_layers(&db, 7, SESSION_ID).await.unwrap();
         // Redacted path is stripped from index_files → exact match.
@@ -2061,7 +2161,6 @@ mod compare_layers_w4_pr5 {
     }
 }
 
-
 #[tokio::test]
 async fn init_seeds_template_language_and_never_overrides_an_existing_config() {
     // 영어 사용자에게 한국어 기록 규칙을 심지 않기 위한 것 —
@@ -2082,5 +2181,8 @@ async fn init_seeds_template_language_and_never_overrides_an_existing_config() {
     let manager2 = OculpmManager::new();
     manager2.init_project(2, dir.path(), "ko").await.unwrap();
     let after = OculpmConfig::load(&dir.path().join(".oculpm").join("config.toml")).unwrap();
-    assert_eq!(after.agents.template_language, "en", "기존 설정을 덮지 않는다");
+    assert_eq!(
+        after.agents.template_language, "en",
+        "기존 설정을 덮지 않는다"
+    );
 }

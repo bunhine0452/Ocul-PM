@@ -367,7 +367,11 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
             // 키 합집합: 일지가 없어도 플랜/정체성만 있는 프로젝트를 빠뜨리지
             // 않는다 (그린필드 직후가 정확히 그 상태다).
             let mut ids: Vec<u32> = totals.keys().copied().collect();
-            for k in days_map.keys().chain(next_tasks.keys()).chain(identity.keys()) {
+            for k in days_map
+                .keys()
+                .chain(next_tasks.keys())
+                .chain(identity.keys())
+            {
                 if !ids.contains(k) {
                     ids.push(*k);
                 }
@@ -395,9 +399,12 @@ pub async fn collect(db: &Db, days: u32) -> Result<HomeBrief> {
 
                 let (last_title, last_type, last_agent_id, last_agent_version) =
                     match last.get(&pid) {
-                        Some((t, ty, a, v)) => {
-                            (Some(t.clone()), Some(ty.clone()), Some(a.clone()), v.clone())
-                        }
+                        Some((t, ty, a, v)) => (
+                            Some(t.clone()),
+                            Some(ty.clone()),
+                            Some(a.clone()),
+                            v.clone(),
+                        ),
                         None => (None, None, None, None),
                     };
 

@@ -10,7 +10,10 @@ use crate::db::Db;
 use crate::git;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -38,10 +41,7 @@ pub async fn git_graph(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn git_status(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<git::GitRepoStatus, String> {
+pub async fn git_status(db: State<'_, Db>, project_id: u32) -> Result<git::GitRepoStatus, String> {
     let root = project_root(&db, project_id).await?;
     Ok(git::status(&root))
 }
@@ -75,4 +75,3 @@ pub async fn git_head_status_brief(
     let root = project_root(&db, project_id).await?;
     Ok(git::head_status_brief(&root))
 }
-

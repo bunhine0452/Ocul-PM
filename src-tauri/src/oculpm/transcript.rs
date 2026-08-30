@@ -92,11 +92,10 @@ pub fn parse_transcript(raw: &str) -> TranscriptDigest {
         if line_type != "user" && line_type != "assistant" {
             continue;
         }
-        let Some(message) = v.get("message") else { continue };
-        let text = message
-            .get("content")
-            .map(extract_text)
-            .unwrap_or_default();
+        let Some(message) = v.get("message") else {
+            continue;
+        };
+        let text = message.get("content").map(extract_text).unwrap_or_default();
 
         if let Some(ts) = v.get("timestamp").and_then(Value::as_str) {
             if digest.first_ts.is_none() {

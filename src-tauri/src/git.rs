@@ -170,8 +170,18 @@ fn discover_repos(root: &Path) -> Vec<PathBuf> {
         return vec![r];
     }
     const SKIP: &[&str] = &[
-        ".git", "node_modules", ".oculpm", "target", "dist", "build", ".next",
-        ".venv", "venv", "__pycache__", ".turbo", ".cache",
+        ".git",
+        "node_modules",
+        ".oculpm",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".turbo",
+        ".cache",
     ];
     let mut repos = Vec::new();
     for entry in WalkDir::new(root)
@@ -404,10 +414,15 @@ fn parse_name_status(block: &str) -> Vec<BackfillFileChange> {
         };
         let p1 = cols.next().unwrap_or("");
         let p2 = cols.next();
-        if (status == 'R' || status == 'C') && p2.is_some() {
+        let renamed = if status == 'R' || status == 'C' {
+            p2
+        } else {
+            None
+        };
+        if let Some(p2) = renamed {
             out.push(BackfillFileChange {
                 status,
-                path: p2.unwrap().to_string(),
+                path: p2.to_string(),
                 rename_from: Some(p1.to_string()),
             });
         } else if !p1.is_empty() {
@@ -489,7 +504,12 @@ pub fn tags(root: &Path, limit: u32) -> Result<Vec<GitTag>, String> {
             continue;
         }
         // Annotated tag points at a commit via *objectname; lightweight tag uses objectname.
-        let sha = if !parts[1].is_empty() { parts[1] } else { parts[2] }.to_string();
+        let sha = if !parts[1].is_empty() {
+            parts[1]
+        } else {
+            parts[2]
+        }
+        .to_string();
         let timestamp = if !parts[3].is_empty() {
             parts[3].parse().unwrap_or(0)
         } else {
@@ -501,7 +521,10 @@ pub fn tags(root: &Path, limit: u32) -> Result<Vec<GitTag>, String> {
         } else {
             parts[5].to_string()
         };
-        let message = parts.get(7).map(|s| s.trim().to_string()).unwrap_or_default();
+        let message = parts
+            .get(7)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
 
         if sha.is_empty() {
             continue;
@@ -711,9 +734,7 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
                 let _ = tokens.next();
             }
             let path = match &prefix {
-                Some(p) if !p.as_os_str().is_empty() => {
-                    p.join(raw).to_string_lossy().to_string()
-                }
+                Some(p) if !p.as_os_str().is_empty() => p.join(raw).to_string_lossy().to_string(),
                 _ => raw.to_string(),
             };
             changes.push(GitChange {
@@ -731,7 +752,11 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
 pub fn last_commit_changes(root: &Path) -> Option<LastCommitChanges> {
     let repo = primary_repo(root)?;
     // Commit metadata; fails on an unborn HEAD (no commits) → None.
-    let meta = run_git(&repo, &["log", "-1", "--no-color", "--pretty=format:%H\x1f%s"]).ok()?;
+    let meta = run_git(
+        &repo,
+        &["log", "-1", "--no-color", "--pretty=format:%H\x1f%s"],
+    )
+    .ok()?;
     let (sha, subject) = meta.split_once('\x1f')?;
     let sha = sha.to_string();
     let short_sha: String = sha.chars().take(7).collect();
@@ -887,11 +912,13 @@ pub fn line_changes(root: &Path, file_path: &str, current: &str) -> Vec<GitLineC
             Err(_) => return Vec::new(),
         },
         // HEAD 에 없다 = 새 파일. 전부 추가로 표시한다.
-        None => return vec![GitLineChange {
-            start_line: 1,
-            end_line: current.lines().count().max(1) as u32,
-            kind: GitLineChangeKind::Added,
-        }],
+        None => {
+            return vec![GitLineChange {
+                start_line: 1,
+                end_line: current.lines().count().max(1) as u32,
+                kind: GitLineChangeKind::Added,
+            }]
+        }
     };
     diff_line_changes(&head, current)
 }
@@ -943,7 +970,10 @@ pub fn diff_line_changes(before: &str, after: &str) -> Vec<GitLineChange> {
                     });
                     pending_delete = false;
                 }
-                last_new_line = change.new_index().map(|i| i as u32 + 1).unwrap_or(last_new_line);
+                last_new_line = change
+                    .new_index()
+                    .map(|i| i as u32 + 1)
+                    .unwrap_or(last_new_line);
             }
             ChangeTag::Delete => {
                 // 삽입 구간이 열려 있는데 삭제가 오면 별개의 덩어리다.
@@ -952,7 +982,10 @@ pub fn diff_line_changes(before: &str, after: &str) -> Vec<GitLineChange> {
                 pending_delete = true;
             }
             ChangeTag::Insert => {
-                let line = change.new_index().map(|i| i as u32 + 1).unwrap_or(last_new_line + 1);
+                let line = change
+                    .new_index()
+                    .map(|i| i as u32 + 1)
+                    .unwrap_or(last_new_line + 1);
                 if pending_delete {
                     run_after_delete = true;
                     pending_delete = false;
@@ -1170,7 +1203,10 @@ mod tests {
 
     /// `(시작, 끝, 종류)` 로 줄여 읽기 쉽게.
     fn shape(changes: &[GitLineChange]) -> Vec<(u32, u32, GitLineChangeKind)> {
-        changes.iter().map(|c| (c.start_line, c.end_line, c.kind)).collect()
+        changes
+            .iter()
+            .map(|c| (c.start_line, c.end_line, c.kind))
+            .collect()
     }
 
     #[test]
@@ -1212,7 +1248,10 @@ mod tests {
         let got = diff_line_changes("a\nb\nc\nd\n", "a\nX\nc\nd\nY\n");
         assert_eq!(
             shape(&got),
-            vec![(2, 2, GitLineChangeKind::Modified), (5, 5, GitLineChangeKind::Added)]
+            vec![
+                (2, 2, GitLineChangeKind::Modified),
+                (5, 5, GitLineChangeKind::Added)
+            ]
         );
     }
 
@@ -1304,4 +1343,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 }
-

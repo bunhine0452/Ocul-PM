@@ -6,7 +6,6 @@
 use super::*;
 
 impl<'a> JournalCache<'a> {
-
     // ────────── single-entry operations ──────────
 
     /// Insert or replace one journal entry. Cheap when `body_md_hash`
@@ -318,10 +317,8 @@ impl<'a> JournalCache<'a> {
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or_else(|| Utc::now().timestamp());
-                let raw = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
-                    path: abs,
-                    source,
-                })?;
+                let raw = std::fs::read_to_string(&abs)
+                    .map_err(|source| OculpmError::Io { path: abs, source })?;
                 let (parsed, body, full, redacted) = self.project_text(&raw);
                 let outcome = self
                     .upsert_entry(project_id, relative_path, &parsed, &body, mtime, &full)

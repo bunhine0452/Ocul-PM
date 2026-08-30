@@ -25,7 +25,9 @@ fn main() {
                 return;
             }
             other => {
-                eprintln!("oculpm-mcp: unknown argument '{other}' (usage: oculpm-mcp --root <dir>)");
+                eprintln!(
+                    "oculpm-mcp: unknown argument '{other}' (usage: oculpm-mcp --root <dir>)"
+                );
                 std::process::exit(2);
             }
         }
@@ -54,7 +56,11 @@ fn main() {
     let mut buf: Vec<u8> = Vec::new();
     loop {
         buf.clear();
-        let n = match reader.by_ref().take(MAX_LINE_BYTES).read_until(b'\n', &mut buf) {
+        let n = match reader
+            .by_ref()
+            .take(MAX_LINE_BYTES)
+            .read_until(b'\n', &mut buf)
+        {
             Ok(0) => break, // stdin 닫힘 = 클라이언트 종료
             Ok(n) => n,
             Err(_) => break,

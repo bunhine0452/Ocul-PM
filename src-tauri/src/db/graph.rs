@@ -6,9 +6,7 @@
 use super::*;
 
 impl Db {
-
     // ---------- AST & Code Analysis ----------
-
 
     pub async fn insert_file_dependency(
         &self,
@@ -75,7 +73,7 @@ impl Db {
                     "SELECT name, kind, start_line, end_line, start_byte, end_byte
                      FROM symbol_definitions
                      WHERE file_id = ?
-                     ORDER BY start_line ASC"
+                     ORDER BY start_line ASC",
                 )?;
                 let rows = stmt
                     .query_map([file_id as i64], |r| {
@@ -291,7 +289,7 @@ impl Db {
                         let mut targets: Vec<i64> = Vec::new();
                         let mut estimated = 0i64;
                         for &cand in candidates {
-                            if cand != *src_fid && imported.map_or(false, |s| s.contains(&cand)) {
+                            if cand != *src_fid && imported.is_some_and(|s| s.contains(&cand)) {
                                 targets.push(cand);
                             }
                         }
@@ -465,8 +463,8 @@ impl Db {
                     let d = depth[&cur];
                     if let Some(srcs) = importers.get(&cur) {
                         for &src in srcs {
-                            if !depth.contains_key(&src) {
-                                depth.insert(src, d + 1);
+                            if let std::collections::hash_map::Entry::Vacant(e) = depth.entry(src) {
+                                e.insert(d + 1);
                                 queue.push_back(src);
                             }
                         }
@@ -511,7 +509,11 @@ impl Db {
                          JOIN files f ON f.id = sd.file_id WHERE f.project_id = ?",
                     )?;
                     let rows = s.query_map([project_id], |r| {
-                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, i64>(2)?,
+                        ))
                     })?;
                     for row in rows {
                         let (n, p, fid) = row?;
@@ -565,7 +567,13 @@ impl Db {
                             }
                         }
                     };
-                    out.push(SymbolCall { from_symbol, kind, callee: name, target_path, estimated });
+                    out.push(SymbolCall {
+                        from_symbol,
+                        kind,
+                        callee: name,
+                        target_path,
+                        estimated,
+                    });
                 }
                 Ok(out)
             })
@@ -576,7 +584,10 @@ impl Db {
     pub async fn clear_project_dependencies(&self, project_id: u32) -> Result<()> {
         self.conn
             .call(move |c| {
-                c.execute("DELETE FROM file_dependencies WHERE project_id = ?", [project_id as i64])?;
+                c.execute(
+                    "DELETE FROM file_dependencies WHERE project_id = ?",
+                    [project_id as i64],
+                )?;
                 Ok(())
             })
             .await?;

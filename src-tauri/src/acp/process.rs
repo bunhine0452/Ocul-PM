@@ -31,9 +31,8 @@ use tauri::Manager;
 
 use super::session::{
     commands_of, config_of, failure_of, file_change_report_of, map_update, mode_of,
-    permission_event, title_of,
-    usage_of,
-    AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit, AcpUsage,
+    permission_event, title_of, usage_of, AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit,
+    AcpUsage,
 };
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -129,7 +128,11 @@ struct PendingPermission {
 impl AcpState {
     /// 살아 있는 연결의 상대편 정보.
     pub fn info(&self, project_id: u32) -> Option<AcpAgentInfo> {
-        self.running.lock().ok()?.get(&project_id).map(|r| r.info.clone())
+        self.running
+            .lock()
+            .ok()?
+            .get(&project_id)
+            .map(|r| r.info.clone())
     }
 
     /// 살아 있는 연결 핸들.
@@ -142,7 +145,11 @@ impl AcpState {
     }
 
     pub fn session(&self, project_id: u32) -> Option<SessionId> {
-        self.running.lock().ok()?.get(&project_id).and_then(|r| r.session.clone())
+        self.running
+            .lock()
+            .ok()?
+            .get(&project_id)
+            .and_then(|r| r.session.clone())
     }
 
     pub fn set_session(&self, project_id: u32, session: SessionId, options: Vec<AcpConfigOption>) {
@@ -216,7 +223,11 @@ impl AcpState {
                 }
                 // 알림에는 기여도 대목이 없다 — 갖고 있던 것을 유지한다.
                 let detail = running.usage.as_ref().and_then(|u| u.detail.clone());
-                running.usage = Some(AcpUsage { limits, detail, ..fresh });
+                running.usage = Some(AcpUsage {
+                    limits,
+                    detail,
+                    ..fresh
+                });
             }
         }
     }
@@ -368,8 +379,16 @@ impl AcpState {
                 let detail = detail.or(base.detail.clone());
                 // 한도만 못 읽은 경우도 있다 — 그때 빈 목록으로 갈아 끼우면
                 // 계기가 통째로 사라진다(계기는 한도가 없으면 안 그린다).
-                let limits = if limits.is_empty() { base.limits.clone() } else { limits };
-                running.usage = Some(AcpUsage { limits, detail, ..base });
+                let limits = if limits.is_empty() {
+                    base.limits.clone()
+                } else {
+                    limits
+                };
+                running.usage = Some(AcpUsage {
+                    limits,
+                    detail,
+                    ..base
+                });
             }
         }
     }
@@ -681,7 +700,9 @@ pub async fn start(
                         .map(|i| i.name.clone())
                         .unwrap_or_else(|| "unknown".to_string()),
                     title: implementation.and_then(|i| i.title.clone()),
-                    version: implementation.map(|i| i.version.clone()).unwrap_or_default(),
+                    version: implementation
+                        .map(|i| i.version.clone())
+                        .unwrap_or_default(),
                     auth_required: !init.auth_methods.is_empty(),
                 };
 
@@ -786,7 +807,11 @@ mod tests {
 
         assert_eq!(state.cancel_pending_permissions(1, None), 1);
 
-        assert_eq!(futures::executor::block_on(rx_a), Ok(None), "취소로 닫혀야 한다");
+        assert_eq!(
+            futures::executor::block_on(rx_a),
+            Ok(None),
+            "취소로 닫혀야 한다"
+        );
         assert!(
             state.resolve_permission("b", None),
             "다른 프로젝트 요청은 그대로 살아 있어야 한다"
@@ -807,7 +832,11 @@ mod tests {
 
         assert_eq!(state.cancel_pending_permissions(1, Some("sess-a")), 1);
 
-        assert_eq!(futures::executor::block_on(rx_a), Ok(None), "취소로 닫혀야 한다");
+        assert_eq!(
+            futures::executor::block_on(rx_a),
+            Ok(None),
+            "취소로 닫혀야 한다"
+        );
         assert!(
             state.resolve_permission("b", None),
             "옆 대화의 승인 카드는 그대로 살아 있어야 한다"

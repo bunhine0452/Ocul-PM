@@ -218,8 +218,7 @@ fn write_settings(root: &Path, settings: &Value) -> OculpmResult<()> {
             source: e,
         })?;
     }
-    let mut pretty =
-        serde_json::to_string_pretty(settings).map_err(OculpmError::JsonSerialize)?;
+    let mut pretty = serde_json::to_string_pretty(settings).map_err(OculpmError::JsonSerialize)?;
     pretty.push('\n');
     atomic_io::write_atomic(&path, pretty.as_bytes())
 }
@@ -260,9 +259,7 @@ pub fn parse_inbox_slice(bytes: &[u8]) -> (Vec<HookEvent>, u64) {
         let line = &bytes[start..start + nl];
         consumed = start + nl + 1;
         start = consumed;
-        let trimmed = line
-            .strip_suffix(b"\r")
-            .unwrap_or(line);
+        let trimmed = line.strip_suffix(b"\r").unwrap_or(line);
         if trimmed.is_empty() {
             continue;
         }
@@ -374,7 +371,7 @@ pub fn parse_journal_missing(
             let dt = chrono::DateTime::parse_from_rfc3339(&raw.ts)
                 .ok()?
                 .with_timezone(&chrono::Utc);
-            (dt >= cutoff).then(|| {
+            (dt >= cutoff).then_some({
                 (
                     dt,
                     JournalMissingSignal {
@@ -385,7 +382,7 @@ pub fn parse_journal_missing(
             })
         })
         .collect();
-    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.sort_by_key(|r| std::cmp::Reverse(r.0));
     rows.into_iter().map(|(_, s)| s).collect()
 }
 
@@ -424,7 +421,9 @@ pub fn journal_missing_signals(root: &Path, days: u32) -> Vec<JournalMissingSign
 /// `.oculpm/journal/**/*.md` 의 최대 mtime (unix 초). 일지가 없으면 `None`.
 fn newest_journal_mtime(root: &Path) -> Option<i64> {
     fn walk(dir: &Path, best: &mut Option<i64>) {
-        let Ok(rd) = std::fs::read_dir(dir) else { return };
+        let Ok(rd) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in rd.flatten() {
             let p = entry.path();
             if p.is_dir() {
@@ -481,7 +480,9 @@ mod tests {
     fn malformed_line_is_skipped_but_consumed() {
         let mut buf = String::new();
         buf.push_str(&line("not-json"));
-        buf.push_str(&line(r#"{"session_id":"b","hook_event_name":"SessionEnd","reason":"other"}"#));
+        buf.push_str(&line(
+            r#"{"session_id":"b","hook_event_name":"SessionEnd","reason":"other"}"#,
+        ));
         let (events, consumed) = parse_inbox_slice(buf.as_bytes());
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].hook_event_name, "SessionEnd");
@@ -513,14 +514,29 @@ mod tests {
             source: None,
             reason: None,
         };
-        assert_eq!(apply_event(&mut open, &ev("SessionStart", "s1")), HookSignal::AgentActive);
-        assert_eq!(apply_event(&mut open, &ev("SessionStart", "s2")), HookSignal::AgentActive);
+        assert_eq!(
+            apply_event(&mut open, &ev("SessionStart", "s1")),
+            HookSignal::AgentActive
+        );
+        assert_eq!(
+            apply_event(&mut open, &ev("SessionStart", "s2")),
+            HookSignal::AgentActive
+        );
         // s1 종료 — s2 가 아직 열려 있으므로 Active 유지.
-        assert_eq!(apply_event(&mut open, &ev("SessionEnd", "s1")), HookSignal::AgentActive);
+        assert_eq!(
+            apply_event(&mut open, &ev("SessionEnd", "s1")),
+            HookSignal::AgentActive
+        );
         // 마지막 s2 종료 — 이제 종료 신호.
-        assert_eq!(apply_event(&mut open, &ev("SessionEnd", "s2")), HookSignal::AgentEnded);
+        assert_eq!(
+            apply_event(&mut open, &ev("SessionEnd", "s2")),
+            HookSignal::AgentEnded
+        );
         // 앱 재시작으로 집합 유실 후의 미지 SessionEnd → 보수적 종료.
-        assert_eq!(apply_event(&mut open, &ev("SessionEnd", "ghost")), HookSignal::AgentEnded);
+        assert_eq!(
+            apply_event(&mut open, &ev("SessionEnd", "ghost")),
+            HookSignal::AgentEnded
+        );
     }
 
     // ─── H3b — 미기록 세션 신호 파싱 ────────────────────────────────────────
@@ -552,10 +568,18 @@ mod tests {
     fn journal_missing_skips_broken_and_foreign_lines() {
         let mut buf = String::new();
         buf.push_str(&line("not-json"));
-        buf.push_str(&line(r#"{"ts":"garbage","session_id":"x","kind":"journal_missing"}"#));
-        buf.push_str(&line(r#"{"ts":"2026-07-30T00:00:00Z","session_id":"","kind":"journal_missing"}"#));
-        buf.push_str(&line(r#"{"ts":"2026-07-30T00:00:00Z","session_id":"y","kind":"future_kind"}"#));
-        buf.push_str(&line(r#"{"ts":"2026-07-30T00:00:00Z","session_id":"ok-sid"}"#)); // kind 누락 허용
+        buf.push_str(&line(
+            r#"{"ts":"garbage","session_id":"x","kind":"journal_missing"}"#,
+        ));
+        buf.push_str(&line(
+            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"","kind":"journal_missing"}"#,
+        ));
+        buf.push_str(&line(
+            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"y","kind":"future_kind"}"#,
+        ));
+        buf.push_str(&line(
+            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"ok-sid"}"#,
+        )); // kind 누락 허용
         buf.push('\n'); // 빈 줄 허용
         let rows = parse_journal_missing(&buf, cutoff("2026-07-01T00:00:00Z"));
         assert_eq!(rows.len(), 1);
@@ -595,7 +619,9 @@ mod tests {
             format!(
                 "{}\n{}\n",
                 format_args!(r#"{{"ts":"{stale}","session_id":"stale","kind":"journal_missing"}}"#),
-                format_args!(r#"{{"ts":"{recent}","session_id":"fresh","kind":"journal_missing"}}"#),
+                format_args!(
+                    r#"{{"ts":"{recent}","session_id":"fresh","kind":"journal_missing"}}"#
+                ),
             ),
         )
         .unwrap();
@@ -738,7 +764,10 @@ mod tests {
         )
         .unwrap();
         std::fs::write(jdir.join("0001_chore_x.md"), "x").unwrap();
-        assert!(journal_missing_signals(root, 7).is_empty(), "사후 일지가 신호를 해소");
+        assert!(
+            journal_missing_signals(root, 7).is_empty(),
+            "사후 일지가 신호를 해소"
+        );
 
         let new_ts = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
         std::fs::write(

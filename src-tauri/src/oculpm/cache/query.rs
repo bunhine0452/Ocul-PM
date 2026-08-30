@@ -6,7 +6,6 @@
 use super::*;
 
 impl<'a> JournalCache<'a> {
-
     // ────────── reads ──────────
 
     pub async fn list_entries(
@@ -54,16 +53,19 @@ impl<'a> JournalCache<'a> {
                     "SELECT relative_path, tag FROM oculpm_journal_tags
                      WHERE project_id = ?1 AND relative_path IN ({placeholders})"
                 );
-                let mut bound: Vec<Box<dyn rusqlite::ToSql>> = Vec::with_capacity(paths_for_query.len() + 1);
+                let mut bound: Vec<Box<dyn rusqlite::ToSql>> =
+                    Vec::with_capacity(paths_for_query.len() + 1);
                 bound.push(Box::new(pid2));
                 for p in &paths_for_query {
                     bound.push(Box::new(p.clone()));
                 }
                 let mut stmt = c.prepare(&tag_sql)?;
-                let bound_refs: Vec<&dyn rusqlite::ToSql> = bound.iter().map(|b| b.as_ref()).collect();
-                let tag_iter = stmt.query_map(params_from_iter(bound_refs.iter().copied()), |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-                })?;
+                let bound_refs: Vec<&dyn rusqlite::ToSql> =
+                    bound.iter().map(|b| b.as_ref()).collect();
+                let tag_iter = stmt
+                    .query_map(params_from_iter(bound_refs.iter().copied()), |r| {
+                        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                    })?;
                 for row in tag_iter {
                     let (path, tag) = row?;
                     out.entry(path).or_default().0.push(tag);
@@ -75,11 +77,12 @@ impl<'a> JournalCache<'a> {
                      GROUP BY relative_path"
                 );
                 let mut stmt2 = c.prepare(&file_sql)?;
-                let bound_refs2: Vec<&dyn rusqlite::ToSql> = bound.iter().map(|b| b.as_ref()).collect();
-                let file_iter = stmt2.query_map(
-                    params_from_iter(bound_refs2.iter().copied()),
-                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u32)),
-                )?;
+                let bound_refs2: Vec<&dyn rusqlite::ToSql> =
+                    bound.iter().map(|b| b.as_ref()).collect();
+                let file_iter = stmt2
+                    .query_map(params_from_iter(bound_refs2.iter().copied()), |r| {
+                        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u32))
+                    })?;
                 for row in file_iter {
                     let (path, count) = row?;
                     out.entry(path).or_default().1 = count;
@@ -113,7 +116,6 @@ impl<'a> JournalCache<'a> {
                     params![pid],
                     |r| r.get::<_, i64>(0),
                 )
-                .map_err(Into::into)
             })
             .await
             .map_err(map_sqlite_err)?;

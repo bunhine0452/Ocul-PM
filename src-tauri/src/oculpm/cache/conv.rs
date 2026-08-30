@@ -29,7 +29,12 @@ pub(super) fn today_fallback() -> chrono::NaiveDate {
 /// `tz`, backfill a missing offset (DST-correct) and record what changed; with
 /// `None`, only flag the missing offset. Returns the value to store in cache;
 /// the on-disk file is never modified here.
-pub(super) fn coerce_timestamp(s: &str, tz: Option<Tz>, field: &str, warns: &mut Vec<String>) -> String {
+pub(super) fn coerce_timestamp(
+    s: &str,
+    tz: Option<Tz>,
+    field: &str,
+    warns: &mut Vec<String>,
+) -> String {
     match tz {
         Some(tz) => match backfill_tz_offset(s, tz) {
             Some(fixed) => {

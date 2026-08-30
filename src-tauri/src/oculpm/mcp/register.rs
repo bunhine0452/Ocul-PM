@@ -43,7 +43,11 @@ pub struct McpRegistrationStatus {
 pub fn resolve_binary_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let name = if cfg!(windows) { "oculpm-mcp.exe" } else { "oculpm-mcp" };
+    let name = if cfg!(windows) {
+        "oculpm-mcp.exe"
+    } else {
+        "oculpm-mcp"
+    };
     let candidate = dir.join(name);
     candidate.is_file().then_some(candidate)
 }
@@ -143,8 +147,11 @@ pub struct DesktopRegistrationStatus {
 /// macOS `~/Library/Application Support` / Windows Roaming AppData /
 /// Linux `~/.config` 를 모두 맞게 준다.
 pub fn desktop_config_path() -> Option<PathBuf> {
-    directories::BaseDirs::new()
-        .map(|b| b.config_dir().join("Claude").join("claude_desktop_config.json"))
+    directories::BaseDirs::new().map(|b| {
+        b.config_dir()
+            .join("Claude")
+            .join("claude_desktop_config.json")
+    })
 }
 
 /// 이 프로젝트의 엔트리인가 — 서명 바이너리 + `--root` 인자가 같은 루트.
@@ -157,7 +164,10 @@ fn entry_is_ours_for_root(entry: &Value, root: &Path) -> bool {
             .is_some_and(|args| args.iter().any(|a| a.as_str() == Some(root_str.as_ref())))
 }
 
-pub fn desktop_status_at(config_path: &Path, root: &Path) -> OculpmResult<DesktopRegistrationStatus> {
+pub fn desktop_status_at(
+    config_path: &Path,
+    root: &Path,
+) -> OculpmResult<DesktopRegistrationStatus> {
     let installed = config_path.parent().is_some_and(Path::exists);
     let value = read_json_config(config_path)?;
     // 등록 여부는 키 이름이 아니라 **루트 일치**로 판정한다 — 동명 폴더의 다른
@@ -213,7 +223,10 @@ pub fn desktop_register_at(
     let mut key = desktop_server_key(root);
     // 동명 폴더의 다른 프로젝트(또는 무관한 서버)가 이미 그 키를 쓰고 있으면
     // 덮어쓰지 않고 루트 경로 해시 접미로 구분한다.
-    if servers.get(&key).is_some_and(|e| !entry_is_ours_for_root(e, root)) {
+    if servers
+        .get(&key)
+        .is_some_and(|e| !entry_is_ours_for_root(e, root))
+    {
         let hash = blake3::hash(root.to_string_lossy().as_bytes()).to_hex();
         key = format!("{key}-{}", &hash.as_str()[..6]);
     }
@@ -253,7 +266,10 @@ pub fn desktop_unregister_at(
     desktop_status_at(config_path, root)
 }
 
-pub fn status_with_binary(root: &Path, binary: Option<&Path>) -> OculpmResult<McpRegistrationStatus> {
+pub fn status_with_binary(
+    root: &Path,
+    binary: Option<&Path>,
+) -> OculpmResult<McpRegistrationStatus> {
     let value = read_mcp_json(root)?;
     let servers = value.get("mcpServers").and_then(Value::as_object);
     let mut registered = false;
@@ -405,7 +421,10 @@ mod tests {
         let st = desktop_register_at(&config, &root, &binary).unwrap();
         assert!(st.installed && st.registered);
         assert_eq!(st.server_key, "oculpm-myproj");
-        assert_eq!(st.foreign_servers, 1, "다른 프로젝트의 oculpm 엔트리는 foreign 아님");
+        assert_eq!(
+            st.foreign_servers, 1,
+            "다른 프로젝트의 oculpm 엔트리는 foreign 아님"
+        );
 
         let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
         assert_eq!(v["globalShortcut"], "Cmd+K", "미지의 최상위 키 보존");
@@ -417,7 +436,10 @@ mod tests {
         assert!(!st.registered);
         let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
         assert!(v["mcpServers"].get("oculpm-myproj").is_none());
-        assert_eq!(v["mcpServers"]["oculpm-other"]["args"][1], "/other/proj", "다른 프로젝트 보존");
+        assert_eq!(
+            v["mcpServers"]["oculpm-other"]["args"][1], "/other/proj",
+            "다른 프로젝트 보존"
+        );
     }
 
     #[test]
@@ -438,7 +460,10 @@ mod tests {
 
         desktop_register_at(&config, &root, &binary).unwrap();
         let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        assert!(v["mcpServers"].get("oculpm-oldname").is_none(), "같은 루트의 옛 키 제거");
+        assert!(
+            v["mcpServers"].get("oculpm-oldname").is_none(),
+            "같은 루트의 옛 키 제거"
+        );
         assert!(v["mcpServers"].get("oculpm-renamed").is_some());
     }
 
@@ -457,7 +482,11 @@ mod tests {
         let st_b = desktop_register_at(&config, &root_b, &binary).unwrap();
         assert!(st_a.registered && st_b.registered);
         assert_eq!(st_a.server_key, "oculpm-app");
-        assert_ne!(st_b.server_key, "oculpm-app", "충돌 시 해시 접미 키: {}", st_b.server_key);
+        assert_ne!(
+            st_b.server_key, "oculpm-app",
+            "충돌 시 해시 접미 키: {}",
+            st_b.server_key
+        );
         assert!(st_b.server_key.starts_with("oculpm-app-"));
 
         // A 의 상태가 B 등록에 오염되지 않는다 (루트 기준 판정).
@@ -483,7 +512,10 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         let binary = fake_binary(root);
-        let config = dir.path().join("no-such-dir").join("claude_desktop_config.json");
+        let config = dir
+            .path()
+            .join("no-such-dir")
+            .join("claude_desktop_config.json");
 
         let st = desktop_status_at(&config, root).unwrap();
         assert!(!st.installed && !st.registered);

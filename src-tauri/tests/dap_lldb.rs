@@ -101,7 +101,8 @@ async fn lldb_dap_runs_a_whole_session() {
         .await
         .expect("initialize");
     assert_eq!(
-        caps.get("supportsConfigurationDoneRequest").and_then(|v| v.as_bool()),
+        caps.get("supportsConfigurationDoneRequest")
+            .and_then(|v| v.as_bool()),
         Some(true),
         "능력 협상이 실제로 왔다"
     );
@@ -126,7 +127,10 @@ async fn lldb_dap_runs_a_whole_session() {
 
     // `initialized` 는 launch 응답보다 **먼저 올 수도, 나중에 올 수도** 있다.
     // 실측에서 같은 어댑터가 실행마다 달랐다 — 그래서 순서를 안 가정한다.
-    let (_, mark) = events.wait("initialized", 0).await.expect("initialized 이벤트");
+    let (_, mark) = events
+        .wait("initialized", 0)
+        .await
+        .expect("initialized 이벤트");
 
     // ── 중단점 → configurationDone ──────────────────────────────────────────
     let body = client
@@ -149,8 +153,14 @@ async fn lldb_dap_runs_a_whole_session() {
 
     // ── 멈춤 → 스택 → 스코프 → 변수 ─────────────────────────────────────────
     let (stopped, mark) = events.wait("stopped", mark).await.expect("stopped 이벤트");
-    assert_eq!(stopped.get("reason").and_then(|v| v.as_str()), Some("breakpoint"));
-    let thread_id = stopped.get("threadId").and_then(|v| v.as_i64()).expect("threadId");
+    assert_eq!(
+        stopped.get("reason").and_then(|v| v.as_str()),
+        Some("breakpoint")
+    );
+    let thread_id = stopped
+        .get("threadId")
+        .and_then(|v| v.as_i64())
+        .expect("threadId");
 
     let body = client
         .request(
@@ -171,7 +181,10 @@ async fn lldb_dap_runs_a_whole_session() {
 
     let body = client
         // 핸들은 정수로 되돌려 보내야 한다 — `3.0` 이면 어댑터가 거절한다.
-        .request("scopes", Some(serde_json::json!({ "frameId": wire_id(frames[0].id) })))
+        .request(
+            "scopes",
+            Some(serde_json::json!({ "frameId": wire_id(frames[0].id) })),
+        )
         .await
         .expect("scopes");
     let scopes = scopes_from_json(&body);
@@ -188,9 +201,17 @@ async fn lldb_dap_runs_a_whole_session() {
         .await
         .expect("variables");
     let vars = variables_from_json(&body);
-    let a = vars.iter().find(|v| v.name == "a").expect("인자 a: {vars:?}");
+    let a = vars
+        .iter()
+        .find(|v| v.name == "a")
+        .expect("인자 a: {vars:?}");
     assert_eq!(a.value, "2");
-    assert_eq!(vars.iter().find(|v| v.name == "b").map(|v| v.value.as_str()), Some("40"));
+    assert_eq!(
+        vars.iter()
+            .find(|v| v.name == "b")
+            .map(|v| v.value.as_str()),
+        Some("40")
+    );
 
     // ── 스텝 → 계속 → 종료 ──────────────────────────────────────────────────
     client
@@ -201,7 +222,10 @@ async fn lldb_dap_runs_a_whole_session() {
     assert_eq!(stopped.get("reason").and_then(|v| v.as_str()), Some("step"));
 
     client
-        .request("continue", Some(serde_json::json!({ "threadId": thread_id })))
+        .request(
+            "continue",
+            Some(serde_json::json!({ "threadId": thread_id })),
+        )
         .await
         .expect("continue");
     assert!(
@@ -210,7 +234,10 @@ async fn lldb_dap_runs_a_whole_session() {
     );
 
     let _ = client
-        .request("disconnect", Some(serde_json::json!({ "terminateDebuggee": true })))
+        .request(
+            "disconnect",
+            Some(serde_json::json!({ "terminateDebuggee": true })),
+        )
         .await;
     client.kill().await;
 }

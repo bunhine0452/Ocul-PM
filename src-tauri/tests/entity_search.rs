@@ -53,7 +53,10 @@ async fn merges_all_kinds_and_ranks_prefix_first() {
     assert_eq!(hits[0].kind, EntityKind::Plan);
     assert!(hits[..4].iter().all(|h| h.title.starts_with("내비")));
     // plan_item id 는 "plan#item" 라우팅 키.
-    let item = hits.iter().find(|h| h.kind == EntityKind::PlanItem).unwrap();
+    let item = hits
+        .iter()
+        .find(|h| h.kind == EntityKind::PlanItem)
+        .unwrap();
     assert_eq!(item.id, "v2-release#nav-registry");
     assert_eq!(item.subtitle, "내비 포함 v2 릴리스");
 }
@@ -69,7 +72,10 @@ async fn escapes_like_wildcards() {
 #[tokio::test]
 async fn respects_limit_and_project_isolation() {
     let (_dir, db) = seeded_db().await;
-    let one = db.search_oculpm_entities(1, "내비".into(), 1).await.unwrap();
+    let one = db
+        .search_oculpm_entities(1, "내비".into(), 1)
+        .await
+        .unwrap();
     assert_eq!(one.len(), 1);
     let other = db
         .search_oculpm_entities(2, "내비".into(), 10)

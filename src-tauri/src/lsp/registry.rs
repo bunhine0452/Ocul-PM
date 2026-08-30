@@ -146,9 +146,18 @@ mod tests {
 
     #[test]
     fn maps_extensions_to_servers_and_ignores_the_rest() {
-        assert_eq!(spec_for_path(Path::new("a/b.rs")).unwrap().language_id, "rust");
-        assert_eq!(spec_for_path(Path::new("a/b.tsx")).unwrap().language_id, "typescript");
-        assert_eq!(spec_for_path(Path::new("a/b.PY")).unwrap().language_id, "python");
+        assert_eq!(
+            spec_for_path(Path::new("a/b.rs")).unwrap().language_id,
+            "rust"
+        );
+        assert_eq!(
+            spec_for_path(Path::new("a/b.tsx")).unwrap().language_id,
+            "typescript"
+        );
+        assert_eq!(
+            spec_for_path(Path::new("a/b.PY")).unwrap().language_id,
+            "python"
+        );
         // 하이라이트는 되지만 서버는 없는 것들 — None 이어야 조용히 안 띄운다.
         assert!(spec_for_path(Path::new("a/b.css")).is_none());
         assert!(spec_for_path(Path::new("a/b.md")).is_none());
@@ -166,7 +175,11 @@ mod tests {
 
         let spec = spec_for_path(Path::new("x.rs")).unwrap();
         let found = find_root(spec, &root.join("src-tauri/src/oculpm/watcher.rs"), root).unwrap();
-        assert_eq!(found, root.join("src-tauri"), "Cargo 루트가 아니라 저장소 루트를 골랐다");
+        assert_eq!(
+            found,
+            root.join("src-tauri"),
+            "Cargo 루트가 아니라 저장소 루트를 골랐다"
+        );
     }
 
     /// 모노레포 — 워크스페이스마다 따로 떠야 한다 (가장 가까운 마커).
@@ -249,7 +262,11 @@ mod tests {
             let uri = path_to_uri(Path::new(p));
             assert!(uri.starts_with("file:///"), "{uri}");
             assert!(!uri.contains(' '), "공백이 인코딩되지 않았다: {uri}");
-            assert_eq!(uri_to_path(&uri).unwrap(), PathBuf::from(p), "왕복 실패: {uri}");
+            assert_eq!(
+                uri_to_path(&uri).unwrap(),
+                PathBuf::from(p),
+                "왕복 실패: {uri}"
+            );
         }
     }
 

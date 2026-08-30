@@ -26,9 +26,7 @@ use super::client::{
     check_program, initialize_arguments, resolve_program, AdapterNotice, DapClient, LAUNCH_TIMEOUT,
 };
 use super::registry::AdapterSpec;
-use super::spec::{
-    breakpoints_from_json, DapBreakpoint, DapSessionInfo, DapState,
-};
+use super::spec::{breakpoints_from_json, DapBreakpoint, DapSessionInfo, DapState};
 
 /// 세션이 밖으로 내보내는 신호. 커맨드 층이 Tauri 이벤트로 바꿔 프런트에 올린다.
 #[derive(Debug, Clone)]
@@ -109,7 +107,10 @@ impl BreakpointStore {
     }
 
     pub fn files(&self) -> Vec<(String, Vec<u32>)> {
-        self.by_file.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        self.by_file
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
     }
 
     pub fn clear(&mut self) {
@@ -125,7 +126,9 @@ impl BreakpointStore {
             .cloned()
             .collect();
         for key in keys {
-            let Some(lines) = self.by_file.remove(&key) else { continue };
+            let Some(lines) = self.by_file.remove(&key) else {
+                continue;
+            };
             let next = if key == from {
                 to.to_string()
             } else {
@@ -166,12 +169,6 @@ struct Inner {
     stopped_reason: Option<String>,
     thread_id: Option<i64>,
     detail: Option<String>,
-}
-
-impl Default for DapState {
-    fn default() -> Self {
-        DapState::Idle
-    }
 }
 
 impl DapSession {
@@ -215,8 +212,16 @@ impl DapSession {
                 let label = label.clone();
                 let root = root.clone();
                 tauri::async_runtime::spawn(async move {
-                    handle_notice(notice, spec_lang, &label, &root, &initialized, &inner, &sink)
-                        .await;
+                    handle_notice(
+                        notice,
+                        spec_lang,
+                        &label,
+                        &root,
+                        &initialized,
+                        &inner,
+                        &sink,
+                    )
+                    .await;
                 });
             })
         };

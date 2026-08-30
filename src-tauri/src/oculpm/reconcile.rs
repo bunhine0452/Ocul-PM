@@ -85,7 +85,13 @@ fn enum_str<T: serde::Serialize>(v: &T) -> String {
 
 /// Build the single-entry journal block the plan-AI prompt expects in place of
 /// the recent-entries list `plan_ai_refresh` uses. Pure + unit-tested.
-fn entry_block(entry_type: &str, status: &str, title: &str, files: &[String], body: &str) -> String {
+fn entry_block(
+    entry_type: &str,
+    status: &str,
+    title: &str,
+    files: &[String],
+    body: &str,
+) -> String {
     let files_line = if files.is_empty() {
         "(없음)".to_string()
     } else {
@@ -160,10 +166,11 @@ pub async fn reconcile_entry(
             _ => return Ok(ReconcileOutcome::Skipped("no model configured")),
         },
     };
-    let api_key = match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
-        Some(k) => k,
-        None => return Ok(ReconcileOutcome::Skipped("no api key for provider")),
-    };
+    let api_key =
+        match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
+            Some(k) => k,
+            None => return Ok(ReconcileOutcome::Skipped("no api key for provider")),
+        };
 
     // ── 2. Build the prompt context from the entry loaded in step 0 (shared by
     // every active plan's reconciliation). ──
@@ -227,7 +234,9 @@ pub async fn reconcile_entry(
                 vec![
                     llm::Message {
                         role: llm::Role::System,
-                        content: crate::oculpm::content_lang::current(&db).await.apply(SYSTEM_PROMPT),
+                        content: crate::oculpm::content_lang::current(db)
+                            .await
+                            .apply(SYSTEM_PROMPT),
                     },
                     llm::Message {
                         role: llm::Role::User,
@@ -301,7 +310,11 @@ pub async fn reconcile_entry(
             }
         }
         if applied == 0 {
-            results.push(PlanReconcileResult { plan_id, applied: 0, error: None });
+            results.push(PlanReconcileResult {
+                plan_id,
+                applied: 0,
+                error: None,
+            });
             continue;
         }
         // N4 — take the shared plan-write lock ONLY for the recheck→write (the
@@ -322,7 +335,11 @@ pub async fn reconcile_entry(
                     plan_id = %plan_id,
                     "auto-reconcile yielded: plan changed during LLM call (edits dropped)"
                 );
-                results.push(PlanReconcileResult { plan_id, applied: 0, error: None });
+                results.push(PlanReconcileResult {
+                    plan_id,
+                    applied: 0,
+                    error: None,
+                });
                 continue; // plan changed during reconcile — skip this one
             }
             if let Err(e) = write_atomic(&path, cur.as_bytes()) {
@@ -342,8 +359,14 @@ pub async fn reconcile_entry(
             }
         }
         // Reproject so the cache reflects the new statuses immediately.
-        let _ = PlanCache::new(db).get(project_id, &planner_root, &plan_id).await;
-        results.push(PlanReconcileResult { plan_id, applied, error: None });
+        let _ = PlanCache::new(db)
+            .get(project_id, &planner_root, &plan_id)
+            .await;
+        results.push(PlanReconcileResult {
+            plan_id,
+            applied,
+            error: None,
+        });
     }
 
     Ok(ReconcileOutcome::Ran(results))

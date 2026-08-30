@@ -447,7 +447,11 @@ mod tests {
     #[test]
     fn detects_python_django_from_requirements() {
         let tmp = tempfile::tempdir().unwrap();
-        write(tmp.path(), "requirements.txt", "Django==5.0\npsycopg2-binary\n");
+        write(
+            tmp.path(),
+            "requirements.txt",
+            "Django==5.0\npsycopg2-binary\n",
+        );
         let tags = detect_stack(tmp.path());
         assert_eq!(tags, vec!["django", "python"]);
     }
@@ -506,14 +510,21 @@ mod tests {
             "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\ntauri = \"2\"\n",
         );
         let tags = detect_stack(tmp.path());
-        assert_eq!(tags, vec!["frontend", "javascript", "react", "rust", "tauri"]);
+        assert_eq!(
+            tags,
+            vec!["frontend", "javascript", "react", "rust", "tauri"]
+        );
     }
 
     #[test]
     fn pnpm_workspace_detects_depth2_member() {
         // 루트에 pnpm-workspace.yaml 만 있고 프레임워크는 apps/web (2단계)에.
         let tmp = tempfile::tempdir().unwrap();
-        write(tmp.path(), "pnpm-workspace.yaml", "packages:\n  - \"apps/*\"\n");
+        write(
+            tmp.path(),
+            "pnpm-workspace.yaml",
+            "packages:\n  - \"apps/*\"\n",
+        );
         write(
             tmp.path(),
             "apps/web/package.json",
@@ -527,7 +538,11 @@ mod tests {
     fn workspaces_field_scans_depth2_members() {
         // yarn/npm 모노레포: 루트 package.json 에 workspaces 필드만, 멤버는 packages/ui.
         let tmp = tempfile::tempdir().unwrap();
-        write(tmp.path(), "package.json", r#"{"workspaces":["packages/*"]}"#);
+        write(
+            tmp.path(),
+            "package.json",
+            r#"{"workspaces":["packages/*"]}"#,
+        );
         write(
             tmp.path(),
             "packages/ui/package.json",
@@ -553,7 +568,11 @@ mod tests {
     #[test]
     fn tsconfig_alone_still_marks_typescript() {
         let tmp = tempfile::tempdir().unwrap();
-        write(tmp.path(), "package.json", r#"{"dependencies":{"next":"14.2.0"}}"#);
+        write(
+            tmp.path(),
+            "package.json",
+            r#"{"dependencies":{"next":"14.2.0"}}"#,
+        );
         write(tmp.path(), "tsconfig.json", "{}");
         let tags = detect_stack(tmp.path());
         assert_eq!(tags, vec!["javascript", "nextjs", "typescript"]);

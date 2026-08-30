@@ -29,9 +29,9 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::db::{Db, RetroInsight};
-use crate::oculpm::content_lang::ContentLang;
 use crate::llm;
 use crate::oculpm::cache::{JournalCache, RangeEntry};
+use crate::oculpm::content_lang::ContentLang;
 use crate::oculpm::spec::{AgentCount, DifficultyMix};
 
 /// Caps keep the LLM prompt bounded on busy ranges. Generous — a normal week
@@ -203,8 +203,11 @@ fn aggregate(entries: &[RangeEntry]) -> AggParts {
             },
         })
         .collect();
-    agent_breakdown
-        .sort_by(|a, b| b.entry_count.cmp(&a.entry_count).then_with(|| a.agent_id.cmp(&b.agent_id)));
+    agent_breakdown.sort_by(|a, b| {
+        b.entry_count
+            .cmp(&a.entry_count)
+            .then_with(|| a.agent_id.cmp(&b.agent_id))
+    });
 
     // Difficulty distribution.
     let mut difficulty_mix = DifficultyMix {
@@ -317,7 +320,10 @@ pub async fn eval_signals(
     db: State<'_, Db>,
     project_id: u32,
 ) -> Result<Option<crate::oculpm::evals::EvalSignals>, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(crate::oculpm::evals::signals_for(std::path::Path::new(
         &project.root_path,
     )))
@@ -333,7 +339,10 @@ pub async fn defer_signals(
     db: State<'_, Db>,
     project_id: u32,
 ) -> Result<crate::oculpm::defer_ledger::DeferSignals, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = std::path::PathBuf::from(&project.root_path);
     // 프로젝트 전체 walk 는 블로킹 I/O — async 런타임을 막지 않게 blocking 풀로.
     tokio::task::spawn_blocking(move || crate::oculpm::defer_ledger::harvest(&root))
@@ -358,7 +367,10 @@ pub async fn get_retro(
         .await
         .map_err(|e| e.to_string())?;
 
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let file = crate::oculpm::retro_file::read_retro_file(
         std::path::Path::new(&project.root_path),
         &range_key,
@@ -616,7 +628,10 @@ fn build_retro_dispatch_prompt(
         "ocul-pm 회고 디스패치 — 아래 신호를 한국어 회고로 종합하라.\n\n",
         "ocul-pm retro dispatch — synthesize the signals below into a retro written in English.\n\n",
     ));
-    p.push_str(&format!("## {}\n\n", lang.pick("역할과 규칙", "Role and rules")));
+    p.push_str(&format!(
+        "## {}\n\n",
+        lang.pick("역할과 규칙", "Role and rules")
+    ));
     p.push_str(SYSTEM_PROMPT);
     p.push_str(lang.pick(
         "\n\n(위 규칙의 \"마크다운 본문만 출력·머리말 금지\"는 **회고 본문**에 대한 것이다 — \
@@ -720,7 +735,10 @@ pub async fn retro_dispatch_prompt(
         return Err("No work was recorded in this period.".to_string());
     }
 
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = std::path::PathBuf::from(&project.root_path);
 
     // 신호에는 일지 제목·파일 경로가 들어간다 — 신호 본문만 redact 하고,
@@ -827,20 +845,66 @@ mod tests {
     #[test]
     fn aggregate_partitions_shipped_and_resistance() {
         let entries = vec![
-            entry("feature", "done", "claude-code", Some("high"), "20260620", "F1", &["src/a.rs"]),
-            entry("refactor", "done", "cursor", Some("medium"), "20260620", "R1", &["src/a.rs"]),
+            entry(
+                "feature",
+                "done",
+                "claude-code",
+                Some("high"),
+                "20260620",
+                "F1",
+                &["src/a.rs"],
+            ),
+            entry(
+                "refactor",
+                "done",
+                "cursor",
+                Some("medium"),
+                "20260620",
+                "R1",
+                &["src/a.rs"],
+            ),
             // in-progress feature is NOT shipped
-            entry("feature", "in_progress", "claude-code", Some("low"), "20260621", "F2", &["src/b.rs"]),
-            entry("bug", "done", "claude-code", None, "20260621", "B1", &["src/a.rs"]),
-            entry("error", "abandoned", "cursor", Some("superhigh"), "20260622", "E1", &["src/a.rs"]),
+            entry(
+                "feature",
+                "in_progress",
+                "claude-code",
+                Some("low"),
+                "20260621",
+                "F2",
+                &["src/b.rs"],
+            ),
+            entry(
+                "bug",
+                "done",
+                "claude-code",
+                None,
+                "20260621",
+                "B1",
+                &["src/a.rs"],
+            ),
+            entry(
+                "error",
+                "abandoned",
+                "cursor",
+                Some("superhigh"),
+                "20260622",
+                "E1",
+                &["src/a.rs"],
+            ),
         ];
         let agg = aggregate(&entries);
 
         assert_eq!(agg.total_entries, 5);
         // shipped = done feature + done refactor
         assert_eq!(agg.shipped.len(), 2);
-        assert!(agg.shipped.iter().any(|s| s.title == "F1" && s.kind == "feature"));
-        assert!(agg.shipped.iter().any(|s| s.title == "R1" && s.kind == "refactor"));
+        assert!(agg
+            .shipped
+            .iter()
+            .any(|s| s.title == "F1" && s.kind == "feature"));
+        assert!(agg
+            .shipped
+            .iter()
+            .any(|s| s.title == "R1" && s.kind == "refactor"));
         // resistance = bug + error
         assert_eq!(agg.resistance.len(), 2);
         assert!(agg.resistance.iter().any(|r| r.kind == "bug"));
@@ -850,10 +914,26 @@ mod tests {
     #[test]
     fn aggregate_repeated_files_need_two_distinct_bug_entries() {
         let entries = vec![
-            entry("bug", "done", "a", None, "20260620", "B1", &["src/x.rs", "src/y.rs"]),
+            entry(
+                "bug",
+                "done",
+                "a",
+                None,
+                "20260620",
+                "B1",
+                &["src/x.rs", "src/y.rs"],
+            ),
             entry("error", "done", "a", None, "20260621", "E1", &["src/x.rs"]),
             // a feature touching x.rs must NOT count toward repeated-bug-files
-            entry("feature", "done", "a", None, "20260622", "F1", &["src/x.rs", "src/z.rs"]),
+            entry(
+                "feature",
+                "done",
+                "a",
+                None,
+                "20260622",
+                "F1",
+                &["src/x.rs", "src/z.rs"],
+            ),
         ];
         let agg = aggregate(&entries);
         // x.rs appears in 2 bug/error entries → repeated; y.rs only once.
@@ -865,9 +945,33 @@ mod tests {
     #[test]
     fn aggregate_hot_paths_sorted_by_touch_count() {
         let entries = vec![
-            entry("feature", "done", "a", None, "20260620", "F1", &["src/x.rs", "src/y.rs"]),
-            entry("refactor", "done", "a", None, "20260621", "R1", &["src/x.rs"]),
-            entry("chore", "done", "a", None, "20260622", "C1", &["src/x.rs", "src/z.rs"]),
+            entry(
+                "feature",
+                "done",
+                "a",
+                None,
+                "20260620",
+                "F1",
+                &["src/x.rs", "src/y.rs"],
+            ),
+            entry(
+                "refactor",
+                "done",
+                "a",
+                None,
+                "20260621",
+                "R1",
+                &["src/x.rs"],
+            ),
+            entry(
+                "chore",
+                "done",
+                "a",
+                None,
+                "20260622",
+                "C1",
+                &["src/x.rs", "src/z.rs"],
+            ),
         ];
         let agg = aggregate(&entries);
         // x.rs touched by 3 entries → first; ties broken by path.
@@ -877,8 +981,24 @@ mod tests {
     #[test]
     fn aggregate_agent_share_and_difficulty_mix() {
         let entries = vec![
-            entry("feature", "done", "claude-code", Some("high"), "20260620", "F1", &[]),
-            entry("bug", "done", "claude-code", Some("high"), "20260621", "B1", &[]),
+            entry(
+                "feature",
+                "done",
+                "claude-code",
+                Some("high"),
+                "20260620",
+                "F1",
+                &[],
+            ),
+            entry(
+                "bug",
+                "done",
+                "claude-code",
+                Some("high"),
+                "20260621",
+                "B1",
+                &[],
+            ),
             entry("refactor", "done", "cursor", None, "20260622", "R1", &[]),
         ];
         let agg = aggregate(&entries);
@@ -923,10 +1043,15 @@ mod tests {
             assert!(ko.contains(needle), "ko: {needle}");
             assert!(en.contains(needle), "en: {needle}");
         }
-        assert!(en.contains(&format!("range_key: {}", signals.range_key)), "{en}");
-        assert!(en.contains(&format!("signature: {}", signals.signature)), "{en}");
+        assert!(
+            en.contains(&format!("range_key: {}", signals.range_key)),
+            "{en}"
+        );
+        assert!(
+            en.contains(&format!("signature: {}", signals.signature)),
+            "{en}"
+        );
     }
-
 
     fn sample_signals() -> RetroSignals {
         let agg = aggregate(&[entry(
@@ -954,5 +1079,4 @@ mod tests {
         signals.signature = compute_signature(&signals);
         signals
     }
-
 }

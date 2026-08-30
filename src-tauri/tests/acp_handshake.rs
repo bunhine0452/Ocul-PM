@@ -38,10 +38,9 @@ const TURN_TIMEOUT: Duration = Duration::from_secs(240);
 async fn acp_handshake_survives_tokio_runtime() {
     let agent = AcpAgent::from_args(ADAPTER_ARGV).expect("어댑터 커맨드 파싱");
 
-    let handshake = Client
-        .builder()
-        .name("ocul-pm")
-        .connect_with(agent, |connection: ConnectionTo<Agent>| async move {
+    let handshake = Client.builder().name("ocul-pm").connect_with(
+        agent,
+        |connection: ConnectionTo<Agent>| async move {
             let init = connection
                 .send_request(InitializeRequest::new(ProtocolVersion::V1))
                 .block_task()
@@ -50,7 +49,8 @@ async fn acp_handshake_survives_tokio_runtime() {
             eprintln!("agentInfo = {:?}", init.agent_info);
             eprintln!("authMethods = {:?}", init.auth_methods);
             Ok(init)
-        });
+        },
+    );
 
     let init = tokio::time::timeout(HANDSHAKE_TIMEOUT, handshake)
         .await
@@ -76,12 +76,17 @@ async fn adapter_installs_and_starts_from_pinned_entry() {
     let (node, node_src) = env::resolve_binary("node")
         .await
         .expect("node 를 찾지 못했다 — PATH 도 로그인 셸도 실패");
-    let (npm, _) = env::resolve_binary("npm").await.expect("npm 을 찾지 못했다");
+    let (npm, _) = env::resolve_binary("npm")
+        .await
+        .expect("npm 을 찾지 못했다");
     let version = env::node_version(&node).await.expect("node --version 실패");
     eprintln!("node = {} ({:?}) {version}", node.display(), node_src);
 
     let major = env::parse_node_major(&version).expect("node 버전 파싱");
-    assert!(major >= env::MIN_NODE_MAJOR, "Node {major} 는 최소 버전 미만");
+    assert!(
+        major >= env::MIN_NODE_MAJOR,
+        "Node {major} 는 최소 버전 미만"
+    );
 
     // 앱 데이터 디렉터리 대역 — 실제 앱 설치본을 건드리지 않는다.
     let app_data = tempfile::tempdir().expect("임시 폴더");
@@ -90,7 +95,11 @@ async fn adapter_installs_and_starts_from_pinned_entry() {
     let installed = adapter::install(app_data.path(), &npm, &path_env)
         .await
         .expect("어댑터 설치 실패");
-    assert_eq!(installed, adapter::PINNED_VERSION, "고정 버전이 설치돼야 한다");
+    assert_eq!(
+        installed,
+        adapter::PINNED_VERSION,
+        "고정 버전이 설치돼야 한다"
+    );
     assert_eq!(
         adapter::installed_version(app_data.path()).as_deref(),
         Some(adapter::PINNED_VERSION)
@@ -103,14 +112,14 @@ async fn adapter_installs_and_starts_from_pinned_entry() {
         .arg(entry.to_string_lossy().to_string())
         .env("PATH", &path_env);
 
-    let handshake = Client
-        .builder()
-        .name("ocul-pm")
-        .connect_with(AcpAgent::new(config), |cx: ConnectionTo<Agent>| async move {
+    let handshake = Client.builder().name("ocul-pm").connect_with(
+        AcpAgent::new(config),
+        |cx: ConnectionTo<Agent>| async move {
             cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
                 .block_task()
                 .await
-        });
+        },
+    );
 
     let init = tokio::time::timeout(HANDSHAKE_TIMEOUT, handshake)
         .await
@@ -147,7 +156,10 @@ async fn prompt_streams_chunks_and_ends_the_turn() {
         .name("ocul-pm")
         .on_receive_notification(
             async move |notification: SessionNotification, _cx| {
-                collector.lock().unwrap().push(map_update(&notification.update));
+                collector
+                    .lock()
+                    .unwrap()
+                    .push(map_update(&notification.update));
                 Ok(())
             },
             agent_client_protocol::on_receive_notification!(),
@@ -317,7 +329,10 @@ async fn tool_calls_and_permission_requests_reach_the_client() {
         .iter()
         .filter(|e| matches!(e, AcpEvent::Permission { .. }))
         .count();
-    eprintln!("도구 호출 {}건 · 권한 요청 {permissions}건", tool_calls.len());
+    eprintln!(
+        "도구 호출 {}건 · 권한 요청 {permissions}건",
+        tool_calls.len()
+    );
 
     // 승인 계약의 핵심: 요청이 왔고, 우리가 응답했고, 그래서 턴이 **끝났다**.
     // 응답을 안 보내면 위 timeout 에서 죽는다. (기본 모드가 bypassPermissions /
@@ -374,10 +389,9 @@ async fn session_config_options_can_be_changed() {
     let cwd = tempfile::tempdir().expect("임시 작업 폴더");
     let cwd_path = cwd.path().to_path_buf();
 
-    let changed = Client
-        .builder()
-        .name("ocul-pm")
-        .connect_with(agent, move |cx: ConnectionTo<Agent>| async move {
+    let changed = Client.builder().name("ocul-pm").connect_with(
+        agent,
+        move |cx: ConnectionTo<Agent>| async move {
             cx.send_request(InitializeRequest::new(ProtocolVersion::V1))
                 .block_task()
                 .await?;
@@ -387,9 +401,7 @@ async fn session_config_options_can_be_changed() {
                 .block_task()
                 .await?;
 
-            let options = map_config_options(
-                created.config_options.as_deref().unwrap_or_default(),
-            );
+            let options = map_config_options(created.config_options.as_deref().unwrap_or_default());
             eprintln!(
                 "설정 항목: {:?}",
                 options.iter().map(|o| o.id.as_str()).collect::<Vec<_>>()
@@ -415,7 +427,8 @@ async fn session_config_options_can_be_changed() {
             .await?;
 
             Ok(options.len())
-        });
+        },
+    );
 
     let count = tokio::time::timeout(HANDSHAKE_TIMEOUT, changed)
         .await

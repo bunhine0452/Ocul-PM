@@ -214,12 +214,13 @@ fn entry_unix_time(entry_rel: &str) -> Option<i64> {
 /// mis-rendered as all-additions:
 ///   - in a git repo, only when the path is NOT in `HEAD` (untracked / new);
 ///   - outside any git repo, only when the entry recorded `op == create`.
+///
 /// Returns `None` for a deleted/unreadable path or an empty file.
 fn new_file_patch(root: &Path, rel_path: &str, op: FileOp) -> Option<String> {
     let treat_as_new = match git::path_in_head(root, rel_path) {
-        Some(true) => false,             // tracked & in HEAD → a real no-op, leave empty
-        Some(false) => true,             // git repo, not in HEAD → genuinely new
-        None => op == FileOp::Create,    // non-git → trust the recorded op
+        Some(true) => false,          // tracked & in HEAD → a real no-op, leave empty
+        Some(false) => true,          // git repo, not in HEAD → genuinely new
+        None => op == FileOp::Create, // non-git → trust the recorded op
     };
     if !treat_as_new {
         return None;
@@ -305,7 +306,9 @@ fn persist(out: &Path, entry_rel: &str, files: Vec<EntryFileDiff>) -> std::io::R
 /// skip already-captured entries without any git work, so the backfill is cheap
 /// to run on every project open after the first pass.
 pub fn sidecar_exists(root: &Path, entry_rel: &str) -> bool {
-    sidecar_path(root, entry_rel).map(|p| p.exists()).unwrap_or(false)
+    sidecar_path(root, entry_rel)
+        .map(|p| p.exists())
+        .unwrap_or(false)
 }
 
 /// Read the recorded diffs for an entry. Returns an empty vec when there's no
@@ -358,7 +361,11 @@ pub fn line_counts(root: &Path, entry_rel: &str) -> Vec<FileLineCounts> {
         .into_iter()
         .map(|d| {
             let (added, removed) = count_patch_lines(&d.patch);
-            FileLineCounts { path: d.path, added, removed }
+            FileLineCounts {
+                path: d.path,
+                added,
+                removed,
+            }
         })
         .collect()
 }
@@ -423,8 +430,14 @@ mod tests {
         let out = sidecar_path(&tmp, entry).unwrap();
         persist(&out, entry, Vec::new()).unwrap();
         assert!(out.exists(), "empty marker must be written");
-        assert!(sidecar_exists(&tmp, entry), "backfill treats the marker as done");
-        assert!(!sidecar_is_current(&out), "but lazy reconstruct may try again");
+        assert!(
+            sidecar_exists(&tmp, entry),
+            "backfill treats the marker as done"
+        );
+        assert!(
+            !sidecar_is_current(&out),
+            "but lazy reconstruct may try again"
+        );
         assert!(read_entry_diffs(&tmp, entry).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -452,8 +465,7 @@ mod tests {
     fn snapshot_fallback_records_diff_on_non_git_root() {
         // PR-R3: non-git project (or committed file) → git patch empty, but a
         // last-indexed snapshot baseline that differs from disk yields a diff.
-        let tmp =
-            std::env::temp_dir().join(format!("ocul-entrydiff-snap-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-snap-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("src")).unwrap();
         let entry = "20260604/Bugs/0930_bug_b.md";
@@ -608,7 +620,11 @@ mod tests {
 
         capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
         let got = read_entry_diffs(&tmp, &entry);
-        assert_eq!(got.len(), 1, "no-HHMM entry should still recover via newest commit");
+        assert_eq!(
+            got.len(),
+            1,
+            "no-HHMM entry should still recover via newest commit"
+        );
         assert!(
             got[0].patch.contains("const a = 2;"),
             "expected the newest commit's diff, got: {}",
@@ -622,11 +638,14 @@ mod tests {
         // Tier 4 in isolation (non-git branch): a `create` op renders the whole
         // file as additions; an `update` op is NOT treated as new (would risk
         // mis-rendering an unchanged file); a missing file yields nothing.
-        let tmp =
-            std::env::temp_dir().join(format!("ocul-entrydiff-tier4-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-tier4-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("src")).unwrap();
-        std::fs::write(tmp.join("src/new.ts"), "export const a = 1;\nconst b = 2;\n").unwrap();
+        std::fs::write(
+            tmp.join("src/new.ts"),
+            "export const a = 1;\nconst b = 2;\n",
+        )
+        .unwrap();
 
         let created = new_file_patch(&tmp, "src/new.ts", FileOp::Create)
             .expect("create op on a real file records a patch");
@@ -722,7 +741,10 @@ mod tests {
         let got = read_entry_diffs(&tmp, entry);
         let paths: Vec<&str> = got.iter().map(|d| d.path.as_str()).collect();
         assert!(paths.contains(&"src/a.ts"), "modified file kept: {paths:?}");
-        assert!(paths.contains(&"src/b.ts"), "newly created file added: {paths:?}");
+        assert!(
+            paths.contains(&"src/b.ts"),
+            "newly created file added: {paths:?}"
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

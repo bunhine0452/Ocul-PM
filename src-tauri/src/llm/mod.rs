@@ -122,6 +122,25 @@ where
     Ok(())
 }
 
+/// 오류 응답 본문 상한. 프로바이더 오류는 그대로 프런트 `console.error` →
+/// `oculpm.log` 로 흘러가는데, 본문을 통째로 실으면 하루 5.9MB 로그의 상당 부분이
+/// 같은 429/5xx 본문 사본이었다(2026-08-30 감사). 사유는 첫 몇백 바이트에 있다.
+const ERROR_BODY_CAP: usize = 512;
+
+/// 실패 응답의 본문을 상한까지만 읽어 돌려준다 — 4 프로바이더의 오류 경로가
+/// 전부 이걸 쓴다. UTF-8 경계에서 자른다.
+pub(crate) async fn error_body(resp: reqwest::Response) -> String {
+    let text = resp.text().await.unwrap_or_default();
+    if text.len() <= ERROR_BODY_CAP {
+        return text;
+    }
+    let mut cut = ERROR_BODY_CAP;
+    while !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    format!("{}… (+{} bytes)", &text[..cut], text.len() - cut)
+}
+
 pub fn create(name: &str, api_key: String) -> Result<Box<dyn LlmProvider>, LlmError> {
     match name {
         "anthropic" => Ok(Box::new(anthropic::Anthropic::new(api_key))),

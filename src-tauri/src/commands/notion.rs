@@ -51,10 +51,7 @@ pub async fn notion_verify_token(token: String) -> Result<String, String> {
 /// 반환: 저장된 정규화 id (해제 시 None).
 #[tauri::command]
 #[specta::specta]
-pub async fn notion_set_parent(
-    db: State<'_, Db>,
-    input: String,
-) -> Result<Option<String>, String> {
+pub async fn notion_set_parent(db: State<'_, Db>, input: String) -> Result<Option<String>, String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         db.settings_set(notion::NOTION_PARENT_SETTING.to_string(), String::new())
@@ -62,8 +59,9 @@ pub async fn notion_set_parent(
             .map_err(|e| e.to_string())?;
         return Ok(None);
     }
-    let id = notion::normalize_page_id(trimmed)
-        .ok_or_else(|| "Could not recognize the page URL/ID — paste a Notion page link".to_string())?;
+    let id = notion::normalize_page_id(trimmed).ok_or_else(|| {
+        "Could not recognize the page URL/ID — paste a Notion page link".to_string()
+    })?;
     db.settings_set(notion::NOTION_PARENT_SETTING.to_string(), id.clone())
         .await
         .map_err(|e| e.to_string())?;
@@ -138,10 +136,18 @@ fn open_in_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     let status = std::process::Command::new("xdg-open").arg(url).status();
     #[cfg(target_os = "windows")]
-    let status = std::process::Command::new("cmd").args(["/C", "start", "", url]).status();
+    let status = std::process::Command::new("cmd")
+        .args(["/C", "start", "", url])
+        .status();
     status
         .map_err(|e| format!("Could not open the browser: {e}"))
-        .and_then(|s| if s.success() { Ok(()) } else { Err("Could not open the browser".into()) })
+        .and_then(|s| {
+            if s.success() {
+                Ok(())
+            } else {
+                Err("Could not open the browser".into())
+            }
+        })
 }
 
 /// 루프백에서 콜백 1건을 기다린다 (논블로킹 accept 폴링, 상한
@@ -152,11 +158,14 @@ fn wait_for_oauth_callback(
     expect_state: &str,
 ) -> Result<String, String> {
     use std::io::{Read, Write};
-    let deadline = std::time::Instant::now()
-        + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
     loop {
         if std::time::Instant::now() > deadline {
-            return Err("Timed out waiting for Notion — check that you finished approving in the browser".into());
+            return Err(
+                "Timed out waiting for Notion — check that you finished approving in the browser"
+                    .into(),
+            );
         }
         match listener.accept() {
             Ok((mut stream, _)) => {
@@ -187,4 +196,3 @@ fn wait_for_oauth_callback(
         }
     }
 }
-

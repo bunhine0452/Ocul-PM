@@ -34,10 +34,15 @@ pub const LAUNCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(6
 /// 어댑터가 먼저 거는 말.
 #[derive(Debug, Clone)]
 pub enum AdapterNotice {
-    Event { event: String, body: Value },
+    Event {
+        event: String,
+        body: Value,
+    },
     /// 프로세스가 끝났다 (크래시 포함). 마지막 stderr 를 함께 준다 — 어댑터가
     /// 기동 직후 죽으면 그 줄이 유일한 진단이다 (LSP 에서 배운 것).
-    Exited { detail: Option<String> },
+    Exited {
+        detail: Option<String>,
+    },
 }
 
 type NoticeSink = Arc<dyn Fn(AdapterNotice) + Send + Sync>;
@@ -73,9 +78,9 @@ impl DapClient {
             .stderr(Stdio::piped());
         cmd.kill_on_drop(true);
 
-        let mut child = cmd.spawn().map_err(|e| {
-            format!("{} 를 띄우지 못했습니다: {e}", adapter.program.display())
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| format!("{} 를 띄우지 못했습니다: {e}", adapter.program.display()))?;
         let stdin = child.stdin.take().ok_or("stdin 파이프 없음")?;
         let stdout = child.stdout.take().ok_or("stdout 파이프 없음")?;
         let last_stderr = Arc::new(Mutex::new(String::new()));
@@ -99,7 +104,8 @@ impl DapClient {
     }
 
     pub async fn request(&self, command: &str, arguments: Option<Value>) -> Result<Value, String> {
-        self.request_with_timeout(command, arguments, REQUEST_TIMEOUT).await
+        self.request_with_timeout(command, arguments, REQUEST_TIMEOUT)
+            .await
     }
 
     pub async fn request_with_timeout(
@@ -236,7 +242,13 @@ async fn route(raw: &[u8], pending: &Pending, on_notice: &NoticeSink, client: &A
         return;
     };
     match incoming {
-        Incoming::Response { request_seq, command, success, message, body } => {
+        Incoming::Response {
+            request_seq,
+            command,
+            success,
+            message,
+            body,
+        } => {
             if let Some(tx) = pending.lock().await.remove(&request_seq) {
                 let result = if success {
                     Ok(body)
@@ -317,8 +329,14 @@ mod tests {
     #[test]
     fn resolves_program_paths_against_the_project_root() {
         let root = Path::new("/proj");
-        assert_eq!(resolve_program(root, "target/debug/app"), Path::new("/proj/target/debug/app"));
-        assert_eq!(resolve_program(root, "/usr/bin/ls"), Path::new("/usr/bin/ls"));
+        assert_eq!(
+            resolve_program(root, "target/debug/app"),
+            Path::new("/proj/target/debug/app")
+        );
+        assert_eq!(
+            resolve_program(root, "/usr/bin/ls"),
+            Path::new("/usr/bin/ls")
+        );
     }
 
     #[test]

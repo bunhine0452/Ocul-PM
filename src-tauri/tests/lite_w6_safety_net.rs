@@ -172,9 +172,7 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
     let dir = tempfile::tempdir().unwrap();
     let lock_path = dir.path().join(".lock");
 
-    let first = LockGuard::acquire(&lock_path)
-        .await
-        .expect("first acquire");
+    let first = LockGuard::acquire(&lock_path).await.expect("first acquire");
     assert!(matches!(first, LockAcquisition::Acquired(_)));
 
     let second = LockGuard::acquire(&lock_path)
@@ -208,10 +206,7 @@ async fn invariant_06_planner_goal_crud_roundtrip() {
     let dir = tempfile::tempdir().unwrap();
     let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
     let project_id = db
-        .create_project(
-            "planner".into(),
-            dir.path().to_string_lossy().into_owned(),
-        )
+        .create_project("planner".into(), dir.path().to_string_lossy().into_owned())
         .await
         .unwrap();
 
@@ -269,4 +264,3 @@ async fn invariant_07_project_lifecycle_complete() {
     let listed = db.list_projects().await.unwrap();
     assert!(listed.iter().all(|p| p.id != pid));
 }
-

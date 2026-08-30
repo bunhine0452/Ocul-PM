@@ -248,16 +248,24 @@ fn section_of(h: &str) -> Section {
     let lower = h.to_lowercase();
     if h.contains("문제") || lower.contains("problem") {
         Section::Problem
-    } else if h.contains("배경") || h.contains("조사") || h.contains("자료")
-        || lower.contains("background") || lower.contains("research")
+    } else if h.contains("배경")
+        || h.contains("조사")
+        || h.contains("자료")
+        || lower.contains("background")
+        || lower.contains("research")
     {
         Section::Background
-    } else if h.contains("방안") || h.contains("후보")
-        || lower.contains("option") || lower.contains("solution")
+    } else if h.contains("방안")
+        || h.contains("후보")
+        || lower.contains("option")
+        || lower.contains("solution")
     {
         Section::Options
-    } else if h.contains("토의") || h.contains("메모")
-        || lower.contains("discussion") || lower.contains("memo") || lower.contains("log")
+    } else if h.contains("토의")
+        || h.contains("메모")
+        || lower.contains("discussion")
+        || lower.contains("memo")
+        || lower.contains("log")
     {
         Section::Log
     } else if h.contains("결론") || lower.contains("conclusion") {
@@ -419,7 +427,9 @@ fn parse_discussion_frontmatter(
     let title = get("title").unwrap_or_default();
     let status = match get("status") {
         Some(s) => DiscussionStatus::parse(&s).unwrap_or_else(|| {
-            warnings.push(format!("unknown discussion status '{s}'; defaulting to open"));
+            warnings.push(format!(
+                "unknown discussion status '{s}'; defaulting to open"
+            ));
             DiscussionStatus::Open
         }),
         None => DiscussionStatus::Open,
@@ -658,7 +668,9 @@ tags: ["fastembed", "packaging"]
         let d = parse_discussion(md, "my-folder");
         assert_eq!(d.frontmatter.id, "my-folder");
         assert!(
-            !d.warnings.iter().any(|w| w.contains("id") || w.contains("title")),
+            !d.warnings
+                .iter()
+                .any(|w| w.contains("id") || w.contains("title")),
             "{:?}",
             d.warnings
         );
@@ -696,7 +708,10 @@ tags: ["fastembed", "packaging"]
         let md = "---\nid: x\ntitle: \"T\"\nstatus: weird\n---\n## 문제 정의\nx\n";
         let d = parse_discussion(md, "x");
         assert_eq!(d.frontmatter.status, DiscussionStatus::Open);
-        assert!(d.warnings.iter().any(|w| w.contains("unknown discussion status")));
+        assert!(d
+            .warnings
+            .iter()
+            .any(|w| w.contains("unknown discussion status")));
     }
 
     #[test]

@@ -57,10 +57,7 @@ pub async fn conversation_set_context(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_delete(
-    db: State<'_, Db>,
-    conversation_id: u32,
-) -> Result<(), String> {
+pub async fn conversation_delete(db: State<'_, Db>, conversation_id: u32) -> Result<(), String> {
     db.conversation_delete(conversation_id)
         .await
         .map_err(|e| e.to_string())

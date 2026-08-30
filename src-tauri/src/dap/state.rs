@@ -50,12 +50,16 @@ impl DapState {
 
     pub async fn breakpoint_lines(&self, project_id: u32, path: &str) -> Vec<u32> {
         let map = self.breakpoints.lock().await;
-        map.get(&project_id).map(|s| s.lines_for(path)).unwrap_or_default()
+        map.get(&project_id)
+            .map(|s| s.lines_for(path))
+            .unwrap_or_default()
     }
 
     pub async fn all_breakpoints(&self, project_id: u32) -> Vec<(String, Vec<u32>)> {
         let map = self.breakpoints.lock().await;
-        map.get(&project_id).map(BreakpointStore::files).unwrap_or_default()
+        map.get(&project_id)
+            .map(BreakpointStore::files)
+            .unwrap_or_default()
     }
 
     pub async fn clear_breakpoints(&self, project_id: u32) {

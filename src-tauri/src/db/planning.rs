@@ -6,7 +6,6 @@
 use super::*;
 
 impl Db {
-
     /// v2 U10 (C1) — 활성 플랜들의 미완 항목 (todo/in_progress/blocked).
     /// 진행중 우선, 그다음 최근 갱신 플랜, 플랜 내 순서 유지 (Today "다음 할 일"
     /// 위젯과 스탠드업이 같은 순서를 공유).
@@ -78,7 +77,8 @@ impl Db {
                      FROM goals WHERE id = ?1",
                     [id],
                     goal_from_row,
-                )})
+                )
+            })
             .await?;
         Ok(goal)
     }
@@ -130,7 +130,8 @@ impl Db {
                      FROM goals WHERE id = ?1",
                     [goal_id as i64],
                     goal_from_row,
-                )})
+                )
+            })
             .await?;
         Ok(goal)
     }
@@ -353,7 +354,8 @@ impl Db {
                          FROM project_blueprints WHERE id = ?1",
                         [existing_id as i64],
                         blueprint_from_row,
-                    )} else {
+                    )
+                } else {
                     c.execute(
                         "INSERT INTO project_blueprints
                            (name, idea_text, target_users, stack_choice,
@@ -378,7 +380,8 @@ impl Db {
                          FROM project_blueprints WHERE id = ?1",
                         [row_id],
                         blueprint_from_row,
-                    )}
+                    )
+                }
             })
             .await?;
         Ok(bp)
@@ -395,7 +398,8 @@ impl Db {
                      FROM project_blueprints WHERE id = ?1",
                     [blueprint_id as i64],
                     blueprint_from_row,
-                )})
+                )
+            })
             .await?;
         Ok(bp)
     }

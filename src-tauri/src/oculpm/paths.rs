@@ -105,9 +105,7 @@ impl WorkdayResolver {
             if let Some(dt) = self.tz.from_local_datetime(&naive).earliest() {
                 return dt.with_timezone(&Utc);
             }
-            t = t
-                .overflowing_add_signed(chrono::Duration::minutes(1))
-                .0;
+            t = t.overflowing_add_signed(chrono::Duration::minutes(1)).0;
         }
         // Should be unreachable — fall back to UTC midnight of that date so
         // callers don't have to deal with Result.
@@ -181,7 +179,8 @@ impl WorkdayResolver {
 
     /// `<project_root>/.oculpm/discussion/<slug>/discussion.md` (the SSOT doc).
     pub fn discussion_path(&self, project_root: &Path, slug: &str) -> PathBuf {
-        self.discussion_dir(project_root, slug).join("discussion.md")
+        self.discussion_dir(project_root, slug)
+            .join("discussion.md")
     }
 
     /// `<project_root>/.oculpm/discussion/<slug>/attachments` (research sidecar).
@@ -196,7 +195,8 @@ impl WorkdayResolver {
 
     /// `<project_root>/.oculpm/.schema-version`.
     pub fn schema_version_path(&self, project_root: &Path) -> PathBuf {
-        self.project_oculpm_dir(project_root).join(".schema-version")
+        self.project_oculpm_dir(project_root)
+            .join(".schema-version")
     }
 
     /// `<project_root>/.oculpm/config.toml`.
@@ -514,7 +514,9 @@ mod tests {
         // Root `.oculpm/` is this project's own SSOT: journals are real user
         // content and the watcher routes them deliberately. Never suppress.
         assert!(!is_nested_oculpm_path(".oculpm/journal/20260820/Bugs/x.md"));
-        assert!(!is_nested_oculpm_path(".oculpm/index/20260820/sessions.json"));
+        assert!(!is_nested_oculpm_path(
+            ".oculpm/index/20260820/sessions.json"
+        ));
 
         // A file merely *named* like the segment must not match.
         assert!(!is_nested_oculpm_path("src/oculpm.rs"));
@@ -523,14 +525,20 @@ mod tests {
 
     #[test]
     fn nested_agent_state_dirs_are_noise() {
-        assert!(is_nested_agent_state_path("packages/web/.claude/settings.json"));
-        assert!(is_nested_agent_state_path("fixtures/proj/.cursor/history.json"));
+        assert!(is_nested_agent_state_path(
+            "packages/web/.claude/settings.json"
+        ));
+        assert!(is_nested_agent_state_path(
+            "fixtures/proj/.cursor/history.json"
+        ));
         assert!(is_nested_agent_state_path("a/b/.antigravity"));
 
         // Root-level is the callers' own prefix check, not this one.
         assert!(!is_nested_agent_state_path(".claude/settings.json"));
         // Real source must survive.
-        assert!(!is_nested_agent_state_path("src/features/chat/AcpUsageMeter.tsx"));
+        assert!(!is_nested_agent_state_path(
+            "src/features/chat/AcpUsageMeter.tsx"
+        ));
     }
 
     #[test]

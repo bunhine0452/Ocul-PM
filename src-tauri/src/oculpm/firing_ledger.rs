@@ -80,7 +80,11 @@ fn firings_in_line(line: &str) -> Vec<Firing> {
 
     // ── 규칙 주입 ──
     let attachment = v.get("attachment");
-    if attachment.and_then(|a| a.get("type")).and_then(|t| t.as_str()) == Some("nested_memory") {
+    if attachment
+        .and_then(|a| a.get("type"))
+        .and_then(|t| t.as_str())
+        == Some("nested_memory")
+    {
         let a = attachment.expect("checked above");
         if let Some(path) = a.get("path").and_then(|p| p.as_str()) {
             let inner = a.get("content");
@@ -343,10 +347,7 @@ fn read_from(file: &Path, offset: u64) -> Option<String> {
 }
 
 /// 스캔 대상 열거 — `resume(session_file)` 이 DB 의 재개점을 준다.
-pub fn enumerate_targets(
-    dirs: &[PathBuf],
-    resume: impl Fn(&str) -> u64,
-) -> Vec<ScanTarget> {
+pub fn enumerate_targets(dirs: &[PathBuf], resume: impl Fn(&str) -> u64) -> Vec<ScanTarget> {
     let mut targets = Vec::new();
     for dir in dirs {
         let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) else {
@@ -375,8 +376,14 @@ pub fn enumerate_targets(
     // 최근 세션부터 — 첫 스캔이 예산으로 끊겨도 30일 창이 먼저 채워진다.
     // (파일명은 UUID 라 이름순은 날짜와 무관했다.) 같은 mtime 이면 이름순.
     targets.sort_by(|a, b| {
-        let mt = |t: &ScanTarget| std::fs::metadata(&t.abs_path).and_then(|m| m.modified()).ok();
-        mt(b).cmp(&mt(a)).then_with(|| a.session_file.cmp(&b.session_file))
+        let mt = |t: &ScanTarget| {
+            std::fs::metadata(&t.abs_path)
+                .and_then(|m| m.modified())
+                .ok()
+        };
+        mt(b)
+            .cmp(&mt(a))
+            .then_with(|| a.session_file.cmp(&b.session_file))
     });
     targets
 }

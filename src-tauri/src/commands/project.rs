@@ -12,7 +12,6 @@ use crate::db::{ChunkSearchResult, Db, Project, SymbolSearchResult};
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
 
-
 const EMBED_BATCH: usize = 32;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -137,24 +136,23 @@ pub async fn rename_project(
         .map_err(|e| e.to_string())
 }
 
-
 #[tauri::command]
 #[specta::specta]
-pub async fn project_stats(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<ProjectStats, String> {
-    let files = db.count_files(project_id).await.map_err(|e| e.to_string())?;
-    let chunks = db.count_chunks(project_id).await.map_err(|e| e.to_string())?;
+pub async fn project_stats(db: State<'_, Db>, project_id: u32) -> Result<ProjectStats, String> {
+    let files = db
+        .count_files(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let chunks = db
+        .count_chunks(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(ProjectStats { files, chunks })
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn clear_project_index(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<(), String> {
+pub async fn clear_project_index(db: State<'_, Db>, project_id: u32) -> Result<(), String> {
     db.clear_project_index(project_id)
         .await
         .map_err(|e| e.to_string())
@@ -234,7 +232,14 @@ pub async fn index_project(
         let language = indexer::language_for(file_path).map(String::from);
 
         let (file_id, changed) = db
-            .upsert_file(project_id, rel_str.clone(), hash.clone(), size, mtime, language)
+            .upsert_file(
+                project_id,
+                rel_str.clone(),
+                hash.clone(),
+                size,
+                mtime,
+                language,
+            )
             .await
             .map_err(|e| e.to_string())?;
 
@@ -305,11 +310,12 @@ pub async fn index_project(
 
     // Resolve dependencies for changed files
     if !import_resolver_queue.is_empty() {
-        let all_files = db.list_project_files(project_id).await.map_err(|e| e.to_string())?;
-        let project_files: std::collections::HashMap<String, u32> = all_files
-            .into_iter()
-            .map(|(id, path)| (path, id))
-            .collect();
+        let all_files = db
+            .list_project_files(project_id)
+            .await
+            .map_err(|e| e.to_string())?;
+        let project_files: std::collections::HashMap<String, u32> =
+            all_files.into_iter().map(|(id, path)| (path, id)).collect();
 
         let path_aliases = indexer::load_path_aliases(&root);
 
@@ -338,7 +344,10 @@ pub async fn index_project(
     }
 
     let took_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
-    info!(files_processed, files_changed, chunks_created, took_ms, "indexing done");
+    info!(
+        files_processed,
+        files_changed, chunks_created, took_ms, "indexing done"
+    );
 
     // G2 hook: refresh the project overview in the background. We resolve the
     // default provider/model from settings; if neither is configured (fresh
@@ -356,11 +365,7 @@ pub async fn index_project(
         tokio::spawn(async move {
             let db_state = app_handle.state::<Db>();
             match crate::commands::overview::run_generation(
-                &db_state,
-                project_id,
-                &provider,
-                &model,
-                /*force=*/ false,
+                &db_state, project_id, &provider, &model, /*force=*/ false,
             )
             .await
             {
@@ -413,9 +418,14 @@ pub async fn search_chunks(
         .next()
         .ok_or_else(|| "embed returned no result".to_string())?;
 
-    db.search_chunks(project_id, vec_to_bytes(&query_emb), limit.max(1), include_docs)
-        .await
-        .map_err(|e| e.to_string())
+    db.search_chunks(
+        project_id,
+        vec_to_bytes(&query_emb),
+        limit.max(1),
+        include_docs,
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // PR-R1b (A2) — exact substring search over indexed chunk text (no embedding).
@@ -457,10 +467,7 @@ pub async fn search_symbols(
 // 매칭 키. 로직은 oculpm::stack_detect 에 — 여기는 root 해석만.
 #[tauri::command]
 #[specta::specta]
-pub async fn detect_stack(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<Vec<String>, String> {
+pub async fn detect_stack(db: State<'_, Db>, project_id: u32) -> Result<Vec<String>, String> {
     let root = get_project_root(&db, project_id).await?;
     tokio::task::spawn_blocking(move || crate::oculpm::stack_detect::detect_stack(&root))
         .await
@@ -468,7 +475,8 @@ pub async fn detect_stack(
 }
 
 async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id)
+    let project = db
+        .get_project(project_id)
         .await
         .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))

@@ -148,7 +148,10 @@ impl MobileBridgeState {
 
         tracing::info!("[mobile-bridge] serving on {bound}");
         let mut guard = self.server.lock().expect("mobile bridge state poisoned");
-        *guard = Some(RunningServer { bound, shutdown: tx });
+        *guard = Some(RunningServer {
+            bound,
+            shutdown: tx,
+        });
         drop(guard);
         self.start_caffeinate();
         Ok(self.status())
@@ -163,7 +166,10 @@ impl MobileBridgeState {
             if guard.is_some() {
                 return;
             }
-            match std::process::Command::new("/usr/bin/caffeinate").arg("-i").spawn() {
+            match std::process::Command::new("/usr/bin/caffeinate")
+                .arg("-i")
+                .spawn()
+            {
                 Ok(child) => {
                     tracing::info!("[mobile-bridge] caffeinate started (pid {})", child.id());
                     *guard = Some(child);
@@ -174,7 +180,11 @@ impl MobileBridgeState {
     }
 
     fn stop_caffeinate(&self) {
-        let child = self.caffeinate.lock().expect("caffeinate lock poisoned").take();
+        let child = self
+            .caffeinate
+            .lock()
+            .expect("caffeinate lock poisoned")
+            .take();
         if let Some(mut c) = child {
             let _ = c.kill();
             let _ = c.wait();
@@ -184,7 +194,11 @@ impl MobileBridgeState {
 
     /// graceful 중지. 진행 중 페어링 세션도 버린다. 안 돌고 있으면 no-op (멱등).
     pub fn stop(&self) -> MobileBridgeStatus {
-        let server = self.server.lock().expect("mobile bridge state poisoned").take();
+        let server = self
+            .server
+            .lock()
+            .expect("mobile bridge state poisoned")
+            .take();
         if let Some(s) = server {
             let _ = s.shutdown.send(());
         }
@@ -214,15 +228,24 @@ impl MobileBridgeState {
     }
 
     pub fn has_token_hash(&self, hash: &str) -> bool {
-        self.token_hashes.read().expect("token hash lock poisoned").contains(hash)
+        self.token_hashes
+            .read()
+            .expect("token hash lock poisoned")
+            .contains(hash)
     }
 
     pub fn add_token_hash(&self, hash: String) {
-        self.token_hashes.write().expect("token hash lock poisoned").insert(hash);
+        self.token_hashes
+            .write()
+            .expect("token hash lock poisoned")
+            .insert(hash);
     }
 
     pub fn remove_token_hash(&self, hash: &str) {
-        self.token_hashes.write().expect("token hash lock poisoned").remove(hash);
+        self.token_hashes
+            .write()
+            .expect("token hash lock poisoned")
+            .remove(hash);
     }
 
     /// 화이트리스트 이벤트를 허브로 흘리는 listen_any 등록 (1회).
@@ -237,18 +260,27 @@ impl MobileBridgeState {
                 hub.publish(name, event.payload().to_string());
             });
         }
-        tracing::info!("[mobile-bridge] forwarding {} event kinds to SSE", FORWARDED_EVENTS.len());
+        tracing::info!(
+            "[mobile-bridge] forwarding {} event kinds to SSE",
+            FORWARDED_EVENTS.len()
+        );
     }
 }
 
 fn router<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Router {
     let version = app.package_info().version.to_string();
     let protected = Router::new()
-        .route("/api/ping", get(|| async { Json(serde_json::json!({ "ok": true })) }))
+        .route(
+            "/api/ping",
+            get(|| async { Json(serde_json::json!({ "ok": true })) }),
+        )
         .route("/api/invoke/{cmd}", post(invoke_cmd::<R>))
         .route("/api/events", get(events_sse::<R>))
         .route("/api/chat", post(chat_sse))
-        .layer(axum::middleware::from_fn_with_state(app.clone(), require_bearer::<R>));
+        .layer(axum::middleware::from_fn_with_state(
+            app.clone(),
+            require_bearer::<R>,
+        ));
 
     Router::new()
         .route(
@@ -293,14 +325,20 @@ async fn require_bearer<R: tauri::Runtime>(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "));
     let Some(token) = token else {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "missing bearer token" })))
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "missing bearer token" })),
+        )
             .into_response();
     };
     let hash = pairing::hash_token(token);
     let state = app.state::<MobileBridgeState>();
     if !state.has_token_hash(&hash) {
         tracing::warn!("[mobile-bridge] rejected request with unknown token");
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "invalid token" })))
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "invalid token" })),
+        )
             .into_response();
     }
     let db = app.state::<Db>();
@@ -402,7 +440,9 @@ async fn invoke_cmd<R: tauri::Runtime>(
     } else {
         match serde_json::from_slice::<Value>(&body) {
             Ok(v) => v,
-            Err(e) => return error_json(StatusCode::BAD_REQUEST, &format!("invalid JSON body: {e}")),
+            Err(e) => {
+                return error_json(StatusCode::BAD_REQUEST, &format!("invalid JSON body: {e}"))
+            }
         }
     };
 
@@ -467,9 +507,10 @@ async fn pair<R: tauri::Runtime>(
 
     match attempt {
         PairAttempt::Expired => error_json(StatusCode::GONE, "pairing code expired"),
-        PairAttempt::Exhausted => {
-            error_json(StatusCode::TOO_MANY_REQUESTS, "too many attempts — pairing cancelled")
-        }
+        PairAttempt::Exhausted => error_json(
+            StatusCode::TOO_MANY_REQUESTS,
+            "too many attempts — pairing cancelled",
+        ),
         PairAttempt::WrongCode { remaining } => error_json(
             StatusCode::FORBIDDEN,
             &format!("wrong code ({remaining} attempts remaining)"),
@@ -488,7 +529,10 @@ async fn pair<R: tauri::Runtime>(
                 .await
             {
                 tracing::error!("[mobile-bridge] failed to persist paired device: {e}");
-                return error_json(StatusCode::INTERNAL_SERVER_ERROR, "failed to persist device");
+                return error_json(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "failed to persist device",
+                );
             }
             state.add_token_hash(hash);
             tracing::info!("[mobile-bridge] paired new device");
@@ -510,7 +554,11 @@ async fn serve_static<R: tauri::Runtime>(
 ) -> Response {
     let path = req.uri().path().to_string();
     let resolver = app.asset_resolver();
-    let key = if path == "/" { "/index.html".to_string() } else { path.clone() };
+    let key = if path == "/" {
+        "/index.html".to_string()
+    } else {
+        path.clone()
+    };
 
     if let Some(asset) = resolver.get(key.clone()).or_else(|| {
         // SPA 폴백 — 알 수 없는 경로는 index.html (딥링크 새로고침 대응).
@@ -528,7 +576,9 @@ async fn serve_static<R: tauri::Runtime>(
     if dist.is_dir() {
         let svc = tower_http::services::ServeDir::new(&dist)
             .append_index_html_on_directories(true)
-            .fallback(tower_http::services::ServeFile::new(dist.join("index.html")));
+            .fallback(tower_http::services::ServeFile::new(
+                dist.join("index.html"),
+            ));
         use tower::ServiceExt as _;
         return match svc.oneshot(req).await {
             Ok(res) => res.into_response(),
@@ -615,7 +665,12 @@ mod tests {
     #[tokio::test]
     async fn non_tailnet_peer_is_forbidden_everywhere() {
         let (app, _dir) = test_app().await;
-        for uri in ["/healthz", "/pair", "/api/ping", "/api/invoke/list_projects"] {
+        for uri in [
+            "/healthz",
+            "/pair",
+            "/api/ping",
+            "/api/invoke/list_projects",
+        ] {
             let res = router(app.handle().clone())
                 .oneshot(request("GET", uri, LAN, None, None))
                 .await
@@ -655,7 +710,13 @@ mod tests {
 
         // 틀린 코드 → 403, 세션은 유지.
         let res = router(app.handle().clone())
-            .oneshot(request("POST", "/pair", TAILNET, None, Some(r#"{"code":"999999x"}"#)))
+            .oneshot(request(
+                "POST",
+                "/pair",
+                TAILNET,
+                None,
+                Some(r#"{"code":"999999x"}"#),
+            ))
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
@@ -685,7 +746,13 @@ mod tests {
 
         // invoke — 빈 DB 의 list_projects 는 네이티브와 같은 [] (#mb1-envelope).
         let res = router(app.handle().clone())
-            .oneshot(request("POST", "/api/invoke/list_projects", TAILNET, Some(&token), Some("{}")))
+            .oneshot(request(
+                "POST",
+                "/api/invoke/list_projects",
+                TAILNET,
+                Some(&token),
+                Some("{}"),
+            ))
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::OK);
@@ -694,7 +761,11 @@ mod tests {
         // settings_get(None) → null — Option 직렬화가 네이티브 계약 그대로.
         let res = router(app.handle().clone())
             .oneshot(request(
-                "POST", "/api/invoke/settings_get", TAILNET, Some(&token), Some(r#"{"key":"nope"}"#),
+                "POST",
+                "/api/invoke/settings_get",
+                TAILNET,
+                Some(&token),
+                Some(r#"{"key":"nope"}"#),
             ))
             .await
             .unwrap();
@@ -703,7 +774,13 @@ mod tests {
 
         // 미등재 커맨드 → 404. clear_all_data 는 실존하지만 화이트리스트 밖.
         let res = router(app.handle().clone())
-            .oneshot(request("POST", "/api/invoke/clear_all_data", TAILNET, Some(&token), Some("{}")))
+            .oneshot(request(
+                "POST",
+                "/api/invoke/clear_all_data",
+                TAILNET,
+                Some(&token),
+                Some("{}"),
+            ))
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
@@ -711,7 +788,11 @@ mod tests {
         // 인자 타입 오류 → 400.
         let res = router(app.handle().clone())
             .oneshot(request(
-                "POST", "/api/invoke/project_stats", TAILNET, Some(&token), Some(r#"{"projectId":"abc"}"#),
+                "POST",
+                "/api/invoke/project_stats",
+                TAILNET,
+                Some(&token),
+                Some(r#"{"projectId":"abc"}"#),
             ))
             .await
             .unwrap();
@@ -729,7 +810,13 @@ mod tests {
 
         let body = r#"{"provider":"no-such-provider","messages":[],"options":{"model":"x","temperature":null,"max_tokens":null},"fallbacks":[]}"#;
         let res = router(app.handle().clone())
-            .oneshot(request("POST", "/api/chat", TAILNET, Some(&token), Some(body)))
+            .oneshot(request(
+                "POST",
+                "/api/chat",
+                TAILNET,
+                Some(&token),
+                Some(body),
+            ))
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::OK);
@@ -754,10 +841,16 @@ mod tests {
 
         // 화이트리스트 이벤트는 허브에 쌓인다.
         use tauri::Emitter as _;
-        app.emit("oculpm-journal-added", serde_json::json!({ "project_id": 1 })).unwrap();
-        app.emit("settings-changed", serde_json::json!({ "keys": ["theme"] })).unwrap();
+        app.emit(
+            "oculpm-journal-added",
+            serde_json::json!({ "project_id": 1 }),
+        )
+        .unwrap();
+        app.emit("settings-changed", serde_json::json!({ "keys": ["theme"] }))
+            .unwrap();
         // 화이트리스트 밖 이벤트는 무시된다.
-        app.emit("window-tabs-changed", serde_json::json!({})).unwrap();
+        app.emit("window-tabs-changed", serde_json::json!({}))
+            .unwrap();
 
         // 토큰 준비 (보호 라우트).
         let token = pairing::generate_token();
@@ -765,7 +858,8 @@ mod tests {
 
         // Last-Event-ID: 1 → id 2 만 재전송받아야 한다.
         let mut req = request("GET", "/api/events", TAILNET, Some(&token), None);
-        req.headers_mut().insert("last-event-id", "1".parse().unwrap());
+        req.headers_mut()
+            .insert("last-event-id", "1".parse().unwrap());
         let res = router(app.handle().clone()).oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
 
@@ -778,7 +872,13 @@ mod tests {
         let text = String::from_utf8_lossy(&first);
         assert!(text.contains("id: 2"), "재전송 프레임에 id 2: {text}");
         assert!(text.contains("event: settings-changed"), "{text}");
-        assert!(!text.contains("oculpm-journal-added"), "id 1 은 재전송 금지: {text}");
-        assert!(!text.contains("window-tabs-changed"), "비화이트리스트 유입: {text}");
+        assert!(
+            !text.contains("oculpm-journal-added"),
+            "id 1 은 재전송 금지: {text}"
+        );
+        assert!(
+            !text.contains("window-tabs-changed"),
+            "비화이트리스트 유입: {text}"
+        );
     }
 }

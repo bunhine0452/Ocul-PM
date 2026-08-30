@@ -105,8 +105,8 @@ pub async fn skills_read(
     let root = scope_dir(&db, project_id, scope).await?;
     let (dir, enabled) = locate_skill(&root, &dir_name)?;
     let skill_md = dir.join(SKILL_FILENAME);
-    let content = std::fs::read_to_string(&skill_md)
-        .map_err(|e| format!("Could not read SKILL.md: {e}"))?;
+    let content =
+        std::fs::read_to_string(&skill_md).map_err(|e| format!("Could not read SKILL.md: {e}"))?;
     let entry = build_entry(scope, &root, &dir_name, enabled, &content);
     Ok(SkillDetail {
         entry,
@@ -129,7 +129,9 @@ pub async fn skills_save(
     create: bool,
 ) -> Result<SkillEntry, String> {
     if content.len() > MAX_SKILL_BYTES {
-        return Err("SKILL.md is too large (over 512KB) — split long material into supporting files".into());
+        return Err(
+            "SKILL.md is too large (over 512KB) — split long material into supporting files".into(),
+        );
     }
     let root = scope_dir(&db, project_id, scope).await?;
     let (dir, enabled) = if create {
@@ -138,7 +140,8 @@ pub async fn skills_save(
             return Err(format!("A skill with that name already exists: {dir_name}"));
         }
         let dir = secure_skill_path(&root, &dir_name, true)?;
-        std::fs::create_dir_all(&dir).map_err(|e| format!("Could not create the skill folder: {e}"))?;
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("Could not create the skill folder: {e}"))?;
         (dir, true)
     } else {
         locate_skill(&root, &dir_name)?
@@ -210,7 +213,9 @@ pub async fn skills_copy(
     let to_root = scope_dir(&db, project_id, to_scope).await?;
     let (src, _) = locate_skill(&from_root, &dir_name)?;
     if locate_skill(&to_root, &dir_name).is_ok() {
-        return Err(format!("The target scope already has a skill with that name: {dir_name}"));
+        return Err(format!(
+            "The target scope already has a skill with that name: {dir_name}"
+        ));
     }
     let dst = secure_skill_path(&to_root, &dir_name, true)?;
     copy_dir_recursive(&src, &dst).map_err(|e| format!("Could not copy the skill: {e}"))?;
@@ -221,7 +226,10 @@ pub async fn skills_copy(
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -251,14 +259,27 @@ fn validate_dir_name(name: &str, strict: bool) -> Result<(), String> {
     if name.is_empty() || name.len() > 64 {
         return Err("Skill name must be 1-64 characters".into());
     }
-    if name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.starts_with('.') {
+    if name == "."
+        || name == ".."
+        || name.contains('/')
+        || name.contains('\\')
+        || name.starts_with('.')
+    {
         return Err("Skill name cannot contain path characters".into());
     }
     if strict {
-        let ok = name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-            && name.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+        let ok = name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+            && name
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
         if !ok {
-            return Err("Skill name may only use lowercase letters, digits, and hyphens (kebab-case)".into());
+            return Err(
+                "Skill name may only use lowercase letters, digits, and hyphens (kebab-case)"
+                    .into(),
+            );
         }
     }
     Ok(())
@@ -267,7 +288,11 @@ fn validate_dir_name(name: &str, strict: bool) -> Result<(), String> {
 /// `dir_name` 을 스킬 루트(또는 `.disabled`) 아래로 정규화 + 가둔다.
 fn secure_skill_path(root: &Path, dir_name: &str, enabled: bool) -> Result<PathBuf, String> {
     validate_dir_name(dir_name, false)?;
-    let base = if enabled { root.to_path_buf() } else { root.join(DISABLED_DIRNAME) };
+    let base = if enabled {
+        root.to_path_buf()
+    } else {
+        root.join(DISABLED_DIRNAME)
+    };
     let clean = crate::indexer::clean_path(&base.join(dir_name));
     let root_clean = crate::indexer::clean_path(root);
     if clean.starts_with(&root_clean) {
@@ -358,12 +383,20 @@ fn list_scope(scope: SkillScope, root: &Path) -> Vec<SkillEntry> {
     out
 }
 
-fn collect_dir(scope: SkillScope, root: &Path, dir: &Path, enabled: bool, out: &mut Vec<SkillEntry>) {
+fn collect_dir(
+    scope: SkillScope,
+    root: &Path,
+    dir: &Path,
+    enabled: bool,
+    out: &mut Vec<SkillEntry>,
+) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else { continue };
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
         // 심볼릭 링크는 루프/탈출 위험이 있어 따라가지 않는다 (docs.rs 와 동일).
         if file_type.is_symlink() || !file_type.is_dir() {
             continue;
@@ -386,7 +419,9 @@ fn count_extra_files(dir: &Path) -> u32 {
         if depth > 6 || *count > 5000 {
             return; // 비정상 트리 가드 — UI 배지용 개수라 상한이면 충분.
         }
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let Ok(ft) = entry.file_type() else { continue };
             if ft.is_symlink() {
@@ -410,7 +445,9 @@ fn list_extra_files(dir: &Path, cap: usize) -> Vec<String> {
         if depth > 6 || out.len() >= cap {
             return;
         }
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             if out.len() >= cap {
                 return;
@@ -465,7 +502,8 @@ mod tests {
         fs::write(p, contents).unwrap();
     }
 
-    const FM: &str = "---\nname: review-checklist\ndescription: PR 리뷰 체크리스트\n---\n\n# 본문\n";
+    const FM: &str =
+        "---\nname: review-checklist\ndescription: PR 리뷰 체크리스트\n---\n\n# 본문\n";
 
     #[test]
     fn lists_enabled_and_disabled_skills() {
@@ -473,23 +511,40 @@ mod tests {
         let root = tmp.path();
         seed(root, "review/SKILL.md", FM);
         seed(root, "no-frontmatter/SKILL.md", "# 제목뿐\n");
-        seed(root, ".disabled/legacy/SKILL.md", "---\nname: legacy\n---\nx");
+        seed(
+            root,
+            ".disabled/legacy/SKILL.md",
+            "---\nname: legacy\n---\nx",
+        );
         seed(root, "not-a-skill/README.md", "스킬 아님"); // SKILL.md 없음 → 제외
         seed(root, "review/references/guide.md", "보조 파일");
 
         let entries = list_scope(SkillScope::Project, root);
-        let names: Vec<_> = entries.iter().map(|e| (e.dir_name.as_str(), e.enabled)).collect();
+        let names: Vec<_> = entries
+            .iter()
+            .map(|e| (e.dir_name.as_str(), e.enabled))
+            .collect();
         assert_eq!(
             names,
-            vec![("no-frontmatter", true), ("review", true), ("legacy", false)],
+            vec![
+                ("no-frontmatter", true),
+                ("review", true),
+                ("legacy", false)
+            ],
             "활성 우선 → 이름순, SKILL.md 없는 폴더 제외: {names:?}"
         );
         let review = entries.iter().find(|e| e.dir_name == "review").unwrap();
         assert_eq!(review.name, "review-checklist");
         assert_eq!(review.description, "PR 리뷰 체크리스트");
         assert_eq!(review.extra_files, 1);
-        let bare = entries.iter().find(|e| e.dir_name == "no-frontmatter").unwrap();
-        assert_eq!(bare.name, "no-frontmatter", "frontmatter 없으면 폴더명 폴백");
+        let bare = entries
+            .iter()
+            .find(|e| e.dir_name == "no-frontmatter")
+            .unwrap();
+        assert_eq!(
+            bare.name, "no-frontmatter",
+            "frontmatter 없으면 폴더명 폴백"
+        );
     }
 
     #[test]
@@ -514,10 +569,16 @@ mod tests {
     #[test]
     fn dir_name_validation_blocks_traversal_and_enforces_kebab() {
         for bad in ["", "..", "a/b", "a\\b", ".hidden", &"x".repeat(65)] {
-            assert!(validate_dir_name(bad, false).is_err(), "느슨한 검증도 거부해야: {bad:?}");
+            assert!(
+                validate_dir_name(bad, false).is_err(),
+                "느슨한 검증도 거부해야: {bad:?}"
+            );
         }
         for bad in ["My Skill", "UPPER", "한글이름", "-lead"] {
-            assert!(validate_dir_name(bad, true).is_err(), "strict 는 kebab 만: {bad:?}");
+            assert!(
+                validate_dir_name(bad, true).is_err(),
+                "strict 는 kebab 만: {bad:?}"
+            );
         }
         for good in ["review", "pr-check_2", "a"] {
             assert!(validate_dir_name(good, true).is_ok(), "허용돼야: {good:?}");
@@ -531,7 +592,10 @@ mod tests {
     #[test]
     fn frontmatter_parse_is_lenient() {
         assert_eq!(parse_frontmatter("no frontmatter"), (None, None));
-        assert_eq!(parse_frontmatter("---\nname: a\n---\n"), (Some("a".into()), None));
+        assert_eq!(
+            parse_frontmatter("---\nname: a\n---\n"),
+            (Some("a".into()), None)
+        );
         let (n, d) = parse_frontmatter("---\nname: a\ndescription: \"b c\"\nextra: 1\n---\nbody");
         assert_eq!((n, d), (Some("a".into()), Some("b c".into())));
         // 깨진 YAML → None 폴백 (에러 아님).
@@ -551,6 +615,9 @@ mod tests {
         copy_dir_recursive(&src, &dst).unwrap();
         assert!(dst.join("SKILL.md").is_file());
         assert!(dst.join("references/a.md").is_file());
-        assert!(!dst.join("evil-link").exists(), "심볼릭 링크는 복사하지 않는다");
+        assert!(
+            !dst.join("evil-link").exists(),
+            "심볼릭 링크는 복사하지 않는다"
+        );
     }
 }

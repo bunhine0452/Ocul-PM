@@ -198,7 +198,9 @@ impl LockGuard {
             // **써서** 하트비트를 갱신한다. 쓰기를 자주 하면 fs 이벤트 소음이
             // 늘고, 읽기를 드물게 하면 인계당한 사실을 늦게 알아 두 인스턴스가
             // 같은 프로젝트를 동시에 감시한다.
-            let pulses_per_write = HEARTBEAT_INTERVAL_SECS.div_ceil(OWNERSHIP_CHECK_SECS).max(1);
+            let pulses_per_write = HEARTBEAT_INTERVAL_SECS
+                .div_ceil(OWNERSHIP_CHECK_SECS)
+                .max(1);
             let mut interval =
                 tokio::time::interval(tokio::time::Duration::from_secs(OWNERSHIP_CHECK_SECS));
             // Skip the immediate first tick — the lock was just written.
@@ -212,7 +214,7 @@ impl LockGuard {
                         // File I/O is cheap; doing it inline keeps the task
                         // tiny. If it ever becomes a hot path, wrap in
                         // spawn_blocking.
-                        let write_now = ticks % pulses_per_write == 0;
+                        let write_now = ticks.is_multiple_of(pulses_per_write);
                         if matches!(heartbeat_pulse(&p, pid, write_now), Ok(Ownership::Lost)) {
                             evicted_clone.store(true, Ordering::SeqCst);
                             evicted_notify.notify_waiters();
@@ -249,10 +251,9 @@ impl LockGuard {
         self.shutdown.notify_waiters();
         if let Some(handle) = self.heartbeat_handle.take() {
             // best-effort: short timeout so a wedged task can't block release.
-            let _ = tokio::time::timeout(
-                tokio::time::Duration::from_secs(1),
-                async { let _ = handle.await; },
-            )
+            let _ = tokio::time::timeout(tokio::time::Duration::from_secs(1), async {
+                let _ = handle.await;
+            })
             .await;
         }
         // **우리 것일 때만** 지운다. 인계당했거나(evicted) 좀비 락을 회수당한
@@ -502,7 +503,11 @@ mod tests {
             .await
             .unwrap();
         match acq {
-            LockAcquisition::TakenOver { guard, previous_pid, .. } => {
+            LockAcquisition::TakenOver {
+                guard,
+                previous_pid,
+                ..
+            } => {
                 assert_eq!(previous_pid, holder);
                 assert_eq!(read_lock_pid(&path), Some(std::process::id()));
                 guard.release().await.unwrap();

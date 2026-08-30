@@ -20,9 +20,7 @@ use tokio::sync::Mutex;
 
 use super::client::{LspClient, ServerNotice};
 use super::registry::{find_root, spec_for_path, uri_to_path, ServerSpec};
-use super::spec::{
-    diagnostics_from_json, LspDiagnostic, LspServerInfo, LspServerState,
-};
+use super::spec::{diagnostics_from_json, LspDiagnostic, LspServerInfo, LspServerState};
 
 /// 진단이 갱신됐다. 창을 가리지 않고 전역으로 나가고, 코드 화면이
 /// `project_id` + `path` 로 거른다 (OculpmFileChanged 와 같은 방식).
@@ -52,7 +50,11 @@ struct Slot {
 
 impl Slot {
     fn new() -> Self {
-        Self { client: None, state: LspServerState::Stopped, detail: None }
+        Self {
+            client: None,
+            state: LspServerState::Stopped,
+            detail: None,
+        }
     }
 }
 
@@ -93,7 +95,9 @@ impl LspState {
         project_root: &Path,
         file: &Path,
     ) -> Result<Option<Arc<LspClient>>, String> {
-        let Some(spec) = spec_for_path(file) else { return Ok(None) };
+        let Some(spec) = spec_for_path(file) else {
+            return Ok(None);
+        };
         // 사용자가 이 언어를 껐다 (#lsp-settings-screen). 이미 떠 있는 서버까지
         // 여기서 죽이지는 않는다 — 설정 화면이 "서버 다시 시작" 으로 정리한다.
         if is_language_disabled(db, spec.language_id).await {
@@ -115,11 +119,17 @@ impl LspState {
             return Ok(None);
         };
 
-        let key = ServerKey { project_id, language_id: spec.language_id, root: root.clone() };
+        let key = ServerKey {
+            project_id,
+            language_id: spec.language_id,
+            root: root.clone(),
+        };
         // 맵 락은 여기까지만 — 슬롯 Arc 만 꺼내고 바로 놓는다.
         let slot = {
             let mut map = self.servers.lock().await;
-            map.entry(key).or_insert_with(|| Arc::new(Mutex::new(Slot::new()))).clone()
+            map.entry(key)
+                .or_insert_with(|| Arc::new(Mutex::new(Slot::new())))
+                .clone()
         };
 
         let mut guard = slot.lock().await;
@@ -128,12 +138,21 @@ impl LspState {
         }
         // 직전에 실패했으면 매 키 입력마다 재시도하지 않는다 (미설치 서버에
         // 대해 초당 여러 번 spawn 을 시도하게 된다).
-        if matches!(guard.state, LspServerState::Missing | LspServerState::Failed) {
+        if matches!(
+            guard.state,
+            LspServerState::Missing | LspServerState::Failed
+        ) {
             return Ok(None);
         }
 
         guard.state = LspServerState::Starting;
-        emit_state(app, project_id, spec.language_id, LspServerState::Starting, None);
+        emit_state(
+            app,
+            project_id,
+            spec.language_id,
+            LspServerState::Starting,
+            None,
+        );
 
         match start_server(
             app,
@@ -150,7 +169,13 @@ impl LspState {
                 guard.client = Some(client.clone());
                 guard.state = LspServerState::Ready;
                 guard.detail = None;
-                emit_state(app, project_id, spec.language_id, LspServerState::Ready, None);
+                emit_state(
+                    app,
+                    project_id,
+                    spec.language_id,
+                    LspServerState::Ready,
+                    None,
+                );
                 Ok(Some(client))
             }
             Err((state, detail)) => {
@@ -193,7 +218,9 @@ impl LspState {
         let hit: Vec<Value> = all
             .iter()
             .filter(|d| {
-                let Some(range) = d.get("range") else { return false };
+                let Some(range) = d.get("range") else {
+                    return false;
+                };
                 let s = range
                     .get("start")
                     .and_then(|p| p.get("line"))
@@ -214,13 +241,21 @@ impl LspState {
     }
 
     pub async fn set_code_actions(&self, file: &Path, actions: Vec<Value>) {
-        self.code_actions.lock().await.insert(file.to_path_buf(), actions);
+        self.code_actions
+            .lock()
+            .await
+            .insert(file.to_path_buf(), actions);
     }
 
     /// 마지막 목록에서 `index` 번째 액션. 목록이 없거나 인덱스가 벗어나면 `None`
     /// — 파일을 다시 열었거나 목록이 갱신된 뒤 오래된 인덱스로 부른 경우다.
     pub async fn code_action_at(&self, file: &Path, index: usize) -> Option<Value> {
-        self.code_actions.lock().await.get(file)?.get(index).cloned()
+        self.code_actions
+            .lock()
+            .await
+            .get(file)?
+            .get(index)
+            .cloned()
     }
 
     /// 이 프로젝트의 서버 상태 일람 (설치 여부 포함).
@@ -234,11 +269,17 @@ impl LspState {
                 .filter(|(k, _)| k.project_id == project_id && k.language_id == spec.language_id)
                 .collect();
             if running.is_empty() {
-                let installed = crate::acp::env::resolve_binary(spec.command).await.is_some();
+                let installed = crate::acp::env::resolve_binary(spec.command)
+                    .await
+                    .is_some();
                 out.push(LspServerInfo {
                     language_id: spec.language_id.to_string(),
                     command: spec.command.to_string(),
-                    state: if installed { LspServerState::Stopped } else { LspServerState::Missing },
+                    state: if installed {
+                        LspServerState::Stopped
+                    } else {
+                        LspServerState::Missing
+                    },
                     root: None,
                     detail: (!installed).then(|| format!("{} 가 PATH 에 없습니다", spec.command)),
                 });
@@ -385,7 +426,9 @@ fn handle_notice(
 ) {
     match notice {
         ServerNotice::Diagnostics { uri, diagnostics } => {
-            let Some(path) = uri_to_path(&uri) else { return };
+            let Some(path) = uri_to_path(&uri) else {
+                return;
+            };
             // 원본을 먼저 보관한다 (코드 액션의 context 로 쓴다). 여기는 동기
             // 콜백이라 blocking_lock 을 쓸 수 없어 tokio 태스크로 넘긴다.
             {
@@ -398,7 +441,9 @@ fn handle_notice(
             }
             // 프로젝트 밖 파일(의존성 소스 등)의 진단은 버린다 — 열 수 없는
             // 파일에 밑줄을 그을 수 없다.
-            let Ok(rel) = path.strip_prefix(project_root) else { return };
+            let Ok(rel) = path.strip_prefix(project_root) else {
+                return;
+            };
             let _ = LspDiagnosticsPublished {
                 project_id,
                 path: rel.to_string_lossy().to_string(),
@@ -411,7 +456,11 @@ fn handle_notice(
                 app,
                 project_id,
                 language_id,
-                if done { LspServerState::Ready } else { LspServerState::Indexing },
+                if done {
+                    LspServerState::Ready
+                } else {
+                    LspServerState::Indexing
+                },
                 (!done && !title.is_empty()).then_some(title),
             );
         }
@@ -500,6 +549,10 @@ mod tests {
         assert_eq!(state.next_version(a).await, 3);
 
         state.forget_document(a).await;
-        assert_eq!(state.next_version(a).await, 1, "닫은 문서는 버전이 초기화된다");
+        assert_eq!(
+            state.next_version(a).await,
+            1,
+            "닫은 문서는 버전이 초기화된다"
+        );
     }
 }

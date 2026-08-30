@@ -481,8 +481,7 @@ mod tests {
     fn managed_block_refuses_downgrade_of_newer_version() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".gitignore");
-        let newer =
-            "# oculpm:begin v99\n.oculpm/index/\n.oculpm/future-secret/\n# oculpm:end\n";
+        let newer = "# oculpm:begin v99\n.oculpm/index/\n.oculpm/future-secret/\n# oculpm:end\n";
         std::fs::write(&path, newer).unwrap();
 
         let r = write_managed_block(&path, "oculpm", "old body\n", CommentStyle::Hash).unwrap();
@@ -507,13 +506,13 @@ mod tests {
         let strays: Vec<_> = std::fs::read_dir(dir.path())
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .ends_with(".tmp")
-            })
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
             .collect();
-        assert!(strays.is_empty(), "unexpected leftover tmp files: {:?}", strays);
+        assert!(
+            strays.is_empty(),
+            "unexpected leftover tmp files: {:?}",
+            strays
+        );
     }
 
     /// Case 3 — auto-create missing parent directories.
@@ -569,7 +568,8 @@ mod tests {
         // 7a — file doesn't exist
         let dir = tempdir().unwrap();
         let path = dir.path().join(".gitignore");
-        let r = write_managed_block(&path, "oculpm", ".oculpm/index/\n", CommentStyle::Hash).unwrap();
+        let r =
+            write_managed_block(&path, "oculpm", ".oculpm/index/\n", CommentStyle::Hash).unwrap();
         assert_eq!(r, ManagedBlockResult::Inserted);
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("# oculpm:begin v1"));
@@ -631,7 +631,11 @@ mod tests {
         // Write block — should pick up CRLF EOL convention from the existing file.
         write_managed_block(&path, "oculpm", "managed\nbody\n", CommentStyle::Markdown).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("\r\n"), "EOL convention must be preserved: {:?}", text);
+        assert!(
+            text.contains("\r\n"),
+            "EOL convention must be preserved: {:?}",
+            text
+        );
         assert!(text.contains("<!-- oculpm:begin v1 -->"));
         assert!(text.contains("managed"));
 

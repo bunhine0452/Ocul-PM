@@ -25,8 +25,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::oculpm::atomic_io::{
-    read_managed_block, remove_managed_block, write_atomic, write_managed_block,
-    ManagedBlockResult,
+    read_managed_block, remove_managed_block, write_atomic, write_managed_block, ManagedBlockResult,
 };
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::spec::{AgentSyncReport, AgentSyncResult, CommentStyle, OculpmConfig};
@@ -267,12 +266,8 @@ pub async fn sync_active(
     ensure_discussion_spec(root, lang)?;
     let per_agent_dir = root.join(".oculpm").join("agents").join("per-agent");
 
-    let active: std::collections::HashSet<&str> = config
-        .agents
-        .active
-        .iter()
-        .map(|s| s.as_str())
-        .collect();
+    let active: std::collections::HashSet<&str> =
+        config.agents.active.iter().map(|s| s.as_str()).collect();
 
     let mut results = Vec::with_capacity(known_adapters().len());
     for adapter in known_adapters() {
@@ -340,8 +335,10 @@ fn apply_remove(adapter: &AgentAdapter, abs: &Path) -> AgentSyncResult {
         WriteMode::ManagedBlock => {
             // Detect whether the block was present so we can distinguish
             // "removed" from "unchanged" without rewriting the file.
-            let had_block =
-                matches!(read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown), Ok(Some(_)));
+            let had_block = matches!(
+                read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown),
+                Ok(Some(_))
+            );
             remove_managed_block(abs, BLOCK_ID, CommentStyle::Markdown).map(|()| had_block)
         }
     };
@@ -364,10 +361,14 @@ fn post_write_hash(adapter: &AgentAdapter, abs: &Path) -> Option<String> {
             Ok(bytes) => Some(blake3::hash(&bytes).to_hex().to_string()),
             Err(_) => None,
         },
-        WriteMode::ManagedBlock => match read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown) {
-            Ok(Some(inner)) => Some(blake3::hash(inner.content.as_bytes()).to_hex().to_string()),
-            _ => None,
-        },
+        WriteMode::ManagedBlock => {
+            match read_managed_block(abs, BLOCK_ID, CommentStyle::Markdown) {
+                Ok(Some(inner)) => {
+                    Some(blake3::hash(inner.content.as_bytes()).to_hex().to_string())
+                }
+                _ => None,
+            }
+        }
     }
 }
 
@@ -386,7 +387,9 @@ pub fn lookup_adapter(agent_id: &str) -> Option<&'static AgentAdapter> {
 /// Inverse of `lookup_adapter` — given a project-relative path that the
 /// watcher saw change, return the matching adapter if it's one of ours.
 pub fn lookup_adapter_by_path(relative_path: &str) -> Option<&'static AgentAdapter> {
-    known_adapters().iter().find(|a| a.adapter_path == relative_path)
+    known_adapters()
+        .iter()
+        .find(|a| a.adapter_path == relative_path)
 }
 
 /// Overwrite-mode write reuses `write_atomic` and reports a synthetic
@@ -461,7 +464,10 @@ fn ensure_master_template(root: &Path, lang: &str) -> Result<String, OculpmError
 /// `_template.md` 와 달리 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 —
 /// 마스터 §5 가 "필요할 때 읽으라" 고 가리키는 규격서라 항상 최신이어야 한다.
 fn ensure_discussion_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
-    let path = root.join(".oculpm").join("agents").join("discussion-spec.md");
+    let path = root
+        .join(".oculpm")
+        .join("agents")
+        .join("discussion-spec.md");
     let embedded = embedded_discussion_spec(lang);
     match std::fs::read(&path) {
         Ok(cur) if cur == embedded.as_bytes() => Ok(()),
@@ -590,8 +596,16 @@ fn adjacent_marker_for(adapter_id: &str, root: &Path) -> bool {
         // the project would benefit from it. AGENTS.md itself isn't here because
         // adapter_path_exists handles it directly.
         "agents-md" => &[
-            ".claude", ".cursor", ".agent", ".gemini", "GEMINI.md", "CLAUDE.md",
-            ".windsurf", ".clinerules", ".aider", ".zed",
+            ".claude",
+            ".cursor",
+            ".agent",
+            ".gemini",
+            "GEMINI.md",
+            "CLAUDE.md",
+            ".windsurf",
+            ".clinerules",
+            ".aider",
+            ".zed",
         ],
         "cursor" => &[".cursor"],
         "claude-code" => &[".claude"],
@@ -743,7 +757,10 @@ mod tests {
                 spec.contains("oculpm:discussion-log"),
                 "{name} spec must document the discussion-log managed block"
             );
-            assert!(spec.contains("oculpm_discussion: v1"), "{name} spec frontmatter");
+            assert!(
+                spec.contains("oculpm_discussion: v1"),
+                "{name} spec frontmatter"
+            );
         }
         assert!(
             embedded_template_version() >= 6,
@@ -811,7 +828,10 @@ mod tests {
     fn master_templates_stay_lean_and_in_parity() {
         let ko = MASTER_KO.chars().count();
         let en = MASTER_EN.chars().count();
-        assert!(ko <= 4_800, "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)");
+        assert!(
+            ko <= 4_800,
+            "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)"
+        );
         assert!(en <= 5_800, "en 마스터 {en} chars — 상한 5,800");
         assert_eq!(
             template_version(MASTER_KO),
@@ -820,16 +840,28 @@ mod tests {
         );
         for (name, t) in [("ko", MASTER_KO), ("en", MASTER_EN)] {
             assert!(t.contains("plan_create"), "{name}: MCP 쓰기 도구 안내 누락");
-            assert!(t.contains("discussion-spec.md"), "{name}: §5 on-demand 포인터 누락");
+            assert!(
+                t.contains("discussion-spec.md"),
+                "{name}: §5 on-demand 포인터 누락"
+            );
             // 읽기 도구는 "있다" 로 부족하고 **언제 부르는지** 가 있어야 실제로
             // 불린다 — §0 이 그 자리다.
-            assert!(t.contains("journal_search"), "{name}: §0 과거 검색 안내 누락");
+            assert!(
+                t.contains("journal_search"),
+                "{name}: §0 과거 검색 안내 누락"
+            );
             assert!(t.contains("journal_read"), "{name}: journal_read 안내 누락");
         }
         // wrapper 는 import 금지 — @import 를 확장하는 런타임에서 마스터가
         // 2중 주입되던 위험(v5)의 재발 방지.
-        assert!(!CLAUDE_CODE_TPL.contains("@../AGENTS.md"), "claude wrapper 에 import 금지");
-        assert!(!CLAUDE_CODE_TPL.contains("@AGENTS.md"), "claude wrapper 에 import 금지");
+        assert!(
+            !CLAUDE_CODE_TPL.contains("@../AGENTS.md"),
+            "claude wrapper 에 import 금지"
+        );
+        assert!(
+            !CLAUDE_CODE_TPL.contains("@AGENTS.md"),
+            "claude wrapper 에 import 금지"
+        );
     }
 
     /// TK1 — 언어 변형 시드 + discussion-spec 은 앱 관리 파일(손상 시 다음
@@ -843,13 +875,19 @@ mod tests {
         sync_active(root, &cfg).await.unwrap();
 
         let master = read(&root.join(".oculpm/agents/_template.md"));
-        assert!(master.contains("work-journal rules"), "en 마스터가 시드돼야 한다");
+        assert!(
+            master.contains("work-journal rules"),
+            "en 마스터가 시드돼야 한다"
+        );
         let spec_path = root.join(".oculpm/agents/discussion-spec.md");
         assert!(read(&spec_path).contains("Discussion-doc spec"));
 
         std::fs::write(&spec_path, "깨진 내용").unwrap();
         sync_active(root, &cfg).await.unwrap();
-        assert!(read(&spec_path).contains("Discussion-doc spec"), "관리 파일은 수렴 복원");
+        assert!(
+            read(&spec_path).contains("Discussion-doc spec"),
+            "관리 파일은 수렴 복원"
+        );
     }
 
     #[test]
@@ -897,8 +935,11 @@ mod tests {
         let cfg = config_with(&["cursor", "claude-code"]);
         let report = sync_active(dir.path(), &cfg).await.unwrap();
 
-        let by_id: std::collections::HashMap<_, _> =
-            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        let by_id: std::collections::HashMap<_, _> = report
+            .results
+            .into_iter()
+            .map(|r| (r.id.clone(), r))
+            .collect();
         assert_eq!(by_id["cursor"].action, "inserted");
         assert_eq!(by_id["claude-code"].action, "inserted");
         // Inactive adapters land as "unchanged" (no file to remove).
@@ -923,8 +964,11 @@ mod tests {
 
         let cfg_off = config_with(&[]);
         let report = sync_active(dir.path(), &cfg_off).await.unwrap();
-        let by_id: std::collections::HashMap<_, _> =
-            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        let by_id: std::collections::HashMap<_, _> = report
+            .results
+            .into_iter()
+            .map(|r| (r.id.clone(), r))
+            .collect();
         assert_eq!(by_id["cursor"].action, "removed");
         assert!(!dir.path().join(".cursor/rules/ocul-pm.mdc").exists());
     }
@@ -936,7 +980,8 @@ mod tests {
         let dir = setup();
         let claude_path = dir.path().join(".claude/CLAUDE.md");
         std::fs::create_dir_all(claude_path.parent().unwrap()).unwrap();
-        let user_header = "# My Project Conventions\n\n- prefer rg over grep\n- no emojis in commits\n";
+        let user_header =
+            "# My Project Conventions\n\n- prefer rg over grep\n- no emojis in commits\n";
         let user_footer = "\n## After ocul-pm\n\n- nothing yet\n";
         std::fs::write(&claude_path, format!("{user_header}{user_footer}")).unwrap();
 
@@ -945,7 +990,10 @@ mod tests {
 
         let text = read(&claude_path);
         assert!(text.contains(user_header), "user header lost: {text:?}");
-        assert!(text.contains(user_footer.trim()), "user footer lost: {text:?}");
+        assert!(
+            text.contains(user_footer.trim()),
+            "user footer lost: {text:?}"
+        );
         assert!(text.contains("<!-- oculpm:begin v1 -->"));
         assert!(text.contains("<!-- oculpm:end -->"));
     }
@@ -964,18 +1012,12 @@ mod tests {
         let before = read(&dir.path().join(".cursor/rules/ocul-pm.mdc"));
 
         // Override the cursor adapter content via per-agent file.
-        let per_agent_path = dir
-            .path()
-            .join(".oculpm/agents/per-agent/cursor.md");
+        let per_agent_path = dir.path().join(".oculpm/agents/per-agent/cursor.md");
         std::fs::create_dir_all(per_agent_path.parent().unwrap()).unwrap();
         std::fs::write(&per_agent_path, "OVERRIDDEN cursor adapter\n").unwrap();
         let report = sync_active(dir.path(), &cfg).await.unwrap();
 
-        let cursor_result = report
-            .results
-            .iter()
-            .find(|r| r.id == "cursor")
-            .unwrap();
+        let cursor_result = report.results.iter().find(|r| r.id == "cursor").unwrap();
         assert_eq!(cursor_result.action, "updated");
         let after = read(&dir.path().join(".cursor/rules/ocul-pm.mdc"));
         assert_ne!(before, after);
@@ -999,8 +1041,11 @@ mod tests {
             .unwrap();
 
         let report = sync_active(dir.path(), &cfg).await.unwrap();
-        let by_id: std::collections::HashMap<_, _> =
-            report.results.into_iter().map(|r| (r.id.clone(), r)).collect();
+        let by_id: std::collections::HashMap<_, _> = report
+            .results
+            .into_iter()
+            .map(|r| (r.id.clone(), r))
+            .collect();
         assert_eq!(by_id["cursor"].action, "unchanged");
         assert_eq!(by_id["claude-code"].action, "unchanged");
 
@@ -1012,8 +1057,14 @@ mod tests {
             .unwrap()
             .modified()
             .unwrap();
-        assert_eq!(cursor_mtime_1, cursor_mtime_2, "cursor file rewritten on no-op sync");
-        assert_eq!(claude_mtime_1, claude_mtime_2, "claude file rewritten on no-op sync");
+        assert_eq!(
+            cursor_mtime_1, cursor_mtime_2,
+            "cursor file rewritten on no-op sync"
+        );
+        assert_eq!(
+            claude_mtime_1, claude_mtime_2,
+            "claude file rewritten on no-op sync"
+        );
     }
 
     /// (PR2 §3 #6) First sync writes the master template to
@@ -1068,7 +1119,12 @@ mod tests {
             .find(|r| r.id == "claude-code")
             .unwrap();
         assert_eq!(claude.action, "error");
-        assert!(claude.error.as_ref().unwrap().to_lowercase().contains("managed"));
+        assert!(claude
+            .error
+            .as_ref()
+            .unwrap()
+            .to_lowercase()
+            .contains("managed"));
     }
 
     /// (PR2 §3 managed #3) Both markers present with identical content →
@@ -1104,7 +1160,10 @@ mod tests {
         let begin_idx = text.find("<!-- oculpm:begin v1 -->").unwrap();
         let end_idx = text.find("<!-- oculpm:end -->").unwrap();
         let block_slice = &text[begin_idx..end_idx];
-        assert!(block_slice.contains("\r\n"), "EOL not preserved: {block_slice:?}");
+        assert!(
+            block_slice.contains("\r\n"),
+            "EOL not preserved: {block_slice:?}"
+        );
     }
 
     // ─── detect — three cases per PR2 §3 ───────────────────────────────────

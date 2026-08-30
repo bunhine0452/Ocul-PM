@@ -6,7 +6,6 @@
 use super::*;
 
 impl OculpmManager {
-
     /// Initialise `.oculpm/` for a project. Idempotent — calling twice with
     /// the same `project_id` returns a no-op report on the second call.
     /// `template_lang` 은 **최초 시드 때만** 쓰인다 — 이미 config 가 있으면
@@ -61,7 +60,8 @@ impl OculpmManager {
             wrote_config = true;
             cfg
         };
-        let resolver = WorkdayResolver::new(&config.workday.timezone, &config.workday.day_starts_at)?;
+        let resolver =
+            WorkdayResolver::new(&config.workday.timezone, &config.workday.day_starts_at)?;
 
         // 2. Ensure `.oculpm/` exists.
         let oculpm_dir = resolver.project_oculpm_dir(root);
@@ -128,16 +128,14 @@ impl OculpmManager {
         // Union-merge with whatever the block already holds (A0a) — see
         // `merged_gitignore_body`. A newer-versioned block is additionally
         // left untouched by `write_managed_block`'s downgrade guard.
-        let gitignore_body =
-            match read_managed_block(&gitignore_path, "oculpm", CommentStyle::Hash) {
-                Ok(existing) => {
-                    merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str()))
-                }
-                Err(e) => {
-                    drop(guard);
-                    return Err(e);
-                }
-            };
+        let gitignore_body = match read_managed_block(&gitignore_path, "oculpm", CommentStyle::Hash)
+        {
+            Ok(existing) => merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str())),
+            Err(e) => {
+                drop(guard);
+                return Err(e);
+            }
+        };
         match write_managed_block(
             &gitignore_path,
             "oculpm",
@@ -302,7 +300,8 @@ impl OculpmManager {
         project_id: u32,
         app_handle: Option<tauri::AppHandle>,
     ) -> Result<(), OculpmError> {
-        self.watcher_start_with(project_id, app_handle, AcquirePolicy::Polite).await
+        self.watcher_start_with(project_id, app_handle, AcquirePolicy::Polite)
+            .await
     }
 
     /// 락 정책을 지정해 감시를 시작한다.
@@ -346,7 +345,11 @@ impl OculpmManager {
                     );
                     entry.lock = Some(g);
                 }
-                LockAcquisition::TakenOver { guard, previous_pid, previous_exe } => {
+                LockAcquisition::TakenOver {
+                    guard,
+                    previous_pid,
+                    previous_exe,
+                } => {
                     tracing::info!(
                         target: "oculpm::manager",
                         project_id,
@@ -356,7 +359,9 @@ impl OculpmManager {
                     );
                     entry.lock = Some(guard);
                 }
-                LockAcquisition::Held { by_pid, holder_exe, .. } => {
+                LockAcquisition::Held {
+                    by_pid, holder_exe, ..
+                } => {
                     return Err(OculpmError::InvalidConfig(format!(
                         "read-only mode: lock held by another instance (pid {by_pid}{})",
                         holder_exe.map(|e| format!(", {e}")).unwrap_or_default()

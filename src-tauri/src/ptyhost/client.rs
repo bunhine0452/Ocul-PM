@@ -101,10 +101,18 @@ impl PtyHostClient {
             // 호스트가 죽었다(또는 프로토콜 위반). 대기 중인 요청을 전부 깨워
             // 실패시킨다 — oneshot 송신자 drop 으로 수신측이 Err 를 받는다.
             alive_reader.store(false, Ordering::SeqCst);
-            pending_reader.lock().unwrap_or_else(|p| p.into_inner()).clear();
+            pending_reader
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .clear();
         });
 
-        let client = Self { tx, pending, next_id: AtomicU64::new(1), alive };
+        let client = Self {
+            tx,
+            pending,
+            next_id: AtomicU64::new(1),
+            alive,
+        };
 
         // 프로토콜 확인 — 불일치면 (업데이트로 형식이 바뀐 뒤의 구버전 호스트)
         // 그 호스트를 내리고 실패를 알린다. 세션은 잃지만 무언의 오동작보다 낫다.
@@ -112,7 +120,9 @@ impl PtyHostClient {
             Response::Proto { proto } if proto == PROTO_VERSION => Ok(client),
             Response::Proto { proto } => {
                 let _ = client.request(Request::Shutdown).await;
-                Err(format!("pty-host protocol mismatch: host={proto} app={PROTO_VERSION}"))
+                Err(format!(
+                    "pty-host protocol mismatch: host={proto} app={PROTO_VERSION}"
+                ))
             }
             other => Err(format!("unexpected hello response: {other:?}")),
         }
@@ -132,7 +142,10 @@ impl PtyHostClient {
         let json = serde_json::to_string(&ClientFrame { id, req })
             .map_err(|e| format!("failed to encode a request: {e}"))?;
         if self.tx.send(encode_frame(&json)).is_err() {
-            self.pending.lock().unwrap_or_else(|p| p.into_inner()).remove(&id);
+            self.pending
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .remove(&id);
             return Err("pty-host connection lost".to_string());
         }
         match tokio::time::timeout(
@@ -147,7 +160,10 @@ impl PtyHostClient {
                 // 먹통 호스트 — 이 접속을 죽은 것으로 표시해 다음 호출이
                 // 재접속(필요 시 재스폰)하게 한다.
                 self.alive.store(false, Ordering::SeqCst);
-                self.pending.lock().unwrap_or_else(|p| p.into_inner()).remove(&id);
+                self.pending
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .remove(&id);
                 Err("pty-host request timed out".to_string())
             }
         }
@@ -177,7 +193,9 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
         // 죽이지 않게. 앱 종료 자체는 자식에게 아무 신호도 보내지 않는다.
         cmd.process_group(0);
     }
-    let mut child = cmd.spawn().map_err(|e| format!("failed to spawn the pty-host: {e}"))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("failed to spawn the pty-host: {e}"))?;
     std::thread::spawn(move || {
         let _ = child.wait();
     });

@@ -58,16 +58,28 @@ async fn line_counts_fill_the_workday_sum_and_clear_the_work_list() {
             1,
             rel,
             vec![
-                FileLineCounts { path: "src/a.rs".into(), added: 40, removed: 10 },
+                FileLineCounts {
+                    path: "src/a.rs".into(),
+                    added: 40,
+                    removed: 10,
+                },
                 // a path that isn't in files_touched updates nothing
-                FileLineCounts { path: "src/gone.rs".into(), added: 99, removed: 99 },
+                FileLineCounts {
+                    path: "src/gone.rs".into(),
+                    added: 99,
+                    removed: 99,
+                },
             ],
         )
         .await
         .unwrap();
 
     assert_eq!(cache.workday_lines(1, "20260524").await.unwrap(), (40, 10));
-    assert!(cache.entries_missing_line_counts(1).await.unwrap().is_empty());
+    assert!(cache
+        .entries_missing_line_counts(1)
+        .await
+        .unwrap()
+        .is_empty());
     // another workday is unaffected
     assert_eq!(cache.workday_lines(1, "20260525").await.unwrap(), (0, 0));
 }
@@ -144,7 +156,13 @@ async fn range_entries_filters_by_workday_and_attaches_files() {
     write_entry(
         &root,
         "20260618/Features_to_add/0900_feature_x.md",
-        &fm("feature", "feat-x", "done", "claude-code", &["src/a.rs", "src/b.rs"]),
+        &fm(
+            "feature",
+            "feat-x",
+            "done",
+            "claude-code",
+            &["src/a.rs", "src/b.rs"],
+        ),
         "[x] Feature X\n",
     );
     write_entry(
@@ -163,7 +181,10 @@ async fn range_entries_filters_by_workday_and_attaches_files() {
     cache.reindex_full(7, &root).await.unwrap();
 
     // Full range — all three, newest workday first.
-    let all = cache.range_entries(7, "20260618", "20260622").await.unwrap();
+    let all = cache
+        .range_entries(7, "20260618", "20260622")
+        .await
+        .unwrap();
     assert_eq!(all.len(), 3);
     assert_eq!(all[0].workday, "20260622");
     assert_eq!(all[0].entry_type, "error");
@@ -181,13 +202,19 @@ async fn range_entries_filters_by_workday_and_attaches_files() {
     );
 
     // Narrow range excludes the boundary days.
-    let narrow = cache.range_entries(7, "20260619", "20260621").await.unwrap();
+    let narrow = cache
+        .range_entries(7, "20260619", "20260621")
+        .await
+        .unwrap();
     assert_eq!(narrow.len(), 1);
     assert_eq!(narrow[0].entry_type, "refactor");
     assert_eq!(narrow[0].agent_id, "cursor");
 
     // No entries in range → empty.
-    let none = cache.range_entries(7, "20260101", "20260102").await.unwrap();
+    let none = cache
+        .range_entries(7, "20260101", "20260102")
+        .await
+        .unwrap();
     assert!(none.is_empty());
 }
 
@@ -483,9 +510,15 @@ async fn with_tz_backfills_offset_and_warns_disk_unchanged() {
     assert_eq!(entry.frontmatter.created_at, "2026-05-24T09:25:13+09:00");
     // …recorded as an *advisory* warning (lights the ⚠ badge) but the
     // frontmatter parsed structurally, so parse_ok stays true.
-    assert!(entry.parse_ok, "tz coercion is advisory, not a parse failure");
     assert!(
-        entry.parse_warnings.iter().any(|w| w.contains("timezone offset")),
+        entry.parse_ok,
+        "tz coercion is advisory, not a parse failure"
+    );
+    assert!(
+        entry
+            .parse_warnings
+            .iter()
+            .any(|w| w.contains("timezone offset")),
         "warns: {:?}",
         entry.parse_warnings
     );
@@ -517,7 +550,10 @@ async fn without_tz_detects_but_does_not_rewrite() {
         .unwrap()
         .expect("row exists");
     assert_eq!(entry.frontmatter.created_at, "2026-05-24T09:25:13"); // unchanged
-    assert!(entry.parse_ok, "detect-only warning is advisory, not a parse failure");
+    assert!(
+        entry.parse_ok,
+        "detect-only warning is advisory, not a parse failure"
+    );
     assert!(entry
         .parse_warnings
         .iter()
@@ -639,9 +675,15 @@ async fn apply_path_change_reports_redacted_count() {
     assert!(matches!(outcome, Some(UpsertOutcome::Inserted)));
     assert_eq!(redacted, 1, "one GitHub PAT masked");
 
-    let entry = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+    let entry = JournalCache::new(&db)
+        .get_entry(1, rel)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(entry.body_markdown.contains("[REDACTED]"));
-    assert!(!entry.body_markdown.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
+    assert!(!entry
+        .body_markdown
+        .contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
 }
 
 #[tokio::test]
@@ -701,7 +743,11 @@ async fn reindex_incremental_does_not_scrub_preexisting_unmasked_secret() {
         .reindex_full(1, &journal_root)
         .await
         .unwrap();
-    let before = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+    let before = JournalCache::new(&db)
+        .get_entry(1, rel)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(before.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
 
     // Incremental WITH redaction but unchanged mtime → file skipped → secret survives.
@@ -709,7 +755,11 @@ async fn reindex_incremental_does_not_scrub_preexisting_unmasked_secret() {
         .reindex_incremental(1, &journal_root)
         .await
         .unwrap();
-    let after = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+    let after = JournalCache::new(&db)
+        .get_entry(1, rel)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(
         after.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"),
         "known limitation: incremental skip leaves the stale secret"
@@ -720,7 +770,11 @@ async fn reindex_incremental_does_not_scrub_preexisting_unmasked_secret() {
         .reindex_full(1, &journal_root)
         .await
         .unwrap();
-    let healed = JournalCache::new(&db).get_entry(1, rel).await.unwrap().unwrap();
+    let healed = JournalCache::new(&db)
+        .get_entry(1, rel)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(healed.body_markdown.contains("[REDACTED]"));
     assert!(!healed.body_markdown.contains("AKIAABCDEFGHIJKLMNOP"));
 }
@@ -749,10 +803,20 @@ async fn template_and_attachments_are_skipped() {
     let cache = JournalCache::new(&db);
     let journal_root = dir.path().join("journal");
     // Real entry
-    write_entry(&journal_root, "20260524/Bugs/0925_bug_a.md", &standard_frontmatter("a"), "[x]\n");
+    write_entry(
+        &journal_root,
+        "20260524/Bugs/0925_bug_a.md",
+        &standard_frontmatter("a"),
+        "[x]\n",
+    );
     // Should-be-skipped helpers
     write_entry(&journal_root, "_template.md", "", "ignored template\n");
-    write_entry(&journal_root, "20260524/_attachments/note.md", "", "scratch\n");
+    write_entry(
+        &journal_root,
+        "20260524/_attachments/note.md",
+        "",
+        "scratch\n",
+    );
     write_entry(&journal_root, "20260524/Bugs/.draft.md", "", "hidden\n");
 
     let report = cache.reindex_full(1, &journal_root).await.unwrap();
@@ -792,7 +856,11 @@ async fn upsert_outcome_signals_inserted_then_updated() {
         UpsertOutcome::Inserted
     );
     // Rewrite with different body → Updated
-    std::fs::write(&abs, format!("---\n{}\n---\n[x] v2\n", standard_frontmatter("a"))).unwrap();
+    std::fs::write(
+        &abs,
+        format!("---\n{}\n---\n[x] v2\n", standard_frontmatter("a")),
+    )
+    .unwrap();
     let text2 = std::fs::read_to_string(&abs).unwrap();
     let (pf2, body_text2) = parse_frontmatter_and_body(&text2);
     let body2 = parse_body(&body_text2);
@@ -924,10 +992,38 @@ async fn overview_stats_aggregates_heatmap_cells_for_window() {
 async fn overview_stats_groups_difficulty_mix_with_null_count() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
-    write_journal(&journal_root, "20260522/Bugs/0900_bug_a.md", Some("medium"), "x", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_bug_b.md", Some("medium"), "x", "2026-05-22T09:10:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0920_bug_c.md", Some("high"), "x", "2026-05-22T09:20:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0930_bug_d.md", None, "x", "2026-05-22T09:30:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_bug_a.md",
+        Some("medium"),
+        "x",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_bug_b.md",
+        Some("medium"),
+        "x",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0920_bug_c.md",
+        Some("high"),
+        "x",
+        "2026-05-22T09:20:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0930_bug_d.md",
+        None,
+        "x",
+        "2026-05-22T09:30:00+09:00",
+        false,
+    );
     cache.reindex_full(1, &journal_root).await.unwrap();
 
     let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
@@ -941,10 +1037,38 @@ async fn overview_stats_groups_difficulty_mix_with_null_count() {
 async fn overview_stats_agent_breakdown_share_sums_to_one() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
-    write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "claude-code", "2026-05-22T09:10:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "cursor", "2026-05-22T09:20:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0930_d.md", None, "manual", "2026-05-22T09:30:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_a.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_b.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0920_c.md",
+        None,
+        "cursor",
+        "2026-05-22T09:20:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0930_d.md",
+        None,
+        "manual",
+        "2026-05-22T09:30:00+09:00",
+        false,
+    );
     cache.reindex_full(1, &journal_root).await.unwrap();
 
     let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
@@ -998,9 +1122,30 @@ async fn overview_stats_unfinished_caps_at_fifty() {
 async fn list_entries_filter_by_agent_includes_only_matching() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
-    write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "manual", "2026-05-22T09:20:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_a.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_b.md",
+        None,
+        "cursor",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0920_c.md",
+        None,
+        "manual",
+        "2026-05-22T09:20:00+09:00",
+        false,
+    );
     cache.reindex_full(1, &journal_root).await.unwrap();
 
     let rows = cache
@@ -1022,9 +1167,30 @@ async fn list_entries_filter_by_agent_includes_only_matching() {
 async fn list_entries_filter_by_agent_empty_set_shows_all() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
-    write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "manual", "2026-05-22T09:20:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_a.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_b.md",
+        None,
+        "cursor",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0920_c.md",
+        None,
+        "manual",
+        "2026-05-22T09:20:00+09:00",
+        false,
+    );
     cache.reindex_full(1, &journal_root).await.unwrap();
 
     let rows = cache
@@ -1039,8 +1205,22 @@ async fn list_entries_filter_combines_type_and_agent() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
     // bug + claude-code, bug + cursor, feature + cursor.
-    write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "claude-code", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "cursor", "2026-05-22T09:10:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_a.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_b.md",
+        None,
+        "cursor",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
     // Switch the third row to a feature by overwriting frontmatter type.
     let feat_fm = "schema_version: 1\ntype: feature\nslug: x\nstatus: done\ncreated_at: \"2026-05-22T09:20:00+09:00\"\nsession_id: \"20260520-001\"\nagent: { id: cursor }\nlanguage: ko";
     write_entry(
@@ -1073,10 +1253,38 @@ async fn observed_agent_ids_returns_distinct_sorted() {
     let (db, _dir, journal_root) = fresh_cache_with_project().await;
     let cache = JournalCache::new(&db);
     // Insert in non-alphabetical order, with duplicates.
-    write_journal(&journal_root, "20260522/Bugs/0900_a.md", None, "manual", "2026-05-22T09:00:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0910_b.md", None, "claude-code", "2026-05-22T09:10:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0920_c.md", None, "claude-code", "2026-05-22T09:20:00+09:00", false);
-    write_journal(&journal_root, "20260522/Bugs/0930_d.md", None, "cursor", "2026-05-22T09:30:00+09:00", false);
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0900_a.md",
+        None,
+        "manual",
+        "2026-05-22T09:00:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0910_b.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:10:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0920_c.md",
+        None,
+        "claude-code",
+        "2026-05-22T09:20:00+09:00",
+        false,
+    );
+    write_journal(
+        &journal_root,
+        "20260522/Bugs/0930_d.md",
+        None,
+        "cursor",
+        "2026-05-22T09:30:00+09:00",
+        false,
+    );
     cache.reindex_full(1, &journal_root).await.unwrap();
 
     let agents = cache.observed_agent_ids(1).await.unwrap();

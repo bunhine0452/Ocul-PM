@@ -148,7 +148,12 @@ pub fn extract_candidates(
     // 이 갈려 임계에 못 미치는 비일관을 막는다 (스톱리스트·슬러그와 동일 규율).
     let mut clusters: BTreeMap<String, (String, Vec<usize>)> = BTreeMap::new();
     for (i, e) in entries.iter().enumerate() {
-        let tags: BTreeSet<&str> = e.tags.iter().map(|t| t.trim()).filter(|t| !t.is_empty()).collect();
+        let tags: BTreeSet<&str> = e
+            .tags
+            .iter()
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+            .collect();
         for t in tags {
             let entry = clusters
                 .entry(t.to_lowercase())
@@ -212,7 +217,9 @@ pub fn existing_skill_slugs(project_root: &Path) -> BTreeSet<String> {
     let root = project_root.join(SKILLS_SUBDIR);
     let mut out = BTreeSet::new();
     for dir in [root.clone(), root.join(DISABLED_DIRNAME)] {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
         for entry in entries.flatten() {
             let Ok(ft) = entry.file_type() else { continue };
             if !ft.is_dir() {
@@ -289,7 +296,11 @@ pub fn gather_evidence(
     let patterns = redact::patterns_for_project(project_root);
     let mut tagged: Vec<&RangeEntry> = entries
         .iter()
-        .filter(|e| e.tags.iter().any(|t| t.trim().eq_ignore_ascii_case(&candidate.tag)))
+        .filter(|e| {
+            e.tags
+                .iter()
+                .any(|t| t.trim().eq_ignore_ascii_case(&candidate.tag))
+        })
         .collect();
     tagged.sort_by(|a, b| {
         b.workday
@@ -542,11 +553,20 @@ mod tests {
     fn stoplist_and_version_tags_are_excluded() {
         let mut entries = Vec::new();
         for wd in ["20260718", "20260719", "20260720"] {
-            entries.push(entry("chore", wd, "R", &["release", "Docs", "v1.2.0", "deploy-check"]));
+            entries.push(entry(
+                "chore",
+                wd,
+                "R",
+                &["release", "Docs", "v1.2.0", "deploy-check"],
+            ));
         }
         let got = extract_candidates(&entries, &BTreeSet::new(), &BTreeSet::new());
         let tags: Vec<&str> = got.iter().map(|c| c.tag.as_str()).collect();
-        assert_eq!(tags, vec!["deploy-check"], "스톱리스트(대소문자 무시)·버전 태그 제외: {tags:?}");
+        assert_eq!(
+            tags,
+            vec!["deploy-check"],
+            "스톱리스트(대소문자 무시)·버전 태그 제외: {tags:?}"
+        );
         assert!(is_version_tag("v2"));
         assert!(!is_version_tag("verify"));
     }
@@ -569,7 +589,10 @@ mod tests {
         // 무관한 억제 재료는 통과.
         let mut other = BTreeSet::new();
         other.insert("unrelated".to_string());
-        assert_eq!(extract_candidates(&entries, &other, &BTreeSet::new()).len(), 1);
+        assert_eq!(
+            extract_candidates(&entries, &other, &BTreeSet::new()).len(),
+            1
+        );
     }
 
     #[test]
@@ -611,7 +634,11 @@ mod tests {
     fn harvest_reads_marker_and_existing_dirs_include_disabled() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
-        seed_skill(root, "review", "---\nname: review\n---\n\n# x\n\n<!-- promoted-from: tag:code review -->\n");
+        seed_skill(
+            root,
+            "review",
+            "---\nname: review\n---\n\n# x\n\n<!-- promoted-from: tag:code review -->\n",
+        );
         seed_skill(root, ".disabled/legacy", "---\nname: legacy\n---\nx");
         let slugs = existing_skill_slugs(root);
         assert!(slugs.contains("review"));
@@ -640,9 +667,15 @@ mod tests {
         assert_eq!(d.description, "Use when adding a new SQLite migration.");
         assert_eq!(d.rel_path, ".claude/skills/db-migration/SKILL.md");
         assert!(d.body_markdown.starts_with("# 마이그레이션 절차"));
-        assert!(!d.body_markdown.contains("promoted-from"), "미리보기 본문에는 마커 없음");
+        assert!(
+            !d.body_markdown.contains("promoted-from"),
+            "미리보기 본문에는 마커 없음"
+        );
         assert!(d.content.starts_with("---\nname: db-migration\n"));
-        assert!(d.content.trim_end().ends_with("<!-- promoted-from: tag:migration -->"));
+        assert!(d
+            .content
+            .trim_end()
+            .ends_with("<!-- promoted-from: tag:migration -->"));
         // 마커가 억제 수확과 왕복된다.
         let tmp = TempDir::new().unwrap();
         seed_skill(tmp.path(), &d.slug, &d.content);
@@ -656,7 +689,9 @@ mod tests {
         let resp = "---\nname: migration\ndescription: \"Use when running migrations.\"\n---\n\n# 절차\n\n1. 단계\n";
         let d = parse_draft_response(&candidate(), resp).unwrap();
         assert!(
-            d.content.trim_end().ends_with("<!-- promoted-from: tag:migration -->"),
+            d.content
+                .trim_end()
+                .ends_with("<!-- promoted-from: tag:migration -->"),
             "마커 누락 시 자동 부착: {}",
             d.content
         );
@@ -735,7 +770,11 @@ mod tests {
         // 펜스 없는 정상 응답 + 본문이 코드블록으로 끝남 + 무관 태그 마커 주입.
         let resp = "---\nname: deploy-check\ndescription: Use when deploying.\n---\n\n## 절차\n\n```bash\nmake deploy\n```\n<!-- promoted-from: tag:unrelated -->";
         let draft = parse_draft_response(&cand, resp).unwrap();
-        assert!(draft.body_markdown.ends_with("```"), "닫는 펜스는 보존: {}", draft.body_markdown);
+        assert!(
+            draft.body_markdown.ends_with("```"),
+            "닫는 펜스는 보존: {}",
+            draft.body_markdown
+        );
         assert!(!draft.body_markdown.contains("unrelated"), "무관 마커 제거");
         // 저장 content 에는 자기 태그 마커가 정확히 1개.
         assert_eq!(draft.content.matches(PROMOTED_MARKER_PREFIX).count(), 1);
@@ -768,6 +807,9 @@ mod tests {
         let ev = gather_evidence(root, &cand, &[e]);
         assert_eq!(ev.len(), 1);
         assert!(ev[0].excerpt.contains("make deploy"), "{}", ev[0].excerpt);
-        assert!(!ev[0].excerpt.contains("pad:"), "frontmatter 는 발췌에서 제외");
+        assert!(
+            !ev[0].excerpt.contains("pad:"),
+            "frontmatter 는 발췌에서 제외"
+        );
     }
 }

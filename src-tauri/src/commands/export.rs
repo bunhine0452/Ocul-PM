@@ -45,7 +45,10 @@ async fn render_digest(
     since: &str,
     until: &str,
 ) -> Result<String, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let cache = JournalCache::new(db);
     let entries: Vec<RangeEntry> = cache
         .range_entries(project_id, since, until)
@@ -57,10 +60,7 @@ async fn render_digest(
     }
 
     let mut out = String::new();
-    out.push_str(&format!(
-        "# {} — 작업 일지\n\n",
-        project.name
-    ));
+    out.push_str(&format!("# {} — 작업 일지\n\n", project.name));
     out.push_str(&format!(
         "> 기간 {} ~ {} · 총 {}개 · Ocul-PM 내보냄\n",
         fmt_workday(since),
@@ -74,11 +74,19 @@ async fn render_digest(
             out.push_str(&format!("\n## {}\n", fmt_workday(&e.workday)));
             last_workday = e.workday.clone();
         }
-        out.push_str(&format!("\n### [{}] {}\n\n", type_label(&e.entry_type), e.title));
+        out.push_str(&format!(
+            "\n### [{}] {}\n\n",
+            type_label(&e.entry_type),
+            e.title
+        ));
         let files = if e.files.is_empty() {
             "—".to_string()
         } else {
-            e.files.iter().map(|f| format!("`{f}`")).collect::<Vec<_>>().join(", ")
+            e.files
+                .iter()
+                .map(|f| format!("`{f}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
         };
         out.push_str(&format!(
             "- 상태: {} · 에이전트: {} · 파일: {}\n\n",

@@ -6,7 +6,6 @@
 use super::*;
 
 impl OculpmManager {
-
     // ─── W2-PR4: crash recovery ─────────────────────────────────────────────
 
     /// Scan the most recent `max_workdays` workday directories for zombie
@@ -136,7 +135,9 @@ impl OculpmManager {
         // No session actor → need to start watcher first.
         self.watcher_start(project_id, None).await?;
         let projects = self.projects.read().await;
-        let entry = projects.get(&project_id).ok_or(OculpmError::NotInitialized(project_id))?;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
         if let Some(actor) = &entry.session {
             actor.manual_start()?;
             tokio::task::yield_now().await;
@@ -216,8 +217,10 @@ impl OculpmManager {
             .index_writer
             .read_snapshot(&workday, kind)
             .await?
-            .ok_or_else(|| OculpmError::InvalidConfig(format!(
-                "snapshot not captured for workday={workday}, kind={kind:?}"
-            )))
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(format!(
+                    "snapshot not captured for workday={workday}, kind={kind:?}"
+                ))
+            })
     }
 }

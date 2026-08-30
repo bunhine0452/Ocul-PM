@@ -16,8 +16,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::{oneshot, Mutex};
 
-use crate::framing::{encode_frame, parse_frame, Frame};
 use super::registry::{path_to_uri, ServerSpec};
+use crate::framing::{encode_frame, parse_frame, Frame};
 
 /// 요청 하나가 이 시간을 넘기면 포기한다. rust-analyzer 는 인덱싱 중에 완성
 /// 요청을 붙들고 있을 수 있는데, 무한정 기다리면 그 편집 세션이 통째로 멎는다.
@@ -162,7 +162,8 @@ impl LspClient {
     }
 
     pub async fn request(&self, method: &str, params: Value) -> Result<Value, String> {
-        self.request_with_timeout(method, params, REQUEST_TIMEOUT).await
+        self.request_with_timeout(method, params, REQUEST_TIMEOUT)
+            .await
     }
 
     async fn request_with_timeout(
@@ -335,7 +336,9 @@ async fn route_message(
         return;
     }
 
-    let Some(method) = msg.get("method").and_then(Value::as_str) else { return };
+    let Some(method) = msg.get("method").and_then(Value::as_str) else {
+        return;
+    };
     let params = msg.get("params").cloned().unwrap_or(Value::Null);
     match method {
         "textDocument/publishDiagnostics" => {
@@ -469,7 +472,10 @@ mod tests {
         let Some(ServerNotice::Progress { done, .. }) = progress_notice(&end) else {
             panic!("end 를 못 읽었다")
         };
-        assert!(done, "end 를 진행 중으로 읽으면 상태줄이 영원히 '인덱싱 중'이 된다");
+        assert!(
+            done,
+            "end 를 진행 중으로 읽으면 상태줄이 영원히 '인덱싱 중'이 된다"
+        );
     }
 
     #[test]

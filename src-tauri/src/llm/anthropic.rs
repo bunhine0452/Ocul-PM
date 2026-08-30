@@ -84,7 +84,9 @@ struct MessagesResponse {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     #[serde(other)]
     Unknown,
 }
@@ -128,7 +130,7 @@ impl LlmProvider for Anthropic {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,
@@ -176,7 +178,7 @@ impl LlmProvider for Anthropic {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,

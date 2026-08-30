@@ -39,7 +39,10 @@ pub async fn oculpm_init(
     manager: State<'_, OculpmManager>,
     project_id: u32,
 ) -> Result<OculpmInitReport, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
     tracing::info!(
         target: "oculpm::commands",
@@ -119,7 +122,10 @@ pub async fn oculpm_init(
     // it deletes cache rows whose files no longer exist on disk, so we run
     // it unconditionally. Errors are warn-only; the watcher will still
     // capture *future* edits even if this initial reindex fails.
-    match manager.reindex_journal_cache_incremental(&db, project_id).await {
+    match manager
+        .reindex_journal_cache_incremental(&db, project_id)
+        .await
+    {
         Ok(r) => tracing::info!(
             target: "oculpm::commands",
             project_id,
@@ -446,7 +452,10 @@ pub async fn oculpm_workday_brief(
             .list_journal_entries(&db, project_id, Some(wd.clone()), EntryFilters::default())
             .await
             .map_err(|e| e.to_string())?;
-        days.push(WorkdayBucket { workday: wd, entries });
+        days.push(WorkdayBucket {
+            workday: wd,
+            entries,
+        });
     }
 
     let (lines_added, lines_removed) = match &lines_workday {
@@ -524,7 +533,10 @@ pub async fn oculpm_get_entry_diffs(
     // authored, pre-feature) so the entry's diff shows immediately instead of
     // "기록된 변경 없음". Root comes from the DB, so it works without an active
     // manager (the journal screen reads from the SQLite cache).
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
     manager
         .read_or_reconstruct_entry_diffs(&db, project_id, root, relative_path)
@@ -837,24 +849,30 @@ pub async fn oculpm_open_entry_in_editor(
 
 #[cfg(target_os = "macos")]
 fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("open").arg(path).status().and_then(|s| {
-        if s.success() {
-            Ok(())
-        } else {
-            Err(std::io::Error::other(format!("open exited with {s}")))
-        }
-    })
+    std::process::Command::new("open")
+        .arg(path)
+        .status()
+        .and_then(|s| {
+            if s.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!("open exited with {s}")))
+            }
+        })
 }
 
 #[cfg(target_os = "linux")]
 fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("xdg-open").arg(path).status().and_then(|s| {
-        if s.success() {
-            Ok(())
-        } else {
-            Err(std::io::Error::other(format!("xdg-open exited with {s}")))
-        }
-    })
+    std::process::Command::new("xdg-open")
+        .arg(path)
+        .status()
+        .and_then(|s| {
+            if s.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!("xdg-open exited with {s}")))
+            }
+        })
 }
 
 #[cfg(target_os = "windows")]
@@ -881,6 +899,28 @@ fn open_native(path: &std::path::Path) -> std::io::Result<()> {
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_log(level: String, target: String, message: String) {
+    // 브리지는 프런트의 console.* 인자를 절단 없이 실어 보냈다 — Error stack ·
+    // 임의 객체 JSON · LLM 에러 바디가 그대로 파일에 남아 하루 5.9MB 까지
+    // 갔고(2026-08-30 감사), 일지용 마스킹(`redact.rs`)은 이 경로를 몰랐다.
+    // 8KB 로 자르고 기본 시크릿 패턴(AKIA·sk-·ghp_)을 통과시킨다.
+    const LOG_MESSAGE_CAP: usize = 8 * 1024;
+    static PATTERNS: std::sync::LazyLock<Vec<regex::Regex>> = std::sync::LazyLock::new(|| {
+        crate::oculpm::redact::compile_redact_patterns(
+            &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+                .git
+                .auto_redact_patterns,
+        )
+    });
+    let message = if message.len() > LOG_MESSAGE_CAP {
+        let mut cut = LOG_MESSAGE_CAP;
+        while !message.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        format!("{}… (+{} bytes)", &message[..cut], message.len() - cut)
+    } else {
+        message
+    };
+    let (message, _) = crate::oculpm::redact::redact_text(&message, &PATTERNS);
     let target_str = format!("oculpm::frontend::{target}");
     match level.as_str() {
         "error" => tracing::error!(target: "oculpm::frontend", source = %target_str, "{message}"),

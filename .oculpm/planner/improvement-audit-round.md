@@ -38,9 +38,9 @@ owner: claude-code
 - [x] MCP `journal_write` 에 `related`·`session_id` 인자 + `language` 를 config 에서 + 마스킹·경고를 응답으로 (`mcp/tools.rs`, AGENTS.md 가 related 를 요구) {#mcp-journal-write-args}
 
 ## Phase 5 — CI·DX {#ci-dx}
-- [ ] `cargo fmt` 1회 정리 + `fmt --check` 게이트 (현재 1,090 hunk) {#fmt-gate}
-- [ ] clippy 게이트(-W 로 시작) + 잡 timeout {#clippy-gate}
-- [ ] 로그 브리지 메시지 절단 + `redact` 통과, LLM 에러 바디 512B (`commands/oculpm.rs oculpm_log`, `llm/*.rs`) {#log-bridge-cap}
+- [x] `cargo fmt` 1회 정리(154 파일) + `fmt --check` 게이트 (현재 1,090 hunk) {#fmt-gate}
+- [x] clippy 50건 → 0, `-D warnings` 게이트(허용 2종만 크레이트 수준) + 잡 timeout 20/40분 {#clippy-gate}
+- [x] 로그 브리지 8KB 절단 + 기본 패턴 `redact` 통과, LLM 에러 바디 512B(`llm::error_body`, 4 프로바이더 8곳) (`commands/oculpm.rs oculpm_log`, `llm/*.rs`) {#log-bridge-cap}
 
 ## 결정
 
@@ -69,4 +69,6 @@ owner: claude-code
 | 2026-08-30T11:11:00+09:00 | #related-verified-ui | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1111_feature_verified-toggle-and-related-links.md | 검증 토글(툴바)+카드 체크+related 칩 클릭 이동. openByPath 를 Planner 링크와 공유 |
 | 2026-08-30T11:11:00+09:00 | #mcp-journal-write-args | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1111_feature_mcp-journal-write-related-language-redaction.md | related/session_id 스키마 + language=config + 응답 warnings/redacted. 접두 제거·낯선 kind→followup |
 | 2026-08-30T11:11:00+09:00 | #dead-toggle #dead-commands | claude-code | ☐→[x] / ☐→[~] | .oculpm/journal/20260830/Chores/1111_chore_dead-toggle-and-debug-adapters.md | 토글 제거 + dapAdapters 연결. 등록 제거는 chat(브리지 사용)·연쇄 때문에 #dead-command-audit 로 이관 |
+| 2026-08-30T11:21:00+09:00 | #fmt-gate #clippy-gate | claude-code | ☐→[x] | .oculpm/journal/20260830/Chores/1121_chore_fmt-clippy-gates.md | fmt 전체 1회(154 파일) · clippy 50→0(--fix 19 + 수동, 허용 2종) · CI fmt --check/clippy -D/timeout |
+| 2026-08-30T11:21:00+09:00 | #log-bridge-cap | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1121_bug_log-bridge-unbounded-and-unmasked.md | oculpm_log 8KB+redact · llm::error_body 512B (4 프로바이더 8곳) |
 <!-- oculpm:plan-log end -->

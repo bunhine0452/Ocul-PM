@@ -105,14 +105,17 @@ pub fn markdown_to_blocks(markdown: &str) -> Vec<Value> {
         } else if let Some(q) = lead.strip_prefix("> ") {
             blocks.push(block("quote", q));
         } else if is_numbered_item(lead) {
-            let item = lead.splitn(2, ". ").nth(1).unwrap_or(lead);
+            let item = lead.split_once(". ").map(|x| x.1).unwrap_or(lead);
             blocks.push(block("numbered_list_item", item));
         } else {
             // 표를 포함한 나머지는 문단 폴백 (v1 손실 허용 — 원문 줄 보존).
             blocks.push(block("paragraph", lead));
         }
         if blocks.len() >= MAX_BLOCKS {
-            blocks.push(block("paragraph", "… (Notion 내보내기 길이 제한으로 뒷부분이 잘렸습니다)"));
+            blocks.push(block(
+                "paragraph",
+                "… (Notion 내보내기 길이 제한으로 뒷부분이 잘렸습니다)",
+            ));
             break;
         }
     }
@@ -123,7 +126,9 @@ pub fn markdown_to_blocks(markdown: &str) -> Vec<Value> {
 }
 
 fn is_numbered_item(s: &str) -> bool {
-    let Some((num, rest)) = s.split_once(". ") else { return false };
+    let Some((num, rest)) = s.split_once(". ") else {
+        return false;
+    };
     !num.is_empty() && num.len() <= 3 && num.bytes().all(|b| b.is_ascii_digit()) && !rest.is_empty()
 }
 
@@ -268,7 +273,10 @@ mod tests {
         );
         let code = blocks.last().unwrap();
         assert_eq!(code["code"]["language"], "rust");
-        assert_eq!(code["code"]["rich_text"][0]["text"]["content"], "fn main() {}");
+        assert_eq!(
+            code["code"]["rich_text"][0]["text"]["content"],
+            "fn main() {}"
+        );
     }
 
     #[test]
@@ -290,7 +298,14 @@ mod tests {
         let parts = blocks[0]["paragraph"]["rich_text"].as_array().unwrap();
         assert_eq!(parts.len(), 3, "1900자 단위 분할");
         // 문자 기준 분할이라 멀티바이트가 깨지지 않는다.
-        assert_eq!(parts[0]["text"]["content"].as_str().unwrap().chars().count(), 1900);
+        assert_eq!(
+            parts[0]["text"]["content"]
+                .as_str()
+                .unwrap()
+                .chars()
+                .count(),
+            1900
+        );
     }
 
     #[test]
@@ -302,8 +317,10 @@ mod tests {
             Some(dashed)
         );
         assert_eq!(
-            normalize_page_id("https://www.notion.so/acme/회고-모음-1234567890abcdef1234567890abcdef?pvs=4")
-                .as_deref(),
+            normalize_page_id(
+                "https://www.notion.so/acme/회고-모음-1234567890abcdef1234567890abcdef?pvs=4"
+            )
+            .as_deref(),
             Some(dashed)
         );
         // 2026-07-20 리뷰 — 프래그먼트(#블록id)가 붙으면 블록 id 를 페이지 id 로
@@ -359,7 +376,10 @@ pub const OAUTH_TIMEOUT_SECS: u64 = 180;
 /// 루프백으로 돌아온 요청 라인에서 (token, state) 를 뽑는다.
 /// 형식: `GET /oculpm/notion?token=…&state=… HTTP/1.1`
 pub fn parse_oauth_callback(request_line: &str) -> Option<(String, String)> {
-    let path = request_line.strip_prefix("GET ")?.split_whitespace().next()?;
+    let path = request_line
+        .strip_prefix("GET ")?
+        .split_whitespace()
+        .next()?;
     let query = path.split_once('?')?.1;
     let mut token = None;
     let mut state = None;
@@ -403,7 +423,11 @@ pub fn oauth_nonce() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let seed = format!("{now}-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed));
+    let seed = format!(
+        "{now}-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
     blake3::hash(seed.as_bytes()).to_hex()[..32].to_string()
 }
 
@@ -421,8 +445,7 @@ mod oauth_tests {
         assert!(parse_oauth_callback("GET /favicon.ico HTTP/1.1").is_none());
         assert!(parse_oauth_callback("POST /x?token=a&state=b HTTP/1.1").is_none());
         // 퍼센트 인코딩 방어.
-        let (t2, _) =
-            parse_oauth_callback("GET /cb?token=a%2Bb&state=s HTTP/1.1").unwrap();
+        let (t2, _) = parse_oauth_callback("GET /cb?token=a%2Bb&state=s HTTP/1.1").unwrap();
         assert_eq!(t2, "a+b");
     }
 
@@ -435,4 +458,3 @@ mod oauth_tests {
         assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
     }
 }
-

@@ -7,11 +7,9 @@
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
-    CancelNotification, ContentBlock, DeleteSessionRequest, ListSessionsRequest,
-    McpServer, McpServerStdio, NewSessionRequest, PromptRequest,
-    ImageContent, LoadSessionRequest, ResourceLink, SessionConfigOptionValue,
-    SetSessionConfigOptionRequest,
-    TextContent,
+    CancelNotification, ContentBlock, DeleteSessionRequest, ImageContent, ListSessionsRequest,
+    LoadSessionRequest, McpServer, McpServerStdio, NewSessionRequest, PromptRequest, ResourceLink,
+    SessionConfigOptionValue, SetSessionConfigOptionRequest, TextContent,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
@@ -20,7 +18,10 @@ use crate::acp::{self, AcpAgentInfo, AcpDiagnostics, AcpEvent, AcpState};
 use crate::db::Db;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -206,7 +207,10 @@ pub fn acp_stop(app: AppHandle, project_id: u32) -> Result<bool, String> {
 /// 현재 떠 있는 어댑터 정보 (없으면 `None`).
 #[tauri::command]
 #[specta::specta]
-pub fn acp_status(state: State<'_, AcpState>, project_id: u32) -> Result<Option<AcpAgentInfo>, String> {
+pub fn acp_status(
+    state: State<'_, AcpState>,
+    project_id: u32,
+) -> Result<Option<AcpAgentInfo>, String> {
     Ok(state.info(project_id))
 }
 
@@ -383,7 +387,8 @@ pub async fn acp_set_config_option(
     value: String,
 ) -> Result<Vec<acp::session::AcpConfigOption>, String> {
     let state = app.state::<AcpState>();
-    let (Some(connection), Some(session)) = (state.connection(project_id), state.session(project_id))
+    let (Some(connection), Some(session)) =
+        (state.connection(project_id), state.session(project_id))
     else {
         return Err("에이전트가 실행 중이 아닙니다".to_string());
     };
@@ -463,7 +468,11 @@ pub async fn acp_list_files(
 
     let matches = tauri::async_runtime::spawn_blocking(move || {
         let mut found: Vec<String> = Vec::new();
-        for entry in ignore::WalkBuilder::new(&root).hidden(true).build().flatten() {
+        for entry in ignore::WalkBuilder::new(&root)
+            .hidden(true)
+            .build()
+            .flatten()
+        {
             if !entry.file_type().is_some_and(|t| t.is_file()) {
                 continue;
             }
@@ -566,9 +575,7 @@ pub async fn acp_list_sessions(
         .filter(|info| scratch.as_ref() != Some(&info.session_id))
         .filter(|info| info.title.as_deref() != Some("/usage"))
         .filter(|info| {
-            std::fs::canonicalize(&info.cwd)
-                .unwrap_or_else(|_| info.cwd.clone())
-                == root
+            std::fs::canonicalize(&info.cwd).unwrap_or_else(|_| info.cwd.clone()) == root
         })
         .map(|info| AcpSessionSummary {
             id: info.session_id.0.to_string(),

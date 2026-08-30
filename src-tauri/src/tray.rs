@@ -29,8 +29,7 @@ use tauri::image::Image;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
-    AppHandle, Listener, LogicalPosition, Manager, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder,
+    AppHandle, Listener, LogicalPosition, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
 pub const TRAY_WINDOW: &str = "tray";
@@ -85,9 +84,24 @@ struct Ring {
 }
 
 const ARCS: [Ring; 3] = [
-    Ring { r: 6.2, w: 1.55, gap_at: 1.22, gap: 1.5 },
-    Ring { r: 11.2, w: 1.55, gap_at: -0.70, gap: 1.25 },
-    Ring { r: 16.2, w: 1.55, gap_at: 2.18, gap: 1.05 },
+    Ring {
+        r: 6.2,
+        w: 1.55,
+        gap_at: 1.22,
+        gap: 1.5,
+    },
+    Ring {
+        r: 11.2,
+        w: 1.55,
+        gap_at: -0.70,
+        gap: 1.25,
+    },
+    Ring {
+        r: 16.2,
+        w: 1.55,
+        gap_at: 2.18,
+        gap: 1.05,
+    },
 ];
 
 /// 각도 차 (rad) 를 [-π, π] 로 정규화한 절대값.
@@ -331,7 +345,9 @@ fn notify_journal_added(app: &AppHandle, state: &Arc<TrayState>, p: JournalAdded
             return;
         }
         {
-            let Ok(mut times) = state.notified_at.lock() else { return };
+            let Ok(mut times) = state.notified_at.lock() else {
+                return;
+            };
             let now = std::time::Instant::now();
             times.retain(|t| now.duration_since(*t).as_secs() < 10);
             if times.len() >= 3 {
@@ -479,8 +495,7 @@ pub fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
     }
     #[cfg(target_os = "macos")]
     {
-        let hide_dock =
-            tauri::async_runtime::block_on(setting_on(&db, SETTING_HIDE_DOCK, false));
+        let hide_dock = tauri::async_runtime::block_on(setting_on(&db, SETTING_HIDE_DOCK, false));
         if hide_dock {
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
         }

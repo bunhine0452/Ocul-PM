@@ -43,7 +43,12 @@ pub fn write_body(md: &str, new_body: &str, date: &str) -> String {
     if !lines[start + 1..].iter().any(|l| l.trim() == "---") {
         return ensure_trailing_newline(new_body);
     }
-    set_fm_field(&mut lines, "updated", date, &["created", "status", "title", "id"]);
+    set_fm_field(
+        &mut lines,
+        "updated",
+        date,
+        &["created", "status", "title", "id"],
+    );
     // Recompute the closing fence (an insert may have shifted it).
     let start = lines.iter().position(|l| l.trim() == "---").unwrap();
     let end = start
@@ -63,7 +68,12 @@ pub fn set_status(md: &str, status: &str, date: &str) -> String {
     if !set_fm_field(&mut lines, "status", status, &["title", "id"]) {
         return md.to_string();
     }
-    set_fm_field(&mut lines, "updated", date, &["created", "status", "title", "id"]);
+    set_fm_field(
+        &mut lines,
+        "updated",
+        date,
+        &["created", "status", "title", "id"],
+    );
     lines.join("\n")
 }
 
@@ -75,7 +85,12 @@ pub fn set_title(md: &str, title: &str, date: &str) -> String {
     if !set_fm_field(&mut lines, "title", &value, &["id"]) {
         return md.to_string();
     }
-    set_fm_field(&mut lines, "updated", date, &["created", "status", "title", "id"]);
+    set_fm_field(
+        &mut lines,
+        "updated",
+        date,
+        &["created", "status", "title", "id"],
+    );
     lines.join("\n")
 }
 
@@ -88,7 +103,12 @@ pub fn set_resolution(md: &str, plan_id: &str, decided_at: &str, date: &str) -> 
     if !set_fm_field(&mut lines, "status", "resolved", &["title", "id"]) {
         return md.to_string();
     }
-    set_fm_field(&mut lines, "updated", date, &["created", "status", "title", "id"]);
+    set_fm_field(
+        &mut lines,
+        "updated",
+        date,
+        &["created", "status", "title", "id"],
+    );
     remove_resolution_ref(&mut lines);
     // Insert the block just before the closing fence.
     let start = lines.iter().position(|l| l.trim() == "---").unwrap();
@@ -119,14 +139,13 @@ fn remove_resolution_ref(lines: &mut Vec<String>) {
         return;
     };
     let end = start + 1 + rel;
-    let Some(key_idx) = ((start + 1)..end)
-        .find(|&i| lines[i].trim_start().starts_with("resolution_ref:"))
+    let Some(key_idx) =
+        ((start + 1)..end).find(|&i| lines[i].trim_start().starts_with("resolution_ref:"))
     else {
         return;
     };
     let mut last = key_idx;
-    for i in (key_idx + 1)..end {
-        let l = &lines[i];
+    for (i, l) in lines.iter().enumerate().take(end).skip(key_idx + 1) {
         if l.starts_with(' ') || l.starts_with('\t') {
             last = i;
         } else {
@@ -225,7 +244,7 @@ mod tests {
     #[test]
     fn write_body_preserves_resolution_ref_nested_mapping() {
         let md = "---\noculpm_discussion: v1\nid: t\ntitle: \"제목\"\nstatus: resolved\ncreated: 2026-06-01\nupdated: 2026-06-01\nowner: user\nresolution_ref:\n  plan_id: my-plan\n  decided_at: 2026-06-02T10:00:00+09:00\n---\n\n## 문제 정의\n옛 본문\n";
-        let out = write_body(&md, "## 문제 정의\n새 본문\n", "2026-06-29");
+        let out = write_body(md, "## 문제 정의\n새 본문\n", "2026-06-29");
         let d = parse_discussion(&out, "t");
         assert_eq!(d.frontmatter.resolution_plan_id.as_deref(), Some("my-plan"));
         assert_eq!(
@@ -246,7 +265,10 @@ mod tests {
         assert_eq!(d.frontmatter.updated.as_deref(), Some("2026-06-29"));
         // round-trip back to open
         let back = set_status(&out, "open", "2026-06-30");
-        assert_eq!(parse_discussion(&back, "t").frontmatter.status, DiscussionStatus::Open);
+        assert_eq!(
+            parse_discussion(&back, "t").frontmatter.status,
+            DiscussionStatus::Open
+        );
     }
 
     #[test]

@@ -12,10 +12,11 @@ use serde_json::Value;
 use specta::Type;
 
 /// 디버그 세션의 상태. 화면의 버튼 활성화가 전부 여기서 파생된다.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum DapState {
     /// 세션 없음.
+    #[default]
     Idle,
     /// 어댑터를 띄우고 initialize 협상 중.
     Starting,
@@ -283,11 +284,22 @@ mod tests {
             { "id": 3, "name": "<unknown>", "line": 0, "column": 0 },
         ]});
         let got = frames_from_json(&body, root());
-        assert_eq!(got.len(), 3, "소스가 없어도 목록에는 남는다 — 깊이 자체가 정보다");
+        assert_eq!(
+            got.len(),
+            3,
+            "소스가 없어도 목록에는 남는다 — 깊이 자체가 정보다"
+        );
         assert_eq!(got[0].path.as_deref(), Some("src/demo.rs"));
-        assert_eq!(got[0].line, 2, "1-based 그대로 (LSP 와 달리 여기서 +1 하지 않는다)");
+        assert_eq!(
+            got[0].line, 2,
+            "1-based 그대로 (LSP 와 달리 여기서 +1 하지 않는다)"
+        );
         assert!(got[1].path.is_none(), "프로젝트 밖은 열 수 없다");
-        assert_eq!(got[1].display_source.as_deref(), Some("function.rs"), "그래도 어디인지는 말한다");
+        assert_eq!(
+            got[1].display_source.as_deref(),
+            Some("function.rs"),
+            "그래도 어디인지는 말한다"
+        );
         assert!(got[2].display_source.is_none());
     }
 
@@ -337,7 +349,10 @@ mod tests {
     #[test]
     fn handles_go_back_to_the_adapter_as_integers() {
         // 정수가 아니면 어댑터가 요청을 거절한다 (실측).
-        assert_eq!(serde_json::json!({ "frameId": wire_id(3.0) }).to_string(), r#"{"frameId":3}"#);
+        assert_eq!(
+            serde_json::json!({ "frameId": wire_id(3.0) }).to_string(),
+            r#"{"frameId":3}"#
+        );
         assert_eq!(wire_id(682093.0), 682093);
     }
 
@@ -346,8 +361,16 @@ mod tests {
         assert!(output_from_json(&json!({ "output": "" })).is_none());
         assert!(output_from_json(&json!({})).is_none());
         let got = output_from_json(&json!({ "category": "stderr", "output": "쾅\n" })).unwrap();
-        assert_eq!((got.category.as_str(), got.text.as_str()), ("stderr", "쾅\n"));
+        assert_eq!(
+            (got.category.as_str(), got.text.as_str()),
+            ("stderr", "쾅\n")
+        );
         // category 가 없으면 console 로 본다.
-        assert_eq!(output_from_json(&json!({ "output": "x" })).unwrap().category, "console");
+        assert_eq!(
+            output_from_json(&json!({ "output": "x" }))
+                .unwrap()
+                .category,
+            "console"
+        );
     }
 }

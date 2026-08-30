@@ -18,13 +18,16 @@ use crate::oculpm::rules::{
 };
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
-fn scope_root(scope: RuleScope, project_root: &PathBuf) -> Result<PathBuf, String> {
+fn scope_root(scope: RuleScope, project_root: &std::path::Path) -> Result<PathBuf, String> {
     match scope {
-        RuleScope::Project => Ok(project_root.clone()),
+        RuleScope::Project => Ok(project_root.to_path_buf()),
         RuleScope::Global => rules::home_dir().map_err(|e| e.to_string()),
     }
 }

@@ -57,7 +57,10 @@ async fn session_survives_client_reconnect() {
 
     // ── 첫 클라이언트: 세션을 만들고 출력을 확인한다 ─────────────────────
     let (client_a, mut events_a) = connect(&socket).await;
-    let resp = client_a.request(start_req("p1-test", "nonce-one")).await.unwrap();
+    let resp = client_a
+        .request(start_req("p1-test", "nonce-one"))
+        .await
+        .unwrap();
     let Response::Session { nonce, .. } = resp else {
         panic!("expected Session, got {resp:?}")
     };
@@ -88,7 +91,10 @@ async fn session_survives_client_reconnect() {
     // 멱등 start — 같은 sid 로 다시 부르면 (다른 nonce 를 넘겨도) 기존 세션의
     // nonce 가 돌아온다. 새 nonce 를 돌려주면 프런트가 살아있는 셸의 OSC 를
     // 전부 위조로 판정한다.
-    let resp = client_a.request(start_req("p1-test", "nonce-two")).await.unwrap();
+    let resp = client_a
+        .request(start_req("p1-test", "nonce-two"))
+        .await
+        .unwrap();
     assert!(matches!(resp, Response::Session { nonce, .. } if nonce == "nonce-one"));
 
     // ── 앱 재시작 시뮬레이션: 접속을 끊고 새 클라이언트로 붙는다 ─────────
@@ -97,17 +103,35 @@ async fn session_survives_client_reconnect() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let (client_b, _events_b) = connect(&socket).await;
-    let resp = client_b.request(Request::Attach { sid: "p1-test".into() }).await.unwrap();
-    let Response::Attach { attach: Some(attach) } = resp else {
+    let resp = client_b
+        .request(Request::Attach {
+            sid: "p1-test".into(),
+        })
+        .await
+        .unwrap();
+    let Response::Attach {
+        attach: Some(attach),
+    } = resp
+    else {
         panic!("session must survive the reconnect, got {resp:?}")
     };
-    assert!(attach.text.contains("HELLO_42"), "scrollback must replay: {:?}", attach.text);
-    assert_eq!(attach.nonce, "nonce-one", "nonce must survive — OSC 검증이 깨진다");
+    assert!(
+        attach.text.contains("HELLO_42"),
+        "scrollback must replay: {:?}",
+        attach.text
+    );
+    assert_eq!(
+        attach.nonce, "nonce-one",
+        "nonce must survive — OSC 검증이 깨진다"
+    );
     assert!(attach.seq > 0);
 
     // 미지의 세션 write 는 조용한 성공이 아니라 오류다 (A0d 계약 유지).
     let resp = client_b
-        .request(Request::Write { sid: "ghost".into(), data: "x".into() })
+        .request(Request::Write {
+            sid: "ghost".into(),
+            data: "x".into(),
+        })
         .await
         .unwrap();
     assert!(
@@ -116,9 +140,17 @@ async fn session_survives_client_reconnect() {
     );
 
     // ── 정리 계약: KillExcept(keep=[]) 는 전량 종료 ──────────────────────
-    let resp = client_b.request(Request::KillExcept { keep: vec![] }).await.unwrap();
+    let resp = client_b
+        .request(Request::KillExcept { keep: vec![] })
+        .await
+        .unwrap();
     assert!(matches!(resp, Response::Count { n: 1 }), "got {resp:?}");
-    let resp = client_b.request(Request::Attach { sid: "p1-test".into() }).await.unwrap();
+    let resp = client_b
+        .request(Request::Attach {
+            sid: "p1-test".into(),
+        })
+        .await
+        .unwrap();
     assert!(matches!(resp, Response::Attach { attach: None }));
 }
 
@@ -143,9 +175,19 @@ async fn kill_prefix_only_touches_that_window() {
     client.request(start_req("p12-bbb", "n2")).await.unwrap();
 
     // `p1-` 은 `p12-…` 를 잡아먹지 않는다 (window.rs 접두사 규격).
-    let resp = client.request(Request::KillPrefix { prefix: "p1-".into() }).await.unwrap();
+    let resp = client
+        .request(Request::KillPrefix {
+            prefix: "p1-".into(),
+        })
+        .await
+        .unwrap();
     assert!(matches!(resp, Response::Count { n: 1 }), "got {resp:?}");
-    let resp = client.request(Request::Attach { sid: "p12-bbb".into() }).await.unwrap();
+    let resp = client
+        .request(Request::Attach {
+            sid: "p12-bbb".into(),
+        })
+        .await
+        .unwrap();
     assert!(matches!(resp, Response::Attach { attach: Some(_) }));
 
     let _ = client.request(Request::KillExcept { keep: vec![] }).await;

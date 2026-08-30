@@ -202,7 +202,10 @@ mod tests {
         let cfg = OculpmConfig::default_for_new_project();
         // A nonexistent root is fine — only patterns starting with `/` would
         // anchor against it, and our defaults are all `**/...` globs.
-        build_forbidden_matcher(Path::new("/tmp/__oculpm_test__"), &cfg.git.forbid_journal_for_paths)
+        build_forbidden_matcher(
+            Path::new("/tmp/__oculpm_test__"),
+            &cfg.git.forbid_journal_for_paths,
+        )
     }
 
     fn defaults_redact() -> Vec<Regex> {
@@ -216,7 +219,10 @@ mod tests {
     fn redact_aws_access_key() {
         let regs = defaults_redact();
         let (out, hits) = redact_text("export AWS_KEY=AKIAABCDEFGHIJKLMNOP rest", &regs);
-        assert!(out.contains("[REDACTED]"), "expected placeholder in {out:?}");
+        assert!(
+            out.contains("[REDACTED]"),
+            "expected placeholder in {out:?}"
+        );
         assert!(!out.contains("AKIAABCDEFGHIJKLMNOP"));
         assert_eq!(hits.len(), 1);
     }
@@ -265,14 +271,20 @@ mod tests {
         // OpenAI/Anthropic-style key: `sk-` then >=20 of [A-Za-z0-9_-].
         let sk = "sk-proj-abcdEFGH1234ijklMNOP5678";
         let (out, hits) = redact_text(&format!("OPENAI_API_KEY={sk}"), &regs);
-        assert!(out.contains("[REDACTED]"), "sk- key must be masked: {out:?}");
+        assert!(
+            out.contains("[REDACTED]"),
+            "sk- key must be masked: {out:?}"
+        );
         assert!(!out.contains(sk));
         assert_eq!(hits.len(), 1);
 
         // Slack bot token: `xox[baprs]-` then [A-Za-z0-9-]+.
         let xox = "xoxb-not-a-real-token";
         let (out2, hits2) = redact_text(&format!("slack: {xox}"), &regs);
-        assert!(out2.contains("[REDACTED]"), "slack token must be masked: {out2:?}");
+        assert!(
+            out2.contains("[REDACTED]"),
+            "slack token must be masked: {out2:?}"
+        );
         assert!(!out2.contains(xox));
         assert_eq!(hits2.len(), 1);
     }

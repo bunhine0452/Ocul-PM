@@ -36,17 +36,16 @@ pub async fn settings_set(
     key: String,
     value: String,
 ) -> Result<(), String> {
-    db.settings_set(key.clone(), value).await.map_err(|e| e.to_string())?;
+    db.settings_set(key.clone(), value)
+        .await
+        .map_err(|e| e.to_string())?;
     announce(&app, vec![key]);
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn settings_get(
-    db: State<'_, Db>,
-    key: String,
-) -> Result<Option<String>, String> {
+pub async fn settings_get(db: State<'_, Db>, key: String) -> Result<Option<String>, String> {
     db.settings_get(key).await.map_err(|e| e.to_string())
 }
 
@@ -65,7 +64,9 @@ pub async fn settings_set_many(
 ) -> Result<(), String> {
     let mut keys = Vec::with_capacity(entries.len());
     for (k, v) in entries {
-        db.settings_set(k.clone(), v).await.map_err(|e| e.to_string())?;
+        db.settings_set(k.clone(), v)
+            .await
+            .map_err(|e| e.to_string())?;
         keys.push(k);
     }
     announce(&app, keys);
@@ -89,11 +90,7 @@ fn presence_key(name: &str) -> String {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn secret_set(
-    db: State<'_, Db>,
-    name: String,
-    value: String,
-) -> Result<(), String> {
+pub async fn secret_set(db: State<'_, Db>, name: String, value: String) -> Result<(), String> {
     secrets::set(&name, &value).map_err(|e| e.to_string())?;
     db.settings_set(presence_key(&name), "true".to_string())
         .await

@@ -282,8 +282,8 @@ fn split_closing_fence(rest: &str) -> Option<(&str, &str)> {
     while let Some(pos) = rest[search_from..].find("\n---") {
         let abs = search_from + pos;
         let after = &rest[abs + 4..]; // skip "\n---"
-        // Closing fence must end with newline or EOF — otherwise it's just
-        // a horizontal-rule-like sequence inside the YAML (or body).
+                                      // Closing fence must end with newline or EOF — otherwise it's just
+                                      // a horizontal-rule-like sequence inside the YAML (or body).
         if after.is_empty() {
             let yaml = &rest[..abs + 1]; // include the leading newline so YAML parses cleanly
             return Some((yaml, ""));
@@ -534,7 +534,9 @@ fn parse_file_touched(value: &YamlValue, warnings: &mut Vec<String>) -> Option<F
         .and_then(|v| v.as_str())
         .and_then(parse_file_op)
         .unwrap_or_else(|| {
-            warnings.push(format!("files_touched[{path}].op missing or unknown; defaulting to 'update'"));
+            warnings.push(format!(
+                "files_touched[{path}].op missing or unknown; defaulting to 'update'"
+            ));
             FileOp::Update
         });
     let bytes_added = m
@@ -567,7 +569,9 @@ fn parse_related(value: &YamlValue, warnings: &mut Vec<String>) -> Option<Relate
         .get(YamlValue::String("kind".into()))
         .and_then(|v| v.as_str())
         .unwrap_or_else(|| {
-            warnings.push(format!("related[{ref_path}].kind missing; defaulting to 'followup'"));
+            warnings.push(format!(
+                "related[{ref_path}].kind missing; defaulting to 'followup'"
+            ));
             "followup"
         })
         .to_string();
@@ -777,14 +781,23 @@ mod tests {
         );
         assert_eq!(slug_from_title("코드 화면 개편", "plan"), "코드-화면-개편");
         // 섞여 있으면 양쪽 다 산다 (ASCII 만 남기던 옛 규칙은 한글을 버렸다).
-        assert_eq!(slug_from_title("버그 FIX 라운드", "plan"), "버그-fix-라운드");
+        assert_eq!(
+            slug_from_title("버그 FIX 라운드", "plan"),
+            "버그-fix-라운드"
+        );
     }
 
     #[test]
     fn slug_from_title_matches_the_old_ascii_behaviour_for_ascii_titles() {
         // 기존 폴더 이름이 흔들리지 않는다는 뜻이라 회귀 방어로 중요하다.
-        assert_eq!(slug_from_title("Claude Plugin Strategy", "plan"), "claude-plugin-strategy");
-        assert_eq!(slug_from_title("  pricing / open-core!! ", "plan"), "pricing-open-core");
+        assert_eq!(
+            slug_from_title("Claude Plugin Strategy", "plan"),
+            "claude-plugin-strategy"
+        );
+        assert_eq!(
+            slug_from_title("  pricing / open-core!! ", "plan"),
+            "pricing-open-core"
+        );
         assert_eq!(slug_from_title("v2 Release", "plan"), "v2-release");
     }
 
@@ -814,7 +827,7 @@ mod tests {
         assert!(iso_lacks_offset("2026-06-22T10:00:00"));
         assert!(iso_lacks_offset("2026-06-22T10:00")); // minute precision
         assert!(iso_lacks_offset("2026-06-22 10:00:00")); // space variant
-        // Already has an offset / Z → not flagged.
+                                                          // Already has an offset / Z → not flagged.
         assert!(!iso_lacks_offset("2026-06-22T10:00:00+09:00"));
         assert!(!iso_lacks_offset("2026-06-22T01:00:00Z"));
         // Not a datetime at all → not flagged (a different concern).
@@ -849,7 +862,10 @@ mod tests {
     #[test]
     fn normalize_slug_kebabs_only_when_needed() {
         assert_eq!(normalize_slug("My_Feature").as_deref(), Some("my-feature"));
-        assert_eq!(normalize_slug("Has Spaces!!").as_deref(), Some("has-spaces"));
+        assert_eq!(
+            normalize_slug("Has Spaces!!").as_deref(),
+            Some("has-spaces")
+        );
         assert_eq!(normalize_slug("--Trim--Me--").as_deref(), Some("trim-me"));
         // Already valid → None (no change).
         assert_eq!(normalize_slug("already-valid-123"), None);
@@ -865,7 +881,10 @@ mod tests {
         assert_eq!(normalize_slug("버그 수정!!").as_deref(), Some("버그-수정"));
         assert_eq!(normalize_slug("버그__수정").as_deref(), Some("버그-수정"));
         assert_eq!(normalize_slug("버그-FIX").as_deref(), Some("버그-fix"));
-        assert_eq!(normalize_slug("  한글 슬러그  ").as_deref(), Some("한글-슬러그"));
+        assert_eq!(
+            normalize_slug("  한글 슬러그  ").as_deref(),
+            Some("한글-슬러그")
+        );
         // All-punctuation / emoji → empty → None (no-op, not a lossy rewrite).
         assert_eq!(normalize_slug("!!!"), None);
         assert_eq!(normalize_slug("🎉"), None);
@@ -910,7 +929,11 @@ tags: ["changelog", "sqlite"]
     #[test]
     fn parses_well_formed_frontmatter_with_no_warnings() {
         let (pf, body) = parse_frontmatter_and_body(&sample_yaml());
-        assert!(pf.parse_warnings.is_empty(), "warnings: {:?}", pf.parse_warnings);
+        assert!(
+            pf.parse_warnings.is_empty(),
+            "warnings: {:?}",
+            pf.parse_warnings
+        );
         let fm = pf.parsed.expect("should parse");
         assert_eq!(fm.entry_type, EntryType::Bug);
         assert_eq!(fm.slug, "changelog-export-param-mismatch");
@@ -967,10 +990,7 @@ tags: ["changelog", "sqlite"]
         let (pf, body) = parse_frontmatter_and_body(input);
         assert!(pf.parsed.is_none(), "unknown enum must not yield Some");
         assert!(!pf.raw_yaml.is_empty(), "raw_yaml must be preserved");
-        assert!(pf
-            .parse_warnings
-            .iter()
-            .any(|w| w.contains("unknown type")));
+        assert!(pf.parse_warnings.iter().any(|w| w.contains("unknown type")));
         assert_eq!(body, "body\n");
     }
 
@@ -980,10 +1000,7 @@ tags: ["changelog", "sqlite"]
         let input = "---\nschema_version: 1\ntype: bug\nstatus: done\ncreated_at: \"x\"\nsession_id: \"x\"\nagent: { id: x }\nlanguage: en\n---\nbody\n";
         let (pf, _) = parse_frontmatter_and_body(input);
         assert!(pf.parsed.is_none());
-        assert!(pf
-            .parse_warnings
-            .iter()
-            .any(|w| w.contains("slug missing")));
+        assert!(pf.parse_warnings.iter().any(|w| w.contains("slug missing")));
     }
 
     #[test]

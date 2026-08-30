@@ -101,9 +101,7 @@ pub async fn check_cli_available(cli_name: String) -> Result<CliCheckResult, Str
 
     let cli = cli_name.clone();
     let resolved_path = tokio::task::spawn_blocking(move || {
-        let output = std::process::Command::new(which_cmd)
-            .arg(&cli)
-            .output();
+        let output = std::process::Command::new(which_cmd).arg(&cli).output();
         match output {
             Ok(o) if o.status.success() => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
@@ -143,7 +141,8 @@ fn find_in_common_paths(cli_name: &str) -> Option<String> {
     let home = dirs_home().unwrap_or_default();
     let candidates: Vec<PathBuf> = if cfg!(target_os = "windows") {
         vec![
-            home.join("AppData/Roaming/npm").join(format!("{cli_name}.cmd")),
+            home.join("AppData/Roaming/npm")
+                .join(format!("{cli_name}.cmd")),
             home.join(".cargo/bin").join(format!("{cli_name}.exe")),
             PathBuf::from("C:/Program Files/Go/bin").join(format!("{cli_name}.exe")),
         ]
@@ -264,7 +263,10 @@ pub async fn create_greenfield_project(
             crate::oculpm::content_lang::ContentLang::English => "en",
             _ => "ko",
         };
-        if let Err(e) = manager.init_project(project_id, &target, template_lang).await {
+        if let Err(e) = manager
+            .init_project(project_id, &target, template_lang)
+            .await
+        {
             tracing::warn!(
                 project_id,
                 error = %e,
@@ -388,7 +390,9 @@ Goals should cover project setup, core feature, and testing/deployment."#;
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: crate::oculpm::content_lang::current(&db).await.apply(&system_prompt),
+                    content: crate::oculpm::content_lang::current(&db)
+                        .await
+                        .apply(system_prompt),
                 },
                 llm::Message {
                     role: llm::Role::User,
@@ -415,9 +419,8 @@ Goals should cover project setup, core feature, and testing/deployment."#;
         content
     };
 
-    let payloads: Vec<SeedGoalPayload> = serde_json::from_str(json_str).map_err(|e| {
-        format!("Could not parse the LLM response: {e}\nRaw: {content}")
-    })?;
+    let payloads: Vec<SeedGoalPayload> = serde_json::from_str(json_str)
+        .map_err(|e| format!("Could not parse the LLM response: {e}\nRaw: {content}"))?;
 
     let mut goals = Vec::new();
     for payload in payloads.into_iter().take(5) {

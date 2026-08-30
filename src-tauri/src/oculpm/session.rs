@@ -54,7 +54,9 @@ pub enum SessionCmd {
     /// PR-CI0 — external agent hook signal (claude_hooks bridge): the agent
     /// is alive (SessionStart / turn Stop). Ensures a session exists, labels
     /// it, and refreshes the inactivity window — no file event required.
-    HookAgentActive { agent_label: String },
+    HookAgentActive {
+        agent_label: String,
+    },
     /// PR-CI0 — the last open hooked agent session reported SessionEnd →
     /// finalize now with the precise `AgentExit` reason.
     HookAgentEnded,
@@ -293,8 +295,7 @@ impl ActorInner {
                 }
 
                 active.last_activity = Utc::now();
-                active.session.file_event_count =
-                    active.session.file_event_count.saturating_add(1);
+                active.session.file_event_count = active.session.file_event_count.saturating_add(1);
                 active.files_unique.insert(stamped.path.clone());
                 active.session.files_unique = active.files_unique.len() as u32;
                 active.dirty = true;
@@ -346,7 +347,8 @@ impl ActorInner {
                 );
                 return;
             }
-            self.finalize_active(EndedReason::Manual, EndedAt::Now).await;
+            self.finalize_active(EndedReason::Manual, EndedAt::Now)
+                .await;
         }
     }
 
@@ -403,7 +405,8 @@ impl ActorInner {
     /// just makes it exact when it can).
     async fn on_hook_agent_ended(&mut self) {
         if matches!(self.state, SessionState::Active(_)) {
-            self.finalize_active(EndedReason::AgentExit, EndedAt::Now).await;
+            self.finalize_active(EndedReason::AgentExit, EndedAt::Now)
+                .await;
         }
     }
 
@@ -419,7 +422,10 @@ impl ActorInner {
         // Capture snapshot_close for the workday that just ended (only if
         // there was an active session — otherwise boundary firing is a no-op).
         if let Some(old_wd) = old_workday {
-            if !self.index_writer.snapshot_exists(&old_wd, SnapshotKind::Close) {
+            if !self
+                .index_writer
+                .snapshot_exists(&old_wd, SnapshotKind::Close)
+            {
                 if let Err(e) = self
                     .index_writer
                     .capture_snapshot(&old_wd, SnapshotKind::Close)
@@ -451,7 +457,8 @@ impl ActorInner {
 
     async fn handle_shutdown(&mut self) {
         if matches!(self.state, SessionState::Active(_)) {
-            self.finalize_active(EndedReason::AppQuit, EndedAt::Now).await;
+            self.finalize_active(EndedReason::AppQuit, EndedAt::Now)
+                .await;
         }
         self.state = SessionState::Closing;
     }
@@ -500,8 +507,7 @@ impl ActorInner {
             Ok(t) => t.with_timezone(&Utc),
             Err(_) => return ResumeOutcome::NoCandidate,
         };
-        let grace =
-            chrono::Duration::minutes(i64::from(self.config.session_resume_grace_minutes));
+        let grace = chrono::Duration::minutes(i64::from(self.config.session_resume_grace_minutes));
         if (now - ended_at) > grace {
             return ResumeOutcome::NoCandidate;
         }
@@ -564,10 +570,8 @@ impl ActorInner {
         // identical session_ids and resume looks identical from their POV.
         self.emit_started(&session);
 
-        let inactivity = spawn_inactivity_timer(
-            self.cmd_tx.clone(),
-            inactivity_timeout(&self.config),
-        );
+        let inactivity =
+            spawn_inactivity_timer(self.cmd_tx.clone(), inactivity_timeout(&self.config));
         let boundary_at = self.resolver.next_boundary(now);
         let boundary = spawn_boundary_timer(self.cmd_tx.clone(), boundary_at);
 
@@ -640,10 +644,8 @@ impl ActorInner {
 
         self.emit_started(&session);
 
-        let inactivity = spawn_inactivity_timer(
-            self.cmd_tx.clone(),
-            inactivity_timeout(&self.config),
-        );
+        let inactivity =
+            spawn_inactivity_timer(self.cmd_tx.clone(), inactivity_timeout(&self.config));
         let boundary_at = self.resolver.next_boundary(now);
         let boundary = spawn_boundary_timer(self.cmd_tx.clone(), boundary_at);
 
@@ -724,7 +726,10 @@ impl ActorInner {
                 return;
             }
             let now = Utc::now();
-            if now.signed_duration_since(active.last_upsert).to_std().unwrap_or(Duration::ZERO)
+            if now
+                .signed_duration_since(active.last_upsert)
+                .to_std()
+                .unwrap_or(Duration::ZERO)
                 < UPSERT_DEBOUNCE
             {
                 return;
@@ -838,7 +843,9 @@ fn spawn_boundary_timer(
 
 fn workday_from_id(session_id: &str) -> Option<String> {
     if session_id.len() >= 8
-        && session_id.as_bytes()[..8].iter().all(|b| b.is_ascii_digit())
+        && session_id.as_bytes()[..8]
+            .iter()
+            .all(|b| b.is_ascii_digit())
     {
         Some(session_id[..8].to_string())
     } else {
@@ -945,7 +952,12 @@ mod tests {
     /// Helper: read the only session in today's workday.
     async fn read_only_session(writer: &IndexWriter, workday: &str) -> Session {
         let sessions = writer.list_sessions(workday).await.unwrap();
-        assert_eq!(sessions.len(), 1, "expected one session, got {:?}", sessions);
+        assert_eq!(
+            sessions.len(),
+            1,
+            "expected one session, got {:?}",
+            sessions
+        );
         sessions.into_iter().next().unwrap()
     }
 
@@ -976,7 +988,10 @@ mod tests {
         assert_eq!(session.files_unique, 1);
         assert!(writer.snapshot_exists(&workday, SnapshotKind::Open));
         // Shutdown finalized with app_quit.
-        assert_eq!(session.ended_reason.unwrap() as u8, EndedReason::AppQuit as u8);
+        assert_eq!(
+            session.ended_reason.unwrap() as u8,
+            EndedReason::AppQuit as u8
+        );
     }
 
     /// PR-CI0 — hook SessionStart from Idle opens exactly one session with a
@@ -1306,7 +1321,10 @@ mod tests {
             "expected resume to keep a single session, got {sessions:?}"
         );
         let s = &sessions[0];
-        assert_eq!(s.file_event_count, 2, "both activities must be on the same session");
+        assert_eq!(
+            s.file_event_count, 2,
+            "both activities must be on the same session"
+        );
         // Final close came from shutdown.
         assert!(matches!(s.ended_reason, Some(EndedReason::AppQuit)));
     }
@@ -1402,9 +1420,21 @@ mod tests {
     /// The real 2026-08-20 timeline that exposed the bug.
     fn aug20() -> Vec<Session> {
         vec![
-            sess("20260820-002", "2026-08-20T20:40:22+09:00", Some("2026-08-20T20:53:50+09:00")),
-            sess("20260820-003", "2026-08-20T21:37:52+09:00", Some("2026-08-20T21:37:52+09:00")),
-            sess("20260820-004", "2026-08-20T21:45:08+09:00", Some("2026-08-20T22:03:18+09:00")),
+            sess(
+                "20260820-002",
+                "2026-08-20T20:40:22+09:00",
+                Some("2026-08-20T20:53:50+09:00"),
+            ),
+            sess(
+                "20260820-003",
+                "2026-08-20T21:37:52+09:00",
+                Some("2026-08-20T21:37:52+09:00"),
+            ),
+            sess(
+                "20260820-004",
+                "2026-08-20T21:45:08+09:00",
+                Some("2026-08-20T22:03:18+09:00"),
+            ),
             sess("20260820-005", "2026-08-20T22:10:51+09:00", None),
         ]
     }
@@ -1450,7 +1480,10 @@ mod tests {
             resolve_session_for_timestamp(&s, "2026-08-20T09:00:00+09:00"),
             None
         );
-        assert_eq!(resolve_session_for_timestamp(&[], "2026-08-20T22:00:00+09:00"), None);
+        assert_eq!(
+            resolve_session_for_timestamp(&[], "2026-08-20T22:00:00+09:00"),
+            None
+        );
     }
 
     #[test]

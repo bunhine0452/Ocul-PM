@@ -155,7 +155,10 @@ pub async fn run_generation(
     model: &str,
     force: bool,
 ) -> Result<Option<ProjectOverview>, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
 
     let signals = collect_signals(db, project_id, &root).await?;
@@ -175,15 +178,14 @@ pub async fn run_generation(
         }
     }
 
-    let (identity, stack_json, overview_md) =
-        call_llm(
-            provider,
-            model,
-            &project.name,
-            &signals,
-            crate::oculpm::content_lang::current(db).await,
-        )
-        .await?;
+    let (identity, stack_json, overview_md) = call_llm(
+        provider,
+        model,
+        &project.name,
+        &signals,
+        crate::oculpm::content_lang::current(db).await,
+    )
+    .await?;
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -213,11 +215,7 @@ pub async fn run_generation(
     }))
 }
 
-async fn collect_signals(
-    db: &Db,
-    project_id: u32,
-    root: &Path,
-) -> Result<OverviewSignals, String> {
+async fn collect_signals(db: &Db, project_id: u32, root: &Path) -> Result<OverviewSignals, String> {
     // Top-level structure — only one level deep to keep the signal small.
     let mut top_level: Vec<String> = Vec::new();
     if let Ok(entries) = fs::read_dir(root) {
@@ -245,7 +243,10 @@ async fn collect_signals(
         }
     }
 
-    let indexed_files = db.count_files(project_id).await.map_err(|e| e.to_string())?;
+    let indexed_files = db
+        .count_files(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let indexed_chunks = db
         .count_chunks(project_id)
         .await
@@ -369,7 +370,7 @@ single JSON object with exactly these keys:
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: content_lang.apply(&system_prompt),
+                    content: content_lang.apply(system_prompt),
                 },
                 llm::Message {
                     role: llm::Role::User,

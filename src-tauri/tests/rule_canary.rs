@@ -96,7 +96,12 @@ fn plugin_journal_skill_carries_load_bearing_rules() {
     assert_all(
         "oculpm-journal skill",
         &t,
-        &[".oculpm/index/**", "secrets", "journal_write", "plan_update"],
+        &[
+            ".oculpm/index/**",
+            "secrets",
+            "journal_write",
+            "plan_update",
+        ],
     );
 }
 

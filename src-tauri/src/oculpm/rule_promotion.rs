@@ -111,7 +111,9 @@ fn rule_covers_area(rule_paths: &[String], area: &str) -> bool {
             return true;
         }
         // 규칙이 영역보다 좁다: `src/api/**` 는 영역 `src/api` 를 덮는다.
-        if g.strip_prefix(area).is_some_and(|rest| rest.starts_with('/')) {
+        if g.strip_prefix(area)
+            .is_some_and(|rest| rest.starts_with('/'))
+        {
             return true;
         }
         // 규칙이 영역보다 **넓다**: `src/**` 나 `src/**/*.ts` 는 영역
@@ -164,7 +166,10 @@ pub fn extract_candidates(
         if promoted_keys.contains(&key) {
             continue;
         }
-        if existing_rules.iter().any(|r| rule_covers_area(&r.paths, &area)) {
+        if existing_rules
+            .iter()
+            .any(|r| rule_covers_area(&r.paths, &area))
+        {
             continue;
         }
         // 최신 실패가 먼저 오도록 workday 내림차순 (동일 workday 는 경로순).
@@ -262,7 +267,11 @@ pub struct Evidence {
 /// 이미 마스킹 — v3). 읽기 실패는 빈 발췌로 삼키지 않고 발췌 자리에 명시한다
 /// (#a0-review-fixes ③) — LLM/사용자가 "증거 없음" 과 "증거 유실" 을 구분해야
 /// 규칙 초안의 근거 강도를 바로 읽는다.
-pub fn gather_evidence(project_root: &Path, candidate: &RuleCandidate, entries: &[RangeEntry]) -> Vec<Evidence> {
+pub fn gather_evidence(
+    project_root: &Path,
+    candidate: &RuleCandidate,
+    entries: &[RangeEntry],
+) -> Vec<Evidence> {
     let patterns = redact::patterns_for_project(project_root);
     let by_rel: BTreeMap<&str, &RangeEntry> = entries
         .iter()
@@ -270,7 +279,9 @@ pub fn gather_evidence(project_root: &Path, candidate: &RuleCandidate, entries: 
         .collect();
     let mut out = Vec::new();
     for rel in candidate.entry_rels.iter().take(EVIDENCE_ENTRIES_CAP) {
-        let Some(e) = by_rel.get(rel.as_str()) else { continue };
+        let Some(e) = by_rel.get(rel.as_str()) else {
+            continue;
+        };
         let mut files: BTreeSet<String> = e.files.iter().cloned().collect();
         for d in entry_diffs::read_entry_diffs(project_root, rel) {
             files.insert(d.path);
@@ -337,7 +348,11 @@ pub fn build_draft_prompt(candidate: &RuleCandidate, evidence: &[Evidence]) -> S
             ev.kind,
             ev.workday,
             ev.title,
-            if ev.files.is_empty() { "(없음)".to_string() } else { ev.files.join(", ") },
+            if ev.files.is_empty() {
+                "(없음)".to_string()
+            } else {
+                ev.files.join(", ")
+            },
         ));
         if !ev.excerpt.is_empty() {
             out.push_str(&ev.excerpt);
@@ -383,7 +398,11 @@ fn sanitize_slug(raw: &str) -> String {
         s = s.replace("--", "-");
     }
     let s = s.trim_matches('-').to_string();
-    let s = if s.len() > 48 { s[..48].trim_matches('-').to_string() } else { s };
+    let s = if s.len() > 48 {
+        s[..48].trim_matches('-').to_string()
+    } else {
+        s
+    };
     if rules::validate_new_rule_name(&s).is_ok() {
         s
     } else {
@@ -422,7 +441,11 @@ pub fn parse_draft_response(
         .take(8)
         .collect();
 
-    let slug = sanitize_slug(if raw.slug.trim().is_empty() { &candidate.area } else { &raw.slug });
+    let slug = sanitize_slug(if raw.slug.trim().is_empty() {
+        &candidate.area
+    } else {
+        &raw.slug
+    });
     let body = if body.starts_with('#') {
         body
     } else {
@@ -448,11 +471,16 @@ pub fn render_rule_content(candidate_key: &str, paths: &[String], body: &str) ->
     if !paths.is_empty() {
         out.push_str("---\npaths:\n");
         for p in paths {
-            out.push_str(&format!("  - {}\n", serde_json::to_string(p).unwrap_or_default()));
+            out.push_str(&format!(
+                "  - {}\n",
+                serde_json::to_string(p).unwrap_or_default()
+            ));
         }
         out.push_str("---\n");
     }
-    out.push_str(&format!("{PROMOTED_MARKER_PREFIX}{candidate_key}{PROMOTED_MARKER_SUFFIX}\n\n"));
+    out.push_str(&format!(
+        "{PROMOTED_MARKER_PREFIX}{candidate_key}{PROMOTED_MARKER_SUFFIX}\n\n"
+    ));
     out.push_str(body.trim_start_matches('\n'));
     if !out.ends_with('\n') {
         out.push('\n');
@@ -502,7 +530,12 @@ mod tests {
     #[test]
     fn clusters_failures_by_area_with_threshold() {
         let entries = vec![
-            entry("bug", "20260718", "B1", &["src/api/users.ts", "src/api/auth.ts"]),
+            entry(
+                "bug",
+                "20260718",
+                "B1",
+                &["src/api/users.ts", "src/api/auth.ts"],
+            ),
             entry("error", "20260719", "E1", &["src/api/users.ts"]),
             // 같은 일지가 같은 영역에 두 번 세어지지 않는다 (파일 2개여도 1).
             entry("bug", "20260720", "B2", &["src/ui/App.tsx"]), // 단독 — 임계 미달
@@ -522,12 +555,20 @@ mod tests {
 
     #[test]
     fn area_depth_caps_at_three_segments_and_skips_root_files() {
-        assert_eq!(area_of("src-tauri/src/oculpm/agents/mod.rs").as_deref(), Some("src-tauri/src/oculpm"));
+        assert_eq!(
+            area_of("src-tauri/src/oculpm/agents/mod.rs").as_deref(),
+            Some("src-tauri/src/oculpm")
+        );
         assert_eq!(area_of("src/a.rs").as_deref(), Some("src"));
         assert_eq!(area_of("CLAUDE.md"), None);
         let entries = vec![
             entry("bug", "20260718", "B1", &["src-tauri/src/oculpm/rules.rs"]),
-            entry("error", "20260719", "E1", &["src-tauri/src/oculpm/watcher.rs"]),
+            entry(
+                "error",
+                "20260719",
+                "E1",
+                &["src-tauri/src/oculpm/watcher.rs"],
+            ),
         ];
         let got = extract_candidates(&entries, &[], &BTreeSet::new());
         assert_eq!(got[0].area, "src-tauri/src/oculpm");
@@ -546,8 +587,14 @@ mod tests {
         let exact = [rule(".claude/rules/api.md", &["src/api"])];
         assert!(extract_candidates(&entries, &exact, &BTreeSet::new()).is_empty());
         // 무관한 paths / 항상-로드 규칙(빈 paths)은 억제하지 않는다.
-        let other = [rule(".claude/rules/x.md", &["docs/**"]), rule(".claude/rules/g.md", &[])];
-        assert_eq!(extract_candidates(&entries, &other, &BTreeSet::new()).len(), 1);
+        let other = [
+            rule(".claude/rules/x.md", &["docs/**"]),
+            rule(".claude/rules/g.md", &[]),
+        ];
+        assert_eq!(
+            extract_candidates(&entries, &other, &BTreeSet::new()).len(),
+            1
+        );
         // "src/apiX" 처럼 접두 문자열만 겹치는 glob 은 영역을 덮지 않는다.
         assert!(!rule_covers_area(&["src/apiX/**".to_string()], "src/api"));
         // 2026-07-20 리뷰 — 영역보다 **넓은** 규칙도 덮는다. 이 방향이 빠져
@@ -642,8 +689,12 @@ mod tests {
         assert_eq!(d.slug, "api-validation");
         assert_eq!(d.paths, vec!["src/api/**/*.ts"]);
         assert_eq!(d.rel_path, ".claude/rules/api-validation.md");
-        assert!(d.content.starts_with("---\npaths:\n  - \"src/api/**/*.ts\"\n---\n"));
-        assert!(d.content.contains("<!-- oculpm:promoted-from area:src/api -->"));
+        assert!(d
+            .content
+            .starts_with("---\npaths:\n  - \"src/api/**/*.ts\"\n---\n"));
+        assert!(d
+            .content
+            .contains("<!-- oculpm:promoted-from area:src/api -->"));
         assert!(d.content.trim_end().ends_with("- 입력을 검증하라"));
         // 마커가 억제 수확과 왕복된다.
         let tmp = TempDir::new().unwrap();
@@ -674,7 +725,9 @@ mod tests {
     #[test]
     fn parse_draft_rejects_missing_json_or_empty_fields() {
         assert!(parse_draft_response(&candidate(), "JSON 없음").is_err());
-        assert!(parse_draft_response(&candidate(), r#"{"title": "", "body_markdown": ""}"#).is_err());
+        assert!(
+            parse_draft_response(&candidate(), r#"{"title": "", "body_markdown": ""}"#).is_err()
+        );
     }
 
     #[test]

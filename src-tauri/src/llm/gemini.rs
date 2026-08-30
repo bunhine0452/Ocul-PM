@@ -125,7 +125,7 @@ impl LlmProvider for Gemini {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,
@@ -159,7 +159,10 @@ impl LlmProvider for Gemini {
         sink: mpsc::Sender<ChatEvent>,
     ) -> Result<(), LlmError> {
         let body = self.build_request(messages, &opts);
-        let url = format!("{BASE_URL}/models/{}:streamGenerateContent?alt=sse", opts.model);
+        let url = format!(
+            "{BASE_URL}/models/{}:streamGenerateContent?alt=sse",
+            opts.model
+        );
         let resp = self
             .client
             .post(&url)
@@ -170,7 +173,7 @@ impl LlmProvider for Gemini {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,

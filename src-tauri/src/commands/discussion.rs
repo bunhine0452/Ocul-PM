@@ -17,18 +17,21 @@ use crate::oculpm::discussion::doc_edit::{
     create_discussion_skeleton, set_resolution, set_status, set_title, write_body,
 };
 use crate::oculpm::discussion::parse::parse_discussion;
-use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::discussion::project::{
     discussion_root, find_discussion_path, slug_for, DiscussionCache, DiscussionDetail,
     DiscussionSummary,
 };
+use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::planner::parse::ItemStatus;
 use crate::oculpm::planner::plan_edit::{add_item, create_plan_skeleton};
 use crate::oculpm::planner::project::planner_dir;
 
 async fn discussion_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(discussion_root(Path::new(&project.root_path)))
 }
 
@@ -296,7 +299,10 @@ fn secure_attachment_join(folder: &Path, rel_path: &str) -> Result<PathBuf, Stri
 }
 
 fn mime_for(path: &Path) -> String {
-    let ext = path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase());
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase());
     match ext.as_deref() {
         Some("png") => "image/png",
         Some("jpg") | Some("jpeg") => "image/jpeg",
@@ -338,7 +344,8 @@ fn copy_into_attachments(folder: &Path, src: &Path) -> Result<String, String> {
         final_name = format!("{stem}-{n}{ext}");
         n += 1;
     }
-    std::fs::copy(src, attachments.join(&final_name)).map_err(|e| format!("Could not copy the attachment: {e}"))?;
+    std::fs::copy(src, attachments.join(&final_name))
+        .map_err(|e| format!("Could not copy the attachment: {e}"))?;
     Ok(format!("attachments/{final_name}"))
 }
 
@@ -476,7 +483,10 @@ pub async fn discussion_promote_to_plan(
     let plan_lock = manager.plan_write_lock(project_id).await;
     let _guard = plan_lock.lock().await;
 
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let proot = planner_dir(Path::new(&project.root_path));
     std::fs::create_dir_all(&proot).map_err(|e| e.to_string())?;
 

@@ -17,7 +17,10 @@ use crate::oculpm::cache::{JournalCache, RangeEntry};
 use crate::oculpm::skill_promotion::{self, SkillCandidate, SkillDraft};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(PathBuf::from(project.root_path))
 }
 
@@ -85,7 +88,8 @@ pub async fn skill_draft_generate(
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: crate::oculpm::content_lang::current(&db).await
+                    content: crate::oculpm::content_lang::current(&db)
+                        .await
                         .apply(skill_promotion::DRAFT_SYSTEM_PROMPT),
                 },
                 llm::Message {

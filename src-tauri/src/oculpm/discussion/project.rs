@@ -25,7 +25,10 @@ pub fn discussion_root(project_root: &Path) -> PathBuf {
 /// Locate the discussion folder whose `discussion.md` frontmatter `id` equals
 /// `discussion_id` (the folder name may differ from the id). `None` if no match.
 pub fn find_discussion_path(discussion_root: &Path, discussion_id: &str) -> Option<PathBuf> {
-    for base in [discussion_root.to_path_buf(), discussion_root.join("_archive")] {
+    for base in [
+        discussion_root.to_path_buf(),
+        discussion_root.join("_archive"),
+    ] {
         let Ok(entries) = std::fs::read_dir(&base) else {
             continue;
         };
@@ -221,7 +224,10 @@ fn collect_into(
         if !folder_path.is_dir() {
             continue;
         }
-        let folder = folder_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let folder = folder_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
         // At the top level, `_archive` / hidden dirs aren't discussions.
         if dir == discussion_root && (folder.starts_with('_') || folder.starts_with('.')) {
             continue;
@@ -483,9 +489,19 @@ impl<'a> DiscussionCache<'a> {
                           created_at, updated_at)
                          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
                         params![
-                            pid, d.discussion_id, d.title, d.status, d.owner, d.problem, d.tags,
-                            d.option_count, d.next_step_count, d.resolution_plan_id, d.file_path,
-                            d.created_at, d.updated_at
+                            pid,
+                            d.discussion_id,
+                            d.title,
+                            d.status,
+                            d.owner,
+                            d.problem,
+                            d.tags,
+                            d.option_count,
+                            d.next_step_count,
+                            d.resolution_plan_id,
+                            d.file_path,
+                            d.created_at,
+                            d.updated_at
                         ],
                     )?;
                 }
@@ -631,7 +647,9 @@ tags: ["a", "b"]
         let root = dir.path().to_path_buf();
         write_discussion(&root, "demo-topic", DISC);
         // an attachment sidecar file
-        let att = discussion_root(&root).join("demo-topic").join("attachments");
+        let att = discussion_root(&root)
+            .join("demo-topic")
+            .join("attachments");
         std::fs::create_dir_all(&att).unwrap();
         std::fs::write(att.join("note.md"), b"hi").unwrap();
 

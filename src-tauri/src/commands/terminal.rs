@@ -89,7 +89,6 @@ impl PtyState {
             None => Ok(None),
         }
     }
-
 }
 
 // ─── 세션 종료 (탭·창이 사라질 때) ───────────────────────────────────────────
@@ -110,18 +109,34 @@ const KILL_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(800);
 
 /// 접두사에 걸리는 세션 전량 종료 — **비동기 경로용** (커맨드).
 pub async fn kill_ptys_with_prefix(app: &tauri::AppHandle, prefix: &str) {
-    kill(app, Request::KillPrefix { prefix: prefix.to_string() }).await;
+    kill(
+        app,
+        Request::KillPrefix {
+            prefix: prefix.to_string(),
+        },
+    )
+    .await;
 }
 
 /// 같은 일을 **기다려서** — 창 이벤트 훅(메인 스레드·동기) 전용.
 pub fn kill_ptys_with_prefix_blocking(app: &tauri::AppHandle, prefix: &str) {
-    blocking_kill(app, Request::KillPrefix { prefix: prefix.to_string() });
+    blocking_kill(
+        app,
+        Request::KillPrefix {
+            prefix: prefix.to_string(),
+        },
+    );
 }
 
 /// 지정한 접두사들**만 남기고** 전량 종료 (마지막 앱 창 닫힘의 총정리).
 /// 창 이벤트 훅 전용이라 동기다.
 pub fn kill_ptys_except_blocking(app: &tauri::AppHandle, keep: &[String]) {
-    blocking_kill(app, Request::KillExcept { keep: keep.to_vec() });
+    blocking_kill(
+        app,
+        Request::KillExcept {
+            keep: keep.to_vec(),
+        },
+    );
 }
 
 /// kill 요청 한 건 — 호스트가 없으면 (= 세션이 없으면) 조용히 끝.
@@ -129,7 +144,9 @@ async fn kill(app: &tauri::AppHandle, req: Request) {
     let work = async {
         // 여기서 `state()` 대신 `try_state()` 를 쓰는 이유: 이 경로는 종료
         // 언저리에서도 불린다. 관리 상태가 이미 내려갔다면 죽일 것도 없다.
-        let Some(state) = app.try_state::<PtyState>() else { return };
+        let Some(state) = app.try_state::<PtyState>() else {
+            return;
+        };
         if let Ok(Some(client)) = state.client(app, false).await {
             if let Ok(Response::Count { n }) = client.request(req).await {
                 if n > 0 {
@@ -197,7 +214,10 @@ pub async fn start_pty_session(
     // 한국어 입력 fix (2026-07-16): Finder 로 실행된 .app 은 LANG 이 비어 셸이
     // C 로케일로 뜬다 — 기존 값은 존중하고 없을 때만 UTF-8 보장. (호스트는 이
     // 앱이 띄우므로 같은 env 를 물려받지만, 판정은 계약대로 앱 쪽에서 한다.)
-    if std::env::var("LANG").map(|v| v.trim().is_empty()).unwrap_or(true) {
+    if std::env::var("LANG")
+        .map(|v| v.trim().is_empty())
+        .unwrap_or(true)
+    {
         env.push(("LANG".into(), "en_US.UTF-8".into()));
     }
     if std::env::var("LC_ALL").is_err() && std::env::var("LC_CTYPE").is_err() {
@@ -232,9 +252,13 @@ pub async fn start_pty_session(
         })
         .await?
     {
-        Response::Session { nonce, shell_integration } => {
-            Ok(PtySessionInfo { nonce, shell_integration })
-        }
+        Response::Session {
+            nonce,
+            shell_integration,
+        } => Ok(PtySessionInfo {
+            nonce,
+            shell_integration,
+        }),
         Response::Error { message } => Err(message),
         other => Err(format!("unexpected pty-host response: {other:?}")),
     }
@@ -299,7 +323,13 @@ pub async fn write_to_pty(
         // 종전과 같은 계약 — 미지의 세션에 "조용한 성공" 을 주지 않는다 (A0d).
         return Err(format!("unknown pty session: {session_id}"));
     };
-    match client.request(Request::Write { sid: session_id, data }).await? {
+    match client
+        .request(Request::Write {
+            sid: session_id,
+            data,
+        })
+        .await?
+    {
         Response::Ok => Ok(()),
         Response::Error { message } => Err(message),
         other => Err(format!("unexpected pty-host response: {other:?}")),
@@ -319,7 +349,10 @@ pub async fn pty_foreground_command(
     let Some(client) = state.client(&app, false).await? else {
         return Err(format!("unknown pty session: {session_id}"));
     };
-    match client.request(Request::Foreground { sid: session_id }).await? {
+    match client
+        .request(Request::Foreground { sid: session_id })
+        .await?
+    {
         Response::Foreground { command } => Ok(command),
         Response::Error { message } => Err(message),
         other => Err(format!("unexpected pty-host response: {other:?}")),
@@ -339,7 +372,14 @@ pub async fn resize_pty(
         // 미지의 세션 resize 는 종전에도 조용한 no-op 였다.
         return Ok(());
     };
-    match client.request(Request::Resize { sid: session_id, rows, cols }).await {
+    match client
+        .request(Request::Resize {
+            sid: session_id,
+            rows,
+            cols,
+        })
+        .await
+    {
         Ok(Response::Error { message }) => Err(message),
         _ => Ok(()),
     }
@@ -377,7 +417,10 @@ mod tests {
             })
             .await
         });
-        assert!(joined.is_err(), "런타임 위에서 부른 block_on 은 패닉해야 한다");
+        assert!(
+            joined.is_err(),
+            "런타임 위에서 부른 block_on 은 패닉해야 한다"
+        );
     }
 
     /// 그 조건을 `blocking_kill` 이 알아볼 수 있어야 한다 — 마지막 안전망.

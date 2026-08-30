@@ -17,32 +17,74 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (6, include_str!("../../migrations/006_file_changes.sql")),
     (7, include_str!("../../migrations/007_changelog.sql")),
     (8, include_str!("../../migrations/008_project_overview.sql")),
-    (9, include_str!("../../migrations/009_conversation_actions.sql")),
+    (
+        9,
+        include_str!("../../migrations/009_conversation_actions.sql"),
+    ),
     // 파일명 번호 그대로 등록한다 — 예전엔 10 으로 등록돼 있었는데, `IF NOT EXISTS`
     // 라 어느 DB 든 결과가 같다. `migration_registry_matches_disk` 가 파일명↔번호를
     // 대조하므로 어긋난 채 둘 수 없다.
-    (11, include_str!("../../migrations/011_project_blueprints.sql")),
+    (
+        11,
+        include_str!("../../migrations/011_project_blueprints.sql"),
+    ),
     (12, include_str!("../../migrations/012_oculpm_journal.sql")),
-    (13, include_str!("../../migrations/013_oculpm_agent_state.sql")),
-    (14, include_str!("../../migrations/014_oculpm_migrations.sql")),
+    (
+        13,
+        include_str!("../../migrations/013_oculpm_agent_state.sql"),
+    ),
+    (
+        14,
+        include_str!("../../migrations/014_oculpm_migrations.sql"),
+    ),
     (15, include_str!("../../migrations/015_file_snapshots.sql")),
     (16, include_str!("../../migrations/016_oculpm_planner.sql")),
-    (17, include_str!("../../migrations/017_embedding_model_quantized.sql")),
+    (
+        17,
+        include_str!("../../migrations/017_embedding_model_quantized.sql"),
+    ),
     (18, include_str!("../../migrations/018_code_graph.sql")),
-    (19, include_str!("../../migrations/019_symbol_relations.sql")),
-    (20, include_str!("../../migrations/020_symbol_relations_from.sql")),
-    (21, include_str!("../../migrations/021_oculpm_agent_version.sql")),
+    (
+        19,
+        include_str!("../../migrations/019_symbol_relations.sql"),
+    ),
+    (
+        20,
+        include_str!("../../migrations/020_symbol_relations_from.sql"),
+    ),
+    (
+        21,
+        include_str!("../../migrations/021_oculpm_agent_version.sql"),
+    ),
     (22, include_str!("../../migrations/022_retro_insights.sql")),
-    (23, include_str!("../../migrations/023_coercion_version.sql")),
-    (24, include_str!("../../migrations/024_oculpm_discussion.sql")),
+    (
+        23,
+        include_str!("../../migrations/023_coercion_version.sql"),
+    ),
+    (
+        24,
+        include_str!("../../migrations/024_oculpm_discussion.sql"),
+    ),
     // 25 는 비어 있다 — 025_fts.sql(trigram FTS5) 은 등록된 적 없이 2026-08-30
     // 에 폐기됐다 (`code_index.rs search_text` 주석). 번호는 재사용하지 않는다.
-    (26, include_str!("../../migrations/026_claude_hooks_inbox.sql")),
-    (27, include_str!("../../migrations/027_project_appearance.sql")),
-    (28, include_str!("../../migrations/028_journal_file_lines.sql")),
+    (
+        26,
+        include_str!("../../migrations/026_claude_hooks_inbox.sql"),
+    ),
+    (
+        27,
+        include_str!("../../migrations/027_project_appearance.sql"),
+    ),
+    (
+        28,
+        include_str!("../../migrations/028_journal_file_lines.sql"),
+    ),
     (29, include_str!("../../migrations/029_mobile_devices.sql")),
     (30, include_str!("../../migrations/030_context_firings.sql")),
-    (31, include_str!("../../migrations/031_purge_index_noise.sql")),
+    (
+        31,
+        include_str!("../../migrations/031_purge_index_noise.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -174,7 +216,7 @@ impl Db {
                     *const rusqlite::ffi::sqlite3_api_routines,
                 ) -> i32,
             >(
-                sqlite_vec::sqlite3_vec_init as *const ()
+                sqlite_vec::sqlite3_vec_init as *const (),
             )));
         });
     }
@@ -182,8 +224,7 @@ impl Db {
     async fn migrate(&self) -> Result<()> {
         self.conn
             .call(|c| {
-                let current: i64 =
-                    c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+                let current: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
                 for (version, sql) in MIGRATIONS {
                     if current < *version {
                         let tx = c.transaction()?;
@@ -257,10 +298,8 @@ impl Db {
             .call(|c| {
                 let sqlite_version: String =
                     c.query_row("SELECT sqlite_version()", [], |r| r.get(0))?;
-                let vec_version: String =
-                    c.query_row("SELECT vec_version()", [], |r| r.get(0))?;
-                let schema_version: u32 =
-                    c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+                let vec_version: String = c.query_row("SELECT vec_version()", [], |r| r.get(0))?;
+                let schema_version: u32 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
                 let page_size: u64 = c.query_row("PRAGMA page_size", [], |r| r.get(0))?;
                 let page_count: u64 = c.query_row("PRAGMA page_count", [], |r| r.get(0))?;
                 let freelist: u64 = c.query_row("PRAGMA freelist_count", [], |r| r.get(0))?;
@@ -539,7 +578,9 @@ const DOC_EXCLUDE_SQL: &str = " AND lower(f.path) NOT LIKE '%.md' \
 /// `ESCAPE '\'` in the SQL). Without this, `%`/`_` in a query would act as
 /// wildcards and `\` would corrupt the pattern.
 fn escape_like(q: &str) -> String {
-    q.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+    q.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]

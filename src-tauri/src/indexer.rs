@@ -92,12 +92,9 @@ const SKIP_FILENAMES: &[&str] = &[
 
 /// Filename suffix patterns to skip.
 const SKIP_SUFFIXES: &[&str] = &[
-    ".min.js",
-    ".min.css",
-    ".min.mjs",
-    ".map",      // sourcemaps
-    ".lock",     // generic lock files (Cargo.lock still wanted? — skip for now)
-    ".snap",     // jest snapshots
+    ".min.js", ".min.css", ".min.mjs", ".map",  // sourcemaps
+    ".lock", // generic lock files (Cargo.lock still wanted? — skip for now)
+    ".snap", // jest snapshots
 ];
 
 /// Discover indexable text files under `root`, respecting `.gitignore` and
@@ -143,7 +140,9 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
         if is_skipped_name(path) {
             continue;
         }
-        let Ok(metadata) = entry.metadata() else { continue };
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
         if metadata.len() == 0 || metadata.len() > config.max_file_bytes {
             continue;
         }
@@ -267,10 +266,14 @@ pub fn load_path_aliases(project_root: &Path) -> PathAliases {
     let mut aliases = PathAliases::default();
     for fname in ["tsconfig.json", "tsconfig.app.json", "jsconfig.json"] {
         let p = project_root.join(fname);
-        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        let Ok(text) = std::fs::read_to_string(&p) else {
+            continue;
+        };
         // Strip // and /* */ comments — tsconfig allows them
         let cleaned = strip_jsonc_comments(&text);
-        let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) else { continue };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(&cleaned) else {
+            continue;
+        };
         let Some(paths) = json
             .get("compilerOptions")
             .and_then(|c| c.get("paths"))
@@ -279,7 +282,9 @@ pub fn load_path_aliases(project_root: &Path) -> PathAliases {
             continue;
         };
         for (pattern, replacements) in paths {
-            let Some(arr) = replacements.as_array() else { continue };
+            let Some(arr) = replacements.as_array() else {
+                continue;
+            };
             // Strip trailing /* or *
             let alias_prefix = pattern
                 .trim_end_matches('*')
@@ -369,8 +374,17 @@ fn strip_jsonc_comments(text: &str) -> String {
 fn candidate_extensions(source_ext: &str) -> &'static [&'static str] {
     match source_ext {
         "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => &[
-            "", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
-            "/index.ts", "/index.tsx", "/index.js", "/index.jsx",
+            "",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            "/index.ts",
+            "/index.tsx",
+            "/index.js",
+            "/index.jsx",
         ],
         "py" => &["", ".py", "/__init__.py"],
         "rb" => &["", ".rb"],
@@ -379,8 +393,15 @@ fn candidate_extensions(source_ext: &str) -> &'static [&'static str] {
         "rs" => &["", ".rs", "/mod.rs"],
         "go" => &["", ".go"],
         _ => &[
-            "", ".ts", ".tsx", ".js", ".jsx",
-            "/index.ts", "/index.tsx", "/index.js", "/index.jsx",
+            "",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            "/index.ts",
+            "/index.tsx",
+            "/index.js",
+            "/index.jsx",
         ],
     }
 }
@@ -644,7 +665,9 @@ pub fn chunk_file(
                         } else {
                             // 거대 심볼(수천 줄 컴포넌트·모듈 단위 클래스)은 창으로
                             // 쪼개되 머리줄은 각 창에 남겨 임베딩이 소속을 안다.
-                            for window in chunk_lines_with_offset(&body, sym.start_line as usize, config) {
+                            for window in
+                                chunk_lines_with_offset(&body, sym.start_line as usize, config)
+                            {
                                 chunks.push(Chunk {
                                     kind: "ast",
                                     start_line: window.start_line,
@@ -662,11 +685,8 @@ pub fn chunk_file(
             if last_covered_line < lines.len() {
                 let uncovered_content = lines[last_covered_line..].join("\n");
                 if meaningful_line_count(&uncovered_content) >= MIN_GAP_CHUNK_LINES {
-                    let sub_chunks = chunk_lines_with_offset(
-                        &uncovered_content,
-                        last_covered_line + 1,
-                        config,
-                    );
+                    let sub_chunks =
+                        chunk_lines_with_offset(&uncovered_content, last_covered_line + 1, config);
                     chunks.extend(sub_chunks);
                 }
             }
@@ -743,9 +763,7 @@ pub const SETTING_EXCLUDE_PATTERNS: &str = "exclude_patterns";
 
 /// Build an IndexConfig from a settings map. Missing/invalid values fall back
 /// to the defaults so the indexer is always safe to call.
-pub fn config_from_settings(
-    get: impl Fn(&str) -> Option<String>,
-) -> IndexConfig {
+pub fn config_from_settings(get: impl Fn(&str) -> Option<String>) -> IndexConfig {
     let chunk_lines = get(SETTING_CHUNK_SIZE)
         .and_then(|s| s.parse::<usize>().ok())
         .filter(|n| *n > 0 && *n <= 500)
@@ -818,7 +836,10 @@ mod chunk_tests {
         assert_eq!(meaningful_line_count("}\n);\n  {"), 0);
         assert_eq!(meaningful_line_count("\n\n  \n"), 0);
         assert_eq!(meaningful_line_count("import x from 'y';"), 1);
-        assert_eq!(meaningful_line_count("let a = 1;\nlet b = 2;\nlet c = 3;"), 3);
+        assert_eq!(
+            meaningful_line_count("let a = 1;\nlet b = 2;\nlet c = 3;"),
+            3
+        );
     }
 
     #[test]
@@ -842,8 +863,16 @@ mod chunk_tests {
         let (chunks, analysis) =
             chunk_file(Path::new("bundle.js"), &one_line, &IndexConfig::default());
         let symbols = analysis.map(|a| a.symbols.len()).unwrap_or(0);
-        assert!(symbols >= 40, "tree-sitter 가 심볼을 뽑아야 재현이 성립한다: {symbols}");
-        assert_eq!(chunks.len(), 1, "같은 줄 범위는 한 번만: {:?}", chunks.len());
+        assert!(
+            symbols >= 40,
+            "tree-sitter 가 심볼을 뽑아야 재현이 성립한다: {symbols}"
+        );
+        assert_eq!(
+            chunks.len(),
+            1,
+            "같은 줄 범위는 한 번만: {:?}",
+            chunks.len()
+        );
     }
 
     /// 거대 심볼(수천 줄 함수)은 하나의 청크가 아니라 상한 안의 창으로 쪼개진다.
@@ -938,7 +967,11 @@ mod walk_tests {
         let root = dir.path();
         write(root, "src/a.ts", "export const a = 1;\n");
         write(root, "node_modules/pkg/index.js", "module.exports = 1;\n");
-        write(root, "nested/node_modules/pkg/index.js", "module.exports = 1;\n");
+        write(
+            root,
+            "nested/node_modules/pkg/index.js",
+            "module.exports = 1;\n",
+        );
         write(root, "target/debug/build.rs", "fn main() {}\n");
         write(root, "__pycache__/x.pyc.py", "x = 1\n");
         assert_eq!(rel_paths(root, &IndexConfig::default()), vec!["src/a.ts"]);
@@ -947,6 +980,9 @@ mod walk_tests {
             &root.join("node_modules/pkg/index.js"),
             &IndexConfig::default()
         ));
-        assert!(is_indexable_path(&root.join("src/a.ts"), &IndexConfig::default()));
+        assert!(is_indexable_path(
+            &root.join("src/a.ts"),
+            &IndexConfig::default()
+        ));
     }
 }

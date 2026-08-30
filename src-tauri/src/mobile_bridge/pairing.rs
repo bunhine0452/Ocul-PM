@@ -28,7 +28,11 @@ pub enum PairAttempt {
 
 impl PairingSession {
     pub fn begin(now: Instant) -> Self {
-        Self { code: generate_code(), expires_at: now + PAIRING_TTL, attempts: 0 }
+        Self {
+            code: generate_code(),
+            expires_at: now + PAIRING_TTL,
+            attempts: 0,
+        }
     }
 
     pub fn code(&self) -> &str {
@@ -54,7 +58,9 @@ impl PairingSession {
         if self.attempts >= MAX_ATTEMPTS {
             PairAttempt::Exhausted
         } else {
-            PairAttempt::WrongCode { remaining: MAX_ATTEMPTS - self.attempts }
+            PairAttempt::WrongCode {
+                remaining: MAX_ATTEMPTS - self.attempts,
+            }
         }
     }
 }
@@ -69,7 +75,11 @@ fn generate_code() -> String {
 
 /// Bearer 토큰 — uuid v4 두 개(hex 64자, ~244비트 엔트로피).
 pub fn generate_token() -> String {
-    format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple())
+    format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    )
 }
 
 /// 저장·대조는 항상 이 해시로 — 평문 토큰은 DB 에 닿지 않는다.
@@ -82,7 +92,11 @@ mod tests {
     use super::*;
 
     fn session_with(code: &str, now: Instant) -> PairingSession {
-        PairingSession { code: code.into(), expires_at: now + PAIRING_TTL, attempts: 0 }
+        PairingSession {
+            code: code.into(),
+            expires_at: now + PAIRING_TTL,
+            attempts: 0,
+        }
     }
 
     #[test]
@@ -114,7 +128,12 @@ mod tests {
         let now = Instant::now();
         let mut s = session_with("123456", now);
         for i in 1..MAX_ATTEMPTS {
-            assert_eq!(s.check("000000", now), PairAttempt::WrongCode { remaining: MAX_ATTEMPTS - i });
+            assert_eq!(
+                s.check("000000", now),
+                PairAttempt::WrongCode {
+                    remaining: MAX_ATTEMPTS - i
+                }
+            );
         }
         // 5번째 오입력 — 소진.
         assert_eq!(s.check("000000", now), PairAttempt::Exhausted);

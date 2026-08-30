@@ -12,7 +12,9 @@ use ocul_pm_lib::db::Db;
 use ocul_pm_lib::oculpm::manager::OculpmManager;
 use ocul_pm_lib::oculpm::spec::Severity;
 
-async fn fresh_with_active_agents(active: &[&str]) -> (
+async fn fresh_with_active_agents(
+    active: &[&str],
+) -> (
     Db,
     OculpmManager,
     tempfile::TempDir,
@@ -44,8 +46,7 @@ async fn fresh_with_active_agents(active: &[&str]) -> (
 
 #[tokio::test]
 async fn agents_md_sync_writes_managed_block() {
-    let (db, manager, _dir, root, project_id) =
-        fresh_with_active_agents(&["agents-md"]).await;
+    let (db, manager, _dir, root, project_id) = fresh_with_active_agents(&["agents-md"]).await;
 
     let report = manager.sync_agents(&db, project_id).await.unwrap();
     assert!(
@@ -67,8 +68,7 @@ async fn agents_md_sync_writes_managed_block() {
 
 #[tokio::test]
 async fn agents_md_sync_is_idempotent() {
-    let (db, manager, _dir, _root, project_id) =
-        fresh_with_active_agents(&["agents-md"]).await;
+    let (db, manager, _dir, _root, project_id) = fresh_with_active_agents(&["agents-md"]).await;
 
     let _ = manager.sync_agents(&db, project_id).await.unwrap();
     let second = manager.sync_agents(&db, project_id).await.unwrap();
@@ -79,15 +79,18 @@ async fn agents_md_sync_is_idempotent() {
         .iter()
         .find(|r| r.id == "agents-md")
         .expect("agents-md must appear");
-    assert!(r.error.is_none(), "no error on idempotent re-sync: {:?}", r.error);
+    assert!(
+        r.error.is_none(),
+        "no error on idempotent re-sync: {:?}",
+        r.error
+    );
 }
 
 // ─── (3) detect_agents reports presence of AGENTS.md ──────────────────────
 
 #[tokio::test]
 async fn detect_agents_returns_agents_md_after_sync() {
-    let (db, manager, _dir, _root, project_id) =
-        fresh_with_active_agents(&["agents-md"]).await;
+    let (db, manager, _dir, _root, project_id) = fresh_with_active_agents(&["agents-md"]).await;
     manager.sync_agents(&db, project_id).await.unwrap();
 
     let detections = manager.detect_agents(project_id).await.unwrap();
@@ -101,8 +104,7 @@ async fn detect_agents_returns_agents_md_after_sync() {
 
 #[tokio::test]
 async fn compare_layers_returns_ok_when_no_activity() {
-    let (db, manager, _dir, _root, project_id) =
-        fresh_with_active_agents(&["agents-md"]).await;
+    let (db, manager, _dir, _root, project_id) = fresh_with_active_agents(&["agents-md"]).await;
     // No journal entries, no file changes — Jaccard collapses to a vacuous Ok.
     let cmp = manager
         .compare_layers(&db, project_id, "20260101-001")
@@ -118,16 +120,9 @@ async fn compare_layers_returns_ok_when_no_activity() {
 
 #[tokio::test]
 async fn read_master_template_returns_korean_template() {
-    let (_db, manager, _dir, _root, project_id) =
-        fresh_with_active_agents(&[]).await;
-    let template = manager
-        .read_master_template(project_id)
-        .await
-        .unwrap();
-    assert!(
-        !template.is_empty(),
-        "master template must not be empty"
-    );
+    let (_db, manager, _dir, _root, project_id) = fresh_with_active_agents(&[]).await;
+    let template = manager.read_master_template(project_id).await.unwrap();
+    assert!(!template.is_empty(), "master template must not be empty");
     assert!(
         template.len() > 100,
         "expected substantive template body, got {} chars",

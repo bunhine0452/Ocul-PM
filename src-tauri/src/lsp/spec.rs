@@ -245,7 +245,11 @@ pub fn completions_from_json(result: &Value, limit: usize) -> Vec<LspCompletionI
             None => return Vec::new(),
         },
     };
-    items.iter().filter_map(completion_from_json).take(limit).collect()
+    items
+        .iter()
+        .filter_map(completion_from_json)
+        .take(limit)
+        .collect()
 }
 
 fn completion_from_json(item: &Value) -> Option<LspCompletionItem> {
@@ -299,7 +303,9 @@ pub fn hover_from_json(result: &Value) -> Option<LspHover> {
     };
     let trimmed = text.trim();
     // 빈 호버는 없는 것과 같다 — 빈 툴팁이 뜨는 것을 막는다.
-    (!trimmed.is_empty()).then(|| LspHover { contents: trimmed.to_string() })
+    (!trimmed.is_empty()).then(|| LspHover {
+        contents: trimmed.to_string(),
+    })
 }
 
 fn marked_string_to_markdown(v: &Value) -> Option<String> {
@@ -336,7 +342,9 @@ pub fn code_actions_from_json(result: &Value) -> (Vec<LspCodeAction>, Vec<Value>
     let mut raw = Vec::new();
     for item in items {
         // 제목이 없으면 사용자에게 보여줄 수 없다.
-        let Some(title) = item.get("title").and_then(Value::as_str) else { continue };
+        let Some(title) = item.get("title").and_then(Value::as_str) else {
+            continue;
+        };
         let applicable = item.get("edit").is_some() || item.get("data").is_some();
         if !applicable {
             continue; // command 전용 — 위 주석 참고
@@ -468,7 +476,11 @@ pub fn references_from_json(
                         .unwrap_or_default(),
                 })
                 .collect();
-            LspReferenceFile { path: rel, display, hits }
+            LspReferenceFile {
+                path: rel,
+                display,
+                hits,
+            }
         })
         .collect()
 }
@@ -586,7 +598,11 @@ pub fn signature_help_from_json(result: &Value) -> Option<LspSignatureHelp> {
     let signatures: Vec<LspSignature> = sigs
         .iter()
         .map(|sig| {
-            let label = sig.get("label").and_then(Value::as_str).unwrap_or("").to_string();
+            let label = sig
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let parameters = match sig.get("parameters") {
                 Some(Value::Array(params)) => params
                     .iter()
@@ -692,7 +708,7 @@ fn symbol_kind_name(kind: u64) -> String {
 fn completion_kind_name(kind: u64) -> String {
     match kind {
         2 | 3 => "function",
-        4 => "class",   // Constructor
+        4 => "class",    // Constructor
         5 => "property", // Field
         6 => "variable",
         7 | 22 => "class", // Class · Struct
@@ -704,7 +720,7 @@ fn completion_kind_name(kind: u64) -> String {
         14 => "keyword",
         15 => "text", // Snippet — 우리는 snippetSupport 를 끄므로 텍스트로 온다
         21 => "constant",
-        23 => "type",  // Event
+        23 => "type", // Event
         _ => "text",
     }
     .to_string()
@@ -780,10 +796,16 @@ mod tests {
         }]);
         let got = document_symbols_from_json(&raw);
         assert_eq!(got.len(), 2);
-        assert_eq!((got[0].name.as_str(), got[0].depth, got[0].kind.as_str()), ("Widget", 0, "struct"));
+        assert_eq!(
+            (got[0].name.as_str(), got[0].depth, got[0].kind.as_str()),
+            ("Widget", 0, "struct")
+        );
         // selectionRange 를 쓴다 — range 를 쓰면 커서가 블록 맨 위 빈 줄에 떨어진다.
         assert_eq!(got[0].character, 7);
-        assert_eq!((got[1].name.as_str(), got[1].depth, got[1].kind.as_str()), ("draw", 1, "method"));
+        assert_eq!(
+            (got[1].name.as_str(), got[1].depth, got[1].kind.as_str()),
+            ("draw", 1, "method")
+        );
         assert_eq!(got[1].detail.as_deref(), Some("fn(&self)"));
     }
 
@@ -797,7 +819,10 @@ mod tests {
         }]);
         let got = document_symbols_from_json(&raw);
         assert_eq!(got.len(), 1);
-        assert_eq!((got[0].kind.as_str(), got[0].depth, got[0].line), ("function", 0, 3));
+        assert_eq!(
+            (got[0].kind.as_str(), got[0].depth, got[0].line),
+            ("function", 0, 3)
+        );
     }
 
     #[test]
@@ -836,7 +861,9 @@ mod tests {
         // 구간은 **UTF-16** 오프셋이어야 한다 — 프런트(JS 문자열)가 그 단위로
         // 자른다. 바이트로 주면 한글이 든 라벨에서 강조가 어긋난다.
         let utf16: Vec<u16> = sig.label.encode_utf16().collect();
-        let slice_of = |s: &LspParamSpan| String::from_utf16(&utf16[s.start as usize..s.end as usize]).unwrap();
+        let slice_of = |s: &LspParamSpan| {
+            String::from_utf16(&utf16[s.start as usize..s.end as usize]).unwrap()
+        };
         assert_eq!(slice_of(&sig.parameters[0]), "왼쪽: i32");
         assert_eq!(slice_of(&sig.parameters[1]), "오른쪽: i32");
     }
@@ -940,7 +967,8 @@ mod tests {
     /// rust-analyzer 는 detail 대신 labelDetails.description 을 쓰기도 한다.
     #[test]
     fn detail_falls_back_to_label_details() {
-        let r = json!([{ "label": "len", "labelDetails": { "description": "fn(&self) -> usize" } }]);
+        let r =
+            json!([{ "label": "len", "labelDetails": { "description": "fn(&self) -> usize" } }]);
         assert_eq!(
             completions_from_json(&r, 50)[0].detail.as_deref(),
             Some("fn(&self) -> usize")
@@ -964,7 +992,9 @@ mod tests {
     /// 완성 목록은 수천 개가 온다 — 상한이 없으면 IPC 로 그대로 넘어간다.
     #[test]
     fn completions_respect_the_limit() {
-        let items: Vec<Value> = (0..500).map(|i| json!({ "label": format!("i{i}") })).collect();
+        let items: Vec<Value> = (0..500)
+            .map(|i| json!({ "label": format!("i{i}") }))
+            .collect();
         assert_eq!(completions_from_json(&json!(items), 100).len(), 100);
     }
 
@@ -974,7 +1004,10 @@ mod tests {
     fn hover_reads_all_three_content_shapes() {
         // MarkupContent — 요즘 서버 대부분.
         let markup = json!({ "contents": { "kind": "markdown", "value": "fn len() -> usize" } });
-        assert_eq!(hover_from_json(&markup).unwrap().contents, "fn len() -> usize");
+        assert_eq!(
+            hover_from_json(&markup).unwrap().contents,
+            "fn len() -> usize"
+        );
 
         // 구형 MarkedString(문자열).
         let bare = json!({ "contents": "그냥 텍스트" });
@@ -1050,7 +1083,12 @@ mod tests {
 
     #[test]
     fn code_actions_tolerate_empty_and_malformed_responses() {
-        for r in [json!(null), json!([]), json!({}), json!([{ "kind": "quickfix" }])] {
+        for r in [
+            json!(null),
+            json!([]),
+            json!({}),
+            json!([{ "kind": "quickfix" }]),
+        ] {
             let (actions, raw) = code_actions_from_json(&r);
             assert!(actions.is_empty(), "{r}");
             assert!(raw.is_empty());

@@ -20,9 +20,15 @@ pub enum Resolve {
     /// Xcode 툴체인 — `xcrun -f <name>` 가 절대경로를 알려 준다.
     Xcrun { name: &'static str },
     /// 인터프리터의 모듈 — `python3 -m debugpy.adapter`.
-    Module { runner: &'static str, module: &'static str },
+    Module {
+        runner: &'static str,
+        module: &'static str,
+    },
     /// 하위 명령 — `dlv dap`.
-    Subcommand { command: &'static str, sub: &'static str },
+    Subcommand {
+        command: &'static str,
+        sub: &'static str,
+    },
 }
 
 /// 하나의 디버그 어댑터를 어떻게 띄우는가.
@@ -50,13 +56,19 @@ pub const ADAPTERS: &[AdapterSpec] = &[
     AdapterSpec {
         language_id: "python",
         adapter_id: "debugpy",
-        resolve: Resolve::Module { runner: "python3", module: "debugpy.adapter" },
+        resolve: Resolve::Module {
+            runner: "python3",
+            module: "debugpy.adapter",
+        },
         install_hint: "python3 -m pip install debugpy",
     },
     AdapterSpec {
         language_id: "go",
         adapter_id: "go",
-        resolve: Resolve::Subcommand { command: "dlv", sub: "dap" },
+        resolve: Resolve::Subcommand {
+            command: "dlv",
+            sub: "dap",
+        },
         install_hint: "go install github.com/go-delve/delve/cmd/dlv@latest",
     },
 ];
@@ -94,12 +106,15 @@ pub async fn resolve_adapter(spec: &AdapterSpec) -> Option<AdapterCommand> {
     match spec.resolve {
         Resolve::Path { command } => {
             let (program, _) = crate::acp::env::resolve_binary(command).await?;
-            Some(AdapterCommand { program: PathBuf::from(program), args: Vec::new() })
+            Some(AdapterCommand {
+                program,
+                args: Vec::new(),
+            })
         }
         Resolve::Subcommand { command, sub } => {
             let (program, _) = crate::acp::env::resolve_binary(command).await?;
             Some(AdapterCommand {
-                program: PathBuf::from(program),
+                program,
                 args: vec![sub.to_string()],
             })
         }
@@ -109,7 +124,7 @@ pub async fn resolve_adapter(spec: &AdapterSpec) -> Option<AdapterCommand> {
             // 즉시 죽고, 그 죽음이 설치 안내로 이어진다 (확인 한 번을 더
             // 돌리면 파이썬 기동 비용만 두 배가 된다).
             Some(AdapterCommand {
-                program: PathBuf::from(program),
+                program,
                 args: vec!["-m".to_string(), module.to_string()],
             })
         }
@@ -142,9 +157,22 @@ mod tests {
 
     #[test]
     fn maps_extensions_to_adapters() {
-        assert_eq!(adapter_for_path(Path::new("src/main.rs")).unwrap().language_id, "rust");
-        assert_eq!(adapter_for_path(Path::new("a/b.py")).unwrap().language_id, "python");
-        assert_eq!(adapter_for_path(Path::new("cmd/main.go")).unwrap().language_id, "go");
+        assert_eq!(
+            adapter_for_path(Path::new("src/main.rs"))
+                .unwrap()
+                .language_id,
+            "rust"
+        );
+        assert_eq!(
+            adapter_for_path(Path::new("a/b.py")).unwrap().language_id,
+            "python"
+        );
+        assert_eq!(
+            adapter_for_path(Path::new("cmd/main.go"))
+                .unwrap()
+                .language_id,
+            "go"
+        );
         // 하이라이트도 언어 서버도 있지만 디버그는 안 되는 것들.
         assert!(adapter_for_path(Path::new("app.ts")).is_none());
         assert!(adapter_for_path(Path::new("styles.css")).is_none());

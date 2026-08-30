@@ -8,10 +8,10 @@
 //!
 //! 불변식:
 //! - I1 — 프로젝트당 탭 하나, **전역 유일**. 이미 열려 있으면 그 창을 포커스하고
-//!        그 탭을 활성화한다. (덕분에 `OculpmManager` 가 watcher refcount 없이
-//!        프로젝트당 엔트리 하나를 유지할 수 있다 — D2)
+//!   그 탭을 활성화한다. (덕분에 `OculpmManager` 가 watcher refcount 없이
+//!   프로젝트당 엔트리 하나를 유지할 수 있다 — D2)
 //! - I3 — **프로젝트** 탭의 프로젝트는 탭의 수명 동안 바뀌지 않는다. 시작 탭이
-//!        프로젝트 탭으로 승격하는 것은 한 방향뿐이다.
+//!   프로젝트 탭으로 승격하는 것은 한 방향뿐이다.
 //!
 //! 라벨에서 프로젝트를 읽을 수 없으므로 **이 모듈이 레지스트리를 소유**한다.
 //! 프런트는 `WindowTabsChanged` 로 미러링만 한다.
@@ -156,7 +156,10 @@ pub struct Registry {
 impl Registry {
     fn mint(&mut self, project_id: Option<u32>) -> Tab {
         self.next_tab += 1;
-        Tab { id: self.next_tab, project_id }
+        Tab {
+            id: self.next_tab,
+            project_id,
+        }
     }
 
     /// 이 프로젝트가 열려 있는 (창, 탭 id) — I1 이라 있어야 최대 하나.
@@ -220,8 +223,13 @@ impl Registry {
     /// 창을 등록한다. `main` 처럼 이미 존재하는 창을 시작 탭 하나로 여는 데도 쓴다.
     fn register(&mut self, label: &str, project_id: Option<u32>) -> u32 {
         let tab = self.mint(project_id);
-        self.windows
-            .insert(label.to_string(), WindowState { order: vec![tab], active: Some(tab.id) });
+        self.windows.insert(
+            label.to_string(),
+            WindowState {
+                order: vec![tab],
+                active: Some(tab.id),
+            },
+        );
         self.last_focused = Some(label.to_string());
         tab.id
     }
@@ -419,8 +427,7 @@ impl Registry {
     /// PTY 정리의 유일한 판정이다. 탭만 보고 죽이던 시절에는, 터미널을 창으로
     /// 떼어낸 뒤 프로젝트 탭을 닫으면 분리 창 안의 셸이 통째로 사라졌다.
     fn project_in_use(&self, project_id: u32) -> bool {
-        self.terminal_windows.contains(&project_id)
-            || self.locate_project(project_id).is_some()
+        self.terminal_windows.contains(&project_id) || self.locate_project(project_id).is_some()
     }
 
     /// 새 탭이 붙을 창 — 마지막으로 포커스된 창.
@@ -593,14 +600,22 @@ async fn snapshot(app: &AppHandle, label: &str) -> WindowTabsSnapshot {
             color,
         });
     }
-    WindowTabsSnapshot { window: label.to_string(), tabs, active }
+    WindowTabsSnapshot {
+        window: label.to_string(),
+        tabs,
+        active,
+    }
 }
 
 /// 창별 변경 + 전역 배지를 함께 알린다.
 async fn broadcast(app: &AppHandle, label: &str) {
     let snap = snapshot(app, label).await;
-    let _ = WindowTabsChanged { window: snap.window.clone(), tabs: snap.tabs, active: snap.active }
-        .emit_to(app, label);
+    let _ = WindowTabsChanged {
+        window: snap.window.clone(),
+        tabs: snap.tabs,
+        active: snap.active,
+    }
+    .emit_to(app, label);
     emit_open_projects(app);
 }
 
@@ -696,13 +711,16 @@ pub async fn open_project_tab_with_nav(
     let existing = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
-        reg.locate_project(project_id).map(|(_, tab_id)| tab_id).and_then(|id| reg.activate(id))
+        reg.locate_project(project_id)
+            .map(|(_, tab_id)| tab_id)
+            .and_then(|id| reg.activate(id))
     };
     if let Some(label) = existing {
         focus_window(app, &label);
         broadcast(app, &label).await;
         if let Some(nav) = nav {
-            nav.emit_to(app, label.as_str()).map_err(|e| e.to_string())?;
+            nav.emit_to(app, label.as_str())
+                .map_err(|e| e.to_string())?;
         }
         return Ok(());
     }
@@ -725,13 +743,16 @@ pub async fn open_project_tab_with_nav(
         focus_window(app, &label);
         broadcast(app, &label).await;
         if let Some(nav) = nav {
-            nav.emit_to(app, label.as_str()).map_err(|e| e.to_string())?;
+            nav.emit_to(app, label.as_str())
+                .map_err(|e| e.to_string())?;
         }
         return Ok(());
     }
 
     // ③ 새 창.
-    create_window(app, Some(project_id), nav, None, false).await.map(|_| ())
+    create_window(app, Some(project_id), nav, None, false)
+        .await
+        .map(|_| ())
 }
 
 /// `+` — 시작 탭(프로젝트 메인 화면)을 연다. Chrome 의 새 탭 페이지.
@@ -754,7 +775,9 @@ pub async fn new_start_tab_inner(app: &AppHandle, window: Option<String>) -> Res
             .filter(|l| app.get_webview_window(l).is_some())
     };
     let Some(label) = target else {
-        return create_window(app, None, None, None, false).await.map(|_| ());
+        return create_window(app, None, None, None, false)
+            .await
+            .map(|_| ());
     };
     {
         let state = app.state::<WindowTabs>();
@@ -767,7 +790,9 @@ pub async fn new_start_tab_inner(app: &AppHandle, window: Option<String>) -> Res
 
 /// 앱 메뉴의 "새 창" — 언제나 새 창을 만든다 (탭을 붙이지 않는다).
 pub async fn new_window_inner(app: &AppHandle) -> Result<(), String> {
-    create_window(app, None, None, None, false).await.map(|_| ())
+    create_window(app, None, None, None, false)
+        .await
+        .map(|_| ())
 }
 
 /// 시작 탭에서 프로젝트를 골랐다 — **그 자리에서** 프로젝트 탭이 된다.
@@ -775,11 +800,7 @@ pub async fn new_window_inner(app: &AppHandle) -> Result<(), String> {
 /// 시작 탭은 그대로 둔다.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_tab_project(
-    app: AppHandle,
-    tab_id: u32,
-    project_id: u32,
-) -> Result<(), String> {
+pub async fn set_tab_project(app: AppHandle, tab_id: u32, project_id: u32) -> Result<(), String> {
     let already = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
@@ -834,11 +855,7 @@ pub async fn close_tab(
     close_tab_from(&app, Some(asking.label()), tab_id).await
 }
 
-async fn close_tab_from(
-    app: &AppHandle,
-    asking: Option<&str>,
-    tab_id: u32,
-) -> Result<(), String> {
+async fn close_tab_from(app: &AppHandle, asking: Option<&str>, tab_id: u32) -> Result<(), String> {
     let removed = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
@@ -871,7 +888,8 @@ async fn close_tab_from(
             let Some(win) = app.get_webview_window(&label) else {
                 return Ok(());
             };
-            win.close().map_err(|e| format!("유령 창 '{label}' 닫기 실패: {e}"))?;
+            win.close()
+                .map_err(|e| format!("유령 창 '{label}' 닫기 실패: {e}"))?;
             tracing::info!(window = %label, "[FLOW] 레지스트리에서 빠진 창을 닫았다");
         }
         return Ok(());
@@ -981,11 +999,15 @@ pub async fn detach_tab(
                 .get_webview_window(&source)
                 .and_then(|w| w.scale_factor().ok())
                 .unwrap_or(1.0);
-            app.cursor_position().ok().map(|c| detached_origin((c.x, c.y), scale, (ax, ay)))
+            app.cursor_position()
+                .ok()
+                .map(|c| detached_origin((c.x, c.y), scale, (ax, ay)))
         }
         _ => None,
     };
-    create_window(&app, project_id, None, at, false).await.map(|_| ())
+    create_window(&app, project_id, None, at, false)
+        .await
+        .map(|_| ())
 }
 
 /// 떼어낸 창의 좌상단 (논리 px) — 잡았던 자리가 커서 밑에 그대로 오도록.
@@ -1042,7 +1064,9 @@ pub async fn tab_drag_over(
     if let Some(tear) = &tear {
         follow_cursor(&app, tear);
     }
-    let hit = source.as_deref().and_then(|src| strip_under_cursor(&app, src, band));
+    let hit = source
+        .as_deref()
+        .and_then(|src| strip_under_cursor(&app, src, band));
 
     // 크롬의 합치기 미리보기 — 남의 스트립을 겨누는 순간 들고 있던 창은
     // **사라지고** 그 창의 줄에 자리가 벌어진다. 놓기 전에 결과가 그대로 보인다.
@@ -1071,14 +1095,26 @@ pub async fn tab_drag_over(
         }
     };
     if let Some(prev) = left {
-        let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
+        let _ = TabDragLeave {
+            window: prev.clone(),
+        }
+        .emit_to(&app, &prev);
     }
     if let Some((label, x)) = hit {
         // 겉모습은 스트립에 **처음 들어선** 프레임에만 싣는다 (DB 조회 1회).
         let carried = tear.as_ref().map_or(tab_id, |t| t.tab_id);
-        let preview = if fresh { tab_preview(&app, carried).await } else { None };
-        let _ = TabDragOver { window: label.clone(), x, tab_id: carried, preview }
-            .emit_to(&app, &label);
+        let preview = if fresh {
+            tab_preview(&app, carried).await
+        } else {
+            None
+        };
+        let _ = TabDragOver {
+            window: label.clone(),
+            x,
+            tab_id: carried,
+            preview,
+        }
+        .emit_to(&app, &label);
     }
     Ok(entered)
 }
@@ -1092,7 +1128,11 @@ async fn tab_preview(app: &AppHandle, tab_id: u32) -> Option<TabPreview> {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
         let label = reg.locate_tab(tab_id)?;
-        reg.get(&label)?.order.iter().find(|t| t.id == tab_id)?.project_id
+        reg.get(&label)?
+            .order
+            .iter()
+            .find(|t| t.id == tab_id)?
+            .project_id
     };
     let Some(pid) = project_id else {
         return Some(TabPreview {
@@ -1108,7 +1148,12 @@ async fn tab_preview(app: &AppHandle, tab_id: u32) -> Option<TabPreview> {
         Ok(p) => (p.name, p.icon, p.color),
         Err(_) => (format!("#{pid}"), None, None),
     };
-    Some(TabPreview { name, icon, color, is_start: false })
+    Some(TabPreview {
+        name,
+        icon,
+        color,
+        is_start: false,
+    })
 }
 
 /// 대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②).
@@ -1202,7 +1247,10 @@ pub async fn tab_drag_end(app: AppHandle) -> Result<(), String> {
         (reg.unhover(), reg.take_tearing())
     };
     if let Some(prev) = left {
-        let _ = TabDragLeave { window: prev.clone() }.emit_to(&app, &prev);
+        let _ = TabDragLeave {
+            window: prev.clone(),
+        }
+        .emit_to(&app, &prev);
     }
     // 손에 창이 남은 채로 드래그가 끝났다 — 놓은 것으로 본다. 안 그러면 숨겨진
     // 창이 영영 남고(레지스트리에는 있는데 화면에 없다) 다음 떼어내기도 막힌다.
@@ -1224,8 +1272,12 @@ pub async fn tab_drag_end(app: AppHandle) -> Result<(), String> {
 /// 들고 있는 창을 커서 밑으로 옮긴다. 커서는 OS 에서 물리 px 로 받아 그 창의
 /// 배율로 나눈다 (결정 2 — 웹뷰 줌에 흔들리지 않는 유일한 좌표계).
 fn follow_cursor(app: &AppHandle, tear: &TearOff) {
-    let Some(win) = app.get_webview_window(&tear.label) else { return };
-    let Ok(cursor) = app.cursor_position() else { return };
+    let Some(win) = app.get_webview_window(&tear.label) else {
+        return;
+    };
+    let Ok(cursor) = app.cursor_position() else {
+        return;
+    };
     let scale = win.scale_factor().unwrap_or(1.0);
     let (x, y) = detached_origin((cursor.x, cursor.y), scale, tear.anchor);
     let _ = win.set_position(tauri::LogicalPosition::new(x, y));
@@ -1238,7 +1290,10 @@ fn settle_tear_off(app: &AppHandle, tear: &TearOff) {
         let _ = win.show();
     }
     focus_window(app, &tear.label);
-    let _ = TearOffSettled { window: tear.label.clone() }.emit_to(app, &tear.label);
+    let _ = TearOffSettled {
+        window: tear.label.clone(),
+    }
+    .emit_to(app, &tear.label);
 }
 
 /// 탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
@@ -1266,7 +1321,9 @@ pub async fn begin_tear_off(
     let taken = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
-        let Some(label) = reg.locate_tab(tab_id) else { return Ok(false) };
+        let Some(label) = reg.locate_tab(tab_id) else {
+            return Ok(false);
+        };
         let st = reg.get(&label).ok_or("창을 찾지 못했습니다")?;
         // 마지막 탭은 떼어내지 않는다 — 원본 창이 닫히고 같은 내용의 새 창이 뜰
         // 뿐이라 순수 손해다 (크롬도 창 하나짜리 탭은 안 뜯어낸다).
@@ -1274,9 +1331,12 @@ pub async fn begin_tear_off(
             return Ok(false);
         }
         let index = st.order.iter().position(|t| t.id == tab_id).unwrap_or(0);
-        reg.remove_tab(tab_id).map(|(source, project_id, _)| (source, project_id, index))
+        reg.remove_tab(tab_id)
+            .map(|(source, project_id, _)| (source, project_id, index))
     };
-    let Some((source, project_id, index)) = taken else { return Ok(false) };
+    let Some((source, project_id, index)) = taken else {
+        return Ok(false);
+    };
     broadcast(&app, &source).await;
 
     let scale = app
@@ -1294,7 +1354,11 @@ pub async fn begin_tear_off(
         let mut reg = state.lock();
         // 새 창 안에서 이 탭은 **새 id** 로 앉아 있다 — 그걸 기억해야 놓기·무르기가
         // 실제로 그 탭에 가 닿는다.
-        let Some(fresh) = reg.get(&label).and_then(|st| st.order.first()).map(|t| t.id) else {
+        let Some(fresh) = reg
+            .get(&label)
+            .and_then(|st| st.order.first())
+            .map(|t| t.id)
+        else {
             return Ok(false);
         };
         reg.tearing = Some(TearOff {
@@ -1329,7 +1393,10 @@ pub async fn drop_tear_off(app: AppHandle) -> Result<bool, String> {
     if let Some((target, index)) = hint {
         // 인덱스가 아직 안 왔으면 맨 뒤 — 창을 가로질러 온 탭이 사라지는 것보다 낫다.
         if commit_move(&app, tear.tab_id, &target, index.unwrap_or(usize::MAX)).await {
-            let _ = TabDragLeave { window: target.clone() }.emit_to(&app, &target);
+            let _ = TabDragLeave {
+                window: target.clone(),
+            }
+            .emit_to(&app, &target);
             return Ok(true);
         }
     }
@@ -1369,8 +1436,12 @@ fn strip_under_cursor(app: &AppHandle, source: &str, band: f64) -> Option<(Strin
     let known: Vec<String> = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
-        let mut labels: Vec<String> =
-            reg.windows.keys().filter(|l| l.as_str() != source).cloned().collect();
+        let mut labels: Vec<String> = reg
+            .windows
+            .keys()
+            .filter(|l| l.as_str() != source)
+            .cloned()
+            .collect();
         // 겹친 창의 앞뒤는 알 수 없다 — 포커스된 창을 먼저 보고, 나머지는 라벨
         // 순으로 본다. 어느 쪽이든 **같은 상황에서 같은 답**이 나와야 한다.
         labels.sort();
@@ -1378,7 +1449,9 @@ fn strip_under_cursor(app: &AppHandle, source: &str, band: f64) -> Option<(Strin
     };
     let mut fallback = None;
     for label in known {
-        let Some(win) = app.get_webview_window(&label) else { continue };
+        let Some(win) = app.get_webview_window(&label) else {
+            continue;
+        };
         if !win.is_visible().unwrap_or(false) || win.is_minimized().unwrap_or(false) {
             continue;
         }
@@ -1461,7 +1534,10 @@ pub async fn open_terminal_window(app: AppHandle, project_id: u32) -> Result<(),
 
     let title = {
         let db = app.state::<crate::db::Db>();
-        db.get_project(project_id).await.map(|p| p.name).unwrap_or_else(|_| "Ocul-PM".to_string())
+        db.get_project(project_id)
+            .await
+            .map(|p| p.name)
+            .unwrap_or_else(|_| "Ocul-PM".to_string())
     };
 
     let url = format!("index.html?term={project_id}");
@@ -1524,11 +1600,7 @@ pub async fn list_terminal_windows(app: AppHandle) -> Result<Vec<u32>, String> {
 ///
 /// 프런트의 언마운트에 맡기지 않는 이유는 탭 창과 같다: 강제 종료·크래시에서는
 /// 돌지 않는다.
-fn attach_terminal_window_hooks(
-    app: &AppHandle,
-    window: &tauri::WebviewWindow,
-    project_id: u32,
-) {
+fn attach_terminal_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, project_id: u32) {
     let handle = app.clone();
     window.on_window_event(move |ev| {
         if let tauri::WindowEvent::CloseRequested { .. } = ev {
@@ -1570,13 +1642,16 @@ pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
     let existing = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
-        reg.preferred_window().filter(|l| app.get_webview_window(l).is_some())
+        reg.preferred_window()
+            .filter(|l| app.get_webview_window(l).is_some())
     };
     if let Some(label) = existing {
         focus_window(app, &label);
         return Ok(());
     }
-    create_window(app, None, None, None, false).await.map(|_| ())
+    create_window(app, None, None, None, false)
+        .await
+        .map(|_| ())
 }
 
 async fn create_window(
@@ -1636,7 +1711,10 @@ async fn create_window(
     let title = match project_id {
         Some(pid) => {
             let db = app.state::<crate::db::Db>();
-            db.get_project(pid).await.map(|p| p.name).unwrap_or_else(|_| "Ocul-PM".to_string())
+            db.get_project(pid)
+                .await
+                .map(|p| p.name)
+                .unwrap_or_else(|_| "Ocul-PM".to_string())
         }
         None => "Ocul-PM".to_string(),
     };
@@ -1709,10 +1787,8 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
         // `Destroyed` 가 아니라 `CloseRequested` 를 쓴다 — 앱 종료 경로에서는
         // 발화하지 않아, 종료 중에 "마지막 창" 판정이 무언가를 다시 띄우는
         // 사고를 구조적으로 막는다.
-        tauri::WindowEvent::CloseRequested { api, .. } => {
-            if handle_window_closed(&handle, &label) {
-                api.prevent_close();
-            }
+        tauri::WindowEvent::CloseRequested { api, .. } if handle_window_closed(&handle, &label) => {
+            api.prevent_close();
         }
         _ => {}
     });
@@ -1726,7 +1802,12 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
         let tabs = reg
             .windows
             .remove(label)
-            .map(|st| st.order.iter().filter_map(|t| t.project_id).collect::<Vec<_>>())
+            .map(|st| {
+                st.order
+                    .iter()
+                    .filter_map(|t| t.project_id)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         if reg.last_focused.as_deref() == Some(label) {
             reg.last_focused = None;
@@ -1903,7 +1984,6 @@ pub fn start_background_watchers(app: &AppHandle) {
                     project_id = project.id, error = %e, "watcher 시작 실패"
                 );
             }
-            drop(manager);
             tokio::time::sleep(STAGGER).await;
         }
     });
@@ -1936,7 +2016,12 @@ mod tests {
     }
 
     fn projects(reg: &Registry, label: &str) -> Vec<Option<u32>> {
-        reg.get(label).unwrap().order.iter().map(|t| t.project_id).collect()
+        reg.get(label)
+            .unwrap()
+            .order
+            .iter()
+            .map(|t| t.project_id)
+            .collect()
     }
 
     #[test]
@@ -2004,7 +2089,11 @@ mod tests {
         let mut sorted = all.clone();
         sorted.sort_unstable();
         sorted.dedup();
-        assert_eq!(sorted.len(), all.len(), "탭 id 는 창을 가로질러 유일해야 한다");
+        assert_eq!(
+            sorted.len(),
+            all.len(),
+            "탭 id 는 창을 가로질러 유일해야 한다"
+        );
     }
 
     #[test]
@@ -2115,7 +2204,10 @@ mod tests {
     fn moving_the_last_tab_reports_the_source_window_as_emptied() {
         let mut reg = reg_with(&[("win-1", &[Some(1)]), ("win-2", &[Some(2)])]);
         let moving = reg.get("win-1").unwrap().order[0].id;
-        assert_eq!(reg.move_tab(moving, "win-2", 9), Some(("win-1".into(), true)));
+        assert_eq!(
+            reg.move_tab(moving, "win-2", 9),
+            Some(("win-1".into(), true))
+        );
         assert!(reg.get("win-1").is_none());
         assert_eq!(projects(&reg, "win-2"), vec![Some(2), Some(1)]);
         // 창은 비었어도 프로젝트는 **여전히 열려 있다** — 탭이 옮겨갔을 뿐이다.
@@ -2162,23 +2254,34 @@ mod tests {
         let moving = reg.get("main").unwrap().order[1].id;
         // detach_tab 이 하는 일: remove_tab → create_window(reserve/register)
         let removed = reg.remove_tab(moving);
-        assert_eq!(removed.map(|(l, p, e)| (l, p, e)), Some(("main".into(), Some(1), false)));
+        assert_eq!(removed, Some(("main".into(), Some(1), false)));
         let label = reg.reserve(Some(1));
         assert_eq!(label, "win-1");
         let born = reg.get("win-1").unwrap().order[0].id;
         // 떼어낸 창의 X — close_tab 이 보는 값
         let out = reg.remove_tab(born);
-        assert_eq!(out, Some(("win-1".into(), Some(1), true)), "emptied 가 true 여야 창이 닫힌다");
+        assert_eq!(
+            out,
+            Some(("win-1".into(), Some(1), true)),
+            "emptied 가 true 여야 창이 닫힌다"
+        );
         assert!(reg.get("win-1").is_none());
         // handle_window_closed 가 보는 값
-        assert_eq!(reg.windows.len(), 1, "main 이 남아 있어야 prevent_close 가 안 걸린다");
+        assert_eq!(
+            reg.windows.len(),
+            1,
+            "main 이 남아 있어야 prevent_close 가 안 걸린다"
+        );
     }
 
     #[test]
     fn move_tab_into_its_own_window_is_a_reorder() {
         let mut reg = reg_with(&[("win-1", &[Some(1), Some(2), Some(3)])]);
         let moving = reg.get("win-1").unwrap().order[2].id;
-        assert_eq!(reg.move_tab(moving, "win-1", 0), Some(("win-1".into(), false)));
+        assert_eq!(
+            reg.move_tab(moving, "win-1", 0),
+            Some(("win-1".into(), false))
+        );
         assert_eq!(projects(&reg, "win-1"), vec![Some(3), Some(1), Some(2)]);
     }
 
@@ -2220,11 +2323,20 @@ mod tests {
     fn detached_window_lands_under_the_hand() {
         // 배율 2 인 화면: 물리 (800, 200) = 논리 (400, 100).
         // 새 창 안 (86, 22) 지점이 그 자리에 와야 하므로 원점은 (314, 78).
-        assert_eq!(detached_origin((800.0, 200.0), 2.0, (86.0, 22.0)), (314.0, 78.0));
+        assert_eq!(
+            detached_origin((800.0, 200.0), 2.0, (86.0, 22.0)),
+            (314.0, 78.0)
+        );
         // 배율 1 은 그대로 뺀다.
-        assert_eq!(detached_origin((500.0, 300.0), 1.0, (86.0, 6.0)), (414.0, 294.0));
+        assert_eq!(
+            detached_origin((500.0, 300.0), 1.0, (86.0, 6.0)),
+            (414.0, 294.0)
+        );
         // 배율이 0 으로 와도 창을 화면 밖으로 던지지 않는다.
-        assert_eq!(detached_origin((500.0, 300.0), 0.0, (0.0, 0.0)), (500.0, 300.0));
+        assert_eq!(
+            detached_origin((500.0, 300.0), 0.0, (0.0, 0.0)),
+            (500.0, 300.0)
+        );
     }
 
     #[test]
@@ -2292,7 +2404,10 @@ mod tests {
     /// init·워처·자동색인이 통째로 돌고, 합쳐 버리면 전부 낭비가 된다.
     #[test]
     fn tearoff_url_tells_the_window_it_is_being_carried() {
-        assert_eq!(window_url("win-3", None, true), "index.html?win=win-3&tearoff=1");
+        assert_eq!(
+            window_url("win-3", None, true),
+            "index.html?win=win-3&tearoff=1"
+        );
     }
 
     /// 떼어낸 창의 탭은 **새 id** 를 받는다 — 이 전제가 `TearOff.tab_id` 의

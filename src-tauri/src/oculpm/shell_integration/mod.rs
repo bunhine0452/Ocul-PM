@@ -192,7 +192,9 @@ pub fn status(home: &Path, app_data_dir: &Path, shell_path: &str) -> ShellIntegr
 pub fn install(home: &Path, app_data_dir: &Path, shell_path: &str) -> OculpmResult<()> {
     let kind = detect_shell_kind(shell_path);
     let rc = rc_path_for(home, kind).ok_or_else(|| {
-        OculpmError::InvalidConfig(format!("Shell integration does not support this shell: {shell_path}"))
+        OculpmError::InvalidConfig(format!(
+            "Shell integration does not support this shell: {shell_path}"
+        ))
     })?;
     materialize_script(app_data_dir, kind)?;
     atomic_io::write_managed_block(&rc, BLOCK_ID, &rc_block_body(), CommentStyle::Hash)?;
@@ -223,7 +225,12 @@ mod tests {
 
     #[test]
     fn detects_bash_including_versioned_and_sh() {
-        for path in ["/bin/bash", "/opt/homebrew/bin/bash-5.2", "-bash", "/bin/sh"] {
+        for path in [
+            "/bin/bash",
+            "/opt/homebrew/bin/bash-5.2",
+            "-bash",
+            "/bin/sh",
+        ] {
             assert_eq!(detect_shell_kind(path), ShellKind::Bash, "{path}");
         }
     }

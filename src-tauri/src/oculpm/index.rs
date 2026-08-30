@@ -145,10 +145,7 @@ impl IndexWriter {
     /// sessions because InactivityFired closed the session every time the
     /// agent paused). Idempotent: calling on an already-active session is a
     /// no-op that returns the current record.
-    pub async fn unfinalize_session(
-        &self,
-        session_id: &str,
-    ) -> Result<Session, OculpmError> {
+    pub async fn unfinalize_session(&self, session_id: &str) -> Result<Session, OculpmError> {
         let workday = workday_from_id(session_id)?;
         let path = self.sessions_path(workday);
         let mut file = self.read_sessions_file(&path)?;
@@ -674,11 +671,7 @@ mod tests {
         let backups: Vec<_> = std::fs::read_dir(dir_path)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .contains(".corrupted-tail-")
-            })
+            .filter(|e| e.file_name().to_string_lossy().contains(".corrupted-tail-"))
             .collect();
         assert_eq!(backups.len(), 1, "exactly one backup must be created");
         let backup_bytes = std::fs::read(backups[0].path()).unwrap();
@@ -701,11 +694,8 @@ mod tests {
             let w = writer.clone();
             handles.push(tokio::spawn(async move {
                 for i in 0..100u32 {
-                    let ev = make_event(
-                        sid,
-                        task_id * 100 + i,
-                        &format!("task{task_id}/file{i}.rs"),
-                    );
+                    let ev =
+                        make_event(sid, task_id * 100 + i, &format!("task{task_id}/file{i}.rs"));
                     w.append_file_change(&ev).await.unwrap();
                 }
             }));
@@ -822,7 +812,10 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(second.ended_at.as_deref(), Some("2026-05-22T10:00:00+09:00"));
+        assert_eq!(
+            second.ended_at.as_deref(),
+            Some("2026-05-22T10:00:00+09:00")
+        );
         assert!(matches!(
             second.ended_reason,
             Some(EndedReason::InactivityTimeout)
@@ -922,11 +915,7 @@ mod tests {
         let backups: Vec<_> = std::fs::read_dir(dir_path)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .contains(".corrupted-tail-")
-            })
+            .filter(|e| e.file_name().to_string_lossy().contains(".corrupted-tail-"))
             .collect();
         assert_eq!(backups.len(), 1, "corruption backup must exist");
     }

@@ -43,7 +43,11 @@ async fn ensure_project(db: &Db, project_id: i64) {
             c.execute(
                 "INSERT OR IGNORE INTO projects (id, name, root_path, created_at)
                  VALUES (?1, ?2, ?3, 0)",
-                rusqlite::params![project_id, format!("p{project_id}"), format!("/tmp/p{project_id}")],
+                rusqlite::params![
+                    project_id,
+                    format!("p{project_id}"),
+                    format!("/tmp/p{project_id}")
+                ],
             )?;
             Ok::<(), tokio_rusqlite::Error>(())
         })
@@ -51,6 +55,7 @@ async fn ensure_project(db: &Db, project_id: i64) {
         .unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn insert_entry(
     db: &Db,
     project_id: i64,
@@ -104,7 +109,17 @@ async fn last_activity_survives_outside_the_window() {
     // last_at / total_entries 는 반드시 잡혀야 한다 — 안 그러면 화면이
     // "기록 없음"으로 거짓말한다.
     let (_dir, db) = empty_db().await;
-    insert_entry(&db, 1, 20, "09:00", "chore", "오래된 정리", "claude-code", None).await;
+    insert_entry(
+        &db,
+        1,
+        20,
+        "09:00",
+        "chore",
+        "오래된 정리",
+        "claude-code",
+        None,
+    )
+    .await;
 
     let brief = home::collect(&db, 14).await.unwrap();
     let p = &brief.projects[0];
@@ -150,8 +165,28 @@ async fn today_count_and_active_projects_use_distinct_windows() {
 async fn latest_entry_wins_per_project_and_feed_is_cross_project() {
     let (_dir, db) = empty_db().await;
     insert_entry(&db, 1, 2, "09:00", "chore", "예전 것", "cursor", None).await;
-    insert_entry(&db, 1, 0, "14:00", "feature", "최신 것", "claude-code", Some("Opus 5")).await;
-    insert_entry(&db, 2, 1, "10:00", "bug", "다른 프로젝트", "gemini-cli", None).await;
+    insert_entry(
+        &db,
+        1,
+        0,
+        "14:00",
+        "feature",
+        "최신 것",
+        "claude-code",
+        Some("Opus 5"),
+    )
+    .await;
+    insert_entry(
+        &db,
+        2,
+        1,
+        "10:00",
+        "bug",
+        "다른 프로젝트",
+        "gemini-cli",
+        None,
+    )
+    .await;
 
     let brief = home::collect(&db, 14).await.unwrap();
 
@@ -172,7 +207,17 @@ async fn latest_entry_wins_per_project_and_feed_is_cross_project() {
 async fn feed_is_capped_at_twelve() {
     let (_dir, db) = empty_db().await;
     for i in 0..20 {
-        insert_entry(&db, 1, 0, &format!("{:02}:00", i), "chore", "행", "cursor", None).await;
+        insert_entry(
+            &db,
+            1,
+            0,
+            &format!("{:02}:00", i),
+            "chore",
+            "행",
+            "cursor",
+            None,
+        )
+        .await;
     }
     let brief = home::collect(&db, 14).await.unwrap();
     assert_eq!(brief.feed.len(), 12);
@@ -186,7 +231,17 @@ async fn orphan_journals_from_removed_projects_are_excluded() {
     // 프로젝트의 일지가 오늘 건수에 계속 더해지고 피드에 열 수 없는 유령 행이
     // 뜬다.
     let (_dir, db) = empty_db().await;
-    insert_entry(&db, 1, 0, "09:00", "feature", "살아있는 프로젝트", "claude-code", None).await;
+    insert_entry(
+        &db,
+        1,
+        0,
+        "09:00",
+        "feature",
+        "살아있는 프로젝트",
+        "claude-code",
+        None,
+    )
+    .await;
     insert_entry(&db, 2, 0, "10:00", "bug", "지워질 프로젝트", "cursor", None).await;
 
     // 프로젝트 2만 워크스페이스에서 제거 (일지 행은 남는다).
@@ -202,7 +257,10 @@ async fn orphan_journals_from_removed_projects_are_excluded() {
 
     assert_eq!(brief.projects.len(), 1, "살아 있는 프로젝트만 남아야 한다");
     assert_eq!(brief.projects[0].project_id, 1);
-    assert_eq!(brief.today_total, 1, "지워진 프로젝트의 오늘 건수는 빠져야 한다");
+    assert_eq!(
+        brief.today_total, 1,
+        "지워진 프로젝트의 오늘 건수는 빠져야 한다"
+    );
     assert_eq!(brief.active_projects, 1);
     assert_eq!(brief.feed.len(), 1, "피드에 유령 행이 없어야 한다");
     assert_eq!(brief.feed[0].title, "살아있는 프로젝트");
@@ -213,7 +271,17 @@ async fn missing_plan_projection_yields_empty_next_tasks() {
     // 플랜 파일이 디스크에 있어도 플래너를 연 적이 없으면 투영 테이블이 비어
     // 있다. 그때 next_tasks 는 빈 배열이어야 한다 (거짓 값 금지).
     let (_dir, db) = empty_db().await;
-    insert_entry(&db, 1, 0, "09:00", "feature", "일지만 있음", "claude-code", None).await;
+    insert_entry(
+        &db,
+        1,
+        0,
+        "09:00",
+        "feature",
+        "일지만 있음",
+        "claude-code",
+        None,
+    )
+    .await;
 
     let brief = home::collect(&db, 14).await.unwrap();
     let p = &brief.projects[0];
@@ -390,7 +458,10 @@ async fn blank_identity_is_treated_as_absent() {
         .unwrap();
 
     let brief = home::collect(&db, 14).await.unwrap();
-    assert!(brief.projects[0].identity.is_none(), "빈 문자열은 없는 것과 같다");
+    assert!(
+        brief.projects[0].identity.is_none(),
+        "빈 문자열은 없는 것과 같다"
+    );
 }
 
 #[tokio::test]

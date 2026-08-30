@@ -32,7 +32,9 @@ pub fn is_valid_range_key(key: &str) -> bool {
 }
 
 pub fn retro_file_path(root: &Path, range_key: &str) -> PathBuf {
-    root.join(".oculpm").join(RETRO_DIR).join(format!("{range_key}.md"))
+    root.join(".oculpm")
+        .join(RETRO_DIR)
+        .join(format!("{range_key}.md"))
 }
 
 /// frontmatter(`oculpm_retro: v1`) + 본문 파싱. 규격이 아니면 `None` —
@@ -49,7 +51,9 @@ pub fn parse_retro_file(md: &str) -> Option<RetroFile> {
     let mut generated_by = None;
     let mut is_retro = false;
     for line in fm.lines() {
-        let Some((k, v)) = line.split_once(':') else { continue };
+        let Some((k, v)) = line.split_once(':') else {
+            continue;
+        };
         let v = v.trim();
         match k.trim() {
             "oculpm_retro" => is_retro = v == "v1",
@@ -130,7 +134,10 @@ mod tests {
 
     #[test]
     fn rejects_non_retro_frontmatter_and_bad_range() {
-        assert!(parse_retro_file("---\noculpm_plan: v1\nrange_key: 20260726..20260801\n---\nx").is_none());
+        assert!(
+            parse_retro_file("---\noculpm_plan: v1\nrange_key: 20260726..20260801\n---\nx")
+                .is_none()
+        );
         assert!(parse_retro_file("## 그냥 마크다운").is_none());
         assert!(parse_retro_file("---\noculpm_retro: v1\nrange_key: bad\n---\nx").is_none());
     }

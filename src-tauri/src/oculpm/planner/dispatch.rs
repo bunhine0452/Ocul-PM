@@ -49,8 +49,11 @@ pub fn build_dispatch_prompt(
         .iter()
         .find(|i| i.item_id == item_id)
         .ok_or_else(|| format!("item '{item_id}' not found in plan '{plan_id}'"))?;
-    let children: Vec<_> =
-        parsed.items.iter().filter(|i| i.parent_item.as_deref() == Some(item_id)).collect();
+    let children: Vec<_> = parsed
+        .items
+        .iter()
+        .filter(|i| i.parent_item.as_deref() == Some(item_id))
+        .collect();
 
     let mut p = String::new();
     p.push_str(&format!(
@@ -72,7 +75,10 @@ pub fn build_dispatch_prompt(
         item.item_id,
         item.status.token(),
         item.title,
-        item.phase.as_deref().map(|ph| format!("  (phase: {ph})")).unwrap_or_default()
+        item.phase
+            .as_deref()
+            .map(|ph| format!("  (phase: {ph})"))
+            .unwrap_or_default()
     ));
     if !children.is_empty() {
         p.push_str(lang.pick(
@@ -80,7 +86,12 @@ pub fn build_dispatch_prompt(
             "\nSubtasks (only unfinished ones are in scope — the parent glyph rolls up automatically):\n",
         ));
         for c in &children {
-            p.push_str(&format!("  - {{#{}}} [{}] {}\n", c.item_id, c.status.token(), c.title));
+            p.push_str(&format!(
+                "  - {{#{}}} [{}] {}\n",
+                c.item_id,
+                c.status.token(),
+                c.title
+            ));
         }
     }
     if let Some(note) = &item.note {
@@ -136,7 +147,10 @@ pub fn build_dispatch_prompt(
     // 프롬프트 전체 redact — 일지 발췌는 이미 redact 를 거쳐 기록됐지만,
     // 프로젝트 패턴이 그 사이 늘었을 수 있다 (심층 방어).
     let (prompt, _) = redact_text(&p, redact_patterns);
-    Ok(DispatchBuild { prompt, item_title: item.title.clone() })
+    Ok(DispatchBuild {
+        prompt,
+        item_title: item.title.clone(),
+    })
 }
 
 /// plan-log 에서 이 항목(부모면 하위 포함)에 연결된 일지 경로를 시간순으로.
@@ -175,7 +189,11 @@ fn read_journal_excerpt(root: &Path, journal_ref: &str) -> Option<String> {
         Some(rest) => rest.split_once("\n---").map(|(_, b)| b).unwrap_or(&raw),
         None => raw.as_str(),
     };
-    let trimmed: String = body.trim_start_matches('\n').chars().take(EXCERPT_CHARS).collect();
+    let trimmed: String = body
+        .trim_start_matches('\n')
+        .chars()
+        .take(EXCERPT_CHARS)
+        .collect();
     Some(if body.chars().count() > EXCERPT_CHARS {
         format!("{trimmed}\n…(잘림)")
     } else {
@@ -216,11 +234,20 @@ mod tests {
         .unwrap();
 
         let patterns = compile_redact_patterns(&["sk-[A-Za-z0-9]+".to_string()]);
-        let b = build_dispatch_prompt(dir.path(), "p", MD, "papa", &patterns, ContentLang::Unset).unwrap();
+        let b = build_dispatch_prompt(dir.path(), "p", MD, "papa", &patterns, ContentLang::Unset)
+            .unwrap();
         assert!(b.prompt.contains("{#papa}"), "{}", b.prompt);
-        assert!(b.prompt.contains("{#kid-todo}"), "하위 체크리스트: {}", b.prompt);
+        assert!(
+            b.prompt.contains("{#kid-todo}"),
+            "하위 체크리스트: {}",
+            b.prompt
+        );
         assert!(b.prompt.contains("지난 수정"), "일지 발췌: {}", b.prompt);
-        assert!(!b.prompt.contains("sk-abcdef123456"), "redact: {}", b.prompt);
+        assert!(
+            !b.prompt.contains("sk-abcdef123456"),
+            "redact: {}",
+            b.prompt
+        );
         assert!(
             b.prompt.contains("item_id=\"kid-todo\"") && !b.prompt.contains("\"kid-done\""),
             "미완 리프만 갱신 대상: {}",
@@ -228,12 +255,24 @@ mod tests {
         );
 
         // 단독(리프) 항목은 자기 자신이 갱신 대상.
-        let s = build_dispatch_prompt(dir.path(), "p", MD, "solo", &patterns, ContentLang::Unset).unwrap();
+        let s = build_dispatch_prompt(dir.path(), "p", MD, "solo", &patterns, ContentLang::Unset)
+            .unwrap();
         assert!(s.prompt.contains("item_id=\"solo\""));
         // 미지 항목·잠긴 plan 거부.
-        assert!(build_dispatch_prompt(dir.path(), "p", MD, "ghost", &patterns, ContentLang::Unset).is_err());
+        assert!(
+            build_dispatch_prompt(dir.path(), "p", MD, "ghost", &patterns, ContentLang::Unset)
+                .is_err()
+        );
         let locked = MD.replace("status: active", "status: done");
-        assert!(build_dispatch_prompt(dir.path(), "p", &locked, "solo", &patterns, ContentLang::Unset).is_err());
+        assert!(build_dispatch_prompt(
+            dir.path(),
+            "p",
+            &locked,
+            "solo",
+            &patterns,
+            ContentLang::Unset
+        )
+        .is_err());
     }
 
     #[test]
@@ -246,16 +285,13 @@ mod tests {
     fn english_dispatch_prompt_is_english_but_keeps_ids() {
         let dir = tempfile::tempdir().unwrap();
         let patterns: Vec<Regex> = vec![];
-        let b = build_dispatch_prompt(
-            dir.path(),
-            "p",
-            MD,
-            "solo",
-            &patterns,
-            ContentLang::English,
-        )
-        .unwrap();
-        assert!(b.prompt.contains("ocul-pm planner dispatch"), "{}", b.prompt);
+        let b = build_dispatch_prompt(dir.path(), "p", MD, "solo", &patterns, ContentLang::English)
+            .unwrap();
+        assert!(
+            b.prompt.contains("ocul-pm planner dispatch"),
+            "{}",
+            b.prompt
+        );
         assert!(b.prompt.contains("## Target item"), "{}", b.prompt);
         assert!(b.prompt.contains("## When done"), "{}", b.prompt);
         // 도구 이름과 id 는 계약이라 언어와 무관하게 그대로다.
@@ -263,12 +299,16 @@ mod tests {
         assert!(b.prompt.contains("plan_id=\"p\""), "{}", b.prompt);
         // 남는 한글은 **사용자 데이터**뿐이어야 한다 — 플랜/항목 제목은 그
         // 사람이 쓴 내용이라 번역 대상이 아니다. 그것만 벗겨내고 검사한다.
-        let scaffolding = b.prompt.replace("디스패치 플랜", "").replace("단독 항목", "");
+        let scaffolding = b
+            .prompt
+            .replace("디스패치 플랜", "")
+            .replace("단독 항목", "");
         assert!(
-            !scaffolding.chars().any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)),
+            !scaffolding
+                .chars()
+                .any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)),
             "뼈대에 한글이 남았다:\n{}",
             b.prompt
         );
     }
-
 }

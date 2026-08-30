@@ -234,8 +234,7 @@ fn is_noise_path(p: &str) -> bool {
     // step 4.5), so any path that DID reach the index from inside `.claude/`
     // is by definition not the adapter file. Filtering the whole prefix is
     // safe and intentionally symmetric with the watcher.
-    paths::AGENT_STATE_DIRS.iter().any(|d| p.starts_with(d))
-        || paths::is_nested_agent_state_path(p)
+    paths::AGENT_STATE_DIRS.iter().any(|d| p.starts_with(d)) || paths::is_nested_agent_state_path(p)
 }
 
 /// Fill each session's `linked_journal_entries` from the cache, using the same
@@ -353,7 +352,10 @@ pub(crate) fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, Stri
         }
     }
     // Theoretical fallback — collisions beyond 999 are absurd. Use timestamp.
-    let name = format!("{base}__{}.md", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+    let name = format!(
+        "{base}__{}.md",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+    );
     let p = dir.join(&name);
     (p, name)
 }
@@ -387,7 +389,7 @@ fn infer_entry_type(subject: &str) -> EntryType {
 /// `commit-<short_sha>` when the subject is non-ASCII (e.g. Korean) or yields
 /// nothing. Always satisfies [`validate_slug`].
 fn slug_from_subject(subject: &str, short_sha: &str) -> String {
-    let body = subject.splitn(2, ':').nth(1).unwrap_or(subject);
+    let body = subject.split_once(':').map(|x| x.1).unwrap_or(subject);
     let mut out = String::new();
     let mut dash = false;
     for c in body.chars() {

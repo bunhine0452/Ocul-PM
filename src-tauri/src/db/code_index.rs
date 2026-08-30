@@ -6,8 +6,6 @@
 use super::*;
 
 impl Db {
-
-
     // ---------- Files ----------
 
     /// Insert or update a file. Returns `(file_id, changed)` where `changed`
@@ -44,7 +42,10 @@ impl Db {
                     )?;
                     c.execute("DELETE FROM chunks WHERE file_id = ?", [id])?;
                     c.execute("DELETE FROM symbol_definitions WHERE file_id = ?", [id])?;
-                    c.execute("DELETE FROM file_dependencies WHERE source_file_id = ?", [id])?;
+                    c.execute(
+                        "DELETE FROM file_dependencies WHERE source_file_id = ?",
+                        [id],
+                    )?;
                     Ok((id as u32, true))
                 } else {
                     c.execute(
@@ -325,9 +326,8 @@ impl Db {
                            AND (title LIKE ?3 ESCAPE '\\' OR slug LIKE ?3 ESCAPE '\\')
                          ORDER BY 6 ASC, created_at DESC LIMIT ?4",
                     )?;
-                    let rows = stmt.query_map(
-                        params![project_id as i64, prefix, sub, lim],
-                        |r| {
+                    let rows =
+                        stmt.query_map(params![project_id as i64, prefix, sub, lim], |r| {
                             let workday: String = r.get(2)?;
                             let ty: String = r.get(3)?;
                             Ok((
@@ -340,8 +340,7 @@ impl Db {
                                     subtitle: format!("{workday} · {ty}"),
                                 },
                             ))
-                        },
-                    )?;
+                        })?;
                     for row in rows {
                         acc.push(row?);
                     }
@@ -356,9 +355,8 @@ impl Db {
                            AND (title LIKE ?3 ESCAPE '\\' OR plan_id LIKE ?3 ESCAPE '\\')
                          ORDER BY 5 ASC, updated_at DESC LIMIT ?4",
                     )?;
-                    let rows = stmt.query_map(
-                        params![project_id as i64, prefix, sub, lim],
-                        |r| {
+                    let rows =
+                        stmt.query_map(params![project_id as i64, prefix, sub, lim], |r| {
                             let status: String = r.get(2)?;
                             Ok((
                                 r.get::<_, i64>(4)?,
@@ -370,8 +368,7 @@ impl Db {
                                     subtitle: format!("플랜 · {status}"),
                                 },
                             ))
-                        },
-                    )?;
+                        })?;
                     for row in rows {
                         acc.push(row?);
                     }
@@ -388,9 +385,8 @@ impl Db {
                          WHERE i.project_id = ?1 AND i.title LIKE ?3 ESCAPE '\\'
                          ORDER BY 6 ASC, 5 DESC LIMIT ?4",
                     )?;
-                    let rows = stmt.query_map(
-                        params![project_id as i64, prefix, sub, lim],
-                        |r| {
+                    let rows =
+                        stmt.query_map(params![project_id as i64, prefix, sub, lim], |r| {
                             let plan_id: String = r.get(0)?;
                             let item_id: String = r.get(1)?;
                             Ok((
@@ -403,8 +399,7 @@ impl Db {
                                     subtitle: r.get(3)?,
                                 },
                             ))
-                        },
-                    )?;
+                        })?;
                     for row in rows {
                         acc.push(row?);
                     }
@@ -419,9 +414,8 @@ impl Db {
                            AND (title LIKE ?3 ESCAPE '\\' OR discussion_id LIKE ?3 ESCAPE '\\')
                          ORDER BY 5 ASC, updated_at DESC LIMIT ?4",
                     )?;
-                    let rows = stmt.query_map(
-                        params![project_id as i64, prefix, sub, lim],
-                        |r| {
+                    let rows =
+                        stmt.query_map(params![project_id as i64, prefix, sub, lim], |r| {
                             let status: String = r.get(2)?;
                             Ok((
                                 r.get::<_, i64>(4)?,
@@ -433,8 +427,7 @@ impl Db {
                                     subtitle: format!("토의 · {status}"),
                                 },
                             ))
-                        },
-                    )?;
+                        })?;
                     for row in rows {
                         acc.push(row?);
                     }
@@ -535,7 +528,11 @@ impl Db {
     }
 
     /// Returns the stored hash for a file by project_id and path.
-    pub async fn get_file_hash(&self, project_id: u32, path: String) -> Result<Option<(u32, String)>> {
+    pub async fn get_file_hash(
+        &self,
+        project_id: u32,
+        path: String,
+    ) -> Result<Option<(u32, String)>> {
         let result = self
             .conn
             .call(move |c| {
@@ -544,7 +541,8 @@ impl Db {
                     params![project_id as i64, &path],
                     |r| Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?)),
                 )
-                .optional()})
+                .optional()
+            })
             .await?;
         Ok(result)
     }

@@ -151,7 +151,7 @@ impl LlmProvider for OpenAi {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,
@@ -184,7 +184,7 @@ impl LlmProvider for OpenAi {
 
         let status = resp.status();
         if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
+            let body = crate::llm::error_body(resp).await;
             return Err(LlmError::ApiError {
                 status: status.as_u16(),
                 body,

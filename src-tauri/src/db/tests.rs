@@ -30,7 +30,11 @@ async fn heals_a_column_a_reused_migration_number_skipped() {
         })
         .await
         .unwrap();
-    assert_eq!(version, MIGRATIONS.last().unwrap().0, "user_version 은 그대로여야 재현이 성립한다");
+    assert_eq!(
+        version,
+        MIGRATIONS.last().unwrap().0,
+        "user_version 은 그대로여야 재현이 성립한다"
+    );
     drop(db);
 
     let db = Db::open(path).await.unwrap();
@@ -111,7 +115,12 @@ fn every_added_column_is_declared_for_healing() {
 #[test]
 fn migration_registry_matches_disk() {
     for w in MIGRATIONS.windows(2) {
-        assert!(w[0].0 < w[1].0, "등록 번호가 단조 증가해야 한다: {} → {}", w[0].0, w[1].0);
+        assert!(
+            w[0].0 < w[1].0,
+            "등록 번호가 단조 증가해야 한다: {} → {}",
+            w[0].0,
+            w[1].0
+        );
     }
 
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
@@ -160,12 +169,22 @@ async fn firing_apply_scan_is_compare_and_swap() {
     let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
     db.conn()
         .call(|c| -> Result<()> {
-            c.execute_batch("INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');")?;
+            c.execute_batch(
+                "INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');",
+            )?;
             Ok(())
         })
         .await
         .unwrap();
-    let row = |n: u32| vec![("rule".to_string(), "/r/a.md".to_string(), "20260830".to_string(), n, 100u64)];
+    let row = |n: u32| {
+        vec![(
+            "rule".to_string(),
+            "/r/a.md".to_string(),
+            "20260830".to_string(),
+            n,
+            100u64,
+        )]
+    };
     async fn count(db: &Db) -> u32 {
         db.firing_aggregates(1, "20260101".into(), "20261231".into())
             .await
@@ -176,16 +195,28 @@ async fn firing_apply_scan_is_compare_and_swap() {
     }
 
     // 첫 적재: 재개점 0 → 100.
-    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1)).await.unwrap());
+    assert!(db
+        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1))
+        .await
+        .unwrap());
     assert_eq!(count(&db).await, 1);
     // 같은 청크를 낡은 재개점(0) 으로 또 — 버려진다.
-    assert!(!db.firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1)).await.unwrap());
+    assert!(!db
+        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1))
+        .await
+        .unwrap());
     assert_eq!(count(&db).await, 1, "이중 집계가 없어야 한다");
     // 이어 붙이기: 100 → 250.
-    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 100, false, 250, row(2)).await.unwrap());
+    assert!(db
+        .firing_apply_scan(1, "s/x.jsonl".into(), 100, false, 250, row(2))
+        .await
+        .unwrap());
     assert_eq!(count(&db).await, 3);
     // 회전: 파일이 줄어 0 부터 다시 읽음 — 옛 행을 지우고 새로.
-    assert!(db.firing_apply_scan(1, "s/x.jsonl".into(), 250, true, 40, row(5)).await.unwrap());
+    assert!(db
+        .firing_apply_scan(1, "s/x.jsonl".into(), 250, true, 40, row(5))
+        .await
+        .unwrap());
     assert_eq!(count(&db).await, 5, "reset 은 가산이 아니라 교체");
     let points = db.firing_scan_points(1).await.unwrap();
     assert_eq!(points, vec![("s/x.jsonl".to_string(), 40u64)]);

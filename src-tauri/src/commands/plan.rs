@@ -19,7 +19,9 @@ use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMP
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
-use crate::oculpm::planner::migrate::{build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID};
+use crate::oculpm::planner::migrate::{
+    build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID,
+};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
     add_item, append_log_row, create_plan_skeleton, move_phase, remove_item, remove_phase,
@@ -31,7 +33,10 @@ use crate::oculpm::planner::project::{
 };
 
 async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(planner_dir(Path::new(&project.root_path)))
 }
 
@@ -121,8 +126,7 @@ fn is_plan_locked(md: &str, plan_id: &str) -> bool {
     parse_plan(md, plan_id).frontmatter.status.as_str() != "active"
 }
 
-const LOCKED_MSG: &str =
-    "이 계획은 완료·잠금 상태입니다. 새 계획을 만들어 진행하세요.";
+const LOCKED_MSG: &str = "이 계획은 완료·잠금 상태입니다. 새 계획을 만들어 진행하세요.";
 
 fn free_plan_path(root: &Path, base: &str) -> (String, PathBuf) {
     let mut id = base.to_string();
@@ -214,8 +218,9 @@ pub async fn plan_apply_edit(
             status,
         } => {
             let st = match status {
-                Some(s) => ItemStatus::parse_status(&s)
-                    .ok_or_else(|| format!("unknown status '{s}'"))?,
+                Some(s) => {
+                    ItemStatus::parse_status(&s).ok_or_else(|| format!("unknown status '{s}'"))?
+                }
                 None => ItemStatus::Todo,
             };
             let iid = item_id
@@ -448,8 +453,11 @@ pub async fn plan_ai_refresh(
     let agent = format!("inapp:{provider}");
     let ts = chrono::Utc::now().to_rfc3339();
     let existing: HashSet<String> = parsed.items.iter().map(|i| i.item_id.clone()).collect();
-    let cur_status: HashMap<String, ItemStatus> =
-        parsed.items.iter().map(|i| (i.item_id.clone(), i.status)).collect();
+    let cur_status: HashMap<String, ItemStatus> = parsed
+        .items
+        .iter()
+        .map(|i| (i.item_id.clone(), i.status))
+        .collect();
 
     let mut cur = md;
     for e in edits {
@@ -483,10 +491,7 @@ pub async fn plan_ai_refresh(
 /// One-time import of legacy `goals`/`subtasks` into `_imported.md`.
 #[tauri::command]
 #[specta::specta]
-pub async fn plan_migrate_goals(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<PlanSummary, String> {
+pub async fn plan_migrate_goals(db: State<'_, Db>, project_id: u32) -> Result<PlanSummary, String> {
     let root = planner_root_of(&db, project_id).await?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     let path = root.join(format!("{IMPORTED_PLAN_ID}.md"));
@@ -552,7 +557,10 @@ pub async fn plan_dispatch_prompt(
     plan_id: String,
     item_id: String,
 ) -> Result<DispatchPrompt, String> {
-    let project = db.get_project(project_id).await.map_err(|e| e.to_string())?;
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
     let root = PathBuf::from(&project.root_path);
     let planner_root = planner_dir(&root);
     let path = find_plan_path(&planner_root, &plan_id)
@@ -573,7 +581,12 @@ pub async fn plan_dispatch_prompt(
     // B1 (#statusline-badge) — "지금 무엇이 디스패치돼 있나" 플래그.
     // 플러그인 statusline 스크립트가 읽어 터미널 상태줄에 표시한다.
     // 실패는 디스패치를 막지 않는다 (배지는 편의).
-    write_dispatch_flag(&dispatch_dir, &built.item_title, Some((&plan_id, &item_id)), 86_400);
+    write_dispatch_flag(
+        &dispatch_dir,
+        &built.item_title,
+        Some((&plan_id, &item_id)),
+        86_400,
+    );
 
     Ok(DispatchPrompt {
         file_rel: format!(".oculpm/index/dispatch/{file_name}"),
@@ -616,7 +629,10 @@ pub(crate) fn write_dispatch_flag(
         }),
         None => serde_json::json!({ "title": title, "ts": ts, "ttl": ttl_secs }),
     };
-    if let Err(e) = write_atomic(&dispatch_dir.join("current.json"), flag.to_string().as_bytes()) {
+    if let Err(e) = write_atomic(
+        &dispatch_dir.join("current.json"),
+        flag.to_string().as_bytes(),
+    ) {
         tracing::warn!(target: "oculpm::plan", error = %e, "dispatch 배지 플래그 쓰기 실패 (무해)");
     }
 }
@@ -630,7 +646,12 @@ mod tests {
     #[test]
     fn dispatch_flag_keys_and_title_sanitized() {
         let dir = tempfile::TempDir::new().unwrap();
-        write_dispatch_flag(dir.path(), "릴리스 \"v2\" 준비\\끝", Some(("my-plan", "item-1")), 86_400);
+        write_dispatch_flag(
+            dir.path(),
+            "릴리스 \"v2\" 준비\\끝",
+            Some(("my-plan", "item-1")),
+            86_400,
+        );
         let raw = std::fs::read_to_string(dir.path().join("current.json")).unwrap();
         let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
         for key in ["title", "plan_rel", "item_id", "ts", "ttl"] {
@@ -640,11 +661,16 @@ mod tests {
         assert!(v["ts"].as_u64().unwrap() > 1_700_000_000, "ts 는 unix 초");
         // sed 단순 파서 계약: 제목에 따옴표·역슬래시가 남지 않는다.
         let title = v["title"].as_str().unwrap();
-        assert!(!title.contains('"') && !title.contains('\\'), "살균 실패: {title}");
+        assert!(
+            !title.contains('"') && !title.contains('\\'),
+            "살균 실패: {title}"
+        );
         // 회고 배지(plan 없음)는 짧은 ttl.
         write_dispatch_flag(dir.path(), "회고 W31", None, 7_200);
-        let v: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(dir.path().join("current.json")).unwrap()).unwrap();
+        let v: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join("current.json")).unwrap(),
+        )
+        .unwrap();
         assert_eq!(v["ttl"], 7_200);
         assert!(v.get("plan_rel").is_none());
     }

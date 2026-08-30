@@ -24,6 +24,8 @@ jobs:
   frontend:
     name: 프런트 — typecheck · test · lint · build
     runs-on: ubuntu-latest
+    # 매달린 잡이 러너를 붙잡지 않게 — 정상 실행은 2분 안팎이다.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -62,6 +64,8 @@ jobs:
     # 코드 경로가 있어 ubuntu 빌드는 미검증입니다. 저장소가 public 이라
     # macOS 러너 분과금은 없습니다.
     runs-on: macos-latest
+    # 콜드 빌드 실측 10분31초 — 그 세 배를 넘기면 매달린 것이다.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
 
@@ -73,7 +77,14 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rust-analyzer
+          components: rust-analyzer, rustfmt, clippy
+
+      # 2026-08-30 에 `cargo fmt` 를 한 번 전체 적용했다(143 파일). 그 뒤로는 손으로
+      # 맞춘 들여쓰기가 다시 어긋나지 않게 여기서 막는다 — 가장 싼 게이트라 캐시
+      # 복원 전에 먼저 돈다.
+      - name: cargo fmt --check
+        run: cargo fmt --check
+        working-directory: src-tauri
 
       # cache-on-failure: 붉은 실행도 캐시를 남깁니다. 기본값(false)이면 테스트가
       # 깨진 실행은 캐시를 안 남겨, 고치고 다시 밀 때도 콜드 빌드를 또 합니다
@@ -87,6 +98,12 @@ jobs:
       # 프런트 산출물(dist/)이 없어도 `cargo test` 는 빌드됩니다 — 번들 단계가
       # 아니라서 frontendDist 존재를 요구하지 않고, 사이드카 플레이스홀더는
       # build.rs 가 자가 생성합니다. node/pnpm 이 필요 없는 이유입니다.
+      # 2026-08-30 에 경고 50건을 전부 처리하고 `-D warnings` 로 잠갔다 (인자 8개+
+      # 커맨드와 LSP 콜백 타입만 lib.rs 상단에서 허용). 테스트 타깃까지 본다.
+      - name: cargo clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+        working-directory: src-tauri
+
       - name: cargo test
         run: cargo test --locked
         working-directory: src-tauri
