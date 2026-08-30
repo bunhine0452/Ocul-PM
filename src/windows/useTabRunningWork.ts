@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { commands } from "@/lib/bindings";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { registerTabCloseGuard, type TabRunningWork } from "@/lib/closeIntent";
 import { collectSids } from "@/lib/termPanes";
 import { panesOfTab } from "@/features/terminal/activePane";
@@ -18,9 +18,9 @@ import { countAcpWorkingFor } from "@/features/chat/acpBusyBus";
 // 곧 읽지 않고 누르는 확인이 된다.
 
 export function useTabRunningWork(tabId: number, projectId: number): void {
-  const { state } = useWorkspace();
-  const stateRef = useRef(state);
-  stateRef.current = state;
+  const sessions = useTerminalSessions();
+  const stateRef = useRef(sessions);
+  stateRef.current = sessions;
 
   useEffect(
     () =>

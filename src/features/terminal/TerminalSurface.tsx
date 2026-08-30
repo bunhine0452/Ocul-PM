@@ -14,7 +14,7 @@ import { requestManualEntry } from "@/lib/journalCompose";
 // 모듈 t() 는 `formatMatchCount`(순수·테스트 대상) 용, useT() 는 컴포넌트 용.
 import { t, useT } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useWorkspace, type TerminalTab } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useTerminalSessions, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
   leaf,
   collectSids,
@@ -221,9 +221,11 @@ export function TerminalSurface({
   dragRegion = false,
 }: TerminalSurfaceProps) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
+  // Phase 4 #workspace-split — 세션 조각과 런타임 조각만 구독한다. 검색어·
+  // 플래너 접힘 같은 취향이 바뀌어도 터미널은 다시 그려지지 않는다.
+  const { terminalTabs, terminalActiveId, setSessions } = useTerminalSessions();
+  const runtime = useProjectRuntime();
   const { settings, set: setSetting } = useSettings();
-  const { terminalTabs, terminalActiveId } = state;
   // 앱 전역 설정에서 읽는다 (2026-08-15) — 설정 화면·상태바·⌘± 가 한 값을
   // 공유하고, 창을 여러 개 띄워도 SQLite 라 전부 같은 크기가 된다.
   const fontSize = clampFont(settings.terminalFontSize || FONT_DEFAULT);
@@ -339,7 +341,7 @@ export function TerminalSurface({
   // 셸 통합이 꺼져 있으면 shellStates 가 비어 있어 자동으로 no-op 이다.
   const { finished: finishedRuns, dismiss: dismissFinishedRun } = useAgentRuns(
     shellStates,
-    state.currentProjectId,
+    runtime.currentProjectId,
   );
 
   const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
@@ -348,13 +350,13 @@ export function TerminalSurface({
   // Ensure at least one tab exists.
   useEffect(() => {
     if (terminalTabs.length === 0) {
-      const id = newId(state.currentProjectId);
+      const id = newId(runtime.currentProjectId);
       const tab: TerminalTab = { id, label: "zsh", shell: "zsh", cwd: projectRoot ?? "" };
-      setState((prev) => ({ ...prev, terminalTabs: [tab], terminalActiveId: id }));
+      setSessions(() => ({ terminalTabs: [tab], terminalActiveId: id }));
     } else if (terminalActiveId == null || !terminalTabs.some((tab) => tab.id === terminalActiveId)) {
-      setState((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
+      setSessions((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
     }
-  }, [terminalTabs, terminalActiveId, projectRoot, state.currentProjectId, setState]);
+  }, [terminalTabs, terminalActiveId, projectRoot, runtime.currentProjectId, setSessions]);
 
   // 닫힌 세션의 핸들 정리.
   useEffect(() => {
@@ -375,17 +377,16 @@ export function TerminalSurface({
   }, [terminalTabs]);
 
   const patchTab = (id: string, fn: (tab: TerminalTab) => TerminalTab) =>
-    setState((prev) => ({
+    setSessions((prev) => ({
       ...prev,
       terminalTabs: prev.terminalTabs.map((tab) => (tab.id === id ? fn(tab) : tab)),
     }));
 
   const addTab = () => {
-    const id = newId(state.currentProjectId);
+    const id = newId(runtime.currentProjectId);
     const n = terminalTabs.length + 1;
     const tab: TerminalTab = { id, label: `zsh ${n}`, shell: "zsh", cwd: projectRoot ?? "" };
-    setState((prev) => ({
-      ...prev,
+    setSessions((prev) => ({
       terminalTabs: [...prev.terminalTabs, tab],
       terminalActiveId: id,
     }));
@@ -394,17 +395,17 @@ export function TerminalSurface({
   const closeTab = (id: string) => {
     const tab = terminalTabs.find((candidate) => candidate.id === id);
     if (tab) for (const sid of collectSids(panesOfTab(tab))) void commands.killPtySession(sid);
-    setState((prev) => {
+    setSessions((prev) => {
       const remaining = prev.terminalTabs.filter((tab) => tab.id !== id);
       const nextActive =
         prev.terminalActiveId === id
           ? (remaining[remaining.length - 1]?.id ?? null)
           : prev.terminalActiveId;
-      return { ...prev, terminalTabs: remaining, terminalActiveId: nextActive };
+      return { terminalTabs: remaining, terminalActiveId: nextActive };
     });
   };
 
-  const selectTab = (id: string) => setState((prev) => ({ ...prev, terminalActiveId: id }));
+  const selectTab = (id: string) => setSessions((prev) => ({ ...prev, terminalActiveId: id }));
 
   const commitRename = () => {
     if (!renaming) return;
@@ -416,7 +417,7 @@ export function TerminalSurface({
   const splitFocused = (dir: PaneDir) => {
     if (!activeTab) return;
     const sid = focusOfTab(activeTab);
-    const newSid = newId(state.currentProjectId);
+    const newSid = newId(runtime.currentProjectId);
     patchTab(activeTab.id, (tab) => ({
       ...tab,
       panes: splitPane(panesOfTab(tab), sid, dir, newSid),
@@ -471,10 +472,10 @@ export function TerminalSurface({
 
   /** 탭 목록 전체를 한 번에 바꾼다. 바뀐 게 없으면 상태를 건드리지 않는다. */
   const applyMove = (fn: (state: TabsState) => TabsState) =>
-    setState((prev) => {
+    setSessions((prev) => {
       const next = fn({ tabs: prev.terminalTabs, activeId: prev.terminalActiveId });
       if (next.tabs === prev.terminalTabs && next.activeId === prev.terminalActiveId) return prev;
-      return { ...prev, terminalTabs: next.tabs, terminalActiveId: next.activeId };
+      return { terminalTabs: next.tabs, terminalActiveId: next.activeId };
     });
 
   const beginMove =
@@ -738,7 +739,7 @@ export function TerminalSurface({
     if (!drop) return;
     // 새 탭 id 는 리듀서 **밖에서** 만든다 — 안에서 만들면 StrictMode 이중
     // 호출이 서로 다른 id 를 뽑아 어느 쪽이 남을지 알 수 없게 된다.
-    const bornId = newId(state.currentProjectId);
+    const bornId = newId(runtime.currentProjectId);
     applyMove((prev) =>
       m.kind === "tab"
         ? reorderTerminalTabs(prev, m.tabId, drop.index)
@@ -783,7 +784,7 @@ export function TerminalSurface({
   const applyShellTitle = (tabId: string, title: string) => {
     const label = shellTitleToTabLabel(title);
     if (!label) return;
-    setState((prev) => ({
+    setSessions((prev) => ({
       ...prev,
       terminalTabs: prev.terminalTabs.map((tab) =>
         tab.id === tabId && canAutoRename(tab.label) && tab.label !== label
@@ -995,7 +996,7 @@ export function TerminalSurface({
   }, [shellActive, onShellActiveChange]);
 
   // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
-  const watcher = state.oculpmStatus?.watcher_state ?? null;
+  const watcher = runtime.oculpmStatus?.watcher_state ?? null;
   const watchLabel =
     watcher === "running"
       ? t("term.watchRunning")
@@ -1354,7 +1355,7 @@ export function TerminalSurface({
       {blockMenu ? (
         <TerminalBlockMenu
           activation={blockMenu}
-          projectId={state.currentProjectId}
+          projectId={runtime.currentProjectId}
           onClose={() => setBlockMenu(null)}
           onFill={(command) => {
             const sid = activeTab ? focusOfTab(activeTab) : null;

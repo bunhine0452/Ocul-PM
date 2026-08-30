@@ -30,7 +30,7 @@ import { SkillCandidatesPanel } from "./SkillCandidates";
 import { EvalTrendPanel } from "./EvalTrend";
 import { DeferLedgerPanel } from "./DeferLedger";
 import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import {
   consumeRetroGenDone,
   getRetroGenRunning,
@@ -89,6 +89,7 @@ export function RetroScreenV2({
   const { t } = useT();
   // 디스패치를 어느 셸에 꽂을지 알아야 한다 (활성 탭·포커스 페인).
   const { state } = useWorkspace();
+  const sessions = useTerminalSessions();
   const [days, setDays] = useState(7);
   const { since, until, rangeKey } = useMemo(() => {
     const u = new Date();
@@ -207,8 +208,8 @@ export function RetroScreenV2({
       const onScreen = terminalOnScreen(state);
       const done = await handoffDispatch(
         { command: res.data.command, prompt: res.data.prompt },
-        state.terminalTabs,
-        state.terminalActiveId,
+        sessions.terminalTabs,
+        sessions.terminalActiveId,
       );
       toast.info(
         done.kind === "pasted"

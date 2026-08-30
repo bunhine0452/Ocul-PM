@@ -33,7 +33,7 @@ import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchT
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRail } from "./PlanRail";
 import {
   facetsOf,
@@ -139,6 +139,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 훅이 없으면 언어를 바꿔도 리렌더가 안 걸린다).
   useT();
   const { state, setState } = useWorkspace();
+  const sessions = useTerminalSessions();
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   // Restore the last-viewed plan (persisted) so returning from a linked journal
   // lands back on the SAME plan instead of resetting to the first one.
@@ -276,8 +277,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     const onScreen = terminalOnScreen(state);
     const done = await handoffDispatch(
       { command: res.data.command, prompt: res.data.prompt },
-      state.terminalTabs,
-      state.terminalActiveId,
+      sessions.terminalTabs,
+      sessions.terminalActiveId,
     );
     toast.info(
       done.kind === "pasted"

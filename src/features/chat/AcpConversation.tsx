@@ -24,7 +24,7 @@ import { commands, events,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useUiPrefs, useProjectRuntime, useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { useSessionMaps } from "./conversation/useSessionMaps";
 import { type PermissionState } from "./conversation/shared";
 import { ImageAttachment } from "./conversation/Attachments";
@@ -108,20 +108,23 @@ const STICK_SLACK_PX = 64;
 
 export function AcpConversation({ projectId }: { projectId: number }) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
-  const panelOpen = state.acpPanelOpen;
+  // Phase 4 #workspace-split — 취향(acp*)·런타임(프로젝트)·터미널(「터미널에서」) 조각.
+  const { prefs, setPrefs } = useUiPrefs();
+  const runtime = useProjectRuntime();
+  const { openTab } = useTerminalSessions();
+  const panelOpen = prefs.acpPanelOpen;
   /**
    * 사용자가 붙인 이름표. **우리 쪽에만 있다** — 프로토콜에 제목을 고치는
    * 요청이 없어서(있는 것은 지우기뿐) 에이전트의 제목은 그대로 두고 화면에서만
    * 우리 이름이 이긴다. 그래서 이 이름은 이 컴퓨터를 벗어나지 않는다.
    */
-  const names = state.acpNames;
+  const names = prefs.acpNames;
   const nameOf = useCallback(
     (id: string | null, fallback: string | null) => (id ? (names[id] ?? fallback) : fallback),
     [names],
   );
-  const ultracode = state.acpUltracode;
-  const tabs = state.acpTabs;
+  const ultracode = prefs.acpUltracode;
+  const tabs = prefs.acpTabs;
 
   /** 탭 목록을 갱신한다 (없으면 추가, 있으면 제목만 최신으로). */
   /**
@@ -137,20 +140,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const addTab = useCallback(
     (id: string | null, title: string | null) => {
       if (!id) return;
-      setState((prev) =>
+      setPrefs((prev) =>
         prev.acpTabs.some((tab) => tab.id === id)
           ? prev
           : { ...prev, acpTabs: [...prev.acpTabs, { id, title }] },
       );
     },
-    [setState],
+    [setPrefs],
   );
 
   /** 제목만 갱신 — **없는 탭을 만들지 않는다**(그게 되살아남의 통로였다). */
   const renameTab = useCallback(
     (id: string | null, title: string | null) => {
       if (!id || title === null) return;
-      setState((prev) => {
+      setPrefs((prev) => {
         const at = prev.acpTabs.findIndex((tab) => tab.id === id);
         if (at === -1 || prev.acpTabs[at].title === title) return prev;
         const next = [...prev.acpTabs];
@@ -158,7 +161,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         return { ...prev, acpTabs: next };
       });
     },
-    [setState],
+    [setPrefs],
   );
   const [session, setSession] = useState<AcpSession | null>(null);
   /**
@@ -491,8 +494,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
   useEffect(() => {
     const id = session?.session_id ?? null;
-    setState((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
-  }, [session?.session_id, setState]);
+    setPrefs((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
+  }, [session?.session_id, setPrefs]);
 
   /**
    * 쓰다 만 글은 **대화를 따라간다.**
@@ -536,7 +539,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 받을 수 있다. 이 화면이 보일 때만 받는다 — keep-alive 로 배경에 살아 있는
    * 다른 프로젝트 탭이 드롭을 삼키면 안 된다.
    */
-  const projectRoot = state.currentProjectRoot;
+  const projectRoot = runtime.currentProjectRoot;
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
@@ -793,7 +796,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   // 목록의 제목으로 탭을 메운다 (이름표를 붙인 탭은 건드리지 않는다 — 그쪽이 이긴다).
   useEffect(() => {
     if (!history?.length) return;
-    setState((prev) => {
+    setPrefs((prev) => {
       let changed = false;
       const next = prev.acpTabs.map((tab) => {
         const found = history.find((item) => item.id === tab.id);
@@ -803,7 +806,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       });
       return changed ? { ...prev, acpTabs: next } : prev;
     });
-  }, [history, setState]);
+  }, [history, setPrefs]);
 
   const openSession = useCallback(
     async (sessionId: string) => {
@@ -912,11 +915,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(() => {
     if (restoredRef.current || !session || !history) return;
     restoredRef.current = true;
-    const last = state.acpLastSession;
+    const last = prefs.acpLastSession;
     if (!last || last === session.session_id) return;
     if (!history.some((item) => item.id === last)) return;
     void openSession(last);
-  }, [session, history, state.acpLastSession, openSession]);
+  }, [session, history, prefs.acpLastSession, openSession]);
 
   const pickCommand = useCallback((command: AcpCommand) => {
     setDraft(applyCommand(command));
@@ -961,23 +964,13 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 등록해 두면, 그 셸이 뜨는 순간 `TerminalInstance` 가 한 번만 쳐 준다.
    */
   const openInTerminal = useCallback((prefill?: string) => {
-    const id = newPtySessionId(state.currentProjectId);
+    const id = newPtySessionId(runtime.currentProjectId);
     stageBootCommand(id, claudeCommand(prefill));
-    setState((prev) => ({
-      ...prev,
-      terminalTabs: [
-        ...prev.terminalTabs,
-        {
-          id,
-          label: "Claude Code",
-          shell: "",
-          cwd: prev.currentProjectRoot ?? "",
-        },
-      ],
-      terminalActiveId: id,
-      uiV2View: "terminal",
-    }));
-  }, [state.currentProjectId, setState]);
+    openTab(
+      { id, label: "Claude Code", shell: "", cwd: runtime.currentProjectRoot ?? "" },
+      { view: "terminal" },
+    );
+  }, [runtime.currentProjectId, runtime.currentProjectRoot, openTab]);
 
   /**
    * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
@@ -992,7 +985,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         if (tabs.length) void openSession(tabs[tabs.length - 1].id);
         return;
       }
-      setState((prev) => ({
+      setPrefs((prev) => ({
         ...prev,
         acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
       }));
@@ -1001,7 +994,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (rest.length) void openSession(rest[rest.length - 1].id);
       else newConversation();
     },
-    [session?.session_id, tabs, openSession, newConversation, setState],
+    [session?.session_id, tabs, openSession, newConversation, setPrefs],
   );
 
   /**
@@ -1043,14 +1036,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const rename = useCallback(
     (sessionId: string, next: string) => {
       const label = next.trim();
-      setState((prev) => {
+      setPrefs((prev) => {
         const names = { ...prev.acpNames };
         if (label) names[sessionId] = label;
         else delete names[sessionId];
         return { ...prev, acpNames: names };
       });
     },
-    [setState],
+    [setPrefs],
   );
 
   /**
@@ -1069,7 +1062,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       }
       // 어댑터 목록은 잠깐 더 이 대화를 들고 있다 — 우리 쪽에서 못 박아 둔다.
       removedRef.current.add(sessionId);
-      setState((prev) => {
+      setPrefs((prev) => {
         const names = { ...prev.acpNames };
         delete names[sessionId];
         return {
@@ -1081,7 +1074,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       await refreshHistory();
       if (session?.session_id === sessionId) newConversation();
     },
-    [projectId, refreshHistory, session?.session_id, newConversation, setState],
+    [projectId, refreshHistory, session?.session_id, newConversation, setPrefs],
   );
 
   const send = useCallback(
@@ -1579,7 +1572,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       <button
         type="button"
         className={"btn icon ghost acp-panel-toggle" + (panelOpen ? " active" : "")}
-        onClick={() => setState((prev) => ({ ...prev, acpPanelOpen: !prev.acpPanelOpen }))}
+        onClick={() => setPrefs((prev) => ({ ...prev, acpPanelOpen: !prev.acpPanelOpen }))}
         aria-pressed={panelOpen}
         aria-label={t("acp.history")}
         title={t("acp.history")}
@@ -1951,7 +1944,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                   onChange={setOption}
                   ultracode={ultracode}
                   onUltracode={(on) =>
-                    setState((prev) => ({ ...prev, acpUltracode: on }))
+                    setPrefs((prev) => ({ ...prev, acpUltracode: on }))
                   }
                   ultraReady={supportsUltracode(
                     session.options.find((o) => o.id === "model")?.current,

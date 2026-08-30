@@ -56,6 +56,8 @@ vi.mock("@/components/Markdown", () => ({
 // 스스로 숨는다 — 이 파일의 Notion 단언에는 영향 없음.)
 vi.mock("@/contexts/WorkspaceContext", () => ({
   useWorkspace: () => ({ state: { currentProjectRoot: "/proj" } }),
+  // Phase 4 — 회고 화면은 터미널 세션 조각도 읽는다 (▶실행 핸드오프).
+  useTerminalSessions: () => ({ terminalTabs: [], terminalActiveId: null }),
 }));
 vi.mock("@/contexts/SettingsContext", () => ({
   useSettings: () => ({ settings: { externalEditorCommand: "code %path" } }),
