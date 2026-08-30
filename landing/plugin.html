@@ -132,7 +132,7 @@
         <tbody>
           <tr><td>journal_search</td><td>과거 일지 검색 — 질의(제목·본문·태그)에 더해 <b>그 파일을 건드린 일지</b>·종류·상태·기간·태그로 좁힘. 본문 전문 대신 압축 히트 목록을 돌려주고, 매치 강도순(제목&gt;태그&gt;본문)으로 정렬. 작업 <b>시작 전</b> 호출이 규칙.</td></tr>
           <tr><td>journal_read</td><td>검색이 고른 일지 1건의 본문 전체. 목록을 훑는 용도가 아니라, 읽을 값어치가 있다고 판단한 뒤에만.</td></tr>
-          <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록.</td></tr>
+          <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록. 과거 일지와의 <code>related</code> 링크와 <code>session_id</code> 를 받고, 본문의 시크릿은 마스킹한 뒤 응답으로 알린다.</td></tr>
           <tr><td>plan_status</td><td>활성 플랜의 항목·상태를 조회 — "지금 어디까지 됐나"의 근거.</td></tr>
           <tr><td>plan_update</td><td>플랜 항목의 상태를 갱신하고 plan-log 를 남김. 하위를 가진 부모는 롤업 자동이라 직접 갱신 거부.</td></tr>
           <tr><td>plan_create</td><td>새 계획을 3-depth(마일스톤→작업→하위 작업)로 생성 — frontmatter·id 규격 서버 보장.</td></tr>
