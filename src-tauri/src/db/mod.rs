@@ -85,6 +85,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         31,
         include_str!("../../migrations/031_purge_index_noise.sql"),
     ),
+    (
+        32,
+        include_str!("../../migrations/032_chunk_embeddings_partition.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —

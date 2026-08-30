@@ -143,13 +143,18 @@ pub fn capture_entry_diffs(
     let entry_time = entry_unix_time(entry_rel);
     let mut files = Vec::new();
     let mut redacted_spans = 0usize;
+    // Tier 1 (working-tree `git diff HEAD`) is one git call for every touched
+    // file (Phase 3 — was two processes per file). Misses fall through to the
+    // per-file tiers below exactly as before.
+    let touched_paths: Vec<String> = touched.iter().map(|f| f.path.clone()).collect();
+    let mut tier1 = git::diff_patches(root, &touched_paths, MAX_PATCH_BYTES);
     for f in touched {
         // Resolve the raw patch through the 4-tier fallback (see module docs).
         // Tier 1 = working-tree `git diff HEAD`. Empty/error → tier 2 snapshot,
         // tier 3 git-history (runs even when `entry_time` is None — newest
         // commit), tier 4 created-file.
-        let patch = match git::diff_patch(root, &f.path, None, None, MAX_PATCH_BYTES) {
-            Ok(p) if !p.trim().is_empty() => Some(p),
+        let patch = match tier1.remove(&f.path) {
+            Some(p) if !p.trim().is_empty() => Some(p),
             _ => snapshot_patch(root, &f.path, snapshots)
                 .or_else(|| history_patch(root, &f.path, entry_time))
                 .or_else(|| new_file_patch(root, &f.path, f.op)),

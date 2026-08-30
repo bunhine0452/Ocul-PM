@@ -38,12 +38,12 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 - [x] 새 기록 토스트에 "열기" 액션, diff 그룹 헤더에 검증 토글, Today 에 회고 진입점 {#today-review-loop}
 
 ## Phase 3 — 성능 {#performance}
-- [ ] i18n 사전 분리 — 진입 청크의 45%(ko+en 정적) → 해석된 언어만 로드 (`i18n/index.ts`) {#i18n-split}
-- [ ] `SettingsOverlay`→`SettingsPanel`, `StartTab`→`GreenfieldWizard` lazy 복원 {#lazy-restore}
-- [ ] 인덱싱 진행률 스로틀(Rust ≥100ms) + 컨텍스트 밖 스토어 (`project.rs:208`, `ProjectTab.tsx:195`) {#index-progress}
-- [ ] vec0 `project_id PARTITION KEY` + 색인 정리 후 VACUUM, KNN 전역 스캔 제거 (`code_index.rs:161`, `002_chunks.sql`) {#vec-partition}
-- [ ] `oculpm_workday_brief` 날짜별 왕복 → 단일 `workday IN` 쿼리; HonestyAudit 워크데이 단위 비교 {#brief-single-query}
-- [ ] 초당 틱 단일 스토어(`useSecondTick`) + 워처 diff 캡처의 git 호출 묶기 {#tick-and-diff-batch}
+- [x] i18n 사전 분리 — 진입 청크의 45%(ko+en 정적) → 해석된 언어만 로드 (`i18n/index.ts`) {#i18n-split}
+- [x] `SettingsOverlay`→`SettingsPanel`, `StartTab`→`GreenfieldWizard` lazy 복원 {#lazy-restore}
+- [x] 인덱싱 진행률 스로틀(Rust ≥100ms) + 컨텍스트 밖 스토어 (`project.rs:208`, `ProjectTab.tsx:195`) {#index-progress}
+- [x] vec0 `project_id PARTITION KEY` + 색인 정리 후 VACUUM, KNN 전역 스캔 제거 (`code_index.rs:161`, `002_chunks.sql`) {#vec-partition}
+- [x] `oculpm_workday_brief` 날짜별 왕복 → 단일 `workday IN` 쿼리; HonestyAudit 워크데이 단위 비교 {#brief-single-query}
+- [x] 초당 틱 단일 스토어(`useSecondTick`) + 워처 diff 캡처의 git 호출 묶기 {#tick-and-diff-batch}
 
 ## Phase 4 — 설계 {#design-rigor}
 - [ ] `SessionId` 뉴타입(Watcher/Manual/Mcp/GitBackfill) + `current_workday` 커맨드 하나로 workday 파생 7곳 통일 {#session-id-newtype}
@@ -71,4 +71,6 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 | 2026-08-30T15:51:00+09:00 | #first-run-card #last-tab-confirm | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_first-run-card-and-tab-close-guard.md | agent_files 보고 + oculpmInitCard 영속 카드 · 「지금 활성화」 버스 · 탭 닫기 문지기(포그라운드 명령·ACP) |
 | 2026-08-30T15:51:00+09:00 | #doctor-tab #index-empty-state | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_doctor-and-index-empty-states.md | DoctorSection 9행+무결성 기록 · last_indexed_at · 검색/코드맵 색인 없음 분기 · 임베딩 배너 ×/다시 받기 |
 | 2026-08-30T15:51:00+09:00 | #cheatsheet-whatsnew #today-review-loop | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_cheatsheet-whatsnew-review-loop.md | shortcutRegistry+⌘/ · last_seen_version 카드 · 토스트 「열기」 · diff 머리글 확인 토글 · Today 회고 |
+| 2026-08-30T16:09:00+09:00 | #i18n-split #lazy-restore #index-progress #tick-and-diff-batch | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1609_refactor_entry-chunk-and-render-churn.md | 진입 538→268KB · lazy 2곳 · 진행률 스토어+100ms · 공유 시계 (diff 묶기는 다음 행) |
+| 2026-08-30T16:09:00+09:00 | #brief-single-query #vec-partition #tick-and-diff-batch | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1609_refactor_query-fanin-vec-partition-git-batch.md | workday IN · compare_workday · 032 partition key+VACUUM · diff_patches 묶기 |
 <!-- oculpm:plan-log end -->

@@ -2,7 +2,8 @@
 //
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useSecondTick } from "@/hooks/useSecondTick";
 import { Check, ChevronDown, Code2, Copy } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { type AcpToolCall } from "../acpTurns";
@@ -13,14 +14,10 @@ import { TOOL_ICON, TOOL_STATUS_KEY } from "./shared";
 
 /** 도는 단계의 경과 초 — 1초마다 다시 그린다 (그 단계가 도는 동안만). */
 export function TraceElapsed({ since }: { since?: number }) {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (since == null) return;
-    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [since]);
+  // 도는 단계마다 하나씩 인터벌을 들던 것을 공유 시계로 (Phase 3).
+  const now = useSecondTick(since != null);
   if (since == null) return null;
-  const sec = Math.max(0, Math.round((Date.now() - since) / 1000));
+  const sec = Math.max(0, Math.round((now - since) / 1000));
   // 첫 1~2초는 적지 않는다 — 모든 단계에 "· 0s" 가 붙으면 벽지가 된다.
   if (sec < 3) return null;
   return <span className="trace-elapsed"> · {sec}s</span>;

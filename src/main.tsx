@@ -5,6 +5,8 @@ import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
 import { installNativeDragGuard } from "./lib/nativeDrag";
+import { bootI18n } from "./i18n";
+import { commands } from "./lib/bindings";
 
 // 바깥 링크 → 기본 브라우저. 세 갈래 창 어디서 눌러도 같아야 하므로 갈림길
 // **위**에서 한 번 건다 (externalLinks.ts 참고).
@@ -41,6 +43,17 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 // 탈출구 (#mb2-smoke). SettingsProvider 는 올리지 않는다 — settings_get_all 이
 // 모바일 화이트리스트 밖이라 401/404 소음만 낸다.
 const isWebview = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+// 언어 사전은 동적 청크다 (완성도 라운드 Phase 3) — 설정의 언어를 읽어 그 사전
+// 하나를 받은 뒤 그린다. 웹뷰 밖(모바일)에선 설정 IPC 가 없으니 OS 로케일.
+void bootI18n(async () => {
+  if (!isWebview) return null;
+  const res = await commands.settingsGetAll();
+  if (res.status !== "ok") return null;
+  return res.data.find(([key]) => key === "language")?.[1] ?? null;
+}).then(renderApp);
+
+function renderApp() {
 if (!isWebview && !window.location.search.includes("desktop=1")) {
   const MobileApp = React.lazy(() => import("./mobile/MobileApp"));
   root.render(
@@ -94,4 +107,5 @@ if (!isWebview && !window.location.search.includes("desktop=1")) {
       </SettingsProvider>
     </React.StrictMode>,
   );
+}
 }

@@ -10,7 +10,7 @@
  * 터미널 탭·필터)는 프로젝트 탭의 개념이고, 시작 탭이 쓰기를 하지 않는 덕분에
  * 탭 사이 localStorage 충돌이 구조적으로 사라진다.
  */
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
   commands,
@@ -21,7 +21,12 @@ import {
 
 import { CommandPalette } from "@/components/CommandPalette";
 import { StartScreen } from "@/features/onboarding/StartScreen";
-import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
+// 그린필드 마법사는 새 프로젝트를 만들 때만 쓴다 — 시작 탭의 첫 그림엔 없다.
+// 정적 import 가 마법사(+ 템플릿·검증 단계)를 진입 청크에 얹고 있었다
+// (완성도 감사 2026-08-30 #lazy-restore).
+const GreenfieldWizard = lazy(() =>
+  import("@/features/onboarding/GreenfieldWizard").then((m) => ({ default: m.GreenfieldWizard })),
+);
 import { SettingsOverlay } from "@/windows/SettingsOverlay";
 import { Dialog } from "@/windows/Dialog";
 
@@ -237,19 +242,21 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
       {active && settingsOpen && <SettingsOverlay onClose={() => setSettingsOpen(false)} />}
 
       {greenfieldOpen && (
-        <GreenfieldWizard
-          resume={greenfieldResume}
-          onClose={() => {
-            setGreenfieldOpen(false);
-            setGreenfieldResume(null);
-          }}
-          onComplete={async (projectId) => {
-            setGreenfieldOpen(false);
-            setGreenfieldResume(null);
-            await refreshProjects();
-            void commands.setTabProject(tabId, projectId);
-          }}
-        />
+        <Suspense fallback={null}>
+          <GreenfieldWizard
+            resume={greenfieldResume}
+            onClose={() => {
+              setGreenfieldOpen(false);
+              setGreenfieldResume(null);
+            }}
+            onComplete={async (projectId) => {
+              setGreenfieldOpen(false);
+              setGreenfieldResume(null);
+              await refreshProjects();
+              void commands.setTabProject(tabId, projectId);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Rename / Delete dialogs */}

@@ -26,6 +26,7 @@ import type {
   JournalEntry,
   JournalEntrySummary,
   LayerComparison,
+  WorkdayComparison,
   ManualEntryDraft,
   OculpmConfig,
   OculpmInitReport,
@@ -240,6 +241,13 @@ export const oculpmApi = {
     unwrap<LayerComparison>(
       "oculpm_compare_layers",
       commands.oculpmCompareLayers(projectId, sessionId),
+    ),
+
+  /** 워크데이 하나의 정직성 감사 — 세션 전부를 IPC 1회에 (Phase 3). */
+  compareWorkday: (projectId: number, workday: string) =>
+    unwrap<WorkdayComparison>(
+      "oculpm_compare_workday",
+      commands.oculpmCompareWorkday(projectId, workday),
     ),
 
   /**

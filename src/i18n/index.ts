@@ -22,8 +22,13 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 
-import { ko } from "./ko";
-import { en } from "./en";
+// 사전은 **정적으로 가져오지 않는다** (완성도 라운드 Phase 3, 2026-08-30).
+// ko+en 이 진입 청크의 300KB 를 차지하고 있었다 — 한 사람은 한 언어만 읽는다.
+// 타입은 `import type` 으로만 묶고(빌드에서 지워진다), 값은 `loadDict` 가
+// 동적 import 로 청크를 나눠 받는다. 부팅(`bootI18n`)이 설정 언어의 사전을
+// 첫 그림 전에 기다리고, 나머지 언어는 팔레트 검색(`tAll`)을 위해 한가할 때
+// 받는다.
+import type { ko as KoDict } from "./ko";
 
 /** 실제 렌더에 쓰이는 해석된 언어. */
 export type Lang = "ko" | "en";
@@ -31,9 +36,62 @@ export type Lang = "ko" | "en";
 export type LangSetting = "system" | Lang;
 
 /** 사전 키 — `ko` 가 정본이고 `en` 은 같은 키를 전부 가져야 한다 (en.ts 참고). */
-export type I18nKey = keyof typeof ko;
+export type I18nKey = keyof typeof KoDict;
+export type Dict = Record<I18nKey, string>;
 
-const DICTS: Record<Lang, Record<I18nKey, string>> = { ko, en };
+const DICTS: Partial<Record<Lang, Dict>> = {};
+const LOADING: Partial<Record<Lang, Promise<void>>> = {};
+
+/** 사전을 스토어에 얹는다 — 동적 import 가 끝났을 때, 테스트 setup 이 정적으로. */
+export function registerDict(lang: Lang, dict: Dict): void {
+  if (DICTS[lang] === dict) return;
+  DICTS[lang] = dict;
+  notify();
+}
+
+export function isDictLoaded(lang: Lang): boolean {
+  return DICTS[lang] != null;
+}
+
+/** 언어 하나의 사전을 받는다 (이미 있으면 즉시). 같은 언어의 동시 호출은 한 번만 받는다. */
+export function loadDict(lang: Lang): Promise<void> {
+  if (DICTS[lang]) return Promise.resolve();
+  const pending = LOADING[lang];
+  if (pending) return pending;
+  const task = (
+    lang === "ko"
+      ? import("./ko").then((m) => registerDict("ko", m.ko))
+      : import("./en").then((m) => registerDict("en", m.en))
+  ).finally(() => {
+    delete LOADING[lang];
+  });
+  LOADING[lang] = task;
+  return task;
+}
+
+/**
+ * 부팅 — 설정을 읽어 언어를 정하고 **그 사전을 기다린 뒤** 돌아온다. 첫 그림이
+ * 키 문자열로 그려지지 않게 `main.tsx` 가 render 앞에서 await 한다. 설정을 못
+ * 읽으면(모바일 웹·오프라인) OS 로케일로 간다. 다른 언어는 한가할 때.
+ */
+export async function bootI18n(
+  readSetting: () => Promise<string | null | undefined>,
+): Promise<void> {
+  let setting: string | null | undefined = null;
+  try {
+    setting = await readSetting();
+  } catch {
+    setting = null;
+  }
+  setLangSetting(setting);
+  await loadDict(currentLang);
+  const other: Lang = currentLang === "ko" ? "en" : "ko";
+  const idle =
+    typeof window !== "undefined" && "requestIdleCallback" in window
+      ? (fn: () => void) => (window as Window).requestIdleCallback(fn)
+      : (fn: () => void) => setTimeout(fn, 1500);
+  idle(() => void loadDict(other));
+}
 
 // ── 언어 스토어 ───────────────────────────────────────────────────────────
 
@@ -95,6 +153,9 @@ export function setLangSetting(setting: LangSetting | string | null | undefined)
   const changed = next !== currentLang || nextSetting !== currentSetting;
   currentSetting = nextSetting;
   currentLang = next;
+  // 런타임 전환(설정 화면)으로 아직 없는 사전이 필요해지면 받아 온다 — 도착하면
+  // `registerDict` 가 알린다. 그 사이 `t()` 는 ko → 키 순으로 폴백한다.
+  if (!DICTS[next]) void loadDict(next);
   if (changed) notify();
 }
 
@@ -136,7 +197,7 @@ export function setContentLangSetting(setting: LangSetting | string | null | und
  * 화면 문구에 쓰면 안 된다 — 두 설정이 갈릴 때 화면이 섞인다.
  */
 export function tc(key: I18nKey, vars?: TVars): string {
-  const raw = DICTS[getContentLang()][key] ?? ko[key] ?? key;
+  const raw = DICTS[getContentLang()]?.[key] ?? DICTS.ko?.[key] ?? key;
   return interpolate(raw, vars);
 }
 
@@ -175,10 +236,10 @@ function interpolate(template: string, vars?: TVars): string {
  * 부르면 언어를 바꿔도 그 컴포넌트는 다시 그려지지 않는다.
  */
 export function t(key: I18nKey, vars?: TVars): string {
-  const dict = DICTS[currentLang];
-  // en 은 타입상 모든 키를 갖지만, 런타임에 사전이 깨졌을 때를 대비해 ko →
-  // 키 문자열 순으로 폴백한다. 빈 문자열이나 undefined 를 렌더하지 않는다.
-  const raw = dict[key] ?? ko[key] ?? key;
+  // en 은 타입상 모든 키를 갖지만, 런타임에 사전이 깨졌거나 아직 안 왔을 때를
+  // 대비해 ko → 키 문자열 순으로 폴백한다. 빈 문자열이나 undefined 를 렌더하지
+  // 않는다.
+  const raw = DICTS[currentLang]?.[key] ?? DICTS.ko?.[key] ?? key;
   return interpolate(raw, vars);
 }
 
@@ -193,8 +254,10 @@ export function t(key: I18nKey, vars?: TVars): string {
  */
 export function tAll(key: I18nKey): string[] {
   const seen = new Set<string>();
+  // 아직 안 온 언어는 색인에서 빠진다 — 부팅이 한가할 때 받아 두므로 팔레트를
+  // 여는 시점엔 보통 둘 다 있다.
   for (const lang of Object.keys(DICTS) as Lang[]) {
-    const v = DICTS[lang][key];
+    const v = DICTS[lang]?.[key];
     if (v) seen.add(v);
   }
   return [...seen];
@@ -216,12 +279,10 @@ export function useT(): { t: typeof t; lang: Lang } {
   );
 }
 
-/** 테스트 전용 — 스토어를 기본값으로 되돌린다. */
+/** 테스트 전용 — 스토어를 기본값으로 되돌린다 (사전은 그대로 둔다). */
 export function __resetLangForTests(): void {
   currentSetting = "system";
   currentLang = resolveLang(currentSetting);
   contentSetting = "system";
   notify();
 }
-
-export { ko, en };

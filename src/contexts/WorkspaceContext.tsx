@@ -170,8 +170,8 @@ export interface WorkspaceState {
   oculpmInitCard: OculpmInitCardInfo | null;
 
   // Volatile (not persisted)
+  /** 색인 중인 프로젝트 — 진행률 자체는 `lib/indexProgressStore` (컨텍스트 밖). */
   indexingProjectId: number | null;
-  indexProgress: IndexProgress | null;
 
   // .oculpm/ — populated by event listeners + on-demand fetches (W3-PR4).
   // Volatile: re-derived on project switch.
@@ -342,12 +342,6 @@ export interface WorkspaceState {
   sidebarCollapsed: boolean;
 }
 
-export interface IndexProgress {
-  current: number;
-  total: number;
-  current_file: string;
-}
-
 // ---------- Defaults ----------
 
 /**
@@ -394,7 +388,6 @@ const DEFAULT_STATE: WorkspaceState = {
   defaultTabUserOverride: false,
   oculpmInitCard: null,
   indexingProjectId: null,
-  indexProgress: null,
   oculpmEnabled: false,
   oculpmStatus: null,
   currentSession: null,
@@ -756,7 +749,6 @@ function loadFromStorage(projectId: number): WorkspaceState {
         ...parsed,
         // Always reset volatile state
         indexingProjectId: null,
-        indexProgress: null,
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
@@ -829,7 +821,6 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
   // Only persist non-volatile fields
   const {
     indexingProjectId: _ip,
-    indexProgress: _ipr,
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
@@ -885,7 +876,8 @@ interface WorkspaceContextValue {
    */
   setTerminalDetached: (detached: boolean) => void;
   setActiveFile: (file: string | null) => void;
-  setIndexing: (projectId: number | null, progress?: IndexProgress | null) => void;
+  /** 색인 시작/끝만 — 파일별 진행률은 `indexProgressStore` 로 (Phase 3). */
+  setIndexing: (projectId: number | null) => void;
 
   // .oculpm/ helpers (W3-PR4). Listeners in WorkspaceProvider keep these in
   // sync; screens call them directly when they need to refresh on demand.
@@ -1000,16 +992,11 @@ export function WorkspaceProvider({
     setState((prev) => ({ ...prev, activeFile: file }));
   }, []);
 
-  const setIndexing = useCallback(
-    (projectId: number | null, progress?: IndexProgress | null) => {
-      setState((prev) => ({
-        ...prev,
-        indexingProjectId: projectId,
-        indexProgress: progress ?? null,
-      }));
-    },
-    []
-  );
+  const setIndexing = useCallback((projectId: number | null) => {
+    setState((prev) =>
+      prev.indexingProjectId === projectId ? prev : { ...prev, indexingProjectId: projectId },
+    );
+  }, []);
 
   // `resetWorkspace` 는 멀티 창 라운드에서 제거됐다 — 유일한 호출처가
   // "대시보드로 돌아가기"였는데, I3 하에서 프로젝트 전환이 사라지면서

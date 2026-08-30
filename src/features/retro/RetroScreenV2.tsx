@@ -1,5 +1,6 @@
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useSecondTick } from "@/hooks/useSecondTick";
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
@@ -115,15 +116,10 @@ export function RetroScreenV2({
     if (done?.insight) setCached(done.insight);
   }, [genVersion, myGenKey]);
 
-  // 경과 초 표시 — 생성 중일 때만 1초 틱.
-  const [, setElapsedTick] = useState(0);
-  useEffect(() => {
-    if (!generating) return;
-    const id = setInterval(() => setElapsedTick((t) => t + 1), 1000);
-    return () => clearInterval(id);
-  }, [generating]);
+  // 경과 초 표시 — 생성 중일 때만 공유 1초 시계를 듣는다.
+  const now = useSecondTick(generating);
   const elapsedSec =
-    generating && runningGen ? Math.max(0, Math.round((Date.now() - runningGen.startedAt) / 1000)) : 0;
+    generating && runningGen ? Math.max(0, Math.round((now - runningGen.startedAt) / 1000)) : 0;
   const generatingLabel = generating
     ? t("retro.generating", { sec: elapsedSec, provider: runningGen!.provider, model: runningGen!.model })
     : null;

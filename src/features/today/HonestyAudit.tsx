@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
-import type { LayerComparison } from "@/lib/bindings";
+import type { SessionUnrecorded } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
 
 interface HonestyAuditProps {
@@ -23,12 +23,16 @@ const SEV_LABEL: Record<string, I18nKey> = {
 };
 
 /**
- * F2 — 정직성 감사. For each of the day's sessions, compares the watcher's
- * ground-truth file changes (`file_changes.ndjson`) against the journal's
- * `files_touched`, and surfaces `unrecorded`: files an agent actually changed
- * but that no journal entry anywhere in the workday records. Read-only; the
- * card only renders when there is at least one unrecorded change (no noise on
- * clean days). Reuses the `oculpm_compare_layers` backend (F2).
+ * F2 — 정직성 감사. Compares the watcher's ground-truth file changes
+ * (`file_changes.ndjson`) against the journal's `files_touched` for every
+ * session of the day, and surfaces `unrecorded`: files an agent actually
+ * changed but that no journal entry anywhere in the workday records.
+ * Read-only; the card only renders when there is at least one unrecorded
+ * change (no noise on clean days).
+ *
+ * 완성도 라운드 Phase 3: one `oculpm_compare_workday` call instead of
+ * `listSessions` + `compareLayers` per session (1+N IPC, and the backend
+ * re-parsed the same ndjson N times).
  *
  * Reads `unrecorded`, NOT `only_in_index` (dogfooding 2026-08-20). The latter
  * joins on an exact `session_id`, and agents stamp their own dialect
@@ -37,7 +41,7 @@ const SEV_LABEL: Record<string, I18nKey> = {
  */
 export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps) {
   const { t } = useT();
-  const [rows, setRows] = useState<LayerComparison[]>([]);
+  const [rows, setRows] = useState<SessionUnrecorded[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,19 +53,8 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
     setLoading(true);
     (async () => {
       try {
-        const sessions = await oculpmApi.listSessions(projectId, workday);
-        const cmps = await Promise.all(
-          sessions.map((s) =>
-            oculpmApi.compareLayers(projectId, s.id).catch(() => null),
-          ),
-        );
-        if (!cancelled) {
-          setRows(
-            cmps.filter(
-              (c): c is LayerComparison => !!c && c.unrecorded.length > 0,
-            ),
-          );
-        }
+        const cmp = await oculpmApi.compareWorkday(projectId, workday);
+        if (!cancelled) setRows(cmp.sessions.filter((s) => s.unrecorded.length > 0));
       } catch {
         if (!cancelled) setRows([]);
       } finally {

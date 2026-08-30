@@ -18,6 +18,7 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { onOculpmActivateRequest, onReindexRequest } from "@/lib/projectActions";
+import { indexProgressStore } from "@/lib/indexProgressStore";
 import { toast } from "@/lib/toast";
 import { useTabRunningWork } from "@/windows/useTabRunningWork";
 
@@ -244,13 +245,16 @@ export default function ProjectTab({
   startIndexRef.current = startIndex;
 
   async function startIndex() {
-    setIndexing(projectId, null);
+    setIndexing(projectId);
     const channel = new Channel<IndexProgress>();
-    channel.onmessage = (p) => setIndexing(projectId, p);
+    // 진행률은 컨텍스트가 아니라 외부 스토어로 — 파일마다 프로바이더가 다시
+    // 그려지지 않게 (Phase 3 #index-progress).
+    channel.onmessage = (p) => indexProgressStore.set(p);
     const res = await commands.indexProject(projectId, channel);
     if (res.status === "error") {
       toast.destructive(t("settings.index.reindexFailed", { error: res.error }));
     }
+    indexProgressStore.clear();
     setIndexing(null);
   }
 

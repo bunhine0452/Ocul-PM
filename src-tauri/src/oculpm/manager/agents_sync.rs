@@ -4,6 +4,7 @@
 //! 순수 파일 이동이며 동작·시그니처 변경은 없다.
 
 use super::*;
+use crate::oculpm::spec::{SessionUnrecorded, WorkdayComparison};
 
 impl OculpmManager {
     // ─── W4-PR2: agent adapter sync + detect ────────────────────────────────
@@ -278,6 +279,84 @@ impl OculpmManager {
             jaccard_index: jaccard,
             unrecorded,
             unrecorded_severity,
+        })
+    }
+
+    /// 워크데이 하나의 정직성 감사 — `compare_layers` 의 `unrecorded` 절반을
+    /// 세션 전부에 대해 **한 번에** (완성도 라운드 Phase 3).
+    ///
+    /// ndjson 을 한 번 읽고 세션별로 가르며, 그날 일지가 적은 파일 집합도 한 번만
+    /// 뽑는다. 세션 정확도가 필요한 `matched`/`jaccard` 는 여기 없다 — Today
+    /// 정직성 감사는 그것을 읽지 않는다 (2026-08-20 도그푸딩).
+    pub async fn compare_workday(
+        &self,
+        db: &Db,
+        project_id: u32,
+        workday: &str,
+    ) -> Result<WorkdayComparison, OculpmError> {
+        let (writer, forbid_patterns, root) = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            (
+                entry.index_writer.clone(),
+                entry.config.git.forbid_journal_for_paths.clone(),
+                entry.root.clone(),
+            )
+        };
+        let forbidden = build_forbidden_matcher(&root, &forbid_patterns);
+        let is_excluded = |p: &str| -> bool {
+            p.starts_with("**redacted/sensitive**:")
+                || is_forbidden_path(&forbidden, p)
+                || is_noise_path(p)
+        };
+
+        // 세션 → 그 세션이 바꾼 경로. BTreeMap 이라 출력 순서가 결정적이다.
+        let mut by_session: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+            std::collections::BTreeMap::new();
+        for ev in writer.read_file_changes(workday, None).await? {
+            if is_excluded(&ev.path) {
+                continue;
+            }
+            by_session.entry(ev.session_id).or_default().insert(ev.path);
+        }
+
+        let cache = JournalCache::new(db);
+        let workday_journal_set: std::collections::BTreeSet<String> = cache
+            .files_for_workday(project_id, workday)
+            .await?
+            .into_iter()
+            .filter(|p| !is_excluded(p))
+            .collect();
+
+        let mut unrecorded_total = 0u32;
+        let sessions: Vec<SessionUnrecorded> = by_session
+            .into_iter()
+            .map(|(session_id, index_set)| {
+                let unrecorded: Vec<String> = index_set
+                    .difference(&workday_journal_set)
+                    .cloned()
+                    .collect();
+                let covered = index_set.len().saturating_sub(unrecorded.len());
+                let coverage = if index_set.is_empty() {
+                    1.0
+                } else {
+                    covered as f32 / index_set.len() as f32
+                };
+                unrecorded_total += unrecorded.len() as u32;
+                SessionUnrecorded {
+                    session_id,
+                    unrecorded_severity: severity_from_jaccard(coverage, index_set.len()),
+                    unrecorded,
+                }
+            })
+            .collect();
+
+        Ok(WorkdayComparison {
+            workday: workday.to_string(),
+            sessions,
+            unrecorded_total,
         })
     }
 

@@ -90,7 +90,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Runs before `loaded` too: DEFAULTS.language is "system", so the very first
   // paint already resolves to the OS locale instead of flashing Korean at an
   // English user and then swapping.
+  //
+  // 완성도 라운드 Phase 3: `main.tsx` 의 `bootI18n` 이 DB 설정을 **먼저** 읽어
+  // 적용하고 그 사전을 기다린 뒤 그린다. 그래서 여기서는 로드 전 기본값
+  // ("system") 을 밀어 넣지 않는다 — 넣으면 부팅이 고른 언어를 OS 로케일로
+  // 덮었다가 로드 뒤 되돌리는 깜빡임이 생긴다.
   useEffect(() => {
+    if (!loaded) return;
     setLangSetting(settings.language);
     // Keep <html lang> honest for screen readers + `:lang()` CSS.
     const resolved = resolveLang(settings.language);
@@ -98,7 +104,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // 앱 메뉴(⌘W 등)의 라벨은 Rust 가 그린다 — 사전도 OS 로케일도 백엔드에서
     // 읽을 수 없으므로, **해석을 끝낸 이쪽이** 결과만 넘긴다.
     void commands.applyMenuLanguage(resolved);
-  }, [settings.language]);
+  }, [loaded, settings.language]);
 
   // --- AI 작성 언어: 같은 이유로 모듈 스토어에 밀어넣는다. 화면 언어와 **다른
   // 축**이라 별도 설정이고, "system" 이면 UI 언어를 따른다 (OS 로케일이 아니라

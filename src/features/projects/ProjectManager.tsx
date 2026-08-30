@@ -19,6 +19,7 @@
  *     내려앉게 한다 (StartScreen 의 오버레이 가드가 이 선택자를 본다).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMinuteTick } from "@/hooks/useSecondTick";
 
 import { FolderOpen, Pencil, Search, Sparkles, Trash2, X } from "@/components/Icons";
 import { commands, type HomeBrief, type Project } from "@/lib/bindings";
@@ -81,12 +82,8 @@ export function ProjectManager(props: ProjectManagerProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
-  // 분 단위 상대시각이 얼어붙지 않도록 1분마다 갱신 (메인 화면과 같은 규약).
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // 분 단위 상대시각이 얼어붙지 않도록 — 메인 화면과 같은 공유 1분 시계.
+  const now = useMinuteTick(true);
 
   useEffect(() => {
     searchRef.current?.focus();

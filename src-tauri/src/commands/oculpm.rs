@@ -23,7 +23,7 @@ use crate::oculpm::spec::{
     AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
     JournalEntry, JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig,
     OculpmInitReport, OculpmIntegrityWarning, OculpmOverviewStats, OculpmStatus, ReindexReport,
-    Session,
+    Session, WorkdayComparison,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -449,30 +449,41 @@ pub struct WorkdayBrief {
 }
 
 /// v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
-/// 총 일지 수를 IPC 1회에. 서버측 fan-in — SQL 비용은 기존과 동일하고
-/// 왕복(직렬화·스케줄링)만 제거된다.
+/// 총 일지 수를 IPC 1회에.
+///
+/// 완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
+/// `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_workday_brief(
     db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
+    _manager: State<'_, OculpmManager>,
     project_id: u32,
     workdays: Vec<String>,
     lines_workday: Option<String>,
 ) -> Result<WorkdayBrief, String> {
     let cache = crate::oculpm::cache::JournalCache::new(&db);
 
-    let mut days = Vec::with_capacity(workdays.len().min(62));
-    for wd in workdays.into_iter().take(62) {
-        let entries = manager
-            .list_journal_entries(&db, project_id, Some(wd.clone()), EntryFilters::default())
-            .await
-            .map_err(|e| e.to_string())?;
-        days.push(WorkdayBucket {
-            workday: wd,
-            entries,
-        });
+    let wanted: Vec<String> = workdays.into_iter().take(62).collect();
+    let all = cache
+        .list_entries_for_workdays(project_id, &wanted)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut buckets: std::collections::HashMap<String, Vec<JournalEntrySummary>> =
+        std::collections::HashMap::new();
+    for entry in all {
+        buckets
+            .entry(entry.workday.clone())
+            .or_default()
+            .push(entry);
     }
+    let days: Vec<WorkdayBucket> = wanted
+        .into_iter()
+        .map(|wd| WorkdayBucket {
+            entries: buckets.remove(&wd).unwrap_or_default(),
+            workday: wd,
+        })
+        .collect();
 
     let (lines_added, lines_removed) = match &lines_workday {
         Some(wd) => cache
@@ -777,6 +788,22 @@ pub async fn oculpm_compare_layers(
 ) -> Result<LayerComparison, String> {
     manager
         .compare_layers(&db, project_id, &session_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
+/// IPC 1회로 (완성도 라운드 Phase 3).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_compare_workday(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    workday: String,
+) -> Result<WorkdayComparison, String> {
+    manager
+        .compare_workday(&db, project_id, &workday)
         .await
         .map_err(|e| e.to_string())
 }

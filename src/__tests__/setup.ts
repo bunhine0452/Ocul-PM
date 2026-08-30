@@ -5,7 +5,9 @@ import "./storageShim";
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
-import { setLangSetting } from "@/i18n";
+import { registerDict, setLangSetting } from "@/i18n";
+import { ko } from "@/i18n/ko";
+import { en } from "@/i18n/en";
 
 // i18n Phase 0/2 — UI 언어를 한국어로 **고정**한다.
 //
@@ -22,6 +24,10 @@ import { setLangSetting } from "@/i18n";
 // 로케일 자체를 고정하면 "system" 경로까지 결정적이 된다.
 Object.defineProperty(navigator, "language", { value: "ko-KR", configurable: true });
 Object.defineProperty(navigator, "languages", { value: ["ko-KR", "ko"], configurable: true });
+// 사전은 앱에서 동적 import 다 (Phase 3) — 테스트는 둘 다 미리 얹어 `t()` 가
+// 동기적으로 답하게 한다 (`i18n_english_render` 가 en 을 즉시 쓴다).
+registerDict("ko", ko);
+registerDict("en", en);
 setLangSetting("ko");
 
 if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {

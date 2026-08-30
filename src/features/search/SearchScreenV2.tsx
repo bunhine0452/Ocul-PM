@@ -1,5 +1,6 @@
 import { ErrorCard } from "@/components/ErrorCard";
 import { requestReindex } from "@/lib/projectActions";
+import { useIndexProgress } from "@/lib/indexProgressStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -77,7 +78,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
   // "결과 없음" 과 "색인 없음" 을 가른다 (완성도 라운드 Phase 2). 세 검색
   // 커맨드는 색인이 없어도 빈 배열을 돌려주므로 stats 를 따로 본다.
   const indexing = state.indexingProjectId === projectId;
-  const indexProgress = state.indexProgress;
+  const indexProgress = useIndexProgress();
   const [chunkCount, setChunkCount] = useState<number | null>(null);
   useEffect(() => {
     if (indexing) return;

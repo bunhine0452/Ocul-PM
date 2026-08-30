@@ -324,6 +324,7 @@ use crate::commands::{
     oculpm_backfill_from_git,
     oculpm_coerce_entry_on_disk,
     oculpm_compare_layers,
+    oculpm_compare_workday,
     oculpm_create_manual_entry,
     oculpm_end_session_manual,
     // C2 — 일지 내보내기
@@ -668,6 +669,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_check_master_upgrade,
             oculpm_agents_apply_master_upgrade,
             oculpm_compare_layers,
+            oculpm_compare_workday,
             oculpm_get_log_dir,
             oculpm_log,
             oculpm_update_entry_body,

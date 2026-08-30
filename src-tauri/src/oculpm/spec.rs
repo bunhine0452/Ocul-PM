@@ -335,6 +335,30 @@ pub struct LayerComparison {
     pub unrecorded_severity: Severity,
 }
 
+/// 워크데이 하나의 정직성 감사 (완성도 라운드 Phase 3, 2026-08-30).
+///
+/// [`LayerComparison`] 은 세션 하나를 보지만 Today 는 그날 세션 전부를 물어야
+/// 해서 세션 수만큼 IPC 를 날리고, 뒤에서는 같은 `file_changes.ndjson` 을
+/// 세션 수만큼 다시 파싱했다. 이 구조체는 ndjson 을 **한 번** 읽고 세션별로
+/// 갈라 `unrecorded` 만 낸다 — Today 가 읽는 것은 그것뿐이다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct WorkdayComparison {
+    pub workday: String,
+    /// 그날 index 에 변경을 남긴 세션들 (변경이 없는 세션은 없다). `unrecorded`
+    /// 가 빈 세션도 들어 있다 — 화면이 거른다.
+    pub sessions: Vec<SessionUnrecorded>,
+    /// 세션 전체에 걸친 `unrecorded` 의 합 (중복 경로는 세션마다 센다).
+    pub unrecorded_total: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SessionUnrecorded {
+    pub session_id: String,
+    /// 이 세션이 바꿨는데 그날 어떤 일지도 적지 않은 파일 — [`LayerComparison::unrecorded`] 와 같은 판정.
+    pub unrecorded: Vec<String>,
+    pub unrecorded_severity: Severity,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Config (mirrors config.toml — see 00-spec.md §5)
 // ─────────────────────────────────────────────────────────────────────────────

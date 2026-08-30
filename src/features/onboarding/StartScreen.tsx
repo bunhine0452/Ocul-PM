@@ -17,6 +17,7 @@
  * 백엔드가 실패해도 `projects` prop 만으로 화면 전체가 선다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMinuteTick } from "@/hooks/useSecondTick";
 
 import { commands, type Project, type ProjectBlueprint } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
@@ -82,12 +83,8 @@ export function StartScreen(props: StartScreenProps) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // 분 단위 상대시각("3시간 전")이 세션 내내 얼어붙지 않도록 1분마다 갱신.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // 분 단위 상대시각("3시간 전")이 세션 내내 얼어붙지 않도록 — 공유 1분 시계.
+  const now = useMinuteTick(true);
 
   const isMac =
     typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");

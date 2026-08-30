@@ -3,6 +3,7 @@
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useSecondTick } from "@/hooks/useSecondTick";
 import { AlertTriangle, Check, ChevronDown, Copy, File as FileIcon, TriangleAlert } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
 import { useT } from "@/i18n";
@@ -179,16 +180,11 @@ export function TurnCopy({ text }: { text: string }) {
  */
 export function ThinkingLabel({ turn, live }: { turn: AcpTurn; live: boolean }) {
   const { t } = useT();
-  const [, tick] = useState(0);
-
   const thinking = live && turn.thought != null && turn.thoughtEnd == null;
 
   // 도는 동안은 1초마다 다시 그린다 — 숫자가 멈춰 있으면 멈춘 것처럼 보인다.
-  useEffect(() => {
-    if (!thinking) return;
-    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [thinking]);
+  // (공유 시계 — 컴포넌트마다 인터벌을 들지 않는다, Phase 3.)
+  useSecondTick(thinking);
 
   if (thinking) {
     return (

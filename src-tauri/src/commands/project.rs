@@ -29,6 +29,9 @@ pub struct IndexResult {
     pub took_ms: u32,
 }
 
+/// 색인 진행률 IPC 의 최소 간격 — 프런트는 어차피 프레임마다 그리지 않는다.
+const PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ProjectStats {
     pub files: u32,
@@ -109,7 +112,11 @@ pub async fn delete_project(
     }
     db.delete_project(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // 프로젝트 하나의 파일·청크·임베딩이 통째로 빠졌다 — 페이지는 저절로
+    // 돌아오지 않으므로 여기서 VACUUM (완성도 라운드 Phase 3). 사용자가 직접
+    // 누른 삭제라 몇 초 멈춤이 허용된다.
+    db.compact().await.map_err(|e| e.to_string())
 }
 
 /// 카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서
@@ -167,7 +174,10 @@ pub async fn project_stats(db: State<'_, Db>, project_id: u32) -> Result<Project
 pub async fn clear_project_index(db: State<'_, Db>, project_id: u32) -> Result<(), String> {
     db.clear_project_index(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // 색인을 지운 직후가 DB 가 가장 홀쭉해질 수 있는 순간이다 — 다시 색인하기
+    // 전에 되돌려 받는다 (완성도 라운드 Phase 3).
+    db.compact().await.map_err(|e| e.to_string())
 }
 
 // ---------- Indexing ----------
@@ -212,16 +222,24 @@ pub async fn index_project(
     let mut files_changed = 0u32;
     let mut chunks_created = 0u32;
     let mut import_resolver_queue = Vec::new();
+    // 진행률은 파일마다가 아니라 100ms 에 한 번 (완성도 라운드 Phase 3). 파일
+    // 수천 개짜리 저장소에서 IPC 수천 건이 웹뷰 렌더를 밀어내던 것 — 첫 파일과
+    // 마지막 파일은 무조건 보내 "n/total" 이 정확히 닫히게 한다.
+    let mut last_progress: Option<Instant> = None;
 
     for (i, file_path) in files.iter().enumerate() {
         let rel = file_path.strip_prefix(&root).unwrap_or(file_path);
         let rel_str = rel.to_string_lossy().to_string();
 
-        let _ = on_progress.send(IndexProgress {
-            current: (i + 1) as u32,
-            total,
-            current_file: rel_str.clone(),
-        });
+        let is_last = i + 1 == files.len();
+        if is_last || last_progress.is_none_or(|t| t.elapsed() >= PROGRESS_INTERVAL) {
+            let _ = on_progress.send(IndexProgress {
+                current: (i + 1) as u32,
+                total,
+                current_file: rel_str.clone(),
+            });
+            last_progress = Some(Instant::now());
+        }
 
         let Ok(content) = fs::read_to_string(file_path) else {
             continue;
@@ -314,7 +332,7 @@ pub async fn index_project(
                 })
                 .collect();
             chunks_created += db
-                .insert_chunks_with_embeddings(file_id, rows)
+                .insert_chunks_with_embeddings(project_id, file_id, rows)
                 .await
                 .map_err(|e| e.to_string())? as u32;
         }

@@ -117,6 +117,10 @@ fn is_repo(root: &Path) -> bool {
 /// `.oculpm/` folder can be opened on a parent of the actual git repo. Returns
 /// `None` when `path` is not inside any repo.
 pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    use std::time::{Duration, Instant};
+
     // `git -C` needs an existing directory — climb to the nearest one.
     let mut anchor = path;
     let dir = loop {
@@ -129,13 +133,31 @@ pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
         }
         anchor = anchor.parent()?;
     };
-    let out = run_git(dir, &["rev-parse", "--show-toplevel"]).ok()?;
-    let top = out.trim();
-    if top.is_empty() {
-        None
-    } else {
-        Some(PathBuf::from(top))
+
+    // 디렉터리 → 저장소 루트를 짧게 기억한다 (완성도 라운드 Phase 3). 일지 하나의
+    // diff 캡처가 파일마다 `rev-parse --show-toplevel` 을 새로 띄웠다 — 같은
+    // 디렉터리에 같은 답을 파일 수만큼. `primary_repo` 와 같은 30초 TTL:
+    // 나중에 `git init` 한 폴더가 영원히 "저장소 아님" 으로 남지 않게.
+    const TTL: Duration = Duration::from_secs(30);
+    static CACHE: LazyLock<Mutex<HashMap<PathBuf, (Instant, Option<PathBuf>)>>> =
+        LazyLock::new(Default::default);
+    let now = Instant::now();
+    if let Ok(cache) = CACHE.lock() {
+        if let Some((at, repo)) = cache.get(dir) {
+            if now.duration_since(*at) < TTL {
+                return repo.clone();
+            }
+        }
     }
+    let repo = run_git(dir, &["rev-parse", "--show-toplevel"])
+        .ok()
+        .map(|out| out.trim().to_string())
+        .filter(|top| !top.is_empty())
+        .map(PathBuf::from);
+    if let Ok(mut cache) = CACHE.lock() {
+        cache.insert(dir.to_path_buf(), (now, repo.clone()));
+    }
+    repo
 }
 
 /// The path of `abs` relative to its repo `repo`, as a git pathspec. Resilient
@@ -894,6 +916,86 @@ pub fn diff_patch(
     Ok(truncate_patch(text, max_bytes))
 }
 
+/// 여러 파일의 working-tree-vs-HEAD 패치를 **git 한 번**으로 (완성도 라운드
+/// Phase 3). 일지 하나의 diff 캡처가 `files_touched` 마다 `diff_patch` 를 돌려
+/// 파일 수 × 2 개의 git 프로세스를 띄웠다 — 이 함수는 파일들을 저장소별로 묶어
+/// 저장소당 한 번 `git diff HEAD -- a b c` 를 돌리고 `diff --git` 머리글로
+/// 다시 가른다. 결과 키는 호출자가 준 `file_path` 그대로. 패치가 비었거나 git
+/// 이 없으면 그 파일은 빠진다 — 호출자가 다음 단계(스냅샷·히스토리)로 넘긴다.
+pub fn diff_patches(
+    root: &Path,
+    file_paths: &[String],
+    max_bytes: usize,
+) -> std::collections::HashMap<String, String> {
+    use std::collections::HashMap;
+    let mut out: HashMap<String, String> = HashMap::new();
+    if file_paths.is_empty() {
+        return out;
+    }
+    // 저장소별로 묶는다 — `.oculpm` 루트 아래 중첩 저장소가 여럿일 수 있다.
+    let mut by_repo: HashMap<PathBuf, Vec<(String, String)>> = HashMap::new();
+    for file_path in file_paths {
+        let abs = root.join(file_path);
+        let Some(repo) = repo_root_for(&abs) else {
+            continue;
+        };
+        let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.clone());
+        by_repo
+            .entry(repo)
+            .or_default()
+            .push((rel, file_path.clone()));
+    }
+    for (repo, files) in by_repo {
+        let mut args: Vec<&str> = vec!["diff", "--unified=3", "HEAD", "--"];
+        args.extend(files.iter().map(|(rel, _)| rel.as_str()));
+        let Ok(text) = run_git(&repo, &args) else {
+            continue;
+        };
+        let by_rel: HashMap<&str, &str> = files
+            .iter()
+            .map(|(rel, orig)| (rel.as_str(), orig.as_str()))
+            .collect();
+        for (rel, patch) in split_multi_diff(&text) {
+            let Some(orig) = by_rel.get(rel.as_str()) else {
+                continue;
+            };
+            if patch.trim().is_empty() {
+                continue;
+            }
+            out.insert((*orig).to_string(), truncate_patch(patch, max_bytes));
+        }
+    }
+    out
+}
+
+/// `git diff -- a b c` 의 출력을 파일별 패치로 가른다 — `diff --git a/<x> b/<y>`
+/// 머리글이 경계다. 키는 `b/` 쪽 경로(이름이 바뀐 파일은 새 이름). 각 조각은
+/// 자기 머리글부터 다음 머리글 직전까지 — 그대로 `diff_patch` 가 주던 모양이다.
+pub(crate) fn split_multi_diff(text: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut current: Option<(String, String)> = None;
+    for line in text.split_inclusive('\n') {
+        if let Some(rest) = line.strip_prefix("diff --git a/") {
+            if let Some(done) = current.take() {
+                out.push(done);
+            }
+            // `a/<x> b/<y>` — 공백이 든 경로는 git 이 따옴표를 붙이지만, 여기선
+            // `b/` 뒤를 그대로 쓴다 (이 앱이 다루는 경로엔 따옴표가 없다).
+            let path = rest
+                .rsplit_once(" b/")
+                .map(|(_, b)| b.trim_end_matches(['\n', '\r', '"']).to_string())
+                .unwrap_or_else(|| rest.trim_end().to_string());
+            current = Some((path, line.to_string()));
+        } else if let Some((_, buf)) = current.as_mut() {
+            buf.push_str(line);
+        }
+    }
+    if let Some(done) = current.take() {
+        out.push(done);
+    }
+    out
+}
+
 /// 거터 계산에 쓰는 HEAD 블롭 상한 — 에디터가 여는 파일 상한(2MB)과 같게.
 const GUTTER_MAX_BYTES: usize = 2 * 1024 * 1024;
 
@@ -1223,6 +1325,30 @@ fn non_empty(s: String) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── 일지 diff 캡처 묶음 (완성도 라운드 Phase 3) ─────────────────────────
+
+    /// `git diff -- a b c` 출력을 `diff --git` 머리글로 가른다 — 각 조각은
+    /// 자기 머리글부터, 키는 새 이름(`b/`) 쪽이다.
+    #[test]
+    fn split_multi_diff_keys_each_patch_by_its_b_path() {
+        let text = "diff --git a/src/a.rs b/src/a.rs\nindex 1..2 100644\n--- a/src/a.rs\n+++ b/src/a.rs\n@@ -1 +1 @@\n-x\n+y\ndiff --git a/docs/old.md b/docs/new.md\nsimilarity index 90%\nrename from docs/old.md\nrename to docs/new.md\n";
+        let parts = split_multi_diff(text);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].0, "src/a.rs");
+        assert!(parts[0].1.starts_with("diff --git a/src/a.rs b/src/a.rs\n"));
+        assert!(parts[0].1.contains("+y\n"));
+        assert!(!parts[0].1.contains("rename"));
+        assert_eq!(parts[1].0, "docs/new.md");
+        assert!(parts[1].1.contains("rename to docs/new.md"));
+    }
+
+    #[test]
+    fn split_multi_diff_of_empty_output_is_empty() {
+        assert!(split_multi_diff("").is_empty());
+        // 머리글 없는 잡음은 어느 조각에도 붙지 않는다.
+        assert!(split_multi_diff("warning: LF will be replaced\n").is_empty());
+    }
 
     // ─── 에디터 거터 (#git-gutter) ─────────────────────────────────────────
 

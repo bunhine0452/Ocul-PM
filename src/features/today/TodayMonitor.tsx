@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSecondTick } from "@/hooks/useSecondTick";
 import { Clock, FileDiff, GitBranch, NotebookText } from "@/components/Icons";
 import { StatCard } from "./StatCard";
 import type { TodayMonitor as TodayMonitorData } from "./useTodayMonitor";
@@ -26,13 +26,7 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
   // session contributes its elapsed time via `openSince`. Tick it here — kept in
   // this small component so only the stat row re-renders, not the whole screen.
   const openSince = monitor?.openSince ?? null;
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (openSince == null) return;
-    setNow(Date.now());
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [openSince]);
+  const now = useSecondTick(openSince != null);
   const activeMs = monitor
     ? monitor.activeMs + (openSince != null ? Math.max(0, now - openSince) : 0)
     : 0;

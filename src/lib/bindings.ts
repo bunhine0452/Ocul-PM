@@ -1053,8 +1053,10 @@ export const commands = {
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], string>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
 	/**
 	 *  v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
-	 *  총 일지 수를 IPC 1회에. 서버측 fan-in — SQL 비용은 기존과 동일하고
-	 *  왕복(직렬화·스케줄링)만 제거된다.
+	 *  총 일지 수를 IPC 1회에.
+	 * 
+	 *  완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
+	 *  `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
 	 */
 	oculpmWorkdayBrief: (projectId: number, workdays: string[], linesWorkday: string | null) => typedError<WorkdayBrief, string>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, linesWorkday })),
 	/**
@@ -1134,6 +1136,11 @@ export const commands = {
 	 *  command is kept for backend introspection + potential future surfaces.)
 	 */
 	oculpmCompareLayers: (projectId: number, sessionId: string) => typedError<LayerComparison, string>(__TAURI_INVOKE("oculpm_compare_layers", { projectId, sessionId })),
+	/**
+	 *  워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
+	 *  IPC 1회로 (완성도 라운드 Phase 3).
+	 */
+	oculpmCompareWorkday: (projectId: number, workday: string) => typedError<WorkdayComparison, string>(__TAURI_INVOKE("oculpm_compare_workday", { projectId, workday })),
 	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
 	 *  directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
@@ -4177,6 +4184,13 @@ export type SessionDailyAgg = {
 	narrative_rate: number | null,
 };
 
+export type SessionUnrecorded = {
+	session_id: string,
+	/**  이 세션이 바꿨는데 그날 어떤 일지도 적지 않은 파일 — [`LayerComparison::unrecorded`] 와 같은 판정. */
+	unrecorded: string[],
+	unrecorded_severity: Severity,
+};
+
 /**
  *  설정이 바뀌었다 — **모든 창**이 다시 읽는다.
  * 
@@ -4467,6 +4481,25 @@ export type WorkdayBrief = {
 export type WorkdayBucket = {
 	workday: string,
 	entries: JournalEntrySummary[],
+};
+
+/**
+ *  워크데이 하나의 정직성 감사 (완성도 라운드 Phase 3, 2026-08-30).
+ * 
+ *  [`LayerComparison`] 은 세션 하나를 보지만 Today 는 그날 세션 전부를 물어야
+ *  해서 세션 수만큼 IPC 를 날리고, 뒤에서는 같은 `file_changes.ndjson` 을
+ *  세션 수만큼 다시 파싱했다. 이 구조체는 ndjson 을 **한 번** 읽고 세션별로
+ *  갈라 `unrecorded` 만 낸다 — Today 가 읽는 것은 그것뿐이다.
+ */
+export type WorkdayComparison = {
+	workday: string,
+	/**
+	 *  그날 index 에 변경을 남긴 세션들 (변경이 없는 세션은 없다). `unrecorded`
+	 *  가 빈 세션도 들어 있다 — 화면이 거른다.
+	 */
+	sessions: SessionUnrecorded[],
+	/**  세션 전체에 걸친 `unrecorded` 의 합 (중복 경로는 세션마다 센다). */
+	unrecorded_total: number,
 };
 
 export type WorkdayConfig = {

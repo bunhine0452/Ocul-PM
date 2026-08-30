@@ -512,7 +512,7 @@ fn file_touched_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<FileTouched>
 
 fn build_list_sql(
     project_id: i64,
-    workday: Option<&str>,
+    workdays: &[String],
     filters: &EntryFilters,
 ) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
     let mut sql = String::from(
@@ -525,9 +525,23 @@ fn build_list_sql(
     let mut bound: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::new();
     bound.push(Box::new(project_id));
 
-    if let Some(wd) = workday {
-        bound.push(Box::new(wd.to_string()));
-        sql.push_str(&format!(" AND workday = ?{}", bound.len()));
+    // 하나면 `=`, 여럿이면 `IN` — 둘 다 (project_id, workday) 인덱스를 탄다.
+    match workdays {
+        [] => {}
+        [wd] => {
+            bound.push(Box::new(wd.clone()));
+            sql.push_str(&format!(" AND workday = ?{}", bound.len()));
+        }
+        many => {
+            let placeholders: Vec<String> = many
+                .iter()
+                .map(|wd| {
+                    bound.push(Box::new(wd.clone()));
+                    format!("?{}", bound.len())
+                })
+                .collect();
+            sql.push_str(&format!(" AND workday IN ({})", placeholders.join(",")));
+        }
     }
     if !filters.types.is_empty() {
         let placeholders: Vec<String> = filters

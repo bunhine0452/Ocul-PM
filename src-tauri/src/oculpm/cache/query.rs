@@ -14,14 +14,42 @@ impl<'a> JournalCache<'a> {
         workday: Option<&str>,
         filters: &EntryFilters,
     ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
+        let workdays: Vec<String> = workday.map(str::to_string).into_iter().collect();
+        self.list_entries_in(project_id, workdays, filters).await
+    }
+
+    /// 여러 워크데이의 요약을 **왕복 한 번**에 (완성도 라운드 Phase 3).
+    ///
+    /// `oculpm_workday_brief` 가 날짜마다 `list_entries` 를 돌려 Today 7일이
+    /// 14회, 일지 14일이 28회의 직렬 커넥션 왕복이었다. `workday IN (…)` 은
+    /// `idx_oculpm_journal_workday` 를 그대로 타고, 태그·파일 수 하이드레이션도
+    /// 한 번이면 된다. 정렬은 `list_entries` 와 같다(workday DESC, created_at
+    /// DESC) — 호출자가 `workday` 로 버킷을 나누면 날짜 안 순서가 보존된다.
+    pub async fn list_entries_for_workdays(
+        &self,
+        project_id: u32,
+        workdays: &[String],
+    ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
+        if workdays.is_empty() {
+            return Ok(Vec::new());
+        }
+        self.list_entries_in(project_id, workdays.to_vec(), &EntryFilters::default())
+            .await
+    }
+
+    async fn list_entries_in(
+        &self,
+        project_id: u32,
+        workdays: Vec<String>,
+        filters: &EntryFilters,
+    ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
         let pid = project_id as i64;
-        let workday = workday.map(str::to_string);
         let filters = filters.clone();
         let rows = self
             .db
             .conn()
             .call(move |c| {
-                let (sql, bound) = build_list_sql(pid, workday.as_deref(), &filters);
+                let (sql, bound) = build_list_sql(pid, &workdays, &filters);
                 let mut stmt = c.prepare(&sql)?;
                 let collected: rusqlite::Result<Vec<JournalEntrySummary>> = stmt
                     .query_map(params_from_iter(bound.iter()), summary_from_row)?

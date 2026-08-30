@@ -226,3 +226,114 @@ async fn firing_apply_scan_is_compare_and_swap() {
     assert!(db.firing_scan_points(1).await.unwrap().is_empty());
     assert!(db.firing_last_scan_at(1).await.unwrap().is_none());
 }
+
+fn unit_vec(dim: usize, hot: usize) -> Vec<u8> {
+    let mut v = vec![0f32; dim];
+    v[hot] = 1.0;
+    v.iter().flat_map(|f| f.to_le_bytes()).collect()
+}
+
+/// 완성도 라운드 Phase 3 — `project_id` 가 vec0 partition key 라 KNN 이 다른
+/// 프로젝트의 벡터를 아예 보지 않는다. 예전엔 `k` 를 5배 과다 조회한 뒤
+/// `files.project_id` 로 걸렀다 — 다른 프로젝트가 크면 내 결과가 밀려났다.
+#[tokio::test]
+async fn knn_search_stays_inside_the_project_partition() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let a = db
+        .create_project("a".into(), "/tmp/a".into())
+        .await
+        .unwrap();
+    let b = db
+        .create_project("b".into(), "/tmp/b".into())
+        .await
+        .unwrap();
+    let (fa, _) = db
+        .upsert_file(a, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
+        .await
+        .unwrap();
+    let (fb, _) = db
+        .upsert_file(b, "src/b.rs".into(), "h2".into(), 1, 1, Some("rust".into()))
+        .await
+        .unwrap();
+    let row = |content: &str, hot: usize| ChunkInsert {
+        kind: "fn".into(),
+        start_line: 1,
+        end_line: 3,
+        content: content.into(),
+        embedding: unit_vec(384, hot),
+    };
+    db.insert_chunks_with_embeddings(a, fa, vec![row("fn a() {\n}\n", 0)])
+        .await
+        .unwrap();
+    // b 는 a 의 질의 벡터와 **완전히 같은** 임베딩을 셋 — 파티션이 없다면 이
+    // 셋이 a 의 하나를 밀어낸다.
+    db.insert_chunks_with_embeddings(
+        b,
+        fb,
+        vec![
+            row("fn b1() {\n}\n", 0),
+            row("fn b2() {\n}\n", 0),
+            row("fn b3() {\n}\n", 0),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let hits = db
+        .search_chunks(a, unit_vec(384, 0), 1, false)
+        .await
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].file_path, "src/a.rs");
+    let hits_b = db
+        .search_chunks(b, unit_vec(384, 0), 10, false)
+        .await
+        .unwrap();
+    assert_eq!(hits_b.len(), 3);
+    assert!(hits_b.iter().all(|h| h.file_path == "src/b.rs"));
+}
+
+/// 032 마이그레이션의 원시 연산 — 예전 모양의 vec0 표에서 파티션 키가 있는 새
+/// 표로 `INSERT … SELECT` 가 벡터 blob 을 그대로 옮긴다 (sqlite-vec 0.1.9).
+/// 이 한 문장이 안 되면 사용자 DB 의 임베딩이 통째로 사라지므로 따로 못 박는다.
+#[tokio::test]
+async fn vec0_rows_copy_between_old_and_partitioned_tables() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let query = unit_vec(384, 7);
+    let n: i64 = db
+        .conn()
+        .call(move |c| -> Result<i64> {
+            c.execute_batch(
+                "CREATE VIRTUAL TABLE old_t USING vec0(chunk_id INTEGER PRIMARY KEY, embedding FLOAT[384]);
+                 CREATE VIRTUAL TABLE new_t USING vec0(
+                   chunk_id INTEGER PRIMARY KEY,
+                   project_id INTEGER PARTITION KEY,
+                   embedding FLOAT[384]);",
+            )?;
+            c.execute(
+                "INSERT INTO old_t (chunk_id, embedding) VALUES (?1, ?2)",
+                params![1i64, unit_vec(384, 7)],
+            )?;
+            c.execute(
+                "INSERT INTO old_t (chunk_id, embedding) VALUES (?1, ?2)",
+                params![2i64, unit_vec(384, 9)],
+            )?;
+            c.execute_batch(
+                "INSERT INTO new_t (chunk_id, project_id, embedding)
+                   SELECT chunk_id, 1, embedding FROM old_t;",
+            )?;
+            let n: i64 = c.query_row("SELECT COUNT(*) FROM new_t", [], |r| r.get(0))?;
+            let nearest: i64 = c.query_row(
+                "SELECT chunk_id FROM new_t WHERE embedding MATCH ?1 AND k = 1 AND project_id = 1",
+                params![query],
+                |r| r.get(0),
+            )?;
+            assert_eq!(nearest, 1, "copied vectors must still be searchable");
+            Ok(n)
+        })
+        .await
+        .unwrap();
+    assert_eq!(n, 2);
+}

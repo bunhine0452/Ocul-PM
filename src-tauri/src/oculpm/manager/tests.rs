@@ -1687,6 +1687,46 @@ mod compare_layers_w4_pr5 {
             .expect("seed session");
     }
 
+    /// 완성도 라운드 Phase 3 — 워크데이 한 번에: 세션마다 `compare_layers` 를
+    /// 부르던 것과 같은 `unrecorded` 판정을 세션 전부에 대해 한 호출로 낸다.
+    /// 일지가 적은 파일은 **어느 세션의 것이든** 그날 전체로 판정한다.
+    #[tokio::test]
+    async fn compare_workday_reports_unrecorded_per_session_in_one_call() {
+        let (manager, db, _dir, _root) = fresh().await;
+        let workday = today_workday(&manager).await;
+        let s1 = format!("{workday}-001");
+        let s2 = format!("{workday}-002");
+        append_index_events_for(&manager, &s1, &["src/a.rs", "src/b.rs"]).await;
+        append_index_events_for(&manager, &s2, &["src/c.rs", "src/d.rs", "src/e.rs"]).await;
+        // 한 일지(자기 방언 id)가 a·b·c 를 적었다 — 세션 1 은 깨끗하고 세션 2 는
+        // d·e 가 미기록이다.
+        seed_journal_with_session(
+            &manager,
+            &db,
+            "agent-dialect",
+            &format!("manual-{workday}-205400"),
+            &["src/a.rs", "src/b.rs", "src/c.rs"],
+        )
+        .await;
+
+        let cmp = manager.compare_workday(&db, 7, &workday).await.unwrap();
+        assert_eq!(cmp.workday, workday);
+        assert_eq!(cmp.sessions.len(), 2);
+        let one = cmp.sessions.iter().find(|s| s.session_id == s1).unwrap();
+        let two = cmp.sessions.iter().find(|s| s.session_id == s2).unwrap();
+        assert!(one.unrecorded.is_empty());
+        assert_eq!(one.unrecorded_severity, Severity::Ok);
+        assert_eq!(
+            two.unrecorded,
+            vec!["src/d.rs".to_string(), "src/e.rs".to_string()]
+        );
+        assert_eq!(cmp.unrecorded_total, 2);
+        // 세션별 결과는 compare_layers 와 같다.
+        let single = manager.compare_layers(&db, 7, &s2).await.unwrap();
+        assert_eq!(single.unrecorded, two.unrecorded);
+        assert_eq!(single.unrecorded_severity, two.unrecorded_severity);
+    }
+
     /// Dogfooding regression (2026-08-20) — the audit's headline bug.
     ///
     /// Agents mint their own `session_id` (`manual-<workday>-<hhmmss>`),

@@ -1,7 +1,14 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SettingsPanel } from "@/features/settings/SettingsPanel";
+import { OculSpinner } from "@/components/OculSpinner";
 import { useT } from "@/i18n";
+
+// 설정 패널은 탭 10개짜리 큰 청크다 — ⌘, 를 누르기 전엔 필요 없다. 정적 import
+// 는 이 오버레이를 드는 모든 창(런처·프로젝트)의 진입 청크에 패널을 얹고
+// 있었다 (완성도 감사 2026-08-30 #lazy-restore). ShellV2 와 같은 lazy 로.
+const SettingsPanel = lazy(() =>
+  import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
+);
 
 /**
  * ⌘, 설정 오버레이. 런처 창과 프로젝트 창 양쪽에서 각각 마운트한다 —
@@ -49,7 +56,9 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
             원인은 고쳤지만, 이 패널은 탭이 8개라 같은 실패의 표면이 넓다. */}
         <div className="overflow-y-auto scrollbar-thin px-6 pt-5">
           <ErrorBoundary label="settings">
-            <SettingsPanel embedded />
+            <Suspense fallback={<OculSpinner size={22} label={t("common.loading")} />}>
+              <SettingsPanel embedded />
+            </Suspense>
           </ErrorBoundary>
         </div>
       </div>

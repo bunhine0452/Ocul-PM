@@ -2,11 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   __resetLangForTests,
-  en,
   getContentLang,
   getLang,
   getLangSetting,
-  ko,
   normalizeLangSetting,
   resolveLang,
   setContentLangSetting,
@@ -15,6 +13,8 @@ import {
   tAll,
   tc,
 } from "@/i18n";
+import { ko } from "@/i18n/ko";
+import { en } from "@/i18n/en";
 
 // i18n Phase 0 계약 (docs/20260811_three-features/03-i18n.md).
 //

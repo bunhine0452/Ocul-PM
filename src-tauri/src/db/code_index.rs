@@ -72,6 +72,7 @@ impl Db {
     /// `prepare_cached` 는 같은 SQL 을 배치 안에서 재사용해 파싱을 한 번만 한다.
     pub async fn insert_chunks_with_embeddings(
         &self,
+        project_id: u32,
         file_id: u32,
         rows: Vec<ChunkInsert>,
     ) -> Result<usize> {
@@ -89,8 +90,11 @@ impl Db {
                         "INSERT INTO chunks (file_id, kind, start_line, end_line, content)
                          VALUES (?, ?, ?, ?, ?)",
                     )?;
+                    // project_id 는 vec0 partition key (032) — KNN 이 이 프로젝트
+                    // 파티션만 돈다.
                     let mut insert_embedding = tx.prepare_cached(
-                        "INSERT INTO chunk_embeddings (chunk_id, embedding) VALUES (?, ?)",
+                        "INSERT INTO chunk_embeddings (chunk_id, project_id, embedding)
+                         VALUES (?, ?, ?)",
                     )?;
                     for row in &rows {
                         insert_chunk.execute(params![
@@ -101,7 +105,11 @@ impl Db {
                             &row.content,
                         ])?;
                         let chunk_id = tx.last_insert_rowid();
-                        insert_embedding.execute(params![chunk_id, &row.embedding])?;
+                        insert_embedding.execute(params![
+                            chunk_id,
+                            project_id as i64,
+                            &row.embedding
+                        ])?;
                     }
                 }
                 tx.commit()?;
@@ -157,7 +165,8 @@ impl Db {
         include_docs: bool,
     ) -> Result<Vec<ChunkSearchResult>> {
         // Over-fetch from the vector index so we still have `limit` results
-        // after filtering by project_id.
+        // after the single-line / docs filters below. (Project filtering no
+        // longer needs it — `project_id` is a vec0 partition key since 032.)
         let k = (limit as i64).max(1).saturating_mul(5);
         let results = self
             .conn
@@ -180,7 +189,7 @@ impl Db {
                      JOIN chunks c ON c.id = ce.chunk_id
                      JOIN files f ON f.id = c.file_id
                      WHERE ce.embedding MATCH ?1 AND k = ?2
-                       AND f.project_id = ?3
+                       AND ce.project_id = ?3
                        AND instr(c.content, char(10)) > 0",
                 );
                 if !include_docs {

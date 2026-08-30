@@ -222,7 +222,7 @@ pub(crate) async fn reindex_single_file(
                 })
                 .collect();
             embeddings_updated += db
-                .insert_chunks_with_embeddings(file_id, rows)
+                .insert_chunks_with_embeddings(project_id, file_id, rows)
                 .await
                 .map_err(|e| ReindexSkipReason::UpsertFailed {
                     error: e.to_string(),

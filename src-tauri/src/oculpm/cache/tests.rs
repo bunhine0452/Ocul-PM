@@ -1320,3 +1320,64 @@ async fn overview_stats_recent_sessions_narrative_rate_handles_zero_sessions() {
     assert!(row.narrative_rate.is_finite());
     assert_eq!(row.narrative_rate, 0.0);
 }
+
+/// 완성도 라운드 Phase 3 — 여러 워크데이를 한 번에 읽어도 날짜별 목록과
+/// 하이드레이션(태그)이 날짜 하나씩 읽던 것과 같다. 없는 날짜는 조용히 비고,
+/// 빈 입력은 쿼리 없이 빈 결과다.
+#[tokio::test]
+async fn list_entries_for_workdays_matches_per_day_reads() {
+    let (db, dir) = fresh_db().await;
+    let cache = JournalCache::new(&db);
+    let journal_root = dir.path().join("journal");
+    write_entry(
+        &journal_root,
+        "20260524/Bugs/0925_bug_a.md",
+        &standard_frontmatter("bug-a"),
+        "[x] Title A\n",
+    );
+    write_entry(
+        &journal_root,
+        "20260524/Bugs/1030_bug_b.md",
+        &standard_frontmatter("bug-b"),
+        "[ ] Title B\n",
+    );
+    write_entry(
+        &journal_root,
+        "20260525/Bugs/0900_bug_c.md",
+        &standard_frontmatter("bug-c").replace("2026-05-24", "2026-05-25"),
+        "[x] Title C\n",
+    );
+    cache.reindex_full(1, &journal_root).await.unwrap();
+
+    let wanted = vec![
+        "20260525".to_string(),
+        "20260524".to_string(),
+        "20260523".to_string(),
+    ];
+    let all = cache.list_entries_for_workdays(1, &wanted).await.unwrap();
+    assert_eq!(all.len(), 3);
+    // 정렬은 list_entries 와 같다 — 워크데이 내림차순.
+    assert_eq!(all[0].workday, "20260525");
+    assert!(all[1..].iter().all(|e| e.workday == "20260524"));
+    // 날짜 하나씩 읽은 것과 같은 내용.
+    for wd in &wanted {
+        let single = cache
+            .list_entries(1, Some(wd), &EntryFilters::default())
+            .await
+            .unwrap();
+        let batched: Vec<&JournalEntrySummary> = all.iter().filter(|e| &e.workday == wd).collect();
+        assert_eq!(
+            batched.iter().map(|e| &e.relative_path).collect::<Vec<_>>(),
+            single.iter().map(|e| &e.relative_path).collect::<Vec<_>>(),
+            "workday {wd}"
+        );
+    }
+    // 태그·파일 수도 하이드레이션됐다.
+    assert!(all.iter().all(|e| e.tags.contains(&"alpha".to_string())));
+    assert!(all.iter().all(|e| e.files_count == 1));
+    assert!(cache
+        .list_entries_for_workdays(1, &[])
+        .await
+        .unwrap()
+        .is_empty());
+}

@@ -236,3 +236,66 @@ describe("첫 활성화 카드 — 쓴 것을 그대로 나열한다", () => {
   });
 });
 
+
+// ─── Phase 3 — 성능: 공유 시계 · 색인 진행률 스토어 ───────────────────────
+
+import { act } from "@testing-library/react";
+import { useMinuteTick, useSecondTick } from "@/hooks/useSecondTick";
+import { indexProgressStore, useIndexProgress } from "@/lib/indexProgressStore";
+
+describe("공유 1초 시계 — 켜진 구독자가 있을 때만 하나의 인터벌", () => {
+  it("켜진 훅은 틱마다 새 now 를, 꺼진 훅은 다시 그리지 않는다", () => {
+    vi.useFakeTimers();
+    try {
+      const on = renderHook(() => useSecondTick(true));
+      const off = renderHook(() => useSecondTick(false));
+      const first = on.result.current;
+      const offFirst = off.result.current;
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(on.result.current).toBeGreaterThanOrEqual(first);
+      expect(on.result.current).not.toBe(first);
+      // 꺼진 구독자는 렌더되지 않았으므로 값이 그대로다.
+      expect(off.result.current).toBe(offFirst);
+      on.unmount();
+      off.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("마지막 구독자가 꺼지면 인터벌도 멈춘다", () => {
+    vi.useFakeTimers();
+    try {
+      const a = renderHook(() => useSecondTick(true));
+      expect(vi.getTimerCount()).toBe(1);
+      const b = renderHook(() => useSecondTick(true));
+      expect(vi.getTimerCount()).toBe(1);
+      a.unmount();
+      expect(vi.getTimerCount()).toBe(1);
+      b.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+      const m = renderHook(() => useMinuteTick(true));
+      expect(vi.getTimerCount()).toBe(1);
+      m.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("색인 진행률 스토어 — 컨텍스트 밖", () => {
+  it("set/clear 가 구독자에게 닿고, 같은 참조면 조용하다", () => {
+    const { result } = renderHook(() => useIndexProgress());
+    expect(result.current).toBeNull();
+    const p = { current: 3, total: 10, current_file: "src/a.ts" };
+    act(() => indexProgressStore.set(p));
+    expect(result.current).toBe(p);
+    act(() => indexProgressStore.clear());
+    expect(result.current).toBeNull();
+    act(() => indexProgressStore.clear());
+    expect(result.current).toBeNull();
+  });
+});
