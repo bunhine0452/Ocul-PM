@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 
 import { commands } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { AgentTag, TypeChip } from "./tabs/shared";
 import { ChevronLeft } from "@/components/Icons";
 
@@ -25,7 +26,7 @@ export function EntryDetail({ projectId, relativePath, title, onClose }: {
     void commands.oculpmGetJournalEntry(projectId, relativePath).then((res) => {
       if (!alive) return;
       if (res.status === "ok") setEntry(res.data);
-      else setError(res.error);
+      else setError(tError(res.error));
     });
     return () => {
       alive = false;

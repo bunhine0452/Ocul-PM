@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, State};
 use tauri_specta::Event;
 
+use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::agents::{AgentDetection, MasterUpgrade};
 use crate::oculpm::cache::{ChangeGroup, EntryFilters, JournalCache};
@@ -38,11 +39,8 @@ pub async fn oculpm_init(
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<OculpmInitReport, String> {
-    let project = db
-        .get_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<OculpmInitReport, AppError> {
+    let project = db.get_project(project_id).await.map_err(AppError::from)?;
     let root = PathBuf::from(&project.root_path);
     tracing::info!(
         target: "oculpm::commands",
@@ -222,7 +220,7 @@ pub async fn oculpm_init(
 pub async fn oculpm_get_status(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<OculpmStatus, String> {
+) -> Result<OculpmStatus, AppError> {
     Ok(manager.get_status(project_id).await)
 }
 
@@ -233,11 +231,8 @@ pub async fn oculpm_get_status(
 pub async fn oculpm_get_config(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<OculpmConfig, String> {
-    manager
-        .get_config(project_id)
-        .await
-        .map_err(|e| e.to_string())
+) -> Result<OculpmConfig, AppError> {
+    manager.get_config(project_id).await.map_err(AppError::from)
 }
 
 /// Validate + persist a new `OculpmConfig` (atomic write) and refresh the
@@ -249,11 +244,11 @@ pub async fn oculpm_set_config(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     new_config: OculpmConfig,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager
         .set_config(project_id, new_config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 // ─── W2-PR6 commands ────────────────────────────────────────────────────────
@@ -264,11 +259,11 @@ pub async fn oculpm_set_config(
 pub async fn oculpm_start_session_manual(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<Option<Session>, String> {
+) -> Result<Option<Session>, AppError> {
     manager
         .start_session_manual(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// 터미널이 감지한 코딩 에이전트 실행 신호 (OSC 133;C/D → 세션 경계).
@@ -283,11 +278,11 @@ pub async fn oculpm_agent_run_signal(
     project_id: u32,
     started: bool,
     agent_label: String,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     manager
         .agent_run_signal(project_id, started, &agent_label)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Manually end a session. `session_id` must match the active session.
@@ -297,11 +292,11 @@ pub async fn oculpm_end_session_manual(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     session_id: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager
         .end_session_manual(project_id, session_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// List sessions for a workday. `workday = None` → today.
@@ -312,11 +307,11 @@ pub async fn oculpm_list_sessions(
     db: State<'_, Db>,
     project_id: u32,
     workday: Option<String>,
-) -> Result<Vec<Session>, String> {
+) -> Result<Vec<Session>, AppError> {
     manager
         .list_sessions(&db, project_id, workday)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Get file change events for a workday, optionally filtered by session_id.
@@ -327,11 +322,11 @@ pub async fn oculpm_get_file_changes(
     project_id: u32,
     workday: String,
     session_id: Option<String>,
-) -> Result<Vec<FileChangeEvent>, String> {
+) -> Result<Vec<FileChangeEvent>, AppError> {
     manager
         .get_file_changes(project_id, workday, session_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Start the filesystem watcher. Idempotent. Requires lock ownership.
@@ -341,7 +336,7 @@ pub async fn oculpm_watcher_start(
     app_handle: tauri::AppHandle,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     tracing::info!(
         target: "oculpm::commands",
         project_id,
@@ -363,7 +358,7 @@ pub async fn oculpm_watcher_start(
                 error = %e,
                 "[FLOW] step 3 FAILED — watcher_start errored; external LLM writes won't be detected"
             );
-            Err(e.to_string())
+            Err(AppError::from(e))
         }
     }
 }
@@ -379,7 +374,7 @@ pub async fn oculpm_watcher_take_over(
     app_handle: tauri::AppHandle,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager
         .watcher_start_with(
             project_id,
@@ -387,7 +382,7 @@ pub async fn oculpm_watcher_take_over(
             crate::oculpm::lock::AcquirePolicy::TakeOver,
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Stop the filesystem watcher. Idempotent.
@@ -396,11 +391,11 @@ pub async fn oculpm_watcher_take_over(
 pub async fn oculpm_watcher_stop(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager
         .watcher_stop(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 // ─── W3-PR3 commands ────────────────────────────────────────────────────────
@@ -417,12 +412,12 @@ pub async fn oculpm_list_journal_entries(
     project_id: u32,
     workday: Option<String>,
     filters: Option<EntryFilters>,
-) -> Result<Vec<JournalEntrySummary>, String> {
+) -> Result<Vec<JournalEntrySummary>, AppError> {
     let filters = filters.unwrap_or_default();
     manager
         .list_journal_entries(&db, project_id, workday, filters)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// v2 U12 (N3) — 워크데이 버킷 하나.
@@ -461,14 +456,14 @@ pub async fn oculpm_workday_brief(
     project_id: u32,
     workdays: Vec<String>,
     lines_workday: Option<String>,
-) -> Result<WorkdayBrief, String> {
+) -> Result<WorkdayBrief, AppError> {
     let cache = crate::oculpm::cache::JournalCache::new(&db);
 
     let wanted: Vec<String> = workdays.into_iter().take(62).collect();
     let all = cache
         .list_entries_for_workdays(project_id, &wanted)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(AppError::from)?;
     let mut buckets: std::collections::HashMap<String, Vec<JournalEntrySummary>> =
         std::collections::HashMap::new();
     for entry in all {
@@ -489,18 +484,18 @@ pub async fn oculpm_workday_brief(
         Some(wd) => cache
             .workday_lines(project_id, wd)
             .await
-            .map_err(|e| e.to_string())?,
+            .map_err(AppError::from)?,
         None => (0, 0),
     };
 
     let open_plan_items = db
         .list_open_plan_items(project_id, 24)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(AppError::from)?;
     let total_entries = cache
         .count_entries(project_id)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(AppError::from)?;
 
     Ok(WorkdayBrief {
         days,
@@ -521,10 +516,10 @@ pub async fn oculpm_search_entities(
     project_id: u32,
     query: String,
     limit: u32,
-) -> Result<Vec<crate::db::EntityHit>, String> {
+) -> Result<Vec<crate::db::EntityHit>, AppError> {
     db.search_oculpm_entities(project_id, query, limit)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Get a single journal entry by relative path. Falls back to on-demand
@@ -537,11 +532,11 @@ pub async fn oculpm_get_journal_entry(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     relative_path: String,
-) -> Result<Option<JournalEntry>, String> {
+) -> Result<Option<JournalEntry>, AppError> {
     manager
         .get_journal_entry(&db, project_id, relative_path)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Read the per-file diffs recorded for a journal entry at the moment it was
@@ -555,20 +550,17 @@ pub async fn oculpm_get_entry_diffs(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     relative_path: String,
-) -> Result<Vec<EntryFileDiff>, String> {
+) -> Result<Vec<EntryFileDiff>, AppError> {
     // Lazily reconstruct on a sidecar miss (committed-after-journal, externally
     // authored, pre-feature) so the entry's diff shows immediately instead of
     // "기록된 변경 없음". Root comes from the DB, so it works without an active
     // manager (the journal screen reads from the SQLite cache).
-    let project = db
-        .get_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let project = db.get_project(project_id).await.map_err(AppError::from)?;
     let root = PathBuf::from(&project.root_path);
     manager
         .read_or_reconstruct_entry_diffs(&db, project_id, root, relative_path)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Group the watcher's changed file paths by the journal entry that recorded
@@ -580,11 +572,11 @@ pub async fn oculpm_group_changes(
     db: State<'_, Db>,
     project_id: u32,
     paths: Vec<String>,
-) -> Result<Vec<ChangeGroup>, String> {
+) -> Result<Vec<ChangeGroup>, AppError> {
     JournalCache::new(&db)
         .group_changes(project_id, paths)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Toggle `verified_by_user` on a journal entry's frontmatter. Atomic
@@ -598,11 +590,11 @@ pub async fn oculpm_set_journal_verified(
     project_id: u32,
     relative_path: String,
     verified: bool,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager
         .set_journal_verified(&db, project_id, relative_path, verified)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Rebuild the journal cache from disk. Drops every cached row for the
@@ -614,11 +606,11 @@ pub async fn oculpm_reindex_cache(
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<ReindexReport, String> {
+) -> Result<ReindexReport, AppError> {
     manager
         .reindex_journal_cache(&db, project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Inline-edit one or both of `difficulty` / `status` on an existing entry.
@@ -639,7 +631,7 @@ pub async fn oculpm_update_entry_meta(
     relative_path: String,
     difficulty_change: Option<DifficultyChange>,
     status: Option<EntryStatus>,
-) -> Result<JournalEntry, String> {
+) -> Result<JournalEntry, AppError> {
     manager
         .update_journal_entry_meta(
             &db,
@@ -649,7 +641,7 @@ pub async fn oculpm_update_entry_meta(
             status,
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
@@ -663,11 +655,11 @@ pub async fn oculpm_coerce_entry_on_disk(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     relative_path: String,
-) -> Result<JournalEntry, String> {
+) -> Result<JournalEntry, AppError> {
     manager
         .coerce_journal_entry_timestamps_on_disk(&db, project_id, relative_path)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Wire wrapper so the frontend can express "set difficulty to None" vs
@@ -693,7 +685,7 @@ pub async fn oculpm_create_manual_entry(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     draft: ManualEntryDraft,
-) -> Result<JournalEntry, String> {
+) -> Result<JournalEntry, AppError> {
     match manager
         .create_manual_journal_entry(&db, project_id, draft)
         .await
@@ -718,9 +710,9 @@ pub async fn oculpm_create_manual_entry(
                 },
             }
             .emit(&app);
-            Err(message)
+            Err(AppError::new("forbidden_journal_path", message))
         }
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(AppError::from(e)),
     }
 }
 
@@ -738,11 +730,11 @@ pub async fn oculpm_agents_sync_active(
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<AgentSyncReport, String> {
+) -> Result<AgentSyncReport, AppError> {
     manager
         .sync_agents(&db, project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Is a newer agent-rules master template available than the one on disk?
@@ -752,11 +744,11 @@ pub async fn oculpm_agents_sync_active(
 pub async fn oculpm_agents_check_master_upgrade(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<Option<MasterUpgrade>, String> {
+) -> Result<Option<MasterUpgrade>, AppError> {
     manager
         .check_master_upgrade(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Upgrade the on-disk master to the embedded one + re-sync adapters (AGENTS.md
@@ -767,11 +759,11 @@ pub async fn oculpm_agents_apply_master_upgrade(
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<AgentSyncReport, String> {
+) -> Result<AgentSyncReport, AppError> {
     manager
         .apply_master_upgrade(&db, project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// W4-PR5 — compare a session's index ndjson against the union of journal
@@ -785,11 +777,25 @@ pub async fn oculpm_compare_layers(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     session_id: String,
-) -> Result<LayerComparison, String> {
+) -> Result<LayerComparison, AppError> {
     manager
         .compare_layers(&db, project_id, &session_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
+}
+
+/// 프로젝트의 현재 워크데이 (`YYYYMMDD`) — tz·`day_starts_at` 을 아는 유일한
+/// 답. 프런트가 `new Date()` 로 흉내 내던 것을 대신한다 (Phase 4).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_current_workday(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<String, AppError> {
+    manager
+        .current_workday(project_id)
+        .await
+        .map_err(AppError::from)
 }
 
 /// 워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
@@ -801,11 +807,11 @@ pub async fn oculpm_compare_workday(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     workday: String,
-) -> Result<WorkdayComparison, String> {
+) -> Result<WorkdayComparison, AppError> {
     manager
         .compare_workday(&db, project_id, &workday)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// Read-only adapter heuristic. Used by Settings "감지" button + Greenfield
@@ -815,11 +821,11 @@ pub async fn oculpm_compare_workday(
 pub async fn oculpm_agents_detect(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<Vec<AgentDetection>, String> {
+) -> Result<Vec<AgentDetection>, AppError> {
     manager
         .detect_agents(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// W4 dogfooding follow-up (2026-05-26) — return the project's master template
@@ -832,11 +838,11 @@ pub async fn oculpm_agents_detect(
 pub async fn oculpm_agents_get_master_template(
     manager: State<'_, OculpmManager>,
     project_id: u32,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     manager
         .read_master_template(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
@@ -846,7 +852,7 @@ pub async fn oculpm_agents_get_master_template(
 /// runs / unsupported platform).
 #[tauri::command]
 #[specta::specta]
-pub async fn oculpm_get_log_dir() -> Result<Option<String>, String> {
+pub async fn oculpm_get_log_dir() -> Result<Option<String>, AppError> {
     Ok(crate::log_dir().map(|p| p.display().to_string()))
 }
 
@@ -861,11 +867,11 @@ pub async fn oculpm_update_entry_body(
     project_id: u32,
     relative_path: String,
     body_markdown: String,
-) -> Result<JournalEntry, String> {
+) -> Result<JournalEntry, AppError> {
     manager
         .update_journal_entry_body(&db, project_id, relative_path, body_markdown)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 /// W4 dogfooding (2026-05-27) — open a journal entry's `.md` file with the
@@ -879,15 +885,18 @@ pub async fn oculpm_open_entry_in_editor(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     relative_path: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let abs = manager
         .resolve_journal_absolute(project_id, &relative_path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(AppError::from)?;
     if !abs.exists() {
-        return Err(format!("file not found: {}", abs.display()));
+        return Err(AppError::new(
+            "file_not_found",
+            format!("file not found: {}", abs.display()),
+        ));
     }
-    open_native(&abs).map_err(|e| e.to_string())
+    open_native(&abs).map_err(AppError::from)
 }
 
 #[cfg(target_os = "macos")]
@@ -984,11 +993,11 @@ pub async fn oculpm_overview_stats(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     window_days: u32,
-) -> Result<OculpmOverviewStats, String> {
+) -> Result<OculpmOverviewStats, AppError> {
     manager
         .overview_stats(&db, project_id, window_days)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 // ─── F5 — git-history backfill ──────────────────────────────────────────────
@@ -1003,9 +1012,9 @@ pub async fn oculpm_backfill_from_git(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     max_commits: u32,
-) -> Result<BackfillReport, String> {
+) -> Result<BackfillReport, AppError> {
     manager
         .backfill_from_git(&db, project_id, max_commits)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }

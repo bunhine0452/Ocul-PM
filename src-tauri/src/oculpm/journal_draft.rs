@@ -392,10 +392,12 @@ pub async fn draft_for_session(
     claude_session_id: String,
 ) -> Result<DraftOutcome, String> {
     // 0. 세션 id 에서 workday (형식 YYYYMMDD-NNN — IndexWriter 규약).
-    if session.id.len() < 8 {
+    let Some(workday) = crate::oculpm::session_id::SessionId::new(session.id.as_str())
+        .workday()
+        .map(str::to_string)
+    else {
         return Ok(DraftOutcome::Skipped("malformed session id"));
-    }
-    let workday = session.id[..8].to_string();
+    };
     // 산출물 언어 (설정 `content_language`). 조회 실패는 Unset — 기존 동작 유지.
     let content_lang = {
         use tauri::Manager;

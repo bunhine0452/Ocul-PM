@@ -36,6 +36,12 @@ impl From<String> for DispatchError {
     }
 }
 
+impl From<crate::app_error::AppError> for DispatchError {
+    fn from(e: crate::app_error::AppError) -> Self {
+        Self::Command(e.to_string())
+    }
+}
+
 /// camelCase 인자 꾸러미. `take` 는 키 부재를 `null` 로 취급한다 — Option
 /// 파라미터가 생략됐을 때 tauri invoke 와 같은 관용.
 struct Args(Map<String, Value>);

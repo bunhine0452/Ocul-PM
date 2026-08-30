@@ -996,6 +996,36 @@ pub(crate) fn split_multi_diff(text: &str) -> Vec<(String, String)> {
     out
 }
 
+// 스냅샷 diff 렌더 — `commands::diff` 에서 옮겨 왔다 (Phase 4: `oculpm/entry_diffs`
+// 가 커맨드 계층을 역참조하던 것을 끊는다). `truncate_at_char_boundary` 와 한 집.
+/// Format a unified-diff so the frontend's `classifyDiffLines` (which already
+/// understands `git diff` output) can render snapshot diffs without changes.
+/// The header mirrors `git diff --no-prefix` style with `a/` `b/` prefixes
+/// to keep line classification consistent.
+pub fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
+    use similar::TextDiff;
+
+    let diff = TextDiff::from_lines(prev, next);
+    let body = diff
+        .unified_diff()
+        .context_radius(3)
+        .header(&format!("a/{path}"), &format!("b/{path}"))
+        .to_string();
+
+    let header = format!("diff --git a/{path} b/{path}\n");
+    let text = format!("{header}{body}");
+
+    if text.len() > max_bytes {
+        format!(
+            "{}\n\n... (truncated, {} bytes total)",
+            crate::git::truncate_at_char_boundary(&text, max_bytes),
+            text.len()
+        )
+    } else {
+        text
+    }
+}
+
 /// 거터 계산에 쓰는 HEAD 블롭 상한 — 에디터가 여는 파일 상한(2MB)과 같게.
 const GUTTER_MAX_BYTES: usize = 2 * 1024 * 1024;
 
@@ -1348,6 +1378,60 @@ mod tests {
         assert!(split_multi_diff("").is_empty());
         // 머리글 없는 잡음은 어느 조각에도 붙지 않는다.
         assert!(split_multi_diff("warning: LF will be replaced\n").is_empty());
+    }
+
+    // ─── 스냅샷 diff 렌더 ─────────────────────────────────────────────────
+
+    #[test]
+    fn render_unified_diff_produces_git_compatible_headers() {
+        let prev = "line a\nline b\nline c\n";
+        let next = "line a\nline B\nline c\n";
+        let out = render_unified_diff("src/sample.txt", prev, next, 65_536);
+        assert!(
+            out.starts_with("diff --git a/src/sample.txt b/src/sample.txt\n"),
+            "missing diff header: {out}"
+        );
+        assert!(
+            out.contains("--- a/src/sample.txt"),
+            "missing --- header: {out}"
+        );
+        assert!(
+            out.contains("+++ b/src/sample.txt"),
+            "missing +++ header: {out}"
+        );
+        assert!(out.contains("-line b"), "missing - line: {out}");
+        assert!(out.contains("+line B"), "missing + line: {out}");
+    }
+
+    #[test]
+    fn render_unified_diff_truncates_oversized_output() {
+        let mut prev = String::new();
+        let mut next = String::new();
+        for i in 0..2_000 {
+            prev.push_str(&format!("prev line {i}\n"));
+            next.push_str(&format!("next line {i}\n"));
+        }
+        let out = render_unified_diff("big.txt", &prev, &next, 1_024);
+        assert!(out.contains("... (truncated,"), "missing truncation marker");
+        assert!(
+            out.len() < 1_024 + 512,
+            "truncation budget overshot: {}",
+            out.len()
+        );
+    }
+
+    #[test]
+    fn render_unified_diff_truncation_respects_byte_budget_for_multibyte_text() {
+        // 옛 구현은 chars 기준으로 잘라 한글 diff 가 예산의 최대 3~4배로 부풀었다.
+        let prev: String = "이전 줄입니다\n".repeat(2_000);
+        let next: String = "다음 줄입니다\n".repeat(2_000);
+        let out = render_unified_diff("big-ko.txt", &prev, &next, 1_024);
+        assert!(out.contains("... (truncated,"), "missing truncation marker");
+        assert!(
+            out.len() < 1_024 + 128,
+            "byte budget overshot: {}",
+            out.len()
+        );
     }
 
     // ─── 에디터 거터 (#git-gutter) ─────────────────────────────────────────

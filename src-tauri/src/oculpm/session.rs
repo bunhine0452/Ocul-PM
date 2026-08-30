@@ -28,9 +28,10 @@ use tokio::task::JoinHandle;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::paths::WorkdayResolver;
+use crate::oculpm::session_id::SessionId;
 use crate::oculpm::spec::{
-    EndedReason, FileChangeEvent, OculpmSessionEnded, OculpmSessionStarted, Session, SessionConfig,
-    SessionEnd, SnapshotKind,
+    EndedReason, FileChangeEvent, OculpmSessionEnded, OculpmSessionStarted, OculpmWorkdayChanged,
+    Session, SessionConfig, SessionEnd, SnapshotKind,
 };
 
 /// Min interval between two `sessions.json` rewrites for live activity. Other
@@ -441,6 +442,16 @@ impl ActorInner {
         if let Err(e) = self.index_writer.ensure_workday_dirs(&new_workday).await {
             tracing::warn!(target: "oculpm::session", error = ?e, "ensure_workday_dirs failed");
         }
+        // 활성 세션 중에 날이 넘어간 경우 — 화면이 60초 폴링 없이 즉시 안다
+        // (Phase 4 #events-over-polling). 유휴 상태의 넘김은 감독관이 낸다.
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = OculpmWorkdayChanged {
+                project_id: self.project_id,
+                workday: new_workday.clone(),
+            }
+            .emit(handle);
+        }
         if !self
             .index_writer
             .snapshot_exists(&new_workday, SnapshotKind::Open)
@@ -748,10 +759,10 @@ impl ActorInner {
         let existing = self.index_writer.list_sessions(workday).await?;
         let max_nnn = existing
             .iter()
-            .filter_map(|s| s.id.split('-').nth(1).and_then(|n| n.parse::<u32>().ok()))
+            .filter_map(|s| SessionId::new(s.id.as_str()).watcher_counter())
             .max()
             .unwrap_or(0);
-        Ok(format!("{}-{:03}", workday, max_nnn + 1))
+        Ok(SessionId::watcher(workday, max_nnn + 1).into_string())
     }
 
     fn emit_started(&self, session: &Session) {
@@ -842,15 +853,7 @@ fn spawn_boundary_timer(
 }
 
 fn workday_from_id(session_id: &str) -> Option<String> {
-    if session_id.len() >= 8
-        && session_id.as_bytes()[..8]
-            .iter()
-            .all(|b| b.is_ascii_digit())
-    {
-        Some(session_id[..8].to_string())
-    } else {
-        None
-    }
+    SessionId::new(session_id).workday().map(str::to_string)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -864,13 +867,7 @@ fn workday_from_id(session_id: &str) -> Option<String> {
 /// no app running) — is a *synthetic* id that can never join against a real
 /// session and must be resolved by timestamp instead.
 pub fn is_watcher_session_id(session_id: &str) -> bool {
-    let Some((head, tail)) = session_id.split_once('-') else {
-        return false;
-    };
-    head.len() == 8
-        && head.bytes().all(|b| b.is_ascii_digit())
-        && !tail.is_empty()
-        && tail.bytes().all(|b| b.is_ascii_digit())
+    SessionId::new(session_id).is_watcher()
 }
 
 /// Which watcher session a journal entry written at `ts` belongs to.

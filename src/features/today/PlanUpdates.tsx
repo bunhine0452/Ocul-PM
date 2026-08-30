@@ -4,6 +4,7 @@ import { commands, type PlanActivityDto } from "@/lib/bindings";
 import { agentColor, agentLabel } from "./agentColor";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import { t } from "@/i18n";
+import { relativeTime } from "@/lib/format";
 
 // Today block (Planner Upgrade follow-up) — recent plan activity across all
 // plans, so Planner updates surface on the dashboard next to journal activity.
@@ -24,15 +25,7 @@ function glyph(s: string | null): string {
 }
 
 function relTime(iso: string): string {
-  // 지역 변수명을 `t` 로 두면 번역 함수를 섀도잉한다.
-  const ms = Date.parse(iso);
-  if (Number.isNaN(ms)) return "";
-  const min = Math.floor((Date.now() - ms) / 60000);
-  if (min < 1) return t("time.justNow");
-  if (min < 60) return t("time.minutesAgo", { n: min });
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return t("time.hoursAgo", { n: hr });
-  return t("time.daysAgo", { n: Math.floor(hr / 24) });
+  return relativeTime(iso, Date.now());
 }
 
 interface PlanUpdatesProps {

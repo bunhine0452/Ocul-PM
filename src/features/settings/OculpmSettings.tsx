@@ -628,7 +628,7 @@ export function ClaudeHooksBlock({
         );
       } else {
         setHooksError(res.error);
-        toast.destructive(t("op.hooks.failed", { error: res.error }));
+        toast.destructive(t("op.hooks.failed", { error: tError(res.error) }));
       }
     } finally {
       setBusy(false);
@@ -746,7 +746,7 @@ export function ShellIntegrationBlock() {
         );
       } else {
         setError(tError(res.error));
-        toast.destructive(t("op.shell.failed", { error: res.error }));
+        toast.destructive(t("op.shell.failed", { error: tError(res.error) }));
       }
     } finally {
       setBusy(false);
@@ -945,7 +945,7 @@ export function McpServerBlock({
         );
       } else {
         setMcpError(res.error);
-        toast.destructive(t("op.mcp.failed", { error: res.error }));
+        toast.destructive(t("op.mcp.failed", { error: tError(res.error) }));
       }
     } finally {
       setBusy(false);
@@ -969,7 +969,7 @@ export function McpServerBlock({
         );
       } else {
         setDeskError(res.error);
-        toast.destructive(t("op.desk.failed", { error: res.error }));
+        toast.destructive(t("op.desk.failed", { error: tError(res.error) }));
       }
     } finally {
       setBusy(false);
@@ -1215,7 +1215,7 @@ export function AcpRuntimeBlock() {
         setDiag(res.data);
         setError(null);
       } else {
-        setError(res.error);
+        setError(tError(res.error));
       }
     });
   }, []);
@@ -1233,8 +1233,8 @@ export function AcpRuntimeBlock() {
         setError(null);
         toast.info(t("op.acp.installed"));
       } else {
-        setError(res.error);
-        toast.destructive(t("op.acp.installFailed", { error: res.error }));
+        setError(tError(res.error));
+        toast.destructive(t("op.acp.installFailed", { error: tError(res.error) }));
       }
     } finally {
       setBusy(false);

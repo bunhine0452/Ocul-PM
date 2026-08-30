@@ -34,6 +34,7 @@ import { FiringBadge } from "./FiringBadge";
 import { ruleAbsPath } from "./firingModel";
 import { useFiringLedger, type FiringLedger } from "./useFiringLedger";
 import { t, useT } from "@/i18n";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { tError } from "@/i18n/errors";
 
 interface RulesTabProps {
@@ -102,6 +103,9 @@ export function RulesTab({ projectId, tabs }: RulesTabProps) {
     setSelected(null);
     void loadList();
   }, [loadList]);
+  // 규칙 파일이 디스크에서 바뀌면(에이전트가 `.claude/rules/*.md` 를 고침) 목록을
+  // 다시 읽는다 — 예전엔 마운트 때 읽은 것에 머물렀다 (Phase 4 #events-over-polling).
+  useOculpmDataEvents("rules", projectId, true, loadList);
 
   /**
    * 규칙 항목의 발동 통계 조회 — 원장 키(절대경로)로 변환해 찾는다.

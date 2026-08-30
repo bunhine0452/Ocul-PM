@@ -1,6 +1,11 @@
 //! Project file walking, line-based chunking, and indexing pipeline.
 
 use std::collections::HashSet;
+use std::fs;
+use std::time::UNIX_EPOCH;
+
+use crate::db::{ChunkInsert, Db};
+use crate::embedding::{vec_to_bytes, Embedder};
 use std::path::{Component, Path, PathBuf};
 
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
@@ -985,4 +990,135 @@ mod walk_tests {
             &IndexConfig::default()
         ));
     }
+}
+
+// ─── 파일 하나 재색인 (Phase 4: `commands::diff` 에서 옮겨 왔다) ───────────
+//
+// 워처의 증분 자동 색인(`oculpm/watcher.rs`)이 커맨드 계층을 역참조하던 유일한
+// 자리였다. 커맨드는 얇은 오케스트레이션이어야 하므로 실제 일은 여기 산다.
+
+/// 임베딩 배치 크기 — `index_project` 와 단일 파일 재색인이 같은 값을 쓴다.
+pub const EMBED_BATCH: usize = 32;
+
+/// Per-path outcome surfaced to the UI. Skip reasons let the caller render a
+/// "(skipped: too large)" badge next to the path without re-running
+/// `walk_text_files` filters.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReindexSkipReason {
+    NotFound,
+    ReadFailed {
+        error: String,
+    },
+    UpsertFailed {
+        error: String,
+    },
+    /// minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다.
+    Generated,
+}
+
+/// Reindex one file: upsert + diff snapshot + AST symbols + chunk embeddings.
+/// Shared by the `reindex_paths` command and the watcher's incremental
+/// auto-index (PR-5). Returns `(embeddings_updated, ast_updated)` or a
+/// structured skip reason — unlike the old inline loop, an embed/insert
+/// failure on one file is reported as a skip instead of aborting the batch.
+/// The file is reindexed unconditionally (no hash short-circuit): callers
+/// reach here only for paths they already know changed.
+pub async fn reindex_single_file(
+    db: &Db,
+    embedder: &Embedder,
+    project_id: u32,
+    root: &std::path::Path,
+    index_config: &IndexConfig,
+    rel_str: &str,
+) -> Result<(u32, u32), ReindexSkipReason> {
+    let abs_path = root.join(rel_str);
+    if !abs_path.exists() {
+        return Err(ReindexSkipReason::NotFound);
+    }
+    let content = fs::read_to_string(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
+        error: e.to_string(),
+    })?;
+    if !is_indexable_content(&content) {
+        return Err(ReindexSkipReason::Generated);
+    }
+    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+    let metadata = fs::metadata(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
+        error: e.to_string(),
+    })?;
+    let size = metadata.len() as i64;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let language = language_for(&abs_path).map(String::from);
+
+    let (file_id, _changed) = db
+        .upsert_file(
+            project_id,
+            rel_str.to_string(),
+            hash.clone(),
+            size,
+            mtime,
+            language,
+        )
+        .await
+        .map_err(|e| ReindexSkipReason::UpsertFailed {
+            error: e.to_string(),
+        })?;
+
+    // PR6.6 — refresh the diff baseline so LocalDiffView's snapshot fallback
+    // stays current.
+    db.upsert_file_snapshot(
+        project_id,
+        rel_str.to_string(),
+        content.as_bytes().to_vec(),
+        hash.clone(),
+    )
+    .await
+    .map_err(|e| ReindexSkipReason::UpsertFailed {
+        error: e.to_string(),
+    })?;
+
+    let mut embeddings_updated: u32 = 0;
+    let mut ast_updated: u32 = 0;
+    let (chunks, analysis) = chunk_file(&abs_path, &content, index_config);
+    if let Some(ref ana) = analysis {
+        ast_updated += db
+            .insert_symbol_definitions(file_id, ana.symbols.clone())
+            .await
+            .map_err(|e| ReindexSkipReason::UpsertFailed {
+                error: e.to_string(),
+            })? as u32;
+    }
+    if !chunks.is_empty() {
+        for batch in chunks.chunks(EMBED_BATCH) {
+            let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
+            let embeddings = embedder
+                .embed(texts)
+                .await
+                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e })?;
+            let rows: Vec<ChunkInsert> = batch
+                .iter()
+                .zip(embeddings.iter())
+                .map(|(chunk, embedding)| ChunkInsert {
+                    kind: chunk.kind.to_string(),
+                    start_line: chunk.start_line,
+                    end_line: chunk.end_line,
+                    content: chunk.content.clone(),
+                    embedding: vec_to_bytes(embedding),
+                })
+                .collect();
+            embeddings_updated += db
+                .insert_chunks_with_embeddings(project_id, file_id, rows)
+                .await
+                .map_err(|e| ReindexSkipReason::UpsertFailed {
+                    error: e.to_string(),
+                })? as u32;
+        }
+    }
+
+    Ok((embeddings_updated, ast_updated))
 }

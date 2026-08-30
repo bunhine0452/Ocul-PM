@@ -4,8 +4,9 @@ import { commands, type Conversation } from "@/lib/bindings";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { toast } from "@/lib/toast";
-// 모듈 t()/getLang() 은 순수 헬퍼 relTime 용, useT() 는 컴포넌트 용.
-import { t, getLang, useT } from "@/i18n";
+// 모듈 getLang() 은 순수 헬퍼 relTime 용, useT() 는 컴포넌트 용.
+import { getLang, useT } from "@/i18n";
+import { relativeTime, toEpochMs } from "@/lib/format";
 
 // PR-R1 (A3) — AI 패널 "대화 기록". 직전 라운드에서 disabled("1.1") 였던 버튼을
 // 기존 backend(conversation_list / conversation_create / conversation_delete)로
@@ -26,18 +27,15 @@ interface Props {
 
 function relTime(conv: Conversation): string {
   const ts = conv.last_message_at ?? conv.updated_at ?? conv.created_at;
-  if (!ts) return "";
-  const d = new Date(ts > 1e11 ? ts : ts * 1000);
-  if (Number.isNaN(d.getTime())) return "";
-  const diffMs = Date.now() - d.getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return t("chat.agoJustNow");
-  if (min < 60) return t("chat.agoMinutes", { n: min });
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return t("chat.agoHours", { n: hr });
+  const ms = toEpochMs(ts);
+  if (ms == null) return "";
+  const now = Date.now();
   // 하루가 넘으면 날짜로 — 월/일 표기 순서는 로케일마다 달라서 사전에 넣지
   // 않고 Intl 에 맡긴다 (03-i18n.md §3).
-  return new Intl.DateTimeFormat(getLang(), { month: "long", day: "numeric" }).format(d);
+  if (now - ms >= 86_400_000) {
+    return new Intl.DateTimeFormat(getLang(), { month: "long", day: "numeric" }).format(new Date(ms));
+  }
+  return relativeTime(ms, now);
 }
 
 export function ConversationHistoryModal({

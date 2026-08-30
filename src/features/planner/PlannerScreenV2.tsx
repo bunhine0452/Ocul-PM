@@ -42,6 +42,7 @@ import {
   type PlanSort,
 } from "./planList";
 import { getLang, t, useT, type I18nKey } from "@/i18n";
+import { relativeTime as formatRelativeTime } from "@/lib/format";
 import { tError } from "@/i18n/errors";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
@@ -123,19 +124,7 @@ function phaseProgress(items: PlanItemDto[]): number {
 }
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return "";
-  // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다 (섀도잉).
-  const ms = Date.parse(iso);
-  if (Number.isNaN(ms)) return "";
-  const diff = Date.now() - ms;
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return t("time.justNow");
-  if (min < 60) return t("time.minutesAgo", { n: min });
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return t("time.hoursAgo", { n: hr });
-  const d = Math.floor(hr / 24);
-  if (d < 30) return t("time.daysAgo", { n: d });
-  return new Date(ms).toLocaleDateString();
+  return formatRelativeTime(iso, Date.now(), { beyondDays: 30 });
 }
 
 interface PlannerScreenV2Props {

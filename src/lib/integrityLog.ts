@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from "react";
 import type { IntegrityWarning } from "@/lib/bindings";
+import { createStore } from "@/lib/createStore";
 
 // 무결성 경고의 세션 내 기록 (완성도 라운드 Phase 2, 2026-08-30).
 //
@@ -24,22 +24,16 @@ export interface IntegrityLogItem {
 /** 세션당 이만큼만 — 워처가 같은 파일을 두고 반복해도 목록이 폭주하지 않게. */
 export const INTEGRITY_LOG_MAX = 50;
 
-type Listener = () => void;
-
-let items: readonly IntegrityLogItem[] = [];
+const store = createStore<readonly IntegrityLogItem[]>([]);
 let nextId = 1;
-const listeners = new Set<Listener>();
-
-function emit(): void {
-  for (const listener of [...listeners]) listener();
-}
 
 /** 워처 경고 하나를 기록한다. 같은 (kind, path) 가 이미 맨 앞이면 시각만 갱신. */
 export function pushIntegrityWarning(projectId: number, w: IntegrityWarning, now = Date.now()): void {
-  const head = items[0];
-  if (head && head.projectId === projectId && head.kind === w.kind && head.path === w.path) {
-    items = [{ ...head, message: w.message, at: now }, ...items.slice(1)];
-  } else {
+  store.update((items) => {
+    const head = items[0];
+    if (head && head.projectId === projectId && head.kind === w.kind && head.path === w.path) {
+      return [{ ...head, message: w.message, at: now }, ...items.slice(1)];
+    }
     const item: IntegrityLogItem = {
       id: nextId++,
       projectId,
@@ -48,36 +42,20 @@ export function pushIntegrityWarning(projectId: number, w: IntegrityWarning, now
       message: w.message,
       at: now,
     };
-    items = [item, ...items].slice(0, INTEGRITY_LOG_MAX);
-  }
-  emit();
+    return [item, ...items].slice(0, INTEGRITY_LOG_MAX);
+  });
 }
 
 /** 프로젝트 하나(또는 전부)의 기록을 비운다 — 닥터의 「지우기」. */
 export function clearIntegrityLog(projectId?: number): void {
-  items = projectId == null ? [] : items.filter((it) => it.projectId !== projectId);
-  emit();
-}
-
-function subscribe(listener: Listener): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function snapshot(): readonly IntegrityLogItem[] {
-  return items;
+  store.update((items) => (projectId == null ? [] : items.filter((it) => it.projectId !== projectId)));
 }
 
 /** 전 프로젝트 기록 (최신 먼저). 화면은 projectId 로 걸러 쓴다. */
-export function useIntegrityLog(): readonly IntegrityLogItem[] {
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
+export const useIntegrityLog = store.useValue;
 
 /** 테스트 전용. */
 export function resetIntegrityLog(): void {
-  items = [];
+  store.set([]);
   nextId = 1;
-  emit();
 }

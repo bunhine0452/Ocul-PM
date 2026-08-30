@@ -15,8 +15,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { PanelLeft } from "@/components/Icons";
 import { ClaudeMark, CLAUDE_ORANGE } from "@/components/ClaudeMark";
 import { AcpUsageMeter } from "./AcpUsageMeter";
-import {
-  commands,
+import { commands, events,
   type AcpEvent,
   type AcpImage,
   type AcpCommand,
@@ -24,6 +23,7 @@ import {
   type AcpSessionSummary,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSessionMaps } from "./conversation/useSessionMaps";
 import { type PermissionState } from "./conversation/shared";
@@ -348,7 +348,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       .then((res) => {
         if (cancelled) return;
         if (res.status === "ok") setSession(res.data);
-        else setError(res.error);
+        else setError(tError(res.error));
       })
       .finally(() => {
         if (!cancelled) setStarting(false);
@@ -462,8 +462,29 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         }
       });
     };
-    const timer = window.setInterval(sync, 4000);
-    return () => window.clearInterval(timer);
+    // Phase 4 #events-over-polling — 4초 폴링 대신 백엔드의 세션 변화 이벤트
+    // (어댑터 생사·제목·설정·대화 목록). 창이 깨어날 때 한 번 더 맞춘다.
+    sync();
+    let off: (() => void) | undefined;
+    void events.acpSessionChanged
+      .listen((evt) => {
+        if (evt.payload.project_id !== projectId) return;
+        sync();
+      })
+      .then((fn) => {
+        off = fn;
+      })
+      .catch(() => {});
+    const onWake = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      if (off) off();
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
   }, [projectId, session, isVisible]);
 
 
@@ -672,7 +693,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     try {
       const res = await commands.acpStart(projectId);
       if (res.status === "ok") setSession(res.data);
-      else setError(res.error);
+      else setError(tError(res.error));
     } finally {
       setStarting(false);
     }
@@ -684,7 +705,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (res.status === "ok") {
         setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
       } else {
-        setError(res.error);
+        setError(tError(res.error));
       }
     },
     [projectId],
@@ -809,7 +830,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         const picked = await commands.acpSelectSession(projectId, sessionId, title);
         if (loadSeqRef.current !== seq) return;
         if (picked.status === "ok") setSession(picked.data);
-        else putError(sessionId, picked.error);
+        else putError(sessionId, tError(picked.error));
         return;
       }
 
@@ -838,7 +859,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 지난 답변 꼬리에 붙는다.
         editTurns(sessionId, closeTurn);
       } else {
-        putError(sessionId, res.error);
+        putError(sessionId, tError(res.error));
       }
     },
     [projectId, addTab, editTurns, tabs, putUsage, putPermission, putError],
@@ -859,7 +880,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     try {
       const res = await commands.acpStart(projectId);
       if (res.status !== "ok") {
-        setError(res.error);
+        setError(tError(res.error));
         return;
       }
       aliveRef.current = true;
@@ -1043,7 +1064,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     async (sessionId: string) => {
       const res = await commands.acpDeleteSession(projectId, sessionId);
       if (res.status !== "ok") {
-        setError(res.error);
+        setError(tError(res.error));
         return;
       }
       // 어댑터 목록은 잠깐 더 이 대화를 들고 있다 — 우리 쪽에서 못 박아 둔다.
@@ -1108,7 +1129,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         void (async () => {
           const res = await commands.acpListSessions(projectId);
           if (res.status !== "ok") {
-            setError(res.error);
+            setError(tError(res.error));
             return;
           }
           const previous = res.data.filter((item) => item.id !== session?.session_id);
@@ -1169,7 +1190,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         const opened = await commands.acpNewSession(projectId);
         markBusy(SLATE, false);
         if (opened.status !== "ok") {
-          putError(SLATE, opened.error);
+          putError(SLATE, tError(opened.error));
           return;
         }
         setSession(opened.data);
@@ -1324,7 +1345,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           sendingBlocks,
           channel,
         );
-        if (res.status === "error") putError(into, res.error);
+        if (res.status === "error") putError(into, tError(res.error));
       } finally {
         drain();
         // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.

@@ -15,9 +15,10 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
 use crate::acp::{self, AcpAgentInfo, AcpDiagnostics, AcpEvent, AcpState};
+use crate::app_error::AppError;
 use crate::db::Db;
 
-async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
+async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
     let project = db
         .get_project(project_id)
         .await
@@ -25,16 +26,16 @@ async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     Ok(PathBuf::from(project.root_path))
 }
 
-fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+fn app_data_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
     app.path()
         .app_data_dir()
-        .map_err(|e| format!("앱 데이터 폴더를 찾을 수 없습니다: {e}"))
+        .map_err(|e| AppError::new("acp_app_data_dir", e.to_string()))
 }
 
 /// node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음).
 #[tauri::command]
 #[specta::specta]
-pub async fn acp_diagnose(app: AppHandle) -> Result<AcpDiagnostics, String> {
+pub async fn acp_diagnose(app: AppHandle) -> Result<AcpDiagnostics, AppError> {
     let dir = app_data_dir(&app)?;
     Ok(acp::diagnose(&dir).await)
 }
@@ -42,11 +43,11 @@ pub async fn acp_diagnose(app: AppHandle) -> Result<AcpDiagnostics, String> {
 /// 고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등).
 #[tauri::command]
 #[specta::specta]
-pub async fn acp_install_adapter(app: AppHandle) -> Result<AcpDiagnostics, String> {
+pub async fn acp_install_adapter(app: AppHandle) -> Result<AcpDiagnostics, AppError> {
     let dir = app_data_dir(&app)?;
     let (npm, _) = acp::env::resolve_binary("npm")
         .await
-        .ok_or_else(|| "npm 을 찾을 수 없습니다 — Node.js 를 설치하세요".to_string())?;
+        .ok_or_else(|| AppError::code("acp_npm_missing"))?;
     let path_env = acp::env::effective_path().await;
 
     acp::adapter::install(&dir, &npm, &path_env).await?;
@@ -88,17 +89,20 @@ pub async fn acp_start(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<AcpSession, String> {
+) -> Result<AcpSession, AppError> {
     let dir = app_data_dir(&app)?;
     let mut diagnostics = acp::diagnose(&dir).await;
 
     // Node 는 우리가 대신 깔지 않는다. 런타임을 말없이 시스템에 심는 것은
     // 사용자의 nvm/fnm 설정과 부딪히고, 무엇보다 물어보지 않고 할 일이 아니다.
     if !diagnostics.node_ok {
-        return Err(format!(
-            "Node.js {}+ 가 필요합니다 (현재: {})",
-            diagnostics.node_min_major,
-            diagnostics.node_version.as_deref().unwrap_or("없음")
+        return Err(AppError::new(
+            "acp_node_too_old",
+            format!(
+                "Node.js {}+ required (found: {})",
+                diagnostics.node_min_major,
+                diagnostics.node_version.as_deref().unwrap_or("none")
+            ),
         ));
     }
 
@@ -111,20 +115,18 @@ pub async fn acp_start(
     if !diagnostics.adapter_ok {
         let (npm, _) = acp::env::resolve_binary("npm")
             .await
-            .ok_or_else(|| "npm 을 찾을 수 없습니다 — Node.js 를 설치하세요".to_string())?;
+            .ok_or_else(|| AppError::code("acp_npm_missing"))?;
         acp::adapter::install(&dir, &npm, &acp::env::effective_path().await).await?;
         diagnostics = acp::diagnose(&dir).await;
         if !diagnostics.adapter_ok {
-            return Err(
-                "ACP 어댑터 설치에 실패했습니다 — 설정 → 통합에서 다시 시도하세요".to_string(),
-            );
+            return Err(AppError::code("acp_adapter_install_failed"));
         }
     }
 
     let node = PathBuf::from(
         diagnostics
             .node_path
-            .ok_or_else(|| "node 경로를 해석하지 못했습니다".to_string())?,
+            .ok_or_else(|| AppError::code("acp_node_missing"))?,
     );
     let entry = acp::adapter::entry_path(&dir);
     let path_env = acp::env::effective_path().await;
@@ -169,7 +171,7 @@ async fn ensure_session(
     app: &AppHandle,
     db: &Db,
     project_id: u32,
-) -> Result<agent_client_protocol::schema::v1::SessionId, String> {
+) -> Result<agent_client_protocol::schema::v1::SessionId, AppError> {
     let state = app.state::<AcpState>();
     // 세션 생성도 한 번에 하나만 — `acp_start` 와 `acp_prompt` 가 겹쳐 들어오면
     // 세션이 둘 만들어지고 하나는 에이전트 쪽에 남아 샌다.
@@ -180,14 +182,14 @@ async fn ensure_session(
 
     let connection = state
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
     let cwd = project_root(db, project_id).await?;
 
     let created = connection
         .send_request(NewSessionRequest::new(cwd).mcp_servers(client_mcp_servers()))
         .block_task()
         .await
-        .map_err(|e| format!("세션을 만들지 못했습니다: {e}"))?;
+        .map_err(|e| AppError::new("acp_session_create_failed", e.to_string()))?;
 
     state.set_session(
         project_id,
@@ -200,7 +202,7 @@ async fn ensure_session(
 /// 어댑터를 내린다. 떠 있지 않았으면 `false`.
 #[tauri::command]
 #[specta::specta]
-pub fn acp_stop(app: AppHandle, project_id: u32) -> Result<bool, String> {
+pub fn acp_stop(app: AppHandle, project_id: u32) -> Result<bool, AppError> {
     Ok(acp::process::stop(&app, project_id))
 }
 
@@ -210,7 +212,7 @@ pub fn acp_stop(app: AppHandle, project_id: u32) -> Result<bool, String> {
 pub fn acp_status(
     state: State<'_, AcpState>,
     project_id: u32,
-) -> Result<Option<AcpAgentInfo>, String> {
+) -> Result<Option<AcpAgentInfo>, AppError> {
     Ok(state.info(project_id))
 }
 
@@ -236,11 +238,11 @@ pub async fn acp_prompt(
     attachments: Vec<String>,
     images: Vec<AcpImage>,
     on_event: Channel<AcpEvent>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
 
     // 화면이 대화를 짚어 줬으면 그대로 간다. 안 짚었을 때만 장부를 보고,
     // 그것도 없으면 만든다 (어댑터가 죽었다 살아난 뒤의 첫 프롬프트).
@@ -331,7 +333,7 @@ pub async fn acp_prompt(
             let _ = on_event.send(AcpEvent::Failed {
                 message: message.clone(),
             });
-            Err(message)
+            Err(AppError::new("acp_prompt_failed", message))
         }
     }
 }
@@ -349,7 +351,7 @@ pub fn acp_cancel(
     app: AppHandle,
     project_id: u32,
     session_id: Option<String>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     let state = app.state::<AcpState>();
     let Some(connection) = state.connection(project_id) else {
         return Ok(false);
@@ -370,7 +372,7 @@ pub fn acp_cancel(
 
     connection
         .send_notification(CancelNotification::new(session))
-        .map_err(|e| format!("취소를 보내지 못했습니다: {e}"))?;
+        .map_err(|e| AppError::new("acp_cancel_failed", e.to_string()))?;
     Ok(true)
 }
 
@@ -385,12 +387,12 @@ pub async fn acp_set_config_option(
     project_id: u32,
     config_id: String,
     value: String,
-) -> Result<Vec<acp::session::AcpConfigOption>, String> {
+) -> Result<Vec<acp::session::AcpConfigOption>, AppError> {
     let state = app.state::<AcpState>();
     let (Some(connection), Some(session)) =
         (state.connection(project_id), state.session(project_id))
     else {
-        return Err("에이전트가 실행 중이 아닙니다".to_string());
+        return Err(AppError::code("acp_not_running"));
     };
 
     connection
@@ -401,7 +403,7 @@ pub async fn acp_set_config_option(
         ))
         .block_task()
         .await
-        .map_err(|e| format!("설정을 바꾸지 못했습니다: {e}"))?;
+        .map_err(|e| AppError::new("acp_config_failed", e.to_string()))?;
 
     let state = app.state::<AcpState>();
     state.patch_option(project_id, &config_id, &value);
@@ -415,7 +417,7 @@ pub fn acp_permission_respond(
     state: State<'_, AcpState>,
     request_id: String,
     option_id: Option<String>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     Ok(state.resolve_permission(&request_id, option_id.map(Into::into)))
 }
 
@@ -426,7 +428,7 @@ pub async fn acp_pick_files(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, AppError> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
 
     let root = project_root(&db, project_id).await?;
@@ -461,7 +463,7 @@ pub async fn acp_list_files(
     project_id: u32,
     query: String,
     limit: u32,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, AppError> {
     let root = project_root(&db, project_id).await?;
     let needle = query.to_lowercase();
     let cap = limit.clamp(1, 200) as usize;
@@ -505,11 +507,11 @@ pub async fn acp_new_session(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<AcpSession, String> {
+) -> Result<AcpSession, AppError> {
     let state = app.state::<AcpState>();
     let agent = state
         .info(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
 
     // 미결 승인 카드는 **건드리지 않는다.** 새 대화를 여는 것은 하던 대화를
     // 버리는 것이 아니다 — 그 대화는 탭에 그대로 남아 계속 돌고, 답을 기다리는
@@ -518,7 +520,14 @@ pub async fn acp_new_session(
     state.clear_session(project_id);
     ensure_session(&app, &db, project_id).await?;
 
-    Ok(session_snapshot(&app, project_id, agent))
+    let snapshot = session_snapshot(&app, project_id, agent);
+    acp::session::emit_session_changed(
+        &app,
+        project_id,
+        snapshot.session_id.clone(),
+        acp::session::AcpSessionChangeKind::Created,
+    );
+    Ok(snapshot)
 }
 
 /// 과거 대화 하나 (에이전트가 보관한다 — 우리가 저장하지 않는다).
@@ -541,11 +550,11 @@ pub async fn acp_list_sessions(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<Vec<AcpSessionSummary>, String> {
+) -> Result<Vec<AcpSessionSummary>, AppError> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
     let cwd = project_root(&db, project_id).await?;
 
     let mut request = ListSessionsRequest::new();
@@ -555,7 +564,7 @@ pub async fn acp_list_sessions(
         .send_request(request)
         .block_task()
         .await
-        .map_err(|e| format!("대화 목록을 불러오지 못했습니다: {e}"))?;
+        .map_err(|e| AppError::new("acp_session_list_failed", e.to_string()))?;
 
     // `cwd` 를 요청에 실었지만 **우리가 다시 거른다.** 필터는 어댑터의 선의에
     // 기대는 부분이고, 남의 프로젝트 대화가 목록에 섞이면 열어 보기 전까지
@@ -599,15 +608,21 @@ pub fn acp_select_session(
     project_id: u32,
     session_id: String,
     title: Option<String>,
-) -> Result<AcpSession, String> {
+) -> Result<AcpSession, AppError> {
     let state = app.state::<AcpState>();
     let agent = state
         .info(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
     state.select_session(
         project_id,
-        agent_client_protocol::schema::v1::SessionId::new(session_id),
+        agent_client_protocol::schema::v1::SessionId::new(session_id.clone()),
         title,
+    );
+    acp::session::emit_session_changed(
+        &app,
+        project_id,
+        Some(session_id),
+        acp::session::AcpSessionChangeKind::Selected,
     );
     Ok(session_snapshot(&app, project_id, agent))
 }
@@ -627,17 +642,23 @@ pub async fn acp_delete_session(
     app: AppHandle,
     project_id: u32,
     session_id: String,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
 
     connection
-        .send_request(DeleteSessionRequest::new(session_id))
+        .send_request(DeleteSessionRequest::new(session_id.clone()))
         .block_task()
         .await
-        .map_err(|e| format!("대화를 지우지 못했습니다: {e}"))?;
+        .map_err(|e| AppError::new("acp_session_delete_failed", e.to_string()))?;
+    acp::session::emit_session_changed(
+        &app,
+        project_id,
+        Some(session_id),
+        acp::session::AcpSessionChangeKind::Deleted,
+    );
     Ok(true)
 }
 
@@ -658,14 +679,14 @@ pub async fn acp_load_session(
     project_id: u32,
     session_id: String,
     on_event: Channel<AcpEvent>,
-) -> Result<AcpSession, String> {
+) -> Result<AcpSession, AppError> {
     let state = app.state::<AcpState>();
     let agent = state
         .info(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
     let connection = state
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
 
     // 다시 읽는 그 대화의 승인 카드만 무효가 된다 — 재생이 지난 상태를
     // 덮어쓰기 때문이다. 옆 대화 것은 그대로 둔다.
@@ -683,11 +704,17 @@ pub async fn acp_load_session(
     let state = app.state::<AcpState>();
     state.clear_sink(project_id, &session_id);
 
-    let loaded = loaded.map_err(|e| format!("대화를 열지 못했습니다: {e}"))?;
+    let loaded = loaded.map_err(|e| AppError::new("acp_session_load_failed", e.to_string()))?;
     state.set_session(
         project_id,
-        session_id.into(),
+        session_id.clone().into(),
         acp::session::map_config_options(loaded.config_options.as_deref().unwrap_or_default()),
+    );
+    acp::session::emit_session_changed(
+        &app,
+        project_id,
+        Some(session_id),
+        acp::session::AcpSessionChangeKind::Loaded,
     );
     Ok(session_snapshot(&app, project_id, agent))
 }
@@ -702,7 +729,7 @@ pub async fn acp_load_session(
 pub fn acp_commands(
     state: State<'_, AcpState>,
     project_id: u32,
-) -> Result<Vec<acp::session::AcpCommand>, String> {
+) -> Result<Vec<acp::session::AcpCommand>, AppError> {
     Ok(state.commands(project_id))
 }
 
@@ -712,7 +739,7 @@ pub fn acp_commands(
 pub fn acp_usage(
     state: State<'_, AcpState>,
     project_id: u32,
-) -> Result<Option<acp::session::AcpUsage>, String> {
+) -> Result<Option<acp::session::AcpUsage>, AppError> {
     Ok(state.usage(project_id))
 }
 
@@ -731,11 +758,11 @@ pub async fn acp_refresh_usage(
     app: AppHandle,
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<Option<acp::session::AcpUsage>, String> {
+) -> Result<Option<acp::session::AcpUsage>, AppError> {
     let connection = app
         .state::<AcpState>()
         .connection(project_id)
-        .ok_or_else(|| "에이전트가 실행 중이 아닙니다".to_string())?;
+        .ok_or_else(|| AppError::code("acp_not_running"))?;
     // **전용 대화 하나에서 묻는다.**
     //
     // `/usage` 는 결국 프롬프트라, 보고 있는 대화에 보내면 그 대화의 기록에
@@ -756,7 +783,7 @@ pub async fn acp_refresh_usage(
                 .send_request(NewSessionRequest::new(cwd))
                 .block_task()
                 .await
-                .map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?
+                .map_err(|e| AppError::new("acp_usage_failed", e.to_string()))?
                 .session_id;
             state.set_scratch(project_id, created.clone());
             created
@@ -774,7 +801,7 @@ pub async fn acp_refresh_usage(
 
     let state = app.state::<AcpState>();
     let report = state.take_capture().unwrap_or_default();
-    outcome.map_err(|e| format!("사용량을 불러오지 못했습니다: {e}"))?;
+    outcome.map_err(|e| AppError::new("acp_usage_failed", e.to_string()))?;
 
     state.replace_limits(
         project_id,
@@ -794,7 +821,7 @@ pub async fn acp_refresh_usage(
 pub fn acp_options(
     state: State<'_, AcpState>,
     project_id: u32,
-) -> Result<Vec<acp::session::AcpConfigOption>, String> {
+) -> Result<Vec<acp::session::AcpConfigOption>, AppError> {
     Ok(state.options(project_id))
 }
 
@@ -804,6 +831,6 @@ pub fn acp_options(
 pub fn acp_session_title(
     state: State<'_, AcpState>,
     project_id: u32,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, AppError> {
     Ok(state.title(project_id))
 }

@@ -15,6 +15,7 @@
  */
 
 import { commands } from "@/lib/bindings";
+import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
   AgentDetection,
   AgentSyncReport,
@@ -27,6 +28,7 @@ import type {
   JournalEntrySummary,
   LayerComparison,
   WorkdayComparison,
+  AppError,
   ManualEntryDraft,
   OculpmConfig,
   OculpmInitReport,
@@ -36,22 +38,25 @@ import type {
   FileChangeEvent,
 } from "@/lib/bindings";
 
-/** Error subclass so toasts / fallbacks can narrow on `instanceof OculpmApiError`. */
-export class OculpmApiError extends Error {
-  readonly command: string;
-  constructor(command: string, message: string) {
-    super(message);
+/**
+ * Error subclass so toasts / fallbacks can narrow on `instanceof OculpmApiError`.
+ * Phase 4: `ApiError` 의 특수화 — `code`/`detail` 이 붙었다 (`e.message` 는 그대로).
+ */
+export class OculpmApiError extends ApiError {
+  constructor(command: string, error: AppError) {
+    super(command, error);
     this.name = "OculpmApiError";
-    this.command = command;
   }
 }
 
-type Envelope<T> = { status: "ok"; data: T } | { status: "error"; error: string };
-
 async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
-  const res = await p;
-  if (res.status === "ok") return res.data;
-  throw new OculpmApiError(command, res.error);
+  try {
+    return await call(command, p);
+  } catch (e) {
+    throw e instanceof ApiError
+      ? new OculpmApiError(e.command, e.toAppError())
+      : new OculpmApiError(command, toAppError(e));
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

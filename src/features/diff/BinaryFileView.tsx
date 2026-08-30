@@ -9,12 +9,8 @@ import { useT } from "@/i18n";
 // compute_diff 가 DiffSource::Binary 를 내려준 파일에서만 쓰인다.
 
 /** 사람이 읽는 파일 크기. `null` = 해당 쪽이 존재하지 않음 (신규/삭제). */
-export function formatBytes(n: number | null | undefined): string {
-  if (n == null) return "—";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { formatBytes } from "@/lib/format";
+export { formatBytes };
 
 interface BinaryFileViewProps {
   projectId: number;

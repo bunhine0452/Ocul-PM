@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { ChevronLeft, ChevronRight, Plus } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { shiftWorkday, todayWorkday, workdayLabel } from "../workday";
 import { EntryList, ErrorNote, Loading } from "./shared";
 
@@ -23,7 +24,7 @@ export function JournalTab({ projectId, onOpenEntry }: {
     setError(null);
     const res = await commands.oculpmListJournalEntries(projectId, workday, null);
     if (res.status === "ok") setEntries(res.data);
-    else setError(res.error);
+    else setError(tError(res.error));
   }, [projectId, workday]);
 
   useEffect(() => {
@@ -130,7 +131,7 @@ function WriteForm({ projectId, onDone, onCancel }: {
     });
     setBusy(false);
     if (res.status === "ok") onDone();
-    else setError(res.error);
+    else setError(tError(res.error));
   };
 
   return (

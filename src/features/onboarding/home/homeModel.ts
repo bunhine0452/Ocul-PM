@@ -23,6 +23,7 @@ import type {
 import { bestScore } from "./homeMatch";
 // 순수 모듈 — 훅을 쓸 수 없으므로 모듈 t()/getLang().
 import { getLang, t, type I18nKey } from "@/i18n";
+import { relativeTime as formatRelativeTime } from "@/lib/format";
 
 // ── 상수 (매직넘버 금지) ─────────────────────────────────────────────────
 /** 이 일수 이상 활동이 없으면 격자 뒤쪽으로 밀리고 흐리게 그려진다. */
@@ -115,16 +116,9 @@ export interface HomeModel {
 
 // ── 포매팅 ──────────────────────────────────────────────────────────────
 
-/** 상대 시각. 기록이 없으면 대시 — 거짓 시각을 지어내지 않는다. */
+/** 상대 시각. 기록이 없으면 대시 — 거짓 시각을 지어내지 않는다. (`lib/format` 공용) */
 export function relativeTime(iso: string | null, now: number): string {
-  if (!iso) return "—";
-  const at = Date.parse(iso);
-  if (Number.isNaN(at)) return "—";
-  const diff = Math.max(0, now - at);
-  if (diff < 60_000) return t("home.agoJustNow");
-  if (diff < 3_600_000) return t("home.agoMinutes", { n: Math.floor(diff / 60_000) });
-  if (diff < DAY_MS) return t("home.agoHours", { n: Math.floor(diff / 3_600_000) });
-  return t("home.agoDays", { n: Math.floor(diff / DAY_MS) });
+  return formatRelativeTime(iso, now, { fallback: "—" });
 }
 
 /** ISO 에서 `HH:MM` 만. 형식이 어긋나면 빈 문자열. */

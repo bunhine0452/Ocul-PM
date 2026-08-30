@@ -5,6 +5,7 @@
 
 // PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.
 pub mod acp;
+pub mod app_error;
 mod ast;
 mod commands;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
@@ -326,6 +327,7 @@ use crate::commands::{
     oculpm_compare_layers,
     oculpm_compare_workday,
     oculpm_create_manual_entry,
+    oculpm_current_workday,
     oculpm_end_session_manual,
     // C2 — 일지 내보내기
     oculpm_export_digest,
@@ -670,6 +672,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_apply_master_upgrade,
             oculpm_compare_layers,
             oculpm_compare_workday,
+            oculpm_current_workday,
             oculpm_get_log_dir,
             oculpm_log,
             oculpm_update_entry_body,
@@ -780,8 +783,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmPlanReconciled,
             crate::oculpm::spec::OculpmWatchYielded,
             crate::oculpm::spec::OculpmAgentDrift,
-            crate::oculpm::spec::OculpmAgentsTemplateChanged,
             crate::oculpm::spec::OculpmJournalPathChanged,
+            // 워크데이 넘김 · Claude Code 세션 변화 — 폴링 대신 (Phase 4)
+            crate::oculpm::spec::OculpmWorkdayChanged,
+            crate::acp::session::AcpSessionChanged,
             // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
             crate::oculpm::spec::OculpmDataChanged,
             // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크

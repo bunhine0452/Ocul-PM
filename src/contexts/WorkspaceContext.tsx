@@ -28,6 +28,7 @@ import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
 // 이벤트 리스너 안에서 부르는 토스트라 훅이 아닌 모듈 t() 가 맞다
 // (구독 시점이 아니라 **발생 시점**의 언어를 읽어야 한다).
 import { t } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 // v2 U3 — recentChanges 는 전용 외부 스토어로 분리됐다 (아래 주석 및
 // docs/20260706_v2/03-performance-spec.md §1). 기존 임포트 경로 호환을 위해
@@ -1084,7 +1085,7 @@ export function WorkspaceProvider({
               void (async () => {
                 const r = await commands.oculpmWatcherTakeOver(pid);
                 if (r.status === "ok") toast.info(t("watcher.tookOver"));
-                else toast.destructive(t("watcher.takeOverFailed", { error: r.error }));
+                else toast.destructive(t("watcher.takeOverFailed", { error: tError(r.error) }));
               })();
             },
           },
@@ -1216,7 +1217,19 @@ export function WorkspaceProvider({
       }
     };
 
-    const id = window.setInterval(() => void check(), 60_000);
+    // Phase 4 #events-over-polling — 60초 폴링 대신 백엔드의 넘김 이벤트(활성
+    // 세션의 경계 타이머 + 감독관의 분당 틱). 포커스/재표시 확인은 남긴다:
+    // 슬립 중엔 이벤트도 타이머도 밀린다.
+    let off: (() => void) | undefined;
+    void events.oculpmWorkdayChanged
+      .listen((evt) => {
+        if (evt.payload.project_id !== stateRef.current?.currentProjectId) return;
+        void check();
+      })
+      .then((fn) => {
+        off = fn;
+      })
+      .catch(() => {});
     const onWake = () => {
       if (document.visibilityState === "visible") void check();
     };
@@ -1224,7 +1237,7 @@ export function WorkspaceProvider({
     document.addEventListener("visibilitychange", onWake);
 
     return () => {
-      window.clearInterval(id);
+      if (off) safeUnlisten(off);
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };

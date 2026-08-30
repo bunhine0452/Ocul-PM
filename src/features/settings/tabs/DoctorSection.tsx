@@ -20,6 +20,8 @@ import { requestOculpmActivate, requestReindex } from "@/lib/projectActions";
 import { openSettings } from "@/lib/settingsNav";
 import { PROVIDERS, type Provider } from "@/lib/settings";
 import { toast } from "@/lib/toast";
+import type { Envelope } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
 import { relativeTime } from "@/features/chat/relativeTime";
 import { Section, secretName } from "./ui";
 
@@ -45,7 +47,7 @@ interface Probe {
 
 /** 실패한 조사는 `null` — 행은 "확인 실패" 로 남고 나머지 행은 정상 표시된다. */
 async function probe(projectId: number): Promise<Probe> {
-  const ok = <T,>(p: Promise<{ status: "ok"; data: T } | { status: "error"; error: string }>) =>
+  const ok = <T,>(p: Promise<Envelope<T>>) =>
     p.then((r) => (r.status === "ok" ? r.data : null)).catch(() => null);
   const [status, acp, keyFlags, stats, shell, hooks, mcp] = await Promise.all([
     ok(commands.oculpmGetStatus(projectId)),
@@ -125,7 +127,7 @@ export function DoctorSection() {
 
     const restart = async () => {
       const r = await commands.oculpmWatcherStart(projectId);
-      if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: r.error }));
+      if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
       await check();
     };
     out.push(
@@ -140,7 +142,7 @@ export function DoctorSection() {
 
     const takeOver = async () => {
       const r = await commands.oculpmWatcherTakeOver(projectId);
-      if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: r.error }));
+      if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
       await check();
     };
     out.push(
@@ -159,7 +161,7 @@ export function DoctorSection() {
     const install = async () => {
       const r = await commands.acpInstallAdapter();
       if (r.status === "ok") toast.info(t("settings.doctor.a.installDone"));
-      else toast.destructive(t("settings.doctor.a.failed", { error: r.error }));
+      else toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
       await check();
     };
     out.push(

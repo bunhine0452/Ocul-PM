@@ -486,11 +486,14 @@ pub fn read_sessions_sync(root: &Path, resolver: &WorkdayResolver, workday: &str
 /// Session IDs are `YYYYMMDD-NNN` per `00-spec.md §4.2`. The first 8 chars
 /// are the workday key.
 fn workday_from_id(id: &str) -> Result<&str, OculpmError> {
-    if id.len() >= 8 && id.as_bytes()[..8].iter().all(|b| b.is_ascii_digit()) {
-        Ok(&id[..8])
-    } else {
-        Err(OculpmError::InvalidSessionId(id.to_string()))
-    }
+    // 뉴타입의 판정을 빌리되 빌림은 원문에서 — 어느 방언이든 8자리 날짜 조각은
+    // 원문의 부분 문자열이다.
+    let wd = crate::oculpm::session_id::SessionId::new(id)
+        .workday()
+        .map(|w| w.to_string())
+        .ok_or_else(|| OculpmError::InvalidSessionId(id.to_string()))?;
+    let start = id.find(&wd).unwrap_or(0);
+    Ok(&id[start..start + 8])
 }
 
 fn collect_git_info(root: &Path) -> SnapshotGit {

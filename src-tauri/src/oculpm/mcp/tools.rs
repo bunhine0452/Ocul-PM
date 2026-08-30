@@ -658,12 +658,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
                 )
             })
             .unwrap_or_else(|| {
-                format!(
-                    "mcp-{workday}-{:02}{:02}{:02}",
-                    local.hour(),
-                    local.minute(),
-                    local.second()
-                )
+                crate::oculpm::session_id::SessionId::mcp(&workday, local).into_string()
             }),
         agent: AgentRef {
             id: arg_str(args, "agent_id")
@@ -751,8 +746,7 @@ const RANK_BODY: u8 = 4;
 /// 경로만 보고 기간 필터를 걸기 위한 것 — 파일을 열지 않고 거를 수 있으면
 /// 스캔 비용이 그만큼 사라진다.
 fn workday_of_rel(rel: &str) -> Option<&str> {
-    let seg = rel.split('/').next()?;
-    (seg.len() == 8 && seg.bytes().all(|b| b.is_ascii_digit())).then_some(seg)
+    crate::oculpm::paths::workday_of_rel(rel)
 }
 
 /// 파일명 `HHMM_<type>_<slug>.md` 의 type 토큰. 알려진 종류가 아니면 `None`

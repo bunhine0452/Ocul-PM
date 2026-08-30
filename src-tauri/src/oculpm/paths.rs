@@ -298,6 +298,14 @@ pub fn is_macos_sandbox_temp(rel_str: &str) -> bool {
 // full case matrix.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// 일지 상대 경로 `<workday>/<Category>/<file>.md` 의 워크데이 조각 — 파일을
+/// 열지 않고 날짜로 거를 때 쓴다. 첫 조각이 8자리 숫자가 아니면 `None`.
+/// (예전엔 캐시와 MCP 가 각자 같은 규칙을 들고 있었다 — Phase 4 에서 합침.)
+pub fn workday_of_rel(rel: &str) -> Option<&str> {
+    let seg = rel.split('/').next()?;
+    (seg.len() == 8 && seg.bytes().all(|b| b.is_ascii_digit())).then_some(seg)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

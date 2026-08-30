@@ -1890,10 +1890,6 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── Launcher home (StartScreen · home/*) ────────────────────────────────
   // The first screen on launch and the project-switching hub.
-  "home.agoJustNow": "just now",
-  "home.agoMinutes": "{n}m ago",
-  "home.agoHours": "{n}h ago",
-  "home.agoDays": "{n}d ago",
   // Dateline — the date itself comes from Intl (§3); only the tail clauses
   // live in the dictionary.
   "home.datelineToday": "{n} today",
@@ -2353,9 +2349,6 @@ export const en: Record<keyof typeof ko, string> = {
   "chat.listFailed": "Could not load conversations: {error}",
   "chat.deleteFailed": "Could not delete conversation: {error}",
   // Minute/hour relative time. Past a day it hands off to an Intl date.
-  "chat.agoJustNow": "Just now",
-  "chat.agoMinutes": "{n}m ago",
-  "chat.agoHours": "{n}h ago",
 
   // ── AI panel ────────────────────────────────────────────────────────────
   // Labels for injected context parts (token popover · "last send attached").
@@ -2711,4 +2704,31 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.doctor.warnings": "Recent integrity warnings",
   "settings.doctor.warningsEmpty": "No warnings this session.",
   "settings.doctor.clear": "Clear",
+  // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
+  "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
+  "err.code.invalid_session_id": "Malformed session id: {detail}",
+  "err.code.session_not_found": "Session not found: {detail}",
+  "err.code.forbidden_journal_path": "The entry names a forbidden path, so it wasn't written: {detail}",
+  "err.code.invalid_path": "Invalid path: {detail}",
+  "err.code.invalid_config": "config.toml is invalid: {detail}",
+  "err.code.config_parse": "Couldn't read config.toml: {detail}",
+  "err.code.io": "File operation failed: {detail}",
+  "err.code.sqlite": "Local cache (SQLite) error: {detail}",
+  "err.code.db": "Local database error: {detail}",
+  "err.code.file_not_found": "File not found: {detail}",
+  "err.code.actor_closed": "The session worker has stopped — please restart the app.",
+  "err.code.acp_not_running": "The Claude Code agent isn't running.",
+  "err.code.acp_npm_missing": "npm not found — install Node.js.",
+  "err.code.acp_node_missing": "Couldn't resolve the node binary.",
+  "err.code.acp_node_too_old": "Node.js is too old: {detail}",
+  "err.code.acp_app_data_dir": "Couldn't find the app data folder: {detail}",
+  "err.code.acp_adapter_install_failed": "Installing the ACP adapter failed — retry from Settings → ocul-pm.",
+  "err.code.acp_session_create_failed": "Couldn't create a session: {detail}",
+  "err.code.acp_cancel_failed": "Couldn't send cancel: {detail}",
+  "err.code.acp_config_failed": "Couldn't change the setting: {detail}",
+  "err.code.acp_session_list_failed": "Couldn't load conversations: {detail}",
+  "err.code.acp_session_delete_failed": "Couldn't delete the conversation: {detail}",
+  "err.code.acp_session_load_failed": "Couldn't open the conversation: {detail}",
+  "err.code.acp_usage_failed": "Couldn't load usage: {detail}",
+  "err.code.acp_prompt_failed": "The request failed: {detail}",
 };

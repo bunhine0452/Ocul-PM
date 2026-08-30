@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { commands, type JournalEntrySummary, type PlanActivityDto } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { todayWorkday } from "../workday";
 import { ArrowRight } from "@/components/Icons";
 import { AgentTag, EntryList, ErrorNote, Loading } from "./shared";
@@ -23,7 +24,7 @@ export function TodayTab({ projectId, onOpenEntry }: {
       commands.planRecentUpdates(projectId, 8),
     ]);
     if (es.status === "ok") setEntries(es.data);
-    else setError(es.error);
+    else setError(tError(es.error));
     if (us.status === "ok") setUpdates(us.data);
   }, [projectId]);
 

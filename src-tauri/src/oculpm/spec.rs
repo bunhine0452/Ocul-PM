@@ -704,10 +704,14 @@ pub struct OculpmAgentDrift {
     pub actual_hash: String,
 }
 
+/// 워크데이가 넘어갔다 (완성도 라운드 Phase 4 #events-over-polling). 활성
+/// 세션의 경계 타이머와 감독관의 분당 틱이 낸다 — 화면은 60초마다 상태를
+/// 다시 묻는 대신 이걸 듣는다. (`OculpmAgentsTemplateChanged` 는 듣는 곳이
+/// 없어 같은 라운드에 지웠다.)
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
-pub struct OculpmAgentsTemplateChanged {
+pub struct OculpmWorkdayChanged {
     pub project_id: u32,
-    pub relative_path: String,
+    pub workday: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
@@ -729,6 +733,13 @@ pub struct OculpmJournalPathChanged {
 pub enum OculpmDataArea {
     Planner,
     Discussion,
+    /// `.claude/rules/**` · `.cursor/rules/**` · CLAUDE.md 슬롯 — 규칙 허브가
+    /// 다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
+    /// 버려져 어떤 신호도 나가지 않았다.
+    Rules,
+    /// `.oculpm/retro/**` — 회고 화면이 다시 읽는다 (Phase 4). 예전엔 코드 변경
+    /// 파이프라인으로 새어 들어갔다.
+    Retro,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

@@ -156,9 +156,11 @@ impl OculpmManager {
         // workday = session_id 의 첫 8자 ("20260524-001" → "20260524").
         // 끝의 - 가 없거나 형식이 다를 경우 session_id 전체를 workday 로 사용
         // → cache 쿼리가 빈 결과 반환하면 호출자에게 자연스러운 신호.
-        let workday = session_id
-            .split_once('-')
-            .map(|(w, _)| w.to_string())
+        // 어느 방언이든 8자리 날짜를 꺼낸다 — 예전 `split_once('-')` 는
+        // `manual-…` 에서 "manual" 을 워크데이로 읽어 빈 결과를 냈다.
+        let workday = crate::oculpm::session_id::SessionId::new(session_id)
+            .workday()
+            .map(str::to_string)
             .unwrap_or_else(|| session_id.to_string());
 
         let (writer, forbid_patterns, root) = {

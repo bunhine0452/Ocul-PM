@@ -44,11 +44,11 @@ const BODY_EXCERPT_CAP: usize = 1500;
 /// creates (`<workday>-git`, see `manager::backfill_from_git`). Shared here so
 /// reconcile's cost guard and the backfill writer can never drift: a backfill
 /// of hundreds of commits must never each trigger a billable reconcile.
-pub const GIT_BACKFILL_SESSION_SUFFIX: &str = "-git";
+pub const GIT_BACKFILL_SESSION_SUFFIX: &str = crate::oculpm::session_id::GIT_BACKFILL_SUFFIX;
 
 /// True for entries synthesised by git-history backfill — never reconcile them.
 pub fn is_git_backfill_session(session_id: &str) -> bool {
-    session_id.ends_with(GIT_BACKFILL_SESSION_SUFFIX)
+    crate::oculpm::session_id::SessionId::new(session_id).is_git_backfill()
 }
 
 /// What one active plan's reconciliation did.

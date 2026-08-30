@@ -76,10 +76,7 @@ pub(super) fn parse_warnings_vec(raw: &Option<String>) -> Vec<String> {
 
 pub(super) fn workday_from_relative_path(relative_path: &str) -> String {
     // `<workday>/<Category>/<file>.md` — workday is the first path segment.
-    relative_path
-        .split('/')
-        .next()
-        .filter(|s| s.len() == 8 && s.chars().all(|c| c.is_ascii_digit()))
+    crate::oculpm::paths::workday_of_rel(relative_path)
         .unwrap_or("00000000")
         .to_string()
 }

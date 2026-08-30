@@ -665,14 +665,25 @@ export function TrayPopover() {
         void reload();
       }
     };
-    const id = window.setInterval(check, 60_000);
+    // Phase 4 #events-over-polling — 백엔드가 넘김을 알린다 (어느 프로젝트든
+    // 하나 넘어가면 전부 다시 읽는다: 팝오버는 프로젝트 전체를 그린다).
+    let off: (() => void) | undefined;
+    void events.oculpmWorkdayChanged
+      .listen(() => {
+        lastDay = localDayKey();
+        void reload();
+      })
+      .then((fn) => {
+        off = fn;
+      })
+      .catch(() => {});
     const onWake = () => {
       if (document.visibilityState === "visible") check();
     };
     window.addEventListener("focus", onWake);
     document.addEventListener("visibilitychange", onWake);
     return () => {
-      window.clearInterval(id);
+      if (off) off();
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };

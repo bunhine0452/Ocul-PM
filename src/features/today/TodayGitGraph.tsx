@@ -3,6 +3,7 @@ import { commands, type GitGraphCommit } from "@/lib/bindings";
 import { GitBranch, RefreshCw, Tag, TriangleAlert } from "@/components/Icons";
 import { computeGitGraph, type GraphRow } from "./gitGraph";
 import { t } from "@/i18n";
+import { relativeTime } from "@/lib/format";
 
 // A VSCode-style commit graph on Today. Lanes are computed in gitGraph.ts; here
 // we draw each row as a small SVG (pass-through verticals + converging/diverging
@@ -18,12 +19,7 @@ const LANE_COLORS = ["#12a06b", "#2570e0", "#7c5cdb", "#e07b12", "#e0524b", "#0e
 const laneColor = (c: number) => LANE_COLORS[((c % LANE_COLORS.length) + LANE_COLORS.length) % LANE_COLORS.length];
 
 function relTime(unixSec: number): string {
-  const diff = Date.now() / 1000 - unixSec;
-  if (diff < 60) return t("time.justNow");
-  if (diff < 3600) return t("time.minutesAgo", { n: Math.floor(diff / 60) });
-  if (diff < 86400) return t("time.hoursAgo", { n: Math.floor(diff / 3600) });
-  if (diff < 86400 * 7) return t("time.daysAgo", { n: Math.floor(diff / 86400) });
-  return new Date(unixSec * 1000).toLocaleDateString();
+  return relativeTime(unixSec, Date.now(), { beyondDays: 7 });
 }
 
 const cx = (lane: number) => lane * LANE_W + LANE_W / 2;

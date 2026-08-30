@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { getLang } from "@/i18n";
+import { shiftWorkday } from "@/lib/workday";
 import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard data.
@@ -75,17 +76,6 @@ const MAX_NEXT_TASKS = 5;
 const MAX_YESTERDAY_DONE = 5;
 
 /** Shift a YYYYMMDD key by `delta` calendar days (local time). */
-function shiftWorkday(workday: string, delta: number): string {
-  const y = Number(workday.slice(0, 4));
-  const m = Number(workday.slice(4, 6)) - 1;
-  const d = Number(workday.slice(6, 8));
-  const dt = new Date(y, m, d);
-  dt.setDate(dt.getDate() + delta);
-  const yy = dt.getFullYear().toString().padStart(4, "0");
-  const mm = (dt.getMonth() + 1).toString().padStart(2, "0");
-  const dd = dt.getDate().toString().padStart(2, "0");
-  return `${yy}${mm}${dd}`;
-}
 
 function weekdayLabel(workday: string): string {
   const y = Number(workday.slice(0, 4));

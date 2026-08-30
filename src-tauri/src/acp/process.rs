@@ -30,9 +30,9 @@ use tauri::ipc::Channel;
 use tauri::Manager;
 
 use super::session::{
-    commands_of, config_of, failure_of, file_change_report_of, map_update, mode_of,
-    permission_event, title_of, usage_of, AcpCommand, AcpConfigOption, AcpEvent, AcpRateLimit,
-    AcpUsage,
+    commands_of, config_of, emit_session_changed, failure_of, file_change_report_of, map_update,
+    mode_of, permission_event, title_of, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
+    AcpRateLimit, AcpSessionChangeKind, AcpUsage,
 };
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -597,17 +597,41 @@ pub async fn start(
                     }
                     if let Some(usage) = usage_of(&notification.update) {
                         state.merge_usage(project_id, usage);
+                        emit_session_changed(
+                            &notify_app,
+                            project_id,
+                            Some(from.clone()),
+                            AcpSessionChangeKind::Usage,
+                        );
                     }
                     // 에이전트 쪽에서 바뀐 설정을 따라간다 — 모델 교체가 권한
                     // 모드를 내리는 경우가 있어 이걸 놓치면 UI 가 거짓말을 한다.
                     if let Some(options) = config_of(&notification.update) {
                         state.set_options(project_id, options);
+                        emit_session_changed(
+                            &notify_app,
+                            project_id,
+                            Some(from.clone()),
+                            AcpSessionChangeKind::Options,
+                        );
                     }
                     if let Some(mode) = mode_of(&notification.update) {
                         state.patch_option(project_id, "mode", &mode);
+                        emit_session_changed(
+                            &notify_app,
+                            project_id,
+                            Some(from.clone()),
+                            AcpSessionChangeKind::Options,
+                        );
                     }
                     if let Some(title) = title_of(&notification.update) {
                         state.set_title(project_id, Some(title));
+                        emit_session_changed(
+                            &notify_app,
+                            project_id,
+                            Some(from.clone()),
+                            AcpSessionChangeKind::Title,
+                        );
                     }
                     // 세션 실패·경고는 **제목 알림과 같은 봉투**에 실려 온다.
                     // 먼저 흘려보내고 나서 아래 일반 매핑으로 넘어간다.
@@ -722,6 +746,12 @@ pub async fn start(
                     },
                 );
                 let _ = ready_tx.send(info);
+                emit_session_changed(
+                    &register_app,
+                    project_id,
+                    None,
+                    AcpSessionChangeKind::AgentReady,
+                );
 
                 // 종료 신호(또는 sender drop)까지 연결을 붙잡고 있는다.
                 let _ = stop_rx.await;
@@ -733,6 +763,7 @@ pub async fn start(
         let state = task_app.state::<AcpState>();
         if state.remove_if(project_id, epoch) {
             tracing::info!(project_id, epoch, "ACP 어댑터 연결 종료");
+            emit_session_changed(&task_app, project_id, None, AcpSessionChangeKind::AgentGone);
         }
         state.clear_sinks(project_id);
         // 연결이 끊겼으면 대기 중인 승인 카드도 의미가 없다 — 대화를 가리지

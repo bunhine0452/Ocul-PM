@@ -1429,3 +1429,44 @@ mod tests {
         assert_eq!(stop_reason_label(&StopReason::Cancelled), "cancelled");
     }
 }
+
+/// 세션·어댑터의 **생명주기**가 바뀌었다 (완성도 라운드 Phase 4). 프롬프트
+/// 스트림(`AcpEvent`, 채널)은 턴이 도는 동안만 흐르므로 제목·설정·어댑터
+/// 생사·대화 목록 변화는 실을 곳이 없었고, 화면은 4초마다 세 커맨드를 물었다.
+/// 이 이벤트가 그 폴링을 대신한다 — 어느 창·탭이든 같은 프로젝트면 듣는다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpSessionChangeKind {
+    AgentReady,
+    AgentGone,
+    Title,
+    Options,
+    Usage,
+    Created,
+    Selected,
+    Loaded,
+    Deleted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct AcpSessionChanged {
+    pub project_id: u32,
+    pub session_id: Option<String>,
+    pub kind: AcpSessionChangeKind,
+}
+
+/// 실패해도 조용히 — 이벤트는 힌트다. 놓치면 화면이 깨어날 때(`useRefetchOnWake`) 다시 읽는다.
+pub fn emit_session_changed(
+    app: &tauri::AppHandle,
+    project_id: u32,
+    session_id: Option<String>,
+    kind: AcpSessionChangeKind,
+) {
+    use tauri_specta::Event;
+    let _ = AcpSessionChanged {
+        project_id,
+        session_id,
+        kind,
+    }
+    .emit(app);
+}

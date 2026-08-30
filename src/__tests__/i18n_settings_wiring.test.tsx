@@ -73,6 +73,9 @@ describe("SettingsContext → i18n 스토어", () => {
         <div />
       </SettingsProvider>,
     );
+    // Phase 3 — 부팅(bootI18n)이 고른 언어를 로드 전 기본값이 덮지 않도록,
+    // 프로바이더는 **로드된 뒤에만** 민다. 로드 뒤 system 이 적용됐는지 본다.
+    await waitFor(() => expect(document.documentElement.lang).toBe("ko"));
     await waitFor(() => expect(getLangSetting()).toBe("system"));
     // setup 이 고정한 로케일(ko-KR) → ko 로 해석.
     expect(getLang()).toBe("ko");

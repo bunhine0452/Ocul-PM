@@ -48,10 +48,9 @@ use crate::oculpm::paths;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{
-    FileChangeEvent, FileOp, IntegrityWarning, OculpmAgentDrift, OculpmAgentsTemplateChanged,
-    OculpmConfig, OculpmDataArea, OculpmDataChanged, OculpmFileChanged, OculpmIntegrityWarning,
-    OculpmJournalAdded, OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView,
-    WatcherStatus,
+    FileChangeEvent, FileOp, IntegrityWarning, OculpmAgentDrift, OculpmConfig, OculpmDataArea,
+    OculpmDataChanged, OculpmFileChanged, OculpmIntegrityWarning, OculpmJournalAdded,
+    OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView, WatcherStatus,
 };
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -373,7 +372,6 @@ impl WatcherInner {
         //    there's no feedback loop. Idempotency in `sync_active` covers
         //    the spurious self-event when we wrote the master ourselves.
         if rel_str.starts_with(".oculpm/agents/") {
-            self.emit_agents_template_changed(&rel_str);
             self.cascade_agents_resync().await;
             return;
         }
@@ -452,6 +450,19 @@ impl WatcherInner {
         // adapter file itself was already routed at step 4.5, so anything
         // *still* under a known agent dir at this point is the agent's own
         // bookkeeping — not user code, never journaled, never compared.
+        // 4.7 규칙 파일 (Phase 4 #events-over-polling). `.claude/rules/**` 와
+        //     `.cursor/rules/**` 는 아래 4.6 이 에이전트 내부 상태로 버리던
+        //     경로라 어떤 신호도 안 나갔다 — 규칙 허브는 마운트 때 읽은 목록에
+        //     머물렀다. 루트 CLAUDE.md 슬롯은 신호만 내고 코드 파이프라인으로
+        //     계속 흘려보낸다 (사용자 파일이기도 하다 — 정직성 감사가 본다).
+        if is_rules_path(&rel_str) {
+            let op = classify_journal_op(&ev.event.kind);
+            self.emit_data_changed(OculpmDataArea::Rules, &rel_str, op);
+            if rel_str.starts_with(".claude/") || rel_str.starts_with(".cursor/") {
+                return;
+            }
+        }
+
         if is_agent_state_path(&rel_str) {
             self.bump_ignored();
             return;
@@ -865,7 +876,7 @@ impl WatcherInner {
                         return;
                     }
                     let embedder = handle.state::<Embedder>();
-                    match crate::commands::diff::reindex_single_file(
+                    match crate::indexer::reindex_single_file(
                         &db, &embedder, project_id, &root, &cfg, &rel_path,
                     )
                     .await
@@ -882,17 +893,6 @@ impl WatcherInner {
                 }
             }
         });
-    }
-
-    fn emit_agents_template_changed(&self, relative_path: &str) {
-        if let Some(handle) = &self.app_handle {
-            use tauri_specta::Event;
-            let _ = OculpmAgentsTemplateChanged {
-                project_id: self.project_id,
-                relative_path: relative_path.to_string(),
-            }
-            .emit(handle);
-        }
     }
 
     fn emit_data_changed(&self, area: OculpmDataArea, relative_path: &str, op: FileOp) {
@@ -1569,7 +1569,20 @@ fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
     }
+    if rel_str.starts_with(".oculpm/retro/") {
+        return Some(OculpmDataArea::Retro);
+    }
     None
+}
+
+/// 규칙 허브가 그리는 파일들 — `oculpm::rules` 의 표면과 같다.
+fn is_rules_path(rel_str: &str) -> bool {
+    rel_str.starts_with(".claude/rules/")
+        || rel_str.starts_with(".cursor/rules/")
+        || matches!(
+            rel_str,
+            "CLAUDE.md" | ".claude/CLAUDE.md" | "CLAUDE.local.md"
+        )
 }
 
 fn classify_journal_op(kind: &EventKind) -> FileOp {

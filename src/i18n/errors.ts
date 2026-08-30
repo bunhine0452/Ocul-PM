@@ -20,6 +20,11 @@
  * 반쪽이 되므로 우선순위가 낮다.
  */
 import { getLang, t, type I18nKey } from "./index";
+import type { AppError } from "@/lib/bindings";
+
+function isAppError(e: unknown): e is AppError {
+  return typeof e === "object" && e !== null && typeof (e as AppError).code === "string";
+}
 
 /**
  * `[정규식, 키]` — 정규식의 캡처 그룹이 사전의 자리표시자로 들어간다.
@@ -66,8 +71,22 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
  * 영어 모드에서는 매칭할 이유가 없다 — 원문이 이미 영어다. 표를 건너뛰어
  * 불필요한 정규식 실행을 피한다.
  */
-export function tError(raw: string): string {
-  if (!raw) return raw;
+export function tError(raw: string | AppError | null | undefined): string {
+  if (!raw) return "";
+  // Phase 4 — 구조화된 오류: 코드가 사전에 있으면 언어에 맞는 문장, 없으면
+  // 영어 원문(detail), 그것도 없으면 코드 그대로. `unknown` 은 옛 문자열
+  // 계약의 다리라 아래 정규식 표를 그대로 탄다.
+  if (isAppError(raw)) {
+    if (raw.code !== "unknown") {
+      // 사전은 동적 청크라 여기서 정적으로 뒤질 수 없다 — `t` 는 모르는 키를
+      // 키 그대로 돌려주므로 그것으로 있고 없음을 안다.
+      const key = `err.code.${raw.code}` as I18nKey;
+      const text = t(key, { detail: raw.detail ?? "" });
+      if (text !== key) return text;
+      return raw.detail ?? raw.code;
+    }
+    return tError(raw.detail ?? "");
+  }
   if (getLang() === "en") return raw;
   const trimmed = raw.trim();
   for (const [re, key] of RULES) {

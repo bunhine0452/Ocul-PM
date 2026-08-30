@@ -3,6 +3,8 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { commands, type EntryFilters, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "./useOculpmLive";
 import { t } from "@/i18n";
+import { shiftWorkday } from "@/lib/workday";
+import { tError } from "@/i18n/errors";
 
 // Final UI Update (ui_v2) — fetch journal entries and group them by day for the
 // timeline. F3 (2026-06-22): two modes. The default windowed load (last N
@@ -22,17 +24,6 @@ export interface JournalDay {
 
 const DEFAULT_DAYS = 14;
 
-function shiftWorkday(workday: string, delta: number): string {
-  const y = Number(workday.slice(0, 4));
-  const m = Number(workday.slice(4, 6)) - 1;
-  const d = Number(workday.slice(6, 8));
-  const dt = new Date(y, m, d);
-  dt.setDate(dt.getDate() + delta);
-  const yy = dt.getFullYear().toString().padStart(4, "0");
-  const mm = (dt.getMonth() + 1).toString().padStart(2, "0");
-  const dd = dt.getDate().toString().padStart(2, "0");
-  return `${yy}${mm}${dd}`;
-}
 
 /** Human label: 오늘 / 어제 / N일 전 prefix + ISO date. */
 function dayLabel(workday: string, todayKey: string): string {
@@ -129,7 +120,7 @@ export function useJournalDays(
           // v2 U12 — 워크데이당 1콜(×14) 대신 단일 workday brief 로.
           const res = await commands.oculpmWorkdayBrief(projectId, keys, null);
           if (cancelled) return;
-          if (res.status !== "ok") throw new Error(res.error);
+          if (res.status !== "ok") throw new Error(tError(res.error));
           const byKey = new Map<string, JournalEntrySummary[]>(
             res.data.days.map((b) => [b.workday, b.entries]),
           );

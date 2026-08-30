@@ -235,7 +235,7 @@ fn new_file_patch(root: &Path, rel_path: &str, op: FileOp) -> Option<String> {
         return None; // an empty new file has nothing meaningful to show
     }
     let next = String::from_utf8_lossy(&disk);
-    let patch = crate::commands::diff::render_unified_diff(rel_path, "", &next, MAX_PATCH_BYTES);
+    let patch = crate::git::render_unified_diff(rel_path, "", &next, MAX_PATCH_BYTES);
     if patch.trim().is_empty() {
         None
     } else {
@@ -275,7 +275,7 @@ fn snapshot_patch(
     }
     let prev = String::from_utf8_lossy(baseline);
     let next = String::from_utf8_lossy(&disk);
-    let patch = crate::commands::diff::render_unified_diff(rel_path, &prev, &next, MAX_PATCH_BYTES);
+    let patch = crate::git::render_unified_diff(rel_path, &prev, &next, MAX_PATCH_BYTES);
     if patch.trim().is_empty() {
         None
     } else {

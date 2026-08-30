@@ -299,3 +299,110 @@ describe("색인 진행률 스토어 — 컨텍스트 밖", () => {
     expect(result.current).toBeNull();
   });
 });
+
+// ─── Phase 4 — 설계: 오류 규약 · 스토어 헬퍼 · 포매터 · 워크데이 산술 ─────────
+
+import { ApiError, call, toAppError } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
+import { createIntentSlot, createSignal, createStore } from "@/lib/createStore";
+import { formatBytes, relativeTime, toEpochMs } from "@/lib/format";
+import { recentWorkdays, shiftWorkday } from "@/lib/workday";
+
+describe("오류 규약 — call 래퍼와 tError 가 문자열·AppError·전송 실패를 한 모양으로", () => {
+  it("봉투의 AppError 는 code/detail 그대로, 문자열은 unknown, reject 는 메시지", async () => {
+    await expect(call("x", Promise.resolve({ status: "ok", data: 1 }))).resolves.toBe(1);
+    const e1 = await call("x", Promise.resolve({ status: "error", error: { code: "acp_not_running", detail: null } })).catch((e) => e);
+    expect(e1).toBeInstanceOf(ApiError);
+    expect((e1 as ApiError).code).toBe("acp_not_running");
+    const e2 = await call("y", Promise.resolve({ status: "error", error: "No API key configured for anthropic" })).catch((e) => e);
+    expect((e2 as ApiError).code).toBe("unknown");
+    expect((e2 as ApiError).detail).toContain("anthropic");
+    const e3 = await call("z", Promise.reject(new Error("ipc down"))).catch((e) => e);
+    expect((e3 as ApiError).code).toBe("unknown");
+    expect((e3 as ApiError).message).toBe("ipc down");
+    expect(toAppError("s")).toEqual({ code: "unknown", detail: "s" });
+  });
+
+  it("tError 는 코드가 사전에 있으면 문장, 없으면 영어 원문, unknown 은 옛 정규식 표", () => {
+    expect(tError({ code: "acp_not_running", detail: null })).toBe(ko["err.code.acp_not_running"]);
+    expect(tError({ code: "acp_node_too_old", detail: "Node.js 20+ required" })).toContain("Node.js 20+ required");
+    expect(tError({ code: "made_up_code", detail: "raw english" })).toBe("raw english");
+    expect(tError({ code: "unknown", detail: "No API key configured for openai" })).toBe(
+      ko["err.noApiKey"].replace("{provider}", "openai"),
+    );
+    expect(tError(null)).toBe("");
+  });
+});
+
+describe("스토어 헬퍼 — createStore / createSignal / createIntentSlot", () => {
+  it("createStore 는 같은 값이면 조용하고 훅은 바뀔 때만 다시 그린다", () => {
+    const store = createStore(1);
+    const seen: number[] = [];
+    const off = store.subscribe(() => seen.push(store.get()));
+    store.set(1);
+    store.set(2);
+    store.update((n) => n + 1);
+    expect(seen).toEqual([2, 3]);
+    off();
+    store.set(9);
+    expect(seen).toEqual([2, 3]);
+    const { result } = renderHook(() => store.useValue());
+    expect(result.current).toBe(9);
+  });
+
+  it("createSignal 은 값 없는 사건, createIntentSlot 은 끈적 플래그를 든다", () => {
+    const sig = createSignal();
+    const hits = vi.fn();
+    const off = sig.on(hits);
+    sig.emit();
+    off();
+    sig.emit();
+    expect(hits).toHaveBeenCalledTimes(1);
+
+    const slot = createIntentSlot<{ n: number }>("test:slot");
+    slot.request({ n: 1 });
+    expect(slot.consume()).toEqual({ n: 1 });
+    expect(slot.consume()).toBeNull();
+    const got = vi.fn();
+    const offSlot = slot.subscribe(got);
+    slot.request({ n: 2 });
+    expect(got).toHaveBeenCalledWith({ n: 2 });
+    expect(slot.consume()).toBeNull(); // 구독자가 소비했다
+    offSlot();
+    const keep = slot.subscribe(() => {}, { consume: false });
+    slot.request({ n: 3 });
+    expect(slot.consume()).toEqual({ n: 3 }); // consume:false 는 남긴다
+    keep();
+    slot.hold({ n: 4 });
+    expect(slot.consume()).toEqual({ n: 4 });
+  });
+});
+
+describe("포매터 · 워크데이 산술", () => {
+  it("relativeTime 은 words/compact 두 모드와 beyondDays, fallback 을 지킨다", () => {
+    const now = Date.parse("2026-08-30T12:00:00+09:00");
+    expect(relativeTime("2026-08-30T11:59:40+09:00", now)).toBe(ko["time.justNow"]);
+    expect(relativeTime("2026-08-30T11:30:00+09:00", now)).toBe(ko["time.minutesAgo"].replace("{n}", "30"));
+    expect(relativeTime("2026-08-30T09:00:00+09:00", now, { style: "compact" })).toBe("3h");
+    expect(relativeTime(Math.floor(now / 1000) - 120, now, { style: "compact" })).toBe("2m"); // unix 초
+    expect(relativeTime("2026-08-01T09:00:00+09:00", now, { beyondDays: 7 })).toBe(
+      new Date(Date.parse("2026-08-01T09:00:00+09:00")).toLocaleDateString(),
+    );
+    expect(relativeTime("nope", now, { fallback: "—" })).toBe("—");
+    expect(toEpochMs(null)).toBeNull();
+  });
+
+  it("formatBytes 는 B/KB/MB 와 빈 값 fallback", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(2048)).toBe("2.0 KB");
+    expect(formatBytes(3 * 1024 * 1024)).toBe("3.0 MB");
+    expect(formatBytes(null)).toBe("—");
+    expect(formatBytes(undefined, "?")).toBe("?");
+  });
+
+  it("shiftWorkday 는 월말·연말을 넘기고 recentWorkdays 는 오래된 것이 앞", () => {
+    expect(shiftWorkday("20260831", 1)).toBe("20260901");
+    expect(shiftWorkday("20260101", -1)).toBe("20251231");
+    expect(recentWorkdays("20260830", 3)).toEqual(["20260828", "20260829", "20260830"]);
+  });
+});

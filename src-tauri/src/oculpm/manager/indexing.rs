@@ -303,10 +303,8 @@ impl OculpmManager {
                 difficulty: None,
                 created_at: local.to_rfc3339(),
                 updated_at: None,
-                session_id: format!(
-                    "{workday}{}",
-                    crate::oculpm::reconcile::GIT_BACKFILL_SESSION_SUFFIX
-                ),
+                session_id: crate::oculpm::session_id::SessionId::git_backfill(&workday)
+                    .into_string(),
                 agent: AgentRef {
                     id: infer_agent_id(&c.body),
                     version: None,

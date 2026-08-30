@@ -16,6 +16,7 @@ import { SettingsOverlay } from "@/windows/SettingsOverlay";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { onOculpmActivateRequest, onReindexRequest } from "@/lib/projectActions";
 import { indexProgressStore } from "@/lib/indexProgressStore";
@@ -124,7 +125,7 @@ export default function ProjectTab({
         setOculpmStatus(null);
         // 예전엔 로그 한 줄뿐이라 Today 의 "아직 활성화되지 않았어요" 가 이유도
         // 재시도도 없이 그대로였다 (완성도 감사 2026-08-30).
-        toast.destructive(t("today.activateFailed", { error: initRes.error }), {
+        toast.destructive(t("today.activateFailed", { error: tError(initRes.error) }), {
           dedupKey: `oculpm-init-failed-${projectId}`,
           actions: [{ label: t("common.retry"), onClick: () => setInitNonce((n) => n + 1) }],
         });
@@ -170,7 +171,7 @@ export default function ProjectTab({
                 void (async () => {
                   const r = await commands.oculpmWatcherTakeOver(projectId);
                   if (r.status === "ok") toast.info(t("watcher.tookOver"));
-                  else toast.destructive(t("watcher.takeOverFailed", { error: r.error }));
+                  else toast.destructive(t("watcher.takeOverFailed", { error: tError(r.error) }));
                 })();
               },
             },
@@ -199,7 +200,7 @@ export default function ProjectTab({
                   if (r.status === "ok") {
                     toast.info(t("agents.upgrade.done"));
                   } else {
-                    toast.destructive(t("agents.upgrade.failed", { error: r.error }));
+                    toast.destructive(t("agents.upgrade.failed", { error: tError(r.error) }));
                   }
                 })();
               },

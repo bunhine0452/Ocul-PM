@@ -96,9 +96,5 @@ export function collectFiles(nodes: CodeTreeNode[], acc: string[] = []): string[
   return acc;
 }
 
-/** 사람 눈에 맞는 파일 크기 표기 (상태줄·대용량 안내). */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+/** 사람 눈에 맞는 파일 크기 표기 (상태줄·대용량 안내) — `lib/format` 공용. */
+export { formatBytes } from "@/lib/format";

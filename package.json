@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "lint:storage": "node scripts/check-no-localstorage.mjs",
     "lint:i18n": "node scripts/check-no-hardcoded-korean.mjs",
-    "lint": "pnpm lint:storage && pnpm lint:i18n"
+    "lint:bindings": "node scripts/check-bindings-imports.mjs",
+    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

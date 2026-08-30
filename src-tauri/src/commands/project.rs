@@ -12,7 +12,7 @@ use crate::db::{ChunkSearchResult, Db, Project, SymbolSearchResult};
 use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
 
-const EMBED_BATCH: usize = 32;
+use crate::indexer::EMBED_BATCH;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct IndexProgress {

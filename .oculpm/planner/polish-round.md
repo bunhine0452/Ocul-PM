@@ -46,11 +46,11 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 - [x] 초당 틱 단일 스토어(`useSecondTick`) + 워처 diff 캡처의 git 호출 묶기 {#tick-and-diff-batch}
 
 ## Phase 4 — 설계 {#design-rigor}
-- [ ] `SessionId` 뉴타입(Watcher/Manual/Mcp/GitBackfill) + `current_workday` 커맨드 하나로 workday 파생 7곳 통일 {#session-id-newtype}
-- [ ] 오류 규약 — 백엔드 `AppError{code,detail}`(UI 언어 금지) + 프런트 `invoke` 단일 래퍼, `bindings` 직접 import lint {#error-convention}
+- [x] `SessionId` 뉴타입(Watcher/Manual/Mcp/GitBackfill) + `current_workday` 커맨드 하나로 workday 파생 7곳 통일 {#session-id-newtype}
+- [x] 오류 규약 — 백엔드 `AppError{code,detail}`(UI 언어 금지) + 프런트 `invoke` 단일 래퍼, `bindings` 직접 import lint {#error-convention}
 - [ ] WorkspaceContext 3분할(ProjectWorkspace/UiPrefs/Runtime) + 셀렉터; 터미널 탭 목록 lost-update 제거 {#workspace-split}
-- [ ] 이벤트 보강 — `OculpmWorkdayChanged`·`AcpSessionChanged`, 죽은 `OculpmAgentsTemplateChanged` 정리, `OculpmDataArea` 에 Rules/Retro {#events-over-polling}
-- [ ] 버스 7종 → `createStore/createIntentSlot` 헬퍼; 헬퍼 중복(relativeTime×6·formatBytes×3) 단일화; `oculpm/*`→`commands::*` 역의존 3곳 이동 {#bus-and-helpers}
+- [x] 이벤트 보강 — `OculpmWorkdayChanged`·`AcpSessionChanged`, 죽은 `OculpmAgentsTemplateChanged` 정리, `OculpmDataArea` 에 Rules/Retro {#events-over-polling}
+- [x] 버스 7종 → `createStore/createIntentSlot` 헬퍼; 헬퍼 중복(relativeTime×6·formatBytes×3) 단일화; `oculpm/*`→`commands::*` 역의존 3곳 이동 {#bus-and-helpers}
 
 ## Phase 5 — 디자인 토큰 {#design-tokens}
 - [ ] 상태색 토큰 `--ok/--warn/--danger/--info`(+soft, light/dark/프리셋) + fallback 24곳 치환 {#status-tokens}
@@ -73,4 +73,6 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 | 2026-08-30T15:51:00+09:00 | #cheatsheet-whatsnew #today-review-loop | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_cheatsheet-whatsnew-review-loop.md | shortcutRegistry+⌘/ · last_seen_version 카드 · 토스트 「열기」 · diff 머리글 확인 토글 · Today 회고 |
 | 2026-08-30T16:09:00+09:00 | #i18n-split #lazy-restore #index-progress #tick-and-diff-batch | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1609_refactor_entry-chunk-and-render-churn.md | 진입 538→268KB · lazy 2곳 · 진행률 스토어+100ms · 공유 시계 (diff 묶기는 다음 행) |
 | 2026-08-30T16:09:00+09:00 | #brief-single-query #vec-partition #tick-and-diff-batch | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1609_refactor_query-fanin-vec-partition-git-batch.md | workday IN · compare_workday · 032 partition key+VACUUM · diff_patches 묶기 |
+| 2026-08-30T16:36:00+09:00 | #session-id-newtype #events-over-polling | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1636_refactor_session-id-newtype-and-events.md | SessionId 뉴타입+current_workday · WorkdayChanged/AcpSessionChanged 로 폴링 3곳 제거 · Rules/Retro 영역 · 역의존 3곳 이동 |
+| 2026-08-30T16:36:00+09:00 | #error-convention #bus-and-helpers | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1636_refactor_error-convention-and-store-helpers.md | AppError(oculpm·acp 59) + call 래퍼 + lint:bindings · createStore 3종 · format/workday 단일화 |
 <!-- oculpm:plan-log end -->

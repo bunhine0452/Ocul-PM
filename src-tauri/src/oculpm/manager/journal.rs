@@ -405,12 +405,8 @@ impl OculpmManager {
         } else if let Ok(Some(sess)) = self.get_current_session(project_id).await {
             sess.id
         } else {
-            format!(
-                "manual-{workday}-{}{:02}{:02}",
-                local_now.hour(),
-                local_now.minute(),
-                local_now.second()
-            )
+            // 시(時)까지 두 자리로 — 예전 포맷은 10시 전에 한 글자 짧았다.
+            crate::oculpm::session_id::SessionId::manual(&workday, local_now).into_string()
         };
 
         // Build the frontmatter.

@@ -521,6 +521,25 @@ impl OculpmManager {
     }
 
     /// 감독관(`oculpm::supervisor`)용 스냅샷 — 추적 중인 프로젝트별 감시 상태.
+    /// 추적 중인 모든 프로젝트의 (id, 현재 워크데이) — 감독관의 날 넘김 감지용.
+    pub async fn current_workdays(&self) -> Vec<(u32, String)> {
+        let now = chrono::Utc::now();
+        let projects = self.projects.read().await;
+        projects
+            .iter()
+            .map(|(id, entry)| (*id, entry.resolver.workday_of(now)))
+            .collect()
+    }
+
+    /// 프로젝트 하나의 현재 워크데이 (`OculpmStatus.current_workday` 와 같은 값).
+    pub async fn current_workday(&self, project_id: u32) -> Result<String, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        Ok(entry.resolver.workday_of(chrono::Utc::now()))
+    }
+
     pub async fn watcher_health(&self) -> Vec<WatcherHealth> {
         let projects = self.projects.read().await;
         projects

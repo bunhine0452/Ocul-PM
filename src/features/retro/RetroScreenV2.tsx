@@ -40,6 +40,7 @@ import {
   subscribeRetroGen,
 } from "./retroGen";
 import { useT, type I18nKey } from "@/i18n";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
 // 집중·에이전트 기여)를 모아 보여주고, "회고 생성"으로 그 신호 위에 LLM 한국어
@@ -126,6 +127,10 @@ export function RetroScreenV2({
 
   // 오류 카드의 「다시 시도」 — 같은 범위를 다시 읽게 하는 유일한 손잡이.
   const [reloadNonce, setReloadNonce] = useState(0);
+  // `.oculpm/retro/*.md` 가 디스크에서 바뀌면(에이전트가 회고를 씀) 다시 읽는다
+  // (Phase 4 #events-over-polling). 이전엔 오류 카드의 재시도만이 재조회였다.
+  const bumpReload = useCallback(() => setReloadNonce((n) => n + 1), []);
+  useOculpmDataEvents("retro", projectId, true, bumpReload);
 
   // Refetch deterministic signals + cached narrative whenever the range (or
   // project) changes. The two are independent reads, run in parallel.

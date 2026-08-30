@@ -60,7 +60,8 @@ function pb(id: number, over: Record<string, unknown> = {}) {
 
 describe("relativeTime", () => {
   it("분·시간·일 단위로 접는다", () => {
-    expect(relativeTime("2026-07-31T13:59:30+09:00", NOW)).toBe("방금 전");
+    // Phase 4 — 상대 시각은 `lib/format` 공용 (`time.*` 사전): "방금".
+    expect(relativeTime("2026-07-31T13:59:30+09:00", NOW)).toBe("방금");
     expect(relativeTime("2026-07-31T13:30:00+09:00", NOW)).toBe("30분 전");
     expect(relativeTime("2026-07-31T11:00:00+09:00", NOW)).toBe("3시간 전");
     expect(relativeTime("2026-07-29T14:00:00+09:00", NOW)).toBe("2일 전");

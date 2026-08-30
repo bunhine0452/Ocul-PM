@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from "react";
 import type { IndexProgress } from "@/lib/bindings";
+import { createStore } from "@/lib/createStore";
 
 // 색인 진행률의 컨텍스트 밖 스토어 (완성도 라운드 Phase 3, 2026-08-30).
 //
@@ -9,38 +9,15 @@ import type { IndexProgress } from "@/lib/bindings";
 // 읽는 화면은 검색 하나뿐이라, 그 하나만 구독하는 외부 스토어로 뺀다.
 // "색인 중인가"(`indexingProjectId`) 는 두 번만 바뀌므로 컨텍스트에 남긴다.
 
-type Listener = () => void;
-
-let current: IndexProgress | null = null;
-const listeners = new Set<Listener>();
-
-function emit(): void {
-  for (const listener of [...listeners]) listener();
-}
+const store = createStore<IndexProgress | null>(null);
 
 export const indexProgressStore = {
   /** 백엔드 채널이 보낸 스냅샷 그대로 (참조를 바꾸지 않으면 구독자도 조용하다). */
-  set(progress: IndexProgress): void {
-    current = progress;
-    emit();
-  },
-  clear(): void {
-    if (current === null) return;
-    current = null;
-    emit();
-  },
-  get(): IndexProgress | null {
-    return current;
-  },
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  },
+  set: (progress: IndexProgress) => store.set(progress),
+  clear: () => store.set(null),
+  get: store.get,
+  subscribe: store.subscribe,
 };
 
 /** 지금 도는 색인의 진행률. 안 돌면 `null`. */
-export function useIndexProgress(): IndexProgress | null {
-  return useSyncExternalStore(indexProgressStore.subscribe, indexProgressStore.get, indexProgressStore.get);
-}
+export const useIndexProgress = store.useValue;

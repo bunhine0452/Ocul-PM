@@ -13,35 +13,16 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::{Instant, UNIX_EPOCH};
+use std::time::Instant;
 
 use serde::Serialize;
 use tauri::State;
 use tracing::info;
 
 use crate::db::Db;
-use crate::embedding::{vec_to_bytes, Embedder};
-use crate::git;
-use crate::indexer;
-
-const EMBED_BATCH: usize = 32;
-
-/// Per-path outcome surfaced to the UI. Skip reasons let the caller render a
-/// "(skipped: too large)" badge next to the path without re-running
-/// `walk_text_files` filters.
-#[derive(Debug, Clone, Serialize, specta::Type)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ReindexSkipReason {
-    NotFound,
-    ReadFailed {
-        error: String,
-    },
-    UpsertFailed {
-        error: String,
-    },
-    /// minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다.
-    Generated,
-}
+use crate::embedding::Embedder;
+use crate::git::{self, render_unified_diff};
+use crate::indexer::{self, reindex_single_file, ReindexSkipReason};
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ReindexSkip {
@@ -125,112 +106,6 @@ pub async fn reindex_paths(
         embeddings_updated,
         ast_updated,
     })
-}
-
-/// Reindex one file: upsert + diff snapshot + AST symbols + chunk embeddings.
-/// Shared by the `reindex_paths` command and the watcher's incremental
-/// auto-index (PR-5). Returns `(embeddings_updated, ast_updated)` or a
-/// structured skip reason — unlike the old inline loop, an embed/insert
-/// failure on one file is reported as a skip instead of aborting the batch.
-/// The file is reindexed unconditionally (no hash short-circuit): callers
-/// reach here only for paths they already know changed.
-pub(crate) async fn reindex_single_file(
-    db: &Db,
-    embedder: &Embedder,
-    project_id: u32,
-    root: &std::path::Path,
-    index_config: &indexer::IndexConfig,
-    rel_str: &str,
-) -> std::result::Result<(u32, u32), ReindexSkipReason> {
-    let abs_path = root.join(rel_str);
-    if !abs_path.exists() {
-        return Err(ReindexSkipReason::NotFound);
-    }
-    let content = fs::read_to_string(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
-        error: e.to_string(),
-    })?;
-    if !indexer::is_indexable_content(&content) {
-        return Err(ReindexSkipReason::Generated);
-    }
-    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-    let metadata = fs::metadata(&abs_path).map_err(|e| ReindexSkipReason::ReadFailed {
-        error: e.to_string(),
-    })?;
-    let size = metadata.len() as i64;
-    let mtime = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    let language = indexer::language_for(&abs_path).map(String::from);
-
-    let (file_id, _changed) = db
-        .upsert_file(
-            project_id,
-            rel_str.to_string(),
-            hash.clone(),
-            size,
-            mtime,
-            language,
-        )
-        .await
-        .map_err(|e| ReindexSkipReason::UpsertFailed {
-            error: e.to_string(),
-        })?;
-
-    // PR6.6 — refresh the diff baseline so LocalDiffView's snapshot fallback
-    // stays current.
-    db.upsert_file_snapshot(
-        project_id,
-        rel_str.to_string(),
-        content.as_bytes().to_vec(),
-        hash.clone(),
-    )
-    .await
-    .map_err(|e| ReindexSkipReason::UpsertFailed {
-        error: e.to_string(),
-    })?;
-
-    let mut embeddings_updated: u32 = 0;
-    let mut ast_updated: u32 = 0;
-    let (chunks, analysis) = indexer::chunk_file(&abs_path, &content, index_config);
-    if let Some(ref ana) = analysis {
-        ast_updated += db
-            .insert_symbol_definitions(file_id, ana.symbols.clone())
-            .await
-            .map_err(|e| ReindexSkipReason::UpsertFailed {
-                error: e.to_string(),
-            })? as u32;
-    }
-    if !chunks.is_empty() {
-        for batch in chunks.chunks(EMBED_BATCH) {
-            let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
-            let embeddings = embedder
-                .embed(texts)
-                .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e })?;
-            let rows: Vec<crate::db::ChunkInsert> = batch
-                .iter()
-                .zip(embeddings.iter())
-                .map(|(chunk, embedding)| crate::db::ChunkInsert {
-                    kind: chunk.kind.to_string(),
-                    start_line: chunk.start_line,
-                    end_line: chunk.end_line,
-                    content: chunk.content.clone(),
-                    embedding: vec_to_bytes(embedding),
-                })
-                .collect();
-            embeddings_updated += db
-                .insert_chunks_with_embeddings(project_id, file_id, rows)
-                .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed {
-                    error: e.to_string(),
-                })? as u32;
-        }
-    }
-
-    Ok((embeddings_updated, ast_updated))
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -686,34 +561,6 @@ async fn snapshot_diff(
     })
 }
 
-/// Format a unified-diff so the frontend's `classifyDiffLines` (which already
-/// understands `git diff` output) can render snapshot diffs without changes.
-/// The header mirrors `git diff --no-prefix` style with `a/` `b/` prefixes
-/// to keep line classification consistent.
-pub(crate) fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
-    use similar::TextDiff;
-
-    let diff = TextDiff::from_lines(prev, next);
-    let body = diff
-        .unified_diff()
-        .context_radius(3)
-        .header(&format!("a/{path}"), &format!("b/{path}"))
-        .to_string();
-
-    let header = format!("diff --git a/{path} b/{path}\n");
-    let text = format!("{header}{body}");
-
-    if text.len() > max_bytes {
-        format!(
-            "{}\n\n... (truncated, {} bytes total)",
-            crate::git::truncate_at_char_boundary(&text, max_bytes),
-            text.len()
-        )
-    } else {
-        text
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -731,58 +578,6 @@ mod tests {
             "fatal: pathspec 'foo' did not match any files"
         ));
         assert!(!is_recoverable_git_failure("Permission denied"));
-    }
-
-    #[test]
-    fn render_unified_diff_produces_git_compatible_headers() {
-        let prev = "line a\nline b\nline c\n";
-        let next = "line a\nline B\nline c\n";
-        let out = render_unified_diff("src/sample.txt", prev, next, 65_536);
-        assert!(
-            out.starts_with("diff --git a/src/sample.txt b/src/sample.txt\n"),
-            "missing diff header: {out}"
-        );
-        assert!(
-            out.contains("--- a/src/sample.txt"),
-            "missing --- header: {out}"
-        );
-        assert!(
-            out.contains("+++ b/src/sample.txt"),
-            "missing +++ header: {out}"
-        );
-        assert!(out.contains("-line b"), "missing - line: {out}");
-        assert!(out.contains("+line B"), "missing + line: {out}");
-    }
-
-    #[test]
-    fn render_unified_diff_truncates_oversized_output() {
-        let mut prev = String::new();
-        let mut next = String::new();
-        for i in 0..2_000 {
-            prev.push_str(&format!("prev line {i}\n"));
-            next.push_str(&format!("next line {i}\n"));
-        }
-        let out = render_unified_diff("big.txt", &prev, &next, 1_024);
-        assert!(out.contains("... (truncated,"), "missing truncation marker");
-        assert!(
-            out.len() < 1_024 + 512,
-            "truncation budget overshot: {}",
-            out.len()
-        );
-    }
-
-    #[test]
-    fn render_unified_diff_truncation_respects_byte_budget_for_multibyte_text() {
-        // 옛 구현은 chars 기준으로 잘라 한글 diff 가 예산의 최대 3~4배로 부풀었다.
-        let prev: String = "이전 줄입니다\n".repeat(2_000);
-        let next: String = "다음 줄입니다\n".repeat(2_000);
-        let out = render_unified_diff("big-ko.txt", &prev, &next, 1_024);
-        assert!(out.contains("... (truncated,"), "missing truncation marker");
-        assert!(
-            out.len() < 1_024 + 128,
-            "byte budget overshot: {}",
-            out.len()
-        );
     }
 
     #[test]

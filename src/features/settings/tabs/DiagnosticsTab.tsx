@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands, type DbHealth } from "@/lib/bindings";
 import { RefreshCw, Bug, MessageSquare } from "@/components/Icons";
-import { formatBytes } from "@/features/code/treeUtils";
+import { formatBytes } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { Section, Stat } from "./ui";
@@ -16,6 +16,7 @@ import { DoctorSection } from "./DoctorSection";
 function fmtBytes(n: number | null | undefined): string | undefined {
   return typeof n === "number" ? formatBytes(n) : undefined;
 }
+// (formatBytes 는 `lib/format` 공용 — Phase 4 에서 세 벌을 하나로.)
 
 // GitHub repo behind feedback issues + the updater endpoint.
 export const FEEDBACK_REPO = "bunhine0452/Ocul-PM";

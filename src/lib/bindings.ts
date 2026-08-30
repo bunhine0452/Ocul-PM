@@ -907,23 +907,23 @@ export const commands = {
 	 *  config, acquires the lock, and patches `.gitignore`. Returns a report of
 	 *  what changed so the UI can surface "added 5 lines to .gitignore" etc.
 	 */
-	oculpmInit: (projectId: number) => typedError<OculpmInitReport, string>(__TAURI_INVOKE("oculpm_init", { projectId })),
+	oculpmInit: (projectId: number) => typedError<OculpmInitReport, AppError>(__TAURI_INVOKE("oculpm_init", { projectId })),
 	/**
 	 *  Current `.oculpm/` status (initialised, lock, current workday, watcher).
 	 *  Safe to call before init — returns a default uninitialised view.
 	 */
-	oculpmGetStatus: (projectId: number) => typedError<OculpmStatus, string>(__TAURI_INVOKE("oculpm_get_status", { projectId })),
+	oculpmGetStatus: (projectId: number) => typedError<OculpmStatus, AppError>(__TAURI_INVOKE("oculpm_get_status", { projectId })),
 	/**
 	 *  Read the validated in-memory `OculpmConfig`. Errors if `oculpm_init` has
 	 *  not been called for this project.
 	 */
-	oculpmGetConfig: (projectId: number) => typedError<OculpmConfig, string>(__TAURI_INVOKE("oculpm_get_config", { projectId })),
+	oculpmGetConfig: (projectId: number) => typedError<OculpmConfig, AppError>(__TAURI_INVOKE("oculpm_get_config", { projectId })),
 	/**
 	 *  Validate + persist a new `OculpmConfig` (atomic write) and refresh the
 	 *  in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
 	 *  disk.
 	 */
-	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, string>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
+	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
 	/**  Manually start a session. Idempotent — returns existing if already active. */
 	oculpmStartSessionManual: (projectId: number) => typedError<{
 	/**  `YYYYMMDD-NNN`. */
@@ -943,9 +943,9 @@ export const commands = {
 	agent_label_guess: string | null,
 	/**  Paths relative to `.oculpm/journal/<workday>/`. */
 	linked_journal_entries: string[],
-} | null, string>(__TAURI_INVOKE("oculpm_start_session_manual", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("oculpm_start_session_manual", { projectId })),
 	/**  Manually end a session. `session_id` must match the active session. */
-	oculpmEndSessionManual: (projectId: number, sessionId: string) => typedError<null, string>(__TAURI_INVOKE("oculpm_end_session_manual", { projectId, sessionId })),
+	oculpmEndSessionManual: (projectId: number, sessionId: string) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_end_session_manual", { projectId, sessionId })),
 	/**
 	 *  터미널이 감지한 코딩 에이전트 실행 신호 (OSC 133;C/D → 세션 경계).
 	 * 
@@ -953,15 +953,15 @@ export const commands = {
 	 *  만든다. 감시가 꺼져 있으면 `false` 를 돌려주고 아무 일도 하지 않는다 —
 	 *  터미널 사용이 감시를 켜는 부작용을 내면 안 된다.
 	 */
-	oculpmAgentRunSignal: (projectId: number, started: boolean, agentLabel: string) => typedError<boolean, string>(__TAURI_INVOKE("oculpm_agent_run_signal", { projectId, started, agentLabel })),
+	oculpmAgentRunSignal: (projectId: number, started: boolean, agentLabel: string) => typedError<boolean, AppError>(__TAURI_INVOKE("oculpm_agent_run_signal", { projectId, started, agentLabel })),
 	/**  List sessions for a workday. `workday = None` → today. */
-	oculpmListSessions: (projectId: number, workday: string | null) => typedError<Session[], string>(__TAURI_INVOKE("oculpm_list_sessions", { projectId, workday })),
+	oculpmListSessions: (projectId: number, workday: string | null) => typedError<Session[], AppError>(__TAURI_INVOKE("oculpm_list_sessions", { projectId, workday })),
 	/**  Get file change events for a workday, optionally filtered by session_id. */
-	oculpmGetFileChanges: (projectId: number, workday: string, sessionId: string | null) => typedError<FileChangeEvent[], string>(__TAURI_INVOKE("oculpm_get_file_changes", { projectId, workday, sessionId })),
+	oculpmGetFileChanges: (projectId: number, workday: string, sessionId: string | null) => typedError<FileChangeEvent[], AppError>(__TAURI_INVOKE("oculpm_get_file_changes", { projectId, workday, sessionId })),
 	/**  Start the filesystem watcher. Idempotent. Requires lock ownership. */
-	oculpmWatcherStart: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_start", { projectId })),
+	oculpmWatcherStart: (projectId: number) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_watcher_start", { projectId })),
 	/**  Stop the filesystem watcher. Idempotent. */
-	oculpmWatcherStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_stop", { projectId })),
+	oculpmWatcherStop: (projectId: number) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_watcher_stop", { projectId })),
 	/**
 	 *  살아 있는 다른 인스턴스에게서 이 프로젝트의 락을 **가져와** 감시를 시작한다.
 	 * 
@@ -969,7 +969,7 @@ export const commands = {
 	 *  언제나 양보한다 — 두 창이 서로를 계속 쫓아내면 아무도 일을 못 한다.
 	 *  쫓겨난 쪽은 하트비트가 인계를 발견해 5초 안에 감시를 접는다.
 	 */
-	oculpmWatcherTakeOver: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_take_over", { projectId })),
+	oculpmWatcherTakeOver: (projectId: number) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_watcher_take_over", { projectId })),
 	/**
 	 *  List cached journal entries for a workday (or today if None) with filters.
 	 *  Returns `[]` for uninitialised projects so the UI can render the Today
@@ -996,7 +996,7 @@ export const commands = {
 	 *  match the null bucket — that's a separate W6 toggle.
 	 */
 	difficulties?: Difficulty[],
-} | null) => typedError<JournalEntrySummary[], string>(__TAURI_INVOKE("oculpm_list_journal_entries", { projectId, workday, filters })),
+} | null) => typedError<JournalEntrySummary[], AppError>(__TAURI_INVOKE("oculpm_list_journal_entries", { projectId, workday, filters })),
 	/**
 	 *  Get a single journal entry by relative path. Falls back to on-demand
 	 *  disk read + cache upsert if the row is missing. Returns `None` only
@@ -1025,32 +1025,32 @@ export const commands = {
 	parse_ok: boolean,
 	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
 	parse_warnings: string[],
-} | null, string>(__TAURI_INVOKE("oculpm_get_journal_entry", { projectId, relativePath })),
+} | null, AppError>(__TAURI_INVOKE("oculpm_get_journal_entry", { projectId, relativePath })),
 	/**
 	 *  Read the per-file diffs recorded for a journal entry at the moment it was
 	 *  first indexed (see `oculpm::entry_diffs`). Returns `[]` when nothing was
 	 *  captured — the entry predates the feature, the project isn't a git repo, or
 	 *  it was written after committing — and the UI renders "기록된 변경 없음".
 	 */
-	oculpmGetEntryDiffs: (projectId: number, relativePath: string) => typedError<EntryFileDiff[], string>(__TAURI_INVOKE("oculpm_get_entry_diffs", { projectId, relativePath })),
+	oculpmGetEntryDiffs: (projectId: number, relativePath: string) => typedError<EntryFileDiff[], AppError>(__TAURI_INVOKE("oculpm_get_entry_diffs", { projectId, relativePath })),
 	/**
 	 *  Group the watcher's changed file paths by the journal entry that recorded
 	 *  each, with the plan items linked to that entry (Dogfooding #3). Files no
 	 *  entry recorded land in a trailing `entry_path: None` bucket.
 	 */
-	oculpmGroupChanges: (projectId: number, paths: string[]) => typedError<ChangeGroup[], string>(__TAURI_INVOKE("oculpm_group_changes", { projectId, paths })),
+	oculpmGroupChanges: (projectId: number, paths: string[]) => typedError<ChangeGroup[], AppError>(__TAURI_INVOKE("oculpm_group_changes", { projectId, paths })),
 	/**
 	 *  Toggle `verified_by_user` on a journal entry's frontmatter. Atomic
 	 *  write-through: file is rewritten first, then the cache is upserted in
 	 *  the same call so the UI sees the change immediately.
 	 */
-	oculpmSetJournalVerified: (projectId: number, relativePath: string, verified: boolean) => typedError<null, string>(__TAURI_INVOKE("oculpm_set_journal_verified", { projectId, relativePath, verified })),
+	oculpmSetJournalVerified: (projectId: number, relativePath: string, verified: boolean) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_journal_verified", { projectId, relativePath, verified })),
 	/**
 	 *  v2 U7 — 커맨드 팔레트 엔티티 점프 ("go to anything"): 일지·플랜·플랜
 	 *  항목·토의를 제목으로 통합 검색한다. SQLite 캐시만 읽는 저비용 경로
 	 *  (타이핑 debounce 마다 호출됨).
 	 */
-	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], string>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
+	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], AppError>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
 	/**
 	 *  v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
 	 *  총 일지 수를 IPC 1회에.
@@ -1058,13 +1058,13 @@ export const commands = {
 	 *  완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
 	 *  `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
 	 */
-	oculpmWorkdayBrief: (projectId: number, workdays: string[], linesWorkday: string | null) => typedError<WorkdayBrief, string>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, linesWorkday })),
+	oculpmWorkdayBrief: (projectId: number, workdays: string[], linesWorkday: string | null) => typedError<WorkdayBrief, AppError>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, linesWorkday })),
 	/**
 	 *  Rebuild the journal cache from disk. Drops every cached row for the
 	 *  project and re-walks `.oculpm/journal/`. Use after manual sqlite
 	 *  tampering or schema migration.
 	 */
-	oculpmReindexCache: (projectId: number) => typedError<ReindexReport, string>(__TAURI_INVOKE("oculpm_reindex_cache", { projectId })),
+	oculpmReindexCache: (projectId: number) => typedError<ReindexReport, AppError>(__TAURI_INVOKE("oculpm_reindex_cache", { projectId })),
 	/**
 	 *  Write a manual journal entry from the user-authored draft. Validates
 	 *  the slug (kebab-case ASCII, 1..=60 chars), resolves the session_id
@@ -1072,7 +1072,7 @@ export const commands = {
 	 *  the spec's `<HHMM>_<type>_<slug>.md` naming, and returns the hydrated
 	 *  `JournalEntry`. On filename collision the writer suffixes `__2`/`__3`.
 	 */
-	oculpmCreateManualEntry: (projectId: number, draft: ManualEntryDraft) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_create_manual_entry", { projectId, draft })),
+	oculpmCreateManualEntry: (projectId: number, draft: ManualEntryDraft) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_create_manual_entry", { projectId, draft })),
 	/**
 	 *  Inline-edit one or both of `difficulty` / `status` on an existing entry.
 	 *  Same write-through semantics as `oculpm_set_journal_verified` — atomic
@@ -1086,14 +1086,14 @@ export const commands = {
 	 */
 	oculpmUpdateEntryMeta: (projectId: number, relativePath: string, difficultyChange: {
 	value: Difficulty | null,
-} | null, status: "planned" | "in_progress" | "done" | "abandoned" | null) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_update_entry_meta", { projectId, relativePath, difficultyChange, status })),
+} | null, status: "planned" | "in_progress" | "done" | "abandoned" | null) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_update_entry_meta", { projectId, relativePath, difficultyChange, status })),
 	/**
 	 *  F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
 	 *  frontmatter once (explicit user action). Only timestamps are written; the
 	 *  slug stays display-coerced (filename coupling). Returns the re-projected
 	 *  entry so the UI can drop the "보정됨" tz note.
 	 */
-	oculpmCoerceEntryOnDisk: (projectId: number, relativePath: string) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_coerce_entry_on_disk", { projectId, relativePath })),
+	oculpmCoerceEntryOnDisk: (projectId: number, relativePath: string) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_coerce_entry_on_disk", { projectId, relativePath })),
 	/**
 	 *  Re-render every adapter according to `config.agents.active`. Idempotent —
 	 *  when nothing's changed since the last sync, every result is `unchanged`
@@ -1102,12 +1102,12 @@ export const commands = {
 	 *    - the OculpmSettings save (W4-PR7)
 	 *    - the watcher's `.oculpm/agents/**` handler (master template edits)
 	 */
-	oculpmAgentsSyncActive: (projectId: number) => typedError<AgentSyncReport, string>(__TAURI_INVOKE("oculpm_agents_sync_active", { projectId })),
+	oculpmAgentsSyncActive: (projectId: number) => typedError<AgentSyncReport, AppError>(__TAURI_INVOKE("oculpm_agents_sync_active", { projectId })),
 	/**
 	 *  Read-only adapter heuristic. Used by Settings "감지" button + Greenfield
 	 *  default active set.
 	 */
-	oculpmAgentsDetect: (projectId: number) => typedError<AgentDetection[], string>(__TAURI_INVOKE("oculpm_agents_detect", { projectId })),
+	oculpmAgentsDetect: (projectId: number) => typedError<AgentDetection[], AppError>(__TAURI_INVOKE("oculpm_agents_detect", { projectId })),
 	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the project's master template
 	 *  text so the UI's "프롬프트 복사" action can paste it into a chat. Read-only;
@@ -1115,7 +1115,7 @@ export const commands = {
 	 *  `oculpm_agents_sync_active` already handles) from the *one-shot prompt
 	 *  delivery* concern that the user actually wants when clicking "복사".
 	 */
-	oculpmAgentsGetMasterTemplate: (projectId: number) => typedError<string, string>(__TAURI_INVOKE("oculpm_agents_get_master_template", { projectId })),
+	oculpmAgentsGetMasterTemplate: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("oculpm_agents_get_master_template", { projectId })),
 	/**
 	 *  Is a newer agent-rules master template available than the one on disk?
 	 *  `None` = up-to-date. Surfaced as an "update" prompt on project open.
@@ -1123,24 +1123,29 @@ export const commands = {
 	oculpmAgentsCheckMasterUpgrade: (projectId: number) => typedError<{
 	from_version: number,
 	to_version: number,
-} | null, string>(__TAURI_INVOKE("oculpm_agents_check_master_upgrade", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("oculpm_agents_check_master_upgrade", { projectId })),
 	/**
 	 *  Upgrade the on-disk master to the embedded one + re-sync adapters (AGENTS.md
 	 *  etc.). The previous master is backed up to `_template.md.bak`.
 	 */
-	oculpmAgentsApplyMasterUpgrade: (projectId: number) => typedError<AgentSyncReport, string>(__TAURI_INVOKE("oculpm_agents_apply_master_upgrade", { projectId })),
+	oculpmAgentsApplyMasterUpgrade: (projectId: number) => typedError<AgentSyncReport, AppError>(__TAURI_INVOKE("oculpm_agents_apply_master_upgrade", { projectId })),
 	/**
 	 *  W4-PR5 — compare a session's index ndjson against the union of journal
 	 *  `files_touched` paths. Returns matched / missing / hallucinated sets +
 	 *  jaccard severity. (Lite-W6 PR3 retired the DiffVsNarrative UI; the
 	 *  command is kept for backend introspection + potential future surfaces.)
 	 */
-	oculpmCompareLayers: (projectId: number, sessionId: string) => typedError<LayerComparison, string>(__TAURI_INVOKE("oculpm_compare_layers", { projectId, sessionId })),
+	oculpmCompareLayers: (projectId: number, sessionId: string) => typedError<LayerComparison, AppError>(__TAURI_INVOKE("oculpm_compare_layers", { projectId, sessionId })),
 	/**
 	 *  워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
 	 *  IPC 1회로 (완성도 라운드 Phase 3).
 	 */
-	oculpmCompareWorkday: (projectId: number, workday: string) => typedError<WorkdayComparison, string>(__TAURI_INVOKE("oculpm_compare_workday", { projectId, workday })),
+	oculpmCompareWorkday: (projectId: number, workday: string) => typedError<WorkdayComparison, AppError>(__TAURI_INVOKE("oculpm_compare_workday", { projectId, workday })),
+	/**
+	 *  프로젝트의 현재 워크데이 (`YYYYMMDD`) — tz·`day_starts_at` 을 아는 유일한
+	 *  답. 프런트가 `new Date()` 로 흉내 내던 것을 대신한다 (Phase 4).
+	 */
+	oculpmCurrentWorkday: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("oculpm_current_workday", { projectId })),
 	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
 	 *  directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
@@ -1148,7 +1153,7 @@ export const commands = {
 	 *  Returns `None` if the process started with file logging disabled (test
 	 *  runs / unsupported platform).
 	 */
-	oculpmGetLogDir: () => typedError<string | null, string>(__TAURI_INVOKE("oculpm_get_log_dir")),
+	oculpmGetLogDir: () => typedError<string | null, AppError>(__TAURI_INVOKE("oculpm_get_log_dir")),
 	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — bridge `console.*` calls from the
 	 *  webview into the backend's `tracing` layers so the user only has to grab
@@ -1164,7 +1169,7 @@ export const commands = {
 	 *  journal entry. Frontmatter is preserved verbatim. Returns the hydrated
 	 *  entry so the UI can resync without a second fetch.
 	 */
-	oculpmUpdateEntryBody: (projectId: number, relativePath: string, bodyMarkdown: string) => typedError<JournalEntry, string>(__TAURI_INVOKE("oculpm_update_entry_body", { projectId, relativePath, bodyMarkdown })),
+	oculpmUpdateEntryBody: (projectId: number, relativePath: string, bodyMarkdown: string) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_update_entry_body", { projectId, relativePath, bodyMarkdown })),
 	/**
 	 *  W4 dogfooding (2026-05-27) — open a journal entry's `.md` file with the
 	 *  OS default app. The opener plugin's path-glob scope keeps rejecting
@@ -1172,18 +1177,18 @@ export const commands = {
 	 *  absolute path inside the backend and invokes `open` / `xdg-open` /
 	 *  `cmd /c start` directly, sidestepping the scope check entirely.
 	 */
-	oculpmOpenEntryInEditor: (projectId: number, relativePath: string) => typedError<null, string>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath })),
+	oculpmOpenEntryInEditor: (projectId: number, relativePath: string) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath })),
 	/**
 	 *  Single-shot fetch of every Overview widget. `window_days` clamps to
 	 *  1..=365 inside the manager — the modal-facing default is 90 (heatmap).
 	 */
-	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, string>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
+	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, AppError>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
 	/**
 	 *  Synthesise one journal entry per recent git commit (cold-start backfill).
 	 *  Idempotent: re-running only adds commits not seen before. `max_commits`
 	 *  caps the scan (clamped 1..=2000 in the manager).
 	 */
-	oculpmBackfillFromGit: (projectId: number, maxCommits: number) => typedError<BackfillReport, string>(__TAURI_INVOKE("oculpm_backfill_from_git", { projectId, maxCommits })),
+	oculpmBackfillFromGit: (projectId: number, maxCommits: number) => typedError<BackfillReport, AppError>(__TAURI_INVOKE("oculpm_backfill_from_git", { projectId, maxCommits })),
 	/**
 	 *  Deterministic signals for a workday range — no LLM. `since`/`until` are
 	 *  inclusive "YYYYMMDD".
@@ -1327,9 +1332,9 @@ export const commands = {
 	 */
 	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
 	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
-	acpDiagnose: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_diagnose")),
+	acpDiagnose: () => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_diagnose")),
 	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */
-	acpInstallAdapter: () => typedError<AcpDiagnostics, string>(__TAURI_INVOKE("acp_install_adapter")),
+	acpInstallAdapter: () => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_install_adapter")),
 	/**
 	 *  어댑터를 띄우고 `initialize` + `session/new` 까지 마친다 (이미 떠 있으면 그대로).
 	 * 
@@ -1337,9 +1342,9 @@ export const commands = {
 	 *  `session/new` 응답에만 실려 오는데, 첫 프롬프트까지 미루면 그때까지 셀렉터를
 	 *  그릴 수 없기 때문이다. cwd 는 프로젝트 루트로 이미 확정돼 있다.
 	 */
-	acpStart: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_start", { projectId })),
+	acpStart: (projectId: number) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_start", { projectId })),
 	/**  어댑터를 내린다. 떠 있지 않았으면 `false`. */
-	acpStop: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("acp_stop", { projectId })),
+	acpStop: (projectId: number) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_stop", { projectId })),
 	/**  현재 떠 있는 어댑터 정보 (없으면 `None`). */
 	acpStatus: (projectId: number) => typedError<{
 	name: string,
@@ -1350,7 +1355,7 @@ export const commands = {
 	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
 	 */
 	auth_required: boolean,
-} | null, string>(__TAURI_INVOKE("acp_status", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("acp_status", { projectId })),
 	/**
 	 *  프롬프트를 보내고 턴이 끝날 때까지 이벤트를 `on_event` 로 흘린다.
 	 * 
@@ -1364,7 +1369,7 @@ export const commands = {
 	 *  **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
 	 *  읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
 	 */
-	acpPrompt: (projectId: number, sessionId: string | null, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, string>(__TAURI_INVOKE("acp_prompt", { projectId, sessionId, text, attachments, images, onEvent })),
+	acpPrompt: (projectId: number, sessionId: string | null, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, AppError>(__TAURI_INVOKE("acp_prompt", { projectId, sessionId, text, attachments, images, onEvent })),
 	/**
 	 *  진행 중인 턴을 취소한다. 세션이 없으면 `false`.
 	 * 
@@ -1374,18 +1379,18 @@ export const commands = {
 	 *  `session_id` 는 **멈출 대화**다. 프롬프트와 같은 이유로 인자로 받는다 —
 	 *  옆에서 돌던 대화까지 함께 멈추면 ESC 한 번에 남의 턴이 죽는다.
 	 */
-	acpCancel: (projectId: number, sessionId: string | null) => typedError<boolean, string>(__TAURI_INVOKE("acp_cancel", { projectId, sessionId })),
+	acpCancel: (projectId: number, sessionId: string | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_cancel", { projectId, sessionId })),
 	/**  권한 카드의 선택을 전달한다. `option_id` 가 `None` 이면 거절(취소)로 닫는다. */
-	acpPermissionRespond: (requestId: string, optionId: string | null) => typedError<boolean, string>(__TAURI_INVOKE("acp_permission_respond", { requestId, optionId })),
+	acpPermissionRespond: (requestId: string, optionId: string | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_permission_respond", { requestId, optionId })),
 	/**
 	 *  세션 설정을 바꾼다 (모델 · Effort · Fast mode · 권한 모드 · 서브에이전트 …).
 	 * 
 	 *  값 목록을 우리가 검증하지 않는 게 의도다 — 어댑터가 준 선택지를 그대로
 	 *  돌려보내므로, Claude Code 가 모델을 추가해도 우리 코드는 그대로다.
 	 */
-	acpSetConfigOption: (projectId: number, configId: string, value: string) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_set_config_option", { projectId, configId, value })),
+	acpSetConfigOption: (projectId: number, configId: string, value: string) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_set_config_option", { projectId, configId, value })),
 	/**  파일 선택 대화상자 (다중 선택, 프로젝트 루트에서 시작). 취소하면 빈 배열. */
-	acpPickFiles: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("acp_pick_files", { projectId })),
+	acpPickFiles: (projectId: number) => typedError<string[], AppError>(__TAURI_INVOKE("acp_pick_files", { projectId })),
 	/**
 	 *  `@` 멘션 자동완성용 프로젝트 파일 목록.
 	 * 
@@ -1393,14 +1398,14 @@ export const commands = {
 	 *  파일도 멘션할 수 있어야 하기 때문이다. `ignore` 크레이트라 .gitignore 를
 	 *  존중한다(node_modules/target 이 딸려오지 않는다).
 	 */
-	acpListFiles: (projectId: number, query: string, limit: number) => typedError<string[], string>(__TAURI_INVOKE("acp_list_files", { projectId, query, limit })),
+	acpListFiles: (projectId: number, query: string, limit: number) => typedError<string[], AppError>(__TAURI_INVOKE("acp_list_files", { projectId, query, limit })),
 	/**
 	 *  대화를 비운다 — 새 세션을 만들고 기존 세션을 버린다.
 	 * 
 	 *  ACP 에 "메시지 N 으로 되감기"는 없다(`session/fork` 는 되감을 지점을 받지
 	 *  않는다). 그래서 확장의 Rewind 대신 **새로 시작**만 제공한다.
 	 */
-	acpNewSession: (projectId: number) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_new_session", { projectId })),
+	acpNewSession: (projectId: number) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_new_session", { projectId })),
 	/**
 	 *  이 프로젝트의 과거 대화 목록.
 	 * 
@@ -1408,7 +1413,7 @@ export const commands = {
 	 *  있고, ACP `session/list` 가 그걸 그대로 열어 준다. 여기에 사본을 두면
 	 *  터미널에서 연 세션과 앱에서 연 세션이 갈라진다.
 	 */
-	acpListSessions: (projectId: number) => typedError<AcpSessionSummary[], string>(__TAURI_INVOKE("acp_list_sessions", { projectId })),
+	acpListSessions: (projectId: number) => typedError<AcpSessionSummary[], AppError>(__TAURI_INVOKE("acp_list_sessions", { projectId })),
 	/**
 	 *  과거 대화를 연다 — **지난 메시지까지 화면에 되살린다**.
 	 * 
@@ -1420,7 +1425,7 @@ export const commands = {
 	 *  재생분이 `on_event` 로 흐르도록 요청 **전에** 싱크를 꽂는다 — 알림 핸들러는
 	 *  싱크가 없으면 조용히 버리므로, 순서가 뒤집히면 지난 대화가 통째로 사라진다.
 	 */
-	acpLoadSession: (projectId: number, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_load_session", { projectId, sessionId, onEvent })),
+	acpLoadSession: (projectId: number, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_load_session", { projectId, sessionId, onEvent })),
 	/**
 	 *  슬래시 커맨드 목록.
 	 * 
@@ -1428,7 +1433,7 @@ export const commands = {
 	 *  온다. `acp_start` 가 돌려주는 스냅샷에는 아직 비어 있을 수 있으므로, 사용자가
 	 *  `/` 를 칠 때 물어보는 편이 항상 최신이다.
 	 */
-	acpCommands: (projectId: number) => typedError<AcpCommand[], string>(__TAURI_INVOKE("acp_commands", { projectId })),
+	acpCommands: (projectId: number) => typedError<AcpCommand[], AppError>(__TAURI_INVOKE("acp_commands", { projectId })),
 	/**  마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`. 읽기 전용. */
 	acpUsage: (projectId: number) => typedError<{
 	used: number,
@@ -1443,7 +1448,7 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
-} | null, string>(__TAURI_INVOKE("acp_usage", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("acp_usage", { projectId })),
 	/**
 	 *  `/usage` 로 한도를 **실제로 새로 읽는다**.
 	 * 
@@ -1468,7 +1473,7 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
-} | null, string>(__TAURI_INVOKE("acp_refresh_usage", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("acp_refresh_usage", { projectId })),
 	/**
 	 *  현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
 	 * 
@@ -1476,9 +1481,9 @@ export const commands = {
 	 *  그 사실은 우리가 보낸 요청의 **응답이 아니라 알림**으로 온다. UI 가 주기적
 	 *  으로 되읽어야 "Auto 라 적혀 있는데 실은 Manual" 을 피할 수 있다.
 	 */
-	acpOptions: (projectId: number) => typedError<AcpConfigOption[], string>(__TAURI_INVOKE("acp_options", { projectId })),
+	acpOptions: (projectId: number) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_options", { projectId })),
 	/**  현재 세션 제목. 상단바가 따라가려고 짧은 주기로 읽는다 (로컬 조회). */
-	acpSessionTitle: (projectId: number) => typedError<string | null, string>(__TAURI_INVOKE("acp_session_title", { projectId })),
+	acpSessionTitle: (projectId: number) => typedError<string | null, AppError>(__TAURI_INVOKE("acp_session_title", { projectId })),
 	/**
 	 *  대화를 **영구 삭제**한다 (`session/delete`).
 	 * 
@@ -1490,7 +1495,7 @@ export const commands = {
 	 *  지금 열려 있는 대화를 지우는 것도 막지 않는다 — 지운 뒤 무엇을 열지는
 	 *  화면의 판단이다(새 대화가 자연스럽다).
 	 */
-	acpDeleteSession: (projectId: number, sessionId: string) => typedError<boolean, string>(__TAURI_INVOKE("acp_delete_session", { projectId, sessionId })),
+	acpDeleteSession: (projectId: number, sessionId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_delete_session", { projectId, sessionId })),
 	/**
 	 *  보고 있는 대화를 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
 	 * 
@@ -1500,7 +1505,7 @@ export const commands = {
 	 * 
 	 *  제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
 	 */
-	acpSelectSession: (projectId: number, sessionId: string, title: string | null) => typedError<AcpSession, string>(__TAURI_INVOKE("acp_select_session", { projectId, sessionId, title })),
+	acpSelectSession: (projectId: number, sessionId: string, title: string | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_select_session", { projectId, sessionId, title })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1571,6 +1576,7 @@ export const commands = {
 
 /** Events */
 export const events = {
+	acpSessionChanged: makeEvent<AcpSessionChanged>("acp-session-changed"),
 	closeIntent: makeEvent<CloseIntent>("close-intent"),
 	dapBreakpointsChanged: makeEvent<DapBreakpointsChanged>("dap-breakpoints-changed"),
 	dapOutputEmitted: makeEvent<DapOutputEmitted>("dap-output-emitted"),
@@ -1578,7 +1584,6 @@ export const events = {
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
-	oculpmAgentsTemplateChanged: makeEvent<OculpmAgentsTemplateChanged>("oculpm-agents-template-changed"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
 	oculpmIntegrityWarning: makeEvent<OculpmIntegrityWarning>("oculpm-integrity-warning"),
@@ -1589,6 +1594,7 @@ export const events = {
 	oculpmSessionEnded: makeEvent<OculpmSessionEnded>("oculpm-session-ended"),
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
 	oculpmWatchYielded: makeEvent<OculpmWatchYielded>("oculpm-watch-yielded"),
+	oculpmWorkdayChanged: makeEvent<OculpmWorkdayChanged>("oculpm-workday-changed"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	tabDragLeave: makeEvent<TabDragLeave>("tab-drag-leave"),
@@ -1875,6 +1881,20 @@ export type AcpSession = {
 	options: AcpConfigOption[],
 };
 
+/**
+ *  세션·어댑터의 **생명주기**가 바뀌었다 (완성도 라운드 Phase 4). 프롬프트
+ *  스트림(`AcpEvent`, 채널)은 턴이 도는 동안만 흐르므로 제목·설정·어댑터
+ *  생사·대화 목록 변화는 실을 곳이 없었고, 화면은 4초마다 세 커맨드를 물었다.
+ *  이 이벤트가 그 폴링을 대신한다 — 어느 창·탭이든 같은 프로젝트면 듣는다.
+ */
+export type AcpSessionChangeKind = "agent_ready" | "agent_gone" | "title" | "options" | "usage" | "created" | "selected" | "loaded" | "deleted";
+
+export type AcpSessionChanged = {
+	project_id: number,
+	session_id: string | null,
+	kind: AcpSessionChangeKind,
+};
+
 /**  과거 대화 하나 (에이전트가 보관한다 — 우리가 저장하지 않는다). */
 export type AcpSessionSummary = {
 	id: string,
@@ -1993,6 +2013,13 @@ export type AgentsConfig = {
 	 *  (이미 시드된 `_template.md` 는 사용자 소유라 자동 교체하지 않음).
 	 */
 	template_language?: string,
+};
+
+export type AppError = {
+	/**  snake_case 식별자 — `not_initialized`, `acp_not_running`, `unknown`. */
+	code: string,
+	/**  영어 원문. 없을 수 있다(코드만으로 충분한 경우). */
+	detail: string | null,
 };
 
 export type AppInfo = {
@@ -3613,11 +3640,6 @@ export type OculpmAgentDrift = {
 	actual_hash: string,
 };
 
-export type OculpmAgentsTemplateChanged = {
-	project_id: number,
-	relative_path: string,
-};
-
 export type OculpmConfig = {
 	schema_version: number,
 	workday: WorkdayConfig,
@@ -3636,7 +3658,18 @@ export type OculpmConfig = {
  *  `.oculpm/planner/*.md` 를 고쳐도 사용자가 직접 새로고침하기 전까지 화면은
  *  옛 내용을 그대로 보여줬다 (도그푸딩 2026-08-21).
  */
-export type OculpmDataArea = "planner" | "discussion";
+export type OculpmDataArea = "planner" | "discussion" | 
+/**
+ *  `.claude/rules/**` · `.cursor/rules/**` · CLAUDE.md 슬롯 — 규칙 허브가
+ *  다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
+ *  버려져 어떤 신호도 나가지 않았다.
+ */
+"rules" | 
+/**
+ *  `.oculpm/retro/**` — 회고 화면이 다시 읽는다 (Phase 4). 예전엔 코드 변경
+ *  파이프라인으로 새어 들어갔다.
+ */
+"retro";
 
 export type OculpmDataChanged = {
 	project_id: number,
@@ -3736,6 +3769,17 @@ export type OculpmStatus = {
  */
 export type OculpmWatchYielded = {
 	project_id: number,
+};
+
+/**
+ *  워크데이가 넘어갔다 (완성도 라운드 Phase 4 #events-over-polling). 활성
+ *  세션의 경계 타이머와 감독관의 분당 틱이 낸다 — 화면은 60초마다 상태를
+ *  다시 묻는 대신 이걸 듣는다. (`OculpmAgentsTemplateChanged` 는 듣는 곳이
+ *  없어 같은 라운드에 지웠다.)
+ */
+export type OculpmWorkdayChanged = {
+	project_id: number,
+	workday: string,
 };
 
 /**

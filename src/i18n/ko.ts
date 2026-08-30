@@ -1882,10 +1882,6 @@ export const ko = {
 
   // ── 런처 홈 (StartScreen · home/*) ──────────────────────────────────────
   // 앱을 처음 여는 화면이자 프로젝트 전환 허브.
-  "home.agoJustNow": "방금 전",
-  "home.agoMinutes": "{n}분 전",
-  "home.agoHours": "{n}시간 전",
-  "home.agoDays": "{n}일 전",
   // 데이트라인 — 날짜 자체는 Intl 이 만든다 (§3). 뒤에 붙는 절만 사전.
   "home.datelineToday": "오늘 {n}건",
   "home.datelineProjects": "프로젝트 {n}",
@@ -2326,9 +2322,6 @@ export const ko = {
   "chat.listFailed": "대화 목록을 불러오지 못했어요: {error}",
   "chat.deleteFailed": "대화 삭제 실패: {error}",
   // 분·시간 단위 상대 시각. 하루가 넘어가면 Intl 날짜로 넘긴다 (사전 아님).
-  "chat.agoJustNow": "방금",
-  "chat.agoMinutes": "{n}분 전",
-  "chat.agoHours": "{n}시간 전",
 
   // ── AI 패널 ─────────────────────────────────────────────────────────────
   // 주입된 컨텍스트 조각 라벨 (토큰 팝오버 · "지난 전송 첨부" 목록).
@@ -2686,4 +2679,31 @@ export const ko = {
   "settings.doctor.warnings": "최근 무결성 경고",
   "settings.doctor.warningsEmpty": "이번 세션에는 경고가 없어요.",
   "settings.doctor.clear": "지우기",
+  // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
+  "err.code.not_initialized": "이 프로젝트에 ocul-pm 이 아직 켜져 있지 않아요 — Today 에서 활성화하세요.",
+  "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
+  "err.code.session_not_found": "세션을 찾지 못했어요: {detail}",
+  "err.code.forbidden_journal_path": "금지된 경로가 들어 있어 일지를 쓰지 않았어요: {detail}",
+  "err.code.invalid_path": "잘못된 경로예요: {detail}",
+  "err.code.invalid_config": "config.toml 이 올바르지 않아요: {detail}",
+  "err.code.config_parse": "config.toml 을 읽지 못했어요: {detail}",
+  "err.code.io": "파일 작업에 실패했어요: {detail}",
+  "err.code.sqlite": "로컬 캐시(SQLite) 오류: {detail}",
+  "err.code.db": "로컬 데이터베이스 오류: {detail}",
+  "err.code.file_not_found": "파일이 없어요: {detail}",
+  "err.code.actor_closed": "세션 처리기가 종료됐어요 — 앱을 다시 시작해 주세요.",
+  "err.code.acp_not_running": "Claude Code 에이전트가 실행 중이 아니에요.",
+  "err.code.acp_npm_missing": "npm 을 찾을 수 없어요 — Node.js 를 설치하세요.",
+  "err.code.acp_node_missing": "node 경로를 해석하지 못했어요.",
+  "err.code.acp_node_too_old": "Node.js 버전이 낮아요: {detail}",
+  "err.code.acp_app_data_dir": "앱 데이터 폴더를 찾을 수 없어요: {detail}",
+  "err.code.acp_adapter_install_failed": "ACP 어댑터 설치에 실패했어요 — 설정 → ocul-pm 에서 다시 시도하세요.",
+  "err.code.acp_session_create_failed": "세션을 만들지 못했어요: {detail}",
+  "err.code.acp_cancel_failed": "취소를 보내지 못했어요: {detail}",
+  "err.code.acp_config_failed": "설정을 바꾸지 못했어요: {detail}",
+  "err.code.acp_session_list_failed": "대화 목록을 불러오지 못했어요: {detail}",
+  "err.code.acp_session_delete_failed": "대화를 지우지 못했어요: {detail}",
+  "err.code.acp_session_load_failed": "대화를 열지 못했어요: {detail}",
+  "err.code.acp_usage_failed": "사용량을 불러오지 못했어요: {detail}",
+  "err.code.acp_prompt_failed": "요청이 실패했어요: {detail}",
 } as const;

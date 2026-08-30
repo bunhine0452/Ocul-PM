@@ -4,29 +4,22 @@
 // `.oculpm` 활성화와 코드 색인은 `windows/ProjectTab.tsx` 가 돌린다 — 진행
 // 상태(워크스페이스의 indexingProjectId)와 실패 토스트를 한 곳이 책임지기
 // 위해서다. 그런데 "지금 활성화" 는 Today 에, "색인 만들기" 는 검색·코드 맵·
-// 닥터에 있어야 한다. prop 을 여섯 단계 내려보내는 대신 창 전역 CustomEvent
-// 로 요청만 보낸다 (`settingsNav.ts`·`NAV_BUS` 와 같은 결).
-//
-// 프로젝트 탭이 여럿 마운트돼 있어도(크롬식 탭) **활성 탭만** 받는다 —
-// 구독자가 `active` 로 거른다. 그래서 끈적 플래그는 없다: 요청 시점에 반드시
-// 활성 탭 하나가 살아 있다.
+// 닥터에 있어야 한다. prop 을 여섯 단계 내려보내는 대신 요청만 보낸다
+// (`createIntentSlot` 의 값 없는 형 — 끈적 플래그는 쓰지 않는다: 요청 시점에
+// 활성 탭 하나가 반드시 살아 있고, 구독자가 `active` 로 거른다).
+import { createIntentSlot } from "@/lib/createStore";
 
-function makeRequestBus(eventName: string) {
+function requestBus(eventName: string) {
+  const slot = createIntentSlot<null>(eventName);
   return {
-    request(): void {
-      window.dispatchEvent(new CustomEvent(eventName));
-    },
-    subscribe(fn: () => void): () => void {
-      const on = () => fn();
-      window.addEventListener(eventName, on);
-      return () => window.removeEventListener(eventName, on);
-    },
+    request: () => slot.request(null),
+    subscribe: (fn: () => void) => slot.subscribe(() => fn()),
   };
 }
 
-const activateBus = makeRequestBus("oculpm:activate");
-const reindexBus = makeRequestBus("oculpm:reindex");
-const cheatsheetBus = makeRequestBus("oculpm:open-cheatsheet");
+const activateBus = requestBus("oculpm:activate");
+const reindexBus = requestBus("oculpm:reindex");
+const cheatsheetBus = requestBus("oculpm:open-cheatsheet");
 
 /** Today 「지금 활성화」 — 프로젝트 탭이 init·status·watcher 를 다시 돌린다. */
 export const requestOculpmActivate = activateBus.request;

@@ -57,6 +57,10 @@ pub fn spawn(app: &AppHandle) {
         // 이미 실패를 알린 프로젝트 — 다른 인스턴스가 락을 쥐고 있는 동안
         // 매분 같은 경고를 11줄씩 쌓지 않기 위해서다 (한 번만 크게 남긴다).
         let mut warned: HashSet<u32> = HashSet::new();
+        // project_id → 직전 틱의 워크데이. 활성 세션이 없을 때(밤새 유휴)는
+        // 세션 액터의 경계 타이머가 없어 아무도 날 넘김을 알리지 않았다 —
+        // 그래서 화면이 60초마다 상태를 물었다 (Phase 4 #events-over-polling).
+        let mut workdays: HashMap<u32, String> = HashMap::new();
         loop {
             // 정기 점검을 기다리되, 락을 인계당하면 **즉시** 깨어난다 —
             // 다음 틱까지 기다리면 그동안 두 인스턴스가 같은 프로젝트를 함께
@@ -66,8 +70,30 @@ pub fn spawn(app: &AppHandle) {
                 _ = evicted.notified() => {}
             }
             tick(&handle, &mut probed, &mut warned).await;
+            announce_workday_rollover(&handle, &mut workdays).await;
         }
     });
+}
+
+/// 프로젝트마다 현재 워크데이를 읽어 직전 틱과 다르면 `OculpmWorkdayChanged`.
+/// 첫 관측은 기록만 한다 (앱을 켠 순간은 넘김이 아니다).
+async fn announce_workday_rollover(app: &AppHandle, seen: &mut HashMap<u32, String>) {
+    use tauri_specta::Event;
+    let manager = app.state::<OculpmManager>();
+    let now = manager.current_workdays().await;
+    seen.retain(|id, _| now.iter().any(|(pid, _)| pid == id));
+    for (project_id, workday) in now {
+        match seen.insert(project_id, workday.clone()) {
+            Some(prev) if prev != workday => {
+                let _ = crate::oculpm::spec::OculpmWorkdayChanged {
+                    project_id,
+                    workday,
+                }
+                .emit(app);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// 한 번의 점검 — 추적 중인 모든 프로젝트를 훑는다.

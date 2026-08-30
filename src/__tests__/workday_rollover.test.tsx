@@ -4,9 +4,10 @@ import { render, act, cleanup } from "@testing-library/react";
 import type { OculpmStatus } from "@/lib/bindings";
 
 // 자정 롤오버 — 앱을 계속 켜 둔 채 workday 경계를 넘기면 메인 창의 "오늘"
-// 상태(workdayKey)가 재시작 없이 새 날짜로 넘어가야 한다. WorkspaceContext 의
-// 롤오버 워처가 백엔드 status 를 다시 조회해 current_workday 가 실제로 바뀌면
-// 커밋한다. 이 계약이 깨지면(다시 프로젝트 오픈 때만 조회하면) 여기서 잡힌다.
+// 상태(workdayKey)가 재시작 없이 새 날짜로 넘어가야 한다. Phase 4 부터는 60초
+// 폴링이 아니라 백엔드의 `oculpm-workday-changed` 이벤트(활성 세션의 경계
+// 타이머 + 감독관 틱)가 신호이고, WorkspaceContext 는 그때 status 를 다시 조회해
+// current_workday 가 실제로 바뀌면 커밋한다. 창 포커스/재표시에서도 한 번 확인한다.
 
 // 백엔드가 돌려줄 workday — 테스트가 도중에 바꿔 자정 넘김을 흉내낸다.
 let backendWorkday = "20260721";
@@ -21,6 +22,25 @@ const getStatus = vi.fn(async (_pid: number): Promise<OculpmStatus> => ({
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: { getStatus: (pid: number) => getStatus(pid) },
+}));
+
+// 백엔드 이벤트 — 테스트가 직접 쏜다.
+const fired = vi.hoisted(() => ({
+  workday: null as null | ((e: { payload: { project_id: number; workday: string } }) => void),
+}));
+vi.mock("@/lib/bindings", () => ({
+  commands: new Proxy({}, { get: () => () => Promise.resolve({ status: "ok", data: null }) }),
+  events: new Proxy(
+    {},
+    {
+      get: (_t, prop) => ({
+        listen: (cb: (e: { payload: { project_id: number; workday: string } }) => void) => {
+          if (prop === "oculpmWorkdayChanged") fired.workday = cb;
+          return Promise.resolve(() => {});
+        },
+      }),
+    },
+  ),
 }));
 
 // 임포트는 mock 선언 뒤에.
@@ -72,10 +92,12 @@ describe("WorkspaceContext — 자정 workday 롤오버", () => {
     });
     expect(getByTestId("wk").textContent).toBe("20260721");
 
-    // 자정 넘김: 다음 status 조회는 07-22 를 돌려준다.
+    // 자정 넘김: 백엔드가 이벤트를 쏘고, 다음 status 조회는 07-22 를 돌려준다.
     backendWorkday = "20260722";
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
+      await Promise.resolve();
+      fired.workday?.({ payload: { project_id: 1, workday: "20260722" } });
+      await vi.advanceTimersByTimeAsync(0);
     });
 
     expect(getByTestId("wk").textContent).toBe("20260722");
@@ -93,12 +115,15 @@ describe("WorkspaceContext — 자정 workday 롤오버", () => {
     });
     const rendersAfterSetup = renderCount;
 
-    // workday 는 그대로 — 여러 tick 을 돌려도 커밋(=리렌더)이 없어야 한다.
+    // workday 는 그대로 — 이벤트가 와도(같은 날짜) 커밋(=리렌더)이 없어야 한다.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(180_000);
+      await Promise.resolve();
+      fired.workday?.({ payload: { project_id: 1, workday: "20260721" } });
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(getStatus).toHaveBeenCalled(); // tick 은 돌았다 (조회는 함)
+    expect(getStatus).toHaveBeenCalled(); // 조회는 했다
     expect(renderCount).toBe(rendersAfterSetup); // 그러나 상태 커밋/리렌더는 없다
     expect(getByTestId("wk").textContent).toBe("20260721");
   });
@@ -111,7 +136,10 @@ describe("WorkspaceContext — 자정 workday 롤오버", () => {
     );
     // setOculpmStatus 를 호출하지 않음 — oculpmEnabled 는 false 로 남는다.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(120_000);
+      await Promise.resolve();
+      fired.workday?.({ payload: { project_id: 1, workday: "20260722" } });
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
     });
     expect(getStatus).not.toHaveBeenCalled();
   });
