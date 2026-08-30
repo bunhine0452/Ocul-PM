@@ -12,7 +12,7 @@
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
   background: var(--bg-card); color: var(--text);
-  font-size: 12.5px; font-weight: 550; font-family: var(--font);
+  font-size: var(--fs-6); font-weight: 550; font-family: var(--font);
   cursor: pointer; white-space: nowrap;
   box-shadow: var(--shadow-card);
   transition:
@@ -36,19 +36,43 @@
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
-.btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+.btn.sm { height: 26px; padding: 0 9px; font-size: var(--fs-5); }
 
-.iconbtn {
-  width: 30px; height: 30px; border-radius: var(--radius-s);
+/* 아이콘 버튼 — 한 벌, 세 크기 (Phase 5). 화면마다 이름만 다른 일곱 벌
+   (.pln-iconbtn .pm-iconbtn .gr-iconbtn .home-iconbtn .sk-iconbtn
+   .side-collapse-btn .code-tool-btn) 이 같은 그리드·같은 커서·같은 hover 를
+   각자 들고 있었다. 바탕은 여기 한 곳이고, 각 화면 파일엔 그 화면만의 차이
+   (크기·테두리·색)만 남는다. TSX 는 손대지 않았다 — 옛 이름은 이 규칙의
+   셀렉터 목록에 들어 있다. */
+.iconbtn,
+.pln-iconbtn, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .sk-iconbtn,
+.side-collapse-btn, .code-tool-btn {
+  --iconbtn-size: 30px;
+  width: var(--iconbtn-size); height: var(--iconbtn-size);
+  flex: none; padding: 0;
+  border-radius: var(--radius-s);
   display: grid; place-items: center; cursor: pointer;
   color: var(--text-2); border: none; background: transparent;
+  appearance: none; -webkit-appearance: none;
   transition:
     background-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
-.iconbtn:hover { background: var(--bg-hover); color: var(--text); }
+.iconbtn.sm, .pln-iconbtn { --iconbtn-size: 26px; }
+.iconbtn.md, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .side-collapse-btn { --iconbtn-size: 28px; }
+.iconbtn.lg, .sk-iconbtn { --iconbtn-size: 32px; }
+.iconbtn:hover, .pln-iconbtn:hover, .pm-iconbtn:hover, .home-iconbtn:hover,
+.side-collapse-btn:hover, .code-tool-btn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
+.iconbtn:disabled, .pln-iconbtn:disabled, .code-tool-btn:disabled {
+  opacity: 0.32; cursor: default; background: transparent; color: var(--text-3);
+}
+/* 위험 동작(삭제) — 어느 화면이든 같은 붉은 hover. */
+.iconbtn.danger:hover, .pln-iconbtn.danger:hover, .pm-iconbtn--danger:hover, .home-iconbtn--danger:hover {
+  background: var(--danger-soft); color: var(--danger);
+}
 
 .card {
   background: var(--bg-card);
@@ -58,10 +82,21 @@
 }
 .card-pad { padding: 18px; }
 
-.chip {
+/* 칩 — 한 벌 + 수정자 (Phase 5). 라벨이지 본문이 아니라 절대 꺾이지 않는다.
+   화면마다의 열한 벌(.attach-chip .usage-chip .sk-chip .sk-path-chip
+   .code-debug-chip .entry-date-chip .scope-chip .file-pill .queue-chip
+   .hg-lead-chip .ai-suggest-chip)은 아래 공통 바탕을 나눠 갖고, 각 파일엔
+   높이·둥글기·색의 차이만 남는다. */
+.chip,
+.attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip, .entry-date-chip,
+.scope-chip, .file-pill, .queue-chip, .hg-lead-chip, .ai-suggest-chip {
   display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap; flex: none; max-width: 100%;
+  font-family: var(--font);
+}
+.chip {
   height: 22px; padding: 0 9px; border-radius: 7px;
-  font-size: 11.5px; font-weight: 600;
+  font-size: var(--fs-4); font-weight: 600;
   background: var(--bg-inset); color: var(--text-2);
   /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
      기본 min-width:auto + 한국어(어디서나 줄바꿈 가능) 조합이면 폭이 좁아질 때
@@ -69,8 +104,15 @@
      밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
   white-space: nowrap; flex: none;
 }
+.chip.sm { height: 18px; padding: 0 6px; font-size: var(--fs-2); border-radius: 999px; }
+.chip.outline { background: transparent; border: 1px solid var(--sep); }
+.chip.accent { background: var(--accent-soft); color: var(--accent-text); }
+.chip.ok { background: var(--ok-soft); color: var(--ok-text); }
+.chip.warn { background: var(--warn-soft); color: var(--warn-text); }
+.chip.danger { background: var(--danger-soft); color: var(--danger-text); }
+.chip.info { background: var(--info-soft); color: var(--info-text); }
 .kbd {
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  font-family: var(--mono); font-size: var(--fs-3); font-weight: 600;
   background: var(--bg-inset); border: 1px solid var(--sep);
   border-radius: 5px; padding: 1px 6px; color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
@@ -86,7 +128,7 @@
 }
 .search-box input {
   border: none; background: transparent; outline: none;
-  font-family: var(--font); font-size: 13px; color: var(--text);
+  font-family: var(--font); font-size: var(--fs-7); color: var(--text);
   flex: 1; min-width: 0;
 }
 .search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
@@ -95,7 +137,7 @@
 .tbadge {
   display: inline-flex; align-items: center; gap: 5px;
   height: 21px; padding: 0 8px 0 6px; border-radius: 6px;
-  font-size: 11px; font-weight: 650; letter-spacing: 0.01em;
+  font-size: var(--fs-3); font-weight: 650; letter-spacing: 0.01em;
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
 }
@@ -106,7 +148,7 @@
 .t-error { background: var(--t-error-soft); color: var(--t-error); }
 .t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
 
-.section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); }
+.section-title { font-size: var(--fs-5); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); }
 
 /* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다. */
 .fade-in { animation: fadeIn var(--dur-3) var(--ease-out) both; }
@@ -118,11 +160,11 @@
 .divider { height: 1px; background: var(--sep); border: none; margin: 0; }
 
 /* file path pill */
-.fpath { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); }
+.fpath { font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2); }
 .fpath b { color: var(--text); font-weight: 600; }
 
 /* empty-state hint (shared by placeholder + future screens) */
-.empty-hint { color: var(--text-3); font-size: 12px; text-align: center; padding: 60px 30px; }
+.empty-hint { color: var(--text-3); font-size: var(--fs-5); text-align: center; padding: 60px 30px; }
 
 /* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
    제목·메모 같은 **한 줄** 텍스트에 쓰는 최소 강조. 블록 문서는 Markdown.tsx.

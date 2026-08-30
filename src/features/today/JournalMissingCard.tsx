@@ -108,7 +108,7 @@ export function JournalMissingCard({
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--surface-2, rgba(0,0,0,0.02))",
-        border: "1px solid var(--warn-border, rgba(194,129,10,0.25))",
+        border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
       }}
     >
       <div
@@ -124,7 +124,7 @@ export function JournalMissingCard({
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--warn, #c2810a)",
+            color: "var(--warn)",
           }}
         >
           {t("today.missing.recent", { days: SIGNAL_DAYS, n: signals.length })}

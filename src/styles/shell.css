@@ -72,7 +72,7 @@
   width: 248px;
   transform: translateX(-100%);
   transition: transform var(--dur-2) var(--ease-out);
-  z-index: 50;
+  z-index: var(--z-menu);
   box-shadow: var(--shadow-pop);
   /* 오버레이로 뜰 때는 캔버스에서 떨어져 나오므로 자기 배경/경계가 필요하다. */
   background: var(--bg-sidebar);
@@ -88,7 +88,7 @@
   top: 0;
   bottom: 0;
   width: 10px;
-  z-index: 40;
+  z-index: var(--z-dock);
 }
 /* 예전에는 사이드바를 접으면 툴바가 창 최상단 x=0 에 닿아 macOS 신호등 밑으로
    들어갔다(titleBarStyle Overlay). 그래서 `.app.is-mac.sidebar-collapsed .toolbar`
@@ -104,18 +104,7 @@
 /* Collapse toggle button in the brand row. */
 .side-collapse-btn {
   margin-left: auto;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-s);
   color: var(--text-3);
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  background: transparent;
-  flex: none;
 }
 .side-collapse-btn:hover {
   background: var(--bg-hover);
@@ -135,7 +124,7 @@
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.15);
 }
 .brand-name { font-weight: 650; font-size: 14px; letter-spacing: -0.01em; }
-.brand-sub { font-size: 10.5px; color: var(--text-3); margin-top: -1px; }
+.brand-sub { font-size: var(--fs-2); color: var(--text-3); margin-top: -1px; }
 
 /* project switcher */
 .proj-switch {
@@ -165,13 +154,13 @@
   display: grid; place-items: center; color: var(--text-on-accent);
 }
 .proj-meta { flex: 1; min-width: 0; }
-.proj-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-path { font-size: 10.5px; color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-path { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
 .proj-switch-wrap { position: relative; margin: 0 2px 10px; }
 .proj-pop {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
   padding: 4px; max-height: 340px; overflow-y: auto;
@@ -191,19 +180,19 @@
 .proj-pop-item:hover { background: var(--bg-hover); }
 .proj-pop-item.on { background: var(--accent-soft); }
 .proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.proj-pop-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-path { font-size: 10px; color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-pop-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-cur { font-size: 9.5px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 1px 6px; border-radius: 99px; flex: none; }
 .proj-pop-manage {
   display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
   margin-top: 4px; padding: 8px; cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
-  color: var(--text-2); font-family: var(--font); font-size: 11.5px; font-weight: 600;
+  color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: 600;
 }
 .proj-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
 
 .nav-section-label {
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  font-size: var(--fs-2); font-weight: 600; letter-spacing: 0.04em;
   color: var(--text-3); text-transform: uppercase;
   padding: 12px 10px 4px;
 }
@@ -211,7 +200,7 @@
   display: flex; align-items: center; gap: 10px;
   padding: 7px 10px; border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
-  font-size: 13px; font-weight: 500;
+  font-size: var(--fs-7); font-weight: 500;
   position: relative;
   /* button reset (nav-item is a <button> for a11y) */
   appearance: none; -webkit-appearance: none;
@@ -242,7 +231,7 @@
 }
 .nav-item.active .nav-ico { color: inherit; }
 .nav-badge {
-  margin-left: auto; font-size: 11px; font-weight: 600;
+  margin-left: auto; font-size: var(--fs-3); font-weight: 600;
   background: var(--bg-active); color: var(--text-2);
   padding: 1px 7px; border-radius: 9px; min-width: 20px; text-align: center;
 }
@@ -255,7 +244,7 @@
 /* 승인 대기 (2026-08-16) — 작업 중과 다르다: 기다린다고 안 풀리고 **사용자가
    눌러야** 풀린다. 그래서 도는 고리와 달리 깜빡여서 부른다 — 에이전트가 승인
    대기로 멈춘 걸 모른 채 다른 화면에서 기다리다 몇 분을 잃던 것의 답. */
-.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-blink 1.2s ease-in-out infinite; }
+.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-blink 1.2s var(--ease-in-out) infinite; }
 .nav-item.active .nav-badge.attention { background: rgba(255,255,255,0.25); color: inherit; }
 @keyframes nav-attention-blink { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) {
@@ -275,12 +264,12 @@
 @keyframes nav-working-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   /* 도는 대신 숨을 쉰다 — 움직임에 민감한 사용자에게도 "살아 있음"은 전해야 한다. */
-  .nav-ico.working::after { animation: nav-working-pulse 1.6s ease-in-out infinite; }
+  .nav-ico.working::after { animation: nav-working-pulse 1.6s var(--ease-in-out) infinite; }
   @keyframes nav-working-pulse { 50% { opacity: 0.25; } }
 }
 /* v2 U1 — ⌘번호 힌트. 상시 노출은 소음이라 hover 시에만 보인다. */
 .nav-kbd {
-  margin-left: auto; font-size: 10px; font-family: var(--mono);
+  margin-left: auto; font-size: var(--fs-1); font-family: var(--mono);
   color: var(--text-3); opacity: 0; transition: opacity var(--dur-1) var(--ease-out);
 }
 .nav-item:hover .nav-kbd { opacity: 1; }
@@ -338,7 +327,7 @@
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
 .toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
 .toolbar-sub {
-  font-size: 12px; color: var(--text-3);
+  font-size: var(--fs-5); color: var(--text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex: 0 1 auto; min-width: 0;
 }

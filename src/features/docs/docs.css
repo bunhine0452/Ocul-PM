@@ -34,7 +34,7 @@
   width: 100%;
   padding: 5px 8px;
   border-radius: var(--radius-s);
-  font-size: 13px;
+  font-size: var(--fs-7);
   color: var(--text-2);
   text-align: left;
   background: none;
@@ -70,7 +70,7 @@
 .docs-tree-caret {
   flex: none;
   color: var(--text-3);
-  transition: transform 0.12s ease;
+  transition: transform 0.12s var(--ease-out);
 }
 .docs-tree-caret.open {
   transform: rotate(90deg);
@@ -125,7 +125,7 @@
   border-radius: var(--radius-m);
   background: linear-gradient(90deg, var(--bg-inset), var(--bg-hover), var(--bg-inset));
   background-size: 200% 100%;
-  animation: docs-shimmer 1.2s ease-in-out infinite;
+  animation: docs-shimmer 1.2s var(--ease-in-out) infinite;
 }
 @keyframes docs-shimmer {
   0% { background-position: 200% 0; }
@@ -134,7 +134,7 @@
 .docs-img-missing {
   display: inline-block;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-3);
   background: var(--bg-inset);
   border: 1px dashed var(--sep);
@@ -178,13 +178,13 @@
   color: var(--text);
 }
 .docs-empty-desc {
-  font-size: 13px;
+  font-size: var(--fs-7);
   line-height: 1.6;
   color: var(--text-3);
   margin: 0;
 }
 .docs-empty-desc code {
-  font-size: 12px;
+  font-size: var(--fs-5);
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--bg-inset);

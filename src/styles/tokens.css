@@ -56,6 +56,25 @@
   --diff-del-bg: #fbe9e9;   --diff-del-line: #d6443c;  --diff-del-text: #9b2820;
   --diff-gutter: #f2f0e9;
 
+  /* status — ok/warn/danger/info (완성도 라운드 Phase 5). 화면이 fallback 으로
+     들고 다니던 hex 24곳을 여기로 모았다. -text 는 글자용(더 진함), -soft 는
+     옅은 바탕. 의미색이지 트리거 색(--t-*)이 아니다. */
+  --ok: #12a06b;      --ok-text: #0a6b4b;     --ok-soft: rgba(18,160,107,0.12);
+  --warn: #c2810a;    --warn-text: #8a5b05;   --warn-soft: rgba(194,129,10,0.10);
+  --danger: #e0524b;  --danger-text: #b3382f; --danger-soft: rgba(224,82,75,0.10);
+  --info: #2570e0;    --info-text: #1a56b0;   --info-soft: rgba(37,112,224,0.10);
+  /* Claude 코랄 — 로고를 로고답게 보이는 자리에서만 (Phase 5, 단일 정의). */
+  --claude: #d97757;
+
+  /* type scale — 본문 7단 (Phase 5). 위 5단(10~12px)이 UI 대부분, 13px 이
+     본문 기본. 제목(14px+)은 스케일 밖 — 자리마다 정한다. */
+  --fs-1: 10px; --fs-2: 10.5px; --fs-3: 11px; --fs-4: 11.5px;
+  --fs-5: 12px; --fs-6: 12.5px; --fs-7: 13px;
+
+  /* z layers — 전역 층만 (Phase 5). 컴포넌트 안의 0~6 은 지역 겹침이라 그대로. */
+  --z-sticky: 10; --z-strip: 20; --z-panel: 30; --z-dock: 40;
+  --z-menu: 50; --z-popover: 60; --z-modal: 100; --z-top: 1000;
+
   /* elevation — 저불투명 다층 그림자 3단 (경계는 border 가, 깊이는 그림자가 담당).
      hover 승격은 --shadow-raise, 팝오버/모달은 --shadow-pop. */
   --shadow-card: 0 1px 1px rgba(24,20,12,0.04), 0 2px 6px rgba(24,20,12,0.04);
@@ -156,6 +175,12 @@
 
   --diff-add-bg: rgba(46,160,87,0.16);  --diff-add-line: #3fb950;  --diff-add-text: #6cd584;
   --diff-del-bg: rgba(214,68,60,0.16);  --diff-del-line: #f1685f;  --diff-del-text: #f7918a;
+
+  /* status — 다크: 채도를 낮추고 명도를 올린다 (트리거 색과 같은 규칙). */
+  --ok: #34d095;      --ok-text: #6cd584;     --ok-soft: rgba(52,208,149,0.16);
+  --warn: #eaa23f;    --warn-text: #f0b660;   --warn-soft: rgba(234,162,63,0.16);
+  --danger: #f1685f;  --danger-text: #f7918a; --danger-soft: rgba(241,104,95,0.16);
+  --info: #5b9cf5;    --info-text: #8ab8f8;   --info-soft: rgba(91,156,245,0.16);
   --diff-gutter: #232826;
 
   --shadow-card: 0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.22);
@@ -296,3 +321,27 @@
   --accent: #ffd400;  --accent-strong: #ffde33;  --accent-text: #ffe666;
   --accent-soft: rgba(255,212,0,0.20);  --accent-ring: rgba(255,212,0,0.60);
 }
+
+/* ============================================================
+   프로젝트 색 (Phase 5 — 단일 정의). 예전엔 카드(home.css)·선택기(home.css)·
+   탭 스트립(tabs.css)이 같은 8색을 각자 들고 있었다. hex 가 아니라 **id**
+   (`data-pc`) 를 저장하고 테마가 해석한다: --pc 는 아이콘·강조, --pc-soft 는
+   마크 배경. 어느 요소든 `data-pc` 를 달면 같은 색이다.
+   ============================================================ */
+[data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
+[data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
+[data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }
+[data-pc="violet"] { --pc: #7c5cd6; --pc-soft: rgba(124,92,214,0.14); }
+[data-pc="amber"]  { --pc: #c2891b; --pc-soft: rgba(194,137,27,0.15); }
+[data-pc="rose"]   { --pc: #d05470; --pc-soft: rgba(208,84,112,0.13); }
+[data-pc="teal"]   { --pc: #0f9a99; --pc-soft: rgba(15,154,153,0.13); }
+[data-pc="orange"] { --pc: #d2703a; --pc-soft: rgba(210,112,58,0.14); }
+
+[data-theme="dark"] [data-pc="slate"]  { --pc: #9aa3b2; --pc-soft: rgba(154,163,178,0.16); }
+[data-theme="dark"] [data-pc="green"]  { --pc: #4ecb96; --pc-soft: rgba(78,203,150,0.16); }
+[data-theme="dark"] [data-pc="blue"]   { --pc: #6aa9f0; --pc-soft: rgba(106,169,240,0.16); }
+[data-theme="dark"] [data-pc="violet"] { --pc: #a68cf0; --pc-soft: rgba(166,140,240,0.17); }
+[data-theme="dark"] [data-pc="amber"]  { --pc: #e0b155; --pc-soft: rgba(224,177,85,0.16); }
+[data-theme="dark"] [data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
+[data-theme="dark"] [data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
+[data-theme="dark"] [data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }

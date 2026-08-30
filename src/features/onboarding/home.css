@@ -88,7 +88,7 @@
 
 .home-dateline {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   letter-spacing: 0.02em;
   color: var(--text-3);
   white-space: nowrap;
@@ -128,7 +128,7 @@
 
 .home-count {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-2);
   white-space: nowrap;
 }
@@ -193,7 +193,7 @@
   background: var(--bg-inset);
   /* 테두리 없음 — 26px 상자에 테두리까지 두르면 아이콘 하나가 세 겹으로
      보인다. 면 하나로 충분하다. */
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 750;
   letter-spacing: 0.02em;
   color: var(--text-2);
@@ -253,18 +253,7 @@
 
 .home-iconbtn {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-s);
-  color: var(--text-2);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  transition:
-    color var(--dur-1) var(--ease-out),
-    background var(--dur-1) var(--ease-out);
+  position: relative;
 }
 /* 시각 크기는 28px, 히트 영역은 36×40 으로 넓힌다.
    가로는 36px 를 넘기면 안 된다 — 버튼 28px + gap 8px = 중심 간격 36px 이라
@@ -299,7 +288,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -354,7 +343,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 550;
   color: var(--text-2);
   white-space: nowrap;
@@ -367,7 +356,7 @@
 }
 
 .home-eyebrow {
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 750;
   letter-spacing: 0.09em;
   color: var(--text-2);
@@ -375,7 +364,7 @@
 }
 
 .home-when {
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
@@ -384,7 +373,7 @@
 
 .home-kbd {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   border: 1px solid var(--sep);
   border-radius: 4px;
@@ -407,7 +396,7 @@
   border-radius: var(--radius-s);
   background: transparent;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
@@ -490,7 +479,7 @@
   border-top: 1px solid var(--sep);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   background: var(--bg-card);
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-2);
 }
 .home-actionbar-item {
@@ -555,7 +544,7 @@
   margin-top: 10px;
   padding: 10px 14px;
   border-radius: var(--radius-m);
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 600;
   background: var(--t-error-soft);
   color: var(--t-error);
@@ -591,20 +580,20 @@
   gap: 8px;
 }
 .home-panecount {
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 700;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 .home-panehint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 
 .home-empty {
   padding: 28px 4px;
-  font-size: 13px;
+  font-size: var(--fs-7);
   color: var(--text-2);
   display: flex;
   flex-direction: column;
@@ -697,7 +686,7 @@
    책임진다 (버튼 위에 있을 때만 색이 변하면 "이름만 눌러야 하나?" 로 읽힌다). */
 .hg-card:hover .hg-name { color: var(--pc-text, var(--accent-text)); }
 .hg-path {
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-family: var(--mono);
   color: var(--text-3);
   white-space: nowrap;
@@ -710,7 +699,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
   /* 시각·건수가 카드마다 세로로 흔들리지 않게. */
   font-variant-numeric: tabular-nums;
@@ -725,7 +714,6 @@
    작은 반경이 훨씬 정밀해 보이고, 옆의 숫자·시각과 광학 높이도 맞는다. */
 .hg-chip,
 .hg-lead-chip {
-  flex: none;
   font-size: 9.5px;
   font-weight: 650;
   line-height: 14px;
@@ -763,7 +751,7 @@
   min-width: 0;
   height: 17px;
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -792,7 +780,7 @@
   color: var(--text-2);
   min-height: 98px;
 }
-.hg-add-title { font-size: 12.5px; font-weight: 700; }
+.hg-add-title { font-size: var(--fs-6); font-weight: 700; }
 .hg-add-actions { display: flex; gap: 6px; }
 
 /* ── 프로젝트 색 팔레트 ────────────────────────────────────────────────
@@ -802,25 +790,9 @@
      --pc-soft 마크 배경에 쓰는 아주 옅은 면
    본문 색은 건드리지 않는다 — 카드 8장이 각자 다른 글자색을 가지면 목록이
    읽히지 않는다. 색은 **식별자**지 의미가 아니다. */
-.hg-card[data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
-.hg-card[data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
-.hg-card[data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }
-.hg-card[data-pc="violet"] { --pc: #7c5cd6; --pc-soft: rgba(124,92,214,0.14); }
-.hg-card[data-pc="amber"]  { --pc: #c2891b; --pc-soft: rgba(194,137,27,0.15); }
-.hg-card[data-pc="rose"]   { --pc: #d05470; --pc-soft: rgba(208,84,112,0.13); }
-.hg-card[data-pc="teal"]   { --pc: #0f9a99; --pc-soft: rgba(15,154,153,0.13); }
-.hg-card[data-pc="orange"] { --pc: #d2703a; --pc-soft: rgba(210,112,58,0.14); }
 
 /* 다크에서는 채도를 낮추고 명도를 올린다 — 라이트용 값을 그대로 쓰면 어두운
    면 위에서 탁해지고 대비가 부족해진다. */
-[data-theme="dark"] .hg-card[data-pc="slate"]  { --pc: #9aa3b2; --pc-soft: rgba(154,163,178,0.16); }
-[data-theme="dark"] .hg-card[data-pc="green"]  { --pc: #4ecb96; --pc-soft: rgba(78,203,150,0.16); }
-[data-theme="dark"] .hg-card[data-pc="blue"]   { --pc: #6aa9f0; --pc-soft: rgba(106,169,240,0.16); }
-[data-theme="dark"] .hg-card[data-pc="violet"] { --pc: #a68cf0; --pc-soft: rgba(166,140,240,0.17); }
-[data-theme="dark"] .hg-card[data-pc="amber"]  { --pc: #e0b155; --pc-soft: rgba(224,177,85,0.16); }
-[data-theme="dark"] .hg-card[data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
-[data-theme="dark"] .hg-card[data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
-[data-theme="dark"] .hg-card[data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }
 
 /* 프로젝트 아이콘 — 색이 실제로 살아 있는 유일한 자리. */
 .hg-mark {
@@ -918,7 +890,7 @@
 
 .ap-wrap { display: flex; flex-direction: column; gap: 12px; }
 .ap-label {
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -975,22 +947,5 @@
     0 0 0 4px var(--pc);
 }
 
-/* 선택기는 다이얼로그(카드 밖)에 있으므로 `.hg-card[data-pc]` 규칙이 닿지
-   않는다 — 같은 팔레트를 요소 자신에게 한 번 더 준다. */
-.ap-icon[data-pc="slate"],  .ap-color[data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
-.ap-icon[data-pc="green"],  .ap-color[data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
-.ap-icon[data-pc="blue"],   .ap-color[data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }
-.ap-icon[data-pc="violet"], .ap-color[data-pc="violet"] { --pc: #7c5cd6; --pc-soft: rgba(124,92,214,0.14); }
-.ap-icon[data-pc="amber"],  .ap-color[data-pc="amber"]  { --pc: #c2891b; --pc-soft: rgba(194,137,27,0.15); }
-.ap-icon[data-pc="rose"],   .ap-color[data-pc="rose"]   { --pc: #d05470; --pc-soft: rgba(208,84,112,0.13); }
-.ap-icon[data-pc="teal"],   .ap-color[data-pc="teal"]   { --pc: #0f9a99; --pc-soft: rgba(15,154,153,0.13); }
-.ap-icon[data-pc="orange"], .ap-color[data-pc="orange"] { --pc: #d2703a; --pc-soft: rgba(210,112,58,0.14); }
+/* 선택기·카드의 팔레트는 tokens.css 의 `[data-pc]` 한 곳이다 (Phase 5). */
 
-[data-theme="dark"] .ap-icon[data-pc="slate"],  [data-theme="dark"] .ap-color[data-pc="slate"]  { --pc: #9aa3b2; --pc-soft: rgba(154,163,178,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="green"],  [data-theme="dark"] .ap-color[data-pc="green"]  { --pc: #4ecb96; --pc-soft: rgba(78,203,150,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="blue"],   [data-theme="dark"] .ap-color[data-pc="blue"]   { --pc: #6aa9f0; --pc-soft: rgba(106,169,240,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="violet"], [data-theme="dark"] .ap-color[data-pc="violet"] { --pc: #a68cf0; --pc-soft: rgba(166,140,240,0.17); }
-[data-theme="dark"] .ap-icon[data-pc="amber"],  [data-theme="dark"] .ap-color[data-pc="amber"]  { --pc: #e0b155; --pc-soft: rgba(224,177,85,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="rose"],   [data-theme="dark"] .ap-color[data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="teal"],   [data-theme="dark"] .ap-color[data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
-[data-theme="dark"] .ap-icon[data-pc="orange"], [data-theme="dark"] .ap-color[data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }

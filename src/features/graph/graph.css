@@ -103,10 +103,10 @@
 .gn.dim-hard { opacity: 0.08; }
 
 /* tier → 타이포 스케일 */
-.gn .gn-name { font-size: 11px; }
-.gn.t1 .gn-name { font-size: 11.5px; }
-.gn.t2 .gn-name { font-size: 12px; }
-.gn.t3 .gn-name { font-size: 13px; }
+.gn .gn-name { font-size: var(--fs-3); }
+.gn.t1 .gn-name { font-size: var(--fs-4); }
+.gn.t2 .gn-name { font-size: var(--fs-5); }
+.gn.t3 .gn-name { font-size: var(--fs-7); }
 .gn.t4 .gn-name { font-size: 14px; }
 
 /* 글리프 — 폴더는 둥근 사각, 파일은 원. 언어 색을 명시적으로 보여준다. */
@@ -138,7 +138,7 @@
 .gn-sub {
   margin-top: 1px;
   padding-left: 17px;
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,7 +150,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -166,7 +166,7 @@
 }
 .gn-badge {
   flex: none;
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -207,8 +207,8 @@
   padding: 0 10px;
   border-radius: 999px;
 }
-.gn.far.t3 .gn-name { font-size: 13px; }
-.gn.far.t4 .gn-name { font-size: 13px; }
+.gn.far.t3 .gn-name { font-size: var(--fs-7); }
+.gn.far.t4 .gn-name { font-size: var(--fs-7); }
 .gn.far .gn-glyph {
   width: 8px;
   height: 8px;
@@ -229,7 +229,7 @@
   background: none;
   border-radius: 6px;
   font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -251,7 +251,7 @@
   background: transparent;
   color: var(--text-2);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -290,7 +290,7 @@
   background: transparent;
   outline: none;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text);
 }
 .gr-search:focus-within {
@@ -300,16 +300,7 @@
 }
 
 .gr-iconbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  color: var(--text-2);
-  background: none;
-  border: 1px solid var(--sep);
-  cursor: pointer;
+  border-radius: 999px; border: 1px solid var(--sep);
 }
 .gr-iconbtn:hover {
   background: var(--bg-hover);
@@ -346,7 +337,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-2);
 }
 .gr-legend-item .sw {
@@ -359,7 +350,7 @@
   background: none;
   padding: 2px 4px;
   font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--accent-text);
   cursor: pointer;

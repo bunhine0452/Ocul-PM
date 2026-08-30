@@ -19,7 +19,7 @@
   inset: 0;
   /* 설정(90)·그린필드(90)·팔레트(100)보다 아래, 메인 화면 크롬(5)보다 위.
      이름 변경/제거 다이얼로그(App.tsx, z-110)는 이 위에 뜬다. */
-  z-index: 80;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -63,7 +63,7 @@
 
 .pm-sub {
   margin-top: 3px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   line-height: 1.5;
   color: var(--text-2);
 }
@@ -126,7 +126,7 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--fs-7);
   color: var(--text);
   outline: none;
 }
@@ -144,7 +144,7 @@
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
   background: var(--bg-card);
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 650;
   color: var(--text-2);
   white-space: nowrap;
@@ -214,7 +214,7 @@
   text-align: left;
   background: var(--bg-inset);
   border-bottom: 1px solid var(--sep);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 750;
   letter-spacing: 0.09em;
   color: var(--text-2);
@@ -317,7 +317,7 @@
   background: var(--bg-inset);
   border: 1px solid var(--sep);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 600;
   color: var(--text-2);
 }
@@ -353,7 +353,7 @@
 
 .pm-path {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
@@ -363,7 +363,7 @@
 .pm-badge {
   flex: none;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   border: 1px solid var(--sep);
   border-radius: 4px;
@@ -372,7 +372,7 @@
 }
 
 .pm-when {
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
   white-space: nowrap;
@@ -380,7 +380,7 @@
 
 .pm-num {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
   white-space: nowrap;
@@ -395,19 +395,7 @@
 }
 
 .pm-iconbtn {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border: 0;
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-  transition:
-    color var(--dur-1) var(--ease-out),
-    background var(--dur-1) var(--ease-out);
+
 }
 .pm-iconbtn:hover {
   color: var(--text);
@@ -429,13 +417,13 @@
   text-align: center;
 }
 .pm-empty-title {
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 650;
   color: var(--text-2);
 }
 .pm-empty-sub {
   margin-top: 4px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 
@@ -452,7 +440,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-2);
 }
 .pm-bulk-count {
@@ -469,7 +457,7 @@
   gap: 8px;
 }
 .pm-confirm-q {
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   line-height: 1.55;
   color: var(--text);
 }
@@ -489,7 +477,7 @@
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
   background: var(--bg-card);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-2);
   cursor: pointer;
   user-select: none;
@@ -506,7 +494,7 @@
 }
 
 .pm-warn {
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--t-bug);
 }
@@ -523,7 +511,7 @@
   border: 1px solid var(--t-bug);
   border-radius: var(--radius-s);
   background: var(--t-bug-soft);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--t-bug);
 }
@@ -532,12 +520,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 .pm-hint kbd {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   border: 1px solid var(--sep);
   border-radius: 4px;

@@ -13,8 +13,8 @@ interface HonestyAuditProps {
 
 const SEV_COLOR: Record<string, string> = {
   ok: "var(--text-3)",
-  warning: "var(--warn, #c2810a)",
-  critical: "var(--danger, #c0392b)",
+  warning: "var(--warn)",
+  critical: "var(--danger)",
 };
 const SEV_LABEL: Record<string, I18nKey> = {
   ok: "today.honesty.ok",
@@ -77,7 +77,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--surface-2, rgba(0,0,0,0.02))",
-        border: "1px solid var(--warn-border, rgba(194,129,10,0.25))",
+        border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
       }}
     >
       <div
@@ -93,7 +93,7 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--warn, #c2810a)",
+            color: "var(--warn)",
           }}
         >
           {t("today.honesty.unlogged", { n: totalMissed })}

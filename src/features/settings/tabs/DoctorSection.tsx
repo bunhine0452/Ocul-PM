@@ -70,7 +70,7 @@ async function probe(projectId: number): Promise<Probe> {
 }
 
 const DOT: Record<RowState, string> = {
-  ok: "bg-[var(--ok,#12a06b)]",
+  ok: "bg-[var(--ok)]",
   warn: "bg-amber-500",
   danger: "bg-red-500",
   off: "bg-muted-foreground/40",

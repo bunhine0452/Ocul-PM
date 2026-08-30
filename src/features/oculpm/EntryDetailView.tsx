@@ -352,7 +352,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 4,
-                  color: "var(--warn, #c2810a)",
+                  color: "var(--warn)",
                   fontWeight: 600,
                 }}
                 title={
@@ -377,7 +377,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           title={verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
           style={
             verified
-              ? { color: "var(--ok, #12a06b)", borderColor: "var(--ok, #12a06b)" }
+              ? { color: "var(--ok)", borderColor: "var(--ok)" }
               : undefined
           }
         >
@@ -395,8 +395,8 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                 marginBottom: 14,
                 padding: "8px 10px",
                 borderRadius: 8,
-                background: "var(--warn-bg, rgba(194,129,10,0.08))",
-                border: "1px solid var(--warn-border, rgba(194,129,10,0.25))",
+                background: "var(--warn-soft)",
+                border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
               }}
             >
               <div
@@ -406,7 +406,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   gap: 4,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "var(--warn, #c2810a)",
+                  color: "var(--warn)",
                   marginBottom: 4,
                 }}
               >

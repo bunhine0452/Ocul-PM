@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: polish-round
 title: "완성도 라운드 — 결함 · UX 프리미티브 · 여정 · 성능 · 설계 · 토큰"
-status: active
+status: done
 created: 2026-08-30
 updated: 2026-08-30
 owner: claude-code
@@ -53,10 +53,10 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 - [x] 버스 7종 → `createStore/createIntentSlot` 헬퍼; 헬퍼 중복(relativeTime×6·formatBytes×3) 단일화; `oculpm/*`→`commands::*` 역의존 3곳 이동 {#bus-and-helpers}
 
 ## Phase 5 — 디자인 토큰 {#design-tokens}
-- [ ] 상태색 토큰 `--ok/--warn/--danger/--info`(+soft, light/dark/프리셋) + fallback 24곳 치환 {#status-tokens}
-- [ ] 글자크기 7단 스케일 + z-index 7단 + 모션 `--ease-out` 단일화·원시값 55곳 치환 {#scale-tokens}
-- [ ] 아이콘버튼 14벌·칩 11벌 → `.iconbtn` 3크기·`.chip` 수정자로 흡수, 프리미티브를 전역 `styles/primitives.css` 로 {#primitive-merge}
-- [ ] App.css 죽은 토큰·클래스 ~120줄 + `@fontsource/eb-garamond` 제거, 프로젝트 색·Claude 코랄 단일 정의 {#dead-css}
+- [x] 상태색 토큰 `--ok/--warn/--danger/--info`(+soft, light/dark/프리셋) + fallback 24곳 치환 {#status-tokens}
+- [x] 글자크기 7단 스케일 + z-index 7단 + 모션 `--ease-out` 단일화·원시값 55곳 치환 {#scale-tokens}
+- [x] 아이콘버튼 14벌·칩 11벌 → `.iconbtn` 3크기·`.chip` 수정자로 흡수, 프리미티브를 전역 `styles/primitives.css` 로 {#primitive-merge}
+- [x] App.css 죽은 토큰·클래스 ~120줄 + `@fontsource/eb-garamond` 제거, 프로젝트 색·Claude 코랄 단일 정의 {#dead-css}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -76,4 +76,5 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 | 2026-08-30T16:36:00+09:00 | #session-id-newtype #events-over-polling | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1636_refactor_session-id-newtype-and-events.md | SessionId 뉴타입+current_workday · WorkdayChanged/AcpSessionChanged 로 폴링 3곳 제거 · Rules/Retro 영역 · 역의존 3곳 이동 |
 | 2026-08-30T16:36:00+09:00 | #error-convention #bus-and-helpers | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1636_refactor_error-convention-and-store-helpers.md | AppError(oculpm·acp 59) + call 래퍼 + lint:bindings · createStore 3종 · format/workday 단일화 |
 | 2026-08-30T16:43:00+09:00 | #workspace-split | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1643_refactor_workspace-context-split.md | 조각 컨텍스트 3개+셀렉터(useStableSlice) · storage 이벤트로 터미널 탭 채택 · TerminalSurface/AcpConversation 이관 |
+| 2026-08-30T16:51:00+09:00 | #status-tokens #scale-tokens #primitive-merge #dead-css | claude-code | ☐→[x] | .oculpm/journal/20260830/Refactors/1651_refactor_design-tokens-and-primitives.md | 상태색 12토큰+팔레트 단일 · fs7/z8/이징 564곳 · iconbtn 7벌·chip 11벌 흡수+전역 · App.css −108줄·EB Garamond 제거 |
 <!-- oculpm:plan-log end -->

@@ -18,7 +18,7 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-size: 13px;
+  font-size: var(--fs-7);
   line-height: 1.45;
   overflow: hidden;
 }

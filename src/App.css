@@ -11,6 +11,10 @@
    ⚠️ styles/index.css(base/shell/primitives/screens)는 절대 전역화하지 말 것 —
    base.css 가 body/#root 를 강탈하고 .card/.chip/.stat/.scroll 을 점유한다. */
 @import "./styles/tokens.css";
+/* primitives.css 도 전역 (Phase 5): .btn/.iconbtn/.chip/.kbd 는 셀렉터가 고유하고
+   body/#root 를 건드리지 않는다. 시작 탭·트레이·전역 컴포넌트(ErrorCard·치트시트)가
+   같은 프리미티브를 쓴다 — 예전엔 셸 밖에서 스타일 없이 그려졌다. base.css 는 여전히 셸 전용. */
+@import "./styles/primitives.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 /* EB Garamond 는 2026-08-12 폴리시에서 제거했다 — 산세리프 UI 위의 세리프
@@ -301,34 +305,16 @@
     @apply font-sans;
     }
 
-  /* Changelog category color tokens (MASTER-GUIDE §6.4) */
+  /* (Phase 5 정리) 체인지로그 카테고리 색 `--cat-*`·`--motion-*`·recent-change 앰버
+     는 소비처가 없어 지웠다. `--radius-*` 는 shadcn 유틸리티가 읽으므로 남긴다. */
   :root {
-    --cat-feature:  #5b8def;  /* blue */
-    --cat-fix:      #e7785b;  /* coral */
-    --cat-refactor: #8e7ae6;  /* purple */
-    --cat-docs:     #4caf81;  /* green */
-    --cat-test:     #d4a843;  /* amber */
-    --cat-chore:    #888880;  /* gray */
-
-    /* W6 Polish: unified design tokens (MASTER-GUIDE §6.4) */
     --radius-card:   16px;    /* 카드/모달 */
     --radius-button: 8px;     /* 버튼/입력 */
     --radius-chip:   999px;   /* chip/badge */
-    --motion-fast:   150ms;   /* 마이크로 인터랙션 */
-    --motion-normal: 200ms;   /* 화면 전환 */
-
-    /* Lite-W6 PR10 — semantic accents for "attention, not error" notices.
-       Both are amber-leaning so they read as a notice rather than alarm
-       (destructive stays reserved for actual error states). Pick distinct
-       shades so a FileTree dot and a GitChip badge in the same titlebar
-       don't visually collapse into one tone. */
-    --accent-recent-change:   #d4a843;  /* amber — Watcher A/M/D dot */
-    --accent-uncommitted:     #c4922f;  /* deeper amber — git +N badge */
+    /* Lite-W6 PR10 — git +N 배지의 앰버 (경고가 아니라 "주의"). */
+    --accent-uncommitted:     #c4922f;
   }
   [data-theme="dark"] {
-    /* Dark-mode variants: lift the chroma so the accents stay legible
-       against the #181715 canvas. */
-    --accent-recent-change:   #e6c570;
     --accent-uncommitted:     #dba94b;
   }
 
@@ -350,38 +336,12 @@
   }
 }
 
-/* Project card micro-interaction (W6 UI-6) */
 /* `.project-card` 3블록 삭제 (2026-07-31, 메인 화면 재구성).
    유일한 소비처가 StartScreen 의 프로젝트 카드였고, hover 그림자의
    rgba(204,120,92,…) 는 2026-07-16 "Atelier Ivory" 리스킨 이전의 코랄
    액센트라 Nord/Dracula/고대비 프리셋에서 코랄 기가 섞였다. 새 메인 화면은
    tokens.css 의 --shadow-card / --shadow-raise / --shadow-sheet 4단 스케일을
    쓴다 (features/onboarding/home.css). 되살리지 말 것. */
-
-/* Glassmorphism styling utilities */
-.glassy-sidebar {
-  background: rgba(250, 249, 245, 0.65) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-[data-theme="dark"] .glassy-sidebar {
-  background: rgba(24, 23, 21, 0.65) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.glassy-header {
-  background: rgba(250, 249, 245, 0.8) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-[data-theme="dark"] .glassy-header {
-  background: rgba(24, 23, 21, 0.8) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
 
 /* Custom minimal scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
@@ -405,99 +365,8 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Code Editor Real-time Syntax Highlight Overlay */
-.code-editor-textarea {
-  -webkit-text-fill-color: transparent !important;
-  caret-color: var(--primary) !important;
-  tab-size: 2;
-}
-[data-theme="dark"] .code-editor-textarea {
-  caret-color: var(--primary) !important;
-}
-
-/* --- Code editor look & feel --------------------------------------- */
-:root {
-  --editor-font: 'D2Coding', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
-  --editor-bg: #fbfaf6;
-  --editor-gutter-bg: #f5f1e8;
-  --editor-gutter-fg: #b0a99d;
-  --editor-gutter-active-fg: #6c6a64;
-  --editor-active-line: rgba(204, 120, 92, 0.06);
-  --editor-rule: rgba(20, 20, 19, 0.06);
-  --editor-indent-guide: rgba(20, 20, 19, 0.08);
-  --editor-statusbar-bg: #efe9de;
-  --editor-statusbar-fg: #6c6a64;
-  --editor-statusbar-accent: #cc785c;
-}
-[data-theme="dark"] {
-  --editor-bg: #1d1c1a;
-  --editor-gutter-bg: #1a1917;
-  --editor-gutter-fg: #595650;
-  --editor-gutter-active-fg: #c9c5bb;
-  --editor-active-line: rgba(204, 120, 92, 0.08);
-  --editor-rule: rgba(255, 255, 255, 0.06);
-  --editor-indent-guide: rgba(255, 255, 255, 0.08);
-  --editor-statusbar-bg: #1f1e1b;
-  --editor-statusbar-fg: #8e8b82;
-  --editor-statusbar-accent: #cc785c;
-}
-
-.editor-surface {
-  background: var(--editor-bg);
-  font-family: var(--editor-font);
-  font-feature-settings: "liga" 0, "calt" 0;
-  font-variant-ligatures: none;
-}
-
-.editor-gutter {
-  background: var(--editor-gutter-bg);
-  color: var(--editor-gutter-fg);
-  font-family: var(--editor-font);
-  border-right: 1px solid var(--editor-rule);
-}
-
-.editor-active-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background: var(--editor-active-line);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.editor-statusbar {
-  background: var(--editor-statusbar-bg);
-  color: var(--editor-statusbar-fg);
-  border-top: 1px solid var(--editor-rule);
-}
-
-.editor-tab-bar {
-  background: var(--editor-gutter-bg);
-  border-bottom: 1px solid var(--editor-rule);
-}
-
-/* Editor uses a thinner, more refined scrollbar */
-.editor-surface ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-.editor-surface ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.editor-surface ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 999px;
-  border: 3px solid var(--editor-bg);
-}
-[data-theme="dark"] .editor-surface ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-}
-.editor-surface ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.22);
-}
-[data-theme="dark"] .editor-surface ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
+/* (Phase 5 정리) 옛 textarea 편집기의 `.editor-*` 규칙과 `--editor-*` 토큰은 CodeMirror 로
+   옮겨간 뒤 소비처가 없어 지웠다. */
 
 /* --- highlight.js Github Dark Theme Overrides --- */
 [data-theme="dark"] .hljs {

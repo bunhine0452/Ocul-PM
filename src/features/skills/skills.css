@@ -15,7 +15,7 @@
   background: none;
   border-radius: 6px;
   font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -55,7 +55,7 @@
   align-items: baseline;
   gap: 6px;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -89,7 +89,7 @@
   min-width: 0;
 }
 .sk-row-name {
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -101,7 +101,7 @@
 }
 .sk-row-desc {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,18 +109,15 @@
 }
 .sk-none {
   padding: 4px 8px 8px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-3);
 }
 
 /* 상태 칩 — 비활성/스코프/보조파일 배지. */
 .sk-chip {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 600;
   color: var(--text-2);
   background: var(--bg-inset);
@@ -176,7 +173,7 @@
 }
 .sk-head-path {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-family: var(--mono, ui-monospace, monospace);
   color: var(--text-3);
   overflow: hidden;
@@ -210,7 +207,7 @@
 }
 .sk-fm summary {
   padding: 6px 10px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--text-3);
   cursor: pointer;
@@ -219,7 +216,7 @@
 .sk-fm pre {
   margin: 0;
   padding: 4px 12px 10px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   line-height: 1.55;
   color: var(--text-2);
   overflow-x: auto;
@@ -232,14 +229,14 @@
   border-top: 1px dashed var(--sep);
 }
 .sk-files-title {
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 700;
   color: var(--text-3);
   margin-bottom: 6px;
 }
 .sk-files li {
   list-style: none;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-family: var(--mono, ui-monospace, monospace);
   color: var(--text-2);
   padding: 1px 0;
@@ -264,7 +261,7 @@
   background: var(--bg-inset);
   color: var(--text);
   font-family: var(--mono, ui-monospace, monospace);
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   line-height: 1.6;
 }
 .sk-textarea:focus {
@@ -272,22 +269,13 @@
   outline-offset: -1px;
 }
 .sk-editor-hint {
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 
 /* 툴바 아이콘 버튼 (docs-refresh 와 동일 규격 — 화면 독립 클래스). */
 .sk-iconbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-s);
-  color: var(--text-2);
-  background: none;
   border: 1px solid var(--sep);
-  cursor: pointer;
 }
 .sk-iconbtn:hover {
   background: var(--bg-hover);
@@ -300,7 +288,7 @@
   height: 32px;
   padding: 0 10px;
   border-radius: var(--radius-s);
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-2);
   background: none;
   border: 1px solid var(--sep);
@@ -335,13 +323,13 @@
   color: var(--text);
 }
 .sk-empty-desc {
-  font-size: 13px;
+  font-size: var(--fs-7);
   line-height: 1.65;
   color: var(--text-3);
   margin: 0;
 }
 .sk-empty-desc code {
-  font-size: 12px;
+  font-size: var(--fs-5);
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--bg-inset);
@@ -357,7 +345,7 @@
 }
 .sk-field label {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--text-2);
   margin-bottom: 4px;
@@ -369,7 +357,7 @@
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-7);
 }
 .sk-input:focus {
   outline: 2px solid var(--accent-ring);
@@ -377,7 +365,7 @@
 }
 .sk-field-hint {
   margin-top: 4px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 .sk-field-hint.bad {
@@ -396,7 +384,7 @@
   border: none;
   border-radius: var(--radius-s);
   background: none;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -423,12 +411,12 @@
 }
 .sk-modal-warn {
   padding: 0 20px;
-  font-size: 13px;
+  font-size: var(--fs-7);
   line-height: 1.6;
   color: var(--text-2);
 }
 .sk-modal-warn code {
-  font-size: 12px;
+  font-size: var(--fs-5);
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--bg-inset);
@@ -460,7 +448,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
@@ -470,12 +458,12 @@
 }
 .sk-translate-hint {
   margin: 5px 0 0;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   line-height: 1.55;
   color: var(--text-3);
 }
 .sk-translate-hint code {
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   padding: 0 4px;
   border-radius: 4px;
   background: var(--bg-inset);
@@ -494,22 +482,18 @@
   background: var(--bg-inset);
 }
 .sk-paths-label {
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-3);
   font-family: var(--mono, ui-monospace, monospace);
 }
 .sk-path-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
   padding: 2px 3px 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--sep);
   background: var(--bg-card);
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-2);
 }
 .sk-path-chip button {
@@ -534,7 +518,7 @@
   border: none;
   background: none;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   padding: 3px 2px;
 }
 .sk-paths input:focus {
@@ -547,12 +531,12 @@
 }
 .sk-gallery-intro {
   margin: 0 0 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   line-height: 1.6;
   color: var(--text-3);
 }
 .sk-gallery-intro code {
-  font-size: 11px;
+  font-size: var(--fs-3);
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--bg-inset);
@@ -580,13 +564,13 @@
   min-width: 0;
 }
 .sk-gallery-name {
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 650;
   color: var(--text);
 }
 .sk-gallery-desc {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   line-height: 1.5;
   color: var(--text-3);
 }
@@ -606,7 +590,7 @@
   gap: 14px;
 }
 .sk-hooks-hint {
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   line-height: 1.65;
   color: var(--text-3);
   margin: 0;
@@ -644,7 +628,7 @@
   width: 100%;
   max-width: 340px;
   padding: 6px 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-inset);
@@ -661,7 +645,7 @@
 }
 .sk-chip-btn {
   cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease;
+  transition: border-color 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .sk-chip-btn:hover {
   border-color: var(--accent);
@@ -690,7 +674,7 @@
 .sk-shop-preview {
   max-height: 55vh;
   overflow-y: auto;
-  font-size: 13px;
+  font-size: var(--fs-7);
 }
 /* 갤러리 모달 하단 안내 섹션 (샵 탭 포인터) — 목록과 시각 분리 */
 .sk-gallery-sec {

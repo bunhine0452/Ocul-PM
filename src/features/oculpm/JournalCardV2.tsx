@@ -63,7 +63,7 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
                 className="jcard-verified"
                 title={t("entry.verified")}
                 aria-label={t("entry.verified")}
-                style={{ display: "inline-flex", color: "var(--ok, #12a06b)" }}
+                style={{ display: "inline-flex", color: "var(--ok)" }}
               >
                 <Check size={12} />
               </span>

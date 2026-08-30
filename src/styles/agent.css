@@ -28,7 +28,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--text-2);
   transition:
@@ -51,7 +51,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--text-2);
 }
@@ -63,11 +63,11 @@
   flex: none;
 }
 .agent-id.busy .agent-id-dot {
-  animation: ai-pulse 1.2s ease-in-out infinite;
+  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
 }
 .agent-id-meta {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 500;
   color: var(--text-3);
 }
@@ -95,7 +95,7 @@
   background: none;
   text-align: left;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-2);
   cursor: pointer;
 }
@@ -159,7 +159,7 @@
   width: 26px;
   padding-top: 1px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-3);
@@ -206,7 +206,7 @@
   max-height: 260px;
   overflow: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
@@ -240,7 +240,7 @@
 .trace-peek .trace-io pre {
   max-height: none;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.55;
   color: var(--text-2);
 }
@@ -283,7 +283,7 @@
   margin-left: auto;
   flex: none;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-2);
 }
 /* 변경 규모 "+12 −3" — 편집 단계의 핵심 숫자라 접혀 있어도 줄에서 읽힌다. */
@@ -293,7 +293,7 @@
   display: inline-flex;
   gap: 5px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -324,7 +324,7 @@
 }
 .trace-row.running .trace-icon {
   color: var(--accent);
-  animation: ai-pulse 1.2s ease-in-out infinite;
+  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
 }
 .trace-row.failed .trace-icon {
   color: var(--t-bug);
@@ -335,7 +335,7 @@
    이어 붙이면 구분자가 틀어지므로, 한 개만 보여 주고 나머지는 `+N` 으로 센다. */
 .trace-path {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -348,13 +348,13 @@
 .trace-more {
   flex: none;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 .trace-status {
   margin-left: auto;
   flex: none;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-3);
@@ -381,7 +381,7 @@
   gap: 5px;
   list-style: none;
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--text-3);
 }
@@ -399,7 +399,7 @@
   border-left: 1px solid var(--sep);
   color: var(--text-2);
   /* 곁가지는 본문(13.5px)보다 물러난다 — 같은 크기면 접어 둔 의도가 없다. */
-  font-size: 12.5px;
+  font-size: var(--fs-6);
 }
 
 /* ─── 승인 카드 ───────────────────────────────────────────────────────────
@@ -449,7 +449,7 @@
   align-items: center;
   gap: 7px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 700;
   color: var(--accent-text);
 }
@@ -461,13 +461,13 @@
   margin-bottom: 12px;
 }
 .perm-title {
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 600;
   color: var(--text);
 }
 .perm-path {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -487,20 +487,15 @@
   margin-bottom: 7px;
 }
 .attach-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   height: 22px;
   padding: 0 6px 0 8px;
   border: 1px solid var(--border-card);
   border-radius: 7px;
   background: var(--bg-card);
   cursor: pointer;
-  font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 550;
   color: var(--text-2);
-  max-width: 220px;
 }
 .attach-chip:hover {
   border-color: var(--t-bug);
@@ -518,7 +513,7 @@
   bottom: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 60;
+  z-index: var(--z-popover);
   max-height: 232px;
   overflow-y: auto;
   padding: 4px;
@@ -544,7 +539,7 @@
   cursor: pointer;
   text-align: left;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-2);
 }
 .mention-item .mention-name {
@@ -558,7 +553,7 @@
 }
 .mention-empty {
   padding: 9px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 
@@ -608,7 +603,7 @@
   border-radius: inherit;
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
   color: var(--accent-text);
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
   pointer-events: none;
 }
@@ -698,7 +693,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--text-2);
   transition:
@@ -711,7 +706,7 @@
   color: var(--text);
 }
 .agent-chip.busy .agent-id-dot {
-  animation: ai-pulse 1.2s ease-in-out infinite;
+  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
 }
 /* 값이 바뀌어도 **칩 폭이 변하지 않아야** 한다. "Low"→"울트라코드" 로 고칠
    때마다 하단바 전체가 밀리면 다음에 누르려던 버튼이 손 밑에서 도망간다.
@@ -734,7 +729,7 @@
   right: auto;
   /* 어떤 앵커든 화면을 넘지 않는다. */
   max-width: calc(100vw - 32px);
-  z-index: 60;
+  z-index: var(--z-popover);
   min-width: 250px;
   max-height: 380px;
   overflow-y: auto;
@@ -769,7 +764,7 @@
 }
 .settings-group-label {
   padding: 3px 9px 4px;
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -818,11 +813,11 @@
   flex: 1;
 }
 .settings-row-name {
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
 }
 .settings-row-desc {
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.45;
   color: var(--text-3);
 }
@@ -845,15 +840,11 @@
 /* 칩 전체가 삭제 버튼이던 것을 갈랐다 — 공들여 친 문장이 오클릭 한 번에
    증발했다. 본문 클릭 = 입력창으로 회수, X 만 폐기. */
 .queue-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   padding: 0 2px 0 8px;
   border: 1px dashed var(--sep-strong);
   border-radius: 9px;
   background: transparent;
-  font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 .queue-chip-text {
@@ -975,7 +966,7 @@
   padding: 6px 9px;
   border-radius: var(--radius-s);
   background: var(--bg-inset);
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.5;
   color: var(--text-3);
   white-space: nowrap;
@@ -1145,7 +1136,7 @@
 }
 .acp-panel-title {
   flex: 1;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1164,7 +1155,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
   color: var(--text);
 }
@@ -1194,7 +1185,7 @@
   outline: none;
   background: transparent;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text);
 }
 .acp-panel-list {
@@ -1236,7 +1227,7 @@
 .acp-session-title {
   flex: 1;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 550;
   color: var(--text-2);
   overflow: hidden;
@@ -1253,12 +1244,12 @@
 .acp-session-time {
   flex: none;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-2);
 }
 .acp-panel-empty {
   padding: 12px 9px;
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   color: var(--text-3);
 }
 /* 패널 토글은 툴바에 고정한다. 스레드 위에 떠 있으면 열림/닫힘에 따라 위치가
@@ -1293,7 +1284,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 600;
   color: var(--text-3);
   transition:
@@ -1340,14 +1331,14 @@
   gap: 4px;
 }
 .usage-pill-name {
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text-3);
 }
 .usage-pill-value {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 650;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
@@ -1367,7 +1358,7 @@
    위치(top/right)는 컴포넌트가 버튼을 재어 인라인으로 넣는다. */
 .usage-card {
   position: fixed;
-  z-index: 300;
+  z-index: var(--z-top);
   width: 344px;
   max-width: calc(100vw - 24px);
   padding: 4px;
@@ -1391,7 +1382,7 @@
 }
 .usage-card-title {
   flex: 1;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1449,7 +1440,7 @@
 }
 .usage-row-name {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--text);
 }
@@ -1465,7 +1456,7 @@
 }
 .usage-row-unit {
   margin-left: 1px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--text-3);
 }
@@ -1499,7 +1490,7 @@
   background: linear-gradient(90deg, #ef7d76, var(--t-bug));
 }
 .usage-row-reset {
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 .usage-card-foot {
@@ -1510,7 +1501,7 @@
   padding: 9px 8px;
   border-radius: var(--radius-s);
   background: var(--bg-inset);
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 
@@ -1551,7 +1542,7 @@
 }
 .think-meta {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 500;
   color: var(--text-3);
 }
@@ -1566,7 +1557,7 @@
   display: flex;
   align-items: center;
   min-height: 20px;
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 550;
   letter-spacing: -0.01em;
   color: var(--text-2);
@@ -1647,7 +1638,7 @@
   background: none;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 550;
   letter-spacing: -0.01em;
   color: var(--text-3);
@@ -1665,7 +1656,7 @@
   opacity: 0.55;
 }
 .acp-tab.active .acp-tab-mark {
-  color: #d97757;
+  color: var(--claude);
 }
 .acp-tab-title {
   overflow: hidden;
@@ -1797,7 +1788,7 @@
   background: var(--t-bug);
   color: #fff;
   font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -1829,7 +1820,7 @@
   background: none;
   outline: none;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--text);
 }
@@ -1840,8 +1831,8 @@
 
 /* 시작 화면의 브랜드 마크 — 여기서는 로고를 로고답게 (제 색으로) 보인다. */
 .ai-hero-icon.claude {
-  background: color-mix(in srgb, #d97757 14%, transparent);
-  border-color: color-mix(in srgb, #d97757 26%, transparent);
+  background: color-mix(in srgb, var(--claude) 14%, transparent);
+  border-color: color-mix(in srgb, var(--claude) 26%, transparent);
 }
 
 .toolbar-title:has(.acp-tabs) {
@@ -1861,7 +1852,7 @@
 .usage-detail-title {
   display: block;
   margin-bottom: 6px;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1880,7 +1871,7 @@
    고정폭으로 두면 한 문장이 다섯 줄로 접혀 정작 아래 숫자를 밀어냈다. */
 .usage-note {
   margin: 0;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   line-height: 1.5;
   color: var(--text-3);
 }
@@ -1889,7 +1880,7 @@
    비율인지를 정하는 줄이라 제목처럼 읽혀야 한다. */
 .usage-stat {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 650;
   color: var(--text-2);
 }
@@ -1907,13 +1898,13 @@
 .usage-share-text {
   flex: 1;
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.4;
   color: var(--text-2);
 }
 .usage-share-pct {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-7);
   font-weight: 600;
   line-height: 1;
   color: var(--text);
@@ -1932,7 +1923,7 @@
   gap: 5px;
 }
 .usage-top-label {
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1946,15 +1937,12 @@
 /* 이름이 길다(`plugin:oculpm:oculpm`). 칩이 줄을 넘기지 않게 자르고, 자른 것은
    `title` 로 돌려준다 — 여기서 넘치면 옆의 % 가 밀려 나가 아무 것도 안 읽힌다. */
 .usage-chip {
-  display: inline-flex;
   align-items: baseline;
-  gap: 5px;
-  max-width: 100%;
   padding: 2px 7px;
   border: 1px solid var(--border-card);
   border-radius: 999px;
   background: var(--bg-card);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-2);
 }
 .usage-chip-name {
@@ -1974,7 +1962,7 @@
 .usage-raw {
   margin: 0;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.55;
   color: var(--text-2);
   white-space: pre-wrap;
@@ -2025,7 +2013,7 @@
   border-radius: 999px;
   background: var(--bg-window);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -2110,7 +2098,7 @@
   border-radius: 9px;
   background: var(--bg-window);
   font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   font-weight: 550;
   color: var(--text-2);
 }
@@ -2145,7 +2133,7 @@
 .user-file-dim {
   flex: none;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 500;
   color: var(--text-3);
 }
@@ -2156,7 +2144,7 @@
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 400;
+  z-index: var(--z-top);
   display: grid;
   place-items: center;
   padding: 48px;
@@ -2197,7 +2185,7 @@
   align-items: baseline;
   justify-content: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: rgb(255 255 255 / 0.72);
 }
 .lightbox-name {
@@ -2205,7 +2193,7 @@
 }
 .lightbox-dim {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: rgb(255 255 255 / 0.5);
 }
 .lightbox-close {
@@ -2341,7 +2329,7 @@
 .acp-layout .exchange .msg.assistant > .agent-word::before,
 .acp-layout .exchange .msg.assistant > .trace-item:has(.trace-row.running)::before {
   background: var(--accent);
-  animation: rail-pulse 1.4s ease-in-out infinite;
+  animation: rail-pulse 1.4s var(--ease-in-out) infinite;
 }
 @keyframes rail-pulse {
   50% {
@@ -2373,7 +2361,7 @@
 }
 .turn-notice-label {
   flex: none;
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -2383,7 +2371,7 @@
 .effort-label-note {
   margin-left: 6px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--text-3);
@@ -2406,7 +2394,7 @@
   padding: 7px 10px;
   cursor: pointer;
   list-style: none;
-  font-size: 12px;
+  font-size: var(--fs-5);
   color: var(--text-3);
 }
 .plan > summary::-webkit-details-marker {
@@ -2426,7 +2414,7 @@
 .plan-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
 }
 .plan-list {
   margin: 0;
@@ -2440,7 +2428,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   line-height: 1.5;
   color: var(--text-2);
 }
@@ -2457,7 +2445,7 @@
 .plan-item.in_progress .plan-mark {
   border-color: var(--accent);
   background: var(--accent);
-  animation: rail-pulse 1.4s ease-in-out infinite;
+  animation: rail-pulse 1.4s var(--ease-in-out) infinite;
 }
 .plan-item.in_progress .plan-text {
   color: var(--text);
@@ -2509,13 +2497,13 @@
   min-width: 0;
 }
 .failure-title {
-  font-size: 12.5px;
+  font-size: var(--fs-6);
   font-weight: 600;
   line-height: 1.5;
   color: var(--text);
 }
 .failure-details {
-  font-size: 11.5px;
+  font-size: var(--fs-4);
   line-height: 1.55;
   color: var(--text-3);
   white-space: pre-wrap;
@@ -2554,7 +2542,7 @@
 .diffv-name {
   flex: none;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 700;
   color: var(--text);
 }
@@ -2562,7 +2550,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -2576,7 +2564,7 @@
   display: inline-flex;
   gap: 6px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -2589,7 +2577,7 @@
   overflow: auto;
   padding: 4px 0;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-3);
   line-height: 1.55;
 }
 .diffv-line {
@@ -2628,7 +2616,7 @@
 .diffv-more {
   padding: 2px 9px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 /* 접힌 카드의 미리보기 자리에서는 상자를 벗는다 — trace-peek 이 이미 왼쪽
@@ -2653,7 +2641,7 @@
 .turn-receipt {
   margin-top: 2px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 
@@ -2704,7 +2692,7 @@
   right: 12px;
   z-index: 1;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--text-3);
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
@@ -2726,7 +2714,7 @@
   border-radius: 7px;
   background: var(--bg-card);
   font-family: var(--font);
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
