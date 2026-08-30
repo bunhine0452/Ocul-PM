@@ -1,3 +1,4 @@
+import { useConfirm } from "@/hooks/useConfirm";
 /**
  * 문제 해결 문서 편집기 — CodeMirror 6 마크다운 + 라이브 프리뷰.
  *
@@ -117,6 +118,7 @@ export function DiscussionEditor({
   author,
 }: Props) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [text, setText] = useState(initialText);
@@ -313,6 +315,7 @@ export function DiscussionEditor({
 
   return (
     <div className="disc-edit">
+      {confirmDialog}
       <div className="disc-edit-bar">
         <div className="disc-tool-group">
           {fmt.map((b) => (
@@ -385,8 +388,17 @@ export function DiscussionEditor({
             disabled={busy}
             onClick={() => {
               // 저장 안 한 편집을 조용히 버리지 않는다.
-              if (dirty && !window.confirm(t("disc.editor.discardConfirm"))) return;
-              onCancel();
+              if (!dirty) {
+                onCancel();
+                return;
+              }
+              void confirm({
+                title: t("disc.editor.discardConfirm"),
+                confirmLabel: t("common.discard"),
+                danger: true,
+              }).then((ok) => {
+                if (ok) onCancel();
+              });
             }}
           >
             {t("common.cancel")}

@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -12,7 +13,6 @@ import {
   ExternalLink,
   FileCode,
   X,
-  TriangleAlert,
 } from "@/components/Icons";
 import { commands, type ChunkSearchResult, type SymbolSearchResult } from "@/lib/bindings";
 import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
@@ -319,12 +319,12 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
           </div>
 
           {error ? (
-            <div className="card card-pad" style={{ maxWidth: 880, margin: "0 auto" }}>
-              <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> {t("search.failed")}
-              </div>
-              <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
-            </div>
+            <ErrorCard
+              title={t("search.failed")}
+              error={error}
+              onRetry={() => void runSearch(query, scope, includeDocs)}
+              style={{ maxWidth: 880, margin: "0 auto" }}
+            />
           ) : loading ? (
             <OculSpinner label={t("search.searching")} />
           ) : show && results!.items.length === 0 ? (

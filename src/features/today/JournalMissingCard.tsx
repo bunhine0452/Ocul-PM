@@ -1,3 +1,4 @@
+import { openSettings } from "@/lib/settingsNav";
 import { useCallback, useEffect, useState } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 
@@ -155,7 +156,12 @@ export function JournalMissingCard({
       <button
         type="button"
         className="btn sm"
-        onClick={() => onNavigate("settings")}
+        onClick={() => {
+          // 설정 화면으로 옮기고 ocul-pm 탭(자동 초안 토글이 있는 곳)을 편다 —
+          // 예전엔 화면만 옮겨 사용자가 탭을 찾아야 했다.
+          onNavigate("settings");
+          openSettings("oculpm");
+        }}
       >
         {t("today.missing.enable")}
       </button>

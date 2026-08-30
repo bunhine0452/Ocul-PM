@@ -22,12 +22,12 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 - [x] Today 마운트마다 git 프로세스 ~15개 — deps 이중 조회 제거 + `primary_repo` 30초 캐시 + git 커맨드 4종 `spawn_blocking` (`useTodayMonitor.ts:99`, `git.rs:282`, `commands/git.rs`) {#today-git-fanout}
 
 ## Phase 1 — UX 프리미티브 (14화면 공통) {#ux-primitives}
-- [ ] `ErrorCard`(오류+재시도) 공용화 → 재시도 없던 5화면(논의·회고·검색·문서·Diff) 적용 {#error-card}
-- [ ] 로딩 규칙 통일 — 목록은 `SkeletonList`, 단일 대기는 `OculSpinner`; 평문 로딩(문서·스킬·코드·설정) 제거, 영문 하드코딩 3곳 i18n {#loading-rule}
-- [ ] `useConfirm()` 하나로 파괴 확인 통일 + 무확인 3곳(대화 삭제·설정 초기화·Notion 토큰 제거) 확인 추가, `window.confirm` 제거 {#confirm-unify}
-- [ ] 툴바 제목은 `t(nav.*)` 로 — Planner 하드코딩·Diff/AI 불일치 정정, 새로고침 아이콘은 액션 묶음 첫 자리 규칙 {#toolbar-rule}
-- [ ] 용어 통일 — 검증/검토/확인(verified_by_user=확인), 일지/기록, 재구축/재인덱싱; 팔레트 중복 설정 항목 제거 {#terminology}
-- [ ] 설정 탭 딥링크 API(`openSettings(tab)`) + 틀린 경로 문구 3곳을 버튼으로 (`ko.ts:2461`, `:2136`, `:1312`, `JournalMissingCard`) {#settings-deeplink}
+- [x] `ErrorCard`(오류+재시도) 공용화 → 재시도 없던 5화면(논의·회고·검색·문서·Diff) 적용 {#error-card}
+- [x] 로딩 규칙 통일 — 목록은 `SkeletonList`, 단일 대기는 `OculSpinner`; 평문 로딩(문서·스킬·코드·설정) 제거, 영문 하드코딩 3곳 i18n {#loading-rule}
+- [x] `useConfirm()` 하나로 파괴 확인 통일 + 무확인 3곳(대화 삭제·설정 초기화·Notion 토큰 제거) 확인 추가, `window.confirm` 제거 {#confirm-unify}
+- [x] 툴바 제목은 `t(nav.*)` 로 — Planner 하드코딩·Diff/AI 불일치 정정, 새로고침 아이콘은 액션 묶음 첫 자리 규칙 {#toolbar-rule}
+- [x] 용어 통일 — 검증/검토/확인(verified_by_user=확인), 일지/기록, 재구축/재인덱싱; 팔레트 중복 설정 항목 제거 {#terminology}
+- [x] 설정 탭 딥링크 API(`openSettings(tab)`) + 틀린 경로 문구 3곳을 버튼으로 (`ko.ts:2461`, `:2136`, `:1312`, `JournalMissingCard`) {#settings-deeplink}
 
 ## Phase 2 — 여정 {#journeys}
 - [ ] 첫 init 1회 카드 — 무엇을 썼는지(AGENTS.md 블록·.gitignore·.oculpm/) + 커밋 안내; `notActive` 에 재시도 버튼; 죽은 "EmptyToday 활성화 카드" 문구 정정 (`ProjectTab.tsx:100`, `TodayScreenV2.tsx:190`) {#first-run-card}
@@ -66,4 +66,6 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 | 2026-08-30T15:11:00+09:00 | #palette-esc #compose-anywhere | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1511_bug_palette-esc-and-compose-anywhere.md | useModalBehavior 를 팔레트에 · ShellV2 가 요청을 붙들고 일지로 이동 |
 | 2026-08-30T15:11:00+09:00 | #dead-config-keys #undefined-tokens | claude-code | ☐→[x] | .oculpm/journal/20260830/Chores/1511_chore_dead-config-keys-and-undefined-tokens.md | 키 7개 제거(journal_committed 포함) · --bg-card |
 | 2026-08-30T15:11:00+09:00 | #today-git-fanout | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1511_bug_today-git-process-fanout.md | deps 정리 + primary_repo 30s 캐시 + spawn_blocking ×4 |
+| 2026-08-30T15:26:00+09:00 | #error-card #confirm-unify #settings-deeplink | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1526_feature_error-card-confirm-settings-deeplink.md | ErrorCard 8화면 · useConfirm(window.confirm 0, 무확인 3곳 확인) · openSettings(tab) 딥링크 |
+| 2026-08-30T15:26:00+09:00 | #loading-rule #toolbar-rule #terminology | claude-code | ☐→[x] | .oculpm/journal/20260830/Chores/1526_chore_loading-rule-toolbar-terminology.md | SkeletonList/OculSpinner 규칙 · t(nav.*) 제목 · 확인/인덱스 재구축 |
 <!-- oculpm:plan-log end -->

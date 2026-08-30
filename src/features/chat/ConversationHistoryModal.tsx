@@ -1,3 +1,4 @@
+import { useConfirm } from "@/hooks/useConfirm";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { commands, type Conversation } from "@/lib/bindings";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
@@ -48,6 +49,7 @@ export function ConversationHistoryModal({
   onClose,
 }: Props) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   const titleId = useId();
   const [convs, setConvs] = useState<Conversation[] | null>(null);
 
@@ -75,6 +77,8 @@ export function ConversationHistoryModal({
   useModalBehavior({ open: true, onClose, panelRef });
 
   const remove = async (id: number) => {
+    // 대화 삭제는 되돌릴 수 없는데 확인 없이 지워졌다 (2026-08-30 감사).
+    if (!(await confirm({ title: t("chat.deleteConfirm"), danger: true }))) return;
     const res = await commands.conversationDelete(id);
     if (res.status === "ok") {
       toast.info(t("chat.deleted"));
@@ -86,6 +90,8 @@ export function ConversationHistoryModal({
   };
 
   return (
+    <>
+    {confirmDialog}
     <div className="set-modal-backdrop" onMouseDown={onClose}>
       <div
         ref={panelRef}
@@ -136,5 +142,6 @@ export function ConversationHistoryModal({
         )}
       </div>
     </div>
+    </>
   );
 }

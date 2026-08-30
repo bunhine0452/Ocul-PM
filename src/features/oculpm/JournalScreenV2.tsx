@@ -1,6 +1,7 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, TriangleAlert, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
+import { SearchIcon, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
@@ -410,15 +411,12 @@ export function JournalScreenV2({
         <div className="journal-wrap">
           <div className="journal-col fade-in">
             {error ? (
-              <div className="card card-pad" style={{ marginBottom: 16 }}>
-                <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                  <TriangleAlert size={14} /> {t("journal.loadFailed")}
-                </div>
-                <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
-                <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
-                  {t("common.retry")}
-                </button>
-              </div>
+              <ErrorCard
+                title={t("journal.loadFailed")}
+                error={error}
+                onRetry={refresh}
+                style={{ marginBottom: 16 }}
+              />
             ) : null}
 
             {loading && days == null ? (

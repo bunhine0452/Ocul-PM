@@ -1,3 +1,4 @@
+import { openSettings } from "@/lib/settingsNav";
 import { useCallback, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { PanelBottom } from "@/components/Icons";
@@ -32,6 +33,13 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   return (
     <>
       <Toolbar title={t("term.title")} sub={shellActive ? t("term.shellOn") : t("term.shellOff")}>
+        {shellActive ? null : (
+          // 안내 문구가 존재하지 않는 "설정 → 터미널" 을 가리키던 것을 버튼으로 —
+          // 셸 통합은 설정 → ocul-pm 탭에서 켠다.
+          <button className="btn" onClick={() => openSettings("oculpm")}>
+            {t("term.shellEnable")}
+          </button>
+        )}
         <button className="btn" onClick={moveToDock} title={t("term.dock.moveHint")}>
           <PanelBottom size={15} /> {t("term.dock.move")}
         </button>

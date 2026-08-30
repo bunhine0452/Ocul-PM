@@ -341,17 +341,8 @@ export function CommandPalette({
                   );
               },
             },
-            {
-              id: "oculpm-settings",
-              label: t("palette.oculpmSettings"),
-              alias: aliasOf("palette.oculpmSettings"),
-              group: "oculpm" as const,
-              icon: SettingsIcon,
-              onSelect: () => {
-                onOpenSettings();
-                onOpenChange(false);
-              },
-            },
+            // "ocul-pm 설정" 항목은 뺐다 — 위의 "설정 열기" 와 같은 함수를 부르는
+            // 중복이었고 탭 딥링크도 없었다 (2026-08-30 감사).
           ]
         : []),
     ],

@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -6,7 +7,6 @@ import {
   GitBranchIcon,
   CheckMark,
   Loader,
-  TriangleAlert,
 } from "@/components/Icons";
 import { commands, type DiffResult, type ChangeGroup, type ImpactReport } from "@/lib/bindings";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
@@ -452,7 +452,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   return (
     <>
       <Toolbar
-        title={t("diff.title")}
+        title={t("nav.diff")}
         sub={
           <span>
             {baseline === "last_commit" ? (
@@ -611,12 +611,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   <Loader size={14} /> {t("diff.computing")}
                 </div>
               ) : error ? (
-                <div
-                  className="empty-hint"
-                  style={{ color: "var(--t-bug)", textAlign: "left", padding: 16 }}
-                >
-                  <TriangleAlert size={14} /> {error}
-                </div>
+                <ErrorCard title={t("diff.failed")} error={error} style={{ margin: 16 }} />
               ) : diff ? (
                 <DiffBody
                   result={diff}

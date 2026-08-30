@@ -1,3 +1,4 @@
+import { SkeletonList } from "@/components/ui/Skeleton";
 // 코드 화면 (13번째 ui_v2 화면) — 프로젝트 파일을 앱 안에서 열어 보고 고친다
 // (docs/code-editor/00-master-plan.md · .oculpm/planner/ide-completion.md).
 // 좌: 필터·조작 가능한 파일 트리 / 우: 탭 바 + 편집 창 (1개 또는 좌우 2분할).
@@ -1038,7 +1039,7 @@ export function CodeScreenV2({
       {treeStatus === "loading" ? (
         <div className="scroll" ref={rootRef}>
           <div className="page">
-            <div className="empty-hint">{t("code.loading")}</div>
+            <SkeletonList rows={8} height={22} gap={6} />
           </div>
         </div>
       ) : treeStatus === "error" ? (

@@ -1,3 +1,4 @@
+import { useConfirm } from "@/hooks/useConfirm";
 // 데이터 탭 — 내보내기·Notion 연동·초기화.
 //
 // SettingsPanel.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
@@ -25,6 +26,7 @@ import { Section } from "./ui";
  */
 export function NotionSection({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   const [status, setStatus] = useState<NotionStatus | null>(null);
   const [token, setToken] = useState("");
   const [parent, setParent] = useState("");
@@ -89,6 +91,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
 
   const removeToken = async () => {
     if (busy) return;
+    if (!(await confirm({ title: t("settings.notion.disconnectConfirm"), danger: true }))) return;
     setBusy(true);
     const res = await commands.secretDelete("notion_api_key");
     setBusy(false);
@@ -117,6 +120,8 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
   };
 
   return (
+    <>
+    {confirmDialog}
     <Section
       title={t("settings.notion.title")}
       description={t("settings.notion.desc")}
@@ -183,11 +188,13 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
         </div>
       </div>
     </Section>
+    </>
   );
 }
 
 export function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   const { resetAll } = useSettings();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -222,6 +229,8 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
   };
 
   const resetSettings = async () => {
+    // 모든 설정을 기본값으로 — 확인 없이 되돌아가던 것 (2026-08-30 감사).
+    if (!(await confirm({ title: t("settings.reset.confirm"), danger: true }))) return;
     await resetAll();
   };
 
@@ -261,7 +270,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
             ))}
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Loading…</span>
+          <span className="text-xs text-muted-foreground">{t("common.loading")}</span>
         )}
       </Section>
 
@@ -321,6 +330,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
           </div>
         )}
       </Section>
+      {confirmDialog}
     </>
   );
 }

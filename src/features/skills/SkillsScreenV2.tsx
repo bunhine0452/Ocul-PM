@@ -1,3 +1,4 @@
+import { SkeletonList } from "@/components/ui/Skeleton";
 // 스킬·규칙 허브 (PR-CI3, docs/claude-integration/00-master-plan.md D5) —
 // 12번째 화면을 탭 허브로 확장했다: [스킬] 기존 `.claude/skills/` 관리 그대로,
 // [규칙] CLAUDE.md 계열 + `.claude/rules` CRUD·paths 편집·Cursor 병행 배포
@@ -367,7 +368,7 @@ function SkillsTabView({
       {status === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">{t("sk.loading")}</div>
+            <SkeletonList rows={6} height={40} />
           </div>
         </div>
       ) : status === "error" ? (

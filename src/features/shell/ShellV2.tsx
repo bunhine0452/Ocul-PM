@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
+import { onOpenSettingsRequest } from "@/lib/settingsNav";
 import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
@@ -141,6 +142,10 @@ export default function ShellV2({
       }),
     [view, setUiV2View],
   );
+
+  // 설정 딥링크(`openSettings(tab)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
+  // 바꾸는 쪽 절반. 패널이 탭을 고르고, 셸은 화면만 옮긴다.
+  useEffect(() => onOpenSettingsRequest(() => setUiV2View("settings")), [setUiV2View]);
 
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and

@@ -1,3 +1,5 @@
+import { SkeletonList } from "@/components/ui/Skeleton";
+import { ErrorCard } from "@/components/ErrorCard";
 // 문서(docs) 화면 — 프로젝트 루트의 `docs/` 폴더를 읽기 전용 위키처럼 보여준다.
 // 좌: 파일 트리 / 우: 마크다운 본문. 상대 링크는 위키 내 이동, 외부 링크는 시스템
 // 브라우저, 이미지는 백엔드(docs_asset)에서 base64 로 로드한다. (편집 기능은 후속.)
@@ -217,7 +219,7 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
   return (
     <>
       <Toolbar title={t("nav.docs")} sub={sub}>
-        {status === "ready" && tree?.exists ? (
+        {(status === "ready" && tree?.exists) || status === "error" ? (
           <button
             type="button"
             className="docs-refresh"
@@ -233,17 +235,13 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
       {status === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">{t("docs.loading")}</div>
+            <SkeletonList rows={6} height={28} />
           </div>
         </div>
       ) : status === "error" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">
-              {t("docs.listFailed")}
-              <br />
-              {treeError}
-            </div>
+            <ErrorCard title={t("docs.listFailed")} error={treeError} onRetry={loadTree} />
           </div>
         </div>
       ) : !tree?.exists ? (

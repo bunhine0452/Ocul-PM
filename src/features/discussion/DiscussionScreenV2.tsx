@@ -1,3 +1,5 @@
+import { useConfirm } from "@/hooks/useConfirm";
+import { ErrorCard } from "@/components/ErrorCard";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
@@ -92,6 +94,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     (m: EditorMode) => setState((prev) => ({ ...prev, discussionEditorMode: m })),
     [setState],
   );
+
+  const { confirm, confirmDialog } = useConfirm();
 
   const loadList = useCallback(async (): Promise<DiscussionSummary[]> => {
     setListError(null);
@@ -294,7 +298,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const remove = async () => {
     if (!selectedId) return;
-    if (!window.confirm(t("disc.deleteConfirm"))) return;
+    if (!(await confirm({ title: t("disc.deleteConfirm"), danger: true }))) return;
     setBusy(true);
     const res = await commands.discussionDelete(projectId, selectedId);
     setBusy(false);
@@ -370,6 +374,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   return (
     <>
+      {confirmDialog}
       <Toolbar
         title={t("nav.discussion")}
         sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
@@ -391,7 +396,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         <div className={`disc-body${editing ? " editing" : ""}`}>
           <aside className="disc-list">
             {listError ? (
-              <div className="empty-hint">{t("disc.listFailed", { error: listError })}</div>
+              <ErrorCard
+                title={t("disc.listFailedTitle")}
+                error={listError}
+                onRetry={() => void loadList()}
+                style={{ margin: 12 }}
+              />
             ) : list.length === 0 ? (
               <div className="empty-hint">
                 {t("disc.empty")}

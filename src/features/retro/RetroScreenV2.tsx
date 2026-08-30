@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
@@ -127,6 +128,9 @@ export function RetroScreenV2({
     ? t("retro.generating", { sec: elapsedSec, provider: runningGen!.provider, model: runningGen!.model })
     : null;
 
+  // 오류 카드의 「다시 시도」 — 같은 범위를 다시 읽게 하는 유일한 손잡이.
+  const [reloadNonce, setReloadNonce] = useState(0);
+
   // Refetch deterministic signals + cached narrative whenever the range (or
   // project) changes. The two are independent reads, run in parallel.
   useEffect(() => {
@@ -156,7 +160,7 @@ export function RetroScreenV2({
     return () => {
       alive = false;
     };
-  }, [projectId, since, until, rangeKey]);
+  }, [projectId, since, until, rangeKey, reloadNonce]);
 
   const stale =
     !!cached && !!signals && cached.signature !== signals.signature;
@@ -437,7 +441,12 @@ export function RetroScreenV2({
               <OculSpinner size={28} label={t("retro.gatheringSignals")} />
             </div>
           ) : error ? (
-            <div className="empty-hint">{t("retro.signalsFailed", { error })}</div>
+            <ErrorCard
+              title={t("retro.signalsFailedTitle")}
+              error={error}
+              onRetry={() => setReloadNonce((n) => n + 1)}
+              style={{ maxWidth: 640 }}
+            />
           ) : !hasWork ? (
             <div className="empty-hint">
               {t("retro.emptyPeriod")}

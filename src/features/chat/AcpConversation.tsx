@@ -1,3 +1,4 @@
+import { openSettings } from "@/lib/settingsNav";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import {
@@ -1586,6 +1587,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                 <div className="ai-suggest">
                   <button className="ai-suggest-chip" onClick={() => void retry()}>
                     {t("acp.retry")}
+                  </button>
+                  {/* 문구가 가리키던 "설정 → 통합" 은 없는 경로였다 — 버튼으로. */}
+                  <button className="ai-suggest-chip" onClick={() => openSettings("oculpm")}>
+                    {t("acp.openSettings")}
                   </button>
                 </div>
               )}

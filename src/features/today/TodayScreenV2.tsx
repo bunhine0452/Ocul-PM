@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -206,15 +207,12 @@ export function TodayScreenV2({
           </div>
 
           {error ? (
-            <div className="card card-pad" style={{ marginBottom: 16 }}>
-              <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> {t("today.loadFailed")}
-              </div>
-              <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
-              <button className="btn sm" style={{ marginTop: 12 }} onClick={refresh}>
-                {t("common.retry")}
-              </button>
-            </div>
+            <ErrorCard
+              title={t("today.loadFailed")}
+              error={error}
+              onRetry={refresh}
+              style={{ marginBottom: 16 }}
+            />
           ) : null}
 
           {/* Stat row */}

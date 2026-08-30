@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { consumeSettingsTab, onOpenSettingsRequest } from "@/lib/settingsNav";
+import { OculSpinner } from "@/components/OculSpinner";
 import {
   Sun,
   Sparkles,
@@ -79,7 +81,17 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   const { t } = useT();
-  const [tab, setTab] = useState<TabId>("appearance");
+  // 딥링크(`openSettings(tab)`) — 마운트 전에 온 요청은 여기서 회수하고, 떠 있는
+  // 동안 온 요청은 구독으로 받는다. 안내 문구가 "설정 → 어디" 라고 말하는 대신
+  // 버튼이 바로 그 탭을 연다.
+  const [tab, setTab] = useState<TabId>(() => consumeSettingsTab() ?? "appearance");
+  useEffect(
+    () =>
+      onOpenSettingsRequest((requested) => {
+        if (requested) setTab(requested);
+      }),
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const { loaded } = useSettings();
 
@@ -113,7 +125,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   if (!loaded) {
     return (
       <div className={embedded ? "" : "w-full max-w-4xl rounded-xl border bg-card p-6 shadow-sm"}>
-        <span className="text-sm text-muted-foreground">Loading settings…</span>
+        <OculSpinner size={22} label={t("common.loading")} />
       </div>
     );
   }
@@ -193,7 +205,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
               onClick={() => setError(null)}
               className="text-xs hover:underline cursor-pointer"
             >
-              Dismiss
+              {t("common.dismiss")}
             </button>
           </div>
         )}

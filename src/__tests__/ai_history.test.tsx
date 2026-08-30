@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -100,12 +100,27 @@ describe("PR-R1 (A3) — 대화 기록 모달", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 
-  it("활성 대화 삭제 → conversationDelete + onActiveDeleted", async () => {
+  it("활성 대화 삭제 → 확인 다이얼로그 → conversationDelete + onActiveDeleted", async () => {
     convFx.list = [conv({ id: 5, title: "지울 대화" })];
-    const { findByLabelText, onActiveDeleted } = renderModal({ activeId: 5 });
+    const { findByLabelText, findByRole, onActiveDeleted } = renderModal({ activeId: 5 });
     fireEvent.click(await findByLabelText("지울 대화 삭제"));
+    // 확인 없이 지워지던 것이 2026-08-30 에 useConfirm 으로 바뀌었다 — 다이얼로그의
+    // 「삭제」 를 눌러야 실제 삭제가 돈다.
+    expect(deleteMock.calls).not.toContain(5);
+    const dialog = await findByRole("dialog", { name: /이 대화를 삭제할까요/ });
+    fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));
     await waitFor(() => expect(deleteMock.calls).toContain(5));
     await waitFor(() => expect(onActiveDeleted).toHaveBeenCalledTimes(1));
+  });
+
+  it("활성 대화 삭제 취소 → 아무것도 지우지 않는다", async () => {
+    convFx.list = [conv({ id: 5, title: "지울 대화" })];
+    const { findByLabelText, findByRole } = renderModal({ activeId: 5 });
+    fireEvent.click(await findByLabelText("지울 대화 삭제"));
+    const dialog = await findByRole("dialog", { name: /이 대화를 삭제할까요/ });
+    fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(deleteMock.calls).not.toContain(5);
   });
 
   it("빈 목록 → 안내 힌트", async () => {

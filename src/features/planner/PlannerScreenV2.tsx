@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -615,7 +616,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   return (
     <>
       <Toolbar
-        title="Planner"
+        title={t("nav.planner")}
         sub={
           plans && plans.length > 0
             ? `${t("plan.toolbarSub", { n: plans.length, active: railStats.active })}${railStats.stale ? t("plan.toolbarStale", { n: railStats.stale }) : ""}`
@@ -682,15 +683,15 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         <div className="pln-main">
         <div className="pln-doc fade-in">
           {error ? (
-            <div className="card card-pad" style={{ marginBottom: 16 }}>
-              <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-                <TriangleAlert size={14} /> {t("plan.error")}
-              </div>
-              <div className="today-date" style={{ marginTop: 8 }}>{error}</div>
-              <button className="btn sm" style={{ marginTop: 12 }} onClick={() => { setError(null); void refreshPlans(); }}>
-                {t("common.retry")}
-              </button>
-            </div>
+            <ErrorCard
+              title={t("plan.error")}
+              error={error}
+              onRetry={() => {
+                setError(null);
+                void refreshPlans();
+              }}
+              style={{ marginBottom: 16 }}
+            />
           ) : null}
 
           {/* New plan composer */}
