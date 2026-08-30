@@ -891,7 +891,7 @@ export const commands = {
 	 *  3b. (W3-PR10) Optionally initialises `.oculpm/` for the new project so
 	 *      the user does not see the onboarding modal on first Today open.
 	 *      Failure is **non-fatal**: the project row is already committed and
-	 *      EmptyToday V1 provides a "활성화" recovery path.
+	 *      Today 화면의 「지금 활성화」 버튼이 재시도 경로다.
 	 *  4. Cleans up the blueprint (if any)
 	 *  5. Returns the new project ID
 	 */
@@ -972,7 +972,8 @@ export const commands = {
 	oculpmWatcherTakeOver: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_watcher_take_over", { projectId })),
 	/**
 	 *  List cached journal entries for a workday (or today if None) with filters.
-	 *  Returns `[]` for uninitialised projects so the UI can render EmptyToday
+	 *  Returns `[]` for uninitialised projects so the UI can render the Today
+	 *  activation hint
 	 *  without a special-case error path.
 	 */
 	oculpmListJournalEntries: (projectId: number, workday: string | null, filters: {
@@ -2042,6 +2043,12 @@ export type ChangeGroup = {
 	entry_title: string | null,
 	entry_type: string | null,
 	created_at: string | null,
+	/**
+	 *  `verified_by_user` of the entry — `None` for the untracked bucket. The
+	 *  diff group header renders the same toggle the entry detail has, so a
+	 *  review can be closed without leaving the diff (polish-round Phase 2).
+	 */
+	verified_by_user: boolean | null,
 	plan_refs: ChangePlanRef[],
 	files: string[],
 };
@@ -3642,6 +3649,13 @@ export type OculpmInitReport = {
 	wrote_config: boolean,
 	wrote_gitignore: boolean,
 	lock_state: LockStateView,
+	/**
+	 *  Agent rule files (`AGENTS.md`, `CLAUDE.md`, …) that `sync_agents`
+	 *  inserted or updated during this init — project-relative. Empty on the
+	 *  idempotent re-open path, so a non-empty list means "this is the first
+	 *  time ocul-pm wrote into this repo" (Today's first-run card keys off it).
+	 */
+	agent_files: string[],
 };
 
 export type OculpmIntegrityWarning = {
@@ -3896,6 +3910,11 @@ export type ProjectOverview = {
 export type ProjectStats = {
 	files: number,
 	chunks: number,
+	/**
+	 *  Unix seconds of the newest `files.indexed_at` row — `None` when the
+	 *  project has never been indexed. f64 because specta has no u64/i64.
+	 */
+	last_indexed_at: number | null,
 };
 
 /**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지. */

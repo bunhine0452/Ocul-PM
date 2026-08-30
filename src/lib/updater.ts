@@ -32,6 +32,13 @@ function errMessage(e: unknown): string {
  *  doesn't apply to an in-place auto-update). Returns the section between the
  *  "What's new" heading and the next `###` heading; falls back to the full body
  *  (sans the leading `## <title>`) when that heading isn't present. */
+/**
+ * 릴리스 목록 (최신 먼저). 설정 → 업데이트의 패치노트와 Today 의 What's-new
+ * 카드가 같은 주소를 쓴다 — 공개 저장소라 CORS 가 열려 있고, 오프라인이면
+ * 그냥 빈 상태로 떨어진다.
+ */
+export const RELEASES_API = "https://api.github.com/repos/bunhine0452/Ocul-PM/releases?per_page=20";
+
 export function releaseHighlights(notes: string | null | undefined): string {
   if (!notes) return "";
   const text = notes.replace(/\r\n/g, "\n");

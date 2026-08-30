@@ -30,6 +30,8 @@ import { Toolbar } from "@/components/Toolbar";
 import { SearchIcon, RefreshCw, FileCode2, Target } from "@/components/Icons";
 import { commands, type SymbolDef, type SymbolCall } from "@/lib/bindings";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { requestReindex } from "@/lib/projectActions";
 import { OculSpinner } from "@/components/OculSpinner";
 import { FileNode, type GraphNodeData, type Lod } from "./FileNode";
 import { FloatingEdge } from "./FloatingEdge";
@@ -113,12 +115,20 @@ export function GraphScreenV2({
   // — and, crucially, the layout no longer recomputes per keystroke (see below).
   const deferredQuery = useDeferredValue(query);
 
+  // "관계 없음" 과 "색인 없음" 을 가른다 (완성도 라운드 Phase 2).
+  const [chunkCount, setChunkCount] = useState<number | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     setSelected(null);
     setHovered(null);
     setShowAll(false);
     setLoadError(null);
+    void Promise.resolve()
+      .then(() => commands.projectStats(projectId))
+      .then((r) => {
+        if (r.status === "ok") setChunkCount(r.data.chunks);
+      })
+      .catch(() => {});
     const res = await commands.getCodeGraph(projectId, { symbol_level: false });
     if (res.status === "ok") {
       const code = res.data;
@@ -146,6 +156,17 @@ export function GraphScreenV2({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 색인이 끝나면(indexing true → false) 그래프를 다시 읽는다 — 「색인 만들기」
+  // 를 누른 사람이 새로고침을 또 누르지 않게.
+  const ws = useOptionalWorkspace();
+  const indexing = ws?.state.indexingProjectId === projectId;
+  const noIndex = chunkCount === 0 && !indexing;
+  const wasIndexing = useRef(false);
+  useEffect(() => {
+    if (wasIndexing.current && !indexing) void load();
+    wasIndexing.current = indexing;
+  }, [indexing, load]);
 
   const fileById = useMemo(() => {
     const m = new Map<number, FileRow>();
@@ -851,21 +872,34 @@ export function GraphScreenV2({
                     ? t("graph.loadFailed")
                     : query
                       ? t("graph.noFilterMatch")
-                      : t("graph.noRelations")}
+                      : noIndex
+                        ? t("graph.noIndex")
+                        : t("graph.noRelations")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {loadError
                     ? loadError
                     : query
                       ? t("graph.filterHint")
-                      : t("graph.indexHint")}
+                      : noIndex
+                        ? t("graph.noIndexHint")
+                        : t("graph.indexHint")}
                 </p>
-                <button
-                  onClick={() => void load()}
-                  className="mt-3 px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground hover:border-primary/50 cursor-pointer"
-                >
-                  {t("graph.refresh")}
-                </button>
+                {noIndex && !loadError && !query ? (
+                  <button
+                    onClick={requestReindex}
+                    className="mt-3 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs cursor-pointer"
+                  >
+                    {t("graph.buildIndex")}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => void load()}
+                    className="mt-3 px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground hover:border-primary/50 cursor-pointer"
+                  >
+                    {t("graph.refresh")}
+                  </button>
+                )}
               </div>
             </div>
           )}

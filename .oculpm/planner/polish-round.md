@@ -30,12 +30,12 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 - [x] 설정 탭 딥링크 API(`openSettings(tab)`) + 틀린 경로 문구 3곳을 버튼으로 (`ko.ts:2461`, `:2136`, `:1312`, `JournalMissingCard`) {#settings-deeplink}
 
 ## Phase 2 — 여정 {#journeys}
-- [ ] 첫 init 1회 카드 — 무엇을 썼는지(AGENTS.md 블록·.gitignore·.oculpm/) + 커밋 안내; `notActive` 에 재시도 버튼; 죽은 "EmptyToday 활성화 카드" 문구 정정 (`ProjectTab.tsx:100`, `TodayScreenV2.tsx:190`) {#first-run-card}
-- [ ] 마지막 탭 ⌘W → 앱 종료 전 실행 중 PTY/ACP 확인 다이얼로그 (`tray.rs:480` 경로는 window.rs 밖에서) {#last-tab-confirm}
-- [ ] 진단 탭 "닥터"화 — 워처·락·ACP·키·마지막 색인 시각 한 표 + 최근 무결성 경고 목록, 토스트에 "진단에서 보기" {#doctor-tab}
-- [ ] "색인 없음"을 "결과 없음"으로 말하던 검색·코드맵 분기 + 임베딩 배너 닫기/다시 받기 {#index-empty-state}
-- [ ] ⌘/ 단축키 치트시트(navRegistry·메뉴·화면별 로컬키 자동 생성) + 업데이트 후 1회 What's-new 카드 (`lastSeenVersion`) {#cheatsheet-whatsnew}
-- [ ] 새 기록 토스트에 "열기" 액션, diff 그룹 헤더에 검증 토글, Today 에 회고 진입점 {#today-review-loop}
+- [x] 첫 init 1회 카드 — 무엇을 썼는지(AGENTS.md 블록·.gitignore·.oculpm/) + 커밋 안내; `notActive` 에 재시도 버튼; 죽은 "EmptyToday 활성화 카드" 문구 정정 (`ProjectTab.tsx:100`, `TodayScreenV2.tsx:190`) {#first-run-card}
+- [x] 마지막 탭 ⌘W → 앱 종료 전 실행 중 PTY/ACP 확인 다이얼로그 (`tray.rs:480` 경로는 window.rs 밖에서) {#last-tab-confirm}
+- [x] 진단 탭 "닥터"화 — 워처·락·ACP·키·마지막 색인 시각 한 표 + 최근 무결성 경고 목록, 토스트에 "진단에서 보기" {#doctor-tab}
+- [x] "색인 없음"을 "결과 없음"으로 말하던 검색·코드맵 분기 + 임베딩 배너 닫기/다시 받기 {#index-empty-state}
+- [x] ⌘/ 단축키 치트시트(navRegistry·메뉴·화면별 로컬키 자동 생성) + 업데이트 후 1회 What's-new 카드 (`lastSeenVersion`) {#cheatsheet-whatsnew}
+- [x] 새 기록 토스트에 "열기" 액션, diff 그룹 헤더에 검증 토글, Today 에 회고 진입점 {#today-review-loop}
 
 ## Phase 3 — 성능 {#performance}
 - [ ] i18n 사전 분리 — 진입 청크의 45%(ko+en 정적) → 해석된 언어만 로드 (`i18n/index.ts`) {#i18n-split}
@@ -68,4 +68,7 @@ v2.24.0 직후의 완성도 감사(5 렌즈: UX 일관성 · 핵심 여정 · �
 | 2026-08-30T15:11:00+09:00 | #today-git-fanout | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1511_bug_today-git-process-fanout.md | deps 정리 + primary_repo 30s 캐시 + spawn_blocking ×4 |
 | 2026-08-30T15:26:00+09:00 | #error-card #confirm-unify #settings-deeplink | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1526_feature_error-card-confirm-settings-deeplink.md | ErrorCard 8화면 · useConfirm(window.confirm 0, 무확인 3곳 확인) · openSettings(tab) 딥링크 |
 | 2026-08-30T15:26:00+09:00 | #loading-rule #toolbar-rule #terminology | claude-code | ☐→[x] | .oculpm/journal/20260830/Chores/1526_chore_loading-rule-toolbar-terminology.md | SkeletonList/OculSpinner 규칙 · t(nav.*) 제목 · 확인/인덱스 재구축 |
+| 2026-08-30T15:51:00+09:00 | #first-run-card #last-tab-confirm | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_first-run-card-and-tab-close-guard.md | agent_files 보고 + oculpmInitCard 영속 카드 · 「지금 활성화」 버스 · 탭 닫기 문지기(포그라운드 명령·ACP) |
+| 2026-08-30T15:51:00+09:00 | #doctor-tab #index-empty-state | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_doctor-and-index-empty-states.md | DoctorSection 9행+무결성 기록 · last_indexed_at · 검색/코드맵 색인 없음 분기 · 임베딩 배너 ×/다시 받기 |
+| 2026-08-30T15:51:00+09:00 | #cheatsheet-whatsnew #today-review-loop | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1551_feature_cheatsheet-whatsnew-review-loop.md | shortcutRegistry+⌘/ · last_seen_version 카드 · 토스트 「열기」 · diff 머리글 확인 토글 · Today 회고 |
 <!-- oculpm:plan-log end -->

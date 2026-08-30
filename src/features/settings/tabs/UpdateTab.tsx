@@ -7,15 +7,13 @@ import { Button } from "@/components/ui/button";
 import { commands } from "@/lib/bindings";
 import { RefreshCw, Download } from "@/components/Icons";
 import { useT } from "@/i18n";
-import { useUpdater, releaseHighlights } from "@/lib/updater";
+import { useUpdater, releaseHighlights, RELEASES_API } from "@/lib/updater";
 import { Markdown } from "@/components/Markdown";
 import { Section } from "./ui";
 
-// Repo behind the updater endpoint (tauri.conf.json) — used to fetch live patch
-// notes (the latest release body == the installed version when up to date).
-// All recent releases (newest first), so the patch-notes section can show past
-// versions too — not just the latest.
-export const RELEASES_API = "https://api.github.com/repos/bunhine0452/Ocul-PM/releases?per_page=20";
+// 릴리스 주소는 `@/lib/updater` 의 `RELEASES_API` — Today 의 What's-new 카드와
+// 공유한다 (설정 탭 청크를 Today 가 끌어오지 않도록 lib 에 둔다).
+export { RELEASES_API };
 
 export interface ReleaseNote {
   tag: string;

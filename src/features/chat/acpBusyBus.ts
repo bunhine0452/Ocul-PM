@@ -54,6 +54,14 @@ export function setAcpAttention(key: string, on: boolean): void {
   for (const listener of [...listeners]) listener();
 }
 
+/** 이 프로젝트에서 돌고 있는 세션 수 — 훅이 아니라 즉시 읽기 (탭 닫기 문지기). */
+export function countAcpWorkingFor(projectId: number): number {
+  const prefix = `${projectId}:`;
+  let n = 0;
+  for (const key of working) if (key.startsWith(prefix)) n += 1;
+  return n;
+}
+
 function subscribe(listener: Listener): () => void {
   listeners.add(listener);
   return () => {

@@ -2121,3 +2121,36 @@ mark.s-hit {
 [data-theme="dark"] .hljs-symbol, [data-theme="dark"] .hljs-bullet, [data-theme="dark"] .hljs-link { color: #ffa657; }
 [data-theme="dark"] .hljs-meta { color: #8b949e; }
 [data-theme="dark"] .hljs-deletion { color: #ffa198; }
+
+/* ── 완성도 라운드 Phase 2 (2026-08-30) — 검토 루프 · 첫 활성화 · 단축키 ── */
+/* diff 그룹 머리글의 확인 토글 — 일지 상세의 「확인」 버튼과 같은 뜻, 아이콘만. */
+.dfl-verify {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 999px;
+  border: 1px solid var(--sep); background: var(--bg-inset); color: var(--text-3);
+  cursor: pointer; padding: 0;
+}
+.dfl-verify:hover { color: var(--text-1); border-color: var(--text-3); }
+.dfl-verify.on { color: var(--ok, #12a06b); border-color: var(--ok, #12a06b); background: color-mix(in srgb, var(--ok, #12a06b) 12%, transparent); }
+.dfl-verify:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 검색 — 색인 없음 빈 상태 */
+.search-noindex { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; }
+.search-noindex-title { font-weight: 600; color: var(--text-1); }
+
+/* Today — 첫 활성화 카드 · What's new 카드 */
+.first-run-card .stat-top, .whats-new-card .stat-top { display: flex; align-items: center; gap: 8px; }
+.first-run-sub { color: var(--text-2); font-size: 12.5px; margin-top: 6px; }
+.first-run-list { margin: 10px 0 0; padding-left: 18px; font-size: 12px; color: var(--text-2); line-height: 1.7; }
+.first-run-actions { display: flex; gap: 8px; margin-top: 12px; }
+.whats-new-body { margin-top: 8px; font-size: 12.5px; color: var(--text-2); max-height: 220px; overflow: auto; }
+.whats-new-body ul { padding-left: 18px; }
+
+/* ⌘/ 단축키 치트시트 */
+.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 0 8px; }
+.keys-group h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 6px; }
+.keys-group dl { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.keys-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }
+.keys-row dd { margin: 0; display: flex; gap: 4px; flex: none; }
+.sk-modal-sub { margin-left: auto; font-size: 11px; color: var(--text-3); }

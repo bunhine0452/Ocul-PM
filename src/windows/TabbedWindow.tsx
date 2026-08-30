@@ -16,6 +16,8 @@ import { BootSplash } from "@/components/BootSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
+import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
+import { useConfirm } from "@/hooks/useConfirm";
 import { TabStrip, type IncomingTab, type WindowChoice } from "@/features/shell/TabStrip";
 import ProjectTab from "@/windows/ProjectTab";
 import StartTab from "@/windows/StartTab";
@@ -24,7 +26,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { safeUnlisten } from "@/lib/unlisten";
-import { runCloseIntent } from "@/lib/closeIntent";
+import { hasRunningWork, runCloseIntent, runTabCloseGuard } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 
@@ -144,6 +146,45 @@ export default function TabbedWindow({
   );
 
   /**
+   * 닫기 전에 **돌고 있는 일**이 있으면 묻는다 (완성도 라운드 Phase 2, 2026-08-30).
+   *
+   * 탭을 닫으면 그 프로젝트의 PTY 가 전부 죽고, 마지막 탭이면 앱이 꺼지며
+   * ACP 세션도 함께 끊긴다 — 아무 말 없이. 프로젝트 탭이 등록한 문지기
+   * (`useTabRunningWork`)가 포그라운드 명령이 있는 터미널과 작업 중인 세션을
+   * 알려 주면 여기서 한 번 묻는다. 프롬프트만 떠 있는 셸은 묻지 않는다.
+   */
+  const { confirm, confirmDialog } = useConfirm();
+  const closeTabGuarded = useCallback(
+    async (id: number) => {
+      const work = await runTabCloseGuard(id);
+      if (hasRunningWork(work)) {
+        const lines = [
+          ...(work.foreground.length
+            ? [t("close.guard.terminals", { names: work.foreground.slice(0, 4).join(", ") })]
+            : []),
+          ...(work.agents > 0 ? [t("close.guard.agents", { n: work.agents })] : []),
+        ];
+        const ok = await confirm({
+          title: t("close.guard.title"),
+          message: (
+            <>
+              {lines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+              <div style={{ marginTop: 6 }}>{t("close.guard.detail")}</div>
+            </>
+          ),
+          confirmLabel: t("close.guard.confirm"),
+          danger: true,
+        });
+        if (!ok) return;
+      }
+      closeTab(id);
+    },
+    [closeTab, confirm, t],
+  );
+
+  /**
    * ⌘W — **안쪽부터** 닫는다.
    *
    * Rust 는 더 이상 직접 닫지 않고 이 이벤트만 보낸다. 화면 안에 또 닫을 것이
@@ -156,7 +197,7 @@ export default function TabbedWindow({
       .listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         if (runCloseIntent()) return;
-        if (payload.tab != null) closeTab(payload.tab);
+        if (payload.tab != null) void closeTabGuarded(payload.tab);
       })
       .then((fn) => {
         off = fn;
@@ -164,7 +205,7 @@ export default function TabbedWindow({
     return () => {
       if (off) safeUnlisten(off);
     };
-  }, [windowLabel, closeTab]);
+  }, [windowLabel, closeTabGuarded]);
 
   // 어디든 열려 있는 프로젝트 — 시작 탭의 "열림" 배지 + `+` 팝오버 필터.
   useEffect(() => {
@@ -388,7 +429,7 @@ export default function TabbedWindow({
         busyProjects={busyProjects}
         closedProjects={closedProjects}
         onActivate={activate}
-        onClose={closeTab}
+        onClose={(id) => void closeTabGuarded(id)}
         onNewTab={newTab}
         onReorder={(order) => {
           setTabs((prev) => {
@@ -473,6 +514,7 @@ export default function TabbedWindow({
                       <WorkspaceProvider projectId={tb.project_id}>
                         <ProjectTab
                           projectId={tb.project_id}
+                          tabId={tb.tab_id}
                           windowLabel={windowLabel}
                           active={active}
                           projects={projects}
@@ -491,6 +533,8 @@ export default function TabbedWindow({
       {/* 창당 하나면 되는 것들 — 탭 루프 밖. */}
       <UpdateBanner />
       <EmbeddingModelBanner />
+      <ShortcutCheatsheet />
+      {confirmDialog}
     </div>
   );
 }

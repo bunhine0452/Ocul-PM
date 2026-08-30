@@ -28,6 +28,7 @@ impl OculpmManager {
                     // W1-PR8 will populate this; for now stay false on idempotent calls.
                     wrote_gitignore: false,
                     lock_state: lock_state_from_guard(&entry.lock),
+                    agent_files: Vec::new(),
                 });
             }
         }
@@ -38,6 +39,7 @@ impl OculpmManager {
             wrote_config: false,
             wrote_gitignore: false,
             lock_state: LockStateView::Uninitialized,
+            agent_files: Vec::new(),
         };
 
         // 1. Build (or load) the config + resolver. Resolver is built from

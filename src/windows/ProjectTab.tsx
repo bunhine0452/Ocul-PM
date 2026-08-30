@@ -6,7 +6,7 @@
  * 하는 것"들은 `active` 로 게이트해야 한다 — 안 그러면 ⌘1 이 탭 수만큼
  * 발화하고, 창 전역 CustomEvent(`NAV_BUS`)에 모든 탭이 동시에 반응한다.
  */
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type Project, type IndexProgress } from "@/lib/bindings";
 
@@ -17,12 +17,16 @@ import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
+import { onOculpmActivateRequest, onReindexRequest } from "@/lib/projectActions";
 import { toast } from "@/lib/toast";
+import { useTabRunningWork } from "@/windows/useTabRunningWork";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 
 export interface ProjectTabProps {
   projectId: number;
+  /** 백엔드 탭 레지스트리의 id — 닫기 문지기가 자기 탭을 알아보는 열쇠. */
+  tabId: number;
   /** 이 창의 라벨 — 새 탭을 "이 창에" 붙이려면 필요하다. */
   windowLabel: string;
   active: boolean;
@@ -37,6 +41,7 @@ export interface ProjectTabProps {
 
 export default function ProjectTab({
   projectId,
+  tabId,
   windowLabel,
   active,
   projects,
@@ -55,6 +60,20 @@ export default function ProjectTab({
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 창 전역 버스(활성화·색인 요청)는 **활성 탭만** 받는다 — 탭 수만큼 돌지 않게.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  // Today 「지금 활성화」 · 닥터 「활성화」 — init 이펙트를 한 번 더 돌린다.
+  const [initNonce, setInitNonce] = useState(0);
+  useEffect(
+    () =>
+      onOculpmActivateRequest(() => {
+        if (activeRef.current) setInitNonce((n) => n + 1);
+      }),
+    [],
+  );
+  // 닫기 문지기 — 돌아가는 터미널·에이전트를 창에 알린다.
+  useTabRunningWork(tabId, projectId);
 
   // 단축키는 **활성 탭만** 듣는다 — 훅 안에서 조건부 return 을 하는 대신
   // enabled 로 넘겨 훅 호출 순서를 지킨다.
@@ -102,9 +121,31 @@ export default function ProjectTab({
       if (initRes.status === "error") {
         oculpmLog.error("init", `oculpmInit failed: ${initRes.error}`, { projectId });
         setOculpmStatus(null);
+        // 예전엔 로그 한 줄뿐이라 Today 의 "아직 활성화되지 않았어요" 가 이유도
+        // 재시도도 없이 그대로였다 (완성도 감사 2026-08-30).
+        toast.destructive(t("today.activateFailed", { error: initRes.error }), {
+          dedupKey: `oculpm-init-failed-${projectId}`,
+          actions: [{ label: t("common.retry"), onClick: () => setInitNonce((n) => n + 1) }],
+        });
         return;
       }
       oculpmLog.flow("step 1+2 OK — init + sync_agents returned to frontend", { projectId });
+      // config.toml 을 새로 썼다 = 이 저장소에 ocul-pm 이 처음 들어왔다. 무엇을
+      // 썼는지 Today 첫 활성화 카드가 그대로 보여 준다 (재오픈의 빈 보고는 무시).
+      const rep = initRes.data;
+      if (rep.wrote_config) {
+        setState((prev) => ({
+          ...prev,
+          oculpmInitCard: {
+            createdDirs: rep.created_dirs,
+            wroteConfig: rep.wrote_config,
+            wroteGitignore: rep.wrote_gitignore,
+            agentFiles: rep.agent_files,
+            at: Date.now(),
+          },
+        }));
+      }
+      if (initNonce > 0) toast.info(t("today.activated"));
       const statusRes = await commands.oculpmGetStatus(projectId);
       if (cancelled) return;
       setOculpmStatus(statusRes.status === "ok" ? statusRes.data : null);
@@ -170,9 +211,9 @@ export default function ProjectTab({
       cancelled = true;
     };
     // t 는 언어 전환마다 새 함수라 deps 에 넣으면 init 이 다시 돈다 — 탭 하나당
-    // 1회만 도는 게 이 이펙트의 계약이다.
+    // 1회만 도는 게 이 이펙트의 계약이다 (+ 사용자가 「지금 활성화」 를 누른 만큼).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, setOculpmStatus]);
+  }, [projectId, setOculpmStatus, initNonce]);
 
   // Auto-index on first open: if the opened project has no chunks yet, chunk it
   // in the background so 코드 검색 returns results instead of an empty list.
@@ -188,6 +229,19 @@ export default function ProjectTab({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  // 검색·코드 맵·닥터의 「색인 만들기」 — 이미 만드는 중이면 무시.
+  const startIndexRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(
+    () =>
+      onReindexRequest(() => {
+        if (activeRef.current && indexingIdRef.current === null) void startIndexRef.current();
+      }),
+    [],
+  );
+  const indexingIdRef = useRef(indexingId);
+  indexingIdRef.current = indexingId;
+  startIndexRef.current = startIndex;
 
   async function startIndex() {
     setIndexing(projectId, null);

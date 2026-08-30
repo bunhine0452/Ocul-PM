@@ -18,6 +18,7 @@ import {
 } from "@/lib/recentChangesStore";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { PatchView } from "./PatchView";
 import { BinaryFileView } from "./BinaryFileView";
 import { countPatchStats, langFromPath } from "./diffParse";
@@ -197,6 +198,26 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       cancelled = true;
     };
   }, [projectId, pathKey]);
+
+  // 그룹 머리글의 확인 토글 — 일지 상세와 같은 쓰기(프런트매터 → 캐시). 성공하면
+  // 그룹 상태만 고쳐 다시 묶지 않는다 (검토 루프를 diff 안에서 닫는다, Phase 2).
+  const toggleVerified = useCallback(
+    async (relativePath: string, next: boolean) => {
+      try {
+        await oculpmApi.setJournalVerified(projectId, relativePath, next);
+        setGroups((prev) =>
+          prev
+            ? prev.map((g) => (g.entry_path === relativePath ? { ...g, verified_by_user: next } : g))
+            : prev,
+        );
+      } catch (e) {
+        toast.destructive(
+          t("entry.verifyFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }),
+        );
+      }
+    },
+    [projectId, t],
+  );
 
   // Consume the one-shot diffActivePath handoff once, then clear it so a
   // later manual pick doesn't snap back. Mirrors LocalDiffView's diffTarget.
@@ -549,6 +570,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             impact={impact}
             onSelect={setSelected}
             onOpenEntry={onOpenEntry}
+            onToggleVerified={(path, next) => void toggleVerified(path, next)}
             onOpenAffected={onOpenAffected}
           />
 

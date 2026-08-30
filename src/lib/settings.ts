@@ -87,6 +87,11 @@ export const KEYS = {
   codeTabSize: "code_tab_size",
   codeInsertSpaces: "code_insert_spaces",
 
+  // --- 업데이트 ---
+  // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
+  // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
+  lastSeenVersion: "last_seen_version",
+
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
 
@@ -174,6 +179,9 @@ export interface Settings {
   codeTabSize: number;
   /** 탭 대신 공백 (LSP `FormattingOptions.insertSpaces`). */
   codeInsertSpaces: boolean;
+
+  /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
+  lastSeenVersion: string;
 }
 
 export const DEFAULTS: Settings = {
@@ -218,6 +226,8 @@ export const DEFAULTS: Settings = {
   codeFormatOnSave: false,
   codeTabSize: 2,
   codeInsertSpaces: true,
+
+  lastSeenVersion: "",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -254,6 +264,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeFormatOnSave]: "codeFormatOnSave",
   [KEYS.codeTabSize]: "codeTabSize",
   [KEYS.codeInsertSpaces]: "codeInsertSpaces",
+  [KEYS.lastSeenVersion]: "lastSeenVersion",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

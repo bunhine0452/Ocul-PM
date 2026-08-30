@@ -144,6 +144,7 @@ describe("buildGroupViews — 왼쪽 목록 모델", () => {
     entry_title: entry ? `제목 ${entry}` : null,
     entry_type: entry ? "feature" : null,
     created_at: entry ? "2026-08-20T10:00:00+09:00" : null,
+    verified_by_user: entry ? false : null,
     plan_refs: [],
     files,
     ...extra,
@@ -399,6 +400,7 @@ describe("변경된 파일 목록 — 접힘 · 필터 · 경로 표시", () => 
     entry_title: title,
     entry_type: "feature",
     created_at: "2026-08-20T10:00:00+09:00",
+    verified_by_user: false,
     plan_refs: [],
     files,
   });
@@ -607,6 +609,7 @@ describe("PR-UI 4 — Diff a11y", () => {
       entry_title: `일지 ${i}`,
       entry_type: "bug",
       created_at: "2026-08-20T10:00:00+09:00",
+      verified_by_user: false,
       plan_refs: [],
       files: [`src/g${i}a.ts`, `src/g${i}b.ts`, `src/g${i}c.ts`],
     }));

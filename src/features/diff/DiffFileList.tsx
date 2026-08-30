@@ -57,6 +57,8 @@ interface DiffFileListProps {
   onSelect: (path: string) => void;
   /** 일지 화면으로 점프 (그룹 제목 클릭). */
   onOpenEntry?: (relativePath: string) => void;
+  /** 그룹 머리글의 확인 토글 — 일지 상세와 같은 `verified_by_user` (Phase 2). */
+  onToggleVerified?: (relativePath: string, next: boolean) => void;
   /** 영향 받는 파일을 외부 에디터로 열기. */
   onOpenAffected: (path: string) => void;
 }
@@ -69,6 +71,7 @@ export function DiffFileList({
   impact,
   onSelect,
   onOpenEntry,
+  onToggleVerified,
   onOpenAffected,
 }: DiffFileListProps) {
   const { t } = useT();
@@ -265,6 +268,7 @@ export function DiffFileList({
               view={v}
               onToggle={toggleGroup}
               onOpenEntry={onOpenEntry}
+              onToggleVerified={onToggleVerified}
               renderFile={renderFile}
             />
           ),
@@ -337,11 +341,13 @@ function GroupSection({
   view,
   onToggle,
   onOpenEntry,
+  onToggleVerified,
   renderFile,
 }: {
   view: GroupView;
   onToggle: (key: string) => void;
   onOpenEntry?: (relativePath: string) => void;
+  onToggleVerified?: (relativePath: string, next: boolean) => void;
   renderFile: (path: string) => React.ReactNode;
 }) {
   const { t } = useT();
@@ -385,6 +391,18 @@ function GroupSection({
             {label}
           </span>
         )}
+        {view.entryPath && view.verified != null && onToggleVerified ? (
+          <button
+            type="button"
+            className={"dfl-verify" + (view.verified ? " on" : "")}
+            onClick={() => onToggleVerified(view.entryPath!, !view.verified)}
+            aria-pressed={view.verified}
+            aria-label={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
+            title={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
+          >
+            <CheckMark size={10} strokeWidth={2.5} />
+          </button>
+        ) : null}
         <span
           className={"dfl-progress" + (done ? " done" : "")}
           title={t("diff.groupProgress", { done: view.reviewed, total: view.total })}

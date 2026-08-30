@@ -78,6 +78,8 @@ export interface GroupView {
   /** How many of `total` are marked reviewed. */
   reviewed: number;
   collapsed: boolean;
+  /** 일지의 `verified_by_user` — 미추적 묶음·평면 목록은 `null` (토글 없음). */
+  verified: boolean | null;
 }
 
 /** 그룹이 이만큼보다 많아지면 처음 열 때 알아서 접는다 (하나만 펼친 채로). */
@@ -134,6 +136,7 @@ export function buildGroupViews({
         total: all.length,
         reviewed: countReviewed(all),
         collapsed: false,
+        verified: null,
       },
     ];
   }
@@ -162,6 +165,7 @@ export function buildGroupViews({
       total: g.files.length,
       reviewed: countReviewed(g.files),
       collapsed: q ? false : collapsed.has(key),
+      verified: g.verified_by_user ?? null,
     });
   }
   return out;

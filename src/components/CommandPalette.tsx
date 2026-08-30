@@ -12,6 +12,7 @@ import {
   MessageSquare,
   BookText,
   Code2,
+  Keyboard,
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
@@ -26,6 +27,7 @@ import {
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
+import { requestCheatsheet } from "@/lib/projectActions";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
@@ -248,6 +250,9 @@ export function CommandPalette({
       { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
         group: "actions", icon: SettingsIcon, shortcut: "⌘,",
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
+      { id: "cheatsheet", label: t("palette.cheatsheet"), alias: aliasOf("palette.cheatsheet"),
+        group: "actions", icon: Keyboard, shortcut: "⌘/",
+        onSelect: () => { onOpenChange(false); requestCheatsheet(); } },
       ...(onReindex && currentProjectId !== null
         ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),
             group: "actions" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]

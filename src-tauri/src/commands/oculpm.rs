@@ -56,7 +56,7 @@ pub async fn oculpm_init(
         crate::oculpm::content_lang::ContentLang::English => "en",
         _ => "ko",
     };
-    let report = manager
+    let mut report = manager
         .init_project(project_id, &root, template_lang)
         .await
         .map_err(|e| {
@@ -88,11 +88,26 @@ pub async fn oculpm_init(
     // that omits it). Errors are logged but never escalated — the init itself
     // succeeded and the next manual "지금 동기화" can retry.
     match manager.sync_agents(&db, project_id).await {
-        Ok(report) => {
-            let summary: Vec<String> = report
+        Ok(sync) => {
+            let summary: Vec<String> = sync
                 .results
                 .iter()
                 .map(|r| format!("{}={}", r.id, r.action))
+                .collect();
+            // 첫 활성화 카드가 "무엇을 썼는지" 말하려면 어댑터 id 가 아니라
+            // 파일 경로가 필요하다 — inserted/updated 만 센다 (unchanged 는
+            // 이번 init 이 쓴 것이 아니다).
+            report.agent_files = sync
+                .results
+                .iter()
+                .filter(|r| r.action == "inserted" || r.action == "updated")
+                .map(|r| {
+                    crate::oculpm::agents::known_adapters()
+                        .iter()
+                        .find(|a| a.id == r.id)
+                        .map(|a| a.adapter_path.to_string())
+                        .unwrap_or_else(|| r.id.clone())
+                })
                 .collect();
             tracing::info!(
                 target: "oculpm::commands",
@@ -391,7 +406,8 @@ pub async fn oculpm_watcher_stop(
 // ─── W3-PR3 commands ────────────────────────────────────────────────────────
 
 /// List cached journal entries for a workday (or today if None) with filters.
-/// Returns `[]` for uninitialised projects so the UI can render EmptyToday
+/// Returns `[]` for uninitialised projects so the UI can render the Today
+/// activation hint
 /// without a special-case error path.
 #[tauri::command]
 #[specta::specta]

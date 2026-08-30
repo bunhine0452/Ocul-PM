@@ -115,6 +115,10 @@ pub struct ChangeGroup {
     pub entry_title: Option<String>,
     pub entry_type: Option<String>,
     pub created_at: Option<String>,
+    /// `verified_by_user` of the entry — `None` for the untracked bucket. The
+    /// diff group header renders the same toggle the entry detail has, so a
+    /// review can be closed without leaving the diff (polish-round Phase 2).
+    pub verified_by_user: Option<bool>,
     pub plan_refs: Vec<ChangePlanRef>,
     pub files: Vec<String>,
 }

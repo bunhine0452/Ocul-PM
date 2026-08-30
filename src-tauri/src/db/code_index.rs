@@ -490,6 +490,22 @@ impl Db {
         Ok(())
     }
 
+    /// Newest `indexed_at` across the project's files — `None` when nothing
+    /// has been indexed yet (the doctor row "마지막 색인").
+    pub async fn last_indexed_at(&self, project_id: u32) -> Result<Option<i64>> {
+        let ts = self
+            .conn
+            .call(move |c| {
+                c.query_row(
+                    "SELECT MAX(indexed_at) FROM files WHERE project_id = ?",
+                    [project_id as i64],
+                    |r| r.get::<_, Option<i64>>(0),
+                )
+            })
+            .await?;
+        Ok(ts)
+    }
+
     pub async fn count_files(&self, project_id: u32) -> Result<u32> {
         let count = self
             .conn

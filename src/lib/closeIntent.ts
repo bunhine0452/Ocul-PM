@@ -54,6 +54,49 @@ function holdsFocus(entry: Entry): boolean {
  * 사본을 뒤집어 도는 이유: 처리기가 자기 자신을 빼는 경우가 있어(마지막 세션
  * 탭을 닫으면 더 닫을 것이 없어진다) 원본을 순회하면 건너뛰게 된다.
  */
+/**
+ * 탭을 정말 닫기 전에 창이 묻는 **문지기** (완성도 라운드 Phase 2, 2026-08-30).
+ *
+ * 위의 사슬이 "무엇을 닫을지" 라면 이쪽은 "닫아도 되는지" 다. 프로젝트 탭이
+ * 자기 안에서 돌고 있는 일(포그라운드 명령이 있는 터미널 · 작업 중인 Claude
+ * Code 세션)을 **알리기만** 하고, 확인 다이얼로그는 창이 띄운다 — 숨은 탭
+ * 안의 다이얼로그는 보이지 않으므로 탭 스트립의 × 로 배경 탭을 닫을 때도 창
+ * 층에서 물어야 한다.
+ */
+export interface TabRunningWork {
+  /** 포그라운드 명령 이름 (프롬프트에 멈춘 셸은 세지 않는다). */
+  foreground: string[];
+  /** 턴이 도는 중인 Claude Code 세션 수. */
+  agents: number;
+}
+
+type TabCloseGuard = () => Promise<TabRunningWork>;
+
+const tabGuards = new Map<number, TabCloseGuard>();
+
+/** 탭 id 하나에 문지기 하나. 반환값은 해제 (effect cleanup). */
+export function registerTabCloseGuard(tabId: number, guard: TabCloseGuard): () => void {
+  tabGuards.set(tabId, guard);
+  return () => {
+    if (tabGuards.get(tabId) === guard) tabGuards.delete(tabId);
+  };
+}
+
+/** 문지기가 없거나(시작 탭) 실패하면 `null` — 그냥 닫는다. */
+export async function runTabCloseGuard(tabId: number): Promise<TabRunningWork | null> {
+  const guard = tabGuards.get(tabId);
+  if (!guard) return null;
+  try {
+    return await guard();
+  } catch {
+    return null;
+  }
+}
+
+export function hasRunningWork(work: TabRunningWork | null): work is TabRunningWork {
+  return work != null && (work.foreground.length > 0 || work.agents > 0);
+}
+
 export function runCloseIntent(): boolean {
   const snapshot = [...entries].reverse();
   for (const entry of snapshot) {

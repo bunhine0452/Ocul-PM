@@ -33,6 +33,9 @@ pub struct IndexResult {
 pub struct ProjectStats {
     pub files: u32,
     pub chunks: u32,
+    /// Unix seconds of the newest `files.indexed_at` row — `None` when the
+    /// project has never been indexed. f64 because specta has no u64/i64.
+    pub last_indexed_at: Option<f64>,
 }
 
 // ---------- Folder picker ----------
@@ -147,7 +150,16 @@ pub async fn project_stats(db: State<'_, Db>, project_id: u32) -> Result<Project
         .count_chunks(project_id)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(ProjectStats { files, chunks })
+    let last_indexed_at = db
+        .last_indexed_at(project_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|v| v as f64);
+    Ok(ProjectStats {
+        files,
+        chunks,
+        last_indexed_at,
+    })
 }
 
 #[tauri::command]

@@ -15,7 +15,10 @@ import {
   Terminal,
   Clipboard,
 } from "@/components/Icons";
-import { type UiV2View } from "@/contexts/WorkspaceContext";
+import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { requestOculpmActivate } from "@/lib/projectActions";
+import { FirstRunCard } from "./FirstRunCard";
+import { WhatsNewCard } from "./WhatsNewCard";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
@@ -86,6 +89,10 @@ export function TodayScreenV2({
     brief?.totalEntries ?? null,
   );
   const [termOpen, setTermOpen] = useState(false);
+  // 첫 활성화 카드 — 프로젝트 탭이 채우고 여기서 비운다 (Phase 2).
+  const ws = useOptionalWorkspace();
+  const initCard = ws?.state.oculpmInitCard ?? null;
+  const dismissInitCard = () => ws?.setState((prev) => ({ ...prev, oculpmInitCard: null }));
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -158,6 +165,9 @@ export function TodayScreenV2({
         >
           <Clipboard size={15} /> {standupBusy ? t("today.standup.busy") : t("today.standup.copy")}
         </button>
+        <button className="btn" onClick={() => onNavigate("retro")} title={t("nav.retro")}>
+          <History size={15} /> {t("today.retro")}
+        </button>
         <button className="btn" onClick={() => onNavigate("journal")}>
           <NotebookText size={15} /> {t("today.allEntries")}
         </button>
@@ -193,7 +203,16 @@ export function TodayScreenV2({
                   ) : oculpmReady ? (
                     <Skeleton width={240} height={22} style={{ display: "inline-block", verticalAlign: "middle" }} />
                   ) : (
-                    t("today.notActive")
+                    <>
+                      {t("today.notActive")}{" "}
+                      <button
+                        className="btn primary sm"
+                        style={{ verticalAlign: "middle", marginLeft: 8 }}
+                        onClick={requestOculpmActivate}
+                      >
+                        {t("today.activateNow")}
+                      </button>
+                    </>
                   )}
                 </div>
                 <div className="today-date">
@@ -213,6 +232,11 @@ export function TodayScreenV2({
               onRetry={refresh}
               style={{ marginBottom: 16 }}
             />
+          ) : null}
+
+          <WhatsNewCard />
+          {initCard ? (
+            <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />
           ) : null}
 
           {/* Stat row */}

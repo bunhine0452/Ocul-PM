@@ -1,4 +1,5 @@
 import { ErrorCard } from "@/components/ErrorCard";
+import { requestReindex } from "@/lib/projectActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
@@ -73,6 +74,25 @@ interface SearchScreenV2Props {
 export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchScreenV2Props) {
   useT();
   const { state, setState } = useWorkspace();
+  // "결과 없음" 과 "색인 없음" 을 가른다 (완성도 라운드 Phase 2). 세 검색
+  // 커맨드는 색인이 없어도 빈 배열을 돌려주므로 stats 를 따로 본다.
+  const indexing = state.indexingProjectId === projectId;
+  const indexProgress = state.indexProgress;
+  const [chunkCount, setChunkCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (indexing) return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => commands.projectStats(projectId))
+      .then((r) => {
+        if (!cancelled && r.status === "ok") setChunkCount(r.data.chunks);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, indexing]);
+  const noIndex = chunkCount === 0 && !indexing;
   const { settings } = useSettings();
   const scope = state.searchScope;
 
@@ -327,6 +347,14 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
             />
           ) : loading ? (
             <OculSpinner label={t("search.searching")} />
+          ) : noIndex ? (
+            <NoIndexHint />
+          ) : indexing ? (
+            <div className="empty-hint">
+              {indexProgress && indexProgress.total > 0
+                ? t("search.indexing", { done: indexProgress.current, total: indexProgress.total })
+                : t("search.indexingNoCount")}
+            </div>
           ) : show && results!.items.length === 0 ? (
             <div className="empty-hint">{t("search.noResults")}</div>
           ) : show && results!.kind === "symbol" ? (
@@ -683,4 +711,18 @@ function hint(scope: SearchScope): string {
   if (scope === "symbol") return t("search.hintSymbol");
   if (scope === "text") return t("search.hintText");
   return t("search.hintSemantic");
+}
+
+/** 색인이 없을 때의 빈 상태 — 검색어를 치기 전에도 보인다. */
+function NoIndexHint() {
+  const { t } = useT();
+  return (
+    <div className="empty-hint search-noindex">
+      <div className="search-noindex-title">{t("search.noIndex")}</div>
+      <div>{t("search.noIndexHint")}</div>
+      <button className="btn primary sm" onClick={requestReindex}>
+        {t("search.buildIndex")}
+      </button>
+    </div>
+  );
 }

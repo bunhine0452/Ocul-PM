@@ -10,6 +10,7 @@ import { formatBytes } from "@/features/code/treeUtils";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { Section, Stat } from "./ui";
+import { DoctorSection } from "./DoctorSection";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
 function fmtBytes(n: number | null | undefined): string | undefined {
@@ -97,6 +98,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
 
   return (
     <>
+      <DoctorSection />
       <Section
         title={t("settings.db.title")}
         description={t("settings.db.desc")}

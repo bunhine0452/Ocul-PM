@@ -183,3 +183,8 @@ export function useSettings(): SettingsContextValue {
   }
   return ctx;
 }
+
+/** 프로바이더 밖(단위 테스트·시작 화면 일부)에서도 죽지 않는 읽기 — 없으면 `null`. */
+export function useOptionalSettings(): SettingsContextValue | null {
+  return useContext(SettingsContext);
+}

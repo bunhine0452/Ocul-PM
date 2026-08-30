@@ -21,7 +21,7 @@ impl<'a> JournalCache<'a> {
             .conn()
             .call(move |c| {
                 let mut find = c.prepare(
-                    "SELECT j.relative_path, j.title, j.type, j.created_at
+                    "SELECT j.relative_path, j.title, j.type, j.created_at, j.verified_by_user
                      FROM oculpm_journal_files f
                      JOIN oculpm_journal j
                        ON j.project_id = f.project_id AND j.relative_path = f.relative_path
@@ -41,7 +41,7 @@ impl<'a> JournalCache<'a> {
                 )?;
 
                 let mut order: Vec<String> = Vec::new();
-                let mut by_entry: HashMap<String, (String, String, String, Vec<String>)> =
+                let mut by_entry: HashMap<String, (String, String, String, bool, Vec<String>)> =
                     HashMap::new();
                 let mut untracked: Vec<String> = Vec::new();
 
@@ -53,16 +53,17 @@ impl<'a> JournalCache<'a> {
                                 r.get::<_, String>(1)?,
                                 r.get::<_, String>(2)?,
                                 r.get::<_, String>(3)?,
+                                r.get::<_, i64>(4)? != 0,
                             ))
                         })
                         .optional()?;
                     match hit {
-                        Some((rp, title, ty, created)) => {
+                        Some((rp, title, ty, created, verified)) => {
                             let e = by_entry.entry(rp.clone()).or_insert_with(|| {
                                 order.push(rp.clone());
-                                (title, ty, created, Vec::new())
+                                (title, ty, created, verified, Vec::new())
                             });
-                            e.3.push(path.clone());
+                            e.4.push(path.clone());
                         }
                         None => untracked.push(path.clone()),
                     }
@@ -70,7 +71,7 @@ impl<'a> JournalCache<'a> {
 
                 let mut out: Vec<ChangeGroup> = Vec::new();
                 for rp in &order {
-                    let (title, ty, created, files) = by_entry.remove(rp).unwrap();
+                    let (title, ty, created, verified, files) = by_entry.remove(rp).unwrap();
                     let refs: Vec<ChangePlanRef> = plan_stmt
                         .query_map(params![pid, rp], |r| {
                             Ok(ChangePlanRef {
@@ -86,6 +87,7 @@ impl<'a> JournalCache<'a> {
                         entry_title: Some(title),
                         entry_type: Some(ty),
                         created_at: Some(created),
+                        verified_by_user: Some(verified),
                         plan_refs: refs,
                         files,
                     });
@@ -97,6 +99,7 @@ impl<'a> JournalCache<'a> {
                         entry_title: None,
                         entry_type: None,
                         created_at: None,
+                        verified_by_user: None,
                         plan_refs: Vec::new(),
                         files: untracked,
                     });

@@ -454,6 +454,11 @@ pub struct OculpmInitReport {
     pub wrote_config: bool,
     pub wrote_gitignore: bool,
     pub lock_state: LockStateView,
+    /// Agent rule files (`AGENTS.md`, `CLAUDE.md`, …) that `sync_agents`
+    /// inserted or updated during this init — project-relative. Empty on the
+    /// idempotent re-open path, so a non-empty list means "this is the first
+    /// time ocul-pm wrote into this repo" (Today's first-run card keys off it).
+    pub agent_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

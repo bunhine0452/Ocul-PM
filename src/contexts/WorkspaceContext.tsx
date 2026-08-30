@@ -21,6 +21,9 @@ import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import type { CodeTabsState } from "@/features/code/codeTabs";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
+import { pushIntegrityWarning } from "@/lib/integrityLog";
+import { openSettings } from "@/lib/settingsNav";
+import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
 // 이벤트 리스너 안에서 부르는 토스트라 훅이 아닌 모듈 t() 가 맞다
 // (구독 시점이 아니라 **발생 시점**의 언어를 읽어야 한다).
@@ -159,6 +162,12 @@ export interface WorkspaceState {
    * migration normalizer still honours it.
    */
   defaultTabUserOverride: boolean;
+  /**
+   * 첫 활성화 카드 (완성도 라운드 Phase 2, 2026-08-30). `oculpm_init` 이
+   * config.toml 을 **새로** 쓴 탭이 채우고, Today 가 「알겠어요」 로 비운다.
+   * 영속: 카드를 보기 전에 앱을 닫아도 다음에 보인다.
+   */
+  oculpmInitCard: OculpmInitCardInfo | null;
 
   // Volatile (not persisted)
   indexingProjectId: number | null;
@@ -357,6 +366,17 @@ export interface IndexProgress {
  *        (`storageKeyFor`), currentProjectId/Name/Root 는 영속 대상에서
  *        빠졌다 (창 URL 이 단일 진실). 필드 추가가 아니라 키 분할이라 breaking.
  */
+/** 첫 init 이 저장소에 쓴 것 — Today 첫 활성화 카드의 내용. */
+export interface OculpmInitCardInfo {
+  createdDirs: string[];
+  wroteConfig: boolean;
+  wroteGitignore: boolean;
+  /** 프로젝트 상대 경로 (`AGENTS.md` 등) — sync_agents 가 이번에 넣거나 고친 것. */
+  agentFiles: string[];
+  /** `Date.now()` 기록 시각. */
+  at: number;
+}
+
 export const WORKSPACE_SCHEMA_VERSION = 4;
 
 const DEFAULT_STATE: WorkspaceState = {
@@ -372,6 +392,7 @@ const DEFAULT_STATE: WorkspaceState = {
   sidePanelMode: "files",
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
+  oculpmInitCard: null,
   indexingProjectId: null,
   indexProgress: null,
   oculpmEnabled: false,
@@ -1033,11 +1054,14 @@ export function WorkspaceProvider({
     void events.oculpmIntegrityWarning.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const w = evt.payload.warning;
+      // 닥터(설정 → 진단)가 세션 기록을 보여 준다 — 토스트는 8초면 사라진다.
+      pushIntegrityWarning(evt.payload.project_id, w);
       // W4-PR8: surface as warning toast. Dedup per (kind, path) within 30s so
       // a single bad file doesn't spam repeated re-saves.
       toast.warning(w.message, {
         title: `[${w.kind}] ${w.path}`,
         dedupKey: `integrity:${w.kind}:${w.path}`,
+        actions: [{ label: t("ws.viewInDoctor"), onClick: () => openSettings("diagnostics") }],
       });
       console.warn("[oculpm] integrity warning:", w);
     }).then((off) => offFns.push(off));
@@ -1151,8 +1175,19 @@ export function WorkspaceProvider({
 
     void events.oculpmJournalAdded.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
+      const relativePath = evt.payload.summary.relative_path;
       toast.info(t("ws.newEntry", { title: evt.payload.summary.title }), {
-        dedupKey: `journal_added:${evt.payload.summary.relative_path}`,
+        dedupKey: `journal_added:${relativePath}`,
+        // 「열기」 — 셸의 open-entity 버스로 일지 상세까지 간다 (검토 루프의 첫 고리).
+        actions: [
+          {
+            label: t("ws.openEntry"),
+            onClick: () => {
+              const detail: OpenEntityDetail = { kind: "journal", id: relativePath };
+              window.dispatchEvent(new CustomEvent(NAV_BUS.openEntity, { detail }));
+            },
+          },
+        ],
       });
     }).then((off) => offFns.push(off));
     void events.oculpmJournalUpdated.listen(() => {}).then((off) => offFns.push(off));

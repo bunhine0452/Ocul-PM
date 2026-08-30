@@ -202,6 +202,7 @@ const TESTS = new Set([
   "__tests__/terminal_viewport_resync.test.ts",
   "__tests__/today_journal_missing.test.tsx",
   "__tests__/today_v2.test.tsx",
+  "__tests__/polish_phase2.test.tsx",
   "__tests__/token_estimate.test.ts",
   "__tests__/tools_v2.test.tsx",
   "__tests__/tray_popover.test.tsx",

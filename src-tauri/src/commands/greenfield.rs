@@ -206,7 +206,7 @@ pub struct GreenfieldResult {
 /// 3b. (W3-PR10) Optionally initialises `.oculpm/` for the new project so
 ///     the user does not see the onboarding modal on first Today open.
 ///     Failure is **non-fatal**: the project row is already committed and
-///     EmptyToday V1 provides a "활성화" recovery path.
+///     Today 화면의 「지금 활성화」 버튼이 재시도 경로다.
 /// 4. Cleans up the blueprint (if any)
 /// 5. Returns the new project ID
 #[tauri::command]
@@ -255,7 +255,7 @@ pub async fn create_greenfield_project(
 
     // 3b. (W3-PR10) ocul-pm init — opt-in from the wizard (default ON).
     //     Failure path keeps the project alive: the user lands on
-    //     EmptyToday V1 and can hit "활성화" to retry. W4 will add an
+    //     Today 화면에서 「지금 활성화」 로 다시 시도할 수 있다. W4 will add an
     //     `manager.sync_agents(project_id)` call here once the adapter
     //     templates exist; the wire-point is intentionally placed.
     if init_oculpm {
@@ -270,7 +270,7 @@ pub async fn create_greenfield_project(
             tracing::warn!(
                 project_id,
                 error = %e,
-                "oculpm init during greenfield failed — user can retry via EmptyToday V1"
+                "oculpm init during greenfield failed — user can retry from Today (지금 활성화)"
             );
         }
     }

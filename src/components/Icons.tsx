@@ -545,6 +545,9 @@ export {
   Check as CheckMark,
   // PR-UI 5 (도구 4 화면) — search scope / terminal watch / planner filter / ai compose.
   Activity,
+  // 완성도 라운드 Phase 2 — 단축키 치트시트 · 닥터.
+  Keyboard,
+  Stethoscope,
   Paperclip,
   Filter,
   Variable,
