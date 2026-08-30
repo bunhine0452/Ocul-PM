@@ -1255,6 +1255,24 @@ impl WatcherInner {
                     if let crate::oculpm::reconcile::ReconcileOutcome::Ran(results) = &outcome {
                         use tauri_specta::Event;
                         for r in results {
+                            // A failed plan (LLM error, write error) used to be
+                            // indistinguishable from "nothing to apply". One
+                            // integrity toast per failed plan — the log has
+                            // the full error.
+                            if let Some(err) = &r.error {
+                                let _ = crate::oculpm::spec::OculpmIntegrityWarning {
+                                    project_id,
+                                    warning: crate::oculpm::spec::IntegrityWarning {
+                                        kind: "reconcile".to_string(),
+                                        path: entry_rel.clone(),
+                                        message: format!(
+                                            "자동 화해 실패 ({}): {}",
+                                            r.plan_id, err
+                                        ),
+                                    },
+                                }
+                                .emit(&handle);
+                            }
                             if r.applied > 0 {
                                 let _ = crate::oculpm::spec::OculpmPlanReconciled {
                                     project_id,

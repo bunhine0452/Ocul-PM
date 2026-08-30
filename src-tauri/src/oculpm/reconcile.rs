@@ -57,6 +57,11 @@ pub struct PlanReconcileResult {
     pub plan_id: String,
     /// Item statuses flipped in this plan (0 = considered but nothing changed).
     pub applied: usize,
+    /// Why nothing was applied, when the cause is a failure rather than a
+    /// no-op: LLM call error (expired key, quota) or plan write error. Used to
+    /// be swallowed with `Err(_) => continue`, so a dead key turned auto-
+    /// reconcile into a permanent silent no-op (2026-08-30 audit).
+    pub error: Option<String>,
 }
 
 /// Result of a reconciliation attempt. `Skipped` carries a static reason for
@@ -238,8 +243,24 @@ pub async fn reconcile_entry(
             .await
         {
             Ok(r) => r,
-            // One plan's LLM error must not abort the others.
-            Err(_) => continue,
+            // One plan's LLM error must not abort the others — but it must not
+            // vanish either: log it and carry it in the result so the watcher
+            // can surface it once.
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::reconcile",
+                    project_id,
+                    plan_id = %plan_id,
+                    error = %e,
+                    "auto-reconcile: LLM call failed"
+                );
+                results.push(PlanReconcileResult {
+                    plan_id,
+                    applied: 0,
+                    error: Some(e.to_string()),
+                });
+                continue;
+            }
         };
 
         // Apply valid, changed status flips to this plan's markdown.
@@ -280,7 +301,7 @@ pub async fn reconcile_entry(
             }
         }
         if applied == 0 {
-            results.push(PlanReconcileResult { plan_id, applied: 0 });
+            results.push(PlanReconcileResult { plan_id, applied: 0, error: None });
             continue;
         }
         // N4 — take the shared plan-write lock ONLY for the recheck→write (the
@@ -301,16 +322,28 @@ pub async fn reconcile_entry(
                     plan_id = %plan_id,
                     "auto-reconcile yielded: plan changed during LLM call (edits dropped)"
                 );
-                results.push(PlanReconcileResult { plan_id, applied: 0 });
+                results.push(PlanReconcileResult { plan_id, applied: 0, error: None });
                 continue; // plan changed during reconcile — skip this one
             }
-            if write_atomic(&path, cur.as_bytes()).is_err() {
+            if let Err(e) = write_atomic(&path, cur.as_bytes()) {
+                tracing::warn!(
+                    target: "oculpm::reconcile",
+                    project_id,
+                    plan_id = %plan_id,
+                    error = %e,
+                    "auto-reconcile: plan write failed"
+                );
+                results.push(PlanReconcileResult {
+                    plan_id,
+                    applied: 0,
+                    error: Some(e.to_string()),
+                });
                 continue;
             }
         }
         // Reproject so the cache reflects the new statuses immediately.
         let _ = PlanCache::new(db).get(project_id, &planner_root, &plan_id).await;
-        results.push(PlanReconcileResult { plan_id, applied });
+        results.push(PlanReconcileResult { plan_id, applied, error: None });
     }
 
     Ok(ReconcileOutcome::Ran(results))

@@ -179,7 +179,13 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projec
   }, [hasLimits, refresh]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => void read(), 8_000);
+    // 안 보이는 동안에는 두드리지 않는다 — Claude Code 화면은 keep-alive 라
+    // 다른 화면에 가 있어도 이 타이머가 영원히 돌았다(8초마다 IPC).
+    // `getClientRects().length === 0` 이면 `display:none` 아래다.
+    const timer = window.setInterval(() => {
+      if (!wrapRef.current?.getClientRects().length) return;
+      void read();
+    }, 8_000);
     return () => window.clearInterval(timer);
   }, [read]);
 

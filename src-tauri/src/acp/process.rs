@@ -108,6 +108,11 @@ pub struct AcpState {
     /// 덮인 쪽은 에이전트에 남아 새는 세션이 된다.
     pub session_lock: tokio::sync::Mutex<()>,
     next_epoch: AtomicU64,
+    /// 살아 있는 어댑터 연결 태스크 수. `stop_all_blocking` 이 종료 때 이 값이
+    /// 0 이 되기를 잠깐 기다린다 — 어댑터 프로세스(node + 손자 claude) 는 그
+    /// 태스크가 끝나며 크레이트가 프로세스 그룹째 죽이는데, tao 는 ExitRequested
+    /// 직후 `process::exit` 하므로 기다리지 않으면 고아로 남는다(2026-08-30 감사).
+    live: std::sync::atomic::AtomicUsize,
 }
 
 /// 아직 결정되지 않은 권한 요청.
@@ -465,6 +470,33 @@ impl AcpState {
             .map(|mut m| m.remove(&project_id).is_some())
             .unwrap_or(false)
     }
+
+    /// 앱 종료 — 모든 어댑터를 내리고 연결 태스크가 프로세스를 정리할 때까지
+    /// **잠깐** 기다린다(최대 1초). `stop` 과 같은 경로: `Running` 을 떨어뜨리면
+    /// 클로저가 풀리고, 크레이트가 어댑터 프로세스 그룹을 SIGKILL 한다. 그전엔
+    /// ExitRequested 에서 아무도 어댑터를 안 건드려 node+claude 가 고아로 남았다.
+    pub fn stop_all_blocking(&self) {
+        let dropped: Vec<u32> = match self.running.lock() {
+            Ok(mut map) => map.drain().map(|(id, _running)| id).collect(),
+            Err(_) => Vec::new(),
+        };
+        for project_id in &dropped {
+            self.clear_sinks(*project_id);
+            self.cancel_pending_permissions(*project_id, None);
+        }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        while self.live.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let left = self.live.load(Ordering::SeqCst);
+        if !dropped.is_empty() || left > 0 {
+            tracing::info!(
+                stopped = dropped.len(),
+                still_live = left,
+                "ACP 어댑터 종료 정리"
+            );
+        }
+    }
 }
 
 /// 어댑터를 띄우고 `initialize` 까지 마친다. 이미 떠 있으면 그 정보를 그대로.
@@ -519,6 +551,9 @@ pub async fn start(
     let notify_app = app.clone();
     let permission_app = app.clone();
 
+    // 연결 태스크 하나 = 살아 있는 어댑터 하나. 태스크 끝에서 내린다
+    // (`stop_all_blocking` 이 0 을 기다린다).
+    state.live.fetch_add(1, Ordering::SeqCst);
     tauri::async_runtime::spawn(async move {
         let outcome = Client
             .builder()
@@ -685,6 +720,8 @@ pub async fn start(
         if let Err(e) = outcome {
             tracing::warn!(project_id, error = %e, "ACP 연결이 오류로 끝났다");
         }
+        // 여기 도달했으면 크레이트가 어댑터 프로세스를 이미 정리했다.
+        state.live.fetch_sub(1, Ordering::SeqCst);
     });
 
     // 타임아웃이 있어야 하는 이유: 이 함수는 start_lock 을 쥐고 있다. 어댑터가

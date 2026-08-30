@@ -19,12 +19,12 @@ owner: claude-code
 - [x] DB 용량 보고(파일·WAL·빈 공간·큰 표) + 압축(VACUUM) + 재구축=비우고 처음부터 + `journal_size_limit` (`clear_project_index` 프런트 호출 0, 앱 DB 558MB+WAL 80MB) {#db-size-ui}
 
 ## Phase 2 — 프로세스 생존·보안 {#lifecycle}
-- [ ] PTY 호스트 Kill 이 kill 이 아님 — 자식 보관 → SIGHUP → 유예 → SIGKILL → wait, reader 는 세션 제거 플래그로 종료 (`ptyhost/host.rs` `_child` 즉시 drop, Kill 은 맵 remove 뿐) {#pty-kill}
-- [ ] ACP 어댑터가 앱 종료·탭 닫기에서 정리 안 됨 — `ExitRequested` 에 stop_all (`lib.rs`, `acpStop` 프런트 호출 0) {#acp-exit-cleanup}
-- [ ] 일지 `relative_path` 경로 탈출 — `resolve_entry_path` 로 절대경로·`..` 거부 + `starts_with` 강제, 5곳 경유 (`manager/journal.rs`, 모바일 dispatch 가 노출) {#journal-path-guard}
-- [ ] diff 백필이 빈 결과를 안 써 열 때마다 git 재실행 — 빈 마커 기록 + 워처 시작 뒤 백그라운드 (`entry_diffs.rs persist`, `oculpm_init` await) {#backfill-marker}
-- [ ] 자동 화해 LLM 오류 무음 — warn + 결과 error + 토스트 (`reconcile.rs` `Err(_) => continue`) {#reconcile-error}
-- [ ] 플래너 목록 로드 실패 시 스켈레톤 무한 + 사용량 미터 숨김 폴링 (`PlannerScreenV2 refreshPlans` else 없음, `AcpUsageMeter` 8초) {#planner-load-error}
+- [x] PTY 호스트 Kill 이 kill 이 아님 — 자식 보관 → 포그라운드 그룹+셸에 SIGHUP → 1.5초 유예 → SIGKILL → wait, reader 는 gone 동일성으로만 자기 세션 정리 (`ptyhost/host.rs` `_child` 즉시 drop, Kill 은 맵 remove 뿐) {#pty-kill}
+- [x] ACP 어댑터가 앱 종료에서 정리 안 됨 — `AcpState::stop_all_blocking`(live 카운터 0 까지 ≤1초) 을 `ExitRequested` 에 (`lib.rs`, `acpStop` 프런트 호출 0). 탭 닫기 경로(`window.rs`) 는 병렬 세션 영역이라 보류 {#acp-exit-cleanup}
+- [x] 일지 `relative_path` 경로 탈출 — `resolve_entry_path` 로 절대경로·`..` 거부 + `starts_with` 강제, 6곳 경유, `OculpmError::InvalidPath` (`manager/journal.rs`, 모바일 dispatch 가 노출) {#journal-path-guard}
+- [x] diff 백필이 빈 결과를 안 써 열 때마다 git 재실행 — 빈 마커 기록(백필은 건너뛰고 모달 지연복원은 재시도) + `oculpm_init` 2.6/2.7 을 spawn 으로 (`entry_diffs.rs persist`, `oculpm_init` await) {#backfill-marker}
+- [x] 자동 화해 LLM·쓰기 오류 무음 — warn + `PlanReconcileResult.error` + 워처가 `OculpmIntegrityWarning(reconcile)` 토스트 (`reconcile.rs` `Err(_) => continue`) {#reconcile-error}
+- [x] 사용량 미터 숨김 폴링 — `wrapRef` 가시성 게이트. 플래너 스켈레톤 무한은 **확인 결과 이미 처리돼 있어**(else + 재시도 버튼) 감사 보고가 낡은 것 (`AcpUsageMeter` 8초) {#planner-load-error}
 - [>] macOS 혼합 DPI 커서 좌표계 불일치 — 병렬 세션(drag-and-drop-round)의 `window.rs` 작업과 겹쳐 그 라운드로 이월 {#mixed-dpi}
 
 ## Phase 3 — 발동 원장(AD-1/2) 리뷰 수정 {#firing-fixes}
@@ -59,4 +59,10 @@ owner: claude-code
 | 2026-08-30T10:36:00+09:00 | #indexer-gitignore #chunker-dedupe | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1036_bug_indexer-gitignore-and-line-duplication.md | require_git(false)+deny 21종 · 줄 4KB/청크 16KB 상한 · 같은 범위 1회 · 031 정리. 사본 실측 청크 70.6K→49.5K, 178→58MB |
 | 2026-08-30T10:36:00+09:00 | #fts-register | claude-code | ☐→[x] | .oculpm/journal/20260830/Chores/1036_chore_retire-trigram-fts.md | 결정 2 로 폐기. 레지스트리 가드 + 011 번호 10→11 정정 + journal_size_limit |
 | 2026-08-30T10:36:00+09:00 | #db-size-ui | claude-code | ☐→[x] | .oculpm/journal/20260830/Features_to_add/1036_feature_db-size-compact-and-true-rebuild.md | DbHealth 크기 4종 + db_compact + 재구축이 clear→index. 사본 558→382MB |
+| 2026-08-30T10:51:00+09:00 | #pty-kill | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_pty-kill-was-not-a-kill.md | child 보관·terminate_session(HUP→유예→KILL→wait)·take_sessions 락 밖 종료. 통합 테스트: trap '' HUP; sleep 도 죽고 좀비 없음 |
+| 2026-08-30T10:51:00+09:00 | #acp-exit-cleanup | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_acp-adapters-orphaned-on-quit.md | live 카운터 + stop_all_blocking ≤1초. 탭 닫기 경로는 window.rs 라 보류 |
+| 2026-08-30T10:51:00+09:00 | #journal-path-guard | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_journal-path-traversal.md | resolve_entry_path 6곳 경유 + InvalidPath. 4 입력×4 경로 거부 테스트 |
+| 2026-08-30T10:51:00+09:00 | #backfill-marker | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_backfill-reran-git-on-every-open.md | 빈 마커(sidecar_exists=true, is_current=false) + init 2.6/2.7 spawn. 프런트 시그니처 불변 |
+| 2026-08-30T10:51:00+09:00 | #reconcile-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_reconcile-error-was-silent.md | result.error + warn + IntegrityWarning(reconcile) 토스트 |
+| 2026-08-30T10:51:00+09:00 | #planner-load-error | claude-code | ☐→[x] | .oculpm/journal/20260830/Bugs/1051_bug_usage-meter-polled-while-hidden.md | 미터만 수정. 플래너 쪽은 이미 처리돼 있었음 |
 <!-- oculpm:plan-log end -->

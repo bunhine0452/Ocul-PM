@@ -34,6 +34,7 @@ use crate::oculpm::spec::{
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_init(
+    app: tauri::AppHandle,
     db: State<'_, Db>,
     manager: State<'_, OculpmManager>,
     project_id: u32,
@@ -137,48 +138,59 @@ pub async fn oculpm_init(
         ),
     }
 
-    // Backfill per-entry diff sidecars for entries the live watcher never saw
-    // (written while the app was closed → imported via reindex above, or
-    // authored before the feature shipped). Idempotent + best-effort: already
-    // captured entries are skipped with no git work, so after the first pass
-    // this is near-free. The git-history fallback reconstructs diffs even for
-    // already-committed entries, which is the dominant case for this app
-    // (journals written by an external agent, reviewed after committing).
-    match manager.backfill_entry_diffs(&db, project_id).await {
-        Ok(n) if n > 0 => tracing::info!(
-            target: "oculpm::commands",
-            project_id,
-            captured = n,
-            "[FLOW] step 2.6 OK — backfilled diff sidecars for past entries"
-        ),
-        Ok(_) => {}
-        Err(e) => tracing::warn!(
-            target: "oculpm::commands",
-            project_id,
-            error = %e,
-            "[FLOW] step 2.6 FAILED — entry-diff backfill errored (non-fatal)"
-        ),
-    }
+    // Steps 2.6/2.7 run in the background. They used to be awaited here, and the
+    // frontend starts the watcher only after `oculpm_init` returns — so on an
+    // old project every open paid for the backfill's git work before live
+    // updates began (2026-08-30 audit). Both steps only write sidecars under
+    // `.oculpm/index/diffs/` (watcher-ignored) and cache rows, so racing the
+    // watcher start is safe. Ordering between them is kept (2.7 reads what 2.6
+    // wrote).
+    tauri::async_runtime::spawn(async move {
+        use tauri::Manager;
+        let db = app.state::<Db>();
+        let manager = app.state::<OculpmManager>();
 
-    // Count the recorded diffs into per-file line churn so Today's 「라인 변화」
-    // ring has real numbers. Runs after 2.6 so sidecars captured in that pass
-    // are counted in the same open; each entry drops off the work-list once
-    // counted, so repeat opens are near-free.
-    match manager.backfill_line_counts(&db, project_id).await {
-        Ok(n) if n > 0 => tracing::info!(
-            target: "oculpm::commands",
-            project_id,
-            counted = n,
-            "[FLOW] step 2.7 OK — backfilled line churn from diff sidecars"
-        ),
-        Ok(_) => {}
-        Err(e) => tracing::warn!(
-            target: "oculpm::commands",
-            project_id,
-            error = %e,
-            "[FLOW] step 2.7 FAILED — line-count backfill errored (non-fatal)"
-        ),
-    }
+        // Backfill per-entry diff sidecars for entries the live watcher never
+        // saw (written while the app was closed → imported via reindex above,
+        // or authored before the feature shipped). Idempotent + best-effort:
+        // already captured entries — including empty markers — are skipped
+        // with no git work.
+        match manager.backfill_entry_diffs(&db, project_id).await {
+            Ok(n) if n > 0 => tracing::info!(
+                target: "oculpm::commands",
+                project_id,
+                captured = n,
+                "[FLOW] step 2.6 OK — backfilled diff sidecars for past entries"
+            ),
+            Ok(_) => {}
+            Err(e) => tracing::warn!(
+                target: "oculpm::commands",
+                project_id,
+                error = %e,
+                "[FLOW] step 2.6 FAILED — entry-diff backfill errored (non-fatal)"
+            ),
+        }
+
+        // Count the recorded diffs into per-file line churn so Today's 「라인
+        // 변화」 ring has real numbers. Runs after 2.6 so sidecars captured in
+        // that pass are counted in the same open; each entry drops off the
+        // work-list once counted, so repeat opens are near-free.
+        match manager.backfill_line_counts(&db, project_id).await {
+            Ok(n) if n > 0 => tracing::info!(
+                target: "oculpm::commands",
+                project_id,
+                counted = n,
+                "[FLOW] step 2.7 OK — backfilled line churn from diff sidecars"
+            ),
+            Ok(_) => {}
+            Err(e) => tracing::warn!(
+                target: "oculpm::commands",
+                project_id,
+                error = %e,
+                "[FLOW] step 2.7 FAILED — line-count backfill errored (non-fatal)"
+            ),
+        }
+    });
     Ok(report)
 }
 

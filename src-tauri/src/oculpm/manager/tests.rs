@@ -786,6 +786,42 @@ mod journal_w3_pr3 {
         (manager, db, dir, project_root)
     }
 
+    /// 일지 상대경로는 `.oculpm/journal/` 밖으로 못 나간다 — 모바일 브리지가 이
+    /// 인자를 페어링된 기기에 그대로 노출하므로(2026-08-30 감사) 절대경로·`..` 는
+    /// 읽기·쓰기 경로 모두에서 거부돼야 한다.
+    #[tokio::test]
+    async fn journal_paths_cannot_escape_the_journal_root() {
+        let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
+        let outside = project_root.join(".oculpm/planner/victim.md");
+        std::fs::create_dir_all(outside.parent().unwrap()).unwrap();
+        std::fs::write(&outside, "---\noculpm_plan: v1\n---\n").unwrap();
+
+        for bad in ["../planner/victim.md", "/etc/passwd", "", "20260524/../../planner/victim.md"] {
+            let read = manager.get_journal_entry(&db, 7, bad.to_string()).await;
+            assert!(matches!(read, Err(OculpmError::InvalidPath(_))), "read {bad:?}: {read:?}");
+            let verify = manager.set_journal_verified(&db, 7, bad.to_string(), true).await;
+            assert!(matches!(verify, Err(OculpmError::InvalidPath(_))), "verify {bad:?}");
+            let body = manager
+                .update_journal_entry_body(&db, 7, bad.to_string(), "pwned".to_string())
+                .await;
+            assert!(matches!(body, Err(OculpmError::InvalidPath(_))), "body {bad:?}");
+            let abs = manager.resolve_journal_absolute(7, bad).await;
+            assert!(matches!(abs, Err(OculpmError::InvalidPath(_))), "resolve {bad:?}");
+        }
+        assert_eq!(
+            std::fs::read_to_string(&outside).unwrap(),
+            "---\noculpm_plan: v1\n---\n",
+            "journal 밖 파일은 손대지 않는다"
+        );
+
+        // 정상 경로는 그대로 통과한다.
+        let ok = manager
+            .resolve_journal_absolute(7, "20260524/Bugs/0925_bug_a.md")
+            .await
+            .unwrap();
+        assert!(ok.starts_with(project_root.join(".oculpm/journal")));
+    }
+
     fn minimal_draft(slug: &str) -> ManualEntryDraft {
         ManualEntryDraft {
             entry_type: EntryType::Bug,

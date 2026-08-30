@@ -3881,6 +3881,7 @@ dependencies = [
  "if-addrs",
  "ignore",
  "keyring",
+ "libc",
  "notify",
  "notify-debouncer-full",
  "objc2",

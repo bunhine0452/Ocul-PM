@@ -35,6 +35,10 @@ pub enum OculpmError {
     #[error("invalid config: {0}")]
     InvalidConfig(String),
 
+    /// 일지 상대경로가 `.oculpm/journal/` 밖을 가리킨다 (절대경로·`..`·빈 경로).
+    #[error("invalid journal path: {0}")]
+    InvalidPath(String),
+
     // W1-PR5 — atomic_io + lock
     #[error("managed block mismatch in {path}: only one of begin/end markers present")]
     ManagedBlockMismatch { path: PathBuf },

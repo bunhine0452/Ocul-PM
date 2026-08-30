@@ -244,9 +244,13 @@ fn sidecar_is_current(out: &Path) -> bool {
     let Ok(bytes) = std::fs::read(out) else {
         return false;
     };
+    // An empty marker (`files: []`) exists so `backfill_entry_diffs` stops
+    // re-running git on every open, but it is *not* "current" here: the lazy
+    // reconstruct path (변경 모달) may capture again — the file may have been
+    // committed or indexed since — and this call is the only chance it gets.
     matches!(
         serde_json::from_slice::<EntryDiffsFile>(&bytes),
-        Ok(f) if f.schema_version == SCHEMA_VERSION
+        Ok(f) if f.schema_version == SCHEMA_VERSION && !f.files.is_empty()
     )
 }
 
@@ -273,12 +277,16 @@ fn snapshot_patch(
     }
 }
 
-/// Write the sidecar (or skip when there's nothing to record). Split out so the
-/// capture logic is testable without a git repo.
+/// Write the sidecar. Split out so the capture logic is testable without a git
+/// repo.
+///
+/// An **empty** result is written too (`files: []`). It used to be skipped, so
+/// entries whose diff is unrecoverable (path never in git nor snapshots) had no
+/// sidecar, `sidecar_exists` stayed false, and `backfill_entry_diffs` re-ran
+/// `git diff` + `git log` for every such entry on every project open —
+/// delaying the watcher start on old projects (2026-08-30 audit). The empty
+/// marker is the memory that says "we looked, there is nothing".
 fn persist(out: &Path, entry_rel: &str, files: Vec<EntryFileDiff>) -> std::io::Result<()> {
-    if files.is_empty() {
-        return Ok(());
-    }
     let payload = EntryDiffsFile {
         schema_version: SCHEMA_VERSION,
         captured_at: chrono::Local::now().to_rfc3339(),
@@ -404,14 +412,19 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
+    /// 빈 결과도 마커를 남긴다 — 없으면 `backfill_entry_diffs` 가 프로젝트를 열
+    /// 때마다 같은 항목에 git 을 다시 돌린다. 단, 마커는 "현행" 이 아니라서
+    /// 지연 복원(모달) 은 한 번 더 시도할 수 있다.
     #[test]
-    fn empty_set_writes_no_file_and_reads_empty() {
+    fn empty_set_writes_marker_that_backfill_skips_but_reconstruct_retries() {
         let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-empty-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let entry = "20260604/Chores/0800_chore.md";
         let out = sidecar_path(&tmp, entry).unwrap();
         persist(&out, entry, Vec::new()).unwrap();
-        assert!(!out.exists(), "empty set must not create a sidecar");
+        assert!(out.exists(), "empty marker must be written");
+        assert!(sidecar_exists(&tmp, entry), "backfill treats the marker as done");
+        assert!(!sidecar_is_current(&out), "but lazy reconstruct may try again");
         assert!(read_entry_diffs(&tmp, entry).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
     }

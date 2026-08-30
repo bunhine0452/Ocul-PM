@@ -742,6 +742,11 @@ pub fn run() {
                 {
                     manager.shutdown_all_blocking();
                 }
+                // ACP 어댑터(node + 손자 claude) — 여기서 안 내리면 tao 의
+                // `process::exit` 뒤에 고아로 남는다. 최대 1초 기다린다.
+                if let Some(acp) = app_handle.try_state::<crate::acp::AcpState>() {
+                    acp.stop_all_blocking();
+                }
                 // 모바일 브리지 — oneshot 만 보내면 axum 이 graceful 로 내려간다.
                 if let Some(bridge) =
                     app_handle.try_state::<crate::mobile_bridge::server::MobileBridgeState>()

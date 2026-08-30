@@ -69,10 +69,77 @@ impl SessionBuf {
 struct HostSession {
     writer: Box<dyn std::io::Write + Send>,
     master: Box<dyn MasterPty + Send>,
+    /// 셸 프로세스 핸들. 예전엔 spawn 직후 버렸는데(`_child`), 그러면 아무도
+    /// `wait()` 하지 않아 셸이 끝날 때마다 호스트 안에 좀비가 쌓이고, Kill 이
+    /// 실제로 무엇을 죽였는지 알 길이 없었다 (2026-08-30 감사).
+    child: Box<dyn portable_pty::Child + Send + Sync>,
+    /// Kill 이 지나갔다 — 읽기 스레드가 EOF 뒤 **자기 것이 아닌** 세션(같은 sid
+    /// 로 새로 뜬 것)을 맵에서 지우거나 유령 Exit 를 내지 않도록.
+    gone: Arc<std::sync::atomic::AtomicBool>,
     buf: Arc<Mutex<SessionBuf>>,
     nonce: String,
     shell_integration: bool,
 }
+
+/// 셸 종료 유예 — SIGHUP 을 받은 셸이 자식에게 HUP 을 돌리고 내려올 시간.
+const KILL_GRACE: std::time::Duration = std::time::Duration::from_millis(1500);
+
+/// Kill 계열의 실제 종료. "master 를 닫으면 커널이 SIGHUP 을 보낸다" 는 가정은
+/// 읽기 스레드가 master 의 dup 을 EOF 까지 쥐고 있어 성립하지 않았고, 실제로
+/// 자식에게 가던 것은 writer drop 의 `\n`+^D 뿐이었다 — ^D 를 무시하는
+/// 포그라운드(vim·ssh·도구 호출 중인 claude)는 살아남았다. 이제:
+/// 포그라운드 프로세스 그룹과 셸에 SIGHUP → 유예 → SIGKILL → `wait` 로 회수.
+/// 블로킹이라 전용 스레드에서 돈다.
+fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
+    use std::sync::atomic::Ordering as O;
+    session.gone.store(true, O::SeqCst);
+    let foreground = process_group_leader_of(&session);
+    let HostSession { writer, master, mut child, .. } = session;
+    let shell_pid = child.process_id().map(|p| p as i32);
+    // master/writer 를 먼저 닫아야 슬레이브 쪽 read 가 EIO 로 깨어난다.
+    drop(writer);
+    drop(master);
+    std::thread::spawn(move || {
+        signal_session(foreground, shell_pid, libc::SIGHUP);
+        let deadline = std::time::Instant::now() + KILL_GRACE;
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                Ok(None) => {
+                    signal_session(foreground, shell_pid, libc::SIGKILL);
+                    let _ = child.wait();
+                    break;
+                }
+                Err(_) => break,
+            }
+        }
+        log_line(&state, &format!("session killed: {sid}"));
+    });
+}
+
+/// 포그라운드 프로세스 그룹(있으면) 과 셸 자체에 `sig` 를 보낸다. 셸은 세션
+/// 리더라 자기 그룹의 유일한 구성원인 경우가 많고, 포그라운드 작업은 잡 컨트롤로
+/// 별도 그룹에 있다 — 둘 다 겨눠야 한다. 실패(이미 죽음)는 무시.
+#[cfg(unix)]
+fn signal_session(foreground: Option<i32>, shell_pid: Option<i32>, sig: libc::c_int) {
+    if let Some(pgid) = foreground.filter(|p| *p > 1) {
+        // SAFETY: 인자는 검증된 정수뿐, 메모리를 건드리지 않는다.
+        unsafe {
+            libc::killpg(pgid, sig);
+        }
+    }
+    if let Some(pid) = shell_pid.filter(|p| *p > 1) {
+        unsafe {
+            libc::kill(pid, sig);
+        }
+    }
+}
+
+#[cfg(not(unix))]
+fn signal_session(_foreground: Option<i32>, _shell_pid: Option<i32>, _sig: i32) {}
 
 pub struct HostState {
     sessions: Mutex<HashMap<String, HostSession>>,
@@ -85,6 +152,19 @@ pub struct HostState {
 /// 접두사에 `-` 가 붙어 있어야 `p1-` 이 `p12-…` 를 함께 살리지 않는다.
 fn is_protected(sid: &str, keep: &[String]) -> bool {
     keep.iter().any(|p| sid.starts_with(p))
+}
+
+/// 조건에 맞는 세션을 맵에서 **꺼내** 돌려준다 — 락은 꺼내는 동안만 쥔다.
+/// 실제 종료(`terminate_session`) 는 락 밖에서 하므로 다른 요청이 막히지 않는다.
+fn take_sessions(
+    state: &Arc<HostState>,
+    doomed: impl Fn(&str) -> bool,
+) -> Vec<(String, HostSession)> {
+    let mut sessions = state.lock_sessions();
+    let keys: Vec<String> = sessions.keys().filter(|k| doomed(k)).cloned().collect();
+    keys.into_iter()
+        .filter_map(|k| sessions.remove(&k).map(|s| (k, s)))
+        .collect()
 }
 
 /// `pending` 에서 디코딩 가능한 최장 prefix 를 뽑아 반환하고, 청크 경계에
@@ -188,7 +268,7 @@ fn start_session(
         cmd.cwd(cwd);
     }
 
-    let _child = pair
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn shell: {e}"))?;
@@ -202,9 +282,12 @@ fn start_session(
         .map_err(|e| format!("Failed to take PTY writer: {e}"))?;
 
     let buf = Arc::new(Mutex::new(SessionBuf::default()));
+    let gone = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let session = HostSession {
         writer,
         master: pair.master,
+        child,
+        gone: gone.clone(),
         buf: buf.clone(),
         nonce: nonce.clone(),
         shell_integration,
@@ -246,16 +329,27 @@ fn start_session(
             }
         }
         // EOF 시점에 이월분이 남아있으면 (비정상 스트림) lossy 로 마감.
-        if !pending.is_empty() {
+        if !pending.is_empty() && !gone.load(std::sync::atomic::Ordering::SeqCst) {
             let text = String::from_utf8_lossy(&pending).into_owned();
             let seq = buf.lock().unwrap_or_else(|p| p.into_inner()).push(&text);
             let _ = st.events.send(Event::Data { sid: sid.clone(), seq, text });
         }
-        // 셸이 스스로 종료(exit)한 세션은 맵에서 걷어낸다 — 다음 attach 가
-        // None 을 받아 새 셸을 시작하게.
-        st.lock_sessions().remove(&sid);
-        log_line(&st, &format!("session exited: {sid}"));
-        let _ = st.events.send(Event::Exit { sid });
+        // Kill 이 지나간 세션은 거기서 정리됐다 — 같은 sid 로 새로 뜬 세션을
+        // 여기서 지우면 안 된다. **내 것일 때만**(gone Arc 동일성) 걷어낸다:
+        // 셸이 스스로 종료(exit)한 세션 → 다음 attach 가 None 을 받아 새 셸을
+        // 시작하게 하고, 자식을 회수해 좀비를 남기지 않는다.
+        let mine = {
+            let mut sessions = st.lock_sessions();
+            match sessions.get(&sid) {
+                Some(s) if Arc::ptr_eq(&s.gone, &gone) => sessions.remove(&sid),
+                _ => None,
+            }
+        };
+        if let Some(session) = mine {
+            terminate_session(st.clone(), sid.clone(), session);
+            log_line(&st, &format!("session exited: {sid}"));
+            let _ = st.events.send(Event::Exit { sid });
+        }
     });
 
     Ok(Response::Session { nonce, shell_integration })
@@ -313,27 +407,27 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             Response::Ok
         }
         Request::Kill { sid } => {
-            // HostSession drop → master 닫힘 → 자식에 SIGHUP.
-            state.lock_sessions().remove(&sid);
+            let removed = state.lock_sessions().remove(&sid);
+            if let Some(session) = removed {
+                terminate_session(state.clone(), sid, session);
+            }
             Response::Ok
         }
         Request::KillPrefix { prefix } => {
-            let mut sessions = state.lock_sessions();
-            let doomed: Vec<String> =
-                sessions.keys().filter(|k| k.starts_with(&prefix)).cloned().collect();
-            for key in &doomed {
-                sessions.remove(key);
+            let doomed = take_sessions(state, |k| k.starts_with(&prefix));
+            let n = doomed.len() as u32;
+            for (sid, session) in doomed {
+                terminate_session(state.clone(), sid, session);
             }
-            Response::Count { n: doomed.len() as u32 }
+            Response::Count { n }
         }
         Request::KillExcept { keep } => {
-            let mut sessions = state.lock_sessions();
-            let doomed: Vec<String> =
-                sessions.keys().filter(|k| !is_protected(k, &keep)).cloned().collect();
-            for key in &doomed {
-                sessions.remove(key);
+            let doomed = take_sessions(state, |k| !is_protected(k, &keep));
+            let n = doomed.len() as u32;
+            for (sid, session) in doomed {
+                terminate_session(state.clone(), sid, session);
             }
-            Response::Count { n: doomed.len() as u32 }
+            Response::Count { n }
         }
         Request::Foreground { sid } => {
             // 락은 pid 를 꺼낼 때까지만 — `ps` 는 세션 맵과 무관하다.
@@ -547,6 +641,70 @@ pub fn run_host(socket: PathBuf) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    fn pid_alive(pid: i32) -> bool {
+        // SAFETY: 신호 0 은 존재 확인만 한다.
+        unsafe { libc::kill(pid, 0) == 0 }
+    }
+
+    /// Kill 은 셸뿐 아니라 ^D 를 무시하는 포그라운드까지 죽이고 자식을 회수한다.
+    /// 예전엔 맵에서 지우기만 해 `sleep` 이 살아남고 셸은 좀비로 남았다.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn kill_terminates_shell_and_foreground_and_reaps() {
+        let state = HostState::new(None);
+        let sid = "test-kill".to_string();
+        let resp = start_session(
+            &state,
+            sid.clone(),
+            std::env::temp_dir().to_string_lossy().into_owned(),
+            24,
+            80,
+            "/bin/sh".to_string(),
+            vec![("PS1".to_string(), "$ ".to_string())],
+            "n".to_string(),
+            false,
+        )
+        .expect("shell starts");
+        assert!(matches!(resp, Response::Session { .. }));
+
+        // 포그라운드에 오래 도는 작업을 앉힌다. HUP 을 무시하는 셸 + sleep.
+        handle_request(
+            &state,
+            Request::Write { sid: sid.clone(), data: "trap '' HUP; sleep 300\n".to_string() },
+        );
+        let (shell_pid, fg) = {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                let (shell, fg) = {
+                    let sessions = state.lock_sessions();
+                    let s = sessions.get(&sid).expect("session present");
+                    (s.child.process_id().map(|p| p as i32), process_group_leader_of(s))
+                };
+                // 포그라운드 그룹이 셸에서 sleep 으로 넘어간 순간을 기다린다.
+                if let (Some(shell), Some(fg)) = (shell, fg) {
+                    if fg != shell {
+                        break (shell, fg);
+                    }
+                }
+                assert!(std::time::Instant::now() < deadline, "sleep 이 포그라운드가 안 된다");
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        };
+        assert!(pid_alive(shell_pid) && pid_alive(fg));
+
+        assert!(matches!(handle_request(&state, Request::Kill { sid: sid.clone() }), Response::Ok));
+        assert!(state.lock_sessions().get(&sid).is_none(), "맵에서 즉시 사라진다");
+
+        let deadline = std::time::Instant::now() + KILL_GRACE + std::time::Duration::from_secs(3);
+        while std::time::Instant::now() < deadline && (pid_alive(fg) || pid_alive(shell_pid)) {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        assert!(!pid_alive(fg), "포그라운드 sleep 이 살아남았다");
+        // 회수됐으면 kill(pid, 0) 은 ESRCH — 좀비는 살아 있는 것으로 보고된다.
+        assert!(!pid_alive(shell_pid), "셸이 좀비로 남았다");
+    }
 
     /// 청크 경계에 걸린 한글(3바이트)이 이월 후 온전히 복원된다.
     #[test]

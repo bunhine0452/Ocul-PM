@@ -5,6 +5,33 @@
 
 use super::*;
 
+/// 일지 상대경로 → 절대경로. 절대경로·`..`·빈 경로를 거부하고 결과가
+/// `journal_root` 아래인지 한 번 더 확인한다.
+///
+/// 이 경로는 모바일 브리지(`mobile_bridge/dispatch.rs`)가 페어링된 기기에 그대로
+/// 노출하는 인자다 — `Path::join` 은 절대경로를 받으면 base 를 통째로 버리므로
+/// 가드 없이는 `.oculpm/journal` 밖의 `.md` 를 읽고 덮어쓸 수 있었다
+/// (2026-08-30 감사). `entry_diffs::sidecar_path` 와 같은 규칙이다.
+pub(crate) fn resolve_entry_path(
+    journal_root: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, OculpmError> {
+    let rel = Path::new(relative_path);
+    let well_formed = !relative_path.is_empty()
+        && !rel.is_absolute()
+        && rel
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)));
+    if !well_formed {
+        return Err(OculpmError::InvalidPath(relative_path.to_string()));
+    }
+    let abs = journal_root.join(rel);
+    if !abs.starts_with(journal_root) {
+        return Err(OculpmError::InvalidPath(relative_path.to_string()));
+    }
+    Ok(abs)
+}
+
 impl OculpmManager {
 
     // ─── W3-PR3: journal cache + manual entry coordination ──────────────────
@@ -57,7 +84,7 @@ impl OculpmManager {
         }
         // Cache miss — check disk.
         let journal_root = self.journal_root(project_id).await?;
-        let abs = journal_root.join(&relative_path);
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
         if !abs.exists() {
             return Ok(None);
         }
@@ -88,7 +115,7 @@ impl OculpmManager {
         verified: bool,
     ) -> Result<(), OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
-        let abs = journal_root.join(&relative_path);
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -144,7 +171,7 @@ impl OculpmManager {
             ));
         }
         let journal_root = self.journal_root(project_id).await?;
-        let abs = journal_root.join(&relative_path);
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -201,7 +228,7 @@ impl OculpmManager {
     ) -> Result<JournalEntry, OculpmError> {
         let tz = self.tz_for(project_id).await;
         let journal_root = self.journal_root(project_id).await?;
-        let abs = journal_root.join(&relative_path);
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -261,7 +288,7 @@ impl OculpmManager {
         new_body: String,
     ) -> Result<JournalEntry, OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
-        let abs = journal_root.join(&relative_path);
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -319,7 +346,7 @@ impl OculpmManager {
         relative_path: &str,
     ) -> Result<PathBuf, OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
-        Ok(journal_root.join(relative_path))
+        resolve_entry_path(&journal_root, relative_path)
     }
 
     /// Write a manual journal entry the user authored via the modal. Resolves
