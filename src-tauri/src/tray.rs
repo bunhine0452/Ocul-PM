@@ -622,7 +622,8 @@ mod tests {
                 let rgba = img.rgba();
                 assert_eq!(rgba.len(), (SIZE * SIZE * 4) as usize);
                 let mut any_alpha = false;
-                for px in rgba.chunks_exact(4) {
+                let (pixels, _) = rgba.as_chunks::<4>();
+                for px in pixels {
                     assert_eq!((px[0], px[1], px[2]), (0, 0, 0), "템플릿은 검정만");
                     if px[3] > 0 {
                         any_alpha = true;

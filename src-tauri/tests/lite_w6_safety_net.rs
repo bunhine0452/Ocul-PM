@@ -62,7 +62,7 @@ async fn invariant_01_index_writer_appends_ndjson_lines() {
 
     let make_ev = |path: &str| FileChangeEvent {
         ts: now_iso(),
-        session_id: format!("{}-001", &workday),
+        session_id: format!("{workday}-001"),
         op: FileOp::Update,
         path: path.to_string(),
         hash_before: None,
