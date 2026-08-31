@@ -1369,6 +1369,31 @@ export const commands = {
 	 *  라운드당 96MB 이니 이 저장소 실측 293MB 도 넉넉하다).
 	 */
 	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
+	/**  이 프로젝트의 모든 자동화 정의 + 상태. 스케줄 먼저, 그 안에서 id 순. */
+	automationList: (projectId: number) => typedError<AutomationSummary[], AppError>(__TAURI_INVOKE("automation_list", { projectId })),
+	/**  실행 이력, 시각 역순. `automation_id` 가 없으면 프로젝트 전체. */
+	automationRuns: (projectId: number, automationId: string | null, limit: number) => typedError<AutomationRunDto[], AppError>(__TAURI_INVOKE("automation_runs", { projectId, automationId, limit })),
+	/**  아직 만들지 않은 씨앗들. 빈 목록이면 UI 는 제안 줄을 감춘다. */
+	automationSeeds: (projectId: number) => typedError<AutomationDef[], AppError>(__TAURI_INVOKE("automation_seeds", { projectId })),
+	/**
+	 *  정의를 저장한다 (없으면 생성). 반환값은 저장 후 다시 읽은 상태 —
+	 *  **디스크가 정본**이라 UI 가 자기 입력이 아니라 저장 결과를 그린다.
+	 */
+	automationSave: (projectId: number, def: AutomationDef) => typedError<AutomationSummary, AppError>(__TAURI_INVOKE("automation_save", { projectId, def })),
+	/**  정의를 지운다. 상태·이력도 함께 정리한다 (파일이 SSOT). */
+	automationDelete: (projectId: number, kind: string, id: string) => typedError<boolean, AppError>(__TAURI_INVOKE("automation_delete", { projectId, kind, id })),
+	/**  일시중지 / 재개. 파일의 `enabled` 한 글자만 바꾼다. */
+	automationSetEnabled: (projectId: number, kind: string, id: string, enabled: boolean) => typedError<AutomationSummary, AppError>(__TAURI_INVOKE("automation_set_enabled", { projectId, kind, id, enabled })),
+	/**  씨앗 하나를 정의로 만든다 (비활성). 이미 있으면 그대로 돌려준다. */
+	automationCreateSeed: (projectId: number, seedId: string) => typedError<AutomationSummary, AppError>(__TAURI_INVOKE("automation_create_seed", { projectId, seedId })),
+	/**
+	 *  「지금 실행」 — 집행 루프와 **같은 문**을 쓴다 (예산·동시성·락 규약이
+	 *  두 경로에서 갈라지지 않게). 전역 스위치가 꺼져 있어도 수동 실행은 된다:
+	 *  사용자가 방금 누른 버튼이라 "조용히 아무 일도 안 일어남" 이 더 나쁘다.
+	 */
+	automationRunNow: (projectId: number, kind: string, id: string) => typedError<AutomationRunOutcome, AppError>(__TAURI_INVOKE("automation_run_now", { projectId, kind, id })),
+	/**  실행 중인 자동화 1건을 중단한다 (Phase 3 의 인라인 Stop 이 부를 문). */
+	automationCancel: () => typedError<null, AppError>(__TAURI_INVOKE("automation_cancel")),
 	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
 	acpDiagnose: () => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_diagnose")),
 	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */
@@ -2073,6 +2098,123 @@ export type AppWindowInfo = {
 	/**  그 창에서 지금 보이는 탭의 프로젝트. 시작 탭이면 `None`. */
 	active_project_id: number | null,
 	tab_count: number,
+};
+
+/**
+ *  Osaurus 라운드 Phase 0 (Decision 4) — 자동화의 전역 스위치.
+ * 
+ *  **전부 옵인, 기본 off.** `#[serde(default)]` 라 `[automation]` 섹션이 없는
+ *  기존 `config.toml` 은 전부 꺼진 상태로 파싱된다. `.oculpm/automation/` 은
+ *  신규 디렉터리라 기존 온디스크 스펙이 불변이고 `schema_version` 을 올리지
+ *  않는다 (`auto_reconcile`·`auto_journal_draft` 선례).
+ * 
+ *  개별 정의 파일의 `enabled` 와는 **AND** 다 — 여기가 꺼져 있으면 켜 둔
+ *  정의가 있어도 돌지 않는다.
+ */
+export type AutomationConfig = {
+	/**  스케줄 집행 전역 스위치. */
+	schedules?: boolean,
+	/**  워처 자동화 전역 스위치. */
+	watchers?: boolean,
+	/**
+	 *  한 워크데이에 자동화가 부를 수 있는 LLM 호출 상한 (폭주 가드).
+	 *  `0` = 전면 정지. 드롭·스킵은 과금되지 않았으므로 세지 않는다.
+	 */
+	daily_run_budget?: number,
+};
+
+/**
+ *  스케줄/워처 정의 하나. 스케줄·워처 전용 필드는 서로 `None` 이다.
+ * 
+ *  커맨드 경계를 그대로 건넌다 — 에디터가 편집하는 것이 곧 디스크에 쓰이는
+ *  것이고, 그 사이에 매핑 표가 없다 (D1 의 "정의가 SSOT" 를 UI 까지 밀어붙인다).
+ */
+export type AutomationDef = {
+	id: string,
+	kind: AutomationKind,
+	title: string,
+	enabled: boolean,
+	/**  `YYYY-MM-DD`. 시각은 주입받아 채운다 (호출부 규율 — 여기서 시계를 읽지 않는다). */
+	created: string,
+	updated: string,
+	/**  `once|minutes|hourly|daily|weekly|monthly|yearly|cron`. */
+	frequency: string | null,
+	/**  `HH:MM` 또는 ISO 날짜시각(`once`). */
+	at: string | null,
+	weekday: string | null,
+	day_of_month: number | null,
+	month: number | null,
+	day: number | null,
+	/**  `minutes`/`hourly` 의 N. */
+	every: number | null,
+	/**  5필드 cron 식. */
+	cron: string | null,
+	/**  프로젝트 상대 경로. */
+	watch: string | null,
+	recursive: boolean | null,
+	/**  `fast|balanced|patient|relaxed|deferred|extended`. */
+	responsiveness: string | null,
+	output: AutomationOutput,
+	/**  본문 — 모델에게 그대로 가는 지시문. */
+	instructions: string,
+};
+
+/**
+ *  자동화의 두 축 — 스케줄은 시계에, 워처는 현실에 반응한다.
+ * 
+ *  직렬화 모양은 정의 파일의 `kind:` 값과 같다 (`schedule` / `watcher`) —
+ *  디스크·바인딩·UI 가 한 어휘를 쓴다.
+ */
+export type AutomationKind = "schedule" | "watcher";
+
+/**  자동화가 무엇을 남기는가. */
+export type AutomationOutput = 
+/**  규격 일지 1건. */
+"journal" | 
+/**  활성 플랜 글리프 갱신. */
+"plan" | 
+/**  산출물 없음 — 실행 원장의 메모로만 남는다 (아침 브리핑 카드 등). */
+"none";
+
+/**  실행 이력 한 줄 (`automation_runs`). */
+export type AutomationRunDto = {
+	/**
+	 *  rowid 를 **문자열**로 넘긴다 — specta 는 정밀도 손실을 막으려 i64 를
+	 *  거부하고, 프런트는 이 값을 목록 key 로만 쓴다 (산술 없음).
+	 */
+	id: string,
+	automation_id: string,
+	session_id: string,
+	started_at: string,
+	ended_at: string | null,
+	status: string,
+	/**  산출 일지의 프로젝트 상대 경로 — 클릭하면 일지 화면으로 점프한다. */
+	journal_path: string | null,
+	note: string | null,
+};
+
+/**  「지금 실행」의 결말. 프런트는 `status` 로 토스트 문구를 고른다. */
+export type AutomationRunOutcome = {
+	/**  `ran` | `dropped` | `skipped` | `failed` | `cancelled` */
+	status: string,
+	/**  기계가 읽는 사유 코드/원문 (영어). UI 언어를 넣지 않는다. */
+	reason: string | null,
+	journal_path: string | null,
+};
+
+/**  정의 + 런타임 상태 한 벌. 카드 하나가 필요로 하는 전부다. */
+export type AutomationSummary = {
+	def: AutomationDef,
+	/**  파서 경고 (정의는 살아 있되 어긋난 것). 조용히 삼키지 않는다. */
+	warnings: string[],
+	/**  ISO8601 UTC. 스케줄만, 그리고 켜져 있을 때만. */
+	next_run_at: string | null,
+	last_run_at: string | null,
+	last_status: string | null,
+	/**  마지막 실행의 실패 사유 또는 빈도 해석 오류 코드. */
+	last_error: string | null,
+	/**  빈도를 해석하지 못한 이유 (`automation_bad_time` 등). 프런트가 i18n 키로. */
+	spec_error: string | null,
 };
 
 /**
@@ -3694,6 +3836,7 @@ export type OculpmConfig = {
 	git: GitConfig,
 	watcher: WatcherConfig,
 	agents: AgentsConfig,
+	automation?: AutomationConfig,
 };
 
 /**

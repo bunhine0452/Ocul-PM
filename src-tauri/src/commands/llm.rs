@@ -15,7 +15,7 @@ fn load_api_key(provider: &str) -> Result<String, String> {
 
 /// One entry in the user-configured failover chain (Settings → LLM → 폴백 체인).
 /// On a failed call the next entry is tried, in order.
-#[derive(Debug, Clone, serde::Deserialize, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, specta::Type)]
 pub struct ProviderModel {
     pub provider: String,
     pub model: String,

@@ -14,7 +14,7 @@
  * See `docs/major_update/oculpm/W3/PR4-frontend-context.md` §1.
  */
 
-import { commands } from "@/lib/bindings";
+import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
   AgentDetection,
@@ -36,6 +36,7 @@ import type {
   ReindexReport,
   Session,
   FileChangeEvent,
+  OculpmFileChanged,
 } from "@/lib/bindings";
 
 /**
@@ -291,6 +292,24 @@ export const oculpmApi = {
       "oculpm_backfill_from_git",
       commands.oculpmBackfillFromGit(projectId, maxCommits),
     ),
+
+  /**
+   * 워처의 파일 변경 스트림 구독. 반환값은 구독 해제 함수다.
+   *
+   * 이벤트라 봉투(`{status}`)가 없으니 여기서 접을 오류도 없다 — 래퍼가 하는
+   * 일은 위 3번(화면이 생성 파일을 직접 만지지 않는다)과, 비-Tauri 컨텍스트
+   * (jsdom·헤드리스)에서 **조용히 아무것도 안 하는 것**이다. 구독 실패로
+   * 화면이 죽어서는 안 된다 — 라이브 갱신만 없는 상태로 두면 된다.
+   */
+  onFileChanged: (cb: (payload: OculpmFileChanged) => void): Promise<() => void> => {
+    try {
+      return events.oculpmFileChanged
+        .listen(({ payload }) => cb(payload))
+        .catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
 } as const;
 
 export type OculpmApi = typeof oculpmApi;

@@ -1242,6 +1242,7 @@ mod tests {
                 rules_translate: vec![],
                 template_language: "ko".into(),
             },
+            automation: Default::default(),
         }
     }
 

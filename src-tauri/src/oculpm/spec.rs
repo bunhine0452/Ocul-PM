@@ -448,6 +448,46 @@ fn default_template_language() -> String {
     "ko".to_string()
 }
 
+/// Osaurus 라운드 Phase 0 (Decision 4) — 자동화의 전역 스위치.
+///
+/// **전부 옵인, 기본 off.** `#[serde(default)]` 라 `[automation]` 섹션이 없는
+/// 기존 `config.toml` 은 전부 꺼진 상태로 파싱된다. `.oculpm/automation/` 은
+/// 신규 디렉터리라 기존 온디스크 스펙이 불변이고 `schema_version` 을 올리지
+/// 않는다 (`auto_reconcile`·`auto_journal_draft` 선례).
+///
+/// 개별 정의 파일의 `enabled` 와는 **AND** 다 — 여기가 꺼져 있으면 켜 둔
+/// 정의가 있어도 돌지 않는다.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct AutomationConfig {
+    /// 스케줄 집행 전역 스위치.
+    #[serde(default)]
+    pub schedules: bool,
+    /// 워처 자동화 전역 스위치.
+    #[serde(default)]
+    pub watchers: bool,
+    /// 한 워크데이에 자동화가 부를 수 있는 LLM 호출 상한 (폭주 가드).
+    /// `0` = 전면 정지. 드롭·스킵은 과금되지 않았으므로 세지 않는다.
+    #[serde(default = "default_daily_run_budget")]
+    pub daily_run_budget: u32,
+}
+
+fn default_daily_run_budget() -> u32 {
+    20
+}
+
+/// `#[serde(default)]` 로 통째로 빠진 `[automation]` 과, 부분만 적힌
+/// `[automation]` 이 **같은 값**을 내야 한다 — 그래서 파생 `Default` 를 쓰지
+/// 않고 필드별 serde 기본값과 손으로 맞춘다 (`automation_defaults_agree` 테스트).
+impl Default for AutomationConfig {
+    fn default() -> Self {
+        Self {
+            schedules: false,
+            watchers: false,
+            daily_run_budget: default_daily_run_budget(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct OculpmConfig {
     pub schema_version: u32,
@@ -456,6 +496,8 @@ pub struct OculpmConfig {
     pub git: GitConfig,
     pub watcher: WatcherConfig,
     pub agents: AgentsConfig,
+    #[serde(default)]
+    pub automation: AutomationConfig,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

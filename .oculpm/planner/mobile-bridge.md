@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: mobile-bridge
 title: "모바일 브리지 — Tailscale 로 폰에서 ocul-pm"
-status: active
+status: done
 created: 2026-08-24
-updated: 2026-08-24
+updated: 2026-08-25
 owner: claude-code
 ---
 

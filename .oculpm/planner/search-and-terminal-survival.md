@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: search-and-terminal-survival
 title: "검색 · 터미널 생존 라운드 — 전역 검색/치환 + 업데이트에도 안 끊기는 PTY"
-status: active
+status: done
 created: 2026-08-25
-updated: 2026-08-25
+updated: 2026-08-28
 owner: claude-code
 ---
 

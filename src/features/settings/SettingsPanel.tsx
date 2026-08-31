@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   FileCode,
   Code2,
+  Clock,
   Download,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -26,6 +27,7 @@ export { NotionSection } from "./tabs/DataTab";
 // xterm 을 통째로 끌고 온다.
 import { useT, type I18nKey } from "@/i18n";
 import { OculpmSettings } from "./OculpmSettings";
+import { AutomationTab } from "./automation/AutomationTab";
 import { CodeSettings } from "./CodeSettings";
 import { MobileSettings } from "./MobileSettings";
 
@@ -37,6 +39,7 @@ type TabId =
   | "graph"
   | "data"
   | "oculpm"
+  | "automation"
   | "mobile"
   | "diagnostics"
   | "update";
@@ -52,6 +55,9 @@ const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ cl
   { id: "graph", labelKey: "settings.tab.graph", icon: GitBranch },
   { id: "data", labelKey: "settings.tab.data", icon: Database },
   { id: "oculpm", labelKey: "settings.tab.oculpm", icon: FileCode },
+  // 자동화 — 스케줄·감시 (Osaurus 라운드 Phase 1). 새 화면을 만들지 않고
+  // "설정에 가까운 관리면" 이라 여기 산다 (01-automation.md §1.3).
+  { id: "automation", labelKey: "settings.tab.automation", icon: Clock },
   // 모바일 브리지 — Tailscale 폰 접근 (mobile-bridge #mb0-settings-ui).
   { id: "mobile", labelKey: "settings.tab.mobile", icon: Smartphone },
   // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
@@ -113,6 +119,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <DataTab onError={setError} />;
       case "oculpm":
         return <OculpmSettings />;
+      case "automation":
+        return <AutomationTab />;
       case "mobile":
         return <MobileSettings Section={Section} Field={Field} />;
       case "diagnostics":

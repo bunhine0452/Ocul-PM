@@ -28,6 +28,13 @@ fn announce(app: &AppHandle, keys: Vec<String>) {
     let _ = SettingsChanged { keys }.emit(app);
 }
 
+/// 커맨드 밖(배경 작업)에서 설정을 고쳤을 때 같은 이벤트를 쏜다 — 그래야
+/// 이미 떠 있는 창들이 새 값을 다시 읽는다. Osaurus 라운드 D2 의 1회 시드가
+/// 첫 소비처다.
+pub fn emit_settings_changed(app: &AppHandle, keys: Vec<String>) {
+    announce(app, keys);
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn settings_set(

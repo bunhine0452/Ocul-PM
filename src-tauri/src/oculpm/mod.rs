@@ -10,6 +10,7 @@
 
 pub mod agents;
 pub mod atomic_io;
+pub mod automation;
 pub mod cache;
 pub mod claude_hooks;
 pub mod config;

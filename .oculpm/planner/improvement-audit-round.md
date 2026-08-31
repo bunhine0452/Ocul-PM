@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: improvement-audit-round
 title: "개선점 감사 라운드 — 색인 폭증 · 죽은 표면 · 프로세스 생존"
-status: active
+status: done
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 owner: claude-code
 ---
 

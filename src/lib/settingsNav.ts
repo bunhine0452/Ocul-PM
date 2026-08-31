@@ -18,6 +18,7 @@ export type SettingsTabId =
   | "graph"
   | "data"
   | "oculpm"
+  | "automation"
   | "mobile"
   | "diagnostics"
   | "update";

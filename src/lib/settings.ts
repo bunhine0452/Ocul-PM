@@ -57,6 +57,14 @@ export const KEYS = {
   // Failover chain — newline-separated `provider:model` lines, tried in order
   // when the primary call fails. Parsed by `parseFallbacks`.
   fallbackModels: "fallback_models",
+  // 배경 작업 전용 모델 슬롯 (Osaurus 라운드 D2). 자동 화해·일지 초안·스케줄·
+  // 감시가 **전부** 이 슬롯을 쓴다 — 대화 모델과 따로 두는 이유는 배경 작업이
+  // 자주, 조용히, 과금되기 때문이다. 비어 있으면 그 작업은 성립 불가(조용한 스킵).
+  coreProvider: "core_provider",
+  coreModel: "core_model",
+  // 자동화를 이미 켜 둔 사용자에게 대화 모델을 1회 시드했다는 표식
+  // (`"<provider>:<model>"`). 안내 카드가 이걸 보고 한 번 뜨고, 닫으면 비운다.
+  coreModelSeeded: "core_model_seeded",
   temperature: "temperature",
   maxTokens: "max_tokens",
   systemPrompt: "system_prompt",
@@ -137,6 +145,14 @@ export interface Settings {
   modelOpenrouter: string;
   /** Failover chain as raw text — one `provider:model` per line. */
   fallbackModels: string;
+  /**
+   * 배경 작업 모델 (Osaurus 라운드 D2). `""` = 미설정 → 자동화가 돌지 않는다.
+   * 대화 모델(`defaultProvider`/`defaultModel`)과 의도적으로 분리한다.
+   */
+  coreProvider: Provider | "";
+  coreModel: string;
+  /** 1회 시드가 일어났다는 표식 (`"<provider>:<model>"`). `""` = 없음/확인함. */
+  coreModelSeeded: string;
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
@@ -204,6 +220,11 @@ export const DEFAULTS: Settings = {
   modelNim: "meta/llama-3.3-70b-instruct",
   modelOpenrouter: "openai/gpt-4o-mini",
   fallbackModels: "",
+  // 미설정이 기본 — 신규 사용자에게는 게이트다 (D2). 기존 사용자는 프로젝트를
+  // 열 때 백엔드가 대화 모델을 1회 시드한다.
+  coreProvider: "",
+  coreModel: "",
+  coreModelSeeded: "",
   temperature: 0.7,
   maxTokens: 4096,
   systemPrompt: "",
@@ -247,6 +268,9 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.modelNim]: "modelNim",
   [KEYS.modelOpenrouter]: "modelOpenrouter",
   [KEYS.fallbackModels]: "fallbackModels",
+  [KEYS.coreProvider]: "coreProvider",
+  [KEYS.coreModel]: "coreModel",
+  [KEYS.coreModelSeeded]: "coreModelSeeded",
   [KEYS.temperature]: "temperature",
   [KEYS.maxTokens]: "maxTokens",
   [KEYS.systemPrompt]: "systemPrompt",
@@ -318,6 +342,20 @@ export function providerModel(settings: Settings, provider: Provider): string {
     case "openrouter":
       return settings.modelOpenrouter || settings.defaultModel || DEFAULTS.modelOpenrouter;
   }
+}
+
+/**
+ * 배경 작업이 실제로 부를 대상. `null` = Core Model 미설정 → 자동화는 성립
+ * 불가다 (백엔드 `core_model::resolve` 와 **같은 판정** — 대화 모델로 조용히
+ * 대체하지 않는다; 그러면 D2 게이트가 무의미해진다).
+ */
+export function coreModelTarget(
+  settings: Settings
+): { provider: Provider; model: string } | null {
+  const provider = settings.coreProvider.trim();
+  const model = settings.coreModel.trim();
+  if (!provider || !model || !(PROVIDERS as string[]).includes(provider)) return null;
+  return { provider: provider as Provider, model };
 }
 
 // Parse the failover chain (`fallbackModels` text) into ordered

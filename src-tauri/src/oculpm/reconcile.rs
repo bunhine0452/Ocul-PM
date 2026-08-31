@@ -142,35 +142,19 @@ pub async fn reconcile_entry(
         return Ok(ReconcileOutcome::Skipped("git-backfill entry"));
     }
 
-    // ── 1. Resolve provider / model / key (global app settings + keychain) ──
-    let provider = match db
-        .settings_get("default_provider".to_string())
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        Some(p) if !p.trim().is_empty() => p,
-        _ => return Ok(ReconcileOutcome::Skipped("no default provider configured")),
+    // ── 1. Core Model 해석 (Osaurus 라운드 D2) ──
+    // 대화용 `default_*` 를 읽지 않는다 — 배경 작업은 전용 슬롯을 쓴다. 이미
+    // 자동화를 켜 둔 사용자는 `core_model::seed_if_automation_enabled` 가
+    // 프로젝트를 열 때 대화 모델을 1회 복사해 두므로 동작이 바뀌지 않는다.
+    let target = match crate::oculpm::automation::core_model::resolve(db).await? {
+        Some(t) => t,
+        None => return Ok(ReconcileOutcome::Skipped("no core model configured")),
     };
-    let model = match db
-        .settings_get(format!("model_{provider}"))
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        Some(m) if !m.trim().is_empty() => m,
-        _ => match db
-            .settings_get("default_model".to_string())
-            .await
-            .map_err(|e| e.to_string())?
-        {
-            Some(m) if !m.trim().is_empty() => m,
-            _ => return Ok(ReconcileOutcome::Skipped("no model configured")),
-        },
-    };
-    let api_key =
-        match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
-            Some(k) => k,
-            None => return Ok(ReconcileOutcome::Skipped("no api key for provider")),
-        };
+    if !target.has_any_key() {
+        return Ok(ReconcileOutcome::Skipped(
+            "no api key for the core model chain",
+        ));
+    }
 
     // ── 2. Build the prompt context from the entry loaded in step 0 (shared by
     // every active plan's reconciliation). ──
@@ -198,9 +182,6 @@ pub async fn reconcile_entry(
     if active.is_empty() {
         return Ok(ReconcileOutcome::Skipped("no active plan"));
     }
-    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
-    let agent = format!("auto:{provider}");
-
     let mut results: Vec<PlanReconcileResult> = Vec::new();
     for plan in &active {
         let plan_id = plan.plan_id.clone();
@@ -229,27 +210,30 @@ pub async fn reconcile_entry(
 
         // Ask the LLM which of THIS plan's items the entry advanced.
         let user_msg = build_user_prompt(&parsed.frontmatter.title, &items_block, &journal_block);
-        let response = match client
-            .chat(
-                vec![
-                    llm::Message {
-                        role: llm::Role::System,
-                        content: crate::oculpm::content_lang::current(db)
-                            .await
-                            .apply(SYSTEM_PROMPT),
-                    },
-                    llm::Message {
-                        role: llm::Role::User,
-                        content: user_msg,
-                    },
-                ],
-                llm::ChatOptions {
-                    model: model.clone(),
-                    temperature: Some(0.1),
-                    max_tokens: Some(400),
+        // 폴백 체인을 그대로 탄다 — 배경 작업이 체인 없이 한 번 실패하고 끝나면
+        // 조용한 소실이 된다 (Core Model 도 failover 를 쓴다).
+        let response = match crate::commands::llm::chat(
+            target.provider.clone(),
+            vec![
+                llm::Message {
+                    role: llm::Role::System,
+                    content: crate::oculpm::content_lang::current(db)
+                        .await
+                        .apply(SYSTEM_PROMPT),
                 },
-            )
-            .await
+                llm::Message {
+                    role: llm::Role::User,
+                    content: user_msg,
+                },
+            ],
+            llm::ChatOptions {
+                model: target.model.clone(),
+                temperature: Some(0.1),
+                max_tokens: Some(400),
+            },
+            target.fallbacks.clone(),
+        )
+        .await
         {
             Ok(r) => r,
             // One plan's LLM error must not abort the others — but it must not
@@ -271,6 +255,9 @@ pub async fn reconcile_entry(
                 continue;
             }
         };
+
+        // 귀속은 **실제로 답한** 프로바이더로 — 폴백을 탔으면 그 사실이 남는다.
+        let agent = format!("auto:{}", response.provider);
 
         // Apply valid, changed status flips to this plan's markdown.
         let edits = parse_ai_edits(&response.content);

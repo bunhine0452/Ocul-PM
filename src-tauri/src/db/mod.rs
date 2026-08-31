@@ -89,6 +89,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         32,
         include_str!("../../migrations/032_chunk_embeddings_partition.sql"),
     ),
+    (33, include_str!("../../migrations/033_automation.sql")),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -144,6 +145,7 @@ pub struct ChunkInsert {
     pub embedding: Vec<u8>,
 }
 
+pub mod automation;
 mod changes;
 mod chat;
 mod code_index;

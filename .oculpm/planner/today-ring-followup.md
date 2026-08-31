@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: today-ring-followup
 title: "Today 링 후속 — 버려진 브랜치에서 건진 것과 남은 것"
-status: active
+status: done
 created: 2026-08-25
-updated: 2026-08-25
+updated: 2026-08-28
 owner: claude-code
 ---
 

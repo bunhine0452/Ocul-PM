@@ -1,6 +1,6 @@
 [package]
 name = "ocul-pm"
-version = "2.25.0"
+version = "2.26.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"
@@ -98,6 +98,7 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 tower-http = { version = "0.6", features = ["fs"] }
 if-addrs = "0.13"
 tower = { version = "0.5", features = ["util"] }
+cron = "0.17.0"
 
 # ⌘V 로 Finder 가 복사한 파일을 받기 위한 최소 표면 — OS pasteboard 읽기.
 #

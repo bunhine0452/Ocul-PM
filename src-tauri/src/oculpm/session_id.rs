@@ -19,6 +19,13 @@ use specta::Type;
 /// 워처가 아닌 곳이 만든 id 의 접두 — 에이전트(`AGENTS.md` 규칙) 와 MCP 도구.
 pub const MANUAL_PREFIX: &str = "manual-";
 pub const MCP_PREFIX: &str = "mcp-";
+/// 자동화가 만든 id 의 접두 (Osaurus 라운드 Phase 0, Decision 8).
+/// `<workday>-sNN` 같은 접미 방언을 쓰면 [`SessionId::kind`] 가 tail 을 숫자로
+/// 읽지 못해 `Unknown` 으로 떨어진다 — [`SessionId::workday`] 는 관용적으로
+/// 통과시키므로 **색인은 되는데 분류만 조용히 죽는다**. 그래서 `manual-`/`mcp-`
+/// 와 같은 접두형이다.
+pub const SCHEDULE_PREFIX: &str = "sched-";
+pub const AUTOMATION_PREFIX: &str = "auto-";
 /// git 백필 세션의 접미 — reconcile 의 비용 가드와 백필 작성기가 같은 값을 본다.
 pub const GIT_BACKFILL_SUFFIX: &str = "-git";
 
@@ -30,6 +37,10 @@ pub enum SessionKind {
     Manual,
     /// `mcp-YYYYMMDD-HHMMSS` — 앱 없이 도는 MCP `journal_write`.
     Mcp,
+    /// `sched-YYYYMMDD-HHMMSS` — 시각 자동화(Schedules)가 발동한 작업.
+    Schedule,
+    /// `auto-YYYYMMDD-HHMMSS` — 감시 자동화(Watchers)·정착 트리거가 발동한 작업.
+    Automation,
     /// `YYYYMMDD-git` — 커밋 히스토리에서 합성한 일지.
     GitBackfill,
     /// 알 수 없는 모양 (프론트매터가 비었거나 손으로 적은 값).
@@ -76,6 +87,27 @@ impl SessionId {
         ))
     }
 
+    /// 스케줄 발동 세션. `manual`/`mcp` 와 같은 모양이라 `kind()`·`workday()`
+    /// 가 별도 규칙 없이 읽는다.
+    pub fn schedule(workday: &str, local: impl Timelike) -> Self {
+        Self(format!(
+            "{SCHEDULE_PREFIX}{workday}-{:02}{:02}{:02}",
+            local.hour(),
+            local.minute(),
+            local.second()
+        ))
+    }
+
+    /// 감시(정착) 발동 세션.
+    pub fn automation(workday: &str, local: impl Timelike) -> Self {
+        Self(format!(
+            "{AUTOMATION_PREFIX}{workday}-{:02}{:02}{:02}",
+            local.hour(),
+            local.minute(),
+            local.second()
+        ))
+    }
+
     pub fn git_backfill(workday: &str) -> Self {
         Self(format!("{workday}{GIT_BACKFILL_SUFFIX}"))
     }
@@ -106,6 +138,20 @@ impl SessionId {
                 SessionKind::Unknown
             };
         }
+        if let Some(rest) = s.strip_prefix(SCHEDULE_PREFIX) {
+            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+                SessionKind::Schedule
+            } else {
+                SessionKind::Unknown
+            };
+        }
+        if let Some(rest) = s.strip_prefix(AUTOMATION_PREFIX) {
+            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+                SessionKind::Automation
+            } else {
+                SessionKind::Unknown
+            };
+        }
         let Some((head, tail)) = s.split_once('-') else {
             return SessionKind::Unknown;
         };
@@ -129,6 +175,10 @@ impl SessionId {
         match self.kind() {
             SessionKind::Manual => Some(&s[MANUAL_PREFIX.len()..MANUAL_PREFIX.len() + 8]),
             SessionKind::Mcp => Some(&s[MCP_PREFIX.len()..MCP_PREFIX.len() + 8]),
+            SessionKind::Schedule => Some(&s[SCHEDULE_PREFIX.len()..SCHEDULE_PREFIX.len() + 8]),
+            SessionKind::Automation => {
+                Some(&s[AUTOMATION_PREFIX.len()..AUTOMATION_PREFIX.len() + 8])
+            }
             SessionKind::Watcher | SessionKind::GitBackfill => Some(&s[..8]),
             SessionKind::Unknown => (s.len() >= 8 && is_digits(&s[..8], 8)).then(|| &s[..8]),
         }
@@ -212,9 +262,38 @@ mod tests {
             SessionId::new("20260624-git").kind(),
             SessionKind::GitBackfill
         );
+        assert_eq!(
+            SessionId::new("sched-20260831-170000").kind(),
+            SessionKind::Schedule
+        );
+        assert_eq!(
+            SessionId::new("auto-20260831-170000").kind(),
+            SessionKind::Automation
+        );
         assert_eq!(SessionId::new("20260624-m01").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("manual-x").kind(), SessionKind::Unknown);
+        assert_eq!(SessionId::new("sched-x").kind(), SessionKind::Unknown);
+        assert_eq!(SessionId::new("auto-x").kind(), SessionKind::Unknown);
+    }
+
+    /// D8 회귀 — 접미 방언(`<workday>-sNN`)은 색인은 통과하되 분류가 죽는다.
+    /// 이 테스트는 "그래서 접두형을 쓴다" 는 결정을 코드에 못박는다.
+    #[test]
+    fn suffix_dialect_would_lose_its_classification() {
+        let suffixed = SessionId::new("20260831-s01");
+        assert_eq!(suffixed.kind(), SessionKind::Unknown);
+        assert_eq!(suffixed.workday(), Some("20260831")); // 색인은 통과 — 그래서 조용하다
+
+        let t = chrono::NaiveTime::from_hms_opt(17, 0, 0).unwrap();
+        assert_eq!(
+            SessionId::schedule("20260831", t).kind(),
+            SessionKind::Schedule
+        );
+        assert_eq!(
+            SessionId::automation("20260831", t).kind(),
+            SessionKind::Automation
+        );
     }
 
     #[test]
@@ -227,6 +306,14 @@ mod tests {
         assert_eq!(
             SessionId::new("mcp-20260820-205400").workday(),
             Some("20260820")
+        );
+        assert_eq!(
+            SessionId::new("sched-20260831-170000").workday(),
+            Some("20260831")
+        );
+        assert_eq!(
+            SessionId::new("auto-20260831-170000").workday(),
+            Some("20260831")
         );
         assert_eq!(SessionId::new("20260624-git").workday(), Some("20260624"));
         // 옛 합성 id 도 앞 8자가 숫자면 읽힌다 (IndexWriter 규약 유지).
@@ -248,6 +335,14 @@ mod tests {
         );
         assert_eq!(SessionId::watcher("20260830", 7).as_str(), "20260830-007");
         assert_eq!(SessionId::watcher("20260830", 7).watcher_counter(), Some(7));
+        assert_eq!(
+            SessionId::schedule("20260830", t).as_str(),
+            "sched-20260830-090504"
+        );
+        assert_eq!(
+            SessionId::automation("20260830", t).as_str(),
+            "auto-20260830-090504"
+        );
         assert_eq!(SessionId::git_backfill("20260830").as_str(), "20260830-git");
         assert!(SessionId::git_backfill("20260830").is_git_backfill());
         assert_eq!(SessionId::manual("20260830", t).watcher_counter(), None);

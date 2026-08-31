@@ -154,6 +154,16 @@ use crate::commands::{
     app_info,
     apply_menu_language,
     attach_pty_session,
+    // Osaurus 라운드 Phase 1 — 스케줄 자동화 (정의 CRUD·기록·지금 실행)
+    automation_cancel,
+    automation_create_seed,
+    automation_delete,
+    automation_list,
+    automation_run_now,
+    automation_runs,
+    automation_save,
+    automation_seeds,
+    automation_set_enabled,
     begin_tear_off,
     cancel_tear_off,
     chat,
@@ -724,6 +734,16 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             firing_rescan,
             firing_stats,
             firing_rebuild,
+            // Osaurus 라운드 Phase 1 — 스케줄 자동화
+            automation_list,
+            automation_runs,
+            automation_seeds,
+            automation_save,
+            automation_delete,
+            automation_set_enabled,
+            automation_create_seed,
+            automation_run_now,
+            automation_cancel,
             // PR-ACP1 — ACP 어댑터 런타임
             acp_diagnose,
             acp_install_adapter,
@@ -905,6 +925,9 @@ pub fn run() {
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
+            // 자동화 잡 러너 — 프로세스 하나에 1개. 동시 1건은 프로젝트별이
+            // 아니라 전역이다 (배경 과금의 총량을 사람이 예측할 수 있게).
+            app.manage(crate::oculpm::automation::runner::AutomationRunner::default());
             app.manage(crate::mobile_bridge::server::MobileBridgeState::default());
 
             // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
@@ -929,6 +952,9 @@ pub fn run() {
             // 써도 화면이 안 바뀐다" 로 똑같이 보이고, 앱 재시작 말고는 복구가
             // 없었다. 감독관이 1분마다 확인하고 되살린다.
             crate::oculpm::supervisor::spawn(app.handle());
+            // 스케줄 집행 루프 — 감독관과 같은 자리에 상주시킨다. 프로젝트별
+            // `[automation] schedules` 가 꺼져 있으면 정의를 읽지도 않는다.
+            crate::oculpm::automation::scheduler::spawn(app.handle());
 
             // 앱 메뉴 — `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는다.
             // 기본 언어(ko)로 먼저 세우고, 프런트가 마운트하면서 해석된 UI

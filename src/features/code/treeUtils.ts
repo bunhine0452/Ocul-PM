@@ -52,6 +52,27 @@ export function ancestorDirs(path: string): string[] {
   return out;
 }
 
+/** 키를 물어볼 수 있는 것 — [`DirMap`] 도 `Set<string>` 도 그대로 들어온다. */
+export interface DirLookup {
+  has(key: string): boolean;
+}
+
+/**
+ * 바뀐 파일의 조상 중 **이미 읽어 둔** 가장 가까운 폴더. 없으면 `null`.
+ *
+ * 직계 부모를 그냥 다시 읽으면 안 되는 이유: 폴더째로 생긴 파일
+ * (`a/b/c.ts` 에서 `a/b` 가 새 폴더)은 그 부모가 캐시에 없어서, 다시 읽어 봐야
+ * 아무 데도 안 붙는다. 새 폴더가 목록에 나타나려면 캐시에 있는 가장 가까운
+ * 조상(`a`)을 읽어야 한다. 루트(`""`)는 트리를 한 번이라도 읽었으면 늘 있다.
+ */
+export function nearestCachedDir(path: string, cached: DirLookup): string | null {
+  const dirs = ancestorDirs(path);
+  for (let i = dirs.length - 1; i >= 0; i--) {
+    if (cached.has(dirs[i])) return dirs[i];
+  }
+  return cached.has("") ? "" : null;
+}
+
 /**
  * 트리 필터 — 대소문자 무시 부분 일치. 파일은 **전체 상대 경로**로 매치해
  * "graph/pal" 같은 경로 조각도 찾힌다. 폴더 이름이 매치되면 하위 전체 유지,

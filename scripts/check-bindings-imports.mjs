@@ -20,6 +20,7 @@ export const ALLOWLIST = new Set([
   // 래퍼 — 여기만 정본이다.
   "api/oculpm.ts",
   "api/invoke.ts",
+  "api/automation.ts",
   "api/claudeSurface.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.

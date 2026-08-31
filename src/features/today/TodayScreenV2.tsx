@@ -18,6 +18,7 @@ import {
 import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
+import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -236,6 +237,7 @@ export function TodayScreenV2({
           ) : null}
 
           <WhatsNewCard />
+          <CoreModelSeededCard />
           {initCard ? (
             <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />
           ) : null}

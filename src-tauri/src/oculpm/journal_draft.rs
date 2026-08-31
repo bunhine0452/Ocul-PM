@@ -413,36 +413,17 @@ pub async fn draft_for_session(
         return Ok(DraftOutcome::Skipped("agent wrote its own entry"));
     }
 
-    // 2. LLM 자격증명 — 없으면 기능 성립 불가 → 조용히 스킵 (reconcile 동형).
+    // 2. Core Model (Osaurus 라운드 D2) — 배경 작업 전용 슬롯. 미설정이면 기능
+    //    성립 불가 → 조용히 스킵 (reconcile 동형). 대화용 `default_*` 는 읽지
+    //    않는다; 이미 켜 둔 사용자는 프로젝트를 열 때 1회 시드된다.
     let db = app.state::<Db>();
-    let provider = match db
-        .settings_get("default_provider".to_string())
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        Some(p) if !p.trim().is_empty() => p,
-        _ => return Ok(DraftOutcome::Skipped("no default provider configured")),
+    let target = match crate::oculpm::automation::core_model::resolve(&db).await? {
+        Some(t) => t,
+        None => return Ok(DraftOutcome::Skipped("no core model configured")),
     };
-    let model = match db
-        .settings_get(format!("model_{provider}"))
-        .await
-        .map_err(|e| e.to_string())?
-    {
-        Some(m) if !m.trim().is_empty() => m,
-        _ => match db
-            .settings_get("default_model".to_string())
-            .await
-            .map_err(|e| e.to_string())?
-        {
-            Some(m) if !m.trim().is_empty() => m,
-            _ => return Ok(DraftOutcome::Skipped("no model configured")),
-        },
-    };
-    let api_key =
-        match crate::secrets::get(&format!("{provider}_api_key")).map_err(|e| e.to_string())? {
-            Some(k) => k,
-            None => return Ok(DraftOutcome::Skipped("no api key for provider")),
-        };
+    if !target.has_any_key() {
+        return Ok(DraftOutcome::Skipped("no api key for the core model chain"));
+    }
 
     // 3. 세션 파일 이벤트 → files_touched.
     let events = index_writer
@@ -479,29 +460,31 @@ pub async fn draft_for_session(
     // 5. LLM 초안 (강등 아니면 시도; 호출/파싱 실패 시 강등으로 하향).
     let mut plan: Option<DraftPlan> = None;
     if degraded_reason.is_none() {
-        let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
-        let response = client
-            .chat(
-                vec![
-                    llm::Message {
-                        role: llm::Role::System,
-                        // 산출물 언어 지시를 덧붙인다 — 일지는 디스크에 남는
-                        // 문서라 UI 언어가 아니라 `content_language` 를 따른다
-                        // (oculpm::content_lang).
-                        content: content_lang.apply(SYSTEM_PROMPT),
-                    },
-                    llm::Message {
-                        role: llm::Role::User,
-                        content: build_user_prompt(&digest, &files),
-                    },
-                ],
-                llm::ChatOptions {
-                    model,
-                    temperature: Some(0.2),
-                    max_tokens: Some(1200),
+        // 폴백 체인을 그대로 탄다 — 배경 작업이 체인 없이 한 번 실패하고 끝나면
+        // 조용한 소실이 된다.
+        let response = crate::commands::llm::chat(
+            target.provider.clone(),
+            vec![
+                llm::Message {
+                    role: llm::Role::System,
+                    // 산출물 언어 지시를 덧붙인다 — 일지는 디스크에 남는
+                    // 문서라 UI 언어가 아니라 `content_language` 를 따른다
+                    // (oculpm::content_lang).
+                    content: content_lang.apply(SYSTEM_PROMPT),
                 },
-            )
-            .await;
+                llm::Message {
+                    role: llm::Role::User,
+                    content: build_user_prompt(&digest, &files),
+                },
+            ],
+            llm::ChatOptions {
+                model: target.model.clone(),
+                temperature: Some(0.2),
+                max_tokens: Some(1200),
+            },
+            target.fallbacks.clone(),
+        )
+        .await;
         match response {
             Ok(resp) => match parse_draft_response(&resp.content) {
                 Some(p) => plan = Some(p),

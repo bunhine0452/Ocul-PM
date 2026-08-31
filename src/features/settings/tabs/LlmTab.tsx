@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { commands } from "@/lib/bindings";
 import { KeyRound } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
-import { PROVIDERS, type Provider } from "@/lib/settings";
+import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
 import { useT } from "@/i18n";
 import { secretName, Section, Field, NumberSlider } from "./ui";
 
@@ -209,6 +209,49 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => set("defaultModel", e.currentTarget.value)}
           />
         </Field>
+      </Section>
+
+      {/* 배경 작업 모델 (Osaurus 라운드 D2). 대화 모델과 의도적으로 분리한다 —
+          자동 화해·일지 초안·스케줄·감시가 배경에서 조용히, 자주, 과금되며 돈다.
+          미설정이면 그 작업들은 오류가 아니라 **조용히 건너뛴다**. */}
+      <Section title={t("settings.coreModel.title")} description={t("settings.coreModel.desc")}>
+        <Field label={t("settings.coreModel.provider")}>
+          <select
+            value={settings.coreProvider}
+            onChange={(e) => set("coreProvider", e.currentTarget.value as Provider | "")}
+            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">{t("settings.coreModel.unset")}</option>
+            {PROVIDERS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t("settings.coreModel.model")} hint={t("settings.coreModel.hint")}>
+          <Input
+            placeholder={DEFAULTS.modelAnthropic}
+            value={settings.coreModel}
+            onChange={(e) => set("coreModel", e.currentTarget.value)}
+          />
+        </Field>
+        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+          <span>
+            {coreModelTarget(settings)
+              ? t("settings.coreModel.ready")
+              : t("settings.coreModel.gate")}
+          </span>
+          <button
+            onClick={() => {
+              void set("coreProvider", settings.defaultProvider);
+              void set("coreModel", providerModel(settings, settings.defaultProvider));
+            }}
+            className="shrink-0 text-primary hover:underline cursor-pointer"
+          >
+            {t("settings.coreModel.copyFromChat")}
+          </button>
+        </div>
       </Section>
 
       <Section

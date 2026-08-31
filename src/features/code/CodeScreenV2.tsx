@@ -53,6 +53,7 @@ import {
   flattenToDirMap,
   type DirMap,
 } from "./treeUtils";
+import { useTreeWatch } from "./useTreeWatch";
 import {
   activateTab,
   allOpenPaths,
@@ -467,6 +468,21 @@ export function CodeScreenV2({
     },
     [loadDir, refreshTree],
   );
+
+  // 밖에서 벌어진 변화도 같은 자리로 갚는다 — ⟳ 를 누르지 않아도.
+  //
+  // 위 `reloadAfterOp` 는 **앱 안에서 한 조작**만 갚는다. 그런데 이 앱에서
+  // 파일을 만들고 지우는 것은 대개 밖에 있는 에이전트다. 그쪽 변화는 워처가
+  // 알려 주므로, 열린 파일 본문이 이미 스스로 최신화되듯(CodePane) 트리도 같이
+  // 간다. 캐시는 매 렌더 바뀌니 ref 로 넘긴다 — 폴더 하나 펼칠 때마다 구독을
+  // 다시 걸 이유는 없다.
+  const dirCacheRef = useRef(dirCache);
+  dirCacheRef.current = dirCache;
+  useTreeWatch({
+    projectId,
+    cachedDirs: () => dirCacheRef.current,
+    onStale: (dirs) => reloadAfterOp(...dirs),
+  });
 
   const startCreate = useCallback(
     (parent: string, isDir: boolean) => {

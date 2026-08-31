@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: three-features-round
 title: "세 기능 라운드 — 멀티 창 · 모바일(Tailscale) · 영어화"
-status: active
+status: done
 created: 2026-08-11
-updated: 2026-08-24
+updated: 2026-08-25
 owner: claude-code
 ---
 

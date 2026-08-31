@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod automation;
 pub mod claude_hooks;
 pub mod code;
 pub mod config;
@@ -35,6 +36,7 @@ pub mod terminal;
 pub mod window;
 
 pub use acp::*;
+pub use automation::*;
 pub use claude_hooks::*;
 pub use code::*;
 pub use config::*;

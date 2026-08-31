@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: terminal-identity-round
 title: "터미널 정체성 라운드 — Warp/cmux 를 참조한 3단 개편 (시각 → 관제탑 → 블록)"
-status: active
+status: done
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-29
 owner: claude-code
 ---
 
@@ -26,6 +26,8 @@ buffer)는 블록, 에이전트 모드(alt-screen)는 관제탑. 판정 신호�
 - [x] 앰비언트 페인 상태 띠 + 비활성 디밍 + 비포커스 커서 outline {#pane-ambient}
 - [x] 밀도 프리셋(넉넉/표준/조밀) — xterm lineHeight + 페인 여백, 앱 전역 설정 {#density}
 - [x] 상태바 재설계 — 좌 cwd · 중앙 라이브 명령(1초 시계 격리) · 우 조작 {#status-bar}
+- [x] 가장자리 체계 재설계 — 경계=재질(색 없음) · 포커스=무게 · 상태=흘러나오는 그라디언트 · 겨눔=`::after`. 액센트 실선 네 겹이 겹쳐 면이 형광펜 상자로 보였다 {#pane-edge-system}
+- [x] 맥동을 숨쉬기로 통일 — `term-breathe`(1→0.45, 2.4s). 띠·거터·대기 띠가 한 박자로 뛴다 (6px 점만 `term-pulse` 유지) {#breathe-motion}
 - [ ] 실제 앱 육안 확인 — xterm 캔버스와 함께, 밀도 전환 시 fit/PTY resize 왕복 {#p1-manual-verify}
 
 ## Phase 2 — 에이전트 관제탑 (cmux) {#p2-control-room}
@@ -112,4 +114,6 @@ refit 하고 → PTY 가 resize 된다. 에이전트가 뜨고 질 때마다 전
 | 2026-08-28T21:30:56+09:00 | #block-actions | claude-code | ☐→[x] | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 일지 씨앗 + plan add_item. 재실행은 결정 5 |
 | 2026-08-28T21:30:56+09:00 | #p2-manual-verify | claude-code | →☐ | 20260828/Features_to_add/2111_feature_terminal-agent-control-room.md | 앱 꺼진 뒤 몰아서 |
 | 2026-08-28T21:30:56+09:00 | #p3-manual-verify | claude-code | →☐ | 20260828/Features_to_add/2130_feature_terminal-command-blocks.md | 앱 꺼진 뒤 몰아서 |
+| 2026-08-29T15:51:00+09:00 | #pane-edge-system | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 네 축을 다른 재료로 갈랐다 |
+| 2026-08-29T15:51:00+09:00 | #breathe-motion | claude-code | →☐→[x] | 20260829/Refactors/1551_refactor_pane-edge-system-and-drag-damping.md | 깜빡임→숨쉬기, 한 박자 |
 <!-- oculpm:plan-log end -->
