@@ -3,7 +3,21 @@
 import "./storageShim";
 
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
 import { vi } from "vitest";
+
+// `findBy*` · `waitFor` 의 대기 예산 — 기본 1000ms 는 **CI 러너에서 모자란다.**
+//
+// 2026-08-31: `acp_parallel_sessions` 의 "A 가 도는 중에 연 새 대화" 가 CI 에서만
+// 1183ms 에 죽었다(로컬 5회 연속 통과). 실패 모양은 `sent` 가 빈 배열 — 클릭은
+// 됐는데 그 뒤 커맨드가 예산 안에 도착하지 못한 것이다. 이런 실패는 **아무것도
+// 알려 주지 않는다**: 코드가 틀린 게 아니라 러너가 느렸다는 뜻이라, 붉은 CI 를
+// 보고도 무시하게 만들어 진짜 회귀를 가린다.
+//
+// 성공 경로는 조건이 만족되는 즉시 빠져나오므로 이 값은 **통과 시간에 영향이
+// 없다**. 늘어나는 것은 진짜로 실패할 때의 대기뿐이다. 로컬과 CI 에 같은 값을
+// 주는 이유도 같다 — 환경마다 다르면 "로컬에선 되는데" 를 다시 만든다.
+configure({ asyncUtilTimeout: 5000 });
 
 import { registerDict, setLangSetting } from "@/i18n";
 import { ko } from "@/i18n/ko";
