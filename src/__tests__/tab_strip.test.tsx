@@ -318,7 +318,37 @@ describe("탭 스트립 — 창 간 드래그 (다시 붙이기)", () => {
     expect(props.onReorder).not.toHaveBeenCalled();
   });
 
-  it("떼어낼 수 없는 창이면(탭 하나) 아무 일도 안 한다", async () => {
+  /**
+   * 탭이 **하나뿐인 창도** 떼어내기를 물어본다 — 여기가 떼어낸 창이 드래그로
+   * 되돌아오는 유일한 길이다. 백엔드는 새 창을 만드는 대신 그 창 자체를 손에
+   * 들고(`carry_whole`), 남의 스트립에 놓으면 합쳐지며 창이 하나 줄어든다.
+   *
+   * 스트립이 탭 수를 보고 미리 거절하던 시절에는(2026-08-29~08-31) 받는 창에
+   * 캐럿까지 그려 놓고 놓으면 아무 일도 안 일어났다.
+   */
+  it("탭이 하나뿐인 창도 떼어내기를 물어본다 — 되돌아올 유일한 길", async () => {
+    const onTearOff = vi.fn().mockResolvedValue(true);
+    const onDropTearOff = vi.fn().mockResolvedValue(undefined);
+    const { props } = renderStrip({
+      tabs: [tab(1, "ai-pm")],
+      activeId: 101,
+      onTearOff,
+      onDropTearOff,
+    });
+    const tabs = stubGeometry();
+    const far = { clientX: 220, clientY: 44 + DETACH_THRESHOLD_PX + 30 };
+    fireEvent.pointerDown(tabs[0], { button: 0, clientX: 50, clientY: 20 });
+    await movePointer(tabs[0], far);
+    await waitFor(() => expect(onTearOff).toHaveBeenCalled());
+    fireEvent.pointerUp(tabs[0], far);
+    // 마무리는 백엔드 몫 — 합칠지 그 자리에 남을지는 겨누던 창이 정한다.
+    await waitFor(() => expect(onDropTearOff).toHaveBeenCalled());
+    expect(props.onDetach).not.toHaveBeenCalled();
+  });
+
+  // `false` 는 이제 "탭이 하나" 가 아니라 **들 수 없었다**는 뜻이다
+  // (레지스트리가 모르는 탭 등). 그때는 이 줄의 드래그로 남는다.
+  it("손에 들지 못했으면 아무 일도 안 한다", async () => {
     const onTearOff = vi.fn().mockResolvedValue(false);
     const onDropTearOff = vi.fn().mockResolvedValue(undefined);
     const { props } = renderStrip({ onTearOff, onDropTearOff });

@@ -7,7 +7,7 @@
  * 창 간 드래그의 몫은 셋으로 나뉜다 — 이 파일은 ②와 그리기만 한다.
  *   ① 어느 창 위인가: Rust (`tab_drag_over`, 창 기하는 Rust 만 안다)
  *   ② 어느 탭 **사이**인가: 받는 창의 이 컴포넌트 (탭 폭은 CSS 가 정한다)
- *   ③ 실제 이동: Rust (`attach_tab`)
+ *   ③ 실제 이동: Rust (`drop_tear_off`)
  *
  * 산술(삽입 인덱스·재배열·떼어내기 판정)은 전부 `tabOrder.ts` 의 순수 함수라
  * 여기서는 포인터를 그쪽에 넘기는 배선만 한다.
@@ -72,10 +72,14 @@ interface TabStripProps {
   /**
    * 탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 달라 (크롬).
    *
-   * 앵커는 새 창 좌상단에서 커서까지의 거리(CSS px). 잡았던 자리가 커서 밑에
+   * 앵커는 창 좌상단에서 커서까지의 거리(CSS px). 잡았던 자리가 커서 밑에
    * 그대로 오도록 하는 값이고, 창을 옮기는 일은 Rust 가 OS 커서로 한다
-   * (결정 2 — 웹뷰 줌에 안 흔들리는 유일한 좌표계). 떼어낼 수 없으면(탭이
-   * 하나뿐인 창) `false`.
+   * (결정 2 — 웹뷰 줌에 안 흔들리는 유일한 좌표계).
+   *
+   * 탭이 **하나뿐인 창**도 성립한다 — 그때는 새 창을 만들지 않고 그 창 자체가
+   * 손에 들린다(크롬: 마지막 탭을 끌면 창이 끌린다). 여기서 거절하면 떼어낸
+   * 창이 드래그로 되돌아올 길이 사라진다. `false` 는 들 수 없었다는 뜻이고
+   * (레지스트리가 모르는 탭 등) 그때는 이 줄의 드래그로 남는다.
    */
   onTearOff?: (tabId: number, anchorX: number, anchorY: number) => Promise<boolean>;
   /**
@@ -86,7 +90,7 @@ interface TabStripProps {
    * 쪽(백엔드)이 자기 기록으로 한다.
    */
   onDropTearOff?: () => Promise<void>;
-  /** Escape — 떼어낸 창을 물리고 탭을 원래 자리로 돌려놓는다. */
+  /** Escape — 손에 든 것을 물린다 (새 창은 닫히고, 창째로 들었으면 제자리로). */
   onCancelTearOff?: () => Promise<void>;
   onNewTab: () => void;
   onOpenProject: (projectId: number) => void;
@@ -421,8 +425,8 @@ export function TabStrip({
    * 탭을 **지금** 창으로 떼어낸다 — 크롬식 떼어내기의 그 순간.
    *
    * 한 제스처에 한 번만 부른다(`torn`). 응답을 기다리는 동안 다음 프레임이 또
-   * 부르지 못하도록 낙관적으로 먼저 표시하고, 떼어낼 수 없는 창(탭이 하나뿐)
-   * 이면 되돌린다 — 그때는 계속 이 줄의 드래그로 남는다.
+   * 부르지 못하도록 낙관적으로 먼저 표시하고, 들 수 없었다면 되돌린다 — 그때는
+   * 계속 이 줄의 드래그로 남는다.
    */
   const tearOff = (state: DragState) => {
     if (!onTearOff) return;
@@ -564,7 +568,8 @@ export function TabStrip({
       void onDropTearOff?.();
       return;
     }
-    // 문턱은 넘었지만 떼어내지 못했다 (탭이 하나뿐인 창) — 아무 일도 없다.
+    // 문턱은 넘었지만 손에 들리지 못했다 (레지스트리가 모르는 탭) — 아무 일도
+    // 없다. 겨누던 캐럿만 지운다: 여기서 합칠 수 있는 척하면 놓아도 안 붙는다.
     if (state.detaching) {
       onDragCleanup?.();
       return;

@@ -124,6 +124,12 @@ pub struct TearOff {
     /// 나온 창과 그 자리 — Escape 로 되돌릴 때 쓴다.
     pub source: String,
     pub index: usize,
+    /// **창째로** 들었으면 그 창의 원래 좌상단 (논리 px). 탭이 하나뿐인 창은
+    /// 새 창을 만들지 않고 그 창 자체가 손에 들리므로(`label == source`), 무를
+    /// 때 되돌릴 것이 탭 자리가 아니라 **창 자리**다.
+    ///
+    /// 새 창을 만들어 든 경우에는 `None` — 무르면 그 창이 통째로 닫힌다.
+    pub home: Option<(f64, f64)>,
     /// 남의 스트립을 겨누는 중이라 숨겨 두었나 (크롬의 합치기 미리보기).
     pub hidden: bool,
 }
@@ -355,6 +361,37 @@ impl Registry {
 
     fn take_drop_hint(&mut self) -> Option<(String, Option<usize>)> {
         self.drop_hint.take()
+    }
+
+    /// 탭이 **하나뿐인** 창을 창째로 손에 든다 (크롬: 마지막 탭을 끌면 창이 끌린다).
+    ///
+    /// 새 창을 만들지 않는다 — 만들면 원본 창이 닫히고 같은 내용의 창이 새로
+    /// 뜰 뿐이라 순수 손해이고, 그동안 프로젝트가 통째로 다시 마운트된다.
+    /// 대신 그 창 자체를 `tearing` 에 앉힌다: 이후 `follow_cursor` 가 그 창을
+    /// 옮기고 `drop_tear_off` 가 남의 창으로 합쳐 준다 (`move_tab` 이 빈 창을
+    /// 정리한다). 여기서 거절하면 **떼어낸 창이 되돌아올 길이 사라진다.**
+    ///
+    /// 탭이 둘 이상이면 아무것도 하지 않고 `false` — 그쪽은 새 창을 만든다.
+    fn carry_whole(&mut self, tab_id: u32, anchor: (f64, f64), home: (f64, f64)) -> bool {
+        let Some(label) = self.locate_tab(tab_id) else {
+            return false;
+        };
+        let Some(st) = self.windows.get(&label) else {
+            return false;
+        };
+        if st.order.len() > 1 {
+            return false;
+        }
+        self.tearing = Some(TearOff {
+            label: label.clone(),
+            tab_id,
+            anchor,
+            source: label,
+            index: 0,
+            home: Some(home),
+            hidden: false,
+        });
+        true
     }
 
     fn tearing(&self) -> Option<TearOff> {
@@ -1031,7 +1068,7 @@ pub fn detached_origin(cursor: (f64, f64), scale: f64, anchor: (f64, f64)) -> (f
 //      유일한 좌표계다.
 //   ② 어느 탭 **사이**인가 — 대상 창의 프런트. 탭 폭은 CSS 가 정하므로 DOM 만
 //      알 수 있다. 계산 결과를 `tab_drop_hint` 로 되돌려 준다.
-//   ③ 실제 이동 — Rust (`attach_tab`). 레지스트리가 SSOT 다.
+//   ③ 실제 이동 — Rust (`drop_tear_off`). 레지스트리가 SSOT 다.
 //
 // 손을 놓는 순간에 ②를 물어보면 왕복 한 번이 늦으므로, 드래그 **내내** 미리
 // 주고받아 둔다. 그래서 놓는 순간은 레지스트리를 읽는 것으로 끝난다.
@@ -1167,7 +1204,7 @@ pub async fn tab_drop_hint(app: AppHandle, window: String, index: u32) -> Result
 
 /// 탭을 `target` 창의 `index` 자리로 옮기고 양쪽 창을 다시 그린다.
 ///
-/// 드래그(`attach_tab`)와 메뉴(`move_tab_to_window`)가 **같은 길**을 쓴다 —
+/// 드래그(`drop_tear_off`)와 메뉴(`move_tab_to_window`)가 **같은 길**을 쓴다 —
 /// 나뉘어 있으면 한쪽만 고쳐져 "끌면 되는데 메뉴로는 안 되는" 종류의 어긋남이
 /// 생긴다. 옮겼으면 `true`.
 async fn commit_move(app: &AppHandle, tab_id: u32, target: &str, index: usize) -> bool {
@@ -1298,9 +1335,14 @@ fn settle_tear_off(app: &AppHandle, tear: &TearOff) {
 
 /// 탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
 ///
-/// `anchor` 는 새 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그
-/// 라벨을 그대로 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
-/// 창에 탭이 하나뿐이면 떼어낼 것이 없으므로 `None`.
+/// `anchor` 는 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그대로
+/// `true` 를 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
+///
+/// 손에 드는 방법은 창의 탭 수에 따라 둘로 갈린다.
+/// - 탭이 둘 이상 — 탭을 빼서 **새 창**을 만든다 (`?tearoff=1`).
+/// - 탭이 하나 — **그 창 자체**를 든다 (`carry_whole`). 새 창을 만들면 원본이
+///   닫히고 같은 내용의 창이 새로 뜰 뿐인데, 여기서 거절해 버리면 떼어낸 창이
+///   드래그로 되돌아올 길 자체가 없어진다 (2026-08-31 회귀).
 #[tauri::command]
 #[specta::specta]
 pub async fn begin_tear_off(
@@ -1318,6 +1360,47 @@ pub async fn begin_tear_off(
         return Ok(true);
     }
 
+    // 창째로 들 경우를 대비해 **먼저** 창 자리를 재 둔다 — 무르면 되돌릴 곳이고,
+    // 커서를 따라 옮기기 시작하면 두 번 다시 알 수 없다.
+    let home = {
+        let state = app.state::<WindowTabs>();
+        let label = state.lock().locate_tab(tab_id);
+        label
+            .and_then(|l| app.get_webview_window(&l))
+            .and_then(|w| {
+                let sf = match w.scale_factor() {
+                    Ok(sf) if sf > 0.0 => sf,
+                    _ => 1.0,
+                };
+                w.outer_position()
+                    .ok()
+                    .map(|p| (f64::from(p.x) / sf, f64::from(p.y) / sf))
+            })
+    };
+    let carried = match home {
+        Some(home) => {
+            let state = app.state::<WindowTabs>();
+            let mut reg = state.lock();
+            reg.carry_whole(tab_id, (anchor_x, anchor_y), home)
+        }
+        // 웹뷰를 못 찾았거나 자리를 못 읽었다 — 창째로 들 수 없다. 탭이 하나뿐인
+        // 창이면 아래에서 `false` 로 떨어진다.
+        None => false,
+    };
+    if carried {
+        // 잡았던 자리가 곧바로 커서 밑에 오게 한다 — 새 창을 만드는 쪽이
+        // `position` 으로 하는 일과 같다 (첫 틱까지 창이 멈춰 있으면 튄다).
+        let tear = {
+            let state = app.state::<WindowTabs>();
+            let reg = state.lock();
+            reg.tearing()
+        };
+        if let Some(tear) = tear {
+            follow_cursor(&app, &tear);
+        }
+        return Ok(true);
+    }
+
     let taken = {
         let state = app.state::<WindowTabs>();
         let mut reg = state.lock();
@@ -1325,8 +1408,9 @@ pub async fn begin_tear_off(
             return Ok(false);
         };
         let st = reg.get(&label).ok_or("창을 찾지 못했습니다")?;
-        // 마지막 탭은 떼어내지 않는다 — 원본 창이 닫히고 같은 내용의 새 창이 뜰
-        // 뿐이라 순수 손해다 (크롬도 창 하나짜리 탭은 안 뜯어낸다).
+        // 여기까지 왔는데 탭이 하나면 `carry_whole` 이 창 자리를 못 읽었다는 뜻
+        // (웹뷰가 사라지는 중). 새 창을 만들어 봐야 원본이 닫히고 같은 내용이
+        // 다시 뜰 뿐이라 순수 손해이므로, 그냥 이 줄의 드래그로 남긴다.
         if st.order.len() <= 1 {
             return Ok(false);
         }
@@ -1367,6 +1451,8 @@ pub async fn begin_tear_off(
             anchor: (anchor_x, anchor_y),
             source,
             index,
+            // 새로 만든 창이라 되돌릴 자리가 없다 — 무르면 통째로 닫힌다.
+            home: None,
             hidden: false,
         });
     }
@@ -1375,6 +1461,10 @@ pub async fn begin_tear_off(
 
 /// 손을 놓았다. 남의 스트립을 겨누고 있었으면 그리로 합치고(`true`), 아니면
 /// 그 자리에 창으로 남는다(`false`).
+///
+/// 창째로 들었든(`carry_whole`) 새로 만들어 들었든 마무리는 똑같다 — 합치면
+/// `move_tab` 이 원래 창을 비우고 `commit_move` 가 그 창을 닫는다. 그래서
+/// **떼어낸 창을 도로 끌어다 붙이면 창이 하나 줄어든다** (크롬과 같다).
 #[tauri::command]
 #[specta::specta]
 pub async fn drop_tear_off(app: AppHandle) -> Result<bool, String> {
@@ -1405,10 +1495,15 @@ pub async fn drop_tear_off(app: AppHandle) -> Result<bool, String> {
     Ok(false)
 }
 
-/// Escape — 떼어낸 창을 물리고 탭을 **원래 자리로** 돌려놓는다.
+/// Escape — 떼어낸 창을 물리고 **원래대로** 돌려놓는다.
 ///
-/// 빈 창은 `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이
-/// 없으므로 그냥 놓은 것으로 본다.
+/// 무엇을 되돌리는지는 어떻게 들었는지에 달렸다.
+/// - 새 창으로 들었으면 탭을 원래 창의 원래 자리로 옮긴다. 빈 창은
+///   `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이 없으므로
+///   그냥 놓은 것으로 본다.
+/// - 창째로 들었으면(`home`) 옮길 탭이 없다 — 되돌릴 것은 **창 자리**다.
+///   여기서 `commit_move` 로 가면 같은 창 안 재배열이라 성공해 버려서, 겨누는
+///   동안 숨겨 둔 창이 숨은 채로 남는다 (`settle_tear_off` 가 안 불린다).
 #[tauri::command]
 #[specta::specta]
 pub async fn cancel_tear_off(app: AppHandle) -> Result<(), String> {
@@ -1420,6 +1515,13 @@ pub async fn cancel_tear_off(app: AppHandle) -> Result<(), String> {
     }) else {
         return Ok(());
     };
+    if let Some((x, y)) = tear.home {
+        if let Some(win) = app.get_webview_window(&tear.label) {
+            let _ = win.set_position(tauri::LogicalPosition::new(x, y));
+        }
+        settle_tear_off(&app, &tear);
+        return Ok(());
+    }
     if commit_move(&app, tear.tab_id, &tear.source, tear.index).await {
         return Ok(());
     }
@@ -2427,6 +2529,61 @@ mod tests {
         assert_eq!(reg.locate_tab(dragged), None);
     }
 
+    #[test]
+    fn a_lone_tab_window_is_carried_whole_instead_of_respawned() {
+        let mut reg = reg_with(&[("win-3", &[Some(2)])]);
+        let only = ids(&reg, "win-3")[0];
+
+        assert!(reg.carry_whole(only, (86.0, 20.0), (400.0, 120.0)));
+
+        let tear = reg.tearing().unwrap();
+        // 새 창을 만들지 않았다 — 들고 있는 것이 그 창 자신이다.
+        assert_eq!(tear.label, "win-3");
+        assert_eq!(tear.source, "win-3");
+        assert_eq!(tear.tab_id, only);
+        // 무를 때 되돌릴 **창 자리**를 기억한다 (탭 자리가 아니다).
+        assert_eq!(tear.home, Some((400.0, 120.0)));
+        // 창도 탭도 그대로다 — 아무것도 다시 마운트되지 않는다.
+        assert_eq!(ids(&reg, "win-3"), vec![only]);
+    }
+
+    #[test]
+    fn carrying_whole_is_declined_when_the_window_has_siblings() {
+        let mut reg = reg_with(&[("win-1", &[Some(1), Some(2)])]);
+        let dragged = ids(&reg, "win-1")[1];
+        // 형제가 있으면 탭만 빠져나가 새 창이 된다 — 창째로 들지 않는다.
+        assert!(!reg.carry_whole(dragged, (86.0, 20.0), (0.0, 0.0)));
+        assert!(reg.tearing().is_none());
+        assert_eq!(ids(&reg, "win-1").len(), 2);
+    }
+
+    #[test]
+    fn carrying_whole_is_declined_for_an_unknown_tab() {
+        let mut reg = reg_with(&[("win-1", &[Some(1)])]);
+        assert!(!reg.carry_whole(9999, (0.0, 0.0), (0.0, 0.0)));
+        assert!(reg.tearing().is_none());
+    }
+
+    /// 회귀 못 박기 — 떼어낸 창(탭 하나)이 드래그로 **되돌아온다**.
+    ///
+    /// 2026-08-29 에 `attach_tab` 이 tear-off 로 합쳐지면서 마지막 탭이 거절돼
+    /// 돌아올 길이 사라졌다. 창째로 들면 그다음은 평범한 `move_tab` 이다.
+    #[test]
+    fn a_carried_lone_tab_window_merges_back_and_leaves_no_window_behind() {
+        let mut reg = reg_with(&[("win-1", &[Some(1)]), ("win-3", &[Some(2)])]);
+        let carried = ids(&reg, "win-3")[0];
+        assert!(reg.carry_whole(carried, (86.0, 20.0), (400.0, 120.0)));
+
+        let tear = reg.tearing().unwrap();
+        let (source, emptied) = reg.move_tab(tear.tab_id, "win-1", 0).unwrap();
+
+        assert_eq!(source, "win-3");
+        // 비었다고 알려야 `commit_move` 가 그 창을 닫는다.
+        assert!(emptied);
+        assert!(reg.get("win-3").is_none());
+        assert_eq!(projects(&reg, "win-1"), vec![Some(2), Some(1)]);
+    }
+
     /// hide/show 는 **바뀔 때만** 부른다 — 매 틱 부르면 창이 깜빡인다.
     #[test]
     fn tear_hidden_reports_only_transitions() {
@@ -2439,6 +2596,7 @@ mod tests {
             anchor: (86.0, 20.0),
             source: "win-1".into(),
             index: 1,
+            home: None,
             hidden: false,
         });
         assert_eq!(reg.set_tear_hidden(true), Some(true));

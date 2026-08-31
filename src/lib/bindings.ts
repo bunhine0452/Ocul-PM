@@ -223,21 +223,35 @@ export const commands = {
 	/**
 	 *  탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
 	 * 
-	 *  `anchor` 는 새 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그
-	 *  라벨을 그대로 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
-	 *  창에 탭이 하나뿐이면 떼어낼 것이 없으므로 `None`.
+	 *  `anchor` 는 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그대로
+	 *  `true` 를 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
+	 * 
+	 *  손에 드는 방법은 창의 탭 수에 따라 둘로 갈린다.
+	 *  - 탭이 둘 이상 — 탭을 빼서 **새 창**을 만든다 (`?tearoff=1`).
+	 *  - 탭이 하나 — **그 창 자체**를 든다 (`carry_whole`). 새 창을 만들면 원본이
+	 *    닫히고 같은 내용의 창이 새로 뜰 뿐인데, 여기서 거절해 버리면 떼어낸 창이
+	 *    드래그로 되돌아올 길 자체가 없어진다 (2026-08-31 회귀).
 	 */
 	beginTearOff: (tabId: number, anchorX: number | null, anchorY: number | null) => typedError<boolean, string>(__TAURI_INVOKE("begin_tear_off", { tabId, anchorX, anchorY })),
 	/**
 	 *  손을 놓았다. 남의 스트립을 겨누고 있었으면 그리로 합치고(`true`), 아니면
 	 *  그 자리에 창으로 남는다(`false`).
+	 * 
+	 *  창째로 들었든(`carry_whole`) 새로 만들어 들었든 마무리는 똑같다 — 합치면
+	 *  `move_tab` 이 원래 창을 비우고 `commit_move` 가 그 창을 닫는다. 그래서
+	 *  **떼어낸 창을 도로 끌어다 붙이면 창이 하나 줄어든다** (크롬과 같다).
 	 */
 	dropTearOff: () => typedError<boolean, string>(__TAURI_INVOKE("drop_tear_off")),
 	/**
-	 *  Escape — 떼어낸 창을 물리고 탭을 **원래 자리로** 돌려놓는다.
+	 *  Escape — 떼어낸 창을 물리고 **원래대로** 돌려놓는다.
 	 * 
-	 *  빈 창은 `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이
-	 *  없으므로 그냥 놓은 것으로 본다.
+	 *  무엇을 되돌리는지는 어떻게 들었는지에 달렸다.
+	 *  - 새 창으로 들었으면 탭을 원래 창의 원래 자리로 옮긴다. 빈 창은
+	 *    `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이 없으므로
+	 *    그냥 놓은 것으로 본다.
+	 *  - 창째로 들었으면(`home`) 옮길 탭이 없다 — 되돌릴 것은 **창 자리**다.
+	 *    여기서 `commit_move` 로 가면 같은 창 안 재배열이라 성공해 버려서, 겨누는
+	 *    동안 숨겨 둔 창이 숨은 채로 남는다 (`settle_tear_off` 가 안 불린다).
 	 */
 	cancelTearOff: () => typedError<null, string>(__TAURI_INVOKE("cancel_tear_off")),
 	/**
