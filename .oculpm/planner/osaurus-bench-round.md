@@ -228,4 +228,5 @@ Phase 3 의 소스 배지가 자동화를 구분하지 못한다. (기존 메모
 | 2026-08-31T19:27:00+09:00 | #run-history | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/1927_feature_schedule-automation-phase1.md | automation_runs 역순. 드롭·스킵도 보인다 + 일지로 NAV_BUS.openEntity 점프 |
 | 2026-08-31T19:27:00+09:00 | #schedule-editor | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/1927_feature_schedule-automation-phase1.md | 2-pane 에디터 + 상시 도움말 2줄(그대로 갑니다 · 멱등하게 쓰세요) |
 | 2026-08-31T19:27:00+09:00 | #seed-schedules | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/1927_feature_schedule-automation-phase1.md | 주간 요약·아침 브리핑·월간 회고 3종, 꺼진 채로 생성. 지시문은 content_language |
+| 2026-08-31T20:07:00+09:00 | #foundation #schedules | claude-code | ☑→☑ | .oculpm/journal/20260831/Chores/2007_chore_release-v2-26-0.md | v2.26.0 릴리스 — 5면(버전 5파일·CHANGELOG·README ko/en·landing 6곳+featureList/FAQ/벤토) 전부 채우고 태그 푸시·랜딩 배포. agent-discipline 라운드와 한 버전으로 |
 <!-- oculpm:plan-log end -->
