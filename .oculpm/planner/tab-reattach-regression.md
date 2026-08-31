@@ -28,6 +28,11 @@ owner: claude-code
 - [x] Rust 4건 + vitest 1건. 깨진 동작을 고정하고 있던 `"떼어낼 수 없는 창이면(탭 하나) 아무 일도 안 한다"` 는 뜻이 바뀌어 이름을 갈았다 {#p1-tests}
 - [ ] 실기기 확인 — 떼어낸 창을 끌어 원래 창 스트립에 붙이기 · Escape 로 제자리 복귀 · 겨누다 벗어나면 다시 보이기 · 배율 다른 외부 모니터 {#manual-verify-reattach}
 
+## Phase 2 — 릴리스 {#p2-release}
+- [x] v2.25.0 다섯 면 (버전 5파일 · CHANGELOG · README ko/en · 랜딩 6곳+featureList+FAQ) → 태그 → 랜딩 배포 {#ship-2-25-0}
+- [x] CI 플래키 수습 — `acp_parallel_sessions` 가 CI 러너에서만 1183ms 에 죽었다. `release.yml` 은 테스트를 안 돌리므로 붉은 main 에 태그를 밀 수 없어, rerun 대신 `asyncUtilTimeout` 을 1s→5s 로 올렸다 {#ci-flake-async-timeout}
+- [x] 빌드 캐시 정리 — `src-tauri/target` 69GB(incremental 36GB·deps 27GB) → `cargo clean` 191,909 파일/93.4GiB 회수 → 재빌드 5.1GB {#build-cache-sweep}
+
 ## 결정 {#decisions}
 
 ### Decision 1 — 마지막 탭은 거절하지 않고 창째로 든다 {#d1-carry-whole}
@@ -57,4 +62,7 @@ owner: claude-code
 | 2026-08-31T12:08:00+09:00 | #p1-tests | claude-code | →☐→[x] | 20260831/Bugs/1208_bug_tab-reattach-lone-window.md | 깨진 동작을 고정하던 테스트 교체 |
 | 2026-08-31T12:08:00+09:00 | #manual-verify-reattach | claude-code | →☐ | 20260831/Bugs/1208_bug_tab-reattach-lone-window.md | 설치본 꺼진 뒤 몰아서 |
 | 2026-08-31T12:08:00+09:00 | #d1-carry-whole | claude-code | →☐ | 20260831/Bugs/1208_bug_tab-reattach-lone-window.md | 결정 잠금 |
+| 2026-08-31T12:46:00+09:00 | #ship-2-25-0 | claude-code | →☐→[x] | 20260831/Chores/1246_chore_release-v2-25-0.md | 다섯 면 · 태그 · 랜딩 |
+| 2026-08-31T12:46:00+09:00 | #ci-flake-async-timeout | claude-code | →☐→[x] | 20260831/Chores/1246_chore_release-v2-25-0.md | 붉은 main 에는 태그를 못 민다 |
+| 2026-08-31T12:46:00+09:00 | #build-cache-sweep | claude-code | →☐→[x] | 20260831/Chores/1246_chore_release-v2-25-0.md | 70GB → 5.6GB |
 <!-- oculpm:plan-log end -->
