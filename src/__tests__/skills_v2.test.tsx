@@ -3,7 +3,12 @@ import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/re
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
-// ─── 스킬 화면 — 목록/상세 데이터 흐름 + 생성/토글/삭제 변이 + a11y ─────────
+// ─── AD-3 — 에이전트 컨텍스트 화면의 **스킬 쪽** 계약 + a11y ────────────────
+//
+// 3존 화면으로 접히면서 두 가지가 바뀌었다: (1) 스코프별 두 섹션이 아니라 한
+// 목록에 종류 배지로 서고, (2) 자동 선택이 없어져 행을 눌러야 편집기가 열린다.
+// 비활성 스킬은 로드되지 않으므로 **휴면**으로 자동 강등된다 — 목록이 스스로
+// 청소되는 규약을 여기서 고정한다.
 //
 // 백엔드(skills_* 커맨드)는 Proxy mock 으로 대체하고, 변이 커맨드는 호출
 // 인자를 수집해 "UI 조작 → 올바른 커맨드 계약" 을 검증한다 (tools_v2 패턴).
@@ -116,9 +121,11 @@ vi.mock("@/lib/bindings", () => {
 });
 
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
+import { _resetAgentContextIntent, requestAgentContext } from "@/lib/agentContextNav";
 import { isValidSkillName, skillTemplate, splitFrontmatter } from "@/features/skills/skillsModel";
 
 beforeEach(() => {
+  _resetAgentContextIntent();
   fx.calls.setEnabled = [];
   fx.calls.save = [];
   fx.calls.del = [];
@@ -128,30 +135,35 @@ afterEach(() => {
   cleanup();
 });
 
-describe("SkillsScreenV2", () => {
-  it("스코프별 목록을 그리고 첫 스킬을 자동 선택한다 + axe 위반 없음", async () => {
-    const { container, getByText, getAllByText, getByRole } = render(
+describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
+  it("한 목록에 스킬이 서고, 비활성은 휴면으로 강등되며, 행을 누르면 편집기가 열린다 + axe", async () => {
+    const { container, getByText, getAllByText, getByRole, queryByText } = render(
       <SkillsScreenV2 projectId={1} />,
     );
 
     await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
-    // 좌측 그룹 헤더 + 전역의 비활성 칩.
-    expect(getByText("프로젝트")).toBeTruthy();
-    expect(getByText("전역")).toBeTruthy();
+    expect(getAllByText("스킬").length).toBeGreaterThan(0);
+    // 비활성 스킬은 접힌 휴면 섹션 안 — 기본 목록에는 없다.
+    expect(queryByText("standup")).toBeNull();
+    fireEvent.click(getByRole("button", { name: /휴면 1개/ }));
+    expect(getByText("standup")).toBeTruthy();
     expect(getAllByText("비활성").length).toBeGreaterThan(0);
-    // 상세 헤더 경로 + 본문(마크다운 or Suspense 원문 폴백).
+
+    // 자동 선택은 없다 — 행을 눌러야 상세가 열린다.
+    fireEvent.click(getAllByText("review-checklist")[0]);
     await waitFor(() =>
       expect(getByText(/\.claude\/skills\/review-checklist\/SKILL\.md/)).toBeTruthy(),
     );
     await waitFor(() => expect(getByText(/본문 지침입니다/)).toBeTruthy());
-    expect(getByRole("button", { name: /새 스킬/ })).toBeTruthy();
+    expect(getByRole("button", { name: /목록으로/ })).toBeTruthy();
 
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
   });
 
   it("비활성화 버튼이 skillsSetEnabled(enabled=false) 를 호출한다", async () => {
-    const { getByRole } = render(<SkillsScreenV2 projectId={1} />);
+    const { getByRole, getAllByText } = render(<SkillsScreenV2 projectId={1} />);
+    fireEvent.click(await waitFor(() => getAllByText("review-checklist")[0]));
     const toggle = await waitFor(() => getByRole("button", { name: "비활성화" }));
     fireEvent.click(toggle);
     await waitFor(() => expect(fx.calls.setEnabled).toHaveLength(1));
@@ -191,7 +203,8 @@ describe("SkillsScreenV2", () => {
   });
 
   it("삭제는 확인 모달을 거쳐 skillsDelete 를 호출한다", async () => {
-    const { getByRole } = render(<SkillsScreenV2 projectId={1} />);
+    const { getByRole, getAllByText } = render(<SkillsScreenV2 projectId={1} />);
+    fireEvent.click(await waitFor(() => getAllByText("review-checklist")[0]));
     fireEvent.click(await waitFor(() => getByRole("button", { name: /삭제/ })));
 
     const dialog = getByRole("dialog", { name: "스킬 삭제 확인" });
@@ -199,6 +212,13 @@ describe("SkillsScreenV2", () => {
 
     await waitFor(() => expect(fx.calls.del).toHaveLength(1));
     expect(fx.calls.del[0]).toEqual([1, "project", "review-checklist"]);
+  });
+
+  it("AD-4 — 팔레트/사건 화면의 요청이 화면 마운트 시 생성 모달로 회수된다", async () => {
+    requestAgentContext({ kind: "createSkill", seed: { name: "from-terminal" } });
+    const { getByRole, getByLabelText } = render(<SkillsScreenV2 projectId={1} />);
+    await waitFor(() => getByRole("dialog", { name: "새 스킬 만들기" }));
+    expect((getByLabelText("이름 (폴더명)") as HTMLInputElement).value).toBe("from-terminal");
   });
 });
 

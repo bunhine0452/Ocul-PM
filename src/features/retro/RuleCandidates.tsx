@@ -57,7 +57,9 @@ export function RuleCandidatesPanel({
     void commands.ruleCandidates(projectId, since, until).then((res) => {
       if (!alive) return;
       // 후보 조회 실패는 회고 화면을 막을 일이 아니다 — 섹션을 그리지 않는다.
-      if (res.status === "ok") setCands(res.data);
+      // 배열이 아닌 응답(커맨드 부재·형태 변화)은 0건과 같이 다룬다 — 목록
+      // 렌더가 터지면 이 섹션이 아니라 화면 전체가 죽는다.
+      if (res.status === "ok" && Array.isArray(res.data)) setCands(res.data);
     });
     return () => {
       alive = false;

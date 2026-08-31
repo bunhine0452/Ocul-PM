@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
+import { holdAgentContextIntent, onAgentContextRequest } from "@/lib/agentContextNav";
 import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
@@ -146,6 +147,18 @@ export default function ShellV2({
   // 설정 딥링크(`openSettings(tab)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
   // 바꾸는 쪽 절반. 패널이 탭을 고르고, 셸은 화면만 옮긴다.
   useEffect(() => onOpenSettingsRequest(() => setUiV2View("settings")), [setUiV2View]);
+
+  // AD-4 — 일지·diff·터미널·팔레트에서 온 "규칙/스킬로" 요청. 화면이 이미 떠
+  // 있으면 그쪽 구독이 먼저 소비하고, 아니면 여기서 붙들어 두고 옮긴다.
+  useEffect(
+    () =>
+      onAgentContextRequest((intent) => {
+        if (view === "skills") return;
+        holdAgentContextIntent(intent);
+        setUiV2View("skills");
+      }),
+    [view, setUiV2View],
+  );
 
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and

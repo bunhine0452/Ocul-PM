@@ -1310,6 +1310,20 @@ export const commands = {
 	/**  config 기준으로 미러 전체를 화해시킨다 (토글 직후 + 수동 재동기화). */
 	rulesSyncTranslations: (projectId: number) => typedError<MirrorWriteResult[], string>(__TAURI_INVOKE("rules_sync_translations", { projectId })),
 	/**
+	 *  AD-6 — 규칙 범위 감사. 조건부 규칙의 각 glob 을 이 프로젝트의 실제 파일에
+	 *  맞춰 보고 매칭 0개인 것을 지목한다. **결정적**(LLM 0)이고 아무것도 쓰지
+	 *  않는다 — 처방은 `rules_save_with_backup` 승인 경로 전담.
+	 */
+	rulesScopeAudit: (projectId: number) => typedError<RuleScopeFinding[], string>(__TAURI_INVOKE("rules_scope_audit", { projectId })),
+	/**
+	 *  AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).
+	 * 
+	 *  규칙 다이어트가 고치는 것은 대개 사용자 소유의 전역 규칙이다. 되돌릴 길을
+	 *  앱 밖(디스크)에 남기는 것이 승인의 조건이다. 본문 서식 보존은 호출측이
+	 *  `setRulePaths` 로 **행 단위 치환**한 내용을 넘기는 것으로 지킨다.
+	 */
+	rulesSaveWithBackup: (projectId: number, scope: RuleScope, relPath: string, content: string) => typedError<RuleBackupOutcome, string>(__TAURI_INVOKE("rules_save_with_backup", { projectId, scope, relPath, content })),
+	/**
 	 *  기간 내 반복 실패 클러스터(규칙 후보)를 결정적으로 뽑는다 — LLM 없음.
 	 *  이미 규칙이 덮는 영역·승격된 후보(promoted-from 마커)는 제외된다.
 	 */
@@ -1331,6 +1345,16 @@ export const commands = {
 	 *  프런트의 `skills_save` 승인 경로 전담).
 	 */
 	skillDraftGenerate: (projectId: number, since: string, until: string, tag: string, provider: string, model: string) => typedError<SkillDraft, string>(__TAURI_INVOKE("skill_draft_generate", { projectId, since, until, tag, provider, model })),
+	/**
+	 *  AD-5 — 트리거 교정. **30일 동안 한 번도 안 걸린 스킬**의 영문
+	 *  `description` 을 다시 쓰자고 제안한다 (docs/agent-discipline/00-master-plan.md
+	 *  D2 존 3). 과금 호출 — 사용자가 버튼으로만 트리거한다.
+	 * 
+	 *  파일은 쓰지 않는다: 초안의 `content` 를 들고 프런트가 기존 `skills_save`
+	 *  (create=false) 를 명시적으로 불러야만 디스크가 바뀐다 (승격 커맨드와 같은
+	 *  구조적 보장).
+	 */
+	skillsTriggerRewrite: (projectId: number, scope: SkillScope, dirName: string, provider: string, model: string) => typedError<SkillTriggerDraft, string>(__TAURI_INVOKE("skills_trigger_rewrite", { projectId, scope, dirName, provider, model })),
 	/**
 	 *  transcript 를 증분 스캔해 발동 원장을 갱신한다. 첫 호출은 누적 이력을
 	 *  전부 읽으므로 오래 걸릴 수 있고, 예산을 넘기면 `complete=false` 로
@@ -3025,6 +3049,15 @@ export type GitRepoStatus = {
 	remotes: GitRemote[],
 };
 
+/**  glob 하나의 매칭 결과. */
+export type GlobMatch = {
+	glob: string,
+	/**  이 프로젝트에서 매칭된 파일 수 (상한까지 셈). */
+	files: number,
+	/**  glob 을 해석하지 못했다 — 판정 불가라 dead 로 부르지 않는다. */
+	unparsed: boolean,
+};
+
 export type Goal = {
 	id: number,
 	project_id: number | null,
@@ -4103,6 +4136,14 @@ export type RetroSignals = {
 
 export type Role = "system" | "user" | "assistant";
 
+/**  `rules_save_with_backup` 응답 — 저장 결과 + 되돌릴 백업 경로. */
+export type RuleBackupOutcome = {
+	entry: RuleEntry,
+	mirror: MirrorWriteResult | null,
+	/**  원본을 남긴 절대 경로 — 토스트가 그대로 보여 준다. */
+	backup_path: string,
+};
+
 /**  결정적 규칙 후보 — 한 코드 영역의 반복 실패 클러스터. */
 export type RuleCandidate = {
 	/**  억제/재조회 키 (`area:<영역>`). */
@@ -4183,6 +4224,22 @@ export type RuleScope =
 "project" | 
 /**  홈 디렉터리 기준 (`~/.claude/CLAUDE.md`, `~/.claude/rules/…`). */
 "global";
+
+/**  규칙 하나의 감사 결과. */
+export type RuleScopeFinding = {
+	scope: RuleScope,
+	rel_path: string,
+	/**  발동 원장 키와 같은 절대경로 — 프런트가 주입 실측치와 잇는다. */
+	abs_path: string,
+	name: string,
+	/**  규칙 본문 바이트 (되찾을 수 있는 양의 근거). */
+	bytes: number,
+	globs: GlobMatch[],
+	/**  매칭 0개인 glob (무관 확정). */
+	dead_globs: string[],
+	/**  남길 glob — 축소 제안이 그대로 쓴다. */
+	live_globs: string[],
+};
 
 /**  `rules_list` 응답 — 전 스코프를 한 번에 (스킬 overview 패턴). */
 export type RulesOverview = {
@@ -4357,6 +4414,19 @@ export type SkillScope =
 "project" | 
 /**  `~/.claude/skills` — 모든 프로젝트에서 로드. */
 "global";
+
+/**  초안 — 프런트가 그대로 그리고, 승인 시 `content` 를 저장한다. */
+export type SkillTriggerDraft = {
+	dir_name: string,
+	/**  지금 frontmatter 에 있는 description (없으면 빈 문자열). */
+	current: string,
+	/**  제안된 새 description. */
+	proposed: string,
+	/**  왜 이렇게 바꾸는지 한두 줄 (한국어 UI 에 그대로 보인다). */
+	rationale: string,
+	/**  저장용 SKILL.md 전문 — **description 행만 교체**하고 나머지는 바이트 보존. */
+	content: string,
+};
 
 /**  `skills_list` 응답. 두 스코프를 한 번에 내려 UI 왕복을 줄인다. */
 export type SkillsOverview = {

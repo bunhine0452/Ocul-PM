@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Clipboard, NotebookPen, Target, Terminal } from "@/components/Icons";
+import { ChevronLeft, ChevronRight, Clipboard, NotebookPen, Puzzle, Target, Terminal } from "@/components/Icons";
 import { commands, type PlanPhaseDto, type PlanSummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
+import { requestAgentContext } from "@/lib/agentContextNav";
+import { commandsToCodeBlock, firstSlug } from "@/lib/promoteSeed";
 import { useT } from "@/i18n";
 import { blockBody, blockTitle } from "./commandBlocks";
 import type { BlockActivation } from "./TerminalInstanceImpl";
@@ -83,6 +85,20 @@ export function TerminalBlockMenu({
         outputHead: t("term.block.seedOutput"),
         truncated: t("term.block.seedTruncated"),
       }),
+    });
+    onClose();
+  };
+
+  // AD-4 — 같은 명령을 손으로 세 번 치는 순간이 스킬이 태어나는 자리다.
+  // 여기서 누르면 스킬·규칙 화면의 "새 스킬" 이 이 명령을 본문 씨앗으로 열린다
+  // (실행하지 않는다 — 씨앗은 텍스트일 뿐이고 파일은 승인해야 쓰인다).
+  const toSkill = () => {
+    requestAgentContext({
+      kind: "createSkill",
+      seed: {
+        name: firstSlug(blockTitle(block.command, 40)),
+        body: t("ctx.promote.seedFrom", { source: commandsToCodeBlock([block.command]) }),
+      },
     });
     onClose();
   };
@@ -174,6 +190,10 @@ export function TerminalBlockMenu({
           <button type="button" className="tbm-item accent" role="menuitem" onClick={toJournal}>
             <NotebookPen size={13} aria-hidden="true" />
             {t("term.block.toJournal")}
+          </button>
+          <button type="button" className="tbm-item accent" role="menuitem" onClick={toSkill}>
+            <Puzzle size={13} aria-hidden="true" />
+            {t("ctx.promote.skill")}
           </button>
           <button
             type="button"

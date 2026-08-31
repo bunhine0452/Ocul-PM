@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/react";
+import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
-// ─── PR-CI5 — 추천 스킬 갤러리: 목록/설치 계약 + 중복 설치 가드 ─────────────
+// ─── PR-CI5 추천 스킬 — AD-3 이후 자리: 존 3 "추가하기" ────────────────────
+//
+// 갤러리는 모달이었는데, 5탭 허브가 3존 화면으로 접히면서 **샵 탭과 함께 존 3
+// 의 "추가하기" 로 흡수**됐다. 쇼핑 표면이 둘(모달·탭)이던 것을 하나로 줄인
+// 것이고, 데이터·설치 계약은 그대로다.
 //
 // 설치는 기존 skills_save(create=true) 재사용이 전부다 — 갤러리 전용 백엔드가
-// 없다는 것 자체가 계약이므로, 여기서는 (a) 3종 템플릿 노출, (b) 설치 클릭 →
+// 없다는 것 자체가 계약이므로, 여기서는 (a) 템플릿 노출, (b) 설치 클릭 →
 // skillsSave 인자, (c) 이미 있는 스킬은 "설치됨" 으로 버튼 비노출을 고정한다.
 
 const summarize = (r: AxeResults) =>
@@ -106,19 +110,15 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
     expect(runEvals.content).toContain("| 날짜 | 스위트 | 통과 | 메모 |");
   });
 
-  it("툴바 버튼 → 갤러리 모달에 3종이 뜨고, 설치 클릭이 skillsSave(create=true) 를 부른다 + axe", async () => {
-    const { container, findByText, getByRole } = render(<SkillsScreenV2 projectId={1} />);
-    // 빈 상태에서도 갤러리 진입 가능 (빈 상태 버튼과 툴바 버튼 둘 다 존재).
-    await findByText("아직 스킬이 없습니다");
-    fireEvent.click(getByRole("button", { name: /추천 스킬$/ }));
+  it("존 3 추가하기에 큐레이션 4종이 서고, 설치 클릭이 skillsSave(create=true) 를 부른다 + axe", async () => {
+    const { container, getByRole, getByText, getAllByRole } = render(<SkillsScreenV2 projectId={1} />);
+    await waitFor(() => expect(getByText("추가하기")).toBeTruthy());
 
-    const dialog = getByRole("dialog", { name: "추천 스킬 갤러리" });
-    expect(within(dialog).getByText(/self-audit/)).toBeTruthy();
-    expect(within(dialog).getByText(/run-evals/)).toBeTruthy();
-    expect(within(dialog).getByText(/tdd-workflow/)).toBeTruthy();
+    // 큐레이션 4종이 모달 없이 화면에 그대로 있다 (진입 클릭 0회).
+    for (const g of GALLERY_SKILLS) expect(getByText(new RegExp(g.id))).toBeTruthy();
 
-    const installButtons = within(dialog).getAllByRole("button", { name: "설치" });
-    expect(installButtons).toHaveLength(4);
+    const installButtons = getAllByRole("button", { name: "설치" });
+    expect(installButtons.length).toBeGreaterThanOrEqual(GALLERY_SKILLS.length);
     fireEvent.click(installButtons[0]);
 
     await waitFor(() => expect(fx.calls.save).toHaveLength(1));
@@ -131,6 +131,7 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
     ];
     expect([pid, scope, dirName, create]).toEqual([1, "project", "project-inception", true]);
     expect(content).toBe(GALLERY_SKILLS[0].content);
+    expect(getByRole("button", { name: /전체 카탈로그/ })).toBeTruthy();
 
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
@@ -138,13 +139,11 @@ describe("추천 스킬 갤러리 (PR-CI5)", () => {
 
   it("이미 설치된 스킬은 '설치됨' 으로 표시되고 설치 버튼이 없다 (중복 가드)", async () => {
     fx.project = [skillEntry("run-evals")];
-    const { findAllByText, getByRole } = render(<SkillsScreenV2 projectId={1} />);
+    const { findAllByText, getAllByRole, getAllByText } = render(<SkillsScreenV2 projectId={1} />);
     await findAllByText("run-evals");
-    fireEvent.click(getByRole("button", { name: /추천 스킬$/ }));
 
-    const dialog = getByRole("dialog", { name: "추천 스킬 갤러리" });
-    expect(within(dialog).getByText("설치됨")).toBeTruthy();
-    // 남은 두 개만 설치 가능.
-    expect(within(dialog).getAllByRole("button", { name: "설치" })).toHaveLength(3);
+    expect(getAllByText("설치됨").length).toBe(1);
+    // 큐레이션 4종 중 하나가 빠진 만큼 설치 버튼도 하나 줄어든다.
+    expect(getAllByRole("button", { name: "설치" }).length).toBe(GALLERY_SKILLS.length - 1);
   });
 });

@@ -561,6 +561,37 @@ fn guard_managed_block(abs: &Path, content: &str) -> Result<(), String> {
     }
 }
 
+/// AD-6 — **승인형 저장 + 원본 백업** (마스터플랜 D4 의 소유권 규율).
+///
+/// 규칙 다이어트가 고치는 파일은 대개 `~/.claude/rules/**` — 우리 마커가 없는
+/// **사용자 소유** 파일이다. 그래서 쓰기 전에 현재 바이트를 `<파일>.bak` 으로
+/// 남긴다: 제안이 틀렸을 때 되돌릴 길이 앱 밖에 있어야 한다.
+///
+/// 백업은 **직전 원본 한 벌**이다 (같은 파일을 두 번 좁히면 갱신된다) — 여러
+/// 세대를 남기면 사용자의 규칙 폴더가 우리 쓰레기로 찬다.
+///
+/// 새 파일은 만들지 않는다(`create=false` 고정): 백업할 원본이 없다는 건
+/// 이 경로를 잘못 쓰고 있다는 뜻이다.
+pub fn save_with_backup(
+    scope: RuleScope,
+    scope_root: &Path,
+    project_root: &Path,
+    rel_path: &str,
+    content: &str,
+) -> Result<(RuleEntry, String), String> {
+    validate_rel(scope, rel_path)?;
+    let abs = secure_path(scope_root, rel_path)?;
+    let original = std::fs::read(&abs)
+        .map_err(|e| format!("Could not read the rule before backing it up: {e}"))?;
+    let backup = abs.with_extension(match abs.extension().and_then(|e| e.to_str()) {
+        Some(ext) => format!("{ext}.bak"),
+        None => "bak".to_string(),
+    });
+    write_atomic(&backup, &original).map_err(|e| format!("Could not write the backup: {e}"))?;
+    let entry = save(scope, scope_root, project_root, rel_path, content, false)?;
+    Ok((entry, backup.display().to_string()))
+}
+
 /// 삭제 — Rule 만. ClaudeMd 슬롯은 구조적으로 거부한다.
 pub fn delete(scope: RuleScope, scope_root: &Path, rel_path: &str) -> Result<(), String> {
     let kind = validate_rel(scope, rel_path)?;

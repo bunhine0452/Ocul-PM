@@ -1,367 +1,315 @@
-import { SkeletonList } from "@/components/ui/Skeleton";
-// 스킬·규칙 허브 (PR-CI3, docs/claude-integration/00-master-plan.md D5) —
-// 12번째 화면을 탭 허브로 확장했다: [스킬] 기존 `.claude/skills/` 관리 그대로,
-// [규칙] CLAUDE.md 계열 + `.claude/rules` CRUD·paths 편집·Cursor 병행 배포
-// (RulesTab.tsx), [훅] CI0 훅 브리지 토글 (설정의 ClaudeHooksBlock 재사용).
-// 탭 상태는 비영속 useState — localStorage 규율(WorkspaceContext 단독 소유)과
-// 무관하다.
+// AD-3 — 에이전트 컨텍스트 화면 (docs/agent-discipline/00-master-plan.md D2).
 //
-// 스킬 탭: 프로젝트/전역 Claude Code 스킬(`.claude/skills/`)을 GUI 로
-// 조회·생성·편집·토글·복사·삭제한다. SSOT 는 디스크의 SKILL.md (백엔드
-// commands/skills.rs — 캐시 없음). 좌: 스코프별 목록 / 우: 미리보기·편집.
-// 비활성화는 `.claude/skills/.disabled/` 이동 규약 — 파일을 지우지 않고 로드에서만 뺀다.
+// 12번째 화면은 오랫동안 5탭 허브(`스킬 | 샵 | 규칙 | 훅 | 플러그인`)였고,
+// 각 탭이 2-pane CRUD 였다. 실측(2026-08-29)이 말한 건 기능 부족이 아니라
+// **설계가 파일 관리자**라는 것이었다 — 사용자는 파일을 관리하고 싶은 게 아니라
+// 에이전트 행동을 고치고 싶고, 관리 화면은 동기가 없을 때 가는 곳이라 영원히
+// 안 간다.
+//
+// 그래서 한 화면 3존으로 접었다:
+//   존 1 컨텍스트 예산 바 — 세션마다 얼마가 들어가는가 (안 보이면 아무도 안 줄인다)
+//   존 2 걸려 있는 것    — 스킬·규칙·CLAUDE.md 한 목록 + 발동 배지, 휴면 자동 강등
+//   존 3 제안 인박스     — 승격 후보(회고에 갇혀 있던 CI4/CI5) + 추가하기(샵·훅·플러그인 흡수)
+//
+// 편집은 목록에서 드릴다운하는 **단일 편집기**(ContextEditor)로 위임했다 —
+// 종류마다 같은 모양의 편집기를 두 벌 유지하던 비용이 사라진다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
-import { PluginDocsTab } from "./PluginDocsTab";
-import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { RefreshCw, Plus, Pencil, Trash2, Copy, Puzzle, Sparkles } from "@/components/Icons";
-import {
-  commands,
-  type SkillDetail,
-  type SkillEntry,
-  type SkillScope,
-  type SkillsOverview,
+import { SkeletonList } from "@/components/ui/Skeleton";
+import { FileCode, Puzzle, RefreshCw } from "@/components/Icons";
+import type {
+  RuleEntry,
+  RuleScope,
+  RuleScopeFinding,
+  RulesOverview,
+  SkillScope,
+  SkillsOverview,
 } from "@/lib/bindings";
+import { rulesApi, skillsApi, stackApi } from "@/api/claudeSurface";
+import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
-import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
-import { isValidSkillName, skillTemplate, splitFrontmatter } from "./skillsModel";
-import { GALLERY_SKILLS } from "./skillsGallery";
-import { CATALOG_SKILLS } from "./skillsCatalog";
-import { FiringBadge } from "./FiringBadge";
-import { skillFiring } from "./firingModel";
-import { useFiringLedger, type FiringLedger } from "./useFiringLedger";
-import { RulesTab } from "./RulesTab";
-import { SkillShopTab } from "./SkillShopTab";
-import { t, useT } from "@/i18n";
-import "./skills.css";
+import { oculpmApi } from "@/api/oculpm";
 import { tError } from "@/i18n/errors";
+import { t, useT } from "@/i18n";
+import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
+import {
+  consumeAgentContextIntent,
+  onAgentContextRequest,
+  type RuleSeed,
+  type SkillSeed,
+} from "@/lib/agentContextNav";
+import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
+import { isValidSkillName, skillTemplate } from "./skillsModel";
+import { claudeMdTemplate, isValidRuleName, ruleTemplate } from "./rulesModel";
+import { useFiringLedger } from "./useFiringLedger";
+import {
+  buildContextItems,
+  cleanupProposals,
+  computeBudget,
+  indexFindings,
+  irrelevantBytesPerSession,
+  kb,
+  scopeProposals,
+  triggerProposals,
+  type ContextItem,
+} from "./contextModel";
+import { ContextBudgetBar } from "./ContextBudgetBar";
+import { ContextLiveList } from "./ContextLiveList";
+import { ContextInbox } from "./ContextInbox";
+import { ContextEditor } from "./ContextEditor";
+import { SkillShopTab } from "./SkillShopTab";
+import { PluginDocsTab } from "./PluginDocsTab";
+import "./skills.css";
+
+/** 존 3 승격 후보의 조회 창 — 발동 배지와 같은 30일. */
+const CANDIDATE_WINDOW_DAYS = 30;
 
 interface SkillsScreenV2Props {
   projectId: number;
 }
 
-type SelKey = { scope: SkillScope; dirName: string } | null;
-
-const scopeLabel = (scope: SkillScope) => (scope === "project" ? t("rules.scope.project") : t("rules.scope.global"));
-
-// ─── 허브 셸 ─────────────────────────────────────────────────────────────────
-
-const HUB_TABS = [
-  { id: "skills", labelKey: "sk.tab.skills" },
-  { id: "shop", labelKey: "sk.tab.shop" },
-  { id: "rules", labelKey: "sk.tab.rules" },
-  { id: "hooks", labelKey: "sk.tab.hooks" },
-  { id: "plugin", labelKey: "sk.tab.plugin" },
-] as const;
-type HubTab = (typeof HUB_TABS)[number]["id"];
+type Extra = "shop" | "hooks" | "plugin" | null;
 
 export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
-  const [tab, setTab] = useState<HubTab>("skills");
-  const tabs = <HubTabsSeg tab={tab} onChange={setTab} />;
-  if (tab === "shop") return <SkillShopTab projectId={projectId} tabs={tabs} />;
-  if (tab === "rules") return <RulesTab projectId={projectId} tabs={tabs} />;
-  if (tab === "hooks") return <HooksTab projectId={projectId} tabs={tabs} />;
-  if (tab === "plugin") return <PluginDocsTab tabs={tabs} />;
-  return <SkillsTabView projectId={projectId} tabs={tabs} onOpenShop={() => setTab("shop")} />;
-}
-
-function HubTabsSeg({ tab, onChange }: { tab: HubTab; onChange: (t: HubTab) => void }) {
-  return (
-    <div className="sk-tabs" role="tablist" aria-label={t("sk.tabsAria")}>
-      {HUB_TABS.map((entry) => (
-        <button
-          key={entry.id}
-          type="button"
-          role="tab"
-          aria-selected={tab === entry.id}
-          className={tab === entry.id ? "on" : ""}
-          onClick={() => onChange(entry.id)}
-        >
-          {t(entry.labelKey)}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** 훅 탭 — CI0 훅 브리지 블록(설정과 동일 컴포넌트)을 허브에서 바로 노출. */
-function HooksTab({ projectId, tabs }: { projectId: number; tabs: ReactNode }) {
-  return (
-    <>
-      <Toolbar title={t("nav.skills")} sub={t("sk.hooksSub")}>
-        {tabs}
-      </Toolbar>
-      <div className="scroll">
-        <div className="sk-hooks">
-          <ClaudeHooksBlock projectId={projectId} />
-          <p className="sk-hooks-hint">
-            {t("sk.hooksNote")}
-          </p>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── 스킬 탭 (기존 화면) ─────────────────────────────────────────────────────
-
-function SkillsTabView({
-  projectId,
-  tabs,
-  onOpenShop,
-}: {
-  projectId: number;
-  tabs: ReactNode;
-  onOpenShop: () => void;
-}) {
-  const { t } = useT();
-  // AD-2 — 발동 원장. 목록·상세가 "이게 실제로 걸리기는 하는가" 를 답한다.
+  useT();
   const firing = useFiringLedger(projectId);
-  const [overview, setOverview] = useState<SkillsOverview | null>(null);
+
+  const [skills, setSkills] = useState<SkillsOverview | null>(null);
+  const [rules, setRules] = useState<RulesOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [listError, setListError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selected, setSelected] = useState<SelKey>(null);
-  const [detail, setDetail] = useState<SkillDetail | null>(null);
-  const [detailState, setDetailState] = useState<"idle" | "loading" | "error">("idle");
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailNonce, setDetailNonce] = useState(0);
-
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  /** 저장/토글/복사/삭제 등 변이 중 중복 클릭 방지. */
+  const [detail, setDetail] = useState<ContextItem | null>(null);
+  const [extra, setExtra] = useState<Extra>(null);
   const [busy, setBusy] = useState(false);
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createScope, setCreateScope] = useState<SkillScope>("project");
-  const [createName, setCreateName] = useState("");
-  const [createDesc, setCreateDesc] = useState("");
-  const createNameRef = useRef<HTMLInputElement>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  // PR-CI5 — 추천 스킬 갤러리 (설치는 skills_save 재사용, 프로젝트 스코프).
-  const [galleryOpen, setGalleryOpen] = useState(false);
+  // AD-5/AD-6 — 자기정리 루프의 재료. 둘 다 **보조 신호**라, 실패해도 화면은
+  // 그대로 동작한다 (원장과 같은 규율): 제안이 안 뜰 뿐이다.
+  const [findings, setFindings] = useState<RuleScopeFinding[]>([]);
+  const [auditing, setAuditing] = useState(false);
+  const [stackTags, setStackTags] = useState<string[]>([]);
 
-  const loadList = useCallback(async () => {
-    setListError(null);
-    const res = await commands.skillsList(projectId);
-    if (res.status === "ok") {
-      setOverview(res.data);
+  const [skillDialog, setSkillDialog] = useState<SkillSeed | null>(null);
+  const [ruleDialog, setRuleDialog] = useState<RuleSeed | null>(null);
+  const inboxRef = useRef<HTMLDivElement>(null);
+
+  const loadSkills = useCallback(
+    async () => setSkills(await skillsApi.list(projectId)),
+    [projectId],
+  );
+
+  const loadRules = useCallback(async () => setRules(await rulesApi.list(projectId)), [projectId]);
+
+  const loadAll = useCallback(async () => {
+    setLoadError(null);
+    try {
+      await Promise.all([loadSkills(), loadRules()]);
       setStatus("ready");
-    } else {
-      setListError(res.error);
+    } catch (err) {
+      setLoadError(tError(toAppError(err)));
       setStatus("error");
+    }
+  }, [loadSkills, loadRules]);
+
+  useEffect(() => {
+    setStatus("loading");
+    setDetail(null);
+    void loadAll();
+  }, [loadAll]);
+
+  const runAudit = useCallback(async () => {
+    setAuditing(true);
+    try {
+      const next = await rulesApi.scopeAudit(projectId);
+      // 배열이 아닌 응답(커맨드 부재·형태 변화)은 "감사 결과 없음" 으로 접는다 —
+      // 보조 신호가 화면 전체를 죽이면 안 된다.
+      setFindings(Array.isArray(next) ? next : []);
+    } catch {
+      setFindings([]);
+    } finally {
+      setAuditing(false);
     }
   }, [projectId]);
 
   useEffect(() => {
-    setStatus("loading");
-    setSelected(null);
-    void loadList();
-  }, [loadList]);
-
-  const all = useMemo(
-    () => (overview ? [...overview.project, ...overview.global] : []),
-    [overview],
-  );
-
-  // 목록 로드/변이 후 선택 보정: 유효하면 유지, 아니면 첫 항목.
-  useEffect(() => {
-    if (status !== "ready") return;
-    setSelected((prev) => {
-      if (prev && all.some((e) => e.scope === prev.scope && e.dir_name === prev.dirName)) {
-        return prev;
-      }
-      const first = all[0];
-      return first ? { scope: first.scope, dirName: first.dir_name } : null;
-    });
-  }, [status, all]);
-
-  // 선택 스킬 상세(원문) 로드. detailNonce 는 토글/이동 후 강제 재조회용.
-  useEffect(() => {
-    if (!selected) {
-      setDetail(null);
-      setDetailState("idle");
-      return;
-    }
     let alive = true;
-    setDetailState("loading");
-    setDetailError(null);
-    setEditing(false);
-    void commands.skillsRead(projectId, selected.scope, selected.dirName).then((res) => {
-      if (!alive) return;
-      if (res.status === "ok") {
-        setDetail(res.data);
-        setDetailState("idle");
-      } else {
-        setDetail(null);
-        setDetailError(res.error);
-        setDetailState("error");
-      }
-    });
+    setFindings([]);
+    setStackTags([]);
+    void stackApi
+      .detect(projectId)
+      .catch(() => [] as string[])
+      .then((tags) => {
+        if (alive) setStackTags(Array.isArray(tags) ? tags : []);
+      });
+    void runAudit();
     return () => {
       alive = false;
     };
-  }, [projectId, selected, detailNonce]);
+  }, [projectId, runAudit]);
 
-  // ── 변이 ──────────────────────────────────────────────────────────────────
+  // 규칙 파일이 디스크에서 바뀌면(에이전트가 `.claude/rules/*.md` 를 고침) 다시 읽는다.
+  useOculpmDataEvents("rules", projectId, true, () => void loadRules().catch(() => {}));
 
-  const toggleEnabled = async () => {
-    if (!detail || busy) return;
-    const e = detail.entry;
-    setBusy(true);
-    const res = await commands.skillsSetEnabled(projectId, e.scope, e.dir_name, !e.enabled);
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(
-        res.data.enabled ? t("sk.enabled", { name: res.data.name }) : t("sk.disabled", { name: res.data.name }),
-      );
-      await loadList();
-      setDetailNonce((n) => n + 1);
-    } else {
-      toast.destructive(tError(res.error));
+  // ── AD-4 — 사건 화면에서 온 요청 회수 ────────────────────────────────────
+  const applyIntent = useCallback((intent: ReturnType<typeof consumeAgentContextIntent>) => {
+    if (!intent) return;
+    if (intent.kind === "createRule") {
+      setDetail(null);
+      setRuleDialog(intent.seed ?? {});
+      return;
     }
-  };
-
-  const startEdit = () => {
-    if (!detail) return;
-    setDraft(detail.content);
-    setEditing(true);
-  };
-
-  const saveDraft = async () => {
-    if (!detail || busy) return;
-    const e = detail.entry;
-    setBusy(true);
-    const res = await commands.skillsSave(projectId, e.scope, e.dir_name, draft, false);
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(t("sk.saved"));
-      setEditing(false);
-      setDetail({ ...detail, entry: res.data, content: draft });
-      void loadList(); // 이름/설명이 바뀌었을 수 있으니 목록 동기화
-    } else {
-      toast.destructive(tError(res.error));
+    if (intent.kind === "createSkill") {
+      setDetail(null);
+      setSkillDialog(intent.seed ?? {});
+      return;
     }
-  };
+    setDetail(null);
+    // 인박스는 화면 아래에 있다 — 옮겨 왔는데 화면이 그대로면 아무 일도 안
+    // 일어난 것처럼 보인다. 레이아웃이 붙은 다음 프레임에 스크롤한다.
+    requestAnimationFrame(() => inboxRef.current?.scrollIntoView({ block: "start" }));
+  }, []);
 
-  const copyToOtherScope = async () => {
-    if (!detail || busy) return;
-    const e = detail.entry;
-    const to: SkillScope = e.scope === "project" ? "global" : "project";
-    setBusy(true);
-    const res = await commands.skillsCopy(projectId, e.scope, to, e.dir_name);
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(
-        to === "global" ? t("sk.copiedGlobal", { name: e.name }) : t("sk.copiedProject", { name: e.name }),
-      );
-      await loadList();
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
+  useEffect(() => {
+    applyIntent(consumeAgentContextIntent());
+  }, [applyIntent]);
+  useEffect(() => onAgentContextRequest(applyIntent), [applyIntent]);
 
-  const submitDelete = async () => {
-    if (!detail || busy) return;
-    const e = detail.entry;
-    setBusy(true);
-    const res = await commands.skillsDelete(projectId, e.scope, e.dir_name);
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(t("sk.deleted", { name: e.name }));
-      setDeleteOpen(false);
-      setSelected(null); // 보정 이펙트가 첫 항목을 재선택
-      await loadList();
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
+  // ── 파생 ────────────────────────────────────────────────────────────────
 
-  const openCreate = () => {
-    setCreateScope("project");
-    setCreateName("");
-    setCreateDesc("");
-    setCreateOpen(true);
-  };
-
-  // 갤러리 중복 설치 가드 — 프로젝트 스코프에 같은 폴더명이 있으면 "설치됨".
-  // (비활성(.disabled) 상태도 dir_name 으로 잡힌다 — 재설치 대신 활성화 유도.)
-  const installedGalleryIds = useMemo(
-    () => new Set((overview?.project ?? []).map((e) => e.dir_name)),
-    [overview],
+  const items = useMemo(
+    () => buildContextItems(skills, rules, firing.index),
+    [skills, rules, firing.index],
   );
-  const installGallerySkill = async (id: string) => {
-    const g = GALLERY_SKILLS.find((x) => x.id === id);
-    if (!g || busy) return;
-    setBusy(true);
-    const res = await commands.skillsSave(projectId, "project", g.id, g.content, true);
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(t("sk.galleryInstalled", { id: g.id }));
-      await loadList();
-      setSelected({ scope: "project", dirName: g.id });
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
+  const scope = useMemo(
+    () => scopeProposals(items, stackTags, firing.overview?.sessions ?? 0, firing.measured),
+    [items, stackTags, firing.overview, firing.measured],
+  );
+  const cleanup = useMemo(
+    () => cleanupProposals(items, indexFindings(findings), firing.measured),
+    [items, findings, firing.measured],
+  );
+  const trigger = useMemo(() => triggerProposals(items, firing.measured), [items, firing.measured]);
+  const budget = useMemo(
+    () =>
+      computeBudget(
+        items,
+        firing.overview?.bytes_per_session ?? 0,
+        firing.measured,
+        irrelevantBytesPerSession(scope),
+      ),
+    [items, firing.overview, firing.measured, scope],
+  );
+  const missingMemory = useMemo(
+    () => (rules?.claude_md ?? []).filter((e) => !e.exists),
+    [rules],
+  );
+  const installedDirs = useMemo(
+    () => new Set((skills?.project ?? []).map((e) => e.dir_name)),
+    [skills],
+  );
+  const until = useMemo(() => localWorkdayKey(), []);
+  const since = useMemo(() => shiftWorkday(until, -(CANDIDATE_WINDOW_DAYS - 1)), [until]);
 
-  const createValid = isValidSkillName(createName.trim());
-  const submitCreate = async () => {
-    const name = createName.trim();
-    if (!createValid || busy) return;
-    setBusy(true);
-    const res = await commands.skillsSave(
-      projectId,
-      createScope,
-      name,
-      skillTemplate(name, createDesc),
-      true,
-    );
-    setBusy(false);
-    if (res.status === "ok") {
-      toast.info(t("sk.created", { name }));
-      setCreateOpen(false);
-      await loadList();
-      setSelected({ scope: createScope, dirName: name });
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
+  // 목록이 다시 로드되면 열려 있던 상세를 새 데이터로 맞춘다 (배지·칩 동기화).
+  useEffect(() => {
+    setDetail((prev) => (prev ? (items.find((i) => i.id === prev.id) ?? null) : null));
+  }, [items]);
 
-  // ── 렌더 ──────────────────────────────────────────────────────────────────
+  // ── 생성 ────────────────────────────────────────────────────────────────
+
+  const createMemory = useCallback(
+    async (entry: RuleEntry) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await rulesApi.save(
+          projectId,
+          entry.scope,
+          entry.rel_path,
+          claudeMdTemplate(entry.rel_path, entry.scope === "global"),
+          true,
+        );
+        toast.info(t("rules.created", { path: entry.rel_path }));
+        await loadRules().catch(() => {});
+      } catch (err) {
+        toast.destructive(tError(toAppError(err)));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, projectId, loadRules],
+  );
+
+  /** Cursor 병행 배포 옵인 토글 — config 저장 후 미러 전체를 화해시킨다. */
+  const toggleTranslate = useCallback(async () => {
+    if (!rules || busy) return;
+    const turnOn = !rules.cursor_translate;
+    setBusy(true);
+    try {
+      const cfg = await oculpmApi.getConfig(projectId);
+      const targets = new Set(cfg.agents.rules_translate ?? []);
+      if (turnOn) targets.add("cursor");
+      else targets.delete("cursor");
+      await oculpmApi.setConfig(projectId, {
+        ...cfg,
+        agents: { ...cfg.agents, rules_translate: [...targets] },
+      });
+      const results = await rulesApi.syncTranslations(projectId);
+      const counts = (action: string) => results.filter((r) => r.action === action).length;
+      const parts: string[] = [];
+      if (counts("written")) parts.push(t("rules.mirror.written", { n: counts("written") }));
+      if (counts("removed")) parts.push(t("rules.mirror.removed", { n: counts("removed") }));
+      if (counts("conflict")) parts.push(t("rules.mirror.conflict", { n: counts("conflict") }));
+      const summary = parts.length ? parts.join(" · ") : t("rules.mirror.none");
+      toast.info(turnOn ? t("rules.mirrorOn", { summary }) : t("rules.mirrorOff", { summary }));
+      await loadRules().catch(() => {});
+    } catch (err) {
+      toast.destructive(
+        t("rules.translateSaveFailed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, rules, projectId, loadRules]);
 
   const sub =
-    status === "ready" && overview
-      ? t("sk.toolbarSub", { p: overview.project.length, g: overview.global.length }) +
-        (firing.scanning ? ` · ${t("firing.measuring")}` : "")
+    status === "ready"
+      ? `${t("ctx.toolbarSub", { n: items.length })}${
+          budget.totalBytes > 0 ? ` · ${t("ctx.budget.kb", { kb: kb(budget.totalBytes) })}` : ""
+        }${firing.scanning ? ` · ${t("firing.measuring")}` : firing.partial ? ` · ${t("firing.partial")}` : ""}`
       : undefined;
 
   return (
     <>
       <Toolbar title={t("nav.skills")} sub={sub}>
-        {tabs}
+        <button
+          type="button"
+          className="sk-textbtn"
+          disabled={firing.scanning}
+          onClick={() => void firing.rebuild()}
+          title={t("firing.rebuildTitle")}
+        >
+          {t("firing.rebuild")}
+        </button>
         <button
           type="button"
           className="sk-iconbtn"
-          onClick={() => void loadList()}
-          title={t("sk.refresh")}
-          aria-label={t("sk.refresh")}
+          onClick={() => void loadAll()}
+          title={t("ctx.refresh")}
+          aria-label={t("ctx.refresh")}
         >
           <RefreshCw size={15} />
         </button>
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => setGalleryOpen(true)}
-          title={t("sk.galleryTitle")}
-        >
-          <Sparkles size={14} /> {t("sk.gallery")}
+        <button type="button" className="btn ghost sm" onClick={() => setRuleDialog({})}>
+          <FileCode size={14} /> {t("rules.new")}
         </button>
-        <button type="button" className="btn primary sm" onClick={openCreate}>
-          <Plus size={14} /> {t("sk.new")}
+        <button type="button" className="btn primary sm" onClick={() => setSkillDialog({})}>
+          <Puzzle size={14} /> {t("sk.new")}
         </button>
       </Toolbar>
 
@@ -375,464 +323,377 @@ function SkillsTabView({
         <div className="scroll">
           <div className="page">
             <div className="empty-hint">
-              {t("sk.loadFailed")}
+              {t("ctx.loadFailed")}
               <br />
-              {listError}
+              {loadError}
             </div>
           </div>
         </div>
-      ) : all.length === 0 ? (
-        <SkillsEmptyState onCreate={openCreate} onGallery={() => setGalleryOpen(true)} />
+      ) : detail ? (
+        <ContextEditor
+          projectId={projectId}
+          item={detail}
+          firing={firing}
+          onBack={() => setDetail(null)}
+          onChanged={() => void loadAll()}
+          onDeleted={() => {
+            setDetail(null);
+            void loadAll();
+          }}
+        />
       ) : (
-        <div className="sk-body">
-          <aside className="sk-list" aria-label={t("sk.listAria")}>
-            <ScopeSection
-              title={t("rules.scope.project")}
-              entries={overview?.project ?? []}
-              selected={selected}
-              firing={firing}
-              onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
+        <div className="scroll">
+          <div className="page ctx-page">
+            <ContextBudgetBar
+              budget={budget}
+              scanning={firing.scanning}
+              partial={firing.partial}
+              auditing={auditing}
+              onJumpToIrrelevant={() =>
+                document.getElementById("ctx-scope")?.scrollIntoView({ block: "center" })
+              }
             />
-            <ScopeSection
-              title={t("rules.scope.global")}
-              entries={overview?.global ?? []}
-              selected={selected}
-              firing={firing}
-              onSelect={(e) => setSelected({ scope: e.scope, dirName: e.dir_name })}
+            <ContextLiveList
+              items={items}
+              measured={firing.measured}
+              days={firing.days}
+              missingMemory={missingMemory}
+              onCreateMemory={(e) => void createMemory(e)}
+              onOpen={setDetail}
+              cursorTranslate={rules?.cursor_translate ?? false}
+              onToggleTranslate={() => void toggleTranslate()}
+              translateBusy={busy}
             />
-          </aside>
-
-          <section className="sk-main" aria-label={t("sk.detailAria")}>
-            {detailState === "loading" ? (
-              <div className="scroll">
-                <div className="page">
-                  <div className="empty-hint">{t("common.loading")}</div>
-                </div>
-              </div>
-            ) : detailState === "error" ? (
-              <div className="scroll">
-                <div className="page">
-                  <div className="empty-hint">
-                    {t("sk.readFailed")}
-                    <br />
-                    {detailError}
-                  </div>
-                </div>
-              </div>
-            ) : detail ? (
-              <>
-                <header className="sk-head">
-                  <div className="sk-head-meta">
-                    <div className="sk-head-name">
-                      {detail.entry.name}
-                      <span className="sk-chip">{scopeLabel(detail.entry.scope)}</span>
-                      {!detail.entry.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
-                      <FiringBadge
-                        stat={skillFiring(firing.index, detail.entry)}
-                        measured={firing.measured}
-                        days={firing.days}
-                      />
-                    </div>
-                    <div className="sk-head-path" title={detail.skill_md_path}>
-                      {detail.entry.display_path}/SKILL.md
-                      {detail.entry.extra_files > 0
-                        ? t("sk.extraFiles", { n: detail.entry.extra_files })
-                        : ""}
-                    </div>
-                  </div>
-                  <div className="sk-actions">
-                    {editing ? (
-                      <>
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          disabled={busy}
-                          onClick={() => setEditing(false)}
-                        >
-                          {t("common.cancel")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn primary sm"
-                          disabled={busy}
-                          onClick={() => void saveDraft()}
-                        >
-                          {t("common.save")}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          disabled={busy}
-                          onClick={() => void toggleEnabled()}
-                          title={
-                            detail.entry.enabled
-                              ? t("sk.disableTitle")
-                              : t("sk.enableTitle")
-                          }
-                        >
-                          {detail.entry.enabled ? t("sk.disable") : t("sk.enable")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          disabled={busy}
-                          onClick={() => void copyToOtherScope()}
-                          title={
-                            detail.entry.scope === "project"
-                              ? t("sk.copyGlobalTitle")
-                              : t("sk.copyProjectTitle")
-                          }
-                        >
-                          <Copy size={13} />{" "}
-                          {detail.entry.scope === "project" ? t("sk.copyToGlobal") : t("sk.copyToProject")}
-                        </button>
-                        <button type="button" className="btn ghost sm" onClick={startEdit}>
-                          <Pencil size={13} /> {t("sk.edit")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn danger sm"
-                          disabled={busy}
-                          onClick={() => setDeleteOpen(true)}
-                        >
-                          <Trash2 size={13} /> {t("common.delete")}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </header>
-
-                {editing ? (
-                  <div className="sk-editor">
-                    <textarea
-                      className="sk-textarea"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-                          e.preventDefault();
-                          void saveDraft();
-                        }
-                      }}
-                      aria-label={t("sk.editAria")}
-                      spellCheck={false}
-                    />
-                    <div className="sk-editor-hint">
-                      {t("sk.footer1")} <code>description</code> {t("sk.footer2")}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="sk-scroll">
-                    <article className="sk-article">
-                      <SkillPreview content={detail.content} />
-                      {detail.files.length > 0 ? (
-                        <div className="sk-files">
-                          <div className="sk-files-title">{t("sk.filesTitle", { n: detail.files.length })}</div>
-                          <ul>
-                            {detail.files.map((f) => (
-                              <li key={f}>{f}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </article>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="scroll">
-                <div className="page">
-                  <div className="empty-hint">{t("sk.pickSkill")}</div>
-                </div>
-              </div>
-            )}
-          </section>
+            <div ref={inboxRef}>
+              <ContextInbox
+                projectId={projectId}
+                since={since}
+                until={until}
+                installedDirs={installedDirs}
+                stackTags={stackTags}
+                scope={scope}
+                cleanup={cleanup}
+                trigger={trigger}
+                days={firing.days}
+                onChanged={() => {
+                  void loadAll();
+                  void runAudit();
+                }}
+                onCreateSkill={() => setSkillDialog({})}
+                onCreateRule={() => setRuleDialog({})}
+                onOpenShop={() => setExtra("shop")}
+                onOpenHooks={() => setExtra("hooks")}
+                onOpenPlugin={() => setExtra("plugin")}
+              />
+            </div>
+          </div>
         </div>
       )}
 
-      {/* PR-CI5 — 추천 스킬 갤러리 모달. 설치는 skills_save(create=true) 재사용 —
-          동명 스킬이 있으면 "설치됨" 으로 비활성 (백엔드 동명 거부가 이중 가드). */}
-      <AppDialog
-        open={galleryOpen}
-        onClose={() => setGalleryOpen(false)}
-        label={t("sk.galleryLabel")}
-        width={620}
-      >
-        <div className="sk-modal-head">
-          <Sparkles size={15} /> {t("sk.gallery")}
-        </div>
-        <div className="sk-gallery">
-          <p className="sk-gallery-intro">
-            {t("sk.galleryDesc1")}{" "}
-              <code>.claude/skills/</code> {t("sk.galleryDesc2")}
-          </p>
-          <ul className="sk-gallery-list">
-            {GALLERY_SKILLS.map((g) => {
-              const installed = installedGalleryIds.has(g.id);
-              return (
-                <li key={g.id} className="sk-gallery-item">
-                  <div className="sk-gallery-meta">
-                    <div className="sk-gallery-name">{t(g.labelKey)}</div>
-                    <div className="sk-gallery-desc">{t(g.summaryKey)}</div>
-                  </div>
-                  {installed ? (
-                    <span className="sk-chip" title={t("sk.alreadyHere")}>
-                      {t("sk.isInstalled")}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn primary sm"
-                      disabled={busy}
-                      onClick={() => void installGallerySkill(g.id)}
-                    >
-                      {t("sk.install")}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+      <CreateSkillDialog
+        projectId={projectId}
+        seed={skillDialog}
+        onClose={() => setSkillDialog(null)}
+        onCreated={() => void loadAll()}
+      />
+      <CreateRuleDialog
+        projectId={projectId}
+        seed={ruleDialog}
+        onClose={() => setRuleDialog(null)}
+        onCreated={() => void loadAll()}
+      />
 
-          {/* 제3자 카탈로그는 '샵' 탭으로 승격 — 여기는 포인터만 (이중 유지 방지). */}
-          <div className="sk-gallery-sec">
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={() => {
-                setGalleryOpen(false);
-                onOpenShop();
-              }}
-            >
-              {t("sk.catalogHint", { n: CATALOG_SKILLS.length })}
-            </button>
-          </div>
-        </div>
-        <div className="sk-modal-foot">
-          <button type="button" className="btn ghost sm" onClick={() => setGalleryOpen(false)}>
-            {t("common.close")}
-          </button>
+      {/* 샵·훅·플러그인 — 탭이 아니라 "추가하기" 에서 여는 보조 표면. */}
+      <AppDialog open={extra === "shop"} onClose={() => setExtra(null)} label={t("shop.toolbarSub")} width={860}>
+        <div className="sk-modal-head">{t("ctx.add.shopTitle")}</div>
+        <SkillShopTab projectId={projectId} embedded onInstalled={() => void loadAll()} />
+      </AppDialog>
+      <AppDialog open={extra === "hooks"} onClose={() => setExtra(null)} label={t("sk.hooksSub")} width={720}>
+        <div className="sk-modal-head">{t("sk.tab.hooks")}</div>
+        <div className="sk-hooks sk-shop-embed">
+          <ClaudeHooksBlock projectId={projectId} />
+          <p className="sk-hooks-hint">{t("sk.hooksNote")}</p>
         </div>
       </AppDialog>
-
-      {/* 새 스킬 모달 — AppDialog 셸 (포커스 트랩·복원·Esc 내장, v2 U13). */}
-      <AppDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        label={t("sk.createLabel")}
-        width={520}
-        initialFocusRef={createNameRef}
-      >
-        <div className="sk-modal-head">
-          <Puzzle size={15} /> {t("sk.new")}
-        </div>
-        <div className="sk-form">
-          <div className="sk-field">
-            <label htmlFor="sk-create-scope">{t("sk.scopeLabel")}</label>
-            <div className="sk-scope-seg" id="sk-create-scope" role="radiogroup" aria-label={t("sk.scopeAria")}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={createScope === "project"}
-                className={createScope === "project" ? "on" : ""}
-                onClick={() => setCreateScope("project")}
-              >
-                {t("sk.thisProject")}
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={createScope === "global"}
-                className={createScope === "global" ? "on" : ""}
-                onClick={() => setCreateScope("global")}
-              >
-                {t("sk.globalAll")}
-              </button>
-            </div>
-          </div>
-          <div className="sk-field">
-            <label htmlFor="sk-create-name">{t("sk.nameLabel")}</label>
-            <input
-              id="sk-create-name"
-              ref={createNameRef}
-              className="sk-input"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              placeholder={t("sk.namePlaceholder")}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <div className={"sk-field-hint" + (createName.trim() && !createValid ? " bad" : "")}>
-              {createName.trim() && !createValid
-                ? t("sk.nameInvalid")
-                : createScope === "project"
-                  ? t("sk.createsProject")
-                  : t("sk.createsGlobal")}
-            </div>
-          </div>
-          <div className="sk-field">
-            <label htmlFor="sk-create-desc">{t("sk.descLabel")}</label>
-            <input
-              id="sk-create-desc"
-              className="sk-input"
-              value={createDesc}
-              onChange={(e) => setCreateDesc(e.target.value)}
-              placeholder={t("sk.descPlaceholder")}
-              autoComplete="off"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && createValid) void submitCreate();
-              }}
-            />
-          </div>
-        </div>
-        <div className="sk-modal-foot">
-          <button type="button" className="btn ghost sm" onClick={() => setCreateOpen(false)}>
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn primary sm"
-            disabled={!createValid || busy}
-            onClick={() => void submitCreate()}
-          >
-            {t("sk.create")}
-          </button>
-        </div>
-      </AppDialog>
-
-      {/* 삭제 확인 모달. */}
-      <AppDialog
-        open={deleteOpen && detail != null}
-        onClose={() => setDeleteOpen(false)}
-        label={t("sk.deleteConfirmLabel")}
-        width={440}
-      >
-        <div className="sk-modal-head">
-          <Trash2 size={15} /> {t("sk.deleteTitle")}
-        </div>
-        <div className="sk-modal-warn">
-          <code>{detail?.entry.display_path}</code> {t("sk.deleteBody1")}
-          {detail && detail.entry.extra_files > 0
-            ? t("sk.deleteExtra", { n: detail.entry.extra_files })
-            : ""}
-          {t("sk.deleteBody2")}
-        </div>
-        <div className="sk-modal-foot">
-          <button type="button" className="btn ghost sm" onClick={() => setDeleteOpen(false)}>
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn danger sm"
-            disabled={busy}
-            onClick={() => void submitDelete()}
-          >
-            {t("common.delete")}
-          </button>
-        </div>
+      <AppDialog open={extra === "plugin"} onClose={() => setExtra(null)} label={t("plugin.toolbarSub")} width={860}>
+        <div className="sk-modal-head">{t("plugin.toolbarTitle")}</div>
+        <PluginDocsTab embedded />
       </AppDialog>
     </>
   );
 }
 
-// ─── 하위 컴포넌트 ────────────────────────────────────────────────────────────
+// ─── 생성 모달 ───────────────────────────────────────────────────────────────
 
-function ScopeSection({
-  title,
-  entries,
-  selected,
-  firing,
-  onSelect,
+/** 씨앗 본문이 있으면 템플릿 뒤에 증거로 덧붙인다 (사건 화면에서 온 요청). */
+function withSeedBody(template: string, body?: string): string {
+  return body ? `${template.replace(/\s*$/, "")}\n\n${body.trim()}\n` : template;
+}
+
+function CreateSkillDialog({
+  projectId,
+  seed,
+  onClose,
+  onCreated,
 }: {
-  title: string;
-  entries: SkillEntry[];
-  selected: SelKey;
-  firing: FiringLedger;
-  onSelect: (e: SkillEntry) => void;
+  projectId: number;
+  seed: SkillSeed | null;
+  onClose: () => void;
+  onCreated: () => void;
 }) {
+  useT();
+  const [scope, setScope] = useState<SkillScope>("project");
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    setScope("project");
+    setName(seed.name ?? "");
+    setDesc(seed.description ?? "");
+  }, [seed]);
+
+  const valid = isValidSkillName(name.trim());
+  const submit = async () => {
+    const slug = name.trim();
+    if (!valid || busy) return;
+    setBusy(true);
+    try {
+      await skillsApi.save(projectId, scope, slug, withSeedBody(skillTemplate(slug, desc), seed?.body), true);
+      toast.info(t("sk.created", { name: slug }));
+      onClose();
+      onCreated();
+    } catch (err) {
+      toast.destructive(tError(toAppError(err)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="sk-sec">
-      <div className="sk-sec-head">
-        {title} <span className="sk-sec-count">{entries.length}</span>
+    <AppDialog
+      open={seed != null}
+      onClose={onClose}
+      label={t("sk.createLabel")}
+      width={520}
+      initialFocusRef={nameRef}
+    >
+      <div className="sk-modal-head">
+        <Puzzle size={15} /> {t("sk.new")}
       </div>
-      {entries.length === 0 ? (
-        <div className="sk-none">{t("sk.none")}</div>
-      ) : (
-        entries.map((e) => {
-          const on = selected?.scope === e.scope && selected?.dirName === e.dir_name;
-          return (
-            <button
-              key={`${e.scope}:${e.dir_name}:${e.enabled}`}
-              type="button"
-              className={"sk-row" + (on ? " on" : "")}
-              aria-current={on ? "true" : undefined}
-              onClick={() => onSelect(e)}
-            >
-              <div className="sk-row-top">
-                <span className="sk-row-name">{e.name}</span>
-                {!e.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
-                {e.extra_files > 0 ? <span className="sk-chip">+{e.extra_files}</span> : null}
-                <FiringBadge
-                  stat={skillFiring(firing.index, e)}
-                  measured={firing.measured}
-                  days={firing.days}
-                />
-              </div>
-              {e.description ? <div className="sk-row-desc">{e.description}</div> : null}
-            </button>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
-/** frontmatter 는 접이식 원문으로, 본문만 마크다운 렌더. */
-function SkillPreview({ content }: { content: string }) {
-  const { meta, body } = useMemo(() => splitFrontmatter(content), [content]);
-  return (
-    <>
-      {meta ? (
-        <details className="sk-fm">
-          <summary>frontmatter</summary>
-          <pre>{meta}</pre>
-        </details>
-      ) : null}
-      <Markdown>{body}</Markdown>
-    </>
-  );
-}
-
-function SkillsEmptyState({
-  onCreate,
-  onGallery,
-}: {
-  onCreate: () => void;
-  onGallery: () => void;
-}) {
-  return (
-    <div className="scroll">
-      <div className="page">
-        <div className="sk-empty">
-          <Puzzle size={32} strokeWidth={1.5} className="sk-empty-ico" />
-          <div className="sk-empty-title">{t("sk.emptyTitle")}</div>
-          <p className="sk-empty-desc">
-            {t("sk.emptyBody1")}{" "}
-              <code>.claude/skills/&lt;name&gt;/SKILL.md</code> {t("sk.emptyBody2")}{" "}
-              <code>~/.claude/skills/</code> {t("sk.emptyBody3")}
-          </p>
-          <div className="sk-empty-actions">
-            <button type="button" className="btn ghost sm" onClick={onGallery}>
-              <Sparkles size={14} /> {t("sk.viewGallery")}
-            </button>
-            <button type="button" className="btn primary sm" onClick={onCreate}>
-              <Plus size={14} /> {t("sk.createNew")}
-            </button>
+      <div className="sk-form">
+        <ScopeField
+          id="ctx-skill-scope"
+          label={t("sk.scopeLabel")}
+          aria={t("sk.scopeAria")}
+          scope={scope}
+          onChange={(next) => setScope(next as SkillScope)}
+        />
+        <div className="sk-field">
+          <label htmlFor="ctx-skill-name">{t("sk.nameLabel")}</label>
+          <input
+            id="ctx-skill-name"
+            ref={nameRef}
+            className="sk-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("sk.namePlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <div className={"sk-field-hint" + (name.trim() && !valid ? " bad" : "")}>
+            {name.trim() && !valid
+              ? t("sk.nameInvalid")
+              : scope === "project"
+                ? t("sk.createsProject")
+                : t("sk.createsGlobal")}
           </div>
         </div>
+        <div className="sk-field">
+          <label htmlFor="ctx-skill-desc">{t("sk.descLabel")}</label>
+          <input
+            id="ctx-skill-desc"
+            className="sk-input"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder={t("sk.descPlaceholder")}
+            autoComplete="off"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && valid) void submit();
+            }}
+          />
+        </div>
+      </div>
+      <div className="sk-modal-foot">
+        <button type="button" className="btn ghost sm" onClick={onClose}>
+          {t("common.cancel")}
+        </button>
+        <button type="button" className="btn primary sm" disabled={!valid || busy} onClick={() => void submit()}>
+          {t("sk.create")}
+        </button>
+      </div>
+    </AppDialog>
+  );
+}
+
+function CreateRuleDialog({
+  projectId,
+  seed,
+  onClose,
+  onCreated,
+}: {
+  projectId: number;
+  seed: RuleSeed | null;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  useT();
+  const [scope, setScope] = useState<RuleScope>("project");
+  const [name, setName] = useState("");
+  const [paths, setPaths] = useState("");
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    setScope("project");
+    setName(seed.name ?? "");
+    setPaths((seed.paths ?? []).join(", "));
+  }, [seed]);
+
+  const valid = isValidRuleName(name.trim());
+  const submit = async () => {
+    const slug = name.trim();
+    if (!valid || busy) return;
+    const globs = paths
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    setBusy(true);
+    try {
+      await rulesApi.save(
+        projectId,
+        scope,
+        `.claude/rules/${slug}.md`,
+        withSeedBody(ruleTemplate(slug, globs), seed?.body),
+        true,
+      );
+      toast.info(t("rules.ruleCreated", { name: slug }));
+      onClose();
+      onCreated();
+    } catch (err) {
+      toast.destructive(tError(toAppError(err)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AppDialog
+      open={seed != null}
+      onClose={onClose}
+      label={t("rules.createLabel")}
+      width={520}
+      initialFocusRef={nameRef}
+    >
+      <div className="sk-modal-head">
+        <FileCode size={15} /> {t("rules.new")}
+      </div>
+      <div className="sk-form">
+        <ScopeField
+          id="ctx-rule-scope"
+          label={t("rules.scopeLabel")}
+          aria={t("rules.scopeAria")}
+          scope={scope}
+          onChange={(next) => setScope(next as RuleScope)}
+        />
+        <div className="sk-field">
+          <label htmlFor="ctx-rule-name">{t("rules.nameLabel")}</label>
+          <input
+            id="ctx-rule-name"
+            ref={nameRef}
+            className="sk-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("rules.namePlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <div className={"sk-field-hint" + (name.trim() && !valid ? " bad" : "")}>
+            {name.trim() && !valid
+              ? t("rules.nameInvalid")
+              : scope === "project"
+                ? t("rules.createsProject")
+                : t("rules.createsGlobal")}
+          </div>
+        </div>
+        <div className="sk-field">
+          <label htmlFor="ctx-rule-paths">{t("rules.pathsLabel")}</label>
+          <input
+            id="ctx-rule-paths"
+            className="sk-input"
+            value={paths}
+            onChange={(e) => setPaths(e.target.value)}
+            placeholder={t("rules.pathsPlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && valid) void submit();
+            }}
+          />
+          <div className="sk-field-hint">{t("rules.pathsHint")}</div>
+        </div>
+      </div>
+      <div className="sk-modal-foot">
+        <button type="button" className="btn ghost sm" onClick={onClose}>
+          {t("common.cancel")}
+        </button>
+        <button type="button" className="btn primary sm" disabled={!valid || busy} onClick={() => void submit()}>
+          {t("rules.create")}
+        </button>
+      </div>
+    </AppDialog>
+  );
+}
+
+/** 프로젝트/전역 라디오 — 두 생성 모달이 같은 것을 쓴다. */
+function ScopeField({
+  id,
+  label,
+  aria,
+  scope,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  aria: string;
+  scope: string;
+  onChange: (scope: "project" | "global") => void;
+}) {
+  return (
+    <div className="sk-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="sk-scope-seg" id={id} role="radiogroup" aria-label={aria}>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={scope === "project"}
+          className={scope === "project" ? "on" : ""}
+          onClick={() => onChange("project")}
+        >
+          {t("rules.thisProject")}
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={scope === "global"}
+          className={scope === "global" ? "on" : ""}
+          onClick={() => onChange("global")}
+        >
+          {t("rules.globalAll")}
+        </button>
       </div>
     </div>
   );

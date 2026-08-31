@@ -7,6 +7,7 @@ import {
   GitBranchIcon,
   CheckMark,
   Loader,
+  ShieldCheck,
 } from "@/components/Icons";
 import { commands, type DiffResult, type ChangeGroup, type ImpactReport } from "@/lib/bindings";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
@@ -18,6 +19,8 @@ import {
 } from "@/lib/recentChangesStore";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
+import { requestAgentContext } from "@/lib/agentContextNav";
+import { ruleGlobsFromPaths } from "@/lib/promoteSeed";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { PatchView } from "./PatchView";
 import { BinaryFileView } from "./BinaryFileView";
@@ -530,6 +533,24 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             </button>
           ))}
         </div>
+        <button
+          className="btn ghost"
+          onClick={() =>
+            requestAgentContext({
+              kind: "createRule",
+              seed: {
+                paths: ruleGlobsFromPaths(changes.map((c) => c.path)),
+                body: t("ctx.promote.seedFrom", {
+                  source: changes.map((c) => `\`${c.path}\``).slice(0, 8).join(", "),
+                }),
+              },
+            })
+          }
+          disabled={changes.length === 0}
+          title={t("ctx.promote.ruleTitle")}
+        >
+          <ShieldCheck size={15} /> {t("ctx.promote.diffRule")}
+        </button>
         <button
           className="btn ghost"
           onClick={onMarkAllReviewed}

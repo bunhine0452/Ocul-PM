@@ -11,6 +11,7 @@ import {
   GitCompareArrows,
   Link2,
   Search,
+  ShieldCheck,
   X,
 } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
@@ -25,6 +26,8 @@ import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot, splitPath } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
 import { useT, getLang, type I18nKey } from "@/i18n";
+import { requestAgentContext } from "@/lib/agentContextNav";
+import { firstSlug, ruleGlobsFromPaths } from "@/lib/promoteSeed";
 
 // 작업 일지 항목의 풍부한 열람 — 전용 화면(마스터-디테일). Dogfooding 2026-06-07:
 // 모달(오버레이) 대신 콘텐츠 영역을 가득 채우는 디테일 뷰로 교체. 좌 pane 은
@@ -321,6 +324,24 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     }
   }, [coercing, projectId, entry.relative_path]);
 
+  // AD-4 — 실패를 본 직후가 규칙이 태어나는 자연 시점이다. 여기서 누르면
+  // 스킬·규칙 화면의 "새 규칙" 이 **이 일지에서 뽑은 씨앗**으로 열린다:
+  // 바뀐 파일의 디렉터리가 `paths`, 일지 제목·경로가 본문의 근거. 파일은
+  // 그 모달에서 사용자가 만들기를 눌러야 쓰인다.
+  const promotable = entry.type === "bug" || entry.type === "error";
+  const promoteToRule = useCallback(() => {
+    requestAgentContext({
+      kind: "createRule",
+      seed: {
+        name: firstSlug(entry.slug, entry.title),
+        paths: ruleGlobsFromPaths(rows.map((r) => r.path)),
+        body: t("ctx.promote.seedFrom", {
+          source: `${entry.title || entry.slug} (\`${entry.relative_path}\`)`,
+        }),
+      },
+    });
+  }, [entry.slug, entry.title, entry.relative_path, rows, t]);
+
   return (
     <>
       <Toolbar
@@ -368,6 +389,16 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           </span>
         }
       >
+        {promotable ? (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={promoteToRule}
+            title={t("ctx.promote.ruleTitle")}
+          >
+            <ShieldCheck size={13} /> {t("ctx.promote.rule")}
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn sm"

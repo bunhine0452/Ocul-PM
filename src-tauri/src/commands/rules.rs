@@ -13,6 +13,7 @@ use tauri::State;
 
 use crate::db::Db;
 use crate::oculpm::manager::OculpmManager;
+use crate::oculpm::rule_scope::{self, RuleScopeFinding};
 use crate::oculpm::rules::{
     self, MirrorWriteResult, RuleDetail, RuleKind, RuleSaveOutcome, RuleScope, RulesOverview,
 };
@@ -111,6 +112,65 @@ pub async fn rules_delete(
     let sroot = scope_root(scope, &root)?;
     rules::delete(scope, &sroot, &rel_path)?;
     Ok((scope == RuleScope::Project).then(|| rules::remove_mirror(&root, &rel_path)))
+}
+
+/// AD-6 — 규칙 범위 감사. 조건부 규칙의 각 glob 을 이 프로젝트의 실제 파일에
+/// 맞춰 보고 매칭 0개인 것을 지목한다. **결정적**(LLM 0)이고 아무것도 쓰지
+/// 않는다 — 처방은 `rules_save_with_backup` 승인 경로 전담.
+#[tauri::command]
+#[specta::specta]
+pub async fn rules_scope_audit(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<RuleScopeFinding>, String> {
+    let root = project_root(&db, project_id).await?;
+    let home = rules::home_dir().map_err(|e| e.to_string())?;
+    // 파일 걷기가 있어 blocking 이다 — UI 스레드를 막지 않게 풀로 보낸다.
+    tauri::async_runtime::spawn_blocking(move || rule_scope::audit(&root, &home))
+        .await
+        .map_err(|e| format!("The scope audit did not finish: {e}"))
+}
+
+/// AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).
+///
+/// 규칙 다이어트가 고치는 것은 대개 사용자 소유의 전역 규칙이다. 되돌릴 길을
+/// 앱 밖(디스크)에 남기는 것이 승인의 조건이다. 본문 서식 보존은 호출측이
+/// `setRulePaths` 로 **행 단위 치환**한 내용을 넘기는 것으로 지킨다.
+#[tauri::command]
+#[specta::specta]
+pub async fn rules_save_with_backup(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    scope: RuleScope,
+    rel_path: String,
+    content: String,
+) -> Result<RuleBackupOutcome, String> {
+    let root = project_root(&db, project_id).await?;
+    let sroot = scope_root(scope, &root)?;
+    let (entry, backup_path) = rules::save_with_backup(scope, &sroot, &root, &rel_path, &content)?;
+    let mirror = if scope == RuleScope::Project
+        && entry.kind == RuleKind::Rule
+        && cursor_translate_on(&manager, project_id).await
+    {
+        Some(rules::write_mirror(&root, &rel_path, &content))
+    } else {
+        None
+    };
+    Ok(RuleBackupOutcome {
+        entry,
+        mirror,
+        backup_path,
+    })
+}
+
+/// `rules_save_with_backup` 응답 — 저장 결과 + 되돌릴 백업 경로.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct RuleBackupOutcome {
+    pub entry: rules::RuleEntry,
+    pub mirror: Option<MirrorWriteResult>,
+    /// 원본을 남긴 절대 경로 — 토스트가 그대로 보여 준다.
+    pub backup_path: String,
 }
 
 /// config 기준으로 미러 전체를 화해시킨다 (토글 직후 + 수동 재동기화).

@@ -1,117 +1,7 @@
-/* 스킬·규칙 허브 — 좌측 스코프별 목록 + 우측 미리보기/편집 2-pane. ui_v2 토큰만 사용. */
-
-/* ── 허브 세그먼트 탭 (Toolbar 내부 — graph .gr-seg 규격) ───── */
-.sk-tabs {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg-inset);
-  border: 1px solid var(--sep);
-  border-radius: 8px;
-}
-.sk-tabs button {
-  padding: 3px 10px;
-  border: none;
-  background: none;
-  border-radius: 6px;
-  font-family: var(--font);
-  font-size: var(--fs-4);
-  font-weight: 600;
-  color: var(--text-2);
-  cursor: pointer;
-}
-.sk-tabs button.on {
-  background: var(--bg-card);
-  color: var(--accent-text);
-  box-shadow: var(--shadow-card);
-}
-
-.sk-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: stretch;
-}
-
-/* ── 좌측 목록 ─────────────────────────────────────────────── */
-.sk-list {
-  flex: none;
-  width: 300px;
-  min-width: 300px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border-right: 1px solid var(--sep);
-  /* 콘텐츠 시트와 표면을 공유한다 — 캔버스 색이면 앱 사이드바 옆에 기둥이
-     하나 더 서서 '사이드바 속 사이드바' 로 읽힌다 (2026-07-30). */
-  background: transparent;
-  padding: 10px 8px 40px;
-}
-
-.sk-sec {
-  margin-bottom: 14px;
-}
-.sk-sec-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 8px;
-  font-size: var(--fs-3);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-.sk-sec-count {
-  font-weight: 600;
-  color: var(--text-3);
-}
-
-.sk-row {
-  display: block;
-  width: 100%;
-  padding: 7px 8px;
-  border-radius: var(--radius-s);
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.sk-row:hover {
-  background: var(--bg-hover);
-}
-.sk-row.on {
-  background: var(--accent-soft);
-}
-.sk-row-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.sk-row-name {
-  font-size: var(--fs-7);
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sk-row.on .sk-row-name {
-  color: var(--accent-text);
-}
-.sk-row-desc {
-  margin-top: 2px;
-  font-size: var(--fs-5);
-  color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sk-none {
-  padding: 4px 8px 8px;
-  font-size: var(--fs-5);
-  color: var(--text-3);
-}
+/* 에이전트 컨텍스트 화면 (AD-3) — 3존 홈 + 통합 상세 편집기. ui_v2 토큰만 사용.
+   5탭 허브 시절의 2-pane 목록(.sk-list/.sk-row/.sk-sec)·세그먼트 탭(.sk-tabs)·
+   빈 상태(.sk-empty*)는 3존 화면이 흡수하면서 함께 사라졌다 — 아래는 편집기·
+   모달·칩처럼 **여전히 쓰이는 프리미티브**와 3존 레이아웃(.ctx-*)뿐이다. */
 
 /* 상태 칩 — 비활성/스코프/보조파일 배지. */
 .sk-chip {
@@ -144,13 +34,6 @@
 }
 
 /* ── 우측 상세 ─────────────────────────────────────────────── */
-.sk-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 .sk-head {
   flex: none;
   display: flex;
@@ -304,38 +187,6 @@
 }
 
 /* 빈 상태 (스킬 0개 / 미선택). */
-.sk-empty {
-  max-width: 480px;
-  margin: 60px auto 0;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 0 20px;
-}
-.sk-empty-ico {
-  color: var(--text-3);
-}
-.sk-empty-title {
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--text);
-}
-.sk-empty-desc {
-  font-size: var(--fs-7);
-  line-height: 1.65;
-  color: var(--text-3);
-  margin: 0;
-}
-.sk-empty-desc code {
-  font-size: var(--fs-5);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--bg-inset);
-  color: var(--text-2);
-}
-
 /* 생성/삭제 모달 내부 폼. */
 .sk-form {
   display: flex;
@@ -426,17 +277,6 @@
 /* ── 규칙 탭 ───────────────────────────────────────────────── */
 
 /* CLAUDE.md 미존재 슬롯의 "만들기" 고스트 행. */
-.sk-row.ghost .sk-row-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-3);
-  font-weight: 500;
-}
-.sk-row.ghost:hover .sk-row-name {
-  color: var(--text-2);
-}
-
 /* Cursor 병행 배포 옵인 행 (프로젝트 규칙 섹션 아래). */
 .sk-translate {
   margin: 0 8px 14px;
@@ -575,11 +415,6 @@
   color: var(--text-3);
 }
 
-.sk-empty-actions {
-  display: flex;
-  gap: 8px;
-}
-
 /* ── 훅 탭 ─────────────────────────────────────────────────── */
 .sk-hooks {
   max-width: 720px;
@@ -681,4 +516,507 @@
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--sep);
+}
+
+/* ─── AD-3 에이전트 컨텍스트 화면 (3존) ───────────────────────────────────
+   존 1 예산 바 · 존 2 걸려 있는 것 · 존 3 제안 인박스.
+   기존 sk-* 프리미티브(칩·모달·폼)를 그대로 쓰고, 3존 고유 레이아웃만 여기.  */
+
+.ctx-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1040px;
+}
+
+/* ── 존 1 — 컨텍스트 예산 바 ─────────────────────────────── */
+.ctx-budget {
+  padding: 12px 14px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-card);
+}
+.ctx-budget-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+.ctx-budget-title {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ctx-budget-total {
+  font-size: var(--fs-7);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ctx-budget-note {
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+
+.ctx-budget-bar {
+  position: relative;
+  display: flex;
+  height: 10px;
+  margin: 9px 0 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+.ctx-seg {
+  height: 100%;
+}
+/* 색이 곧 판정이다 — 확정 비용(파랑) · 조건부(노랑) · **무관**(빨강) · 스킬(강조). */
+.ctx-seg.always {
+  background: var(--info);
+}
+.ctx-seg.conditional {
+  background: var(--warn);
+}
+.ctx-seg.irrelevant {
+  background: var(--danger);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.ctx-seg.irrelevant:hover {
+  filter: brightness(1.15);
+}
+.ctx-seg.skills {
+  background: var(--accent);
+}
+/* 목표 눈금 — 막대 위에 얹는 1px 선. 넘치면 바깥으로 나가지 않게 clip 된다. */
+.ctx-budget-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.45;
+}
+
+.ctx-budget-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ctx-budget-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+.ctx-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+.ctx-dot.always {
+  background: var(--info);
+}
+.ctx-dot.conditional {
+  background: var(--warn);
+}
+.ctx-dot.irrelevant {
+  background: var(--danger);
+}
+.ctx-dot.skills {
+  background: var(--accent);
+}
+.ctx-legend-val {
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 존 공통 헤더 ────────────────────────────────────────── */
+.ctx-zone-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--text-3);
+}
+.ctx-zone-head h3 {
+  margin: 0;
+  font-size: var(--fs-6);
+  font-weight: 700;
+  color: var(--text);
+}
+.ctx-zone-sub {
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+
+/* ── 존 2 — 걸려 있는 것 ─────────────────────────────────── */
+.ctx-filters {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--sep);
+  border-radius: 8px;
+}
+.ctx-filters button {
+  padding: 3px 9px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.ctx-filters button.on {
+  background: var(--bg-card);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-card);
+}
+.ctx-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--bg-inset);
+  border: 1px solid var(--sep);
+  border-radius: 8px;
+  color: var(--text-3);
+}
+.ctx-search input {
+  width: 168px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+
+.ctx-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.ctx-rows li + li .ctx-row {
+  border-top: 1px solid var(--sep);
+}
+.ctx-row {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.ctx-row:hover {
+  background: var(--bg-hover);
+}
+.ctx-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ctx-row-name {
+  font-size: var(--fs-6);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctx-row-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctx-row.ghost {
+  border: 1px dashed var(--sep);
+  border-radius: var(--radius-m);
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-4);
+}
+
+/* 종류 배지 — 목록이 한 벌이 되면서 "이게 무엇인가" 를 색으로 가른다. */
+.ctx-kind {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: var(--fs-2);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.ctx-kind.skill {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.ctx-kind.rule {
+  color: var(--info-text);
+  background: var(--info-soft);
+}
+.ctx-kind.memory {
+  color: var(--warn-text);
+  background: var(--warn-soft);
+}
+
+.ctx-empty {
+  padding: 22px 12px;
+  text-align: center;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  border: 1px dashed var(--sep);
+  border-radius: var(--radius-m);
+}
+
+.ctx-dormant {
+  margin-top: 10px;
+}
+.ctx-dormant-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: var(--fs-4);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.ctx-dormant .ctx-rows {
+  margin-top: 6px;
+  opacity: 0.82;
+}
+
+/* ── 존 3 — 제안 인박스 + 추가하기 ───────────────────────── */
+.ctx-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ctx-add {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+}
+.ctx-add-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: var(--fs-5);
+  font-weight: 700;
+  color: var(--text);
+}
+.ctx-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.ctx-add-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-s);
+}
+.ctx-add-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.ctx-add-name {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--text);
+}
+.ctx-add-tags {
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+}
+.ctx-add-desc {
+  flex-basis: 100%;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+}
+.ctx-add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── 통합 상세 편집기 (드릴다운) ─────────────────────────── */
+.sk-detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 모달 안에 얹는 샵·플러그인·훅 — 자기 Toolbar 없이 높이만 제한한다. */
+.sk-shop-embed {
+  max-height: 68vh;
+  overflow-y: auto;
+  padding: 4px 4px 12px;
+}
+
+/* ── 자기정리 제안 카드 (AD-5/AD-6) ──────────────────────── */
+.ctx-card {
+  padding: 11px 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+}
+.ctx-card + .ctx-card {
+  margin-top: 8px;
+}
+.ctx-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--text-2);
+}
+.ctx-card-head h4 {
+  margin: 0;
+  font-size: var(--fs-5);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ctx-prop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ctx-prop-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-s);
+}
+.ctx-prop-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.ctx-prop-name {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--text);
+}
+.ctx-prop-cost {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+.ctx-prop-why {
+  flex-basis: 100%;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+}
+.ctx-prop-globs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex-basis: 100%;
+}
+.ctx-prop-globs code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-2);
+}
+.ctx-prop-globs code.next {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.ctx-prop-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.ctx-prop-note {
+  max-width: 190px;
+  font-size: var(--fs-2);
+  color: var(--text-3);
+}
+
+/* 재작성 초안 — 지금/제안을 위아래로 붙여 차이가 한눈에 보이게. */
+.ctx-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+.ctx-draft-row {
+  padding: 9px 11px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+}
+.ctx-draft-row.next {
+  background: var(--accent-soft);
+}
+.ctx-draft-row p {
+  margin: 3px 0 0;
+  font-size: var(--fs-5);
+  color: var(--text);
+}
+.ctx-draft-label {
+  font-size: var(--fs-2);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ctx-draft-why {
+  margin: 0;
+  font-size: var(--fs-4);
+  color: var(--text-3);
 }

@@ -400,6 +400,9 @@ use crate::commands::{
     rules_list,
     rules_read,
     rules_save,
+    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
+    rules_save_with_backup,
+    rules_scope_audit,
     rules_sync_translations,
     // G4 — Greenfield (W6)
     save_blueprint,
@@ -431,6 +434,8 @@ use crate::commands::{
     skills_read,
     skills_save,
     skills_set_enabled,
+    // AD-5 — 트리거 교정 (안 걸리는 스킬의 description 재작성 초안)
+    skills_trigger_rewrite,
     start_pty_session,
     tab_drag_end,
     tab_drag_over,
@@ -704,12 +709,17 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             rules_save,
             rules_delete,
             rules_sync_translations,
+            // AD-6 — 규칙 다이어트
+            rules_scope_audit,
+            rules_save_with_backup,
             // PR-CI4 — 실패→규칙 승격
             rule_candidates,
             rule_draft_generate,
             // 반복 절차→스킬 승격 (CI4 미러)
             skill_candidates,
             skill_draft_generate,
+            // AD-5 — 트리거 교정
+            skills_trigger_rewrite,
             // AD-1 — 발동 원장
             firing_rescan,
             firing_stats,

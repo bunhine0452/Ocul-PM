@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::skill_trigger::{self, SkillTriggerDraft};
 
 /// 프로젝트/홈 루트 기준 스킬 폴더 위치. Claude Code 규약 고정.
 const SKILLS_SUBDIR: &str = ".claude/skills";
@@ -113,6 +114,74 @@ pub async fn skills_read(
         content,
         files: list_extra_files(&dir, MAX_LISTED_FILES),
         skill_md_path: skill_md.display().to_string(),
+    })
+}
+
+/// AD-5 — 트리거 교정. **30일 동안 한 번도 안 걸린 스킬**의 영문
+/// `description` 을 다시 쓰자고 제안한다 (docs/agent-discipline/00-master-plan.md
+/// D2 존 3). 과금 호출 — 사용자가 버튼으로만 트리거한다.
+///
+/// 파일은 쓰지 않는다: 초안의 `content` 를 들고 프런트가 기존 `skills_save`
+/// (create=false) 를 명시적으로 불러야만 디스크가 바뀐다 (승격 커맨드와 같은
+/// 구조적 보장).
+#[tauri::command]
+#[specta::specta]
+pub async fn skills_trigger_rewrite(
+    db: State<'_, Db>,
+    project_id: u32,
+    scope: SkillScope,
+    dir_name: String,
+    provider: String,
+    model: String,
+) -> Result<SkillTriggerDraft, String> {
+    let root = scope_dir(&db, project_id, scope).await?;
+    let (dir, _enabled) = locate_skill(&root, &dir_name)?;
+    let content = std::fs::read_to_string(dir.join(SKILL_FILENAME))
+        .map_err(|e| format!("Could not read SKILL.md: {e}"))?;
+    let (_name, description) = parse_frontmatter(&content);
+    let current = description.unwrap_or_default();
+    // 본문 발췌는 사용자 파일이라 그대로 나갈 수 있다 — 일지 증거와 같은
+    // 규율로 비밀만 걷어 낸다.
+    let project_root = project_root(&db, project_id).await?;
+    let patterns = crate::oculpm::redact::patterns_for_project(&project_root);
+    let (body, _hits) = crate::oculpm::redact::redact_text(&content, &patterns);
+
+    let api_key = {
+        let secret_name = format!("{provider}_api_key");
+        crate::secrets::get(&secret_name)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("No API key configured for {provider}"))?
+    };
+    let client = crate::llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+    let response = client
+        .chat(
+            vec![
+                crate::llm::Message {
+                    role: crate::llm::Role::System,
+                    content: skill_trigger::TRIGGER_SYSTEM_PROMPT.to_string(),
+                },
+                crate::llm::Message {
+                    role: crate::llm::Role::User,
+                    content: skill_trigger::build_prompt(&dir_name, &current, &body),
+                },
+            ],
+            crate::llm::ChatOptions {
+                model,
+                temperature: Some(0.3),
+                max_tokens: Some(400),
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let (proposed, rationale) = skill_trigger::parse_response(&response.content)?;
+    let rewritten = skill_trigger::replace_description(&content, &proposed)?;
+    Ok(SkillTriggerDraft {
+        dir_name,
+        current,
+        proposed,
+        rationale,
+        content: rewritten,
     })
 }
 

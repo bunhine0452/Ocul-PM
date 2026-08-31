@@ -38,7 +38,14 @@ function CopyChip({ text, label }: { text: string; label?: string }) {
   );
 }
 
-export function PluginDocsTab({ tabs }: { tabs: React.ReactNode }) {
+export function PluginDocsTab({
+  tabs,
+  embedded = false,
+}: {
+  tabs?: React.ReactNode;
+  /** AD-3 — 3존 화면의 모달 안에서 렌더 (자기 Toolbar 없이). */
+  embedded?: boolean;
+}) {
   const { t } = useT();
   const [status, setStatus] = useState<ClaudePluginStatus | null>(null);
   useEffect(() => {
@@ -51,10 +58,12 @@ export function PluginDocsTab({ tabs }: { tabs: React.ReactNode }) {
 
   return (
     <>
-      <Toolbar title={t("plugin.toolbarTitle")} sub={t("plugin.toolbarSub")}>
-        {tabs}
-      </Toolbar>
-      <div className="scroll">
+      {embedded ? null : (
+        <Toolbar title={t("plugin.toolbarTitle")} sub={t("plugin.toolbarSub")}>
+          {tabs}
+        </Toolbar>
+      )}
+      <div className={embedded ? "sk-shop-embed" : "scroll"}>
         <div className="page fade-in flex max-w-3xl flex-col gap-5">
           {/* 설치 상태 + 설치 명령 */}
           <section className="rounded-lg border border-border/60 bg-card p-5">

@@ -3,7 +3,12 @@ import { cleanup, render, fireEvent, waitFor, within } from "@testing-library/re
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
-// ─── PR-CI3 — 스킬·규칙 허브: 탭 전환 + 규칙 탭 데이터 흐름/변이 계약 ────────
+// ─── AD-3 — 에이전트 컨텍스트 화면(3존)의 **규칙 쪽** 데이터 흐름/변이 계약 ──
+//
+// 예전엔 5탭 허브의 "규칙" 탭이었다. 탭이 사라지고 스킬·규칙·CLAUDE.md 가 한
+// 목록이 되면서, 이 스위트가 지키는 것도 "탭이 열리는가" 가 아니라 **규칙이
+// 통합 목록에 제대로 서고, 드릴다운 편집기가 옛 계약(paths 칩·시드 생성·
+// Cursor 미러·삭제)을 그대로 지키는가** 가 됐다.
 //
 // 백엔드(rules_* 커맨드·config)는 Proxy mock 으로 대체하고, 변이 커맨드 호출
 // 인자를 수집해 "UI 조작 → 올바른 커맨드 계약" 을 검증한다 (skills_v2 패턴).
@@ -202,7 +207,7 @@ vi.mock("@/lib/bindings", () => {
 });
 
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
-import { RulesTab } from "@/features/skills/RulesTab";
+import { _resetAgentContextIntent, requestAgentContext } from "@/lib/agentContextNav";
 import {
   isValidRuleName,
   parseRulePaths,
@@ -211,6 +216,7 @@ import {
 } from "@/features/skills/rulesModel";
 
 beforeEach(() => {
+  _resetAgentContextIntent();
   resetFixtures();
 });
 
@@ -218,57 +224,33 @@ afterEach(() => {
   cleanup();
 });
 
-describe("SkillsScreenV2 허브", () => {
-  it("기본은 스킬 탭이고, 규칙/훅 탭으로 전환된다 + axe 위반 없음", async () => {
-    const { container, getByRole, getByText, findByText, findAllByText } = render(
+describe("에이전트 컨텍스트 화면 — 규칙", () => {
+  it("통합 목록에 CLAUDE.md·규칙이 종류 배지와 함께 서고, 미존재 슬롯은 만들기 유령 행 + axe", async () => {
+    const { container, getByText, getAllByText, findAllByText } = render(
       <SkillsScreenV2 projectId={1} />,
     );
 
-    // 기본 = 스킬 탭 (기존 화면 회귀 없음 — 빈 상태 문구).
-    await findByText("아직 스킬이 없습니다");
-    expect(getByRole("tab", { name: "스킬", selected: true })).toBeTruthy();
-
-    // 규칙 탭 전환 → 규칙 목록.
-    fireEvent.click(getByRole("tab", { name: "규칙" }));
-    await findByText("api-validation");
-    expect(getByText("CLAUDE 메모리")).toBeTruthy();
-
-    // 훅 탭 전환 → CI0 블록 (설정과 동일 컴포넌트). "Claude Code 훅 연동" 은
-    // 툴바 sub 와 블록 라벨 두 곳에 있다.
-    fireEvent.click(getByRole("tab", { name: "훅" }));
-    expect((await findAllByText("Claude Code 훅 연동")).length).toBeGreaterThan(0);
-    await findByText("연동됨");
-
-    const results = await axe(container, AXE_OPTIONS);
-    expect(summarize(results)).toEqual([]);
-  });
-});
-
-describe("RulesTab", () => {
-  const noTabs = <div />;
-
-  it("고정 슬롯·프로젝트/전역 규칙을 그리고 첫 항목을 자동 선택한다 + axe", async () => {
-    const { container, getByText, getAllByText, findAllByText } = render(
-      <RulesTab projectId={1} tabs={noTabs} />,
-    );
-
-    await findAllByText("CLAUDE.md");
-    // 존재 슬롯은 행으로, 미존재 슬롯은 "만들기" 고스트로.
+    await findAllByText("api-validation");
+    // 종류 배지가 탭을 대신한다 — 한 목록에서 메모리와 규칙이 구분된다.
+    expect(getAllByText("메모리").length).toBeGreaterThan(0);
+    expect(getAllByText("규칙").length).toBeGreaterThan(0);
+    expect(getByText("CLAUDE.md")).toBeTruthy();
+    // 아직 없는 슬롯은 "걸려 있는 것" 이 아니라 만들 자리 — 유령 행으로 남는다.
     expect(getAllByText(/CLAUDE\.local\.md 만들기/).length).toBe(1);
     expect(getAllByText(/~\/\.claude\/CLAUDE\.md 만들기/).length).toBe(1);
-    // 규칙 배지: paths 개수 / 항상 / Cursor 미러.
+    // 배지: paths 개수 · 매 세션(항상 로드) · Cursor 미러.
     expect(getByText("paths 1")).toBeTruthy();
-    expect(getAllByText("항상").length).toBeGreaterThan(0);
+    expect(getAllByText("매 세션").length).toBeGreaterThan(0);
     expect(getAllByText("Cursor").length).toBeGreaterThan(0);
-    // 첫 존재 항목(CLAUDE.md)이 자동 선택돼 상세 헤더에 "항상 로드" 칩.
-    await waitFor(() => expect(getByText("항상 로드")).toBeTruthy());
+    // 존 1 — 예산 바가 항상-로드 바이트를 말한다.
+    expect(getByText("세션당 컨텍스트")).toBeTruthy();
 
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
   });
 
   it("생성 모달 — kebab 검증 + paths 쉼표 입력 → rulesSave(create=true)", async () => {
-    const { getByRole, getByLabelText } = render(<RulesTab projectId={1} tabs={noTabs} />);
+    const { getByRole, getByLabelText } = render(<SkillsScreenV2 projectId={1} />);
     fireEvent.click(await waitFor(() => getByRole("button", { name: /새 규칙/ })));
 
     const dialog = getByRole("dialog", { name: "새 규칙 만들기" });
@@ -298,8 +280,8 @@ describe("RulesTab", () => {
     expect(content).toContain("# pr-check");
   });
 
-  it("미존재 CLAUDE.md 슬롯 클릭 → 시드 본문으로 rulesSave(create=true)", async () => {
-    const { getByText } = render(<RulesTab projectId={1} tabs={noTabs} />);
+  it("미존재 CLAUDE.md 유령 행 클릭 → 시드 본문으로 rulesSave(create=true)", async () => {
+    const { getByText } = render(<SkillsScreenV2 projectId={1} />);
     const ghost = await waitFor(() => getByText(/CLAUDE\.local\.md 만들기/));
     fireEvent.click(ghost);
 
@@ -315,12 +297,9 @@ describe("RulesTab", () => {
     expect(content).toContain("커밋하지 마세요");
   });
 
-  it("편집 — paths 칩 추가가 draft frontmatter 를 치환하고 저장 계약을 지킨다", async () => {
-    const { getByRole, getByLabelText, getAllByText } = render(
-      <RulesTab projectId={1} tabs={noTabs} />,
-    );
-    // 프로젝트 규칙 선택 → 편집.
-    fireEvent.click(await waitFor(() => getAllByText("api-validation")[0]));
+  it("행 → 드릴다운 편집 — paths 칩 추가가 draft frontmatter 를 치환하고 저장 계약을 지킨다", async () => {
+    const { getByRole, getByLabelText, findAllByText } = render(<SkillsScreenV2 projectId={1} />);
+    fireEvent.click((await findAllByText("api-validation"))[0]);
     fireEvent.click(await waitFor(() => getByRole("button", { name: /편집/ })));
 
     const addInput = getByLabelText("paths glob 추가");
@@ -345,7 +324,7 @@ describe("RulesTab", () => {
   });
 
   it("Cursor 병행 배포 토글 → config 저장(rules_translate) + sync 호출", async () => {
-    const { getByLabelText } = render(<RulesTab projectId={1} tabs={noTabs} />);
+    const { getByLabelText } = render(<SkillsScreenV2 projectId={1} />);
     const toggle = await waitFor(() => getByLabelText(/Cursor 로 병행 배포/));
     fireEvent.click(toggle);
 
@@ -355,16 +334,32 @@ describe("RulesTab", () => {
     await waitFor(() => expect(fx.calls.sync).toHaveLength(1));
   });
 
+  it("AD-4 — 일지·diff 에서 온 요청이 씨앗 채워진 생성 모달로 회수된다", async () => {
+    // 사건 화면(일지 상세·diff)이 계산해 보낸 씨앗. 빈 폼이 뜨면 아무도 안
+    // 채우므로, 슬러그와 paths 가 미리 들어와 있어야 한다.
+    requestAgentContext({
+      kind: "createRule",
+      seed: { name: "api-validation-fix", paths: ["src/api/**", "src/ui/**"] },
+    });
+    const { getByRole, getByLabelText } = render(<SkillsScreenV2 projectId={1} />);
+    await waitFor(() => getByRole("dialog", { name: "새 규칙 만들기" }));
+    expect((getByLabelText("이름 (파일명)") as HTMLInputElement).value).toBe("api-validation-fix");
+    expect((getByLabelText(/paths/) as HTMLInputElement).value).toBe("src/api/**, src/ui/**");
+  });
+
   it("규칙 삭제는 확인 모달을 거쳐 rulesDelete 를 호출한다 (CLAUDE.md 는 삭제 버튼 없음)", async () => {
-    const { getByRole, getAllByText, queryByRole } = render(
-      <RulesTab projectId={1} tabs={noTabs} />,
+    const { getByRole, getByText, findAllByText, queryByRole } = render(
+      <SkillsScreenV2 projectId={1} />,
     );
-    // 자동 선택된 CLAUDE.md 에는 삭제 버튼이 없어야 한다.
+
+    // CLAUDE.md 상세에는 삭제 버튼이 없다 — 파괴적 조작은 구조적으로 비제공.
+    fireEvent.click(await waitFor(() => getByText("CLAUDE.md")));
     await waitFor(() => getByRole("button", { name: /편집/ }));
     expect(queryByRole("button", { name: /삭제/ })).toBeNull();
 
-    // 규칙 선택 → 삭제 버튼 등장 → 모달 확인.
-    fireEvent.click(getAllByText("api-validation")[0]);
+    // 목록으로 돌아가 규칙을 고르면 삭제가 있다.
+    fireEvent.click(getByRole("button", { name: "목록으로" }));
+    fireEvent.click((await findAllByText("api-validation"))[0]);
     fireEvent.click(await waitFor(() => getByRole("button", { name: /삭제/ })));
     const dialog = getByRole("dialog", { name: "규칙 삭제 확인" });
     fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));

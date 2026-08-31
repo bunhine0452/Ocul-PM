@@ -560,6 +560,8 @@ export {
   Download,
   // 스킬 관리 화면 — 사이드바 슬롯 + 빈 상태.
   Puzzle,
+  // 자동화 탭 — 카드의 ⋯ 컨텍스트 메뉴.
+  MoreHorizontal,
   // AI 패널 개편 — 중지 / 맨아래 스크롤 / 새 대화.
   Square,
   ArrowDown,
@@ -613,4 +615,9 @@ export {
   // 에이전트가 사람을 부를 때 (터미널 관제탑) — 벨은 "기다린다"의 확실한 근거다.
   BellRing,
   NotebookPen,
+  // AD-3 에이전트 컨텍스트 화면 — 예산 바(파이) · 제안 인박스.
+  PieChart,
+  Inbox,
+  // AD-6 규칙 다이어트 — 범위 좁히기.
+  Scissors,
 } from "lucide-react";

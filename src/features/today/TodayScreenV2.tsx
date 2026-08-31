@@ -33,6 +33,7 @@ import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
 import { JournalMissingCard } from "./JournalMissingCard";
 import { PlanUpdates } from "./PlanUpdates";
+import { TodaySuggestions } from "./TodaySuggestions";
 import { DiscussionPending } from "./DiscussionPending";
 import { TodayMonitor } from "./TodayMonitor";
 import { TodayGitGraph } from "./TodayGitGraph";
@@ -366,6 +367,9 @@ export function TodayScreenV2({
           <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
 
           <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
+
+          {/* AD-4 — 규칙·스킬 승격 후보가 있을 때만 (회고에 갇혀 있던 루프의 문) */}
+          <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
 
           {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
           <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} />

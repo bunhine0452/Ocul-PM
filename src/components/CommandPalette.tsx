@@ -13,6 +13,8 @@ import {
   BookText,
   Code2,
   Keyboard,
+  FileCode,
+  Puzzle,
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
@@ -28,6 +30,7 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
 import { requestCheatsheet } from "@/lib/projectActions";
+import { requestAgentContext } from "@/lib/agentContextNav";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
@@ -245,6 +248,18 @@ export function CommandPalette({
             { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
               group: "actions" as const, icon: Sparkles, shortcut: "⌘\\",
               onSelect: () => { ws.setUiV2View("ai"); onOpenChange(false); } },
+          ]
+        : []),
+      // AD-4 — 규칙·스킬은 "만들 이유가 생긴 자리" 에서 태어난다. 팔레트는
+      // 그 자리가 어디든 닿는 마지막 문이다.
+      ...(currentProjectId !== null
+        ? [
+            { id: "new-rule", label: t("palette.newRule"), alias: aliasOf("palette.newRule"),
+              group: "actions" as const, icon: FileCode,
+              onSelect: () => { onOpenChange(false); requestAgentContext({ kind: "createRule" }); } },
+            { id: "new-skill", label: t("palette.newSkill"), alias: aliasOf("palette.newSkill"),
+              group: "actions" as const, icon: Puzzle,
+              onSelect: () => { onOpenChange(false); requestAgentContext({ kind: "createSkill" }); } },
           ]
         : []),
       { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
