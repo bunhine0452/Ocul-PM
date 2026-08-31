@@ -238,6 +238,7 @@ async fn run_due(
         output: def.output,
         instructions: def.instructions.clone(),
         context: None,
+        entry_ref: None,
         workday: workday.to_string(),
         now: now.with_timezone(&tz).fixed_offset(),
         note,
@@ -252,8 +253,8 @@ async fn run_due(
     );
 }
 
-/// 잡 하나를 러너에 넘긴다. 「지금 실행」 커맨드도 같은 문을 쓴다 — 예산·동시성·
-/// 락 규약이 두 경로에서 갈라지지 않게.
+/// 잡 하나를 러너에 넘긴다. 「지금 실행」·정착 트리거도 **같은 문**을 쓴다 —
+/// 예산·동시성·락 규약이 경로마다 갈라지지 않게.
 pub async fn run_job(
     app: &AppHandle,
     config: &OculpmConfig,
@@ -264,16 +265,61 @@ pub async fn run_job(
     let db = app.state::<Db>();
     let manager = app.state::<OculpmManager>();
     let runner = app.state::<AutomationRunner>();
-    let ctx = JobContext {
-        db: &db,
-        manager: &manager,
+    let root = match project_root(&db, job.project_id).await {
+        Ok(r) => r,
+        Err(e) => return JobOutcome::Failed(e),
+    };
+    let ctx = job_context(&db, &manager, root, config, workday, tz);
+    runner.run(&ctx, job).await
+}
+
+/// 러너 **앞에서** 걸러진 발동을 원장에 남긴다 (정착 트리거의 중복·최소 간격
+/// 가드). 사유의 모양이 경로마다 갈라지면 History 를 읽을 수 없으므로 스킵도
+/// 같은 문을 지난다.
+pub async fn record_skip(
+    app: &AppHandle,
+    config: &OculpmConfig,
+    workday: &str,
+    tz: Tz,
+    job: Job,
+    reason: &str,
+) {
+    let db = app.state::<Db>();
+    let manager = app.state::<OculpmManager>();
+    let runner = app.state::<AutomationRunner>();
+    let root = project_root(&db, job.project_id).await.unwrap_or_default();
+    let ctx = job_context(&db, &manager, root, config, workday, tz);
+    runner.record_skip(&ctx, &job, reason).await;
+}
+
+async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
+    Ok(std::path::PathBuf::from(
+        db.get_project(project_id)
+            .await
+            .map_err(|e| e.to_string())?
+            .root_path,
+    ))
+}
+
+fn job_context<'a>(
+    db: &'a Db,
+    manager: &'a OculpmManager,
+    root: std::path::PathBuf,
+    config: &OculpmConfig,
+    workday: &str,
+    tz: Tz,
+) -> JobContext<'a> {
+    JobContext {
+        db,
+        manager,
+        root,
+        tz,
         redact: crate::oculpm::redact::compile_redact_patterns(&config.git.auto_redact_patterns),
         daily_run_budget: config.automation.daily_run_budget,
         budget_since: workday_start(tz, workday, &config.workday.day_starts_at)
             .map(|d| d.to_rfc3339())
             .unwrap_or_default(),
-    };
-    runner.run(&ctx, job).await
+    }
 }
 
 /// 일일 예산 창의 시작 — 그 워크데이가 시작한 순간(UTC).

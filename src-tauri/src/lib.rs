@@ -928,6 +928,10 @@ pub fn run() {
             // 자동화 잡 러너 — 프로세스 하나에 1개. 동시 1건은 프로젝트별이
             // 아니라 전역이다 (배경 과금의 총량을 사람이 예측할 수 있게).
             app.manage(crate::oculpm::automation::runner::AutomationRunner::default());
+            // 워처 자동화 허브 — 정착 타이머와 두 초안 경로의 중복 키가 여기 산다
+            // (Phase 2). 워처는 매 fs 이벤트마다 이 상태를 두드리므로 러너와
+            // 마찬가지로 프로세스에 하나다.
+            app.manage(crate::oculpm::automation::watchers::WatcherAutomationHub::new());
             app.manage(crate::mobile_bridge::server::MobileBridgeState::default());
 
             // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
@@ -955,6 +959,9 @@ pub fn run() {
             // 스케줄 집행 루프 — 감독관과 같은 자리에 상주시킨다. 프로젝트별
             // `[automation] schedules` 가 꺼져 있으면 정의를 읽지도 않는다.
             crate::oculpm::automation::scheduler::spawn(app.handle());
+            // 정착 드라이버 — 시계가 아니라 **마감 시각**을 보고 잔다. 창이
+            // 없으면 5초마다 깨어 정의를 다시 읽는다.
+            crate::oculpm::automation::watchers::spawn(app.handle());
 
             // 앱 메뉴 — `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는다.
             // 기본 언어(ko)로 먼저 세우고, 프런트가 마운트하면서 해석된 UI

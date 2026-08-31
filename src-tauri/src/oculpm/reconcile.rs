@@ -141,6 +141,14 @@ pub async fn reconcile_entry(
     if is_git_backfill_session(&entry.frontmatter.session_id) {
         return Ok(ReconcileOutcome::Skipped("git-backfill entry"));
     }
+    // R1 — 자동화가 쓴 일지를 원인으로 다시 화해하지 않는다. 화해는 플랜만
+    // 건드리므로 그 자체로 고리를 만들지는 않지만, 배경 발동이 배경 발동을
+    // 부르면 예산이 자기 꼬리를 무는 방식으로 탄다 (Phase 2 #loop-guard).
+    if crate::oculpm::session_id::SessionId::new(entry.frontmatter.session_id.clone())
+        .is_automation_source()
+    {
+        return Ok(ReconcileOutcome::Skipped("automation-authored entry"));
+    }
 
     // ── 1. Core Model 해석 (Osaurus 라운드 D2) ──
     // 대화용 `default_*` 를 읽지 않는다 — 배경 작업은 전용 슬롯을 쓴다. 이미
@@ -400,6 +408,17 @@ mod tests {
         use crate::oculpm::spec::{EntryStatus, EntryType};
         assert_eq!(enum_str(&EntryType::Feature), "feature");
         assert_eq!(enum_str(&EntryStatus::Done), "done");
+    }
+
+    /// 자동화가 쓴 일지는 화해를 다시 깨우지 않는다 (R1).
+    #[test]
+    fn automation_authored_sessions_are_detected() {
+        use crate::oculpm::session_id::SessionId;
+        assert!(SessionId::new("sched-20260831-170000").is_automation_source());
+        assert!(SessionId::new("auto-20260831-170000").is_automation_source());
+        assert!(!SessionId::new("20260831-001").is_automation_source());
+        assert!(!SessionId::new("manual-20260831-170000").is_automation_source());
+        assert!(!SessionId::new("mcp-20260831-170000").is_automation_source());
     }
 
     #[test]

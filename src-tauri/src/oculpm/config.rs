@@ -60,6 +60,8 @@ impl OculpmConfig {
                 ignore: default_watcher_ignore(),
                 respect_gitignore: true,
                 debounce_ms: 500,
+                // 기본은 숫자 그대로 — 티어를 고른 사람만 이름을 적는다.
+                responsiveness: None,
             },
             agents: AgentsConfig {
                 // `agents-md` is the universal surface — always on by default

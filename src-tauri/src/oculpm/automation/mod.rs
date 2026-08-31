@@ -11,7 +11,11 @@
 //! | [`runner`] | 모든 자동화를 집행하는 잡 러너 — 동시 1건·취소·redact·강등하되 소실 없음 |
 //! | [`frequency`] | 8빈도 → "다음 실행 시각" 순수 계산 (월말·윤년·DST 정의) |
 //! | [`scheduler`] | 상주 집행 루프 — `next_run_at` 이 지나면 러너에 잡을 넣는다 |
-//! | [`seeds`] | 씨앗 스케줄 3종 (비활성 예시 — 빈 화면 대신) |
+//! | [`seeds`] | 씨앗 자동화 5종 (비활성 예시 — 빈 화면 대신) |
+//! | [`tiers`] | 반응성 티어 6단 — 디바운스를 이름 있는 정책으로 (Phase 2) |
+//! | [`settle`] | settle-then-act 타이머 + 증폭 루프 가드 (Phase 2, 순수) |
+//! | [`draft_claim`] | 두 초안 경로가 나눠 갖는 중복 키 (Phase 2) |
+//! | [`watchers`] | 워처 자동화 런타임 — 정착·일지 삽입 두 채널을 러너로 (Phase 2) |
 //!
 //! # 왜 토대를 먼저 놓는가
 //!
@@ -22,16 +26,23 @@
 //! 원장)을 하나로 모으고, Phase 1(Schedules)·Phase 2(Watchers)가 그 위에 새
 //! 발동원을 얹는다.
 //!
-//! # 아직 연결되지 않은 것
+//! # 두 축이 다 붙었다
 //!
-//! 잡을 큐에 넣는 쪽은 지금 [`scheduler`](시계) 하나뿐이다. 현실에 반응하는
-//! 축 — 정착 타이머와 워처 자동화 — 은 Phase 2(`#settle-timer`·
-//! `#watcher-automation`)의 자리이고, 플랜 산출물도 그때 러너에 붙는다
-//! (`#reconcile-absorb`). 그 전까지 워처 정의는 저장·편집만 되고 발동하지 않는다.
+//! 잡을 넣는 쪽은 셋이다: [`scheduler`](시계) · [`watchers`] 의 정착 타이머
+//! (파일이 멎었다) · [`watchers`] 의 일지 삽입 채널(새 일지가 들어왔다 →
+//! 플랜 화해). 세 경로 모두 [`runner`] 한 문을 지나므로 예산·동시 1건·취소·
+//! 원장 규약이 갈라지지 않는다.
+//!
+//! 플랜 편집 로직 자체는 `oculpm::reconcile` 이 그대로 소유한다 — 러너는
+//! 집행 규약만 얹고 그 모듈을 부른다 (CAS·`plan_write_lock` 을 두 벌 들지 않게).
 
 pub mod core_model;
+pub mod draft_claim;
 pub mod frequency;
 pub mod runner;
 pub mod scheduler;
 pub mod seeds;
+pub mod settle;
 pub mod store;
+pub mod tiers;
+pub mod watchers;

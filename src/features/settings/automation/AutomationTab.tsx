@@ -32,10 +32,11 @@ import { AutomationHistory } from "./AutomationHistory";
 import {
   blankDefinition,
   cardState,
-  describeSchedule,
+  describeAutomation,
   formatAt,
   sortSummaries,
 } from "./automationModel";
+import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
 
 /**
  * `[automation]` 이 없는 옛 `config.toml` 은 이 값으로 파싱된다 (백엔드
@@ -207,6 +208,13 @@ export function AutomationTab() {
           onChange={(v) => void setSwitch("schedules", v)}
           label={t("automation.switches.schedules")}
         />
+        {/* Phase 2 — 워처 축. 스케줄과 **별개 스위치**다: 시계는 예측 가능하지만
+            감시는 사용자의 작업량에 비례해 돌기 때문에 따로 끌 수 있어야 한다. */}
+        <Toggle
+          checked={config?.automation?.watchers ?? false}
+          onChange={(v) => void setSwitch("watchers", v)}
+          label={t("automation.switches.watchers")}
+        />
         <p className="text-[11px] text-muted-foreground">
           {t("automation.switches.budget", {
             n: String(config?.automation?.daily_run_budget ?? AUTOMATION_DEFAULT.daily_run_budget),
@@ -215,7 +223,15 @@ export function AutomationTab() {
       </Section>
 
       <Section title={t("automation.list.title")} description={t("automation.list.desc")}>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button
+            className="btn ghost sm"
+            onClick={() =>
+              setPane({ kind: "edit", def: blankDefinition(today, "watcher"), isNew: true })
+            }
+          >
+            {t("automation.list.newWatcher")}
+          </button>
           <button
             className="btn sm"
             onClick={() => setPane({ kind: "edit", def: blankDefinition(today), isNew: true })}
@@ -251,7 +267,7 @@ export function AutomationTab() {
                 </div>
 
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {describeSchedule(s.def)}
+                  {describeAutomation(s.def)}
                   {next ? ` · ${t("automation.card.next", { at: next })}` : ""}
                 </p>
                 {last && (
@@ -346,6 +362,11 @@ export function AutomationTab() {
           />
         </Section>
       )}
+
+      {/* 문제 해결 3종 — 에디터·진단과 **같은 컴포넌트**라 말이 갈라지지 않는다. */}
+      <Section title={t("automation.trouble.title")}>
+        <AutomationTroubleshooting compact />
+      </Section>
 
       {pane.kind === "history" && (
         <Section title={t("automation.history.title", { name: pane.automationId })}>

@@ -52,14 +52,14 @@ v2.30.0=P5 · v2.31.0=P6 · v2.32.0=P7. Phase 경계마다 5면을 채워 릴리
 - [x] 씨앗 3종 제안 — 주간 개발 요약(금 17:00)·아침 브리핑(매일 09:00)·월간 회고(1일 09:00), 비활성 상태로 {#seed-schedules}
 
 ## Phase 2 — Watchers · 반응성 티어 {#watchers}
-- [ ] 반응성 티어 6단(fast 200ms·balanced 1s·patient 3s·relaxed 60s·deferred 5m·extended 10m) — `debounce_ms` 는 커스텀 하위호환 유지 {#responsiveness-tiers}
-- [ ] settle-then-act 타이머 — relaxed 이상은 OS 워처가 아니라 러너 쪽 정착 타이머로(긴 디바운스의 이벤트 적체·유실 회피) {#settle-timer}
-- [ ] 워처 자동화 정의 → 러너 위임 — 정착 시 잡 enqueue, 정의는 `.oculpm/automation/watchers/` {#watcher-automation}
-- [ ] 정착 트리거 일지 초안 — 훅 AgentExit 외 두 번째 경로. 에이전트 우선·강등 보존·결정적 composer·redact 전부 유지 {#settle-journal-draft}
-- [ ] 두 초안 경로 중복 방지 — 정착 트리거는 창 안에 **어떤 일지든**(자필·`auto:*`) 있으면 스킵. 두 경로가 같은 중복 키 `(project_id, 구간)` 공유, 진 쪽은 사유 기록 {#draft-dedupe}
-- [ ] `auto_reconcile` 을 워처 자동화로 흡수 — 별도 트리거 경로 은퇴, 러너 하나로 수렴 {#reconcile-absorb}
-- [ ] 증폭 루프 가드 — journal/planner/automation/index 를 **트리거 원인에서 제외**(UI emit 판정과 분리) + 최소 간격(티어×2) + 일일 예산 {#loop-guard}
-- [ ] 멱등 가이드 + 트러블슈팅 문구 3종(안 돈다·너무 자주 돈다·결과가 이상하다)을 에디터·진단에서 같은 말로 {#idempotent-guidance}
+- [x] 반응성 티어 6단(fast 200ms·balanced 1s·patient 3s·relaxed 60s·deferred 5m·extended 10m) — `debounce_ms` 는 커스텀 하위호환 유지 {#responsiveness-tiers}
+- [x] settle-then-act 타이머 — relaxed 이상은 OS 워처가 아니라 러너 쪽 정착 타이머로(긴 디바운스의 이벤트 적체·유실 회피) {#settle-timer}
+- [x] 워처 자동화 정의 → 러너 위임 — 정착 시 잡 enqueue, 정의는 `.oculpm/automation/watchers/` {#watcher-automation}
+- [x] 정착 트리거 일지 초안 — 훅 AgentExit 외 두 번째 경로. 에이전트 우선·강등 보존·결정적 composer·redact 전부 유지 {#settle-journal-draft}
+- [x] 두 초안 경로 중복 방지 — 정착 트리거는 창 안에 **어떤 일지든**(자필·`auto:*`) 있으면 스킵. 두 경로가 같은 중복 키 `(project_id, 구간)` 공유, 진 쪽은 사유 기록 {#draft-dedupe}
+- [x] `auto_reconcile` 을 워처 자동화로 흡수 — 별도 트리거 경로 은퇴, 러너 하나로 수렴 {#reconcile-absorb}
+- [x] 증폭 루프 가드 — journal/planner/automation/index 를 **트리거 원인에서 제외**(UI emit 판정과 분리) + 최소 간격(티어×2) + 일일 예산 {#loop-guard}
+- [x] 멱등 가이드 + 트러블슈팅 문구 3종(안 돈다·너무 자주 돈다·결과가 이상하다)을 에디터·진단에서 같은 말로 {#idempotent-guidance}
 
 ## Phase 3 — 출처와 상태를 보이게 {#provenance}
 - [ ] 소스 파생 순수 함수 `sourceOf(sessionId, agentId)` — 직접·에이전트·자동 초안·스케줄·감시·MCP·백필·들여옴 8종 {#source-derive}
@@ -229,4 +229,12 @@ Phase 3 의 소스 배지가 자동화를 구분하지 못한다. (기존 메모
 | 2026-08-31T19:27:00+09:00 | #schedule-editor | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/1927_feature_schedule-automation-phase1.md | 2-pane 에디터 + 상시 도움말 2줄(그대로 갑니다 · 멱등하게 쓰세요) |
 | 2026-08-31T19:27:00+09:00 | #seed-schedules | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/1927_feature_schedule-automation-phase1.md | 주간 요약·아침 브리핑·월간 회고 3종, 꺼진 채로 생성. 지시문은 content_language |
 | 2026-08-31T20:07:00+09:00 | #foundation #schedules | claude-code | ☑→☑ | .oculpm/journal/20260831/Chores/2007_chore_release-v2-26-0.md | v2.26.0 릴리스 — 5면(버전 5파일·CHANGELOG·README ko/en·landing 6곳+featureList/FAQ/벤토) 전부 채우고 태그 푸시·랜딩 배포. agent-discipline 라운드와 한 버전으로 |
+| 2026-08-31T20:47:00+09:00 | #responsiveness-tiers | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 6단 티어 + `debounce_ms` 하위호환. OS 디바운서 창은 balanced 로 자른다 |
+| 2026-08-31T20:47:00+09:00 | #settle-timer | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 마지막 이벤트 + 티어 지연. 드라이버는 마감 시각까지 잔다(폴링 아님) |
+| 2026-08-31T20:47:00+09:00 | #watcher-automation | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 정착 → scheduler::run_job 같은 문. 정의는 30초 TTL + 변경 시 즉시 갱신 |
+| 2026-08-31T20:47:00+09:00 | #settle-journal-draft | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 훅 AgentExit 외 두 번째 경로 — 비-Claude-Code 작업이 사라지지 않는다 |
+| 2026-08-31T20:47:00+09:00 | #draft-dedupe | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | (project_id, 구간) 청구 등록소. 진 쪽은 이긴 경로를 지목한 사유로 스킵 |
+| 2026-08-31T20:47:00+09:00 | #reconcile-absorb | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 화해가 러너를 통과. 편집 로직(CAS·plan_write_lock)은 reconcile.rs 그대로 |
+| 2026-08-31T20:47:00+09:00 | #loop-guard | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 원인 제외 4경로(UI emit 과 분리) + 최소 간격 ×2 + 일일 예산. 재발동 0건 테스트 |
+| 2026-08-31T20:47:00+09:00 | #idempotent-guidance | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 문제 해결 3종을 에디터·진단이 같은 컴포넌트로 렌더 |
 <!-- oculpm:plan-log end -->

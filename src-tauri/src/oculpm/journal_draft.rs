@@ -4,8 +4,14 @@
 //! Claude Code 세션 종료(AgentExit)를 감지하면 그 세션의 transcript 를 설정된
 //! LLM 으로 요약해 **규격 일지 한 건**을 자동 작성한다. 원칙:
 //!
-//! - **에이전트 우선.** 세션 창 안에 에이전트가 직접 쓴 일지가 하나라도 있으면
-//!   아무것도 만들지 않는다 (AGENTS.md 준수 에이전트와 공존 — 중복 방지).
+//! - **에이전트 우선.** 세션 창 안에 일지가 하나라도 있으면 아무것도 만들지
+//!   않는다 (AGENTS.md 준수 에이전트와 공존 — 중복 방지). 판정은 mtime 이라
+//!   자필이든 `auto:*` 초안이든 똑같이 본다.
+//! - **중복 키 (Phase 2 §2.3).** 정착 트리거라는 **두 번째 초안 경로**가 생겼다.
+//!   순차로 도착하면 위 판정이 나중 쪽을 비키게 하지만, 동시에 통과하면 둘 다
+//!   쓴다. 그래서 두 경로가 `(project_id, 구간 시작~끝)` 을 나눠 갖는다 —
+//!   먼저 잡은 쪽만 쓰고 진 쪽은 사유를 들고 물러난다
+//!   (`automation::draft_claim`).
 //! - **강등, 그러나 소실 없음.** transcript 파싱/LLM 이 실패해도 세션이 있었다는
 //!   사실은 메타-전용 chore 엔트리로 남긴다 (요약만 강등, 기록은 보존).
 //!   자격증명이 아예 없으면 조용히 스킵한다 (기능이 성립 불가).
@@ -413,15 +419,59 @@ pub async fn draft_for_session(
         return Ok(DraftOutcome::Skipped("agent wrote its own entry"));
     }
 
+    // 1.5 중복 키 (Phase 2 §2.3) — 같은 작업 구간을 정착 트리거가 먼저 잡았으면
+    //     비킨다. 못 잡았으면 여기서 잡아 두어 **그쪽이** 비키게 한다.
+    let window_start = chrono::DateTime::<chrono::Utc>::from(since);
+    let window_end = chrono::Utc::now();
+    let claimed = match app.try_state::<crate::oculpm::automation::watchers::WatcherAutomationHub>()
+    {
+        Some(hub) => match hub.claims.try_claim(
+            project_id,
+            window_start,
+            window_end,
+            crate::oculpm::automation::draft_claim::DraftPath::HookAgentExit,
+            window_end,
+        ) {
+            crate::oculpm::automation::draft_claim::ClaimVerdict::Claimed => true,
+            crate::oculpm::automation::draft_claim::ClaimVerdict::Taken(by) => {
+                tracing::info!(
+                    target: "oculpm::journal_draft",
+                    project_id,
+                    winner = by.as_str(),
+                    "[FLOW] draft window already claimed — hook path yields"
+                );
+                return Ok(DraftOutcome::Skipped("draft window already claimed"));
+            }
+        },
+        // 허브가 없다 (헤드리스·단위 테스트) — 두 번째 경로도 없으므로 그대로 간다.
+        None => false,
+    };
+    // 청구를 되돌리는 가드 — 못 쓰고 물러날 때 그 구간을 영영 막지 않게.
+    macro_rules! release_claim {
+        () => {
+            if claimed {
+                if let Some(hub) =
+                    app.try_state::<crate::oculpm::automation::watchers::WatcherAutomationHub>()
+                {
+                    hub.claims.release(project_id, window_start, window_end);
+                }
+            }
+        };
+    }
+
     // 2. Core Model (Osaurus 라운드 D2) — 배경 작업 전용 슬롯. 미설정이면 기능
     //    성립 불가 → 조용히 스킵 (reconcile 동형). 대화용 `default_*` 는 읽지
     //    않는다; 이미 켜 둔 사용자는 프로젝트를 열 때 1회 시드된다.
     let db = app.state::<Db>();
     let target = match crate::oculpm::automation::core_model::resolve(&db).await? {
         Some(t) => t,
-        None => return Ok(DraftOutcome::Skipped("no core model configured")),
+        None => {
+            release_claim!();
+            return Ok(DraftOutcome::Skipped("no core model configured"));
+        }
     };
     if !target.has_any_key() {
+        release_claim!();
         return Ok(DraftOutcome::Skipped("no api key for the core model chain"));
     }
 
@@ -576,12 +626,21 @@ pub async fn draft_for_session(
         Err(crate::oculpm::error::OculpmError::ForbiddenJournalPath { .. }) => {
             let mut retry = draft;
             retry.files_touched = Vec::new();
-            manager
+            match manager
                 .create_manual_journal_entry(&db, project_id, retry)
                 .await
-                .map_err(|e| e.to_string())?
+            {
+                Ok(e) => e,
+                Err(e) => {
+                    release_claim!();
+                    return Err(e.to_string());
+                }
+            }
         }
-        Err(e) => return Err(e.to_string()),
+        Err(e) => {
+            release_claim!();
+            return Err(e.to_string());
+        }
     };
 
     Ok(DraftOutcome::Wrote {

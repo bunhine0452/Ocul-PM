@@ -3859,7 +3859,14 @@ export type OculpmDataArea = "planner" | "discussion" |
  *  `.oculpm/retro/**` — 회고 화면이 다시 읽는다 (Phase 4). 예전엔 코드 변경
  *  파이프라인으로 새어 들어갔다.
  */
-"retro";
+"retro" | 
+/**
+ *  `.oculpm/automation/**` — 자동화 탭이 다시 읽는다 (Osaurus Phase 2).
+ *  정의는 사람이 손으로 고치고 git 에 올릴 수 있는 파일이라 UI 가 그
+ *  변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다
+ *  (`automation::settle::is_excluded_cause` — 증폭 루프 가드 R1).
+ */
+"automation";
 
 export type OculpmDataChanged = {
 	project_id: number,
@@ -4709,6 +4716,14 @@ export type WatcherConfig = {
 	ignore: string[],
 	respect_gitignore: boolean,
 	debounce_ms: number,
+	/**
+	 *  Phase 2 `#responsiveness-tiers` — 디바운스를 **이름 있는 정책**으로
+	 *  (`fast|balanced|patient|relaxed|deferred|extended`). 값이 있으면
+	 *  `debounce_ms` 대신 쓰이고, 없으면 숫자가 그대로 산다 (커스텀 하위호환).
+	 *  OS 디바운서에 실제로 걸리는 창은 언제나 `balanced` 로 잘린다 —
+	 *  `automation::tiers::os_debounce_ms`.
+	 */
+	responsiveness?: string | null,
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";

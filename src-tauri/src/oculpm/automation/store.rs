@@ -42,6 +42,14 @@ pub const SCHEMA_VERSION: &str = "v1";
 /// (실수로 로그를 붙여넣은 파일을 통째로 모델에 보내는 사고 방지).
 pub const MAX_DEFINITION_BYTES: u64 = 64 * 1024;
 
+/// 플랜 화해의 정본 id. 씨앗 정의도, 레거시 `agents.auto_reconcile` 플래그가
+/// 만드는 내장 규칙도 이 id 를 쓴다 — 사용자가 씨앗을 만들면 그동안 쌓인
+/// 실행 이력이 **끊기지 않고** 이어진다.
+pub const BUILTIN_PLAN_RECONCILE_ID: &str = "plan-reconcile";
+
+/// 정의 파일이 없어도 원장 행을 남길 수 있는 내장 자동화 id — 고아 정리 면제.
+pub const BUILTIN_IDS: [&str; 1] = [BUILTIN_PLAN_RECONCILE_ID];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 어휘
 // ─────────────────────────────────────────────────────────────────────────────
@@ -511,6 +519,17 @@ pub fn list_automation_ids(project_root: &Path) -> Result<Vec<String>, OculpmErr
     Ok(ids)
 }
 
+/// 고아 정리([`crate::db::Db::automation_prune_orphans`])에 넘길 id 목록 —
+/// 디스크의 정의 + [`BUILTIN_IDS`]. 내장 자동화는 정의 파일 없이도 돌 수 있으므로
+/// (레거시 `auto_reconcile`) 그 실행 이력을 고아로 오해해 지우면 안 된다.
+pub fn known_ids_for_prune(project_root: &Path) -> Result<Vec<String>, OculpmError> {
+    let mut ids = list_automation_ids(project_root)?;
+    ids.extend(BUILTIN_IDS.iter().map(|s| s.to_string()));
+    ids.sort();
+    ids.dedup();
+    Ok(ids)
+}
+
 pub fn read_automation(
     project_root: &Path,
     kind: AutomationKind,
@@ -740,6 +759,38 @@ mod tests {
             .unwrap()
             .expect("복구");
         assert_eq!(back.def, def);
+    }
+
+    /// 내장 자동화(레거시 플랜 화해)는 정의 파일이 없어도 이력이 살아남는다.
+    #[test]
+    fn builtin_ids_survive_orphan_pruning() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        assert_eq!(
+            known_ids_for_prune(root).unwrap(),
+            vec![BUILTIN_PLAN_RECONCILE_ID.to_string()]
+        );
+
+        write_automation(root, &sample()).unwrap();
+        let ids = known_ids_for_prune(root).unwrap();
+        assert!(ids.contains(&"weekly-dev-summary".to_string()));
+        assert!(ids.contains(&BUILTIN_PLAN_RECONCILE_ID.to_string()));
+        // 씨앗을 만들어도 중복되지 않는다 (이력이 한 줄기로 이어진다).
+        let mut seed = AutomationDef::new(
+            BUILTIN_PLAN_RECONCILE_ID,
+            AutomationKind::Watcher,
+            "플랜 화해",
+            "2026-08-31",
+        );
+        seed.instructions = "대조".into();
+        write_automation(root, &seed).unwrap();
+        let ids = known_ids_for_prune(root).unwrap();
+        assert_eq!(
+            ids.iter()
+                .filter(|i| i.as_str() == BUILTIN_PLAN_RECONCILE_ID)
+                .count(),
+            1
+        );
     }
 
     #[test]

@@ -3,6 +3,9 @@
 //! Wraps `notify-debouncer-full` and routes each batch through:
 //!   1. self-suppress (our own `.oculpm/index/`, `.lock`, log, `*.tmp`),
 //!   2. `.oculpm/agents/**` / `.oculpm/journal/**` → tauri event emit only,
+//!      (**emit 판정과 자동화 트리거 판정은 다르다** — 일지·플랜·정의·색인은
+//!      화면 갱신을 위해 계속 emit 되지만 자동화의 **원인에서는 제외**된다:
+//!      `automation::settle::is_excluded_cause`, 증폭 루프 가드 R1),
 //!   3. `watcher.ignore` glob + project `.gitignore`,
 //!   4. classify into `FileOp` + blake3 hash (≤ 8 MB),
 //!   5. `git.forbid_journal_for_paths` masking,
@@ -126,8 +129,6 @@ impl ProjectWatcher {
             forbidden,
             redact_patterns,
             tz,
-            auto_reconcile: config.agents.auto_reconcile,
-            reconcile_lock: Arc::new(tokio::sync::Mutex::new(())),
             hook_inbox_offset: Arc::new(tokio::sync::Mutex::new(None)),
             hook_open_sessions: Arc::new(tokio::sync::Mutex::new(BTreeSet::new())),
             auto_journal_draft: config.agents.auto_journal_draft,
@@ -143,7 +144,10 @@ impl ProjectWatcher {
 
         // Bridge std/sync notify worker → tokio task.
         let (event_tx, mut event_rx) = mpsc::unbounded_channel::<DebounceEventResult>();
-        let debounce_ms = config.watcher.debounce_ms;
+        // Phase 2 — 티어가 있으면 티어가, 없으면 기존 숫자가 창을 정한다. 어느
+        // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
+        // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
+        let debounce_ms = crate::oculpm::automation::tiers::os_debounce_ms(&config.watcher);
         let mut debouncer = new_debouncer(
             Duration::from_millis(u64::from(debounce_ms)),
             None,
@@ -304,15 +308,6 @@ struct WatcherInner {
     /// redacting [`JournalCache`] so read-time `created_at` offset backfill
     /// (F7a-B) interprets tz-less agent timestamps as project-local.
     tz: Tz,
-    /// F1 — opt-in: when on, a newly-inserted journal entry triggers a
-    /// background LLM reconciliation of every active plan. Mirrors
-    /// `config.agents.auto_reconcile`.
-    auto_reconcile: bool,
-    /// Bounds F1 to ONE in-flight reconcile per project (try-lock at spawn;
-    /// overlapping inserts are dropped). Distinct from the shared
-    /// `plan_write_lock` (N4), which serialises the actual plan-file writes
-    /// against the in-app writers.
-    reconcile_lock: Arc<tokio::sync::Mutex<()>>,
     /// PR-CI0 — Claude Code 훅 인박스의 소비 오프셋. `None` = 아직 DB 에서
     /// 로드 전 (lazy). 값은 소비할 때마다 DB(`claude_hooks_inbox`)에 영속 —
     /// 앱 재시작 후 큐잉된 이벤트를 정확히 이어서 소비한다. 테스트처럼
@@ -418,6 +413,13 @@ impl WatcherInner {
                 ?op,
                 "[FLOW] oculpm data fs event (projection on read + live refresh)"
             );
+            // 정의가 바뀌었으면 워처 자동화 규칙을 다시 읽게 한다 (파일이 SSOT).
+            // 이 경로 자체는 자동화의 **원인이 아니다** — 규칙만 갱신한다.
+            if area == OculpmDataArea::Automation {
+                if let Some(handle) = &self.app_handle {
+                    crate::oculpm::automation::watchers::invalidate_rules(handle, self.project_id);
+                }
+            }
             self.emit_data_changed(area, &rel_str, op);
             return;
         }
@@ -511,6 +513,22 @@ impl WatcherInner {
                 change.op,
                 change.hash_after.clone(),
             );
+        }
+
+        // 7.6 Phase 2 — 워처 자동화의 정착 타이머에 이벤트를 흘린다. 실제
+        // 상대 경로를 쓴다(8단계 마스킹 **전**). forbidden 경로는 원인이 되지
+        // 않는다: 우리가 내용을 보지 않기로 한 파일이 배경 LLM 호출을 부르면
+        // 안 된다. 원인 제외(일지·플랜·정의·색인)는 위 2~3.5 단계에서 이미
+        // 돌아갔고, 트래커도 한 번 더 막는다.
+        if let Some(handle) = &self.app_handle {
+            if !self.is_forbidden(&path) {
+                crate::oculpm::automation::watchers::note_event(
+                    handle,
+                    self.project_id,
+                    &change.path,
+                    Utc::now(),
+                );
+            }
         }
 
         // 8. Forbidden-path masking.
@@ -1083,13 +1101,11 @@ impl WatcherInner {
                 // first insert; best-effort, never blocks the cache path.
                 if inserted {
                     self.capture_entry_diffs(&cache, entry_rel).await;
-                    // F1 — opt-in: reconcile the active plan against this brand-new
-                    // entry via a background LLM call. Spawned (never awaited) so a
-                    // slow network call can't stall the watcher event loop; loop-safe
-                    // because it writes only to planner/*.md (not a journal path).
-                    if self.auto_reconcile {
-                        self.spawn_reconcile(entry_rel);
-                    }
+                    // F1 → Phase 2 `#reconcile-absorb`: 새 일지 1건이 플랜 화해를
+                    // 깨운다. 이제 **잡 러너를 통과**하므로 예산·동시 1건·취소·
+                    // 원장이 스케줄과 같은 규약을 쓴다. 켜졌는지 여부는 허브가
+                    // 그때의 config 로 판정한다 — 워처 시작 시점의 스냅샷이 아니라.
+                    self.spawn_plan_reconcile(entry_rel);
                 }
             }
             Err(e) => {
@@ -1228,97 +1244,41 @@ impl WatcherInner {
         }
     }
 
-    /// F1 — spawn a background reconciliation of every active plan against a
-    /// freshly-inserted journal entry. Fire-and-forget: a slow LLM call must
-    /// not block the watcher loop. `reconcile_lock` bounds it to ONE in-flight
-    /// reconcile per project; the shared `plan_write_lock` (N4) serialises each
-    /// plan write against the in-app plan writers. No-op without an app handle
-    /// (unit tests have no Db/keychain).
-    fn spawn_reconcile(&self, entry_rel: &str) {
+    /// Phase 2 `#reconcile-absorb` — 새 일지 1건을 플랜 화해 잡으로 넘긴다.
+    ///
+    /// 예전에는 여기서 `reconcile_entry` 를 직접 spawn 하고, 옵인 플래그와
+    /// 단일 인플라이트 가드를 **워처가** 들고 있었다. 이제 둘 다 허브·러너의
+    /// 것이다 (`automation::watchers::on_journal_inserted`):
+    ///
+    /// - 발동 여부: 켜진 `output: plan` 워처 정의 **또는** 레거시
+    ///   `agents.auto_reconcile` — 워처 시작 시점이 아니라 **그때의 config**.
+    /// - 동시 1건 · 예산 · 취소 · 원장: 러너 규약 하나.
+    /// - 플랜 편집(CAS · `plan_write_lock`): `reconcile.rs` 그대로.
+    ///
+    /// fire-and-forget 인 것은 그대로다 — 느린 LLM 왕복이 워처 루프를 막으면
+    /// 안 된다. 앱 핸들이 없으면(단위 테스트) no-op.
+    fn spawn_plan_reconcile(&self, entry_rel: &str) {
         let Some(handle) = self.app_handle.clone() else {
             return;
         };
-        // Bound to ONE in-flight reconcile per project: if one is already
-        // running, drop this entry rather than queue an unbounded backlog of
-        // billable LLM calls during a write burst. Best-effort — the user's
-        // manual "AI 갱신" reconciles against recent entries to cover any gaps.
-        let Ok(guard) = self.reconcile_lock.clone().try_lock_owned() else {
-            tracing::debug!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %entry_rel,
-                "[FLOW] auto-reconcile skipped (another reconcile in flight)"
-            );
-            return;
-        };
         let project_id = self.project_id;
-        let root = self.root.clone();
         let entry_rel = entry_rel.to_string();
-        let redact = self.redact_patterns.clone();
-        let tz = self.tz;
-        tokio::spawn(async move {
-            use tauri::Manager;
-            // Hold the guard for the whole reconcile so a concurrent insert
-            // skips (above) instead of racing this plan write.
-            let _guard = guard;
-            let db = handle.state::<Db>();
-            // N4 — the shared per-project plan-write lock, so reconcile's write
-            // serializes against in-app plan writers (not just other reconciles).
-            let plan_lock = handle
-                .state::<OculpmManager>()
-                .plan_write_lock(project_id)
-                .await;
-            match crate::oculpm::reconcile::reconcile_entry(
-                &db, project_id, &root, &entry_rel, redact, tz, plan_lock,
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::oculpm::automation::watchers::on_journal_inserted(
+                &handle,
+                project_id,
+                &entry_rel,
+                Utc::now(),
             )
             .await
             {
-                Ok(outcome) => {
-                    // Surface each plan that actually changed to the UI (one
-                    // toast per changed plan; no-op/skipped plans stay silent).
-                    if let crate::oculpm::reconcile::ReconcileOutcome::Ran(results) = &outcome {
-                        use tauri_specta::Event;
-                        for r in results {
-                            // A failed plan (LLM error, write error) used to be
-                            // indistinguishable from "nothing to apply". One
-                            // integrity toast per failed plan — the log has
-                            // the full error.
-                            if let Some(err) = &r.error {
-                                let _ = crate::oculpm::spec::OculpmIntegrityWarning {
-                                    project_id,
-                                    warning: crate::oculpm::spec::IntegrityWarning {
-                                        kind: "reconcile".to_string(),
-                                        path: entry_rel.clone(),
-                                        message: format!("자동 화해 실패 ({}): {}", r.plan_id, err),
-                                    },
-                                }
-                                .emit(&handle);
-                            }
-                            if r.applied > 0 {
-                                let _ = crate::oculpm::spec::OculpmPlanReconciled {
-                                    project_id,
-                                    plan_id: r.plan_id.clone(),
-                                    applied: r.applied as u32,
-                                }
-                                .emit(&handle);
-                            }
-                        }
-                    }
-                    tracing::info!(
-                        target: "oculpm::watcher",
-                        project_id,
-                        path = %entry_rel,
-                        ?outcome,
-                        "[FLOW] auto-reconcile finished"
-                    );
-                }
-                Err(e) => tracing::warn!(
+                tracing::warn!(
                     target: "oculpm::watcher",
                     project_id,
                     path = %entry_rel,
                     error = %e,
-                    "[FLOW] auto-reconcile failed (swallowed)"
-                ),
+                    "[FLOW] plan reconcile enqueue failed (swallowed)"
+                );
             }
         });
     }
@@ -1565,6 +1525,9 @@ fn is_journal_entry_path(entry_rel: &str) -> bool {
 fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/planner/") {
         return Some(OculpmDataArea::Planner);
+    }
+    if rel_str.starts_with(".oculpm/automation/") {
+        return Some(OculpmDataArea::Automation);
     }
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);

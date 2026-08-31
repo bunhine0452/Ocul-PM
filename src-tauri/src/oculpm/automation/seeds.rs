@@ -1,4 +1,4 @@
-//! 씨앗 스케줄 3종 (`01-automation.md` §1.4).
+//! 씨앗 자동화 5종 — 스케줄 3(`01-automation.md` §1.4) + 워처 2(§2.2).
 //!
 //! 빈 자동화 화면은 "무엇을 쓸 수 있는지" 를 가르쳐 주지 않는다. 대신 **비활성
 //! 상태의 예시 셋**을 제안한다 — 「이걸로 시작」을 누르면 정의 파일이 생기고,
@@ -12,7 +12,9 @@
 //! UI 언어가 아니라 `content_language` 를 따르는 이유는 `journal_draft` 와 같다 —
 //! 일지는 되돌릴 수 없다.
 
-use crate::oculpm::automation::store::{AutomationDef, AutomationKind, AutomationOutput};
+use crate::oculpm::automation::store::{
+    AutomationDef, AutomationKind, AutomationOutput, BUILTIN_PLAN_RECONCILE_ID,
+};
 use crate::oculpm::content_lang::ContentLang;
 
 /// 씨앗 하나를 정의로 편다. `today` 는 `YYYY-MM-DD` (호출부가 주입 — 여기서
@@ -32,12 +34,15 @@ fn seed(
     def
 }
 
-/// 프로젝트 첫 자동화 진입 시 제안할 셋. 순서는 고정(주간 → 아침 → 월간).
+/// 프로젝트 첫 자동화 진입 시 제안할 다섯. 순서는 고정
+/// (주간 → 아침 → 월간 → 정착 초안 → 플랜 화해).
 pub fn all(lang: ContentLang, today: &str) -> Vec<AutomationDef> {
     vec![
         weekly_summary(lang, today),
         morning_brief(lang, today),
         monthly_retro(lang, today),
+        draft_on_settle(lang, today),
+        plan_reconcile(lang, today),
     ]
 }
 
@@ -121,20 +126,130 @@ fn monthly_retro(lang: ContentLang, today: &str) -> AutomationDef {
     def
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 워처 씨앗 (Phase 2 §2.2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 워처 씨앗 하나. 스케줄과 달리 `watch`·`responsiveness` 를 채운다.
+fn watcher_seed(
+    id: &str,
+    title: &str,
+    today: &str,
+    watch: &str,
+    responsiveness: &str,
+    output: AutomationOutput,
+    instructions: &str,
+) -> AutomationDef {
+    let mut def = AutomationDef::new(id, AutomationKind::Watcher, title, today);
+    def.enabled = false;
+    def.output = output;
+    def.watch = Some(watch.to_string());
+    def.recursive = Some(true);
+    def.responsiveness = Some(responsiveness.to_string());
+    def.instructions = instructions.trim().to_string();
+    def
+}
+
+/// 「손이 멎으면 일지 초안」 — 훅이 못 보는 작업(터미널 편집·다른 도구)을 메운다.
+/// `deferred`(5분)인 이유: 한 문단 쓰다 잠깐 멈춘 것을 "끝났다" 로 읽으면 안 된다.
+fn draft_on_settle(lang: ContentLang, today: &str) -> AutomationDef {
+    watcher_seed(
+        "draft-on-settle",
+        lang.pick(
+            "일지 초안 (손이 멎으면)",
+            "Journal draft (when your hands stop)",
+        ),
+        today,
+        ".", // 프로젝트 루트
+        "deferred",
+        AutomationOutput::Journal,
+        // i18n-ignore-next-line -- 모델에게 가는 지시문 본문 (UI 문자열이 아니다).
+        lang.pick(
+            "아래 관측 사실(이 정착 창에서 바뀐 파일과 git 작업 트리 상태)을 읽고 방금 무슨 \
+             작업을 했는지 일지 본문 하나로 정리해 주세요.\n\
+             파일 목록에서 읽히지 않는 것은 추측하지 말고 모른다고 쓰세요.\n\
+             이미 일지로 남은 작업은 다시 쓰지 마세요 — 이 자동화는 여러 번 돌 수 있습니다.",
+            "Read the observed facts below (files changed in this settle window and the git \
+             working-tree state) and write one journal body describing the work just done.\n\
+             Do not guess anything the file list does not support — say so instead.\n\
+             Do not rewrite work that is already journalled — this automation can run more \
+             than once.",
+        ),
+    )
+}
+
+/// 「플랜 화해」 — 새 일지가 들어오면 활성 플랜의 글리프를 갱신한다.
+///
+/// `watch` 가 `.oculpm/journal/` 인 것은 **사람이 읽는 선언**이다. 실제 발동은
+/// 정착 채널이 아니라 일지 삽입 신호로 온다 — 정착 채널은 일지를 원인에서
+/// 제외하기 때문이다(증폭 루프 가드 R1). 지시문 본문은 **설명**이다: 화해 프롬프트는
+/// `planner::ai` 가 소유하고, 사용자가 여기 쓴 글이 그 프롬프트를 대신하지 않는다.
+/// 그 사실을 본문 스스로 밝히게 해 "썼는데 안 먹힌다" 를 만들지 않는다.
+fn plan_reconcile(lang: ContentLang, today: &str) -> AutomationDef {
+    watcher_seed(
+        BUILTIN_PLAN_RECONCILE_ID,
+        lang.pick("플랜 화해", "Plan reconciliation"),
+        today,
+        ".oculpm/journal/",
+        "relaxed",
+        AutomationOutput::Plan,
+        // i18n-ignore-next-line -- 모델에게 가는 지시문 본문.
+        lang.pick(
+            "새 작업 일지와 활성 플랜을 대조해 글리프 갱신을 제안합니다.\n\
+             (이 자동화의 프롬프트는 앱이 소유합니다 — 이 글은 설명입니다.)",
+            "Compares each new work-journal entry against the active plans and proposes \
+             glyph updates.\n\
+             (The app owns this automation's prompt — this text is a note.)",
+        ),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::oculpm::automation::frequency::ScheduleSpec;
 
     #[test]
-    fn every_seed_is_off_and_parses_as_a_schedule() {
+    fn every_seed_is_off_and_resolves_for_its_kind() {
+        use crate::oculpm::automation::tiers::responsiveness_error;
         for def in all(ContentLang::Korean, "2026-08-31") {
             assert!(!def.enabled, "{} 이 켜진 채로 생긴다", def.id);
             assert!(!def.instructions.is_empty(), "{} 에 지시문이 없다", def.id);
-            assert_eq!(def.kind, AutomationKind::Schedule);
-            ScheduleSpec::from_def(&def)
-                .unwrap_or_else(|e| panic!("{} 의 빈도가 해석되지 않는다: {e}", def.id));
+            match def.kind {
+                AutomationKind::Schedule => {
+                    ScheduleSpec::from_def(&def)
+                        .unwrap_or_else(|e| panic!("{} 의 빈도가 해석되지 않는다: {e}", def.id));
+                }
+                AutomationKind::Watcher => {
+                    assert_eq!(
+                        responsiveness_error(def.responsiveness.as_deref()),
+                        None,
+                        "{} 의 티어가 해석되지 않는다",
+                        def.id
+                    );
+                }
+            }
         }
+    }
+
+    /// 워처 씨앗 2종이 설계 §2.2 의 표 그대로다.
+    #[test]
+    fn watcher_seeds_match_the_design_table() {
+        let seeds = all(ContentLang::Korean, "2026-08-31");
+        let draft = seeds.iter().find(|d| d.id == "draft-on-settle").unwrap();
+        assert_eq!(draft.kind, AutomationKind::Watcher);
+        assert_eq!(draft.watch.as_deref(), Some("."), "프로젝트 루트");
+        assert_eq!(draft.responsiveness.as_deref(), Some("deferred"));
+        assert_eq!(draft.output, AutomationOutput::Journal);
+
+        let plan = seeds
+            .iter()
+            .find(|d| d.id == BUILTIN_PLAN_RECONCILE_ID)
+            .unwrap();
+        assert_eq!(plan.kind, AutomationKind::Watcher);
+        assert_eq!(plan.watch.as_deref(), Some(".oculpm/journal/"));
+        assert_eq!(plan.responsiveness.as_deref(), Some("relaxed"));
+        assert_eq!(plan.output, AutomationOutput::Plan);
     }
 
     #[test]
@@ -142,8 +257,7 @@ mod tests {
         use crate::oculpm::automation::store::{parse_automation, render_automation};
         for lang in [ContentLang::Korean, ContentLang::English] {
             for def in all(lang, "2026-08-31") {
-                let back =
-                    parse_automation(&render_automation(&def), &def.id, AutomationKind::Schedule);
+                let back = parse_automation(&render_automation(&def), &def.id, def.kind);
                 assert_eq!(back.def, def, "{} 왕복 실패", def.id);
                 assert!(back.warnings.is_empty(), "{:?}", back.warnings);
             }
@@ -154,7 +268,7 @@ mod tests {
     fn missing_drops_the_ones_already_created() {
         let existing = vec!["morning-brief".to_string()];
         let rest = missing(ContentLang::Korean, "2026-08-31", &existing);
-        assert_eq!(rest.len(), 2);
+        assert_eq!(rest.len(), 4);
         assert!(!rest.iter().any(|d| d.id == "morning-brief"));
         assert!(by_id(ContentLang::Korean, "2026-08-31", "morning-brief").is_some());
         assert!(by_id(ContentLang::Korean, "2026-08-31", "nope").is_none());

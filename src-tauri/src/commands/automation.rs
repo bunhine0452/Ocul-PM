@@ -17,7 +17,9 @@ use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::automation::frequency::ScheduleSpec;
 use crate::oculpm::automation::runner::{AutomationRunner, Job, JobOutcome};
+use crate::oculpm::automation::settle::watch_error;
 use crate::oculpm::automation::store::{AutomationDef, AutomationKind};
+use crate::oculpm::automation::tiers::responsiveness_error;
 use crate::oculpm::automation::{scheduler, seeds, store};
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::OculpmConfig;
@@ -88,11 +90,15 @@ fn parse_kind(raw: &str) -> Result<AutomationKind, AppError> {
     AutomationKind::parse(raw).ok_or_else(|| AppError::new("automation_bad_kind", raw))
 }
 
-/// 스케줄이면 빈도를 해석해 보고, 못 하면 코드를 돌려준다 (경고이지 실패가 아니다).
+/// 정의가 **돌 수 있는가**. 못 하면 코드를 돌려준다 (경고이지 실패가 아니다).
+/// 스케줄은 빈도를, 워처는 감시 경로와 티어를 본다 — 둘 다 조용히 안 도는
+/// 자동화를 만들 수 있는 필드다.
 fn spec_error(def: &AutomationDef) -> Option<String> {
     match def.kind {
         AutomationKind::Schedule => ScheduleSpec::from_def(def).err().map(str::to_string),
-        AutomationKind::Watcher => None,
+        AutomationKind::Watcher => watch_error(def.watch.as_deref())
+            .or_else(|| responsiveness_error(def.responsiveness.as_deref()))
+            .map(str::to_string),
     }
 }
 
@@ -229,7 +235,7 @@ pub async fn automation_delete(
     let root = project_root(&db, project_id).await?;
     let removed =
         store::delete_automation(&root, parse_kind(&kind)?, &id).map_err(AppError::from)?;
-    let known = store::list_automation_ids(&root).map_err(AppError::from)?;
+    let known = store::known_ids_for_prune(&root).map_err(AppError::from)?;
     db.automation_prune_orphans(project_id, known)
         .await
         .map_err(AppError::from)?;
@@ -315,6 +321,7 @@ pub async fn automation_run_now(
         output: def.output,
         instructions: def.instructions.clone(),
         context: None,
+        entry_ref: None,
         workday: workday.clone(),
         now,
         note: Some("manual run".into()),

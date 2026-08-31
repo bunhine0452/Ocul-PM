@@ -81,6 +81,9 @@ pub struct Job {
     pub instructions: String,
     /// 지시문 뒤에 붙일 관측 사실 (변경 파일 목록·git 요약 등). Phase 1·2 가 채운다.
     pub context: Option<String>,
+    /// 이 발동의 **원인이 된 일지**의 프로젝트 상대 경로. `output: plan` 은
+    /// 이것 없이는 성립하지 않는다 (화해할 대상이 없다).
+    pub entry_ref: Option<String>,
     /// 프로젝트 워크데이 `YYYYMMDD` (호출부가 `WorkdayResolver` 로 계산).
     pub workday: String,
     /// 발동 시각 (로컬 오프셋 포함).
@@ -122,6 +125,10 @@ impl Job {
 pub struct JobContext<'a> {
     pub db: &'a Db,
     pub manager: &'a OculpmManager,
+    /// 프로젝트 루트 — 플랜 산출물이 `.oculpm/planner/` 를 읽고 쓴다.
+    pub root: std::path::PathBuf,
+    /// 프로젝트 타임존 — 캐시 투영의 tz 백필이 색인 경로와 같아야 한다.
+    pub tz: chrono_tz::Tz,
     /// 프로젝트 `auto_redact_patterns` 컴파일 결과 (이중 방어).
     pub redact: Vec<Regex>,
     /// `config.toml [automation] daily_run_budget`. `0` = 전면 정지.
@@ -298,7 +305,18 @@ impl AutomationRunner {
             return JobOutcome::Cancelled;
         }
 
-        // ── 5. 모델 호출 (failover 체인) ──
+        // ── 5. 플랜 산출물은 여기서 갈라진다 (#reconcile-absorb) ──
+        //
+        // 플랜 편집은 `reconcile.rs` 가 소유한다 — 프롬프트·CAS·`plan_write_lock`
+        // 규약을 두 벌 들지 않는다. 러너는 **집행 규약**(동시 1건·예산·취소·
+        // 원장)만 얹고 그 모듈을 부른다. 그래서 일반 chat 보다 앞에 있다:
+        // 화해는 활성 플랜마다 자기 호출을 하므로 여기서 한 번 더 부르면
+        // 쓰이지 않는 응답에 과금된다.
+        if job.output == AutomationOutput::Plan {
+            return self.run_plan_reconcile(ctx, &job, run_id).await;
+        }
+
+        // ── 6. 모델 호출 (failover 체인) ──
         let content_lang = crate::oculpm::content_lang::current(ctx.db).await;
         let response = self
             .backend
@@ -337,7 +355,7 @@ impl AutomationRunner {
             return JobOutcome::Cancelled;
         }
 
-        // ── 6. redact 이중 방어 — 모델 응답에 시크릿이 섞여 돌아올 수 있다 ──
+        // ── 7. redact 이중 방어 — 모델 응답에 시크릿이 섞여 돌아올 수 있다 ──
         let (body, hits) = redact_text(&response.content, &ctx.redact);
         if !hits.is_empty() {
             tracing::warn!(
@@ -348,7 +366,7 @@ impl AutomationRunner {
             );
         }
 
-        // ── 7. 산출물 ──
+        // ── 8. 산출물 ──
         match job.output {
             AutomationOutput::None => {
                 let note = truncate(&body, MAX_NOTE_CHARS);
@@ -379,20 +397,78 @@ impl AutomationRunner {
                     }
                 }
             }
-            // oculpm-defer: 플랜 산출물은 러너에 연결하지 않았다 — 플랜 편집
-            // 경로(reconcile 흡수)는 Phase 2 `#reconcile-absorb` 의 몫이고, 여기서
-            // 미리 만들면 reconcile.rs 를 두 벌 들고 있게 된다; Phase 2 착수 시
+            // 앞(5단계)에서 이미 갈라졌다 — 여기 오면 코드가 어긋난 것이다.
             AutomationOutput::Plan => {
-                self.close(
-                    ctx,
-                    &job,
-                    run_id,
-                    RUN_SKIPPED,
-                    None,
-                    Some("플랜 산출물은 아직 러너에 연결되지 않았다 (Phase 2 #reconcile-absorb)"),
-                )
-                .await;
-                JobOutcome::Skipped("plan output is not wired yet")
+                self.close(ctx, &job, run_id, RUN_SKIPPED, None, Some("unreachable"))
+                    .await;
+                JobOutcome::Skipped("plan output is dispatched earlier")
+            }
+        }
+    }
+
+    /// 러너에 넣기 **전에** 걸러진 발동을 원장에 남긴다 (정착 트리거의
+    /// 중복·최소 간격 가드가 부른다). 러너가 소유하는 이유는 하나다 — 스킵의
+    /// 모양이 경로마다 갈라지면 History 에서 왜 안 돌았는지 읽을 수 없다.
+    pub async fn record_skip(&self, ctx: &JobContext<'_>, job: &Job, reason: &str) {
+        self.record_terminal(ctx, job, RUN_SKIPPED, Some(reason))
+            .await;
+    }
+
+    /// 플랜 산출물 — 화해는 `reconcile.rs` 가 소유한다 (#reconcile-absorb).
+    ///
+    /// 러너가 하는 일은 집행 규약을 얹는 것뿐이다: 원장은 이미 열렸고, 동시
+    /// 1건·예산·취소는 앞에서 통과했다. CAS(플랜이 LLM 호출 중에 바뀌면 양보)와
+    /// `plan_write_lock` 공유락은 저쪽 모듈의 규약 그대로다.
+    async fn run_plan_reconcile(&self, ctx: &JobContext<'_>, job: &Job, run_id: i64) -> JobOutcome {
+        let Some(entry_rel) = job.entry_ref.as_deref() else {
+            self.close(
+                ctx,
+                job,
+                run_id,
+                RUN_SKIPPED,
+                None,
+                Some("플랜 산출물은 원인이 된 일지가 있어야 돈다"),
+            )
+            .await;
+            return JobOutcome::Skipped("plan output needs a journal entry as its cause");
+        };
+        let plan_lock = ctx.manager.plan_write_lock(job.project_id).await;
+        let outcome = crate::oculpm::reconcile::reconcile_entry(
+            ctx.db,
+            job.project_id,
+            &ctx.root,
+            entry_rel,
+            ctx.redact.clone(),
+            ctx.tz,
+            plan_lock,
+        )
+        .await;
+        match outcome {
+            Ok(crate::oculpm::reconcile::ReconcileOutcome::Skipped(reason)) => {
+                self.close(ctx, job, run_id, RUN_SKIPPED, None, Some(reason))
+                    .await;
+                JobOutcome::Skipped(reason)
+            }
+            Ok(crate::oculpm::reconcile::ReconcileOutcome::Ran(results)) => {
+                let note = summarize_reconcile(&results);
+                // 전부 실패했으면 실패다 — "돌았다" 로 적으면 죽은 키가 성공처럼 보인다.
+                let all_failed = !results.is_empty() && results.iter().all(|r| r.error.is_some());
+                let status = if all_failed { RUN_FAILED } else { RUN_OK };
+                self.close(ctx, job, run_id, status, None, Some(&note))
+                    .await;
+                if all_failed {
+                    JobOutcome::Failed(note)
+                } else {
+                    JobOutcome::Ran {
+                        run_id,
+                        journal_path: None,
+                    }
+                }
+            }
+            Err(e) => {
+                self.close(ctx, job, run_id, RUN_FAILED, None, Some(&e))
+                    .await;
+                JobOutcome::Failed(e)
             }
         }
     }
@@ -613,6 +689,25 @@ fn truncate(s: &str, cap: usize) -> String {
     s.chars().take(cap).collect::<String>() + "…"
 }
 
+/// 화해 결과를 원장 메모 한 줄로. 적용 0건과 실패를 **구분해서** 적는다 —
+/// 둘 다 "아무 일도 없었다" 로 보이면 죽은 키를 영영 못 찾는다.
+pub fn summarize_reconcile(results: &[crate::oculpm::reconcile::PlanReconcileResult]) -> String {
+    if results.is_empty() {
+        return "화해할 활성 플랜이 없다".to_string();
+    }
+    let applied: usize = results.iter().map(|r| r.applied).sum();
+    let failed: Vec<&str> = results
+        .iter()
+        .filter(|r| r.error.is_some())
+        .map(|r| r.plan_id.as_str())
+        .collect();
+    let mut note = format!("플랜 {}건 · 글리프 {applied}건 갱신", results.len());
+    if !failed.is_empty() {
+        note.push_str(&format!(" · 실패 {}", failed.join(", ")));
+    }
+    note
+}
+
 /// 일지 본문 — 모델 본문 + 출처를 밝히는 메모. 사람이 나중에 이 일지를 보고
 /// "누가 왜 썼는지" 를 알 수 있어야 한다.
 fn compose_body(job: &Job, body: &str, response: &ChatResponse) -> String {
@@ -711,16 +806,19 @@ mod tests {
             output,
             instructions: "이번 주를 요약하세요.".into(),
             context: None,
+            entry_ref: None,
             workday: "20260831".into(),
             now: DateTime::parse_from_rfc3339("2026-08-31T17:00:00+09:00").unwrap(),
             note: None,
         }
     }
 
-    fn ctx<'a>(db: &'a Db, manager: &'a OculpmManager) -> JobContext<'a> {
+    fn ctx<'a>(db: &'a Db, manager: &'a OculpmManager, root: &std::path::Path) -> JobContext<'a> {
         JobContext {
             db,
             manager,
+            root: root.to_path_buf(),
+            tz: chrono_tz::UTC,
             redact: Vec::new(),
             daily_run_budget: 20,
             budget_since: "2026-08-31T00:00:00+09:00".into(),
@@ -784,7 +882,7 @@ mod tests {
         let runner = AutomationRunner::new(backend);
 
         let outcome = runner
-            .run(&ctx(&db, &manager), job(AutomationOutput::None))
+            .run(&ctx(&db, &manager, dir.path()), job(AutomationOutput::None))
             .await;
         assert_eq!(outcome, JobOutcome::Skipped("core model not configured"));
         assert_eq!(calls.load(Ordering::SeqCst), 0, "부르지 않는다 = 과금 없음");
@@ -811,7 +909,7 @@ mod tests {
         let calls = backend.calls.clone();
         let runner = AutomationRunner::new(backend);
 
-        let c = ctx(&db, &manager);
+        let c = ctx(&db, &manager, dir.path());
         let (a, b) = tokio::join!(
             runner.run(&c, job(AutomationOutput::None)),
             runner.run(&c, job(AutomationOutput::None))
@@ -858,7 +956,7 @@ mod tests {
         let runner = AutomationRunner::new(Arc::new(backend));
 
         let outcome = runner
-            .run(&ctx(&db, &manager), job(AutomationOutput::None))
+            .run(&ctx(&db, &manager, dir.path()), job(AutomationOutput::None))
             .await;
         assert_eq!(outcome, JobOutcome::Failed("provider exploded".into()));
 
@@ -872,23 +970,107 @@ mod tests {
         assert!(state[0].last_error.is_some());
     }
 
-    /// 플랜 산출물은 아직 러너에 연결되지 않았다 — **조용히 성공한 척하지 않고**
-    /// 스킵 사유를 남긴다 (Phase 2 `#reconcile-absorb`).
+    /// 플랜 산출물은 원인이 된 일지 없이는 성립하지 않는다 — **조용히 성공한
+    /// 척하지 않고** 사유를 남긴다. 모델도 부르지 않는다 (#reconcile-absorb).
     #[tokio::test]
-    async fn plan_output_is_skipped_with_an_honest_reason() {
+    async fn plan_output_without_a_cause_entry_is_skipped_with_a_reason() {
         let dir = tempdir().unwrap();
         let db = db(&dir).await;
         set_core_model(&db).await;
         let manager = OculpmManager::new();
-        let runner = AutomationRunner::new(Arc::new(FakeBackend::new()));
+        let backend = Arc::new(FakeBackend::new());
+        let calls = backend.calls.clone();
+        let runner = AutomationRunner::new(backend);
 
         let outcome = runner
-            .run(&ctx(&db, &manager), job(AutomationOutput::Plan))
+            .run(&ctx(&db, &manager, dir.path()), job(AutomationOutput::Plan))
             .await;
-        assert_eq!(outcome, JobOutcome::Skipped("plan output is not wired yet"));
+        assert_eq!(
+            outcome,
+            JobOutcome::Skipped("plan output needs a journal entry as its cause")
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            0,
+            "일반 chat 을 부르지 않는다 — 화해는 자기 호출을 쓴다"
+        );
         let runs = db.automation_runs_list(1, None, 10).await.unwrap();
         assert_eq!(runs[0].status, RUN_SKIPPED);
-        assert!(runs[0].note.as_deref().unwrap().contains("Phase 2"));
+        assert!(runs[0].note.as_deref().unwrap().contains("일지"));
+    }
+
+    /// 플랜 산출물이 원인 일지를 들고 왔지만 캐시에 없으면 화해가 비킨다 —
+    /// 그 사유가 그대로 원장에 적힌다 (모델 호출 0회).
+    #[tokio::test]
+    async fn plan_output_records_the_reconcile_skip_reason() {
+        let dir = tempdir().unwrap();
+        let db = db(&dir).await;
+        set_core_model(&db).await;
+        let manager = OculpmManager::new();
+        let backend = Arc::new(FakeBackend::new());
+        let calls = backend.calls.clone();
+        let runner = AutomationRunner::new(backend);
+
+        let mut j = job(AutomationOutput::Plan);
+        j.entry_ref = Some("20260831/Chores/1200_chore_x.md".into());
+        let outcome = runner.run(&ctx(&db, &manager, dir.path()), j).await;
+        assert_eq!(outcome, JobOutcome::Skipped("entry missing from cache"));
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let runs = db.automation_runs_list(1, None, 10).await.unwrap();
+        assert_eq!(runs[0].status, RUN_SKIPPED);
+    }
+
+    /// 화해 결과 요약은 "적용 0건" 과 "실패" 를 구분한다.
+    #[test]
+    fn reconcile_summary_separates_no_op_from_failure() {
+        use crate::oculpm::reconcile::PlanReconcileResult;
+        assert_eq!(summarize_reconcile(&[]), "화해할 활성 플랜이 없다");
+        let note = summarize_reconcile(&[
+            PlanReconcileResult {
+                plan_id: "a".into(),
+                applied: 2,
+                error: None,
+            },
+            PlanReconcileResult {
+                plan_id: "b".into(),
+                applied: 0,
+                error: Some("dead key".into()),
+            },
+        ]);
+        assert!(note.contains("플랜 2건"));
+        assert!(note.contains("글리프 2건"));
+        assert!(note.contains("실패 b"));
+    }
+
+    /// 러너 **앞에서** 걸러진 발동도 같은 문으로 원장에 남는다 (정착 트리거의
+    /// 중복·최소 간격 가드가 부른다). 모델은 부르지 않는다.
+    #[tokio::test]
+    async fn a_preflight_skip_lands_in_the_ledger_with_its_reason() {
+        let dir = tempdir().unwrap();
+        let db = db(&dir).await;
+        let manager = OculpmManager::new();
+        let backend = Arc::new(FakeBackend::new());
+        let calls = backend.calls.clone();
+        let runner = AutomationRunner::new(backend);
+
+        let mut j = job(AutomationOutput::Journal);
+        j.kind = AutomationKind::Watcher;
+        runner
+            .record_skip(
+                &ctx(&db, &manager, dir.path()),
+                &j,
+                "이 구간에는 이미 일지가 있다 (에이전트 우선)",
+            )
+            .await;
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "과금 없음");
+        let runs = db.automation_runs_list(1, None, 10).await.unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, RUN_SKIPPED);
+        assert!(runs[0].ended_at.is_some(), "행이 닫힌다");
+        assert!(runs[0].note.as_deref().unwrap().contains("이미 일지"));
+        // 발동 출처가 세션 id 접두로 드러난다 (D8).
+        assert!(runs[0].session_id.starts_with("auto-"));
     }
 
     /// 예산 0 = 전면 정지. 모델을 부르지 않고 사유를 남긴다.
@@ -901,7 +1083,7 @@ mod tests {
         let backend = Arc::new(FakeBackend::new());
         let calls = backend.calls.clone();
         let runner = AutomationRunner::new(backend);
-        let mut c = ctx(&db, &manager);
+        let mut c = ctx(&db, &manager, dir.path());
         c.daily_run_budget = 0;
 
         let outcome = runner.run(&c, job(AutomationOutput::None)).await;

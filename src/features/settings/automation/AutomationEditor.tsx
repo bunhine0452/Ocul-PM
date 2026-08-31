@@ -1,8 +1,12 @@
-// 자동화 에디터 — 2-pane 의 오른쪽. 이름 / 빈도 / 시각 / 출력 / 지시문.
+// 자동화 에디터 — 2-pane 의 오른쪽.
 //
-// 지시문 아래의 도움말은 **상시 노출**이다 (설계 §1.3). 사용자가 여기 쓰는
-// 문장이 그대로 모델에게 가고, 자동화는 여러 번 돌 수 있다 — 그 두 사실을
-// 모르면 결과가 이상해지고 원인을 못 찾는다.
+//   종류 → (스케줄) 빈도·시각  |  (워처) 감시 경로·재귀·반응성
+//        → 출력 → 지시문 → 상시 도움말 → 문제 해결 3종
+//
+// 지시문 아래의 도움말은 **상시 노출**이다 (설계 §1.3·§2.4·§2.5). 사용자가
+// 여기 쓰는 문장이 그대로 모델에게 가고, 자동화는 여러 번 돌 수 있다 — 그 두
+// 사실을 모르면 결과가 이상해지고 원인을 못 찾는다. 문제 해결 3종은 진단 탭과
+// **같은 컴포넌트**라 두 화면의 말이 갈라지지 않는다.
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -11,12 +15,16 @@ import type { AutomationDef } from "@/lib/bindings";
 import { Field } from "../tabs/ui";
 import {
   FREQUENCIES,
+  KINDS,
   OUTPUTS,
+  RESPONSIVENESS,
   WEEKDAYS,
   fieldsFor,
   localValidation,
   slugify,
+  switchKind,
 } from "./automationModel";
+import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
 
 const SELECT_CLASS =
   "w-full h-9 rounded-md border border-input bg-background px-3 text-sm";
@@ -37,6 +45,7 @@ export function AutomationEditor({
   const { t } = useT();
   const [def, setDef] = useState<AutomationDef>(value);
   const patch = (p: Partial<AutomationDef>) => setDef((d) => ({ ...d, ...p }));
+  const isWatcher = def.kind === "watcher";
   const fields = fieldsFor(def.frequency ?? "");
   const problem = localValidation(def);
 
@@ -69,6 +78,65 @@ export function AutomationEditor({
         />
       </Field>
 
+      <Field label={t("automation.editor.kind")} hint={t("automation.editor.kindHint")}>
+        <select
+          className={SELECT_CLASS}
+          value={def.kind}
+          disabled={!isNew}
+          onChange={(e) =>
+            setDef((d) => switchKind(d, e.currentTarget.value as AutomationDef["kind"]))
+          }
+        >
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`automation.kindName.${k}` as never)}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {isWatcher && (
+        <>
+          <Field label={t("automation.editor.watch")} hint={t("automation.editor.watchHint")}>
+            <Input
+              value={def.watch ?? ""}
+              spellCheck={false}
+              placeholder="src/"
+              onChange={(e) => patch({ watch: e.currentTarget.value })}
+            />
+          </Field>
+
+          <Field label={t("automation.editor.recursive")}>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={def.recursive !== false}
+                onChange={(e) => patch({ recursive: e.currentTarget.checked })}
+              />
+              {t("automation.editor.recursiveLabel")}
+            </label>
+          </Field>
+
+          <Field
+            label={t("automation.editor.responsiveness")}
+            hint={t("automation.editor.responsivenessHint")}
+          >
+            <select
+              className={SELECT_CLASS}
+              value={def.responsiveness ?? "balanced"}
+              onChange={(e) => patch({ responsiveness: e.currentTarget.value })}
+            >
+              {RESPONSIVENESS.map((r) => (
+                <option key={r} value={r}>
+                  {t(`automation.tierName.${r}` as never)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </>
+      )}
+
+      {!isWatcher && (
       <Field label={t("automation.editor.frequency")}>
         <select
           className={SELECT_CLASS}
@@ -82,8 +150,9 @@ export function AutomationEditor({
           ))}
         </select>
       </Field>
+      )}
 
-      {fields.every && (
+      {!isWatcher && fields.every && (
         <Field label={t("automation.editor.every")}>
           <Input
             type="number"
@@ -94,7 +163,7 @@ export function AutomationEditor({
         </Field>
       )}
 
-      {fields.at && (
+      {!isWatcher && fields.at && (
         <Field
           label={t("automation.editor.at")}
           hint={fields.atIsDateTime ? t("automation.editor.atOnceHint") : undefined}
@@ -107,7 +176,7 @@ export function AutomationEditor({
         </Field>
       )}
 
-      {fields.weekday && (
+      {!isWatcher && fields.weekday && (
         <Field label={t("automation.editor.weekday")}>
           <select
             className={SELECT_CLASS}
@@ -123,7 +192,7 @@ export function AutomationEditor({
         </Field>
       )}
 
-      {fields.dayOfMonth && (
+      {!isWatcher && fields.dayOfMonth && (
         <Field label={t("automation.editor.dayOfMonth")} hint={t("automation.editor.clampHint")}>
           <Input
             type="number"
@@ -135,7 +204,7 @@ export function AutomationEditor({
         </Field>
       )}
 
-      {fields.monthDay && (
+      {!isWatcher && fields.monthDay && (
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("automation.editor.month")}>
             <Input
@@ -158,7 +227,7 @@ export function AutomationEditor({
         </div>
       )}
 
-      {fields.cron && (
+      {!isWatcher && fields.cron && (
         <Field label={t("automation.editor.cron")} hint={t("automation.editor.cronHint")}>
           <Input
             value={def.cron ?? ""}
@@ -197,7 +266,13 @@ export function AutomationEditor({
       <div className="rounded-md border border-border/60 bg-accent/20 px-3 py-2 space-y-1">
         <p className="text-[11px] text-muted-foreground">{t("automation.editor.helpVerbatim")}</p>
         <p className="text-[11px] text-muted-foreground">{t("automation.editor.helpIdempotent")}</p>
+        {isWatcher && (
+          <p className="text-[11px] text-muted-foreground">{t("automation.editor.helpSettle")}</p>
+        )}
       </div>
+
+      {/* 문제 해결 3종 — 진단 탭과 같은 컴포넌트 (설계 §2.5). */}
+      <AutomationTroubleshooting />
 
       {problem && <p className="text-[11px] text-destructive">{t(problem as never)}</p>}
 

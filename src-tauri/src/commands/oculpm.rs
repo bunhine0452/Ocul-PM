@@ -197,7 +197,7 @@ pub async fn oculpm_init(
     // 2.9 — 자동화 상태의 고아 정리. 정의(`.oculpm/automation/**/<id>.md`)가
     // SSOT 이므로 파일이 사라진 자동화의 상태·이력 행을 지운다. 디렉터리를
     // **읽지 못하면 건너뛴다** — 빈 목록으로 오해해 전부 지우면 안 된다.
-    match crate::oculpm::automation::store::list_automation_ids(&root) {
+    match crate::oculpm::automation::store::known_ids_for_prune(&root) {
         Ok(ids) => match db.automation_prune_orphans(project_id, ids).await {
             Ok(n) if n > 0 => tracing::info!(
                 target: "oculpm::commands",

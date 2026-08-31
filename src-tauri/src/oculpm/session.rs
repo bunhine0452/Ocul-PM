@@ -1234,6 +1234,7 @@ mod tests {
                 ignore: vec![],
                 respect_gitignore: true,
                 debounce_ms: 500,
+                responsiveness: None,
             },
             agents: AgentsConfig {
                 active: vec![],

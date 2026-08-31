@@ -192,6 +192,12 @@ impl SessionId {
         self.kind() == SessionKind::GitBackfill
     }
 
+    /// 자동화가 만든 세션인가 (스케줄·워처 발동). 배경 작업이 자기 산출물을
+    /// 원인으로 다시 도는 것을 막는 판정이다 — 증폭 루프 가드 R1 의 일부.
+    pub fn is_automation_source(&self) -> bool {
+        matches!(self.kind(), SessionKind::Schedule | SessionKind::Automation)
+    }
+
     /// 워처 id 의 일련번호(`NNN`). 다른 방언은 `None`.
     pub fn watcher_counter(&self) -> Option<u32> {
         if !self.is_watcher() {
