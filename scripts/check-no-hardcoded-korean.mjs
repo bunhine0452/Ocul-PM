@@ -156,6 +156,11 @@ const TESTS = new Set([
   // Phase 6 — 딥링크 확인 시트. 한국어 버튼("미리보기"·"취소")과 «바뀐 것이
   // 없습니다» 문구가 «무확인 실행 0» 을 재는 재료다.
   "__tests__/deep_link.test.tsx",
+  // Osaurus 라운드 Phase 8 — 랜딩 생성물·배포 테마 게이트. 검사 대상이 한국어
+  // 정적 페이지(changelog.html·themes.html)라 단언 재료와 실패 메시지가
+  // 한글이어야 한다 (실패했을 때 읽는 사람이 저장소 기여자다).
+  "__tests__/landing_pages.test.ts",
+  "__tests__/landing_themes.test.ts",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",

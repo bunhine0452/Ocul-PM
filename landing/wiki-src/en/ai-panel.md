@@ -1,7 +1,7 @@
 ---
 title: Agent Panel
 desc: Ask several LLMs with the same context — context chips, the token badge, planner action proposals.
-order: 10
+order: 11
 updated: 2026-08-21
 ---
 

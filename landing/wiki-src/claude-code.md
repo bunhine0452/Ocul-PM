@@ -1,7 +1,7 @@
 ---
 title: Claude Code 연동
 desc: 앱 안 Claude Code 와 터미널 Claude Code 의 차이, 플러그인(훅 브리지) 설치, /plugin·/mcp 가 앱 안에서 안 되는 이유.
-order: 8
+order: 9
 updated: 2026-08-16
 ---
 

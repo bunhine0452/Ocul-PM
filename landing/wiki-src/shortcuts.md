@@ -1,7 +1,7 @@
 ---
 title: 단축키
 desc: 화면 이동, 탭과 창, 터미널 도크, Claude Code 화면 전용 키.
-order: 15
+order: 16
 updated: 2026-08-21
 ---
 

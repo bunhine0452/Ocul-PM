@@ -6,9 +6,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { PLUGIN_COMMANDS, PLUGIN_FLOW, PLUGIN_TOOLS } from "@/features/skills/pluginDocs";
+import { CATALOG_PINS, CATALOG_SKILLS } from "@/features/skills/skillsCatalog";
 
 const commandsDir = join(process.cwd(), "plugin", "oculpm", "commands");
 const toolsRs = join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "tools.rs");
+const landingPlugin = join(process.cwd(), "landing", "plugin.html");
 
 function frontmatterDescription(md: string): string {
   const m = md.match(/^---\n[\s\S]*?description:\s*(.+?)\n[\s\S]*?---\n/);
@@ -55,5 +57,37 @@ describe("plugin docs sync (플러그인이 SSOT)", () => {
     for (const name of serverTools) {
       expect(documented.has(name), `서버 도구 ${name} 가 앱 플러그인 문서에 없음`).toBe(true);
     }
+  });
+});
+
+// Osaurus 라운드 Phase 8 `#landing-skills` — oculpm.com/plugin 이 스킬 카탈로그다.
+// 카탈로그의 SSOT 는 `skillsCatalog.ts` 라, 스킬을 추가하거나 핀을 갱신하고
+// 랜딩을 빼먹으면 여기가 깨진다 (Rust 쪽 `plugin_manifest` 는 커맨드·도구·
+// 동봉 스킬을, 여기는 제3자 카탈로그를 본다 — 소유가 갈린다).
+describe("landing/plugin.html 카탈로그 동기", () => {
+  const page = readFileSync(landingPlugin, "utf8");
+
+  test.each(CATALOG_SKILLS.map((s) => [s.id] as const))("%s 가 카탈로그 표에 있다", (id) => {
+    expect(page, `landing/plugin.html 에 카탈로그 스킬 ${id} 누락`).toContain(`<td>${id}</td>`);
+  });
+
+  test.each(CATALOG_SKILLS.map((s) => [s.id, s.sourceUrl] as const))(
+    "%s 의 원문 링크가 핀 URL 그대로다",
+    (_id, sourceUrl) => {
+      expect(page).toContain(sourceUrl);
+    },
+  );
+
+  test("핀 SHA 배지가 지금 핀과 같다", () => {
+    // 짧은 SHA 를 배지로 쓴다 — 핀을 갱신하면 배지도 함께 바뀌어야 한다.
+    for (const [source, sha] of Object.entries(CATALOG_PINS)) {
+      expect(page, `${source} 핀 배지가 ${sha.slice(0, 7)} 가 아님`).toContain(
+        `${source}@${sha.slice(0, 7)}`,
+      );
+    }
+  });
+
+  test("페이지가 말하는 카탈로그 개수가 실제와 같다", () => {
+    expect(page).toContain(`스킬 샵 카탈로그 ${CATALOG_SKILLS.length}종`);
   });
 });

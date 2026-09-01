@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 desc: Nothing is being recorded, in-app Claude Code acting up, and the rest of the common friction.
-order: 13
+order: 14
 updated: 2026-08-21
 ---
 

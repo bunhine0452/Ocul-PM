@@ -1,7 +1,7 @@
 ---
 title: Data & File Layout
 desc: The structure of the .oculpm folder, backup and moving, and what local-first actually means.
-order: 14
+order: 15
 updated: 2026-08-21
 ---
 

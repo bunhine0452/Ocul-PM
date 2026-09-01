@@ -192,6 +192,81 @@ pub async fn theme_import(
     })
 }
 
+/// 링크로 받은 테마를 가져온다 (Osaurus 라운드 Phase 8 `#landing-themes`).
+///
+/// oculpm.com/themes 의 「앱에서 가져오기」가 이 길이다. 딥링크 확인 시트를
+/// 지난 **뒤에만** 불린다 — 시트를 지나지 않는 호출 경로가 프런트에 없다.
+///
+/// 받아온 뒤는 파일 임포트와 **같은 문**을 지난다: 임시 파일에 쓰고
+/// `theme_import` 에 넘긴다. 그래서 검증·id 재발급·이름 충돌 질의가 한 벌뿐이고,
+/// 충돌 뒤 재시도도 `source_path` 로 그대로 돌아온다 (파일을 다시 받지 않는다).
+///
+/// 문은 셋이다: **https + 호스트 화이트리스트**(딥링크와 같은 파서) ·
+/// **응답 크기 상한**(헤더를 믿지 않고 읽으면서 센다) · **타임아웃**.
+#[tauri::command]
+#[specta::specta]
+pub async fn theme_import_url(
+    app: AppHandle,
+    url: String,
+    on_conflict: Option<String>,
+) -> Result<ThemeImportOutcome, AppError> {
+    let url = crate::deeplink::validate_theme_url(&url)
+        .map_err(|e| AppError::new("theme_url_not_allowed", format!("{e:?}")))?;
+    let path = fetch_theme(&url).await?;
+    theme_import(app, Some(path.to_string_lossy().to_string()), on_conflict).await
+}
+
+/// 테마 JSON 을 받아 임시 파일에 쓰고 그 경로를 돌려준다.
+///
+/// `Content-Length` 를 믿지 않는다 — 없거나 거짓일 수 있으므로 읽으면서 센다.
+async fn fetch_theme(url: &str) -> Result<PathBuf, AppError> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| AppError::new("theme_fetch", e.to_string()))?;
+    let res = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| AppError::new("theme_fetch", e.to_string()))?;
+    if !res.status().is_success() {
+        return Err(AppError::new(
+            "theme_fetch_status",
+            format!("{} returned {}", url, res.status()),
+        ));
+    }
+
+    let too_large = || {
+        AppError::new(
+            "theme_too_large",
+            format!("theme exceeds {} bytes", themes::MAX_THEME_BYTES),
+        )
+    };
+    if res
+        .content_length()
+        .is_some_and(|n| n > themes::MAX_THEME_BYTES)
+    {
+        return Err(too_large());
+    }
+
+    let mut res = res;
+    let mut body: Vec<u8> = Vec::new();
+    while let Some(chunk) = res
+        .chunk()
+        .await
+        .map_err(|e| AppError::new("theme_fetch", e.to_string()))?
+    {
+        if body.len() + chunk.len() > themes::MAX_THEME_BYTES as usize {
+            return Err(too_large());
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let path = std::env::temp_dir().join(format!("oculpm-theme-{}.json", uuid::Uuid::new_v4()));
+    std::fs::write(&path, &body)?;
+    Ok(path)
+}
+
 /// 테마 하나를 `.json` 으로 저장한다. `is_built_in` 은 항상 false 로 기록해
 /// 남에게 건넨 파일이 그쪽 갤러리에서 "내장" 으로 앉지 않게 한다.
 #[tauri::command]

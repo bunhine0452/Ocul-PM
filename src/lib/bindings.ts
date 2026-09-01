@@ -59,6 +59,20 @@ export const commands = {
 	 */
 	themeImport: (path: string | null, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import", { path, onConflict })),
 	/**
+	 *  링크로 받은 테마를 가져온다 (Osaurus 라운드 Phase 8 `#landing-themes`).
+	 * 
+	 *  oculpm.com/themes 의 「앱에서 가져오기」가 이 길이다. 딥링크 확인 시트를
+	 *  지난 **뒤에만** 불린다 — 시트를 지나지 않는 호출 경로가 프런트에 없다.
+	 * 
+	 *  받아온 뒤는 파일 임포트와 **같은 문**을 지난다: 임시 파일에 쓰고
+	 *  `theme_import` 에 넘긴다. 그래서 검증·id 재발급·이름 충돌 질의가 한 벌뿐이고,
+	 *  충돌 뒤 재시도도 `source_path` 로 그대로 돌아온다 (파일을 다시 받지 않는다).
+	 * 
+	 *  문은 셋이다: **https + 호스트 화이트리스트**(딥링크와 같은 파서) ·
+	 *  **응답 크기 상한**(헤더를 믿지 않고 읽으면서 센다) · **타임아웃**.
+	 */
+	themeImportUrl: (url: string, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import_url", { url, onConflict })),
+	/**
 	 *  테마 하나를 `.json` 으로 저장한다. `is_built_in` 은 항상 false 로 기록해
 	 *  남에게 건넨 파일이 그쪽 갤러리에서 "내장" 으로 앉지 않게 한다.
 	 */

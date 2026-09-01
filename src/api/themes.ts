@@ -28,6 +28,15 @@ export const themesApi = {
   import: (path: string | null = null, mode: "overwrite" | "copy" | null = null) =>
     unwrap<ThemeImportOutcome>("theme_import", commands.themeImport(path, mode)),
 
+  /**
+   * 링크로 받은 테마 가져오기 (oculpm.com/themes 의 「앱에서 가져오기」).
+   * 딥링크 확인 시트를 지난 뒤에만 부른다 — https + 호스트 화이트리스트는
+   * 백엔드가 다시 검사한다. 충돌 뒤 재시도는 파일 임포트와 같은 길이라
+   * `source_path` 로 `import(path, mode)` 를 부르면 된다 (다시 받지 않는다).
+   */
+  importUrl: (url: string, mode: "overwrite" | "copy" | null = null) =>
+    unwrap<ThemeImportOutcome>("theme_import_url", commands.themeImportUrl(url, mode)),
+
   /** 저장 대화상자 → 경로. 취소하면 `null`. */
   export: (theme: ThemeFile) =>
     unwrap<string | null>("theme_export", commands.themeExport(theme)),

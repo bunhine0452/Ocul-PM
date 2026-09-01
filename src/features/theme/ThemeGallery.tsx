@@ -8,7 +8,7 @@
  * 카드를 누르면 그 테마가 곧바로 적용된다 — 갤러리에서 "고르기" 와 "미리보기"
  * 를 나누지 않는다. 되돌리는 비용이 클릭 한 번이라 나눌 이유가 없다.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Download, MoreHorizontal, Palette, Pencil, Plus, Trash2, Upload } from "@/components/Icons";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { themesApi } from "@/api/themes";
@@ -18,12 +18,13 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
-import type { ThemeFile } from "@/lib/bindings";
+import type { ThemeFile, ThemeImportOutcome } from "@/lib/bindings";
 
 import { BUILTIN_THEMES } from "./builtins";
 import { CUSTOM_PREFIX } from "./apply";
 import { blankTheme, duplicateTheme, themeTokens } from "./schema";
 import { refreshThemes, setThemeDraft, useThemeState } from "./store";
+import { consumeThemeInstall, onThemeInstallRequest } from "./themeInstallIntent";
 import { ThemeEditor } from "./ThemeEditor";
 
 /** 카드의 미니 미리보기 — 테마가 실제로 지정한 값만 쓰고, 없으면 상속을 흉내낸다. */
@@ -116,10 +117,11 @@ export function ThemeGallery() {
     }
   };
 
-  const runImport = async (path: string | null, mode: "overwrite" | "copy" | null) => {
+  /** 임포트 결말 처리 — 파일과 URL 이 같은 길을 지난다. */
+  const runImportWith = async (call: () => Promise<ThemeImportOutcome>) => {
     setBusy(true);
     try {
-      const outcome = await themesApi.import(path, mode);
+      const outcome = await call();
       if (outcome.status === "conflict" && outcome.source_path) {
         setConflict({ name: outcome.conflict_name ?? "", sourcePath: outcome.source_path });
         return;
@@ -135,6 +137,24 @@ export function ThemeGallery() {
       setBusy(false);
     }
   };
+
+  const runImport = (path: string | null, mode: "overwrite" | "copy" | null) =>
+    runImportWith(() => themesApi.import(path, mode));
+
+  // 딥링크(`oculpm://theme/install?url=…`)가 승인된 뒤 여기로 온다. 충돌
+  // 되묻기 UI 가 이 컴포넌트에 있어 임포트도 여기서 한다 — 시트는 승인만 한다.
+  // `latest` 로 최신 콜백을 잡아 두어 마운트 때 한 번만 구독한다.
+  const importUrlRef = useRef((url: string) => {
+    void runImportWith(() => themesApi.importUrl(url, null));
+  });
+  importUrlRef.current = (url: string) => {
+    void runImportWith(() => themesApi.importUrl(url, null));
+  };
+  useEffect(() => {
+    const pending = consumeThemeInstall();
+    if (pending) importUrlRef.current(pending);
+    return onThemeInstallRequest((url) => importUrlRef.current(url));
+  }, []);
 
   const cards: ThemeFile[] = [...BUILTIN_THEMES, ...customThemes];
   const activeValue = settings.theme;

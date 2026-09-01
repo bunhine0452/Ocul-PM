@@ -48,6 +48,7 @@
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
     <a class="wk-side-link" href="/wiki/planner">플래너</a>
     <a class="wk-side-link" href="/wiki/retro">회고</a>
+    <a class="wk-side-link" href="/wiki/automation">자동화</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
     <a class="wk-side-link on" href="/wiki/ai-panel">에이전트 패널</a>
@@ -89,7 +90,7 @@
 <ul><li><b>모델 선택</b> — 입력창 옆에서 그때그때 바꿉니다. 키가 있는 제공자만 뜹니다</li><li><b>새 대화 / 대화 기록</b> — 지난 대화를 다시 열 수 있습니다</li><li><b>생성 중지</b> — 답이 길어질 때 끊습니다</li><li><code>⏎</code> 전송 · <code>⇧⏎</code> 줄바꿈</li></ul>
 <h2 id="작업-맥락-자동-주입">작업 맥락 자동 주입</h2>
 <p>설정 → 인덱싱 &amp; RAG 의 <b>「작업일지 · 규칙 자동 주입」</b> 을 켜면, 칩을 누르지 않아도 최근 일지와 AGENTS 규칙이 매 대화에 들어갑니다. 세션이나 모델을 바꿔도 작업 방향이 유지됩니다.</p>
-<p>주입할 일지 수는 조절할 수 있습니다 — 많을수록 맥락이 풍부하지만 토큰을 더 씁니다. 0 으로 두면 규칙만 들어갑니다.</p>
+<p>주입할 일지 수는 조절할 수 있습니다 — 많을수록 맥락이 풍부하지만 토큰을 더 씁니다.undefined으로 두면 규칙만 들어갑니다.</p>
 <h2 id="앱-안-claude-code-와-어떻게-다른가">앱 안 Claude Code 와 어떻게 다른가</h2>
 <div class="wk-table"><table><thead><tr><th></th><th>에이전트 패널</th><th>앱 안 Claude Code</th></tr></thead><tbody><tr><td>하는 일</td><td>묻고 정리하기</td><td>코드를 실제로 고치기</td></tr><tr><td>비용</td><td>여러분의 API 키</td><td>Claude 구독 자격</td></tr><tr><td>제공자</td><td>여럿 (Anthropic·OpenAI·Gemini·OpenRouter·NIM)</td><td>Claude</td></tr><tr><td>파일 수정</td><td>안 함 (플래너 제안은 승인 후)</td><td>함</td></tr></tbody></table></div>
 <h2 id="다음-걸음">다음 걸음</h2>

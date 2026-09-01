@@ -1,7 +1,7 @@
 ---
 title: Claude Code
 desc: In-app Claude Code vs terminal Claude Code, installing the plugin (hook bridge), and why /plugin and /mcp don't work in-app.
-order: 8
+order: 9
 updated: 2026-08-21
 ---
 

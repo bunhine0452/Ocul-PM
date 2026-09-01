@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Automation — Ocul-PM Wiki</title>
+<meta name="description" content="It records when your hands stop — pick a background model, set schedules and watchers, and know exactly what gets billed and what never leaves." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/wiki/en/automation" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/automation" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/automation" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="Automation — Ocul-PM Wiki" />
+<meta property="og:description" content="It records when your hands stop — pick a background model, set schedules and watchers, and know exactly what gets billed and what never leaves." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/wiki.css" />
+</head>
+<body class="wk-body">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.14.0</span>
+    <div class="nav-links">
+      <a href="/en#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en" style="color: var(--ink);">Wiki</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<div class="wk-layout">
+  <aside class="wk-side">
+    <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
+    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/today">Today</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
+    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link on" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
+    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
+    <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
+    <div class="wk-side-foot">
+      <a href="/wiki/automation">한국어 →</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/wiki-src/en" target="_blank" rel="noreferrer">Edit this page →</a>
+    </div>
+  </aside>
+
+  <main class="wk-main">
+    <article class="wk-article">
+      <h1>Automation</h1>
+      <p class="wk-updated">Last updated 2026-09-02</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#two-minute-setup">Two-minute setup</a><a href="#schedules-reacting-to-the-clock">Schedules — reacting to the clock</a><a href="#watchers-reacting-to-files">Watchers — reacting to files</a><a href="#the-instructions-are-everything">The instructions are everything</a><a href="#what-gets-billed-what-never-leaves">What gets billed, what never leaves</a><a href="#when-something-looks-wrong">When something looks wrong</a></nav>
+      <p>The surest way to get a record written is to <b>not have to ask for one</b>. Automation runs once in the background — at a set time, or the moment your hands stop — and leaves a draft journal entry for the work you just did.</p>
+<p>All of it is <b>opt-in and off by default.</b> On a machine where nothing is configured, not a single background request happens.</p>
+<h2 id="two-minute-setup">Two-minute setup</h2>
+<h3 id="1-pick-a-background-model">1. Pick a background model</h3>
+<p><b>Settings → LLM → Background work model.</b> Until you pick one, the automation UI stays locked and jobs are <b>silently skipped</b> — that is how "I didn't know it was billing me" is prevented structurally.</p>
+<p>There is a second reason to keep it separate from your chat model: background work wants a cheap, fast model. A weekly summary does not need your best one.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If a provider doesn't answer, the failover chain answers <b>that one call</b> instead. Your settings don't change, and the answer carries a badge saying a fallback produced it.</p></div></div>
+<h3 id="2-turn-on-the-global-switches">2. Turn on the global switches</h3>
+<p><b>Settings → Automation</b> has two.</p>
+<div class="wk-table"><table><thead><tr><th>Switch</th><th>What</th></tr></thead><tbody><tr><td>Schedules</td><td>Run at set times</td></tr><tr><td>Watchers</td><td>Run when file changes settle</td></tr></tbody></table></div>
+<p>A job runs only when <b>both</b> the global switch and its own on/off are on. Turning a switch off stops every automation in that project immediately.</p>
+<p>The daily run budget lives here too (20 by default). Past it, jobs are skipped with a reason recorded — a runaway loop cannot quietly bill you.</p>
+<h3 id="3-start-from-an-example">3. Start from an example</h3>
+<p>The presets under <b>Start with this</b> are created <b>switched off</b>. Read them, edit them, then turn them on.</p>
+<ul><li><b>Weekly dev summary</b> — every Friday, that week's entries in one page</li><li><b>Morning brief</b> — each morning, yesterday's work and today's remaining plan</li><li><b>Monthly retro</b> — a month of signals, collected</li><li><b>Draft when things settle</b> — a watcher: five quiet minutes after the last change, draft the entry</li></ul>
+<h2 id="schedules-reacting-to-the-clock">Schedules — reacting to the clock</h2>
+<p>Frequencies: <b>once · every N minutes · every N hours · daily · weekly · monthly · yearly · cron</b>. Cron is standard 5-field; write weekdays by name (<code>MON-FRI</code>) to stay unambiguous.</p>
+<p>Dates that don't exist in a given month (the 31st, Feb 29) are pulled back to the last day.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>Schedules run <b>while the app is open</b>. A run scheduled for a time your laptop was closed does not happen — the run history records why.</p></div></div>
+<h2 id="watchers-reacting-to-files">Watchers — reacting to files</h2>
+<p>A watcher's signal is not "something changed" but <b>"changes stopped."</b> It does nothing while you work, and runs once after your hands come off the keyboard.</p>
+<p>How long the quiet has to last is one of six <b>responsiveness tiers</b>.</p>
+<div class="wk-table"><table><thead><tr><th>Tier</th><th>Quiet period</th><th>When</th></tr></thead><tbody><tr><td>Instant</td><td>0.2s</td><td>React on every save</td></tr><tr><td>Balanced</td><td>1s</td><td></td></tr><tr><td>Patient</td><td>3s</td><td></td></tr><tr><td>Relaxed</td><td>1m</td><td></td></tr><tr><td>Deferred</td><td>5m</td><td>Once, when the task is actually done</td></tr><tr><td>Extended</td><td>10m</td><td>Long-running work</td></tr></tbody></table></div>
+<p>The watch path is relative to the project. Empty or <code>.</code> means the whole project, and you choose whether subfolders count.</p>
+<p>Journal entries, planner files, automation definitions and the index are <b>excluded as causes</b>. That breaks the loop where a job's own output wakes it again — structurally, not by convention.</p>
+<h2 id="the-instructions-are-everything">The instructions are everything</h2>
+<p>Automation calls the background model <b>directly</b> — none of your rules or skills ride along the way they do in the chat panel. So write two things into every instruction.</p>
+<ol><li><b>What to read and what to produce</b> — "read the lastundefineddays of entries and summarise as shipped / resisted / next"</li><li><b>Skip what you've already handled</b> — automations run more than once</li></ol>
+<p>Definitions are markdown files under <code>.oculpm/automation/</code>. Edit them by hand and commit them — that is how a team shares the same automations.</p>
+<h2 id="what-gets-billed-what-never-leaves">What gets billed, what never leaves</h2>
+<p><b>Billed</b>: exactly one LLM call, when a job actually runs. Browsing or editing automations sends nothing.</p>
+<p><b>Never leaves</b>: automation adds no new outbound path. Only the records your instruction asks for go to the provider <b>you chose</b>, and usage statistics and crash reports are <b>not collected at all</b>. The full list is on <a href="/privacy">what leaves and what never does</a>.</p>
+<p><b>Offline</b>, a job is not failed but <b>deferred</b> — opening your laptop on a plane doesn't lose the weekly summary; it catches up when you reconnect.</p>
+<p><b>What ran, when, and why</b> is in each card's <b>History</b> — the outcome (ok, skipped, dropped, deferred), the reason, and a link to the entry it produced.</p>
+<h2 id="when-something-looks-wrong">When something looks wrong</h2>
+<p>Three symptoms cover nearly all automation debugging.</p>
+<ul><li><b>It never ran</b> — check that the global switch and the job's own switch are <b>both</b> on, that the watched folder exists, that subfolder coverage isn't off, and that the app was open at that time. The run history records the skip reason.</li><li><b>It runs too often</b> — use a longer responsiveness tier and spell out "skip what you've already handled" in the instructions. Check the daily budget too.</li><li><b>The result is wrong</b> — read the outcome and reason in the run history first, then make the instructions more specific.</li></ul>
+<p>The same guidance is folded into the app under <b>Settings → Automation</b>.</p>
+    </article>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/retro"><span>← Previous</span><b>Retro</b></a>
+<a class="wk-pg next" href="/wiki/en/claude-code"><span>Next →</span><b>Claude Code</b></a></footer>
+  </main>
+</div>
+
+<script>
+  // 네비 버전 배지 동기 (index 와 같은 스크립트)
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

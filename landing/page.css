@@ -1,0 +1,319 @@
+/* ============================================================
+   Ocul-PM 랜딩 — 문서 페이지 레이어 (Osaurus 라운드 Phase 8)
+
+   `/changelog` · `/themes` · `/privacy` · `/plugin` 네 장이 공유한다.
+   landing.css 의 무대 토큰(--stage / --ink / --green …) 위에만 얹고
+   색을 새로 정의하지 않는다 — 랜딩과 문서가 다른 사이트처럼 보이면 안 된다.
+
+   (2026-09-02: plugin.html 이 2026-08-16 재설계 이전 토큰(--paper·--line·
+   --green-600 …)을 쓰고 있어 화면이 깨져 있었다. 그 페이지도 여기로 옮겼다.)
+   ============================================================ */
+
+/* ── 페이지 머리 ──────────────────────────────────────── */
+.pg-hero {
+  border-bottom: 1px solid var(--hairline);
+  background:
+    radial-gradient(120% 140% at 50% -30%, rgba(29, 185, 129, 0.14), transparent 62%),
+    var(--stage);
+  padding: 84px 24px 52px;
+}
+.pg-hero-inner { max-width: var(--w); margin: 0 auto; }
+.pg-hero h1 {
+  margin: 0;
+  font-size: clamp(30px, 4.6vw, 46px);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+.pg-lead {
+  margin: 16px 0 0;
+  max-width: 680px;
+  color: var(--ink-dim);
+  font-size: 15.5px;
+  line-height: 1.8;
+}
+.pg-lead b { color: var(--ink); }
+
+/* ── 본문 ─────────────────────────────────────────────── */
+.pg-main { padding: 56px 24px 96px; }
+.pg-main .wrap { max-width: var(--w); }
+.pg-sec { margin-top: 64px; }
+.pg-sec:first-child { margin-top: 0; }
+.pg-sec > h2 {
+  margin: 0 0 8px;
+  font-size: clamp(21px, 2.6vw, 29px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  scroll-margin-top: 78px;
+}
+.pg-sec > p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--ink-dim);
+  font-size: 14.5px;
+  line-height: 1.8;
+}
+.pg-sec > p b { color: var(--ink); }
+.pg-sec > p + p { margin-top: 12px; }
+.pg-sec a { color: var(--green); text-decoration: none; font-weight: 600; }
+.pg-sec a:hover { text-decoration: underline; }
+
+/* ── 표 ───────────────────────────────────────────────── */
+.pg-table { margin-top: 20px; overflow-x: auto; }
+.pg-table table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+.pg-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 700;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--hairline-strong);
+  white-space: nowrap;
+}
+.pg-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink-dim);
+  line-height: 1.7;
+  vertical-align: top;
+}
+.pg-table td b { color: var(--ink); }
+.pg-table tr:hover td { background: rgba(242, 239, 230, 0.02); }
+.pg-table code, .pg-sec p code, .pg-card code, .pg-lead code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+}
+.pg-table td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+
+/* ── 카드 ─────────────────────────────────────────────── */
+.pg-cards { margin-top: 20px; display: grid; gap: 12px; }
+.pg-card {
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--stage-2);
+  padding: 20px 22px;
+}
+.pg-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pg-card p { margin: 10px 0 0; color: var(--ink-dim); font-size: 13.8px; line-height: 1.78; }
+.pg-card p b { color: var(--ink); }
+
+/* ── 알약 ─────────────────────────────────────────────── */
+.pill {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  padding: 3px 9px;
+  border: 1px solid var(--hairline-strong);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.pill.on { color: var(--green); border-color: color-mix(in srgb, var(--green) 38%, transparent); }
+.pill.warn { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 40%, transparent); }
+.pg-card h3 .when { margin-left: auto; font-size: 11.5px; color: var(--ink-faint); font-weight: 600; }
+
+/* ── 버튼 ─────────────────────────────────────────────── */
+.pg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.pg-btn.primary { background: var(--green-deep); color: #06110c; }
+.pg-btn.primary:hover { background: var(--green); }
+.pg-btn.ghost { border-color: var(--hairline-strong); color: var(--ink-dim); }
+.pg-btn.ghost:hover { color: var(--ink); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.pg-actions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ── 목차(점프) ───────────────────────────────────────── */
+.pg-jump { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 7px; }
+.pg-jump a {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  text-decoration: none;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+.pg-jump a:hover { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+
+/* ── 변경 이력 ────────────────────────────────────────── */
+.cl-rel { border-top: 1px solid var(--hairline); padding: 34px 0 6px; }
+.cl-rel:first-of-type { border-top: 0; padding-top: 8px; }
+.cl-rel h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--green);
+  scroll-margin-top: 78px;
+}
+.cl-rel h2 a { color: inherit; text-decoration: none; }
+.cl-rel h2 a:hover::after { content: " #"; color: var(--ink-faint); }
+.cl-body { max-width: 780px; }
+.cl-body p { margin: 14px 0 0; color: var(--ink-dim); font-size: 14.5px; line-height: 1.85; }
+.cl-body p b { color: var(--ink); }
+.cl-body ul, .cl-body ol { margin: 12px 0 0; padding-left: 20px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.85; }
+.cl-body li b { color: var(--ink); }
+.cl-body h3 { margin: 22px 0 0; font-size: 15px; font-weight: 750; }
+.cl-body code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+}
+.cl-body a { color: var(--green); text-decoration: none; font-weight: 600; }
+.cl-body a:hover { text-decoration: underline; }
+.cl-body blockquote {
+  margin: 14px 0 0;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid var(--hairline-strong);
+  color: var(--ink-faint);
+}
+.cl-body blockquote p { margin: 6px 0 0; font-size: 13.5px; }
+.cl-body pre {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: #0b110d;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-dim);
+}
+.cl-body pre code { background: none; padding: 0; color: inherit; }
+
+/* ── 테마 갤러리 ──────────────────────────────────────── */
+.th-grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 14px;
+}
+.th-card {
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--stage-2);
+  overflow: hidden;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.th-card:hover { border-color: var(--hairline-strong); transform: translateY(-2px); }
+/* 미리보기 — 실제 토큰 값을 인라인 스타일로 받는다 (생성기가 채운다). */
+.th-prev { padding: 14px; display: flex; gap: 10px; border-bottom: 1px solid var(--hairline); }
+.th-prev-side { width: 34px; border-radius: 7px; flex: none; }
+.th-prev-body { flex: 1; border-radius: 7px; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.th-prev-line { height: 6px; border-radius: 3px; }
+.th-prev-chip { height: 14px; width: 46px; border-radius: 999px; margin-top: 2px; }
+.th-meta { padding: 14px 16px 16px; }
+.th-meta h3 { margin: 0; font-size: 15.5px; font-weight: 750; display: flex; align-items: center; gap: 8px; }
+.th-meta .by { margin: 5px 0 0; font-size: 12px; color: var(--ink-faint); }
+.th-sw { margin-top: 12px; display: flex; gap: 5px; }
+.th-sw span { width: 17px; height: 17px; border-radius: 5px; border: 1px solid rgba(242, 239, 230, 0.14); }
+.th-card .pg-actions { margin: 14px 16px 0; padding-bottom: 2px; }
+
+/* ── 기여 안내 ────────────────────────────────────────── */
+.pg-quiet {
+  margin-top: 26px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: 16px;
+  padding: 20px 22px;
+  color: var(--ink-dim);
+  font-size: 13.8px;
+  line-height: 1.8;
+}
+.pg-quiet b { color: var(--ink); }
+.pg-quiet a { color: var(--green); text-decoration: none; font-weight: 600; }
+.pg-quiet a:hover { text-decoration: underline; }
+.pg-quiet code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+}
+
+/* ── 나가는 것 / 안 나가는 것 ─────────────────────────── */
+.pv-split { margin-top: 22px; display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .pv-split { grid-template-columns: 1fr 1fr; } }
+.pv-col { border: 1px solid var(--hairline); border-radius: 16px; background: var(--stage-2); padding: 22px 24px; }
+.pv-col > h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+.pv-col.out > h3 { color: var(--orange); }
+.pv-col.never > h3 { color: var(--green); }
+.pv-col > p { margin: 0; font-size: 13px; color: var(--ink-faint); line-height: 1.7; }
+.pv-col ul { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.pv-col li { font-size: 13.8px; color: var(--ink-dim); line-height: 1.7; padding-left: 22px; position: relative; }
+.pv-col li b { color: var(--ink); }
+.pv-col.out li::before { content: "↑"; position: absolute; left: 0; color: var(--orange); font-weight: 700; }
+.pv-col.never li::before { content: "✕"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+.pv-col li code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+}
+
+/* ── 복사 가능한 명령 ─────────────────────────────────── */
+.pg-code {
+  margin-top: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: #0b110d;
+  overflow: hidden;
+  max-width: 620px;
+}
+.pg-code-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--hairline); }
+.pg-code-row:first-child { border-top: 0; }
+.pg-code-row code { flex: 1; font-family: var(--mono); font-size: 12.5px; color: var(--ink); overflow-x: auto; }
+.copy {
+  flex: none;
+  background: none;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 5px 7px;
+  line-height: 0;
+}
+.copy:hover { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.copy.copied { color: var(--green); border-color: var(--green); }
+
+@media (max-width: 700px) {
+  .pg-hero { padding: 64px 20px 40px; }
+  .pg-main { padding: 44px 20px 72px; }
+  .pg-sec { margin-top: 48px; }
+}

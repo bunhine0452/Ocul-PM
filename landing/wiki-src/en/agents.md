@@ -1,7 +1,7 @@
 ---
 title: Other Agents
 desc: Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills & Rules hub.
-order: 9
+order: 10
 updated: 2026-08-21
 ---
 

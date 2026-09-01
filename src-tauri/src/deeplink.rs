@@ -115,9 +115,19 @@ fn github_source(raw: Option<String>) -> Result<String, LinkError> {
         .ok_or(LinkError::Value(format!("expected owner/repo, got: {raw}")))
 }
 
-/// https + 호스트 화이트리스트. 스킴만 보면 임의 서버가 통과한다.
 fn theme_url(raw: Option<String>) -> Result<String, LinkError> {
     let raw = raw.ok_or(LinkError::Value("url is required".into()))?;
+    validate_theme_url(&raw)
+}
+
+/// https + 호스트 화이트리스트. 스킴만 보면 임의 서버가 통과한다.
+///
+/// 딥링크와 `theme_import_url` 이 **같은 문**을 지난다 (Phase 8
+/// `#landing-themes`) — 검사가 둘이면 하나는 반드시 뒤처진다.
+pub fn validate_theme_url(raw: &str) -> Result<String, LinkError> {
+    if raw.len() > MAX_URL_BYTES {
+        return Err(LinkError::Value("url too long".into()));
+    }
     let rest = raw
         .strip_prefix("https://")
         .ok_or(LinkError::Value("theme url must be https".into()))?;
@@ -137,7 +147,7 @@ fn theme_url(raw: Option<String>) -> Result<String, LinkError> {
     if !THEME_HOSTS.contains(&host.as_str()) {
         return Err(LinkError::Value(format!("host not allowed: {host}")));
     }
-    Ok(raw)
+    Ok(raw.to_string())
 }
 
 /// 경로·구분자·제어문자가 없는 단순 이름인가.
@@ -253,6 +263,18 @@ mod tests {
                 "{bad} must be refused"
             );
         }
+    }
+
+    /// `theme_import_url` 은 딥링크를 지나지 않고도 불릴 수 있는 커맨드다
+    /// (프런트가 승인 뒤에만 부르지만, 그건 규율이지 구조가 아니다).
+    /// 그래서 **같은 검사기**를 커맨드 쪽에서도 다시 지난다 (Phase 8).
+    #[test]
+    fn validate_theme_url_is_the_same_gate_the_deep_link_uses() {
+        assert!(validate_theme_url("https://oculpm.com/themes/ink.json").is_ok());
+        assert!(validate_theme_url("http://oculpm.com/themes/ink.json").is_err());
+        assert!(validate_theme_url("https://evil.test/ink.json").is_err());
+        assert!(validate_theme_url("https://oculpm.com@evil.test/ink.json").is_err());
+        assert!(validate_theme_url(&format!("https://oculpm.com/{}", "a".repeat(4096))).is_err());
     }
 
     #[test]

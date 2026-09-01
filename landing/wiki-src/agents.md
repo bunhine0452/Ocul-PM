@@ -1,7 +1,7 @@
 ---
 title: 다른 에이전트 연동
 desc: Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조와 규칙 파일 목록.
-order: 9
+order: 10
 updated: 2026-08-21
 ---
 

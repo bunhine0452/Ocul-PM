@@ -1,7 +1,7 @@
 ---
 title: 설정
 desc: 테마와 프리셋, 글자 크기, API 키와 폴백 체인, 인덱싱·RAG, 그래프, Notion, 진단과 업데이트.
-order: 12
+order: 13
 updated: 2026-08-21
 ---
 

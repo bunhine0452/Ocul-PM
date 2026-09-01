@@ -7,6 +7,12 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 // 이벤트로 넘기고, 실행은 이 시트를 지나야만 일어난다. 그 구조를 잰다.
 
 import { planFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
+import {
+  consumeThemeInstall,
+  onThemeInstallRequest,
+  requestThemeInstall,
+  resetThemeInstallIntent,
+} from "@/features/theme/themeInstallIntent";
 import type { DeepLink } from "@/lib/bindings";
 
 let emit: ((payload: DeepLink) => void) | null = null;
@@ -99,5 +105,33 @@ describe("DeepLinkSheet", () => {
     fireEvent.click(r.getByRole("button", { name: "취소" }));
     await waitFor(() => expect(r.queryByRole("dialog")).toBeNull());
     expect(onAccept).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Phase 8 (#landing-themes) — 승인 뒤에 실제로 가져온다 ─────────────────
+//
+// 시트는 「테마 파일을 받아 갤러리에 추가합니다」라고 말한다. 승인해도 설정
+// 화면만 열리고 아무것도 받아오지 않으면 그 문장이 거짓이 된다. 갤러리가
+// 아직 없어도 요청이 사라지지 않는 것까지 잰다 (끈적 플래그).
+describe("themeInstallIntent", () => {
+  afterEach(() => resetThemeInstallIntent());
+
+  it("갤러리가 마운트되기 전에 온 요청은 마운트 때 회수된다", () => {
+    requestThemeInstall("https://oculpm.com/themes/ink.json");
+    expect(consumeThemeInstall()).toBe("https://oculpm.com/themes/ink.json");
+    // 소비형이다 — 두 번 열지 않는다.
+    expect(consumeThemeInstall()).toBeNull();
+  });
+
+  it("이미 떠 있는 갤러리는 구독으로 즉시 받는다", () => {
+    const seen: string[] = [];
+    const off = onThemeInstallRequest((url) => seen.push(url));
+    requestThemeInstall("https://oculpm.com/themes/ember.json");
+    off();
+    requestThemeInstall("https://oculpm.com/themes/ink.json");
+    expect(seen).toEqual(["https://oculpm.com/themes/ember.json"]);
+    // 구독이 처리했으면 마운트 회수가 같은 것을 또 열지 않는다.
+    resetThemeInstallIntent();
+    expect(consumeThemeInstall()).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 ---
 title: Settings
 desc: Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates.
-order: 12
+order: 13
 updated: 2026-08-21
 ---
 

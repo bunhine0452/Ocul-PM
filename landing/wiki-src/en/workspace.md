@@ -1,7 +1,7 @@
 ---
 title: Windows, Tabs, Terminal, Code
 desc: Running several projects at once, the terminal dock and splits, the in-app code viewer and editor.
-order: 11
+order: 12
 updated: 2026-08-21
 ---
 

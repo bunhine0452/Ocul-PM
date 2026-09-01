@@ -48,6 +48,7 @@
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
     <a class="wk-side-link on" href="/wiki/en/planner">Planner</a>
     <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
+    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
     <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
@@ -105,7 +106,7 @@ Affects: #resolve-by-time, #derive-links</code></pre>
 <div class="wk-table"><table><thead><tr><th>status</th><th>Meaning</th><th>Can agents edit it?</th></tr></thead><tbody><tr><td><code>active</code></td><td>In progress</td><td>Yes</td></tr><tr><td><code>done</code></td><td>Finished</td><td><b>No</b></td></tr><tr><td><code>archived</code></td><td>Archived</td><td><b>No</b></td></tr></tbody></table></div>
 <p>Agents <b>will not modify</b> a <code>done</code> or <code>archived</code> plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. The sidebar marks these <b>Locked</b>.</p>
 <h2 id="what-the-planner-screen-offers">What the Planner screen offers</h2>
-<ul><li><b>Sort</b> — recent · progress · remaining work · name</li><li><b>Group</b> — by status · by recent activity · by author</li><li><b>Stalled plans</b> — "stalled for 12 days" makes abandoned plans visible</li><li><b>Search</b> — narrow by plan name</li></ul>
+<ul><li><b>Sort</b> — recent · progress · remaining work · name</li><li><b>Group</b> — by status · by recent activity · by author</li><li><b>Stalled plans</b> — "stalled forundefineddays" makes abandoned plans visible</li><li><b>Search</b> — narrow by plan name</li></ul>
 <h2 id="who-creates-a-new-plan">Who creates a new plan</h2>
 <p>Usually it's easiest to ask an agent — "turn these into a plan" and you get a spec-conforming file. You can also write one by hand: frontmatter, phase headings, item lines, and an empty log block, in that order.</p>
 <div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>When writing item lines, <code>{#id}</code> must sit at the <b>end of the line</b> with no wrapping. An <code>{#id}</code> that spills onto a second line won't be read by the parser.</p></div></div>

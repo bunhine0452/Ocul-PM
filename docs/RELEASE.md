@@ -44,7 +44,7 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 - 새 화면·설정·에이전트가 생겼다면 **화면 구성 / Screens**, **지원 에이전트**, 단축키 문단까지 함께 고칩니다.
 - 한국어만 고치고 영어를 두고 오는 실수가 가장 잦습니다. 두 파일은 항상 같은 사실을 말해야 합니다.
 
-## 4. landing/index.html — 버전 문자열 6곳 + 새 기능 표면
+## 4. landing/ — 버전 문자열 6곳 + 생성물 재빌드 + 새 기능 표면
 
 버전 문자열: `softwareVersion`(JSON-LD) · `nav-ver` 배지 · `ap-new` NEW 배지 · **다운로드 버튼 2곳**(히어로와 CTA — 둘 다 `vX.Y.Z 받기`) · CTA `eyebrow`. 변경사항 `<li>` 는 새로 **추가**하는 것이라 이 수에 들지 않습니다 (v2.15.0 에서 이 문서가 5곳이라고 적어 둔 탓에 버튼 하나를 놓칠 뻔했습니다 — 아래 grep 이 실제 심판입니다).
 
@@ -52,12 +52,24 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 grep -n "2\.8\.5" landing/index.html    # 이전 버전 문자열이 남지 않았는지 전수 확인
 ```
 
+### 4-1. 생성물 재빌드 (한 줄)
+
+```bash
+node landing/wiki-src/build.mjs
+```
+
+이 한 줄이 위키(`wiki/**`) · **변경 이력**(`changelog.html`) · **테마 갤러리**(`themes.html`) · **개인정보**(`privacy.html`) · `sitemap.xml` 을 전부 다시 굽습니다. `CHANGELOG.md` 를 §2 에서 고쳤으므로 **이 단계는 매 릴리스 필수**입니다 — 빼먹으면 웹의 변경 이력만 옛 버전에 멈춥니다. `src/__tests__/landing_pages.test.ts` 가 「CHANGELOG 맨 위 섹션 == `package.json` 버전」과 「모든 릴리스가 changelog.html 에 앵커로 있는가」를 함께 재므로, 잊으면 §0 게이트에서 붉게 납니다.
+
+### 4-2. 손으로 고치는 면
+
 기능이 추가된 릴리스라면 여기에 더해:
 
 - JSON-LD `featureList` 에 한 줄
 - 눈에 띄는 기능이면 FAQ 항목 (SEO 표면)
 - 벤토 그리드 셀 — 그리드는 6칸이므로 `c-span2` 3개 = 한 줄로 맞춰 넣습니다
-- 플러그인 커맨드·MCP 도구·스킬이 바뀌었으면 `landing/plugin.html` 도 (테스트가 누락을 막습니다)
+- 플러그인 커맨드·MCP 도구·스킬이 바뀌었으면 `landing/plugin.html` 도. **버전 배지**(`v2.30.0`)가 그 페이지에 있고 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (제3자 스킬 카탈로그·핀 SHA 는 `plugin_docs_sync.test.ts`)
+- 테마를 `landing/themes/` 에 더했다면 4-1 재빌드로 갤러리에 실립니다 (`landing_themes.test.ts` 가 스키마·색 값·본문 대비를 검사합니다)
+- 영문 랜딩(`landing/en/index.html`)의 대응 항목 — 한국어만 고치고 두고 오기 쉽습니다
 - **기존 FAQ 가 거짓이 되지 않는지** 확인합니다. 새 항목을 더하는 것보다 이쪽이 먼저입니다 — v2.15.0 에서 「자동완성이 필요하면 외부 에디터로」라고 적힌 답변이 바로 그 자동완성을 넣는 릴리스와 충돌했습니다. 같은 문장이 JSON-LD 와 `<details>` **두 곳**에 있으니 둘 다 고칩니다
 
 ## 5. 커밋 → 태그 → 랜딩 배포
@@ -69,6 +81,7 @@ git tag vX.Y.Z
 git push origin main           # 커밋 먼저
 git push origin vX.Y.Z         # 태그는 단독으로 — release.yml 이 빌드·서명·릴리스 (로컬 빌드 금지)
 cd landing && vercel --prod --yes               # 랜딩은 git 연동이 없어 push 로 안 나갑니다
+                                               # (§4-1 재빌드가 먼저 — 배포는 디스크에 있는 것만 올립니다)
 ```
 
 **`--tags` 를 쓰지 않습니다.** 로컬에 원격과 어긋난 옛 태그가 하나라도 있으면 푸시가 **통째로** 거부되고, 그 안에 섞인 새 태그의 push 이벤트까지 함께 묻혀 **워크플로가 아예 돌지 않습니다** (v2.9.0 에서 겪음 — 태그는 원격에 올라갔는데 빌드는 시작되지 않았습니다). 태그를 하나만 밀면 옛 태그의 상태와 무관해집니다.
@@ -85,6 +98,7 @@ git fetch --tags --force --prune-tags origin
 gh run list --workflow=release.yml --limit 3   # ← 새 태그의 run 이 실제로 떴는지부터
 gh release view vX.Y.Z --json body,assets --jq '{notes: (.body|length), assets: (.assets|length)}'
 curl -s https://oculpm.com/ | grep softwareVersion
+curl -s https://oculpm.com/changelog | grep -c 'id="v'   # 릴리스 수만큼 앵커가 있는지
 ```
 
 **run 이 안 떴으면** 태그를 지웠다 다시 밀어 push 이벤트를 새로 발생시킵니다 (커밋은 이미 main 에 있어 안전):

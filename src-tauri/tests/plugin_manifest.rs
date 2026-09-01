@@ -481,6 +481,18 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
             "landing/plugin.html 에 스킬 {skill} 문서 누락"
         );
     }
+
+    // 버전 pill (Phase 8 `#landing-skills`) — 동봉 스킬은 플러그인 버전을
+    // 그대로 단다. 릴리스에서 랜딩을 빼먹으면 옛 버전이 웹에 남으므로 게이트로
+    // 잡는다 (docs/RELEASE.md §4 의 "plugin.html 버전" 항목이 이것이다).
+    let version = read_json(".claude-plugin/plugin.json")["version"]
+        .as_str()
+        .expect("plugin.json version")
+        .to_string();
+    assert!(
+        page.contains(&format!("v{version}")),
+        "landing/plugin.html 의 버전 배지가 v{version} 가 아니다 — 릴리스에서 랜딩이 빠졌다"
+    );
 }
 
 /// MCP 는 머신 종속 절대경로 대신 플러그인 동봉 셔틀을 가리킨다.

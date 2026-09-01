@@ -1,7 +1,7 @@
 ---
 title: Shortcuts
 desc: Navigation, tabs and windows, the terminal dock, and Claude Code screen keys.
-order: 15
+order: 16
 updated: 2026-08-21
 ---
 

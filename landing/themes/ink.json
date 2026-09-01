@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "ink",
+    "name": "Ink",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "light",
+  "is_built_in": false,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#3b4cca",
+    "--accent-ring": "rgba(59,76,202,0.38)",
+    "--accent-soft": "rgba(59,76,202,0.13)",
+    "--accent-strong": "#3242b4",
+    "--accent-text": "#33429e",
+    "--bg-active": "rgba(27,31,51,0.09)",
+    "--bg-card": "#ffffff",
+    "--bg-content": "#ffffff",
+    "--bg-hover": "rgba(27,31,51,0.05)",
+    "--bg-inset": "#f2efe8",
+    "--bg-sidebar": "#efece5",
+    "--bg-window": "#fbfaf7",
+    "--border-card": "rgba(27,31,51,0.09)",
+    "--sep": "rgba(27,31,51,0.10)",
+    "--sep-strong": "rgba(27,31,51,0.18)",
+    "--text": "#1b1f33",
+    "--text-2": "#5a6076",
+    "--text-3": "#8e93a5",
+    "--text-on-accent": "#ffffff"
+  }
+}

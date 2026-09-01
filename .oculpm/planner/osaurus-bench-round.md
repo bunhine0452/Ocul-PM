@@ -4,7 +4,7 @@ id: osaurus-bench-round
 title: "Osaurus 벤치마크 라운드 — 자동화 · 출처 · 테마 · 컨텍스트 경제학 · 선언적 설정"
 status: active
 created: 2026-08-31
-updated: 2026-09-01
+updated: 2026-09-02
 owner: claude-code
 ---
 
@@ -113,12 +113,12 @@ v2.29.0=P5 · v2.30.0=P6+P7(P6 는 미태그 — P7 과 한 버전으로) · v2.
 - [x] 오프라인 자동화는 실패가 아니라 **연기** — 따라잡기 규칙에 태움 {#automation-defer-offline}
 
 ## Phase 8 — 랜딩 {#landing}
-- [ ] `/changelog` — `CHANGELOG.md` 렌더 + 버전 앵커, sitemap `changefreq: daily` {#landing-changelog}
-- [ ] `/themes` 갤러리 — 라이트/다크 스와치 미리보기 + 딥링크 설치, 기여는 `landing/themes/*.json` PR {#landing-themes}
-- [ ] `plugin.html` → 스킬 카탈로그 — 버전 pill·GitHub 링크·딥링크 설치, `plugin_docs_sync`·`plugin_skills_sync` 게이트 테스트 확장 {#landing-skills}
-- [ ] `/privacy` — 나가는 것 3개(LLM 요청·업데이트 확인·GitHub 조회)와 **절대 안 나가는 것** 목록. 자동화 도입으로 선택이 아니라 필수 {#landing-privacy}
-- [ ] `/automation` 가이드 위키 ko/en — 2분 설정 + 무엇이 과금되고 무엇이 안 나가는가 {#landing-automation-guide}
-- [ ] `docs/RELEASE.md` 5면 절차 갱신 — changelog 재생성·sitemap·테마/스킬 카탈로그 반영 추가 {#release-doc-update}
+- [x] `/changelog` — `CHANGELOG.md` 렌더 + 버전 앵커, sitemap `changefreq: daily` {#landing-changelog}
+- [x] `/themes` 갤러리 — 라이트/다크 스와치 미리보기 + 딥링크 설치, 기여는 `landing/themes/*.json` PR {#landing-themes}
+- [x] `plugin.html` → 스킬 카탈로그 — 버전 pill·GitHub 링크·딥링크 설치, `plugin_docs_sync`·`plugin_skills_sync` 게이트 테스트 확장 {#landing-skills}
+- [x] `/privacy` — 나가는 것 3개(LLM 요청·업데이트 확인·GitHub 조회)와 **절대 안 나가는 것** 목록. 자동화 도입으로 선택이 아니라 필수 {#landing-privacy}
+- [x] `/automation` 가이드 위키 ko/en — 2분 설정 + 무엇이 과금되고 무엇이 안 나가는가 {#landing-automation-guide}
+- [x] `docs/RELEASE.md` 5면 절차 갱신 — changelog 재생성·sitemap·테마/스킬 카탈로그 반영 추가 {#release-doc-update}
 
 ## 결정
 
@@ -371,4 +371,10 @@ apply 가 만들어 내지 않는다. 설계 §1 의 승인 카드 예시 「+ �
 | 2026-09-01T19:15:00+09:00 | #import-guards | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 신규 의존성 `zip`. zip slip·깊이·개수·크기 + 헤더를 믿지 않고 읽기 자체를 자른다. 미리보기=설치와 같은 함수(dry) |
 | 2026-09-01T19:15:00+09:00 | #not-honored-notice | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 세 자리 한 컴포넌트. 새로 만든 `master_ahead_of_app` — 템플릿이 앱보다 새로운 방향은 여태 조용히 무시됐다 |
 | 2026-09-01T19:15:00+09:00 | #deep-link | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 신규 의존성 `tauri-plugin-deep-link`. 승인 시트를 지나지 않는 경로가 **없다**. `owner/repo` 파서는 임포트와 공유 |
+| 2026-09-02T05:50:00+09:00 | #landing-changelog | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | `CHANGELOG.md` → `changelog.html` + 버전 앵커. sitemap 에서 `changefreq: daily` 는 이 한 면뿐, `lastmod` 는 git 이 준다. 렌더러를 `md.mjs` 로 빼 위키와 공유 |
+| 2026-09-02T05:50:00+09:00 | #landing-themes | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 내장 5 + 배포 2(Ink·Ember). 미리보기는 **가족 기본값 상속까지** 앱과 같은 방식. 딥링크가 실제로 설치하게 `theme_import_url` 신설 — 검사기·충돌 질의는 기존 것과 한 벌 |
+| 2026-09-02T05:50:00+09:00 | #landing-skills | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 카탈로그 25종에 고정 커밋 배지·원문 링크, 동봉 5종에 버전 pill·딥링크. **재설계 이전 토큰으로 깨져 있던 페이지**를 `page.css` 로 복구. 게이트 3종 확장 |
+| 2026-09-02T05:50:00+09:00 | #landing-privacy | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 나가는 것이 설계 문서의 3이 아니라 **5**였다 (임베딩 모델 1회·Notion 옵인 누락). 실측으로 고쳐 적음 + 안 나가는 것 7 + `rg` 로 세는 법 + 영어 요약 |
+| 2026-09-02T05:50:00+09:00 | #landing-automation-guide | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 위키 ko/en 신규 면(order 8, 이하 한 칸씩 밀림). 2분 설정·티어 6단계·지시문 규약·무엇이 과금되는가 |
+| 2026-09-02T05:50:00+09:00 | #release-doc-update | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | §4 를 4-1(재빌드 한 줄)/4-2(손으로)로 분리. `landing_pages.test.ts` 가 CHANGELOG 맨 위 == package.json 버전을 재므로 잊으면 게이트가 붉게 난다 |
 <!-- oculpm:plan-log end -->

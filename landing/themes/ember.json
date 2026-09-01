@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "ember",
+    "name": "Ember",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "dark",
+  "is_built_in": false,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#f0873f",
+    "--accent-ring": "rgba(240,135,63,0.38)",
+    "--accent-soft": "rgba(240,135,63,0.15)",
+    "--accent-strong": "#e0762c",
+    "--accent-text": "#f6a56c",
+    "--bg-active": "rgba(255,240,230,0.09)",
+    "--bg-card": "#262120",
+    "--bg-content": "#1d1917",
+    "--bg-hover": "rgba(255,240,230,0.055)",
+    "--bg-inset": "#2c2624",
+    "--bg-sidebar": "#131010",
+    "--bg-window": "#1a1614",
+    "--border-card": "rgba(255,240,230,0.075)",
+    "--sep": "rgba(255,240,230,0.08)",
+    "--sep-strong": "rgba(255,240,230,0.16)",
+    "--text": "#f5efe9",
+    "--text-2": "#b3a79e",
+    "--text-3": "#7a7069",
+    "--text-on-accent": "#2a1206"
+  }
+}
