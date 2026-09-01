@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 // 지금 **정말로 돌고 있는** Claude Code 세션의 수 (2026-08-16).
 //
@@ -24,13 +24,6 @@ const working = new Set<string>();
  */
 const attention = new Set<string>();
 const listeners = new Set<Listener>();
-
-/**
- * `useSyncExternalStore` 는 스냅샷이 **같은 값이면 같아야** 한다 — `working.size`
- * 를 매번 읽어도 숫자라 안전하지만, 캐시해 두면 구독자 수만큼의 Set 조회가 없다.
- */
-let count = 0;
-let attentionCount = 0;
 
 /**
  * 세션 줄이 읽는 스냅샷 (Phase 3 `#active-rows`).
@@ -61,7 +54,6 @@ export function setAcpWorking(key: string, on: boolean): void {
   if (on === working.has(key)) return;
   if (on) working.add(key);
   else working.delete(key);
-  count = working.size;
   rebuildRowStates();
   for (const listener of [...listeners]) listener();
 }
@@ -71,17 +63,25 @@ export function setAcpAttention(key: string, on: boolean): void {
   if (on === attention.has(key)) return;
   if (on) attention.add(key);
   else attention.delete(key);
-  attentionCount = attention.size;
   rebuildRowStates();
   for (const listener of [...listeners]) listener();
 }
 
-/** 이 프로젝트에서 돌고 있는 세션 수 — 훅이 아니라 즉시 읽기 (탭 닫기 문지기). */
-export function countAcpWorkingFor(projectId: number): number {
+function countIn(set: ReadonlySet<string>, projectId: number): number {
   const prefix = `${projectId}:`;
   let n = 0;
-  for (const key of working) if (key.startsWith(prefix)) n += 1;
+  for (const key of set) if (key.startsWith(prefix)) n += 1;
   return n;
+}
+
+/** 이 프로젝트에서 돌고 있는 세션 수 — 훅이 아니라 즉시 읽기 (탭 닫기 문지기). */
+export function countAcpWorkingFor(projectId: number): number {
+  return countIn(working, projectId);
+}
+
+/** 이 프로젝트에서 승인을 기다리는 세션 수. */
+export function countAcpAttentionFor(projectId: number): number {
+  return countIn(attention, projectId);
 }
 
 function subscribe(listener: Listener): () => void {
@@ -91,30 +91,36 @@ function subscribe(listener: Listener): () => void {
   };
 }
 
-function snapshot(): number {
-  return count;
-}
-
-/** 지금 돌고 있는 세션 수. 0 이면 조용하다. */
-export function useAcpWorkingCount(): number {
+/**
+ * 이 프로젝트에서 지금 돌고 있는 세션 수. 0 이면 조용하다.
+ *
+ * `projectId` 를 받는다 (2026-09-01): 예전엔 `working.size` 를 그대로 돌려줘,
+ * 탭마다 서는 사이드바가 **모든 프로젝트의 합**을 자기 「Claude Code」 배지에
+ * 그렸다 — 아무것도 안 도는 A 탭이 "2 실행 중" 이라 우겼다. 스냅샷이 숫자라
+ * 매번 세도 `Object.is` 비교가 안전하다 (`AcpRowStates` 처럼 새 객체가 나오는
+ * 경우가 아니다).
+ */
+export function useAcpWorkingCount(projectId: number | null): number {
+  const snapshot = useCallback(
+    () => (projectId == null ? 0 : countAcpWorkingFor(projectId)),
+    [projectId],
+  );
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
-function attentionSnapshot(): number {
-  return attentionCount;
-}
-
-/** 승인을 기다리며 멈춰 있는 세션 수. 0 이 아니면 사용자가 눌러야 풀린다. */
-export function useAcpAttentionCount(): number {
-  return useSyncExternalStore(subscribe, attentionSnapshot, attentionSnapshot);
+/** 이 프로젝트에서 승인을 기다리며 멈춰 있는 세션 수. 0 이 아니면 사용자가 눌러야 풀린다. */
+export function useAcpAttentionCount(projectId: number | null): number {
+  const snapshot = useCallback(
+    () => (projectId == null ? 0 : countAcpAttentionFor(projectId)),
+    [projectId],
+  );
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 /** 테스트 전용 — 창을 새로 여는 것과 같은 상태로 되돌린다. */
 export function resetAcpWorking(): void {
   working.clear();
   attention.clear();
-  count = 0;
-  attentionCount = 0;
   rebuildRowStates();
   for (const listener of [...listeners]) listener();
 }

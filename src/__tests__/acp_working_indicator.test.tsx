@@ -19,7 +19,7 @@ afterEach(() => {
   resetAcpWorking();
 });
 
-function renderSidebar() {
+function renderSidebar(currentProjectId = 1) {
   return render(
     <Sidebar
       view="today"
@@ -27,6 +27,7 @@ function renderSidebar() {
       projectName="ai-pm"
       projectPath="~/dev/ai-pm"
       onOpenProjectSwitcher={() => {}}
+      currentProjectId={currentProjectId}
       isDark={false}
       onToggleTheme={() => {}}
     />,
@@ -52,19 +53,31 @@ describe("사이드바 작업 중 표시", () => {
     expect(document.querySelector(".nav-ico.working")).toBeNull();
   });
 
-  it("프로젝트 탭이 여럿이면 각각 센다 — 같은 세션을 두 번 세지는 않는다", () => {
-    renderSidebar();
+  it("한 프로젝트 안의 세션만 센다 — 같은 세션을 두 번 세지는 않는다", () => {
+    // 2026-09-01 — 예전엔 `working.size` 를 그대로 그려 **모든 프로젝트의 합**이
+    // 탭마다 붙었다 (아무것도 안 도는 탭이 "2 실행 중"). 사이드바는 탭마다
+    // 서므로 자기 프로젝트만 세야 한다.
+    renderSidebar(1);
 
     act(() => {
       setAcpWorking(acpWorkingKey(1, "s-1"), true);
-      setAcpWorking(acpWorkingKey(2, "s-2"), true);
+      setAcpWorking(acpWorkingKey(1, "s-2"), true);
       // 같은 키를 다시 켜도 수가 늘면 안 된다 (effect 는 여러 번 돈다).
       setAcpWorking(acpWorkingKey(1, "s-1"), true);
+      // 남의 프로젝트 세션은 이 사이드바에 보이면 안 된다.
+      setAcpWorking(acpWorkingKey(2, "s-9"), true);
     });
     expect(document.querySelector(".nav-badge.working")?.textContent).toBe("2");
 
-    act(() => setAcpWorking(acpWorkingKey(2, "s-2"), false));
+    act(() => setAcpWorking(acpWorkingKey(1, "s-2"), false));
     expect(document.querySelector(".nav-badge.working")?.textContent).toBe("1");
+  });
+
+  it("남의 프로젝트에서만 돌면 이 탭의 배지는 뜨지 않는다", () => {
+    renderSidebar(1);
+    act(() => setAcpWorking(acpWorkingKey(2, "s-2"), true));
+    expect(document.querySelector(".nav-badge.working")).toBeNull();
+    expect(document.querySelector(".nav-ico.working")).toBeNull();
   });
 
   it("배지는 Claude Code 줄에만 붙는다", () => {

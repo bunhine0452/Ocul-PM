@@ -112,14 +112,17 @@ export const toast = {
 
 const DRIFT_COOLDOWN_MS = 5 * 60_000;
 
-function driftCooldownKey(agentId: string) {
-  return `oculpm.drift.dismissed.${agentId}`;
+// 프로젝트별로 가른다 (2026-09-01) — `agentId` 는 어느 프로젝트에서나
+// `claude-code` 라, 키에 프로젝트가 없으면 A 에서 「무시」를 누른 순간 B 의
+// 드리프트 경고까지 5분간 잠긴다 (크롬식 탭은 창 하나에 프로젝트 여럿).
+function driftCooldownKey(projectId: number, agentId: string) {
+  return `oculpm.drift.dismissed.p${projectId}.${agentId}`;
 }
 
 export const DriftCooldown = {
-  isDismissed(agentId: string): boolean {
+  isDismissed(projectId: number, agentId: string): boolean {
     try {
-      const raw = sessionStorage.getItem(driftCooldownKey(agentId));
+      const raw = sessionStorage.getItem(driftCooldownKey(projectId, agentId));
       if (!raw) return false;
       const at = Number(raw);
       if (!Number.isFinite(at)) return false;
@@ -128,16 +131,16 @@ export const DriftCooldown = {
       return false;
     }
   },
-  dismiss(agentId: string) {
+  dismiss(projectId: number, agentId: string) {
     try {
-      sessionStorage.setItem(driftCooldownKey(agentId), String(Date.now()));
+      sessionStorage.setItem(driftCooldownKey(projectId, agentId), String(Date.now()));
     } catch {
       // private mode / quota — silently degrade.
     }
   },
-  clear(agentId: string) {
+  clear(projectId: number, agentId: string) {
     try {
-      sessionStorage.removeItem(driftCooldownKey(agentId));
+      sessionStorage.removeItem(driftCooldownKey(projectId, agentId));
     } catch {
       // ignore
     }

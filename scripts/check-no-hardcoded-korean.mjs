@@ -132,6 +132,10 @@ const TESTS = new Set([
   "__tests__/acp_session_tabs.test.tsx",
   "__tests__/acp_title.test.ts",
   "__tests__/acp_usage_detail.test.ts",
+  // Osaurus 라운드 Phase 7 — 대화 임포트·도달성. 한국어 제목·테스트 이름이
+  // 단언 재료다 (목록 항목의 접근 가능한 이름이 곧 대화 제목이다).
+  "__tests__/conversation_import.test.tsx",
+  "__tests__/llm_reachability.test.tsx",
   // Osaurus 라운드 Phase 3 — 출처 배지·활성 행. 한국어 UI 문자열이 단언 재료다.
   "__tests__/entry_source.test.ts",
   "__tests__/provenance_rows.test.tsx",
@@ -168,6 +172,7 @@ const TESTS = new Set([
   "__tests__/discussion_edit.test.ts",
   "__tests__/discussion_editor.test.tsx",
   "__tests__/dispatch_handoff.test.ts",
+  "__tests__/retro_gen_bus.test.ts",
   "__tests__/docs_resolve.test.ts",
   "__tests__/drag_motion.test.ts",
   "__tests__/edd_lite_v2.test.tsx",
@@ -235,6 +240,8 @@ const TESTS = new Set([
   "__tests__/tools_v2.test.tsx",
   "__tests__/tray_popover.test.tsx",
   "__tests__/update_banner.test.tsx",
+  // 첫 실행 마법사 — 한국어 UI 문자열(사전 `ko` 를 통해)이 단언 재료다.
+  "__tests__/welcome_wizard.test.tsx",
   "__tests__/workday_rollover.test.tsx",
 ]);
 

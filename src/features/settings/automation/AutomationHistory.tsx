@@ -12,6 +12,8 @@ import { formatAt } from "./automationModel";
 function chipClass(status: string): string {
   if (status === "ok") return "chip ok";
   if (status === "failed") return "chip warn";
+  // 연기는 실패가 아니다 (Phase 7) — 경고색을 쓰지 않는다.
+  if (status === "deferred") return "chip";
   return "chip";
 }
 

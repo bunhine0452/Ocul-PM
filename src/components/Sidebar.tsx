@@ -153,9 +153,9 @@ export function Sidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
   /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
-  const acpWorking = useAcpWorkingCount();
+  const acpWorking = useAcpWorkingCount(currentProjectId ?? null);
   /** 승인을 기다리며 멈춰 있는 세션 수 — 작업 배지보다 우선해 보인다. */
-  const acpAttention = useAcpAttentionCount();
+  const acpAttention = useAcpAttentionCount(currentProjectId ?? null);
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {

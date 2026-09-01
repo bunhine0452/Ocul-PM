@@ -13,6 +13,16 @@
 
 /** 터미널로 넘길 한 건. 대상이 무엇이냐에 따라 둘 중 하나가 쓰인다. */
 export interface PendingDispatch {
+  /**
+   * 이 건의 주인. 크롬식 탭은 프로젝트 여럿을 동시에 물고 터미널 면도 탭마다
+   * 마운트돼 있어(도크를 열어 둔 탭 + 터미널 화면인 탭), 주인이 없으면 **남의
+   * 프로젝트 면**이 먼저 집어 그 셸(cwd = 남의 루트)에 프리필하거나 그 페인의
+   * 에이전트에 다른 프로젝트 프롬프트를 붙여넣는다.
+   *
+   * `null` 은 "아직 주인이 없다" — Greenfield 킥오프처럼 프로젝트 탭이 서기
+   * 전에 예약된 건이라 누가 집어도 된다.
+   */
+  projectId: number | null;
   /** 셸 프롬프트에 프리필할 한 줄 명령 (`claude "$(cat '…')"`). */
   command: string;
   /**
@@ -44,6 +54,12 @@ export function consumePendingDispatch(): PendingDispatch | null {
 
 export function hasPendingDispatch(): boolean {
   return pending != null;
+}
+
+/** 이 프로젝트가 집어도 되는 대기 건이 있나 (주인 없는 건은 누구든 집는다). */
+export function hasPendingDispatchFor(projectId: number | null): boolean {
+  if (pending == null) return false;
+  return pending.projectId == null || pending.projectId === projectId;
 }
 
 /** 대기 중 명령을 비우지 않고 본다 — 쓰기 성공 후에만 consume 하기 위해. */

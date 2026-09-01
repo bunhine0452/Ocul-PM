@@ -276,7 +276,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     // 보이는 사람에게는 어디로 갔는지 보여줘야 한다.
     const onScreen = terminalOnScreen(state);
     const done = await handoffDispatch(
-      { command: res.data.command, prompt: res.data.prompt },
+      { projectId, command: res.data.command, prompt: res.data.prompt },
       sessions.terminalTabs,
       sessions.terminalActiveId,
     );

@@ -9,6 +9,7 @@ import { commands } from "@/lib/bindings";
 import { KeyRound } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
+import { useReachability } from "../useReachability";
 import { useT } from "@/i18n";
 import { secretName, Section, Field, NumberSlider } from "./ui";
 
@@ -16,6 +17,9 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
   const { settings, set } = useSettings();
   const [provider, setProvider] = useState<Provider>(settings.defaultProvider);
+  // 오프라인 표시 (Phase 7) — 마지막 관측만 읽는다. 프로브를 쏘지 않으므로
+  // 설정 화면을 여는 것만으로 네트워크가 나가지 않는다.
+  const reach = useReachability();
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState<Record<Provider, boolean | null>>({
     anthropic: null,
@@ -149,17 +153,30 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {PROVIDERS.map((p) => {
             const isActive = settings.defaultProvider === p;
+            // 못 닿아도 고를 수 있다 — 지금 못 닿는다는 것이 영원히 못 닿는다는
+            // 뜻은 아니고, 설정은 사용자의 의도이지 네트워크의 상태가 아니다.
+            const offline = reach.offline(p);
             return (
               <button
                 key={p}
                 onClick={() => set("defaultProvider", p)}
+                title={
+                  offline
+                    ? `${t("llm.offline.hint")}${reach.detail(p) ? ` (${reach.detail(p)})` : ""}`
+                    : undefined
+                }
                 className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer capitalize ${
                   isActive
                     ? "bg-primary/10 border-primary text-primary"
                     : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
-                }`}
+                } ${offline ? "opacity-60" : ""}`}
               >
                 {p}
+                {offline && (
+                  <span className="block text-[10px] font-normal normal-case opacity-80">
+                    {t("llm.offline.badge")}
+                  </span>
+                )}
               </button>
             );
           })}

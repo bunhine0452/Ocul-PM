@@ -1167,7 +1167,8 @@ export function WorkspaceProvider({
       // a single bad file doesn't spam repeated re-saves.
       toast.warning(w.message, {
         title: `[${w.kind}] ${w.path}`,
-        dedupKey: `integrity:${w.kind}:${w.path}`,
+        // `.oculpm` 상대 경로는 프로젝트끼리 겹친다 (planner/main.md 등).
+        dedupKey: `integrity:${evt.payload.project_id}:${w.kind}:${w.path}`,
         actions: [{ label: t("ws.viewInDoctor"), onClick: () => openSettings("diagnostics") }],
       });
       console.warn("[oculpm] integrity warning:", w);
@@ -1181,7 +1182,7 @@ export function WorkspaceProvider({
       const { applied, plan_id: planId } = evt.payload;
       toast.info(t("ws.reconciled", { n: applied }), {
         title: t("ws.reconciledTitle"),
-        dedupKey: `reconciled:${planId}`,
+        dedupKey: `reconciled:${evt.payload.project_id}:${planId}`,
         dedupWindowMs: 5_000,
       });
     }).then((off) => offFns.push(off));
@@ -1216,12 +1217,13 @@ export function WorkspaceProvider({
       const pid = currentProjectId();
       if (evt.payload.project_id !== pid || pid == null) return;
       const { agent_id: agentId } = evt.payload;
-      if (DriftCooldown.isDismissed(agentId)) return;
+      if (DriftCooldown.isDismissed(pid, agentId)) return;
       toast.warning(
         t("ws.driftBody", { agent: agentId }),
         {
           title: t("ws.driftTitle"),
-          dedupKey: `drift:${agentId}`,
+          // agentId 는 어느 프로젝트에서나 같다 — 프로젝트를 빼면 B 의 경고가 삼켜진다.
+          dedupKey: `drift:${pid}:${agentId}`,
           dedupWindowMs: 60_000,
           durationMs: 0, // sticky until user acts
           actions: [
@@ -1235,7 +1237,7 @@ export function WorkspaceProvider({
                     const updated = report.results.filter(
                       (r) => r.action === "inserted" || r.action === "updated",
                     ).length;
-                    DriftCooldown.clear(agentId);
+                    DriftCooldown.clear(pid, agentId);
                     toast.info(t("ws.driftSynced", { n: updated }));
                   })
                   .catch((e) => {
@@ -1246,7 +1248,7 @@ export function WorkspaceProvider({
             },
             {
               label: t("ws.driftIgnore"),
-              onClick: () => DriftCooldown.dismiss(agentId),
+              onClick: () => DriftCooldown.dismiss(pid, agentId),
             },
           ],
         },
@@ -1270,7 +1272,10 @@ export function WorkspaceProvider({
       // no real path) and are pure noise in the 변경 diff list, so drop them
       // here. The ndjson/journal masking on the backend is untouched.
       if (path.startsWith("**redacted/sensitive**")) return;
-      recentChangesStore.push({
+      // 버킷은 **이벤트가 말한 프로젝트**다 — 이 프로바이더의 것과 같음은 위
+      // 가드가 이미 보장한다. 한 창에 탭이 여럿이면 이 모듈은 하나뿐이라,
+      // 버킷 없이 밀면 옆 탭의 「미기록 변경」에 그대로 샌다.
+      recentChangesStore.push(evt.payload.project_id, {
         path,
         op,
         ts: Date.now(),

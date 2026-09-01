@@ -220,6 +220,19 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     await waitFor(() => getByRole("dialog", { name: "새 스킬 만들기" }));
     expect((getByLabelText("이름 (폴더명)") as HTMLInputElement).value).toBe("from-terminal");
   });
+
+  // 2026-09-01 — 인텐트 슬롯은 창 전역인데 크롬식 탭은 숨은 탭도 마운트해 둔다.
+  // 게이트가 없으면 A 탭 diff 의 「규칙으로」가 숨은 B 탭의 스킬 화면에서 모달을
+  // 열고, 저장하면 **B 프로젝트**의 .claude/rules 에 A 의 경로가 적힌다.
+  it("숨은 탭(active=false)은 창 전역 요청을 집지 않는다", async () => {
+    requestAgentContext({ kind: "createSkill", seed: { name: "from-terminal" } });
+    const { queryByRole, getAllByText } = render(
+      <SkillsScreenV2 projectId={1} active={false} />,
+    );
+    // 화면이 다 뜬 뒤에 봐야 "아직 안 열렸을 뿐" 과 구분된다.
+    await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
+    expect(queryByRole("dialog", { name: "새 스킬 만들기" })).toBeNull();
+  });
 });
 
 describe("skillsModel (순수 헬퍼)", () => {

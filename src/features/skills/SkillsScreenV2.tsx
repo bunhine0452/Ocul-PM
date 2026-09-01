@@ -69,11 +69,18 @@ const CANDIDATE_WINDOW_DAYS = 30;
 
 interface SkillsScreenV2Props {
   projectId: number;
+  /**
+   * 이 탭이 화면에 보이는가. 비활성 탭도 마운트된 채라(크롬식 탭) 창 전역
+   * 인텐트 슬롯은 활성 탭만 들어야 한다 — 아니면 A 탭 터미널의 「일지로
+   * 남기기」가 숨은 B 탭에서 작성기를 열고, 저장하면 **B 프로젝트**에 A 의
+   * 내용이 적힌다.
+   */
+  active?: boolean;
 }
 
 type Extra = "shop" | "hooks" | "plugin" | null;
 
-export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
+export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props) {
   useT();
   const firing = useFiringLedger(projectId);
 
@@ -173,9 +180,13 @@ export function SkillsScreenV2({ projectId }: SkillsScreenV2Props) {
   }, []);
 
   useEffect(() => {
+    if (!active) return;
     applyIntent(consumeAgentContextIntent());
-  }, [applyIntent]);
-  useEffect(() => onAgentContextRequest(applyIntent), [applyIntent]);
+  }, [active, applyIntent]);
+  useEffect(() => {
+    if (!active) return;
+    return onAgentContextRequest(applyIntent);
+  }, [active, applyIntent]);
 
   // ── 파생 ────────────────────────────────────────────────────────────────
 

@@ -394,7 +394,15 @@ impl OculpmManager {
                 return Err(OculpmError::ForbiddenJournalPath { paths: hits });
             }
         }
-        let now_utc = chrono::Utc::now();
+        // 시각. `draft.created_at` 이 있으면 **그때 일어난 일**로 적는다
+        // (Phase 7 임포트가 원본 대화 날짜를 보존하는 자리). 파싱 못 하면
+        // 지금으로 떨어진다 — 날짜 하나 때문에 임포트 전체를 죽이지 않는다.
+        let now_utc = draft
+            .created_at
+            .as_deref()
+            .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(chrono::Utc::now);
         let workday = resolver.workday_of(now_utc);
         let local_now = now_utc.with_timezone(&chrono_tz_from(&resolver));
         let hhmm = format!("{:02}{:02}", local_now.hour(), local_now.minute());

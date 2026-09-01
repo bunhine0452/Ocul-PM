@@ -226,6 +226,64 @@ impl Registry {
         ids
     }
 
+    /// 지금의 창·탭 구성을 스냅숏으로 뜬다 — 업데이트 재시작을 건너 되살리기
+    /// 위한 것이다 (`SESSION_KEY`).
+    ///
+    /// 탭 **id 는 싣지 않는다.** 다음 실행의 id 는 새로 발급되므로 저장해 봐야
+    /// 아무것도 가리키지 못한다. 활성 탭은 그래서 인덱스로 적는다.
+    pub fn session(&self) -> Session {
+        let mut windows: Vec<SessionWindow> = self
+            .windows
+            .iter()
+            .map(|(label, st)| SessionWindow {
+                label: label.clone(),
+                tabs: st.order.iter().map(|t| t.project_id).collect(),
+                active: st
+                    .active
+                    .and_then(|id| st.order.iter().position(|t| t.id == id))
+                    .unwrap_or(0),
+            })
+            .collect();
+        // 복원 순서를 결정적으로 — `main` 이 먼저, 나머지는 라벨 순.
+        windows.sort_by(|a, b| {
+            (a.label != FIRST_WINDOW, &a.label).cmp(&(b.label != FIRST_WINDOW, &b.label))
+        });
+        Session {
+            windows,
+            terminals: self.terminal_window_projects(),
+            focused: self.last_focused.clone(),
+        }
+    }
+
+    /// 창 하나를 **저장된 라벨 그대로** 되살린다.
+    ///
+    /// 라벨을 유지하는 것이 핵심이다 — `tauri-plugin-window-state` 가 위치·크기를
+    /// 라벨로 기억하므로, 같은 라벨로 다시 띄우면 창이 있던 자리에 그대로 뜬다.
+    /// 새 라벨을 발급하면 탭은 살아 돌아와도 창이 화면 한가운데로 모인다.
+    ///
+    /// 이어서 발급될 라벨이 되살린 것과 부딪히지 않도록 `next_window` 도 민다.
+    fn restore_window(&mut self, label: &str, tabs: &[Option<u32>], active: usize) {
+        if tabs.is_empty() {
+            return;
+        }
+        let order: Vec<Tab> = tabs.iter().map(|p| self.mint(*p)).collect();
+        let active_id = order.get(active).or_else(|| order.first()).map(|t| t.id);
+        self.windows.insert(
+            label.to_string(),
+            WindowState {
+                order,
+                active: active_id,
+            },
+        );
+        if let Some(n) = label
+            .strip_prefix(WINDOW_PREFIX)
+            .and_then(|n| n.parse::<u32>().ok())
+        {
+            self.next_window = self.next_window.max(n);
+        }
+        self.last_focused = Some(label.to_string());
+    }
+
     /// 창을 등록한다. `main` 처럼 이미 존재하는 창을 시작 탭 하나로 여는 데도 쓴다.
     fn register(&mut self, label: &str, project_id: Option<u32>) -> u32 {
         let tab = self.mint(project_id);
@@ -1738,6 +1796,206 @@ fn attach_terminal_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, 
     });
 }
 
+// ─── 세션 복원 (업데이트 재시작) ─────────────────────────────────────────────
+
+/// 창·탭 스냅숏이 사는 설정 키.
+///
+/// **키가 있다는 것 자체가 "다음 실행에서 복원하라" 는 표시**다. 그래서 평소엔
+/// 없고, 업데이트 재시작 직전에만 쓰이며, 복원은 읽는 즉시 지운다.
+pub const SESSION_KEY: &str = "window_session";
+
+/// 창 하나 — 탭 순서와 활성 탭.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SessionWindow {
+    /// 저장 당시의 창 라벨. 그대로 되살려야 위치·크기가 따라온다.
+    pub label: String,
+    /// 탭 순서 — `None` 은 시작 탭.
+    pub tabs: Vec<Option<u32>>,
+    /// 활성 탭의 **인덱스**. 탭 id 는 다음 실행에서 새로 발급되므로 못 쓴다.
+    pub active: usize,
+}
+
+/// 재시작을 건너 옮겨지는 창 구성 전체.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Session {
+    pub windows: Vec<SessionWindow>,
+    /// 떼어낸 터미널 창의 프로젝트 (`terminal_windows`).
+    pub terminals: Vec<u32>,
+    /// 마지막으로 포커스됐던 창 — 복원을 마치고 이 창을 앞으로 가져온다.
+    pub focused: Option<String>,
+}
+
+/// 스냅숏을 **지금 열 수 있는 것만** 남기고 다듬는다.
+///
+/// 거르는 것은 둘이다: ① 그 사이 지워진 프로젝트(탭만 되살리면 `#12` 짜리
+/// 유령 탭이 뜬다), ② 중복 — I1(프로젝트당 탭 하나, 전역 유일)은 복원에도
+/// 그대로 걸린다. 탭이 하나도 안 남은 창은 통째로 버린다 (빈 창은 레지스트리가
+/// 표현하지 못한다).
+///
+/// 순수 함수라 Tauri 런타임 없이 단위 테스트한다.
+pub fn sanitize_session(session: &Session, known: &HashSet<u32>) -> Session {
+    let mut seen: HashSet<u32> = HashSet::new();
+    let mut windows: Vec<SessionWindow> = Vec::with_capacity(session.windows.len());
+    for w in &session.windows {
+        let mut tabs: Vec<Option<u32>> = Vec::with_capacity(w.tabs.len());
+        let mut active: Option<usize> = None;
+        for (i, project) in w.tabs.iter().enumerate() {
+            if let Some(pid) = project {
+                if !known.contains(pid) || !seen.insert(*pid) {
+                    continue;
+                }
+            }
+            if i == w.active {
+                active = Some(tabs.len());
+            }
+            tabs.push(*project);
+        }
+        if tabs.is_empty() {
+            continue;
+        }
+        windows.push(SessionWindow {
+            label: w.label.clone(),
+            tabs,
+            // 활성 탭 자체가 걸러졌으면 첫 탭으로 — 창이 빈 화면으로 뜨지 않게.
+            active: active.unwrap_or(0),
+        });
+    }
+    let terminals = session
+        .terminals
+        .iter()
+        .copied()
+        .filter(|pid| known.contains(pid))
+        .collect();
+    let focused = session
+        .focused
+        .clone()
+        .filter(|f| windows.iter().any(|w| &w.label == f));
+    Session {
+        windows,
+        terminals,
+        focused,
+    }
+}
+
+/// 지금 창·탭을 저장한다 — **우리가 일으킨 재시작** 직전에만 부른다.
+///
+/// 사용자가 직접 끈 앱이 다음에 시작 탭으로 열리는 것은 예측 가능한 동작이라
+/// 그대로 둔다. 업데이트는 사용자가 고른 중단이 아니라 우리가 끼워 넣은
+/// 중단이므로, 하던 자리로 돌려놓는 책임도 우리에게 있다.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_window_session(app: AppHandle) -> Result<(), String> {
+    let session = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        reg.session()
+    };
+    let json = serde_json::to_string(&session).map_err(|e| e.to_string())?;
+    let db = app.state::<crate::db::Db>();
+    db.settings_set(SESSION_KEY.to_string(), json)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 저장된 창·탭을 되살린다 — 업데이트 재시작 직후 **한 번**.
+///
+/// setup 은 동기 구간이라 DB 를 기다릴 수 없어 백그라운드로 넘긴다. 그동안
+/// `main` 은 시작 탭 하나를 문 평범한 창으로 이미 떠 있고, 스냅숏이 도착하면
+/// 그 창이 저장된 탭 집합을 이어받는다 (프런트는 `WindowTabsChanged` 로 따라
+/// 그린다 — 첫 조회를 놓치지 않도록 리스너를 단 뒤 한 번 더 읽는다).
+pub fn restore_session(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = restore_session_inner(&app).await {
+            tracing::warn!(target: "window", error = %e, "창 세션 복원 실패");
+        }
+    });
+}
+
+async fn restore_session_inner(app: &AppHandle) -> Result<(), String> {
+    let db = app.state::<crate::db::Db>();
+    let Some(raw) = db
+        .settings_get(SESSION_KEY.to_string())
+        .await
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(());
+    };
+    // **먼저 지운다.** 뒤에서 무엇이 실패하든 낡은 구성이 매 실행마다 다시
+    // 펼쳐지는 것보다, 한 번 놓치는 편이 낫다.
+    db.settings_delete(SESSION_KEY.to_string())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let stored: Session = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let known: HashSet<u32> = db
+        .list_projects()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
+    let Session {
+        mut windows,
+        terminals,
+        focused,
+    } = sanitize_session(&stored, &known);
+    if windows.is_empty() {
+        return Ok(());
+    }
+
+    // 첫 창은 이미 떠 있다 (`adopt_first_window`) — 스냅숏의 `main`, 없으면 맨
+    // 앞 창이 그 자리를 이어받는다 (`session()` 이 `main` 을 맨 앞에 둔다).
+    // 새로 만들지 않는 이유는 단순하다: 이미 있는 창을 두고 또 만들면 빈 창이
+    // 하나 남는다.
+    let primary = windows.remove(0);
+    {
+        let state = app.state::<WindowTabs>();
+        let mut reg = state.lock();
+        reg.restore_window(FIRST_WINDOW, &primary.tabs, primary.active);
+        for w in &windows {
+            reg.restore_window(&w.label, &w.tabs, w.active);
+        }
+    }
+    tracing::info!(
+        target: "window",
+        windows = windows.len() + 1,
+        terminals = terminals.len(),
+        "업데이트 전 창 구성을 되살린다"
+    );
+    broadcast(app, FIRST_WINDOW).await;
+
+    for w in &windows {
+        // 라벨이 이미 살아 있으면 건드리지 않는다 (있을 수 없지만, 있으면
+        // 웹뷰가 둘 겹친다).
+        if app.get_webview_window(&w.label).is_some() {
+            continue;
+        }
+        let title = window_title(app, w.tabs.get(w.active).copied().flatten()).await;
+        if let Err(e) = spawn_window(app, &w.label, None, None, false, title).await {
+            tracing::warn!(target: "window", label = %w.label, error = %e, "창 복원 실패");
+        }
+    }
+
+    // 떼어낸 터미널 창도 그대로. 셸까지 살아 돌아온다 — PTY 호스트가 별개
+    // 프로세스라 업데이트 재시작을 넘어 살고(2026-08-25), sid 가 프로젝트
+    // 접두사라 새 창의 xterm 이 그대로 attach 한다.
+    for pid in terminals {
+        if let Err(e) = open_terminal_window(app.clone(), pid).await {
+            tracing::warn!(target: "window", project_id = pid, error = %e, "터미널 창 복원 실패");
+        }
+    }
+
+    // 보고 있던 창을 앞으로. 뒤늦게 뜬 창들이 포커스를 가져갔으므로 맨 마지막에
+    // 한다. 이어받은 창의 옛 라벨은 `main` 으로 옮겨 읽는다.
+    let front = match focused.as_deref() {
+        Some(label) if label != primary.label => label.to_string(),
+        _ => FIRST_WINDOW.to_string(),
+    };
+    focus_window(app, &front);
+    Ok(())
+}
+
 // ─── 창 생성·정리 ────────────────────────────────────────────────────────────
 
 fn focus_window(app: &AppHandle, label: &str) {
@@ -1823,7 +2081,14 @@ async fn create_window(
         reg.reserve(project_id)
     };
 
-    let title = match project_id {
+    let title = window_title(app, project_id).await;
+    spawn_window(app, &label, nav, position, tearoff, title).await?;
+    Ok(label)
+}
+
+/// 창 제목 — 프로젝트 탭이면 그 이름, 시작 탭이면 앱 이름.
+async fn window_title(app: &AppHandle, project_id: Option<u32>) -> String {
+    match project_id {
         Some(pid) => {
             let db = app.state::<crate::db::Db>();
             db.get_project(pid)
@@ -1832,12 +2097,26 @@ async fn create_window(
                 .unwrap_or_else(|_| "Ocul-PM".to_string())
         }
         None => "Ocul-PM".to_string(),
-    };
+    }
+}
 
+/// 레지스트리에 **이미 자리를 잡은** 라벨로 웹뷰를 띄운다.
+///
+/// 새 창(`create_window`)과 세션 복원(`restore_session`)이 함께 쓴다 — 둘의
+/// 차이는 라벨을 발급하느냐 저장된 것을 그대로 쓰느냐뿐이고, 띄우는 방법은
+/// 같아야 한다 (크기·타이틀바·훅이 갈라지면 복원된 창만 미묘하게 달라진다).
+async fn spawn_window(
+    app: &AppHandle,
+    label: &str,
+    nav: Option<&crate::tray::TrayNavigate>,
+    position: Option<(f64, f64)>,
+    tearoff: bool,
+    title: String,
+) -> Result<(), String> {
     let mut builder = WebviewWindowBuilder::new(
         app,
-        &label,
-        WebviewUrl::App(window_url(&label, nav, tearoff).into()),
+        label,
+        WebviewUrl::App(window_url(label, nav, tearoff).into()),
     )
     .title(title)
     .hidden_title(true)
@@ -1859,7 +2138,7 @@ async fn create_window(
         Err(e) => {
             // 예약만 해두고 창이 안 뜨면 유령 엔트리가 남는다 — 되돌린다.
             let state = app.state::<WindowTabs>();
-            state.lock().windows.remove(&label);
+            state.lock().windows.remove(label);
             return Err(e.to_string());
         }
     };
@@ -1870,9 +2149,9 @@ async fn create_window(
         let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
     }
 
-    attach_window_hooks(app, &window, label.clone());
+    attach_window_hooks(app, &window, label.to_string());
     emit_open_projects(app);
-    Ok(label)
+    Ok(())
 }
 
 /// `tauri.conf.json` 이 만든 첫 창을 레지스트리에 등록하고 훅을 붙인다.
@@ -2638,5 +2917,112 @@ mod tests {
     fn query_encoding_escapes_separators_and_utf8() {
         assert_eq!(encode_query_value("a&b=c#d"), "a%26b%3Dc%23d");
         assert_eq!(encode_query_value("일지"), "%EC%9D%BC%EC%A7%80");
+    }
+
+    // ─── 세션 복원 (업데이트 재시작) ─────────────────────────────────────
+
+    fn known(ids: &[u32]) -> HashSet<u32> {
+        ids.iter().copied().collect()
+    }
+
+    /// 스냅숏은 **인덱스**로 활성 탭을 적는다 — 다음 실행의 탭 id 는 새로
+    /// 발급되므로 id 를 실으면 아무것도 가리키지 못한다.
+    #[test]
+    fn a_snapshot_records_tab_order_and_the_active_index() {
+        let mut reg = reg_with(&[("main", &[None, Some(7)]), ("win-1", &[Some(9)])]);
+        let second = ids(&reg, "main")[1];
+        reg.activate(second);
+
+        let session = reg.session();
+        assert_eq!(session.windows.len(), 2);
+        // `main` 이 맨 앞 — 복원에서 첫 창을 이어받는 자리다.
+        assert_eq!(session.windows[0].label, "main");
+        assert_eq!(session.windows[0].tabs, vec![None, Some(7)]);
+        assert_eq!(session.windows[0].active, 1);
+        assert_eq!(session.windows[1].label, "win-1");
+        assert_eq!(session.windows[1].tabs, vec![Some(9)]);
+    }
+
+    #[test]
+    fn a_snapshot_survives_a_json_round_trip() {
+        let reg = reg_with(&[("main", &[None, Some(7)])]);
+        let session = reg.session();
+        let json = serde_json::to_string(&session).unwrap();
+        assert_eq!(serde_json::from_str::<Session>(&json).unwrap(), session);
+    }
+
+    /// 라벨을 그대로 되살려야 `tauri-plugin-window-state` 가 기억한 자리가
+    /// 따라온다. 그리고 그 라벨이 뒤에 또 발급되면 창 둘이 겹친다.
+    #[test]
+    fn restoring_keeps_the_label_and_pushes_the_next_one_past_it() {
+        let mut reg = Registry::default();
+        reg.restore_window("win-3", &[Some(4), None], 1);
+
+        assert_eq!(projects(&reg, "win-3"), vec![Some(4), None]);
+        let st = reg.get("win-3").unwrap();
+        assert_eq!(st.active, Some(st.order[1].id));
+        assert_eq!(reg.reserve(None), "win-4");
+    }
+
+    /// 그 사이 지워진 프로젝트는 `#12` 짜리 유령 탭으로 되살아나면 안 된다.
+    #[test]
+    fn a_deleted_project_is_dropped_from_the_restore() {
+        let session = Session {
+            windows: vec![SessionWindow {
+                label: "main".into(),
+                tabs: vec![None, Some(7), Some(99)],
+                active: 2,
+            }],
+            terminals: vec![7, 99],
+            focused: Some("main".into()),
+        };
+        let out = sanitize_session(&session, &known(&[7]));
+        assert_eq!(out.windows[0].tabs, vec![None, Some(7)]);
+        // 활성이던 탭이 사라졌으면 첫 탭으로 — 빈 화면으로 뜨지 않게.
+        assert_eq!(out.windows[0].active, 0);
+        assert_eq!(out.terminals, vec![7]);
+    }
+
+    /// I1(프로젝트당 탭 하나, 전역 유일)은 복원에도 그대로 걸린다.
+    #[test]
+    fn a_project_is_restored_into_exactly_one_tab() {
+        let session = Session {
+            windows: vec![
+                SessionWindow {
+                    label: "main".into(),
+                    tabs: vec![Some(7)],
+                    active: 0,
+                },
+                SessionWindow {
+                    label: "win-1".into(),
+                    tabs: vec![Some(7)],
+                    active: 0,
+                },
+            ],
+            terminals: vec![],
+            focused: Some("win-1".into()),
+        };
+        let out = sanitize_session(&session, &known(&[7]));
+        // 두 번째 창은 남는 탭이 없어 통째로 사라진다 — 빈 창은 레지스트리가
+        // 표현하지 못한다.
+        assert_eq!(out.windows.len(), 1);
+        assert_eq!(out.windows[0].label, "main");
+        // 사라진 창을 포커스하라고 남겨 두면 아무 창도 앞으로 오지 않는다.
+        assert_eq!(out.focused, None);
+    }
+
+    /// 프로젝트가 하나도 안 남으면 복원할 것이 없다 — 시작 탭 하나로 뜬다.
+    #[test]
+    fn an_all_stale_snapshot_restores_nothing() {
+        let session = Session {
+            windows: vec![SessionWindow {
+                label: "win-1".into(),
+                tabs: vec![Some(7)],
+                active: 0,
+            }],
+            terminals: vec![],
+            focused: None,
+        };
+        assert!(sanitize_session(&session, &known(&[])).windows.is_empty());
     }
 }

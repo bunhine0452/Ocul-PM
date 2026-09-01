@@ -33,7 +33,7 @@ import { summarizeShell } from "./shellStatus";
 import { useAgentRuns } from "./useAgentRuns";
 import {
   consumePendingDispatch,
-  hasPendingDispatch,
+  hasPendingDispatchFor,
   peekPendingDispatch,
   subscribePendingDispatch,
 } from "./dispatchBus";
@@ -310,10 +310,17 @@ export function TerminalSurface({
   // 셸이 뜨기 전에 디스패치하면 마운트는 이미 지나가 있다.
   const dispatchSidRef = useRef<string | null>(null);
   const dispatchBusyRef = useRef(false);
+  // 대기 건의 주인만 집는다. 크롬식 탭에선 터미널 면이 탭마다 살아 있어(도크를
+  // 열어 둔 탭 + 터미널 화면인 탭), 주인을 안 보면 남의 프로젝트 면이 먼저
+  // 집어 그 셸(cwd = 남의 루트)에 프리필한다. ref 로 읽는 이유는 아래 pump 가
+  // deps `[]` 로 한 번만 서기 때문 (sid 와 같은 이유).
+  const dispatchProjectRef = useRef(runtime.currentProjectId);
+  dispatchProjectRef.current = runtime.currentProjectId;
   useEffect(() => {
     let disposed = false;
     const pump = () => {
-      if (disposed || dispatchBusyRef.current || !hasPendingDispatch()) return;
+      if (disposed || dispatchBusyRef.current) return;
+      if (!hasPendingDispatchFor(dispatchProjectRef.current)) return;
       dispatchBusyRef.current = true;
       let tries = 0;
       const stop = () => {
@@ -328,6 +335,9 @@ export function TerminalSurface({
         const pending = peekPendingDispatch();
         const sid = dispatchSidRef.current;
         if (!pending) return stop();
+        // 재시도하는 동안 주인이 다른 건으로 교체됐을 수 있다 (슬롯은 하나,
+        // 마지막 의도가 이긴다) — 매 tick 다시 확인한다.
+        if (!hasPendingDispatchFor(dispatchProjectRef.current)) return stop();
         if (!sid) return retry();
         void writeDispatchTo(sid, pending)
           .then((done) => {

@@ -39,9 +39,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 
-use crate::commands::llm::ProviderModel;
+use crate::commands::llm::{ChatFailure, ProviderModel};
 use crate::db::automation::{
-    AutomationState, RUN_CANCELLED, RUN_DROPPED, RUN_FAILED, RUN_OK, RUN_SKIPPED,
+    AutomationState, RUN_CANCELLED, RUN_DEFERRED, RUN_DROPPED, RUN_FAILED, RUN_OK, RUN_SKIPPED,
 };
 use crate::db::Db;
 use crate::llm::{ChatOptions, ChatResponse, Message, Role};
@@ -152,6 +152,9 @@ pub enum JobOutcome {
     Skipped(&'static str),
     /// 모델 호출이나 쓰기가 실패했다.
     Failed(String),
+    /// 네트워크에 닿지 못했다 — **실패가 아니라 연기**다 (Phase 7).
+    /// 집행부는 이걸 보면 다음 시각을 되돌려 따라잡기 규칙에 태운다.
+    Deferred(String),
     Cancelled,
 }
 
@@ -167,12 +170,14 @@ pub trait ChatBackend: Send + Sync {
     /// 불가다 — 백엔드가 판정을 소유하므로 테스트가 OS 키체인을 건드리지 않는다.
     fn has_credentials(&self, target: &CoreTarget) -> bool;
 
+    /// 실패는 [`ChatFailure`] 다 — 문자열 하나였을 때는 "서버에 닿지 못했다" 와
+    /// "429 를 받았다" 가 구분되지 않아 둘 다 실패로 처리됐다.
     async fn chat(
         &self,
         target: &CoreTarget,
         messages: Vec<Message>,
         options: ChatOptions,
-    ) -> Result<ChatResponse, String>;
+    ) -> Result<ChatResponse, ChatFailure>;
 }
 
 /// 실물 — `commands::llm::chat` 에 위임한다. 폴백 체인·키 로딩이 거기 이미 있다.
@@ -189,9 +194,10 @@ impl ChatBackend for LlmBackend {
         target: &CoreTarget,
         messages: Vec<Message>,
         options: ChatOptions,
-    ) -> Result<ChatResponse, String> {
+    ) -> Result<ChatResponse, ChatFailure> {
         let fallbacks: Vec<ProviderModel> = target.fallbacks.clone();
-        crate::commands::llm::chat(target.provider.clone(), messages, options, fallbacks).await
+        crate::commands::llm::chat_detailed(target.provider.clone(), messages, options, fallbacks)
+            .await
     }
 }
 
@@ -372,11 +378,21 @@ impl AutomationRunner {
             .await;
         let response = match response {
             Ok(r) => r,
-            Err(e) => {
-                // 강등하되 소실 없음 — "이 자동화가 돌았고 모델이 실패했다" 는 남는다.
-                self.close(ctx, &job, run_id, RUN_FAILED, None, Some(&e))
+            // 네트워크에 닿지도 못했다 — 이건 실패가 아니라 **연기**다.
+            // 비행기에서 노트북을 열었다고 주간 요약을 영영 잃을 이유가 없다.
+            Err(ChatFailure {
+                message,
+                offline: true,
+            }) => {
+                self.close(ctx, &job, run_id, RUN_DEFERRED, None, Some(&message))
                     .await;
-                return JobOutcome::Failed(e);
+                return JobOutcome::Deferred(message);
+            }
+            Err(ChatFailure { message, .. }) => {
+                // 강등하되 소실 없음 — "이 자동화가 돌았고 모델이 실패했다" 는 남는다.
+                self.close(ctx, &job, run_id, RUN_FAILED, None, Some(&message))
+                    .await;
+                return JobOutcome::Failed(message);
             }
         };
 
@@ -669,6 +685,7 @@ impl AutomationRunner {
                 version: Some(response.model.clone()),
             }),
             verified_by_user: Some(false),
+            created_at: None,
         };
         // 프로젝트 쓰기 직렬화 — 기존 공유락 규약 재사용 (새 락을 만들지 않는다).
         let plan_lock = ctx.manager.plan_write_lock(job.project_id).await;
@@ -769,6 +786,8 @@ mod tests {
         calls: Arc<AtomicU32>,
         delay: std::time::Duration,
         fail: bool,
+        /// 서버에 닿지도 못한 실패 — `fail` 보다 우선한다.
+        offline: bool,
     }
 
     impl FakeBackend {
@@ -777,6 +796,7 @@ mod tests {
                 calls: Arc::new(AtomicU32::new(0)),
                 delay: std::time::Duration::ZERO,
                 fail: false,
+                offline: false,
             }
         }
     }
@@ -792,13 +812,22 @@ mod tests {
             _t: &CoreTarget,
             _m: Vec<Message>,
             _o: ChatOptions,
-        ) -> Result<ChatResponse, String> {
+        ) -> Result<ChatResponse, ChatFailure> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             if !self.delay.is_zero() {
                 tokio::time::sleep(self.delay).await;
             }
+            if self.offline {
+                return Err(ChatFailure {
+                    message: "http: error sending request".into(),
+                    offline: true,
+                });
+            }
             if self.fail {
-                return Err("provider exploded".into());
+                return Err(ChatFailure {
+                    message: "provider exploded".into(),
+                    offline: false,
+                });
             }
             Ok(ChatResponse {
                 content: "요약 본문".into(),
@@ -867,6 +896,56 @@ mod tests {
             j.session_id().kind(),
             crate::oculpm::session_id::SessionKind::Automation
         );
+    }
+
+    /// 오프라인은 실패가 아니라 **연기**다 — 원장에 `deferred` 로 남고,
+    /// 일일 예산에서도 세지 않는다 (과금이 없었으므로).
+    #[tokio::test]
+    async fn an_unreachable_network_defers_instead_of_failing() {
+        let dir = tempdir().unwrap();
+        let db = db(&dir).await;
+        set_core_model(&db).await;
+        let manager = OculpmManager::new();
+
+        let mut backend = FakeBackend::new();
+        backend.offline = true;
+        let runner = AutomationRunner::new(Arc::new(backend));
+        let ctx = ctx(&db, &manager, dir.path());
+
+        let outcome = runner.run(&ctx, job(AutomationOutput::None)).await;
+        assert!(
+            matches!(outcome, JobOutcome::Deferred(_)),
+            "expected Deferred, got {outcome:?}"
+        );
+
+        let runs = db.automation_runs_list(1, None, 10).await.unwrap();
+        assert_eq!(runs[0].status, RUN_DEFERRED);
+        // 예산은 안 태운다 — 모델에 닿지도 못했다.
+        let billable = db
+            .automation_billable_runs_since(1, "2026-08-31T00:00:00+09:00".into())
+            .await
+            .unwrap();
+        assert_eq!(billable, 0);
+    }
+
+    /// 응답이 **온** 실패(429·401 등)는 여전히 실패다 — 그것까지 연기하면
+    /// 자동화가 영원히 안 돈다.
+    #[tokio::test]
+    async fn a_provider_error_is_still_a_failure() {
+        let dir = tempdir().unwrap();
+        let db = db(&dir).await;
+        set_core_model(&db).await;
+        let manager = OculpmManager::new();
+
+        let mut backend = FakeBackend::new();
+        backend.fail = true;
+        let runner = AutomationRunner::new(Arc::new(backend));
+        let ctx = ctx(&db, &manager, dir.path());
+
+        let outcome = runner.run(&ctx, job(AutomationOutput::None)).await;
+        assert!(matches!(outcome, JobOutcome::Failed(_)), "{outcome:?}");
+        let runs = db.automation_runs_list(1, None, 10).await.unwrap();
+        assert_eq!(runs[0].status, RUN_FAILED);
     }
 
     /// 원장 시각은 UTC 로 적힌다 — 일일 예산의 `started_at >= ?` 사전식 비교와

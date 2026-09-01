@@ -9,23 +9,13 @@ import { commands } from "@/lib/bindings";
 import { Sun, Moon, Monitor, Languages } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
-import { type ColorTheme } from "@/lib/settings";
+import { ACCENTS } from "@/features/theme/accents";
 import { ThemeGallery } from "@/features/theme/ThemeGallery";
 import { themeOwnsAccent } from "@/features/theme/apply";
 import { useThemeState } from "@/features/theme/store";
 import { TERM_FONT_MIN, TERM_FONT_MAX, TERM_FONT_DEFAULT, clampTermFont } from "@/features/terminal/fontSize";
-import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting } from "@/i18n";
+import { normalizeLangSetting, resolveLang, useT, type LangSetting } from "@/i18n";
 import { Section, Field } from "./ui";
-
-/** 액센트 6색 스와치 — tokens.css [data-accent] 팔레트의 라이트 기준색 미리보기. */
-export const ACCENTS: Array<{ id: ColorTheme; labelKey: I18nKey; color: string }> = [
-  { id: "green", labelKey: "settings.accent.green", color: "#0e8a60" },
-  { id: "blue", labelKey: "settings.accent.blue", color: "#2570e0" },
-  { id: "purple", labelKey: "settings.accent.purple", color: "#7c5cdb" },
-  { id: "orange", labelKey: "settings.accent.orange", color: "#e07b12" },
-  { id: "rose", labelKey: "settings.accent.rose", color: "#e0524b" },
-  { id: "teal", labelKey: "settings.accent.teal", color: "#0e9aa0" },
-];
 
 export function AccentPicker() {
   const { settings, set } = useSettings();

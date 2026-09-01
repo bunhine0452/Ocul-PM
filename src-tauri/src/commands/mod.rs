@@ -18,6 +18,7 @@ pub mod git;
 pub mod graph;
 pub mod greenfield;
 pub mod home;
+pub mod import;
 pub mod llm;
 pub mod lsp;
 pub mod mcp;

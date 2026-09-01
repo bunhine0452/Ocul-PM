@@ -26,6 +26,7 @@ import {
 import {
   consumePendingDispatch,
   hasPendingDispatch,
+  hasPendingDispatchFor,
   setPendingDispatch,
   subscribePendingDispatch,
   type PendingDispatch,
@@ -35,6 +36,7 @@ import { leaf, splitPane } from "@/lib/termPanes";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 
 const PENDING: PendingDispatch = {
+  projectId: 1,
   command: "claude \"$(cat '/p/.oculpm/index/dispatch/plan-a.md')\"",
   prompt: "ocul-pm 플래너 디스패치\n\n## 대상 항목\n- {#a} [ ] 첫 항목",
 };
@@ -77,7 +79,7 @@ describe("choosePayload", () => {
   });
 
   test("본문을 못 실어 보내는 생산자는 에이전트가 돌아도 명령 쪽이다", () => {
-    const noPrompt: PendingDispatch = { command: "claude \"hi\"", prompt: null };
+    const noPrompt: PendingDispatch = { projectId: 1, command: "claude \"hi\"", prompt: null };
     expect(choosePayload(noPrompt, "claude").data).toBe(noPrompt.command);
   });
 });
@@ -183,5 +185,37 @@ describe("dispatchBus 구독", () => {
     off();
     setPendingDispatch(PENDING);
     expect(seen).toEqual(["ping"]);
+  });
+});
+
+// 2026-09-01 — 크롬식 탭은 프로젝트 여럿을 동시에 물고, 터미널 면은 탭마다
+// 마운트된다 (도크를 열어 둔 탭 + 터미널 화면인 탭). 대기 건에 주인이 없으면
+// **남의 프로젝트 면**이 먼저 집어 그 셸(cwd = 남의 루트)에 프리필하거나, 그
+// 페인에서 돌던 에이전트에 다른 프로젝트의 프롬프트를 붙여넣는다.
+describe("dispatchBus 프로젝트 주인", () => {
+  test("대기 건은 자기 프로젝트에게만 보인다", () => {
+    setPendingDispatch(PENDING); // projectId: 1
+    expect(hasPendingDispatch()).toBe(true);
+    expect(hasPendingDispatchFor(1)).toBe(true);
+    expect(hasPendingDispatchFor(2)).toBe(false);
+  });
+
+  test("주인 없는(null) 대기 건은 누구든 집을 수 있다", () => {
+    // Greenfield 킥오프처럼 아직 프로젝트가 정해지기 전 예약된 건.
+    setPendingDispatch({ ...PENDING, projectId: null });
+    expect(hasPendingDispatchFor(1)).toBe(true);
+    expect(hasPendingDispatchFor(2)).toBe(true);
+    expect(hasPendingDispatchFor(null)).toBe(true);
+  });
+
+  test("대기 건이 없으면 아무에게도 보이지 않는다", () => {
+    expect(hasPendingDispatchFor(1)).toBe(false);
+  });
+
+  test("handoffDispatch 는 큐로 떨어질 때 주인을 보존한다", async () => {
+    const result = await handoffDispatch(PENDING, [], null);
+    expect(result.kind).toBe("queued");
+    expect(hasPendingDispatchFor(1)).toBe(true);
+    expect(hasPendingDispatchFor(2)).toBe(false);
   });
 });

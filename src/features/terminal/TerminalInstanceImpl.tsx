@@ -14,6 +14,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 import { nextRevealState, resyncViewport } from "./viewportResync";
+import { createPtyResizeQueue, type PtyResizeQueue } from "./ptyResize";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
   initialShellState,
@@ -65,6 +66,13 @@ import {
 const TERM_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
 
 const SCROLLBACK_LINES = 20000;
+
+/**
+ * 크기 변화가 멎었다고 보는 시간. 분할 막대를 끄는 동안에는 프레임마다
+ * `ResizeObserver` 가 깨어나는데, 그 중간 크기 하나하나를 xterm 리플로와
+ * SIGWINCH 로 흘려보내면 화면이 깨진다 (→ `ptyResize.ts`).
+ */
+const RESIZE_SETTLE_MS = 60;
 
 /**
  * 명령 블록 조작 — 마커·장식은 이 컴포넌트가 소유하고, 화면은 이 손잡이로만
@@ -185,6 +193,10 @@ export default function TerminalInstanceImpl({
   // 발행만 1초로 묶는다. 예약된 타이머 id 는 정리를 위해 따로 든다.
   const signalRef = useRef<PaneSignal>(emptyPaneSignal);
   const signalTimerRef = useRef<number | null>(null);
+  // PTY 크기 통보는 **반드시 이 큐를 거친다** (근거는 ptyResize.ts 주석).
+  // 직접 `commands.resizePty` 를 부르면 순서 없는 통보가 섞여 PTY 가 중간
+  // 크기로 굳고, 그 어긋남이 곧 깨진 화면이다.
+  const resizeQueueRef = useRef<PtyResizeQueue | null>(null);
   useEffect(() => {
     cwdRef.current = cwd;
     persistentRef.current = persistent;
@@ -242,6 +254,10 @@ export default function TerminalInstanceImpl({
     const fit = new FitAddon();
     fitRef.current = fit;
     term.loadAddon(fit);
+    const resizeQueue = createPtyResizeQueue((rows, cols) =>
+      commands.resizePty(sessionId, rows, cols),
+    );
+    resizeQueueRef.current = resizeQueue;
     // 한글/이모지 셀 폭 정확도 — Unicode 11 폭 테이블 활성화.
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";
@@ -608,16 +624,34 @@ export default function TerminalInstanceImpl({
     // Refit whenever the container changes size — including the 0→N jump when
     // the tab goes display:none → block. No-op until opened + sized.
     const container = containerRef.current;
-    const ro = new ResizeObserver(() => {
+    const applyFit = () => {
       if (!openedRef.current || !container) return;
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       try {
         fit.fit();
-        void commands.resizePty(sessionId, term.rows, term.cols);
+        resizeQueue.push(term.rows, term.cols);
       } catch {
         /* renderer not ready — ignore */
       }
-    });
+    };
+
+    // 분할 막대를 끄는 동안 `ResizeObserver` 는 프레임마다 깨어난다. 그때마다
+    // `fit()` 을 부르면 xterm 이 스크롤백을 통째로 접었다 폈다 하고(리플로) PTY
+    // 에는 중간 크기가 한 번씩 새어 나가 전체화면 TUI 가 매 프레임 자기 화면을
+    // 다시 그린다 — "줄였다 키우면 글자가 깨진다" 의 절반이 이것이다.
+    //
+    // 그래서 **처음 한 번은 즉시** 맞추고(창 크기 조절·도크 토글이 굼떠 보이지
+    // 않게), 뒤따르는 변화는 손이 멎은 뒤 한 번으로 묶는다.
+    let settleTimer: number | null = null;
+    const scheduleFit = () => {
+      if (settleTimer === null) applyFit();
+      else window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        settleTimer = null;
+        applyFit();
+      }, RESIZE_SETTLE_MS);
+    };
+    const ro = new ResizeObserver(scheduleFit);
     if (container) ro.observe(container);
 
     // 다시 보이게 된 순간의 뷰포트 되맞춤 (viewportResync.ts 에 근거를 적어 뒀다).
@@ -637,7 +671,7 @@ export default function TerminalInstanceImpl({
           // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
           // 크기가 그대로여도 어긋난 스크롤 기하는 반드시 되맞춘다.
           fit.fit();
-          void commands.resizePty(sessionId, term.rows, term.cols);
+          resizeQueue.push(term.rows, term.cols);
           resyncViewport(term);
         } catch {
           /* renderer not ready — ignore */
@@ -663,15 +697,24 @@ export default function TerminalInstanceImpl({
         let attached = false;
         let lastSeq = 0;
         const queued: { seq: number; text: string }[] = [];
+        /**
+         * 청크 하나를 화면에 쓴다. **큐를 비운 뒤에도 seq 걸러내기를 유지한다**
+         * (2026-09-01) — 스냅샷을 뜨기 전에 방출된 청크가 `attachPtySession`
+         * 응답보다 늦게 도착할 수 있고, 그때 그냥 쓰면 스냅샷 꼬리가 화면에 한
+         * 번 더 찍힌다. 재접속 때 같은 출력이 두 번 보이던 경로다.
+         */
+        const writeChunk = (chunk: { seq: number; text: string }) => {
+          if (chunk.seq <= lastSeq) return;
+          lastSeq = chunk.seq;
+          term.write(chunk.text);
+          markOutput();
+        };
         unlistenData = await listen<{ seq: number; text: string }>(
           `pty-data-${sessionId}`,
           (e) => {
             if (!isMounted) return;
             if (!attached) queued.push(e.payload);
-            else {
-              term.write(e.payload.text);
-              markOutput();
-            }
+            else writeChunk(e.payload);
           },
         );
         if (!isMounted) return;
@@ -704,18 +747,15 @@ export default function TerminalInstanceImpl({
           if (boot) void commands.writeToPty(sessionId, `${boot}\r`);
         }
         attached = true;
-        for (const chunk of queued) {
-          if (chunk.seq > lastSeq) {
-            term.write(chunk.text);
-            markOutput();
-          }
-        }
+        for (const chunk of queued) writeChunk(chunk);
         queued.length = 0;
 
         term.onData((data) => {
           void commands.writeToPty(sessionId, data);
         });
-        void commands.resizePty(sessionId, term.rows, term.cols);
+        // PTY 가 방금 바뀌었다 — 큐가 기억하는 "이미 보낸 크기" 는 남의 것이다.
+        resizeQueue.reset();
+        resizeQueue.push(term.rows, term.cols);
       } catch (err) {
         console.error("[TerminalInstance] setup failed:", err);
       }
@@ -725,6 +765,12 @@ export default function TerminalInstanceImpl({
       isMounted = false;
       ro.disconnect();
       io.disconnect();
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
+        settleTimer = null;
+      }
+      resizeQueue.dispose();
+      resizeQueueRef.current = null;
       stopThemeWatch();
       container?.removeEventListener("focusin", handleFocusIn);
       if (unlistenData) unlistenData();
@@ -788,7 +834,7 @@ export default function TerminalInstanceImpl({
     if (openedRef.current) {
       try {
         fitRef.current?.fit();
-        void commands.resizePty(sessionId, term.rows, term.cols);
+        resizeQueueRef.current?.push(term.rows, term.cols);
       } catch {
         /* ignore */
       }
@@ -839,7 +885,7 @@ export default function TerminalInstanceImpl({
       }
       try {
         fitRef.current?.fit();
-        void commands.resizePty(sessionId, term.rows, term.cols);
+        resizeQueueRef.current?.push(term.rows, term.cols);
       } catch {
         /* ignore */
       }

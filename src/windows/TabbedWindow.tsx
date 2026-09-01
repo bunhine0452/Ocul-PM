@@ -105,8 +105,8 @@ export default function TabbedWindow({
     oculpmLog.flow("App window mounted", { windowLabel });
   }, [windowLabel]);
 
-  // 탭 구성 — 마운트 시 1회 조회하고 이후는 이벤트로 미러링한다. 이벤트가
-  // 이름까지 실어 오므로 후속 조회가 필요 없다.
+  // 탭 구성 — 마운트 시 조회하고 이후는 이벤트로 미러링한다. 이벤트가 이름까지
+  // 실어 오므로 후속 조회가 필요 없다.
   const refreshTabs = useCallback(async () => {
     const res = await commands.getWindowTabs(windowLabel);
     if (res.status !== "ok") return;
@@ -127,6 +127,10 @@ export default function TabbedWindow({
       })
       .then((fn) => {
         off = fn;
+        // 리스너를 단 **뒤에** 한 번 더 읽는다. 위의 첫 조회와 리스너 부착
+        // 사이에 백엔드가 탭을 바꾸면(업데이트 재시작 뒤의 세션 복원이 그렇다)
+        // 그 이벤트는 아무도 못 듣고, 창은 시작 탭 하나를 문 채로 남는다.
+        void refreshTabs();
       });
     return () => {
       if (off) safeUnlisten(off);

@@ -350,6 +350,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             tc("gf.kickoffIdea", { idea }) +
             (who ? tc("gf.kickoffWho", { who }) : "");
           setPendingDispatch({
+            projectId,
             command: `claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`,
             prompt: kickoff,
           });

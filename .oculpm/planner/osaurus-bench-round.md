@@ -106,11 +106,11 @@ v2.29.0=P5 · v2.30.0=P6+P7(P6 는 미태그 — P7 과 한 버전으로) · v2.
 - [x] `oculpm://` 딥링크(skill/theme/plugin/open) — **신규 의존성 `tauri-plugin-deep-link`** + `tauri.conf.json` 스킴 + `capabilities/default.json` 권한. **무확인 실행 0**, GitHub owner/repo 형태만, 테마는 https+화이트리스트, open 은 등록된 프로젝트만 {#deep-link}
 
 ## Phase 7 — 임포트 · 오프라인 {#import-offline}
-- [ ] 대화 임포트 골격 — 후보 목록(날짜·제목·길이·추정 타입) → 선택 → Core Model 규격 일지화 → `verified_by_user:false` {#conversation-import}
-- [ ] 어댑터 — Claude export JSON + 일반 `conversations[].messages[]`. ZIP64·부분 실패 허용·안정 id 중복 스킵·원본 날짜 보존 {#import-adapters}
-- [ ] 오프라인 폴백 규약 — 폴백은 **그 호출 한 번**에만, 설정 기본값 불변, 폴백했음을 답변에 배지로 노출 {#offline-fallback}
-- [ ] 모델 선택기 오프라인 표시 — 숨기지 않고 흐리게 + 사유 툴팁("사라지면 설정이 날아간 줄 안다") {#model-picker-offline}
-- [ ] 오프라인 자동화는 실패가 아니라 **연기** — 따라잡기 규칙에 태움 {#automation-defer-offline}
+- [x] 대화 임포트 골격 — 후보 목록(날짜·제목·길이·추정 타입) → 선택 → Core Model 규격 일지화 → `verified_by_user:false` {#conversation-import}
+- [x] 어댑터 — Claude export JSON + 일반 `conversations[].messages[]`. ZIP64·부분 실패 허용·안정 id 중복 스킵·원본 날짜 보존 {#import-adapters}
+- [x] 오프라인 폴백 규약 — 폴백은 **그 호출 한 번**에만, 설정 기본값 불변, 폴백했음을 답변에 배지로 노출 {#offline-fallback}
+- [x] 모델 선택기 오프라인 표시 — 숨기지 않고 흐리게 + 사유 툴팁("사라지면 설정이 날아간 줄 안다") {#model-picker-offline}
+- [x] 오프라인 자동화는 실패가 아니라 **연기** — 따라잡기 규칙에 태움 {#automation-defer-offline}
 
 ## Phase 8 — 랜딩 {#landing}
 - [ ] `/changelog` — `CHANGELOG.md` 렌더 + 버전 앵커, sitemap `changefreq: daily` {#landing-changelog}

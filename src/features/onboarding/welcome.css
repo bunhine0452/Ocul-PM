@@ -1,0 +1,344 @@
+/* ============================================================
+   welcome.css — 첫 실행 마법사 전용 스타일.
+
+   home.css 와 같은 규율: 모든 클래스는 `wz-` 접두를 갖고, 색·모서리·그림자·
+   모션은 전부 tokens.css 변수를 쓴다 (하드코딩 색상 0 — 라이트/다크/프리셋
+   5종/액센트 6종에서 전부 성립해야 한다). 유일한 예외는 강조색 스와치의
+   인라인 배경인데, 그건 "지금 무슨 색인지" 를 보여 주는 견본이라 토큰이
+   아니라 값이어야 한다 (features/theme/accents.ts).
+   ============================================================ */
+
+.wz-scrim {
+  position: fixed;
+  inset: 0;
+  /* 반투명 스크림이 아니라 **불투명한 판**이다 — 이 창은 뒤에 있는 화면을
+     잠깐 가리는 모달이 아니라, 처음 켠 사람이 보는 첫 화면 그 자체다. */
+  background: var(--bg-sidebar);
+  color: var(--text);
+  z-index: var(--z-top);
+  display: grid;
+  place-items: center;
+  padding: 56px 24px 24px;
+  animation: wz-in 220ms var(--ease-out) both;
+}
+
+@keyframes wz-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wz-scrim { animation: none; }
+}
+
+/* macOS 신호등 자리 + 창을 끌 손잡이. 마법사가 탭 줄을 통째로 덮으므로
+   창을 옮길 방법을 여기서 다시 내준다 (TabStrip 의 `tabstrip-drag` 와 같다). */
+.wz-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+}
+
+.wz-card {
+  width: min(680px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-content);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sheet);
+  outline: none;
+  overflow: hidden;
+}
+
+/* ── 머리 — 워드마크 + 단계 ─────────────────────────────────────────── */
+
+.wz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg-card);
+}
+
+.wz-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-7);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.wz-brand svg { color: var(--accent); }
+
+.wz-dots {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wz-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+
+.wz-dot-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--sep-strong);
+  font-size: var(--fs-1);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wz-dot.on { color: var(--text); font-weight: 600; }
+.wz-dot.on .wz-dot-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.wz-dot.done .wz-dot-mark {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* 좁은 창에서는 단계 이름을 접고 번호만 남긴다. */
+@media (max-width: 560px) {
+  .wz-dot-label { display: none; }
+}
+
+/* ── 본문 ───────────────────────────────────────────────────────────── */
+
+.wz-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 30px 26px;
+}
+
+.wz-panel { animation: wz-panel-in 200ms var(--ease-out) both; }
+
+@keyframes wz-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wz-panel { animation: none; }
+}
+
+.wz-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.wz-sub {
+  margin: 0 0 22px;
+  font-size: var(--fs-7);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.wz-label {
+  margin: 20px 0 8px;
+  font-size: var(--fs-2);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.wz-label:first-of-type { margin-top: 0; }
+
+.wz-note {
+  margin: 18px 0 0;
+  font-size: var(--fs-4);
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+/* ── 선택 줄 (언어 3 · 테마 3) ──────────────────────────────────────── */
+
+.wz-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.wz-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border: 1px solid var(--sep-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-size: var(--fs-6);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease-out), background 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+}
+
+.wz-choice:hover {
+  border-color: var(--accent-ring);
+  color: var(--text);
+}
+
+.wz-choice.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.wz-choice:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+/* ── 강조색 스와치 6 ────────────────────────────────────────────────── */
+
+.wz-accents { display: flex; align-items: center; gap: 10px; }
+
+.wz-accent {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-spring), border-color 120ms var(--ease-out);
+}
+
+.wz-accent:hover { transform: scale(1.08); }
+.wz-accent.on { border-color: var(--text); transform: scale(1.12); }
+.wz-accent:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
+/* ── 큰 카드 두 장 (폴더 열기 · 새로 시작) ──────────────────────────── */
+
+.wz-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .wz-cards { grid-template-columns: 1fr; }
+  .wz-choices { grid-template-columns: 1fr; }
+}
+
+.wz-bigcard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 18px;
+  text-align: left;
+  border: 1px solid var(--sep-strong);
+  border-radius: var(--radius-l);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.wz-bigcard svg { color: var(--accent); margin-bottom: 4px; }
+.wz-bigcard b { font-size: var(--fs-7); font-weight: 700; color: var(--text); }
+.wz-bigcard span { font-size: var(--fs-4); line-height: 1.5; color: var(--text-3); }
+
+.wz-bigcard:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-raise);
+  transform: translateY(-1px);
+}
+
+.wz-bigcard:disabled { opacity: 0.55; cursor: progress; }
+.wz-bigcard:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
+/* ── 마무리 목록 ────────────────────────────────────────────────────── */
+
+.wz-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.wz-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+  font-size: var(--fs-6);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.wz-list svg { color: var(--accent); flex: none; margin-top: 2px; }
+
+/* ── 바닥 ───────────────────────────────────────────────────────────── */
+
+.wz-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--sep);
+  background: var(--bg-card);
+}
+
+.wz-foot-right { display: flex; align-items: center; gap: 8px; }
+
+.wz-ghost,
+.wz-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-s);
+  font-size: var(--fs-6);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
+}
+
+.wz-ghost { background: transparent; color: var(--text-3); }
+.wz-ghost:hover { background: var(--bg-hover); color: var(--text); }
+
+.wz-primary { background: var(--accent); color: var(--text-on-accent); }
+.wz-primary:hover { background: var(--accent-strong); }
+
+.wz-ghost:focus-visible,
+.wz-primary:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}

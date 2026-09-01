@@ -20,6 +20,39 @@ pub const MAX_ENTRIES: usize = 4_000;
 /// 경로 깊이 상한 (아카이브 루트 기준).
 pub const MAX_DEPTH: usize = 8;
 
+/// 상한 묶음. 가드는 한 벌이고 **숫자만 용도별로 다르다** — 대화 export 의
+/// `conversations.json` 은 한 파일이 수십 MB 라 플러그인 번들의 파일 상한을
+/// 그대로 쓰면 정상 아카이브가 거절된다 (Phase 7 #import-adapters).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limits {
+    pub total_bytes: u64,
+    pub file_bytes: u64,
+    pub entries: usize,
+    pub depth: usize,
+}
+
+impl Limits {
+    /// Claude 플러그인 번들 — 텍스트가 거의 전부다.
+    pub const fn plugin_bundle() -> Self {
+        Self {
+            total_bytes: MAX_TOTAL_BYTES,
+            file_bytes: MAX_FILE_BYTES,
+            entries: MAX_ENTRIES,
+            depth: MAX_DEPTH,
+        }
+    }
+
+    /// 대화 export — 파일 수는 적고 한 파일이 크다.
+    pub const fn conversation_export() -> Self {
+        Self {
+            total_bytes: 512 * 1024 * 1024,
+            file_bytes: 256 * 1024 * 1024,
+            entries: 2_000,
+            depth: MAX_DEPTH,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BundleFile {
     /// 아카이브 루트를 벗겨낸 `/` 구분 상대 경로. 언제나 안전하다.
@@ -59,13 +92,19 @@ impl ArchiveError {
 /// ZIP 바이트를 읽어 안전한 파일 목록으로. GitHub 아카이브처럼 **단일 최상위
 /// 폴더**로 감싸인 경우 그 한 겹을 벗긴다 (`repo-main/skills/…` → `skills/…`).
 pub fn read_zip(bytes: Vec<u8>) -> Result<ArchiveReadOutcome, ArchiveError> {
+    read_zip_with(bytes, Limits::plugin_bundle())
+}
+
+/// 상한을 지정해 읽는다. 가드의 **논리**는 [`read_zip`] 과 완전히 같다.
+pub fn read_zip_with(bytes: Vec<u8>, lim: Limits) -> Result<ArchiveReadOutcome, ArchiveError> {
     let cursor = std::io::Cursor::new(bytes);
     let mut zip = zip::ZipArchive::new(cursor).map_err(|e| ArchiveError::Open(e.to_string()))?;
 
-    if zip.len() > MAX_ENTRIES {
+    if zip.len() > lim.entries {
         return Err(ArchiveError::TooLarge(format!(
-            "{} entries exceeds the {MAX_ENTRIES} entry limit",
-            zip.len()
+            "{} entries exceeds the {} entry limit",
+            zip.len(),
+            lim.entries
         )));
     }
 
@@ -93,32 +132,33 @@ pub fn read_zip(bytes: Vec<u8>) -> Result<ArchiveReadOutcome, ArchiveError> {
             .components()
             .map(|c| c.as_os_str().to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        if rel.len() > MAX_DEPTH {
+        if rel.len() > lim.depth {
             skipped.push((raw, "too_deep".into()));
             continue;
         }
 
         let size = entry.size();
-        if size > MAX_FILE_BYTES {
+        if size > lim.file_bytes {
             skipped.push((raw, "file_too_large".into()));
             continue;
         }
         total = total.saturating_add(size);
-        if total > MAX_TOTAL_BYTES {
+        if total > lim.total_bytes {
             return Err(ArchiveError::TooLarge(format!(
-                "uncompressed size passed the {MAX_TOTAL_BYTES} byte limit"
+                "uncompressed size passed the {} byte limit",
+                lim.total_bytes
             )));
         }
 
         // 선언된 크기를 믿지 않고 읽기 자체를 자른다 — 헤더가 거짓말하는
         // 아카이브(zip bomb)가 상한 검사를 통과해 버리는 길을 막는다.
         let mut buf = Vec::new();
-        let mut limited = entry.by_ref().take(MAX_FILE_BYTES + 1);
+        let mut limited = entry.by_ref().take(lim.file_bytes + 1);
         if let Err(e) = limited.read_to_end(&mut buf) {
             skipped.push((raw, format!("read_failed:{e}")));
             continue;
         }
-        if buf.len() as u64 > MAX_FILE_BYTES {
+        if buf.len() as u64 > lim.file_bytes {
             skipped.push((raw, "file_too_large".into()));
             continue;
         }

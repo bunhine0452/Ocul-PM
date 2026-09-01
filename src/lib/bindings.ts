@@ -102,6 +102,24 @@ export const commands = {
 	pluginList: (projectId: number) => typedError<InstalledBundle[], AppError>(__TAURI_INVOKE("plugin_list", { projectId })),
 	/**  번들이 놓은 것만 지운다. 사용자가 이어받은 파일은 남긴다. */
 	pluginRemove: (projectId: number, bundleId: string) => typedError<BundleRemoveReport, AppError>(__TAURI_INVOKE("plugin_remove", { projectId, bundleId })),
+	/**  `.json` 또는 `.zip` 고르기. 취소하면 `None`. */
+	conversationPickExport: () => typedError<string | null, AppError>(__TAURI_INVOKE("conversation_pick_export")),
+	/**  후보 목록. **읽기 전용·오프라인**이다. */
+	conversationImportScan: (projectId: number, path: string) => typedError<ImportScan, AppError>(__TAURI_INVOKE("conversation_import_scan", { projectId, path })),
+	/**
+	 *  고른 대화를 일지로. **Core Model 로만 돈다** (D2) — 미설정이면 잠긴다.
+	 * 
+	 *  `types` 는 `source_ids` 와 같은 길이여야 한다 (목록에서 갈래를 바꿀 수
+	 *  있으므로). 길이가 다르면 추정값을 그대로 쓴다.
+	 */
+	conversationImportRun: (projectId: number, path: string, sourceIds: string[], types: EntryType[]) => typedError<ImportReport, AppError>(__TAURI_INVOKE("conversation_import_run", { projectId, path, sourceIds, types })),
+	/**
+	 *  마지막으로 관측된 프로바이더 도달성 (Phase 7 #model-picker-offline).
+	 * 
+	 *  프로브를 쏘지 않는다 — 이미 한 호출의 결과만 읽는다. 한 번도 안 불러 본
+	 *  프로바이더는 목록에 없다: "모른다" 를 "안 된다" 로 그리지 않기 위해서다.
+	 */
+	llmReachability: () => typedError<ProviderReach[], string>(__TAURI_INVOKE("llm_reachability")),
 	/**  관련도 상위 N (감쇠 반영). 화면의 「회상 후보」 목록. */
 	recallTop: (projectId: number, limit: number) => typedError<RecallStat[], AppError>(__TAURI_INVOKE("recall_top", { projectId, limit })),
 	/**  주입됐다고 기록한다 — 다음 순위에 반영된다. */
@@ -354,6 +372,14 @@ export const commands = {
 	getWindowTabs: (window: string) => typedError<WindowTabsSnapshot, string>(__TAURI_INVOKE("get_window_tabs", { window })),
 	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
 	listOpenProjectIds: () => typedError<number[], string>(__TAURI_INVOKE("list_open_project_ids")),
+	/**
+	 *  지금 창·탭을 저장한다 — **우리가 일으킨 재시작** 직전에만 부른다.
+	 * 
+	 *  사용자가 직접 끈 앱이 다음에 시작 탭으로 열리는 것은 예측 가능한 동작이라
+	 *  그대로 둔다. 업데이트는 사용자가 고른 중단이 아니라 우리가 끼워 넣은
+	 *  중단이므로, 하던 자리로 돌려놓는 책임도 우리에게 있다.
+	 */
+	saveWindowSession: () => typedError<null, string>(__TAURI_INVOKE("save_window_session")),
 	/**
 	 *  이 프로젝트의 터미널을 **자기 창**으로 떼어낸다 (도크의 ⇱).
 	 * 
@@ -2487,7 +2513,13 @@ export type ChangePlanRef = {
 	item_title: string,
 };
 
-export type ChatEvent = { kind: "delta"; text: string } | { kind: "done" } | { kind: "error"; message: string };
+export type ChatEvent = { kind: "delta"; text: string } | { kind: "done" } | 
+/**
+ *  1순위가 아니라 **폴백이 이 답변을 냈다** (Phase 7 #offline-fallback).
+ *  Delta 보다 먼저 정확히 한 번 나간다. 설정은 건드리지 않는다 — 이 사건은
+ *  그 호출 한 번의 사실이고, 화면은 답변에 배지로만 남긴다.
+ */
+{ kind: "fallback"; provider: string; model: string } | { kind: "error"; message: string };
 
 export type ChatMessage = {
 	id: number,
@@ -3638,6 +3670,64 @@ export type ImpactReport = {
 	affected: ImpactNode[],
 };
 
+/**
+ *  목록에 뜨는 후보 한 건. 본문(`transcript`)은 여기 없다 — 목록 화면이
+ *  수천 건의 전문을 들고 있을 이유가 없다.
+ */
+export type ImportCandidate = {
+	/**  아카이브가 준 안정 id (`uuid`/`id`). 없으면 내용에서 파생한다. */
+	source_id: string,
+	/**  결정적 슬러그 — 중복 판정의 열쇠다. 같은 대화는 언제나 같은 값. */
+	slug: string,
+	title: string,
+	/**  원본 작성 시각 (RFC3339). 워크데이·파일명이 전부 여기서 나온다. */
+	created_at: string,
+	/**  `created_at` 의 날짜 부분 (`YYYYMMDD`) — 목록 정렬·표시용. */
+	workday: string,
+	message_count: number,
+	char_count: number,
+	/**  제목·본문의 신호로 추정한 갈래. 사용자가 임포트 전에 바꿀 수 있다. */
+	guessed_type: EntryType,
+};
+
+export type ImportReport = {
+	entries: ImportedEntry[],
+	imported: number,
+	duplicates: number,
+	failed: number,
+};
+
+export type ImportScan = {
+	candidates: ImportCandidate[],
+	/**  읽지 못한 대화 — 조용히 버리지 않는다. */
+	skipped: ImportSkip[],
+	/**
+	 *  이 프로젝트에 **이미 들여온** 대화의 `source_id`. 목록이 회색으로
+	 *  표시되고 기본 선택에서 빠진다.
+	 */
+	already: string[],
+};
+
+/**  받아들이지 못한 대화 — 조용히 버리지 않는다. */
+export type ImportSkip = {
+	/**  사람이 알아볼 만한 표식 (제목 또는 인덱스). */
+	label: string,
+	/**  사유 코드 (UI 언어 아님 — 화면이 i18n 키로 옮긴다). */
+	reason: string,
+};
+
+/**  임포트 한 건의 결과. */
+export type ImportedEntry = {
+	source_id: string,
+	title: string,
+	/**  `.oculpm/journal/` 기준 상대 경로. 건너뛴 건은 `None`. */
+	relative_path: string | null,
+	/**  `imported` · `duplicate` · `failed`. */
+	outcome: string,
+	/**  실패·스킵 사유 (UI 언어 아님). */
+	detail: string | null,
+};
+
 export type IndexProgress = {
 	current: number,
 	total: number,
@@ -4080,6 +4170,14 @@ export type ManualEntryDraft = {
 	 *  `Some(false)` — 사용자가 UI 에서 검토 후 토글한다.
 	 */
 	verified_by_user?: boolean | null,
+	/**
+	 *  Phase 7 (#conversation-import) — 이 기록이 **일어난** 시각(RFC3339).
+	 *  `None` → 지금(기존 의미). 들여온 대화는 원본 날짜를 보존해야 하므로
+	 *  워크데이 폴더·파일명 `HHMM`·`created_at` 이 전부 이 값에서 나온다.
+	 *  파싱 실패는 무시하고 지금으로 떨어진다 — 임포트 한 건 때문에 전체가
+	 *  죽는 것보다 날짜 하나가 오늘이 되는 편이 낫다.
+	 */
+	created_at?: string | null,
 };
 
 /**  An available master-template upgrade for a project. */
@@ -4550,6 +4648,20 @@ export type ProjectWindowsChanged = {
 export type ProviderModel = {
 	provider: string,
 	model: string,
+};
+
+/**  한 프로바이더의 마지막 관측. */
+export type ProviderReach = {
+	provider: string,
+	/**  `false` = 마지막 시도가 **서버에 닿지도 못했다** (연결·타임아웃). */
+	reachable: boolean,
+	/**
+	 *  영어 원문 사유. UI 는 이걸 툴팁에 그대로 싣는다 (코드가 아니라 원문이
+	 *  필요한 자리 — 사용자가 그대로 검색할 수 있어야 한다).
+	 */
+	detail: string | null,
+	/**  관측 시각 (RFC3339). */
+	observed_at: string,
 };
 
 export type PtyAttach = {

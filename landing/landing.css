@@ -105,6 +105,26 @@ b, strong { font-weight: 700; color: var(--ink); }
   transition: color 0.15s ease;
 }
 .nav-links a:hover { color: var(--ink); }
+/* 언어 전환 (한국어 ↔ English). `.nav-links` 는 860px 아래에서 사라지지만
+   이건 남긴다 — 영문 페이지에 떨어진 한국 사용자가 돌아갈 길은 좁은 화면에서도
+   보여야 한다. margin-left:auto 는 nav-links 가 숨었을 때 자리를 잡아 준다. */
+.nav-lang {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  text-decoration: none;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 5px 11px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.nav-lang:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+}
+/* 좁은 화면에서는 `.nav-links` 가 사라지므로 오른쪽으로 미는 auto 를 여기가
+   물려받는다 (둘 다 auto 면 flex 가 남는 공간을 반씩 나눠 가운데로 벌어진다). */
+@media (max-width: 860px) { .nav-lang { margin-left: auto; } }
 .nav-cta {
   display: inline-block;
   padding: 8px 18px;

@@ -397,11 +397,14 @@ export const ko = {
   "automation.runOutcome.dropped": "다른 자동화가 실행 중이라 버렸습니다",
   "automation.runOutcome.failed": "실행이 실패했습니다",
   "automation.runOutcome.cancelled": "중단했습니다",
+  "automation.runOutcome.deferred": "네트워크에 닿지 못해 미뤘습니다 — 연결되면 따라잡습니다",
   "automation.status.ok": "성공",
   "automation.status.failed": "실패",
   "automation.status.skipped": "건너뜀",
   "automation.status.dropped": "버림",
   "automation.status.cancelled": "중단",
+  // 오프라인 (Phase 7) — 실패가 아니라 연기다. 네트워크가 돌아오면 따라잡는다.
+  "automation.status.deferred": "연기됨",
   "automation.status.running": "실행 중",
   "automation.history.title": "실행 기록 — {name}",
   "automation.history.empty": "아직 실행 기록이 없습니다.",
@@ -670,6 +673,35 @@ export const ko = {
   "settings.declarative.reason.no_project": "열린 프로젝트가 없습니다",
   "settings.declarative.reason.invalid_value": "이 값은 설정이 받을 수 없습니다",
   "settings.declarative.reason.unknown": "사유 없음",
+
+  // ── 대화 임포트 · 오프라인 (Osaurus 라운드 Phase 7) ────────────────────
+  "settings.import.title": "지난 대화 들여오기",
+  "settings.import.desc":
+    "다른 도구(Claude 등)에서 내보낸 대화를 이 프로젝트의 작업 일지로 옮깁니다. 목록을 읽는 동안에는 아무것도 나가지 않아요 — 고른 대화에만 배경 모델이 붙습니다.",
+  "settings.import.noProject": "프로젝트를 먼저 열어 주세요 — 들여온 대화는 그 프로젝트의 일지가 됩니다.",
+  "settings.import.pick": "export 파일 고르기 (.json · .zip)",
+  "settings.import.found": "대화 {count}개를 찾았어요",
+  "settings.import.turns": "발화 {count}개",
+  "settings.import.already": "들여옴",
+  "settings.import.skipped": "읽지 못한 대화 {count}개는 건너뜁니다.",
+  "settings.import.costNote": "고른 대화마다 배경 작업 모델을 한 번씩 부릅니다 (설정 → LLM).",
+  "settings.import.run": "{count}개 들여오기",
+  "settings.import.done": "{imported}개 들여왔어요 · 이미 있던 것 {duplicates}개 · 실패 {failed}개",
+  "settings.import.verifyNote":
+    "들여온 기록은 「검토 안 함」 상태예요 — 다른 곳의 대화를 모델이 옮겨 적은 것이라, 읽어 보고 확인 표시를 해 주세요.",
+  "err.code.import_unreadable": "이 파일을 읽지 못했어요: {detail}",
+  "err.code.import_too_large": "파일이 임포트 상한을 넘었어요: {detail}",
+  "err.code.import_no_conversations": "이 파일에서 대화를 찾지 못했어요: {detail}",
+  "err.code.import_too_many_selected": "한 번에 50개까지만 들여올 수 있어요.",
+  "err.code.import_core_model_missing":
+    "배경 작업 모델을 먼저 골라 주세요 — 설정 → LLM → 배경 작업 모델.",
+  "err.code.import_core_model_failed": "배경 작업 모델을 읽지 못했어요: {detail}",
+  "err.code.import_scan_failed": "이미 들여온 대화인지 확인하지 못했어요: {detail}",
+  "llm.offline.badge": "오프라인",
+  "llm.offline.hint": "마지막 시도가 이 프로바이더에 닿지 못했어요. 설정은 그대로예요.",
+  "ai.fallback.badge": "폴백: {provider}",
+  "ai.fallback.hint":
+    "고른 모델이 응답하지 않아 폴백 체인의 {provider} · {model} 이 이 답변을 냈어요. 이번 한 번뿐이고 설정은 바뀌지 않았습니다.",
   "settings.diag.title": "진단",
   "settings.diag.devtools": "DevTools 열기",
   "settings.reset.title": "초기화",
@@ -2448,8 +2480,11 @@ export const ko = {
   "promo.skillDescLabel": "description (자동 발동 트리거)",
   "promo.skillSave": "스킬로 저장",
   "promo.skillSaved": "스킬이 저장되었습니다: {path} — 스킬·규칙 화면에서 관리할 수 있어요",
-  // 회고 생성 완료 알림 (실패는 기존 `retro.genFailed` 재사용)
+  // 회고 생성 완료 알림 (실패는 기존 `retro.genFailed` 재사용). 프로젝트를
+  // 밝히는 쪽이 기본이다 — 창 하나가 프로젝트 여럿을 물고 생성도 키 단위로
+  // 겹쳐 돌 수 있어, 이름이 없으면 어느 회고가 끝났는지 알 길이 없다.
   "retro.genReady": "회고가 준비됐어요",
+  "retro.genReadyFor": "{project} 회고가 준비됐어요",
 
   // ── 일지 타입 배지 (트레이 · 런처 홈 공용) ──────────────────────────────
   // 한 건짜리 배지라 **단수**다. `journal.filter.*` 와 `retro.type.*` 는 필터
@@ -3124,6 +3159,45 @@ export const ko = {
   "settings.firing.scoped": "경로 조건",
   "settings.firing.rescan": "다시 세기",
   "settings.firing.rebuild": "처음부터 다시",
+  // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────
+  "welcome.aria": "첫 실행 설정",
+  "welcome.step.lang": "언어",
+  "welcome.step.look": "모양",
+  "welcome.step.project": "프로젝트",
+  "welcome.skip": "건너뛰기",
+  "welcome.later": "나중에",
+  "welcome.back": "이전",
+  "welcome.next": "다음",
+  "welcome.lang.title": "반갑습니다.",
+  "welcome.lang.sub":
+    "에이전트가 코드를 쓰는 동안, Ocul-PM 이 기록을 남깁니다. 먼저 화면에 쓸 언어를 고르세요.",
+  "welcome.lang.note":
+    "AI 가 쓰는 일지의 언어도 함께 맞춥니다 — 화면은 영어, 기록은 한국어처럼 갈라 쓰려면 설정 → 모양에서 나누세요.",
+  "welcome.look.title": "눈에 편한 쪽으로.",
+  "welcome.look.sub": "고르는 즉시 적용됩니다. 언제든 설정에서 다시 바꿀 수 있어요.",
+  "welcome.look.themeLabel": "테마",
+  "welcome.look.accentLabel": "강조색",
+  "welcome.look.light": "밝게",
+  "welcome.look.dark": "어둡게",
+  "welcome.look.system": "시스템",
+  "welcome.look.note":
+    "Solarized·Nord 같은 프리셋과 직접 만드는 테마(.json)는 설정 → 모양에 있습니다.",
+  "welcome.project.title": "첫 프로젝트를 불러오세요.",
+  "welcome.project.sub": "이미 있는 저장소 폴더를 고르면 그 자리에서 기록이 시작됩니다.",
+  "welcome.project.open": "폴더 열기",
+  "welcome.project.openDesc": "이미 있는 프로젝트를 추적합니다",
+  "welcome.project.new": "새로 시작",
+  "welcome.project.newDesc": "아이디어에서 계획까지 마법사가 안내합니다",
+  "welcome.project.working": "여는 중…",
+  "welcome.project.note":
+    "폴더에 .oculpm/ 과 기록 규칙(AGENTS.md)이 생깁니다. 코드는 이 컴퓨터를 떠나지 않습니다.",
+  "welcome.ready.title": "{name}, 준비됐습니다.",
+  "welcome.ready.sub":
+    "기록 규칙을 폴더에 심었습니다. 에이전트가 일을 마칠 때마다 일지가 쌓입니다.",
+  "welcome.ready.li1": ".oculpm/ — 일지·계획·논의가 마크다운으로 쌓입니다",
+  "welcome.ready.li2": "AGENTS.md — 에이전트가 읽는 기록 규칙",
+  "welcome.ready.li3": "⌘K 로 어디든, ⌘, 로 설정",
+  "welcome.ready.open": "프로젝트 열기",
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
   "err.code.not_initialized": "이 프로젝트에 ocul-pm 이 아직 켜져 있지 않아요 — Today 에서 활성화하세요.",
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",

@@ -112,8 +112,9 @@ export function RetroScreenV2({
   // 부재 중 끝난 결과는 아래 useEffect 가 입양한다.
   const genVersion = useSyncExternalStore(subscribeRetroGen, retroGenVersion);
   const myGenKey = retroGenKey(projectId, rangeKey);
-  const runningGen = getRetroGenRunning();
-  const generating = runningGen?.key === myGenKey;
+  // 단일 비행은 키 단위다 — 남의 프로젝트/기간이 도는 것은 이 화면과 무관하다.
+  const runningGen = getRetroGenRunning(myGenKey);
+  const generating = runningGen != null;
 
   useEffect(() => {
     const done = consumeRetroGenDone(myGenKey);
@@ -189,9 +190,17 @@ export function RetroScreenV2({
     }
     // 실제 호출·완료 처리는 전역 버스가 맡는다 — 이 컴포넌트가 언마운트돼도
     // 생성은 이어지고, 결과 입양은 genVersion effect 가 한다.
-    const started = startRetroGen(projectId, since, until, rangeKey, provider, model);
+    const started = startRetroGen(
+      projectId,
+      since,
+      until,
+      rangeKey,
+      provider,
+      model,
+      state.currentProjectName,
+    );
     if (!started) toast.warning(t("retro.alreadyRunning"));
-  }, [generating, signals, projectId, since, until, rangeKey]);
+  }, [generating, signals, projectId, since, until, rangeKey, state.currentProjectName]);
 
   // #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
   // API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다.
@@ -209,7 +218,7 @@ export function RetroScreenV2({
       // 붙여넣고, 터미널이 이미 보이면 화면을 빼앗지 않는다.
       const onScreen = terminalOnScreen(state);
       const done = await handoffDispatch(
-        { command: res.data.command, prompt: res.data.prompt },
+        { projectId, command: res.data.command, prompt: res.data.prompt },
         sessions.terminalTabs,
         sessions.terminalActiveId,
       );

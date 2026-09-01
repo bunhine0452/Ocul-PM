@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { windowApi } from "@/api/window";
 import { busyReason, onBusyChange } from "./busyGuard";
 
 // Shared self-update plumbing (benchmarked from the uvws/PySpace setup). The
@@ -52,6 +53,25 @@ export function releaseHighlights(notes: string | null | undefined): string {
   return (next === -1 ? afterHeading : afterHeading.slice(0, next)).trim();
 }
 
+/**
+ * 창·탭을 저장하고 다시 띄운다.
+ *
+ * 업데이트 재시작은 **우리가 끼워 넣은 중단**이다 — 사용자가 끈 것이 아니므로
+ * 열어 두었던 프로젝트 창들을 그대로 돌려놓는다. 백엔드가 스냅숏을 남기고,
+ * 새로 뜬 프로세스가 그것을 보고 창·탭을 되살린다 (`window.rs::SESSION_KEY`).
+ *
+ * 저장이 실패해도 재시작은 막지 않는다 — 새 버전으로 가는 것이 먼저고, 복원은
+ * 그 위의 편의다.
+ */
+async function restartRestoringWindows(): Promise<void> {
+  try {
+    await windowApi.saveSession();
+  } catch {
+    // 창 구성만 잃는다 — 업데이트 자체는 이어간다.
+  }
+  await relaunch();
+}
+
 export function useUpdater() {
   const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
   const [update, setUpdate] = useState<Update | null>(null);
@@ -99,7 +119,7 @@ export function useUpdater() {
 
     const why = busyReason();
     if (!why) {
-      await relaunch();
+      await restartRestoringWindows();
       return;
     }
 
@@ -113,13 +133,13 @@ export function useUpdater() {
         return;
       }
       off();
-      void relaunch();
+      void restartRestoringWindows();
     });
   }, [update]);
 
   /** 기다리지 않고 **지금** 띄운다 (사용자가 그러기로 했을 때). */
   const restartNow = useCallback(async () => {
-    await relaunch();
+    await restartRestoringWindows();
   }, []);
 
   return { status, update, check, install, restartNow };

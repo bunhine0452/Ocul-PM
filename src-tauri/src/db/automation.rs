@@ -38,6 +38,10 @@ pub const RUN_FAILED: &str = "failed";
 pub const RUN_SKIPPED: &str = "skipped";
 pub const RUN_DROPPED: &str = "dropped";
 pub const RUN_CANCELLED: &str = "cancelled";
+/// 네트워크에 닿지 못해 **연기**했다 (Phase 7 #automation-defer-offline).
+/// 실패가 아니다 — 다음 시각을 미루지 않고 따라잡기 규칙에 태운다. 과금도
+/// 없었으므로 일일 예산에서도 세지 않는다.
+pub const RUN_DEFERRED: &str = "deferred";
 
 #[allow(dead_code)] // 목록/이력 조회는 Phase 1 의 자동화 탭이 소비한다.
 impl Db {
@@ -283,7 +287,7 @@ impl Db {
                 let n: i64 = c.query_row(
                     "SELECT COUNT(*) FROM automation_runs
                      WHERE project_id = ?1 AND started_at >= ?2
-                       AND status NOT IN ('dropped', 'skipped')",
+                       AND status NOT IN ('dropped', 'skipped', 'deferred')",
                     params![project_id as i64, since],
                     |r| r.get(0),
                 )?;

@@ -405,11 +405,13 @@ export const en: Record<keyof typeof ko, string> = {
   "automation.runOutcome.dropped": "Dropped — another automation is running",
   "automation.runOutcome.failed": "The run failed",
   "automation.runOutcome.cancelled": "Cancelled",
+  "automation.runOutcome.deferred": "Deferred — could not reach the network; it will catch up once you are back online",
   "automation.status.ok": "OK",
   "automation.status.failed": "Failed",
   "automation.status.skipped": "Skipped",
   "automation.status.dropped": "Dropped",
   "automation.status.cancelled": "Cancelled",
+  "automation.status.deferred": "Deferred",
   "automation.status.running": "Running",
   "automation.history.title": "Run history — {name}",
   "automation.history.empty": "No runs recorded yet.",
@@ -677,7 +679,38 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.declarative.reason.secret_excluded": "this key looks like a secret",
   "settings.declarative.reason.no_project": "no project is open",
   "settings.declarative.reason.invalid_value": "settings cannot hold this value",
-  "settings.declarative.reason.unknown": "no reason given",
+  "settings.declarative.reason.unknown": "No reason given",
+
+  // ── Conversation import · offline (Osaurus round, Phase 7) ─────────────
+  "settings.import.title": "Import past conversations",
+  "settings.import.desc":
+    "Bring conversations exported from another tool (Claude and friends) in as work-journal entries. Reading the list sends nothing anywhere — only the conversations you pick reach the background model.",
+  "settings.import.noProject": "Open a project first — imported conversations become that project's journal entries.",
+  "settings.import.pick": "Choose an export file (.json · .zip)",
+  "settings.import.found": "Found {count} conversations",
+  "settings.import.turns": "{count} turns",
+  "settings.import.already": "imported",
+  "settings.import.skipped": "{count} conversations could not be read and were skipped.",
+  "settings.import.costNote":
+    "Each conversation you pick calls the background model once (Settings → LLM).",
+  "settings.import.run": "Import {count}",
+  "settings.import.done":
+    "Imported {imported} · already here {duplicates} · failed {failed}",
+  "settings.import.verifyNote":
+    "Imported entries start unverified — a model rewrote a conversation that happened elsewhere, so read them and tick them off.",
+  "err.code.import_unreadable": "Could not read this file: {detail}",
+  "err.code.import_too_large": "This file exceeds an import limit: {detail}",
+  "err.code.import_no_conversations": "No conversation found in this file: {detail}",
+  "err.code.import_too_many_selected": "You can import at most 50 conversations at a time.",
+  "err.code.import_core_model_missing":
+    "Pick a background model first — Settings → LLM → Background model.",
+  "err.code.import_core_model_failed": "Could not read the background model setting: {detail}",
+  "err.code.import_scan_failed": "Could not check whether this was already imported: {detail}",
+  "llm.offline.badge": "Offline",
+  "llm.offline.hint": "The last attempt could not reach this provider. Your settings are untouched.",
+  "ai.fallback.badge": "Fallback: {provider}",
+  "ai.fallback.hint":
+    "Your chosen model did not answer, so {provider} · {model} from the failover chain produced this reply. Just this once — nothing in your settings changed.",
   "settings.diag.title": "Diagnostics",
   "settings.diag.devtools": "Open DevTools",
   "settings.reset.title": "Reset",
@@ -2472,8 +2505,11 @@ export const en: Record<keyof typeof ko, string> = {
   "promo.skillDescLabel": "description (auto-trigger)",
   "promo.skillSave": "Save as skill",
   "promo.skillSaved": "Skill saved: {path} — manage it on the Skills & rules screen",
-  // Retro generation done (failure reuses the existing `retro.genFailed`)
+  // Retro generation done (failure reuses the existing `retro.genFailed`).
+  // Naming the project is the default — one window holds several projects and
+  // generation runs per key, so an unlabelled toast can't say which retro.
   "retro.genReady": "Your retro is ready",
+  "retro.genReadyFor": "{project} — retro is ready",
 
   // ── Journal type badge (shared: tray + launcher home) ───────────────────
   // **Singular**, since it labels one entry. `journal.filter.*` /
@@ -3149,6 +3185,45 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.firing.scoped": "path-scoped",
   "settings.firing.rescan": "Recount",
   "settings.firing.rebuild": "Rebuild",
+  // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
+  "welcome.aria": "First-run setup",
+  "welcome.step.lang": "Language",
+  "welcome.step.look": "Look",
+  "welcome.step.project": "Project",
+  "welcome.skip": "Skip",
+  "welcome.later": "Later",
+  "welcome.back": "Back",
+  "welcome.next": "Next",
+  "welcome.lang.title": "Welcome.",
+  "welcome.lang.sub":
+    "Your agents write the code; Ocul-PM keeps the record. Start by picking the language for the app.",
+  "welcome.lang.note":
+    "The language the AI writes journals in is matched to this too — to split them (English screen, Korean journals), go to Settings → Appearance.",
+  "welcome.look.title": "Pick what's easy on the eyes.",
+  "welcome.look.sub": "It applies the moment you pick. Change it any time in Settings.",
+  "welcome.look.themeLabel": "Theme",
+  "welcome.look.accentLabel": "Accent",
+  "welcome.look.light": "Light",
+  "welcome.look.dark": "Dark",
+  "welcome.look.system": "System",
+  "welcome.look.note":
+    "Presets like Solarized and Nord — and themes you build yourself as .json — live in Settings → Appearance.",
+  "welcome.project.title": "Bring in your first project.",
+  "welcome.project.sub": "Point at a repo folder you already have and the record starts right there.",
+  "welcome.project.open": "Open a folder",
+  "welcome.project.openDesc": "Track a project you already have",
+  "welcome.project.new": "Start something new",
+  "welcome.project.newDesc": "The wizard walks you from idea to a seeded plan",
+  "welcome.project.working": "Opening…",
+  "welcome.project.note":
+    ".oculpm/ and a journaling-rules file (AGENTS.md) are created in the folder. Your code never leaves this machine.",
+  "welcome.ready.title": "{name} is ready.",
+  "welcome.ready.sub":
+    "The journaling rules are planted in the folder. Every time an agent finishes a unit of work, an entry lands.",
+  "welcome.ready.li1": ".oculpm/ — journals, plans and discussions pile up as markdown",
+  "welcome.ready.li2": "AGENTS.md — the journaling rules your agents read",
+  "welcome.ready.li3": "⌘K goes anywhere, ⌘, opens settings",
+  "welcome.ready.open": "Open project",
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
   "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
   "err.code.invalid_session_id": "Malformed session id: {detail}",

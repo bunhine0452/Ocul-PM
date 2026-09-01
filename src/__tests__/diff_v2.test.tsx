@@ -248,18 +248,21 @@ const STORAGE_KEY = storageKeyFor(1);
 function seedRecentChanges(
   changes: Array<{ path: string; op: "A" | "M" | "D" }>,
   extra: Record<string, unknown> = {},
+  projectId = 1,
 ) {
-  changes.forEach((c, i) => recentChangesStore.push({ ...c, ts: i + 1, read: false }));
+  changes.forEach((c, i) =>
+    recentChangesStore.push(projectId, { ...c, ts: i + 1, read: false }),
+  );
   if (Object.keys(extra).length > 0) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
   }
 }
 
-function renderDiff() {
+function renderDiff(projectId = 1) {
   return render(
     <SettingsProvider>
-      <WorkspaceProvider projectId={1}>
-        <DiffScreenV2 projectId={1} projectRoot="/tmp/proj" branch="feat/x" />
+      <WorkspaceProvider projectId={projectId}>
+        <DiffScreenV2 projectId={projectId} projectRoot="/tmp/proj" branch="feat/x" />
       </WorkspaceProvider>
     </SettingsProvider>,
   );
@@ -274,7 +277,7 @@ async function waitForBody(container: HTMLElement) {
 
 beforeEach(() => {
   localStorage.clear();
-  recentChangesStore.clear(); // v2 U3 — 모듈 스코프 스토어는 테스트 간 공유된다
+  recentChangesStore.clear(); // v2 U3 — 모듈 스코프 스토어는 테스트 간 공유된다 (인자 없으면 전부)
   for (const k of Object.keys(diffByPath)) delete diffByPath[k];
   for (const k of Object.keys(previewByPath)) delete previewByPath[k];
   readFileFails = false;
@@ -318,6 +321,16 @@ describe("PR-UI 4 — Diff screen", () => {
     seedRecentChanges([]);
     const { findByText } = renderDiff();
     expect(await findByText(/이 브랜치엔 아직 변경이 없어요/)).toBeInTheDocument();
+  });
+
+  // 2026-09-01 — 크롬식 탭은 한 창에서 프로젝트를 여러 개 물고, watcher 버퍼는
+  // 모듈 하나다. 프로젝트별로 갈라지지 않으면 옆 탭의 변경이 이 탭의 「미기록
+  // 변경」 목록에 그대로 뜬다 (열어도 computeDiff 가 남의 경로를 받는다).
+  it("옆 탭(다른 프로젝트)의 변경은 이 화면에 새지 않는다", async () => {
+    seedRecentChanges([{ path: "src/a.ts", op: "M" }], {}, 1);
+    const { findByText, container } = renderDiff(2);
+    expect(await findByText(/이 브랜치엔 아직 변경이 없어요/)).toBeInTheDocument();
+    expect(container.querySelectorAll(".diff-files .dfile-name")).toHaveLength(0);
   });
 
   it("통합/분할 toggle switches the body layout", async () => {

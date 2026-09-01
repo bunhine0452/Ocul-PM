@@ -871,6 +871,7 @@ mod journal_w3_pr3 {
             tags: vec!["alpha".into()],
             agent: None,
             verified_by_user: None,
+            created_at: None,
         }
     }
 
@@ -1608,6 +1609,7 @@ mod compare_layers_w4_pr5 {
             tags: Vec::new(),
             agent: None,
             verified_by_user: None,
+            created_at: None,
         }
     }
 

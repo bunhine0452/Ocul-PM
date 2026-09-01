@@ -8,6 +8,7 @@ pub mod anthropic;
 pub mod gemini;
 pub mod nim;
 pub mod openai;
+pub mod reach;
 
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -46,9 +47,20 @@ pub struct ChatResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ChatEvent {
-    Delta { text: String },
+    Delta {
+        text: String,
+    },
     Done,
-    Error { message: String },
+    /// 1순위가 아니라 **폴백이 이 답변을 냈다** (Phase 7 #offline-fallback).
+    /// Delta 보다 먼저 정확히 한 번 나간다. 설정은 건드리지 않는다 — 이 사건은
+    /// 그 호출 한 번의 사실이고, 화면은 답변에 배지로만 남긴다.
+    Fallback {
+        provider: String,
+        model: String,
+    },
+    Error {
+        message: String,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -64,6 +76,22 @@ pub enum LlmError {
 
     #[error("parse: {0}")]
     Parse(String),
+}
+
+impl LlmError {
+    /// 이 실패가 **서버에 닿지도 못한** 실패인가 (Phase 7 #offline-fallback).
+    ///
+    /// 오프라인 판정을 문자열로 하지 않는 이유는 하나다 — 429·401 은 네트워크가
+    /// 멀쩡하다는 **증거**이고, 그 둘을 오프라인으로 읽으면 "연기" 가 "영원히
+    /// 안 돎" 이 된다. `reqwest` 는 연결·타임아웃·요청 조립 실패를 구분해 두었고
+    /// 여기서는 그것만 믿는다.
+    pub fn is_transport(&self) -> bool {
+        match self {
+            LlmError::Http(e) => e.is_connect() || e.is_timeout() || e.is_request(),
+            // 응답이 왔다 = 네트워크는 닿았다.
+            LlmError::ApiError { .. } | LlmError::Parse(_) | LlmError::UnknownProvider(_) => false,
+        }
+    }
 }
 
 #[async_trait]
@@ -151,5 +179,28 @@ pub fn create(name: &str, api_key: String) -> Result<Box<dyn LlmProvider>, LlmEr
         "openrouter" => Ok(Box::new(openai::OpenAi::openrouter(api_key))),
         "nim" => Ok(Box::new(nim::Nim::new(api_key))),
         other => Err(LlmError::UnknownProvider(other.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 응답이 **온** 실패는 오프라인이 아니다 — 그 구분이 자동화의
+    /// "연기 vs 실패" 와 모델 선택기의 흐림 표시를 동시에 떠받친다.
+    #[test]
+    fn a_reply_from_the_server_is_never_offline() {
+        assert!(!LlmError::ApiError {
+            status: 429,
+            body: "rate limited".into()
+        }
+        .is_transport());
+        assert!(!LlmError::ApiError {
+            status: 401,
+            body: "bad key".into()
+        }
+        .is_transport());
+        assert!(!LlmError::Parse("bad json".into()).is_transport());
+        assert!(!LlmError::UnknownProvider("nope".into()).is_transport());
     }
 }

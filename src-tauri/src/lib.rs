@@ -293,6 +293,7 @@ use crate::commands::{
     list_open_project_ids,
     list_projects,
     list_terminal_windows,
+    llm_reachability,
     lsp_apply_code_action,
     lsp_change,
     lsp_close,
@@ -432,6 +433,7 @@ use crate::commands::{
     rules_sync_translations,
     // G4 — Greenfield (W6)
     save_blueprint,
+    save_window_session,
     search_chunks,
     search_symbols,
     search_text,
@@ -482,6 +484,10 @@ use crate::commands::declarative_config::{
 };
 // 플러그인 번들 임포트 (Phase 6) — 가드·분류·배치는 crate::plugins 에 있다.
 use crate::commands::plugins::{plugin_import, plugin_list, plugin_pick_bundle, plugin_remove};
+// 대화 임포트 (Phase 7) — 어댑터·일지화는 crate::oculpm::import 에 있다.
+use crate::commands::import::{
+    conversation_import_run, conversation_import_scan, conversation_pick_export,
+};
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -534,6 +540,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plugin_import,
             plugin_list,
             plugin_remove,
+            // 대화 임포트 (Phase 7) — 스캔은 오프라인·무과금, 실행만 Core Model.
+            conversation_pick_export,
+            conversation_import_scan,
+            conversation_import_run,
+            // 오프라인 표시 (Phase 7) — 프로브가 아니라 마지막 관측을 읽는다.
+            llm_reachability,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             recall_top,
             recall_touch,
@@ -600,6 +612,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             list_app_windows,
             get_window_tabs,
             list_open_project_ids,
+            // 업데이트 재시작을 건너 창·탭을 되살린다 (재시작 직전 저장)
+            save_window_session,
             // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
             open_terminal_window,
             close_terminal_window,
@@ -1023,6 +1037,11 @@ pub fn run() {
                     }
                 });
             }
+
+            // 업데이트로 우리가 끊은 재시작이라면 그때 열려 있던 창·탭을
+            // 되살린다. 스냅숏이 없으면(=사용자가 직접 끈 앱) 아무 일도 안
+            // 한다 — 첫 창은 그대로 시작 탭 하나로 남는다.
+            crate::commands::window::restore_session(app.handle());
 
             // 추적 중인 **모든** 프로젝트 감시 시작 (2026-08-12 사용자 결정).
             // 예전에는 watcher 가 탭 수명에 묶여 있어, 탭을 안 연 프로젝트는

@@ -269,12 +269,12 @@ export default function ProjectTab({
     const channel = new Channel<IndexProgress>();
     // 진행률은 컨텍스트가 아니라 외부 스토어로 — 파일마다 프로바이더가 다시
     // 그려지지 않게 (Phase 3 #index-progress).
-    channel.onmessage = (p) => indexProgressStore.set(p);
+    channel.onmessage = (p) => indexProgressStore.set(projectId, p);
     const res = await commands.indexProject(projectId, channel);
     if (res.status === "error") {
       toast.destructive(t("settings.index.reindexFailed", { error: res.error }));
     }
-    indexProgressStore.clear();
+    indexProgressStore.clear(projectId);
     setIndexing(null);
   }
 

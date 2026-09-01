@@ -122,6 +122,21 @@ impl Db {
         Ok(value)
     }
 
+    /// 키를 지운다 — **없어도 성공**이다.
+    ///
+    /// 한 번만 쓰고 버리는 값(창 세션 스냅숏)의 소비에 쓴다. 빈 문자열 sentinel
+    /// 대신 진짜로 지우는 이유: `settings_get_all` 이 그 값을 계속 실어 나르고,
+    /// "빈 문자열 = 없음" 규약을 읽는 쪽마다 되풀이해야 하기 때문이다.
+    pub async fn settings_delete(&self, key: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute("DELETE FROM settings WHERE key = ?1", [key])?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     // ─── PR-CI0: Claude Code 훅 인박스 소비 오프셋 (claude_hooks bridge) ─────
 
     pub async fn claude_hooks_offset_get(&self, root: String) -> Result<Option<i64>> {

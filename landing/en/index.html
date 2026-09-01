@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocul-PM — AI project manager for coding agents · local-first</title>
+<meta name="description" content="While AI coding agents like Claude Code, Codex, Cursor and Gemini CLI write your code, Ocul-PM records the work and hands it back as standups, PR bodies and retros. Automatic work journals, local diff review, code map, skill shop, ⌘K palette. UI in English or Korean. Local-first · no account · no telemetry." />
+<meta name="keywords" content="AI PM, AI project manager, ai pm tool, Ocul-PM, coding agent, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, dev journal, agent work log, work journal, code change tracking, AI pair programming record, vibe coding management, Claude Code work log, Cursor change tracking, standup generator, PR description generator, engineering retrospective, code map, dependency graph, Claude Code skills, skill shop, AI developer tools, local-first, semantic code search, macOS developer tools, developer productivity" />
+<meta name="author" content="Ocul-PM" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+<meta name="theme-color" content="#0f5b43" />
+<link rel="canonical" href="https://oculpm.com/en" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/en" />
+<link rel="alternate" hreflang="x-default" href="https://oculpm.com/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="ko_KR" />
+<meta property="og:url" content="https://oculpm.com/en" />
+<meta property="og:title" content="Ocul-PM — AI project manager for coding agents" />
+<meta property="og:description" content="Your agents write the code. You keep the record, the review and the receipts. Automatic journals · retros · standups. Local-first · no account · no telemetry." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="1200" />
+<meta property="og:image:alt" content="Ocul-PM — AI project manager for coding agents" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Ocul-PM — AI project manager for coding agents" />
+<meta name="twitter:description" content="Your agents write the code. You keep the record. Local-first · native macOS." />
+<meta name="twitter:image" content="https://oculpm.com/og.png" />
+
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+
+<!-- Structured data: SoftwareApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Ocul-PM",
+  "alternateName": ["Ocul-PM AI PM", "Ocul PM", "AI project manager", "AI coding agent manager", "coding agent work recorder"],
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS",
+  "url": "https://oculpm.com/en",
+  "image": "https://oculpm.com/og.png",
+  "softwareVersion": "2.30.0",
+  "inLanguage": "en",
+  "description": "A local-first AI project manager for developers who work with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends). It records what the agents changed, lets you verify it against a local diff, and turns the pile of records back into standups, PR bodies and retrospectives. Two-line install as a Claude Code plugin.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": [
+    "Conversation import — browse another tool's conversation export as a candidate list (offline, no billing) and turn only what you pick into spec-shaped journal entries, on their original dates, with stable-id duplicate skipping and an unverified mark",
+    "Declarative config · plugin bundles — export rules, skills and automations as one YAML document and see the change list before applying; import Claude plugin bundles whole (hand-edited files come back as conflicts); oculpm:// deep links never act without confirmation",
+    "Offline contract — a fallback applies to that one call and shows as a badge on the answer, unreachable providers are dimmed rather than hidden, and automations defer instead of failing so the catch-up rule picks them up",
+    "First-run wizard · window restore after update — one pass over language, appearance and your first project; the window and tab layout from before an update restart comes back",
+    "Context economics — the capability list is frozen once per conversation and past records are injected only when the question actually asks for recall (≤800 tokens, zero LLM calls); rules arrive in full instead of truncated",
+    "Themes as files, bound per project — build a palette, trade it as .json, and give each project its own colors per window (partial overrides inherit · live preview · follow the system accent)",
+    "Watch-driven automation with six response tiers — when edits in the working folder go quiet, it drafts the journal entry and updates the plan (0.2s to 10min; amplification loops are blocked by cause exclusion, a floor interval and a daily cap)",
+    "Eight provenance badges — by hand, by agent, auto-draft, schedule, watcher, MCP, backfill and imported, told apart in the journal, Today and retros, with a source filter that hides itself when there is only one kind",
+    "Live conversation rows — 'running…' and 'waiting for your input' are said in the list, and a run can be stopped without opening it",
+    "Firing diagnostics — the rules that actually fired in the last 7 days and the ones that never did, with unmeasured, partially scanned and path-scoped cases stated honestly (zero LLM calls)",
+    "Scheduled automation — an instruction runs itself at the hour you set (8 frequencies · 3 seeds, defined as markdown under .oculpm/automation/, with the reason it did not run recorded too)",
+    "A separate model slot for background work — auto-reconcile, journal drafts and schedules use it, and when it is unset the work is skipped silently so nothing bills you by surprise",
+    "Context budget · irrelevant-rule callouts — how much this session injects, in one line, plus the rules this stack never uses, identified by two deterministic signals with a narrow-or-delete suggestion (zero LLM calls)",
+    "Tear off and re-attach tabs — the moment a tab leaves the strip it becomes a real window that follows your hand off-screen and over other apps, and a torn-off window can be dropped back into a tab strip (Chrome-style)",
+    "Doctor diagnostics — nine lines covering the watcher, locks, agent adapters, API keys, indexing, shell integration, hooks and MCP, each fixable on the spot",
+    "First-run activation card — it tells you what was created in your repo (.oculpm/, the AGENTS.md block, the .gitignore change) and suggests committing it",
+    "Rule and skill firing badges — 'N times in 30 days' / 'never fired', and the KB of conditional rules injected per session (counted deterministically from local Claude Code transcripts · zero LLM calls)",
+    "A verification toggle on journal entries · related-entry chips (blocks · blocked-by · follow-up · duplicate) · related links on MCP entries too",
+    "Database diagnostics — file size, WAL, free pages, big tables · VACUUM · index rebuild from scratch",
+    "Agent-waiting detection — sessions that are waiting for you are surfaced from the terminal bell and idleness (a guess is labeled as a guess)",
+    "Command blocks — a gutter status bar · a failure minimap · ⌘↑↓ jumps · sticky headers · straight from a block into a journal entry or the planner",
+    "A vertical session rail — status, agent, elapsed time and last command on one card (density presets · ambient status band)",
+    "Drag-to-split terminals — pull a session side by side, swap panes with the handle or pop one out as its own session",
+    "Move tabs between windows — drop one onto another window's tab strip (right-click and Shift+F10 equivalents included)",
+    "Bring files in by dragging from Finder or pressing ⌘V (never overwrites — the -2 rule · folders recurse)",
+    "Image and PDF preview in the code screen (checkerboard backing · fit-to-window / actual size · up to 16MB)",
+    "A terminal that survives updates — a detached process keeps your sessions and restores them after a restart",
+    "Project-wide search and replace (⇧⌘F · case / whole word / regex · VS Code-style sidebar)",
+    "Mobile access (beta) — reach journals, planner, discussions and AI from your phone over your own Tailscale network",
+    "Automatic work journals (trigger classification · agent and model shown · git backfill)",
+    "Self-healing file watching (a one-minute liveness check · lock handoff across instances)",
+    "The Today daily brief with one-click standup copy",
+    "Local change diff (keyboard review · change-impact analysis · card previews for image and binary files)",
+    "Retros and deliverables (AI retrospectives, PR bodies, weekly reports, .md export)",
+    "Planner (with optional auto-reconcile)",
+    "Discussion documents for decisions",
+    "Code map (dependency · call · inheritance graphs — directed arrows · focus · drill-down)",
+    "Code search — semantic (local embeddings) · symbol (AST) · text (exact) · match highlighting · jump to the line in the editor",
+    "An in-app code editor — syntax highlighting for 12 languages · ⌘S to save · a banner when an agent touches the same file · jump to the line from search and the code map",
+    "Code intelligence (LSP) — completion · diagnostics · hover types · go to definition · rename · code actions (Rust · TypeScript · Python · Go)",
+    "A code IDE — tabs · split view · create/rename/drag-move/trash files · find references · outline · workspace symbols · signature help · format selection · git gutter · per-extension icons",
+    "Debugger (DAP) — breakpoints · stepping · call stack · variables (Rust · Python · Go)",
+    "Agent changes made visible — inline diff by HEAD or by journal entry · a badge for the entries that touched this file",
+    "⌘K command palette (jump straight to journals, plans and docs)",
+    "A built-in PTY terminal (⌘J dock — bottom, left or right · detachable window · sessions kept)",
+    "Multi-LLM AI panel (Anthropic · OpenAI · Gemini · OpenRouter + a fallback chain)",
+    "Claude Code running inside the app as an agent (Agent Client Protocol — inline edit diffs · commands and changes shown on approval cards · tool cards · effort and mode · session tabs · several conversations at once · turn receipts)",
+    "Direct Claude Code and Claude Desktop integration (MCP server · official hooks · journal drafts from transcripts)",
+    "Claude Code plugin (two lines in /plugin — hook bridge · 7 MCP tools · 5 skills)",
+    "Planner ▶ dispatch (a plan item becomes a prefilled terminal prompt, in place, or is pasted to the agent you are talking to)",
+    "Three-level plans (nested subtasks · parent status rolls up automatically)",
+    "The project-inception skill (web research → an evidence-backed conversation → a seeded design)",
+    "A macOS menu bar presence (session status icon · popover briefing · new-entry notifications)",
+    "Rule hub · a failure→rule promotion flywheel (.claude/rules · shipped to Cursor in parallel)",
+    "Skill shop — stack detection, then one-click install of 25 vetted third-party skills (MIT · commit-pinned)",
+    "English and Korean UI (the language the AI writes in is set separately)",
+    "A project management screen (flat table · search · sort · bulk removal)",
+    "Multi-project windows · Chrome-style tabs (reorder · tear off · per-project color and icon)"
+  ]
+}
+</script>
+
+<!-- Structured data: FAQ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "en",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Ocul-PM?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A local-first AI project manager for developers who work with AI coding agents. It records what the agents did, organizes it, and lets you verify every change against a local diff before you commit it." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which AI coding agents does it work with?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code, Codex CLI, Gemini CLI, Antigravity and pi work with no extra setup. Cursor, Windsurf, GitHub Copilot, aider, Cline and Zed work once you enable their rules file in Settings. Anything that reads AGENTS.md can be used with it, so you are never tied to one tool." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I read and edit code inside the app?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Code screen browses the project tree, opens files and saves with ⌘S. Since v2.15.0 the editor understands the code — completion as you type, diagnostics underlined where they belong, hover types and docs, F12 / ⌘-click to jump to a definition, symbol rename that updates every file that uses it, and the code actions that come with a diagnostic. It works for Rust, TypeScript/JavaScript, Python and Go, and when a language server is missing from your machine it says so instead of failing quietly. It is not a VS Code fork — standard LSP is wired directly. Dotfiles (.oculpm/, .github/, .gitignore) show up in the tree. Search results and the code map jump straight to the line, and if an agent edits the same file, saving does not overwrite it — a banner asks which version to keep. Since v2.16.0 you get tabs and a split view, file create/rename/drag-move (delete goes to the trash), a breakpoint debugger (Rust, Python, Go) and an inline comparison that overlays what the agent changed. Since v2.19.0 ⇧⌘F adds project-wide search and replace against what is actually on disk. Since v2.20.0 images and PDFs open in a preview instead of the editor, up to 16MB. Since v2.21.0 you can drag files and folders in from Finder or paste them with ⌘V — same names are never overwritten, they get a -2 suffix." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I see the terminal next to another screen?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.10.1 ⌘J opens a terminal dock over whatever screen you are on. Dock it to the bottom (wide), the left or the right (tall) and drag the edge to size it. You can pull it out into a window of its own without dropping the shell — scrollback comes along. Since v2.22.0 sessions stand in a vertical list where each card carries status, agent, elapsed time and last command; drag a session to the edge of the screen and the pane splits so you can watch two at once. Font size is set in px in Settings → Appearance, and line height and padding are a separate density setting." }
+    },
+    {
+      "@type": "Question",
+      "name": "Running several agents at once gets confusing. Does the app help?",
+      "acceptedAnswer": { "@type": "Answer", "text": "That is exactly what v2.23.0 targets. When an agent calls for a human (terminal bell) that session turns amber and a 'N waiting' banner appears above the list — click it and you land on the session that is waiting, then cycle to the next. A bell is certain because the program rang it; 'quiet for 20 seconds' is a guess, and it is labeled as a guess. Output is also split per command: each command gets a status bar (green for success, red for failure), failure points are dotted along the right edge of the whole scrollback, and ⌘↑ / ⌘↓ jump between commands. Clicking a status bar offers copy, plus 'save as a journal entry' and 'attach to the planner' — the entry opens prefilled with the command line, exit code, duration and the last 40 lines of output. There is deliberately no re-run button; it only prefills the prompt, so nothing you have not looked at runs by itself." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I tell whether my rules and skills are actually being read?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, since v2.24.0. Every item on the Skills & Rules screen carries an 'N times in 30 days' or 'never fired' badge, and the rules tab shows how many KB of conditional rules are injected per session. It is counted deterministically from the Claude Code transcripts on this machine — the moments a rule was actually injected and a skill was actually invoked — so no LLM and no network is involved. Rules without a paths filter load in full every session, so they are marked 'every session' rather than counted, and 'recount firings' starts over from scratch." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I bring in conversations from another tool?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.30.0, Settings → Data → 'Import past conversations' opens a conversation export (.json or .zip) from Claude and friends and lists what is inside it with dates, titles, turn counts and a guessed entry type; you pick the ones that belong to this project and they become work-journal entries. Nothing leaves your machine while you read that list — opening the file and skimming hundreds of conversations is entirely offline and free, and only the ones you pick call the background model, once each. Imported entries land on their original dates in that day's folder, and opening the same file again shows already-imported conversations marked 'imported' rather than billing you twice; they are not hidden from the list, because a conversation vanishing with no explanation is worse. Everything imported starts unverified: it did not happen in this repository, it is a model rewriting a conversation that happened elsewhere, so it stays a draft until you read it and tick it off. The body always ends with when the original was and how many turns it had." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens when the network drops?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Everything local — journals, search, diffs, the planner — keeps working. Where models are involved, three things changed in v2.30.0. First, when your chosen model does not answer and the failover chain replies instead, that reply carries a badge; previously a different model answered while the screen still showed the name you picked. The fallback applies to that one call and your settings are untouched. Second, unreachable providers are dimmed in the model picker rather than hidden — hiding them reads as your settings having been wiped, and blocking them means you cannot pick one the moment connectivity returns. The reason appears verbatim in the tooltip. Third, automations defer instead of failing: a run that could not reach the network at all is recorded as 'deferred' and does not burn its slot, so the existing catch-up rule picks it up once you are back online. A failure that did get a reply (a 429, an auth error) means the network was fine, so it is still recorded as a failure." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the AI panel resend the same context on every question?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Since v2.29.0 it no longer reloads the whole plan, the recent journal and the working rules for every question. When a conversation starts it loads a list of what exists exactly once — and that list does not change by a single character until the conversation ends, because a stable prefix is what keeps the model-side prompt cache alive — and the bodies are pulled only when needed. Past records attach only to questions that carry a recall signal ('what did I do last week', 'what did I say', 'how far did the plan get'). The decision uses a Korean/English signal-word dictionary, so it is deterministic and calls no AI, and when records do attach there is an ~800 token ceiling; anything over it drops whole records starting with the least relevant, never half of one. Rules used to be truncated at 2,500 characters, and that cut once swallowed the 'never write secrets' clause outright. Now only three lines that must never be forgotten stay resident and everything else arrives in full, on demand. Type /rules, /plan, /journal or /skill to push something in deliberately. Settings → Context shows the standing instructions (global and per-project), the exact list this conversation received, the last recall budget and the candidates in relevance order." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I build my own theme colors?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.28.0 a theme is a file. In Settings → Appearance you create one or 'duplicate and edit' any of the five built-ins (Solarized, Sepia, Nord, Dracula, High Contrast), then export and import as .json — the built-ins use the same format, so the built-ins are the examples. There is no separate preview box because the app itself is the preview: change one color and the sidebar, cards, borders and status colors change with it. Colors you did not set are left alone — a theme that specifies five background lines is a complete theme, and everything else inherits the light or dark default, with 'reset to family default' on each token. A theme that specifies no accent leaves your chosen accent intact, and on macOS 'follow the system accent' paints it with the OS color. Bind a theme to a project and only the window looking at that project is painted with it. An imported file gets a fresh identifier, and if the name collides the app asks whether to overwrite or keep a copy. A theme can only paint a fixed list of colors, so nothing else in the file can leak onto the screen." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I tell my own journal entries apart from the ones AI wrote?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.27.0 every record carries a provenance badge — by hand (written by a person in the app), by agent (Claude Code and friends following the journaling rules), auto-draft (a background model after the edits went quiet), schedule, watcher, MCP and backfill (restored from git history). It shows on journal cards and details, in the Today activity feed and in the agent contribution rows of a retro, and the journal screen carries a filter row for narrowing by source (which is not drawn at all when the list has only one kind). No new field was invented: it is read deterministically from the session id and agent id already written in the entry file." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can it produce a summary on a schedule?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.26.0 you can set an instruction and a frequency in Settings → Automation and the app runs it at that hour — 'every Friday at 17:00, summarize this week's commits and open items', for example. Frequencies cover once, every N minutes, every N hours, daily, weekly, monthly, yearly and cron, and the first visit offers three examples (weekly dev summary, morning briefing, monthly retro) switched off. Definitions are markdown files under .oculpm/automation/, so you can edit them by hand and commit them with your team. Automation is entirely opt-in, and if no background model is selected it is skipped silently rather than erroring — so nothing bills you without your knowing. There is a daily run cap (20 by default), and the run log records skips, drops and failures with reasons, not just successes. If the Mac was asleep it catches up exactly once instead of stacking. Since v2.27.0 the trigger can also be the working folder rather than the clock: when file changes go quiet for a set interval (0.2s to 10min), it drafts a journal entry or updates the plan." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I open several projects at once?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.9.0 one window holds several projects as tabs. Drag to reorder, or out of the window to make a new one, and since v2.22.0 you can drop a tab onto another window's tab strip to merge them back. Since v2.24.0 it behaves like Chrome — the moment a tab leaves the strip it becomes a real window that follows your hand off-screen and over other apps. Since v2.25.0 a torn-off window can be dragged back: a window with a single tab is picked up whole and merges when you drop it on another tab strip (Escape puts it back). Right-click gives the same operations from a menu, and Shift+F10 opens that menu from the keyboard. Each project remembers its own screen, filters and sidebar state, and terminal sessions belong to the project, so they survive a tab moving between windows. ⌘T new tab, ⌘W close tab, ⇧⌘N new window." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it only record, or does it produce something?",
+      "acceptedAnswer": { "@type": "Answer", "text": "From the journal entries it generates standup text, PR bodies and weekly reports, plus retrospectives over a date range and .md export. With an AI configured it polishes the result; without one it still works with the default format." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does my code or data leave the machine?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Everything lives in your project's .oculpm/ folder and a local SQLite cache. Only three things leave: the LLM API calls you make yourself, the update check, and a GitHub fetch when you ask for a plugin bundle or release notes. The mobile bridge added in v2.18.0 (beta) is the same — it is served only inside your own Tailscale network, never exposed to the public internet, and the phone talks to your Mac without going through any third-party server." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use it from a phone or tablet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, in beta. Since v2.18.0 the Mac runs a server reachable only inside your Tailscale network, and a phone browser can open today's journal, the planner, discussions and the AI chat. Turn the server on in Settings → Mobile, scan the QR code and pair once with a six-digit code; add it to the home screen and it behaves like an app. The desktop theme carries over to the phone (themes you built yourself follow only their light/dark family for now) and your API keys stay in the Mac keychain. During the beta, search, retros and the code screen are desktop-only." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use it without the app, just the Claude Code plugin?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. In Claude Code, run /plugin marketplace add bunhine0452/Ocul-PM and then /plugin install oculpm@oculpm — two lines that set up the hook bridge, 7 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records as they are." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is the app available in English?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since v2.8.5, Settings → Appearance lets you pick English or Korean and all 12 screens plus the error messages follow. The language the AI writes journals, retros and planner items in is set separately, so an English UI with Korean records (or the reverse) is possible, and documents already written are never rewritten." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do terminal sessions survive an app update?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, since v2.19.0. Terminal sessions are held by a process detached from the app, so after an auto-update or a restart your terminal tabs come back with their scrollback and whatever was running (including Claude Code sessions). Closing a terminal tab or a project tab yourself still cleans the session up as before." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I download it now?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The macOS (Apple Silicon) build is a free download from GitHub Releases. Intel and Windows builds are planned, and later versions update themselves from inside the app." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I ask about team, enterprise or partnership use?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Because Ocul-PM is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to bunhine0452@gmail.com — the person who built it reads and answers." }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<!-- ══════════ nav ══════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.30.0</span>
+    <div class="nav-links">
+      <a href="#acts">Features</a>
+      <a href="/keynote">Keynote</a>
+      <a href="/wiki/en">Wiki</a>
+      <a href="#updates">Changelog</a>
+      <a href="#faq">FAQ</a>
+      <a href="/plugin">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-lang" href="/" hreflang="ko">한국어</a>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<!-- ══════════ hero ══════════ -->
+<header class="hero">
+  <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.30.0 — Import past conversations · settings as one document</a>
+  <h1 class="reveal on">Agents write the code.<br /><span class="g">You keep the memory.</span></h1>
+  <p class="hero-sub reveal on">
+    While Claude Code · Codex · Cursor write your code, <b>Ocul-PM</b> records every unit of work —
+    shows you what actually changed as a local diff — and hands the pile back as standups, PR bodies
+    and retrospectives. <b>Local-first.</b> No account, no server, no telemetry.
+  </p>
+  <div class="hero-ctas reveal on">
+    <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+      <span class="lg">Get v2.30.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
+    </a>
+    <a class="dl-btn ghost" href="/keynote">Watch the keynote →</a>
+  </div>
+  <p class="hero-fine">On Claude Code? <a href="/plugin">Two lines in /plugin</a> is another way in</p>
+  <figure class="hero-shot reveal">
+    <img src="/shots/08-receipt.jpg" alt="Ocul-PM's Claude Code screen — a finished turn with edit diff cards and a turn receipt" width="1600" height="1128" loading="eager" fetchpriority="high" />
+    <figcaption><b>A real screen.</b> Claude Code, inside the app, edited a file — showed the diff — and wrote its own work journal.</figcaption>
+  </figure>
+</header>
+
+<!-- ══════════ the gap ══════════ -->
+<section class="gap">
+  <h2 class="reveal">Yesterday, your agent changed 3,000 lines.</h2>
+  <div class="gap-nums reveal" aria-hidden="true">
+    <span><span class="n">3,000</span><span class="lbl">lines the agent changed</span></span>
+    <span class="vs">vs</span>
+    <span><span class="n dim">0</span><span class="lbl">lines you could explain</span></span>
+  </div>
+  <p class="reveal">Code has never been faster. Understanding has never been slower.
+  Speed bought with memory — that is the trade of the agent era, and Ocul-PM is where it stops.</p>
+</section>
+
+<!-- ══════════ three acts ══════════ -->
+<section class="sec" id="acts">
+  <div class="sec-head">
+    <span class="eyebrow reveal">The record · the proof · the console</span>
+    <h2 class="reveal">It looks like three tools.<br />It is one app.</h2>
+    <p class="reveal">A record that writes itself as your agents work. A proof that shows every change where it happened.
+    And a console with the agent itself inside it.</p>
+  </div>
+
+  <!-- Act 1 — the record -->
+  <div class="act">
+    <div class="act-copy reveal">
+      <span class="num">01 · The record</span>
+      <h3>Recording should be free.</h3>
+      <p>The moment an agent finishes, the entry is <b>already written</b> — what changed and why,
+      which agent ran it on which model, classified as bug, feature, refactor, error or chore,
+      in markdown a human reads.</p>
+      <ul>
+        <li><b>The Today brief</b> — open it in the morning and yesterday is already organized; the standup is one copy button</li>
+        <li><b>Records become deliverables</b> — PR bodies · weekly reports · AI retrospectives, each one button</li>
+        <li><b>Planner and discussions</b> — a plan is a living document your agents keep up to date</li>
+      </ul>
+    </div>
+    <div class="act-media stack">
+      <figure class="reveal">
+        <img src="/shots/02-journal.jpg" alt="Automatic work journal — entries grouped by agent and model" width="1600" height="1128" loading="lazy" />
+        <figcaption>The automatic journal — all 112 of these entries, not one written by a person.</figcaption>
+      </figure>
+      <figure class="reveal d1">
+        <img src="/shots/01-today.jpg" alt="The Today daily brief — yesterday's work summarized with an activity flow" width="1600" height="1128" loading="lazy" />
+        <figcaption>Today — the rear-view mirror becomes a steering wheel.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- Act 2 — the proof -->
+  <div class="act flip">
+    <div class="act-copy reveal">
+      <span class="num">02 · The proof</span>
+      <h3>Don't trust it. Look at it.</h3>
+      <p>The files an agent claims it touched — check them <b>as a local diff</b>, inside the app, before you commit.
+      Put it side by side with the journal and compare what was said with what actually changed.</p>
+      <ul>
+        <li><b>Code map</b> — know that "this touches 12 files" <i>before</i> the edit, not after</li>
+        <li><b>Three search modes</b> — semantic (local embeddings) · symbol (AST) · text (exact match)</li>
+        <li><b>All local</b> — the embeddings are computed here. Not one character of your code leaves</li>
+      </ul>
+    </div>
+    <div class="act-media stack">
+      <figure class="reveal">
+        <img src="/shots/03-diff.jpg" alt="The change diff screen — a line-level local diff of what the agent changed" width="1600" height="1164" loading="lazy" />
+        <figcaption>Change diff — before the commit, inside the app.</figcaption>
+      </figure>
+      <figure class="reveal d1">
+        <img src="/shots/04-graph.jpg" alt="Code map — a dependency graph with change-impact analysis" width="1600" height="1128" loading="lazy" />
+        <figcaption>Code map — dependencies you can see are dependencies you stop fearing.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- Act 3 — the console -->
+  <div class="act">
+    <div class="act-copy reveal">
+      <span class="num">03 · The console</span>
+      <h3>So we brought<br />the agent inside.</h3>
+      <p>The real <b>Claude Code</b> runs inside the app. Every step — reading files, editing them, running
+      commands — arrives as a card, and since v2.11 <b>the edit itself is drawn as a diff.</b></p>
+      <ul>
+        <li><b>Approvals you can see</b> — the command that will run and the lines that will change, in the card. The end of blind approval</li>
+        <li><b>Turn receipts</b> — when it finishes, one line stays: "4 tools · 2m 14s"</li>
+        <li><b>⌘J terminal</b> — a dock on any screen, and the shell survives being pulled into its own window</li>
+      </ul>
+    </div>
+    <div class="act-media stack">
+      <figure class="reveal">
+        <img src="/shots/s2.jpg" alt="An approval card with the diff of the pending change inside it" width="1600" height="1128" loading="lazy" />
+        <figcaption>Visible approval — removed lines red, added lines green. Inside the card.</figcaption>
+      </figure>
+      <figure class="reveal d1">
+        <img src="/shots/05-terminal.jpg" alt="The ⌘J terminal dock open over another screen" width="1600" height="1164" loading="lazy" />
+        <figcaption>⌘J — a terminal that does not make you leave the screen.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ everything else ══════════ -->
+<section class="sec" style="padding-top: 0;">
+  <div class="sec-head">
+    <span class="eyebrow reveal">And all of it</span>
+    <h2 class="reveal">The rest of the workshop<br />is already in the box.</h2>
+  </div>
+  <div class="grid">
+    <div class="cell c-span2 reveal"><span class="cell-tag">Conversation import</span><h3>Bring past chats in</h3><p>Pick <b>only what belongs to this project</b> out of an export. Browsing the list is <b>entirely offline and free</b>.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Declarative config</span><h3>Settings as one document</h3><p>Rules, skills and automations as one YAML file. A teammate's document <b>shows what would change before it applies</b>.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Offline</span><h3>Nothing goes quietly wrong</h3><p>A fallback answer <b>carries a badge</b>, unreachable models are <b>dimmed not hidden</b>, and automations <b>defer</b> instead of failing.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Capability list</span><h3>It stops re-reading</h3><p>Reloading the whole plan, journal and rules on every question is over. <b>The list once</b>, the bodies on demand.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Recall gate</span><h3>The past, only when asked</h3><p>"What did I do last week" gets history. "What should I name this" <b>does not</b>. No AI is called to decide.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Rules in full</span><h3>No more truncation</h3><p>A 2,500-character cut once swallowed "never write secrets". Now <b>three lines stay resident</b> and the rest arrives whole.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Theme files</span><h3>Build your own colors</h3><p>Five baked-in palettes used to be all of it. Now you build one and <b>trade it as <code>.json</code></b> — the built-ins use the same format, so <b>the built-ins are the examples</b>.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Live preview</span><h3>The app is the preview</h3><p>There is no preview box. Change one color and <b>the whole app</b> changes with it. Colors you did not touch <b>stay untouched</b>.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Project themes</span><h3>Know where you are, by color</h3><p>Bind a theme to a project and <b>only that window</b> wears it. Five repos open at once stop blurring together.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Watch automation</span><h3>It records when your hands stop</h3><p>It watches the folder, and <b>when the edits go quiet</b> it drafts what just happened. How long to wait is <b>six tiers</b> — 0.2s to 10min.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Provenance</span><h3>You can see who wrote it</h3><p>By hand · by agent · auto-draft · schedule · watcher · MCP — <b>every entry carries its source</b>. With one kind in the list, the filter row <b>removes itself</b>.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Firing diagnostics</span><h3>It names the rules that never fired</h3><p>Actual firings over 7 days, and <b>the rules that never caught once</b>. A carefully written rule quietly doing nothing is invisible otherwise.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Agent control</span><h3>See which one is waiting</h3><p>With four running, finding <b>the one waiting on you</b> meant clicking through windows. Now that session turns amber and "N waiting" takes you there.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Command blocks</span><h3>See where it broke</h3><p>Each command gets a status bar and <b>failures are dotted down the right edge</b>. <b>⌘↑/⌘↓</b> jump between them, and long output keeps its command pinned on top.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Terminal → record</span><h3>Into a journal, right there</h3><p>Click a block for <b>"save as a journal entry"</b> and <b>"attach to the planner"</b>. Command, exit code, duration and the tail of the output arrive <b>prefilled</b>.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">⌘K · ⌘1–0</span><h3>Command palette</h3><p>Move between screens, and find journals, plans, discussions and docs by title. Diff review and plan toggles are <b>finished from the keyboard</b>.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Multi-project</span><h3>Windows and tabs</h3><p>One window holds many projects as Chrome-style tabs. Tear one off into a window, <b>drop it back to merge</b> — the right-click menu does the same. Terminal sessions <b>never drop.</b></p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Automation</span><h3>On the hour, by itself</h3><p>Set "every Friday at 17:00, summarize this week" and the app runs it then. <b>Even the reason it did not run</b> is logged, and if the Mac was off it catches up <b>exactly once</b>.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">/plugin, two lines</span><h3>Claude Code plugin</h3><p>You can start without the app — a hook bridge, 7 MCP tools and 5 skills install in two lines.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Menu bar</span><h3>Lives in the Mac menu bar</h3><p>A session status icon and a popover briefing — you know a new entry landed without opening the app.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">English · 한국어</span><h3>Pick your language</h3><p>The UI is English or Korean, and the language the AI writes journals in is set separately.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Code intelligence</span><h3>Completion and diagnostics</h3><p>Completions as you type, underlines where it is wrong. Hover types · <b>go to definition</b> · rename · code actions — standard LSP.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Four languages</span><h3>It finds the servers</h3><p>Rust · TypeScript · Python · Go. On your PATH it attaches, and <b>when it is missing it says so</b> — it does not fail quietly.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Dotfiles</span><h3>Hidden files in the tree</h3><p><span class="mono">.oculpm/</span> · <span class="mono">.github/</span> · <span class="mono">.gitignore</span> — the ones you open most often are visible.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Tabs · split</span><h3>Finished as an IDE</h3><p>Several files in tabs, two side by side in a split. Create, rename, drag to move; delete goes <b>to the trash</b>. Bring files in <b>from Finder or with ⌘V</b>.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Debugger</span><h3>Breakpoints and stepping</h3><p>Click the gutter for a breakpoint, then unfold <b>the call stack and variables</b> where it stopped. Rust · Python · Go.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Firing badges</span><h3>See whether rules catch</h3><p>Per item, <b>"N times in 30 days" / "never fired"</b>, plus KB injected per session. Claude Code transcripts are counted <b>on this machine</b> — zero LLM, zero network.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Agent diff</span><h3>Changes inside the text</h3><p>Everything since the commit is <b>overlaid in the editor</b>, and you jump straight to the <b>journal entry</b> that changed this file.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Code screen</span><h3>An editor inside the app</h3><p>Open from the tree, edit with syntax highlighting and <b>save with ⌘S</b>. 12 languages, and the theme follows the app.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">Conflict-safe</span><h3>Coexists with agents</h3><p>If an agent edits the same file, saving <b>asks with a banner instead of overwriting</b>. Unsaved edits survive leaving the screen.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Line jump</span><h3>From result to code</h3><p>One button in a search result or the code map opens <b>that file at that line</b>, in the app.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Preview</span><h3>Images and PDFs too</h3><p>No more leaving for Finder to look at a screenshot. <b>Fit-to-window ↔ actual size on a checkerboard</b>, PDFs as documents — up to 16MB.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">⇧⌘F</span><h3>Project-wide search and replace</h3><p>Not the index — <b>what is on disk right now</b>. Case, whole word, regex, and replace one, one file or everything.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Accessibility</span><h3>Screen readers read it</h3><p>The Today activity ring reads as <b>"N entries · N files · +N/−N lines"</b>. The tooltips that announced themselves on every hover went quiet.</p></div>
+  </div>
+</section>
+
+<!-- ══════════ keynote banner ══════════ -->
+<section class="sec" style="padding-top: 0;">
+  <div class="keynote-banner reveal">
+    <div class="kb-copy">
+      <span class="eyebrow">Keynote</span>
+      <h2>Want the whole thing<br />in a five-minute keynote?</h2>
+      <p>"Yesterday, your agent changed 3,000 lines" — a product story told through real screens. Narrated in Korean; the screens do most of the talking.</p>
+    </div>
+    <a class="kb-cta" href="/keynote">Watch the keynote →</a>
+  </div>
+</section>
+
+<!-- ══════════ changelog ══════════ -->
+<section class="sec updates" id="updates">
+  <div class="sec-head">
+    <span class="eyebrow reveal">Changelog</span>
+    <h2 class="reveal">A little every week.</h2>
+    <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
+  </div>
+  <ul class="update-points">
+    <li class="reveal"><b>v2.30.0 — Import past conversations · settings as one document · keep going when the network drops</b> · Open a <b>conversation export</b> from Claude and friends, pick the ones that belong to this project, and they become journal entries. Browsing the list is <b>entirely offline and free</b> — only what you pick reaches the background model. Entries land <b>on their original dates</b>, and re-opening the same file marks already-imported conversations "imported" rather than billing you twice (they are <b>not hidden</b> from the list). Imported entries start <b>unverified</b> — a model rewrote a conversation that happened elsewhere. Rules, skills, automations and app settings also export as <b>one YAML document</b> you can commit; open a teammate's and it <b>shows what would change before applying</b> (API keys never included; if anything is left after applying it says "partially applied"). <b>Claude plugin bundles</b> import whole — files you edited by hand are <b>never overwritten</b>, they come back as conflicts, and anything the bundle declares that we don't honour is stated rather than hidden. First launch asks once about <b>language, appearance and your first project</b>, and <b>windows come back after an update</b>. Nothing goes quietly wrong offline: a fallback answer <b>carries a badge</b> (just that once — your settings don't change), unreachable providers are <b>dimmed rather than hidden</b>, and automations <b>defer</b> instead of failing, catching up when you're back. We also fixed the <b>nine window-global things</b> that bled across tabs once one window could hold several projects (uncommitted changes in the wrong tab, index progress overwriting itself, planner ▶Run landing in another project's terminal) and the <b>terminal resize</b> that garbled text.</li>
+    <li class="reveal"><b>v2.29.0 — It stops re-reading the same thing · the past, only when asked</b> · Until now the AI panel resent <b>the whole plan, the recent journal and the working rules</b> with every single question — even "what should I call this function". Now a conversation loads <b>a list of what exists</b> exactly once and pulls bodies on demand, and that list <b>does not change by a character</b> until the conversation ends (a stable prefix is what keeps the model-side cache alive). Past records attach only to questions carrying a <b>recall signal</b> — "what did I do last week", "what did I say", "how far did the plan get". The decision runs off a Korean/English signal-word dictionary, so it <b>calls no AI</b>, and past the ~800-token ceiling it drops <b>whole</b> records starting with the least relevant (never half of one). And <b>rules are no longer truncated</b> — the old 2,500-character cut once swallowed the "never write secrets" clause outright. Now <b>three lines</b> that must never be forgotten stay resident and everything else arrives <b>in full</b>, on demand (<code>/rules</code>, <code>/plan</code>, <code>/journal</code>, <code>/skill</code> push things in deliberately). Records used often gain relevance; unused ones fade on a <b>30-day half-life</b>. Settings gained a <b>Context</b> tab showing the standing instructions (global and per-project), the exact list this conversation received, the last recall budget and the candidates in relevance order with a per-item "forget".</li>
+    <li class="reveal"><b>v2.28.0 — Build your own colors and trade them · a different color per project</b> · Themes used to be the five baked into the app. Now you build them in <b>Settings → Appearance</b> and export and import <code>.json</code> — the five built-ins use the same format, so "duplicate and edit" is a running start. There is no preview box: change one color and <b>the whole app</b> becomes that color, and <b>colors you did not change are left alone</b> (a theme that sets five background lines is a complete theme). A theme that specifies no accent <b>keeps the accent you chose</b>, and on macOS "follow the system accent" paints it with the OS color. Bind a theme to a project and <b>only the window looking at that project</b> wears it — five repos open at once stop blurring together. An imported file gets a fresh identifier, and a name collision <b>asks</b> (overwrite or keep a copy). A theme can only paint a fixed list of colors, so nothing else in the file reaches the screen.</li>
+    <li class="reveal"><b>v2.27.0 — It records when your hands stop · you can see who asked for it</b> · Last version's automation only watched the clock. Now it <b>watches the working folder</b>: when edits go quiet for the interval you set, it drafts a journal entry or updates the plan — six tiers, from 0.2s to 10min. Auto-drafts previously existed only on the Claude Code exit hook, so work done in Cursor or straight in an editor vanished without a trace; <b>a second path</b> fills that (with a reservation so the same span is never written twice, and the loser records which path won). The <b>amplification loop</b> of a watcher seeing its own writes is blocked three ways: cause exclusion, a floor interval and a daily cap. And records arriving from six places used to look identical — now a <b>provenance badge</b> tells them apart, on journal, Today and retros, with a source filter row on the journal screen (not drawn when there is only one kind). Each row in the conversation list says <b>"running…" or "waiting for your input"</b> and can be <b>stopped without opening it</b>. Diagnostics gained five automation lines (background model · schedules · watchers · today's runs vs the cap · recent failures) and a <b>Firing</b> section listing real firings over 7 days and <b>the rules that never caught</b>.</li>
+    <li class="reveal"><b>v2.26.0 — It looks back on a schedule · skills and rules on one screen · it names the irrelevant rules</b> · Every record used to require someone to move their hands. Now Settings → <b>Automation</b> takes an instruction like "every Friday at 17:00, summarize this week's commits and open items" and the app runs it at that hour — eight frequencies, with three examples (weekly summary, morning briefing, monthly retro) offered switched off. Background work uses <b>a model you pick separately</b>, and if you pick none it is skipped silently rather than erroring ("I didn't know and it billed me" is blocked structurally). The run log records <b>skips, drops and failures with reasons</b>, not just successes, and a sleeping Mac catches up exactly once. The five skill/rule tabs became <b>three zones on one screen</b> — a context budget bar · one list sorted by firings (0-in-30-days folded into "dormant") · a suggestion inbox. Rules can be created <b>where the incident happened</b> (journal, diff, terminal block, Today, ⌘K), and rules <b>irrelevant to this project</b> are called out by two signals (zero matching files · a stack that was never detected) with a narrow-or-delete suggestion. The code tree also refreshes itself without a ⟳.</li>
+    <li class="reveal"><b>v2.25.0 — Re-attach a torn-off window · it explains your first day · doctor diagnostics</b> · Last version made a dragged tab into a real window that follows your hand, but <b>a window you put down had no way back</b>. Now a window with a single tab is <b>picked up whole</b> and merges when dropped on another tab strip (exactly like Chrome). When you add a project, the first screen <b>explains what the app created in your repo</b> (<code>.oculpm/</code>, the <code>AGENTS.md</code> rules, the <code>.gitignore</code> change) and suggests committing it. Settings → Diagnostics gained a <b>nine-line doctor</b> (watcher · locks · adapters · API keys · index · shell integration · hooks · MCP) that fixes problems on the spot. A tab with a running command or an answering agent <b>asks before it closes</b>. In a project with no index, search and the code map say <b>"no index + build one"</b> instead of "no results", and <b>⌘/</b> shows every shortcut. The first-screen bundle went <b>538KB → 268KB</b>, and a day's summary round trips dropped from 17 to 5 on Today and 30 to 4 on the journal.</li>
+    <li class="reveal"><b>v2.24.0 — Tabs fall out as real windows · you can see whether rules fire · the index got ten times lighter</b> · While tearing off, what you held was a shadow trapped inside the window, so the cursor stopped at the edge. Now a tab becomes <b>a real window the moment it leaves the strip</b> and follows your hand off-screen and over other apps, and aiming at another window's tab strip shows where it will land — like Chrome. Every skill and rule carries an <b>"N times in 30 days" / "never fired"</b> badge, so for the first time you can see whether a carefully written rule is actually read and how many KB it costs per session (counted from Claude Code transcripts on this machine). In a project without <code>git init</code>, <code>node_modules</code> was being indexed and a single line of a compressed file was duplicated hundreds of times, inflating the DB to 558MB — that is cleaned up (measured 382MB), and Settings → Diagnostics gained <b>size and "compact"</b>. Closing a terminal now <b>really ends</b> vim, ssh and claude, and quitting the app leaves no orphaned adapters. A <b>verification</b> toggle on journal details plus related-entry chips close the review loop.</li>
+    <li class="reveal"><b>v2.23.0 — Which agent is waiting · every command gets its own place</b> · With three or four Claude Codes open, finding <b>the one waiting on you</b> meant clicking through windows. Now when an agent calls for a human that session turns amber and "N waiting" appears above the list — the bell is certain, "quiet for 20 seconds" is <b>labeled a guess</b>. The terminal gained <b>command blocks</b>: a status bar per command (green success, red failure), <b>failure points dotted</b> along the right edge, <b>⌘↑/⌘↓</b> to jump, and the current command pinned on top through long output. Clicking the status bar offers copy and prompt-prefill plus <b>"save as a journal entry"</b> and <b>"attach to the planner"</b> — the entry opens with the command line, exit code, duration and last 40 lines already filled in. <b>There is deliberately no re-run button</b> (it only prefills, so nothing you have not read runs by itself).</li>
+    <li class="reveal"><b>v2.22.0 — The terminal becomes a vertical session list · drag to split · tabs between windows</b> · The horizontal terminal tab strip became a <b>vertical session list</b> — past five tabs the names were crushed and there was nowhere to put status. Now one card carries status, agent, elapsed time and last command, and a running or failed pane wears a colored band along its top edge. <b>Drag a session to the edge and the pane splits</b> so two stand side by side (the ⠿ handle swaps them or pops one out), and a tab can be <b>dropped onto another window's tab strip to merge</b> — until now tearing off was one-way. <b>Right-click</b> (Shift+F10 from the keyboard) does the same without dragging. Tabs disappearing past the ninth is fixed.</li>
+    <li class="reveal d1"><b>v2.21.0 — Drag from Finder, paste with ⌘V</b> · A screenshot, a reference PDF, a downloaded folder used to mean leaving the app, copying in Finder and coming back. Now <b>dragging from Finder onto the code tree</b> drops it into that folder — the target folder <b>lights up while you drag</b>, and on drop it expands and tells you where things landed. Copying in Finder and pressing <b>⌘V</b> in the app does the same (folders included). Existing names are <b>never overwritten</b> — the file arrives as <span class="mono">note-2.txt</span> — symlinks are not followed, and an oversized batch (2,000 files · 512MB) stops there and says it was truncated. ⌘V inside the editor still pastes text.</li>
+    <li class="reveal d1"><b>v2.20.0 — Images and PDFs open in the code screen</b> · Until now a <span class="mono">.png</span> or <span class="mono">.pdf</span> got one line — "this file can't be previewed" — so looking at a screenshot an agent left meant going out to Finder. Now the tree opens images on a <b>checkerboard that reveals transparency</b>, toggling <b>fit-to-window ↔ actual size</b> (with resolution and file size), and PDFs page through as documents — <b>up to 16MB</b>, independent of the editor's 2MB limit. A ⌘S pressed over an unopenable file no longer writes the previous file's contents to that path. The Today activity ring, silent to screen readers, now reads "N entries · N files · +N/−N lines", while the tooltips that announced themselves on every hover went quiet. The repo gained CI so every change must pass types, tests, lint and build.</li>
+    <li class="reveal d1"><b>v2.19.0 — The terminal survives updates · project-wide search in the code screen</b> · The moment an update restarted the app, the shells inside the terminal — including the Claude Code sessions running in them — vanished. Now terminal sessions are held by <b>a process detached from the app</b>, so after a restart tabs come back <b>exactly where they were</b>, scrollback and running programs included. And the code screen gained <b>⇧⌘F project-wide search and replace</b> — case, whole word and regex against <b>what is on disk right now</b>, opening each result with the match selected, replacing one, one file or all (regex $1 supported). Files with unsaved edits are skipped rather than overwritten, and it says so.</li>
+    <li class="reveal d1"><b>v2.18.0 — It opens on your phone · mobile bridge (beta)</b> · Leaving your Mac used to mean losing sight of what the agents did. Turn the server on in Settings → Mobile, scan the QR with your phone, and <b>a phone browser on the same Tailscale network</b> opens today's journal, the planner, discussions and the AI chat — read and write entries, check plan items, and ask the AI you configured on the Mac with answers streaming live. Add it to the home screen and it behaves like an app, and the desktop theme and accent carry over. <b>The data still never leaves your Mac</b> — the server is bound to your private Tailscale network, access requires a one-time six-digit pairing token, and API keys stay in the Mac keychain. It is beta, so search, retros and the code screen are still desktop-only.</li>
+    <li class="reveal d1"><b>v2.17.0 — Live updates heal themselves</b> · Entries and plans changed by an agent sometimes did not reach the screen until you <b>right-clicked refresh</b>. Two paths where file watching died silently are closed, and the app now <b>checks every minute that the watcher is really receiving events</b>, reviving it on the spot when it is not. A second app instance turning permanently read-only is resolved by a <b>"most recently opened window owns it"</b> rule. ▶ Run in the planner and retros now <b>prefills in place</b> when the terminal is already visible instead of moving you, and <b>pastes the prompt</b> to an agent mid-conversation to preserve context. The code screen got <b>keyboard tabs</b> (⌘W to close, ⌃Tab to cycle, ⇧⌘T to reopen), and the sidebar renamed Discussions · Diff · AI Chat and split out an <b>AI section</b>.</li>
+    <li class="reveal d1"><b>v2.16.0 — Tabs, splits, a debugger, and the agent's changes inside the editor</b> · Open several files in <b>tabs</b> and <b>split them left and right</b>. Create, rename and drag-move from the tree; delete goes <b>to the trash</b> and comes back. ⇧F12 find references · outline · ⌘K workspace symbols · signature help · format selection · a git gutter complete the LSP surface, and a <b>breakpoint debugger</b> (Rust · Python · Go) arrived. The compare button in the path bar shows <b>what the agent changed since the last commit, inline in the text</b> — deleted lines as red blocks, revert by hunk — and the journal badge picks <b>the entry that changed this file</b> to overlay just that work. Files carry per-extension icons, and ignored files appear dimmed in the tree. The discussion screen was reborn as an editor with a formatting toolbar, spec block insertion and <b>prompt copy</b> matched to the document's stage.</li>
+    <li class="reveal d1"><b>v2.15.0 — The Code screen became an IDE</b> · Until now it showed text and saved it. Now <b>completions appear as you type</b>, mistakes get a <b>red underline</b>, and hovering a name shows its type and docs. F12 and ⌘-click jump to the definition, and renaming a symbol updates <b>every file that uses it</b>. It works for Rust · TypeScript/JavaScript · Python · Go, and <b>says so</b> when a language's tooling is missing. It is not a VS Code fork — standard LSP is wired directly. Alongside: <b>dotfiles</b> (<span class="mono">.oculpm/</span> · <span class="mono">.github/</span>) show in the tree, plans and discussions an agent edits <b>appear immediately</b>, and the plugin <b>searches past journal entries</b> so an agent can find out why a file was touched before starting. The wiki filled out 11 pages and shipped an English edition.</li>
+    <li class="reveal d1"><b>v2.14.0 — Several conversations at once, and the end of honesty-audit false alarms</b> · Tabs opened before, but a message typed into another conversation while one was answering <b>waited in line</b> — because "the tab you are looking at" decided where a message went. Now you point at the conversation directly: open a new one while A is answering and talk to it immediately, and <b>approval cards stand per conversation</b>, so stopping one with ESC does not decline the neighbor's approval. And the <b>honesty audit</b> — 60 items a day showed up as "not recorded · critical" when the real count was 3. The label the app attaches to a session and the label an agent writes in an entry were different dialects, so the two sets could never intersect. The check became <b>day-level coverage</b>, which is dialect-independent, and entries written after a session closed are attributed to their session, reviving a number that was always 0. Also fixed: <b>terminals freezing cropped</b> after visiting another tab, the <b>changed-files list</b> collapsing as entries piled up (group folding · paths that keep the filename · filters), Today's ring showing <b>0 line changes</b> forever, empty background under the two-column layout, and the sidebar folding separately per project tab.</li>
+    <li class="reveal d1"><b>v2.13.x — Korean IME fixes in the terminal</b> · A run of releases (v2.13.1 – v2.13.5) chased a family of Korean input-method bugs in the built-in terminal — a leading syllable repeating after a space, a backspace mid-composition duplicating characters, a race where the IME's correction signal arrived up to 0.24s after the keystroke and erased the space that went out first. All are fixed, and the release build now keeps a rolling in-memory input trace that <b>⌃⌥⇧I</b> dumps to a log, so a bug that disappears when tracing slows things down can still be diagnosed. Alongside, saving in the Code screen preserves CRLF, blocks shortcuts that opened files outside the project, and no longer fires twice on one ⌘S.</li>
+    <li class="reveal d2"><b>v2.13.0 — The new Code screen: open and edit code inside the app</b> · The end of the round trip out to an editor to look at whatever search or the code map pointed at — open from the file tree and <b>edit with syntax highlighting (12 languages)</b>, save with <span class="mono">⌘S</span>. Search results and the code map gained an <b>"open in the code screen"</b> button that jumps to the line. When an agent edits the same file: if the disk changed at the moment you save, it <b>asks with a banner instead of overwriting</b> (disk version / your version), and a file open in the background is silently refreshed if untouched, bannered if you were editing. <b>Unsaved edits survive leaving the screen</b> and are marked with a green dot in the tree.</li>
+    <li class="reveal d2"><b>v2.12.0 — Change diff, code map and code search, all one level up</b> · When an image changes, the diff shows <b>the before and after side by side</b> on a checkerboard with the size change, instead of a wall of broken characters (other binaries get a size card). The gutter carries <b>real file line numbers</b> and a <span class="mono">+12 −4</span> summary. The code map cleared its spaghetti with <b>floating edges and directed arrows</b> (A → B: A uses B) and redrew nodes as cards tinted by language with a "hub" tag. Code search gained <b>per-file grouping · match highlighting · jump to the line in the editor</b> · recent queries · load more — results now lead to code.</li>
+    <li class="reveal d2"><b>v2.11.0 — You can see what the agent is changing; the end of blind approval</b> · When Claude Code edits a file, <b>the diff is drawn right in the tool card</b> — deleted lines red, added lines green, with a <span class="mono">+12 −3</span> scale. Approval cards now carry <b>the command that will run and the change that will land</b>, so approving from a title alone is over. Pending approvals raise a <b>sidebar badge</b>, and the bug where <b>Enter sent a sentence mid-Korean-composition</b> is fixed. Auto-growing input · ↑/↓ prompt recall · file drag &amp; drop · turn receipts ("7 tools · 3 files · 1m 12s") · copy answer · dead-process detection with "reconnect" — the friction of the conversation screen cleared in one pass.</li>
+  </ul>
+  <details>
+    <summary>Older releases</summary>
+    <ul class="update-points">
+      <li class=""><b>v2.10.x — A terminal on any screen, and Claude Code inside the app</b> · <b>⌘J</b> opens a terminal over whatever screen you are on, docked bottom or left, resizable, and <b>detachable into a window without dropping the shell</b>. The sidebar gained a <b>Claude Code</b> screen where the real <span class="mono">claude</span> runs as an agent (Agent Client Protocol) — tool calls and permission prompts arrive as <b>cards</b>, the top bar becomes a <b>session tab strip</b>, and <b>effort and permission mode</b> sit on one track. Image paste, model-switch dividers and a widget <span class="mono">/usage</span> came along. It keeps your existing subscription login, and updates do not drop the conversation.</li>
+      <li class=""><b>v2.9.0 — Windows and tabs</b> · One window holds <b>several projects as tabs</b>. Drag to reorder, drag out to <b>make a new window</b>. Each project remembers its own screen and filter state, and <b>terminal sessions belong to the project</b>, so they survive a tab changing windows. <b>⌘T</b> new tab · <b>⌘W</b> close · <b>⇧⌘N</b> new window. The start screen was rebuilt as <b>one grid of every registered project</b> with <b>8 colors and 10 icons</b> per project, and the menu bar now detects <b>every tracked project</b> — until then a project without an open tab was missed even when it wrote entries.</li>
+      <li class=""><b>v2.8.5 — English support</b> · Pick the UI language in Settings and <b>all 12 screens</b> switch to English — screen copy, <b>error messages</b>, the journals, retros and planner items the AI writes, and the journaling rules planted in new projects. The UI language and <b>the language the AI writes in are chosen separately</b> — an English screen with Korean journals is fine — and <b>documents already written are never rewritten</b>. The ⌘K palette finds things in both languages.</li>
+      <li class=""><b>v2.8.1 — Project management screen</b> · Every registered project laid out in a <b>flat table</b> for rename, remove and add in one place. Check boxes to <b>remove several at once</b>, with the folder's <span class="mono">.oculpm</span> and <span class="mono">AGENTS.md</span> deletion chosen separately (off by default). Quiet projects folded away on the first screen are all visible here.</li>
+      <li class=""><b>v2.8.0 — Skill shop</b> · It detects your project's stack (manifest-based, zero LLM) and recommends <b>25 vetted third-party skills</b> (MIT, commit-pinned copies) — search, preview, one-click install. A delivery gate catches "code changed but no entry" once per session and asks the agent to write one.</li>
+      <li class=""><b>v2.7.0 — Bento cockpit home</b> · The <b>pick up where you left off</b> tile on the first screen shows the next task, recent records, a 14-day activity trend and the last agent at a glance. Sessions that ended without an entry are surfaced by Today.</li>
+      <li class=""><b>v2.6.0 — Retros by Claude Code too</b> · The [with Claude Code] button on the retro screen prefills a prompt and the session writes the retro file. Repeating tags are promoted as <b>skill candidates</b>, and <span class="mono">project_init</span> starts tracking a new project without the app.</li>
+      <li class=""><b>Claude Code plugin</b> — two lines in <span class="mono">/plugin</span> put a hook bridge, 7 MCP tools and 5 skills across every project. The record starts even without the app.</li>
+      <li class=""><b>▶ Run dispatch</b> — click a plan item and a prompt assembled from the item, its linked entries and the update instruction is prefilled in the terminal. One Enter and a live session picks it up.</li>
+      <li class=""><b>Three-level plans + project-inception</b> — nested subtasks (parent status rolls up automatically); an idea goes through web research into an evidence-backed conversation that settles the spec and seeds four design documents.</li>
+      <li class=""><b>A 60% agent-token diet</b> — always-injected rules went from ≈2,900 to ≈1,150 tokens, with every rule that secured compliance kept.</li>
+    </ul>
+  </details>
+  <p class="updates-more"><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">Full release notes — GitHub →</a></p>
+</section>
+
+<!-- ══════════ local-first ══════════ -->
+<section class="sec manifesto">
+  <div class="sec-head">
+    <span class="eyebrow reveal">Local-first</span>
+    <h2 class="reveal">Where does<br />your data live?</h2>
+  </div>
+  <div class="nones reveal">
+    <span class="none"><b>No</b><span>account</span></span>
+    <span class="none"><b>No</b><span>server</span></span>
+    <span class="none"><b>No</b><span>telemetry</span></span>
+  </div>
+  <p class="sec-head reveal" style="margin-bottom: 32px;">All of it sits in one folder inside your project — as markdown a human can read.<br />Delete the app and the memory stays. <b>Because it is yours.</b></p>
+  <div class="tree reveal" role="img" aria-label="The .oculpm folder layout">
+<b>.oculpm/</b>
+├─ journal/    <i>work journal — .md by date and kind</i>
+├─ planner/    <i>living plans, .md</i>
+├─ discussion/ <i>decisions in progress, .md</i>
+└─ agents/     <i>journaling rules for agents</i></div>
+</section>
+
+<!-- ══════════ FAQ ══════════ -->
+<section class="sec" id="faq" style="padding-top: 40px;">
+  <div class="sec-head">
+    <span class="eyebrow reveal">FAQ</span>
+    <h2 class="reveal">Frequently asked</h2>
+  </div>
+  <div class="faq-list reveal">
+    <details><summary>What is Ocul-PM?</summary><p>A local-first AI project manager for developers who work with AI coding agents. It records what the agents did, organizes it, and lets you verify every change against a local diff before you commit it.</p></details>
+    <details><summary>Which AI coding agents does it work with?</summary><p>Claude Code, Codex CLI, Gemini CLI, Antigravity and pi work with no extra setup. Cursor, Windsurf, GitHub Copilot, aider, Cline and Zed work once you enable their rules file in Settings. Anything that reads AGENTS.md can be used with it, so you are never tied to one tool.</p></details>
+    <details><summary>Can I read and edit code inside the app?</summary><p>Yes. The Code screen browses the project tree, opens files and saves with ⌘S. Since v2.15.0 the editor understands the code — completion as you type, diagnostics underlined where they belong, hover types and docs, F12 / ⌘-click to jump to a definition, symbol rename that updates every file that uses it, and the code actions that come with a diagnostic. It works for Rust, TypeScript/JavaScript, Python and Go, and when a language server is missing from your machine it says so instead of failing quietly. It is not a VS Code fork — standard LSP is wired directly. Dotfiles (.oculpm/ · .github/ · .gitignore) show up in the tree. Search results and the code map jump straight to the line, and if an agent edits the same file, saving does not overwrite it — a banner asks which version to keep, and unsaved edits survive leaving the screen. Since v2.16.0 you get tabs and a split view, file create/rename/drag-move (delete goes to the trash), a breakpoint debugger (Rust · Python · Go) and an inline comparison that overlays what the agent changed. Since v2.19.0 ⇧⌘F adds project-wide search and replace against what is actually on disk. Since v2.20.0 images (png · jpg · gif · webp) and PDFs open in a preview instead of the editor — pictures on a checkerboard that reveals transparency, toggling fit-to-window ↔ actual size, PDFs as documents, up to 16MB regardless of the editor's 2MB limit (svg is both picture and code, so it still opens in the editor). Since v2.21.0 you can drag files and folders in from Finder or paste them with ⌘V — same names are never overwritten, they get a -2 suffix, folders recurse, and symlinks are skipped.</p></details>
+    <details><summary>Can I see the terminal next to another screen?</summary><p>Yes. Since v2.10.1 ⌘J opens a terminal dock over whatever screen you are on. Dock it to the bottom (wide), the left or the right (tall) and drag the edge to size it. You can pull it out into a window of its own without dropping the shell — scrollback comes along. Since v2.22.0 sessions stand in a vertical list on the left where each card carries status, agent, elapsed time and last command — drag a session to the edge of the screen and the pane splits so you can watch two at once, and the split's handle (⠿) swaps them or pops one out as its own session. Font size is set in px in Settings → Appearance; line height and padding are a separate density setting (roomy / standard / compact).</p></details>
+    <details><summary>Running several agents at once gets confusing. Does the app help?</summary><p>That is exactly what v2.23.0 targets. When an agent calls for a human (terminal bell) that session turns amber and a "N waiting" banner appears above the list — click it and you land on the session that is waiting, then cycle to the next. A bell is certain because the program rang it; "quiet for 20 seconds" is a guess, and it is written as a guess. Output is also split per command: each command gets a status bar (green success, red failure), failure points are dotted along the right edge of the whole scrollback, and ⌘↑ / ⌘↓ jump between commands. Clicking a status bar offers copy, plus "save as a journal entry" and "attach to the planner" — the entry opens prefilled with the command line, exit code, duration and the last 40 lines of output. There is deliberately no re-run button; it only prefills the prompt, so nothing you have not looked at runs by itself.</p></details>
+    <details><summary>Can I tell whether my rules and skills are actually being read?</summary><p>Yes, since v2.24.0. Every item on the Skills &amp; Rules screen carries an "N times in 30 days" or "never fired" badge, and the rules tab shows how many KB of conditional rules are injected per session. It is counted deterministically from the Claude Code transcripts on this machine — the moments a rule was actually injected and a skill was actually invoked — so no LLM and no network is involved. Rules without a paths filter load in full every session, so they are marked "every session" rather than counted, and "recount firings" starts over from scratch.</p></details>
+    <details><summary>Can I bring in conversations from another tool?</summary><p>Yes. Since <b>v2.30.0</b>, Settings → Data → "Import past conversations" opens an export (<code>.json</code> or <code>.zip</code>) from Claude and friends and lists what is inside with <b>dates, titles, turn counts and a guessed entry type</b>; you pick the ones that belong to this project and they become journal entries. <b>Nothing leaves your machine while you read that list</b> — skimming hundreds of conversations is entirely offline and free, and only what you pick calls the background model, once each. Entries land <b>on their original dates</b>, and re-opening the same file marks already-imported ones "imported" rather than <b>billing you twice</b> (they are not hidden — a conversation vanishing with no explanation is worse). Everything imported starts <b>unverified</b>: it did not happen in this repository, so it stays a draft until you read it and tick it off.</p></details>
+    <details><summary>What happens when the network drops?</summary><p>Everything local — journals, search, diffs, the planner — keeps working. Where models are involved, three things changed in <b>v2.30.0</b>. ① When your chosen model does not answer and <b>a fallback replies instead, that reply carries a badge</b> — previously a different model answered while the screen still showed the name you picked. The fallback applies to <b>that one call</b>; your settings are untouched. ② Unreachable providers are <b>dimmed rather than hidden</b> — hiding them reads as your settings having been wiped, and blocking them means you cannot pick one the moment connectivity returns (the reason is in the tooltip). ③ Automations <b>defer instead of failing</b>: a run that could not reach the network is recorded as "deferred" and does not burn its slot, so the <b>catch-up rule</b> picks it up once you are back. A failure that did get a reply (a 429, an auth error) means the network was fine — that is still a failure.</p></details>
+    <details><summary>Does the AI panel resend the same context on every question?</summary><p>No. Since <b>v2.29.0</b> it no longer reloads the whole plan, the recent journal and the working rules for every question. When a conversation starts it loads <b>a list of what exists</b> exactly once — and that list <b>does not change by a single character</b> until the conversation ends, because a stable prefix is what keeps the model-side prompt cache alive — and bodies are pulled only when needed. Past records attach only to questions carrying a <b>recall signal</b>: "what did I do last week", "what did I say", "how far did the plan get". The decision uses a Korean/English signal-word dictionary, so it <b>calls no AI</b>, and past the ~800 token ceiling it drops <b>whole</b> records starting with the least relevant. Rules used to be truncated at 2,500 characters, and that cut once swallowed the "never write secrets" clause outright — now only <b>three lines</b> stay resident and everything else arrives <b>in full</b>. To push something in deliberately: <code>/rules</code> · <code>/plan</code> · <code>/journal</code> · <code>/skill</code>. Settings → <b>Context</b> shows you exactly what goes in.</p></details>
+    <details><summary>Can I build my own theme colors?</summary><p>Yes. Since <b>v2.28.0</b> a theme is <b>a file</b>. In Settings → Appearance you create one or "duplicate and edit" any of the five built-ins (Solarized · Sepia · Nord · Dracula · High Contrast), then export and import as <code>.json</code> — the built-ins use the same format, so <b>the built-ins are the examples</b>. There is no separate preview box because <b>the app itself is the preview</b>: change one color and the sidebar, cards, borders and status colors change with it. <b>Colors you did not change are left alone</b> — a theme that sets five background lines is a complete theme, everything else inherits the light or dark default, and each token has "reset to family default". A theme that specifies no accent <b>keeps the accent you chose</b>, and on macOS "follow the system accent" paints it with the OS color. Bind a theme to a project in the project editor and <b>only the window looking at that project</b> wears it. An imported file gets a fresh identifier, and a name collision <b>asks</b> whether to overwrite or keep a copy. A theme can only paint a fixed list of colors, so nothing else in the file reaches the screen.</p></details>
+    <details><summary>Can I tell my own journal entries apart from the ones AI wrote?</summary><p>Yes. Since v2.27.0 every record carries a <b>provenance badge</b> — by hand (a person writing in the app) · by agent (Claude Code and friends following the journaling rules) · auto-draft (a background model after the edits went quiet) · schedule · watcher · MCP · backfill (restored from git history). It shows on journal cards and details, in the Today activity feed and in the agent contribution rows of a retro, and a filter row above the journal narrows by source — not drawn at all when the list has only one kind, because a filter that cannot narrow anything is noise. No new field was invented: it is read deterministically from the session id and agent id already written in the entry file.</p></details>
+    <details><summary>Can it produce a summary on a schedule?</summary><p>Yes. Since v2.26.0, set an instruction and a frequency in Settings → Automation and the app runs it at that hour — "every Friday at 17:00, summarize this week's commits and open items", for example. Frequencies cover once, every N minutes, every N hours, daily, weekly, monthly, yearly and cron, and the first visit suggests three examples (weekly dev summary, morning briefing, monthly retro) switched off — you create them with a click and decide about enabling afterwards. Definitions are markdown files under <code>.oculpm/automation/</code>, so you can edit them by hand and commit them with your team. Automation is entirely opt-in, and if no background model is chosen it is skipped silently rather than erroring — so nothing bills you without your knowing. There is a daily run cap (20 by default), and the run log records skips, drops and failures with reasons, not just successes. If the Mac was asleep or the app was closed, it catches up exactly once instead of stacking up. Since v2.27.0 the trigger can be the working folder rather than the clock: when file changes go quiet for the interval you set (0.2s to 10min), it drafts a journal entry or updates the plan.</p></details>
+    <details><summary>Can I open several projects at once?</summary><p>Yes. Since v2.9.0 one window holds several projects as tabs. Drag to reorder, or out of the window to make a new one, and since v2.22.0 you can drop a tab onto another window's tab strip to merge them back (the insertion point is shown while you drag, and moving the last tab closes the empty window). Since v2.24.0 it behaves exactly like Chrome — the moment a tab leaves the strip it becomes a real window that follows your hand off-screen and over other apps, and aiming at another window's tab strip hides the one you are holding and shows where it will land. Since v2.25.0 a torn-off window can be dragged back: a window with a single tab is picked up whole and merges when dropped (Escape puts it back where it was). Right-click a tab for the same operations from a menu, or Shift+F10 from the keyboard. Each project remembers its own screen, filters and sidebar state, and terminal sessions belong to the project, so they survive a tab moving between windows. ⌘T new tab, ⌘W close tab, ⇧⌘N new window.</p></details>
+    <details><summary>Does it only record, or does it produce something?</summary><p>From the journal entries it generates standup text, PR bodies and weekly reports, plus retrospectives over a date range and .md export. With an AI configured it polishes the result; without one it still works with the default format.</p></details>
+    <details><summary>Can I use it from a phone or tablet?</summary><p>Yes, in beta. Since v2.18.0 the Mac runs a server reachable only inside your Tailscale network, and a phone browser opens today's journal, the planner, discussions and the AI chat. Turn the server on in Settings → Mobile, scan the QR code and pair once with a six-digit code; add it to the home screen and it behaves like an app. The theme you picked on the desktop carries over (themes you built yourself follow only their light/dark family on the phone for now), and your AI API keys stay in the Mac keychain. During the beta, search, retros and the code screen are desktop-only.</p></details>
+    <details><summary>Does my code or data leave the machine?</summary><p>No. Everything lives in your project's .oculpm/ folder and a local SQLite cache. Only three things leave: the LLM API calls you make yourself, the update check for new versions, and a GitHub fetch when you ask for a plugin bundle or release notes. The v2.18.0 mobile bridge (beta) is the same — it is served only inside your own Tailscale network, never exposed to the public internet, and the phone talks to your Mac without passing through a third-party server.</p></details>
+    <details><summary>Do terminal sessions survive an app update?</summary><p>They survive. Since v2.19.0 terminal sessions are held by a process detached from the app, so after an auto-update or a restart your terminal tabs come back with their scrollback and whatever was running (including Claude Code sessions). Closing a terminal tab or a project tab yourself still cleans that session up as before.</p></details>
+    <details><summary>Can I use it without the app, just the Claude Code plugin?</summary><p>Yes. In Claude Code, run <code>/plugin marketplace add bunhine0452/Ocul-PM</code> and then <code>/plugin install oculpm@oculpm</code> — two lines that set up the hook bridge, 7 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records exactly as they are.</p></details>
+    <details><summary>Is the app available in English?</summary><p>Yes. Since v2.8.5, Settings → Appearance lets you pick English or 한국어 and all 12 screens plus the error messages follow. The language the AI writes journals, retros and planner items in is set separately, so an English UI with Korean records (or the reverse) is possible, and documents already written are never rewritten.</p></details>
+    <details><summary>Can I download it now?</summary><p>Yes. The macOS (Apple Silicon) build is a free download from GitHub Releases. Intel and Windows builds are planned, and later versions update themselves from inside the app.</p></details>
+    <details><summary>Can I ask about team, enterprise or partnership use?</summary><p>Yes. Because Ocul-PM is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> — the person who built it reads and answers.</p></details>
+  </div>
+</section>
+
+<!-- ══════════ CTA ══════════ -->
+<section class="cta" id="download">
+  <span class="eyebrow reveal">v2.30.0 — download now · macOS (Apple Silicon)</span>
+  <h2 class="reveal">Nothing is required<br />to start.</h2>
+  <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
+  <div class="hero-ctas reveal">
+    <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+      <span class="lg">Get v2.30.0</span><span class="sub">Free · auto-updating</span>
+    </a>
+    <a class="dl-btn ghost" href="/plugin">Start with the plugin →</a>
+    <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
+  </div>
+  <p class="fine reveal">Plenty of developers move fast. <b>The ones who remember go far.</b></p>
+</section>
+
+<!-- ══════════ footer ══════════ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <span>© 2026 Ocul-PM</span>
+    <a href="/keynote">Keynote</a>
+    <a href="/wiki/en">Wiki</a>
+    <a href="/plugin">Plugin</a>
+    <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">Feedback</a>
+    <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
+    <a href="https://ko-fi.com/beachcombers" target="_blank" rel="noreferrer">Support</a>
+    <a href="/" hreflang="ko">한국어</a>
+    <span class="footer-spacer"></span>
+    <span>Local-first · no account · no telemetry</span>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal — CSS already disables it under reduced-motion.
+  (function () {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) e.target.classList.add("on"); });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+  })();
+</script>
+
+<!-- Keep the nav version badge in sync with the latest GitHub release, so it
+     never goes stale between landing edits. Falls back to the hardcoded
+     data-version text if the API is unreachable / rate-limited. -->
+<script>
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.tag_name) return;
+          var tag = String(d.tag_name).replace(/^v?/, 'v');
+          document.querySelectorAll('[data-version]').forEach(function (el) {
+            el.textContent = tag;
+          });
+        })
+        .catch(function () { /* keep the static fallback */ });
+    } catch (e) { /* no fetch — keep the static fallback */ }
+  })();
+</script>
+
+<!-- Vercel Web Analytics (static site). -->
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

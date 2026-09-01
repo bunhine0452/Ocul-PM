@@ -613,6 +613,7 @@ pub async fn draft_for_session(
             version: digest.model.clone(),
         }),
         verified_by_user: Some(false),
+        created_at: None,
     };
 
     // 8. 규격 쓰기 — forbidden 경로가 섞였으면 파일 목록 없이 1회 재시도

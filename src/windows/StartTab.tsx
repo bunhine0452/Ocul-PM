@@ -27,10 +27,17 @@ import { StartScreen } from "@/features/onboarding/StartScreen";
 const GreenfieldWizard = lazy(() =>
   import("@/features/onboarding/GreenfieldWizard").then((m) => ({ default: m.GreenfieldWizard })),
 );
+// 첫 실행 마법사도 같은 이유로 지연 로드다 — 설치하고 처음 켠 **한 번**만
+// 쓰이는 화면이 매 실행의 진입 청크에 실릴 이유가 없다.
+const WelcomeWizard = lazy(() =>
+  import("@/features/onboarding/WelcomeWizard").then((m) => ({ default: m.WelcomeWizard })),
+);
+import { shouldOpenWelcome } from "@/features/onboarding/welcomeGate";
 import { SettingsOverlay } from "@/windows/SettingsOverlay";
 import { Dialog } from "@/windows/Dialog";
 
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
 import { toast } from "@/lib/toast";
 import { AppearancePicker } from "@/features/onboarding/home/AppearancePicker";
@@ -55,10 +62,16 @@ export interface StartTabProps {
 
 export default function StartTab({ tabId, active, openProjects }: StartTabProps) {
   const { t } = useT();
+  const { settings, loaded: settingsLoaded } = useSettings();
 
   const [projects, setProjects] = useState<Project[]>([]);
+  /** 첫 목록 조회가 끝났나 — 조회 전의 빈 배열을 "프로젝트 0개"로 오해하면
+   *  이미 쓰던 사용자에게 첫 실행 마법사가 번쩍인다. */
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [indexingId, setIndexingId] = useState<number | null>(null);
+  /** 첫 실행 마법사가 떠 있나 (아래 effect 가 한 번만 켠다). */
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   // Project lifecycle dialogs
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
@@ -84,7 +97,9 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
   // 시작 탭에는 마운트된 셸이 없다 — ⌘1~⌘0 · ⌘\ 는 갈 곳이 없으므로 삼키고
   // ⌘, 만 설정 오버레이로 잇는다 (⌘K 는 아래 onOpenPalette).
   useGlobalShortcuts({
-    enabled: active,
+    // 첫 실행 마법사가 떠 있는 동안은 ⌘K·⌘, 를 듣지 않는다 — 팔레트나 설정이
+    // 마법사 **뒤에서** 열리면 (마법사가 최상층이다) 보이지 않는 창을 조작하게 된다.
+    enabled: active && !welcomeOpen,
     onOpenPalette: () => setPaletteOpen(true),
     uiV2Nav: (v) => {
       if (v === "settings") setSettingsOpen(true);
@@ -94,13 +109,41 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
   const refreshProjects = useCallback(async () => {
     setError(null);
     const res = await commands.listProjects();
-    if (res.status === "ok") setProjects(res.data);
-    else setError(res.error);
+    if (res.status === "ok") {
+      setProjects(res.data);
+      // 조회가 **성공했을 때만** 올린다 — 실패한 조회의 빈 목록을 "프로젝트
+      // 0개" 로 읽으면 첫 실행 마법사가 엉뚱한 사람에게 뜬다.
+      setProjectsLoaded(true);
+    } else setError(res.error);
   }, []);
 
   useEffect(() => {
     void refreshProjects();
   }, [refreshProjects]);
+
+  /**
+   * 첫 실행 마법사를 **한 번만** 켠다.
+   *
+   * 조건 둘이 모두 참일 때만: 아직 한 번도 안 봤고(`onboarded=false`), 등록된
+   * 프로젝트가 0개다. 두 번째 조건이 없으면 `onboarded` 키가 없던 기존 설치본
+   * 전부가 업데이트 직후 안내를 다시 받는다.
+   *
+   * 켠 뒤에는 조건이 깨져도(마법사 안에서 프로젝트를 들여오면 목록이 1개가
+   * 된다) 닫지 않는다 — 마무리 판을 보여 줘야 하므로 닫는 것은 마법사 몫이다.
+   */
+  useEffect(() => {
+    const open = shouldOpenWelcome({
+      active,
+      settingsLoaded,
+      projectsLoaded,
+      onboarded: settings.onboarded,
+      projectCount: projects.length,
+    });
+    if (!open) return;
+    setWelcomeOpen(true);
+    // 목록이 바뀌면 이 effect 는 다시 돌지만 하는 일은 없다 — 켜는 쪽으로만
+    // 움직이고(멱등), 닫는 것은 마법사뿐이다.
+  }, [active, settingsLoaded, projectsLoaded, settings.onboarded, projects.length]);
 
   const startIndex = useCallback(
     async (id: number, reset = false) => {
@@ -142,22 +185,40 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     [tabId, t],
   );
 
-  async function handleAddProject() {
+  /**
+   * 폴더를 골라 프로젝트로 등록하고 **그 프로젝트를 돌려준다**.
+   *
+   * 첫 실행 마법사가 방금 들여온 프로젝트의 이름을 말하고 그걸 열어야 해서
+   * 반환값이 필요하다 (예전에는 void 였다). `create_project` 는 id 만 주므로
+   * 갱신된 목록에서 찾아 돌려준다.
+   */
+  const addProjectFromFolder = useCallback(async (): Promise<Project | null> => {
     setError(null);
     const folder = await commands.selectProjectFolder();
-    if (folder.status !== "ok" || !folder.data) return;
+    if (folder.status !== "ok" || !folder.data) return null;
     const path = folder.data;
     const name = path.split("/").filter(Boolean).pop() ?? "project";
     const created = await commands.createProject(name, path);
-    if (created.status === "ok") {
-      await refreshProjects();
-      // Auto-chunk the freshly added project so 코드 검색 works without a manual
-      // "재구축" step. Indexing is incremental (hash-gated), so later opens skip
-      // unchanged files.
-      void startIndex(created.data);
-    } else {
+    if (created.status !== "ok") {
       setError(created.error);
+      return null;
     }
+    const list = await commands.listProjects();
+    if (list.status === "ok") {
+      setProjects(list.data);
+      setProjectsLoaded(true);
+    }
+    // Auto-chunk the freshly added project so 코드 검색 works without a manual
+    // "재구축" step. Indexing is incremental (hash-gated), so later opens skip
+    // unchanged files.
+    void startIndex(created.data);
+    return list.status === "ok"
+      ? (list.data.find((p) => p.id === created.data) ?? null)
+      : null;
+  }, [startIndex]);
+
+  function handleAddProject() {
+    void addProjectFromFolder();
   }
 
   const startRenameProject = (p: Project) => {
@@ -243,6 +304,20 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
         }}
         onProjectsChanged={refreshProjects}
       />
+
+      {welcomeOpen && (
+        <Suspense fallback={null}>
+          <WelcomeWizard
+            onPickFolder={addProjectFromFolder}
+            onStartGreenfield={() => {
+              setGreenfieldResume(null);
+              setGreenfieldOpen(true);
+            }}
+            onOpenProject={openProject}
+            onClose={() => setWelcomeOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* 팔레트는 활성 탭에만 — 창에 하나만 존재해야 한다. */}
       {active && (

@@ -32,6 +32,7 @@ import {
   MESSAGE_OVERHEAD_TOKENS,
 } from "@/lib/tokenEstimate";
 import { useDismiss } from "./useDismiss";
+import { useReachability } from "@/features/settings/useReachability";
 import { assembleAiContext, type AiContextResult } from "./aiContext";
 import {
   MAX_CONTEXT_HOPS,
@@ -73,7 +74,18 @@ const VENDOR: Record<Provider, { name: string; vendor: string; color: string }> 
 
 // Display message — tracks the provider that produced each assistant turn so
 // switching the active model doesn't re-skin past answers (dogfood 발견 2).
-type ChatMsg = { role: Role; content: string; provider?: Provider };
+/**
+ * `fallback` 은 **그 답변 한 건**의 사실이다 (Phase 7 `#offline-fallback`) —
+ * 1순위가 아니라 폴백 체인의 누가 이 답을 냈는지. 설정에는 아무 영향이 없고,
+ * 대화를 다시 열면(=DB 복원) 사라진다. 그것이 맞다: 폴백은 그때의 사건이지
+ * 이 대화의 속성이 아니다.
+ */
+type ChatMsg = {
+  role: Role;
+  content: string;
+  provider?: Provider;
+  fallback?: { provider: string; model: string };
+};
 
 type EstimateRow = { label: string; tokens: number };
 type Estimate = { total: number; rows: EstimateRow[]; ragPending: boolean };
@@ -141,6 +153,17 @@ const MessageRow = memo(function MessageRow({
         <span className="model-dot" style={{ background: VENDOR[mp].color }} />
         <span className="msg-model">{VENDOR[mp].name}</span>
         <span className="msg-vendor">{VENDOR[mp].vendor}</span>
+        {msg.fallback ? (
+          <span
+            className="chip sm"
+            title={t("ai.fallback.hint", {
+              provider: msg.fallback.provider,
+              model: msg.fallback.model,
+            })}
+          >
+            {t("ai.fallback.badge", { provider: msg.fallback.provider })}
+          </span>
+        ) : null}
         {isStreamingRow ? (
           <span className="msg-live">
             <span className="msg-live-dot" /> {t("ai.streaming")}
@@ -314,6 +337,13 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
   const anyKey = PROVIDERS.some((p) => hasKey[p] === true);
   const keysResolved = PROVIDERS.every((p) => hasKey[p] !== null);
+
+  // 오프라인 표시 (Phase 7) — 메뉴를 열 때 마지막 관측을 새로 읽는다.
+  const reach = useReachability();
+  useEffect(() => {
+    if (modelMenuOpen) reach.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelMenuOpen]);
 
   useDismiss(modelMenuOpen, modelMenuRef, () => setModelMenuOpen(false));
   useDismiss(tokenPopOpen, tokenPopRef, () => setTokenPopOpen(false));
@@ -589,6 +619,13 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         if (event.kind === "delta") {
           target += event.text;
           if (!rafRef.current) rafRef.current = requestAnimationFrame(tick);
+        } else if (event.kind === "fallback") {
+          // 1순위가 아니라 폴백이 답했다 — 그 사실을 답변 행에 배지로 남긴다.
+          // **설정은 건드리지 않는다**: 이번 호출 한 번의 사건이다.
+          const mark = { provider: event.provider, model: event.model };
+          setMessages((prev) =>
+            prev.map((m, i) => (i === prev.length - 1 ? { ...m, fallback: mark } : m)),
+          );
         } else if (event.kind === "error") {
           setError(event.message);
         }
@@ -936,24 +973,40 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                     {PROVIDERS.map((p) => {
                       const v = VENDOR[p];
                       const disabled = hasKey[p] === false;
+                      // 못 닿는 프로바이더는 **흐리게만** 한다 — 숨기면 설정이
+                      // 날아간 줄 알고, 막으면 복구된 순간 고를 수가 없다.
+                      const offline = reach.offline(p);
+                      const hint = disabled
+                        ? t("ai.needKeyHint")
+                        : offline
+                          ? `${t("llm.offline.hint")}${reach.detail(p) ? ` (${reach.detail(p)})` : ""}`
+                          : undefined;
                       return (
                         <button
                           key={p}
                           type="button"
                           role="option"
                           aria-selected={provider === p}
-                          className={"model-option" + (provider === p ? " active" : "")}
+                          className={
+                            "model-option" +
+                            (provider === p ? " active" : "") +
+                            (offline && !disabled ? " unreachable" : "")
+                          }
                           disabled={disabled}
                           onClick={() => {
                             setProvider(p);
                             setModelMenuOpen(false);
                           }}
-                          title={disabled ? t("ai.needKeyHint") : undefined}
+                          title={hint}
                         >
                           <span className="model-dot" style={{ background: v.color }} />
                           <span className="model-option-name">{v.name}</span>
                           <span className="model-option-model">
-                            {disabled ? t("ai.noKey") : providerModel(settings, p)}
+                            {disabled
+                              ? t("ai.noKey")
+                              : offline
+                                ? t("llm.offline.badge")
+                                : providerModel(settings, p)}
                           </span>
                           {provider === p ? <Check size={13} /> : null}
                         </button>

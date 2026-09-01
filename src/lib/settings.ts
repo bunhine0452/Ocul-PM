@@ -95,6 +95,12 @@ export const KEYS = {
   codeTabSize: "code_tab_size",
   codeInsertSpaces: "code_insert_spaces",
 
+  // --- 첫 실행 ---
+  // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
+  // false 인 **동시에** 등록된 프로젝트가 0개일 때만 마법사가 뜬다 — 이미
+  // 쓰고 있던 사용자가 업데이트 후에 다시 안내를 받으면 안 되기 때문이다.
+  onboarded: "onboarded",
+
   // --- 업데이트 ---
   // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
   // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
@@ -198,6 +204,9 @@ export interface Settings {
 
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
+
+  /** 첫 실행 마법사를 끝냈거나 건너뛰었는가 (`false` = 아직 한 번도 안 봄). */
+  onboarded: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -249,6 +258,8 @@ export const DEFAULTS: Settings = {
   codeInsertSpaces: true,
 
   lastSeenVersion: "",
+
+  onboarded: false,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -289,6 +300,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeTabSize]: "codeTabSize",
   [KEYS.codeInsertSpaces]: "codeInsertSpaces",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
+  [KEYS.onboarded]: "onboarded",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

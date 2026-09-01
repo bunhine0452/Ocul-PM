@@ -1844,6 +1844,9 @@ mark.s-hit {
 .model-option:hover:not(:disabled) { background: var(--accent-soft); }
 .model-option.active { background: var(--bg-inset); }
 .model-option:disabled { opacity: 0.45; cursor: default; }
+/* 오프라인 (Phase 7) — 흐리게만 한다. 숨기거나 막지 않는다: 사라지면 설정이
+   날아간 줄 알고, 막으면 네트워크가 돌아온 순간 고를 수가 없다. */
+.model-option.unreachable { opacity: 0.6; }
 .model-option-name { font-weight: 600; flex: none; }
 .model-option-model {
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

@@ -497,6 +497,12 @@ pub async fn automation_run_now(
             reason: Some(r.to_string()),
             journal_path: None,
         },
+        // 연기는 실패가 아니다 — 「지금 실행」에서도 같은 어휘로 말한다.
+        JobOutcome::Deferred(e) => AutomationRunOutcome {
+            status: "deferred".into(),
+            reason: Some(e),
+            journal_path: None,
+        },
         JobOutcome::Failed(e) => AutomationRunOutcome {
             status: "failed".into(),
             reason: Some(e),

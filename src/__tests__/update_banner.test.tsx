@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 
 // ─── Self-update banner (benchmarked from uvws) ───────────────────────────
 // The updater plugin's check() returns an Update (or null). We mock it and
@@ -13,12 +13,20 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
   check: () => Promise.resolve(fx.update),
 }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn(() => Promise.resolve()) }));
+// 업데이트 재시작은 창·탭 스냅숏을 먼저 남긴다 — 새 버전이 그것을 보고
+// 열어 두었던 프로젝트 창들을 되살린다.
+vi.mock("@/api/window", () => ({ windowApi: { saveSession: vi.fn(() => Promise.resolve(null)) } }));
 
+import { relaunch } from "@tauri-apps/plugin-process";
+import { windowApi } from "@/api/window";
 import { UpdateBanner, isNewerVersion } from "@/components/UpdateBanner";
-import { releaseHighlights } from "@/lib/updater";
+import { releaseHighlights, useUpdater } from "@/lib/updater";
 
 afterEach(() => {
   fx.update = null;
+  // 호출 기록만 지운다 (구현은 남긴다) — 재시작 테스트가 서로의 호출 수를
+  // 물려받지 않게.
+  vi.clearAllMocks();
   cleanup();
 });
 
@@ -86,5 +94,32 @@ describe("UpdateBanner", () => {
     await waitFor(() => {
       expect(container.querySelector(".update-banner")).toBeNull();
     });
+  });
+});
+
+describe("업데이트 재시작", () => {
+  it("다시 띄우기 전에 창·탭을 저장한다 (복원의 유일한 근거)", async () => {
+    const { result } = renderHook(() => useUpdater());
+
+    await act(async () => {
+      await result.current.restartNow();
+    });
+
+    expect(windowApi.saveSession).toHaveBeenCalledTimes(1);
+    expect(relaunch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(windowApi.saveSession).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(relaunch).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("저장이 실패해도 재시작을 막지 않는다 — 새 버전이 먼저다", async () => {
+    vi.mocked(windowApi.saveSession).mockRejectedValueOnce(new Error("db down"));
+    const { result } = renderHook(() => useUpdater());
+
+    await act(async () => {
+      await result.current.restartNow();
+    });
+
+    expect(relaunch).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,6 +26,10 @@ pub const MCP_PREFIX: &str = "mcp-";
 /// 와 같은 접두형이다.
 pub const SCHEDULE_PREFIX: &str = "sched-";
 pub const AUTOMATION_PREFIX: &str = "auto-";
+/// 외부 대화 임포트가 만든 id 의 접두 (Osaurus 라운드 Phase 7).
+/// 접두형인 이유는 위와 같다 — 들여온 기록은 **원본 날짜**의 워크데이 폴더로
+/// 들어가므로 접미 방언을 쓰면 그 날짜를 세션 id 에서 못 읽는다.
+pub const IMPORT_PREFIX: &str = "import-";
 /// git 백필 세션의 접미 — reconcile 의 비용 가드와 백필 작성기가 같은 값을 본다.
 pub const GIT_BACKFILL_SUFFIX: &str = "-git";
 
@@ -41,6 +45,8 @@ pub enum SessionKind {
     Schedule,
     /// `auto-YYYYMMDD-HHMMSS` — 감시 자동화(Watchers)·정착 트리거가 발동한 작업.
     Automation,
+    /// `import-YYYYMMDD-HHMMSS` — 외부 대화(Claude export 등)를 들여온 일지.
+    Imported,
     /// `YYYYMMDD-git` — 커밋 히스토리에서 합성한 일지.
     GitBackfill,
     /// 알 수 없는 모양 (프론트매터가 비었거나 손으로 적은 값).
@@ -108,6 +114,16 @@ impl SessionId {
         ))
     }
 
+    /// 임포트 세션. `workday` 는 **원본 대화의 날짜**다 — 들여온 시각이 아니라.
+    pub fn imported(workday: &str, local: impl Timelike) -> Self {
+        Self(format!(
+            "{IMPORT_PREFIX}{workday}-{:02}{:02}{:02}",
+            local.hour(),
+            local.minute(),
+            local.second()
+        ))
+    }
+
     pub fn git_backfill(workday: &str) -> Self {
         Self(format!("{workday}{GIT_BACKFILL_SUFFIX}"))
     }
@@ -152,6 +168,13 @@ impl SessionId {
                 SessionKind::Unknown
             };
         }
+        if let Some(rest) = s.strip_prefix(IMPORT_PREFIX) {
+            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+                SessionKind::Imported
+            } else {
+                SessionKind::Unknown
+            };
+        }
         let Some((head, tail)) = s.split_once('-') else {
             return SessionKind::Unknown;
         };
@@ -179,6 +202,7 @@ impl SessionId {
             SessionKind::Automation => {
                 Some(&s[AUTOMATION_PREFIX.len()..AUTOMATION_PREFIX.len() + 8])
             }
+            SessionKind::Imported => Some(&s[IMPORT_PREFIX.len()..IMPORT_PREFIX.len() + 8]),
             SessionKind::Watcher | SessionKind::GitBackfill => Some(&s[..8]),
             SessionKind::Unknown => (s.len() >= 8 && is_digits(&s[..8], 8)).then(|| &s[..8]),
         }
@@ -276,11 +300,16 @@ mod tests {
             SessionId::new("auto-20260831-170000").kind(),
             SessionKind::Automation
         );
+        assert_eq!(
+            SessionId::new("import-20250714-113000").kind(),
+            SessionKind::Imported
+        );
         assert_eq!(SessionId::new("20260624-m01").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("manual-x").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("sched-x").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("auto-x").kind(), SessionKind::Unknown);
+        assert_eq!(SessionId::new("import-x").kind(), SessionKind::Unknown);
     }
 
     /// D8 회귀 — 접미 방언(`<workday>-sNN`)은 색인은 통과하되 분류가 죽는다.
@@ -321,6 +350,11 @@ mod tests {
             SessionId::new("auto-20260831-170000").workday(),
             Some("20260831")
         );
+        // 임포트는 **원본 대화의 날짜**를 싣는다 — 들여온 날이 아니라.
+        assert_eq!(
+            SessionId::new("import-20250714-113000").workday(),
+            Some("20250714")
+        );
         assert_eq!(SessionId::new("20260624-git").workday(), Some("20260624"));
         // 옛 합성 id 도 앞 8자가 숫자면 읽힌다 (IndexWriter 규약 유지).
         assert_eq!(SessionId::new("20260624-m01").workday(), Some("20260624"));
@@ -348,6 +382,10 @@ mod tests {
         assert_eq!(
             SessionId::automation("20260830", t).as_str(),
             "auto-20260830-090504"
+        );
+        assert_eq!(
+            SessionId::imported("20250714", t).as_str(),
+            "import-20250714-090504"
         );
         assert_eq!(SessionId::git_backfill("20260830").as_str(), "20260830-git");
         assert!(SessionId::git_backfill("20260830").is_git_backfill());

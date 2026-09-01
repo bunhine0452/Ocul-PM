@@ -13,7 +13,7 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
 
-[oculpm.com](https://oculpm.com) · [Keynote](https://oculpm.com/keynote) · [Wiki](https://oculpm.com/wiki) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
+[oculpm.com](https://oculpm.com/en) · [Keynote](https://oculpm.com/keynote) · [Wiki](https://oculpm.com/wiki/en) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
 
 [한국어](README.md) · English
 
@@ -56,7 +56,19 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.29.0 — it stops re-reading the same things · the past loads only when you ask
+## 🚀 v2.30.0 — import past conversations · settings as one document · keep going when the network drops
+
+- **Conversation import** — open a conversation export (Claude and friends), pick the ones that belong to this project, and they become journal entries (**Settings → Data**). Reading the list is **entirely offline and free** — only what you pick reaches the background model. Entries land **on their original dates**, and re-opening the same file shows already-imported conversations marked "imported" rather than billing you twice. Imported entries start **unverified** — a model rewrote a conversation that happened elsewhere, so read them before ticking them off.
+- **Declarative config** — export rules, skills, automations and app settings as one YAML document, commit it, and when you open a teammate's document it **shows you what would change before applying it**. API keys are never included. After applying it recomputes, and says "partially applied" if anything is left. Also `oculpm config export|plan|apply` from the terminal.
+- **Claude plugin bundles** — import a bundle (`.zip` or GitHub `owner/repo`) of skills, commands, agents and MCP config straight into the places Claude Code reads. Files you edited by hand are **never overwritten** — they come back as conflicts. Anything the bundle declares that we don't yet honour is stated, not hidden. `oculpm://` deep links **never act without confirmation**.
+- **First-run wizard** — on first launch, one pass over language, appearance (light/dark/accent) and your first project. Existing users never see it.
+- **Windows come back after an update** — an update restart isn't a stop you chose. The window and tab layout you had (torn-off terminal windows included) is restored.
+- **Nothing goes quietly wrong offline** — when a fallback answers instead, **that reply carries a badge** (just that once; your settings don't change); unreachable providers are **dimmed rather than hidden**, with the reason in the tooltip; and automations **defer instead of failing**, catching up once you're back online.
+- **Tabs no longer bleed into each other** — nine window-global things crossed project boundaries once one window could hold several projects (uncommitted changes showing in the wrong tab, index progress overwriting itself, planner ▶Run landing in **another project's terminal**). All of them are now per-tab.
+- **Terminal resizing** — dragging a splitter fired size notifications out of order, garbling text, double-printing claude code output and breaking scrollback. Three reported symptoms, one root.
+- **English landing page** — [oculpm.com/en](https://oculpm.com/en). The wiki had English; the front page didn't.
+
+## v2.29.0 — it stops re-reading the same things · the past loads only when you ask
 
 - **Only the capability list ships** — every question used to re-send the whole plan, recent journal entries and the work rules. Now the conversation loads a **list of what exists** once, and pulls the content only when it's needed. That list stays **byte-identical** for the life of the conversation — a stable prefix is what keeps the model-side cache alive.
 - **The past attaches only on a recall signal** — "what did I do last week", "what did I say", "where did the plan get to". The decision runs off a Korean/English signal dictionary and **never calls a model**. Over the budget (~800 tokens) the least relevant candidates are dropped **whole** — no half a journal entry.
@@ -282,7 +294,7 @@ Two lines in your terminal's Claude Code and recording begins:
 
 One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
 
-> The in-app **Claude Code screen** records without this plugin — the app attaches its journaling tools (MCP) to every session directly. Interactive CLI commands like `/plugin` and `/mcp` don't work inside in-app ACP sessions, so install the plugin from a terminal. The distinction is written up in the [wiki's Claude Code guide](https://oculpm.com/wiki/claude-code) (Korean).
+> The in-app **Claude Code screen** records without this plugin — the app attaches its journaling tools (MCP) to every session directly. Interactive CLI commands like `/plugin` and `/mcp` don't work inside in-app ACP sessions, so install the plugin from a terminal. The distinction is written up in the [wiki's Claude Code guide](https://oculpm.com/wiki/en/claude-code).
 
 ## Install
 
@@ -296,7 +308,7 @@ xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
 
 The first semantic search downloads an embedding model (~135MB) once. After that it works offline.
 
-Stuck on something? The [wiki](https://oculpm.com/wiki) collects common problems and fixes (Korean).
+Stuck on something? The [wiki](https://oculpm.com/wiki/en) collects common problems and fixes.
 
 ## Where your data lives
 

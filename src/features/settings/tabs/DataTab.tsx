@@ -14,6 +14,7 @@ import { toast } from "@/lib/toast";
 import { useT, type I18nKey } from "@/i18n";
 import { Section } from "./ui";
 import { DeclarativeConfigSection } from "../config/DeclarativeConfigSection";
+import { ConversationImportSection } from "../import/ConversationImportSection";
 
 /**
  * PR-CI7 (docs/claude-integration/00-master-plan.md D6) — Notion 내보내기 설정.
@@ -280,6 +281,8 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
       {/* 선언적 설정 (Phase 6) — 설정을 YAML 한 장으로 내보내고 들여온다.
           내보내기·초기화와 같은 계열이라 데이터 탭에 산다. */}
       <DeclarativeConfigSection />
+
+      <ConversationImportSection />
 
       <Section title={t("settings.diag.title")}>
         <Button variant="outline" onClick={openDevtools} className="w-full">

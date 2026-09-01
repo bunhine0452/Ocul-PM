@@ -70,6 +70,13 @@ interface JournalScreenV2Props {
    * instead of the journal timeline. Undefined → back goes to the timeline.
    */
   onReturnToOrigin?: () => void;
+  /**
+   * 이 탭이 화면에 보이는가. 비활성 탭도 마운트된 채라(크롬식 탭) 창 전역
+   * 인텐트 슬롯은 활성 탭만 들어야 한다 — 아니면 A 탭 터미널의 「일지로
+   * 남기기」가 숨은 B 탭에서 작성기를 열고, 저장하면 **B 프로젝트**에 A 의
+   * 내용이 적힌다.
+   */
+  active?: boolean;
 }
 
 export function JournalScreenV2({
@@ -82,6 +89,7 @@ export function JournalScreenV2({
   openEntryPath,
   onOpenEntryConsumed,
   onReturnToOrigin,
+  active = true,
 }: JournalScreenV2Props) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
@@ -204,10 +212,11 @@ export function JournalScreenV2({
   // 언마운트돼 있어 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
   // (팔레트는 예전부터 이 이벤트를 쏘고 있었지만 듣는 곳이 없어 무동작이었다.)
   useEffect(() => {
+    if (!active) return;
     const pending = consumeManualEntryRequest();
     if (pending) setManualSeed(pending);
     return onManualEntryRequest((seed) => setManualSeed(seed));
-  }, []);
+  }, [active]);
 
   // Apply the one-shot focus once the matching entry is in the list.
   useEffect(() => {

@@ -134,31 +134,39 @@ export default function ShellV2({
   // 들렸다 — 다른 화면(터미널 ⌘0, 도크 위)에서 누르면 무반응처럼 보이고 일지
   // 화면에 가야 뒤늦게 모달이 떴다 (2026-08-30 감사). 여기서 요청을 붙들어 두고
   // 일지 화면으로 옮긴다; 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
-  useEffect(
-    () =>
-      onManualEntryRequest((seed) => {
-        if (view === "journal") return;
-        holdManualEntryRequest(seed);
-        setUiV2View("journal");
-      }),
-    [view, setUiV2View],
-  );
+  // 비활성 탭은 아예 구독하지 않는다 (`active`) — 크롬식 탭에선 숨은 탭도
+  // 마운트된 채라, 창 전역 슬롯을 그대로 들으면 A 탭에서 누른 「일지로
+  // 남기기」가 B 탭까지 일지 화면으로 옮기고 B 프로젝트에 A 의 내용을 적는다.
+  // 아래 `NAV_BUS.openEntity` 가 이미 같은 이유로 `active` 를 본다.
+  useEffect(() => {
+    if (!active) return;
+    return onManualEntryRequest((seed) => {
+      if (view === "journal") return;
+      holdManualEntryRequest(seed);
+      setUiV2View("journal");
+    });
+  }, [active, view, setUiV2View]);
 
   // 설정 딥링크(`openSettings(tab)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
   // 바꾸는 쪽 절반. 패널이 탭을 고르고, 셸은 화면만 옮긴다.
-  useEffect(() => onOpenSettingsRequest(() => setUiV2View("settings")), [setUiV2View]);
+  // 활성 탭만 — 게이트가 없으면 `openSettings(tab)` 한 번이 **모든** 탭을 설정
+  // 화면으로 옮기고, `uiV2View` 는 프로젝트별로 영속되므로 나중에 B 탭에 돌아온
+  // 사용자는 떠났던 화면 대신 설정을 만난다.
+  useEffect(() => {
+    if (!active) return;
+    return onOpenSettingsRequest(() => setUiV2View("settings"));
+  }, [active, setUiV2View]);
 
   // AD-4 — 일지·diff·터미널·팔레트에서 온 "규칙/스킬로" 요청. 화면이 이미 떠
   // 있으면 그쪽 구독이 먼저 소비하고, 아니면 여기서 붙들어 두고 옮긴다.
-  useEffect(
-    () =>
-      onAgentContextRequest((intent) => {
-        if (view === "skills") return;
-        holdAgentContextIntent(intent);
-        setUiV2View("skills");
-      }),
-    [view, setUiV2View],
-  );
+  useEffect(() => {
+    if (!active) return;
+    return onAgentContextRequest((intent) => {
+      if (view === "skills") return;
+      holdAgentContextIntent(intent);
+      setUiV2View("skills");
+    });
+  }, [active, view, setUiV2View]);
 
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
@@ -486,6 +494,7 @@ export default function ShellV2({
           />
         ) : view === "journal" ? (
           <JournalScreenV2
+            active={active}
             projectId={projectId}
             todayKey={workday}
             oculpmReady={oculpmReady}
@@ -572,7 +581,7 @@ export default function ShellV2({
             onOpenInCode={openInCode}
           />
         ) : view === "skills" ? (
-          <SkillsScreenV2 projectId={projectId} />
+          <SkillsScreenV2 projectId={projectId} active={active} />
         ) : null}
 
         {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).

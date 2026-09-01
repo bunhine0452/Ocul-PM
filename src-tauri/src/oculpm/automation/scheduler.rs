@@ -22,6 +22,16 @@
 //!
 //! 실행이 실패해도 `next_run_at` 은 이미 미래다. 순서를 뒤집으면 실패하는
 //! 자동화가 매 틱 재발동해 예산을 태운다.
+//!
+//! # 오프라인은 실패가 아니라 **연기**다 (Phase 7 #automation-defer-offline)
+//!
+//! 네트워크에 닿지도 못한 발동은 밀어 둔 `next_run_at` 을 **원래 시각으로
+//! 되돌린다** — 그러면 위의 따라잡기 규칙이 그대로 그 발동을 집어 든다. 비행기
+//! 에서 노트북을 열었다고 주간 요약이 영영 사라질 이유는 없다.
+//!
+//! 되돌리기만 하면 30초마다 재시도하며 원장을 연기 행으로 채우므로,
+//! [`DEFER_RETRY`] 만큼 텀을 둔다. 상태 행의 `last_status`/`last_run_at` 이
+//! 이미 그 판정에 필요한 전부라 새 컬럼도 마이그레이션도 없다.
 
 use std::time::Duration;
 
@@ -47,6 +57,10 @@ const TICK: Duration = Duration::from_secs(30);
 /// 이 시간보다 더 늦게 발동하면 "따라잡기" 로 표시한다. 정상 발동은 한 틱
 /// (30초) 안에 잡히므로 5분이면 여유롭게 구분된다.
 const CATCH_UP_AFTER: chrono::Duration = chrono::Duration::minutes(5);
+
+/// 연기된 발동을 다시 시도하기까지의 최소 간격. `CATCH_UP_AFTER` 와 같은 값인
+/// 것은 우연이 아니다 — 재시도는 언제나 "따라잡기" 로 표시되어야 한다.
+const DEFER_RETRY: chrono::Duration = chrono::Duration::minutes(5);
 
 /// 상주 집행자를 띄운다 (앱 시작 시 1회, 감독관과 같은 자리).
 pub fn spawn(app: &AppHandle) {
@@ -114,10 +128,41 @@ async fn tick_project(
         let def = parsed.def;
         let state = states.iter().find(|s| s.automation_id == def.id).cloned();
         if let Some(due) = due_now(&db, project_id, &def, state, tz, now).await? {
-            run_due(app, project_id, workday, &config, &def, due, now).await;
+            let outcome = run_due(app, project_id, workday, &config, &def, due, now).await;
+            // 연기됐다 — 밀어 둔 다음 시각을 원래 자리로 되돌려 따라잡기 규칙에
+            // 태운다. 되돌리지 않으면 이번 발동은 그냥 사라진다.
+            if matches!(outcome, JobOutcome::Deferred(_)) {
+                rewind_next(&db, project_id, &def.id, due).await?;
+            }
         }
     }
     Ok(())
+}
+
+/// 연기된 발동의 `next_run_at` 을 원래 시각으로 되돌린다.
+///
+/// 실행 뒤의 상태 행을 **다시 읽어** 쓴다 — 러너가 방금 `last_run_at`·
+/// `last_status` 를 적었고, 그 둘이 다음 틱의 재시도 텀 판정에 쓰인다.
+async fn rewind_next(
+    db: &Db,
+    project_id: u32,
+    automation_id: &str,
+    scheduled: DateTime<Utc>,
+) -> Result<(), String> {
+    let states = db
+        .automation_state_list(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(mut state) = states
+        .into_iter()
+        .find(|s| s.automation_id == automation_id)
+    else {
+        return Ok(());
+    };
+    state.next_run_at = Some(scheduled.to_rfc3339());
+    db.automation_state_upsert(project_id, state)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 이 정의가 지금 돌아야 하는가. `Some(scheduled_at)` = 돌 시각(과거).
@@ -182,12 +227,35 @@ async fn due_now(
     if scheduled > now {
         return Ok(None);
     }
+    // 직전 발동이 오프라인으로 연기됐다면 텀을 둔다. 상태는 건드리지 않는다 —
+    // `next_run_at` 은 이미 원래 시각으로 되돌아와 있고, 그대로 두어야 다음
+    // 재시도가 같은 슬롯을 집는다.
+    if !defer_retry_due(state.as_ref(), now) {
+        return Ok(None);
+    }
 
     // 돌 차례다. **먼저** 다음 시각을 미래로 민다 — 실패해도 매 틱 재발동하지
     // 않게. 밀린 나머지는 `next_run_after(now)` 가 알아서 건너뛴다 (따라잡기 1회).
     let next = spec.next_run_after(tz, now);
     write_next(db, project_id, def, state, next).await?;
     Ok(Some(scheduled))
+}
+
+/// 연기 뒤 재시도할 때가 됐는가. 연기된 적이 없으면 언제나 참이다.
+fn defer_retry_due(state: Option<&AutomationState>, now: DateTime<Utc>) -> bool {
+    let Some(state) = state else { return true };
+    if state.last_status.as_deref() != Some(crate::db::automation::RUN_DEFERRED) {
+        return true;
+    }
+    match state
+        .last_run_at
+        .as_deref()
+        .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+    {
+        Some(last) => now - last.with_timezone(&Utc) >= DEFER_RETRY,
+        // 시각을 못 읽으면 막지 않는다 — 파생 캐시가 게이트가 되면 안 된다.
+        None => true,
+    }
 }
 
 async fn write_next(
@@ -230,7 +298,7 @@ async fn run_due(
     def: &AutomationDef,
     scheduled: DateTime<Utc>,
     now: DateTime<Utc>,
-) {
+) -> JobOutcome {
     let tz: Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
     let note = (now - scheduled > CATCH_UP_AFTER).then(|| "missed catch-up".to_string());
     let job = Job {
@@ -254,6 +322,7 @@ async fn run_due(
         ?outcome,
         "[FLOW] schedule fired"
     );
+    outcome
 }
 
 /// 잡 하나를 러너에 넘긴다. 「지금 실행」·정착 트리거도 **같은 문**을 쓴다 —
@@ -301,6 +370,7 @@ fn outcome_status(outcome: &JobOutcome) -> &'static str {
         JobOutcome::Dropped(_) => "dropped",
         JobOutcome::Skipped(_) => "skipped",
         JobOutcome::Failed(_) => "failed",
+        JobOutcome::Deferred(_) => "deferred",
         JobOutcome::Cancelled => "cancelled",
     }
 }
@@ -393,6 +463,55 @@ mod tests {
         );
         assert!(workday_start(SEOUL, "not-a-day", "00:00").is_none());
         assert!(workday_start(SEOUL, "20260831", "nope").is_none());
+    }
+
+    fn state(last_status: &str, last_run_at: &str) -> AutomationState {
+        AutomationState {
+            automation_id: "weekly".into(),
+            next_run_at: Some("2026-08-31T09:00:00+00:00".into()),
+            last_run_at: Some(last_run_at.into()),
+            last_status: Some(last_status.into()),
+            last_error: None,
+        }
+    }
+
+    /// 연기된 발동은 텀을 두고 재시도한다 — 30초마다 다시 걸면 원장이 연기
+    /// 행으로 가득 찬다.
+    #[test]
+    fn a_deferred_run_waits_before_retrying() {
+        let now = |s: &str| DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc);
+        let deferred = state("deferred", "2026-08-31T09:00:00+00:00");
+
+        // 30초 뒤 — 아직 아니다.
+        assert!(!defer_retry_due(
+            Some(&deferred),
+            now("2026-08-31T09:00:30Z")
+        ));
+        // 5분 뒤 — 재시도한다. 이때 `now - scheduled` 는 CATCH_UP_AFTER 를 넘으므로
+        // 그 발동은 "missed catch-up" 으로 표시된다.
+        assert!(defer_retry_due(
+            Some(&deferred),
+            now("2026-08-31T09:05:00Z")
+        ));
+    }
+
+    /// 연기가 아닌 결말은 텀이 없다 — 실패·성공은 다음 정상 시각을 기다린다.
+    #[test]
+    fn only_deferrals_are_throttled() {
+        let now = DateTime::parse_from_rfc3339("2026-08-31T09:00:10Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert!(defer_retry_due(None, now));
+        assert!(defer_retry_due(
+            Some(&state("failed", "2026-08-31T09:00:00+00:00")),
+            now
+        ));
+        assert!(defer_retry_due(
+            Some(&state("ok", "2026-08-31T09:00:00+00:00")),
+            now
+        ));
+        // 시각을 못 읽으면 막지 않는다.
+        assert!(defer_retry_due(Some(&state("deferred", "garbage")), now));
     }
 
     /// 정상 발동과 따라잡기의 경계. 한 틱(30초) 늦은 것은 따라잡기가 아니다.

@@ -604,6 +604,13 @@ pub struct ManualEntryDraft {
     /// `Some(false)` — 사용자가 UI 에서 검토 후 토글한다.
     #[serde(default)]
     pub verified_by_user: Option<bool>,
+    /// Phase 7 (#conversation-import) — 이 기록이 **일어난** 시각(RFC3339).
+    /// `None` → 지금(기존 의미). 들여온 대화는 원본 날짜를 보존해야 하므로
+    /// 워크데이 폴더·파일명 `HHMM`·`created_at` 이 전부 이 값에서 나온다.
+    /// 파싱 실패는 무시하고 지금으로 떨어진다 — 임포트 한 건 때문에 전체가
+    /// 죽는 것보다 날짜 하나가 오늘이 되는 편이 낫다.
+    #[serde(default)]
+    pub created_at: Option<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

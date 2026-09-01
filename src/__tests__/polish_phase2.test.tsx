@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, renderHook } from "@testing-library/react";
 
 // ─── 완성도 라운드 Phase 2 (2026-08-30) — 여정 ─────────────────────────────
@@ -288,16 +288,41 @@ describe("공유 1초 시계 — 켜진 구독자가 있을 때만 하나의 인
 });
 
 describe("색인 진행률 스토어 — 컨텍스트 밖", () => {
+  beforeEach(() => indexProgressStore.clear());
+
   it("set/clear 가 구독자에게 닿고, 같은 참조면 조용하다", () => {
-    const { result } = renderHook(() => useIndexProgress());
+    const { result } = renderHook(() => useIndexProgress(1));
     expect(result.current).toBeNull();
     const p = { current: 3, total: 10, current_file: "src/a.ts" };
-    act(() => indexProgressStore.set(p));
+    act(() => indexProgressStore.set(1, p));
     expect(result.current).toBe(p);
-    act(() => indexProgressStore.clear());
+    act(() => indexProgressStore.clear(1));
     expect(result.current).toBeNull();
-    act(() => indexProgressStore.clear());
+    act(() => indexProgressStore.clear(1));
     expect(result.current).toBeNull();
+  });
+
+  // 2026-09-01 — 크롬식 탭은 프로젝트 둘을 동시에 색인할 수 있고 이 모듈은
+  // 창에 하나다. 버킷이 없으면 슬롯 하나를 두 탭이 번갈아 덮어써, 각 검색
+  // 화면의 "n/m 색인 중" 이 남의 숫자로 튀고 먼저 끝난 쪽의 clear 가 아직
+  // 도는 쪽의 진행률까지 지운다.
+  it("두 프로젝트가 동시에 색인해도 서로의 진행률을 덮어쓰지 않는다", () => {
+    const a = renderHook(() => useIndexProgress(1));
+    const b = renderHook(() => useIndexProgress(2));
+    const pa = { current: 3, total: 10, current_file: "src/a.ts" };
+    const pb = { current: 7, total: 99, current_file: "lib/b.rs" };
+
+    act(() => {
+      indexProgressStore.set(1, pa);
+      indexProgressStore.set(2, pb);
+    });
+    expect(a.result.current).toBe(pa);
+    expect(b.result.current).toBe(pb);
+
+    // 1 이 먼저 끝나도 2 의 진행률은 그대로다.
+    act(() => indexProgressStore.clear(1));
+    expect(a.result.current).toBeNull();
+    expect(b.result.current).toBe(pb);
   });
 });
 
