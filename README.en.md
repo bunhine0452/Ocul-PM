@@ -56,7 +56,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.27.0 — it records when your hands stop · you can see who asked for it
+## 🚀 v2.28.0 — make your own colours and pass them around as files · a theme per project
+
+- **Themes are files now** — until now the five built-in themes were all there was. You can now build one in **Settings → Appearance** and export/import it as `.json`. The built-in five use the same format, so "Duplicate & edit" is a running start — the built-ins *are* the examples.
+- **The app is the preview** — there is no preview box. Change one colour and the sidebar, cards, borders and status colours change with it, before you save. **Colours you don't set stay untouched**: a theme that sets five background values is a complete theme, and everything else inherits the light/dark default. Every token has "Back to the family default".
+- **Your accent colour doesn't vanish quietly** — a theme that sets none of the accent tokens keeps the accent you picked. On macOS you can also turn on "Follow the system accent" and take the colour straight from System Settings.
+- **A theme per project** — bind a theme in the project editor and **only the windows showing that project** are painted with it; projects without a binding follow the global setting. The project colour mark in the sidebar is unchanged — one is the whole surface, the other is a marker.
+- **Someone else's theme can't overwrite yours** — an imported file drops its original identifier and gets a fresh one (import the same file twice and you get two distinct themes). If the name collides you are **asked**: overwrite, or keep a copy. You only pick the file once. And a theme can only paint a fixed list of colours, so whatever else is in the file never reaches the screen.
+
+## v2.27.0 — it records when your hands stop · you can see who asked for it
 
 - **Watcher automations** — last release, automation only watched the clock. Now it can **watch a work folder**: when file changes settle for a set interval, it drafts a journal entry or updates the plan. Six responsiveness tiers — fast (0.2s) · balanced (1s) · patient (3s) · relaxed (1m) · deferred (5m) · extended (10m).
 - **Work outside Claude Code stops disappearing** — auto-drafts used to happen only when Claude Code fired its exit hook, so anything done in Cursor or straight in an editor left no trace. The watcher is a **second path** that closes the gap. The two paths reserve the same window so it is never written twice, and the loser records **which path won**.
@@ -146,7 +154,7 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 ## v2.18.0 — Ocul-PM on your phone · mobile access (beta)
 
-You no longer go blind the moment you step away from the Mac. Turn the server on in Settings → Mobile, scan the QR with your phone, and **today's journal, the planner, discussions and AI chat open in your phone's browser over your own Tailscale network** — read and write journal entries, check off plan items, leave discussion notes, and stream answers from the AI configured on your Mac. Add it to the home screen and it behaves like an app, carrying over the theme and accent you picked on the desktop. **Your data still never leaves the Mac** — the server binds only to your Tailscale private network, phones pair once with a 6-digit code, and API keys stay in the Mac's keychain. It's a beta: search, retro and the Code screen remain desktop-only for now.
+You no longer go blind the moment you step away from the Mac. Turn the server on in Settings → Mobile, scan the QR with your phone, and **today's journal, the planner, discussions and AI chat open in your phone's browser over your own Tailscale network** — read and write journal entries, check off plan items, leave discussion notes, and stream answers from the AI configured on your Mac. Add it to the home screen and it behaves like an app, carrying over the theme and accent you picked on the desktop (a theme you built yourself still follows light/dark only on the phone). **Your data still never leaves the Mac** — the server binds only to your Tailscale private network, phones pair once with a 6-digit code, and API keys stay in the Mac's keychain. It's a beta: search, retro and the Code screen remain desktop-only for now.
 
 ## v2.17.0 — live refresh now heals itself
 
