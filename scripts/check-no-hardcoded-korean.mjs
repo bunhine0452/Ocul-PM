@@ -143,6 +143,9 @@ const TESTS = new Set([
   // ("지난주에 뭐 했지" → episode). 번역하면 재는 것이 사라진다.
   "__tests__/context_economy.test.ts",
   "__tests__/rules_reachability.test.ts",
+  // Osaurus 라운드 Phase 6 — 승인 카드. 한국어 버튼 이름("적용")과 이행 불가
+  // 사유 문구가 단언 재료다 (조용히 빠지지 않는지를 그 문구로 잰다).
+  "__tests__/declarative_config.test.tsx",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",

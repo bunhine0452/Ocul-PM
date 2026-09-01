@@ -14,6 +14,11 @@ fn main() {
             };
             ocul_pm_lib::ptyhost::host::run_host(std::path::PathBuf::from(socket));
         }
+        // 선언적 설정 CLI (#config-cli) — 같은 실행 파일, GUI 없음. PTY 호스트와
+        // 같은 이유로 tauri 빌더보다 먼저 갈라진다 (창·플러그인을 만들지 않는다).
+        if a == "config" {
+            ocul_pm_lib::config::cli::run(args.collect());
+        }
     }
     ocul_pm_lib::run()
 }

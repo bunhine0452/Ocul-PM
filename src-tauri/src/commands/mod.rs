@@ -6,6 +6,7 @@ pub mod config;
 pub mod context;
 pub mod conversation;
 pub mod dap;
+pub mod declarative_config;
 pub mod diagnostics;
 pub mod diff;
 pub mod discussion;

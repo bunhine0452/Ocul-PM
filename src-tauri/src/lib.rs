@@ -8,6 +8,8 @@ pub mod acp;
 pub mod app_error;
 mod ast;
 mod commands;
+// 선언적 설정 — plan/apply 두 모듈을 UI·CLI·MCP 가 공유한다 (Phase 6).
+pub mod config;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None
 // of the other modules are needed at the integration layer.
@@ -470,6 +472,10 @@ use crate::commands::{
     update_project_overview,
     write_to_pty,
 };
+// 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
+use crate::commands::declarative_config::{
+    config_apply, config_export, config_export_to_file, config_plan, config_read_file,
+};
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -510,6 +516,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             theme_export,
             system_accent,
             set_project_theme,
+            // 선언적 설정 (Phase 6) — 내보내기·계획·적용. 계획은 아무것도 쓰지
+            // 않고, 적용은 다시 계획해 남은 diff 로 결론을 낸다.
+            config_export,
+            config_export_to_file,
+            config_read_file,
+            config_plan,
+            config_apply,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             recall_top,
             recall_touch,

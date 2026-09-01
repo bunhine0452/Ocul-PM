@@ -79,6 +79,16 @@ export const commands = {
 	 *  값의 축은 설정의 `theme` 과 같다 (`"dark"` · `"solarized"` · `"custom:<uuid>"`).
 	 */
 	setProjectTheme: (projectId: number, themeId: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_project_theme", { projectId, themeId })),
+	/**  지금 상태를 YAML 문서로 내보낸다. 시크릿·머신 상태는 planner 가 뺀다. */
+	configExport: (projectId: number | null) => typedError<string, AppError>(__TAURI_INVOKE("config_export", { projectId })),
+	/**  문서를 파일로 저장한다 (대화상자). 취소하면 `None`. */
+	configExportToFile: (projectId: number | null) => typedError<string | null, AppError>(__TAURI_INVOKE("config_export_to_file", { projectId })),
+	/**  문서 파일을 읽는다 (`path` 가 없으면 대화상자). 취소하면 `None`. */
+	configReadFile: (path: string | null) => typedError<string | null, AppError>(__TAURI_INVOKE("config_read_file", { path })),
+	/**  문서와 지금 상태의 diff. **아무것도 쓰지 않는다** — 승인 카드의 입력이다. */
+	configPlan: (projectId: number | null, doc: string) => typedError<ConfigPlan, AppError>(__TAURI_INVOKE("config_plan", { projectId, doc })),
+	/**  계획을 적용하고 **다시 계획해** 남은 diff 로 결론을 낸다 (#config-verify). */
+	configApply: (projectId: number | null, doc: string) => typedError<ConfigApplyResult, AppError>(__TAURI_INVOKE("config_apply", { projectId, doc })),
 	/**  관련도 상위 N (감쇠 반영). 화면의 「회상 후보」 목록. */
 	recallTop: (projectId: number, limit: number) => typedError<RecallStat[], AppError>(__TAURI_INVOKE("recall_top", { projectId, limit })),
 	/**  주입됐다고 기록한다 — 다음 순위에 반영된다. */
@@ -2613,6 +2623,79 @@ export type CodeTreeNode = {
  *  (프런트가 배너로 병합 선택지를 그려야 한다).
  */
 export type CodeWriteOutcome = { kind: "saved"; hash: string } | { kind: "conflict"; disk_hash: string };
+
+export type ConfigApplyFailure = {
+	surface: ConfigSurface,
+	key: string,
+	/**  기계가 읽는 사유 코드. */
+	code: string,
+	/**  영어 원문 (로그·복사용). */
+	detail: string,
+};
+
+export type ConfigApplyResult = {
+	status: ConfigApplyStatus,
+	/**  실제로 쓴 항목의 키. */
+	applied: string[],
+	failed: ConfigApplyFailure[],
+	/**  애초에 이행할 수 없다고 계획된 항목 수 (표류한 규칙 등). */
+	blocked: number,
+	/**  대조 검증에서 **남은** 쓰기 수. 0 이어야 `Applied` 다. */
+	residual: number,
+};
+
+export type ConfigApplyStatus = 
+/**  계획한 쓰기가 전부 됐고 대조 검증도 비었다. */
+"applied" | 
+/**  일부만 됐다 — 실패했거나, 대조에서 diff 가 남았다. */
+"partial" | 
+/**  쓸 것이 없었다 (이미 목표 상태). */
+"no_op";
+
+export type ConfigOp = 
+/**  지금 없는 값을 새로 쓴다. */
+"add" | 
+/**  있는 값을 목표 값으로 바꾼다. */
+"change" | 
+/**  이미 목표 상태다. */
+"unchanged" | 
+/**
+ *  문서가 선언했지만 **이행할 수 없다** — 사유는 `reason` 에 있다.
+ *  조용히 무시하지 않는 것이 이 op 의 존재 이유다.
+ */
+"blocked";
+
+export type ConfigPlan = {
+	/**  이 계획이 대상으로 삼은 프로젝트 루트 (없으면 설정만 계획했다). */
+	project_root: string | null,
+	items: ConfigPlanItem[],
+	added: number,
+	changed: number,
+	unchanged: number,
+	blocked: number,
+};
+
+export type ConfigPlanItem = {
+	surface: ConfigSurface,
+	/**  표면 안에서의 키. 설정은 설정 키, `.oculpm` 은 점 경로, 아티팩트는 id. */
+	key: string,
+	op: ConfigOp,
+	/**  지금 값 (없으면 `None`). */
+	from: string | null,
+	/**  목표 값. 아티팩트는 해시다. */
+	to: string | null,
+	/**
+	 *  `Blocked` 사유 코드 — `content_not_carried` · `secret_excluded` ·
+	 *  `no_project` · `invalid_value`. UI 가 i18n 키로 바꾼다.
+	 */
+	reason: string | null,
+};
+
+export type ConfigSurface = 
+/**  SQLite `settings` 표. */
+"settings" | 
+/**  `.oculpm/config.toml`. */
+"oculpm_config" | "rule" | "skill" | "automation";
 
 export type Conversation = {
 	id: number,
