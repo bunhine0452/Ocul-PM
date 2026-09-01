@@ -1,6 +1,6 @@
 {
   "name": "oculpm",
-  "version": "2.30.0",
+  "version": "2.31.0",
   "description": "ocul-pm 훅 브리지(세션 시작·종료 신호)와 oculpm-mcp(구조화 일지/플랜 도구)를 한 번에 구성합니다. .oculpm 이 있는 프로젝트에서만 동작하며, v1 은 macOS 전용입니다.",
   "author": {
     "name": "ocul-pm",

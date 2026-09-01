@@ -56,7 +56,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.30.0 — import past conversations · settings as one document · keep going when the network drops
+## 🚀 v2.31.0 — themes from a link · a changelog and a privacy ledger on the web
+
+- **Theme gallery, install from a link** — preview light and dark on [oculpm.com/themes](https://oculpm.com/themes); "Import in app" opens the app and raises a **confirmation sheet**, and only your approval fetches it. Importing **leaves your current theme alone** — the gallery just gains one. A theme is a single JSON file, so you can contribute one by PR into `landing/themes/`; repository tests check the schema, the colour values and body contrast.
+- **Changelog on the web** — [oculpm.com/changelog](https://oculpm.com/changelog). The same content as the app's **Settings → Updates** tab; one file in the repo feeds the web, GitHub and the app.
+- **What leaves and what never does** — [oculpm.com/privacy](https://oculpm.com/privacy). The app opens exactly **five** outbound connections (LLM requests · update checks · GitHub fetches · a one-time embedding-model download · Notion, opt-in). Usage statistics and crash reports are **not collected at all**.
+- **Two-minute automation guide** — the wiki's [Automation](https://oculpm.com/wiki/en/automation) page, in English and Korean.
+- **Plugin docs → skill catalog** — all 25 third-party skills now show the **pinned commit** we vendored and a link to the original, so "pinned copy" is something you can verify on the spot.
+
+## v2.30.0 — import past conversations · settings as one document · keep going when the network drops
 
 - **Conversation import** — open a conversation export (Claude and friends), pick the ones that belong to this project, and they become journal entries (**Settings → Data**). Reading the list is **entirely offline and free** — only what you pick reaches the background model. Entries land **on their original dates**, and re-opening the same file shows already-imported conversations marked "imported" rather than billing you twice. Imported entries start **unverified** — a model rewrote a conversation that happened elsewhere, so read them before ticking them off.
 - **Declarative config** — export rules, skills, automations and app settings as one YAML document, commit it, and when you open a teammate's document it **shows you what would change before applying it**. API keys are never included. After applying it recomputes, and says "partially applied" if anything is left. Also `oculpm config export|plan|apply` from the terminal.

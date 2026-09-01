@@ -17,6 +17,16 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { esc, render } from "./md.mjs";
 
+/**
+ * 배지에 처음 찍히는 버전. 페이지가 뜨면 GitHub 릴리스 API 가 덮어쓰지만,
+ * 그 전(또는 오프라인)에도 옛 버전이 보이면 안 된다 — `package.json` 이
+ * 릴리스 체크리스트 §1 의 정본이므로 거기서 읽는다.
+ */
+function appVersion(root) {
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  return `v${pkg.version}`;
+}
+
 const OUT_CLASSES = { table: "pg-table", code: "", callout: "wk-callout" };
 
 // ── 공용 셸 ────────────────────────────────────────────────
@@ -44,7 +54,7 @@ const FOOTER_LINKS = [
  * 손으로 쓰는 페이지도 이 마크업을 그대로 복사한다 — 정적 사이트라 셸을
  * 런타임에 공유할 방법이 없고, 네 장뿐이라 생성기를 더 만들 이유도 없다.
  */
-export function shell({ slug, title, desc, hero, body, active }) {
+export function shell({ slug, title, desc, hero, body, active, version }) {
   const nav = NAV_LINKS.map(
     ([href, label]) =>
       `<a href="${href}"${href === active ? ' style="color: var(--ink);"' : ""}>${label}</a>`,
@@ -76,7 +86,7 @@ export function shell({ slug, title, desc, hero, body, active }) {
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.30.0</span>
+    <span class="nav-ver" data-version>${version}</span>
     <div class="nav-links">
       ${nav}
       <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
@@ -182,6 +192,7 @@ function changelogDate(root) {
 }
 
 export function buildChangelog(root) {
+  const version = appVersion(root);
   const md = readFileSync(join(root, "CHANGELOG.md"), "utf8");
   const releases = splitReleases(md);
   if (!releases.length) throw new Error("CHANGELOG.md 에 `## vX.Y.Z` 섹션이 없습니다");
@@ -205,6 +216,7 @@ ${html}
     .join("\n");
 
   const page = shell({
+    version,
     slug: "/changelog",
     active: "/changelog",
     title: `변경 이력 — Ocul-PM (최신 ${releases[0].version})`,
@@ -287,6 +299,7 @@ ${actions}
 }
 
 export function buildThemes(root) {
+  const version = appVersion(root);
   const css = readFileSync(join(root, "src/styles/tokens.css"), "utf8");
   const defaults = familyDefaults(css);
 
@@ -307,6 +320,7 @@ ${list.join("\n")}
     </div>`;
 
   const page = shell({
+    version,
     slug: "/themes",
     active: "/themes",
     title: "테마 갤러리 — Ocul-PM",
@@ -356,6 +370,7 @@ ${cards(builtins.map((t) => themeCard(t, defaults, null)))}
 // 새 아웃바운드를 추가하면 **여기부터** 고친다.
 export function buildPrivacy(root) {
   const page = shell({
+    version: appVersion(root),
     slug: "/privacy",
     active: null,
     title: "무엇이 나가고, 무엇이 절대 나가지 않는가 — Ocul-PM",
