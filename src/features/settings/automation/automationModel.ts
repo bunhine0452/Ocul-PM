@@ -63,6 +63,54 @@ export function fieldsFor(freq: string): {
 }
 
 /**
+ * 정의가 값을 들고 있지만 **이 빈도·종류에서는 러너가 읽지 않는** 필드
+ * (Osaurus 라운드 Phase 6 `#not-honored-notice`).
+ *
+ * 빈도를 바꿔도 옛 값이 파일에 남는다 — `weekly` 였다가 `daily` 가 된 정의는
+ * `weekday: mon` 을 계속 들고 있고, 러너는 그걸 무시한다. 지금까지는 조용히
+ * 무시됐다. 에디터가 「선언됐지만 아직 이행하지 않음」으로 적는다.
+ *
+ * 순수 함수다 — 화면 없이 단언할 수 있어야 회귀가 잡힌다.
+ */
+export function unusedFieldsFor(def: AutomationDef): string[] {
+  const out: string[] = [];
+  if (def.kind === "watcher") {
+    // 워처는 빈도 필드를 전부 안 읽는다 — 정착 타이머가 시각을 소유한다.
+    for (const [name, value] of [
+      ["frequency", def.frequency],
+      ["at", def.at],
+      ["weekday", def.weekday],
+      ["cron", def.cron],
+      ["every", def.every],
+      ["day_of_month", def.day_of_month],
+      ["month", def.month],
+      ["day", def.day],
+    ] as const) {
+      if (value != null && value !== "") out.push(name);
+    }
+    return out;
+  }
+
+  const fields = fieldsFor(def.frequency ?? "");
+  const carried: Array<[string, unknown, boolean]> = [
+    ["at", def.at, fields.at],
+    ["every", def.every, fields.every],
+    ["weekday", def.weekday, fields.weekday],
+    ["day_of_month", def.day_of_month, fields.dayOfMonth],
+    ["month", def.month, fields.monthDay],
+    ["day", def.day, fields.monthDay],
+    ["cron", def.cron, fields.cron],
+  ];
+  for (const [name, value, used] of carried) {
+    if (!used && value != null && value !== "") out.push(name);
+  }
+  // 스케줄은 감시 필드를 안 읽는다.
+  if (def.watch) out.push("watch");
+  if (def.responsiveness) out.push("responsiveness");
+  return out;
+}
+
+/**
  * 저장 전에 프런트가 막을 수 있는 것만 막는다 — 빈도·감시 경로의 진짜 판정은
  * 백엔드(`ScheduleSpec::from_def` · `settle::watch_error`)가 소유한다
  * (한 규칙을 두 벌 들지 않는다). 반환값은 i18n 키 또는 `null`.

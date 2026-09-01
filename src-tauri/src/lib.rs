@@ -14,7 +14,9 @@ pub mod config;
 // integration tests can drive the manager directly with a temp DB. None
 // of the other modules are needed at the integration layer.
 pub mod dap;
+// `oculpm://` 딥링크 — 파싱만 한다 (무확인 실행 0, Phase 6).
 pub mod db;
+pub mod deeplink;
 mod embedding;
 mod error;
 // LSP·DAP 공용 Content-Length 프레이밍 (docs/dap/00-master-plan.md #framing-shared).
@@ -32,6 +34,7 @@ pub mod oculpm;
 // main.rs 의 `--pty-host` 분기와 통합 테스트가 직접 부른다.
 mod menu;
 mod mobile_bridge;
+pub mod plugins;
 pub mod ptyhost;
 mod secrets;
 // 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소
@@ -332,6 +335,7 @@ use crate::commands::{
     notion_verify_token,
     oculpm_agent_run_signal,
     oculpm_agents_apply_master_upgrade,
+    oculpm_agents_check_master_ahead,
     oculpm_agents_check_master_upgrade,
     oculpm_agents_detect,
     oculpm_agents_get_master_template,
@@ -476,6 +480,8 @@ use crate::commands::{
 use crate::commands::declarative_config::{
     config_apply, config_export, config_export_to_file, config_plan, config_read_file,
 };
+// 플러그인 번들 임포트 (Phase 6) — 가드·분류·배치는 crate::plugins 에 있다.
+use crate::commands::plugins::{plugin_import, plugin_list, plugin_pick_bundle, plugin_remove};
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -523,6 +529,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             config_read_file,
             config_plan,
             config_apply,
+            // 플러그인 번들 임포트 (Phase 6) — 미리보기(dry)와 설치가 같은 문.
+            plugin_pick_bundle,
+            plugin_import,
+            plugin_list,
+            plugin_remove,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             recall_top,
             recall_touch,
@@ -728,6 +739,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_sync_active,
             oculpm_agents_detect,
             oculpm_agents_get_master_template,
+            oculpm_agents_check_master_ahead,
             oculpm_agents_check_master_upgrade,
             oculpm_agents_apply_master_upgrade,
             oculpm_compare_layers,
@@ -885,6 +897,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::themes::ThemesChanged,
             // 자동화 실행 시작/종료 — 「실행 중…」과 인라인 Stop (Phase 3)
             crate::commands::automation::AutomationRunChanged,
+            // 딥링크 — 프런트가 확인 시트를 띄운다 (Phase 6 #deep-link)
+            crate::deeplink::DeepLinkReceived,
         ])
 }
 
@@ -934,6 +948,9 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // `oculpm://` — 웹에서 앱으로 오는 유일한 길. 플러그인은 URL 을
+        // 나르기만 하고, 무엇을 할지는 확인 시트가 정한다 (무확인 실행 0).
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(
             // tray 팝오버 창은 위치를 트레이 클릭이 결정 — 상태 복원 제외.
             tauri_plugin_window_state::Builder::default()
@@ -994,6 +1011,18 @@ pub fn run() {
             // 특별한 "런처 창" 은 없고, 시작 탭 하나를 문 평범한 탭 창이다.
             // 창 닫기 훅(포커스 추적·탭 정리·마지막 창 판정)도 여기서 붙는다.
             crate::commands::window::adopt_first_window(app.handle());
+
+            // 딥링크 수신 — 앱이 이미 떠 있을 때 오는 URL 을 받는다.
+            // `dispatch` 는 파싱에 실패하면 아무 일도 하지 않는다.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    for url in event.urls() {
+                        crate::deeplink::dispatch(&handle, url.as_str());
+                    }
+                });
+            }
 
             // 추적 중인 **모든** 프로젝트 감시 시작 (2026-08-12 사용자 결정).
             // 예전에는 watcher 가 탭 수명에 묶여 있어, 탭을 안 연 프로젝트는

@@ -21,10 +21,12 @@ import {
   WEEKDAYS,
   fieldsFor,
   localValidation,
+  unusedFieldsFor,
   slugify,
   switchKind,
 } from "./automationModel";
 import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
+import { NotHonoredNotice } from "../plugins/NotHonoredNotice";
 
 const SELECT_CLASS =
   "w-full h-9 rounded-md border border-input bg-background px-3 text-sm";
@@ -270,6 +272,16 @@ export function AutomationEditor({
           <p className="text-[11px] text-muted-foreground">{t("automation.editor.helpSettle")}</p>
         )}
       </div>
+
+      {/* 이 빈도·종류에서 러너가 읽지 않는 필드 (Phase 6 #not-honored-notice).
+          빈도를 바꿔도 옛 값이 파일에 남고, 지금까지는 조용히 무시됐다. */}
+      <NotHonoredNotice
+        items={unusedFieldsFor(def).map((name) => ({
+          name,
+          reason: isWatcher ? "watcher_ignores_schedule" : "frequency_ignores_field",
+        }))}
+        titleKey="automation.editor.notHonored"
+      />
 
       {/* 문제 해결 3종 — 진단 탭과 같은 컴포넌트 (설계 §2.5). */}
       <AutomationTroubleshooting />

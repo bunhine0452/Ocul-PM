@@ -44,6 +44,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["oculpm"]
+      }
+    },
     "updater": {
       "endpoints": [
         "https://github.com/bunhine0452/Ocul-PM/releases/latest/download/latest.json"

@@ -70,6 +70,23 @@ impl OculpmManager {
         Ok(agents::master_upgrade_available(&root))
     }
 
+    /// 반대 방향 — 디스크의 템플릿이 **이 앱 버전보다 새롭다**. 고칠 길은
+    /// 앱 업데이트뿐이라 조용히 지나가던 자리다 (Phase 6 #not-honored-notice).
+    pub async fn check_master_ahead(
+        &self,
+        project_id: u32,
+    ) -> Result<Option<agents::MasterUpgrade>, OculpmError> {
+        let root = {
+            let projects = self.projects.read().await;
+            projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?
+                .root
+                .clone()
+        };
+        Ok(agents::master_ahead_of_app(&root))
+    }
+
     /// Upgrade the on-disk master to the embedded one (backing up the old) and
     /// re-sync all active adapters so AGENTS.md etc. pick up the new rules.
     pub async fn apply_master_upgrade(

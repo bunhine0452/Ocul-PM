@@ -194,6 +194,9 @@ export const ko = {
   "watcher.takeOverFailed": "가져오기 실패: {error}",
   "watcher.offlineTitle": "실시간 갱신이 꺼져 있습니다",
   "watcher.offline": "다른 ocul-pm 인스턴스가 이 프로젝트를 쓰고 있어요. 1분마다 자동으로 다시 시도합니다 — 그동안 변경은 화면을 새로 열 때 보입니다.",
+  "agents.ahead.title": "이 프로젝트의 기록 규칙이 이 앱 버전보다 새롭습니다",
+  "agents.ahead.version":
+    "템플릿 v{disk} · 이 앱은 v{app} 까지 압니다 — 새 규칙은 아직 이행하지 않습니다. 앱을 업데이트하세요.",
   "agents.upgrade.title": "에이전트 규칙(AGENTS.md) 업데이트가 있어요",
   "agents.upgrade.version": "규칙 템플릿 v{from} → v{to}",
   "agents.upgrade.action": "업데이트",
@@ -579,6 +582,67 @@ export const ko = {
   "settings.storage.secrets": "비밀 데이터",
   "settings.storage.version": "버전",
   "settings.storage.copied": "복사됨!",
+  // ── 딥링크 확인 시트 (Osaurus 라운드 Phase 6) ─────────────────────────
+  "deeplink.origin": "출처",
+  "deeplink.writesNote": "승인해야 실행됩니다 — 지금까지 바뀐 것은 없습니다.",
+  "deeplink.plugin.title": "플러그인 번들을 설치할까요?",
+  "deeplink.plugin.effect":
+    "스킬·커맨드·에이전트를 이 프로젝트의 .claude/ 아래에 놓습니다. 기존 파일은 덮어쓰지 않습니다.",
+  "deeplink.plugin.action": "미리보기",
+  "deeplink.skill.title": "스킬을 설치할까요?",
+  "deeplink.skill.effect": "번들에서 스킬을 가져와 .claude/skills/ 에 놓습니다.",
+  "deeplink.skill.action": "미리보기",
+  "deeplink.theme.title": "테마를 가져올까요?",
+  "deeplink.theme.effect": "테마 파일을 받아 갤러리에 추가합니다. 지금 테마는 바뀌지 않습니다.",
+  "deeplink.theme.action": "가져오기",
+  "deeplink.open.title": "이 프로젝트를 열까요?",
+  "deeplink.open.effect": "이미 등록된 프로젝트만 엽니다 — 새 프로젝트를 추가하지 않습니다.",
+  "deeplink.open.action": "열기",
+  "deeplink.open.notRegistered": "등록되지 않은 프로젝트입니다 — 링크로는 추가하지 않습니다.",
+
+  // ── 선언됐지만 아직 이행하지 않음 (Osaurus 라운드 Phase 6) ────────────
+  "notHonored.title": "선언됐지만 아직 이행하지 않습니다",
+  "notHonored.reason.hooks_run_shell":
+    "훅은 셸 스크립트를 실행합니다 — 감지만 하고 설치하지 않습니다",
+  "notHonored.reason.binaries_not_installed": "실행 파일은 설치하지 않습니다",
+  "notHonored.reason.not_supported_yet": "이 앱 버전이 아직 다루지 않습니다",
+  "automation.editor.notHonored": "이 설정에서는 읽지 않는 값이 남아 있습니다",
+  "notHonored.reason.frequency_ignores_field": "이 빈도에서는 쓰이지 않습니다",
+  "notHonored.reason.watcher_ignores_schedule": "감시 자동화는 시각 필드를 읽지 않습니다",
+  "notHonored.reason.app_older_than_template":
+    "템플릿이 이 앱 버전보다 새롭습니다 — 앱을 업데이트하면 이행합니다",
+  "notHonored.reason.unknown": "사유 없음",
+
+  // ── 플러그인 번들 (Osaurus 라운드 Phase 6) ────────────────────────────
+  "plugins.title": "플러그인 번들",
+  "plugins.desc":
+    "Claude 플러그인 번들을 들여옵니다. 스킬·커맨드·에이전트를 Claude Code 가 읽는 자리에 그대로 놓고, 마커 없는 기존 파일은 절대 덮어쓰지 않습니다.",
+  "plugins.source.aria": "번들 출처 (owner/repo)",
+  "plugins.preview": "미리보기",
+  "plugins.fromFile": "zip 파일",
+  "plugins.install": "설치",
+  "plugins.remove": "제거",
+  "plugins.noManifest": "plugin.json 이 없어 폴더 구조만 보고 읽었습니다.",
+  "plugins.kind.skill": "스킬",
+  "plugins.kind.command": "커맨드",
+  "plugins.kind.agent": "에이전트",
+  "plugins.kind.mcp_servers": "MCP",
+  "plugins.kind.reference": "참조",
+  "plugins.kind.not_honored": "미이행",
+  "plugins.summary": "놓을 것 {wrote} · 이미 같음 {unchanged} · 충돌 {conflicts}",
+  "plugins.conflictNote":
+    "충돌한 파일은 이미 그 자리에 있던 당신의 파일입니다 — 건드리지 않습니다.",
+  "plugins.mcpConflict": "이미 쓰이는 MCP 서버 키라 건너뜁니다 — {keys}",
+  "plugins.mcpUnreadable": ".mcp.json 을 읽을 수 없어 병합하지 않았습니다.",
+  "plugins.skipped": "아카이브에서 받아들이지 않은 항목 {count}건",
+  "plugins.notHonored.title": "감지했지만 실행하지 않습니다",
+  "plugins.itemCount": "파일 {count}개",
+  "plugins.installed": "{name} 설치됨 — 파일 {count}개",
+  "plugins.replace.confirm": "{name} 이(가) 이미 설치돼 있습니다. 교체할까요?",
+  "plugins.remove.confirm": "{name} 이(가) 놓은 파일을 지울까요?",
+  "plugins.removed": "제거됨 — 파일 {count}개",
+  "plugins.removed.kept": "제거됨 — 파일 {count}개. 직접 고친 {kept}개는 남겼습니다.",
+
   // ── 선언적 설정 (Osaurus 라운드 Phase 6) ──────────────────────────────
   "settings.declarative.title": "선언적 설정",
   "settings.declarative.desc":

@@ -815,6 +815,21 @@ pub async fn oculpm_agents_check_master_upgrade(
         .map_err(AppError::from)
 }
 
+/// 디스크의 템플릿이 이 앱 버전보다 **새로운가**. `Some` 이면 이 앱이 아직
+/// 모르는 규칙이 템플릿에 들어 있다는 뜻이고, 화면은 그것을 「선언됐지만 아직
+/// 이행하지 않음」으로 적는다 (Phase 6 #not-honored-notice).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_agents_check_master_ahead(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<Option<MasterUpgrade>, AppError> {
+    manager
+        .check_master_ahead(project_id)
+        .await
+        .map_err(AppError::from)
+}
+
 /// Upgrade the on-disk master to the embedded one + re-sync adapters (AGENTS.md
 /// etc.). The previous master is backed up to `_template.md.bak`.
 #[tauri::command]

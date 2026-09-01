@@ -20,7 +20,7 @@ Osaurus 의 "볼트 감시 → 편집이 멎으면 자동 커밋" 은 여기서 
 없는 기능을 미리 광고하는 것 자체가 정직성 위반이다.
 
 릴리스 매핑(실제): v2.26.0=P0+P1 · v2.27.0=P2+P3(P2 가 미태그였다) · v2.28.0=P4 ·
-v2.29.0=P5 · v2.30.0=P6 · v2.31.0=P7. Phase 경계마다 5면을 채워 릴리스한다.
+v2.29.0=P5 · v2.30.0=P6+P7(P6 는 미태그 — P7 과 한 버전으로) · v2.31.0=P8. Phase 경계마다 5면을 채워 릴리스한다.
 
 **마이그레이션 번호는 계획 시점에 예약한다** (병렬 Phase 충돌 방지):
 033=automation(P0) · 034=project_theme(P4) · 035=context_recall(P5). 새 테이블이
@@ -94,16 +94,16 @@ v2.29.0=P5 · v2.30.0=P6 · v2.31.0=P7. Phase 경계마다 5면을 채워 릴리
 - [x] 규칙 도달 회귀 게이트 — `__tests__/fixtures/rules-compliance/` 질문 12개로 구/신 경로의 **조립된 컨텍스트 문자열**을 비교(LLM 0·결정적). 규칙 절이 빠지면 실패 {#rules-ab-check}
 
 ## Phase 6 — 선언적 설정 · 플러그인 번들 · 딥링크 {#declarative}
-- [ ] `config/planner.rs` + `config/applier.rs` — UI·CLI·MCP 세 진입점이 **같은 두 모듈**을 부른다 {#config-plan-apply}
-- [ ] YAML 스키마 `oculpm_config: v1` — settings·`.oculpm/config.toml`·rules·skills·automations(해시). 시크릿 전면 배제 {#config-schema}
-- [ ] 승인 카드 — 적용 전 계산된 변경 목록(추가/변경/제거/무변경 건수). `useConfirm()` 이 아닌 전용 카드 {#config-approval-card}
-- [ ] 대조 검증 — apply 후 재-plan 해 diff 가 비었는지 확인, 안 비면 「일부만 적용됨」으로 정직하게 보고 {#config-verify}
-- [ ] CLI 서브커맨드 `oculpm config export|plan|apply` — same-exe(`--pty-host` 선례), 새 바이너리 무배포 {#config-cli}
-- [ ] Claude 플러그인 번들 임포트 — skills/`agents`→자동화/commands/`.mcp.json`/CLAUDE.md 를 **Claude Code 가 읽는 자리에 그대로** {#plugin-import}
-- [ ] 번들 소유 마커 + 설치/업데이트/제거 단위 — `rules.rs` 미러 마커 규약 재사용, 마커 없는 사용자 파일은 절대 덮어쓰지 않고 conflict 보고 {#bundle-ownership}
-- [ ] 임포트 가드 — **신규 의존성 `zip`(ZIP64)** · 크기/파일수/깊이 상한 · zip slip 거부 · 명시적 교체 확인 · 부분 실패 요약 · GitHub 레이트 리밋 안내 {#import-guards}
-- [ ] 「선언됐지만 아직 이행하지 않음」 고지 — 플러그인 상세·AGENTS 템플릿·자동화 에디터 3곳에 일반화 {#not-honored-notice}
-- [ ] `oculpm://` 딥링크(skill/theme/plugin/open) — **신규 의존성 `tauri-plugin-deep-link`** + `tauri.conf.json` 스킴 + `capabilities/default.json` 권한. **무확인 실행 0**, GitHub owner/repo 형태만, 테마는 https+화이트리스트, open 은 등록된 프로젝트만 {#deep-link}
+- [x] `config/planner.rs` + `config/applier.rs` — UI·CLI·MCP 세 진입점이 **같은 두 모듈**을 부른다 {#config-plan-apply}
+- [x] YAML 스키마 `oculpm_config: v1` — settings·`.oculpm/config.toml`·rules·skills·automations(해시). 시크릿 전면 배제 {#config-schema}
+- [x] 승인 카드 — 적용 전 계산된 변경 목록(추가/변경/제거/무변경 건수). `useConfirm()` 이 아닌 전용 카드 {#config-approval-card}
+- [x] 대조 검증 — apply 후 재-plan 해 diff 가 비었는지 확인, 안 비면 「일부만 적용됨」으로 정직하게 보고 {#config-verify}
+- [x] CLI 서브커맨드 `oculpm config export|plan|apply` — same-exe(`--pty-host` 선례), 새 바이너리 무배포 {#config-cli}
+- [x] Claude 플러그인 번들 임포트 — skills/`agents`→자동화/commands/`.mcp.json`/CLAUDE.md 를 **Claude Code 가 읽는 자리에 그대로** {#plugin-import}
+- [x] 번들 소유 마커 + 설치/업데이트/제거 단위 — `rules.rs` 미러 마커 규약 재사용, 마커 없는 사용자 파일은 절대 덮어쓰지 않고 conflict 보고 {#bundle-ownership}
+- [x] 임포트 가드 — **신규 의존성 `zip`(ZIP64)** · 크기/파일수/깊이 상한 · zip slip 거부 · 명시적 교체 확인 · 부분 실패 요약 · GitHub 레이트 리밋 안내 {#import-guards}
+- [x] 「선언됐지만 아직 이행하지 않음」 고지 — 플러그인 상세·AGENTS 템플릿·자동화 에디터 3곳에 일반화 {#not-honored-notice}
+- [x] `oculpm://` 딥링크(skill/theme/plugin/open) — **신규 의존성 `tauri-plugin-deep-link`** + `tauri.conf.json` 스킴 + `capabilities/default.json` 권한. **무확인 실행 0**, GitHub owner/repo 형태만, 테마는 https+화이트리스트, open 은 등록된 프로젝트만 {#deep-link}
 
 ## Phase 7 — 임포트 · 오프라인 {#import-offline}
 - [ ] 대화 임포트 골격 — 후보 목록(날짜·제목·길이·추정 타입) → 선택 → Core Model 규격 일지화 → `verified_by_user:false` {#conversation-import}
@@ -254,6 +254,58 @@ stdio 로 부르는 것이고, 우리 패널은 그 경로를 지나지 않는�
 
 영향: #context-tools #capabilities-manifest #retire-digest-rules
 
+### Decision 11 — 문서는 아티팩트의 **내용**을 나르지 않는다 {#d11-artifacts-report-only}
+잠금 2026-09-01 · claude-code
+
+`oculpm_config` 의 rules·skills·automations 절은 **존재와 표류만** 보고하고
+apply 가 만들어 내지 않는다. 설계 §1 의 승인 카드 예시 「+ 규칙 …를 추가」는
+이 데이터 모델로 이행할 수 없다.
+
+근거: 해시에서 내용을 복원할 수 없다. 내용을 YAML 에 실으면 세 아티팩트
+전부(온디스크 SSOT)의 정본이 둘이 되고, git 이 이미 하는 일을 두 번 한다.
+그래서 세 절은 "이 설정이 전제하는 것" 목록이다 — 없거나 다르면 승인 카드가
+`Blocked(content_not_carried)` 로 **말은 하되** 손대지 않는다. 내용을 실제로
+가진 경로는 같은 Phase 의 플러그인 번들 임포트다.
+
+해시는 sha256 이 아니라 blake3 다 — 저장소가 이미 쓰는 함수이고(`indexer.rs`)
+이 값은 우리끼리만 비교한다. 새 의존성을 들이지 않는다.
+
+영향: #config-schema #config-plan-apply #config-approval-card
+
+### Decision 12 — MCP 는 선언적 설정의 진입점이 되지 않는다 {#d12-no-mcp-config}
+잠금 2026-09-01 · claude-code
+
+설계 §1 은 "UI · CLI · MCP 세 진입점이 같은 planner/applier 를 부른다" 고
+적었다. **MCP 는 뺀다.** 진입점은 UI 와 CLI 둘이다.
+
+근거 둘. (1) `oculpm-mcp` 는 별도 stdio 바이너리이고 "디스크가 SSOT — SQLite/앱
+상태에 일절 접근하지 않으므로 앱이 꺼져 있어도 동작한다" 가 그 정체성이다
+(`bin/oculpm_mcp.rs`). 설정은 SQLite `settings` 표에 있어 그 규약을 깬다.
+(2) 더 결정적인 것 — `config_apply` 를 MCP 도구로 열면 **외부 에이전트가
+확인 없이 앱 설정을 다시 쓴다.** 같은 Phase 가 딥링크에 「무확인 실행 0」을
+못박아 놓고 MCP 에 그 문을 열어 두는 것은 앞뒤가 맞지 않는다.
+
+에이전트가 설정을 보게 하고 싶어지면 읽기 전용 도구를 따로 설계한다 —
+이 라운드 범위 밖이다.
+
+영향: #config-plan-apply
+
+### Decision 13 — 번들의 `agents/*.md` 는 두 자리에 놓인다 {#d13-agents-both}
+잠금 2026-09-01 · claude-code
+
+설계 표는 `agents/<n>.md` 를 「자동화 정의(비활성)」로만 적었다. 실제로는
+**둘 다** 한다 — `.claude/agents/<n>.md` 에 원본 그대로 놓고, 같은 지시문으로
+비활성 스케줄 정의를 하나 만든다.
+
+근거: 이 임포트의 명제가 "Claude Code 가 읽는 자리에 그대로 놓아 번역 손실
+0" 이다. `agents/*.md` 는 Claude Code 의 서브에이전트 정의이고 그것이 읽는
+자리는 `.claude/agents/` 다 — 자동화 정의로만 옮기면 그 파일은 Claude Code
+에게 **사라진다**. 자동화 정의는 그 지시문을 배경 작업으로도 쓸 수 있는
+자리를 더해 주는 것이지, 원본을 대신하는 것이 아니다. 제거는 두 자리를
+한 단위로 가져간다.
+
+영향: #plugin-import #bundle-ownership
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -309,4 +361,14 @@ stdio 로 부르는 것이고, 우리 패널은 그 경로를 지나지 않는�
 | 2026-09-01T14:45:00+09:00 | #context-tab | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 항상 가는 것·매니페스트 미리보기·예산 바·회상 후보(잊기)·위험 구역 |
 | 2026-09-01T14:45:00+09:00 | #project-instructions | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | settings 의 project_instructions.<id>. 전역과 병합하고 프로젝트가 뒤(우선) |
 | 2026-09-01T14:45:00+09:00 | #rules-ab-check | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 구 경로가 삭제돼 «도달 가능성»으로 재정의 — 12문항 always/on-demand, 절단 마커 0 |
+| 2026-09-01T19:15:00+09:00 | #config-plan-apply | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | planner(순수)+applier 를 UI·CLI 가 공유. **D12** — MCP 진입점은 폐기(디스크 전용 규약 + 무확인 쓰기) |
+| 2026-09-01T19:15:00+09:00 | #config-schema | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | **D11** — rules·skills·automations 는 해시로 존재·표류만. 해시는 blake3(신규 의존성 0) |
+| 2026-09-01T19:15:00+09:00 | #config-approval-card | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | useConfirm 이 아닌 전용 카드. 변경 없음은 줄이 아니라 합계, 이행 불가는 사유까지 |
+| 2026-09-01T19:15:00+09:00 | #config-verify | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | apply 뒤 **다시 계획**해 남은 diff 가 0 일 때만 「적용 완료」. CLI 는 종료 코드 3 |
+| 2026-09-01T19:15:00+09:00 | #config-cli | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | `ocul-pm config export|plan|apply` — same-exe. app_data 는 ProjectDirs 로 직접(AppHandle 없음) |
+| 2026-09-01T19:15:00+09:00 | #plugin-import | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | Claude Code 가 읽는 자리에 그대로. **D13** — agents 는 `.claude/agents/` + 비활성 자동화 둘 다 |
+| 2026-09-01T19:15:00+09:00 | #bundle-ownership | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 마커는 마크다운 **끝**에(frontmatter 보존). 마커 없는 파일은 안 덮고 conflict, 제거도 안 가져감 |
+| 2026-09-01T19:15:00+09:00 | #import-guards | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 신규 의존성 `zip`. zip slip·깊이·개수·크기 + 헤더를 믿지 않고 읽기 자체를 자른다. 미리보기=설치와 같은 함수(dry) |
+| 2026-09-01T19:15:00+09:00 | #not-honored-notice | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 세 자리 한 컴포넌트. 새로 만든 `master_ahead_of_app` — 템플릿이 앱보다 새로운 방향은 여태 조용히 무시됐다 |
+| 2026-09-01T19:15:00+09:00 | #deep-link | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1915_feature_declarative-config-plugins-phase6.md | 신규 의존성 `tauri-plugin-deep-link`. 승인 시트를 지나지 않는 경로가 **없다**. `owner/repo` 파서는 임포트와 공유 |
 <!-- oculpm:plan-log end -->

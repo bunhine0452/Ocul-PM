@@ -168,7 +168,8 @@ async fn cmd_export(db: &Db, root: Option<&Path>, out: Option<&Path>) -> Result<
     let text = schema::render_doc(&planner::export(&state)).map_err(|e| e.detail())?;
     match out {
         Some(path) => {
-            std::fs::write(path, text.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))?;
+            std::fs::write(path, text.as_bytes())
+                .map_err(|e| format!("{}: {e}", path.display()))?;
             eprintln!("wrote {}", path.display());
         }
         None => print!("{text}"),
@@ -195,11 +196,20 @@ async fn cmd_apply(db: &Db, root: Option<&Path>, file: &Path) -> Result<i32, Str
         .map_err(|e| e.to_string())?;
 
     for f in &result.failed {
-        eprintln!("  ! {} {} — {} ({})", surface_tag(f.surface), f.key, f.detail, f.code);
+        eprintln!(
+            "  ! {} {} — {} ({})",
+            surface_tag(f.surface),
+            f.key,
+            f.detail,
+            f.code
+        );
     }
     match result.status {
         ConfigApplyStatus::Applied => {
-            println!("\n적용 완료 — {}건. 대조 검증에서 남은 차이 없음.", result.applied.len());
+            println!(
+                "\n적용 완료 — {}건. 대조 검증에서 남은 차이 없음.",
+                result.applied.len()
+            );
             Ok(0)
         }
         ConfigApplyStatus::NoOp => {
@@ -225,8 +235,7 @@ async fn plan_file(db: &Db, root: Option<&Path>, file: &Path) -> Result<ConfigPl
 }
 
 fn read_doc(file: &Path) -> Result<schema::ConfigDoc, String> {
-    let text =
-        std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
     schema::parse_doc(&text).map_err(|e| e.detail())
 }
 
@@ -297,7 +306,10 @@ mod tests {
         .unwrap();
         let plan = planner::plan(&state, &doc, None);
         let text = render_plan(&plan);
-        assert!(text.contains("+ 설정 content_language 를 ko 로 추가"), "{text}");
+        assert!(
+            text.contains("+ 설정 content_language 를 ko 로 추가"),
+            "{text}"
+        );
         assert!(text.contains("~ 설정 core_model  sonnet → haiku"), "{text}");
         assert!(text.contains("· 변경 없음 1건"), "{text}");
         assert!(
@@ -337,6 +349,9 @@ mod tests {
         .unwrap();
         let plan = planner::plan(&ConfigState::default(), &doc, None);
         let text = render_plan(&plan);
-        assert!(text.contains("⚠ 프로젝트 project — 이행하지 않음 (no_project)"), "{text}");
+        assert!(
+            text.contains("⚠ 프로젝트 project — 이행하지 않음 (no_project)"),
+            "{text}"
+        );
     }
 }

@@ -99,6 +99,10 @@ tower-http = { version = "0.6", features = ["fs"] }
 if-addrs = "0.13"
 tower = { version = "0.5", features = ["util"] }
 cron = "0.17.0"
+# 플러그인 번들 임포트 (Phase 6 #import-guards) — ZIP64 포함. deflate 만 켠다
+# (bzip2·zstd 는 Claude 플러그인 번들에 쓰이지 않는다).
+zip = { version = "5", default-features = false, features = ["deflate"] }
+tauri-plugin-deep-link = "2.4.10"
 
 # ⌘V 로 Finder 가 복사한 파일을 받기 위한 최소 표면 — OS pasteboard 읽기.
 #

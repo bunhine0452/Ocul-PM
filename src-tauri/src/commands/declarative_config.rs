@@ -49,10 +49,7 @@ async fn root_of(db: &Db, project_id: Option<u32>) -> Result<Option<PathBuf>, Ap
 /// 지금 상태를 YAML 문서로 내보낸다. 시크릿·머신 상태는 planner 가 뺀다.
 #[tauri::command]
 #[specta::specta]
-pub async fn config_export(
-    db: State<'_, Db>,
-    project_id: Option<u32>,
-) -> Result<String, AppError> {
+pub async fn config_export(db: State<'_, Db>, project_id: Option<u32>) -> Result<String, AppError> {
     let settings = current_settings(&db).await?;
     let root = root_of(&db, project_id).await?;
     let state = planner::capture(settings, root.as_deref());

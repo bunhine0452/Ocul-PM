@@ -22,6 +22,9 @@ import { onOculpmActivateRequest, onReindexRequest } from "@/lib/projectActions"
 import { indexProgressStore } from "@/lib/indexProgressStore";
 import { toast } from "@/lib/toast";
 import { useTabRunningWork } from "@/windows/useTabRunningWork";
+import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
+import { resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
+import { openSettings } from "@/lib/settingsNav";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 
@@ -181,6 +184,22 @@ export default function ProjectTab({
         oculpmLog.flow("step 3 OK — watcher running", { projectId });
       }
 
+      // 반대 방향 — 디스크의 템플릿이 이 앱보다 **새롭다**. 고칠 길은 앱
+      // 업데이트뿐이라 여태 조용히 지나갔다. 이제는 말한다
+      // (Phase 6 #not-honored-notice). 업그레이드 제안과 배타적이다.
+      const aheadRes = await commands.oculpmAgentsCheckMasterAhead(projectId);
+      if (cancelled) return;
+      if (aheadRes.status === "ok" && aheadRes.data) {
+        toast.warning(t("agents.ahead.title"), {
+          title: t("agents.ahead.version", {
+            disk: aheadRes.data.from_version,
+            app: aheadRes.data.to_version,
+          }),
+          dedupKey: `master-ahead-${projectId}`,
+          durationMs: 20000,
+        });
+      }
+
       // Offer a master-template upgrade for projects initialized before a
       // template bump (their on-disk AGENTS.md is stale vs the shipped rules).
       const upRes = await commands.oculpmAgentsCheckMasterUpgrade(projectId);
@@ -272,6 +291,38 @@ export default function ProjectTab({
           onOpenProject={(id) => void commands.openProjectTab(id, windowLabel)}
         />
       </Suspense>
+
+      {/* 딥링크 확인 시트 (Phase 6 #deep-link). 활성 탭에만 그린다 — 창마다
+          하나씩 뜨면 «확인» 이 아니라 소음이다. 승인 전에는 아무 일도 일어나지
+          않는다: 백엔드는 URL 을 파싱해 이벤트로 넘기기만 했다. */}
+      {active && (
+        <DeepLinkSheet
+          onAccept={(link) => {
+            switch (link.action) {
+              case "open": {
+                const id = resolveRegisteredProject(projects, link.project);
+                if (id === null) {
+                  toast.warning(t("deeplink.open.notRegistered"));
+                  return;
+                }
+                void commands.openProjectTab(id, windowLabel);
+                return;
+              }
+              // 설치는 전부 설정의 해당 자리로 데려간다 — 링크가 직접 쓰지
+              // 않고, 사용자가 그 화면에서 미리보기를 보고 누른다.
+              case "plugin_install":
+              case "skill_install":
+                openSettings("oculpm");
+                setSettingsOpen(true);
+                return;
+              case "theme_install":
+                openSettings("appearance");
+                setSettingsOpen(true);
+                return;
+            }
+          }}
+        />
+      )}
 
       {/* 팔레트·설정은 활성 탭의 워크스페이스 컨텍스트가 필요해서 탭 안에 산다.
           활성 탭에만 그려야 창에 하나만 존재한다. */}

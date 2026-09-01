@@ -146,6 +146,12 @@ const TESTS = new Set([
   // Osaurus 라운드 Phase 6 — 승인 카드. 한국어 버튼 이름("적용")과 이행 불가
   // 사유 문구가 단언 재료다 (조용히 빠지지 않는지를 그 문구로 잰다).
   "__tests__/declarative_config.test.tsx",
+  // Phase 6 — 플러그인 번들. 한국어 버튼("미리보기"·"설치")과 미이행 사유
+  // 문구가 단언 재료다.
+  "__tests__/plugin_bundles.test.tsx",
+  // Phase 6 — 딥링크 확인 시트. 한국어 버튼("미리보기"·"취소")과 «바뀐 것이
+  // 없습니다» 문구가 «무확인 실행 0» 을 재는 재료다.
+  "__tests__/deep_link.test.tsx",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",
@@ -220,6 +226,7 @@ const TESTS = new Set([
   "__tests__/terminal_quality_round.test.ts",
   "__tests__/terminal_rail.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",
+  "__tests__/terminal_pty_resize.test.ts",
   "__tests__/today_journal_missing.test.tsx",
   "__tests__/today_v2.test.tsx",
   "__tests__/polish_phase2.test.tsx",

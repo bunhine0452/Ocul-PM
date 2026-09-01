@@ -56,6 +56,7 @@ import {
 } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import { PluginBundlesBlock } from "./plugins/PluginBundlesBlock";
 
 const DEBOUNCE_MS = 500;
 
@@ -559,6 +560,9 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           <ClaudeHooksBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
           <McpServerBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
         </Section>
+        {/* 플러그인 번들 임포트 (Phase 6) — 프로젝트 스코프다. 놓이는 자리가
+            전부 `<project>/.claude/` 와 `.mcp.json` 이기 때문이다. */}
+        <PluginBundlesBlock projectId={projectId} />
         <Section
           title={t("op.scope.machineTitle")}
           description={t("op.scope.machineDesc")}

@@ -89,6 +89,19 @@ export const commands = {
 	configPlan: (projectId: number | null, doc: string) => typedError<ConfigPlan, AppError>(__TAURI_INVOKE("config_plan", { projectId, doc })),
 	/**  계획을 적용하고 **다시 계획해** 남은 diff 로 결론을 낸다 (#config-verify). */
 	configApply: (projectId: number | null, doc: string) => typedError<ConfigApplyResult, AppError>(__TAURI_INVOKE("config_apply", { projectId, doc })),
+	/**  번들 zip 파일을 고른다. 취소하면 `None`. */
+	pluginPickBundle: () => typedError<string | null, AppError>(__TAURI_INVOKE("plugin_pick_bundle")),
+	/**
+	 *  번들을 들여온다. `dry` 면 **한 글자도 쓰지 않고** 같은 판정만 낸다.
+	 * 
+	 *  `replace` 는 같은 id 가 이미 설치돼 있을 때만 뜻이 있다 — 없으면
+	 *  `already_installed` 를 채워 돌려주고 아무것도 쓰지 않는다 (명시적 교체 확인).
+	 */
+	pluginImport: (projectId: number, kind: BundleSourceKind, src: string, dry: boolean, replace: boolean) => typedError<BundleImportResult, AppError>(__TAURI_INVOKE("plugin_import", { projectId, kind, src, dry, replace })),
+	/**  설치된 번들 목록. */
+	pluginList: (projectId: number) => typedError<InstalledBundle[], AppError>(__TAURI_INVOKE("plugin_list", { projectId })),
+	/**  번들이 놓은 것만 지운다. 사용자가 이어받은 파일은 남긴다. */
+	pluginRemove: (projectId: number, bundleId: string) => typedError<BundleRemoveReport, AppError>(__TAURI_INVOKE("plugin_remove", { projectId, bundleId })),
 	/**  관련도 상위 N (감쇠 반영). 화면의 「회상 후보」 목록. */
 	recallTop: (projectId: number, limit: number) => typedError<RecallStat[], AppError>(__TAURI_INVOKE("recall_top", { projectId, limit })),
 	/**  주입됐다고 기록한다 — 다음 순위에 반영된다. */
@@ -1198,6 +1211,15 @@ export const commands = {
 	 */
 	oculpmAgentsGetMasterTemplate: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("oculpm_agents_get_master_template", { projectId })),
 	/**
+	 *  디스크의 템플릿이 이 앱 버전보다 **새로운가**. `Some` 이면 이 앱이 아직
+	 *  모르는 규칙이 템플릿에 들어 있다는 뜻이고, 화면은 그것을 「선언됐지만 아직
+	 *  이행하지 않음」으로 적는다 (Phase 6 #not-honored-notice).
+	 */
+	oculpmAgentsCheckMasterAhead: (projectId: number) => typedError<{
+	from_version: number,
+	to_version: number,
+} | null, AppError>(__TAURI_INVOKE("oculpm_agents_check_master_ahead", { projectId })),
+	/**
 	 *  Is a newer agent-rules master template available than the one on disk?
 	 *  `None` = up-to-date. Surfaced as an "update" prompt on project open.
 	 */
@@ -1717,6 +1739,7 @@ export const events = {
 	dapBreakpointsChanged: makeEvent<DapBreakpointsChanged>("dap-breakpoints-changed"),
 	dapOutputEmitted: makeEvent<DapOutputEmitted>("dap-output-emitted"),
 	dapSessionChanged: makeEvent<DapSessionChanged>("dap-session-changed"),
+	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
@@ -2175,6 +2198,32 @@ export type AppWindowInfo = {
 	tab_count: number,
 };
 
+export type Artifact = {
+	kind: ArtifactKind,
+	/**  번들 안 경로. */
+	source: string,
+	/**  프로젝트 루트 기준 목적지. `NotHonored`·`McpServers` 는 `None`. */
+	dest: string | null,
+	/**  사람이 읽는 이름 (스킬 폴더명·커맨드명·에이전트명). */
+	name: string,
+	/**  `NotHonored` 사유 코드. */
+	reason: string | null,
+};
+
+export type ArtifactKind = 
+/**  `skills/<n>/**` → `.claude/skills/<n>/**` */
+"skill" | 
+/**  `commands/<n>.md` → `.claude/commands/<n>.md` */
+"command" | 
+/**  `agents/<n>.md` → `.claude/agents/<n>.md` + 비활성 자동화 정의 */
+"agent" | 
+/**  `.mcp.json` → 프로젝트 `.mcp.json` 에 병합 */
+"mcp_servers" | 
+/**  `CLAUDE.md` · `README.md` → 규칙 허브에 참조로 (읽기 전용 배치) */
+"reference" | 
+/**  감지했지만 **실행하지 않는다**. 사유는 [`Artifact::reason`]. */
+"not_honored";
+
 /**
  *  Osaurus 라운드 Phase 0 (Decision 4) — 자동화의 전역 스위치.
  * 
@@ -2370,6 +2419,43 @@ export type BinarySide = {
 	base64: string,
 	size: number,
 };
+
+export type BundleImportResult = {
+	manifest: BundleManifest,
+	report: InstallReport,
+	mcp: McpMerge,
+	/**  이 번들에서 만든 비활성 자동화 정의 id. */
+	automations: string[],
+	/**  같은 id 의 번들이 이미 설치돼 있다 — `replace` 없이는 쓰지 않았다. */
+	already_installed: InstalledBundle | null,
+};
+
+export type BundleManifest = {
+	/**  `plugin.json` 의 `name` (없으면 번들 소스에서 유도한 이름). */
+	id: string,
+	name: string,
+	version: string | null,
+	description: string | null,
+	homepage: string | null,
+	artifacts: Artifact[],
+	/**  매니페스트가 아예 없었다 — 폴더 구조만 보고 읽었다는 뜻. */
+	manifest_missing: boolean,
+};
+
+export type BundleRemoveReport = {
+	removed: number,
+	/**  사용자가 이어받아(마커를 지워) 남긴 파일. */
+	kept: string[],
+	mcp_removed: boolean,
+	/**  함께 지운 비활성 자동화 정의. */
+	automations_removed: string[],
+};
+
+export type BundleSourceKind = 
+/**  GitHub `owner/repo` — 임의 URL 은 받지 않는다. */
+"github" | 
+/**  로컬 `.zip` 파일 경로. */
+"file";
 
 /**
  *  A group of changed files attributed to one journal entry (Dogfooding #3).
@@ -2900,6 +2986,16 @@ export type DbTableSize = {
 	name: string,
 	bytes: number | null,
 };
+
+/**  확인 시트가 받는 요청. **실행이 아니라 제안**이다. */
+export type DeepLink = 
+/**  번들에서 스킬 하나만 (`name` 이 없으면 번들 전체와 같다). */
+{ action: "skill_install"; source: string; name: string | null } | { action: "theme_install"; url: string } | { action: "plugin_install"; source: string } | 
+/**  이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다. */
+{ action: "open"; project: string; view: string | null; entry: string | null };
+
+/**  프런트가 받는 이벤트. 앱이 이미 떠 있으면 기존 창으로 라우팅된다. */
+export type DeepLinkReceived = DeepLink;
 
 /**  수확된 마커 한 건. */
 export type DeferMarker = {
@@ -3555,6 +3651,43 @@ export type IndexResult = {
 	took_ms: number,
 };
 
+export type InstallReport = {
+	bundle_id: string,
+	/**  미리보기였다 — 디스크는 그대로다. `wrote` 는 "쓸 것" 의 수다. */
+	dry: boolean,
+	placements: Placement[],
+	wrote: number,
+	unchanged: number,
+	conflicts: number,
+	failed: number,
+	/**  감지했지만 이행하지 않은 아티팩트 (`manifest::Artifact`). */
+	not_honored: Artifact[],
+	/**  아카이브에서 받아들이지 않은 엔트리 — `(경로, 사유)`. */
+	skipped: ([string, string])[],
+};
+
+export type InstalledBundle = {
+	id: string,
+	name: string,
+	version: string | null,
+	/**  어디서 왔는가 — `owner/repo` 또는 로컬 파일 경로. */
+	source: string,
+	installed_at: string,
+	items: InstalledItem[],
+	/**  `.mcp.json` 에 우리가 넣은 서버 키 (제거 시 이 키만 뺀다). */
+	mcp_keys?: string[],
+	/**  이 번들에서 만든 비활성 자동화 정의 id (`<kind>/<id>`). */
+	automations?: string[],
+};
+
+/**  번들이 놓은 것 하나. 파일이거나 자동화 정의다. */
+export type InstalledItem = {
+	/**  프로젝트 루트 기준 경로 (`.claude/skills/run-evals/SKILL.md`). */
+	path: string,
+	/**  놓을 때의 내용 해시 — 제거 시 "사용자가 고친 파일" 을 가려낸다. */
+	blake3: string,
+};
+
 export type IntegrityWarning = {
 	/**  One of `frontmatter_parse`, `schema_mismatch`, `orphan_session`, `narrative_mismatch`, `lock_recovered`, ... */
 	kind: string,
@@ -3955,6 +4088,16 @@ export type MasterUpgrade = {
 	to_version: number,
 };
 
+/**  `.mcp.json` 병합 결과. */
+export type McpMerge = {
+	/**  우리가 넣은 서버 키 (원장에 남아 제거 때 이 키만 뺀다). */
+	added: string[],
+	/**  이미 남이 쓰고 있어 건드리지 않은 키. */
+	conflicts: string[],
+	/**  프로젝트 `.mcp.json` 을 읽을 수 없었다 — **덮어쓰지 않고 포기**했다. */
+	unreadable: boolean,
+};
+
 export type McpRegistrationStatus = {
 	/**  `.mcp.json` 에 우리 서버가 등록되어 있다. */
 	registered: boolean,
@@ -4221,6 +4364,19 @@ export type PathSource =
 "process" | 
 /**  로그인 셸을 띄워 받아온 PATH. */
 "login-shell";
+
+export type Placement = {
+	path: string,
+	outcome: PlacementOutcome,
+	/**  `Failed` 의 영어 원문. */
+	detail: string | null,
+};
+
+export type PlacementOutcome = "wrote" | "unchanged" | 
+/**  마커 없는 사용자 파일이 이미 있다 — 손대지 않았다. */
+"conflict" | 
+/**  쓰기 자체가 실패했다. */
+"failed";
 
 /**  Recent plan activity across all plans — drives the Today "계획 업데이트" block. */
 export type PlanActivityDto = {

@@ -518,6 +518,27 @@ pub fn master_upgrade_available(root: &Path) -> Option<MasterUpgrade> {
     })
 }
 
+/// `Some((on_disk, known))` when the project's master template is **newer**
+/// than this app version knows — the mirror image of [`master_upgrade_available`].
+///
+/// 이 방향은 여태 조용히 무시됐다: `master_upgrade_available` 이 `from < to`
+/// 일 때만 무엇을 돌려주므로, 새 ocul-pm 이 쓴 템플릿을 옛 앱이 열면 아무
+/// 말도 없이 **모르는 규칙을 못 지킨 채** 동기화한다. 「선언됐지만 아직
+/// 이행하지 않음」(Phase 6 #not-honored-notice)이 가리키는 자리다.
+///
+/// 고치지는 않는다 — 앱을 업데이트하는 것 말고 할 수 있는 일이 없다. 대신
+/// 말한다.
+pub fn master_ahead_of_app(root: &Path) -> Option<MasterUpgrade> {
+    let path = root.join(".oculpm").join("agents").join("_template.md");
+    let on_disk = std::fs::read_to_string(&path).ok()?;
+    let from = template_version(&on_disk);
+    let to = embedded_template_version();
+    (from > to).then_some(MasterUpgrade {
+        from_version: from,
+        to_version: to,
+    })
+}
+
 /// Replace the on-disk master with the embedded one, backing up the previous
 /// master to `_template.md.bak` first (user customizations stay recoverable).
 /// The caller re-syncs adapters afterward so AGENTS.md etc. re-render.
@@ -1200,5 +1221,37 @@ mod tests {
         for d in &result {
             assert_eq!(d.confidence, DetectConfidence::Unknown, "{d:?}");
         }
+    }
+
+    #[test]
+    fn a_template_newer_than_the_app_is_reported_not_ignored() {
+        let dir = tempfile::tempdir().unwrap();
+        let agents = dir.path().join(".oculpm").join("agents");
+        std::fs::create_dir_all(&agents).unwrap();
+        let ahead = embedded_template_version() + 3;
+
+        std::fs::write(
+            agents.join("_template.md"),
+            format!("<!-- template_version: {ahead} -->\n본문\n"),
+        )
+        .unwrap();
+        let seen = master_ahead_of_app(dir.path()).expect("an ahead template must be reported");
+        assert_eq!(seen.from_version, ahead);
+        assert_eq!(seen.to_version, embedded_template_version());
+        assert!(
+            master_upgrade_available(dir.path()).is_none(),
+            "an ahead template is not an upgrade — the two checks must not both fire"
+        );
+
+        // 같은 버전이면 어느 쪽도 말하지 않는다.
+        std::fs::write(
+            agents.join("_template.md"),
+            format!(
+                "<!-- template_version: {} -->\n본문\n",
+                embedded_template_version()
+            ),
+        )
+        .unwrap();
+        assert!(master_ahead_of_app(dir.path()).is_none());
     }
 }

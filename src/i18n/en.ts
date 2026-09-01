@@ -200,6 +200,9 @@ export const en: Record<keyof typeof ko, string> = {
   "watcher.takeOverFailed": "Take over failed: {error}",
   "watcher.offlineTitle": "Live refresh is off",
   "watcher.offline": "Another ocul-pm instance is using this project. Retrying every minute — until then, changes show up when you reopen the screen.",
+  "agents.ahead.title": "This project's journaling rules are newer than this app",
+  "agents.ahead.version":
+    "Template v{disk} · this app knows up to v{app} — the newer rules are not honored yet. Update the app.",
   "agents.upgrade.title": "There's an update to the agent rules (AGENTS.md)",
   "agents.upgrade.version": "Rules template v{from} → v{to}",
   "agents.upgrade.action": "Update",
@@ -587,6 +590,67 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.storage.secrets": "Secrets",
   "settings.storage.version": "Version",
   "settings.storage.copied": "Copied!",
+  // ── Deep-link confirmation sheet (Osaurus round Phase 6) ──────────────
+  "deeplink.origin": "Origin",
+  "deeplink.writesNote": "Nothing runs until you approve — nothing has changed yet.",
+  "deeplink.plugin.title": "Install this plugin bundle?",
+  "deeplink.plugin.effect":
+    "Places skills, commands, and agents under this project's .claude/. Existing files are never overwritten.",
+  "deeplink.plugin.action": "Preview",
+  "deeplink.skill.title": "Install this skill?",
+  "deeplink.skill.effect": "Takes the skill from the bundle and places it in .claude/skills/.",
+  "deeplink.skill.action": "Preview",
+  "deeplink.theme.title": "Import this theme?",
+  "deeplink.theme.effect": "Downloads the theme into your gallery. Your current theme is unchanged.",
+  "deeplink.theme.action": "Import",
+  "deeplink.open.title": "Open this project?",
+  "deeplink.open.effect": "Only opens an already-registered project — it never adds a new one.",
+  "deeplink.open.action": "Open",
+  "deeplink.open.notRegistered": "This project isn't registered — a link never adds one.",
+
+  // ── Declared but not yet honored (Osaurus round Phase 6) ──────────────
+  "notHonored.title": "Declared, but not yet honored",
+  "notHonored.reason.hooks_run_shell":
+    "hooks run shell scripts — detected but never installed",
+  "notHonored.reason.binaries_not_installed": "binaries are not installed",
+  "notHonored.reason.not_supported_yet": "this app version doesn't handle it yet",
+  "automation.editor.notHonored": "Values are left here that this setting never reads",
+  "notHonored.reason.frequency_ignores_field": "not used at this frequency",
+  "notHonored.reason.watcher_ignores_schedule": "watcher automations ignore time fields",
+  "notHonored.reason.app_older_than_template":
+    "the template is newer than this app version — updating the app honors it",
+  "notHonored.reason.unknown": "no reason given",
+
+  // ── Plugin bundles (Osaurus round Phase 6) ────────────────────────────
+  "plugins.title": "Plugin bundles",
+  "plugins.desc":
+    "Import a Claude plugin bundle. Skills, commands, and agents land exactly where Claude Code reads them, and a file we didn't place is never overwritten.",
+  "plugins.source.aria": "Bundle source (owner/repo)",
+  "plugins.preview": "Preview",
+  "plugins.fromFile": "zip file",
+  "plugins.install": "Install",
+  "plugins.remove": "Remove",
+  "plugins.noManifest": "No plugin.json — read from the folder structure alone.",
+  "plugins.kind.skill": "Skill",
+  "plugins.kind.command": "Command",
+  "plugins.kind.agent": "Agent",
+  "plugins.kind.mcp_servers": "MCP",
+  "plugins.kind.reference": "Reference",
+  "plugins.kind.not_honored": "Not honored",
+  "plugins.summary": "{wrote} to write · {unchanged} already identical · {conflicts} conflicts",
+  "plugins.conflictNote":
+    "A conflicting file is one of yours that was already there — we leave it alone.",
+  "plugins.mcpConflict": "MCP server key already in use, skipped — {keys}",
+  "plugins.mcpUnreadable": "Couldn't read .mcp.json, so nothing was merged.",
+  "plugins.skipped": "{count} archive entries were not accepted",
+  "plugins.notHonored.title": "Detected, but not executed",
+  "plugins.itemCount": "{count} files",
+  "plugins.installed": "Installed {name} — {count} files",
+  "plugins.replace.confirm": "{name} is already installed. Replace it?",
+  "plugins.remove.confirm": "Delete the files {name} placed?",
+  "plugins.removed": "Removed — {count} files",
+  "plugins.removed.kept": "Removed — {count} files. Kept {kept} you had edited.",
+
   // ── Declarative config (Osaurus round Phase 6) ────────────────────────
   "settings.declarative.title": "Declarative config",
   "settings.declarative.desc":

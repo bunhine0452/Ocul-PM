@@ -26,6 +26,7 @@ pub mod notion;
 pub mod oculpm;
 pub mod overview;
 pub mod plan;
+pub mod plugins;
 pub mod project;
 pub mod retro;
 pub mod rule_promotion;
