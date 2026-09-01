@@ -1247,6 +1247,19 @@
   font-size: var(--fs-1);
   color: var(--text-2);
 }
+/* 활성 줄의 상태 — 상대 시각과 **같은 자리**를 쓴다 (Phase 3 #active-rows).
+   나란히 두면 좁은 패널에서 제목이 먼저 잘린다. 승인 대기는 강조색으로 —
+   기다리면 되는 상태와 눌러야 풀리는 상태는 눈으로 갈려야 한다. */
+.acp-session-state {
+  flex: none;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.acp-session-state.attention {
+  color: var(--accent-text);
+}
+
 .acp-panel-empty {
   padding: 12px 9px;
   font-size: var(--fs-4);

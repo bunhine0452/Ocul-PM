@@ -11,6 +11,7 @@ import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { Section, Stat } from "./ui";
 import { DoctorSection } from "./DoctorSection";
+import { FiringInsights } from "./FiringInsights";
 import { AutomationTroubleshooting } from "../automation/AutomationTroubleshooting";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
@@ -144,6 +145,9 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
         </div>
         <div className="text-[11px] text-muted-foreground">{t("settings.db.compactHint")}</div>
       </Section>
+
+      {/* 「결과가 이상하다」 가 가리키는 그 자리 — 문제 해결 문구 바로 위에 둔다. */}
+      <FiringInsights />
 
       {/* 자동화 문제 해결 — 에디터와 **같은 컴포넌트**. 세 번째 항목("결과가
           이상하다")이 발동 원장을 자동화 디버깅의 정식 경로로 가리킨다 (설계 §2.5). */}

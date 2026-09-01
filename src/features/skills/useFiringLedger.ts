@@ -32,7 +32,11 @@ export interface FiringLedger {
   rebuild: () => Promise<void>;
 }
 
-export function useFiringLedger(projectId: number): FiringLedger {
+/**
+ * @param days 조회 창. 기본 30일(배지). 진단의 「발동」 섹션은 7일을 본다 —
+ *   "요즘 안 걸린다" 를 묻는 자리라 창이 짧아야 답이 최신이다.
+ */
+export function useFiringLedger(projectId: number, days = FIRING_WINDOW_DAYS): FiringLedger {
   const [overview, setOverview] = useState<FiringOverview | null>(null);
   const [scanning, setScanning] = useState(false);
   const [partial, setPartial] = useState(false);
@@ -43,12 +47,12 @@ export function useFiringLedger(projectId: number): FiringLedger {
   // 삼키고 null 로 떨어뜨린다: 배지가 안 뜰 뿐 목록·편집은 멀쩡하다.
   const load = useCallback(async () => {
     try {
-      const res = await commands.firingStats(projectId, FIRING_WINDOW_DAYS);
+      const res = await commands.firingStats(projectId, days);
       return res?.status === "ok" ? res.data : null;
     } catch {
       return null;
     }
-  }, [projectId]);
+  }, [projectId, days]);
 
   useEffect(() => {
     let alive = true;
@@ -108,7 +112,7 @@ export function useFiringLedger(projectId: number): FiringLedger {
     measured: overview != null && overview.last_scan_at != null,
     scanning,
     partial,
-    days: FIRING_WINDOW_DAYS,
+    days,
     refresh: useCallback(() => setNonce((n) => n + 1), []),
     rebuild,
   };

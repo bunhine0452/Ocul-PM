@@ -41,6 +41,8 @@ import {
 } from "./retroGen";
 import { useT, type I18nKey } from "@/i18n";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
+import { SourceBadge } from "@/features/oculpm/SourceBadge";
+import { sourceOfAgent } from "@/features/oculpm/entrySource";
 
 // F4 — 회고/인사이트 화면. 기간을 고르면 백엔드가 결정적 신호(출시·저항·노력
 // 집중·에이전트 기여)를 모아 보여주고, "회고 생성"으로 그 신호 위에 LLM 한국어
@@ -626,7 +628,9 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
         <div className="flex flex-col gap-2">
           {s.agent_breakdown.map((a) => (
             <div key={a.agent_id} className="flex items-center gap-2">
-              <span className="w-28 shrink-0 truncate text-sm">{a.agent_id}</span>
+              {/* 이 신호가 기계가 쓴 일지에서 왔는지 — 회고의 숫자를 읽는 잣대가 된다. */}
+              <SourceBadge source={sourceOfAgent(a.agent_id)} withLabel={false} />
+              <span className="w-24 shrink-0 truncate text-sm">{a.agent_id}</span>
               <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full bg-primary"

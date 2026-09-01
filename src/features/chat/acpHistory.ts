@@ -52,3 +52,22 @@ export function stabilizeHistory(
 export function markSpoken(ledger: ActivityLedger, id: string, at: string): void {
   ledger.set(id, at);
 }
+
+/**
+ * 활성 대화를 맨 위로 (Phase 3 `#active-rows`).
+ *
+ * **원장을 건드리지 않는다.** `updated_at` 을 지금 시각으로 올려 정렬을 얻는
+ * 방법도 있지만, 그러면 답이 끝난 순간 그 대화가 "방금 이야기한 것" 으로
+ * 영구히 기록된다 — 이 목록이 지키려던 의미가 바로 그 반대다. 활성은 정렬 키
+ * **앞에 붙는 별도 버킷**이고, 버킷 안의 순서는 [`stabilizeHistory`] 가 정한
+ * 그대로다 (안정 분할).
+ */
+export function sortActiveFirst<T extends { id: string }>(
+  items: readonly T[],
+  isActive: (id: string) => boolean,
+): T[] {
+  const active: T[] = [];
+  const idle: T[] = [];
+  for (const item of items) (isActive(item.id) ? active : idle).push(item);
+  return [...active, ...idle];
+}

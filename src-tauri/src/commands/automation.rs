@@ -14,6 +14,7 @@ use specta::Type;
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_error::AppError;
+use crate::db::automation::RUN_FAILED;
 use crate::db::Db;
 use crate::oculpm::automation::frequency::ScheduleSpec;
 use crate::oculpm::automation::runner::{AutomationRunner, Job, JobOutcome};
@@ -54,6 +55,51 @@ pub struct AutomationRunDto {
     /// 산출 일지의 프로젝트 상대 경로 — 클릭하면 일지 화면으로 점프한다.
     pub journal_path: Option<String>,
     pub note: Option<String>,
+}
+
+/// 닥터 한 칸이 필요로 하는 자동화 상태 전부 (Phase 3 `#doctor-automation`).
+///
+/// 프런트가 `automation_list` + `automation_runs` 를 다시 접어 만들 수도 있지만,
+/// **예산 창의 시작 시각**(워크데이 시작 = `day_starts_at`)은 러너가 쓰는 값과
+/// 한 글자도 달라선 안 된다 — 두 벌로 계산하면 화면이 "12/20" 이라 말하는데
+/// 실제로는 이미 소진된 상태가 생긴다. 그래서 여기서 한 번만 센다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AutomationOverview {
+    /// 프로젝트 전역 스위치 (`config.toml [automation]`).
+    pub schedules_on: bool,
+    pub watchers_on: bool,
+    /// 켜져 있고 스펙이 성립하는 정의 수 — 실제로 돌 수 있는 것만 센다.
+    pub active_schedules: u32,
+    pub active_watchers: u32,
+    /// 활성 스케줄 중 가장 이른 다음 실행 (ISO8601 UTC).
+    pub next_run_at: Option<String>,
+    /// 활성 워처의 반응성 티어 (중복 제거, 정의 순).
+    pub watcher_tiers: Vec<String>,
+    /// 켜져 있는데 스펙이 깨져 못 도는 정의 수. 0 이 아니면 조용히 안 돈다.
+    pub broken: u32,
+    /// 오늘 워크데이에 **과금된** 실행 수 (드롭·스킵 제외) / 예산.
+    pub used_today: u32,
+    pub daily_run_budget: u32,
+    /// 가장 최근 실패 1건. 없으면 `None`.
+    pub last_failure: Option<AutomationRunDto>,
+    /// 지금 러너가 돌리고 있는 자동화 id. 러너는 **프로세스 전역**이라 다른
+    /// 프로젝트의 잡일 수도 있다 — 그래서 project_id 를 함께 싣는다.
+    pub running_automation_id: Option<String>,
+    pub running_project_id: Option<u32>,
+}
+
+/// 자동화 실행이 시작/종료됐다 — 설정 자동화 탭과 닥터가 폴링 없이 안다.
+/// 러너가 전역 1건이므로 페이로드도 전역이다 (프로젝트 필터는 프런트 몫).
+#[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct AutomationRunChanged {
+    pub project_id: u32,
+    pub automation_id: String,
+    /// `schedule` | `watcher`.
+    pub kind: String,
+    /// true = 시작, false = 끝.
+    pub running: bool,
+    /// 끝났을 때의 결말 (`ran`/`dropped`/`skipped`/`failed`/`cancelled`).
+    pub status: Option<String>,
 }
 
 /// 「지금 실행」의 결말. 프런트는 `status` 로 토스트 문구를 고른다.
@@ -163,6 +209,114 @@ pub async fn automation_runs(
             note: r.note,
         })
         .collect())
+}
+
+/// 닥터·자동화 탭이 한 번에 읽는 요약. 정의는 파일, 예산은 원장, 실행 중
+/// 여부는 러너에서 온다.
+#[tauri::command]
+#[specta::specta]
+pub async fn automation_overview(
+    app: AppHandle,
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+) -> Result<AutomationOverview, AppError> {
+    let items = automation_list(db.clone(), project_id).await?;
+    let counts = count_definitions(&items);
+    let config = project_config(&manager, project_id).await?;
+
+    // 예산 창은 러너와 **같은 함수**로 연다 (자정이 아니라 `day_starts_at`).
+    let workday = manager
+        .current_workday(project_id)
+        .await
+        .map_err(AppError::from)?;
+    let tz: chrono_tz::Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
+    let since = scheduler::workday_start(tz, &workday, &config.workday.day_starts_at)
+        .map(|d| d.to_rfc3339())
+        .unwrap_or_default();
+    let used_today = db
+        .automation_billable_runs_since(project_id, since)
+        .await
+        .map_err(AppError::from)?;
+
+    // 실패는 드물다 — 최근 100건 안에 없으면 "최근 실패 없음" 이 참에 가깝다.
+    let last_failure = db
+        .automation_runs_list(project_id, None, 100)
+        .await
+        .map_err(AppError::from)?
+        .into_iter()
+        .find(|r| r.status == RUN_FAILED)
+        .map(|r| AutomationRunDto {
+            id: r.id.to_string(),
+            automation_id: r.automation_id,
+            session_id: r.session_id,
+            started_at: r.started_at,
+            ended_at: r.ended_at,
+            status: r.status,
+            journal_path: r.journal_path,
+            note: r.note,
+        });
+
+    let running = app.state::<AutomationRunner>().running();
+    Ok(AutomationOverview {
+        schedules_on: config.automation.schedules,
+        watchers_on: config.automation.watchers,
+        active_schedules: counts.active_schedules,
+        active_watchers: counts.active_watchers,
+        next_run_at: counts.next_run_at,
+        watcher_tiers: counts.watcher_tiers,
+        broken: counts.broken,
+        used_today,
+        daily_run_budget: config.automation.daily_run_budget,
+        last_failure,
+        running_automation_id: running.as_ref().map(|(_, id)| id.clone()),
+        running_project_id: running.map(|(pid, _)| pid),
+    })
+}
+
+/// 정의 목록을 닥터 한 줄짜리 숫자로 접는다 — **순수**라 DB 없이 시험한다.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct DefinitionCounts {
+    pub active_schedules: u32,
+    pub active_watchers: u32,
+    pub next_run_at: Option<String>,
+    pub watcher_tiers: Vec<String>,
+    pub broken: u32,
+}
+
+/// 셈의 규칙: **켜져 있고 스펙이 성립하는 것만** 활성이다. 켜져 있는데 스펙이
+/// 깨진 것은 `broken` 으로 따로 센다 — 활성에 넣으면 "3개 돌고 있다" 는데
+/// 하나도 안 도는 화면이 된다.
+pub fn count_definitions(items: &[AutomationSummary]) -> DefinitionCounts {
+    let mut out = DefinitionCounts::default();
+    for item in items {
+        if !item.def.enabled {
+            continue;
+        }
+        if item.spec_error.is_some() {
+            out.broken += 1;
+            continue;
+        }
+        match item.def.kind {
+            AutomationKind::Schedule => {
+                out.active_schedules += 1;
+                if let Some(next) = item.next_run_at.as_ref() {
+                    // ISO8601 UTC 는 사전식 비교가 시간순과 같다.
+                    if out.next_run_at.as_ref().is_none_or(|cur| next < cur) {
+                        out.next_run_at = Some(next.clone());
+                    }
+                }
+            }
+            AutomationKind::Watcher => {
+                out.active_watchers += 1;
+                let tier = item.def.responsiveness.as_deref().unwrap_or("balanced");
+                if !out.watcher_tiers.iter().any(|t| t == tier) {
+                    out.watcher_tiers.push(tier.to_string());
+                }
+            }
+        }
+    }
+    out
 }
 
 /// 아직 만들지 않은 씨앗들. 빈 목록이면 UI 는 제안 줄을 감춘다.
@@ -410,4 +564,95 @@ async fn summary_of(
         def: parsed.def,
         warnings: parsed.warnings,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn summary(
+        id: &str,
+        kind: AutomationKind,
+        enabled: bool,
+        next: Option<&str>,
+        tier: Option<&str>,
+        broken: bool,
+    ) -> AutomationSummary {
+        let mut def = AutomationDef::new(id, kind, id, "2026-09-01");
+        def.enabled = enabled;
+        def.responsiveness = tier.map(str::to_string);
+        AutomationSummary {
+            def,
+            warnings: Vec::new(),
+            next_run_at: next.map(str::to_string),
+            last_run_at: None,
+            last_status: None,
+            last_error: None,
+            spec_error: broken.then(|| "automation_bad_time".to_string()),
+        }
+    }
+
+    #[test]
+    fn counts_only_enabled_and_healthy_definitions() {
+        let items = vec![
+            summary(
+                "a",
+                AutomationKind::Schedule,
+                true,
+                Some("2026-09-02T00:00:00+00:00"),
+                None,
+                false,
+            ),
+            summary(
+                "b",
+                AutomationKind::Schedule,
+                false,
+                Some("2026-09-01T00:00:00+00:00"),
+                None,
+                false,
+            ),
+            summary(
+                "c",
+                AutomationKind::Watcher,
+                true,
+                None,
+                Some("patient"),
+                false,
+            ),
+            summary("d", AutomationKind::Watcher, true, None, None, false),
+        ];
+        let counts = count_definitions(&items);
+        assert_eq!(counts.active_schedules, 1);
+        assert_eq!(counts.active_watchers, 2);
+        // 꺼진 정의의 더 이른 시각이 "다음 실행" 을 훔치지 않는다.
+        assert_eq!(
+            counts.next_run_at.as_deref(),
+            Some("2026-09-02T00:00:00+00:00")
+        );
+        // 티어 미지정은 balanced 로 읽고, 중복은 접는다.
+        assert_eq!(counts.watcher_tiers, vec!["patient", "balanced"]);
+        assert_eq!(counts.broken, 0);
+    }
+
+    #[test]
+    fn broken_definitions_are_counted_apart_not_as_active() {
+        let items = vec![
+            summary(
+                "a",
+                AutomationKind::Schedule,
+                true,
+                Some("2026-09-02T00:00:00+00:00"),
+                None,
+                true,
+            ),
+            summary("b", AutomationKind::Watcher, true, None, Some("fast"), true),
+        ];
+        let counts = count_definitions(&items);
+        assert_eq!(counts.active_schedules, 0);
+        assert_eq!(counts.active_watchers, 0);
+        assert_eq!(counts.broken, 2);
+        // 깨진 정의의 다음 시각은 화면에 나가지 않는다 — 그 시각에 안 돈다.
+        assert_eq!(counts.next_run_at, None);
+        assert!(counts.watcher_tiers.is_empty());
+    }
 }

@@ -21,6 +21,8 @@ import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
 import { Markdown } from "@/components/Markdown";
 import { TriggerBadge } from "./triggerMeta";
+import { SourceBadge } from "./SourceBadge";
+import { sourceOf } from "./entrySource";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot, splitPath } from "@/lib/filePath";
@@ -354,6 +356,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
         sub={
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <TriggerBadge type={entry.type} />
+            <SourceBadge source={sourceOf(entry.session_id, entry.agent_id)} />
             {dateLabel(entry.created_at, entry.workday) ? (
               <span className="entry-date-chip">
                 <Calendar size={12} /> {dateLabel(entry.created_at, entry.workday)}

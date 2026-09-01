@@ -29,6 +29,9 @@ use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use tauri::{AppHandle, Manager};
 
+use tauri_specta::Event;
+
+use crate::commands::automation::AutomationRunChanged;
 use crate::db::automation::AutomationState;
 use crate::db::Db;
 use crate::oculpm::automation::frequency::ScheduleSpec;
@@ -270,7 +273,36 @@ pub async fn run_job(
         Err(e) => return JobOutcome::Failed(e),
     };
     let ctx = job_context(&db, &manager, root, config, workday, tz);
-    runner.run(&ctx, job).await
+
+    // 시작/종료를 알린다 — 설정 자동화 탭과 닥터가 폴링 없이 「실행 중…」을
+    // 켜고 끈다. 드롭된 발동도 시작→종료 한 쌍을 낸다: 아무 신호도 없으면
+    // "눌렀는데 아무 일도 안 일어났다" 가 되고, 그것이 이 라운드가 없애려는
+    // 바로 그 상태다.
+    let (job_project_id, job_automation_id, job_kind) =
+        (job.project_id, job.automation_id.clone(), job.kind);
+    let changed = |running: bool, status: Option<String>| AutomationRunChanged {
+        project_id: job_project_id,
+        automation_id: job_automation_id.clone(),
+        kind: job_kind.as_str().to_string(),
+        running,
+        status,
+    };
+    let _ = changed(true, None).emit(app);
+    let outcome = runner.run(&ctx, job).await;
+    let _ = changed(false, Some(outcome_status(&outcome).to_string())).emit(app);
+    outcome
+}
+
+/// 이벤트에 싣는 결말 이름 — 「지금 실행」 커맨드의 `status` 문자열과 **같은
+/// 어휘**다 (프런트가 한 벌의 i18n 키로 읽는다).
+fn outcome_status(outcome: &JobOutcome) -> &'static str {
+    match outcome {
+        JobOutcome::Ran { .. } => "ran",
+        JobOutcome::Dropped(_) => "dropped",
+        JobOutcome::Skipped(_) => "skipped",
+        JobOutcome::Failed(_) => "failed",
+        JobOutcome::Cancelled => "cancelled",
+    }
 }
 
 /// 러너 **앞에서** 걸러진 발동을 원장에 남긴다 (정착 트리거의 중복·최소 간격

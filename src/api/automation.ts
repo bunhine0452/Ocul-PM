@@ -7,9 +7,11 @@
  */
 
 import { call, type Envelope } from "@/api/invoke";
-import { commands } from "@/lib/bindings";
+import { commands, events } from "@/lib/bindings";
 import type {
   AutomationDef,
+  AutomationOverview,
+  AutomationRunChanged,
   AutomationRunDto,
   AutomationRunOutcome,
   AutomationSummary,
@@ -20,6 +22,9 @@ const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command
 export const automationApi = {
   list: (projectId: number) =>
     unwrap<AutomationSummary[]>("automation_list", commands.automationList(projectId)),
+
+  overview: (projectId: number) =>
+    unwrap<AutomationOverview>("automation_overview", commands.automationOverview(projectId)),
 
   runs: (projectId: number, automationId: string | null, limit: number) =>
     unwrap<AutomationRunDto[]>(
@@ -55,4 +60,31 @@ export const automationApi = {
     ),
 
   cancel: () => unwrap<null>("automation_cancel", commands.automationCancel()),
+
+  /**
+   * 실행 시작/종료 구독 (Phase 3). 러너는 프로세스 전역 1건이라 페이로드도
+   * 전역이다 — 프로젝트를 가리는 일은 부르는 쪽이 한다.
+   *
+   * 이벤트 채널이 없는 환경(테스트 · 웹뷰 밖)에서도 화면이 살아야 하므로
+   * 실패는 삼키고 no-op 해제 함수를 돌려준다.
+   */
+  onRunChanged: (cb: (e: AutomationRunChanged) => void): (() => void) => {
+    let off: (() => void) | null = null;
+    let cancelled = false;
+    try {
+      void events.automationRunChanged
+        .listen((e) => cb(e.payload))
+        .then((fn) => {
+          if (cancelled) fn();
+          else off = fn;
+        })
+        .catch(() => {});
+    } catch {
+      /* 이벤트 채널 없음 */
+    }
+    return () => {
+      cancelled = true;
+      off?.();
+    };
+  },
 };

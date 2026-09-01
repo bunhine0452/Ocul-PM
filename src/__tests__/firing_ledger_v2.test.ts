@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildFiringIndex,
+  neverFiredRules,
   normalizeSkillKey,
   ruleAbsPath,
   shortWorkday,
   skillFiring,
+  topFirings,
 } from "@/features/skills/firingModel";
 import type { FiringStat, RuleEntry, RulesOverview, SkillEntry } from "@/lib/bindings";
 
@@ -108,5 +110,61 @@ describe("shortWorkday", () => {
 
   it("형식이 아니면 원문 그대로", () => {
     expect(shortWorkday("nope")).toBe("nope");
+  });
+});
+
+// ── 진단 「발동」 (Osaurus 라운드 Phase 3 #firing-insights) ────────────────────
+//
+// 값이 있는 쪽은 "많이 걸린 것" 이 아니라 **한 번도 안 걸린 규칙**이다 —
+// 써 놓고 안 걸리는 규칙은 눈으로 절대 안 보이는 실패다.
+
+describe("한 번도 안 걸린 규칙", () => {
+  const rules: RulesOverview = {
+    ...overview,
+    project_rules: [
+      ruleEntry("project", ".claude/rules/api/validation.md"),
+      ruleEntry("project", ".claude/rules/ui/tokens.md"),
+    ],
+    global_rules: [ruleEntry("global", ".claude/rules/arkts/coding-style.md")],
+  };
+
+  it("발동 기록이 없는 규칙만 남긴다", () => {
+    const index = buildFiringIndex([
+      stat({ kind: "rule", key: "/w/proj/.claude/rules/api/validation.md", count: 3 }),
+    ]);
+    expect(neverFiredRules(rules, index).map((r) => r.rel_path)).toEqual([
+      ".claude/rules/ui/tokens.md",
+      ".claude/rules/arkts/coding-style.md",
+    ]);
+  });
+
+  it("아직 만들지 않은 CLAUDE.md 슬롯은 세지 않는다 — 없는 파일이 안 걸린 것은 발견이 아니다", () => {
+    const withSlot: RulesOverview = {
+      ...rules,
+      claude_md: [{ ...ruleEntry("project", "CLAUDE.md"), kind: "claude_md", exists: false }],
+    };
+    const found = neverFiredRules(withSlot, buildFiringIndex([])).map((r) => r.rel_path);
+    expect(found).not.toContain("CLAUDE.md");
+  });
+
+  it("원장이 비면 존재하는 규칙 전부가 '안 걸림' 이다", () => {
+    expect(neverFiredRules(rules, buildFiringIndex([]))).toHaveLength(3);
+  });
+});
+
+describe("topFirings", () => {
+  it("횟수 내림차순, 동수는 이름순 (렌더마다 순서가 흔들리지 않게)", () => {
+    const stats = [
+      stat({ kind: "skill", key: "b", label: "b", count: 2 }),
+      stat({ kind: "skill", key: "a", label: "a", count: 2 }),
+      stat({ kind: "rule", key: "c", label: "c", count: 9 }),
+    ];
+    expect(topFirings(stats, 3).map((s) => s.label)).toEqual(["c", "a", "b"]);
+  });
+
+  it("입력을 바꾸지 않고 상한까지만 자른다", () => {
+    const stats = [stat({ kind: "rule", key: "x", count: 1 }), stat({ kind: "rule", key: "y", count: 5 })];
+    expect(topFirings(stats, 1)).toHaveLength(1);
+    expect(stats[0].key).toBe("x");
   });
 });

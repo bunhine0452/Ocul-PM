@@ -159,6 +159,7 @@ use crate::commands::{
     automation_create_seed,
     automation_delete,
     automation_list,
+    automation_overview,
     automation_run_now,
     automation_runs,
     automation_save,
@@ -736,6 +737,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,
+            automation_overview,
             automation_runs,
             automation_seeds,
             automation_save,
@@ -834,6 +836,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::lsp::state::LspServerStateChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
+            // 자동화 실행 시작/종료 — 「실행 중…」과 인라인 Stop (Phase 3)
+            crate::commands::automation::AutomationRunChanged,
         ])
 }
 

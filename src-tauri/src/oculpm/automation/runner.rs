@@ -205,7 +205,21 @@ pub struct AutomationRunner {
     slot: Arc<tokio::sync::Mutex<()>>,
     /// 실행 중 1건의 취소 깃발. Phase 3 의 인라인 Stop 이 세운다.
     cancel: Arc<AtomicBool>,
+    /// 지금 도는 잡의 `(project_id, automation_id)`. 닥터와 자동화 카드가
+    /// **마운트 시점**에 읽는다 — 이벤트만으로는 이미 돌고 있던 잡을 놓친다.
+    current: Arc<std::sync::Mutex<Option<(u32, String)>>>,
     backend: Arc<dyn ChatBackend>,
+}
+
+/// 실행 중 표시를 반드시 걷어내는 RAII 가드. `run()` 은 슬롯을 잡은 뒤에도
+/// 이른 반환이 여럿이라(Core Model 미설정·키 없음·예산·취소), 손으로 지우면
+/// 언젠가 한 갈래를 빠뜨려 "영원히 실행 중" 이 남는다.
+struct RunningGuard(Arc<std::sync::Mutex<Option<(u32, String)>>>);
+
+impl Drop for RunningGuard {
+    fn drop(&mut self) {
+        *self.0.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
 }
 
 impl Default for AutomationRunner {
@@ -219,8 +233,24 @@ impl AutomationRunner {
         Self {
             slot: Arc::new(tokio::sync::Mutex::new(())),
             cancel: Arc::new(AtomicBool::new(false)),
+            current: Arc::new(std::sync::Mutex::new(None)),
             backend,
         }
+    }
+
+    /// 지금 도는 잡. 러너는 프로세스 전역 1건이라 프로젝트가 섞일 수 있어
+    /// project_id 를 함께 돌려준다.
+    pub fn running(&self) -> Option<(u32, String)> {
+        self.current
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    }
+
+    fn mark_running(&self, project_id: u32, automation_id: &str) -> RunningGuard {
+        *self.current.lock().unwrap_or_else(|p| p.into_inner()) =
+            Some((project_id, automation_id.to_string()));
+        RunningGuard(self.current.clone())
     }
 
     /// 실행 중인 1건을 취소한다. 이미 끝났으면 무해한 no-op — 다음 실행이
@@ -247,6 +277,7 @@ impl AutomationRunner {
             return JobOutcome::Dropped("another automation is running");
         };
         self.cancel.store(false, Ordering::SeqCst);
+        let _running = self.mark_running(job.project_id, &job.automation_id);
 
         // ── 2. Core Model (D2). 미설정은 오류가 아니라 성립 불가다 ──
         let target = match core_model::resolve(ctx.db).await {

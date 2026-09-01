@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Bot, Check, RotateCcw } from "@/components/Icons";
 import { TriggerBadge } from "./triggerMeta";
+import { SourceBadge } from "./SourceBadge";
+import { sourceOf } from "./entrySource";
 import { agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -54,6 +56,8 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
         >
           <div className="jcard-top">
             <TriggerBadge type={entry.type} />
+            {/* 누가 이걸 만들었는가 — 자동화를 켠 뒤로는 카드마다 답이 다르다. */}
+            <SourceBadge source={sourceOf(entry.session_id, entry.agent_id)} />
             <span className="jcard-agent">
               <Bot size={13} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>

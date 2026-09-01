@@ -10,6 +10,8 @@ import { JournalCardV2 } from "./JournalCardV2";
 import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
+import { SourceFilterRail } from "./SourceBadge";
+import { sourceOf, type EntrySource } from "./entrySource";
 import { toast } from "@/lib/toast";
 import {
   consumeManualEntryRequest,
@@ -90,6 +92,13 @@ export function JournalScreenV2({
   const [unfinishedOnly, setUnfinishedOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  /**
+   * 출처 필터 (Phase 3). `WorkspaceContext` 에 영속하지 않는다 — 열 때마다
+   * 전체로 시작하는 편이 맞다: "어제 걸어 둔 필터 때문에 오늘 일지가 안 보인다"
+   * 는 이 화면에서 가장 비싼 착각이고, 미완료·검증됨 두 토글도 같은 이유로
+   * 화면 지역 상태다.
+   */
+  const [sourceFilter, setSourceFilter] = useState<EntrySource | null>(null);
   // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
   // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
   const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
@@ -217,7 +226,7 @@ export function JournalScreenV2({
   );
 
   // Apply scope-chip + in-page search (title + tags + slug substring).
-  const filteredDays = useMemo(() => {
+  const matchedDays = useMemo(() => {
     if (!days) return null;
     const q = search.trim().toLowerCase();
     const typeWanted = filter === "all" ? null : FILTER_TO_TYPE[filter];
@@ -236,10 +245,39 @@ export function JournalScreenV2({
       .filter((d) => d.entries.length > 0);
   }, [days, filter, search]);
 
+  /**
+   * 레일이 보는 표본은 **출처 필터를 걸기 전**이다. 걸린 뒤의 목록으로 세면
+   * 하나를 고르는 순간 출처가 1종이 되어 레일이 스스로 사라지고, 되돌릴 길이
+   * 없어진다.
+   */
+  const sourceStats = useMemo(() => {
+    const list: EntrySource[] = [];
+    const counts: Partial<Record<EntrySource, number>> = {};
+    for (const day of matchedDays ?? []) {
+      for (const e of day.entries) {
+        const source = sourceOf(e.session_id, e.agent_id);
+        list.push(source);
+        counts[source] = (counts[source] ?? 0) + 1;
+      }
+    }
+    return { list, counts };
+  }, [matchedDays]);
+
+  const filteredDays = useMemo(() => {
+    if (!matchedDays) return null;
+    if (!sourceFilter) return matchedDays;
+    return matchedDays
+      .map((d) => ({
+        ...d,
+        entries: d.entries.filter((e) => sourceOf(e.session_id, e.agent_id) === sourceFilter),
+      }))
+      .filter((d) => d.entries.length > 0);
+  }, [matchedDays, sourceFilter]);
+
   // While a filter/search is active, force every day open so matches in older
   // (default-collapsed) days are visible.
   const searchActive =
-    search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly;
+    search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly || sourceFilter != null;
 
   // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
   // workday (parsed from the path), so a completed plan's weeks-old journal opens
@@ -417,6 +455,20 @@ export function JournalScreenV2({
                 onRetry={refresh}
                 style={{ marginBottom: 16 }}
               />
+            ) : null}
+
+            {/* 출처 레일 — 목록에 출처가 2종 이상일 때만 그린다 (1종이면 아무것도
+                좁히지 못하는 장식이다). 툴바가 아니라 목록 위에 두는 이유: 이건
+                화면의 설정이 아니라 **지금 이 목록**을 좁히는 손잡이다. */}
+            {!loading || days != null ? (
+              <div style={{ marginBottom: 10 }}>
+                <SourceFilterRail
+                  sources={sourceStats.list}
+                  counts={sourceStats.counts}
+                  value={sourceFilter}
+                  onChange={setSourceFilter}
+                />
+              </div>
             ) : null}
 
             {loading && days == null ? (

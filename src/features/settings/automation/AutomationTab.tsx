@@ -7,7 +7,7 @@
 // 어땠는가 (3) 왜 안 돌았는가 (4) 무엇을 시킬 수 있는가(씨앗).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock, MoreHorizontal, Play, Trash2 } from "@/components/Icons";
+import { Clock, MoreHorizontal, Play, Square, Trash2 } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { toAppError } from "@/api/invoke";
@@ -69,20 +69,31 @@ export function AutomationTab() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  /**
+   * 지금 러너가 돌리고 있는 자동화 id (Phase 3). 이벤트만으로는 **이미 돌고
+   * 있던** 잡을 놓치므로, 마운트 때는 `overview` 가 러너에게 직접 물어 채운다.
+   */
+  const [runningId, setRunningId] = useState<string | null>(null);
 
   const coreModel = coreModelTarget(settings);
 
   const refresh = useCallback(async () => {
     if (projectId == null) return;
     try {
-      const [list, seedList, cfg] = await Promise.all([
+      const [list, seedList, cfg, overview] = await Promise.all([
         automationApi.list(projectId),
         automationApi.seeds(projectId),
         oculpmApi.getConfig(projectId),
+        automationApi.overview(projectId),
       ]);
       setItems(sortSummaries(list));
       setSeeds(seedList);
       setConfig(cfg);
+      // 러너는 전역 1건이라 다른 프로젝트의 잡일 수 있다 — 그때 이 화면에
+      // 「실행 중」을 켜면 거짓말이 된다.
+      setRunningId(
+        overview.running_project_id === projectId ? overview.running_automation_id : null,
+      );
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
     } finally {
@@ -93,6 +104,17 @@ export function AutomationTab() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // 시작/종료를 이벤트로 받는다 — 폴링하지 않는다. 끝나면 카드의 「마지막 실행」
+  // 도 같이 낡으므로 한 번 다시 읽는다.
+  useEffect(() => {
+    if (projectId == null) return;
+    return automationApi.onRunChanged((e) => {
+      if (e.project_id !== projectId) return;
+      setRunningId(e.running ? e.automation_id : null);
+      if (!e.running) void refresh();
+    });
+  }, [projectId, refresh]);
 
   useEffect(() => {
     if (pane.kind !== "history" || projectId == null) return;
@@ -172,6 +194,12 @@ export function AutomationTab() {
     if (outcome.status === "ran") toast.info(msg);
     else toast.warning(outcome.reason ? `${msg} — ${outcome.reason}` : msg);
     void refresh();
+  };
+
+  /** 인라인 Stop — 러너의 취소 깃발을 세운다 (같은 문을 세션 줄도 쓴다). */
+  const stopRunning = async () => {
+    const ok = await guard(() => automationApi.cancel());
+    if (ok !== null) toast.info(t("automation.card.stopSent"));
   };
 
   const addSeed = async (seedId: string) => {
@@ -257,6 +285,20 @@ export function AutomationTab() {
                   <span className={st === "broken" ? "chip warn" : "chip"}>
                     {t(`automation.state.${st}` as never)}
                   </span>
+                  {/* 돌고 있는 카드는 그 자리에서 멈출 수 있어야 한다 — 세션
+                      줄의 인라인 Stop 과 같은 규약이다. */}
+                  {runningId === s.def.id && (
+                    <>
+                      <span className="chip info">{t("automation.card.running")}</span>
+                      <button
+                        className="btn ghost sm"
+                        disabled={busy}
+                        onClick={() => void stopRunning()}
+                      >
+                        <Square size={11} /> {t("automation.card.stop")}
+                      </button>
+                    </>
+                  )}
                   <button
                     className="iconbtn right"
                     aria-label={t("automation.card.menu")}

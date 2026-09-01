@@ -64,9 +64,15 @@ import { applyMention, findMentionQuery } from "./acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "./acpSlash";
 import { withUltracode } from "./ultracode";
 import { requestUsagePanel } from "./usageBus";
-import { acpWorkingKey, setAcpAttention, setAcpWorking } from "./acpBusyBus";
+import {
+  acpRowStateOf,
+  acpWorkingKey,
+  setAcpAttention,
+  setAcpWorking,
+  useAcpRowStates,
+} from "./acpBusyBus";
 import { recallBack, recallForward, type RecallState } from "./promptHistory";
-import { markSpoken, stabilizeHistory, type ActivityLedger } from "./acpHistory";
+import { markSpoken, sortActiveFirst, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { resolveTitle, titleFromPrompt } from "./acpTitle";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
@@ -781,6 +787,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       setHistory(
         stable.map((item) => ({ ...item, title: resolveTitle(item.title, promptsOf(item.id)) })),
       );
+      // 정렬(활성 먼저)은 여기서 하지 않는다 — 조회는 몇 초에 한 번이고 활성
+      // 여부는 그 사이에도 바뀐다. 렌더 시점에 접는다.
+
     }
   }, [projectId, promptsOf]);
 
@@ -1384,6 +1393,36 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     void commands.acpCancel(projectId, activeId === SLATE ? null : activeId);
     putPermission(activeId, null);
   }, [projectId, activeId, putPermission]);
+
+  /**
+   * 목록에서 **열지 않고** 중단 (Phase 3 `#inline-stop`).
+   *
+   * 지금까지 멈추는 길은 보고 있는 대화의 ESC/정지 버튼뿐이었다 — 뒤에서 도는
+   * 대화를 멈추려면 먼저 그리로 옮겨 가야 했고, 옮기는 것 자체가 스트림의
+   * 자리를 흔든다. 취소는 세션 id 로 보내면 되므로 갈 이유가 없다.
+   */
+  const stopSession = useCallback(
+    (sessionId: string) => {
+      void commands.acpCancel(projectId, sessionId);
+      putPermission(sessionId, null);
+    },
+    [projectId, putPermission],
+  );
+
+  // 세션 줄의 상태 — 이 화면이 이미 버스에 쓰고 있으므로 읽기도 여기서 한다.
+  const rowStates = useAcpRowStates();
+  const rowStateOf = useCallback(
+    (sessionId: string) => acpRowStateOf(rowStates, projectId, sessionId),
+    [rowStates, projectId],
+  );
+  /**
+   * 활성 대화를 맨 위로. 원장(`stabilizeHistory`)이 정한 순서는 버킷 **안에서**
+   * 그대로 살아 있다 — 활성은 그 앞에 붙는 별도 칸일 뿐이다.
+   */
+  const shownHistory = useMemo(
+    () => sortActiveFirst(history ?? EMPTY_SESSIONS, (id) => rowStateOf(id) != null),
+    [history, rowStateOf],
+  );
 
   // ESC 로 중단. 화면 어디에 포커스가 있든 먹어야 해서 document 에 건다 —
   // 진행 중일 때만 등록하므로 다른 화면의 ESC(팝오버 닫기 등)를 뺏지 않는다.
@@ -1991,7 +2030,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           불가능하고, 스크롤 위치와 검색어도 매번 날아간다. */}
       <SessionPanel
         open={panelOpen}
-        sessions={history ?? EMPTY_SESSIONS}
+        sessions={shownHistory}
         currentId={session.session_id}
         query={historyQuery}
         onQuery={setHistoryQuery}
@@ -2000,6 +2039,8 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         onRename={rename}
         onDelete={remove}
         names={names}
+        stateOf={rowStateOf}
+        onStop={stopSession}
       />
 
     </div>

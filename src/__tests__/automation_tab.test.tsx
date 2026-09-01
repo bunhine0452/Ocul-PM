@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { AutomationTab } from "@/features/settings/automation/AutomationTab";
 import {
@@ -42,6 +42,30 @@ const runNowResult = vi.hoisted(() => ({
   current: { status: "ran", reason: null as string | null, journal_path: null as string | null },
 }));
 const calls = vi.hoisted(() => ({ current: [] as string[] }));
+type RunChanged = {
+  project_id: number;
+  automation_id: string;
+  kind: string;
+  running: boolean;
+  status: string | null;
+};
+const overviewData = vi.hoisted(() => ({
+  current: {
+    schedules_on: true,
+    watchers_on: false,
+    active_schedules: 1,
+    active_watchers: 0,
+    next_run_at: null as string | null,
+    watcher_tiers: [] as string[],
+    broken: 0,
+    used_today: 0,
+    daily_run_budget: 20,
+    last_failure: null,
+    running_automation_id: null as string | null,
+    running_project_id: null as number | null,
+  },
+}));
+const runListeners = vi.hoisted(() => ({ current: [] as Array<(e: RunChanged) => void> }));
 const toasts = vi.hoisted(() => ({ current: [] as Array<[string, string]> }));
 
 vi.mock("@/api/automation", () => ({
@@ -69,7 +93,18 @@ vi.mock("@/api/automation", () => ({
       calls.current.push(`run:${id}`);
       return Promise.resolve(runNowResult.current);
     },
-    cancel: () => Promise.resolve(null),
+    cancel: () => {
+      calls.current.push("cancel");
+      return Promise.resolve(null);
+    },
+    // Phase 3 — 실행 중 표시는 마운트 시 overview 가, 그 뒤로는 이벤트가 준다.
+    overview: () => Promise.resolve(overviewData.current),
+    onRunChanged: (cb: (e: RunChanged) => void) => {
+      runListeners.current.push(cb);
+      return () => {
+        runListeners.current = runListeners.current.filter((fn) => fn !== cb);
+      };
+    },
   },
 }));
 
@@ -122,6 +157,8 @@ beforeEach(() => {
   runNowResult.current = { status: "ran", reason: null, journal_path: null };
   calls.current = [];
   toasts.current = [];
+  overviewData.current = { ...overviewData.current, running_automation_id: null, running_project_id: null };
+  runListeners.current = [];
 });
 
 afterEach(cleanup);
@@ -375,5 +412,67 @@ describe("AutomationEditor (워처)", () => {
     });
     expect(screen.getByText("감시 경로")).toBeInTheDocument();
     expect(screen.queryByText("빈도")).toBeNull();
+  });
+});
+
+// ── 실행 중 표시와 인라인 Stop (Phase 3 #inline-stop) ─────────────────────────
+//
+// 러너는 **프로세스 전역 1건**이라 다른 프로젝트의 잡일 수 있다. 그때 이 화면이
+// 「실행 중」을 켜면 있지도 않은 일을 있다고 말하는 것이다.
+
+describe("AutomationTab — 실행 중", () => {
+  it("마운트 시 이미 돌고 있던 잡을 잡는다 (이벤트만으로는 놓친다)", async () => {
+    listData.current = [summary({ id: "weekly", title: "주간 요약", enabled: true })];
+    overviewData.current = {
+      ...overviewData.current,
+      running_automation_id: "weekly",
+      running_project_id: 1,
+    };
+    render(<AutomationTab />);
+    expect(await screen.findByText("실행 중…")).toBeInTheDocument();
+  });
+
+  it("다른 프로젝트의 잡이면 이 화면은 조용하다", async () => {
+    listData.current = [summary({ id: "weekly", title: "주간 요약", enabled: true })];
+    overviewData.current = {
+      ...overviewData.current,
+      running_automation_id: "weekly",
+      running_project_id: 2,
+    };
+    render(<AutomationTab />);
+    await screen.findByText("주간 요약");
+    expect(screen.queryByText("실행 중…")).toBeNull();
+  });
+
+  it("이벤트로 켜지고 꺼진다 — 폴링하지 않는다", async () => {
+    listData.current = [summary({ id: "weekly", title: "주간 요약", enabled: true })];
+    render(<AutomationTab />);
+    await screen.findByText("주간 요약");
+
+    act(() => {
+      runListeners.current.forEach((fn) =>
+        fn({ project_id: 1, automation_id: "weekly", kind: "schedule", running: true, status: null }),
+      );
+    });
+    expect(screen.getByText("실행 중…")).toBeInTheDocument();
+
+    act(() => {
+      runListeners.current.forEach((fn) =>
+        fn({ project_id: 1, automation_id: "weekly", kind: "schedule", running: false, status: "ran" }),
+      );
+    });
+    await waitFor(() => expect(screen.queryByText("실행 중…")).toBeNull());
+  });
+
+  it("Stop 은 러너의 취소를 부른다", async () => {
+    listData.current = [summary({ id: "weekly", title: "주간 요약", enabled: true })];
+    overviewData.current = {
+      ...overviewData.current,
+      running_automation_id: "weekly",
+      running_project_id: 1,
+    };
+    render(<AutomationTab />);
+    fireEvent.click(await screen.findByRole("button", { name: /중단/ }));
+    await waitFor(() => expect(calls.current).toContain("cancel"));
   });
 });

@@ -1371,6 +1371,11 @@ export const commands = {
 	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
 	/**  이 프로젝트의 모든 자동화 정의 + 상태. 스케줄 먼저, 그 안에서 id 순. */
 	automationList: (projectId: number) => typedError<AutomationSummary[], AppError>(__TAURI_INVOKE("automation_list", { projectId })),
+	/**
+	 *  닥터·자동화 탭이 한 번에 읽는 요약. 정의는 파일, 예산은 원장, 실행 중
+	 *  여부는 러너에서 온다.
+	 */
+	automationOverview: (projectId: number) => typedError<AutomationOverview, AppError>(__TAURI_INVOKE("automation_overview", { projectId })),
 	/**  실행 이력, 시각 역순. `automation_id` 가 없으면 프로젝트 전체. */
 	automationRuns: (projectId: number, automationId: string | null, limit: number) => typedError<AutomationRunDto[], AppError>(__TAURI_INVOKE("automation_runs", { projectId, automationId, limit })),
 	/**  아직 만들지 않은 씨앗들. 빈 목록이면 UI 는 제안 줄을 감춘다. */
@@ -1640,6 +1645,7 @@ export const commands = {
 /** Events */
 export const events = {
 	acpSessionChanged: makeEvent<AcpSessionChanged>("acp-session-changed"),
+	automationRunChanged: makeEvent<AutomationRunChanged>("automation-run-changed"),
 	closeIntent: makeEvent<CloseIntent>("close-intent"),
 	dapBreakpointsChanged: makeEvent<DapBreakpointsChanged>("dap-breakpoints-changed"),
 	dapOutputEmitted: makeEvent<DapOutputEmitted>("dap-output-emitted"),
@@ -2175,6 +2181,55 @@ export type AutomationOutput =
 "plan" | 
 /**  산출물 없음 — 실행 원장의 메모로만 남는다 (아침 브리핑 카드 등). */
 "none";
+
+/**
+ *  닥터 한 칸이 필요로 하는 자동화 상태 전부 (Phase 3 `#doctor-automation`).
+ * 
+ *  프런트가 `automation_list` + `automation_runs` 를 다시 접어 만들 수도 있지만,
+ *  **예산 창의 시작 시각**(워크데이 시작 = `day_starts_at`)은 러너가 쓰는 값과
+ *  한 글자도 달라선 안 된다 — 두 벌로 계산하면 화면이 "12/20" 이라 말하는데
+ *  실제로는 이미 소진된 상태가 생긴다. 그래서 여기서 한 번만 센다.
+ */
+export type AutomationOverview = {
+	/**  프로젝트 전역 스위치 (`config.toml [automation]`). */
+	schedules_on: boolean,
+	watchers_on: boolean,
+	/**  켜져 있고 스펙이 성립하는 정의 수 — 실제로 돌 수 있는 것만 센다. */
+	active_schedules: number,
+	active_watchers: number,
+	/**  활성 스케줄 중 가장 이른 다음 실행 (ISO8601 UTC). */
+	next_run_at: string | null,
+	/**  활성 워처의 반응성 티어 (중복 제거, 정의 순). */
+	watcher_tiers: string[],
+	/**  켜져 있는데 스펙이 깨져 못 도는 정의 수. 0 이 아니면 조용히 안 돈다. */
+	broken: number,
+	/**  오늘 워크데이에 **과금된** 실행 수 (드롭·스킵 제외) / 예산. */
+	used_today: number,
+	daily_run_budget: number,
+	/**  가장 최근 실패 1건. 없으면 `None`. */
+	last_failure: AutomationRunDto | null,
+	/**
+	 *  지금 러너가 돌리고 있는 자동화 id. 러너는 **프로세스 전역**이라 다른
+	 *  프로젝트의 잡일 수도 있다 — 그래서 project_id 를 함께 싣는다.
+	 */
+	running_automation_id: string | null,
+	running_project_id: number | null,
+};
+
+/**
+ *  자동화 실행이 시작/종료됐다 — 설정 자동화 탭과 닥터가 폴링 없이 안다.
+ *  러너가 전역 1건이므로 페이로드도 전역이다 (프로젝트 필터는 프런트 몫).
+ */
+export type AutomationRunChanged = {
+	project_id: number,
+	automation_id: string,
+	/**  `schedule` | `watcher`. */
+	kind: string,
+	/**  true = 시작, false = 끝. */
+	running: boolean,
+	/**  끝났을 때의 결말 (`ran`/`dropped`/`skipped`/`failed`/`cancelled`). */
+	status: string | null,
+};
 
 /**  실행 이력 한 줄 (`automation_runs`). */
 export type AutomationRunDto = {

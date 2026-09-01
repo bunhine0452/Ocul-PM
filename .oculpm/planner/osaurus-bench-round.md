@@ -4,7 +4,7 @@ id: osaurus-bench-round
 title: "Osaurus 벤치마크 라운드 — 자동화 · 출처 · 테마 · 컨텍스트 경제학 · 선언적 설정"
 status: active
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-01
 owner: claude-code
 ---
 
@@ -62,13 +62,13 @@ v2.30.0=P5 · v2.31.0=P6 · v2.32.0=P7. Phase 경계마다 5면을 채워 릴리
 - [x] 멱등 가이드 + 트러블슈팅 문구 3종(안 돈다·너무 자주 돈다·결과가 이상하다)을 에디터·진단에서 같은 말로 {#idempotent-guidance}
 
 ## Phase 3 — 출처와 상태를 보이게 {#provenance}
-- [ ] 소스 파생 순수 함수 `sourceOf(sessionId, agentId)` — 직접·에이전트·자동 초안·스케줄·감시·MCP·백필·들여옴 8종 {#source-derive}
-- [ ] 소스 배지 — 일지 카드·오늘 피드·ACP 세션·검색 결과·회고 (`.chip` 프리미티브 재사용, 새 컴포넌트 없음) {#source-badges}
-- [ ] 배지 필터 레일 — 일지·ACP 두 곳에만. 목록에 소스가 1종이면 자동 숨김 {#source-filter-rail}
-- [ ] 활성 행 — `실행 중…` / `입력을 기다립니다` + 활성 버킷 정렬(`stabilizeHistory` 원장 규약은 불변) {#active-rows}
-- [ ] 인라인 Stop — 행 hover `.iconbtn` + 우클릭 메뉴, 자동화 실행 카드에도 동일 컨트롤(러너 취소 호출) {#inline-stop}
-- [ ] 닥터 탭 자동화 섹션 — 배경 모델(미설정이면 딥링크)·스케줄·감시·오늘 예산·최근 실패 {#doctor-automation}
-- [ ] 발동 원장을 디버깅 정식 경로로 — 진단 「발동」 섹션(상위 발동 + **한 번도 안 걸린 규칙**) + run 상세에서 원장 점프 {#firing-insights}
+- [x] 소스 파생 순수 함수 `sourceOf(sessionId, agentId)` — 직접·에이전트·자동 초안·스케줄·감시·MCP·백필·들여옴 8종 {#source-derive}
+- [x] 소스 배지 — 일지 카드·오늘 피드·ACP 세션·검색 결과·회고 (`.chip` 프리미티브 재사용, 새 컴포넌트 없음) {#source-badges}
+- [x] 배지 필터 레일 — 일지·ACP 두 곳에만. 목록에 소스가 1종이면 자동 숨김 {#source-filter-rail}
+- [x] 활성 행 — `실행 중…` / `입력을 기다립니다` + 활성 버킷 정렬(`stabilizeHistory` 원장 규약은 불변) {#active-rows}
+- [x] 인라인 Stop — 행 hover `.iconbtn` + 우클릭 메뉴, 자동화 실행 카드에도 동일 컨트롤(러너 취소 호출) {#inline-stop}
+- [x] 닥터 탭 자동화 섹션 — 배경 모델(미설정이면 딥링크)·스케줄·감시·오늘 예산·최근 실패 {#doctor-automation}
+- [x] 발동 원장을 디버깅 정식 경로로 — 진단 「발동」 섹션(상위 발동 + **한 번도 안 걸린 규칙**) + run 상세에서 원장 점프 {#firing-insights}
 
 ## Phase 4 — 테마 파일화 {#themes}
 - [ ] 테마 스키마 v1 — CSS 변수 이름을 그대로 키로, 부분 지정 상속, 허용 토큰 화이트리스트(임의 CSS 주입 차단) {#theme-schema}
@@ -210,6 +210,25 @@ Phase 3 의 소스 배지가 자동화를 구분하지 못한다. (기존 메모
 
 영향: #session-id-sources #source-derive #source-badges
 
+### Decision 9 — 자동화 실행은 발동 원장에 나타나지 않는다 {#d9-ledger-scope}
+잠금 2026-09-01 · claude-code
+
+설계 [02-provenance.md](../../docs/20260831_osaurus-bench/02-provenance.md) §4.2 는
+"자동화 실행 상세에서 원장으로 점프 — run 하나를 열면 그 세션 창에서 걸린 규칙·
+스킬을 보여준다" 고 적었다. **이 전제는 틀렸다.**
+
+`firing_ledger.rs` 가 읽는 것은 Claude Code 의 transcript(`~/.claude/projects/**`)
+뿐이다. 자동화는 `runner.rs` 의 `ChatBackend` 로 배경 모델을 **직접** 부르므로
+Claude Code 를 지나지 않고, 따라서 `sched-`/`auto-` 세션은 원장에 애초에 존재하지
+않는다. 그 점프를 만들면 언제나 빈 화면으로 데려가는 문이 된다.
+
+그래서 하지 않는다. 대신 (1) 진단의 「발동」 섹션은 그대로 만들고 — 그쪽은
+*에이전트가 쓴* 일지를 의심할 때의 정식 경로다, (2) 트러블슈팅 「결과가 이상하다」
+문구를 사실대로 고쳤다: 자동화는 규칙·스킬을 싣지 않으므로 지시문이 곧 전부이고,
+먼저 볼 곳은 실행 기록의 결말과 사유다.
+
+영향: #firing-insights #idempotent-guidance
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -237,4 +256,12 @@ Phase 3 의 소스 배지가 자동화를 구분하지 못한다. (기존 메모
 | 2026-08-31T20:47:00+09:00 | #reconcile-absorb | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 화해가 러너를 통과. 편집 로직(CAS·plan_write_lock)은 reconcile.rs 그대로 |
 | 2026-08-31T20:47:00+09:00 | #loop-guard | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 원인 제외 4경로(UI emit 과 분리) + 최소 간격 ×2 + 일일 예산. 재발동 0건 테스트 |
 | 2026-08-31T20:47:00+09:00 | #idempotent-guidance | claude-code | ☐→☑ | .oculpm/journal/20260831/Features_to_add/2047_feature_watcher-automation-phase2.md | 문제 해결 3종을 에디터·진단이 같은 컴포넌트로 렌더 |
+| 2026-09-01T11:13:00+09:00 | #source-derive | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | sourceOf 순수 함수 — 세션 접두가 agent.id 보다 먼저다(자동화의 auto:* 귀속이 스케줄·감시를 덮지 않게) |
+| 2026-09-01T11:13:00+09:00 | #source-badges | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 일지 카드·상세·오늘 피드·회고. 검색 결과와 ACP 목록은 의도적 제외 — 일지 사유는 일지 메모 |
+| 2026-09-01T11:13:00+09:00 | #source-filter-rail | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 일지 화면. 표본은 출처 필터를 걸기 **전** 목록 — 아니면 고르는 순간 레일이 스스로 사라진다 |
+| 2026-09-01T11:13:00+09:00 | #active-rows | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 실행 중…/입력을 기다립니다 + 활성 버킷 안정 분할. stabilizeHistory 원장은 불변 |
+| 2026-09-01T11:13:00+09:00 | #inline-stop | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 세션 줄·자동화 카드 양쪽. 우클릭 메뉴는 미구현(행에 이미 보이는 액션 묶음이 있다) |
+| 2026-09-01T11:13:00+09:00 | #doctor-automation | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 배경 모델·스케줄·감시·오늘 예산·최근 실패 + 고장난 정의 행. 예산 창은 automation_overview 가 러너와 같은 함수로 |
+| 2026-09-01T11:13:00+09:00 | #firing-insights | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 진단 「발동」 7일 — 상위 + 한 번도 안 걸린 규칙. 미측정·부분 스캔·경로 조건을 정직하게 밝힌다 |
+| 2026-09-01T11:20:00+09:00 | #firing-insights #idempotent-guidance | claude-code | ☑→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | D9 — run 상세→원장 점프는 폐기(자동화는 Claude Code 를 지나지 않아 원장에 없다). 트러블슈팅 「결과가 이상하다」 문구를 사실대로 정정 |
 <!-- oculpm:plan-log end -->

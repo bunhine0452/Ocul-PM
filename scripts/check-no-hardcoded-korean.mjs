@@ -132,6 +132,9 @@ const TESTS = new Set([
   "__tests__/acp_session_tabs.test.tsx",
   "__tests__/acp_title.test.ts",
   "__tests__/acp_usage_detail.test.ts",
+  // Osaurus 라운드 Phase 3 — 출처 배지·활성 행. 한국어 UI 문자열이 단언 재료다.
+  "__tests__/entry_source.test.ts",
+  "__tests__/provenance_rows.test.tsx",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",

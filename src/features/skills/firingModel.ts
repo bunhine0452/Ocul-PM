@@ -83,3 +83,25 @@ export function shortWorkday(workday: string): string {
   if (!/^\d{8}$/.test(workday)) return workday;
   return `${Number(workday.slice(4, 6))}/${Number(workday.slice(6, 8))}`;
 }
+
+/**
+ * 창 안에서 **한 번도 안 걸린** 규칙 (Osaurus 라운드 Phase 3 `#firing-insights`).
+ *
+ * 이것이 발동 원장의 진짜 값이다. "많이 걸린 규칙" 은 흥미롭지만 행동을 바꾸지
+ * 않는다 — 반면 *써 놓고 한 번도 안 걸리는 규칙*은 규칙 파일의 가장 흔한 실패
+ * 이고, 눈으로는 절대 안 보인다.
+ *
+ * 아직 만들지 않은 `CLAUDE.md` 슬롯(`exists: false`)은 제외한다 — 없는 파일이
+ * 안 걸린 것은 발견이 아니다.
+ */
+export function neverFiredRules(overview: RulesOverview, index: FiringIndex): RuleEntry[] {
+  const all = [...overview.claude_md, ...overview.project_rules, ...overview.global_rules];
+  return all.filter((entry) => entry.exists && !index.rules.has(ruleAbsPath(entry, overview)));
+}
+
+/** 발동 상위 목록 — 횟수 내림차순, 동수는 이름순 (렌더마다 순서가 흔들리지 않게). */
+export function topFirings(stats: FiringStat[], limit: number): FiringStat[] {
+  return [...stats]
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}

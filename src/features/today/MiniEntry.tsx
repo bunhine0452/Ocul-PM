@@ -1,5 +1,7 @@
 import { ChevronRight } from "@/components/Icons";
 import { TriggerBadge } from "@/features/oculpm/triggerMeta";
+import { SourceBadge } from "@/features/oculpm/SourceBadge";
+import { sourceOf } from "@/features/oculpm/entrySource";
 import { agentLabel } from "./agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -32,6 +34,9 @@ export function MiniEntry({ entry, onOpen }: MiniEntryProps) {
           <span className="mono">{timeLabel(entry.created_at)}</span>
           <span className="dotsep">·</span>
           <span>{agentLabel(entry.agent_id)}</span>
+          <span className="dotsep">·</span>
+          {/* 좁은 줄이라 아이콘만 — 라벨은 툴팁이 든다. */}
+          <SourceBadge source={sourceOf(entry.session_id, entry.agent_id)} withLabel={false} />
           <span className="dotsep">·</span>
           <span>{t("today.entry.files", { n: entry.files_count })}</span>
         </div>

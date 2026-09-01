@@ -32,6 +32,26 @@ const listeners = new Set<Listener>();
 let count = 0;
 let attentionCount = 0;
 
+/**
+ * 세션 줄이 읽는 스냅샷 (Phase 3 `#active-rows`).
+ *
+ * `useSyncExternalStore` 는 **같은 상태면 같은 참조**를 요구한다 — 훅 안에서
+ * 매번 새 Map 을 만들면 무한 렌더가 된다. 그래서 상태가 바뀔 때만 새로 짓고,
+ * 그 사이에는 같은 객체를 돌려준다. 프로젝트별로 가르지 않는 이유도 같다:
+ * 인자를 받아 걸러 주면 호출마다 새 객체가 나온다. 키에 이미 프로젝트가
+ * 들어 있으므로(`acpWorkingKey`) 거르는 일은 렌더가 한다.
+ */
+export interface AcpRowStates {
+  working: ReadonlySet<string>;
+  attention: ReadonlySet<string>;
+}
+
+let rowStates: AcpRowStates = { working: new Set(), attention: new Set() };
+
+function rebuildRowStates(): void {
+  rowStates = { working: new Set(working), attention: new Set(attention) };
+}
+
 export function acpWorkingKey(projectId: number, sessionId: string | null): string {
   return `${projectId}:${sessionId ?? "new"}`;
 }
@@ -42,6 +62,7 @@ export function setAcpWorking(key: string, on: boolean): void {
   if (on) working.add(key);
   else working.delete(key);
   count = working.size;
+  rebuildRowStates();
   for (const listener of [...listeners]) listener();
 }
 
@@ -51,6 +72,7 @@ export function setAcpAttention(key: string, on: boolean): void {
   if (on) attention.add(key);
   else attention.delete(key);
   attentionCount = attention.size;
+  rebuildRowStates();
   for (const listener of [...listeners]) listener();
 }
 
@@ -93,5 +115,34 @@ export function resetAcpWorking(): void {
   attention.clear();
   count = 0;
   attentionCount = 0;
+  rebuildRowStates();
   for (const listener of [...listeners]) listener();
+}
+
+function rowStatesSnapshot(): AcpRowStates {
+  return rowStates;
+}
+
+/**
+ * 세션 줄의 상태 — `실행 중…` / `입력을 기다립니다` 를 그리는 재료.
+ * 키는 [`acpWorkingKey`] 가 만든 `projectId:sessionId` 다.
+ */
+export function useAcpRowStates(): AcpRowStates {
+  return useSyncExternalStore(subscribe, rowStatesSnapshot, rowStatesSnapshot);
+}
+
+/** 한 세션의 상태 한 낱말. 없으면 `null` (= 유휴, 상대 시각을 그린다). */
+export type AcpRowState = "working" | "attention";
+
+export function acpRowStateOf(
+  states: AcpRowStates,
+  projectId: number,
+  sessionId: string,
+): AcpRowState | null {
+  const key = acpWorkingKey(projectId, sessionId);
+  // 승인 대기가 이긴다 — 둘 다 참일 때 사용자가 해야 할 일은 기다리는 것이
+  // 아니라 누르는 것이다.
+  if (states.attention.has(key)) return "attention";
+  if (states.working.has(key)) return "working";
+  return null;
 }

@@ -12,13 +12,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Stethoscope } from "@/components/Icons";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import { automationApi } from "@/api/automation";
+import { formatAt } from "../automation/automationModel";
 import { useT } from "@/i18n";
 import type { I18nKey } from "@/i18n";
-import { commands, type AcpDiagnostics, type OculpmStatus, type ProjectStats } from "@/lib/bindings";
+import {
+  commands,
+  type AcpDiagnostics,
+  type AutomationOverview,
+  type OculpmStatus,
+  type ProjectStats,
+} from "@/lib/bindings";
 import { clearIntegrityLog, useIntegrityLog } from "@/lib/integrityLog";
 import { requestOculpmActivate, requestReindex } from "@/lib/projectActions";
 import { openSettings } from "@/lib/settingsNav";
-import { PROVIDERS, type Provider } from "@/lib/settings";
+import { coreModelTarget, PROVIDERS, type Provider } from "@/lib/settings";
 import { toast } from "@/lib/toast";
 import type { Envelope } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
@@ -43,13 +52,15 @@ interface Probe {
   shell: { installed: boolean; block_broken: boolean } | null;
   hooks: { installed: boolean; partial: boolean } | null;
   mcp: { registered: boolean; binary_found: boolean } | null;
+  /** 자동화 한 벌 (Phase 3 `#doctor-automation`). 실패하면 그 행들만 "확인 실패". */
+  automation: AutomationOverview | null;
 }
 
 /** 실패한 조사는 `null` — 행은 "확인 실패" 로 남고 나머지 행은 정상 표시된다. */
 async function probe(projectId: number): Promise<Probe> {
   const ok = <T,>(p: Promise<Envelope<T>>) =>
     p.then((r) => (r.status === "ok" ? r.data : null)).catch(() => null);
-  const [status, acp, keyFlags, stats, shell, hooks, mcp] = await Promise.all([
+  const [status, acp, keyFlags, stats, shell, hooks, mcp, automation] = await Promise.all([
     ok(commands.oculpmGetStatus(projectId)),
     ok(commands.acpDiagnose()),
     Promise.all(PROVIDERS.map((p) => ok(commands.secretHas(secretName(p))).then((has) => (has ? p : null)))),
@@ -57,6 +68,8 @@ async function probe(projectId: number): Promise<Probe> {
     ok(commands.shellIntegrationStatus()),
     ok(commands.claudeHooksStatus(projectId)),
     ok(commands.mcpStatus(projectId)),
+    // `automationApi` 는 봉투 대신 던진다 — 여기만 형태가 달라 따로 삼킨다.
+    automationApi.overview(projectId).catch(() => null),
   ]);
   return {
     status,
@@ -66,6 +79,7 @@ async function probe(projectId: number): Promise<Probe> {
     shell,
     hooks,
     mcp,
+    automation,
   };
 }
 
@@ -78,6 +92,7 @@ const DOT: Record<RowState, string> = {
 
 export function DoctorSection() {
   const { t } = useT();
+  const { settings } = useSettings();
   const ws = useOptionalWorkspace();
   const projectId = ws?.state.currentProjectId ?? null;
   const indexing = projectId != null && ws?.state.indexingProjectId === projectId;
@@ -232,8 +247,106 @@ export function DoctorSection() {
             ? { id: "mcp", labelKey: "settings.doctor.mcp", state: "danger", value: t("settings.doctor.v.binaryMissing"), action: { labelKey: "settings.doctor.a.open", run: () => openSettings("oculpm") } }
             : { id: "mcp", labelKey: "settings.doctor.mcp", state: "off", value: t("settings.doctor.v.notInstalled"), action: { labelKey: "settings.doctor.a.open", run: () => openSettings("oculpm") } },
     );
+    // ── 자동화 (Phase 3 #doctor-automation) ─────────────────────────────────
+    //
+    // 다섯 줄이 "왜 안 도는가" 의 다섯 가지 답이다. 배경 모델이 맨 위인 이유:
+    // 미설정이면 나머지 넷이 전부 참이어도 아무것도 돌지 않는다 (D2).
+    const core = coreModelTarget(settings);
+    out.push(
+      core
+        ? {
+            id: "core-model",
+            labelKey: "settings.doctor.coreModel",
+            state: "ok",
+            value: `${core.provider}:${core.model}`,
+          }
+        : {
+            id: "core-model",
+            labelKey: "settings.doctor.coreModel",
+            state: "warn",
+            value: t("settings.doctor.v.coreModelNone"),
+            action: { labelKey: "settings.doctor.a.keys", run: () => openSettings("llm") },
+          },
+    );
+
+    const au = report.automation;
+    const openAutomation = { labelKey: "settings.doctor.a.open" as I18nKey, run: () => openSettings("automation") };
+    out.push(
+      !au
+        ? { id: "schedules", labelKey: "settings.doctor.schedules", state: "off", value: unknown }
+        : !au.schedules_on
+          ? { id: "schedules", labelKey: "settings.doctor.schedules", state: "off", value: t("settings.doctor.v.switchOff"), action: openAutomation }
+          : {
+              id: "schedules",
+              labelKey: "settings.doctor.schedules",
+              state: au.active_schedules === 0 ? "warn" : "ok",
+              // 다음 실행은 **미래**다 — `relativeTime` 은 과거 전용이라
+              // (`Math.max(0, now - ms)`) 어떤 미래 시각도 "지금" 으로 접힌다.
+              // 자동화 카드와 같은 절대 시각 포맷을 쓴다.
+              value: t("settings.doctor.v.schedules", {
+                n: au.active_schedules,
+                when: formatAt(au.next_run_at) ?? "—",
+              }),
+            },
+    );
+    out.push(
+      !au
+        ? { id: "watchers", labelKey: "settings.doctor.watchers", state: "off", value: unknown }
+        : !au.watchers_on
+          ? { id: "watchers", labelKey: "settings.doctor.watchers", state: "off", value: t("settings.doctor.v.switchOff"), action: openAutomation }
+          : {
+              id: "watchers",
+              labelKey: "settings.doctor.watchers",
+              state: au.active_watchers === 0 ? "warn" : "ok",
+              value: t("settings.doctor.v.watchers", {
+                n: au.active_watchers,
+                tiers: au.watcher_tiers.join(" · ") || "—",
+              }),
+            },
+    );
+    if (au && au.broken > 0) {
+      // 켜 놓았는데 스펙이 깨진 정의 — 조용히 안 도는 것의 가장 흔한 정체다.
+      out.push({
+        id: "automation-broken",
+        labelKey: "settings.doctor.automationBroken",
+        state: "danger",
+        value: t("settings.doctor.v.automationBroken", { n: au.broken }),
+        action: openAutomation,
+      });
+    }
+    out.push(
+      !au
+        ? { id: "budget", labelKey: "settings.doctor.budget", state: "off", value: unknown }
+        : {
+            id: "budget",
+            labelKey: "settings.doctor.budget",
+            state: au.used_today >= au.daily_run_budget ? "warn" : "ok",
+            value: t("settings.doctor.v.budget", {
+              used: au.used_today,
+              budget: au.daily_run_budget,
+            }),
+          },
+    );
+    out.push(
+      !au
+        ? { id: "last-failure", labelKey: "settings.doctor.lastFailure", state: "off", value: unknown }
+        : au.last_failure
+          ? {
+              id: "last-failure",
+              labelKey: "settings.doctor.lastFailure",
+              state: "warn",
+              value: t("settings.doctor.v.lastFailure", {
+                id: au.last_failure.automation_id,
+                when: relativeTime(au.last_failure.started_at, Date.now()) ?? "—",
+                note: au.last_failure.note ?? "—",
+              }),
+              action: openAutomation,
+            }
+          : { id: "last-failure", labelKey: "settings.doctor.lastFailure", state: "ok", value: t("settings.doctor.v.noFailure") },
+    );
+
     return out;
-  }, [report, projectId, indexing, t, check]);
+  }, [report, projectId, indexing, t, check, settings]);
 
   return (
     <Section title={t("settings.doctor.title")} description={t("settings.doctor.desc")}>

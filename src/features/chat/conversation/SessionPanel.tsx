@@ -3,7 +3,8 @@
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, Search, Trash2, X } from "@/components/Icons";
+import { Pencil, Plus, Search, Square, Trash2, X } from "@/components/Icons";
+import type { AcpRowState } from "../acpBusyBus";
 import { type AcpSessionSummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { relativeTime } from "../relativeTime";
@@ -30,6 +31,8 @@ export const SessionPanel = memo(function SessionPanel({
   onRename,
   onDelete,
   names,
+  stateOf,
+  onStop,
 }: {
   open: boolean;
   sessions: AcpSessionSummary[];
@@ -41,6 +44,14 @@ export const SessionPanel = memo(function SessionPanel({
   onRename: (id: string, next: string) => void;
   onDelete: (id: string) => void;
   names: Readonly<Record<string, string>>;
+  /**
+   * 이 대화가 지금 어떤 상태인가 (Phase 3 `#active-rows`). 버스를 여기서 직접
+   * 읽지 않는 이유: 이 패널은 순수 표시 컴포넌트로 남아야 테스트가 DOM 하나로
+   * 끝난다 — 부모가 이미 버스를 구독하고 있다.
+   */
+  stateOf: (id: string) => AcpRowState | null;
+  /** 열지 않고 중단 — 행의 Stop 이 부른다. */
+  onStop: (id: string) => void;
 }) {
   const { t } = useT();
   /** 지금 이름을 고치고 있는 줄. 한 번에 하나만 — 여러 줄이 동시에 열리면
@@ -145,6 +156,7 @@ export const SessionPanel = memo(function SessionPanel({
                 </div>
               );
             }
+            const rowState = stateOf(item.id);
             return (
               <div
                 key={item.id}
@@ -159,11 +171,39 @@ export const SessionPanel = memo(function SessionPanel({
                   <span className="acp-session-title">
                     {label || t("acp.untitledSession")}
                   </span>
-                  <span className="acp-session-time">
-                    {relativeTime(item.updated_at, now)}
-                  </span>
+                  {/* 상대 시각 자리를 상태가 **대신** 쓴다. 둘을 나란히 두면
+                      좁은 패널에서 제목이 먼저 잘린다 — 그리고 도는 중인 대화의
+                      "3분 전"은 지금 알고 싶은 값이 아니다. */}
+                  {rowState ? (
+                    <span
+                      className={
+                        "acp-session-state" + (rowState === "attention" ? " attention" : "")
+                      }
+                    >
+                      {rowState === "attention"
+                        ? t("acp.session.needsInput")
+                        : t("acp.session.running")}
+                    </span>
+                  ) : (
+                    <span className="acp-session-time">
+                      {relativeTime(item.updated_at, now)}
+                    </span>
+                  )}
                 </button>
                 <span className="acp-session-actions">
+                  {/* 열지 않고 중단 — 돌고 있을 때만 나타난다. 승인 대기는
+                      멈추는 것이 아니라 답하는 것이므로 여기 붙이지 않는다. */}
+                  {rowState === "working" ? (
+                    <button
+                      type="button"
+                      className="acp-session-act"
+                      onClick={() => onStop(item.id)}
+                      aria-label={t("acp.session.stop")}
+                      title={t("acp.session.stop")}
+                    >
+                      <Square size={11} />
+                    </button>
+                  ) : null}
                   {confirming === item.id ? (
                     <button
                       type="button"
