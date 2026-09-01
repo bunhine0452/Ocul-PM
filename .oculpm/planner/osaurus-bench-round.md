@@ -264,4 +264,5 @@ Claude Code 를 지나지 않고, 따라서 `sched-`/`auto-` 세션은 원장에
 | 2026-09-01T11:13:00+09:00 | #doctor-automation | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 배경 모델·스케줄·감시·오늘 예산·최근 실패 + 고장난 정의 행. 예산 창은 automation_overview 가 러너와 같은 함수로 |
 | 2026-09-01T11:13:00+09:00 | #firing-insights | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 진단 「발동」 7일 — 상위 + 한 번도 안 걸린 규칙. 미측정·부분 스캔·경로 조건을 정직하게 밝힌다 |
 | 2026-09-01T11:20:00+09:00 | #firing-insights #idempotent-guidance | claude-code | ☑→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | D9 — run 상세→원장 점프는 폐기(자동화는 Claude Code 를 지나지 않아 원장에 없다). 트러블슈팅 「결과가 이상하다」 문구를 사실대로 정정 |
+| 2026-09-01T11:40:00+09:00 | #watchers #provenance | claude-code | ☑→☑ | .oculpm/journal/20260901/Chores/1136_chore_release-v2-27-0.md | v2.27.0 릴리스 — Phase 2+3 한 버전(P2 가 미태그였다). 5면 전부: 버전 5파일·CHANGELOG·README ko/en·landing 6곳+featureList/FAQ(details+JSON-LD)/벤토 3셀 |
 <!-- oculpm:plan-log end -->
