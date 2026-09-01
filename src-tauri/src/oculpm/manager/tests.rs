@@ -875,6 +875,92 @@ mod journal_w3_pr3 {
         }
     }
 
+    /// Phase 7 (#conversation-import) — `created_at` 오버라이드가 있으면
+    /// **그 날의 폴더·그 시각의 파일명·그 시각의 frontmatter** 로 쓰인다.
+    ///
+    /// 이 라운드가 사용자에게 한 약속("들여온 기록은 원본 날짜 그대로 그 날의
+    /// 폴더에 들어갑니다")이 통째로 이 한 곳에 걸려 있다 — 조각(어댑터·세션 id)
+    /// 이 다 맞아도 쓰기 경로가 `now()` 를 보면 전부 오늘로 뭉개진다.
+    #[tokio::test]
+    async fn create_manual_entry_writes_at_the_declared_time_not_now() {
+        let (manager, db, _dir, _project_root) = fresh_manager_and_db().await;
+        let mut draft = minimal_draft("imported-old-conversation");
+        draft.created_at = Some("2025-07-14T11:30:00+00:00".to_string());
+
+        let entry = manager
+            .create_manual_journal_entry(&db, 7, draft)
+            .await
+            .unwrap();
+
+        // 워크데이 폴더가 **원본 날짜**다 — 오늘이 아니라.
+        assert!(
+            entry.relative_path.starts_with("20250714/"),
+            "원본 날짜 폴더여야 한다: {}",
+            entry.relative_path
+        );
+        // 파일명 HHMM 과 frontmatter 는 **프로젝트 타임존의 그 시각**이다
+        // (11:30 UTC = 20:30 +09:00). 다른 모든 일지와 같은 규약.
+        assert!(
+            entry
+                .relative_path
+                .contains("/2030_bug_imported-old-conversation.md"),
+            "파일명 HHMM 이 프로젝트 로컬 시각이어야 한다: {}",
+            entry.relative_path
+        );
+        assert!(entry.frontmatter.created_at.starts_with("2025-07-14T20:30"));
+
+        // 이 시각이 속한 워크데이를 묻는 공개 문(임포트의 중복 판정이 쓴다)이
+        // **같은 답**을 낸다. 둘이 갈라지면 중복 스킵이 엉뚱한 폴더를 뒤진다.
+        let asked = manager
+            .workday_at(
+                7,
+                chrono::DateTime::parse_from_rfc3339("2025-07-14T11:30:00+00:00")
+                    .unwrap()
+                    .with_timezone(&chrono::Utc),
+            )
+            .await
+            .unwrap();
+        assert_eq!(asked, "20250714");
+
+        // 타임존 경계: 23:00Z 는 +09:00 에서 **다음 날**이다. 원본 오프셋의
+        // 날짜(14일)를 그대로 믿으면 파일은 15일 폴더에 들어가는데 중복 판정은
+        // 14일을 뒤져, 같은 대화를 매번 새로 들여오게 된다.
+        let mut across = minimal_draft("imported-across-midnight");
+        across.created_at = Some("2025-07-14T23:00:00+00:00".to_string());
+        let across_entry = manager
+            .create_manual_journal_entry(&db, 7, across)
+            .await
+            .unwrap();
+        assert!(
+            across_entry.relative_path.starts_with("20250715/"),
+            "프로젝트 타임존 기준 다음 날이어야 한다: {}",
+            across_entry.relative_path
+        );
+        let asked_across = manager
+            .workday_at(
+                7,
+                chrono::DateTime::parse_from_rfc3339("2025-07-14T23:00:00+00:00")
+                    .unwrap()
+                    .with_timezone(&chrono::Utc),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            asked_across, "20250715",
+            "판정과 쓰기가 같은 날을 말해야 한다"
+        );
+
+        // 시각을 못 읽으면 죽지 않고 지금으로 떨어진다 — 임포트 한 건 때문에
+        // 전체가 실패하는 것보다 날짜 하나가 오늘이 되는 편이 낫다.
+        let mut bad = minimal_draft("imported-garbage-time");
+        bad.created_at = Some("not-a-timestamp".to_string());
+        let fallback = manager
+            .create_manual_journal_entry(&db, 7, bad)
+            .await
+            .unwrap();
+        assert!(!fallback.relative_path.starts_with("20250714/"));
+    }
+
     /// PR-CI1 — 자동 초안의 실측 귀속 오버라이드: agent/verified_by_user 를
     /// draft 가 넘기면 그대로 frontmatter 에 쓰인다.
     #[tokio::test]

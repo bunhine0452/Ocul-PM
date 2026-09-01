@@ -540,6 +540,24 @@ impl OculpmManager {
         Ok(entry.resolver.workday_of(chrono::Utc::now()))
     }
 
+    /// **임의 시각**이 속한 워크데이. 지금이 아닌 시각을 묻는 유일한 자리이며,
+    /// 들여온 대화가 어느 날 폴더로 갈지를 여기서 정한다 (Phase 7).
+    ///
+    /// 쓰기 경로(`create_manual_journal_entry`)와 **같은 리졸버**를 지나는 것이
+    /// 핵심이다. 대화의 원본 오프셋으로 날짜를 계산하면 프로젝트 타임존과
+    /// 어긋나 (예: 23:00Z 는 서울에서 다음 날) 중복 판정이 엉뚱한 날을 뒤진다.
+    pub async fn workday_at(
+        &self,
+        project_id: u32,
+        instant_utc: chrono::DateTime<chrono::Utc>,
+    ) -> Result<String, OculpmError> {
+        let projects = self.projects.read().await;
+        let entry = projects
+            .get(&project_id)
+            .ok_or(OculpmError::NotInitialized(project_id))?;
+        Ok(entry.resolver.workday_of(instant_utc))
+    }
+
     pub async fn watcher_health(&self) -> Vec<WatcherHealth> {
         let projects = self.projects.read().await;
         projects

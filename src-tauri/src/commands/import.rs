@@ -152,9 +152,10 @@ pub async fn conversation_import_run(
             continue;
         };
         let c = &conv.candidate;
+        let workday = storage_workday(&manager, project_id, &c.created_at).await;
 
         // 중복은 **모델 앞**에서 걸러낸다 — 과금 뒤에 버리는 것은 낭비다.
-        match journalize::already_imported(&db, project_id, &c.workday, &c.slug).await {
+        match journalize::already_imported(&db, project_id, &workday, &c.slug).await {
             Ok(true) => {
                 entries.push(ImportedEntry {
                     source_id: c.source_id.clone(),
@@ -182,7 +183,7 @@ pub async fn conversation_import_run(
         // 한 건이 실패해도 나머지는 계속 간다 (부분 실패 허용).
         entries.push(
             journalize::journalize_one(
-                &db, &manager, &backend, &target, project_id, conv, entry_type, &redact,
+                &db, &manager, &backend, &target, project_id, conv, entry_type, &workday, &redact,
             )
             .await,
         );
@@ -197,6 +198,31 @@ pub async fn conversation_import_run(
         duplicates,
         failed,
     })
+}
+
+/// 이 대화가 실제로 들어갈 워크데이.
+///
+/// **쓰기 경로와 같은 리졸버**(`OculpmManager::workday_at`)를 지난다. 어댑터가
+/// 원본 오프셋으로 계산한 `candidate.workday` 는 목록 표시용이고, 프로젝트
+/// 타임존과 하루가 어긋날 수 있다 — 그걸로 중복을 판정하면 엉뚱한 폴더를 뒤져
+/// 같은 대화를 매번 새로 들여온다 (23:00Z 는 서울에서 다음 날이다).
+///
+/// 리졸버를 못 읽거나 시각을 못 읽으면 어댑터의 값으로 떨어진다 — 부가 판정
+/// 하나 때문에 임포트를 막지는 않는다.
+async fn storage_workday(manager: &OculpmManager, project_id: u32, created_at: &str) -> String {
+    let fallback = || {
+        created_at
+            .get(..10)
+            .map(|d| d.replace('-', ""))
+            .unwrap_or_default()
+    };
+    let Ok(dt) = chrono::DateTime::parse_from_rfc3339(created_at) else {
+        return fallback();
+    };
+    manager
+        .workday_at(project_id, dt.with_timezone(&chrono::Utc))
+        .await
+        .unwrap_or_else(|_| fallback())
 }
 
 /// 프로젝트의 마스킹 패턴. 설정을 못 읽어도 임포트를 막지 않는다 —

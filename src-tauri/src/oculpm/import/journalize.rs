@@ -60,6 +60,8 @@ pub async fn journalize_one(
     project_id: u32,
     conv: &ParsedConversation,
     entry_type: EntryType,
+    // 이 기록이 실제로 들어갈 워크데이 — 쓰기 경로와 **같은 리졸버**가 냈다.
+    storage_workday: &str,
     redact: &[regex::Regex],
 ) -> ImportedEntry {
     let c = &conv.candidate;
@@ -103,10 +105,12 @@ pub async fn journalize_one(
     let (body, _) = redact_text(&response.content, redact);
     let (title, _) = redact_text(&c.title, redact);
 
+    // 세션 id 의 워크데이는 **파일이 실제로 들어갈 날**이다 — 대화의 원본
+    // 오프셋으로 계산한 `candidate.workday`(목록 표시용)가 아니라.
     let local = chrono::DateTime::parse_from_rfc3339(&c.created_at).ok();
     let session_id = match local {
-        Some(dt) => SessionId::imported(&c.workday, dt.time()),
-        None => SessionId::imported(&c.workday, chrono::NaiveTime::MIN),
+        Some(dt) => SessionId::imported(storage_workday, dt.time()),
+        None => SessionId::imported(storage_workday, chrono::NaiveTime::MIN),
     };
 
     let draft = ManualEntryDraft {
@@ -181,6 +185,11 @@ fn compose_body(conv: &ParsedConversation, body: &str) -> String {
 }
 
 /// 이 워크데이에 이 슬러그가 이미 있는가 — 중복 스킵의 판정.
+///
+/// `workday` 는 **쓰기 경로가 쓸 그 날**이어야 한다 ([`OculpmManager::workday_at`]).
+/// 대화의 원본 오프셋으로 계산한 날을 쓰면, 프로젝트 타임존과 하루가 어긋나는
+/// 대화(예: 23:00Z 는 서울에서 다음 날)를 엉뚱한 폴더에서 찾아 **매번 새로
+/// 들여온다**.
 pub async fn already_imported(
     db: &Db,
     project_id: u32,
