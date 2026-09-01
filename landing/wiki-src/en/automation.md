@@ -61,7 +61,7 @@ How long the quiet has to last is one of six **responsiveness tiers**.
 
 | Tier | Quiet period | When |
 |---|---|---|
-| Instant | 0.2s | React on every save |
+| Immediate | 0.2s | React on every save |
 | Balanced | 1s | |
 | Patient | 3s | |
 | Relaxed | 1m | |

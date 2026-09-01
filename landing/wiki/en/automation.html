@@ -90,7 +90,7 @@
 <h2 id="watchers-reacting-to-files">Watchers — reacting to files</h2>
 <p>A watcher's signal is not "something changed" but <b>"changes stopped."</b> It does nothing while you work, and runs once after your hands come off the keyboard.</p>
 <p>How long the quiet has to last is one of six <b>responsiveness tiers</b>.</p>
-<div class="wk-table"><table><thead><tr><th>Tier</th><th>Quiet period</th><th>When</th></tr></thead><tbody><tr><td>Instant</td><td>0.2s</td><td>React on every save</td></tr><tr><td>Balanced</td><td>1s</td><td></td></tr><tr><td>Patient</td><td>3s</td><td></td></tr><tr><td>Relaxed</td><td>1m</td><td></td></tr><tr><td>Deferred</td><td>5m</td><td>Once, when the task is actually done</td></tr><tr><td>Extended</td><td>10m</td><td>Long-running work</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>Tier</th><th>Quiet period</th><th>When</th></tr></thead><tbody><tr><td>Immediate</td><td>0.2s</td><td>React on every save</td></tr><tr><td>Balanced</td><td>1s</td><td></td></tr><tr><td>Patient</td><td>3s</td><td></td></tr><tr><td>Relaxed</td><td>1m</td><td></td></tr><tr><td>Deferred</td><td>5m</td><td>Once, when the task is actually done</td></tr><tr><td>Extended</td><td>10m</td><td>Long-running work</td></tr></tbody></table></div>
 <p>The watch path is relative to the project. Empty or <code>.</code> means the whole project, and you choose whether subfolders count.</p>
 <p>Journal entries, planner files, automation definitions and the index are <b>excluded as causes</b>. That breaks the loop where a job's own output wakes it again — structurally, not by convention.</p>
 <h2 id="the-instructions-are-everything">The instructions are everything</h2>
