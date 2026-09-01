@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: osaurus-bench-round
 title: "Osaurus 벤치마크 라운드 — 자동화 · 출처 · 테마 · 컨텍스트 경제학 · 선언적 설정"
-status: active
+status: done
 created: 2026-08-31
 updated: 2026-09-02
 owner: claude-code
@@ -377,4 +377,5 @@ apply 가 만들어 내지 않는다. 설계 §1 의 승인 카드 예시 「+ �
 | 2026-09-02T05:50:00+09:00 | #landing-privacy | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 나가는 것이 설계 문서의 3이 아니라 **5**였다 (임베딩 모델 1회·Notion 옵인 누락). 실측으로 고쳐 적음 + 안 나가는 것 7 + `rg` 로 세는 법 + 영어 요약 |
 | 2026-09-02T05:50:00+09:00 | #landing-automation-guide | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | 위키 ko/en 신규 면(order 8, 이하 한 칸씩 밀림). 2분 설정·티어 6단계·지시문 규약·무엇이 과금되는가 |
 | 2026-09-02T05:50:00+09:00 | #release-doc-update | claude-code | ☐→☑ | .oculpm/journal/20260902/Features_to_add/0550_feature_landing-phase8.md | §4 를 4-1(재빌드 한 줄)/4-2(손으로)로 분리. `landing_pages.test.ts` 가 CHANGELOG 맨 위 == package.json 버전을 재므로 잊으면 게이트가 붉게 난다 |
+| 2026-09-02T06:40:00+09:00 | #landing #release | claude-code | ☑→☑ | .oculpm/journal/20260902/Chores/0640_chore_release-v2-31-0.md | v2.31.0 릴리스 — 5면 전부 + `vercel --prod`. **Phase 8 의 미확인 지점 해소**: `/themes` 는 페이지(HTML)와 `themes/*.json`(JSON)이 실제로 갈린다. 로컬 cargo 는 macOS provenance 제약으로 못 돌아 Rust 게이트는 CI 로 (RELEASE.md §0 순서와 동일) |
 <!-- oculpm:plan-log end -->
