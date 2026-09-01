@@ -11,11 +11,14 @@
  * (앱 안 도크로 되돌아간다), 아무도 없으면 그때 정리한다.
  */
 import { useEffect, useState } from "react";
-import { commands } from "@/lib/bindings";
+import { commands, events } from "@/lib/bindings";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "@/features/terminal/TerminalSurface";
 import { setThemeOverride } from "@/features/theme/store";
 import { installConsoleBridge } from "@/lib/oculpmLog";
+import { runNewTabIntent } from "@/lib/newTabIntent";
+import { safeUnlisten } from "@/lib/unlisten";
+import { terminalWindowLabel } from "@/lib/windowRoute";
 import { useT } from "@/i18n";
 
 import "@/App.css";
@@ -73,6 +76,25 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, setProjectMeta]);
 
+  // ⌘T — 이 창에는 프로젝트 탭이 없다. 메뉴가 쏘는 의도를 받아 **터미널 탭**을
+  // 연다 (아래 `ownsNewTab`). 받지 않으면 Rust 는 아무 것도 하지 않으므로
+  // 분리 창에서 ⌘T 가 통째로 씹힌다.
+  useEffect(() => {
+    const label = terminalWindowLabel(projectId);
+    let off: (() => void) | undefined;
+    void events.newTabIntent
+      .listen(({ payload }) => {
+        if (payload.window !== label) return;
+        runNewTabIntent();
+      })
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [projectId]);
+
   // macOS 는 titleBarStyle "Overlay" 라 신호등이 왼쪽 위에 떠 있다. 이 창엔
   // 탭 스트립이 없어 그 자리를 대신 져 줄 것이 없으므로 탭 줄이 직접 비운다.
   const isMac =
@@ -80,7 +102,7 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
 
   return (
     <div className={"term-window" + (isMac ? " is-mac" : "")}>
-      {ready ? <TerminalSurface projectRoot={root} dragRegion /> : null}
+      {ready ? <TerminalSurface projectRoot={root} dragRegion ownsNewTab /> : null}
     </div>
   );
 }

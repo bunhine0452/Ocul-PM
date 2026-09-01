@@ -39,6 +39,7 @@ import {
 } from "./dispatchBus";
 import { writeDispatchTo } from "./dispatchTarget";
 import { registerCloseHandler } from "@/lib/closeIntent";
+import { registerNewTabHandler } from "@/lib/newTabIntent";
 import { focusOfTab, panesOfTab } from "./activePane";
 import {
   contains,
@@ -210,6 +211,15 @@ export interface TerminalSurfaceProps {
    * 끌면 앱 창 전체가 따라 움직인다.
    */
   dragRegion?: boolean;
+  /**
+   * ⌘T 를 **포커스와 무관하게** 이 면이 가져간다 (분리 터미널 창 전용).
+   *
+   * 앱 창에서는 포커스가 터미널 안에 있을 때만 가져간다 — 배경 프로젝트 탭도
+   * 마운트된 채라(크롬식 탭) 포커스 말고는 "지금 보고 있는 터미널" 을 가릴
+   * 방법이 없다. 분리 창에는 다른 탭이 아예 없으므로 그 조건이 필요 없고,
+   * 오히려 포커스가 크롬 버튼에 가 있으면 ⌘T 가 통째로 씹힌다.
+   */
+  ownsNewTab?: boolean;
 }
 
 export function TerminalSurface({
@@ -219,6 +229,7 @@ export function TerminalSurface({
   headerActions,
   onShellActiveChange,
   dragRegion = false,
+  ownsNewTab = false,
 }: TerminalSurfaceProps) {
   const { t } = useT();
   // Phase 4 #workspace-split — 세션 조각과 런타임 조각만 구독한다. 검색어·
@@ -845,6 +856,7 @@ export function TerminalSurface({
     fontReset,
     searchOpen,
     keyboardScope,
+    ownsNewTab,
   });
   actionsRef.current = {
     addTab,
@@ -858,6 +870,7 @@ export function TerminalSurface({
     fontReset,
     searchOpen,
     keyboardScope,
+    ownsNewTab,
   };
   /**
    * ⌘W — **포커스가 터미널 안에 있으면 페인을 닫는다** (2026-08-29).
@@ -886,6 +899,34 @@ export function TerminalSurface({
     [],
   );
 
+  /**
+   * ⌘T — **포커스가 터미널 안에 있으면 셸 탭을 연다** (2026-09-01).
+   *
+   * ⌘W 와 판박이다: `⌘T` 도 앱 메뉴 액셀러레이터라(menu.rs `ACC_NEW_TAB`)
+   * macOS 가 웹뷰보다 먼저 먹어치우고, 위 keydown 리스너의 ⌘T 분기는 한 번도
+   * 돈 적이 없었다 — 셸에 타이핑하다 ⌘T 를 누르면 **프로젝트 탭**이 새로
+   * 열렸다. 치트시트는 "⌘T = 터미널 새 탭" 이라고 적혀 있었으니 약속만 남고
+   * 동작이 없던 셈이다. Rust 가 `NewTabIntent` 를 쏘므로 그 사슬에 들어가는
+   * 것이 유일하게 동작하는 길이다.
+   */
+  useEffect(
+    () =>
+      registerNewTabHandler(
+        () => {
+          const root = rootRef.current;
+          if (!root) return false;
+          // 분리 창은 이 면이 곧 창이라 포커스를 묻지 않는다 (`ownsNewTab`).
+          if (!actionsRef.current.ownsNewTab && !root.contains(document.activeElement)) {
+            return false;
+          }
+          actionsRef.current.addTab();
+          return true;
+        },
+        () => rootRef.current,
+      ),
+    [],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const a = actionsRef.current;
@@ -897,11 +938,9 @@ export function TerminalSurface({
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey) {
         const k = e.key.toLowerCase();
-        if (k === "t" && !e.shiftKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          a.addTab();
-        } else if (k === "d") {
+        // ⌘T 는 여기 없다 — ⌘W 와 같이 앱 메뉴 액셀러레이터라 keydown 이 오지
+        // 않는다. 아래 `registerNewTabHandler` 가 정본이다.
+        if (k === "d") {
           e.preventDefault();
           e.stopPropagation();
           a.splitFocused(e.shiftKey ? "col" : "row");

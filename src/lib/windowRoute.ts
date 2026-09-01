@@ -42,6 +42,11 @@ export type WindowRoute =
 /** `src-tauri/src/commands/window.rs::FIRST_WINDOW`. */
 export const FIRST_WINDOW = "main";
 
+/** `src-tauri/src/commands/window.rs::terminal_window_label` 과 같은 규격. */
+export function terminalWindowLabel(projectId: number): string {
+  return `term-${projectId}`;
+}
+
 /** `src-tauri/src/commands/window.rs::is_app_window` 와 같은 규격. */
 const EXTRA_WINDOW_LABEL = /^win-\d+$/;
 

@@ -247,10 +247,30 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             }
         }
         NEW_TAB => {
-            tauri::async_runtime::spawn(async move {
-                let target = win::focused_app_window(&handle);
-                let _ = win::new_start_tab_inner(&handle, target).await;
-            });
+            // ⌘W 와 같은 이유로 **프런트에 넘긴다** (2026-09-01). 화면 안에 자기
+            // 탭을 가진 것이 있고(터미널의 셸 탭), 사용자는 브라우저처럼 "지금
+            // 보고 있는 것" 에 탭이 붙기를 기대한다. 포커스가 어디인지는 프런트만
+            // 아는 사실이라 판단도 그쪽이 한다 — 아무도 안 받으면 창이 평소대로
+            // 시작 탭을 연다.
+            use tauri_specta::Event as _;
+            // 분리 터미널 창에는 프로젝트 탭이 없다. 먼저 묻지 않으면
+            // `focused_app_window` 가 "마지막으로 포커스된 탭 창" 으로 떨어져
+            // **남의 창에** 탭이 열린다 (⌘W 가 겪었던 그 버그다).
+            if let Some(label) = win::focused_terminal_window(app) {
+                let _ = win::NewTabIntent { window: label }.emit(app);
+                return;
+            }
+            match win::focused_app_window(app) {
+                Some(window) => {
+                    let _ = win::NewTabIntent { window }.emit(app);
+                }
+                // 들을 창이 하나도 없다 — 열어 줄 프런트가 없으니 Rust 가 만든다.
+                None => {
+                    tauri::async_runtime::spawn(async move {
+                        let _ = win::new_start_tab_inner(&handle, None).await;
+                    });
+                }
+            }
         }
         NEW_WINDOW => {
             tauri::async_runtime::spawn(async move {

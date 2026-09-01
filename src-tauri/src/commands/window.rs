@@ -542,6 +542,19 @@ pub struct CloseIntent {
     pub tab: Option<u32>,
 }
 
+/// ⌘T 가 눌렸다 — **무엇을 새로 열지 프런트가 고른다** (2026-09-01).
+///
+/// `CloseIntent` 와 같은 사정이다: 메뉴 액셀러레이터라 macOS 가 웹뷰보다 먼저
+/// 먹어치우고, 그래서 터미널이 걸어 둔 ⌘T keydown 은 한 번도 돌지 않았다 —
+/// 셸에 타이핑하다 ⌘T 를 눌러도 프로젝트 탭이 열렸다. 포커스가 어디에 있는지는
+/// 프런트만 아는 사실이므로 판단도 그쪽이 한다.
+///
+/// 아무도 소비하지 않으면 창이 평소대로 **시작 탭**을 연다 (프런트의 기본값).
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct NewTabIntent {
+    pub window: String,
+}
+
 /// 어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct ProjectWindowsChanged {

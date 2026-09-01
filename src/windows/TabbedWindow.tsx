@@ -29,6 +29,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { safeUnlisten } from "@/lib/unlisten";
 import { hasRunningWork, runCloseIntent, runTabCloseGuard } from "@/lib/closeIntent";
+import { runNewTabIntent } from "@/lib/newTabIntent";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 
@@ -300,6 +301,29 @@ export default function TabbedWindow({
       if (r.status === "error") fail(r.error);
     });
   }, [windowLabel, fail]);
+
+  /**
+   * ⌘T — **안쪽부터** 연다 (2026-09-01).
+   *
+   * ⌘W 와 같은 사슬이다. 포커스가 터미널 안이면 그쪽이 셸 탭을 열고, 아무도
+   * 안 받으면 여기서 평소대로 시작 탭을 연다. 예전에는 Rust 가 곧장 시작 탭을
+   * 열어서, 셸에 타이핑하다 ⌘T 를 눌러도 프로젝트 탭이 튀어나왔다.
+   */
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void events.newTabIntent
+      .listen(({ payload }) => {
+        if (payload.window !== windowLabel) return;
+        if (runNewTabIntent()) return;
+        newTab();
+      })
+      .then((fn) => {
+        off = fn;
+      });
+    return () => {
+      if (off) safeUnlisten(off);
+    };
+  }, [windowLabel, newTab]);
 
   // 탭 순환 — ⌘번호는 화면 전환이 이미 쓰고 있으므로(⌘1~⌘0) 탭은 브라우저의
   // 다른 관습을 쓴다: ⌃Tab / ⌃⇧Tab, ⌘⌥←→.

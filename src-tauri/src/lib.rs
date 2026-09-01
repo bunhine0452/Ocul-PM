@@ -857,6 +857,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 크롬식 탭 — 창별 탭 구성 + 런처의 "열림" 배지
             crate::commands::window::WindowTabsChanged,
             crate::commands::window::CloseIntent,
+            crate::commands::window::NewTabIntent,
             crate::commands::window::ProjectWindowsChanged,
             crate::commands::window::TerminalWindowsChanged,
             crate::commands::window::TabDragOver,
