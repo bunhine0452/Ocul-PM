@@ -184,3 +184,92 @@ mod tests {
         assert_eq!(err.code(), "import_no_conversations");
     }
 }
+
+#[cfg(test)]
+mod real_shape_tests {
+    use super::*;
+    use std::io::Write;
+
+    /// 실제 Claude export 가 가진 성가신 것들을 한 자리에 모은 픽스처 —
+    /// `account` 블록 · **`text` 가 빈 문자열이고 본문이 `content[]` 조각에만
+    /// 있는 턴** · 빈 `attachments`/`files` · 마이크로초까지 있는 `Z`
+    /// 타임스탬프 · **제목이 빈 대화** · GitHub 식 래퍼 폴더 · 곁다리 `.json`.
+    fn export_zip() -> Vec<u8> {
+        let mut convs = String::from("[");
+        for i in 0..3 {
+            if i > 0 {
+                convs.push(',');
+            }
+            let name = ["파서가 자꾸 죽어요", "Add a settings tab", ""][i];
+            convs.push_str(&format!(
+                r#"{{"uuid":"aaaa-{i}","name":"{name}",
+                   "created_at":"2025-07-1{}T11:30:00.123456Z",
+                   "updated_at":"2025-07-1{}T12:00:00.000000Z",
+                   "account":{{"uuid":"acct-1"}},
+                   "chat_messages":[
+                     {{"uuid":"m1","text":"","sender":"human",
+                       "created_at":"2025-07-14T11:30:00Z",
+                       "content":[{{"type":"text","text":"질문 {i} 입니다"}}],
+                       "attachments":[],"files":[]}},
+                     {{"uuid":"m2","text":"답변 {i}","sender":"assistant",
+                       "created_at":"2025-07-14T11:31:00Z",
+                       "content":[{{"type":"text","text":"답변 {i}"}}],
+                       "attachments":[],"files":[]}}]}}"#,
+                i + 1,
+                i + 1
+            ));
+        }
+        convs.push(']');
+
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opt = zip::write::SimpleFileOptions::default();
+            // 곁다리 파일이 먼저 와도 대화 파일을 찾아낸다.
+            w.start_file("data-2025-07-14/users.json", opt).unwrap();
+            w.write_all(br#"[{"uuid":"acct-1"}]"#).unwrap();
+            w.start_file("data-2025-07-14/conversations.json", opt)
+                .unwrap();
+            w.write_all(convs.as_bytes()).unwrap();
+            w.finish().unwrap();
+        }
+        buf
+    }
+
+    #[test]
+    fn the_real_claude_export_shape_round_trips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("export.zip");
+        std::fs::write(&path, export_zip()).unwrap();
+
+        let out = read_source(&path).unwrap();
+        assert_eq!(out.conversations.len(), 3);
+
+        // `text` 가 비어 있고 본문이 `content[]` 조각에만 있어도 읽힌다.
+        assert!(out.conversations[0].transcript.contains("질문 0 입니다"));
+        assert!(out.conversations[0].transcript.contains("답변 0"));
+
+        // 워크데이는 **원본 날짜**다 — 들여온 날이 아니라.
+        assert_eq!(out.conversations[0].candidate.workday, "20250711");
+        assert_eq!(out.conversations[2].candidate.workday, "20250713");
+
+        // 제목이 빈 대화는 첫 발화에서 제목을 얻는다 (「(제목 없음)」이 아니라).
+        assert_eq!(out.conversations[2].candidate.title, "질문 2 입니다");
+
+        // 슬러그는 전부 유효하고 서로 다르다 — 중복 스킵이 이 성질 위에 선다.
+        let mut slugs: Vec<&str> = out
+            .conversations
+            .iter()
+            .map(|c| c.candidate.slug.as_str())
+            .collect();
+        slugs.sort_unstable();
+        slugs.dedup();
+        assert_eq!(slugs.len(), 3);
+        for s in slugs {
+            assert!(!s.is_empty() && s.len() <= 60, "{s}");
+            assert!(s
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'));
+        }
+    }
+}

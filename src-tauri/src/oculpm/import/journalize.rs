@@ -161,7 +161,7 @@ fn build_prompt(conv: &ParsedConversation) -> String {
     format!(
         "다음은 {} 에 다른 도구에서 나눈 대화입니다. 제목은 「{}」 이고 {} 개의 \
 발화가 있습니다. 이 대화를 작업 일지 본문으로 옮겨 적어 주세요.\n\n---\n\n{}",
-        &c.created_at, c.title, c.message_count, conv.transcript
+        c.created_at, c.title, c.message_count, conv.transcript
     )
 }
 
