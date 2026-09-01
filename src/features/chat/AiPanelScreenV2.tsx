@@ -33,6 +33,16 @@ import {
 } from "@/lib/tokenEstimate";
 import { useDismiss } from "./useDismiss";
 import { assembleAiContext, type AiContextResult } from "./aiContext";
+import {
+  MAX_CONTEXT_HOPS,
+  parseContextRequest,
+  runContextRequest,
+  stripContextRequest,
+} from "./contextLoad";
+import { frozenManifest } from "./manifest";
+import { defaultQuestionFor, parseInject } from "./slashInject";
+import { contextApi } from "@/api/context";
+import { setRecallUsage } from "./recallUsage";
 import { ActionProposalCard, extractPlannerAction } from "./aiActions";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 // `useT()` 는 렌더 경로용(언어가 바뀌면 리렌더). `tNow()` 는 모듈 조회로
@@ -376,6 +386,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
             includeOculpm: ctx.oculpm,
             includePlanner: ctx.planner,
             includeGit: ctx.git,
+            conversationId: threadRef.current,
           });
           if (cancelled) return;
           estCacheRef.current = { key, ctx: aiCtx };
@@ -406,8 +417,13 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   }, [ctx, draft, messages, projectId, settings, streaming, ctxKeyOf]);
 
   const send = useCallback(async () => {
-    const trimmed = draft.trim();
-    if (!trimmed || streaming) return;
+    const raw = draft.trim();
+    if (!raw || streaming) return;
+    // 슬래시 결정적 주입 (`#slash-inject`) — 모델의 판단에 기대지 않고 사용자가
+    // 확정적으로 본문을 밀어 넣는 경로. 명령은 이번 턴에만 실리고 대화에
+    // 남지 않는다.
+    const inject = parseInject(raw);
+    const trimmed = inject ? inject.question || defaultQuestionFor(inject.name) : raw;
     if (hasKey[provider] === false) {
       setError(t("ai.noApiKey", { vendor: VENDOR[provider].name }));
       return;
@@ -446,10 +462,31 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
             includeOculpm: ctx.oculpm,
             includePlanner: ctx.planner,
             includeGit: ctx.git,
+            conversationId: threadRef.current,
           });
     setLastAttached(aiCtx.attached);
-    if (aiCtx.system) {
-      llmHistory.unshift({ role: "system" as Role, content: aiCtx.system });
+    // 관련도 통계는 **실제 전송에서만** 올린다 — 토큰 추정은 타이핑마다
+    // 조립하므로 거기서 올리면 키를 칠 때마다 점수가 뛴다. 파생 캐시라
+    // 실패해도 대화를 막지 않는다.
+    if (projectId != null) {
+      for (const used of aiCtx.recallUsed) {
+        void contextApi.touch(projectId, used.kind, used.ref).catch(() => {});
+      }
+    }
+    setRecallUsage({
+      signal: aiCtx.recall,
+      tokens: aiCtx.recallTokens,
+      dropped: aiCtx.recallDropped,
+      used: aiCtx.recallUsed.length,
+    });
+    // 왕복에 쓸 매니페스트 — 이번 대화의 **동결된** 것이라 시스템 블록과 같은
+    // 목록을 본다 (검색 결과가 프롬프트와 어긋나지 않게).
+    const manifestForTurn = await frozenManifest(projectId, threadRef.current);
+    // 주입 본문은 **이번 턴 한 번**만 system 앞에 얹는다 — 동결 대상이 아니다.
+    const injected = inject ? await runContextRequest(projectId, inject.request, manifestForTurn) : "";
+    const systemText = injected ? `${aiCtx.system}\n\n${injected}`.trim() : aiCtx.system;
+    if (systemText) {
+      llmHistory.unshift({ role: "system" as Role, content: systemText });
     }
     const chatOptions: ChatOptions = {
       model,
@@ -459,6 +496,11 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
     // Typewriter: deltas fill `target`; a rAF loop reveals characters with a
     // ~45ms throttle — 마크다운 라이브 렌더의 재파싱 비용을 22fps 로 캡.
+    //
+    // Phase 5 (`#context-tools`): 한 번의 전송이 **여러 스트림**이 될 수 있다.
+    // 모델이 ```json:context``` 로 본문을 요청하면 앱이 읽어 넘기고 이어서 답하게
+    // 한다. `assembled` 가 이전 홉들의 확정 텍스트고, `target` 은 지금 홉이다.
+    let assembled = "";
     let target = "";
     let shown = 0;
     let receiving = true;
@@ -466,7 +508,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     let lastReveal = 0;
 
     const renderShown = () => {
-      const text = target.slice(0, shown);
+      const text = assembled + target.slice(0, shown);
       setMessages((prev) => {
         const next = [...prev];
         next[next.length - 1] = { role: "assistant" as Role, content: text, provider };
@@ -522,11 +564,11 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         aborted = true;
         receiving = false;
         target = target.slice(0, shown);
-        if (target) renderShown();
+        if (assembled || target) renderShown();
         else setMessages((prev) => prev.slice(0, -1)); // 델타 0 — 빈 스텁 제거
         setStreaming(false);
         abortRef.current = null;
-        persist(target);
+        persist(assembled + target);
       } else {
         shown = target.length;
         renderShown();
@@ -534,46 +576,79 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       }
     };
 
-    const channel = new Channel<ChatEvent>();
-    channel.onmessage = (event) => {
-      if (aborted) return;
-      if (event.kind === "delta") {
-        target += event.text;
-        if (!rafRef.current) rafRef.current = requestAnimationFrame(tick);
-      } else if (event.kind === "error") {
-        setError(event.message);
+    /** 스트림 한 번. `true` 를 돌려주면 정상 종료, `false` 면 중단·오류다. */
+    const runTurn = async (): Promise<boolean> => {
+      target = "";
+      shown = 0;
+      receiving = true;
+      lastReveal = 0;
+
+      const channel = new Channel<ChatEvent>();
+      channel.onmessage = (event) => {
+        if (aborted) return;
+        if (event.kind === "delta") {
+          target += event.text;
+          if (!rafRef.current) rafRef.current = requestAnimationFrame(tick);
+        } else if (event.kind === "error") {
+          setError(event.message);
+        }
+      };
+
+      let res;
+      try {
+        res = await commands.chatStream(provider, llmHistory, chatOptions, parseFallbacks(settings), channel);
+      } catch (err) {
+        if (aborted) return false;
+        receiving = false;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
+        setError(String(err));
+        setStreaming(false);
+        abortRef.current = null;
+        setMessages((prev) => prev.slice(0, -1));
+        return false;
       }
+      if (aborted) return false;
+      receiving = false; // backend done sending — let the typewriter drain the rest
+      if (res.status === "error") {
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
+        setError(tError(res.error));
+        setMessages((prev) => prev.slice(0, -1));
+        setStreaming(false);
+        abortRef.current = null;
+        return false;
+      }
+      return true;
     };
 
-    let res;
-    try {
-      res = await commands.chatStream(provider, llmHistory, chatOptions, parseFallbacks(settings), channel);
-    } catch (err) {
-      if (aborted) return;
-      receiving = false;
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
-      }
-      setError(String(err));
-      setStreaming(false);
-      abortRef.current = null;
-      setMessages((prev) => prev.slice(0, -1));
-      return;
+    // ── 왕복 루프 ────────────────────────────────────────────────────────
+    //
+    // 도구 호출이 없는 어댑터 위에서 "필요하면 꺼내 온다" 를 성립시키는 자리다
+    // (contextLoad.ts 의 주석 참고). 홉 상한이 있으므로 무한 왕복은 없다.
+    for (let hop = 0; ; hop += 1) {
+      const ok = await runTurn();
+      if (!ok) return;
+
+      const request = hop < MAX_CONTEXT_HOPS ? parseContextRequest(target) : null;
+      if (!request) break;
+
+      // 요청 블록은 사용자에게 보일 이유가 없다 — 걷어내고 그 자리에 이어 쓴다.
+      const spoken = stripContextRequest(target);
+      assembled += spoken ? `${spoken}\n\n` : "";
+      shown = 0;
+      target = "";
+      renderShown();
+
+      const loaded = await runContextRequest(projectId, request, manifestForTurn);
+      llmHistory.push({ role: "assistant" as Role, content: spoken || "(컨텍스트 요청)" }); // i18n-ignore -- LLM 프롬프트 본문 (03-i18n.md §4.5)
+      llmHistory.push({ role: "user" as Role, content: loaded });
     }
-    if (aborted) return;
-    receiving = false; // backend done sending — let the typewriter drain the rest
-    if (res.status === "error") {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
-      }
-      setError(tError(res.error));
-      setMessages((prev) => prev.slice(0, -1));
-      setStreaming(false);
-      abortRef.current = null;
-      return;
-    }
+
     if (!rafRef.current) {
       // No deltas arrived (or already drained) — finalize immediately.
       shown = target.length;
@@ -583,7 +658,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     // else: the running tick loop reveals the remainder and clears `streaming`.
 
     // Persist the FULL text (not the partially-revealed display).
-    if (target) persist(target);
+    const finalText = assembled + target;
+    if (finalText) persist(finalText);
   }, [draft, streaming, messages, provider, settings, hasKey, ctx, projectId, ctxKeyOf]);
 
   const stop = useCallback(() => {

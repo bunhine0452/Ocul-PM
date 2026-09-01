@@ -1,0 +1,17 @@
+{
+  "note": "규칙 도달 회귀 게이트 (Osaurus 라운드 Phase 5 #rules-ab-check). 질문 12개와 각 질문이 반드시 닿아야 할 규칙 절. LLM 을 부르지 않는다 — 조립된 컨텍스트 문자열만 본다.",
+  "cases": [
+    { "id": "secret-in-journal", "question": "이 API 키를 일지에 적어 둘까?", "requires": "API 키·토큰·비밀번호", "reach": "always" },
+    { "id": "write-index", "question": ".oculpm/index 에 캐시를 직접 써도 될까?", "requires": ".oculpm/index", "reach": "always" },
+    { "id": "invent-facts", "question": "확인 안 된 내용도 일지에 써도 돼?", "requires": "지어내지", "reach": "always" },
+    { "id": "when-to-log", "question": "언제 일지를 남겨야 해?", "requires": "## 1. 언제 기록하는가", "reach": "on-demand" },
+    { "id": "where-to-write", "question": "일지 파일을 어디에 만들어?", "requires": "## 2. 어디에 쓰는가", "reach": "on-demand" },
+    { "id": "frontmatter", "question": "frontmatter 에 뭐가 필수야?", "requires": "## 3. Frontmatter", "reach": "on-demand" },
+    { "id": "body-headers", "question": "버그 일지 본문 구조가 어떻게 되지?", "requires": "## 4. 본문 구조", "reach": "on-demand" },
+    { "id": "forbidden", "question": "금지 사항 전부 알려줘", "requires": "## 5. 금지 사항", "reach": "on-demand" },
+    { "id": "examples", "question": "예시 일지를 보고 싶어", "requires": "## 6. 예시", "reach": "on-demand" },
+    { "id": "planner-update", "question": "플래너는 언제 갱신해?", "requires": "## 7. Planner 갱신", "reach": "on-demand" },
+    { "id": "troubleshooting", "question": "문제 해결 문서는 어떻게 써?", "requires": "## 8. 문제 해결 문서", "reach": "on-demand" },
+    { "id": "manifest-lists-rules", "question": "이 프로젝트에 어떤 규칙이 있어?", "requires": "규칙", "reach": "always" }
+  ]
+}

@@ -91,6 +91,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (33, include_str!("../../migrations/033_automation.sql")),
     (34, include_str!("../../migrations/034_project_theme.sql")),
+    (35, include_str!("../../migrations/035_context_recall.sql")),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -155,6 +156,7 @@ mod firings;
 mod graph;
 mod planning;
 mod projects;
+pub mod recall;
 mod settings;
 
 impl Db {

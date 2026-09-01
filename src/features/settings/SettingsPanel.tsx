@@ -11,6 +11,7 @@ import {
   FileCode,
   Code2,
   Clock,
+  PieChart,
   Download,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -20,6 +21,7 @@ import { LlmTab } from "./tabs/LlmTab";
 import { IndexingTab } from "./tabs/IndexingTab";
 import { GraphTab } from "./tabs/GraphTab";
 import { DataTab } from "./tabs/DataTab";
+import { ContextTab } from "./tabs/ContextTab";
 import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
 import { UpdateTab } from "./tabs/UpdateTab";
 export { NotionSection } from "./tabs/DataTab";
@@ -39,6 +41,7 @@ type TabId =
   | "graph"
   | "data"
   | "oculpm"
+  | "context"
   | "automation"
   | "mobile"
   | "diagnostics"
@@ -55,6 +58,9 @@ const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ cl
   { id: "graph", labelKey: "settings.tab.graph", icon: GitBranch },
   { id: "data", labelKey: "settings.tab.data", icon: Database },
   { id: "oculpm", labelKey: "settings.tab.oculpm", icon: FileCode },
+  // 컨텍스트 경제학 (Osaurus 라운드 Phase 5) — 항상 가는 것 · 매니페스트 ·
+  // 회상 후보 · 예산. 데이터는 다 갖고 있었는데 볼 창이 없던 자리다.
+  { id: "context", labelKey: "settings.tab.context", icon: PieChart },
   // 자동화 — 스케줄·감시 (Osaurus 라운드 Phase 1). 새 화면을 만들지 않고
   // "설정에 가까운 관리면" 이라 여기 산다 (01-automation.md §1.3).
   { id: "automation", labelKey: "settings.tab.automation", icon: Clock },
@@ -119,6 +125,8 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return <DataTab onError={setError} />;
       case "oculpm":
         return <OculpmSettings />;
+      case "context":
+        return <ContextTab />;
       case "automation":
         return <AutomationTab />;
       case "mobile":

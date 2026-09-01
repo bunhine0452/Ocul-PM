@@ -22,6 +22,7 @@ export const ALLOWLIST = new Set([
   "api/invoke.ts",
   "api/automation.ts",
   "api/themes.ts",
+  "api/context.ts",
   "api/claudeSurface.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.

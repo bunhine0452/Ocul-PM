@@ -390,10 +390,17 @@ use crate::commands::{
     plan_recent_updates,
     plan_rename,
     plan_set_status,
+    // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
+    project_instructions_get,
+    project_instructions_set,
     project_stats,
     pty_foreground_command,
     read_file_range,
     read_project_file,
+    recall_forget,
+    recall_reset,
+    recall_top,
+    recall_touch,
     // W5 — action proposal apply-state
     record_conversation_action,
     refresh_project_overview_if_stale,
@@ -428,7 +435,6 @@ use crate::commands::{
     secret_verify,
     select_project_folder,
     set_project_appearance,
-    // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     set_project_theme,
     set_tab_project,
     settings_get,
@@ -504,6 +510,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             theme_export,
             system_accent,
             set_project_theme,
+            // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
+            recall_top,
+            recall_touch,
+            recall_forget,
+            recall_reset,
+            project_instructions_get,
+            project_instructions_set,
             project_stats,
             // C2 — 스킬 카탈로그: 결정적 스택 감지
             detect_stack,

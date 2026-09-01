@@ -80,18 +80,18 @@ v2.29.0=P5 · v2.30.0=P6 · v2.31.0=P7. Phase 경계마다 5면을 채워 릴리
 - [x] 프로젝트별 테마 — `034_project_theme.sql`: `ALTER TABLE projects ADD COLUMN theme_id TEXT`(027 과 같은 컬럼 방식, hex 아닌 id), 창 단위 적용, 무바인딩은 전역 폴백 {#project-theme}
 
 ## Phase 5 — 컨텍스트 경제학 {#context-economy}
-- [ ] 능력 매니페스트 조립 — 규칙·스킬·플랜·일지의 **목록만**(본문 아님) {#capabilities-manifest}
-- [ ] 세션 시작 시 동결 — 대화 동안 매니페스트 바이트 불변, 워처가 `.oculpm` 변경을 알려도 재조립 없음 {#manifest-freeze}
-- [ ] `context_discover`/`context_load` 를 패널 도구로 — 기존 MCP `journal_search`·`journal_read`·`plan_status` 를 우리 패널에도 노출 {#context-tools}
-- [ ] `digestRules` 절단 은퇴 — 규칙은 온디맨드 전문. 안전 조항(시크릿·index 쓰기 금지) 3줄만 매니페스트 상주 {#retire-digest-rules}
-- [ ] 슬래시 결정적 주입 — `/rules` `/plan <id>` `/journal <date>` `/skill <name>` 은 검색 없이 전문 주입 {#slash-inject}
-- [ ] 스킬 키워드 필드 신설 + 검색 인덱스는 name/description/keywords 만(지시문 본문 미색인) {#skill-keywords}
-- [ ] 회상 게이트 `detectRecall(turn, lang)` — 한/영 신호 사전, 무신호 턴에는 일지·플랜 블록 길이 0. **적용 범위는 AI 패널만** — ACP 구동면은 어댑터가 컨텍스트를 소유하므로 제외 {#recall-gate}
-- [ ] 회상 예산 ≤800토큰 근사 + 초과 시 관련도 순 절삭 {#recall-budget}
-- [ ] `035_context_recall.sql` 관련도 감쇠 — 반감기 30일, 주입 시 회복, **지워도 무해**(파생 캐시) {#recall-decay}
-- [ ] 설정 → 컨텍스트 탭 — 항상 가는 것·매니페스트 미리보기·회상 후보(관련도 바+잊기)·예산·위험 구역 {#context-tab}
-- [ ] 프로젝트 지시문 층 — 전역 선호와 병합(프로젝트 우선). AGENTS.md(기록 규칙)와 다른 층임을 UI 에서 구분 {#project-instructions}
-- [ ] 규칙 도달 회귀 게이트 — `__tests__/fixtures/rules-compliance/` 질문 12개로 구/신 경로의 **조립된 컨텍스트 문자열**을 비교(LLM 0·결정적). 규칙 절이 빠지면 실패 {#rules-ab-check}
+- [x] 능력 매니페스트 조립 — 규칙·스킬·플랜·일지의 **목록만**(본문 아님) {#capabilities-manifest}
+- [x] 세션 시작 시 동결 — 대화 동안 매니페스트 바이트 불변, 워처가 `.oculpm` 변경을 알려도 재조립 없음 {#manifest-freeze}
+- [x] `context_discover`/`context_load` 를 패널 도구로 — 기존 MCP `journal_search`·`journal_read`·`plan_status` 를 우리 패널에도 노출 {#context-tools}
+- [x] `digestRules` 절단 은퇴 — 규칙은 온디맨드 전문. 안전 조항(시크릿·index 쓰기 금지) 3줄만 매니페스트 상주 {#retire-digest-rules}
+- [x] 슬래시 결정적 주입 — `/rules` `/plan <id>` `/journal <date>` `/skill <name>` 은 검색 없이 전문 주입 {#slash-inject}
+- [x] 스킬 키워드 필드 신설 + 검색 인덱스는 name/description/keywords 만(지시문 본문 미색인) {#skill-keywords}
+- [x] 회상 게이트 `detectRecall(turn, lang)` — 한/영 신호 사전, 무신호 턴에는 일지·플랜 블록 길이 0. **적용 범위는 AI 패널만** — ACP 구동면은 어댑터가 컨텍스트를 소유하므로 제외 {#recall-gate}
+- [x] 회상 예산 ≤800토큰 근사 + 초과 시 관련도 순 절삭 {#recall-budget}
+- [x] `035_context_recall.sql` 관련도 감쇠 — 반감기 30일, 주입 시 회복, **지워도 무해**(파생 캐시) {#recall-decay}
+- [x] 설정 → 컨텍스트 탭 — 항상 가는 것·매니페스트 미리보기·회상 후보(관련도 바+잊기)·예산·위험 구역 {#context-tab}
+- [x] 프로젝트 지시문 층 — 전역 선호와 병합(프로젝트 우선). AGENTS.md(기록 규칙)와 다른 층임을 UI 에서 구분 {#project-instructions}
+- [x] 규칙 도달 회귀 게이트 — `__tests__/fixtures/rules-compliance/` 질문 12개로 구/신 경로의 **조립된 컨텍스트 문자열**을 비교(LLM 0·결정적). 규칙 절이 빠지면 실패 {#rules-ab-check}
 
 ## Phase 6 — 선언적 설정 · 플러그인 번들 · 딥링크 {#declarative}
 - [ ] `config/planner.rs` + `config/applier.rs` — UI·CLI·MCP 세 진입점이 **같은 두 모듈**을 부른다 {#config-plan-apply}
@@ -229,6 +229,31 @@ Claude Code 를 지나지 않고, 따라서 `sched-`/`auto-` 세션은 원장에
 
 영향: #firing-insights #idempotent-guidance
 
+### Decision 10 — 패널의 컨텍스트 로드는 도구가 아니라 텍스트 규약이다 {#d10-no-tool-calling}
+잠금 2026-09-01 · claude-code
+
+설계 [04-context-economy.md](../../docs/20260831_osaurus-bench/04-context-economy.md) §1 은
+`context_discover` / `context_load` 를 **tools** 로 적고, "이미 있는 MCP 도구를
+패널에 노출하면 된다" 고 했다. **이 전제는 틀렸다.**
+
+`LlmProvider` 트레이트(`src-tauri/src/llm/mod.rs`)에는 도구 호출이 없다 —
+`chat`/`chat_stream` 은 `Vec<Message>` 와 `{model, temperature, max_tokens}` 만
+받고 `ChatEvent` 는 `Delta|Done|Error` 셋뿐이다. MCP 도구는 **외부 에이전트**가
+stdio 로 부르는 것이고, 우리 패널은 그 경로를 지나지 않는다. 네 어댑터
+(anthropic·openai·gemini·nim)에 함수 호출과 도구 루프를 얹는 것은 이 Phase
+전체보다 큰 작업이다.
+
+그래서 저장소가 이미 쓰는 관용구를 빌렸다 — `aiActions` 의 ```` ```json:action ````
+와 같은 펜스 규약(```` ```json:context ````)으로 모델이 요청하고 앱이 실행한다.
+차이 하나: 플래너 액션은 **쓰기**라 승인 카드를 거치지만 컨텍스트 로드는
+**읽기**라 자동으로 왕복한다. 비용은 왕복마다 LLM 호출 한 번이고
+`MAX_CONTEXT_HOPS = 2` 로 막았다.
+
+네이티브 도구 호출을 넣는 날 이 규약은 그대로 도구로 승격된다 —
+`parseContextRequest` 가 하던 일을 어댑터가 하게 될 뿐이다. 별도 라운드 몫이다.
+
+영향: #context-tools #capabilities-manifest #retire-digest-rules
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -272,4 +297,16 @@ Claude Code 를 지나지 않고, 따라서 `sched-`/`auto-` 세션은 원장에
 | 2026-09-01T12:40:00+09:00 | #theme-editor | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 앱이 곧 미리보기 — 초안이 스토어에 실리면 SettingsContext 가 <html> 을 다시 칠한다 |
 | 2026-09-01T12:40:00+09:00 | #system-accent | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | defaults read -g AppleAccentColor → 8색 코드. 창 포커스마다 재조회(분산 알림 미구독) |
 | 2026-09-01T12:40:00+09:00 | #project-theme | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 034 한 컬럼. 값의 축은 설정 theme 과 같다(custom:<uuid>). 창 단위 = 활성 탭 |
+| 2026-09-01T14:45:00+09:00 | #capabilities-manifest | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 규칙·스킬·플랜·일지의 목록만. MAX_CTX_PLANS 상한 소멸 — 목록은 싸고 본문만 비싸다 |
+| 2026-09-01T14:45:00+09:00 | #manifest-freeze | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 대화 키(프로젝트:대화)로 동결. 디스크가 바뀌어도 그 대화는 같은 바이트 |
+| 2026-09-01T14:45:00+09:00 | #context-tools | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | **D10** — 도구 호출이 없어 json:context 텍스트 규약 + 자동 왕복(읽기라 승인 불필요), 홉 상한 2 |
+| 2026-09-01T14:45:00+09:00 | #retire-digest-rules | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 2,500자 절단 삭제. 안전 3줄만 상주하고 나머지는 전문 온디맨드 |
+| 2026-09-01T14:45:00+09:00 | #slash-inject | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | /rules · /plan · /journal · /skill — 이번 턴만. 검색이 유일한 경로면 실패가 조용하다 |
+| 2026-09-01T14:45:00+09:00 | #skill-keywords | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | frontmatter keywords(리스트·쉼표 둘 다) + 생성 폼 + 도움말. 본문은 색인 안 함 |
+| 2026-09-01T14:45:00+09:00 | #recall-gate | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | verbatim>episode>plan>fact>none 우선순위. 영어는 단어 경계, 무신호면 조립 자체를 안 함 |
+| 2026-09-01T14:45:00+09:00 | #recall-budget | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | ≤800토큰 근사. 넘치면 관련도 순으로 **버린다**(반쪽 기록을 넣지 않는다) |
+| 2026-09-01T14:45:00+09:00 | #recall-decay | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 035. 감쇠는 읽을 때 계산(스케줄러 없음), 회복은 감쇠 반영 뒤. 통계는 전송 경로에서만 갱신 |
+| 2026-09-01T14:45:00+09:00 | #context-tab | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 항상 가는 것·매니페스트 미리보기·예산 바·회상 후보(잊기)·위험 구역 |
+| 2026-09-01T14:45:00+09:00 | #project-instructions | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | settings 의 project_instructions.<id>. 전역과 병합하고 프로젝트가 뒤(우선) |
+| 2026-09-01T14:45:00+09:00 | #rules-ab-check | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1445_feature_context-economy-phase5.md | 구 경로가 삭제돼 «도달 가능성»으로 재정의 — 12문항 always/on-demand, 절단 마커 0 |
 <!-- oculpm:plan-log end -->

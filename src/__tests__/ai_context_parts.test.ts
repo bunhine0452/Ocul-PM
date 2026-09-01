@@ -1,44 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-// 실제 AGENTS 마스터의 절 구조를 그대로 흉내낸 픽스처 (§7·§8 이 압도적으로 큼).
-const RULES_MASTER = [
-  "<!-- oculpm:begin v1 -->",
-  "# ocul-pm 작업 기록 규칙 (v1)",
-  "",
-  "당신은 ocul-pm 으로 추적되는 프로젝트에서 작업하고 있습니다.",
-  "",
-  "## 1. 언제 기록하는가 (5 trigger)",
-  "1. bug fix — 재현되던 결함이 더 이상 재현되지 않음을 확인했을 때.",
-  "",
-  "## 2. 어디에 쓰는가",
-  ".oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md",
-  "",
-  "## 3. Frontmatter (필수)",
-  "```yaml",
-  "---",
-  "schema_version: 1",
-  'created_at: "2026-05-24T22:30:13+09:00"',
-  "---",
-  "```",
-  "가".repeat(700),
-  "",
-  "## 4. 본문 구조 (타입별 강제 헤더)",
-  "bug/error 는 '## 발생 원인'·'## 해결 방법' 뒤에 '## 검증' 필수.",
-  "",
-  "## 5. 금지 사항",
-  "- secrets / API key / .env 내용을 본문·diff 에 절대 포함 금지.",
-  "- .oculpm/index/** 에 절대 쓰지 말 것.",
-  "",
-  "## 6. 예시",
-  "최근 entry 를 직접 읽어 참고하세요.",
-  "",
-  "## 7. Planner 갱신 (작업 일지와 별개)",
-  "나".repeat(2700),
-  "",
-  "## 8. 문제 해결 문서",
-  "다".repeat(1800),
-  "<!-- oculpm:end -->",
-].join("\n");
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // AI 패널 2026-07-20 개편 — assembleAiContext 의 파트별 분해(parts).
 // 토큰 추정 브레이크다운이 파트 단위로 동작하므로, 토글 조합에 따라
@@ -54,6 +14,8 @@ vi.mock("@/lib/bindings", () => ({
           { file_path: "src/b.ts", start_line: 5, end_line: 9, content: "const b = 2;" },
         ],
       }),
+    // Phase 5 — 프로젝트 지시문 (없음).
+    projectInstructionsGet: () => Promise.resolve({ status: "ok", data: "" }),
     planList: () =>
       Promise.resolve({
         status: "ok",
@@ -115,19 +77,69 @@ vi.mock("@/lib/bindings", () => ({
       }),
     oculpmAgentsGetMasterTemplate: () =>
       Promise.resolve({ status: "ok", data: "# 규칙\n일지를 남겨라." }),
+    // Phase 5 — 매니페스트가 읽는 목록 둘.
+    rulesList: () =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          claude_md: [],
+          project_rules: [
+            {
+              scope: "project",
+              kind: "rule",
+              rel_path: ".claude/rules/api.md",
+              name: "api",
+              title: "API 규칙",
+              exists: true,
+              paths: ["src/api/**"],
+              bytes: 100,
+              mirror: "none",
+            },
+          ],
+          global_rules: [],
+          project_rules_dir: "",
+          global_rules_dir: "",
+          cursor_translate: false,
+        },
+      }),
+    skillsList: () =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          project: [
+            {
+              scope: "project",
+              dir_name: "run-evals",
+              name: "run-evals",
+              description: "평가 실행",
+              keywords: ["evals", "평가"],
+              enabled: true,
+              display_path: ".claude/skills/run-evals",
+              extra_files: 0,
+            },
+          ],
+          global: [],
+          project_skills_dir: "",
+          global_skills_dir: "",
+        },
+      }),
   },
 }));
 
-import { assembleAiContext, digestRules } from "@/features/chat/aiContext";
+import { assembleAiContext } from "@/features/chat/aiContext";
+import { resetManifestFreeze } from "@/features/chat/manifest";
 import { DEFAULTS, type Settings } from "@/lib/settings";
 
 const settings: Settings = { ...DEFAULTS, systemPrompt: "너는 한국어로 답한다." };
 
 describe("assembleAiContext — parts 분해", () => {
-  it("전부 켜면 주입 순서대로 parts 가 쌓인다", async () => {
+  beforeEach(() => resetManifestFreeze());
+
+  it("회상 신호가 있으면 주입 순서대로 parts 가 쌓인다", async () => {
     const res = await assembleAiContext({
       projectId: 1,
-      query: "이 프로젝트 요약해줘",
+      // "지난주" 가 회상 신호다 — 없으면 일지·플랜은 아예 조립되지 않는다.
+      query: "지난주에 뭐 했지",
       settings,
       includeRag: true,
       includePlanner: true,
@@ -136,15 +148,17 @@ describe("assembleAiContext — parts 분해", () => {
     });
     expect(res.parts.map((p) => p.key)).toEqual([
       "system",
+      "manifest",
       "rag",
-      "planner",
       "actions",
       "git",
+      // 회상 블록 **안의** 순서는 관련도 순이다 — "지난주" 는 episode 신호라
+      // 일지가 플랜보다 앞선다 (예산 초과 시 잘리는 순서와 같은 규칙).
       "oculpm",
+      "planner",
     ]);
     // system 문자열은 parts 텍스트의 결합과 일치한다 (추정↔전송 동일 소스).
     expect(res.system).toBe(res.parts.map((p) => p.text).join("\n\n").trim());
-    expect(res.attached).toEqual(["코드 2곳", "플래너", "git", "작업일지"]);
     expect(res.chunks).toHaveLength(2);
     // 각 파트에 실제 내용이 들어있다.
     const byKey = Object.fromEntries(res.parts.map((p) => [p.key, p.text]));
@@ -152,12 +166,31 @@ describe("assembleAiContext — parts 분해", () => {
     expect(byKey.planner).toContain("plan_id: p1");
     expect(byKey.git).toContain("main");
     expect(byKey.oculpm).toContain("일지 1");
+    // 매니페스트는 **목록**이다 — 규칙 본문이 아니라 이름과 범위만.
+    expect(byKey.manifest).toContain("api");
+    expect(byKey.manifest).toContain("run-evals");
+    expect(byKey.manifest).not.toContain("일지를 남겨라");
+  });
+
+  it("회상 신호가 없는 턴에는 일지·플랜이 길이 0 이다", async () => {
+    const res = await assembleAiContext({
+      projectId: 1,
+      query: "이 함수 이름 뭐가 좋을까",
+      settings,
+      includeRag: false,
+      includePlanner: true,
+      includeGit: false,
+      includeOculpm: true,
+    });
+    expect(res.recall).toBe("none");
+    expect(res.parts.map((p) => p.key)).toEqual(["system", "manifest", "actions"]);
+    expect(res.recallTokens).toBe(0);
   });
 
   it("토글을 끄면 해당 파트가 빠진다 (git/rag off)", async () => {
     const res = await assembleAiContext({
       projectId: 1,
-      query: "질문",
+      query: "계획 어디까지 했지",
       settings,
       includeRag: false,
       includePlanner: true,
@@ -165,52 +198,15 @@ describe("assembleAiContext — parts 분해", () => {
       includeOculpm: false,
     });
     const keys = res.parts.map((p) => p.key);
-    expect(keys).toEqual(["system", "planner", "actions"]);
-    expect(res.attached).toEqual(["플래너"]);
-  });
-
-  // 규칙 다이제스트 — 예전 `clampText(master, 2500)` 은 §3 YAML 중간을 잘라
-  // §4~§8 을 통째로 버렸고, 그래서 §5 의 시크릿 금지가 한 번도 전달되지 않았다.
-  describe("digestRules", () => {
-    it("예산을 넘으면 §5 금지 사항을 반드시 남긴다", () => {
-      const out = digestRules(RULES_MASTER);
-      expect(out.length).toBeLessThanOrEqual(RULES_MASTER.length);
-      expect(out).toContain("## 5. 금지 사항");
-      expect(out).toContain("secrets");
-      expect(out).toContain(".oculpm/index/**");
-    });
-
-    it("절 경계로 자르므로 YAML 블록이 반쪽으로 남지 않는다", () => {
-      const out = digestRules(RULES_MASTER);
-      // ``` 펜스는 항상 짝수 개 (열고 닫힘).
-      expect((out.match(/```/g) ?? []).length % 2).toBe(0);
-    });
-
-    it("§1 트리거와 §4 본문 헤더도 남기고, 생략은 눈에 보이게 알린다", () => {
-      const out = digestRules(RULES_MASTER);
-      expect(out).toContain("## 1. 언제 기록하는가");
-      expect(out).toContain("## 4. 본문 구조");
-      expect(out).toMatch(/규칙 \d+개 절 생략/);
-    });
-
-    it("예산 안에 들어오면 원문을 그대로 준다", () => {
-      const short = "# 규칙\n\n## 1. 트리거\n- 버그 수정";
-      expect(digestRules(short)).toBe(short);
-    });
-
-    it("## 헤딩이 없는 사용자 편집 마스터는 단순 절단으로 되돌아간다", () => {
-      const noHeadings = "가".repeat(4000);
-      const out = digestRules(noHeadings, 100);
-      expect(out).toContain("… (생략됨)");
-      expect(out.length).toBeLessThan(200);
-    });
+    expect(keys).toEqual(["system", "manifest", "actions", "planner"]);
+    expect(res.attached).toContain("플래너");
   });
 
   it("플래너 블록은 잠긴 계획과 종료된 항목을 싣지 않는다", async () => {
     // planList 목은 active 플랜 1개 + 항목 2개(done i1, todo i2) 를 준다.
     const res = await assembleAiContext({
       projectId: 1,
-      query: "x",
+      query: "계획 어디까지 했지",
       settings,
       includeRag: false,
       includePlanner: true,
@@ -235,7 +231,9 @@ describe("assembleAiContext — parts 분해", () => {
       includeOculpm: false,
       includeActions: false,
     });
-    expect(res.parts.map((p) => p.key)).toEqual(["system"]);
+    // 매니페스트는 질문과 무관하게 항상 간다 — 목록은 싸고, 모델이 스스로
+    // 꺼낼 길을 잃으면 안 된다.
+    expect(res.parts.map((p) => p.key)).toEqual(["system", "manifest"]);
     expect(res.chunks).toHaveLength(0);
   });
 });

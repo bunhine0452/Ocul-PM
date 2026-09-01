@@ -79,6 +79,22 @@ export const commands = {
 	 *  값의 축은 설정의 `theme` 과 같다 (`"dark"` · `"solarized"` · `"custom:<uuid>"`).
 	 */
 	setProjectTheme: (projectId: number, themeId: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_project_theme", { projectId, themeId })),
+	/**  관련도 상위 N (감쇠 반영). 화면의 「회상 후보」 목록. */
+	recallTop: (projectId: number, limit: number) => typedError<RecallStat[], AppError>(__TAURI_INVOKE("recall_top", { projectId, limit })),
+	/**  주입됐다고 기록한다 — 다음 순위에 반영된다. */
+	recallTouch: (projectId: number, kind: string, reference: string) => typedError<null, AppError>(__TAURI_INVOKE("recall_touch", { projectId, kind, reference })),
+	/**  이 항목을 잊는다. 없던 행이면 `false` — 잊기는 멱등하다. */
+	recallForget: (projectId: number, kind: string, reference: string) => typedError<boolean, AppError>(__TAURI_INVOKE("recall_forget", { projectId, kind, reference })),
+	/**
+	 *  이 프로젝트의 회상 통계를 전부 지운다. 지운 행 수를 돌려준다.
+	 * 
+	 *  **지워도 기능은 그대로다** — 점수가 없으면 균등 순위로 돌아갈 뿐이다.
+	 */
+	recallReset: (projectId: number) => typedError<number, AppError>(__TAURI_INVOKE("recall_reset", { projectId })),
+	/**  이 프로젝트의 지시문 (줄 단위 목록을 개행으로 이어 붙인 원문). */
+	projectInstructionsGet: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("project_instructions_get", { projectId })),
+	/**  저장한다. 빈 문자열이면 "없음" 이다 (행은 남지만 병합에서 빠진다). */
+	projectInstructionsSet: (projectId: number, text: string) => typedError<null, AppError>(__TAURI_INVOKE("project_instructions_set", { projectId, text })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
 	detectStack: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("detect_stack", { projectId })),
 	/**
@@ -4302,6 +4318,15 @@ export type PtySessionInfo = {
 	shell_integration: boolean,
 };
 
+export type RecallStat = {
+	kind: string,
+	ref_: string,
+	/**  지금 시점의 감쇠 반영 점수 (0..1). */
+	score: number | null,
+	use_count: number,
+	last_used: string | null,
+};
+
 export type ReindexReport = {
 	project_id: number,
 	inserted: number,
@@ -4655,6 +4680,11 @@ export type SkillEntry = {
 	name: string,
 	/**  frontmatter `description` (없으면 빈 문자열) — 에이전트 자동 발동 기준. */
 	description: string,
+	/**
+	 *  frontmatter `keywords` — 능력 검색(`context_discover`)이 색인하는 말.
+	 *  없으면 빈 배열이다 (Osaurus 라운드 Phase 5).
+	 */
+	keywords: string[],
 	enabled: boolean,
 	/**  표시용 경로 — project 는 프로젝트 루트 상대, global 은 `~/…`. */
 	display_path: string,

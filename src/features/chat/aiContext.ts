@@ -13,6 +13,15 @@ import { commands, type ChunkSearchResult } from "@/lib/bindings";
 import { t } from "@/i18n";
 import type { Settings } from "@/lib/settings";
 import { buildActionInstruction } from "./aiActions";
+import { contextApi } from "@/api/context";
+import { buildRetrievalInstruction } from "./contextLoad";
+import { frozenManifest } from "./manifest";
+import {
+  detectRecall,
+  selectWithinBudget,
+  type RecallCandidate,
+  type RecallSignal,
+} from "./recallGate";
 
 export function buildContextSystem(chunks: ChunkSearchResult[]): string {
   const blocks = chunks
@@ -123,74 +132,6 @@ function clampText(s: string, max: number): string {
   return s.length > max ? s.slice(0, max).trimEnd() + "\n… (생략됨)" : s;
 }
 
-/** 규칙 다이제스트 예산 (문자 수). 한글은 1자 ≈ 3바이트라 실제로는 넉넉하다. */
-const RULES_DIGEST_CHARS = 2500;
-
-/**
- * 규칙 섹션 우선순위 — 예산이 허락하는 만큼 이 순서로 담는다.
- *
- * `## N.` 의 숫자로 지목한다: §5 금지 사항(시크릿·index 쓰기 금지)이 가장
- * 중요하고, §1 트리거와 §4 본문 헤더가 그 다음이다. §3 frontmatter 와 §7/§8 의
- * 파일 포맷 기계는 앱이 직접 쓰므로(어시스턴트는 json:action 을 제안할 뿐)
- * 뒤로 밀린다.
- */
-const RULES_SECTION_PRIORITY = [5, 1, 4, 2, 6, 3, 7, 8];
-
-/**
- * AGENTS 마스터를 `## ` 섹션 경계로 잘라 예산 안에 담는다.
- *
- * 이전에는 `clampText(master, 2500)` 이었는데, 그 위치가 §3 frontmatter 의 YAML
- * 블록 **중간** 이라 어시스턴트가 §4 본문 규칙부터 §8 까지를 한 번도 못 봤다 —
- * §5 의 **시크릿 금지** 를 포함해서다. 예산을 절약하려던 코드가 규칙 전달을
- * 조용히 깨뜨리고 있었던 셈이라, 이 함수는 토큰 최적화이기 전에 정합성 수정이다.
- *
- * 마스터(`.oculpm/agents/_template.md`)는 사용자가 편집할 수 있으므로 `## `
- * 헤딩이 없으면 예전 동작(단순 절단)으로 조용히 되돌아간다.
- */
-export function digestRules(master: string, budget = RULES_DIGEST_CHARS): string {
-  const text = master.trim();
-  if (text.length <= budget) return text;
-
-  // 관리 블록 주석은 규칙이 아니다.
-  const body = text.replace(/<!--[\s\S]*?-->\n?/g, "");
-  const marks: { index: number; num: number | null }[] = [];
-  const re = /^## +(\d+)?/gm;
-  for (let m = re.exec(body); m; m = re.exec(body)) {
-    marks.push({ index: m.index, num: m[1] ? Number(m[1]) : null });
-  }
-  if (marks.length === 0) return clampText(body.trim(), budget);
-
-  const preamble = body.slice(0, marks[0].index).trim();
-  const sections = marks.map((mk, i) => ({
-    num: mk.num,
-    text: body.slice(mk.index, marks[i + 1]?.index ?? body.length).trim(),
-    order: i,
-  }));
-
-  const chosen: typeof sections = [];
-  let used = preamble.length;
-  const take = (s: (typeof sections)[number]) => {
-    if (used + s.text.length + 2 > budget) return;
-    chosen.push(s);
-    used += s.text.length + 2;
-  };
-  // 우선순위로 고르고, 지목되지 않은 섹션은 문서 순서로 남은 예산에 담는다.
-  for (const num of RULES_SECTION_PRIORITY) {
-    const s = sections.find((x) => x.num === num);
-    if (s) take(s);
-  }
-  for (const s of sections) {
-    if (!chosen.includes(s)) take(s);
-  }
-
-  const omitted = sections.length - chosen.length;
-  const out = [preamble, ...chosen.sort((a, b) => a.order - b.order).map((s) => s.text)]
-    .filter(Boolean)
-    .join("\n\n");
-  // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
-  return omitted > 0 ? `${out}\n\n… 규칙 ${omitted}개 절 생략 (전문은 AGENTS.md)` : out;
-}
-
 /**
  * Build a "프로젝트 작업 맥락" block from the most recent ocul-pm journal
  * entries + the project's AGENTS rules, so the assistant keeps the same
@@ -234,21 +175,20 @@ export async function buildOculpmSystemContext(
     }
   }
 
-  const rulesRes = await commands.oculpmAgentsGetMasterTemplate(projectId);
-  if (rulesRes.status === "ok" && rulesRes.data.trim()) {
-    sections.push(
-      // i18n-ignore-next-line -- LLM 프롬프트 본문 (03-i18n.md §4.5)
-      "### 작업 규칙 (AGENTS)\n이 프로젝트의 규칙입니다. 응답과 제안은 이 규칙을 따르세요.\n\n" +
-        digestRules(rulesRes.data),
-    );
-  }
+  // 규칙은 더 이상 여기서 따라오지 않는다 (Phase 5 `#retire-digest-rules`).
+  //
+  // 예전에는 `digestRules` 가 AGENTS 마스터를 2,500자로 **잘라** 넣었다. 그
+  // 절단이 한 번은 §5 시크릿 금지 조항을 통째로 삼켰다 — 예산이 없어서 규칙을
+  // 훼손한 것이다. 이제 규칙은 매니페스트에 **목록**으로 상주하고(안전 조항
+  // 세 줄은 항상 본문으로), 본문이 필요하면 `context_load` 나 `/rules` 로
+  // **전문**이 온다. 잘린 규칙보다 안 잘린 규칙이 낫다.
 
   return sections.join("\n\n");
 }
 
 export interface AiContextOptions {
   projectId: number | null;
-  /** Current user query — seeds the RAG retrieval. */
+  /** Current user query — seeds the RAG retrieval **and the recall gate**. */
   query: string;
   settings: Settings;
   includeRag?: boolean;
@@ -258,10 +198,20 @@ export interface AiContextOptions {
   /** Append the json:action protocol so the assistant can propose planner
    *  edits (approved via ActionProposalCard). Defaults to `includePlanner`. */
   includeActions?: boolean;
+  /**
+   * 이 대화의 id — 매니페스트 동결 키다 (Phase 5 `#manifest-freeze`). 같은
+   * 대화 안에서는 매니페스트가 **바이트 동일**로 유지돼 프롬프트 캐시가 산다.
+   */
+  conversationId?: number | null;
+  /**
+   * 회상 후보의 관련도 (`recall_stats`). 없으면 균등 점수 — 통계는 파생
+   * 캐시라 지워도 기능이 유지돼야 한다 (설계 §3).
+   */
+  recallScores?: Record<string, number>;
 }
 
 export interface AiContextPart {
-  key: "system" | "rag" | "planner" | "actions" | "git" | "oculpm";
+  key: "system" | "manifest" | "rag" | "planner" | "actions" | "git" | "oculpm";
   /** UI label (토큰 추정 브레이크다운에 표시). */
   label: string;
   /** Raw text of this part — token estimation runs over it. */
@@ -277,12 +227,39 @@ export interface AiContextResult {
   attached: string[];
   /** Per-part breakdown, in injection order — 전송 전 토큰 추정용. */
   parts: AiContextPart[];
+  /** 이 턴의 회상 판정 — 화면이 "왜 안 실렸는지" 를 말할 수 있게. */
+  recall: RecallSignal;
+  /** 회상 블록이 쓴 토큰과 예산 초과로 버린 후보 수. */
+  recallTokens: number;
+  recallDropped: number;
+  /**
+   * 실제로 주입된 후보 — 관련도 통계를 올릴 대상이다.
+   *
+   * **여기서 통계를 올리지 않는다.** 이 함수는 토큰 추정 때문에 타이핑
+   * 중에도 디바운스로 불린다 — 안에서 올리면 키를 칠 때마다 점수가 뛴다.
+   * 실제 전송 경로만 이 목록으로 `recall_touch` 를 부른다.
+   */
+  recallUsed: Array<{ kind: string; ref: string }>;
 }
 
 /**
- * One-call context assembly for the main AI panel. Mirrors the order ChatPanel
- * uses (system prompt → code → planner → git → journal) but without the
- * open-file / action-protocol pieces that are specific to the code workbench.
+ * One-call context assembly for the main AI panel.
+ *
+ * ## Phase 5 이후의 순서와 이유
+ *
+ * ```
+ * system      사용자 지시 (항상 가는 것)        — 항상
+ * manifest    능력 목록 + 꺼내는 법 + 안전 3줄   — 항상, **대화 동안 동결**
+ * rag         질문으로 검색한 코드 조각          — 질문마다 정당하게 달라짐
+ * actions     플래너 제안 규약                   — 정적
+ * git         브랜치·최근 커밋                   — 토글
+ * recall      일지·플랜 본문                     — **회상 신호가 있는 턴만**
+ * ```
+ *
+ * 앞의 두 블록이 안정적이라는 것이 핵심이다. 예전에는 거의 안 바뀌는 규칙·
+ * 일지·플랜이 매 턴 재조립돼 system 앞자리에 들어갔고, 한 글자만 달라져도 그
+ * 뒤 전부가 프롬프트 캐시 미스였다.
+ *
  * Best-effort throughout: a failing source is skipped, never fatal.
  */
 export async function assembleAiContext(opts: AiContextOptions): Promise<AiContextResult> {
@@ -297,8 +274,35 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   const parts: AiContextPart[] = [];
   let chunks: ChunkSearchResult[] = [];
 
-  if (settings.systemPrompt.trim()) {
-    parts.push({ key: "system", label: t("ai.partSystem"), text: settings.systemPrompt.trim() });
+  // ── 항상 가는 것 (전역 선호 + 프로젝트 지시문) ──────────────────────────
+  //
+  // 둘은 **병합**되고 프로젝트가 뒤에 온다 (뒤가 이긴다 — 같은 주제를 다르게
+  // 말하면 더 좁은 쪽을 따르는 것이 자연스럽다). 프로젝트 지시문은 우리 패널이
+  // 읽는 **사용자 선호**이고, `AGENTS.md`(외부 에이전트가 읽는 기록 규칙)와는
+  // 다른 층이다 (Phase 5 `#project-instructions`).
+  const always: string[] = [];
+  if (settings.systemPrompt.trim()) always.push(settings.systemPrompt.trim());
+  if (projectId != null) {
+    try {
+      const text = await contextApi.instructionsGet(projectId);
+      if (text.trim()) always.push(text.trim());
+    } catch {
+      /* best-effort — 지시문을 못 읽어도 대화는 시작된다 */
+    }
+  }
+  if (always.length) {
+    parts.push({ key: "system", label: t("ai.partSystem"), text: always.join("\n") });
+  }
+
+  // ── 능력 매니페스트 (동결) ───────────────────────────────────────────────
+  const manifest = await frozenManifest(projectId, opts.conversationId ?? null);
+  if (manifest.text) {
+    parts.push({
+      key: "manifest",
+      label: t("ai.partManifest"),
+      text: `${manifest.text}\n\n${buildRetrievalInstruction()}`,
+    });
+    attached.push(t("ai.partManifest"));
   }
 
   if (includeRag && projectId != null && query.trim() && settings.ragTopK > 0) {
@@ -310,15 +314,9 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
       attached.push(ragLabel);
     }
   }
-  if (includePlanner) {
-    const p = await buildPlannerSystemContext(projectId);
-    if (p) {
-      parts.push({ key: "planner", label: t("ai.partPlanner"), text: p });
-      attached.push(t("ai.partPlanner"));
-    }
-  }
+
   // The action protocol is cheap (a static instruction) and only useful when
-  // the planner is in play, so it follows the planner block.
+  // the planner is in play, so it follows the RAG block.
   if (includeActions) {
     parts.push({ key: "actions", label: t("ai.partActions"), text: buildActionInstruction() });
   }
@@ -329,14 +327,51 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
       attached.push("git");
     }
   }
-  if (includeOculpm) {
-    const o = await buildOculpmSystemContext(projectId, settings.oculpmContextEntries);
-    if (o) {
-      parts.push({ key: "oculpm", label: t("ai.partJournal"), text: o });
-      attached.push(t("ai.partJournal"));
+
+  // ── 회상 (신호가 있는 턴만) ──────────────────────────────────────────────
+  //
+  // 신호가 없으면 일지·플랜 블록을 **아예 조립하지 않는다** — 조립한 뒤 버리는
+  // 게 아니라 커맨드를 부르지 않는다. "이 함수 이름 뭐가 좋을까" 같은 턴에
+  // 일지 3건과 플랜 전체가 실리던 것이 이 게이트로 사라진다.
+  const recall = detectRecall(query);
+  const recallUsed: Array<{ kind: string; ref: string }> = [];
+  let recallTokens = 0;
+  let recallDropped = 0;
+
+  if (recall !== "none") {
+    const candidates: RecallCandidate[] = [];
+    const scoreOf = (kind: string, ref: string) => opts.recallScores?.[`${kind}:${ref}`] ?? 0.5;
+
+    if (includePlanner && (recall === "plan" || recall === "fact" || recall === "episode")) {
+      const planner = await buildPlannerSystemContext(projectId);
+      if (planner) {
+        candidates.push({ text: planner, score: scoreOf("plan", "*") + (recall === "plan" ? 0.5 : 0), kind: "plan", ref: "*" });
+      }
+    }
+    if (includeOculpm && recall !== "plan") {
+      const journal = await buildOculpmSystemContext(projectId, settings.oculpmContextEntries);
+      if (journal) {
+        candidates.push({
+          text: journal,
+          score: scoreOf("journal", "*") + (recall === "episode" || recall === "verbatim" ? 0.5 : 0),
+          kind: "journal",
+          ref: "*",
+        });
+      }
+    }
+
+    const selection = selectWithinBudget(candidates);
+    recallTokens = selection.tokens;
+    recallDropped = selection.dropped;
+    for (const chosen of selection.chosen) {
+      const key = chosen.kind === "plan" ? "planner" : "oculpm";
+      const label = chosen.kind === "plan" ? t("ai.partPlanner") : t("ai.partJournal");
+      parts.push({ key: key as AiContextPart["key"], label, text: chosen.text });
+      attached.push(label);
+      recallUsed.push({ kind: chosen.kind, ref: chosen.ref });
     }
   }
 
   const system = parts.map((p) => p.text).join("\n\n").trim();
-  return { system, chunks, attached, parts };
+  return { system, chunks, attached, parts, recall, recallTokens, recallDropped, recallUsed };
 }

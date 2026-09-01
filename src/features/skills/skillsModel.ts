@@ -19,13 +19,35 @@ export function splitFrontmatter(content: string): { meta: string | null; body: 
   return { meta: rest.slice(0, end).trim(), body: body.replace(/^\n+/, "") };
 }
 
-/** 새 스킬의 시드 SKILL.md. description 은 YAML 한 줄 문자열로 안전하게 인용한다. */
-export function skillTemplate(name: string, description: string): string {
+/**
+ * 쉼표로 친 키워드를 정규화한다 — trim · 빈 항목 제거 · 중복 제거 · 소문자화.
+ *
+ * 소문자로 접는 이유는 `context_discover` 가 소문자 비교로 색인하기 때문이다.
+ * 한글은 대소문자가 없어 영향이 없다.
+ */
+export function parseKeywords(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const part of raw.split(",")) {
+    const word = part.trim().toLowerCase();
+    if (word) seen.add(word);
+  }
+  return [...seen];
+}
+
+/**
+ * 새 스킬의 시드 SKILL.md. description 은 YAML 한 줄 문자열로 안전하게 인용한다.
+ *
+ * `keywords` 는 Osaurus 라운드 Phase 5 (`#skill-keywords`) 에서 더했다 — 능력
+ * 검색은 이름·설명·키워드만 색인하므로(지시문 본문은 색인하지 않는다) 여기 적힌
+ * 말이 곧 이 스킬의 도달 경로다. 비어 있으면 줄 자체를 넣지 않는다.
+ */
+export function skillTemplate(name: string, description: string, keywords: string[] = []): string {
   const desc = description.replace(/\s+/g, " ").trim().replace(/"/g, '\\"');
+  const kw = keywords.length ? `keywords: [${keywords.map((k) => JSON.stringify(k)).join(", ")}]\n` : "";
   return `---
 name: ${name}
 description: "${desc}"
----
+${kw}---
 
 # ${name}
 

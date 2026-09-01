@@ -139,6 +139,10 @@ const TESTS = new Set([
   // 라벨("Nord 테마 적용")이 단언 재료다.
   "__tests__/theme_schema.test.ts",
   "__tests__/theme_gallery.test.tsx",
+  // Osaurus 라운드 Phase 5 — 회상 게이트의 **한국어 신호 문장이 검사 대상**이다
+  // ("지난주에 뭐 했지" → episode). 번역하면 재는 것이 사라진다.
+  "__tests__/context_economy.test.ts",
+  "__tests__/rules_reachability.test.ts",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",

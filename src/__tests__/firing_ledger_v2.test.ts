@@ -48,6 +48,7 @@ const skillEntry = (dirName: string, name = dirName): SkillEntry => ({
   dir_name: dirName,
   name,
   description: "",
+  keywords: [],
   enabled: true,
   extra_files: 0,
   display_path: `.claude/skills/${dirName}`,

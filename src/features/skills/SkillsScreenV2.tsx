@@ -42,7 +42,7 @@ import {
   type SkillSeed,
 } from "@/lib/agentContextNav";
 import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
-import { isValidSkillName, skillTemplate } from "./skillsModel";
+import { isValidSkillName, parseKeywords, skillTemplate } from "./skillsModel";
 import { claudeMdTemplate, isValidRuleName, ruleTemplate } from "./rulesModel";
 import { useFiringLedger } from "./useFiringLedger";
 import {
@@ -445,6 +445,8 @@ function CreateSkillDialog({
   const [scope, setScope] = useState<SkillScope>("project");
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  /** 쉼표로 치는 키워드 — 능력 검색이 색인하는 유일한 말 (Phase 5). */
+  const [keywords, setKeywords] = useState("");
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -453,6 +455,7 @@ function CreateSkillDialog({
     setScope("project");
     setName(seed.name ?? "");
     setDesc(seed.description ?? "");
+    setKeywords("");
   }, [seed]);
 
   const valid = isValidSkillName(name.trim());
@@ -461,7 +464,13 @@ function CreateSkillDialog({
     if (!valid || busy) return;
     setBusy(true);
     try {
-      await skillsApi.save(projectId, scope, slug, withSeedBody(skillTemplate(slug, desc), seed?.body), true);
+      await skillsApi.save(
+        projectId,
+        scope,
+        slug,
+        withSeedBody(skillTemplate(slug, desc, parseKeywords(keywords)), seed?.body),
+        true,
+      );
       toast.info(t("sk.created", { name: slug }));
       onClose();
       onCreated();
@@ -524,6 +533,24 @@ function CreateSkillDialog({
               if (e.key === "Enter" && valid) void submit();
             }}
           />
+        </div>
+        {/* 키워드 (Phase 5 `#skill-keywords`) — 능력 검색은 이름·설명·키워드만
+            색인하고 지시문 본문은 색인하지 않는다. 그래서 여기 적는 말이 곧 이
+            스킬의 도달 경로다. */}
+        <div className="sk-field">
+          <label htmlFor="ctx-skill-keywords">{t("sk.keywordsLabel")}</label>
+          <input
+            id="ctx-skill-keywords"
+            className="sk-input"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder={t("sk.keywordsPlaceholder")}
+            autoComplete="off"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && valid) void submit();
+            }}
+          />
+          <div className="sk-field-hint">{t("sk.keywordsHint")}</div>
         </div>
       </div>
       <div className="sk-modal-foot">

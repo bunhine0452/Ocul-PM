@@ -50,6 +50,9 @@ pub struct SkillEntry {
     pub name: String,
     /// frontmatter `description` (없으면 빈 문자열) — 에이전트 자동 발동 기준.
     pub description: String,
+    /// frontmatter `keywords` — 능력 검색(`context_discover`)이 색인하는 말.
+    /// 없으면 빈 배열이다 (Osaurus 라운드 Phase 5).
+    pub keywords: Vec<String>,
     pub enabled: bool,
     /// 표시용 경로 — project 는 프로젝트 루트 상대, global 은 `~/…`.
     pub display_path: String,
@@ -138,7 +141,7 @@ pub async fn skills_trigger_rewrite(
     let (dir, _enabled) = locate_skill(&root, &dir_name)?;
     let content = std::fs::read_to_string(dir.join(SKILL_FILENAME))
         .map_err(|e| format!("Could not read SKILL.md: {e}"))?;
-    let (_name, description) = parse_frontmatter(&content);
+    let (_name, description, _keywords) = parse_frontmatter(&content);
     let current = description.unwrap_or_default();
     // 본문 발췌는 사용자 파일이라 그대로 나갈 수 있다 — 일지 증거와 같은
     // 규율로 비밀만 걷어 낸다.
@@ -382,19 +385,25 @@ fn locate_skill(root: &Path, dir_name: &str) -> Result<(PathBuf, bool), String> 
     Err(format!("Skill not found: {dir_name}"))
 }
 
-/// frontmatter 에서 (name, description) 을 관대하게 추출한다.
+/// frontmatter 에서 (name, description, keywords) 를 관대하게 추출한다.
 /// 파싱 실패·부재 시 None — 스킬 자체는 유효할 수 있으므로 에러로 만들지 않는다.
-fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
+///
+/// `keywords` 는 Osaurus 라운드 Phase 5 (`#skill-keywords`) 에서 더했다. 능력
+/// 검색은 **이름·설명·키워드만** 색인하고 지시문 본문은 색인하지 않으므로,
+/// "사용자가 실제로 말할 단어" 를 여기 적어 두는 것이 도달 가능성을 정한다.
+/// 리스트(`[a, b]`)와 쉼표 문자열(`"a, b"`) 둘 다 받는다 — 사람이 손으로 쓰는
+/// 필드라 한쪽만 받으면 조용히 비어 버린다.
+fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, Vec<String>) {
     let rest = match content.strip_prefix("---") {
         Some(r) => r,
-        None => return (None, None),
+        None => return (None, None, Vec::new()),
     };
     let Some(end) = rest.find("\n---") else {
-        return (None, None);
+        return (None, None, Vec::new());
     };
     let yaml: serde_yaml::Value = match serde_yaml::from_str(&rest[..end]) {
         Ok(v) => v,
-        Err(_) => return (None, None),
+        Err(_) => return (None, None, Vec::new()),
     };
     let get = |key: &str| {
         yaml.get(key)
@@ -402,7 +411,21 @@ fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
     };
-    (get("name"), get("description"))
+    let keywords = match yaml.get("keywords") {
+        Some(serde_yaml::Value::Sequence(items)) => items
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        Some(serde_yaml::Value::String(raw)) => raw
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => Vec::new(),
+    };
+    (get("name"), get("description"), keywords)
 }
 
 fn build_entry(
@@ -412,7 +435,7 @@ fn build_entry(
     enabled: bool,
     content: &str,
 ) -> SkillEntry {
-    let (name, description) = parse_frontmatter(content);
+    let (name, description, keywords) = parse_frontmatter(content);
     let dir = if enabled {
         root.join(dir_name)
     } else {
@@ -432,6 +455,7 @@ fn build_entry(
         dir_name: dir_name.to_string(),
         name: name.unwrap_or_else(|| dir_name.to_string()),
         description: description.unwrap_or_default(),
+        keywords,
         enabled,
         display_path,
         extra_files: count_extra_files(&dir),
@@ -660,15 +684,35 @@ mod tests {
 
     #[test]
     fn frontmatter_parse_is_lenient() {
-        assert_eq!(parse_frontmatter("no frontmatter"), (None, None));
+        assert_eq!(
+            parse_frontmatter("no frontmatter"),
+            (None, None, Vec::new())
+        );
         assert_eq!(
             parse_frontmatter("---\nname: a\n---\n"),
-            (Some("a".into()), None)
+            (Some("a".into()), None, Vec::new())
         );
-        let (n, d) = parse_frontmatter("---\nname: a\ndescription: \"b c\"\nextra: 1\n---\nbody");
+        let (n, d, _k) =
+            parse_frontmatter("---\nname: a\ndescription: \"b c\"\nextra: 1\n---\nbody");
         assert_eq!((n, d), (Some("a".into()), Some("b c".into())));
         // 깨진 YAML → None 폴백 (에러 아님).
-        assert_eq!(parse_frontmatter("---\n{invalid\n---\n"), (None, None));
+        assert_eq!(
+            parse_frontmatter("---\n{invalid\n---\n"),
+            (None, None, Vec::new())
+        );
+    }
+
+    /// Phase 5 `#skill-keywords` — 사람이 손으로 쓰는 필드라 리스트와 쉼표
+    /// 문자열을 둘 다 받는다. 한쪽만 받으면 조용히 비어 버린다.
+    #[test]
+    fn keywords_accept_both_yaml_shapes() {
+        let (_, _, list) =
+            parse_frontmatter("---\nname: a\nkeywords: [요약, tldr, 핵심]\n---\nbody");
+        assert_eq!(list, vec!["요약", "tldr", "핵심"]);
+        let (_, _, csv) = parse_frontmatter("---\nname: a\nkeywords: \"요약, tldr , 핵심\"\n---\n");
+        assert_eq!(csv, vec!["요약", "tldr", "핵심"]);
+        let (_, _, none) = parse_frontmatter("---\nname: a\n---\n");
+        assert!(none.is_empty());
     }
 
     #[test]
