@@ -72,6 +72,7 @@ const project = (id: number, name: string): Project => ({
   name,
   root_path: `/x/${name}`,
   created_at: 0,
+  theme_id: null,
   icon: null,
   color: null,
 });

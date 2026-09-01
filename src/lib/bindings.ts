@@ -38,6 +38,47 @@ export const commands = {
 	 *  유도)으로 되돌아간다.
 	 */
 	setProjectAppearance: (projectId: number, icon: string | null, color: string | null) => typedError<null, string>(__TAURI_INVOKE("set_project_appearance", { projectId, icon, color })),
+	/**
+	 *  저장된 사용자 테마 전부. 내장 5종은 프런트가 정적으로 들고 있다 —
+	 *  `tokens.css` 에서 생성된 JSON 이라 백엔드를 지날 이유가 없다.
+	 */
+	themeList: () => typedError<ThemeFile[], AppError>(__TAURI_INVOKE("theme_list")),
+	/**  만들거나 고친다. `metadata.id` 가 비어 있으면 새 테마로 보고 UUID 를 발급한다. */
+	themeSave: (theme: ThemeFile) => typedError<ThemeFile, AppError>(__TAURI_INVOKE("theme_save", { theme })),
+	/**  지운다 (없던 id 면 `false`). 이 테마를 쓰던 창은 전역 설정으로 되돌아간다. */
+	themeDelete: (id: string) => typedError<boolean, AppError>(__TAURI_INVOKE("theme_delete", { id })),
+	/**
+	 *  테마 파일을 들여온다.
+	 * 
+	 *  규칙 (설계 §3): `metadata.id` 는 **무시하고 새 UUID 를 발급**하고,
+	 *  `is_built_in` 은 강제로 false 이며, 같은 이름이 있으면 조용히 덮어쓰지 않고
+	 *  되묻는다. 남의 테마 id 가 내 테마와 충돌하는 사고를 구조적으로 없앤다.
+	 * 
+	 *  `path` 가 `None` 이면 파일 선택 대화상자를 연다. `on_conflict` 는 첫 시도에
+	 *  `None` 이고, 충돌을 되물은 뒤 `"overwrite"` 또는 `"copy"` 로 다시 부른다.
+	 */
+	themeImport: (path: string | null, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import", { path, onConflict })),
+	/**
+	 *  테마 하나를 `.json` 으로 저장한다. `is_built_in` 은 항상 false 로 기록해
+	 *  남에게 건넨 파일이 그쪽 갤러리에서 "내장" 으로 앉지 않게 한다.
+	 */
+	themeExport: (theme: ThemeFile) => typedError<string | null, AppError>(__TAURI_INVOKE("theme_export", { theme })),
+	/**
+	 *  macOS 시스템 강조색 (hex). 다른 OS 이거나 읽지 못하면 `None`.
+	 * 
+	 *  `NSColor.controlAccentColor` 를 objc 로 읽는 대신 `defaults` 를 읽는다 —
+	 *  이 값은 정수 코드 하나고, 그 코드가 곧 시스템 설정의 여덟 칸이다. objc
+	 *  표면을 늘리지 않고 같은 답을 얻는다. 키가 없으면 기본값(파랑)이다.
+	 */
+	systemAccent: () => typedError<string | null, AppError>(__TAURI_INVOKE("system_accent")),
+	/**
+	 *  프로젝트에 테마를 묶는다. `None` = 바인딩 해제(전역 설정으로 폴백).
+	 * 
+	 *  저장하는 것은 **색이 아니라 id** 다 — `027_project_appearance.sql` 의 주석이
+	 *  적은 규칙과 같다. hex 를 저장하면 라이트/다크에서 같은 값이 성립하지 않는다.
+	 *  값의 축은 설정의 `theme` 과 같다 (`"dark"` · `"solarized"` · `"custom:<uuid>"`).
+	 */
+	setProjectTheme: (projectId: number, themeId: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_project_theme", { projectId, themeId })),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
 	detectStack: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("detect_stack", { projectId })),
 	/**
@@ -1670,6 +1711,7 @@ export const events = {
 	tabDragOver: makeEvent<TabDragOver>("tab-drag-over"),
 	tearOffSettled: makeEvent<TearOffSettled>("tear-off-settled"),
 	terminalWindowsChanged: makeEvent<TerminalWindowsChanged>("terminal-windows-changed"),
+	themesChanged: makeEvent<ThemesChanged>("themes-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
 	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
 };
@@ -4180,6 +4222,12 @@ export type Project = {
 	icon: string | null,
 	/**  색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다). */
 	color: string | null,
+	/**
+	 *  이 프로젝트에 묶인 테마 id (`034_project_theme.sql`). `None` 이면 창은
+	 *  전역 설정 테마를 쓴다. 색이 아니라 id 를 저장하는 이유는 `icon`/`color`
+	 *  와 같다.
+	 */
+	theme_id: string | null,
 };
 
 export type ProjectBlueprint = {
@@ -4757,6 +4805,61 @@ export type TearOffSettled = {
  */
 export type TerminalWindowsChanged = {
 	open: number[],
+};
+
+export type ThemeFile = {
+	/**  항상 `"v1"`. */
+	oculpm_theme: string,
+	metadata: ThemeMetadata,
+	/**
+	 *  `"light"` | `"dark"` — 기존 `data-theme` 가족을 그대로 태운다. 코드
+	 *  에디터·hljs·스크롤바·글래스가 전부 이 축을 보므로 반드시 있어야 한다.
+	 */
+	family: string,
+	is_built_in?: boolean,
+	follows_system_accent?: boolean,
+	/**  부분 지정 가능. 빠진 토큰은 가족 기본값을 상속한다. */
+	tokens?: { [key in string]: string },
+};
+
+/**
+ *  임포트 결과 한 벌.
+ * 
+ *  태그 유니온 대신 평평한 구조체다 — 프런트가 `status` 하나로 갈라지고,
+ *  충돌이면 `source_path` 를 그대로 되돌려 보내 **파일 선택을 두 번 시키지
+ *  않는다**.
+ */
+export type ThemeImportOutcome = {
+	/**  `"imported" | "conflict" | "cancelled"`. */
+	status: string,
+	theme: ThemeFile | null,
+	/**  충돌한 이름 (status = "conflict"). */
+	conflict_name: string | null,
+	/**  다시 부를 때 넘길 원본 경로. */
+	source_path: string | null,
+};
+
+export type ThemeMetadata = {
+	/**  UUID v4. 임포트할 때는 **버리고 새로 발급**한다 (남의 id 충돌 방지). */
+	id?: string,
+	name: string,
+	version?: string,
+	author?: string | null,
+	/**  ISO8601. 없으면 저장 시점을 찍는다. */
+	created_at?: string,
+	updated_at?: string,
+};
+
+/**
+ *  테마 목록이나 프로젝트 바인딩이 바뀌었다 — **모든 창**이 다시 읽는다.
+ * 
+ *  `SettingsChanged` 를 재활용하지 않는 이유: 테마 파일은 `settings` 테이블에
+ *  없다. 설정 이벤트에 태우면 "설정이 바뀌었다" 는 말이 거짓이 되고, 설정을
+ *  다시 읽는 쪽(언어·배율)이 이유 없이 깨어난다.
+ */
+export type ThemesChanged = {
+	/**  `"saved" | "deleted" | "imported" | "binding"` — 로그·디버깅용. */
+	reason: string,
 };
 
 /**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */

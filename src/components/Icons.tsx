@@ -620,4 +620,7 @@ export {
   Inbox,
   // AD-6 규칙 다이어트 — 범위 좁히기.
   Scissors,
+  // 테마 파일화 (Osaurus 라운드 Phase 4) — 갤러리 글리프 · 파일 가져오기.
+  Palette,
+  Upload,
 } from "lucide-react";

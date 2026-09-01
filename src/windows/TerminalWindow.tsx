@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "@/features/terminal/TerminalSurface";
+import { setThemeOverride } from "@/features/theme/store";
 import { installConsoleBridge } from "@/lib/oculpmLog";
 import { useT } from "@/i18n";
 
@@ -57,6 +58,9 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
         if (me) {
           setRoot(me.root_path);
           setProjectMeta(me.name, me.root_path);
+          // 이 창은 프로젝트 하나만 보여 준다 — 바인딩된 테마가 있으면 그대로
+          // 이 창의 색이다 (Osaurus 라운드 Phase 4, 창 단위 적용).
+          setThemeOverride(me.theme_id ?? null);
           document.title = t("term.window.title", { project: me.name });
         }
       }

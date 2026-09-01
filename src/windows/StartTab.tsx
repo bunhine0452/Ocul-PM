@@ -34,6 +34,10 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
 import { toast } from "@/lib/toast";
 import { AppearancePicker } from "@/features/onboarding/home/AppearancePicker";
+import { ProjectThemePicker } from "@/features/theme/ProjectThemePicker";
+import { themesApi } from "@/api/themes";
+import { toAppError } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
 import {
   resolveProjectColor,
   resolveProjectIcon,
@@ -62,6 +66,8 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
   // 편집 다이얼로그의 겉모습 초안. 저장 전까지는 카드에 반영하지 않는다.
   const [draftIcon, setDraftIcon] = useState("folder");
   const [draftColor, setDraftColor] = useState<ProjectColorId>("green");
+  /** 이 프로젝트에 묶인 테마 (`null` = 전역 설정 따름). */
+  const [draftTheme, setDraftTheme] = useState<string | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   // Opt-in: independently wipe Ocul-PM's on-disk artifacts from the project
   // folder when removing. Both reset every time the dialog opens.
@@ -157,6 +163,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
   const startRenameProject = (p: Project) => {
     setRenamingProject(p);
     setNewName(p.name);
+    setDraftTheme(p.theme_id ?? null);
     // 아직 고르지 않은 프로젝트는 이름에서 유도된 값을 초안으로 보여준다 —
     // 빈 상태에서 시작하면 "지금 무슨 색인지" 를 사용자가 알 수 없다.
     setDraftIcon(resolveProjectIcon(p.name, p.icon).id);
@@ -180,6 +187,15 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     const look = await commands.setProjectAppearance(target.id, draftIcon, draftColor);
     if (look.status === "error") {
       setError(look.error);
+      return;
+    }
+    // 테마 바인딩은 세 번째 커맨드다 — 겉모습(아이콘·색)과 축이 다르고
+    // (마크 vs 전체 표면), 바뀌면 창 전체가 다시 칠해져야 하므로 전용
+    // 이벤트를 쏜다 (Osaurus 라운드 Phase 4).
+    try {
+      await themesApi.setProjectTheme(target.id, draftTheme);
+    } catch (e) {
+      setError(tError(toAppError(e)));
       return;
     }
     setRenamingProject(null);
@@ -282,6 +298,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
             onIcon={setDraftIcon}
             onColor={setDraftColor}
           />
+          <ProjectThemePicker value={draftTheme} onChange={setDraftTheme} />
           <div className="flex justify-end space-x-2 pt-2">
             <button
               onClick={() => setRenamingProject(null)}

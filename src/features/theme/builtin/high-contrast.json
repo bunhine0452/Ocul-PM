@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "high-contrast",
+    "name": "High Contrast",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "dark",
+  "is_built_in": true,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#ffd400",
+    "--accent-ring": "rgba(255,212,0,0.60)",
+    "--accent-soft": "rgba(255,212,0,0.20)",
+    "--accent-strong": "#ffde33",
+    "--accent-text": "#ffe666",
+    "--bg-active": "rgba(255,255,255,0.20)",
+    "--bg-card": "#0a0a0a",
+    "--bg-content": "#000000",
+    "--bg-hover": "rgba(255,255,255,0.12)",
+    "--bg-inset": "#141414",
+    "--bg-sidebar": "#000000",
+    "--bg-window": "#000000",
+    "--border-card": "rgba(255,255,255,0.60)",
+    "--sep": "rgba(255,255,255,0.50)",
+    "--sep-strong": "rgba(255,255,255,0.80)",
+    "--text": "#ffffff",
+    "--text-2": "#f0f0f0",
+    "--text-3": "#c8c8c8",
+    "--text-on-accent": "#000000"
+  }
+}

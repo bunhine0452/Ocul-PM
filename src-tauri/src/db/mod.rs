@@ -90,6 +90,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         include_str!("../../migrations/032_chunk_embeddings_partition.sql"),
     ),
     (33, include_str!("../../migrations/033_automation.sql")),
+    (34, include_str!("../../migrations/034_project_theme.sql")),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -128,6 +129,7 @@ const ADDITIVE_COLUMNS: &[(&str, &str, &str)] = &[
     ("projects", "color", "TEXT"),
     ("oculpm_journal_files", "lines_added", "INTEGER"),
     ("oculpm_journal_files", "lines_removed", "INTEGER"),
+    ("projects", "theme_id", "TEXT"),
 ];
 
 pub struct Db {
@@ -491,6 +493,10 @@ pub struct Project {
     pub icon: Option<String>,
     /// 색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다).
     pub color: Option<String>,
+    /// 이 프로젝트에 묶인 테마 id (`034_project_theme.sql`). `None` 이면 창은
+    /// 전역 설정 테마를 쓴다. 색이 아니라 id 를 저장하는 이유는 `icon`/`color`
+    /// 와 같다.
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]

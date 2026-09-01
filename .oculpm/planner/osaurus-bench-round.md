@@ -19,8 +19,8 @@ Osaurus 의 "볼트 감시 → 편집이 멎으면 자동 커밋" 은 여기서 
 드러낸다). Phase 4~7 은 서로 독립이라 병렬 가능. Phase 8(랜딩)은 반드시 마지막 —
 없는 기능을 미리 광고하는 것 자체가 정직성 위반이다.
 
-릴리스 매핑(권장): v2.26.0=P0+P1 · v2.27.0=P2 · v2.28.0=P3 · v2.29.0=P4 ·
-v2.30.0=P5 · v2.31.0=P6 · v2.32.0=P7. Phase 경계마다 5면을 채워 릴리스한다.
+릴리스 매핑(실제): v2.26.0=P0+P1 · v2.27.0=P2+P3(P2 가 미태그였다) · v2.28.0=P4 ·
+v2.29.0=P5 · v2.30.0=P6 · v2.31.0=P7. Phase 경계마다 5면을 채워 릴리스한다.
 
 **마이그레이션 번호는 계획 시점에 예약한다** (병렬 Phase 충돌 방지):
 033=automation(P0) · 034=project_theme(P4) · 035=context_recall(P5). 새 테이블이
@@ -71,13 +71,13 @@ v2.30.0=P5 · v2.31.0=P6 · v2.32.0=P7. Phase 경계마다 5면을 채워 릴리
 - [x] 발동 원장을 디버깅 정식 경로로 — 진단 「발동」 섹션(상위 발동 + **한 번도 안 걸린 규칙**) + run 상세에서 원장 점프 {#firing-insights}
 
 ## Phase 4 — 테마 파일화 {#themes}
-- [ ] 테마 스키마 v1 — CSS 변수 이름을 그대로 키로, 부분 지정 상속, 허용 토큰 화이트리스트(임의 CSS 주입 차단) {#theme-schema}
-- [ ] 내장 5종을 같은 스키마로 생성 + `tokens.css` `[data-preset]` 블록과 일치 단언 테스트 {#builtin-themes-as-json}
-- [ ] 적용 경로 — `data-preset="custom"` + 인라인 CSS 변수, `settingsChanged` 로 전 창 동기. 강조 5토큰 미지정 테마는 `data-accent` **유지**(하나라도 지정하면 제거) {#theme-apply}
-- [ ] Import/Export — `metadata.id` 무시하고 새 UUID·`is_built_in` 강제 false·크기 상한·이름 충돌은 질의(조용한 덮어쓰기 금지) {#theme-io}
-- [ ] 라이브 프리뷰 에디터 — 앱 자체가 미리보기, 토큰마다 「가족 기본값으로 되돌리기」 {#theme-editor}
-- [ ] `follows_system_accent` — macOS 시스템 강조색에서 강조 5토큰 재유도 {#system-accent}
-- [ ] 프로젝트별 테마 — `034_project_theme.sql`: `ALTER TABLE projects ADD COLUMN theme_id TEXT`(027 과 같은 컬럼 방식, hex 아닌 id), 창 단위 적용, 무바인딩은 전역 폴백 {#project-theme}
+- [x] 테마 스키마 v1 — CSS 변수 이름을 그대로 키로, 부분 지정 상속, 허용 토큰 화이트리스트(임의 CSS 주입 차단) {#theme-schema}
+- [x] 내장 5종을 같은 스키마로 생성 + `tokens.css` `[data-preset]` 블록과 일치 단언 테스트 {#builtin-themes-as-json}
+- [x] 적용 경로 — `data-preset="custom"` + 인라인 CSS 변수, `settingsChanged` 로 전 창 동기. 강조 5토큰 미지정 테마는 `data-accent` **유지**(하나라도 지정하면 제거) {#theme-apply}
+- [x] Import/Export — `metadata.id` 무시하고 새 UUID·`is_built_in` 강제 false·크기 상한·이름 충돌은 질의(조용한 덮어쓰기 금지) {#theme-io}
+- [x] 라이브 프리뷰 에디터 — 앱 자체가 미리보기, 토큰마다 「가족 기본값으로 되돌리기」 {#theme-editor}
+- [x] `follows_system_accent` — macOS 시스템 강조색에서 강조 5토큰 재유도 {#system-accent}
+- [x] 프로젝트별 테마 — `034_project_theme.sql`: `ALTER TABLE projects ADD COLUMN theme_id TEXT`(027 과 같은 컬럼 방식, hex 아닌 id), 창 단위 적용, 무바인딩은 전역 폴백 {#project-theme}
 
 ## Phase 5 — 컨텍스트 경제학 {#context-economy}
 - [ ] 능력 매니페스트 조립 — 규칙·스킬·플랜·일지의 **목록만**(본문 아님) {#capabilities-manifest}
@@ -265,4 +265,11 @@ Claude Code 를 지나지 않고, 따라서 `sched-`/`auto-` 세션은 원장에
 | 2026-09-01T11:13:00+09:00 | #firing-insights | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | 진단 「발동」 7일 — 상위 + 한 번도 안 걸린 규칙. 미측정·부분 스캔·경로 조건을 정직하게 밝힌다 |
 | 2026-09-01T11:20:00+09:00 | #firing-insights #idempotent-guidance | claude-code | ☑→☑ | .oculpm/journal/20260901/Features_to_add/1113_feature_provenance-phase3.md | D9 — run 상세→원장 점프는 폐기(자동화는 Claude Code 를 지나지 않아 원장에 없다). 트러블슈팅 「결과가 이상하다」 문구를 사실대로 정정 |
 | 2026-09-01T11:40:00+09:00 | #watchers #provenance | claude-code | ☑→☑ | .oculpm/journal/20260901/Chores/1136_chore_release-v2-27-0.md | v2.27.0 릴리스 — Phase 2+3 한 버전(P2 가 미태그였다). 5면 전부: 버전 5파일·CHANGELOG·README ko/en·landing 6곳+featureList/FAQ(details+JSON-LD)/벤토 3셀 |
+| 2026-09-01T12:40:00+09:00 | #theme-schema | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 31 토큰 화이트리스트 = 편집기 다섯 그룹. 색 값은 파서 대신 «모양이 아닌 문자 전부 거부» |
+| 2026-09-01T12:40:00+09:00 | #builtin-themes-as-json | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | scripts/gen-builtin-themes.mjs → src/features/theme/builtin/*.json. 내장은 프런트에만 산다 |
+| 2026-09-01T12:40:00+09:00 | #theme-apply | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | resolveThemeAttrs 한 곳에서 계산(설정·바인딩·초안·파일 넷). 강조 미지정 테마는 data-accent 유지 |
+| 2026-09-01T12:40:00+09:00 | #theme-io | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 충돌은 status:"conflict"+source_path 로 되물어 파일을 두 번 안 고르게. 덮어쓰기는 기존 id 유지 |
+| 2026-09-01T12:40:00+09:00 | #theme-editor | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 앱이 곧 미리보기 — 초안이 스토어에 실리면 SettingsContext 가 <html> 을 다시 칠한다 |
+| 2026-09-01T12:40:00+09:00 | #system-accent | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | defaults read -g AppleAccentColor → 8색 코드. 창 포커스마다 재조회(분산 알림 미구독) |
+| 2026-09-01T12:40:00+09:00 | #project-theme | claude-code | ☐→☑ | .oculpm/journal/20260901/Features_to_add/1240_feature_theme-files-phase4.md | 034 한 컬럼. 값의 축은 설정 theme 과 같다(custom:<uuid>). 창 단위 = 활성 탭 |
 <!-- oculpm:plan-log end -->

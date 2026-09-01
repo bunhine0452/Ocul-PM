@@ -10,6 +10,9 @@ import {
   keyForField,
   serialize,
 } from "@/lib/settings";
+import { applyThemeAttrs, resolveThemeAttrs } from "@/features/theme/apply";
+import { BUILTIN_THEMES } from "@/features/theme/builtins";
+import { initThemeStore, useThemeState } from "@/features/theme/store";
 
 interface SettingsContextValue {
   settings: Settings;
@@ -26,17 +29,22 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 // existing `[data-theme="dark"]` rule (code editor, hljs, scrollbars, glass)
 // keeps working — while `data-preset` repaints the surfaces + accent on top
 // (tokens.css / App.css). Plain light/dark/system set no `data-preset`.
-export const PRESET_FAMILY: Record<string, "light" | "dark"> = {
-  solarized: "light",
-  sepia: "light",
-  nord: "dark",
-  dracula: "dark",
-  "high-contrast": "dark",
-};
+//
+// Phase 4 부터 이 표는 **내장 테마 파일에서 유도**한다 — 프리셋이 JSON 이 되어
+// `family` 를 스스로 말하므로, 손으로 적은 사본을 하나 더 두면 갈라진다.
+// (모바일 셸 `mobile/theme.ts` 가 이 표를 그대로 쓴다.)
+export const PRESET_FAMILY: Record<string, "light" | "dark"> = Object.fromEntries(
+  BUILTIN_THEMES.map((t) => [t.metadata.id, t.family === "dark" ? "dark" : "light"]),
+);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
+  // 테마 런타임 (Osaurus 라운드 Phase 4) — 사용자 테마 목록 · 프로젝트 바인딩 ·
+  // 편집 중 초안 · 시스템 강조색. 설정과 축이 다르므로 별도 스토어다.
+  const themeState = useThemeState();
+
+  useEffect(() => initThemeStore(), []);
 
   const reload = useCallback(async () => {
     const res = await commands.settingsGetAll();
@@ -113,47 +121,49 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setContentLangSetting(settings.contentLanguage);
   }, [settings.contentLanguage]);
 
-  // --- Theme application: set the `data-theme` attribute on <html> from the
-  // theme setting. Decision A (2026-05-31): SettingsContext is the single
-  // source of truth for theme. PR-UI 8b dropped the parallel legacy `.dark`
-  // class — shadcn now themes through `[data-theme="dark"]` too (App.css var
-  // blocks + custom-variant), so a single attribute drives everything.
+  // --- Theme application (Osaurus 라운드 Phase 4 — 파일 테마까지 한 문으로).
+  //
+  // Decision A (2026-05-31): SettingsContext 가 테마의 단일 소유자다. 이제
+  // 그 소유가 세 갈래를 함께 심판한다 — 전역 설정 · **프로젝트 바인딩**(창마다
+  // 다른 프로젝트를 열 수 있다) · **편집 중 초안**(앱 자체가 미리보기다).
+  // 무엇을 달지는 `resolveThemeAttrs` 가 순수하게 계산하고, 여기서는 그 결과를
+  // `<html>` 에 얹기만 한다.
+  //
+  // `data-accent` 도 같은 계산에 들어 있다: 프리셋·커스텀 테마가 강조를
+  // 소유하면 제거하고, 강조 토큰을 하나도 지정하지 않은 테마면 **유지**한다
+  // (배경만 바꾼 테마를 골랐다는 이유로 강조색 선택이 사라지면 안 된다).
   useEffect(() => {
     if (!loaded) return;
     const root = document.documentElement;
-    const preset = PRESET_FAMILY[settings.theme] ? settings.theme : null;
     const apply = () => {
-      let family: "light" | "dark";
-      if (preset) {
-        family = PRESET_FAMILY[preset];
-      } else if (settings.theme === "system") {
-        family = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      } else {
-        family = settings.theme === "dark" ? "dark" : "light";
-      }
-      root.setAttribute("data-theme", family);
-      if (preset) root.setAttribute("data-preset", preset);
-      else root.removeAttribute("data-preset");
+      applyThemeAttrs(
+        root,
+        resolveThemeAttrs({
+          themeSetting: themeState.override ?? settings.theme,
+          colorTheme: settings.colorTheme,
+          customThemes: themeState.customThemes,
+          systemAccent: themeState.systemAccent,
+          prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+          draft: themeState.draft,
+        }),
+      );
     };
     apply();
-    // Only "system" tracks the OS — a fixed preset/light/dark doesn't.
-    if (settings.theme === "system") {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
-    }
-  }, [settings.theme, loaded]);
-
-  // Accent palette: `data-accent` overrides the --accent* tokens (tokens.css)
-  // over whichever light/dark mode is active. "green" is the base (no override),
-  // so any selection just swaps which `[data-accent="…"]` block wins. Preset
-  // themes ship their own accent, so we drop `data-accent` while one is active.
-  useEffect(() => {
-    if (!loaded) return;
-    const root = document.documentElement;
-    if (PRESET_FAMILY[settings.theme]) root.removeAttribute("data-accent");
-    else root.setAttribute("data-accent", settings.colorTheme);
-  }, [settings.colorTheme, settings.theme, loaded]);
+    // "system" 만 OS 를 따라간다 — 고정 테마·프리셋·커스텀은 따라가지 않는다.
+    const effective = themeState.override ?? settings.theme;
+    if (effective !== "system" || themeState.draft) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [
+    loaded,
+    settings.theme,
+    settings.colorTheme,
+    themeState.override,
+    themeState.customThemes,
+    themeState.systemAccent,
+    themeState.draft,
+  ]);
 
   // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
   // `zoom`, this reflows the page natively, so pixel-measuring components

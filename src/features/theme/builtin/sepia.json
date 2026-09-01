@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "sepia",
+    "name": "Sepia",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "light",
+  "is_built_in": true,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#b06a2c",
+    "--accent-ring": "rgba(176,106,44,0.38)",
+    "--accent-soft": "rgba(176,106,44,0.14)",
+    "--accent-strong": "#9a5a22",
+    "--accent-text": "#8a4f1d",
+    "--bg-active": "rgba(91,70,54,0.12)",
+    "--bg-card": "#faf3e0",
+    "--bg-content": "#f1e7d0",
+    "--bg-hover": "rgba(91,70,54,0.07)",
+    "--bg-inset": "#e9ddc2",
+    "--bg-sidebar": "#ece1c8",
+    "--bg-window": "#f4ecd8",
+    "--border-card": "rgba(91,70,54,0.18)",
+    "--sep": "rgba(91,70,54,0.16)",
+    "--sep-strong": "rgba(91,70,54,0.26)",
+    "--text": "#4a3a2a",
+    "--text-2": "#6b5847",
+    "--text-3": "#927b63",
+    "--text-on-accent": "#fbf6ea"
+  }
+}

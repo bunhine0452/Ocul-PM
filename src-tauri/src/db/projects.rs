@@ -29,7 +29,7 @@ impl Db {
             .conn
             .call(|c| {
                 let mut stmt = c.prepare(
-                    "SELECT id, name, root_path, created_at, icon, color
+                    "SELECT id, name, root_path, created_at, icon, color, theme_id
                      FROM projects ORDER BY id DESC",
                 )?;
                 let rows = stmt
@@ -41,6 +41,7 @@ impl Db {
                             created_at: r.get::<_, i64>(3)? as u32,
                             icon: r.get(4)?,
                             color: r.get(5)?,
+                            theme_id: r.get(6)?,
                         })
                     })?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -55,7 +56,7 @@ impl Db {
             .conn
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT id, name, root_path, created_at, icon, color
+                    "SELECT id, name, root_path, created_at, icon, color, theme_id
                      FROM projects WHERE id = ?",
                 )?;
                 let proj = stmt.query_row([project_id as i64], |r| {
@@ -66,6 +67,7 @@ impl Db {
                         created_at: r.get::<_, i64>(3)? as u32,
                         icon: r.get(4)?,
                         color: r.get(5)?,
+                        theme_id: r.get(6)?,
                     })
                 })?;
                 Ok(proj)
@@ -98,6 +100,21 @@ impl Db {
                     "UPDATE projects SET icon = ?1, color = ?2, updated_at = unixepoch()
                      WHERE id = ?3",
                     rusqlite::params![icon, color, id as i64],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// 프로젝트에 묶인 테마 id. `None` 은 바인딩 해제 — `set_project_appearance`
+    /// 와 같은 이유로 빈 문자열이 아니라 NULL 로 써야 전역 폴백이 되살아난다.
+    pub async fn set_project_theme(&self, id: u32, theme_id: Option<String>) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE projects SET theme_id = ?1, updated_at = unixepoch() WHERE id = ?2",
+                    rusqlite::params![theme_id, id as i64],
                 )?;
                 Ok(())
             })

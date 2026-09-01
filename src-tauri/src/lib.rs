@@ -32,6 +32,8 @@ mod menu;
 mod mobile_bridge;
 pub mod ptyhost;
 mod secrets;
+// 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소
+pub mod themes;
 mod tray;
 
 use std::path::PathBuf;
@@ -426,6 +428,8 @@ use crate::commands::{
     secret_verify,
     select_project_folder,
     set_project_appearance,
+    // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
+    set_project_theme,
     set_tab_project,
     settings_get,
     settings_get_all,
@@ -448,9 +452,15 @@ use crate::commands::{
     // AD-5 — 트리거 교정 (안 걸리는 스킬의 description 재작성 초안)
     skills_trigger_rewrite,
     start_pty_session,
+    system_accent,
     tab_drag_end,
     tab_drag_over,
     tab_drop_hint,
+    theme_delete,
+    theme_export,
+    theme_import,
+    theme_list,
+    theme_save,
     update_project_overview,
     write_to_pty,
 };
@@ -486,6 +496,14 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             delete_project,
             rename_project,
             set_project_appearance,
+            // 테마 파일화 (Phase 4) — 목록·저장·삭제·가져오기/내보내기·시스템 강조색
+            theme_list,
+            theme_save,
+            theme_delete,
+            theme_import,
+            theme_export,
+            system_accent,
+            set_project_theme,
             project_stats,
             // C2 — 스킬 카탈로그: 결정적 스택 감지
             detect_stack,
@@ -836,6 +854,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::lsp::state::LspServerStateChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
+            // 테마 파일·프로젝트 바인딩 변경 — 갤러리와 적용 경로가 다시 읽는다
+            crate::commands::themes::ThemesChanged,
             // 자동화 실행 시작/종료 — 「실행 중…」과 인라인 Stop (Phase 3)
             crate::commands::automation::AutomationRunChanged,
         ])

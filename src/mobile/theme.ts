@@ -19,6 +19,10 @@ export async function applyDesktopTheme(): Promise<() => void> {
 
   const root = document.documentElement;
   const preset = PRESET_FAMILY[theme] ? theme : null;
+  // 커스텀 테마(`custom:<uuid>`)는 폰에서 해석할 수 없다 — 토큰이 맥의 앱
+  // 데이터에 있는 파일이고 모바일 커맨드 화이트리스트 밖이다. 임의로 라이트로
+  // 떨어뜨리는 대신 **OS 다크모드**를 따른다 (Phase 4).
+  if (theme.startsWith("custom:")) theme = "system";
 
   const apply = () => {
     let family: "light" | "dark";

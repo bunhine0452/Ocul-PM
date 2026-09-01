@@ -40,6 +40,7 @@ function project(over: Partial<ProjectManagerProps["projects"][number]> = {}) {
     created_at: 0,
     icon: null,
     color: null,
+    theme_id: null,
     ...over,
   };
 }

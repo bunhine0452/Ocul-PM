@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "dracula",
+    "name": "Dracula",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "dark",
+  "is_built_in": true,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#bd93f9",
+    "--accent-ring": "rgba(189,147,249,0.40)",
+    "--accent-soft": "rgba(189,147,249,0.16)",
+    "--accent-strong": "#a87fe6",
+    "--accent-text": "#d0b3ff",
+    "--bg-active": "rgba(248,248,242,0.10)",
+    "--bg-card": "#343746",
+    "--bg-content": "#282a36",
+    "--bg-hover": "rgba(248,248,242,0.06)",
+    "--bg-inset": "#44475a",
+    "--bg-sidebar": "#21222c",
+    "--bg-window": "#282a36",
+    "--border-card": "rgba(248,248,242,0.10)",
+    "--sep": "rgba(248,248,242,0.09)",
+    "--sep-strong": "rgba(248,248,242,0.16)",
+    "--text": "#f8f8f2",
+    "--text-2": "#bdc0d6",
+    "--text-3": "#6272a4",
+    "--text-on-accent": "#282a36"
+  }
+}

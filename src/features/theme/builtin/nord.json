@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "nord",
+    "name": "Nord",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "dark",
+  "is_built_in": true,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#88c0d0",
+    "--accent-ring": "rgba(136,192,208,0.40)",
+    "--accent-soft": "rgba(136,192,208,0.16)",
+    "--accent-strong": "#79b0c2",
+    "--accent-text": "#9fcfdd",
+    "--bg-active": "rgba(216,222,233,0.10)",
+    "--bg-card": "#3b4252",
+    "--bg-content": "#2e3440",
+    "--bg-hover": "rgba(216,222,233,0.06)",
+    "--bg-inset": "#434c5e",
+    "--bg-sidebar": "#2b303b",
+    "--bg-window": "#2e3440",
+    "--border-card": "rgba(216,222,233,0.10)",
+    "--sep": "rgba(216,222,233,0.09)",
+    "--sep-strong": "rgba(216,222,233,0.16)",
+    "--text": "#eceff4",
+    "--text-2": "#d8dee9",
+    "--text-3": "#8d99b3",
+    "--text-on-accent": "#2e3440"
+  }
+}

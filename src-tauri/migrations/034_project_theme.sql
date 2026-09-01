@@ -1,0 +1,11 @@
+-- 프로젝트별 테마 (Osaurus 라운드 Phase 4 #project-theme).
+--
+-- `027_project_appearance.sql` 과 **같은 방식**이다 — 별도 테이블이 아니라
+-- projects 에 붙인 한 컬럼이고, 저장하는 값은 색이 아니라 **테마 id 문자열**이다.
+-- 이유도 같다: hex 를 저장하면 라이트/다크에서 같은 값이 성립하지 않는다.
+--
+-- NULL = 바인딩 없음 → 그 창은 전역 설정 테마를 쓴다 (조용한 폴백).
+-- 값의 축은 설정의 `theme` 과 **같다**: `"dark"` · `"solarized"` 같은 내장 값이거나
+-- `"custom:<uuid>"` 다. 파일이 사라진 id 가 남아 있어도 무해하다 — 프런트가 못
+-- 찾으면 전역 폴백으로 떨어진다.
+ALTER TABLE projects ADD COLUMN theme_id TEXT;

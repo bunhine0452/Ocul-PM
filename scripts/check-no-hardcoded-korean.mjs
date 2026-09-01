@@ -135,6 +135,10 @@ const TESTS = new Set([
   // Osaurus 라운드 Phase 3 — 출처 배지·활성 행. 한국어 UI 문자열이 단언 재료다.
   "__tests__/entry_source.test.ts",
   "__tests__/provenance_rows.test.tsx",
+  // Osaurus 라운드 Phase 4 — 테마 스키마·갤러리. 한국어 테스트 이름과 갤러리
+  // 라벨("Nord 테마 적용")이 단언 재료다.
+  "__tests__/theme_schema.test.ts",
+  "__tests__/theme_gallery.test.tsx",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
   "__tests__/ai_context_parts.test.ts",

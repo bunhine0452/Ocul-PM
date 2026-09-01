@@ -9,29 +9,13 @@ import { commands } from "@/lib/bindings";
 import { Sun, Moon, Monitor, Languages } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
-import { type ColorTheme, type Theme } from "@/lib/settings";
+import { type ColorTheme } from "@/lib/settings";
+import { ThemeGallery } from "@/features/theme/ThemeGallery";
+import { themeOwnsAccent } from "@/features/theme/apply";
+import { useThemeState } from "@/features/theme/store";
 import { TERM_FONT_MIN, TERM_FONT_MAX, TERM_FONT_DEFAULT, clampTermFont } from "@/features/terminal/fontSize";
 import { normalizeLangSetting, resolveLang, useT, type I18nKey, type LangSetting } from "@/i18n";
 import { Section, Field } from "./ui";
-
-// Preset themes shown in 모양 → 테마. Each `id` is a `Theme` value the
-// SettingsContext turns into `data-preset` over a light/dark base family. The
-// swatch colors mirror the palette in tokens.css / App.css so the picker shows a
-// faithful mini-preview without loading the theme.
-export const THEME_PRESETS: Array<{
-  id: Theme;
-  label: string;
-  bg: string;
-  fg: string;
-  accent: string;
-  accent2: string;
-}> = [
-  { id: "solarized", label: "Solarized", bg: "#fdf6e3", fg: "#586e75", accent: "#268bd2", accent2: "#859900" },
-  { id: "nord", label: "Nord", bg: "#2e3440", fg: "#eceff4", accent: "#88c0d0", accent2: "#81a1c1" },
-  { id: "dracula", label: "Dracula", bg: "#282a36", fg: "#f8f8f2", accent: "#bd93f9", accent2: "#ff79c6" },
-  { id: "sepia", label: "Sepia", bg: "#f4ecd8", fg: "#4a3a2a", accent: "#b06a2c", accent2: "#8a6a3a" },
-  { id: "high-contrast", label: "High Contrast", bg: "#000000", fg: "#ffffff", accent: "#ffd400", accent2: "#ffffff" },
-];
 
 /** 액센트 6색 스와치 — tokens.css [data-accent] 팔레트의 라이트 기준색 미리보기. */
 export const ACCENTS: Array<{ id: ColorTheme; labelKey: I18nKey; color: string }> = [
@@ -46,8 +30,11 @@ export const ACCENTS: Array<{ id: ColorTheme; labelKey: I18nKey; color: string }
 export function AccentPicker() {
   const { settings, set } = useSettings();
   const { t } = useT();
-  // 프리셋 테마는 자기 액센트를 갖고 온다 (SettingsContext 가 data-accent 제거).
-  const presetActive = !["light", "dark", "system"].includes(settings.theme);
+  // 테마가 강조를 소유하면 잠근다 — 내장 프리셋과, 강조 토큰을 지정한 커스텀
+  // 테마다. 배경만 바꾼 커스텀 테마는 강조색이 그대로 살아 있으므로 잠그지
+  // 않는다 (적용 경로와 **같은 판정**을 쓴다).
+  const { customThemes } = useThemeState();
+  const presetActive = themeOwnsAccent(settings.theme, customThemes);
   return (
     <div className="mt-2">
       <div className={`flex items-center gap-2 ${presetActive ? "opacity-40 pointer-events-none" : ""}`}>
@@ -253,42 +240,10 @@ export function AppearanceTab() {
           <AccentPicker />
         </div>
 
+        {/* 테마 갤러리 (Osaurus 라운드 Phase 4) — 내장 5종은 이제 CSS 가 아니라
+            생성된 JSON 이고, 사용자가 만든 테마가 그 옆에 나란히 선다. */}
         <div className="mt-1">
-          <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
-            {t("settings.theme.presets")}
-          </Label>
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {THEME_PRESETS.map((p) => {
-              const isActive = settings.theme === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => set("theme", p.id)}
-                  className={`flex flex-col items-stretch gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
-                    isActive
-                      ? "border-primary ring-2 ring-primary/30 bg-primary/5"
-                      : "border-border hover:border-primary/45 bg-background"
-                  }`}
-                >
-                  <span
-                    className="flex items-center gap-1.5 h-9 px-2 rounded-md border"
-                    style={{ background: p.bg, borderColor: "rgba(127,127,127,0.25)" }}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: p.accent }} />
-                    <span className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: p.accent2 }} />
-                    <span className="flex-1 h-1.5 rounded-full" style={{ background: p.fg, opacity: 0.4 }} />
-                  </span>
-                  <span
-                    className={`text-xs font-semibold text-center ${
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    {p.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <ThemeGallery />
         </div>
       </Section>
 

@@ -26,6 +26,8 @@ vi.mock("@/lib/bindings", () => {
           return () => ok({ db_path: "", schema_version: 0, page_count: 0, integrity_ok: true });
         if (prop === "appInfo") return () => ok({ name: "ocul-pm", version: "0.0.0" });
         if (prop === "secretHas") return () => ok(false);
+        // 테마 갤러리 — 사용자 테마 없음 (내장 5종은 정적이라 IPC 를 안 탄다).
+        if (prop === "themeList") return () => ok([]);
         return () => ok(null);
       },
     }),

@@ -1,0 +1,35 @@
+{
+  "oculpm_theme": "v1",
+  "metadata": {
+    "id": "solarized",
+    "name": "Solarized",
+    "version": "1.0",
+    "author": "Ocul-PM",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "family": "light",
+  "is_built_in": true,
+  "follows_system_accent": false,
+  "tokens": {
+    "--accent": "#268bd2",
+    "--accent-ring": "rgba(38,139,210,0.40)",
+    "--accent-soft": "rgba(38,139,210,0.14)",
+    "--accent-strong": "#1f7ab8",
+    "--accent-text": "#1f6a9e",
+    "--bg-active": "rgba(101,123,131,0.16)",
+    "--bg-card": "#fdf6e3",
+    "--bg-content": "#f5eed9",
+    "--bg-hover": "rgba(101,123,131,0.10)",
+    "--bg-inset": "#eee8d5",
+    "--bg-sidebar": "#eee8d5",
+    "--bg-window": "#fdf6e3",
+    "--border-card": "rgba(88,110,117,0.18)",
+    "--sep": "rgba(88,110,117,0.16)",
+    "--sep-strong": "rgba(88,110,117,0.28)",
+    "--text": "#586e75",
+    "--text-2": "#657b83",
+    "--text-3": "#93a1a1",
+    "--text-on-accent": "#fdf6e3"
+  }
+}

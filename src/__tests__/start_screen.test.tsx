@@ -50,6 +50,8 @@ function project(over: Partial<StartScreenProps["projects"][number]> = {}) {
     // 겉모습은 고르지 않은 상태가 기본 — 프런트가 이름 해시로 유도한다.
     icon: null,
     color: null,
+    // 테마 바인딩 없음 = 전역 설정 (Osaurus 라운드 Phase 4).
+    theme_id: null,
     ...over,
   };
 }

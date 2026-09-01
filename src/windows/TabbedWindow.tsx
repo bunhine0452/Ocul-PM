@@ -22,6 +22,8 @@ import { TabStrip, type IncomingTab, type WindowChoice } from "@/features/shell/
 import ProjectTab from "@/windows/ProjectTab";
 import StartTab from "@/windows/StartTab";
 
+import { themesApi } from "@/api/themes";
+import { setThemeOverride } from "@/features/theme/store";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
@@ -60,6 +62,8 @@ export default function TabbedWindow({
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  /** 테마 바인딩이 바뀌면 올린다 — 프로젝트 목록을 다시 읽는 유일한 계기다. */
+  const [themeRevision, setThemeRevision] = useState(0);
   const [openProjects, setOpenProjects] = useState<number[]>([]);
   /** 세션이 도는 프로젝트 — 탭에 활동 점을 찍는다. */
   const [busyProjects, setBusyProjects] = useState<Set<number>>(new Set());
@@ -259,7 +263,26 @@ export default function TabbedWindow({
     void commands.listProjects().then((res) => {
       if (res.status === "ok") setProjects(res.data);
     });
-  }, [tabs.length, openProjects.length]);
+  }, [tabs.length, openProjects.length, themeRevision]);
+
+  // 프로젝트별 테마 (Osaurus 라운드 Phase 4 `#project-theme`).
+  //
+  // 창 하나가 탭 여럿을 물고 있고 `<html>` 은 창에 하나뿐이다 — 그래서 **활성
+  // 탭의 프로젝트**가 창의 색을 정한다. 바인딩이 없으면 `null` 을 밀어 전역
+  // 설정으로 돌아간다. 시작 탭(프로젝트 없음)도 같은 규칙이다.
+  useEffect(() => {
+    const active = tabs.find((tb) => tb.tab_id === activeId);
+    const project = projects.find((p) => p.id === active?.project_id);
+    setThemeOverride(project?.theme_id ?? null);
+  }, [tabs, activeId, projects]);
+
+  // 바인딩은 다른 탭·다른 창에서도 바뀐다 — 테마 이벤트가 오면 목록을 다시 읽어
+  // 위 이펙트가 새 `theme_id` 를 본다.
+  useEffect(() => {
+    return themesApi.onChanged((e) => {
+      if (e.reason === "binding") setThemeRevision((n) => n + 1);
+    });
+  }, []);
 
   const fail = useCallback(
     (error: string) => toast.destructive(t("project.openWindowFailed", { error })),

@@ -22,7 +22,7 @@ import type { HomeBrief, Project } from "@/lib/bindings";
 const NOW = new Date("2026-07-31T14:00:00+09:00").getTime();
 
 function project(id: number, name: string, root = `/Users/me/git/${name}`): Project {
-  return { id, name, root_path: root, created_at: 0, icon: null, color: null };
+  return { id, name, root_path: root, created_at: 0, icon: null, color: null, theme_id: null };
 }
 
 function brief(over: Partial<HomeBrief> = {}): HomeBrief {

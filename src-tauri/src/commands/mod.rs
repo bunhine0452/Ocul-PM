@@ -33,6 +33,7 @@ pub mod skill_promotion;
 pub mod skills;
 pub mod summary;
 pub mod terminal;
+pub mod themes;
 pub mod window;
 
 pub use acp::*;
@@ -71,4 +72,5 @@ pub use skill_promotion::*;
 pub use skills::*;
 pub use summary::*;
 pub use terminal::*;
+pub use themes::*;
 pub use window::*;
