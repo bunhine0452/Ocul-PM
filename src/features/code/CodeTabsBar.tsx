@@ -15,11 +15,15 @@ interface CodeTabsBarProps {
   paneIndex: number;
   tabs: string[];
   active: string | null;
+  /** 이 창의 미리보기 탭 — 기울임으로 그리고, 더블클릭하면 고정된다. */
+  preview: string | null;
   dirtyPaths: Set<string>;
   isSplit: boolean;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onCloseOthers: (path: string) => void;
+  /** 미리보기 탭을 보통 탭으로 승격 (더블클릭 · 메뉴). */
+  onPin: (path: string) => void;
   /** 마지막으로 닫은 탭 되살리기 (⇧⌘T 와 같은 동작). */
   onReopenClosed: () => void;
   canReopen: boolean;
@@ -33,11 +37,13 @@ export const CodeTabsBar = memo(function CodeTabsBar({
   paneIndex,
   tabs,
   active,
+  preview,
   dirtyPaths,
   isSplit,
   onActivate,
   onClose,
   onCloseOthers,
+  onPin,
   onReopenClosed,
   canReopen,
   onSplit,
@@ -82,6 +88,7 @@ export const CodeTabsBar = memo(function CodeTabsBar({
           const name = path.slice(path.lastIndexOf("/") + 1);
           const isActive = path === active;
           const isDirty = dirtyPaths.has(path);
+          const isPreview = path === preview;
           return (
             <div
               key={path}
@@ -89,13 +96,20 @@ export const CodeTabsBar = memo(function CodeTabsBar({
               aria-selected={isActive}
               tabIndex={-1}
               draggable
-              className={"code-tab" + (isActive ? " on" : "") + (isDirty ? " dirty" : "")}
-              title={path}
+              className={
+                "code-tab" +
+                (isActive ? " on" : "") +
+                (isDirty ? " dirty" : "") +
+                (isPreview ? " preview" : "")
+              }
+              title={isPreview ? `${path}\n${t("code.tabs.previewHint")}` : path}
               onDragStart={(e) => {
                 e.dataTransfer.setData(TAB_DND_MIME, `${paneIndex}:${path}`);
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => onActivate(path)}
+              // 더블클릭 = 고정. 미리보기가 아니면 아무 일도 없다 (pinTab 이 no-op).
+              onDoubleClick={() => onPin(path)}
               // 가운데 버튼으로 닫기 — 브라우저 탭과 같은 관례.
               onAuxClick={(e) => {
                 if (e.button === 1) {
@@ -164,9 +178,14 @@ export const CodeTabsBar = memo(function CodeTabsBar({
               hint: "⇧⌘T",
             },
             {
+              label: t("code.tabs.pin"),
+              onSelect: () => onPin(menu.path),
+              disabled: menu.path !== preview,
+              separatorBefore: true,
+            },
+            {
               label: isSplit ? t("code.tabs.moveOther") : t("code.tabs.openBeside"),
               onSelect: () => onMoveToOtherPane(menu.path),
-              separatorBefore: true,
             },
           ]}
         />

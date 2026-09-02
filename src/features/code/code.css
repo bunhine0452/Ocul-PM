@@ -379,6 +379,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 미리보기 탭 — 훑어보는 중이라 다음 미리보기가 이 자리를 차지한다.
+   기울임 하나로만 말한다 (VS Code 와 같다): 색이나 테두리를 더하면 "상태" 가
+   아니라 "종류" 로 읽히고, 탭 바의 위계가 하나 늘어난다. */
+.code-tab.preview .code-tab-name {
+  font-style: italic;
+}
 /* 미저장 점과 닫기 ×의 공용 슬롯 — 상태에 따라 CSS 가 겹쳐 갈아끼운다.
    기본: 활성 탭만 × 노출. dirty: 점. 탭 호버: 언제나 ×. */
 .code-tab-slot {

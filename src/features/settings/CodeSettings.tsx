@@ -155,6 +155,14 @@ export function CodeSettings({
           onChange={(v) => void set("codeTrimFinalNewlines", v)}
           label={t("settings.code.trimFinalNewlines")}
         />
+        <Toggle
+          checked={settings.codePreviewTabs}
+          onChange={(v) => void set("codePreviewTabs", v)}
+          label={t("settings.code.previewTabs")}
+        />
+        <p className="text-[11px] text-muted-foreground/80">
+          {t("settings.code.previewTabsHint")}
+        </p>
       </Section>
 
       <Section

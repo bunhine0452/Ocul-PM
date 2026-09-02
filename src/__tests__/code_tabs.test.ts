@@ -14,6 +14,8 @@ import {
   moveTabToOtherPane,
   openFile,
   openPathsUnder,
+  pinTab,
+  previewPath,
   renameOpenPath,
   sanitizeTabs,
   splitEditor,
@@ -180,7 +182,116 @@ describe("codeTabs — 파일 조작과의 정합", () => {
   });
 });
 
+describe("codeTabs — 미리보기 탭", () => {
+  /** 트리 단일 클릭 = 미리보기로 열기. */
+  const peek = (s: CodeTabsState, path: string, dirty?: Set<string>) =>
+    openFile(s, path, s.focused, { preview: true, dirtyPaths: dirty });
+
+  it("연속으로 훑으면 탭은 하나고 경로만 바뀐다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = peek(s, "b.ts");
+    s = peek(s, "c.ts");
+    expect(show(s)).toBe("*[c.ts]");
+    expect(previewPath(s, 0)).toBe("c.ts");
+  });
+
+  it("교체는 자리를 옮기지 않는다 — 훑는 동안 탭이 좌우로 튀면 안 된다", () => {
+    let s = withTabs("keep.ts");
+    s = peek(s, "a.ts");
+    s = openFile(s, "tail.ts"); // 고정으로 하나 더
+    s = peek(s, "b.ts");
+    expect(s.panes[0].tabs).toEqual(["keep.ts", "b.ts", "tail.ts"]);
+  });
+
+  it("이미 열린 고정 탭을 훑어도 미리보기가 되지 않는다", () => {
+    let s = withTabs("pinned.ts");
+    s = peek(s, "peeked.ts");
+    s = peek(s, "pinned.ts");
+    expect(show(s)).toBe("*[pinned.ts]|peeked.ts");
+    // 미리보기 자리는 그대로 — 고정 탭을 눌렀다고 그 탭이 사라지면 안 된다.
+    expect(previewPath(s, 0)).toBe("peeked.ts");
+  });
+
+  it("고정하면(편집·더블클릭) 다음에 훑는 파일과 둘 다 남는다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = pinTab(s, 0, "a.ts");
+    expect(previewPath(s, 0)).toBeNull();
+    s = peek(s, "b.ts");
+    expect(show(s)).toBe("*a.ts|[b.ts]");
+  });
+
+  it("고정은 미리보기가 아닌 경로에 대해 같은 상태를 그대로 돌려준다", () => {
+    // 첫 편집이 타자마다 부르는 자리다 — 새 객체를 만들면 매 글자 리렌더다.
+    const s = withTabs("a.ts");
+    expect(pinTab(s, 0, "a.ts")).toBe(s);
+    expect(pinTab(s, 0, "없는파일.ts")).toBe(s);
+  });
+
+  it("미저장인 미리보기 탭은 교체하지 않는다 (방어)", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = peek(s, "b.ts", new Set(["a.ts"]));
+    expect(show(s)).toBe("*a.ts|[b.ts]");
+    expect(previewPath(s, 0)).toBe("b.ts");
+  });
+
+  it("미리보기 탭을 닫으면 자리가 빈다", () => {
+    let s = withTabs("a.ts");
+    s = peek(s, "b.ts");
+    s = closeTab(s, 0, "b.ts");
+    expect(previewPath(s, 0)).toBeNull();
+  });
+
+  it("다른 창으로 옮기면 고정된다 — 계속 볼 것이라는 신호다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = openFile(s, "b.ts");
+    s = moveTabToOtherPane(s, 0, "a.ts");
+    expect(previewPath(s, 1)).toBeNull();
+    expect(previewPath(s, 0)).toBeNull();
+  });
+
+  it("분할해도 미리보기가 창을 넘어가지 않는다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = splitEditor(s);
+    // 씨앗 탭은 새 창에서 고정이다 — 아니면 한쪽에서 훑는 것이 반대쪽을 갈아친다.
+    expect(previewPath(s, 1)).toBeNull();
+    expect(previewPath(s, 0)).toBe("a.ts");
+  });
+
+  it("합칠 때는 첫 창의 미리보기만 남는다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = splitEditor(s);
+    s = peek(s, "b.ts");
+    expect(previewPath(s, 1)).toBe("b.ts");
+    s = unsplitEditor(s);
+    expect(s.panes).toHaveLength(1);
+    expect(previewPath(s, 0)).toBe("a.ts");
+  });
+
+  it("이름이 바뀌면 미리보기도 따라가고, 지워지면 자리가 빈다", () => {
+    let s = peek(emptyTabs(), "a.ts");
+    s = renameOpenPath(s, "a.ts", "z.ts", false);
+    expect(previewPath(s, 0)).toBe("z.ts");
+    s = closeOpenPath(s, "z.ts", false);
+    expect(previewPath(s, 0)).toBeNull();
+  });
+});
+
 describe("codeTabs — 영속 복원", () => {
+  it("미리보기 필드가 없던 예전 JSON 도 받고, 목록 밖이면 비운다", () => {
+    const old = sanitizeTabs({ panes: [{ tabs: ["a"], active: "a" }], focused: 0 });
+    expect(previewPath(old, 0)).toBeNull();
+    const stray = sanitizeTabs({
+      panes: [{ tabs: ["a"], active: "a", preview: "gone" }],
+      focused: 0,
+    });
+    expect(previewPath(stray, 0)).toBeNull();
+    const kept = sanitizeTabs({
+      panes: [{ tabs: ["a", "b"], active: "a", preview: "b" }],
+      focused: 0,
+    });
+    expect(previewPath(kept, 0)).toBe("b");
+  });
+
   it("망가진 값에서도 그릴 수 있는 모양을 만든다", () => {
     expect(sanitizeTabs(null)).toEqual(emptyTabs());
     expect(sanitizeTabs({ panes: [], focused: 9 })).toEqual(emptyTabs());

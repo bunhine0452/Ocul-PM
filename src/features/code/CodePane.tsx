@@ -113,6 +113,16 @@ export interface CodePaneProps {
   jump: { line: number; ch?: number; len?: number; nonce: number } | null;
   /** 이 프로젝트에서 미저장인 경로들 — 탭 배지 + LSP 쓰기 동작의 게이트. */
   dirtyPaths: Set<string>;
+  /** 이 창의 미리보기 탭 (훑어보려고 연 한 자리). 없으면 null. */
+  previewPath: string | null;
+  /**
+   * 미리보기 탭을 보통 탭으로 승격한다.
+   *
+   * 여기서 부르는 계기는 **첫 편집**과 탭 더블클릭이다. 미리보기로 연 파일을
+   * 고치기 시작했는데 다음 클릭에 사라지면 그건 데이터 손실처럼 느껴진다
+   * (버퍼는 남지만 화면에서 사라진다).
+   */
+  onPinTab: (path: string) => void;
   onFocus: () => void;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
@@ -159,6 +169,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     lspEnabled,
     jump,
     dirtyPaths,
+    previewPath,
+    onPinTab,
     onFocus,
     onActivate,
     onClose,
@@ -604,6 +616,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       const nowDirty = text !== next.baseText;
       setDirty((prev) => (prev === nowDirty ? prev : nowDirty));
       if (nowDirty !== dirtyPaths.has(path)) onBuffersChanged();
+      // 고치기 시작한 파일은 더 이상 "훑어보는 중" 이 아니다 — 미리보기가 아니면
+      // `pinTab` 이 같은 상태를 돌려주므로 타자마다 불러도 리렌더가 없다.
+      if (nowDirty) onPinTab(path);
       // 저장을 기다리지 않고 서버에 밀어 넣는다 — 진단은 미저장 상태에서
       // 가장 쓸모 있다 (내부에서 디바운스).
       lsp.pushText(text);
@@ -617,7 +632,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         }, SVG_DEBOUNCE_MS);
       }
     },
-    [projectId, dirtyPaths, onBuffersChanged, lsp, refreshGutter],
+    [projectId, dirtyPaths, onBuffersChanged, onPinTab, lsp, refreshGutter],
   );
 
   /**
@@ -980,11 +995,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         paneIndex={paneIndex}
         tabs={tabs}
         active={activePath}
+        preview={previewPath}
         dirtyPaths={dirtyPaths}
         isSplit={isSplit}
         onActivate={onActivate}
         onClose={onClose}
         onCloseOthers={onCloseOthers}
+        onPin={onPinTab}
         onReopenClosed={onReopenClosed}
         canReopen={canReopen}
         onSplit={onSplit}

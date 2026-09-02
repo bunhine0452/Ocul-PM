@@ -104,6 +104,7 @@ export const KEYS = {
   codeTrimFinalNewlines: "code_trim_final_newlines",
   codeAutoSave: "code_auto_save",
   codeAutoSaveDelay: "code_auto_save_delay",
+  codePreviewTabs: "code_preview_tabs",
 
   // --- 첫 실행 ---
   // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
@@ -233,6 +234,14 @@ export interface Settings {
   codeAutoSave: AutoSaveMode;
   /** `afterDelay` 의 대기 시간(ms). 하한은 코드에서 250ms 로 강제한다. */
   codeAutoSaveDelay: number;
+  /**
+   * 트리에서 한 번 누른 파일을 **미리보기 탭**으로 연다 (기울임, 다음 미리보기가
+   * 그 자리를 차지). 더블클릭·편집·창 이동이 고정으로 승격시킨다.
+   *
+   * 이 라운드에서 유일하게 기본 **켜짐**인 설정이다. 유지할 옛 동작이 "훑기만
+   * 해도 탭이 계속 쌓인다" 이고, 그건 지킬 가치가 없다. 끄면 예전 그대로다.
+   */
+  codePreviewTabs: boolean;
 
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
@@ -293,6 +302,7 @@ export const DEFAULTS: Settings = {
   codeTrimFinalNewlines: false,
   codeAutoSave: "off",
   codeAutoSaveDelay: 1000,
+  codePreviewTabs: true,
 
   lastSeenVersion: "",
 
@@ -341,6 +351,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeTrimFinalNewlines]: "codeTrimFinalNewlines",
   [KEYS.codeAutoSave]: "codeAutoSave",
   [KEYS.codeAutoSaveDelay]: "codeAutoSaveDelay",
+  [KEYS.codePreviewTabs]: "codePreviewTabs",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.onboarded]: "onboarded",
 };

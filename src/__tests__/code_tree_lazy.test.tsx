@@ -32,6 +32,7 @@ function setup(map: Map<string, CodeDirEntry[]>, expanded: string[] = [], loadin
       onMove={vi.fn()}
       onToggle={onToggle}
       onSelect={onSelect}
+      onPin={vi.fn()}
     />,
   );
   return { onToggle, onSelect };
@@ -69,6 +70,7 @@ describe("CodeTree — 지연 로딩", () => {
         onMove={vi.fn()}
         onToggle={vi.fn()}
         onSelect={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     expect(screen.getByText("src")).toBeInTheDocument();

@@ -28,6 +28,7 @@ import {
 } from "@/components/Icons";
 import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
@@ -66,6 +67,7 @@ import {
   moveTabToOtherPane,
   openFile,
   openPathsUnder,
+  pinTab,
   renameOpenPath,
   sanitizeTabs,
   splitEditor,
@@ -130,6 +132,7 @@ export function CodeScreenV2({
 }: CodeScreenV2Props) {
   useT();
   const { state, setState } = useWorkspace();
+  const { settings } = useSettings();
 
   // 트리 소스가 둘이다.
   //   · `dirCache` — 평소 탐색. `code_dir` 로 **펼친 폴더 한 단계씩** 읽고,
@@ -150,6 +153,12 @@ export function CodeScreenV2({
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
   const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set());
+  // 여는 순간에 읽어야 하는 값들 — 콜백은 렌더보다 늦게 돌고, 여기서 낡은
+  // 값을 쓰면 미저장 탭이 교체된다.
+  const dirtyPathsRef = useRef(dirtyPaths);
+  dirtyPathsRef.current = dirtyPaths;
+  const previewTabsRef = useRef(true);
+  previewTabsRef.current = settings.codePreviewTabs;
   // 창별 줄 점프 지시 — nonce 로 같은 줄의 연속 점프도 다시 발화시킨다.
   // ch/len (UTF-16) 이 있으면 그 범위를 선택한다 (전역 검색의 매치 표시).
   const [jump, setJump] = useState<{
@@ -361,12 +370,24 @@ export function CodeScreenV2({
   }, [selected, loadDir]);
 
   // ── 열기 ────────────────────────────────────────────────────────────────
+  //
+  // `preview` 를 켜는 입구는 **트리 단일 클릭 하나뿐**이다 (VS Code 기본과 같다).
+  // 팔레트·전역 검색·코드 이동·일지는 전부 고정으로 연다 — 거기는 "훑어본다" 가
+  // 아니라 "이걸 하려고 왔다" 는 신호다.
   const openPath = useCallback(
-    (path: string, line: number | null, pane?: number, sel?: { ch: number; len: number }) => {
+    (
+      path: string,
+      line: number | null,
+      pane?: number,
+      sel?: { ch?: number; len?: number; preview?: boolean },
+    ) => {
       // 갱신 함수 안에서 setJump 를 부르지 않는다 — StrictMode 는 갱신 함수를 두 번
       // 부르므로 그 안의 부수효과는 두 번 난다. 대신 다음 상태를 밖에서 계산하고,
       // `tabsRef` 를 즉시 앞당겨 같은 틱의 연속 호출도 앞의 결과 위에서 쌓이게 한다.
-      const next = openFile(tabsRef.current, path, pane);
+      const next = openFile(tabsRef.current, path, pane, {
+        preview: sel?.preview === true && previewTabsRef.current,
+        dirtyPaths: dirtyPathsRef.current,
+      });
       tabsRef.current = next;
       setTabs(next);
       if (line != null) {
@@ -376,6 +397,15 @@ export function CodeScreenV2({
     },
     [],
   );
+
+  /** 미리보기 탭을 보통 탭으로 — 더블클릭·첫 편집·컨텍스트 메뉴가 부른다. */
+  const pinPath = useCallback((pane: number, path: string) => {
+    setTabs((prev) => {
+      const next = pinTab(prev, pane, path);
+      tabsRef.current = next;
+      return next;
+    });
+  }, []);
 
   // 다른 화면(검색·코드맵)에서 온 열기 목표.
   useEffect(() => {
@@ -954,8 +984,10 @@ export function CodeScreenV2({
           onToggle={toggleDir}
           onSelect={(path) => {
             setTreeAnchor({ path, isDir: false });
-            openPath(path, null);
+            openPath(path, null, undefined, { preview: true });
           }}
+          // 더블클릭은 고정 — 첫 클릭이 이미 열었으므로 승격만 하면 된다.
+          onPin={(path) => pinPath(tabsRef.current.focused, path)}
           onDraftSubmit={submitDraft}
           onDraftCancel={() => setDraft(null)}
           onContextMenu={openTreeMenu}
@@ -1094,6 +1126,10 @@ export function CodeScreenV2({
                     : null
                 }
                 dirtyPaths={dirtyPaths}
+                // 설정을 끄면 그 자리에서 기울임·"고정" 메뉴가 사라진다 — 남아
+                // 있던 미리보기 값은 닫히거나 고정될 때 알아서 비워진다.
+                previewPath={settings.codePreviewTabs ? pane.preview : null}
+                onPinTab={(path) => pinPath(index, path)}
                 onFocus={() => setTabs((prev) => focusPane(prev, index))}
                 onActivate={(path) => setTabs((prev) => activateTab(prev, index, path))}
                 onClose={(path) => closeTabTracked(index, path)}
@@ -1103,11 +1139,13 @@ export function CodeScreenV2({
                 onSplit={() => setTabs(splitEditor)}
                 onUnsplit={() => setTabs(unsplitEditor)}
                 onMoveToOtherPane={(path) => setTabs((prev) => moveTabToOtherPane(prev, index, path))}
+                // 드롭으로 옮긴 탭도 고정이다 — 창을 옮긴 것은 "계속 볼 것" 이라는
+                // 신호이고, moveTabToOtherPane 과 같은 판정이어야 한다.
                 onDropTab={(fromPane, path) =>
                   setTabs((prev) =>
                     fromPane === index
                       ? prev
-                      : closeTab(openFile(prev, path, index), fromPane, path),
+                      : closeTab(pinTab(openFile(prev, path, index), index, path), fromPane, path),
                   )
                 }
                 onBuffersChanged={handleBuffersChanged}

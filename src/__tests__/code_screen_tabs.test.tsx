@@ -256,14 +256,26 @@ function typeAndCommit(input: HTMLInputElement, value: string) {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
+/**
+ * 트리에서 **고정으로** 연다 (단일 클릭 → 더블 클릭).
+ *
+ * 미리보기 탭이 기본이 된 뒤로, 트리를 한 번씩 누르는 것만으로는 탭이 쌓이지
+ * 않는다 — 자리 하나를 돌려 쓰는 것이 요점이다. 탭이 둘 이상 필요한 테스트는
+ * 실제 사용과 같이 더블클릭으로 고정한다.
+ */
+function openPinned(el: HTMLElement) {
+  fireEvent.click(el);
+  fireEvent.doubleClick(el);
+}
+
 describe("코드 화면 — 탭", () => {
   it("여러 파일을 열면 탭이 쌓이고, 탭을 눌러 전환한다", async () => {
     const { findByText, getByTestId, container } = renderScreen();
-    fireEvent.click(await findByText("README.md"));
+    openPinned(await findByText("README.md"));
     await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
 
     fireEvent.click(await findByText("src"));
-    fireEvent.click(await findByText("main.rs"));
+    openPinned(await findByText("main.rs"));
     await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("fn main() {}"));
     expect(tabNames(container)).toEqual(["README.md", "main.rs"]);
 
@@ -272,11 +284,30 @@ describe("코드 화면 — 탭", () => {
     await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
   });
 
-  it("탭을 닫으면 이웃이 올라온다", async () => {
+  it("훑어보기만 하면 탭이 쌓이지 않는다 — 미리보기 자리를 돌려 쓴다", async () => {
     const { findByText, getByTestId, container } = renderScreen();
     fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("# hello"));
+    expect(container.querySelectorAll(".code-tab.preview")).toHaveLength(1);
+
     fireEvent.click(await findByText("src"));
     fireEvent.click(await findByText("main.rs"));
+    await waitFor(() => expect(getByTestId("editor-text").textContent).toBe("fn main() {}"));
+    // 트리를 두 번 눌렀지만 탭은 하나다 — 두 번째가 첫 번째 자리를 차지했다.
+    expect(tabNames(container)).toEqual(["main.rs"]);
+
+    // 고치기 시작하면 그 탭은 더 이상 훑는 중이 아니다.
+    fireEvent.click(getByTestId("mutate"));
+    await waitFor(() => expect(container.querySelectorAll(".code-tab.preview")).toHaveLength(0));
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(tabNames(container)).toEqual(["main.rs", "README.md"]));
+  });
+
+  it("탭을 닫으면 이웃이 올라온다", async () => {
+    const { findByText, getByTestId, container } = renderScreen();
+    openPinned(await findByText("README.md"));
+    fireEvent.click(await findByText("src"));
+    openPinned(await findByText("main.rs"));
     await waitFor(() => expect(tabNames(container)).toHaveLength(2));
 
     fireEvent.click(container.querySelectorAll(".code-tab .code-tab-close")[1]);
@@ -355,9 +386,9 @@ describe("코드 화면 — 탭 키보드 UX (#tab-keys)", () => {
   }
 
   async function openTwo(r: ReturnType<typeof renderScreen>) {
-    fireEvent.click(await r.findByText("README.md"));
+    openPinned(await r.findByText("README.md"));
     fireEvent.click(await r.findByText("src"));
-    fireEvent.click(await r.findByText("main.rs"));
+    openPinned(await r.findByText("main.rs"));
     await waitFor(() => expect(tabNames(r.container)).toEqual(["README.md", "main.rs"]));
   }
 

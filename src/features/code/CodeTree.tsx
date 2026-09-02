@@ -40,6 +40,13 @@ interface CodeTreeProps {
   draft: TreeDraft | null;
   onToggle: (path: string) => void;
   onSelect: (path: string) => void;
+  /**
+   * 더블클릭 — 미리보기로 연 탭을 고정한다.
+   *
+   * 첫 클릭이 이미 `onSelect` 로 열었으므로 여기서는 승격만 한다 (VS Code 와
+   * 같은 동작: 한 번은 훑기, 두 번은 "여기서 일한다").
+   */
+  onPin: (path: string) => void;
   onDraftSubmit: (name: string) => void;
   onDraftCancel: () => void;
   /** 우클릭. `entry` 가 null 이면 빈 배경(=루트)에서 열렸다. */
@@ -121,6 +128,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
     draft,
     onToggle,
     onSelect,
+    onPin,
     onDraftSubmit,
     onDraftCancel,
     onContextMenu,
@@ -219,6 +227,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
               (openPaths.has(node.relative_path) ? " open" : "")
             }
             onClick={() => onSelect(node.relative_path)}
+            onDoubleClick={() => onPin(node.relative_path)}
             title={node.ignored ? t("code.tree.ignoredHint") : undefined}
             {...dragProps}
             {...menuProps}
