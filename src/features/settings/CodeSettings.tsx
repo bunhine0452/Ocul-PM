@@ -11,12 +11,22 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { commands, type LspServerInfo, type LspServerState } from "@/lib/bindings";
+import { AUTO_SAVE_MODES, type AutoSaveMode } from "@/lib/settings";
+import { AUTO_SAVE_MIN_DELAY_MS } from "@/features/code/autoSave";
+import type { I18nKey } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { Input } from "@/components/ui/input";
+
+/** 자동 저장 방식의 라벨 — 키를 계산하지 않고 적어 둔다 (i18n 린트가 볼 수 있게). */
+const AUTO_SAVE_LABEL: Record<AutoSaveMode, I18nKey> = {
+  off: "settings.code.autoSave.off",
+  afterDelay: "settings.code.autoSave.afterDelay",
+  onFocusChange: "settings.code.autoSave.onFocusChange",
+};
 
 /** 백엔드 `state.rs` 의 키 규칙과 **같은 문자열**이어야 한다. */
 const disabledKey = (languageId: string) => `code_lsp_off_${languageId}`;
@@ -127,6 +137,62 @@ export function CodeSettings({
           onChange={(v) => void set("codeInsertSpaces", v)}
           label={t("settings.code.insertSpaces")}
         />
+        <Toggle
+          checked={settings.codeTrimTrailingWhitespace}
+          onChange={(v) => void set("codeTrimTrailingWhitespace", v)}
+          label={t("settings.code.trimTrailingWhitespace")}
+        />
+        <p className="text-[11px] text-muted-foreground/80">
+          {t("settings.code.trimTrailingWhitespaceHint")}
+        </p>
+        <Toggle
+          checked={settings.codeInsertFinalNewline}
+          onChange={(v) => void set("codeInsertFinalNewline", v)}
+          label={t("settings.code.insertFinalNewline")}
+        />
+        <Toggle
+          checked={settings.codeTrimFinalNewlines}
+          onChange={(v) => void set("codeTrimFinalNewlines", v)}
+          label={t("settings.code.trimFinalNewlines")}
+        />
+      </Section>
+
+      <Section
+        title={t("settings.code.autoSaveTitle")}
+        description={t("settings.code.autoSaveDesc")}
+      >
+        <Field label={t("settings.code.autoSave")}>
+          <select
+            value={settings.codeAutoSave}
+            onChange={(e) => void set("codeAutoSave", e.currentTarget.value as AutoSaveMode)}
+            className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {AUTO_SAVE_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {t(AUTO_SAVE_LABEL[mode])}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {settings.codeAutoSave === "afterDelay" ? (
+          <Field label={t("settings.code.autoSaveDelay")} hint={t("settings.code.autoSaveDelayHint")}>
+            <Input
+              type="number"
+              min={AUTO_SAVE_MIN_DELAY_MS}
+              max={30000}
+              step={250}
+              value={settings.codeAutoSaveDelay}
+              onChange={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) {
+                  void set("codeAutoSaveDelay", Math.min(30000, Math.max(AUTO_SAVE_MIN_DELAY_MS, n)));
+                }
+              }}
+              className="w-28 font-mono"
+            />
+          </Field>
+        ) : null}
+        <p className="text-[11px] text-muted-foreground/80">{t("settings.code.autoSaveHint")}</p>
       </Section>
 
       <Section title={t("settings.code.lspTitle")} description={t("settings.code.lspDesc")}>

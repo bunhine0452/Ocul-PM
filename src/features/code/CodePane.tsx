@@ -50,6 +50,8 @@ import { SvgPreview } from "./SvgPreview";
 import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
 import { isSvgPath, previewKindFor, type PreviewKind } from "./previewKind";
+import { applyHygiene, hygieneForPath, type HygieneOptions } from "./saveHygiene";
+import { useAutoSave } from "./autoSave";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
 import { adapterLanguageFor } from "./debugConfig";
@@ -205,6 +207,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const svgOpenRef = useRef(false);
   svgOpenRef.current = svgOpen;
   const svgTimerRef = useRef<number | null>(null);
+  // 자동 저장의 타자 트리거 — 훅이 저장 경로보다 아래에서 만들어지므로 ref 로 잇는다.
+  const onEditRef = useRef<() => void>(() => {});
   // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
   // original 이 있으면 에디터가 그 텍스트와의 차이를 본문 안에 그린다.
   // 두 원본이 있다: HEAD(마지막 커밋 이후 = 지금 에이전트가 한 일 전부)와
@@ -604,6 +608,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       // 가장 쓸모 있다 (내부에서 디바운스).
       lsp.pushText(text);
       refreshGutter(text);
+      onEditRef.current();
       if (svgOpenRef.current) {
         if (svgTimerRef.current != null) window.clearTimeout(svgTimerRef.current);
         svgTimerRef.current = window.setTimeout(() => {
@@ -700,38 +705,82 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const formatRef = useRef(format);
   formatRef.current = format;
 
+  // ── 저장 위생 ──────────────────────────────────────────────────────────
+  // 설정을 ref 로 잡는 이유: 저장은 타이머·cleanup 안에서도 돌고, 그때 필요한
+  // 것은 "저장을 부른 순간의 설정" 이다.
+  const hygieneOptions = useMemo<HygieneOptions>(
+    () => ({
+      trimTrailingWhitespace: settings.codeTrimTrailingWhitespace,
+      insertFinalNewline: settings.codeInsertFinalNewline,
+      trimFinalNewlines: settings.codeTrimFinalNewlines,
+      protectedLines: [],
+    }),
+    [
+      settings.codeTrimTrailingWhitespace,
+      settings.codeInsertFinalNewline,
+      settings.codeTrimFinalNewlines,
+    ],
+  );
+  const hygieneRef = useRef(hygieneOptions);
+  hygieneRef.current = hygieneOptions;
+
   // ⌘S 는 CM 키맵과 화면 레벨 리스너 양쪽에 걸릴 수 있는데, `saving` state 는
   // 같은 틱의 두 번째 호출에 아직 낡은 값이라 재진입을 못 막는다 — 같은
   // base_hash 로 codeWrite 가 두 번 나가면 두 번째가 가짜 충돌 배너를 띄운다.
   const savingRef = useRef(false);
+  // 자동 저장이 반복 실패하는 경로 — 토스트를 한 번만 낸다. 사용자가 부르지
+  // 않은 동작이 1초마다 같은 말을 하면 그건 알림이 아니라 소음이다.
+  const autoFailedRef = useRef<Set<string>>(new Set());
   const save = useCallback(
-    async (baseHashOverride?: string) => {
+    async (opts?: { baseHash?: string; auto?: boolean }) => {
       const path = pathRef.current;
+      const auto = opts?.auto === true;
       if (!bufferRef.current || !path || savingRef.current) return;
-      if (bufferRef.current.text === bufferRef.current.baseText && !baseHashOverride) return; // no-op
+      if (bufferRef.current.text === bufferRef.current.baseText && !opts?.baseHash) return; // no-op
       savingRef.current = true;
       setSaving(true);
       try {
         // 저장 시 포맷 — **쓰기 전에** 다듬는다. 쓴 뒤에 고치면 저장 직후 다시
         // dirty 가 되어 무엇이 디스크에 있는지 알 수 없다. 조용히(silent) 돌려
         // 서버가 없거나 이미 정돈된 경우에 토스트를 내지 않는다.
-        if (settings.codeFormatOnSave) await formatRef.current(true);
+        //
+        // 자동 저장은 포맷을 **건너뛴다** — VS Code 가 정확히 그렇게 한다
+        // (`saveParticipants.ts` 의 `if (context.reason === SaveReason.AUTO) return`).
+        // 타자 도중 1초마다 포매터가 도는 것은 편집기가 아니라 방해다.
+        if (settings.codeFormatOnSave && !auto) await formatRef.current(true);
         // 포맷이 본문을 갈아끼웠을 수 있으므로 **여기서 다시 읽는다**.
         const buf = bufferRef.current;
         if (!buf) return;
+        // 저장 시 정리 — 자동 저장이면 커서 줄을 보호한다(커서가 튀지 않게).
+        const tidied = applyHygiene(
+          buf.text,
+          hygieneForPath(path, {
+            ...hygieneRef.current,
+            protectedLines: auto ? [cursorRef.current.line] : [],
+          }),
+        );
+        if (tidied !== buf.text) replaceBufferText(tidied);
+        const target = bufferRef.current;
+        if (!target) return;
         const res = await commands.codeWrite(
           projectId,
           path,
-          restoreEol(buf.text, buf.eol),
-          baseHashOverride ?? buf.baseHash,
+          restoreEol(target.text, target.eol),
+          opts?.baseHash ?? target.baseHash,
         );
         if (res.status === "error") {
+          // 자동 저장의 쓰기 실패(권한 등)는 경로당 한 번만 알린다.
+          if (auto && autoFailedRef.current.has(path)) return;
+          if (auto) autoFailedRef.current.add(path);
           toast.destructive(t("code.saveFailed", { error: tError(res.error) }));
           return;
         }
+        autoFailedRef.current.delete(path);
         if (res.data.kind === "saved") {
           applySaved(path, res.data.hash);
         } else {
+          // 충돌은 배너만 — 자동 저장이 토스트를 쏘지 않는다 (D7: 남의 작업을
+          // 덮는 경로는 없고, 사용자는 배너에서 고르면 된다).
           setConflict({ diskHash: res.data.disk_hash });
         }
       } finally {
@@ -739,7 +788,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         setSaving(false);
       }
     },
-    [projectId, applySaved, settings.codeFormatOnSave],
+    [projectId, applySaved, replaceBufferText, settings.codeFormatOnSave],
   );
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -775,6 +824,54 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // ── 자동 저장 ──────────────────────────────────────────────────────────
+  /**
+   * 화면을 떠난 경로를 조용히 저장한다 (탭 전환·창 정리).
+   *
+   * 이 창의 state 를 건드리지 않는다 — 충돌 배너·저장 중 표시는 **지금 보이는
+   * 파일**의 것이다. 충돌하면 버퍼를 그대로 두고 지나간다: 탭 배지가 미저장으로
+   * 남아, 사용자가 그 파일로 돌아오면 평소의 배너로 만난다.
+   */
+  const flushPath = useCallback(
+    (path: string) => {
+      const key = bufferKey(projectId, path);
+      const buf = getBuffer(key);
+      if (!buf || buf.text === buf.baseText) return;
+      // 떠난 파일에는 커서가 없다 — 보호할 줄도 없다.
+      const text = applyHygiene(buf.text, hygieneForPath(path, hygieneRef.current));
+      void (async () => {
+        const res = await commands.codeWrite(projectId, path, restoreEol(text, buf.eol), buf.baseHash);
+        if (res.status !== "ok" || res.data.kind !== "saved") return;
+        // 쓰는 사이에 그 버퍼가 또 바뀌었으면(다시 열어 고쳤다) 덮지 않는다.
+        const latest = getBuffer(key);
+        if (!latest || latest.text !== buf.text) return;
+        putBuffer(key, { ...latest, text, baseText: text, baseHash: res.data.hash });
+        onBuffersChanged();
+      })();
+    },
+    [projectId, onBuffersChanged],
+  );
+
+  const autoSave = useAutoSave({
+    mode: settings.codeAutoSave,
+    delayMs: settings.codeAutoSaveDelay,
+    activePath,
+    isFocused,
+    // 하나라도 걸리면 조용히 건너뛴다. 충돌 배너가 떠 있는 동안 자동으로
+    // 덮어쓰지 않고(D7), 인라인 비교 중에는 사용자가 읽는 중이다.
+    canAutoSave: () =>
+      bufferRef.current != null &&
+      bufferRef.current.text !== bufferRef.current.baseText &&
+      !savingRef.current &&
+      conflict == null &&
+      diffMode == null &&
+      fileView.kind === "editor",
+    saveActive: () => void saveRef.current({ auto: true }),
+    flushPath,
+  });
+  onEditRef.current = autoSave.onEdit;
+  const autoSaveOn = settings.codeAutoSave !== "off";
+
   // ── 충돌 해소 ──────────────────────────────────────────────────────────
   const reloadFromDisk = useCallback(() => {
     const path = pathRef.current;
@@ -784,7 +881,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   const overwriteDisk = useCallback(() => {
     if (!conflict) return;
-    void save(conflict.diskHash);
+    void save({ baseHash: conflict.diskHash });
   }, [conflict, save]);
 
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
@@ -1079,7 +1176,10 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         </div>
       ) : buf ? (
         <>
-          <div className={"code-editor-wrap" + (svgOpen ? " with-svg" : "")}>
+          <div
+            className={"code-editor-wrap" + (svgOpen ? " with-svg" : "")}
+            onBlur={autoSave.onEditorBlur}
+          >
             <CodeEditor
               key={`${activePath}:${editorEpoch}`}
               initialText={buf.text}
@@ -1122,9 +1222,19 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             ) : null}
           </div>
           <div className="code-statusbar">
+            {/* 자동 저장을 켰으면 그 사실이 여기 있어야 한다 — ⌘S 습관을 버려도
+                되는지 사용자가 알 방법이 이것뿐이다. */}
             <span className={"code-status-item code-status-dirty" + (dirty ? " on" : "")}>
               <span aria-hidden>{dirty ? "●" : "○"}</span>
-              <span>{dirty ? t("code.dirty") : t("code.savedState")}</span>
+              <span>
+                {saving
+                  ? t("code.savingState")
+                  : dirty
+                    ? t("code.dirty")
+                    : autoSaveOn
+                      ? t("code.autoSaveOn")
+                      : t("code.savedState")}
+              </span>
             </span>
             <span className="code-status-item">
               Ln {cursor.line}, Col {cursor.col}

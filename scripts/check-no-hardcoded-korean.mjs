@@ -206,6 +206,10 @@ const TESTS = new Set([
   "__tests__/code_debug.test.ts",
   "__tests__/code_screen_tabs.test.tsx",
   "__tests__/code_tabs.test.ts",
+  // vscode-borrows Phase 1 — 저장 위생·자동 저장. 한국어 테스트 이름이
+  // 이 코드베이스의 서술 언어다 (단언 값은 코드·경로뿐).
+  "__tests__/code_save_hygiene.test.ts",
+  "__tests__/code_auto_save.test.tsx",
   "__tests__/code_tree_lazy.test.tsx",
   "__tests__/code_tree_watch.test.tsx",
   "__tests__/lsp_bridge.test.ts",

@@ -24,11 +24,14 @@ const fx: {
   read: Record<string, CodeFileContent>;
   writeResult: CodeWriteOutcome;
   writeCalls: { relPath: string; content: string; baseHash: string }[];
+  /** `settings_get_all` 이 돌려줄 항목 — 저장 위생·자동 저장을 켜는 손잡이. */
+  settings: [string, string][];
 } = {
   tree: { nodes: [], file_count: 0, truncated: false },
   read: {},
   writeResult: { kind: "saved", hash: "h2" },
   writeCalls: [],
+  settings: [],
 };
 
 function textFile(content: string, hash = "h1"): CodeFileContent {
@@ -77,7 +80,7 @@ vi.mock("@/lib/bindings", () => {
                 return ok(fx.writeResult);
               };
             case "settingsGetAll":
-              return () => ok([]);
+              return () => ok(fx.settings);
             default:
               return () => ok(null);
           }
@@ -103,6 +106,8 @@ vi.mock("@/features/code/CodeEditor", () => ({
     <div data-testid="editor">
       <span data-testid="editor-text">{initialText}</span>
       <button data-testid="mutate" onClick={() => onChange(initialText + "!")} />
+      {/* 저장 위생을 보려면 "지저분한" 본문이 필요하다 — 줄 끝 공백 + 끝 빈 줄. */}
+      <button data-testid="mutate-messy" onClick={() => onChange(initialText + "   \n\n\n")} />
       <button data-testid="dosave" onClick={() => onSave()} />
     </div>
   ),
@@ -158,6 +163,7 @@ beforeEach(() => {
   };
   fx.writeResult = { kind: "saved", hash: "h2" };
   fx.writeCalls = [];
+  fx.settings = [];
   // jsdom 에는 blob: URL 이 없다 — svg 미리보기가 이 둘을 쓴다.
   URL.createObjectURL = vi.fn(() => "blob:mock/1");
   URL.revokeObjectURL = vi.fn();
@@ -263,6 +269,70 @@ describe("CodeScreenV2", () => {
     await findByText(t("code.conflict.title"));
     await findByText(t("code.conflict.reload"));
     await findByText(t("code.conflict.overwrite"));
+  });
+
+  // ── 저장 위생 · 자동 저장 (vscode-borrows Phase 1) ─────────────────────
+
+  it("tidies the buffer before writing when save hygiene is on", async () => {
+    fx.settings = [
+      ["code_trim_trailing_whitespace", "true"],
+      ["code_trim_final_newlines", "true"],
+      ["code_insert_final_newline", "true"],
+    ];
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("src"));
+    fireEvent.click(await findByText("main.rs"));
+    fireEvent.click(await findByTestId("mutate-messy"));
+    await findByText(t("code.dirty"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.savedState"));
+    // 줄 끝 공백은 사라지고, 끝은 개행 하나로 정규화된다.
+    expect(fx.writeCalls).toHaveLength(1);
+    expect(fx.writeCalls[0].content).toBe("fn main() {}\n");
+  });
+
+  it("keeps trailing whitespace in markdown — two spaces are a hard line break", async () => {
+    fx.settings = [
+      ["code_trim_trailing_whitespace", "true"],
+      ["code_trim_final_newlines", "true"],
+    ];
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate-messy"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.savedState"));
+    // 줄 끝 공백은 살아남고, 끝 빈 줄 정리는 그대로 걸린다.
+    expect(fx.writeCalls[0].content).toBe("# hello   \n");
+  });
+
+  it("auto-saves on focus change and says so in the status bar", async () => {
+    fx.settings = [["code_auto_save", "onFocusChange"]];
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    // 자동 저장이 켜져 있다는 사실이 상태줄에 있어야 한다 — ⌘S 습관을
+    // 버려도 되는지 알 방법이 이것뿐이다.
+    await findByText(t("code.autoSaveOn"));
+    fireEvent.click(await findByTestId("mutate"));
+    await findByText(t("code.dirty"));
+    fireEvent.focusOut(await findByTestId("editor"));
+    await findByText(t("code.autoSaveOn"));
+    expect(fx.writeCalls).toHaveLength(1);
+    expect(fx.writeCalls[0]).toMatchObject({ relPath: "README.md", content: "# hello!" });
+  });
+
+  it("never auto-saves over a conflict banner", async () => {
+    fx.settings = [["code_auto_save", "onFocusChange"]];
+    fx.writeResult = { kind: "conflict", disk_hash: "other" };
+    const { findByText, findByTestId } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.conflict.title"));
+    // 배너가 떠 있는 동안 포커스가 나가도 다시 쓰지 않는다 (D7) — 사용자가
+    // 배너에서 고를 때까지 남의 작업을 덮지 않는다.
+    fireEvent.focusOut(await findByTestId("editor"));
+    await findByText(t("code.conflict.title"));
+    expect(fx.writeCalls).toHaveLength(1);
   });
 
   it("shows the unopenable state for binary files", async () => {

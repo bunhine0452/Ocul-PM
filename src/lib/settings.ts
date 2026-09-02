@@ -20,6 +20,10 @@ export type Theme =
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
 
+/** 자동 저장 방식 — `src/features/code/autoSave.ts` 가 해석한다. */
+export type AutoSaveMode = "off" | "afterDelay" | "onFocusChange";
+export const AUTO_SAVE_MODES: AutoSaveMode[] = ["off", "afterDelay", "onFocusChange"];
+
 export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "openrouter"];
 
 /// Every setting we recognize. Keys are the exact column values in the
@@ -94,6 +98,12 @@ export const KEYS = {
   codeFormatOnSave: "code_format_on_save",
   codeTabSize: "code_tab_size",
   codeInsertSpaces: "code_insert_spaces",
+  // --- 저장 위생 (vscode-borrows B1·B2) ---
+  codeTrimTrailingWhitespace: "code_trim_trailing_whitespace",
+  codeInsertFinalNewline: "code_insert_final_newline",
+  codeTrimFinalNewlines: "code_trim_final_newlines",
+  codeAutoSave: "code_auto_save",
+  codeAutoSaveDelay: "code_auto_save_delay",
 
   // --- 첫 실행 ---
   // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
@@ -202,6 +212,28 @@ export interface Settings {
   /** 탭 대신 공백 (LSP `FormattingOptions.insertSpaces`). */
   codeInsertSpaces: boolean;
 
+  /**
+   * 저장할 때 각 줄 끝의 공백을 지운다.
+   *
+   * 기본 **꺼짐**: 후행 공백이 흔한 파일을 처음 저장하면 파일 전체가 한 번
+   * 바뀐다. diff 가 제품인 앱에서 그 노이즈는 사용자가 골라야 한다.
+   * (`.md`·`.markdown` 은 줄 끝 두 칸이 강제 개행이라 켜도 빠진다.)
+   */
+  codeTrimTrailingWhitespace: boolean;
+  /** 저장할 때 파일이 개행으로 끝나게 한다. */
+  codeInsertFinalNewline: boolean;
+  /** 저장할 때 끝의 빈 줄을 하나만 남긴다. */
+  codeTrimFinalNewlines: boolean;
+  /**
+   * 자동 저장. 기본 꺼짐.
+   *
+   * 이 앱에서는 편의가 아니라 **정합성**이다: 사용자가 저장을 잊고 에이전트에게
+   * 파일을 맡기면 에이전트는 화면이 아니라 디스크를 읽는다.
+   */
+  codeAutoSave: AutoSaveMode;
+  /** `afterDelay` 의 대기 시간(ms). 하한은 코드에서 250ms 로 강제한다. */
+  codeAutoSaveDelay: number;
+
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
 
@@ -256,6 +288,11 @@ export const DEFAULTS: Settings = {
   codeFormatOnSave: false,
   codeTabSize: 2,
   codeInsertSpaces: true,
+  codeTrimTrailingWhitespace: false,
+  codeInsertFinalNewline: false,
+  codeTrimFinalNewlines: false,
+  codeAutoSave: "off",
+  codeAutoSaveDelay: 1000,
 
   lastSeenVersion: "",
 
@@ -299,6 +336,11 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeFormatOnSave]: "codeFormatOnSave",
   [KEYS.codeTabSize]: "codeTabSize",
   [KEYS.codeInsertSpaces]: "codeInsertSpaces",
+  [KEYS.codeTrimTrailingWhitespace]: "codeTrimTrailingWhitespace",
+  [KEYS.codeInsertFinalNewline]: "codeInsertFinalNewline",
+  [KEYS.codeTrimFinalNewlines]: "codeTrimFinalNewlines",
+  [KEYS.codeAutoSave]: "codeAutoSave",
+  [KEYS.codeAutoSaveDelay]: "codeAutoSaveDelay",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.onboarded]: "onboarded",
 };
