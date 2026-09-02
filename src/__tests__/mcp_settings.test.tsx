@@ -257,7 +257,7 @@ describe("플러그인 겹침 고지", () => {
     const r = render(<McpServerBlock projectId={11} pluginInstalled />);
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     const warn = r.getByText(/도구가 2벌 노출됩니다/);
-    expect(warn.className).toContain("text-amber-400");
+    expect(warn.className).toContain("text-(--warn-text)");
   });
 
   it("Desktop 은 플러그인이 안 덮는다고 따로 안내한다", async () => {

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
-import { ClipboardCheck, SparklesIcon, X } from "@/components/Icons";
+import { ClipboardCheck, PenLine, X } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type RuleCandidate, type RuleDraft } from "@/lib/bindings";
@@ -142,7 +142,7 @@ export function RuleCandidatesPanel({
           >
             <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs text-foreground">{c.area}</span>
-              <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              <span className="shrink-0 rounded bg-(--warn-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--warn-text)">
                 {t("promo.ruleEntryCount", {
                   kinds: c.kinds.map((k) => (KIND_LABEL[k] ? t(KIND_LABEL[k]) : k)).join("·"),
                   n: c.entry_count,
@@ -165,7 +165,7 @@ export function RuleCandidatesPanel({
                   </>
                 ) : (
                   <>
-                    <SparklesIcon size={13} /> {t("promo.draft")}
+                    <PenLine size={13} /> {t("promo.draft")}
                   </>
                 )}
               </button>
@@ -203,7 +203,7 @@ export function RuleCandidatesPanel({
         {draft ? (
           <>
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <SparklesIcon size={15} />
+              <ClipboardCheck size={15} />
               <span className="text-sm font-semibold">{draft.title}</span>
               <span className="text-xs text-muted-foreground">{t("promo.aiDraftNote")}</span>
             </div>
@@ -226,7 +226,7 @@ export function RuleCandidatesPanel({
                 <div
                   className={
                     "mt-1 text-[11px] " +
-                    (slug.trim() && !slugValid ? "text-red-400" : "text-muted-foreground")
+                    (slug.trim() && !slugValid ? "text-(--danger-text)" : "text-muted-foreground")
                   }
                 >
                   {slug.trim() && !slugValid

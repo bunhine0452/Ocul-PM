@@ -3,7 +3,7 @@
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Code2, ClipboardCheck, Flame, Lock, Play, Rocket, Settings, Sparkles } from "@/components/Icons";
+import { AlertTriangle, Check, Code2, ClipboardCheck, Cpu, Gauge, Lock, Play, Rocket, Settings, type IconComponent } from "@/components/Icons";
 import { type AcpConfigOption } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { nextIndex } from "../ultracode";
@@ -43,10 +43,10 @@ export function supportsUltracode(model: string | null | undefined): boolean {
 export const PRIMARY_CONFIG_IDS = ["mode", "model", "effort"] as const;
 
 /** 컨트롤 트리거에 붙일 아이콘. */
-export const CONFIG_ICON: Readonly<Record<string, typeof Lock>> = {
+export const CONFIG_ICON: Readonly<Record<string, IconComponent>> = {
   mode: Lock,
-  model: Sparkles,
-  effort: Flame,
+  model: Cpu,
+  effort: Gauge,
 };
 
 /**
@@ -365,7 +365,7 @@ export function EffortControl({
         title={option.name}
         onClick={() => setOpen((v) => !v)}
       >
-        <Flame size={13} />
+        <Gauge size={13} />
         <span className="agent-chip-label">{current?.name ?? currentValue}</span>
       </button>
       {open ? (

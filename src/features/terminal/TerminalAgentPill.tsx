@@ -1,4 +1,4 @@
-import { Bot } from "@/components/Icons";
+import { AgentMark } from "@/components/AgentMark";
 import { useT } from "@/i18n";
 import { deriveAgentState, emptyPaneSignal, type PaneSignal } from "./agentMode";
 import { formatElapsed } from "./railModel";
@@ -51,7 +51,7 @@ export function TerminalAgentPill({ shell, signal }: TerminalAgentPillProps) {
         role="status"
         aria-live="polite"
       >
-        <Bot size={12} aria-hidden="true" />
+        <AgentMark agentId={state.agent.id} size={12} aria-hidden="true" />
         <span className="tap-name">{state.agent.label}</span>
         <span className="tap-sep" aria-hidden="true">
           ·

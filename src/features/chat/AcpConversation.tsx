@@ -1671,21 +1671,19 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       <div className="ai-wrap">
         <div className="ai-thread">
           <div className="ai-thread-inner">
-            <div className="ai-hero">
-              <div className="ai-hero-icon claude">
-                <ClaudeMark size={26} style={{ color: CLAUDE_ORANGE }} />
-              </div>
-              <div className="ai-hero-title">
+            <div className="ai-start">
+              <div className="ai-start-title">
+                <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
                 {starting ? t("acp.preparing") : t("acp.offTitle")}
               </div>
-              <div className="ai-hero-sub">{t("acp.offSub")}</div>
+              <div className="ai-start-sub">{t("acp.offSub")}</div>
               {starting ? null : (
-                <div className="ai-suggest">
-                  <button className="ai-suggest-chip" onClick={() => void retry()}>
+                <div className="ai-start-actions">
+                  <button className="btn sm primary" onClick={() => void retry()}>
                     {t("acp.retry")}
                   </button>
                   {/* 문구가 가리키던 "설정 → 통합" 은 없는 경로였다 — 버튼으로. */}
-                  <button className="ai-suggest-chip" onClick={() => openSettings("oculpm")}>
+                  <button className="btn sm" onClick={() => openSettings("oculpm")}>
                     {t("acp.openSettings")}
                   </button>
                 </div>
@@ -1709,13 +1707,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           {turns.length === 0 ? (
             /* 시작 화면은 조용해야 한다 — 칩을 늘어놓으면 "무엇을 시킬까"를
                고르는 화면이 되고, 정작 하려던 말을 밀어낸다. 마크 하나와 두
-               줄이면 충분하다 (Claude Code 시작 화면 벤치마크). */
-            <div className="ai-hero acp-hero">
-              <div className="ai-hero-icon claude">
-                <ClaudeMark size={26} style={{ color: CLAUDE_ORANGE }} />
+               줄이면 충분하다 (Claude Code 시작 화면 벤치마크). 마크는 제목
+               줄에 제 색으로 — 색 상자에 넣어 가운데 띄우는 히어로는 뺐다. */
+            <div className="ai-start">
+              <div className="ai-start-title">
+                <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
+                {t("acp.readyTitle")}
               </div>
-              <div className="ai-hero-title">{t("acp.readyTitle")}</div>
-              <div className="ai-hero-sub">{t("acp.readySub")}</div>
+              <div className="ai-start-sub">{t("acp.readySub")}</div>
             </div>
           ) : (
             /* 묶음(지시 + 그 답)을 **실제 요소로** 그린다 — 지시문 sticky 의

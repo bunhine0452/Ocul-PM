@@ -19,19 +19,9 @@
   padding: 10px 10px 10px 0;
 }
 
-/* 캔버스 앰비언트 — 액센트 6~4% 라디얼 두 겹. 액센트 토큰에서 파생되므로
-   컬러 테마/프리셋을 그대로 따른다. 고대비 프리셋에서는 끈다. */
-.app::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(560px 340px at 10% -6%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
-    radial-gradient(680px 440px at 104% 110%, color-mix(in srgb, var(--accent) 4%, transparent), transparent 72%);
-}
-[data-preset="high-contrast"] .app::before { display: none; }
+/* 캔버스 앰비언트(액센트 라디얼 두 겹)는 2026-09-02 에 뺐다 — 모서리에서
+   번지는 색 안개는 '메시 그라데이션 배경' 의 관용구라 캔버스가 제품이 아니라
+   템플릿으로 읽혔다. 캔버스는 --bg-sidebar 한 색이다. */
 
 .sidebar {
   background: transparent;
@@ -115,16 +105,8 @@
   display: flex; align-items: center; gap: 10px;
   padding: 4px 8px 14px;
 }
-.brand-mark {
-  width: 28px; height: 28px; border-radius: 8px;
-  /* 위가 살짝 밝은 액센트 그라데이션 — 프리셋의 --accent 를 그대로 따른다. */
-  background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 86%, #fff), var(--accent) 62%);
-  display: grid; place-items: center;
-  color: var(--text-on-accent); flex: none;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.15);
-}
-.brand-name { font-weight: 650; font-size: 14px; letter-spacing: -0.01em; }
-.brand-sub { font-size: var(--fs-2); color: var(--text-3); margin-top: -1px; }
+/* .brand-mark / .brand-name / .brand-sub 는 소비처가 없어 지웠다 (사이드바
+   헤더의 아이콘·이름은 2026-06-15 에 이미 빠졌다). */
 
 /* project switcher */
 .proj-switch {
@@ -149,8 +131,9 @@
 .proj-switch:active { transform: scale(0.99); box-shadow: var(--shadow-card); }
 .proj-icon {
   width: 26px; height: 26px; border-radius: 7px; flex: none;
-  /* Follows the 컬러 테마 (accent), not a hardcoded green. */
-  background: linear-gradient(150deg, var(--accent), var(--accent-strong));
+  /* Follows the 컬러 테마 (accent), not a hardcoded green. 단색이다 — 대각
+     그라데이션 타일은 생성형 앱 아이콘의 관용구라 뺐다. */
+  background: var(--accent);
   display: grid; place-items: center; color: var(--text-on-accent);
 }
 .proj-meta { flex: 1; min-width: 0; }
@@ -221,13 +204,13 @@
 .nav-item:hover { background: var(--bg-hover); }
 .nav-item:active { transform: scale(0.985); }
 .nav-item { transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
-/* 활성 항목 — 위쪽 광택 + 액센트 그림자 한 겹. 글자색은 프리셋을 따라
-   --text-on-accent (고대비 프리셋의 노랑 배경에서도 읽힌다). */
+/* 활성 항목 — 액센트 단색 + 링 그림자 한 겹. 광택(위쪽 흰 그라데이션)은
+   2026-09-02 에 뺐다: 눌리는 물체의 질감보다 '광택 버튼' 의 관용구로 읽혔다.
+   글자색은 프리셋을 따라 --text-on-accent (고대비 프리셋의 노랑 배경에서도 읽힌다). */
 .nav-item.active {
   background-color: var(--accent);
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 65%);
   color: var(--text-on-accent); font-weight: 560;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 3px var(--accent-ring);
+  box-shadow: 0 1px 3px var(--accent-ring);
 }
 .nav-item.active .nav-ico { color: inherit; }
 .nav-badge {
@@ -317,10 +300,9 @@
   display: flex; align-items: center; gap: 12px;
   padding: 0 22px;
   border-bottom: 1px solid var(--sep);
-  background: color-mix(in srgb, var(--bg-content) 76%, transparent);
-  /* WKWebView 는 -webkit- 접두사가 있어야 블러가 실제로 걸린다. */
-  -webkit-backdrop-filter: saturate(1.4) blur(18px);
-  backdrop-filter: saturate(1.4) blur(18px);
+  /* 불투명 (2026-09-02). 반투명 + blur(18px) 유리 툴바는 매 프레임 아래를 다시
+     그리고, 앱의 다른 크롬(사이드바·카드)은 전부 불투명이라 재료가 어긋났다. */
+  background: var(--bg-content);
 }
 /* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은

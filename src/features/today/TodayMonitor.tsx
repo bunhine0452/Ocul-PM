@@ -36,7 +36,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       {/* 활동 시간 — Σ session active windows */}
       <StatCard
         icon={Clock}
-        tint={{ bg: "var(--t-refactor-soft)", fg: "var(--t-refactor)" }}
         label={t("today.monitor.activeTime")}
         value={monitor ? fmtDuration(activeMs) : "—"}
         sub={
@@ -51,7 +50,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       {/* 전체 작업 일지 — this project's lifetime journal-entry count */}
       <StatCard
         icon={NotebookText}
-        tint={{ bg: "var(--t-feature-soft)", fg: "var(--t-feature)" }}
         label={t("today.monitor.totalEntries")}
         value={monitor ? monitor.totalEntries : "—"}
         unit={monitor ? t("today.unit.entries") : undefined}
@@ -61,7 +59,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       {/* Git — today's commits + branch + dirty count */}
       <StatCard
         icon={GitBranch}
-        tint={{ bg: "var(--accent-soft)", fg: "var(--accent-text)" }}
         label={t("today.monitor.commitsToday")}
         value={monitor && monitor.isGitRepo ? monitor.commitsToday : "—"}
         unit={monitor && monitor.isGitRepo ? t("today.unit.count") : undefined}
@@ -105,7 +102,6 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
       {/* 미커밋 변경 — pending working-tree changes awaiting a commit */}
       <StatCard
         icon={FileDiff}
-        tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
         label={t("today.monitor.uncommitted")}
         value={monitor && monitor.isGitRepo ? monitor.uncommitted : "—"}
         unit={monitor && monitor.isGitRepo ? t("today.unit.count") : undefined}

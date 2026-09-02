@@ -13,10 +13,10 @@ import { useT } from "@/i18n";
 
 /** 통과율 → 시맨틱 색 (기존 emerald/amber 팔레트와 일치). */
 function rateClass(rate: number): string {
-  if (rate >= 1) return "bg-emerald-500";
-  if (rate >= 0.7) return "bg-emerald-500/50";
-  if (rate >= 0.4) return "bg-amber-500/70";
-  return "bg-red-500/70";
+  if (rate >= 1) return "bg-(--ok)";
+  if (rate >= 0.7) return "bg-(--ok)/50";
+  if (rate >= 0.4) return "bg-(--warn)/70";
+  return "bg-(--danger)/70";
 }
 
 export function EvalTrendPanel({ projectId }: { projectId: number }) {

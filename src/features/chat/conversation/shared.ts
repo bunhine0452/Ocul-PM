@@ -2,20 +2,20 @@
 //
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
-import { ArrowRight, ExternalLink, File as FileIcon, Pencil, Search, Sparkles, Terminal, Trash2 } from "@/components/Icons";
+import { ArrowRight, ExternalLink, File as FileIcon, MessageSquareDashed, Pencil, Search, Terminal, Trash2, type IconComponent } from "@/components/Icons";
 import { type AcpEvent } from "@/lib/bindings";
 
 export type PermissionState = Extract<AcpEvent, { kind: "permission" }>;
 
 /** 도구 종류 → 아이콘. 모르는 종류는 중립 아이콘으로 흘린다. */
-export const TOOL_ICON: Readonly<Record<string, typeof FileIcon>> = {
+export const TOOL_ICON: Readonly<Record<string, IconComponent>> = {
   read: FileIcon,
   edit: Pencil,
   delete: Trash2,
   move: ArrowRight,
   search: Search,
   execute: Terminal,
-  think: Sparkles,
+  think: MessageSquareDashed,
   fetch: ExternalLink,
 };
 

@@ -443,21 +443,39 @@
 }
 
 /* ── 스켈레톤 ───────────────────────────────────────────────────────
-   components/ui/Skeleton.tsx 를 쓰지 않는다 — 그건 screens.css 의 `.skel`
-   에 의존하는데 이 화면은 그 파일을 로드하지 않아 무색으로 깨진다. */
-.home-skel {
-  background: linear-gradient(
-    90deg,
-    var(--bg-inset) 0%,
-    color-mix(in srgb, var(--bg-inset) 60%, var(--bg-card)) 50%,
-    var(--bg-inset) 100%
-  );
-  background-size: 200% 100%;
-  border-radius: 4px;
-  /* 무한 반복이라 등속이 맞다 — 이징을 넣으면 주기마다 맥이 뛴다.
-     대신 주기를 늘려 '기다리는 중' 이 조급해 보이지 않게. */
-  animation: homeShimmer 1.8s linear infinite;
+   전역 `.skel` (primitives.css) 을 쓴다 — 예전엔 screens.css 전용이라 이
+   화면에서 무색이었고, 그래서 .home-skel 을 따로 들고 있었다. */
+
+/* ── 온보딩 안내 (프로젝트 0개) ────────────────────────────────────────
+   숫자 1·2·3 을 큼직하게 박은 3열 카드 + "→" CTA 는 랜딩 페이지의 How-it-works
+   관용구다. 여기서는 세 줄의 목록으로 — 아이콘 하나, 제목, 한 문장. */
+.home-how {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 26px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
+.home-how-head { display: flex; flex-direction: column; gap: 6px; }
+.home-how-title { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.home-how-body { margin: 0; font-size: var(--fs-6); line-height: 1.6; color: var(--text-2); }
+.home-how-body b { color: var(--text); font-weight: 650; }
+.home-how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.home-how-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 11px 0;
+  border-top: 1px solid var(--sep);
+}
+.home-how-step:last-child { border-bottom: 1px solid var(--sep); }
+.home-how-ico { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
+.home-how-step h3 { margin: 0; font-size: var(--fs-6); font-weight: 650; color: var(--text); }
+.home-how-step p { margin: 3px 0 0; font-size: var(--fs-5); line-height: 1.55; color: var(--text-2); }
+.home-how .btn { align-self: flex-start; }
 
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
 
@@ -492,14 +510,6 @@
 /* ── 모션 ───────────────────────────────────────────────────────────
    스태거는 캡을 둔다 — 프로젝트 30개에서 마지막 행이 1.2초 뒤에 나타나면
    그건 연출이 아니라 지연이다. */
-@keyframes homeShimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
-}
-@keyframes bentoIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.995); }
-  to   { opacity: 1; transform: none; }
-}
 @keyframes rowIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
@@ -521,8 +531,7 @@
    읽혀도 성립하도록 여기서도 명시한다. */
 @media (prefers-reduced-motion: reduce) {
   .home-in-row,
-  .home-spark-bar,
-  .home-skel {
+  .home-spark-bar {
     animation: none !important;
   }
   .hg-card,

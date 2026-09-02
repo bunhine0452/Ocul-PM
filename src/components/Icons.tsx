@@ -5,6 +5,19 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
   strokeWidth?: number | string;
 }
 
+/** 아이콘 **표**(Record) 의 값 타입 — 손으로 쓴 것(IconProps)과 lucide 재수출이 한
+ *  표에 섞일 때 쓴다. `typeof Lock` 처럼 한 컴포넌트의 타입을 빌리면 lucide 쪽
+ *  (ForwardRefExoticComponent)이 들어가지 못한다. 호출 쪽이 실제로 넘기는 props 만. */
+export type IconComponent = React.ComponentType<{
+  size?: number | string;
+  strokeWidth?: number | string;
+  className?: string;
+  style?: React.CSSProperties;
+  color?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+  "aria-label"?: string;
+}>;
+
 // Reusable base wrapper to handle defaults
 const IconWrapper = ({
   size = 16,
@@ -363,15 +376,10 @@ export const OculIcon = (props: IconProps) => (
   </IconWrapper>
 );
 
-export const Sparkles = (props: IconProps) => (
-  <IconWrapper {...props}>
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-    <path d="M5 3v4" />
-    <path d="M19 17v4" />
-    <path d="M3 5h4" />
-    <path d="M17 19h4" />
-  </IconWrapper>
-);
+// Sparkles(✨)는 2026-09-02 에 이 파일에서 뺐다 — 손으로 쓴 것도, lucide 재수출도.
+// "AI 기능이면 반짝이" 는 생성형 제품 UI 의 관용구라, 아이콘은 그 자리의 **동작**
+// (포맷 · 초안 · 갱신 · 새 프로젝트 · 모델)을 말해야 한다. scripts/check-design-discipline.mjs
+// 가 재유입을 막는다.
 
 export const Copy = (props: IconProps) => (
   <IconWrapper {...props}>
@@ -515,7 +523,6 @@ export {
   GitCompareArrows,
   Target as TargetIcon,
   SquareTerminal,
-  Sparkles as SparklesIcon,
   Search as SearchIcon,
   // 문서(docs) 뷰어 사이드바 슬롯.
   BookText,
@@ -623,4 +630,18 @@ export {
   // 테마 파일화 (Osaurus 라운드 Phase 4) — 갤러리 글리프 · 파일 가져오기.
   Palette,
   Upload,
+  // de-AI 라운드 (2026-09-02) — 스파클(✨)·로봇(Bot)을 뺀 자리에 들어간,
+  // 그 자리의 **동작·대상**을 말하는 글리프.
+  Cpu, // 모델·LLM (설정 LLM 탭 · 대화 모델 칩 · 배경 모델 카드) · 마크 없는 에이전트
+  PenLine, // 초안 쓰기 (스킬/규칙 초안 · 트리거 재작성 · 출처 배지 draft)
+  AlignLeft, // 코드 포맷
+  Store, // 스킬 카탈로그
+  FileText, // 산출물·요약
+  Pin, // 오늘의 하이라이트
+  ListChecks, // 계획 업데이트
+  Gauge, // 노력(effort) 단계
+  MessageSquareText, // AI 대화 패널
+  MessageSquareDashed, // 에이전트의 생각(think) 블록
+  Compass, // 의미 검색 스코프
+  FolderCheck, // 첫 활성화 카드
 } from "lucide-react";

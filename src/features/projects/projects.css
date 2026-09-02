@@ -25,7 +25,6 @@
   justify-content: center;
   padding: 24px;
   background: color-mix(in srgb, var(--bg-window) 72%, transparent);
-  backdrop-filter: blur(3px);
 }
 
 .pm-sheet {

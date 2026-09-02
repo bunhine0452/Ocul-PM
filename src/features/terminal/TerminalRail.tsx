@@ -1,4 +1,5 @@
-import { BellRing, Bot, NotebookPen, Plus, SquareTerminal, X } from "@/components/Icons";
+import { BellRing, NotebookPen, Plus, SquareTerminal, X } from "@/components/Icons";
+import { AgentMark } from "@/components/AgentMark";
 import { useT, type I18nKey } from "@/i18n";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 import { collectSids } from "@/lib/termPanes";
@@ -204,7 +205,7 @@ export function TerminalRail({
             >
               <span className="ts-dot" aria-hidden="true" />
               <span className="ts-icon" aria-hidden="true">
-                {item.agent ? <Bot size={14} /> : <SquareTerminal size={14} />}
+                {item.agent ? <AgentMark agentId={item.agent.id} size={14} /> : <SquareTerminal size={14} />}
               </span>
               <span className="ts-main">
                 <span className="ts-line">

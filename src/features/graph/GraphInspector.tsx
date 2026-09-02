@@ -30,10 +30,10 @@ type Tone = "muted" | "ok" | "info" | "warn" | "danger";
 
 const TONE_CLASS: Record<Tone, string> = {
   muted: "bg-muted text-muted-foreground",
-  ok: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  info: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  warn: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  danger: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  ok: "bg-(--ok-soft) text-(--ok-text)",
+  info: "bg-(--info-soft) text-(--info-text)",
+  warn: "bg-(--warn-soft) text-(--warn-text)",
+  danger: "bg-(--danger-soft) text-(--danger-text)",
 };
 
 // Plain-language role from the in/out degree, relative to the graph's hub
@@ -208,7 +208,7 @@ export function GraphInspector({
             {onOpenInCode ? (
               <button
                 onClick={() => onOpenInCode(node.path, null)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:border-primary/50 cursor-pointer"
+                className="btn sm flex-1 justify-center"
               >
                 <FileCode size={13} /> {t("code.openInCode")}
               </button>
@@ -216,7 +216,7 @@ export function GraphInspector({
             <button
               onClick={() => void onOpenEditor()}
               disabled={!projectRoot}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:border-primary/50 disabled:opacity-50 cursor-pointer"
+              className="btn sm flex-1 justify-center"
             >
               <ExternalLink size={13} /> {t("graph.openEditor")}
             </button>

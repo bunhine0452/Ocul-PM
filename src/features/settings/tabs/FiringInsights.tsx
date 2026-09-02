@@ -66,7 +66,7 @@ function Insights({ projectId }: { projectId: number }) {
       ) : (
         <>
           {ledger.partial ? (
-            <div className="text-[11px] text-amber-600">{t("settings.firing.partial")}</div>
+            <div className="text-[11px] text-(--warn-text)">{t("settings.firing.partial")}</div>
           ) : null}
 
           <div className="space-y-1">

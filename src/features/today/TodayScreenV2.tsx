@@ -8,14 +8,15 @@ import {
   GitCommitVertical,
   FileCode2,
   TriangleAlert,
-  Bot,
-  Star,
+  Cpu,
+  Pin,
   History,
   ArrowRight,
   Terminal,
   Clipboard,
 } from "@/components/Icons";
 import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
@@ -218,7 +219,12 @@ export function TodayScreenV2({
                   )}
                 </div>
                 <div className="today-date">
-                  {t("today.subhead")} · {tz}
+                  {/* 제품 설명 문장이 아니라 사실 한 줄 — 오늘 기록을 남긴 에이전트들. */}
+                  {oculpmReady && brief && brief.agents.length > 0
+                    ? brief.agents.map((a) => agentLabel(a.id)).join(" · ")
+                    : t("today.subheadIdle")}
+                  {" · "}
+                  {tz}
                 </div>
               </div>
             </div>
@@ -246,14 +252,13 @@ export function TodayScreenV2({
           <div className="stat-row">
             <StatCard
               icon={GitCommitVertical}
-              tint={{ bg: "var(--accent-soft)", fg: "var(--accent-text)" }}
+              tone="accent"
               label={t("today.stat.recorded")}
               value={brief ? brief.changedToday : "—"}
               unit={t("today.unit.entries")}
             />
             <StatCard
               icon={FileCode2}
-              tint={{ bg: "var(--t-chore-soft)", fg: "var(--t-chore)" }}
               label={t("today.stat.filesChanged")}
               value={brief ? brief.filesTouched : "—"}
               unit={t("today.unit.files")}
@@ -269,14 +274,13 @@ export function TodayScreenV2({
             />
             <StatCard
               icon={TriangleAlert}
-              tint={{ bg: "var(--t-error-soft)", fg: "var(--t-error)" }}
+              tone={brief && brief.errorCycles > 0 ? "danger" : undefined}
               label={t("today.stat.errorCycles")}
               value={brief ? brief.errorCycles : "—"}
               unit={t("today.unit.times")}
             />
             <StatCard
-              icon={Bot}
-              tint={{ bg: "var(--t-refactor-soft)", fg: "var(--t-refactor)" }}
+              icon={Cpu}
               label={t("today.stat.agents")}
               value={brief ? brief.agents.length : "—"}
               unit={t("today.unit.files")}
@@ -317,7 +321,7 @@ export function TodayScreenV2({
               <div className="g2col">
                 <div className="card">
                   <div className="panel-head">
-                    <Star size={16} color="var(--accent-text)" />
+                    <Pin size={16} color="var(--accent-text)" />
                     <h3>{t("today.highlights")}</h3>
                     <span className="count">{brief ? brief.highlights.length : 0}</span>
                     <button

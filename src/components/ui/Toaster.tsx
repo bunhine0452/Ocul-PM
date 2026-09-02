@@ -29,20 +29,20 @@ export function Toaster() {
 
 function ToastItem({ toast }: { toast: Toast }) {
   const { t } = useT();
-  // v2 U2 — 다크 하드코딩(bg-zinc-900 등) 제거: 카드 표면 토큰 + 종류별 틴트
+  // v2 U2 — 다크 하드코딩(zinc 계열 등) 제거: 카드 표면 토큰 + 종류별 틴트
   // 보더/아이콘으로 라이트·다크·프리셋 전 테마에서 주변 UI 와 일관되게.
   const tone =
     toast.kind === "info"
       ? "border-border bg-card text-foreground"
       : toast.kind === "warning"
-        ? "border-amber-500/50 bg-card text-foreground"
-        : "border-red-500/60 bg-card text-foreground";
+        ? "border-(--warn)/40 bg-card text-foreground"
+        : "border-(--danger)/40 bg-card text-foreground";
   const iconTone =
     toast.kind === "info"
-      ? "text-emerald-500"
+      ? "text-(--ok-text)"
       : toast.kind === "warning"
-        ? "text-amber-500"
-        : "text-red-500";
+        ? "text-(--warn-text)"
+        : "text-(--danger-text)";
   const Icon = toast.kind === "info" ? Check : AlertTriangle;
   return (
     <div

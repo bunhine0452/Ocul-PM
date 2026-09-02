@@ -3,7 +3,6 @@ import { Toolbar } from "@/components/Toolbar";
 import {
   AlertTriangle,
   ArrowLeft,
-  Bot,
   Calendar,
   Check,
   ChevronLeft,
@@ -386,7 +385,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               </span>
             ) : null}
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <Bot size={12} /> {agentLabelWithModel(entry.agent_id, entry.agent_version)}
+              {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
             {hasNotice ? (
               <span

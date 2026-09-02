@@ -1,4 +1,4 @@
-import { Sparkles, GitCompareArrows } from "@/components/Icons";
+import { FolderCheck, GitCompareArrows } from "@/components/Icons";
 import type { UiV2View, OculpmInitCardInfo } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
 
@@ -31,7 +31,7 @@ export function FirstRunCard({
   return (
     <div className="card card-pad first-run-card" role="status" style={{ marginBottom: 16 }}>
       <div className="stat-top">
-        <Sparkles size={15} color="var(--accent-text)" />
+        <FolderCheck size={15} color="var(--accent-text)" />
         <strong>{t("today.firstRun.title")}</strong>
       </div>
       <div className="first-run-sub">{t("today.firstRun.sub")}</div>

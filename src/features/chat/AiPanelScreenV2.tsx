@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { Toolbar } from "@/components/Toolbar";
 import {
-  SparklesIcon,
   Paperclip,
   ArrowUp,
   ArrowDown,
@@ -780,12 +779,9 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
           <div className="ai-thread-inner">
             {messages.length === 0 ? (
               keysResolved && !anyKey ? (
-                <div className="ai-hero">
-                  <div className="ai-hero-icon">
-                    <SparklesIcon size={22} />
-                  </div>
-                  <div className="ai-hero-title">{t("ai.heroNoKeyTitle")}</div>
-                  <div className="ai-hero-sub">
+                <div className="ai-start">
+                  <div className="ai-start-title">{t("ai.heroNoKeyTitle")}</div>
+                  <div className="ai-start-sub">
                     <button
                       type="button"
                       className="set-link"
@@ -796,30 +792,31 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   </div>
                 </div>
               ) : (
-                <div className="ai-hero">
-                  <div className="ai-hero-icon">
-                    <SparklesIcon size={22} />
-                  </div>
-                  <div className="ai-hero-title">{t("ai.heroTitle")}</div>
-                  <div className="ai-hero-sub">{t("ai.heroSub")}</div>
-                  <div className="ai-suggest">
+                <div className="ai-start">
+                  {/* 제목은 프로젝트 이름 — "무엇이든 물어보세요" 는 챗봇 관용구다.
+                      이 대화가 무엇을 아는지(이 프로젝트)를 첫 줄이 말한다. */}
+                  <div className="ai-start-title">{state.currentProjectName ?? t("nav.ai")}</div>
+                  <div className="ai-start-sub">{t("ai.heroSub")}</div>
+                  <div className="ai-start-label">{t("ai.startLabel")}</div>
+                  <ul className="ai-start-list">
                     {SUGGESTION_KEYS.map((key) => {
                       const text = t(key);
                       return (
-                        <button
-                          key={key}
-                          type="button"
-                          className="ai-suggest-chip"
-                          onClick={() => {
-                            setDraft(text);
-                            taRef.current?.focus();
-                          }}
-                        >
-                          {text}
-                        </button>
+                        <li key={key}>
+                          <button
+                            type="button"
+                            className="ai-start-item"
+                            onClick={() => {
+                              setDraft(text);
+                              taRef.current?.focus();
+                            }}
+                          >
+                            {text}
+                          </button>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 </div>
               )
             ) : (

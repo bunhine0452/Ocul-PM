@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
-import { Puzzle, SparklesIcon, X } from "@/components/Icons";
+import { PenLine, Puzzle, X } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type SkillCandidate, type SkillDraft } from "@/lib/bindings";
@@ -156,7 +156,7 @@ export function SkillCandidatesPanel({
                   </>
                 ) : (
                   <>
-                    <SparklesIcon size={13} /> {t("promo.draft")}
+                    <PenLine size={13} /> {t("promo.draft")}
                   </>
                 )}
               </button>
@@ -187,7 +187,7 @@ export function SkillCandidatesPanel({
         {draft ? (
           <>
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <SparklesIcon size={15} />
+              <Puzzle size={15} />
               <span className="text-sm font-semibold">{draft.slug}</span>
               <span className="text-xs text-muted-foreground">{t("promo.aiDraftNote")}</span>
             </div>
@@ -210,7 +210,7 @@ export function SkillCandidatesPanel({
                 <div
                   className={
                     "mt-1 text-[11px] " +
-                    (slug.trim() && !slugValid ? "text-red-400" : "text-muted-foreground")
+                    (slug.trim() && !slugValid ? "text-(--danger-text)" : "text-muted-foreground")
                   }
                 >
                   {slug.trim() && !slugValid

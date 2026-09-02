@@ -28,7 +28,13 @@
 .stat-val { font-size: 27px; font-weight: 720; letter-spacing: -0.02em; margin-top: 6px; line-height: 1; }
 .stat-val .unit { font-size: 14px; font-weight: 600; color: var(--text-3); margin-left: 3px; }
 .stat-sub { font-size: var(--fs-4); color: var(--text-3); margin-top: 6px; display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat-ico { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+/* 지표 아이콘 — 라벨 옆의 선화 한 개. 색 네모 안에 넣지 않는다: 8장의
+   타일마다 다른 색 상자를 두는 것은 'KPI 대시보드 템플릿' 그 자체였고, 색이
+   의미(잡일·리팩토링…)를 빌려 와 지표와 무관했다. 색은 의미가 있을 때만 —
+   `.danger` 는 에러 사이클이 0 이 아닐 때, `.accent` 는 오늘의 주 지표. */
+.stat-ico { display: inline-grid; place-items: center; flex: none; color: var(--text-3); }
+.stat-ico.accent { color: var(--accent-text); }
+.stat-ico.danger { color: var(--t-error); }
 
 /* Hover popover for a card whose sub line is truncated (e.g. 오늘 커밋's commit
    message). Lives directly under .stat (overflow:visible), so it escapes the
@@ -99,8 +105,8 @@
 .week-row { display: flex; align-items: flex-end; gap: 9px; height: 92px; padding: 4px 2px 0; }
 .week-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
 .week-bar { width: 100%; max-width: 26px; background: var(--bg-inset); border-radius: 5px; position: relative; overflow: hidden; }
-.week-bar > i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(var(--accent), var(--accent-strong)); border-radius: 5px; }
-.week-bar.is-today > i { background: linear-gradient(var(--accent), var(--accent-strong)); box-shadow: 0 0 0 2px var(--accent-ring); }
+.week-bar > i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); border-radius: 5px; }
+.week-bar.is-today > i { box-shadow: 0 0 0 2px var(--accent-ring); }
 .week-lbl { font-size: var(--fs-3); color: var(--text-3); font-weight: 550; }
 .week-lbl.is-today { color: var(--accent-text); font-weight: 700; }
 .week-val { font-size: var(--fs-2); color: var(--text-3); }
@@ -123,17 +129,7 @@
 .next-title { font-size: var(--fs-6); font-weight: 520; flex: 1; min-width: 0; }
 .next-goal { font-size: var(--fs-2); color: var(--text-3); }
 
-/* skeleton shimmer for loading states */
-.skel { background: var(--bg-inset); border-radius: var(--radius-s); position: relative; overflow: hidden; }
-.skel::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, var(--bg-hover), transparent);
-  transform: translateX(-100%); animation: skelShimmer 1.3s infinite;
-}
-@keyframes skelShimmer { to { transform: translateX(100%); } }
-@media (prefers-reduced-motion: reduce) {
-  .skel::after { animation: none; }
-}
+/* 스켈레톤 `.skel` 은 primitives.css 로 옮겨 전역이 됐다 (2026-09-02). */
 
 /* --- Journal (PR-UI 3) --- */
 .day-label {
@@ -561,7 +557,7 @@
 .goal-due { font-size: var(--fs-4); color: var(--text-3); display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .goal-prog-wrap { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .prog-track { width: 110px; height: 7px; background: var(--bg-inset); border-radius: 5px; overflow: hidden; }
-.prog-track > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); border-radius: 5px; }
+.prog-track > i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
 .prog-pct { font-size: var(--fs-5); font-weight: 650; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; flex: none; white-space: nowrap; }
 .goal-status { font-size: var(--fs-2); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; white-space: nowrap; flex: none; }
 .goal-status.active { background: var(--accent-soft); color: var(--accent-text); }
@@ -1789,18 +1785,26 @@ mark.s-hit {
 }
 @keyframes ai-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.18; } }
 
-/* 빈 상태 — 히어로 + 제안 프롬프트 칩. */
-.ai-hero { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 14vh auto 0; text-align: center; max-width: 480px; }
-.ai-hero-icon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); margin-bottom: 7px; }
-.ai-hero-title { font-size: 17px; font-weight: 700; }
-.ai-hero-sub { font-size: var(--fs-6); color: var(--text-3); }
-.ai-suggest { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
-.ai-suggest-chip {
-  padding: 7px 13px; border-radius: 10px; border: 1px solid var(--border-card);
-  background: var(--bg-card); box-shadow: var(--shadow-card); cursor: pointer;
-  font-size: var(--fs-5); font-weight: 550; color: var(--text-2);
+/* 빈 상태 — 프로젝트 이름 + 붙는 컨텍스트 한 줄 + 시작할 질문 목록.
+   가운데 정렬된 아이콘 히어로("무엇이든 물어보세요" + 칩)는 챗봇 제품의
+   관용구라 뺐다. 대화의 첫 줄처럼 왼쪽에서 시작하고, 제안은 칩이 아니라
+   줄로 놓는다 — 문장은 읽는 것이고 칩은 고르는 것이다. */
+.ai-start { display: flex; flex-direction: column; gap: 4px; margin: 26px 0 0; max-width: 560px; }
+.ai-start-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.ai-start-actions { display: flex; gap: 8px; margin-top: 14px; }
+.ai-start-sub { font-size: var(--fs-6); color: var(--text-3); }
+.ai-start-label { margin-top: 18px; font-size: var(--fs-3); font-weight: 650; color: var(--text-3); letter-spacing: 0.02em; }
+.ai-start-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+.ai-start-item {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
+  padding: 7px 0; border: none; border-top: 1px solid var(--sep); background: transparent;
+  font-family: var(--font); font-size: var(--fs-6); color: var(--text-2); cursor: pointer;
+  transition: color var(--dur-1) var(--ease-out);
 }
-.ai-suggest-chip:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+.ai-start-item::before { content: "›"; color: var(--text-3); flex: none; }
+.ai-start-list li:last-child .ai-start-item { border-bottom: 1px solid var(--sep); }
+.ai-start-item:hover { color: var(--text); }
+.ai-start-item:hover::before { color: var(--accent-text); }
 
 /* 위로 스크롤 시 맨아래 FAB — 스크롤러 안 sticky 로 컴포저 위에 뜬다. */
 .ai-scroll-fab {

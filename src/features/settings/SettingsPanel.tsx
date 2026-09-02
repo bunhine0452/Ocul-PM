@@ -3,7 +3,7 @@ import { consumeSettingsTab, onOpenSettingsRequest } from "@/lib/settingsNav";
 import { OculSpinner } from "@/components/OculSpinner";
 import {
   Sun,
-  Sparkles,
+  Cpu,
   Database,
   Smartphone,
   GitBranch,
@@ -49,7 +49,7 @@ type TabId =
 
 const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", labelKey: "settings.tab.appearance", icon: Sun },
-  { id: "llm", labelKey: "settings.tab.llm", icon: Sparkles },
+  { id: "llm", labelKey: "settings.tab.llm", icon: Cpu },
   // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
   // 이었고, 로컬 git 은 토큰 없이 동작한다 (git_log/status 는 git CLI).
   // 코드 화면 — 편집기 동작 + 언어 서버 (ide-completion #lsp-settings-screen).
@@ -158,7 +158,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   // 여전히 맞다.
   const tabNav = embedded ? (
     <nav
-      className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-1 pb-2 mb-5"
+      className="subnav overflow-x-auto border-b border-border/60 px-1 pb-2 mb-5"
       style={{ scrollbarWidth: "none" }}
     >
       {TABS.map((entry) => {
@@ -166,13 +166,10 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         return (
           <button
             key={entry.id}
+            type="button"
             onClick={() => setTab(entry.id)}
             aria-current={isActive ? "page" : undefined}
-            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors cursor-pointer ${
-              isActive
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-            }`}
+            className="subnav-item"
           >
             {t(entry.labelKey)}
           </button>
@@ -180,20 +177,17 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
       })}
     </nav>
   ) : (
-    <nav className="w-48 flex-shrink-0 border-r border-border/60 bg-background/40 p-2 space-y-0.5">
+    <nav className="subnav vertical w-48 flex-shrink-0 border-r border-border/60 p-2">
       {TABS.map((entry) => {
         const Icon = entry.icon;
         const isActive = tab === entry.id;
         return (
           <button
             key={entry.id}
+            type="button"
             onClick={() => setTab(entry.id)}
             aria-current={isActive ? "page" : undefined}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-              isActive
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-            }`}
+            className="subnav-item"
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
             {t(entry.labelKey)}

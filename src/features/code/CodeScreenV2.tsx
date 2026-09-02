@@ -19,7 +19,7 @@ import {
   Search,
   FilePlus,
   FolderPlus,
-  Sparkles,
+  AlignLeft,
   Bug,
   Play,
   PanelLeft,
@@ -1026,7 +1026,7 @@ export function CodeScreenV2({
             title={t("code.format") + " (⇧⌥F)"}
             aria-label={t("code.format")}
           >
-            <Sparkles size={15} />
+            <AlignLeft size={15} />
           </button>
         ) : null}
         {selected ? (

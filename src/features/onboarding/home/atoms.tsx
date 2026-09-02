@@ -200,7 +200,7 @@ export function RowActions({
 
 /** 실물과 같은 치수 — 도착했을 때 레이아웃이 움직이지 않게. */
 export function Skel({ w, h = 10 }: { w: number | string; h?: number }) {
-  return <span className="home-skel block" style={{ width: w, height: h }} aria-hidden="true" />;
+  return <span className="skel" style={{ width: w, height: h }} aria-hidden="true" />;
 }
 
 // ── 로드 실패 각주 ──────────────────────────────────────────────────────

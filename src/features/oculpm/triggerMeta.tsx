@@ -1,4 +1,4 @@
-import { Bug, SparklesIcon, GitBranch, TriangleAlert, Wrench } from "@/components/Icons";
+import { Bug, Plus, GitBranch, TriangleAlert, Wrench } from "@/components/Icons";
 import type { EntryType } from "@/lib/bindings";
 import { t, type I18nKey } from "@/i18n";
 
@@ -24,7 +24,7 @@ interface TriggerMeta {
 
 export const TRIGGER_META: Record<EntryType, TriggerMeta> = {
   bug: { icon: Bug, labelKey: "trigger.bug", cls: "t-bugfix", cssVar: "bug" },
-  feature: { icon: SparklesIcon, labelKey: "trigger.feature", cls: "t-feature", cssVar: "feature" },
+  feature: { icon: Plus, labelKey: "trigger.feature", cls: "t-feature", cssVar: "feature" },
   refactor: { icon: GitBranch, labelKey: "trigger.refactor", cls: "t-refactor", cssVar: "refactor" },
   error: { icon: TriangleAlert, labelKey: "trigger.error", cls: "t-error", cssVar: "error" },
   chore: { icon: Wrench, labelKey: "trigger.chore", cls: "t-chore", cssVar: "chore" },

@@ -9,18 +9,7 @@
   --gr-mask: rgba(0, 0, 0, 0.42);
 }
 
-/* 캔버스 앰비언트 — 시트 배경 위 액센트 4% 라디얼 한 겹. */
-.gr-wrap::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    640px 420px at 88% -8%,
-    color-mix(in srgb, var(--accent) 4%, transparent),
-    transparent 70%
-  );
-}
+/* 캔버스 앰비언트(액센트 라디얼)는 shell.css 와 같은 이유로 뺐다 (2026-09-02). */
 .gr-wrap .react-flow {
   background: transparent;
 }
@@ -317,9 +306,8 @@
   padding: 6px 11px;
   border-radius: 10px;
   border: 1px solid var(--border-card);
-  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  /* 불투명 — 유리(반투명 + blur)는 앱의 다른 패널과 재료가 달랐다. */
+  background: var(--bg-card);
   box-shadow: var(--shadow-card);
 }
 .gr-legend {

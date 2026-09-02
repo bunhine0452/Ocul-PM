@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMinuteTick } from "@/hooks/useSecondTick";
 
-import { FolderOpen, Pencil, Search, Sparkles, Trash2, X } from "@/components/Icons";
+import { FolderOpen, FolderPlus, Pencil, Search, Trash2, X } from "@/components/Icons";
 import { commands, type HomeBrief, type Project } from "@/lib/bindings";
 import { initials, relativeTime, tildePath } from "@/features/onboarding/home/homeModel";
 
@@ -272,7 +272,7 @@ export function ProjectManager(props: ProjectManagerProps) {
               onStartGreenfield();
             }}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <FolderPlus className="w-3.5 h-3.5" />
             {t("pm.newProject")}
           </button>
         </div>

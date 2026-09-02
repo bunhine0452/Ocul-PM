@@ -163,7 +163,7 @@ describe("ClaudeHooksBlock — 플러그인 겹침", () => {
     const r = render(<ClaudeHooksBlock projectId={21} pluginInstalled />);
     await waitFor(() => expect(r.getByText("연동됨")).toBeTruthy());
     const warn = r.getByText(/두 번 적재됩니다/);
-    expect(warn.className).toContain("text-amber-400");
+    expect(warn.className).toContain("text-(--warn-text)");
   });
 
   it("플러그인 미설치면 고지가 안 뜬다", async () => {

@@ -38,7 +38,7 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
         aria-label={t("markdown.copyCode")}
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-green-500" />
+          <Check className="w-3.5 h-3.5 text-(--ok-text)" />
         ) : (
           <Copy className="w-3.5 h-3.5" />
         )}

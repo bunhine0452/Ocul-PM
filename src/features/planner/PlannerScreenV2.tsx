@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Clock,
   RefreshCw,
-  Sparkles,
   Lock,
   NotebookText,
   PanelLeft,
@@ -635,7 +634,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           disabled={selectedId == null || busy || locked}
           title={locked ? t("plan.aiLockedTitle") : t("plan.aiTitle")}
         >
-          <Sparkles size={13} /> {t("plan.aiRefresh")}
+          <RefreshCw size={13} /> {t("plan.aiRefresh")}
         </button>
         <button
           className="scope-chip"

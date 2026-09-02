@@ -31,8 +31,8 @@ import {
   Languages,
   Monitor,
   Moon,
+  FolderPlus,
   OculIcon,
-  Sparkles,
   Sun,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -274,7 +274,7 @@ export function WelcomeWizard({
                   <span>{t("welcome.project.openDesc")}</span>
                 </button>
                 <button type="button" className="wz-bigcard" onClick={startGreenfield}>
-                  <Sparkles size={22} />
+                  <FolderPlus size={22} />
                   <b>{t("welcome.project.new")}</b>
                   <span>{t("welcome.project.newDesc")}</span>
                 </button>

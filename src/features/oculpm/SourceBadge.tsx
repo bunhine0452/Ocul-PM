@@ -1,4 +1,4 @@
-import { Bot, Clock, Download, Eye, History, Pencil, Puzzle, SparklesIcon } from "@/components/Icons";
+import { Clock, Cpu, Download, Eye, History, Pencil, PenLine, Puzzle } from "@/components/Icons";
 import { t, useT, type I18nKey } from "@/i18n";
 import { SOURCE_ORDER, sourcesPresent, type EntrySource } from "./entrySource";
 
@@ -22,8 +22,8 @@ interface SourceMeta {
  */
 export const SOURCE_META: Record<EntrySource, SourceMeta> = {
   direct: { icon: Pencil, labelKey: "source.direct", cls: "chip sm accent" },
-  agent: { icon: Bot, labelKey: "source.agent", cls: "chip sm" },
-  draft: { icon: SparklesIcon, labelKey: "source.draft", cls: "chip sm info" },
+  agent: { icon: Cpu, labelKey: "source.agent", cls: "chip sm" },
+  draft: { icon: PenLine, labelKey: "source.draft", cls: "chip sm info" },
   schedule: { icon: Clock, labelKey: "source.schedule", cls: "chip sm info" },
   automation: { icon: Eye, labelKey: "source.automation", cls: "chip sm info" },
   mcp: { icon: Puzzle, labelKey: "source.mcp", cls: "chip sm" },
