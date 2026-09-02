@@ -30,8 +30,8 @@ import { relativeTime as formatRelativeTime } from "@/lib/format";
 export const QUIET_DAYS = 14;
 /** 활동 스파크라인 창 — 백엔드 home_brief(days) 와 같아야 한다. */
 export const SPARK_DAYS = 14;
-/** 오늘의 흐름 타일이 그리는 최대 행 수. */
-export const FEED_MAX = 8;
+/** 오늘의 흐름 타일이 그리는 최대 행 수 (백엔드 `FEED_LIMIT` 12 이내). */
+export const FEED_MAX = 10;
 
 const DAY_MS = 86_400_000;
 
@@ -125,6 +125,23 @@ export function relativeTime(iso: string | null, now: number): string {
 export function hhmm(iso: string): string {
   const m = /T(\d{2}:\d{2})/.exec(iso);
   return m ? m[1] : "";
+}
+
+/**
+ * 흐름 항목의 날짜 꼬리표 — **오늘이 아닐 때만** 붙는다.
+ *
+ * 피드는 날짜로 자르지 않고 최신 N건을 그대로 가져온다 (`home.rs` Q4). 그래서
+ * 오늘 기록이 적으면 어제·그제 것이 섞여 들어오는데, 시각만 `17:32` 로 적으면
+ * 헤더의 "오늘 N건" 과 붙어 **전부 오늘 일** 로 읽힌다.
+ *
+ * 언어를 타지 않게 숫자만 쓴다 (`9/1`) — 로케일 월 이름은 여기서 얻는 것보다
+ * 잃는 게(줄바꿈·폭) 크다.
+ */
+export function dayLabel(workday: string, today: string): string | null {
+  if (workday === today) return null;
+  const m = /^\d{4}(\d{2})(\d{2})$/.exec(workday);
+  if (!m) return null;
+  return `${Number(m[1])}/${Number(m[2])}`;
 }
 
 /**

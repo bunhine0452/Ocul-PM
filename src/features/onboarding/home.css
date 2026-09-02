@@ -840,6 +840,88 @@
   list-style: none;
 }
 
+/* 흐름 행 — 제목 한 덩이 + 곁줄 한 줄 (2026-09-02 가독성 수정).
+   왼쪽 시각 기둥과 줄마다 다른 글자 크기를 걷어냈다. 제목만 진하게 두고
+   유형·프로젝트·시각을 흐린 한 줄로 모으면, 눈이 세로로 제목만 훑는다. */
+.hf-list {
+  margin: 2px -7px 0;
+  padding: 0 3px;
+}
+/* 행 사이 실선 — 제목이 두 줄로 접히는 목록에서는 여백만으로 항목 경계가
+   서지 않는다 (어디까지가 한 건인지 매번 다시 읽게 된다). */
+.hf-item + .hf-item {
+  border-top: 1px solid var(--border-card);
+}
+.hf-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 9px 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  transition: background var(--dur-1) var(--ease-out);
+}
+.hf-row:hover {
+  background: var(--bg-hover);
+}
+.hf-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 프로젝트가 워크스페이스에서 사라진 일지 — 열 곳이 없다. */
+.hf-row:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.hf-title {
+  font-size: var(--fs-7);
+  font-weight: 500;
+  line-height: 1.42;
+  color: var(--text);
+  /* 두 줄까지. 한국어 제목은 `—` 뒤로 길게 이어지는 일이 흔해서 자르는 선이
+     없으면 한 건이 레일의 절반을 먹는다. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.hf-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-2);
+  color: var(--text-3);
+}
+.hf-proj {
+  font-family: var(--mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 앞에 유형 키커가 실제로 섰을 때만 가운뎃점을 찍는다. */
+.hf-meta > span + .hf-proj::before {
+  content: "\00b7";
+  margin-right: 6px;
+}
+/* 시각은 오른쪽 끝에 고정 — 세로로 줄맞춤이 돼야 "언제" 를 훑을 수 있다. */
+.hf-when {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.hf-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 8px 10px;
+}
+
 /* ── 바닥 띠 — 초안·명령·키 안내를 한 줄로 압축 ─────────────────────── */
 
 .home-foot {

@@ -40,6 +40,7 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
 import { toast } from "@/lib/toast";
+import { requestEntryJump } from "@/lib/entryJump";
 import { AppearancePicker } from "@/features/onboarding/home/AppearancePicker";
 import { ProjectThemePicker } from "@/features/theme/ProjectThemePicker";
 import { themesApi } from "@/api/themes";
@@ -186,6 +187,21 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
   );
 
   /**
+   * 오늘의 흐름 행 — 프로젝트를 열고 그 일지까지 펼친다.
+   *
+   * 요청을 **먼저** 걸어 둔다. 이 탭이 프로젝트 탭으로 승격하면 셸이 마운트되며
+   * 회수하고(끈적 플래그), 그 프로젝트가 이미 이 창의 다른 탭에 열려 있으면
+   * 그쪽 셸이 구독으로 받는다 — 어느 쪽이 되든 여는 쪽은 같은 호출이다.
+   */
+  const openEntry = useCallback(
+    (p: Project, relativePath: string) => {
+      requestEntryJump(p.id, relativePath);
+      openProject(p);
+    },
+    [openProject],
+  );
+
+  /**
    * 폴더를 골라 프로젝트로 등록하고 **그 프로젝트를 돌려준다**.
    *
    * 첫 실행 마법사가 방금 들여온 프로젝트의 이름을 말하고 그걸 열어야 해서
@@ -290,6 +306,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
         openWindows={openProjects}
         error={error}
         onSelectProject={openProject}
+        onOpenEntry={openEntry}
         onAddProject={handleAddProject}
         onRenameProject={startRenameProject}
         onDeleteProject={confirmDeleteProject}

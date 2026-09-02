@@ -45,6 +45,12 @@ export interface StartScreenProps {
   openWindows: number[];
   error: string | null;
   onSelectProject: (p: Project) => void;
+  /**
+   * 프로젝트를 열고 **그 일지 항목까지** 펼친다 (오늘의 흐름 행). 프로젝트만
+   * 여는 `onSelectProject` 와 나눠 둔 이유는 승격 직전에 소유자가 요청을
+   * 걸어 둬야 하기 때문이다 (`lib/entryJump`).
+   */
+  onOpenEntry: (p: Project, relativePath: string) => void;
   onAddProject: () => void;
   onRenameProject: (p: Project) => void;
   onDeleteProject: (p: Project) => void;
@@ -68,6 +74,7 @@ export function StartScreen(props: StartScreenProps) {
     openWindows,
     error,
     onSelectProject,
+    onOpenEntry,
     onAddProject,
     onRenameProject,
     onDeleteProject,
@@ -407,7 +414,7 @@ export function StartScreen(props: StartScreenProps) {
                 projects={projects}
                 loading={loading}
                 failed={failed}
-                onOpenProject={onSelectProject}
+                onOpenEntry={onOpenEntry}
               />
             </aside>
           </div>

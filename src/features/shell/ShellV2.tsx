@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
+import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
 import { holdAgentContextIntent, onAgentContextRequest } from "@/lib/agentContextNav";
 import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -350,6 +351,23 @@ export default function ShellV2({
     // 최초 1회 — 이후 사용자의 화면 이동을 되돌리면 안 된다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 메인 화면 "오늘의 흐름" → 그 일지 항목 (`lib/entryJump`).
+  //
+  // `active` 로 막지 않는다 — 시작 탭이 승격하거나 숨은 탭이 활성화되는 것은
+  // 이 effect 가 도는 **뒤**라, 활성 여부로 걸면 정작 목적지 탭이 요청을 흘린다.
+  // 대신 프로젝트 id 로 거른다: 한 창의 모든 탭이 같은 버스를 듣기 때문이다.
+  useEffect(() => {
+    if (projectId == null) return;
+    const open = (path: string) => {
+      setJournalReturnView(null);
+      setJournalOpenEntry(path);
+      setUiV2View("journal");
+    };
+    const pending = consumeEntryJump(projectId);
+    if (pending) open(pending);
+    return onEntryJump(projectId, open);
+  }, [projectId, setUiV2View]);
 
   // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
   // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로

@@ -65,6 +65,7 @@ function renderStart(over: Partial<StartScreenProps> = {}) {
     openWindows: [],
     error: null,
     onSelectProject: vi.fn(),
+    onOpenEntry: vi.fn(),
     onAddProject: vi.fn(),
     onRenameProject: vi.fn(),
     onDeleteProject: vi.fn(),

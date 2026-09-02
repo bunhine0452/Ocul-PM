@@ -10,21 +10,22 @@ import type { HomeBrief, Project } from "@/lib/bindings";
 
 import { Skel, TriggerKicker } from "./atoms";
 import { useT } from "@/i18n";
-import { FEED_MAX, hhmm } from "./homeModel";
+import { dayLabel, FEED_MAX, hhmm } from "./homeModel";
 
 export function FlowTile({
   brief,
   projects,
   loading,
   failed,
-  onOpenProject,
+  onOpenEntry,
 }: {
   brief: HomeBrief | null;
   projects: Project[];
   loading: boolean;
   /** 집계 자체가 실패했는가. `기록 0건` 과 반드시 구분해야 한다. */
   failed: boolean;
-  onOpenProject: (p: Project) => void;
+  /** 그 프로젝트를 열고 **이 일지 항목까지** 펼친다. */
+  onOpenEntry: (p: Project, relativePath: string) => void;
 }) {
   const { t } = useT();
   const feed = (brief?.feed ?? []).slice(0, FEED_MAX);
@@ -47,11 +48,13 @@ export function FlowTile({
       </header>
 
       {loading && feed.length === 0 && (
-        <ul className="mt-3 space-y-3">
+        <ul className="hf-list">
           {[0, 1, 2, 3, 4].map((i) => (
-            <li key={i} className="flex items-center gap-2">
-              <Skel w={32} h={9} />
-              <Skel w="70%" h={11} />
+            <li key={i} className="hf-item">
+              <span className="hf-skel">
+                <Skel w="88%" h={12} />
+                <Skel w="45%" h={9} />
+              </span>
             </li>
           ))}
         </ul>
@@ -78,31 +81,33 @@ export function FlowTile({
         </p>
       )}
 
-      <ul className="mt-2 -mx-1.5">
+      {/* 행 하나 = **제목 한 덩이 + 곁줄 한 줄**.
+          예전에는 유형·제목·프로젝트가 각자 한 줄씩 서고 왼쪽에 시각 기둥까지
+          있어서, 한 항목이 세 가지 크기의 글자로 네 줄을 먹었다 — 목록 전체가
+          "무엇이 제목인지" 를 매번 다시 찾게 만드는 벽이 됐다. 이제 제목이
+          가장 크고 진한 유일한 요소이고, 유형·프로젝트·시각은 그 아래 흐린
+          한 줄로 모인다. 시각 기둥을 걷어낸 폭(약 34px)은 그대로 제목이 쓴다. */}
+      <ul className="hf-list">
         {feed.map((it) => {
           const p = byId.get(it.project_id);
+          const day = brief ? dayLabel(it.workday, brief.today_workday) : null;
+          const when = day ? `${day} ${hhmm(it.created_at)}` : hhmm(it.created_at);
           return (
-            <li key={`${it.project_id}:${it.relative_path}`}>
+            <li key={`${it.project_id}:${it.relative_path}`} className="hf-item">
               <button
                 type="button"
                 disabled={!p}
-                onClick={() => p && onOpenProject(p)}
-                className="w-full flex items-start gap-2.5 px-1.5 py-1.5 rounded-[var(--radius-s)] text-left transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-60 disabled:cursor-default cursor-pointer"
-                aria-label={p ? t("home.openWithEntryAria", { name: p.name, title: it.title }) : it.title}
+                onClick={() => p && onOpenEntry(p, it.relative_path)}
+                className="hf-row"
+                aria-label={
+                  p ? t("home.openWithEntryAria", { name: p.name, title: it.title }) : it.title
+                }
               >
-                <span className="text-[10.5px] font-mono text-[var(--text-3)] w-9 shrink-0 pt-0.5 tabular-nums">
-                  {hhmm(it.created_at)}
-                </span>
-                <span className="min-w-0 flex flex-col gap-0.5">
+                <span className="hf-title">{it.title}</span>
+                <span className="hf-meta">
                   <TriggerKicker type={it.type} title={null} />
-                  <span className="text-[12.5px] text-[var(--text)] leading-snug line-clamp-2">
-                    {it.title}
-                  </span>
-                  {p && (
-                    <span className="text-[10.5px] font-mono text-[var(--text-3)] truncate">
-                      {p.name}
-                    </span>
-                  )}
+                  {p && <span className="hf-proj">{p.name}</span>}
+                  <span className="hf-when">{when}</span>
                 </span>
               </button>
             </li>
