@@ -440,6 +440,49 @@
   min-height: 0;
   overflow: hidden;
 }
+/* svg 미리보기가 붙은 상태 — 에디터와 그림을 나란히. 세로로 쌓지 않는 이유는
+   코드 쪽이 세로를 다 쓰기 때문이다(줄 수). 좁은 창에서는 그림이 먼저 줄어든다. */
+.code-editor-wrap.with-svg {
+  display: flex;
+  align-items: stretch;
+}
+.code-editor-wrap.with-svg .code-editor-host {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.code-svgpane {
+  flex: 0 1 clamp(180px, 38%, 420px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--sep);
+  background: var(--bg-inset);
+}
+.code-svgpane .code-preview-stage {
+  padding: 12px;
+}
+.code-svgpane-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.code-svgpane-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+/* 아직 그릴 수 없는 본문 — 태그를 반쯤 지운 순간에도 반드시 지나간다. */
+.code-svgpane-broken {
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  text-align: center;
+}
 .code-editor-host {
   height: 100%;
 }

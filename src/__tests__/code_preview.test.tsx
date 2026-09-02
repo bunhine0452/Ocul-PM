@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { t } from "@/i18n";
-import { previewKindFor } from "@/features/code/previewKind";
+import { isSvgPath, previewKindFor } from "@/features/code/previewKind";
 
 const fx: {
   asset: { mime: string; base64: string; bytes: number } | null;
@@ -29,6 +29,7 @@ vi.mock("@/lib/bindings", () => ({
 }));
 
 import { CodePreview } from "@/features/code/CodePreview";
+import { SvgPreview } from "@/features/code/SvgPreview";
 
 /** 1×1 투명 PNG. 내용이 아니라 "바이트가 왕복한다" 만 확인하면 되는 크기다. */
 const PNG_1PX =
@@ -66,12 +67,77 @@ describe("previewKindFor", () => {
 
   it("keeps editable text in the editor", () => {
     // svg 는 곧 코드다 — 여기서 가져가면 아이콘 하나를 못 고치게 된다.
+    // (그림은 에디터 **옆에** 뜬다 — isSvgPath 아래 참고.)
     expect(previewKindFor("assets/icon.svg")).toBeNull();
     expect(previewKindFor("src/main.ts")).toBeNull();
     expect(previewKindFor("README")).toBeNull();
     expect(previewKindFor(".gitignore")).toBeNull();
     // 폴더 이름의 점에 속지 않는다.
     expect(previewKindFor("my.png.dir/notes")).toBeNull();
+  });
+});
+
+describe("isSvgPath", () => {
+  it("marks svg — and only svg — as drawable next to the editor", () => {
+    expect(isSvgPath("assets/icon.svg")).toBe(true);
+    expect(isSvgPath("a/b/LOGO.SVG")).toBe(true); // 확장자는 대소문자를 안 가린다
+    expect(isSvgPath("docs/img/logo.png")).toBe(false);
+    expect(isSvgPath("src/main.ts")).toBe(false);
+    // 확장자가 없는 이름과 점 파일은 걸리지 않는다.
+    expect(isSvgPath("README")).toBe(false);
+    expect(isSvgPath(".svg")).toBe(false);
+    // 폴더 이름의 확장자에 속지 않는다.
+    expect(isSvgPath("icons.svg/notes")).toBe(false);
+  });
+});
+
+describe("SvgPreview", () => {
+  const SQUARE = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>';
+
+  it("draws the buffer text — not the file on disk", async () => {
+    render(<SvgPreview text={SQUARE} name="icon.svg" onClose={() => {}} />);
+    const img = await screen.findByAltText("icon.svg");
+    expect(img).toHaveAttribute("src", "blob:mock/1");
+    // 저장된 바이트를 읽으러 가지 않는다 — 미저장 편집이 그대로 보여야 한다.
+    expect(fx.calls).toEqual([]);
+  });
+
+  it("re-bakes the blob when the text changes and lets the old one go", async () => {
+    const { rerender } = render(<SvgPreview text={SQUARE} name="icon.svg" onClose={() => {}} />);
+    await screen.findByAltText("icon.svg");
+    rerender(
+      <SvgPreview text={SQUARE.replace("8", "9")} name="icon.svg" onClose={() => {}} />,
+    );
+    await waitFor(() => expect(created).toHaveLength(2));
+    expect(revoked).toContain("blob:mock/1");
+  });
+
+  it("revokes the blob on unmount", async () => {
+    const { unmount } = render(<SvgPreview text={SQUARE} name="icon.svg" onClose={() => {}} />);
+    await screen.findByAltText("icon.svg");
+    unmount();
+    expect(revoked).toEqual(created);
+  });
+
+  it("says 'not yet' for an empty buffer instead of drawing a broken image", () => {
+    render(<SvgPreview text="   " name="icon.svg" onClose={() => {}} />);
+    expect(screen.getByText(t("code.svg.invalid"))).toBeInTheDocument();
+    expect(screen.queryByAltText("icon.svg")).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+
+  it("falls back to the same hint when the drawn svg fails to load", async () => {
+    render(<SvgPreview text="<svg" name="icon.svg" onClose={() => {}} />);
+    const img = await screen.findByAltText("icon.svg");
+    fireEvent.error(img);
+    expect(screen.getByText(t("code.svg.invalid"))).toBeInTheDocument();
+  });
+
+  it("closes through the caller — the pane owner owns the toggle", async () => {
+    const onClose = vi.fn();
+    render(<SvgPreview text={SQUARE} name="icon.svg" onClose={onClose} />);
+    fireEvent.click(await screen.findByRole("button", { name: t("code.svg.hide") }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

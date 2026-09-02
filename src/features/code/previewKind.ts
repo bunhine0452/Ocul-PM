@@ -12,10 +12,24 @@ export type PreviewKind = "image" | "pdf";
  * 웹뷰가 `<img>` 로 바로 그릴 수 있는 래스터/벡터 포맷.
  *
  * **svg 는 일부러 뺐다** — 텍스트이자 곧 코드라 편집 대상이다. 여기 넣으면
- * 프로젝트의 아이콘 하나를 이 화면에서 못 고치게 된다 (VS Code 도 svg 는
- * 에디터로 열고 미리보기는 따로 연다).
+ * 프로젝트의 아이콘 하나를 이 화면에서 못 고치게 된다. 대신 에디터 옆에
+ * 붙이는 인라인 미리보기(`isSvgPath` + `SvgPreview`)가 그림을 맡는다 —
+ * VS Code 도 svg 만은 텍스트 에디터로 열고 미리보기로 갈아타게 한다.
  */
 const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico"]);
+
+/**
+ * 에디터로 열되 **그림으로도 볼 수 있는** 파일인가 (지금은 svg 하나).
+ *
+ * `previewKindFor` 와 축이 다르다: 저쪽은 "에디터 대신 무엇으로 그리나",
+ * 이쪽은 "에디터 옆에 그림을 띄울 수 있나" 다.
+ */
+export function isSvgPath(path: string): boolean {
+  const name = path.split("/").pop() ?? path;
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  return name.slice(dot + 1).toLowerCase() === "svg";
+}
 
 /** `docs/img/logo.png` → "image", `a/b.pdf` → "pdf", 그 외 null(=에디터로). */
 export function previewKindFor(path: string): PreviewKind | null {

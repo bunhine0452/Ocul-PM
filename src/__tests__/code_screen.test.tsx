@@ -158,6 +158,9 @@ beforeEach(() => {
   };
   fx.writeResult = { kind: "saved", hash: "h2" };
   fx.writeCalls = [];
+  // jsdom 에는 blob: URL 이 없다 — svg 미리보기가 이 둘을 쓴다.
+  URL.createObjectURL = vi.fn(() => "blob:mock/1");
+  URL.revokeObjectURL = vi.fn();
 });
 afterEach(cleanup);
 
@@ -176,6 +179,36 @@ describe("CodeScreenV2", () => {
     expect(text.textContent).toBe("# hello");
     // 상태줄 — 깨끗한 상태.
     await findByText(t("code.savedState"));
+  });
+
+  it("draws an svg beside the editor — from the buffer, and only for svg", async () => {
+    // svg 는 코드로 열린다(에디터로). 그림은 그 **옆에** 뜬다 — 파일 하나로
+    // 고치기와 보기를 동시에 한다.
+    fx.tree.nodes.push({
+      name: "icon.svg",
+      relative_path: "icon.svg",
+      is_dir: false,
+      children: [],
+    });
+    fx.tree.file_count = 3;
+    fx.read["icon.svg"] = textFile('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const { findByText, findByRole, findByAltText, queryByRole } = render(wrap(screenEl()));
+
+    // 텍스트 파일에는 이 손잡이가 아예 없다.
+    fireEvent.click(await findByText("README.md"));
+    await findByText(t("code.savedState"));
+    expect(queryByRole("button", { name: t("code.svg.toggle") })).toBeNull();
+
+    fireEvent.click(await findByText("icon.svg"));
+    const toggle = await findByRole("button", { name: t("code.svg.toggle") });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(await findByAltText("icon.svg")).toHaveAttribute("src", "blob:mock/1");
+    // 에디터는 그대로 살아 있다 — 갈아타는 것이 아니라 나란히 두는 것이다.
+    await findByText('<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+    fireEvent.click(await findByRole("button", { name: t("code.svg.hide") }));
+    expect(queryByRole("img")).toBeNull();
   });
 
   it("marks the buffer dirty on edit and saves through code_write", async () => {

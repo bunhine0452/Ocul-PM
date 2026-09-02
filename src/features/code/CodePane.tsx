@@ -38,6 +38,7 @@ import {
   ExternalLink,
   FileCode,
   GitCompareArrows,
+  ImageFileIcon,
   NotebookText,
   X,
 } from "@/components/Icons";
@@ -45,12 +46,14 @@ import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
 import { CodePreview } from "./CodePreview";
+import { SvgPreview } from "./SvgPreview";
 import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
-import { previewKindFor, type PreviewKind } from "./previewKind";
+import { isSvgPath, previewKindFor, type PreviewKind } from "./previewKind";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
 import { adapterLanguageFor } from "./debugConfig";
+import { baseName } from "./fileOps";
 import { formatBytes } from "./treeUtils";
 import {
   bufferKey,
@@ -66,6 +69,9 @@ import {
 
 /** 거터 갱신 디바운스. 타자마다 `git show` 를 부를 수는 없다. */
 const GUTTER_DEBOUNCE_MS = 500;
+
+/** svg 미리보기 갱신 디바운스 — 타자마다 blob 을 새로 굽지 않는다. */
+const SVG_DEBOUNCE_MS = 250;
 
 type FileView =
   | { kind: "idle" }
@@ -189,6 +195,16 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const [editorEpoch, setEditorEpoch] = useState(0);
   // 같은 것의 미리보기 판(版) — 워처가 자산을 다시 읽게 만드는 유일한 손잡이다.
   const [previewEpoch, setPreviewEpoch] = useState(0);
+  // ── svg 인라인 미리보기 ─────────────────────────────────────────────────
+  // svg 는 에디터로 열되(코드니까) 옆에 그림을 띄울 수 있다. 그림의 원본은
+  // 디스크가 아니라 **버퍼**라, 저장하기 전의 편집이 그대로 보인다.
+  const [svgOpen, setSvgOpen] = useState(false);
+  const [svgText, setSvgText] = useState("");
+  // 타자 경로(handleChange)는 ref 로 읽는다 — state 를 의존성에 넣으면 콜백
+  // 신원이 바뀌고, 그게 곧 에디터 확장 재설정으로 번진다.
+  const svgOpenRef = useRef(false);
+  svgOpenRef.current = svgOpen;
+  const svgTimerRef = useRef<number | null>(null);
   // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
   // original 이 있으면 에디터가 그 텍스트와의 차이를 본문 안에 그린다.
   // 두 원본이 있다: HEAD(마지막 커밋 이후 = 지금 에이전트가 한 일 전부)와
@@ -330,6 +346,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     setDiffMode(null);
     setDiffOriginal(null);
     setEntriesOpen(false);
+    // 미리보기는 파일에 붙는다 — 다음 파일이 svg 가 아닐 수 있으므로 접고 간다.
+    setSvgOpen(false);
     if (!activePath) {
       setFileView({ kind: "idle" });
       bufferRef.current = null;
@@ -386,6 +404,26 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       setEditorEpoch((n) => n + 1);
     },
     [projectId],
+  );
+
+  /**
+   * 미리보기 본문을 버퍼에서 다시 뜬다.
+   *
+   * `editorEpoch` 는 "에디터에 실린 본문이 통째로 갈렸다" 는 신호다 — 열기,
+   * 워처 리로드, 포맷팅, 비교 모드 진입/이탈이 전부 이걸 올린다. 타자는
+   * `handleChange` 가 디바운스로 따로 민다.
+   */
+  useEffect(() => {
+    if (!svgOpen) return;
+    setSvgText(bufferRef.current?.text ?? "");
+  }, [svgOpen, editorEpoch]);
+
+  // 디바운스 타이머는 창이 사라질 때 반드시 끈다.
+  useEffect(
+    () => () => {
+      if (svgTimerRef.current != null) window.clearTimeout(svgTimerRef.current);
+    },
+    [],
   );
 
   const exitDiff = useCallback(() => {
@@ -566,6 +604,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       // 가장 쓸모 있다 (내부에서 디바운스).
       lsp.pushText(text);
       refreshGutter(text);
+      if (svgOpenRef.current) {
+        if (svgTimerRef.current != null) window.clearTimeout(svgTimerRef.current);
+        svgTimerRef.current = window.setTimeout(() => {
+          svgTimerRef.current = null;
+          setSvgText(text);
+        }, SVG_DEBOUNCE_MS);
+      }
     },
     [projectId, dirtyPaths, onBuffersChanged, lsp, refreshGutter],
   );
@@ -889,6 +934,19 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
                 <span className="code-crumb-act-n">{fileEntries.length}</span>
               </button>
             ) : null}
+            {/* svg — 코드로 열되 그림도 옆에 띄운다 (VS Code 의 Open Preview 자리). */}
+            {fileView.kind === "editor" && activePath && isSvgPath(activePath) ? (
+              <button
+                type="button"
+                className={"code-crumb-act" + (svgOpen ? " on" : "")}
+                onClick={() => setSvgOpen((v) => !v)}
+                title={t("code.svg.toggle")}
+                aria-label={t("code.svg.toggle")}
+                aria-pressed={svgOpen}
+              >
+                <ImageFileIcon size={13} />
+              </button>
+            ) : null}
             {fileView.kind === "editor" ? (
               <button
                 type="button"
@@ -1021,7 +1079,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         </div>
       ) : buf ? (
         <>
-          <div className="code-editor-wrap">
+          <div className={"code-editor-wrap" + (svgOpen ? " with-svg" : "")}>
             <CodeEditor
               key={`${activePath}:${editorEpoch}`}
               initialText={buf.text}
@@ -1055,6 +1113,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               jump={pendingJump}
               onJumpConsumed={() => setPendingJump(null)}
             />
+            {svgOpen ? (
+              <SvgPreview
+                text={svgText}
+                name={activePath ? baseName(activePath) : ""}
+                onClose={() => setSvgOpen(false)}
+              />
+            ) : null}
           </div>
           <div className="code-statusbar">
             <span className={"code-status-item code-status-dirty" + (dirty ? " on" : "")}>

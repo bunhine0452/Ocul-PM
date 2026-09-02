@@ -1836,6 +1836,11 @@ export const ko = {
   "code.import.nothing": "가져온 것이 없습니다",
   "code.preview.fit": "창에 맞추기",
   "code.preview.actual": "실제 크기",
+  // svg — 코드로 열되 그림도 옆에 띄운다.
+  "code.svg.toggle": "그림으로 보기",
+  "code.svg.hide": "미리보기 닫기",
+  "code.svg.paneAria": "SVG 미리보기",
+  "code.svg.invalid": "아직 그릴 수 없는 SVG 입니다",
   "code.openInCode": "코드 화면에서 열기",
   "code.save": "저장",
   "code.saveFailed": "저장하지 못했습니다: {error}",

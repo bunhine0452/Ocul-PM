@@ -1843,6 +1843,11 @@ export const en: Record<keyof typeof ko, string> = {
   "code.import.nothing": "Nothing was imported",
   "code.preview.fit": "Fit to window",
   "code.preview.actual": "Actual size",
+  // svg — opens as code, renders alongside.
+  "code.svg.toggle": "Show as image",
+  "code.svg.hide": "Close preview",
+  "code.svg.paneAria": "SVG preview",
+  "code.svg.invalid": "This SVG can't be drawn yet",
   "code.openInCode": "Open in the Code screen",
   "code.save": "Save",
   "code.saveFailed": "Couldn't save: {error}",
