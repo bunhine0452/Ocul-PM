@@ -263,9 +263,10 @@ export function CodeScreenV2({
   }, [refreshDirtyPaths]);
 
   // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
-  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯도
-  // 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도 한 번 묻는다.
-  const symbolsWanted = outlineOpen || gotoState != null;
+  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯과
+  // 스티키 스크롤도 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도
+  // 묻는다 — 스티키는 켜 두면 늘 보이는 물건이라 그 비용이 값을 한다.
+  const symbolsWanted = outlineOpen || gotoState != null || settings.codeStickyScroll;
   useEffect(() => {
     if (!symbolsWanted || !selected) {
       setSymbols(null);
@@ -1234,6 +1235,9 @@ export function CodeScreenV2({
                 onOpenPath={(path, line) => openPath(path, line, index)}
                 onReferences={setReferences}
                 onCursorLine={setCursorLine}
+                // 스티키는 아웃라인과 **같은 값**을 쓴다. 설정이 꺼져 있으면
+                // 굳이 내려보내지 않는다 (확장 자체가 안 붙어 있다).
+                stickySymbols={settings.codeStickyScroll ? symbols : null}
                 breakpointsFor={debug.breakpointsFor}
                 unverifiedFor={debug.unverifiedFor}
                 onToggleBreakpoint={debug.toggleBreakpoint}

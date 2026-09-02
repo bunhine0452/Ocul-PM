@@ -23,6 +23,7 @@ import {
   type FileJournalEntry,
   type GitLineChange,
   type LspCodeAction,
+  type LspSymbol,
 } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { reverseApplyPatch } from "./patchReverse";
@@ -45,6 +46,7 @@ import {
 import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
+import { clampStickyMax } from "./stickyModel";
 import { CodePreview } from "./CodePreview";
 import { SvgPreview } from "./SvgPreview";
 import type { ReferencesQuery } from "./CodeReferences";
@@ -147,6 +149,11 @@ export interface CodePaneProps {
   onReferences: (query: ReferencesQuery) => void;
   /** 커서가 있는 줄(1-based). 사이드바 아웃라인이 지금 위치를 표시한다. */
   onCursorLine: (line: number) => void;
+  /**
+   * 스티키 스크롤이 쓸 문서 심볼 (아웃라인과 **같은 값**). `null` 이면 확장이
+   * 들여쓰기 폴백으로 그린다 — 언어 서버가 없는 파일도 맥락은 보여야 한다.
+   */
+  stickySymbols: LspSymbol[] | null;
   /** 이 파일의 중단점 줄들 (1-based). */
   breakpointsFor: (path: string) => number[];
   /** 어댑터가 못 건다고 답한 줄들. */
@@ -185,6 +192,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onOpenPath,
     onReferences,
     onCursorLine,
+    stickySymbols,
     breakpointsFor,
     unverifiedFor,
     onToggleBreakpoint,
@@ -194,6 +202,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 ) {
   useT();
   const { settings } = useSettings();
+
+  // 스티키 스크롤 — 꺼져 있으면 0 이고, 0 이면 CodeEditor 가 확장을 안 단다.
+  const stickyMax = settings.codeStickyScroll ? clampStickyMax(settings.codeStickyMaxLines) : 0;
 
   const [fileView, setFileView] = useState<FileView>({ kind: "idle" });
   // 버퍼는 ref — 키 입력마다 화면 state 를 바꾸면 트리까지 리렌더된다.
@@ -1200,7 +1211,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             onBlur={autoSave.onEditorBlur}
           >
             <CodeEditor
-              key={`${activePath}:${editorEpoch}`}
+              // 스티키 설정이 key 에 있는 이유: 확장은 마운트 시점에 결정되므로
+              // 켜고 끈 것이 그 자리에서 보이려면 재마운트해야 한다. 본문은
+              // 버퍼가 갖고 있어 미저장 편집은 살아남는다 (실행 취소 이력만
+              // 잃는다 — 파일을 바꿀 때와 같은 대가).
+              key={`${activePath}:${editorEpoch}:${stickyMax}`}
               initialText={buf.text}
               path={activePath ?? ""}
               onChange={handleChange}
@@ -1215,6 +1230,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               // 서버가 안 붙은 창에는 확장을 아예 달지 않는다 (CodeEditor 가
               // prop 유무로 판단하므로 undefined 여야 한다).
               onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
+              stickyMaxLines={stickyMax}
+              stickySymbols={stickySymbols}
+              tabSize={settings.codeTabSize}
               onSave={() => void saveRef.current()}
               onCursor={(line, col) => {
                 setCursor({ line, col });

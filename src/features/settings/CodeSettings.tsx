@@ -13,6 +13,11 @@ import { useCallback, useEffect, useState } from "react";
 import { commands, type LspServerInfo, type LspServerState } from "@/lib/bindings";
 import { AUTO_SAVE_MODES, type AutoSaveMode } from "@/lib/settings";
 import { AUTO_SAVE_MIN_DELAY_MS } from "@/features/code/autoSave";
+import {
+  clampStickyMax,
+  STICKY_MAX_LINES,
+  STICKY_MIN_LINES,
+} from "@/features/code/stickyModel";
 import type { I18nKey } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
@@ -163,6 +168,29 @@ export function CodeSettings({
         <p className="text-[11px] text-muted-foreground/80">
           {t("settings.code.previewTabsHint")}
         </p>
+        <Toggle
+          checked={settings.codeStickyScroll}
+          onChange={(v) => void set("codeStickyScroll", v)}
+          label={t("settings.code.stickyScroll")}
+        />
+        <p className="text-[11px] text-muted-foreground/80">
+          {t("settings.code.stickyScrollHint")}
+        </p>
+        {settings.codeStickyScroll ? (
+          <Field label={t("settings.code.stickyMaxLines")}>
+            <Input
+              type="number"
+              min={STICKY_MIN_LINES}
+              max={STICKY_MAX_LINES}
+              value={settings.codeStickyMaxLines}
+              onChange={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) void set("codeStickyMaxLines", clampStickyMax(n));
+              }}
+              className="w-24 font-mono"
+            />
+          </Field>
+        ) : null}
       </Section>
 
       <Section

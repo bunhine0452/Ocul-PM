@@ -16,6 +16,7 @@ import { unifiedMergeView } from "@codemirror/merge";
 import { lspSignatureTooltip } from "./signatureTooltip";
 import { gitGutter, setGitChanges } from "./gitGutter";
 import { breakpointGutter, setBreakpoints, setUnverified } from "./breakpointGutter";
+import { setStickySource, stickyScroll } from "./stickyScroll";
 
 import { langExtensionForPath } from "./codeLang";
 import {
@@ -32,6 +33,7 @@ import type {
   LspDiagnostic,
   LspHover,
   LspSignatureHelp,
+  LspSymbol,
   GitLineChange,
 } from "@/lib/bindings";
 import { t, useT } from "@/i18n";
@@ -254,6 +256,15 @@ interface CodeEditorProps {
   onFormat?: (range?: FormatRange) => void;
   /** 인자 입력 중의 시그니처. 없으면 확장을 아예 안 단다. */
   onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
+  /**
+   * 스티키 스크롤에 겹쳐 고정할 줄 수. `0`(기본)이면 확장을 아예 안 단다.
+   * 설정을 켜고 끄면 부모가 key 로 재마운트한다 (다른 확장들과 같은 규약).
+   */
+  stickyMaxLines?: number;
+  /** 스티키가 쓸 문서 심볼. `null` 이면 들여쓰기 폴백으로 그린다. */
+  stickySymbols?: LspSymbol[] | null;
+  /** 들여쓰기 폴백의 탭 폭 (설정 `codeTabSize`). */
+  tabSize?: number;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
   gitChanges?: readonly GitLineChange[];
   /**
@@ -287,6 +298,9 @@ export function CodeEditor({
   onReferences,
   onFormat,
   onSignatureHelp,
+  stickyMaxLines = 0,
+  stickySymbols = null,
+  tabSize = 2,
   gitChanges,
   diffOriginal,
   breakpoints,
@@ -336,6 +350,7 @@ export function CodeEditor({
   // 서버가 안 붙는 파일에 override 자동완성을 걸면 CM6 언어 모드의 기본 완성
   // (CSS 속성 등)이 통째로 사라진다 — 그래서 경로로 먼저 가른다.
   const hasLspRef = useRef(onComplete != null && hasLanguageServer(path));
+  const stickyMaxRef = useRef(stickyMaxLines);
 
   const phrases = useMemo(() => (lang === "ko" ? koPhrases() : null), [lang]);
 
@@ -468,6 +483,8 @@ export function CodeEditor({
         ...(diffOriginalRef.current != null
           ? [unifiedMergeView({ original: diffOriginalRef.current, mergeControls: true })]
           : []),
+        // 스티키 스크롤 — 심볼이 없으면 들여쓰기로 떨어지므로 LSP 와 무관하다.
+        ...(stickyMaxRef.current > 0 ? [stickyScroll(stickyMaxRef.current)] : []),
         // 거터는 LSP 와 무관하다 — 마크다운·CSS 에서도 무엇을 고쳤는지는 보여야 한다.
         gitGutter(),
         // 중단점 거터는 **디버그 가능한 언어에만**. 붙일 수 없는 파일에서
@@ -516,6 +533,14 @@ export function CodeEditor({
     if (!view || !hasBreakpointsRef.current) return;
     view.dispatch({ effects: setUnverified.of(unverifiedBreakpoints ?? []) });
   }, [unverifiedBreakpoints]);
+
+  // 스티키 소스 반영 — 거터와 같은 이유로 트랜잭션이다. 심볼이 늦게 와도
+  // (서버 기동 중) 그때까지는 들여쓰기 폴백이 그리고, 도착하면 갈아탄다.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || stickyMaxRef.current <= 0) return;
+    view.dispatch({ effects: setStickySource.of({ symbols: stickySymbols, tabSize }) });
+  }, [stickySymbols, tabSize]);
 
   // git 거터 반영 — 진단과 같은 이유로 트랜잭션이다 (편집 도중에도 갱신된다).
   useEffect(() => {

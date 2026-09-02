@@ -213,6 +213,8 @@ const TESTS = new Set([
   // vscode-borrows Phase 3 — 파일 안 이동 (심볼·줄). 같은 이유.
   "__tests__/code_goto_model.test.ts",
   "__tests__/code_goto.test.tsx",
+  // vscode-borrows Phase 4 — 스티키 스크롤. 같은 이유.
+  "__tests__/code_sticky.test.ts",
   "__tests__/code_tree_lazy.test.tsx",
   "__tests__/code_tree_watch.test.tsx",
   "__tests__/lsp_bridge.test.ts",

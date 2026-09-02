@@ -1045,6 +1045,55 @@
   background: var(--code-prop);
 }
 
+/* ── 스티키 스크롤 (#p4-sticky) ────────────────────────────────────────────
+   편집면 맨 위에 겹쳐 고정하는 상위 스코프. `.cm-editor` 안(콘텐츠 밖)에
+   절대 배치하므로 스크롤과 무관하게 제자리에 남는다. 왼쪽 여백은 거터 폭만큼
+   플러그인이 인라인으로 넣는다 (줄 번호가 늘면 폭도 는다).
+
+   하이라이팅은 하지 않는다 — 그러려면 그 줄만 다시 파싱해야 하고, 값의 90%는
+   "어느 함수 안인가" 라 색이 거기 기여하지 않는다. */
+.cm-sticky {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  overflow: hidden;
+  /* 본문을 가리는 물건이라 반드시 불투명하다 (유리 아님). */
+  background: var(--bg-content);
+  border-bottom: 1px solid var(--sep);
+  box-shadow: var(--shadow-card);
+}
+.cm-sticky-inner {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 100%;
+}
+.cm-sticky-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 4px;
+  /* 본문 줄과 같은 리듬 — editorChrome 의 13px × 1.6 을 그대로 쓴다. */
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  text-align: left;
+  white-space: pre;
+  cursor: pointer;
+}
+.cm-sticky-row:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.cm-sticky-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── 파일 안에서 이동 (#p3-goto) ───────────────────────────────────────────
    팔레트와 같은 자리(화면 중앙 상단)에 서지만 이 화면 안에서만 산다. 스크림은
    전역 `.scrim` 한 벌을 쓴다 — 유리는 없다. */

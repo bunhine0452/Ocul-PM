@@ -105,6 +105,8 @@ export const KEYS = {
   codeAutoSave: "code_auto_save",
   codeAutoSaveDelay: "code_auto_save_delay",
   codePreviewTabs: "code_preview_tabs",
+  codeStickyScroll: "code_sticky_scroll",
+  codeStickyMaxLines: "code_sticky_max_lines",
 
   // --- 첫 실행 ---
   // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
@@ -242,6 +244,15 @@ export interface Settings {
    * 해도 탭이 계속 쌓인다" 이고, 그건 지킬 가치가 없다. 끄면 예전 그대로다.
    */
   codePreviewTabs: boolean;
+  /**
+   * 편집면 위에 지금 줄을 감싸는 상위 스코프를 겹쳐 고정한다 (스티키 스크롤).
+   *
+   * 기본 **꺼짐**: VS Code 기본은 켜짐이지만 우리 편집면은 분할·미리보기로
+   * 이미 좁고, 맨 위 몇 줄을 늘 덮는 물건은 켤지 말지를 사용자가 골라야 한다.
+   */
+  codeStickyScroll: boolean;
+  /** 겹쳐 고정할 최대 줄 수 (1–10). VS Code 와 같은 기본값 5. */
+  codeStickyMaxLines: number;
 
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
@@ -303,6 +314,8 @@ export const DEFAULTS: Settings = {
   codeAutoSave: "off",
   codeAutoSaveDelay: 1000,
   codePreviewTabs: true,
+  codeStickyScroll: false,
+  codeStickyMaxLines: 5,
 
   lastSeenVersion: "",
 
@@ -352,6 +365,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeAutoSave]: "codeAutoSave",
   [KEYS.codeAutoSaveDelay]: "codeAutoSaveDelay",
   [KEYS.codePreviewTabs]: "codePreviewTabs",
+  [KEYS.codeStickyScroll]: "codeStickyScroll",
+  [KEYS.codeStickyMaxLines]: "codeStickyMaxLines",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.onboarded]: "onboarded",
 };
