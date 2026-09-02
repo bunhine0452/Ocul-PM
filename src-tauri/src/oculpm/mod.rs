@@ -22,6 +22,7 @@ pub mod error;
 pub mod evals;
 pub mod firing_ledger;
 pub mod frontmatter;
+pub mod history;
 pub mod import;
 pub mod index;
 pub mod journal_draft;

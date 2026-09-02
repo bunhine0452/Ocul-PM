@@ -19,6 +19,7 @@ use tauri::State;
 use crate::commands::docs::natural_cmp;
 use crate::commands::project::secure_join;
 use crate::db::Db;
+use crate::oculpm::history::HistoryState;
 
 /// 트리 상한 — 이 이상은 `truncated` 로 알리고 자른다. gitignore 를 존중한
 /// 걸음에서 소스 파일이 2만을 넘는 저장소는 트리 UI 자체가 무의미해지는
@@ -267,6 +268,7 @@ pub async fn code_asset(
 #[specta::specta]
 pub async fn code_write(
     db: State<'_, Db>,
+    hist: State<'_, HistoryState>,
     project_id: u32,
     rel_path: String,
     content: String,
@@ -274,12 +276,20 @@ pub async fn code_write(
 ) -> Result<CodeWriteOutcome, String> {
     let root = project_root(&db, project_id).await?;
     let full = secure_join(&root, &rel_path)?;
-    tauri::async_runtime::spawn_blocking(move || {
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
         let full = canonical_within_root(&root, &full)?;
         write_with_lock(&full, &content, &base_hash)
     })
     .await
-    .map_err(|e| format!("Failed to save file: {e}"))?
+    .map_err(|e| format!("Failed to save file: {e}"))??;
+
+    // 로컬 히스토리는 워처 한 곳에서만 찍는다 (여기서 찍으면 이중 캡처다).
+    // 대신 **누가 썼는지**만 알려 준다 — 워처는 사람의 저장과 에이전트의
+    // 쓰기를 구별할 수 없고, 그 경계가 판 목록에서 가장 중요한 정보다.
+    if let CodeWriteOutcome::Saved { hash } = &outcome {
+        hist.note_self_write(project_id, &rel_path, hash);
+    }
+    Ok(outcome)
 }
 
 // ── 바깥에서 안으로: 파일 가져오기 (Finder 드래그 · ⌘V) ─────────────────────
@@ -607,6 +617,13 @@ pub async fn code_rename(
         let from_full = resolve_for_mutation(&root, &from_full)?;
         let to_full = resolve_for_mutation(&root, &to_full)?;
         let is_dir = rename_path(&from_full, &to_full)?;
+        // 로컬 히스토리를 새 경로 키로 옮긴다 (내용 유지). 워처는 rename 을
+        // 경로별 Delete + Create 로 흘려보내 둘을 잇지 못하므로, 앱 안에서
+        // 이름을 바꾸는 이 자리가 유일한 다리다. 실패는 조용히 넘긴다 —
+        // 판을 못 옮긴 것이 이름 바꾸기를 되돌릴 이유는 아니다.
+        if let Err(e) = crate::oculpm::history::rename(&root, &from, &to) {
+            tracing::warn!(from = %from, to = %to, error = %e, "local history: rename failed");
+        }
         Ok(CodePathResult {
             relative_path: to,
             is_dir,
@@ -820,7 +837,7 @@ pub async fn code_search_replace(
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
+pub(crate) async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db
         .get_project(project_id)
         .await
@@ -837,7 +854,7 @@ fn looks_binary(bytes: &[u8]) -> bool {
 /// 심링크를 안 따라가지만 `rel_path` 는 임의의 IPC 인자다). 실존 경로로
 /// 해석해 루트 안인지 다시 확인하고, 해석된 경로를 돌려준다 — 루트 안을
 /// 가리키는 심링크는 그 대상으로 저장되므로 링크 자체도 깨지지 않는다.
-fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
+pub(crate) fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
     let canon_root =
         std::fs::canonicalize(root).map_err(|e| format!("Failed to resolve project root: {e}"))?;
     let canon = std::fs::canonicalize(full).map_err(|e| format!("Failed to read file: {e}"))?;
@@ -854,7 +871,7 @@ fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
 /// [`secure_join`] 의 어휘적 검사는 `..` 탈출만 본다. 그 앞에서 **빈 경로**(=
 /// 프로젝트 루트 자신)와 구간 하나짜리 `.` / `..` 을 막아, 루트를 지우거나
 /// 이름을 바꾸는 요청이 애초에 만들어지지 않게 한다.
-fn normalize_rel(rel: &str) -> Result<String, String> {
+pub(crate) fn normalize_rel(rel: &str) -> Result<String, String> {
     let normalized = rel.replace('\\', "/");
     let segments: Vec<&str> = normalized
         .split('/')
@@ -1424,7 +1441,7 @@ static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 /// 해시 대조 → 같은 디렉터리 임시 파일 → 권한 복사 → rename. 동기 IO 라
 /// spawn_blocking 안에서 부른다.
-fn write_with_lock(
+pub(crate) fn write_with_lock(
     full: &Path,
     content: &str,
     base_hash: &str,

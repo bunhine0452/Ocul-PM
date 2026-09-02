@@ -314,7 +314,7 @@ export function CodeScreenV2({
       /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
     }
     void commands.lspDiagnosticsSnapshot(projectId).then((res) => {
-      if (!active || res.status !== "ok") return;
+      if (!active || res.status !== "ok" || !Array.isArray(res.data)) return;
       problemsStore.seed(projectId, res.data);
     });
     return () => {

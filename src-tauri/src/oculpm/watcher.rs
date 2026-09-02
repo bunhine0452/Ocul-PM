@@ -45,6 +45,7 @@ use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
 use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::error::OculpmError;
+use crate::oculpm::history;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::paths;
@@ -515,6 +516,15 @@ impl WatcherInner {
             );
         }
 
+        // 7.55 B5 — 로컬 히스토리 한 판 (06-local-history.md). 캡처 지점이
+        // **여기 한 곳**인 이유가 이 설계의 핵심이다: `should_track` 를 이미
+        // 통과했고, 디렉터리가 아니고, 해시가 이미 있고(중복 캡처를 공짜로
+        // 거른다), 무엇보다 **사람이 쓰든 에이전트가 쓰든 여기를 지난다**.
+        // `code_write` 에는 걸지 않는다 — 이중 캡처가 된다.
+        if !self.is_forbidden(&path) {
+            self.schedule_history_capture(&change);
+        }
+
         // 7.6 Phase 2 — 워처 자동화의 정착 타이머에 이벤트를 흘린다. 실제
         // 상대 경로를 쓴다(8단계 마스킹 **전**). forbidden 경로는 원인이 되지
         // 않는다: 우리가 내용을 보지 않기로 한 파일이 배경 LLM 호출을 부르면
@@ -811,6 +821,78 @@ impl WatcherInner {
             }
             .emit(handle);
         }
+    }
+
+    /// B5 — 로컬 히스토리 캡처 (fire-and-forget).
+    ///
+    /// 삭제는 판을 만들지 않는다 — **지운 파일의 내용을 되찾는 것이 이 기능의
+    /// 가장 좋은 순간**이라, 삭제 시점에 판을 더하는 대신 기존 판을 그대로
+    /// 둔다. 해시가 없는 이벤트(파일이 해시 상한보다 크다)도 건너뛴다: 어차피
+    /// 스냅샷 상한(256KB)을 훨씬 넘는 크기다.
+    fn schedule_history_capture(&self, change: &FileChangeEvent) {
+        if matches!(change.op, FileOp::Delete) {
+            return;
+        }
+        let Some(handle) = self.app_handle.clone() else {
+            return;
+        };
+        let Some(hash) = change.hash_after.clone() else {
+            return;
+        };
+        if !history::should_capture(&change.path) {
+            return;
+        }
+        let project_id = self.project_id;
+        let root = self.root.clone();
+        let rel_path = change.path.clone();
+        let op = if matches!(change.op, FileOp::Create) {
+            history::HistoryOp::Create
+        } else {
+            history::HistoryOp::Update
+        };
+        tauri::async_runtime::spawn(async move {
+            use tauri::Manager;
+            let db = handle.state::<Db>();
+            // 이 라운드에서 유일하게 기본 **켜짐**인 설정이다 — 소급이
+            // 불가능하기 때문이다(안 찍어 둔 판은 영원히 없다).
+            let on = db
+                .settings_get("code_local_history".to_string())
+                .await
+                .ok()
+                .flatten();
+            if matches!(on.as_deref(), Some("false") | Some("0")) {
+                return;
+            }
+            let max = db
+                .settings_get("code_local_history_max_entries".to_string())
+                .await
+                .ok()
+                .flatten()
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(history::DEFAULT_MAX_ENTRIES);
+
+            // 쪽지 소비는 동기다 — `spawn_blocking` 너머로 State 를 들고 가지 않는다.
+            let source = handle
+                .state::<history::HistoryState>()
+                .take_source(project_id, &rel_path, &hash);
+
+            let path_for_log = rel_path.clone();
+            let done = tauri::async_runtime::spawn_blocking(move || {
+                history::capture(&root, &rel_path, op, source, Some(&hash), max)
+            })
+            .await;
+            match done {
+                Ok(Ok(history::CaptureOutcome::Captured)) => tracing::debug!(
+                    target: "oculpm::watcher", project_id, path = %path_for_log, ?source,
+                    "local history: captured a version"
+                ),
+                Ok(Err(e)) => tracing::warn!(
+                    target: "oculpm::watcher", project_id, path = %path_for_log, error = %e,
+                    "local history: capture failed"
+                ),
+                _ => {}
+            }
+        });
     }
 
     /// PR-5 — fire-and-forget incremental reindex of one changed code file so
@@ -2016,6 +2098,21 @@ mod tests {
         assert!(!is_agent_state_path("src/main.rs"));
         assert!(!is_agent_state_path("game.js"));
         assert!(!is_agent_state_path("AGENTS.md")); // root adapter, not a state dir
+    }
+
+    #[test]
+    fn local_history_writes_never_re_trigger_the_watcher() {
+        // B5 의 저장 위치가 워처 자기 억제 안에 있다는 것이 그 설계의 전제다
+        // (`entry_diffs` 와 같은 이유로 `.oculpm/index/` 아래를 골랐다).
+        // 여기가 깨지면 캡처가 이벤트를 낳고 그 이벤트가 다시 캡처를 부른다.
+        let dir = history::dir_for(Path::new("/p"), "src/main.rs");
+        let rel = dir
+            .strip_prefix("/p")
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        assert!(is_self_suppressed(&rel));
+        assert!(is_self_suppressed(&format!("{rel}/meta.json")));
     }
 
     #[test]

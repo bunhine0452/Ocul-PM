@@ -1962,6 +1962,40 @@
   color: var(--accent-text);
 }
 
+/* 로컬 히스토리 팝오버 — 일지 팝오버와 같은 뼈대, 행 하나가 한 판이다. */
+.code-hist-src {
+  grid-row: 1 / 3;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+/* 사람과 에이전트를 색으로 가른다 — 목록에서 가장 먼저 읽히는 정보다. */
+.code-hist-src.s-user { background: var(--accent); }
+.code-hist-src.s-agent { background: var(--text-3); }
+.code-hist-empty {
+  padding: 8px 9px 10px;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+}
+.code-hist-forget {
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 9px;
+  border: none;
+  border-top: 1px solid var(--sep);
+  border-radius: 0 0 7px 7px;
+  background: none;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  text-align: left;
+  cursor: pointer;
+}
+.code-hist-forget:hover {
+  background: var(--bg-hover);
+  color: var(--danger-text);
+}
+
 /* 비교 모드 배너 — 충돌 배너와 같은 자리·다른 온도 (정보이지 경고가 아니다). */
 .code-diffbar {
   flex: none;

@@ -40,6 +40,7 @@ import {
   ExternalLink,
   FileCode,
   GitCompareArrows,
+  History,
   ImageFileIcon,
   NotebookText,
   TriangleAlert,
@@ -58,6 +59,11 @@ import { CodeTabsBar } from "./CodeTabsBar";
 import { isSvgPath, previewKindFor, type PreviewKind } from "./previewKind";
 import { applyHygiene, hygieneForPath, type HygieneOptions } from "./saveHygiene";
 import { useAutoSave } from "./autoSave";
+import { CodeHistory, versionTimeLabel } from "./CodeHistory";
+import { useFileHistory } from "./useFileHistory";
+import { codeHistoryApi, type CodeHistoryVersion } from "@/api/codeHistory";
+import { toAppError } from "@/api/invoke";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
 import { adapterLanguageFor } from "./debugConfig";
@@ -251,12 +257,24 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const [diffMode, setDiffMode] = useState<
     | { kind: "head" }
     | { kind: "entry"; title: string; journalPath: string }
+    | { kind: "history"; ts: string; label: string }
     | null
   >(null);
   const [diffOriginal, setDiffOriginal] = useState<string | null>(null);
   // 이 파일을 files_touched 로 만진 일지들 — 브레드크럼의 일지 칩.
   const [fileEntries, setFileEntries] = useState<FileJournalEntry[]>([]);
   const [entriesOpen, setEntriesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
+  // 로컬 히스토리 — 캡처는 워처가 한다. 여기는 목록을 읽고 지우기만 한다.
+  // 훅이 돌려주는 함수 셋은 신원이 안정적이라 그대로 의존성에 넣는다 (객체째
+  // 넣으면 매 렌더가 새 객체라 워처 구독이 렌더마다 다시 걸린다).
+  const {
+    versions: historyVersions,
+    refresh: refreshHistory,
+    refreshSoon: refreshHistorySoon,
+    forget: forgetVersions,
+  } = useFileHistory(projectId, activePath, settings.codeLocalHistory);
   const [pendingJump, setPendingJump] = useState<{
     line: number;
     ch?: number;
@@ -387,6 +405,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     setDiffMode(null);
     setDiffOriginal(null);
     setEntriesOpen(false);
+    setHistoryOpen(false);
     // 미리보기는 파일에 붙는다 — 다음 파일이 svg 가 아닐 수 있으므로 접고 간다.
     setSvgOpen(false);
     if (!activePath) {
@@ -466,6 +485,87 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     },
     [],
   );
+
+  /**
+   * 판 하나와 비교하기. HEAD·일지 비교와 **같은 기계**를 쓴다 — 원본을
+   * `diffOriginal` 에 넣고 에디터를 다시 마운트하면 끝이다.
+   */
+  const enterHistoryDiff = useCallback(
+    async (version: CodeHistoryVersion) => {
+      const path = pathRef.current;
+      if (!path || !bufferRef.current) return;
+      try {
+        const text = await codeHistoryApi.read(projectId, path, version.ts);
+        if (pathRef.current !== path) return;
+        setDiffOriginal(normalizeEol(text));
+        setDiffMode({
+          kind: "history",
+          ts: version.ts,
+          label: versionTimeLabel(version.ts, Date.now()),
+        });
+        setPendingJump({ line: cursorRef.current.line });
+        setEditorEpoch((n) => n + 1);
+      } catch {
+        // 캡·예산 정리가 그 사이 그 판을 걷어 갔다 — 목록을 새로 읽어 맞춘다.
+        toast.info(t("code.hist.gone"));
+        void refreshHistory();
+      }
+    },
+    [projectId, refreshHistory],
+  );
+
+  /**
+   * 이 판으로 되돌리기. `code_write` 와 **같은 낙관적 잠금**을 통과한다 —
+   * 판을 되살리는 것이 남의 최신 작업을 조용히 덮는 창구가 되면 안 된다.
+   */
+  const restoreVersion = useCallback(async () => {
+    const path = pathRef.current;
+    const buf = bufferRef.current;
+    if (!path || !buf || diffMode?.kind !== "history") return;
+    const isDirty = buf.text !== buf.baseText;
+    const ok = await confirm({
+      title: t("code.hist.restoreTitle", { time: diffMode.label }),
+      message: isDirty ? t("code.hist.restoreDirty") : t("code.hist.restoreBody"),
+      confirmLabel: t("code.hist.restore"),
+      danger: isDirty,
+    });
+    if (!ok) return;
+    try {
+      const outcome = await codeHistoryApi.restore(projectId, path, diffMode.ts, buf.baseHash);
+      if (pathRef.current !== path) return;
+      if (outcome.kind === "conflict") {
+        setConflict({ diskHash: outcome.disk_hash });
+        return;
+      }
+      setDiffMode(null);
+      setDiffOriginal(null);
+      // 되돌리기는 디스크를 갈아 끼운다 — 버퍼도 그 자리에서 새로 읽는다.
+      await loadFile(path, { discardBuffer: true });
+      toast.info(t("code.hist.restored", { time: diffMode.label }));
+      refreshHistorySoon();
+    } catch (e) {
+      toast.destructive(t("code.hist.restoreFailed", { error: tError(toAppError(e)) }));
+    }
+  }, [projectId, diffMode, confirm, loadFile, refreshHistorySoon]);
+
+  /** 이 파일의 판 전부 지우기 — 민감한 파일이 한 번 들어왔을 때의 문. */
+  const forgetHistory = useCallback(async () => {
+    const path = pathRef.current;
+    if (!path) return;
+    const ok = await confirm({
+      title: t("code.hist.forgetTitle"),
+      message: t("code.hist.forgetBody", { path }),
+      confirmLabel: t("code.hist.forget"),
+      danger: true,
+    });
+    if (!ok) return;
+    setHistoryOpen(false);
+    try {
+      await forgetVersions();
+    } catch (e) {
+      toast.destructive(tError(toAppError(e)));
+    }
+  }, [confirm, forgetVersions]);
 
   const exitDiff = useCallback(() => {
     setDiffMode(null);
@@ -930,6 +1030,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       if (payload.project_id !== projectId) return;
       const path = pathRef.current;
       if (!path || payload.event.path !== path) return;
+      // 캡처는 이 이벤트 **뒤에** fire-and-forget 으로 돈다 — 곧바로 물으면
+      // 방금 그 판이 아직 없다. 잠깐 뒤에 다시 센다.
+      refreshHistorySoon();
       void (async () => {
         // 미리보기 파일은 본문이 아니라 자산을 다시 읽는다 — 에이전트가 스크린샷을
         // 갈아 끼우면 화면도 따라가야 한다.
@@ -967,7 +1070,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       })();
     });
     return () => safeUnlistenPromise(un);
-  }, [projectId]);
+  }, [projectId, refreshHistorySoon]);
 
   // ── 외부 에디터 ────────────────────────────────────────────────────────
   const openExternal = useCallback(async () => {
@@ -1064,13 +1167,36 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               <button
                 type="button"
                 className={"code-crumb-act" + (entriesOpen ? " on" : "")}
-                onClick={() => setEntriesOpen((v) => !v)}
+                onClick={() => {
+                  setEntriesOpen((v) => !v);
+                  setHistoryOpen(false);
+                }}
                 title={t("code.jrnl.chipTitle", { count: fileEntries.length })}
                 aria-label={t("code.jrnl.chipTitle", { count: fileEntries.length })}
                 aria-expanded={entriesOpen}
               >
                 <NotebookText size={13} />
                 <span className="code-crumb-act-n">{fileEntries.length}</span>
+              </button>
+            ) : null}
+            {/* 이 파일의 판 — 커밋 사이의 시간을 여는 유일한 문. */}
+            {historyVersions.length > 0 ? (
+              <button
+                type="button"
+                className={"code-crumb-act" + (historyOpen ? " on" : "")}
+                onClick={() => {
+                  setHistoryOpen((v) => {
+                    if (!v) void refreshHistory();
+                    return !v;
+                  });
+                  setEntriesOpen(false);
+                }}
+                title={t("code.hist.chipTitle", { count: historyVersions.length })}
+                aria-label={t("code.hist.chipTitle", { count: historyVersions.length })}
+                aria-expanded={historyOpen}
+              >
+                <History size={13} />
+                <span className="code-crumb-act-n">{historyVersions.length}</span>
               </button>
             ) : null}
             {/* svg — 코드로 열되 그림도 옆에 띄운다 (VS Code 의 Open Preview 자리). */}
@@ -1139,6 +1265,17 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         </div>
       ) : null}
 
+      {historyOpen ? (
+        <CodeHistory
+          versions={historyVersions}
+          onPick={(v) => {
+            setHistoryOpen(false);
+            void enterHistoryDiff(v);
+          }}
+          onForget={() => void forgetHistory()}
+        />
+      ) : null}
+
       {/* 비교 모드 배너 — 지금 무엇과 비교 중인지, 나가는 길. */}
       {diffMode ? (
         <div className="code-diffbar" role="status">
@@ -1146,7 +1283,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           <span className="code-diffbar-label">
             {diffMode.kind === "head"
               ? t("code.diff.banner.head")
-              : t("code.diff.banner.entry", { title: diffMode.title })}
+              : diffMode.kind === "entry"
+                ? t("code.diff.banner.entry", { title: diffMode.title })
+                : t("code.diff.banner.history", { time: diffMode.label })}
           </span>
           {diffMode.kind === "entry" ? (
             <button
@@ -1155,6 +1294,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onClick={() => openJournal(diffMode.journalPath)}
             >
               {t("code.jrnl.open")}
+            </button>
+          ) : null}
+          {diffMode.kind === "history" ? (
+            <button type="button" className="btn ghost sm" onClick={() => void restoreVersion()}>
+              {t("code.hist.restore")}
             </button>
           ) : null}
           <button type="button" className="code-diffbar-exit" onClick={exitDiff} aria-label={t("code.diff.exit")} title={t("code.diff.exit")}>
@@ -1411,6 +1555,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           </p>
         </div>
       </AppDialog>
+
+      {confirmDialog}
     </div>
   );
 });

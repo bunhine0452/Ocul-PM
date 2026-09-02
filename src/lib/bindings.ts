@@ -548,6 +548,27 @@ export const commands = {
 	 *  비교할 기준이 없다는 것도 답이다.
 	 */
 	codeHeadContent: (projectId: number, relPath: string) => typedError<string | null, string>(__TAURI_INVOKE("code_head_content", { projectId, relPath })),
+	/**  이 파일의 판 목록 (최신순). 히스토리가 없으면 빈 배열 — 오류가 아니다. */
+	codeHistoryList: (projectId: number, relPath: string) => typedError<CodeHistoryVersion[], string>(__TAURI_INVOKE("code_history_list", { projectId, relPath })),
+	/**
+	 *  그 판의 내용. 정리돼 사라졌으면 오류다 — 빈 문자열로 접으면 "그 판이
+	 *  비어 있었다" 와 구별되지 않는다.
+	 */
+	codeHistoryRead: (projectId: number, relPath: string, ts: string) => typedError<string, string>(__TAURI_INVOKE("code_history_read", { projectId, relPath, ts })),
+	/**
+	 *  그 판의 내용을 지금 파일에 쓴다. `base_hash` 는 프런트가 마지막으로 읽은
+	 *  디스크 해시 — 어긋나면 `Conflict` 를 돌려주고 아무것도 쓰지 않는다.
+	 */
+	codeHistoryRestore: (projectId: number, relPath: string, ts: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_history_restore", { projectId, relPath, ts, baseHash })),
+	/**  이 파일의 판 전부 삭제 (사용자 요청 · 민감 파일). */
+	codeHistoryForget: (projectId: number, relPath: string) => typedError<null, string>(__TAURI_INVOKE("code_history_forget", { projectId, relPath })),
+	/**
+	 *  지금 쓰는 용량 (바이트). 설정 화면이 자기 크기를 보여 주기 위한 것 —
+	 *  보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다.
+	 */
+	codeHistoryUsage: (projectId: number) => typedError<number, string>(__TAURI_INVOKE("code_history_usage", { projectId })),
+	/**  프로젝트의 판 전부 삭제 (설정 화면의 "전부 지우기"). */
+	codeHistoryClear: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("code_history_clear", { projectId })),
 	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
 	lspStatus: (projectId: number) => typedError<LspServerInfo[], string>(__TAURI_INVOKE("lsp_status", { projectId })),
 	/**
@@ -2669,6 +2690,25 @@ export type CodeGraph = {
 };
 
 /**
+ *  프런트로 건너가는 판 하나.
+ * 
+ *  `ts` 가 **십진 문자열**인 이유: specta 는 i64 를 그대로 못 내보내고(정밀도
+ *  손실), f64 로 우회하면 TS 에 `number | null` 로 샌다. epoch ms 는 되돌려
+ *  받아야 하는 **신원 값**이라 옵셔널이 되면 안 된다 — 그래서 경계에서만
+ *  문자열이다 (docs/2026521/Errors/2026-05-21-specta-bigint-export.md 의
+ *  체크리스트가 정확히 이 선택지를 적어 뒀다). 디스크의 `meta.json` 은 계속
+ *  숫자다.
+ */
+export type CodeHistoryVersion = {
+	ts: string,
+	/**  blake3 hex (접두어 없음). */
+	hash: string,
+	bytes: number,
+	source: HistorySource,
+	op: HistoryOp,
+};
+
+/**
  *  `code_import` 결과. 건너뛴 것은 이유를 묶어 **개수만** 돌려준다 — 한 번에
  *  수백 개가 건너뛰어질 수 있어 목록을 그대로 토스트에 부으면 읽히지 않는다.
  */
@@ -3606,6 +3646,19 @@ export type HeatmapCell = {
 	file_event_count: number,
 	score: number,
 };
+
+/**
+ *  그 판이 만들어진 이유. `create` 는 **우리가 처음 본 판**이라는 뜻이다 —
+ *  히스토리를 켜기 전부터 있던 파일의 첫 판은 워처가 준 op 를 그대로 믿는다.
+ */
+export type HistoryOp = "create" | "update";
+
+/**
+ *  이 판을 만든 손. 자동 저장이 켜지면 사람 저장이 초 단위로 쌓이므로 병합이
+ *  필요하고, 반대로 **내 저장 직후의 에이전트 쓰기는 절대 병합하면 안 된다** —
+ *  그 경계가 바로 사용자가 보고 싶어 하는 지점이다.
+ */
+export type HistorySource = "user" | "agent";
 
 export type HomeActivePlan = {
 	plan_id: string,

@@ -30,6 +30,7 @@ export const ALLOWLIST = new Set([
   "api/plugins.ts",
   "api/import.ts",
   "api/llm.ts",
+  "api/codeHistory.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "components/CommandPalette.tsx",

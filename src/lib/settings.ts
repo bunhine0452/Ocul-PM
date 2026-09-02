@@ -107,6 +107,8 @@ export const KEYS = {
   codePreviewTabs: "code_preview_tabs",
   codeStickyScroll: "code_sticky_scroll",
   codeStickyMaxLines: "code_sticky_max_lines",
+  codeLocalHistory: "code_local_history",
+  codeLocalHistoryMaxEntries: "code_local_history_max_entries",
 
   // --- 첫 실행 ---
   // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
@@ -253,6 +255,17 @@ export interface Settings {
   codeStickyScroll: boolean;
   /** 겹쳐 고정할 최대 줄 수 (1–10). VS Code 와 같은 기본값 5. */
   codeStickyMaxLines: number;
+  /**
+   * 파일이 바뀔 때마다 그 시점 내용을 한 판 남긴다 (사람 저장·에이전트 쓰기 모두).
+   *
+   * 기본 **켜짐** — 이 라운드에서 유일한 예외다. **소급이 불가능**하기 때문이다:
+   * 안 찍어 둔 판은 나중에 켜도 영원히 없다. 대신 캡이 작고(파일당 50판 ·
+   * 판당 256KB), 저장 위치가 gitignore 안이며, "이 파일 판 지우기" 와
+   * "전부 지우기" 를 준다.
+   */
+  codeLocalHistory: boolean;
+  /** 파일당 남길 최대 판 수 (0 이면 사실상 끄기와 같다). VS Code 기본값 50. */
+  codeLocalHistoryMaxEntries: number;
 
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
@@ -316,6 +329,8 @@ export const DEFAULTS: Settings = {
   codePreviewTabs: true,
   codeStickyScroll: false,
   codeStickyMaxLines: 5,
+  codeLocalHistory: true,
+  codeLocalHistoryMaxEntries: 50,
 
   lastSeenVersion: "",
 
@@ -367,6 +382,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codePreviewTabs]: "codePreviewTabs",
   [KEYS.codeStickyScroll]: "codeStickyScroll",
   [KEYS.codeStickyMaxLines]: "codeStickyMaxLines",
+  [KEYS.codeLocalHistory]: "codeLocalHistory",
+  [KEYS.codeLocalHistoryMaxEntries]: "codeLocalHistoryMaxEntries",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.onboarded]: "onboarded",
 };

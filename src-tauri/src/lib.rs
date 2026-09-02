@@ -197,6 +197,13 @@ use crate::commands::{
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
     code_file_entries,
     code_head_content,
+    // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
+    code_history_clear,
+    code_history_forget,
+    code_history_list,
+    code_history_read,
+    code_history_restore,
+    code_history_usage,
     code_import,
     code_mkdir,
     code_read,
@@ -643,6 +650,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             code_delete,
             code_file_entries,
             code_head_content,
+            // 코드 화면 — 로컬 히스토리
+            code_history_list,
+            code_history_read,
+            code_history_restore,
+            code_history_forget,
+            code_history_usage,
+            code_history_clear,
             lsp_status,
             lsp_open,
             lsp_change,
@@ -1006,6 +1020,9 @@ pub fn run() {
             app.manage(crate::acp::AcpState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
             app.manage(crate::lsp::state::LspState::default());
+            // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
+            // 소비한다 (사람이 저장했나, 에이전트가 썼나).
+            app.manage(crate::oculpm::history::HistoryState::default());
             app.manage(crate::dap::state::DapState::default());
             // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowTabs::default());

@@ -24,7 +24,18 @@ import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import { toAppError } from "@/api/invoke";
+import { codeHistoryApi } from "@/api/codeHistory";
+import { formatBytes } from "@/lib/format";
+import { useConfirm } from "@/hooks/useConfirm";
 import { Input } from "@/components/ui/input";
+
+/**
+ * 파일당 판 수의 입력 상한. 캡 자체는 백엔드가 강제하고(파일당 50이 기본),
+ * 여기서 더 큰 값을 받아도 되지만 판당 256KB × N 이 곧 디스크라 손으로 넣을 수
+ * 있는 최대를 눈에 보이게 둔다.
+ */
+const MAX_LOCAL_HISTORY_ENTRIES = 200;
 
 /** 자동 저장 방식의 라벨 — 키를 계산하지 않고 적어 둔다 (i18n 린트가 볼 수 있게). */
 const AUTO_SAVE_LABEL: Record<AutoSaveMode, I18nKey> = {
@@ -65,6 +76,43 @@ export function CodeSettings({
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
 
   const [rows, setRows] = useState<Row[] | null>(null);
+  // 로컬 히스토리가 지금 먹는 용량 (`null` = 아직 안 셈).
+  const [usage, setUsage] = useState<number | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+
+  const loadUsage = useCallback(async () => {
+    if (projectId == null) {
+      setUsage(null);
+      return;
+    }
+    try {
+      setUsage(await codeHistoryApi.usage(projectId));
+    } catch {
+      setUsage(null);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadUsage();
+  }, [loadUsage]);
+
+  const clearHistory = useCallback(async () => {
+    if (projectId == null) return;
+    const ok = await confirm({
+      title: t("settings.code.historyClearTitle"),
+      message: t("settings.code.historyClearBody"),
+      confirmLabel: t("settings.code.historyClear"),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await codeHistoryApi.clear(projectId);
+      toast.info(t("settings.code.historyCleared"));
+      await loadUsage();
+    } catch (e) {
+      toast.destructive(tError(toAppError(e)));
+    }
+  }, [projectId, confirm, t, loadUsage]);
 
   const load = useCallback(async () => {
     if (projectId == null) {
@@ -231,6 +279,64 @@ export function CodeSettings({
         <p className="text-[11px] text-muted-foreground/80">{t("settings.code.autoSaveHint")}</p>
       </Section>
 
+      <Section
+        title={t("settings.code.historyTitle")}
+        description={t("settings.code.historyDesc")}
+      >
+        <Toggle
+          checked={settings.codeLocalHistory}
+          onChange={(v) => void set("codeLocalHistory", v)}
+          label={t("settings.code.localHistory")}
+        />
+        <p className="text-[11px] text-muted-foreground/80">
+          {t("settings.code.localHistoryHint")}
+        </p>
+        {settings.codeLocalHistory ? (
+          <Field label={t("settings.code.localHistoryMax")}>
+            <Input
+              type="number"
+              min={0}
+              max={MAX_LOCAL_HISTORY_ENTRIES}
+              value={settings.codeLocalHistoryMaxEntries}
+              onChange={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) {
+                  void set(
+                    "codeLocalHistoryMaxEntries",
+                    Math.min(MAX_LOCAL_HISTORY_ENTRIES, Math.max(0, Math.floor(n))),
+                  );
+                }
+              }}
+              className="w-24 font-mono"
+            />
+          </Field>
+        ) : null}
+        <p className="text-[11px] text-muted-foreground/80">
+          {t("settings.code.localHistoryMaxHint")}
+        </p>
+        {/* 보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 보여 줘야 한다. */}
+        {projectId == null ? (
+          <p className="text-xs text-muted-foreground">{t("settings.code.historyNoProject")}</p>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {t("settings.code.historyUsage")}{" "}
+              <span className="font-mono text-foreground/80">
+                {usage == null ? "…" : formatBytes(usage)}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="btn ghost sm"
+              disabled={usage === 0}
+              onClick={() => void clearHistory()}
+            >
+              {t("settings.code.historyClear")}
+            </button>
+          </div>
+        )}
+      </Section>
+
       <Section title={t("settings.code.lspTitle")} description={t("settings.code.lspDesc")}>
         {projectId == null ? (
           <p className="text-xs text-muted-foreground">{t("settings.code.lspNeedsProject")}</p>
@@ -252,6 +358,8 @@ export function CodeSettings({
         )}
         <p className="text-[11px] text-muted-foreground/80">{t("settings.code.noAutoInstall")}</p>
       </Section>
+
+      {confirmDialog}
     </>
   );
 }
