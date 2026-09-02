@@ -5,6 +5,7 @@ import {
   shellQuote,
   stageBootCommand,
   takeBootCommand,
+  todayQuickSessionId,
 } from "@/features/terminal/terminalLaunch";
 
 // 터미널로 CLI 에이전트를 띄우는 길 (ACP 가 못 닿는 기능의 탈출구).
@@ -17,6 +18,28 @@ describe("newPtySessionId", () => {
 
   it("omits the prefix when there is no project", () => {
     expect(newPtySessionId(null)).toMatch(/^[a-z0-9]+$/);
+  });
+});
+
+describe("todayQuickSessionId", () => {
+  /**
+   * 고정 문자열(`today-quick`)이던 시절의 버그: 프로젝트 탭은 한 번 열면 계속
+   * 마운트돼 있어서, 두 탭에서 펼치면 **같은 셸**에 xterm 둘이 붙었다 — B 에
+   * 친 명령이 A 의 디렉터리에서 돌고, 한쪽을 접으면 다른 쪽 셸이 죽었다.
+   */
+  it("gives each project its own quick shell", () => {
+    expect(todayQuickSessionId(1)).not.toBe(todayQuickSessionId(2));
+  });
+
+  /** 접두사 규격 — 백엔드가 이걸로 자기 프로젝트 세션만 골라 죽인다. */
+  it("stamps the project so the backend reaps it with the tab", () => {
+    expect(todayQuickSessionId(7)).toBe("p7-today");
+    expect(todayQuickSessionId(7).startsWith("p7-")).toBe(true);
+  });
+
+  /** 접었다 펴면 같은 자리여야 한다 (난수 id 가 아니다). */
+  it("is stable across collapse and expand", () => {
+    expect(todayQuickSessionId(3)).toBe(todayQuickSessionId(3));
   });
 });
 

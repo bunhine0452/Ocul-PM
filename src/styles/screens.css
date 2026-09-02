@@ -1136,6 +1136,19 @@ mark.s-hit {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 58%, transparent);
 }
 
+/* 셸이 끝난 페인 (2026-09-02). 출력을 가리지 않는다 — 읽고 복사할 수 있어야
+   하므로 아래쪽에 얹히는 알약 하나다. 예전엔 `[프로세스 종료됨]` 한 줄만 찍고
+   말아서, 그 뒤 타이핑이 어디로도 가지 않는 걸 아무도 알려주지 않았다. */
+.term-ended {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px 5px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--term-bg) 82%, var(--term-chrome));
+  box-shadow: inset 0 0 0 1px var(--sep-strong), var(--shadow-card);
+  color: var(--text-2); font-size: var(--fs-5); white-space: nowrap;
+  animation: term-drop-in 150ms var(--ease-spring);
+}
+
 /* 놓으면 차지할 자리. z-index 6 — 페인의 상태 띠(4)·포커스 링(3)·닫기(5) 위. */
 /* 여기도 전환 없음 — 같은 이유다 (위 `.term-rail-caret` 주석). 특히 이 상자는
    페인 사이를 건너뛸 때 화면을 가로질러 미끄러져서, 겨눈 곳보다 지나온 자취가

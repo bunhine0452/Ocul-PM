@@ -288,6 +288,7 @@ export function TodayScreenV2({
 
           {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
           <TodayTerminal
+            projectId={projectId}
             projectRoot={projectRoot}
             open={termOpen}
             onOpenChange={setTermOpen}

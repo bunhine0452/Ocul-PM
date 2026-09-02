@@ -372,15 +372,19 @@ pub async fn resize_pty(
         // 미지의 세션 resize 는 종전에도 조용한 no-op 였다.
         return Ok(());
     };
+    // 전송 실패(타임아웃·접속 끊김)를 성공으로 접으면 안 된다 (2026-09-02).
+    // 프런트의 resize 큐는 "보낸 크기" 를 기억해 같은 값을 다시 보내지 않으므로,
+    // 여기서 조용히 Ok 를 주면 **PTY 가 옛 폭에 굳고** 사용자가 크기를 또 바꿀
+    // 때까지 그대로다 — `ptyResize.ts` 가 존재하는 이유인 그 깨진 화면이다.
     match client
         .request(Request::Resize {
             sid: session_id,
             rows,
             cols,
         })
-        .await
+        .await?
     {
-        Ok(Response::Error { message }) => Err(message),
+        Response::Error { message } => Err(message),
         _ => Ok(()),
     }
 }

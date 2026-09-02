@@ -30,6 +30,21 @@ pub struct PtyHostClient {
     pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Response>>>>,
     next_id: AtomicU64,
     alive: Arc<AtomicBool>,
+    /// 읽기 루프. 버릴 때 **여기서 소켓을 놓아야** 호스트가 EOF 를 본다.
+    reader: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for PtyHostClient {
+    /// 죽었다고 표시만 하고 버린 접속이 소켓을 붙들고 있었다 (2026-09-02).
+    ///
+    /// 요청 타임아웃은 `alive=false` 만 세우고 이 클라이언트를 슬롯에서 뺀다.
+    /// 그런데 읽기 태스크는 `read()` 에 파킹된 채 살아 있어 접속이 열린 그대로
+    /// 남았고, 호스트의 **클라이언트 수가 줄지 않아** 유휴 자동 종료(클라이언트
+    /// 0 · 세션 0)가 영영 걸리지 않았다. 태스크를 끊으면 read half 가 드롭되고,
+    /// 쓰기 태스크는 `tx` 드롭으로 이미 끝나므로 호스트가 EOF 를 본다.
+    fn drop(&mut self) {
+        self.reader.abort();
+    }
 }
 
 impl PtyHostClient {
@@ -62,7 +77,7 @@ impl PtyHostClient {
 
         let pending_reader = pending.clone();
         let alive_reader = alive.clone();
-        tokio::spawn(async move {
+        let reader = tokio::spawn(async move {
             let mut buf: Vec<u8> = Vec::new();
             let mut chunk = [0u8; 16 * 1024];
             'conn: loop {
@@ -112,6 +127,7 @@ impl PtyHostClient {
             pending,
             next_id: AtomicU64::new(1),
             alive,
+            reader,
         };
 
         // 프로토콜 확인 — 불일치면 (업데이트로 형식이 바뀐 뒤의 구버전 호스트)
