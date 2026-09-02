@@ -242,6 +242,12 @@ export function openTurn(
  * 그래서 `replay` 를 켜면 필요한 턴을 **직접 연다**. 끄면 열려 있는 마지막
  * 에이전트 턴에만 붙이고 나머지는 버린다 — 턴이 끝난 뒤 늦게 도착한 청크를
  * 엉뚱한 곳에 섞는 것보다 버리는 편이 낫다.
+ *
+ * **버릴 때는 받은 배열을 그대로 돌려준다.** 예전에는 아무 것도 안 한 자리도
+ * `[...turns]` 로 새 배열을 만들었는데, 호출부는 그것을 "바뀌었다"로 읽고
+ * 기록 전체를 다시 그렸다 — 묶음 나누기와 `TurnRow` memo 가 통째로 헛돈다.
+ * 취소한 턴에 청크가 계속 흘러 들어오는 구간이 특히 그랬다: 프레임마다 스레드
+ * 전체가 다시 그려지는데 화면에는 아무 변화가 없다.
  */
 export function applyAcpEvent(
   turns: readonly AcpTurn[],
@@ -258,7 +264,7 @@ export function applyAcpEvent(
 ): AcpTurn[] {
   // 사용자 발화는 재생에서만 의미가 있다 — 라이브에서는 우리가 이미 그렸다.
   if (event.kind === "user_chunk") {
-    if (!replay) return [...turns];
+    if (!replay) return turns as AcpTurn[];
     const tail = turns[turns.length - 1];
     if (tail?.role === "user") {
       const merged = [...turns];
@@ -274,7 +280,7 @@ export function applyAcpEvent(
   // 여기서 먼저, 마지막 에이전트 턴에 붙인다.
   if (event.kind === "file_change_report") {
     const at = lastAgentIndex(turns);
-    if (at < 0) return [...turns];
+    if (at < 0) return turns as AcpTurn[];
     const merged = [...turns];
     merged[at] = {
       ...turns[at],
@@ -298,7 +304,7 @@ export function applyAcpEvent(
     event.kind === "done" ||
     event.kind === "tool_call" ||
     event.kind === "tool_update";
-  if (!handled) return [...turns];
+  if (!handled) return turns as AcpTurn[];
 
   // 재생 중에 받을 턴이 없으면 연다 (사용자 발화 바로 뒤가 그 자리다).
   const base: readonly AcpTurn[] =
@@ -313,7 +319,7 @@ export function applyAcpEvent(
 
   const index = base.length - 1;
   const last = base[index];
-  if (!last || last.role !== "agent" || last.closed) return [...base];
+  if (!last || last.role !== "agent" || last.closed) return base as AcpTurn[];
 
   const next = [...base];
   switch (event.kind) {
@@ -466,7 +472,7 @@ function patchTool(
 export function closeTurn(turns: readonly AcpTurn[], now?: number): AcpTurn[] {
   const index = turns.length - 1;
   const last = turns[index];
-  if (!last || last.role !== "agent") return [...turns];
+  if (!last || last.role !== "agent" || last.closed) return turns as AcpTurn[];
   const next = [...turns];
   next[index] =
     now != null && !last.closed

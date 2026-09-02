@@ -74,6 +74,7 @@ import {
 import { recallBack, recallForward, type RecallState } from "./promptHistory";
 import { markSpoken, sortActiveFirst, stabilizeHistory, type ActivityLedger } from "./acpHistory";
 import { resolveTitle, titleFromPrompt } from "./acpTitle";
+import { sameOptions } from "./acpOptions";
 import { revealCount, splitAt } from "./streamPacer";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { registerBusy } from "@/lib/busyGuard";
@@ -92,6 +93,15 @@ const EMPTY_TURNS: AcpTurn[] = [];
 
 /** 같은 이유의 빈 목록 (아직 대화 목록을 못 읽었을 때). */
 const EMPTY_SESSIONS: AcpSessionSummary[] = [];
+
+/**
+ * 지난 대화 **목록의 내용**을 바꾸는 사건들.
+ *
+ * 목록 조회는 어댑터로 나가는 진짜 왕복이라 아무 알림에나 달면 안 된다 —
+ * 특히 `usage` 는 턴이 도는 동안 계속 온다. 줄이 생기거나(created) 사라지거나
+ * (deleted) 이름이 붙는(title) 때만 다시 읽는다.
+ */
+const HISTORY_KINDS: ReadonlySet<string> = new Set(["created", "deleted", "title"]);
 
 /**
  * "바닥에 있다"로 볼 여유 (px).
@@ -171,6 +181,21 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   );
   const [session, setSession] = useState<AcpSession | null>(null);
   /**
+   * 최신 `session` — **비동기 콜백이 읽는 자리**.
+   *
+   * 되읽기 효과가 `session` 자체를 의존성으로 잡고 있었고, 그 안에서 새
+   * 객체로 상태를 갈아 끼웠다. 그래서 효과가 자기를 다시 부르는 고리가 생겨
+   * `acp_status`·`acp_options`·`acp_session_title`·`acp_list_sessions` 가
+   * 화면이 보이는 내내 초당 수천 번씩 나갔다 (마지막 것은 어댑터로 나가는
+   * 진짜 왕복이라 Claude Code 프로세스까지 함께 두들겼다).
+   */
+  const sessionRef = useRef<AcpSession | null>(null);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+  /** 어댑터에 붙었는가 — 되읽기 구독을 걸지 말지의 유일한 근거다. */
+  const hasSession = session != null;
+  /**
    * 대화별 기록. **화면이 아니라 대화가 턴을 소유한다.**
    *
    * 예전엔 화면이 `turns` 하나를 들고 있어서, 답변 도중 다른 대화로 넘어가면
@@ -182,7 +207,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const [transcripts, setTranscripts] = useState<Record<string, AcpTurn[]>>({});
   const editTurns = useCallback(
     (id: string, update: (prev: AcpTurn[]) => AcpTurn[]) => {
-      setTranscripts((prev) => ({ ...prev, [id]: update(prev[id] ?? []) }));
+      setTranscripts((prev) => {
+        const before = prev[id] ?? EMPTY_TURNS;
+        const after = update(before);
+        // 리듀서가 **같은 배열**을 돌려주면 아무 일도 없었던 것이다 — 그때
+        // 새 지도를 만들면 화면 전체가 다시 그려진다(그리고 아무 것도 안
+        // 바뀐다). 버려지는 이벤트가 흔한 자리라 이 검사가 값을 한다.
+        return after === before ? prev : { ...prev, [id]: after };
+      });
     },
     [],
   );
@@ -426,76 +458,6 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 180) + "px";
   }, [draft]);
-
-  /**
-   * 설정을 주기적으로 되읽는다.
-   *
-   * 모델을 바꾸면 어댑터가 **권한 모드를 조용히 내릴 수 있다**(새 모델이 그
-   * 모드를 지원하지 않을 때). 그 사실은 우리 요청의 응답이 아니라 알림으로
-   * 오므로, 되읽지 않으면 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가
-   * 된다 — 사용자가 자동 승인될 거라 믿는 순간이라 그냥 두면 안 된다.
-   */
-  useEffect(() => {
-    if (!session) return;
-    const sync = () => {
-      // 안 보이는 동안에는 되읽지 않는다 — 이 값들은 **화면에만** 쓰이고,
-      // 화면이 keep-alive 로 살아 있는 한 이 타이머는 영원히 돈다. 돌아오면
-      // 다음 tick(≤4초)이 알아서 따라잡는다.
-      if (!isVisible()) return;
-      // 어댑터 생사부터 본다. 다른 조회는 백엔드 상태의 **로컬 읽기**라
-      // 프로세스가 죽어도 마지막 값을 돌려준다 — 죽음이 화면에 안 보였다.
-      void commands.acpStatus(projectId).then((res) => {
-        if (res.status !== "ok") return;
-        if (res.data) {
-          aliveRef.current = true;
-          setAgentGone(false);
-        } else if (aliveRef.current) {
-          aliveRef.current = false;
-          setAgentGone(true);
-        }
-      });
-      void commands.acpOptions(projectId).then((res) => {
-        if (res.status === "ok" && res.data.length) {
-          setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
-        }
-      });
-      // 제목은 에이전트가 대화를 보고 **나중에** 붙인다 — 같은 주기로 따라간다.
-      // 아직 안 만든 새 대화(`session_id === null`)에서는 건너뛴다: 백엔드에는
-      // 직전 대화가 남아 있어서 그 제목이 빈 화면에 되살아난다.
-      if (session?.session_id == null) return;
-      void commands.acpSessionTitle(projectId).then((res) => {
-        if (res.status === "ok") {
-          setSession((prev) =>
-            prev && prev.title !== res.data ? { ...prev, title: res.data } : prev,
-          );
-        }
-      });
-    };
-    // Phase 4 #events-over-polling — 4초 폴링 대신 백엔드의 세션 변화 이벤트
-    // (어댑터 생사·제목·설정·대화 목록). 창이 깨어날 때 한 번 더 맞춘다.
-    sync();
-    let off: (() => void) | undefined;
-    void events.acpSessionChanged
-      .listen((evt) => {
-        if (evt.payload.project_id !== projectId) return;
-        sync();
-      })
-      .then((fn) => {
-        off = fn;
-      })
-      .catch(() => {});
-    const onWake = () => {
-      if (document.visibilityState === "visible") sync();
-    };
-    window.addEventListener("focus", onWake);
-    document.addEventListener("visibilitychange", onWake);
-    return () => {
-      if (off) off();
-      window.removeEventListener("focus", onWake);
-      document.removeEventListener("visibilitychange", onWake);
-    };
-  }, [projectId, session, isVisible]);
-
 
   // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
   useEffect(() => {
@@ -793,14 +755,95 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     }
   }, [projectId, promptsOf]);
 
+  /**
+   * 설정·제목·어댑터 생사를 **백엔드가 알려 줄 때** 되읽는다.
+   *
+   * 모델을 바꾸면 어댑터가 **권한 모드를 조용히 내릴 수 있다**(새 모델이 그
+   * 모드를 지원하지 않을 때). 그 사실은 우리 요청의 응답이 아니라 알림으로
+   * 오므로, 되읽지 않으면 "Auto" 라 적힌 채 실제로는 Manual 로 도는 상태가
+   * 된다 — 사용자가 자동 승인될 거라 믿는 순간이라 그냥 두면 안 된다.
+   */
+  useEffect(() => {
+    if (!hasSession) return;
+    const sync = () => {
+      // 안 보이는 동안에는 되읽지 않는다 — 이 값들은 **화면에만** 쓰이고,
+      // 화면이 keep-alive 로 살아 있는 한 이 구독도 계속 산다. 돌아오면
+      // 깨어남 신호가 알아서 따라잡는다.
+      if (!isVisible()) return;
+      // 어댑터 생사부터 본다. 다른 조회는 백엔드 상태의 **로컬 읽기**라
+      // 프로세스가 죽어도 마지막 값을 돌려준다 — 죽음이 화면에 안 보였다.
+      void commands.acpStatus(projectId).then((res) => {
+        if (res.status !== "ok") return;
+        if (res.data) {
+          aliveRef.current = true;
+          setAgentGone(false);
+        } else if (aliveRef.current) {
+          aliveRef.current = false;
+          setAgentGone(true);
+        }
+      });
+      void commands.acpOptions(projectId).then((res) => {
+        if (res.status !== "ok" || !res.data.length) return;
+        // **달라졌을 때만** 갈아 끼운다 (사연은 acpOptions.ts 에). 같은 값을
+        // 새 객체로 넣으면 이 효과가 스스로를 다시 불러 끝없이 돈다.
+        setSession((prev) =>
+          prev && !sameOptions(prev.options, res.data) ? { ...prev, options: res.data } : prev,
+        );
+      });
+      // 제목은 에이전트가 대화를 보고 **나중에** 붙인다 — 알림을 따라간다.
+      // 아직 안 만든 새 대화(`session_id === null`)에서는 건너뛴다: 백엔드에는
+      // 직전 대화가 남아 있어서 그 제목이 빈 화면에 되살아난다.
+      //
+      // 최신값은 ref 로 읽는다 — `session` 을 의존성에 넣으면 위와 같은 고리가
+      // 다시 생기고, 제목이 하나 바뀔 때마다 구독을 새로 걸기까지 한다.
+      if (sessionRef.current?.session_id == null) return;
+      void commands.acpSessionTitle(projectId).then((res) => {
+        if (res.status === "ok") {
+          setSession((prev) =>
+            prev && prev.title !== res.data ? { ...prev, title: res.data } : prev,
+          );
+        }
+      });
+    };
+    // Phase 4 #events-over-polling — 4초 폴링 대신 백엔드의 세션 변화 이벤트
+    // (어댑터 생사·제목·설정·대화 목록). 창이 깨어날 때 한 번 더 맞춘다.
+    sync();
+    let off: (() => void) | undefined;
+    void events.acpSessionChanged
+      .listen((evt) => {
+        if (evt.payload.project_id !== projectId) return;
+        sync();
+        // 목록의 **내용**이 바뀌는 종류만 다시 읽는다. 뒤에서 도는 대화의
+        // 제목은 이 길로만 탭에 닿는다 — 제목은 이제 그 대화의 칸에 들어가서
+        // 보고 있는 화면의 상태(`session.title`)로는 오지 않는다.
+        if (HISTORY_KINDS.has(evt.payload.kind)) void refreshHistory();
+      })
+      .then((fn) => {
+        off = fn;
+      })
+      .catch(() => {});
+    const onWake = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      if (off) off();
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
+  }, [projectId, hasSession, isVisible, refreshHistory]);
+
   // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
   // 에이전트가 대화를 보고 붙이고 그 알림은 만든 직후 한 번뿐이라, 지난 대화를
   // 열면 알림이 다시 오지 않아 탭이 영영 "제목 없는 대화"로 남았다. 목록은
   // 어댑터가 들고 있는 **완성된 제목**을 언제든 준다.
   useEffect(() => {
-    if (!session) return;
+    if (!hasSession) return;
     void refreshHistory();
-  }, [session, refreshHistory]);
+    // `session` 객체가 아니라 **어느 대화인가**에 걸린다 — 객체를 잡으면 제목·
+    // 설정이 바뀔 때마다 어댑터로 목록 조회가 한 번씩 더 나간다.
+  }, [hasSession, session?.session_id, refreshHistory]);
 
   // 목록의 제목으로 탭을 메운다 (이름표를 붙인 탭은 건드리지 않는다 — 그쪽이 이긴다).
   useEffect(() => {

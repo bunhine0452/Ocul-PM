@@ -395,6 +395,10 @@ pub async fn acp_set_config_option(
         return Err(AppError::code("acp_not_running"));
     };
 
+    // 어느 대화의 설정인지 붙잡아 둔다 — 요청이 도는 동안 사용자가 탭을 옮기면
+    // 장부의 "보고 있는 대화"는 이미 다른 것이다. 그때 그 대화의 칸에 값을
+    // 적으면 **건드리지도 않은 대화의 모델이 바뀐 것처럼** 보인다.
+    let target = session.0.to_string();
     connection
         .send_request(SetSessionConfigOptionRequest::new(
             session,
@@ -406,8 +410,8 @@ pub async fn acp_set_config_option(
         .map_err(|e| AppError::new("acp_config_failed", e.to_string()))?;
 
     let state = app.state::<AcpState>();
-    state.patch_option(project_id, &config_id, &value);
-    Ok(state.options(project_id))
+    state.patch_option(project_id, &target, &config_id, &value);
+    Ok(state.options_of(project_id, &target))
 }
 
 /// 권한 카드의 선택을 전달한다. `option_id` 가 `None` 이면 거절(취소)로 닫는다.

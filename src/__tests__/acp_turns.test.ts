@@ -91,6 +91,50 @@ describe("closeTurn", () => {
 
     expect(turns[1].text).toBe("");
   });
+
+  it("returns the same array when the turn is already closed", () => {
+    const closed = closeTurn(openTurn([], "ask"));
+    expect(closeTurn(closed)).toBe(closed);
+  });
+});
+
+// 아무 것도 안 한 자리는 **받은 배열을 그대로** 돌려줘야 한다.
+//
+// 새 배열을 만들면 호출부(`editTurns`)는 그것을 "바뀌었다"로 읽고 기록 지도를
+// 새로 짓는다 — 묶음 나누기도 `TurnRow` memo 도 통째로 헛돈다. 취소한 턴에
+// 청크가 계속 흘러 들어오는 구간에서는 프레임마다 스레드 전체가 다시 그려지고
+// 화면에는 아무 변화가 없다.
+describe("reference identity of discarded events", () => {
+  it("a late chunk on a closed turn", () => {
+    const turns = closeTurn(openTurn([], "ask"));
+    expect(applyAcpEvent(turns, chunk("late"))).toBe(turns);
+  });
+
+  it("a kind with nowhere to draw it (usage, permission, config)", () => {
+    const turns = openTurn([], "ask");
+    const usage: AcpEvent = { kind: "usage", used: 10, size: 200, cost_usd: null };
+    expect(applyAcpEvent(turns, usage)).toBe(turns);
+  });
+
+  it("a live user echo we already drew ourselves", () => {
+    const turns = openTurn([], "ask");
+    const echo: AcpEvent = { kind: "user_chunk", text: "ask" };
+    expect(applyAcpEvent(turns, echo)).toBe(turns);
+  });
+
+  it("a file-change report with no turn to attach it to", () => {
+    const turns: AcpTurn[] = [];
+    const report: AcpEvent = {
+      kind: "file_change_report",
+      request_id: "req-1",
+      paths: [],
+      complete: true,
+      truncated: false,
+      uncertainty: null,
+      unavailable: null,
+    };
+    expect(applyAcpEvent(turns, report)).toBe(turns);
+  });
 });
 
 // ─── PR-ACP3 — 도구 호출 카드 누적 ───────────────────────────────────────────
